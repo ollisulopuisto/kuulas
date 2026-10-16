@@ -1745,6 +1745,18 @@ so fast shuttle stays intelligible. Mouse scrub: dragging on the ruler
 scrubs at the drag velocity, tape-style, with the same 2× switch to grains.
 Skimming (WP19g) uses the same grain renderer.
 
+**Making scrubbing feel immediate without a native engine** (allowed tactics,
+in order of value; measure each before keeping it):
+1. a background thread keeps about ±10 s of the finished stereo mix around
+   the playhead in memory, so scrub grains resample from RAM and never run
+   the mixer per grain (invalidate the cache on any edit);
+2. a separate small-buffer output stream (256–512 frames) used only while
+   scrubbing;
+3. the playhead and waveform move with the pointer at once, and the audio
+   follows;
+4. extrapolate pointer or JKL velocity a few ms ahead when picking the grain;
+5. cheap linear resampling while moving fast, proper resampling as it slows.
+
 Engine API: `play(at, rate=1.0, preserve_pitch=True, until=None, skip=None)`
 and `scrub(rate)` (continuous, negative = backward).
 
