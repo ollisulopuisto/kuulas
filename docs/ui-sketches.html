@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>kuulas UI sketches</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;700;800&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+
+/* Layout: one reading column; a level-meter strip summarises state, then the requirement lanes, then plain lists. */
+:root {
+  --bg: #f3f6f5;
+  --panel: #ffffff;
+  --ink: #15201d;
+  --muted: #5b6b66;
+  --rule: #d6dfdc;
+  --accent: #0e7c66;
+  --done: #0e7c66;
+  --core: #3d8f7e;
+  --progress: #b7791f;
+  --planned: #8a9792;
+  --pill-ink: #ffffff;
+  --must: #b4322e;
+  --sk-a: #2f6db5; --sk-a-bg: #e3edf8; --sk-v: #8a4fb0; --sk-v-bg: #f0e6f6;
+  --sk-z: #a8641c; --sk-z-bg: #f7ecdf; --sk-m: #3d8f7e; --sk-m-bg: #e2f1ed;
+  --sk-sync: #0e7c66; --rec-bg: #17201d; --rec-ink: #f1f5f3;
+  --display: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --body: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1614; --panel: #16201d; --ink: #e4ece9; --muted: #95a6a0; --rule: #2a3733;
+    --accent: #3fc4a4; --done: #2fae8f; --core: #5aa596; --progress: #d79a3c; --planned: #6c7b76;
+    --pill-ink: #0f1614; --must: #ef7a72; --sk-a: #7fb0ec; --sk-a-bg: #1b2a3b; --sk-v: #c79be3; --sk-v-bg: #2a2034; --sk-z: #e0a463; --sk-z-bg: #33281b; --sk-m: #6fc7b2; --sk-m-bg: #183029; --sk-sync: #3fc4a4; --rec-bg: #0a100e; --rec-ink: #f1f5f3; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1614; --panel: #16201d; --ink: #e4ece9; --muted: #95a6a0; --rule: #2a3733;
+  --accent: #3fc4a4; --done: #2fae8f; --core: #5aa596; --progress: #d79a3c; --planned: #6c7b76;
+  --pill-ink: #0f1614; --must: #ef7a72; --sk-a: #7fb0ec; --sk-a-bg: #1b2a3b; --sk-v: #c79be3; --sk-v-bg: #2a2034; --sk-z: #e0a463; --sk-z-bg: #33281b; --sk-m: #6fc7b2; --sk-m-bg: #183029; --sk-sync: #3fc4a4; --rec-bg: #0a100e; --rec-ink: #f1f5f3; color-scheme: dark;
+}
+
+body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.55; margin: 0; }
+.wrap { max-width: 1000px; margin: 0 auto; padding: 32px 16px 64px; }
+h2 { font-family: var(--display); font-size: 22px; margin: 0 0 8px; }
+/* ---- UI sketches: wireframes in the page's own tokens ---- */
+#sketches { display: grid; gap: 22px; }
+.sk-lede { margin: -4px 0 0; color: var(--muted); max-width: 70ch; }
+.sk { margin: 0; display: grid; gap: 8px; min-width: 0; }
+.sk figcaption { font-size: 14px; color: var(--muted); max-width: 80ch; }
+.sk figcaption b { color: var(--ink); margin-right: 6px; }
+.sk-scroll { overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); }
+.sk kbd, .sketch-kbd { font: 500 10.5px var(--mono); border: 1px solid var(--rule); border-bottom-width: 2px;
+  border-radius: 3px; padding: 0 4px; background: var(--bg); color: var(--ink); white-space: nowrap; }
+.app { min-width: 860px; font-size: 12px; display: grid; }
+.tb { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--rule); }
+.key-btn { font-weight: 700; }
+.tc { font: 600 15px var(--mono); font-variant-numeric: tabular-nums; }
+.chip { border: 1px solid var(--rule); border-radius: 999px; padding: 2px 8px; color: var(--muted); }
+.chip.speed { color: var(--progress); border-color: var(--progress); font-weight: 600; }
+.chip.ok { color: var(--accent); border-color: var(--accent); }
+.chip.job { color: var(--ink); }
+.chip.focus { color: var(--ink); border-color: var(--ink); font-weight: 600; }
+.tabs { display: flex; gap: 2px; margin-inline: 6px; }
+.tab { padding: 3px 9px; border: 1px solid var(--rule); border-radius: 4px 4px 0 0; color: var(--muted); }
+.tab.on { color: var(--ink); border-bottom-color: var(--panel); font-weight: 600; }
+.main { display: grid; grid-template-columns: 170px 1fr; }
+.heads { border-right: 1px solid var(--rule); display: grid; grid-auto-rows: min-content; }
+.ruler-pad { height: 20px; border-bottom: 1px solid var(--rule); }
+.head { height: 48px; padding: 5px 8px; border-bottom: 1px solid var(--rule); display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.head.bus { height: 30px; color: var(--muted); }
+.head.strip { height: 16px; padding: 0 8px; font-size: 10px; color: var(--muted); }
+.head.big { height: 150px; align-content: start; }
+.head.focus-cursor { box-shadow: inset 3px 0 0 var(--accent); }
+.tag { font: 500 9.5px var(--mono); text-transform: uppercase; letter-spacing: .04em; border-radius: 3px; padding: 1px 5px; border: 1px solid; }
+.tag.sp { color: var(--sk-a); } .tag.mix { color: var(--sk-z); } .tag.mu { color: var(--sk-m); }
+.ms { display: inline-flex; gap: 3px; margin-left: auto; }
+.ms i { font: 600 10px var(--mono); font-style: normal; width: 16px; height: 16px; display: grid; place-items: center; border: 1px solid var(--rule); border-radius: 3px; color: var(--muted); }
+.ms i.on { background: var(--progress); color: var(--pill-ink); border-color: var(--progress); }
+.sync { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+.sync.g1 { background: var(--sk-sync); }
+.tl { position: relative; display: grid; grid-auto-rows: min-content; overflow: hidden; }
+.ruler { height: 20px; display: flex; justify-content: space-between; padding: 0 6px; border-bottom: 1px solid var(--rule);
+  font: 10px var(--mono); color: var(--muted); align-items: center; }
+.lane { position: relative; height: 48px; border-bottom: 1px solid var(--rule); }
+.lane.strip { height: 16px; }
+.lane.big { height: 150px; }
+.lane.buslane { height: 30px; background: repeating-linear-gradient(90deg, transparent 0 40px, var(--rule) 40px 41px); opacity: .5; }
+.clip { position: absolute; top: 2px; bottom: 2px; border-radius: 3px; border: 1px solid; overflow: hidden; }
+.c-anna { background: var(--sk-a-bg); border-color: var(--sk-a); color: var(--sk-a); }
+.c-ville { background: var(--sk-v-bg); border-color: var(--sk-v); color: var(--sk-v); }
+.c-zoom { background: var(--sk-z-bg); border-color: var(--sk-z); color: var(--sk-z); }
+.c-music { background: var(--sk-m-bg); border-color: var(--sk-m); color: var(--sk-m); }
+.clip.sel { box-shadow: 0 0 0 2px var(--ink); }
+.clip.muted { opacity: .4; background-image: repeating-linear-gradient(135deg, transparent 0 5px, var(--rule) 5px 6px); }
+.clip.xf::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 10px;
+  background: linear-gradient(to bottom right, var(--ink) 0 50%, transparent 50%); opacity: .25; }
+.wave { position: absolute; inset: 0; }
+.wave svg { width: 100%; height: 100%; display: block; }
+.wave rect { fill: currentColor; opacity: .75; }
+.gain { position: absolute; left: 0; right: 0; height: 0; border-top: 1px dashed var(--ink); opacity: .7; }
+.gain i { position: absolute; top: -3px; width: 6px; height: 6px; border-radius: 50%; background: var(--ink); }
+.duck { position: absolute; left: 40%; width: 12%; bottom: 3px; height: 8px; border: 1px solid var(--ink); border-bottom: 0;
+  border-radius: 3px 3px 0 0; opacity: .5; }
+.bed { position: absolute; inset: auto 0 3px 0; height: 12px;
+  background: linear-gradient(90deg, transparent 0 4%, var(--ink) 4% 5%, transparent 5%); opacity: .35; }
+.badge { position: absolute; right: 6px; top: 3px; font: 600 10px var(--mono); color: var(--must); background: var(--panel);
+  border: 1px solid var(--must); border-radius: 3px; padding: 0 4px; }
+.link { position: absolute; left: 4px; top: 2px; font-size: 11px; color: var(--ink); }
+.inout { position: absolute; top: 20px; bottom: 0; background: color-mix(in srgb, var(--ink) 7%, transparent); z-index: 1; display: flex; justify-content: space-between; }
+.inout span { font: 700 10px var(--mono); padding: 2px; opacity: 1; color: var(--ink); }
+.cand { position: absolute; top: 20px; bottom: 0; background: color-mix(in srgb, var(--must) 14%, transparent); z-index: 1; }
+.cand span { position: absolute; top: 2px; left: 4px; font-size: 10px; color: var(--ink); opacity: 1; white-space: nowrap; }
+.playhead { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px solid var(--must); z-index: 2; }
+.playhead::before { content: ""; position: absolute; top: 0; left: -6px; border: 5px solid transparent; border-top: 7px solid var(--must); }
+.bottom { display: grid; grid-template-columns: 1fr 260px; border-top: 1px solid var(--rule); }
+.tx { padding: 10px 12px; display: grid; gap: 6px; font-size: 13px; line-height: 1.5; }
+.tx p { margin: 0; }
+.tx p.dim { opacity: .55; }
+.tx b { margin-right: 6px; }
+.sp-anna { color: var(--sk-a); } .sp-ville { color: var(--sk-v); } .sp-zoom { color: var(--sk-z); }
+.w.now { background: var(--sk-sync); color: var(--pill-ink); border-radius: 2px; padding: 0 2px; }
+.w.cand-w { background: color-mix(in srgb, var(--must) 22%, transparent); border-radius: 2px; }
+.w.struck { text-decoration: line-through; opacity: .5; }
+.w.cw { border-bottom: 1px dotted var(--ink); }
+.hint { font-size: 11px; color: var(--muted); }
+.insp { border-left: 1px solid var(--rule); padding: 8px 10px; }
+.itabs { display: flex; gap: 10px; font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+.itabs .on { color: var(--ink); font-weight: 600; border-bottom: 2px solid var(--accent); }
+.insp dl, .res { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 0; font-size: 12px; }
+.insp dt, .res dt { color: var(--muted); }
+.insp dd, .res dd { margin: 0; }
+.st { font: 500 9.5px var(--mono); border-radius: 3px; padding: 0 4px; border: 1px solid; }
+.st.rt { color: var(--accent); } .st.rd { color: var(--progress); }
+.kbar { border-top: 1px solid var(--rule); padding: 6px 10px; font-size: 11px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.autoband { position: absolute; left: 0; right: 0; bottom: 4px; height: 44px; border-top: 1px solid var(--rule); background: var(--bg); opacity: .92; }
+.autoband svg { width: 100%; height: 34px; display: block; }
+.autoband polyline { fill: none; stroke: var(--ink); stroke-width: .6; vector-effect: non-scaling-stroke; }
+.autoband circle { fill: var(--ink); }
+.autoband span { position: absolute; right: 6px; bottom: 2px; font-size: 10px; color: var(--muted); }
+.sk-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 22px; }
+.panel { border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); padding: 10px 12px; display: grid; gap: 10px; min-width: 0; }
+.ph { font-weight: 700; font-size: 13px; }
+.cands { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; font-size: 12px; }
+.cands li { display: grid; grid-template-columns: 54px 40px minmax(0, 1fr) auto; gap: 8px; padding: 4px 6px; border-radius: 4px; align-items: center; }
+.rlog .cands li { grid-template-columns: 44px minmax(0, 1fr) auto; }
+.cands li.cur { background: color-mix(in srgb, var(--accent) 14%, transparent); box-shadow: inset 2px 0 0 var(--accent); }
+.cands .t, .cands .d { font: 11px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.cands .x { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cands .s { font: 500 9.5px var(--mono); text-transform: uppercase; border: 1px solid; border-radius: 3px; padding: 0 4px; }
+.s.open { color: var(--must); } .s.done { color: var(--accent); } .s.kept { color: var(--muted); }
+.prev { display: grid; grid-template-columns: 2fr 2.4fr 2fr; height: 22px; border-radius: 4px; overflow: hidden; font-size: 10px; text-align: center; line-height: 22px; }
+.prev .pre, .prev .post { background: var(--sk-v-bg); color: var(--sk-v); }
+.prev .skip { background: repeating-linear-gradient(135deg, transparent 0 5px, var(--rule) 5px 6px); color: var(--muted); text-decoration: line-through; }
+.mini { display: grid; gap: 6px; }
+.mlane { position: relative; height: 40px; }
+.ml { position: absolute; left: 0; top: -1px; font-size: 10px; color: var(--muted); z-index: 1; }
+.mlane .clip { top: 12px; bottom: 0; }
+.flag { position: absolute; top: 0; bottom: 0; border-left: 2px solid var(--ink); font: 700 9px var(--mono); color: var(--ink); padding-left: 2px; }
+.rec { min-width: 760px; background: var(--rec-bg); color: var(--rec-ink); border-radius: 6px; overflow: hidden; }
+.rbanner { background: var(--must); color: #fff; font: 700 12px var(--mono); letter-spacing: .04em; padding: 6px 12px; }
+.rbody { display: grid; grid-template-columns: 1.3fr 1fr; gap: 18px; padding: 16px; }
+.rleft { display: grid; gap: 12px; align-content: start; }
+.rtime { font: 700 54px var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.meters { display: grid; gap: 8px; }
+.mt { display: grid; grid-template-columns: 110px 1fr auto; gap: 8px; align-items: center; font-size: 12px; }
+.mt i { height: 10px; border-radius: 2px; background: linear-gradient(90deg, #2fae8f 0 70%, #d79a3c 70% 88%, #ef7a72 88%); }
+.mt b { font: 700 10px var(--mono); color: #ef7a72; }
+.stop { position: relative; height: 40px; border: 2px solid var(--rec-ink); border-radius: 6px; overflow: hidden; display: grid; place-items: center; }
+.stop .fill { position: absolute; left: 0; top: 0; bottom: 0; background: color-mix(in srgb, var(--must) 55%, transparent); }
+.stop .lbl { position: relative; font-weight: 700; }
+.rec .hint { color: color-mix(in srgb, var(--rec-ink) 70%, transparent); }
+.rec kbd { background: transparent; color: var(--rec-ink); border-color: color-mix(in srgb, var(--rec-ink) 40%, transparent); }
+.rlog { border-left: 1px solid color-mix(in srgb, var(--rec-ink) 25%, transparent); padding-left: 16px; display: grid; gap: 8px; align-content: start; }
+.rlog .cands .t { color: color-mix(in srgb, var(--rec-ink) 65%, transparent); }
+.edit { border-bottom: 1px solid var(--rec-ink); }
+
+</style></head><body><div class="wrap">
+<!-- Visual target for the UI work packages (docs/PLAN.md). Same markup as the
+     "UI sketches" section of the published roadmap page. -->
+  <section id="sketches" aria-labelledby="sk-h">
+    <h2 id="sk-h">UI sketches</h2>
+    <p class="sk-lede">Wireframes for the UI work packages (WP4–WP8, WP12, WP18, WP28). They show layout and behaviour, not final styling. Every action shown has its key next to it, because the editor must work without a mouse.</p>
+
+    <!-- 1. Main edit screen -->
+    <figure class="sk">
+      <figcaption><b>1 · Edit screen</b> Tracks, transcript and inspector on one screen. Half waveforms (Hindenburg style), clip gain lines, ducking curves, crossfades at cuts, a muted piece, a cut candidate and in/out.</figcaption>
+      <div class="sk-scroll"><div class="app">
+        <div class="tb">
+          <span class="key-btn">▶ <kbd>Space</kbd></span>
+          <span class="tc">00:12:34.567</span>
+          <span class="chip speed">1.5× <kbd>.</kbd></span>
+          <span class="tabs"><span class="tab on">Pistejulkaisu · 58:41</span><span class="tab">Minisarja 1 · 19:58</span><span class="tab">Minisarja 2 · 20:05</span><span class="tab add">+ <kbd>⌥⌘N</kbd></span></span>
+          <span class="chip">Tab: edges <kbd>'</kbd></span>
+          <span class="chip ok">Group editing on <kbd>⌘G</kbd></span>
+          <span class="chip job">Transcribing 2/3</span>
+        </div>
+        <div class="main">
+          <div class="heads">
+            <div class="ruler-pad"></div>
+            <div class="head h-anna"><b>Anna</b><span class="tag sp">speech</span><span class="ms"><i>M</i><i>S</i></span><span class="sync g1" title="sync group 1"></span></div>
+            <div class="head h-ville focus-cursor"><b>Ville</b><span class="tag sp">speech</span><span class="ms"><i>M</i><i class="on">S</i></span><span class="sync g1"></span></div>
+            <div class="head h-zoom"><b>Zoom: Pekka</b><span class="tag mix">speech mix</span><span class="ms"><i>M</i><i>S</i></span><span class="sync g1"></span></div>
+            <div class="head h-music"><b>Tunnari</b><span class="tag mu">music</span><span class="ms"><i>M</i><i>S</i></span></div>
+            <div class="head bus"><b>Bus: Voices</b><span class="ms"><i>M</i></span></div>
+          </div>
+          <div class="tl">
+            <div class="ruler"><span>12:20</span><span>12:25</span><span>12:30</span><span>12:35</span><span>12:40</span><span>12:45</span></div>
+            <div class="inout" style="left:58%;width:14%"><span>I</span><span>O</span></div>
+            <div class="cand" style="left:30%;width:9%"><span>cut? <kbd>Enter</kbd> / <kbd>⌫</kbd></span></div>
+            <div class="lane">
+              <div class="clip c-anna" style="left:0;width:47%"><div class="wave" data-seed="3" data-talk="0.1-0.45,0.62-0.95"></div><div class="gain" style="top:38%"></div><div class="duck"></div></div>
+              <div class="clip c-anna xf" style="left:47%;width:53%"><div class="wave" data-seed="4" data-talk="0.05-0.3,0.7-0.98"></div><div class="gain" style="top:38%"></div></div>
+            </div>
+            <div class="lane">
+              <div class="clip c-ville sel" style="left:0;width:47%"><div class="wave" data-seed="7" data-talk="0.48-0.62"></div><div class="gain" style="top:30%"><i style="left:40%"></i><i style="left:70%;top:-6px"></i></div></div>
+              <div class="clip c-ville muted" style="left:47%;width:20%"><div class="wave" data-seed="8" data-talk=""></div></div>
+              <div class="clip c-ville" style="left:67%;width:33%"><div class="wave" data-seed="9" data-talk="0.1-0.6"></div></div>
+            </div>
+            <div class="lane">
+              <div class="clip c-zoom" style="left:4%;width:96%"><div class="wave" data-seed="12" data-talk="0.3-0.4,0.75-0.9"></div><span class="badge">−312 ms</span></div>
+            </div>
+            <div class="lane">
+              <div class="clip c-music" style="left:55%;width:45%"><div class="wave" data-seed="15" data-talk="0-1"></div><div class="bed"></div><span class="link" title="connected to the speech">⛓</span></div>
+            </div>
+            <div class="lane buslane"></div>
+            <div class="playhead" style="left:63%"></div>
+          </div>
+        </div>
+        <div class="bottom">
+          <div class="tx">
+            <p><b class="sp-anna">Anna</b> Mitä sä ajattelit siitä <span class="w">kun</span> <span class="w">ne</span> <span class="w cw">julkaisi</span> sen <span class="w cand-w">niinku öö siis</span> raportin?</p>
+            <p><b class="sp-ville">Ville</b> No <span class="w struck">mm</span> mä luin sen <span class="w now">kahteen</span> kertaan ja…</p>
+            <p class="dim"><b class="sp-zoom">Pekka</b> Joo, se oli pitkä.</p>
+            <div class="hint">Click a word to jump · select words + <kbd>⌫</kbd> cuts all tracks · <kbd>Enter</kbd> corrects a word</div>
+          </div>
+          <div class="insp">
+            <div class="itabs"><span class="on">Clip</span><span>History</span><span>Markers</span></div>
+            <dl><dt>Gain</dt><dd>−2.5 dB <kbd>⇧⌘↑↓</kbd></dd><dt>Pan</dt><dd>L 10 <kbd>⇧⌥←→</kbd></dd><dt>Fades</dt><dd>in 0 · out 30 ms</dd><dt>Sync</dt><dd><span class="sync g1"></span> group 1 · in sync</dd><dt>Layers</dt><dd>dxRevive <span class="st rt">real-time</span><br>Voice chain <span class="st rd">rendering 64 %</span></dd></dl>
+          </div>
+        </div>
+        <div class="kbar"><kbd>⌘K</kbd> commands · <kbd>⌘B</kbd> split · <kbd>⌘X</kbd> cut all tracks · <kbd>Q</kbd>/<kbd>W</kbd> trim · <kbd>J K L</kbd> shuttle · <kbd>F</kbd> focus · <kbd>?</kbd> all keys</div>
+      </div></div>
+    </figure>
+
+    <!-- 2. Focus mode -->
+    <figure class="sk">
+      <figcaption><b>2 · Focus mode</b> <kbd>F</kbd> focuses Ville (every track of that speaker). The other tracks shrink to 16 px strips that keep their clip edges visible for sync. The ducking curve becomes an editable band. <kbd>⇧F</kbd> also solos, and <kbd>Esc</kbd> leaves focus.</figcaption>
+      <div class="sk-scroll"><div class="app">
+        <div class="tb"><span class="chip focus">Focus: Ville <kbd>Esc</kbd></span><span class="chip">↑↓ next speaker</span></div>
+        <div class="main">
+          <div class="heads">
+            <div class="ruler-pad"></div>
+            <div class="head strip"><b>Anna</b></div>
+            <div class="head h-ville big"><b>Ville</b><span class="tag sp">speech</span></div>
+            <div class="head strip"><b>Zoom: Pekka</b></div>
+            <div class="head strip"><b>Tunnari</b></div>
+          </div>
+          <div class="tl">
+            <div class="ruler"><span>12:20</span><span>12:25</span><span>12:30</span><span>12:35</span><span>12:40</span><span>12:45</span></div>
+            <div class="lane strip"><div class="clip c-anna" style="left:0;width:47%"><div class="wave" data-seed="3" data-talk="0.1-0.45,0.62-0.95"></div></div><div class="clip c-anna" style="left:47%;width:53%"><div class="wave" data-seed="4" data-talk="0.05-0.3,0.7-0.98"></div></div></div>
+            <div class="lane big">
+              <div class="clip c-ville" style="left:0;width:47%"><div class="wave" data-seed="7" data-talk="0.48-0.62"></div><div class="gain" style="top:22%"></div></div>
+              <div class="clip c-ville muted" style="left:47%;width:20%"><div class="wave" data-seed="8" data-talk=""></div></div>
+              <div class="clip c-ville" style="left:67%;width:33%"><div class="wave" data-seed="9" data-talk="0.1-0.6"></div></div>
+              <div class="autoband"><svg viewBox="0 0 100 20" preserveAspectRatio="none" aria-hidden="true"><polyline points="0,3 20,3 23,15 45,15 48,3 70,3 73,15 100,15"></polyline><circle cx="20" cy="3" r="1.2"></circle><circle cx="23" cy="15" r="1.2"></circle><circle cx="45" cy="15" r="1.2"></circle><circle cx="48" cy="3" r="1.2"></circle></svg><span>ducking −9 dB · drag points</span></div>
+            </div>
+            <div class="lane strip"><div class="clip c-zoom" style="left:4%;width:96%"><div class="wave" data-seed="12" data-talk="0.3-0.4,0.75-0.9"></div></div></div>
+            <div class="lane strip"><div class="clip c-music" style="left:55%;width:45%"><div class="wave" data-seed="15" data-talk="0-1"></div></div></div>
+            <div class="playhead" style="left:40%"></div>
+          </div>
+        </div>
+      </div></div>
+    </figure>
+
+    <div class="sk-pair">
+      <!-- 3. Second listen -->
+      <figure class="sk">
+        <figcaption><b>3 · Second listen</b> Candidates marked with <kbd>D</kbd> on the first pass. <kbd>]</kbd>/<kbd>[</kbd> steps through them. <kbd>⇧Space</kbd> plays the candidate as if it were already cut, then <kbd>Enter</kbd> cuts it or <kbd>⌫</kbd> keeps it.</figcaption>
+        <div class="panel">
+          <div class="ph">Cut candidates · 7 open · 3 cut · 2 kept</div>
+          <ol class="cands">
+            <li class="cur"><span class="t">12:31.2</span><span class="d">2.4 s</span><span class="x">“niinku öö siis”</span><span class="s open">open</span></li>
+            <li><span class="t">14:02.8</span><span class="d">6.1 s</span><span class="x">“…mut se on eri juttu…”</span><span class="s open">open</span></li>
+            <li><span class="t">17:45.0</span><span class="d">0.9 s</span><span class="x">cough</span><span class="s done">cut</span></li>
+            <li><span class="t">21:10.4</span><span class="d">11.0 s</span><span class="x">“palataan tähän”</span><span class="s kept">kept</span></li>
+          </ol>
+          <div class="prev"><span class="pre">2 s</span><span class="skip">skipped 2.4 s</span><span class="post">2 s</span></div>
+          <div class="hint">Preview of the cut: 2 s before, the candidate skipped, 2 s after</div>
+        </div>
+      </figure>
+
+      <!-- 4. Sync points -->
+      <figure class="sk">
+        <figcaption><b>4 · Sync points</b> A Zoom recording and a local one. Set <kbd>⌥⌘1</kbd> on the same clap in each, and the second clip moves into place. A second pair near the end (<kbd>⌥⌘2</kbd>) measures clock drift.</figcaption>
+        <div class="panel">
+          <div class="mini">
+            <div class="mlane"><span class="ml">Zoom</span><div class="clip c-zoom" style="left:5%;width:90%"><div class="wave" data-seed="21" data-talk="0.1-0.3,0.5-0.9"></div><span class="flag" style="left:12%">1</span><span class="flag" style="left:88%">2</span></div></div>
+            <div class="mlane"><span class="ml">Ville local</span><div class="clip c-ville" style="left:9%;width:80%"><div class="wave" data-seed="22" data-talk="0.05-0.27,0.48-0.88"></div><span class="flag" style="left:9%">1</span><span class="flag" style="left:96%">2</span></div></div>
+          </div>
+          <dl class="res"><dt>Offset</dt><dd>moved −312 ms</dd><dt>Drift</dt><dd>+41 ms over 58 min · resampled copy made</dd><dt>Sync group</dt><dd><span class="sync g1"></span> group 1 · <kbd>⌥⌘R</kbd> resyncs any time</dd></dl>
+        </div>
+      </figure>
+    </div>
+
+    <!-- 5. Record mode -->
+    <figure class="sk">
+      <figcaption><b>5 · Record mode</b> A separate full-window mode that is hard to stop by accident. Only a 2-second hold stops it. You can log while recording: <kbd>M</kbd> drops a marker 3 s back, <kbd>D</kbd> marks a cut, <kbd>Enter</kbd> renames, <kbd>←→</kbd> moves the marker.</figcaption>
+      <div class="sk-scroll"><div class="rec">
+        <div class="rbanner">● RECORDING · take 3 · 48 kHz · 3 channels · 6 h 12 min of disk left</div>
+        <div class="rbody">
+          <div class="rleft">
+            <div class="rtime">00:41:07</div>
+            <div class="meters">
+              <div class="mt"><span>Anna</span><i style="width:62%"></i></div>
+              <div class="mt"><span>Ville</span><i style="width:48%"></i></div>
+              <div class="mt"><span>Pekka (phone)</span><i class="clip-l" style="width:96%"></i><b>CLIP</b></div>
+            </div>
+            <div class="stop"><span class="fill" style="width:40%"></span><span class="lbl">Hold to stop · 2 s <kbd>⇧⌘↩</kbd></span></div>
+            <div class="hint">Space, Esc and everything else are ignored. Closing the window does not stop recording.</div>
+          </div>
+          <div class="rlog">
+            <div class="ph">Log</div>
+            <ol class="cands">
+              <li><span class="t">05:12</span><span class="x">Hyvä aloitus</span></li>
+              <li><span class="t">18:40</span><span class="x">cut: puhelin soi</span><span class="s open">cut</span></li>
+              <li class="cur"><span class="t">40:58</span><span class="x"><span class="edit">Pekan tarina|</span></span></li>
+            </ol>
+            <div class="hint"><kbd>M</kbd> marker (3 s back) · <kbd>↑↓</kbd> select · <kbd>←→</kbd> move · <kbd>⌫</kbd> delete</div>
+          </div>
+        </div>
+      </div></div>
+    </figure>
+  </section>
+
+</div>
+<script>
+// ---- UI sketches: half waveforms (Hindenburg style), drawn from a seed ----
+function seeded(seed) {
+  let x = seed * 9301 + 49297;
+  return () => { x = (x * 9301 + 49297) % 233280; return x / 233280; };
+}
+function drawWave(el) {
+  const rnd = seeded(Number(el.dataset.seed) || 1);
+  const talk = (el.dataset.talk || "").split(",").filter(Boolean)
+    .map((r) => r.split("-").map(Number));
+  const n = 160;
+  let bars = "";
+  for (let i = 0; i < n; i++) {
+    const pos = i / n;
+    const speaking = talk.some(([a, b]) => pos >= a && pos <= b);
+    const syllable = 0.55 + 0.45 * Math.abs(Math.sin(i * 0.9 + rnd() * 2));
+    const h = speaking ? 6 + 30 * syllable * (0.5 + rnd() * 0.5) : 1 + rnd() * 2.5;
+    bars += `<rect x="${i * 2}" y="${40 - h}" width="1.4" height="${h.toFixed(1)}"></rect>`;
+  }
+  el.innerHTML = `<svg viewBox="0 0 ${n * 2} 40" preserveAspectRatio="none" aria-hidden="true">${bars}</svg>`;
+}
+for (const el of document.querySelectorAll("#sketches .wave")) drawWave(el);
+</script>
+</body></html>

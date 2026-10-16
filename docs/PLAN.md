@@ -185,80 +185,87 @@ phases later, it costs a rewrite.
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 1 | WP0 baseline, lint, first commit | S | none | Haiku 5.5 |
-| 2 | WP24.1 solo rules | S | none | Haiku 5.5 |
-| 3 | WP29 project format v1 (docs/FORMAT.md) | L | material vs edit state, migrations, lock | **Opus 5.5** |
-| 3b | WP30 recording clock in flicks, sync per media | M | changes the sync model without changing behaviour | **Opus 5.5** |
-| 3c | WP1 session | M | import as one sync group, one commit | Sonnet 5.5 |
-| 4 | WP2 playback engine | M | glitch-free real-time callback, prefetch | **Opus 5.5** |
-| 5 | WP3 HTTP API + CLI | M | none | Sonnet 5.5 |
+| 1 | WP0 baseline, lint, first commit (done) | S | none | Haiku 5.5 |
+| 2 | WP24.1 solo rules (done) | S | none | Haiku 5.5 |
+| 3 | **★ WP29 project format v1 (R35, docs/FORMAT.md)** | L | material vs edit state, migrations, lock | **Opus 5.5** |
+| 4 | **★ WP30 recording clock in flicks, sync per media (R35)** | M | changes the sync model without changing behaviour | **Opus 5.5** |
+| 5 | WP1 session | M | import as one sync group, one commit | Sonnet 5.5 |
+| 6 | WP2 playback engine | M | glitch-free real-time callback, prefetch | **Opus 5.5** |
+| 7 | WP3 HTTP API + CLI | M | none | Sonnet 5.5 |
 
 ### Phase 1 — MVP: an editor you can actually use
 
 Exit test: import a 2-mic interview, transcribe it, listen through at 1.5×,
-cut by text and by keyboard, automix, undo anything, export a mastered file.
+cut by text and by keyboard, Tab through transients, automix with a real-time
+plugin on a voice, undo anything, export a mastered file.
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 6 | WP4 UI shell + timeline | L | canvas drawing, zoom, hit-testing | Sonnet 5.5 |
-| 7 | **WP5 keymap + palette (R10)** | M | many bindings, collision test | Sonnet 5.5 |
-| 8 | WP22 track tags + ducking | S | music-bed curve from nhsx | Sonnet 5.5 |
-| 9 | WP8 history panel + stateful undo | M | ledger restore, context restore, change flash | Sonnet 5.5 |
-| 10 | WP6 mouse editing | M | drag state machine | Sonnet 5.5 |
-| 11 | WP9 jobs + local transcription | M | parallel faster-whisper | Sonnet 5.5 |
-| 12 | WP7 transcript panel | M | selection → word indices | Sonnet 5.5 |
-| 13 | WP11 export + mastering | M | parallel ordered render | Sonnet 5.5 |
-| 14 | **WP26 fast listening + JKL (R33, MUST)** | L | streaming time-stretch, JKL state machine | **Opus 5.5** |
+| 8 | WP4 UI shell + timeline | L | canvas drawing, zoom, hit-testing | Sonnet 5.5 |
+| 9 | **★ WP5 keymap + palette (R10)** | M | many bindings, collision test | Sonnet 5.5 |
+| 10 | **★ WP8 history panel + stateful undo (R29)** | M | ledger restore, context restore, change flash | Sonnet 5.5 |
+| 11 | **★ WP22 track tags + ducking (R30)** | S | music-bed curve from nhsx | Sonnet 5.5 |
+| 12 | **★ WP26 fast listening + JKL (R33)** | L | streaming time-stretch, JKL state machine | **Opus 5.5** |
+| 13 | **★ WP19i tab to transient / word (R26i)** | M | onset detection; word mode waits for WP7 | Sonnet 5.5 |
+| 14 | WP6 mouse editing | M | drag state machine | Sonnet 5.5 |
+| 15 | WP9 jobs + local transcription | M | parallel faster-whisper | Sonnet 5.5 |
+| 16 | WP7 transcript panel | M | selection → word indices | Sonnet 5.5 |
+| 17 | **★ WP23a FX layers: real-time tier + analyse-then-live tier (R30)** | L | real-time plugins in the callback, latency compensation, CPU meter | **Opus 5.5** |
+| 18 | WP11 export + mastering | M | parallel ordered render | Sonnet 5.5 |
 
 ### Phase 2 — The editing loop (what makes it better than Hindenburg)
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 14b | WP28 focus mode | M | lane layout, speaker focus, solo restore | Sonnet 5.5 |
-| 15 | WP18 cut candidates | M | recording-clock anchoring (later WPs reuse it) | **Opus 5.5** |
-| 16 | WP19a edit groups | S | edit scope rules | Haiku 5.5 |
-| 17 | WP19i tab to transient / word | M | onset detection | Sonnet 5.5 |
-| 18 | WP19f spot | S | parsing | Haiku 5.5 |
-| 19 | WP24.2 A/B | M | edit A/B position mapping, level match | Sonnet 5.5 |
-| 20 | WP21 several edits (versions) | L | history schema migration, offer_cuts | **Opus 5.5** |
-| 21 | WP20 paste without bloat | M | excerpt media keeping recorded time | Sonnet 5.5 |
-| 22 | WP19c roles, stems, match loudness | M | stems sum test | Sonnet 5.5 |
-| 23 | WP19d remappable keys + macros | M | macro = one undo step | Sonnet 5.5 |
-| 24 | WP19b connected clips | M | reflow after every edit | Sonnet 5.5 |
-| 25 | WP19h regions + batch export, chapters | S | none | Haiku 5.5 |
-| 26 | WP19g skimming | S | grain throttling | Sonnet 5.5 |
-| 27 | WP19e alternative takes | L | ripple on take length change | Sonnet 5.5 |
+| 19 | WP28 focus mode | M | lane layout, speaker focus, solo restore | Sonnet 5.5 |
+| 20 | WP18 cut candidates | M | recording-clock anchoring (later WPs reuse it) | **Opus 5.5** |
+| 21 | WP19a edit groups | S | edit scope rules | Haiku 5.5 |
+| 22 | WP19f spot | S | parsing | Haiku 5.5 |
+| 23 | WP24.2 A/B | M | edit A/B position mapping, level match | Sonnet 5.5 |
+| 24 | WP21 several edits (versions) | L | history schema migration, offer_cuts | **Opus 5.5** |
+| 25 | WP20 paste without bloat | M | excerpt media keeping recorded time | Sonnet 5.5 |
+| 26 | WP19c roles, stems, match loudness | M | stems sum test | Sonnet 5.5 |
+| 27 | WP19d remappable keys + macros | M | macro = one undo step | Sonnet 5.5 |
+| 28 | WP19b connected clips | M | reflow after every edit | Sonnet 5.5 |
+| 29 | WP19h regions + batch export, chapters | S | none | Haiku 5.5 |
+| 30 | WP19g skimming | S | grain throttling | Sonnet 5.5 |
+| 31 | WP19e alternative takes | L | ripple on take length change | Sonnet 5.5 |
 
 ### Phase 3 — Pipeline depth
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 28 | WP14 parallel analysis | S | none | Haiku 5.5 |
-| 29 | WP10 voice chain variants | M | variants, chain settings | Sonnet 5.5 |
-| 30 | WP25 music report | S | heard-duration rules | Haiku 5.5 |
-| 31 | WP13 Hindenburg import | M | `.nhsx` word clock | Sonnet 5.5 |
-| 32 | WP23 FX layers | **XL** | real-time plugins, latency compensation, CPU budget, render tier | **Opus 5.5** |
+| 32 | WP14 parallel analysis (done) | S | none | Haiku 5.5 |
+| 33 | WP10 voice chain variants | M | variants, chain settings | Sonnet 5.5 |
+| 34 | WP25 music report | S | heard-duration rules | Haiku 5.5 |
+| 35 | WP13 Hindenburg import | M | `.nhsx` word clock | Sonnet 5.5 |
+| 36 | WP23b FX layers: render tier, export waits, freeze on overload | L | background render, overload policy | **Opus 5.5** |
 
 ### Phase 4 — Recording and alignment
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 33 | WP12 recording, foolproof mode, live logging | L | hardware, crash recovery, sleep prevention | **Opus 5.5** |
-| 34 | WP17 clip bin | M | Space and in/out rules | Sonnet 5.5 |
-| 35 | WP16 align by sound | **XL** | drift and dropout detection | **Opus 5.5** |
+| 37 | WP12 recording, foolproof mode, live logging | L | hardware, crash recovery, sleep prevention | **Opus 5.5** |
+| 38 | WP17 clip bin | M | Space and in/out rules | Sonnet 5.5 |
+| 39 | WP16 align by sound | **XL** | drift and dropout detection | **Opus 5.5** |
 
 ### Phase 5 — Late
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 36 | WP27 settings + rate change | L | converts every position kind; do it when the model has stopped growing | **Opus 5.5** |
-| 37 | WP15 desktop wrapper | M | packaging | Sonnet 5.5 |
+| 40 | WP27 settings + rate change | L | converts every position kind; do it when the model has stopped growing | **Opus 5.5** |
+| 41 | WP15 desktop wrapper | M | packaging | Sonnet 5.5 |
 
 **Easiest wins:** WP0, WP24.1, WP22, WP19a, WP19f, WP19h, WP14, WP25.
 **Hardest, highest risk:** WP23 (real-time FX), WP16 (align by sound),
 WP12 (recording), WP26 (streaming time-stretch), WP27 (rate change), WP21
 (schema migration), WP2 (real-time engine). Each goes to Opus 5.5, with a
 review. Do a spike first where the plan says "test it" on hardware.
+
+**★ = build first** (owner, 2026-10-16): R35 the project format, R10
+keyboard, R29 trustworthy undo, R30 track tags, ducking and real-time FX,
+R33 fast listening, R26i Tab to transient. R35 above all: every later WP
+writes data in that format.
 
 **Keyboard first (R10).** WP5 comes straight after the UI shell, before
 any other UI work. From then on **every UI WP ships its keys in the same
@@ -504,6 +511,9 @@ one test per endpoint for the happy path, plus
 ---
 
 ### WP4 — UI shell and timeline
+
+Visual target: `docs/ui-sketches.html` (open it in a browser). The sketches
+fix layout and behaviour, not final styling.
 
 Status: open. Needs WP3.
 
@@ -1500,7 +1510,11 @@ Tests first: `test_speech_mix_tracks_are_never_ducked_or_silenced`,
 
 ### WP23 — FX layers: real-time where possible, rendered where not
 
-Status: open. Needs WP2, WP9. Extends WP10, which becomes tier 3 below.
+Status: open. **Split in two** (owner wants R30 built first):
+**WP23a** (MVP, ★): the layer model, tier 1 (real-time) and tier 2 (analyse
+once, apply live), bypass, latency compensation, the CPU meter.
+**WP23b** (phase 3): tier 3 (render), export waits for renders, and the
+freeze-on-overload rule. The tests below are split the same way. Needs WP2, WP9. Extends WP10, which becomes tier 3 below.
 
 Non-destructive effect **layers** on a clip, a track, a bus or the master,
 shown as a stack in the inspector, each with bypass (B), reorder

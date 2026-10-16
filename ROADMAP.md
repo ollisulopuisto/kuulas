@@ -10,9 +10,13 @@ Out of scope: loopback, publishing integrations, anything but basic recording, s
 
 ## Requirements and state (2026-10-16)
 
+**Build first** (owner, 2026-10-16): R35 the project format above all, then
+R10, R29, R30, R33, R26i. They lead the build order in `docs/PLAN.md`
+(Triage, marked ★).
+
 Priorities set by the user: **MUST** R29 (trustworthy undo), R33 (fast
 listening and JKL, in the MVP); **must-fix**
-R23, R24, R27 (real Hindenburg pain); **high** R10 (keyboard first:
+R23, R27 (real Hindenburg pain); **important, later** R24; **high** R10 (keyboard first:
 built straight after the UI shell); **needed** R30, R31. Build order and
 sizes: `docs/PLAN.md`, section "Triage".
 
@@ -41,7 +45,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R21 | Heavy parallel processing | imports parallel; analysis, transcription, export next |
 | R22 | Basic multitrack recording, standard APIs only (CoreAudio/WASAPI via PortAudio), Mac first; foolproof modal record mode: only a 2 s hold stops it, backend keeps recording if the UI closes, no sleep | planned: WP12 |
 | R23 | Sync workflow: files imported or recorded together are in sync by default; align any other file by eye and mark it in sync; optional align-by-sound helper for Zoom/phone files (drift, dropouts) | core done (sync groups); default groups in WP1; helper WP16 |
-| R24 | Space never plays a clip list; dropping never trims to in/out; previews loudness-matched | planned: WP17 + plan-wide rules (must-fix) |
+| R24 | Space never plays a clip list; dropping never trims to in/out; previews loudness-matched | planned: WP17 + plan-wide rules (important, can come later) |
 | R25 | Mark possible cuts on the first listen, decide on the second; markers stay on their audio through every edit | planned: WP18 |
 | R26a | Edit groups: an edit applies to the whole sync group unless group editing is switched off (Pro Tools, Reaper) | planned: WP19a |
 | R26b | Connected clips: music and effects stay attached to a moment in the speech through ripple cuts (FCP) | planned: WP19b |
