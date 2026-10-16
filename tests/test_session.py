@@ -432,7 +432,8 @@ def test_the_command_table_is_the_plans(session):
     assert set(COMMANDS) == {"auto_silence", "automix", "cut_words", "relink",
                              "consolidate", "create_person", "edit_person",
                              "create_interview", "edit_interview",
-                                 "set_media_person", "map_speakers", "import_nhsx"}
+                             "set_media_person", "map_speakers", "import_nhsx",
+                             "rebuild_media"}
 
 
 def talkers(session, tmp_path):
@@ -653,3 +654,35 @@ def test_closing_a_session_logs_the_cache_hit_rates(tmp_path, caplog):
     with caplog.at_level(logging.INFO, logger="kuulas.memory"):
         s.close()
     assert any("%" in r.getMessage() for r in caplog.records)
+
+
+def test_rebuild_media_via_session_and_commands_table(session, tmp_path):
+    path = str(wav(tmp_path / "sound.wav"))
+    session.import_media([path], copy=True)
+    media_id = session.state.media[0].id
+    working = session.store.working_file(media_id)
+
+    working.write_bytes(b"corrupt")
+    msg = session.rebuild_media(media_id)
+    assert "Rebuilt" in msg
+    assert working.stat().st_size > 100
+
+    working.write_bytes(b"corrupt_again")
+    session.command("rebuild_media", {"media": media_id})
+    assert working.stat().st_size > 100
+
+
+def test_rebuild_media_finnish_message(session, tmp_path):
+    path = str(wav(tmp_path / "sound.wav"))
+    session.import_media([path], copy=True)
+    media_id = session.state.media[0].id
+    working = session.store.working_file(media_id)
+    working.write_bytes(b"corrupt")
+
+    messages.set_language("fi")
+    try:
+        msg = session.rebuild_media(media_id)
+        assert "Uudelleenrakennettiin" in msg
+    finally:
+        messages.set_language("en")
+

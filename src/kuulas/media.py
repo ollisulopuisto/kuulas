@@ -875,6 +875,59 @@ class MediaStore:
             shutil.copy2(source, partial)
             partial.replace(kept)
 
+    def rebuild(self, media_id: str, path: str | Path | None = None) -> Path:
+        """Re-encode a damaged working file from its original file, hash-checked."""
+        self._check_writable()
+        meta = self.meta(media_id)
+        candidate: Path | None = None
+        if path is not None:
+            p = Path(path)
+            if p.is_file():
+                candidate = p
+        if candidate is None:
+            originals = self.folder / "originals"
+            if originals.is_dir():
+                matches = list(originals.glob(f"{media_id}.*"))
+                if matches and matches[0].is_file():
+                    candidate = matches[0]
+        if candidate is None and meta.get("linked_path"):
+            p = Path(meta["linked_path"])
+            if p.is_file():
+                candidate = p
+        if candidate is None:
+            for p_str in self.seen_paths(meta["sha256"]):
+                p = Path(p_str)
+                if p.is_file():
+                    candidate = p
+                    break
+        if candidate is None:
+            raise MediaError("error.media.no_original", name=meta["name"])
+
+        digest = _sha256(candidate)
+        if digest != meta["sha256"]:
+            raise MediaError("error.media.hash_mismatch", name=meta["name"],
+                             path=str(candidate), expected=meta["sha256"][:12],
+                             actual=digest[:12])
+
+        with self._lock:
+            old = self._handles.pop(media_id, None)
+            if old:
+                old[1].close()
+
+        pr = probe(candidate)
+        job = _Job(candidate, [], pr)
+        row = {"id": media_id, "sha256": meta["sha256"], "name": meta["name"]}
+        info = _pcm_info(candidate, self.rate)
+        if info is not None:
+            self._encode_pcm(candidate, row, job)
+        else:
+            self._encode_any(candidate, row, keep_original=False, job=job)
+
+        with self._lock:
+            for k in [k for k in list(self._cache) if k[0] == media_id]:
+                del self._cache[k]
+        return self.working_file(media_id)
+
     # -- linked files: missing, relink, consolidate -------------------------
 
     def is_linked(self, media_id: str) -> bool:

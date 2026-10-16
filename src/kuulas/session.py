@@ -358,6 +358,13 @@ class Session:
                                   "interview": self.last_import_interview},
                                  material=root), report)
 
+    def rebuild_media(self, media_id: str, path: str | Path | None = None) -> str:
+        """Re-encode a damaged working file from its original file."""
+        with self.lock:
+            target = self.store.rebuild(media_id, path)
+            name = self.store.meta(media_id)["name"]
+            return t("media.rebuilt", name=name, path=str(target))
+
     def import_nhsx(self, path: str | Path) -> Project:
         """Import a Hindenburg session with regions and words on source clocks."""
         source = Path(path)
@@ -877,6 +884,14 @@ def _import_nhsx(s: Session, args: dict) -> Project:
     return s.import_nhsx(args["path"])
 
 
+def _rebuild_media(s: Session, args: dict) -> Project:
+    media_id = args.get("media") or args.get("id")
+    if not media_id:
+        raise ops.EditError("error.edit.no_media", media_id="")
+    s.rebuild_media(media_id, args.get("path"))
+    return s.history.state
+
+
 #: Name -> function(session, args) -> Project. The session lock is held.
 #: ``auto_silence``, ``automix`` and ``cut_words`` commit one step each;
 #: ``relink`` and ``consolidate`` change no state and commit nothing. The people
@@ -894,4 +909,5 @@ COMMANDS: dict[str, Callable[[Session, dict], Project]] = {
     "set_media_person": _set_media_person,
     "map_speakers": _map_speakers,
     "import_nhsx": _import_nhsx,
+    "rebuild_media": _rebuild_media,
 }
