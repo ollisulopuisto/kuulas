@@ -20,7 +20,7 @@ from pathlib import Path
 from . import analysis, ops, package, transcript
 from .clock import flicks_to_frames
 from .history import History
-from .media import MediaStore
+from .media import ImportResult, MediaError, MediaStore
 from .messages import t
 from .model import Project
 
@@ -61,6 +61,9 @@ class Session:
         self.history: History = self.package.history
         self.store: MediaStore = self.package.store
         self._subscribers: list[Callable[[Project], None]] = []
+        #: What became of each file in the latest import (WP34), for the UI
+        #: to show: the failures and why, and the warnings of those that came in.
+        self.last_import_report: list[ImportResult] = []
         #: transcript revision -> words. A revision never changes once stored.
         self._words: dict[int, list[dict]] = {}
 
@@ -157,7 +160,19 @@ class Session:
 
     def import_media(self, paths: list[str], copy: bool = False,
                      track_per_file: bool = True) -> Project:
+        """``import_media_report`` without the report (it stays in
+        ``last_import_report``). Raises if not one file could be imported."""
+        return self.import_media_report(paths, copy, track_per_file)[0]
+
+    def import_media_report(self, paths: list[str], copy: bool = False,
+                            track_per_file: bool = True,
+                            ) -> tuple[Project, list[ImportResult]]:
         """Bring files in and put them on the timeline, as ONE undo step.
+
+        Fail soft (WP34): a file that cannot be imported is left out and
+        named in the report with the reason; the others still come in. Only
+        when none can does this raise (that file's own error if it was the
+        only one), and then nothing changes.
 
         One new track per file, with one clip at the start; stereo is music,
         mono is speech. Files imported together were recorded together, so
@@ -169,7 +184,15 @@ class Session:
         same moment, so no group.
         """
         with self.lock:
-            media = self.store.import_files(paths, copy)
+            report = self.store.import_batch(paths, copy)
+            self.last_import_report = report
+            ok = [(str(x), r) for x, r in zip(paths, report, strict=True) if r.ok]
+            if report and not ok:
+                if len(report) == 1:
+                    raise report[0].error
+                raise MediaError("error.media.all_failed", count=len(report),
+                                 details=" ".join(str(r.error) for r in report))
+            media = [r.media for _, r in ok]
             p = self.history.state
             refs = [m.time_ref_flicks for m in media]
             earliest = min((r for r in refs if r is not None), default=0)
@@ -197,9 +220,11 @@ class Session:
                 basis = "files" if len({r is None for r in refs}) == 1 else "timeline"
                 p = ops.mark_in_sync(p, clip_ids, main=clip_ids[0], basis=basis)
             label = t("history.import", count=len(media))
-            return self._commit(label, p, "import_media",
-                                {"paths": [str(x) for x in paths], "copy": copy,
-                                 "track_per_file": track_per_file})
+            # Only what came in is recorded: replaying the step must not
+            # depend on files that failed.
+            return (self._commit(label, p, "import_media",
+                                 {"paths": [x for x, _ in ok], "copy": copy,
+                                  "track_per_file": track_per_file}), report)
 
     # -- transcripts -------------------------------------------------------
 
