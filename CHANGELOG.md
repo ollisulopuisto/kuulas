@@ -1,5 +1,17 @@
 # Changelog
 
+## [v26.10.16.10] - 2026-10-16
+
+- Waveform overviews are computed once per recording at import, at five zoom
+  levels; edits never recompute them.
+- Auto-Silence and automix no longer re-read audio after an edit: each
+  recording's levels are measured once and cached.
+- Undo and redo of recent steps are instant (the last 64 states stay decoded).
+- One memory budget (2 GB by default) for all caches, spilling to disk;
+  cache hit rates are logged.
+- Playback reads no longer touch the database or re-check files, so a
+  changed or slow drive cannot stall the audio.
+
 ## [v26.10.16.9] - 2026-10-16
 
 - Importing is fail-soft. One bad file no longer sinks a batch: each file

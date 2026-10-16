@@ -1,3 +1,4 @@
+import os
 import struct
 import subprocess
 
@@ -6,6 +7,7 @@ import pytest
 import soundfile as sf
 from pedalboard.io import AudioFile
 
+from kuulas import media as media_module
 from kuulas.clock import FLICKS
 from kuulas.media import MediaError, MediaStore
 
@@ -323,3 +325,47 @@ def test_the_same_bytes_imported_in_parallel_are_stored_once(tmp_path):
     found = store.import_files([src, copy] * 4, copy=True)
     assert len({m.id for m in found}) == 1
     assert store.ids() == [found[0].id]
+
+
+# -- the read path touches no database and hashes nothing (WP36) --------------------
+
+
+def linked_store(tmp_path, seconds=25):
+    src = tmp_path / "in.wav"
+    write_wav(src, np.full((1, 48000 * seconds), 0.25, dtype=np.float32), 48000)
+    store = MediaStore(tmp_path / "media", rate=48000)
+    return src, store, store.import_file(src)
+
+
+def test_read_issues_no_database_queries_after_the_first_meta_load(tmp_path):
+    _, store, media = linked_store(tmp_path)
+    store.read(media.id, 0, 100)
+    queries = []
+    store.db.set_trace_callback(queries.append)
+    for first in (0, 500_000, 1_000_000, 100):  # several chunks, and a repeat
+        store.read(media.id, first, 4800)
+    store.db.set_trace_callback(None)
+    assert queries == []
+
+
+def test_read_never_rehashes_a_linked_file_whose_mtime_changed(tmp_path, monkeypatch):
+    src, store, media = linked_store(tmp_path)
+    store.close()
+    os.utime(src, ns=(1, 1))  # same bytes, new mtime
+    fresh = MediaStore(tmp_path / "media", rate=48000)  # validation happens here
+
+    def no_hash(_path):
+        raise AssertionError("read hashed a file")
+
+    monkeypatch.setattr(media_module, "_sha256", no_hash)
+    assert fresh.read(media.id, 0, 10).shape == (1, 10)
+    assert fresh.missing() == []  # unchanged bytes, found valid at open
+
+
+def test_a_linked_file_that_vanishes_after_open_plays_silence_after_a_check(tmp_path):
+    src, store, media = linked_store(tmp_path, seconds=1)
+    assert store.read(media.id, 0, 10).any()
+    src.unlink()
+    assert store.missing() == [media.id]  # the background check
+    fresh = MediaStore(tmp_path / "media", rate=48000)
+    assert not fresh.read(media.id, 0, 10).any()

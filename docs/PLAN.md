@@ -2436,7 +2436,12 @@ dialog shown twice in a row with identical answers fails a UI test.
 
 ### WP36 — Caches per recording
 
-Status: open. Needs WP1. Sonnet 5.5. Before WP4.
+Status: done in v26.10.16.10, except the scrub mix cache (needs WP26, WP31)
+and moving MediaStore's decoded-chunk cache under the budget (small follow-up).
+Envelope composition is exact on a 60-frame grid; after a cut at another
+frame one hop can be off at a hard edge (95th-percentile error under 0.5 dB,
+silence edges within one 20 ms hop). A vanished linked file is noticed at the
+next `missing()` check, not on read: the background check must call it. Needs WP1. Sonnet 5.5. Before WP4.
 
 Ground rule 15, concretely:
 - **Peak pyramid** at import: min/max per 256, 1024, 4096, 16384 and 65536

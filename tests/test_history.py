@@ -2,11 +2,14 @@ import json
 import socket
 import sqlite3
 import uuid
+import zlib
 
 import pytest
 
+from kuulas import db as dbm
 from kuulas import ops, transcript
 from kuulas.history import History, HistoryError, edit_blob, edit_dict
+from kuulas.memory import MemoryBudget
 from kuulas.model import Media, Project
 
 
@@ -257,3 +260,92 @@ def test_sync_groups_are_material_shared_by_every_edit(tmp_path):
     assert "sync_groups" not in json.loads(json.dumps(edit_dict(main.state)))
     main.undo()
     assert main.state.sync_groups == ()
+
+
+# -- decoded states (WP36) -------------------------------------------------------
+
+
+def count_decompress(monkeypatch):
+    """Count every zlib decompression History's database layer does."""
+    calls = []
+    real = zlib.decompress
+
+    def counting(*a, **k):
+        calls.append(1)
+        return real(*a, **k)
+
+    monkeypatch.setattr(dbm.zlib, "decompress", counting)
+    return calls
+
+
+def test_undo_and_redo_of_the_last_64_steps_decompress_nothing(tmp_path, monkeypatch):
+    h = History(tmp_path / "p.kuulas")
+    for i in range(64):
+        edit(h, float(-i))
+    calls = count_decompress(monkeypatch)
+    for _ in range(64):
+        assert h.undo()
+        _ = h.state
+    for _ in range(64):
+        assert h.redo()
+        _ = h.state
+    assert calls == []
+    assert gain(h) == -63.0
+
+
+def test_goto_a_recent_step_decompresses_nothing(tmp_path, monkeypatch):
+    h = History(tmp_path / "p.kuulas")
+    for i in range(10):
+        edit(h, float(-i))
+    first = h.nodes()[1]["id"]
+    calls = count_decompress(monkeypatch)
+    h.goto(first)
+    assert gain(h) == 0.0
+    assert calls == []
+
+
+def test_steps_older_than_64_are_read_from_the_file_and_still_correct(
+        tmp_path, monkeypatch):
+    h = History(tmp_path / "p.kuulas")
+    for i in range(80):
+        edit(h, float(-i))
+    calls = count_decompress(monkeypatch)
+    for _ in range(79):
+        h.undo()
+    assert gain(h) == 0.0
+    assert calls  # the oldest ones had to be decoded
+    assert len(calls) < 79  # but the recent 64 were not
+
+
+def test_decoded_states_stay_correct_after_a_coalesced_drag(tmp_path):
+    h = History(tmp_path / "p.kuulas")
+    edit(h, -1.0)
+    for db in (-2.0, -3.0, -4.0):
+        edit(h, db, key="drag")
+    h.undo()
+    assert gain(h) == -1.0
+    h.redo()
+    assert gain(h) == -4.0  # not an earlier state of the drag
+
+
+def test_decoded_states_do_not_leak_between_edits(tmp_path):
+    h = History(tmp_path / "p.kuulas")
+    edit(h, -1.0)
+    other = h.create_edit("alt")
+    g = History(tmp_path / "p.kuulas", edit=other)
+    edit(g, -9.0)
+    g.undo()
+    assert gain(g) == -1.0
+    h.undo()
+    assert gain(h) == 0.0
+
+
+def test_decoded_states_are_bounded_by_the_budget(tmp_path):
+    budget = MemoryBudget(limit_bytes=1)  # nothing fits: every state is decoded again
+    h = History(tmp_path / "p.kuulas", budget=budget)
+    for i in range(5):
+        edit(h, float(-i))
+    for _ in range(4):
+        h.undo()
+    assert gain(h) == 0.0
+    assert budget.used <= 1

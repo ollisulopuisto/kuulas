@@ -1,6 +1,7 @@
 """Session: one open project (WP1). The only place History, MediaStore and ops meet."""
 
 import json
+import logging
 import struct
 import threading
 from datetime import UTC, datetime
@@ -11,6 +12,7 @@ import pytest
 import soundfile as sf
 
 from kuulas import messages, transcript
+from kuulas import session as session_module
 from kuulas.clock import FLICKS, flicks_to_frames
 from kuulas.history import HistoryError
 from kuulas.media import MediaError
@@ -561,3 +563,91 @@ def test_edits_from_several_threads_all_land(session):
     assert errors == []
     # 1 for the track, then 6 threads x 5 x 2 edits, none merged or lost.
     assert len(session.history.nodes()) == 1 + 1 + 60
+
+
+# -- memoized views (WP36) -------------------------------------------------------
+
+
+def counting_timeline_words(monkeypatch):
+    calls = []
+    real = transcript.timeline_words
+
+    def counting(p, transcripts):
+        calls.append(1)
+        return real(p, transcripts)
+
+    monkeypatch.setattr(transcript, "timeline_words", counting)
+    return calls
+
+
+def test_timeline_words_are_computed_once_per_state_and_transcript(
+        session, tmp_path, monkeypatch):
+    session.import_media([str(wav(tmp_path / "a.wav", 3.0))])
+    media_id = session.state.media[0].id
+    session.set_transcript(media_id, words(("one", 0.5, 0.9)), "t")
+    calls = counting_timeline_words(monkeypatch)
+    first = session.timeline_words()
+    assert session.timeline_words() == first
+    assert len(calls) == 1
+    clip = session.state.tracks[0].clips[0]
+    session.edit("move_clip", {"clip_id": clip.id, "start": RATE})
+    moved = session.timeline_words()
+    assert moved[0]["s"] == RATE + RATE // 2
+    assert len(calls) == 2
+    session.undo()  # back to a state already seen: no recompute
+    assert session.timeline_words() == first
+    assert len(calls) == 2
+    session.redo()
+    assert session.timeline_words() == moved
+    assert len(calls) == 2
+
+
+def test_a_corrected_transcript_invalidates_the_words(session, tmp_path, monkeypatch):
+    session.import_media([str(wav(tmp_path / "a.wav", 3.0))])
+    media_id = session.state.media[0].id
+    session.set_transcript(media_id, words(("one", 0.5, 0.9)), "t")
+    calls = counting_timeline_words(monkeypatch)
+    assert session.timeline_words()[0]["w"] == "one"
+    session.set_transcript(media_id, words(("won", 0.5, 0.9)), "fix")
+    assert session.timeline_words()[0]["w"] == "won"
+    session.undo()
+    assert session.timeline_words()[0]["w"] == "one"
+    assert len(calls) == 2
+
+
+def test_a_caller_cannot_poison_the_memo(session, tmp_path):
+    session.import_media([str(wav(tmp_path / "a.wav", 3.0))])
+    media_id = session.state.media[0].id
+    session.set_transcript(media_id, words(("one", 0.5, 0.9)), "t")
+    session.timeline_words().clear()
+    assert len(session.timeline_words()) == 1
+
+
+def test_sync_partners_are_memoized_and_follow_the_material(
+        session, tmp_path, monkeypatch):
+    session.import_media([str(p) for p in two_files(tmp_path)])
+    a, b = (m.id for m in session.state.media)
+    assert session.sync_partners() == {a: (b,), b: (a,)}
+    calls = []
+    real = session_module._sync_partners
+    monkeypatch.setattr(session_module, "_sync_partners",
+                        lambda groups: calls.append(1) or real(groups))
+    session.sync_partners()
+    session.sync_partners()
+    assert calls == []  # already memoized before the patch
+    session.undo()  # the import, and its sync group, are gone
+    assert session.sync_partners() == {}
+    assert len(calls) == 1
+    session.redo()
+    assert session.sync_partners() == {a: (b,), b: (a,)}
+    assert len(calls) == 1  # seen before
+
+
+def test_closing_a_session_logs_the_cache_hit_rates(tmp_path, caplog):
+    s = Session(tmp_path / "Talk.kuulas")
+    s.import_media([str(wav(tmp_path / "a.wav", 1.0))])
+    s.timeline_words()
+    s.timeline_words()
+    with caplog.at_level(logging.INFO, logger="kuulas.memory"):
+        s.close()
+    assert any("%" in r.getMessage() for r in caplog.records)

@@ -142,6 +142,8 @@ sizes: `docs/PLAN.md`, section "Triage".
   device still works, the "rebuild damaged media" action, freezing a
   real-time layer when late (WP23a), prefetch priority over jobs (WP9).
 - WP34: import survives bad files, full disks and vanished drives; 268 tests.
+- WP36: caches per recording (waveform pyramid, level envelopes, decoded states, one memory budget); playback reads never touch the database; 319 tests.
+- WP2: playback engine with fault handling and golden renders (needs the owner's listening test on the Mac: `uv run pytest -q tests/hardware -s`).
 
 ## Later (v2)
 

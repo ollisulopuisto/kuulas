@@ -60,9 +60,11 @@ import numpy as np
 import soundfile as sf
 from speechmix.binaries import get_binary_path
 
-from . import caches
+from . import caches, levels
 from . import db as dbm
+from . import peaks as peak_pyramid
 from .clock import RateError, check_rate, frames_to_flicks
+from .memory import BUDGET, MemoryBudget
 from .messages import KuulasError, t
 from .model import Media
 
@@ -341,7 +343,9 @@ class MediaStore:
     default to its siblings, as in a package (docs/FORMAT.md, "Layout")."""
 
     def __init__(self, folder: str | Path, rate: int, *, db: str | Path | None = None,
-                 cache_root: str | Path | None = None, read_only: bool = False):
+                 cache_root: str | Path | None = None, read_only: bool = False,
+                 budget: MemoryBudget | None = None):
+        self.budget = BUDGET if budget is None else budget
         self.folder = Path(folder)
         self.read_only = read_only
         if not read_only:
@@ -363,6 +367,11 @@ class MediaStore:
         self._handles: dict[str, tuple[threading.Lock, sf.SoundFile]] = {}
         self._cache: OrderedDict[tuple[str, int], np.ndarray] = OrderedDict()
         self._meta: dict[str, dict] = {}
+        #: Is each linked file still there and unchanged? Checked (stat and,
+        #: if the mtime moved, a re-hash) here, in ``missing`` and in
+        #: ``relink``, never in ``read``: that runs on the audio thread.
+        self._linked_ok: dict[str, bool] = {}
+        self.missing()
 
     def close(self) -> None:
         with self._lock:
@@ -659,8 +668,9 @@ class MediaStore:
         be a track that is meant to be quiet."""
         if job is not None and peaks and not any(p.any() for p in peaks):
             job.notes.append(Note("warn.media.silent", {"name": row["name"]}))
-        self._save_peaks(row["sha256"], np.concatenate(peaks) if peaks
-                         else np.zeros((0, 2), np.float32))
+        base = np.concatenate(peaks) if peaks else np.zeros((0, 2), np.float32)
+        self._save_peaks(row["sha256"], base)
+        self._save_pyramid(row["sha256"], base)
         row = {"source_rate": self.rate, "linked_path": None, "linked_size": None,
                "linked_mtime_ns": None, "added_utc": dbm.utc_now(), **row}
         names = list(row)
@@ -782,7 +792,13 @@ class MediaStore:
 
     def missing(self) -> list[str]:
         """Linked media whose file is gone, moved or changed."""
-        return [m for m in self.ids() if self.is_linked(m) and not self._valid(m)]
+        lost = []
+        for m in self.ids():
+            if self.is_linked(m):
+                ok = self._linked_ok[m] = self._valid(m)
+                if not ok:
+                    lost.append(m)
+        return lost
 
     def relink(self, search: str | Path | None = None) -> dict[str, str]:
         """Find missing linked files again by content: remembered paths first,
@@ -811,6 +827,7 @@ class MediaStore:
             digest = _sha256(path)
             for media_id in waiting:
                 if self.meta(media_id)["sha256"] == digest:
+                    self._linked_ok[media_id] = True
                     where = str(path.resolve())
                     self._update(media_id, linked_path=where,
                                  linked_mtime_ns=path.stat().st_mtime_ns)
@@ -827,6 +844,7 @@ class MediaStore:
         for media_id in self.ids():
             if self.is_linked(media_id) and self._valid(media_id):
                 self._check_writable()
+                self._linked_ok.pop(media_id, None)
                 meta = self.meta(media_id)
                 self._encode_pcm(Path(meta["linked_path"]),
                                  {"id": media_id, "sha256": meta["sha256"],
@@ -846,7 +864,7 @@ class MediaStore:
         if h is not None:
             return h
         if self.is_linked(media_id):
-            if not self._valid(media_id):
+            if not self._linked_ok.get(media_id, True):
                 return None  # missing: plays as silence until relinked
             path = self.meta(media_id)["linked_path"]
         else:
@@ -933,9 +951,81 @@ class MediaStore:
         peaks, _ = _pump(read)
         base = np.concatenate(peaks) if peaks else np.zeros((0, 2), np.float32)
         # A missing linked file reads as silence: show it, but never cache it.
-        if not (self.is_linked(media_id) and not self._valid(media_id)):
+        if not self._unreadable(media_id):
             self._save_peaks(meta["sha256"], base)
         return base
+
+    # -- caches per recording (WP36) -----------------------------------------
+    # Everything below is derived from the media's content, never from the
+    # timeline, so an edit never touches it (PLAN ground rule 15).
+
+    def _unreadable(self, media_id: str) -> bool:
+        """A linked file that is gone reads as silence: never cache that."""
+        return self.is_linked(media_id) and not self._linked_ok.get(media_id, True)
+
+    def _save_pyramid(self, digest: str, base: np.ndarray) -> None:
+        try:
+            where = caches.path(self.cache_root, "peaks",
+                                peak_pyramid.pyramid_key(digest, self.rate), "npz")
+        except caches.CacheKeyError:
+            log.warning(t("log.cache.no_key", kind="pyramid", media_id=digest[:12]))
+            return
+        peak_pyramid.save(where, peak_pyramid.build(base))
+
+    def pyramid(self, media_id: str) -> dict[int, np.ndarray]:
+        """``{frames per peak: (n, 2) min/max}`` for every level of the pyramid."""
+        meta = self.meta(media_id)
+        try:
+            key = peak_pyramid.pyramid_key(meta["sha256"], self.rate)
+        except caches.CacheKeyError:
+            log.warning(t("log.cache.no_key", kind="pyramid", media_id=media_id))
+            return peak_pyramid.build(self._base_peaks(media_id))
+        where = caches.path(self.cache_root, "peaks", key, "npz")
+
+        def load() -> dict[int, np.ndarray]:
+            try:
+                return peak_pyramid.load(where)
+            except (OSError, ValueError, KeyError, EOFError):
+                pass  # deleted, damaged or never written: build it again
+            log.info(t("log.cache.recompute", kind="pyramid", media_id=media_id))
+            levels_ = peak_pyramid.build(self._base_peaks(media_id))
+            if not self._unreadable(media_id):
+                peak_pyramid.save(where, levels_)
+            return levels_
+
+        if self._unreadable(media_id):
+            return load()
+        return self.budget.fetch("pyramid", key, load)
+
+    def peak_tile(self, media_id: str, level: int, index: int) -> tuple[bytes, str]:
+        """One tile of one level as ``(bytes, ETag)``; WP3 serves it over HTTP."""
+        levels_ = self.pyramid(media_id)
+        key = peak_pyramid.pyramid_key(self.meta(media_id)["sha256"], self.rate)
+        return peak_pyramid.tile(levels_, key, level, index)
+
+    def envelope(self, media_id: str, block: int) -> np.ndarray | None:
+        """Energy per ``block`` frames of the whole file (``levels``), measured
+        once and kept in ``caches/analysis/``. None when the file cannot be
+        measured or keyed; the caller then reads the audio, which is the
+        same measurement, only slower."""
+        meta = self.meta(media_id)
+        if self._unreadable(media_id):
+            return None
+        try:
+            key = caches.key([meta["sha256"]], {"block": block, "rate": self.rate},
+                             levels.ALGORITHM)
+        except caches.CacheKeyError:
+            log.warning(t("log.cache.no_key", kind="levels", media_id=media_id))
+            return None
+
+        def measure() -> np.ndarray:
+            log.info(t("log.cache.recompute", kind="levels", media_id=media_id))
+            return levels.block_energy(
+                lambda first, count: self.read(media_id, first, count),
+                meta["source_frames"], block)
+
+        spill = caches.path(self.cache_root, "analysis", key, "npy")
+        return self.budget.fetch("levels", key, measure, spill=spill)
 
 
 def _peaks(chunk: np.ndarray) -> np.ndarray:
