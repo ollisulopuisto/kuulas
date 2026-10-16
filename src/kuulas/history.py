@@ -39,6 +39,7 @@ from pathlib import Path
 from typing import Any
 
 from . import db as dbm
+from . import people as peoplem
 from .clock import flicks_to_frames, frames_to_flicks
 from .memory import BUDGET, MemoryBudget
 from .messages import KuulasError, t
@@ -46,7 +47,11 @@ from .model import Media, Project, SyncGroup
 
 #: The material root of a new project. Unknown keys a newer version adds
 #: are kept, because roots are updated key by key, never rebuilt.
-EMPTY_MATERIAL: dict[str, Any] = {"transcripts": {}, "speakers": {}, "sync": {}}
+#: ``people``/``interviews``: id -> record (``people.Person``/``Interview``);
+#: ``media_person``: media id -> person id; ``speakers``: transcript revision
+#: (as text) -> {speaker label: person id}.
+EMPTY_MATERIAL: dict[str, Any] = {"transcripts": {}, "speakers": {}, "sync": {},
+                                  "people": {}, "interviews": {}, "media_person": {}}
 
 MAIN_EDIT = "main"
 
@@ -265,9 +270,13 @@ class History:
         """
         version = self.db.execute("pragma data_version").fetchone()[0]
         if self._composed is None or version != self._seen_version:
-            media = tuple(media_from_row(r, self.rate) for r in self.media_rows())
+            root = self.material
+            owner = root["media_person"]
+            media = tuple(replace(m, person=owner.get(m.id, ""))
+                          for m in (media_from_row(r, self.rate)
+                                    for r in self.media_rows()))
             self._composed = replace(self._edit_state, media=media,
-                                     sync_groups=sync_groups(self.material))
+                                     sync_groups=sync_groups(root))
             self._seen_version = version
         return self._composed
 
@@ -529,6 +538,51 @@ class History:
     def transcripts(self) -> dict[str, list[dict]]:
         """The words every media uses now, for ``transcript.timeline_words``."""
         return {m: self.transcript(r) for m, r in self.material["transcripts"].items()}
+
+    # -- people and who speaks (WP41) ---------------------------------------
+
+    def set_material(self, label: str, root: dict, op: dict | None = None) -> None:
+        """A material-only step (people, interviews, speaker maps): the edit
+        state is unchanged, the new root is one undoable revision."""
+        self.commit(label, self.state, material=root, op=op)
+
+    def people(self) -> tuple[peoplem.Person, ...]:
+        return tuple(peoplem.Person.from_dict({**d, "id": i})
+                     for i, d in sorted(self.material["people"].items()))
+
+    def interviews(self) -> tuple[peoplem.Interview, ...]:
+        return tuple(peoplem.Interview.from_dict({**d, "id": i})
+                     for i, d in sorted(self.material["interviews"].items()))
+
+    def speaker_map(self, media_id: str) -> dict[str, str]:
+        """Speaker label -> person id for the transcript ``media_id`` uses now."""
+        rev = self.transcript_rev(media_id)
+        if rev is None:
+            return {}
+        return dict(self.material["speakers"].get(str(rev), {}))
+
+    def resolved_words(self, media_id: str, rev: int, root: dict | None = None
+                       ) -> list[dict]:
+        """One revision's words with ``person`` resolved (``people.resolve_words``)."""
+        root = root or self.material
+        return peoplem.resolve_words(self.transcript(rev),
+                                     root["media_person"].get(media_id, ""),
+                                     root["speakers"].get(str(rev), {}))
+
+    def resolved_transcripts(self) -> dict[str, list[dict]]:
+        root = self.material
+        return {m: self.resolved_words(m, int(r), root)
+                for m, r in root["transcripts"].items()}
+
+    def passages(self, person: str) -> list[peoplem.Passage]:
+        """Everything ``person`` said in this project, with recording ranges."""
+        state = self.state
+
+        def sync_of(media: str) -> tuple[str, int] | None:
+            found = state.sync_member(media)
+            return None if found is None else (found[0].id, found[1])
+
+        return peoplem.find_passages(person, self.resolved_transcripts(), sync_of)
 
     def close(self) -> None:
         self.db.close()

@@ -274,6 +274,18 @@ Zoom mix) links together, and everything a person said can be found.
 
   Projects refer to them by id.
 
+**As built (WP41, format version 2).** The material root gains `people` and
+`interviews` (id -> record), `media_person` (media id -> person id) and
+`speakers` (transcript revision -> {speaker label: person id}). `person` is
+resolved when words are read and never written into the stored words, so a
+corrected map rewrites nothing; a new transcript revision starts with an
+empty map. Interview `media` holds sha256 digests. The version-1 to 2
+migration adds the empty keys to every material revision in place, so
+`material_from`/`material_to` and undo are unchanged. A series item is
+`<uuid>.json`; a file with anything after the uuid (Dropbox, Syncthing,
+iCloud, OneDrive copies), an unreadable file, or one whose id differs from
+its name is reported by `SeriesStore.conflicts()` and never read as an item.
+
 ## Media
 
 - Identity is `sha256` of the file bytes; the id is `m` + its first 12 hex

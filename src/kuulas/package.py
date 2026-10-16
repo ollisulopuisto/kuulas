@@ -47,7 +47,7 @@ log = logging.getLogger("kuulas.package")
 
 FORMAT_NAME = "kuulas-project"
 #: The format this code writes. Rises with every format change.
-VERSION = 1
+VERSION = 2
 #: The newest ``min_reader`` this code can read.
 READER = 1
 
@@ -92,7 +92,8 @@ def _parse_iso(text: str) -> datetime:
 
 def write_json_atomic(path: Path, data: dict) -> None:
     """Temp file, fsync, rename: the old file or the new one, never half."""
-    tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+    # The token keeps two threads writing one file from sharing a temp file.
+    tmp = path.with_name(f"{path.name}.{os.getpid()}.{secrets.token_hex(4)}.tmp")
     with tmp.open("w", encoding="utf-8") as f:
         json.dump(data, f, indent=1, ensure_ascii=False)
         f.flush()

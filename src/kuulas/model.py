@@ -62,6 +62,9 @@ class Media:
     # original's ``excerpt_start_flicks``, so it shares the original's sync.
     excerpt_of: str | None = None
     excerpt_start_flicks: int = 0
+    # Whose voice is on this file, for a single-person mic (WP41). Material:
+    # filled in from the material root by ``History.state``, not a database column.
+    person: str = ""
     extra: dict = field(default_factory=dict, hash=False)
 
     def to_dict(self) -> dict:

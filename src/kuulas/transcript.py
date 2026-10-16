@@ -35,6 +35,7 @@ def timeline_words(p: Project, transcripts: dict[str, list[dict]]) -> list[dict]
                 if lo <= mid < hi:
                     out.append({
                         "w": w["w"], "spk": w.get("spk", ""),
+                        "person": w.get("person", ""),
                         "s": max(clip.start, s + shift),
                         "e": min(clip.end, e + shift),
                         "track": track.id, "clip": clip.id, "media": clip.media,

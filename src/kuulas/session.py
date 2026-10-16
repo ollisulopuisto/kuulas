@@ -18,11 +18,13 @@ from collections.abc import Callable
 from pathlib import Path
 
 from . import analysis, ops, package, transcript
+from . import db as dbm
 from .clock import flicks_to_frames
 from .history import History
 from .media import ImportResult, MediaError, MediaStore
 from .messages import t
 from .model import Project, SyncGroup
+from .people import Interview, Passage, Person
 
 log = logging.getLogger("kuulas.session")
 
@@ -74,6 +76,8 @@ class Session:
         #: What became of each file in the latest import (WP34), for the UI
         #: to show: the failures and why, and the warnings of those that came in.
         self.last_import_report: list[ImportResult] = []
+        #: The interview the latest import made (WP41), or None.
+        self.last_import_interview: str | None = None
 
     # -- the project -------------------------------------------------------
 
@@ -133,9 +137,16 @@ class Session:
                 raise ops.EditError("error.edit.unknown", name=name) from None
             return run(self, args)
 
-    def _commit(self, label: str, new: Project, name: str, args: dict) -> Project:
-        self.history.commit(label, new, op={"name": name, "args": args})
+    def _commit(self, label: str, new: Project, name: str, args: dict,
+                material: dict | None = None) -> Project:
+        self.history.commit(label, new, op={"name": name, "args": args},
+                            material=material)
         return self._changed()
+
+    def _material_step(self, label: str, root: dict, name: str, args: dict) -> None:
+        """One undo step that changes only material (people, interviews, maps)."""
+        self.history.set_material(label, root, op={"name": name, "args": args})
+        self._changed()
 
     # -- history -----------------------------------------------------------
 
@@ -175,13 +186,16 @@ class Session:
     # -- import ------------------------------------------------------------
 
     def import_media(self, paths: list[str], copy: bool = False,
-                     track_per_file: bool = True) -> Project:
+                     track_per_file: bool = True, interview: bool | None = None,
+                     interview_title: str | None = None) -> Project:
         """``import_media_report`` without the report (it stays in
         ``last_import_report``). Raises if not one file could be imported."""
-        return self.import_media_report(paths, copy, track_per_file)[0]
+        return self.import_media_report(paths, copy, track_per_file, interview,
+                                        interview_title)[0]
 
     def import_media_report(self, paths: list[str], copy: bool = False,
-                            track_per_file: bool = True,
+                            track_per_file: bool = True, interview: bool | None = None,
+                            interview_title: str | None = None,
                             ) -> tuple[Project, list[ImportResult]]:
         """Bring files in and put them on the timeline, as ONE undo step.
 
@@ -198,6 +212,12 @@ class Session:
         by hand and marked in sync later. ``track_per_file=False`` puts the
         files one after another on a single track instead; that is not the
         same moment, so no group.
+
+        **One interview (WP41).** Files imported together are offered as one
+        interview: ``interview=None`` (the default) makes it exactly when they
+        became a sync group; ``True``/``False`` decide. It is part of the same
+        undo step, named ``interview_title`` or after the first file. Files
+        that already belong to an interview are not put in a second one.
         """
         with self.lock:
             report = self.store.import_batch(paths, copy)
@@ -236,26 +256,223 @@ class Session:
                 basis = "files" if len({r is None for r in refs}) == 1 else "timeline"
                 p = ops.mark_in_sync(p, clip_ids, main=clip_ids[0], basis=basis)
             label = t("history.import", count=len(media))
+            made_group = bool(p.sync_groups) and track_per_file and len(
+                {m.id for m in media}) > 1
+            root = self._with_import_interview(
+                p, media, interview, interview_title, made_group)
             # Only what came in is recorded: replaying the step must not
             # depend on files that failed.
             return (self._commit(label, p, "import_media",
                                  {"paths": [x for x, _ in ok], "copy": copy,
-                                  "track_per_file": track_per_file}), report)
+                                  "track_per_file": track_per_file,
+                                  "interview": self.last_import_interview},
+                                 material=root), report)
+
+    def _with_import_interview(self, p: Project, media: list, want: bool | None,
+                               title: str | None, made_group: bool) -> dict | None:
+        """The material root with the import's interview in it, or None."""
+        self.last_import_interview = None
+        if not (made_group if want is None else want) or not media:
+            return None
+        root = self.history.material
+        taken = {sha for d in root["interviews"].values() for sha in d.get("media", ())}
+        shas = [m.sha256 for m in {m.id: m for m in media}.values()
+                if m.sha256 not in taken]
+        if not shas:
+            return None
+        group = p.sync_group(media[0].id)
+        iid = dbm.uuid7()
+        root["interviews"][iid] = Interview(
+            iid, title or Path(media[0].name).stem, media=tuple(shas),
+            sync_group=group.id if made_group and group else "").to_dict()
+        self.last_import_interview = iid
+        return root
+
+    # -- people, interviews, who speaks (WP41) ------------------------------
+
+    def people(self) -> list[Person]:
+        with self.lock:
+            return list(self.history.people())
+
+    def person(self, person_id: str) -> Person:
+        with self.lock:
+            return Person.from_dict({**self._known_person(person_id), "id": person_id})
+
+    def interviews(self) -> list[Interview]:
+        with self.lock:
+            return list(self.history.interviews())
+
+    def interview(self, interview_id: str) -> Interview:
+        with self.lock:
+            try:
+                d = self.history.material["interviews"][interview_id]
+            except KeyError:
+                raise ops.EditError("error.people.no_interview",
+                                    interview_id=interview_id) from None
+            return Interview.from_dict({**d, "id": interview_id})
+
+    def interview_of(self, media_id: str) -> Interview | None:
+        """The interview a file belongs to, if any."""
+        with self.lock:
+            sha = self._sha(media_id)
+            return next((i for i in self.history.interviews() if sha in i.media), None)
+
+    def speaker_map(self, media_id: str) -> dict[str, str]:
+        with self.lock:
+            return self.history.speaker_map(media_id)
+
+    def passages(self, person_id: str) -> list[Passage]:
+        """Every passage by a person in this project (``History.passages``).
+
+        TODO(WP37/WP38): across a series, read each project's usage file for
+        the usage marks; until those exist ``series.passages_in_projects``
+        gives the passages of several projects without marks.
+        """
+        with self.lock:
+            return self.history.passages(person_id)
+
+    def _known_person(self, person_id: str) -> dict:
+        try:
+            return self.history.material["people"][person_id]
+        except KeyError:
+            raise ops.EditError("error.people.no_person", person_id=person_id) from None
+
+    def _sha(self, media_id: str) -> str:
+        try:
+            return self.history.state.media_item(media_id).sha256
+        except KeyError:
+            raise ops.EditError("error.edit.no_media", media_id=media_id) from None
+
+    def _check_people(self, ids) -> None:
+        for person_id in ids:
+            if person_id:
+                self._known_person(person_id)
+
+    def create_person(self, name: str, role: str = "", aliases=(), notes: str = "",
+                      ) -> str:
+        """A new person; returns their id. One undo step."""
+        with self.lock:
+            name = name.strip()
+            if not name:
+                raise ops.EditError("error.people.empty_name")
+            pid = dbm.uuid7()
+            root = self.history.material
+            root["people"][pid] = Person(pid, name, tuple(aliases), role, notes).to_dict()
+            self._material_step(t("history.person_created", name=name), root,
+                                "create_person", {"id": pid, "name": name, "role": role,
+                                                  "aliases": list(aliases),
+                                                  "notes": notes})
+            return pid
+
+    def edit_person(self, person_id: str, **fields) -> None:
+        """Change a person's ``name``, ``role``, ``aliases`` or ``notes``."""
+        with self.lock:
+            old = self._known_person(person_id)
+            self._check_fields(fields, ("name", "role", "aliases", "notes"))
+            new = Person.from_dict({**old, **fields, "id": person_id})
+            if not new.name.strip():
+                raise ops.EditError("error.people.empty_name")
+            root = self.history.material
+            root["people"][person_id] = new.to_dict()
+            self._material_step(t("history.person_edited", name=new.name), root,
+                                "edit_person", {"id": person_id, **fields})
+
+    @staticmethod
+    def _check_fields(fields: dict, allowed: tuple[str, ...]) -> None:
+        for name in fields:
+            if name not in allowed:
+                raise ops.EditError("error.people.bad_field", field=name)
+
+    def create_interview(self, title: str, date: str = "", place: str = "",
+                         participants=(), media=(), sync_group: str = "",
+                         notes: str = "", tags=()) -> str:
+        """A new interview of the given media (ids); returns its id. When no
+        ``sync_group`` is given and the files share one, that is used."""
+        with self.lock:
+            shas = [self._sha(m) for m in media]
+            self._check_people(p.get("person") for p in participants)
+            if not sync_group:
+                groups = {g.id if (g := self.history.state.sync_group(m)) else ""
+                          for m in media}
+                sync_group = groups.pop() if len(groups) == 1 else ""
+            iid = dbm.uuid7()
+            root = self.history.material
+            root["interviews"][iid] = Interview(
+                iid, title, date, place, tuple(dict(p) for p in participants),
+                tuple(dict.fromkeys(shas)), sync_group, notes, tuple(tags)).to_dict()
+            self._material_step(t("history.interview_created", title=title), root,
+                                "create_interview", {"id": iid, "title": title,
+                                                     "media": list(media)})
+            return iid
+
+    def edit_interview(self, interview_id: str, **fields) -> None:
+        """Change an interview's ``title``, ``date``, ``place``, ``participants``,
+        ``media`` (media ids), ``sync_group``, ``notes`` or ``tags``."""
+        with self.lock:
+            old = self.interview(interview_id).to_dict()
+            self._check_fields(fields, ("title", "date", "place", "participants",
+                                        "media", "sync_group", "notes", "tags"))
+            changes = dict(fields)
+            if "media" in changes:
+                changes["media"] = list(dict.fromkeys(
+                    self._sha(m) for m in changes["media"]))
+            if "participants" in changes:
+                self._check_people(p.get("person") for p in changes["participants"])
+            new = Interview.from_dict({**old, **changes})
+            root = self.history.material
+            root["interviews"][interview_id] = new.to_dict()
+            self._material_step(t("history.interview_edited", title=new.title), root,
+                                "edit_interview", {"id": interview_id, **fields})
+
+    def set_media_person(self, media_id: str, person_id: str | None) -> None:
+        """Say whose voice a single-person mic file holds (None clears it)."""
+        with self.lock:
+            self._sha(media_id)
+            self._check_people([person_id])
+            root = self.history.material
+            if person_id:
+                root["media_person"][media_id] = person_id
+            else:
+                root["media_person"].pop(media_id, None)
+            name = self._known_person(person_id)["name"] if person_id else "-"
+            self._material_step(t("history.media_person", media_id=media_id, name=name),
+                                root, "set_media_person",
+                                {"media": media_id, "person": person_id})
+
+    def map_speakers(self, media_id: str, mapping: dict[str, str | None]) -> None:
+        """Map the speaker labels of the transcript ``media_id`` uses to people
+        (the whole map: labels left out are nobody). The words are not
+        touched; a re-transcription starts with an empty map."""
+        with self.lock:
+            rev = self.history.transcript_rev(media_id)
+            if rev is None:
+                raise ops.EditError("error.people.no_transcript", media_id=media_id)
+            self._check_people(mapping.values())
+            root = self.history.material
+            root["speakers"][str(rev)] = {k: v or "" for k, v in mapping.items()}
+            self._material_step(t("history.speakers_mapped", media_id=media_id), root,
+                                "map_speakers", {"media": media_id, "map": dict(mapping)})
 
     # -- transcripts -------------------------------------------------------
 
     def transcripts(self) -> dict[str, list[dict]]:
         """Media id -> its words (flicks from the media's start), as the
-        material says they are now. A revision is read once and kept."""
+        material says they are now, with ``person`` where it is known (it is
+        resolved here, never stored). A revision is read once and kept."""
         with self.lock:
+            root = self.history.material
             out = {}
-            for media_id, stored in self.history.material["transcripts"].items():
+            for media_id, stored in root["transcripts"].items():
                 rev = int(stored)
+                owner = root["media_person"].get(media_id, "")
+                labels = root["speakers"].get(str(rev), {})
                 # A revision never changes once stored, so it is kept (in the
-                # memory budget) for as long as there is room for it.
+                # memory budget) for as long as there is room for it; with
+                # the people it resolves to, it is a different value.
                 out[media_id] = self._memo(
-                    "words", self._view_key(rev),
-                    lambda rev=rev: self.history.transcript(rev), 150)
+                    "words", self._view_key(rev, owner, sorted(labels.items())),
+                    lambda rev=rev, media_id=media_id, root=root:
+                        self.history.resolved_words(media_id, rev, root), 150)
             return out
 
     def set_transcript(self, media_id: str, words: list[dict], label: str) -> Project:
@@ -292,7 +509,10 @@ class Session:
         shared and must not be changed."""
         with self.lock:
             revs = sorted(self.history.material["transcripts"].items())
-            key = self._view_key(self.history.edit_hash, self.history.rate, revs)
+            # The material head stands for who speaks (WP41): equal head,
+            # equal people, maps and revisions.
+            key = self._view_key(self.history.edit_hash, self.history.rate, revs,
+                                 self.history.material_head)
 
             def compute() -> list[dict]:
                 return transcript.timeline_words(self.history.state, self.transcripts())
@@ -365,13 +585,52 @@ def _consolidate(s: Session, _args: dict) -> Project:
     return s.history.state
 
 
+def _create_person(s: Session, args: dict) -> Project:
+    s.create_person(args.get("name", ""), args.get("role", ""),
+                    args.get("aliases", ()), args.get("notes", ""))
+    return s.history.state
+
+
+def _edit_person(s: Session, args: dict) -> Project:
+    s.edit_person(args["id"], **{k: v for k, v in args.items() if k != "id"})
+    return s.history.state
+
+
+def _create_interview(s: Session, args: dict) -> Project:
+    s.create_interview(args.get("title", ""),
+                       **{k: v for k, v in args.items() if k != "title"})
+    return s.history.state
+
+
+def _edit_interview(s: Session, args: dict) -> Project:
+    s.edit_interview(args["id"], **{k: v for k, v in args.items() if k != "id"})
+    return s.history.state
+
+
+def _set_media_person(s: Session, args: dict) -> Project:
+    s.set_media_person(args["media"], args.get("person"))
+    return s.history.state
+
+
+def _map_speakers(s: Session, args: dict) -> Project:
+    s.map_speakers(args["media"], args.get("map", {}))
+    return s.history.state
+
+
 #: Name -> function(session, args) -> Project. The session lock is held.
 #: ``auto_silence``, ``automix`` and ``cut_words`` commit one step each;
-#: ``relink`` and ``consolidate`` change no state and commit nothing.
+#: ``relink`` and ``consolidate`` change no state and commit nothing. The people
+#: commands (WP41) each commit one material-only step.
 COMMANDS: dict[str, Callable[[Session, dict], Project]] = {
     "auto_silence": _auto_silence,
     "automix": _automix,
     "cut_words": _cut_words,
     "relink": _relink,
     "consolidate": _consolidate,
+    "create_person": _create_person,
+    "edit_person": _edit_person,
+    "create_interview": _create_interview,
+    "edit_interview": _edit_interview,
+    "set_media_person": _set_media_person,
+    "map_speakers": _map_speakers,
 }

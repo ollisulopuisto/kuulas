@@ -132,6 +132,23 @@ def migrate_0_to_1(db: sqlite3.Connection, folder: Path) -> None:
         db.execute("drop table transcripts")
 
 
+def migrate_1_to_2(db: sqlite3.Connection, folder: Path) -> None:  # noqa: ARG001 - the migration signature
+    """WP41: every material root gains empty ``people``, ``interviews`` and
+    ``media_person``. Rewritten in place in every revision (not as a new
+    revision), so the steps' ``material_from``/``material_to`` still point at
+    the same moments and undo is unaffected. Unknown keys stay."""
+    with dbm.tx(db):
+        for rev, root in db.execute("select id, root from material_revs").fetchall():
+            data = dbm.get_blob(db, root)
+            for key in ("people", "interviews", "media_person", "speakers"):
+                data.setdefault(key, {})
+            db.execute("update material_revs set root=? where id=?",
+                       (dbm.put_blob(db, "material", data), rev))
+        db.execute("delete from blobs where kind='material'"
+                   " and hash not in (select root from material_revs)")
+        dbm.set_meta(db, "schema_version", "2")
+
+
 def _v0_edit_state(state: dict) -> dict:
     """A v0 state without what became material: media, transcript pointers,
     sync groups, and the clips' sync fields (membership is per media now)."""
@@ -236,7 +253,8 @@ def cleanup_v0(folder: Path) -> None:
 
 
 #: ``version -> migration to version + 1``.
-MIGRATIONS: dict[int, Callable[[sqlite3.Connection, Path], None]] = {0: migrate_0_to_1}
+MIGRATIONS: dict[int, Callable[[sqlite3.Connection, Path], None]] = {
+    0: migrate_0_to_1, 1: migrate_1_to_2}
 
 
 def upgrade(db: sqlite3.Connection, folder: Path, version: int, target: int) -> None:
