@@ -352,11 +352,12 @@ where they were.
 
 ## Hindenburg round trip
 
-Importing `.nhsx` (WP13) keeps every XML attribute and element kuulas does
-not model in the `extra` of the matching object, under `extra["nhsx"]`.
-Exporting writes them back. A session imported and exported without edits
-must produce XML equal to the input after canonicalisation (test with the
-nhsx fixtures).
+Importing `.nhsx` (WP13) stores the source session XML in project
+`extra["nhsx"]`, and the original `<File>`, `<Track>`, and `<Region>` XML
+with the corresponding media, track, and clip under each object's
+`extra["nhsx"]["source_xml"]`. This keeps attributes and child elements that
+kuulas does not model for a future exporter. Hindenburg export is not
+implemented yet.
 
 ## Portability
 

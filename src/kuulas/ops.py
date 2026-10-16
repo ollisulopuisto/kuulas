@@ -262,6 +262,16 @@ def set_clip_envelope(p: Project, clip_id: str, points) -> Project:
     return _replace_clip(p, replace(clip, envelope=_points(points)))
 
 
+def set_clip_extra(p: Project, clip_id: str, key: str, value) -> Project:
+    clip, _ = _find_clip(p, clip_id)
+    return _replace_clip(p, replace(clip, extra={**clip.extra, key: value}))
+
+
+def set_track_extra(p: Project, track_id: str, key: str, value) -> Project:
+    track = _find_track(p, track_id)
+    return _replace_track(p, replace(track, extra={**track.extra, key: value}))
+
+
 #: Fade on an open piece next to a muted one. A gate that snaps shut on
 #: room tone clicks; 30 ms is inaudible as a fade and the mask already
 #: holds the mic open past the last word (``masks.DUCK_HOLD``).
