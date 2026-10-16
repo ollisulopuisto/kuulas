@@ -276,38 +276,38 @@ plugin on a voice, undo anything, export a mastered file.
 | 35 | WP20 paste without bloat | M | excerpt media keeping recorded time | Sonnet 5.5 |
 | 36 | WP39 portable projects: different paths on every machine | M | resolution order, learned path rewrites | Sonnet 5.5 |
 | 37 | WP37 usage extractor | S | recording ranges with audibility | Sonnet 5.5 |
-| 38 | WP38 series: reuse across episodes | L | per-project usage files, badges, series view | Sonnet 5.5 |
-| 39 | WP42 bits and index-card view (Scrivener-style) | L | outline to timeline, person view | Sonnet 5.5 |
-| 40 | WP19c roles, stems, match loudness | M | stems sum test | Sonnet 5.5 |
-| 41 | WP19d remappable keys + macros | M | macro = one undo step | Sonnet 5.5 |
-| 42 | WP19b connected clips | M | reflow after every edit | Sonnet 5.5 |
-| 43 | WP19h regions + batch export, chapters | S | none | Haiku 5.5 |
-| 44 | WP19g skimming | S | grain throttling | Sonnet 5.5 |
-| 45 | WP19e alternative takes | L | ripple on take length change | Sonnet 5.5 |
+| 38 | WP19c roles, stems, match loudness | M | stems sum test | Sonnet 5.5 |
+| 39 | WP19d remappable keys + macros | M | macro = one undo step | Sonnet 5.5 |
+| 40 | WP19b connected clips | M | reflow after every edit | Sonnet 5.5 |
+| 41 | WP19h regions + batch export, chapters | S | none | Haiku 5.5 |
+| 42 | WP19g skimming | S | grain throttling | Sonnet 5.5 |
+| 43 | WP19e alternative takes | L | ripple on take length change | Sonnet 5.5 |
 
 ### Phase 3 — Pipeline depth
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 46 | WP14 parallel analysis (done) | S | none | Haiku 5.5 |
-| 47 | WP10 voice chain variants | M | variants, chain settings | Sonnet 5.5 |
-| 48 | WP25 music report | S | heard-duration rules | Haiku 5.5 |
-| 49 | WP13 Hindenburg import | M | `.nhsx` word clock | Sonnet 5.5 |
-| 50 | WP23b FX layers: render tier, export waits, freeze on overload | L | background render, overload policy | **Opus 5.5** |
+| 44 | WP14 parallel analysis (done) | S | none | Haiku 5.5 |
+| 45 | WP10 voice chain variants | M | variants, chain settings | Sonnet 5.5 |
+| 46 | WP25 music report | S | heard-duration rules | Haiku 5.5 |
+| 47 | WP13 Hindenburg import | M | `.nhsx` word clock | Sonnet 5.5 |
+| 48 | WP23b FX layers: render tier, export waits, freeze on overload | L | background render, overload policy | **Opus 5.5** |
 
 ### Phase 4 — Recording and alignment
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 51 | WP12 recording, foolproof mode, live logging | L | hardware, crash recovery, sleep prevention | **Opus 5.5** |
-| 52 | WP17 clip bin | M | Space and in/out rules | Sonnet 5.5 |
-| 53 | WP16 align by sound | **XL** | drift and dropout detection | **Opus 5.5** |
+| 49 | WP12 recording, foolproof mode, live logging | L | hardware, crash recovery, sleep prevention | **Opus 5.5** |
+| 50 | WP17 clip bin | M | Space and in/out rules | Sonnet 5.5 |
+| 51 | WP16 align by sound | **XL** | drift and dropout detection | **Opus 5.5** |
 
-### Phase 5 — Late
+### Phase 5 — Late (series features here: owner, 2026-10-16)
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 54 | WP27 settings + rate change | L | converts every position kind; do it when the model has stopped growing | **Opus 5.5** |
+| 52 | WP27 settings + rate change | L | converts every position kind; do it when the model has stopped growing | **Opus 5.5** |
+| 53 | WP38 series: reuse across episodes | L | per-project usage files, badges, series view | Sonnet 5.5 |
+| 54 | WP42 bits and index-card view (Scrivener-style) | L | outline to timeline, person view | Sonnet 5.5 |
 | 55 | WP15 desktop wrapper | M | packaging | Sonnet 5.5 |
 
 **Easiest wins:** WP0, WP24.1, WP22, WP19a, WP19f, WP19h, WP14, WP25.
@@ -2614,7 +2614,7 @@ step forever, and make history length irrelevant to speed:
 
 ### WP41 — People, interviews, who speaks (data model)
 
-Status: open. Needs WP30. Sonnet 5.5. **Before WP7 and WP9**, so transcripts
+Status: done in v26.10.16.13. Usage marks on passages wait for WP37/WP38. Needs WP30. Sonnet 5.5. **Before WP7 and WP9**, so transcripts
 are linked to people from the first one (owner, 2026-10-16).
 
 Build docs/FORMAT.md "People, interviews and bits" for people, interviews,

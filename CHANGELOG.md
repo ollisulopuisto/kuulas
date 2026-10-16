@@ -1,5 +1,20 @@
 # Changelog
 
+## [v26.10.16.13] - 2026-10-16
+
+- People and interviews are now part of a project, added, edited and undone
+  like any other change.
+- Say whose voice is on a mic file, or map a mix's speaker labels to people;
+  correcting the map never changes the transcript text.
+- Files imported together are offered as one interview, in the same undo
+  step as the import.
+- Everything a person said can be listed, with recording ranges, in a project
+  or across several.
+- Series folders store people and interviews as one small file each, so sync
+  conflicts stay local and are reported.
+- Project format version 2: older projects are upgraded automatically after a
+  backup, and older kuulas versions can still open them.
+
 ## [v26.10.16.12] - 2026-10-16
 
 - The editor window's text and formatting layer exists (`ui/i18n.js`), so

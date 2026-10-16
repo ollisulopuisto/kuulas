@@ -82,7 +82,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R50 | Long history stays fast: keep every step forever, open under 1 s, incremental backups, thinning only if a speed budget fails | planned: WP40 |
 | R51 | Sync states made explicit: free from sync on purpose (U, or answer after Alt-drag) vs. undecided drift with its cause; never auto-resync | planned: WP19a |
 | R52 | Session markers in history; undo across sittings says so | planned: WP8 |
-| R53 | People and interviews in the data from the start: who speaks in every transcript, one interview linking all its recordings from different people, everything a person said across the series | planned: WP41 (before transcripts) |
+| R53 | People and interviews in the data from the start: who speaks in every transcript, one interview linking all its recordings from different people, everything a person said across the series | data model done in v26.10.16.13 (WP41); person view and cards later (WP42) |
 | R54 | Index cards like Scrivener: bits of interviews dragged into episodes, assembled into a timeline; person view | planned: WP42 |
 | R55 | Narration placeholders: script text in the timeline with estimated length, optional speech preview, script export, recorded or imported later in place | planned: WP43 |
 
@@ -162,6 +162,7 @@ sizes: `docs/PLAN.md`, section "Triage".
   before `LANG`, UI scans (keys exist, no literal text). 25 node tests
   (`node --test ui/tests/`), 369 pytest. **Not done:** the language
   setting's screen (WP27); not run in a real browser.
+- WP3: local API and `kuulas open` (edit round trip 14 ms median); WP33b: UI translations; WP41: people, interviews, who speaks. 406 Python + 25 UI tests.
 - WP2: playback engine with fault handling and golden renders (needs the owner's listening test on the Mac: `uv run pytest -q tests/hardware -s`).
 
 ## Later (v2)
