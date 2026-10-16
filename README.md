@@ -41,6 +41,10 @@ only: `uv run kuulas open Interview.kuulas`. The page is a placeholder until
 the UI (WP4) lands; the HTTP API behind it is described in `docs/PLAN.md`
 (WP3). What is done and what is left: `ROADMAP.md`.
 
+The `kuulas.usage.extract(project)` API lists the recording-time ranges used
+by a project, including audibility and excerpt-to-original mapping. Its
+results are shared by future music reports, series tracking and change views.
+
 ## Where to read next
 
 - `ROADMAP.md`: what kuulas must do, what is done, and what is next.

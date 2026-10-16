@@ -2502,7 +2502,7 @@ undo of the last 64 steps does no decompression.
 
 ### WP37 — Usage extractor (shared by music report, series, changes view)
 
-Status: open. Needs WP30. Sonnet 5.5.
+Status: done in v26.10.16.14. Needs WP30. Sonnet 5.5.
 
 `src/kuulas/usage.py`: from one project state (and material), list every
 used stretch of every recording: `Use(media_sha256, from_flicks, to_flicks,
@@ -2518,6 +2518,14 @@ difference of two states' uses).
 Tests: uses of a cut-up clip map to the right recording ranges; muted and
 ducked stretches are inaudible; excerpts map to the original; merging across
 short gaps; the result is identical for the same state (stable ordering).
+
+Implementation: `src/kuulas/usage.py` exposes `extract(project,
+merge_gap=2*FLICKS) -> tuple[Use, ...]`. Automation is split at integer-frame
+crossings of −60 dB; the threshold itself remains audible. Excerpt chains map
+to their root media hash and sum their recording-clock origins. Ranges merge
+only when source and timeline gaps are both below the limit and the track,
+role and audibility match. Invalid media references and excerpt cycles raise
+translated `UsageError`s.
 
 ---
 

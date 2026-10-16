@@ -1,5 +1,13 @@
 # Changelog
 
+## [v26.10.16.14] - 2026-10-16
+
+- Projects can now report every used recording range in its original media
+  clock, including ranges heard through excerpts.
+- Muted and deeply ducked passages are marked inaudible; nearby uses on the
+  same track are combined for downstream music reports, series tracking and
+  change comparisons.
+
 ## [v26.10.16.13] - 2026-10-16
 
 - People and interviews are now part of a project, added, edited and undone
