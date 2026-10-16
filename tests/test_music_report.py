@@ -157,6 +157,25 @@ def test_music_in_a_speech_clip_silent_gap_is_featured():
     assert [row.background for row in report] == [True, False]
 
 
+def test_muted_speech_does_not_make_music_background():
+    frames = 4 * RATE
+    m_speech = Media("s", "speech.wav", 1, frames, sha256="s" * 64)
+    m_music = media("mu", "u" * 64,
+                    music_info={"title": "Bed", "artist": "A"})
+    s = state(
+        media_items=[m_speech, m_music],
+        tracks=[
+            track("t1", "speech", [clip("sp", 0, 0, frames, media_id="s")],
+                  muted=True),
+            track("t2", "music", [clip("under", RATE // 2, 0, RATE, media_id="mu")]),
+        ],
+    )
+
+    report = make_report(s, {"s": speech_then_silence(4)[None, :]})
+
+    assert [row.background for row in report] == [False]
+
+
 def test_missing_metadata_is_flagged():
     m = media("m", "a" * 64, name="no tags.wav")
     s = state(
