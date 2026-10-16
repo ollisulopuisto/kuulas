@@ -160,6 +160,13 @@ class Session:
             self.history.goto(node)
             self._changed()
 
+    def restore(self, node: str) -> Project:
+        """Make the project equal to any step by adding a step (WP8's
+        ledger-style restore); Undo returns to where you were."""
+        with self.lock:
+            self.history.restore(node)
+            return self._changed()
+
     def checkpoint(self, name: str, kind: str = "manual") -> None:
         """Name the current step ("v1 sent to Ville"). Not an edit."""
         with self.lock:
@@ -260,6 +267,19 @@ class Session:
                 raise ops.EditError("error.edit.no_media", media_id=media_id) from None
             self.history.add_transcript(media_id, words, label=label)
             return self._changed()
+
+    def correct_word(self, media_id: str, index: int, text: str) -> Project:
+        """Correct the text of one word of one media's transcript: a new
+        transcript revision, one undo step. Its timing and speaker stay."""
+        with self.lock:
+            words = list(self.transcripts().get(media_id, ()))
+            if not 0 <= index < len(words):
+                raise ops.EditError("error.edit.no_word", media_id=media_id,
+                                    index=index, count=len(words))
+            old = words[index]["w"]
+            words[index] = {**words[index], "w": text.strip()}
+            return self.set_transcript(
+                media_id, words, t("history.correct_word", old=old, new=text.strip()))
 
     def _view_key(self, *parts: object) -> str:
         """Key of a memoized view: this project, and what the view is of."""

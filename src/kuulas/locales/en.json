@@ -116,5 +116,23 @@
   "audio.debleed_too_little": "{name}'s bleed was not removed: too little material where they speak alone.",
   "audio.debleed_no_path": "{name}'s bleed was not removed: the leakage path could not be solved.",
   "audio.debleed_ate_speech": "{name}'s bleed was not removed: the subtraction would have eaten this microphone's own speech.",
-  "audio.debleed_no_gain": "{name}'s bleed was not removed: there was nothing to remove."
+  "audio.debleed_no_gain": "{name}'s bleed was not removed: there was nothing to remove.",
+
+  "error.server.internal": "Something went wrong inside kuulas: {error}. Your work is saved; the details are in the log.",
+  "error.server.bad_request": "The request was not understood: {detail}",
+  "error.server.bad_transport": "Unknown playback action: {action}.",
+  "error.server.missing_field": "The request needs “{field}”.",
+  "error.edit.no_word": "There is no word {index} in the transcript of {media_id}; it has {count} words.",
+  "error.transcript.empty": "The transcript has no words.",
+  "error.transcript.unreadable": "The transcript could not be read: it is not word-timed JSON.",
+  "history.restored": "restored to “{label}”",
+  "history.correct_word": "corrected “{old}” to “{new}”",
+  "log.server.request_failed": "The request {method} {path} failed.",
+  "ui.placeholder.title": "kuulas",
+  "ui.placeholder.text": "The editor window is coming. The project {project} is open and the server is running.",
+  "cli.open.help": "Open a project in the browser, creating it if it does not exist.",
+  "cli.open.folder": "The project folder (Name.kuulas).",
+  "cli.open.port": "Port to listen on (default: any free one). Always on 127.0.0.1.",
+  "cli.open.no_browser": "Do not open the browser; only print the address.",
+  "cli.open.serving": "{path} is open at {url} (Ctrl+C to close)"
 }

@@ -423,6 +423,23 @@ class History:
     def goto(self, node: str) -> None:
         self._move(str(node))
 
+    def restore(self, node: str) -> None:
+        """Make the project equal to ``node``'s state by adding a step, not by
+        moving the head (WP8): the state left behind stays one Undo away. The
+        material (media, sync groups) is not rewound: it is what it is now."""
+        self._check_writable()
+        try:
+            target = self._node(str(node))
+        except KeyError:
+            raise HistoryError("error.history.no_step", node=node) from None
+        if target["edit"] != self.edit:
+            raise HistoryError("error.history.no_step", node=node)
+        now = self.state
+        state = replace(self._load(target["id"]), media=now.media,
+                        sync_groups=now.sync_groups)
+        self.commit(t("history.restored", label=target["label"]), state,
+                    op={"name": "restore", "args": {"node": target["id"]}})
+
     def nodes(self) -> list[dict]:
         rows = _rows(self.db.execute(
             "select id, parent, label, author, machine, op, created_utc as created,"

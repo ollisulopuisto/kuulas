@@ -1,6 +1,6 @@
 [project]
 name = "kuulas"
-version = "26.10.16.10"
+version = "26.10.16.11"
 description = "Multitrack spoken-word DAW: transcript editing, buses, the speechmix pipeline"
 readme = "README.md"
 requires-python = ">=3.13"

@@ -34,6 +34,11 @@ is in one:
 uv run kuulas info Interview.kuulas
 ```
 
+To open one (it is created if missing) in the browser, served on 127.0.0.1
+only: `uv run kuulas open Interview.kuulas`. The page is a placeholder until
+the UI (WP4) lands; the HTTP API behind it is described in `docs/PLAN.md`
+(WP3). What is done and what is left: `ROADMAP.md`.
+
 ## Where to read next
 
 - `ROADMAP.md`: what kuulas must do, what is done, and what is next.

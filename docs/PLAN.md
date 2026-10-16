@@ -585,7 +585,19 @@ the default device; run by hand on Mac and Windows.
 
 ### WP3 — HTTP API and CLI
 
-Status: open. Needs WP1, WP2.
+Status: done in v26.10.16.11. 360 tests pass (41 new: `tests/test_server.py`).
+Where the table below and the code disagreed, the code won: step ids are
+strings (UUIDv7), not ints; waveforms are served as the WP36 tiles
+`GET /api/peaks/{media}/{level}/{tile}` (ETag, immutable cache, 304), not
+`?per=N`; errors are `messages.error_body` (`{"error": {key, params, text}}`),
+not a bare message. `POST /api/restore` adds a step (`Session.restore`,
+`History.restore`) and answers with `"context": null` until WP8 stores UI
+context. `POST /api/import` and `/api/upload` also return `report`, one entry
+per file; when no file could be imported the answer is a 500 carrying that
+report. `POST /api/transport` also takes `scrub`. Edit round trip measured
+at 14 ms median (37 ms worst) on the heavy-hour fixture, through the
+TestClient. Not built: `GET /api/jobs`, `POST /api/export` (WP9, WP11). Not
+tried in a real browser. Needs WP1, WP2.
 
 New files `src/kuulas/server.py`, `src/kuulas/cli.py`.
 

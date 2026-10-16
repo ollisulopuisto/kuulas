@@ -70,7 +70,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R38 | Voice condition as a sub-choice of speech ("Speech · remote"; also for speech mixes, never music): clean / room / remote / phone / auto picks a speechmix preset; auto-suggested from measured noise floor, bandwidth, echo and clipping | waits for presets in speechmix (podcast repo); kuulas side in WP22 |
 | R39 | Internationalisation from day one: English and Finnish complete, one catalog for Python and UI, speechmix's messages translated too; locale-aware numbers, Helsinki times with zone, platform key names | WP33a done in v26.10.16.4 (Python catalogs, `messages.t`, speechmix translator); WP33b (UI) open |
 | R40 | Fault tolerance: a bad file or device costs that file or a second of audio, never the session; decoders time out, plug-ins run isolated, the audio callback never fails, device changes are handled | playback side done (WP2, v26.10.16.8; not yet run on hardware); import side WP34 |
-| R41 | Snappy UI, multithreaded throughout: heavy work never blocks; edits under 50 ms; 60 fps; no underruns during heavy jobs; background jobs yield to interaction | planned: ground rule 14, WP2, WP3, WP4, WP9 |
+| R41 | Snappy UI, multithreaded throughout: heavy work never blocks; edits under 50 ms; 60 fps; no underruns during heavy jobs; background jobs yield to interaction | API and engine done (WP2, WP3: edit round trip 14 ms on the heavy hour); UI render budgets in WP4, jobs in WP9 |
 | R42 | Smart caching: everything derived from a recording is computed once and survives every edit; one memory budget | planned: ground rule 15, WP36 |
 | R43 | Remembered settings; quick actions without repeated dialogs; helpful messages with Undo | planned: ground rule 16, WP35 |
 | R44 | Navigation: time zoom with snap levels, Z toggles close/wide view, waveform and lane height zoom, scrolling, overview, follow modes, clear keyboard focus | planned: WP4 |
@@ -104,8 +104,8 @@ sizes: `docs/PLAN.md`, section "Triage".
 
 - Media store: linked vs working FLAC, ffmpeg for everything else, relink,
   consolidate.
-- HTTP API, browser UI with the keymap. (Playback engine: done in WP2, not
-  yet run on real hardware.)
+- Browser UI with the keymap (WP4). (HTTP API: done in WP3, v26.10.16.11.
+  Playback engine: done in WP2, not yet run on real hardware.)
 
 ## Next
 
@@ -146,6 +146,16 @@ sizes: `docs/PLAN.md`, section "Triage".
   real-time layer when late (WP23a), prefetch priority over jobs (WP9).
 - WP34: import survives bad files, full disks and vanished drives; 268 tests.
 - WP36: caches per recording (waveform pyramid, level envelopes, decoded states, one memory budget); playback reads never touch the database; 319 tests.
+- WP3 (v26.10.16.11): HTTP API (`server.py`) and `kuulas open <folder>`
+  (127.0.0.1 only, free port, opens the browser, translated placeholder page
+  until WP4). Endpoints: state, edit, command, undo, redo, restore (adds a
+  step), history, import and upload (per-file report), peak tiles (ETag,
+  immutable, 304), words, transcript import, word correction, transport,
+  and `WS /api/live` (heard position, state-changed with head id, engine
+  notices, jobs placeholder). Edit round trip 14 ms median on the heavy
+  hour. 360 tests pass. **Not done:** `GET /api/jobs` and `POST /api/export`
+  (WP9, WP11); the UI context in `restore`'s answer (null until WP8 stores
+  it); not run against a real browser or with the real engine on hardware.
 - WP2: playback engine with fault handling and golden renders (needs the owner's listening test on the Mac: `uv run pytest -q tests/hardware -s`).
 
 ## Later (v2)

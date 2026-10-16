@@ -1,5 +1,25 @@
 # Changelog
 
+## [v26.10.16.11] - 2026-10-16
+
+- `kuulas open <folder>` opens a project (creating it if it does not exist)
+  and serves it on this computer only (127.0.0.1, any free port), then opens
+  the browser. There is still no editor window: the page says so, in
+  English or Finnish by the browser's language. `--port` and `--no-browser`
+  are available.
+- The HTTP API the editor window will use exists: project state, edits,
+  commands, undo/redo, history, restore, importing by path or by upload
+  (with a per-file report of what came in, what failed and why), waveform
+  tiles the browser caches, transcript words, transcript import, word
+  correction and playback control.
+- A live channel pushes what happened instead of the UI asking: the heard
+  playback position, state-changed notices and audio warnings.
+- Restoring an earlier step now adds a new step (it can be undone) instead
+  of moving back; correcting a word of a transcript is one undo step.
+- Errors reach the UI with a key and a translated text; the text follows
+  the browser's language. An edit round trip on the hour-long, 1,204-clip
+  project takes about 14 ms (budget 50 ms).
+
 ## [v26.10.16.10] - 2026-10-16
 
 - Waveform overviews are computed once per recording at import, at five zoom

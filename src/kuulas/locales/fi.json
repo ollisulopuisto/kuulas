@@ -116,5 +116,23 @@
   "audio.debleed_too_little": "{name}:n vuotoa ei poistettu: materiaalia, jossa puhutaan yksin, on liian vähän.",
   "audio.debleed_no_path": "{name}:n vuotoa ei poistettu: vuotoreittiä ei voitu ratkaista.",
   "audio.debleed_ate_speech": "{name}:n vuotoa ei poistettu: vähennys olisi syönyt tämän mikrofonin oman puheen.",
-  "audio.debleed_no_gain": "{name}:n vuotoa ei poistettu: poistettavaa ei ollut."
+  "audio.debleed_no_gain": "{name}:n vuotoa ei poistettu: poistettavaa ei ollut.",
+
+  "error.server.internal": "Kuulaksen sisällä tapahtui virhe: {error}. Työsi on tallessa; tarkemmat tiedot ovat lokissa.",
+  "error.server.bad_request": "Pyyntöä ei ymmärretty: {detail}",
+  "error.server.bad_transport": "Tuntematon toistotoiminto: {action}.",
+  "error.server.missing_field": "Pyyntö tarvitsee kentän “{field}”.",
+  "error.edit.no_word": "Sanaa {index} ei ole median {media_id} litteraatissa; siinä on {count} sanaa.",
+  "error.transcript.empty": "Litteraatissa ei ole yhtään sanaa.",
+  "error.transcript.unreadable": "Litteraattia ei voitu lukea: se ei ole sanakohtaisesti ajoitettua JSONia.",
+  "history.restored": "palautettu kohtaan “{label}”",
+  "history.correct_word": "korjattu “{old}” → “{new}”",
+  "log.server.request_failed": "Pyyntö {method} {path} epäonnistui.",
+  "ui.placeholder.title": "kuulas",
+  "ui.placeholder.text": "Muokkausikkuna on tulossa. Projekti {project} on auki ja palvelin käynnissä.",
+  "cli.open.help": "Avaa projekti selaimessa; luo sen, jos sitä ei ole.",
+  "cli.open.folder": "Projektikansio (Nimi.kuulas).",
+  "cli.open.port": "Portti, jota kuunnellaan (oletus: mikä tahansa vapaa). Aina osoitteessa 127.0.0.1.",
+  "cli.open.no_browser": "Älä avaa selainta, vain tulosta osoite.",
+  "cli.open.serving": "{path} on auki osoitteessa {url} (sulje Ctrl+C:llä)"
 }
