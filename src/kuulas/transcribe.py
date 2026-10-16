@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from .messages import KuulasError
+
 
 def _word(text: str, start: float, end: float, rate: int, spk: str = "") -> dict:
     s = round(float(start) * rate)
@@ -49,15 +51,17 @@ def from_segments(segments, rate: int) -> list[dict]:
             if w.word.strip()]
 
 
+class TranscribeError(KuulasError, RuntimeError):
+    """Transcription cannot run here: a required extra is not installed."""
+
+
 def local(path: str | Path, rate: int, model: str = "small",
           language: str | None = None, progress=None) -> list[dict]:
     """Transcribe ``path`` with faster-whisper, word timestamps on."""
     try:
         from faster_whisper import WhisperModel
     except ImportError as e:
-        raise RuntimeError(
-            "local transcription needs faster-whisper: uv sync --extra transcribe"
-        ) from e
+        raise TranscribeError("error.transcribe.missing_extra") from e
     whisper = WhisperModel(model, device="auto", compute_type="int8")
     segments, info = whisper.transcribe(str(path), language=language,
                                         word_timestamps=True, vad_filter=True)

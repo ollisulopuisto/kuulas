@@ -2003,7 +2003,9 @@ Tests first:
 
 ### WP33 — Internationalisation foundation (i18n)
 
-Status: open. **Split in two**, so no WP writes untranslated text:
+Status: WP33a done in v26.10.16.4 (Python: catalogs, `messages.t`, error shape,
+speechmix translator, literals converted); WP33b open. **Split in two**, so no
+WP writes untranslated text:
 - **WP33a** (Python: catalogs, `messages.t`, API error shape, speechmix
   translator, converting today's literal messages in `ops`, `media`,
   `transcribe` and `analysis`). Needs WP0. Haiku 5.5. **Before WP29.**

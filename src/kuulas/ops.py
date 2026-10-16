@@ -10,6 +10,7 @@ import uuid
 from dataclasses import replace
 
 from . import curves
+from .messages import KuulasError
 from .model import Bus, Clip, Media, Point, Project, Track
 
 #: Crossfade where a cut joins audio that was not adjacent in the source.
@@ -19,7 +20,7 @@ from .model import Bus, Clip, Media, Point, Project, Track
 CROSSFADE_SEC = 0.020
 
 
-class EditError(ValueError):
+class EditError(KuulasError, ValueError):
     """The edit does not make sense for this project; nothing changed."""
 
 
@@ -48,14 +49,14 @@ def _find_clip(p: Project, clip_id: str) -> tuple[Clip, Track]:
     try:
         return p.clip_and_track(clip_id)
     except KeyError:
-        raise EditError(f"no clip {clip_id}") from None
+        raise EditError("error.edit.no_clip", clip_id=clip_id) from None
 
 
 def _find_track(p: Project, track_id: str) -> Track:
     try:
         return p.track(track_id)
     except KeyError:
-        raise EditError(f"no track {track_id}") from None
+        raise EditError("error.edit.no_track", track_id=track_id) from None
 
 
 def _points(raw) -> tuple[Point, ...]:
@@ -67,7 +68,7 @@ def _points(raw) -> tuple[Point, ...]:
 
 def add_media(p: Project, media: Media) -> Project:
     if any(m.id == media.id for m in p.media):
-        raise EditError(f"media {media.id} already in project")
+        raise EditError("error.edit.media_exists", media_id=media.id)
     return replace(p, media=(*p.media, media))
 
 
@@ -75,7 +76,7 @@ def add_track(p: Project, track_id: str | None = None, name: str = "Track",
               kind: str = "speech") -> Project:
     track_id = track_id or new_id("t")
     if any(t.id == track_id for t in p.tracks):
-        raise EditError(f"track {track_id} exists")
+        raise EditError("error.edit.track_exists", track_id=track_id)
     return replace(p, tracks=(*p.tracks, Track(id=track_id, name=name, kind=kind)))
 
 
@@ -90,9 +91,9 @@ TRACK_FIELDS = {"name", "kind", "bus", "gain_db", "pan", "mute", "solo"}
 def set_track(p: Project, track_id: str, **fields) -> Project:
     unknown = set(fields) - TRACK_FIELDS
     if unknown:
-        raise EditError(f"track has no {sorted(unknown)}")
+        raise EditError("error.edit.track_no_fields", fields=", ".join(sorted(unknown)))
     if fields.get("bus") is not None and not any(b.id == fields["bus"] for b in p.buses):
-        raise EditError(f"no bus {fields['bus']}")
+        raise EditError("error.edit.no_bus", bus_id=fields["bus"])
     if "pan" in fields:
         fields["pan"] = max(-1.0, min(1.0, float(fields["pan"])))
     return _replace_track(p, replace(_find_track(p, track_id), **fields))
@@ -113,7 +114,7 @@ def set_track_automation(p: Project, track_id: str, points) -> Project:
 def add_bus(p: Project, bus_id: str | None = None, name: str = "Bus") -> Project:
     bus_id = bus_id or new_id("b")
     if any(b.id == bus_id for b in p.buses):
-        raise EditError(f"bus {bus_id} exists")
+        raise EditError("error.edit.bus_exists", bus_id=bus_id)
     return replace(p, buses=(*p.buses, Bus(id=bus_id, name=name)))
 
 
@@ -123,11 +124,11 @@ BUS_FIELDS = {"name", "gain_db", "pan", "mute"}
 def set_bus(p: Project, bus_id: str, **fields) -> Project:
     unknown = set(fields) - BUS_FIELDS
     if unknown:
-        raise EditError(f"bus has no {sorted(unknown)}")
+        raise EditError("error.edit.bus_no_fields", fields=", ".join(sorted(unknown)))
     try:
         bus = p.bus(bus_id)
     except KeyError:
-        raise EditError(f"no bus {bus_id}") from None
+        raise EditError("error.edit.no_bus", bus_id=bus_id) from None
     return replace(p, buses=tuple(replace(bus, **fields) if b.id == bus_id else b
                                   for b in p.buses))
 
@@ -175,11 +176,11 @@ def add_clip(p: Project, track_id: str, media_id: str, start: int = 0,
     try:
         media = p.media_item(media_id)
     except KeyError:
-        raise EditError(f"no media {media_id}") from None
+        raise EditError("error.edit.no_media", media_id=media_id) from None
     if length is None:
         length = media.frames - offset
     if offset < 0 or length <= 0 or offset + length > media.frames:
-        raise EditError("clip reaches outside its media")
+        raise EditError("error.edit.clip_outside_media")
     clip = Clip(id=clip_id or new_id("c"), media=media_id, start=max(0, int(start)),
                 offset=int(offset), length=int(length))
     return _replace_track(p, replace(track, clips=_sorted((*track.clips, clip))))
@@ -214,7 +215,7 @@ def trim_clip(p: Project, clip_id: str, start: int | None = None,
     if end is not None:
         new_end = min(int(end), clip.start - clip.offset + media.frames)
     if new_end - new_start <= 0:
-        raise EditError("trim would leave an empty clip")
+        raise EditError("error.edit.trim_empty")
     offset = clip.offset + (new_start - clip.start)
     length = new_end - new_start
     return _replace_clip(p, replace(
@@ -228,7 +229,7 @@ def split_clip(p: Project, clip_id: str, at: int, new_id: str | None = None) -> 
     clip, track = _find_clip(p, clip_id)
     at = int(at)
     if not clip.start < at < clip.end:
-        raise EditError("split point is not inside the clip")
+        raise EditError("error.edit.split_outside")
     left, right = _cut(clip, at, new_id or globals()["new_id"]("c"))
     clips = [c for c in track.clips if c.id != clip_id] + [left, right]
     return _replace_track(p, replace(track, clips=_sorted(clips)))
@@ -250,7 +251,7 @@ CLIP_FIELDS = {"gain_db", "pan", "fade_in", "fade_out", "muted"}
 def set_clip(p: Project, clip_id: str, **fields) -> Project:
     unknown = set(fields) - CLIP_FIELDS
     if unknown:
-        raise EditError(f"clip has no {sorted(unknown)}")
+        raise EditError("error.edit.clip_no_fields", fields=", ".join(sorted(unknown)))
     clip, _ = _find_clip(p, clip_id)
     if "pan" in fields:
         fields["pan"] = max(-1.0, min(1.0, float(fields["pan"])))
@@ -334,7 +335,7 @@ def shift_clips(p: Project, clip_ids, delta: int) -> Project:
     ids = set(clip_ids)
     chosen = [c for t in p.tracks for c in t.clips if c.id in ids]
     if not chosen:
-        raise EditError("no clips selected")
+        raise EditError("error.edit.no_selection")
     delta = max(int(delta), -min(c.start for c in chosen))
     tracks = tuple(
         replace(t, clips=_sorted(replace(c, start=c.start + delta) if c.id in ids else c
@@ -372,7 +373,7 @@ def mark_in_sync(p: Project, clip_ids, main: str, group_id: str | None = None,
     drifted) can be resynced too. From then on ``resync`` puts any of them back.
     """
     if basis not in ("timeline", "files"):
-        raise EditError(f"unknown sync basis {basis!r}")
+        raise EditError("error.edit.sync_basis", basis=basis)
     group_id = group_id or new_id("g")
     main_clip, _ = _find_clip(p, main)
     main_media = p.media_item(main_clip.media)
@@ -436,7 +437,7 @@ def ripple_delete(p: Project, start: int, end: int,
     """
     start, end = int(start), int(end)
     if end <= start:
-        raise EditError("empty range")
+        raise EditError("error.edit.empty_range")
     gap = end - start
     scope = set(track_ids) if track_ids is not None else {t.id for t in p.tracks}
     tracks = []
@@ -524,8 +525,8 @@ def apply(p: Project, name: str, args: dict) -> Project:
     try:
         op = OPS[name]
     except KeyError:
-        raise EditError(f"unknown edit {name!r}") from None
+        raise EditError("error.edit.unknown", name=name) from None
     try:
         return op(p, **args)
     except TypeError as e:
-        raise EditError(f"{name}: {e}") from None
+        raise EditError("error.edit.bad_arguments", name=name, detail=str(e)) from None

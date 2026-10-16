@@ -1,5 +1,15 @@
 # Changelog
 
+## [v26.10.16.4] - 2026-10-16
+
+- Error messages are in Finnish as well as English. kuulas follows the
+  language of the computer (Finnish if it is set to Finnish, English
+  otherwise). Edits that cannot be made, missing media, and transcription
+  that needs an install all say what went wrong in that language.
+- Messages from the speech pipeline (plug-ins, mastering, bleed removal) are
+  in Finnish too.
+- The app's own screens are still English until the interface is translated.
+
 ## [v26.10.16.3] - 2026-10-16
 
 - Analysis of several speech tracks (what decides who is talking, for

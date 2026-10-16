@@ -36,6 +36,7 @@ import numpy as np
 import soundfile as sf
 from speechmix.binaries import get_binary_path
 
+from .messages import KuulasError
 from .model import Media
 
 #: Frames per peak at the finest zoom level the UI asks for.
@@ -456,7 +457,7 @@ def _ffprobe_channels(path: Path) -> int:
         capture_output=True, text=True, check=False, stdin=subprocess.DEVNULL)
     text = out.stdout.strip().splitlines()
     if out.returncode != 0 or not text:
-        raise MediaError(f"{path.name}: no audio stream found")
+        raise MediaError("error.media.no_audio", name=path.name)
     return int(text[0])
 
 
@@ -479,11 +480,11 @@ class _ffmpeg_pcm:  # noqa: N801 - used as a context manager, reads like a funct
         err = self.proc.stderr.read().decode(errors="replace").strip()
         self.proc.stderr.close()
         if self.proc.wait() != 0 and exc[0] is None:
-            raise MediaError(f"{self.path.name}: ffmpeg could not decode it: {err}")
+            raise MediaError("error.media.decode_failed", name=self.path.name, error=err)
         return False
 
 
-class MediaError(RuntimeError):
+class MediaError(KuulasError, RuntimeError):
     """A file could not be brought into the project."""
 
 
