@@ -109,6 +109,9 @@ sizes: `docs/PLAN.md`, section "Triage".
 
 ## Open questions and known limits
 
+- **Focus mode and a better file format:** briefed for Opus in
+  `docs/OPUS-BRIEF.md`; not yet designed.
+
 - **Music report format:** do Teosto or Gramex want a specific file layout? (WP25 ships CSV and HTML.)
 
 - **speechmix as a package.** Path dependency on `../podcast/packages/*`.
