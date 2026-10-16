@@ -94,6 +94,10 @@ sizes: `docs/PLAN.md`, section "Triage".
 - Video files with several audio streams: choose the stream (today: first).
 - Desktop wrapper (pywebview or Tauri) so it is an app, not a browser tab.
 
+## Done in this release (v26.10.16.1)
+
+- WP0: baseline, lint clean, Biome config, README, CHANGELOG, CLAUDE.md. 87 tests pass.
+
 ## Later (v2)
 
 - **Scrub the take while it is still recording**, to place a late-logged

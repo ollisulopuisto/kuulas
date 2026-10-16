@@ -1,0 +1,122 @@
+"""One mixer for playback and export.
+
+``mix`` renders any stretch of the timeline to stereo. The playback engine
+calls it block by block and the exporter calls it minute by minute, so the
+file you export is the mix you heard.
+
+Signal flow::
+
+    clip (gain, envelope, fades, pan) -> track (automation, gain, pan,
+    mute/solo) -> bus (gain, pan, mute) or master -> master gain
+
+Pan laws come from speechmix (``stems.pan_gains``): a mono clip is placed
+with the constant-power law, so it measures the same loudness wherever it
+sits; a stereo signal is balanced.
+"""
+
+from __future__ import annotations
+
+from typing import Protocol
+
+import numpy as np
+from speechmix.stems import pan_gains
+
+from . import curves
+from .model import Clip, Project, Track
+
+
+class Store(Protocol):
+    def read(self, media_id: str, first: int, count: int) -> np.ndarray:
+        """``(channels, count)`` float32 from source frame ``first``, zero-padded."""
+        ...
+
+
+def _ramp(t: np.ndarray, begin: int, length: int) -> np.ndarray:
+    """Raised-sine rise from 0 at ``begin`` to 1 at ``begin + length``.
+
+    Rise and fall of the same length sum to exactly 1 (sin² + cos²), so a
+    crossfade over steady audio neither dips nor bumps.
+    """
+    x = np.clip((t - begin) / length, 0.0, 1.0)
+    return np.sin(0.5 * np.pi * x) ** 2
+
+
+def _clip_into(out: np.ndarray, clip: Clip, store: Store, first: int, count: int) -> None:
+    lo = max(first, clip.heard_start)
+    hi = min(first + count, clip.heard_end)
+    if hi <= lo:
+        return
+    n = hi - lo
+    src = clip.offset + (lo - clip.start)
+    audio = store.read(clip.media, src, n).astype(np.float64)
+    t = np.arange(lo, hi, dtype=np.float64)  # timeline frames
+
+    g = np.full(n, curves.gain(clip.gain_db), dtype=np.float64)
+    env = curves.db_curve(clip.envelope, src, n)
+    if env is not None:
+        g *= curves.gain(env)
+    if clip.xfade_in:
+        g *= _ramp(t, clip.heard_start, clip.xfade_in)
+    elif clip.fade_in and lo < clip.start + clip.fade_in:
+        g *= _ramp(t, clip.start, clip.fade_in)
+    if clip.xfade_out:
+        g *= _ramp(-t, -clip.heard_end, clip.xfade_out)
+    elif clip.fade_out and hi > clip.end - clip.fade_out:
+        # The last frame of the clip is end-1: it plays at gain 0 only past it.
+        g *= _ramp(-t, -(clip.end - 1), clip.fade_out)
+
+    a = lo - first
+    if audio.shape[0] == 1:
+        left_g, right_g = pan_gains(clip.pan * 100.0, "power")
+        mono = audio[0] * g
+        out[0, a:a + n] += mono * left_g
+        out[1, a:a + n] += mono * right_g
+    else:
+        left_g, right_g = pan_gains(clip.pan * 100.0, "balance")
+        out[0, a:a + n] += audio[0] * g * left_g
+        out[1, a:a + n] += audio[1] * g * right_g
+
+
+def _balance(buf: np.ndarray, pan: float) -> None:
+    if pan:
+        left_g, right_g = pan_gains(pan * 100.0, "balance")
+        buf[0] *= left_g
+        buf[1] *= right_g
+
+
+def _track(track: Track, store: Store, first: int, count: int) -> np.ndarray | None:
+    clips = [c for c in track.clips
+             if not c.muted and c.start < first + count and c.end > first]
+    if not clips:
+        return None
+    buf = np.zeros((2, count), dtype=np.float64)
+    for clip in clips:
+        _clip_into(buf, clip, store, first, count)
+    g = curves.gain(track.gain_db)
+    auto = curves.db_curve(track.automation, first, count)
+    buf *= g if auto is None else g * curves.gain(auto)
+    _balance(buf, track.pan)
+    return buf
+
+
+def mix(project: Project, store: Store, first: int, count: int) -> np.ndarray:
+    """Stereo float32 ``(2, count)`` for timeline frames ``[first, first+count)``."""
+    master = np.zeros((2, count), dtype=np.float64)
+    buses = {b.id: np.zeros((2, count), dtype=np.float64) for b in project.buses}
+    soloing = any(t.solo for t in project.tracks)
+    for track in project.tracks:
+        if track.mute or (soloing and not track.solo):
+            continue
+        buf = _track(track, store, first, count)
+        if buf is not None:
+            target = buses.get(track.bus, master)
+            target[:] += buf
+    for bus in project.buses:
+        if bus.mute:
+            continue
+        buf = buses[bus.id]
+        buf *= curves.gain(bus.gain_db)
+        _balance(buf, bus.pan)
+        master += buf
+    master *= curves.gain(project.master_gain_db)
+    return master.astype(np.float32)

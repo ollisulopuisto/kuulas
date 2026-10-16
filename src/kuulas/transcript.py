@@ -1,0 +1,55 @@
+"""The transcript as a view of the timeline.
+
+Words are stored per media in *source* frames (``{"w", "s", "e", "spk"}``)
+and never edited by audio edits. Their timeline positions are derived from
+the clips every time, so moving, trimming or cutting audio moves the text
+with it, and deleting text is a ripple cut computed here.
+"""
+
+from __future__ import annotations
+
+from .model import Project
+
+
+def timeline_words(p: Project, transcripts: dict[str, list[dict]]) -> list[dict]:
+    """Every word some clip plays, on the timeline, in time order.
+
+    A word belongs to the clip that plays its midpoint, so a cut through a
+    word shows it once, on the side that keeps most of it.
+    """
+    out = []
+    for track in p.tracks:
+        for clip in track.clips:
+            words = transcripts.get(clip.media)
+            if not words:
+                continue
+            lo, hi = clip.offset, clip.offset + clip.length
+            shift = clip.start - clip.offset
+            for i, w in enumerate(words):
+                mid = (w["s"] + w["e"]) // 2
+                if lo <= mid < hi:
+                    out.append({
+                        "w": w["w"], "spk": w.get("spk", ""),
+                        "s": max(clip.start, w["s"] + shift),
+                        "e": min(clip.end, w["e"] + shift),
+                        "track": track.id, "clip": clip.id, "media": clip.media,
+                        "index": i, "muted": clip.muted or track.mute,
+                    })
+    out.sort(key=lambda w: (w["s"], w["track"]))
+    return out
+
+
+def cut_range(words: list[dict], selected: list[int]) -> tuple[int, int]:
+    """Timeline range to ripple-delete for the selected words (indices into ``words``).
+
+    Each side cuts to the middle of the pause to the neighbouring word, so
+    what is left is one natural pause, not two halves of nothing and not a
+    clipped consonant. At the ends of the programme it cuts to the word itself.
+    """
+    first = min(words[i]["s"] for i in selected)
+    last = max(words[i]["e"] for i in selected)
+    before = [w["e"] for w in words if w["e"] <= first]
+    after = [w["s"] for w in words if w["s"] >= last]
+    a = (max(before) + first) // 2 if before else first
+    b = (last + min(after)) // 2 if after else last
+    return a, b

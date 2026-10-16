@@ -290,7 +290,9 @@ WP15 (last)
 
 ### WP0 — Baseline: green, linted, committed
 
-Status: open
+Status: done in v26.10.16.1. Tests 87 passing; `ruff check` clean; Biome clean.
+The video-audio threshold was lowered from 0.1 to 0.05 because AAC coding
+lowers a 0.125 tone to 0.09–0.10 (ffmpeg's own decode agrees); see the commit.
 
 1. Add `.gitignore`: `.venv/`, `__pycache__/`, `.pytest_cache/`, `.ruff_cache/`,
    `*.kuulas/`, `node_modules/`.
