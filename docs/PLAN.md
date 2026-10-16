@@ -265,49 +265,50 @@ plugin on a voice, undo anything, export a mastered file.
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
 | 26 | WP28 focus mode | M | lane layout, speaker focus, solo restore | Sonnet 5.5 |
-| 27 | WP18 cut candidates | M | recording-clock anchoring (later WPs reuse it) | **Opus 5.5** |
-| 28 | WP19f spot | S | parsing | Haiku 5.5 |
-| 29 | WP24.2 A/B | M | edit A/B position mapping, level match | Sonnet 5.5 |
-| 30 | WP21 several edits (versions) | L | history schema migration, offer_cuts | **Opus 5.5** |
-| 31 | WP40 long history stays fast | M | paged panel, incremental backups, thinning valve | Sonnet 5.5 |
-| 32 | WP31 changes view + checkpoints | M | recording-range diff | Sonnet 5.5 |
-| 33 | WP32 review round trip: suggest mode, hand-off, merge | L | diverged copies become suggestions | **Opus 5.5** |
-| 34 | WP20 paste without bloat | M | excerpt media keeping recorded time | Sonnet 5.5 |
-| 35 | WP39 portable projects: different paths on every machine | M | resolution order, learned path rewrites | Sonnet 5.5 |
-| 36 | WP37 usage extractor | S | recording ranges with audibility | Sonnet 5.5 |
-| 37 | WP38 series: reuse across episodes | L | per-project usage files, badges, series view | Sonnet 5.5 |
-| 38 | WP42 bits and index-card view (Scrivener-style) | L | outline to timeline, person view | Sonnet 5.5 |
-| 39 | WP19c roles, stems, match loudness | M | stems sum test | Sonnet 5.5 |
-| 40 | WP19d remappable keys + macros | M | macro = one undo step | Sonnet 5.5 |
-| 41 | WP19b connected clips | M | reflow after every edit | Sonnet 5.5 |
-| 42 | WP19h regions + batch export, chapters | S | none | Haiku 5.5 |
-| 43 | WP19g skimming | S | grain throttling | Sonnet 5.5 |
-| 44 | WP19e alternative takes | L | ripple on take length change | Sonnet 5.5 |
+| 27 | WP43 narration placeholders | M | estimated length, replace with a take | Sonnet 5.5 |
+| 28 | WP18 cut candidates | M | recording-clock anchoring (later WPs reuse it) | **Opus 5.5** |
+| 29 | WP19f spot | S | parsing | Haiku 5.5 |
+| 30 | WP24.2 A/B | M | edit A/B position mapping, level match | Sonnet 5.5 |
+| 31 | WP21 several edits (versions) | L | history schema migration, offer_cuts | **Opus 5.5** |
+| 32 | WP40 long history stays fast | M | paged panel, incremental backups, thinning valve | Sonnet 5.5 |
+| 33 | WP31 changes view + checkpoints | M | recording-range diff | Sonnet 5.5 |
+| 34 | WP32 review round trip: suggest mode, hand-off, merge | L | diverged copies become suggestions | **Opus 5.5** |
+| 35 | WP20 paste without bloat | M | excerpt media keeping recorded time | Sonnet 5.5 |
+| 36 | WP39 portable projects: different paths on every machine | M | resolution order, learned path rewrites | Sonnet 5.5 |
+| 37 | WP37 usage extractor | S | recording ranges with audibility | Sonnet 5.5 |
+| 38 | WP38 series: reuse across episodes | L | per-project usage files, badges, series view | Sonnet 5.5 |
+| 39 | WP42 bits and index-card view (Scrivener-style) | L | outline to timeline, person view | Sonnet 5.5 |
+| 40 | WP19c roles, stems, match loudness | M | stems sum test | Sonnet 5.5 |
+| 41 | WP19d remappable keys + macros | M | macro = one undo step | Sonnet 5.5 |
+| 42 | WP19b connected clips | M | reflow after every edit | Sonnet 5.5 |
+| 43 | WP19h regions + batch export, chapters | S | none | Haiku 5.5 |
+| 44 | WP19g skimming | S | grain throttling | Sonnet 5.5 |
+| 45 | WP19e alternative takes | L | ripple on take length change | Sonnet 5.5 |
 
 ### Phase 3 — Pipeline depth
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 45 | WP14 parallel analysis (done) | S | none | Haiku 5.5 |
-| 46 | WP10 voice chain variants | M | variants, chain settings | Sonnet 5.5 |
-| 47 | WP25 music report | S | heard-duration rules | Haiku 5.5 |
-| 48 | WP13 Hindenburg import | M | `.nhsx` word clock | Sonnet 5.5 |
-| 49 | WP23b FX layers: render tier, export waits, freeze on overload | L | background render, overload policy | **Opus 5.5** |
+| 46 | WP14 parallel analysis (done) | S | none | Haiku 5.5 |
+| 47 | WP10 voice chain variants | M | variants, chain settings | Sonnet 5.5 |
+| 48 | WP25 music report | S | heard-duration rules | Haiku 5.5 |
+| 49 | WP13 Hindenburg import | M | `.nhsx` word clock | Sonnet 5.5 |
+| 50 | WP23b FX layers: render tier, export waits, freeze on overload | L | background render, overload policy | **Opus 5.5** |
 
 ### Phase 4 — Recording and alignment
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 50 | WP12 recording, foolproof mode, live logging | L | hardware, crash recovery, sleep prevention | **Opus 5.5** |
-| 51 | WP17 clip bin | M | Space and in/out rules | Sonnet 5.5 |
-| 52 | WP16 align by sound | **XL** | drift and dropout detection | **Opus 5.5** |
+| 51 | WP12 recording, foolproof mode, live logging | L | hardware, crash recovery, sleep prevention | **Opus 5.5** |
+| 52 | WP17 clip bin | M | Space and in/out rules | Sonnet 5.5 |
+| 53 | WP16 align by sound | **XL** | drift and dropout detection | **Opus 5.5** |
 
 ### Phase 5 — Late
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 53 | WP27 settings + rate change | L | converts every position kind; do it when the model has stopped growing | **Opus 5.5** |
-| 54 | WP15 desktop wrapper | M | packaging | Sonnet 5.5 |
+| 54 | WP27 settings + rate change | L | converts every position kind; do it when the model has stopped growing | **Opus 5.5** |
+| 55 | WP15 desktop wrapper | M | packaging | Sonnet 5.5 |
 
 **Easiest wins:** WP0, WP24.1, WP22, WP19a, WP19f, WP19h, WP14, WP25.
 **Hardest, highest risk:** WP23 (real-time FX), WP16 (align by sound),
@@ -2627,6 +2628,43 @@ Scrivener-style planning across a series (owner, 2026-10-16):
 Tests: a bit covers every mic of its interview; assembling twice adds
 nothing new; card moves are undoable; the person view lists passages across
 projects with correct usage marks.
+
+---
+
+### WP43 — Narration placeholders
+
+Status: open. Needs WP4, WP5, WP7. Sonnet 5.5. Phase 2. The data model
+part (a placeholder clip kind) can land with WP41 or earlier.
+
+Script text for narration that has not been recorded yet (owner, 2026-10-16):
+- **Model:** a clip with `kind="placeholder"`, no media, and `text`,
+  `narrator` (a person, WP41), `wpm` (speaking rate) and `length`. The
+  length is estimated from the text at the narrator's rate (default about
+  2.3 words per second, to measure on the owner's own narration) until the
+  user drags it. Placeholders live on a narration track and obey the
+  edit-target rule; the mixer plays them as silence.
+- **Keys:** T inserts a placeholder at the playhead and opens its text;
+  Alt+T previews it with the system's speech voice (macOS `say`, Windows
+  SAPI via the standard OS API), never exported.
+- **Transcript:** placeholder text appears inline, in italics, marked "to
+  record", so the episode reads as a script.
+- **Recording it:**
+  - "Export narration script": placeholders in order, with the line
+    before and after for context;
+  - in record mode (WP12) the next placeholder's text shows on screen, and
+    the take replaces it;
+  - importing with a placeholder selected replaces it.
+
+  Replacing adjusts the timeline to the real length, as one undoable
+  time-shifting edit.
+- **Cards:** narration cards in WP42's outline.
+- **Export guard:** unrecorded placeholders are reported before export
+  ("3 narration placeholders not recorded · Export anyway · Show them").
+
+Tests: estimated length from text and rate; a placeholder plays silence;
+replacing with a take ripples the later material by the difference, on the
+group's tracks; the script export lists placeholders in order with context;
+the export guard counts unrecorded placeholders.
 
 ---
 

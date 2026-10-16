@@ -84,6 +84,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R52 | Session markers in history; undo across sittings says so | planned: WP8 |
 | R53 | People and interviews in the data from the start: who speaks in every transcript, one interview linking all its recordings from different people, everything a person said across the series | planned: WP41 (before transcripts) |
 | R54 | Index cards like Scrivener: bits of interviews dragged into episodes, assembled into a timeline; person view | planned: WP42 |
+| R55 | Narration placeholders: script text in the timeline with estimated length, optional speech preview, script export, recorded or imported later in place | planned: WP43 |
 
 ## Done
 
