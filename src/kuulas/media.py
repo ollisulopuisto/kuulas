@@ -144,6 +144,11 @@ class MediaStore:
         self._handles: dict[str, tuple[threading.Lock, sf.SoundFile]] = {}
         self._cache: OrderedDict[tuple[str, int], np.ndarray] = OrderedDict()
         self._meta: dict[str, dict] = {}
+        #: Is each linked file still there and unchanged? Checked (stat and,
+        #: if the mtime moved, a re-hash) here, in ``missing`` and in
+        #: ``relink``, never in ``read``: that runs on the audio thread.
+        self._linked_ok: dict[str, bool] = {}
+        self.missing()
 
     def close(self) -> None:
         with self._lock:
@@ -406,7 +411,13 @@ class MediaStore:
 
     def missing(self) -> list[str]:
         """Linked media whose file is gone, moved or changed."""
-        return [m for m in self.ids() if self.is_linked(m) and not self._valid(m)]
+        lost = []
+        for m in self.ids():
+            if self.is_linked(m):
+                ok = self._linked_ok[m] = self._valid(m)
+                if not ok:
+                    lost.append(m)
+        return lost
 
     def relink(self, search: str | Path | None = None) -> dict[str, str]:
         """Find missing linked files again by content: remembered paths first,
@@ -435,6 +446,7 @@ class MediaStore:
             digest = _sha256(path)
             for media_id in waiting:
                 if self.meta(media_id)["sha256"] == digest:
+                    self._linked_ok[media_id] = True
                     where = str(path.resolve())
                     self._update(media_id, linked_path=where,
                                  linked_mtime_ns=path.stat().st_mtime_ns)
@@ -451,6 +463,7 @@ class MediaStore:
         for media_id in self.ids():
             if self.is_linked(media_id) and self._valid(media_id):
                 self._check_writable()
+                self._linked_ok.pop(media_id, None)
                 meta = self.meta(media_id)
                 self._encode_pcm(Path(meta["linked_path"]),
                                  {"id": media_id, "sha256": meta["sha256"],
@@ -470,7 +483,7 @@ class MediaStore:
         if h is not None:
             return h
         if self.is_linked(media_id):
-            if not self._valid(media_id):
+            if not self._linked_ok.get(media_id, True):
                 return None  # missing: plays as silence until relinked
             path = self.meta(media_id)["linked_path"]
         else:
@@ -557,7 +570,7 @@ class MediaStore:
         peaks, _ = _pump(read)
         base = np.concatenate(peaks) if peaks else np.zeros((0, 2), np.float32)
         # A missing linked file reads as silence: show it, but never cache it.
-        if not (self.is_linked(media_id) and not self._valid(media_id)):
+        if not self._unreadable(media_id):
             self._save_peaks(meta["sha256"], base)
         return base
 
@@ -567,7 +580,7 @@ class MediaStore:
 
     def _unreadable(self, media_id: str) -> bool:
         """A linked file that is gone reads as silence: never cache that."""
-        return self.is_linked(media_id) and not self._valid(media_id)
+        return self.is_linked(media_id) and not self._linked_ok.get(media_id, True)
 
     def _save_pyramid(self, digest: str, base: np.ndarray) -> None:
         try:
