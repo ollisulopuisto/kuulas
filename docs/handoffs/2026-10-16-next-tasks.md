@@ -1,4 +1,4 @@
-# Handoff: next tasks (updated 16.10.2026 23.36 Helsinki)
+# Handoff: next tasks (updated 17.10.2026 00.47 Helsinki)
 
 For any agent, from any vendor, picking up work on kuulas. Read `AGENTS.md`
 (`CLAUDE.md` and `GEMINI.md` point to the same rules), then the ground
@@ -8,7 +8,7 @@ rules at the top of `docs/PLAN.md`, then your task's work package (WP) in
 
 ## State of the repo
 
-- **main:** version 26.10.16.15: 497 pytest + 25 node tests pass, ruff and
+- **main:** version 26.10.17.1: 499 pytest + 25 node tests pass, ruff and
   Biome are clean, and every test file also passes **on its own**. The repo
   has one branch besides main (`wp4-ui-shell`, the draft) and no other
   worktrees; the primary checkout is on `main` and clean.
@@ -186,9 +186,8 @@ Keep at most four agents running at once.
 
 ## Open for the owner
 
-- Music report times are cut to whole seconds: should short stings round up,
-  or should the report show exact seconds? (Teosto and Gramex layout is also
-  still unknown.)
+- Music report times round up to whole seconds (decided 2026-10-17). The
+  Teosto and Gramex file layout is still unknown.
 - The engine listening test: `cd ~/Documents/koodi/kuulas && uv run pytest -q
   tests/hardware -s` (volume down; it plays one second of a quiet tone).
 - The format decisions were built with the recommended answers (package

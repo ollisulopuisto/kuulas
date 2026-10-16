@@ -43,9 +43,8 @@ class ReportRow:
     missing_metadata: bool
 
 
-def _stamp(frames: int, rate: int) -> str:
-    """``frames`` at ``rate`` as ``hh:mm:ss`` (whole seconds)."""
-    seconds = int(frames / rate)
+def _stamp(seconds: int) -> str:
+    """Whole ``seconds`` as ``hh:mm:ss``."""
     hours, rest = divmod(seconds, 3600)
     minutes, secs = divmod(rest, 60)
     return f"{hours:02d}:{minutes:02d}:{secs:02d}"
@@ -93,6 +92,12 @@ def build_report(project: Project, store: Store) -> tuple[ReportRow, ...]:
         artist = info.get("artist", "")
         background = any(u.timeline_from < end and u.timeline_to > start
                          for start, end in speech)
+        # Reports use whole seconds, and partial seconds round up (owner's
+        # decision, 2026-10-17): the start is floored, the duration rounded up
+        # and at least one second, and the out time is start plus duration, so
+        # the three columns always agree.
+        start = u.timeline_from // rate
+        length = max(1, -(-(u.timeline_to - u.timeline_from) // rate))
         rows.append(ReportRow(
             order=order,
             title=title,
@@ -101,9 +106,9 @@ def build_report(project: Project, store: Store) -> tuple[ReportRow, ...]:
             publisher=info.get("publisher", ""),
             isrc=info.get("isrc", ""),
             file_name=media.name if media is not None else "",
-            in_time=_stamp(u.timeline_from, rate),
-            out_time=_stamp(u.timeline_to, rate),
-            duration=_stamp(u.timeline_to - u.timeline_from, rate),
+            in_time=_stamp(start),
+            out_time=_stamp(start + length),
+            duration=_stamp(length),
             background=background,
             missing_metadata=not (title and artist),
         ))

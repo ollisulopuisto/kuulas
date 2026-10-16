@@ -93,13 +93,43 @@ def test_muted_and_silenced_music_is_not_reported():
     assert report == ()
 
 
+def test_a_short_sting_is_reported_as_one_whole_second():
+    m = media("m", "a" * 64, music_info={"title": "Sting", "artist": "A"})
+    s = state(
+        media_items=[m],
+        tracks=[track("t1", "music", [
+            clip("c", 0, 0, int(0.4 * RATE), media_id="m")])])
+
+    [row] = make_report(s)
+
+    assert (row.in_time, row.out_time, row.duration) == (
+        "00:00:00", "00:00:01", "00:00:01")
+
+
+def test_duration_rounds_up_and_in_out_stay_consistent():
+    # Starts 0.9 s into the minute and lasts 0.2 s: the start is floored, the
+    # duration rounded up, and the out time is start plus duration, so the
+    # three columns always agree with each other.
+    m = media("m", "a" * 64, music_info={"title": "Sting", "artist": "A"})
+    start = 59 * RATE + int(0.9 * RATE)
+    s = state(
+        media_items=[m],
+        tracks=[track("t1", "music", [
+            clip("c", start, 0, int(0.2 * RATE), media_id="m")])])
+
+    [row] = make_report(s)
+
+    assert (row.in_time, row.out_time, row.duration) == (
+        "00:00:59", "00:01:00", "00:00:01")
+
+
 def test_pieces_of_one_track_merge_across_short_gaps():
     m = media("m", "a" * 64, music_info={"title": "Bed", "artist": "A"})
     s = state(
         media_items=[m],
         tracks=[track("t1", "music", [
             clip("one", 0, 0, RATE, media_id="m"),
-            clip("two", RATE + 100, RATE + 100, RATE, media_id="m"),
+            clip("two", RATE + 100, RATE + 100, RATE - 100, media_id="m"),
         ])])
 
     report = make_report(s)

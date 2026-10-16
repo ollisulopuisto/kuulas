@@ -1,3 +1,9 @@
+## [v26.10.17.1] - 2026-10-17
+
+- Music report times are whole seconds, and partial seconds round up: a 0.4 s
+  sting is reported as one second. The out time is the in time plus the
+  duration, so the three columns always agree.
+
 ## [v26.10.16.15] - 2026-10-16
 
 - Music report: lists every piece of music the programme actually plays, with

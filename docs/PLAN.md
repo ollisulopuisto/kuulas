@@ -2010,13 +2010,13 @@ apart to within 0.3 LU; toggling writes nothing to history.
 
 ### WP25 — Music report (royalty reporting)
 
-Status: partly done in v26.10.16.15: report builder, CSV (UTF-8 with byte-order
+Status: partly done in v26.10.16.15 and v26.10.17.1: report builder, CSV (UTF-8 with byte-order
 mark, semicolons) and HTML, tags read at import, speech activity from the
 speech lanes, English and Finnish. **Open:** editing the tags (inspector), a
 Session command and API endpoint, "all edits" and "export alongside the audio",
 the UI warning before export, a guard against cells that start with `=`, `+`,
-`-` or `@` (Excel runs them as formulas), and the rounding question (times are
-cut to whole seconds). Needs WP1, WP11, WP22 (music tags), WP21 (per edit), WP37
+`-` or `@` (Excel runs them as formulas), and (decided 2026-10-17, done) times are whole seconds, rounded up.
+Needs WP1, WP11, WP22 (music tags), WP21 (per edit), WP37
 (the usage extractor: the report is its music-role view of an export).
 
 Hindenburg's Music Report, done properly: for each edit, a list of every
