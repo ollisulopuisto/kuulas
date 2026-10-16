@@ -56,6 +56,29 @@ These are not suggestions. A WP is done only when all of them hold.
     measurement. Match the density of the existing modules.
 12. **Commits are local.** Commit on `main` with a message that says what and
     why. Do not push; there is no remote yet.
+13. **Fail soft, isolate, report.** A bad file or a bad device costs that
+    file or a second of audio, never the session. Decoders run with
+    timeouts; plug-in renders run in worker processes; the audio callback
+    never raises; every failure is logged and shown with how to fix it.
+    Each WP that reads files or talks to devices includes fault-injection
+    tests (truncated or garbage files, a device that errors or vanishes, a
+    full disk, a crashing plug-in).
+14. **Snappy is a requirement.** The UI never waits for heavy work: heavy work
+    is a background job, and edits show a provisional result at once. Budgets,
+    enforced by tests on the heavy-hour fixture: an edit's round trip under
+    50 ms; waveform redraw under 8 ms per frame; no audio underruns while 4
+    imports and a transcription run; 60 fps scrolling; the same with a
+    CPU-heavy background job running. Each WP states its budget.
+15. **Compute once, keyed by content.** Anything derived from a recording
+    (waveform overviews, level envelopes, onsets, transcripts, restoration
+    renders) is tied to the *media*, not the timeline, so edits never
+    invalidate it. In-memory caches share one size budget (default 2 GB,
+    LRU, spilling to `caches/`).
+16. **Remember in the right scope; a repeated dialog is a bug.** Settings are
+    remembered per user, per project, per user-view of a project, or per
+    dialog (WP35). The plain key runs an action with the remembered settings;
+    ⌥ + the key opens the dialog. Safety states reset on open: group editing
+    is on, recording is not armed.
 
 The project owner's standing rules, which apply to every WP on top of the above:
 
@@ -191,8 +214,10 @@ phases later, it costs a rewrite.
 
 Run `kuulas open`, import files, hear them, edit by keyboard (split, cut on
 all tracks, trim, nudge, mute), undo, and export WAV or **MP3**. The steps on
-the way, in order: WP33a (done), WP29 (done), WP30 (done), WP1, WP2, WP3, WP33b,
-WP4, WP5, WP19a (editing in sync), WP11 (WP11 can run in parallel with WP4). Everything else in phase 1 follows
+the way, in order: WP33a, WP29, WP30, WP1 (all done), then WP2 (engine) in
+parallel with WP34 (import hardening) and WP36 (caches), then WP3, WP33b, WP4,
+WP5, WP19a (editing in sync), WP35 (remembered settings), WP11 (export,
+in parallel with WP4). Everything else in phase 1 follows
 M1. Estimate on 2026-10-16: about 10–12 hours of agent work in sequence,
 plus the owner's listening test of WP2 on the Mac.
 
@@ -206,8 +231,10 @@ plus the owner's listening test of WP2 on the Mac.
 | 4 | **★ WP29 project format v1 (R35, docs/FORMAT.md)** | L | material vs edit state, migrations, lock | **Opus 5.5** |
 | 5 | **★ WP30 recording clock in flicks, sync per media (R35)** | M | changes the sync model without changing behaviour | **Opus 5.5** |
 | 6 | WP1 session | M | import as one sync group, one commit | Sonnet 5.5 |
-| 7 | WP2 playback engine | M | glitch-free real-time callback, prefetch | **Opus 5.5** |
-| 8 | WP3 HTTP API + CLI | M | none | Sonnet 5.5 |
+| 7 | **WP34 import hardening (fail soft)** | M | timeouts, partial imports, broken-file fixtures | Sonnet 5.5 |
+| 8 | **WP36 caches per recording (peak pyramid, envelopes)** | M | edits never invalidate media caches | Sonnet 5.5 |
+| 9 | WP2 playback engine | M | glitch-free real-time callback, prefetch | **Opus 5.5** |
+| 10 | WP3 HTTP API + CLI | M | none | Sonnet 5.5 |
 
 ### Phase 1 — MVP: an editor you can actually use
 
@@ -217,63 +244,64 @@ plugin on a voice, undo anything, export a mastered file.
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 9 | **★ WP33b i18n in the UI (R39)** | M | Intl formatting, key names, literal-text check | Sonnet 5.5 |
-| 10 | WP4 UI shell + timeline | L | canvas drawing, zoom, hit-testing | Sonnet 5.5 |
-| 11 | **★ WP5 keymap + palette (R10)** | M | many bindings, collision test | Sonnet 5.5 |
-| 12 | **★ WP19a edit groups: what an edit touches (M1)** | M | target × time-shifting rule, partners by recording time | Sonnet 5.5 |
-| 13 | **★ WP8 history panel + stateful undo (R29)** | M | ledger restore, context restore, change flash | Sonnet 5.5 |
-| 14 | **★ WP22 track tags + ducking (R30)** | S | music-bed curve from nhsx | Sonnet 5.5 |
-| 15 | **★ WP26 fast listening + JKL (R33)** | L | streaming time-stretch, JKL state machine | **Opus 5.5** |
-| 16 | **★ WP19i tab to transient / word (R26i)** | M | onset detection; word mode waits for WP7 | Sonnet 5.5 |
-| 17 | WP6 mouse editing | M | drag state machine | Sonnet 5.5 |
-| 18 | WP9 jobs + local transcription | M | parallel faster-whisper | Sonnet 5.5 |
-| 19 | WP7 transcript panel | M | selection → word indices | Sonnet 5.5 |
-| 20 | **★ WP23a FX layers: real-time tier + analyse-then-live tier (R30)** | L | real-time plugins in the callback, latency compensation, CPU meter | **Opus 5.5** |
-| 21 | WP11 export + mastering | M | parallel ordered render | Sonnet 5.5 |
+| 11 | **★ WP33b i18n in the UI (R39)** | M | Intl formatting, key names, literal-text check | Sonnet 5.5 |
+| 12 | WP4 UI shell + timeline | L | canvas drawing, zoom, hit-testing | Sonnet 5.5 |
+| 13 | **★ WP5 keymap + palette (R10)** | M | many bindings, collision test | Sonnet 5.5 |
+| 14 | **★ WP19a edit groups: what an edit touches (M1)** | M | target × time-shifting rule, partners by recording time | Sonnet 5.5 |
+| 15 | **WP35 remembered settings, quick actions, view memory** | M | scopes; a repeated dialog is a bug | Sonnet 5.5 |
+| 16 | **★ WP8 history panel + stateful undo (R29)** | M | ledger restore, context restore, change flash | Sonnet 5.5 |
+| 17 | **★ WP22 track tags + ducking (R30)** | S | music-bed curve from nhsx | Sonnet 5.5 |
+| 18 | **★ WP26 fast listening + JKL (R33)** | L | streaming time-stretch, JKL state machine | **Opus 5.5** |
+| 19 | **★ WP19i tab to transient / word (R26i)** | M | onset detection; word mode waits for WP7 | Sonnet 5.5 |
+| 20 | WP6 mouse editing | M | drag state machine | Sonnet 5.5 |
+| 21 | WP9 jobs + local transcription | M | parallel faster-whisper | Sonnet 5.5 |
+| 22 | WP7 transcript panel | M | selection → word indices | Sonnet 5.5 |
+| 23 | **★ WP23a FX layers: real-time tier + analyse-then-live tier (R30)** | L | real-time plugins in the callback, latency compensation, CPU meter | **Opus 5.5** |
+| 24 | WP11 export + mastering | M | parallel ordered render | Sonnet 5.5 |
 
 ### Phase 2 — The editing loop (what makes it better than Hindenburg)
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 22 | WP28 focus mode | M | lane layout, speaker focus, solo restore | Sonnet 5.5 |
-| 23 | WP18 cut candidates | M | recording-clock anchoring (later WPs reuse it) | **Opus 5.5** |
-| 24 | WP19f spot | S | parsing | Haiku 5.5 |
-| 25 | WP24.2 A/B | M | edit A/B position mapping, level match | Sonnet 5.5 |
-| 26 | WP21 several edits (versions) | L | history schema migration, offer_cuts | **Opus 5.5** |
-| 27 | WP31 changes view + checkpoints | M | recording-range diff | Sonnet 5.5 |
-| 28 | WP32 review round trip: suggest mode, hand-off, merge | L | diverged copies become suggestions | **Opus 5.5** |
-| 29 | WP20 paste without bloat | M | excerpt media keeping recorded time | Sonnet 5.5 |
-| 30 | WP19c roles, stems, match loudness | M | stems sum test | Sonnet 5.5 |
-| 31 | WP19d remappable keys + macros | M | macro = one undo step | Sonnet 5.5 |
-| 32 | WP19b connected clips | M | reflow after every edit | Sonnet 5.5 |
-| 33 | WP19h regions + batch export, chapters | S | none | Haiku 5.5 |
-| 34 | WP19g skimming | S | grain throttling | Sonnet 5.5 |
-| 35 | WP19e alternative takes | L | ripple on take length change | Sonnet 5.5 |
+| 25 | WP28 focus mode | M | lane layout, speaker focus, solo restore | Sonnet 5.5 |
+| 26 | WP18 cut candidates | M | recording-clock anchoring (later WPs reuse it) | **Opus 5.5** |
+| 27 | WP19f spot | S | parsing | Haiku 5.5 |
+| 28 | WP24.2 A/B | M | edit A/B position mapping, level match | Sonnet 5.5 |
+| 29 | WP21 several edits (versions) | L | history schema migration, offer_cuts | **Opus 5.5** |
+| 30 | WP31 changes view + checkpoints | M | recording-range diff | Sonnet 5.5 |
+| 31 | WP32 review round trip: suggest mode, hand-off, merge | L | diverged copies become suggestions | **Opus 5.5** |
+| 32 | WP20 paste without bloat | M | excerpt media keeping recorded time | Sonnet 5.5 |
+| 33 | WP19c roles, stems, match loudness | M | stems sum test | Sonnet 5.5 |
+| 34 | WP19d remappable keys + macros | M | macro = one undo step | Sonnet 5.5 |
+| 35 | WP19b connected clips | M | reflow after every edit | Sonnet 5.5 |
+| 36 | WP19h regions + batch export, chapters | S | none | Haiku 5.5 |
+| 37 | WP19g skimming | S | grain throttling | Sonnet 5.5 |
+| 38 | WP19e alternative takes | L | ripple on take length change | Sonnet 5.5 |
 
 ### Phase 3 — Pipeline depth
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 36 | WP14 parallel analysis (done) | S | none | Haiku 5.5 |
-| 37 | WP10 voice chain variants | M | variants, chain settings | Sonnet 5.5 |
-| 38 | WP25 music report | S | heard-duration rules | Haiku 5.5 |
-| 39 | WP13 Hindenburg import | M | `.nhsx` word clock | Sonnet 5.5 |
-| 40 | WP23b FX layers: render tier, export waits, freeze on overload | L | background render, overload policy | **Opus 5.5** |
+| 39 | WP14 parallel analysis (done) | S | none | Haiku 5.5 |
+| 40 | WP10 voice chain variants | M | variants, chain settings | Sonnet 5.5 |
+| 41 | WP25 music report | S | heard-duration rules | Haiku 5.5 |
+| 42 | WP13 Hindenburg import | M | `.nhsx` word clock | Sonnet 5.5 |
+| 43 | WP23b FX layers: render tier, export waits, freeze on overload | L | background render, overload policy | **Opus 5.5** |
 
 ### Phase 4 — Recording and alignment
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 41 | WP12 recording, foolproof mode, live logging | L | hardware, crash recovery, sleep prevention | **Opus 5.5** |
-| 42 | WP17 clip bin | M | Space and in/out rules | Sonnet 5.5 |
-| 43 | WP16 align by sound | **XL** | drift and dropout detection | **Opus 5.5** |
+| 44 | WP12 recording, foolproof mode, live logging | L | hardware, crash recovery, sleep prevention | **Opus 5.5** |
+| 45 | WP17 clip bin | M | Space and in/out rules | Sonnet 5.5 |
+| 46 | WP16 align by sound | **XL** | drift and dropout detection | **Opus 5.5** |
 
 ### Phase 5 — Late
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 44 | WP27 settings + rate change | L | converts every position kind; do it when the model has stopped growing | **Opus 5.5** |
-| 45 | WP15 desktop wrapper | M | packaging | Sonnet 5.5 |
+| 47 | WP27 settings + rate change | L | converts every position kind; do it when the model has stopped growing | **Opus 5.5** |
+| 48 | WP15 desktop wrapper | M | packaging | Sonnet 5.5 |
 
 **Easiest wins:** WP0, WP24.1, WP22, WP19a, WP19f, WP19h, WP14, WP25.
 **Hardest, highest risk:** WP23 (real-time FX), WP16 (align by sound),
@@ -510,6 +538,29 @@ Tests (`tests/test_engine.py`, no audio device, monkeypatch
 - `test_golden_renders_match` (and a script to regenerate them, which
   refuses to run without `--i-changed-the-mixer`)
 
+**Fault tolerance (ground rule 13):**
+- The callback catches everything: a failing block plays silence, is
+  counted, and is reported; the stream keeps running.
+- **Device changes** (headphones unplugged, default output switched,
+  Bluetooth dropping, stream finished or errored): pause, reopen the new
+  default device, and tell the user. Never a dead stream with the play
+  state still on.
+- **Device cannot run at the project rate:** resample on output and say so.
+- **Late blocks:** first raise the buffer to 2048, then freeze the
+  heaviest real-time layer (WP23a), and show "playback is struggling";
+  never stutter silently.
+- **Damaged cache chunk** (a decode error inside `MediaStore.read`): that
+  stretch plays silence, and the media is marked damaged with an offer to
+  rebuild it from the original (hash-checked).
+- **Watchdog:** if the callback has not run for 1 s while playing, restart
+  the stream.
+- **Priority:** the audio thread never waits on a lock that a non-audio
+  thread holds for long; prefetch runs above every background job.
+
+Fault-injection tests: a fake stream that raises in the callback, reports
+`output_underflow`, finishes unexpectedly, or refuses the rate;
+`MediaStore.read` raising for one chunk.
+
 Hardware smoke test `tests/hardware/test_play.py`: plays 1 s of a sine through
 the default device; run by hand on Mac and Windows.
 
@@ -543,6 +594,7 @@ Endpoints (all JSON; errors are `{"error": "<message>"}` with status 400 for
 | `POST /api/transcript/{media}` | word JSON in any shape `transcribe.parse` accepts | state |
 | `PUT /api/word` | `{"media", "index", "w"}` | state (corrects one word's text: new transcript revision) |
 | `GET /api/transport` | | `engine.status()` |
+| `WS /api/live` | | **push channel** (replaces polling): playback position (heard frame) at display rate while playing, job progress, state-changed notices with the new head id, device and engine warnings. The UI keeps one connection and reconnects with backoff, showing "reconnecting…" |
 | `POST /api/transport` | `{"action": "play"|"stop"|"seek", "at"?, "until"?}` | `engine.status()` |
 | `GET /api/jobs` | | WP9 |
 | `POST /api/export` | WP11 | |
@@ -616,6 +668,48 @@ Buses appear as extra header rows below the tracks with the same controls.
 Inspector (selected clip, single selection): gain, pan, fade in/out (ms),
 muted, sync group; edits use `set_clip` with coalesce keys.
 
+**Navigation (decided with the owner, 2026-10-16):**
+
+- **Three zooms, kept apart:**
+  - time (horizontal): = / - step through snap levels named by time on
+    screen: whole edit, 30 min, 10 min, 5 min, 2 min, 1 min, 30 s, 10 s,
+    5 s, 2 s, 1 s, 500 ms, 100 ms, samples. The toolbar shows "Close · 2 s".
+    Pinch and Mod + wheel zoom continuously and settle on a level when
+    released within 8 %;
+  - waveform height: Alt + wheel over a lane, or Alt+= / Alt+-, display only,
+    with a "×4" label while not 1:1;
+  - lane height: Shift+= / Shift+- for all, drag a lane edge for one.
+- **Z toggles a close view and a wide view**, each remembered (level and,
+  for the wide view, position). = / - adjust whichever view is current.
+  Shift+Z fits the selection or in→out, or the whole edit when nothing is
+  selected. Alt+Z / Shift+Alt+Z step back and forward through recent views
+  (view history, never undo history).
+- **Zoom anchor order:** the last edit point if the last action was an edit
+  (zoom out after finessing a cut keeps that cut in place on screen), else
+  the pointer over the timeline, else the playhead. The anchor does not move
+  on screen.
+- **Scrolling:** a trackpad scrolls naturally in both directions. A mouse
+  wheel scrolls time when all lanes fit, otherwise lanes; Shift + wheel
+  always scrolls time.
+- **Overview strip** above the timeline: the whole edit with a box for the
+  visible part; drag or click to move.
+- **Following the playhead:** page or continuous, toggled with one key.
+  Scrolling by hand while playing pauses following until the key is
+  pressed or the playhead is back in view. The transcript follows the same view.
+- **Keyboard focus:** the timeline is home and Esc always returns there;
+  F6 / Shift+F6 cycle timeline → transcript → inspector → history; a click
+  focuses a panel; the focused panel's header shows an accent edge; focus
+  stays where an action happened; Space always plays/stops except inside a
+  text field; dialogs and the palette return focus where it was.
+  Vocabulary: **keyboard focus** (which panel), **current track** (the ↑/↓
+  cursor, previously called "focused track"), **focus mode** (F, WP28).
+
+**Performance (ground rule 14):** waveforms are drawn in a Web Worker on an
+`OffscreenCanvas`, from binary peak tiles (WP36) cached by content hash, so the
+browser caches them too; the transcript, history and candidate lists are
+virtualized; no main-thread task over 16 ms, watched by a long-task monitor
+in development; drags show a provisional result at once.
+
 Tests: UI logic that is not drawing goes into pure functions in
 `format.js` and `store.js`; test them with `node --test ui/tests/` (Node's
 built-in runner, no dependencies). At minimum: frame/time formatting, zoom
@@ -641,6 +735,25 @@ command names with their keys, so everything is discoverable without a mouse.
 
 Source of the bindings: Hindenburg PRO's own list,
 <https://hindenburg.com/academy/shortcuts/shortcuts-hindenburg-2-pro/>.
+
+**Single keys first (owner, 2026-10-16, as in Hindenburg):** every editing
+action has a key with no modifier; ⌘ (Mod) is kept for file and app actions
+(undo/redo, copy/paste, select all, import, export, save, palette,
+settings) and as an alias for the editing keys below. Single keys are off
+while a text field has focus (only Esc and Mod combinations act) and in
+record mode (only the log keys). Changes to the table below, which the
+collision test must accept:
+
+- split **B** (alias Mod+B); cut and close gap **X** (Mod+X); cut this
+  track only **Shift+X**; close gap on all tracks **Alt+X**
+- mute clips **N** (Alt+Mod+M); fade **G** (Mod+F); clip gain **+ / -** on a
+  selection (Shift+Mod+↑/↓), with time zoom on = / - only when nothing is
+  selected; group editing **E** (Mod+G)
+- mark in sync **Y** (Alt+Mod+S); resync **R** (Alt+Mod+R)
+- zoom close/wide **Z**, fit **Shift+Z**, view back/forward **Alt+Z** / **Shift+Alt+Z**
+- **Mod+S** saves a named version (a checkpoint named by time, plus an
+  immediate backup; the message offers Rename); **Shift+Mod+S** asks for the
+  name first. Autosave needs no key: every edit is on disk before it shows.
 
 | Keys | Command | Does (API call) |
 |---|---|---|
@@ -810,6 +923,19 @@ class Jobs:
 
 `GET /api/jobs` lists them; the UI shows a small jobs indicator in the toolbar.
 
+**Jobs never make the UI sluggish (ground rule 14):**
+- An **interactive signal** (playing, scrubbing, dragging, or input in the
+  last 2 s) drops jobs to one low-priority worker; idle gives them all cores.
+- Jobs work in chunks and yield between them, so an interactive request
+  never waits behind a long job.
+- Jobs compute on a snapshot of the state, never holding the session lock,
+  and commit at the end only if the inputs they used are unchanged;
+  otherwise they recompute (or, where WP32 applies, become suggestions).
+- CPU-heavy Python and every plug-in render run in a process pool
+  (true parallelism, and a crashing plug-in fails only its job).
+- Disk I/O from jobs is throttled while playing; playback prefetch goes first.
+- Every job shows progress with time remaining and can be cancelled.
+
 Transcription command `transcribe` `{media_ids: [...], model?: "small",
 language?: "fi"|None, backend: "local"|"colab"}`:
 
@@ -888,6 +1014,20 @@ master_lufs?: float}`.
   Report `MasterResult` (gain, measured LUFS, limiter cost, reached) in the job
   result. Over 3 hours, refuse with a clear error (memory).
 - The exported file gets a BWF `bext` with TimeReference 0 and the project name.
+- **Versioned names, no overwrites:** the name template is remembered per
+  project (default `{edit} v{n}.{ext}`, e.g. `Jakso 42 v3.mp3`). `n` counts
+  up per edit only when the result would differ: if the edit state and
+  settings hash equal the last export's, nothing is rendered and the message
+  says "Unchanged since v3 · Show file". Optional setting: also keep
+  `{edit} latest.{ext}` current for a fixed upload path.
+- **Each export is a checkpoint** ("v3 exported, MP3 128 kbps"), so versions
+  can be compared (WP31) and restored.
+- **Provenance in the file:** version, edit, project and step id go into ID3
+  tags (MP3) or the BWF description (WAV).
+- **Quick export (ground rule 16):** Mod+E exports at once with the last
+  settings and shows "Exported MP3 · 128 kbps · mono → … · Undo · Change…";
+  Alt+Mod+E opens the dialog. Presets ("Podcast MP3", "Archive WAV") are
+  commands of their own.
 
 Tests: export of a known project equals `mixer.mix` over the whole length
 (bit-exact for float WAV); parallel and serial renders are identical;
@@ -2033,8 +2173,8 @@ Status: open. Needs WP8, WP18 (recording-clock anchoring), WP21. Sonnet 5.5.
 
 Compare any two points: two history steps, a checkpoint, or two edits.
 
-- **Checkpoints:** **Mod+Shift+K** names the current step ("sent to
-  producer"). Checkpoints are ledger entries
+- **Checkpoints:** **Mod+S** saves a named version (named by time, renameable),
+  **Shift+Mod+S** asks for the name first (WP5); exports add one too (WP11). Checkpoints are ledger entries
   (`checkpoints` table, docs/FORMAT.md) shown pinned in the history panel.
 - **Diff:** for each sync group (or media), the recording ranges present in A
   and not in B (removed), in B and not in A (added or restored), and
@@ -2153,6 +2293,94 @@ Tests first: `test_catalogs_have_identical_keys_and_placeholders`,
 `test_missing_value_never_raises`, `test_speechmix_messages_are_translated`,
 `test_every_used_key_exists`, `test_no_literal_ui_text` (node),
 `test_finnish_decimal_comma_and_helsinki_time` (node).
+
+---
+
+### WP34 — Import hardening
+
+Status: open. Needs WP1. Sonnet 5.5. In M1.
+
+Ground rule 13 for everything that brings audio in (`MediaStore`,
+`Session.import_media`):
+- Probe before decoding (soundfile or ffprobe) with a timeout; decode with a
+  timeout; kill a hung decoder.
+- Import what decodes: a truncated or damaged file comes in as far as it
+  goes, marked partial ("41:03 of 58:00") with a warning.
+- One bad file never fails a batch; the report names each failure and why.
+- Free-space check before decoding (estimate from duration and channels);
+  a full disk mid-import removes the partial file and says how much space is
+  needed.
+- More than two channels: downmix to stereo with a warning (choosing
+  channels is a later option). 32-bit float, VBR MP3 and other formats
+  without exact seeking are decoded fully to FLAC. A video without audio, an
+  empty file, or a silent file is refused or flagged with a clear message.
+  BWF time references outside a sane range (more than 24 h) are ignored
+  with a warning. RF64 WAVs over 4 GB work.
+- A source on a drive that disappears mid-import: the partial file is
+  removed and the error names the drive.
+Fault-injection fixtures in `tests/fixtures/broken/`: truncated WAV, garbage
+header, zero-length, MP3 with junk in the middle, video without audio,
+6-channel WAV, nonsense BWF time.
+
+---
+
+### WP35 — Remembered settings, quick actions, view memory
+
+Status: open. Needs WP4, WP5. Sonnet 5.5. Right after WP5.
+
+- **Where things are remembered** (ground rule 16): user settings
+  (`platformdirs` user config dir: `~/Library/Application Support/kuulas`,
+  `%APPDATA%\kuulas`, `~/.config/kuulas`), project settings (WP27), a
+  user's view of a project keyed by the manifest `id` in the user config dir
+  (close and wide zoom, lane heights, panel sizes, scroll, current track,
+  follow mode, last open edit; never in the project folder), per-dialog last
+  values (export, import, transcribe, send for review, render, audition, new
+  edit from range, consolidate), and per-media choices (transcript language,
+  voice condition, chosen plug-in level) in the project.
+- **Quick actions:** the plain key runs with the remembered settings;
+  Alt + the key, "…" on a button, or "Change…" in the result message opens
+  the dialog. The first time (nothing remembered) the dialog opens. Hovering a
+  command shows its current defaults ("Mod+E · MP3 128 kbps, mono").
+  Presets are commands, bindable to keys.
+- **Safety resets on open:** group editing on (with a message if it had been
+  off), recording not armed.
+- **Helpful messages:** every action reports what it did with Undo and,
+  where relevant, Change…; errors say how to fix; first-run hints appear
+  once per feature; the palette lists recent commands first and shows keys.
+- **Guessed defaults** with no history: mono master for all-mono speech; the
+  MP3 bitrate from the master's channels; transcript language detected.
+
+Tests: settings round-trip per scope; a view restored on reopen; quick
+action runs without a dialog when settings exist; the safety resets; a
+dialog shown twice in a row with identical answers fails a UI test.
+
+---
+
+### WP36 — Caches per recording
+
+Status: open. Needs WP1. Sonnet 5.5. Before WP4.
+
+Ground rule 15, concretely:
+- **Peak pyramid** at import: min/max per 256, 1024, 4096, 16384 and 65536
+  frames, in `caches/peaks/`, keyed by media sha256 and algorithm version.
+  Served as binary tiles (`GET /api/peaks/{media}/{level}/{tile}`) with an
+  `ETag` of the key and long cache headers, so the browser keeps them.
+- **Level envelopes per media** (20 ms hops, as speechmix measures):
+  `analysis.track_levels` composes the timeline from cached per-media
+  envelopes instead of re-reading audio after each edit. The result equals
+  today's (test), and an edit no longer triggers any audio read.
+- **Memoized derived views:** timeline words, candidate positions and sync
+  partners, keyed by (edit-state hash, transcript revisions).
+- **Decoded states:** History keeps the last 64 decoded states in memory,
+  so undo and redo never decompress.
+- **Scrub mix cache** (WP26) invalidates only the changed ranges of an edit
+  (WP31's diff).
+- **One memory budget** for all caches (default 2 GB, settable), LRU,
+  spilling to `caches/`; hit rates logged.
+
+Tests: an edit causes zero media reads in analysis; the pyramid tile at
+each level equals a direct min/max; cache eviction respects the budget;
+undo of the last 64 steps does no decompression.
 
 ---
 
