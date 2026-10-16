@@ -149,7 +149,11 @@ sizes: `docs/PLAN.md`, section "Triage".
   a podcast checkout.
 - History stores a full state per edit (compressed). Fine for a session's
   thousands of edits; long-lived projects may want compaction.
-- Playback is Python (numpy per block) with a large buffer: fine for editing,
-  not for low-latency monitoring.
+- Playback is Python (numpy per block), about 20–45 ms of output latency. That
+  is fine for playback, because the display is compensated for it. Monitoring
+  while recording goes through the audio interface's direct monitoring, not
+  kuulas. If real-time FX, scrubbing or recording hit the limits, the engine
+  alone moves to a JUCE Python extension behind the same interface (WP2),
+  checked against golden renders.
 - Clock drift between recorders (a file running slow over an hour) is not
   handled; sync groups fix offsets only.

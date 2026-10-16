@@ -459,6 +459,26 @@ Rules:
   `Engine._render(frames) -> np.ndarray` and test that.
 - Missing audio device: `play` raises `EngineError("no output device")`, and
   the API reports it; the app still opens.
+- **Display follows the ear.** The position reported to the UI is the frame
+  being *heard*: the engine's render position minus the device's output
+  latency (`stream.latency`, in frames). The playhead, transcript highlight
+  and meters use that position, so they do not run 20–45 ms ahead of the
+  sound.
+- **Buffer size:** 1024 frames (about 21 ms) by default; 2048 when the CPU
+  meter (WP23a) shows sustained load over 60 %.
+- **The door to a native engine stays open** (decided 2026-10-16): nothing
+  outside `engine.py` may assume playback is done in Python. The engine's
+  public surface is `set_project`, `play`, `stop`, `seek`, `scrub`, `status`,
+  `levels` (and `record` in WP12), plain data in and out. If the Python
+  engine fails WP23a, WP26 or WP12 on glitches or latency, it is replaced by
+  a JUCE engine built as a Python extension (the way pedalboard is built),
+  behind the same surface. Not Tracktion: its own edit model and undo would
+  fight ours.
+- **Golden renders:** `tests/golden/` holds small fixture projects (pan,
+  fades, crossfades, envelopes, automation, buses, solo/mute) with reference
+  output from `mixer.mix`, as 32-bit float WAV plus its SHA-256. Any engine,
+  Python or native, must reproduce them within 1e-6. A change to the mixer
+  that changes a golden file must say why in its commit.
 
 Tests (`tests/test_engine.py`, no audio device, monkeypatch
 `sounddevice.OutputStream` with a fake that records calls):
@@ -469,6 +489,9 @@ Tests (`tests/test_engine.py`, no audio device, monkeypatch
 - `test_render_never_takes_the_session_lock` (hold the lock in another
   thread; `_render` must return)
 - `test_seek_while_playing_moves_the_position`
+- `test_reported_position_subtracts_output_latency`
+- `test_golden_renders_match` (and a script to regenerate them, which
+  refuses to run without `--i-changed-the-mixer`)
 
 Hardware smoke test `tests/hardware/test_play.py`: plays 1 s of a sine through
 the default device; run by hand on Mac and Windows.
@@ -870,6 +893,10 @@ class Recorder:
     def levels(self) -> list[float]      # peak dBFS per armed channel since last call
 ```
 
+- **Monitoring is the audio interface's job.** kuulas does not route input to
+  output in software in v1 (Python latency would be audible). The record
+  view says so: "Monitor through your interface's direct monitoring." Software
+  monitoring with effects waits for a native engine (see WP2).
 - Sample rate: the project rate (48000). If the device cannot open at that
   rate, refuse with a message naming the device's rate; do not resample live.
 - The audio callback only copies the block into a `queue.Queue`. A writer
