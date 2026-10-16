@@ -59,17 +59,23 @@ class TranscribeError(KuulasError, RuntimeError):
 
 
 def local(path: str | Path, model: str = "small",
-          language: str | None = None, progress=None) -> list[dict]:
+          language: str | None = None, progress=None,
+          cpu_threads: int | None = None) -> list[dict]:
     """Transcribe ``path`` with faster-whisper, word timestamps on."""
     try:
         from faster_whisper import WhisperModel
     except ImportError as e:
         raise TranscribeError("error.transcribe.missing_extra") from e
-    whisper = WhisperModel(model, device="auto", compute_type="int8")
+    options = {"device": "auto", "compute_type": "int8"}
+    if cpu_threads is not None:
+        options["cpu_threads"] = max(1, int(cpu_threads))
+    whisper = WhisperModel(model, **options)
     segments, info = whisper.transcribe(str(path), language=language,
                                         word_timestamps=True, vad_filter=True)
     collected = []
     for seg in segments:
+        if progress is not None and getattr(progress, "cancelled", False):
+            break
         collected.append(seg)
         if progress is not None and info.duration:
             progress(min(1.0, seg.end / info.duration))

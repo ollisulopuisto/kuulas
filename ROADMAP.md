@@ -110,8 +110,11 @@ sizes: `docs/PLAN.md`, section "Triage".
 ## Next
 
 - Colab transcription: `colab-transcribe` only takes `.nhsx` sessions today.
-  It needs a plain-audio mode in the podcast repo, or kuulas writes a
-  minimal `.nhsx` for it.
+  Recommended next step: add a plain-audio mode in the podcast repo
+  (`--audio <file> --json <out>`) and import its word JSON with
+  `transcribe.parse`. Do not send private audio through Google Drive; kuulas
+  should invoke the VM directly. This needs a separate user decision before
+  implementation.
 - speechmix chain per track (leveler, de-ess, compressor, dxRevive) rendered to
   processed media, toggleable per clip.
 - Export with mastering (`speechmix.programme.master`, target LUFS), rendered

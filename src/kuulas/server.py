@@ -123,6 +123,13 @@ class TransportBody(BaseModel):
     until: int | None = None
 
 
+class TranscribeBody(BaseModel):
+    media_ids: list[str]
+    model: str = "small"
+    language: str | None = None
+    backend: str = "local"
+
+
 # -- the live channel's fan-out ------------------------------------------------
 
 
@@ -160,6 +167,7 @@ def create_app(session, engine, *, language: str | None = None,
     default_language = language or messages.default_language()
     ui = Path(ui_dir)
     app = FastAPI(title="kuulas", docs_url=None, redoc_url=None, openapi_url=None)
+    app.state.last_input = time.monotonic()
     hub = Hub()
 
     session.subscribe(lambda _state: hub.publish(
@@ -171,6 +179,8 @@ def create_app(session, engine, *, language: str | None = None,
     async def per_request(request: Request, call_next):
         messages.set_language(pick_language(request.headers.get("accept-language"),
                                             default_language))
+        if request.url.path != "/api/jobs" and request.method != "GET":
+            app.state.last_input = time.monotonic()
         try:
             return await call_next(request)
         except Exception as e:
@@ -267,6 +277,37 @@ def create_app(session, engine, *, language: str | None = None,
         with session.lock:
             return JSONResponse({"nodes": session.history.nodes(),
                                  "head": session.history.head})
+
+    @app.get("/api/jobs")
+    def get_jobs():
+        return JSONResponse({"jobs": session.jobs.list()})
+
+    @app.delete("/api/jobs/{job_id}")
+    def delete_job(job_id: str):
+        if not any(job["id"] == job_id for job in session.jobs.list()):
+            raise UnknownIdError("error.jobs.unknown", job_id=job_id)
+        session.jobs.cancel(job_id)
+        return JSONResponse({"jobs": session.jobs.list()})
+
+    @app.post("/api/transcribe", status_code=202)
+    def post_transcribe(body: TranscribeBody):
+        if not body.media_ids:
+            raise BadRequestError("error.server.bad_request", detail="media_ids")
+        if body.backend == "colab":
+            raise BadRequestError("error.transcribe.colab_unavailable")
+        if body.backend != "local":
+            raise BadRequestError("error.server.bad_request", detail="backend")
+        if session.read_only:
+            holder = session.package.locked_by or {}
+            raise BadRequestError("error.history.read_only",
+                                  host=holder.get("host", "?"))
+        for media_id in body.media_ids:
+            require_media(media_id)
+        try:
+            job_ids = session.transcribe(body.media_ids, body.model, body.language)
+        except MediaError as exc:
+            return answer(exc, 400)
+        return JSONResponse({"jobs": job_ids}, status_code=202)
 
     # -- bringing audio in -------------------------------------------------
 
@@ -387,8 +428,10 @@ def create_app(session, engine, *, language: str | None = None,
 
         async def push() -> None:
             await ws.send_json({"type": "hello", "head": session.history.head})
-            # WP9 fills this in: running jobs with their progress.
-            await ws.send_json({"type": "jobs", "jobs": []})
+            initial_jobs = session.jobs.list()
+            await ws.send_json({"type": "jobs", "jobs": initial_jobs})
+            last_jobs = tuple((job["id"], job["progress"], job["state"], job["error"])
+                              for job in initial_jobs)
             last_notice, playing, last_position = 0, False, None
             next_poll = time.monotonic()
             while True:
@@ -397,7 +440,15 @@ def create_app(session, engine, *, language: str | None = None,
                     await ws.send_json(await asyncio.wait_for(queue.get(), wait))
                 if time.monotonic() < next_poll:
                     continue
+                current_jobs = session.jobs.list()
+                signature = tuple((job["id"], job["progress"], job["state"], job["error"])
+                                  for job in current_jobs)
+                if signature != last_jobs:
+                    await ws.send_json({"type": "jobs", "jobs": current_jobs})
+                    last_jobs = signature
                 status = await asyncio.to_thread(engine.status)
+                session.jobs.set_interactive(
+                    status["playing"] or time.monotonic() - app.state.last_input < 2)
                 next_poll = time.monotonic() + (tick if status["playing"]
                                                 else max(tick, LIVE_IDLE_S))
                 position = status["position"]

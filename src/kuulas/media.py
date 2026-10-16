@@ -768,6 +768,15 @@ class MediaStore:
     def is_linked(self, media_id: str) -> bool:
         return self.meta(media_id)["storage"] == "linked"
 
+    def transcription_path(self, media_id: str) -> Path:
+        """A verified audio source for a background transcript job."""
+        meta = self.meta(media_id)
+        if meta["storage"] != "linked":
+            return self.working_file(media_id)
+        if not self._valid(media_id):
+            raise MediaError("error.media.offline", name=meta["name"])
+        return Path(meta["linked_path"])
+
     def ids(self) -> list[str]:
         with self._db_lock:
             return [r[0] for r in self.db.execute("select id from media order by id")]
