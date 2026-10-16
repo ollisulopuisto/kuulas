@@ -23,6 +23,9 @@ These are not suggestions. A WP is done only when all of them hold.
    wrong, say why in the commit message.
 2. **Keyboard first.** Any UI feature includes its key binding and command
    palette entry in the same WP (R10; see Triage).
+   **Translated from the start (R39).** No user-facing text is written as a
+   literal, in Python or in the UI: it is a message key with an English
+   source string and a Finnish translation in the same commit (WP33).
 3. **Everything green.** `uv run pytest -q` passes in full and
    `uv run ruff check .` reports nothing. For UI work, also
    `npx @biomejs/biome@2.2.4 check ui/` (see WP0).
@@ -187,11 +190,12 @@ phases later, it costs a rewrite.
 |---|---|---|---|---|
 | 1 | WP0 baseline, lint, first commit (done) | S | none | Haiku 5.5 |
 | 2 | WP24.1 solo rules (done) | S | none | Haiku 5.5 |
-| 3 | **★ WP29 project format v1 (R35, docs/FORMAT.md)** | L | material vs edit state, migrations, lock | **Opus 5.5** |
-| 4 | **★ WP30 recording clock in flicks, sync per media (R35)** | M | changes the sync model without changing behaviour | **Opus 5.5** |
-| 5 | WP1 session | M | import as one sync group, one commit | Sonnet 5.5 |
-| 6 | WP2 playback engine | M | glitch-free real-time callback, prefetch | **Opus 5.5** |
-| 7 | WP3 HTTP API + CLI | M | none | Sonnet 5.5 |
+| 3 | **★ WP33a i18n in Python: catalogs, messages, speechmix translator (R39)** | S | never raise on error paths; convert existing literals | Haiku 5.5 |
+| 4 | **★ WP29 project format v1 (R35, docs/FORMAT.md)** | L | material vs edit state, migrations, lock | **Opus 5.5** |
+| 5 | **★ WP30 recording clock in flicks, sync per media (R35)** | M | changes the sync model without changing behaviour | **Opus 5.5** |
+| 6 | WP1 session | M | import as one sync group, one commit | Sonnet 5.5 |
+| 7 | WP2 playback engine | M | glitch-free real-time callback, prefetch | **Opus 5.5** |
+| 8 | WP3 HTTP API + CLI | M | none | Sonnet 5.5 |
 
 ### Phase 1 — MVP: an editor you can actually use
 
@@ -201,62 +205,63 @@ plugin on a voice, undo anything, export a mastered file.
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 8 | WP4 UI shell + timeline | L | canvas drawing, zoom, hit-testing | Sonnet 5.5 |
-| 9 | **★ WP5 keymap + palette (R10)** | M | many bindings, collision test | Sonnet 5.5 |
-| 10 | **★ WP8 history panel + stateful undo (R29)** | M | ledger restore, context restore, change flash | Sonnet 5.5 |
-| 11 | **★ WP22 track tags + ducking (R30)** | S | music-bed curve from nhsx | Sonnet 5.5 |
-| 12 | **★ WP26 fast listening + JKL (R33)** | L | streaming time-stretch, JKL state machine | **Opus 5.5** |
-| 13 | **★ WP19i tab to transient / word (R26i)** | M | onset detection; word mode waits for WP7 | Sonnet 5.5 |
-| 14 | WP6 mouse editing | M | drag state machine | Sonnet 5.5 |
-| 15 | WP9 jobs + local transcription | M | parallel faster-whisper | Sonnet 5.5 |
-| 16 | WP7 transcript panel | M | selection → word indices | Sonnet 5.5 |
-| 17 | **★ WP23a FX layers: real-time tier + analyse-then-live tier (R30)** | L | real-time plugins in the callback, latency compensation, CPU meter | **Opus 5.5** |
-| 18 | WP11 export + mastering | M | parallel ordered render | Sonnet 5.5 |
+| 9 | **★ WP33b i18n in the UI (R39)** | M | Intl formatting, key names, literal-text check | Sonnet 5.5 |
+| 10 | WP4 UI shell + timeline | L | canvas drawing, zoom, hit-testing | Sonnet 5.5 |
+| 11 | **★ WP5 keymap + palette (R10)** | M | many bindings, collision test | Sonnet 5.5 |
+| 12 | **★ WP8 history panel + stateful undo (R29)** | M | ledger restore, context restore, change flash | Sonnet 5.5 |
+| 13 | **★ WP22 track tags + ducking (R30)** | S | music-bed curve from nhsx | Sonnet 5.5 |
+| 14 | **★ WP26 fast listening + JKL (R33)** | L | streaming time-stretch, JKL state machine | **Opus 5.5** |
+| 15 | **★ WP19i tab to transient / word (R26i)** | M | onset detection; word mode waits for WP7 | Sonnet 5.5 |
+| 16 | WP6 mouse editing | M | drag state machine | Sonnet 5.5 |
+| 17 | WP9 jobs + local transcription | M | parallel faster-whisper | Sonnet 5.5 |
+| 18 | WP7 transcript panel | M | selection → word indices | Sonnet 5.5 |
+| 19 | **★ WP23a FX layers: real-time tier + analyse-then-live tier (R30)** | L | real-time plugins in the callback, latency compensation, CPU meter | **Opus 5.5** |
+| 20 | WP11 export + mastering | M | parallel ordered render | Sonnet 5.5 |
 
 ### Phase 2 — The editing loop (what makes it better than Hindenburg)
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 19 | WP28 focus mode | M | lane layout, speaker focus, solo restore | Sonnet 5.5 |
-| 20 | WP18 cut candidates | M | recording-clock anchoring (later WPs reuse it) | **Opus 5.5** |
-| 21 | WP19a edit groups | S | edit scope rules | Haiku 5.5 |
-| 22 | WP19f spot | S | parsing | Haiku 5.5 |
-| 23 | WP24.2 A/B | M | edit A/B position mapping, level match | Sonnet 5.5 |
-| 24 | WP21 several edits (versions) | L | history schema migration, offer_cuts | **Opus 5.5** |
-| 25 | WP31 changes view + checkpoints | M | recording-range diff | Sonnet 5.5 |
-| 26 | WP32 review round trip: suggest mode, hand-off, merge | L | diverged copies become suggestions | **Opus 5.5** |
-| 27 | WP20 paste without bloat | M | excerpt media keeping recorded time | Sonnet 5.5 |
-| 28 | WP19c roles, stems, match loudness | M | stems sum test | Sonnet 5.5 |
-| 29 | WP19d remappable keys + macros | M | macro = one undo step | Sonnet 5.5 |
-| 30 | WP19b connected clips | M | reflow after every edit | Sonnet 5.5 |
-| 31 | WP19h regions + batch export, chapters | S | none | Haiku 5.5 |
-| 32 | WP19g skimming | S | grain throttling | Sonnet 5.5 |
-| 33 | WP19e alternative takes | L | ripple on take length change | Sonnet 5.5 |
+| 21 | WP28 focus mode | M | lane layout, speaker focus, solo restore | Sonnet 5.5 |
+| 22 | WP18 cut candidates | M | recording-clock anchoring (later WPs reuse it) | **Opus 5.5** |
+| 23 | WP19a edit groups | S | edit scope rules | Haiku 5.5 |
+| 24 | WP19f spot | S | parsing | Haiku 5.5 |
+| 25 | WP24.2 A/B | M | edit A/B position mapping, level match | Sonnet 5.5 |
+| 26 | WP21 several edits (versions) | L | history schema migration, offer_cuts | **Opus 5.5** |
+| 27 | WP31 changes view + checkpoints | M | recording-range diff | Sonnet 5.5 |
+| 28 | WP32 review round trip: suggest mode, hand-off, merge | L | diverged copies become suggestions | **Opus 5.5** |
+| 29 | WP20 paste without bloat | M | excerpt media keeping recorded time | Sonnet 5.5 |
+| 30 | WP19c roles, stems, match loudness | M | stems sum test | Sonnet 5.5 |
+| 31 | WP19d remappable keys + macros | M | macro = one undo step | Sonnet 5.5 |
+| 32 | WP19b connected clips | M | reflow after every edit | Sonnet 5.5 |
+| 33 | WP19h regions + batch export, chapters | S | none | Haiku 5.5 |
+| 34 | WP19g skimming | S | grain throttling | Sonnet 5.5 |
+| 35 | WP19e alternative takes | L | ripple on take length change | Sonnet 5.5 |
 
 ### Phase 3 — Pipeline depth
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 34 | WP14 parallel analysis (done) | S | none | Haiku 5.5 |
-| 35 | WP10 voice chain variants | M | variants, chain settings | Sonnet 5.5 |
-| 36 | WP25 music report | S | heard-duration rules | Haiku 5.5 |
-| 37 | WP13 Hindenburg import | M | `.nhsx` word clock | Sonnet 5.5 |
-| 38 | WP23b FX layers: render tier, export waits, freeze on overload | L | background render, overload policy | **Opus 5.5** |
+| 36 | WP14 parallel analysis (done) | S | none | Haiku 5.5 |
+| 37 | WP10 voice chain variants | M | variants, chain settings | Sonnet 5.5 |
+| 38 | WP25 music report | S | heard-duration rules | Haiku 5.5 |
+| 39 | WP13 Hindenburg import | M | `.nhsx` word clock | Sonnet 5.5 |
+| 40 | WP23b FX layers: render tier, export waits, freeze on overload | L | background render, overload policy | **Opus 5.5** |
 
 ### Phase 4 — Recording and alignment
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 39 | WP12 recording, foolproof mode, live logging | L | hardware, crash recovery, sleep prevention | **Opus 5.5** |
-| 40 | WP17 clip bin | M | Space and in/out rules | Sonnet 5.5 |
-| 41 | WP16 align by sound | **XL** | drift and dropout detection | **Opus 5.5** |
+| 41 | WP12 recording, foolproof mode, live logging | L | hardware, crash recovery, sleep prevention | **Opus 5.5** |
+| 42 | WP17 clip bin | M | Space and in/out rules | Sonnet 5.5 |
+| 43 | WP16 align by sound | **XL** | drift and dropout detection | **Opus 5.5** |
 
 ### Phase 5 — Late
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 42 | WP27 settings + rate change | L | converts every position kind; do it when the model has stopped growing | **Opus 5.5** |
-| 43 | WP15 desktop wrapper | M | packaging | Sonnet 5.5 |
+| 44 | WP27 settings + rate change | L | converts every position kind; do it when the model has stopped growing | **Opus 5.5** |
+| 45 | WP15 desktop wrapper | M | packaging | Sonnet 5.5 |
 
 **Easiest wins:** WP0, WP24.1, WP22, WP19a, WP19f, WP19h, WP14, WP25.
 **Hardest, highest risk:** WP23 (real-time FX), WP16 (align by sound),
@@ -264,7 +269,7 @@ WP12 (recording), WP26 (streaming time-stretch), WP27 (rate change), WP21
 (schema migration), WP2 (real-time engine). Each goes to Opus 5.5, with a
 review. Do a spike first where the plan says "test it" on hardware.
 
-**★ = build first** (owner, 2026-10-16): R35 the project format, R10
+**★ = build first** (owner, 2026-10-16): R35 the project format, R39 i18n, R10
 keyboard, R29 trustworthy undo, R30 track tags, ducking and real-time FX,
 R33 fast listening, R26i Tab to transient. R35 above all: every later WP
 writes data in that format.
@@ -1954,6 +1959,62 @@ Tests first:
 `test_step_ids_never_collide_across_copies`,
 `test_handoff_with_used_ranges_copies_only_excerpts`,
 `test_handoff_without_media_relinks_by_hash`.
+
+---
+
+### WP33 — Internationalisation foundation (i18n)
+
+Status: open. **Split in two**, so no WP writes untranslated text:
+- **WP33a** (Python: catalogs, `messages.t`, API error shape, speechmix
+  translator, converting today's literal messages in `ops`, `media`,
+  `transcribe` and `analysis`). Needs WP0. Haiku 5.5. **Before WP29.**
+- **WP33b** (UI: `ui/i18n.js`, `Intl` formatting, key names, the language
+  setting, the UI literal-text check). Needs WP3 and WP33a. Sonnet 5.5.
+  **Before WP4.**
+
+English is the source language; Finnish is complete from day one.
+
+- **One catalog for both sides:** `src/kuulas/locales/en.json` and `fi.json`.
+  Keys look like `edit.split.label` and `error.media.missing`, and values
+  use `{name}` placeholders. Plurals are objects of
+  CLDR categories, e.g. `{"one": "{count} clip", "other": "{count} clips"}`.
+  Python reads the files directly; the UI loads `GET /api/locales/<lang>`.
+- **Python:** `kuulas.messages.t(key, **values)`, modelled on
+  `speechmix.messages`. It never raises: an unknown key or a missing value
+  falls back to English, then to the key itself, because messages are made on
+  error paths. API errors return `{"error": {"key", "params", "text"}}`, with
+  `text` in the session's language.
+- **speechmix's messages too:** kuulas registers its translator with
+  `speechmix.set_translator`, and kuulas's `fi.json` carries the Finnish of
+  speechmix's keys (`speechmix.messages.FALLBACK`), so pipeline errors
+  appear in Finnish. A test fails when speechmix adds a key that kuulas has
+  not translated. Long term those Finnish strings belong in speechmix itself
+  (autoraffkat's `i18n.py` has them too); note it for the podcast repo.
+- **UI:** `ui/i18n.js` with `t(key, values)`, plural rules from
+  `Intl.PluralRules`, and number, date and time formatting through `Intl`,
+  following the UI language:
+  - decimal comma in Finnish: "−2,5 dB", "12:34,567";
+  - absolute times in Helsinki time with the zone named (the owner's rule):
+    "19.45 (Helsinki)" in Finnish, "7:45 pm Helsinki" in English;
+  - key names per platform and language: ⌘ on a Mac, Ctrl elsewhere;
+    "Välilyönti" / "Space".
+- **Language setting:** defaults to the OS or browser language, falls back
+  to English, and is changeable in settings (WP27) without a reload.
+- **Not translated:** recorded content. A transcript's language is a
+  property of the media (Whisper's language), not of the UI.
+- **Checks** (tests, so lint-strength):
+  - `en` and `fi` have the same keys and the same placeholders in each value;
+  - every `t("…")` key used in `src/` and `ui/` exists in `en.json`;
+  - no UI module assigns a string literal containing letters to
+    `textContent`, `innerHTML`, `title`, `aria-label` or `placeholder`, and
+    no Python module raises or returns a user-facing message without `t()`
+    (scan with `ast`).
+
+Tests first: `test_catalogs_have_identical_keys_and_placeholders`,
+`test_unknown_key_falls_back_to_english_then_key`,
+`test_missing_value_never_raises`, `test_speechmix_messages_are_translated`,
+`test_every_used_key_exists`, `test_no_literal_ui_text` (node),
+`test_finnish_decimal_comma_and_helsinki_time` (node).
 
 ---
 

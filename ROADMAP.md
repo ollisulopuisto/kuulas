@@ -11,7 +11,7 @@ Out of scope: loopback, publishing integrations, anything but basic recording, s
 ## Requirements and state (2026-10-16)
 
 **Build first** (owner, 2026-10-16): R35 the project format above all, then
-R10, R29, R30, R33, R26i. They lead the build order in `docs/PLAN.md`
+R39 (i18n), R10, R29, R30, R33, R26i. They lead the build order in `docs/PLAN.md`
 (Triage, marked ★).
 
 Priorities set by the user: **MUST** R29 (trustworthy undo), R33 (fast
@@ -68,6 +68,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R36 | Focus mode: F focuses a speaker's tracks, the others shrink to strips that keep sync visible; Shift+F also solos; transcript dims other speakers | planned: WP28 |
 | R37 | Review round trip: A sends v1, B edits (some changes done, some as suggestions), A gets v2 and accepts or rejects each; works even if A kept editing; hand-off copies carry only used audio | designed: docs/FORMAT.md; build WP31 (changes view), WP32 |
 | R38 | Voice condition as a sub-choice of speech ("Speech · remote"; also for speech mixes, never music): clean / room / remote / phone / auto picks a speechmix preset; auto-suggested from measured noise floor, bandwidth, echo and clipping | waits for presets in speechmix (podcast repo); kuulas side in WP22 |
+| R39 | Internationalisation from day one: English and Finnish complete, one catalog for Python and UI, speechmix's messages translated too; locale-aware numbers, Helsinki times with zone, platform key names | planned: WP33a (Python, before the format work) and WP33b (UI, before any UI) |
 
 ## Done
 
