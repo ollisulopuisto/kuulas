@@ -13,16 +13,18 @@ a read-modify-write of the history head.
 from __future__ import annotations
 
 import logging
+import os
 import threading
 from collections.abc import Callable
 from pathlib import Path
 
-from . import analysis, ops, package, transcript
+from . import analysis, ops, package, transcribe, transcript
 from . import db as dbm
 from .clock import flicks_to_frames
 from .history import History
+from .jobs import Jobs
 from .media import ImportResult, MediaError, MediaStore
-from .messages import t
+from .messages import KuulasError, t
 from .model import Project, SyncGroup
 from .people import Interview, Passage, Person
 
@@ -70,6 +72,7 @@ class Session:
         else:
             self.package = package.create(folder, rate)
         self.package.start()
+        self.jobs = Jobs()
         self.history: History = self.package.history
         self.store: MediaStore = self.package.store
         self._subscribers: list[Callable[[Project], None]] = []
@@ -91,6 +94,7 @@ class Session:
         return self.package.read_only
 
     def close(self) -> None:
+        self.jobs.close()
         with self.lock:
             self.history.budget.log_stats()
             self.package.close()
@@ -484,6 +488,38 @@ class Session:
                 raise ops.EditError("error.edit.no_media", media_id=media_id) from None
             self.history.add_transcript(media_id, words, label=label)
             return self._changed()
+
+    def transcribe(self, media_ids: list[str], model: str = "small",
+                   language: str | None = None) -> list[str]:
+        """Queue one local transcript job for every selected media item."""
+        ids = list(dict.fromkeys(media_ids))
+        job_ids = []
+        cpu_threads = max(1, (os.cpu_count() or 2) // self.jobs.max_workers)
+        for media_id in ids:
+            with self.lock:
+                try:
+                    item = self.history.state.media_item(media_id)
+                except KeyError:
+                    raise ops.EditError(
+                        "error.edit.no_media", media_id=media_id) from None
+                source = self.store.transcription_path(media_id)
+                previous = self.history.material["transcripts"].get(media_id)
+                title = t("job.transcribe", name=item.name)
+
+            def run(progress, source=source):
+                return transcribe.local(source, model=model, language=language,
+                                        progress=progress, cpu_threads=cpu_threads)
+
+            def commit(words, media_id=media_id, previous=previous):
+                with self.lock:
+                    current = self.history.material["transcripts"].get(media_id)
+                    if current != previous:
+                        raise KuulasError("error.transcribe.changed")
+                    self.set_transcript(media_id, words,
+                                        t("history.transcript", media_id=media_id))
+
+            job_ids.append(self.jobs.submit("transcribe", title, run, commit))
+        return job_ids
 
     def correct_word(self, media_id: str, index: int, text: str) -> Project:
         """Correct the text of one word of one media's transcript: a new
