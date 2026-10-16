@@ -24,3 +24,13 @@ Non-negotiable, in short:
   unless you are the integrator.
 - This repo has no remote and no pull requests, which differs from the
   owner's other repos (for example vikasietotila's `GEMINI.md`).
+
+## Coordinator channel (agents that take tasks from the coordinator)
+
+Tasks, rules and review verdicts arrive in
+`/Users/dst/Documents/koodi/kuulas/.agents/agy.md`; you answer only in
+`/Users/dst/Documents/koodi/kuulas/.agents/agy-reply.md` (append-only). Each
+file has exactly one writer. The folder is not in git, so use the absolute
+path from any worktree. The protocol is at the top of `agy.md`: re-read it
+before every task, claim a task before starting, and report when it is ready
+for review.
