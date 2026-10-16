@@ -109,7 +109,8 @@ def migrate_0_to_1(db: sqlite3.Connection, folder: Path) -> None:
                         dbm.put_blob(db, "words", words), "{}", _utc(created)))
             last_rev[media_id] = rev
         pointers = states[head].get("transcripts", ())
-        root = {**EMPTY_MATERIAL, "transcripts": {m: int(r) for m, r in pointers}}
+        root = {**EMPTY_MATERIAL, "transcripts": {m: int(r) for m, r in pointers},
+                "sync": sync_from_v0(states[head], rate)}
         db.execute("insert into material_revs values (1, null, ?, ?, ?)",
                    (t("history.migrated"), dbm.put_blob(db, "material", root), now))
         dbm.set_meta(db, "material_head", "1")
@@ -117,8 +118,7 @@ def migrate_0_to_1(db: sqlite3.Connection, folder: Path) -> None:
         new_ids: dict[int, str] = {}
         for i, parent, label, _, created in old_nodes:
             new_ids[i] = ids.next(round(created * 1000))
-            d = {k: v for k, v in states[i].items() if k != "transcripts"}
-            state = Project.from_dict({**d, "media": []})
+            state = Project.from_dict(_v0_edit_state(states[i]))
             db.execute(
                 "insert into nodes(id, edit, parent, author, machine, label, op, state,"
                 " created_utc) values (?,?,?,?,?,?,?,?,?)",
@@ -130,6 +130,60 @@ def migrate_0_to_1(db: sqlite3.Connection, folder: Path) -> None:
         db.execute("drop table v0_nodes")
         db.execute("drop table v0_meta")
         db.execute("drop table transcripts")
+
+
+def _v0_edit_state(state: dict) -> dict:
+    """A v0 state without what became material: media, transcript pointers,
+    sync groups, and the clips' sync fields (membership is per media now)."""
+    d = {k: v for k, v in state.items() if k not in ("transcripts", "sync_groups")}
+    d["media"] = []
+    d["tracks"] = [{**tr, "clips": [{k: v for k, v in c.items()
+                                     if k not in ("sync", "sync_origin")}
+                                    for c in tr.get("clips", ())]}
+                   for tr in state.get("tracks", ())]
+    return d
+
+
+def _overlap(clip: dict, others: list[dict]) -> int:
+    end = clip["start"] + clip["length"]
+    return max((min(end, o["start"] + o["length"]) - max(clip["start"], o["start"])
+                for o in others), default=0)
+
+
+def sync_from_v0(state: dict, rate: int) -> dict:
+    """v0's per-clip sync fields as per-media members (FORMAT.md, step 4).
+
+    Every clip of a media carried the same origin in v0 (marking moved the
+    whole file). If pieces of one media disagree anyway, the piece that
+    plays against the main media's pieces wins, and a warning says so.
+    """
+    clips = [c for tr in state.get("tracks", ()) for c in tr.get("clips", ())]
+    out: dict[str, dict] = {}
+    owner: dict[str, str] = {}
+    for gid, main in state.get("sync_groups", ()):
+        in_group = [c for c in clips if c.get("sync") == gid]
+        if not in_group:
+            continue  # every clip was marked into a later group
+        mains = [c for c in in_group if c["media"] == main]
+        pieces: dict[str, list[dict]] = {}
+        for c in in_group:
+            if c["media"] != main:
+                pieces.setdefault(c["media"], []).append(c)
+        members = {main: 0}
+        for media_id, own in sorted(pieces.items()):
+            own.sort(key=lambda c: (-_overlap(c, mains), c["start"], c["id"]))
+            origin = int(own[0].get("sync_origin", 0))
+            if len({int(c.get("sync_origin", 0)) for c in own}) > 1:
+                log.warning(t("log.migrate.sync_disagrees", media_id=media_id, group=gid,
+                              clip_id=own[0]["id"]))
+            members[media_id] = frames_to_flicks(origin, rate)
+        for media_id in members:
+            previous = owner.get(media_id)
+            if previous is not None and previous in out:
+                out[previous]["members"].pop(media_id, None)
+            owner[media_id] = gid
+        out[gid] = {"main": main, "members": members}
+    return out
 
 
 def _media_row(media_id: str, file: dict | None, state: dict | None, rate: int,

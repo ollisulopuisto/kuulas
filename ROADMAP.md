@@ -37,7 +37,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R13 | Media identified by content hash; survives rename/move | done (SHA-256 ids, every seen path remembered) |
 | R14 | Per-source mono/stereo; measurements aware of it | done: mono voices constant-power, stereo music balanced, stereo master; speech analysis reads speech tracks only |
 | R15 | Select everything from the playhead on (one track / all tracks) | done in core (`clips_from`, `clips_until`, multi-clip edits) |
-| R16 | Sync groups: mark clips in sync, move freely, resync any subclip to the main clip | done in core, timestamps only; fixes accidental one-track cuts |
+| R16 | Sync groups: mark clips in sync, move freely, resync any subclip to the main clip | done in core, timestamps only; fixes accidental one-track cuts; membership per media, shared by every edit (v26.10.16.6) |
 | R17 | Late sync: mark from clips still in sync, or from file timestamps (BWF) | done in core |
 | R18 | Store media as FLAC to save space | in progress: lossless FLAC verified bit-exact for 16/24-bit PCM |
 | R19 | Link media in place or copy into the project (like FCPX) | in progress: link PCM in place, relink by hash, consolidate |
@@ -64,7 +64,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R32 | Music report per edit: every piece of music actually heard, with metadata, programme times, duration and background/featured, as CSV and printable table | planned: WP25 |
 | R33 | **MUST.** Sped-up listening (toggle normal/fast, pitch kept) and JKL shuttle with slow and fast scrubbing | planned: WP26 |
 | R34 | Project settings changeable later, undoably: sample rate (e.g. 44.1 → 48 kHz, every position converted), mono or stereo master, loudness target, export defaults | planned: WP27 |
-| R35 | Own project format `Name.kuulas` (package folder): shared material (media, sync, transcripts) apart from per-edit state; recording facts in flicks so they survive rate changes; versioned with forward compatibility; crash-safe, locked against two writers, automatic backups; lossless Hindenburg round trip | WP29 done in v26.10.16.5 (package, manifest, lock, v1 schema, material apart from edits, UUIDv7 steps, checkpoints, backups, v0 migration, `kuulas info`); WP30 (flicks, sync per media) next; Hindenburg round trip in WP13 |
+| R35 | Own project format `Name.kuulas` (package folder): shared material (media, sync, transcripts) apart from per-edit state; recording facts in flicks so they survive rate changes; versioned with forward compatibility; crash-safe, locked against two writers, automatic backups; lossless Hindenburg round trip | done: WP29 in v26.10.16.5 (package, manifest, lock, v1 schema, material apart from edits, UUIDv7 steps, checkpoints, backups, v0 migration, `kuulas info`), WP30 in v26.10.16.6 (recording facts in flicks, sync groups per media in material); Hindenburg round trip in WP13 |
 | R36 | Focus mode: F focuses a speaker's tracks, the others shrink to strips that keep sync visible; Shift+F also solos; transcript dims other speakers | planned: WP28 |
 | R37 | Review round trip: A sends v1, B edits (some changes done, some as suggestions), A gets v2 and accepts or rejects each; works even if A kept editing; hand-off copies carry only used audio | designed: docs/FORMAT.md; build WP31 (changes view), WP32 |
 | R38 | Voice condition as a sub-choice of speech ("Speech · remote"; also for speech mixes, never music): clean / room / remote / phone / auto picks a speechmix preset; auto-suggested from measured noise floor, bandwidth, echo and clipping | waits for presets in speechmix (podcast repo); kuulas side in WP22 |
@@ -110,6 +110,8 @@ sizes: `docs/PLAN.md`, section "Triage".
 - WP14: speech analysis runs one track per core, same result. 94 tests pass.
 - WP29 (v26.10.16.5): project format v1, `Name.kuulas` package per
   docs/FORMAT.md. 135 tests pass.
+- WP30 (v26.10.16.6): recording clock in flicks (words, BWF times, sync
+  origins); sync groups per media, in material. 155 tests pass.
 
 ## Later (v2)
 

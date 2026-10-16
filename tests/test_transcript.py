@@ -1,11 +1,16 @@
+import copy
+
 from kuulas import ops, transcript
+from kuulas.clock import FLICKS
 from kuulas.model import Media, Project
 
 R = 1000
 
 
 def words(*items):
-    return [{"w": w, "s": int(s * R), "e": int(e * R), "spk": "A"} for w, s, e in items]
+    """Stored words: flicks from the media's start (docs/FORMAT.md)."""
+    return [{"w": w, "s": round(s * FLICKS), "e": round(e * FLICKS), "spk": "A"}
+            for w, s, e in items]
 
 
 def project():
@@ -54,3 +59,20 @@ def test_words_under_muted_pieces_are_marked():
 def test_trimmed_away_words_disappear():
     p = ops.trim_clip(project(), "c", end=1200)
     assert [w["w"] for w in transcript.timeline_words(p, WORDS)] == ["hei"]
+
+
+def test_rate_change_leaves_words_untouched():
+    # The same recording in a 44.1 kHz and a 48 kHz project (WP27 converts
+    # edit state only): the stored words are not touched, and land on the
+    # same moments at either rate.
+    stored = {"m": words(("hei", 0.5, 1.0), ("moi", 2.25, 2.75))}
+    before = copy.deepcopy(stored)
+    for rate in (44100, 48000, 8000):
+        p = Project(rate=rate)
+        p = ops.add_media(p, Media(id="m", name="a.wav", channels=1, frames=10 * rate))
+        p = ops.add_track(p, track_id="t", name="A")
+        p = ops.add_clip(p, track_id="t", media_id="m", clip_id="c", start=rate)
+        tw = transcript.timeline_words(p, stored)
+        assert [(w["s"], w["e"]) for w in tw] == [
+            (rate + rate // 2, 2 * rate), (rate + 9 * rate // 4, rate + 11 * rate // 4)]
+    assert stored == before

@@ -10,8 +10,9 @@ import uuid
 from dataclasses import replace
 
 from . import curves
+from .clock import flicks_to_frames, frames_to_flicks
 from .messages import KuulasError
-from .model import Bus, Clip, Media, Point, Project, Track
+from .model import Bus, Clip, Media, Point, Project, SyncGroup, Track
 
 #: Crossfade where a cut joins audio that was not adjacent in the source.
 #: A butt splice of two unrelated samples clicks and the room tone jumps;
@@ -363,9 +364,11 @@ def mark_in_sync(p: Project, clip_ids, main: str, group_id: str | None = None,
     clocks (BWF time reference; files without one started together), so
     sync can be set up late, after the timeline has drifted.
 
-    Either way the whole file joins: every clip cut from the same media
-    shares its clock, so pieces that were never selected (the ones that
-    drifted) can be resynced too. From then on ``resync`` puts any of them back.
+    Either way the whole file joins: membership is per media (docs/FORMAT.md),
+    so every clip cut from it shares its clock, and pieces that were never
+    selected (the ones that drifted) can be resynced too. A media is in one
+    group at a time: marking moves it out of any other. From then on
+    ``resync`` puts any of them back.
     """
     if basis not in ("timeline", "files"):
         raise EditError("error.edit.sync_basis", basis=basis)
@@ -373,49 +376,62 @@ def mark_in_sync(p: Project, clip_ids, main: str, group_id: str | None = None,
     main_clip, _ = _find_clip(p, main)
     main_media = p.media_item(main_clip.media)
     base = main_clip.start - main_clip.offset
-    origins: dict[str, int] = {main_clip.media: 0}
+    origins: dict[str, int] = {main_clip.media: 0}  # flicks
     for clip_id in clip_ids:
         c, _ = _find_clip(p, clip_id)
         if c.media in origins:
             continue
         if basis == "files":
-            origins[c.media] = p.media_item(c.media).time_ref - main_media.time_ref
+            origins[c.media] = ((p.media_item(c.media).time_ref_flicks or 0)
+                                - (main_media.time_ref_flicks or 0))
         else:
-            origins[c.media] = (c.start - c.offset) - base
-    tracks = tuple(
-        replace(t, clips=tuple(
-            replace(c, sync=group_id, sync_origin=origins[c.media])
-            if c.media in origins else c for c in t.clips))
-        for t in p.tracks)
-    groups = tuple(g for g in p.sync_groups if g[0] != group_id)
-    return replace(p, tracks=tracks, sync_groups=(*groups, (group_id, main_clip.media)))
+            origins[c.media] = frames_to_flicks((c.start - c.offset) - base, p.rate)
+    kept: dict[str, int] = {}
+    groups = []
+    for g in p.sync_groups:
+        rest = tuple((m, o) for m, o in g.members if m not in origins)
+        if g.id == group_id:
+            kept = dict(rest)  # re-marking a group keeps members not marked again
+        elif rest:
+            groups.append(replace(g, members=rest))
+    marked = SyncGroup(id=group_id, main=main_clip.media,
+                       members=tuple(sorted({**kept, **origins}.items())))
+    return replace(p, sync_groups=(*groups, marked))
+
+
+def _recorded(p: Project, clip: Clip) -> int:
+    """Where ``clip``'s first frame sits on its group's recording clock, in
+    project frames."""
+    member = p.sync_member(clip.media)
+    origin = 0 if member is None else flicks_to_frames(member[1], p.rate)
+    return clip.offset + origin
 
 
 def resync(p: Project, clip_ids) -> Project:
     """Move each clip back into sync with the main clip's piece it belongs with.
 
-    The reference is the main-clip piece that plays the same stretch of the
-    recording, so cuts made in the main clip are followed. Clips without a
-    group, and the main clip's own pieces, stay where they are.
+    The reference is the main media's piece that plays the same stretch of
+    the recording, so cuts made in the main clip are followed. Clips without
+    a group, and the main media's own pieces, stay where they are.
     """
-    mains = dict(p.sync_groups)
     for clip_id in clip_ids:
         c, _ = _find_clip(p, clip_id)
-        main_media = mains.get(c.sync) if c.sync else None
-        if main_media is None or c.media == main_media:
+        group = p.sync_group(c.media)
+        if group is None or c.media == group.main:
             continue
-        refs = [r for t in p.tracks for r in t.clips
-                if r.sync == c.sync and r.media == main_media]
+        refs = [r for t in p.tracks for r in t.clips if r.media == group.main]
         if not refs:
             continue
+        rec = _recorded(p, c)
 
-        def score(r: Clip, c: Clip = c) -> tuple[int, int]:
-            overlap = (min(r.recorded + r.length, c.recorded + c.length)
-                       - max(r.recorded, c.recorded))
+        def score(r: Clip, rec: int = rec, c: Clip = c,
+                  p: Project = p) -> tuple[int, int]:
+            r_rec = _recorded(p, r)
+            overlap = min(r_rec + r.length, rec + c.length) - max(r_rec, rec)
             return (overlap if overlap > 0 else overlap * 2, -abs(r.start - c.start))
 
         ref = max(refs, key=score)
-        start = ref.start + (c.recorded - ref.recorded)
+        start = ref.start + (rec - _recorded(p, ref))
         p = _replace_clip(p, replace(c, start=max(0, start)))
     return p
 

@@ -10,6 +10,7 @@ from itertools import pairwise
 import numpy as np
 
 from kuulas import ops
+from kuulas.clock import frames_to_flicks
 from kuulas.model import Media, Project
 
 RATE = 8000
@@ -56,6 +57,12 @@ def room(offset_frames):
     return p, store
 
 
+def group(p, clip_id):
+    """The sync group a clip's recording belongs to (membership is per media)."""
+    g = p.sync_group(p.clip(clip_id).media)
+    return None if g is None else g.id
+
+
 def marked_room():
     """Anna is the main clip; Ville is marked in sync with her, then split."""
     p, store = room(offset_frames=0)
@@ -75,7 +82,7 @@ def test_resync_puts_moved_clips_back_by_their_timestamps():
 
 def test_subclips_inherit_the_group():
     p, _ = marked_room()
-    assert {p.clip(c).sync for c in ("cv", "cv2", "cv3")} == {"g"}
+    assert {group(p, c) for c in ("cv", "cv2", "cv3")} == {"g"}
 
 
 def test_marking_records_the_offset_as_it_is_now():
@@ -118,7 +125,7 @@ def test_main_clip_and_unsynced_clips_stay_put():
 def test_remarking_moves_whole_files_to_the_new_group():
     p, _ = marked_room()
     p = ops.mark_in_sync(p, ["cv3", "ca"], main="cv3", group_id="h")
-    assert {p.clip(c).sync for c in ("ca", "cv", "cv2", "cv3")} == {"h"}
+    assert {group(p, c) for c in ("ca", "cv", "cv2", "cv3")} == {"h"}
 
 
 def test_mark_from_clips_still_in_sync_and_fix_ones_never_selected():
@@ -130,7 +137,7 @@ def test_mark_from_clips_still_in_sync_and_fix_ones_never_selected():
     p = ops.move_clip(p, "cv2", start=10 * RATE + 4321)
     p = ops.mark_in_sync(p, ["ca", "cv"], main="ca", group_id="g")
     # Same file, same clock: cv2 joined the group without being selected.
-    assert p.clip("cv2").sync == "g"
+    assert group(p, "cv2") == "g"
     q = ops.resync(p, ["cv2"])
     assert q.clip("cv2").start == 10 * RATE
 
@@ -163,9 +170,25 @@ def test_sync_can_be_marked_late_from_the_files_own_timestamps():
 
 def test_marking_by_files_uses_their_time_reference():
     p, _ = room(offset_frames=0)
-    v = replace(p.media_item("v"), time_ref=int(0.5 * RATE))
+    ref = frames_to_flicks(int(0.5 * RATE), RATE)
+    v = replace(p.media_item("v"), time_ref_flicks=ref)
     p = replace(p, media=tuple(v if m.id == "v" else m for m in p.media))
     p = ops.mark_in_sync(p, ["ca", "cv"], main="ca", group_id="g", basis="files")
     q = ops.resync(p, ["cv"])
     # Ville's recorder started 0.5 s later: his frame 0 is Anna's 0.5 s.
     assert q.clip("cv").start == int(0.5 * RATE)
+
+
+def test_excerpt_inherits_its_originals_sync_origin():
+    # A WP20 excerpt of Ville's file from 10 s on: never marked itself, it
+    # follows Ville's membership, offset by where it was cut from.
+    p, _ = room(offset_frames=int(0.3 * RATE))
+    p = ops.add_media(p, Media(id="vx", name="v excerpt", channels=1, frames=5 * RATE,
+                               excerpt_of="v",
+                               excerpt_start_flicks=frames_to_flicks(10 * RATE, RATE)))
+    p = ops.add_clip(p, track_id="V", media_id="vx", clip_id="x", start=99 * RATE)
+    p = ops.mark_in_sync(p, ["ca", "cv"], main="ca", group_id="g")
+    assert group(p, "x") == "g"
+    q = ops.resync(p, ["x"])
+    # Excerpt frame 0 is Ville's 10 s, which plays at 10.3 s.
+    assert q.clip("x").start == int(10.3 * RATE)

@@ -1,13 +1,16 @@
 """The transcript as a view of the timeline.
 
-Words are stored per media in *source* frames (``{"w", "s", "e", "spk"}``)
-and never edited by audio edits. Their timeline positions are derived from
-the clips every time, so moving, trimming or cutting audio moves the text
-with it, and deleting text is a ripple cut computed here.
+Words are stored per media in flicks from the media's start, on the
+recording clock (``{"w", "s", "e", "spk"}``), and never edited by audio
+edits or by a change of project rate; they are converted to frames here.
+Their timeline positions are derived from the clips every time, so moving,
+trimming or cutting audio moves the text with it, and deleting text is a
+ripple cut computed here.
 """
 
 from __future__ import annotations
 
+from .clock import flicks_to_frames
 from .model import Project
 
 
@@ -26,12 +29,14 @@ def timeline_words(p: Project, transcripts: dict[str, list[dict]]) -> list[dict]
             lo, hi = clip.offset, clip.offset + clip.length
             shift = clip.start - clip.offset
             for i, w in enumerate(words):
-                mid = (w["s"] + w["e"]) // 2
+                s = flicks_to_frames(w["s"], p.rate)
+                e = max(s + 1, flicks_to_frames(w["e"], p.rate))
+                mid = (s + e) // 2
                 if lo <= mid < hi:
                     out.append({
                         "w": w["w"], "spk": w.get("spk", ""),
-                        "s": max(clip.start, w["s"] + shift),
-                        "e": min(clip.end, w["e"] + shift),
+                        "s": max(clip.start, s + shift),
+                        "e": min(clip.end, e + shift),
                         "track": track.id, "clip": clip.id, "media": clip.media,
                         "index": i, "muted": clip.muted or track.mute,
                     })

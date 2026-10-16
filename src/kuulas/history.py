@@ -16,9 +16,11 @@ redo and restore cycles cost nothing.
 
 **Two kinds of state.** *Edit state* (tracks, clips, buses, master) belongs
 to one edit; a project can hold several edits, each with its own tree.
-*Material* (media rows, transcripts, speaker names) is shared by every
-edit. ``state`` puts the two together: the edit's tracks plus every media
-row and the project rate. Material is versioned too (``material_revs``): a
+*Material* (media rows, sync groups, transcripts, speaker names) is shared
+by every edit. ``state`` puts the two together: the edit's tracks plus
+every media row, the sync groups and the project rate. A commit whose state
+has other sync groups than the material changes the material
+(``ops.mark_in_sync``). Material is versioned too (``material_revs``): a
 step that changed it records ``material_from`` and ``material_to``, and
 undoing that step moves the material back, but only if nobody has changed
 it since. Otherwise the undo is refused rather than silently throwing away
@@ -37,11 +39,11 @@ from typing import Any
 from . import db as dbm
 from .clock import flicks_to_frames, frames_to_flicks
 from .messages import KuulasError, t
-from .model import Media, Project
+from .model import Media, Project, SyncGroup
 
 #: The material root of a new project. Unknown keys a newer version adds
 #: are kept, because roots are updated key by key, never rebuilt.
-EMPTY_MATERIAL: dict[str, Any] = {"transcripts": {}, "speakers": {}}
+EMPTY_MATERIAL: dict[str, Any] = {"transcripts": {}, "speakers": {}, "sync": {}}
 
 MAIN_EDIT = "main"
 
@@ -53,8 +55,23 @@ class HistoryError(KuulasError, RuntimeError):
 def edit_dict(p: Project) -> dict:
     """The part of ``p`` that belongs to one edit: everything but material."""
     d = p.to_dict()
-    del d["media"], d["rate"]
+    del d["media"], d["rate"], d["sync_groups"]
     return d
+
+
+def sync_root(groups: tuple[SyncGroup, ...]) -> dict:
+    """Sync groups as the material root holds them (docs/FORMAT.md):
+    ``{group: {"main": media, "members": {media: origin_flicks}}}``."""
+    out = {}
+    for g in groups:
+        d = g.to_dict()
+        out[d.pop("id")] = d
+    return out
+
+
+def sync_groups(root: dict) -> tuple[SyncGroup, ...]:
+    return tuple(SyncGroup.from_dict({**g, "id": gid})
+                 for gid, g in sorted(root.get("sync", {}).items()))
 
 
 def edit_blob(p: Project) -> tuple[str, bytes]:
@@ -80,7 +97,8 @@ def media_from_row(row: dict, rate: int) -> Media:
         frames = flicks_to_frames(frames_to_flicks(frames, row["source_rate"]), rate)
     return Media(id=row["id"], name=row["name"], channels=row["channels"],
                  frames=frames, sha256=row["sha256"],
-                 time_ref=flicks_to_frames(row["time_ref_flicks"] or 0, rate),
+                 time_ref_flicks=row["time_ref_flicks"], excerpt_of=row["excerpt_of"],
+                 excerpt_start_flicks=row["excerpt_start_flicks"] or 0,
                  extra=json.loads(row["extra"] or "{}"))
 
 
@@ -162,7 +180,9 @@ class History:
 
     def _load(self, node: str) -> Project:
         d = dbm.get_blob(self.db, self._node(node)["state"])
-        return Project.from_dict({**d, "rate": self.rate})
+        # Sync groups come from the material (an edit state written by
+        # 26.10.16.5 still has its own; the material's win).
+        return Project.from_dict({**d, "rate": self.rate, "sync_groups": []})
 
     def _parent(self, node: str) -> str | None:
         return self._node(node)["parent"]
@@ -196,7 +216,8 @@ class History:
         version = self.db.execute("pragma data_version").fetchone()[0]
         if self._composed is None or version != self._seen_version:
             media = tuple(media_from_row(r, self.rate) for r in self.media_rows())
-            self._composed = replace(self._edit_state, media=media)
+            self._composed = replace(self._edit_state, media=media,
+                                     sync_groups=sync_groups(self.material))
             self._seen_version = version
         return self._composed
 
@@ -249,7 +270,10 @@ class History:
         for m in state.media:
             if m.id not in known:
                 raise HistoryError("error.history.media_not_imported", media_id=m.id)
-        changes_material = material is not None and material != self.material
+        current = self.material
+        root = {**(current if material is None else material),
+                "sync": sync_root(state.sync_groups)}
+        changes_material = root != current
         with dbm.tx(self.db):
             head = self._node(self.head)
             if (coalesce is not None and coalesce == self._coalesce
@@ -267,13 +291,13 @@ class History:
                     "delete from blobs where hash=? and kind='edit-state'"
                     " and not exists (select 1 from nodes where state=?)", (old, old))
             else:
-                moved = self._material_rev(material, label) if changes_material else None
+                moved = self._material_rev(root, label) if changes_material else None
                 self.head = self._insert(self.edit, self.head, label, state, op=op,
                                          context=context, material=moved)
                 self.db.execute("update edits set head=? where id=?",
                                 (self.head, self.edit))
         self._coalesce = coalesce
-        self._edit_state = replace(state, media=())
+        self._edit_state = replace(state, media=(), sync_groups=())
         self._written()
 
     def _path(self, target: str) -> tuple[list[dict], list[dict]]:
@@ -400,15 +424,13 @@ class History:
                        engine: dict | None = None, label: str | None = None) -> int:
         """Store a transcript revision and make it the one ``media_id`` uses.
 
-        Words come in source frames at the project rate and are stored in
-        flicks (the recording clock). Using it is a material step in this
-        edit, so it undoes, and every edit sees it.
+        Words are in flicks from the media's start (``transcribe``). Using
+        them is a material step in this edit, so it undoes, and every edit
+        sees it.
         """
         self._check_writable()
-        stored = [{**w, "s": frames_to_flicks(w["s"], self.rate),
-                   "e": frames_to_flicks(w["e"], self.rate)} for w in words]
         with dbm.tx(self.db):
-            digest = dbm.put_blob(self.db, "words", stored)
+            digest = dbm.put_blob(self.db, "words", list(words))
             cur = self.db.execute(
                 "insert into transcript_revs(media, parent, words, engine, created_utc)"
                 " values (?,?,?,?,?)",
@@ -426,9 +448,7 @@ class History:
                               (int(rev),)).fetchone()
         if row is None:
             raise KeyError(rev)
-        return [{**w, "s": flicks_to_frames(w["s"], self.rate),
-                 "e": flicks_to_frames(w["e"], self.rate)}
-                for w in dbm.get_blob(self.db, row[0])]
+        return dbm.get_blob(self.db, row[0])
 
     def transcript_rev(self, media_id: str) -> int | None:
         rev = self.material["transcripts"].get(media_id)

@@ -6,6 +6,7 @@ import pytest
 import soundfile as sf
 from pedalboard.io import AudioFile
 
+from kuulas.clock import FLICKS
 from kuulas.media import MediaError, MediaStore
 
 
@@ -96,19 +97,44 @@ def add_bext(path, time_reference: int):
     path.write_bytes(b"RIFF" + struct.pack("<I", 4 + len(body)) + b"WAVE" + body)
 
 
-def test_bwf_time_reference_is_read_at_the_project_rate(tmp_path):
+def test_bwf_time_reference_is_read_on_the_recording_clock(tmp_path):
     src = tmp_path / "rec.wav"
     write_wav(src, np.ones((1, 480), dtype=np.float32), 44100)
     add_bext(src, 44100 * 3600)  # recorded at 01:00:00
     store = MediaStore(tmp_path / "media", rate=48000)
-    assert store.import_file(src).time_ref == 48000 * 3600
+    assert store.import_file(src).time_ref_flicks == 3600 * FLICKS
+
+
+def test_bwf_time_reference_is_stored_in_flicks(tmp_path):
+    # One sample past 01:00:00 at 44.1 kHz is not a whole number of 48 kHz
+    # frames; in flicks it is exact, and the row keeps it so.
+    src = tmp_path / "rec.wav"
+    write_wav(src, np.ones((1, 480), dtype=np.float32), 44100)
+    add_bext(src, 44100 * 3600 + 1)
+    store = MediaStore(tmp_path / "media", rate=48000)
+    media = store.import_file(src)
+    want = 3600 * FLICKS + FLICKS // 44100
+    assert media.time_ref_flicks == want
+    row = store.db.execute("select time_ref_flicks from media where id=?",
+                           (media.id,)).fetchone()
+    assert row == (want,)
 
 
 def test_files_without_bext_have_no_time_reference(tmp_path):
     src = tmp_path / "plain.wav"
     write_wav(src, np.ones((1, 480), dtype=np.float32), 48000)
     store = MediaStore(tmp_path / "media", rate=48000)
-    assert store.import_file(src).time_ref == 0
+    assert store.import_file(src).time_ref_flicks is None
+
+
+def test_a_source_rate_flicks_cannot_hold_is_refused(tmp_path):
+    src = tmp_path / "odd.wav"
+    write_wav(src, np.ones((1, 480), dtype=np.float32), 37800)
+    store = MediaStore(tmp_path / "media", rate=48000)
+    with pytest.raises(MediaError) as err:
+        store.import_file(src)
+    assert err.value.key == "error.clock.rate"
+    assert store.ids() == []
 
 
 def write_int16(path, audio, rate):

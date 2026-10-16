@@ -45,7 +45,7 @@ from speechmix.binaries import get_binary_path
 
 from . import caches
 from . import db as dbm
-from .clock import flicks_to_frames, frames_to_flicks
+from .clock import RateError, check_rate, frames_to_flicks
 from .messages import KuulasError, t
 from .model import Media
 
@@ -123,6 +123,7 @@ class MediaStore:
         self.read_only = read_only
         if not read_only:
             self.folder.mkdir(parents=True, exist_ok=True)
+        check_rate(rate)
         self.rate = rate
         self.cache_root = (Path(cache_root) if cache_root
                            else self.folder.parent / "caches")
@@ -239,6 +240,7 @@ class MediaStore:
             raise MediaError("error.media.id_collision", name=path.name,
                              media_id=media_id)
         if row is None:
+            self._check_source_rate(path)
             bwf = bwf_time_reference(path)
             new = {"id": media_id, "sha256": digest, "name": path.name,
                    "time_ref_flicks": frames_to_flicks(*bwf) if bwf else None}
@@ -252,7 +254,24 @@ class MediaStore:
         meta = self.meta(media_id)
         return Media(id=media_id, name=path.name, channels=meta["channels"],
                      frames=meta["source_frames"], sha256=digest,
-                     time_ref=flicks_to_frames(meta["time_ref_flicks"] or 0, self.rate))
+                     time_ref_flicks=meta["time_ref_flicks"])
+
+    @staticmethod
+    def _check_source_rate(path: Path) -> None:
+        """Refuse a file whose rate flicks cannot hold (``clock.check_rate``).
+
+        Only formats libsndfile reads report a rate here; others are
+        resampled by ffmpeg and carry no BWF time, so their rate never
+        reaches the recording clock.
+        """
+        try:
+            rate = sf.info(str(path)).samplerate
+        except (sf.LibsndfileError, RuntimeError):
+            return
+        try:
+            check_rate(rate)
+        except RateError as e:
+            raise MediaError(e.key, **e.params) from None
 
     def _peaks_path(self, digest: str) -> Path:
         k = caches.key([digest], {"per": PEAK_FRAMES, "rate": self.rate}, PEAKS_ALGORITHM)

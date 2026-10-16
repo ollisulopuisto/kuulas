@@ -54,9 +54,14 @@ class Media:
     channels: int
     frames: int
     sha256: str = ""
-    # Recording start on the recorder's clock (BWF TimeReference), in project
-    # frames; 0 when the file carries none. ``ops.mark_in_sync(basis="files")``.
-    time_ref: int = 0
+    # Recording start on the recorder's clock (BWF TimeReference), in flicks
+    # (``clock``), so it never rounds; None when the file carries none.
+    # ``ops.mark_in_sync(basis="files")``.
+    time_ref_flicks: int | None = None
+    # A WP20 excerpt: a copy of part of another media. Its frame 0 is the
+    # original's ``excerpt_start_flicks``, so it shares the original's sync.
+    excerpt_of: str | None = None
+    excerpt_start_flicks: int = 0
     extra: dict = field(default_factory=dict, hash=False)
 
     def to_dict(self) -> dict:
@@ -92,11 +97,8 @@ class Clip:
     # timeline does not move. Even lengths; zero at a plain split.
     xfade_in: int = 0
     xfade_out: int = 0
-    # Sync group (``ops.mark_in_sync``) and this clip's recording-time origin
-    # relative to the group's main clip. Splits inherit both, so every
-    # subclip can be resynced on its own.
-    sync: str | None = None
-    sync_origin: int = 0
+    # Sync is per media, not per clip (``Project.sync_groups``): every piece
+    # cut from a file shares its clock, so subclips need no fields of their own.
     extra: dict = field(default_factory=dict, hash=False)
 
     def to_dict(self) -> dict:
@@ -107,11 +109,6 @@ class Clip:
         known, extra = _split(cls, d)
         known["envelope"] = _points(known.get("envelope", ()))
         return cls(**known, extra=extra)
-
-    @property
-    def recorded(self) -> int:
-        """Where this clip's first frame sits on the group's recording clock."""
-        return self.offset + self.sync_origin
 
     @property
     def end(self) -> int:
@@ -174,16 +171,41 @@ class Bus:
 
 
 @dataclass(frozen=True)
+class SyncGroup:
+    """Recordings that ran on one clock (``ops.mark_in_sync``).
+
+    ``members``: ``(media id, origin)`` pairs, the origin being where that
+    media's frame 0 sits on the group's recording clock, relative to the
+    ``main`` media's frame 0, in flicks. Material: shared by every edit.
+    """
+
+    id: str
+    main: str
+    members: tuple[tuple[str, int], ...] = ()
+    extra: dict = field(default_factory=dict, hash=False)
+
+    def to_dict(self) -> dict:
+        return _out(self, members=dict(self.members))
+
+    @classmethod
+    def from_dict(cls, d: dict) -> SyncGroup:
+        known, extra = _split(cls, d)
+        members = dict(known.get("members", {}))
+        known["members"] = tuple(sorted((m, int(o)) for m, o in members.items()))
+        return cls(**known, extra=extra)
+
+
+@dataclass(frozen=True)
 class Project:
     rate: int = 48000
     media: tuple[Media, ...] = ()
     tracks: tuple[Track, ...] = ()
     buses: tuple[Bus, ...] = ()
     master_gain_db: float = 0.0
-    # (group id, main clip's media id)
-    sync_groups: tuple[tuple[str, str], ...] = ()
+    # Material, shared by every edit (``History`` keeps it apart): sync groups
+    # here; transcripts in ``History.transcripts``.
+    sync_groups: tuple[SyncGroup, ...] = ()
     extra: dict = field(default_factory=dict, hash=False)
-    # Transcripts are material, shared by every edit: ``History.transcripts``.
 
     # -- lookups ----------------------------------------------------------
 
@@ -215,6 +237,30 @@ class Project:
                     return c, t
         raise KeyError(clip_id)
 
+    def sync_member(self, media_id: str) -> tuple[SyncGroup, int] | None:
+        """The group ``media_id`` belongs to and its origin in flicks.
+
+        An excerpt that was never marked itself belongs where its original
+        does, at the original's origin plus where the excerpt starts.
+        """
+        for g in self.sync_groups:
+            for member, origin in g.members:
+                if member == media_id:
+                    return g, origin
+        try:
+            media = self.media_item(media_id)
+        except KeyError:
+            return None
+        if media.excerpt_of and media.excerpt_of != media_id:
+            found = self.sync_member(media.excerpt_of)
+            if found is not None:
+                return found[0], found[1] + media.excerpt_start_flicks
+        return None
+
+    def sync_group(self, media_id: str) -> SyncGroup | None:
+        found = self.sync_member(media_id)
+        return None if found is None else found[0]
+
     @property
     def length(self) -> int:
         return max((c.end for t in self.tracks for c in t.clips), default=0)
@@ -225,7 +271,7 @@ class Project:
         return _out(self, media=[m.to_dict() for m in self.media],
                     tracks=[t.to_dict() for t in self.tracks],
                     buses=[b.to_dict() for b in self.buses],
-                    sync_groups=[list(g) for g in self.sync_groups])
+                    sync_groups=[g.to_dict() for g in self.sync_groups])
 
     def to_json(self) -> str:
         return json.dumps(self.to_dict(), separators=(",", ":"))
@@ -236,7 +282,8 @@ class Project:
         known["media"] = tuple(Media.from_dict(m) for m in known.get("media", ()))
         known["tracks"] = tuple(Track.from_dict(t) for t in known.get("tracks", ()))
         known["buses"] = tuple(Bus.from_dict(b) for b in known.get("buses", ()))
-        known["sync_groups"] = tuple((g, m) for g, m in known.get("sync_groups", ()))
+        known["sync_groups"] = tuple(SyncGroup.from_dict(g)
+                                     for g in known.get("sync_groups", ()))
         return cls(**known, extra=extra)
 
     @classmethod

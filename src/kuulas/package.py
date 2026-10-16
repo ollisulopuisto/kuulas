@@ -37,6 +37,7 @@ from typing import Any
 
 from . import db as dbm
 from . import migrations
+from .clock import RateError, check_rate
 from .history import History
 from .media import MediaStore
 from .messages import KuulasError, t
@@ -320,6 +321,10 @@ def create(path: str | Path, rate: int = Project().rate, *,
            author: str | None = None) -> Package:
     """A new, empty project at ``path`` (conventionally ``Name.kuulas``)."""
     folder = Path(path)
+    try:
+        check_rate(rate)
+    except RateError as e:
+        raise PackageError(e.key, **e.params) from None
     if (folder / "manifest.json").exists() or (folder / "project.sqlite").exists():
         raise PackageError("error.package.exists", path=str(folder))
     for name in DIRS:

@@ -13,7 +13,8 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-from kuulas import caches, cli, messages, ops, package
+from kuulas import caches, cli, messages, migrations, ops, package
+from kuulas.clock import frames_to_flicks
 from kuulas.history import HistoryError
 from kuulas.model import Project
 
@@ -268,6 +269,12 @@ def old_transcripts() -> dict[int, list[dict]]:
     return {i: json.loads(zlib.decompress(w)) for i, w in rows}
 
 
+def without_sync(tracks: list[dict]) -> list[dict]:
+    gone = ("sync", "sync_origin")
+    return [{**t, "clips": [{k: v for k, v in c.items() if k not in gone}
+                            for c in t["clips"]]} for t in tracks]
+
+
 def test_migration_v0_to_v1_keeps_every_state_media_and_transcript(tmp_path):
     folder = tmp_path / "Old.kuulas"
     shutil.copytree(FIXTURE, folder)
@@ -287,8 +294,11 @@ def test_migration_v0_to_v1_keeps_every_state_media_and_transcript(tmp_path):
         assert node["parent"] == (new_id[parent] if parent else None)
         h.goto(new_id[old_id])
         got = h.state.to_dict()
-        for key in ("tracks", "buses", "master_gain_db", "sync_groups", "rate"):
-            assert json.loads(json.dumps(got[key])) == state[key], (old_id, key)
+        assert got["rate"] == state["rate"]
+        assert got["master_gain_db"] == state["master_gain_db"]
+        assert got["buses"] == state["buses"]
+        # Clips lose their sync fields: membership is per media now (WP30).
+        assert json.loads(json.dumps(got["tracks"])) == without_sync(state["tracks"])
         assert "transcripts" not in got
     head_old = max(olds, key=lambda o: o[0])  # the fixture ends on its newest node
     h.goto(new_id[head_old[0]])
@@ -311,9 +321,18 @@ def test_migration_v0_to_v1_keeps_every_state_media_and_transcript(tmp_path):
     working = next(m for m in by_id if m not in linked)
     assert pkg.store.read(working, 0, 4800).any()
 
-    # Transcripts: every revision, and the head state's choice is current.
+    # Sync: the head state's clip fields became per-media members, in flicks.
+    [group] = h.state.sync_groups
+    anna, ville = (m["id"] for m in head_old[3]["media"])
+    assert (group.id, group.main) == ("g1", anna)
+    assert dict(group.members) == {anna: 0, ville: frames_to_flicks(120, 48000)}
+
+    # Transcripts: every revision, on the recording clock, and the head
+    # state's choice is current.
     for rev, words in old_transcripts().items():
-        assert h.transcript(rev) == words
+        assert h.transcript(rev) == [
+            {**w, "s": frames_to_flicks(w["s"], 48000),
+             "e": frames_to_flicks(w["e"], 48000)} for w in words]
     pointers = dict(head_old[3]["transcripts"])
     for media_id, rev in pointers.items():
         assert h.transcript_rev(media_id) == rev
@@ -367,3 +386,28 @@ def test_info_reports_manifest_sizes_media_and_backups(tmp_path, capsys):
     assert "missing" in out
     # info only reads: no lock was taken.
     assert not (pkg.path / "lock.json").exists()
+
+
+def test_migrated_sync_keeps_the_main_pieces_origin_when_clips_disagree(caplog):
+    # Two pieces of Ville's file with different origins (impossible with v0's
+    # own edits, but a hand-edited or buggy file could have it): keep the
+    # piece that plays against the main clip, and say so.
+    def clip(cid, media, start, origin, sync="g"):
+        return {"id": cid, "media": media, "start": start, "offset": 0, "length": 100,
+                "sync": sync, "sync_origin": origin}
+    state = {"sync_groups": [["g", "ma"]], "tracks": [
+        {"id": "A", "clips": [clip("ca", "ma", 0, 0)]},
+        {"id": "V", "clips": [clip("v1", "mv", 50, 30), clip("v2", "mv", 500, 70),
+                              clip("loose", "mx", 0, 0, sync=None)]}]}
+    with caplog.at_level("WARNING", logger="kuulas.package"):
+        groups = migrations.sync_from_v0(state, rate=1000)
+    assert groups == {"g": {"main": "ma", "members": {
+        "ma": 0, "mv": frames_to_flicks(30, 1000)}}}
+    assert "mv" in caplog.text
+
+
+def test_create_refuses_a_rate_flicks_cannot_hold(tmp_path):
+    with pytest.raises(package.PackageError) as err:
+        package.create(tmp_path / "Odd.kuulas", rate=37800)
+    assert err.value.key == "error.clock.rate"
+    assert not (tmp_path / "Odd.kuulas").exists()

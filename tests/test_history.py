@@ -1,3 +1,4 @@
+import json
 import socket
 import sqlite3
 import uuid
@@ -5,7 +6,7 @@ import uuid
 import pytest
 
 from kuulas import ops, transcript
-from kuulas.history import History, HistoryError, edit_blob
+from kuulas.history import History, HistoryError, edit_blob, edit_dict
 from kuulas.model import Media, Project
 
 
@@ -225,3 +226,34 @@ def test_measured_state_size():
     _, data = edit_blob(p)
     # FORMAT.md measured 22.7 KB; a model change that bloats states fails here.
     assert len(data) < 30 * 1024, len(data)
+
+
+def register(h: History, media_id: str, frames: int = 48000) -> None:
+    h.db.execute(
+        "insert into media(id, sha256, name, storage, channels, source_rate,"
+        " source_frames, lossless, added_utc) values (?, ?, ?, 'working', 1, 48000,"
+        " ?, 1, '2026-10-16T00:00:00Z')", (media_id, media_id * 4, media_id, frames))
+
+
+def test_sync_groups_are_material_shared_by_every_edit(tmp_path):
+    main = History(tmp_path / "p.kuulas")
+    for m in ("ma", "mv"):
+        register(main, m)
+    p = main.state
+    p = ops.add_track(p, track_id="A", name="A")
+    p = ops.add_track(p, track_id="V", name="V")
+    p = ops.add_clip(p, "A", "ma", clip_id="ca")
+    p = ops.add_clip(p, "V", "mv", clip_id="cv", start=480)
+    main.commit("clips", p)
+    short = History(tmp_path / "p.kuulas", edit=main.create_edit("Short"))
+    main.commit("sync", ops.mark_in_sync(main.state, ["ca", "cv"], main="ca",
+                                         group_id="g"))
+    assert main.nodes()[-1]["material_to"] is not None
+    # The other edit sees the group, and resyncs against it.
+    assert short.state.sync_group("mv").id == "g"
+    moved = ops.move_clip(short.state, "cv", start=9000)
+    assert ops.resync(moved, ["cv"]).clip("cv").start == 480
+    # Membership is not in the edit state; undo takes the group away again.
+    assert "sync_groups" not in json.loads(json.dumps(edit_dict(main.state)))
+    main.undo()
+    assert main.state.sync_groups == ()

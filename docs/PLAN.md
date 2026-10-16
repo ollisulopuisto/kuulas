@@ -152,9 +152,9 @@ Interview.kuulas/
 
 | Module | Contents |
 |---|---|
-| `model.py` | `Media`, `Clip`, `Track`, `Bus`, `Project` (frozen dataclasses, JSON round-trip, unknown keys kept in `extra`) |
+| `model.py` | `Media`, `Clip`, `Track`, `Bus`, `SyncGroup`, `Project` (frozen dataclasses, JSON round-trip, unknown keys kept in `extra`; sync per media in flicks, WP30) |
 | `package.py` | (WP29) `create`, `open_package`, manifest, lock, migrations, backups, `info` |
-| `db.py`, `migrations.py`, `caches.py`, `clock.py`, `cli.py` | (WP29) v1 schema and blobs, UUIDv7 step ids; v0 to v1; cache keys; flicks; `kuulas info` |
+| `db.py`, `migrations.py`, `caches.py`, `clock.py`, `cli.py` | (WP29) v1 schema and blobs, UUIDv7 step ids; v0 to v1; cache keys; flicks and `check_rate` (WP30); `kuulas info` |
 | `ops.py` | all edits; `OPS` whitelist; `apply(p, name, args)` |
 | `history.py` | `History(path, edit=)`: `commit(label, state, coalesce, op=, context=, material=)`, `undo`, `redo`, `goto`, `nodes`, `create_edit`, `checkpoint`, `add_transcript`, `transcript`, `transcripts` (WP29: material apart from edit state) |
 | `curves.py` | breakpoint curves in dB |
@@ -1928,7 +1928,7 @@ compressed per step; fails loudly if the model bloats).
 
 ### WP30 — Recording clock in flicks; sync per media
 
-Status: open. Needs WP29. **Opus 5.5.** Before WP1, after WP29.
+Status: done in v26.10.16.6. Needs WP29. **Opus 5.5.** Before WP1, after WP29.
 
 - `src/kuulas/clock.py`: `FLICKS = 705_600_000`, exact conversions
   `frames_to_flicks(frames, rate)` and `flicks_to_frames(flicks, rate)`

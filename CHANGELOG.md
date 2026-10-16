@@ -1,5 +1,20 @@
 # Changelog
 
+## [v26.10.16.6] - 2026-10-16
+
+- Sync groups now belong to the recordings, not to clips: marking clips in
+  sync puts their whole files in the group, every edit of the project sees
+  the same groups, and marking or unmarking undoes like any edit. Resync
+  works as before.
+- Recording times (transcript words, recorder start times, sync offsets)
+  are kept on an exact clock that does not depend on the project's sample
+  rate, so changing the rate later will not shift a word or a sync point.
+- Audio files at an unusual sample rate the exact clock cannot hold (for
+  example 37.8 kHz) are refused at import with a message saying to convert
+  them first. Every common rate, 8 to 192 kHz, works.
+- Projects from earlier development builds keep their sync groups when they
+  are upgraded.
+
 ## [v26.10.16.5] - 2026-10-16
 
 The project format kuulas will keep (format version 1). There is still no
