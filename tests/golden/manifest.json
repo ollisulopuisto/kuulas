@@ -1,0 +1,42 @@
+{
+  "rate": 8000,
+  "media": {
+    "tone": "3402abc6e5c5b6f8ba707a934478163bd49e7844d2bad41cde9d200c5e937fc9",
+    "noise": "bdc66dd8e4fceb9e2ae4ca7ec696d82dc76faa8ca1d3ba03e1834908be8702ed",
+    "stereo": "a3608c7c1b3fb8d0db861b0666881e62b0ff154e3f6b123ebc2e73729a7fae49"
+  },
+  "renders": {
+    "pan": {
+      "frames": 8000,
+      "sha256": "6b8009c26b90b13def156d24e62ce3bf638c10e601a568659c014a294bfbd1e4"
+    },
+    "fades": {
+      "frames": 6400,
+      "sha256": "8e6c961d6af0041c004c290c27309cf72831d225e3b8ea8f6c00db62a8ec68d7"
+    },
+    "crossfades": {
+      "frames": 7000,
+      "sha256": "e77ab1856c3cdc0dbb3040f7a999e6e3ed1c9a250643087e8adf521d221a993a"
+    },
+    "envelopes": {
+      "frames": 8000,
+      "sha256": "fa63e6bfcab2373f35e1736f36e030f87f6ecc66bc3284dec6dcc385ef3d8f18"
+    },
+    "automation": {
+      "frames": 8000,
+      "sha256": "636b773ba79b2e7f2f4833adcd41894951ad3c683027e2bcf35083a350992123"
+    },
+    "buses": {
+      "frames": 8000,
+      "sha256": "d38825700fa3ceff7db53a4f6dc5409efdba3aa5114ffdb6159ea1fefab9d4f2"
+    },
+    "mute": {
+      "frames": 8000,
+      "sha256": "5a7327c2a736ae3516a771213467aa1103e151df7a0674f590ceeb93e9eb5487"
+    },
+    "solo": {
+      "frames": 8000,
+      "sha256": "771f1fc6cab79afe05946efdf1742a9ab1d065d14a58b38a2f4145c90aefe5f5"
+    }
+  }
+}

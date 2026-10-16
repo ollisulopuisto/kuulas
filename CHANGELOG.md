@@ -1,5 +1,36 @@
 # Changelog
 
+## [v26.10.16.8] - 2026-10-16
+
+Playback exists, though there is still no app to press play in (the HTTP
+API comes next). Not yet tried on real speakers: run
+`uv run pytest -q tests/hardware -s` on the Mac and on Windows before
+relying on it.
+
+- Plays the project through the computer's default output (CoreAudio on a
+  Mac, WASAPI on Windows), with the same mix as export. Play from anywhere,
+  play a selection and stop at its end, stop, jump while playing; an edit
+  made during playback is heard within one buffer (about 21 ms).
+- The playhead position reported is what you are hearing, not what was
+  just computed, so the display does not run ahead of the sound. Stopping
+  leaves the playhead where you heard it.
+- Audio problems cost a moment of sound, never the session: a block that
+  fails plays as silence and is reported; a stream that dies or freezes
+  (headphones unplugged, Bluetooth dropping) is reopened on the current
+  output and playback pauses with a message; if playback falls behind, the
+  buffer is doubled and a "playback is struggling" message appears instead
+  of silent stuttering. A device that cannot play the project's sample
+  rate gets converted audio, with a note; exports are unaffected.
+- A recording whose stored audio is damaged in one place plays silence
+  there, plays normally elsewhere, and is marked damaged with a message
+  naming the file and the time. (Rebuilding it from the original is not
+  offered yet.)
+- Reference renders of eight small test projects now pin down what the
+  mixer sounds like; any future playback engine must reproduce them.
+- New dependency: soxr (sample-rate conversion for playback only).
+- Not yet: following a change of the default output while the old one
+  still works (picked up at the next play after half a minute idle).
+
 ## [v26.10.16.7] - 2026-10-16
 
 There is still no app to open; this is the layer the app will talk to.

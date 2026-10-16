@@ -1,6 +1,6 @@
 [project]
 name = "kuulas"
-version = "26.10.16.7"
+version = "26.10.16.8"
 description = "Multitrack spoken-word DAW: transcript editing, buses, the speechmix pipeline"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -16,6 +16,9 @@ dependencies = [
     "python-multipart>=0.0.20",
     "sounddevice>=0.5.2",
     "soundfile>=0.14.0",
+    # Streaming resampler, for an output device that cannot run the project
+    # rate (WP2). Playback only; export stays at the project rate.
+    "soxr>=1.1.0",
 ]
 
 [project.optional-dependencies]
@@ -41,6 +44,11 @@ packages = ["src/kuulas"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# tests/hardware needs a real audio device and is run by hand
+# (uv run pytest tests/hardware); a path given on the command line is still
+# collected. The rest is pytest's default list, which this setting replaces.
+norecursedirs = ["hardware", "*.egg", ".*", "_darcs", "build", "CVS", "dist",
+                 "node_modules", "venv", "{arch}"]
 
 [tool.ruff]
 line-length = 90

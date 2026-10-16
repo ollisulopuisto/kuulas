@@ -473,7 +473,17 @@ Acceptance: tests green; `Session` used by nothing else yet.
 
 ### WP2 — Playback engine
 
-Status: open. Needs WP1.
+Status: done in v26.10.16.8. 237 tests pass (37 new: `tests/test_engine.py`).
+Default buffer 1024 frames, as the "Buffer size" rule says (the signature
+below said 2048). Output resampling uses soxr (new dependency). Not built
+here: following a *default-output switch* while the old device still works
+(PortAudio cannot see it; the next play after 30 s idle, or any stream
+failure, picks up the new default), the "rebuild damaged media from the
+original" action (status lists `damaged`; the rebuild belongs to the media
+store, WP34/WP36), freezing a real-time layer when late (WP23a), prefetch
+priority over background jobs (no job runner yet; WP9). `scrub` is a seek
+while playing and a 60 ms burst when stopped, until WP26.
+Hardware test `tests/hardware/test_play.py` not yet run on Mac or Windows.
 
 New file `src/kuulas/engine.py`.
 

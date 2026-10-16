@@ -69,7 +69,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R37 | Review round trip: A sends v1, B edits (some changes done, some as suggestions), A gets v2 and accepts or rejects each; works even if A kept editing; hand-off copies carry only used audio | designed: docs/FORMAT.md; build WP31 (changes view), WP32 |
 | R38 | Voice condition as a sub-choice of speech ("Speech · remote"; also for speech mixes, never music): clean / room / remote / phone / auto picks a speechmix preset; auto-suggested from measured noise floor, bandwidth, echo and clipping | waits for presets in speechmix (podcast repo); kuulas side in WP22 |
 | R39 | Internationalisation from day one: English and Finnish complete, one catalog for Python and UI, speechmix's messages translated too; locale-aware numbers, Helsinki times with zone, platform key names | WP33a done in v26.10.16.4 (Python catalogs, `messages.t`, speechmix translator); WP33b (UI) open |
-| R40 | Fault tolerance: a bad file or device costs that file or a second of audio, never the session; decoders time out, plug-ins run isolated, the audio callback never fails, device changes are handled | planned: ground rule 13, WP2, WP34 |
+| R40 | Fault tolerance: a bad file or device costs that file or a second of audio, never the session; decoders time out, plug-ins run isolated, the audio callback never fails, device changes are handled | playback side done (WP2, v26.10.16.8; not yet run on hardware); import side WP34 |
 | R41 | Snappy UI, multithreaded throughout: heavy work never blocks; edits under 50 ms; 60 fps; no underruns during heavy jobs; background jobs yield to interaction | planned: ground rule 14, WP2, WP3, WP4, WP9 |
 | R42 | Smart caching: everything derived from a recording is computed once and survives every edit; one memory budget | planned: ground rule 15, WP36 |
 | R43 | Remembered settings; quick actions without repeated dialogs; helpful messages with Undo | planned: ground rule 16, WP35 |
@@ -96,7 +96,8 @@ sizes: `docs/PLAN.md`, section "Triage".
 
 - Media store: linked vs working FLAC, ffmpeg for everything else, relink,
   consolidate.
-- Playback engine (sounddevice), HTTP API, browser UI with the keymap.
+- HTTP API, browser UI with the keymap. (Playback engine: done in WP2, not
+  yet run on real hardware.)
 
 ## Next
 
@@ -123,6 +124,18 @@ sizes: `docs/PLAN.md`, section "Triage".
 - WP1 (v26.10.16.7): `Session`, one open project (edit, command, undo/redo/goto,
   import with default sync groups, transcripts, subscribe); solo/mute clicks
   coalesce (WP24.1). Not yet used by anything: HTTP API is WP3. 200 tests pass.
+- WP2 (v26.10.16.8): playback engine (`engine.py`): sounddevice stream,
+  1024-frame buffer, play/stop/seek/until/scrub/levels, position as heard
+  (output latency subtracted), prefetch, golden renders (`tests/golden/`),
+  and fault handling: failing blocks play silence and are reported, a dead
+  or stalled stream is reopened on the current default device, late blocks
+  raise the buffer to 2048 and say so, resampled output when the device
+  refuses the project rate, damaged media chunks play silence and are
+  marked. 237 tests pass. **Not yet verified on hardware:** run
+  `uv run pytest -q tests/hardware/test_play.py -s` on the Mac and on
+  Windows. Left open: following a default-output switch while the old
+  device still works, the "rebuild damaged media" action, freezing a
+  real-time layer when late (WP23a), prefetch priority over jobs (WP9).
 
 ## Later (v2)
 

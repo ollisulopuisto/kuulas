@@ -18,6 +18,13 @@ uv run ruff check .
 
 Audio decoding uses ffmpeg. Install it first (`brew install ffmpeg` on a Mac).
 
+Tests that need a real audio device are kept out of the default run. Run them
+by hand, volume down (plays one second of a quiet tone):
+
+```
+uv run pytest -q tests/hardware -s
+```
+
 ## Projects
 
 A project is a `Name.kuulas` folder (format: `docs/FORMAT.md`). To see what
