@@ -954,7 +954,8 @@ word clock before starting. Test against the fixtures under `podcast/packages/nh
 
 ### WP14 — Parallel analysis
 
-Status: open. Needs WP0.
+Status: done in v26.10.16.3 (speech lanes, one track per core; auto_silence and
+automix as jobs wait for WP9). Needs WP0.
 
 `analysis.speech_lanes`: compute `track_levels` for all speech tracks in a
 thread pool (`media.workers()`). Tests: the result equals the serial result

@@ -1,5 +1,11 @@
 # Changelog
 
+## [v26.10.16.3] - 2026-10-16
+
+- Analysis of several speech tracks (what decides who is talking, for
+  Auto-Silence and automixing) now runs one track per processor core. The
+  result is the same as before, only faster on a multi-track project.
+
 ## [v26.10.16.2] - 2026-10-16
 
 - Solo now works the way a mixing desk does: soloing a track hears it even

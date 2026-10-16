@@ -16,6 +16,7 @@ cannot register as a talker.
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 
 import numpy as np
@@ -25,6 +26,7 @@ from speechmix.dsp import FLOOR_DB
 from speechmix.stems import Lanes
 
 from . import ops
+from .media import workers
 from .mixer import Store
 from .model import Project, Track
 
@@ -77,9 +79,14 @@ def track_levels(p: Project, store: Store, track: Track) -> tuple[np.ndarray, np
 
 
 def speech_lanes(p: Project, store: Store) -> Lanes:
+    """One lane per speech track. Tracks are measured one per core: each
+    measurement is independent, numpy releases the GIL in the heavy parts,
+    and the decision below is per lane, so the result is the same as serial."""
+    tracks = speech_tracks(p)
+    with ThreadPoolExecutor(max_workers=max(1, min(len(tracks), workers()))) as pool:
+        measured = list(pool.map(lambda track: track_levels(p, store, track), tracks))
     lanes = []
-    for track in speech_tracks(p):
-        db, valid = track_levels(p, store, track)
+    for track, (db, valid) in zip(tracks, measured, strict=True):
         floor = grid.noise_floor(grid.smooth(db), valid)
         lanes.append(grid.lane(track.id, [(db, valid, floor, grid.FLOOR_MARGIN_DB, 0.0)]))
     return Lanes(speakers=lanes)

@@ -98,6 +98,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 
 - WP0: baseline, lint clean, Biome config, README, CHANGELOG, CLAUDE.md. 87 tests pass.
 - WP24.1: solo overrides mute; solo is exclusive by default. 92 tests pass.
+- WP14: speech analysis runs one track per core, same result. 94 tests pass.
 
 ## Later (v2)
 
