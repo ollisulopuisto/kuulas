@@ -1,3 +1,17 @@
+## [v26.10.16.15] - 2026-10-16
+
+- Music report: lists every piece of music the programme actually plays, with
+  title, artist, composer, publisher, ISRC, in and out times, duration, and
+  whether it plays under speech ("background") or on its own ("featured").
+  Music that is muted, ducked away or under a muted speaker does not count.
+  Output is a semicolon-separated CSV that Finnish Excel opens correctly, and
+  a printable HTML table, in English or Finnish. Pieces with no title or artist
+  are flagged in the report.
+- Title, artist and the other tags are read from the music files when they are
+  imported.
+- The tests no longer depend on the machine's language or on the order they
+  run in.
+
 ## [v26.10.16.14] - 2026-10-16
 
 - Export: mix the whole edit, a selection, or each track as its own aligned
