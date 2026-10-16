@@ -223,38 +223,40 @@ plugin on a voice, undo anything, export a mastered file.
 | 22 | WP19f spot | S | parsing | Haiku 5.5 |
 | 23 | WP24.2 A/B | M | edit A/B position mapping, level match | Sonnet 5.5 |
 | 24 | WP21 several edits (versions) | L | history schema migration, offer_cuts | **Opus 5.5** |
-| 25 | WP20 paste without bloat | M | excerpt media keeping recorded time | Sonnet 5.5 |
-| 26 | WP19c roles, stems, match loudness | M | stems sum test | Sonnet 5.5 |
-| 27 | WP19d remappable keys + macros | M | macro = one undo step | Sonnet 5.5 |
-| 28 | WP19b connected clips | M | reflow after every edit | Sonnet 5.5 |
-| 29 | WP19h regions + batch export, chapters | S | none | Haiku 5.5 |
-| 30 | WP19g skimming | S | grain throttling | Sonnet 5.5 |
-| 31 | WP19e alternative takes | L | ripple on take length change | Sonnet 5.5 |
+| 25 | WP31 changes view + checkpoints | M | recording-range diff | Sonnet 5.5 |
+| 26 | WP32 review round trip: suggest mode, hand-off, merge | L | diverged copies become suggestions | **Opus 5.5** |
+| 27 | WP20 paste without bloat | M | excerpt media keeping recorded time | Sonnet 5.5 |
+| 28 | WP19c roles, stems, match loudness | M | stems sum test | Sonnet 5.5 |
+| 29 | WP19d remappable keys + macros | M | macro = one undo step | Sonnet 5.5 |
+| 30 | WP19b connected clips | M | reflow after every edit | Sonnet 5.5 |
+| 31 | WP19h regions + batch export, chapters | S | none | Haiku 5.5 |
+| 32 | WP19g skimming | S | grain throttling | Sonnet 5.5 |
+| 33 | WP19e alternative takes | L | ripple on take length change | Sonnet 5.5 |
 
 ### Phase 3 — Pipeline depth
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 32 | WP14 parallel analysis (done) | S | none | Haiku 5.5 |
-| 33 | WP10 voice chain variants | M | variants, chain settings | Sonnet 5.5 |
-| 34 | WP25 music report | S | heard-duration rules | Haiku 5.5 |
-| 35 | WP13 Hindenburg import | M | `.nhsx` word clock | Sonnet 5.5 |
-| 36 | WP23b FX layers: render tier, export waits, freeze on overload | L | background render, overload policy | **Opus 5.5** |
+| 34 | WP14 parallel analysis (done) | S | none | Haiku 5.5 |
+| 35 | WP10 voice chain variants | M | variants, chain settings | Sonnet 5.5 |
+| 36 | WP25 music report | S | heard-duration rules | Haiku 5.5 |
+| 37 | WP13 Hindenburg import | M | `.nhsx` word clock | Sonnet 5.5 |
+| 38 | WP23b FX layers: render tier, export waits, freeze on overload | L | background render, overload policy | **Opus 5.5** |
 
 ### Phase 4 — Recording and alignment
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 37 | WP12 recording, foolproof mode, live logging | L | hardware, crash recovery, sleep prevention | **Opus 5.5** |
-| 38 | WP17 clip bin | M | Space and in/out rules | Sonnet 5.5 |
-| 39 | WP16 align by sound | **XL** | drift and dropout detection | **Opus 5.5** |
+| 39 | WP12 recording, foolproof mode, live logging | L | hardware, crash recovery, sleep prevention | **Opus 5.5** |
+| 40 | WP17 clip bin | M | Space and in/out rules | Sonnet 5.5 |
+| 41 | WP16 align by sound | **XL** | drift and dropout detection | **Opus 5.5** |
 
 ### Phase 5 — Late
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 40 | WP27 settings + rate change | L | converts every position kind; do it when the model has stopped growing | **Opus 5.5** |
-| 41 | WP15 desktop wrapper | M | packaging | Sonnet 5.5 |
+| 42 | WP27 settings + rate change | L | converts every position kind; do it when the model has stopped growing | **Opus 5.5** |
+| 43 | WP15 desktop wrapper | M | packaging | Sonnet 5.5 |
 
 **Easiest wins:** WP0, WP24.1, WP22, WP19a, WP19f, WP19h, WP14, WP25.
 **Hardest, highest risk:** WP23 (real-time FX), WP16 (align by sound),
@@ -1839,6 +1841,7 @@ rename leaves the old manifest), `test_newer_min_reader_refuses_with_version`,
 `test_newer_version_opens_and_keeps_unknown_keys` (unknown keys in a state,
 a media row and a table survive a save), `test_live_lock_from_another_host_opens_read_only`,
 `test_stale_lock_is_taken_over`, `test_identical_states_are_stored_once`,
+`test_step_ids_are_uuid7_and_record_author_and_machine`,
 `test_material_undo_refuses_after_a_later_material_change`,
 `test_transcript_correction_is_seen_by_every_edit`,
 `test_backup_retention_keeps_12_recent_and_one_per_day`,
@@ -1876,6 +1879,71 @@ Tests first: all of `tests/test_sync.py` unchanged in behaviour;
 flicks to frames is identity for 8k to 192k); `test_rate_change_leaves_words_untouched`;
 `test_bwf_time_reference_is_stored_in_flicks`;
 `test_excerpt_inherits_its_originals_sync_origin`.
+
+---
+
+### WP31 — Changes view and checkpoints
+
+Status: open. Needs WP8, WP18 (recording-clock anchoring), WP21. Sonnet 5.5.
+
+Compare any two points: two history steps, a checkpoint, or two edits.
+
+- **Checkpoints:** **Mod+Shift+K** names the current step ("sent to
+  producer"). Checkpoints are ledger entries
+  (`checkpoints` table, docs/FORMAT.md) shown pinned in the history panel.
+- **Diff:** for each sync group (or media), the recording ranges present in A
+  and not in B (removed), in B and not in A (added or restored), and
+  ranges whose gain, mute, ducking, FX or take differ. Pure function
+  `changes.diff(state_a, state_b, material) -> list[Change]`, each with
+  recording anchors and both sides' timeline positions.
+- **UI:** "Compare with…" (Alt+Mod+D) picks the other point. The timeline
+  shows removed audio as red gaps, added audio highlighted and level changes
+  marked; the transcript strikes removed words. **]** / **[** step through
+  changes; **Shift+Space** plays each with 2 s before and after (the
+  WP18 preview); **`** flips A/B at that spot (WP24.2).
+
+Tests first: `test_diff_of_a_ripple_cut_is_one_removed_range`,
+`test_diff_survives_unrelated_later_edits`, `test_restored_range_shows_as_added`,
+`test_gain_and_take_changes_are_reported`, `test_diff_between_two_edits_uses_recording_ranges`.
+
+---
+
+### WP32 — Review round trip: send, suggest, receive, decide
+
+Status: open. Needs WP29 (UUID steps, checkpoints, copies), WP31. **Opus 5.5**
+(merging diverged copies). Spec: docs/FORMAT.md, "Review round trips".
+
+- **Settings:** your name (author on every step), and initials and colour
+  shown on suggestions.
+- **Send for review** (Mod+Shift+E): pick the person, a note, and media
+  (used ranges plus handles by default; or none to relink by hash; or
+  everything). It writes a `sent` checkpoint and the hand-off copy.
+- **Suggest mode** (Mod+Shift+S toggles; a "Suggesting as Ville" banner while
+  on): edits of the conditional kinds become suggestions instead of changes.
+  Other edits are refused in suggest mode, with a message saying they can be
+  made unconditionally after leaving suggest mode.
+  Suggestions draw as dashed overlays in the author's colour, and the
+  transcript shows suggested cuts struck through in that colour.
+- **Receive** (open the returned copy, or "Import changes from…"):
+  - If A's head is still the `sent` checkpoint, the history simply
+    continues.
+  - If A has edited since, B's unconditional changes become suggestions too,
+    via the WP31 diff, and B's steps are kept as a branch.
+- **Review panel:** "Done by Ville (12)" and "Suggested by Ville (7)". Every
+  item can be previewed (Shift+Space), flipped A/B (`) and accepted
+  (Enter) or rejected (Backspace). Done items can be reverted, which is the
+  same as rejecting. Each item shows B's note. A summary line reads
+  "7 of 19 left".
+
+Tests first:
+`test_suggest_mode_records_cuts_as_suggestions_not_changes`,
+`test_accepting_a_suggestion_is_an_undoable_step_by_the_reviewer`,
+`test_suggestion_still_applies_after_unrelated_edits`,
+`test_unchanged_sender_continues_history_with_reviewers_steps`,
+`test_diverged_sender_gets_reviewers_changes_as_suggestions`,
+`test_step_ids_never_collide_across_copies`,
+`test_handoff_with_used_ranges_copies_only_excerpts`,
+`test_handoff_without_media_relinks_by_hash`.
 
 ---
 

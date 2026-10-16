@@ -75,7 +75,9 @@ Name.kuulas/
   "min_reader": 1,
   "created_utc": "2026-10-16T16:45:00Z",
   "written_by": "kuulas 26.10.16.4",
-  "id": "a 128-bit random hex id"
+  "id": "a 128-bit random hex id",
+  "copy": "a 128-bit random hex id, new for every hand-off copy",
+  "lineage": ["copy ids this copy descends from, oldest first"]
 }
 ```
 
@@ -86,6 +88,9 @@ Name.kuulas/
   older reader would misread the new data. The rules are under "Compatibility".
 - `id` identifies the project when the folder is renamed or copied. A copy
   keeps the id; "Save as copy" mints a new one.
+- `copy` and `lineage` identify **hand-off copies** of one project (A sends
+  v1 to B, B sends v2 back; see "Review round trips"). Two copies with the
+  same `id` and a shared history step can be merged.
 
 ## lock.json
 
@@ -146,15 +151,28 @@ transcript_revs(id INTEGER PRIMARY KEY, media TEXT NOT NULL, parent INTEGER,
 -- ---- edits: one undo tree each --------------------------------------------
 edits(id TEXT PRIMARY KEY, name TEXT NOT NULL, created_utc TEXT,
       archived INTEGER NOT NULL DEFAULT 0, head INTEGER)
-nodes(id INTEGER PRIMARY KEY, edit TEXT NOT NULL REFERENCES edits(id),
-      parent INTEGER,
+nodes(id TEXT PRIMARY KEY,           -- UUIDv7: unique across copies, time-ordered
+      edit TEXT NOT NULL REFERENCES edits(id),
+      parent TEXT,
+      author TEXT NOT NULL,            -- the person's name from settings
+      machine TEXT NOT NULL,           -- host name, for "who did this where"
       label TEXT NOT NULL,
       op TEXT NOT NULL,                -- JSON {"name","args"}: audit trail only
       state TEXT NOT NULL REFERENCES blobs(hash),
       material_from INTEGER, material_to INTEGER,  -- set when this step changed material
       context TEXT,                    -- JSON UI context for stateful undo (WP8)
       created_utc TEXT NOT NULL)
+checkpoints(node TEXT PRIMARY KEY REFERENCES nodes(id),
+            name TEXT NOT NULL,          -- "v1 sent to Ville for review"
+            kind TEXT NOT NULL,          -- 'manual' | 'sent' | 'received'
+            copy TEXT,                   -- the hand-off copy id, for sent/received
+            created_utc TEXT NOT NULL)
 ```
+
+**Why UUIDs, not integers, for steps:** two copies of a project grow their
+histories apart, and integer ids would collide when B's steps come back to
+A. UUIDv7 ids are unique everywhere and still sort by time. This must be in
+v1: changing ids later means rewriting every history.
 
 Material is in the database as rows (media) and a versioned root blob
 (sync, transcript pointers). A material change made from an edit is a node
@@ -186,6 +204,45 @@ recording position is `origin + offset`, converted to flicks. Excerpts
 (WP20) inherit their original's origin plus `excerpt_start_flicks`.
 Subclips need no per-clip fields, so `Clip.sync` and `Clip.sync_origin` go
 away (WP30).
+
+## Review round trips (A edits, B reviews, A decides)
+
+The workflow: A makes a rough edit v1 and sends it to B. B makes more
+edits. Some are **unconditional** (just done) and some **conditional**
+(suggestions for A). B sends v2 back, and A reviews what B did.
+
+- **Suggestions live in edit state**, like markers, anchored to the
+  recording clock so they survive every later edit:
+
+  ```
+  Suggestion(id, author, kind, anchor, payload, note, state, base_node)
+    kind:   'cut' | 'restore' | 'gain' | 'mute' | 'unmute' | 'note' | 'take'
+    anchor: recording ranges (group or media, flicks), as markers
+    payload: e.g. {"gain_db": -3.0}, {"take": 2}
+    state:  'open' | 'accepted' | 'rejected'
+  ```
+
+  Only these kinds can be conditional. They are the ones that can still be
+  applied correctly after other edits, because they name recording ranges,
+  not timeline positions. Anything else B does is unconditional.
+- **Accepting** a suggestion applies its edit as a new step by A
+  ("accepted Ville's cut"), and **rejecting** keeps it in the list as
+  rejected. Both are undoable.
+- **Coming back:**
+  - If A did nothing since sending, opening v2 simply continues the history:
+    B's steps follow A's checkpoint, each marked with B as author.
+  - If A kept editing meanwhile, B's *unconditional* changes are turned
+    into suggestions too: the changes view's diff (recording ranges present
+    in one and not the other, plus gain, mute and take changes) gives the
+    items. A reviews everything B did, and nothing B did is lost or applied
+    blindly. B's history steps are kept as an abandoned branch for reference.
+- **Hand-off copy:** "Send for review" writes a checkpoint, then a copy of
+  the package with a new `copy` id and media by one of three rules:
+  - none: B relinks by hash from their own files;
+  - used ranges plus 2 s handles (WP20 excerpts; the default);
+  - everything.
+
+  Never the lock, backups or caches.
 
 ## Media
 
