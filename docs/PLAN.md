@@ -1486,9 +1486,12 @@ same way). Stereo `speech` sources are averaged to mono for analysis, which
 Import guesses the tag (mono: `speech`, stereo: `music`) and the user corrects
 it. This is the only setup speechmix needs.
 
-**Voice condition (R38), once speechmix has presets:** `Track.condition`
-is `auto` | `clean` | `room` | `remote` | `phone` (default `auto`). Alt+Mod+J
-cycles it on the focused track. `auto` shows speechmix's suggestion
+**Voice condition (R38), once speechmix has presets:** a sub-choice of the
+speech tags, never a separate property. A track is `music`, or `speech` /
+`speech-mix` with a condition `auto` | `clean` | `room` | `remote` | `phone`
+(default `auto`); music tracks have no condition. In the track header it
+reads as one choice: "Speech · remote". Alt+Mod+K cycles the kind; Alt+Mod+J
+cycles the condition and does nothing on a music track. `auto` shows speechmix's suggestion
 ("suggested: remote, 3.4 kHz bandwidth") and needs one key to confirm. The
 name goes to speechmix (WP10/WP23); kuulas holds no preset values itself.
 Until the presets exist in speechmix, leave this field out.
