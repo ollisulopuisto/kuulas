@@ -184,6 +184,15 @@ a read of every diff in that phase) before the next phase starts. A simpler
 model's mistake caught at a phase boundary costs a day; caught three
 phases later, it costs a rewrite.
 
+### Milestone M1 — first playable build (the owner's first target)
+
+Run `kuulas open`, import files, hear them, edit by keyboard (split, cut on
+all tracks, trim, nudge, mute), undo, and export WAV or **MP3**. The steps on
+the way, in order: WP33a (done), WP29, WP30, WP1, WP2, WP3, WP33b, WP4, WP5,
+WP11 (WP11 can run in parallel with WP4). Everything else in phase 1 follows
+M1. Estimate on 2026-10-16: about 10–12 hours of agent work in sequence,
+plus the owner's listening test of WP2 on the Mac.
+
 ### Phase 0 — Foundation (nothing works without it)
 
 | Order | WP | Size | Hard part | Model |
@@ -853,8 +862,15 @@ the same frame count.
 
 Status: open. Needs WP1.
 
-Command `export` `{path, format: "wav"|"flac", bit_depth: 16|24,
-range?: [start, end], master_lufs?: float}`.
+Command `export` `{path, format: "wav"|"flac"|"mp3", bit_depth: 16|24,
+mp3_kbps: 64..320 (default 128 mono master, 192 stereo), range?: [start, end],
+master_lufs?: float}`.
+
+- **MP3:** render as for WAV (float), then encode with ffmpeg's `libmp3lame`
+  (CBR at `mp3_kbps`, channels follow the master: mono or stereo, WP27), from
+  a temporary float WAV, never re-rendered. ID3 title from the edit name.
+  Test: the MP3 decodes, its length is within one MP3 frame of the WAV, and
+  its integrated loudness is within 0.5 LU of the WAV's.
 
 - Render with `mixer.mix` in 30 s blocks, **in parallel** (thread pool;
   numpy releases the GIL in the heavy parts), written in order to a
@@ -2014,6 +2030,12 @@ WP writes untranslated text:
   **Before WP4.**
 
 English is the source language; Finnish is complete from day one.
+
+Left over from WP33a, to do in WP33b: on macOS a Terminal session usually
+has `LANG=en_US.UTF-8` even when the system language is Finnish, so
+`messages.default_language()` should read the system's language list (`defaults read -g
+AppleLanguages`) before `LANG`. And the `ast` check covers raised exceptions
+only; returned user-facing text is checked by review.
 
 - **One catalog for both sides:** `src/kuulas/locales/en.json` and `fi.json`.
   Keys look like `edit.split.label` and `error.media.missing`, and values
