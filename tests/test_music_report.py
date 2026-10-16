@@ -1,8 +1,34 @@
+import numpy as np
+
 from kuulas import messages
 from kuulas.model import Clip, Media, Project, Track
 from kuulas.music_report import ReportRow, build_report, render_csv, render_html
 
 RATE = 48_000
+
+
+class MemoryStore:
+    def __init__(self, arrays: dict[str, np.ndarray]):
+        self.arrays = arrays
+
+    def read(self, media_id: str, first: int, count: int) -> np.ndarray:
+        source = self.arrays[media_id]
+        out = np.zeros((source.shape[0], count), dtype=np.float32)
+        lo, hi = max(0, first), min(source.shape[1], first + count)
+        if hi > lo:
+            out[:, lo - first:hi - first] = source[:, lo:hi]
+        return out
+
+
+def make_report(project: Project, arrays: dict[str, np.ndarray] | None = None):
+    return build_report(project, MemoryStore(arrays or {}))
+
+
+def speech_then_silence(seconds: int, *, active_seconds: int = 2) -> np.ndarray:
+    audio = np.zeros(seconds * RATE, dtype=np.float32)
+    audio[:active_seconds * RATE] = 0.3 * np.random.default_rng(2).standard_normal(
+        active_seconds * RATE)
+    return audio
 
 
 def media(media_id: str, digest: str, *, name: str | None = None,
@@ -41,7 +67,7 @@ def test_report_lists_each_music_use_with_programme_times():
             clip("c2", RATE, 0, RATE, media_id="m2"),
         ])])
 
-    report = build_report(s)
+    report = make_report(s)
 
     assert [r.order for r in report] == [1, 2]
     assert [r.title for r in report] == ["Bed One", "Bed Two"]
@@ -62,7 +88,7 @@ def test_muted_and_silenced_music_is_not_reported():
             clip("ducked", RATE, 0, RATE, media_id="m"),
         ], automation=((RATE, -80.0), (2 * RATE, -80.0)))])
 
-    report = build_report(s)
+    report = make_report(s)
 
     assert report == ()
 
@@ -76,7 +102,7 @@ def test_pieces_of_one_track_merge_across_short_gaps():
             clip("two", RATE + 100, RATE + 100, RATE, media_id="m"),
         ])])
 
-    report = build_report(s)
+    report = make_report(s)
 
     assert len(report) == 1
     assert report[0].title == "Bed"
@@ -86,21 +112,49 @@ def test_pieces_of_one_track_merge_across_short_gaps():
 
 
 def test_music_under_speech_is_marked_background():
-    m_speech = media("s", "s" * 64)
+    frames = 4 * RATE
+    m_speech = Media("s", "speech.wav", 1, frames, sha256="s" * 64)
     m_music = media("mu", "u" * 64, music_info={"title": "Bed", "artist": "A"})
     s = state(
         media_items=[m_speech, m_music],
         tracks=[
-            track("t1", "speech", [clip("sp", 0, 0, RATE, media_id="s")]),
+            track("t1", "speech", [clip("sp", 0, 0, frames, media_id="s")]),
             track("t2", "music", [
                 clip("under", RATE // 2, 0, RATE, media_id="mu"),
-                clip("alone", 2 * RATE, 0, RATE, media_id="mu"),
+                clip("alone", 3 * RATE, 0, RATE, media_id="mu"),
             ]),
         ])
 
-    report = build_report(s)
+    report = make_report(s, {"s": speech_then_silence(4)[None, :]})
 
     assert [r.background for r in report] == [True, False]
+
+
+def test_music_in_a_speech_clip_silent_gap_is_featured():
+    seconds = 10
+    frames = seconds * RATE
+    rng = np.random.default_rng(4)
+    speech = np.zeros(frames, dtype=np.float32)
+    for start in (0, 6 * RATE):
+        speech[start:start + 2 * RATE] = 0.3 * rng.standard_normal(2 * RATE)
+    m_speech = Media("s", "speech.wav", 1, frames, sha256="s" * 64)
+    m_music = media("mu", "u" * 64,
+                    music_info={"title": "Bed", "artist": "A"})
+    s = state(
+        media_items=[m_speech, m_music],
+        tracks=[
+            track("t1", "speech", [clip("sp", 0, 0, frames, media_id="s")]),
+            track("t2", "music", [
+                clip("under", RATE // 2, 0, RATE, media_id="mu"),
+                clip("gap", 4 * RATE, RATE, RATE, media_id="mu"),
+            ]),
+        ],
+    )
+    store = MemoryStore({"s": speech[None, :]})
+
+    report = build_report(s, store)
+
+    assert [row.background for row in report] == [True, False]
 
 
 def test_missing_metadata_is_flagged():
@@ -109,7 +163,7 @@ def test_missing_metadata_is_flagged():
         media_items=[m],
         tracks=[track("t1", "music", [clip("c", 0, 0, RATE, media_id="m")])])
 
-    report = build_report(s)
+    report = make_report(s)
 
     assert len(report) == 1
     assert report[0].missing_metadata is True
@@ -124,7 +178,7 @@ def test_csv_is_semicolon_separated_utf8():
         media_items=[m],
         tracks=[track("t1", "music", [clip("c", 0, 0, RATE, media_id="m")])])
 
-    text = render_csv(build_report(s))
+    text = render_csv(make_report(s))
 
     lines = text.removeprefix("\ufeff").splitlines()
     assert lines[0] == ("Order;Title;Artist;Composer;Publisher;ISRC;File name;"
@@ -138,7 +192,7 @@ def test_csv_has_utf8_bom_and_missing_metadata_flag():
     m = media("m", "a" * 64, name="Äiti.wav")
     s = state(media_items=[m], tracks=[track("t", "music", [clip("c", 0, 0, RATE)])])
 
-    data = render_csv(build_report(s)).encode("utf-8")
+    data = render_csv(make_report(s)).encode("utf-8")
 
     assert data.startswith(b"\xef\xbb\xbf")
     assert "missing" in data.decode("utf-8-sig").lower()
@@ -146,14 +200,15 @@ def test_csv_has_utf8_bom_and_missing_metadata_flag():
 
 
 def test_render_html_contains_each_row():
-    m = media("m", "a" * 64, name="Bed.wav",
-              music_info={"title": "Bed", "artist": "A", "isrc": "ISRC123"})
+    frames = 4 * RATE
+    m = Media("m", "Bed.wav", 1, frames, sha256="a" * 64,
+              extra={"music_info": {"title": "Bed", "artist": "A", "isrc": "ISRC123"}})
     s = state(
         media_items=[m],
         tracks=[track("t1", "music", [clip("c", 0, 0, RATE, media_id="m")]),
-                track("t2", "speech", [clip("sp", 0, 0, RATE, media_id="m")])])
+                track("t2", "speech", [clip("sp", 0, 0, frames, media_id="m")])])
 
-    html = render_html(build_report(s))
+    html = render_html(make_report(s, {"m": speech_then_silence(4)[None, :]}))
 
     assert "Bed" in html
     assert "A" in html
@@ -166,7 +221,7 @@ def test_html_localizes_report_text_and_marks_missing_metadata():
     s = state(media_items=[m], tracks=[track("t", "music", [clip("c", 0, 0, RATE)])])
     messages.set_language("fi")
     try:
-        rendered = render_html(build_report(s))
+        rendered = render_html(make_report(s))
     finally:
         messages.set_language("en")
 

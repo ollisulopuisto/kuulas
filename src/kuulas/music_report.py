@@ -13,7 +13,11 @@ import html
 import io
 from dataclasses import dataclass
 
+import numpy as np
+
+from . import analysis
 from .messages import t
+from .mixer import Store
 from .model import Media, Project
 from .usage import extract
 
@@ -47,18 +51,32 @@ def _stamp(frames: int, rate: int) -> str:
     return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 
 
-def build_report(project: Project) -> tuple[ReportRow, ...]:
+def _speech_activity(project: Project, store: Store) -> tuple[tuple[int, int], ...]:
+    """Timeline ranges where a speech lane has detected activity."""
+    hop = analysis.hop_frames(project.rate)
+    ranges: list[tuple[int, int]] = []
+    for lane in analysis.speech_lanes(project, store).speakers:
+        on = np.asarray(lane.on, dtype=bool)
+        starts = np.flatnonzero(on & np.r_[True, ~on[:-1]])
+        ends = np.flatnonzero(on & np.r_[~on[1:], True]) + 1
+        ranges.extend(
+            (start * hop, min(end * hop, project.length))
+            for start, end in zip(starts, ends, strict=True)
+        )
+    return tuple(ranges)
+
+
+def build_report(project: Project, store: Store) -> tuple[ReportRow, ...]:
     """Every audible music-track use, in timeline order, with its metadata.
 
-    A piece is *background* when it overlaps audible speech on another track,
-    otherwise *featured*. A row is missing its title or artist when the media
-    has no tags for them.
+    A piece is *background* when it overlaps detected speech activity on
+    another track, otherwise *featured*. A row is missing its title or artist
+    when the media has no tags for them.
     """
     uses = extract(project)
     media_by_sha = {m.sha256: m for m in project.media}
     rate = project.rate
-    speech = [(u.timeline_from, u.timeline_to)
-              for u in uses if u.role != "music" and u.audible]
+    speech = _speech_activity(project, store)
     rows: list[ReportRow] = []
     order = 0
     for u in uses:
