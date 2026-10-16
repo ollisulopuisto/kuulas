@@ -131,6 +131,7 @@ media(id TEXT PRIMARY KEY,             -- 'm' + sha256[:12]
       lossless INTEGER NOT NULL,
       time_ref_flicks INTEGER,         -- BWF start on the recorder's clock, or NULL
       linked_path TEXT, linked_size INTEGER, linked_mtime_ns INTEGER,
+      linked_package_rel TEXT, linked_series_rel TEXT,
       excerpt_of TEXT, excerpt_start_flicks INTEGER,
       tags TEXT NOT NULL DEFAULT '{}', -- music metadata etc. (JSON, WP25)
       extra TEXT NOT NULL DEFAULT '{}',-- unknown keys, preserved
@@ -299,7 +300,13 @@ its name is reported by `SeriesStore.conflicts()` and never read as an item.
 - A media row is inserted only after its file is complete and renamed. The
   row is the "import finished" marker; today's per-media JSON files go away.
 - Missing linked media: the project opens; those clips draw as offline
-  (hatched) and play silence; `relink` finds them by hash (WP19/20).
+  (hatched) and play silence. Resolution runs in the background and checks,
+  in order, the package-relative path, series-relative path, configured user
+  media folders, learned root rewrites, and paths previously seen in this
+  project. File size is only a prefilter; every accepted candidate must match
+  the stored SHA-256. A manual relink can teach a root rewrite for the other
+  missing files. Media folders and rewrites are stored in the user's
+  `kuulas/media.json`, not in the project.
 - **Portable paths** (WP39): a linked row also stores its path relative to
   the package and to the series folder. Resolution tries relative paths,
   then the user's media folders (by hash), then remembered paths. One

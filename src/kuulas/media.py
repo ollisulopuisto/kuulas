@@ -44,6 +44,7 @@ import hashlib
 import json
 import logging
 import os
+import platform
 import shutil
 import struct
 import subprocess
@@ -211,7 +212,29 @@ def workers() -> int:
 #: Columns an import or a consolidation sets; the rest of a row (name, time
 #: reference, tags, extra, unknown columns) is never touched by them.
 _FILE_COLUMNS = ("storage", "channels", "source_rate", "source_frames", "subtype",
-                 "lossless", "linked_path", "linked_size", "linked_mtime_ns")
+                 "lossless", "linked_path", "linked_size", "linked_mtime_ns",
+                 "linked_package_rel", "linked_series_rel")
+
+
+def _preferences_path() -> Path:
+    if os.environ.get("XDG_CONFIG_HOME"):
+        base = Path(os.environ["XDG_CONFIG_HOME"])
+    elif platform.system() == "Darwin":
+        base = Path.home() / "Library" / "Application Support"
+    elif os.environ.get("APPDATA"):
+        base = Path(os.environ["APPDATA"])
+    else:
+        base = Path.home() / ".config"
+    return base / "kuulas" / "media.json"
+
+
+def _relative(path: Path, root: Path | None) -> str | None:
+    if root is None:
+        return None
+    try:
+        return Path(os.path.relpath(path, root)).as_posix()
+    except ValueError:
+        return None
 
 
 @dataclass
@@ -344,9 +367,20 @@ class MediaStore:
 
     def __init__(self, folder: str | Path, rate: int, *, db: str | Path | None = None,
                  cache_root: str | Path | None = None, read_only: bool = False,
-                 budget: MemoryBudget | None = None):
+                 budget: MemoryBudget | None = None,
+                 package_root: str | Path | None = None,
+                 series_root: str | Path | None = None,
+                 preferences: str | Path | None = None):
         self.budget = BUDGET if budget is None else budget
         self.folder = Path(folder)
+        self.package_root = Path(package_root) if package_root else self.folder.parent
+        self.series_root = Path(series_root) if series_root else None
+        self.preferences = Path(preferences) if preferences else _preferences_path()
+        self._resolved_paths: dict[str, str] = {}
+        self._resolution_done = threading.Event()
+        self._resolution_stop = threading.Event()
+        self._resolution_thread: threading.Thread | None = None
+        self._load_preferences()
         self.read_only = read_only
         if not read_only:
             self.folder.mkdir(parents=True, exist_ok=True)
@@ -372,13 +406,48 @@ class MediaStore:
         #: ``relink``, never in ``read``: that runs on the audio thread.
         self._linked_ok: dict[str, bool] = {}
         self.missing()
+        self._resolution_thread = threading.Thread(
+            target=self._resolve_missing, name="kuulas-media-resolver", daemon=True)
+        self._resolution_thread.start()
 
     def close(self) -> None:
+        self._resolution_stop.set()
+        if self._resolution_thread is not None:
+            self._resolution_thread.join(timeout=5)
         with self._lock:
             for _, f in self._handles.values():
                 f.close()
             self._handles.clear()
         self.db.close()
+
+    def _load_preferences(self) -> None:
+        try:
+            data = json.loads(self.preferences.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            data = {}
+        self._media_folders = [Path(p) for p in data.get("media_folders", [])]
+        self._rewrites = list(data.get("path_rewrites", []))
+
+    def _save_preferences(self) -> None:
+        if self.read_only:
+            return
+        self.preferences.parent.mkdir(parents=True, exist_ok=True)
+        temp = self.preferences.with_suffix(".tmp")
+        temp.write_text(json.dumps({
+            "media_folders": [str(p) for p in self._media_folders],
+            "path_rewrites": self._rewrites,
+        }, indent=2), encoding="utf-8")
+        temp.replace(self.preferences)
+
+    def set_media_folders(self, folders) -> None:
+        self._media_folders = [Path(folder).expanduser().resolve() for folder in folders]
+        self._save_preferences()
+
+    def path_rewrites(self) -> list[dict]:
+        return list(self._rewrites)
+
+    def wait_for_resolution(self, timeout: float | None = None) -> bool:
+        return self._resolution_done.wait(timeout)
 
     # -- paths and metadata ------------------------------------------------
 
@@ -672,7 +741,8 @@ class MediaStore:
         self._save_peaks(row["sha256"], base)
         self._save_pyramid(row["sha256"], base)
         row = {"source_rate": self.rate, "linked_path": None, "linked_size": None,
-               "linked_mtime_ns": None, "added_utc": dbm.utc_now(), **row}
+               "linked_mtime_ns": None, "linked_package_rel": None,
+               "linked_series_rel": None, "added_utc": dbm.utc_now(), **row}
         names = list(row)
         updates = ", ".join(f"{c}=excluded.{c}" for c in _FILE_COLUMNS)
         with self._db_lock, dbm.tx(self.db):
@@ -694,7 +764,9 @@ class MediaStore:
         self._finish({**row, "storage": "linked", "channels": info.channels,
                       "source_frames": frames, "subtype": info.subtype, "lossless": 1,
                       "linked_path": str(path), "linked_size": st.st_size,
-                      "linked_mtime_ns": st.st_mtime_ns}, peaks, job)
+                      "linked_mtime_ns": st.st_mtime_ns,
+                      "linked_package_rel": _relative(path, self.package_root),
+                      "linked_series_rel": _relative(path, self.series_root)}, peaks, job)
 
     def _encode_pcm(self, source: Path, row: dict, job: _Job | None = None) -> None:
         """Integer samples straight into FLAC: no float step, so bit-exact."""
@@ -775,7 +847,7 @@ class MediaStore:
     def _valid(self, media_id: str) -> bool:
         """Is a linked file still there and still the same bytes?"""
         meta = self.meta(media_id)
-        path = Path(meta["linked_path"])
+        path = Path(self._resolved_paths.get(media_id, meta["linked_path"]))
         try:
             st = path.stat()
         except OSError:
@@ -800,6 +872,132 @@ class MediaStore:
                     lost.append(m)
         return lost
 
+    def _accept_path(self, media_id: str, path: Path, *, persist: bool = True) -> str:
+        try:
+            path = path.resolve()
+            st = path.stat()
+            digest = _sha256(path)
+        except OSError:
+            return ""
+        meta = self.meta(media_id)
+        if st.st_size != meta["linked_size"] or digest != meta["sha256"]:
+            return ""
+        where = str(path)
+        self._resolved_paths[media_id] = where
+        self._linked_ok[media_id] = True
+        if persist and not self.read_only:
+            self._update(media_id, linked_path=where, linked_size=st.st_size,
+                         linked_mtime_ns=st.st_mtime_ns,
+                         linked_package_rel=_relative(path, self.package_root),
+                         linked_series_rel=_relative(path, self.series_root))
+            self._remember(self.meta(media_id)["sha256"], path)
+        with self._lock:
+            old = self._handles.pop(media_id, None)
+            if old:
+                old[1].close()
+        return where
+
+    def _resolve_missing(self) -> None:
+        try:
+            lost = self.missing()
+            candidates: list[Path] = []
+            for media_id in lost:
+                meta = self.meta(media_id)
+                for rel, root in ((meta.get("linked_package_rel"), self.package_root),
+                                  (meta.get("linked_series_rel"), self.series_root)):
+                    if rel and root:
+                        candidates.append(root / rel)
+            for rewrite in self._rewrites:
+                old, new = Path(rewrite["old"]), Path(rewrite["new"])
+                for media_id in lost:
+                    linked = Path(self.meta(media_id)["linked_path"])
+                    try:
+                        rel = linked.relative_to(old)
+                    except ValueError:
+                        continue
+                    candidates.append(new / rel)
+            candidates.extend(Path(p) for media_id in lost
+                              for p in self.seen_paths(self.meta(media_id)["sha256"]))
+            for path in candidates:
+                if self._resolution_stop.is_set():
+                    return
+                try:
+                    size = path.stat().st_size
+                except OSError:
+                    continue
+                for media_id in lost:
+                    matches_size = size == self.meta(media_id)["linked_size"]
+                    if media_id not in self._resolved_paths and matches_size:
+                        try:
+                            if _sha256(path) == self.meta(media_id)["sha256"]:
+                                self._accept_path(media_id, path, persist=False)
+                        except OSError:
+                            pass
+            for folder in self._media_folders:
+                for path in folder.rglob("*"):
+                    if self._resolution_stop.is_set():
+                        return
+                    if not path.is_file():
+                        continue
+                    try:
+                        size = path.stat().st_size
+                    except OSError:
+                        continue
+                    for media_id in lost:
+                        if self._resolution_stop.is_set():
+                            return
+                        matches_size = size == self.meta(media_id)["linked_size"]
+                        if media_id not in self._resolved_paths and matches_size:
+                            try:
+                                if _sha256(path) == self.meta(media_id)["sha256"]:
+                                    self._accept_path(media_id, path, persist=False)
+                            except OSError:
+                                pass
+        finally:
+            self._resolution_done.set()
+
+    def relink_one(self, media_id: str, path: str | Path) -> dict[str, str]:
+        self._check_writable()
+        chosen = Path(path)
+        old_path = Path(self.meta(media_id)["linked_path"])
+        found: dict[str, str] = {}
+        accepted = self._accept_path(media_id, chosen)
+        if not accepted:
+            return found
+        found[media_id] = accepted
+        try:
+            old_parent = old_path.parent
+            new_parent = chosen.resolve().parent
+            common = 0
+            for a, b in zip(reversed(old_parent.parts), reversed(new_parent.parts),
+                            strict=False):
+                if a != b:
+                    break
+                common += 1
+            if common:
+                old_root = Path(*old_parent.parts[:-common])
+                new_root = Path(*new_parent.parts[:-common])
+                if str(old_root) and str(new_root):
+                    self._rewrites = [r for r in self._rewrites
+                                      if r["old"] != str(old_root)]
+                    self._rewrites.insert(0, {"old": str(old_root), "new": str(new_root)})
+                    self._save_preferences()
+                    for other in self.missing():
+                        try:
+                            linked = Path(self.meta(other)["linked_path"])
+                            candidate = new_root / linked.relative_to(old_root)
+                            value = self._accept_path(other, candidate)
+                            if value:
+                                found[other] = value
+                        except (ValueError, OSError):
+                            continue
+        except (OSError, ValueError):
+            pass
+        return found
+
+    def set_series_root(self, folder: str | Path | None) -> None:
+        self.series_root = Path(folder) if folder else None
+
     def relink(self, search: str | Path | None = None) -> dict[str, str]:
         """Find missing linked files again by content: remembered paths first,
         then every file of the right size under ``search``."""
@@ -813,6 +1011,8 @@ class MediaStore:
             by_size.setdefault(self.meta(media_id)["linked_size"], []).append(media_id)
         candidates = [Path(p) for m in lost
                       for p in self.seen_paths(self.meta(m)["sha256"])]
+        candidates += [p for folder in self._media_folders for p in folder.rglob("*")
+                       if p.is_file()]
         if search is not None:
             candidates += [p for p in Path(search).rglob("*")
                            if p.is_file() and p.stat().st_size in by_size]
@@ -827,12 +1027,9 @@ class MediaStore:
             digest = _sha256(path)
             for media_id in waiting:
                 if self.meta(media_id)["sha256"] == digest:
-                    self._linked_ok[media_id] = True
-                    where = str(path.resolve())
-                    self._update(media_id, linked_path=where,
-                                 linked_mtime_ns=path.stat().st_mtime_ns)
-                    self._remember(digest, path)
-                    found[media_id] = where
+                    where = self._accept_path(media_id, path)
+                    if where:
+                        found[media_id] = where
         with self._lock:
             for media_id in found:
                 self._handles.pop(media_id, None)
@@ -866,7 +1063,7 @@ class MediaStore:
         if self.is_linked(media_id):
             if not self._linked_ok.get(media_id, True):
                 return None  # missing: plays as silence until relinked
-            path = self.meta(media_id)["linked_path"]
+            path = self._resolved_paths.get(media_id, self.meta(media_id)["linked_path"])
         else:
             path = str(self.working_file(media_id))
         with self._lock:
