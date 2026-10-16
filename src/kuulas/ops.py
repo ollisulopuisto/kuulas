@@ -138,6 +138,24 @@ def delete_bus(p: Project, bus_id: str) -> Project:
     return replace(p, buses=tuple(b for b in p.buses if b.id != bus_id), tracks=tracks)
 
 
+def solo(p: Project, track_id: str, exclusive: bool = True) -> Project:
+    """Solo a track, with the usual rules for a DAW.
+
+    Exclusive (the default): soloing a track unsolos the others; soloing the
+    only soloed track again clears solo. Additive: toggle this track in the
+    solo set and leave the others alone.
+    """
+    _find_track(p, track_id)
+    soloed = {t.id for t in p.tracks if t.solo}
+    if exclusive:
+        target = set() if soloed == {track_id} else {track_id}
+    else:
+        target = soloed ^ {track_id}
+    return replace(p, tracks=tuple(
+        replace(t, solo=t.id in target) if (t.id in target) != t.solo else t
+        for t in p.tracks))
+
+
 def set_master(p: Project, gain_db: float) -> Project:
     return replace(p, master_gain_db=float(gain_db))
 
@@ -493,7 +511,7 @@ def _ripple_points(points, start: int, end: int) -> tuple[Point, ...]:
 OPS = {
     f.__name__: f
     for f in (
-        add_track, delete_track, set_track, move_track, set_track_automation,
+        add_track, delete_track, set_track, solo, move_track, set_track_automation,
         add_bus, set_bus, delete_bus, set_master,
         add_clip, delete_clip, move_clip, trim_clip, split_clip, set_clip,
         set_clip_envelope, ripple_delete, mute_ranges,

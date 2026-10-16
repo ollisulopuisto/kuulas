@@ -1,5 +1,12 @@
 # Changelog
 
+## [v26.10.16.2] - 2026-10-16
+
+- Solo now works the way a mixing desk does: soloing a track hears it even
+  when it is muted, and soloing another track unsolos the first. Hold the
+  additive modifier to solo more than one track. A muted bus still silences
+  its tracks, even when they are soloed.
+
 ## [v26.10.16.1] - 2026-10-16
 
 First working core of kuulas. There is no app to open yet; this release is the

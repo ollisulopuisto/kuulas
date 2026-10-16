@@ -103,9 +103,12 @@ def mix(project: Project, store: Store, first: int, count: int) -> np.ndarray:
     """Stereo float32 ``(2, count)`` for timeline frames ``[first, first+count)``."""
     master = np.zeros((2, count), dtype=np.float64)
     buses = {b.id: np.zeros((2, count), dtype=np.float64) for b in project.buses}
+    # Solo overrides mute: while anything is soloed, only soloed tracks are
+    # heard, muted or not. A muted bus still silences its tracks.
     soloing = any(t.solo for t in project.tracks)
     for track in project.tracks:
-        if track.mute or (soloing and not track.solo):
+        audible = track.solo if soloing else not track.mute
+        if not audible:
             continue
         buf = _track(track, store, first, count)
         if buf is not None:

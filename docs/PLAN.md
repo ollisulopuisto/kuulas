@@ -1551,7 +1551,8 @@ Tests first: `test_realtime_layer_output_is_block_size_independent`,
 
 ### WP24 — Solo rules and A/B comparison
 
-Status: open. Part 1 needs only WP0, so do it right after WP0. Part 2 needs
+Status: 24.1 done in v26.10.16.2 (mixer rule and `ops.solo`; the coalesce
+key waits for the Session in WP1, and the keys for WP5). 24.2 open. Part 1 needs only WP0, so do it right after WP0. Part 2 needs
 WP4, WP21 and WP23.
 
 #### 24.1 Solo (change to the existing mixer)
