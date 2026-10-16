@@ -1029,6 +1029,45 @@ master_lufs?: float}`.
   Alt+Mod+E opens the dialog. Presets ("Podcast MP3", "Archive WAV") are
   commands of their own.
 
+**Three exports, one engine (owner, 2026-10-16).** Each has the quick
+behaviour above, its own remembered settings, and works on the whole edit
+or on a selection:
+
+| Export | Key | What |
+|---|---|---|
+| **Mix** | Mod+E | the programme as heard, the whole edit |
+| **Selection** | Shift+Mod+E | in→out, or the span of the selected clips: "send this bit for an opinion". Named `{edit} {from}–{to} v{n}`, with a 30 ms fade at each end so it doesn't click. MP3 by default |
+| **Tracks** | Alt+Shift+Mod+E | **one file per track**, whole edit or selection, for mixing elsewhere (Logic, Pro Tools, Reaper) |
+
+**Track export, for "edit in kuulas, mix in Logic":**
+- Every file starts at the same moment and has the same length (silence where
+  a track has no audio), so they line up when dropped into any DAW at 0.
+  Each carries a BWF time reference of the programme start too, for DAWs
+  that place files by timestamp.
+- Mono tracks stay mono; stereo stays stereo. 24-bit WAV at the project rate
+  by default.
+- The edit is applied: cuts, crossfades, clip gain, fades, muted pieces as
+  silence.
+- **Processing, chosen per export (remembered):**
+  - **dry** (the default for "mix elsewhere"): no track or bus effects,
+    no track automation, no ducking, no master;
+  - **as heard**: each track through its own layers, gain and automation,
+    without buses or master;
+  - rendered restoration (dxRevive, voice chain) is included or not by its
+    own switch, because it belongs to the source rather than to the mix.
+- Optional: buses as their own files; a text file listing the tracks,
+  roles, start time and settings, so the mix session can be rebuilt.
+- Named `{edit} – {track}.wav` in a folder `{edit} tracks v{n}/`.
+- Role stems (WP19c) are the same engine, grouping tracks by role.
+- Later, by owner decision: AAF/OpenTimelineIO export with the clips still
+  separate (the `pyaaf2` and OpenTimelineIO libraries exist), so the
+  edit can be continued in another editor rather than just mixed.
+
+Tests: a selection export equals that range of the mix with the edge fades;
+track files are sample-aligned, equal length, and sum (dry, mono to centre)
+to the dry mix; dry excludes ducking and effects; as-heard matches each
+track's contribution to the mix.
+
 Tests: export of a known project equals `mixer.mix` over the whole length
 (bit-exact for float WAV); parallel and serial renders are identical;
 `master_lufs=-16` measures -16 ± 0.5 LU with pyloudnorm; a crash
