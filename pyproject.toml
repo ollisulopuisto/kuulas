@@ -52,6 +52,8 @@ norecursedirs = ["hardware", "*.egg", ".*", "_darcs", "build", "CVS", "dist",
 
 [tool.ruff]
 line-length = 90
+# Agent worktrees are other checkouts of this repo, not part of it.
+extend-exclude = [".claude"]
 target-version = "py313"
 
 [tool.ruff.lint]

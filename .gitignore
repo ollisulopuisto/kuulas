@@ -4,3 +4,4 @@ __pycache__/
 .ruff_cache/
 *.kuulas/
 node_modules/
+.claude/
