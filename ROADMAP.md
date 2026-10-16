@@ -120,6 +120,13 @@ sizes: `docs/PLAN.md`, section "Triage".
 
 ## Open questions and known limits
 
+- **Podcast-repo plans that overlap kuulas** (not built there yet):
+  `podcast/docs/plans/2026-10-05-edit-diff.md` (diff of two edits) and
+  `2026-10-05-rough-cut.md` (cut suggestions in the editor's own style,
+  learned from past edits). When built, the rough cut should arrive in kuulas
+  as WP18 cut candidates, and the diff should be one shared implementation
+  with kuulas's changes view (WP31), not two. Decide which repo owns the diff
+  before WP31 starts.
 - **Voice presets belong in speechmix** (R38): `clean`, `room`, `remote`,
   `phone`, with an auto-suggestion from measurements, settings tuned by
   listening tests on real episodes. A change to the podcast repo, so it
