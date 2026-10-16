@@ -245,67 +245,69 @@ plugin on a voice, undo anything, export a mastered file.
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
 | 11 | **★ WP33b i18n in the UI (R39)** | M | Intl formatting, key names, literal-text check | Sonnet 5.5 |
-| 12 | WP4 UI shell + timeline | L | canvas drawing, zoom, hit-testing | Sonnet 5.5 |
-| 13 | **★ WP5 keymap + palette (R10)** | M | many bindings, collision test | Sonnet 5.5 |
-| 14 | **★ WP19a edit groups: what an edit touches (M1)** | M | target × time-shifting rule, partners by recording time | Sonnet 5.5 |
-| 15 | **WP35 remembered settings, quick actions, view memory** | M | scopes; a repeated dialog is a bug | Sonnet 5.5 |
-| 16 | **★ WP8 history panel + stateful undo (R29)** | M | ledger restore, context restore, change flash | Sonnet 5.5 |
-| 17 | **★ WP22 track tags + ducking (R30)** | S | music-bed curve from nhsx | Sonnet 5.5 |
-| 18 | **★ WP26 fast listening + JKL (R33)** | L | streaming time-stretch, JKL state machine | **Opus 5.5** |
-| 19 | **★ WP19i tab to transient / word (R26i)** | M | onset detection; word mode waits for WP7 | Sonnet 5.5 |
-| 20 | WP6 mouse editing | M | drag state machine | Sonnet 5.5 |
-| 21 | WP9 jobs + local transcription | M | parallel faster-whisper | Sonnet 5.5 |
-| 22 | WP7 transcript panel | M | selection → word indices | Sonnet 5.5 |
-| 23 | **★ WP23a FX layers: real-time tier + analyse-then-live tier (R30)** | L | real-time plugins in the callback, latency compensation, CPU meter | **Opus 5.5** |
-| 24 | WP11 export + mastering | M | parallel ordered render | Sonnet 5.5 |
+| 12 | **WP41 people, interviews, who speaks (data model)** | M | person on every word from the first transcript | Sonnet 5.5 |
+| 13 | WP4 UI shell + timeline | L | canvas drawing, zoom, hit-testing | Sonnet 5.5 |
+| 14 | **★ WP5 keymap + palette (R10)** | M | many bindings, collision test | Sonnet 5.5 |
+| 15 | **★ WP19a edit groups: what an edit touches (M1)** | M | target × time-shifting rule, partners by recording time | Sonnet 5.5 |
+| 16 | **WP35 remembered settings, quick actions, view memory** | M | scopes; a repeated dialog is a bug | Sonnet 5.5 |
+| 17 | **★ WP8 history panel + stateful undo (R29)** | M | ledger restore, context restore, change flash | Sonnet 5.5 |
+| 18 | **★ WP22 track tags + ducking (R30)** | S | music-bed curve from nhsx | Sonnet 5.5 |
+| 19 | **★ WP26 fast listening + JKL (R33)** | L | streaming time-stretch, JKL state machine | **Opus 5.5** |
+| 20 | **★ WP19i tab to transient / word (R26i)** | M | onset detection; word mode waits for WP7 | Sonnet 5.5 |
+| 21 | WP6 mouse editing | M | drag state machine | Sonnet 5.5 |
+| 22 | WP9 jobs + local transcription | M | parallel faster-whisper | Sonnet 5.5 |
+| 23 | WP7 transcript panel | M | selection → word indices | Sonnet 5.5 |
+| 24 | **★ WP23a FX layers: real-time tier + analyse-then-live tier (R30)** | L | real-time plugins in the callback, latency compensation, CPU meter | **Opus 5.5** |
+| 25 | WP11 export + mastering | M | parallel ordered render | Sonnet 5.5 |
 
 ### Phase 2 — The editing loop (what makes it better than Hindenburg)
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 25 | WP28 focus mode | M | lane layout, speaker focus, solo restore | Sonnet 5.5 |
-| 26 | WP18 cut candidates | M | recording-clock anchoring (later WPs reuse it) | **Opus 5.5** |
-| 27 | WP19f spot | S | parsing | Haiku 5.5 |
-| 28 | WP24.2 A/B | M | edit A/B position mapping, level match | Sonnet 5.5 |
-| 29 | WP21 several edits (versions) | L | history schema migration, offer_cuts | **Opus 5.5** |
-| 30 | WP40 long history stays fast | M | paged panel, incremental backups, thinning valve | Sonnet 5.5 |
-| 31 | WP31 changes view + checkpoints | M | recording-range diff | Sonnet 5.5 |
-| 32 | WP32 review round trip: suggest mode, hand-off, merge | L | diverged copies become suggestions | **Opus 5.5** |
-| 33 | WP20 paste without bloat | M | excerpt media keeping recorded time | Sonnet 5.5 |
-| 34 | WP39 portable projects: different paths on every machine | M | resolution order, learned path rewrites | Sonnet 5.5 |
-| 35 | WP37 usage extractor | S | recording ranges with audibility | Sonnet 5.5 |
-| 36 | WP38 series: reuse across episodes | L | per-project usage files, badges, series view | Sonnet 5.5 |
-| 37 | WP19c roles, stems, match loudness | M | stems sum test | Sonnet 5.5 |
-| 38 | WP19d remappable keys + macros | M | macro = one undo step | Sonnet 5.5 |
-| 39 | WP19b connected clips | M | reflow after every edit | Sonnet 5.5 |
-| 40 | WP19h regions + batch export, chapters | S | none | Haiku 5.5 |
-| 41 | WP19g skimming | S | grain throttling | Sonnet 5.5 |
-| 42 | WP19e alternative takes | L | ripple on take length change | Sonnet 5.5 |
+| 26 | WP28 focus mode | M | lane layout, speaker focus, solo restore | Sonnet 5.5 |
+| 27 | WP18 cut candidates | M | recording-clock anchoring (later WPs reuse it) | **Opus 5.5** |
+| 28 | WP19f spot | S | parsing | Haiku 5.5 |
+| 29 | WP24.2 A/B | M | edit A/B position mapping, level match | Sonnet 5.5 |
+| 30 | WP21 several edits (versions) | L | history schema migration, offer_cuts | **Opus 5.5** |
+| 31 | WP40 long history stays fast | M | paged panel, incremental backups, thinning valve | Sonnet 5.5 |
+| 32 | WP31 changes view + checkpoints | M | recording-range diff | Sonnet 5.5 |
+| 33 | WP32 review round trip: suggest mode, hand-off, merge | L | diverged copies become suggestions | **Opus 5.5** |
+| 34 | WP20 paste without bloat | M | excerpt media keeping recorded time | Sonnet 5.5 |
+| 35 | WP39 portable projects: different paths on every machine | M | resolution order, learned path rewrites | Sonnet 5.5 |
+| 36 | WP37 usage extractor | S | recording ranges with audibility | Sonnet 5.5 |
+| 37 | WP38 series: reuse across episodes | L | per-project usage files, badges, series view | Sonnet 5.5 |
+| 38 | WP42 bits and index-card view (Scrivener-style) | L | outline to timeline, person view | Sonnet 5.5 |
+| 39 | WP19c roles, stems, match loudness | M | stems sum test | Sonnet 5.5 |
+| 40 | WP19d remappable keys + macros | M | macro = one undo step | Sonnet 5.5 |
+| 41 | WP19b connected clips | M | reflow after every edit | Sonnet 5.5 |
+| 42 | WP19h regions + batch export, chapters | S | none | Haiku 5.5 |
+| 43 | WP19g skimming | S | grain throttling | Sonnet 5.5 |
+| 44 | WP19e alternative takes | L | ripple on take length change | Sonnet 5.5 |
 
 ### Phase 3 — Pipeline depth
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 43 | WP14 parallel analysis (done) | S | none | Haiku 5.5 |
-| 44 | WP10 voice chain variants | M | variants, chain settings | Sonnet 5.5 |
-| 45 | WP25 music report | S | heard-duration rules | Haiku 5.5 |
-| 46 | WP13 Hindenburg import | M | `.nhsx` word clock | Sonnet 5.5 |
-| 47 | WP23b FX layers: render tier, export waits, freeze on overload | L | background render, overload policy | **Opus 5.5** |
+| 45 | WP14 parallel analysis (done) | S | none | Haiku 5.5 |
+| 46 | WP10 voice chain variants | M | variants, chain settings | Sonnet 5.5 |
+| 47 | WP25 music report | S | heard-duration rules | Haiku 5.5 |
+| 48 | WP13 Hindenburg import | M | `.nhsx` word clock | Sonnet 5.5 |
+| 49 | WP23b FX layers: render tier, export waits, freeze on overload | L | background render, overload policy | **Opus 5.5** |
 
 ### Phase 4 — Recording and alignment
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 48 | WP12 recording, foolproof mode, live logging | L | hardware, crash recovery, sleep prevention | **Opus 5.5** |
-| 49 | WP17 clip bin | M | Space and in/out rules | Sonnet 5.5 |
-| 50 | WP16 align by sound | **XL** | drift and dropout detection | **Opus 5.5** |
+| 50 | WP12 recording, foolproof mode, live logging | L | hardware, crash recovery, sleep prevention | **Opus 5.5** |
+| 51 | WP17 clip bin | M | Space and in/out rules | Sonnet 5.5 |
+| 52 | WP16 align by sound | **XL** | drift and dropout detection | **Opus 5.5** |
 
 ### Phase 5 — Late
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 51 | WP27 settings + rate change | L | converts every position kind; do it when the model has stopped growing | **Opus 5.5** |
-| 52 | WP15 desktop wrapper | M | packaging | Sonnet 5.5 |
+| 53 | WP27 settings + rate change | L | converts every position kind; do it when the model has stopped growing | **Opus 5.5** |
+| 54 | WP15 desktop wrapper | M | packaging | Sonnet 5.5 |
 
 **Easiest wins:** WP0, WP24.1, WP22, WP19a, WP19f, WP19h, WP14, WP25.
 **Hardest, highest risk:** WP23 (real-time FX), WP16 (align by sound),
@@ -2576,6 +2578,55 @@ step forever, and make history length irrelevant to speed:
   then one per working day. It never thins versions, exports, review copies,
   session markers, branch tips or material steps, and it always backs up
   first.
+
+---
+
+### WP41 — People, interviews, who speaks (data model)
+
+Status: open. Needs WP30. Sonnet 5.5. **Before WP7 and WP9**, so transcripts
+are linked to people from the first one (owner, 2026-10-16).
+
+Build docs/FORMAT.md "People, interviews and bits" for people, interviews,
+`media.person`, the speaker-label map and `person` on stored words (bits are
+WP42). Session commands: create and edit people and interviews; assign a
+file's person; map speaker labels to people; import offers "this is one
+interview" for files imported together (defaults from WP1's sync group).
+Series storage: one JSON file per item, atomic writes, conflict copies
+detected. Queries: `passages(person)` returns every transcript passage by a
+person across the project or series, with recording ranges, ready for the
+WP38 usage marks. All material steps are undoable. Messages in en and fi.
+
+Tests: a mic file's words carry its person; a mix's labels map to people,
+and remapping changes no stored word text; one interview links three files
+from different recorders; series items survive two writers editing different
+items; a conflicted item is reported; passages by person span projects in a
+series.
+
+---
+
+### WP42 — Bits and the index-card view
+
+Status: open. Needs WP41, WP38, WP20, WP4, WP7. Sonnet 5.5. Phase 3.
+
+Scrivener-style planning across a series (owner, 2026-10-16):
+- **Bits** (docs/FORMAT.md) are made from a transcript selection ("Make
+  bit", key K in the transcript), from a cut candidate, or by hand. Each has a
+  title, summary, people, tags, status and colour.
+- **Card view:** one column per episode (edit) plus an "unplaced" column.
+  Drag a card into an episode to add it to that episode's outline; the order
+  of cards is the outline. Keyboard: arrows move between cards, Mod+arrows
+  move a card, Enter opens it, Space plays it.
+- **Assemble:** builds or updates the episode's timeline from its outline,
+  as clips with 2 s handles, using WP20's paste machinery. Cards already
+  placed are not duplicated, and the result is one undoable step.
+- **Person view:** everything a person said across the series
+  (`passages(person)`), with usage marks (WP38). Select and press K to make a
+  bit, or drag it to an episode column.
+- Cards show their usage ("used in Ep 3, published v2").
+
+Tests: a bit covers every mic of its interview; assembling twice adds
+nothing new; card moves are undoable; the person view lists passages across
+projects with correct usage marks.
 
 ---
 

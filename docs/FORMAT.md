@@ -244,6 +244,36 @@ edits. Some are **unconditional** (just done) and some **conditional**
 
   Never the lock, backups or caches.
 
+## People, interviews and bits (from the start)
+
+Transcripts must know *who* speaks and *which interview* a recording belongs
+to, so the same interview recorded by several people (A's mic, B's mic, the
+Zoom mix) links together, and everything a person said can be found.
+
+- **Person** `{id (UUIDv7), name, aliases[], role ("host" | "guest" | …),
+  notes, extra}`.
+- **Interview** (recording session) `{id, title, date (ISO date, optional
+  UTC time), place, participants: [{person, role}], media: [media sha256],
+  sync_group, notes, tags[], extra}`. All files that captured one sitting
+  belong to it; it usually matches a sync group.
+- **Who speaks:** a single-person mic file has `media.person`; a mix file
+  (Zoom, phone) has a per-transcript-revision map from the transcription's
+  speaker labels to people. Stored words keep `spk` as given and gain
+  `person` (resolved through the map), so a corrected map changes nobody's
+  words.
+- **Bit** (index card) `{id, interview, from_flicks, to_flicks (on the
+  interview's recording clock, so it covers every mic), title, summary,
+  people[], tags[], status ("idea" | "selected" | "used"), color, notes,
+  placements: [{project, edit, outline_index}], extra}`.
+- **Where they live:**
+  - in a series: one small JSON file per item under `Series/people/`,
+    `Series/interviews/`, `Series/bits/`, each written atomically by
+    write-temp-and-rename. A sync conflict only ever touches one item, and
+    kuulas shows conflicted copies;
+  - outside a series: the same records in the project's material root.
+
+  Projects refer to them by id.
+
 ## Media
 
 - Identity is `sha256` of the file bytes; the id is `m` + its first 12 hex
