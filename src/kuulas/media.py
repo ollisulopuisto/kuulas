@@ -22,22 +22,39 @@ done. Rows are updated column by column, never replaced, so columns a newer
 kuulas added survive. Waveform peaks are a cache (``caches/peaks/``), keyed
 by content and rebuilt when missing.
 
+**Fail soft (WP34).** A bad file costs that file, never the batch or the
+session. Every source is probed first (``probe``, with a timeout), so an
+empty file, a garbage header or a video without audio is refused with a
+message that says so before anything is decoded. A file that decodes only
+as far as some point (truncated, damaged in the middle) comes in as far as
+it goes and is *marked partial* (``Media.extra["partial"]``), with a
+warning. External decoders are killed when they stall (``STALL_SEC``).
+Free space is checked before decoding and a full disk or a vanished source
+drive removes the half-written file and says which. ``import_batch``
+reports each file's outcome as an ``ImportResult``.
+
 **Reading.** The mixer asks for arbitrary slices on the audio thread, so
 reads go through a cache of decoded chunks; FLAC seeks are sample-exact.
 """
 
 from __future__ import annotations
 
+import errno
 import hashlib
+import json
 import logging
 import os
 import shutil
 import struct
 import subprocess
 import threading
+import time
 from collections import OrderedDict
+from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
+from contextlib import contextmanager
+from dataclasses import dataclass, field
+from pathlib import Path, PurePath
 
 import numpy as np
 import soundfile as sf
@@ -62,6 +79,34 @@ CHUNK_SEC = 10
 CACHE_CHUNKS = 48
 #: Source sample formats FLAC holds without loss (libsndfile subtypes).
 PCM_SUBTYPES = {"PCM_16", "PCM_24"}
+#: libsndfile subtypes whose frame count is exact and whose header can be
+#: trusted for "how long should this be"; anything else (MP3, Ogg, ...) is
+#: probed with ffprobe, which estimates.
+EXACT_SUBTYPE_PREFIXES = ("PCM", "FLOAT", "DOUBLE")
+#: How long ffprobe may take. It reads headers only, so a healthy file
+#: answers in milliseconds; this is for a file on a stalled network share.
+PROBE_TIMEOUT_SEC = 20.0
+#: An ffmpeg that has delivered nothing for this long is hung and is killed.
+#: Decoding runs far faster than real time, so 10 s of audio never takes
+#: anywhere near this; a slow network drive may.
+STALL_SEC = 120.0
+#: A BWF TimeReference is "samples since midnight". More than a day is a
+#: recorder with a broken clock or a damaged header, not a start time.
+MAX_TIME_REFERENCE_HOURS = 24
+#: Bytes per sample the free-space estimate assumes for the working FLAC:
+#: 24-bit, uncompressed. FLAC of noisy audio comes close to that, and the
+#: size of the real file is not known before it is encoded.
+ESTIMATE_BYTES_PER_SAMPLE = 3
+#: A decode that comes up short of what the file promised by more than this
+#: is partial (the larger of the two applies).
+SHORTFALL_SEC = 0.25
+SHORTFALL_FRACTION = 0.01
+#: errno values that mean "the drive under the file went away" (a source
+#: that no longer exists counts too, whatever the errno).
+VANISHED_ERRNOS = frozenset(
+    getattr(errno, name) for name in
+    ("EIO", "ENXIO", "ENODEV", "ESTALE", "ENOTCONN", "EHOSTDOWN", "ETIMEDOUT")
+    if hasattr(errno, name))
 
 
 def _sha256(path: Path) -> str:
@@ -72,34 +117,88 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
+def _walk_wav(f) -> Iterator[tuple[bytes, int, int]]:
+    """``(chunk id, size, body position)`` for each chunk of a RIFF/RF64 WAV.
+
+    RF64 keeps the sizes that do not fit 32 bits in a ``ds64`` chunk and
+    writes 0xFFFFFFFF in the chunk itself; the real size is used here, so a
+    chunk after a multi-gigabyte ``data`` chunk is still found. The caller may
+    read the body; the walk seeks to the next chunk by itself.
+    """
+    head = f.read(12)
+    if len(head) < 12 or head[:4] not in (b"RIFF", b"RF64") or head[8:12] != b"WAVE":
+        return
+    big: dict[bytes, int] = {}
+    while True:
+        hdr = f.read(8)
+        if len(hdr) < 8:
+            return
+        cid, size = hdr[:4], struct.unpack("<I", hdr[4:])[0]
+        pos = f.tell()
+        if cid == b"ds64":
+            raw = f.read(min(size, 28))
+            if len(raw) >= 16:
+                big[b"data"] = struct.unpack_from("<Q", raw, 8)[0]
+        elif size == 0xFFFFFFFF and cid in big:
+            size = big[cid]
+        yield cid, size, pos
+        f.seek(pos + size + size % 2)
+
+
+def wav_header(path: Path) -> dict:
+    """What a WAV's headers say, whatever its audio really holds: ``rate``,
+    ``time_reference`` (BWF samples), and ``frames``, the length the ``data``
+    chunk promises. A truncated file promises more than it has, which is how
+    a partial import knows how much is missing. Absent keys: not known."""
+    out: dict = {}
+    block_align = 0
+    try:
+        with path.open("rb") as f:
+            for cid, size, pos in _walk_wav(f):
+                if cid == b"fmt " and size >= 16:
+                    fmt = f.read(16)
+                    out["rate"] = struct.unpack_from("<I", fmt, 4)[0]
+                    block_align = struct.unpack_from("<H", fmt, 12)[0]
+                elif cid == b"bext" and size >= 346:
+                    f.seek(pos + 338)
+                    out["time_reference"] = struct.unpack("<Q", f.read(8))[0]
+                elif cid == b"data" and block_align and 0 < size < 0xFFFFFFFF:
+                    # 0 and 0xFFFFFFFF are what streaming writers leave behind.
+                    out["frames"] = size // block_align
+    except (OSError, struct.error):
+        pass
+    return out
+
+
 def bwf_time_reference(path: Path) -> tuple[int, int] | None:
     """``(TimeReference samples, file rate)`` from a WAV's ``bext`` chunk, if any.
 
     Field recorders write the recording's start (samples since midnight)
     there; it is how files from one shoot line up without listening.
     """
-    rate = None
-    with path.open("rb") as f:
-        head = f.read(12)
-        if len(head) < 12 or head[:4] not in (b"RIFF", b"RF64") or head[8:12] != b"WAVE":
-            return None
-        while True:
-            hdr = f.read(8)
-            if len(hdr) < 8:
-                return None
-            cid, size = hdr[:4], struct.unpack("<I", hdr[4:])[0]
-            if cid == b"fmt ":
-                fmt = f.read(size)
-                rate = struct.unpack_from("<I", fmt, 4)[0]
-            elif cid == b"bext" and size >= 346:
-                bext = f.read(size)
-                if rate is None:
-                    return None
-                return struct.unpack_from("<Q", bext, 338)[0], rate
-            else:
-                f.seek(size, 1)
-            if size % 2:
-                f.seek(1, 1)
+    head = wav_header(path)
+    if "time_reference" in head and head.get("rate"):
+        return head["time_reference"], head["rate"]
+    return None
+
+
+def drive_of(path: PurePath) -> str:
+    """The name of the drive a path lives on, for "ZOOM H6 was unplugged".
+
+    ``/Volumes/<name>`` (macOS), ``/media/<user>/<name>`` and
+    ``/run/media/<user>/<name>`` (Linux desktops), ``/mnt/<name>``, a
+    Windows drive letter; anything else is the internal disk, ``/``.
+    """
+    if path.drive:
+        return path.drive
+    parts = path.parts
+    if len(parts) > 3 and parts[1] in ("Volumes", "mnt"):
+        return parts[2]
+    if len(parts) > 4 and parts[1] == "media":
+        return parts[3]
+    if len(parts) > 5 and parts[1:3] == ("run", "media"):
+        return parts[4]
+    return path.anchor or "/"
 
 
 def workers() -> int:
@@ -111,6 +210,130 @@ def workers() -> int:
 #: reference, tags, extra, unknown columns) is never touched by them.
 _FILE_COLUMNS = ("storage", "channels", "source_rate", "source_frames", "subtype",
                  "lossless", "linked_path", "linked_size", "linked_mtime_ns")
+
+
+@dataclass
+class Note:
+    """A warning about an import that succeeded: a catalog key and its values."""
+
+    key: str
+    params: dict = field(default_factory=dict)
+
+    def __str__(self) -> str:
+        return t(self.key, **self.params)
+
+
+@dataclass
+class ImportResult:
+    """What became of one file in a batch: its ``media`` or its ``error``,
+    and the ``warnings`` (``Note``) either way."""
+
+    path: Path
+    media: Media | None = None
+    error: Exception | None = None
+    warnings: list[Note] = field(default_factory=list)
+
+    @property
+    def ok(self) -> bool:
+        return self.error is None
+
+
+@dataclass(frozen=True)
+class Probe:
+    """What a file says about itself before anything is decoded.
+
+    ``seconds`` is how long it claims to be (None if unknown); ``exact`` is
+    true when that claim is a count from the header (WAV, FLAC), false when it
+    is an estimate (VBR MP3), which decides whether a shortfall means damage.
+    """
+
+    channels: int
+    seconds: float | None
+    exact: bool
+
+    def frames(self, rate: int) -> int | None:
+        return None if self.seconds is None else round(self.seconds * rate)
+
+
+@dataclass
+class _Job:
+    """One import in flight: where its warnings go and what it was probed as."""
+
+    path: Path
+    notes: list[Note]
+    probe: Probe
+    needed: int = 0
+
+
+def _exists(path: Path) -> bool:
+    try:
+        path.stat()
+    except OSError:
+        return False
+    return True
+
+
+def _mb(n: int) -> int:
+    return round(n / 1_000_000)
+
+
+def _clock(frames: int, rate: int) -> str:
+    """``41:03`` or ``1:02:03``: how a partial import says how far it got."""
+    seconds = int(frames / rate)
+    hours, rest = divmod(seconds, 3600)
+    minutes, secs = divmod(rest, 60)
+    return f"{hours}:{minutes:02d}:{secs:02d}" if hours else f"{minutes}:{secs:02d}"
+
+
+def probe(path: Path) -> Probe:
+    """Look at ``path`` without decoding it; raises ``MediaError`` for a file
+    that is empty, unreadable or has no audio. ffprobe runs under a timeout."""
+    name = path.name
+    if path.stat().st_size == 0:
+        raise MediaError("error.media.empty", name=name)
+    try:
+        info = sf.info(str(path))
+    except (sf.LibsndfileError, RuntimeError):
+        info = None
+    if info is not None and info.subtype.startswith(EXACT_SUBTYPE_PREFIXES):
+        # A truncated WAV reports the frames that are there; its header still
+        # says how many there should have been.
+        promised = max(info.frames, wav_header(path).get("frames", 0))
+        if promised == 0:
+            with sf.SoundFile(str(path)) as f:  # a streamed FLAC leaves its count 0
+                if len(f.read(1)) == 0:
+                    raise MediaError("error.media.empty", name=name)
+            return Probe(info.channels, None, False)
+        return Probe(info.channels, promised / info.samplerate, True)
+    try:
+        out = subprocess.run(  # noqa: S603 - fixed argv, no shell
+            [get_binary_path("ffprobe"), "-v", "error", "-select_streams", "a:0",
+             "-show_entries", "stream=channels:format=duration", "-of", "json",
+             str(path)],
+            capture_output=True, text=True, errors="replace", check=False,
+            stdin=subprocess.DEVNULL, timeout=PROBE_TIMEOUT_SEC)
+    except subprocess.TimeoutExpired:
+        raise MediaError("error.media.probe_timeout", name=name,
+                         seconds=round(PROBE_TIMEOUT_SEC)) from None
+    if out.returncode != 0:
+        lines = out.stderr.strip().splitlines()
+        raise MediaError("error.media.unreadable", name=name,
+                         error=lines[-1] if lines else "")
+    try:
+        found = json.loads(out.stdout)
+    except ValueError:
+        raise MediaError("error.media.unreadable", name=name, error="") from None
+    streams = found.get("streams") or []
+    if not streams:
+        raise MediaError("error.media.no_audio", name=name)
+    channels = int(streams[0].get("channels") or 0)
+    if channels < 1:
+        raise MediaError("error.media.unreadable", name=name, error="")
+    try:
+        seconds = float(found.get("format", {}).get("duration"))
+    except (TypeError, ValueError):
+        seconds = None  # ffprobe says "N/A" for streams it cannot measure
+    return Probe(channels, seconds, False)
 
 
 class MediaStore:
@@ -218,11 +441,39 @@ class MediaStore:
 
     # -- import ------------------------------------------------------------
 
+    def import_batch(self, paths, copy: bool = False) -> list[ImportResult]:
+        """Import several files at once, one core each.
+
+        One bad file never fails the batch: every outcome is an
+        ``ImportResult``, in the order of ``paths``, with the reason for a
+        failure and any warnings for a success.
+        """
+        paths = [Path(p) for p in paths]
+        if not paths:
+            return []
+        with ThreadPoolExecutor(max_workers=min(len(paths), workers())) as pool:
+            return list(pool.map(lambda path: self._attempt(path, copy), paths))
+
     def import_files(self, paths, copy: bool = False) -> list[Media]:
-        """Import several files at once, one core each."""
-        paths = list(paths)
-        with ThreadPoolExecutor(max_workers=min(len(paths), workers()) or 1) as pool:
-            return list(pool.map(lambda path: self.import_file(path, copy), paths))
+        """``import_batch`` for callers that want all or an error: every file is
+        tried, then the first failure (if any) is raised."""
+        results = self.import_batch(paths, copy)
+        for r in results:
+            if not r.ok:
+                raise r.error
+        return [r.media for r in results]
+
+    def _attempt(self, path: Path, copy: bool) -> ImportResult:
+        notes: list[Note] = []
+        try:
+            return ImportResult(path, self._import(path, copy, notes), None, notes)
+        except KuulasError as e:
+            err: Exception = e
+        except Exception as e:  # noqa: BLE001 - whatever it is, it costs this file only
+            err = self._explain(path, e, None) or MediaError(
+                "error.media.failed", name=path.name, error=str(e) or type(e).__name__)
+        log.warning(t("log.media.import_failed", name=path.name, error=str(err)))
+        return ImportResult(path, None, err, notes)
 
     def import_file(self, path: str | Path, copy: bool = False) -> Media:
         """Bring ``path`` into the project. Importing the same bytes twice is free.
@@ -231,40 +482,151 @@ class MediaStore:
         integer PCM at the project rate is *linked*, read where it lies. Any
         other source is decoded once to a FLAC working file either way, since
         decoding it during playback would be too slow. ``copy=True`` stores
-        every source in the project (see ``consolidate``).
+        every source in the project (see ``consolidate``). Raises on failure;
+        ``import_batch`` reports instead.
         """
+        return self._import(Path(path), copy, [])
+
+    def _import(self, path: Path, copy: bool, notes: list[Note]) -> Media:
         self._check_writable()
-        path = Path(path).resolve()
+        path = path.resolve()
         digest = _sha256(path)
         media_id = self.media_id(digest)
-        self._remember(digest, path)
         with self._lock:
             once = self._import_locks.setdefault(media_id, threading.Lock())
         with once:
-            return self._import_once(path, digest, media_id, copy)
+            media = self._import_once(path, digest, media_id, copy, notes)
+        # Remembered only once it is in: a refused file leaves no trace.
+        self._remember(digest, path)
+        return media
 
-    def _import_once(self, path: Path, digest: str, media_id: str, copy: bool) -> Media:
+    def _import_once(self, path: Path, digest: str, media_id: str, copy: bool,
+                     notes: list[Note]) -> Media:
         row = self._row(media_id)
         if row is not None and row["sha256"] != digest:
             # Two different files share the first 12 hex digits of their hash.
             raise MediaError("error.media.id_collision", name=path.name,
                              media_id=media_id)
         if row is None:
-            self._check_source_rate(path)
-            bwf = bwf_time_reference(path)
-            new = {"id": media_id, "sha256": digest, "name": path.name,
-                   "time_ref_flicks": frames_to_flicks(*bwf) if bwf else None}
-            info = _pcm_info(path, self.rate)
-            if info is not None and not copy:
-                self._link(path, new, info)
-            elif info is not None:
-                self._encode_pcm(path, new)
-            else:
-                self._encode_any(path, new, keep_original=copy)
+            self._import_new(path, digest, media_id, copy, notes)
         meta = self.meta(media_id)
+        extra = json.loads(meta["extra"] or "{}")
+        if row is not None and "partial" in extra:
+            notes.append(self._partial_note(path.name, extra["partial"]))
         return Media(id=media_id, name=path.name, channels=meta["channels"],
                      frames=meta["source_frames"], sha256=digest,
-                     time_ref_flicks=meta["time_ref_flicks"])
+                     time_ref_flicks=meta["time_ref_flicks"], extra=extra)
+
+    def _import_new(self, path: Path, digest: str, media_id: str, copy: bool,
+                    notes: list[Note]) -> None:
+        pr = probe(path)
+        self._check_source_rate(path)
+        new = {"id": media_id, "sha256": digest, "name": path.name,
+               "time_ref_flicks": self._time_reference(path, notes)}
+        if pr.channels > 2:
+            notes.append(Note("warn.media.downmixed", {"name": path.name,
+                                                       "channels": pr.channels}))
+        info = _pcm_info(path, self.rate)
+        job = _Job(path, notes, pr)
+        if info is None or copy:
+            self._check_space(path, job, original=copy and info is None)
+        with self._guarded(path, media_id, job):
+            if info is not None and not copy:
+                self._link(path, new, info, job)
+            elif info is not None:
+                self._encode_pcm(path, new, job)
+            else:
+                self._encode_any(path, new, keep_original=copy, job=job)
+
+    def _time_reference(self, path: Path, notes: list[Note]) -> int | None:
+        bwf = bwf_time_reference(path)
+        if bwf is None:
+            return None
+        samples, file_rate = bwf
+        hours = samples / file_rate / 3600 if file_rate else float("inf")
+        if hours > MAX_TIME_REFERENCE_HOURS:
+            notes.append(Note("warn.media.bad_time_reference",
+                              {"name": path.name, "hours": round(hours, 1)}))
+            return None
+        return frames_to_flicks(samples, file_rate)
+
+    def _check_space(self, path: Path, job: _Job, original: bool) -> None:
+        """Refuse before decoding what the project's disk cannot hold."""
+        frames = job.probe.frames(self.rate)
+        if frames is None:
+            return  # no length to estimate from; a full disk is still caught mid-write
+        job.needed = frames * min(job.probe.channels, 2) * ESTIMATE_BYTES_PER_SAMPLE
+        if original:
+            job.needed += path.stat().st_size
+        free = self._free()
+        if free is not None and job.needed > free:
+            raise MediaError("error.media.disk_full", **self._space(path, job, free))
+
+    def _free(self) -> int | None:
+        try:
+            return shutil.disk_usage(self.folder).free
+        except OSError:
+            return None
+
+    @staticmethod
+    def _space(path: Path, job: _Job | None, free: int | None) -> dict:
+        needed = job.needed if job else 0
+        return {"name": path.name, "needed": needed, "free": free or 0,
+                "needed_mb": _mb(needed), "free_mb": _mb(free or 0)}
+
+    def _explain(self, path: Path, e: Exception, job: _Job | None) -> MediaError | None:
+        """A full disk or a vanished source drive, in words; None for any
+        other error."""
+        if not isinstance(e, OSError):
+            return None
+        if e.errno == errno.ENOSPC:
+            return MediaError("error.media.disk_full",
+                              **self._space(path, job, self._free()))
+        if e.errno in VANISHED_ERRNOS or not _exists(path):
+            return MediaError("error.media.source_vanished", name=path.name,
+                              drive=drive_of(path))
+        return None
+
+    @contextmanager
+    def _guarded(self, path: Path, media_id: str, job: _Job):
+        """Whatever goes wrong while writing, the half-written files go too
+        (the row was never inserted, so nothing looks imported)."""
+        try:
+            yield
+        except BaseException as e:
+            self.working_file(media_id).with_suffix(".partial.flac").unlink(missing_ok=True)
+            for half in (self.folder / "originals").glob(f"{media_id}*.partial"):
+                half.unlink(missing_ok=True)
+            mapped = self._explain(path, e, job)
+            if mapped is not None:
+                raise mapped from e
+            raise
+
+    def _partial_note(self, name: str, partial: dict) -> Note:
+        got = _clock(partial["frames"], self.rate)
+        if partial.get("expected_frames"):
+            return Note("warn.media.partial", {
+                "name": name, "got": got,
+                "of": _clock(partial["expected_frames"], self.rate)})
+        return Note("warn.media.partial_unknown", {"name": name, "got": got})
+
+    def _settle(self, source: Path, job: _Job, row: dict, frames: int,
+                damaged: bool) -> None:
+        """After decoding: nothing at all is an error, a short decode of a file
+        that promised more is a partial import, a lost source is neither."""
+        rate = self.rate
+        expected = job.probe.frames(rate)
+        short = expected is not None and expected - frames > max(
+            SHORTFALL_SEC * rate, SHORTFALL_FRACTION * expected)
+        if (damaged or short or frames == 0) and not _exists(source):
+            raise MediaError("error.media.source_vanished", name=source.name,
+                             drive=drive_of(source))
+        if frames == 0:
+            raise MediaError("error.media.empty", name=source.name)
+        if damaged or (short and job.probe.exact):
+            partial = {"frames": frames, "expected_frames": expected}
+            row["extra"] = json.dumps({"partial": partial})
+            job.notes.append(self._partial_note(source.name, partial))
 
     @staticmethod
     def _check_source_rate(path: Path) -> None:
@@ -290,10 +652,13 @@ class MediaStore:
     def _save_peaks(self, digest: str, peaks: np.ndarray) -> None:
         caches.write_atomic(self._peaks_path(digest), lambda f: np.save(f, peaks))
 
-    def _finish(self, row: dict, peaks: list) -> None:
+    def _finish(self, row: dict, peaks: list, job: _Job | None = None) -> None:
         """Peaks to the cache, then the row: inserted last, so it marks the
         import as finished. An existing row (consolidation) only gets its
-        file columns updated."""
+        file columns updated. Digital silence is flagged, not refused: it may
+        be a track that is meant to be quiet."""
+        if job is not None and peaks and not any(p.any() for p in peaks):
+            job.notes.append(Note("warn.media.silent", {"name": row["name"]}))
         self._save_peaks(row["sha256"], np.concatenate(peaks) if peaks
                          else np.zeros((0, 2), np.float32))
         row = {"source_rate": self.rate, "linked_path": None, "linked_size": None,
@@ -308,60 +673,76 @@ class MediaStore:
                 [row[n] for n in names])
         self._meta.pop(row["id"], None)
 
-    def _link(self, path: Path, row: dict, info) -> None:
+    def _link(self, path: Path, row: dict, info, job: _Job | None = None) -> None:
         step = CHUNK_SEC * self.rate
+        errors: list = []
         with sf.SoundFile(str(path)) as f:
-            peaks, frames = _pump(lambda: f.read(step, dtype="float32", always_2d=True))
+            peaks, frames = _pump(lambda: _read_soft(f, step, "float32", errors))
+        if job is not None:
+            self._settle(path, job, row, frames, bool(errors))
         st = path.stat()
         self._finish({**row, "storage": "linked", "channels": info.channels,
                       "source_frames": frames, "subtype": info.subtype, "lossless": 1,
                       "linked_path": str(path), "linked_size": st.st_size,
-                      "linked_mtime_ns": st.st_mtime_ns}, peaks)
+                      "linked_mtime_ns": st.st_mtime_ns}, peaks, job)
 
-    def _encode_pcm(self, source: Path, row: dict) -> None:
+    def _encode_pcm(self, source: Path, row: dict, job: _Job | None = None) -> None:
         """Integer samples straight into FLAC: no float step, so bit-exact."""
         media_id = row["id"]
         info = sf.info(str(source))
         step = CHUNK_SEC * self.rate
         partial = self.working_file(media_id).with_suffix(".partial.flac")
+        errors: list = []
         with sf.SoundFile(str(source)) as f, sf.SoundFile(
                 str(partial), "w", self.rate, info.channels, subtype=info.subtype,
                 format="FLAC") as out:
             def read():
-                block = f.read(step, dtype="int32", always_2d=True)
+                block = _read_soft(f, step, "int32", errors)
                 out.write(block)
                 return block / 2.0 ** 31
             peaks, frames = _pump(read)
+        if job is not None:
+            self._settle(source, job, row, frames, bool(errors))
         lossless = _same_samples(source, partial, step)
         if not lossless:
             self._keep_original(source, media_id)
         partial.replace(self.working_file(media_id))
         self._finish({**row, "storage": "working", "channels": info.channels,
                       "source_frames": frames, "subtype": info.subtype,
-                      "lossless": int(lossless)}, peaks)
+                      "lossless": int(lossless)}, peaks, job)
 
-    def _encode_any(self, source: Path, row: dict, keep_original: bool) -> None:
-        """Anything ffmpeg can open, video included: first audio stream, 24-bit FLAC."""
+    def _encode_any(self, source: Path, row: dict, keep_original: bool,
+                    job: _Job) -> None:
+        """Anything ffmpeg can open, video included: first audio stream, 24-bit
+        FLAC, at most two channels (more are downmixed)."""
         media_id = row["id"]
-        channels = min(_ffprobe_channels(source), 2)
+        channels = min(job.probe.channels, 2)
         partial = self.working_file(media_id).with_suffix(".partial.flac")
         step = CHUNK_SEC * self.rate
-        with _ffmpeg_pcm(source, self.rate, channels) as pipe, sf.SoundFile(
+        with _ffmpeg_pcm(source, self.rate, channels) as dec, sf.SoundFile(
                 str(partial), "w", self.rate, channels, subtype="PCM_24",
                 format="FLAC") as out:
             def read():
-                raw = pipe.read(step * channels * 4)
+                raw = dec.read(step * channels * 4)
                 block = np.frombuffer(raw[: len(raw) // (4 * channels) * 4 * channels],
                                       dtype="<f4").reshape(-1, channels)
                 out.write(block)
                 return block
             peaks, frames = _pump(read)
+        damaged = dec.timed_out or dec.returncode != 0 or bool(dec.errors)
+        if frames == 0 and damaged and _exists(source):
+            if dec.timed_out:
+                raise MediaError("error.media.decode_timeout", name=source.name,
+                                 seconds=round(dec.stall))
+            raise MediaError("error.media.decode_failed", name=source.name,
+                             error=dec.errors or f"exit code {dec.returncode}")
+        self._settle(source, job, row, frames, damaged)
         if keep_original:
             self._keep_original(source, media_id)
         partial.replace(self.working_file(media_id))
         self._finish({**row, "storage": "working", "channels": channels,
                       "source_frames": frames, "subtype": "PCM_24", "lossless": 0},
-                     peaks)
+                     peaks, job)
 
     def _keep_original(self, source: Path, media_id: str) -> None:
         originals = self.folder / "originals"
@@ -588,37 +969,77 @@ def _pcm_info(path: Path, rate: int):
     return None
 
 
-def _ffprobe_channels(path: Path) -> int:
-    out = subprocess.run(  # noqa: S603 - fixed argv, no shell
-        [get_binary_path("ffprobe"), "-v", "error", "-select_streams", "a:0",
-         "-show_entries", "stream=channels", "-of", "csv=p=0", str(path)],
-        capture_output=True, text=True, check=False, stdin=subprocess.DEVNULL)
-    text = out.stdout.strip().splitlines()
-    if out.returncode != 0 or not text:
-        raise MediaError("error.media.no_audio", name=path.name)
-    return int(text[0])
+def _read_soft(f: sf.SoundFile, step: int, dtype: str, errors: list) -> np.ndarray:
+    """``f.read`` that treats a decode error as the end of the file: what was
+    read before it is kept, and the error is noted so the import is marked
+    partial."""
+    try:
+        return f.read(step, dtype=dtype, always_2d=True)
+    except sf.LibsndfileError as e:
+        errors.append(e)
+        return np.zeros((0, f.channels), dtype=dtype)
 
 
 class _ffmpeg_pcm:  # noqa: N801 - used as a context manager, reads like a function
-    """ffmpeg decoding the first audio stream to float32 at ``rate``."""
+    """ffmpeg decoding the first audio stream to float32 at ``rate``.
+
+    A watchdog kills it when ``read`` has delivered nothing for ``STALL_SEC``
+    (``timed_out``). It does not raise for a failing decode: after the block,
+    ``returncode``, ``errors`` (what ffmpeg said) and ``timed_out`` let the
+    caller keep the audio that did come out.
+    """
 
     def __init__(self, path: Path, rate: int, channels: int):
+        self.path = path
+        self.stall = STALL_SEC
+        self.timed_out = False
+        self.errors = ""
+        self.returncode: int | None = None
+        self._kept = b""
+        self._last = time.monotonic()
+        self._done = threading.Event()
         self.proc = subprocess.Popen(  # noqa: S603 - fixed argv, no shell
             [get_binary_path("ffmpeg"), "-v", "error", "-nostdin", "-i", str(path),
              "-map", "0:a:0", "-vn", "-ac", str(channels), "-ar", str(rate),
              "-f", "f32le", "-"],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        self.path = path
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # stderr is drained as it comes: a file full of damage makes ffmpeg
+        # write more than a pipe holds, and it would block on us.
+        self._drain = threading.Thread(target=self._drain_stderr, daemon=True)
+        self._watch = threading.Thread(target=self._watchdog, daemon=True)
+        self._drain.start()
+        self._watch.start()
+
+    def _drain_stderr(self) -> None:
+        keep = bytearray()
+        while chunk := self.proc.stderr.read(4096):
+            keep += chunk[: max(0, 4000 - len(keep))]
+        self._kept = bytes(keep)
+
+    def _watchdog(self) -> None:
+        while not self._done.wait(min(1.0, self.stall / 4)):
+            if time.monotonic() - self._last > self.stall:
+                self.timed_out = True
+                self.proc.kill()
+                return
+
+    def read(self, n: int) -> bytes:
+        data = self.proc.stdout.read(n)
+        self._last = time.monotonic()
+        return data
 
     def __enter__(self):
-        return self.proc.stdout
+        return self
 
     def __exit__(self, *exc):
+        self._done.set()
+        if exc[0] is not None:
+            self.proc.kill()
         self.proc.stdout.close()
-        err = self.proc.stderr.read().decode(errors="replace").strip()
+        self.returncode = self.proc.wait()
+        self._drain.join(timeout=5)
         self.proc.stderr.close()
-        if self.proc.wait() != 0 and exc[0] is None:
-            raise MediaError("error.media.decode_failed", name=self.path.name, error=err)
+        self.errors = self._kept.decode(errors="replace").strip()
         return False
 
 
