@@ -1,0 +1,163 @@
+"""Music report (WP25): every piece of music the programme actually plays.
+
+Reads :func:`kuulas.usage.extract`'s music-track uses, joins each to its
+media's ffprobe tags (stored at import in ``Media.extra["music_info"]``),
+and emits a semicolon-separated UTF-8 CSV and a printable HTML table for
+Teosto/Gramex-style royalty reporting.
+"""
+
+from __future__ import annotations
+
+import csv
+import html
+import io
+from dataclasses import dataclass
+
+import numpy as np
+
+from . import analysis
+from .messages import t
+from .mixer import Store
+from .model import Media, Project
+from .usage import extract
+
+_HEADER_KEYS = ("order", "title", "artist", "composer", "publisher", "isrc",
+                "file_name", "in", "out", "duration", "usage", "metadata")
+
+
+@dataclass(frozen=True)
+class ReportRow:
+    """One music use, ready for a report row."""
+
+    order: int
+    title: str
+    artist: str
+    composer: str
+    publisher: str
+    isrc: str
+    file_name: str
+    in_time: str
+    out_time: str
+    duration: str
+    background: bool
+    missing_metadata: bool
+
+
+def _stamp(frames: int, rate: int) -> str:
+    """``frames`` at ``rate`` as ``hh:mm:ss`` (whole seconds)."""
+    seconds = int(frames / rate)
+    hours, rest = divmod(seconds, 3600)
+    minutes, secs = divmod(rest, 60)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+
+
+def _speech_activity(project: Project, store: Store) -> tuple[tuple[int, int], ...]:
+    """Timeline ranges where an audible speech lane has detected activity."""
+    hop = analysis.hop_frames(project.rate)
+    muted_tracks = {track.id for track in project.tracks if track.mute}
+    ranges: list[tuple[int, int]] = []
+    for lane in analysis.speech_lanes(project, store).speakers:
+        if lane.name in muted_tracks:
+            continue
+        on = np.asarray(lane.on, dtype=bool)
+        starts = np.flatnonzero(on & np.r_[True, ~on[:-1]])
+        ends = np.flatnonzero(on & np.r_[~on[1:], True]) + 1
+        ranges.extend(
+            (start * hop, min(end * hop, project.length))
+            for start, end in zip(starts, ends, strict=True)
+        )
+    return tuple(ranges)
+
+
+def build_report(project: Project, store: Store) -> tuple[ReportRow, ...]:
+    """Every audible music-track use, in timeline order, with its metadata.
+
+    A piece is *background* when it overlaps detected speech activity on
+    another track, otherwise *featured*. A row is missing its title or artist
+    when the media has no tags for them.
+    """
+    uses = extract(project)
+    media_by_sha = {m.sha256: m for m in project.media}
+    rate = project.rate
+    speech = _speech_activity(project, store)
+    rows: list[ReportRow] = []
+    order = 0
+    for u in uses:
+        if u.role != "music" or not u.audible:
+            continue
+        media: Media | None = media_by_sha.get(u.media_sha256)
+        info = (media.extra.get("music_info") if media is not None else {})
+        info = info or {}
+        order += 1
+        title = info.get("title", "")
+        artist = info.get("artist", "")
+        background = any(u.timeline_from < end and u.timeline_to > start
+                         for start, end in speech)
+        rows.append(ReportRow(
+            order=order,
+            title=title,
+            artist=artist,
+            composer=info.get("composer", ""),
+            publisher=info.get("publisher", ""),
+            isrc=info.get("isrc", ""),
+            file_name=media.name if media is not None else "",
+            in_time=_stamp(u.timeline_from, rate),
+            out_time=_stamp(u.timeline_to, rate),
+            duration=_stamp(u.timeline_to - u.timeline_from, rate),
+            background=background,
+            missing_metadata=not (title and artist),
+        ))
+    return tuple(rows)
+
+
+def _headers() -> tuple[str, ...]:
+    return tuple(t(f"music_report.header.{key}") for key in _HEADER_KEYS)
+
+
+def _usage(row: ReportRow) -> str:
+    return t("music_report.background" if row.background else "music_report.featured")
+
+
+def _metadata(row: ReportRow) -> str:
+    return t("music_report.missing_metadata") if row.missing_metadata else ""
+
+
+def render_csv(rows: tuple[ReportRow, ...]) -> str:
+    """Semicolon-separated UTF-8 CSV, with Excel's UTF-8 signature."""
+    out = io.StringIO()
+    writer = csv.writer(out, delimiter=";", quoting=csv.QUOTE_MINIMAL,
+                        lineterminator="\n")
+    writer.writerow(_headers())
+    for r in rows:
+        writer.writerow([str(r.order), r.title, r.artist, r.composer,
+                         r.publisher, r.isrc, r.file_name, r.in_time,
+                         r.out_time, r.duration, _usage(r), _metadata(r)])
+    return "\ufeff" + out.getvalue()
+
+
+def render_html(rows: tuple[ReportRow, ...],
+                *, title: str | None = None) -> str:
+    """A printable HTML table of the report rows."""
+    title = title or t("music_report.title")
+    language = t("music_report.html_lang")
+
+    def cell(text: str) -> str:
+        return f"<td>{html.escape(str(text))}</td>"
+
+    head = "".join(f"<th>{html.escape(h)}</th>" for h in _headers())
+    body = "".join(
+        "<tr>" + "".join(cell(v) for v in (
+            r.order, r.title, r.artist, r.composer, r.publisher, r.isrc,
+            r.file_name, r.in_time, r.out_time, r.duration,
+            _usage(r), _metadata(r))) + "</tr>"
+        for r in rows)
+    return (
+        f"<!DOCTYPE html><html lang=\"{html.escape(language)}\">"
+        "<head><meta charset=\"utf-8\">"
+        f"<title>{html.escape(title)}</title>"
+        "<style>table{border-collapse:collapse}th,td{border:1px solid #333;"
+        "padding:4px 8px;text-align:left}</style></head>"
+        f"<body><h1>{html.escape(title)}</h1>"
+        f"<table><thead><tr>{head}</tr></thead><tbody>{body}</tbody>"
+        "</table></body></html>"
+    )

@@ -200,5 +200,22 @@
   "export.what.tracks": "Tracks · {what} · {processing}",
   "export.processing.dry": "dry",
   "export.processing.as_heard": "as heard",
-  "history.export": "v{n} exported, {what}"
+  "history.export": "v{n} exported, {what}",
+  "music_report.title": "Music report",
+  "music_report.html_lang": "en",
+  "music_report.header.order": "Order",
+  "music_report.header.title": "Title",
+  "music_report.header.artist": "Artist",
+  "music_report.header.composer": "Composer",
+  "music_report.header.publisher": "Publisher",
+  "music_report.header.isrc": "ISRC",
+  "music_report.header.file_name": "File name",
+  "music_report.header.in": "In",
+  "music_report.header.out": "Out",
+  "music_report.header.duration": "Duration",
+  "music_report.header.usage": "Use",
+  "music_report.header.metadata": "Metadata",
+  "music_report.background": "Background",
+  "music_report.featured": "Featured",
+  "music_report.missing_metadata": "Missing title or artist"
 }

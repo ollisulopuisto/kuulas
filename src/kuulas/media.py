@@ -361,6 +361,38 @@ def probe(path: Path) -> Probe:
     return Probe(channels, seconds, False)
 
 
+def _music_tags(path: Path) -> dict[str, str]:
+    """Read optional music tags. Tags must never prevent a usable import."""
+    fields = {
+        "title": "title", "artist": "artist", "album": "album",
+        "composer": "composer", "lyricist": "lyricist", "publisher": "publisher",
+        "isrc": "isrc", "label": "label", "copyright": "copyright",
+        "year": "date",
+    }
+    try:
+        out = subprocess.run(  # noqa: S603 - fixed argv, no shell
+            [get_binary_path("ffprobe"), "-v", "error", "-show_entries",
+             "format_tags", "-of", "json", str(path)],
+            capture_output=True, text=True, errors="replace", check=False,
+            stdin=subprocess.DEVNULL, timeout=PROBE_TIMEOUT_SEC)
+        if out.returncode != 0:
+            return {}
+        tags = json.loads(out.stdout).get("format", {}).get("tags", {})
+        if not isinstance(tags, dict):
+            return {}
+    except (OSError, subprocess.SubprocessError, ValueError, TypeError, AttributeError):
+        return {}
+    normalised = {str(key).casefold(): value for key, value in tags.items()}
+    result = {}
+    for key, tag in fields.items():
+        value = normalised.get(tag)
+        if key == "year" and not value:
+            value = normalised.get("year")
+        if value is not None and str(value).strip():
+            result[key] = str(value).strip()
+    return result
+
+
 class MediaStore:
     """``folder`` is the package's ``media/``. The database and ``caches/``
     default to its siblings, as in a package (docs/FORMAT.md, "Layout")."""
@@ -604,7 +636,9 @@ class MediaStore:
         pr = probe(path)
         self._check_source_rate(path)
         new = {"id": media_id, "sha256": digest, "name": path.name,
-               "time_ref_flicks": self._time_reference(path, notes)}
+               "time_ref_flicks": self._time_reference(path, notes),
+               "extra": json.dumps({"music_info": _music_tags(path)},
+                                   ensure_ascii=False)}
         if pr.channels > 2:
             notes.append(Note("warn.media.downmixed", {"name": path.name,
                                                        "channels": pr.channels}))
@@ -707,7 +741,9 @@ class MediaStore:
             raise MediaError("error.media.empty", name=source.name)
         if damaged or (short and job.probe.exact):
             partial = {"frames": frames, "expected_frames": expected}
-            row["extra"] = json.dumps({"partial": partial})
+            extra = json.loads(row.get("extra") or "{}")
+            extra["partial"] = partial
+            row["extra"] = json.dumps(extra, ensure_ascii=False)
             job.notes.append(self._partial_note(source.name, partial))
 
     @staticmethod

@@ -1,6 +1,7 @@
 import os
 import struct
 import subprocess
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -26,6 +27,56 @@ def test_import_decodes_to_the_project_rate(tmp_path):
     assert abs(media.frames - 48000) <= 1
     piece = store.read(media.id, 1000, 10)
     np.testing.assert_allclose(piece, 0.5, atol=1e-3)
+
+
+def test_import_reads_ffprobe_music_tags(tmp_path, monkeypatch):
+    src = tmp_path / "music.wav"
+    write_wav(src, np.ones((1, 480), dtype=np.float32), 48000)
+    result = SimpleNamespace(returncode=0,
+        stdout='{"format":{"tags":{"TITLE":"Äitien laulu",'
+        '"ARTIST":"Säveltäjä","ALBUM":"Levy","COMPOSER":"Tekijä",'
+        '"LYRICIST":"Sanoittaja","PUBLISHER":"Kustantaja",'
+        '"ISRC":"FIABC1234567","LABEL":"Merkki",'
+        '"COPYRIGHT":"© 2026","DATE":"2026"}}}', stderr="")
+    calls = []
+
+    def fake_run(args, **kwargs):
+        calls.append((args, kwargs))
+        return result
+
+    monkeypatch.setattr(media_module.subprocess, "run", fake_run)
+    store = MediaStore(tmp_path / "media", rate=48000)
+
+    imported = store.import_file(src)
+
+    assert imported.extra["music_info"] == {
+        "title": "Äitien laulu", "artist": "Säveltäjä", "album": "Levy",
+        "composer": "Tekijä", "lyricist": "Sanoittaja", "publisher": "Kustantaja",
+        "isrc": "FIABC1234567", "label": "Merkki", "copyright": "© 2026",
+        "year": "2026",
+    }
+    assert "format_tags" in calls[0][0]
+    assert calls[0][1]["timeout"] > 0
+
+
+@pytest.mark.parametrize("result", [
+    SimpleNamespace(returncode=0, stdout='{"format":{}}', stderr=""),
+    SimpleNamespace(returncode=0, stdout='{"format":{"tags":[]}}', stderr=""),
+    OSError("ffprobe unavailable"),
+])
+def test_import_survives_missing_or_failed_tag_probe(tmp_path, monkeypatch, result):
+    src = tmp_path / "music.wav"
+    write_wav(src, np.ones((1, 480), dtype=np.float32), 48000)
+    def run(*_args, **_kwargs):
+        if isinstance(result, Exception):
+            raise result
+        return result
+    monkeypatch.setattr(media_module.subprocess, "run", run)
+    store = MediaStore(tmp_path / "media", rate=48000)
+
+    imported = store.import_file(src)
+
+    assert imported.extra.get("music_info", {}) == {}
 
 
 def test_reads_past_the_end_are_zero_padded(tmp_path):
