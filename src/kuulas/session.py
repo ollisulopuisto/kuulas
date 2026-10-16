@@ -22,7 +22,7 @@ from .clock import flicks_to_frames
 from .history import History
 from .media import MediaStore
 from .messages import t
-from .model import Project
+from .model import Project, SyncGroup
 
 log = logging.getLogger("kuulas.session")
 
@@ -35,6 +35,16 @@ MUTE_FIELDS = {"mute", "solo"}
 
 #: How many selected words a "cut" label quotes before it stops.
 LABEL_WORDS = 5
+
+
+def _sync_partners(groups: tuple[SyncGroup, ...]) -> dict[str, tuple[str, ...]]:
+    """Media id -> the other media that ran on the same clock."""
+    out: dict[str, tuple[str, ...]] = {}
+    for g in groups:
+        ids = sorted(m for m, _ in g.members)
+        for m in ids:
+            out[m] = tuple(o for o in ids if o != m)
+    return out
 
 
 def _coalesce_key(name: str, args: dict) -> str | None:
@@ -61,8 +71,6 @@ class Session:
         self.history: History = self.package.history
         self.store: MediaStore = self.package.store
         self._subscribers: list[Callable[[Project], None]] = []
-        #: transcript revision -> words. A revision never changes once stored.
-        self._words: dict[int, list[dict]] = {}
 
     # -- the project -------------------------------------------------------
 
@@ -77,6 +85,7 @@ class Session:
 
     def close(self) -> None:
         with self.lock:
+            self.history.budget.log_stats()
             self.package.close()
 
     def subscribe(self, fn: Callable[[Project], None]) -> None:
@@ -210,9 +219,11 @@ class Session:
             out = {}
             for media_id, stored in self.history.material["transcripts"].items():
                 rev = int(stored)
-                if rev not in self._words:
-                    self._words[rev] = self.history.transcript(rev)
-                out[media_id] = self._words[rev]
+                # A revision never changes once stored, so it is kept (in the
+                # memory budget) for as long as there is room for it.
+                out[media_id] = self._memo(
+                    "words", self._view_key(rev),
+                    lambda rev=rev: self.history.transcript(rev), 150)
             return out
 
     def set_transcript(self, media_id: str, words: list[dict], label: str) -> Project:
@@ -225,9 +236,42 @@ class Session:
             self.history.add_transcript(media_id, words, label=label)
             return self._changed()
 
+    def _view_key(self, *parts: object) -> str:
+        """Key of a memoized view: this project, and what the view is of."""
+        return "|".join((str(self.history.path), *map(str, parts)))
+
     def timeline_words(self) -> list[dict]:
+        """Every word the timeline plays, memoized on (edit state, rate,
+        transcript revisions): the same state asked twice, or reached again
+        by undo, costs nothing. The list is yours; the word dicts in it are
+        shared and must not be changed."""
         with self.lock:
-            return transcript.timeline_words(self.history.state, self.transcripts())
+            revs = sorted(self.history.material["transcripts"].items())
+            key = self._view_key(self.history.edit_hash, self.history.rate, revs)
+
+            def compute() -> list[dict]:
+                return transcript.timeline_words(self.history.state, self.transcripts())
+
+            return list(self._memo("timeline_words", key, compute, 300))
+
+    def sync_partners(self) -> dict[str, tuple[str, ...]]:
+        """Media id -> the media recorded on the same clock, memoized on the
+        material revision (sync groups are material)."""
+        with self.lock:
+            key = self._view_key(self.history.material_head)
+            return dict(self._memo(
+                "sync_partners", key,
+                lambda: _sync_partners(self.history.state.sync_groups), 100))
+
+    def _memo(self, name: str, key: str, compute: Callable[[], object],
+              bytes_per_item: int):
+        """``compute()`` once per ``key``, in the shared memory budget."""
+        budget = self.history.budget
+        value = budget.get(name, key)
+        if value is None:
+            value = compute()
+            budget.put(name, key, value, 1024 + bytes_per_item * len(value))
+        return value
 
 
 # -- commands ----------------------------------------------------------------

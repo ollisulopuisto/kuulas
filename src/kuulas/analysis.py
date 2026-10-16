@@ -16,6 +16,8 @@ cannot register as a talker.
 
 from __future__ import annotations
 
+import itertools
+import logging
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
@@ -26,8 +28,9 @@ from speechmix import envelopes, grid, masks
 from speechmix.dsp import FLOOR_DB
 from speechmix.stems import Lanes
 
-from . import ops
+from . import levels, ops
 from .media import workers
+from .messages import t
 from .mixer import Store
 from .model import Project, Track
 
@@ -38,6 +41,8 @@ OPEN_BEFORE_S = masks.DUCK_LOOKAHEAD
 OPEN_AFTER_S = masks.DUCK_HOLD
 
 CHUNK_SEC = 60
+
+log = logging.getLogger("kuulas.analysis")
 
 
 def speech_tracks(p: Project) -> list[Track]:
@@ -53,13 +58,65 @@ def track_levels(p: Project, store: Store, track: Track) -> tuple[np.ndarray, np
 
     Raw: no clip or track gain, because the decision's margin is over the
     track's own floor and gain must not move it (``grid.lane``).
+
+    Composed from the store's cached per-media envelopes when it has them
+    (``MediaStore.envelope``), so an edit reads no audio (WP36); measured
+    from the audio otherwise, which gives the same numbers.
     """
+    clips = [c for c in track.clips if not c.muted]
+    composed = _from_envelopes(p, store, clips, track.id)
+    if composed is None:
+        composed = _from_audio(p, store, clips)
+    mean_sq, valid = composed
+    db = 10.0 * np.log10(np.maximum(mean_sq, 1e-12))
+    return np.maximum(db, FLOOR_DB).astype(np.float32), valid
+
+
+def _hops(p: Project) -> int:
+    return int(np.ceil(p.length / hop_frames(p.rate))) if p.length else 0
+
+
+def _from_envelopes(p: Project, store: Store, clips,
+                    track_id: str) -> tuple[np.ndarray, np.ndarray] | None:
+    """Mean square per hop from envelopes, or None when they cannot give the
+    audio path's answer: no envelope provider, a media without one, or clips
+    that overlap (their waveforms add before they are squared)."""
+    provider = getattr(store, "envelope", None)
+    if provider is None:
+        return None
     hop = hop_frames(p.rate)
-    n = int(np.ceil(p.length / hop)) if p.length else 0
+    block = levels.block_frames(hop)
+    n = _hops(p)
+    end = n * hop
+    spans = sorted((c for c in clips if min(c.end, end) > max(c.start, 0)),
+                   key=lambda c: c.start)
+    if any(b.start < a.end for a, b in itertools.pairwise(spans)):
+        log.info(t("log.analysis.overlap", track_id=track_id))
+        return None
+    energy = np.zeros(n, dtype=np.float64)
+    valid = np.zeros(n, dtype=bool)
+    for c in spans:
+        try:
+            frames = p.media_item(c.media).frames
+        except KeyError:
+            return None
+        blocks = provider(c.media, block)
+        if blocks is None:
+            return None
+        lo, hi = max(c.start, 0), min(c.end, end)
+        edges = np.concatenate(([lo], np.arange((lo // hop + 1) * hop, hi, hop), [hi]))
+        upto = levels.energy_upto(blocks, block, frames, edges + (c.offset - c.start))
+        np.add.at(energy, edges[:-1] // hop, np.diff(upto))
+        valid[lo // hop:(hi - 1) // hop + 1] = True
+    return energy / hop, valid
+
+
+def _from_audio(p: Project, store: Store, clips) -> tuple[np.ndarray, np.ndarray]:
+    hop = hop_frames(p.rate)
+    n = _hops(p)
     mean_sq = np.zeros(n, dtype=np.float64)
     valid = np.zeros(n, dtype=bool)
     step = (CHUNK_SEC * p.rate // hop) * hop
-    clips = [c for c in track.clips if not c.muted]
     for first in range(0, n * hop, step):
         count = min(step, n * hop - first)
         buf = np.zeros(count, dtype=np.float64)
@@ -75,8 +132,7 @@ def track_levels(p: Project, store: Store, track: Track) -> tuple[np.ndarray, np
         h = count // hop
         mean_sq[h0:h0 + h] = np.mean(np.square(buf[: h * hop]).reshape(h, hop), axis=1)
         valid[h0:h0 + h] = cover[: h * hop].reshape(h, hop).any(axis=1)
-    db = 10.0 * np.log10(np.maximum(mean_sq, 1e-12))
-    return np.maximum(db, FLOOR_DB).astype(np.float32), valid
+    return mean_sq, valid
 
 
 def speech_lanes(p: Project, store: Store) -> Lanes:

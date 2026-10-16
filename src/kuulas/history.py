@@ -29,15 +29,18 @@ the later change.
 
 from __future__ import annotations
 
+import copy
 import getpass
 import json
 import socket
+from collections import OrderedDict
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 from . import db as dbm
 from .clock import flicks_to_frames, frames_to_flicks
+from .memory import BUDGET, MemoryBudget
 from .messages import KuulasError, t
 from .model import Media, Project, SyncGroup
 
@@ -46,6 +49,18 @@ from .model import Media, Project, SyncGroup
 EMPTY_MATERIAL: dict[str, Any] = {"transcripts": {}, "speakers": {}, "sync": {}}
 
 MAIN_EDIT = "main"
+
+#: Decoded edit states kept so that undo, redo and goto never decompress
+#: (WP36): the last this many distinct states this History has touched.
+DECODED_STATES = 64
+
+
+def _state_bytes(p: Project) -> int:
+    """A rough size for the memory budget: a Project is a few small objects
+    per clip, track and envelope point. The budget needs the right order of
+    magnitude, not the byte."""
+    clips = sum(len(t.clips) for t in p.tracks)
+    return 2048 + 600 * clips + 1200 * len(p.tracks)
 
 
 class HistoryError(KuulasError, RuntimeError):
@@ -118,8 +133,13 @@ class History:
     def __init__(self, path: str | Path, initial: Project | None = None, *,
                  edit: str = MAIN_EDIT, author: str | None = None,
                  machine: str | None = None, read_only: bool = False,
-                 locked_by: str | None = None):
+                 locked_by: str | None = None, budget: MemoryBudget | None = None):
         self.path = Path(path)
+        self.budget = BUDGET if budget is None else budget
+        #: Hashes of the decoded states this History has put in the budget,
+        #: least recently used first; the oldest beyond ``DECODED_STATES``
+        #: are dropped from it.
+        self._recent: OrderedDict[str, None] = OrderedDict()
         self.read_only = read_only
         self.locked_by = locked_by
         self.db = dbm.connect(self.path, read_only=read_only)
@@ -179,10 +199,40 @@ class History:
         return rows[0]
 
     def _load(self, node: str) -> Project:
-        d = dbm.get_blob(self.db, self._node(node)["state"])
+        digest = self._node(node)["state"]
+        cached = self.budget.get("states", self._state_key(digest))
+        if cached is not None:
+            self._touch(digest)
+            return cached
+        d = dbm.get_blob(self.db, digest)
         # Sync groups come from the material (an edit state written by
         # 26.10.16.5 still has its own; the material's win).
-        return Project.from_dict({**d, "rate": self.rate, "sync_groups": []})
+        state = Project.from_dict({**d, "rate": self.rate, "sync_groups": []})
+        self._remember(digest, state)
+        return state
+
+    # -- decoded states (WP36) ------------------------------------------------
+    # Keyed by the state's own hash, so an entry can never be stale: a
+    # coalesced drag stores a new hash, and the old one is simply not asked for.
+
+    def _state_key(self, digest: str) -> str:
+        return f"{digest}@{self.rate}"
+
+    def _touch(self, digest: str) -> None:
+        self._recent.pop(digest, None)
+        self._recent[digest] = None
+        while len(self._recent) > DECODED_STATES:
+            old, _ = self._recent.popitem(last=False)
+            self.budget.discard("states", self._state_key(old))
+
+    def _remember(self, digest: str, state: Project) -> None:
+        self.budget.put("states", self._state_key(digest), state, _state_bytes(state))
+        self._touch(digest)
+
+    @property
+    def edit_hash(self) -> str:
+        """Hash of this edit's current state: equal hash, equal edit state."""
+        return self._node(self.head)["state"]
 
     def _parent(self, node: str) -> str | None:
         return self._node(node)["parent"]
@@ -232,7 +282,11 @@ class History:
         """The current material root: transcript per media, speaker names."""
         row = self.db.execute("select root from material_revs where id=?",
                               (self.material_head,)).fetchone()
-        return {**EMPTY_MATERIAL, **dbm.get_blob(self.db, row[0])}
+        # Roots are immutable and keyed by their hash; hand out a copy so a
+        # caller that edits what it got cannot change the cached one.
+        root = self.budget.fetch("material", row[0],
+                                 lambda: dbm.get_blob(self.db, row[0]), nbytes=4096)
+        return copy.deepcopy({**EMPTY_MATERIAL, **root})
 
     def _material_rev(self, root: dict, label: str) -> tuple[int, int]:
         """A new material revision after the current head; ``(from, to)``."""
@@ -298,6 +352,7 @@ class History:
                                 (self.head, self.edit))
         self._coalesce = coalesce
         self._edit_state = replace(state, media=(), sync_groups=())
+        self._remember(self.edit_hash, self._edit_state)
         self._written()
 
     def _path(self, target: str) -> tuple[list[dict], list[dict]]:
