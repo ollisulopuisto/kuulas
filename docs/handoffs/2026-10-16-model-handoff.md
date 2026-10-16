@@ -7,9 +7,8 @@ message key, and commit locally only. Do not push.
 
 ## Work completed in isolated worktrees
 
-These are local commits in separate worktrees. They have **not** been merged
-into `main`; review and integrate them before treating the roadmap or release
-documentation as current. WP-specific docs are in their respective branches.
+These are merged into `main` as v26.10.16.14 (480 pytest pass, Ruff clean);
+the worktrees and branches are removed. WP-specific docs are in `docs/plans/`.
 
 | WP | Commit | Worktree | Verification reported |
 |---|---|---|---|
@@ -19,13 +18,13 @@ documentation as current. WP-specific docs are in their respective branches.
 | WP9 — background jobs and transcription | `e41f6aa` | `/private/tmp/kuulas-wp9` | 414 pytest passed; Ruff clean |
 | WP13 — Hindenburg import | `7795489` | `/private/tmp/kuulas-wp13` | 412 pytest passed; Ruff clean |
 
-The WP11 attempt is already in its worktree; inspect and reuse it rather than
-recreating the work. The test counts above are from the task agents' reports.
+The test counts above are from the task agents' reports. The WP4 draft moved
+off `main` to the branch `wp4-ui-shell`.
 
 ## Current checkout and next work
 
 - WP4 (L, UI shell and timeline) is intentionally left for a larger model.
-  The main checkout contains an in-progress WP4 draft, including
+  Branch `wp4-ui-shell` contains an in-progress WP4 draft, including
   `docs/plans/2026-10-16-wp4-ui-shell.md`. Preserve and review that work; its
   plan reports tasks 1–4 started, with task 5 and acceptance checks remaining.
 - After WP4, continue the first playable build in order: WP5 keyboard, WP19a
@@ -38,11 +37,10 @@ recreating the work. The test counts above are from the task agents' reports.
 
 ## Integration notes
 
-The isolated task branches may have different bases. Review their ancestry and
-diffs before merging, then reconcile any conflicts. At integration, update the
-version, `CHANGELOG.md`, `ROADMAP.md`, and `docs/PLAN.md` status lines together
-so those files describe only work that has actually landed. Parallel task
-agents should leave those release and status records alone.
+At integration, update the version, `CHANGELOG.md`, `ROADMAP.md`, and
+`docs/PLAN.md` status lines together so those files describe only work that
+has actually landed. Parallel task agents should leave those release and
+status records alone.
 
-No hardware listening test, roadmap milestone regrouping, or merge of these
-worktree commits is recorded as complete here.
+No hardware listening test or roadmap milestone regrouping is recorded as
+complete here.

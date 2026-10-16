@@ -64,21 +64,21 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R32 | Music report per edit: every piece of music actually heard, with metadata, programme times, duration and background/featured, as CSV and printable table | planned: WP25 |
 | R33 | **MUST.** Sped-up listening (toggle normal/fast, pitch kept) and JKL shuttle with slow and fast scrubbing | planned: WP26 |
 | R34 | Project settings changeable later, undoably: sample rate (e.g. 44.1 → 48 kHz, every position converted), mono or stereo master, loudness target, export defaults | planned: WP27 |
-| R35 | Own project format `Name.kuulas` (package folder): shared material (media, sync, transcripts) apart from per-edit state; recording facts in flicks so they survive rate changes; versioned with forward compatibility; crash-safe, locked against two writers, automatic backups; lossless Hindenburg round trip | done: WP29 in v26.10.16.5 (package, manifest, lock, v1 schema, material apart from edits, UUIDv7 steps, checkpoints, backups, v0 migration, `kuulas info`), WP30 in v26.10.16.6 (recording facts in flicks, sync groups per media in material); Hindenburg round trip in WP13 |
+| R35 | Own project format `Name.kuulas` (package folder): shared material (media, sync, transcripts) apart from per-edit state; recording facts in flicks so they survive rate changes; versioned with forward compatibility; crash-safe, locked against two writers, automatic backups; lossless Hindenburg round trip | done: WP29 in v26.10.16.5 (package, manifest, lock, v1 schema, material apart from edits, UUIDv7 steps, checkpoints, backups, v0 migration, `kuulas info`), WP30 in v26.10.16.6 (recording facts in flicks, sync groups per media in material); Hindenburg import done (WP13, v26.10.16.14); export back to Hindenburg still open |
 | R36 | Focus mode: F focuses a speaker's tracks, the others shrink to strips that keep sync visible; Shift+F also solos; transcript dims other speakers | planned: WP28 |
 | R37 | Review round trip: A sends v1, B edits (some changes done, some as suggestions), A gets v2 and accepts or rejects each; works even if A kept editing; hand-off copies carry only used audio | designed: docs/FORMAT.md; build WP31 (changes view), WP32 |
 | R38 | Voice condition as a sub-choice of speech ("Speech · remote"; also for speech mixes, never music): clean / room / remote / phone / auto picks a speechmix preset; auto-suggested from measured noise floor, bandwidth, echo and clipping | waits for presets in speechmix (podcast repo); kuulas side in WP22 |
 | R39 | Internationalisation from day one: English and Finnish complete, one catalog for Python and UI, speechmix's messages translated too; locale-aware numbers, Helsinki times with zone, platform key names | WP33a done in v26.10.16.4 (Python catalogs, `messages.t`, speechmix translator); WP33b done in v26.10.16.12 (`ui/i18n.js`, locale endpoint, AppleLanguages); the language setting's screen waits for WP27; the `ast` scan still covers raised exceptions only |
 | R40 | Fault tolerance: a bad file or device costs that file or a second of audio, never the session; decoders time out, plug-ins run isolated, the audio callback never fails, device changes are handled | playback side done (WP2, v26.10.16.8; not yet run on hardware); import side WP34 |
-| R41 | Snappy UI, multithreaded throughout: heavy work never blocks; edits under 50 ms; 60 fps; no underruns during heavy jobs; background jobs yield to interaction | API and engine done (WP2, WP3: edit round trip 14 ms on the heavy hour); UI render budgets in WP4, jobs in WP9 |
+| R41 | Snappy UI, multithreaded throughout: heavy work never blocks; edits under 50 ms; 60 fps; no underruns during heavy jobs; background jobs yield to interaction | API and engine done (WP2, WP3: edit round trip 14 ms on the heavy hour); UI render budgets in WP4; jobs done (WP9, v26.10.16.14) |
 | R42 | Smart caching: everything derived from a recording is computed once and survives every edit; one memory budget | planned: ground rule 15, WP36 |
 | R43 | Remembered settings; quick actions without repeated dialogs; helpful messages with Undo | planned: ground rule 16, WP35 |
 | R44 | Navigation: time zoom with snap levels, Z toggles close/wide view, waveform and lane height zoom, scrolling, overview, follow modes, clear keyboard focus | planned: WP4 |
 | R45 | Single-key shortcuts for editing (as in Hindenburg); Mod only for file and app actions | planned: WP5 |
-| R46 | Autosave on every edit; Mod+S saves a named version; exports are versioned (v1, v2…) without overwrites, skipped when unchanged, traceable | planned: WP5, WP11, WP31 |
-| R47 | Export the whole edit or just a selection; export each track as its own aligned file (dry or as heard, whole or selection) so you can edit in kuulas and mix in Logic | planned: WP11 |
+| R46 | Autosave on every edit; Mod+S saves a named version; exports are versioned (v1, v2…) without overwrites, skipped when unchanged, traceable | export versioning done (WP11, v26.10.16.14); autosave/named versions planned: WP5, WP31 |
+| R47 | Export the whole edit or just a selection; export each track as its own aligned file (dry or as heard, whole or selection) so you can edit in kuulas and mix in Logic | done: WP11 in v26.10.16.14 (API; export dialog is UI work) |
 | R48 | Series: material reused across episodes is tracked even when the other project is closed; badges, series view, unused material, cross-series search; published only when marked | usage extraction done (WP37, v26.10.16.14); series files and views planned (WP38) |
-| R49 | Portable projects: user B opens user A's project with different paths; relink once and the rest follows, always verified by hash | planned: WP39 |
+| R49 | Portable projects: user B opens user A's project with different paths; relink once and the rest follows, always verified by hash | done: WP39 in v26.10.16.14 (not yet tried across two real machines) |
 | R50 | Long history stays fast: keep every step forever, open under 1 s, incremental backups, thinning only if a speed budget fails | planned: WP40 |
 | R51 | Sync states made explicit: free from sync on purpose (U, or answer after Alt-drag) vs. undecided drift with its cause; never auto-resync | planned: WP19a |
 | R52 | Session markers in history; undo across sittings says so | planned: WP8 |
@@ -166,6 +166,12 @@ sizes: `docs/PLAN.md`, section "Triage".
   (`node --test ui/tests/`), 369 pytest. **Not done:** the language
   setting's screen (WP27); not run in a real browser.
 - WP3: local API and `kuulas open` (edit round trip 14 ms median); WP33b: UI translations; WP41: people, interviews, who speaks. 406 Python + 25 UI tests.
+- WP9, WP11, WP13, WP37, WP39 (v26.10.16.14): background jobs with local
+  transcription (Colab left open); export (WAV/FLAC/MP3, selection, stems,
+  mastering; API only, no dialog); Hindenburg `.nhsx` import (no export);
+  usage extractor; portable projects (schema v3). 480 pytest pass. **Not done:**
+  real-model transcription run, two-machine portability trial, `POST
+  /api/export` and jobs from a real browser.
 - WP2: playback engine with fault handling and golden renders (needs the owner's listening test on the Mac: `uv run pytest -q tests/hardware -s`).
 
 ## Later (v2)

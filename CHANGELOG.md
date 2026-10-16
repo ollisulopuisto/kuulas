@@ -1,7 +1,25 @@
-# Changelog
-
 ## [v26.10.16.14] - 2026-10-16
 
+- Export: mix the whole edit, a selection, or each track as its own aligned
+  file (dry or as heard) to WAV, FLAC or MP3, with optional loudness
+  mastering. Export names are versioned and never overwrite; an unchanged
+  export is skipped and points at the earlier file. Settings are remembered
+  per project and each export is a history entry. Cancelling removes partial
+  files. Available through `POST /api/export`; there is no export dialog yet.
+- Background jobs: transcription runs as cancellable local jobs
+  (faster-whisper) that yield to playback and user input, with progress in
+  `GET /api/jobs` and on the live channel. A newer transcript is never
+  overwritten; the job reports a conflict instead. Colab transcription is not
+  available yet.
+- Hindenburg sessions (`.nhsx`) can be imported: tracks, regions with gain,
+  pan, mute and fades, and the transcription words with speaker labels.
+  Missing or unreadable audio is reported per file and the rest still
+  imports. Importing only; exporting back to Hindenburg is not built.
+- Portable projects: linked media is found again on another machine through
+  package-relative paths, media folders and learned path rewrites, and every
+  candidate is checked by content hash. Relinking one file fixes the others
+  under the same folder. Project data gains path fields (schema v3,
+  migrated automatically).
 - Projects can now report every used recording range in its original media
   clock, including ranges heard through excerpts.
 - Muted and deeply ducked passages are marked inaudible; nearby uses on the

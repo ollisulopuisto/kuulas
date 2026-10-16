@@ -943,7 +943,7 @@ Tests: tree layout from a node list as a pure function;
 
 ### WP9 — Background jobs and transcription
 
-Status: open. Needs WP1.
+Status: done in v26.10.16.14 (local faster-whisper jobs, cancel, yield to playback/input; Colab transcription left open and reports "not available yet"; no real-model run recorded). Needs WP1.
 
 New file `src/kuulas/jobs.py`: a small job runner on a
 `ThreadPoolExecutor(max_workers=media.workers())`.
@@ -1029,7 +1029,7 @@ the same frame count.
 
 ### WP11 — Export
 
-Status: open. Needs WP1.
+Status: done in v26.10.16.14 (WAV/FLAC/MP3, selection, stems, mastering, versioned names; 49 export tests, mastering tests need a writable `NUMBA_CACHE_DIR`; export dialog is UI work, not built). Needs WP1.
 
 Command `export` `{path, format: "wav"|"flac"|"mp3", bit_depth: 16|24,
 mp3_kbps: 64..320 (default 128 mono master, 192 stereo), range?: [start, end],
@@ -1227,7 +1227,7 @@ Hardware test `tests/hardware/test_record.py` for Mac, then Windows.
 
 ### WP13 — Hindenburg session import
 
-Status: open. Needs WP1.
+Status: done in v26.10.16.14 as import only (`import_nhsx`; original XML kept under `extra["nhsx"]`; Hindenburg export not built, so the round trip is open). Needs WP1.
 
 Command `import_nhsx` `{path}` using `nhsx.read` (`../podcast/packages/nhsx/src/nhsx/read.py`)
 and `nhsx.pipeline.tracks`. Map Hindenburg regions to clips (start, offset,
@@ -2572,7 +2572,7 @@ files never conflict.
 
 ### WP39 — Portable projects: different paths on every machine
 
-Status: open. Needs WP29. Sonnet 5.5. Before WP32 and WP38.
+Status: done in v26.10.16.14 (resolver, media folders, learned rewrites, single-file relink; docs/FORMAT.md updated; schema v3; not tried across two real machines). Needs WP29. Sonnet 5.5. Before WP32 and WP38.
 
 User A works on a project, hands it to user B, whose paths differ; it must
 still work (owner, 2026-10-16).
