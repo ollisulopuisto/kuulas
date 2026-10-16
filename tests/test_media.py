@@ -2,10 +2,11 @@ import struct
 import subprocess
 
 import numpy as np
+import pytest
 import soundfile as sf
 from pedalboard.io import AudioFile
 
-from kuulas.media import MediaStore
+from kuulas.media import MediaError, MediaStore
 
 
 def write_wav(path, audio, rate):
@@ -252,3 +253,34 @@ def test_audio_is_taken_from_video(tmp_path):
     # AAC coding lowers a 0.125-peak tone to about 0.09-0.10 (ffmpeg's own decode
     # gives 0.10), so 0.1 was never a valid bar; 0.05 still proves the audio is there.
     assert np.abs(store.read(media.id, 24000, 4800)).max() > 0.05
+
+
+def test_two_files_sharing_an_id_prefix_are_refused(tmp_path):
+    # docs/FORMAT.md: the id is 12 hex digits of the hash, so the full hash
+    # is stored and checked. Fake the (astronomically unlikely) collision.
+    src = tmp_path / "a.wav"
+    write_int16(src, np.full((1, 480), 0.25, dtype=np.float32), 48000)
+    store = MediaStore(tmp_path / "media", rate=48000)
+    media = store.import_file(src)
+    store.db.execute("update media set sha256=? where id=?", ("f" * 64, media.id))
+    store._meta.clear()
+    with pytest.raises(MediaError) as err:
+        store.import_file(src)
+    assert err.value.key == "error.media.id_collision"
+
+
+def test_the_media_row_is_written_after_the_file(tmp_path, monkeypatch):
+    # A crash while the working file is being written leaves no row, so
+    # nothing looks imported.
+    src = tmp_path / "a.wav"
+    write_int16(src, np.full((1, 480), 0.25, dtype=np.float32), 48000)
+    store = MediaStore(tmp_path / "media", rate=48000)
+
+    def crash(*_args, **_kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr("kuulas.media._same_samples", crash)
+    with pytest.raises(OSError, match="disk full"):
+        store.import_file(src, copy=True)
+    assert store.find(src) is None
+    assert store.ids() == []

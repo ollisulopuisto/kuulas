@@ -134,29 +134,32 @@ Decisions already made (do not reopen them in a WP):
 
 ### Project folder
 
+A package folder `Name.kuulas/`, specified in `docs/FORMAT.md` (layout,
+schema, reader rules, lock, backups) and built by WP29:
+
 ```
 Interview.kuulas/
-  project.sqlite        History: nodes (states), meta (head), transcripts
-  media/                MediaStore
-    m<12 hex>.json      metadata; written last, so it marks a finished import
-    m<12 hex>.flac      working file (absent for linked media)
-    m<12 hex>.peaks.npy waveform min/max per 256 frames
-    originals/          kept originals (lossy/resampled sources when copy=True)
-    seen.json           sha256 -> every path that file was seen under
+  manifest.json         format identity; written at create and on upgrade only
+  project.sqlite        all state: material, edits, history (WAL)
+  lock.json             who has it open (absent when closed)
+  media/                MediaStore: <id>.flac, excerpts/, originals/
+  caches/               peaks/ onsets/ analysis/ render/ (rebuildable)
+  backups/              automatic and pre-migration database copies
   recordings/           WP12
-  exports/              WP11 default output folder
 ```
 
 ### What exists today (2026-10-16, 86 tests passing, 1 failing, 27 lint findings)
 
 | Module | Contents |
 |---|---|
-| `model.py` | `Media`, `Clip`, `Track`, `Bus`, `Project` (frozen dataclasses, JSON round-trip) |
+| `model.py` | `Media`, `Clip`, `Track`, `Bus`, `Project` (frozen dataclasses, JSON round-trip, unknown keys kept in `extra`) |
+| `package.py` | (WP29) `create`, `open_package`, manifest, lock, migrations, backups, `info` |
+| `db.py`, `migrations.py`, `caches.py`, `clock.py`, `cli.py` | (WP29) v1 schema and blobs, UUIDv7 step ids; v0 to v1; cache keys; flicks; `kuulas info` |
 | `ops.py` | all edits; `OPS` whitelist; `apply(p, name, args)` |
-| `history.py` | `History(path)`: `commit(label, state, coalesce)`, `undo`, `redo`, `goto`, `nodes`, `add_transcript`, `transcript` |
+| `history.py` | `History(path, edit=)`: `commit(label, state, coalesce, op=, context=, material=)`, `undo`, `redo`, `goto`, `nodes`, `create_edit`, `checkpoint`, `add_transcript`, `transcript`, `transcripts` (WP29: material apart from edit state) |
 | `curves.py` | breakpoint curves in dB |
 | `mixer.py` | `mix(project, store, first, count) -> (2, count) float32` |
-| `media.py` | `MediaStore`: `import_file(s)`, `read`, `peaks`, `find`, `seen_paths`, `missing`, `relink`, `consolidate`, BWF time reference |
+| `media.py` | `MediaStore`: `import_file(s)`, `read`, `peaks`, `find`, `seen_paths`, `missing`, `relink`, `consolidate`, BWF time reference; metadata as `media` rows, peaks in `caches/` (WP29) |
 | `analysis.py` | `silence_ranges`, `auto_silence`, `automix` (speechmix grid + duck masks) |
 | `transcript.py` | `timeline_words`, `cut_range` |
 | `transcribe.py` | `parse` (JSON), `from_segments`, `local` (faster-whisper) |
@@ -1880,7 +1883,7 @@ solo set, ↑/↓ in focus moves focus.
 
 ### WP29 — Project format v1: package, material, versions, backups
 
-Status: open. Needs WP0. **Opus 5.5.** Build it **before WP1**, so the
+Status: done in v26.10.16.5. Needs WP0. **Opus 5.5.** Build it **before WP1**, so the
 Session is written against the final layout. Spec: `docs/FORMAT.md`
 (everything in it is in scope except WP30's clock change).
 

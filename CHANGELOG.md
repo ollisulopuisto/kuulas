@@ -1,5 +1,33 @@
 # Changelog
 
+## [v26.10.16.5] - 2026-10-16
+
+The project format kuulas will keep (format version 1). There is still no
+app to open; this is what the app will save into.
+
+- A project is a `Name.kuulas` folder: one database for every edit and its
+  history, the audio beside it, rebuildable caches, and automatic backups.
+- Transcripts, media and their names are shared by every edit of a project:
+  a transcript correction made in one edit shows in all of them, and can be
+  undone, unless someone has changed the same transcript again since (then
+  kuulas refuses rather than throwing that change away).
+- Every history step records who made it and on which computer, with an id
+  that stays unique when a copy of the project comes back from a reviewer.
+  Steps can be named (checkpoints).
+- Opening a project that is open on another computer (via Dropbox or
+  similar) opens it read-only, instead of corrupting it. A project left
+  locked by a crash is taken over after two minutes, with a warning.
+- Automatic backups every 10 minutes while there are changes: the last 12,
+  plus the last one of each day for two weeks, in the project's `backups/`.
+- A project made by a newer kuulas opens and keeps everything this version
+  does not understand; one that needs a newer kuulas is refused with a
+  message saying which version made it.
+- Projects made by earlier development builds are upgraded on open, after a
+  backup copy of their database.
+- `kuulas info <folder>` shows a project's format, sizes, media (linked,
+  copied, missing) and backup count.
+- Waveform data is a cache: deleting `caches/` is safe; it is rebuilt.
+
 ## [v26.10.16.4] - 2026-10-16
 
 - Error messages are in Finnish as well as English. kuulas follows the

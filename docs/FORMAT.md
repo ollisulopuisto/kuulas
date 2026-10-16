@@ -150,7 +150,7 @@ transcript_revs(id INTEGER PRIMARY KEY, media TEXT NOT NULL, parent INTEGER,
 
 -- ---- edits: one undo tree each --------------------------------------------
 edits(id TEXT PRIMARY KEY, name TEXT NOT NULL, created_utc TEXT,
-      archived INTEGER NOT NULL DEFAULT 0, head INTEGER)
+      archived INTEGER NOT NULL DEFAULT 0, head TEXT)  -- a nodes.id
 nodes(id TEXT PRIMARY KEY,           -- UUIDv7: unique across copies, time-ordered
       edit TEXT NOT NULL REFERENCES edits(id),
       parent TEXT,

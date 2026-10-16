@@ -161,11 +161,6 @@ def set_master(p: Project, gain_db: float) -> Project:
     return replace(p, master_gain_db=float(gain_db))
 
 
-def set_transcript(p: Project, media_id: str, rev: int) -> Project:
-    rest = tuple((m, r) for m, r in p.transcripts if m != media_id)
-    return replace(p, transcripts=(*rest, (media_id, int(rev))))
-
-
 # -- clips -------------------------------------------------------------------
 
 

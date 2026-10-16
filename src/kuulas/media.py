@@ -2,7 +2,7 @@
 
 **Identity is the content, never the name.** A media id is the SHA-256 of
 the file's bytes, so a file that was renamed, moved or copied is the same
-media; ``seen.json`` remembers every path each hash has been seen under.
+media; ``media_paths`` remembers every path each hash has been seen under.
 
 **Storage.** Each source becomes one FLAC working file at the project rate:
 
@@ -15,6 +15,13 @@ media; ``seen.json`` remembers every path each hash has been seen under.
 A project folder is complete on its own: moving or deleting the source
 cannot break it.
 
+**Metadata** is a ``media`` row in ``project.sqlite`` (docs/FORMAT.md). The
+row is inserted only after the file is complete and renamed, so the row is
+the "import finished" marker: a crash mid-import leaves nothing that looks
+done. Rows are updated column by column, never replaced, so columns a newer
+kuulas added survive. Waveform peaks are a cache (``caches/peaks/``), keyed
+by content and rebuilt when missing.
+
 **Reading.** The mixer asks for arbitrary slices on the audio thread, so
 reads go through a cache of decoded chunks; FLAC seeks are sample-exact.
 """
@@ -22,7 +29,7 @@ reads go through a cache of decoded chunks; FLAC seeks are sample-exact.
 from __future__ import annotations
 
 import hashlib
-import json
+import logging
 import os
 import shutil
 import struct
@@ -36,11 +43,18 @@ import numpy as np
 import soundfile as sf
 from speechmix.binaries import get_binary_path
 
-from .messages import KuulasError
+from . import caches
+from . import db as dbm
+from .clock import flicks_to_frames, frames_to_flicks
+from .messages import KuulasError, t
 from .model import Media
+
+log = logging.getLogger("kuulas.media")
 
 #: Frames per peak at the finest zoom level the UI asks for.
 PEAK_FRAMES = 256
+#: The peaks algorithm, for cache keys: bump when ``_peaks`` changes.
+PEAKS_ALGORITHM = "peaks@1"
 #: Decode/encode step, and the unit of the read cache.
 CHUNK_SEC = 10
 #: Decoded chunks kept in memory: 48 x 10 s of stereo float32 at 48 kHz
@@ -93,15 +107,41 @@ def workers() -> int:
     return max(1, (os.cpu_count() or 2) - 1)
 
 
+#: Columns an import or a consolidation sets; the rest of a row (name, time
+#: reference, tags, extra, unknown columns) is never touched by them.
+_FILE_COLUMNS = ("storage", "channels", "source_rate", "source_frames", "subtype",
+                 "lossless", "linked_path", "linked_size", "linked_mtime_ns")
+
+
 class MediaStore:
-    def __init__(self, folder: str | Path, rate: int):
+    """``folder`` is the package's ``media/``. The database and ``caches/``
+    default to its siblings, as in a package (docs/FORMAT.md, "Layout")."""
+
+    def __init__(self, folder: str | Path, rate: int, *, db: str | Path | None = None,
+                 cache_root: str | Path | None = None, read_only: bool = False):
         self.folder = Path(folder)
-        self.folder.mkdir(parents=True, exist_ok=True)
+        self.read_only = read_only
+        if not read_only:
+            self.folder.mkdir(parents=True, exist_ok=True)
         self.rate = rate
+        self.cache_root = (Path(cache_root) if cache_root
+                           else self.folder.parent / "caches")
+        self.db = dbm.connect(Path(db) if db else self.folder.parent / "project.sqlite",
+                              read_only=read_only)
+        if not read_only:
+            dbm.ensure_schema(self.db, rate)
         self._lock = threading.Lock()
+        self._db_lock = threading.RLock()
         self._handles: dict[str, tuple[threading.Lock, sf.SoundFile]] = {}
         self._cache: OrderedDict[tuple[str, int], np.ndarray] = OrderedDict()
         self._meta: dict[str, dict] = {}
+
+    def close(self) -> None:
+        with self._lock:
+            for _, f in self._handles.values():
+                f.close()
+            self._handles.clear()
+        self.db.close()
 
     # -- paths and metadata ------------------------------------------------
 
@@ -112,15 +152,35 @@ class MediaStore:
     def working_file(self, media_id: str) -> Path:
         return self.folder / f"{media_id}.flac"
 
-    def _meta_path(self, media_id: str) -> Path:
-        return self.folder / f"{media_id}.json"
+    def _row(self, media_id: str) -> dict | None:
+        with self._db_lock:
+            cur = self.db.execute("select * from media where id=?", (media_id,))
+            row = cur.fetchone()
+            if row is None:
+                return None
+            return dict(zip([c[0] for c in cur.description], row, strict=True))
 
     def meta(self, media_id: str) -> dict:
+        """The media row, as a dict of its columns."""
         m = self._meta.get(media_id)
         if m is None:
-            m = json.loads(self._meta_path(media_id).read_text())
+            m = self._row(media_id)
+            if m is None:
+                raise KeyError(media_id)
             self._meta[media_id] = m
         return m
+
+    def _update(self, media_id: str, **columns) -> None:
+        self._check_writable()
+        sets = ", ".join(f"{name}=?" for name in columns)
+        with self._db_lock, dbm.tx(self.db):
+            self.db.execute(f"update media set {sets} where id=?",  # noqa: S608 - names are ours
+                            (*columns.values(), media_id))
+        self._meta.pop(media_id, None)
+
+    def _check_writable(self) -> None:
+        if self.read_only:
+            raise MediaError("error.media.read_only")
 
     def is_lossless(self, media_id: str) -> bool:
         return bool(self.meta(media_id)["lossless"])
@@ -130,27 +190,26 @@ class MediaStore:
     def find(self, path: str | Path) -> str | None:
         """The media id of these bytes if the store has them, by content alone."""
         media_id = self.media_id(_sha256(Path(path)))
-        return media_id if self._meta_path(media_id).exists() else None
-
-    def _seen_index(self) -> dict[str, list[str]]:
-        try:
-            return json.loads((self.folder / "seen.json").read_text())
-        except FileNotFoundError:
-            return {}
+        return media_id if self._row(media_id) is not None else None
 
     def seen_paths(self, digest: str) -> list[str]:
-        return self._seen_index().get(digest, [])
+        with self._db_lock:
+            rows = self.db.execute(
+                "select path from media_paths where sha256=?"
+                " order by first_seen_utc, rowid",
+                (digest,)).fetchall()
+        return [r[0] for r in rows]
 
     def _remember(self, digest: str, path: Path) -> None:
-        with self._lock:
-            index = self._seen_index()
-            paths = index.setdefault(digest, [])
-            where = str(path.resolve())
-            if where not in paths:
-                paths.append(where)
-                tmp = self.folder / "seen.json.tmp"
-                tmp.write_text(json.dumps(index, indent=1))
-                tmp.replace(self.folder / "seen.json")
+        if self.read_only:
+            return
+        now = dbm.utc_now()
+        with self._db_lock, dbm.tx(self.db):
+            self.db.execute(
+                "insert into media_paths(sha256, path, first_seen_utc, last_seen_utc)"
+                " values (?,?,?,?) on conflict(sha256, path)"
+                " do update set last_seen_utc=excluded.last_seen_utc",
+                (digest, str(path.resolve()), now, now))
 
     # -- import ------------------------------------------------------------
 
@@ -169,46 +228,70 @@ class MediaStore:
         decoding it during playback would be too slow. ``copy=True`` stores
         every source in the project (see ``consolidate``).
         """
+        self._check_writable()
         path = Path(path).resolve()
         digest = _sha256(path)
         media_id = self.media_id(digest)
         self._remember(digest, path)
-        if not self._meta_path(media_id).exists():
+        row = self._row(media_id)
+        if row is not None and row["sha256"] != digest:
+            # Two different files share the first 12 hex digits of their hash.
+            raise MediaError("error.media.id_collision", name=path.name,
+                             media_id=media_id)
+        if row is None:
+            bwf = bwf_time_reference(path)
+            new = {"id": media_id, "sha256": digest, "name": path.name,
+                   "time_ref_flicks": frames_to_flicks(*bwf) if bwf else None}
             info = _pcm_info(path, self.rate)
             if info is not None and not copy:
-                self._link(path, media_id, digest, info)
+                self._link(path, new, info)
             elif info is not None:
-                self._encode_pcm(path, media_id, digest)
+                self._encode_pcm(path, new)
             else:
-                self._encode_any(path, media_id, digest, keep_original=copy)
+                self._encode_any(path, new, keep_original=copy)
         meta = self.meta(media_id)
-        bwf = bwf_time_reference(path)
-        time_ref = round(bwf[0] * self.rate / bwf[1]) if bwf else 0
         return Media(id=media_id, name=path.name, channels=meta["channels"],
-                     frames=meta["frames"], sha256=digest, time_ref=time_ref)
+                     frames=meta["source_frames"], sha256=digest,
+                     time_ref=flicks_to_frames(meta["time_ref_flicks"] or 0, self.rate))
 
-    def _finish(self, media_id: str, peaks: list, meta: dict) -> None:
-        np.save(self.folder / f"{media_id}.peaks.npy",
-                np.concatenate(peaks) if peaks else np.zeros((0, 2), np.float32))
-        # The metadata file is what marks the media as imported, so it is
-        # written last: a crash mid-import leaves nothing that looks done.
-        tmp = self._meta_path(media_id).with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(meta))
-        tmp.replace(self._meta_path(media_id))
-        self._meta[media_id] = meta
+    def _peaks_path(self, digest: str) -> Path:
+        k = caches.key([digest], {"per": PEAK_FRAMES, "rate": self.rate}, PEAKS_ALGORITHM)
+        return caches.path(self.cache_root, "peaks", k, "npy")
 
-    def _link(self, path: Path, media_id: str, digest: str, info) -> None:
+    def _save_peaks(self, digest: str, peaks: np.ndarray) -> None:
+        caches.write_atomic(self._peaks_path(digest), lambda f: np.save(f, peaks))
+
+    def _finish(self, row: dict, peaks: list) -> None:
+        """Peaks to the cache, then the row: inserted last, so it marks the
+        import as finished. An existing row (consolidation) only gets its
+        file columns updated."""
+        self._save_peaks(row["sha256"], np.concatenate(peaks) if peaks
+                         else np.zeros((0, 2), np.float32))
+        row = {"source_rate": self.rate, "linked_path": None, "linked_size": None,
+               "linked_mtime_ns": None, "added_utc": dbm.utc_now(), **row}
+        names = list(row)
+        updates = ", ".join(f"{c}=excluded.{c}" for c in _FILE_COLUMNS)
+        with self._db_lock, dbm.tx(self.db):
+            self.db.execute(
+                f"insert into media({', '.join(names)}) values"  # noqa: S608 - names are ours
+                f" ({', '.join('?' for _ in names)})"
+                f" on conflict(id) do update set {updates}",
+                [row[n] for n in names])
+        self._meta.pop(row["id"], None)
+
+    def _link(self, path: Path, row: dict, info) -> None:
         step = CHUNK_SEC * self.rate
         with sf.SoundFile(str(path)) as f:
             peaks, frames = _pump(lambda: f.read(step, dtype="float32", always_2d=True))
         st = path.stat()
-        self._finish(media_id, peaks, {
-            "channels": info.channels, "frames": frames, "subtype": info.subtype,
-            "lossless": True, "linked": True, "path": str(path),
-            "size": st.st_size, "mtime_ns": st.st_mtime_ns, "sha256": digest})
+        self._finish({**row, "storage": "linked", "channels": info.channels,
+                      "source_frames": frames, "subtype": info.subtype, "lossless": 1,
+                      "linked_path": str(path), "linked_size": st.st_size,
+                      "linked_mtime_ns": st.st_mtime_ns}, peaks)
 
-    def _encode_pcm(self, source: Path, media_id: str, digest: str) -> None:
+    def _encode_pcm(self, source: Path, row: dict) -> None:
         """Integer samples straight into FLAC: no float step, so bit-exact."""
+        media_id = row["id"]
         info = sf.info(str(source))
         step = CHUNK_SEC * self.rate
         partial = self.working_file(media_id).with_suffix(".partial.flac")
@@ -224,13 +307,13 @@ class MediaStore:
         if not lossless:
             self._keep_original(source, media_id)
         partial.replace(self.working_file(media_id))
-        self._finish(media_id, peaks, {
-            "channels": info.channels, "frames": frames, "subtype": info.subtype,
-            "lossless": lossless, "linked": False, "sha256": digest})
+        self._finish({**row, "storage": "working", "channels": info.channels,
+                      "source_frames": frames, "subtype": info.subtype,
+                      "lossless": int(lossless)}, peaks)
 
-    def _encode_any(self, source: Path, media_id: str, digest: str,
-                    keep_original: bool) -> None:
+    def _encode_any(self, source: Path, row: dict, keep_original: bool) -> None:
         """Anything ffmpeg can open, video included: first audio stream, 24-bit FLAC."""
+        media_id = row["id"]
         channels = min(_ffprobe_channels(source), 2)
         partial = self.working_file(media_id).with_suffix(".partial.flac")
         step = CHUNK_SEC * self.rate
@@ -247,53 +330,49 @@ class MediaStore:
         if keep_original:
             self._keep_original(source, media_id)
         partial.replace(self.working_file(media_id))
-        self._finish(media_id, peaks, {
-            "channels": channels, "frames": frames, "subtype": "PCM_24",
-            "lossless": False, "linked": False, "source": str(source),
-            "sha256": digest})
+        self._finish({**row, "storage": "working", "channels": channels,
+                      "source_frames": frames, "subtype": "PCM_24", "lossless": 0},
+                     peaks)
 
     def _keep_original(self, source: Path, media_id: str) -> None:
         originals = self.folder / "originals"
         originals.mkdir(exist_ok=True)
         kept = originals / f"{media_id}{source.suffix.lower()}"
         if not kept.exists():
-            shutil.copy2(source, kept)
+            partial = kept.with_name(kept.name + ".partial")
+            shutil.copy2(source, partial)
+            partial.replace(kept)
 
     # -- linked files: missing, relink, consolidate -------------------------
 
     def is_linked(self, media_id: str) -> bool:
-        return bool(self.meta(media_id).get("linked"))
+        return self.meta(media_id)["storage"] == "linked"
 
-    def _all_ids(self) -> list[str]:
-        return sorted(p.stem for p in self.folder.glob("m*.json"))
+    def ids(self) -> list[str]:
+        with self._db_lock:
+            return [r[0] for r in self.db.execute("select id from media order by id")]
 
     def _valid(self, media_id: str) -> bool:
         """Is a linked file still there and still the same bytes?"""
         meta = self.meta(media_id)
-        path = Path(meta["path"])
+        path = Path(meta["linked_path"])
         try:
             st = path.stat()
         except OSError:
             return False
-        if st.st_size != meta["size"]:
+        if st.st_size != meta["linked_size"]:
             return False
-        if st.st_mtime_ns == meta["mtime_ns"]:
+        if st.st_mtime_ns == meta["linked_mtime_ns"]:
             return True
         if _sha256(path) != meta["sha256"]:
             return False
-        meta["mtime_ns"] = st.st_mtime_ns  # touched, not changed
-        self._finish_meta(media_id, meta)
+        if not self.read_only:
+            self._update(media_id, linked_mtime_ns=st.st_mtime_ns)  # touched, not changed
         return True
-
-    def _finish_meta(self, media_id: str, meta: dict) -> None:
-        tmp = self._meta_path(media_id).with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(meta))
-        tmp.replace(self._meta_path(media_id))
-        self._meta[media_id] = meta
 
     def missing(self) -> list[str]:
         """Linked media whose file is gone, moved or changed."""
-        return [m for m in self._all_ids() if self.is_linked(m) and not self._valid(m)]
+        return [m for m in self.ids() if self.is_linked(m) and not self._valid(m)]
 
     def relink(self, search: str | Path | None = None) -> dict[str, str]:
         """Find missing linked files again by content: remembered paths first,
@@ -302,9 +381,10 @@ class MediaStore:
         lost = self.missing()
         if not lost:
             return found
+        self._check_writable()
         by_size: dict[int, list[str]] = {}
         for media_id in lost:
-            by_size.setdefault(self.meta(media_id)["size"], []).append(media_id)
+            by_size.setdefault(self.meta(media_id)["linked_size"], []).append(media_id)
         candidates = [Path(p) for m in lost
                       for p in self.seen_paths(self.meta(m)["sha256"])]
         if search is not None:
@@ -320,13 +400,12 @@ class MediaStore:
                 continue
             digest = _sha256(path)
             for media_id in waiting:
-                meta = self.meta(media_id)
-                if meta["sha256"] == digest:
-                    meta.update(path=str(path.resolve()),
-                                mtime_ns=path.stat().st_mtime_ns)
-                    self._finish_meta(media_id, meta)
+                if self.meta(media_id)["sha256"] == digest:
+                    where = str(path.resolve())
+                    self._update(media_id, linked_path=where,
+                                 linked_mtime_ns=path.stat().st_mtime_ns)
                     self._remember(digest, path)
-                    found[media_id] = meta["path"]
+                    found[media_id] = where
         with self._lock:
             for media_id in found:
                 self._handles.pop(media_id, None)
@@ -335,10 +414,13 @@ class MediaStore:
     def consolidate(self) -> list[str]:
         """Copy every linked file into the project as lossless FLAC."""
         done = []
-        for media_id in self._all_ids():
+        for media_id in self.ids():
             if self.is_linked(media_id) and self._valid(media_id):
+                self._check_writable()
                 meta = self.meta(media_id)
-                self._encode_pcm(Path(meta["path"]), media_id, meta["sha256"])
+                self._encode_pcm(Path(meta["linked_path"]),
+                                 {"id": media_id, "sha256": meta["sha256"],
+                                  "name": meta["name"]})
                 with self._lock:
                     self._handles.pop(media_id, None)
                     for key in [k for k in self._cache if k[0] == media_id]:
@@ -356,7 +438,7 @@ class MediaStore:
         if self.is_linked(media_id):
             if not self._valid(media_id):
                 return None  # missing: plays as silence until relinked
-            path = self.meta(media_id)["path"]
+            path = self.meta(media_id)["linked_path"]
         else:
             path = str(self.working_file(media_id))
         with self._lock:
@@ -391,7 +473,7 @@ class MediaStore:
         """``(channels, count)`` float32 from source frame ``first``, zero-padded."""
         meta = self.meta(media_id)
         out = np.zeros((meta["channels"], count), dtype=np.float32)
-        lo, hi = max(0, first), min(meta["frames"], first + count)
+        lo, hi = max(0, first), min(meta["source_frames"], first + count)
         step = CHUNK_SEC * self.rate
         pos = lo
         while pos < hi:
@@ -409,7 +491,7 @@ class MediaStore:
 
     def peaks(self, media_id: str, per: int = PEAK_FRAMES) -> np.ndarray:
         """``(n, 2)`` min/max per ``per`` frames (rounded to a multiple of the base)."""
-        base = np.load(self.folder / f"{media_id}.peaks.npy")
+        base = self._base_peaks(media_id)
         k = max(1, round(per / PEAK_FRAMES))
         n = int(np.ceil(base.shape[0] / k))
         padded = np.zeros((n * k, 2), dtype=np.float32)
@@ -417,6 +499,33 @@ class MediaStore:
         grouped = padded.reshape(n, k, 2)
         return np.stack([grouped[:, :, 0].min(axis=1), grouped[:, :, 1].max(axis=1)],
                         axis=1)
+
+    def _base_peaks(self, media_id: str) -> np.ndarray:
+        meta = self.meta(media_id)
+        where = self._peaks_path(meta["sha256"])
+        try:
+            return np.load(where)
+        except (OSError, ValueError, EOFError):
+            pass  # deleted, or never written: compute again below
+        log.info(t("log.cache.recompute", kind="peaks", media_id=media_id))
+        step = CHUNK_SEC * self.rate
+        frames = meta["source_frames"]
+        pos = 0
+
+        def read():
+            nonlocal pos
+            count = min(step, frames - pos)
+            if count <= 0:
+                return np.zeros((0, meta["channels"]), np.float32)
+            block = self.read(media_id, pos, count).T
+            pos += count
+            return block
+        peaks, _ = _pump(read)
+        base = np.concatenate(peaks) if peaks else np.zeros((0, 2), np.float32)
+        # A missing linked file reads as silence: show it, but never cache it.
+        if not (self.is_linked(media_id) and not self._valid(media_id)):
+            self._save_peaks(meta["sha256"], base)
+        return base
 
 
 def _peaks(chunk: np.ndarray) -> np.ndarray:

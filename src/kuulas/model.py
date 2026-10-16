@@ -5,14 +5,44 @@ drift under repeated split/trim/ripple; frames do not.
 
 Each edit returns a new ``Project`` (see ``ops``); the history stores whole
 states, so nothing here needs to know how to undo itself.
+
+**Never destroy what you cannot read** (docs/FORMAT.md). Every class has
+``extra``: the keys a newer kuulas (or a Hindenburg import) wrote that this
+version does not model. ``from_dict`` puts them there and ``to_dict`` writes
+them back beside the known keys, so a save by this version loses nothing.
 """
 
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass, field, replace
+from dataclasses import dataclass, field, fields
 
 Point = tuple[int, float]  # (frame, dB)
+
+
+def _known(cls) -> set[str]:
+    return {f.name for f in fields(cls)} - {"extra"}
+
+
+def _split(cls, d: dict) -> tuple[dict, dict]:
+    """``d`` as (keys ``cls`` knows, the rest)."""
+    known = _known(cls)
+    return ({k: v for k, v in d.items() if k in known},
+            {k: v for k, v in d.items() if k not in known})
+
+
+def _out(obj, **override) -> dict:
+    """The known fields (``override`` replacing some), then the extras under them.
+
+    A known key always wins over an extra of the same name.
+    """
+    d = {f.name: getattr(obj, f.name) for f in fields(obj) if f.name != "extra"}
+    d.update(override)
+    return {**obj.extra, **d}
+
+
+def _points(raw) -> tuple[Point, ...]:
+    return tuple((int(f), float(db)) for f, db in raw)
 
 
 @dataclass(frozen=True)
@@ -27,6 +57,15 @@ class Media:
     # Recording start on the recorder's clock (BWF TimeReference), in project
     # frames; 0 when the file carries none. ``ops.mark_in_sync(basis="files")``.
     time_ref: int = 0
+    extra: dict = field(default_factory=dict, hash=False)
+
+    def to_dict(self) -> dict:
+        return _out(self)
+
+    @classmethod
+    def from_dict(cls, d: dict) -> Media:
+        known, extra = _split(cls, d)
+        return cls(**known, extra=extra)
 
 
 @dataclass(frozen=True)
@@ -58,6 +97,16 @@ class Clip:
     # subclip can be resynced on its own.
     sync: str | None = None
     sync_origin: int = 0
+    extra: dict = field(default_factory=dict, hash=False)
+
+    def to_dict(self) -> dict:
+        return _out(self, envelope=[list(pt) for pt in self.envelope])
+
+    @classmethod
+    def from_dict(cls, d: dict) -> Clip:
+        known, extra = _split(cls, d)
+        known["envelope"] = _points(known.get("envelope", ()))
+        return cls(**known, extra=extra)
 
     @property
     def recorded(self) -> int:
@@ -92,6 +141,18 @@ class Track:
     solo: bool = False
     clips: tuple[Clip, ...] = ()
     automation: tuple[Point, ...] = ()
+    extra: dict = field(default_factory=dict, hash=False)
+
+    def to_dict(self) -> dict:
+        return _out(self, clips=[c.to_dict() for c in self.clips],
+                    automation=[list(pt) for pt in self.automation])
+
+    @classmethod
+    def from_dict(cls, d: dict) -> Track:
+        known, extra = _split(cls, d)
+        known["clips"] = tuple(Clip.from_dict(c) for c in known.get("clips", ()))
+        known["automation"] = _points(known.get("automation", ()))
+        return cls(**known, extra=extra)
 
 
 @dataclass(frozen=True)
@@ -101,6 +162,15 @@ class Bus:
     gain_db: float = 0.0
     pan: float = 0.0
     mute: bool = False
+    extra: dict = field(default_factory=dict, hash=False)
+
+    def to_dict(self) -> dict:
+        return _out(self)
+
+    @classmethod
+    def from_dict(cls, d: dict) -> Bus:
+        known, extra = _split(cls, d)
+        return cls(**known, extra=extra)
 
 
 @dataclass(frozen=True)
@@ -110,11 +180,10 @@ class Project:
     tracks: tuple[Track, ...] = ()
     buses: tuple[Bus, ...] = ()
     master_gain_db: float = 0.0
-    # media id -> transcript revision id (``history.History.transcript``).
-    # Transcripts live outside the state so every undo step stays small.
-    transcripts: tuple[tuple[str, int], ...] = field(default=())
     # (group id, main clip's media id)
     sync_groups: tuple[tuple[str, str], ...] = ()
+    extra: dict = field(default_factory=dict, hash=False)
+    # Transcripts are material, shared by every edit: ``History.transcripts``.
 
     # -- lookups ----------------------------------------------------------
 
@@ -146,9 +215,6 @@ class Project:
                     return c, t
         raise KeyError(clip_id)
 
-    def transcript_rev(self, media_id: str) -> int | None:
-        return dict(self.transcripts).get(media_id)
-
     @property
     def length(self) -> int:
         return max((c.end for t in self.tracks for c in t.clips), default=0)
@@ -156,35 +222,22 @@ class Project:
     # -- serialisation ----------------------------------------------------
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        return _out(self, media=[m.to_dict() for m in self.media],
+                    tracks=[t.to_dict() for t in self.tracks],
+                    buses=[b.to_dict() for b in self.buses],
+                    sync_groups=[list(g) for g in self.sync_groups])
 
     def to_json(self) -> str:
         return json.dumps(self.to_dict(), separators=(",", ":"))
 
     @classmethod
     def from_dict(cls, d: dict) -> Project:
-        def points(raw) -> tuple[Point, ...]:
-            return tuple((int(f), float(db)) for f, db in raw)
-
-        tracks = tuple(
-            replace(
-                Track(**{k: v for k, v in t.items() if k not in ("clips", "automation")}),
-                clips=tuple(
-                    Clip(**{**c, "envelope": points(c["envelope"])}) for c in t["clips"]
-                ),
-                automation=points(t["automation"]),
-            )
-            for t in d["tracks"]
-        )
-        return cls(
-            rate=d["rate"],
-            media=tuple(Media(**m) for m in d["media"]),
-            tracks=tracks,
-            buses=tuple(Bus(**b) for b in d["buses"]),
-            master_gain_db=d["master_gain_db"],
-            transcripts=tuple((m, int(r)) for m, r in d["transcripts"]),
-            sync_groups=tuple((g, m) for g, m in d.get("sync_groups", ())),
-        )
+        known, extra = _split(cls, d)
+        known["media"] = tuple(Media.from_dict(m) for m in known.get("media", ()))
+        known["tracks"] = tuple(Track.from_dict(t) for t in known.get("tracks", ()))
+        known["buses"] = tuple(Bus.from_dict(b) for b in known.get("buses", ()))
+        known["sync_groups"] = tuple((g, m) for g, m in known.get("sync_groups", ()))
+        return cls(**known, extra=extra)
 
     @classmethod
     def from_json(cls, text: str) -> Project:

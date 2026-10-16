@@ -64,7 +64,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R32 | Music report per edit: every piece of music actually heard, with metadata, programme times, duration and background/featured, as CSV and printable table | planned: WP25 |
 | R33 | **MUST.** Sped-up listening (toggle normal/fast, pitch kept) and JKL shuttle with slow and fast scrubbing | planned: WP26 |
 | R34 | Project settings changeable later, undoably: sample rate (e.g. 44.1 → 48 kHz, every position converted), mono or stereo master, loudness target, export defaults | planned: WP27 |
-| R35 | Own project format `Name.kuulas` (package folder): shared material (media, sync, transcripts) apart from per-edit state; recording facts in flicks so they survive rate changes; versioned with forward compatibility; crash-safe, locked against two writers, automatic backups; lossless Hindenburg round trip | designed: docs/FORMAT.md; build WP29, WP30 (before WP1) |
+| R35 | Own project format `Name.kuulas` (package folder): shared material (media, sync, transcripts) apart from per-edit state; recording facts in flicks so they survive rate changes; versioned with forward compatibility; crash-safe, locked against two writers, automatic backups; lossless Hindenburg round trip | WP29 done in v26.10.16.5 (package, manifest, lock, v1 schema, material apart from edits, UUIDv7 steps, checkpoints, backups, v0 migration, `kuulas info`); WP30 (flicks, sync per media) next; Hindenburg round trip in WP13 |
 | R36 | Focus mode: F focuses a speaker's tracks, the others shrink to strips that keep sync visible; Shift+F also solos; transcript dims other speakers | planned: WP28 |
 | R37 | Review round trip: A sends v1, B edits (some changes done, some as suggestions), A gets v2 and accepts or rejects each; works even if A kept editing; hand-off copies carry only used audio | designed: docs/FORMAT.md; build WP31 (changes view), WP32 |
 | R38 | Voice condition as a sub-choice of speech ("Speech · remote"; also for speech mixes, never music): clean / room / remote / phone / auto picks a speechmix preset; auto-suggested from measured noise floor, bandwidth, echo and clipping | waits for presets in speechmix (podcast repo); kuulas side in WP22 |
@@ -108,6 +108,8 @@ sizes: `docs/PLAN.md`, section "Triage".
 - WP0: baseline, lint clean, Biome config, README, CHANGELOG, CLAUDE.md. 87 tests pass.
 - WP24.1: solo overrides mute; solo is exclusive by default. 92 tests pass.
 - WP14: speech analysis runs one track per core, same result. 94 tests pass.
+- WP29 (v26.10.16.5): project format v1, `Name.kuulas` package per
+  docs/FORMAT.md. 135 tests pass.
 
 ## Later (v2)
 
@@ -133,13 +135,20 @@ sizes: `docs/PLAN.md`, section "Triage".
   listening tests on real episodes. A change to the podcast repo, so it
   needs the owner's go-ahead there; kuulas only passes the preset name.
 
-- **Project format, decisions for the owner** (docs/FORMAT.md, end):
-  1. package folder `Name.kuulas` (recommended) or one file;
-  2. history retention: keep every step forever (about 110 MB for an extreme
-     5,000-step edit, measured) or thin old steps;
-  3. OpenTimelineIO export for other editors, now or later;
-  4. two machines: is "second machine opens read-only" enough, or is an
-     explicit hand-over needed?
+- **Project format, decisions for the owner** (docs/FORMAT.md, end). WP29
+  was built with the recommended answers; say if any should change:
+  1. package folder `Name.kuulas` (built), not one file;
+  2. history retention: every step kept forever (built; about 110 MB for an
+     extreme 5,000-step edit, measured), no thinning;
+  3. OpenTimelineIO export for other editors: not built, later if wanted;
+  4. two machines: the second machine opens read-only (built); is an
+     explicit hand-over ("check out") needed too?
+- **Undoing an import** (WP29): media rows are material and are not
+  versioned, so undoing an import removes its clips but the media stays in
+  the project, as in Hindenburg's clipboard. Say if undo should remove the
+  media too.
+- **Backup days** (WP29): "the last backup of each day" uses the computer's
+  own time zone (Helsinki on the owner's machines); file names are UTC.
 
 - **Music report format:** do Teosto or Gramex want a specific file layout? (WP25 ships CSV and HTML.)
 

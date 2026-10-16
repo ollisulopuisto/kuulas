@@ -18,6 +18,15 @@ uv run ruff check .
 
 Audio decoding uses ffmpeg. Install it first (`brew install ffmpeg` on a Mac).
 
+## Projects
+
+A project is a `Name.kuulas` folder (format: `docs/FORMAT.md`). To see what
+is in one:
+
+```
+uv run kuulas info Interview.kuulas
+```
+
 ## Where to read next
 
 - `ROADMAP.md`: what kuulas must do, what is done, and what is next.
