@@ -18,6 +18,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from . import analysis, ops, package, transcript
+from . import export as export_module
 from .clock import flicks_to_frames
 from .history import History
 from .media import ImportResult, MediaError, MediaStore
@@ -171,6 +172,15 @@ class Session:
         """Name the current step ("v1 sent to Ville"). Not an edit."""
         with self.lock:
             self.history.checkpoint(name, kind)
+
+    def export(self, args: dict, *, progress=None, cancel=None,
+               workers: int | None = None) -> dict:
+        """Render a mix, selection or track stems without changing the edit."""
+        return export_module.run(self, args, progress, cancel, workers)
+
+    def last_export_settings(self, kind: str) -> dict | None:
+        """Return the project's remembered settings for an export kind."""
+        return export_module.last_settings(self, kind)
 
     # -- import ------------------------------------------------------------
 

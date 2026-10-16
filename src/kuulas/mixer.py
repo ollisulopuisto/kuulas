@@ -41,11 +41,15 @@ def _ramp(t: np.ndarray, begin: int, length: int) -> np.ndarray:
     return np.sin(0.5 * np.pi * x) ** 2
 
 
-def _clip_into(out: np.ndarray, clip: Clip, store: Store, first: int, count: int) -> None:
+def _clip_signal(clip: Clip, store: Store, first: int, count: int,
+                 ) -> tuple[int, int, np.ndarray] | None:
+    """The clip's own sound over ``[first, first+count)``: ``(lo, hi, audio)``
+    with ``audio`` ``(channels, hi-lo)`` float64 after clip gain, envelope and
+    fades, in the source's channels and before pan. None when it is silent there."""
     lo = max(first, clip.heard_start)
     hi = min(first + count, clip.heard_end)
     if hi <= lo:
-        return
+        return None
     n = hi - lo
     src = clip.offset + (lo - clip.start)
     audio = store.read(clip.media, src, n).astype(np.float64)
@@ -64,17 +68,24 @@ def _clip_into(out: np.ndarray, clip: Clip, store: Store, first: int, count: int
     elif clip.fade_out and hi > clip.end - clip.fade_out:
         # The last frame of the clip is end-1: it plays at gain 0 only past it.
         g *= _ramp(-t, -(clip.end - 1), clip.fade_out)
+    return lo, hi, audio * g
 
-    a = lo - first
+
+def _clip_into(out: np.ndarray, clip: Clip, store: Store, first: int, count: int) -> None:
+    signal = _clip_signal(clip, store, first, count)
+    if signal is None:
+        return
+    lo, hi, audio = signal
+    n, a = hi - lo, lo - first
     if audio.shape[0] == 1:
         left_g, right_g = pan_gains(clip.pan * 100.0, "power")
-        mono = audio[0] * g
+        mono = audio[0]
         out[0, a:a + n] += mono * left_g
         out[1, a:a + n] += mono * right_g
     else:
         left_g, right_g = pan_gains(clip.pan * 100.0, "balance")
-        out[0, a:a + n] += audio[0] * g * left_g
-        out[1, a:a + n] += audio[1] * g * right_g
+        out[0, a:a + n] += audio[0] * left_g
+        out[1, a:a + n] += audio[1] * right_g
 
 
 def _balance(buf: np.ndarray, pan: float) -> None:
@@ -123,3 +134,31 @@ def mix(project: Project, store: Store, first: int, count: int) -> np.ndarray:
         master += buf
     master *= curves.gain(project.master_gain_db)
     return master.astype(np.float32)
+
+
+def track_stem(track: Track, store: Store, first: int, count: int, channels: int,
+               *, as_heard: bool) -> np.ndarray:
+    """One track on its own, for stem export: ``(channels, count)`` float32.
+
+    The edit is applied (cuts, crossfades, clip gain, envelopes, fades; muted
+    clips are silence). ``as_heard`` adds the track's own gain and automation
+    (the ducking). Pan is left out either way: the stem keeps its channels, a
+    mono track stays mono, and placing it is the mixing console's job. Buses
+    and the master are never applied. Solo and mute are the caller's business.
+    """
+    buf = np.zeros((channels, count), dtype=np.float64)
+    for clip in track.clips:
+        if clip.muted:
+            continue
+        signal = _clip_signal(clip, store, first, count)
+        if signal is None:
+            continue
+        lo, hi, audio = signal
+        if audio.shape[0] < channels:  # a mono clip on a stereo track
+            audio = np.repeat(audio[:1], channels, axis=0)
+        buf[:, lo - first:hi - first] += audio[:channels]
+    if as_heard:
+        auto = curves.db_curve(track.automation, first, count)
+        g = curves.gain(track.gain_db)
+        buf *= g if auto is None else g * curves.gain(auto)
+    return buf.astype(np.float32)

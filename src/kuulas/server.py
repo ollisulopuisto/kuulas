@@ -35,7 +35,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.websockets import WebSocketDisconnect
 
-from . import messages, transcribe
+from . import export, messages, transcribe
 from .history import HistoryError
 from .media import ImportResult, MediaError
 from .messages import KuulasError, error_body, t
@@ -202,6 +202,13 @@ def create_app(session, engine, *, language: str | None = None,
     async def _history_error(_request: Request, e: HistoryError):
         return answer(e, 404 if e.key == "error.history.no_step" else 500)
 
+    @app.exception_handler(export.ExportError)
+    async def _export_error(_request: Request, e: export.ExportError):
+        client_error = e.key.startswith("error.export.bad_") or e.key in {
+            "error.export.empty", "error.export.too_long_to_master",
+        }
+        return answer(e, 400 if client_error else 500)
+
     @app.exception_handler(KuulasError)
     async def _other_error(_request: Request, e: KuulasError):
         log.error(str(e))
@@ -255,6 +262,10 @@ def create_app(session, engine, *, language: str | None = None,
     def post_redo():
         session.redo()
         return state_response()
+
+    @app.post("/api/export")
+    def post_export(body: Annotated[dict[str, Any], Body()]):
+        return state_response({"export": session.export(body)})
 
     @app.post("/api/restore")
     def post_restore(body: RestoreBody):

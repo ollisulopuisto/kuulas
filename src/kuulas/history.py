@@ -471,6 +471,20 @@ class History:
             "select id, name, created_utc, archived, head from edits"
             " order by created_utc, rowid"))
 
+    # -- project settings --------------------------------------------------
+
+    def meta_json(self, key: str, default: Any = None) -> Any:
+        """A JSON value kept in the project's ``meta`` (settings that belong to
+        the project, such as the last export's)."""
+        raw = dbm.meta(self.db, key)
+        return default if raw is None else json.loads(raw)
+
+    def set_meta_json(self, key: str, value: Any) -> None:
+        self._check_writable()
+        with dbm.tx(self.db):
+            dbm.set_meta(self.db, key, json.dumps(value, sort_keys=True))
+        self._written()
+
     # -- checkpoints -------------------------------------------------------
 
     def checkpoint(self, name: str, kind: str = "manual", copy: str | None = None,
