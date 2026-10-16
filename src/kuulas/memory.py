@@ -131,6 +131,16 @@ class MemoryBudget:
             if entry is not None:
                 self.used -= entry.nbytes
 
+    def discard_prefix(self, ns: str, prefix: str) -> None:
+        """Discard all entries in ``ns`` whose key starts with ``prefix``."""
+        with self._lock:
+            to_remove = [k for k in self._entries
+                         if k[0] == ns and k[1].startswith(prefix)]
+            for k in to_remove:
+                entry = self._entries.pop(k, None)
+                if entry is not None:
+                    self.used -= entry.nbytes
+
     def set_limit(self, limit_bytes: int) -> None:
         with self._lock:
             self.limit = int(limit_bytes)
