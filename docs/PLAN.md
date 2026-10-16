@@ -268,40 +268,44 @@ plugin on a voice, undo anything, export a mastered file.
 | 27 | WP19f spot | S | parsing | Haiku 5.5 |
 | 28 | WP24.2 A/B | M | edit A/B position mapping, level match | Sonnet 5.5 |
 | 29 | WP21 several edits (versions) | L | history schema migration, offer_cuts | **Opus 5.5** |
-| 30 | WP31 changes view + checkpoints | M | recording-range diff | Sonnet 5.5 |
-| 31 | WP32 review round trip: suggest mode, hand-off, merge | L | diverged copies become suggestions | **Opus 5.5** |
-| 32 | WP20 paste without bloat | M | excerpt media keeping recorded time | Sonnet 5.5 |
-| 33 | WP19c roles, stems, match loudness | M | stems sum test | Sonnet 5.5 |
-| 34 | WP19d remappable keys + macros | M | macro = one undo step | Sonnet 5.5 |
-| 35 | WP19b connected clips | M | reflow after every edit | Sonnet 5.5 |
-| 36 | WP19h regions + batch export, chapters | S | none | Haiku 5.5 |
-| 37 | WP19g skimming | S | grain throttling | Sonnet 5.5 |
-| 38 | WP19e alternative takes | L | ripple on take length change | Sonnet 5.5 |
+| 30 | WP40 long history stays fast | M | paged panel, incremental backups, thinning valve | Sonnet 5.5 |
+| 31 | WP31 changes view + checkpoints | M | recording-range diff | Sonnet 5.5 |
+| 32 | WP32 review round trip: suggest mode, hand-off, merge | L | diverged copies become suggestions | **Opus 5.5** |
+| 33 | WP20 paste without bloat | M | excerpt media keeping recorded time | Sonnet 5.5 |
+| 34 | WP39 portable projects: different paths on every machine | M | resolution order, learned path rewrites | Sonnet 5.5 |
+| 35 | WP37 usage extractor | S | recording ranges with audibility | Sonnet 5.5 |
+| 36 | WP38 series: reuse across episodes | L | per-project usage files, badges, series view | Sonnet 5.5 |
+| 37 | WP19c roles, stems, match loudness | M | stems sum test | Sonnet 5.5 |
+| 38 | WP19d remappable keys + macros | M | macro = one undo step | Sonnet 5.5 |
+| 39 | WP19b connected clips | M | reflow after every edit | Sonnet 5.5 |
+| 40 | WP19h regions + batch export, chapters | S | none | Haiku 5.5 |
+| 41 | WP19g skimming | S | grain throttling | Sonnet 5.5 |
+| 42 | WP19e alternative takes | L | ripple on take length change | Sonnet 5.5 |
 
 ### Phase 3 — Pipeline depth
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 39 | WP14 parallel analysis (done) | S | none | Haiku 5.5 |
-| 40 | WP10 voice chain variants | M | variants, chain settings | Sonnet 5.5 |
-| 41 | WP25 music report | S | heard-duration rules | Haiku 5.5 |
-| 42 | WP13 Hindenburg import | M | `.nhsx` word clock | Sonnet 5.5 |
-| 43 | WP23b FX layers: render tier, export waits, freeze on overload | L | background render, overload policy | **Opus 5.5** |
+| 43 | WP14 parallel analysis (done) | S | none | Haiku 5.5 |
+| 44 | WP10 voice chain variants | M | variants, chain settings | Sonnet 5.5 |
+| 45 | WP25 music report | S | heard-duration rules | Haiku 5.5 |
+| 46 | WP13 Hindenburg import | M | `.nhsx` word clock | Sonnet 5.5 |
+| 47 | WP23b FX layers: render tier, export waits, freeze on overload | L | background render, overload policy | **Opus 5.5** |
 
 ### Phase 4 — Recording and alignment
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 44 | WP12 recording, foolproof mode, live logging | L | hardware, crash recovery, sleep prevention | **Opus 5.5** |
-| 45 | WP17 clip bin | M | Space and in/out rules | Sonnet 5.5 |
-| 46 | WP16 align by sound | **XL** | drift and dropout detection | **Opus 5.5** |
+| 48 | WP12 recording, foolproof mode, live logging | L | hardware, crash recovery, sleep prevention | **Opus 5.5** |
+| 49 | WP17 clip bin | M | Space and in/out rules | Sonnet 5.5 |
+| 50 | WP16 align by sound | **XL** | drift and dropout detection | **Opus 5.5** |
 
 ### Phase 5 — Late
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 47 | WP27 settings + rate change | L | converts every position kind; do it when the model has stopped growing | **Opus 5.5** |
-| 48 | WP15 desktop wrapper | M | packaging | Sonnet 5.5 |
+| 51 | WP27 settings + rate change | L | converts every position kind; do it when the model has stopped growing | **Opus 5.5** |
+| 52 | WP15 desktop wrapper | M | packaging | Sonnet 5.5 |
 
 **Easiest wins:** WP0, WP24.1, WP22, WP19a, WP19f, WP19h, WP14, WP25.
 **Hardest, highest risk:** WP23 (real-time FX), WP16 (align by sound),
@@ -897,6 +901,12 @@ apart:
   outlines over the timeline, read-only, so you can see what you would get
   before restoring.
 
+**Session markers** (owner, 2026-10-16): opening and closing a project
+writes a marker into the current edit's history ("opened 16.10. 16.40
+Helsinki"). When Mod+Z crosses one, the message says so without blocking:
+"Undid a step from yesterday: cut at 12:31 · Redo". Markers are visible in
+the panel as dividers between sittings.
+
 **Stateful undo.** Each node also stores the UI context at the time of the
 edit: `{selection, focus_track, playhead, view: [first, last], in, out}`.
 `History.commit(..., context=dict)` saves it in a new `nodes.context` column.
@@ -1466,7 +1476,24 @@ group together; any other edit touches exactly what you selected.**
   (left by Backspace or by a resync), ripple-delete that stretch on every
   track of the group. This is how one-track work is brought back into sync
   (storyboard scene 6).
-- Mod+G toggles group editing for the session. When it is off, the toolbar
+- **Free from sync, on purpose** (owner, 2026-10-16): **U** toggles a clip
+  (and the pieces later split from it) free from its group. A free clip is no
+  one's partner, shows a grey unlinked icon and its offset ("+300 ms ·
+  free"), and never gets a drift badge. U again re-links it: a drift badge
+  appears if it is off, and resync puts it back.
+- **Alt-drag** moves a clip alone. Afterwards a message asks "Keep this clip
+  free from sync? · Free it · No"; nothing changes unless answered.
+- **Three states, never guessed:** in sync (nothing shown), **free** (declared
+  by the user, grey), **drift** (a time-shifting edit moved it relative to its
+  group and nobody has said it is deliberate: red badge with the offset, and
+  on hover the cause read from history, e.g. "since: cut on Anna at 12:31,
+  group editing off"; actions Resync (R) and Free it (U)). A drift list in the
+  markers panel steps through undecided drifts (] / [), with "Resync all"
+  and "Free all".
+- **Never overeager:** nothing ever resyncs automatically; "resync from the
+  playhead" skips free clips and says so ("Resynced 14 clips · skipped 2
+  free").
+- Mod+G (or E, WP5) toggles group editing for the session. When it is off, the toolbar
   shows a persistent warning chip "Group editing off", because that state
   is how the accident happens.
 - Shift+Mod+X stays the explicit one-track cut.
@@ -1952,7 +1979,8 @@ apart to within 0.3 LU; toggling writes nothing to history.
 
 ### WP25 — Music report (royalty reporting)
 
-Status: open. Needs WP1, WP11, WP22 (music tags), WP21 (per edit).
+Status: open. Needs WP1, WP11, WP22 (music tags), WP21 (per edit), WP37
+(the usage extractor: the report is its music-role view of an export).
 
 Hindenburg's Music Report, done properly: for each edit, a list of every
 piece of music the programme actually plays, for Teosto/Gramex-style
@@ -2431,6 +2459,118 @@ Ground rule 15, concretely:
 Tests: an edit causes zero media reads in analysis; the pyramid tile at
 each level equals a direct min/max; cache eviction respects the budget;
 undo of the last 64 steps does no decompression.
+
+---
+
+### WP37 — Usage extractor (shared by music report, series, changes view)
+
+Status: open. Needs WP30. Sonnet 5.5.
+
+`src/kuulas/usage.py`: from one project state (and material), list every
+used stretch of every recording: `Use(media_sha256, from_flicks, to_flicks,
+timeline_from, timeline_to, track, role, audible)`, where `audible` is false
+under a muted clip or track, or where the track's automation is below
+−60 dB. Excerpts (WP20) map back to their original's sha256 and recording
+clock. Adjacent uses with gaps under 2 s merge (a parameter).
+
+Consumers: the music report (WP25: the music-role view of an export), the
+series usage files (WP38), and the changes view's diff (WP31: the
+difference of two states' uses).
+
+Tests: uses of a cut-up clip map to the right recording ranges; muted and
+ducked stretches are inaudible; excerpts map to the original; merging across
+short gaps; the result is identical for the same state (stable ordering).
+
+---
+
+### WP38 — Series: material reused across episodes
+
+Status: open. Needs WP37, WP21, WP20, WP39. Sonnet 5.5.
+
+A **series** is a folder that projects belong to (owner, 2026-10-16):
+
+```
+Series name/
+  series.json                  name, id, member project ids and paths
+  usage/<project id>.json      what that project uses, written only by it
+```
+
+- **Files live anywhere** (owner's choice). The series points to recordings
+  and does not own them. Recordings are matched by sha256.
+- The manifest gets `series: {id, path}`. "Join series…" and "Leave series"
+  are commands.
+- Each project writes its **own** usage file atomically on every save and on
+  close: per edit, the WP37 uses of its current state, and per export the
+  uses of that export. One file per project, never a shared database, so two
+  machines and a sync folder cannot corrupt each other.
+- **Published only when marked** (owner: "surely this is the final export"
+  never is): an export becomes *published* when the user marks it so
+  (command "Mark as published…", and unmark). Until then its uses count as
+  draft.
+- **Badges, never dialogs:** a clip whose recording range is used by another
+  project shows "also in Ep 3 (published v2)"; hover lists where. Bringing
+  material in (paste, bin, import) shows the same note inline.
+- **Series view:** each recording as a bar with the stretches used per
+  episode coloured (published or draft) and unused material visible; click
+  to open that episode at that spot. Transcript search across the series
+  with usage marks.
+- **Season music report:** WP25 across all episodes of the series.
+- Music reuse ("this track is also in Ep 2") uses the same badges.
+
+Tests: usage files are written atomically and only by their own project; a
+closed project's uses are visible to an open one; published vs draft; an
+excerpt counts as a use of its original; two machines writing their own
+files never conflict.
+
+---
+
+### WP39 — Portable projects: different paths on every machine
+
+Status: open. Needs WP29. Sonnet 5.5. Before WP32 and WP38.
+
+User A works on a project, hands it to user B, whose paths differ; it must
+still work (owner, 2026-10-16).
+
+- Each linked media row stores, besides the absolute path, the path
+  **relative to the project package** and **relative to the series folder**
+  (if any) (docs/FORMAT.md, "Portability").
+- **Resolving a missing file** tries, in order: relative to the project;
+  relative to the series folder; the user's **media folders** (a per-user
+  setting, e.g. `~/Dropbox/Kapina`), searched by sha256 with a size
+  prefilter; then remembered paths. A file counts only if its content
+  hash matches.
+- **Relink once, everything follows:** when the user points to one missing
+  file, kuulas learns the path rewrite (e.g. `/Volumes/Raid/Kapina` →
+  `~/Dropbox/Kapina`), applies it to all other missing files, verifies each
+  by hash, and remembers the rewrite per user.
+- On open, the resolution runs in the background; clips that are still
+  missing are drawn offline, and one message offers "Find missing files…".
+
+Tests: a project copied to another root with a different absolute path
+opens with all media found relatively; media folders are searched by hash;
+one relink fixes the rest through the learned rewrite; a same-named file
+with different content is never used.
+
+---
+
+### WP40 — Long history stays fast
+
+Status: open. Needs WP29, WP8. Sonnet 5.5.
+
+Owner, 2026-10-16: disk space is not a worry; performance is. Keep every
+step forever, and make history length irrelevant to speed:
+- Budgets, tested on a generated 5,000-step history: open under 1 s; undo
+  and redo constant time; a history-panel page (paged SQL, windowed tree
+  layout) under 50 ms; an edit's cost independent of history length.
+- **Incremental backups:** since states are immutable and content-addressed,
+  a backup appends only new rows to the backup database; it runs as a
+  low-priority job, never while playing or editing; a full snapshot on close.
+- **Thinning is a safety valve only:** it runs only if one of the budgets
+  above is measured to fail. It then follows FORMAT.md's restic-style rule:
+  every step for the last 14 days of working time, then one per hour of work,
+  then one per working day. It never thins versions, exports, review copies,
+  session markers, branch tips or material steps, and it always backs up
+  first.
 
 ---
 

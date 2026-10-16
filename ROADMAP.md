@@ -77,6 +77,11 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R45 | Single-key shortcuts for editing (as in Hindenburg); Mod only for file and app actions | planned: WP5 |
 | R46 | Autosave on every edit; Mod+S saves a named version; exports are versioned (v1, v2…) without overwrites, skipped when unchanged, traceable | planned: WP5, WP11, WP31 |
 | R47 | Export the whole edit or just a selection; export each track as its own aligned file (dry or as heard, whole or selection) so you can edit in kuulas and mix in Logic | planned: WP11 |
+| R48 | Series: material reused across episodes is tracked even when the other project is closed; badges, series view, unused material, cross-series search; published only when marked | planned: WP37, WP38 |
+| R49 | Portable projects: user B opens user A's project with different paths; relink once and the rest follows, always verified by hash | planned: WP39 |
+| R50 | Long history stays fast: keep every step forever, open under 1 s, incremental backups, thinning only if a speed budget fails | planned: WP40 |
+| R51 | Sync states made explicit: free from sync on purpose (U, or answer after Alt-drag) vs. undecided drift with its cause; never auto-resync | planned: WP19a |
+| R52 | Session markers in history; undo across sittings says so | planned: WP8 |
 
 ## Done
 

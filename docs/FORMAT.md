@@ -258,6 +258,10 @@ edits. Some are **unconditional** (just done) and some **conditional**
   row is the "import finished" marker; today's per-media JSON files go away.
 - Missing linked media: the project opens; those clips draw as offline
   (hatched) and play silence; `relink` finds them by hash (WP19/20).
+- **Portable paths** (WP39): a linked row also stores its path relative to
+  the package and to the series folder. Resolution tries relative paths,
+  then the user's media folders (by hash), then remembered paths. One
+  relink teaches a path rewrite that fixes the other missing files.
 
 ## Caches
 
@@ -353,8 +357,9 @@ migration needs a test fixture, not a field rollout.
 ## Owner decisions (also in ROADMAP.md)
 
 1. **The package folder** `Name.kuulas` (recommended) or a single file.
-2. **History retention:** keep every step forever (default; about 110 MB for
-   an extreme edit), or thin steps older than N days to one per hour of work.
+2. **History retention:** decided 2026-10-16: **keep every step forever**.
+   Disk space is not a concern; speed is. Thinning exists only as a safety
+   valve if a measured performance budget fails (WP40).
 3. **Interchange beyond Hindenburg:** add OpenTimelineIO export for other
    editors (Premiere, Resolve, Reaper through adapters)? Not needed for v1.
 4. **Editing from two machines:** the lock makes the second machine
