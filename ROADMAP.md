@@ -136,6 +136,7 @@ sizes: `docs/PLAN.md`, section "Triage".
   Windows. Left open: following a default-output switch while the old
   device still works, the "rebuild damaged media" action, freezing a
   real-time layer when late (WP23a), prefetch priority over jobs (WP9).
+- WP34: import survives bad files, full disks and vanished drives; 268 tests.
 
 ## Later (v2)
 

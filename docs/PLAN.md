@@ -2347,7 +2347,8 @@ Tests first: `test_catalogs_have_identical_keys_and_placeholders`,
 
 ### WP34 — Import hardening
 
-Status: open. Needs WP1. Sonnet 5.5. In M1.
+Status: done in v26.10.16.9. Decoder timeouts (probe 20 s, decode stall 120 s)
+are not measured yet; the 4 GB RF64 path is checked with a sparse file only. Needs WP1. Sonnet 5.5. In M1.
 
 Ground rule 13 for everything that brings audio in (`MediaStore`,
 `Session.import_media`):

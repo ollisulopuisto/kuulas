@@ -1,5 +1,18 @@
 # Changelog
 
+## [v26.10.16.9] - 2026-10-16
+
+- Importing is fail-soft. One bad file no longer sinks a batch: each file
+  gets its own result with the reason, and empty, unreadable, audio-less
+  (video) and hung-decoder files are refused with a clear message.
+- Truncated or damaged files import as far as they decode and are marked
+  partial ("0:41 of 0:58"). Silent files are flagged; files with more than
+  two channels are mixed down to stereo with a warning; a recorder start
+  time over 24 h is ignored; RF64 files over 4 GB are read correctly.
+- Free disk space is checked before decoding. A full disk or an unplugged
+  source drive removes the half-written file and says how much space is
+  needed or which drive vanished.
+
 ## [v26.10.16.8] - 2026-10-16
 
 Playback exists, though there is still no app to press play in (the HTTP
