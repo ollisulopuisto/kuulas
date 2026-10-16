@@ -415,6 +415,10 @@ class MediaStore:
                             (*columns.values(), media_id))
         self._meta.pop(media_id, None)
 
+    def set_extra(self, media_id: str, extra: dict) -> None:
+        """Preserve importer metadata alongside the media row."""
+        self._update(media_id, extra=json.dumps(extra, ensure_ascii=False))
+
     def _check_writable(self) -> None:
         if self.read_only:
             raise MediaError("error.media.read_only")

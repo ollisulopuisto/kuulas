@@ -243,7 +243,14 @@ def create_app(session, engine, *, language: str | None = None,
 
     @app.post("/api/command")
     def post_command(body: CommandBody):
-        session.command(body.name, body.args)
+        try:
+            session.command(body.name, body.args)
+        except KuulasError as error:
+            if error.key == "error.import.nhsx_failed":
+                return answer(error, 400)
+            raise
+        if body.name == "import_nhsx":
+            return state_response({"report": report_of(session.last_import_report)})
         return state_response()
 
     @app.post("/api/undo")

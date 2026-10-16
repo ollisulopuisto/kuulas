@@ -12,21 +12,97 @@ a read-modify-write of the history head.
 
 from __future__ import annotations
 
+import json
 import logging
+import math
 import threading
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
+
+from lxml import etree
+from nhsx import NhsxError
+from nhsx import locate as nhsx_locate
+from nhsx import read as read_nhsx
+from nhsx import tracks as nhsx_tracks
+from nhsx.mix import level_at as nhsx_level_at
+from nhsx.mix import plan as nhsx_mix_plan
+from nhsx.read import descendants as nhsx_descendants
+from nhsx.read import time_to_seconds as nhsx_time_to_seconds
 
 from . import analysis, ops, package, transcript
 from . import db as dbm
-from .clock import flicks_to_frames
+from .clock import FLICKS, flicks_to_frames
 from .history import History
 from .media import ImportResult, MediaError, MediaStore
-from .messages import t
+from .messages import KuulasError, t
 from .model import Project, SyncGroup
 from .people import Interview, Passage, Person
 
 log = logging.getLogger("kuulas.session")
+
+
+class NhsxImportError(KuulasError, ValueError):
+    """A Hindenburg session could not be parsed or mapped safely."""
+
+
+def _db_value(value: str | None) -> float:
+    try:
+        result = float(value) if value is not None else 0.0
+    except ValueError:
+        return 0.0
+    return result if math.isfinite(result) else 0.0
+
+
+def _time_value(value: str | None) -> float:
+    try:
+        return max(0.0, nhsx_time_to_seconds(value))
+    except ValueError:
+        return 0.0
+
+
+def _truth(value: str | None) -> bool:
+    return (value or "").strip().lower() in {"true", "1", "yes"}
+
+
+def _element_xml(elem) -> str:
+    if elem is None:
+        return ""
+    return etree.tostring(elem, encoding="unicode", with_tail=False)
+
+
+def _ramp_points(ramps, offset: float, rate: int) -> tuple[tuple[int, float], ...]:
+    """Sample nhsx's raised-cosine ramps for kuulas's source-clock envelope."""
+    if not ramps:
+        return ()
+    points = {}
+    for ramp in ramps:
+        steps = max(2, math.ceil(ramp.length * 50))
+        for index in range(steps + 1):
+            when = ramp.start + ramp.length * index / steps
+            level = max(1e-6, nhsx_level_at(ramps, when))
+            frame = round((offset + when) * rate)
+            points[frame] = 20 * math.log10(level)
+    return tuple(sorted(points.items()))
+
+
+def _nhsx_words(file_info) -> list[dict]:
+    node = file_info.transcription
+    if node is None:
+        return []
+    words = []
+    for elem in nhsx_descendants(node, "w"):
+        text = (elem.text or "").strip()
+        if not text:
+            continue
+        try:
+            start = round(nhsx_time_to_seconds(elem.get("s")) * FLICKS)
+            length = round(nhsx_time_to_seconds(elem.get("l")) * FLICKS)
+        except ValueError:
+            continue
+        words.append({"w": text, "s": start, "e": max(start + 1, start + length),
+                      "spk": elem.get("sp", "")})
+    return words
 
 #: Edit names whose clicks coalesce (WP24.1): one key for solo, so clicking
 #: through the tracks to listen to each is one undo step, not twenty...
@@ -267,6 +343,140 @@ class Session:
                                   "track_per_file": track_per_file,
                                   "interview": self.last_import_interview},
                                  material=root), report)
+
+    def import_nhsx(self, path: str | Path) -> Project:
+        """Import a Hindenburg session with regions and words on source clocks."""
+        source = Path(path)
+        try:
+            nhsx_session = read_nhsx(source)
+            pipeline_tracks = nhsx_tracks(nhsx_session, with_probe=False)
+            mix_clips = nhsx_mix_plan(nhsx_session).clips
+            source_xml = _element_xml(nhsx_session.tree.getroot())
+        except (NhsxError, OSError, ValueError):
+            raise NhsxImportError("error.import.nhsx_failed", path=str(source)) from None
+
+        available = {str(Path(track.path).resolve()) for track in pipeline_tracks}
+        paths = {}
+        missing = []
+        for file_info in nhsx_session.files:
+            found = nhsx_locate(nhsx_session, file_info)
+            if found and str(Path(found).resolve()) in available:
+                paths[file_info.id] = str(Path(found).resolve())
+            else:
+                missing.append(ImportResult(
+                    Path(file_info.path or file_info.name),
+                    error=MediaError("error.import.nhsx_missing_media",
+                                     name=file_info.name)))
+
+        resolved_paths = list(dict.fromkeys(paths.values()))
+        imported = (self.store.import_batch(resolved_paths, copy=False)
+                    if resolved_paths else [])
+        self.last_import_report = [*missing, *imported]
+        media_by_path = {str(Path(result.path).resolve()): result.media
+                         for result in imported if result.ok and result.media is not None}
+        media_by_file = {file_id: media_by_path[file_path]
+                         for file_id, file_path in paths.items()
+                         if file_path in media_by_path}
+
+        p = self.history.state
+        for file_info in nhsx_session.files:
+            media = media_by_file.get(file_info.id)
+            if media is None:
+                continue
+            enriched = replace(media, extra={**media.extra, "nhsx": {
+                "source_xml": _element_xml(file_info.elem)}})
+            stored_extra = json.loads(self.store.meta(media.id)["extra"] or "{}")
+            stored_extra["nhsx"] = enriched.extra["nhsx"]
+            self.store.set_extra(media.id, stored_extra)
+            media_by_file[file_info.id] = enriched
+            media_by_path[paths[file_info.id]] = enriched
+
+        for media in media_by_path.values():
+            if not any(item.id == media.id for item in p.media):
+                p = ops.add_media(p, media)
+
+        mix_by_region = {}
+        for clip in mix_clips:
+            key = (clip.speaker, str(Path(clip.path).resolve()), clip.start,
+                   clip.length, clip.file_offset)
+            mix_by_region.setdefault(key, []).append(clip)
+
+        for source_track in nhsx_session.tracks:
+            track_id = None
+            track_elem = source_track.elem
+            track_gain = (_db_value(track_elem.get("Gain"))
+                          + _db_value(track_elem.get("Volume")))
+            track_pan = max(-1.0, min(1.0, _db_value(track_elem.get("Pan"))))
+            track_muted = _truth(track_elem.get("Muted"))
+            for region in source_track.regions:
+                file_path = paths.get(region.ref)
+                media = media_by_file.get(region.ref)
+                if file_path is None or media is None:
+                    continue
+                start = round(region.start * self.history.rate)
+                offset = round(region.offset * self.history.rate)
+                length = round(region.length * self.history.rate)
+                if offset < 0 or offset >= media.frames or length <= 0:
+                    continue
+                length = min(length, media.frames - offset)
+                if length <= 0:
+                    continue
+                if track_id is None:
+                    track_id = ops.new_id("t")
+                    kind = "music" if media.channels >= 2 else "speech"
+                    p = ops.add_track(p, track_id, source_track.name or "Track", kind)
+                    p = ops.set_track(p, track_id, gain_db=track_gain, pan=track_pan,
+                                      mute=track_muted)
+                    p = ops.set_track_extra(p, track_id, "nhsx", {
+                        "source_xml": _element_xml(track_elem)})
+                clip_id = ops.new_id("c")
+                p = ops.add_clip(p, track_id, media.id, start=start, offset=offset,
+                                 length=length, clip_id=clip_id)
+                elem = region.elem
+                clip_gain = elem.get("ClipGain")
+                region_gain = (_db_value(clip_gain) if clip_gain is not None
+                               else _db_value(elem.get("Gain")))
+                region_pan = _db_value(elem.get("Pan"))
+                fade_in = round(_time_value(elem.get("FadeIn")) * self.history.rate)
+                fade_out = round(_time_value(elem.get("FadeOut")) * self.history.rate)
+                p = ops.set_clip(p, clip_id, gain_db=region_gain,
+                                 pan=max(-1.0, min(1.0, region_pan)),
+                                 fade_in=fade_in, fade_out=fade_out,
+                                 muted=_truth(elem.get("Muted")))
+                p = ops.set_clip_extra(p, clip_id, "nhsx", {
+                    "source_xml": _element_xml(elem)})
+                key = (source_track.name, file_path, region.start, region.length,
+                       region.offset)
+                ramps = mix_by_region.get(key, [])
+                if ramps:
+                    ramp = ramps.pop(0)
+                    points = _ramp_points(ramp.ramps, region.offset, self.history.rate)
+                    if points:
+                        p = ops.set_clip_envelope(p, clip_id, points)
+
+        root = self.history.material
+        with dbm.tx(self.history.db):
+            for file_id, media in media_by_file.items():
+                if media.id in root["transcripts"]:
+                    continue
+                file_info = nhsx_session.file_by_id(file_id)
+                words = _nhsx_words(file_info)
+                if not words:
+                    continue
+                digest = dbm.put_blob(self.history.db, "words", words)
+                cur = self.history.db.execute(
+                    "insert into transcript_revs(media, parent, words, engine, "
+                    "created_utc)"
+                    " values (?,?,?,?,?)",
+                    (media.id, None, digest, '{"tool":"nhsx"}', dbm.utc_now()))
+                root["transcripts"][media.id] = int(cur.lastrowid)
+
+        if p == self.history.state and root == self.history.material:
+            return p
+        p = replace(p, extra={**p.extra, "nhsx": {"source_xml": source_xml}})
+        self.last_import_interview = None
+        return self._commit(t("history.nhsx_import", name=source.name), p,
+                            "import_nhsx", {"path": str(source)}, material=root)
 
     def _with_import_interview(self, p: Project, media: list, want: bool | None,
                                title: str | None, made_group: bool) -> dict | None:
@@ -617,6 +827,10 @@ def _map_speakers(s: Session, args: dict) -> Project:
     return s.history.state
 
 
+def _import_nhsx(s: Session, args: dict) -> Project:
+    return s.import_nhsx(args["path"])
+
+
 #: Name -> function(session, args) -> Project. The session lock is held.
 #: ``auto_silence``, ``automix`` and ``cut_words`` commit one step each;
 #: ``relink`` and ``consolidate`` change no state and commit nothing. The people
@@ -633,4 +847,5 @@ COMMANDS: dict[str, Callable[[Session, dict], Project]] = {
     "edit_interview": _edit_interview,
     "set_media_person": _set_media_person,
     "map_speakers": _map_speakers,
+    "import_nhsx": _import_nhsx,
 }
