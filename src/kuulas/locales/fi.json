@@ -217,5 +217,6 @@
   "music_report.header.metadata": "Tiedot",
   "music_report.background": "Taustalla",
   "music_report.featured": "Etualalla",
-  "music_report.missing_metadata": "Nimi tai esittäjä puuttuu"
+  "music_report.missing_metadata": "Nimi tai esittäjä puuttuu",
+  "error.music_report.bad_format": "Valitse json, csv tai html; muotoa {format} ei tueta."
 }

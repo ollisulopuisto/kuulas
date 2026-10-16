@@ -16,13 +16,17 @@ from dataclasses import dataclass
 import numpy as np
 
 from . import analysis
-from .messages import t
+from .messages import KuulasError, t
 from .mixer import Store
 from .model import Media, Project
 from .usage import extract
 
 _HEADER_KEYS = ("order", "title", "artist", "composer", "publisher", "isrc",
                 "file_name", "in", "out", "duration", "usage", "metadata")
+
+
+class MusicReportError(KuulasError):
+    """A problem building or formatting the music report."""
 
 
 @dataclass(frozen=True)
@@ -127,16 +131,43 @@ def _metadata(row: ReportRow) -> str:
     return t("music_report.missing_metadata") if row.missing_metadata else ""
 
 
+def _guard_formula(value: str) -> str:
+    """Prefix cells starting with formula triggers (=, +, -, @) with a single quote.
+
+    Spreadsheet applications like Excel interpret leading =, +, -, or @ as formula
+    expressions, which can cause evaluation errors or formula injection.
+    Quoting with a leading single quote ensures they are treated as plain text literals.
+    """
+    if value and value[0] in ("=", "+", "-", "@"):
+        return "'" + value
+    return value
+
+
 def render_csv(rows: tuple[ReportRow, ...]) -> str:
-    """Semicolon-separated UTF-8 CSV, with Excel's UTF-8 signature."""
+    """Semicolon-separated UTF-8 CSV, with Excel's UTF-8 signature.
+
+    Cells starting with '=', '+', '-', or '@' are prefixed with a single quote
+    to prevent spreadsheet formula injection in applications like Excel.
+    """
     out = io.StringIO()
     writer = csv.writer(out, delimiter=";", quoting=csv.QUOTE_MINIMAL,
                         lineterminator="\n")
     writer.writerow(_headers())
     for r in rows:
-        writer.writerow([str(r.order), r.title, r.artist, r.composer,
-                         r.publisher, r.isrc, r.file_name, r.in_time,
-                         r.out_time, r.duration, _usage(r), _metadata(r)])
+        writer.writerow([
+            str(r.order),
+            _guard_formula(r.title),
+            _guard_formula(r.artist),
+            _guard_formula(r.composer),
+            _guard_formula(r.publisher),
+            _guard_formula(r.isrc),
+            _guard_formula(r.file_name),
+            r.in_time,
+            r.out_time,
+            r.duration,
+            _usage(r),
+            _metadata(r),
+        ])
     return "\ufeff" + out.getvalue()
 
 
