@@ -44,7 +44,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R20 | Ingest every audio format and the audio of video files | in progress: ffmpeg decoder |
 | R21 | Heavy parallel processing | imports parallel; analysis, transcription, export next |
 | R22 | Basic multitrack recording, standard APIs only (CoreAudio/WASAPI via PortAudio), Mac first; foolproof modal record mode: only a 2 s hold stops it, backend keeps recording if the UI closes, no sleep | planned: WP12 |
-| R23 | Sync workflow: files imported or recorded together are in sync by default; align any other file by eye and mark it in sync; optional align-by-sound helper for Zoom/phone files (drift, dropouts) | core done (sync groups); default groups in WP1; helper WP16 |
+| R23 | Sync workflow: files imported or recorded together are in sync by default; align any other file by eye and mark it in sync; optional align-by-sound helper for Zoom/phone files (drift, dropouts) | core done (sync groups, default groups at import); helper WP16 |
 | R24 | Space never plays a clip list; dropping never trims to in/out; previews loudness-matched | planned: WP17 + plan-wide rules (important, can come later) |
 | R25 | Mark possible cuts on the first listen, decide on the second; markers stay on their audio through every edit | planned: WP18 |
 | R26a | Edit groups: an edit applies to the whole sync group unless group editing is switched off (Pro Tools, Reaper) | planned: WP19a, in milestone M1. Rule: time-shifting edits keep the sync group together, other edits touch exactly the selection |
@@ -112,6 +112,9 @@ sizes: `docs/PLAN.md`, section "Triage".
   docs/FORMAT.md. 135 tests pass.
 - WP30 (v26.10.16.6): recording clock in flicks (words, BWF times, sync
   origins); sync groups per media, in material. 155 tests pass.
+- WP1 (v26.10.16.7): `Session`, one open project (edit, command, undo/redo/goto,
+  import with default sync groups, transcripts, subscribe); solo/mute clicks
+  coalesce (WP24.1). Not yet used by anything: HTTP API is WP3. 200 tests pass.
 
 ## Later (v2)
 

@@ -1,5 +1,25 @@
 # Changelog
 
+## [v26.10.16.7] - 2026-10-16
+
+There is still no app to open; this is the layer the app will talk to.
+
+- Opening a project now gives one place that every change goes through:
+  edit, undo, redo and jump to any earlier step, each change saved before it
+  is acknowledged. Reopening after a crash resumes at the last edit.
+- Importing several files at once puts each on its own track (mono as
+  speech, stereo as music) as one undo step. Files imported together are
+  treated as recorded together: placed by the recorder's own clock when the
+  files carry one, and grouped in sync.
+- Transcripts can be set and corrected as undoable steps; deleting words
+  cuts the same stretch from every track.
+- Auto-silence (optionally for chosen tracks), automix, relink and
+  consolidate are available as project commands.
+- Clicking solo through the tracks is a single undo step, and mute clicks
+  on one track merge, instead of one step per click.
+- Fixed: importing the same audio twice in one batch could clash while
+  both copies were being encoded; the second now waits for the first.
+
 ## [v26.10.16.6] - 2026-10-16
 
 - Sync groups now belong to the recordings, not to clips: marking clips in

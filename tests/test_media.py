@@ -310,3 +310,16 @@ def test_the_media_row_is_written_after_the_file(tmp_path, monkeypatch):
         store.import_file(src, copy=True)
     assert store.find(src) is None
     assert store.ids() == []
+
+
+def test_the_same_bytes_imported_in_parallel_are_stored_once(tmp_path):
+    # Two cores meeting the same file (a batch that lists it twice, or two
+    # copies of it) must not both encode it: one wins, the others find the row.
+    src = tmp_path / "a.wav"
+    write_wav(src, np.ones((1, 48000 * 20), dtype=np.float32) * 0.1, 48000)
+    copy = tmp_path / "b.wav"
+    copy.write_bytes(src.read_bytes())
+    store = MediaStore(tmp_path / "media", rate=48000)
+    found = store.import_files([src, copy] * 4, copy=True)
+    assert len({m.id for m in found}) == 1
+    assert store.ids() == [found[0].id]

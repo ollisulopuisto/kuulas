@@ -133,6 +133,10 @@ class MediaStore:
             dbm.ensure_schema(self.db, rate)
         self._lock = threading.Lock()
         self._db_lock = threading.RLock()
+        #: One lock per media id, held while a file is imported: two cores
+        #: meeting the same bytes (a batch that lists a file twice) must not
+        #: both encode it. The second waits, then finds the finished row.
+        self._import_locks: dict[str, threading.Lock] = {}
         self._handles: dict[str, tuple[threading.Lock, sf.SoundFile]] = {}
         self._cache: OrderedDict[tuple[str, int], np.ndarray] = OrderedDict()
         self._meta: dict[str, dict] = {}
@@ -234,6 +238,12 @@ class MediaStore:
         digest = _sha256(path)
         media_id = self.media_id(digest)
         self._remember(digest, path)
+        with self._lock:
+            once = self._import_locks.setdefault(media_id, threading.Lock())
+        with once:
+            return self._import_once(path, digest, media_id, copy)
+
+    def _import_once(self, path: Path, digest: str, media_id: str, copy: bool) -> Media:
         row = self._row(media_id)
         if row is not None and row["sha256"] != digest:
             # Two different files share the first 12 hex digits of their hash.

@@ -16,6 +16,7 @@ cannot register as a talker.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 
@@ -148,9 +149,14 @@ def silence_ranges(p: Project, store: Store) -> dict[str, list[tuple[int, int]]]
     return out
 
 
-def auto_silence(p: Project, store: Store) -> Project:
+def auto_silence(p: Project, store: Store,
+                 track_ids: Iterable[str] | None = None) -> Project:
+    """Mute each speech mic where it should be closed. ``track_ids`` limits
+    which tracks are changed; every mic is still measured, because whether
+    one is closed depends on the others (bleed)."""
+    only = None if track_ids is None else set(track_ids)
     for track_id, ranges in silence_ranges(p, store).items():
-        if ranges:
+        if ranges and (only is None or track_id in only):
             p = ops.mute_ranges(p, track_id, ranges)
     return p
 

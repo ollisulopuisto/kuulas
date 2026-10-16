@@ -364,7 +364,12 @@ Acceptance: `uv run pytest -q` all green, `uv run ruff check .` clean,
 
 ### WP1 — Session: one open project
 
-Status: open. Needs WP0.
+Status: done in v26.10.16.7. Needs WP0. Adapted to WP29/WP30: no
+`ops.add_media`/`ops.set_transcript` (media rows and transcript revisions live
+in the material; `state` already shows imported media), history steps are UUID
+strings (`goto(node: str)`), BWF times and sync origins are flicks. Solo/mute
+coalescing (WP24.1) is in `Session.edit`. Not built here: `Session.edit_target`
+(WP19a).
 
 New file `src/kuulas/session.py`. A `Session` owns everything for one project
 folder, and every API call goes through it. It is the only place that
@@ -1702,7 +1707,7 @@ Tests first: `test_realtime_layer_output_is_block_size_independent`,
 ### WP24 — Solo rules and A/B comparison
 
 Status: 24.1 done in v26.10.16.2 (mixer rule and `ops.solo`; the coalesce
-key waits for the Session in WP1, and the keys for WP5). 24.2 open. Part 1 needs only WP0, so do it right after WP0. Part 2 needs
+key is in `Session.edit` since v26.10.16.7, and the keys for WP5). 24.2 open. Part 1 needs only WP0, so do it right after WP0. Part 2 needs
 WP4, WP21 and WP23.
 
 #### 24.1 Solo (change to the existing mixer)
