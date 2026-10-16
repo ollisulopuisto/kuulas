@@ -173,6 +173,35 @@ h2 { font-family: var(--display); font-size: 22px; margin: 0 0 8px; }
 .rlog .cands .t { color: color-mix(in srgb, var(--rec-ink) 65%, transparent); }
 .edit { border-bottom: 1px solid var(--rec-ink); }
 
+/* ---- Sketch: what an edit touches ---- */
+#groupedit { display: grid; gap: 14px; }
+#groupedit .ge-lede { margin: -4px 0 0; color: var(--muted); max-width: 72ch; }
+#groupedit .ge-lede b { color: var(--ink); }
+#groupedit .ge-legend { margin: 0; font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+#groupedit .lg { display: inline-block; width: 22px; height: 12px; border-radius: 2px; vertical-align: -1px; margin-right: 4px; }
+#groupedit .lg.sel { border: 2px solid var(--ink); }
+#groupedit .lg.partner { border: 2px dashed var(--ink); opacity: .7; }
+#groupedit .lg.range { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+#groupedit .lg.drift { width: auto; height: auto; font: 700 10px var(--mono); color: var(--must); border: 1px solid var(--must); padding: 0 4px; }
+#groupedit .ge-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 16px; }
+#groupedit .ge-card { border: 1px solid var(--rule); border-radius: 6px; background: var(--panel); padding: 12px; display: grid; gap: 8px; min-width: 0; }
+#groupedit .ge-card h3 { margin: 0; font-size: 15px; font-weight: 700; text-wrap: balance; }
+#groupedit .ge-card .why { margin: 0; font-size: 13px; color: var(--muted); }
+#groupedit .ge-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: center; }
+#groupedit .ge-tl { min-width: 0; }
+#groupedit .ge-tl .cap { font: 600 10px var(--mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+#groupedit .ge-tl svg { width: 100%; height: auto; display: block; }
+#groupedit .ge-key { display: grid; justify-items: center; gap: 2px; font-size: 11px; color: var(--muted); text-align: center; }
+#groupedit .ge-key .arrow { font-size: 18px; color: var(--ink); line-height: 1; }
+#groupedit .ge-key kbd { font: 500 10.5px var(--mono); border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; background: var(--bg); color: var(--ink); white-space: nowrap; }
+#groupedit .chipoff { font: 600 10px var(--mono); color: var(--progress); border: 1px solid var(--progress); border-radius: 999px; padding: 0 6px; justify-self: start; }
+#groupedit .res { margin: 0; font-size: 13px; }
+#groupedit .res.ok::before { content: "✓ "; color: var(--accent); font-weight: 700; }
+#groupedit .res.warn::before { content: "! "; color: var(--must); font-weight: 700; }
+@media (max-width: 520px) {
+  #groupedit .ge-row { grid-template-columns: 1fr; }
+  #groupedit .ge-key { grid-auto-flow: column; justify-content: start; gap: 8px; }
+}
 </style></head><body><div class="wrap">
 <!-- Visual target for the UI work packages (docs/PLAN.md). Same markup as the
      "UI sketches" section of the published roadmap page. -->
@@ -331,6 +360,13 @@ h2 { font-family: var(--display); font-size: 22px; margin: 0 0 8px; }
     </figure>
   </section>
 
+  <section id="groupedit" aria-labelledby="ge-h">
+    <h2 id="ge-h">Sketch: what an edit touches</h2>
+    <p class="ge-lede">One rule: <b>an edit that shifts time keeps the sync group together; any other edit touches exactly what you selected.</b> Each scene shows three tracks of one interview (Anna, Ville, the Zoom recording), before and after one key.</p>
+    <p class="ge-legend"><span class="lg sel"></span> selected &nbsp; <span class="lg partner"></span> taken along to keep sync &nbsp; <span class="lg range"></span> selected range &nbsp; <span class="lg drift">−1.2 s</span> out of sync</p>
+    <div class="ge-grid" id="ge-grid"></div>
+  </section>
+
 </div>
 <script>
 // ---- UI sketches: half waveforms (Hindenburg style), drawn from a seed ----
@@ -354,5 +390,88 @@ function drawWave(el) {
   el.innerHTML = `<svg viewBox="0 0 ${n * 2} 40" preserveAspectRatio="none" aria-hidden="true">${bars}</svg>`;
 }
 for (const el of document.querySelectorAll("#sketches .wave")) drawWave(el);
+
+// ---- Sketch: what an edit touches. Each scene is data; drawSceneTl draws it. ----
+const GE_TRACKS = [["A", "Anna", "--sk-a"], ["V", "Ville", "--sk-v"], ["Z", "Zoom", "--sk-z"]];
+function drawSceneTl(spec) {
+  const W = 300, L = 40, R = 6, RH = 24, top = 4;
+  const x = (u) => L + (u / 100) * (W - L - R);
+  let svg = "";
+  if (spec.range) {
+    for (const t of spec.range.tracks) {
+      const i = GE_TRACKS.findIndex((tr) => tr[0] === t);
+      svg += `<rect x="${x(spec.range.from)}" y="${top + i * RH - 1}" width="${x(spec.range.to) - x(spec.range.from)}" height="${RH}" style="fill:color-mix(in srgb, var(--accent) 28%, transparent)"></rect>`;
+    }
+  }
+  GE_TRACKS.forEach(([key, name, color], i) => {
+    const y = top + i * RH;
+    svg += `<text x="2" y="${y + 14}" style="font:600 10px var(--mono);fill:var(--muted)">${name}</text>`;
+    for (const c of spec.tracks[key] || []) {
+      const [from, to, flags = ""] = c;
+      const stroke = flags.includes("s") ? "stroke:var(--ink);stroke-width:2"
+        : flags.includes("p") ? "stroke:var(--ink);stroke-width:1.6;stroke-dasharray:3 2"
+        : `stroke:var(${color});stroke-width:1`;
+      svg += `<rect x="${x(from) + 0.5}" y="${y + 2}" width="${Math.max(2, x(to) - x(from) - 1)}" height="${RH - 6}" rx="2" style="fill:var(${color}-bg);${stroke}"></rect>`;
+      const gy = flags.includes("g") ? y + 6 : y + 11;
+      svg += `<line x1="${x(from) + 3}" x2="${x(to) - 3}" y1="${gy}" y2="${gy}" style="stroke:var(${color});stroke-width:1;stroke-dasharray:2 2;opacity:.8"></line>`;
+      if (flags.includes("g")) svg += `<text x="${x(from) + 4}" y="${y + 19}" style="font:700 9px var(--mono);fill:var(--ink)">+2 dB</text>`;
+      if (flags.includes("d")) svg += `<text x="${x(to) - 4}" y="${y + 15}" text-anchor="end" style="font:700 9px var(--mono);fill:var(--must)">−1.2 s</text>`;
+    }
+  });
+  return `<svg viewBox="0 0 ${W} ${top * 2 + RH * 3}" role="img" aria-label="${spec.label}">${svg}</svg>`;
+}
+const GE_FULL = { A: [[0, 100]], V: [[0, 100]], Z: [[0, 100]] };
+const GE_SCENES = [
+  { title: "1 · Cut a range: group editing on", why: "You set in and out around an “öö” and cut. Cutting shifts time, so it applies to every track in the group.",
+    before: { tracks: GE_FULL, range: { from: 40, to: 55, tracks: ["A", "V", "Z"] }, label: "range selected on all three tracks" },
+    key: ["⌘X", "cut, close gap"],
+    after: { tracks: { A: [[0, 40], [40, 85]], V: [[0, 40], [40, 85]], Z: [[0, 40], [40, 85]] }, label: "all three cut at the same place" },
+    res: ["ok", "Everyone loses the same 1.2 s, so all three tracks stay in sync."] },
+  { title: "2 · Cut a range: group editing off", why: "The same cut with ⌘G off (a warning chip stays visible). Only the focused track is cut.",
+    off: true,
+    before: { tracks: GE_FULL, range: { from: 40, to: 55, tracks: ["A"] }, label: "range selected on Anna only" },
+    key: ["⌘X", "cut, close gap"],
+    after: { tracks: { A: [[0, 40], [40, 85, "d"]], V: [[0, 100]], Z: [[0, 100]] }, label: "Anna cut, others not; Anna is now 1.2 s early" },
+    res: ["warn", "Anna’s later audio is now 1.2 s ahead of the others, and the badge says so. Scene 6 fixes it."] },
+  { title: "3 · Change level on chosen clips", why: "Select two clips on different tracks (⇧-click) and press ⇧⌘↑ twice. Level doesn’t shift time, so nothing else is touched.",
+    before: { tracks: { A: [[0, 50, "s"], [50, 100]], V: [[0, 60], [60, 100, "s"]], Z: [[0, 100]] }, label: "two clips selected" },
+    key: ["⇧⌘↑ ×2", "+2 dB"],
+    after: { tracks: { A: [[0, 50, "sg"], [50, 100]], V: [[0, 60], [60, 100, "sg"]], Z: [[0, 100]] }, label: "only those two clips are louder" },
+    res: ["ok", "Exactly the two clips you picked get +2 dB, whether group editing is on or off."] },
+  { title: "4 · Nudge one clip: group editing on", why: "Select Anna’s clip. Its partners (Ville’s and Zoom’s pieces of the same stretch of recording) get a dashed outline, because moving shifts time.",
+    before: { tracks: { A: [[0, 45], [45, 100, "s"]], V: [[0, 45], [45, 100, "p"]], Z: [[0, 45], [45, 100, "p"]] }, label: "Anna's clip selected, partners dashed" },
+    key: ["⌘→ ×5", "nudge 50 ms"],
+    after: { tracks: { A: [[0, 45], [50, 100, "s"]], V: [[0, 45], [50, 100, "p"]], Z: [[0, 45], [50, 100, "p"]] }, label: "all three pieces moved together" },
+    res: ["ok", "The three pieces move together and stay in sync. With ⌘G off, only Anna’s would move, with a drift badge."] },
+  { title: "5 · Delete, leave a gap", why: "Select a cough on Anna’s track and press Backspace. The clip goes, the gap stays, and nothing shifts.",
+    before: { tracks: { A: [[0, 40], [40, 60, "s"], [60, 100]], V: GE_FULL.V, Z: GE_FULL.Z }, label: "a cough clip selected on Anna" },
+    key: ["⌫", "delete, leave gap"],
+    after: { tracks: { A: [[0, 40], [60, 100]], V: GE_FULL.V, Z: GE_FULL.Z }, label: "Anna has a silent gap; nothing moved" },
+    res: ["ok", "Anna is silent there. Nothing moved, so nothing went out of sync."] },
+  { title: "6 · Fix scene 2 later", why: "Select everything from the playhead on (⇧⌥End) and resync. Anna snaps back, and the hole shows what was cut on her track only.",
+    before: { tracks: { A: [[0, 40], [40, 85, "sd"]], V: [[0, 100, "s"]], Z: [[0, 100, "s"]] }, label: "drifted state selected" },
+    key: ["⇧⌥⌘R", "resync"],
+    after: { tracks: { A: [[0, 40], [55, 100]], V: [[0, 100]], Z: [[0, 100]] }, range: { from: 40, to: 55, tracks: ["A", "V", "Z"] }, label: "Anna back in sync with a hole" },
+    res: ["ok", "Back in sync. Then ⌥⌘X (close gap on all tracks) removes that stretch from everyone, giving the same result as scene 1."] },
+];
+const geGrid = document.getElementById("ge-grid");
+if (geGrid) {
+  for (const sc of GE_SCENES) {
+    const card = document.createElement("article");
+    card.className = "ge-card";
+    card.innerHTML = `<h3></h3><p class="why"></p>${sc.off ? '<span class="chipoff">Group editing off</span>' : ""}
+      <div class="ge-row">
+        <div class="ge-tl"><div class="cap">Before</div>${drawSceneTl(sc.before)}</div>
+        <div class="ge-key"><span class="arrow">→</span><kbd></kbd><span class="what"></span></div>
+        <div class="ge-tl"><div class="cap">After</div>${drawSceneTl(sc.after)}</div>
+      </div><p class="res ${sc.res[0]}"></p>`;
+    card.querySelector("h3").textContent = sc.title;
+    card.querySelector(".why").textContent = sc.why;
+    card.querySelector("kbd").textContent = sc.key[0];
+    card.querySelector(".ge-key .what").textContent = sc.key[1];
+    card.querySelector(".res").textContent = sc.res[1];
+    geGrid.append(card);
+  }
+}
 </script>
 </body></html>

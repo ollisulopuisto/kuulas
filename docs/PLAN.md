@@ -191,8 +191,8 @@ phases later, it costs a rewrite.
 
 Run `kuulas open`, import files, hear them, edit by keyboard (split, cut on
 all tracks, trim, nudge, mute), undo, and export WAV or **MP3**. The steps on
-the way, in order: WP33a (done), WP29, WP30, WP1, WP2, WP3, WP33b, WP4, WP5,
-WP11 (WP11 can run in parallel with WP4). Everything else in phase 1 follows
+the way, in order: WP33a (done), WP29 (done), WP30 (done), WP1, WP2, WP3, WP33b,
+WP4, WP5, WP19a (editing in sync), WP11 (WP11 can run in parallel with WP4). Everything else in phase 1 follows
 M1. Estimate on 2026-10-16: about 10–12 hours of agent work in sequence,
 plus the owner's listening test of WP2 on the Mac.
 
@@ -220,23 +220,23 @@ plugin on a voice, undo anything, export a mastered file.
 | 9 | **★ WP33b i18n in the UI (R39)** | M | Intl formatting, key names, literal-text check | Sonnet 5.5 |
 | 10 | WP4 UI shell + timeline | L | canvas drawing, zoom, hit-testing | Sonnet 5.5 |
 | 11 | **★ WP5 keymap + palette (R10)** | M | many bindings, collision test | Sonnet 5.5 |
-| 12 | **★ WP8 history panel + stateful undo (R29)** | M | ledger restore, context restore, change flash | Sonnet 5.5 |
-| 13 | **★ WP22 track tags + ducking (R30)** | S | music-bed curve from nhsx | Sonnet 5.5 |
-| 14 | **★ WP26 fast listening + JKL (R33)** | L | streaming time-stretch, JKL state machine | **Opus 5.5** |
-| 15 | **★ WP19i tab to transient / word (R26i)** | M | onset detection; word mode waits for WP7 | Sonnet 5.5 |
-| 16 | WP6 mouse editing | M | drag state machine | Sonnet 5.5 |
-| 17 | WP9 jobs + local transcription | M | parallel faster-whisper | Sonnet 5.5 |
-| 18 | WP7 transcript panel | M | selection → word indices | Sonnet 5.5 |
-| 19 | **★ WP23a FX layers: real-time tier + analyse-then-live tier (R30)** | L | real-time plugins in the callback, latency compensation, CPU meter | **Opus 5.5** |
-| 20 | WP11 export + mastering | M | parallel ordered render | Sonnet 5.5 |
+| 12 | **★ WP19a edit groups: what an edit touches (M1)** | M | target × time-shifting rule, partners by recording time | Sonnet 5.5 |
+| 13 | **★ WP8 history panel + stateful undo (R29)** | M | ledger restore, context restore, change flash | Sonnet 5.5 |
+| 14 | **★ WP22 track tags + ducking (R30)** | S | music-bed curve from nhsx | Sonnet 5.5 |
+| 15 | **★ WP26 fast listening + JKL (R33)** | L | streaming time-stretch, JKL state machine | **Opus 5.5** |
+| 16 | **★ WP19i tab to transient / word (R26i)** | M | onset detection; word mode waits for WP7 | Sonnet 5.5 |
+| 17 | WP6 mouse editing | M | drag state machine | Sonnet 5.5 |
+| 18 | WP9 jobs + local transcription | M | parallel faster-whisper | Sonnet 5.5 |
+| 19 | WP7 transcript panel | M | selection → word indices | Sonnet 5.5 |
+| 20 | **★ WP23a FX layers: real-time tier + analyse-then-live tier (R30)** | L | real-time plugins in the callback, latency compensation, CPU meter | **Opus 5.5** |
+| 21 | WP11 export + mastering | M | parallel ordered render | Sonnet 5.5 |
 
 ### Phase 2 — The editing loop (what makes it better than Hindenburg)
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 21 | WP28 focus mode | M | lane layout, speaker focus, solo restore | Sonnet 5.5 |
-| 22 | WP18 cut candidates | M | recording-clock anchoring (later WPs reuse it) | **Opus 5.5** |
-| 23 | WP19a edit groups | S | edit scope rules | Haiku 5.5 |
+| 22 | WP28 focus mode | M | lane layout, speaker focus, solo restore | Sonnet 5.5 |
+| 23 | WP18 cut candidates | M | recording-clock anchoring (later WPs reuse it) | **Opus 5.5** |
 | 24 | WP19f spot | S | parsing | Haiku 5.5 |
 | 25 | WP24.2 A/B | M | edit A/B position mapping, level match | Sonnet 5.5 |
 | 26 | WP21 several edits (versions) | L | history schema migration, offer_cuts | **Opus 5.5** |
@@ -1245,20 +1245,48 @@ Remix (Audition), session view, warping and MIDI (Live), grid mode (Pro Tools).
 
 Prevents the accidental one-track cut instead of only repairing it.
 
-- Every sync group is also an **edit group**. With group editing on (the
-  default), a ripple edit or trim on a clip applies to every track in its
-  group. Tracks outside any group follow the old rule (ripple applies to all
-  tracks).
+**The rule (decided with the owner, 2026-10-16; storyboard on the roadmap
+page and in `docs/ui-sketches.html`): an edit that shifts time keeps the sync
+group together; any other edit touches exactly what you selected.**
+
+- Every edit has a **target** and a **kind**:
+  - The target is either a **range** (in→out, selected words, a cut
+    candidate) on some tracks, or a set of **clips**.
+  - Time-shifting kinds: cut and close gap, ripple delete, insert, move or
+    nudge, ripple trim. Everything else (gain, pan, mute, fades, FX, delete
+    leaving a gap, trim without ripple) does not shift time.
+- **Time-shifting edits expand their target** to the sync group:
+  - a range expands to every track of the group;
+  - a clip set expands to each clip's **partners**: the group's clips on
+    other tracks that play the same stretch of recording (by
+    `Clip.recorded`, WP30).
+- **Other edits use the target exactly as selected.** A range applies to
+  the selected tracks (default the focused one; Shift+↑/↓ adds tracks).
+- Tracks outside any group: a time-shifting range edit applies to all
+  tracks, as before.
+- **Seeing the scope:** a range is highlighted on exactly the tracks the
+  next time-shifting edit will touch. A selected clip's partners get a
+  dashed outline, so the user sees what a move will take along before
+  pressing the key.
+- **Close gap on all tracks** (Alt+Mod+X): with in→out on a silent gap
+  (left by Backspace or by a resync), ripple-delete that stretch on every
+  track of the group. This is how one-track work is brought back into sync
+  (storyboard scene 6).
 - Mod+G toggles group editing for the session. When it is off, the toolbar
   shows a persistent warning chip "Group editing off", because that state
   is how the accident happens.
 - Shift+Mod+X stays the explicit one-track cut.
-- `Session.edit_scope(clip_ids) -> list[track_id]` decides the tracks;
-  `ripple_delete`, Q/W trims and `cut_words` use it.
+- `Session.edit_target(kind, target) -> target` applies the rule, so every
+  command gets the same answer. `ripple_delete`, Q/W, nudges, moves and
+  `cut_words` use it.
 
-Tests: a cut on a grouped track also cuts its group-mates but not an
-ungrouped music track; with grouping off only the focused track is cut; the
-toggle is UI state, not history.
+Tests (one per storyboard scene, plus edges): a range cut expands to the
+group and not to an ungrouped music track; with grouping off only the
+focused track is cut and shows drift; gain on two chosen clips touches
+exactly those; nudging one clip moves its partners; Backspace leaves a gap
+and shifts nothing; resync then close gap on all tracks equals the
+group-wide cut; partners are found by recording time, not by timeline
+overlap; the toggle is UI state, not history.
 
 #### 19b — Connected clips (Final Cut Pro)
 
@@ -1608,6 +1636,45 @@ estimation). So a layer is one of three tiers, and the UI shows which:
    tier-1 approximation if one exists (status "preview"), otherwise bypasses
    the layer (status "rendering"). When the render is ready, playback and
    export use it (status "ready").
+
+**Where heavy restoration goes (owner, 2026-10-16):** dxRevive and the
+speechmix voice chain probably cannot run in real time, so they are **never**
+in the playback path:
+
+- **Source-level layers** (restoration: dxRevive, de-noise, de-reverb, the
+  voice chain) process each *media file* once, offline, in the background.
+  The result is cached by content hash (media + plug-in + parameters +
+  plug-in state + algorithm version). Every clip and every edit reuses it, so
+  cutting, moving and trimming never re-render; only changed settings do.
+  This is speechmix's own rule: what comes before the chain is baked in.
+  - The render starts at the playhead and works outward, in chunks with
+    overlap handles (reuse speechmix's parallel-piece machinery in
+    `chain.apply_plugin`).
+  - Playback uses processed audio where it is ready and the original
+    elsewhere, with an "unprocessed" stripe on those stretches. Export
+    waits for all of it.
+- **Mix layers** (track, bus, master) are real-time only. A plug-in is
+  allowed there only if a speed test on first use (10 s rendered at 4× real
+  time or faster on one core) shows it can keep up.
+- **Level audition** (Alt+Mod+L on a source layer): render a short window
+  around the playhead (10 s, or in→out) at several values of the plug-in's
+  own parameter (default 25 / 50 / 75 / 100), in parallel, through
+  **speechmix's audition function** (requested from the podcast repo on
+  2026-10-16; do not build it here). The window loops; **1–4** switch
+  between renders instantly at the same position, **0** is the original,
+  and switching is loudness-matched (speechmix meter). Changing settings in
+  the plug-in's own window (speechmix.editor) re-renders the window in the
+  background and swaps it in when ready. **Enter** keeps the setting, and the
+  full source render starts. If speechmix measures that the parameter is a
+  linear dry/wet mix, offer a continuous slider by blending one 100 % render
+  with the original instead.
+- **Render in → out** (Shift+Mod+B, Logic's bounce in place): render the
+  selected clips, or in→out on the selected tracks, through all their layers
+  into new media (FLAC, content-addressed), with 2 s handles. The clips are
+  replaced in one undoable step. The original media and layer settings are
+  kept on the clip, so "un-render" restores them. Options: in place (the
+  default), or to a new track with the original muted below. **Freeze
+  track** is the same for a whole track.
 
 **Playback and export stay identical:** export waits until every tier-3 layer
 is ready (it shows what it is waiting for), and tier-1 layers run the same
