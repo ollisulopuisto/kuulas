@@ -187,7 +187,9 @@ phases later, it costs a rewrite.
 |---|---|---|---|---|
 | 1 | WP0 baseline, lint, first commit | S | none | Haiku 5.5 |
 | 2 | WP24.1 solo rules | S | none | Haiku 5.5 |
-| 3 | WP1 session | M | import as one sync group, one commit | Sonnet 5.5 |
+| 3 | WP29 project format v1 (docs/FORMAT.md) | L | material vs edit state, migrations, lock | **Opus 5.5** |
+| 3b | WP30 recording clock in flicks, sync per media | M | changes the sync model without changing behaviour | **Opus 5.5** |
+| 3c | WP1 session | M | import as one sync group, one commit | Sonnet 5.5 |
 | 4 | WP2 playback engine | M | glitch-free real-time callback, prefetch | **Opus 5.5** |
 | 5 | WP3 HTTP API + CLI | M | none | Sonnet 5.5 |
 
@@ -212,7 +214,8 @@ cut by text and by keyboard, automix, undo anything, export a mastered file.
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 15 | WP18 cut candidates | M | recording-clock anchoring (later WPs reuse it) | Sonnet 5.5 |
+| 14b | WP28 focus mode | M | lane layout, speaker focus, solo restore | Sonnet 5.5 |
+| 15 | WP18 cut candidates | M | recording-clock anchoring (later WPs reuse it) | **Opus 5.5** |
 | 16 | WP19a edit groups | S | edit scope rules | Haiku 5.5 |
 | 17 | WP19i tab to transient / word | M | onset detection | Sonnet 5.5 |
 | 18 | WP19f spot | S | parsing | Haiku 5.5 |
@@ -240,9 +243,9 @@ cut by text and by keyboard, automix, undo anything, export a mastered file.
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 33 | WP12 recording, foolproof mode, live logging | L | hardware, crash recovery, sleep prevention | Sonnet 5.5 |
+| 33 | WP12 recording, foolproof mode, live logging | L | hardware, crash recovery, sleep prevention | **Opus 5.5** |
 | 34 | WP17 clip bin | M | Space and in/out rules | Sonnet 5.5 |
-| 35 | WP16 align by sound | **XL** | drift and dropout detection | Sonnet 5.5 |
+| 35 | WP16 align by sound | **XL** | drift and dropout detection | **Opus 5.5** |
 
 ### Phase 5 — Late
 
@@ -344,7 +347,8 @@ combines `History`, `MediaStore` and `ops`.
 ```python
 class Session:
     def __init__(self, folder: Path, rate: int = 48000): ...
-        # creates folder/media, opens folder/project.sqlite
+        # opens or creates a Name.kuulas package (docs/FORMAT.md, WP29):
+        # manifest, lock, project.sqlite, media/, caches/
     state: Project                      # property -> history.state
     history: History
     store: MediaStore
@@ -1114,8 +1118,8 @@ class Marker:
     kind: str            # "cut" (candidate deletion) | "note" | "timeline"
     anchor: str          # "group" | "media" | "timeline"
     ref: str | None      # sync group id, media id, or None for timeline
-    start: int           # group: recording-clock frames (Clip.recorded basis)
-    end: int             # media: source frames; timeline: timeline frames
+    start: int           # group or media anchor: flicks on that recording clock
+    end: int             # timeline anchor: project frames (docs/FORMAT.md)
     state: str = "open"  # "open" | "rejected"  ("applied" is derived)
     text: str = ""
 ```
@@ -1351,11 +1355,12 @@ Paste (`Session.paste(clipboard, at)`), per media, in this order:
    `HANDLE_SEC = 2.0` on each side, read from the source project's working
    file, written as 24-bit FLAC (lossless if the source subtype allows). New
    fields on `Media`: `excerpt_of: str | None` (the original's SHA-256) and
-   `excerpt_start: int` (where the excerpt begins in the original, in frames).
-   Clip offsets are shifted by `-excerpt_start`, and `sync_origin` by
-   `+excerpt_start`, so `Clip.recorded` is unchanged: sync groups and markers
-   still line up. Transcript words are sliced to the excerpt and shifted the
-   same way.
+   `excerpt_start_flicks` (where the excerpt begins in the original).
+   Clip offsets are shifted by the excerpt start in frames. The excerpt
+   inherits its original's sync origin plus `excerpt_start_flicks`
+   (docs/FORMAT.md, "Sync per media"), so sync groups and markers still line
+   up. Transcript words are sliced to the excerpt and shifted by the same
+   flicks.
 4. If the original later turns up in this project (same SHA-256), an op
    `expand_excerpt` can swap clips back to the full media with exact
    offsets.
@@ -1720,8 +1725,9 @@ later, and every change is an undoable edit like any other.
   adjacent), offsets, fades and crossfades (kept even), envelopes,
   automation, markers, sync origins and `Media.frames`/`time_ref`. Rounding
   goes to the nearest frame; source positions use the media's own ratio.
-- Transcripts and onsets are stored in source frames: convert them as new
-  transcript revisions in the same commit.
+- Transcripts, onsets, BWF start times, sync origins and marker anchors are
+  in flicks (docs/FORMAT.md), so they do **not** change; only edit state
+  converts. That is why the format uses flicks.
 - `MediaStore` keeps working files **per rate** (`m<id>.<rate>.flac`). A media
   that is linked PCM at the old rate becomes a resampled working file at the
   new rate (job, parallel, ffmpeg `aresample=resampler=soxr` when available).
@@ -1739,6 +1745,123 @@ one frame), `test_words_line_up_after_rate_change` (within 1 ms),
 `test_undo_of_rate_change_is_exact_and_uses_the_old_files`,
 `test_linked_pcm_gets_a_resampled_working_file`,
 `test_mono_master_keeps_a_centred_voice_at_the_same_loudness`.
+
+---
+
+### WP28 — Focus mode: one track at a time
+
+Status: open. Needs WP4, WP5, WP22. Sonnet 5.5. Decided by Opus from
+`docs/OPUS-BRIEF.md`.
+
+Focus changes what you **see**; solo changes what you **hear**. They are
+separate, with one key that does both.
+
+First version:
+
+- **F** toggles focus on the focused track (the track the ↑/↓ cursor is
+  on, WP5). **Esc** leaves focus. While focused, ↑/↓ moves focus to the next
+  track, so you can walk through the tracks one at a time.
+- **Speaker focus is the default unit.** Focusing a track focuses every track
+  with the same speaker (WP22), so one person's split tracks expand together.
+- **Auto-shrink:** the focused lanes take all the remaining height; every
+  other lane shrinks to a 16 px strip showing its name, its half waveform and
+  its clip edges. Sync stays visible at a glance. The shrink animates over
+  120 ms, or instantly under `prefers-reduced-motion`. A setting turns
+  auto-shrink off (then focus only highlights the lane).
+- **Shift+F** focuses and solos (exclusive, WP24.1). Leaving focus restores
+  the solo set as it was before; focus remembers it.
+- **The transcript follows focus:** other speakers' words are dimmed, not
+  hidden, so the conversation still reads. A toggle (Alt+F) hides them
+  instead.
+- **The focused track's automation** (ducking, gain) is drawn as an editable
+  band under its waveform at a readable height, so ducking can be corrected in
+  place.
+- "Focus on a clip" is not a new feature: Mod+H (zoom to selection) with focus
+  on already gives it.
+
+v2 (parked in ROADMAP.md): a focus history stack (back to the previous
+focus), and focus that follows whoever is talking during playback.
+
+Focus, the remembered solo set and the lane heights are UI state: never in
+history and never in the project file.
+
+Tests (pure functions, `node --test`): lane layout given focus (heights sum
+to the viewport; strips 16 px; focused lanes share the rest), speaker focus
+expands every track of the speaker, Shift+F then Esc restores the previous
+solo set, ↑/↓ in focus moves focus.
+
+---
+
+### WP29 — Project format v1: package, material, versions, backups
+
+Status: open. Needs WP0. **Opus 5.5.** Build it **before WP1**, so the
+Session is written against the final layout. Spec: `docs/FORMAT.md`
+(everything in it is in scope except WP30's clock change).
+
+- `src/kuulas/package.py`: create and open `Name.kuulas`, write the manifest
+  atomically, enforce the reader rules, take and refresh the lock (read-only
+  open when another live host holds it), run migrations with a pre-migration
+  backup, take automatic backups on a timer with the retention rule.
+- `History` moves to the v1 schema: `blobs` (content-addressed states),
+  `edits`, `nodes` with `edit`, `op`, `context`, `material_from/to`. States
+  are stored once per hash.
+- **Material** moves out of edit state: `media` rows, `media_paths`,
+  `transcript_revs`, `material_revs` with a versioned root, and undo of a
+  material step with the conflict rule from FORMAT.md.
+  `Project.transcripts` is removed from the edit model.
+- `MediaStore` keeps its files but writes metadata as `media` rows (the row
+  is the "import finished" marker) and caches under `caches/`, keyed as
+  FORMAT.md says.
+- Every model dataclass gets `extra: dict`, and unknown keys round-trip.
+- Migration v0 to v1 for folders made by today's code (FORMAT.md, last
+  section), with a fixture.
+- Log the database size on open; `kuulas info <folder>` prints manifest,
+  sizes, media states (linked, working, missing) and backup count.
+
+Tests first:
+`test_new_package_has_manifest_lock_db_media_caches`,
+`test_manifest_is_written_atomically` (crash simulated between temp and
+rename leaves the old manifest), `test_newer_min_reader_refuses_with_version`,
+`test_newer_version_opens_and_keeps_unknown_keys` (unknown keys in a state,
+a media row and a table survive a save), `test_live_lock_from_another_host_opens_read_only`,
+`test_stale_lock_is_taken_over`, `test_identical_states_are_stored_once`,
+`test_material_undo_refuses_after_a_later_material_change`,
+`test_transcript_correction_is_seen_by_every_edit`,
+`test_backup_retention_keeps_12_recent_and_one_per_day`,
+`test_backup_never_writes_the_live_file`,
+`test_migration_v0_to_v1_keeps_every_state_media_and_transcript`,
+`test_caches_can_be_deleted_and_are_rebuilt`,
+`test_measured_state_size` (the FORMAT.md fixture stays under 30 KB
+compressed per step; fails loudly if the model bloats).
+
+---
+
+### WP30 — Recording clock in flicks; sync per media
+
+Status: open. Needs WP29. **Opus 5.5.** Before WP1, after WP29.
+
+- `src/kuulas/clock.py`: `FLICKS = 705_600_000`, exact conversions
+  `frames_to_flicks(frames, rate)` and `flicks_to_frames(flicks, rate)`
+  (round half to even, documented), and a check that a rate divides FLICKS
+  (all supported rates do; refuse others at import with a clear message).
+- `Media.time_ref` becomes `time_ref_flicks`. Transcript words, onsets and
+  marker anchors are stored in flicks from the media's start;
+  `transcribe.parse` and `from_segments` produce flicks; `transcript.timeline_words`
+  converts at read time.
+- Sync groups move to material, per media: `{main, members: {media:
+  origin_flicks}}`. `Clip.sync` and `Clip.sync_origin` are removed.
+  `ops.mark_in_sync` and `ops.resync` keep their behaviour and every existing
+  sync test (they must pass unchanged, apart from the setup that creates
+  groups), now reading membership from material.
+- Migration: existing clip sync fields become per-media members
+  (FORMAT.md, migration step 4). If two clips of one media had different
+  origins, keep the main clip's piece's value and log a warning.
+
+Tests first: all of `tests/test_sync.py` unchanged in behaviour;
+`test_flicks_are_exact_for_every_supported_rate` (round trip frames to
+flicks to frames is identity for 8k to 192k); `test_rate_change_leaves_words_untouched`;
+`test_bwf_time_reference_is_stored_in_flicks`;
+`test_excerpt_inherits_its_originals_sync_origin`.
 
 ---
 

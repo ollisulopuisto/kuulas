@@ -1,5 +1,9 @@
 # Brief for Opus 5.5: focus view and the kuulas file format
 
+**Decided (2026-10-16):** focus mode is WP28 in `docs/PLAN.md`; the format is
+`docs/FORMAT.md`, built by WP29 and WP30. This brief is kept as the record
+of what was asked.
+
 Written by Haiku 5.5 from the owner's notes, for an Opus session to decide
 and turn into plan changes. Nothing here is decided. Read `docs/PLAN.md`
 (ground rules, WP4, WP18, WP21, WP27) and `ROADMAP.md` first.
