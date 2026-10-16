@@ -1,4 +1,4 @@
-# Handoff: next tasks (written 16.10.2026 18.01 Helsinki)
+# Handoff: next tasks (updated 16.10.2026 23.36 Helsinki)
 
 For any agent, from any vendor, picking up work on kuulas. Read `AGENTS.md`
 (`CLAUDE.md` and `GEMINI.md` point to the same rules), then the ground
@@ -8,14 +8,16 @@ rules at the top of `docs/PLAN.md`, then your task's work package (WP) in
 
 ## State of the repo
 
-- **main:** the code is at version 26.10.16.14 (commit `6841624`; later
-  commits on main are docs only): 480 pytest + 25 node tests pass, ruff and
-  Biome are clean.
+- **main:** version 26.10.16.15: 497 pytest + 25 node tests pass, ruff and
+  Biome are clean, and every test file also passes **on its own**. The repo
+  has one branch besides main (`wp4-ui-shell`, the draft) and no other
+  worktrees; the primary checkout is on `main` and clean.
 - **Done and merged:** WP0, WP1, WP2 (engine; the owner's listening test is
   still pending), WP3 (HTTP API, `kuulas open`), WP9 (jobs, local
   transcription), WP11 (export mix, selection, tracks, MP3), WP13 (Hindenburg
   import), WP14, WP24.1, WP29, WP30, WP33a, WP33b, WP34, WP36, WP37, WP39,
-  WP41.
+  WP41, and the core of WP25 (music report: builder, CSV, HTML, tags read at
+  import, English and Finnish; follow-ups below).
 - **Not finished, and nobody is working on it:** WP4 (UI shell and timeline).
   An unreviewed draft is one commit (`4b85609`) on branch `wp4-ui-shell`,
   with its own plan in `docs/plans/2026-10-16-wp4-ui-shell.md` on that branch
@@ -43,7 +45,9 @@ rules at the top of `docs/PLAN.md`, then your task's work package (WP) in
    /private/tmp/kuulas-<wp> -b <wp>-<slug> main`. If `../podcast` does not
    resolve from the worktree, symlink it (`ln -s
    /Users/dst/Documents/koodi/podcast /private/tmp/podcast`) and never commit
-   a change to `pyproject.toml` sources.
+   a change to `pyproject.toml` sources. **Never leave work uncommitted in the
+   primary checkout.** If you stop, commit on your branch and say where it is
+   (branch, worktree path, what is unfinished).
 2. **Red-green TDD:** write the WP's tests first and watch them fail for the
    right reason. Never weaken a test or a lint rule.
 3. **Clean before you commit:** `uv run pytest -q`, `uv run ruff check .`, and
@@ -69,6 +73,11 @@ rules at the top of `docs/PLAN.md`, then your task's work package (WP) in
 9. **Report briefly:** branch and commit, test counts before and after,
    suggested changelog text, what you could not verify, and any decision the
    plan did not cover.
+10. **Tests pass alone and in any order.** `tests/conftest.py` starts every
+    test in English and restores the language, because the default language
+    follows the machine (Finnish on the owner's Mac). Don't depend on global
+    state another test sets, and run each new test file on its own before you
+    commit.
 
 ## If you are not a Claude session
 
@@ -101,7 +110,6 @@ take these tasks. Size: S about a day, M a few days, L a week.
 
 | Task | Model | Size | Touches | Notes |
 |---|---|---|---|---|
-| WP25 music report | Haiku | S | new module, `export.py` neighbours | uses WP37's usage extractor; ffprobe tags; CSV (semicolon, UTF-8) + printable HTML; test list in the WP |
 | WP19i onset detection (backend) | Sonnet | M | new `onsets.py`, `media` caches | cached per media by content hash; word mode waits for WP7 |
 | WP10 voice chain variants | Sonnet | M | new module, `media`, `session` | offline per source file; **do not build the plug-in audition** (requested from speechmix, see section E) |
 | WP20 paste without bloat | Sonnet | M | `media`, `session` | excerpts keep recorded time; the picker UI waits for WP4 |
@@ -131,7 +139,11 @@ WP43 narration placeholders, WP31, WP32, WP19b-e.
 
 Take any of these without asking; each is independent.
 
-1. **WP25 music report** (see A).
+1. **WP25 follow-ups, backend only:** a Session command and an API endpoint
+   for the music report; an "all edits" report once WP21 lands; a guard
+   against CSV cells that start with `=`, `+`, `-` or `@` (Excel runs them as
+   formulas; the owner has not chosen how to show the guard, so quote the
+   cell and say so). The list of what is open is in the WP25 Status line.
 2. **Delete commands for people and interviews** (undoable, with tests); WP41
    left them out.
 3. **Test environment:** the mastering tests need a writable
@@ -166,12 +178,17 @@ Take any of these without asking; each is independent.
 Merge one branch at a time with `git merge --no-ff`, running pytest and ruff
 after each; resolve locale conflicts by union and `session.py` conflicts by
 keeping both additions; stop and report on a real design clash. Then one docs
-commit: version, `CHANGELOG.md`, the Status lines in `docs/PLAN.md`,
+commit (check afterwards that every file you meant to change is in
+`git show --stat`; a half-applied docs script once left a commit that only
+bumped the version): version, `CHANGELOG.md`, the Status lines in `docs/PLAN.md`,
 `ROADMAP.md`, and this file. Remove merged worktrees and branches.
 Keep at most four agents running at once.
 
 ## Open for the owner
 
+- Music report times are cut to whole seconds: should short stings round up,
+  or should the report show exact seconds? (Teosto and Gramex layout is also
+  still unknown.)
 - The engine listening test: `cd ~/Documents/koodi/kuulas && uv run pytest -q
   tests/hardware -s` (volume down; it plays one second of a quiet tone).
 - The format decisions were built with the recommended answers (package
