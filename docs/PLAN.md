@@ -1680,6 +1680,22 @@ Paste (`Session.paste(clipboard, at)`), per media, in this order:
    `expand_excerpt` can swap clips back to the full media with exact
    offsets.
 
+**Pick what to import from another project** (owner, 2026-10-16; Hindenburg
+imports a whole clipboard): "Import from project…" (Mod+Shift+I) opens
+another project read-only in a picker, without opening it as the current
+project. It lists that project's clip bin, its bits (WP42), its named
+regions and markers, and its edits, from which an in→out range can be taken.
+Each item shows name, length, the transcript text it contains, the speaker
+(WP41) and its series usage (WP38). Items are picked with checkboxes,
+filtered by transcript search or speaker, and previewed with their own play
+button or Alt+Space (plain Space never plays a list, R24). Only the picked
+items come in, through the paste rules above, so a picked 20 s bit never
+brings its hour-long source. The picker remembers its last filters (ground rule 16).
+
+Tests: picking 2 of 10 bin items imports exactly those 2; the imported
+media is excerpts with handles (or reused by hash) and never the whole
+source; the source project is not modified and not locked for writing.
+
 Consolidate gains `used_only: bool`. It writes excerpts (with handles) of
 just the ranges the timeline uses, for archiving. It defaults to off and
 says how much space it will save before running.

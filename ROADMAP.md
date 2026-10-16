@@ -56,7 +56,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R26g | Skimming: hover to hear without moving the playhead (FCP) | planned: WP19g |
 | R26h | Markers and regions, batch export of regions, chapter list (Reaper) | planned: WP19h |
 | R26i | Tab to transient or to word, cycled with one key (Pro Tools) | planned: WP19i |
-| R27 | Copying clips between projects never copies whole source files: reuse by hash, link in place, or copy only the used range plus 2 s handles | planned: WP20 (must-fix) |
+| R27 | Copying clips between projects never copies whole source files: reuse by hash, link in place, or copy only the used range plus 2 s handles; importing from another project lets you pick which clips, bits or regions come in | planned: WP20 (must-fix) |
 | R28 | Several edits (versions) of the same material in one project, e.g. 1 × 60 min and 4 × 20 min: shared media, transcripts and sync; separate cuts and undo; cut decisions offered across edits | planned: WP21 |
 | R29 | **MUST.** Undo you can trust: Mod+Z stays on the current branch, history restores add a step instead of rewinding, undo brings back selection and view and shows what changed | planned: WP8 |
 | R30 | **Needed.** Track tags (speech / speech-mix / music) are all speechmix needs; ducking of mics and music beds from speechmix + nhsx.musicbed; FX layers: real-time, analyse-then-live, or rendered | planned: WP22, WP23 |
