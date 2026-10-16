@@ -200,5 +200,22 @@
   "export.what.tracks": "Raidat · {what} · {processing}",
   "export.processing.dry": "kuiva",
   "export.processing.as_heard": "kuultu",
-  "history.export": "v{n} viety, {what}"
+  "history.export": "v{n} viety, {what}",
+  "music_report.title": "Musiikkiraportti",
+  "music_report.html_lang": "fi",
+  "music_report.header.order": "Järjestys",
+  "music_report.header.title": "Nimi",
+  "music_report.header.artist": "Esittäjä",
+  "music_report.header.composer": "Säveltäjä",
+  "music_report.header.publisher": "Kustantaja",
+  "music_report.header.isrc": "ISRC-tunnus",
+  "music_report.header.file_name": "Tiedostonimi",
+  "music_report.header.in": "Alku",
+  "music_report.header.out": "Loppu",
+  "music_report.header.duration": "Kesto",
+  "music_report.header.usage": "Käyttö",
+  "music_report.header.metadata": "Tiedot",
+  "music_report.background": "Taustalla",
+  "music_report.featured": "Etualalla",
+  "music_report.missing_metadata": "Nimi tai esittäjä puuttuu"
 }
