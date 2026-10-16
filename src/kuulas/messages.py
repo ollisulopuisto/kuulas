@@ -14,7 +14,10 @@ from __future__ import annotations
 import json
 import locale
 import os
+import re
 import string
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -38,12 +41,47 @@ def _normalise(lang: str) -> str:
     return code if code in LANGUAGES else SOURCE
 
 
+def _apple_languages() -> list[str]:
+    """macOS's language list, most wanted first; empty anywhere else or on failure.
+
+    A Terminal on a Finnish Mac usually still has ``LANG=en_US.UTF-8``, so
+    LANG alone says English. ``defaults`` is the system's real answer.
+    """
+    if sys.platform != "darwin":
+        return []
+    try:
+        done = subprocess.run(
+            ["defaults", "read", "-g", "AppleLanguages"],  # noqa: S607 - macOS tool
+            capture_output=True, text=True, timeout=2, check=False)
+    except (OSError, subprocess.SubprocessError):
+        # No such tool, or it hung: LANG will have to do.
+        return []
+    if done.returncode != 0:
+        return []
+    return re.findall(r'[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]+)*', done.stdout)
+
+
 def default_language() -> str:
-    """The language the OS asks for: LC_ALL, LC_MESSAGES, LANG, then the locale."""
-    for var in ("LC_ALL", "LC_MESSAGES", "LANG"):
+    """The language the OS asks for.
+
+    Order: LC_ALL and LC_MESSAGES (an explicit override), the macOS language
+    list, LANG, then the locale. The first language kuulas ships wins on the
+    macOS list; one we do not ship is skipped, as the system itself does.
+    """
+    for var in ("LC_ALL", "LC_MESSAGES"):
         value = os.environ.get(var, "")
         if value:
             return _normalise(value)
+    apple = _apple_languages()
+    for tag in apple:
+        primary = _normalise(tag)
+        if primary != SOURCE or tag.lower().startswith("en"):
+            return primary
+    if apple:
+        return SOURCE
+    value = os.environ.get("LANG", "")
+    if value:
+        return _normalise(value)
     try:
         value = locale.getlocale()[0] or ""
     except (ValueError, TypeError):
@@ -59,6 +97,11 @@ def set_language(lang: str) -> None:
     """Choose the language for every message made from now on."""
     global _language  # noqa: PLW0603 - process-wide, as gettext's is
     _language = _normalise(lang)
+
+
+def catalog(lang: str) -> dict[str, Any] | None:
+    """The whole catalog of a shipped language, for the UI; None for any other."""
+    return _CATALOGS.get(lang)
 
 
 def language() -> str:

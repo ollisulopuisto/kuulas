@@ -68,7 +68,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R36 | Focus mode: F focuses a speaker's tracks, the others shrink to strips that keep sync visible; Shift+F also solos; transcript dims other speakers | planned: WP28 |
 | R37 | Review round trip: A sends v1, B edits (some changes done, some as suggestions), A gets v2 and accepts or rejects each; works even if A kept editing; hand-off copies carry only used audio | designed: docs/FORMAT.md; build WP31 (changes view), WP32 |
 | R38 | Voice condition as a sub-choice of speech ("Speech · remote"; also for speech mixes, never music): clean / room / remote / phone / auto picks a speechmix preset; auto-suggested from measured noise floor, bandwidth, echo and clipping | waits for presets in speechmix (podcast repo); kuulas side in WP22 |
-| R39 | Internationalisation from day one: English and Finnish complete, one catalog for Python and UI, speechmix's messages translated too; locale-aware numbers, Helsinki times with zone, platform key names | WP33a done in v26.10.16.4 (Python catalogs, `messages.t`, speechmix translator); WP33b (UI) open |
+| R39 | Internationalisation from day one: English and Finnish complete, one catalog for Python and UI, speechmix's messages translated too; locale-aware numbers, Helsinki times with zone, platform key names | WP33a done in v26.10.16.4 (Python catalogs, `messages.t`, speechmix translator); WP33b done in v26.10.16.12 (`ui/i18n.js`, locale endpoint, AppleLanguages); the language setting's screen waits for WP27; the `ast` scan still covers raised exceptions only |
 | R40 | Fault tolerance: a bad file or device costs that file or a second of audio, never the session; decoders time out, plug-ins run isolated, the audio callback never fails, device changes are handled | playback side done (WP2, v26.10.16.8; not yet run on hardware); import side WP34 |
 | R41 | Snappy UI, multithreaded throughout: heavy work never blocks; edits under 50 ms; 60 fps; no underruns during heavy jobs; background jobs yield to interaction | API and engine done (WP2, WP3: edit round trip 14 ms on the heavy hour); UI render budgets in WP4, jobs in WP9 |
 | R42 | Smart caching: everything derived from a recording is computed once and survives every edit; one memory budget | planned: ground rule 15, WP36 |
@@ -156,6 +156,12 @@ sizes: `docs/PLAN.md`, section "Triage".
   hour. 360 tests pass. **Not done:** `GET /api/jobs` and `POST /api/export`
   (WP9, WP11); the UI context in `restore`'s answer (null until WP8 stores
   it); not run against a real browser or with the real engine on hardware.
+- WP33b (v26.10.16.12): `ui/i18n.js` (`t`, plurals, Finnish decimal comma,
+  Helsinki times with the zone, key names per platform, language switch with
+  an event, no reload), `GET /api/locales/<lang>`, macOS `AppleLanguages`
+  before `LANG`, UI scans (keys exist, no literal text). 25 node tests
+  (`node --test ui/tests/`), 369 pytest. **Not done:** the language
+  setting's screen (WP27); not run in a real browser.
 - WP2: playback engine with fault handling and golden renders (needs the owner's listening test on the Mac: `uv run pytest -q tests/hardware -s`).
 
 ## Later (v2)

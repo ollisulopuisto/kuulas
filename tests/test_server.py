@@ -505,6 +505,20 @@ def test_root_serves_a_translated_placeholder_without_a_ui(client):
     assert "coming" not in fi.text.lower()
 
 
+@pytest.mark.parametrize("lang", ["en", "fi"])
+def test_locale_catalog_is_served_for_the_ui(client, lang):
+    r = client.get(f"/api/locales/{lang}")
+    assert r.status_code == 200
+    assert r.json() == messages._CATALOGS[lang]
+
+
+def test_unknown_locale_is_a_translated_404(client):
+    r = client.get("/api/locales/xx", headers={"Accept-Language": "fi"})
+    assert r.status_code == 404
+    assert r.json()["error"]["key"] == "error.api.no_language"
+    assert "xx" in r.json()["error"]["text"]
+
+
 def test_ui_files_are_served_from_the_ui_folder(session, engine, tmp_path):
     ui = tmp_path / "ui"
     ui.mkdir()

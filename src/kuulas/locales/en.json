@@ -134,5 +134,18 @@
   "cli.open.folder": "The project folder (Name.kuulas).",
   "cli.open.port": "Port to listen on (default: any free one). Always on 127.0.0.1.",
   "cli.open.no_browser": "Do not open the browser; only print the address.",
-  "cli.open.serving": "{path} is open at {url} (Ctrl+C to close)"
+  "cli.open.serving": "{path} is open at {url} (Ctrl+C to close)",
+  "error.api.no_language": "There is no language {lang}.",
+  "format.db": "{value} dB",
+  "format.time": "{time} {zone}",
+  "format.zone": "Helsinki",
+  "key.space": "Space",
+  "key.enter": "Enter",
+  "key.escape": "Esc",
+  "key.backspace": "Backspace",
+  "key.delete": "Delete",
+  "key.tab": "Tab",
+  "key.shift": "Shift",
+  "key.ctrl": "Ctrl",
+  "key.alt": "Alt"
 }

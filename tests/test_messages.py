@@ -29,6 +29,12 @@ def english():
     messages.set_language("en")
 
 
+@pytest.fixture(autouse=True)
+def no_apple_languages(monkeypatch):
+    """This Mac's real language list must not decide the tests' language."""
+    monkeypatch.setattr(messages, "_apple_languages", list)
+
+
 def _placeholders(template: str) -> set[str]:
     return {name for _, name, _, _ in string.Formatter().parse(template) if name}
 
@@ -212,9 +218,10 @@ def test_no_literal_user_messages_in_python():
 
 def test_locale_files_ship_with_the_package(tmp_path):
     # From another directory, so the import cannot find the source tree by luck.
-    code = ("from kuulas import messages as m; "
+    code = ("from kuulas import messages as m; m.set_language('en'); "
             "print(m.t('error.edit.no_clip', clip_id='c'))")
-    # Pin the locale: this shell may be Finnish, and the test is about files.
+    # Pin the language in the code: a Finnish Mac says so through ``defaults``
+    # whatever the environment holds, and the test is about the files.
     env = {k: v for k, v in os.environ.items() if k not in ("LC_ALL", "LC_MESSAGES")}
     env["LANG"] = "en_US.UTF-8"
     out = subprocess.run(  # noqa: S603 - fixed argv, no shell
@@ -227,3 +234,78 @@ def test_locale_files_ship_with_the_package(tmp_path):
 def test_catalog_files_are_valid_json(lang):
     path = SRC / "locales" / f"{lang}.json"
     assert json.loads(path.read_text(encoding="utf-8")) == messages._CATALOGS[lang]
+
+
+APPLE_FINNISH = '(\n    "fi-FI",\n    "en-FI"\n)\n'
+
+
+@pytest.fixture
+def mac(monkeypatch):
+    """A Mac whose Terminal says LANG=en_US while the system language is whatever
+    ``defaults`` is made to print."""
+    monkeypatch.undo()  # drop the autouse stub: these tests drive the real parser
+    monkeypatch.setattr(sys, "platform", "darwin")
+    for var in ("LC_ALL", "LC_MESSAGES"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("LANG", "en_US.UTF-8")
+    return monkeypatch
+
+
+def _defaults(monkeypatch, stdout="", returncode=0, raises=None):
+    calls = []
+
+    def fake_run(argv, **kwargs):
+        calls.append((argv, kwargs))
+        if raises:
+            raise raises
+        return subprocess.CompletedProcess(argv, returncode, stdout, "")
+
+    monkeypatch.setattr(messages.subprocess, "run", fake_run)
+    return calls
+
+
+def test_macos_system_language_list_outranks_lang(mac):
+    calls = _defaults(mac, APPLE_FINNISH)
+    assert messages.default_language() == "fi"
+    argv, kwargs = calls[0]
+    assert argv == ["defaults", "read", "-g", "AppleLanguages"]
+    assert kwargs["timeout"] > 0  # a hung tool must not hang start-up
+
+
+def test_macos_takes_the_first_language_we_ship(mac):
+    _defaults(mac, '(\n    "sv-FI",\n    "fi-FI"\n)\n')
+    assert messages.default_language() == "fi"
+    _defaults(mac, '(\n    "sv-FI",\n    "de-DE"\n)\n')
+    assert messages.default_language() == "en"
+
+
+def test_macos_falls_back_to_lang_when_defaults_fails(mac):
+    mac.setenv("LANG", "fi_FI.UTF-8")
+    _defaults(mac, "", returncode=1)
+    assert messages.default_language() == "fi"
+    _defaults(mac, raises=FileNotFoundError("defaults"))
+    assert messages.default_language() == "fi"
+    _defaults(mac, raises=subprocess.TimeoutExpired("defaults", 2))
+    assert messages.default_language() == "fi"
+
+
+def test_explicit_lc_all_still_outranks_the_macos_list(mac):
+    _defaults(mac, APPLE_FINNISH)
+    mac.setenv("LC_ALL", "en_GB.UTF-8")
+    assert messages.default_language() == "en"
+
+
+def test_other_systems_never_run_defaults(monkeypatch):
+    monkeypatch.undo()
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setenv("LANG", "fi_FI.UTF-8")
+    monkeypatch.delenv("LC_ALL", raising=False)
+    monkeypatch.delenv("LC_MESSAGES", raising=False)
+    calls = _defaults(monkeypatch, APPLE_FINNISH)
+    assert messages.default_language() == "fi"
+    assert not calls
+
+
+def test_catalog_for_the_ui_is_the_whole_catalog():
+    assert messages.catalog("fi") == messages._CATALOGS["fi"]
+    assert messages.catalog("xx") is None

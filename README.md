@@ -14,6 +14,8 @@ kuulas needs the podcast repo checked out next to it, at `../podcast`, because
 uv sync
 uv run pytest -q
 uv run ruff check .
+node --test ui/tests/                       # UI unit tests
+npx @biomejs/biome@2.2.4 check ui/         # UI lint
 ```
 
 Audio decoding uses ffmpeg. Install it first (`brew install ffmpeg` on a Mac).

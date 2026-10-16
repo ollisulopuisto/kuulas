@@ -2343,7 +2343,9 @@ Tests first:
 ### WP33 — Internationalisation foundation (i18n)
 
 Status: WP33a done in v26.10.16.4 (Python: catalogs, `messages.t`, error shape,
-speechmix translator, literals converted); WP33b open. **Split in two**, so no
+speechmix translator, literals converted); WP33b done in v26.10.16.12
+(`ui/i18n.js`, `GET /api/locales/<lang>`, AppleLanguages, UI scans; the
+language setting's screen waits for WP27). **Split in two**, so no
 WP writes untranslated text:
 - **WP33a** (Python: catalogs, `messages.t`, API error shape, speechmix
   translator, converting today's literal messages in `ops`, `media`,
@@ -2354,7 +2356,7 @@ WP writes untranslated text:
 
 English is the source language; Finnish is complete from day one.
 
-Left over from WP33a, to do in WP33b: on macOS a Terminal session usually
+Left over from WP33a, done in WP33b: on macOS a Terminal session usually
 has `LANG=en_US.UTF-8` even when the system language is Finnish, so
 `messages.default_language()` should read the system's language list (`defaults read -g
 AppleLanguages`) before `LANG`. And the `ast` check covers raised exceptions

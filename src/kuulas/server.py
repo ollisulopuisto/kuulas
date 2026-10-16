@@ -426,6 +426,14 @@ def create_app(session, engine, *, language: str | None = None,
                                          RuntimeError):
                     await task
 
+    @app.get("/api/locales/{lang}")
+    def locale_catalog(lang: str):
+        # The UI formats its own text from the same files Python uses.
+        found = messages.catalog(lang)
+        if found is None:
+            raise UnknownIdError("error.api.no_language", lang=lang)
+        return found
+
     # -- the page ------------------------------------------------------------
 
     @app.get("/", include_in_schema=False)

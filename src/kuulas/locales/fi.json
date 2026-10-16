@@ -134,5 +134,18 @@
   "cli.open.folder": "Projektikansio (Nimi.kuulas).",
   "cli.open.port": "Portti, jota kuunnellaan (oletus: mikä tahansa vapaa). Aina osoitteessa 127.0.0.1.",
   "cli.open.no_browser": "Älä avaa selainta, vain tulosta osoite.",
-  "cli.open.serving": "{path} on auki osoitteessa {url} (sulje Ctrl+C:llä)"
+  "cli.open.serving": "{path} on auki osoitteessa {url} (sulje Ctrl+C:llä)",
+  "error.api.no_language": "Kieltä {lang} ei ole.",
+  "format.db": "{value} dB",
+  "format.time": "{time} ({zone})",
+  "format.zone": "Helsinki",
+  "key.space": "Välilyönti",
+  "key.enter": "Enter",
+  "key.escape": "Esc",
+  "key.backspace": "Askelpalautin",
+  "key.delete": "Poista",
+  "key.tab": "Sarkain",
+  "key.shift": "Vaihto",
+  "key.ctrl": "Ctrl",
+  "key.alt": "Alt"
 }

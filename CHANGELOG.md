@@ -1,5 +1,21 @@
 # Changelog
 
+## [v26.10.16.12] - 2026-10-16
+
+- The editor window's text and formatting layer exists (`ui/i18n.js`), so
+  nothing built on it needs untranslated text: English and Finnish from the
+  same catalog the server uses, plurals by language rules, Finnish decimal
+  comma ("−2,5 dB", "12:34,567"), absolute times in Helsinki time with the
+  zone named ("19.45 (Helsinki)", "7:45 pm Helsinki"), key names per
+  platform and language (⌘ on a Mac, Ctrl elsewhere; "Välilyönti" in
+  Finnish), and switching language without a reload.
+- `GET /api/locales/<lang>` serves a language's catalog.
+- On a Mac the language now follows the system's language list, not the
+  Terminal's `LANG`, so a Finnish Mac gets Finnish messages even when
+  Terminal says `en_US`. `LC_ALL` and `LC_MESSAGES` still override.
+- Checks that keep it so: every key the UI uses must exist in the English
+  catalog, and no UI code may put a literal text into a visible property.
+
 ## [v26.10.16.11] - 2026-10-16
 
 - `kuulas open <folder>` opens a project (creating it if it does not exist)
