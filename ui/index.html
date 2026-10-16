@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#171a1d" />
+    <title>kuulas</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <main class="editor" aria-label="kuulas">
+      <header class="toolbar">
+        <div class="brand">kuulas</div>
+        <button id="play" class="transport-button" data-i18n="ui.transport.play" aria-keyshortcuts="Space">Play</button>
+        <button id="stop" class="transport-button" data-i18n="ui.transport.stop">Stop</button>
+        <output id="timecode" aria-live="off">0:00.000</output>
+        <div class="toolbar-spacer"></div>
+        <button id="undo" data-i18n="ui.transport.undo" aria-keyshortcuts="Control+Z Meta+Z">Undo</button>
+        <button id="redo" data-i18n="ui.transport.redo" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z">Redo</button>
+        <button id="import" class="primary" data-i18n="ui.transport.import">Import audio</button>
+        <input id="file-input" type="file" accept="audio/*,video/*" multiple hidden />
+      </header>
+      <section class="work-area">
+      <aside id="track-headers" class="track-headers" data-i18n-aria-label="ui.focus.tracks" aria-label="Tracks"></aside>
+        <section class="timeline-area" data-i18n-aria-label="ui.focus.timeline" aria-label="Timeline">
+          <nav class="timeline-tools" data-i18n-aria-label="ui.view.title" aria-label="Timeline view">
+            <span id="zoom-label"></span>
+            <button id="zoom-out" data-i18n="ui.view.zoom_out">Zoom out</button>
+            <button id="zoom-in" data-i18n="ui.view.zoom_in">Zoom in</button>
+            <button id="fit" data-i18n="ui.view.fit">Fit project</button>
+            <label><span data-i18n="ui.view.waveform">Waveform</span>
+              <select id="waveform-mode">
+                <option value="half" data-i18n="ui.view.half">Half waveform</option>
+                <option value="classic" data-i18n="ui.view.classic">Classic waveform</option>
+              </select>
+            </label>
+          </nav>
+          <canvas id="timeline" tabindex="0" role="application" data-i18n-aria-label="ui.focus.timeline" aria-label="Timeline"></canvas>
+          <div id="overview" class="overview" aria-hidden="true"><div id="overview-window"></div></div>
+        </section>
+      </section>
+      <section class="lower-panels">
+        <section id="transcript-panel" class="panel" tabindex="0" data-i18n-aria-label="ui.focus.transcript" aria-label="Transcript">
+          <h2 data-i18n="ui.focus.transcript">Transcript</h2><div id="transcript-content"></div>
+        </section>
+        <section id="inspector-panel" class="panel" tabindex="0" data-i18n-aria-label="ui.focus.inspector" aria-label="Inspector"></section>
+        <section id="history-panel" class="panel" tabindex="0" data-i18n-aria-label="ui.focus.history" aria-label="History">
+          <h2 data-i18n="ui.focus.history">History</h2><div id="history-content"></div>
+        </section>
+      </section>
+      <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+    </main>
+  </body>
+</html>
