@@ -398,7 +398,7 @@ def test_migration_adds_empty_people_and_interviews_and_keeps_history(tmp_path):
     assert h.material["people"] == {}
     pkg.close()
     db = sqlite3.connect(folder / "project.sqlite")
-    assert dict(db.execute("select key, value from meta"))["schema_version"] == "2"
+    assert dict(db.execute("select key, value from meta"))["schema_version"] == "3"
     db.close()
 
 

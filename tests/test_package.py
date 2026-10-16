@@ -64,7 +64,7 @@ def test_new_package_has_manifest_lock_db_media_caches(tmp_path):
     db = sqlite3.connect(root / "project.sqlite")
     meta = dict(db.execute("select key, value from meta"))
     assert meta["project_id"] == m["id"]
-    assert meta["schema_version"] == "2"
+    assert meta["schema_version"] == "3"
     db.close()
     pkg.close()
     assert not (root / "lock.json").exists()

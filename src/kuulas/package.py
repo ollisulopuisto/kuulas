@@ -244,7 +244,8 @@ class Package:
         self.history = History(self.db_path, author=author, read_only=self.read_only,
                                locked_by=host)
         self.store = MediaStore(folder / "media", self.history.rate, db=self.db_path,
-                                cache_root=folder / "caches", read_only=self.read_only)
+                                cache_root=folder / "caches", read_only=self.read_only,
+                                package_root=folder)
         now = datetime.now(UTC)
         self._opened = _iso(now)
         self._last_beat = self._last_backup = now
@@ -435,7 +436,8 @@ def info(path: str | Path) -> dict[str, Any]:
     rate = int(dbm.meta(db, "project_rate") or Project().rate)
     db.close()
     store = MediaStore(folder / "media", rate, db=db_path,
-                       cache_root=folder / "caches", read_only=True)
+                       cache_root=folder / "caches", read_only=True,
+                       package_root=folder)
     try:
         missing = set(store.missing())
         counts = {"linked": 0, "working": 0, "excerpt": 0, "missing": len(missing)}

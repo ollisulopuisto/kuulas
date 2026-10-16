@@ -27,7 +27,7 @@ from typing import Any
 
 from .messages import KuulasError
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 SCHEMA = """
 create table if not exists meta(key text primary key, value text not null);
@@ -45,6 +45,7 @@ create table if not exists media(
     lossless integer not null,
     time_ref_flicks integer,
     linked_path text, linked_size integer, linked_mtime_ns integer,
+    linked_package_rel text, linked_series_rel text,
     excerpt_of text, excerpt_start_flicks integer,
     tags text not null default '{}',
     extra text not null default '{}',
@@ -140,6 +141,11 @@ def create_tables(db: sqlite3.Connection) -> None:
     for statement in SCHEMA.split(";"):
         if statement.strip():
             db.execute(statement)
+    columns = {row[1] for row in db.execute("pragma table_info(media)")}
+    for name in ("linked_package_rel", "linked_series_rel"):
+        if name not in columns:
+            db.execute(f"alter table media add column {name} text")
+    set_meta(db, "schema_version", str(SCHEMA_VERSION))
 
 
 def meta(db: sqlite3.Connection, key: str) -> str | None:
