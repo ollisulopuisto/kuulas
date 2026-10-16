@@ -1,26 +1,41 @@
 # Handoff: next tasks (written 16.10.2026 18.01 Helsinki)
 
-For any agent picking up work on kuulas. Read `CLAUDE.md`, then the ground
+For any agent, from any vendor, picking up work on kuulas. Read `AGENTS.md`
+(`CLAUDE.md` and `GEMINI.md` point to the same rules), then the ground
 rules at the top of `docs/PLAN.md`, then your task's work package (WP) in
 `docs/PLAN.md` and any format details in `docs/FORMAT.md`. The older handoff
 `2026-10-16-model-handoff.md` describes how the first batch was integrated.
 
 ## State of the repo
 
-- **main** is at `6841624`, version 26.10.16.14: 480 pytest + 25 node tests
-  pass, ruff and Biome are clean.
+- **main:** the code is at version 26.10.16.14 (commit `6841624`; later
+  commits on main are docs only): 480 pytest + 25 node tests pass, ruff and
+  Biome are clean.
 - **Done and merged:** WP0, WP1, WP2 (engine; the owner's listening test is
   still pending), WP3 (HTTP API, `kuulas open`), WP9 (jobs, local
   transcription), WP11 (export mix, selection, tracks, MP3), WP13 (Hindenburg
   import), WP14, WP24.1, WP29, WP30, WP33a, WP33b, WP34, WP36, WP37, WP39,
   WP41.
-- **In progress:** WP4 (UI shell and timeline, Sonnet) on branch
-  `wp4-ui-shell`; the primary checkout stays on that branch until it merges
-  into main as v26.10.16.15. **Until then do not edit `ui/` or `server.py`,**
-  and expect the next UI work (WP5 and later) to start from the merged result.
+- **Not finished, and nobody is working on it:** WP4 (UI shell and timeline).
+  An unreviewed draft is one commit (`4b85609`) on branch `wp4-ui-shell`,
+  with its own plan in `docs/plans/2026-10-16-wp4-ui-shell.md` on that branch
+  (tasks 1–4 started; task 5 and the acceptance checks remain). Review the
+  draft against `docs/PLAN.md` WP4 before extending it. **Until WP4 merges, do
+  not edit `ui/` or `server.py` on other branches;** everything else in the
+  UI waits for it.
 - First playable build (milestone M1, `docs/PLAN.md` Triage): WP4, then WP5
   keyboard, WP19a editing in sync, WP35 remembered settings. Recording is not
   in M1. Series features come last.
+
+## First steps
+
+1. In `/Users/dst/Documents/koodi/kuulas`, `git status` should be clean and
+   `git branch --show-current` should say `main`. Do your work in worktrees,
+   not in this checkout.
+2. WP4 only: the draft branch can't be checked out twice, so use
+   `git worktree add /private/tmp/kuulas-wp4 wp4-ui-shell`.
+3. `uv sync` (needs `../podcast` next to the repo), then `uv run pytest -q`;
+   it should report 480 passed.
 
 ## Rules (the short version; the ground rules are binding)
 
@@ -46,16 +61,41 @@ rules at the top of `docs/PLAN.md`, then your task's work package (WP) in
    taking the union of keys.
 7. **Fail soft, snappy, cached by content** (ground rules 13–15). Anything that
    reads files or devices gets fault-injection tests.
-8. **Commit locally only, never push.** End each commit message with the two
-   attribution lines your session gives you.
+8. **Commit locally only, never push.** A commit made by a model says which
+   model made it: end the message with the attribution lines your tool or the
+   owner gives you (a Claude session gets a `Co-Authored-By:` line and a
+   session link from its harness). This repo has no remote, so there are no
+   pull requests: branch per task, merge locally.
 9. **Report briefly:** branch and commit, test counts before and after,
    suggested changelog text, what you could not verify, and any decision the
    plan did not cover.
 
+## If you are not a Claude session
+
+Everything you need is a shell with `git`, `uv` and `node`; no Claude-specific
+tool, skill or subagent is required.
+
+- **Commands:** `uv sync`, `uv run pytest -q`, `uv run ruff check .`,
+  `node --test ui/tests/`, `npx --yes @biomejs/biome@2.2.4 check ui/`.
+- **Languages:** code, tests and commits in English; every user-facing string
+  in English and Finnish. The owner is in Helsinki: show absolute times in
+  Helsinki time with the zone named.
+- **Never put a secret on a command line or in chat.**
+- **Say what you could not verify.** You cannot play audio through a real
+  device or open a browser unless your environment can; the plan marks the
+  hardware test as the owner's. Do not claim it passed.
+- **Do not copy code from speechmix or nhsx** (the podcast repo); import them.
+- **Long reasoning is no substitute for the tests:** the plan lists the tests
+  each work package needs. Write those first.
+
 ## Task board
 
-Model = who should build it (Haiku 5.5 / Sonnet 5.5 / Opus 5.5). Size: S about
-a day, M a few days, L a week.
+Model = the capability tier that should build it. The names are Claude models
+used as tier labels: **Haiku = small and mechanical** (the spec and tests
+leave nothing to decide), **Sonnet = the normal tier** (most work, including
+UI), **Opus = the strongest tier** (real-time audio, schema changes,
+judgement calls; review closely). Models of similar tiers from any vendor can
+take these tasks. Size: S about a day, M a few days, L a week.
 
 ### A. Start now: backend only, safe next to WP4
 
@@ -139,3 +179,5 @@ Keep at most four agents running at once.
   read-only); say if any should change.
 - Whether "send for review" should carry only used audio by default (WP32).
 - Roadmap page: the milestone grouping of tasks is not done yet.
+- Which model takes WP4; it gates all UI work, so it deserves a model that
+  can review a draft critically and finish it.
