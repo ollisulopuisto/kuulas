@@ -457,3 +457,67 @@ def test_decoded_chunks_respect_budget_limit(tmp_path):
     # Chunk 0 should have been evicted to respect the budget limit
     assert budget.get("chunks", f"{media.id}:0") is None
     assert budget.used <= budget.limit
+
+
+def test_rebuild_damaged_media_from_originals_folder(tmp_path):
+    src = tmp_path / "sound.wav"
+    write_wav(src, np.full((1, 44100), 0.3, dtype=np.float32), 44100)
+    store = MediaStore(tmp_path / "media", rate=48000)
+    media = store.import_file(src, copy=True)
+    working = store.working_file(media.id)
+    assert working.is_file()
+    assert (store.folder / "originals").is_dir()
+
+    # Unlink original source so it can ONLY be found in originals/
+    src.unlink()
+
+    # Damage the working file by overwriting it with empty/junk bytes
+    working.write_bytes(b"corrupted")
+
+    # Rebuild from originals folder
+    rebuilt = store.rebuild(media.id)
+    assert rebuilt == working
+    read_audio = store.read(media.id, 0, 10)
+    assert np.isclose(read_audio[0, 0], 0.3, atol=1e-3)
+
+
+def test_rebuild_damaged_media_from_explicit_path(tmp_path):
+    src = tmp_path / "original.wav"
+    write_wav(src, np.full((1, 48000), 0.4, dtype=np.float32), 48000)
+    store = MediaStore(tmp_path / "media", rate=48000)
+    media = store.import_file(src, copy=False)
+    working = store.working_file(media.id)
+
+    # Damage working file
+    working.write_bytes(b"corrupted")
+
+    # Rebuild by pointing explicitly to the original file
+    rebuilt = store.rebuild(media.id, src)
+    assert rebuilt == working
+    read_audio = store.read(media.id, 0, 10)
+    assert np.isclose(read_audio[0, 0], 0.4, atol=1e-3)
+
+
+def test_rebuild_refuses_file_with_wrong_hash(tmp_path):
+    src = tmp_path / "good.wav"
+    wrong = tmp_path / "wrong.wav"
+    write_wav(src, np.full((1, 48000), 0.5, dtype=np.float32), 48000)
+    write_wav(wrong, np.full((1, 48000), -0.5, dtype=np.float32), 48000)
+    store = MediaStore(tmp_path / "media", rate=48000)
+    media = store.import_file(src, copy=True)
+
+    with pytest.raises(MediaError) as exc_info:
+        store.rebuild(media.id, wrong)
+    assert exc_info.value.key == "error.media.hash_mismatch"
+
+
+def test_rebuild_fails_when_no_original_found(tmp_path):
+    src = tmp_path / "source.wav"
+    write_wav(src, np.full((1, 48000), 0.5, dtype=np.float32), 48000)
+    store = MediaStore(tmp_path / "media", rate=48000)
+    media = store.import_file(src, copy=False)
+    src.unlink()  # remove linked file, and no originals/ exists
+
+    with pytest.raises(MediaError) as exc_info:
+        store.rebuild(media.id)
+    assert exc_info.value.key == "error.media.no_original"
