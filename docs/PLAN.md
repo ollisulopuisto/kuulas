@@ -2813,7 +2813,7 @@ off, a loudness-matched pair.
 
 ### WP46 — Clipboard with history
 
-Status: clipboard entries and history (`clipboard.py`) done in v26.10.18.8; paste planning, session wiring and the panel open (owner request 2026-10-18: "we need an EXTENSIVE clipboard, with
+Status: first version done in v26.10.18.11 (entries, history file, paste planning, copy/cut/paste commands and keys, Clipboard tab, sync-group aware insert); a play-preview of an entry, lift-cut and clipboard sharing between windows open (owner request 2026-10-18: "we need an EXTENSIVE clipboard, with
 history"). Needs WP1, WP4, WP5. Replaces and extends WP20 (paste without bloat).
 Sonnet for the logic, Opus review of the data model.
 

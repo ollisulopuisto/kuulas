@@ -1,3 +1,16 @@
+## [v26.10.18.11] - 2026-10-18
+
+- Clipboard with history. Mod+C copies the selection (or the in-out range); X now copies
+  and cuts; Mod+V pastes at the play cursor on the same tracks and moves later material
+  right (the whole sync group follows when group editing is on); Alt+Mod+V overwrites;
+  Shift+Mod+V pastes on the current track. Backspace never touches the clipboard. A
+  Clipboard tab in the sidebar lists everything you copied (newest first, with a name like
+  "Anna +1 · 0:12"), with pin, rename, delete and "Paste again". The history is saved on
+  this computer and works between projects (media are matched by content; missing ones are
+  reported). One undo undoes a whole paste. Not tried by a person yet: overwrite and
+  current-track paste in the window, and pasting into another project's window.
+- Restoring a soft cut joins the pieces back into one clip where nothing differs.
+
 ## [v26.10.18.10] - 2026-10-18
 
 - Clips can have a name of your own (kept through splits and trims, one undo step,
