@@ -1251,7 +1251,7 @@ exactly. Also run `auto_silence` and `automix` as jobs (WP9) once WP9 lands.
 
 ### WP15 — Desktop wrapper
 
-Status: open. **Moved up by the owner (2026-10-18): the wrapper is part of the first version (M1)**, right after WP5, so the keymap can assume a native window (Cmd+T, Cmd+W, F6, Cmd+L free). Packaging and signing stay a later decision.
+Status: first cut done in v26.10.18.4 (`desktop.py`, `kuulas`/`kuulas open --window`, recents, native dialogs, CI workflow); not yet seen by a person. **Moved up by the owner (2026-10-18): the wrapper is part of the first version (M1)**, right after WP5, so the keymap can assume a native window (Cmd+T, Cmd+W, F6, Cmd+L free). Packaging and signing stay a later decision.
 **Owner decisions 2026-10-18:** first-version (M1) scope is the wrapper plus the
 clipboard (WP46); Compare (WP45) comes later. Technology: `pywebview` (the owner
 has used it in other apps and dislikes Electron). Platforms: the owner can test on
@@ -2840,6 +2840,29 @@ sidebar, bottom dock, optional left sidebar); drag a panel tab into another slot
 layout presets (Editing, Transcript first, Mixing); remembered with the other
 settings (WP35). No floating windows in the browser; the desktop wrapper (WP15) may
 add them later.
+
+---
+
+### WP48 — Contextual help (from v1) and onboarding (later)
+
+Status: open (owner, 2026-10-18: "we need contextual help from v1 onwards, and an
+onboarding process later"). Contextual help is part of the first version; onboarding
+comes after. Needs WP4, WP5 (the command registry).
+
+**Contextual help, v1.** Help that knows where you are: the focused panel, the
+selected clip or track, the current mode. (1) A help key (`F1` or `?`, remappable)
+opens a help panel for the focused thing; (2) every control and command has a
+one-line hint (the registry's `hintKey`) and a longer help text, both translated
+(English and Finnish) and kept as data files, not in code; (3) the menu and the
+status line show hints and shortcuts (WP5); (4) empty states say what to do next
+(already in the design); (5) a searchable help index reachable from the Help menu and
+the palette; (6) help text can link to the matching setting or command and run it;
+(7) the same registry feeds the cheat sheet, so help never drifts from the keys.
+
+**Onboarding, later.** A first-run welcome with a sample project, a short guided tour
+that does real edits and can be skipped or replayed, progressive tips tied to the
+user's first use of each feature (shown once), and a checklist of the core loop
+(import, listen, cut, undo, export). Design and content come after v1.
 
 ---
 

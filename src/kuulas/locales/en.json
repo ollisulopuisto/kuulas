@@ -519,5 +519,14 @@
   "ui.hint.cut": "cut",
   "ui.hint.cut_words": "cut words",
   "ui.hint.find": "find",
-  "ui.menu.unavailable": "not available now"
+  "ui.menu.unavailable": "not available now",
+  "ui.inspector.track": "Track",
+  "ui.inspector.bus": "Bus",
+  "ui.track.role": "Role",
+  "ui.track.voice": "Voice preset",
+  "ui.track.voice.none": "None yet",
+  "ui.bus.name_field": "Bus name",
+  "ui.bus.parent": "Parent bus",
+  "ui.bus.parent.none": "None (top level)",
+  "ui.bus.members": "Tracks on this bus"
 }

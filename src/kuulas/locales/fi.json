@@ -519,5 +519,14 @@
   "ui.hint.cut": "leikkaa",
   "ui.hint.cut_words": "poista sanat",
   "ui.hint.find": "hae",
-  "ui.menu.unavailable": "ei käytettävissä nyt"
+  "ui.menu.unavailable": "ei käytettävissä nyt",
+  "ui.inspector.track": "Raita",
+  "ui.inspector.bus": "Väylä",
+  "ui.track.role": "Rooli",
+  "ui.track.voice": "Äänen esiasetus",
+  "ui.track.voice.none": "Ei vielä",
+  "ui.bus.name_field": "Väylän nimi",
+  "ui.bus.parent": "Yläväylä",
+  "ui.bus.parent.none": "Ei (ylin taso)",
+  "ui.bus.members": "Raitoja väylällä"
 }
