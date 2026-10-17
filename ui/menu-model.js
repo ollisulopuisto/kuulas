@@ -74,6 +74,7 @@ export const MENU = [
     id: "help",
     labelKey: "menu.help",
     items: [
+      item("help.open"),
       item("help.keys"),
       {
         kind: "submenu",

@@ -2845,7 +2845,7 @@ add them later.
 
 ### WP48 — Contextual help (from v1) and onboarding (later)
 
-Status: open (owner, 2026-10-18: "we need contextual help from v1 onwards, and an
+Status: contextual help done in v26.10.18.9 (help panel, F1, six topics, drift tests, on the command registry); more topics, tooltips from label plus hint, Show me revealing hidden controls and onboarding open (owner, 2026-10-18: "we need contextual help from v1 onwards, and an
 onboarding process later"). Contextual help is part of the first version; onboarding
 comes after. Needs WP4, WP5 (the command registry).
 
