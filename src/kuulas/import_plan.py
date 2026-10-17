@@ -38,9 +38,6 @@ class Placement:
     new_track: bool
 
 
-_KIND_BY_CHANNELS = ("speech", "music")
-
-
 def _kind(channels: int) -> str:
     return "music" if channels >= 2 else "speech"
 
@@ -149,6 +146,7 @@ def plan_import(
     # sequential
     track_key = "t0"
     track_name = _track_name(ordered[0], track_naming)
+    track_kind = _kind(ordered[0].channels)  # one track, one kind: the first file's
     placements = []
     start = start_frame
     for index, item in enumerate(ordered):
@@ -156,7 +154,7 @@ def plan_import(
             item=item,
             track_key=track_key,
             track_name=track_name,
-            kind=_kind(item.channels),
+            kind=track_kind,
             start_frame=start,
             new_track=index == 0,
         ))

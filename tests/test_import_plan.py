@@ -141,3 +141,9 @@ class TestErrors:
         text = str(exc_info.value)
         assert text != "error.import_plan.bad_mode"
         assert "stacked" in text
+
+
+def test_sequential_track_has_one_kind_from_the_first_file():
+    items = [ImportItem("a.wav", 100, 1), ImportItem("b.wav", 100, 2)]
+    plan = plan_import(items, 48000, mode="sequential")
+    assert {p.kind for p in plan} == {"speech"}
