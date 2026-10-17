@@ -1,3 +1,16 @@
+## [v26.10.18.4] - 2026-10-18
+
+- Desktop app (first cut): `kuulas` with no arguments opens a native window with
+  your recent projects; `kuulas open <project> --window` opens one project in a
+  window. Needs the extra: `uv sync --extra desktop`. In the window the Import
+  button uses the system file dialog and dropped files are linked in place, not
+  uploaded. Not yet checked by a person: how the page looks in the window, closing
+  it, the launcher buttons, and anything on Windows or Linux.
+- A GitHub Actions workflow (`.github/workflows/ci.yml`) runs the checks on Mac,
+  Windows and Linux. It cannot run until you add a repository secret
+  `PODCAST_READ_TOKEN` (read access to the podcast repo, which kuulas still needs
+  for speechmix and nhsx) and push.
+
 ## [v26.10.18.3] - 2026-10-18
 
 - Design only (open `docs/design/prototype/index.html`): a "Cuts explained" screen

@@ -7,7 +7,7 @@ import { nextPanel } from "./focus.js";
 import { followScroll } from "./follow.js";
 import { frameToTime, RATE, xToFrame } from "./format.js";
 import { formatNumber, formatShortcut, initI18n, onLanguageChange, t } from "./i18n.js";
-import { dragHasFiles, summariseImport } from "./importing.js";
+import { dragHasFiles, nativeBridge, summariseImport } from "./importing.js";
 import { createInspector } from "./inspector.js";
 import { coreBindings, createKeymap, isTextField } from "./keys.js";
 import { clampLaneHeight, pointerIntent, projectEnd } from "./lanes.js";
@@ -236,7 +236,10 @@ function onPointerDown(hit, event) {
   if (!intent) return;
   const state = getState();
   const patch = { panel: "timeline" };
-  if (hit.row?.kind === "track" && !event.shiftKey) patch.focusTrack = hit.row.id;
+  if (hit.row?.kind === "track" && !event.shiftKey) {
+    patch.focusTrack = hit.row.id;
+    patch.focusBus = null;
+  } else if (hit.row?.kind === "bus" && !event.shiftKey) patch.focusBus = hit.row.id;
   if (intent.selection === "replace") patch.selection = new Set([intent.clip.id]);
   else if (intent.selection === "clear") patch.selection = new Set();
   else if (intent.selection === "toggle") {
@@ -269,6 +272,9 @@ document.addEventListener("focusin", (event) => {
 
 const keymap = createKeymap();
 for (const binding of coreBindings(actions)) keymap.bind(binding);
+// F2: rename the current track (or bus) in the inspector. Bound here, not in
+// keys.js; the keymap rewrite should take this binding over.
+keymap.bind({ code: "F2", run: () => inspector.focusName() });
 document.addEventListener("keydown", (event) => {
   if (!event.isComposing) keymap.handle(event);
 });
@@ -402,8 +408,17 @@ function setLaneHeight(delta) {
 
 async function importFiles(files) {
   if (files.length === 0) return;
+  await runImport(() => api.uploadFiles(files));
+}
+
+async function importPaths(paths) {
+  if (paths.length === 0) return;
+  await runImport(() => api.importPaths(paths));
+}
+
+async function runImport(send) {
   try {
-    const result = await api.uploadFiles(files);
+    const result = await send();
     if (result.project) apply(result);
     const summary = summariseImport(result.report);
     const lines = [];
@@ -420,7 +435,18 @@ async function importFiles(files) {
   }
 }
 
-$("import").addEventListener("click", () => $("file-input").click());
+async function chooseMedia() {
+  // The desktop window has a native dialog that gives paths to link in place;
+  // a browser falls back to its own picker and uploads.
+  const bridge = nativeBridge();
+  if (!bridge) return $("file-input").click();
+  try {
+    await importPaths(await bridge.pick_media());
+  } catch (error) {
+    showError(error);
+  }
+}
+$("import").addEventListener("click", () => void chooseMedia());
 $("file-input").addEventListener("change", (event) => {
   const files = [...event.target.files];
   event.target.value = "";
@@ -450,8 +476,29 @@ window.addEventListener("drop", (event) => {
   event.preventDefault();
   dragDepth = 0;
   setDrop(false);
+  // In the desktop window Python gets the dropped paths and calls
+  // kuulasNative.importPaths; uploading the bytes as well would import twice.
+  if (nativeBridge()) return;
   void importFiles([...event.dataTransfer.files]);
 });
+
+// Called by the desktop window (src/kuulas/desktop.py): dropped paths and native menu items.
+const menuActions = {
+  "file.import": () => chooseMedia(),
+  "file.export": () => $("export").click(),
+  "edit.undo": () => $("undo").click(),
+  "edit.redo": () => $("redo").click(),
+  "view.zoom_in": () => $("zoom-in").click(),
+  "view.zoom_out": () => $("zoom-out").click(),
+  "view.density": () => {
+    $("density").value = $("density").value === "compact" ? "comfortable" : "compact";
+    $("density").dispatchEvent(new Event("change"));
+  },
+};
+window.kuulasNative = {
+  importPaths: (paths) => void importPaths(paths),
+  menu: (id) => void menuActions[id]?.(),
+};
 
 // -- the canvases and panels -----------------------------------------------------------------------
 
@@ -459,7 +506,16 @@ let overview;
 const trackHeaders = createTrackHeaders({
   root: $("track-headers"),
   editor,
-  actions: { currentTrack: (id) => setState({ focusTrack: id }) },
+  actions: {
+    currentTrack: (id) => {
+      if (getState().focusTrack !== id || getState().focusBus) {
+        setState({ focusTrack: id, focusBus: null });
+      }
+    },
+    currentBus: (id) => {
+      if (getState().focusBus !== id) setState({ focusBus: id });
+    },
+  },
 });
 const inspector = createInspector({ root: $("panel-inspector"), editor });
 
@@ -515,6 +571,7 @@ function render(state, patch) {
       "waveformScale",
       "waveformGain",
       "focusTrack",
+      "focusBus",
       "busHeight",
       "groupGap",
     )
@@ -563,9 +620,9 @@ function render(state, patch) {
     $("follow").setAttribute("aria-pressed", String(state.followPaused));
   }
   if (touched("waveformMode")) $("waveform-mode").value = state.waveformMode;
-  if (touched("project", "focusTrack", "laneHeight", "busHeight", "groupGap"))
+  if (touched("project", "focusTrack", "focusBus", "laneHeight", "busHeight", "groupGap"))
     trackHeaders.update(state);
-  if (touched("project", "selection")) inspector.update(state);
+  if (touched("project", "selection", "focusTrack", "focusBus")) inspector.update(state);
   if (touched("project")) {
     const empty = $("empty");
     const hasClips = state.project?.tracks.some((track) => track.clips.length > 0);

@@ -1,0 +1,96 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# kuulas imports speechmix and nhsx from the podcast repo as path dependencies
+# (../podcast/packages/...), so both repos are checked out side by side:
+#   $GITHUB_WORKSPACE/kuulas and $GITHUB_WORKSPACE/podcast.
+# The podcast repo is private: the repository secret PODCAST_READ_TOKEN must be
+# a token with read access to ollisulopuisto/podcast (the owner adds it).
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    defaults:
+      run:
+        working-directory: kuulas
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: kuulas
+      - uses: actions/checkout@v4
+        with:
+          repository: ollisulopuisto/podcast
+          path: podcast
+          token: ${{ secrets.PODCAST_READ_TOKEN }}
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      # Audio decoding and the export tests need ffmpeg and libsndfile/PortAudio.
+      - name: ffmpeg and audio libraries (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg
+      - name: ffmpeg and audio libraries (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg libportaudio2 libsndfile1
+      - name: ffmpeg (Windows)
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg -y --no-progress
+      - run: uv sync
+      - run: uv run ruff check .
+      - run: uv run pytest -q
+      - run: node --test ui/tests/
+      - run: npx --yes @biomejs/biome@2.2.4 check ui/
+
+  desktop-smoke:
+    name: desktop-smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    defaults:
+      run:
+        working-directory: kuulas
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: kuulas
+      - uses: actions/checkout@v4
+        with:
+          repository: ollisulopuisto/podcast
+          path: podcast
+          token: ${{ secrets.PODCAST_READ_TOKEN }}
+      - uses: astral-sh/setup-uv@v6
+      # Linux: pywebview's GTK backend. Chosen over Qt because it is a few small
+      # distro packages (python3-gi, WebKit2GTK 4.1), where Qt is ~200 MB of
+      # PyQt wheels; WebKit2GTK is also the engine most Linux desktops ship.
+      # 4.1 is the libsoup3 build that Ubuntu 22.04+ carries. The window is
+      # never opened in CI, so no display server is needed.
+      - name: System web view packages (Linux)
+        if: runner.os == 'Linux'
+        run: >
+          sudo apt-get update && sudo apt-get install -y
+          python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.1
+          libcairo2-dev libgirepository1.0-dev pkg-config
+          ffmpeg libportaudio2 libsndfile1
+      - name: ffmpeg (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg
+      - name: ffmpeg (Windows)
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg -y --no-progress
+      - run: uv sync --extra desktop
+      - name: pywebview imports
+        run: uv run python -c "import webview; print(webview.__file__)"
+      - name: pure desktop tests (no window)
+        run: uv run pytest -q tests/test_desktop.py tests/test_messages.py
