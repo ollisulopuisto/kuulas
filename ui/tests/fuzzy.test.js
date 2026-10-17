@@ -42,6 +42,9 @@ describe("fuzzy match", () => {
 
   test("a getter picks the text from objects", () => {
     const rows = fuzzyFilter([{ n: "Undo" }, { n: "Redo" }], "re", (x) => x.n);
-    assert.deepEqual(rows.map((r) => r.item.n), ["Redo"]);
+    assert.deepEqual(
+      rows.map((r) => r.item.n),
+      ["Redo"],
+    );
   });
 });

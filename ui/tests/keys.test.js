@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { nextPanel, PANELS } from "../focus.js";
 import { createRegistry } from "../commands.js";
-import { DEFAULT_KEYMAP } from "../keymap-default.js";
+import { nextPanel, PANELS } from "../focus.js";
 import { resolveKeymap } from "../keymap-config.js";
-import { createKeymap, isTextField, parseCombo } from "../keys.js";
+import { DEFAULT_KEYMAP } from "../keymap-default.js";
+import { createKeymap, isTextField } from "../keys.js";
 
 const press = (over) => ({
   key: "",
@@ -28,7 +28,12 @@ const altGr = { ctrlKey: true, altKey: true, getModifierState: (k) => k === "Alt
 function setup({ platform = "other", context = "timeline", overrides = {} } = {}) {
   const calls = [];
   const registry = createRegistry();
-  const args = { "view.zoom_in": [1], "view.zoom_out": [-1], "panel.next": [1], "panel.previous": [-1] };
+  const args = {
+    "view.zoom_in": [1],
+    "view.zoom_out": [-1],
+    "panel.next": [1],
+    "panel.previous": [-1],
+  };
   for (const entry of DEFAULT_KEYMAP) {
     registry.register(entry.id, () => calls.push([entry.id, ...(args[entry.id] ?? [])]));
   }
@@ -53,7 +58,12 @@ describe("text fields", () => {
   });
 
   test("no binding fires while typing, except those marked text-field", () => {
-    for (const target of [field, { tagName: "TEXTAREA" }, { tagName: "SELECT" }, { tagName: "DIV", isContentEditable: true }]) {
+    for (const target of [
+      field,
+      { tagName: "TEXTAREA" },
+      { tagName: "SELECT" },
+      { tagName: "DIV", isContentEditable: true },
+    ]) {
       const { keymap, calls } = setup();
       for (const [key, code, extra] of [
         [" ", "Space", {}],
@@ -83,7 +93,11 @@ describe("text fields", () => {
 
 describe("the core keys", () => {
   test("Space plays/stops, on any element except a text field", () => {
-    for (const tag of [{ tagName: "DIV" }, { tagName: "BUTTON" }, { tagName: "INPUT", type: "range" }]) {
+    for (const tag of [
+      { tagName: "DIV" },
+      { tagName: "BUTTON" },
+      { tagName: "INPUT", type: "range" },
+    ]) {
       const { keymap, calls } = setup();
       const event = press({ code: "Space", key: " ", target: tag });
       assert.equal(keymap.handle(event), true);
@@ -138,7 +152,10 @@ describe("the core keys", () => {
     const { keymap, calls } = setup();
     keymap.handle(press({ key: "F6", code: "F6" }));
     keymap.handle(press({ key: "F6", code: "F6", shiftKey: true }));
-    assert.deepEqual(calls, [["panel.next", 1], ["panel.previous", -1]]);
+    assert.deepEqual(calls, [
+      ["panel.next", 1],
+      ["panel.previous", -1],
+    ]);
   });
 
   test("Mod is Cmd on a Mac and Ctrl elsewhere; the other one does nothing", () => {
@@ -180,7 +197,7 @@ describe("the core keys", () => {
     assert.equal(keymap.handle(event), false);
     assert.equal(event.prevented, false);
     assert.deepEqual(calls, []);
-    assert.equal(registry.isPlanned("edit.split"), true);
+    assert.equal(registry.status("edit.split"), "planned");
   });
 
   test("WP5 can add ad hoc bindings, and the first match wins", () => {

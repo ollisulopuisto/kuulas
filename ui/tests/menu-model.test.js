@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { createRegistry } from "../commands.js";
-import { DEFAULT_KEYMAP } from "../keymap-default.js";
+import { setCatalogs, setLanguageNow } from "../i18n.js";
 import { resolveKeymap } from "../keymap-config.js";
+import { DEFAULT_KEYMAP } from "../keymap-default.js";
 import { MENU, menuTargets, moveItem, moveMenu, resolveMenu } from "../menu-model.js";
 
 const LABELS = {
@@ -14,27 +15,47 @@ const LABELS = {
   "cmd.help.keys": "Keyboard shortcuts",
   "hint.undo": "Take back the last change",
 };
+setCatalogs({
+  en: { "key.ctrl": "Ctrl", "key.space": "Space", "key.shift": "Shift", "key.alt": "Alt" },
+  fi: {},
+});
+setLanguageNow("en");
 const label = (key) => LABELS[key] ?? key;
 
-function make({ platform = "other", overrides = {}, state = {}, planned = [] } = {}) {
+function make({ platform = "other", overrides = {}, state = {}, planned = [], held = {} } = {}) {
   const registry = createRegistry();
   registry.register("edit.undo", () => {}, { can: (s) => s.canUndo, hintKey: "hint.undo" });
   registry.register("edit.redo", () => {}, { can: (s) => s.canRedo });
   registry.register("app.import", () => {});
   registry.register("help.keys", () => {});
+  registry.register("view.toggle", () => {});
+  registry.register("view.fit", () => {});
   registry.planned(...planned);
   const entries = resolveKeymap(DEFAULT_KEYMAP, overrides, platform);
-  return resolveMenu({ menu: MENU, entries, registry, state, label, platform });
+  return resolveMenu({
+    menu: MENU,
+    entries,
+    registry,
+    state,
+    label,
+    platform,
+    held: { alt: false, shift: false, mod: false, ...held },
+  });
 }
 const find = (menus, id) => {
   const walk = (items) =>
-    items.flatMap((item) => (item.kind === "submenu" ? walk(item.items) : item.kind === "item" ? [item] : []));
-  return menus.flatMap((m) => walk(m.items)).find((i) => i.id === id);
+    items.flatMap((item) =>
+      item.kind === "submenu" ? walk(item.items) : item.kind === "item" ? [item] : [],
+    );
+  return menus.flatMap((m) => walk(m.items)).find((i) => (i.baseId ?? i.id) === id);
 };
 
 describe("the menu data", () => {
   test("has File, Edit, Track, View and Help, and names only known commands", () => {
-    assert.deepEqual(MENU.map((m) => m.id), ["file", "edit", "track", "view", "help"]);
+    assert.deepEqual(
+      MENU.map((m) => m.id),
+      ["file", "edit", "track", "view", "help"],
+    );
     const ids = new Set(DEFAULT_KEYMAP.map((e) => e.id));
     for (const id of menuTargets(MENU)) assert.ok(ids.has(id), id);
   });
@@ -57,7 +78,7 @@ describe("resolving a menu", () => {
   test("a disabled item keeps its key", () => {
     const redo = find(make({ state: {} }), "edit.redo");
     assert.equal(redo.enabled, false);
-    assert.equal(redo.keys, "Shift+Ctrl+Z");
+    assert.equal(redo.keys, "Ctrl+Shift+Z");
   });
 
   test("Mac shows glyphs in Apple's order", () => {
@@ -99,6 +120,34 @@ describe("resolving a menu", () => {
 
   test("a menu title is its message key", () => {
     assert.equal(make()[0].label, "File");
+  });
+});
+
+describe("held modifiers", () => {
+  test("holding Shift swaps View's Z item for its Shift alternate, and back", () => {
+    const base = find(make(), "view.toggle");
+    assert.equal(base.keys, "Z");
+    const held = find(make({ held: { shift: true } }), "view.toggle");
+    assert.equal(held.id, "view.fit");
+    assert.equal(held.baseId, "view.toggle");
+    assert.equal(held.alternate, true);
+    assert.equal(held.keys, "Shift+Z");
+    assert.equal(held.enabled, true);
+    assert.equal(find(make({ held: {} }), "view.toggle").keys, "Z");
+  });
+
+  test("the alternate's own enabled state counts", () => {
+    const held = find(make({ held: { alt: true } }), "view.toggle");
+    assert.equal(held.id, "view.back");
+    assert.equal(held.enabled, false); // planned in this fixture
+  });
+
+  test("an item with no alternate for the held key stays as it is", () => {
+    const item = find(make({ held: { shift: true }, state: { canUndo: true } }), "edit.undo");
+    assert.equal(item.id, "edit.redo");
+    const imp = find(make({ held: { alt: true } }), "app.import");
+    assert.equal(imp.id, "app.import");
+    assert.equal(imp.alternate, false);
   });
 });
 

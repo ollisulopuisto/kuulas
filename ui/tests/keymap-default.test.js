@@ -4,8 +4,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { CONTEXTS, DEFAULT_KEYMAP, STATUS_HINTS } from "../keymap-default.js";
 import { findCollisions, resolveKeymap } from "../keymap-config.js";
+import { CONTEXTS, DEFAULT_KEYMAP, STATUS_HINTS } from "../keymap-default.js";
 import { parseCombo } from "../keys.js";
 
 const locales = fileURLToPath(new URL("../../src/kuulas/locales/", import.meta.url));

@@ -40,7 +40,11 @@ describe("the command registry", () => {
     const registry = createRegistry();
     registry.register("free", () => {});
     registry.register("undo", () => {}, { can: (s) => s.canUndo });
-    registry.register("bad", () => {}, { can: () => { throw new Error("x"); } });
+    registry.register("bad", () => {}, {
+      can: () => {
+        throw new Error("x");
+      },
+    });
     assert.equal(registry.can("free", {}), true);
     assert.equal(registry.can("undo", { canUndo: false }), false);
     assert.equal(registry.can("undo", { canUndo: true }), true);
