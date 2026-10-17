@@ -1,5 +1,7 @@
 import threading
 
+from dataclasses import replace
+
 import numpy as np
 import pytest
 
@@ -215,6 +217,26 @@ def test_muted_speech_does_not_make_music_background():
     report = make_report(s, {"s": speech_then_silence(4)[None, :]})
 
     assert [row.background for row in report] == [False]
+
+
+def test_one_muted_track_of_a_speaker_does_not_hide_the_others():
+    frames = 4 * RATE
+    m_speech = Media("s", "speech.wav", 1, frames, sha256="s" * 64)
+    m_music = media("mu", "u" * 64,
+                    music_info={"title": "Bed", "artist": "A"})
+    muted = replace(track("t1", "speech", [clip("a", 0, 0, frames, media_id="s")],
+                          muted=True), speaker="Ann")
+    audible = replace(track("t2", "speech", [clip("b", 0, 0, frames, media_id="s")]),
+                      speaker="Ann")
+    s = state(
+        media_items=[m_speech, m_music],
+        tracks=[muted, audible,
+                track("t3", "music", [clip("under", RATE // 2, 0, RATE, media_id="mu")])],
+    )
+
+    report = make_report(s, {"s": speech_then_silence(4)[None, :]})
+
+    assert [row.background for row in report] == [True]
 
 
 def test_missing_metadata_is_flagged():
