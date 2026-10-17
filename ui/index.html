@@ -57,32 +57,55 @@
         </section>
       </aside>
       <footer class="statusbar" data-i18n-aria-label="ui.view.title">
-        <button id="zoom-out" type="button" class="button icon" data-i18n-aria-label="ui.view.zoom_out" data-i18n-title="ui.view.zoom_out" aria-keyshortcuts="-">−</button>
-        <button id="view-toggle" type="button" class="button" data-i18n-title="ui.view.toggle" aria-keyshortcuts="Z"></button>
         <span id="zoom-chip" class="zoom"></span>
-        <button id="zoom-in" type="button" class="button icon" data-i18n-aria-label="ui.view.zoom_in" data-i18n-title="ui.view.zoom_in" aria-keyshortcuts="=">+</button>
-        <button id="fit" type="button" class="button" data-i18n="ui.view.fit_short" data-i18n-title="ui.view.fit" aria-keyshortcuts="Shift+Z"></button>
+        <button id="view-toggle" type="button" class="button" data-i18n-title="ui.view.toggle" aria-keyshortcuts="Z"></button>
         <span class="divider" aria-hidden="true"></span>
-        <label class="inline"><span class="visually-hidden" data-i18n="ui.view.waveform"></span>
+        <!-- At most three hints, for the focused panel (GUI-DESIGN.md "Density"). -->
+        <span class="keyhints" aria-hidden="true">
+          <span><kbd data-shortcut="Space"></kbd><span data-i18n="ui.hint.play"></span></span>
+          <span><kbd data-shortcut="Z"></kbd><span data-i18n="ui.hint.view"></span></span>
+          <span><kbd>F6</kbd><span data-i18n="ui.hint.panels"></span></span>
+        </span>
+        <span class="spacer"></span>
+        <button id="view-menu-button" type="button" class="button" popovertarget="view-menu" data-i18n="ui.view.menu"></button>
+      </footer>
+      <!-- Everything else about the view: one click away, not on screen at rest. -->
+      <div id="view-menu" class="view-menu" popover data-i18n-aria-label="ui.view.menu">
+        <div class="menu-row"><span data-i18n="ui.view.zoom"></span>
+          <span class="menu-pair">
+            <button id="zoom-out" type="button" class="button icon" data-i18n-aria-label="ui.view.zoom_out" data-i18n-title="ui.view.zoom_out" aria-keyshortcuts="-">−</button>
+            <button id="zoom-in" type="button" class="button icon" data-i18n-aria-label="ui.view.zoom_in" data-i18n-title="ui.view.zoom_in" aria-keyshortcuts="=">+</button>
+          </span>
+        </div>
+        <button id="fit" type="button" class="button" data-i18n="ui.view.fit" aria-keyshortcuts="Shift+Z"></button>
+        <label class="menu-row"><span data-i18n="ui.view.waveform"></span>
           <select id="waveform-mode" class="button">
             <option value="half" data-i18n="ui.view.half"></option>
             <option value="full" data-i18n="ui.view.classic"></option>
           </select>
         </label>
-        <button id="lane-shorter" type="button" class="button icon" data-i18n-aria-label="ui.view.lane_shorter" data-i18n-title="ui.view.lane_shorter">↕−</button>
-        <button id="lane-taller" type="button" class="button icon" data-i18n-aria-label="ui.view.lane_taller" data-i18n-title="ui.view.lane_taller">↕+</button>
+        <div class="menu-row"><span data-i18n="ui.view.lanes"></span>
+          <span class="menu-pair">
+            <button id="lane-shorter" type="button" class="button icon" data-i18n-aria-label="ui.view.lane_shorter" data-i18n-title="ui.view.lane_shorter">−</button>
+            <button id="lane-taller" type="button" class="button icon" data-i18n-aria-label="ui.view.lane_taller" data-i18n-title="ui.view.lane_taller">+</button>
+          </span>
+        </div>
         <button id="follow" type="button" class="button" data-i18n-title="ui.view.follow_title"></button>
-        <span class="divider" aria-hidden="true"></span>
-        <span class="keyhints" aria-hidden="true">
-          <span><kbd data-shortcut="Space"></kbd><span data-i18n="ui.hint.play"></span></span>
-          <span><kbd data-shortcut="Z"></kbd><span data-i18n="ui.hint.view"></span></span>
-          <span><kbd>=</kbd><kbd>−</kbd><span data-i18n="ui.hint.zoom"></span></span>
-          <span><kbd>F6</kbd><span data-i18n="ui.hint.panels"></span></span>
-          <span><kbd data-shortcut="Escape"></kbd><span data-i18n="ui.hint.home"></span></span>
-        </span>
-        <span class="spacer"></span>
+        <label class="menu-row"><span data-i18n="ui.density.title"></span>
+          <select id="density" class="button">
+            <option value="comfortable" data-i18n="ui.density.comfortable"></option>
+            <option value="compact" data-i18n="ui.density.compact"></option>
+          </select>
+        </label>
+        <label class="menu-row"><span data-i18n="ui.motion.title"></span>
+          <select id="motion" class="button">
+            <option value="full" data-i18n="ui.motion.full"></option>
+            <option value="subtle" data-i18n="ui.motion.subtle"></option>
+            <option value="off" data-i18n="ui.motion.off"></option>
+          </select>
+        </label>
         <button id="theme" type="button" class="button"></button>
-      </footer>
+      </div>
       <div id="notice" class="notice" role="status" aria-live="polite" hidden>
         <span id="notice-text"></span>
         <button id="notice-close" type="button" class="button ghost icon" data-i18n-aria-label="ui.notice.dismiss" data-i18n-title="ui.notice.dismiss">×</button>

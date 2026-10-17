@@ -7,12 +7,13 @@
 // waveform layer only when something it shows changed.
 import { frameToX, xToFrame } from "./format.js";
 import { busHues, fileMark, needsFileMark, seamKind } from "./grammar.js";
+import { clipLabel, labelFacts, siblingsOf } from "./labels.js";
 import {
   clipEnd,
   dbToY,
   envelopeFrame,
   hitTest,
-  layoutRows,
+  layoutFor,
   RULER_HEIGHT,
   visibleRows,
 } from "./lanes.js";
@@ -34,6 +35,7 @@ const PLAYHEAD_CAP = 5.5;
 const SEAM_ALPHA = 0.7;
 const NOTCH_PX = 4;
 const MARK_FONT_PX = 10;
+const BRACKET_PX = 10;
 
 export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, actions }) {
   const overlay = overlayCanvas.getContext("2d");
@@ -113,12 +115,13 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     overlay.clearRect(0, 0, width, height);
     if (!state.project) return;
     const rate = state.project.rate;
-    const layout = layoutRows(state.project, state.laneHeight);
+    const layout = layoutFor(state);
     const hues = trackHues(state.project);
     const groups = busHues(state.project);
     drawRange(state, height);
     for (const row of visibleRows(layout, state.scrollY, height - RULER_HEIGHT)) {
       const top = RULER_HEIGHT + row.top - state.scrollY;
+      if (row.kind === "gap") continue; // plain lane between groups: nothing drawn
       overlay.strokeStyle = theme.rule;
       overlay.lineWidth = 1;
       overlay.beginPath();
@@ -163,6 +166,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     const { width } = size;
     const colours = theme.palette[(hues.get(track.id) ?? 0) % theme.palette.length];
     const marked = needsFileMark(track);
+    const siblings = siblingsOf(state.project, state.selection);
     // Rows under the ruler must not paint over it.
     overlay.save();
     overlay.beginPath();
@@ -186,6 +190,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       // The gain line only where it says something: not 0 dB, an envelope, or selected.
       const gainShown = (clip.gain_db ?? 0) !== 0 || clip.envelope?.length > 0 || selected;
       if (row.height >= 40 && gainShown) drawGain(state, clip, left, right, top, row.height);
+      if (siblings.has(clip.id)) drawSiblingMarks(left, y, w, h);
       if (selected) {
         overlay.strokeStyle = theme.selection;
         overlay.lineWidth = 2;
@@ -274,6 +279,8 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
 
   // The clip's name on a backing of its body colour, so bars never cross the
   // text; before it, the file mark when the track holds more than one file.
+  // The label says what the clip is, by the width there is (labels.js):
+  // nothing, the person, "Olli 3", "Olli 3 · 1:20–3:20", then the first words.
   function drawName(state, clip, left, y, w, colours, marked) {
     const media = state.project.media.find((item) => item.id === clip.media);
     if (!media || w < 30) return;
@@ -281,7 +288,12 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     if (marked) x = drawFileMark(fileMark(media.sha256), x, y, colours.ink);
     overlay.font = `600 ${NAME_FONT_PX}px ${theme.font}`;
     overlay.textBaseline = "top";
-    const textWidth = overlay.measureText(media.name).width;
+    const visible = Math.min(left + w, size.width) - x;
+    const text = clipLabel(labelFacts(state.project, clip, labelWords(state)), visible, {
+      measure: (value) => overlay.measureText(value).width,
+    });
+    if (!text) return;
+    const textWidth = overlay.measureText(text).width;
     overlay.save();
     overlay.beginPath();
     overlay.rect(left, y, w - 4, LABEL_H + 4);
@@ -291,8 +303,45 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     overlay.fillRect(x - 3, y + 2, textWidth + 6, LABEL_H);
     overlay.globalAlpha = 1;
     overlay.fillStyle = colours.label;
-    overlay.fillText(media.name, x, y + 3);
+    overlay.fillText(text, x, y + 3);
     overlay.restore();
+  }
+
+  // Timeline words in the label's shape, converted once per words list.
+  let wordsFrom = null;
+  let wordsShaped = [];
+  function labelWords(state) {
+    if (state.words !== wordsFrom) {
+      wordsFrom = state.words;
+      wordsShaped = (state.words ?? []).map((word) => ({
+        start: word.s,
+        end: word.e,
+        text: word.w,
+      }));
+    }
+    return wordsShaped;
+  }
+
+  // Siblings (same recording as a selected clip, any track): small corner
+  // brackets in the sibling colour; the overview marks them too.
+  function drawSiblingMarks(left, y, w, h) {
+    const arm = Math.min(BRACKET_PX, w / 3);
+    overlay.strokeStyle = theme.sibling;
+    overlay.lineWidth = 2;
+    overlay.beginPath();
+    overlay.moveTo(left + 1, y + arm);
+    overlay.lineTo(left + 1, y + 1);
+    overlay.lineTo(left + arm, y + 1);
+    overlay.moveTo(left + w - arm, y + 1);
+    overlay.lineTo(left + w - 1, y + 1);
+    overlay.lineTo(left + w - 1, y + arm);
+    overlay.moveTo(left + 1, y + h - arm);
+    overlay.lineTo(left + 1, y + h - 1);
+    overlay.lineTo(left + arm, y + h - 1);
+    overlay.moveTo(left + w - arm, y + h - 1);
+    overlay.lineTo(left + w - 1, y + h - 1);
+    overlay.lineTo(left + w - 1, y + h - arm);
+    overlay.stroke();
   }
 
   // The file mark: two characters from the content hash in a small chip.
@@ -412,7 +461,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
   function hitAt(event) {
     const state = getState();
     const { x, y } = locate(event);
-    const layout = layoutRows(state.project, state.laneHeight);
+    const layout = layoutFor(state);
     return hitTest({ layout, project: state.project, view: { ...state, width: size.width }, x, y });
   }
 
@@ -433,7 +482,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     (event) => {
       const state = getState();
       event.preventDefault();
-      const layout = layoutRows(state.project, state.laneHeight);
+      const layout = layoutFor(state);
       const lanesFit = layout.height <= size.height - RULER_HEIGHT;
       actions.wheel(wheelIntent(event, { lanesFit }), locate(event).x, event);
     },

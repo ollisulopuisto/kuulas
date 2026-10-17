@@ -25,7 +25,7 @@ and this file is fixed in the same commit.
 
 **View the prototype:** open `docs/design/prototype/index.html` in a browser
 (double-click it; no server needed). The black bar at the top switches screen,
-theme, language and density. URL parameters: `?screen=main|transcript|history|candidates|palette|focus|buses|empty|error|gallery&theme=light|dark|system&lang=en|fi&density=comfortable|compact&clean=1`.
+theme, language and density. URL parameters: `?screen=main|transcript|crosstalk|history|candidates|recording|palette|compare|collapsed|focus|import-drop|import|menu|empty|error|gallery&theme=light|dark|system&lang=en|fi&density=comfortable|compact&width=auto|1024|1280|1440|1920|2560&motion=full|subtle|off&clean=1`. The bar also shows the live count of controls at rest.
 
 ## 1. Design principles
 
@@ -60,43 +60,58 @@ theme, language and density. URL parameters: `?screen=main|transcript|history|ca
    label has room for +40 %, truncates with an ellipsis and a tooltip, and no
    layout depends on the English width (checked with `lang=fi` screenshots).
 
+9. **At rest, only what you use every minute** (owner, 18.10.2026). A
+   track header at rest is a name, a role icon, M and S; levels, pickers and
+   key chips appear on the current track, on hover and with keyboard focus,
+   and everything else is one click away (View menu, inspector sections, the
+   palette). So the resting main screen stays within a budget of 25 controls
+   (section 16), and a new resting control must replace one.
+
 ## 2. The main window
 
 ```
-┌ top bar 44 ─ project/edit │ ▶ Play  0:12:34.567  [1.5×] [Group editing off] … jobs  ↶ ↷  Import Export  ⌘K ┐
-├ heads 248 ────────────────┬ overview 20 ──────────────────────────────────────┬ sidebar 320 ──────────┤
-│ (spacer = overview+ruler) │ ruler 24                                          │ tabs 36               │
-│ ▾ [A] Voices      M S     │ bus row (band)                                    │ Inspector │ History │ │
-│ ▌Anna        A▾  M S      │ lane 56: clips, half waveforms                    │ Candidates │ Clip bin│
-│ ▌Ville       A▾  M S      │ lane 56                                           │                       │
-│ ▸ [B] Music (1)   M S     │ collapsed bus: summed waveform                    │ panel body            │
+┌ top bar 52 ─ project/edit │ ▶ Play  0:12:34.567  [chips only when active]   ↶ ↷  Import  Export  Commands ┐
+├ heads 272 ────────────────┬ overview 20 ──────────────────────────────────────┬ sidebar 360 ──────────┤
+│ (spacer = overview+ruler) │ ruler 24                                          │ tabs                  │
+│ ▾ [A] Voices        M     │ bus row 32 (band)                                 │ Inspector │ History │ │
+│ ▌   Anna            M S   │ lane 80: clips, half waveforms                    │ Candidates │ Clip bin│
+│ ▌   Ville           M S   │ lane 80                                           │                       │
+│ ╰ (spine cap)             │                                                   │ panel body            │
+│ ░░ group gap 14 ░░░░░░░░░ │ ░░ plain lane ░░                                  │                       │
+│ ▌[B] Theme tune     M S   │ a one-track bus, merged into its track            │                       │
 ├───────────────────────────┴───────────────────────────────────────────────────┤                       │
-│ transcript dock 30vh (min 120, max 60 %)                                      │ action bar (sticky)   │
-├ status bar 26: − Close·30 s + Fit │ waveform  lanes  follow │ key hints … saved · theme ┴───────────────┘
+│ transcript dock 26vh (min 140, max 60 %)                                      │ action bar (sticky)   │
+├ status bar 32: 30 s · Close │ 3 key hints │                saved · View ▾ ──┴───────────────┘
 ```
 
-| Region | Size (comfortable / compact) | Min / max | Resize | Always visible |
-|---|---|---|---|---|
-| Top bar | 44 / 38 px | fixed | no | yes |
-| Project block (top-left) | width = track header column | follows the column | with the column | yes |
-| Track header column | 248 / 216 px (`--heads-w`) | 180 / 360 | drag its right edge (planned) | yes |
-| Overview strip | 20 px | fixed | no | yes, when the edit has clips |
-| Ruler | 24 px (`lanes.js RULER_HEIGHT`) | fixed | no | yes |
-| Track lane | 56 / 40 px (`DEFAULT_LANE`) | 24 / 160 | Shift+= / Shift+- all; drag a lane's bottom edge for one | — |
-| Bus header row | 44 px (`BUS_HEIGHT`), lane height when collapsed | — | — | — |
-| Focus-mode strip | 16 px | — | — | in focus mode |
-| Sidebar | 320 / 280 px | 260 / 480 | drag its left edge (planned); hide from the palette | yes (hideable) |
-| Transcript dock | 30 vh | 120 px / 60 % | drag its top edge (planned); collapse to its 34 px header | yes (collapsible) |
-| Status bar | 26 / 22 px | fixed | no | yes |
+Sizes per density (tokens in `ui/tokens.css`; section 16 explains the two densities):
+
+| Region | Comfortable (default) | Compact | Min / max | Resize | At rest |
+|---|---|---|---|---|---|
+| Top bar | 52 px; buttons 40 px with 44 px hit targets | 38 px; 26 px buttons | fixed | no | always |
+| Track header column | 272 px | 216 px | 232 / 380 (180 / 360 compact) | drag (planned) | always |
+| Overview strip | 20 px | 20 px | fixed | no | with clips |
+| Ruler | 24 px (`RULER_HEIGHT`) | 24 px | fixed | no | always |
+| Track lane | 80 px (`DEFAULT_LANE`) | 40 px | 24 / 160 | Shift+= / Shift+-; drag a lane edge | — |
+| Bus row | 32 px, one line (`BUS_HEIGHT`) | 24 px | — | — | — |
+| Collapsed bus | ribbons: 8 px per member + 8, max 48; one member: 40 px summed | 32 px | — | — | — |
+| Group gap | 14 px (`GROUP_GAP`) | 6 px | — | — | — |
+| Member indent | 14 px from the spine | 10 px | — | — | — |
+| Sidebar | 360 px | 280 px | 280 / 520 (260 / 480) | drag (planned); hide from View | always |
+| Transcript dock | 26 vh | 30 vh | 140 px / 60 % | drag (planned); collapses when short | always |
+| Status bar | 32 px | 22 px | fixed | no | always |
 
 Rules:
 
-- One screen, no page scroll. The window's minimum is 960 × 600 px. Below
-  1100 px wide the status-bar key hints hide; below 960 px the sidebar becomes
-  an overlay opened from its tab (planned, not built).
+- One screen, no page scroll above the minimum window (section 17).
 - Docks are separated by 1 px lines (`--frame-gap`), never by shadows.
 - The project block above the headers keeps the transport aligned with the
   timeline's left edge: the eye runs straight down from Play to the playhead.
+- **Groups read as blocks:** a bus header sits above its members, the members
+  are indented, and a plain gap (no band, no spine) separates each group from
+  the next group or from tracks on no bus. The spine ends with a rounded cap at
+  the last member.
+- **A click anywhere in the lane area sets the play cursor** (section 7.3).
 
 ## 3. Panels and components
 
@@ -109,50 +124,67 @@ inventory (section 11).
   length ("Main edit · 58:41", WP21); click or Mod+O opens the edit switcher.
   Today the app shows "kuulas" (no project name in the API yet).
 - **Transport:** Play/Stop is the one accent-filled button in the window
-  (`--button-primary-bg`), with its key chip inside. The timecode is 20 px,
-  600, tabular numerals, `h:mm:ss.mmm` with the milliseconds in
+  (`--button-primary-bg`), 40 px tall with a 44 px hit target. Its key ("Space")
+  appears as a small label under the button on hover and keyboard focus only
+  (comfortable), so the button's width never changes. The timecode is 24 px
+  (18 compact), 600, tabular numerals, `h:mm:ss.mmm` with the milliseconds in
   `--text-secondary`; Finnish uses the decimal comma (`0:12:34,567`).
-- **Mode chips** (only when not default, amber `.chip.warn` unless noted):
-  speed ≠ 1× ("1.5×", key `.`), "Group editing off" (E), "Solo: Ville"
-  (Shift+S), "Focus: Ville · Esc" (neutral `.chip.info`), A/B "B −2.3 dB
-  matched" (neutral), connection lost "Reconnecting…" (`.chip.danger`, the
-  reassurance "everything up to your last edit is saved" in its tooltip and
-  in the status bar). They never truncate; if space runs out the job chip
-  shortens to "2/3" first.
-- **Jobs chip:** progress ring + "Transcribing 2 of 3"; click opens a 300 px
-  popover: one row per job with a 4 px bar, percent, time left, Cancel; a
-  failed job shows its error in `--danger-text` and Retry. Hidden when no jobs.
-- **Undo/Redo:** ghost icon buttons (tooltips "Undo · ⌘Z"). Import (Mod+I in
-  the browser, see 8.3), Export (Mod+E), Commands ⌘K (opens the palette; for
-  mouse users to discover it).
+- **Mode chips** appear only while something is active, amber `.chip.warn`
+  unless noted: speed ≠ 1×, "Group editing off", "Solo: Ville", "Focus:
+  Ville" (neutral), connection lost "Reconnecting…" (`.chip.danger`). They never
+  truncate; their keys are in the tooltip, not on the chip.
+- **Jobs chip:** shown only while a job runs or failed: progress ring + "Transcribing
+  2 of 3"; click opens a 320 px popover with one row per job (bar, percent,
+  Cancel; a failed job's error and Retry).
+- **Undo/Redo** (ghost icon buttons, tooltips "Undo · ⌘Z"), **Import** (Mod+I in
+  the browser, see 9), **Export** (Mod+E), **Commands** (the palette, Mod+K; the
+  label hides below 1100 px).
 
-States: empty project → Play and Undo disabled, Import becomes primary.
+States: empty project: Play and Undo disabled, Import becomes primary.
 
 ### 3.2 Track headers and bus headers
 
-**Track header** (lane height; two rows of 20 px when ≥ 44 px, one row below):
+**At rest a track header shows four things:** the role icon, the name, M and
+S. Everything else is one step away:
 
-- row 1: role icon (mic = speech, two mics = speech mix, note = music; the role
-  name is the tooltip and the accessible name) · name (600, ellipsis,
-  double-click renames) · bus picker (the bus letter, 46 px, `A ▾`; "–" for
-  none) · M · S
-- row 2: gain slider (−60…+12 dB, value "−1.5 dB" right-aligned, tabular) ·
-  pan slider (76 px, "L 10" / "C" / "R 10"; Finnish "V/K/O")
-- left edge: the **bus spine** (4 px, full height, bus colour) and beside it
-  the **track pill** (3 × 22 px, rounded, the track's hue). Different shapes,
-  so bus and speaker never fight.
-- current track (↑/↓ cursor): background `--header-bg-current`, the same tint
-  across its lane.
-- muted track: M filled neutral (`--mute-on-bg`), its clips at
-  `--signal-unheard-opacity`. Not heard because another track is soloed: name
-  and controls at 55 %, M dashed, tooltip "not heard: solo".
-- solo: S filled amber, plus the "Solo: …" chip in the top bar.
+| Thing | At rest (comfortable) | Shows when | Also in |
+|---|---|---|---|
+| Gain and pan sliders | hidden (space kept, so nothing jumps) | the track is current (↑/↓), on hover, while focus is inside | the inspector's track section (planned) |
+| Bus picker (letter + chevron) | not in the layout: the name gets its width | current, hover, focus | inspector; drag the header onto a group |
+| Key chips | none | tooltips ("Mute · ⇧M") | palette, status bar hints |
+| Default/custom marker | — | after a double-click toggle (section 21) | tooltip "was −2.5 dB" |
 
-**Bus header** (a group header, like a folder; 44 px, two rows): disclosure
-chevron (collapse / expand, Alt+← / Alt+→ on the current track's bus) · letter
-badge (A, B, …: 18 px square, 1.5 px border in the bus colour, letter in
-`--bus-N-text`) · name (600, bus text colour) · member count when collapsed ·
-M · S; row 2: gain and pan. Details in section 6.
+Compact shows everything at once, as before: both rows, the bus picker, the
+values.
+
+Layout of a track header (lane height; rows of 28 px in comfortable):
+
+- row 1 (aligned with the clip names at the top of the lane): role icon (mic =
+  speech, two mics = speech mix, note = music; the role name is the tooltip and
+  the accessible name) · name (600; long names are shortened **in the middle**,
+  "Anna · varam…foni", with the full name in the tooltip and accessible name;
+  double-click renames) · [bus picker] · M · S
+- row 2 (current/hover): gain slider (−60…+12 dB, neutral grey track, value
+  "−1.5 dB") · pan slider (84 px, "L 10" / "C" / "R 10"; Finnish V/K/O)
+- left edge: the **bus spine** (4 px, full height, bus colour) for members of a
+  bus, and the **track pill** (3 × 20 px, rounded, the speaker hue), level with
+  the name. Members are indented 14 px from the spine, so the bus row reads as
+  the outer level.
+- current track: `--header-bg-current` across header and lane. Muted: M filled
+  neutral. Not heard because of solo: name and controls at 55 %, M dashed,
+  tooltip "not heard: solo". Solo: S amber, plus the "Solo" chip.
+
+**Bus row** (one short line: 32 px, 24 compact, flush with the spine, on the
+bus band): disclosure chevron · letter badge (A, B, …) · name (600, bus text
+colour) · [member count when collapsed] · [bus fader on hover/focus] · M ·
+[S on hover/focus]. The **bus fader** is a different control from the track
+sliders: a 5 px track filled in the bus colour, labelled "Bus" ("Väylä"), shown
+inline on hover or focus; bus pan and the rest live in the inspector's Bus
+section (section 6). Double-click the row, click the chevron, or Alt+Mod+← / Alt+Mod+→
+on a member collapses or expands it.
+
+**A one-track bus** is merged into its track's header by default: the badge
+before the role icon, the spine, no bus row (section 6).
 
 ### 3.3 Ruler and overview
 
@@ -205,57 +237,47 @@ bar. Error: the job's message and Retry.
 
 ### 3.6 Sidebar
 
-Tabs (36 px): Inspector · History · Candidates (count pill) · Clip bin. When
-the sidebar is narrower than 400 px, only the selected tab shows its label;
-the others show their icon (tooltip and accessible name keep the label).
-**The app today stacks Inspector over History** (no tab logic yet); switch to
-tabs when WP8, WP17 or WP18 lands.
+Tabs: Inspector · History · Candidates (count pill) · Clip bin. Below 420 px
+only the selected tab shows its label; the others show icons (tooltip and
+accessible name keep the label). **The app today stacks Inspector over
+History** (no tab logic yet); switch to tabs when WP8, WP17 or WP18 lands.
 
-**Inspector** (selected clip): title block (4 px hue bar, file name 15/600,
-"Ville · 11:30.0–13:50.0 · 2 min 20 s"), the bus line (badge + "Bus: Voices"
-+ the file mark chip), then sections with 11/600 secondary headings: Level
-(clip gain, pan; inputs 76 px right-aligned, unit after, key chip at the
-end), Fades (in, out in ms), Sync (status line: chain icon + "Group 1 · in sync
-with Anna, Pekka" in `--ok-text`; drift: warning icon, "312 ms behind its
-group", the cause, buttons Resync R and Free from sync U), Voice (preset
-select, layers as chips), Source (file, format, stored). Invalid input: 1 px
-danger border + 1 px ring, message under the field with a warning icon
-("Use a number from −60 to +12."), the value is not sent. Empty: "Select a
-clip to see its level, fades and sync." + "Click a clip, or press Tab to move
-between edits." Several clips: the fields they share, mixed values shown as
-"—" (planned).
+**Inspector** (selected clip): the title block (4 px hue bar, the clip's label
+at 17 px, then "Anna.wav · Part 3 of 3 · Anna", the bus line with badge and the
+file mark), then **collapsible sections** (native `<details>`): **Level** and
+**Sync** open by default; **Fades**, **Source**, **Voice** and **Details**
+closed, each showing a one-line summary on the right of its heading ("0 · 30 ms",
+"Part 3 of 3", "Speech · clean"). What the user opens or closes is remembered
+per user (`kuulas.inspector.sections`; `inspector.js openSections`, tested).
 
-**History** (WP8): rows of 28 px: op icon, label, Helsinki time (`19.42`);
-session markers as dividers with text ("Opened today 19.30 (Helsinki)");
-checkpoints pinned and bold; the head row highlighted (`--accent-subtle` +
-3 px accent left edge, "now"); steps after the head (redo side) tertiary;
-abandoned branches indented with a corner connector, tertiary. Hovering a
-row outlines it and draws its state as dashed ghost outlines on the timeline.
-Sticky action bar: primary "Restore Enter" + "Restore adds a new step;
-nothing is lost." Undo across a session marker shows the toast "Undid a step
-from yesterday: **cut at 12:31** · Redo".
+- Level: clip gain, pan (inputs 84 px, right-aligned; key chips on focus only),
+  mute. Double-click or Shift+Enter toggles default/custom (section 21).
+- Sync: "Group 1 · in sync with Anna, Pekka" (`--ok-text`) or the drift block
+  (cause, Resync R, Free from sync U).
+- **Source** (section 18): a mini map of the whole recording (used, soft-cut,
+  unused, this clip outlined) and "Other clips from this recording (n)": rows
+  "2/5 · Anna · 1:21–1:22 · Anna · 12:31" that jump to the clip.
+- Invalid input: 1 px danger border + ring, message under the field; not sent.
+- Empty: "Select a clip to see its level, fades and sync." + a hint.
 
-**Candidates** (WP18): summary chips ("3 open", "1 cut", "1 kept") and the
-"Open only ⇧⌘D" toggle; rows of two lines: time (600, tabular), duration,
-state chip (open = candidate-coloured outline; cut = struck; kept = neutral),
-the transcript excerpt in quotes. The current candidate has the accent row
-treatment and is drawn with 2 px edges on the timeline. Sticky action bar:
-the preview diagram (2 s · skip 2.4 s · 2 s, the skip hatched), buttons
-Preview, Cut (primary), Keep; keys are in the status bar hints.
-
-**Clip bin** (WP17): designed later with WP17; until then the tab shows an
-empty state naming the work package.
+**History**, **Candidates**: as in 3.6 before, with rows 32 px tall in
+comfortable. **Clip bin** (WP17): **grouped by recording**: a recording header
+(file mark, file name, clip count, person) with its clips under it, numbered
+"1/3, 2/3 …" by source position (section 18).
 
 ### 3.7 Status bar
 
-Left to right: zoom out · the view toggle (Close/Wide, Z) · the span ("30 s")
-· zoom in · Fit (Shift+Z) | waveform mode · lane height −/+ · follow mode
-(amber text while paused by a manual scroll) · tab mode ("Tab: clip edges",
-WP19i) | **key hints for the focused panel** (four or five, e.g. timeline:
-"B split · X cut · Q W trim · D mark cut · ? all keys"; transcript: "⌫ cut
-words · Enter correct · ⌥D mark · Esc timeline") | spacer | save state
-("✓ All changes saved", `--ok-text`; when disconnected "Saved up to 19.58 ·
-edits paused") | theme button (System → Light → Dark).
+At rest: the span ("30 s", the zoom readout) · the Close/Wide toggle (Z) |
+**at most three key hints for the focused panel** (timeline: "B split · X
+cut · Q W trim"; transcript: "⌫ cut words · Enter correct · ⌥D mark") |
+spacer | save state ("✓ All changes saved"; disconnected: "Saved up to 19.58 ·
+edits paused") | **View ▾**.
+
+The **View menu** (a native popover above the status bar's right end; Esc or
+an outside click closes it) holds everything else about the view: zoom out /
+in and Fit (Shift+Z), waveform mode, lane height −/+, follow mode, **density**
+(comfortable / compact), **animation** (full / subtle / off), theme (system /
+light / dark).
 
 ### 3.8 Messages (toasts)
 
@@ -268,14 +290,26 @@ be imported." · "Import the first 12:40" · "Show file"). One toast at a time;
 a newer one replaces an older one of the same kind. `role="status"` for
 info, `role="alert"` for errors.
 
-### 3.9 Command palette (Mod+K)
+### 3.9 Command palette (Mod+K): a command bar docked over the sidebar
 
-Modal at 12 vh from the top, `min(640px, 100vw − 32px)`, radius 10,
-`--shadow-dialog` over `--surface-scrim`. A 48 px search field (15 px text),
-results in groups ("Recent" first when the field is empty, then by area),
-34 px rows: icon, name with matched letters bold-underlined, the remembered
-default in tertiary ("MP3 128 kbps · mono", WP35), key chips. Footer: "↑↓ move
-· Enter run · ⌥Enter options · Esc close". Focus returns where it was.
+**Picked: a docked command bar, not a floating modal** (owner, 18.10.2026: the
+centred modal with a scrim covered the timeline). It opens directly under the
+top bar, right-aligned, **exactly over the sidebar column** (its width:
+`--sidebar-w`, 280–360 px), and grows downward at most to the status bar. Why
+docked: the sidebar is the one region you do not need while choosing a command;
+the lanes, the ruler, the playhead and the transcript stay visible and
+clickable, playback continues, and the playhead can be moved while it is open.
+
+- No scrim at all. `--shadow-raised` and a 1 px left border separate it.
+- A 48 px search field, results in groups ("Recent" first when empty), rows of
+  32 px: icon, name with matched letters underlined, key chips; the remembered
+  default under the name in tertiary ("MP3 128 kbps · mono", WP35).
+- Enter runs and closes; Esc closes; focus returns where it was.
+- **A command that needs a target asks inline**, inside the bar, below the
+  results: "Spot clip to time" shows a time field ("12:40.500", "Type a time and
+  press Enter; Esc cancels."). It never opens a dialog over the timeline.
+- Below 1100 px the sidebar column holds the transcript too; the bar then
+  covers that column only.
 
 ### 3.10 Other surfaces (designed here, built with their WP)
 
@@ -396,6 +430,10 @@ Light is the default `:root`; dark applies by `prefers-color-scheme` unless
 | `--signal-note` | `#b97a00` | `#f0b54a` |  |
 | `--signal-sync` | `#48545a` | `#aab4b9` |  |
 | `--signal-tether` | `#48545a` | `#aab4b9` |  |
+| `--signal-sibling` | `#0a7a6b` | `#3dc9b3` | corner brackets: same recording as the selection |
+| `--signal-collateral` | `#c8321f` | `#ff776b` | what a transcript cut also removes |
+| `--signal-collateral-fill` | `rgb(200 50 31 / 0.18)` | `rgb(255 119 107 / 0.2)` |  |
+| `--signal-preview` | `#0a7a6b` | `#3dc9b3` | a Compare preview is playing (not committed) |
 | `--role-speech` | `#48545a` | `#aab4b9` | strip pattern: solid |
 | `--role-speech-mix` | `#48545a` | `#aab4b9` | strip pattern: dashed |
 | `--role-music` | `#7a715e` | `#8e8572` | strip pattern: dotted |
@@ -505,24 +543,21 @@ group, doubled on the header row.
 
 ### 4.6 Spacing, radii, elevation, density
 
-- Spacing on a 4 px grid: 2, 4, 6, 8, 12, 16, 24, 32 (`--space-1…8`).
+- Spacing on a 4 px grid: 2, 4, 6, 8, 12, 16, 24, 32 (`--space-1…8`). Component
+  padding comes from the density tokens `--pad-panel`, `--pad-inline`,
+  `--row-gap`, `--section-gap` (section 16).
 - Radii: 2 (badges, key chips) · 4 (controls) · 6 (popovers, cards, toasts) ·
-  10 (dialogs, palette) · pill (chips). **Clips are square**: crisp edges read
-  as edit points.
-- Elevation: flat docks; `--shadow-raised` for popovers and toasts;
-  `--shadow-dialog` for dialogs over `--surface-scrim`. In dark, raised
-  surfaces are also lighter (`--surface-raised`) because shadows barely show.
-- Density: `comfortable` (default) and `compact` (`data-density="compact"`:
-  12 px body, 22 px controls, 40 px lanes, 38 px top bar, narrower columns).
-  Compact is for laptops and for editors who know the keys.
+  10 (dialogs) · pill (chips). **Clips are square**: crisp edges read as edit points.
+- Elevation: flat docks; `--shadow-raised` for popovers, toasts, the command
+  bar; `--shadow-dialog` for dialogs over `--surface-scrim`.
+- Density: **comfortable** (default, roomy) and **compact** (the earlier, denser
+  values); section 16.
 
 ### 4.7 Motion
 
-90 ms hover/press (`--dur-fast`), 140 ms chips and tabs (`--dur-base`),
-120 ms lane height and focus-mode shrink (`--dur-layout`), 600 ms "this
-changed" flash after undo (`--dur-flash`), all `--ease-standard`. Nothing
-moves on its own except the playhead and progress. `prefers-reduced-motion`
-sets the durations to 0; the undo flash becomes a static outline for 1.2 s.
+See section 20 (the motion language). Durations: `--dur-fast` 90 ms,
+`--dur-base` 140 ms, `--dur-layout` 120 ms, `--dur-slow` 240 ms, `--dur-flash`
+600 ms; easing `--ease-standard`.
 
 ### 4.8 Focus
 
@@ -563,37 +598,41 @@ Generated from `ui/grammar.js` (priority order; lower is more important;
 "Status": built in the editor today / shown in the prototype, built with its
 WP / planned.
 
-| # | Signal | Channel · meaning | Priority | Light | Dark | Non-colour twin | When shown | Keys | Status |
-|---|---|---|---|---|---|---|---|---|---|
-| 1 | **speaker** | hue · identity | 0 (always) | track/bus/label hues | track/bus/label hues | track name in the header and file name on the clip; the header swatch is a short pill | always | — | built |
-| 2 | **file-zebra** | tone · identity | 0 (always) | track/bus/label hues | track/bus/label hues | file mark chip and file name on each clip; a seam marks every change of file | neighbouring clips on one track come from different files | — | built |
-| 3 | **selected** | weight · selection | 0 (always) | `#10161a` | `#ffffff` | 2 px outline (shape), plus the inspector shows the clip | the clip is selected | click, Tab, Mod+A | built |
-| 4 | **placeholder** | dash · reality | 0 (always) | `#48545a` | `#aab4b9` | dashed outline, no waveform, the script text in italics inside | narration placeholder (WP43) | T | prototype |
-| 5 | **damaged** | pattern · absence | 0 (always) | `#c8321f` `#fde8e4` | `#ff776b` `#3d1d1b` | cross-hatch, a '!' badge with the word 'damaged', and the reason on hover | media that cannot be read there (plays silence) | — | prototype |
-| 6 | **drift** | badge · facts | 0 (always) | `#c8321f` `#ffffff` | `#ff776b` `#1a0c0b` | solid badge with the offset in text ('−312 ms'), cause on hover | undecided drift from the sync group (WP19a) | R resyncs, U frees | prototype |
-| 7 | **bus** | spine · grouping | 0 (always) | track/bus/label hues | track/bus/label hues | letter badge (A, B, C) in the bus header, the transcript and the inspector | a track is on a bus: the spine runs from the bus header through its tracks | — | built |
-| 8 | **bus-band** | band · grouping | 0 (always) | — | — | drawn only together with the spine (the band is a tint of the spine's colour) | behind a bus's header and member lanes | — | built |
-| 9 | **muted** | opacity · audibility | 1 (always) | `rgb(19 25 28 / 0.28)` `0.35` | `rgb(231 236 238 / 0.22)` `0.35` | diagonal hatch over the clip; M pressed in the header for a muted track | the clip is muted | N | built |
-| 10 | **unheard** | opacity · audibility | 1 (always) | `0.45` | `0.45` | header says 'not heard: solo' in its tooltip and the M button turns dashed | another track is soloed, or this track is muted | Shift+S, Shift+M | prototype |
-| 11 | **gate** | opacity · audibility | 1 (always) | `#f6f8f9` `0.7` | `#13171a` `0.7` | the waveform under the band is drawn flat (a 1 px floor line), with a small gate tick at each edge; hover says 'Mic closed' and offers 'Open this stretch' | Auto-Silence: one merged gate per track closes the mic (WP44); a per-lane toggle shows or hides it | Alt+Mod+P runs Auto-Silence | prototype |
-| 12 | **candidate** | pattern · absence | 1 (always) | `#c8321f` `rgb(200 50 31 / 0.12)` | `#ff776b` `rgb(255 119 107 / 0.13)` | diagonal stripes across the group's lanes and a 'cut?' flag in the ruler | an open cut candidate (WP18) | D, ] [, Enter, Backspace | prototype |
-| 13 | **soft-cut** | pattern · absence | 1 (always) | `#c8321f` `rgb(200 50 31 / 0.08)` | `#ff776b` `rgb(255 119 107 / 0.09)` | hatch plus a solid 2 px edge at each end in the cut colour, and the word 'cut' when wide enough; the context menu says 'Restore' | a stretch cut without closing the gap ('Cut, keep gap'); 'Show cuts' (on by default) hides or shows them | Backspace on a range; Restore from the menu or the palette | prototype |
-| 14 | **removed** | pattern · absence | 1 (always) | `#c8321f` `rgb(200 50 31 / 0.12)` | `#ff776b` `rgb(255 119 107 / 0.13)` | a ghost outline with hatch and a '−' glyph | changes view (WP31): audio in A that is gone in B | Alt+Mod+D, ] [ | planned |
-| 15 | **added** | bar · change | 1 (always) | `#1e8a4c` | `#6fd39a` | a 3 px bar on the clip's left and right edges and a '+' glyph | changes view (WP31): audio in B that was not in A | Alt+Mod+D, ] [ | planned |
-| 16 | **provisional** | dash · reality | 2 (always) | `#5c6870` | `#8f9aa0` | short dashes (2 on, 2 off) on the outline | an edit is shown but the engine has not confirmed it after 150 ms | — | prototype |
-| 17 | **partner** | scope · edit scope | 2 (always) | `#48545a` | `#aab4b9` | dashed 1 px outline inset 2 px, neutral | a clip is selected: its sync partners that a move takes along (WP19a) | E toggles group editing | prototype |
-| 18 | **clipping** | cap · level | 2 | `#c8321f` | `#ff776b` | a 3 px block on top of the clipped column (shape) and a line in the inspector | a peak at or above −0.1 dBFS | — | built |
-| 19 | **file-mark** | badge · facts | 3 | `#ffffff` `#13191c` | `#0f1214` `#e7ecee` | two characters from the content hash; the same on every track | a track holds clips from more than one file | — | built |
-| 20 | **free** | badge · facts | 4 | `#48545a` | `#aab4b9` | outlined badge with an unlinked-chain glyph and '+300 ms · free' | a clip freed from its sync group on purpose (U) | U | prototype |
-| 21 | **seam-jump** | seam · joins | 4 | `#48545a` | `#aab4b9` | a small V notch top and bottom at the join (shape) | two clips of one file meet but audio between them was removed; hover offers 'Put back' (a ripple cut) | Tab stops here | built |
-| 22 | **takes** | badge · facts | 5 | `#48545a` | `#aab4b9` | stacked top-right corner (two offset edges) and '2/3' | a take set (WP19e) | Alt+] / Alt+[ | prototype |
-| 23 | **note** | notch · annotation | 5 | `#b97a00` | `#f0b54a` | a triangular notch in the top edge; the text on hover | a note or marker on the clip's audio | M | prototype |
-| 24 | **unused** | opacity · audibility | 6 | `0.5` | `0.5` | the clip bin lists it under 'not in the programme' | clip bin and cards: material not used in the open edit | — | planned |
-| 25 | **sync** | badge · facts | 6 | `#48545a` | `#aab4b9` | chain glyph and the group number ('⛓ 1') | on the selected clip and its partners only; never on every clip | Y marks in sync | prototype |
-| 26 | **tether** | line · attachment | 6 | `#48545a` | `#aab4b9` | a thin line from the clip's start down to its anchor, ending in a dot | a connected clip (WP19b) | Alt+Mod+C | planned |
-| 27 | **label** | badge · facts | 7 | track/bus/label hues | track/bus/label hues | a square flag in the top-right corner; its name on hover and in the inspector | the user gave the clip a label colour (never set automatically) | — | planned |
-| 28 | **seam-split** | seam · joins | 8 | `#48545a` | `#aab4b9` | a 1 px hairline (shape) | two clips of one file meet with nothing removed between them | — | built |
-| 29 | **role** | strip · role | 9 | `#48545a` `#48545a` `#7a715e` | `#aab4b9` `#aab4b9` `#8e8572` | strip pattern: solid speech, dashed speech mix, dotted music; role icon in the header | off on the timeline (the header says it); on in the clip bin and cards | — | prototype |
+| # | Signal | Channel · meaning | Priority | At rest | Light | Dark | Non-colour twin | When shown | Keys | Status |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | **speaker** | hue · identity | 0 (always) | shown | track/bus/label hues | track/bus/label hues | track name in the header and file name on the clip; the header swatch is a short pill | always | — | built |
+| 2 | **file-zebra** | tone · identity | 0 (always) | shown | track/bus/label hues | track/bus/label hues | file mark chip and file name on each clip; a seam marks every change of file | neighbouring clips on one track come from different files | — | built |
+| 3 | **selected** | weight · selection | 0 (always) | shown | `#10161a` | `#ffffff` | 2 px outline (shape), plus the inspector shows the clip | the clip is selected | click, Tab, Mod+A | built |
+| 4 | **placeholder** | dash · reality | 0 (always) | shown | `#48545a` | `#aab4b9` | dashed outline, no waveform, the script text in italics inside | narration placeholder (WP43) | T | prototype |
+| 5 | **damaged** | pattern · absence | 0 (always) | shown | `#c8321f` `#fde8e4` | `#ff776b` `#3d1d1b` | cross-hatch, a '!' badge with the word 'damaged', and the reason on hover | media that cannot be read there (plays silence) | — | prototype |
+| 6 | **drift** | badge · facts | 0 (always) | shown | `#c8321f` `#ffffff` | `#ff776b` `#1a0c0b` | solid badge with the offset in text ('−312 ms'), cause on hover | undecided drift from the sync group (WP19a) | R resyncs, U frees | prototype |
+| 7 | **bus** | spine · grouping | 0 (always) | shown | track/bus/label hues | track/bus/label hues | letter badge (A, B, C) in the bus header, the transcript and the inspector | a track is on a bus: the spine runs from the bus header through its tracks | — | built |
+| 8 | **bus-band** | band · grouping | 0 (always) | shown | — | — | drawn only together with the spine (the band is a tint of the spine's colour) | behind a bus's header and member lanes | — | built |
+| 9 | **collateral** | pattern · absence | 0 (always) | only while words are selected in the transcript | `#c8321f` `rgb(200 50 31 / 0.18)` | `#ff776b` `rgb(255 119 107 / 0.2)` | other speakers' words struck through with a wavy underline, 'also removed' in the word pop-up, the stretch hatched and the affected clips outlined on the timeline | a transcript selection whose cut would also remove other tracks' words or audio | X cuts on all tracks (ripple); Backspace deletes on this speaker only, keeping the gap | prototype |
+| 10 | **ribbons** | ribbon · activity | 0 (always) | shown | — | — | one strip per member in its position (top to bottom = header order), filled where the track has sound; the tooltip names the track and clip | a collapsed bus with two or more members (one member keeps its summed waveform) | Alt+Mod+← collapses, Alt+Mod+→ expands | prototype |
+| 11 | **preview** | dash · reality | 0 (always) | only while the Compare bar is open | `#0a7a6b` | `#3dc9b3` | a dashed top band over the compared range with the slot letter ('A', 'B') in it, and the Compare bar itself | a Compare preview is playing: nothing is committed until 'Keep this one' | ` flips, 1–4 pick a slot, Enter keeps, Esc discards | prototype |
+| 12 | **muted** | opacity · audibility | 1 (always) | shown | `rgb(19 25 28 / 0.28)` `0.35` | `rgb(231 236 238 / 0.22)` `0.35` | diagonal hatch over the clip; M pressed in the header for a muted track | the clip is muted | N | built |
+| 13 | **unheard** | opacity · audibility | 1 (always) | shown | `0.45` | `0.45` | header says 'not heard: solo' in its tooltip and the M button turns dashed | another track is soloed, or this track is muted | Shift+S, Shift+M | prototype |
+| 14 | **gate** | opacity · audibility | 1 (always) | shown | `#f6f8f9` `0.7` | `#13171a` `0.7` | the waveform under the band is drawn flat (a 1 px floor line), with a small gate tick at each edge; hover says 'Mic closed' and offers 'Open this stretch' | Auto-Silence: one merged gate per track closes the mic (WP44); a per-lane toggle shows or hides it | Alt+Mod+P runs Auto-Silence | prototype |
+| 15 | **candidate** | pattern · absence | 1 (always) | shown | `#c8321f` `rgb(200 50 31 / 0.12)` | `#ff776b` `rgb(255 119 107 / 0.13)` | diagonal stripes across the group's lanes and a 'cut?' flag in the ruler | an open cut candidate (WP18) | D, ] [, Enter, Backspace | prototype |
+| 16 | **soft-cut** | pattern · absence | 1 (always) | shown | `#c8321f` `rgb(200 50 31 / 0.08)` | `#ff776b` `rgb(255 119 107 / 0.09)` | hatch plus a solid 2 px edge at each end in the cut colour, and the word 'cut' when wide enough; the context menu says 'Restore' | Delete (Backspace): audio removed in place, the gap kept, restorable; 'Show cuts' (on by default) hides or shows them | Backspace (Delete); Restore from the menu or the palette | prototype |
+| 17 | **removed** | pattern · absence | 1 (always) | only in the changes view (WP31) | `#c8321f` `rgb(200 50 31 / 0.12)` | `#ff776b` `rgb(255 119 107 / 0.13)` | a ghost outline with hatch and a '−' glyph | changes view (WP31): audio in A that is gone in B | Alt+Mod+D, ] [ | planned |
+| 18 | **added** | bar · change | 1 (always) | only in the changes view (WP31) | `#1e8a4c` | `#6fd39a` | a 3 px bar on the clip's left and right edges and a '+' glyph | changes view (WP31): audio in B that was not in A | Alt+Mod+D, ] [ | planned |
+| 19 | **provisional** | dash · reality | 2 (always) | only after 150 ms without the engine's confirmation | `#5c6870` | `#8f9aa0` | short dashes (2 on, 2 off) on the outline | an edit is shown but the engine has not confirmed it after 150 ms | — | prototype |
+| 20 | **partner** | scope · edit scope | 2 (always) | only while a clip is selected | `#48545a` | `#aab4b9` | dashed 1 px outline inset 2 px, neutral | a clip is selected: its sync partners that a move takes along (WP19a) | E toggles group editing | prototype |
+| 21 | **clipping** | cap · level | 2 | shown | `#c8321f` | `#ff776b` | a 3 px block on top of the clipped column (shape) and a line in the inspector | a peak at or above −0.1 dBFS | — | built |
+| 22 | **file-mark** | badge · facts | 3 | shown | `#ffffff` `#13191c` | `#0f1214` `#e7ecee` | two characters from the content hash; the same on every track | a track holds clips from more than one file | — | built |
+| 23 | **sibling** | bracket · relation | 3 (always) | while a clip is selected, or hovered with Alt held | `#0a7a6b` | `#3dc9b3` | corner brackets on every other clip of the same recording, a tick in the overview, and 'part 2 of 5' in the inspector | the selected clip's recording has other clips in the edit (any track) | Alt+hover | built |
+| 24 | **free** | badge · facts | 4 | shown | `#48545a` | `#aab4b9` | outlined badge with an unlinked-chain glyph and '+300 ms · free' | a clip freed from its sync group on purpose (U) | U | prototype |
+| 25 | **seam-jump** | seam · joins | 4 | shown | `#48545a` | `#aab4b9` | a small V notch top and bottom at the join (shape) | two clips of one file meet but audio between them was removed; hover offers 'Put back' (a ripple cut) | Tab stops here | built |
+| 26 | **takes** | badge · facts | 5 | shown | `#48545a` | `#aab4b9` | stacked top-right corner (two offset edges) and '2/3' | a take set (WP19e) | Alt+] / Alt+[ | prototype |
+| 27 | **note** | notch · annotation | 5 | shown | `#b97a00` | `#f0b54a` | a triangular notch in the top edge; the text on hover | a note or marker on the clip's audio | M | prototype |
+| 28 | **unused** | opacity · audibility | 6 | only in the clip bin and on cards | `0.5` | `0.5` | the clip bin lists it under 'not in the programme' | clip bin and cards: material not used in the open edit | — | planned |
+| 29 | **sync** | badge · facts | 6 | only on the selected clip and its partners | `#48545a` | `#aab4b9` | chain glyph and the group number ('⛓ 1') | on the selected clip and its partners only; never on every clip | Y marks in sync | prototype |
+| 30 | **tether** | line · attachment | 6 | shown | `#48545a` | `#aab4b9` | a thin line from the clip's start down to its anchor, ending in a dot | a connected clip (WP19b) | Alt+Mod+C | planned |
+| 31 | **label** | badge · facts | 7 | shown | track/bus/label hues | track/bus/label hues | a square flag in the top-right corner; its name on hover and in the inspector | the user gave the clip a label colour (never set automatically) | — | planned |
+| 32 | **seam-split** | seam · joins | 8 | shown | `#48545a` | `#aab4b9` | a 1 px hairline (shape) | two clips of one file meet with nothing removed between them | — | built |
+| 33 | **role** | strip · role | 9 | only in the clip bin and on cards | `#48545a` `#48545a` `#7a715e` | `#aab4b9` `#aab4b9` `#8e8572` | strip pattern: solid speech, dashed speech mix, dotted music; role icon in the header | off on the timeline (the header says it); on in the clip bin and cards | — | prototype |
 
 **At most three ranked signals per clip.** `pickSignals(active)` keeps every
 "always" signal, then the three highest-priority others; the rest collapse
@@ -630,51 +669,99 @@ Three ways audio is not heard, three different looks:
 |---|---|---|---|
 | What it is | the user muted a clip | one merged gate per track closes the mic | a stretch cut without closing the gap |
 | Look | clip at `--signal-muted-opacity` + neutral diagonal hatch | a dim band (`--signal-gate` at `--signal-gate-opacity`) over the lane, waveform drawn flat under it, no hatch, a small tick at each edge | hatch in the cut colour, `--signal-soft-cut-fill`, solid 2 px cut-colour edges, "cut" when wide |
-| Wording | "Mute clip" / "Unmute" (N) | hover "Mic closed" · click "Open this stretch" | "Cut, keep gap" · "Restore" (ripple cuts: "Put back" on the notch) |
+| Wording | "Mute clip" / "Unmute" (N) | hover "Mic closed" · click "Open this stretch" | "Delete" (Backspace; keeps the gap, owner 18.10.2026) · "Restore" (ripple cuts made with X: "Put back" on the notch) |
 | Visibility | always | per-lane show/hide toggle (lane context menu and palette) | "Show cuts" toggle, on by default |
 
-### 5.5 What to leave out (recommendations)
+### 5.5 What shows at rest (checked at the comfortable sizes)
 
-- **Role strip on the timeline:** off. The header icon already says it on every
-  lane; repeating it on every clip is noise. On in the clip bin and on cards,
-  where clips from different roles sit together.
-- **Sync badge on every clip:** no. Only on the selection and its partners,
-  and always for drift. A timeline full of "⛓ 1" says nothing.
-- **Gain line at 0 dB:** hidden unless the clip is selected.
-- **Clipping cap at wide zoom** (whole edit): kept, but merged per pixel
-  column; a clip that clips gets a "clipping" line in the inspector rather
-  than a badge.
-- **Provisional dashes:** only after 150 ms without confirmation (normally
-  never seen; 14 ms median round trip measured).
-- **File mark:** only on tracks with two or more files.
+Every signal now says in the registry whether it shows at rest (`atRest`,
+tested). Checked at 80 px lanes and 14 px text; dropped from the resting view
+because they were noise there:
+
+| Was shown at rest | Now | Why |
+|---|---|---|
+| Bus band behind every member lane | only on the bus row (and the header column spine) | at 80 px a tinted block per group dominated; the group gap now says "group" |
+| Stripes across all lanes for every open candidate | faint fill and 1 px edges; stripes only on the current candidate | stripes over 80 px lanes were the loudest thing on screen |
+| Envelope dots | only on the selected clip (the gain line itself stays when gain ≠ 0) | dots on every clip with an envelope read as noise |
+| Ducking value label ("ducking −12 dB") | only on the current track | the line itself carries the shape |
+| Sync badge, partner rings | already only with a selection | — |
+| Role strip | already off on the timeline | the header icon says it |
+| Key chips beside buttons and fields | on hover and focus only | 13 chips at rest became 4 |
+
+Kept at rest because they are cheap and informative: speaker hue, file zebra
+and file mark (only on tracks with 2+ files), seams, clipping caps, drift
+badges, damage, mute hatch, gates, soft cuts, placeholders, collapsed-bus
+ribbons.
 
 ## 6. Buses
 
 - **Position:** a bus is a group header *above* its member tracks, like a
   folder (`lanes.js layoutRows`): it appears where its first member would be,
   its members gather under it in track order, tracks on no bus keep their
-  place between groups, and buses with no members go last. (The model's track
-  order is unchanged; see open question 7.)
-- **Identity:** the spine (4 px, bus colour, header through every member), the
-  band (faint tint behind header and member lanes, doubled on the header row),
-  and the letter badge (A, B, …, the twin) in the header, the track's bus
-  picker, the transcript speaker gutter, the inspector's bus line, and every
-  mixer-like place (export stems list, music report, settings). Speaker hue
-  stays on clips and the track pill; bus colour stays in spine, band and badge.
-- **Expanded:** header row 44 px (name, M, S; gain, pan), members below.
-- **Collapsed** (chevron, or Alt+← on a member): one row at lane height
-  showing the members' summed half waveform in the bus spine colour and the
-  member count; members hidden. Selection and edits on a collapsed bus apply
-  to all its members (time-shifting edits keep the sync rule).
-- **Empty bus:** the header alone, name in italics, tertiary; sits last.
+  place, and buses with no members go last. A **group gap** (14 px, 6 compact,
+  `--group-gap`) of plain lane sits wherever the group changes, so the bus
+  colour clearly starts and ends with its group. A click in a gap sets the play
+  cursor like anywhere in the lanes (tested).
+- **Identity:** the spine (4 px, bus colour, from the bus row through every
+  member, ending with a rounded cap at the last member), the band (faint tint,
+  **on the bus row only** at rest), and the letter badge (A, B, …, the twin) in
+  the bus row, the track's bus picker, the transcript speaker gutter, the
+  inspector's bus line, and every mixer-like place (export stems list, music
+  report, settings). Speaker hue stays on clips and the track pill; bus colour
+  stays in spine, band and badge.
+- **Hierarchy:** the bus row is flush with the spine; its tracks are indented
+  14 px. The bus fader is filled in the bus colour and labelled "Bus"; track
+  sliders stay grey.
+- **Expanded:** the bus row (32 px, one line), members below.
+- **Collapsed** (chevron, double-click the row, Alt+Mod+← on a member):
+  - two or more members: **activity ribbons**: one strip per member (8 px up to
+    six members, thinner beyond, never under 3 px; the row capped at 48 px,
+    `grammar.js ribbonLayout`, tested) in the member's own speaker hue, filled
+    where that track has audible audio, over a faint summed envelope in the bus
+    colour. Muted, gated (WP44) and soft-cut stretches use the same hatch and
+    dimming as full lanes; candidates and markers are still drawn across the row;
+    clip edges are 1 px ticks. A summed waveform would blend the speakers and
+    hide who talks when, so it is not used for several members.
+  - one member: its summed waveform at 40 px.
+  - **Click** in a collapsed row sets the play cursor and selects nothing
+    (recommended; Shift+click then selects every member clip in that range).
+    **Hover** names the track and clip under the pointer. Double-click the row
+    or Alt+Mod+→ expands it.
+- **A one-track bus merges into its track (owner decision, 18.10.2026; built).** When a bus has exactly one track
+  (Music, Narration), its row is merged into the track's header: the bus badge
+  before the role icon, the spine and its cap, no bus row. It saves 32 px per
+  such bus (24 compact) and reads as one thing. The bus's level and mute go to
+  the inspector's Bus section and to the hover fader. Collapsing it shrinks the
+  track to 40 px with its summed waveform. The alternative (a 32 px bus row
+  above one track) stays available in `layoutRows(..., {mergeSingle})`; the
+  editor merges (`layoutFor`), tested both ways. In the editor the merged header
+  carries the badge and, in its level row (current/hover), the track gain and
+  a bus-coloured "Bus" fader; that track's pan moves to the inspector's Track
+  section (planned; until it exists, unmerging is the way to reach it).
+- **Empty bus:** the row alone, name in italics, tertiary; sits last.
 - **No bus:** no spine, no band; the track goes straight to the master.
+- **The fifth bus:** there are four bus hues; bus 5 takes hue 1 again. Letters
+  (E, F, …) and the group gaps keep them apart; two buses with the same hue are
+  never adjacent unless there are more than four buses and the user reorders
+  them so.
+- **Bus-level things: header or inspector?** The row keeps only what is used
+  every minute: collapse, mute, solo (hover) and the gain fader (hover). Pan,
+  ducking (depth, attack/release, which tracks duck it), loudness target for the
+  stem, output routing and the voice chain belong in the inspector's **Bus**
+  section, shown when the bus row (or a merged track's badge) is selected.
 - **Assigning:** the track's bus picker (letter + chevron; the menu lists
   "A · Voices", "B · Music", "– · No bus"), or drag a track header onto a
-  group: a 2 px insertion line in the bus colour shows where it lands; dropping
-  on a header appends it. Both are one undoable edit.
+  group: a 2 px insertion line in the bus colour shows where it lands. Both are
+  one undoable edit.
 - **Bus mute/solo/gain:** M mutes the bus send (a muted bus stays silent under
   solo, WP24.1); **S solos every member as a set** (exclusive, like track solo;
-  open question 6); gain and pan as on tracks, coalesced drags.
+  open question 6 of section 15); gain coalesces drags.
+
+**A typical show** (prototype screen "Typical show"): bus A Voices (Anna's
+mic, Anna's backup mic sharing her hue, Ville, a Zoom speech-mix track for
+Pekka), bus B Music (one track, merged, with ducking drawn), bus C Narration
+(one track, merged, holding two placeholders and a recorded take), gaps between
+them. At 1440 × 900 all six tracks fit in comfortable.
 
 ## 7. Waveforms and the timeline
 
@@ -722,23 +809,20 @@ Waveforms come from peak tiles in a worker (`waveform.worker.js`); the overlay
 
 - **One playhead** (Hindenburg model): it is both the edit point and the play
   position. Stop leaves it where playback stopped; the start of the last play
-  is marked in the ruler (hollow triangle) so Shift+Space-style "play from
-  where I started" has a visible target. While playing it is 1 px; a stopped
-  playhead is the same (no blinking).
-- **Clip selection:** 2 px `--signal-selected` (neutral: max contrast on every
-  hue). Its sync partners get the dashed scope ring, so you see what a move
-  takes along before you press a key (WP19a).
-- **Range (in/out):** `--selection-range` fill **on exactly the lanes the next
-  time-shifting edit will touch** (the group's lanes, not unrelated music),
-  accent 1 px edges and inward flags in the ruler. Words selected in the
-  transcript show the same range.
-- **Snap feedback** (WP6): when a drag snaps (clip edges, playhead, markers,
-  8 px), a 1 px accent guide line spans the lanes for as long as the snap holds,
-  and the timecode tooltip at the pointer shows the snapped time. Holding Mod
-  disables snapping; the guide disappears.
-- **Undo flash:** after undo/redo the changed clips get a 2 px accent outline
-  that fades over 600 ms (static 1.2 s with reduced motion), and the view
-  scrolls to them if they are off-screen.
+  is marked in the ruler (hollow triangle).
+- **The click rule** (owner, 18.10.2026; `lanes.js pointerIntent`, tested): a
+  click **anywhere in the lane area** (a clip, an empty stretch, a bus row, a
+  group gap, the space below the last track) sets the play cursor; a click on a
+  clip also selects it; **Shift+click only toggles the selection** and never
+  moves the cursor. Only the ruler (seek, keep the selection) and the overview
+  (move the view) mean something else.
+- **Clip selection:** 2 px `--signal-selected`. Its sync partners get the dashed
+  scope ring (WP19a), and the other clips **of the same recording** get corner
+  brackets (`sibling`, section 18).
+- **Range (in/out):** `--selection-range` fill on exactly the lanes the next
+  time-shifting edit will touch, accent edges and inward flags in the ruler.
+- **Snap feedback** (WP6): a 1 px accent guide while a drag snaps; Mod disables.
+- **Undo flash:** section 20.
 
 ## 8. Interaction model
 
@@ -812,7 +896,7 @@ Esc (back to the timeline; closes popovers, palette, focus mode), F6 /
 Shift+F6 (panels), Mod+K (palette), ? (keyboard sheet), Tab/Shift+Tab (edit
 points inside the timeline only), Enter and Backspace (act on the focused
 panel's current item: the status bar always says what they will do there),
-Alt+← / Alt+→ (collapse / expand the current bus; proposed), ↑/↓ (current
+Alt+Mod+← / Alt+Mod+→ (collapse / expand the current bus), ↑/↓ (current
 track).
 
 **Showing keys:** key chips (`kbd`) in the key's platform form: `⌘⇧⌥⌃` on Mac
@@ -830,7 +914,9 @@ actions ("Undo ⌘Z"). Never in body text.
    always; clip gain stays Shift+Mod+↑/↓.]
 3. Mod+H (zoom to selection) hides the app on macOS. [Drop it; Shift+Z already
    fits the selection.]
-4. In a browser tab Chrome keeps Cmd/Ctrl+T, +W, +N, +Q and Shift+Mod+T
+4. (Mostly moot since the owner moved the desktop wrapper, WP15, into the
+   first version: in a native window Cmd+T, Cmd+W, F6 and Cmd+L are free.)
+   In a browser tab Chrome keeps Cmd/Ctrl+T, +W, +N, +Q and Shift+Mod+T
    (reopen tab): Mod+T import and Shift+Mod+T transcribe cannot work until the
    desktop wrapper (WP15). [Mod+I import and Shift+Mod+I transcribe as aliases
    now.] Mod+L (automix) focuses the address bar in Chrome: verify it can be
@@ -842,12 +928,25 @@ actions ("Undo ⌘Z"). Never in body text.
    Alt+[) and A/B (`) cannot be typed as written. [Bind them by physical key
    (`event.code` BracketLeft/BracketRight = the Å and ¨ keys, Backquote = §),
    as keys.js already does for Z.]
-7. Backspace means delete clips (gap), reject candidate (WP18), cut words
-   (transcript) and now "Cut, keep gap" (WP44); Shift+Space means play
-   selection and preview candidate. [Acceptable only because they are scoped
-   by focus and the current item; the status bar must say which one applies.]
+7. Backspace means Delete everywhere since the owner's decision (18.10.2026:
+   a soft cut that keeps the gap; X is Cut), but it is also "reject candidate"
+   in WP18; Shift+Space means play selection and preview candidate.
+   [Acceptable only because they are scoped by focus and the current item; the
+   status bar must say which one applies. Recommend renaming WP18's reject to
+   K ("keep") so Backspace is always Delete.]
 8. F6 in Chrome also cycles the browser's own toolbar focus. [Verify in WP5;
    if the page cannot keep it, add Ctrl+` as the panel key in the browser.]
+
+**New keys from the 18.10 work** (all checked against the WP5 table and the
+browser):
+
+| Key | Does | Notes |
+|---|---|---|
+| Shift+Enter (in a focused slider or numeric field) | default/custom toggle (section 21) | free in WP5; Backspace is not used (it edits text) |
+| Alt+Mod+← / Alt+Mod+→ | collapse / expand the current track's bus | WP5 uses Alt+← / Alt+→ for 10 ms playhead steps, so Mod is added; Alt+Mod+arrows are free |
+| ` | flip A/B in the Compare bar | the same key as WP24.2; bind by physical key (Backquote = § on a Finnish Mac) |
+| 1 – 4 (only while the Compare bar is open) | pick a slot | plain digits are free in WP5; they do nothing outside Compare |
+| Mod+J | Spot: jump a clip or the playhead to a typed time | replaces `=` (zoom in), see conflict 1 |
 
 ## 10. Themes
 
@@ -922,10 +1021,23 @@ does the same.
 | Candidates | (WP18) `candidates.js` | open, cut, kept, current | `--signal-candidate*` | ] [ step; preview diagram |
 | Status bar | `index.html` `.statusbar`, `app.js` | hints per panel, disconnected | `--text-secondary` | hints follow F6 |
 | Toast | `.notice` (`app.js showNotice`) | info, error | `--toast-*` | role status/alert; Undo action |
-| Command palette | (WP5) `palette.js` | empty, filtered, no results | `--shadow-dialog`, `--surface-scrim` | focus returns |
+| Command bar (palette) | (WP5) `palette.js`; docked over the sidebar column (3.9) | empty, filtered, no results, asking inline | `--shadow-raised`, no scrim | lanes, ruler and playhead stay clickable; focus returns |
 | Drop card / overlay | `index.html` `#empty`, `#drop` | empty project, dragging | `--accent`, `--border-strong` | keyboard path: Import button |
 | Clip grammar gallery | prototype `screen=gallery` | every signal, both themes | registry | every `SIGNALS` id has a card |
 | Theme button | `index.html #theme`, `app.js` | system, light, dark | — | repaints canvases; survives reload |
+| Density switch | `index.html #density` (View menu), `app.js applyDensity`, `theme.js densityAttribute` | comfortable, compact | density tokens | `theme.test.js`; lanes and headers follow the tokens |
+| View menu | `index.html #view-menu` (native popover) | closed, open | `--toast-*` | Esc and outside click close it |
+| Group gap | `lanes.js layoutRows` (gap rows), `tracks.js` `.group-gap` | — | `--group-gap` | `lanes.test.js`: layout and a click in the gap |
+| Click rule | `lanes.js pointerIntent`, `app.js onPointerDown` | seek, select, toggle | — | `lanes.test.js` |
+| Clip labels | `labels.js`, `timeline.js drawName` | five width tiers, manual name (planned) | `--track-N-label` | `labels.test.js` |
+| Siblings | `labels.js siblingsOf`, `timeline.js`, `overview.js` | selection only | `--signal-sibling` | `labels.test.js`; brackets on every clip of the recording |
+| Inspector sections | `inspector.js openSections` | open, closed, remembered | `--panel-divider` | `inspector.test.js` |
+| Default/custom toggle | `ab-value.js`, `tracks.js toggleable`, `inspector.js` | stored, nothing stored (flash) | `--accent` | `ab-value.test.js`; one undo step per flip |
+| Motion setting | `motion.js`, `app.js applyMotion`, `tokens.css [data-motion]` | full, subtle, off | `--dur-*` | `motion.test.js` |
+| Crosstalk preview | `crosstalk.js` (built); transcript UI (WP7) | nothing else, also removes | `--signal-collateral*` | `crosstalk.test.js` |
+| Collapsed bus ribbons | `grammar.js ribbonLayout`; drawing with WP collapse | 2+ members, 1 member | bus and track hues | `grammar.test.js` |
+| Compare bar | prototype `screen=compare` (later WP) | slots, rendering, blind, matched | `--signal-preview` | keys ` and 1–4; Esc discards |
+| Import panel and drop preview | prototype `screen=import`, `import-drop` | done, failures, options | `--toast-*`, `--signal-preview` | zero extra clicks by default |
 
 ## 12. How to extend (procedures for implementers)
 
@@ -978,42 +1090,361 @@ row to section 11.
 
 ## 14. State of this branch
 
-Built in the editor (`ui/`): tokens in three layers; the grammar registry and
-its helpers; theme override (System/Light/Dark); the window grid (top bar,
-heads, timeline, transcript dock, sidebar with Inspector over History, status
-bar with view tools and key hints); speaker hues; bus groups above their tracks
-with spine, band and letter badge; current-lane tint; file zebra, file marks,
-seams, clipping caps; restyled ruler, playhead, range flags, gain line rules,
-overview, inspector, toasts.
+Built in the editor (`ui/`), branch `gui-density` (on top of the merged
+`gui-design`):
 
-Designed and shown in the prototype only (built with their WPs): sidebar tabs,
-transcript, history, candidates, palette, focus mode, collapsed buses, bus
-solo, gate, soft cut, drift/free/sync badges, placeholders, takes, notes,
-tether, labels, changes view, jobs popover, mode chips other than waveform
-height and connection.
+- tokens in three layers; **two densities** (comfortable roomy default,
+  compact unchanged) switched in the View menu and remembered per user;
+- progressive disclosure in the track headers, key chips on hover/focus, a
+  three-hint status bar and the View menu;
+- buses as one-line rows above indented members, a bus-coloured hover fader,
+  group gaps and spine caps; `layoutRows` with gaps; one-track buses merged
+  into their track's header with the badge and a bus fader (owner decision);
+- the click rule (`pointerIntent`), including clicks below the last track;
+- collapsible inspector sections (Level and Sync open), remembered;
+- informative clip labels by width (`labels.js`), sibling brackets and overview
+  ticks for the selected clip's recording;
+- the default/custom toggle on track, bus and clip sliders and fields
+  (`ab-value.js`);
+- the Animation setting (`motion.js`) and toast motion; window-size breakpoints.
 
-Not verified: the app with a real browser in Windows/Linux; screen readers;
-real audio playback (never started); F6 and Mod+L interception in Chrome;
-the colour-blind simulation was computed (Machado 2009), not checked by
-colour-blind users.
+Designed and shown in the prototype only (built with their WPs): crosstalk
+preview (`crosstalk.js` is built and tested; the transcript UI is WP7), Compare
+(WP24.2 and a later engine WP), import of several files with drop preview and
+panel, collapsed buses and ribbons, the merged one-track bus, the Source mini
+map and sibling list in the inspector, the clip bin grouped by recording, the
+docked command bar, sidebar tabs, transcript, history, candidates, focus mode,
+gate, soft cut, drift/free/sync badges, placeholders, takes, notes, tether,
+labels, the changes view.
+
+Not verified: Windows/Linux, screen readers, real audio (never started), F6 and
+Mod+L interception in Chrome, colour-blind users (simulation only), touch
+double-tap on a real touch screen.
 
 ## 15. Open questions for the owner
 
-1. **Waveform scale for speech:** linear (today) or dB-shaped? *Recommended:
-   dB-shaped for speech and speech-mix tracks, linear for music*: quiet speech
-   stays visible in 56 px lanes, and level differences still show.
-2. **Spot key:** `=` is zoom in. *Recommended: Spot on Mod+J ("Jump to time").*
-3. **Finnish keyboard:** bind `[ ] `` by physical key (Å, ¨, §)? *Recommended:
-   yes* (otherwise the candidate keys need Option on a Finnish Mac).
-4. **Mod+F:** fade (WP5 table) or find? *Recommended: find in the transcript;
-   fade stays G.*
-5. **Import key in the browser:** Mod+T cannot be caught by a web page.
-   *Recommended: Mod+I now, Mod+T added when the desktop wrapper (WP15) lands.*
-6. **Bus solo:** what does S on a bus do? *Recommended: exclusive solo of all
-   its member tracks as a set (Shift+Alt adds), shown on the bus and its members.*
-7. **Track order under buses:** the timeline gathers a bus's tracks under it,
-   but the model keeps its own order. *Recommended: assigning a bus also moves
-   the track in the model to the end of that group (one undoable edit), so the
-   two orders never differ.*
-8. **Role strip:** off on the timeline, on in the clip bin and cards?
-   *Recommended: yes* (section 5.5).
+From the first design round (still open):
+
+1. Waveform scale for speech: linear or dB-shaped? *Recommended: dB-shaped for
+   speech, linear for music.*
+2. Spot key: `=` is zoom in. *Recommended: Mod+J.*
+3. Finnish keyboard: bind `[ ] `` by physical key? *Recommended: yes.*
+4. Mod+F: fade or find? *Recommended: find in the transcript; fade stays G.*
+5. Import key in the browser: *Recommended: Mod+I now, Mod+T with WP15.*
+6. Bus solo: *Recommended: exclusive solo of all members as a set.*
+7. Track order under buses: *Recommended: assigning a bus also moves the track
+   in the model to the end of that group.*
+8. Role strip: off on the timeline, on in the bin and cards? *Recommended: yes.*
+
+From the density rework (18.10.2026):
+
+9. ~~Merge one-track buses?~~ Decided by the owner (18.10.2026): yes; built.
+10. ~~Backspace on overlapping words?~~ Decided: X cuts on all tracks (with the
+    collateral preview), Backspace deletes on this speaker only, keeping the gap.
+11. **Clicking a collapsed bus:** select nothing, or every member clip in the
+    range? *Recommended: nothing; Shift+click selects the members' clips.*
+12. **Track inspector section:** the header no longer shows gain and pan at
+    rest; should the inspector get a Track/Bus section now (WP4 follow-up)?
+    *Recommended: yes, small: gain, pan, bus, voice preset.*
+13. **Rename key:** F2 for clips and tracks (Enter is taken by candidates and
+    words)? *Recommended: yes.*
+
+## 16. Density and progressive disclosure (owner, 18.10.2026)
+
+The first design was too dense even in its "comfortable" mode. Two densities
+remain; **comfortable** (the default) is now roomy and shows less at once;
+**compact** keeps the earlier values exactly, for people who want everything
+on screen.
+
+| Token | Comfortable (before → now) | Compact (unchanged) |
+|---|---|---|
+| base text `--text-md` | 13 → **14 px** | 12 px |
+| small / extra-small text | 12 / 11 → **13 / 12 px** | 12 / 11 px |
+| transcript text / line height | 15 / 1.65 → **17 px / 1.85**, measure 72 → **62 ch** | 14 px / 1.65, 72 ch |
+| timecode | 20 → **24 px** | 18 px |
+| top bar | 44 → **52 px** | 38 px |
+| top-bar buttons | 26 → **40 px visible, 44 px hit target** | 26 px |
+| control height `--control-h` | 26 → **32 px** | 22 px |
+| header toggles (M, S) `--control-h-sm` | 20 → **28 px** | 18 px |
+| status bar | 26 → **32 px** | 22 px |
+| track lane `--lane-h` | 56 → **80 px** | 40 px |
+| bus row `--bus-h` | 44 → **32 px (one line)** | 24 px |
+| group gap | — → **14 px** | 6 px |
+| panel padding `--pad-panel` | 12 → **20 px** (≈1.6×) | 12 px |
+| row gap `--row-gap` | 4–6 → **10 px** (≈1.7×) | 4 px |
+| header column / sidebar | 248 / 320 → **272 / 360 px** | 216 / 280 px |
+
+**Visible controls on the main screen**, counted in Chrome at 1440 × 813 (a
+1440 × 900 window): every visible, focusable, hit-testable control.
+
+| | Before (v26.10.17.8) | After |
+|---|---|---|
+| Prototype, a clip selected (5 tracks, 2 buses before; 6 tracks, 3 buses after) | **61** (60 enabled), 13 key chips | **32** (31 enabled), 4 key chips |
+| Prototype at rest (nothing selected, no current track) | — | **24** (23 enabled) |
+| Real editor at rest (4 tracks, 3 buses) | **51**, 7 key chips | **22** (20 enabled), 3 key chips |
+
+**Budget: at most 25 visible controls at rest on a typical show** (six tracks,
+three buses) in comfortable; chrome costs 11 (Play, Undo, Redo, Import, Export,
+Commands; zoom readout toggle, View; four sidebar tabs), each track 2 (M, S),
+each bus row 2 (chevron, M). A new resting control must replace one. The
+prototype bar shows the live count ("24 controls at rest").
+
+**What moved out of the resting view, and where it went:**
+
+| Removed from rest | Now | Where |
+|---|---|---|
+| Track gain and pan sliders (2 per track) | current track, hover, focus | inspector Track section (planned) |
+| Bus picker chip on every track ("A ▾") | current track, hover, focus | inspector; drag onto a group |
+| Bus gain and pan sliders | bus fader inline on hover/focus | inspector Bus section |
+| Bus solo | hover/focus | — |
+| Key chips beside Play, fields, palette footers | hover and keyboard focus | tooltips, palette, status-bar hints |
+| Status-bar zoom −/+, Fit, waveform mode, lane height −/+, follow, theme | — | View menu |
+| Five status-bar hints | three, for the focused panel | `?` sheet, palette |
+| Speed chip, job chip at rest | only while active | — |
+| Inspector Fades, Voice, Source, Details | collapsed with a one-line summary | open on click; remembered |
+| Track name as a tab stop | label only (double-click renames) | Enter on the current track (WP5) |
+| Bus band behind member lanes, candidate stripes, envelope dots, ducking label | see 5.5 | — |
+
+Compact with progressive disclosure: compact keeps both header rows, the bus
+picker and the key chips visible (it exists for people who want everything at
+once). Bus faders appear on hover in both densities (a 24 px row has no room
+for them at rest).
+
+## 17. Window sizes (owner, 18.10.2026)
+
+No phone layout. Rules, in CSS media queries in the editor and container
+queries in the prototype (its "width" control: 1024 / 1280 / 1440 / 1920 / 2560):
+
+| Width | Layout | Comfortable | Compact |
+|---|---|---|---|
+| **< 1024 × 640** | below the minimum: the page scrolls | — | — |
+| **1024 – 1099 (small)** | the transcript moves into the right column above the sidebar (two stacked panes); the status bar keeps only the zoom readout, the view toggle and View; the Commands label hides | lanes 80 | lanes 40 |
+| **1100 – 1399 (medium)** | header column and sidebar at their minimums (232 / 280; 180 / 260 compact) | — | — |
+| **1400 – 1919 (default)** | as designed (272 / 360) | — | — |
+| **≥ 1920 (large)** | the timeline takes the room; the sidebar grows to at most 22 % of the width and stops at 520 px; the transcript measure stays 62 ch (never stretched lines) | — | — |
+| **Height < 760** | the transcript dock collapses to its heading (it opens by click or F6); at least three lanes stay visible | — | — |
+
+Checked: the prototype at all five widths in both densities
+(`screenshots/width-*.png`); the real editor at 1280 and 1920 in Chrome
+(`screenshots/app-1280-light.png`, `app-1920-light.png`, rendered in an
+iframe of that size). Not checked on a real 1024 px screen or at 2560 in the
+editor.
+
+## 18. Clip labels, recordings, sessions, speakers (owner, 18.10.2026)
+
+### 18.1 Informative clip labels
+
+A clip shows what it is, not just "olli3.wav" (`labels.js`, tested; the editor
+draws it today):
+
+| Width of the clip | Label (default template) | Example |
+|---|---|---|
+| < 48 px | nothing (the file mark only, where shown) | |
+| 48 – 99 px | `{person}` | Olli |
+| 100 – 169 px | `{person} {take}` | Olli 3 |
+| 170 – 399 px | `{person} {take} · {in}–{out}` | Olli 3 · 1:20–3:20 |
+| ≥ 400 px | `… · “{words}”` | Olli 3 · 1:20–3:20 · “Mitä ajattelit” |
+
+- `{person}`: the media's person (WP41), else the interview title, else the
+  file name; `{take}`: the last number in the file name; `{in}`/`{out}`: the
+  source range on the **recording's own clock**, so two clips cut from one file
+  read as consecutive (1:20–3:20, 3:20–4:10) or gapped; `{words}`: the first five
+  transcript words under the clip; `{file}`, `{interview}`, `{part}` available.
+- A label that does not fit steps down a tier; it never overflows. Long file
+  names are cut **in the middle, keeping the trailing number whole**
+  ("haast…lle_12").
+- **Manual name:** a new optional `Clip.name` (empty = auto) overrides the label
+  at every width that fits it. Data change (backend task): a field in the
+  **edit state** (not material: two edits may name the same clip differently),
+  set by an undoable `set_clip` edit, round-tripped in JSON; a `docs/FORMAT.md`
+  note. Edited in the inspector's title (click to rename) or with **F2** on a
+  selected clip (free in WP5), with "Reset to auto". A name is never identity
+  (the content hash is).
+- The templates are user settings (WP27/WP35) with the defaults above.
+
+### 18.2 Three relations, three looks, three words
+
+| Relation | UI word (en / fi) | Look | Where |
+|---|---|---|---|
+| Same file | **recording** / äänite | file zebra tone, file mark chip, **sibling brackets** when one is selected, "Part 2 of 5" | timeline, overview ticks, inspector Source, clip bin |
+| Recorded together (sync group) | **recorded together** / äänitetty yhdessä | chain glyph + group number on the selection and partners, dashed partner rings | timeline, inspector Sync |
+| Same person | **speaker** / puhuja | the speaker hue | clips, header pill, transcript gutter |
+
+- **Siblings** (`sibling` signal, built): when a clip is selected (or hovered
+  with Alt), every other clip of the same recording, on any track, gets corner
+  brackets in `--signal-sibling`, and the overview strip gets a tick at each.
+  Distinct from sync partners (dashed ring), which are about time, not files.
+- **Parts:** when a recording has several clips in the edit, each is "part n of
+  m", numbered by source position (`recordingParts`), shown in the inspector
+  title and the Source list.
+- **Inspector Source section:** a mini map of the whole recording (used in the
+  speaker hue, soft-cut in the cut colour, unused grey, this clip outlined) and
+  "Other clips from this recording (n)" rows that jump to each.
+- **Transcript and clip bin:** the clip bin groups clips under a recording
+  header; the transcript keeps time order (reading must not jump) and shows the
+  file mark in the speaker gutter when a speaker has more than one recording;
+  "Show this recording only" is a transcript filter (planned).
+
+## 19. Crosstalk: what else a cut removes (owner, 18.10.2026)
+
+A transcript cut ripple-deletes the whole stretch its words cover on every
+track of the edit scope (WP19a), so overlapping speech of other speakers goes
+too. The UI shows that before the key is pressed; no confirmation dialog:
+preview plus undo.
+
+1. In the transcript, other speakers' words inside the stretch are marked
+   **"will also be removed"**: struck through with a wavy line in
+   `--signal-collateral`, on `--signal-collateral-fill`, with a small "×" after
+   each (the non-colour twin), even in other paragraphs.
+2. The word pop-up shows a one-line summary: "Also removes 2 words from Ville
+   and 2.6 s of Pekka (Zoom)", or "Nothing else is removed".
+3. The timeline shows the stretch across all affected tracks as a hatched
+   `collateral` band with the affected clips outlined (dashed, 2 px), above
+   candidates in priority. It breathes softly while words are selected (motion
+   "collateral-breathe"; static with animation off).
+4. Two actions, by the owner's key decision (18.10.2026: **X is Cut**, ripple
+   and onto the clipboard; **Backspace is Delete**, a soft cut that keeps the
+   gap): **"Cut on all tracks" (X)** ripples the stretch out of every track of
+   the scope, which is exactly what the collateral preview shows; **"Delete on
+   Anna only, keep the gap" (Backspace)** mutes just the selected speaker's
+   words in place, touches no other track and shifts nothing, so it has no
+   collateral at all. The pop-up shows both; the summary line explains the
+   difference.
+5. **Backend function** (for a cheaper model): `transcript.cut_preview(project,
+   word_refs) -> CutPreview` with `range: (start, end)` in project frames,
+   `per_track: [{track_id, words: [word_ref…], audio: [(start, end)…],
+   speech_seconds}]` for every other track in the scope, and `nothing_else:
+   bool`. It is pure, uses `edit_scope` for the tracks, and mirrors
+   `ui/crosstalk.js cutPreview` (tested), which the UI can use on the timeline
+   words it already has.
+
+The prototype screen "Crosstalk" shows it (both themes, English and Finnish).
+
+## 20. Motion (owner, 18.10.2026)
+
+Gentle cues that pull the eye to what changed. Rules: 120–300 ms mostly, one
+animation at a time, nothing loops except real activity (jobs, recording),
+animation never moves a target the user is about to click, nothing blocks
+input, and nothing animates during playback except the playhead.
+`motion.js` (tested) holds the cues; the setting is **Animation: full / subtle /
+off** (View menu), default full, and **off when the OS asks for reduced
+motion**. It lands on `<html data-motion>`; tokens make every duration 0 for
+off and shorter for subtle; "off" shows a static highlight with the same
+information.
+
+| Event | What animates | Duration · easing | Subtle | Off (still alternative) | Built |
+|---|---|---|---|---|---|
+| Undo / redo | the changed clips flash once | 600 ms (`--dur-flash`) · standard | 360 ms, fade | 2 px accent outline for 1.2 s | designed |
+| Ripple cut closes its gap | later material slides left instead of jumping | 240 ms (`--dur-slow`) | fade only | undo-flash outline on the moved material | designed |
+| Tracks imported | new lanes fade and slide in | 240 ms | fade | accent outline 1.2 s | designed |
+| Step to a candidate (] [) | the candidate pulses once | 140–180 ms | 90 ms | 2 px edges + highlighted row | designed |
+| Collateral preview | the "also removed" marks breathe softly | 600 ms, while words are selected (stops when deselected) | none | full-strength hatch | prototype |
+| A/B flip (Compare) | short cue on the active slot | 140 ms | 90 ms | the active slot filled | prototype |
+| Toasts | ease in / out | 140 ms (`--dur-base`) | 90 ms | appear without movement | **built** |
+| Soft cut restored | fades back in from its hatch | 240 ms | 140 ms | undo-flash outline | designed |
+| Far playhead jump (not playing) | the playhead eases to its new place | 200 ms | jumps | a 1.2 s halo on the cap | designed |
+| Default/custom toggle with nothing stored | the field flashes | 600 ms | 360 ms | none (the tooltip explains) | **built** |
+
+Performance: CSS transitions and canvas only, no layout-changing animation
+(transform and opacity), one rAF loop; checked with the editor's long-task
+monitor (`?dev`) and the Performance panel: no task over 16 ms from a cue.
+
+## 21. Default/custom toggle (owner, 18.10.2026; built)
+
+Double-click a slider or numeric field (double-tap on touch; **Shift+Enter**
+when it has keyboard focus) to flip between its default (0 dB, centre, 0 ms)
+and the last custom value, for quick A/B listening.
+
+- The remembered value is shown as a 2 px accent tick on the slider track (an
+  accent border on a numeric field), and the tooltip says "Double-click or
+  Shift+Enter: back to −2.5 dB".
+- Each flip is **one** undoable edit with the field's coalesce key, so flipping
+  back and forth never piles up history.
+- Nothing stored (at the default, never changed): nothing changes; the field
+  flashes briefly.
+- **Alt+double-click** resets to the default and forgets the custom value.
+- Applies to clip gain, pan, fade in, fade out (inspector), track and bus gain
+  and pan (headers), and the speed chip (WP26).
+- The remembered values are **UI state**: in memory, lost on reload; never in
+  the project or history.
+- Targets: the comfortable sliders have 18 px thumbs areas inside 28–32 px
+  rows; double-tap uses the same handler (browsers synthesise `dblclick`).
+- Logic: `ui/ab-value.js` (`toggleValue`, `resetValue`, `createAbStore`;
+  tested), wired in `tracks.js` and `inspector.js`.
+
+## 22. Compare: one way to hear options (owner, 18.10.2026; design only)
+
+One concept for every "is this better or that?": a cut vs no cut (the candidate
+preview), a value (including the default/custom toggle), track A/B (WP24.2),
+alternative takes (WP19e), another edit (WP21), before/after a history step, a
+voice preset or FX layer on/off (WP10, WP23), a loudness-matched pair.
+
+1. **The Compare bar** docks at the top of the timeline column (never a modal),
+   two lines: slots **A, B** (and **C, D**), each labelled with what it is ("with
+   cut", "without", "take 2"), then Keep this one / Discard; under them in small
+   text: what is compared, the level match, Blind, the loop, the keys.
+2. **One key flips** (`` ` ``) while playing, keeping the playhead position, with
+   a 10 ms click-free crossfade; **1–4** pick a slot directly (only while the
+   bar is open).
+3. **Loop** the compared range: the selection, or the candidate plus 2 s each
+   side.
+4. **Level match is on by default** (a louder variant always sounds better):
+   "B −1.8 dB matched" shows the trim; click it to switch matching off.
+5. **Blind** (optional): slots are shuffled and shown as "?" until you pick.
+6. **Deciding:** "Keep this one" (Enter) commits that variant as **one** undoable
+   step and discards the rest; **Esc** discards the whole comparison and leaves
+   the project untouched. Nothing is committed while comparing: the variants
+   live in a provisional layer; closing the bar changes nothing.
+7. **On the timeline:** the `preview` signal: a dashed top band over the
+   compared range in `--signal-preview` with the slot letter in it (twin: the
+   letter and the bar), distinct from `provisional` (short dashes on an outline)
+   and `candidate` (red stripes).
+8. **Offline variants** (dxRevive, voice chain) render first: the slot shows a
+   4 px progress bar and "rendering 40 %", and becomes selectable when ready
+   ("ready" fills the slot letter).
+9. **Only one variant** (e.g. a candidate with no alternative): the bar shows A
+   ("as now") and B ("as if cut") automatically; with nothing to compare,
+   Compare is not offered (the palette entry is disabled with the reason).
+
+Engine work (playing two variants with a seamless switch, rendering offline
+slots) is a later WP. The prototype screen "Compare" shows the bar.
+
+## 23. Importing several files (owner, 18.10.2026; design, backend facts from `Session.import_media`)
+
+**The default needs zero extra clicks:** drop or pick several files and they
+arrive as one undoable import, one track per file, in sync (BWF times relative
+to the earliest; a file without one starts at 0), mono as speech and stereo as
+music; failing files are skipped and named.
+
+1. **After the import**, a small non-blocking panel (bottom left over the lanes,
+   like a toast, never a modal) says what was done: "4 files imported as 4
+   tracks, in sync", with one-click alternatives: **One after another instead**
+   (re-does it as `track_per_file=False`, one undo step), **Undo** (Mod+Z), and
+   **Options ▾**.
+2. **Drop position matters**, shown before release with ghost clips (dashed) and
+   a 2 px insertion line in the accent colour, plus a label of what will happen:
+   - onto the empty space below the tracks: new tracks ("4 new tracks, in sync";
+     hold Alt for "one after another on one new track");
+   - onto a lane: start at the drop time on that track, one after another if
+     several;
+   - onto the ruler: new tracks starting at that time.
+3. **Options** (remembered as defaults, WP35): order **by recording time** (default)
+   or by file name; track names **from the interview's person** (default when
+   known) or from the file name.
+4. **Buses:** "Speech on Voices (A), music on Music (B)" (on by default when those
+   buses exist; when they do not, the import creates them only if the user ticks
+   it). Existing buses are reused by name; a bus is never created silently.
+5. **A dropped folder** (a Zoom or multitrack-recorder folder) imports as one
+   group: one track per file, one sync group, one interview.
+6. **Failures** are listed in the same panel, one line per file with the reason
+   and what was still done ("haastattelu-3.m4a: damaged after 12:40, imported
+   the first 12:40").
+7. **What the UI sends** beyond today's `POST /api/import {paths, copy_files}`:
+   `placement: "tracks" | "sequence"`, `at_frame: int | null` (drop time),
+   `track_id: str | null` (drop lane; sequence on that track), `order: "time" |
+   "name"`, `track_names: "person" | "file"`, `buses: {"speech": bus_id |
+   "create:Voices" | null, "music": …}`, and for a folder `group: true`. The
+   answer adds `undo_label` and `alternatives: ["sequence"]`.
+
+Prototype screens: "Import several: drop preview" and "Import several: done".
+

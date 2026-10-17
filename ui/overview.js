@@ -1,5 +1,7 @@
 // The overview strip above the timeline: the whole edit in miniature, with a
 // box for the visible part. Click or drag to move the box.
+
+import { siblingsOf } from "./labels.js";
 import { projectEnd } from "./lanes.js";
 import { trackHues } from "./paint.js";
 import { readTheme } from "./theme.js";
@@ -63,6 +65,16 @@ export function createOverview({ canvas, getState, getTimelineWidth, actions }) 
       }
     });
     context.globalAlpha = 1;
+    // Clips of the selected clip's recording, wherever they are in the edit.
+    const siblings = siblingsOf(state.project, state.selection);
+    if (siblings.size > 0) {
+      context.fillStyle = theme.sibling;
+      for (const track of tracks) {
+        for (const clip of track.clips) {
+          if (siblings.has(clip.id)) context.fillRect((clip.start / total) * width, 0, 2, 4);
+        }
+      }
+    }
     const box = overviewWindow({
       total,
       scroll: state.scroll,
