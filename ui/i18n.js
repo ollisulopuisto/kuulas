@@ -174,6 +174,11 @@ function clock(seconds, digits) {
   return `${negative ? "−" : ""}${head}:${s}${tail}`;
 }
 
+/** A clock with `digits` decimals (0 for whole seconds); ruler labels use it. */
+export function formatClock(seconds, digits = 0) {
+  return clock(seconds, digits);
+}
+
 /** A position: "12:34,567", "1:02:03,500" (fi); the point is a dot in English. */
 export function formatTimecode(seconds) {
   return clock(seconds, 3);

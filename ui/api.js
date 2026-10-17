@@ -1,70 +1,59 @@
+// The HTTP API (src/kuulas/server.py). Every call returns parsed JSON, or
+// throws an Error whose message is the server's own text in the UI language
+// (the server picks it from Accept-Language, which the browser sends).
+
+export class ApiError extends Error {
+  constructor(message, status, body) {
+    super(message);
+    this.status = status;
+    this.body = body;
+  }
+}
+
 async function request(path, options = {}) {
-  const response = await fetch(path, {
-    headers: { "Content-Type": "application/json", ...options.headers },
-    ...options,
-  });
+  const headers = typeof options.body === "string" ? { "Content-Type": "application/json" } : {};
+  const response = await fetch(path, { ...options, headers: { ...headers, ...options.headers } });
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw Object.assign(new Error(body.error?.text ?? response.statusText), { body, status: response.status });
+    throw new ApiError(body.error?.text ?? response.statusText, response.status, body);
   }
   return response;
 }
 
-async function json(path, options) {
-  return (await request(path, options)).json();
-}
+const json = async (path, options) => (await request(path, options)).json();
+const post = (path, body) => json(path, { method: "POST", body: JSON.stringify(body) });
 
 export const getState = () => json("/api/state");
 export const getWords = () => json("/api/words");
-export const edit = (op, args, label = null, coalesce = null) =>
-  json("/api/edit", { method: "POST", body: JSON.stringify({ op, args, label, coalesce }) });
-export const command = (name, args = {}) =>
-  json("/api/command", { method: "POST", body: JSON.stringify({ name, args }) });
-export const transport = (action, at = null, until = null) =>
-  json("/api/transport", { method: "POST", body: JSON.stringify({ action, at, until }) });
+/** One edit: the whole project comes back. `coalesce` merges a drag into one undo step. */
+export const edit = ({ op, args, label = null, coalesce = null }) =>
+  post("/api/edit", { op, args, label, coalesce });
+export const command = (name, args = {}) => post("/api/command", { name, args });
 export const undo = () => json("/api/undo", { method: "POST" });
 export const redo = () => json("/api/redo", { method: "POST" });
-export const importPaths = (paths, copy = false) =>
-  json("/api/import", { method: "POST", body: JSON.stringify({ paths, copy }) });
+export const transport = (action, at = null, until = null) =>
+  post("/api/transport", { action, at, until });
+
+/** Upload browser files (picker or drop); the server imports them and reports each. */
 export async function uploadFiles(files) {
   const form = new FormData();
   for (const file of files) form.append("files", file, file.name);
-  return json("/api/upload", { method: "POST", body: form, headers: {} });
-}
-
-const peakCache = new Map();
-export async function peakTile(media, level, tile = 0) {
-  const key = `${media}/${level}/${tile}`;
-  if (!peakCache.has(key)) {
-    peakCache.set(key, request(`/api/peaks/${encodeURIComponent(media)}/${level}/${tile}`)
-      .then((response) => response.arrayBuffer()));
-  }
   try {
-    return await peakCache.get(key);
+    return await json("/api/upload", { method: "POST", body: form });
   } catch (error) {
-    peakCache.delete(key);
+    // A failed import still says why, file by file.
+    if (error instanceof ApiError && error.body?.report)
+      return { report: error.body.report, failed: error };
     throw error;
   }
 }
 
-export function connectLive(onMessage, onStatus = () => {}) {
-  let socket;
-  let stopped = false;
-  let retry;
-  const connect = () => {
-    if (stopped) return;
-    const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-    socket = new WebSocket(`${protocol}//${location.host}/api/live`);
-    socket.addEventListener("open", () => onStatus(true));
-    socket.addEventListener("message", (event) => {
-      try { onMessage(JSON.parse(event.data)); } catch { /* Ignore malformed pushes. */ }
-    });
-    socket.addEventListener("close", () => {
-      onStatus(false);
-      if (!stopped) retry = setTimeout(connect, 1000);
-    });
-    socket.addEventListener("error", () => socket.close());
-  };
-  connect();
-  return () => { stopped = true; clearTimeout(retry); socket?.close(); };
+/** A peak tile as a Float32Array of interleaved min/max (the browser caches it by ETag). */
+export async function peakTile(media, level, tile) {
+  const response = await request(`/api/peaks/${encodeURIComponent(media)}/${level}/${tile}`);
+  return new Float32Array(await response.arrayBuffer());
+}
+
+export function liveUrl(location = globalThis.location) {
+  return `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/api/live`;
 }
