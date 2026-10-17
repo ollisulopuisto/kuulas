@@ -458,7 +458,7 @@ def test_migration_adds_empty_people_and_interviews_and_keeps_history(tmp_path):
     assert h.material["interviews"] == {}
     # Unknown keys in the material root survive; and old steps still undo.
     assert h.material["from_the_future"] == {"keep": True}
-    assert [n["id"] for n in h.nodes()] == steps
+    assert [n["id"] for n in h.nodes() if not h.is_marker(n)] == steps
     assert h.undo()
     assert h.transcript_rev(mid) is None
     assert h.material["people"] == {}

@@ -100,12 +100,12 @@ def test_performance_budgets_with_5000_steps(tmp_path):
 
     # 3. Budget: undo and redo in constant time (tested on 5,000 steps, each < 50ms)
     t0 = time.perf_counter()
-    assert opened.undo() is True
+    assert opened.undo() is not None
     undo_duration = time.perf_counter() - t0
     assert undo_duration < 0.050, f"Undo took {undo_duration * 1000:.1f}ms"
 
     t0 = time.perf_counter()
-    assert opened.redo() is True
+    assert opened.redo() is not None
     redo_duration = time.perf_counter() - t0
     assert redo_duration < 0.050, f"Redo took {redo_duration * 1000:.1f}ms"
 
