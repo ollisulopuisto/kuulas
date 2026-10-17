@@ -748,7 +748,8 @@ class Session:
     def set_music_info(self, media_id: str, fields: dict) -> None:
         """Edit music tags (title, artist, composer, publisher, isrc) in material root.
 
-        An empty string blanks a tag; ``None`` removes the edit (the imported tag returns)."""
+        An empty string blanks a tag; ``None`` removes the edit, so the
+        imported tag returns."""
         with self.lock:
             self._sha(media_id)
             allowed = {"title", "artist", "composer", "publisher", "isrc"}
