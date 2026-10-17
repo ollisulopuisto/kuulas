@@ -11,6 +11,7 @@ ripple cut computed here.
 from __future__ import annotations
 
 from .clock import flicks_to_frames
+from .gate import closed_at
 from .model import Project
 
 
@@ -33,13 +34,16 @@ def timeline_words(p: Project, transcripts: dict[str, list[dict]]) -> list[dict]
                 e = max(s + 1, flicks_to_frames(w["e"], p.rate))
                 mid = (s + e) // 2
                 if lo <= mid < hi:
+                    # A word is gated when its midpoint is: the same
+                    # rule that decides which clip owns it.
+                    gated = closed_at(track.gate, mid + shift) if track.gate else False
                     out.append({
                         "w": w["w"], "spk": w.get("spk", ""),
                         "person": w.get("person", ""),
                         "s": max(clip.start, s + shift),
                         "e": min(clip.end, e + shift),
                         "track": track.id, "clip": clip.id, "media": clip.media,
-                        "index": i, "muted": clip.muted or track.mute,
+                        "index": i, "muted": clip.muted or track.mute or gated,
                     })
     out.sort(key=lambda w: (w["s"], w["track"]))
     return out

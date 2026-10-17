@@ -10,6 +10,7 @@ import uuid
 from dataclasses import replace
 
 from . import curves
+from . import gate as gatem
 from .clock import flicks_to_frames, frames_to_flicks
 from .messages import KuulasError
 from .model import Bus, Clip, Media, Point, Project, SyncGroup, Track
@@ -119,6 +120,26 @@ def move_track(p: Project, track_id: str, index: int) -> Project:
 def set_track_automation(p: Project, track_id: str, points) -> Project:
     track = _find_track(p, track_id)
     return _replace_track(p, replace(track, automation=_points(points)))
+
+
+def set_gate(p: Project, track_id: str, ranges) -> Project:
+    """Replace a track's gate (WP44); ``ranges`` are normalised."""
+    track = _find_track(p, track_id)
+    return _replace_track(p, replace(track, gate=gatem.normalise(
+        (int(a), int(b)) for a, b in ranges)))
+
+
+def add_gate_range(p: Project, track_id: str, start: int, end: int) -> Project:
+    track = _find_track(p, track_id)
+    return _replace_track(p, replace(
+        track, gate=gatem.add_range(track.gate, int(start), int(end))))
+
+
+def remove_gate_range(p: Project, track_id: str, start: int, end: int) -> Project:
+    """Open ``[start, end)`` again; a range spanning it falls into two."""
+    track = _find_track(p, track_id)
+    return _replace_track(p, replace(
+        track, gate=gatem.remove_range(track.gate, int(start), int(end))))
 
 
 def add_bus(p: Project, bus_id: str | None = None, name: str = "Bus") -> Project:
@@ -493,7 +514,8 @@ def ripple_delete(p: Project, start: int, end: int,
         if left is not None and right is not None:
             clips = _crossfade(p, clips, left, right)
         tracks.append(replace(track, clips=_sorted(clips),
-                              automation=_ripple_points(track.automation, start, end)))
+                              automation=_ripple_points(track.automation, start, end),
+                              gate=gatem.ripple(track.gate, start, end)))
     return replace(p, tracks=tuple(tracks))
 
 
@@ -548,6 +570,7 @@ OPS = {
         add_bus, set_bus, delete_bus, set_master,
         add_clip, delete_clip, move_clip, trim_clip, split_clip, set_clip,
         set_clip_envelope, ripple_delete, mute_ranges,
+        set_gate, add_gate_range, remove_gate_range,
         shift_clips, set_clips, delete_clips, mark_in_sync, resync,
     )
 }

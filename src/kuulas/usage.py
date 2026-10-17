@@ -6,6 +6,7 @@ import math
 from dataclasses import dataclass
 from itertools import pairwise
 
+from . import gate as gatem
 from .clock import FLICKS, frames_to_flicks
 from .curves import value_at
 from .messages import KuulasError
@@ -52,10 +53,23 @@ def _recording(media: Media, media_by_id: dict[str, Media]) -> tuple[str, int]:
 
 
 def _audibility_ranges(track: Track, clip: Clip) -> list[tuple[int, int, bool]]:
-    """Split a clip where track automation falls below -60 dB."""
+    """Split a clip where track automation falls below -60 dB or the track's
+    gate is closed (WP44: a gated stretch is inaudible, as a muted clip is)."""
     start, end = clip.start, clip.end
     if clip.muted or track.mute:
         return [(start, end, False)]
+    ranges = _automation_ranges(track, clip)
+    if not track.gate:
+        return ranges
+    out: list[tuple[int, int, bool]] = []
+    for left, right, audible in ranges:
+        for a, b, is_open in gatem.split_by_gate(track.gate, left, right):
+            out.append((a, b, audible and is_open))
+    return out
+
+
+def _automation_ranges(track: Track, clip: Clip) -> list[tuple[int, int, bool]]:
+    start, end = clip.start, clip.end
     if not track.automation:
         return [(start, end, True)]
 
