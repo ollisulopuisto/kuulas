@@ -1953,7 +1953,7 @@ Tests first: `test_realtime_layer_output_is_block_size_independent`,
 
 ### WP24 — Solo rules and A/B comparison
 
-Status: 24.1 done in v26.10.16.2 (mixer rule and `ops.solo`; the coalesce
+Status: level matching for A/B (`ab_match.py`) done in v26.10.18.1; 24.1 done in v26.10.16.2 (mixer rule and `ops.solo`; the coalesce
 key is in `Session.edit` since v26.10.16.7, and the keys for WP5). 24.2 open. Part 1 needs only WP0, so do it right after WP0. Part 2 needs
 WP4, WP21 and WP23.
 
@@ -2010,7 +2010,7 @@ apart to within 0.3 LU; toggling writes nothing to history.
 
 ### WP25 — Music report (royalty reporting)
 
-Status: partly done (v26.10.16.15, v26.10.17.1, v26.10.17.2): report builder,
+Status: partly done (v26.10.18.1: music tags editable and undoable via `set_music_info`; v26.10.16.15, v26.10.17.1, v26.10.17.2): report builder,
 CSV (UTF-8 with byte-order mark, semicolons, formula guard) and HTML, tags
 read at import, speech activity from the speech lanes, English and Finnish,
 times in whole seconds rounded up, `Session.music_report` and
@@ -2054,7 +2054,7 @@ Tests first: `test_report_lists_each_music_use_with_programme_times`,
 
 ### WP26 — Fast listening and scrubbing
 
-Status: open. Needs WP2, WP5.
+Status: the JKL key logic (`shuttle.py`: speed ladder, tape or grains) done in v26.10.18.1; engine, UI and fast listening open. Needs WP2, WP5.
 
 **Sped-up listening (pitch preserved).** `.` toggles between normal speed
 and *fast*. Fast defaults to 1.5× and can be set from 1.1× to 3× (Shift+. and
@@ -2713,7 +2713,7 @@ the export guard counts unrecorded placeholders.
 
 ### WP44 — Auto-Silence as merged gate ranges
 
-Status: open (owner decision 2026-10-17: "measure the need to mute very often,
+Status: gate range arithmetic (`gate.py`: merge, add, remove, ripple, mask to ranges) done in v26.10.18.1; `Track.gate`, the mixer, the wiring and the UI open (owner decision 2026-10-17: "measure the need to mute very often,
 but the muted region should be merged"). Needs WP1. Sonnet 5.5. Do it before the
 soft-cut work (cut-keeping-the-gap, see the architect's note in the session log
 and the open questions in `docs/handoffs/`), and before any long-session use.
