@@ -256,3 +256,13 @@ def test_gate_applies_before_track_gain_and_bus():
     p = ops.set_track(p, "t", gain_db=-6.0)
     out = mixer.mix(p, store, 900, 100)
     assert not out.any()
+
+
+def test_mix_of_a_gated_track_equals_the_old_clip_piece_mix():
+    ranges = [(500, 900), (1300, 1500)]
+    old, store = setup(channels=2)
+    old = ops.mute_ranges(old, "t", ranges)
+    new, _ = setup(channels=2)
+    new = ops.set_gate(new, "t", ranges)
+    np.testing.assert_allclose(mixer.mix(new, store, 0, 2000),
+                               mixer.mix(old, store, 0, 2000), atol=1e-6)
