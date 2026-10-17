@@ -1297,6 +1297,71 @@ body.gallery-mode .app { display: block; height: auto; background: var(--surface
 .g-card dd { margin: 0; }
 .g-card.split { display: grid; grid-template-columns: 300px 1fr; }
 .g-card.split .g-heads { border-right: 1px solid var(--border-subtle); background: var(--surface-panel); }
+
+/* Help (WP48) */
+.side-body .help-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--pad-panel); background: var(--surface-panel); border-bottom: 1px solid var(--border-subtle); }
+.help-head h2 { display: flex; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--text-lg); }
+.help-head h2 .i { color: var(--accent); }
+.help-head .spacer, .help-foot .spacer { flex: 1; }
+.help-search { display: flex; align-items: center; gap: var(--space-2); margin: var(--space-3) var(--pad-panel) 0; padding: 0 var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-sunken); color: var(--text-secondary); }
+.help-search input { flex: 1; border: 0; background: transparent; box-shadow: none; padding-inline: 0; }
+.help-why { margin: var(--space-3) var(--pad-panel) 0; font-size: var(--text-xs); color: var(--text-secondary); }
+.help-body { padding: var(--space-2) var(--pad-panel) var(--space-5); line-height: var(--leading-read); max-width: var(--reading-max); }
+.help-body h3 { margin: var(--space-5) 0 var(--space-2); font-size: var(--text-sm); color: var(--text-secondary); font-weight: var(--weight-strong); }
+.help-body p, .help-body ul { margin: 0 0 var(--space-3); }
+.help-body ul { padding-left: var(--space-5); }
+.help-body li { margin-bottom: var(--space-1); }
+.help-body kbd, .tip kbd, .coach kbd, .help-search kbd { font: var(--weight-strong) var(--text-xs)/1.6 var(--font-ui); padding: 0 5px; border: 1px solid var(--border-strong); border-bottom-width: 2px; border-radius: var(--radius-xs); background: var(--surface-panel); white-space: nowrap; }
+.help-nokey { font-size: var(--text-xs); color: var(--text-tertiary); font-style: italic; }
+.help-link { color: var(--accent); font-weight: var(--weight-strong); }
+.help-show { margin-left: var(--space-1); }
+.help-results { list-style: none; padding: 0 !important; }
+.help-results li { display: grid; gap: 2px; padding: var(--space-2) 0; border-bottom: 1px solid var(--border-subtle); }
+.help-results .hint { font-size: var(--text-xs); color: var(--text-secondary); }
+.help-command { grid-template-columns: auto 1fr; align-items: center; }
+.help-command .hint { grid-column: 1 / -1; }
+.side-body:has(> .help-tab) { display: flex; flex-direction: column; }
+.help-tab { flex: 1 0 auto; display: flex; flex-direction: column; }
+.help-search .input { text-align: left; }
+.help-foot { margin-top: auto; position: sticky; bottom: 0; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--pad-panel); border-top: 1px solid var(--border-subtle); background: var(--surface-panel); font-size: var(--text-sm); color: var(--text-secondary); }
+.help-highlight { outline: 3px solid var(--accent); outline-offset: -3px; border-radius: var(--radius-xs); }
+.tip { position: fixed; z-index: 30; max-width: 300px; padding: var(--space-3); font-size: var(--text-sm); background: var(--surface-raised); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: 0 4px 16px rgb(0 0 0 / 0.18); }
+.tip span { color: var(--text-secondary); }
+.tip .tip-more { display: block; margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px solid var(--border-subtle); font-size: var(--text-xs); }
+/* Onboarding sketch */
+.onboarding .g-wide { margin-top: var(--space-6); }
+.onboarding .ob-stage { padding: var(--space-5); background: var(--surface-app); min-height: 260px; display: grid; place-items: center; }
+.onboarding .ob-note { margin: 0; padding: var(--space-4) var(--space-5); font-size: var(--text-sm); color: var(--text-secondary); }
+.onboarding .ob-note.wide { max-width: 90ch; padding: 0; }
+.welcome { width: 100%; max-width: 440px; display: grid; gap: var(--space-3); justify-items: start; padding: var(--space-6); background: var(--surface-panel); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: 0 8px 28px rgb(0 0 0 / 0.16); }
+.welcome h2 { margin: 0; font-size: var(--text-xl); }
+.welcome p { margin: 0; color: var(--text-secondary); }
+.welcome .big { height: var(--control-h-lg); font-size: var(--text-md); }
+.welcome .row, .coach .row, .tipcard .row { display: flex; gap: var(--space-2); align-items: center; width: 100%; }
+.welcome .hint { font-size: var(--text-sm); color: var(--text-secondary); }
+.tour-mock { position: relative; width: 100%; display: grid; gap: var(--space-4); }
+.tour-words { margin: 0; padding: var(--space-4); background: var(--surface-panel); border-radius: var(--radius-sm); line-height: var(--leading-read); }
+.tour-words mark { background: var(--selection-range); color: inherit; outline: 2px solid var(--accent); border-radius: 2px; }
+.coach { position: relative; max-width: 380px; justify-self: center; padding: var(--space-4); background: var(--surface-raised); border: 2px solid var(--accent); border-radius: var(--radius-md); box-shadow: 0 6px 22px rgb(0 0 0 / 0.2); }
+.coach::before { content: ""; position: absolute; top: -9px; left: 44%; width: 14px; height: 14px; background: var(--surface-raised); border-left: 2px solid var(--accent); border-top: 2px solid var(--accent); transform: rotate(45deg); }
+.coach p { margin: var(--space-2) 0 var(--space-3); }
+.coach .dots { display: flex; gap: 6px; margin-top: var(--space-3); }
+.coach .dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--border-strong); }
+.coach .dots i.on { background: var(--accent); }
+.tip-mock { width: 100%; display: grid; gap: var(--space-3); }
+.lane-mock { display: flex; gap: 0; height: 40px; }
+.lane-mock i { flex: 1; background: var(--track-0-body); border: 1px solid var(--track-0-edge); }
+.lane-mock i.cut { flex: 0 0 3px; background: var(--signal-seam, var(--accent)); border: 0; }
+.tipcard { justify-self: center; max-width: 340px; padding: var(--space-4); background: var(--surface-raised); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: var(--radius-sm); }
+.tipcard p { margin: var(--space-2) 0 var(--space-3); font-size: var(--text-sm); }
+.check-mock { width: 100%; max-width: 360px; background: var(--surface-panel); border: 1px solid var(--border); border-radius: var(--radius-sm); padding-bottom: var(--space-2); }
+.check-mock .ml-head { display: flex; justify-content: space-between; padding: var(--space-3); border-bottom: 1px solid var(--border-subtle); }
+.check-mock .ck { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); font-size: var(--text-sm); }
+.check-mock .ck.done { color: var(--text-secondary); text-decoration: line-through; }
+.check-mock .ck .i { color: var(--accent); }
+.check-mock .box { width: 14px; height: 14px; border: 1.5px solid var(--border-strong); border-radius: 3px; }
+.check-mock .ck button { margin-left: auto; }
+.check-mock > button { margin: var(--space-2) var(--space-3) 0; }
 /* Cuts explained */
 .cut-table { width: 100%; border-collapse: collapse; margin-top: var(--space-6); font-size: var(--text-sm); }
 .cut-table th, .cut-table td { padding: var(--space-3); border-bottom: 1px solid var(--border-subtle); vertical-align: top; text-align: left; }
@@ -1384,11 +1449,12 @@ canvas.mini { display: block; width: 240px; height: 96px; border: 1px solid var(
   <symbol id="i-mic" viewBox="0 0 16 16"><rect x="6" y="2" width="4" height="7.5" rx="2"/><path d="M3.8 7.5a4.2 4.2 0 0 0 8.4 0M8 11.7v2.3"/></symbol>
   <symbol id="i-mics" viewBox="0 0 16 16"><rect x="3" y="2.5" width="3.4" height="6" rx="1.7"/><rect x="9.6" y="2.5" width="3.4" height="6" rx="1.7"/><path d="M4.7 8.5v4M11.3 8.5v4M3 12.5h10"/></symbol>
   <symbol id="i-note" viewBox="0 0 16 16"><path d="M6 12V3.5l7-1.5V10"/><circle cx="4.3" cy="12" r="1.8"/><circle cx="11.3" cy="10.3" r="1.8"/></symbol>
+  <symbol id="i-help" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M6.2 6.3a1.9 1.9 0 1 1 2.6 1.8c-.5.2-.8.6-.8 1.1v.5M8 11.3v.2"/></symbol>
   <symbol id="i-follow" viewBox="0 0 16 16"><path d="M8 2v12"/><path d="m11 6 2.5 2-2.5 2"/></symbol>
 </svg>
 <div class="proto-bar" id="proto-bar">
   <b>kuulas prototype</b>
-  <label>screen <select id="p-screen"><option value="main">Typical show (at rest)</option><option value="transcript">Transcript: words selected</option><option value="crosstalk">Crosstalk: what else a cut removes</option><option value="history">History + session marker</option><option value="candidates">Cut candidates</option><option value="recording">Clips of one recording</option><option value="palette">Command palette (docked)</option><option value="compare">Compare (A/B)</option><option value="collapsed">Buses collapsed (ribbons)</option><option value="focus">Focus mode</option><option value="import-drop">Import several: drop preview</option><option value="import">Import several: done</option><option value="menu">View menu</option><option value="empty">Empty project</option><option value="error">Errors</option><option value="gallery">Clip grammar gallery</option><option value="cuts">Cuts explained</option><option value="nested">Nested buses</option><option value="nested-collapsed">Nested buses: one level collapsed</option></select></label><span class="sep"></span>
+  <label>screen <select id="p-screen"><option value="main">Typical show (at rest)</option><option value="transcript">Transcript: words selected</option><option value="crosstalk">Crosstalk: what else a cut removes</option><option value="history">History + session marker</option><option value="candidates">Cut candidates</option><option value="recording">Clips of one recording</option><option value="palette">Command palette (docked)</option><option value="compare">Compare (A/B)</option><option value="collapsed">Buses collapsed (ribbons)</option><option value="focus">Focus mode</option><option value="import-drop">Import several: drop preview</option><option value="import">Import several: done</option><option value="menu">View menu</option><option value="empty">Empty project</option><option value="error">Errors</option><option value="gallery">Clip grammar gallery</option><option value="cuts">Cuts explained</option><option value="help-timeline">Help: timeline (F1)</option><option value="help-clip">Help: a clip</option><option value="help-track">Help: a track header + Show me</option><option value="help-search">Help: search topics and commands</option><option value="welcome">Welcome (onboarding sketch)</option><option value="nested">Nested buses</option><option value="nested-collapsed">Nested buses: one level collapsed</option></select></label><span class="sep"></span>
   <label>theme <select id="p-theme"><option>system</option><option>light</option><option>dark</option></select></label>
   <label>lang <select id="p-lang"><option>en</option><option>fi</option></select></label>
   <label>density <select id="p-density"><option>comfortable</option><option>compact</option></select></label>
@@ -2988,7 +3054,137 @@ const HELP_FILES = {
  "fi/track": "---\nid: track\ntitle: Raita\napplies-to: [track]\ncommands: [track.mute, track.solo, track.rename]\nrelated: [bus, clip, timeline]\n---\nRaidalla ovat yhden äänen tai yhdenlaisen äänen leikkeet. Kaistan vasemmalla puolella oleva otsake nimeää raidan ja näyttää sen värin; säätimet tulevat esiin, kun raita on valittuna tai osoitin on sen päällä. {show:track-headers}\n\n- Mykistä tai soolaa: {key:track.mute} ja {key:track.solo}, tai M- ja S-painikkeet.\n- Nimeä uudelleen: {key:track.rename}\n- Taso ja panorointi: otsakkeen liukusäätimet tai tarkastin.\n- Valitse raita nuolinäppäimillä ylös ja alas.\n\nVärillinen tappi on puhuja; vasemman reunan kisko, jos sellainen on, on raidan [[bus|väylä]].\n",
  "fi/bus": "---\nid: bus\ntitle: Väylä\napplies-to: [bus]\ncommands: [bus.collapse, bus.expand, track.mute, track.solo]\nrelated: [track, timeline]\n---\nVäylä kokoaa yhteen raidat, jotka miksataan yhdessä, esimerkiksi kaikki äänet tai kaikki musiikki. Sen väri kulkee raitojen vasemmassa reunassa selkärankana, ja sen kirjaintunnus (A, B …) näkyy kaikkialla, missä väylä mainitaan.\n\n- Pienennä väylä yhdeksi riviksi: {key:bus.collapse}. Pienennetyssä väylässä on jokaiselle raidalle ohut nauha, joka on täytetty siltä osin kuin raidalla on ääntä.\n- Laajenna takaisin: {key:bus.expand}\n- Väylän mykistys ja soolo koskevat kaikkia sen raitoja; sen liukusäädin asettaa koko ryhmän tason.\n\nVäylä, jossa on vain yksi raita, yhdistyy raidan otsakkeeseen. Raidan saa väylälle otsakkeen väylävalitsimesta tai tarkastimesta.\n\nKatso myös [[track]].\n",
  "fi/transcript": "---\nid: transcript\ntitle: Litteraatti\napplies-to: [transcript]\ncommands: [transport.play, edit.delete, edit.cut, panel.home]\nrelated: [clip, timeline]\n---\nLitteraatti on kaikkien puheraitojen sanat aikajärjestyksessä, puhuja reunassa. Se seuraa toistokohtaa, ja kuultavat sanat on alleviivattu.\n\n- Valitse sanoja hiirellä tai vaihtonäppäimellä ja nuolilla; sama kohta valitaan myös aikajanalla.\n- Poista valitut sanat: {key:edit.delete}. Ne yliviivataan ja väli jää.\n- Leikkaa ne: {key:edit.cut}. Ennen leikkausta litteraatti näyttää, mitä muuta lähtisi: muiden puhujien sanat samalta kohdalta.\n- {key:transport.play} toistaa ja pysäyttää edelleen; {key:panel.home} palaa aikajanalle.\n\nLeikkauksen poistamista sanoista jää pieni merkki; leikkauslistalta ne saa takaisin. Katso myös [[clip]].\n",
- "fi/history": "---\nid: history\ntitle: Historia\napplies-to: [history]\ncommands: [edit.undo, edit.redo, history.restore]\nrelated: [clip, timeline]\n---\nHistoriassa on jokainen muokkaus projektin alusta asti, uusin alimpana, tekoaikoineen. Viiva merkitsee, missä kukin työskentelykerta alkoi ja päättyi.\n\n- Kumoa ja tee uudelleen: {key:edit.undo} ja {key:edit.redo}\n- Palaa mihin tahansa aiempaan vaiheeseen: valitse se ja paina {key:history.restore}. Mitään ei menetetä: sen jälkeiset vaiheet jäävät listaan, ja niihin voi palata.\n- Tallennetut versiot on kiinnitetty listaan.\n\nKumoaminen ei koske leikepöytää. Katso myös [[timeline]].\n"
+ "fi/history": "---\nid: history\ntitle: Historia\napplies-to: [history]\ncommands: [edit.undo, edit.redo, history.restore]\nrelated: [clip, timeline]\n---\nHistoriassa on jokainen muokkaus projektin alusta asti, uusin alimpana, tekoaikoineen. Viiva merkitsee, missä kukin työskentelykerta alkoi ja päättyi.\n\n- Kumoa ja tee uudelleen: {key:edit.undo} ja {key:edit.redo}\n- Palaa mihin tahansa aiempaan vaiheeseen: valitse se ja paina {key:history.restore}. Mitään ei menetetä: sen jälkeiset vaiheet jäävät listaan, ja niihin voi palata.\n- Tallennetut versiot on kiinnitetty listaan.\n\nKumoaminen ei koske leikepöytää. Katso myös [[timeline]].\n",
+ "catalog/en": {
+  "ui.help.title": "Help",
+  "ui.help.about": "Help for {target}",
+  "ui.help.show_me": "Show me",
+  "ui.help.no_key": "no shortcut yet",
+  "ui.help.search": "Search help",
+  "ui.help.index": "All topics",
+  "ui.help.back": "Back",
+  "ui.help.close": "Close help",
+  "ui.help.follow": "Follow what I select",
+  "ui.help.fallback": "Not translated yet; shown in English.",
+  "ui.help.no_results": "Nothing found for “{query}”.",
+  "ui.help.topics": "Topics",
+  "ui.help.commands": "Commands",
+  "ui.help.load_failed": "This help topic could not be loaded.",
+  "ui.help.hidden": "It is hidden right now: {how}.",
+  "command.transport.play.label": "Play / stop",
+  "command.transport.play.hint": "Plays from the play cursor; press again to stop.",
+  "command.panel.home.label": "Back to the timeline",
+  "command.panel.home.hint": "Moves the keyboard back to the timeline.",
+  "command.panel.next.label": "Next panel",
+  "command.panel.next.hint": "Moves the keyboard to the next panel.",
+  "command.panel.previous.label": "Previous panel",
+  "command.panel.previous.hint": "Moves the keyboard to the previous panel.",
+  "command.view.toggle.label": "Close / wide view",
+  "command.view.toggle.hint": "Switches between the close and the wide view.",
+  "command.view.fit.label": "Fit",
+  "command.view.fit.hint": "Fits the selection, or the whole edit, to the window.",
+  "command.view.back.label": "Previous view",
+  "command.view.back.hint": "Goes back to the view before.",
+  "command.view.forward.label": "Next view",
+  "command.view.forward.hint": "Goes forward again after Previous view.",
+  "command.view.zoom_in.label": "Zoom in",
+  "command.view.zoom_in.hint": "Shows less time, in more detail.",
+  "command.view.zoom_out.label": "Zoom out",
+  "command.view.zoom_out.hint": "Shows more time, in less detail.",
+  "command.help.open.label": "Help",
+  "command.help.open.hint": "Opens help for what you are working on.",
+  "command.track.rename.label": "Rename",
+  "command.track.rename.hint": "Renames the current track or bus.",
+  "command.edit.split.label": "Split",
+  "command.edit.split.hint": "Splits the clip at the play cursor.",
+  "command.edit.delete.label": "Delete",
+  "command.edit.delete.hint": "Silences the selection in place; the gap stays and it can be restored.",
+  "command.edit.cut.label": "Cut",
+  "command.edit.cut.hint": "Copies the selection to the clipboard and closes the gap.",
+  "command.edit.undo.label": "Undo",
+  "command.edit.undo.hint": "Takes back the last edit.",
+  "command.edit.redo.label": "Redo",
+  "command.edit.redo.hint": "Does the undone edit again.",
+  "command.clip.mute.label": "Mute clip",
+  "command.clip.mute.hint": "Silences the selected clips.",
+  "command.clip.fade.label": "Fade",
+  "command.clip.fade.hint": "Adds a fade in and out to the selected clips.",
+  "command.track.mute.label": "Mute track",
+  "command.track.mute.hint": "Silences the current track or bus.",
+  "command.track.solo.label": "Solo",
+  "command.track.solo.hint": "Plays only the current track or bus.",
+  "command.bus.collapse.label": "Collapse bus",
+  "command.bus.collapse.hint": "Shows the bus as one row.",
+  "command.bus.expand.label": "Expand bus",
+  "command.bus.expand.hint": "Shows the bus's tracks again.",
+  "command.history.restore.label": "Go back to this step",
+  "command.history.restore.hint": "Returns the project to the selected step; later steps stay in the list."
+ },
+ "catalog/fi": {
+  "ui.help.title": "Ohje",
+  "ui.help.about": "Ohje: {target}",
+  "ui.help.show_me": "Näytä missä",
+  "ui.help.no_key": "ei pikanäppäintä vielä",
+  "ui.help.search": "Hae ohjeista",
+  "ui.help.index": "Kaikki aiheet",
+  "ui.help.back": "Takaisin",
+  "ui.help.close": "Sulje ohje",
+  "ui.help.follow": "Seuraa valintaa",
+  "ui.help.fallback": "Ei vielä käännetty; näytetään englanniksi.",
+  "ui.help.no_results": "Haulla ”{query}” ei löytynyt mitään.",
+  "ui.help.topics": "Aiheet",
+  "ui.help.commands": "Komennot",
+  "ui.help.load_failed": "Ohjeaihetta ei voitu ladata.",
+  "ui.help.hidden": "Se on nyt piilossa: {how}.",
+  "command.transport.play.label": "Toista / pysäytä",
+  "command.transport.play.hint": "Toistaa toistokohdasta; uudelleen painettuna pysäyttää.",
+  "command.panel.home.label": "Takaisin aikajanalle",
+  "command.panel.home.hint": "Siirtää näppäimistön takaisin aikajanalle.",
+  "command.panel.next.label": "Seuraava paneeli",
+  "command.panel.next.hint": "Siirtää näppäimistön seuraavaan paneeliin.",
+  "command.panel.previous.label": "Edellinen paneeli",
+  "command.panel.previous.hint": "Siirtää näppäimistön edelliseen paneeliin.",
+  "command.view.toggle.label": "Lähi- / laajanäkymä",
+  "command.view.toggle.hint": "Vaihtaa lähinäkymän ja laajanäkymän välillä.",
+  "command.view.fit.label": "Sovita",
+  "command.view.fit.hint": "Sovittaa valinnan tai koko version ikkunaan.",
+  "command.view.back.label": "Edellinen näkymä",
+  "command.view.back.hint": "Palaa edelliseen näkymään.",
+  "command.view.forward.label": "Seuraava näkymä",
+  "command.view.forward.hint": "Palaa eteenpäin Edellisen näkymän jälkeen.",
+  "command.view.zoom_in.label": "Lähennä",
+  "command.view.zoom_in.hint": "Näyttää lyhyemmän ajan tarkemmin.",
+  "command.view.zoom_out.label": "Loitonna",
+  "command.view.zoom_out.hint": "Näyttää pidemmän ajan.",
+  "command.help.open.label": "Ohje",
+  "command.help.open.hint": "Avaa ohjeen siihen, minkä parissa työskentelet.",
+  "command.track.rename.label": "Nimeä uudelleen",
+  "command.track.rename.hint": "Nimeää valitun raidan tai väylän uudelleen.",
+  "command.edit.split.label": "Jaa",
+  "command.edit.split.hint": "Jakaa leikkeen toistokohdasta.",
+  "command.edit.delete.label": "Poista",
+  "command.edit.delete.hint": "Hiljentää valinnan paikallaan; väli jää ja sen voi palauttaa.",
+  "command.edit.cut.label": "Leikkaa",
+  "command.edit.cut.hint": "Kopioi valinnan leikepöydälle ja sulkee välin.",
+  "command.edit.undo.label": "Kumoa",
+  "command.edit.undo.hint": "Peruu viimeisimmän muokkauksen.",
+  "command.edit.redo.label": "Tee uudelleen",
+  "command.edit.redo.hint": "Tekee kumotun muokkauksen uudelleen.",
+  "command.clip.mute.label": "Mykistä leike",
+  "command.clip.mute.hint": "Hiljentää valitut leikkeet.",
+  "command.clip.fade.label": "Häivytys",
+  "command.clip.fade.hint": "Lisää valittuihin leikkeisiin häivytyksen sisään ja ulos.",
+  "command.track.mute.label": "Mykistä raita",
+  "command.track.mute.hint": "Hiljentää valitun raidan tai väylän.",
+  "command.track.solo.label": "Soolo",
+  "command.track.solo.hint": "Toistaa vain valitun raidan tai väylän.",
+  "command.bus.collapse.label": "Pienennä väylä",
+  "command.bus.collapse.hint": "Näyttää väylän yhtenä rivinä.",
+  "command.bus.expand.label": "Laajenna väylä",
+  "command.bus.expand.hint": "Näyttää väylän raidat taas.",
+  "command.history.restore.label": "Palaa tähän vaiheeseen",
+  "command.history.restore.hint": "Palauttaa projektin valittuun vaiheeseen; myöhemmät vaiheet jäävät listaan."
+ }
 };
 // -- end of help topics --
 
@@ -3003,7 +3199,7 @@ const STR = {
     notHeard: "not heard: solo", mute: "Mute", solo: "Solo", bus: "Voices", busLabel: "Bus",
     anna: "Anna", ville: "Ville", pekka: "Zoom: Pekka", annab: "Anna · backup mic", music1: "Theme tune",
     transcript: "Transcript", followPlay: "Follows playback", inspector: "Inspector", history: "History",
-    candidates: "Candidates", clips: "Clip bin",
+    candidates: "Candidates", clips: "Clip bin", help: "Help",
     level: "Level", gain: "Clip gain", pan: "Pan", fades: "Fades", fadeIn: "Fade in", fadeOut: "Fade out",
     sync: "Sync", inSync: "Group 1 · in sync with Anna, Pekka", drift: "312 ms behind its group",
     driftCause: "since: cut on Anna at 19.42, group editing off", resync: "Resync", free: "Free from sync",
@@ -3022,7 +3218,7 @@ const STR = {
     open: "open", cut: "cut", kept: "kept",
     zoomClose: "Close · 30 s", wave: "Half waveform", follow: "Follow: page", tabMode: "Tab: clip edges",
     saved: "All changes saved", theme: "Theme",
-    hTimeline: [["B", "split"], ["X", "cut"], ["Q W", "trim"], ["D", "mark cut"], ["?", "all keys"]],
+    hTimeline: [["B", "split"], ["X", "cut"], ["Q W", "trim"], ["D", "mark cut"], ["?", "help & keys"]],
     hTranscript: [["X", "cut words"], ["⌫", "delete, keep gap"], ["Enter", "correct"], ["Esc", "timeline"]],
     hSide: [["Enter", "restore"], ["↑↓", "step"], ["Esc", "timeline"]],
     hCand: [["⇧Space", "preview"], ["Enter", "cut"], ["⌫", "keep"], ["] [", "next / previous"]],
@@ -3061,7 +3257,7 @@ const STR = {
     notHeard: "ei kuulu: soolo", mute: "Mykistä", solo: "Soolo", bus: "Äänet", busLabel: "Väylä",
     anna: "Anna", ville: "Ville", pekka: "Zoom: Pekka", annab: "Anna · varamikrofoni", music1: "Tunnari",
     transcript: "Litteraatti", followPlay: "Seuraa toistoa", inspector: "Tarkastin", history: "Historia",
-    candidates: "Ehdokkaat", clips: "Leikekori",
+    candidates: "Ehdokkaat", clips: "Leikekori", help: "Ohje",
     level: "Taso", gain: "Leikkeen vahvistus", pan: "Panorointi", fades: "Häivytykset", fadeIn: "Sisäänhäivytys", fadeOut: "Ulos­häivytys",
     sync: "Tahdistus", inSync: "Ryhmä 1 · tahdissa Annan ja Pekan kanssa", drift: "312 ms jäljessä ryhmästään",
     driftCause: "syy: leikkaus Annan raidalla klo 19.42, ryhmämuokkaus pois", resync: "Tahdista", free: "Irrota tahdistuksesta",
@@ -3080,7 +3276,7 @@ const STR = {
     open: "avoin", cut: "leikattu", kept: "pidetty",
     zoomClose: "Lähi · 30 s", wave: "Puolikas aaltomuoto", follow: "Seuranta: sivu", tabMode: "Tab: leikkeiden reunat",
     saved: "Kaikki muutokset tallessa", theme: "Teema",
-    hTimeline: [["B", "jaa"], ["X", "leikkaa"], ["Q W", "trimmaa"], ["D", "merkitse leikkaus"], ["?", "kaikki näppäimet"]],
+    hTimeline: [["B", "jaa"], ["X", "leikkaa"], ["Q W", "trimmaa"], ["D", "merkitse leikkaus"], ["?", "ohje ja näppäimet"]],
     hTranscript: [["X", "leikkaa sanat"], ["⌫", "poista, jätä väli"], ["Enter", "korjaa"], ["Esc", "aikajana"]],
     hSide: [["Enter", "palauta"], ["↑↓", "siirry"], ["Esc", "aikajana"]],
     hCand: [["⇧Välilyönti", "esikuuntele"], ["Enter", "leikkaa"], ["⌫", "pidä"], ["] [", "seuraava / edellinen"]],
@@ -3282,6 +3478,8 @@ function applyScreen() {
   if (s === "collapsed") { S.collapsed = new Set(["voices", "musicbus"]); }
   if (s === "compare") { S.playhead = 757.1; S.playing = false; S.compareSlot = "B"; }
   if (s === "menu") { S.menu = true; }
+  if (s.startsWith("help-")) { S.tab = "help"; S.panel = "side"; S.current = s === "help-track" ? "anna" : null; }
+  if (s === "help-clip") S.selection = new Set(["a3"]);
 }
 
 // ---------------------------------------------------------------- layout (lanes.js rules)
@@ -3333,7 +3531,7 @@ function render() {
   $("frame").style.width = S.width === "auto" ? "" : `${S.width}px`;
   $("frame").classList.toggle("sized", S.width !== "auto");
   readTokens();
-  const PAGES = { gallery: renderGallery, cuts: renderCuts, nested: renderNested, "nested-collapsed": renderNested };
+  const PAGES = { gallery: renderGallery, cuts: renderCuts, nested: renderNested, "nested-collapsed": renderNested, welcome: renderWelcome };
   const page = PAGES[S.screen];
   document.body.classList.toggle("gallery-mode", Boolean(page));
   if (page) { page(); $("p-count").textContent = "—"; return; }
@@ -3346,7 +3544,8 @@ function render() {
     <div class="row"><button class="button primary keyed float-key" type="button">${icon("import")}${tr("import")}… ${kbd(MOD + "I")}</button>
     <button class="button" type="button">${icon("open")}${tr("emptyHnd")}</button></div><p class="formats">${tr("formats")}</p></div>`;
   // Scrolling the transcript must never scroll the window frame itself.
-  requestAnimationFrame(() => { $("frame").scrollTop = 0; document.scrollingElement.scrollTop = 0; drawAll(); countControls(); });
+  requestAnimationFrame(() => { $("frame").scrollTop = 0; document.scrollingElement.scrollTop = 0; drawAll(); countControls();
+});
 }
 function timecode(t) {
   const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = Math.floor(t % 60), ms = Math.round((t % 1) * 1000);
@@ -3446,6 +3645,8 @@ function renderHeads(empty) {
   for (const d of $("heads").querySelectorAll(".disclose")) d.onclick = (e) => { e.stopPropagation(); toggleBus(d.closest("[data-busid]").dataset.busid); };
   for (const d of $("heads").querySelectorAll(".bus-header")) d.ondblclick = () => toggleBus(d.dataset.busid);
   for (const h of $("heads").querySelectorAll(".track-header.merged")) h.ondblclick = () => toggleBus(TRACKS.find((t) => t.id === h.dataset.track).bus);
+  // "Show me" pressed in the track topic: the ring on the control it names.
+  if (S.screen === "help-track") $("heads").querySelector(".track-header:not(.bus-header)")?.classList.add("help-highlight");
 }
 function renderCompare() {
   const bar = $("comparebar");
@@ -3511,7 +3712,7 @@ function section(id, title, body, open, peek = "") {
   return `<details class="section" data-sec="${id}" ${open ? "open" : ""}><summary>${title}${peek ? `<span class="peek">${peek}</span>` : ""}</summary><div class="section-body">${body}</div></details>`;
 }
 function renderSide(empty) {
-  const tabs = [["inspector", "sliders"], ["history", "history"], ["candidates", "cut"], ["clips", "layers"]];
+  const tabs = [["inspector", "sliders"], ["history", "history"], ["candidates", "cut"], ["clips", "layers"], ["help", "help"]];
   let html = `<div class="tabs" role="tablist">` + tabs.map(([k, ic]) => `<button class="tab" role="tab" type="button" data-tab="${k}" aria-selected="${S.tab === k}" title="${tr(k)}">${icon(ic)}<span class="label">${tr(k)}</span>${k === "candidates" && !empty ? `<span class="count">3</span>` : ""}</button>`).join("") + `</div><div class="side-body">`;
   let foot = "";
   if (S.tab === "inspector") {
@@ -3545,6 +3746,8 @@ function renderSide(empty) {
       <li class="marker">${tr("opened")}</li>${L("preview", "cut", "h4", "19.42")}${L("branch", "cut", "h9", "19.44")}${L("", "gain", "h5", "19.51")}
       <li class="head">${icon("mute")}<span class="lab">${tr("h6")}</span><span class="t">${tr("now")}</span></li>${L("future", "link", "h7", "19.58")}${L("future", "wave", "h8", "20.01")}</ul>`;
     foot = `<div class="actionbar"><button class="button primary keyed" type="button">${tr("restore")} ${kbd("Enter")}</button><span class="hint">${tr("restoreHint")}</span></div>`;
+  } else if (S.tab === "help") {
+    html += `<div class="help-tab">${renderHelpTab()}</div>`;
   } else if (S.tab === "candidates") {
     html += `<div class="cand-summary"><span class="chip info">${tr("candSummary", { o: 3 })}</span><span class="chip">${tr("candCut", { c: 1 })}</span><span class="chip">${tr("candKept", { k: 1 })}</span></div><ul class="cands">`;
     CANDS.forEach((c, i) => { const m = Math.floor(c.at / 60), s = (c.at % 60).toFixed(1).padStart(4, "0"); html += `<li class="${i === S.candIndex ? "current" : ""} ${c.state !== "open" ? "done" : ""}"><span class="when">${m}:${S.lang === "fi" ? s.replace(".", ",") : s}</span><span class="dur">${fmtNum(c.end - c.at)} s</span><span class="state ${c.state}">${tr(c.state)}</span><span class="quote">${tr(c.q)}</span></li>`; });
@@ -3564,12 +3767,13 @@ function renderStatus(empty) {
   const hints = S.panel === "transcript" ? tr("hTranscript") : S.panel === "side" ? (S.tab === "candidates" ? tr("hCand") : tr("hSide")) : tr("hTimeline");
   $("status").innerHTML = `
     <span class="zoom" title="= / −">${empty ? "—" : "30 s"}</span>
-    <button class="button" type="button" title="Z">${S.lang === "fi" ? "Lähi" : "Close"}</button>
+    <button class="button" id="viewToggle" data-help-id="view-toggle" type="button">${S.lang === "fi" ? "Lähi" : "Close"}</button>
     <span class="div"></span>
     <span class="keyhints">${hints.slice(0, 3).map(([k, l]) => `<span>${kbd(k)}${l}</span>`).join("")}</span>
     <span class="spacer"></span>
     ${S.screen === "error" ? `<span class="hint">${tr("savedUpTo")}</span>` : `<span class="saved">${icon("check")}${tr("saved")}</span>`}
-    <button class="button" id="viewBtn" type="button" aria-expanded="${S.menu}">${tr("view")} ${icon("chev")}</button>`;
+    <button class="button" id="helpBtn" data-help-id="help-button" type="button" aria-pressed="${S.tab === "help"}" title="F1 · ?">${icon("help")}${tr("help")}</button>
+    <button class="button" id="viewBtn" data-help-id="view-menu" type="button" aria-expanded="${S.menu}">${tr("view")} ${icon("chev")}</button>`;
   $("viewBtn").onclick = () => { S.menu = !S.menu; render(); };
 }
 function renderOverlays() {
@@ -3601,6 +3805,7 @@ function renderOverlays() {
       <div class="row">${tr("theme")}<select class="select"><option>${S.theme}</option></select></div></div>`;
   }
   if (S.palette) html += paletteHtml();
+  if (s === "help-timeline") html += helpTooltip();
   $("overlays").innerHTML = html;
   const md = $("m-density"); if (md) md.onchange = () => { S.density = md.value; render(); };
   for (const b of document.querySelectorAll("[data-close]")) b.onclick = () => { $("overlays").querySelector(".toast")?.remove(); };
@@ -3935,6 +4140,111 @@ function drawMini(canvas, op, phase) {
   }
   if (st.len === 8) { ctx.fillStyle = P.surfaces.surfaceSunken; ctx.fillRect(X(8), 14, X(10) - X(8), h - 14); ctx.font = `11px ${P.font}`; ctx.fillStyle = P.surfaces.textTertiary; ctx.textBaseline = "middle"; ctx.fillText("−2 s", X(8) + 6, h / 2); }
 }
+// ---------------------------------------------------------------- help (WP48)
+// The help tab renders the real topic files (HELP_FILES, synced) with the real
+// renderer (help.js). Shortcuts come from the keymap the prototype shows, the
+// planned WP5 keys, so the panel looks as it will once the keymap lands.
+const PROTO_KEYMAP = [
+  ["transport.play", "Space"], ["view.toggle", "Z"], ["view.fit", "Shift+Z"], ["view.zoom_in", "="], ["view.zoom_in", "+"],
+  ["view.zoom_out", "-"], ["view.back", "Alt+Z"], ["view.forward", "Alt+Shift+Z"], ["panel.next", "F6"], ["panel.previous", "Shift+F6"], ["panel.home", "Escape"],
+  ["edit.split", "B"], ["edit.split", "Mod+B"], ["edit.delete", "Backspace"], ["edit.cut", "X"], ["edit.cut", "Mod+X"],
+  ["clip.mute", "N"], ["clip.mute", "Alt+Mod+M"], ["clip.fade", "G"], ["edit.undo", "Mod+Z"], ["edit.redo", "Shift+Mod+Z"],
+  ["track.rename", "F2"], ["bus.collapse", "Alt+Mod+ArrowLeft"], ["bus.expand", "Alt+Mod+ArrowRight"],
+  ["history.restore", "Enter"], ["help.open", "F1"], ["help.open", "?"],
+].map(([command, shortcut]) => ({ command, shortcut }));
+const PROTO_KEYNAMES = { Mod: "⌘", Alt: "⌥", Shift: "⇧", Backspace: "⌫", Escape: "Esc", Enter: "↩", ArrowLeft: "←", ArrowRight: "→" };
+function protoFormat(shortcut) {
+  const keys = shortcut === "+" ? ["+"] : shortcut.split("+");
+  const order = ["Alt", "Shift", "Mod"];
+  const mods = order.filter((m) => keys.includes(m)).map((m) => PROTO_KEYNAMES[m]);
+  const rest = keys.filter((k) => !order.includes(k)).map((k) => (k === "Space" ? (S.lang === "fi" ? "Välilyönti" : "Space") : PROTO_KEYNAMES[k] ?? k));
+  return mods.join("") + rest.join("");
+}
+const helpT = (key, values = {}) => {
+  const text = HELP_FILES[`catalog/${S.lang}`]?.[key] ?? HELP_FILES["catalog/en"]?.[key] ?? key;
+  return text.replace(/\{(\w+)\}/g, (w, n) => values[n] ?? w);
+};
+const protoTopics = () => JSON.parse(JSON.stringify(Object.keys(HELP_FILES).filter((k) => k.startsWith(`${S.lang}/`)).map((k) => parseTopic(HELP_FILES[k]))));
+const HELP_WHY = {
+  en: { clip: "A clip is selected on the timeline.", track: "The keyboard is on Anna's track header.", timeline: "The timeline has the keyboard and nothing is selected.", index: "Search: topics and commands." },
+  fi: { clip: "Aikajanalla on valittu leike.", track: "Näppäimistö on Annan raidan otsakkeessa.", timeline: "Aikajanalla on näppäimistö, eikä mitään ole valittu.", index: "Haku: aiheet ja komennot." },
+};
+function helpContextFor(screen) {
+  if (screen === "help-clip") return { panel: "timeline", selection: 1 };
+  if (screen === "help-track") return { inHeaders: true, focusTrack: "anna" };
+  return { panel: "timeline" };
+}
+function renderHelpTab() {
+  const topics = protoTopics();
+  const ctx = { t: helpT, shortcuts: (c) => shortcutsFor(c, PROTO_KEYMAP), format: protoFormat, title: (id) => topics.find((x) => x.id === id)?.title ?? id };
+  const head = (title, back) => `<div class="help-head">${back ? `<button class="button ghost small" type="button">← ${helpT("ui.help.back")}</button>` : ""}<h2>${icon("help")}${title}</h2><span class="spacer"></span><button class="button ghost icon-button" type="button" aria-label="${helpT("ui.help.close")}" title="${helpT("ui.help.close")} (Esc)">${icon("x")}</button></div>`;
+  const search = (q) => `<label class="help-search">${icon("search")}<input class="input" type="search" value="${q}" placeholder="${helpT("ui.help.search")}" aria-label="${helpT("ui.help.search")}"><kbd>?</kbd></label>`;
+  const foot = `<div class="help-foot"><label><input type="checkbox" checked> ${helpT("ui.help.follow")}</label><span class="spacer"></span><button class="button ghost small" type="button">${helpT("ui.help.index")}</button></div>`;
+  if (S.screen === "help-search") {
+    const q = S.lang === "fi" ? "zoom" : "zoom";
+    const found = searchHelp(topics.map((x) => ({ ...x, text: x.body })), q);
+    const ids = [...new Set(PROTO_KEYMAP.map((r) => r.command))];
+    const cmds = searchHelp(ids.map((id) => ({ id, title: helpT(`command.${id}.label`), text: `${helpT(`command.${id}.hint`)} ${id.replace(/[._]/g, " ")}` })), q);
+    return `${head(helpT("ui.help.index"), true)}${search(q)}<p class="help-why">${HELP_WHY[S.lang].index}</p><div class="help-body">
+      <h3>${helpT("ui.help.topics")}</h3><ul class="help-results">${found.map((x) => `<li><a class="help-link" href="#">${x.title}</a><span class="hint">${x.body.split("\n")[0].replace(/\{[^}]+\}|\[\[[^\]]+\]\]/g, "").slice(0, 70)}…</span></li>`).join("")}</ul>
+      <h3>${helpT("ui.help.commands")}</h3><ul class="help-results">${cmds.map((c) => `<li class="help-command"><button class="button small" type="button">${c.title}</button><span class="keys">${shortcutsFor(c.id, PROTO_KEYMAP).map((k) => `<kbd>${protoFormat(k)}</kbd>`).join(" ")}</span><span class="hint">${c.text}</span></li>`).join("")}</ul></div>${foot}`;
+  }
+  const chain = helpChain(helpContextFor(S.screen));
+  const topic = topicFor(chain, topics);
+  const why = HELP_WHY[S.lang][topic.id] ?? "";
+  return `${head(topic.title)}${search("")}<p class="help-why">${why}</p><div class="help-body">${renderHelpBody(topic.body, ctx)}</div>${foot}`;
+}
+// A tooltip: the one-line hint (label · key, then the hint) and the way on to the longer help.
+function helpTooltip() {
+  const b = $("viewToggle")?.getBoundingClientRect();
+  if (!b) return "";
+  return `<div class="tip" role="tooltip" style="left:${b.left}px; bottom:${innerHeight - b.top + 8}px"><b>${helpT("command.view.toggle.label")}</b> <kbd>Z</kbd><br><span>${helpT("command.view.toggle.hint")}</span><span class="tip-more"><kbd>F1</kbd> ${S.lang === "fi" ? "lisää ohjetta" : "more help"}</span></div>`;
+}
+
+// ---------------------------------------------------------------- welcome (onboarding sketch, later)
+const WELCOME = {
+  en: {
+    title: "Onboarding (sketch, after v1)", lede: "Not for v1: four pieces that come after contextual help. Each uses the same data and the same help panel; nothing here is a modal that blocks the editor except the first-run welcome, which has a way out on every line.",
+    a: "1 · First run: welcome", b: "2 · The tour: real edits, skippable, replayable", c: "3 · A tip, once, on first use", d: "4 · The core loop checklist",
+    wTitle: "Welcome to kuulas", wText: "A local editor for interviews, talk and documentaries. Your audio stays on this computer.",
+    sample: "Open the sample project", sampleHint: "a 3-minute interview, two voices and a music bed; yours to cut", empty: "Start an empty project", imp: "Import audio…", tourBox: "Show me around (2 minutes)",
+    step: "Step 3 of 5", stepText: "Anna says “öö” here. Select the word in the transcript and press", stepAfter: "The gap closes on every track.", doIt: "Do it for me", skip: "Skip the tour", wait: "The tour waits for you: it goes on when the cut is made, by key, mouse or “Do it for me”. Each step is one real, undoable edit on the sample.",
+    tipTitle: "Your first cut", tipText: "X closed the gap on all 3 tracks of the group. To keep the gap instead, Backspace deletes in place.", gotIt: "Got it", noTips: "No more tips",
+    tipRules: "Shown once per feature, after the action (never before or during playback), at most one per 10 minutes, anchored to what was used. “No more tips” turns them all off; Help ▸ Reset tips brings them back.",
+    check: "Getting started", items: [["Import audio", true], ["Listen: play and stop", true], ["Cut something", false], ["Undo it", false], ["Export an mp3", false]], hide: "Hide checklist",
+    checkRules: "Ticks itself from real events (import done, first play, first cut, first undo, first export). Lives at the top of the Help tab until done or hidden; each line has Show me.",
+    data: "Data, like help topics", dataText: "Tour steps and tips are data files too (ui/help/tour/*.md, ui/help/tips/*.md): id, trigger event, anchor control (data-help-id), expected command, and the text in en and fi. The sample project ships with the app; replay from the Help menu or the palette (“Start the tour”).",
+  },
+  fi: {
+    title: "Perehdytys (luonnos, v1:n jälkeen)", lede: "Ei v1:een: neljä osaa, jotka tulevat tilannekohtaisen ohjeen jälkeen. Kaikki käyttävät samaa dataa ja samaa ohjepaneelia; mikään ei estä editorin käyttöä paitsi ensimmäisen käynnistyksen tervetulo, josta pääsee ulos joka riviltä.",
+    a: "1 · Ensimmäinen käynnistys", b: "2 · Esittely: oikeita muokkauksia, ohitettava, toistettava", c: "3 · Vinkki kerran, ensikäytöllä", d: "4 · Perustoimintojen tarkistuslista",
+    wTitle: "Tervetuloa kuulakseen", wText: "Paikallinen editori haastatteluille, puheohjelmille ja dokumenteille. Äänesi pysyy tällä koneella.",
+    sample: "Avaa esimerkkiprojekti", sampleHint: "3 minuutin haastattelu, kaksi ääntä ja musiikkimatto; saat leikata vapaasti", empty: "Aloita tyhjä projekti", imp: "Tuo ääntä…", tourBox: "Esittele ohjelma (2 minuuttia)",
+    step: "Vaihe 3/5", stepText: "Anna sanoo tässä ”öö”. Valitse sana litteraatista ja paina", stepAfter: "Väli sulkeutuu jokaiselta raidalta.", doIt: "Tee se puolestani", skip: "Ohita esittely", wait: "Esittely odottaa sinua: se jatkuu, kun leikkaus on tehty näppäimellä, hiirellä tai ”Tee se puolestani” -painikkeella. Jokainen vaihe on yksi oikea, kumottava muokkaus esimerkkiprojektiin.",
+    tipTitle: "Ensimmäinen leikkauksesi", tipText: "X sulki välin ryhmän kaikilta 3 raidalta. Jos haluat välin jäävän, askelpalautin poistaa paikallaan.", gotIt: "Selvä", noTips: "Ei enää vinkkejä",
+    tipRules: "Näytetään kerran toimintoa kohden, toiminnon jälkeen (ei koskaan ennen eikä toiston aikana), enintään yksi 10 minuutissa, kiinnitettynä käytettyyn kohtaan. ”Ei enää vinkkejä” sammuttaa kaikki; Ohje ▸ Nollaa vinkit tuo ne takaisin.",
+    check: "Aloitus", items: [["Tuo ääntä", true], ["Kuuntele: toista ja pysäytä", true], ["Leikkaa jotain", false], ["Kumoa se", false], ["Vie mp3", false]], hide: "Piilota lista",
+    checkRules: "Rastittaa itsensä oikeista tapahtumista (tuonti valmis, ensimmäinen toisto, leikkaus, kumoaminen, vienti). Näkyy Ohje-välilehden yläosassa, kunnes valmis tai piilotettu; joka rivillä on Näytä missä.",
+    data: "Dataa, kuten ohjeaiheet", dataText: "Esittelyn vaiheet ja vinkit ovat myös datatiedostoja (ui/help/tour/*.md, ui/help/tips/*.md): tunniste, laukaiseva tapahtuma, kohde (data-help-id), odotettu komento ja teksti englanniksi ja suomeksi. Esimerkkiprojekti tulee ohjelman mukana; esittelyn voi toistaa Ohje-valikosta tai komentopalkista (”Aloita esittely”).",
+  },
+};
+function renderWelcome() {
+  const W = WELCOME[S.lang];
+  const card = (title, inner, note = "") => `<figure class="g-card ob"><figcaption><b>${title}</b></figcaption><div class="ob-stage">${inner}</div>${note ? `<p class="ob-note">${note}</p>` : ""}</figure>`;
+  const welcome = `<div class="welcome"><h2>${W.wTitle}</h2><p>${W.wText}</p>
+    <button class="button primary big" type="button">${icon("play")}${W.sample}</button><span class="hint">${W.sampleHint}</span>
+    <div class="row"><button class="button" type="button">${icon("open")}${W.empty}</button><button class="button" type="button">${icon("import")}${W.imp}</button></div>
+    <label class="hint"><input type="checkbox" checked> ${W.tourBox}</label></div>`;
+  const tour = `<div class="tour-mock"><p class="tour-words">Mut siinä oli se yks taulukko, joka <mark>öö</mark> muutti koko jutun.</p>
+    <div class="coach" role="dialog"><span class="hint">${W.step}</span><p>${W.stepText} <kbd>X</kbd>. ${W.stepAfter}</p>
+    <div class="row"><button class="button small" type="button">${W.doIt}</button><span class="spacer"></span><button class="button ghost small" type="button">${W.skip}</button></div><div class="dots"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div></div></div>`;
+  const tip = `<div class="tip-mock"><div class="lane-mock"><i></i><i class="cut"></i><i></i></div><div class="tipcard" role="status"><b>${W.tipTitle}</b><p>${W.tipText}</p><div class="row"><button class="button small" type="button">${W.gotIt}</button><button class="button ghost small" type="button">${W.noTips}</button></div></div></div>`;
+  const check = `<div class="check-mock"><div class="ml-head"><b>${W.check}</b><span class="hint">2/5</span></div>${W.items.map(([t, done]) => `<div class="ck ${done ? "done" : ""}">${done ? icon("check") : "<span class=\"box\"></span>"}<span>${t}</span>${done ? "" : `<button class="button ghost small" type="button">${helpT("ui.help.show_me")}</button>`}</div>`).join("")}<button class="button ghost small" type="button">${W.hide}</button></div>`;
+  $("app").innerHTML = `<div class="gallery onboarding"><header><h1>${W.title}</h1><p>${W.lede}</p></header>
+    <div class="g-wide">${card(W.a, welcome)}${card(W.b, tour, W.wait)}${card(W.c, tip, W.tipRules)}${card(W.d, check, W.checkRules)}</div>
+    <h2>${W.data}</h2><p class="ob-note wide">${W.dataText}</p></div>`;
+}
+
 function renderCuts() {
   const T = CUT_TEXT[S.lang];
   const rows = T.rows.map((r) => `<tr>
@@ -4215,7 +4525,7 @@ function bindTimeline() {
 document.addEventListener("click", (e) => { if (S.menu && !e.target.closest(".menu, #viewBtn")) { S.menu = false; render(); } });
 for (const [id, key] of [["p-screen", "screen"], ["p-theme", "theme"], ["p-lang", "lang"], ["p-density", "density"], ["p-width", "width"], ["p-motion", "motion"]]) {
   $(id).addEventListener("change", (e) => {
-    const isPage = (n) => n === "gallery" || n === "cuts" || n.startsWith("nested");
+    const isPage = (n) => n === "gallery" || n === "cuts" || n === "welcome" || n.startsWith("nested");
     const wasGallery = isPage(S.screen);
     S[key] = e.target.value; if (key === "screen") applyScreen();
     const q = new URLSearchParams(location.search); q.set(key, e.target.value); history.replaceState(null, "", "?" + q);

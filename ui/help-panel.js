@@ -94,7 +94,8 @@ export function createHelpPanel({ root, getContext, keymap, commands, runCommand
           commands().map((id) => ({
             id,
             title: t(`command.${id}.label`),
-            text: t(`command.${id}.hint`),
+            // The id's words too: "zoom" finds Lähennä in Finnish.
+            text: `${t(`command.${id}.hint`)} ${id.replace(/[._]/g, " ")}`,
           })),
           query,
         )

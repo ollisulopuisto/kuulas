@@ -25,6 +25,13 @@ export function helpFiles() {
   const files = {};
   for (const lang of ["en", "fi"])
     for (const id of index) files[`${lang}/${id}`] = readFileSync(at(`../../ui/help/${lang}/${id}.md`), "utf8");
+  // The help panel's words and the command labels and hints, for the prototype's t().
+  for (const lang of ["en", "fi"]) {
+    const catalog = JSON.parse(readFileSync(at(`../../src/kuulas/locales/${lang}.json`), "utf8"));
+    files[`catalog/${lang}`] = Object.fromEntries(
+      Object.entries(catalog).filter(([key]) => /^(command|ui\.help)\./.test(key)),
+    );
+  }
   return files;
 }
 

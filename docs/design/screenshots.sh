@@ -30,6 +30,11 @@ for theme in light dark; do
     shot "$screen-$theme-compact" "screen=$screen&theme=$theme&density=compact"
   done
   shot "gallery-$theme" "screen=gallery&theme=$theme" 1440 3400
+  for screen in help-timeline help-clip help-track help-search; do
+    shot "$screen-$theme" "screen=$screen&theme=$theme"
+  done
+  shot "help-track-$theme-fi" "screen=help-track&theme=$theme&lang=fi"
+  shot "welcome-$theme" "screen=welcome&theme=$theme" 1440 1100
   shot "cuts-$theme" "screen=cuts&theme=$theme" 1600 1500
   shot "cuts-$theme-fi" "screen=cuts&theme=$theme&lang=fi" 1600 1500
   shot "nested-$theme" "screen=nested&theme=$theme" 1440 1000
