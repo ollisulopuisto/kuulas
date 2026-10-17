@@ -271,7 +271,7 @@ def _cut(clip: Clip, at: int, right_id: str) -> tuple[Clip, Clip]:
     return left, right
 
 
-CLIP_FIELDS = {"gain_db", "pan", "fade_in", "fade_out", "muted"}
+CLIP_FIELDS = {"gain_db", "pan", "fade_in", "fade_out", "muted", "name"}
 
 
 def set_clip(p: Project, clip_id: str, **fields) -> Project:
@@ -284,6 +284,8 @@ def set_clip(p: Project, clip_id: str, **fields) -> Project:
     for name in ("fade_in", "fade_out"):
         if name in fields:
             fields[name] = max(0, min(clip.length, int(fields[name])))
+    if "name" in fields:
+        fields["name"] = str(fields["name"]).strip()[:200]
     return _replace_clip(p, replace(clip, **fields))
 
 
