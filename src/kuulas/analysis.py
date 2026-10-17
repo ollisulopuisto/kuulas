@@ -77,7 +77,8 @@ def track_levels(p: Project, store: Store, track: Track) -> tuple[np.ndarray, np
     """``(dB per hop, valid)`` over the timeline, from the raw sources.
 
     Raw: no clip or track gain, because the decision's margin is over the
-    track's own floor and gain must not move it (``grid.lane``).
+    track's own floor and gain must not move it (``grid.lane``). The track's
+    gate is not a gain but a mute, and is left out like a muted clip.
 
     Composed from the store's cached per-media envelopes when it has them
     (``MediaStore.envelope``), so an edit reads no audio (WP36); measured
@@ -88,6 +89,13 @@ def track_levels(p: Project, store: Store, track: Track) -> tuple[np.ndarray, np
     if composed is None:
         composed = _from_audio(p, store, clips)
     mean_sq, valid = composed
+    if track.gate:
+        # A gated hop is inaudible, as one under a muted clip is: no level,
+        # not valid. Only hops wholly inside the gate; a hop the gate merely
+        # touches is still partly heard.
+        shut = gate.full_hops(track.gate, mean_sq.size, hop_frames(p.rate))
+        mean_sq = np.where(shut, 0.0, mean_sq)
+        valid = valid & ~shut
     db = 10.0 * np.log10(np.maximum(mean_sq, 1e-12))
     return np.maximum(db, FLOOR_DB).astype(np.float32), valid
 
