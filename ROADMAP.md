@@ -223,6 +223,12 @@ WP27, WP38, WP42, WP15.
 
 ## Open questions and known limits
 
+- **Key conflict to decide (K):** you decided "reject candidate" moves to K, but K is
+  also "stop" in the J K L shuttle (WP26). The keymap supports contexts, so K can be
+  "reject" inside the candidates panel and "stop" everywhere else [recommended]; or give
+  stop another key. Also open: Mod+T for import (waits for the desktop window), the
+  palette's "Recent" group, and the Play button's key chip not following a remap.
+
 - **WP44 merge thresholds need real recordings.** On the synthetic four-voice
   fixtures the starting values (open stretches under 0.4 s closed up, closed stretches
   under 0.3 s dropped) change almost nothing (speechmix's own smoothing already leaves
