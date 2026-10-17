@@ -25,7 +25,6 @@ from speechmix.stems import pan_gains
 from . import curves
 from .model import Clip, Project, Track
 
-
 #: Ramp at each edge of a gated range, derived here and never stored. The
 #: same 30 ms ``ops.MUTE_FADE_SEC`` gave the open piece beside a muted one:
 #: a gate that snaps shut on room tone clicks, and 30 ms is inaudible as a
@@ -193,8 +192,8 @@ def track_stem(track: Track, store: Store, first: int, count: int, channels: int
     """One track on its own, for stem export: ``(channels, count)`` float32.
 
     The edit is applied (cuts, crossfades, clip gain, envelopes, fades; muted
-    clips are silence, and so is the track's gate, with its edge ramps). ``as_heard`` adds the track's own gain and automation
-    (the ducking). Pan is left out either way: the stem keeps its channels, a
+    clips are silence, and so is the track's gate, with its edge ramps).
+    ``as_heard`` adds the track's own gain and automation (the ducking). Pan is left out either way: the stem keeps its channels, a
     mono track stays mono, and placing it is the mixing console's job. Buses
     and the master are never applied. Solo and mute are the caller's business.
     """
