@@ -243,6 +243,9 @@ WP27, WP38, WP42, WP15.
   kuulas gets an in-window menu bar driven by the command registry (enabled state
   per command, current keymap including user remaps); the native menu keeps only
   the app items. First cut inside the WP5 job; the designer reviews its look.
+  Also: when a modifier is held and a shortcut changes meaning (X vs Alt+X), the menu,
+  the status-bar hints and the cheat sheet show the alternate while it is held, like
+  macOS does with Option.
 - **Owner on shortcuts, 2026-10-18:** browser-reserved or conflicting keys are fine
   as long as users can customise keyboard shortcuts: WP5 must define the keymap as
   data with a user override file and conflict detection; the remap UI (WP19d) can
