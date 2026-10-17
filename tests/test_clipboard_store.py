@@ -9,6 +9,7 @@ import pytest
 from kuulas import clipboard_store
 from kuulas.clipboard import ClipboardHistory, ClipRef, Entry
 from kuulas.clipboard_store import MAX_ENTRIES, ClipboardStore
+from kuulas.desktop import config_dir
 
 
 def entry(n: int, pinned: bool = False) -> Entry:
@@ -102,8 +103,6 @@ def test_the_default_path_follows_the_environment(monkeypatch, tmp_path):
 
 
 def test_the_default_path_is_in_the_config_dir(monkeypatch):
-    from kuulas.desktop import config_dir
-
     monkeypatch.delenv("KUULAS_CLIPBOARD_FILE")
     assert clipboard_store.default_path() == config_dir() / "clipboard.json"
     assert isinstance(clipboard_store.default_path(), Path)

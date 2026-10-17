@@ -14,6 +14,7 @@ overwritten by a stale copy in memory.
 from __future__ import annotations
 
 import contextlib
+import json
 import logging
 import os
 import tempfile
@@ -43,15 +44,14 @@ def default_path() -> Path:
     override = os.environ.get("KUULAS_CLIPBOARD_FILE")
     if override:
         return Path(override)
-    from .desktop import config_dir  # late: desktop pulls in the server stack
+    # Late: desktop imports cli, which imports the session, which imports this.
+    from .desktop import config_dir  # noqa: PLC0415
 
     return config_dir() / "clipboard.json"
 
 
 def entry_dict(entry: Entry) -> dict:
     """An entry as plain JSON data for the API."""
-    import json
-
     return json.loads(clipboard.to_json(entry))
 
 

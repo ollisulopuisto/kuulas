@@ -639,5 +639,10 @@
   "cmd.help.open": "Ohje tähän",
   "error.regions.bad_template": "Aluenimien malli ei kelpaa: {template}.",
   "log.clipboard.unreadable": "Leikepöytätiedostoa {path} ei voitu lukea ({error}); leikepöytä aloitetaan tyhjänä.",
-  "log.clipboard.damaged": "Leikepöytätiedosto {path} on vioittunut ({error}); leikepöytä aloitetaan tyhjänä."
+  "log.clipboard.damaged": "Leikepöytätiedosto {path} on vioittunut ({error}); leikepöytä aloitetaan tyhjänä.",
+  "history.clipboard_cut": "Leikkaus leikepöydälle",
+  "history.clipboard_paste": "Liitä leikepöydältä",
+  "error.clipboard.no_entry": "Leikepöydällä ei ole kohdetta {entry_id}.",
+  "error.clipboard.write_failed": "Leikepöytätiedostoa ei voitu kirjoittaa ({error}).",
+  "log.clipboard.copy_failed": "Leikkaus onnistui, mutta leikepöydälle kopiointi epäonnistui: {error}"
 }

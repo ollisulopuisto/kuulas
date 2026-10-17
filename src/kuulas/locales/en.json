@@ -639,5 +639,10 @@
   "cmd.help.open": "Help for this",
   "error.regions.bad_template": "The region file name template is invalid: {template}.",
   "log.clipboard.unreadable": "The clipboard file {path} could not be read ({error}); starting with an empty clipboard.",
-  "log.clipboard.damaged": "The clipboard file {path} is damaged ({error}); starting with an empty clipboard."
+  "log.clipboard.damaged": "The clipboard file {path} is damaged ({error}); starting with an empty clipboard.",
+  "history.clipboard_cut": "Cut to the clipboard",
+  "history.clipboard_paste": "Paste from the clipboard",
+  "error.clipboard.no_entry": "The clipboard has no entry {entry_id}.",
+  "error.clipboard.write_failed": "The clipboard file could not be written ({error}).",
+  "log.clipboard.copy_failed": "Cut went through but the clipboard copy failed: {error}"
 }
