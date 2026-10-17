@@ -1,4 +1,4 @@
-# Handoff: next tasks (updated 17.10.2026 03.30 Helsinki)
+# Handoff: next tasks (updated 17.10.2026 05.11 Helsinki)
 
 For any agent, from any vendor, picking up work on kuulas. Read `AGENTS.md`
 (`CLAUDE.md` and `GEMINI.md` point to the same rules), then the ground
@@ -137,21 +137,21 @@ WP43 narration placeholders, WP31, WP32, WP19b-e.
 
 ### D. Simple pool: small, well-specified, good for Haiku or small Sonnet runs
 
-Done and merged in v26.10.17.2 (agy, reviewed by the coordinator): WP25
-follow-ups (command, endpoint, formula guard), delete commands for people and
-interviews, the test-environment fix, the decoded-chunk cache under the memory
-budget, and rebuild of damaged media. Still open:
+Done and merged (agy, reviewed by the coordinator): WP25 follow-ups, delete
+commands for people and interviews, the test-environment fix, the
+decoded-chunk cache under the memory budget, rebuild of damaged media, the
+manual transcription smoke test, and the default-output-switch findings
+(recorded under WP2). Still open:
 
-1. **A manual transcription smoke test** under `tests/manual/` (excluded from
-   the default run like `tests/hardware/`), documented, needs
-   `uv sync --extra transcribe`.
-2. **Default-output switch:** WP2 notices a switch of the default output
-   device only on failure or after 30 s idle; investigate whether PortAudio
-   can notify sooner and report (no code unless it is small and tested).
-3. **Onset detection, backend only (WP19i).** Slightly larger; spec in
-   `docs/PLAN.md`.
-4. **Clearing the engine's damaged mark after a rebuild.** Needs a decision
+1. **Onset detection, backend only (WP19i).** In progress (agy, task T8).
+2. **WP40 first step:** a generated 5,000-step history, tests for the open,
+   undo and history-page budgets, and a paged `History.nodes_page`. Ask before
+   touching the schema.
+3. **Clearing the engine's damaged mark after a rebuild.** Needs a decision
    about `engine.py`'s narrow surface first: ask the coordinator.
+4. **Lower `IDLE_CLOSE_S` to about 5 s** so a changed default output is picked
+   up at the next play (see the WP2 finding); small, but the owner should say
+   whether the slower first play after idle is acceptable.
 
 ### E. Do not start: needs a decision or another repo first
 

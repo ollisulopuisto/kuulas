@@ -204,6 +204,7 @@ WP27, WP38, WP42, WP15.
 - WP25: music report builder, CSV and HTML, tags read at import, English and Finnish; test setup made order-independent. 497 tests.
 - Music report: durations round up to whole seconds (owner's decision, 2026-10-17). 499 tests.
 - Music report endpoint and formula guard; delete people and interviews; rebuild damaged media; decoded audio under the memory budget; test environment fallback. 521 tests (v26.10.17.2).
+- Manual transcription smoke test; `av<19` pin for the transcription extra; default-output-switch findings recorded in WP2. 521 tests (v26.10.17.3).
 
 ## Later (v2)
 

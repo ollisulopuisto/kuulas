@@ -490,7 +490,7 @@ original" action (status lists `damaged`; the rebuild belongs to the media
 store, WP34/WP36), freezing a real-time layer when late (WP23a), prefetch
 priority over background jobs (no job runner yet; WP9). `scrub` is a seek
 while playing and a 60 ms burst when stopped, until WP26.
-Hardware test `tests/hardware/test_play.py` not yet run on Mac or Windows. Rebuilding a damaged file is a Session command since v26.10.17.2, but clearing the engine's damaged mark afterwards is open: it needs an `Engine.clear_damaged(media_id)` (a decision about the engine's narrow surface) and a call from the server.
+Hardware test `tests/hardware/test_play.py` not yet run on Mac or Windows. Rebuilding a damaged file is a Session command since v26.10.17.2, but clearing the engine's damaged mark afterwards is open: it needs an `Engine.clear_damaged(media_id)` (a decision about the engine's narrow surface) and a call from the server. Finding on the default-output switch (agy, 2026-10-17): PortAudio and sounddevice have no device-change notification and cache the default device at initialisation, so a switch is only seen after the stream is closed and PortAudio re-initialised. Lowering `IDLE_CLOSE_S` from 30 s to about 5 s would pick up a switch at the next play after idle, at the cost of a slightly slower first play after idle; instant detection needs native listeners (CoreAudio, Windows Core Audio, PulseAudio) and belongs with the desktop wrapper (WP15). No code change yet.
 
 New file `src/kuulas/engine.py`.
 
@@ -1635,7 +1635,7 @@ Shift+Tab goes backwards in every mode. Transients are where cuts land
 cleanly before a consonant or a breath.
 
 Transient detection (`src/kuulas/onsets.py`), per media, computed once at
-import (a job) and cached as `media/<id>.onsets.npy` (source frames):
+import (a job) and cached as `caches/onsets/<key>.npy`, int64 flicks from the media's start (docs/FORMAT.md; the earlier "source frames" wording is superseded):
 
 - 1 ms envelope bins (abs max per bin, as `speechmix.chain.lag_samples`
   builds its envelope; reuse that construction, do not invent another).

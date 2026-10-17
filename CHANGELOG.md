@@ -1,3 +1,12 @@
+## [v26.10.17.3] - 2026-10-17
+
+- A manual transcription test (`uv run --extra transcribe pytest -q
+  tests/manual/test_transcribe_smoke.py`) checks that local transcription
+  returns words with times in the project's units, using the machine's own
+  speech voice. It is not part of the normal test run.
+- Installing the transcription extra now keeps `av` below version 19, which
+  faster-whisper 1.2.1 does not work with.
+
 ## [v26.10.17.2] - 2026-10-17
 
 - Music report: it can now be fetched from the app (`GET /api/music-report`
