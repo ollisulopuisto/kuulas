@@ -250,6 +250,32 @@
   --p-violet-88: #e6cbfb;
   --p-violet-92: #eaddf5;
   --p-violet-96: #f7f0fd;
+
+  /* bus hues 5-8 (nested buses, 2026-10-18) */
+  --p-sea-42: #005c4a;
+  --p-sea-40: #005545;
+  --p-sea-42-a7: rgb(0 92 74 / 0.07);
+  --p-sea-84: #91dcc7;
+  --p-sea-88: #b2e4d5;
+  --p-sea-84-a9: rgb(145 220 199 / 0.09);
+  --p-iris-42: #514279;
+  --p-iris-40: #4b3e6e;
+  --p-iris-42-a7: rgb(81 66 121 / 0.07);
+  --p-iris-84: #cec1fa;
+  --p-iris-88: #d9d1f9;
+  --p-iris-84-a9: rgb(206 193 250 / 0.09);
+  --p-ochre-42: #664600;
+  --p-ochre-40: #5e4205;
+  --p-ochre-42-a7: rgb(102 70 0 / 0.07);
+  --p-ochre-84: #e6c58f;
+  --p-ochre-88: #ebd4af;
+  --p-ochre-84-a9: rgb(230 197 143 / 0.09);
+  --p-brick-42: #76363d;
+  --p-brick-40: #6c343a;
+  --p-brick-42-a7: rgb(118 54 61 / 0.07);
+  --p-brick-84: #fab6ba;
+  --p-brick-88: #fac9cc;
+  --p-brick-84-a9: rgb(250 182 186 / 0.09);
 }
 
 /* == theme-independent: type, spacing, radii, motion, sizes ============== */
@@ -497,6 +523,18 @@
   --bus-4-spine: var(--p-sienna-55);
   --bus-4-band: var(--p-sienna-55-a7);
   --bus-4-text: var(--p-sienna-42);
+  --bus-5-spine: var(--p-sea-42);
+  --bus-5-band: var(--p-sea-42-a7);
+  --bus-5-text: var(--p-sea-40);
+  --bus-6-spine: var(--p-iris-42);
+  --bus-6-band: var(--p-iris-42-a7);
+  --bus-6-text: var(--p-iris-40);
+  --bus-7-spine: var(--p-ochre-42);
+  --bus-7-band: var(--p-ochre-42-a7);
+  --bus-7-text: var(--p-ochre-40);
+  --bus-8-spine: var(--p-brick-42);
+  --bus-8-band: var(--p-brick-42-a7);
+  --bus-8-text: var(--p-brick-40);
   --label-1: var(--p-label-red-58); /* user clip labels: never set automatically */
   --label-2: var(--p-label-orange-58);
   --label-3: var(--p-label-yellow-58);
@@ -628,6 +666,18 @@
     --bus-4-spine: var(--p-sienna-72);
     --bus-4-band: var(--p-sienna-72-a9);
     --bus-4-text: var(--p-sienna-86);
+    --bus-5-spine: var(--p-sea-84);
+    --bus-5-band: var(--p-sea-84-a9);
+    --bus-5-text: var(--p-sea-88);
+    --bus-6-spine: var(--p-iris-84);
+    --bus-6-band: var(--p-iris-84-a9);
+    --bus-6-text: var(--p-iris-88);
+    --bus-7-spine: var(--p-ochre-84);
+    --bus-7-band: var(--p-ochre-84-a9);
+    --bus-7-text: var(--p-ochre-88);
+    --bus-8-spine: var(--p-brick-84);
+    --bus-8-band: var(--p-brick-84-a9);
+    --bus-8-text: var(--p-brick-88);
     --label-1: var(--p-label-red-74);
     --label-2: var(--p-label-orange-74);
     --label-3: var(--p-label-yellow-74);
@@ -759,6 +809,18 @@
   --bus-4-spine: var(--p-sienna-72);
   --bus-4-band: var(--p-sienna-72-a9);
   --bus-4-text: var(--p-sienna-86);
+  --bus-5-spine: var(--p-sea-84);
+  --bus-5-band: var(--p-sea-84-a9);
+  --bus-5-text: var(--p-sea-88);
+  --bus-6-spine: var(--p-iris-84);
+  --bus-6-band: var(--p-iris-84-a9);
+  --bus-6-text: var(--p-iris-88);
+  --bus-7-spine: var(--p-ochre-84);
+  --bus-7-band: var(--p-ochre-84-a9);
+  --bus-7-text: var(--p-ochre-88);
+  --bus-8-spine: var(--p-brick-84);
+  --bus-8-band: var(--p-brick-84-a9);
+  --bus-8-text: var(--p-brick-88);
   --label-1: var(--p-label-red-74);
   --label-2: var(--p-label-orange-74);
   --label-3: var(--p-label-yellow-74);
@@ -1235,6 +1297,53 @@ body.gallery-mode .app { display: block; height: auto; background: var(--surface
 .g-card dd { margin: 0; }
 .g-card.split { display: grid; grid-template-columns: 300px 1fr; }
 .g-card.split .g-heads { border-right: 1px solid var(--border-subtle); background: var(--surface-panel); }
+/* Cuts explained */
+.cut-table { width: 100%; border-collapse: collapse; margin-top: var(--space-6); font-size: var(--text-sm); }
+.cut-table th, .cut-table td { padding: var(--space-3); border-bottom: 1px solid var(--border-subtle); vertical-align: top; text-align: left; }
+.cut-table thead th { font-size: var(--text-xs); color: var(--text-secondary); font-weight: var(--weight-strong); text-transform: uppercase; letter-spacing: 0.04em; }
+.cut-table tbody th { width: 190px; font-weight: normal; }
+.cut-table tbody th b { font-size: var(--text-md, var(--text-base)); margin-right: var(--space-2); }
+.cut-table tbody th p { margin: var(--space-2) 0 0; color: var(--text-secondary); }
+.cut-table kbd { font: var(--weight-strong) var(--text-xs)/1 var(--font-ui); padding: 3px 6px; border: 1px solid var(--border-strong); border-radius: var(--radius-xs); background: var(--surface-panel); white-space: nowrap; }
+canvas.mini { display: block; width: 240px; height: 96px; border: 1px solid var(--border-subtle); border-radius: var(--radius-xs); }
+.cut-table .tx { max-width: 260px; font-family: var(--font-read, var(--font-ui)); line-height: 1.6; }
+.cut-table .tx .who { color: var(--text-secondary); font-size: var(--text-xs); }
+.cut-table .tx s.soft { color: var(--signal-soft-cut); text-decoration-thickness: 1.5px; }
+.cut-table .tx s.muted { color: var(--text-tertiary); }
+.cut-table .tx .mk { display: inline-block; padding: 0 4px; margin: 0 2px; border-radius: var(--radius-xs); background: var(--surface-sunken); color: var(--text-secondary); font-size: var(--text-xs); }
+.cut-table .tx .back { background: var(--selection-range, var(--signal-preview)); border-radius: 2px; outline: 1.5px solid var(--accent); }
+.cut-table .cl-row { display: flex; flex-direction: column; gap: var(--space-2); align-items: flex-start; }
+.cut-table .toastcell span { display: inline-block; padding: var(--space-2) var(--space-3); background: var(--surface-raised, var(--surface-panel)); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: 0 2px 8px rgb(0 0 0 / 0.12); }
+.cut-table u { color: var(--accent); text-decoration: none; font-weight: var(--weight-strong); }
+.cut-table .hint, .choice .hint { color: var(--text-secondary); }
+.choice .opts2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); padding: 0 var(--space-5) var(--space-5); }
+.choice .opt { border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: var(--space-3); font-size: var(--text-sm); }
+.choice .opt.rec { border: 2px solid var(--accent); }
+.choice .opt .chip { display: inline-flex; margin-bottom: var(--space-2); }
+.choice figcaption { padding-bottom: var(--space-3); }
+.choice kbd { font: var(--weight-strong) var(--text-xs)/1 var(--font-ui); padding: 3px 6px; border: 1px solid var(--border-strong); border-radius: var(--radius-xs); }
+.mini-list { border: 1px solid var(--border); border-radius: var(--radius-xs); background: var(--surface-panel); }
+.mini-list .ml-head { display: flex; justify-content: space-between; align-items: center; padding: var(--space-2) var(--space-3); font-weight: var(--weight-strong); border-bottom: 1px solid var(--border-subtle); }
+.mini-list .ml-row { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border-subtle); }
+.mini-list .ml-row:last-child { border-bottom: 0; }
+.mini-list .ml-row.quiet { color: var(--text-secondary); font-style: italic; }
+.mini-list .ml-row.offer { background: var(--surface-active); }
+.mini-list u { color: var(--accent); text-decoration: none; font-weight: var(--weight-strong); }
+/* Nested buses */
+.nest-wrap { display: grid; grid-template-columns: 300px 1fr; margin-top: var(--space-6); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: var(--surface-app); }
+.nest-heads { position: relative; border-right: 1px solid var(--border-subtle); }
+.nest-row { position: relative; display: flex; align-items: center; gap: var(--space-2); padding-right: var(--space-3); box-sizing: border-box; font-size: var(--text-sm); }
+.nest-row.track { background: var(--surface-panel); border-bottom: 1px solid var(--border-subtle); }
+.nest-row.bus b { font-weight: var(--weight-strong); }
+.nest-row .rail { position: absolute; top: 0; bottom: 0; }
+.nest-row .pill { position: absolute; top: 25%; bottom: 25%; width: 3px; border-radius: 2px; }
+.nest-row .role { color: var(--text-secondary); display: inline-grid; }
+.nest-row .spacer { flex: 1; }
+.nest-row .ms { display: flex; gap: var(--space-1); }
+#nest-canvas { display: block; width: 100%; }
+.nest-notes { grid-column: 1 / -1; display: grid; grid-template-columns: max-content 1fr; gap: var(--space-2) var(--space-5); margin: 0; padding: var(--space-5); border-top: 1px solid var(--border); background: var(--surface-panel); font-size: var(--text-sm); }
+.nest-notes dt { color: var(--text-secondary); font-weight: var(--weight-strong); }
+.nest-notes dd { margin: 0; max-width: 90ch; }
 .motion-demo { display: flex; gap: var(--space-4); align-items: center; padding: var(--space-5); }
 .motion-demo .box { width: 120px; height: 36px; border-radius: var(--radius-sm); background: var(--track-0-body); border: 1px solid var(--track-0-edge); }
 .motion-demo .box.go { animation: flash var(--dur-flash) var(--ease-standard); }
@@ -1279,7 +1388,7 @@ body.gallery-mode .app { display: block; height: auto; background: var(--surface
 </svg>
 <div class="proto-bar" id="proto-bar">
   <b>kuulas prototype</b>
-  <label>screen <select id="p-screen"><option value="main">Typical show (at rest)</option><option value="transcript">Transcript: words selected</option><option value="crosstalk">Crosstalk: what else a cut removes</option><option value="history">History + session marker</option><option value="candidates">Cut candidates</option><option value="recording">Clips of one recording</option><option value="palette">Command palette (docked)</option><option value="compare">Compare (A/B)</option><option value="collapsed">Buses collapsed (ribbons)</option><option value="focus">Focus mode</option><option value="import-drop">Import several: drop preview</option><option value="import">Import several: done</option><option value="menu">View menu</option><option value="empty">Empty project</option><option value="error">Errors</option><option value="gallery">Clip grammar gallery</option></select></label><span class="sep"></span>
+  <label>screen <select id="p-screen"><option value="main">Typical show (at rest)</option><option value="transcript">Transcript: words selected</option><option value="crosstalk">Crosstalk: what else a cut removes</option><option value="history">History + session marker</option><option value="candidates">Cut candidates</option><option value="recording">Clips of one recording</option><option value="palette">Command palette (docked)</option><option value="compare">Compare (A/B)</option><option value="collapsed">Buses collapsed (ribbons)</option><option value="focus">Focus mode</option><option value="import-drop">Import several: drop preview</option><option value="import">Import several: done</option><option value="menu">View menu</option><option value="empty">Empty project</option><option value="error">Errors</option><option value="gallery">Clip grammar gallery</option><option value="cuts">Cuts explained</option><option value="nested">Nested buses</option><option value="nested-collapsed">Nested buses: one level collapsed</option></select></label><span class="sep"></span>
   <label>theme <select id="p-theme"><option>system</option><option>light</option><option>dark</option></select></label>
   <label>lang <select id="p-lang"><option>en</option><option>fi</option></select></label>
   <label>density <select id="p-density"><option>comfortable</option><option>compact</option></select></label>
@@ -1340,7 +1449,8 @@ const CHANNELS = [
 ];
 
 const SPEAKER_HUE_COUNT = 6;
-const BUS_HUES = 4;
+/** Eight bus hues (nested buses need more than four); the letter is the twin. */
+const BUS_HUES = 8;
 const LABEL_COLOURS = 6;
 const TRACK_HUE_NAMES = [
   ...Array.from({ length: SPEAKER_HUE_COUNT }, (_, i) => String(i)),
@@ -2813,9 +2923,10 @@ function render() {
   $("frame").style.width = S.width === "auto" ? "" : `${S.width}px`;
   $("frame").classList.toggle("sized", S.width !== "auto");
   readTokens();
-  const gallery = S.screen === "gallery";
-  document.body.classList.toggle("gallery-mode", gallery);
-  if (gallery) { renderGallery(); $("p-count").textContent = "—"; return; }
+  const PAGES = { gallery: renderGallery, cuts: renderCuts, nested: renderNested, "nested-collapsed": renderNested };
+  const page = PAGES[S.screen];
+  document.body.classList.toggle("gallery-mode", Boolean(page));
+  if (page) { page(); $("p-count").textContent = "—"; return; }
   if (!$("topbar")) { $("app").innerHTML = APP_HTML(); bindTimeline(); }
   const empty = S.screen === "empty";
   renderTop(empty); renderHeads(empty); renderCompare(); renderDock(empty); renderSide(empty); renderStatus(empty); renderOverlays();
@@ -3296,6 +3407,263 @@ const GALLERY = [
   ["tether", { tether: true }], ["note", { note: true }], ["label", { label: 3 }], ["added", { added: true }], ["removed", { removed: true }],
   ["role", { roles: true }], ["overflow", { badges: [["drift", "−312 ms"], ["takes", "2/3"]], overflow: 2, clipping: true }],
 ];
+// ---------------------------------------------------------------- cuts explained
+// One short timeline (Anna, Ville, music, 10 s; the words "niinku öö siis"
+// selected from 4.0 to 6.0 s) before and after each operation.
+const CUT_TEXT = {
+  en: {
+    title: "Cuts explained", lede: "One short timeline: Anna and Ville (one sync group) and a music bed. The selection (4.0–6.0 s) covers Anna's “niinku öö siis” and Ville's overlapping “joo”. Each row: what you press, the timeline before and after, and what the transcript, the Cuts list, the message and Undo say.",
+    before: "Before", after: "After", transcript: "Transcript", list: "Cuts list", toast: "Message", undo: "Undo says", key: "Key",
+    sel: "selected", clip: "in the clipboard", gapKept: "gap kept", closed: "gap closed",
+    choices: "Open choices: answer by looking", rec: "recommended",
+    rows: [
+      { id: "delete", name: "Delete", key: "⌫", what: "A soft cut: mutes in place, the gap stays, restorable. Never touches the clipboard.",
+        tx: '<span class="w">Mut siinä oli se yks taulukko, joka</span> <s class="soft">niinku öö siis</s> <span class="w">muutti koko jutun.</span><br><span class="who">Ville:</span> <s class="soft">joo</s>',
+        list: ["12:34.0 · 2.0 s · Deleted · gap kept", "Restore"], toast: "Deleted 2.0 s on Anna and Ville · gap kept · <u>Restore</u>", undo: "Undid: delete at 12:34" },
+      { id: "cut", name: "Cut", key: "X", what: "Copies to the clipboard and ripples: the gap closes on every track of the group (and music, which is in no group).",
+        tx: '<span class="w">Mut siinä oli se yks taulukko, joka</span><span class="mk">✂ 3</span> <span class="w">muutti koko jutun.</span><br><span class="who">Ville:</span> <span class="mk">✂ 1</span>',
+        list: ["12:34.0 · 2.0 s · Cut · in the clipboard", "Put back"], toast: "Cut 2.0 s on 3 tracks · in the clipboard · <u>Undo</u>", undo: "Undid: cut 2.0 s at 12:34" },
+      { id: "lift", name: "Lift-cut", key: "⌥X", what: "Copies to the clipboard and leaves the gap: the audio is gone, nothing moves.",
+        tx: '<span class="w">Mut siinä oli se yks taulukko, joka</span> <span class="mk">␣ 2.0 s</span> <span class="w">muutti koko jutun.</span><br><span class="who">Ville:</span> <span class="mk">␣</span>',
+        list: ["12:34.0 · 2.0 s · Lifted · gap kept · in the clipboard", "Put back"], toast: "Lifted 2.0 s · gap kept · in the clipboard · <u>Undo</u>", undo: "Undid: lift at 12:34" },
+      { id: "mute", name: "Mute", key: "N", what: "A plain clip state: the selected clip is silent, drawn faint and hatched. Not a cut.",
+        tx: '<span class="w">Mut siinä oli se yks taulukko, joka niinku öö siis muutti koko jutun.</span><br><span class="who">Ville:</span> <s class="muted">joo</s>',
+        list: ["—", ""], listNote: "not a cut: Mute is a clip state (inspector, M on the track)", toast: "Muted 1 clip · <u>Undo</u>", undo: "Undid: mute clip" },
+      { id: "gate", name: "Auto-Silence", key: "⌥⌘P", what: "One gate per track closes the mic where nobody speaks: a dim band, the waveform flat under it.",
+        tx: '<span class="w">Mut siinä oli se yks taulukko, joka niinku öö siis muutti koko jutun.</span><br><span class="who">Ville:</span> <span class="w">joo</span>',
+        list: ["—", ""], listNote: "not listed (open choice A)", toast: "Auto-Silence closed 6 stretches on 2 tracks · <u>Show</u> · <u>Undo</u>", undo: "Undid: Auto-Silence" },
+      { id: "restore", name: "Restore", key: "Cuts list or palette", what: "Brings a deleted stretch back where it was (it never moved).",
+        tx: '<span class="w">Mut siinä oli se yks taulukko, joka</span> <span class="back">niinku öö siis</span> <span class="w">muutti koko jutun.</span><br><span class="who">Ville:</span> <span class="back">joo</span>',
+        list: ["(the entry leaves the list)", ""], toast: "Restored 2.0 s · <u>Undo</u>", undo: "Undid: restore at 12:34" },
+      { id: "putback", name: "Put back", key: "Cuts list, history or the notch", what: "Re-inserts a cut stretch at its place; later material moves right again.",
+        tx: '<span class="w">Mut siinä oli se yks taulukko, joka</span> <span class="back">niinku öö siis</span> <span class="w">muutti koko jutun.</span><br><span class="who">Ville:</span> <span class="back">joo</span>',
+        list: ["(the entry leaves the list)", ""], toast: "Put back 2.0 s on 3 tracks · <u>Undo</u>", undo: "Undid: put back at 12:34" },
+    ],
+  },
+  fi: {
+    title: "Leikkaukset selitettynä", lede: "Yksi lyhyt aikajana: Anna ja Ville (sama tahdistusryhmä) ja musiikkimatto. Valinta (4,0–6,0 s) kattaa Annan sanat ”niinku öö siis” ja Villen päällekkäisen ”joo”. Jokaisella rivillä: mitä painat, aikajana ennen ja jälkeen, ja mitä litteraatti, leikkauslista, ilmoitus ja Kumoa kertovat.",
+    before: "Ennen", after: "Jälkeen", transcript: "Litteraatti", list: "Leikkauslista", toast: "Ilmoitus", undo: "Kumoa kertoo", key: "Näppäin",
+    sel: "valittu", clip: "leikepöydällä", gapKept: "väli jää", closed: "väli sulkeutuu",
+    choices: "Avoimet valinnat: vastaa katsomalla", rec: "suositus",
+    rows: null,
+  },
+};
+const FI_ROWS = {
+  delete: { name: "Poista", what: "Pehmeä leikkaus: mykistää paikallaan, väli jää, palautettavissa. Ei koske leikepöytää.", list: ["12:34,0 · 2,0 s · Poistettu · väli jää", "Palauta"], toast: "Poistettiin 2,0 s Annalta ja Villeltä · väli jää · <u>Palauta</u>", undo: "Kumottiin: poisto kohdassa 12:34" },
+  cut: { name: "Leikkaa", what: "Kopioi leikepöydälle ja sulkee välin ryhmän jokaiselta raidalta (ja musiikilta, joka ei ole ryhmässä).", list: ["12:34,0 · 2,0 s · Leikattu · leikepöydällä", "Palauta paikalleen"], toast: "Leikattiin 2,0 s kolmelta raidalta · leikepöydällä · <u>Kumoa</u>", undo: "Kumottiin: leikkaus 2,0 s kohdassa 12:34" },
+  lift: { name: "Nosto", what: "Kopioi leikepöydälle ja jättää välin: ääni poistuu, mikään ei siirry.", list: ["12:34,0 · 2,0 s · Nostettu · väli jää · leikepöydällä", "Palauta paikalleen"], toast: "Nostettiin 2,0 s · väli jää · leikepöydällä · <u>Kumoa</u>", undo: "Kumottiin: nosto kohdassa 12:34" },
+  mute: { name: "Mykistä", what: "Leikkeen tila: valittu leike on hiljaa, haalea ja viivoitettu. Ei leikkaus.", listNote: "ei leikkaus: mykistys on leikkeen tila", toast: "Mykistettiin 1 leike · <u>Kumoa</u>", undo: "Kumottiin: leikkeen mykistys" },
+  gate: { name: "Automaattinen hiljennys", what: "Yksi portti raitaa kohden sulkee mikin, kun kukaan ei puhu: himmeä kaista, aaltomuoto litteänä.", listNote: "ei listalla (avoin valinta A)", toast: "Automaattinen hiljennys sulki 6 kohtaa 2 raidalta · <u>Näytä</u> · <u>Kumoa</u>", undo: "Kumottiin: automaattinen hiljennys" },
+  restore: { name: "Palauta", what: "Tuo poistetun kohdan takaisin paikalleen (se ei koskaan siirtynyt).", list: ["(kohta poistuu listalta)", ""], toast: "Palautettiin 2,0 s · <u>Kumoa</u>", undo: "Kumottiin: palautus kohdassa 12:34" },
+  putback: { name: "Palauta paikalleen", what: "Lisää leikatun kohdan takaisin; myöhempi aineisto siirtyy taas oikealle.", list: ["(kohta poistuu listalta)", ""], toast: "Palautettiin paikalleen 2,0 s kolmelle raidalle · <u>Kumoa</u>", undo: "Kumottiin: palautus paikalleen kohdassa 12:34" },
+};
+CUT_TEXT.fi.rows = CUT_TEXT.en.rows.map((r) => ({ ...r, ...FI_ROWS[r.id], key: r.key === "Cuts list or palette" ? "Leikkauslista tai komennot" : r.key === "Cuts list, history or the notch" ? "Leikkauslista, historia tai lovi" : r.key }));
+
+// The mini timeline: lanes with segments of kind audio | soft | gap | muted | gate.
+const MINI_LANES = [
+  { name: "Anna", hue: "0", speech: [[0.5, 4.6], [6.3, 9.5]] },
+  { name: "Ville", hue: "1", speech: [[4.2, 6.8]] },
+  { name: "Music", hue: "music", speech: [[0, 10]] },
+];
+function miniState(op, phase) {
+  // Returns { len, lanes: [{segs:[[a,b,kind]], notch:[t], flash:[a,b]}], range }
+  const base = () => MINI_LANES.map((l) => ({ segs: [[0, 10, "audio"]], notch: [], flash: null }));
+  const lanes = base();
+  let len = 10;
+  let range = null;
+  const target = op === "restore" ? (phase === "before" ? "delete" : "orig") : op === "putback" ? (phase === "before" ? "cut" : "orig") : phase === "before" ? "select" : op;
+  if (target === "select") range = op === "gate" ? null : op === "mute" ? [4.2, 6.8, 1] : [4, 6];
+  if (target === "delete") for (const i of [0, 1]) lanes[i].segs = [[0, 4, "audio"], [4, 6, "soft"], [6, 10, "audio"]];
+  if (target === "cut") { len = 8; for (const l of lanes) { l.segs = [[0, 4, "audio", 0], [4, 8, "audio", 2]]; l.notch = [4]; } }
+  if (target === "lift") for (const i of [0, 1]) lanes[i].segs = [[0, 4, "audio"], [4, 6, "gap"], [6, 10, "audio"]];
+  if (target === "mute") lanes[1].segs = [[0, 4.2, "audio"], [4.2, 6.8, "muted"], [6.8, 10, "audio"]];
+  if (target === "gate") { lanes[0].segs = [[0, 0.5, "gate"], [0.5, 4.6, "audio"], [4.6, 6.3, "gate"], [6.3, 9.5, "audio"], [9.5, 10, "gate"]]; lanes[1].segs = [[0, 4.2, "gate"], [4.2, 6.8, "audio"], [6.8, 10, "gate"]]; }
+  if (target === "orig" && op === "restore") for (const i of [0, 1]) lanes[i].flash = [4, 6];
+  if (target === "orig" && op === "putback") for (const l of lanes) l.flash = [4, 6];
+  return { len, lanes, range };
+}
+function drawMini(canvas, op, phase) {
+  const { ctx, w, h } = setup(canvas);
+  const st = miniState(op, phase);
+  const labelW = 58, laneH = (h - 18) / 3, X = (t) => labelW + (t / 10) * (w - labelW - 6);
+  ctx.fillStyle = P.surfaces.surfaceLane; ctx.fillRect(0, 0, w, h);
+  ctx.font = `11px ${P.mono}`; ctx.fillStyle = P.marks.rulerText; ctx.textBaseline = "top";
+  for (let t = 0; t < 10; t += 2) ctx.fillText(`${t}`, X(t) - 3, 2);
+  MINI_LANES.forEach((lane, i) => {
+    const y = 16 + i * laneH, col = P.hue(lane.hue), L = st.lanes[i];
+    ctx.font = `600 11px ${P.font}`; ctx.fillStyle = P.surfaces.textSecondary; ctx.textBaseline = "middle";
+    ctx.fillText(i === 2 ? (S.lang === "fi" ? "Musiikki" : "Music") : lane.name, 4, y + laneH / 2);
+    ctx.fillStyle = P.surfaces.borderSubtle; ctx.fillRect(labelW, y + laneH - 1, w - labelW, 1);
+    for (const [a, b, kind, shift = 0] of L.segs) {
+      const x0 = X(a), x1 = X(b), yy = y + 2, hh = laneH - 5;
+      if (kind === "gap") { ctx.setLineDash([3, 3]); ctx.strokeStyle = P.surfaces.textTertiary; ctx.strokeRect(x0 + 0.5, yy + 0.5, x1 - x0 - 1, hh - 1); ctx.setLineDash([]); continue; }
+      ctx.globalAlpha = kind === "muted" ? P.numbers.mutedOpacity : kind === "soft" ? 0.4 : 1;
+      ctx.fillStyle = col.body; ctx.fillRect(x0, yy, x1 - x0, hh);
+      ctx.fillStyle = col.wave; ctx.beginPath();
+      const r = rng(31 + i * 17);
+      for (let p = Math.ceil(x0); p < x1; p++) {
+        const t = a + ((p - x0) / (x1 - x0)) * (b - a) + shift;
+        const on = lane.speech.some(([s0, s1]) => t >= s0 && t < s1);
+        const amp = kind === "gate" ? 0 : on ? (i === 2 ? 0.3 + 0.25 * r() : 0.3 + 0.6 * r()) : 0.04 * r();
+        const bar = Math.max(1, amp * hh);
+        ctx.rect(p, yy + hh - bar, 1, bar);
+      }
+      ctx.fill(); ctx.globalAlpha = 1;
+      if (kind === "soft") { ctx.fillStyle = P.signals.softCutFill; ctx.fillRect(x0, yy, x1 - x0, hh); hatch(ctx, x0, yy, x1 - x0, hh, P.signals.softCut, 6, false, 0.5); ctx.fillStyle = P.signals.softCut; ctx.fillRect(x0, yy, 2, hh); ctx.fillRect(x1 - 2, yy, 2, hh); }
+      if (kind === "muted") hatch(ctx, x0, yy, x1 - x0, hh, P.signals.mutedHatch, 6);
+      if (kind === "gate") { ctx.globalAlpha = P.numbers.gateOpacity; ctx.fillStyle = P.signals.gate; ctx.fillRect(x0, yy, x1 - x0, hh); ctx.globalAlpha = 1; ctx.fillStyle = P.surfaces.textTertiary; ctx.fillRect(x0, yy + hh - 5, 1, 5); }
+      ctx.strokeStyle = col.edge; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, yy + 0.5, x1 - x0 - 1, hh - 1);
+    }
+    for (const t of L.notch) seam(ctx, X(t), y + 2, laneH - 5, "jump", P.signals.seam);
+    if (L.flash) { ctx.strokeStyle = P.surfaces.accent; ctx.lineWidth = 2; ctx.strokeRect(X(L.flash[0]) + 1, y + 3, X(L.flash[1]) - X(L.flash[0]) - 2, laneH - 7); }
+  });
+  if (st.range) {
+    // A range over Anna and Ville, or (Mute) one selected clip on Ville.
+    const a = X(st.range[0]), b = X(st.range[1]), y0 = st.range[2] ? 16 + laneH * st.range[2] : 14, hh = st.range[2] ? laneH : laneH * 2 + 2;
+    if (st.range[2]) { ctx.strokeStyle = P.signals.selected; ctx.lineWidth = 2; ctx.strokeRect(a + 1, y0 + 2, b - a - 2, hh - 5); }
+    else { ctx.fillStyle = P.marks.selectionRange; ctx.fillRect(a, y0, b - a, hh); ctx.fillStyle = P.surfaces.accent; ctx.fillRect(a, y0, 1, hh); ctx.fillRect(b - 1, y0, 1, hh); }
+  }
+  if (st.len === 8) { ctx.fillStyle = P.surfaces.surfaceSunken; ctx.fillRect(X(8), 14, X(10) - X(8), h - 14); ctx.font = `11px ${P.font}`; ctx.fillStyle = P.surfaces.textTertiary; ctx.textBaseline = "middle"; ctx.fillText("−2 s", X(8) + 6, h / 2); }
+}
+function renderCuts() {
+  const T = CUT_TEXT[S.lang];
+  const rows = T.rows.map((r) => `<tr>
+      <th scope="row"><b>${r.name}</b><kbd>${r.key}</kbd><p>${r.what}</p></th>
+      <td><canvas class="mini" data-op="${r.id}" data-ph="before"></canvas></td>
+      <td><canvas class="mini" data-op="${r.id}" data-ph="after"></canvas></td>
+      <td class="tx">${r.tx}</td>
+      <td class="cl">${r.list[0] === "—" ? `<span class="hint">— ${r.listNote}</span>` : `<div class="cl-row"><span>${r.list[0]}</span>${r.list[1] ? `<button class="button small" type="button">${r.list[1]}</button>` : ""}</div>`}</td>
+      <td class="toastcell"><span>${r.toast}</span></td>
+      <td class="hint">${r.undo}</td></tr>`).join("");
+  const fi = S.lang === "fi";
+  const choice = (q, a, b, rec) => `<figure class="g-card choice"><figcaption><b>${q}</b></figcaption><div class="opts2"><div class="opt ${rec === 0 ? "rec" : ""}">${rec === 0 ? `<span class="chip info">${T.rec}</span>` : ""}${a}</div><div class="opt ${rec === 1 ? "rec" : ""}">${rec === 1 ? `<span class="chip info">${T.rec}</span>` : ""}${b}</div></div></figure>`;
+  const listMock = (items) => `<div class="mini-list"><div class="ml-head">${fi ? "Leikkaukset" : "Cuts"} (${items.length})</div>${items.map((i) => `<div class="ml-row ${i[1] || ""}">${i[0]}</div>`).join("")}</div>`;
+  $("app").innerHTML = `<div class="gallery cuts"><header><h1>${T.title}</h1><p>${T.lede}</p></header>
+    <table class="cut-table"><thead><tr><th>${T.key}</th><th>${T.before}</th><th>${T.after}</th><th>${T.transcript}</th><th>${T.list}</th><th>${T.toast}</th><th>${T.undo}</th></tr></thead><tbody>${rows}</tbody></table>
+    <h2>${T.choices}</h2><div class="g-wide">
+      ${choice(fi ? "A · Näkyykö automaattinen hiljennys leikkauslistalla ja litteraatissa?" : "A · Does Auto-Silence appear in the Cuts list and the transcript?",
+        listMock([[fi ? "12:31,2 · 2,4 s · Poistettu" : "12:31.2 · 2.4 s · Deleted"], [fi ? "14:02,8 · 6,1 s · Leikattu" : "14:02.8 · 6.1 s · Cut"], [fi ? "Portit: 14 kohtaa · näytä raidan valikosta" : "Gates: 14 stretches · shown from the lane menu", "quiet"]]) + `<p class="hint">${fi ? "Litteraatti: hiljaisuus ei näy (siinä ei ole sanoja)." : "Transcript: silence is not shown (it has no words)."}</p>`,
+        listMock(fi ? [["12:31,2 · 2,4 s · Poistettu"], ["12:40,0 · 1,7 s · Portti", "quiet"], ["12:52,6 · 0,9 s · Portti", "quiet"], ["14:02,8 · 6,1 s · Leikattu"]] : [["12:31.2 · 2.4 s · Deleted"], ["12:40.0 · 1.7 s · Gate", "quiet"], ["12:52.6 · 0.9 s · Gate", "quiet"], ["14:02.8 · 6.1 s · Cut"]]) + `<p class="hint">${fi ? "Litteraatti: ” ··· 1,7 s hiljaisuutta ” jokaisessa portissa." : "Transcript: “ ··· 1.7 s silence ” at every gate."}</p>`, 0)}
+      ${choice(fi ? "B · Missä on ”Siivoa leikkaukset” (poistaa palautettavat kohdat lopullisesti)?" : "B · Where is 'Clean up cuts' (makes restorable cuts permanent)?",
+        `<div class="mini-list"><div class="ml-head">⌘K</div><div class="ml-row">${fi ? "Siivoa leikkaukset…" : "Clean up cuts…"} <kbd>${fi ? "komento" : "palette"}</kbd></div></div><p class="hint">${fi ? "Vain komentopalkissa: harvoin tarvittu, ei vahingossa." : "Palette only: rarely needed, never by accident."}</p>`,
+        `<div class="mini-list"><div class="ml-head">${fi ? "Leikkaukset (12)" : "Cuts (12)"} <button class="button small" type="button">${fi ? "Siivoa…" : "Clean up…"}</button></div><div class="ml-row">${fi ? "12:31,2 · 2,4 s · Poistettu" : "12:31.2 · 2.4 s · Deleted"}</div></div><p class="hint">${fi ? "Painike listan otsikossa: aina näkyvissä." : "A button in the list header: always visible."}</p>`, 0)}
+      ${choice(fi ? "C · Tarjotaanko yhden version pehmeitä leikkauksia muille versioille?" : "C · Offer one edit's soft cuts to the other versions?",
+        `<div class="mini-list"><div class="ml-head">${fi ? "Leikkaukset · Lyhyt versio" : "Cuts · Short edit"}</div><div class="ml-row offer">${fi ? "3 Pääversion poistoa koskee täällä käytettyä ääntä · <u>Käy läpi</u>" : "3 deletes in “Main edit” cover audio used here · <u>Review</u>"}</div></div><p class="hint">${fi ? "Hiljainen tarjous listalla; hyväksyt kohta kohdalta." : "A quiet offer in the list; you accept one by one."}</p>`,
+        `<div class="mini-list"><div class="ml-head">${fi ? "Leikkaukset · Lyhyt versio" : "Cuts · Short edit"}</div><div class="ml-row">${fi ? "(ei tarjouksia: versiot ovat erillisiä)" : "(no offers: edits are separate)"}</div></div><p class="hint">${fi ? "Ei mitään: jokainen versio leikataan erikseen." : "Nothing: each edit is cut on its own."}</p>`, 0)}
+      ${choice(fi ? "D · Noston näppäin" : "D · The lift-cut key",
+        `<p><kbd>⌥X</kbd> ${fi ? "nosto" : "lift-cut"} · <kbd>⌥⌘X</kbd> ${fi ? "sulje väli kaikilta raidoilta (WP19a)" : "close gap on all tracks (as WP19a already names it)"}</p><p class="hint">${fi ? "WP5:n taulukossa ⌥X on ”sulje väli”; se siirtyy ⌥⌘X:lle, kuten WP19a jo sanoo." : "WP5's table has ⌥X as close gap; it moves to ⌥⌘X, which WP19a already uses."}</p>`,
+        `<p><kbd>⇧⌘X</kbd> ${fi ? "nosto" : "lift-cut"} · <kbd>⌥X</kbd> ${fi ? "sulje väli" : "close gap"}</p><p class="hint">${fi ? "⇧⌘X on WP5:ssä ”leikkaa vain tältä raidalta”: ristiriita." : "⇧⌘X is “cut this track only” in WP5: a clash."}</p>`, 0)}
+    </div></div>`;
+  requestAnimationFrame(() => { for (const c of document.querySelectorAll("canvas.mini")) drawMini(c, c.dataset.op, c.dataset.ph); });
+}
+
+// ---------------------------------------------------------------- nested buses
+// Speech (A) > Interview 1 (A1) and Interview 2 (A2) and Narration (A3,
+// merged); Music (B, merged). A track belongs to one bus; a bus may have one
+// parent (a tree, depth at most 3).
+const NEST = {
+  buses: [
+    { id: "speech", name: { en: "Speech", fi: "Puhe" }, hue: 1, parent: null, badge: "A" },
+    { id: "int1", name: { en: "Interview 1", fi: "Haastattelu 1" }, hue: 5, parent: "speech", badge: "A1" },
+    { id: "int2", name: { en: "Interview 2", fi: "Haastattelu 2" }, hue: 6, parent: "speech", badge: "A2" },
+    { id: "narr", name: { en: "Narration", fi: "Kertoja" }, hue: 7, parent: "speech", badge: "A3" },
+    { id: "music", name: { en: "Music", fi: "Musiikki" }, hue: 2, parent: null, badge: "B" },
+  ],
+  tracks: [
+    { id: "anna", name: "Anna", hue: "0", bus: "int1", src: "anna" },
+    { id: "ville", name: "Ville", hue: "1", bus: "int1", src: "ville" },
+    { id: "pekka", name: "Zoom: Pekka", hue: "2", bus: "int2", src: "pekka" },
+    { id: "liisa", name: "Liisa", hue: "3", bus: "int2", src: "ville", shift: 14 },
+    { id: "kertoja", name: { en: "Narrator", fi: "Kertoja" }, hue: "4", bus: "narr", src: "narr1" },
+    { id: "tunnari", name: { en: "Theme tune", fi: "Tunnari" }, hue: "music", bus: "music", src: "music1" },
+  ],
+};
+function nestRows(collapsed) {
+  const H = px("--lane-h"), BUS_H = px("--bus-h"), GAP = px("--group-gap"), rows = [];
+  let y = 0;
+  const kids = (id) => NEST.buses.filter((b) => b.parent === id);
+  const members = (id) => NEST.tracks.filter((t) => t.bus === id);
+  const walk = (bus, depth, chain) => {
+    const m = members(bus.id), sub = kids(bus.id);
+    if (m.length === 1 && sub.length === 0) { // one-track bus: merged into its track
+      rows.push({ kind: "track", t: m[0], bus, depth, chain: [...chain, bus], merged: true, y, h: H }); y += H; return;
+    }
+    const isCollapsed = collapsed.has(bus.id);
+    const h = isCollapsed ? ribbonLayout(m.length + sub.length)?.height ?? px("--bus-collapsed-h") : BUS_H;
+    rows.push({ kind: "bus", bus, depth, chain: [...chain, bus], collapsed: isCollapsed, y, h, n: m.length }); y += h;
+    if (isCollapsed) return;
+    for (const t of m) { rows.push({ kind: "track", t, bus, depth: depth + 1, chain: [...chain, bus], y, h: H }); y += H; }
+    sub.forEach((s, i) => { if (i > 0 || m.length) { rows.push({ kind: "gap", y, h: GAP / 2, chain: [...chain, bus] }); y += GAP / 2; } walk(s, depth + 1, [...chain, bus]); });
+  };
+  NEST.buses.filter((b) => !b.parent).forEach((b, i) => { if (i > 0) { rows.push({ kind: "gap", y, h: GAP, chain: [] }); y += GAP; } walk(b, 0, []); });
+  return { rows, height: y };
+}
+function renderNested() {
+  const collapsed = new Set(S.screen === "nested-collapsed" ? ["int2"] : []);
+  const { rows, height } = nestRows(collapsed);
+  const fi = S.lang === "fi";
+  const nm = (x) => (typeof x === "string" ? x : x[S.lang] ?? x.en);
+  const RAIL = 4, STEP = 10;
+  // The bus's own spine is 4 px; every ancestor shows as a 2 px outer rail.
+  const rails = (chain) => chain.map((b, i) => `<i class="rail" style="left:${i * STEP}px; width:${i === chain.length - 1 ? RAIL : 2}px; background: var(--bus-${b.hue}-spine)"></i>`).join("");
+  // Interview 2 is muted: its tracks show the inherited mute dashed.
+  const muted = (r) => (r.kind === "bus" ? r.bus.id === "int2" : r.chain.some((b) => b.id === "int2"));
+  const ms = (r) => `<span class="ms"><button class="ms-button mute${muted(r) && r.kind !== "bus" ? " implicit" : ""}" type="button" aria-pressed="${r.kind === "bus" && muted(r)}">M</button><button class="ms-button solo" type="button" aria-pressed="false">S</button></span>`;
+  let heads = "";
+  for (const r of rows) {
+    if (r.kind === "gap") { heads += `<div class="nest-row gap" style="height:${r.h}px">${rails(r.chain)}</div>`; continue; }
+    const pad = r.chain.length * STEP + 10;
+    if (r.kind === "bus") {
+      heads += `<div class="nest-row bus" style="height:${r.h}px; padding-left:${pad - STEP + 6}px; background: var(--bus-${r.bus.hue}-band)">${rails(r.chain)}
+        <button class="disclose" type="button" aria-expanded="${!r.collapsed}">${icon("chev")}</button><span class="bus-badge" style="--bus-spine: var(--bus-${r.bus.hue}-spine); --bus-text: var(--bus-${r.bus.hue}-text)">${r.bus.badge}</span>
+        <b style="color: var(--bus-${r.bus.hue}-text)">${nm(r.bus.name)}</b>${r.collapsed ? `<span class="bus-count">${r.n}</span>` : ""}<span class="spacer"></span>${ms(r)}</div>`;
+    } else {
+      heads += `<div class="nest-row track" style="height:${r.h}px; padding-left:${pad}px">${rails(r.chain)}<i class="pill" style="left:${pad - 6}px; background: var(--track-${r.t.hue}-edge)"></i>
+        ${r.merged ? `<span class="bus-badge" style="--bus-spine: var(--bus-${r.bus.hue}-spine); --bus-text: var(--bus-${r.bus.hue}-text)">${r.bus.badge}</span>` : ""}<span class="role">${icon(r.t.id === "tunnari" ? "note" : "mic")}</span><b>${nm(r.t.name)}</b><span class="spacer"></span>${ms(r)}</div>`;
+    }
+  }
+  const notes = fi ? [
+    ["Malli", "Raita kuuluu yhteen väylään (sen signaalitie). Väylällä voi olla yksi yläväylä: <code>Bus.parent</code>, puu, syvyys enintään 3. Väylän lähtö menee yläväylään."],
+    ["Tunniste", "A, A1, A2 … ja kolmannella tasolla A1a. Värisävy on oma jokaisella väylällä (8 sävyä), kirjain on aina mukana."],
+    ["Selkärangat", "Yläväylän väri ohuena ulkokiskona, aliväylän oma kisko sen sisällä; raidat sisennetään taso kerrallaan."],
+    ["Välit", "Täysi väli päätason ryhmien välissä, puolikas sisarväylien välissä."],
+    ["Pienennys", "Jokaisella tasolla: pienennetty yläväylä näyttää aliväyliensä ja raitojensa aktiivisuusnauhat."],
+    ["Taso, mykistys, soolo", "Kertautuvat alaspäin: Puhe −3 dB laskee kaikkia; Puheen mykistys hiljentää kaiken sen alla; Puheen soolo soolaa koko puun. Tässä Haastattelu 2 on mykistetty: sen raidoilla peritty mykistys näkyy katkoviivaisena M:nä ja viivoitettuna kaistana."],
+    ["Tagit?", "Ei nyt. Muokkausryhmät katetaan väylillä, tahdistusryhmillä ja puhujilla; tagit olisivat toinen ryhmittely samoille raidoille ja sotkisivat ”yksi kanava, yksi merkitys”. Tarvittaessa myöhemmin: tallennetut valinnat komentopalkissa."],
+  ] : [
+    ["Model", "A track belongs to exactly one bus (its signal path). A bus may have one parent bus: <code>Bus.parent</code>, a tree, depth at most 3. A bus's output goes to its parent."],
+    ["Badge", "A, A1, A2 … and A1a at the third level. Each bus has its own hue (8 hues), the letter is always there."],
+    ["Spines", "The parent's colour as a thin outer rail, the child's own rail inside it; tracks indent one step per level."],
+    ["Gaps", "A full gap between top-level groups, half a gap between sibling buses."],
+    ["Collapse", "At every level; a collapsed parent shows activity ribbons for its children and tracks."],
+    ["Gain, mute, solo", "Cascade down: Speech −3 dB lowers everything under it; muting Speech silences the subtree; soloing Speech solos the whole subtree. Here Interview 2 is muted: its tracks show the inherited mute as a dashed M and a hatched lane."],
+    ["Tags?", "Not now. Editing groups are covered by buses, sync groups and speakers; tags would be a second grouping of the same tracks and break 'one channel, one meaning'. If needed later: saved selections in the command bar."],
+  ];
+  $("app").innerHTML = `<div class="gallery nested"><header><h1>${fi ? "Sisäkkäiset väylät" : "Nested buses"}</h1><p>${fi ? "Puhe (yläväylä) > Haastattelu 1, Haastattelu 2 ja Kertoja > raidat; Musiikki erikseen." : "Speech (parent) > Interview 1, Interview 2 and Narration > tracks; Music on its own."} ${S.screen === "nested-collapsed" ? (fi ? "Haastattelu 2 on pienennetty." : "Interview 2 is collapsed.") : ""}</p></header>
+    <div class="nest-wrap"><div class="nest-heads" style="height:${height}px">${heads}</div><canvas id="nest-canvas" style="height:${height}px"></canvas>
+    <dl class="nest-notes">${notes.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl></div></div>`;
+  requestAnimationFrame(() => drawNested(rows));
+}
+function drawNested(rows) {
+  const c = $("nest-canvas"); const { ctx, w } = setup(c);
+  const v0 = 740, pps = w / 32;
+  const muted = (r) => r.chain.some((b) => b.id === "int2");
+  ctx.clearRect(0, 0, w, c.clientHeight);
+  for (const r of rows) {
+    if (r.kind === "gap") continue;
+    if (r.kind === "bus") { ctx.fillStyle = P.buses[r.bus.hue - 1].band; ctx.fillRect(0, r.y, w, r.h);
+      if (r.collapsed) { const m = NEST.tracks.filter((t) => t.bus === r.bus.id); const lay = ribbonLayout(m.length); if (r.bus.id === "int2") ctx.globalAlpha = P.numbers.mutedOpacity; m.forEach((t, i) => { ctx.fillStyle = P.hue(t.hue).wave; for (let p = 0; p < w; p++) { const tt = v0 + p / pps; if (peak(t.src, tt + (t.shift ?? 0), tt + (t.shift ?? 0) + 1 / pps) > 0.08) ctx.fillRect(p, r.y + 4 + i * lay.strip, 1, lay.strip - 2); } }); ctx.globalAlpha = 1; }
+      continue; }
+    const col = P.hue(r.t.hue), y = r.y + 2, ch = r.h - 5;
+    ctx.fillStyle = P.surfaces.surfaceLane; ctx.fillRect(0, r.y, w, r.h);
+    ctx.fillStyle = col.body; ctx.fillRect(0, y, w, ch); ctx.fillStyle = col.wave; ctx.beginPath();
+    for (let p = 0; p < w; p++) { const tt = v0 + p / pps; const sh = r.t.shift ?? 0; const bar = Math.min(1, peak(r.t.src, tt + sh, tt + sh + 1 / pps)) * Math.min(ch, 160); if (bar > 0.5) ctx.rect(p, y + ch - bar, 1, bar); }
+    ctx.fill(); if (muted(r)) { ctx.fillStyle = P.surfaces.surfaceLane; ctx.globalAlpha = 1 - P.numbers.mutedOpacity; ctx.fillRect(0, y, w, ch); ctx.globalAlpha = 1; hatch(ctx, 0, y, w, ch, P.signals.mutedHatch, 6); }
+    ctx.strokeStyle = col.edge; ctx.strokeRect(0.5, y + 0.5, w - 1, ch - 1);
+    ctx.fillStyle = P.surfaces.borderSubtle; ctx.fillRect(0, r.y + r.h - 1, w, 1);
+  }
+}
+
 function renderGallery() {
   const meta = (s) => (s ? `<dl><dt>Channel</dt><dd>${s.channel} · ${s.meaning}</dd><dt>Priority</dt><dd>${s.priority}${s.always ? " · always shown" : ""}</dd><dt>At rest</dt><dd>${s.atRest ? "shown" : s.whenNotAtRest}</dd><dt>Without colour</dt><dd>${s.twin}</dd><dt>When</dt><dd>${s.when}</dd>${s.key ? `<dt>Keys</dt><dd>${s.key}</dd>` : ""}<dt>Status</dt><dd>${s.status}</dd></dl>` : `<dl><dt>Rule</dt><dd>pickSignals(): always-on signals, then the three highest-priority others; the rest become “+N”.</dd></dl>`);
   const cards = GALLERY.map(([id, d]) => `<figure class="g-card"><canvas data-g="${id}" style="height:${px("--lane-h")}px"></canvas><figcaption><b>${signal(id)?.id ?? "Too many signals"}</b>${meta(signal(id))}</figcaption></figure>`).join("");
@@ -3437,15 +3805,16 @@ function bindTimeline() {
 document.addEventListener("click", (e) => { if (S.menu && !e.target.closest(".menu, #viewBtn")) { S.menu = false; render(); } });
 for (const [id, key] of [["p-screen", "screen"], ["p-theme", "theme"], ["p-lang", "lang"], ["p-density", "density"], ["p-width", "width"], ["p-motion", "motion"]]) {
   $(id).addEventListener("change", (e) => {
-    const wasGallery = S.screen === "gallery";
+    const isPage = (n) => n === "gallery" || n === "cuts" || n.startsWith("nested");
+    const wasGallery = isPage(S.screen);
     S[key] = e.target.value; if (key === "screen") applyScreen();
     const q = new URLSearchParams(location.search); q.set(key, e.target.value); history.replaceState(null, "", "?" + q);
-    if (wasGallery && S.screen !== "gallery") $("app").innerHTML = "";
+    if (wasGallery && !isPage(S.screen)) $("app").innerHTML = "";
     render();
   });
 }
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
-new ResizeObserver(() => requestAnimationFrame(() => { if (S.screen === "gallery" || !$("heads")) return; renderHeads(S.screen === "empty"); drawAll(); countControls(); })).observe($("frame"));
+new ResizeObserver(() => requestAnimationFrame(() => { if (!$("heads")) return; renderHeads(S.screen === "empty"); drawAll(); countControls(); })).observe($("frame"));
 applyScreen();
 render();
 
