@@ -193,8 +193,8 @@ def track_stem(track: Track, store: Store, first: int, count: int, channels: int
 
     The edit is applied (cuts, crossfades, clip gain, envelopes, fades; muted
     clips are silence, and so is the track's gate, with its edge ramps).
-    ``as_heard`` adds the track's own gain and automation (the ducking). Pan is left out either way: the stem keeps its channels, a
-    mono track stays mono, and placing it is the mixing console's job. Buses
+    ``as_heard`` adds the track's own gain and automation (the ducking). Pan is left out either way: the stem keeps its channels,
+    a mono track stays mono, and placing it is the mixing console's job. Buses
     and the master are never applied. Solo and mute are the caller's business.
     """
     buf = np.zeros((channels, count), dtype=np.float64)
