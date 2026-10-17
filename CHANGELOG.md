@@ -1,3 +1,10 @@
+## [v26.10.17.6] - 2026-10-17
+
+- Building block for editing in sync: the rules that find which clips on other
+  tracks play the same stretch of a recording, and which tracks or clips a
+  time-shifting edit should take along. Not yet used by the edit commands, so
+  nothing changes in the app yet.
+
 ## [v26.10.17.5] - 2026-10-17
 
 - Building blocks, not yet visible in the app: a chapter-list formatter (plain
