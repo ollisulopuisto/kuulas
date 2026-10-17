@@ -19,6 +19,7 @@ describe("inspector lookups", () => {
   test("only a single selection is inspected", () => {
     const base = { project, selection: new Set(["c1"]) };
     assert.equal(selectedClip(base).media.name, "a.wav");
+    assert.equal(selectedClip(base).track.id, "t1", "the track gives the header colour");
     assert.equal(selectedClip({ ...base, selection: new Set(["c1", "x"]) }), null);
     assert.equal(selectedClip({ ...base, selection: new Set(["gone"]) }), null);
   });

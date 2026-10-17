@@ -1,27 +1,69 @@
-// Colours for the canvases come from the CSS custom properties in style.css,
-// so light and dark mode (and any later theme) are changed in one place.
-const CLIP_COLOURS = 4;
+// Colours for the canvases. The tokens are named in grammar.js and defined in
+// tokens.css; readTheme resolves them ONCE per theme change into a plain
+// object the timeline, the overview and the waveform worker draw with. Call
+// it again (timeline.refreshTheme) when the theme or the OS preference
+// changes; never per frame. Spec: docs/design/GUI-DESIGN.md, "Themes".
+import { resolvePalette } from "./grammar.js";
 
-export function readTheme(element = document.documentElement) {
-  const style = getComputedStyle(element);
-  const get = (name) => style.getPropertyValue(name).trim();
-  const palette = [];
-  for (let i = 0; i < CLIP_COLOURS; i += 1) {
-    palette.push({
-      fill: get(`--clip-${i}-bg`),
-      ink: get(`--clip-${i}-ink`),
-      wave: get(`--clip-${i}-ink`),
-    });
-  }
+/** The user's theme choice. "system" follows the OS (prefers-color-scheme). */
+export const THEMES = ["system", "light", "dark"];
+
+export function nextTheme(current) {
+  const at = THEMES.indexOf(current);
+  return THEMES[(Math.max(0, at) + 1) % THEMES.length];
+}
+
+/** The value of <html data-theme>, or null to follow the OS. */
+export function themeAttribute(choice) {
+  return choice === "light" || choice === "dark" ? choice : null;
+}
+
+/**
+ * The canvas palette. `palette[i]` is a track hue (trackHues in paint.js):
+ * { fill: clip body, fillAlt: the other file's body tone (zebra), wave:
+ * waveform bars, ink: clip outline, label: clip name }. The flat names below
+ * are what timeline.js and overview.js use; `resolved` is the full registry
+ * palette for anything newer.
+ */
+export function readTheme(
+  element = globalThis.document?.documentElement,
+  computed = (node) => getComputedStyle(node),
+) {
+  const style = computed(element);
+  const p = resolvePalette((name) => style.getPropertyValue(name));
   return {
-    palette,
-    ink: get("--ink"),
-    muted: get("--muted"),
-    rule: get("--rule"),
-    panel: get("--panel"),
-    accent: get("--accent"),
-    playhead: get("--playhead"),
-    font: get("--font-ui") || "system-ui, sans-serif",
-    mono: get("--font-mono") || "ui-monospace, monospace",
+    resolved: p,
+    palette: p.tracks.map((t) => ({
+      fill: t.body,
+      fillAlt: t.bodyAlt,
+      wave: t.wave,
+      ink: t.edge,
+      label: t.label,
+    })),
+    busBands: p.buses.map((b) => b.band),
+    busSpines: p.buses.map((b) => b.spine),
+    ink: p.surfaces.text,
+    muted: p.surfaces.textSecondary,
+    rule: p.surfaces.borderSubtle,
+    border: p.surfaces.border,
+    panel: p.surfaces.surfacePanel,
+    laneCurrent: p.surfaces.surfaceLaneCurrent,
+    accent: p.surfaces.accent,
+    playhead: p.marks.playhead,
+    playStart: p.marks.playStart,
+    range: p.marks.selectionRange,
+    gain: p.marks.gainLine,
+    automation: p.marks.automationLine,
+    rulerText: p.marks.rulerText,
+    rulerTick: p.marks.rulerTick,
+    selection: p.signals.selected,
+    hatch: p.signals.mutedHatch,
+    clipping: p.signals.clipping,
+    seam: p.signals.seam,
+    fileMark: p.signals.fileMark,
+    fileMarkText: p.signals.fileMarkText,
+    mutedOpacity: p.numbers.mutedOpacity,
+    font: p.font,
+    mono: p.mono,
   };
 }

@@ -3,8 +3,11 @@
 // dragged (rebuilding would drop the pointer capture). Slider drags go through
 // the editor: the value shows at once, the edit carries a coalesce key and the
 // whole drag is one undo step.
+
+import { busHues, busLetter } from "./grammar.js";
 import { formatDb, formatNumber, t } from "./i18n.js";
 import { BUS_HEIGHT, layoutRows } from "./lanes.js";
+import { MUSIC_HUE, trackHues } from "./paint.js";
 import { coalesceKey, patchBus, patchSolo, patchTrack } from "./provisional.js";
 
 const GAIN = { min: -60, max: 12, step: 0.1 };
@@ -33,8 +36,8 @@ function el(tag, className, attrs = {}) {
   return node;
 }
 
-function toggle(label, shortLabel) {
-  const button = el("button", "ms-button", {
+function toggle(label, shortLabel, kind) {
+  const button = el("button", `ms-button ${kind}`, {
     type: "button",
     "aria-pressed": "false",
     title: label,
@@ -62,12 +65,18 @@ export function createTrackHeaders({ root, editor, actions }) {
   let signature = "";
   let rows = new Map();
 
+  // Rows follow the lane layout: a bus header above its member tracks.
   function build(state) {
     root.replaceChildren();
     rows = new Map();
-    for (const track of state.project.tracks) rows.set(track.id, buildTrack(track, state.project));
-    for (const bus of state.project.buses) rows.set(bus.id, buildBus(bus));
-    for (const { node } of rows.values()) root.append(node);
+    for (const row of layoutRows(state.project, state.laneHeight).rows) {
+      const parts =
+        row.kind === "track"
+          ? buildTrack(state.project.tracks[row.index], state.project)
+          : buildBus(state.project.buses[row.index], row.index);
+      rows.set(row.id, parts);
+      root.append(parts.node);
+    }
   }
 
   function buildTrack(track, project) {
@@ -77,26 +86,30 @@ export function createTrackHeaders({ root, editor, actions }) {
     const name = el("button", "track-name", { type: "button", title: t("ui.track.rename") });
     const tag = el("span", `tag kind-${track.kind}`);
     tag.textContent = kindLabel(track.kind);
-    const mute = toggle(t("ui.track.mute"), t("ui.track.mute.short"));
-    const solo = toggle(t("ui.track.solo"), t("ui.track.solo.short"));
+    tag.title = kindLabel(track.kind);
+    const mute = toggle(t("ui.track.mute"), t("ui.track.mute.short"), "mute");
+    const solo = toggle(t("ui.track.solo"), t("ui.track.solo.short"), "solo");
     const buttons = el("span", "ms");
     buttons.append(mute, solo);
-    top.append(name, tag, buttons);
-    const controls = el("div", "th-controls");
+    // The bus picker is compact: its option text starts with the bus letter,
+    // which is what shows in the narrow select (the badge of the group).
     const bus = el("select", "bus-select", { "aria-label": t("ui.track.bus") });
     const none = el("option");
     none.value = "";
-    none.textContent = t("ui.track.no_bus");
+    none.textContent = t("ui.bus.option_none");
     bus.append(none);
-    for (const item of project.buses) {
+    project.buses.forEach((item, i) => {
       const option = el("option");
       option.value = item.id;
-      option.textContent = item.name;
+      option.textContent = t("ui.bus.option", { letter: busLetter(i), name: item.name });
       bus.append(option);
-    }
+    });
+    top.append(name, tag, bus, buttons);
+    const controls = el("div", "th-controls");
     const gain = slider(t("ui.track.gain"), GAIN);
     const pan = slider(t("ui.track.pan"), PAN);
-    controls.append(bus, gain.wrap, pan.wrap);
+    pan.wrap.classList.add("pan");
+    controls.append(gain.wrap, pan.wrap);
     node.append(top, controls);
     const id = track.id;
     const send = (field, value, patch, key) =>
@@ -137,13 +150,23 @@ export function createTrackHeaders({ root, editor, actions }) {
     return { node, name, mute, solo, bus, gain, pan, kind: "track" };
   }
 
-  function buildBus(bus) {
+  function buildBus(bus, index) {
     const node = el("section", "track-header bus-header");
+    // A group header, like a folder: badge, name and mute on top, levels below.
+    const top = el("div", "th-top");
+    const badge = el("span", "bus-badge", { "aria-hidden": "true" });
+    badge.textContent = busLetter(index);
     const name = el("span", "bus-name");
-    const mute = toggle(t("ui.bus.mute"), t("ui.track.mute.short"));
+    const mute = toggle(t("ui.bus.mute"), t("ui.track.mute.short"), "mute");
+    const buttons = el("span", "ms");
+    buttons.append(mute);
+    top.append(badge, name, buttons);
+    const controls = el("div", "th-controls");
     const gain = slider(t("ui.bus.gain"), GAIN);
     const pan = slider(t("ui.bus.pan"), PAN);
-    node.append(name, mute, gain.wrap, pan.wrap);
+    pan.wrap.classList.add("pan");
+    controls.append(gain.wrap, pan.wrap);
+    node.append(top, controls);
     const id = bus.id;
     const send = (field, value, key) =>
       editor.change({
@@ -216,7 +239,7 @@ export function createTrackHeaders({ root, editor, actions }) {
       return;
     }
     const next = JSON.stringify([
-      state.project.tracks.map((track) => [track.id, track.kind]),
+      state.project.tracks.map((track) => [track.id, track.kind, track.bus ?? ""]),
       state.project.buses.map((bus) => [bus.id, bus.name]),
       document.documentElement.lang,
     ]);
@@ -225,14 +248,29 @@ export function createTrackHeaders({ root, editor, actions }) {
       build(state);
     }
     const layout = layoutRows(state.project, state.laneHeight);
+    const hues = trackHues(state.project);
+    const busHue = busHues(state.project);
     for (const row of layout.rows) {
       const parts = rows.get(row.id);
       if (!parts) continue;
       parts.node.style.height = `${row.height}px`;
+      // The bus spine runs from the bus header down through its members.
+      const group = row.bus ? busHue.get(row.bus) : null;
+      parts.node.toggleAttribute("data-bus", Boolean(group));
+      if (group) {
+        parts.node.style.setProperty("--bus-spine", `var(--bus-${group}-spine)`);
+        parts.node.style.setProperty("--bus-band", `var(--bus-${group}-band)`);
+        parts.node.style.setProperty("--bus-text", `var(--bus-${group}-text)`);
+      }
       parts.node.classList.toggle("compact", row.height < COMPACT_BELOW_PX && row.kind === "track");
       if (parts.kind === "track") {
         const track = state.project.tracks[row.index];
         parts.node.classList.toggle("current", state.focusTrack === track.id);
+        const hue = hues.get(track.id);
+        parts.node.style.setProperty(
+          "--track-colour",
+          `var(--track-${hue === MUSIC_HUE ? "music" : hue}-edge)`,
+        );
         if (parts.name.isConnected) parts.name.textContent = track.name;
         parts.mute.setAttribute("aria-pressed", String(track.mute));
         parts.solo.setAttribute("aria-pressed", String(track.solo));
@@ -241,7 +279,9 @@ export function createTrackHeaders({ root, editor, actions }) {
         setSlider(parts.pan, Math.round(track.pan * 100), panText(track.pan));
       } else {
         const bus = state.project.buses.find((item) => item.id === row.id);
-        parts.name.textContent = t("ui.bus.name", { name: bus.name });
+        parts.name.textContent = bus.name;
+        parts.node.title = t("ui.bus.name", { name: bus.name });
+        parts.node.classList.toggle("no-members", row.members === 0);
         parts.mute.setAttribute("aria-pressed", String(bus.mute));
         setSlider(parts.gain, bus.gain_db, formatDb(bus.gain_db));
         setSlider(parts.pan, Math.round(bus.pan * 100), panText(bus.pan));
