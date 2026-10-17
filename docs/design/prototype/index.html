@@ -2581,6 +2581,416 @@ function bindToggle(input, { key, fallback, read, write, marker }) {
   marker?.(abValues.get(key));
 }
 // -- end of ab-value.js --
+// -- help.js (copy) --
+// Contextual help (WP48): pure helpers, no DOM and no imports, so the
+// prototype embeds this file as-is (docs/design/sync-tokens.mjs) and
+// `node --test` runs it.
+//
+// Help content is data: one Markdown file per topic and language under
+// ui/help/<lang>/<id>.md, with front matter (id, title, applies-to, commands,
+// related). ui/help/index.json lists the topic ids. The help panel
+// (help-panel.js) asks `helpChain` what the user is looking at, picks the
+// first topic that applies (`topicFor`), and renders its body with
+// `renderHelpBody`, which fills in the live shortcuts, so a remapped key shows
+// as remapped. GUI-DESIGN.md "Contextual help" has the whole design.
+
+/** The command that opens help. The keymap binds it (helpBindings). */
+const HELP_COMMAND = "help.open";
+
+/** What help can be about. A topic's `applies-to` names one or more of these. */
+const HELP_TARGETS = [
+  "timeline",
+  "clip",
+  "track",
+  "bus",
+  "transcript",
+  "history",
+  "candidates",
+  "inspector",
+  "palette",
+  "empty",
+  "error",
+  "index",
+];
+
+const FRONT_LISTS = new Set(["applies-to", "commands", "related"]);
+
+/**
+ * "---\nid: clip\napplies-to: [clip]\n---\nBody" -> { id, title, appliesTo, commands, related, body }.
+ * Lists are written [a, b]; missing lists are []. Throws on a file without front matter,
+ * because a topic nobody can find is worse than a failing test.
+ */
+function parseTopic(text) {
+  const match = String(text)
+    .replace(/\r\n/g, "\n")
+    .match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+  if (!match) throw new Error("help topic: no front matter");
+  const meta = { "applies-to": [], commands: [], related: [] };
+  for (const line of match[1].split("\n")) {
+    const at = line.indexOf(":");
+    if (at < 0 || !line.trim()) continue;
+    const key = line.slice(0, at).trim();
+    const raw = line.slice(at + 1).trim();
+    meta[key] = FRONT_LISTS.has(key)
+      ? raw
+          .replace(/^\[|\]$/g, "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : raw;
+  }
+  return {
+    id: meta.id ?? "",
+    title: meta.title ?? "",
+    appliesTo: meta["applies-to"],
+    commands: meta.commands,
+    related: meta.related,
+    body: match[2].trim(),
+  };
+}
+
+/**
+ * What the user is looking at, most specific first, ending in "timeline" and
+ * "index" so there is always an answer. `context`: { control, palette, error,
+ * empty, panel, inHeaders, selection (count), focusBus, focusTrack }.
+ */
+function helpChain(context = {}) {
+  const chain = [];
+  if (context.control) chain.push(context.control);
+  if (context.palette) chain.push("palette");
+  if (context.error) chain.push("error");
+  if (context.empty) chain.push("empty");
+  const object = () => {
+    if (context.selection > 0) return "clip";
+    if (context.focusBus) return "bus";
+    if (context.focusTrack) return "track";
+    return null;
+  };
+  const panel = context.panel ?? "timeline";
+  if (context.inHeaders) chain.push(context.focusBus ? "bus" : "track");
+  else if (panel === "timeline") {
+    if (context.selection > 0) chain.push("clip");
+    else if (context.focusBus) chain.push("bus");
+  } else if (panel === "inspector") chain.push("inspector", object());
+  else chain.push(panel);
+  chain.push("timeline", "index");
+  return [...new Set(chain.filter(Boolean))];
+}
+
+/** The first topic (from `topics`, any order) whose applies-to meets the chain; else null. */
+function topicFor(chain, topics) {
+  for (const target of chain) {
+    const hit = topics.find((topic) => topic.appliesTo.includes(target));
+    if (hit) return hit;
+  }
+  return null;
+}
+
+// -- shortcuts from the keymap ---------------------------------------------------------------------
+
+// Printable keys tried against `match` bindings (zoom's "=" and "+").
+const PROBE_KEYS = ["=", "+", "-", "?", "/", ".", ","];
+
+function keyFromCode(code) {
+  if (/^Key[A-Z]$/.test(code)) return code.slice(3);
+  if (/^Digit\d$/.test(code)) return code.slice(5);
+  return code;
+}
+
+/**
+ * The shortcuts a keys.js binding answers to, as "Mod+Alt+Shift+Z" strings
+ * (i18n.formatShortcut turns them into ⌥⇧⌘Z or Ctrl+Alt+Shift+Z). A `match`
+ * binding is probed with printable keys; it may answer to more than one.
+ */
+function bindingShortcuts(binding) {
+  const mods = [binding.mod && "Mod", binding.alt && "Alt", binding.shift && "Shift"].filter(
+    Boolean,
+  );
+  let keys = [];
+  if (binding.code) keys = [keyFromCode(binding.code)];
+  else if (binding.key !== undefined) keys = [binding.key];
+  else if (binding.match) {
+    keys = PROBE_KEYS.filter((key) =>
+      binding.match({
+        key,
+        code: "",
+        shiftKey: Boolean(binding.shift),
+        altKey: Boolean(binding.alt),
+        ctrlKey: false,
+        metaKey: Boolean(binding.mod),
+      }),
+    );
+  }
+  // A probed key is named as it prints ("?", "+"): the Shift that makes it is not named twice.
+  const named = binding.match ? mods.filter((m) => m !== "Shift") : mods;
+  return keys.map((key) => [...named, key].join("+"));
+}
+
+/** Which command an action call is: "togglePlay" or "cyclePanel:1" -> a command id. */
+const ACTION_COMMANDS = {
+  togglePlay: "transport.play",
+  goHome: "panel.home",
+  "cyclePanel:1": "panel.next",
+  "cyclePanel:-1": "panel.previous",
+  toggleView: "view.toggle",
+  fitView: "view.fit",
+  viewBack: "view.back",
+  viewForward: "view.forward",
+  "zoomStep:1": "view.zoom_in",
+  "zoomStep:-1": "view.zoom_out",
+  openHelp: HELP_COMMAND,
+};
+
+/**
+ * The keymap as data: [{ command, shortcut }], one row per shortcut, in binding
+ * order (so the first row of a command is its primary key). `makeBindings` is
+ * keys.js coreBindings or helpBindings: each binding is run against a recorder
+ * to learn which action it calls. A binding whose action has no command id
+ * gives command null, which the drift test refuses.
+ */
+function keymapTable(makeBindings, actionCommands = ACTION_COMMANDS) {
+  const calls = [];
+  const recorder = new Proxy(
+    {},
+    {
+      get:
+        (_target, name) =>
+        (...args) => {
+          calls.push(args.length ? `${String(name)}:${args[0]}` : String(name));
+        },
+    },
+  );
+  const rows = [];
+  for (const binding of makeBindings(recorder)) {
+    calls.length = 0;
+    binding.run({ preventDefault() {} });
+    const command = actionCommands[calls[0]] ?? actionCommands[calls[0]?.split(":")[0]] ?? null;
+    for (const shortcut of bindingShortcuts(binding))
+      rows.push({ command, shortcut, call: calls[0] });
+  }
+  return rows;
+}
+
+/** The shortcuts of one command, primary first: ["Shift+Z"] or ["=", "+"]. */
+function shortcutsFor(command, table) {
+  return [...new Set(table.filter((row) => row.command === command).map((row) => row.shortcut))];
+}
+
+/** The help keys: F1 everywhere (also in a text field), "?" when not typing. */
+function helpBindings(actions) {
+  return [
+    { code: "F1", inText: true, run: () => actions.openHelp() },
+    { match: (event) => event.key === "?", shift: true, run: () => actions.openHelp() },
+  ];
+}
+
+/** Message keys a command needs: a label (menus, palette) and a one-line hint. */
+const commandKeys = (id) => [`command.${id}.label`, `command.${id}.hint`];
+
+/** Commands that lack a label or hint in any catalog: [{ id, lang, key }]. Empty = no drift. */
+function missingCommandText(ids, catalogs) {
+  const missing = [];
+  for (const id of ids)
+    for (const [lang, catalog] of Object.entries(catalogs))
+      for (const key of commandKeys(id))
+        if (typeof catalog[key] !== "string" || !catalog[key].trim())
+          missing.push({ id, lang, key });
+  return missing;
+}
+
+// -- rendering ---------------------------------------------------------------------------------------
+
+const escapeHtml = (text) =>
+  String(text).replace(
+    /[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+  );
+
+/**
+ * The inline marks a topic body may use, besides **bold** and `code`:
+ *   {key:command.id}   the command's current shortcut(s), from the keymap
+ *   {run:command.id}   a button that runs the command, labelled with its label
+ *   {show:control-id}  "Show me": highlights the control (data-help-id) on screen
+ *   [[topic-id]]       a link to another topic, labelled with its title
+ *   [[topic-id|text]]  the same link with its own words (for grammar: "the track's [[bus|bus]]")
+ */
+const INLINE_MARKS = /\{(key|run|show):([\w.-]+)\}|\[\[([\w-]+)(?:\|([^\]]+))?\]\]/g;
+
+function inline(text, ctx) {
+  const parts = [];
+  let last = 0;
+  for (const m of text.matchAll(INLINE_MARKS)) {
+    parts.push(plain(text.slice(last, m.index)));
+    last = m.index + m[0].length;
+    if (m[3]) {
+      parts.push(
+        `<a href="#help:${m[3]}" class="help-link" data-topic="${m[3]}">${escapeHtml(m[4] ?? ctx.title(m[3]))}</a>`,
+      );
+    } else if (m[1] === "key") {
+      const keys = ctx.shortcuts(m[2]);
+      parts.push(
+        keys.length
+          ? keys.map((k) => `<kbd>${escapeHtml(ctx.format(k))}</kbd>`).join(" ")
+          : `<span class="help-nokey">${escapeHtml(ctx.t("ui.help.no_key"))}</span>`,
+      );
+    } else if (m[1] === "run") {
+      parts.push(
+        `<button type="button" class="button small help-run" data-run="${m[2]}">${escapeHtml(ctx.t(`command.${m[2]}.label`))}</button>`,
+      );
+    } else {
+      parts.push(
+        `<button type="button" class="button small help-show" data-show="${m[2]}">${escapeHtml(ctx.t("ui.help.show_me"))}</button>`,
+      );
+    }
+  }
+  parts.push(plain(text.slice(last)));
+  return parts.join("");
+}
+
+function plain(text) {
+  return escapeHtml(text)
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/`(.+?)`/g, "<code>$1</code>");
+}
+
+/**
+ * A topic body (a small Markdown subset: "## " headings, "- " lists, paragraphs)
+ * as HTML. `ctx`: { t(key), shortcuts(command) -> ["Shift+Z"], format(shortcut)
+ * -> "⇧Z", title(topicId) }. All text is escaped; nothing in a topic can inject markup.
+ */
+function renderHelpBody(body, ctx) {
+  const out = [];
+  let para = [];
+  let items = null;
+  const flush = () => {
+    if (para.length) out.push(`<p>${inline(para.join(" "), ctx)}</p>`);
+    if (items)
+      out.push(`<ul>${items.map((item) => `<li>${inline(item, ctx)}</li>`).join("")}</ul>`);
+    para = [];
+    items = null;
+  };
+  for (const line of String(body).split("\n")) {
+    if (!line.trim()) flush();
+    else if (line.startsWith("## ")) {
+      flush();
+      out.push(`<h3>${inline(line.slice(3).trim(), ctx)}</h3>`);
+    } else if (line.startsWith("- ")) {
+      if (para.length) flush();
+      items ??= [];
+      items.push(line.slice(2).trim());
+    } else if (items && /^\s/.test(line)) items[items.length - 1] += ` ${line.trim()}`;
+    else {
+      if (items) flush();
+      para.push(line.trim());
+    }
+  }
+  flush();
+  return out.join("\n");
+}
+
+/**
+ * formatShortcut for help: also names a bare "+" key ("Mod++" -> "⌘+"), which
+ * a split on "+" would lose. `format` is i18n.formatShortcut.
+ */
+function formatHelpKey(shortcut, format) {
+  if (shortcut === "+") return "+";
+  if (shortcut.endsWith("++")) return `${format(`${shortcut.slice(0, -2)}+X`).slice(0, -1)}+`;
+  return format(shortcut);
+}
+
+/** Every {key:}/{run:} command, {show:} control and [[link]] a body refers to. */
+function topicRefs(body) {
+  const refs = { commands: new Set(), controls: new Set(), topics: new Set() };
+  for (const m of String(body).matchAll(INLINE_MARKS)) {
+    if (m[3]) refs.topics.add(m[3]);
+    else if (m[1] === "show") refs.controls.add(m[2]);
+    else refs.commands.add(m[2]);
+  }
+  return refs;
+}
+
+// -- search ------------------------------------------------------------------------------------------
+
+/** Lower case without accents, for matching only: "Äänitys" and "aanitys" meet. */
+const fold = (text) => String(text).normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+
+/**
+ * Rank `items` ({ id, title, text }) for `query`: every word must occur; a word
+ * in the title counts 3, at the start of a title word 1 more, in the text 1.
+ * Ties go by title. An empty query lists everything by title.
+ */
+function searchHelp(items, query) {
+  const words = fold(query).split(/\s+/).filter(Boolean);
+  const scored = [];
+  for (const item of items) {
+    const title = fold(item.title);
+    const text = fold(item.text ?? "");
+    let score = 0;
+    let all = true;
+    for (const word of words) {
+      const inTitle = title.includes(word);
+      const inText = text.includes(word);
+      if (!inTitle && !inText) {
+        all = false;
+        break;
+      }
+      score += (inTitle ? 3 : 0) + (inText ? 1 : 0);
+      if (new RegExp(`(^|\\s)${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(title)) score++;
+    }
+    if (all) scored.push({ item, score });
+  }
+  scored.sort((a, b) => b.score - a.score || a.item.title.localeCompare(b.item.title));
+  return scored.map((s) => s.item);
+}
+
+// -- loading -----------------------------------------------------------------------------------------
+
+/**
+ * A cached loader: load(id, lang) -> topic. A topic missing in `lang` falls back
+ * to English and says so (`fallback: true`), so a new topic can ship before its
+ * translation without a blank panel. `fetchText(path)` returns the file's text.
+ */
+function createTopicLoader(fetchText) {
+  const cache = new Map();
+  const read = (path) => {
+    if (!cache.has(path))
+      cache.set(
+        path,
+        Promise.resolve().then(() => fetchText(path)),
+      );
+    return cache.get(path);
+  };
+  return {
+    async index() {
+      return JSON.parse(await read("help/index.json")).topics;
+    },
+    async load(id, lang) {
+      try {
+        return { ...parseTopic(await read(`help/${lang}/${id}.md`)), lang, fallback: false };
+      } catch (error) {
+        if (lang === "en") throw error;
+        return { ...parseTopic(await read(`help/en/${id}.md`)), lang: "en", fallback: true };
+      }
+    },
+  };
+}
+// -- end of help.js --
+// -- help topics (copy) --
+const HELP_FILES = {
+ "en/timeline": "---\nid: timeline\ntitle: The timeline\napplies-to: [timeline]\ncommands: [transport.play, view.toggle, view.fit, view.zoom_in, view.zoom_out, view.back, panel.next, panel.home]\nrelated: [clip, track, bus]\n---\nEvery track is a lane, and time runs left to right. A click anywhere in the lanes moves the play cursor there. A click on a clip also selects it; Shift+click adds or removes a clip.\n\n## Listen\n- Play or stop: {key:transport.play}. Space always belongs to the timeline, whichever panel you are in.\n\n## Zoom and move\n- Close or wide view: {key:view.toggle} {show:view-toggle}\n- Zoom in or out: {key:view.zoom_in} or {key:view.zoom_out}\n- Fit the selection, or the whole edit: {key:view.fit}\n- Back to the view before: {key:view.back}\n\nDensity, waveform and follow settings are in the View menu. {show:view-menu}\n\n## Panels\n{key:panel.next} moves the keyboard to the next panel; {key:panel.home} brings it back here.\n\nSee also [[clip]] and [[track]].\n",
+ "en/clip": "---\nid: clip\ntitle: A clip\napplies-to: [clip]\ncommands: [edit.split, edit.delete, edit.cut, clip.mute, clip.fade, edit.undo]\nrelated: [timeline, track, transcript]\n---\nA clip is a stretch of one recording placed on a track. Several clips can come from the same recording; selecting one marks its siblings with a bracket.\n\n## Edit it\n- Split at the play cursor: {key:edit.split}\n- Delete: {key:edit.delete}. A soft cut: the audio goes quiet, the gap stays, and the Cuts list can restore it. The clipboard is untouched.\n- Cut: {key:edit.cut}. Copies to the clipboard and closes the gap on every track of the sync group.\n- Mute the clip: {key:clip.mute}. Muted clips are drawn faint and hatched.\n- Fade in and out: {key:clip.fade}\n\nEvery edit is one step back with {key:edit.undo}.\n\n## Look closer\nThe inspector shows the clip's level, sync and source. {show:inspector}\n\nSee also [[track]] and [[transcript]].\n",
+ "en/track": "---\nid: track\ntitle: A track\napplies-to: [track]\ncommands: [track.mute, track.solo, track.rename]\nrelated: [bus, clip, timeline]\n---\nA track holds the clips of one voice or one kind of sound. Its header, on the left of the lane, names it and shows its colour; the controls appear when the track is current or under the pointer. {show:track-headers}\n\n- Mute or solo: {key:track.mute} and {key:track.solo}, or the M and S buttons.\n- Rename: {key:track.rename}\n- Level and pan: the header's sliders, or the inspector.\n- Move the current track with the arrow keys up and down.\n\nThe coloured pill is the speaker; the rail on the far left, if there is one, is the track's [[bus|bus]].\n",
+ "en/bus": "---\nid: bus\ntitle: A bus\napplies-to: [bus]\ncommands: [bus.collapse, bus.expand, track.mute, track.solo]\nrelated: [track, timeline]\n---\nA bus groups tracks that are mixed together, such as all the voices or all the music. Its colour runs down the left edge of its tracks as a spine, and its letter badge (A, B …) appears wherever the bus is named.\n\n- Collapse the bus to one row: {key:bus.collapse}. A collapsed bus shows one thin ribbon per track, filled where that track has sound.\n- Expand it again: {key:bus.expand}\n- The bus's mute and solo act on every track in it; its fader sets the level of the whole group.\n\nA bus with only one track is merged into that track's header. To put a track on a bus, use the bus picker in its header or the inspector.\n\nSee also [[track]].\n",
+ "en/transcript": "---\nid: transcript\ntitle: The transcript\napplies-to: [transcript]\ncommands: [transport.play, edit.delete, edit.cut, panel.home]\nrelated: [clip, timeline]\n---\nThe transcript is the words of every speech track, in time order, with the speaker in the margin. It follows the play cursor, and the words being heard are underlined.\n\n- Select words with the mouse or with Shift and the arrow keys; the same stretch is selected on the timeline.\n- Delete the selected words: {key:edit.delete}. They are struck through and the gap stays.\n- Cut them: {key:edit.cut}. Before the cut, the transcript shows what else would go: words other speakers say in the same stretch.\n- {key:transport.play} still plays and stops; {key:panel.home} returns to the timeline.\n\nWords removed by a cut leave a small marker; the Cuts list can put them back. See also [[clip]].\n",
+ "en/history": "---\nid: history\ntitle: History\napplies-to: [history]\ncommands: [edit.undo, edit.redo, history.restore]\nrelated: [clip, timeline]\n---\nHistory lists every edit since the project was made, newest at the bottom, with the time it happened. A line marks where each working session began and ended.\n\n- Undo and redo: {key:edit.undo} and {key:edit.redo}\n- Go back to any earlier step: select it and press {key:history.restore}. Nothing is lost: the steps after it stay in the list and you can return to them.\n- Saved versions are pinned in the list.\n\nUndo never touches the clipboard. See also [[timeline]].\n",
+ "fi/timeline": "---\nid: timeline\ntitle: Aikajana\napplies-to: [timeline]\ncommands: [transport.play, view.toggle, view.fit, view.zoom_in, view.zoom_out, view.back, panel.next, panel.home]\nrelated: [clip, track, bus]\n---\nJokainen raita on oma kaistansa, ja aika kulkee vasemmalta oikealle. Napsautus missä tahansa kaistoilla siirtää toistokohdan siihen. Napsautus leikkeeseen myös valitsee sen; vaihto+napsautus lisää leikkeen valintaan tai poistaa sen.\n\n## Kuuntele\n- Toista tai pysäytä: {key:transport.play}. Välilyönti kuuluu aina aikajanalle, missä paneelissa oletkin.\n\n## Zoomaa ja liiku\n- Lähi- tai laajanäkymä: {key:view.toggle} {show:view-toggle}\n- Lähennä tai loitonna: {key:view.zoom_in} tai {key:view.zoom_out}\n- Sovita valinta tai koko versio: {key:view.fit}\n- Takaisin edelliseen näkymään: {key:view.back}\n\nTiheys, aaltomuoto ja seuranta ovat Näkymä-valikossa. {show:view-menu}\n\n## Paneelit\n{key:panel.next} siirtää näppäimistön seuraavaan paneeliin; {key:panel.home} tuo sen takaisin tänne.\n\nKatso myös [[clip]] ja [[track]].\n",
+ "fi/clip": "---\nid: clip\ntitle: Leike\napplies-to: [clip]\ncommands: [edit.split, edit.delete, edit.cut, clip.mute, clip.fade, edit.undo]\nrelated: [timeline, track, transcript]\n---\nLeike on pätkä yhdestä äänityksestä raidalla. Samasta äänityksestä voi olla monta leikettä; kun valitset yhden, sen sisarleikkeet merkitään hakasella.\n\n## Muokkaa\n- Jaa toistokohdasta: {key:edit.split}\n- Poista: {key:edit.delete}. Pehmeä leikkaus: ääni hiljenee, väli jää ja leikkauslistalta sen voi palauttaa. Leikepöytä ei muutu.\n- Leikkaa: {key:edit.cut}. Kopioi leikepöydälle ja sulkee välin tahdistusryhmän jokaiselta raidalta.\n- Mykistä leike: {key:clip.mute}. Mykistetty leike on haalea ja viivoitettu.\n- Häivytys sisään ja ulos: {key:clip.fade}\n\nJokaisen muokkauksen voi perua askel kerrallaan: {key:edit.undo}.\n\n## Katso tarkemmin\nTarkastimessa näkyvät leikkeen taso, tahdistus ja lähde. {show:inspector}\n\nKatso myös [[track]] ja [[transcript]].\n",
+ "fi/track": "---\nid: track\ntitle: Raita\napplies-to: [track]\ncommands: [track.mute, track.solo, track.rename]\nrelated: [bus, clip, timeline]\n---\nRaidalla ovat yhden äänen tai yhdenlaisen äänen leikkeet. Kaistan vasemmalla puolella oleva otsake nimeää raidan ja näyttää sen värin; säätimet tulevat esiin, kun raita on valittuna tai osoitin on sen päällä. {show:track-headers}\n\n- Mykistä tai soolaa: {key:track.mute} ja {key:track.solo}, tai M- ja S-painikkeet.\n- Nimeä uudelleen: {key:track.rename}\n- Taso ja panorointi: otsakkeen liukusäätimet tai tarkastin.\n- Valitse raita nuolinäppäimillä ylös ja alas.\n\nVärillinen tappi on puhuja; vasemman reunan kisko, jos sellainen on, on raidan [[bus|väylä]].\n",
+ "fi/bus": "---\nid: bus\ntitle: Väylä\napplies-to: [bus]\ncommands: [bus.collapse, bus.expand, track.mute, track.solo]\nrelated: [track, timeline]\n---\nVäylä kokoaa yhteen raidat, jotka miksataan yhdessä, esimerkiksi kaikki äänet tai kaikki musiikki. Sen väri kulkee raitojen vasemmassa reunassa selkärankana, ja sen kirjaintunnus (A, B …) näkyy kaikkialla, missä väylä mainitaan.\n\n- Pienennä väylä yhdeksi riviksi: {key:bus.collapse}. Pienennetyssä väylässä on jokaiselle raidalle ohut nauha, joka on täytetty siltä osin kuin raidalla on ääntä.\n- Laajenna takaisin: {key:bus.expand}\n- Väylän mykistys ja soolo koskevat kaikkia sen raitoja; sen liukusäädin asettaa koko ryhmän tason.\n\nVäylä, jossa on vain yksi raita, yhdistyy raidan otsakkeeseen. Raidan saa väylälle otsakkeen väylävalitsimesta tai tarkastimesta.\n\nKatso myös [[track]].\n",
+ "fi/transcript": "---\nid: transcript\ntitle: Litteraatti\napplies-to: [transcript]\ncommands: [transport.play, edit.delete, edit.cut, panel.home]\nrelated: [clip, timeline]\n---\nLitteraatti on kaikkien puheraitojen sanat aikajärjestyksessä, puhuja reunassa. Se seuraa toistokohtaa, ja kuultavat sanat on alleviivattu.\n\n- Valitse sanoja hiirellä tai vaihtonäppäimellä ja nuolilla; sama kohta valitaan myös aikajanalla.\n- Poista valitut sanat: {key:edit.delete}. Ne yliviivataan ja väli jää.\n- Leikkaa ne: {key:edit.cut}. Ennen leikkausta litteraatti näyttää, mitä muuta lähtisi: muiden puhujien sanat samalta kohdalta.\n- {key:transport.play} toistaa ja pysäyttää edelleen; {key:panel.home} palaa aikajanalle.\n\nLeikkauksen poistamista sanoista jää pieni merkki; leikkauslistalta ne saa takaisin. Katso myös [[clip]].\n",
+ "fi/history": "---\nid: history\ntitle: Historia\napplies-to: [history]\ncommands: [edit.undo, edit.redo, history.restore]\nrelated: [clip, timeline]\n---\nHistoriassa on jokainen muokkaus projektin alusta asti, uusin alimpana, tekoaikoineen. Viiva merkitsee, missä kukin työskentelykerta alkoi ja päättyi.\n\n- Kumoa ja tee uudelleen: {key:edit.undo} ja {key:edit.redo}\n- Palaa mihin tahansa aiempaan vaiheeseen: valitse se ja paina {key:history.restore}. Mitään ei menetetä: sen jälkeiset vaiheet jäävät listaan, ja niihin voi palata.\n- Tallennetut versiot on kiinnitetty listaan.\n\nKumoaminen ei koske leikepöytää. Katso myös [[timeline]].\n"
+};
+// -- end of help topics --
 
 const STR = {
   en: {

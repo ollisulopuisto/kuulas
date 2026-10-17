@@ -35,7 +35,7 @@
       </header>
       <aside class="heads">
         <div class="heads-spacer"></div>
-        <div id="track-headers" class="heads-scroll" data-i18n-aria-label="ui.focus.tracks"></div>
+        <div id="track-headers" data-help-id="track-headers" class="heads-scroll" data-i18n-aria-label="ui.focus.tracks"></div>
       </aside>
       <section class="tl-column" data-panel="timeline">
         <canvas id="overview" class="overview" data-i18n-aria-label="ui.overview.label" role="img"></canvas>
@@ -50,7 +50,9 @@
         <p class="hint" data-i18n="ui.panel.later"></p>
       </section>
       <aside class="sidebar">
-        <section id="panel-inspector" class="panel" data-panel="inspector" tabindex="0" data-i18n-aria-label="ui.focus.inspector"></section>
+        <!-- Help (F1 or ?): docked over the sidebar's panels while open; help-panel.js fills it. -->
+        <section id="panel-help" class="panel help-panel" data-panel="help" tabindex="-1" hidden></section>
+        <section id="panel-inspector" data-help-id="inspector" class="panel" data-panel="inspector" tabindex="0" data-i18n-aria-label="ui.focus.inspector"></section>
         <section id="panel-history" class="panel" data-panel="history" tabindex="0" data-i18n-aria-label="ui.focus.history">
           <h2 data-i18n="ui.focus.history"></h2>
           <p class="hint" data-i18n="ui.panel.later"></p>
@@ -58,7 +60,7 @@
       </aside>
       <footer class="statusbar" data-i18n-aria-label="ui.view.title">
         <span id="zoom-chip" class="zoom"></span>
-        <button id="view-toggle" type="button" class="button" data-i18n-title="ui.view.toggle" aria-keyshortcuts="Z"></button>
+        <button id="view-toggle" data-help-id="view-toggle" type="button" class="button" data-i18n-title="ui.view.toggle" aria-keyshortcuts="Z"></button>
         <span class="divider" aria-hidden="true"></span>
         <!-- At most three hints, for the focused panel (GUI-DESIGN.md "Density"). -->
         <span class="keyhints" aria-hidden="true">
@@ -67,7 +69,8 @@
           <span><kbd>F6</kbd><span data-i18n="ui.hint.panels"></span></span>
         </span>
         <span class="spacer"></span>
-        <button id="view-menu-button" type="button" class="button" popovertarget="view-menu" data-i18n="ui.view.menu"></button>
+        <button id="help-button" data-help-id="help-button" type="button" class="button" data-i18n="ui.help.title" aria-keyshortcuts="F1 Shift+?"></button>
+        <button id="view-menu-button" data-help-id="view-menu" type="button" class="button" popovertarget="view-menu" data-i18n="ui.view.menu"></button>
       </footer>
       <!-- Everything else about the view: one click away, not on screen at rest. -->
       <div id="view-menu" class="view-menu" popover data-i18n-aria-label="ui.view.menu">

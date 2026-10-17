@@ -6,6 +6,8 @@ import { createEditor } from "./edits.js";
 import { nextPanel } from "./focus.js";
 import { followScroll } from "./follow.js";
 import { frameToTime, RATE, xToFrame } from "./format.js";
+import { ACTION_COMMANDS, helpBindings, keymapTable } from "./help.js";
+import { createHelpPanel } from "./help-panel.js";
 import { formatNumber, formatShortcut, initI18n, onLanguageChange, t } from "./i18n.js";
 import { dragHasFiles, nativeBridge, summariseImport } from "./importing.js";
 import { createInspector } from "./inspector.js";
@@ -138,6 +140,8 @@ const actions = {
     focusPanel("timeline");
   },
   cyclePanel: (direction) => focusPanel(nextPanel(getState().panel, direction)),
+  // F1 / ?: help for what has focus (help.js HELP_COMMAND, bound by helpBindings).
+  openHelp: () => void help.open(),
   zoomStep(direction) {
     const state = getState();
     const levels = viewLevels();
@@ -275,6 +279,7 @@ for (const binding of coreBindings(actions)) keymap.bind(binding);
 // F2: rename the current track (or bus) in the inspector. Bound here, not in
 // keys.js; the keymap rewrite should take this binding over.
 keymap.bind({ code: "F2", run: () => inspector.focusName() });
+for (const binding of helpBindings(actions)) keymap.bind(binding);
 document.addEventListener("keydown", (event) => {
   if (!event.isComposing) keymap.handle(event);
 });
@@ -519,6 +524,51 @@ const trackHeaders = createTrackHeaders({
 });
 const inspector = createInspector({ root: $("panel-inspector"), editor });
 
+// -- help ---------------------------------------------------------------------------------------------
+
+// The keymap as data for help: what each command's keys are right now. When
+// the keymap rewrite (WP5) gives bindings their command ids, this becomes a
+// read of the registry; until then keymapTable learns them from the actions.
+const KEYMAP_ROWS = [
+  ...keymapTable(coreBindings),
+  ...keymapTable(helpBindings),
+  { command: "track.rename", shortcut: "F2" },
+];
+const COMMAND_RUNS = {
+  ...Object.fromEntries(
+    Object.entries(ACTION_COMMANDS).map(([call, id]) => {
+      const [name, arg] = call.split(":");
+      return [id, () => (arg === undefined ? actions[name]() : actions[name](Number(arg)))];
+    }),
+  ),
+  "track.rename": () => inspector.focusName(),
+};
+const help = createHelpPanel({
+  root: $("panel-help"),
+  keymap: () => KEYMAP_ROWS,
+  commands: () => Object.keys(COMMAND_RUNS),
+  runCommand: (id) => COMMAND_RUNS[id]?.(),
+  getContext() {
+    const state = getState();
+    const active = document.activeElement;
+    return {
+      control: active?.closest?.("[data-help-id]")?.dataset.helpId ?? null,
+      empty: !state.project?.tracks?.length,
+      panel: state.panel,
+      inHeaders: Boolean(active && $("track-headers").contains(active)),
+      selection: state.selection.size,
+      focusTrack: state.focusTrack,
+      focusBus: state.focusBus,
+    };
+  },
+  async fetchText(path) {
+    const response = await fetch(path);
+    if (!response.ok) throw new Error(`${path}: ${response.status}`);
+    return response.text();
+  },
+});
+$("help-button").addEventListener("click", () => void help.open());
+
 const timeline = createTimeline({
   stack: $("timeline-stack"),
   waveCanvas: $("wave"),
@@ -623,6 +673,7 @@ function render(state, patch) {
   if (touched("project", "focusTrack", "focusBus", "laneHeight", "busHeight", "groupGap"))
     trackHeaders.update(state);
   if (touched("project", "selection", "focusTrack", "focusBus")) inspector.update(state);
+  if (touched("selection", "focusTrack", "focusBus", "panel")) help.update();
   if (touched("project")) {
     const empty = $("empty");
     const hasClips = state.project?.tracks.some((track) => track.clips.length > 0);
