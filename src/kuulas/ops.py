@@ -271,7 +271,7 @@ def _cut(clip: Clip, at: int, right_id: str) -> tuple[Clip, Clip]:
     return left, right
 
 
-CLIP_FIELDS = {"gain_db", "pan", "fade_in", "fade_out", "muted"}
+CLIP_FIELDS = {"gain_db", "pan", "fade_in", "fade_out", "muted", "name"}
 
 
 def set_clip(p: Project, clip_id: str, **fields) -> Project:
@@ -284,6 +284,8 @@ def set_clip(p: Project, clip_id: str, **fields) -> Project:
     for name in ("fade_in", "fade_out"):
         if name in fields:
             fields[name] = max(0, min(clip.length, int(fields[name])))
+    if "name" in fields:
+        fields["name"] = str(fields["name"]).strip()[:200]
     return _replace_clip(p, replace(clip, **fields))
 
 
@@ -302,18 +304,13 @@ def set_track_extra(p: Project, track_id: str, key: str, value) -> Project:
     return _replace_track(p, replace(track, extra={**track.extra, key: value}))
 
 
-#: Fade on an open piece next to a muted one. A gate that snaps shut on
-#: room tone clicks; 30 ms is inaudible as a fade and the mask already
-#: holds the mic open past the last word (``masks.DUCK_HOLD``).
-MUTE_FADE_SEC = 0.030
-
-
 def mute_ranges(p: Project, track_id: str, ranges) -> Project:
     """Split a track's clips at each range's edges and mute what lies inside.
 
     The splits are of adjacent audio, so they get no crossfade; nothing
-    moves. This is how Auto-Silence lands: muted pieces stay visible and a
-    single unmute brings any of them back.
+    moves. Muted pieces stay visible and a single unmute brings any of them
+    back exactly: the 30 ms ramp on the open neighbours is derived by the
+    mixer (``mixer.MUTE_RAMP_SEC``), never stored.
     """
     track = _find_track(p, track_id)
     edges = sorted({int(x) for a, b in ranges for x in (a, b)})
@@ -331,21 +328,8 @@ def mute_ranges(p: Project, track_id: str, ranges) -> Project:
     def inside(c: Clip) -> bool:
         return any(a <= c.start and c.end <= b for a, b in spans)
 
-    fade = round(MUTE_FADE_SEC * p.rate)
     clips = _sorted(replace(c, muted=True) if inside(c) else c for c in clips)
-    muted_edges = {c.start for c in clips if c.muted} | {c.end for c in clips if c.muted}
-    out = []
-    for clip in clips:
-        edited = clip
-        if not clip.muted:
-            if clip.end in muted_edges:
-                edited = replace(
-                    edited, fade_out=max(clip.fade_out, min(fade, clip.length)))
-            if clip.start in muted_edges:
-                edited = replace(
-                    edited, fade_in=max(clip.fade_in, min(fade, clip.length)))
-        out.append(edited)
-    return _replace_track(p, replace(track, clips=tuple(out)))
+    return _replace_track(p, replace(track, clips=clips))
 
 
 # -- selections --------------------------------------------------------------

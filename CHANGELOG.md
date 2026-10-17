@@ -1,3 +1,32 @@
+## [v26.10.18.9] - 2026-10-18
+
+- Contextual help: F1 opens a docked help panel for whatever has focus (timeline, a
+  clip, a track, a bus, the transcript, history) with search over help topics and
+  commands, a "Show me" button that rings the control, and the keys it names read from
+  your own keymap (a remapped key shows as remapped). Help menu: "Help for this". `?`
+  still opens the shortcuts sheet. Six topics in English and Finnish; more can be added
+  as plain files. Welcome and tour screens exist as a sketch in the prototype only.
+- Muting and unmuting is now exact: the 30 ms smoothing at the edge of a muted stretch is
+  worked out while mixing instead of being written into the neighbouring clips, so
+  unmuting (or undoing a soft cut) restores the original sound with no dip. Old projects
+  that stored such fades sound as before.
+
+## [v26.10.18.8] - 2026-10-18
+
+- The editing keys work in the editor: B splits at the play cursor (Shift+B on all
+  tracks), Backspace or Delete is a soft cut (mutes the selection or the in-out range
+  in place, keeps the gap, one undo brings it back), X cuts and closes the gap (Shift+X
+  on this track only), N mutes, Shift+M mutes the track, Shift+S solos it, E turns group
+  editing on or off (an amber chip shows when it is off), Q and W trim to the play cursor,
+  Mod+Left/Right nudge by 10 ms, Mod+A selects all, Shift+Mod+Up/Down change clip gain in
+  0.5 dB steps. Each shows a toast with Undo. Copy, paste, fade at the cursor and the
+  lift-cut are not built yet.
+- Building blocks, not yet visible: clipboard entries and their history (what a copy
+  keeps, pinning, pruning, saving as text); the fast-listening speed state (1.5x default,
+  1.1 to 3.0 in steps of 0.1); a check that the English and Finnish texts agree
+  (`uv run python scripts/check_locale.py`).
+- Tests that failed now and then when the computer was busy are steadier.
+
 ## [v26.10.18.7] - 2026-10-18
 
 - Auto-Silence's closed stretches now show in the editor: a dim veil over the lane,

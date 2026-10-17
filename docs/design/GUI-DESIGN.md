@@ -1166,6 +1166,16 @@ prototype's "Cuts explained" and "Nested buses" screens:
     overrule.
 19. **Tags:** *Recommended: not now (25).*
 
+From contextual help and onboarding (18.10.2026; sections 26, 27):
+
+20. **Help keys:** decided with the keyboard layer: **F1** opens help (`help.open`),
+    "?" stays the keyboard cheat sheet (`help.keys`). F1 needs fn on Mac laptops, so
+    the status-bar Help button and Help ▸ Help for this exist too; a user can remap F1.
+21. **Follow what I select** on by default? *Recommended: yes.*
+22. **The sample project:** who records it (it must be ours to ship)?
+    *Recommended: a 3-minute scripted interview recorded for kuulas.*
+23. **Tips:** one per 10 minutes at most, after the action. *Recommended: yes.*
+
 ## 16. Density and progressive disclosure (owner, 18.10.2026)
 
 The first design was too dense even in its "comfortable" mode. Two densities
@@ -1573,3 +1583,188 @@ overlapping grouping of the same tracks with no visual channel left to show it
 without breaking "one channel, one meaning". If a need appears (for example
 "all phone guests" across interviews), it is better met by saved selections in
 the command palette, which select tracks without becoming a structure.
+
+## 26. Contextual help (owner, 18.10.2026; WP48, v1)
+
+Help knows where you are. **F1** (the command `help.open`, which works
+inside a text field too; or Help ▸ Help for this, or the status bar's Help
+button) opens the **help panel**: a tab docked in the
+sidebar beside the inspector and history, never a modal. The timeline keeps
+playing and editing; Space still plays (rule 1). Prototype screens: "Help:
+timeline (F1)", "Help: a clip", "Help: a track header + Show me", "Help:
+search topics and commands".
+
+Prior art checked: Rhino's F1 opens the topic for the running command, and its
+help panel can follow the active command. AppGini docks F1 help at the right
+of the window for the focused element. lin-codex (Laravel) keeps help as
+Markdown with front matter and one translation per language, falling back when
+one is missing. None of them can be embedded in a framework-free ES-module UI.
+kuulas takes the three ideas: F1 for the focused thing, a docked panel that
+can follow focus, and Markdown topics with front matter. It builds them in
+about 300 lines of tested code.
+
+### 26.1 Three layers of words, one source each
+
+| Layer | Where it shows | Source | Length |
+|---|---|---|---|
+| **Label** | menus, palette rows, buttons, first line of a tooltip | `command.<id>.label` in the locale files | 1–4 words |
+| **Hint** | second line of a tooltip, palette row subtitle, the menu's hint line (the hovered item's hint at the foot of an open menu), the status line while a control is hovered | `command.<id>.hint` | one sentence |
+| **Topic** | the help panel | `ui/help/<lang>/<id>.md` | 120–300 words |
+
+A tooltip is `Label  [key]` on line one, the hint on line two, and, when a
+topic applies to the control, a third line "F1 more help". The status line
+keeps its three key hints for the focused panel (section 16). The Help button
+sits at the right, before View.
+
+### 26.2 What F1 opens
+
+`help.js helpChain` lists what the user is looking at, most specific first.
+`topicFor` takes the first item that has a topic. The chain always ends in
+the timeline and then the index, so F1 never shows nothing.
+
+| Focus | Chain starts with | Topic (sample = written now) |
+|---|---|---|
+| a control with `data-help-id` | that id | the control's topic if one applies, else the next item |
+| command palette open | palette | "The command palette" (to write) |
+| an error toast or error state | error | the topic for the error (to write; topics may list `errors: [message keys]`) |
+| empty project | empty | "Starting a project" (to write) |
+| timeline, a clip selected | clip | **A clip** (sample) |
+| timeline, a bus row current | bus | **A bus** (sample) |
+| timeline, nothing selected | timeline | **The timeline** (sample) |
+| a track header | track (bus on a bus row) | **A track** / **A bus** (samples) |
+| inspector | inspector, then clip/bus/track | "The inspector" (to write), else the object's topic |
+| transcript | transcript | **The transcript** (sample) |
+| history | history | **History** (sample) |
+| candidates | candidates | "Cut candidates" (to write) |
+| a menu-bar item (F1 on it) | its command | the topic that lists that command under `commands`, else the index |
+| F1 again inside help | (index) | all topics, with the search field focused |
+
+**Panel behaviour:**
+- Focus moves to the topic title, and Esc closes the panel and returns focus to where it was.
+- **Follow what I select** (on by default): while the keyboard is outside help, the topic follows the selection and focus. While the keyboard is inside help, the topic stays put.
+- **Back** returns along the links followed.
+- An untranslated topic shows in English with the line "Not translated yet; shown in English."
+- In the app today the sidebar has no tabs yet, so the panel covers the sidebar's other panels while open (`.sidebar[data-help-open]`). With WP47's tabs it becomes the Help tab.
+
+### 26.3 Shortcuts are read from the keymap, so remaps show
+
+- `{key:edit.cut}` in a topic is filled at render time from the live keymap: the entries the user has now (`keymap-config.js resolveKeymap`: `keymap-default.js` with the user's overrides), the same data the cheat sheet, the palette and the menu bar read. `help.js shortcutsFor(command, entries)` is the whole lookup.
+- A remapped key therefore shows as remapped (tested).
+- A command's other shortcuts are shown with it, primary first: "B ⌘B", "= +". The names come from `keymap-config.js formatCombo`, as in the cheat sheet: ⌘ on a Mac, Ctrl elsewhere, Finnish key names in Finnish.
+- An unbound command reads "no shortcut yet". It never shows a guessed key.
+- **Modifier variants** (← 1 s, Shift+← 5 s, Alt+← 10 ms) are separate commands with their own entries, labels and keys, so help and the palette list each one and `{key:nav.back_far}` shows Shift+←. The menu bar shows the variant while its modifier is held (`modifiers.js`).
+
+### 26.4 Show me
+
+- `{show:control-id}` renders a "Show me" button. It rings the control carrying `data-help-id="control-id"`: a 3 px accent ring inside its edge, pulsing twice (`--motion` off: a still ring), gone after 2.4 s, scrolled into view.
+- Some controls are hidden at rest (track controls, section 16). For those, Show me will first reveal the control (make the track current, open the View menu) and then ring it. That step is planned; today it rings the container.
+- A test checks that every `{show:}` target exists in `ui/index.html`.
+
+### 26.5 Search and the index
+
+- The search field searches topics and commands together. Topics are ranked by title (×3), word start (+1) and body (×1), accent-insensitive.
+- Commands show their label, keys, hint and a Run button. The help index is therefore also a command list: F1 opens help, and F1 again searches. "?" is the keyboard cheat sheet itself.
+- Later (WP5 palette): the command palette also returns topics as "Help: The timeline".
+
+### 26.6 Help content is data
+
+Topics are written so that a cheaper model can add them later: one file per
+topic per language.
+
+```
+ui/help/index.json          {"topics": ["timeline", "clip", ...]}
+ui/help/en/clip.md          English source
+ui/help/fi/clip.md          Finnish, same id and structure
+```
+
+| Front matter | Meaning |
+|---|---|
+| `id` | the file name, stable; links use it |
+| `title` | the panel title and link text |
+| `applies-to` | focus targets (`help.js HELP_TARGETS`): timeline, clip, track, bus, transcript, history, candidates, inspector, palette, empty, error, index |
+| `commands` | every command the body mentions (the registry ids) |
+| `related` | topic ids for "see also" |
+
+| Body mark | Renders |
+|---|---|
+| `## Heading`, `- item`, blank-line paragraphs, `**bold**`, `` `code` `` | that, and nothing more |
+| `{key:command.id}` | the command's current shortcut(s) |
+| `{run:command.id}` | a button labelled with the command's label that runs it |
+| `{show:control-id}` | Show me |
+| `[[topic]]`, `[[topic\|own words]]` | a link |
+
+Rules for writers:
+- Use the second person and the present tense.
+- Explain what the thing is, how to use it, and how to undo it.
+- Never type a key by hand: use `{key:}`.
+- List every command you mention under `commands`.
+- Write the Finnish as Finnish, with the same structure, not a word-for-word copy.
+- Escape nothing: the renderer escapes all text, so a topic cannot inject markup.
+
+### 26.7 No drift
+
+The tests in `ui/tests/help.test.js` enforce all of these:
+- Every ready (registered, not planned) command that has a default key has a label (`cmd.<id>`) and a hint (`cmd.<id>.hint`) in en and fi, and the registry hands out that hint key.
+- Every command a topic names is in the registry and has a label and a hint in en and fi.
+- No topic names a key by hand: keys come from `{key:}` (a modifier held while clicking is a mouse gesture and is fine).
+- `help.open` is in the registry (always available), on F1 in the text-field context, in the Help menu, and so in the palette and the cheat sheet without further work.
+- Every topic exists in both languages.
+- en and fi carry the same targets, commands, links and Show me controls.
+- Every link resolves.
+- Every Show me control exists on screen.
+- The help panel's own strings exist in both catalogs.
+
+In addition, `tokens.test.js` checks that the prototype embeds the real `help.js`, the topics and the catalog strings.
+
+**The registry contract (met by `commands.js`, `keymap-default.js`):**
+- A command is a registry id with `can(state)` and `hintKey`; its keys are an entry in `keymap-default.js` (`labelKey` is `cmd.<id>`), with the user's overrides merged by `resolveKeymap`.
+- Help reads only those two: the registry for what exists and what it is called, the entries for its keys. It keeps no table of its own.
+- A ready command with no label or hint fails the build.
+
+### 26.8 Built now, and not yet
+
+**Built:**
+- `ui/help.js` (pure, tested).
+- `ui/help-panel.js` (panel shell: topic, Back, search over topics and commands, Show me, Follow, Esc).
+- `help.open` in the registry and on F1 (`keymap-default.js`, text-field context); Help ▸ Help for this; F1 on a focused menu item opens that command's topic.
+- The Help button, which shows the key help has now.
+- `data-help-id` on the view toggle, the View menu, the track headers and the inspector.
+- Six sample topics in en and fi: timeline, clip, track, bus, transcript, history.
+- Command labels and hints for every bound or documented command.
+
+**Not yet:**
+- Show me revealing hidden controls.
+- Tooltips built from label + hint (they still use `title`).
+- The menu hint line (needs WP15's menus).
+- Palette search of topics.
+- Error-state topics.
+- The topics marked "to write" above.
+
+On Mac laptops F1 needs the fn key. That is why the Help button and Help ▸ Help for this exist.
+
+## 27. Onboarding (sketch; after v1)
+
+Prototype screen "Welcome (onboarding sketch)". Design only. It reuses the
+help panel, topics-as-data and Show me.
+
+1. **First-run welcome.** The only modal in kuulas, and it has a way out on every line:
+   - "Open the sample project" (primary): a 3-minute interview with two voices and a music bed, shipped with the app and free to cut;
+   - "Start an empty project";
+   - "Import audio…";
+   - a ticked box "Show me around (2 minutes)".
+2. **The tour: real edits, skippable, replayable.**
+   - Five steps on the sample: play, select words in the transcript, cut with X, undo, export.
+   - Each step is a coach mark anchored to a `data-help-id`. It names the key through `{key:}`, waits for the user's own action (key, mouse or "Do it for me"), and makes one real, undoable edit.
+   - "Skip the tour" ends it on any step.
+   - "Start the tour" in the Help menu and the palette replays it on a fresh copy of the sample.
+3. **Tips, once, on first use.**
+   - A small card after the first use of a feature (first cut: "X closed the gap on all 3 tracks. To keep the gap, Backspace deletes in place.").
+   - Shown after the action, never before it and never during playback. At most one every 10 minutes, anchored to what was used.
+   - "No more tips" turns them off; Help ▸ Reset tips brings them back.
+4. **Core-loop checklist.**
+   - Import, listen, cut, undo, export. It ticks itself from real events.
+   - It sits at the top of the Help tab until done or hidden, and each line has Show me.
+
+**Data:**
+- Tour steps and tips are Markdown with front matter, like topics, in `ui/help/tour/` and `ui/help/tips/`: `id`, `trigger` (event), `anchor` (data-help-id), `expect` (command id), and the text in en and fi.
+- What has been seen is stored in the user settings (WP35), on this computer only.

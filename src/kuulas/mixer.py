@@ -26,11 +26,17 @@ from . import curves
 from .model import Clip, Project, Track
 
 #: Ramp at each edge of a gated range, derived here and never stored. The
-#: same 30 ms ``ops.MUTE_FADE_SEC`` gave the open piece beside a muted one:
+#: same 30 ms ``MUTE_RAMP_SEC`` gives the open piece beside a muted one:
 #: a gate that snaps shut on room tone clicks, and 30 ms is inaudible as a
 #: fade. The ramp lies in the open stretch, so the gated frames themselves
 #: are exact silence.
 GATE_RAMP_SEC = 0.030
+
+#: Ramp on the edge of an open clip that touches a muted piece of contiguous
+#: source on the same track (what ``mute_ranges`` leaves). Derived here from
+#: the neighbour and never stored, so unmuting restores the audio exactly.
+#: It lies inside the open piece; the muted frames stay exact silence.
+MUTE_RAMP_SEC = 0.030
 
 
 class Store(Protocol):
@@ -88,8 +94,28 @@ def _gate_gain(gate: tuple[tuple[int, int], ...], first: int, count: int,
     return g
 
 
+def _mute_ramps(track: Track, rate: int) -> dict[str, tuple[int, int]]:
+    """Derived ``{clip id: (ramp_in, ramp_out)}`` for open clips whose edge
+    touches a muted piece of the same media with contiguous source."""
+    after = {(c.media, c.start, c.offset) for c in track.clips if c.muted}
+    before = {(c.media, c.end, c.offset + c.length) for c in track.clips if c.muted}
+    if not after and not before:
+        return {}
+    ramp = max(1, round(MUTE_RAMP_SEC * rate))
+    out = {}
+    for c in track.clips:
+        if c.muted:
+            continue
+        r_in = min(ramp, c.length) if (c.media, c.start, c.offset) in before else 0
+        r_out = (min(ramp, c.length)
+                 if (c.media, c.end, c.offset + c.length) in after else 0)
+        if r_in or r_out:
+            out[c.id] = (r_in, r_out)
+    return out
+
+
 def _clip_signal(clip: Clip, store: Store, first: int, count: int,
-                 ) -> tuple[int, int, np.ndarray] | None:
+                 ramps: tuple[int, int] = (0, 0)) -> tuple[int, int, np.ndarray] | None:
     """The clip's own sound over ``[first, first+count)``: ``(lo, hi, audio)``
     with ``audio`` ``(channels, hi-lo)`` float64 after clip gain, envelope and
     fades, in the source's channels and before pan. None when it is silent there."""
@@ -106,20 +132,25 @@ def _clip_signal(clip: Clip, store: Store, first: int, count: int,
     env = curves.db_curve(clip.envelope, src, n)
     if env is not None:
         g *= curves.gain(env)
+    # A stored fade and a derived mute ramp share the edge: the longer wins,
+    # so projects that stored the old 30 ms fade render as before.
+    fade_in = max(clip.fade_in, ramps[0])
+    fade_out = max(clip.fade_out, ramps[1])
     if clip.xfade_in:
         g *= _ramp(t, clip.heard_start, clip.xfade_in)
-    elif clip.fade_in and lo < clip.start + clip.fade_in:
-        g *= _ramp(t, clip.start, clip.fade_in)
+    elif fade_in and lo < clip.start + fade_in:
+        g *= _ramp(t, clip.start, fade_in)
     if clip.xfade_out:
         g *= _ramp(-t, -clip.heard_end, clip.xfade_out)
-    elif clip.fade_out and hi > clip.end - clip.fade_out:
+    elif fade_out and hi > clip.end - fade_out:
         # The last frame of the clip is end-1: it plays at gain 0 only past it.
-        g *= _ramp(-t, -(clip.end - 1), clip.fade_out)
+        g *= _ramp(-t, -(clip.end - 1), fade_out)
     return lo, hi, audio * g
 
 
-def _clip_into(out: np.ndarray, clip: Clip, store: Store, first: int, count: int) -> None:
-    signal = _clip_signal(clip, store, first, count)
+def _clip_into(out: np.ndarray, clip: Clip, store: Store, first: int, count: int,
+               ramps: tuple[int, int] = (0, 0)) -> None:
+    signal = _clip_signal(clip, store, first, count, ramps)
     if signal is None:
         return
     lo, hi, audio = signal
@@ -149,8 +180,9 @@ def _track(track: Track, store: Store, first: int, count: int,
     if not clips:
         return None
     buf = np.zeros((2, count), dtype=np.float64)
+    ramps = _mute_ramps(track, rate)
     for clip in clips:
-        _clip_into(buf, clip, store, first, count)
+        _clip_into(buf, clip, store, first, count, ramps.get(clip.id, (0, 0)))
     gate = _gate_gain(track.gate, first, count, rate)
     if gate is not None:
         buf *= gate
@@ -199,10 +231,11 @@ def track_stem(track: Track, store: Store, first: int, count: int, channels: int
     never applied. Solo and mute are the caller's business.
     """
     buf = np.zeros((channels, count), dtype=np.float64)
+    ramps = _mute_ramps(track, rate)
     for clip in track.clips:
         if clip.muted:
             continue
-        signal = _clip_signal(clip, store, first, count)
+        signal = _clip_signal(clip, store, first, count, ramps.get(clip.id, (0, 0)))
         if signal is None:
             continue
         lo, hi, audio = signal

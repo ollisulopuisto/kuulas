@@ -94,6 +94,7 @@ class Clip:
     fade_in: int = 0
     fade_out: int = 0
     muted: bool = False
+    name: str = ""
     envelope: tuple[Point, ...] = ()
     # Crossfades at a join of non-adjacent audio, centred on the edge: the
     # clip plays ``xfade/2`` frames of its source beyond the edge, so the
@@ -105,7 +106,10 @@ class Clip:
     extra: dict = field(default_factory=dict, hash=False)
 
     def to_dict(self) -> dict:
-        return _out(self, envelope=[list(pt) for pt in self.envelope])
+        d = _out(self, envelope=[list(pt) for pt in self.envelope])
+        if not self.name:
+            del d["name"]
+        return d
 
     @classmethod
     def from_dict(cls, d: dict) -> Clip:

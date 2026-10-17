@@ -81,6 +81,7 @@ export function createMenubar({ root, getMenus, run, onHint, t }) {
           button.append(kbd);
         }
         button.dataset.hint = item.tooltip;
+        button.dataset.command = item.id; // F1 opens help for it (help-panel.js)
       }
       li.append(button);
       if (item.kind === "submenu" && at.subOpen && at.item === index)
@@ -206,6 +207,7 @@ export function createMenubar({ root, getMenus, run, onHint, t }) {
       } else close(true);
     } else if (key === "Tab") {
       close(false);
+
     }
   });
 
@@ -243,6 +245,11 @@ export function createMenubar({ root, getMenus, run, onHint, t }) {
   root.addEventListener("focusin", (event) =>
     reportHint(event.target.closest?.("button[data-pos]")),
   );
+  // Focus moved elsewhere (help opened from an item, say): the menu steps aside.
+  root.addEventListener("focusout", (event) => {
+    const to = event.relatedTarget;
+    if (at.open && to && !root.contains(to)) close(false);
+  });
   document.addEventListener("pointerdown", (event) => {
     if (at.open && !root.contains(event.target)) close(false);
   });
