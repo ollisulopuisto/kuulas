@@ -288,15 +288,18 @@ class Session:
         if format not in ("rows", "json", "csv", "html"):
             raise music_report_module.MusicReportError("error.music_report.bad_format",
                                                        format=format)
+        # The state is immutable, so a snapshot is enough: the speech analysis
+        # behind the report can take seconds, and must not block edits.
         with self.lock:
-            rows = music_report_module.build_report(self.history.state, self.store)
-            if format == "rows":
-                return rows
-            if format == "json":
-                return [asdict(r) for r in rows]
-            if format == "csv":
-                return music_report_module.render_csv(rows)
-            return music_report_module.render_html(rows, title=title)
+            state = self.history.state
+        rows = music_report_module.build_report(state, self.store)
+        if format == "rows":
+            return rows
+        if format == "json":
+            return [asdict(r) for r in rows]
+        if format == "csv":
+            return music_report_module.render_csv(rows)
+        return music_report_module.render_html(rows, title=title)
 
     # -- import ------------------------------------------------------------
 

@@ -1,7 +1,10 @@
+import threading
+
 import numpy as np
 import pytest
 
 from kuulas import messages
+from kuulas import music_report as module
 from kuulas.model import Clip, Media, Project, Track
 from kuulas.music_report import (
     MusicReportError,
@@ -356,3 +359,30 @@ def test_session_music_report_formats(tmp_path):
         assert exc_info.value.key == "error.music_report.bad_format"
     finally:
         s.close()
+
+
+def test_building_the_report_does_not_hold_the_session_lock(tmp_path, monkeypatch):
+    # The report runs speech analysis, which can take seconds on a long
+    # project. It must not block edits meanwhile (ground rule 14), so the
+    # session lock must be free while the report is being built.
+    s = Session(tmp_path / "Proj.kuulas")
+    free = []
+
+    def build_and_probe(project, store):
+        def try_lock():
+            got = s.lock.acquire(timeout=1.0)
+            if got:
+                s.lock.release()
+            free.append(got)
+
+        other = threading.Thread(target=try_lock)
+        other.start()
+        other.join()
+        return ()
+
+    monkeypatch.setattr(module, "build_report", build_and_probe)
+    try:
+        s.music_report(format="csv")
+    finally:
+        s.close()
+    assert free == [True]
