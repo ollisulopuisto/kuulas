@@ -14,14 +14,15 @@ import { moveItem, moveMenu } from "./menu-model.js";
 export function createMenubar({ root, getMenus, run, onHint, t }) {
   // open: whether a menu is dropped down; top: which; item/sub: positions inside it.
   const at = { open: false, top: 0, item: -1, subOpen: false, sub: -1 };
-  let hadFocus = false;
+  let wantFocus = false; // one-shot: focus the current item after the next render
 
   root.setAttribute("role", "menubar");
   root.setAttribute("aria-label", t("menu.bar"));
 
   function render() {
     const menus = getMenus();
-    hadFocus = hadFocus || root.contains(document.activeElement);
+    const focusAfter = wantFocus || root.contains(document.activeElement);
+    wantFocus = false;
     root.replaceChildren();
     menus.forEach((menu, index) => {
       const cell = document.createElement("div");
@@ -39,7 +40,7 @@ export function createMenubar({ root, getMenus, run, onHint, t }) {
       if (at.open && at.top === index) cell.append(list(menu.items, false));
       root.append(cell);
     });
-    if (hadFocus) focusCurrent();
+    if (focusAfter) focusCurrent();
   }
 
   function list(items, isSub) {
@@ -112,12 +113,10 @@ export function createMenubar({ root, getMenus, run, onHint, t }) {
     at.item = -1;
     at.subOpen = false;
     at.sub = -1;
-    hadFocus = returnFocus;
+    wantFocus = returnFocus;
+    if (!returnFocus && root.contains(document.activeElement)) document.activeElement.blur();
     render();
-    if (!returnFocus) {
-      hadFocus = false;
-      onHint?.(null);
-    }
+    if (!returnFocus) onHint?.(null);
   }
 
   function openMenu(index, { first = false } = {}) {
@@ -126,7 +125,7 @@ export function createMenubar({ root, getMenus, run, onHint, t }) {
     at.subOpen = false;
     at.sub = -1;
     at.item = first ? moveItem(currentItems(getMenus()), -1, 1) : -1;
-    hadFocus = true;
+    wantFocus = true;
     render();
   }
 
@@ -171,7 +170,7 @@ export function createMenubar({ root, getMenus, run, onHint, t }) {
         if (at.open) openMenu(next, { first: true });
         else {
           at.top = next;
-          hadFocus = true;
+          wantFocus = true;
           render();
         }
       }
