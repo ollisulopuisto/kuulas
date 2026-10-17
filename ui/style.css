@@ -669,6 +669,10 @@ input.has-ab {
   flex: 1;
   min-height: 0;
 }
+/* The inspector now carries Track, Bus and clip sections: most of the height. */
+.sidebar .panel[data-panel="inspector"] {
+  flex: 3;
+}
 .panel h2 {
   position: sticky;
   top: 0;
