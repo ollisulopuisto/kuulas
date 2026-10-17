@@ -60,7 +60,7 @@ import numpy as np
 import soundfile as sf
 from speechmix.binaries import get_binary_path
 
-from . import caches, levels
+from . import caches, levels, onsets
 from . import db as dbm
 from . import peaks as peak_pyramid
 from .clock import RateError, check_rate, frames_to_flicks
@@ -1319,6 +1319,11 @@ class MediaStore:
 
         spill = caches.path(self.cache_root, "analysis", key, "npy")
         return self.budget.fetch("levels", key, measure, spill=spill)
+
+    def onsets(self, media_id: str) -> np.ndarray | None:
+        """Transient onsets of the file in flicks, measured once and kept in
+        ``caches/onsets/``. None when the file cannot be read or keyed."""
+        return onsets.onsets_for_media(self, media_id)
 
 
 def _peaks(chunk: np.ndarray) -> np.ndarray:
