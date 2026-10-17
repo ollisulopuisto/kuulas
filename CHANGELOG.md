@@ -1,3 +1,16 @@
+## [v26.10.17.4] - 2026-10-17
+
+- Tracks now have a kind (speech, speech-mix, music) and a speaker. Tracks of
+  the same speaker count as one voice, and a recording of everyone (Zoom or
+  phone) counts as "someone is talking" without being ducked itself.
+- "Duck music" lowers every music track under speech with the music-bed curve,
+  as ordinary track automation you can edit.
+- Transient onsets (for the Tab key) are measured once per file in 60 s
+  pieces and cached; no whole file is held in memory.
+- The History list can be read in pages, and long histories stay fast
+  (tested at thousands of steps).
+- Music report: a speaker with one muted track no longer loses the others.
+
 ## [v26.10.17.3] - 2026-10-17
 
 - A manual transcription test (`uv run --extra transcribe pytest -q

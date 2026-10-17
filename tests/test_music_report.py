@@ -1,5 +1,4 @@
 import threading
-
 from dataclasses import replace
 
 import numpy as np

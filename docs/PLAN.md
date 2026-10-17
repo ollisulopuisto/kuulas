@@ -1453,7 +1453,7 @@ Tests first (`tests/test_markers.py`):
 
 ### WP19 — Borrowed from other editors
 
-Status: open. Each part is its own small WP (19a–19i), commit each separately.
+Status: open. 19i onset detection (backend) done in v26.10.17.4. Each part is its own small WP (19a–19i), commit each separately.
 Needs WP1, WP4, WP5. Every key below goes into `ui/keymap.js`, and the
 keymap collision test (WP5) must still pass.
 
@@ -1796,7 +1796,7 @@ Tests first (`tests/test_edits.py`):
 
 ### WP22 — Track tags and ducking (what speechmix needs from the editor)
 
-Status: open. Needs WP1, WP4. Small; do it early (right after WP4).
+Status: backend done in v26.10.17.4 (track kinds, speakers, `duck_music` command); the UI for tagging tracks waits for WP4. Needs WP1, WP4.
 
 The editor only has to say **what each track is**. Everything else speechmix
 decides. `Track.kind` gets three values, chosen in the track header with a
@@ -2606,7 +2606,7 @@ with different content is never used.
 
 ### WP40 — Long history stays fast
 
-Status: open. Needs WP29, WP8. Sonnet 5.5.
+Status: first step done in v26.10.17.4 (paged history, scale tests); the History panel waits for WP4. Needs WP29, WP8. Sonnet 5.5.
 
 Owner, 2026-10-16: disk space is not a worry; performance is. Keep every
 step forever, and make history length irrelevant to speed:
