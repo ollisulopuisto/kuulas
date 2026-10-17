@@ -1168,8 +1168,9 @@ prototype's "Cuts explained" and "Nested buses" screens:
 
 From contextual help and onboarding (18.10.2026; sections 26, 27):
 
-20. **Help keys:** F1 and "?" both (F1 needs fn on Mac laptops)?
-    *Recommended: both; "?" also opens the key list, which is the help index.*
+20. **Help keys:** decided with the keyboard layer: **F1** opens help (`help.open`),
+    "?" stays the keyboard cheat sheet (`help.keys`). F1 needs fn on Mac laptops, so
+    the status-bar Help button and Help ▸ Help for this exist too; a user can remap F1.
 21. **Follow what I select** on by default? *Recommended: yes.*
 22. **The sample project:** who records it (it must be ours to ship)?
     *Recommended: a 3-minute scripted interview recorded for kuulas.*
@@ -1585,8 +1586,9 @@ the command palette, which select tracks without becoming a structure.
 
 ## 26. Contextual help (owner, 18.10.2026; WP48, v1)
 
-Help knows where you are. **F1** (or **?** outside a text field, or the
-status bar's Help button) opens the **help panel**: a tab docked in the
+Help knows where you are. **F1** (the command `help.open`, which works
+inside a text field too; or Help ▸ Help for this, or the status bar's Help
+button) opens the **help panel**: a tab docked in the
 sidebar beside the inspector and history, never a modal. The timeline keeps
 playing and editing; Space still plays (rule 1). Prototype screens: "Help:
 timeline (F1)", "Help: a clip", "Help: a track header + Show me", "Help:
@@ -1634,6 +1636,7 @@ the timeline and then the index, so F1 never shows nothing.
 | transcript | transcript | **The transcript** (sample) |
 | history | history | **History** (sample) |
 | candidates | candidates | "Cut candidates" (to write) |
+| a menu-bar item (F1 on it) | its command | the topic that lists that command under `commands`, else the index |
 | F1 again inside help | (index) | all topics, with the search field focused |
 
 **Panel behaviour:**
@@ -1645,11 +1648,11 @@ the timeline and then the index, so F1 never shows nothing.
 
 ### 26.3 Shortcuts are read from the keymap, so remaps show
 
-- `{key:edit.cut}` in a topic is filled at render time from the live keymap. Today `keymapTable` learns each binding's command by running it against a recorder. After WP5 it reads the command registry instead.
+- `{key:edit.cut}` in a topic is filled at render time from the live keymap: the entries the user has now (`keymap-config.js resolveKeymap`: `keymap-default.js` with the user's overrides), the same data the cheat sheet, the palette and the menu bar read. `help.js shortcutsFor(command, entries)` is the whole lookup.
 - A remapped key therefore shows as remapped (tested).
-- A command's other shortcuts are shown with it, primary first: "B ⌘B", "= +". The names come from `i18n.formatShortcut`: ⌘ on a Mac, Ctrl elsewhere, Finnish key names in Finnish.
+- A command's other shortcuts are shown with it, primary first: "B ⌘B", "= +". The names come from `keymap-config.js formatCombo`, as in the cheat sheet: ⌘ on a Mac, Ctrl elsewhere, Finnish key names in Finnish.
 - An unbound command reads "no shortcut yet". It never shows a guessed key.
-- **Modifier variants** (← 1 s, Shift+← 5 s, Alt+← 10 ms) are separate commands with their own labels, so help and the palette list each one. Menus show the variant while its modifier is held (ROADMAP).
+- **Modifier variants** (← 1 s, Shift+← 5 s, Alt+← 10 ms) are separate commands with their own entries, labels and keys, so help and the palette list each one and `{key:nav.back_far}` shows Shift+←. The menu bar shows the variant while its modifier is held (`modifiers.js`).
 
 ### 26.4 Show me
 
@@ -1660,7 +1663,7 @@ the timeline and then the index, so F1 never shows nothing.
 ### 26.5 Search and the index
 
 - The search field searches topics and commands together. Topics are ranked by title (×3), word start (+1) and body (×1), accent-insensitive.
-- Commands show their label, keys, hint and a Run button. The help index is therefore also the keyboard cheat sheet: "?" opens help, and "?" again searches.
+- Commands show their label, keys, hint and a Run button. The help index is therefore also a command list: F1 opens help, and F1 again searches. "?" is the keyboard cheat sheet itself.
 - Later (WP5 palette): the command palette also returns topics as "Help: The timeline".
 
 ### 26.6 Help content is data
@@ -1701,9 +1704,10 @@ Rules for writers:
 ### 26.7 No drift
 
 The tests in `ui/tests/help.test.js` enforce all of these:
-- Every bound key maps to a command id.
-- Every bound command has a label and a hint in en and fi.
-- Every command a topic names has a label and a hint in en and fi.
+- Every ready (registered, not planned) command that has a default key has a label (`cmd.<id>`) and a hint (`cmd.<id>.hint`) in en and fi, and the registry hands out that hint key.
+- Every command a topic names is in the registry and has a label and a hint in en and fi.
+- No topic names a key by hand: keys come from `{key:}` (a modifier held while clicking is a mouse gesture and is fine).
+- `help.open` is in the registry (always available), on F1 in the text-field context, in the Help menu, and so in the palette and the cheat sheet without further work.
 - Every topic exists in both languages.
 - en and fi carry the same targets, commands, links and Show me controls.
 - Every link resolves.
@@ -1712,18 +1716,18 @@ The tests in `ui/tests/help.test.js` enforce all of these:
 
 In addition, `tokens.test.js` checks that the prototype embeds the real `help.js`, the topics and the catalog strings.
 
-**Contract for WP5's registry:**
-- Each entry is `{id, labelKey, hintKey, keys, when, run}`.
-- The drift test then reads the registry instead of `keymapTable`, and `ACTION_COMMANDS` goes away.
-- A registered command with no label or hint fails the build.
+**The registry contract (met by `commands.js`, `keymap-default.js`):**
+- A command is a registry id with `can(state)` and `hintKey`; its keys are an entry in `keymap-default.js` (`labelKey` is `cmd.<id>`), with the user's overrides merged by `resolveKeymap`.
+- Help reads only those two: the registry for what exists and what it is called, the entries for its keys. It keeps no table of its own.
+- A ready command with no label or hint fails the build.
 
 ### 26.8 Built now, and not yet
 
 **Built:**
 - `ui/help.js` (pure, tested).
 - `ui/help-panel.js` (panel shell: topic, Back, search over topics and commands, Show me, Follow, Esc).
-- `helpBindings` (F1 also inside a text field, ? outside one), bound from app.js. keys.js is unchanged.
-- The Help button.
+- `help.open` in the registry and on F1 (`keymap-default.js`, text-field context); Help ▸ Help for this; F1 on a focused menu item opens that command's topic.
+- The Help button, which shows the key help has now.
 - `data-help-id` on the view toggle, the View menu, the track headers and the inspector.
 - Six sample topics in en and fi: timeline, clip, track, bus, transcript, history.
 - Command labels and hints for every bound or documented command.
@@ -1736,9 +1740,7 @@ In addition, `tokens.test.js` checks that the prototype embeds the real `help.js
 - Error-state topics.
 - The topics marked "to write" above.
 
-**Found while building:** the Undo and Redo buttons say `aria-keyshortcuts="Meta+Z …"`, but nothing binds Mod+Z yet. Help reports "no shortcut yet" there, which is correct.
-
-On Mac laptops F1 needs the fn key. That is why "?" and the Help button exist, and the Help menu will too.
+On Mac laptops F1 needs the fn key. That is why the Help button and Help ▸ Help for this exist.
 
 ## 27. Onboarding (sketch; after v1)
 

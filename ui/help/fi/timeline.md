@@ -2,7 +2,7 @@
 id: timeline
 title: Aikajana
 applies-to: [timeline]
-commands: [transport.play, view.toggle, view.fit, view.zoom_in, view.zoom_out, view.back, panel.next, panel.home]
+commands: [transport.play, view.toggle, view.fit, view.zoom_in, view.zoom_out, view.back, panel.next, nav.home]
 related: [clip, track, bus]
 ---
 Jokainen raita on oma kaistansa, ja aika kulkee vasemmalta oikealle. Napsautus missä tahansa kaistoilla siirtää toistokohdan siihen. Napsautus leikkeeseen myös valitsee sen; vaihto+napsautus lisää leikkeen valintaan tai poistaa sen.
@@ -19,6 +19,6 @@ Jokainen raita on oma kaistansa, ja aika kulkee vasemmalta oikealle. Napsautus m
 Tiheys, aaltomuoto ja seuranta ovat Näkymä-valikossa. {show:view-menu}
 
 ## Paneelit
-{key:panel.next} siirtää näppäimistön seuraavaan paneeliin; {key:panel.home} tuo sen takaisin tänne.
+{key:panel.next} siirtää näppäimistön seuraavaan paneeliin; {key:nav.home} tuo sen takaisin tänne.
 
 Katso myös [[clip]] ja [[track]].

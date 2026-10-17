@@ -10,7 +10,7 @@
 // `renderHelpBody`, which fills in the live shortcuts, so a remapped key shows
 // as remapped. GUI-DESIGN.md "Contextual help" has the whole design.
 
-/** The command that opens help. The keymap binds it (helpBindings). */
+/** The command that opens help (F1 in keymap-default.js; "?" is the cheat sheet, help.keys). */
 export const HELP_COMMAND = "help.open";
 
 /** What help can be about. A topic's `applies-to` names one or more of these. */
@@ -104,104 +104,31 @@ export function topicFor(chain, topics) {
 
 // -- shortcuts from the keymap ---------------------------------------------------------------------
 
-// Printable keys tried against `match` bindings (zoom's "=" and "+").
-const PROBE_KEYS = ["=", "+", "-", "?", "/", ".", ","];
-
-function keyFromCode(code) {
-  if (/^Key[A-Z]$/.test(code)) return code.slice(3);
-  if (/^Digit\d$/.test(code)) return code.slice(5);
-  return code;
-}
-
 /**
- * The shortcuts a keys.js binding answers to, as "Mod+Alt+Shift+Z" strings
- * (i18n.formatShortcut turns them into ⌥⇧⌘Z or Ctrl+Alt+Shift+Z). A `match`
- * binding is probed with printable keys; it may answer to more than one.
+ * The shortcuts of one command, primary first, as the keymap data has them
+ * ("Shift+Z", ["=", "+"]). `entries` is the keymap the user has right now
+ * (keymap-config.js resolveKeymap: the defaults with their overrides), the same
+ * data the cheat sheet, the palette and the menu bar read, so a remapped key
+ * shows as remapped and a modifier alternate shows its own key. An unbound
+ * command gives [].
  */
-export function bindingShortcuts(binding) {
-  const mods = [binding.mod && "Mod", binding.alt && "Alt", binding.shift && "Shift"].filter(
-    Boolean,
-  );
-  let keys = [];
-  if (binding.code) keys = [keyFromCode(binding.code)];
-  else if (binding.key !== undefined) keys = [binding.key];
-  else if (binding.match) {
-    keys = PROBE_KEYS.filter((key) =>
-      binding.match({
-        key,
-        code: "",
-        shiftKey: Boolean(binding.shift),
-        altKey: Boolean(binding.alt),
-        ctrlKey: false,
-        metaKey: Boolean(binding.mod),
-      }),
-    );
-  }
-  // A probed key is named as it prints ("?", "+"): the Shift that makes it is not named twice.
-  const named = binding.match ? mods.filter((m) => m !== "Shift") : mods;
-  return keys.map((key) => [...named, key].join("+"));
-}
-
-/** Which command an action call is: "togglePlay" or "cyclePanel:1" -> a command id. */
-export const ACTION_COMMANDS = {
-  togglePlay: "transport.play",
-  goHome: "panel.home",
-  "cyclePanel:1": "panel.next",
-  "cyclePanel:-1": "panel.previous",
-  toggleView: "view.toggle",
-  fitView: "view.fit",
-  viewBack: "view.back",
-  viewForward: "view.forward",
-  "zoomStep:1": "view.zoom_in",
-  "zoomStep:-1": "view.zoom_out",
-  openHelp: HELP_COMMAND,
-};
-
-/**
- * The keymap as data: [{ command, shortcut }], one row per shortcut, in binding
- * order (so the first row of a command is its primary key). `makeBindings` is
- * keys.js coreBindings or helpBindings: each binding is run against a recorder
- * to learn which action it calls. A binding whose action has no command id
- * gives command null, which the drift test refuses.
- */
-export function keymapTable(makeBindings, actionCommands = ACTION_COMMANDS) {
-  const calls = [];
-  const recorder = new Proxy(
-    {},
-    {
-      get:
-        (_target, name) =>
-        (...args) => {
-          calls.push(args.length ? `${String(name)}:${args[0]}` : String(name));
-        },
-    },
-  );
-  const rows = [];
-  for (const binding of makeBindings(recorder)) {
-    calls.length = 0;
-    binding.run({ preventDefault() {} });
-    const command = actionCommands[calls[0]] ?? actionCommands[calls[0]?.split(":")[0]] ?? null;
-    for (const shortcut of bindingShortcuts(binding))
-      rows.push({ command, shortcut, call: calls[0] });
-  }
-  return rows;
-}
-
-/** The shortcuts of one command, primary first: ["Shift+Z"] or ["=", "+"]. */
-export function shortcutsFor(command, table) {
-  return [...new Set(table.filter((row) => row.command === command).map((row) => row.shortcut))];
-}
-
-/** The help keys: F1 everywhere (also in a text field), "?" when not typing. */
-export function helpBindings(actions) {
+export function shortcutsFor(command, entries) {
   return [
-    { code: "F1", inText: true, run: () => actions.openHelp() },
-    { match: (event) => event.key === "?", shift: true, run: () => actions.openHelp() },
+    ...new Set(entries.filter((entry) => entry.id === command).flatMap((entry) => entry.raw)),
   ];
 }
 
+/** The first topic (any order) that lists `command` under `commands`; else null. */
+export function topicForCommand(command, topics) {
+  if (!command) return null;
+  return topics.find((topic) => topic.commands.includes(command)) ?? null;
+}
+
+/** The catalog key of a command's name, as keymap-default.js labelKey has it. */
+export const commandLabelKey = (id) => `cmd.${id}`;
+
 /** Message keys a command needs: a label (menus, palette) and a one-line hint. */
-export const commandKeys = (id) => [`command.${id}.label`, `command.${id}.hint`];
+export const commandKeys = (id) => [commandLabelKey(id), `cmd.${id}.hint`];
 
 /** Commands that lack a label or hint in any catalog: [{ id, lang, key }]. Empty = no drift. */
 export function missingCommandText(ids, catalogs) {
@@ -251,7 +178,7 @@ function inline(text, ctx) {
       );
     } else if (m[1] === "run") {
       parts.push(
-        `<button type="button" class="button small help-run" data-run="${m[2]}">${escapeHtml(ctx.t(`command.${m[2]}.label`))}</button>`,
+        `<button type="button" class="button small help-run" data-run="${m[2]}">${escapeHtml(ctx.t(commandLabelKey(m[2])))}</button>`,
       );
     } else {
       parts.push(
@@ -271,7 +198,7 @@ function plain(text) {
 
 /**
  * A topic body (a small Markdown subset: "## " headings, "- " lists, paragraphs)
- * as HTML. `ctx`: { t(key), shortcuts(command) -> ["Shift+Z"], format(shortcut)
+ * as HTML. `ctx`: { t(key), shortcuts(command) -> ["Shift+Z"], format(combo)
  * -> "⇧Z", title(topicId) }. All text is escaped; nothing in a topic can inject markup.
  */
 export function renderHelpBody(body, ctx) {
@@ -302,16 +229,6 @@ export function renderHelpBody(body, ctx) {
   }
   flush();
   return out.join("\n");
-}
-
-/**
- * formatShortcut for help: also names a bare "+" key ("Mod++" -> "⌘+"), which
- * a split on "+" would lose. `format` is i18n.formatShortcut.
- */
-export function formatHelpKey(shortcut, format) {
-  if (shortcut === "+") return "+";
-  if (shortcut.endsWith("++")) return `${format(`${shortcut.slice(0, -2)}+X`).slice(0, -1)}+`;
-  return format(shortcut);
 }
 
 /** Every {key:}/{run:} command, {show:} control and [[link]] a body refers to. */

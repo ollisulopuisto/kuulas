@@ -4,25 +4,33 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { registerAppCommands } from "../app-commands.js";
+import { cheatSheetData } from "../cheatsheet.js";
+import { createRegistry } from "../commands.js";
+import { registerEditCommands } from "../edit-commands.js";
+import { PANELS } from "../focus.js";
 import {
-  bindingShortcuts,
+  commandLabelKey,
   createTopicLoader,
   fold,
-  formatHelpKey,
   HELP_COMMAND,
   HELP_TARGETS,
-  helpBindings,
   helpChain,
-  keymapTable,
+  INLINE_MARKS,
   missingCommandText,
   parseTopic,
   renderHelpBody,
   searchHelp,
   shortcutsFor,
   topicFor,
+  topicForCommand,
   topicRefs,
 } from "../help.js";
-import { coreBindings } from "../keys.js";
+import { formatCombo, resolveKeymap } from "../keymap-config.js";
+import { DEFAULT_KEYMAP } from "../keymap-default.js";
+import { MENU, menuTargets } from "../menu-model.js";
+import { paletteRows } from "../palette.js";
+import { CONTEXT_OF_PANEL } from "../shell-keys.js";
 
 const at = (path) => fileURLToPath(new URL(path, import.meta.url));
 const catalog = (lang) =>
@@ -36,12 +44,29 @@ const TOPICS = Object.fromEntries(
     INDEX.map((id) => parseTopic(readFileSync(topicFile(lang, id), "utf8"))),
   ]),
 );
-// The keymap the app binds today: keys.js core bindings plus the help keys.
-const KEYMAP = [
-  ...keymapTable(coreBindings),
-  ...keymapTable(helpBindings),
-  { command: "track.rename", shortcut: "F2" },
-];
+// The keymap the app has: the default data, and the registry the app builds.
+const PLATFORM = "other";
+const entriesWith = (overrides = {}) => resolveKeymap(DEFAULT_KEYMAP, overrides, PLATFORM);
+const KEYMAP = entriesWith();
+const stub = new Proxy({}, { get: () => () => {} });
+const REGISTRY = createRegistry();
+registerAppCommands(REGISTRY, { actions: stub, app: stub });
+registerEditCommands(REGISTRY, { app: stub, t: (key) => key, formatSeconds: String });
+REGISTRY.planMissing(DEFAULT_KEYMAP.map((entry) => entry.id));
+const READY = REGISTRY.ids().filter((id) => REGISTRY.status(id) === "ready");
+
+describe("the keyboard focus model", () => {
+  test("every keyboard panel, and the help panel, gives a keymap context", () => {
+    for (const panel of PANELS) assert.ok(CONTEXT_OF_PANEL[panel], panel);
+    // Help is docked in the sidebar: the timeline's letters and arrows must not fire in it.
+    assert.equal(CONTEXT_OF_PANEL.help, "side");
+  });
+
+  test("F1 works in every context, so inside the help panel too", () => {
+    const entry = DEFAULT_KEYMAP.find((e) => e.id === HELP_COMMAND);
+    assert.ok(["global", "text-field"].includes(entry.context));
+  });
+});
 
 describe("parseTopic", () => {
   test("reads front matter lists and the body", () => {
@@ -103,46 +128,102 @@ describe("helpChain: what help is about", () => {
   });
 });
 
-describe("shortcuts come from the keymap, so remaps show", () => {
-  test("bindings become shortcut strings", () => {
-    assert.deepEqual(bindingShortcuts({ code: "KeyZ", shift: true }), ["Shift+Z"]);
-    assert.deepEqual(bindingShortcuts({ code: "KeyX", mod: true, alt: true }), ["Mod+Alt+X"]);
-    assert.deepEqual(bindingShortcuts({ code: "Space" }), ["Space"]);
-  });
-
-  test("a match binding is probed; the printed key needs no Shift in its name", () => {
+describe("shortcuts come from the keymap data, so remaps show", () => {
+  test("a command's keys are its entry's keys, primary first", () => {
     assert.deepEqual(shortcutsFor("view.zoom_in", KEYMAP), ["=", "+"]);
-    assert.deepEqual(shortcutsFor(HELP_COMMAND, KEYMAP), ["F1", "?"]);
+    assert.deepEqual(shortcutsFor("view.fit", KEYMAP), ["Shift+Z"]);
+    assert.deepEqual(shortcutsFor("help.keys", KEYMAP), ["?"]);
+    assert.deepEqual(shortcutsFor("nope", KEYMAP), []);
   });
 
-  test("a remapped key shows as remapped", () => {
-    const remapped = keymapTable((actions) => [
-      { code: "KeyV", alt: true, run: () => actions.toggleView() },
+  test("help opens on F1 and F1 is not '?', which stays the cheat sheet", () => {
+    assert.equal(HELP_COMMAND, "help.open");
+    assert.deepEqual(shortcutsFor(HELP_COMMAND, KEYMAP), ["F1"]);
+    assert.ok(!shortcutsFor(HELP_COMMAND, KEYMAP).includes("?"));
+    assert.equal(DEFAULT_KEYMAP.find((e) => e.id === HELP_COMMAND).context, "text-field");
+  });
+
+  test("a remapped key shows as remapped, a freed one as no key", () => {
+    assert.deepEqual(shortcutsFor("view.toggle", entriesWith({ "view.toggle": "Alt+V" })), [
+      "Alt+V",
     ]);
-    assert.deepEqual(shortcutsFor("view.toggle", remapped), ["Alt+V"]);
+    assert.deepEqual(shortcutsFor(HELP_COMMAND, entriesWith({ [HELP_COMMAND]: "F3" })), ["F3"]);
+    assert.deepEqual(shortcutsFor(HELP_COMMAND, entriesWith({ [HELP_COMMAND]: null })), []);
   });
 
-  test("drift: every bound key has a command id", () => {
-    const unknown = KEYMAP.filter((row) => !row.command);
-    assert.deepEqual(unknown, [], "add the action to ACTION_COMMANDS in help.js");
+  test("modifier alternates are their own commands with their own keys", () => {
+    assert.deepEqual(shortcutsFor("nav.back", KEYMAP), ["ArrowLeft"]);
+    assert.deepEqual(shortcutsFor("nav.back_far", KEYMAP), ["Shift+ArrowLeft"]);
+    assert.deepEqual(shortcutsFor("nav.back_fine", KEYMAP), ["Alt+ArrowLeft"]);
+    assert.deepEqual(shortcutsFor("view.back", KEYMAP), ["Alt+Z"]);
   });
 
-  test("drift: every bound command has a label and a hint in English and Finnish", () => {
-    const ids = [...new Set(KEYMAP.map((row) => row.command))];
+  test("help formats keys like the cheat sheet does", () => {
+    const sheet = cheatSheetData({
+      entries: KEYMAP,
+      registry: REGISTRY,
+      label: (key) => key,
+      format: formatCombo,
+      platform: PLATFORM,
+    });
+    const row = sheet.flatMap((group) => group.rows).find((r) => r.id === HELP_COMMAND);
+    assert.deepEqual(
+      row?.keys,
+      shortcutsFor(HELP_COMMAND, KEYMAP).map((k) => formatCombo(k, PLATFORM)),
+    );
+    assert.ok(row?.keys.length);
+  });
+
+  test("help.open is in the registry, always available, and in the palette and the menu", () => {
+    assert.equal(REGISTRY.status(HELP_COMMAND), "ready");
+    assert.equal(REGISTRY.can(HELP_COMMAND, {}), true);
+    assert.equal(REGISTRY.can(HELP_COMMAND, undefined), true);
+    const rows = paletteRows({
+      entries: KEYMAP,
+      registry: REGISTRY,
+      state: {},
+      query: "",
+      label: (key) => key,
+      format: formatCombo,
+      platform: PLATFORM,
+    });
+    assert.ok(rows.some((row) => row.id === HELP_COMMAND));
+    const ids = menuTargets(MENU);
+    assert.ok(ids.includes(HELP_COMMAND));
+    assert.ok(ids.includes("help.keys"), "Keyboard shortcuts stays");
+  });
+
+  test("a command's label key follows the keymap data", () => {
+    for (const entry of DEFAULT_KEYMAP) assert.equal(entry.labelKey, commandLabelKey(entry.id));
+  });
+
+  test("drift: every ready command that is bound has a label and a hint in en and fi", () => {
+    const bound = DEFAULT_KEYMAP.map((e) => e.id);
+    const ids = READY.filter((id) => bound.includes(id));
+    assert.ok(ids.length > 40);
     assert.deepEqual(missingCommandText(ids, CATALOGS), []);
+    for (const id of ids) assert.equal(REGISTRY.hintKey(id), `cmd.${id}.hint`, id);
   });
 
   test("missingCommandText names what is missing", () => {
-    assert.deepEqual(missingCommandText(["x.y"], { en: { "command.x.y.label": "X" } }), [
-      { id: "x.y", lang: "en", key: "command.x.y.hint" },
+    assert.deepEqual(missingCommandText(["x.y"], { en: { "cmd.x.y": "X" } }), [
+      { id: "x.y", lang: "en", key: "cmd.x.y.hint" },
     ]);
+  });
+
+  test("topicForCommand: the first topic that lists the command, else null", () => {
+    assert.equal(topicForCommand("edit.split", TOPICS.en)?.id, "clip");
+    assert.equal(topicForCommand("track.rename", TOPICS.en)?.id, undefined);
+    assert.equal(topicForCommand("rename", TOPICS.en)?.id, "track");
+    assert.equal(topicForCommand("help.keys", TOPICS.en), null);
+    assert.equal(topicForCommand(null, TOPICS.en), null);
   });
 });
 
 const ctx = {
   t: (key) => ({ "ui.help.show_me": "Show me", "ui.help.no_key": "no key" })[key] ?? key,
   shortcuts: (command) => shortcutsFor(command, KEYMAP),
-  format: (shortcut) => shortcut.replace("Shift+", "⇧"),
+  format: (shortcut) => formatCombo(shortcut, "mac"),
   title: (id) => `T:${id}`,
 };
 
@@ -160,15 +241,14 @@ describe("renderHelpBody", () => {
   });
 
   test("a bare + key keeps its name", () => {
-    const format = (s) => s.replace("Mod+", "⌘");
-    assert.equal(formatHelpKey("+", format), "+");
-    assert.equal(formatHelpKey("Mod++", format), "⌘+");
-    assert.equal(formatHelpKey("Mod+Z", format), "⌘Z");
+    assert.equal(formatCombo("+", "mac"), "+");
+    assert.equal(formatCombo("Mod++", "mac"), "⌘+");
   });
 
   test("keys are the live shortcuts, formatted; an unbound command says so", () => {
     assert.match(renderHelpBody("{key:view.fit}", ctx), /<kbd>⇧Z<\/kbd>/);
-    assert.match(renderHelpBody("{key:edit.split}", ctx), /no key/);
+    assert.match(renderHelpBody("{key:edit.cut_track}", ctx), /<kbd>/);
+    assert.match(renderHelpBody("{key:no.such}", ctx), /no key/);
   });
 
   test("links, Show me and Run", () => {
@@ -176,7 +256,7 @@ describe("renderHelpBody", () => {
     assert.match(html, /data-topic="clip">T:clip<\/a>/);
     assert.match(html, /data-topic="bus">väylä<\/a>/);
     assert.match(html, /data-show="view-menu">Show me</);
-    assert.match(html, /data-run="view.fit">command.view.fit.label</);
+    assert.match(html, /data-run="view.fit">cmd.view.fit</);
   });
 
   test("nothing in a topic can inject markup", () => {
@@ -228,7 +308,7 @@ describe("the topic files", () => {
     }
   });
 
-  test("every command a topic names has a label and a hint in both languages", () => {
+  test("every command a topic names is in the registry, with a label and a hint in both languages", () => {
     const ids = new Set();
     for (const topic of TOPICS.en) {
       for (const id of topic.commands) ids.add(id);
@@ -237,7 +317,19 @@ describe("the topic files", () => {
         assert.ok(topic.commands.includes(id), `${topic.id}: list ${id} under commands`);
       }
     }
+    for (const id of ids) assert.ok(REGISTRY.has(id), `${id} is not a registered command`);
     assert.deepEqual(missingCommandText([...ids], CATALOGS), []);
+  });
+
+  test("no topic names a key by hand: keys come from {key:}", () => {
+    const handTyped =
+      /\b(F\d{1,2}|Esc|Escape|Ctrl|Cmd|Command|Option|Shift|Alt|Backspace|Return|Enter)\b|[⌘⌥⇧⌃]|<kbd>/;
+    for (const lang of ["en", "fi"])
+      for (const topic of TOPICS[lang]) {
+        // A modifier held while clicking is a mouse gesture, not a key of the keymap.
+        const prose = topic.body.replace(INLINE_MARKS, "").replace(/\w+\+(click|napsautus)/gi, "");
+        assert.doesNotMatch(prose, handTyped, `${lang}/${topic.id}`);
+      }
   });
 
   test("the help panel's own words exist in both catalogs", () => {

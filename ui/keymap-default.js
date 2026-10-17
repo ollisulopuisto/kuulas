@@ -550,6 +550,12 @@ export const DEFAULT_KEYMAP = [
     context: "text-field",
     labelKey: "cmd.palette.open",
   },
+  {
+    id: "help.open",
+    keys: { mac: "F1", other: "F1" },
+    context: "text-field",
+    labelKey: "cmd.help.open",
+  },
   { id: "help.keys", keys: { mac: "?", other: "?" }, context: "global", labelKey: "cmd.help.keys" },
   {
     id: "keymap.import",

@@ -3,15 +3,16 @@
 // shortcuts, "Show me" highlights and runnable commands, and a search over all
 // topics and commands. The content is data: ui/help/<lang>/<id>.md.
 import {
+  commandLabelKey,
   createTopicLoader,
-  formatHelpKey,
   helpChain,
   renderHelpBody,
   searchHelp,
   shortcutsFor,
   topicFor,
+  topicForCommand,
 } from "./help.js";
-import { formatShortcut, getLanguage, onLanguageChange, t } from "./i18n.js";
+import { getLanguage, onLanguageChange, t } from "./i18n.js";
 
 const HIGHLIGHT_MS = 2400;
 // The panel's frame; every word in it is set from the catalog by chrome().
@@ -28,11 +29,23 @@ const SHELL = `
     <label class="help-follow hint"><input type="checkbox" checked /> <span></span></label>`;
 
 /**
- * root: the empty <section> in the sidebar. getContext() -> helpChain's context.
- * keymap() -> [{ command, shortcut }] (help.js keymapTable). commands() -> ids
- * the palette knows. runCommand(id) runs one. fetchText(path) reads a help file.
+ * root: the empty <section> in the sidebar. getContext() -> helpChain's context,
+ * plus `command` (a command id) when the keyboard is on a menu item: F1 there
+ * opens the topic that lists the command, else the index.
+ * keymap() -> the keymap entries the user has now (shell-keys.js entries()), the
+ * data the cheat sheet and menus read; format(combo) writes a key as they do.
+ * commands() -> ids to search and run. runCommand(id) runs one. fetchText(path)
+ * reads a help file.
  */
-export function createHelpPanel({ root, getContext, keymap, commands, runCommand, fetchText }) {
+export function createHelpPanel({
+  root,
+  getContext,
+  keymap,
+  format,
+  commands,
+  runCommand,
+  fetchText,
+}) {
   const doc = root.ownerDocument;
   const loader = createTopicLoader(fetchText);
   let topics = [];
@@ -58,7 +71,7 @@ export function createHelpPanel({ root, getContext, keymap, commands, runCommand
   const ctx = () => ({
     t,
     shortcuts: (command) => shortcutsFor(command, keymap()),
-    format: (shortcut) => formatHelpKey(shortcut, formatShortcut),
+    format,
     title: (id) => topics.find((topic) => topic.id === id)?.title ?? id,
   });
 
@@ -93,9 +106,9 @@ export function createHelpPanel({ root, getContext, keymap, commands, runCommand
       ? searchHelp(
           commands().map((id) => ({
             id,
-            title: t(`command.${id}.label`),
+            title: t(commandLabelKey(id)),
             // The id's words too: "zoom" finds Lähennä in Finnish.
-            text: `${t(`command.${id}.hint`)} ${id.replace(/[._]/g, " ")}`,
+            text: `${t(`cmd.${id}.hint`)} ${id.replace(/[._]/g, " ")}`,
           })),
           query,
         )
@@ -113,13 +126,12 @@ export function createHelpPanel({ root, getContext, keymap, commands, runCommand
       a.textContent = ctx().title(a.dataset.topic);
     for (const li of body.querySelectorAll(".help-command")) {
       const id = li.querySelector("[data-run]").dataset.run;
-      li.querySelector("[data-run]").textContent = t(`command.${id}.label`);
-      li.querySelector(".hint").textContent = t(`command.${id}.hint`);
-      li.querySelector(".keys").innerHTML = shortcutsFor(id, keymap())
-        .map(() => "<kbd></kbd>")
-        .join(" ");
+      li.querySelector("[data-run]").textContent = t(commandLabelKey(id));
+      li.querySelector(".hint").textContent = t(`cmd.${id}.hint`);
+      const keys = shortcutsFor(id, keymap());
+      li.querySelector(".keys").innerHTML = keys.map(() => "<kbd></kbd>").join(" ");
       li.querySelectorAll("kbd").forEach((kbd, i) => {
-        kbd.textContent = formatHelpKey(shortcutsFor(id, keymap())[i], formatShortcut);
+        kbd.textContent = format(keys[i]);
       });
     }
     const empty = body.querySelector(".help-empty");
@@ -193,7 +205,16 @@ export function createHelpPanel({ root, getContext, keymap, commands, runCommand
       return;
     }
     trail = [];
-    const topic = topicFor(helpChain(getContext()), topics);
+    const context = getContext();
+    // On a menu item: its command's topic, else the index (not the panel behind the menu).
+    if (context.command) {
+      const own = topicForCommand(context.command, topics);
+      if (own) showTopic(own);
+      else showIndex();
+      q(".help-title").focus();
+      return;
+    }
+    const topic = topicFor(helpChain(context), topics);
     if (topic) showTopic(topic);
     else showIndex();
     q(".help-title").focus();
@@ -202,7 +223,7 @@ export function createHelpPanel({ root, getContext, keymap, commands, runCommand
   function close() {
     root.hidden = true;
     root.closest(".sidebar")?.toggleAttribute("data-help-open", false);
-    returnFocus?.focus?.();
+    if (returnFocus?.isConnected) returnFocus.focus();
     returnFocus = null;
   }
 

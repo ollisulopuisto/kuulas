@@ -1134,6 +1134,8 @@ input[type="text"] {
   .help-highlight {
     animation: none;
   }
+}
+
 /* -- keyboard layer: menu bar, command palette, keyboard sheet ---------------------
    FIRST CUT for the designer to review: behaviour is settled, the look is not.
    Nothing here animates, so reduced motion needs no special case. */

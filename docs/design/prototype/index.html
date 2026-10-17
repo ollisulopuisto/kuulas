@@ -2660,7 +2660,7 @@ function bindToggle(input, { key, fallback, read, write, marker }) {
 // `renderHelpBody`, which fills in the live shortcuts, so a remapped key shows
 // as remapped. GUI-DESIGN.md "Contextual help" has the whole design.
 
-/** The command that opens help. The keymap binds it (helpBindings). */
+/** The command that opens help (F1 in keymap-default.js; "?" is the cheat sheet, help.keys). */
 const HELP_COMMAND = "help.open";
 
 /** What help can be about. A topic's `applies-to` names one or more of these. */
@@ -2754,104 +2754,31 @@ function topicFor(chain, topics) {
 
 // -- shortcuts from the keymap ---------------------------------------------------------------------
 
-// Printable keys tried against `match` bindings (zoom's "=" and "+").
-const PROBE_KEYS = ["=", "+", "-", "?", "/", ".", ","];
-
-function keyFromCode(code) {
-  if (/^Key[A-Z]$/.test(code)) return code.slice(3);
-  if (/^Digit\d$/.test(code)) return code.slice(5);
-  return code;
-}
-
 /**
- * The shortcuts a keys.js binding answers to, as "Mod+Alt+Shift+Z" strings
- * (i18n.formatShortcut turns them into ⌥⇧⌘Z or Ctrl+Alt+Shift+Z). A `match`
- * binding is probed with printable keys; it may answer to more than one.
+ * The shortcuts of one command, primary first, as the keymap data has them
+ * ("Shift+Z", ["=", "+"]). `entries` is the keymap the user has right now
+ * (keymap-config.js resolveKeymap: the defaults with their overrides), the same
+ * data the cheat sheet, the palette and the menu bar read, so a remapped key
+ * shows as remapped and a modifier alternate shows its own key. An unbound
+ * command gives [].
  */
-function bindingShortcuts(binding) {
-  const mods = [binding.mod && "Mod", binding.alt && "Alt", binding.shift && "Shift"].filter(
-    Boolean,
-  );
-  let keys = [];
-  if (binding.code) keys = [keyFromCode(binding.code)];
-  else if (binding.key !== undefined) keys = [binding.key];
-  else if (binding.match) {
-    keys = PROBE_KEYS.filter((key) =>
-      binding.match({
-        key,
-        code: "",
-        shiftKey: Boolean(binding.shift),
-        altKey: Boolean(binding.alt),
-        ctrlKey: false,
-        metaKey: Boolean(binding.mod),
-      }),
-    );
-  }
-  // A probed key is named as it prints ("?", "+"): the Shift that makes it is not named twice.
-  const named = binding.match ? mods.filter((m) => m !== "Shift") : mods;
-  return keys.map((key) => [...named, key].join("+"));
-}
-
-/** Which command an action call is: "togglePlay" or "cyclePanel:1" -> a command id. */
-const ACTION_COMMANDS = {
-  togglePlay: "transport.play",
-  goHome: "panel.home",
-  "cyclePanel:1": "panel.next",
-  "cyclePanel:-1": "panel.previous",
-  toggleView: "view.toggle",
-  fitView: "view.fit",
-  viewBack: "view.back",
-  viewForward: "view.forward",
-  "zoomStep:1": "view.zoom_in",
-  "zoomStep:-1": "view.zoom_out",
-  openHelp: HELP_COMMAND,
-};
-
-/**
- * The keymap as data: [{ command, shortcut }], one row per shortcut, in binding
- * order (so the first row of a command is its primary key). `makeBindings` is
- * keys.js coreBindings or helpBindings: each binding is run against a recorder
- * to learn which action it calls. A binding whose action has no command id
- * gives command null, which the drift test refuses.
- */
-function keymapTable(makeBindings, actionCommands = ACTION_COMMANDS) {
-  const calls = [];
-  const recorder = new Proxy(
-    {},
-    {
-      get:
-        (_target, name) =>
-        (...args) => {
-          calls.push(args.length ? `${String(name)}:${args[0]}` : String(name));
-        },
-    },
-  );
-  const rows = [];
-  for (const binding of makeBindings(recorder)) {
-    calls.length = 0;
-    binding.run({ preventDefault() {} });
-    const command = actionCommands[calls[0]] ?? actionCommands[calls[0]?.split(":")[0]] ?? null;
-    for (const shortcut of bindingShortcuts(binding))
-      rows.push({ command, shortcut, call: calls[0] });
-  }
-  return rows;
-}
-
-/** The shortcuts of one command, primary first: ["Shift+Z"] or ["=", "+"]. */
-function shortcutsFor(command, table) {
-  return [...new Set(table.filter((row) => row.command === command).map((row) => row.shortcut))];
-}
-
-/** The help keys: F1 everywhere (also in a text field), "?" when not typing. */
-function helpBindings(actions) {
+function shortcutsFor(command, entries) {
   return [
-    { code: "F1", inText: true, run: () => actions.openHelp() },
-    { match: (event) => event.key === "?", shift: true, run: () => actions.openHelp() },
+    ...new Set(entries.filter((entry) => entry.id === command).flatMap((entry) => entry.raw)),
   ];
 }
 
+/** The first topic (any order) that lists `command` under `commands`; else null. */
+function topicForCommand(command, topics) {
+  if (!command) return null;
+  return topics.find((topic) => topic.commands.includes(command)) ?? null;
+}
+
+/** The catalog key of a command's name, as keymap-default.js labelKey has it. */
+const commandLabelKey = (id) => `cmd.${id}`;
+
 /** Message keys a command needs: a label (menus, palette) and a one-line hint. */
-const commandKeys = (id) => [`command.${id}.label`, `command.${id}.hint`];
+const commandKeys = (id) => [commandLabelKey(id), `cmd.${id}.hint`];
 
 /** Commands that lack a label or hint in any catalog: [{ id, lang, key }]. Empty = no drift. */
 function missingCommandText(ids, catalogs) {
@@ -2901,7 +2828,7 @@ function inline(text, ctx) {
       );
     } else if (m[1] === "run") {
       parts.push(
-        `<button type="button" class="button small help-run" data-run="${m[2]}">${escapeHtml(ctx.t(`command.${m[2]}.label`))}</button>`,
+        `<button type="button" class="button small help-run" data-run="${m[2]}">${escapeHtml(ctx.t(commandLabelKey(m[2])))}</button>`,
       );
     } else {
       parts.push(
@@ -2921,7 +2848,7 @@ function plain(text) {
 
 /**
  * A topic body (a small Markdown subset: "## " headings, "- " lists, paragraphs)
- * as HTML. `ctx`: { t(key), shortcuts(command) -> ["Shift+Z"], format(shortcut)
+ * as HTML. `ctx`: { t(key), shortcuts(command) -> ["Shift+Z"], format(combo)
  * -> "⇧Z", title(topicId) }. All text is escaped; nothing in a topic can inject markup.
  */
 function renderHelpBody(body, ctx) {
@@ -2952,16 +2879,6 @@ function renderHelpBody(body, ctx) {
   }
   flush();
   return out.join("\n");
-}
-
-/**
- * formatShortcut for help: also names a bare "+" key ("Mod++" -> "⌘+"), which
- * a split on "+" would lose. `format` is i18n.formatShortcut.
- */
-function formatHelpKey(shortcut, format) {
-  if (shortcut === "+") return "+";
-  if (shortcut.endsWith("++")) return `${format(`${shortcut.slice(0, -2)}+X`).slice(0, -1)}+`;
-  return format(shortcut);
 }
 
 /** Every {key:}/{run:} command, {show:} control and [[link]] a body refers to. */
@@ -3043,19 +2960,125 @@ function createTopicLoader(fetchText) {
 // -- end of help.js --
 // -- help topics (copy) --
 const HELP_FILES = {
- "en/timeline": "---\nid: timeline\ntitle: The timeline\napplies-to: [timeline]\ncommands: [transport.play, view.toggle, view.fit, view.zoom_in, view.zoom_out, view.back, panel.next, panel.home]\nrelated: [clip, track, bus]\n---\nEvery track is a lane, and time runs left to right. A click anywhere in the lanes moves the play cursor there. A click on a clip also selects it; Shift+click adds or removes a clip.\n\n## Listen\n- Play or stop: {key:transport.play}. Space always belongs to the timeline, whichever panel you are in.\n\n## Zoom and move\n- Close or wide view: {key:view.toggle} {show:view-toggle}\n- Zoom in or out: {key:view.zoom_in} or {key:view.zoom_out}\n- Fit the selection, or the whole edit: {key:view.fit}\n- Back to the view before: {key:view.back}\n\nDensity, waveform and follow settings are in the View menu. {show:view-menu}\n\n## Panels\n{key:panel.next} moves the keyboard to the next panel; {key:panel.home} brings it back here.\n\nSee also [[clip]] and [[track]].\n",
+ "en/timeline": "---\nid: timeline\ntitle: The timeline\napplies-to: [timeline]\ncommands: [transport.play, view.toggle, view.fit, view.zoom_in, view.zoom_out, view.back, panel.next, nav.home]\nrelated: [clip, track, bus]\n---\nEvery track is a lane, and time runs left to right. A click anywhere in the lanes moves the play cursor there. A click on a clip also selects it; Shift+click adds or removes a clip.\n\n## Listen\n- Play or stop: {key:transport.play}. Space always belongs to the timeline, whichever panel you are in.\n\n## Zoom and move\n- Close or wide view: {key:view.toggle} {show:view-toggle}\n- Zoom in or out: {key:view.zoom_in} or {key:view.zoom_out}\n- Fit the selection, or the whole edit: {key:view.fit}\n- Back to the view before: {key:view.back}\n\nDensity, waveform and follow settings are in the View menu. {show:view-menu}\n\n## Panels\n{key:panel.next} moves the keyboard to the next panel; {key:nav.home} brings it back here.\n\nSee also [[clip]] and [[track]].\n",
  "en/clip": "---\nid: clip\ntitle: A clip\napplies-to: [clip]\ncommands: [edit.split, edit.delete, edit.cut, clip.mute, clip.fade, edit.undo]\nrelated: [timeline, track, transcript]\n---\nA clip is a stretch of one recording placed on a track. Several clips can come from the same recording; selecting one marks its siblings with a bracket.\n\n## Edit it\n- Split at the play cursor: {key:edit.split}\n- Delete: {key:edit.delete}. A soft cut: the audio goes quiet, the gap stays, and the Cuts list can restore it. The clipboard is untouched.\n- Cut: {key:edit.cut}. Copies to the clipboard and closes the gap on every track of the sync group.\n- Mute the clip: {key:clip.mute}. Muted clips are drawn faint and hatched.\n- Fade in and out: {key:clip.fade}\n\nEvery edit is one step back with {key:edit.undo}.\n\n## Look closer\nThe inspector shows the clip's level, sync and source. {show:inspector}\n\nSee also [[track]] and [[transcript]].\n",
- "en/track": "---\nid: track\ntitle: A track\napplies-to: [track]\ncommands: [track.mute, track.solo, track.rename]\nrelated: [bus, clip, timeline]\n---\nA track holds the clips of one voice or one kind of sound. Its header, on the left of the lane, names it and shows its colour; the controls appear when the track is current or under the pointer. {show:track-headers}\n\n- Mute or solo: {key:track.mute} and {key:track.solo}, or the M and S buttons.\n- Rename: {key:track.rename}\n- Level and pan: the header's sliders, or the inspector.\n- Move the current track with the arrow keys up and down.\n\nThe coloured pill is the speaker; the rail on the far left, if there is one, is the track's [[bus|bus]].\n",
+ "en/track": "---\nid: track\ntitle: A track\napplies-to: [track]\ncommands: [track.mute, track.solo, rename]\nrelated: [bus, clip, timeline]\n---\nA track holds the clips of one voice or one kind of sound. Its header, on the left of the lane, names it and shows its colour; the controls appear when the track is current or under the pointer. {show:track-headers}\n\n- Mute or solo: {key:track.mute} and {key:track.solo}, or the M and S buttons.\n- Rename: {key:rename}\n- Level and pan: the header's sliders, or the inspector.\n- Move the current track with the arrow keys up and down.\n\nThe coloured pill is the speaker; the rail on the far left, if there is one, is the track's [[bus|bus]].\n",
  "en/bus": "---\nid: bus\ntitle: A bus\napplies-to: [bus]\ncommands: [bus.collapse, bus.expand, track.mute, track.solo]\nrelated: [track, timeline]\n---\nA bus groups tracks that are mixed together, such as all the voices or all the music. Its colour runs down the left edge of its tracks as a spine, and its letter badge (A, B …) appears wherever the bus is named.\n\n- Collapse the bus to one row: {key:bus.collapse}. A collapsed bus shows one thin ribbon per track, filled where that track has sound.\n- Expand it again: {key:bus.expand}\n- The bus's mute and solo act on every track in it; its fader sets the level of the whole group.\n\nA bus with only one track is merged into that track's header. To put a track on a bus, use the bus picker in its header or the inspector.\n\nSee also [[track]].\n",
- "en/transcript": "---\nid: transcript\ntitle: The transcript\napplies-to: [transcript]\ncommands: [transport.play, edit.delete, edit.cut, panel.home]\nrelated: [clip, timeline]\n---\nThe transcript is the words of every speech track, in time order, with the speaker in the margin. It follows the play cursor, and the words being heard are underlined.\n\n- Select words with the mouse or with Shift and the arrow keys; the same stretch is selected on the timeline.\n- Delete the selected words: {key:edit.delete}. They are struck through and the gap stays.\n- Cut them: {key:edit.cut}. Before the cut, the transcript shows what else would go: words other speakers say in the same stretch.\n- {key:transport.play} still plays and stops; {key:panel.home} returns to the timeline.\n\nWords removed by a cut leave a small marker; the Cuts list can put them back. See also [[clip]].\n",
- "en/history": "---\nid: history\ntitle: History\napplies-to: [history]\ncommands: [edit.undo, edit.redo, history.restore]\nrelated: [clip, timeline]\n---\nHistory lists every edit since the project was made, newest at the bottom, with the time it happened. A line marks where each working session began and ended.\n\n- Undo and redo: {key:edit.undo} and {key:edit.redo}\n- Go back to any earlier step: select it and press {key:history.restore}. Nothing is lost: the steps after it stay in the list and you can return to them.\n- Saved versions are pinned in the list.\n\nUndo never touches the clipboard. See also [[timeline]].\n",
- "fi/timeline": "---\nid: timeline\ntitle: Aikajana\napplies-to: [timeline]\ncommands: [transport.play, view.toggle, view.fit, view.zoom_in, view.zoom_out, view.back, panel.next, panel.home]\nrelated: [clip, track, bus]\n---\nJokainen raita on oma kaistansa, ja aika kulkee vasemmalta oikealle. Napsautus missä tahansa kaistoilla siirtää toistokohdan siihen. Napsautus leikkeeseen myös valitsee sen; vaihto+napsautus lisää leikkeen valintaan tai poistaa sen.\n\n## Kuuntele\n- Toista tai pysäytä: {key:transport.play}. Välilyönti kuuluu aina aikajanalle, missä paneelissa oletkin.\n\n## Zoomaa ja liiku\n- Lähi- tai laajanäkymä: {key:view.toggle} {show:view-toggle}\n- Lähennä tai loitonna: {key:view.zoom_in} tai {key:view.zoom_out}\n- Sovita valinta tai koko versio: {key:view.fit}\n- Takaisin edelliseen näkymään: {key:view.back}\n\nTiheys, aaltomuoto ja seuranta ovat Näkymä-valikossa. {show:view-menu}\n\n## Paneelit\n{key:panel.next} siirtää näppäimistön seuraavaan paneeliin; {key:panel.home} tuo sen takaisin tänne.\n\nKatso myös [[clip]] ja [[track]].\n",
+ "en/transcript": "---\nid: transcript\ntitle: The transcript\napplies-to: [transcript]\ncommands: [transport.play, edit.delete, edit.cut, nav.home]\nrelated: [clip, timeline]\n---\nThe transcript is the words of every speech track, in time order, with the speaker in the margin. It follows the play cursor, and the words being heard are underlined.\n\n- Select words with the mouse; the same stretch is selected on the timeline.\n- Delete the selected words: {key:edit.delete}. They are struck through and the gap stays.\n- Cut them: {key:edit.cut}. Before the cut, the transcript shows what else would go: words other speakers say in the same stretch.\n- {key:transport.play} still plays and stops; {key:nav.home} returns to the timeline.\n\nWords removed by a cut leave a small marker; the Cuts list can put them back. See also [[clip]].\n",
+ "en/history": "---\nid: history\ntitle: History\napplies-to: [history]\ncommands: [edit.undo, edit.redo]\nrelated: [clip, timeline]\n---\nHistory lists every edit since the project was made, newest at the bottom, with the time it happened. A line marks where each working session began and ended.\n\n- Undo and redo: {key:edit.undo} and {key:edit.redo}\n- Go back to any earlier step: select it in the list. Nothing is lost: the steps after it stay in the list and you can return to them.\n- Saved versions are pinned in the list.\n\nUndo never touches the clipboard. See also [[timeline]].\n",
+ "fi/timeline": "---\nid: timeline\ntitle: Aikajana\napplies-to: [timeline]\ncommands: [transport.play, view.toggle, view.fit, view.zoom_in, view.zoom_out, view.back, panel.next, nav.home]\nrelated: [clip, track, bus]\n---\nJokainen raita on oma kaistansa, ja aika kulkee vasemmalta oikealle. Napsautus missä tahansa kaistoilla siirtää toistokohdan siihen. Napsautus leikkeeseen myös valitsee sen; vaihto+napsautus lisää leikkeen valintaan tai poistaa sen.\n\n## Kuuntele\n- Toista tai pysäytä: {key:transport.play}. Välilyönti kuuluu aina aikajanalle, missä paneelissa oletkin.\n\n## Zoomaa ja liiku\n- Lähi- tai laajanäkymä: {key:view.toggle} {show:view-toggle}\n- Lähennä tai loitonna: {key:view.zoom_in} tai {key:view.zoom_out}\n- Sovita valinta tai koko versio: {key:view.fit}\n- Takaisin edelliseen näkymään: {key:view.back}\n\nTiheys, aaltomuoto ja seuranta ovat Näkymä-valikossa. {show:view-menu}\n\n## Paneelit\n{key:panel.next} siirtää näppäimistön seuraavaan paneeliin; {key:nav.home} tuo sen takaisin tänne.\n\nKatso myös [[clip]] ja [[track]].\n",
  "fi/clip": "---\nid: clip\ntitle: Leike\napplies-to: [clip]\ncommands: [edit.split, edit.delete, edit.cut, clip.mute, clip.fade, edit.undo]\nrelated: [timeline, track, transcript]\n---\nLeike on pätkä yhdestä äänityksestä raidalla. Samasta äänityksestä voi olla monta leikettä; kun valitset yhden, sen sisarleikkeet merkitään hakasella.\n\n## Muokkaa\n- Jaa toistokohdasta: {key:edit.split}\n- Poista: {key:edit.delete}. Pehmeä leikkaus: ääni hiljenee, väli jää ja leikkauslistalta sen voi palauttaa. Leikepöytä ei muutu.\n- Leikkaa: {key:edit.cut}. Kopioi leikepöydälle ja sulkee välin tahdistusryhmän jokaiselta raidalta.\n- Mykistä leike: {key:clip.mute}. Mykistetty leike on haalea ja viivoitettu.\n- Häivytys sisään ja ulos: {key:clip.fade}\n\nJokaisen muokkauksen voi perua askel kerrallaan: {key:edit.undo}.\n\n## Katso tarkemmin\nTarkastimessa näkyvät leikkeen taso, tahdistus ja lähde. {show:inspector}\n\nKatso myös [[track]] ja [[transcript]].\n",
- "fi/track": "---\nid: track\ntitle: Raita\napplies-to: [track]\ncommands: [track.mute, track.solo, track.rename]\nrelated: [bus, clip, timeline]\n---\nRaidalla ovat yhden äänen tai yhdenlaisen äänen leikkeet. Kaistan vasemmalla puolella oleva otsake nimeää raidan ja näyttää sen värin; säätimet tulevat esiin, kun raita on valittuna tai osoitin on sen päällä. {show:track-headers}\n\n- Mykistä tai soolaa: {key:track.mute} ja {key:track.solo}, tai M- ja S-painikkeet.\n- Nimeä uudelleen: {key:track.rename}\n- Taso ja panorointi: otsakkeen liukusäätimet tai tarkastin.\n- Valitse raita nuolinäppäimillä ylös ja alas.\n\nVärillinen tappi on puhuja; vasemman reunan kisko, jos sellainen on, on raidan [[bus|väylä]].\n",
+ "fi/track": "---\nid: track\ntitle: Raita\napplies-to: [track]\ncommands: [track.mute, track.solo, rename]\nrelated: [bus, clip, timeline]\n---\nRaidalla ovat yhden äänen tai yhdenlaisen äänen leikkeet. Kaistan vasemmalla puolella oleva otsake nimeää raidan ja näyttää sen värin; säätimet tulevat esiin, kun raita on valittuna tai osoitin on sen päällä. {show:track-headers}\n\n- Mykistä tai soolaa: {key:track.mute} ja {key:track.solo}, tai M- ja S-painikkeet.\n- Nimeä uudelleen: {key:rename}\n- Taso ja panorointi: otsakkeen liukusäätimet tai tarkastin.\n- Valitse raita nuolinäppäimillä ylös ja alas.\n\nVärillinen tappi on puhuja; vasemman reunan kisko, jos sellainen on, on raidan [[bus|väylä]].\n",
  "fi/bus": "---\nid: bus\ntitle: Väylä\napplies-to: [bus]\ncommands: [bus.collapse, bus.expand, track.mute, track.solo]\nrelated: [track, timeline]\n---\nVäylä kokoaa yhteen raidat, jotka miksataan yhdessä, esimerkiksi kaikki äänet tai kaikki musiikki. Sen väri kulkee raitojen vasemmassa reunassa selkärankana, ja sen kirjaintunnus (A, B …) näkyy kaikkialla, missä väylä mainitaan.\n\n- Pienennä väylä yhdeksi riviksi: {key:bus.collapse}. Pienennetyssä väylässä on jokaiselle raidalle ohut nauha, joka on täytetty siltä osin kuin raidalla on ääntä.\n- Laajenna takaisin: {key:bus.expand}\n- Väylän mykistys ja soolo koskevat kaikkia sen raitoja; sen liukusäädin asettaa koko ryhmän tason.\n\nVäylä, jossa on vain yksi raita, yhdistyy raidan otsakkeeseen. Raidan saa väylälle otsakkeen väylävalitsimesta tai tarkastimesta.\n\nKatso myös [[track]].\n",
- "fi/transcript": "---\nid: transcript\ntitle: Litteraatti\napplies-to: [transcript]\ncommands: [transport.play, edit.delete, edit.cut, panel.home]\nrelated: [clip, timeline]\n---\nLitteraatti on kaikkien puheraitojen sanat aikajärjestyksessä, puhuja reunassa. Se seuraa toistokohtaa, ja kuultavat sanat on alleviivattu.\n\n- Valitse sanoja hiirellä tai vaihtonäppäimellä ja nuolilla; sama kohta valitaan myös aikajanalla.\n- Poista valitut sanat: {key:edit.delete}. Ne yliviivataan ja väli jää.\n- Leikkaa ne: {key:edit.cut}. Ennen leikkausta litteraatti näyttää, mitä muuta lähtisi: muiden puhujien sanat samalta kohdalta.\n- {key:transport.play} toistaa ja pysäyttää edelleen; {key:panel.home} palaa aikajanalle.\n\nLeikkauksen poistamista sanoista jää pieni merkki; leikkauslistalta ne saa takaisin. Katso myös [[clip]].\n",
- "fi/history": "---\nid: history\ntitle: Historia\napplies-to: [history]\ncommands: [edit.undo, edit.redo, history.restore]\nrelated: [clip, timeline]\n---\nHistoriassa on jokainen muokkaus projektin alusta asti, uusin alimpana, tekoaikoineen. Viiva merkitsee, missä kukin työskentelykerta alkoi ja päättyi.\n\n- Kumoa ja tee uudelleen: {key:edit.undo} ja {key:edit.redo}\n- Palaa mihin tahansa aiempaan vaiheeseen: valitse se ja paina {key:history.restore}. Mitään ei menetetä: sen jälkeiset vaiheet jäävät listaan, ja niihin voi palata.\n- Tallennetut versiot on kiinnitetty listaan.\n\nKumoaminen ei koske leikepöytää. Katso myös [[timeline]].\n",
+ "fi/transcript": "---\nid: transcript\ntitle: Litteraatti\napplies-to: [transcript]\ncommands: [transport.play, edit.delete, edit.cut, nav.home]\nrelated: [clip, timeline]\n---\nLitteraatti on kaikkien puheraitojen sanat aikajärjestyksessä, puhuja reunassa. Se seuraa toistokohtaa, ja kuultavat sanat on alleviivattu.\n\n- Valitse sanoja hiirellä; sama kohta valitaan myös aikajanalla.\n- Poista valitut sanat: {key:edit.delete}. Ne yliviivataan ja väli jää.\n- Leikkaa ne: {key:edit.cut}. Ennen leikkausta litteraatti näyttää, mitä muuta lähtisi: muiden puhujien sanat samalta kohdalta.\n- {key:transport.play} toistaa ja pysäyttää edelleen; {key:nav.home} palaa aikajanalle.\n\nLeikkauksen poistamista sanoista jää pieni merkki; leikkauslistalta ne saa takaisin. Katso myös [[clip]].\n",
+ "fi/history": "---\nid: history\ntitle: Historia\napplies-to: [history]\ncommands: [edit.undo, edit.redo]\nrelated: [clip, timeline]\n---\nHistoriassa on jokainen muokkaus projektin alusta asti, uusin alimpana, tekoaikoineen. Viiva merkitsee, missä kukin työskentelykerta alkoi ja päättyi.\n\n- Kumoa ja tee uudelleen: {key:edit.undo} ja {key:edit.redo}\n- Palaa mihin tahansa aiempaan vaiheeseen: valitse se listasta. Mitään ei menetetä: sen jälkeiset vaiheet jäävät listaan, ja niihin voi palata.\n- Tallennetut versiot on kiinnitetty listaan.\n\nKumoaminen ei koske leikepöytää. Katso myös [[timeline]].\n",
  "catalog/en": {
+  "cmd.transport.play": "Play / stop",
+  "cmd.transport.play_selection": "Play selection",
+  "cmd.transport.speed": "Fast playback on / off",
+  "cmd.transport.reverse": "Shuttle backward",
+  "cmd.transport.forward": "Shuttle forward",
+  "cmd.transport.stop": "Stop shuttle",
+  "cmd.nav.home": "Back to the timeline",
+  "cmd.nav.start": "Go to start",
+  "cmd.nav.end": "Go to end",
+  "cmd.nav.back": "Back 1 s",
+  "cmd.nav.forward": "Forward 1 s",
+  "cmd.nav.back_far": "Back 5 s",
+  "cmd.nav.forward_far": "Forward 5 s",
+  "cmd.nav.back_fine": "Back 10 ms",
+  "cmd.nav.forward_fine": "Forward 10 ms",
+  "cmd.nav.prev_edit": "Previous edit point",
+  "cmd.nav.next_edit": "Next edit point",
+  "cmd.track.prev": "Track above",
+  "cmd.track.next": "Track below",
+  "cmd.panel.next": "Next panel",
+  "cmd.panel.previous": "Previous panel",
+  "cmd.mark.in": "Set in point",
+  "cmd.mark.out": "Set out point",
+  "cmd.view.toggle": "Close / wide view",
+  "cmd.view.fit": "Fit the selection",
+  "cmd.view.back": "Previous view",
+  "cmd.view.forward": "Next view",
+  "cmd.view.zoom_in": "Zoom in",
+  "cmd.view.zoom_out": "Zoom out",
+  "cmd.edit.undo": "Undo",
+  "cmd.edit.redo": "Redo",
+  "cmd.edit.copy": "Copy",
+  "cmd.edit.paste": "Paste",
+  "cmd.edit.split": "Split at the playhead",
+  "cmd.edit.cut": "Cut and close the gap",
+  "cmd.edit.cut_track": "Cut on this track only",
+  "cmd.edit.delete": "Delete, keep the gap",
+  "cmd.edit.trim_start": "Trim start to the playhead",
+  "cmd.edit.trim_end": "Trim end to the playhead",
+  "cmd.edit.nudge_left": "Nudge earlier",
+  "cmd.edit.nudge_right": "Nudge later",
+  "cmd.edit.move_up": "Move to the track above",
+  "cmd.edit.move_down": "Move to the track below",
+  "cmd.edit.select_all_track": "Select all on this track",
+  "cmd.edit.select_all": "Select all",
+  "cmd.select.to_end": "Select to the end, this track",
+  "cmd.select.to_start": "Select to the start, this track",
+  "cmd.select.to_end_all": "Select to the end, all tracks",
+  "cmd.select.to_start_all": "Select to the start, all tracks",
+  "cmd.clip.gain_up": "Clip gain up",
+  "cmd.clip.gain_down": "Clip gain down",
+  "cmd.clip.pan_left": "Pan clip left",
+  "cmd.clip.pan_right": "Pan clip right",
+  "cmd.clip.mute": "Mute clips",
+  "cmd.clip.fade": "Fade in and out",
+  "cmd.track.mute": "Mute track",
+  "cmd.track.solo": "Solo track",
+  "cmd.track.solo_add": "Add track to the solo set",
+  "cmd.group.toggle": "Group editing on / off",
+  "cmd.bus.collapse": "Collapse the bus",
+  "cmd.bus.expand": "Expand the bus",
+  "cmd.sync.mark": "Mark in sync",
+  "cmd.sync.resync": "Resync",
+  "cmd.sync.point1": "Set the first sync point",
+  "cmd.sync.point2": "Set the second sync point",
+  "cmd.sync.resync_end": "Resync to the end, all tracks",
+  "cmd.candidate.mark": "Mark a cut candidate",
+  "cmd.candidate.mark_range": "Candidate from in to out",
+  "cmd.candidate.next": "Next candidate",
+  "cmd.candidate.previous": "Previous candidate",
+  "cmd.candidate.apply": "Apply the candidate",
+  "cmd.candidate.reject": "Reject the candidate",
+  "cmd.candidate.filter": "Show open / all candidates",
+  "cmd.transcript.delete_words": "Delete the selected words",
+  "cmd.transcript.correct": "Correct the words",
+  "cmd.transcript.mark_candidate": "Mark the words as a candidate",
+  "cmd.transcript.find": "Find in the transcript",
+  "cmd.spot": "Spot: jump to a typed time",
+  "cmd.rename": "Rename",
+  "cmd.app.import": "Import…",
+  "cmd.app.export": "Export…",
+  "cmd.app.save": "Save a named version",
+  "cmd.app.save_named": "Save a version as…",
+  "cmd.app.transcribe": "Transcribe the track",
+  "cmd.app.automix": "Automix",
+  "cmd.app.auto_silence": "Auto-Silence",
+  "cmd.palette.open": "Command palette",
+  "cmd.help.keys": "Keyboard shortcuts",
+  "cmd.keymap.import": "Keyboard shortcuts: import…",
+  "cmd.keymap.export": "Keyboard shortcuts: export…",
+  "cmd.keymap.reset": "Keyboard shortcuts: reset",
+  "cmd.edit.undo.hint": "Take back the last change",
+  "cmd.edit.redo.hint": "Bring back a change you took back",
+  "cmd.transport.play.hint": "Play from the playhead, or stop",
+  "cmd.view.toggle.hint": "Switch between a close and a wide view of the edit",
+  "cmd.view.fit.hint": "Fit the view to the selection",
+  "cmd.app.import.hint": "Add audio or video files to the project",
+  "cmd.help.keys.hint": "Show every command with its keys",
+  "cmd.palette.open.hint": "Search and run any command",
+  "cmd.keymap.import.hint": "Load your own keys from a file",
+  "cmd.keymap.export.hint": "Save your keys to a file",
+  "cmd.keymap.reset.hint": "Go back to the default keys",
+  "cmd.mark.in.hint": "Set the in point at the playhead",
+  "cmd.mark.out.hint": "Set the out point at the playhead",
+  "cmd.nav.start.hint": "Move the playhead to the start",
+  "cmd.nav.end.hint": "Move the playhead to the end",
   "ui.help.title": "Help",
   "ui.help.about": "Help for {target}",
   "ui.help.show_me": "Show me",
@@ -3071,56 +3094,156 @@ const HELP_FILES = {
   "ui.help.commands": "Commands",
   "ui.help.load_failed": "This help topic could not be loaded.",
   "ui.help.hidden": "It is hidden right now: {how}.",
-  "command.transport.play.label": "Play / stop",
-  "command.transport.play.hint": "Plays from the play cursor; press again to stop.",
-  "command.panel.home.label": "Back to the timeline",
-  "command.panel.home.hint": "Moves the keyboard back to the timeline.",
-  "command.panel.next.label": "Next panel",
-  "command.panel.next.hint": "Moves the keyboard to the next panel.",
-  "command.panel.previous.label": "Previous panel",
-  "command.panel.previous.hint": "Moves the keyboard to the previous panel.",
-  "command.view.toggle.label": "Close / wide view",
-  "command.view.toggle.hint": "Switches between the close and the wide view.",
-  "command.view.fit.label": "Fit",
-  "command.view.fit.hint": "Fits the selection, or the whole edit, to the window.",
-  "command.view.back.label": "Previous view",
-  "command.view.back.hint": "Goes back to the view before.",
-  "command.view.forward.label": "Next view",
-  "command.view.forward.hint": "Goes forward again after Previous view.",
-  "command.view.zoom_in.label": "Zoom in",
-  "command.view.zoom_in.hint": "Shows less time, in more detail.",
-  "command.view.zoom_out.label": "Zoom out",
-  "command.view.zoom_out.hint": "Shows more time, in less detail.",
-  "command.help.open.label": "Help",
-  "command.help.open.hint": "Opens help for what you are working on.",
-  "command.track.rename.label": "Rename",
-  "command.track.rename.hint": "Renames the current track or bus.",
-  "command.edit.split.label": "Split",
-  "command.edit.split.hint": "Splits the clip at the play cursor.",
-  "command.edit.delete.label": "Delete",
-  "command.edit.delete.hint": "Silences the selection in place; the gap stays and it can be restored.",
-  "command.edit.cut.label": "Cut",
-  "command.edit.cut.hint": "Copies the selection to the clipboard and closes the gap.",
-  "command.edit.undo.label": "Undo",
-  "command.edit.undo.hint": "Takes back the last edit.",
-  "command.edit.redo.label": "Redo",
-  "command.edit.redo.hint": "Does the undone edit again.",
-  "command.clip.mute.label": "Mute clip",
-  "command.clip.mute.hint": "Silences the selected clips.",
-  "command.clip.fade.label": "Fade",
-  "command.clip.fade.hint": "Adds a fade in and out to the selected clips.",
-  "command.track.mute.label": "Mute track",
-  "command.track.mute.hint": "Silences the current track or bus.",
-  "command.track.solo.label": "Solo",
-  "command.track.solo.hint": "Plays only the current track or bus.",
-  "command.bus.collapse.label": "Collapse bus",
-  "command.bus.collapse.hint": "Shows the bus as one row.",
-  "command.bus.expand.label": "Expand bus",
-  "command.bus.expand.hint": "Shows the bus's tracks again.",
-  "command.history.restore.label": "Go back to this step",
-  "command.history.restore.hint": "Returns the project to the selected step; later steps stay in the list."
+  "cmd.gate.open_stretch": "Open this stretch (closed mic)",
+  "cmd.gate.open_stretch.hint": "Reopens the closed-mic stretch under the play cursor on the current track.",
+  "cmd.edit.split_all": "Split on all tracks",
+  "cmd.edit.split.hint": "Cut the clip under the playhead in two",
+  "cmd.edit.split_all.hint": "Split every track at the playhead",
+  "cmd.edit.cut.hint": "Remove the selection or in-out range and close the gap",
+  "cmd.edit.delete.hint": "Mute the selection or range in place; the gap stays and can be restored",
+  "cmd.clip.mute.hint": "Mute the selected clips, or unmute them",
+  "cmd.nav.home.hint": "Moves the keyboard back to the timeline.",
+  "cmd.panel.next.hint": "Moves the keyboard to the next panel.",
+  "cmd.panel.previous.hint": "Moves the keyboard to the previous panel.",
+  "cmd.view.back.hint": "Goes back to the view before.",
+  "cmd.view.forward.hint": "Goes forward again after Previous view.",
+  "cmd.view.zoom_in.hint": "Shows less time, in more detail.",
+  "cmd.view.zoom_out.hint": "Shows more time, in less detail.",
+  "cmd.rename.hint": "Renames the current track or bus.",
+  "cmd.track.mute.hint": "Silences the current track or bus.",
+  "cmd.track.solo.hint": "Plays only the current track or bus.",
+  "cmd.clip.fade.hint": "Adds a fade in and out to the selected clips.",
+  "cmd.bus.collapse.hint": "Shows the bus as one row.",
+  "cmd.bus.expand.hint": "Shows the bus's tracks again.",
+  "cmd.help.open.hint": "Opens help for what you are working on.",
+  "cmd.nav.back.hint": "Moves the play cursor back 1 second.",
+  "cmd.nav.forward.hint": "Moves the play cursor forward 1 second.",
+  "cmd.nav.back_far.hint": "Moves the play cursor back 5 seconds.",
+  "cmd.nav.forward_far.hint": "Moves the play cursor forward 5 seconds.",
+  "cmd.nav.back_fine.hint": "Moves the play cursor back 10 milliseconds.",
+  "cmd.nav.forward_fine.hint": "Moves the play cursor forward 10 milliseconds.",
+  "cmd.track.prev.hint": "Makes the track above the current one.",
+  "cmd.track.next.hint": "Makes the track below the current one.",
+  "cmd.edit.cut_track.hint": "Cuts the selection on the current track only and closes its gap.",
+  "cmd.edit.trim_start.hint": "Trims the start of the selected clips to the play cursor.",
+  "cmd.edit.trim_end.hint": "Trims the end of the selected clips to the play cursor.",
+  "cmd.edit.nudge_left.hint": "Moves the selected clips a little earlier.",
+  "cmd.edit.nudge_right.hint": "Moves the selected clips a little later.",
+  "cmd.track.solo_add.hint": "Adds the current track to the tracks that play alone.",
+  "cmd.clip.gain_up.hint": "Raises the volume of the selected clips.",
+  "cmd.clip.gain_down.hint": "Lowers the volume of the selected clips.",
+  "cmd.edit.select_all_track.hint": "Selects every clip on the current track.",
+  "cmd.edit.select_all.hint": "Selects every clip in the project.",
+  "cmd.group.toggle.hint": "Turns group editing on or off for the current track's group.",
+  "cmd.help.open": "Help for this"
  },
  "catalog/fi": {
+  "cmd.transport.play": "Toista / pysäytä",
+  "cmd.transport.play_selection": "Toista valinta",
+  "cmd.transport.speed": "Nopea toisto päälle / pois",
+  "cmd.transport.reverse": "Kelaa taaksepäin",
+  "cmd.transport.forward": "Kelaa eteenpäin",
+  "cmd.transport.stop": "Pysäytä kelaus",
+  "cmd.nav.home": "Takaisin aikajanalle",
+  "cmd.nav.start": "Siirry alkuun",
+  "cmd.nav.end": "Siirry loppuun",
+  "cmd.nav.back": "Taaksepäin 1 s",
+  "cmd.nav.forward": "Eteenpäin 1 s",
+  "cmd.nav.back_far": "Taaksepäin 5 s",
+  "cmd.nav.forward_far": "Eteenpäin 5 s",
+  "cmd.nav.back_fine": "Taaksepäin 10 ms",
+  "cmd.nav.forward_fine": "Eteenpäin 10 ms",
+  "cmd.nav.prev_edit": "Edellinen muokkauskohta",
+  "cmd.nav.next_edit": "Seuraava muokkauskohta",
+  "cmd.track.prev": "Ylempi raita",
+  "cmd.track.next": "Alempi raita",
+  "cmd.panel.next": "Seuraava paneeli",
+  "cmd.panel.previous": "Edellinen paneeli",
+  "cmd.mark.in": "Aseta alkupiste",
+  "cmd.mark.out": "Aseta loppupiste",
+  "cmd.view.toggle": "Lähi- / laajanäkymä",
+  "cmd.view.fit": "Sovita valintaan",
+  "cmd.view.back": "Edellinen näkymä",
+  "cmd.view.forward": "Seuraava näkymä",
+  "cmd.view.zoom_in": "Lähennä",
+  "cmd.view.zoom_out": "Loitonna",
+  "cmd.edit.undo": "Kumoa",
+  "cmd.edit.redo": "Tee uudelleen",
+  "cmd.edit.copy": "Kopioi",
+  "cmd.edit.paste": "Liitä",
+  "cmd.edit.split": "Jaa toistokohdasta",
+  "cmd.edit.cut": "Leikkaa ja sulje aukko",
+  "cmd.edit.cut_track": "Leikkaa vain tältä raidalta",
+  "cmd.edit.delete": "Poista, jätä aukko",
+  "cmd.edit.trim_start": "Typistä alku toistokohtaan",
+  "cmd.edit.trim_end": "Typistä loppu toistokohtaan",
+  "cmd.edit.nudge_left": "Siirrä aiemmaksi",
+  "cmd.edit.nudge_right": "Siirrä myöhemmäksi",
+  "cmd.edit.move_up": "Siirrä ylemmälle raidalle",
+  "cmd.edit.move_down": "Siirrä alemmalle raidalle",
+  "cmd.edit.select_all_track": "Valitse kaikki tältä raidalta",
+  "cmd.edit.select_all": "Valitse kaikki",
+  "cmd.select.to_end": "Valitse loppuun, tämä raita",
+  "cmd.select.to_start": "Valitse alkuun, tämä raita",
+  "cmd.select.to_end_all": "Valitse loppuun, kaikki raidat",
+  "cmd.select.to_start_all": "Valitse alkuun, kaikki raidat",
+  "cmd.clip.gain_up": "Pätkän voimakkuutta ylös",
+  "cmd.clip.gain_down": "Pätkän voimakkuutta alas",
+  "cmd.clip.pan_left": "Panoroi pätkä vasemmalle",
+  "cmd.clip.pan_right": "Panoroi pätkä oikealle",
+  "cmd.clip.mute": "Mykistä pätkät",
+  "cmd.clip.fade": "Häivytä sisään ja ulos",
+  "cmd.track.mute": "Mykistä raita",
+  "cmd.track.solo": "Soolota raita",
+  "cmd.track.solo_add": "Lisää raita soolojoukkoon",
+  "cmd.group.toggle": "Ryhmämuokkaus päälle / pois",
+  "cmd.bus.collapse": "Supista ryhmä",
+  "cmd.bus.expand": "Laajenna ryhmä",
+  "cmd.sync.mark": "Merkitse synkkaan",
+  "cmd.sync.resync": "Synkkaa uudelleen",
+  "cmd.sync.point1": "Aseta ensimmäinen synkkapiste",
+  "cmd.sync.point2": "Aseta toinen synkkapiste",
+  "cmd.sync.resync_end": "Synkkaa loppuun, kaikki raidat",
+  "cmd.candidate.mark": "Merkitse leikkausehdokas",
+  "cmd.candidate.mark_range": "Ehdokas alku- ja loppupisteen väliltä",
+  "cmd.candidate.next": "Seuraava ehdokas",
+  "cmd.candidate.previous": "Edellinen ehdokas",
+  "cmd.candidate.apply": "Toteuta ehdokas",
+  "cmd.candidate.reject": "Hylkää ehdokas",
+  "cmd.candidate.filter": "Näytä avoimet / kaikki ehdokkaat",
+  "cmd.transcript.delete_words": "Poista valitut sanat",
+  "cmd.transcript.correct": "Korjaa sanat",
+  "cmd.transcript.mark_candidate": "Merkitse sanat ehdokkaaksi",
+  "cmd.transcript.find": "Hae tekstityksestä",
+  "cmd.spot": "Hyppää kirjoitettuun aikaan",
+  "cmd.rename": "Nimeä uudelleen",
+  "cmd.app.import": "Tuo…",
+  "cmd.app.export": "Vie…",
+  "cmd.app.save": "Tallenna nimetty versio",
+  "cmd.app.save_named": "Tallenna versio nimellä…",
+  "cmd.app.transcribe": "Litteroi raita",
+  "cmd.app.automix": "Automiksaa",
+  "cmd.app.auto_silence": "Hiljennä tauot automaattisesti",
+  "cmd.palette.open": "Komentopaletti",
+  "cmd.help.keys": "Pikanäppäimet",
+  "cmd.keymap.import": "Pikanäppäimet: tuo…",
+  "cmd.keymap.export": "Pikanäppäimet: vie…",
+  "cmd.keymap.reset": "Pikanäppäimet: palauta oletukset",
+  "cmd.edit.undo.hint": "Peruu viimeisen muutoksen",
+  "cmd.edit.redo.hint": "Palauttaa perutun muutoksen",
+  "cmd.transport.play.hint": "Toistaa toistokohdasta tai pysäyttää",
+  "cmd.view.toggle.hint": "Vaihtaa lähi- ja laajanäkymän välillä",
+  "cmd.view.fit.hint": "Sovittaa näkymän valintaan",
+  "cmd.app.import.hint": "Lisää ääni- tai videotiedostoja projektiin",
+  "cmd.help.keys.hint": "Näyttää kaikki komennot näppäimineen",
+  "cmd.palette.open.hint": "Hae ja suorita mikä tahansa komento",
+  "cmd.keymap.import.hint": "Lataa omat näppäimesi tiedostosta",
+  "cmd.keymap.export.hint": "Tallenna näppäimesi tiedostoon",
+  "cmd.keymap.reset.hint": "Palaa oletusnäppäimiin",
+  "cmd.mark.in.hint": "Asettaa alkupisteen toistokohtaan",
+  "cmd.mark.out.hint": "Asettaa loppupisteen toistokohtaan",
+  "cmd.nav.start.hint": "Siirtää toistokohdan alkuun",
+  "cmd.nav.end.hint": "Siirtää toistokohdan loppuun",
   "ui.help.title": "Ohje",
   "ui.help.about": "Ohje: {target}",
   "ui.help.show_me": "Näytä missä",
@@ -3136,54 +3259,48 @@ const HELP_FILES = {
   "ui.help.commands": "Komennot",
   "ui.help.load_failed": "Ohjeaihetta ei voitu ladata.",
   "ui.help.hidden": "Se on nyt piilossa: {how}.",
-  "command.transport.play.label": "Toista / pysäytä",
-  "command.transport.play.hint": "Toistaa toistokohdasta; uudelleen painettuna pysäyttää.",
-  "command.panel.home.label": "Takaisin aikajanalle",
-  "command.panel.home.hint": "Siirtää näppäimistön takaisin aikajanalle.",
-  "command.panel.next.label": "Seuraava paneeli",
-  "command.panel.next.hint": "Siirtää näppäimistön seuraavaan paneeliin.",
-  "command.panel.previous.label": "Edellinen paneeli",
-  "command.panel.previous.hint": "Siirtää näppäimistön edelliseen paneeliin.",
-  "command.view.toggle.label": "Lähi- / laajanäkymä",
-  "command.view.toggle.hint": "Vaihtaa lähinäkymän ja laajanäkymän välillä.",
-  "command.view.fit.label": "Sovita",
-  "command.view.fit.hint": "Sovittaa valinnan tai koko version ikkunaan.",
-  "command.view.back.label": "Edellinen näkymä",
-  "command.view.back.hint": "Palaa edelliseen näkymään.",
-  "command.view.forward.label": "Seuraava näkymä",
-  "command.view.forward.hint": "Palaa eteenpäin Edellisen näkymän jälkeen.",
-  "command.view.zoom_in.label": "Lähennä",
-  "command.view.zoom_in.hint": "Näyttää lyhyemmän ajan tarkemmin.",
-  "command.view.zoom_out.label": "Loitonna",
-  "command.view.zoom_out.hint": "Näyttää pidemmän ajan.",
-  "command.help.open.label": "Ohje",
-  "command.help.open.hint": "Avaa ohjeen siihen, minkä parissa työskentelet.",
-  "command.track.rename.label": "Nimeä uudelleen",
-  "command.track.rename.hint": "Nimeää valitun raidan tai väylän uudelleen.",
-  "command.edit.split.label": "Jaa",
-  "command.edit.split.hint": "Jakaa leikkeen toistokohdasta.",
-  "command.edit.delete.label": "Poista",
-  "command.edit.delete.hint": "Hiljentää valinnan paikallaan; väli jää ja sen voi palauttaa.",
-  "command.edit.cut.label": "Leikkaa",
-  "command.edit.cut.hint": "Kopioi valinnan leikepöydälle ja sulkee välin.",
-  "command.edit.undo.label": "Kumoa",
-  "command.edit.undo.hint": "Peruu viimeisimmän muokkauksen.",
-  "command.edit.redo.label": "Tee uudelleen",
-  "command.edit.redo.hint": "Tekee kumotun muokkauksen uudelleen.",
-  "command.clip.mute.label": "Mykistä leike",
-  "command.clip.mute.hint": "Hiljentää valitut leikkeet.",
-  "command.clip.fade.label": "Häivytys",
-  "command.clip.fade.hint": "Lisää valittuihin leikkeisiin häivytyksen sisään ja ulos.",
-  "command.track.mute.label": "Mykistä raita",
-  "command.track.mute.hint": "Hiljentää valitun raidan tai väylän.",
-  "command.track.solo.label": "Soolo",
-  "command.track.solo.hint": "Toistaa vain valitun raidan tai väylän.",
-  "command.bus.collapse.label": "Pienennä väylä",
-  "command.bus.collapse.hint": "Näyttää väylän yhtenä rivinä.",
-  "command.bus.expand.label": "Laajenna väylä",
-  "command.bus.expand.hint": "Näyttää väylän raidat taas.",
-  "command.history.restore.label": "Palaa tähän vaiheeseen",
-  "command.history.restore.hint": "Palauttaa projektin valittuun vaiheeseen; myöhemmät vaiheet jäävät listaan."
+  "cmd.gate.open_stretch": "Avaa tämä kohta (mikki kiinni)",
+  "cmd.gate.open_stretch.hint": "Avaa kiinni olevan mikin kohdan toistokohdan alta nykyisellä raidalla.",
+  "cmd.edit.split_all": "Jaa kaikilla raidoilla",
+  "cmd.edit.split.hint": "Jaa toistokohdan alla oleva pätkä kahtia",
+  "cmd.edit.split_all.hint": "Jaa kaikki raidat toistokohdasta",
+  "cmd.edit.cut.hint": "Poista valinta tai merkitty väli ja sulje aukko",
+  "cmd.edit.delete.hint": "Mykistä valinta tai väli paikallaan; aukko jää ja sen voi palauttaa",
+  "cmd.clip.mute.hint": "Mykistä valitut pätkät tai palauta niiden ääni",
+  "cmd.nav.home.hint": "Siirtää näppäimistön takaisin aikajanalle.",
+  "cmd.panel.next.hint": "Siirtää näppäimistön seuraavaan paneeliin.",
+  "cmd.panel.previous.hint": "Siirtää näppäimistön edelliseen paneeliin.",
+  "cmd.view.back.hint": "Palaa edelliseen näkymään.",
+  "cmd.view.forward.hint": "Palaa eteenpäin Edellisen näkymän jälkeen.",
+  "cmd.view.zoom_in.hint": "Näyttää lyhyemmän ajan tarkemmin.",
+  "cmd.view.zoom_out.hint": "Näyttää pidemmän ajan.",
+  "cmd.rename.hint": "Nimeää valitun raidan tai väylän uudelleen.",
+  "cmd.track.mute.hint": "Hiljentää valitun raidan tai väylän.",
+  "cmd.track.solo.hint": "Toistaa vain valitun raidan tai väylän.",
+  "cmd.clip.fade.hint": "Lisää valittuihin leikkeisiin häivytyksen sisään ja ulos.",
+  "cmd.bus.collapse.hint": "Näyttää väylän yhtenä rivinä.",
+  "cmd.bus.expand.hint": "Näyttää väylän raidat taas.",
+  "cmd.help.open.hint": "Avaa ohjeen siihen, minkä parissa työskentelet.",
+  "cmd.nav.back.hint": "Siirtää toistokohtaa sekunnin taaksepäin.",
+  "cmd.nav.forward.hint": "Siirtää toistokohtaa sekunnin eteenpäin.",
+  "cmd.nav.back_far.hint": "Siirtää toistokohtaa viisi sekuntia taaksepäin.",
+  "cmd.nav.forward_far.hint": "Siirtää toistokohtaa viisi sekuntia eteenpäin.",
+  "cmd.nav.back_fine.hint": "Siirtää toistokohtaa 10 millisekuntia taaksepäin.",
+  "cmd.nav.forward_fine.hint": "Siirtää toistokohtaa 10 millisekuntia eteenpäin.",
+  "cmd.track.prev.hint": "Tekee ylemmästä raidasta valitun raidan.",
+  "cmd.track.next.hint": "Tekee alemmasta raidasta valitun raidan.",
+  "cmd.edit.cut_track.hint": "Leikkaa valinnan vain valitulta raidalta ja sulkee sen välin.",
+  "cmd.edit.trim_start.hint": "Lyhentää valittujen leikkeiden alun toistokohtaan.",
+  "cmd.edit.trim_end.hint": "Lyhentää valittujen leikkeiden lopun toistokohtaan.",
+  "cmd.edit.nudge_left.hint": "Siirtää valittuja leikkeitä hieman aiemmaksi.",
+  "cmd.edit.nudge_right.hint": "Siirtää valittuja leikkeitä hieman myöhemmäksi.",
+  "cmd.track.solo_add.hint": "Lisää valitun raidan yksin soitettavien raitojen joukkoon.",
+  "cmd.clip.gain_up.hint": "Nostaa valittujen leikkeiden äänenvoimakkuutta.",
+  "cmd.clip.gain_down.hint": "Laskee valittujen leikkeiden äänenvoimakkuutta.",
+  "cmd.edit.select_all_track.hint": "Valitsee kaikki valitun raidan leikkeet.",
+  "cmd.edit.select_all.hint": "Valitsee kaikki projektin leikkeet.",
+  "cmd.group.toggle.hint": "Kytkee ryhmämuokkauksen päälle tai pois valitun raidan ryhmälle.",
+  "cmd.help.open": "Ohje tähän"
  }
 };
 // -- end of help topics --
@@ -4146,12 +4263,12 @@ function drawMini(canvas, op, phase) {
 // planned WP5 keys, so the panel looks as it will once the keymap lands.
 const PROTO_KEYMAP = [
   ["transport.play", "Space"], ["view.toggle", "Z"], ["view.fit", "Shift+Z"], ["view.zoom_in", "="], ["view.zoom_in", "+"],
-  ["view.zoom_out", "-"], ["view.back", "Alt+Z"], ["view.forward", "Alt+Shift+Z"], ["panel.next", "F6"], ["panel.previous", "Shift+F6"], ["panel.home", "Escape"],
+  ["view.zoom_out", "-"], ["view.back", "Alt+Z"], ["view.forward", "Shift+Alt+Z"], ["panel.next", "F6"], ["panel.previous", "Shift+F6"], ["nav.home", "Escape"],
   ["edit.split", "B"], ["edit.split", "Mod+B"], ["edit.delete", "Backspace"], ["edit.cut", "X"], ["edit.cut", "Mod+X"],
   ["clip.mute", "N"], ["clip.mute", "Alt+Mod+M"], ["clip.fade", "G"], ["edit.undo", "Mod+Z"], ["edit.redo", "Shift+Mod+Z"],
-  ["track.rename", "F2"], ["bus.collapse", "Alt+Mod+ArrowLeft"], ["bus.expand", "Alt+Mod+ArrowRight"],
-  ["history.restore", "Enter"], ["help.open", "F1"], ["help.open", "?"],
-].map(([command, shortcut]) => ({ command, shortcut }));
+  ["rename", "F2"], ["bus.collapse", "Alt+Mod+ArrowLeft"], ["bus.expand", "Alt+Mod+ArrowRight"],
+  ["help.open", "F1"], ["help.keys", "?"],
+].map(([id, raw]) => ({ id, raw: [raw] }));
 const PROTO_KEYNAMES = { Mod: "⌘", Alt: "⌥", Shift: "⇧", Backspace: "⌫", Escape: "Esc", Enter: "↩", ArrowLeft: "←", ArrowRight: "→" };
 function protoFormat(shortcut) {
   const keys = shortcut === "+" ? ["+"] : shortcut.split("+");
@@ -4178,13 +4295,13 @@ function renderHelpTab() {
   const topics = protoTopics();
   const ctx = { t: helpT, shortcuts: (c) => shortcutsFor(c, PROTO_KEYMAP), format: protoFormat, title: (id) => topics.find((x) => x.id === id)?.title ?? id };
   const head = (title, back) => `<div class="help-head">${back ? `<button class="button ghost small" type="button">← ${helpT("ui.help.back")}</button>` : ""}<h2>${icon("help")}${title}</h2><span class="spacer"></span><button class="button ghost icon-button" type="button" aria-label="${helpT("ui.help.close")}" title="${helpT("ui.help.close")} (Esc)">${icon("x")}</button></div>`;
-  const search = (q) => `<label class="help-search">${icon("search")}<input class="input" type="search" value="${q}" placeholder="${helpT("ui.help.search")}" aria-label="${helpT("ui.help.search")}"><kbd>?</kbd></label>`;
+  const search = (q) => `<label class="help-search">${icon("search")}<input class="input" type="search" value="${q}" placeholder="${helpT("ui.help.search")}" aria-label="${helpT("ui.help.search")}"><kbd>F1</kbd></label>`;
   const foot = `<div class="help-foot"><label><input type="checkbox" checked> ${helpT("ui.help.follow")}</label><span class="spacer"></span><button class="button ghost small" type="button">${helpT("ui.help.index")}</button></div>`;
   if (S.screen === "help-search") {
     const q = S.lang === "fi" ? "zoom" : "zoom";
     const found = searchHelp(topics.map((x) => ({ ...x, text: x.body })), q);
-    const ids = [...new Set(PROTO_KEYMAP.map((r) => r.command))];
-    const cmds = searchHelp(ids.map((id) => ({ id, title: helpT(`command.${id}.label`), text: `${helpT(`command.${id}.hint`)} ${id.replace(/[._]/g, " ")}` })), q);
+    const ids = [...new Set(PROTO_KEYMAP.map((r) => r.id))];
+    const cmds = searchHelp(ids.map((id) => ({ id, title: helpT(`cmd.${id}`), text: `${helpT(`cmd.${id}.hint`)} ${id.replace(/[._]/g, " ")}` })), q);
     return `${head(helpT("ui.help.index"), true)}${search(q)}<p class="help-why">${HELP_WHY[S.lang].index}</p><div class="help-body">
       <h3>${helpT("ui.help.topics")}</h3><ul class="help-results">${found.map((x) => `<li><a class="help-link" href="#">${x.title}</a><span class="hint">${x.body.split("\n")[0].replace(/\{[^}]+\}|\[\[[^\]]+\]\]/g, "").slice(0, 70)}…</span></li>`).join("")}</ul>
       <h3>${helpT("ui.help.commands")}</h3><ul class="help-results">${cmds.map((c) => `<li class="help-command"><button class="button small" type="button">${c.title}</button><span class="keys">${shortcutsFor(c.id, PROTO_KEYMAP).map((k) => `<kbd>${protoFormat(k)}</kbd>`).join(" ")}</span><span class="hint">${c.text}</span></li>`).join("")}</ul></div>${foot}`;
@@ -4198,7 +4315,7 @@ function renderHelpTab() {
 function helpTooltip() {
   const b = $("viewToggle")?.getBoundingClientRect();
   if (!b) return "";
-  return `<div class="tip" role="tooltip" style="left:${b.left}px; bottom:${innerHeight - b.top + 8}px"><b>${helpT("command.view.toggle.label")}</b> <kbd>Z</kbd><br><span>${helpT("command.view.toggle.hint")}</span><span class="tip-more"><kbd>F1</kbd> ${S.lang === "fi" ? "lisää ohjetta" : "more help"}</span></div>`;
+  return `<div class="tip" role="tooltip" style="left:${b.left}px; bottom:${innerHeight - b.top + 8}px"><b>${helpT("cmd.view.toggle")}</b> <kbd>Z</kbd><br><span>${helpT("cmd.view.toggle.hint")}</span><span class="tip-more"><kbd>F1</kbd> ${S.lang === "fi" ? "lisää ohjetta" : "more help"}</span></div>`;
 }
 
 // ---------------------------------------------------------------- welcome (onboarding sketch, later)

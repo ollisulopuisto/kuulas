@@ -6,12 +6,14 @@ import { createEditor } from "./edits.js";
 import { nextPanel } from "./focus.js";
 import { followScroll } from "./follow.js";
 import { frameToTime, RATE, xToFrame } from "./format.js";
-import { createHelpPanel } from "./help-panel.js";
 import { GATE_OPEN_COMMAND, openStretchEdit, stretchAt } from "./gate.js";
+import { HELP_COMMAND, shortcutsFor } from "./help.js";
+import { createHelpPanel } from "./help-panel.js";
 import { formatNumber, formatShortcut, initI18n, onLanguageChange, t } from "./i18n.js";
 import { dragHasFiles, nativeBridge, summariseImport } from "./importing.js";
 import { createInspector } from "./inspector.js";
-import { isTextField } from "./keys.js";
+import { formatCombo } from "./keymap-config.js";
+import { detectPlatform, isTextField } from "./keys.js";
 import { clampLaneHeight, pointerIntent, projectEnd } from "./lanes.js";
 import { connectLive } from "./live.js";
 import { motionMode } from "./motion.js";
@@ -147,8 +149,6 @@ const actions = {
     focusPanel("timeline");
   },
   cyclePanel: (direction) => focusPanel(nextPanel(getState().panel, direction)),
-  // F1 / ?: help for what has focus (help.js HELP_COMMAND, bound by helpBindings).
-  openHelp: () => void help.open(),
   zoomStep(direction) {
     const state = getState();
     const levels = viewLevels();
@@ -299,14 +299,24 @@ document.addEventListener("focusin", (event) => {
 });
 
 // The whole keyboard layer: keymap, palette, cheat sheet, menu bar, hints (shell-keys.js).
-setupKeyboard({
+const keyboard = setupKeyboard({
   actions,
   t,
   notify: showNotice,
   onLanguageChange,
+  // The Help button shows the key help has now, F1 or the user's own.
+  onRefresh(entries) {
+    const button = $("help-button");
+    const platform = detectPlatform();
+    const keys = shortcutsFor(HELP_COMMAND, entries);
+    const aria = (combo) => combo.replace(/\bMod\b/, platform === "mac" ? "Meta" : "Control");
+    button.setAttribute("aria-keyshortcuts", keys.map(aria).join(" "));
+    button.title = keys.map((combo) => formatCombo(combo, platform)).join(" ");
+  },
   app: {
     getState,
     patch: setState,
+    openHelp: () => void help.open(),
     undo: () => $("undo").click(),
     redo: () => $("redo").click(),
     edit: (change) => editor.change(change),
@@ -579,28 +589,14 @@ const inspector = createInspector({ root: $("panel-inspector"), editor });
 
 // -- help ---------------------------------------------------------------------------------------------
 
-// The keymap as data for help: what each command's keys are right now. When
-// the keymap rewrite (WP5) gives bindings their command ids, this becomes a
-// read of the registry; until then keymapTable learns them from the actions.
-const KEYMAP_ROWS = [
-  ...keymapTable(coreBindings),
-  ...keymapTable(helpBindings),
-  { command: "track.rename", shortcut: "F2" },
-];
-const COMMAND_RUNS = {
-  ...Object.fromEntries(
-    Object.entries(ACTION_COMMANDS).map(([call, id]) => {
-      const [name, arg] = call.split(":");
-      return [id, () => (arg === undefined ? actions[name]() : actions[name](Number(arg)))];
-    }),
-  ),
-  "track.rename": () => inspector.focusName(),
-};
+// Help reads the command registry and the keymap the user has (entries(): the
+// defaults with their overrides), the same data the cheat sheet and menus read.
 const help = createHelpPanel({
   root: $("panel-help"),
-  keymap: () => KEYMAP_ROWS,
-  commands: () => Object.keys(COMMAND_RUNS),
-  runCommand: (id) => COMMAND_RUNS[id]?.(),
+  keymap: () => keyboard.entries(),
+  format: (combo) => keyboard.format(combo),
+  commands: () => keyboard.registry.ids().filter((id) => keyboard.registry.status(id) === "ready"),
+  runCommand: (id) => keyboard.registry.run(id, null, getState()),
   getContext() {
     const state = getState();
     const active = document.activeElement;
@@ -612,6 +608,8 @@ const help = createHelpPanel({
       selection: state.selection.size,
       focusTrack: state.focusTrack,
       focusBus: state.focusBus,
+      // F1 on a menu item: the command it runs.
+      command: active?.closest?.("#menubar [data-command]")?.dataset.command ?? null,
     };
   },
   async fetchText(path) {

@@ -29,7 +29,7 @@ export function helpFiles() {
   for (const lang of ["en", "fi"]) {
     const catalog = JSON.parse(readFileSync(at(`../../src/kuulas/locales/${lang}.json`), "utf8"));
     files[`catalog/${lang}`] = Object.fromEntries(
-      Object.entries(catalog).filter(([key]) => /^(command|ui\.help)\./.test(key)),
+      Object.entries(catalog).filter(([key]) => /^(cmd|ui\.help)\./.test(key)),
     );
   }
   return files;

@@ -16,16 +16,13 @@ import {
 } from "./edit-plans.js";
 import { selectAllIds } from "./selection.js";
 
-const HINTS = new Set(["edit.split", "edit.split_all", "edit.cut", "edit.delete", "clip.mute"]);
-
 /**
  * `app`: getState, patch(statePatch), edit(change) (the editor's change), toast(text,
  * { undo }), now(). `t` translates, `formatSeconds(seconds)` writes a number of seconds.
  */
 export function registerEditCommands(registry, { app, t, formatSeconds }) {
   const burst = createBurst();
-  const def = (id, run, can) =>
-    registry.register(id, run, { can, hintKey: HINTS.has(id) ? `cmd.${id}.hint` : null });
+  const def = (id, run, can) => registry.register(id, run, { can, hintKey: `cmd.${id}.hint` });
   const hasProject = (state) => Boolean(state?.project);
 
   function toastFor(plan, before, response) {

@@ -81,6 +81,7 @@ export function createMenubar({ root, getMenus, run, onHint, t }) {
           button.append(kbd);
         }
         button.dataset.hint = item.tooltip;
+        button.dataset.command = item.id; // F1 opens help for it (help-panel.js)
       }
       li.append(button);
       if (item.kind === "submenu" && at.subOpen && at.item === index)
@@ -206,6 +207,9 @@ export function createMenubar({ root, getMenus, run, onHint, t }) {
       } else close(true);
     } else if (key === "Tab") {
       close(false);
+    } else if (key === "F1") {
+      // The keymap opens help, with this item in focus. Then the menu steps aside.
+      setTimeout(() => close(false), 0);
     }
   });
 
