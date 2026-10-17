@@ -45,9 +45,11 @@ function translate() {
 }
 
 let noticeTimer = null;
-function showNotice(text, kind = "error") {
+// `undo`: the message offers an Undo button (the edit keys' toast).
+function showNotice(text, kind = "error", { undo = false } = {}) {
   const notice = $("notice");
   $("notice-text").textContent = text;
+  $("notice-undo").hidden = !undo;
   notice.dataset.kind = kind;
   notice.hidden = false;
   clearTimeout(noticeTimer);
@@ -58,6 +60,10 @@ function showNotice(text, kind = "error") {
 const showError = (error) => showNotice(error?.message || t("ui.error.title"));
 $("notice-close").addEventListener("click", () => {
   $("notice").hidden = true;
+});
+$("notice-undo").addEventListener("click", () => {
+  $("notice").hidden = true;
+  $("undo").click();
 });
 
 // -- server state -----------------------------------------------------------
@@ -282,6 +288,9 @@ setupKeyboard({
     patch: setState,
     undo: () => $("undo").click(),
     redo: () => $("redo").click(),
+    edit: (change) => editor.change(change),
+    toast: (text, options) => showNotice(text, "ok", options),
+    now: () => performance.now(),
     chooseMedia: () => chooseMedia(),
     focusName: () => inspector.focusName(),
     seek: (frame) => void transport.seek(frame),
@@ -308,6 +317,7 @@ $("waveform-mode").addEventListener("change", (event) =>
   setState({ waveformMode: event.target.value }),
 );
 $("waveform-gain").addEventListener("click", () => setState({ waveformGain: 1 }));
+$("group-chip").addEventListener("click", () => setState({ groupEditing: true }));
 $("lane-taller").addEventListener("click", () => setLaneHeight(LANE_STEP));
 $("lane-shorter").addEventListener("click", () => setLaneHeight(-LANE_STEP));
 $("follow").addEventListener("click", () => {
@@ -628,6 +638,13 @@ function render(state, patch) {
       state.followMode === "page" ? "ui.view.follow_page" : "ui.view.follow_continuous",
     );
     $("follow").setAttribute("aria-pressed", String(state.followPaused));
+  }
+  if (touched("groupEditing")) {
+    // A mode chip shows only when the safe default is off (design 8.2).
+    const chip = $("group-chip");
+    chip.hidden = state.groupEditing;
+    chip.textContent = t("ui.mode.group_off");
+    chip.title = t("ui.mode.group_off_title");
   }
   if (touched("waveformMode")) $("waveform-mode").value = state.waveformMode;
   if (touched("project", "focusTrack", "focusBus", "laneHeight", "busHeight", "groupGap"))

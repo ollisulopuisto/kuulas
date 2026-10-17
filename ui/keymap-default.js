@@ -225,6 +225,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.edit.split",
   },
   {
+    id: "edit.split_all",
+    keys: { mac: "Shift+B", other: "Shift+B" },
+    context: "timeline",
+    labelKey: "cmd.edit.split_all",
+  },
+  {
     id: "edit.cut",
     keys: { mac: ["X", "Mod+X"], other: ["X", "Mod+X"] },
     context: "timeline",
