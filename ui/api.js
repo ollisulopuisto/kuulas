@@ -57,3 +57,5 @@ export async function peakTile(media, level, tile) {
 export function liveUrl(location = globalThis.location) {
   return `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/api/live`;
 }
+
+export const getTransport = () => json("/api/transport");

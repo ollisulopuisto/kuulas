@@ -19,11 +19,8 @@ export function selectedClip(state) {
   return null;
 }
 
-function syncGroupOf(project, mediaId) {
-  return (
-    project.sync_groups?.find((group) => group.members.some(([member]) => member === mediaId)) ??
-    null
-  );
+export function syncGroupOf(project, mediaId) {
+  return project.sync_groups?.find((group) => mediaId in group.members) ?? null;
 }
 
 function field(labelText, control) {
@@ -107,7 +104,7 @@ export function createInspector({ root, editor }) {
   }
 
   function setNumber(input, value) {
-    if (document.activeElement !== input && Number(input.value) !== value) input.value = value;
+    if (document.activeElement !== input && input.value !== String(value)) input.value = value;
   }
 
   function update(state) {

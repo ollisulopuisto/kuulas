@@ -361,6 +361,7 @@ window.addEventListener("drop", (event) => {
 
 // -- the canvases and panels -----------------------------------------------------------------------
 
+let overview;
 const trackHeaders = createTrackHeaders({
   root: $("track-headers"),
   editor,
@@ -382,7 +383,7 @@ const timeline = createTimeline({
     },
   },
 });
-const overview = createOverview({
+overview = createOverview({
   canvas: $("overview"),
   getState,
   getTimelineWidth: width,

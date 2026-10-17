@@ -20,7 +20,7 @@
   --clip-3-ink: #3d8f7e;
   --font-ui: system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
-  --heads-width: 268px;
+  --heads-width: 312px;
   font: 13px / 1.4 var(--font-ui);
 }
 @media (prefers-color-scheme: dark) {
@@ -309,7 +309,7 @@ input[type="text"] {
   color: var(--muted);
 }
 .bus-select {
-  width: 78px;
+  width: 64px;
   padding: 0 2px;
   font-size: 11px;
 }
@@ -426,4 +426,8 @@ input[type="text"] {
   .editor {
     grid-template-rows: 40px 30px minmax(150px, 1fr) 110px;
   }
+}
+/* Last, so a class's display never shows an element that is [hidden]. */
+[hidden] {
+  display: none;
 }

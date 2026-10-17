@@ -202,7 +202,7 @@ export function createTrackHeaders({ root, editor, actions }) {
   }
 
   function setSlider(control, value, text) {
-    if (document.activeElement !== control.input && Number(control.input.value) !== value) {
+    if (document.activeElement !== control.input && control.input.value !== String(value)) {
       control.input.value = value;
     }
     control.output.textContent = text;
