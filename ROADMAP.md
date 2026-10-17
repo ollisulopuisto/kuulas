@@ -237,6 +237,12 @@ WP27, WP38, WP42, WP15.
   nested buses with one new field `Bus.parent` (tree, depth 3, cascading gain, mute
   and solo; badges A, A1, A1a; eight bus hues), tags not needed [recommended]; the
   designer's further open questions 14 to 19 in `docs/design/GUI-DESIGN.md`.
+- **Owner on menus, 2026-10-18:** menu items must be unavailable when they cannot
+  apply, and every item must show its keyboard shortcut ("we must teach the users
+  the shortcuts in the menu too"). pywebview's native menus cannot do this, so
+  kuulas gets an in-window menu bar driven by the command registry (enabled state
+  per command, current keymap including user remaps); the native menu keeps only
+  the app items. First cut inside the WP5 job; the designer reviews its look.
 - **Owner on shortcuts, 2026-10-18:** browser-reserved or conflicting keys are fine
   as long as users can customise keyboard shortcuts: WP5 must define the keymap as
   data with a user override file and conflict detection; the remap UI (WP19d) can
