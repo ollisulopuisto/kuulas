@@ -280,21 +280,21 @@
      named next to each. */
   --topbar-h: 52px;
   --statusbar-h: 32px;
-  --overview-h: 24px;
+  --overview-h: 20px;
   --ruler-h: 24px; /* lanes.js RULER_HEIGHT (both densities) */
   --heads-w: 272px;
-  --heads-w-min: 200px;
+  --heads-w-min: 232px;
   --heads-w-max: 380px;
   --sidebar-w: 360px;
   --sidebar-w-min: 280px;
   --sidebar-w-max: 520px;
-  --dock-h: 32vh; /* transcript dock */
+  --dock-h: 26vh; /* transcript dock */
   --dock-h-min: 140px;
   --control-h: 32px; /* buttons, inputs, selects */
   --control-h-lg: 40px; /* top-bar buttons: 40 visible + 2 px hit margin = 44 */
   --control-h-sm: 28px; /* M / S, bus picker, chips inside headers */
   --target-min: 44px; /* hit target of the main controls (WCAG 2.5.5) */
-  --lane-h: 88px; /* lanes.js DEFAULT_LANE */
+  --lane-h: 80px; /* lanes.js DEFAULT_LANE */
   --bus-h: 32px; /* lanes.js BUS_HEIGHT: one line */
   --bus-collapsed-h: 40px; /* a collapsed bus: ribbons or summed waveform */
   --group-gap: 14px; /* lanes.js GROUP_GAP: plain lane between groups */

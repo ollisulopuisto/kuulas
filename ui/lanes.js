@@ -13,7 +13,7 @@ export const MIN_LANE = 24;
 export const MAX_LANE = 160;
 /** tokens.css --lane-h (comfortable): room for the name row at rest and the
  *  level row on the current track. Compact: 40. */
-export const DEFAULT_LANE = 88;
+export const DEFAULT_LANE = 80;
 /** How close (px) a pointer must be to a clip edge or an envelope point. */
 export const EDGE_PX = 4;
 export const POINT_PX = 6;
@@ -124,11 +124,13 @@ export function layoutRows(project, laneHeight, options = {}) {
   return { rows, height: top };
 }
 
-/** The layout for the client state: its lane, bus and gap sizes (density). */
+/** The layout for the client state: its lane, bus and gap sizes (density), one-track buses merged. */
 export function layoutFor(state) {
   return layoutRows(state.project, state.laneHeight, {
     busHeight: state.busHeight,
     groupGap: state.groupGap,
+    // A bus with one track merges into the track header (owner, 2026-10-18).
+    mergeSingle: true,
   });
 }
 

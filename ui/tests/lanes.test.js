@@ -8,6 +8,7 @@ import {
   dbToY,
   GROUP_GAP,
   hitTest,
+  layoutFor,
   layoutRows,
   pointerIntent,
   projectEnd,
@@ -81,6 +82,23 @@ describe("lane layout", () => {
     assert.equal(layout.rows[0].members, 2);
     assert.equal(layout.rows[2].last, true, "the last member ends the spine");
     assert.equal(layout.rows[1].last, false);
+  });
+
+  test("the editor merges one-track buses (owner decision, 2026-10-18)", () => {
+    const state = {
+      project: {
+        buses: [{ id: "music", name: "Music" }],
+        tracks: [{ id: "m", bus: "music", clips: [] }],
+      },
+      laneHeight: 80,
+      busHeight: 32,
+      groupGap: 14,
+    };
+    const rows = layoutFor(state).rows;
+    assert.deepEqual(
+      rows.map((r) => [r.kind, r.id, r.merged ?? false]),
+      [["track", "m", true]],
+    );
   });
 
   test("the bus row is a short single line by default, shorter than any lane", () => {

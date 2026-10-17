@@ -263,6 +263,7 @@
   "ui.bus.option": "{letter} · {name}",
   "ui.bus.option_none": "– · Ei väylää",
   "ui.view.menu": "Näkymä",
+  "ui.view.zoom": "Zoomaus",
   "ui.view.lanes": "Raitojen korkeus",
   "ui.density.title": "Tiheys",
   "ui.density.comfortable": "Väljä",

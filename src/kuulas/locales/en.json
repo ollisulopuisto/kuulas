@@ -263,6 +263,7 @@
   "ui.bus.option": "{letter} · {name}",
   "ui.bus.option_none": "– · No bus",
   "ui.view.menu": "View",
+  "ui.view.zoom": "Zoom",
   "ui.view.lanes": "Lane height",
   "ui.density.title": "Density",
   "ui.density.comfortable": "Comfortable",

@@ -227,8 +227,8 @@ export const SIGNALS = [
     always: true,
     tokens: ["--signal-soft-cut", "--signal-soft-cut-fill"],
     twin: "hatch plus a solid 2 px edge at each end in the cut colour, and the word 'cut' when wide enough; the context menu says 'Restore'",
-    when: "a stretch cut without closing the gap ('Cut, keep gap'); 'Show cuts' (on by default) hides or shows them",
-    key: "Backspace on a range; Restore from the menu or the palette",
+    when: "Delete (Backspace): audio removed in place, the gap kept, restorable; 'Show cuts' (on by default) hides or shows them",
+    key: "Backspace (Delete); Restore from the menu or the palette",
     status: "prototype",
   },
   {
@@ -481,7 +481,7 @@ export const SIGNALS = [
     tokens: ["--signal-collateral", "--signal-collateral-fill"],
     twin: "other speakers' words struck through with a wavy underline, 'also removed' in the word pop-up, the stretch hatched and the affected clips outlined on the timeline",
     when: "a transcript selection whose cut would also remove other tracks' words or audio",
-    key: "Backspace cuts all; Shift+Backspace cuts this speaker only, keeping the gap",
+    key: "X cuts on all tracks (ripple); Backspace deletes on this speaker only, keeping the gap",
     status: "prototype",
   },
   {
@@ -494,7 +494,7 @@ export const SIGNALS = [
     tokens: [],
     twin: "one strip per member in its position (top to bottom = header order), filled where the track has sound; the tooltip names the track and clip",
     when: "a collapsed bus with two or more members (one member keeps its summed waveform)",
-    key: "Alt+← collapses, Alt+→ expands",
+    key: "Alt+Mod+← collapses, Alt+Mod+→ expands",
     status: "prototype",
   },
   {

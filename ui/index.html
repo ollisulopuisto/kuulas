@@ -57,9 +57,7 @@
         </section>
       </aside>
       <footer class="statusbar" data-i18n-aria-label="ui.view.title">
-        <button id="zoom-out" type="button" class="button icon" data-i18n-aria-label="ui.view.zoom_out" data-i18n-title="ui.view.zoom_out" aria-keyshortcuts="-">−</button>
         <span id="zoom-chip" class="zoom"></span>
-        <button id="zoom-in" type="button" class="button icon" data-i18n-aria-label="ui.view.zoom_in" data-i18n-title="ui.view.zoom_in" aria-keyshortcuts="=">+</button>
         <button id="view-toggle" type="button" class="button" data-i18n-title="ui.view.toggle" aria-keyshortcuts="Z"></button>
         <span class="divider" aria-hidden="true"></span>
         <!-- At most three hints, for the focused panel (GUI-DESIGN.md "Density"). -->
@@ -73,6 +71,12 @@
       </footer>
       <!-- Everything else about the view: one click away, not on screen at rest. -->
       <div id="view-menu" class="view-menu" popover data-i18n-aria-label="ui.view.menu">
+        <div class="menu-row"><span data-i18n="ui.view.zoom"></span>
+          <span class="menu-pair">
+            <button id="zoom-out" type="button" class="button icon" data-i18n-aria-label="ui.view.zoom_out" data-i18n-title="ui.view.zoom_out" aria-keyshortcuts="-">−</button>
+            <button id="zoom-in" type="button" class="button icon" data-i18n-aria-label="ui.view.zoom_in" data-i18n-title="ui.view.zoom_in" aria-keyshortcuts="=">+</button>
+          </span>
+        </div>
         <button id="fit" type="button" class="button" data-i18n="ui.view.fit" aria-keyshortcuts="Shift+Z"></button>
         <label class="menu-row"><span data-i18n="ui.view.waveform"></span>
           <select id="waveform-mode" class="button">

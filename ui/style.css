@@ -282,9 +282,10 @@ button.chip {
   content: "";
   position: absolute;
   left: calc(var(--spine-w) + var(--space-1));
-  top: 50%;
+  /* Level with the name row (the top row of the header). */
+  top: calc(var(--space-3) + var(--control-h-sm) / 2);
   width: 3px;
-  height: min(22px, 60%);
+  height: min(20px, 60%);
   transform: translateY(-50%);
   border-radius: 2px;
   background: var(--track-colour, transparent);
@@ -310,10 +311,10 @@ button.chip {
 }
 /* Hierarchy (owner, 2026-10-18): the bus row is flush with the spine; its
    tracks sit one indent further in, so group controls read as the outer level. */
-.track-header[data-bus]:not(.bus-header) {
+.track-header[data-bus]:not(.bus-header, .merged) {
   padding-left: calc(var(--spine-w) + var(--pad-inline) + var(--indent-member));
 }
-.track-header[data-bus]:not(.bus-header)::before {
+.track-header[data-bus]:not(.bus-header, .merged)::before {
   left: calc(var(--spine-w) + var(--space-1) + var(--indent-member));
 }
 .bus-header {
@@ -334,12 +335,16 @@ button.chip {
   align-content: center;
   padding-top: 0;
 }
+.track-header.compact::before,
+:root[data-density="compact"] .track-header::before {
+  top: 50%;
+}
 /* Progressive disclosure (comfortable): at rest a header shows role, name, M
    and S. The bus picker and the level row show on the current track, on hover
    and while focus is inside. Compact shows everything, as before. */
 :root:not([data-density="compact"])
   .track-header:not(.current, :hover, :focus-within)
-  :is(.th-controls, .bus-select) {
+  .th-controls {
   visibility: hidden;
 }
 :root[data-density="compact"] .track-header {
@@ -432,6 +437,10 @@ button.chip {
   background: transparent;
   border: 1px solid var(--border);
   border-radius: var(--radius-xs);
+}
+/* The bus picker leaves the layout at rest, so the name gets its width. */
+:root:not([data-density="compact"]) .track-header:not(.current, :hover, :focus-within) .bus-select {
+  display: none;
 }
 .slider-control {
   display: flex;
@@ -535,20 +544,32 @@ input[type="range"]::-moz-range-thumb {
 
 /* The bus fader is a different control: thicker, filled in the bus colour,
    labelled "Bus"; track sliders stay neutral grey. */
+.merged .bus-badge {
+  order: -2;
+}
+/* A merged header's level row: the track's gain and the bus fader. Its pan
+   moves to the inspector (GUI-DESIGN.md section 6). */
+.merged .th-controls .slider-control.pan {
+  display: none;
+}
+.merged .fader-label,
 .bus-header .fader-label {
   flex: none;
   font-size: var(--text-xs);
   font-weight: var(--weight-strong);
   color: var(--bus-text, var(--text-secondary));
 }
+.bus-fader input[type="range"]::-webkit-slider-runnable-track,
 .bus-header input[type="range"]::-webkit-slider-runnable-track {
   height: 5px;
   background: var(--bus-spine, var(--border-strong));
 }
+.bus-fader input[type="range"]::-webkit-slider-thumb,
 .bus-header input[type="range"]::-webkit-slider-thumb {
   margin-top: -3px;
   box-shadow: 0 0 0 1.5px var(--bus-spine, var(--border-strong));
 }
+.bus-fader input[type="range"]::-moz-range-track,
 .bus-header input[type="range"]::-moz-range-track {
   height: 5px;
   background: var(--bus-spine, var(--border-strong));

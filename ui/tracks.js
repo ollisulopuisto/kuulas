@@ -124,13 +124,44 @@ export function createTrackHeaders({ root, editor, actions }) {
     rows = new Map();
     for (const row of layoutFor(state).rows) {
       let parts;
-      if (row.kind === "track") parts = buildTrack(state.project.tracks[row.index], state.project);
-      else if (row.kind === "bus") parts = buildBus(state.project.buses[row.index], row.index);
+      if (row.kind === "track") {
+        parts = buildTrack(state.project.tracks[row.index], state.project);
+        // A one-track bus merged into its track (owner, 2026-10-18): the bus
+        // badge before the name and a bus fader with the levels.
+        if (row.merged) mergeBus(parts, busIndexOf(state.project, row.bus));
+      } else if (row.kind === "bus") parts = buildBus(state.project.buses[row.index], row.index);
       // A group gap: plain space, so each bus reads as its own block.
       else parts = { node: el("div", "group-gap", { "aria-hidden": "true" }), kind: "gap" };
       rows.set(row.id, parts);
       root.append(parts.node);
     }
+  }
+
+  const busIndexOf = (project, id) => project.buses.findIndex((bus) => bus.id === id);
+
+  function mergeBus(parts, index) {
+    const bus = latestProject().buses[index];
+    const id = bus.id;
+    parts.node.classList.add("merged");
+    const badge = el("span", "bus-badge", { title: t("ui.bus.name", { name: bus.name }) });
+    badge.textContent = busLetter(index);
+    parts.node.querySelector(".th-top").prepend(badge);
+    const label = el("span", "fader-label", { "aria-hidden": "true" });
+    label.textContent = t("ui.bus.fader");
+    const fader = slider(t("ui.bus.gain"), GAIN);
+    fader.wrap.classList.add("bus-fader");
+    fader.input.addEventListener("input", () => {
+      const value = Number(fader.input.value);
+      fader.output.textContent = formatDb(value);
+      editor.change({
+        op: "set_bus",
+        args: { bus_id: id, gain_db: value },
+        coalesce: coalesceKey("bus", "gain", id),
+        provisional: (p) => patchBus(p, id, { gain_db: value }),
+      });
+    });
+    parts.node.querySelector(".th-controls").append(label, fader.wrap);
+    parts.busFader = { control: fader, id };
   }
 
   function buildTrack(track, project) {
@@ -283,6 +314,7 @@ export function createTrackHeaders({ root, editor, actions }) {
 
   // The latest project, for handlers that need a value that may have changed.
   let latest = null;
+  const latestProject = () => latest.project;
   const lookup = (id) => latest.project.tracks.find((track) => track.id === id);
   const currentBus = (id) => latest.project.buses.find((bus) => bus.id === id);
 
@@ -371,6 +403,10 @@ export function createTrackHeaders({ root, editor, actions }) {
         if (document.activeElement !== parts.bus) parts.bus.value = track.bus ?? "";
         setSlider(parts.gain, track.gain_db, formatDb(track.gain_db));
         setSlider(parts.pan, Math.round(track.pan * 100), panText(track.pan));
+        if (parts.busFader) {
+          const bus = state.project.buses.find((item) => item.id === parts.busFader.id);
+          if (bus) setSlider(parts.busFader.control, bus.gain_db, formatDb(bus.gain_db));
+        }
       } else {
         const bus = state.project.buses.find((item) => item.id === row.id);
         parts.name.textContent = bus.name;
