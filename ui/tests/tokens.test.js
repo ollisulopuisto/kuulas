@@ -98,7 +98,7 @@ const SURFACES = [
   "--surface-hover",
 ];
 const TRACKS = ["0", "1", "2", "3", "4", "5", "music"];
-const BUSES = ["1", "2", "3", "4"];
+const BUSES = ["1", "2", "3", "4", "5", "6", "7", "8"];
 
 function pairs() {
   const list = [];

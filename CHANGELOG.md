@@ -1,3 +1,24 @@
+## [v26.10.18.4] - 2026-10-18
+
+- Desktop app (first cut): `kuulas` with no arguments opens a native window with
+  your recent projects; `kuulas open <project> --window` opens one project in a
+  window. Needs the extra: `uv sync --extra desktop`. In the window the Import
+  button uses the system file dialog and dropped files are linked in place, not
+  uploaded. Not yet checked by a person: how the page looks in the window, closing
+  it, the launcher buttons, and anything on Windows or Linux.
+- A GitHub Actions workflow (`.github/workflows/ci.yml`) runs the checks on Mac,
+  Windows and Linux. It cannot run until you add a repository secret
+  `PODCAST_READ_TOKEN` (read access to the podcast repo, which kuulas still needs
+  for speechmix and nhsx) and push.
+
+## [v26.10.18.3] - 2026-10-18
+
+- Design only (open `docs/design/prototype/index.html`): a "Cuts explained" screen
+  showing Delete, Cut, Lift-cut, Mute, Auto-Silence, Restore and Put back side by
+  side with before and after, and a "Nested buses" screen (an "All speech" bus
+  holding interviews). Eight bus colours now, with letter badges (A, A1, A1a).
+  Nothing of this is built into the editor yet.
+
 ## [v26.10.18.2] - 2026-10-18
 
 - The editor is much roomier by default ("comfortable"): lanes 80 px tall,

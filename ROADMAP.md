@@ -221,6 +221,36 @@ WP27, WP38, WP42, WP15.
 
 ## Open questions and known limits
 
+- **CI and distribution need two things from the owner:** a repository secret
+  `PODCAST_READ_TOKEN` (read access to `ollisulopuisto/podcast`) before
+  `.github/workflows/ci.yml` can pass, and, for any installable app, speechmix and
+  nhsx published as real packages instead of path dependencies on `../podcast`
+  (see "speechmix as a package"). The wrapper cannot be shipped to other people
+  until then.
+
+- **Waiting for the owner (look at the prototype screens `cuts`, `nested`,
+  `nested-collapsed`, and spec sections 24 and 25):** (A) keep Auto-Silence out of the
+  Cuts list and the transcript, one summary line instead [recommended]; (B) "Clean up
+  cuts" as a palette command only [recommended]; (C) offer one edit's soft cuts to
+  other versions as quiet suggestions [recommended]; (D) lift-cut on Alt+X, which
+  moves "close gap on all tracks" to Alt+Mod+X (WP5's list must change) [recommended];
+  nested buses with one new field `Bus.parent` (tree, depth 3, cascading gain, mute
+  and solo; badges A, A1, A1a; eight bus hues), tags not needed [recommended]; the
+  designer's further open questions 14 to 19 in `docs/design/GUI-DESIGN.md`.
+- **Owner on menus, 2026-10-18:** menu items must be unavailable when they cannot
+  apply, and every item must show its keyboard shortcut ("we must teach the users
+  the shortcuts in the menu too"). pywebview's native menus cannot do this, so
+  kuulas gets an in-window menu bar driven by the command registry (enabled state
+  per command, current keymap including user remaps); the native menu keeps only
+  the app items. First cut inside the WP5 job; the designer reviews its look.
+  Also: when a modifier is held and a shortcut changes meaning (X vs Alt+X), the menu,
+  the status-bar hints and the cheat sheet show the alternate while it is held, like
+  macOS does with Option.
+- **Owner on shortcuts, 2026-10-18:** browser-reserved or conflicting keys are fine
+  as long as users can customise keyboard shortcuts: WP5 must define the keymap as
+  data with a user override file and conflict detection; the remap UI (WP19d) can
+  follow.
+
 - **Owner decisions on the density rework, 2026-10-18:** "reject candidate" moves
   from Backspace to K (Backspace always means Delete); a plain click on a collapsed
   bus selects nothing, Shift+click selects the members' clips in that range; the

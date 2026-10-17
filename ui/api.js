@@ -35,11 +35,19 @@ export const transport = (action, at = null, until = null) =>
   post("/api/transport", { action, at, until });
 
 /** Upload browser files (picker or drop); the server imports them and reports each. */
-export async function uploadFiles(files) {
+export const uploadFiles = (files) => {
   const form = new FormData();
   for (const file of files) form.append("files", file, file.name);
+  return importReport(() => json("/api/upload", { method: "POST", body: form }));
+};
+
+/** Link files in place by path (the desktop window's dialogs and drops): no upload. */
+export const importPaths = (paths) =>
+  importReport(() => post("/api/import", { paths, copy: false }));
+
+async function importReport(send) {
   try {
-    return await json("/api/upload", { method: "POST", body: form });
+    return await send();
   } catch (error) {
     // A failed import still says why, file by file.
     if (error instanceof ApiError && error.body?.report)
