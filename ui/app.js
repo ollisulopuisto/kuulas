@@ -6,7 +6,7 @@ import { createEditor } from "./edits.js";
 import { nextPanel } from "./focus.js";
 import { followScroll } from "./follow.js";
 import { frameToTime, RATE, xToFrame } from "./format.js";
-import { formatNumber, initI18n, onLanguageChange, t } from "./i18n.js";
+import { formatNumber, formatShortcut, initI18n, onLanguageChange, t } from "./i18n.js";
 import { dragHasFiles, summariseImport } from "./importing.js";
 import { createInspector } from "./inspector.js";
 import { coreBindings, createKeymap, isTextField } from "./keys.js";
@@ -14,6 +14,7 @@ import { clampLaneHeight, projectEnd } from "./lanes.js";
 import { connectLive } from "./live.js";
 import { createOverview } from "./overview.js";
 import { getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
+import { nextTheme, themeAttribute } from "./theme.js";
 import { createTimeline } from "./timeline.js";
 import { createTrackHeaders } from "./tracks.js";
 import { createTransport } from "./transport.js";
@@ -36,6 +37,8 @@ function translate() {
   for (const node of document.querySelectorAll("[data-i18n-aria-label]")) {
     node.setAttribute("aria-label", t(node.dataset.i18nAriaLabel));
   }
+  for (const node of document.querySelectorAll("[data-shortcut]"))
+    node.textContent = formatShortcut(node.dataset.shortcut);
   document.title = t("ui.app.title");
 }
 
@@ -296,6 +299,36 @@ $("follow").addEventListener("click", () => {
   if (state.followPaused) setState({ followPaused: false });
   else setState({ followMode: state.followMode === "page" ? "continuous" : "page" });
 });
+// The theme: follow the OS unless the user picked light or dark. A per-viewer
+// convenience until remembered settings (WP35) own it; storage may be blocked.
+const THEME_KEY = "kuulas.theme";
+let themeChoice = "system";
+try {
+  themeChoice = localStorage.getItem(THEME_KEY) ?? "system";
+} catch {
+  // Private mode or blocked storage: the OS decides.
+}
+function applyTheme() {
+  const value = themeAttribute(themeChoice);
+  if (value) document.documentElement.dataset.theme = value;
+  else delete document.documentElement.dataset.theme;
+  $("theme").textContent = t(
+    `ui.theme.${themeChoice === "light" || themeChoice === "dark" ? themeChoice : "system"}`,
+  );
+  $("theme").title = t("ui.theme.title");
+  timeline?.refreshTheme();
+  overview?.refreshTheme();
+}
+$("theme").addEventListener("click", () => {
+  themeChoice = nextTheme(themeChoice);
+  try {
+    localStorage.setItem(THEME_KEY, themeChoice);
+  } catch {
+    // Not remembered; it still applies now.
+  }
+  applyTheme();
+});
+
 $("track-headers").addEventListener("scroll", (event) =>
   setState({ scrollY: event.target.scrollTop }),
 );
@@ -420,11 +453,12 @@ function render(state, patch) {
       "waveformMode",
       "waveformScale",
       "waveformGain",
+      "focusTrack",
     )
   ) {
     timeline.redrawWaveforms();
   }
-  if (touched("project", "scroll", "zoom")) overview.redraw();
+  if (touched("project", "scroll", "zoom", "playhead")) overview.redraw();
   if (touched("playhead", "project")) {
     $("timecode").textContent = frameToTime(state.playhead, rate());
   }
@@ -434,7 +468,9 @@ function render(state, patch) {
   }
   if (touched("zoom", "project", "scroll")) {
     const view = t(views.current === "close" ? "ui.view.close" : "ui.view.wide");
-    $("zoom-chip").textContent = t("ui.zoom.label", { view, span: spanText(state) });
+    // The view's name is on the toggle beside it; the readout shows only the span.
+    $("zoom-chip").textContent = spanText(state);
+    $("zoom-chip").title = t("ui.zoom.label", { view, span: spanText(state) });
     $("view-toggle").textContent = view;
     $("view-toggle").setAttribute("aria-pressed", String(views.current === "close"));
   }
@@ -500,6 +536,7 @@ function follow(state) {
 subscribe(render);
 onLanguageChange(() => {
   translate();
+  applyTheme();
   render(getState(), null);
 });
 
@@ -511,6 +548,7 @@ try {
   console.error("the translations could not be loaded; showing message keys", error);
 }
 translate();
+applyTheme();
 render(getState(), null);
 
 try {

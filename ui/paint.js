@@ -7,24 +7,43 @@ import { layoutRows, RULER_HEIGHT, visibleRows } from "./lanes.js";
 import { columnsFromTiles, pickLevel, waveformColumns } from "./waveform.js";
 
 const MUTED_ALPHA = 0.35;
-/** The sketches draw bars at 75 % so the clip colour still shows through. */
-const WAVE_ALPHA = 0.75;
+/** Bars are opaque: --track-N-wave on --track-N-body is checked at >= 3:1 (tokens.test.js). */
+const WAVE_ALPHA = 1;
 /** Clip bodies stand 2 px inside their lane so neighbours do not touch. */
 const BODY_INSET = 2;
-const MUSIC_COLOUR = 3;
+/** Speaker hues in tokens.css (--track-0 .. --track-5); then music's own. */
+export const SPEAKER_HUES = 6;
+export const MUSIC_HUE = SPEAKER_HUES;
 
-/** Which palette entry a track uses: music has its own, speech cycles. */
-export function paletteIndex(track, index) {
-  return track.kind === "music" ? MUSIC_COLOUR : index % MUSIC_COLOUR;
+/**
+ * Which palette entry (theme.js `palette`) each track uses, by track id.
+ * A hue belongs to a speaker, not a track: tracks with the same `speaker`
+ * share it (a person's split or backup tracks read as one voice). Music takes
+ * its own low-chroma role colour and does not use up a speaker hue.
+ */
+export function trackHues(project) {
+  const hues = new Map();
+  const speakers = new Map();
+  for (const track of project?.tracks ?? []) {
+    if (track.kind === "music") {
+      hues.set(track.id, MUSIC_HUE);
+      continue;
+    }
+    const key = track.speaker || `track:${track.id}`;
+    if (!speakers.has(key)) speakers.set(key, speakers.size % SPEAKER_HUES);
+    hues.set(track.id, speakers.get(key));
+  }
+  return hues;
 }
 
 /**
  * A structured-clone-safe description of what is on screen: only rows in view
  * and, in each, only the clips that overlap the visible time.
  */
-export function makeWaveformJob(state, { width, height, ratio, id }, palette) {
+export function makeWaveformJob(state, { width, height, ratio, id }, palette, colours = {}) {
   const { project, scroll, zoom, scrollY, laneHeight } = state;
   const layout = layoutRows(project, laneHeight);
+  const hues = trackHues(project);
   const rows = [];
   const first = scroll;
   const last = scroll + width * zoom;
@@ -47,7 +66,8 @@ export function makeWaveformJob(state, { width, height, ratio, id }, palette) {
     rows.push({
       top: row.top,
       height: row.height,
-      paletteIndex: paletteIndex(track, row.index),
+      current: track.id === state.focusTrack,
+      paletteIndex: hues.get(track.id) ?? 0,
       clips,
     });
   }
@@ -64,6 +84,7 @@ export function makeWaveformJob(state, { width, height, ratio, id }, palette) {
     scale: state.waveformScale,
     gain: state.waveformGain ?? 1,
     palette,
+    laneCurrent: colours.laneCurrent ?? "",
     rows,
     laneHeight,
   };
@@ -87,6 +108,11 @@ export function paintWaveforms(ctx, job, lookup) {
     const top = job.rulerHeight + row.top - job.scrollY;
     if (top > job.height || top + row.height < job.rulerHeight) continue;
     const colours = job.palette[row.paletteIndex % job.palette.length];
+    // The current track (the ↑/↓ cursor) reads across the whole lane.
+    if (row.current && job.laneCurrent) {
+      ctx.fillStyle = job.laneCurrent;
+      ctx.fillRect(0, top, job.width, row.height - 1);
+    }
     for (const clip of row.clips) {
       const left = frameToX(clip.start, job.scroll, job.zoom);
       const right = frameToX(clip.start + clip.length, job.scroll, job.zoom);

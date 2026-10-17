@@ -5,6 +5,7 @@
 // whole drag is one undo step.
 import { formatDb, formatNumber, t } from "./i18n.js";
 import { BUS_HEIGHT, layoutRows } from "./lanes.js";
+import { MUSIC_HUE, trackHues } from "./paint.js";
 import { coalesceKey, patchBus, patchSolo, patchTrack } from "./provisional.js";
 
 const GAIN = { min: -60, max: 12, step: 0.1 };
@@ -33,8 +34,8 @@ function el(tag, className, attrs = {}) {
   return node;
 }
 
-function toggle(label, shortLabel) {
-  const button = el("button", "ms-button", {
+function toggle(label, shortLabel, kind) {
+  const button = el("button", `ms-button ${kind}`, {
     type: "button",
     "aria-pressed": "false",
     title: label,
@@ -77,8 +78,9 @@ export function createTrackHeaders({ root, editor, actions }) {
     const name = el("button", "track-name", { type: "button", title: t("ui.track.rename") });
     const tag = el("span", `tag kind-${track.kind}`);
     tag.textContent = kindLabel(track.kind);
-    const mute = toggle(t("ui.track.mute"), t("ui.track.mute.short"));
-    const solo = toggle(t("ui.track.solo"), t("ui.track.solo.short"));
+    tag.title = kindLabel(track.kind);
+    const mute = toggle(t("ui.track.mute"), t("ui.track.mute.short"), "mute");
+    const solo = toggle(t("ui.track.solo"), t("ui.track.solo.short"), "solo");
     const buttons = el("span", "ms");
     buttons.append(mute, solo);
     top.append(name, tag, buttons);
@@ -140,7 +142,7 @@ export function createTrackHeaders({ root, editor, actions }) {
   function buildBus(bus) {
     const node = el("section", "track-header bus-header");
     const name = el("span", "bus-name");
-    const mute = toggle(t("ui.bus.mute"), t("ui.track.mute.short"));
+    const mute = toggle(t("ui.bus.mute"), t("ui.track.mute.short"), "mute");
     const gain = slider(t("ui.bus.gain"), GAIN);
     const pan = slider(t("ui.bus.pan"), PAN);
     node.append(name, mute, gain.wrap, pan.wrap);
@@ -225,6 +227,7 @@ export function createTrackHeaders({ root, editor, actions }) {
       build(state);
     }
     const layout = layoutRows(state.project, state.laneHeight);
+    const hues = trackHues(state.project);
     for (const row of layout.rows) {
       const parts = rows.get(row.id);
       if (!parts) continue;
@@ -233,6 +236,11 @@ export function createTrackHeaders({ root, editor, actions }) {
       if (parts.kind === "track") {
         const track = state.project.tracks[row.index];
         parts.node.classList.toggle("current", state.focusTrack === track.id);
+        const hue = hues.get(track.id);
+        parts.node.style.setProperty(
+          "--track-colour",
+          `var(--track-${hue === MUSIC_HUE ? "music" : hue}-edge)`,
+        );
         if (parts.name.isConnected) parts.name.textContent = track.name;
         parts.mute.setAttribute("aria-pressed", String(track.mute));
         parts.solo.setAttribute("aria-pressed", String(track.solo));

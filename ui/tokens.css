@@ -1,0 +1,350 @@
+/* kuulas design tokens. The single source of colour, type, spacing, motion
+   and size for the editor (style.css) and its canvases (theme.js reads these
+   custom properties). Spec: docs/design/GUI-DESIGN.md, "Visual language".
+   Visual reference: docs/design/prototype/index.html (it embeds a copy of
+   this file; ui/tests/tokens.test.js keeps the two identical and checks the
+   contrast pairs, so change a value here and the test tells you what broke).
+
+   Rules for editing this file:
+   - Components use the semantic tokens (--surface-*, --text-*, --accent ...),
+     never a hex value and never a --track-* token for anything but tracks.
+   - The dark values appear twice (OS preference and explicit choice). Keep
+     the two blocks identical; the test fails if they drift.
+   - Every colour change keeps the contrast pairs in tokens.test.js passing. */
+
+/* -- theme-independent tokens ---------------------------------------------- */
+:root {
+  /* Type. System fonts: native feel, no download, full Finnish coverage. */
+  --font-ui:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI",
+    system-ui, Ubuntu, Cantarell, "Noto Sans", sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --text-xs: 11px; /* ruler labels, badges, key chips */
+  --text-sm: 12px; /* controls, panel headers, meta */
+  --text-md: 13px; /* body: the default */
+  --text-lg: 15px; /* transcript reading text, dialog titles */
+  --text-xl: 20px; /* the timecode */
+  --leading-tight: 1.25;
+  --leading-body: 1.45;
+  --leading-read: 1.65; /* transcript */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-strong: 600;
+
+  /* Spacing: a 4 px grid with two half steps for dense rows. */
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 12px;
+  --space-6: 16px;
+  --space-7: 24px;
+  --space-8: 32px;
+
+  /* Radii. Clips are square (canvas); everything the hand touches is soft. */
+  --radius-xs: 2px; /* badges on clips, key chips */
+  --radius-sm: 4px; /* buttons, inputs, chips in toolbars */
+  --radius-md: 6px; /* popovers, cards, list rows */
+  --radius-lg: 10px; /* dialogs, the command palette */
+  --radius-pill: 999px; /* state chips */
+
+  /* Motion. Short and functional; prefers-reduced-motion sets them to 0. */
+  --dur-fast: 90ms; /* hover, press */
+  --dur-base: 140ms; /* chips appearing, tabs */
+  --dur-layout: 120ms; /* lane height changes, focus mode shrink (WP28) */
+  --dur-flash: 600ms; /* "this changed" flash after undo/redo */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  /* Focus ring: always visible on keyboard focus, never removed. */
+  --focus-width: 2px;
+  --focus-offset: 2px;
+
+  /* Layout sizes (comfortable density). JS constants that must match are
+     named next to each: lanes.js RULER_HEIGHT = --ruler-h. */
+  --topbar-h: 44px;
+  --statusbar-h: 26px;
+  --overview-h: 20px;
+  --ruler-h: 24px;
+  --heads-w: 232px;
+  --heads-w-min: 180px;
+  --heads-w-max: 360px;
+  --sidebar-w: 320px;
+  --sidebar-w-min: 260px;
+  --sidebar-w-max: 480px;
+  --dock-h: 30vh; /* transcript dock */
+  --dock-h-min: 120px;
+  --control-h: 26px;
+  --control-h-sm: 20px; /* M / S buttons, chips inside headers */
+  --lane-h: 56px; /* lanes.js DEFAULT_LANE */
+  --strip-h: 16px; /* focus-mode strips (WP28) */
+  --reading-max: 72ch; /* transcript line length */
+}
+
+:root[data-density="compact"] {
+  --text-md: 12px;
+  --text-lg: 14px;
+  --text-xl: 18px;
+  --topbar-h: 38px;
+  --statusbar-h: 22px;
+  --control-h: 22px;
+  --control-h-sm: 18px;
+  --heads-w: 200px;
+  --sidebar-w: 280px;
+  --lane-h: 40px;
+}
+
+/* -- light (the default when the OS asks for light) ---------------------- */
+:root {
+  color-scheme: light;
+  --surface-app: #e8ecee; /* behind everything; gaps between docks */
+  --surface-lane: #f6f8f9; /* timeline background */
+  --surface-lane-current: #e9f3f1; /* the current track's lane (↑/↓ cursor) */
+  --surface-panel: #ffffff; /* headers, panels, top and status bars */
+  --surface-raised: #ffffff; /* popovers, palette, toasts (plus shadow) */
+  --surface-sunken: #eef1f3; /* inputs, wells, the ruler */
+  --surface-hover: #eef2f4;
+  --surface-active: #e2e8eb;
+  --surface-scrim: rgb(16 24 28 / 0.32); /* behind modal dialogs */
+
+  --border-subtle: #e3e8eb; /* lane separators, list dividers */
+  --border: #d3dadd; /* panel edges, control outlines at rest */
+  --border-strong: #858f96; /* input outlines (>= 3:1 on panel) */
+
+  --text: #13191c;
+  --text-secondary: #48545a;
+  --text-tertiary: #5c6870; /* >= 4.5:1 on every surface: still body text */
+  --text-disabled: #9aa5ab; /* disabled only; exempt from contrast */
+  --text-on-accent: #ffffff;
+
+  --accent: #0a7a6b; /* primary buttons, focus, range selection edges */
+  --accent-hover: #086a5d;
+  --accent-text: #0a6e60; /* accent-coloured text on panels */
+  --accent-subtle: #dff1ed; /* selected rows, current word background */
+  --focus-ring: #0a7a6b;
+
+  --selection-outline: #10161a; /* selected clip: 2 px, neutral, any hue */
+  --selection-range: rgb(10 122 107 / 0.14); /* in/out band on scoped lanes */
+  --partner-outline: #48545a; /* dashed: what a move takes along (WP19a) */
+  --playhead: #d93a26;
+  --play-start: #5c6870; /* where the last play started (dashed) */
+  --gain-line: #13191c;
+  --automation-line: #48545a;
+  --ruler-text: #48545a;
+  --ruler-tick: #a9b4ba;
+
+  --warn: #b97a00; /* fills and strokes */
+  --warn-text: #8a5300;
+  --warn-subtle: #fff1d6;
+  --danger: #c8321f;
+  --danger-text: #b42d1c;
+  --danger-subtle: #fde8e4;
+  --ok: #1e8a4c;
+  --ok-text: #18794a;
+  --candidate: #c8321f; /* cut candidates: striped band + "cut?" label */
+  --candidate-fill: rgb(200 50 31 / 0.12);
+  --muted-hatch: rgb(19 25 28 / 0.28);
+
+  --shadow-raised: 0 6px 20px rgb(16 24 28 / 0.14), 0 0 0 1px rgb(16 24 28 / 0.08);
+  --shadow-dialog: 0 18px 48px rgb(16 24 28 / 0.22), 0 0 0 1px rgb(16 24 28 / 0.08);
+
+  /* Track hues. One per speaker (tracks with the same speaker share it),
+     cycling 0..5; music has its own low-chroma role colour; buses are neutral.
+     wave: waveform bars; body: clip fill; edge: clip outline and header
+     swatch; label: clip name text on body. Order picked for colour-blind
+     separation of the first four (see GUI-DESIGN.md). */
+  --track-0-wave: #1157a4;
+  --track-0-body: #ecf4ff;
+  --track-0-edge: #1b589e;
+  --track-0-label: #164781;
+  --track-1-wave: #b97a00;
+  --track-1-body: #fbf2e6;
+  --track-1-edge: #a06700;
+  --track-1-label: #693c00;
+  --track-2-wave: #ad456b;
+  --track-2-body: #ffeff3;
+  --track-2-edge: #a9496b;
+  --track-2-label: #742945;
+  --track-3-wave: #0098c0;
+  --track-3-body: #e7f7fc;
+  --track-3-edge: #0084a9;
+  --track-3-label: #005370;
+  --track-4-wave: #643185;
+  --track-4-body: #f7f0fd;
+  --track-4-edge: #633481;
+  --track-4-label: #5a3473;
+  --track-5-wave: #4e8626;
+  --track-5-body: #eef6ea;
+  --track-5-edge: #51852f;
+  --track-5-label: #2b5409;
+  --track-music-wave: #8a7f69;
+  --track-music-body: #f2f0ec;
+  --track-music-edge: #7a715e;
+  --track-music-label: #4f4735;
+}
+
+/* -- dark: by OS preference unless the user chose light ------------------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface-app: #0f1214;
+    --surface-lane: #13171a;
+    --surface-lane-current: #172225;
+    --surface-panel: #171b1e;
+    --surface-raised: #1e2327;
+    --surface-sunken: #101316;
+    --surface-hover: #212729;
+    --surface-active: #283034;
+    --surface-scrim: rgb(0 0 0 / 0.5);
+    --border-subtle: #22282c;
+    --border: #2d3539;
+    --border-strong: #66727a;
+    --text: #e7ecee;
+    --text-secondary: #aab4b9;
+    --text-tertiary: #8f9aa0;
+    --text-disabled: #566066;
+    --text-on-accent: #04211d;
+    --accent: #3dc9b3;
+    --accent-hover: #5ad6c2;
+    --accent-text: #5ad6c2;
+    --accent-subtle: #133a35;
+    --focus-ring: #5ad6c2;
+    --selection-outline: #ffffff;
+    --selection-range: rgb(61 201 179 / 0.16);
+    --partner-outline: #aab4b9;
+    --playhead: #ff6b57;
+    --play-start: #8f9aa0;
+    --gain-line: #e7ecee;
+    --automation-line: #aab4b9;
+    --ruler-text: #aab4b9;
+    --ruler-tick: #4a555b;
+    --warn: #f0b54a;
+    --warn-text: #f3c165;
+    --warn-subtle: #3a2c12;
+    --danger: #ff776b;
+    --danger-text: #ff8a7f;
+    --danger-subtle: #3d1d1b;
+    --ok: #6fd39a;
+    --ok-text: #7fdca6;
+    --candidate: #ff776b;
+    --candidate-fill: rgb(255 119 107 / 0.13);
+    --muted-hatch: rgb(231 236 238 / 0.22);
+    --shadow-raised: 0 8px 24px rgb(0 0 0 / 0.45), 0 0 0 1px #2d3539;
+    --shadow-dialog: 0 20px 56px rgb(0 0 0 / 0.6), 0 0 0 1px #2d3539;
+    --track-0-wave: #5e9ae7;
+    --track-0-body: #192431;
+    --track-0-edge: #689bdb;
+    --track-0-label: #b9daff;
+    --track-1-wave: #fac463;
+    --track-1-body: #2a2112;
+    --track-1-edge: #cfa354;
+    --track-1-label: #f0d3a3;
+    --track-2-wave: #df7a9b;
+    --track-2-body: #2f1d22;
+    --track-2-edge: #d6809c;
+    --track-2-label: #ffc5d5;
+    --track-3-wave: #61e3ff;
+    --track-3-body: #12262e;
+    --track-3-edge: #50b9df;
+    --track-3-label: #a6e2fb;
+    --track-4-wave: #a57fd0;
+    --track-4-body: #271f2e;
+    --track-4-edge: #9c78c4;
+    --track-4-label: #e6cbfb;
+    --track-5-wave: #96c166;
+    --track-5-body: #1e2616;
+    --track-5-edge: #94b96d;
+    --track-5-label: #c8e1b1;
+    --track-music-wave: #b5aa92;
+    --track-music-body: #24211c;
+    --track-music-edge: #8e8572;
+    --track-music-label: #d8d0bf;
+  }
+}
+
+/* -- dark: chosen explicitly (keep identical to the block above) ----------- */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-app: #0f1214;
+  --surface-lane: #13171a;
+  --surface-lane-current: #172225;
+  --surface-panel: #171b1e;
+  --surface-raised: #1e2327;
+  --surface-sunken: #101316;
+  --surface-hover: #212729;
+  --surface-active: #283034;
+  --surface-scrim: rgb(0 0 0 / 0.5);
+  --border-subtle: #22282c;
+  --border: #2d3539;
+  --border-strong: #66727a;
+  --text: #e7ecee;
+  --text-secondary: #aab4b9;
+  --text-tertiary: #8f9aa0;
+  --text-disabled: #566066;
+  --text-on-accent: #04211d;
+  --accent: #3dc9b3;
+  --accent-hover: #5ad6c2;
+  --accent-text: #5ad6c2;
+  --accent-subtle: #133a35;
+  --focus-ring: #5ad6c2;
+  --selection-outline: #ffffff;
+  --selection-range: rgb(61 201 179 / 0.16);
+  --partner-outline: #aab4b9;
+  --playhead: #ff6b57;
+  --play-start: #8f9aa0;
+  --gain-line: #e7ecee;
+  --automation-line: #aab4b9;
+  --ruler-text: #aab4b9;
+  --ruler-tick: #4a555b;
+  --warn: #f0b54a;
+  --warn-text: #f3c165;
+  --warn-subtle: #3a2c12;
+  --danger: #ff776b;
+  --danger-text: #ff8a7f;
+  --danger-subtle: #3d1d1b;
+  --ok: #6fd39a;
+  --ok-text: #7fdca6;
+  --candidate: #ff776b;
+  --candidate-fill: rgb(255 119 107 / 0.13);
+  --muted-hatch: rgb(231 236 238 / 0.22);
+  --shadow-raised: 0 8px 24px rgb(0 0 0 / 0.45), 0 0 0 1px #2d3539;
+  --shadow-dialog: 0 20px 56px rgb(0 0 0 / 0.6), 0 0 0 1px #2d3539;
+  --track-0-wave: #5e9ae7;
+  --track-0-body: #192431;
+  --track-0-edge: #689bdb;
+  --track-0-label: #b9daff;
+  --track-1-wave: #fac463;
+  --track-1-body: #2a2112;
+  --track-1-edge: #cfa354;
+  --track-1-label: #f0d3a3;
+  --track-2-wave: #df7a9b;
+  --track-2-body: #2f1d22;
+  --track-2-edge: #d6809c;
+  --track-2-label: #ffc5d5;
+  --track-3-wave: #61e3ff;
+  --track-3-body: #12262e;
+  --track-3-edge: #50b9df;
+  --track-3-label: #a6e2fb;
+  --track-4-wave: #a57fd0;
+  --track-4-body: #271f2e;
+  --track-4-edge: #9c78c4;
+  --track-4-label: #e6cbfb;
+  --track-5-wave: #96c166;
+  --track-5-body: #1e2616;
+  --track-5-edge: #94b96d;
+  --track-5-label: #c8e1b1;
+  --track-music-wave: #b5aa92;
+  --track-music-body: #24211c;
+  --track-music-edge: #8e8572;
+  --track-music-label: #d8d0bf;
+}
+
+/* -- reduced motion: no animation anywhere ---------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur-base: 0ms;
+    --dur-layout: 0ms;
+  }
+}

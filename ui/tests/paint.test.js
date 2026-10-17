@@ -109,6 +109,45 @@ describe("painting waveforms (what the worker runs)", () => {
     assert.equal(count(calls, "fillRect"), 0);
   });
 
+  test("the current track's lane is tinted under its clips, and only that lane", () => {
+    const { ctx, calls, sets } = fakeContext();
+    const current = job({ laneCurrent: "#abcdef" });
+    current.rows[0].current = true;
+    paintWaveforms(ctx, current, () => loud());
+    assert.equal(count(calls, "fillRect"), 2, "the lane, then the clip body");
+    const fills = sets.filter((s) => s[0] === "fillStyle").map((s) => s[1]);
+    assert.equal(fills[0], "#abcdef");
+  });
+
+  test("makeWaveformJob marks the current track's row", () => {
+    const state = {
+      project: {
+        rate: 48_000,
+        media: [],
+        buses: [],
+        tracks: [
+          { id: "t1", kind: "speech", clips: [] },
+          { id: "t2", kind: "speech", clips: [] },
+        ],
+      },
+      scroll: 0,
+      zoom: 256,
+      scrollY: 0,
+      laneHeight: 48,
+      focusTrack: "t2",
+      waveformMode: "half",
+      waveformScale: "linear",
+    };
+    const made = makeWaveformJob(state, { width: 100, height: 300, ratio: 1, id: 1 }, palette, {
+      laneCurrent: "#123456",
+    });
+    assert.deepEqual(
+      made.rows.map((row) => row.current),
+      [false, true],
+    );
+    assert.equal(made.laneCurrent, "#123456");
+  });
+
   test("a muted clip is drawn faint, then the alpha is put back", () => {
     const { ctx, sets } = fakeContext();
     const muted = job();
