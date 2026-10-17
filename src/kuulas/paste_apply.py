@@ -64,7 +64,7 @@ def _clear(p: Project, track_id: str, start: int, end: int) -> Project:
 
 def apply_paste(project: Project, entry: Entry, plan: PastePlan, at: int,
                 rippled: set[str], mode: str) -> Project:
-    """``project`` with ``plan`` done at frame ``at``. ``rippled`` are the tracks an insert
+    """``project`` with ``plan`` done at frame ``at``. ``rippled``: the tracks an insert
     ripples (the targets, and their sync group when group editing is on). Refs
     whose media the project lacks are not placed.
     """
