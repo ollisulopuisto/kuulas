@@ -46,7 +46,8 @@ export const CHANNELS = [
 ];
 
 export const SPEAKER_HUE_COUNT = 6;
-export const BUS_HUES = 4;
+/** Eight bus hues (nested buses need more than four); the letter is the twin. */
+export const BUS_HUES = 8;
 export const LABEL_COLOURS = 6;
 const TRACK_HUE_NAMES = [
   ...Array.from({ length: SPEAKER_HUE_COUNT }, (_, i) => String(i)),

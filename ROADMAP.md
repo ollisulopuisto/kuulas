@@ -221,6 +221,20 @@ WP27, WP38, WP42, WP15.
 
 ## Open questions and known limits
 
+- **Waiting for the owner (look at the prototype screens `cuts`, `nested`,
+  `nested-collapsed`, and spec sections 24 and 25):** (A) keep Auto-Silence out of the
+  Cuts list and the transcript, one summary line instead [recommended]; (B) "Clean up
+  cuts" as a palette command only [recommended]; (C) offer one edit's soft cuts to
+  other versions as quiet suggestions [recommended]; (D) lift-cut on Alt+X, which
+  moves "close gap on all tracks" to Alt+Mod+X (WP5's list must change) [recommended];
+  nested buses with one new field `Bus.parent` (tree, depth 3, cascading gain, mute
+  and solo; badges A, A1, A1a; eight bus hues), tags not needed [recommended]; the
+  designer's further open questions 14 to 19 in `docs/design/GUI-DESIGN.md`.
+- **Owner on shortcuts, 2026-10-18:** browser-reserved or conflicting keys are fine
+  as long as users can customise keyboard shortcuts: WP5 must define the keymap as
+  data with a user override file and conflict detection; the remap UI (WP19d) can
+  follow.
+
 - **Owner decisions on the density rework, 2026-10-18:** "reject candidate" moves
   from Backspace to K (Backspace always means Delete); a plain click on a collapsed
   bus selects nothing, Shift+click selects the members' clips in that range; the

@@ -1,3 +1,11 @@
+## [v26.10.18.3] - 2026-10-18
+
+- Design only (open `docs/design/prototype/index.html`): a "Cuts explained" screen
+  showing Delete, Cut, Lift-cut, Mute, Auto-Silence, Restore and Put back side by
+  side with before and after, and a "Nested buses" screen (an "All speech" bus
+  holding interviews). Eight bus colours now, with letter badges (A, A1, A1a).
+  Nothing of this is built into the editor yet.
+
 ## [v26.10.18.2] - 2026-10-18
 
 - The editor is much roomier by default ("comfortable"): lanes 80 px tall,
