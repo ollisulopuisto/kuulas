@@ -1251,7 +1251,7 @@ exactly. Also run `auto_silence` and `automix` as jobs (WP9) once WP9 lands.
 
 ### WP15 — Desktop wrapper
 
-Status: open. Last.
+Status: open. **Moved up by the owner (2026-10-18): the wrapper is part of the first version (M1)**, right after WP5, so the keymap can assume a native window (Cmd+T, Cmd+W, F6, Cmd+L free). Packaging and signing stay a later decision.
 
 Wrap the app with `pywebview` (standard OS web views: WKWebView on Mac,
 WebView2 on Windows). `kuulas` without arguments opens a window with a
@@ -2796,6 +2796,28 @@ off, a loudness-matched pair.
   are revealed only after the choice.
 - **UI design** is in `docs/design/GUI-DESIGN.md` once the designer has added
   the Compare screen.
+
+---
+
+### WP46 — Clipboard with history
+
+Status: open (owner request 2026-10-18: "we need an EXTENSIVE clipboard, with
+history"). Needs WP1, WP4, WP5. Replaces and extends WP20 (paste without bloat).
+Sonnet for the logic, Opus review of the data model.
+
+Cut (X) copies to the clipboard and removes with ripple; Delete (Backspace) is a
+soft cut that leaves the gap and never touches the clipboard; Copy (Mod+C) copies
+only. Every copy or cut makes a **clipboard entry**: a snapshot of the selected
+clips or range across tracks, kept as references (media hash, offset, length,
+gain, pan, fades, envelope, the clips' relative layout), never as audio, so it
+costs nothing. Entries are kept in a history list (a "Clipboard" panel tab) with
+a preview (play it), a name (automatic, editable), pin, delete, and "paste again".
+Paste has four forms: insert at the playhead (ripple), overwrite, paste on the
+same tracks, paste on the current track. Entries survive restarts, are stored
+per user and can be pasted into another open project (media are then linked, see
+the selective import from another project). The data model, the 'what is copied
+from a sync group' rule (WP19a) and the limits (how many entries, how long) are
+decided in the design pass.
 
 ---
 

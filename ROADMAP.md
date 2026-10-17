@@ -87,6 +87,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R55 | Narration placeholders: script text in the timeline with estimated length, optional speech preview, script export, recorded or imported later in place | length estimate done v26.10.17.5; rest planned: WP43 |
 | R56 | Auto-Silence stores one merged gate per track, not thousands of split clip pieces: measure finely, merge the muted regions (owner, 2026-10-17) | planned: WP44 |
 | R57 | Compare: non-destructive previews and A/B by listening (cuts, values, tracks, takes, edits, voice presets), level matched, blind mode, keep one or discard all | planned: WP45 (builds on WP24.2) |
+| R58 | Extensive clipboard with history: cut copies and ripples, delete leaves the gap, entries kept as references, a Clipboard panel, four paste forms, across projects | planned: WP46 |
 
 ## Done
 
@@ -219,6 +220,12 @@ WP27, WP38, WP42, WP15.
   playback is never confused with the live input.
 
 ## Open questions and known limits
+
+- **Owner decisions, 2026-10-18:** Backspace is Delete (a soft cut: mutes in place,
+  leaves the gap, restorable, never touches the clipboard); X is Cut (copies to the
+  clipboard and ripples); an extensive clipboard with history is wanted (WP46); the
+  desktop wrapper is part of the first version (WP15 moved up to M1); WP44 raises
+  `min_reader`; a bus with one track merges into the track header.
 
 - **GUI design, 8 open questions for the owner** (`docs/design/GUI-DESIGN.md`,
   recommended answers in brackets): waveform scale for speech dB-shaped and
