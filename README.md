@@ -56,6 +56,27 @@ The `kuulas.usage.extract(project)` API lists the recording-time ranges used
 by a project, including audibility and excerpt-to-original mapping. Its
 results are shared by future music reports, series tracking and change views.
 
+## Desktop app
+
+A native window instead of a browser tab (WP15): it frees the keys a browser
+keeps (Cmd+T, Cmd+W, Cmd+N, F6, Cmd+L) and adds native file dialogs, a menu and
+drag and drop that links media in place instead of uploading it. It uses the
+system web view through pywebview and the same server as `kuulas open`.
+
+```
+uv sync --extra desktop            # installs pywebview
+uv run kuulas                      # window with a recent-projects list
+uv run kuulas open Interview.kuulas --window
+```
+
+Without the extra, `kuulas` says how to install it; `kuulas open <folder>`
+without `--window` keeps serving to a browser.
+
+Per OS: macOS uses WKWebView (Safari's engine). Windows needs the WebView2
+runtime (already on Windows 11). Linux needs system packages first:
+`python3-gi gir1.2-webkit2-4.1` (Debian/Ubuntu) and a PyGObject install. Not
+signed or notarised; no updater. Details and what is verified: `docs/desktop.md`.
+
 ## Where to read next
 
 - `ROADMAP.md`: what kuulas must do, what is done, and what is next.

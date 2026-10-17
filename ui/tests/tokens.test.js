@@ -98,7 +98,7 @@ const SURFACES = [
   "--surface-hover",
 ];
 const TRACKS = ["0", "1", "2", "3", "4", "5", "music"];
-const BUSES = ["1", "2", "3", "4"];
+const BUSES = ["1", "2", "3", "4", "5", "6", "7", "8"];
 
 function pairs() {
   const list = [];
@@ -126,6 +126,9 @@ function pairs() {
       "--signal-note",
       "--signal-candidate",
       "--signal-soft-cut",
+      "--signal-sibling",
+      "--signal-collateral",
+      "--signal-preview",
     ]) {
       list.push([fg, bg, 3]);
     }
@@ -257,22 +260,24 @@ test("the scanners and the maths are not vacuous", () => {
 
 // -- the prototype ---------------------------------------------------------------------
 
-test("the prototype embeds exactly this token file and the grammar registry", () => {
+test("the prototype embeds exactly this token file and the pure UI modules", () => {
   assert.ok(existsSync(at(PROTOTYPE)), "prototype missing");
   const html = read(PROTOTYPE);
   const start = html.indexOf("/* kuulas design tokens.");
   const end = html.indexOf("/* -- end of tokens.css -- */");
   assert.ok(start >= 0 && end > start, "token markers missing in the prototype");
   assert.equal(html.slice(start, end).trim(), CSS.trim(), "run: node docs/design/sync-tokens.mjs");
-  const gStart = html.indexOf("// -- grammar.js (copy) --");
-  const gEnd = html.indexOf("// -- end of grammar.js --");
-  assert.ok(gStart >= 0 && gEnd > gStart, "grammar markers missing in the prototype");
-  const copy = read("../grammar.js")
-    .replace(/^export /gm, "")
-    .trim();
-  assert.equal(
-    html.slice(gStart, gEnd).replace("// -- grammar.js (copy) --", "").trim(),
-    copy,
-    "run: node docs/design/sync-tokens.mjs",
-  );
+  for (const name of ["grammar.js", "labels.js", "crosstalk.js", "motion.js", "ab-value.js"]) {
+    const gStart = html.indexOf(`// -- ${name} (copy) --`);
+    const gEnd = html.indexOf(`// -- end of ${name} --`);
+    assert.ok(gStart >= 0 && gEnd > gStart, `${name} markers missing in the prototype`);
+    const copy = read(`../${name}`)
+      .replace(/^export /gm, "")
+      .trim();
+    assert.equal(
+      html.slice(gStart, gEnd).replace(`// -- ${name} (copy) --`, "").trim(),
+      copy,
+      `${name}: run node docs/design/sync-tokens.mjs`,
+    );
+  }
 });

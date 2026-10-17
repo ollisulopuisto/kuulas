@@ -16,6 +16,8 @@
 //   spine, band grouping: the bus a track belongs to
 //   line        attachment: connected clip tether (WP19b)
 //   notch       annotation: a note or marker on the clip
+//   bracket     relation: corner brackets on clips of the same recording
+//   ribbon      activity: who sounds when, inside a collapsed bus
 //
 // Colours are never written here: each signal names its semantic tokens
 // (tokens.css), and resolvePalette reads them once per theme change for the
@@ -39,10 +41,13 @@ export const CHANNELS = [
   "band",
   "line",
   "notch",
+  "bracket",
+  "ribbon",
 ];
 
 export const SPEAKER_HUE_COUNT = 6;
-export const BUS_HUES = 4;
+/** Eight bus hues (nested buses need more than four); the letter is the twin. */
+export const BUS_HUES = 8;
 export const LABEL_COLOURS = 6;
 const TRACK_HUE_NAMES = [
   ...Array.from({ length: SPEAKER_HUE_COUNT }, (_, i) => String(i)),
@@ -68,6 +73,7 @@ export const SIGNALS = [
     channel: "hue",
     meaning: "identity",
     priority: 0,
+    atRest: true,
     always: true,
     tokens: [
       ...trackTokens("wave"),
@@ -85,6 +91,7 @@ export const SIGNALS = [
     channel: "tone",
     meaning: "identity",
     priority: 0,
+    atRest: true,
     always: true,
     tokens: trackTokens("body-alt"),
     twin: "file mark chip and file name on each clip; a seam marks every change of file",
@@ -97,6 +104,7 @@ export const SIGNALS = [
     channel: "weight",
     meaning: "selection",
     priority: 0,
+    atRest: true,
     always: true,
     tokens: ["--signal-selected"],
     twin: "2 px outline (shape), plus the inspector shows the clip",
@@ -109,6 +117,7 @@ export const SIGNALS = [
     channel: "opacity",
     meaning: "audibility",
     priority: 1,
+    atRest: true,
     always: true,
     tokens: ["--signal-muted-hatch", "--signal-muted-opacity"],
     twin: "diagonal hatch over the clip; M pressed in the header for a muted track",
@@ -121,6 +130,7 @@ export const SIGNALS = [
     channel: "opacity",
     meaning: "audibility",
     priority: 1,
+    atRest: true,
     always: true,
     tokens: ["--signal-unheard-opacity"],
     twin: "header says 'not heard: solo' in its tooltip and the M button turns dashed",
@@ -133,6 +143,7 @@ export const SIGNALS = [
     channel: "opacity",
     meaning: "audibility",
     priority: 1,
+    atRest: true,
     always: true,
     tokens: ["--signal-gate", "--signal-gate-opacity"],
     twin: "the waveform under the band is drawn flat (a 1 px floor line), with a small gate tick at each edge; hover says 'Mic closed' and offers 'Open this stretch'",
@@ -145,6 +156,8 @@ export const SIGNALS = [
     channel: "opacity",
     meaning: "audibility",
     priority: 6,
+    atRest: false,
+    whenNotAtRest: "only in the clip bin and on cards",
     always: false,
     tokens: ["--signal-unused-opacity"],
     twin: "the clip bin lists it under 'not in the programme'",
@@ -157,6 +170,7 @@ export const SIGNALS = [
     channel: "dash",
     meaning: "reality",
     priority: 0,
+    atRest: true,
     always: true,
     tokens: ["--signal-placeholder"],
     twin: "dashed outline, no waveform, the script text in italics inside",
@@ -169,6 +183,8 @@ export const SIGNALS = [
     channel: "dash",
     meaning: "reality",
     priority: 2,
+    atRest: false,
+    whenNotAtRest: "only after 150 ms without the engine's confirmation",
     always: true,
     tokens: ["--signal-provisional"],
     twin: "short dashes (2 on, 2 off) on the outline",
@@ -181,6 +197,8 @@ export const SIGNALS = [
     channel: "scope",
     meaning: "edit scope",
     priority: 2,
+    atRest: false,
+    whenNotAtRest: "only while a clip is selected",
     always: true,
     tokens: ["--signal-partner"],
     twin: "dashed 1 px outline inset 2 px, neutral",
@@ -193,6 +211,7 @@ export const SIGNALS = [
     channel: "pattern",
     meaning: "absence",
     priority: 1,
+    atRest: true,
     always: true,
     tokens: ["--signal-candidate", "--signal-candidate-fill"],
     twin: "diagonal stripes across the group's lanes and a 'cut?' flag in the ruler",
@@ -205,11 +224,12 @@ export const SIGNALS = [
     channel: "pattern",
     meaning: "absence",
     priority: 1,
+    atRest: true,
     always: true,
     tokens: ["--signal-soft-cut", "--signal-soft-cut-fill"],
     twin: "hatch plus a solid 2 px edge at each end in the cut colour, and the word 'cut' when wide enough; the context menu says 'Restore'",
-    when: "a stretch cut without closing the gap ('Cut, keep gap'); 'Show cuts' (on by default) hides or shows them",
-    key: "Backspace on a range; Restore from the menu or the palette",
+    when: "Delete (Backspace): audio removed in place, the gap kept, restorable; 'Show cuts' (on by default) hides or shows them",
+    key: "Backspace (Delete); Restore from the menu or the palette",
     status: "prototype",
   },
   {
@@ -217,6 +237,7 @@ export const SIGNALS = [
     channel: "pattern",
     meaning: "absence",
     priority: 0,
+    atRest: true,
     always: true,
     tokens: ["--signal-damaged", "--signal-damaged-fill"],
     twin: "cross-hatch, a '!' badge with the word 'damaged', and the reason on hover",
@@ -229,6 +250,8 @@ export const SIGNALS = [
     channel: "pattern",
     meaning: "absence",
     priority: 1,
+    atRest: false,
+    whenNotAtRest: "only in the changes view (WP31)",
     always: true,
     tokens: ["--signal-removed", "--signal-removed-fill"],
     twin: "a ghost outline with hatch and a '−' glyph",
@@ -241,6 +264,8 @@ export const SIGNALS = [
     channel: "strip",
     meaning: "role",
     priority: 9,
+    atRest: false,
+    whenNotAtRest: "only in the clip bin and on cards",
     always: false,
     tokens: ["--role-speech", "--role-speech-mix", "--role-music"],
     twin: "strip pattern: solid speech, dashed speech mix, dotted music; role icon in the header",
@@ -253,6 +278,7 @@ export const SIGNALS = [
     channel: "badge",
     meaning: "facts",
     priority: 0,
+    atRest: true,
     always: true,
     tokens: ["--signal-drift", "--signal-drift-text"],
     twin: "solid badge with the offset in text ('−312 ms'), cause on hover",
@@ -265,6 +291,7 @@ export const SIGNALS = [
     channel: "cap",
     meaning: "level",
     priority: 2,
+    atRest: true,
     always: false,
     tokens: ["--signal-clipping"],
     twin: "a 3 px block on top of the clipped column (shape) and a line in the inspector",
@@ -277,6 +304,7 @@ export const SIGNALS = [
     channel: "badge",
     meaning: "facts",
     priority: 3,
+    atRest: true,
     always: false,
     tokens: ["--signal-file-mark", "--signal-file-mark-text"],
     twin: "two characters from the content hash; the same on every track",
@@ -289,6 +317,7 @@ export const SIGNALS = [
     channel: "badge",
     meaning: "facts",
     priority: 4,
+    atRest: true,
     always: false,
     tokens: ["--signal-free"],
     twin: "outlined badge with an unlinked-chain glyph and '+300 ms · free'",
@@ -301,6 +330,7 @@ export const SIGNALS = [
     channel: "seam",
     meaning: "joins",
     priority: 4,
+    atRest: true,
     always: false,
     tokens: ["--signal-seam"],
     twin: "a small V notch top and bottom at the join (shape)",
@@ -313,6 +343,7 @@ export const SIGNALS = [
     channel: "badge",
     meaning: "facts",
     priority: 5,
+    atRest: true,
     always: false,
     tokens: ["--signal-takes"],
     twin: "stacked top-right corner (two offset edges) and '2/3'",
@@ -325,6 +356,7 @@ export const SIGNALS = [
     channel: "notch",
     meaning: "annotation",
     priority: 5,
+    atRest: true,
     always: false,
     tokens: ["--signal-note"],
     twin: "a triangular notch in the top edge; the text on hover",
@@ -337,6 +369,8 @@ export const SIGNALS = [
     channel: "badge",
     meaning: "facts",
     priority: 6,
+    atRest: false,
+    whenNotAtRest: "only on the selected clip and its partners",
     always: false,
     tokens: ["--signal-sync"],
     twin: "chain glyph and the group number ('⛓ 1')",
@@ -349,6 +383,7 @@ export const SIGNALS = [
     channel: "line",
     meaning: "attachment",
     priority: 6,
+    atRest: true,
     always: false,
     tokens: ["--signal-tether"],
     twin: "a thin line from the clip's start down to its anchor, ending in a dot",
@@ -361,6 +396,7 @@ export const SIGNALS = [
     channel: "badge",
     meaning: "facts",
     priority: 7,
+    atRest: true,
     always: false,
     tokens: Array.from({ length: LABEL_COLOURS }, (_, i) => `--label-${i + 1}`),
     twin: "a square flag in the top-right corner; its name on hover and in the inspector",
@@ -373,6 +409,7 @@ export const SIGNALS = [
     channel: "seam",
     meaning: "joins",
     priority: 8,
+    atRest: true,
     always: false,
     tokens: ["--signal-seam"],
     twin: "a 1 px hairline (shape)",
@@ -385,6 +422,8 @@ export const SIGNALS = [
     channel: "bar",
     meaning: "change",
     priority: 1,
+    atRest: false,
+    whenNotAtRest: "only in the changes view (WP31)",
     always: true,
     tokens: ["--signal-added"],
     twin: "a 3 px bar on the clip's left and right edges and a '+' glyph",
@@ -397,6 +436,7 @@ export const SIGNALS = [
     channel: "spine",
     meaning: "grouping",
     priority: 0,
+    atRest: true,
     always: true,
     tokens: busTokens(),
     twin: "letter badge (A, B, C) in the bus header, the transcript and the inspector",
@@ -409,12 +449,68 @@ export const SIGNALS = [
     channel: "band",
     meaning: "grouping",
     priority: 0,
+    atRest: true,
     always: true,
     tokens: [],
     twin: "drawn only together with the spine (the band is a tint of the spine's colour)",
     when: "behind a bus's header and member lanes",
     key: "",
     status: "built",
+  },
+  {
+    id: "sibling",
+    channel: "bracket",
+    meaning: "relation",
+    priority: 3,
+    atRest: false,
+    whenNotAtRest: "while a clip is selected, or hovered with Alt held",
+    always: true,
+    tokens: ["--signal-sibling"],
+    twin: "corner brackets on every other clip of the same recording, a tick in the overview, and 'part 2 of 5' in the inspector",
+    when: "the selected clip's recording has other clips in the edit (any track)",
+    key: "Alt+hover",
+    status: "built",
+  },
+  {
+    id: "collateral",
+    channel: "pattern",
+    meaning: "absence",
+    priority: 0,
+    atRest: false,
+    whenNotAtRest: "only while words are selected in the transcript",
+    always: true,
+    tokens: ["--signal-collateral", "--signal-collateral-fill"],
+    twin: "other speakers' words struck through with a wavy underline, 'also removed' in the word pop-up, the stretch hatched and the affected clips outlined on the timeline",
+    when: "a transcript selection whose cut would also remove other tracks' words or audio",
+    key: "X cuts on all tracks (ripple); Backspace deletes on this speaker only, keeping the gap",
+    status: "prototype",
+  },
+  {
+    id: "ribbons",
+    channel: "ribbon",
+    meaning: "activity",
+    priority: 0,
+    atRest: true,
+    always: true,
+    tokens: [],
+    twin: "one strip per member in its position (top to bottom = header order), filled where the track has sound; the tooltip names the track and clip",
+    when: "a collapsed bus with two or more members (one member keeps its summed waveform)",
+    key: "Alt+Mod+← collapses, Alt+Mod+→ expands",
+    status: "prototype",
+  },
+  {
+    id: "preview",
+    channel: "dash",
+    meaning: "reality",
+    priority: 0,
+    atRest: false,
+    whenNotAtRest: "only while the Compare bar is open",
+    always: true,
+    tokens: ["--signal-preview"],
+    twin: "a dashed top band over the compared range with the slot letter ('A', 'B') in it, and the Compare bar itself",
+    when: "a Compare preview is playing: nothing is committed until 'Keep this one'",
+    key: "` flips, 1–4 pick a slot, Enter keeps, Esc discards",
+    status: "prototype",
   },
 ];
 
@@ -490,6 +586,10 @@ export const SEMANTIC_TOKENS = [
   "--signal-note",
   "--signal-sync",
   "--signal-tether",
+  "--signal-sibling",
+  "--signal-collateral",
+  "--signal-collateral-fill",
+  "--signal-preview",
   "--role-speech",
   "--role-speech-mix",
   "--role-music",
@@ -565,6 +665,19 @@ export function fileMark(sha256) {
 /** File marks only where they tell files apart: a track with 2+ files. */
 export function needsFileMark(track) {
   return new Set((track?.clips ?? []).map((clip) => clip.media)).size > 1;
+}
+
+/**
+ * A collapsed bus with several members shows activity ribbons, one strip per
+ * member in its own hue, instead of a summed waveform that hides who talks
+ * when (owner, 2026-10-18). Strips are 8 px up to six members, thinner beyond
+ * (never under 3 px); the row is capped at 48 px. One member: null (keep the
+ * summed waveform).
+ */
+export function ribbonLayout(members) {
+  if (members <= 1) return null;
+  const strip = members <= 6 ? 8 : Math.max(3, Math.floor(40 / members));
+  return { strip, height: Math.min(48, members * strip + 8) };
 }
 
 /** Bus hue number (1..BUS_HUES) per bus id, by bus order. */

@@ -1,3 +1,36 @@
+## [v26.10.18.3] - 2026-10-18
+
+- Design only (open `docs/design/prototype/index.html`): a "Cuts explained" screen
+  showing Delete, Cut, Lift-cut, Mute, Auto-Silence, Restore and Put back side by
+  side with before and after, and a "Nested buses" screen (an "All speech" bus
+  holding interviews). Eight bus colours now, with letter badges (A, A1, A1a).
+  Nothing of this is built into the editor yet.
+
+## [v26.10.18.2] - 2026-10-18
+
+- The editor is much roomier by default ("comfortable"): lanes 80 px tall,
+  larger text, bigger buttons. "Compact" keeps the old dense look; switch in the
+  new View menu (bottom right), which also holds Animation (full, subtle, off).
+- Calmer at rest: about 22 controls instead of 51. Gain and pan show for the
+  current track and on hover; key hints show on hover; the inspector keeps Level
+  and Sync open and folds the rest.
+- Buses are one-line rows above their tracks (tracks indented), with gaps
+  between groups, and a bus with one track merges into the track's own header.
+- Clicking anywhere in the lane area, including bus rows and gaps, moves the
+  play cursor.
+- Clips are named by width ("Anna", "Olli 3", "Olli 3 · 1:20–3:20", then the first
+  words); clips from the same recording get corner brackets and ticks in the
+  overview.
+- Double-click or Shift+Enter on a slider or number field flips between the
+  default and your last custom value (one undo step each time; Alt resets).
+- Gentle animation cues (after undo, new tracks, and so on) that follow the
+  system "reduce motion" setting.
+- Layout adapts to window width (checked at 1280, 1440 and 1920).
+- Still to build: Compare (A/B), importing several files with options, the
+  crosstalk preview in the window, nested buses, the clipboard history, and a
+  Track section in the inspector (a merged one-track bus has no pan control
+  until then).
+
 ## [v26.10.18.1] - 2026-10-18
 
 - Music tags can be corrected: title, artist, composer, publisher and ISRC are

@@ -1,4 +1,5 @@
-"""The ``kuulas`` command: ``info <folder>`` (WP29) and ``open <folder>`` (WP3)."""
+"""The ``kuulas`` command: ``info <folder>`` (WP29), ``open <folder>`` (WP3) and,
+without arguments, the desktop window (WP15)."""
 
 from __future__ import annotations
 
@@ -88,7 +89,8 @@ def open_project(folder: str, port: int = 0, browser: bool = True) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="kuulas", description=t("cli.description"))
-    commands = parser.add_subparsers(dest="command", required=True)
+    commands = parser.add_subparsers(dest="command")
+    commands.add_parser("desktop", help=t("cli.desktop.help"))
     shown = commands.add_parser("info", help=t("cli.info.help"))
     shown.add_argument("folder", help=t("cli.info.folder"))
     opened = commands.add_parser("open", help=t("cli.open.help"))
@@ -96,10 +98,19 @@ def main(argv: list[str] | None = None) -> int:
     opened.add_argument("--port", type=int, default=0, help=t("cli.open.port"))
     opened.add_argument("--no-browser", action="store_true",
                         help=t("cli.open.no_browser"))
+    opened.add_argument("--window", action="store_true", help=t("cli.open.window"))
     args = parser.parse_args(argv)
     try:
+        if args.command in (None, "desktop"):
+            from . import desktop  # noqa: PLC0415
+
+            return desktop.run_launcher()
         if args.command == "info":
             return info(args.folder)
+        if args.command == "open" and args.window:
+            from . import desktop  # noqa: PLC0415
+
+            return desktop.run_window(args.folder)
         if args.command == "open":
             return open_project(args.folder, args.port, not args.no_browser)
     except KuulasError as e:

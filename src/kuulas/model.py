@@ -267,7 +267,9 @@ class Project:
 
     @property
     def length(self) -> int:
-        return max((c.end for t in self.tracks for c in t.clips), default=0)
+        return max(
+            (c.end for t in self.tracks for c in t.clips if not c.muted), default=0
+        )
 
     # -- serialisation ----------------------------------------------------
 

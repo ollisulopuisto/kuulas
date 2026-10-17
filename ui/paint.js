@@ -4,7 +4,7 @@
 // and in tests with a recording context.
 import { frameToX } from "./format.js";
 import { busHues, SPEAKER_HUE_COUNT, zebraSteps } from "./grammar.js";
-import { layoutRows, RULER_HEIGHT, visibleRows } from "./lanes.js";
+import { layoutFor, RULER_HEIGHT, visibleRows } from "./lanes.js";
 import { columnsFromTiles, pickLevel, waveformColumns } from "./waveform.js";
 
 /** Fallback for --signal-muted-opacity when a job carries none (tests). */
@@ -48,7 +48,7 @@ export function trackHues(project) {
 export function makeWaveformJob(state, { width, height, ratio, id }, palette, colours = {}) {
   const groups = busHues(state.project);
   const { project, scroll, zoom, scrollY, laneHeight } = state;
-  const layout = layoutRows(project, laneHeight);
+  const layout = layoutFor(state);
   const hues = trackHues(project);
   const rows = [];
   const first = scroll;
@@ -75,7 +75,10 @@ export function makeWaveformJob(state, { width, height, ratio, id }, palette, co
       top: row.top,
       height: row.height,
       current: track.id === state.focusTrack,
-      band: row.bus ? (colours.busBands?.[groups.get(row.bus) - 1] ?? "") : "",
+      // Member lanes carry no band at rest (density rework, 2026-10-18): the
+      // group gap and the header spine say "group"; a theme may turn it on.
+      band:
+        row.bus && colours.memberBands ? (colours.busBands?.[groups.get(row.bus) - 1] ?? "") : "",
       paletteIndex: hues.get(track.id) ?? 0,
       clips,
     });
