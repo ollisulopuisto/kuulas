@@ -225,5 +225,9 @@
   "music_report.background": "Background",
   "music_report.featured": "Featured",
   "music_report.missing_metadata": "Missing title or artist",
+  "error.chapters.duplicate_frame": "Two chapters start at the same frame: {frame}.",
+  "error.chapters.empty_title": "Chapter at frame {frame} has no title.",
+  "error.chapters.negative_frame": "Chapter starts at a negative frame: {frame}.",
+  "error.chapters.unknown_style": "Unknown chapter style: {style}.",
   "error.music_report.bad_format": "Choose json, csv or html; {format} is not supported."
 }

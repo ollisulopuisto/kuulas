@@ -225,5 +225,9 @@
   "music_report.background": "Taustalla",
   "music_report.featured": "Etualalla",
   "music_report.missing_metadata": "Nimi tai esittäjä puuttuu",
+  "error.chapters.duplicate_frame": "Kahdella lukulla on sama aloituskehys: {frame}.",
+  "error.chapters.empty_title": "Luvulla kohdassa {frame} ei ole otsikkoa.",
+  "error.chapters.negative_frame": "Luku alkaa negatiivisesta kehyksestä: {frame}.",
+  "error.chapters.unknown_style": "Tuntematon lukutyyli: {style}.",
   "error.music_report.bad_format": "Valitse json, csv tai html; muotoa {format} ei tueta."
 }
