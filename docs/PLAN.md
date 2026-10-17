@@ -1252,6 +1252,18 @@ exactly. Also run `auto_silence` and `automix` as jobs (WP9) once WP9 lands.
 ### WP15 — Desktop wrapper
 
 Status: open. **Moved up by the owner (2026-10-18): the wrapper is part of the first version (M1)**, right after WP5, so the keymap can assume a native window (Cmd+T, Cmd+W, F6, Cmd+L free). Packaging and signing stay a later decision.
+**Owner decisions 2026-10-18:** first-version (M1) scope is the wrapper plus the
+clipboard (WP46); Compare (WP45) comes later. Technology: `pywebview` (the owner
+has used it in other apps and dislikes Electron). Platforms: the owner can test on
+Mac and Windows; CI builds all three (Mac, Windows, Linux) on GitHub Actions
+(tests plus the wrapper build); if time is critical, start with Mac only. A
+workflow file is committed locally; the owner pushes it (agents never push).
+Known pywebview limits to design around: Linux needs system web-view packages
+(GTK WebKit2 or Qt); Windows needs the WebView2 runtime; macOS WKWebView is
+Safari's engine (Safari quirks: pinch comes as gesture events); native menus are
+basic; no built-in updater; file drops give paths only through pywebview's own
+API (use it to link media in place); signing and notarising the Mac app is a
+separate chore.
 
 Wrap the app with `pywebview` (standard OS web views: WKWebView on Mac,
 WebView2 on Windows). `kuulas` without arguments opens a window with a
@@ -2818,6 +2830,16 @@ per user and can be pasted into another open project (media are then linked, see
 the selective import from another project). The data model, the 'what is copied
 from a sync group' rule (WP19a) and the limits (how many entries, how long) are
 decided in the design pass.
+
+---
+
+### WP47 — Panel arrangement
+
+Status: open (owner, 2026-10-18: later). After the density work. Three slots (right
+sidebar, bottom dock, optional left sidebar); drag a panel tab into another slot;
+layout presets (Editing, Transcript first, Mixing); remembered with the other
+settings (WP35). No floating windows in the browser; the desktop wrapper (WP15) may
+add them later.
 
 ---
 

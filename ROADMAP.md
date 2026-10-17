@@ -221,11 +221,38 @@ WP27, WP38, WP42, WP15.
 
 ## Open questions and known limits
 
+- **Owner decisions on the density rework, 2026-10-18:** "reject candidate" moves
+  from Backspace to K (Backspace always means Delete); a plain click on a collapsed
+  bus selects nothing, Shift+click selects the members' clips in that range; the
+  inspector gets a small Track/Bus section now (gain, pan, bus, voice preset), to be
+  built after the designer's current pass; F2 renames clips and tracks; clip label
+  templates stay at the defaults until WP27. Not accepted: pulling focus mode (WP28)
+  forward (it stays in M3); storing the double-click toggle's remembered value in the
+  project (it stays UI state). Bus collapse is Alt+Mod+Left/Right (WP5 uses
+  Alt+Left/Right for 10 ms steps). The designer calls the crosstalk backend function
+  `transcript.cut_preview`; task G3 builds it as `collateral.cut_collateral`:
+  reconcile the name when wiring.
+
 - **Owner decisions, 2026-10-18:** Backspace is Delete (a soft cut: mutes in place,
   leaves the gap, restorable, never touches the clipboard); X is Cut (copies to the
   clipboard and ripples); an extensive clipboard with history is wanted (WP46); the
   desktop wrapper is part of the first version (WP15 moved up to M1); WP44 raises
   `min_reader`; a bus with one track merges into the track header.
+- **Owner decisions, 2026-10-18 (third round):** first version = wrapper plus
+  clipboard, Compare later; pywebview, not Electron; test on Mac and Windows, CI for
+  all three on GitHub (Mac first if critical).
+- **Owner decisions, 2026-10-18 (second round):** accepted as the designer
+  recommended: Spot on Mod+J, Mod+F finds in the transcript, fade stays on G, Import
+  on Mod+I now and Mod+T in the wrapper; `[` `]` by physical key on the Finnish
+  keyboard; bus S solos the set and assigning a bus moves the track in the model;
+  speech waveform dB-shaped and music linear; role strip off on the timeline; focus
+  mode by speaker and by bus; Compare with up to four variants; the small pinch task
+  (Safari and wrapper); panel arrangement as a later work package (WP47); skip
+  DeepSeek. **Parked until mockups exist (owner: too complex to answer now):** the
+  soft-cut details (Auto-Silence kept apart, "Clean up cuts", offering cuts to other
+  versions, a lift-cut key). **New idea to design:** more than one bus, including
+  nested ones (an "All speech" bus holding "Interviews" and "Narration"), useful for
+  editing as well as mixing.
 
 - **GUI design, 8 open questions for the owner** (`docs/design/GUI-DESIGN.md`,
   recommended answers in brackets): waveform scale for speech dB-shaped and

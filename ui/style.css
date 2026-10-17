@@ -14,7 +14,9 @@ body {
 }
 body {
   margin: 0;
-  min-width: 960px;
+  /* The smallest supported window; below it the page scrolls (GUI-DESIGN.md "Window sizes"). */
+  min-width: 1024px;
+  min-height: 640px;
   overflow: hidden;
   background: var(--surface-app);
   color: var(--text);
@@ -70,7 +72,7 @@ kbd {
   align-items: center;
   gap: var(--space-3);
   height: var(--control-h);
-  padding: 0 var(--space-5);
+  padding: 0 var(--pad-inline);
   border: 1px solid var(--button-border);
   border-radius: var(--radius-sm);
   background: var(--button-bg);
@@ -176,7 +178,19 @@ button.chip {
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  padding-right: var(--space-4);
+  padding-right: var(--pad-inline);
+}
+/* Top-bar buttons: 40 px visible, a 44 px hit target (--target-min). */
+.toolbar .button,
+.toolbar .play {
+  position: relative;
+  height: var(--control-h-lg);
+}
+.toolbar .button::after,
+.toolbar .play::after {
+  content: "";
+  position: absolute;
+  inset: calc((var(--control-h-lg) - var(--target-min)) / 2) -2px;
 }
 .project {
   width: var(--heads-w);
@@ -184,7 +198,7 @@ button.chip {
   align-self: stretch;
   display: flex;
   align-items: center;
-  padding: 0 var(--space-5);
+  padding: 0 var(--pad-inline);
   border-right: 1px solid var(--border-subtle);
   font-weight: var(--weight-strong);
   overflow: hidden;
@@ -197,8 +211,7 @@ button.chip {
   gap: var(--space-4);
 }
 .play {
-  height: 30px;
-  padding: 0 var(--space-5) 0 var(--space-4);
+  padding: 0 var(--pad-inline) 0 var(--space-5);
   background: var(--button-primary-bg);
   border-color: var(--button-primary-bg);
   color: var(--button-primary-text);
@@ -253,9 +266,11 @@ button.chip {
   position: relative;
   display: grid;
   grid-template-rows: var(--control-h-sm) var(--control-h-sm);
-  align-content: center;
-  gap: var(--space-2);
-  padding: 0 var(--space-4) 0 var(--space-5);
+  /* Comfortable: the name row sits at the top, level with the clip names;
+     the level row appears under it on the current track (progressive disclosure). */
+  align-content: start;
+  padding: var(--space-3) var(--space-4) 0 calc(var(--spine-w) + var(--pad-inline));
+  row-gap: var(--space-3);
   border-bottom: 1px solid var(--border-subtle);
   overflow: hidden;
 }
@@ -267,14 +282,17 @@ button.chip {
   content: "";
   position: absolute;
   left: calc(var(--spine-w) + var(--space-1));
-  top: 50%;
+  /* Level with the name row (the top row of the header). */
+  top: calc(var(--space-3) + var(--control-h-sm) / 2);
   width: 3px;
-  height: min(22px, 60%);
+  height: min(20px, 60%);
   transform: translateY(-50%);
   border-radius: 2px;
   background: var(--track-colour, transparent);
 }
-.track-header[data-bus] {
+/* The band sits on the bus row only; member tracks carry the spine, which
+   ends with a rounded cap at the group's last member (then a group gap). */
+.bus-header {
   background: var(--bus-band);
 }
 .track-header[data-bus]::after {
@@ -283,6 +301,24 @@ button.chip {
   inset: 0 auto 0 0;
   width: var(--spine-w);
   background: var(--bus-spine);
+}
+.track-header.group-end::after {
+  bottom: var(--space-4);
+  border-radius: 0 0 var(--spine-w) var(--spine-w);
+}
+.group-gap {
+  background: var(--panel-bg);
+}
+/* Hierarchy (owner, 2026-10-18): the bus row is flush with the spine; its
+   tracks sit one indent further in, so group controls read as the outer level. */
+.track-header[data-bus]:not(.bus-header, .merged) {
+  padding-left: calc(var(--spine-w) + var(--pad-inline) + var(--indent-member));
+}
+.track-header[data-bus]:not(.bus-header, .merged)::before {
+  left: calc(var(--spine-w) + var(--space-1) + var(--indent-member));
+}
+.bus-header {
+  padding-left: calc(var(--spine-w) + var(--space-4));
 }
 .th-top,
 .th-controls {
@@ -296,6 +332,25 @@ button.chip {
 }
 .track-header.compact {
   grid-template-rows: var(--control-h-sm);
+  align-content: center;
+  padding-top: 0;
+}
+.track-header.compact::before,
+:root[data-density="compact"] .track-header::before {
+  top: 50%;
+}
+/* Progressive disclosure (comfortable): at rest a header shows role, name, M
+   and S. The bus picker and the level row show on the current track, on hover
+   and while focus is inside. Compact shows everything, as before. */
+:root:not([data-density="compact"])
+  .track-header:not(.current, :hover, :focus-within)
+  .th-controls {
+  visibility: hidden;
+}
+:root[data-density="compact"] .track-header {
+  align-content: center;
+  padding-top: 0;
+  row-gap: var(--space-2);
 }
 .track-header.compact .th-controls {
   display: none;
@@ -383,6 +438,10 @@ button.chip {
   border: 1px solid var(--border);
   border-radius: var(--radius-xs);
 }
+/* The bus picker leaves the layout at rest, so the name gets its width. */
+:root:not([data-density="compact"]) .track-header:not(.current, :hover, :focus-within) .bus-select {
+  display: none;
+}
 .slider-control {
   display: flex;
   align-items: center;
@@ -434,10 +493,23 @@ input[type="range"]::-moz-range-thumb {
   background: var(--text);
   border: 2px solid var(--surface-panel);
 }
+/* A bus is one short line: badge, name, (levels on hover/focus), M. */
 .bus-header {
+  display: flex;
+  align-items: center;
+  padding-top: 0;
   color: var(--text-secondary);
   font-size: var(--text-sm);
-  border-top: 1px solid var(--border);
+}
+.bus-header .th-top {
+  flex: 1;
+}
+.bus-header .th-controls {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.bus-header:not(:hover, :focus-within) .th-controls {
+  display: none;
 }
 .bus-header .slider-control.pan,
 .th-controls .slider-control.pan {
@@ -468,6 +540,55 @@ input[type="range"]::-moz-range-thumb {
 .bus-header.no-members .bus-name {
   color: var(--text-tertiary);
   font-style: italic;
+}
+
+/* The bus fader is a different control: thicker, filled in the bus colour,
+   labelled "Bus"; track sliders stay neutral grey. */
+.merged .bus-badge {
+  order: -2;
+}
+/* A merged header's level row: the track's gain and the bus fader. Its pan
+   moves to the inspector (GUI-DESIGN.md section 6). */
+.merged .th-controls .slider-control.pan {
+  display: none;
+}
+.merged .fader-label,
+.bus-header .fader-label {
+  flex: none;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-strong);
+  color: var(--bus-text, var(--text-secondary));
+}
+.bus-fader input[type="range"]::-webkit-slider-runnable-track,
+.bus-header input[type="range"]::-webkit-slider-runnable-track {
+  height: 5px;
+  background: var(--bus-spine, var(--border-strong));
+}
+.bus-fader input[type="range"]::-webkit-slider-thumb,
+.bus-header input[type="range"]::-webkit-slider-thumb {
+  margin-top: -3px;
+  box-shadow: 0 0 0 1.5px var(--bus-spine, var(--border-strong));
+}
+.bus-fader input[type="range"]::-moz-range-track,
+.bus-header input[type="range"]::-moz-range-track {
+  height: 5px;
+  background: var(--bus-spine, var(--border-strong));
+}
+/* The remembered default/custom value (ab-value.js): a tick on the track. */
+.slider-control.has-ab input[type="range"] {
+  background:
+    linear-gradient(var(--accent), var(--accent)) no-repeat var(--ab-at, 50%) 50% / 2px 10px;
+}
+.ab-flash {
+  animation: ab-flash var(--dur-flash) var(--ease-standard);
+}
+@keyframes ab-flash {
+  from {
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+}
+input.has-ab {
+  border-color: var(--accent);
 }
 
 /* -- timeline --------------------------------------------------------------- */
@@ -531,7 +652,7 @@ input[type="range"]::-moz-range-thumb {
 .panel {
   min-width: 0;
   overflow: auto;
-  padding: 0 var(--space-5) var(--space-5);
+  padding: 0 var(--pad-panel) var(--pad-panel);
   background: var(--surface-panel);
 }
 .dock {
@@ -552,11 +673,11 @@ input[type="range"]::-moz-range-thumb {
   position: sticky;
   top: 0;
   z-index: 1;
-  height: 34px;
+  height: calc(var(--control-h) + var(--space-4));
   display: flex;
   align-items: center;
-  margin: 0 calc(-1 * var(--space-5)) var(--space-3);
-  padding: 0 var(--space-5);
+  margin: 0 calc(-1 * var(--pad-panel)) var(--row-gap);
+  padding: 0 var(--pad-panel);
   font-size: var(--text-sm);
   font-weight: var(--weight-strong);
   background: var(--surface-panel);
@@ -577,7 +698,7 @@ input[type="range"]::-moz-range-thumb {
   align-items: center;
   gap: var(--space-4);
   min-height: var(--control-h);
-  margin: var(--space-2) 0;
+  margin: var(--row-gap) 0;
   color: var(--text-secondary);
   font-size: var(--text-sm);
 }
@@ -602,20 +723,55 @@ input[type="text"] {
   accent-color: var(--accent);
 }
 
+/* Inspector sections: Level and Sync open by default; remembered per user. */
+.inspector-section {
+  border-top: 1px solid var(--panel-divider);
+  padding: var(--space-2) 0 var(--row-gap);
+}
+.inspector-section > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--control-h);
+  list-style: none;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  color: var(--text-secondary);
+}
+.inspector-section > summary::-webkit-details-marker {
+  display: none;
+}
+.inspector-section > summary::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform var(--dur-base) var(--ease-standard);
+}
+.inspector-section[open] > summary::before {
+  transform: rotate(45deg);
+}
+.inspector-section > summary:hover {
+  color: var(--text);
+}
+
 /* -- status bar ----------------------------------------------------------------- */
 .statusbar {
   grid-area: status;
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: 0 var(--space-4);
+  padding: 0 var(--pad-inline);
   overflow: hidden;
   font-size: var(--text-xs);
   color: var(--text-secondary);
   white-space: nowrap;
 }
 .statusbar .button {
-  height: 20px;
+  height: calc(var(--statusbar-h) - 8px);
   padding: 0 var(--space-3);
   font-size: var(--text-xs);
   color: var(--text-secondary);
@@ -671,6 +827,60 @@ input[type="text"] {
   line-height: 14px;
 }
 
+/* The View menu (status bar, right): fit, waveform, lanes, follow, density,
+   theme. A native popover: Esc and an outside click close it. */
+.view-menu {
+  position: fixed;
+  inset: auto var(--pad-inline) calc(var(--statusbar-h) + var(--space-3)) auto;
+  margin: 0;
+  width: 280px;
+  padding: var(--space-4);
+  display: none;
+  flex-direction: column;
+  gap: var(--space-3);
+  background: var(--toast-bg);
+  color: var(--text);
+  border: 0;
+  border-radius: var(--radius-md);
+  box-shadow: var(--toast-shadow);
+}
+.view-menu:popover-open {
+  display: flex;
+}
+.menu-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.menu-pair {
+  display: flex;
+  gap: var(--space-1);
+}
+/* Key chips beside controls appear on hover and keyboard focus only
+   (comfortable); the status bar hints and the palette always show keys. */
+:root:not([data-density="compact"]) :is(.play, .inspector-field) kbd {
+  visibility: hidden;
+}
+/* The Play key shows as a small label under the button, so the button's
+   width never changes on hover. */
+:root:not([data-density="compact"]) .play kbd {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  background: var(--kbd-bg);
+  color: var(--kbd-text);
+  border-color: var(--kbd-border);
+}
+:root:not([data-density="compact"]) :is(.play:hover, .play:focus-visible) kbd,
+:root:not([data-density="compact"]) .inspector-field:focus-within kbd {
+  visibility: visible;
+}
+
 /* -- messages, drop target ----------------------------------------------------------- */
 .notice {
   position: fixed;
@@ -686,6 +896,16 @@ input[type="text"] {
   background: var(--toast-bg);
   border-radius: var(--radius-md);
   box-shadow: var(--toast-shadow);
+}
+/* Toasts ease in (motion: "toast"); with animation off they simply appear. */
+.notice:not([hidden]) {
+  animation: toast-in var(--dur-base) var(--ease-standard);
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
 }
 .notice::before {
   content: "";
@@ -714,14 +934,46 @@ input[type="text"] {
   border: 3px dashed var(--accent);
 }
 
-@media (max-height: 560px) {
+/* -- window sizes (GUI-DESIGN.md "Window sizes") --------------------------------
+   large  >= 1920: the timeline takes the room; side columns grow to their caps.
+   medium  < 1400: the side columns shrink to their minimums.
+   small   < 1100: the transcript moves into the right column above the
+                   sidebar; the status bar keeps only the essentials.
+   short   <  760 high: the transcript dock collapses to its heading. */
+@media (min-width: 1920px) {
   .editor {
-    grid-template-rows: var(--topbar-h) minmax(150px, 1fr) 110px var(--statusbar-h);
+    grid-template-columns: var(--heads-w) minmax(0, 1fr) min(var(--sidebar-w-max), 22vw);
   }
 }
-@media (max-width: 1100px) {
+@media (max-width: 1399px) {
+  .editor {
+    grid-template-columns: var(--heads-w-min) minmax(0, 1fr) var(--sidebar-w-min);
+  }
+  .project {
+    width: var(--heads-w-min);
+  }
+}
+@media (max-width: 1099px) {
+  .editor {
+    grid-template-rows: var(--topbar-h) minmax(0, 1fr) minmax(0, 1fr) var(--statusbar-h);
+    grid-template-areas:
+      "top top top"
+      "heads timeline dock"
+      "heads timeline side"
+      "status status status";
+  }
   .keyhints {
     display: none;
+  }
+}
+@media (max-height: 759px) and (min-width: 1100px) {
+  .editor {
+    grid-template-rows: var(--topbar-h) minmax(0, 1fr) calc(var(--control-h) + var(--space-4)) var(
+        --statusbar-h
+      );
+  }
+  .dock {
+    overflow: hidden;
   }
 }
 /* Reduced motion: tokens.css sets every --dur-* to 0, so nothing here. */

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { selectedClip, syncGroupOf } from "../inspector.js";
+import { openSections, selectedClip, syncGroupOf } from "../inspector.js";
 
 // The server sends sync-group members as { mediaId: origin } (SyncGroup.to_dict).
 const project = {
@@ -22,5 +22,22 @@ describe("inspector lookups", () => {
     assert.equal(selectedClip(base).track.id, "t1", "the track gives the header colour");
     assert.equal(selectedClip({ ...base, selection: new Set(["c1", "x"]) }), null);
     assert.equal(selectedClip({ ...base, selection: new Set(["gone"]) }), null);
+  });
+});
+
+describe("inspector sections (density rework, 2026-10-18)", () => {
+  test("Level and Sync start open, the rest closed", () => {
+    assert.deepEqual(openSections(null), { level: true, fades: false, sync: true, details: false });
+  });
+
+  test("what the user opened or closed is remembered; junk is ignored", () => {
+    assert.deepEqual(openSections('{"fades":true,"level":false}'), {
+      level: false,
+      fades: true,
+      sync: true,
+      details: false,
+    });
+    assert.deepEqual(openSections("not json"), openSections(null));
+    assert.deepEqual(openSections('{"level":"yes","bogus":true}'), openSections(null));
   });
 });

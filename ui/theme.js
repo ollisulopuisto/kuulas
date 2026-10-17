@@ -18,6 +18,14 @@ export function themeAttribute(choice) {
   return choice === "light" || choice === "dark" ? choice : null;
 }
 
+/** Two densities (owner, 2026-10-18): comfortable (the roomy default) and compact. */
+export const DENSITIES = ["comfortable", "compact"];
+
+/** The value of <html data-density>, or null for the default (comfortable). */
+export function densityAttribute(choice) {
+  return choice === "compact" ? "compact" : null;
+}
+
 /**
  * The canvas palette. `palette[i]` is a track hue (trackHues in paint.js):
  * { fill: clip body, fillAlt: the other file's body tone (zebra), wave:
@@ -60,6 +68,7 @@ export function readTheme(
     hatch: p.signals.mutedHatch,
     clipping: p.signals.clipping,
     seam: p.signals.seam,
+    sibling: p.signals.sibling,
     fileMark: p.signals.fileMark,
     fileMarkText: p.signals.fileMarkText,
     mutedOpacity: p.numbers.mutedOpacity,

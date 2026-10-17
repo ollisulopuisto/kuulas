@@ -1,6 +1,6 @@
 // Client state: one object, re-rendered on change. Selection, focus, in/out,
 // zoom and scroll are UI state: they are not edits and are not in history.
-import { DEFAULT_LANE } from "./lanes.js";
+import { BUS_HEIGHT, DEFAULT_LANE, GROUP_GAP } from "./lanes.js";
 
 const listeners = new Set();
 
@@ -23,6 +23,10 @@ export const initialState = () => ({
   scrollY: 0,
   playing: false,
   laneHeight: DEFAULT_LANE,
+  // Density (tokens.css --bus-h, --group-gap); app.js reads them from the tokens.
+  busHeight: BUS_HEIGHT,
+  groupGap: GROUP_GAP,
+  density: "comfortable",
   waveformMode: "half",
   waveformScale: "linear",
   waveformGain: 1,
