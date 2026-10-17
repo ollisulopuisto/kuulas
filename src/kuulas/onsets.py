@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 from speechmix import dsp, grid
 
-from . import caches, clock
+from . import caches, clock, gate
 from .messages import t
 
 if TYPE_CHECKING:
@@ -180,7 +180,10 @@ def timeline_onsets(
             for flick in media_onsets:
                 frame_in_media = clock.flicks_to_frames(int(flick), p.rate)
                 if lo <= frame_in_media < hi:
-                    out.append(frame_in_media + shift)
+                    at = frame_in_media + shift
+                    # An onset in a gated stretch is not heard.
+                    if not (track.gate and gate.closed_at(track.gate, at)):
+                        out.append(at)
     return sorted(set(out))
 
 

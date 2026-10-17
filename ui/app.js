@@ -6,14 +6,16 @@ import { createEditor } from "./edits.js";
 import { nextPanel } from "./focus.js";
 import { followScroll } from "./follow.js";
 import { frameToTime, RATE, xToFrame } from "./format.js";
+import { GATE_OPEN_COMMAND, openStretchEdit, stretchAt } from "./gate.js";
 import { formatNumber, formatShortcut, initI18n, onLanguageChange, t } from "./i18n.js";
 import { dragHasFiles, nativeBridge, summariseImport } from "./importing.js";
 import { createInspector } from "./inspector.js";
-import { coreBindings, createKeymap, isTextField } from "./keys.js";
+import { isTextField } from "./keys.js";
 import { clampLaneHeight, pointerIntent, projectEnd } from "./lanes.js";
 import { connectLive } from "./live.js";
 import { motionMode } from "./motion.js";
 import { createOverview } from "./overview.js";
+import { setupKeyboard } from "./shell-keys.js";
 import { getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
 import { densityAttribute, nextTheme, themeAttribute } from "./theme.js";
 import { createTimeline } from "./timeline.js";
@@ -227,6 +229,23 @@ function onWheel(intent, x) {
   }
 }
 
+// -- the gate (WP44) ------------------------------------------------------------------
+
+// "Open this stretch": one remove_gate_range edit, one undo step. `gate` is a
+// hit ({ trackId, range }); without one, the closed stretch under the play
+// cursor on the current track. The keymap binds GATE_OPEN_COMMAND to this.
+function openGateStretch(gate) {
+  const state = getState();
+  const target = gate ?? stretchAt(state.project, state.focusTrack, state.playhead, state.zoom);
+  if (!target) return;
+  editor.change({
+    ...openStretchEdit(target.trackId, target.range),
+    label: t("ui.gate.open_stretch"),
+  });
+}
+// Command registry for the keyboard layer: id -> function.
+export const commands = { [GATE_OPEN_COMMAND]: () => openGateStretch() };
+
 // -- pointer on the timeline ------------------------------------------------------
 
 function onPointerDown(hit, event) {
@@ -270,13 +289,23 @@ document.addEventListener("focusin", (event) => {
   if (panel && panel !== getState().panel) setState({ panel });
 });
 
-const keymap = createKeymap();
-for (const binding of coreBindings(actions)) keymap.bind(binding);
-// F2: rename the current track (or bus) in the inspector. Bound here, not in
-// keys.js; the keymap rewrite should take this binding over.
-keymap.bind({ code: "F2", run: () => inspector.focusName() });
-document.addEventListener("keydown", (event) => {
-  if (!event.isComposing) keymap.handle(event);
+// The whole keyboard layer: keymap, palette, cheat sheet, menu bar, hints (shell-keys.js).
+setupKeyboard({
+  actions,
+  t,
+  notify: showNotice,
+  onLanguageChange,
+  app: {
+    getState,
+    patch: setState,
+    undo: () => $("undo").click(),
+    redo: () => $("redo").click(),
+    chooseMedia: () => chooseMedia(),
+    focusName: () => inspector.focusName(),
+    openGateStretch: () => openGateStretch(),
+    seek: (frame) => void transport.seek(frame),
+    totalFrames,
+  },
 });
 // A focused button would otherwise also "click" on the key release.
 document.addEventListener("keyup", (event) => {
@@ -358,6 +387,22 @@ $("density").addEventListener("change", (event) => {
     // Not remembered; it still applies now.
   }
   applyDensity();
+});
+
+// Show gates (WP44): a view option remembered per user; on by default.
+const GATES_KEY = "kuulas.gates";
+try {
+  setState({ showGates: localStorage.getItem(GATES_KEY) !== "off" });
+} catch {
+  // Storage blocked: gates show.
+}
+$("show-gates").addEventListener("change", (event) => {
+  setState({ showGates: event.target.checked });
+  try {
+    localStorage.setItem(GATES_KEY, event.target.checked ? "on" : "off");
+  } catch {
+    // Not remembered; it still applies now.
+  }
 });
 
 // Animation: full / subtle / off (motion.js). Without a choice it follows
@@ -526,6 +571,7 @@ const timeline = createTimeline({
   getState,
   actions: {
     pointerDown: onPointerDown,
+    openGate: openGateStretch,
     wheel: onWheel,
     resized() {
       if (fitWhole && getState().project) fitWholeEdit();
@@ -570,6 +616,7 @@ function render(state, patch) {
       "waveformMode",
       "waveformScale",
       "waveformGain",
+      "showGates",
       "focusTrack",
       "focusBus",
       "busHeight",
@@ -619,6 +666,7 @@ function render(state, patch) {
     );
     $("follow").setAttribute("aria-pressed", String(state.followPaused));
   }
+  if (touched("showGates")) $("show-gates").checked = state.showGates;
   if (touched("waveformMode")) $("waveform-mode").value = state.waveformMode;
   if (touched("project", "focusTrack", "focusBus", "laneHeight", "busHeight", "groupGap"))
     trackHeaders.update(state);

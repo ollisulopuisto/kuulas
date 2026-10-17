@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .gate import normalise
+from .gate import normalise, split_by_gate
 from .model import Project
 from .ops import EditError
 from .transcript import timeline_words
@@ -67,9 +67,11 @@ def cut_collateral(project: Project, transcripts: dict[str, list[dict]],
     for t in project.tracks:
         if t.id in sel_tracks:
             continue
-        parts = [(max(c.start, start), min(c.end, end))
-                 for c in t.clips if not (c.muted or t.mute)]
-        parts = [part for part in parts if part[0] < part[1]]
+        # A gated stretch is silent, so it disappears with nothing.
+        parts = [(a, b)
+                 for c in t.clips if not (c.muted or t.mute)
+                 for a, b, is_open in split_by_gate(
+                     t.gate, max(c.start, start), min(c.end, end)) if is_open]
         if parts:
             # Clips can overlap on a track; what disappears is the union.
             audio[t.id] = list(normalise(parts))

@@ -16,6 +16,7 @@ is shut; an open stretch is the gap between two closed ranges.
 
 from __future__ import annotations
 
+from bisect import bisect_left, bisect_right
 from collections.abc import Iterable
 
 import numpy as np
@@ -137,3 +138,47 @@ def ripple(gate: Gate, cut_start: int, cut_end: int) -> Gate:
         if b > cut_end:
             moved.append((max(a, cut_end) - length, b - length))
     return normalise(moved)
+
+
+def closed_at(gate: Gate, frame: int) -> bool:
+    """Is the mic shut at ``frame``? Ranges are half-open: the first frame
+    of a range is closed, its end frame is open again."""
+    i = bisect_right(gate, (frame, float("inf"))) - 1
+    return i >= 0 and gate[i][0] <= frame < gate[i][1]
+
+
+def split_by_gate(gate: Gate, start: int, end: int) -> list[tuple[int, int, bool]]:
+    """``[start, end)`` cut at the gate's edges, as ``(from, to, open)``
+    pieces in order. The audibility rules (usage, collateral) read a clip
+    through this, so a gated stretch is inaudible exactly as a muted clip is.
+    """
+    if end <= start:
+        return []
+    out: list[tuple[int, int, bool]] = []
+    at = start
+    i = max(0, bisect_left(gate, (start,)) - 1)
+    while i < len(gate) and gate[i][0] < end:
+        a, b = gate[i]
+        i += 1
+        if b <= at:
+            continue
+        if a > at:
+            out.append((at, a, True))
+        lo, hi = max(a, at), min(b, end)
+        out.append((lo, hi, False))
+        at = hi
+    if at < end:
+        out.append((at, end, True))
+    return out
+
+
+def full_hops(gate: Gate, hops: int, hop: int) -> np.ndarray:
+    """Boolean mask over ``hops`` steps of ``hop`` frames: True where the
+    whole step lies inside one closed range. A step the gate only touches
+    is still partly audible, so it stays False."""
+    mask = np.zeros(hops, dtype=bool)
+    for a, b in gate:
+        lo, hi = -(-a // hop), b // hop  # first whole step in, last whole step out
+        if hi > lo:
+            mask[lo:min(hi, hops)] = True
+    return mask

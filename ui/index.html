@@ -15,6 +15,7 @@
     <div class="editor">
       <header class="toolbar" role="toolbar" data-i18n-aria-label="ui.toolbar.label">
         <div class="project"><span class="name" data-i18n="ui.app.name"></span></div>
+        <nav id="menubar" class="menubar"></nav>
         <div class="transport">
           <button id="play" type="button" class="play" aria-keyshortcuts="Space">
             <span id="play-icon" class="play-icon" aria-hidden="true">▶</span><span id="play-label"></span>
@@ -61,11 +62,8 @@
         <button id="view-toggle" type="button" class="button" data-i18n-title="ui.view.toggle" aria-keyshortcuts="Z"></button>
         <span class="divider" aria-hidden="true"></span>
         <!-- At most three hints, for the focused panel (GUI-DESIGN.md "Density"). -->
-        <span class="keyhints" aria-hidden="true">
-          <span><kbd data-shortcut="Space"></kbd><span data-i18n="ui.hint.play"></span></span>
-          <span><kbd data-shortcut="Z"></kbd><span data-i18n="ui.hint.view"></span></span>
-          <span><kbd>F6</kbd><span data-i18n="ui.hint.panels"></span></span>
-        </span>
+        <span id="keyhints" class="keyhints" aria-hidden="true"></span>
+        <span id="menu-hint" class="keyhints menu-hint" role="status" hidden></span>
         <span class="spacer"></span>
         <button id="view-menu-button" type="button" class="button" popovertarget="view-menu" data-i18n="ui.view.menu"></button>
       </footer>
@@ -91,6 +89,9 @@
           </span>
         </div>
         <button id="follow" type="button" class="button" data-i18n-title="ui.view.follow_title"></button>
+        <label class="menu-row"><span data-i18n="ui.view.gates"></span>
+          <input id="show-gates" type="checkbox" checked />
+        </label>
         <label class="menu-row"><span data-i18n="ui.density.title"></span>
           <select id="density" class="button">
             <option value="comfortable" data-i18n="ui.density.comfortable"></option>
