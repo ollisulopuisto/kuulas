@@ -175,3 +175,43 @@ def test_onsets_for_media_unkeyable_fails_closed(tmp_path, monkeypatch):
     # Fail closed: returns None rather than recomputing without cache
     assert store.onsets(m.id) is None
 
+
+def test_chunked_reading_matches_full_detect_and_limits_single_read(tmp_path):
+    rate = 48000
+    store = MediaStore(tmp_path / "pkg" / "media", rate=rate)
+    # Generate a 3-minute file (3 * 60 * rate samples) with clicks and noise
+    n_samples = 3 * 60 * rate
+    np.random.seed(123)
+    audio = (np.random.randn(n_samples) * 0.001).astype(np.float32)
+    # Add clicks across the file (at 10s, 65s, 120s, 175s)
+    click_frames = [10 * rate + 100, 65 * rate + 200, 120 * rate + 300, 175 * rate + 400]
+    for cf in click_frames:
+        audio[cf] = 0.8
+
+    wav_path = tmp_path / "three_min.wav"
+    sf.write(str(wav_path), audio, rate)
+    m = store.import_file(str(wav_path))
+
+    # Spy on store.read to check read chunk sizes
+    real_read = store.read
+    read_lengths: list[int] = []
+
+    def spy_read(media_id: str, start: int, length: int) -> np.ndarray:
+        read_lengths.append(length)
+        return real_read(media_id, start, length)
+
+    store.read = spy_read
+
+    # 4(a) on a generated 3-minute file onsets_for_media equals detect on same audio
+    direct_onsets = onsets.detect(audio, rate)
+    media_onsets = onsets.onsets_for_media(store, m.id)
+    assert media_onsets is not None
+    assert np.array_equal(media_onsets, direct_onsets)
+
+    # 4(b) a spy on store.read shows no single read longer than 60 s of frames
+    max_allowed = 60 * rate
+    assert read_lengths, "Expected store.read to be called"
+    msg = f"Reads exceeded 60s: {max(read_lengths)} > {max_allowed}"
+    assert all(length <= max_allowed for length in read_lengths), msg
+
+

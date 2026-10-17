@@ -8,6 +8,7 @@ frames through unmuted clips.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -51,11 +52,8 @@ def cache_key(media_sha256: str, rate: int) -> str:
     return caches.key([media_sha256], cache_params(rate), ALGORITHM)
 
 
-def detect(audio: np.ndarray, rate: int) -> np.ndarray:
-    """Detect transient onsets in ``audio`` at ``rate``.
-
-    Returns a 1D ``int64`` array of onset positions in flicks from the start.
-    """
+def peak_envelope(audio: np.ndarray, rate: int) -> np.ndarray:
+    """1 ms absolute-maximum peak envelope from audio."""
     if audio.ndim == 2:
         mono = audio.mean(axis=0) if audio.shape[0] > 1 else audio[0]
     else:
@@ -63,11 +61,31 @@ def detect(audio: np.ndarray, rate: int) -> np.ndarray:
 
     step = max(1, int(rate * BIN_MS / 1000))
     n_bins = mono.size // step
+    if n_bins == 0:
+        return np.empty(0, dtype=np.float32)
+
+    return (
+        np.abs(mono[: n_bins * step])
+        .reshape(n_bins, step)
+        .max(axis=1)
+        .astype(np.float32)
+    )
+
+
+def detect_from_peaks(
+    peaks: np.ndarray,
+    rate: int,
+    sample_getter: Callable[[int, int], np.ndarray] | None = None,
+) -> np.ndarray:
+    """Detect transient onsets from a 1 ms ``peaks`` envelope at ``rate``.
+
+    ``sample_getter(start, length)``: optional callable returning the mono
+    audio slice in that range for sub-millisecond refinement.
+    """
+    n_bins = peaks.size
     bins_20 = max(1, PRE_MS // BIN_MS)
     if n_bins < bins_20:
         return np.empty(0, dtype=np.int64)
-
-    peaks = np.abs(mono[: n_bins * step]).reshape(n_bins, step).max(axis=1)
 
     n_20 = n_bins // bins_20
     env_20 = peaks[: n_20 * bins_20].reshape(n_20, bins_20).max(axis=1)
@@ -105,15 +123,38 @@ def detect(audio: np.ndarray, rate: int) -> np.ndarray:
             suppressed[lo:hi] = True
     selected.sort()
 
+    step = max(1, int(rate * BIN_MS / 1000))
     found_flicks = []
     for b in selected:
-        p = peaks[b]
-        bin_audio = np.abs(mono[b * step : (b + 1) * step])
-        j = int(np.argmax(bin_audio >= 0.5 * p))
+        p = float(peaks[b])
+        if sample_getter is not None:
+            bin_audio = sample_getter(b * step, step)
+            j = int(np.argmax(bin_audio >= 0.5 * p)) if bin_audio.size > 0 else 0
+        else:
+            j = 0
         sample_idx = b * step + j
         found_flicks.append(clock.frames_to_flicks(sample_idx, rate))
 
     return np.array(found_flicks, dtype=np.int64)
+
+
+def detect(audio: np.ndarray, rate: int) -> np.ndarray:
+    """Detect transient onsets in ``audio`` at ``rate``.
+
+    Returns a 1D ``int64`` array of onset positions in flicks from the start.
+    """
+    if audio.ndim == 2:
+        mono = audio.mean(axis=0) if audio.shape[0] > 1 else audio[0]
+    else:
+        mono = audio
+
+    peaks = peak_envelope(mono, rate)
+    mono_abs = np.abs(mono)
+    return detect_from_peaks(
+        peaks,
+        rate,
+        sample_getter=lambda start, length: mono_abs[start : start + length],
+    )
 
 
 def timeline_onsets(
@@ -160,8 +201,27 @@ def onsets_for_media(store: MediaStore, media_id: str) -> np.ndarray | None:
 
     def compute() -> np.ndarray:
         log.info(t("log.cache.recompute", kind="onsets", media_id=media_id))
-        audio = store.read(media_id, 0, meta["source_frames"])
-        return detect(audio, store.rate)
+        total_frames = meta["source_frames"]
+        chunk_frames = 60 * store.rate
+        chunks = []
+        for offset in range(0, total_frames, chunk_frames):
+            length = min(chunk_frames, total_frames - offset)
+            chunk_audio = store.read(media_id, offset, length)
+            chunks.append(peak_envelope(chunk_audio, store.rate))
+        peaks = np.concatenate(chunks) if chunks else np.empty(0, dtype=np.float32)
+
+        def read_bin_abs(start: int, length: int) -> np.ndarray:
+            actual_len = min(length, max(0, total_frames - start))
+            if actual_len <= 0:
+                return np.empty(0, dtype=np.float32)
+            raw = store.read(media_id, start, actual_len)
+            if raw.ndim == 2:
+                mono = raw.mean(axis=0) if raw.shape[0] > 1 else raw[0]
+            else:
+                mono = raw
+            return np.abs(mono)
+
+        return detect_from_peaks(peaks, store.rate, sample_getter=read_bin_abs)
 
     spill = caches.path(store.cache_root, "onsets", key, "npy")
     return store.budget.fetch("onsets", key, compute, spill=spill)
