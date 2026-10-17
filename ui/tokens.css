@@ -222,6 +222,32 @@
   --p-violet-88: #e6cbfb;
   --p-violet-92: #eaddf5;
   --p-violet-96: #f7f0fd;
+
+  /* bus hues 5-8 (nested buses, 2026-10-18) */
+  --p-sea-42: #005c4a;
+  --p-sea-40: #005545;
+  --p-sea-42-a7: rgb(0 92 74 / 0.07);
+  --p-sea-84: #91dcc7;
+  --p-sea-88: #b2e4d5;
+  --p-sea-84-a9: rgb(145 220 199 / 0.09);
+  --p-iris-42: #514279;
+  --p-iris-40: #4b3e6e;
+  --p-iris-42-a7: rgb(81 66 121 / 0.07);
+  --p-iris-84: #cec1fa;
+  --p-iris-88: #d9d1f9;
+  --p-iris-84-a9: rgb(206 193 250 / 0.09);
+  --p-ochre-42: #664600;
+  --p-ochre-40: #5e4205;
+  --p-ochre-42-a7: rgb(102 70 0 / 0.07);
+  --p-ochre-84: #e6c58f;
+  --p-ochre-88: #ebd4af;
+  --p-ochre-84-a9: rgb(230 197 143 / 0.09);
+  --p-brick-42: #76363d;
+  --p-brick-40: #6c343a;
+  --p-brick-42-a7: rgb(118 54 61 / 0.07);
+  --p-brick-84: #fab6ba;
+  --p-brick-88: #fac9cc;
+  --p-brick-84-a9: rgb(250 182 186 / 0.09);
 }
 
 /* == theme-independent: type, spacing, radii, motion, sizes ============== */
@@ -469,6 +495,18 @@
   --bus-4-spine: var(--p-sienna-55);
   --bus-4-band: var(--p-sienna-55-a7);
   --bus-4-text: var(--p-sienna-42);
+  --bus-5-spine: var(--p-sea-42);
+  --bus-5-band: var(--p-sea-42-a7);
+  --bus-5-text: var(--p-sea-40);
+  --bus-6-spine: var(--p-iris-42);
+  --bus-6-band: var(--p-iris-42-a7);
+  --bus-6-text: var(--p-iris-40);
+  --bus-7-spine: var(--p-ochre-42);
+  --bus-7-band: var(--p-ochre-42-a7);
+  --bus-7-text: var(--p-ochre-40);
+  --bus-8-spine: var(--p-brick-42);
+  --bus-8-band: var(--p-brick-42-a7);
+  --bus-8-text: var(--p-brick-40);
   --label-1: var(--p-label-red-58); /* user clip labels: never set automatically */
   --label-2: var(--p-label-orange-58);
   --label-3: var(--p-label-yellow-58);
@@ -600,6 +638,18 @@
     --bus-4-spine: var(--p-sienna-72);
     --bus-4-band: var(--p-sienna-72-a9);
     --bus-4-text: var(--p-sienna-86);
+    --bus-5-spine: var(--p-sea-84);
+    --bus-5-band: var(--p-sea-84-a9);
+    --bus-5-text: var(--p-sea-88);
+    --bus-6-spine: var(--p-iris-84);
+    --bus-6-band: var(--p-iris-84-a9);
+    --bus-6-text: var(--p-iris-88);
+    --bus-7-spine: var(--p-ochre-84);
+    --bus-7-band: var(--p-ochre-84-a9);
+    --bus-7-text: var(--p-ochre-88);
+    --bus-8-spine: var(--p-brick-84);
+    --bus-8-band: var(--p-brick-84-a9);
+    --bus-8-text: var(--p-brick-88);
     --label-1: var(--p-label-red-74);
     --label-2: var(--p-label-orange-74);
     --label-3: var(--p-label-yellow-74);
@@ -731,6 +781,18 @@
   --bus-4-spine: var(--p-sienna-72);
   --bus-4-band: var(--p-sienna-72-a9);
   --bus-4-text: var(--p-sienna-86);
+  --bus-5-spine: var(--p-sea-84);
+  --bus-5-band: var(--p-sea-84-a9);
+  --bus-5-text: var(--p-sea-88);
+  --bus-6-spine: var(--p-iris-84);
+  --bus-6-band: var(--p-iris-84-a9);
+  --bus-6-text: var(--p-iris-88);
+  --bus-7-spine: var(--p-ochre-84);
+  --bus-7-band: var(--p-ochre-84-a9);
+  --bus-7-text: var(--p-ochre-88);
+  --bus-8-spine: var(--p-brick-84);
+  --bus-8-band: var(--p-brick-84-a9);
+  --bus-8-text: var(--p-brick-88);
   --label-1: var(--p-label-red-74);
   --label-2: var(--p-label-orange-74);
   --label-3: var(--p-label-yellow-74);

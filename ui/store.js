@@ -14,6 +14,8 @@ export const initialState = () => ({
   // UI state.
   selection: new Set(),
   focusTrack: null,
+  // A bus row is the current row (the inspector shows its Bus section); else null.
+  focusBus: null,
   panel: "timeline",
   playhead: 0,
   inPoint: null,
