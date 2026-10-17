@@ -75,6 +75,7 @@
   "history.media_person": "Who speaks on {media_id}: {name}",
   "history.speakers_mapped": "Map speakers of {media_id}",
   "history.set_music_info": "Edit music tags: {media_id}",
+  "history.rename_clip": "Rename clip",
   "error.people.empty_name": "A person needs a name.",
   "error.people.no_person": "There is no person {person_id} in this project.",
   "error.people.no_interview": "There is no interview {interview_id} in this project.",

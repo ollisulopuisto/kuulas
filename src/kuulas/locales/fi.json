@@ -75,6 +75,7 @@
   "history.media_person": "Kuka puhuu tiedostossa {media_id}: {name}",
   "history.speakers_mapped": "Puhujien yhdistäminen: {media_id}",
   "history.set_music_info": "Musiikkitietojen muokkaus: {media_id}",
+  "history.rename_clip": "Nimeä leike",
   "error.people.empty_name": "Henkilöllä on oltava nimi.",
   "error.people.no_person": "Tässä projektissa ei ole henkilöä {person_id}.",
   "error.people.no_interview": "Tässä projektissa ei ole haastattelua {interview_id}.",
