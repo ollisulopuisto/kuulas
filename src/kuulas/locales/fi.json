@@ -372,5 +372,14 @@
   "desktop.menu.view.density": "Vaihda tiheyttä",
   "desktop.menu.window.minimize": "Pienennä",
   "cli.desktop.help": "Avaa työpöytäikkuna, jossa on lista viimeksi avatuista projekteista.",
-  "cli.open.window": "Avaa selaimen sijaan omaan ikkunaan (vaatii desktop-lisäosan)."
+  "cli.open.window": "Avaa selaimen sijaan omaan ikkunaan (vaatii desktop-lisäosan).",
+  "ui.inspector.track": "Raita",
+  "ui.inspector.bus": "Väylä",
+  "ui.track.role": "Rooli",
+  "ui.track.voice": "Äänen esiasetus",
+  "ui.track.voice.none": "Ei vielä",
+  "ui.bus.name_field": "Väylän nimi",
+  "ui.bus.parent": "Yläväylä",
+  "ui.bus.parent.none": "Ei (ylin taso)",
+  "ui.bus.members": "Raitoja väylällä"
 }

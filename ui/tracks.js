@@ -212,6 +212,7 @@ export function createTrackHeaders({ root, editor, actions }) {
       });
 
     node.addEventListener("pointerdown", () => actions.currentTrack(id));
+    node.addEventListener("focusin", () => actions.currentTrack(id));
     name.addEventListener("dblclick", () => rename(name, id));
     mute.addEventListener("click", () => {
       const now = !lookup(id).mute;
@@ -276,6 +277,8 @@ export function createTrackHeaders({ root, editor, actions }) {
     top.append(badge, name, controls, buttons);
     node.append(top);
     const id = bus.id;
+    node.addEventListener("pointerdown", () => actions.currentBus(id));
+    node.addEventListener("focusin", () => actions.currentBus(id));
     const send = (field, value, key) =>
       editor.change({
         op: "set_bus",
