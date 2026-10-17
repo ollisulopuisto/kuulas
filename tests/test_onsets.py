@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
-from kuulas import clock, onsets
+from kuulas import caches, clock, onsets
 from kuulas.media import MediaStore
 from kuulas.model import Clip, Project, Track
 
@@ -142,6 +142,8 @@ def test_detect_empty_or_silence():
     assert len(onsets.detect(np.array([], dtype=np.float32), 48000)) == 0
     # Short audio under 1 ms
     assert len(onsets.detect(np.ones(10, dtype=np.float32), 48000)) == 0
+    # Short audio between 1 ms and 20 ms (was crashing with ValueError on reshape)
+    assert len(onsets.detect(np.ones(500, dtype=np.float32), 48000)) == 0
 
 
 def test_non_max_suppression_keeps_strongest_within_50ms():
@@ -158,3 +160,18 @@ def test_non_max_suppression_keeps_strongest_within_50ms():
     assert len(result_flicks) == 1
     found_sample = clock.flicks_to_frames(result_flicks[0], rate)
     assert abs(found_sample - c2) < 48  # c2 was stronger and kept
+
+
+def test_onsets_for_media_unkeyable_fails_closed(tmp_path, monkeypatch):
+    store = MediaStore(tmp_path / "pkg" / "media", rate=48000)
+    wav_path = tmp_path / "audio.wav"
+    sf.write(str(wav_path), np.zeros(48000, dtype=np.float32), 48000)
+    m = store.import_file(str(wav_path))
+
+    def bad_key(*args, **kwargs):
+        raise caches.CacheKeyError("corrupt sha256")
+
+    monkeypatch.setattr(onsets, "cache_key", bad_key)
+    # Fail closed: returns None rather than recomputing without cache
+    assert store.onsets(m.id) is None
+

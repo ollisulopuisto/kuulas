@@ -63,13 +63,13 @@ def detect(audio: np.ndarray, rate: int) -> np.ndarray:
 
     step = max(1, int(rate * BIN_MS / 1000))
     n_bins = mono.size // step
-    if n_bins == 0:
+    bins_20 = max(1, PRE_MS // BIN_MS)
+    if n_bins < bins_20:
         return np.empty(0, dtype=np.int64)
 
     peaks = np.abs(mono[: n_bins * step]).reshape(n_bins, step).max(axis=1)
 
-    bins_20 = max(1, PRE_MS // BIN_MS)
-    n_20 = max(1, n_bins // bins_20)
+    n_20 = n_bins // bins_20
     env_20 = peaks[: n_20 * bins_20].reshape(n_20, bins_20).max(axis=1)
     env_20_db = dsp.lin_to_db(env_20)
     floor_margin_db = grid.FLOOR_MARGIN_DB
@@ -77,7 +77,7 @@ def detect(audio: np.ndarray, rate: int) -> np.ndarray:
     # Ensure synthetic pure tones with no silence have a valid contrast margin
     floor_db = min(measured_floor, float(env_20_db.max() - floor_margin_db - 1.0))
 
-    cumsum = np.pad(np.cumsum(peaks), (1, 0))
+    cumsum = np.pad(np.cumsum(peaks, dtype=np.float64), (1, 0))
     idx = np.arange(n_bins)
     pre_idx = np.maximum(0, idx - bins_20)
     pre_count = np.maximum(1, idx - pre_idx)
@@ -156,15 +156,12 @@ def onsets_for_media(store: MediaStore, media_id: str) -> np.ndarray | None:
         key = cache_key(meta["sha256"], store.rate)
     except caches.CacheKeyError:
         log.warning(t("log.cache.no_key", kind="onsets", media_id=media_id))
-        key = None
+        return None
 
     def compute() -> np.ndarray:
         log.info(t("log.cache.recompute", kind="onsets", media_id=media_id))
         audio = store.read(media_id, 0, meta["source_frames"])
         return detect(audio, store.rate)
-
-    if key is None:
-        return compute()
 
     spill = caches.path(store.cache_root, "onsets", key, "npy")
     return store.budget.fetch("onsets", key, compute, spill=spill)
