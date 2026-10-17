@@ -26,6 +26,7 @@
         <div class="modes">
           <span id="live-chip" class="chip danger" role="status" hidden></span>
           <button id="waveform-gain" type="button" class="chip warn" hidden></button>
+          <button id="group-chip" type="button" class="chip warn" hidden></button>
         </div>
         <span class="spacer"></span>
         <button id="undo" type="button" class="button ghost" data-i18n="ui.transport.undo" aria-keyshortcuts="Meta+Z Control+Z"></button>
@@ -109,6 +110,7 @@
       </div>
       <div id="notice" class="notice" role="status" aria-live="polite" hidden>
         <span id="notice-text"></span>
+        <button id="notice-undo" type="button" class="button ghost" data-i18n="ui.transport.undo" hidden></button>
         <button id="notice-close" type="button" class="button ghost icon" data-i18n-aria-label="ui.notice.dismiss" data-i18n-title="ui.notice.dismiss">×</button>
       </div>
       <div id="drop" class="drop" aria-hidden="true" hidden><span data-i18n="ui.import.drop"></span></div>

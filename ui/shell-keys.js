@@ -6,7 +6,9 @@
 import { registerAppCommands } from "./app-commands.js";
 import { cheatSheetData, createCheatSheet } from "./cheatsheet.js";
 import { createRegistry } from "./commands.js";
+import { registerEditCommands } from "./edit-commands.js";
 import { resolveHints } from "./hints.js";
+import { formatNumber } from "./i18n.js";
 import {
   formatCombo,
   loadOverrides,
@@ -86,6 +88,11 @@ export function setupKeyboard({ actions, app, t, notify, onLanguageChange }) {
         notify(t("ui.keymap.reset"), "ok");
       },
     },
+  });
+  registerEditCommands(registry, {
+    app,
+    t,
+    formatSeconds: (seconds) => formatNumber(seconds, { digits: 1 }),
   });
   // The rest of the sheet is listed everywhere and does nothing until its WP lands.
   registry.planMissing(DEFAULT_KEYMAP.map((entry) => entry.id));

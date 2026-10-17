@@ -20,6 +20,9 @@ export const initialState = () => ({
   playhead: 0,
   inPoint: null,
   outPoint: null,
+  // Group editing is on at every start (PLAN ground rule 16); E turns it off for the session.
+  groupEditing: true,
+  nudgeMs: 10,
   zoom: 48_000 / 20,
   scroll: 0,
   scrollY: 0,

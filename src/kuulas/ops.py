@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import replace
 
-from . import curves
+from . import curves, edit_scope
 from . import gate as gatem
 from .clock import flicks_to_frames, frames_to_flicks
 from .messages import KuulasError
@@ -392,6 +392,74 @@ def delete_clips(p: Project, clip_ids) -> Project:
     return p
 
 
+# -- the editing keys (WP5): several clips or tracks, one undo step ----------
+
+#: The inspector's clip gain range; the keys stay inside it.
+CLIP_GAIN_RANGE = (-60.0, 12.0)
+
+
+def split_clips(p: Project, at: int, clip_ids) -> Project:
+    """Split each listed clip that the point lies inside; skip the others."""
+    at = int(at)
+    hit = [cid for cid in clip_ids if (c := _find_clip(p, cid)[0]).start < at < c.end]
+    if not hit:
+        raise EditError("error.edit.split_outside")
+    for clip_id in hit:
+        p = split_clip(p, clip_id, at)
+    return p
+
+
+def mute_range(p: Project, start: int, end: int, track_ids,
+               group_editing: bool = False) -> Project:
+    """Soft-cut ``[start, end)``: mute it in place on the tracks (the sync
+    group's too when ``group_editing``), leaving the gap. Nothing moves."""
+    start, end = int(start), int(end)
+    if end <= start:
+        raise EditError("error.edit.empty_range")
+    for track_id in edit_scope.expand_range(p, None, list(track_ids), start, end,
+                                            group_editing):
+        p = mute_ranges(p, track_id, [(start, end)])
+    return p
+
+
+def cut_range(p: Project, start: int, end: int, track_ids,
+              group_editing: bool = False) -> Project:
+    """Ripple-delete ``[start, end)`` on the tracks, or on the sync group's
+    tracks when ``group_editing`` (tracks in no group: all, as in WP19a)."""
+    start, end = int(start), int(end)
+    if end <= start:
+        raise EditError("error.edit.empty_range")
+    return ripple_delete(p, start, end, edit_scope.expand_range(
+        p, None, list(track_ids), start, end, group_editing))
+
+
+def nudge_clips(p: Project, clip_ids, delta: int, group_editing: bool = False) -> Project:
+    """``shift_clips`` that takes the clips' sync partners along when
+    ``group_editing`` is on."""
+    return shift_clips(p, edit_scope.expand_clips(p, None, list(clip_ids), group_editing),
+                       delta)
+
+
+def trim_clips(p: Project, clip_ids, start: int | None = None,
+               end: int | None = None) -> Project:
+    """``trim_clip`` on several clips; one that would end up empty refuses all."""
+    for clip_id in clip_ids:
+        p = trim_clip(p, clip_id, start=start, end=end)
+    return p
+
+
+def adjust_clip_gain(p: Project, clip_ids, delta_db: float) -> Project:
+    """Add ``delta_db`` to each clip's gain, within the inspector's range."""
+    clip_ids = list(clip_ids)
+    if not clip_ids:
+        raise EditError("error.edit.no_selection")
+    low, high = CLIP_GAIN_RANGE
+    for clip_id in clip_ids:
+        gain = _find_clip(p, clip_id)[0].gain_db + float(delta_db)
+        p = set_clip(p, clip_id, gain_db=round(max(low, min(high, gain)), 2))
+    return p
+
+
 # -- sync groups -------------------------------------------------------------
 
 
@@ -572,6 +640,7 @@ OPS = {
         set_clip_envelope, ripple_delete, mute_ranges,
         set_gate, add_gate_range, remove_gate_range,
         shift_clips, set_clips, delete_clips, mark_in_sync, resync,
+        split_clips, mute_range, cut_range, nudge_clips, trim_clips, adjust_clip_gain,
     )
 }
 
