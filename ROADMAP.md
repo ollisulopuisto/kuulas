@@ -125,19 +125,19 @@ sizes: `docs/PLAN.md`, section "Triage".
 
 ## Milestones
 
-Grouped from the build order in `docs/PLAN.md` (Triage). ✓ done, ◐ partly done, ! started but unowned, otherwise open.
+Grouped from the build order in `docs/PLAN.md` (Triage). ✓ done, ◐ partly done, ▶ being built now, ↻ built and in review (not merged yet), otherwise open.
 
 **M1 · First playable build** (12 of 16 done): Run kuulas, import, listen, edit by keyboard, undo, export WAV or MP3.
 
-✓ WP0, ✓ WP24.1, ✓ WP33a, ✓ WP29, ✓ WP30, ✓ WP1, ✓ WP34, ✓ WP36, ✓ WP2, ✓ WP3, ✓ WP33b, ! WP4, WP5, WP19a, WP35, ✓ WP11.
+✓ WP0, ✓ WP24.1, ✓ WP33a, ✓ WP29, ✓ WP30, ✓ WP1, ✓ WP34, ✓ WP36, ✓ WP2, ✓ WP3, ✓ WP33b, ▶ WP4, WP5, WP19a, WP35, ✓ WP11.
 
 **M2 · A usable editor** (2 of 9 done): Transcript, mouse editing, history panel, fast listening, FX layers.
 
-✓ WP41, WP8, WP22, WP26, WP19i, WP6, ✓ WP9, WP7, WP23a.
+✓ WP41, WP8, WP22, WP26, ▶ WP19i, WP6, ✓ WP9, WP7, WP23a.
 
 **M3 · The editing loop** (2 of 18 done): What makes it better than Hindenburg: cut candidates, versions, review, paste, roles, takes.
 
-WP28, WP43, WP18, WP19f, WP24.2, WP21, WP40, WP31, WP32, WP20, ✓ WP39, ✓ WP37, WP19c, WP19d, WP19b, WP19h, WP19g, WP19e.
+WP28, WP43, WP18, WP19f, WP24.2, WP21, ↻ WP40, WP31, WP32, WP20, ✓ WP39, ✓ WP37, WP19c, WP19d, WP19b, WP19h, WP19g, WP19e.
 
 **M4 · Pipeline depth** (2 of 5 done): Voice chain, music report, Hindenburg import, rendered FX.
 
