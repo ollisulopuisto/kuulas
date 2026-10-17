@@ -635,5 +635,6 @@
   "cmd.edit.select_all_track.hint": "Valitsee kaikki valitun raidan leikkeet.",
   "cmd.edit.select_all.hint": "Valitsee kaikki projektin leikkeet.",
   "cmd.group.toggle.hint": "Kytkee ryhmämuokkauksen päälle tai pois valitun raidan ryhmälle.",
-  "cmd.help.open": "Ohje tähän"
+  "cmd.help.open": "Ohje tähän",
+  "error.regions.bad_template": "Aluenimien malli ei kelpaa: {template}."
 }
