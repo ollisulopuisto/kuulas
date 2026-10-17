@@ -18,8 +18,9 @@ import math
 import os
 import threading
 from collections.abc import Callable
-from dataclasses import replace
+from dataclasses import asdict, replace
 from pathlib import Path
+from typing import Any
 
 from lxml import etree
 from nhsx import NhsxError
@@ -34,6 +35,7 @@ from nhsx.read import time_to_seconds as nhsx_time_to_seconds
 from . import analysis, ops, package, transcribe, transcript
 from . import db as dbm
 from . import export as export_module
+from . import music_report as music_report_module
 from .clock import FLICKS, flicks_to_frames
 from .history import History
 from .jobs import Jobs
@@ -272,6 +274,32 @@ class Session:
     def last_export_settings(self, kind: str) -> dict | None:
         """Return the project's remembered settings for an export kind."""
         return export_module.last_settings(self, kind)
+
+    def music_report(self, *, format: str = "rows",
+                     title: str | None = None) -> tuple[Any, ...] | str | list[dict]:
+        """Royalty music report (WP25): every audible music use in this edit.
+
+        ``format``:
+        - ``"rows"`` (default): tuple of :class:`ReportRow` dataclasses.
+        - ``"json"``: list of row dicts.
+        - ``"csv"``: semicolon-separated UTF-8 string with BOM.
+        - ``"html"``: printable HTML document string.
+        """
+        if format not in ("rows", "json", "csv", "html"):
+            raise music_report_module.MusicReportError("error.music_report.bad_format",
+                                                       format=format)
+        # The state is immutable, so a snapshot is enough: the speech analysis
+        # behind the report can take seconds, and must not block edits.
+        with self.lock:
+            state = self.history.state
+        rows = music_report_module.build_report(state, self.store)
+        if format == "rows":
+            return rows
+        if format == "json":
+            return [asdict(r) for r in rows]
+        if format == "csv":
+            return music_report_module.render_csv(rows)
+        return music_report_module.render_html(rows, title=title)
 
     # -- import ------------------------------------------------------------
 

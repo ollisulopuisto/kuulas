@@ -217,5 +217,6 @@
   "music_report.header.metadata": "Metadata",
   "music_report.background": "Background",
   "music_report.featured": "Featured",
-  "music_report.missing_metadata": "Missing title or artist"
+  "music_report.missing_metadata": "Missing title or artist",
+  "error.music_report.bad_format": "Choose json, csv or html; {format} is not supported."
 }

@@ -1,8 +1,19 @@
+import threading
+
 import numpy as np
+import pytest
 
 from kuulas import messages
+from kuulas import music_report as module
 from kuulas.model import Clip, Media, Project, Track
-from kuulas.music_report import ReportRow, build_report, render_csv, render_html
+from kuulas.music_report import (
+    MusicReportError,
+    ReportRow,
+    build_report,
+    render_csv,
+    render_html,
+)
+from kuulas.session import Session
 
 RATE = 48_000
 
@@ -298,3 +309,80 @@ def test_report_row_is_a_dataclass():
                   "00:00:00", "00:01:00", "00:01:00", False, False)
     assert (r.order, r.title, r.background, r.missing_metadata) == (
         1, "T", False, False)
+
+
+def test_csv_guards_formula_cells_with_single_quote():
+    row = ReportRow(
+        order=1,
+        title="=SUM(A1)",
+        artist="+Artist",
+        composer="-Bach",
+        publisher="@Publisher",
+        isrc="=ISRC123",
+        file_name="track.wav",
+        in_time="00:00:00",
+        out_time="00:00:01",
+        duration="00:00:01",
+        background=False,
+        missing_metadata=False,
+    )
+    text = render_csv((row,))
+    lines = text.removeprefix("\ufeff").splitlines()
+    assert lines[1] == ("1;'=SUM(A1);'+Artist;'-Bach;'@Publisher;'=ISRC123;track.wav;"
+                        "00:00:00;00:00:01;00:00:01;Featured;")
+
+
+def test_session_music_report_formats(tmp_path):
+    s = Session(tmp_path / "Proj.kuulas")
+    try:
+        # Default returns tuple of ReportRow
+        rows = s.music_report()
+        assert isinstance(rows, tuple)
+
+        # JSON format returns list of dicts
+        data = s.music_report(format="json")
+        assert isinstance(data, list)
+
+        # CSV format returns string with BOM
+        csv_data = s.music_report(format="csv")
+        assert isinstance(csv_data, str)
+        assert csv_data.startswith("\ufeff")
+
+        # HTML format returns html string
+        html_data = s.music_report(format="html")
+        assert isinstance(html_data, str)
+        assert "<html" in html_data
+
+        # Invalid format raises MusicReportError
+        with pytest.raises(MusicReportError) as exc_info:
+            s.music_report(format="pdf")
+        assert exc_info.value.key == "error.music_report.bad_format"
+    finally:
+        s.close()
+
+
+def test_building_the_report_does_not_hold_the_session_lock(tmp_path, monkeypatch):
+    # The report runs speech analysis, which can take seconds on a long
+    # project. It must not block edits meanwhile (ground rule 14), so the
+    # session lock must be free while the report is being built.
+    s = Session(tmp_path / "Proj.kuulas")
+    free = []
+
+    def build_and_probe(project, store):
+        def try_lock():
+            got = s.lock.acquire(timeout=1.0)
+            if got:
+                s.lock.release()
+            free.append(got)
+
+        other = threading.Thread(target=try_lock)
+        other.start()
+        other.join()
+        return ()
+
+    monkeypatch.setattr(module, "build_report", build_and_probe)
+    try:
+        s.music_report(format="csv")
+    finally:
+        s.close()
+    assert free == [True]
