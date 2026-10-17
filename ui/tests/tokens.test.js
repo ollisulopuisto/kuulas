@@ -267,7 +267,14 @@ test("the prototype embeds exactly this token file and the pure UI modules", () 
   const end = html.indexOf("/* -- end of tokens.css -- */");
   assert.ok(start >= 0 && end > start, "token markers missing in the prototype");
   assert.equal(html.slice(start, end).trim(), CSS.trim(), "run: node docs/design/sync-tokens.mjs");
-  for (const name of ["grammar.js", "labels.js", "crosstalk.js", "motion.js", "ab-value.js"]) {
+  for (const name of [
+    "grammar.js",
+    "labels.js",
+    "crosstalk.js",
+    "motion.js",
+    "ab-value.js",
+    "help.js",
+  ]) {
     const gStart = html.indexOf(`// -- ${name} (copy) --`);
     const gEnd = html.indexOf(`// -- end of ${name} --`);
     assert.ok(gStart >= 0 && gEnd > gStart, `${name} markers missing in the prototype`);
@@ -280,4 +287,26 @@ test("the prototype embeds exactly this token file and the pure UI modules", () 
       `${name}: run node docs/design/sync-tokens.mjs`,
     );
   }
+});
+
+test("the prototype's help panel shows the real help topics", () => {
+  const html = read(PROTOTYPE);
+  const start = html.indexOf("// -- help topics (copy) --");
+  const end = html.indexOf("// -- end of help topics --");
+  assert.ok(start >= 0 && end > start, "help topic markers missing in the prototype");
+  const json = html
+    .slice(start, end)
+    .replace("// -- help topics (copy) --", "")
+    .trim()
+    .replace(/^const HELP_FILES = /, "")
+    .replace(/;$/, "");
+  const embedded = JSON.parse(json);
+  const index = JSON.parse(read("../help/index.json")).topics;
+  for (const lang of ["en", "fi"])
+    for (const id of index)
+      assert.equal(
+        embedded[`${lang}/${id}`],
+        read(`../help/${lang}/${id}.md`),
+        `${lang}/${id}: run node docs/design/sync-tokens.mjs`,
+      );
 });

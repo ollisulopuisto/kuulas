@@ -1,3 +1,16 @@
+## [v26.10.18.9] - 2026-10-18
+
+- Contextual help: F1 opens a docked help panel for whatever has focus (timeline, a
+  clip, a track, a bus, the transcript, history) with search over help topics and
+  commands, a "Show me" button that rings the control, and the keys it names read from
+  your own keymap (a remapped key shows as remapped). Help menu: "Help for this". `?`
+  still opens the shortcuts sheet. Six topics in English and Finnish; more can be added
+  as plain files. Welcome and tour screens exist as a sketch in the prototype only.
+- Muting and unmuting is now exact: the 30 ms smoothing at the edge of a muted stretch is
+  worked out while mixing instead of being written into the neighbouring clips, so
+  unmuting (or undoing a soft cut) restores the original sound with no dip. Old projects
+  that stored such fades sound as before.
+
 ## [v26.10.18.8] - 2026-10-18
 
 - The editing keys work in the editor: B splits at the play cursor (Shift+B on all

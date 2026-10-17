@@ -51,6 +51,7 @@ describe("the commands the app registers", () => {
       getState: () => state,
       openPalette: () => calls.push(["palette"]),
       openKeys: () => calls.push(["keys"]),
+      openHelp: () => calls.push(["help"]),
       importKeys: () => calls.push(["importKeys"]),
       exportKeys: () => calls.push(["exportKeys"]),
       resetKeys: () => calls.push(["resetKeys"]),
@@ -117,6 +118,15 @@ describe("the commands the app registers", () => {
     const { registry } = setup();
     assert.equal(registry.can("rename", { focusTrack: null, focusBus: null }), false);
     assert.equal(registry.can("rename", { focusTrack: "a" }), true);
+  });
+
+  test("help.open is always available and opens help", () => {
+    const { registry, calls } = setup();
+    assert.equal(registry.can("help.open", undefined), true);
+    assert.equal(registry.can("help.open", {}), true);
+    assert.equal(registry.hintKey("help.open"), "cmd.help.open.hint");
+    registry.run("help.open", null, {});
+    assert.deepEqual(calls, [["help"]]);
   });
 
   test("hints are given for the commands that have a one-line description", () => {

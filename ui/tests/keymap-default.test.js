@@ -103,6 +103,11 @@ describe("the owner's decisions", () => {
     assert.deepEqual(keysOf("view.zoom_out"), ["-"]);
     assert.deepEqual(keysOf("palette.open"), ["Mod+K"]);
     assert.deepEqual(keysOf("help.keys"), ["?"]);
+    assert.deepEqual(keysOf("help.open"), ["F1"]);
+  });
+
+  test("F1 opens help from anywhere, also while typing", () => {
+    assert.equal(DEFAULT_KEYMAP.find((e) => e.id === "help.open").context, "text-field");
   });
 
   test("parked items are not bound", () => {
