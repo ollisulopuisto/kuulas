@@ -23,7 +23,9 @@ dependencies = [
 
 [project.optional-dependencies]
 # Local transcription. Cross-platform (CPU int8 everywhere, CUDA where present).
-transcribe = ["faster-whisper>=1.2.0"]
+# faster-whisper 1.2.1 calls av.open(..., metadata_errors="ignore"), which av 19
+# removed; stay below 19 until faster-whisper supports it.
+transcribe = ["faster-whisper>=1.2.0", "av<19"]
 
 [project.scripts]
 kuulas = "kuulas.cli:main"
@@ -44,10 +46,11 @@ packages = ["src/kuulas"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-# tests/hardware needs a real audio device and is run by hand
-# (uv run pytest tests/hardware); a path given on the command line is still
-# collected. The rest is pytest's default list, which this setting replaces.
-norecursedirs = ["hardware", "*.egg", ".*", "_darcs", "build", "CVS", "dist",
+# tests/hardware and tests/manual are run by hand
+# (uv run pytest tests/hardware; uv run pytest tests/manual); a path given on the
+# command line is still collected. The rest is pytest's default list, which this
+# setting replaces.
+norecursedirs = ["hardware", "manual", "*.egg", ".*", "_darcs", "build", "CVS", "dist",
                  "node_modules", "venv", "{arch}"]
 
 [tool.ruff]
