@@ -86,6 +86,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R54 | Index cards like Scrivener: bits of interviews dragged into episodes, assembled into a timeline; person view | planned: WP42 |
 | R55 | Narration placeholders: script text in the timeline with estimated length, optional speech preview, script export, recorded or imported later in place | length estimate done v26.10.17.5; rest planned: WP43 |
 | R56 | Auto-Silence stores one merged gate per track, not thousands of split clip pieces: measure finely, merge the muted regions (owner, 2026-10-17) | planned: WP44 |
+| R57 | Compare: non-destructive previews and A/B by listening (cuts, values, tracks, takes, edits, voice presets), level matched, blind mode, keep one or discard all | planned: WP45 (builds on WP24.2) |
 
 ## Done
 
