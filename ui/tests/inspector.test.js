@@ -26,12 +26,21 @@ describe("inspector lookups", () => {
 });
 
 describe("inspector sections (density rework, 2026-10-18)", () => {
-  test("Level and Sync start open, the rest closed", () => {
-    assert.deepEqual(openSections(null), { level: true, fades: false, sync: true, details: false });
+  test("Track, Bus, Level and Sync start open, the rest closed", () => {
+    assert.deepEqual(openSections(null), {
+      track: true,
+      bus: true,
+      level: true,
+      fades: false,
+      sync: true,
+      details: false,
+    });
   });
 
   test("what the user opened or closed is remembered; junk is ignored", () => {
-    assert.deepEqual(openSections('{"fades":true,"level":false}'), {
+    assert.deepEqual(openSections('{"fades":true,"level":false,"track":false}'), {
+      track: false,
+      bus: true,
       level: false,
       fades: true,
       sync: true,
