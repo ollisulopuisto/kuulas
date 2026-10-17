@@ -669,6 +669,10 @@ input.has-ab {
   flex: 1;
   min-height: 0;
 }
+/* The inspector now carries Track, Bus and clip sections: most of the height. */
+.sidebar .panel[data-panel="inspector"] {
+  flex: 3;
+}
 .panel h2 {
   position: sticky;
   top: 0;
@@ -721,6 +725,33 @@ input[type="text"] {
   height: 16px;
   margin: 0;
   accent-color: var(--accent);
+}
+
+/* Track and Bus sections: text, select and read-only values share the field grid. */
+.inspector-field input.inspector-name,
+.inspector-field .inspector-select {
+  width: 100%;
+  min-width: 0;
+  max-width: 160px;
+  height: var(--control-h);
+  padding: 0 var(--space-3);
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  text-overflow: ellipsis;
+}
+.inspector-field {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+.inspector-field > span {
+  overflow-wrap: anywhere;
+}
+.inspector-readonly {
+  max-width: 160px;
+  color: var(--text);
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 
 /* Inspector sections: Level and Sync open by default; remembered per user. */
