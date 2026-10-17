@@ -51,6 +51,7 @@ export const MENU = [
       SEP,
       item("app.automix"),
       item("app.auto_silence"),
+      item("gate.open_stretch"),
       item("app.transcribe"),
     ],
   },

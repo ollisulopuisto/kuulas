@@ -6,6 +6,7 @@ import { createEditor } from "./edits.js";
 import { nextPanel } from "./focus.js";
 import { followScroll } from "./follow.js";
 import { frameToTime, RATE, xToFrame } from "./format.js";
+import { GATE_OPEN_COMMAND, openStretchEdit, stretchAt } from "./gate.js";
 import { formatNumber, formatShortcut, initI18n, onLanguageChange, t } from "./i18n.js";
 import { dragHasFiles, nativeBridge, summariseImport } from "./importing.js";
 import { createInspector } from "./inspector.js";
@@ -228,6 +229,23 @@ function onWheel(intent, x) {
   }
 }
 
+// -- the gate (WP44) ------------------------------------------------------------------
+
+// "Open this stretch": one remove_gate_range edit, one undo step. `gate` is a
+// hit ({ trackId, range }); without one, the closed stretch under the play
+// cursor on the current track. The keymap binds GATE_OPEN_COMMAND to this.
+function openGateStretch(gate) {
+  const state = getState();
+  const target = gate ?? stretchAt(state.project, state.focusTrack, state.playhead, state.zoom);
+  if (!target) return;
+  editor.change({
+    ...openStretchEdit(target.trackId, target.range),
+    label: t("ui.gate.open_stretch"),
+  });
+}
+// Command registry for the keyboard layer: id -> function.
+export const commands = { [GATE_OPEN_COMMAND]: () => openGateStretch() };
+
 // -- pointer on the timeline ------------------------------------------------------
 
 function onPointerDown(hit, event) {
@@ -284,6 +302,7 @@ setupKeyboard({
     redo: () => $("redo").click(),
     chooseMedia: () => chooseMedia(),
     focusName: () => inspector.focusName(),
+    openGateStretch: () => openGateStretch(),
     seek: (frame) => void transport.seek(frame),
     totalFrames,
   },
@@ -368,6 +387,22 @@ $("density").addEventListener("change", (event) => {
     // Not remembered; it still applies now.
   }
   applyDensity();
+});
+
+// Show gates (WP44): a view option remembered per user; on by default.
+const GATES_KEY = "kuulas.gates";
+try {
+  setState({ showGates: localStorage.getItem(GATES_KEY) !== "off" });
+} catch {
+  // Storage blocked: gates show.
+}
+$("show-gates").addEventListener("change", (event) => {
+  setState({ showGates: event.target.checked });
+  try {
+    localStorage.setItem(GATES_KEY, event.target.checked ? "on" : "off");
+  } catch {
+    // Not remembered; it still applies now.
+  }
 });
 
 // Animation: full / subtle / off (motion.js). Without a choice it follows
@@ -536,6 +571,7 @@ const timeline = createTimeline({
   getState,
   actions: {
     pointerDown: onPointerDown,
+    openGate: openGateStretch,
     wheel: onWheel,
     resized() {
       if (fitWhole && getState().project) fitWholeEdit();
@@ -580,6 +616,7 @@ function render(state, patch) {
       "waveformMode",
       "waveformScale",
       "waveformGain",
+      "showGates",
       "focusTrack",
       "focusBus",
       "busHeight",
@@ -629,6 +666,7 @@ function render(state, patch) {
     );
     $("follow").setAttribute("aria-pressed", String(state.followPaused));
   }
+  if (touched("showGates")) $("show-gates").checked = state.showGates;
   if (touched("waveformMode")) $("waveform-mode").value = state.waveformMode;
   if (touched("project", "focusTrack", "focusBus", "laneHeight", "busHeight", "groupGap"))
     trackHeaders.update(state);
