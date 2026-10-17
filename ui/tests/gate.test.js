@@ -7,6 +7,7 @@ import {
   gatePixelRuns,
   flatBar,
   openStretchEdit,
+  stretchAt,
 } from "../gate.js";
 
 describe("gatePixelRuns", () => {
@@ -105,5 +106,16 @@ describe("open this stretch", () => {
       op: "remove_gate_range",
       args: { track_id: "t1", start: 1000, end: 2000 },
     });
+  });
+});
+
+describe("stretchAt", () => {
+  const project = { tracks: [{ id: "t1", gate: [[100, 200]] }, { id: "t2" }] };
+  test("the gate range on a track at a frame, for the keyboard command", () => {
+    assert.deepEqual(stretchAt(project, "t1", 150), { trackId: "t1", index: 0, range: [100, 200] });
+    assert.equal(stretchAt(project, "t1", 250), null);
+    assert.equal(stretchAt(project, "t2", 150), null);
+    assert.equal(stretchAt(project, "nope", 150), null);
+    assert.equal(stretchAt(project, null, 150), null);
   });
 });

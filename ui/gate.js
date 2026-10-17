@@ -88,3 +88,10 @@ export function flatBar(mode, height) {
 export function openStretchEdit(trackId, [start, end]) {
   return { op: "remove_gate_range", args: { track_id: trackId, start, end } };
 }
+
+/** { trackId, index, range } for the gate range on `trackId` at `frame`, else null. */
+export function stretchAt(project, trackId, frame, zoom = 1) {
+  const track = project?.tracks?.find((candidate) => candidate.id === trackId);
+  const index = gateAt(track?.gate, frame, zoom);
+  return index < 0 ? null : { trackId, index, range: track.gate[index] };
+}
