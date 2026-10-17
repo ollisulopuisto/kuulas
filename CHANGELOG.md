@@ -1,3 +1,19 @@
+## [v26.10.17.2] - 2026-10-17
+
+- Music report: it can now be fetched from the app (`GET /api/music-report`
+  as JSON, CSV or HTML), and building it no longer blocks editing. CSV cells
+  that start with `=`, `+`, `-` or `@` get a leading apostrophe so Excel does
+  not run them as formulas.
+- People and interviews can be deleted, as one undo step. Deleting a person
+  also removes them from interviews, media and speaker maps, and undo brings
+  all of it back.
+- A damaged working file can be rebuilt from its original, checked by content
+  hash. (The playback engine's "damaged" notice is not yet cleared by a
+  rebuild.)
+- Decoded audio for playback now counts against the memory budget with the
+  other caches.
+- The test suite can run where the default Numba cache folder is not writable.
+
 ## [v26.10.17.1] - 2026-10-17
 
 - Music report times are whole seconds, and partial seconds round up: a 0.4 s

@@ -1,4 +1,4 @@
-# Handoff: next tasks (updated 17.10.2026 00.47 Helsinki)
+# Handoff: next tasks (updated 17.10.2026 03.30 Helsinki)
 
 For any agent, from any vendor, picking up work on kuulas. Read `AGENTS.md`
 (`CLAUDE.md` and `GEMINI.md` point to the same rules), then the ground
@@ -8,7 +8,7 @@ rules at the top of `docs/PLAN.md`, then your task's work package (WP) in
 
 ## State of the repo
 
-- **main:** version 26.10.17.1: 499 pytest + 25 node tests pass, ruff and
+- **main:** version 26.10.17.2: 521 pytest + 25 node tests pass, ruff and
   Biome are clean, and every test file also passes **on its own**. The repo
   has one branch besides main (`wp4-ui-shell`, the draft) and no other
   worktrees; the primary checkout is on `main` and clean.
@@ -137,29 +137,21 @@ WP43 narration placeholders, WP31, WP32, WP19b-e.
 
 ### D. Simple pool: small, well-specified, good for Haiku or small Sonnet runs
 
-Take any of these without asking; each is independent.
+Done and merged in v26.10.17.2 (agy, reviewed by the coordinator): WP25
+follow-ups (command, endpoint, formula guard), delete commands for people and
+interviews, the test-environment fix, the decoded-chunk cache under the memory
+budget, and rebuild of damaged media. Still open:
 
-1. **WP25 follow-ups, backend only:** a Session command and an API endpoint
-   for the music report; an "all edits" report once WP21 lands; a guard
-   against CSV cells that start with `=`, `+`, `-` or `@` (Excel runs them as
-   formulas; the owner has not chosen how to show the guard, so quote the
-   cell and say so). The list of what is open is in the WP25 Status line.
-2. **Delete commands for people and interviews** (undoable, with tests); WP41
-   left them out.
-3. **Test environment:** the mastering tests need a writable
-   `NUMBA_CACHE_DIR`; set it in `tests/conftest.py` so a clean machine passes.
-4. **Move `MediaStore`'s decoded-chunk cache under the memory budget**
-   (WP36 follow-up): small change in `media.py`; keep `read()` free of
-   database queries, which a test already enforces.
-5. **"Rebuild damaged media from the original"** (WP2 follow-up): hash-checked,
-   as a Session command with messages in en and fi.
-6. **A real local transcription smoke test** under `tests/manual/` (excluded
-   from the default run like `tests/hardware/`), documented, needs
+1. **A manual transcription smoke test** under `tests/manual/` (excluded from
+   the default run like `tests/hardware/`), documented, needs
    `uv sync --extra transcribe`.
-7. **Default-output switch:** WP2 notices a switch of the default output
+2. **Default-output switch:** WP2 notices a switch of the default output
    device only on failure or after 30 s idle; investigate whether PortAudio
-   can notify sooner and record the finding in `docs/PLAN.md` open items
-   (report only; no code unless it is small and tested).
+   can notify sooner and report (no code unless it is small and tested).
+3. **Onset detection, backend only (WP19i).** Slightly larger; spec in
+   `docs/PLAN.md`.
+4. **Clearing the engine's damaged mark after a rebuild.** Needs a decision
+   about `engine.py`'s narrow surface first: ask the coordinator.
 
 ### E. Do not start: needs a decision or another repo first
 
