@@ -16,6 +16,7 @@ sits; a stereo signal is balanced.
 
 from __future__ import annotations
 
+from bisect import bisect_left
 from typing import Protocol
 
 import numpy as np
@@ -23,6 +24,14 @@ from speechmix.stems import pan_gains
 
 from . import curves
 from .model import Clip, Project, Track
+
+
+#: Ramp at each edge of a gated range, derived here and never stored. The
+#: same 30 ms ``ops.MUTE_FADE_SEC`` gave the open piece beside a muted one:
+#: a gate that snaps shut on room tone clicks, and 30 ms is inaudible as a
+#: fade. The ramp lies in the open stretch, so the gated frames themselves
+#: are exact silence.
+GATE_RAMP_SEC = 0.030
 
 
 class Store(Protocol):
@@ -39,6 +48,45 @@ def _ramp(t: np.ndarray, begin: int, length: int) -> np.ndarray:
     """
     x = np.clip((t - begin) / length, 0.0, 1.0)
     return np.sin(0.5 * np.pi * x) ** 2
+
+
+def _gate_gain(gate: tuple[tuple[int, int], ...], first: int, count: int,
+               rate: int) -> np.ndarray | None:
+    """The track gate as gain over ``[first, first+count)``, or None when no
+    gated range or ramp touches it (then the block is left alone).
+
+    A function of the absolute frame only, so any chunking of the timeline
+    gives the same gain: the ramp is neither repeated nor cut at a block
+    edge. Applied to the track's sum, never per clip, so overlapping or
+    crossfading clips are not ramped twice.
+    """
+    if not gate:
+        return None
+    ramp = max(1, round(GATE_RAMP_SEC * rate))
+    end = first + count
+    # Ranges are sorted and disjoint, so their ends are sorted too: start at
+    # the last range that begins before this block's reach and walk on.
+    i = max(0, bisect_left(gate, (first - ramp,)) - 1)
+    g = None
+    while i < len(gate) and gate[i][0] < end + ramp:
+        a, b = gate[i]
+        i += 1
+        if b + ramp <= first:
+            continue
+        if g is None:
+            g = np.ones(count, dtype=np.float64)
+        lo, hi = max(a, first), min(b, end)
+        if hi > lo:
+            g[lo - first:hi - first] = 0.0
+        lo, hi = max(a - ramp, first), min(a, end)
+        if hi > lo:  # closing: the last open frame (a-1) is at 0
+            t = np.arange(lo, hi, dtype=np.float64)
+            g[lo - first:hi - first] *= _ramp(-t, -(a - 1), ramp)
+        lo, hi = max(b, first), min(b + ramp, end)
+        if hi > lo:  # opening: frame b is at 0
+            t = np.arange(lo, hi, dtype=np.float64)
+            g[lo - first:hi - first] *= _ramp(t, b, ramp)
+    return g
 
 
 def _clip_signal(clip: Clip, store: Store, first: int, count: int,
@@ -95,7 +143,8 @@ def _balance(buf: np.ndarray, pan: float) -> None:
         buf[1] *= right_g
 
 
-def _track(track: Track, store: Store, first: int, count: int) -> np.ndarray | None:
+def _track(track: Track, store: Store, first: int, count: int,
+           rate: int) -> np.ndarray | None:
     clips = [c for c in track.clips
              if not c.muted and c.start < first + count and c.end > first]
     if not clips:
@@ -103,6 +152,9 @@ def _track(track: Track, store: Store, first: int, count: int) -> np.ndarray | N
     buf = np.zeros((2, count), dtype=np.float64)
     for clip in clips:
         _clip_into(buf, clip, store, first, count)
+    gate = _gate_gain(track.gate, first, count, rate)
+    if gate is not None:
+        buf *= gate
     g = curves.gain(track.gain_db)
     auto = curves.db_curve(track.automation, first, count)
     buf *= g if auto is None else g * curves.gain(auto)
@@ -121,7 +173,7 @@ def mix(project: Project, store: Store, first: int, count: int) -> np.ndarray:
         audible = track.solo if soloing else not track.mute
         if not audible:
             continue
-        buf = _track(track, store, first, count)
+        buf = _track(track, store, first, count, project.rate)
         if buf is not None:
             target = buses.get(track.bus, master)
             target[:] += buf
@@ -137,11 +189,11 @@ def mix(project: Project, store: Store, first: int, count: int) -> np.ndarray:
 
 
 def track_stem(track: Track, store: Store, first: int, count: int, channels: int,
-               *, as_heard: bool) -> np.ndarray:
+               *, as_heard: bool, rate: int) -> np.ndarray:
     """One track on its own, for stem export: ``(channels, count)`` float32.
 
     The edit is applied (cuts, crossfades, clip gain, envelopes, fades; muted
-    clips are silence). ``as_heard`` adds the track's own gain and automation
+    clips are silence, and so is the track's gate, with its edge ramps). ``as_heard`` adds the track's own gain and automation
     (the ducking). Pan is left out either way: the stem keeps its channels, a
     mono track stays mono, and placing it is the mixing console's job. Buses
     and the master are never applied. Solo and mute are the caller's business.
@@ -157,6 +209,9 @@ def track_stem(track: Track, store: Store, first: int, count: int, channels: int
         if audio.shape[0] < channels:  # a mono clip on a stereo track
             audio = np.repeat(audio[:1], channels, axis=0)
         buf[:, lo - first:hi - first] += audio[:channels]
+    gate = _gate_gain(track.gate, first, count, rate)
+    if gate is not None:
+        buf *= gate
     if as_heard:
         auto = curves.db_curve(track.automation, first, count)
         g = curves.gain(track.gain_db)
