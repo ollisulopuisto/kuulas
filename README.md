@@ -35,6 +35,9 @@ uv sync --extra transcribe
 uv run pytest -q tests/manual/test_transcribe_smoke.py -s
 ```
 
+Check test isolation: the default language follows the machine, so a test can
+pass or fail depending on run order (`uv run python scripts/check_isolation.py`).
+
 ## Projects
 
 A project is a `Name.kuulas` folder (format: `docs/FORMAT.md`). To see what
