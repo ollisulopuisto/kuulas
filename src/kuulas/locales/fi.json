@@ -600,6 +600,8 @@
   "ui.edit.toast.nothing": "Mikään ei muuttunut.",
   "ui.mode.group_off": "Ryhmämuokkaus pois",
   "ui.mode.group_off_title": "Muutokset koskevat vain raitaa, jolla olet. Napsauta, niin ryhmämuokkaus kytkeytyy takaisin päälle.",
+  "error.paste.missing_slot": "Leikepöydän merkinnässä on ainesta lähderaidalle {slot}, mutta liittämistä varten ei ole kohderaitaa.",
+  "error.paste.unknown_mode": "Tuntematon liittotapa: {mode}. Pitää olla insert tai overwrite.",
   "cmd.nav.home.hint": "Siirtää näppäimistön takaisin aikajanalle.",
   "cmd.panel.next.hint": "Siirtää näppäimistön seuraavaan paneeliin.",
   "cmd.panel.previous.hint": "Siirtää näppäimistön edelliseen paneeliin.",

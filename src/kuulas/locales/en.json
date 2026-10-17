@@ -600,6 +600,8 @@
   "ui.edit.toast.nothing": "Nothing changed there.",
   "ui.mode.group_off": "Group editing off",
   "ui.mode.group_off_title": "Edits touch only the track you are on. Click to turn group editing on.",
+  "error.paste.missing_slot": "The clipboard entry has material for source track {slot}, but the paste has no target track for it.",
+  "error.paste.unknown_mode": "Unknown paste mode: {mode}. Expected insert or overwrite.",
   "cmd.nav.home.hint": "Moves the keyboard back to the timeline.",
   "cmd.panel.next.hint": "Moves the keyboard to the next panel.",
   "cmd.panel.previous.hint": "Moves the keyboard to the previous panel.",
