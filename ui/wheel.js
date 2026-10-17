@@ -30,3 +30,13 @@ export function wheelIntent(event, { lanesFit }) {
   if (classifyWheel(event) === "trackpad") return { kind: "scroll", dx, dy };
   return lanesFit ? { kind: "scroll", dx: dx || dy, dy: 0 } : { kind: "scroll", dx: 0, dy };
 }
+
+/**
+ * What a Safari pinch gesture means:
+ *   { kind: "zoom", factor }   factor < 1 zooms in (spreading fingers)
+ *   null                       scale missing, 0, or non-finite
+ */
+export function gestureZoom(previousScale, scale) {
+  if (!Number.isFinite(previousScale) || !Number.isFinite(scale) || scale === 0) return null;
+  return { kind: "zoom", factor: previousScale / scale };
+}
