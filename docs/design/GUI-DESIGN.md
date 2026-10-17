@@ -514,8 +514,9 @@ hue is ever the only cue.
 
 ### 4.4 Bus colours (group identity)
 
-Four muted hues, deliberately lower in chroma than the speaker hues so a spine
-never reads as a speaker. They cycle with A, B, C, D …; the letter is the twin.
+Eight hues, deliberately lower in chroma than the speaker hues so a spine
+never reads as a speaker: 1–4 muted, 5–8 (for nested buses, section 25) at a
+different lightness tier. Letters A, B, C … (A1, A1a when nested) are the twin.
 
 | Bus | Letter | Spine light / dark | Text light / dark | Checked text/panel, spine/panel (light; dark) |
 |---|---|---|---|---|
@@ -523,6 +524,10 @@ never reads as a speaker. They cycle with A, B, C, D …; the letter is the twin
 | 2 | B | `#797435` / `#aca868` | `#544f11` / `#d6d4a7` | 8.4, 4.8; 11.4, 7.1 |
 | 3 | C | `#8e5f89` / `#c391be` | `#653c62` / `#e8c3e4` | 8.8, 5.1; 11.0, 6.7 |
 | 4 | D | `#9b6147` / `#d29478` | `#713e26` / `#f4c5b1` | 8.7, 5.0; 11.1, 6.8 |
+| 5 | E | `#005c4a` / `#91dcc7` | `#005545` / `#b2e4d5` | 8.8, 8.0; 12.3, 10.9 |
+| 6 | F | `#514279` / `#cec1fa` | `#4b3e6e` / `#d9d1f9` | 9.5, 8.7; 11.9, 10.4 |
+| 7 | G | `#664600` / `#e6c58f` | `#5e4205` / `#ebd4af` | 9.3, 8.6; 12.0, 10.5 |
+| 8 | H | `#76363d` / `#fab6ba` | `#6c343a` / `#fac9cc` | 9.6, 8.9; 11.8, 10.3 |
 
 The band is the spine colour at 7 % (light) / 9 % (dark) alpha behind the
 group, doubled on the header row.
@@ -740,10 +745,8 @@ ribbons.
   section (planned; until it exists, unmerging is the way to reach it).
 - **Empty bus:** the row alone, name in italics, tertiary; sits last.
 - **No bus:** no spine, no band; the track goes straight to the master.
-- **The fifth bus:** there are four bus hues; bus 5 takes hue 1 again. Letters
-  (E, F, …) and the group gaps keep them apart; two buses with the same hue are
-  never adjacent unless there are more than four buses and the user reorders
-  them so.
+- **The ninth bus:** there are eight bus hues; bus 9 takes hue 1 again.
+  Letters and the group gaps keep them apart. Nested buses: section 25.
 - **Bus-level things: header or inspector?** The row keeps only what is used
   every minute: collapse, mute, solo (hover) and the gain fader (hover). Pan,
   ducking (depth, attack/release, which tracks duck it), loudness target for the
@@ -1149,6 +1152,20 @@ From the density rework (18.10.2026):
 13. **Rename key:** F2 for clips and tracks (Enter is taken by candidates and
     words)? *Recommended: yes.*
 
+From cuts and nested buses (18.10.2026), drawn side by side in the
+prototype's "Cuts explained" and "Nested buses" screens:
+
+14. **Auto-Silence in the Cuts list and transcript?** *Recommended: out of
+    both; one summary line in the list (24, choice A).*
+15. **"Clean up cuts":** *Recommended: palette only (24, choice B).*
+16. **Offer one edit's soft cuts to other versions?** *Recommended: a quiet,
+    one-by-one offer (24, choice C).*
+17. **Lift-cut key:** *Recommended: Alt+X; close gap moves to Alt+Mod+X as
+    WP19a has it (24, choice D).*
+18. **Nested-bus badges:** decided here as A / A1 / A1a (25); the owner may
+    overrule.
+19. **Tags:** *Recommended: not now (25).*
+
 ## 16. Density and progressive disclosure (owner, 18.10.2026)
 
 The first design was too dense even in its "comfortable" mode. Two densities
@@ -1448,3 +1465,111 @@ music; failing files are skipped and named.
 
 Prototype screens: "Import several: drop preview" and "Import several: done".
 
+## 24. Cuts at a glance (owner, 18.10.2026; design)
+
+Prototype screen **"Cuts explained"** (both themes, EN and FI) shows every row
+below on one short timeline: Anna and Ville in one sync group, a music bed, and
+the selection 4.0–6.0 s over Anna's "niinku öö siis" and Ville's overlapping
+"joo", before and after.
+
+| Operation | Key | Timeline after | Transcript after | Cuts list | Clipboard | Message | Undo says |
+|---|---|---|---|---|---|---|---|
+| **Delete** (soft cut) | Backspace (⌫) | the stretch stays in place, waveform dimmed, soft-cut hatch with red edges; nothing moves | the words struck through in the soft-cut colour | "12:34.0 · 2.0 s · Deleted · gap kept" + **Restore** | untouched | "Deleted 2.0 s on Anna and Ville · gap kept · Restore" | "Undid: delete at 12:34" |
+| **Cut** (ripple) | X (Mod+X) | the stretch is gone on every track of the group and on tracks in no group (music); later material moves left; a seam notch where it was | the words gone; a small "✂ 3" marker where they were | "12:34.0 · 2.0 s · Cut · in the clipboard" + **Put back** | the cut audio | "Cut 2.0 s on 3 tracks · in the clipboard · Undo" | "Undid: cut 2.0 s at 12:34" |
+| **Lift-cut** | Alt+X (open choice D) | the audio is gone, an empty dashed gap of the same length, nothing moves | a "␣ 2.0 s" marker | "… · Lifted · gap kept · in the clipboard" + **Put back** | the lifted audio | "Lifted 2.0 s · gap kept · in the clipboard · Undo" | "Undid: lift at 12:34" |
+| **Mute** | N (Alt+Mod+M) | the selected clip faint and hatched (mute grammar, 5.4) | the clip's words grey and struck through | not listed: a clip state, not a cut | untouched | "Muted 1 clip · Undo" | "Undid: mute clip" |
+| **Auto-Silence** | Alt+Mod+P | gate band (dim, waveform flat) where nobody speaks on each track | nothing (silence has no words) | not listed (open choice A) | untouched | "Auto-Silence closed 6 stretches on 2 tracks · Show · Undo" | "Undid: Auto-Silence" |
+| **Restore** (a Delete) | Cuts list, palette | the stretch back as it was, outlined once in accent | the words back, outlined | the entry leaves the list | untouched | "Restored 2.0 s · Undo" | "Undid: restore at 12:34" |
+| **Put back** (a Cut or lift) | Cuts list, history, or the seam notch's menu | the stretch re-inserted, later material moves right again | the words back, outlined | the entry leaves the list | untouched | "Put back 2.0 s on 3 tracks · Undo" | "Undid: put back at 12:34" |
+
+Rules that hold for every row:
+
+- Only Cut and Lift-cut touch the clipboard; Delete never does (owner,
+  18.10.2026).
+- Only Cut moves anything. Delete, Lift-cut, Mute and Auto-Silence keep every
+  later time where it was, so sync and markers stay put.
+- Every row is one undo step; the message's link is the same action as Undo or
+  the inverse operation.
+- Restore and Put back are separate words because they differ: Restore brings
+  back audio that never moved; Put back re-inserts time.
+
+**Open choices** (shown side by side on the screen, the recommendation framed):
+
+- **A · Auto-Silence in the Cuts list and transcript?** Recommended: **out**.
+  The Cuts list stays editorial; one quiet line "Gates: 14 stretches · shown
+  from the lane menu" says they exist. The transcript shows nothing for gated
+  silence. Alternative: one entry per gate and "··· 1.7 s silence" markers in
+  the transcript, which floods both with dozens of rows.
+- **B · "Clean up cuts"** (make restorable cuts permanent). Recommended:
+  **palette only** ("Clean up cuts…", with a confirmation listing what goes).
+  Rarely needed and never by accident. Alternative: a button in the Cuts list
+  header.
+- **C · Offer one edit's soft cuts to other versions?** Recommended: **a quiet
+  offer** in the other version's Cuts list ("3 deletes in 'Main edit' cover
+  audio used here · Review"), accepted one by one, never applied silently.
+  Alternative: nothing, each version is cut on its own.
+- **D · The lift-cut key.** Recommended: **Alt+X** for lift-cut, with "close
+  gap on all tracks" on **Alt+Mod+X**, which WP19a already names; WP5's key
+  list (Alt+X = close gap) changes to match. Alternative: Shift+Mod+X, which
+  clashes with WP5's "cut on this track only".
+
+## 25. Nested buses (owner, 18.10.2026; design)
+
+Prototype screens **"Nested buses"** and **"Nested buses: one level
+collapsed"**: Speech (A) > Interview 1 (A1: Anna, Ville), Interview 2 (A2:
+Zoom: Pekka, Liisa) and Narration (A3, one track, merged); Music (B, one track,
+merged). Interview 2 is muted to show the cascade; in the second screen it is
+collapsed to ribbons.
+
+**Model change.** One new field: `Bus.parent: str | None` (default `None`).
+
+- A track still belongs to exactly one bus (`Track.bus`), its signal path.
+- A bus may have one parent bus: the buses form a forest. Validation refuses a
+  cycle, a parent that does not exist, and depth over 3 (top level = 1).
+- Routing: a bus's output goes to its parent's input; a top-level bus goes to
+  the master. Effective gain multiplies down the chain (dB add).
+- Mute cascades down: a muted bus silences its whole subtree. Solo on a bus
+  solos its whole subtree; a soloed child keeps its ancestors audible (they
+  carry its signal) but not its siblings.
+- Ducking, loudness and the voice chain stay per bus; a child's chain runs
+  before its parent's.
+- Deleting a bus re-parents its children and tracks to its parent (one undo
+  step). Old projects load unchanged (`parent` absent = `None`); FORMAT.md
+  gains the field.
+- Layout (`lanes.js layoutRows`): tree order, depth first; a bus's own tracks
+  come before its child buses. A child bus with one track and no children
+  merges into that track, as at the top level.
+
+**Look.** The spine/band/badge grammar nests:
+
+- Each bus's own spine is 4 px in its hue; every ancestor continues as a
+  **2 px outer rail** to the left of it, so the parent's colour frames the
+  whole subtree. Tracks indent one step (10 px) per level.
+- The band (faint tint) is on each bus row only, in that bus's hue.
+- **Badge style: A, A1, A2 …, and A1a at the third level.** Short enough for
+  the 18 px badge and the transcript gutter; it reads as a path without dots.
+  Decided against "A.1" (the dot reads as a decimal in FI, "A,1") and against
+  a fresh letter per child (loses the parent).
+- Gaps: a full group gap between top-level groups, half a gap between sibling
+  buses inside a parent.
+- Collapse works at every level (chevron, double-click, Alt+Mod+←/→ on the
+  focused row). A collapsed bus shows one ribbon per track in its subtree; a
+  muted bus's ribbons are dimmed like muted lanes.
+- Inherited state is shown, never hidden: a track under a muted bus has a
+  dashed M (the existing `.implicit` style) and a hatched lane.
+
+**Hues.** Eight bus hues now (`BUS_HUES = 8`, tokens `--bus-1…8-*`, values in
+4.4). 1–4 are the muted originals; 5–8 (sea, iris, ochre, brick) sit at a
+different lightness tier so they separate from 1–4 even where the hue is close.
+Under deuteranopia bus 2 (olive) and bus 7 (ochre) come close; the letter and
+the nesting rails are the twins, as everywhere. A child takes the next unused
+hue, not its parent's, so siblings never share a colour; the rail shows the
+family.
+
+**Tags (a track in several editing groups): not needed now.** What people want
+from tags is already covered: the bus tree (signal and mix), sync groups (what
+an edit touches, WP19a), and speakers/interviews (who). A tag would be a second,
+overlapping grouping of the same tracks with no visual channel left to show it
+without breaking "one channel, one meaning". If a need appears (for example
+"all phone guests" across interviews), it is better met by saved selections in
+the command palette, which select tracks without becoming a structure.

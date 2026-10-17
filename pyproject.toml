@@ -1,6 +1,6 @@
 [project]
 name = "kuulas"
-version = "26.10.18.2"
+version = "26.10.18.3"
 description = "Multitrack spoken-word DAW: transcript editing, buses, the speechmix pipeline"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -28,6 +28,9 @@ dependencies = [
 # faster-whisper 1.2.1 calls av.open(..., metadata_errors="ignore"), which av 19
 # removed; stay below 19 until faster-whisper supports it.
 transcribe = ["faster-whisper>=1.2.0", "av<19"]
+# The native window (WP15): system web view, native file dialogs and menu.
+# Not in the base dependencies: Linux needs system WebKit packages for it.
+desktop = ["pywebview>=5"]
 
 [project.scripts]
 kuulas = "kuulas.cli:main"
