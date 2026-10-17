@@ -745,6 +745,31 @@ class Session:
                                 root, "set_media_person",
                                 {"media": media_id, "person": person_id})
 
+    def set_music_info(self, media_id: str, fields: dict) -> None:
+        """Edit music tags (title, artist, composer, publisher, isrc) in material root."""
+        with self.lock:
+            self._sha(media_id)
+            allowed = {"title", "artist", "composer", "publisher", "isrc"}
+            for k in fields:
+                if k not in allowed:
+                    raise ops.EditError("error.edit.bad_music_key", key=k)
+            root = self.history.material
+            if "music_info" not in root:
+                root["music_info"] = {}
+            current_edits = dict(root["music_info"].get(media_id, {}))
+            for k, v in fields.items():
+                if v:
+                    current_edits[k] = str(v)
+                else:
+                    current_edits.pop(k, None)
+            if current_edits:
+                root["music_info"][media_id] = current_edits
+            else:
+                root["music_info"].pop(media_id, None)
+            self._material_step(t("history.set_music_info", media_id=media_id),
+                                root, "set_music_info",
+                                {"media": media_id, "fields": dict(fields)})
+
     def map_speakers(self, media_id: str, mapping: dict[str, str | None]) -> None:
         """Map the speaker labels of the transcript ``media_id`` uses to people
         (the whole map: labels left out are nobody). The words are not
@@ -982,6 +1007,17 @@ def _rebuild_media(s: Session, args: dict) -> Project:
     return s.history.state
 
 
+def _set_music_info(s: Session, args: dict) -> Project:
+    media_id = args.get("media") or args.get("media_id") or args.get("id")
+    if not media_id:
+        raise ops.EditError("error.edit.no_media", media_id="")
+    fields = args.get("fields")
+    if fields is None:
+        fields = {k: v for k, v in args.items() if k not in ("media", "media_id", "id")}
+    s.set_music_info(media_id, fields)
+    return s.history.state
+
+
 #: Name -> function(session, args) -> Project. The session lock is held.
 #: ``auto_silence``, ``automix`` and ``cut_words`` commit one step each;
 #: ``relink`` and ``consolidate`` change no state and commit nothing. The people
@@ -1000,6 +1036,7 @@ COMMANDS: dict[str, Callable[[Session, dict], Project]] = {
     "edit_interview": _edit_interview,
     "delete_interview": _delete_interview,
     "set_media_person": _set_media_person,
+    "set_music_info": _set_music_info,
     "map_speakers": _map_speakers,
     "import_nhsx": _import_nhsx,
     "rebuild_media": _rebuild_media,
