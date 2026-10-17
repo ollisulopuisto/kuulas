@@ -223,5 +223,6 @@
   "music_report.background": "Background",
   "music_report.featured": "Featured",
   "music_report.missing_metadata": "Missing title or artist",
+  "error.narration.bad_words_per_second": "Words per second must be greater than zero: {words_per_second}.",
   "error.music_report.bad_format": "Choose json, csv or html; {format} is not supported."
 }

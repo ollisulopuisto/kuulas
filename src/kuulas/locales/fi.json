@@ -223,5 +223,6 @@
   "music_report.background": "Taustalla",
   "music_report.featured": "Etualalla",
   "music_report.missing_metadata": "Nimi tai esittäjä puuttuu",
+  "error.narration.bad_words_per_second": "Sanoja sekunnissa täytyy olla enemmän kuin nolla: {words_per_second}.",
   "error.music_report.bad_format": "Valitse json, csv tai html; muotoa {format} ei tueta."
 }
