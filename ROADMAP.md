@@ -87,6 +87,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R55 | Narration placeholders: script text in the timeline with estimated length, optional speech preview, script export, recorded or imported later in place | length estimate done v26.10.17.5; rest planned: WP43 |
 | R56 | Auto-Silence stores one merged gate per track, not thousands of split clip pieces: measure finely, merge the muted regions (owner, 2026-10-17) | planned: WP44 |
 | R57 | Compare: non-destructive previews and A/B by listening (cuts, values, tracks, takes, edits, voice presets), level matched, blind mode, keep one or discard all | planned: WP45 (builds on WP24.2) |
+| R58 | Extensive clipboard with history: cut copies and ripples, delete leaves the gap, entries kept as references, a Clipboard panel, four paste forms, across projects | planned: WP46 |
 
 ## Done
 
@@ -219,6 +220,36 @@ WP27, WP38, WP42, WP15.
   playback is never confused with the live input.
 
 ## Open questions and known limits
+
+- **Owner decisions on the density rework, 2026-10-18:** "reject candidate" moves
+  from Backspace to K (Backspace always means Delete); a plain click on a collapsed
+  bus selects nothing, Shift+click selects the members' clips in that range; the
+  inspector gets a small Track/Bus section now (gain, pan, bus, voice preset), to be
+  built after the designer's current pass; F2 renames clips and tracks; clip label
+  templates stay at the defaults until WP27. Not accepted: pulling focus mode (WP28)
+  forward (it stays in M3); storing the double-click toggle's remembered value in the
+  project (it stays UI state). Bus collapse is Alt+Mod+Left/Right (WP5 uses
+  Alt+Left/Right for 10 ms steps). The designer calls the crosstalk backend function
+  `transcript.cut_preview`; task G3 builds it as `collateral.cut_collateral`:
+  reconcile the name when wiring.
+
+- **Owner decisions, 2026-10-18:** Backspace is Delete (a soft cut: mutes in place,
+  leaves the gap, restorable, never touches the clipboard); X is Cut (copies to the
+  clipboard and ripples); an extensive clipboard with history is wanted (WP46); the
+  desktop wrapper is part of the first version (WP15 moved up to M1); WP44 raises
+  `min_reader`; a bus with one track merges into the track header.
+- **Owner decisions, 2026-10-18 (second round):** accepted as the designer
+  recommended: Spot on Mod+J, Mod+F finds in the transcript, fade stays on G, Import
+  on Mod+I now and Mod+T in the wrapper; `[` `]` by physical key on the Finnish
+  keyboard; bus S solos the set and assigning a bus moves the track in the model;
+  speech waveform dB-shaped and music linear; role strip off on the timeline; focus
+  mode by speaker and by bus; Compare with up to four variants; the small pinch task
+  (Safari and wrapper); panel arrangement as a later work package (WP47); skip
+  DeepSeek. **Parked until mockups exist (owner: too complex to answer now):** the
+  soft-cut details (Auto-Silence kept apart, "Clean up cuts", offering cuts to other
+  versions, a lift-cut key). **New idea to design:** more than one bus, including
+  nested ones (an "All speech" bus holding "Interviews" and "Narration"), useful for
+  editing as well as mixing.
 
 - **GUI design, 8 open questions for the owner** (`docs/design/GUI-DESIGN.md`,
   recommended answers in brackets): waveform scale for speech dB-shaped and

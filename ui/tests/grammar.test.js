@@ -11,9 +11,11 @@ import {
   needsFileMark,
   pickSignals,
   resolvePalette,
+  ribbonLayout,
   SEMANTIC_TOKENS,
   SIGNALS,
   seamKind,
+  signal,
   signalTokens,
   themeFromManifest,
   zebraSteps,
@@ -56,6 +58,15 @@ describe("the registry", () => {
     for (const [channel, meanings] of channelsToMeanings) {
       assert.equal(meanings.size, 1, `${channel} carries ${[...meanings].join(", ")}`);
     }
+  });
+
+  test("every signal says whether it shows at rest (density rework, 2026-10-18)", () => {
+    for (const s of SIGNALS) {
+      assert.equal(typeof s.atRest, "boolean", `${s.id}: atRest`);
+      if (!s.atRest) assert.ok(s.whenNotAtRest?.length > 5, `${s.id}: when does it show then?`);
+    }
+    for (const id of ["sibling", "collateral", "ribbons", "preview"]) assert.ok(signal(id), id);
+    assert.equal(signal("collateral").priority, 0, "collateral outranks candidate");
   });
 
   test("signal tokens are semantic tokens", () => {
@@ -172,5 +183,19 @@ describe("palettes and themes", () => {
     });
     assert.equal(bad.errors.length, 4);
     assert.equal(bad.css, "");
+  });
+});
+
+describe("collapsed bus ribbons (owner, 2026-10-18)", () => {
+  test("one 8 px strip per member, capped at 48 px, thinner beyond six", () => {
+    assert.deepEqual(ribbonLayout(3), { strip: 8, height: 24 + 8 });
+    assert.deepEqual(ribbonLayout(6), { strip: 8, height: 48 });
+    const many = ribbonLayout(10);
+    assert.ok(many.strip < 8 && many.strip >= 3);
+    assert.ok(many.height <= 48);
+  });
+
+  test("a single member keeps the summed waveform", () => {
+    assert.equal(ribbonLayout(1), null);
   });
 });

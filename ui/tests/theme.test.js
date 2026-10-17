@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { nextTheme, readTheme, THEMES, themeAttribute } from "../theme.js";
+import {
+  DENSITIES,
+  densityAttribute,
+  nextTheme,
+  readTheme,
+  THEMES,
+  themeAttribute,
+} from "../theme.js";
 
 test("the theme choice cycles system → light → dark → system", () => {
   assert.deepEqual(THEMES, ["system", "light", "dark"]);
@@ -52,4 +59,11 @@ test("readTheme resolves the registry once: hues, bus colours and signals", () =
   assert.equal(theme.selection, "#00ff00");
   assert.equal(theme.mutedOpacity, 0.4);
   assert.equal(new Set(asked).size, asked.length, "every token is read once");
+});
+
+test("two densities: comfortable is the default and sets no attribute", () => {
+  assert.deepEqual(DENSITIES, ["comfortable", "compact"]);
+  assert.equal(densityAttribute("comfortable"), null);
+  assert.equal(densityAttribute("compact"), "compact");
+  assert.equal(densityAttribute("spacious"), null, "unknown values fall back to the default");
 });

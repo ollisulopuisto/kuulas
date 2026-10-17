@@ -143,11 +143,13 @@
   --p-red-55: #c8321f;
   --p-red-55-a8: rgb(200 50 31 / 0.08);
   --p-red-55-a12: rgb(200 50 31 / 0.12);
+  --p-red-55-a18: rgb(200 50 31 / 0.18);
   --p-red-59: #d93a26;
   --p-red-71: #ff6b57;
   --p-red-73: #ff776b;
   --p-red-73-a9: rgb(255 119 107 / 0.09);
   --p-red-73-a13: rgb(255 119 107 / 0.13);
+  --p-red-73-a20: rgb(255 119 107 / 0.2);
   --p-red-76: #ff8a7f;
   --p-red-95: #fde8e4;
 
@@ -230,14 +232,16 @@
     system-ui, Ubuntu, Cantarell, "Noto Sans", sans-serif;
   --font-mono:
     ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace;
-  --text-xs: 11px; /* ruler labels, badges, key chips */
-  --text-sm: 12px; /* controls, panel headers, meta */
-  --text-md: 13px; /* body: the default */
-  --text-lg: 15px; /* transcript reading text, dialog titles */
-  --text-xl: 20px; /* the timecode */
+  /* Comfortable (the default, roomy since 2026-10-18); compact below keeps
+     the earlier, denser values. Numbers: GUI-DESIGN.md "Density". */
+  --text-xs: 12px; /* ruler labels, badges, key chips */
+  --text-sm: 13px; /* controls, panel headers, meta */
+  --text-md: 14px; /* body: the default */
+  --text-lg: 17px; /* transcript reading text, dialog titles */
+  --text-xl: 24px; /* the timecode */
   --leading-tight: 1.25;
-  --leading-body: 1.45;
-  --leading-read: 1.65; /* transcript */
+  --leading-body: 1.5;
+  --leading-read: 1.85; /* transcript */
   --weight-regular: 400;
   --weight-medium: 500;
   --weight-strong: 600;
@@ -263,6 +267,7 @@
   --dur-fast: 90ms; /* hover, press */
   --dur-base: 140ms; /* chips appearing, tabs */
   --dur-layout: 120ms; /* lane height changes, focus mode shrink (WP28) */
+  --dur-slow: 240ms; /* a ripple closing its gap, tracks arriving, a far playhead jump */
   --dur-flash: 600ms; /* "this changed" flash after undo/redo */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
@@ -273,26 +278,34 @@
 
   /* Layout sizes (comfortable density). JS constants that must match are
      named next to each. */
-  --topbar-h: 44px;
-  --statusbar-h: 26px;
+  --topbar-h: 52px;
+  --statusbar-h: 32px;
   --overview-h: 20px;
-  --ruler-h: 24px; /* lanes.js RULER_HEIGHT */
-  --heads-w: 248px;
-  --heads-w-min: 180px;
-  --heads-w-max: 360px;
-  --sidebar-w: 320px;
-  --sidebar-w-min: 260px;
-  --sidebar-w-max: 480px;
-  --dock-h: 30vh; /* transcript dock */
-  --dock-h-min: 120px;
-  --control-h: 26px;
-  --control-h-sm: 20px; /* M / S buttons, chips inside headers */
-  --lane-h: 56px; /* lanes.js DEFAULT_LANE */
-  --bus-h: 44px; /* lanes.js BUS_HEIGHT */
+  --ruler-h: 24px; /* lanes.js RULER_HEIGHT (both densities) */
+  --heads-w: 272px;
+  --heads-w-min: 232px;
+  --heads-w-max: 380px;
+  --sidebar-w: 360px;
+  --sidebar-w-min: 280px;
+  --sidebar-w-max: 520px;
+  --dock-h: 26vh; /* transcript dock */
+  --dock-h-min: 140px;
+  --control-h: 32px; /* buttons, inputs, selects */
+  --control-h-lg: 40px; /* top-bar buttons: 40 visible + 2 px hit margin = 44 */
+  --control-h-sm: 28px; /* M / S, bus picker, chips inside headers */
+  --target-min: 44px; /* hit target of the main controls (WCAG 2.5.5) */
+  --lane-h: 80px; /* lanes.js DEFAULT_LANE */
+  --bus-h: 32px; /* lanes.js BUS_HEIGHT: one line */
+  --bus-collapsed-h: 40px; /* a collapsed bus: ribbons or summed waveform */
+  --group-gap: 14px; /* lanes.js GROUP_GAP: plain lane between groups */
   --strip-h: 16px; /* focus-mode strips (WP28) */
   --spine-w: 4px; /* bus spine */
-  --reading-max: 72ch; /* transcript line length */
-
+  --indent-member: 14px; /* tracks inside a bus sit this far in from the spine */
+  --reading-max: 62ch; /* transcript line length */
+  --pad-panel: 20px; /* inside panels and sections */
+  --pad-inline: 16px; /* left/right padding of headers and rows */
+  --row-gap: 10px; /* between rows of fields and list items */
+  --section-gap: 16px; /* between inspector sections */
   /* Numbers the canvases read with the colours (semantic, overridable). */
   --signal-muted-opacity: 0.35; /* muted clips (with the hatch) */
   --signal-unheard-opacity: 0.45; /* tracks not heard because of solo or mute */
@@ -301,16 +314,39 @@
 }
 
 :root[data-density="compact"] {
+  /* Compact: the earlier values, unchanged; everything visible at once. */
+  --text-xs: 11px;
+  --text-sm: 12px;
   --text-md: 12px;
   --text-lg: 14px;
   --text-xl: 18px;
+  --leading-body: 1.45;
+  --leading-read: 1.65;
   --topbar-h: 38px;
   --statusbar-h: 22px;
-  --control-h: 22px;
-  --control-h-sm: 18px;
+  --overview-h: 20px;
   --heads-w: 216px;
+  --heads-w-min: 180px;
+  --heads-w-max: 360px;
   --sidebar-w: 280px;
+  --sidebar-w-min: 260px;
+  --sidebar-w-max: 480px;
+  --dock-h: 30vh;
+  --dock-h-min: 120px;
+  --control-h: 22px;
+  --control-h-lg: 26px;
+  --control-h-sm: 18px;
+  --target-min: 24px;
   --lane-h: 40px;
+  --bus-h: 24px;
+  --bus-collapsed-h: 32px;
+  --group-gap: 6px;
+  --reading-max: 72ch;
+  --pad-panel: 12px;
+  --pad-inline: 12px;
+  --row-gap: 4px;
+  --section-gap: 10px;
+  --indent-member: 10px;
 }
 
 /* == 2. semantic roles: light (default) ================================= */
@@ -362,6 +398,10 @@
   --signal-candidate-fill: var(--p-red-55-a12);
   --signal-soft-cut: var(--p-red-55); /* a cut that kept its gap: edges and hatch */
   --signal-soft-cut-fill: var(--p-red-55-a8);
+  --signal-sibling: var(--p-teal-52); /* corner brackets: same recording as the selection */
+  --signal-collateral: var(--p-red-55); /* what a transcript cut also removes */
+  --signal-collateral-fill: var(--p-red-55-a18);
+  --signal-preview: var(--p-teal-52); /* a Compare preview is playing (not committed) */
   --signal-gate: var(--p-gray-98); /* the veil over a closed gate (lane colour) */
   --signal-damaged: var(--p-red-55);
   --signal-damaged-fill: var(--p-red-95);
@@ -489,6 +529,10 @@
     --signal-candidate-fill: var(--p-red-73-a13);
     --signal-soft-cut: var(--p-red-73);
     --signal-soft-cut-fill: var(--p-red-73-a9);
+    --signal-sibling: var(--p-teal-76);
+    --signal-collateral: var(--p-red-73);
+    --signal-collateral-fill: var(--p-red-73-a20);
+    --signal-preview: var(--p-teal-76);
     --signal-gate: var(--p-gray-20);
     --signal-damaged: var(--p-red-73);
     --signal-damaged-fill: var(--p-red-28);
@@ -616,6 +660,10 @@
   --signal-candidate-fill: var(--p-red-73-a13);
   --signal-soft-cut: var(--p-red-73);
   --signal-soft-cut-fill: var(--p-red-73-a9);
+  --signal-sibling: var(--p-teal-76);
+  --signal-collateral: var(--p-red-73);
+  --signal-collateral-fill: var(--p-red-73-a20);
+  --signal-preview: var(--p-teal-76);
   --signal-gate: var(--p-gray-20);
   --signal-damaged: var(--p-red-73);
   --signal-damaged-fill: var(--p-red-28);
@@ -726,9 +774,26 @@
 
 /* -- reduced motion: no animation anywhere ------------------------------- */
 @media (prefers-reduced-motion: reduce) {
-  :root {
+  :root:not([data-motion="full"], [data-motion="subtle"]) {
     --dur-fast: 0ms;
     --dur-base: 0ms;
     --dur-layout: 0ms;
+    --dur-slow: 0ms;
+    --dur-flash: 0ms;
   }
+}
+/* The Animation setting (motion.js): subtle shortens, off stops every cue;
+   the still alternatives carry the same information. */
+:root[data-motion="subtle"] {
+  --dur-base: 90ms;
+  --dur-slow: 140ms;
+  --dur-flash: 360ms;
+  --dur-layout: 80ms;
+}
+:root[data-motion="off"] {
+  --dur-fast: 0ms;
+  --dur-base: 0ms;
+  --dur-layout: 0ms;
+  --dur-slow: 0ms;
+  --dur-flash: 0ms;
 }
