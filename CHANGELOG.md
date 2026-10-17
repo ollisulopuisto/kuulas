@@ -1,3 +1,20 @@
+## [v26.10.18.6] - 2026-10-18
+
+- Keyboard layer: every key is data, so you can change it. Press `?` for the cheat
+  sheet (grouped, searchable, shows your own keys, with import, export and reset of a
+  key file); conflicts are reported instead of silently accepted. Keys that exist today:
+  Space, Z, Shift+Z, =, -, Mod+Z, Shift+Mod+Z, Mod+I (import), Mod+K, ?, F2, F6,
+  Home, End, arrows, I and O. Many more are listed but marked "planned" until the
+  commands exist (split, cut, copy and paste, trim, mute, solo, sync, candidates).
+- Command palette (Mod+K): a docked panel over the sidebar, no dark overlay, the
+  timeline stays live.
+- An in-window menu bar (File, Edit, Track, View, Help): items that cannot apply are
+  greyed but stay visible with their shortcut, a remapped key shows at once, hovering
+  an item shows a hint and its key. While you hold Shift or Alt, items and hints swap
+  to what that modifier would do, like the Option key on a Mac. First cut of the look.
+- Finnish keyboard: `[` and `]` work by key position; AltGr is not treated as Ctrl+Alt.
+- Also: `uv run python scripts/check_isolation.py` and the gate tooling (earlier).
+
 ## [v26.10.18.5] - 2026-10-18
 
 - Auto-Silence no longer cuts your clips into pieces. It now records, for each

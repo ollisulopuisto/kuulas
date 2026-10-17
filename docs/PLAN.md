@@ -751,7 +751,7 @@ waveforms, play with Space, see the playhead move.
 
 ### WP5 — Keyboard: the Hindenburg keymap
 
-Status: open. Needs WP4. This is the most important UI WP (R10).
+Status: infrastructure done in v26.10.18.6 (data-driven keymap in `ui/keymap-default.js`, user overrides with collision reports, dispatcher with physical keys and AltGr, cheat sheet, docked palette, in-window menu bar with enabled state and modifier alternates). Most editing commands are registered as "planned" no-ops until the commands exist; wiring each one is the remaining work. Needs WP4. This is the most important UI WP (R10).
 
 New files `ui/keymap.js` (the table), `ui/commands.js` (one function per
 command, each taking the store and returning nothing). `Mod` is Cmd on Mac and
