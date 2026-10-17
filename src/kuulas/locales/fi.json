@@ -350,5 +350,8 @@
   "error.music_report.bad_format": "Valitse json, csv tai html; muotoa {format} ei tueta.",
   "error.spot.invalid": "“{text}” ei ole kelvollinen aika. Käytä aikakoodia kuten 1:02:03.500 tai etumerkittyä siirtymää kuten +1.5s tai +120.",
   "error.edit_points.unknown_mode": "Tuntematon leikkauspistetila: {mode}.",
-  "error.shuttle.unknown_key": "Tuntematon kelkausnäppäin: {key}."
+  "error.shuttle.unknown_key": "Tuntematon kelkausnäppäin: {key}.",
+  "error.import_plan.bad_mode": "Tuntematon tuontitapa: {mode}.",
+  "error.import_plan.bad_order": "Tuntematon tuontijärjestys: {order}.",
+  "error.import_plan.bad_track_naming": "Tuntematon raitojen nimeäminen: {track_naming}."
 }

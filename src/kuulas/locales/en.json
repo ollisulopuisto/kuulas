@@ -350,5 +350,8 @@
   "error.music_report.bad_format": "Choose json, csv or html; {format} is not supported.",
   "error.spot.invalid": "“{text}” is not a valid time. Use a timecode like 1:02:03.500 or a signed offset like +1.5s or +120.",
   "error.edit_points.unknown_mode": "Unknown edit point mode: {mode}.",
-  "error.shuttle.unknown_key": "Unknown shuttle key: {key}."
+  "error.shuttle.unknown_key": "Unknown shuttle key: {key}.",
+  "error.import_plan.bad_mode": "Unknown import mode: {mode}.",
+  "error.import_plan.bad_order": "Unknown import order: {order}.",
+  "error.import_plan.bad_track_naming": "Unknown track naming: {track_naming}."
 }
