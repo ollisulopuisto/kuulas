@@ -12,10 +12,12 @@ a read-modify-write of the history head.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import math
 import os
+import sqlite3
 import threading
 from collections.abc import Callable
 from dataclasses import asdict, replace
@@ -37,7 +39,7 @@ from . import db as dbm
 from . import export as export_module
 from . import music_report as music_report_module
 from .clock import FLICKS, flicks_to_frames
-from .history import History
+from .history import History, UndoInfo
 from .jobs import Jobs
 from .media import ImportResult, MediaError, MediaStore
 from .messages import KuulasError, t
@@ -148,8 +150,10 @@ class Session:
         self.lock = threading.RLock()
         if (folder / "manifest.json").exists() or (folder / "project.sqlite").exists():
             self.package = package.open_package(folder)
+            is_new = False
         else:
             self.package = package.create(folder, rate)
+            is_new = True
         self.package.start()
         self.jobs = Jobs()
         self.history: History = self.package.history
@@ -160,6 +164,8 @@ class Session:
         self.last_import_report: list[ImportResult] = []
         #: The interview the latest import made (WP41), or None.
         self.last_import_interview: str | None = None
+        if not is_new and not self.read_only:
+            self.history.session_opened()
 
     # -- the project -------------------------------------------------------
 
@@ -175,6 +181,9 @@ class Session:
     def close(self) -> None:
         self.jobs.close()
         with self.lock:
+            if not self.read_only:
+                with contextlib.suppress(sqlite3.Error, KuulasError, OSError):
+                    self.history.session_closed()
             self.history.budget.log_stats()
             self.package.close()
 
@@ -238,14 +247,14 @@ class Session:
 
     # -- history -----------------------------------------------------------
 
-    def undo(self) -> bool:
+    def undo(self) -> UndoInfo | None:
         with self.lock:
             moved = self.history.undo()
             if moved:
                 self._changed()
             return moved
 
-    def redo(self) -> bool:
+    def redo(self) -> UndoInfo | None:
         with self.lock:
             moved = self.history.redo()
             if moved:

@@ -35,8 +35,10 @@ import json
 import socket
 from collections import OrderedDict
 from dataclasses import replace
+from datetime import datetime
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from . import db as dbm
 from . import people as peoplem
@@ -70,6 +72,42 @@ def _state_bytes(p: Project) -> int:
 
 class HistoryError(KuulasError, RuntimeError):
     """The history cannot make this move; nothing changed."""
+
+
+def helsinki_now() -> str:
+    """Current time in Helsinki formatted as 'DD.MM. HH.MM Helsinki'."""
+    now = datetime.now(ZoneInfo("Europe/Helsinki"))
+    return now.strftime("%d.%m. %H.%M Helsinki")
+
+
+def _parse_context(raw: str | dict | None) -> dict | None:
+    if raw is None:
+        return None
+    if isinstance(raw, dict):
+        return raw
+    try:
+        return json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
+class UndoInfo(dict):
+    """Context and session-marker info returned by undo, redo, and restore."""
+
+    def __init__(
+        self,
+        context: dict | None = None,
+        *,
+        marker: str | None = None,
+        step: dict | None = None,
+    ):
+        super().__init__(context or {})
+        self.context = context
+        self.marker = marker
+        self.step = step
+
+    def __bool__(self) -> bool:
+        return True
 
 
 def edit_dict(p: Project) -> dict:
@@ -201,7 +239,9 @@ class History:
         rows = _rows(self.db.execute("select * from nodes where id=?", (node,)))
         if not rows:
             raise KeyError(node)
-        return rows[0]
+        r = rows[0]
+        r["context"] = _parse_context(r.get("context"))
+        return r
 
     def _load(self, node: str) -> Project:
         digest = self._node(node)["state"]
@@ -416,32 +456,128 @@ class History:
         self.head, self._coalesce = node, None
         self._written()
 
+    def is_marker(self, node: dict | str) -> bool:
+        """Whether a history node is a session marker (opened / closed)."""
+        if isinstance(node, str):
+            try:
+                node = self._node(node)
+            except KeyError:
+                return False
+        op = node.get("op", {})
+        if isinstance(op, str):
+            try:
+                op = json.loads(op)
+            except (json.JSONDecodeError, TypeError):
+                op = {}
+        return op.get("name") == "marker"
+
+    def session_opened(self, time_str: str | None = None) -> str:
+        """Record opening the project as a session marker."""
+        t_str = time_str or helsinki_now()
+        self.commit(
+            t("history.opened", time=t_str),
+            self.state,
+            op={"name": "marker", "args": {"kind": "opened", "time": t_str}},
+        )
+        return self.head
+
+    def session_closed(self) -> str:
+        """Record closing the project as a session marker."""
+        self.commit(
+            t("history.closed"),
+            self.state,
+            op={"name": "marker", "args": {"kind": "closed"}},
+        )
+        return self.head
+
     @property
     def can_undo(self) -> bool:
-        return self._parent(self.head) is not None
+        curr = self.head
+        while True:
+            parent = self._parent(curr)
+            if parent is None:
+                return False
+            curr_node = self._node(curr)
+            if not self.is_marker(curr_node):
+                return True
+            curr = parent
 
     @property
     def can_redo(self) -> bool:
-        return bool(self._children(self.head))
+        curr = self.head
+        while True:
+            children = self._children(curr)
+            if not children:
+                return False
+            child_id = children[-1]
+            child_node = self._node(child_id)
+            if not self.is_marker(child_node):
+                return True
+            curr = child_id
 
-    def undo(self) -> bool:
-        parent = self._parent(self.head)
-        if parent is None:
-            return False
-        self._move(parent)
-        return True
+    def undo(self) -> UndoInfo | None:
+        if not self.can_undo:
+            return None
+        curr = self.head
+        crossed_marker = None
+        target = None
+        undone_node = None
 
-    def redo(self) -> bool:
-        children = self._children(self.head)
-        if not children:
-            return False
-        self._move(children[-1])
-        return True
+        while True:
+            parent = self._parent(curr)
+            if parent is None:
+                break
+            curr_node = self._node(curr)
+            if self.is_marker(curr_node):
+                if crossed_marker is None:
+                    crossed_marker = curr_node["label"]
+                curr = parent
+            else:
+                undone_node = curr_node
+                target = parent
+                break
+
+        if target is None or undone_node is None:
+            return None
+
+        self._move(target)
+        ctx = _parse_context(undone_node.get("context"))
+        return UndoInfo(ctx, marker=crossed_marker, step=undone_node)
+
+    def redo(self) -> UndoInfo | None:
+        if not self.can_redo:
+            return None
+        curr = self.head
+        crossed_marker = None
+        target = None
+        redone_node = None
+
+        while True:
+            children = self._children(curr)
+            if not children:
+                break
+            child_id = children[-1]
+            child_node = self._node(child_id)
+            if self.is_marker(child_node):
+                if crossed_marker is None:
+                    crossed_marker = child_node["label"]
+                curr = child_id
+            else:
+                redone_node = child_node
+                target = child_id
+                break
+
+        if target is None or redone_node is None:
+            return None
+
+        self._move(target)
+        ctx = _parse_context(redone_node.get("context"))
+        return UndoInfo(ctx, marker=crossed_marker, step=redone_node)
 
     def goto(self, node: str) -> None:
         self._move(str(node))
 
-    def restore(self, node: str) -> None:
+    def restore(self, node: str) -> UndoInfo:
         """Make the project equal to ``node``'s state by adding a step, not by
         moving the head (WP8): the state left behind stays one Undo away. The
         material (media, sync groups) is not rewound: it is what it is now."""
@@ -457,14 +593,17 @@ class History:
                         sync_groups=now.sync_groups)
         self.commit(t("history.restored", label=target["label"]), state,
                     op={"name": "restore", "args": {"node": target["id"]}})
+        ctx = _parse_context(target.get("context"))
+        return UndoInfo(ctx, step=target)
 
     def nodes(self) -> list[dict]:
         rows = _rows(self.db.execute(
             "select id, parent, label, author, machine, op, created_utc as created,"
-            " material_from, material_to from nodes where edit=? order by id",
+            " material_from, material_to, context from nodes where edit=? order by id",
             (self.edit,)))
         for r in rows:
             r["op"] = json.loads(r["op"])
+            r["context"] = _parse_context(r.get("context"))
         return rows
 
     def nodes_page(self, limit: int, before: str | None = None) -> list[dict]:
@@ -477,17 +616,18 @@ class History:
         if before is None:
             rows = _rows(self.db.execute(
                 "select id, parent, label, author, machine, op, created_utc as created,"
-                " material_from, material_to from nodes where edit=?"
+                " material_from, material_to, context from nodes where edit=?"
                 " order by id desc limit ?",
                 (self.edit, limit)))
         else:
             rows = _rows(self.db.execute(
                 "select id, parent, label, author, machine, op, created_utc as created,"
-                " material_from, material_to from nodes where edit=? and id < ?"
+                " material_from, material_to, context from nodes where edit=? and id < ?"
                 " order by id desc limit ?",
                 (self.edit, before, limit)))
         for r in rows:
             r["op"] = json.loads(r["op"])
+            r["context"] = _parse_context(r.get("context"))
         return rows
 
     # -- several edits (WP21 builds on this) -------------------------------

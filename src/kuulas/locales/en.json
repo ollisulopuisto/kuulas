@@ -63,6 +63,8 @@
   "error.package.needs_migration": "This project is in an older format and must be opened as a project folder to be upgraded.",
   "error.package.upgrade_locked": "This project is in an older format and is open on {host}; it can be upgraded once it is closed there.",
   "error.session.bad_word_index": "There is no word {index} on the timeline; it has {count} words.",
+  "history.opened": "Opened {time}",
+  "history.closed": "Closed",
   "history.person_created": "Add person: {name}",
   "history.person_edited": "Edit person: {name}",
   "history.person_deleted": "Delete person: {name}",
