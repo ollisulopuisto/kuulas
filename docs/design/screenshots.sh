@@ -30,6 +30,10 @@ for theme in light dark; do
     shot "$screen-$theme-compact" "screen=$screen&theme=$theme&density=compact"
   done
   shot "gallery-$theme" "screen=gallery&theme=$theme" 1440 3400
+  shot "cuts-$theme" "screen=cuts&theme=$theme" 1600 1500
+  shot "cuts-$theme-fi" "screen=cuts&theme=$theme&lang=fi" 1600 1500
+  shot "nested-$theme" "screen=nested&theme=$theme" 1440 1000
+  shot "nested-collapsed-$theme" "screen=nested-collapsed&theme=$theme" 1440 1000
 done
 # Window sizes: the main screen at each width, both densities (light).
 for width in 1024 1280 1440 1920 2560; do
