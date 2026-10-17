@@ -52,6 +52,10 @@ def test_nodes_page_pagination(tmp_path):
     page4 = h.nodes_page(50, before=page3[-1]["id"])
     assert page4 == []
 
+    # Zero and negative limits return empty
+    assert h.nodes_page(0) == []
+    assert h.nodes_page(-1) == []
+
 
 def test_performance_budgets_with_5000_steps(tmp_path):
     db_path = tmp_path / "scale.kuulas"
@@ -104,3 +108,12 @@ def test_performance_budgets_with_5000_steps(tmp_path):
     assert opened.redo() is True
     redo_duration = time.perf_counter() - t0
     assert redo_duration < 0.050, f"Redo took {redo_duration * 1000:.1f}ms"
+
+    # 4. Budget: an edit's cost independent of history length (< 50 ms)
+    p = ops.set_master(opened.state, -10.0)
+    t0 = time.perf_counter()
+    opened.commit(
+        "scale edit", p, op={"name": "set_master", "args": {"gain_db": -10.0}}
+    )
+    edit_duration = time.perf_counter() - t0
+    assert edit_duration < 0.050, f"Edit took {edit_duration * 1000:.1f}ms"

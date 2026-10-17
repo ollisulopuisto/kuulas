@@ -473,6 +473,7 @@ class History:
         ``limit``: maximum number of steps to return.
         ``before``: step id to page backwards from (steps older than ``before``).
         """
+        limit = max(0, int(limit))
         if before is None:
             rows = _rows(self.db.execute(
                 "select id, parent, label, author, machine, op, created_utc as created,"
