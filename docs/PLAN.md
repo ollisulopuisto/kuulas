@@ -1251,7 +1251,7 @@ exactly. Also run `auto_silence` and `automix` as jobs (WP9) once WP9 lands.
 
 ### WP15 — Desktop wrapper
 
-Status: open. **Moved up by the owner (2026-10-18): the wrapper is part of the first version (M1)**, right after WP5, so the keymap can assume a native window (Cmd+T, Cmd+W, F6, Cmd+L free). Packaging and signing stay a later decision.
+Status: first cut done in v26.10.18.4 (`desktop.py`, `kuulas`/`kuulas open --window`, recents, native dialogs, CI workflow); not yet seen by a person. **Moved up by the owner (2026-10-18): the wrapper is part of the first version (M1)**, right after WP5, so the keymap can assume a native window (Cmd+T, Cmd+W, F6, Cmd+L free). Packaging and signing stay a later decision.
 **Owner decisions 2026-10-18:** first-version (M1) scope is the wrapper plus the
 clipboard (WP46); Compare (WP45) comes later. Technology: `pywebview` (the owner
 has used it in other apps and dislikes Electron). Platforms: the owner can test on

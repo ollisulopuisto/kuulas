@@ -221,6 +221,13 @@ WP27, WP38, WP42, WP15.
 
 ## Open questions and known limits
 
+- **CI and distribution need two things from the owner:** a repository secret
+  `PODCAST_READ_TOKEN` (read access to `ollisulopuisto/podcast`) before
+  `.github/workflows/ci.yml` can pass, and, for any installable app, speechmix and
+  nhsx published as real packages instead of path dependencies on `../podcast`
+  (see "speechmix as a package"). The wrapper cannot be shipped to other people
+  until then.
+
 - **Waiting for the owner (look at the prototype screens `cuts`, `nested`,
   `nested-collapsed`, and spec sections 24 and 25):** (A) keep Auto-Silence out of the
   Cuts list and the transcript, one summary line instead [recommended]; (B) "Clean up
