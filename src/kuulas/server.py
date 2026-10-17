@@ -41,6 +41,7 @@ from .media import ImportResult, MediaError
 from .messages import KuulasError, error_body, t
 from .ops import EditError
 from .peaks import PeakError
+from .session import CLIPBOARD_EDITS, NoSuchEntryError
 
 log = logging.getLogger("kuulas.server")
 
@@ -99,6 +100,23 @@ class EditBody(BaseModel):
 class CommandBody(BaseModel):
     name: str
     args: dict[str, Any] = {}
+
+
+class CopyBody(BaseModel):
+    clip_ids: list[str] | None = None
+    start: int | None = None
+    end: int | None = None
+    track_ids: list[str] | None = None
+    group_editing: bool = False
+    name: str = ""
+
+
+class PinBody(BaseModel):
+    pinned: bool = True
+
+
+class RenameBody(BaseModel):
+    name: str
 
 
 class RestoreBody(BaseModel):
@@ -200,6 +218,10 @@ def create_app(session, engine, *, language: str | None = None,
     async def _bad_request(_request: Request, e: BadRequestError):
         return answer(e, 400)
 
+    @app.exception_handler(NoSuchEntryError)
+    async def _no_entry(_request: Request, e: NoSuchEntryError):
+        return answer(e, 404)
+
     @app.exception_handler(UnknownIdError)
     async def _unknown(_request: Request, e: UnknownIdError):
         return answer(e, 404)
@@ -225,6 +247,8 @@ def create_app(session, engine, *, language: str | None = None,
 
     @app.exception_handler(KuulasError)
     async def _other_error(_request: Request, e: KuulasError):
+        if e.key.startswith("error.paste."):  # a paste the entry or the tracks rule out
+            return answer(e, 400)
         log.error(str(e))
         return answer(e, 500)
 
@@ -259,6 +283,9 @@ def create_app(session, engine, *, language: str | None = None,
 
     @app.post("/api/edit")
     def post_edit(body: EditBody):
+        if body.op in CLIPBOARD_EDITS:
+            result = session.clipboard_edit(body.op, body.args, body.label)
+            return state_response({"clipboard": result})
         session.edit(body.op, body.args, body.label, body.coalesce)
         return state_response()
 
@@ -273,6 +300,37 @@ def create_app(session, engine, *, language: str | None = None,
         if body.name == "import_nhsx":
             return state_response({"report": report_of(session.last_import_report)})
         return state_response()
+
+    # -- the clipboard (WP46) ------------------------------------------------
+    # Cut and paste are edits and go through /api/edit (one undo step each);
+    # copying changes no project, so it has its own route.
+
+    @app.get("/api/clipboard")
+    def get_clipboard():
+        return JSONResponse({"entries": session.clipboard_list()})
+
+    @app.post("/api/clipboard/copy")
+    def post_clipboard_copy(body: CopyBody):
+        out = session.clipboard_copy(clip_ids=body.clip_ids, start=body.start,
+                                     end=body.end, track_ids=body.track_ids,
+                                     group_editing=body.group_editing,
+                                     name=body.name)
+        return JSONResponse({**out, "entries": session.clipboard_list()})
+
+    @app.post("/api/clipboard/{entry_id}/pin")
+    def post_clipboard_pin(entry_id: str, body: PinBody):
+        session.clipboard_pin(entry_id, body.pinned)
+        return JSONResponse({"entries": session.clipboard_list()})
+
+    @app.post("/api/clipboard/{entry_id}/rename")
+    def post_clipboard_rename(entry_id: str, body: RenameBody):
+        session.clipboard_rename(entry_id, body.name)
+        return JSONResponse({"entries": session.clipboard_list()})
+
+    @app.delete("/api/clipboard/{entry_id}")
+    def delete_clipboard_entry(entry_id: str):
+        session.clipboard_delete(entry_id)
+        return JSONResponse({"entries": session.clipboard_list()})
 
     @app.post("/api/undo")
     def post_undo():

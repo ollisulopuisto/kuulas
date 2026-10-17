@@ -34,16 +34,20 @@ from nhsx.mix import plan as nhsx_mix_plan
 from nhsx.read import descendants as nhsx_descendants
 from nhsx.read import time_to_seconds as nhsx_time_to_seconds
 
-from . import analysis, ops, package, transcribe, transcript
+from . import analysis, edit_scope, ops, package, transcribe, transcript
 from . import db as dbm
 from . import export as export_module
 from . import music_report as music_report_module
+from .clipboard import Entry, make_entry, make_entry_range
+from .clipboard_store import ClipboardStore, entry_dict
 from .clock import FLICKS, flicks_to_frames
 from .history import History, UndoInfo
 from .jobs import Jobs
 from .media import ImportResult, MediaError, MediaStore
 from .messages import KuulasError, t
 from .model import Project, SyncGroup
+from .paste_apply import apply_paste
+from .paste_plan import _targets, plan_paste
 from .people import Interview, Passage, Person
 
 log = logging.getLogger("kuulas.session")
@@ -51,6 +55,15 @@ log = logging.getLogger("kuulas.session")
 
 class NhsxImportError(KuulasError, ValueError):
     """A Hindenburg session could not be parsed or mapped safely."""
+
+
+class NoSuchEntryError(ops.EditError):
+    """The clipboard has no entry with that id (the API answers 404)."""
+
+
+#: The edit names ``/api/edit`` hands to ``Session.clipboard_edit``: they are
+#: edits with a clipboard side, which ``ops`` (pure, project-only) cannot be.
+CLIPBOARD_EDITS = ("clipboard_cut", "clipboard_paste")
 
 
 def _db_value(value: str | None) -> float:
@@ -145,8 +158,12 @@ class Session:
     """``folder`` is the ``Name.kuulas`` package; it is created if it does not
     exist. ``rate`` applies to a new project only: an existing one keeps its own."""
 
-    def __init__(self, folder: str | Path, rate: int = 48000):
+    def __init__(self, folder: str | Path, rate: int = 48000,
+                 clipboard: ClipboardStore | None = None):
         folder = Path(folder)
+        #: The per-user clipboard history (WP46), shared by every project and
+        #: every kuulas window of this user.
+        self.clipboard = clipboard or ClipboardStore()
         self.lock = threading.RLock()
         if (folder / "manifest.json").exists() or (folder / "project.sqlite").exists():
             self.package = package.open_package(folder)
@@ -244,6 +261,157 @@ class Session:
         """One undo step that changes only material (people, interviews, maps)."""
         self.history.set_material(label, root, op={"name": name, "args": args})
         self._changed()
+
+    # -- the clipboard (WP46) -----------------------------------------------
+    #
+    # The history file is read and written outside ``lock``: a slow disk must
+    # not stall playback's reads of ``state``. Under the lock a command takes
+    # the project snapshot and commits; everything else works on the snapshot.
+
+    def _entry_view(self, entry: Entry, project: Project) -> dict:
+        have = {m.sha256 for m in project.media}
+        wanted = {ref.media_sha256 for ref in entry.refs}
+        return {**entry_dict(entry), "length": entry.span[1] - entry.span[0],
+                "clips": len(entry.refs),
+                "slots": len({ref.track_slot for ref in entry.refs}),
+                "missing_here": len(wanted - have)}
+
+    def _entry(self, entry_id: str) -> Entry:
+        entry = self.clipboard.load().get(entry_id)
+        if entry is None:
+            raise NoSuchEntryError("error.clipboard.no_entry", entry_id=entry_id)
+        return entry
+
+    def clipboard_list(self) -> list[dict]:
+        """The history, newest first, each entry with what the panel shows:
+        its length, clip and track counts and how many of its recordings this
+        project lacks."""
+        project = self.state
+        return [self._entry_view(e, project) for e in self.clipboard.load().entries()]
+
+    def clipboard_copy(self, *, clip_ids=None, start=None, end=None, track_ids=None,
+                       group_editing: bool = False, name: str = "") -> dict:
+        """Copy the clips, or the stretch ``[start, end)`` of the tracks, to the
+        clipboard; ``group_editing`` takes the tracks' sync groups along, as a
+        Cut of the same range would. The project is not changed."""
+        project = self.state
+        if clip_ids is not None:
+            entry = make_entry(project, clip_ids, name=name)
+        elif start is None or end is None:
+            raise ops.EditError("error.edit.no_selection")
+        else:
+            if track_ids is not None:
+                track_ids = edit_scope.expand_range(project, None, list(track_ids),
+                                                    int(start), int(end),
+                                                    bool(group_editing))
+            entry = make_entry_range(project, int(start), int(end), track_ids, name=name)
+        entry = replace(entry, source_project=str(self.package.path))
+        self.clipboard.update(lambda h: h.add(entry))
+        return {"entry": self._entry_view(entry, project)}
+
+    def clipboard_cut(self, *, start: int, end: int, track_ids,
+                      group_editing: bool = False, name: str = "",
+                      label: str | None = None) -> dict:
+        """Cut (X): ripple-delete ``[start, end)`` and keep what went on the
+        clipboard. One undo step for the removal. A copy that fails (nothing
+        under the range, a full disk) is logged and reported in the result, and
+        never stops the cut: the user's edit comes first."""
+        start, end = int(start), int(end)
+        with self.lock:
+            project = self.history.state
+            scope = edit_scope.expand_range(project, None, list(track_ids), start, end,
+                                            bool(group_editing))
+            entry, problem = None, None
+            try:
+                entry = replace(make_entry_range(project, start, end, scope, name=name),
+                                source_project=str(self.package.path))
+            except KuulasError as e:
+                problem = t(e.key, **e.params)
+            new = ops.cut_range(project, start, end, track_ids, bool(group_editing))
+            self.history.commit(label or t("history.clipboard_cut"), new,
+                                op={"name": "clipboard_cut",
+                                    "args": {"start": start, "end": end,
+                                             "track_ids": list(track_ids),
+                                             "group_editing": bool(group_editing)}})
+            self._changed()
+        if entry is not None:
+            try:
+                self.clipboard.update(lambda h, e=entry: h.add(e))
+            except OSError as e:
+                problem = t("error.clipboard.write_failed", error=str(e))
+        if problem is not None:
+            log.warning(t("log.clipboard.copy_failed", error=problem))
+            return {"clipboard": {"ok": False, "entry": None, "error": problem}}
+        return {"clipboard": {"ok": True, "entry": entry.id, "error": None}}
+
+    def clipboard_paste(self, entry_id: str, *, at: int, mode: str = "insert",
+                        target_tracks=None, group_editing: bool = True,
+                        label: str | None = None) -> dict:
+        """Paste an entry at frame ``at`` as one undo step; ``mode`` is
+        ``insert`` (ripple) or ``overwrite``. ``target_tracks`` maps the
+        entry's track slots to track ids (``None``: the same tracks). Media
+        the project lacks are reported in ``missing`` and their clips left
+        out; a paste that places nothing commits nothing. An insert is a
+        time-shifting edit (WP19a): with ``group_editing`` (the default) it
+        ripples every track ``edit_scope.expand_range`` names for the target
+        tracks, so a sync group stays in step; the tracks that only shift get
+        no clips."""
+        entry = self._entry(entry_id)
+        mapping = (None if target_tracks is None
+                   else {int(slot): track for slot, track in target_tracks.items()})
+        at = int(at)
+        with self.lock:
+            project = self.history.state
+            plan = plan_paste(project, entry, at, mode, mapping)
+            report = {"placed": len(plan.placements), "missing": list(plan.missing),
+                      "entry": entry.id}
+            if not plan.placements:
+                return report
+            landed = set(_targets(project, entry, mapping).values())
+            if mode == "insert":
+                landed |= set(edit_scope.expand_range(
+                    project, None, sorted(landed), at, at + plan.shift,
+                    bool(group_editing)))
+            new = apply_paste(project, entry, plan, at, landed, mode)
+            self.history.commit(
+                label or t("history.clipboard_paste"), new,
+                op={"name": "clipboard_paste",
+                    "args": {"entry_id": entry.id, "at": at, "mode": mode,
+                             "target_tracks": target_tracks,
+                             "group_editing": bool(group_editing)}})
+            self._changed()
+        return report
+
+    def clipboard_edit(self, op: str, args: dict, label: str | None = None) -> dict:
+        """``/api/edit``'s door to the two edits that touch the clipboard."""
+        try:
+            if op == "clipboard_cut":
+                return self.clipboard_cut(**args, label=label)["clipboard"]
+            if op == "clipboard_paste":
+                return self.clipboard_paste(**args, label=label)
+        except TypeError as e:
+            raise ops.EditError("error.edit.bad_arguments", name=op,
+                                detail=str(e)) from None
+        raise ops.EditError("error.edit.unknown", name=op)
+
+    def _change_history(self, entry_id: str, change: Callable) -> None:
+        def run(history):
+            if history.get(entry_id) is None:
+                raise NoSuchEntryError("error.clipboard.no_entry", entry_id=entry_id)
+            change(history)
+
+        self.clipboard.update(run)
+
+    def clipboard_pin(self, entry_id: str, pinned: bool = True) -> None:
+        self._change_history(entry_id, lambda h: h.pin(entry_id) if pinned
+                             else h.unpin(entry_id))
+
+    def clipboard_rename(self, entry_id: str, name: str) -> None:
+        clean = str(name).strip()[:200]
+        self._change_history(entry_id, lambda h: h.rename(entry_id, clean))
+
+    def clipboard_delete(self, entry_id: str) -> None:
+        self._change_history(entry_id, lambda h: h.delete(entry_id))
 
     # -- history -----------------------------------------------------------
 

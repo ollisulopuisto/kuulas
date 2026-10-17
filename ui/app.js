@@ -2,6 +2,7 @@
 // canvases and the keyboard together. The decisions live in small pure modules
 // (view.js, lanes.js, keys.js, ...); this file only applies their answers.
 import * as api from "./api.js";
+import { createClipboardPanel } from "./clipboard-panel.js";
 import { createEditor } from "./edits.js";
 import { nextPanel } from "./focus.js";
 import { followScroll } from "./follow.js";
@@ -285,10 +286,14 @@ const panelElements = {
   timeline: $("timeline"),
   transcript: $("panel-transcript"),
   inspector: $("panel-inspector"),
+  clipboard: $("panel-clipboard"),
   history: $("panel-history"),
 };
+const SIDEBAR_TABS = ["inspector", "clipboard"];
 
 function focusPanel(name) {
+  // A sidebar tab that is not showing must show before it can take the focus.
+  if (SIDEBAR_TABS.includes(name)) setState({ sidebarTab: name });
   panelElements[name].focus();
   setState({ panel: name });
 }
@@ -297,6 +302,18 @@ document.addEventListener("focusin", (event) => {
   const panel = event.target.closest?.("[data-panel]")?.dataset.panel;
   if (panel && panel !== getState().panel) setState({ panel });
 });
+
+for (const tab of document.querySelectorAll(".side-tab")) {
+  tab.addEventListener("click", () => focusPanel(tab.dataset.tab));
+  tab.addEventListener("keydown", (event) => {
+    const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
+    if (!step) return;
+    event.preventDefault();
+    const next = SIDEBAR_TABS[(SIDEBAR_TABS.indexOf(tab.dataset.tab) + step + 2) % 2];
+    setState({ sidebarTab: next });
+    $(`tab-${next}`).focus();
+  });
+}
 
 // The whole keyboard layer: keymap, palette, cheat sheet, menu bar, hints (shell-keys.js).
 const keyboard = setupKeyboard({
@@ -321,6 +338,8 @@ const keyboard = setupKeyboard({
     redo: () => $("redo").click(),
     edit: (change) => editor.change(change),
     toast: (text, options) => showNotice(text, "ok", options),
+    copy: (body) => copyToClipboard(body),
+    refreshClipboard: () => void refreshClipboard(),
     now: () => performance.now(),
     chooseMedia: () => chooseMedia(),
     focusName: () => inspector.focusName(),
@@ -587,6 +606,63 @@ const trackHeaders = createTrackHeaders({
 });
 const inspector = createInspector({ root: $("panel-inspector"), editor });
 
+// -- clipboard (WP46) -----------------------------------------------------------------------------------
+
+async function refreshClipboard() {
+  try {
+    setState({ clipboard: (await api.getClipboard()).entries });
+  } catch (error) {
+    showError(error);
+  }
+}
+
+// Copy changes no project: it has its own route. A new copy becomes the newest entry, so
+// the tab's pick is dropped and Mod+V pastes what was just copied. Returns whether it worked.
+async function copyToClipboard(body) {
+  try {
+    const answer = await api.copyToClipboard(body);
+    setState({ clipboard: answer.entries, clipboardSelected: null });
+    return true;
+  } catch (error) {
+    showError(error);
+    return false;
+  }
+}
+
+// Every entry action answers with the whole list, so the tab cannot drift from the file.
+const clipboardAction = (call) => async () => {
+  try {
+    setState({ clipboard: (await call()).entries });
+  } catch (error) {
+    showError(error);
+  }
+};
+
+// "Paste again" follows the tab's mode choice; the tab's target choice is read by the command.
+const pasteCommand = (state) =>
+  state.pasteMode === "overwrite" ? "edit.paste_overwrite" : "edit.paste";
+
+const clipboardPanel = createClipboardPanel({
+  root: $("panel-clipboard"),
+  actions: {
+    select: (id) => setState({ clipboardSelected: id }),
+    pin: (id, pinned) => void clipboardAction(() => api.pinClipboardEntry(id, pinned))(),
+    rename: (id, name) => void clipboardAction(() => api.renameClipboardEntry(id, name))(),
+    remove: (id) => {
+      if (getState().clipboardSelected === id) setState({ clipboardSelected: null });
+      void clipboardAction(() => api.deleteClipboardEntry(id))();
+    },
+    choose: (patch) => setState(patch),
+    canPasteAgain: (state) => keyboard.registry.can(pasteCommand(state), state),
+    pasteAgain(id) {
+      setState({ clipboardSelected: id });
+      keyboard.registry.run(pasteCommand(getState()), null, getState());
+    },
+  },
+});
+// Another window of kuulas may have copied something: look again when this one is back.
+window.addEventListener("focus", () => void refreshClipboard());
+
 // -- help ---------------------------------------------------------------------------------------------
 
 // Help reads the command registry and the keymap the user has (entries(): the
@@ -735,6 +811,25 @@ function render(state, patch) {
     trackHeaders.update(state);
   if (touched("project", "selection", "focusTrack", "focusBus")) inspector.update(state);
   if (touched("selection", "focusTrack", "focusBus", "panel")) help.update();
+  if (
+    touched(
+      "clipboard",
+      "clipboardSelected",
+      "pasteMode",
+      "pasteTarget",
+      "project",
+      "focusTrack",
+      "playhead",
+    )
+  )
+    clipboardPanel.update(state);
+  if (touched("sidebarTab")) {
+    for (const name of SIDEBAR_TABS) {
+      $(`panel-${name}`).hidden = state.sidebarTab !== name;
+      $(`tab-${name}`).setAttribute("aria-selected", String(state.sidebarTab === name));
+      $(`tab-${name}`).tabIndex = state.sidebarTab === name ? 0 : -1;
+    }
+  }
   if (touched("project")) {
     const empty = $("empty");
     const hasClips = state.project?.tracks.some((track) => track.clips.length > 0);
@@ -790,6 +885,7 @@ try {
   const [state, words] = await Promise.all([api.getState(), api.getWords()]);
   apply(state);
   setState({ words: words.words ?? [] });
+  await refreshClipboard();
 } catch (error) {
   showError(error);
 }

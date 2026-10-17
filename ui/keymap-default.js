@@ -14,7 +14,9 @@
 // X is Cut (ripple, to the clipboard), Mod+C copies; Spot is Mod+J, find is Mod+F,
 // fade is G, import is Mod+I (Mod+T in the desktop wrapper), K rejects a candidate,
 // [ ] are physical keys, F2 renames. Parked and so not bound: lift-cut (Alt+X),
-// close gap on all tracks, Clean up cuts, Compare, clipboard history.
+// close gap on all tracks, Clean up cuts, Compare. The clipboard (WP46): X cuts to it,
+// Mod+C copies only, Backspace never touches it; Mod+V pastes (insert), Alt+Mod+V
+// overwrites, Shift+Mod+V inserts on the current track.
 // J/K/L: K is "reject candidate", so shuttle-stop has no key (open question).
 
 export const CONTEXTS = ["global", "timeline", "transcript", "side", "text-field"];
@@ -217,6 +219,18 @@ export const DEFAULT_KEYMAP = [
     keys: { mac: "Mod+V", other: "Mod+V" },
     context: "global",
     labelKey: "cmd.edit.paste",
+  },
+  {
+    id: "edit.paste_overwrite",
+    keys: { mac: "Alt+Mod+V", other: "Alt+Mod+V" },
+    context: "global",
+    labelKey: "cmd.edit.paste_overwrite",
+  },
+  {
+    id: "edit.paste_track",
+    keys: { mac: "Shift+Mod+V", other: "Shift+Mod+V" },
+    context: "global",
+    labelKey: "cmd.edit.paste_track",
   },
   {
     id: "edit.split",

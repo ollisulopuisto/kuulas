@@ -30,6 +30,8 @@ function setup(state) {
   const sent = [];
   const patches = [];
   const toasts = [];
+  const copied = [];
+  let refreshed = 0;
   let now = 1000;
   registerEditCommands(registry, {
     t: (key, values = {}) => `${key}${JSON.stringify(values)}`,
@@ -40,10 +42,19 @@ function setup(state) {
       edit: (change) => sent.push(change),
       toast: (text, options) => toasts.push([text, options]),
       now: () => now,
+      copy: (body) => {
+        copied.push(body);
+        return Promise.resolve(true);
+      },
+      refreshClipboard: () => {
+        refreshed += 1;
+      },
     },
   });
   return {
     registry,
+    copied,
+    refreshed: () => refreshed,
     sent,
     patches,
     toasts,
@@ -72,6 +83,10 @@ const WORKING = [
   "edit.select_all",
   "clip.gain_up",
   "clip.gain_down",
+  "edit.copy",
+  "edit.paste",
+  "edit.paste_overwrite",
+  "edit.paste_track",
 ];
 
 describe("the editing commands", () => {
@@ -84,9 +99,11 @@ describe("the editing commands", () => {
     }
   });
 
-  test("the clipboard, lift-cut, compare, close-gap-all and fade stay planned", () => {
+  test("lift-cut, compare, close-gap-all and fade stay planned; no key is bound to lift-cut", () => {
     const { registry } = setup(base());
-    for (const id of ["edit.copy", "edit.paste", "clip.fade"]) {
+    const keys = DEFAULT_KEYMAP.flatMap((e) => [e.keys.mac, e.keys.other].flat());
+    assert.equal(keys.includes("Alt+X"), false);
+    for (const id of ["clip.fade"]) {
       assert.notEqual(registry.status(id), "ready", id);
     }
   });
@@ -183,5 +200,101 @@ describe("the editing commands", () => {
     const h = setup(state);
     assert.equal(h.registry.run("edit.cut", null, state), false);
     assert.equal(h.sent.length, 0);
+  });
+});
+
+describe("the clipboard commands (WP46)", () => {
+  const entry = { id: "e1", name: "", length: 5 * S, clips: 1, slots: 1, missing_here: 0 };
+  const withClip = (extra = {}) => base({ clipboard: [entry], ...extra });
+
+  test("copy needs a selection or a range; paste needs a non-empty clipboard", () => {
+    const { registry } = setup(base());
+    assert.equal(registry.can("edit.copy", base()), false);
+    assert.equal(registry.can("edit.copy", base({ selection: new Set(["a1"]) })), true);
+    assert.equal(registry.can("edit.copy", base({ inPoint: 0, outPoint: S })), true);
+    for (const id of ["edit.paste", "edit.paste_overwrite", "edit.paste_track"]) {
+      assert.equal(registry.can(id, base()), false, id);
+      assert.equal(registry.can(id, base({ clipboard: [] })), false, id);
+      assert.equal(registry.can(id, withClip()), true, id);
+    }
+  });
+
+  test("paste on the current track needs a current track", () => {
+    const { registry } = setup(base());
+    assert.equal(registry.can("edit.paste_track", withClip({ focusTrack: null })), false);
+    assert.equal(registry.can("edit.paste", withClip({ focusTrack: null })), true);
+  });
+
+  test("Mod+C sends the copy to the clipboard route, not the editor, and toasts without Undo", async () => {
+    const state = base({ selection: new Set(["a1"]) });
+    const h = setup(state);
+    h.registry.run("edit.copy", null, state);
+    assert.equal(h.sent.length, 0);
+    assert.deepEqual(h.copied[0].clip_ids, ["a1"]);
+    await Promise.resolve();
+    assert.match(h.toasts[0][0], /^ui\.edit\.toast\.copy/);
+    assert.deepEqual(h.toasts[0][1], { undo: false });
+  });
+
+  test("X is a cut that goes to the clipboard: one edit, then the list is refreshed", () => {
+    const state = base({ inPoint: 2 * S, outPoint: 6 * S });
+    const h = setup(state);
+    h.registry.run("edit.cut", null, state);
+    assert.equal(h.sent[0].op, "clipboard_cut");
+    h.sent[0].done({ project, clipboard: { ok: true, entry: "e9" } });
+    assert.equal(h.refreshed(), 1);
+  });
+
+  test("a cut whose copy failed tells the user in the toast, with Undo", () => {
+    const state = base({ inPoint: 2 * S, outPoint: 6 * S });
+    const h = setup(state);
+    h.registry.run("edit.cut", null, state);
+    const after = {
+      ...project,
+      tracks: project.tracks.map((t) => ({ ...t, clips: [clip(t.id, 0, 6)] })),
+    };
+    h.sent[0].done({ project: after, clipboard: { ok: false, error: "disk full" } });
+    assert.match(h.toasts[0][0], /^ui\.edit\.toast\.cut_uncopied/);
+    assert.match(h.toasts[0][0], /disk full/);
+    assert.deepEqual(h.toasts[0][1], { undo: true });
+  });
+
+  test("Backspace never touches the clipboard: it sends a plain mute, no clipboard op", () => {
+    const state = withClip({ selection: new Set(["a1"]) });
+    const h = setup(state);
+    h.registry.run("edit.delete", null, state);
+    assert.equal(h.sent[0].op, "set_clips");
+    h.sent[0].done({ project });
+    assert.equal(h.refreshed(), 0);
+    assert.equal(h.copied.length, 0);
+  });
+
+  test("Mod+V inserts at the play cursor, Alt+Mod+V overwrites, on the panel's target", () => {
+    const state = withClip({ pasteTarget: "current" });
+    const h = setup(state);
+    h.registry.run("edit.paste", null, state);
+    h.registry.run("edit.paste_overwrite", null, state);
+    h.registry.run("edit.paste_track", null, withClip({ pasteTarget: "same" }));
+    assert.deepEqual(h.sent[0].args, {
+      entry_id: "e1",
+      at: 4 * S,
+      mode: "insert",
+      target_tracks: { 0: "A" },
+      group_editing: true,
+    });
+    assert.equal(h.sent[1].args.mode, "overwrite");
+    assert.deepEqual(h.sent[2].args.target_tracks, { 0: "A" });
+    assert.equal(h.sent[2].args.mode, "insert");
+  });
+
+  test("a paste that lacked recordings says so, and one that placed nothing offers no Undo", () => {
+    const state = withClip();
+    const h = setup(state);
+    h.registry.run("edit.paste", null, state);
+    h.sent[0].done({ project, clipboard: { placed: 1, missing: ["x"], entry: "e1" } });
+    assert.match(h.toasts[0][0], /^ui\.edit\.toast\.paste_missing/);
+    h.sent[0].done({ project, clipboard: { placed: 0, missing: ["x"], entry: "e1" } });
+    assert.match(h.toasts[1][0], /^ui\.edit\.toast\.paste_nothing/);
+    assert.deepEqual(h.toasts[1][1], { undo: false });
   });
 });

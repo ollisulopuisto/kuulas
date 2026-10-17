@@ -104,12 +104,13 @@ describe("delete (soft cut, gap kept)", () => {
 describe("cut (ripple)", () => {
   test("the range, on the current track plus the group when group editing is on", () => {
     const plan = cutPlan(state(range));
-    assert.equal(plan.op, "cut_range");
+    assert.equal(plan.op, "clipboard_cut");
     assert.deepEqual(plan.args, {
       start: 2 * S,
       end: 6 * S,
       track_ids: ["A"],
       group_editing: true,
+      name: "ui.clipboard.untitled_track · 0:04",
     });
     assert.equal(plan.toast.tracks, true);
   });
@@ -123,6 +124,7 @@ describe("cut (ripple)", () => {
       end: 20 * S,
       track_ids: ["A", "V"],
       group_editing: true,
+      name: "ui.clipboard.untitled_track +1 · 0:20",
     });
   });
   test("nothing to cut", () => {
