@@ -548,6 +548,7 @@
   "ui.bus.parent": "Yläväylä",
   "ui.bus.parent.none": "Ei (ylin taso)",
   "ui.bus.members": "Raitoja väylällä",
+  "format.speed": "{value}×",
   "ui.gate.mic_closed": "Mikki kiinni",
   "ui.gate.hover": "Mikki on kiinni. Kaksoisnapsauta avataksesi tämän kohdan.",
   "ui.gate.open_stretch": "Avaa tämä kohta",
