@@ -583,5 +583,7 @@
   "ui.edit.toast.trim_end": {"one": "Lyhennetty {count} pätkän loppua", "other": "Lyhennetty {count} pätkän loppua"},
   "ui.edit.toast.nothing": "Mikään ei muuttunut.",
   "ui.mode.group_off": "Ryhmämuokkaus pois",
-  "ui.mode.group_off_title": "Muutokset koskevat vain raitaa, jolla olet. Napsauta, niin ryhmämuokkaus kytkeytyy takaisin päälle."
+  "ui.mode.group_off_title": "Muutokset koskevat vain raitaa, jolla olet. Napsauta, niin ryhmämuokkaus kytkeytyy takaisin päälle.",
+  "error.paste.missing_slot": "Leikepöydän merkinnässä on ainesta lähderaidalle {slot}, mutta liittämistä varten ei ole kohderaitaa.",
+  "error.paste.unknown_mode": "Tuntematon liittotapa: {mode}. Pitää olla insert tai overwrite."
 }

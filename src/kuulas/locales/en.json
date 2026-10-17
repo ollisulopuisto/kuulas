@@ -583,5 +583,7 @@
   "ui.edit.toast.trim_end": {"one": "Trimmed the end of {count} clip", "other": "Trimmed the end of {count} clips"},
   "ui.edit.toast.nothing": "Nothing changed there.",
   "ui.mode.group_off": "Group editing off",
-  "ui.mode.group_off_title": "Edits touch only the track you are on. Click to turn group editing on."
+  "ui.mode.group_off_title": "Edits touch only the track you are on. Click to turn group editing on.",
+  "error.paste.missing_slot": "The clipboard entry has material for source track {slot}, but the paste has no target track for it.",
+  "error.paste.unknown_mode": "Unknown paste mode: {mode}. Expected insert or overwrite."
 }
