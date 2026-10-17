@@ -63,15 +63,15 @@ def _clear(p: Project, track_id: str, start: int, end: int) -> Project:
 
 
 def apply_paste(project: Project, entry: Entry, plan: PastePlan, at: int,
-                landed: set[str], mode: str) -> Project:
-    """``project`` with ``plan`` done at frame ``at``. ``landed`` are the tracks the paste
-    targets (those the plan's placements need, found or not), which an insert
-    ripples; ``plan.placements`` whose media the project lacks are not there.
+                rippled: set[str], mode: str) -> Project:
+    """``project`` with ``plan`` done at frame ``at``. ``rippled`` are the tracks an insert
+    ripples (the targets, and their sync group when group editing is on). Refs
+    whose media the project lacks are not placed.
     """
     p = project
     if mode == "insert":
         for track in project.tracks:  # project order, so the result is stable
-            if track.id in landed:
+            if track.id in rippled:
                 p = _open_gap(p, track.id, at, plan.shift)
     else:
         for track_id, start, end in plan.removed:

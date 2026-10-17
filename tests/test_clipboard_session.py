@@ -97,14 +97,14 @@ def test_insert_shifts_later_material_by_the_pasted_span(session):
     session.edit("add_clip", {"track_id": a.id, "media_id": a.clips[0].media,
                               "start": 100_000, "offset": 0, "length": 10_000})
     entry = session.clipboard_copy(start=0, end=20_000, track_ids=[a.id])["entry"]
-    session.clipboard_paste(entry["id"], at=50_000, mode="insert")
+    session.clipboard_paste(entry["id"], at=50_000, mode="insert", group_editing=False)
     on_a = [c[2:] for c in clips(session.state) if c[0] == "a"]
     assert on_a == [(0, 0, 50_000),            # the clip, cut at the paste point
                     (50_000, 0, 20_000),       # the pasted copy
                     (70_000, 50_000, 46_000),  # the rest of the clip, moved by 20 000
                     (120_000, 0, 10_000)]      # the later clip, moved by 20 000
     on_b = [c[2:] for c in clips(session.state) if c[0] == "b"]
-    assert on_b == [(0, 0, 96_000)]  # the other track is not a target
+    assert on_b == [(0, 0, 96_000)]  # group editing off: only the target ripples
 
 
 def test_insert_also_moves_the_target_tracks_automation_and_gate(session):
@@ -409,3 +409,84 @@ def test_api_paste_that_the_tracks_rule_out_is_a_400(tmp_path, client, session):
     r = client.post("/api/edit", json={"op": "clipboard_paste", "args": {
         "entry_id": entry["id"], "at": 0, "target_tracks": {"0": a.id}}})
     assert r.status_code == 400
+
+
+# -- insert keeps a sync group together (WP19a) ---------------------------------------
+
+
+def starts(project):
+    """track name -> clip starts."""
+    return {t.name: [c.start for c in t.clips] for t in project.tracks}
+
+
+def grouped(session, tmp_path):
+    """Tracks a and b in one sync group, and c (another recording) outside any."""
+    session.import_media([str(wav(tmp_path / "c.wav", 3))])
+    a, b, c = session.state.tracks
+    session.edit("mark_in_sync", {"clip_ids": [a.clips[0].id, b.clips[0].id],
+                                  "main": a.clips[0].id, "group_id": "g"})
+    return a, b, c
+
+
+def test_insert_with_group_editing_ripples_the_whole_sync_group(session, tmp_path):
+    a, _b, _c = grouped(session, tmp_path)
+    entry = session.clipboard_copy(start=0, end=20_000, track_ids=[a.id])["entry"]
+    # Group-editing on: the partner b follows, so a and b stay aligned.
+    session.clipboard_paste(entry["id"], at=50_000, mode="insert",
+                            target_tracks={"0": a.id}, group_editing=True)
+    got = starts(session.state)
+    assert got["a"] == [0, 50_000, 70_000]
+    assert got["b"] == [0, 70_000]  # shifted by the span, no pasted clip
+    assert got["c"] == [0]  # outside the group: untouched
+    assert len(session.state.tracks[1].clips) == 2
+
+
+def test_insert_with_group_editing_off_ripples_only_the_target(session, tmp_path):
+    a, _b, _ = grouped(session, tmp_path)
+    entry = session.clipboard_copy(start=0, end=20_000, track_ids=[a.id])["entry"]
+    session.clipboard_paste(entry["id"], at=50_000, mode="insert",
+                            target_tracks={"0": a.id}, group_editing=False)
+    got = starts(session.state)
+    assert got["a"] == [0, 50_000, 70_000]
+    assert got["b"] == [0]
+
+
+def test_a_target_outside_any_group_follows_expand_ranges_old_rule(session, tmp_path):
+    _a, _b, c = grouped(session, tmp_path)
+    entry = session.clipboard_copy(start=0, end=20_000, track_ids=[c.id])["entry"]
+    session.clipboard_paste(entry["id"], at=50_000, mode="insert",
+                            target_tracks={"0": c.id}, group_editing=True)
+    got = starts(session.state)
+    # expand_range says a track in no group takes every track along.
+    assert got["c"] == [0, 50_000, 70_000]
+    assert got["a"] == [0, 70_000] or got["a"] == [0, 50_000, 70_000]
+    assert got["a"][-1] == 70_000
+    assert got["b"][-1] == 70_000
+
+
+def test_group_insert_shifts_the_partners_automation_and_gate_and_undoes_in_one_step(
+        session, tmp_path):
+    a, b, _ = grouped(session, tmp_path)
+    session.edit("set_gate", {"track_id": b.id, "ranges": [[70_000, 80_000]]})
+    entry = session.clipboard_copy(start=0, end=20_000, track_ids=[a.id])["entry"]
+    before, nodes = session.state, history_len(session)
+    session.clipboard_paste(entry["id"], at=50_000, mode="insert",
+                            target_tracks={"0": a.id})  # group editing defaults on
+    assert session.state.tracks[1].gate == ((90_000, 100_000),)
+    assert history_len(session) == nodes + 1
+    session.undo()
+    assert session.state == before
+
+
+def test_nothing_ripples_when_everything_is_missing(tmp_path, session):
+    a, _b = ids(session.state)
+    entry = session.clipboard_copy(clip_ids=[a.clips[0].id])["entry"]
+    other = Session(tmp_path / "Two.kuulas")
+    try:
+        other.import_media([str(wav(tmp_path / "d.wav", 4)),
+                            str(wav(tmp_path / "e.wav", 5))])
+        before = other.state
+        other.clipboard_paste(entry["id"], at=100, mode="insert", group_editing=True)
+        assert other.state == before
+    finally:
+        other.close()

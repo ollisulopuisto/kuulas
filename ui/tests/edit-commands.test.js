@@ -280,6 +280,7 @@ describe("the clipboard commands (WP46)", () => {
       at: 4 * S,
       mode: "insert",
       target_tracks: { 0: "A" },
+      group_editing: true,
     });
     assert.equal(h.sent[1].args.mode, "overwrite");
     assert.deepEqual(h.sent[2].args.target_tracks, { 0: "A" });

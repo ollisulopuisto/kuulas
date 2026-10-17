@@ -113,7 +113,9 @@ describe("paste", () => {
       at: 4 * S,
       mode: "insert",
       target_tracks: null,
+      group_editing: true,
     });
+    assert.equal(pastePlan(state({ groupEditing: false })).args.group_editing, false);
     assert.match(plan.label.key, /paste$/);
   });
   test("overwrite is its own mode, label and toast", () => {

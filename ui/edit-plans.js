@@ -183,7 +183,14 @@ export function pastePlan(state, { mode, target } = {}) {
   const key = choice.mode === "overwrite" ? "paste_overwrite" : "paste";
   return plan(
     "clipboard_paste",
-    { entry_id: entry.id, at: state.playhead, mode: choice.mode, target_tracks: targetTracks },
+    {
+      entry_id: entry.id,
+      at: state.playhead,
+      mode: choice.mode,
+      target_tracks: targetTracks,
+      // An insert shifts time: the sync group follows unless group editing is off (WP19a).
+      group_editing: groupOn(state),
+    },
     key,
     { count: entry.clips },
     {

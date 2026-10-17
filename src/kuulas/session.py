@@ -345,12 +345,17 @@ class Session:
         return {"clipboard": {"ok": True, "entry": entry.id, "error": None}}
 
     def clipboard_paste(self, entry_id: str, *, at: int, mode: str = "insert",
-                        target_tracks=None, label: str | None = None) -> dict:
+                        target_tracks=None, group_editing: bool = True,
+                        label: str | None = None) -> dict:
         """Paste an entry at frame ``at`` as one undo step; ``mode`` is
         ``insert`` (ripple) or ``overwrite``. ``target_tracks`` maps the
         entry's track slots to track ids (``None``: the same tracks). Media
         the project lacks are reported in ``missing`` and their clips left
-        out; a paste that places nothing commits nothing."""
+        out; a paste that places nothing commits nothing. An insert is a
+        time-shifting edit (WP19a): with ``group_editing`` (the default) it
+        ripples every track ``edit_scope.expand_range`` names for the target
+        tracks, so a sync group stays in step; the tracks that only shift get
+        no clips."""
         entry = self._entry(entry_id)
         mapping = (None if target_tracks is None
                    else {int(slot): track for slot, track in target_tracks.items()})
@@ -363,12 +368,17 @@ class Session:
             if not plan.placements:
                 return report
             landed = set(_targets(project, entry, mapping).values())
+            if mode == "insert":
+                landed |= set(edit_scope.expand_range(
+                    project, None, sorted(landed), at, at + plan.shift,
+                    bool(group_editing)))
             new = apply_paste(project, entry, plan, at, landed, mode)
             self.history.commit(
                 label or t("history.clipboard_paste"), new,
                 op={"name": "clipboard_paste",
                     "args": {"entry_id": entry.id, "at": at, "mode": mode,
-                             "target_tracks": target_tracks}})
+                             "target_tracks": target_tracks,
+                             "group_editing": bool(group_editing)}})
             self._changed()
         return report
 
