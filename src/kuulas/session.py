@@ -39,7 +39,7 @@ from . import db as dbm
 from . import export as export_module
 from . import music_report as music_report_module
 from .clock import FLICKS, flicks_to_frames
-from .history import History
+from .history import History, UndoInfo
 from .jobs import Jobs
 from .media import ImportResult, MediaError, MediaStore
 from .messages import KuulasError, t
@@ -247,14 +247,14 @@ class Session:
 
     # -- history -----------------------------------------------------------
 
-    def undo(self) -> Any:
+    def undo(self) -> UndoInfo | None:
         with self.lock:
             moved = self.history.undo()
             if moved:
                 self._changed()
             return moved
 
-    def redo(self) -> Any:
+    def redo(self) -> UndoInfo | None:
         with self.lock:
             moved = self.history.redo()
             if moved:

@@ -469,17 +469,13 @@ class History:
                 op = json.loads(op)
             except (json.JSONDecodeError, TypeError):
                 op = {}
-        if op.get("name") == "marker":
-            return True
-        label = node.get("label", "")
-        return label.startswith("opened ") or label == "closed"
+        return op.get("name") == "marker"
 
     def session_opened(self, time_str: str | None = None) -> str:
         """Record opening the project as a session marker."""
         t_str = time_str or helsinki_now()
-        label = f"opened {t_str}"
         self.commit(
-            label,
+            t("history.opened", time=t_str),
             self.state,
             op={"name": "marker", "args": {"kind": "opened", "time": t_str}},
         )
@@ -488,7 +484,7 @@ class History:
     def session_closed(self) -> str:
         """Record closing the project as a session marker."""
         self.commit(
-            "closed",
+            t("history.closed"),
             self.state,
             op={"name": "marker", "args": {"kind": "closed"}},
         )

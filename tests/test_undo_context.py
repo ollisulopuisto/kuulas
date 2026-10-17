@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from kuulas import ops
+from kuulas import messages, ops
 from kuulas.history import History
 from kuulas.session import Session
 
@@ -95,11 +95,11 @@ def test_session_markers_on_open_and_close(tmp_path: Path):
     nodes = s2.history.nodes()
     # History: new project -> closed -> opened
     assert len(nodes) == 3
-    assert nodes[1]["label"] == "closed"
+    assert nodes[1]["label"] == "Closed"
     assert nodes[1]["op"]["name"] == "marker"
     assert nodes[1]["op"]["args"]["kind"] == "closed"
     open_marker = nodes[2]
-    assert open_marker["label"].startswith("opened ")
+    assert open_marker["label"].startswith("Opened ")
     assert open_marker["label"].endswith("Helsinki")
     assert open_marker["op"]["name"] == "marker"
     assert open_marker["op"]["args"]["kind"] == "opened"
@@ -131,7 +131,7 @@ def test_crossing_marker_is_reported_on_undo_and_redo(tmp_path: Path):
     assert res2 is not None
     assert res2.context == ctx1
     assert res2.marker is not None
-    assert "opened" in res2.marker
+    assert "Opened" in res2.marker
 
     # Redo: redoes Edit 1
     redo1 = s2.redo()
@@ -166,3 +166,18 @@ def test_old_projects_without_context_still_open(tmp_path: Path):
     assert bool(res) is True
     assert res.context is None
     assert res == {}
+
+
+def test_markers_are_translated_and_found_by_op_not_label(tmp_path: Path):
+    messages.set_language("fi")
+    try:
+        s = Session(tmp_path / "p.kuulas", 48000)
+        s.close()
+        s = Session(tmp_path / "p.kuulas", 48000)
+        labels = [n["label"] for n in s.history.nodes()]
+        assert labels[1] == messages.t("history.closed")
+        assert labels[2].startswith("Avattu ")
+        assert all(s.history.is_marker(n) for n in s.history.nodes()[1:])
+        s.close()
+    finally:
+        messages.set_language("en")

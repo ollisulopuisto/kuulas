@@ -63,6 +63,8 @@
   "error.package.needs_migration": "Projekti on vanhemmassa muodossa, ja se pitää avata projektikansiona, jotta se voidaan päivittää.",
   "error.package.upgrade_locked": "Projekti on vanhemmassa muodossa ja auki koneella {host}; sen voi päivittää, kun se on suljettu siellä.",
   "error.session.bad_word_index": "Aikajanalla ei ole sanaa {index}; sanoja on {count}.",
+  "history.opened": "Avattu {time}",
+  "history.closed": "Suljettu",
   "history.person_created": "Uusi henkilö: {name}",
   "history.person_edited": "Henkilön muokkaus: {name}",
   "history.person_deleted": "Poista henkilö: {name}",
