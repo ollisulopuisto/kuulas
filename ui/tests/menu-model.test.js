@@ -13,6 +13,7 @@ const LABELS = {
   "cmd.edit.redo": "Redo",
   "cmd.app.import": "Import…",
   "cmd.help.keys": "Keyboard shortcuts",
+  "cmd.help.open": "Help for this",
   "hint.undo": "Take back the last change",
 };
 setCatalogs({
@@ -28,6 +29,7 @@ function make({ platform = "other", overrides = {}, state = {}, planned = [], he
   registry.register("edit.redo", () => {}, { can: (s) => s.canRedo });
   registry.register("app.import", () => {});
   registry.register("help.keys", () => {});
+  registry.register("help.open", () => {});
   registry.register("view.toggle", () => {});
   registry.register("view.fit", () => {});
   registry.planned(...planned);
@@ -62,6 +64,7 @@ describe("the menu data", () => {
 
   test("Help has Keyboard shortcuts", () => {
     assert.ok(menuTargets(MENU).includes("help.keys"));
+    assert.ok(menuTargets(MENU).includes("help.open"));
   });
 });
 
@@ -116,6 +119,16 @@ describe("resolving a menu", () => {
     const help = menus.find((m) => m.id === "help");
     assert.ok(help.items.some((i) => i.kind === "submenu"));
     assert.ok(menus.find((m) => m.id === "edit").items.some((i) => i.kind === "separator"));
+  });
+
+  test("Help for this is first in Help, always enabled, with its key and a remap", () => {
+    const items = (overrides) => make({ overrides }).find((m) => m.id === "help").items;
+    assert.equal(items()[0].id, "help.open");
+    assert.equal(items()[0].label, "Help for this");
+    assert.equal(items()[0].enabled, true);
+    assert.equal(items()[0].keys, "F1");
+    assert.equal(items({ "help.open": "F3" })[0].keys, "F3");
+    assert.equal(items()[1].id, "help.keys");
   });
 
   test("a menu title is its message key", () => {
