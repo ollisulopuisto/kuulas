@@ -366,6 +366,15 @@ class History:
 
     def _path(self, target: str) -> tuple[list[dict], list[dict]]:
         """Steps to undo (head first) and redo (top first) to reach ``target``."""
+        if self.head == target:
+            return ([], [])
+        head_row = self._node(self.head)
+        if head_row["parent"] == target:
+            return ([head_row], [])
+        target_row = self._node(target)
+        if target_row["parent"] == self.head:
+            return ([], [target_row])
+
         def chain(node: str | None) -> list[dict]:
             out = []
             while node is not None:
@@ -454,6 +463,28 @@ class History:
             "select id, parent, label, author, machine, op, created_utc as created,"
             " material_from, material_to from nodes where edit=? order by id",
             (self.edit,)))
+        for r in rows:
+            r["op"] = json.loads(r["op"])
+        return rows
+
+    def nodes_page(self, limit: int, before: str | None = None) -> list[dict]:
+        """A page of steps in this edit, newest first (for the history panel).
+
+        ``limit``: maximum number of steps to return.
+        ``before``: step id to page backwards from (steps older than ``before``).
+        """
+        if before is None:
+            rows = _rows(self.db.execute(
+                "select id, parent, label, author, machine, op, created_utc as created,"
+                " material_from, material_to from nodes where edit=?"
+                " order by id desc limit ?",
+                (self.edit, limit)))
+        else:
+            rows = _rows(self.db.execute(
+                "select id, parent, label, author, machine, op, created_utc as created,"
+                " material_from, material_to from nodes where edit=? and id < ?"
+                " order by id desc limit ?",
+                (self.edit, before, limit)))
         for r in rows:
             r["op"] = json.loads(r["op"])
         return rows
