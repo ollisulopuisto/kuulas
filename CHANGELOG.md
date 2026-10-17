@@ -1,3 +1,18 @@
+## [v26.10.17.7] - 2026-10-17
+
+- The editor window works as a first version: waveforms for each track, track
+  and bus headers, and an inspector for the selected clip.
+- Zoom with = and -, switch between a close and a wide view with Z, and use the
+  overview strip, follow modes and F6 to move between panels.
+- Import audio by drag-and-drop or the file picker. If the connection to the
+  server drops, the window says "reconnecting…".
+- Fixed: `kuulas open` could not serve the live feed without a WebSocket
+  library; it is now installed with kuulas.
+- Not yet tried by a person: playing audio with Space from the window.
+- Undo and redo now return the editor context of the step, and opening or
+  closing a project leaves a marker in the history so "undid a step from
+  yesterday" can be shown. (WP8, first half; no history panel yet.)
+
 ## [v26.10.17.6] - 2026-10-17
 
 - Building block for editing in sync: the rules that find which clips on other

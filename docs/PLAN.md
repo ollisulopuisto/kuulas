@@ -643,7 +643,7 @@ one test per endpoint for the happy path, plus
 Visual target: `docs/ui-sketches.html` (open it in a browser). The sketches
 fix layout and behaviour, not final styling.
 
-Status: open. Needs WP3.
+Status: functional baseline done in v26.10.17.7 (waveform lanes in a worker, headers, inspector, zoom and Z, overview, follow modes, F6 focus, import, live channel). NOT yet verified: Space playing real audio, playhead under live position messages, drag-and-drop and file picker in a browser, light mode. The visual and interaction design is being redone by the strongest model (owner decision 2026-10-17); this build is the base it adjusts. Needs WP3.
 
 Files under `ui/`: `index.html`, `style.css`, `app.js` (entry), `api.js`,
 `store.js` (client state), `timeline.js` (canvas), `tracks.js` (headers and

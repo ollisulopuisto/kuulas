@@ -104,7 +104,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 
 - Media store: linked vs working FLAC, ffmpeg for everything else, relink,
   consolidate.
-- Browser UI with the keymap (WP4). (HTTP API: done in WP3, v26.10.16.11.
+- Browser UI shell and timeline (WP4 baseline, v26.10.17.7; keymap is WP5; the design is being redone). (HTTP API: done in WP3, v26.10.16.11.
   Playback engine: done in WP2, not yet run on real hardware.)
 
 ## Next
