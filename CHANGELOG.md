@@ -1,3 +1,17 @@
+## [v26.10.18.5] - 2026-10-18
+
+- Auto-Silence no longer cuts your clips into pieces. It now records, for each
+  track, the stretches where the mic is closed (a "gate"); clips stay whole and the
+  gate can be reopened stretch by stretch. Playback and export apply it with a short
+  30 ms fade at each edge, and everything that asks "is this audible?" (music report,
+  transcript, usage, edit points, onsets) treats gated stretches as silent. Running
+  Auto-Silence again replaces the gate instead of piling up. On a busy 4-mic test
+  session the state is about a fifth of the size it was with clip pieces.
+- Project format version 3. A project becomes unreadable to older kuulas versions
+  only once it contains a gate (they would play the closed mics). Projects without a
+  gate stay readable by old versions. Old projects open unchanged.
+- Not visible in the window yet: the gate bands and the "Open this stretch" action.
+
 ## [v26.10.18.4] - 2026-10-18
 
 - Desktop app (first cut): `kuulas` with no arguments opens a native window with

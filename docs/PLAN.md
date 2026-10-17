@@ -2725,7 +2725,7 @@ the export guard counts unrecorded placeholders.
 
 ### WP44 — Auto-Silence as merged gate ranges
 
-Status: gate range arithmetic (`gate.py`: merge, add, remove, ripple, mask to ranges) done in v26.10.18.1; `Track.gate`, the mixer, the wiring and the UI open (owner decision 2026-10-17: "measure the need to mute very often,
+Status: backend done in v26.10.18.5 (`gate.py`, `Track.gate`, ops, the mixer ramp, audibility everywhere, format version 3 with `min_reader` raised per project); the gate bands and "Open this stretch" in the UI open (owner decision 2026-10-17: "measure the need to mute very often,
 but the muted region should be merged"). Needs WP1. Sonnet 5.5. Do it before the
 soft-cut work (cut-keeping-the-gap, see the architect's note in the session log
 and the open questions in `docs/handoffs/`), and before any long-session use.
