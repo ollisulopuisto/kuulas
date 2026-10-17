@@ -52,7 +52,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R26c | Roles (dialogue / music / effects), stem export per role, Match Loudness (FCP, Audition) | planned: WP19c |
 | R26d | Every command bindable, user key overrides, macros that undo as one step (Reaper) | planned: WP19d |
 | R26e | Alternative takes in one slot, switched with one key (Pro Tools playlists, FCP auditions) | planned: WP19e |
-| R26f | Spot: type an exact time to place a clip or the playhead (Pro Tools) | planned: WP19f |
+| R26f | Spot: type an exact time to place a clip or the playhead (Pro Tools) | parser done v26.10.17.9, dialog and key still to do: WP19f |
 | R26g | Skimming: hover to hear without moving the playhead (FCP) | planned: WP19g |
 | R26h | Markers and regions, batch export of regions, chapter list (Reaper) | chapter-list formatter done v26.10.17.5; rest planned: WP19h |
 | R26i | Tab to transient or to word, cycled with one key (Pro Tools) | onsets backend done v26.10.17.4; Tab key planned: WP19i |

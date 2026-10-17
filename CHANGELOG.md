@@ -1,3 +1,11 @@
+## [v26.10.17.9] - 2026-10-17
+
+- Building blocks, not yet visible in the app: a typed-time parser for the
+  "Spot" dialog (`1:02:03,5`, `2:03`, `62.5`, `+120` ms, `-0.5s`; Finnish decimal
+  comma works) and a diff that reports which stretches of a recording were cut
+  or restored between two history points, whatever the clips' arrangement on
+  the timeline.
+
 ## [v26.10.17.8] - 2026-10-17
 
 - The editor has a designed look: a calm dark and light theme (follows the
