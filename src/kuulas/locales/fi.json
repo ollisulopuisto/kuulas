@@ -260,6 +260,8 @@
   "ui.theme.light": "Teema: vaalea",
   "ui.theme.dark": "Teema: tumma",
   "ui.track.kind.speech-mix": "puhemiksaus",
+  "ui.bus.option": "{letter} · {name}",
+  "ui.bus.option_none": "– · Ei väylää",
   "cli.open.help": "Avaa projekti selaimessa; luo sen, jos sitä ei ole.",
   "cli.open.folder": "Projektikansio (Nimi.kuulas).",
   "cli.open.port": "Portti, jota kuunnellaan (oletus: mikä tahansa vapaa). Aina osoitteessa 127.0.0.1.",

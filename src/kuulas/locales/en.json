@@ -260,6 +260,8 @@
   "ui.theme.light": "Theme: light",
   "ui.theme.dark": "Theme: dark",
   "ui.track.kind.speech-mix": "speech mix",
+  "ui.bus.option": "{letter} · {name}",
+  "ui.bus.option_none": "– · No bus",
   "cli.open.help": "Open a project in the browser, creating it if it does not exist.",
   "cli.open.folder": "The project folder (Name.kuulas).",
   "cli.open.port": "Port to listen on (default: any free one). Always on 127.0.0.1.",

@@ -1,7 +1,9 @@
-// Colours for the canvases come from the custom properties in tokens.css, so
-// light and dark (and any later theme) are changed in one place. Token names
-// and their roles: docs/design/GUI-DESIGN.md, "Visual language".
-import { MUSIC_HUE, SPEAKER_HUES } from "./paint.js";
+// Colours for the canvases. The tokens are named in grammar.js and defined in
+// tokens.css; readTheme resolves them ONCE per theme change into a plain
+// object the timeline, the overview and the waveform worker draw with. Call
+// it again (timeline.refreshTheme) when the theme or the OS preference
+// changes; never per frame. Spec: docs/design/GUI-DESIGN.md, "Themes".
+import { resolvePalette } from "./grammar.js";
 
 /** The user's theme choice. "system" follows the OS (prefers-color-scheme). */
 export const THEMES = ["system", "light", "dark"];
@@ -17,43 +19,51 @@ export function themeAttribute(choice) {
 }
 
 /**
- * Every colour a canvas draws with. `palette[i]` is a track hue (trackHues in
- * paint.js): { fill: clip body, wave: waveform bars, ink: clip outline,
- * label: clip name }. Index MUSIC_HUE is music's role colour.
+ * The canvas palette. `palette[i]` is a track hue (trackHues in paint.js):
+ * { fill: clip body, fillAlt: the other file's body tone (zebra), wave:
+ * waveform bars, ink: clip outline, label: clip name }. The flat names below
+ * are what timeline.js and overview.js use; `resolved` is the full registry
+ * palette for anything newer.
  */
 export function readTheme(
   element = globalThis.document?.documentElement,
   computed = (node) => getComputedStyle(node),
 ) {
   const style = computed(element);
-  const get = (name) => style.getPropertyValue(name).trim();
-  const palette = [];
-  for (let i = 0; i <= MUSIC_HUE; i += 1) {
-    const name = i < SPEAKER_HUES ? String(i) : "music";
-    palette.push({
-      fill: get(`--track-${name}-body`),
-      wave: get(`--track-${name}-wave`),
-      ink: get(`--track-${name}-edge`),
-      label: get(`--track-${name}-label`),
-    });
-  }
+  const p = resolvePalette((name) => style.getPropertyValue(name));
   return {
-    palette,
-    ink: get("--text"),
-    muted: get("--text-secondary"),
-    rule: get("--border-subtle"),
-    panel: get("--surface-panel"),
-    laneCurrent: get("--surface-lane-current"),
-    accent: get("--accent"),
-    playhead: get("--playhead"),
-    selection: get("--selection-outline"),
-    range: get("--selection-range"),
-    gain: get("--gain-line"),
-    automation: get("--automation-line"),
-    hatch: get("--muted-hatch"),
-    rulerText: get("--ruler-text"),
-    rulerTick: get("--ruler-tick"),
-    font: get("--font-ui") || "system-ui, sans-serif",
-    mono: get("--font-mono") || "ui-monospace, monospace",
+    resolved: p,
+    palette: p.tracks.map((t) => ({
+      fill: t.body,
+      fillAlt: t.bodyAlt,
+      wave: t.wave,
+      ink: t.edge,
+      label: t.label,
+    })),
+    busBands: p.buses.map((b) => b.band),
+    busSpines: p.buses.map((b) => b.spine),
+    ink: p.surfaces.text,
+    muted: p.surfaces.textSecondary,
+    rule: p.surfaces.borderSubtle,
+    border: p.surfaces.border,
+    panel: p.surfaces.surfacePanel,
+    laneCurrent: p.surfaces.surfaceLaneCurrent,
+    accent: p.surfaces.accent,
+    playhead: p.marks.playhead,
+    playStart: p.marks.playStart,
+    range: p.marks.selectionRange,
+    gain: p.marks.gainLine,
+    automation: p.marks.automationLine,
+    rulerText: p.marks.rulerText,
+    rulerTick: p.marks.rulerTick,
+    selection: p.signals.selected,
+    hatch: p.signals.mutedHatch,
+    clipping: p.signals.clipping,
+    seam: p.signals.seam,
+    fileMark: p.signals.fileMark,
+    fileMarkText: p.signals.fileMarkText,
+    mutedOpacity: p.numbers.mutedOpacity,
+    font: p.font,
+    mono: p.mono,
   };
 }

@@ -40,9 +40,9 @@ kbd {
   font-variant-numeric: tabular-nums;
   text-align: center;
   white-space: nowrap;
-  color: var(--text-secondary);
-  background: var(--surface-sunken);
-  border: 1px solid var(--border);
+  color: var(--kbd-text);
+  background: var(--kbd-bg);
+  border: 1px solid var(--kbd-border);
   border-bottom-width: 2px;
   border-radius: var(--radius-xs);
 }
@@ -71,10 +71,10 @@ kbd {
   gap: var(--space-3);
   height: var(--control-h);
   padding: 0 var(--space-5);
-  border: 1px solid var(--border);
+  border: 1px solid var(--button-border);
   border-radius: var(--radius-sm);
-  background: var(--surface-panel);
-  color: var(--text);
+  background: var(--button-bg);
+  color: var(--button-text);
   white-space: nowrap;
   cursor: pointer;
   transition:
@@ -82,11 +82,11 @@ kbd {
     border-color var(--dur-fast) var(--ease-standard);
 }
 .button:hover:not(:disabled) {
-  background: var(--surface-hover);
-  border-color: var(--border-strong);
+  background: var(--button-hover-bg);
+  border-color: var(--button-hover-border);
 }
 .button:active:not(:disabled) {
-  background: var(--surface-active);
+  background: var(--button-active-bg);
 }
 .button:disabled,
 .play:disabled {
@@ -102,14 +102,14 @@ kbd {
   border-color: transparent;
 }
 .button.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--text-on-accent);
+  background: var(--button-primary-bg);
+  border-color: var(--button-primary-bg);
+  color: var(--button-primary-text);
   font-weight: var(--weight-strong);
 }
 .button.primary:hover:not(:disabled) {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
+  background: var(--button-primary-hover-bg);
+  border-color: var(--button-primary-hover-bg);
 }
 .button.icon {
   width: var(--control-h);
@@ -162,12 +162,12 @@ button.chip {
     "dock dock side"
     "status status status";
   gap: 1px;
-  background: var(--border);
+  background: var(--frame-gap);
 }
 .editor > * {
   min-width: 0;
   min-height: 0;
-  background: var(--surface-panel);
+  background: var(--panel-bg);
 }
 
 /* -- top bar --------------------------------------------------------------- */
@@ -199,14 +199,14 @@ button.chip {
 .play {
   height: 30px;
   padding: 0 var(--space-5) 0 var(--space-4);
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--text-on-accent);
+  background: var(--button-primary-bg);
+  border-color: var(--button-primary-bg);
+  color: var(--button-primary-text);
   font-weight: var(--weight-strong);
 }
 .play:hover:not(:disabled) {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
+  background: var(--button-primary-hover-bg);
+  border-color: var(--button-primary-hover-bg);
 }
 .play kbd {
   background: transparent;
@@ -260,12 +260,29 @@ button.chip {
   overflow: hidden;
 }
 /* The track's hue (trackHues in paint.js), set by tracks.js as --track-colour. */
+/* Two marks at the left edge that never fight (GUI-DESIGN.md, "Buses"):
+   the BUS spine, full height and continuous from the bus header down through
+   its members; the TRACK hue, a short pill beside it (speaker identity). */
 .track-header::before {
   content: "";
   position: absolute;
-  inset: 0 auto 0 0;
+  left: calc(var(--spine-w) + var(--space-1));
+  top: 50%;
   width: 3px;
-  background: var(--track-colour, var(--border-strong));
+  height: min(22px, 60%);
+  transform: translateY(-50%);
+  border-radius: 2px;
+  background: var(--track-colour, transparent);
+}
+.track-header[data-bus] {
+  background: var(--bus-band);
+}
+.track-header[data-bus]::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--spine-w);
+  background: var(--bus-spine);
 }
 .th-top,
 .th-controls {
@@ -275,7 +292,7 @@ button.chip {
   min-width: 0;
 }
 .track-header.current {
-  background: var(--surface-lane-current);
+  background: var(--header-bg-current);
 }
 .track-header.compact {
   grid-template-rows: var(--control-h-sm);
@@ -346,18 +363,18 @@ button.chip {
   color: var(--text);
 }
 .ms-button.mute[aria-pressed="true"] {
-  background: var(--text-secondary);
-  border-color: var(--text-secondary);
+  background: var(--mute-on-bg);
+  border-color: var(--mute-on-bg);
   color: var(--surface-panel);
 }
 .ms-button.solo[aria-pressed="true"] {
-  background: var(--warn);
-  border-color: var(--warn);
+  background: var(--solo-on-bg);
+  border-color: var(--solo-on-bg);
   color: var(--surface-panel);
 }
 .bus-select {
   flex: none;
-  width: 84px;
+  width: 46px;
   height: var(--control-h-sm);
   padding: 0 var(--space-1);
   font-size: var(--text-xs);
@@ -418,20 +435,39 @@ input[type="range"]::-moz-range-thumb {
   border: 2px solid var(--surface-panel);
 }
 .bus-header {
-  display: flex;
-  grid-template-rows: none;
-  align-items: center;
-  gap: var(--space-3);
   color: var(--text-secondary);
   font-size: var(--text-sm);
+  border-top: 1px solid var(--border);
+}
+.bus-header .slider-control.pan,
+.th-controls .slider-control.pan {
+  flex: none;
+  width: 76px;
+}
+.bus-badge {
+  flex: none;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 var(--space-1);
+  display: grid;
+  place-items: center;
+  font: var(--weight-strong) var(--text-xs) / 1 var(--font-ui);
+  color: var(--bus-text, var(--text-secondary));
+  border: 1.5px solid var(--bus-spine, var(--border-strong));
+  border-radius: var(--radius-xs);
 }
 .bus-name {
-  width: 84px;
-  flex: none;
+  flex: 1;
+  min-width: 40px;
+  color: var(--bus-text, var(--text-secondary));
   font-weight: var(--weight-medium);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.bus-header.no-members .bus-name {
+  color: var(--text-tertiary);
+  font-style: italic;
 }
 
 /* -- timeline --------------------------------------------------------------- */
@@ -440,7 +476,7 @@ input[type="range"]::-moz-range-thumb {
   position: relative;
   display: grid;
   grid-template-rows: var(--overview-h) minmax(0, 1fr);
-  background: var(--surface-lane);
+  background: var(--lane-bg);
 }
 .overview {
   display: block;
@@ -549,8 +585,8 @@ input[type="range"]::-moz-range-thumb {
 input[type="text"] {
   height: var(--control-h);
   padding: 0 var(--space-3);
-  background: var(--surface-sunken);
-  border: 1px solid var(--border-strong);
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
   border-radius: var(--radius-sm);
   color: var(--text);
   font-variant-numeric: tabular-nums;
@@ -647,9 +683,9 @@ input[type="text"] {
   gap: var(--space-4);
   max-width: min(560px, calc(100vw - 32px));
   padding: var(--space-4) var(--space-4) var(--space-4) var(--space-6);
-  background: var(--surface-raised);
+  background: var(--toast-bg);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-raised);
+  box-shadow: var(--toast-shadow);
 }
 .notice::before {
   content: "";

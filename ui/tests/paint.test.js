@@ -119,6 +119,44 @@ describe("painting waveforms (what the worker runs)", () => {
     assert.equal(fills[0], "#abcdef");
   });
 
+  test("a clip from the other file of a pair takes the alternate body tone", () => {
+    const { ctx, sets } = fakeContext();
+    const zebra = job({
+      palette: [{ fill: "#111111", fillAlt: "#222222", ink: "#fff", wave: "#456" }],
+    });
+    zebra.rows[0].clips[0].step = 1;
+    paintWaveforms(ctx, zebra, () => loud());
+    const fills = sets.filter((s) => s[0] === "fillStyle").map((s) => s[1]);
+    assert.ok(fills.includes("#222222"));
+    assert.ok(!fills.includes("#111111"));
+  });
+
+  test("a clipped column gets a cap; a clean one does not", () => {
+    const hot = () => {
+      const tile = new Float32Array(TILE_PEAKS * 2);
+      for (let i = 0; i < TILE_PEAKS; i += 1) {
+        tile[2 * i] = -1;
+        tile[2 * i + 1] = 1;
+      }
+      return tile;
+    };
+    const { ctx, calls } = fakeContext();
+    paintWaveforms(ctx, job({ clipping: "#ff0000" }), hot);
+    assert.equal(count(calls, "fillRect"), 1 + 100, "the body and one cap per column");
+    const { ctx: clean, calls: none } = fakeContext();
+    paintWaveforms(clean, job({ clipping: "#ff0000" }), () => loud());
+    assert.equal(count(none, "fillRect"), 1);
+  });
+
+  test("a bus member's lane carries the bus band behind its clips", () => {
+    const { ctx, calls, sets } = fakeContext();
+    const banded = job();
+    banded.rows[0].band = "#00ff0011";
+    paintWaveforms(ctx, banded, () => loud());
+    assert.equal(count(calls, "fillRect"), 2);
+    assert.equal(sets.find((s) => s[0] === "fillStyle")[1], "#00ff0011");
+  });
+
   test("makeWaveformJob marks the current track's row", () => {
     const state = {
       project: {
@@ -144,6 +182,11 @@ describe("painting waveforms (what the worker runs)", () => {
     assert.deepEqual(
       made.rows.map((row) => row.current),
       [false, true],
+    );
+    assert.deepEqual(
+      made.rows.map((row) => row.band),
+      ["", ""],
+      "no bus, no band",
     );
     assert.equal(made.laneCurrent, "#123456");
   });
@@ -199,6 +242,7 @@ describe("painting waveforms (what the worker runs)", () => {
       "muted",
       "offset",
       "start",
+      "step",
     ]);
     assert.doesNotThrow(() => structuredClone(made));
   });

@@ -4,10 +4,12 @@
 import { frameToX, xToFrame } from "./format.js";
 
 export const RULER_HEIGHT = 24;
-export const BUS_HEIGHT = 30;
+/** tokens.css --bus-h: a two-row group header (name and mute; gain and pan). */
+export const BUS_HEIGHT = 44;
 export const MIN_LANE = 24;
 export const MAX_LANE = 160;
-export const DEFAULT_LANE = 48;
+/** tokens.css --lane-h: two header rows (2 × 20 px) plus breathing room. */
+export const DEFAULT_LANE = 56;
 /** How close (px) a pointer must be to a clip edge or an envelope point. */
 export const EDGE_PX = 4;
 export const POINT_PX = 6;
@@ -34,18 +36,61 @@ export function projectEnd(project) {
   return end;
 }
 
-/** Tracks first, then buses; rows stack with no gaps. `top` is content y. */
+/**
+ * Rows top to bottom, stacked with no gaps; `top` is content y. A bus is a
+ * group header above its member tracks (owner, 2026-10-17): it appears where
+ * its first member would be, and its members gather under it in track order.
+ * Tracks on no bus keep their place. A bus with no members goes last. Rows
+ * carry `index` (into project.tracks or project.buses), `bus` (the group a
+ * row belongs to) and, on bus rows, `members`.
+ */
 export function layoutRows(project, laneHeight) {
   const height = clampLaneHeight(laneHeight);
+  const tracks = project?.tracks ?? [];
+  const buses = project?.buses ?? [];
+  const busIndex = new Map(buses.map((bus, i) => [bus.id, i]));
+  const members = new Map(buses.map((bus) => [bus.id, []]));
+  tracks.forEach((track, i) => {
+    if (members.has(track.bus)) members.get(track.bus).push(i);
+  });
   const rows = [];
   let top = 0;
-  for (const track of project?.tracks ?? []) {
-    rows.push({ kind: "track", id: track.id, top, height, index: rows.length });
-    top += height;
-  }
-  for (const bus of project?.buses ?? []) {
-    rows.push({ kind: "bus", id: bus.id, top, height: BUS_HEIGHT, index: rows.length });
-    top += BUS_HEIGHT;
+  const push = (row) => {
+    rows.push({ ...row, top });
+    top += row.height;
+  };
+  const placed = new Set();
+  tracks.forEach((track, i) => {
+    if (placed.has(i)) return;
+    if (members.has(track.bus)) {
+      const group = members.get(track.bus);
+      push({
+        kind: "bus",
+        id: track.bus,
+        height: BUS_HEIGHT,
+        index: busIndex.get(track.bus),
+        bus: track.bus,
+        members: group.length,
+      });
+      for (const member of group) {
+        push({ kind: "track", id: tracks[member].id, height, index: member, bus: track.bus });
+        placed.add(member);
+      }
+      return;
+    }
+    push({ kind: "track", id: track.id, height, index: i, bus: null });
+    placed.add(i);
+  });
+  for (const bus of buses) {
+    if (members.get(bus.id).length > 0) continue;
+    push({
+      kind: "bus",
+      id: bus.id,
+      height: BUS_HEIGHT,
+      index: busIndex.get(bus.id),
+      bus: bus.id,
+      members: 0,
+    });
   }
   return { rows, height: top };
 }

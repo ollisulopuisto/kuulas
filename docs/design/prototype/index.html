@@ -17,20 +17,228 @@
 -->
 <style>
 /* kuulas design tokens. The single source of colour, type, spacing, motion
-   and size for the editor (style.css) and its canvases (theme.js reads these
-   custom properties). Spec: docs/design/GUI-DESIGN.md, "Visual language".
-   Visual reference: docs/design/prototype/index.html (it embeds a copy of
-   this file; ui/tests/tokens.test.js keeps the two identical and checks the
-   contrast pairs, so change a value here and the test tells you what broke).
+   and size for the editor (style.css) and its canvases (grammar.js names the
+   tokens, theme.js resolves them once per theme change). Three layers:
 
-   Rules for editing this file:
-   - Components use the semantic tokens (--surface-*, --text-*, --accent ...),
-     never a hex value and never a --track-* token for anything but tracks.
-   - The dark values appear twice (OS preference and explicit choice). Keep
-     the two blocks identical; the test fails if they drift.
-   - Every colour change keeps the contrast pairs in tokens.test.js passing. */
+   1. PRIMITIVES  --p-<family>-<lightness>   raw colours, named by OKLCH
+      lightness (0-100), "-aNN" = alpha NN %. Theme-independent. Only the
+      theme blocks (layer 2) may reference them.
+   2. SEMANTIC    --surface-*, --text-*, --accent*, --signal-*, --track-*,
+      --bus-*, --role-*, --label-* ...   what a colour MEANS. Set per theme,
+      only as var(--p-...) (or a number). grammar.js SEMANTIC_TOKENS lists
+      every one; tokens.test.js fails if a theme misses one.
+   3. COMPONENT   --button-bg, --lane-bg ...   per component, only as
+      var(--semantic). style.css uses layers 2 and 3, never layer 1.
 
-/* -- theme-independent tokens ---------------------------------------------- */
+   A theme is a set of layer-2 overrides (the light and dark blocks below;
+   user themes are JSON manifests, see GUI-DESIGN.md "Themes"). Spec:
+   docs/design/GUI-DESIGN.md. Visual reference: docs/design/prototype/
+   (it embeds a copy of this file: run node docs/design/sync-tokens.mjs).
+   tokens.test.js checks contrast (WCAG AA) for every pair in both themes. */
+
+/* == 1. primitives ===================================================== */
+:root {
+  --p-amber-25: #2a2112;
+  --p-amber-30: #3a2c12;
+  --p-amber-31: #3c2f19;
+  --p-amber-40: #693c00;
+  --p-amber-49: #8a5300;
+  --p-amber-56: #a06700;
+  --p-amber-60: #b07100;
+  --p-amber-63: #b97a00;
+  --p-amber-74: #cfa354;
+  --p-amber-81: #f0b54a;
+  --p-amber-84: #f3c165;
+  --p-amber-85: #fac463;
+  --p-amber-88: #f0d3a3;
+  --p-amber-92: #f3e2cb;
+  --p-amber-96: #fff1d6;
+  --p-amber-96-b: #fbf2e6;
+
+  --p-blue-26: #192431;
+  --p-blue-32: #243346;
+  --p-blue-40: #164781;
+  --p-blue-46: #1157a4;
+  --p-blue-46-b: #1b589e;
+  --p-blue-68: #5e9ae7;
+  --p-blue-68-b: #689bdb;
+  --p-blue-88: #b9daff;
+  --p-blue-92: #d4e5fb;
+  --p-blue-96: #ecf4ff;
+
+  --p-black-a45: rgb(0 0 0 / 0.45);
+  --p-black-a60: rgb(0 0 0 / 0.6);
+  --p-gray-22-a14: rgb(16 24 28 / 0.14);
+  --p-gray-22-a22: rgb(16 24 28 / 0.22);
+  --p-gray-22-a8: rgb(16 24 28 / 0.08);
+
+  --p-gray-0-a50: rgb(0 0 0 / 0.5);
+  --p-gray-17: #1a0c0b;
+  --p-gray-18: #0f1214;
+  --p-gray-18-b: #101316;
+  --p-gray-20: #13171a;
+  --p-gray-20-a32: rgb(16 24 28 / 0.32);
+  --p-gray-20-b: #10161a;
+  --p-gray-21: #13191c;
+  --p-gray-21-a28: rgb(19 25 28 / 0.28);
+  --p-gray-22: #171b1e;
+  --p-gray-22-b: #04211d;
+  --p-gray-25: #1e2327;
+  --p-gray-27: #212729;
+  --p-gray-27-b: #22282c;
+  --p-gray-30: #283034;
+  --p-gray-32: #2d3539;
+  --p-gray-44: #48545a;
+  --p-gray-44-b: #4a555b;
+  --p-gray-48: #566066;
+  --p-gray-51: #5c6870;
+  --p-gray-54: #66727a;
+  --p-gray-64: #858f96;
+  --p-gray-68: #8f9aa0;
+  --p-gray-72: #9aa5ab;
+  --p-gray-76: #aab4b9;
+  --p-gray-76-b: #a9b4ba;
+  --p-gray-88: #d3dadd;
+  --p-gray-93: #e2e8eb;
+  --p-gray-93-b: #e3e8eb;
+  --p-gray-94: #e8ecee;
+  --p-gray-94-a22: rgb(231 236 238 / 0.22);
+  --p-gray-94-b: #e7ecee;
+  --p-gray-96: #eef1f3;
+  --p-gray-96-b: #eef2f4;
+  --p-gray-98: #f6f8f9;
+  --p-gray-100: #ffffff;
+
+  --p-green-26: #1e2616;
+  --p-green-32: #2b3620;
+  --p-green-40: #2b5409;
+  --p-green-51: #18794a;
+  --p-green-56: #1e8a4c;
+  --p-green-56-b: #4e8626;
+  --p-green-56-c: #51852f;
+  --p-green-74: #94b96d;
+  --p-green-76: #96c166;
+  --p-green-79: #6fd39a;
+  --p-green-82: #7fdca6;
+  --p-green-88: #c8e1b1;
+  --p-green-92: #d9e9d1;
+  --p-green-96: #eef6ea;
+
+  --p-label-blue-58: #1f7dcf;
+  --p-label-blue-74: #60b0ff;
+
+  --p-label-green-58: #33903c;
+  --p-label-green-74: #6ec272;
+
+  --p-label-orange-58: #b86000;
+  --p-label-orange-74: #ea9344;
+
+  --p-label-purple-58: #8f5fc0;
+  --p-label-purple-74: #bf93f1;
+
+  --p-label-red-58: #c34f4b;
+  --p-label-red-74: #f7857d;
+
+  --p-label-yellow-58: #967700;
+  --p-label-yellow-74: #c7a92a;
+
+  --p-olive-42: #544f11;
+  --p-olive-55: #797435;
+  --p-olive-55-a7: rgb(121 116 53 / 0.07);
+  --p-olive-72: #aca868;
+  --p-olive-72-a9: rgb(172 168 104 / 0.09);
+  --p-olive-86: #d6d4a7;
+
+  --p-plum-42: #653c62;
+  --p-plum-55: #8e5f89;
+  --p-plum-55-a7: rgb(142 95 137 / 0.07);
+  --p-plum-72: #c391be;
+  --p-plum-72-a9: rgb(195 145 190 / 0.09);
+  --p-plum-86: #e8c3e4;
+
+  --p-red-28: #3d1d1b;
+  --p-red-51: #b42d1c;
+  --p-red-55: #c8321f;
+  --p-red-55-a12: rgb(200 50 31 / 0.12);
+  --p-red-59: #d93a26;
+  --p-red-71: #ff6b57;
+  --p-red-73: #ff776b;
+  --p-red-73-a13: rgb(255 119 107 / 0.13);
+  --p-red-76: #ff8a7f;
+  --p-red-95: #fde8e4;
+
+  --p-rose-26: #2f1d22;
+  --p-rose-32: #432931;
+  --p-rose-40: #742945;
+  --p-rose-54: #ad456b;
+  --p-rose-54-b: #a9496b;
+  --p-rose-70: #df7a9b;
+  --p-rose-70-b: #d6809c;
+  --p-rose-88: #ffc5d5;
+  --p-rose-92: #f8dae2;
+  --p-rose-97: #ffeff3;
+
+  --p-sand-25: #24211c;
+  --p-sand-31: #33302a;
+  --p-sand-40: #4f4735;
+  --p-sand-55: #7a715e;
+  --p-sand-60: #8a7f69;
+  --p-sand-62: #8e8572;
+  --p-sand-74: #b5aa92;
+  --p-sand-86: #d8d0bf;
+  --p-sand-91: #e4e1da;
+  --p-sand-96: #f2f0ec;
+
+  --p-sienna-42: #713e26;
+  --p-sienna-55: #9b6147;
+  --p-sienna-55-a7: rgb(155 97 71 / 0.07);
+  --p-sienna-72: #d29478;
+  --p-sienna-72-a9: rgb(210 148 120 / 0.09);
+  --p-sienna-86: #f4c5b1;
+
+  --p-sky-26: #12262e;
+  --p-sky-32: #193641;
+  --p-sky-41: #005370;
+  --p-sky-57: #0084a9;
+  --p-sky-59: #008bb3;
+  --p-sky-74: #50b9df;
+  --p-sky-85: #61e3ff;
+  --p-sky-88: #a6e2fb;
+  --p-sky-92: #ccebf5;
+  --p-sky-97: #e7f7fc;
+
+  --p-slate-42: #374c79;
+  --p-slate-55: #5970a4;
+  --p-slate-55-a7: rgb(89 112 164 / 0.07);
+  --p-slate-72: #8ba4db;
+  --p-slate-72-a9: rgb(139 164 219 / 0.09);
+  --p-slate-86: #bed1f9;
+
+  --p-teal-24: #172225;
+  --p-teal-32: #133a35;
+  --p-teal-47: #086a5d;
+  --p-teal-48: #0a6e60;
+  --p-teal-52: #0a7a6b;
+  --p-teal-52-a14: rgb(10 122 107 / 0.14);
+  --p-teal-76: #3dc9b3;
+  --p-teal-76-a16: rgb(61 201 179 / 0.16);
+  --p-teal-80: #5ad6c2;
+  --p-teal-94: #dff1ed;
+  --p-teal-96: #e9f3f1;
+
+  --p-violet-26: #271f2e;
+  --p-violet-32: #382c41;
+  --p-violet-40: #5a3473;
+  --p-violet-42: #643185;
+  --p-violet-42-b: #633481;
+  --p-violet-64: #9c78c4;
+  --p-violet-66: #a57fd0;
+  --p-violet-88: #e6cbfb;
+  --p-violet-92: #eaddf5;
+  --p-violet-96: #f7f0fd;
+}
+
+/* == theme-independent: type, spacing, radii, motion, sizes ============== */
 :root {
   /* Type. System fonts: native feel, no download, full Finnish coverage. */
   --font-ui:
@@ -80,12 +288,12 @@
   --focus-offset: 2px;
 
   /* Layout sizes (comfortable density). JS constants that must match are
-     named next to each: lanes.js RULER_HEIGHT = --ruler-h. */
+     named next to each. */
   --topbar-h: 44px;
   --statusbar-h: 26px;
   --overview-h: 20px;
-  --ruler-h: 24px;
-  --heads-w: 232px;
+  --ruler-h: 24px; /* lanes.js RULER_HEIGHT */
+  --heads-w: 248px;
   --heads-w-min: 180px;
   --heads-w-max: 360px;
   --sidebar-w: 320px;
@@ -96,8 +304,15 @@
   --control-h: 26px;
   --control-h-sm: 20px; /* M / S buttons, chips inside headers */
   --lane-h: 56px; /* lanes.js DEFAULT_LANE */
+  --bus-h: 44px; /* lanes.js BUS_HEIGHT */
   --strip-h: 16px; /* focus-mode strips (WP28) */
+  --spine-w: 4px; /* bus spine */
   --reading-max: 72ch; /* transcript line length */
+
+  /* Numbers the canvases read with the colours (semantic, overridable). */
+  --signal-muted-opacity: 0.35; /* muted clips (with the hatch) */
+  --signal-unheard-opacity: 0.45; /* tracks not heard because of solo or mute */
+  --signal-unused-opacity: 0.5; /* material not in the open edit (clip bin) */
 }
 
 :root[data-density="compact"] {
@@ -108,257 +323,414 @@
   --statusbar-h: 22px;
   --control-h: 22px;
   --control-h-sm: 18px;
-  --heads-w: 200px;
+  --heads-w: 216px;
   --sidebar-w: 280px;
   --lane-h: 40px;
 }
 
-/* -- light (the default when the OS asks for light) ---------------------- */
+/* == 2. semantic roles: light (default) ================================= */
 :root {
   color-scheme: light;
-  --surface-app: #e8ecee; /* behind everything; gaps between docks */
-  --surface-lane: #f6f8f9; /* timeline background */
-  --surface-lane-current: #e9f3f1; /* the current track's lane (↑/↓ cursor) */
-  --surface-panel: #ffffff; /* headers, panels, top and status bars */
-  --surface-raised: #ffffff; /* popovers, palette, toasts (plus shadow) */
-  --surface-sunken: #eef1f3; /* inputs, wells, the ruler */
-  --surface-hover: #eef2f4;
-  --surface-active: #e2e8eb;
-  --surface-scrim: rgb(16 24 28 / 0.32); /* behind modal dialogs */
-
-  --border-subtle: #e3e8eb; /* lane separators, list dividers */
-  --border: #d3dadd; /* panel edges, control outlines at rest */
-  --border-strong: #858f96; /* input outlines (>= 3:1 on panel) */
-
-  --text: #13191c;
-  --text-secondary: #48545a;
-  --text-tertiary: #5c6870; /* >= 4.5:1 on every surface: still body text */
-  --text-disabled: #9aa5ab; /* disabled only; exempt from contrast */
-  --text-on-accent: #ffffff;
-
-  --accent: #0a7a6b; /* primary buttons, focus, range selection edges */
-  --accent-hover: #086a5d;
-  --accent-text: #0a6e60; /* accent-coloured text on panels */
-  --accent-subtle: #dff1ed; /* selected rows, current word background */
-  --focus-ring: #0a7a6b;
-
-  --selection-outline: #10161a; /* selected clip: 2 px, neutral, any hue */
-  --selection-range: rgb(10 122 107 / 0.14); /* in/out band on scoped lanes */
-  --partner-outline: #48545a; /* dashed: what a move takes along (WP19a) */
-  --playhead: #d93a26;
-  --play-start: #5c6870; /* where the last play started (dashed) */
-  --gain-line: #13191c;
-  --automation-line: #48545a;
-  --ruler-text: #48545a;
-  --ruler-tick: #a9b4ba;
-
-  --warn: #b97a00; /* fills and strokes */
-  --warn-text: #8a5300;
-  --warn-subtle: #fff1d6;
-  --danger: #c8321f;
-  --danger-text: #b42d1c;
-  --danger-subtle: #fde8e4;
-  --ok: #1e8a4c;
-  --ok-text: #18794a;
-  --candidate: #c8321f; /* cut candidates: striped band + "cut?" label */
-  --candidate-fill: rgb(200 50 31 / 0.12);
-  --muted-hatch: rgb(19 25 28 / 0.28);
-
-  --shadow-raised: 0 6px 20px rgb(16 24 28 / 0.14), 0 0 0 1px rgb(16 24 28 / 0.08);
-  --shadow-dialog: 0 18px 48px rgb(16 24 28 / 0.22), 0 0 0 1px rgb(16 24 28 / 0.08);
-
-  /* Track hues. One per speaker (tracks with the same speaker share it),
-     cycling 0..5; music has its own low-chroma role colour; buses are neutral.
-     wave: waveform bars; body: clip fill; edge: clip outline and header
-     swatch; label: clip name text on body. Order picked for colour-blind
-     separation of the first four (see GUI-DESIGN.md). */
-  --track-0-wave: #1157a4;
-  --track-0-body: #ecf4ff;
-  --track-0-edge: #1b589e;
-  --track-0-label: #164781;
-  --track-1-wave: #b97a00;
-  --track-1-body: #fbf2e6;
-  --track-1-edge: #a06700;
-  --track-1-label: #693c00;
-  --track-2-wave: #ad456b;
-  --track-2-body: #ffeff3;
-  --track-2-edge: #a9496b;
-  --track-2-label: #742945;
-  --track-3-wave: #0098c0;
-  --track-3-body: #e7f7fc;
-  --track-3-edge: #0084a9;
-  --track-3-label: #005370;
-  --track-4-wave: #643185;
-  --track-4-body: #f7f0fd;
-  --track-4-edge: #633481;
-  --track-4-label: #5a3473;
-  --track-5-wave: #4e8626;
-  --track-5-body: #eef6ea;
-  --track-5-edge: #51852f;
-  --track-5-label: #2b5409;
-  --track-music-wave: #8a7f69;
-  --track-music-body: #f2f0ec;
-  --track-music-edge: #7a715e;
-  --track-music-label: #4f4735;
+  --surface-app: var(--p-gray-94); /* behind everything; the 1 px gaps between docks */
+  --surface-lane: var(--p-gray-98); /* timeline background */
+  --surface-lane-current: var(--p-teal-96); /* the current track's lane and header (↑/↓ cursor) */
+  --surface-panel: var(--p-gray-100); /* headers, panels, top and status bars */
+  --surface-raised: var(--p-gray-100); /* popovers, palette, toasts (with --shadow-raised) */
+  --surface-sunken: var(--p-gray-96); /* inputs, wells, key chips */
+  --surface-hover: var(--p-gray-96-b);
+  --surface-active: var(--p-gray-93); /* pressed controls, count pills */
+  --surface-scrim: var(--p-gray-20-a32); /* behind modal dialogs */
+  --border-subtle: var(--p-gray-93-b); /* lane separators, list dividers */
+  --border: var(--p-gray-88); /* panel edges, controls at rest */
+  --border-strong: var(--p-gray-64); /* input outlines: >= 3:1 on panels */
+  --text: var(--p-gray-21);
+  --text-secondary: var(--p-gray-44);
+  --text-tertiary: var(--p-gray-51); /* still >= 4.5:1: body text, never decoration */
+  --text-disabled: var(--p-gray-72); /* disabled only (exempt from contrast) */
+  --text-on-accent: var(--p-gray-100);
+  --accent: var(--p-teal-52); /* primary buttons, focus, range edges, the overview box */
+  --accent-hover: var(--p-teal-47);
+  --accent-text: var(--p-teal-48); /* accent-coloured text on panels */
+  --accent-subtle: var(--p-teal-94); /* selected rows, selected words */
+  --focus-ring: var(--p-teal-52);
+  --warn: var(--p-amber-63); /* fills and strokes: solo, speed chip */
+  --warn-text: var(--p-amber-49);
+  --warn-subtle: var(--p-amber-96);
+  --danger: var(--p-red-55);
+  --danger-text: var(--p-red-51);
+  --danger-subtle: var(--p-red-95);
+  --ok: var(--p-green-56);
+  --ok-text: var(--p-green-51);
+  --playhead: var(--p-red-59);
+  --play-start: var(--p-gray-51); /* where the last play started (hollow mark) */
+  --selection-range: var(--p-teal-52-a14); /* in/out band on the scoped lanes */
+  --gain-line: var(--p-gray-21);
+  --automation-line: var(--p-gray-44);
+  --ruler-text: var(--p-gray-44);
+  --ruler-tick: var(--p-gray-76-b);
+  --signal-selected: var(--p-gray-20-b); /* 2 px outline: neutral, works on every hue */
+  --signal-partner: var(--p-gray-44); /* dashed: what a move takes along */
+  --signal-muted-hatch: var(--p-gray-21-a28);
+  --signal-placeholder: var(--p-gray-44); /* dashed outline of narration placeholders */
+  --signal-provisional: var(--p-gray-51);
+  --signal-candidate: var(--p-red-55); /* stripes and edges of cut candidates */
+  --signal-candidate-fill: var(--p-red-55-a12);
+  --signal-damaged: var(--p-red-55);
+  --signal-damaged-fill: var(--p-red-95);
+  --signal-removed: var(--p-red-55);
+  --signal-removed-fill: var(--p-red-55-a12);
+  --signal-added: var(--p-green-56);
+  --signal-drift: var(--p-red-55); /* solid badge with the offset */
+  --signal-drift-text: var(--p-gray-100);
+  --signal-clipping: var(--p-red-55); /* the cap on a clipped column */
+  --signal-file-mark: var(--p-gray-100); /* file mark chip background */
+  --signal-file-mark-text: var(--p-gray-21);
+  --signal-free: var(--p-gray-44);
+  --signal-seam: var(--p-gray-44); /* hairline (split) and notch (jump cut) */
+  --signal-takes: var(--p-gray-44);
+  --signal-note: var(--p-amber-63);
+  --signal-sync: var(--p-gray-44);
+  --signal-tether: var(--p-gray-44);
+  --role-speech: var(--p-gray-44); /* strip pattern: solid */
+  --role-speech-mix: var(--p-gray-44); /* strip pattern: dashed */
+  --role-music: var(--p-sand-55); /* strip pattern: dotted */
+  --track-0-wave: var(--p-blue-46);
+  --track-1-wave: var(--p-amber-60);
+  --track-2-wave: var(--p-rose-54);
+  --track-3-wave: var(--p-sky-59);
+  --track-4-wave: var(--p-violet-42);
+  --track-5-wave: var(--p-green-56-b);
+  --track-music-wave: var(--p-sand-60);
+  --track-0-body: var(--p-blue-96);
+  --track-1-body: var(--p-amber-96-b);
+  --track-2-body: var(--p-rose-97);
+  --track-3-body: var(--p-sky-97);
+  --track-4-body: var(--p-violet-96);
+  --track-5-body: var(--p-green-96);
+  --track-music-body: var(--p-sand-96);
+  --track-0-body-alt: var(--p-blue-92);
+  --track-1-body-alt: var(--p-amber-92);
+  --track-2-body-alt: var(--p-rose-92);
+  --track-3-body-alt: var(--p-sky-92);
+  --track-4-body-alt: var(--p-violet-92);
+  --track-5-body-alt: var(--p-green-92);
+  --track-music-body-alt: var(--p-sand-91);
+  --track-0-edge: var(--p-blue-46-b);
+  --track-1-edge: var(--p-amber-56);
+  --track-2-edge: var(--p-rose-54-b);
+  --track-3-edge: var(--p-sky-57);
+  --track-4-edge: var(--p-violet-42-b);
+  --track-5-edge: var(--p-green-56-c);
+  --track-music-edge: var(--p-sand-55);
+  --track-0-label: var(--p-blue-40);
+  --track-1-label: var(--p-amber-40);
+  --track-2-label: var(--p-rose-40);
+  --track-3-label: var(--p-sky-41);
+  --track-4-label: var(--p-violet-40);
+  --track-5-label: var(--p-green-40);
+  --track-music-label: var(--p-sand-40);
+  --bus-1-spine: var(--p-slate-55); /* the bus spine, its group band and its badge text */
+  --bus-1-band: var(--p-slate-55-a7);
+  --bus-1-text: var(--p-slate-42);
+  --bus-2-spine: var(--p-olive-55);
+  --bus-2-band: var(--p-olive-55-a7);
+  --bus-2-text: var(--p-olive-42);
+  --bus-3-spine: var(--p-plum-55);
+  --bus-3-band: var(--p-plum-55-a7);
+  --bus-3-text: var(--p-plum-42);
+  --bus-4-spine: var(--p-sienna-55);
+  --bus-4-band: var(--p-sienna-55-a7);
+  --bus-4-text: var(--p-sienna-42);
+  --label-1: var(--p-label-red-58); /* user clip labels: never set automatically */
+  --label-2: var(--p-label-orange-58);
+  --label-3: var(--p-label-yellow-58);
+  --label-4: var(--p-label-green-58);
+  --label-5: var(--p-label-blue-58);
+  --label-6: var(--p-label-purple-58);
+  --shadow-raised: 0 6px 20px var(--p-gray-22-a14), 0 0 0 1px var(--p-gray-22-a8);
+  --shadow-dialog: 0 18px 48px var(--p-gray-22-a22), 0 0 0 1px var(--p-gray-22-a8);
 }
 
-/* -- dark: by OS preference unless the user chose light ------------------- */
+/* == 2. semantic roles: dark, by OS preference unless light was chosen === */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --surface-app: #0f1214;
-    --surface-lane: #13171a;
-    --surface-lane-current: #172225;
-    --surface-panel: #171b1e;
-    --surface-raised: #1e2327;
-    --surface-sunken: #101316;
-    --surface-hover: #212729;
-    --surface-active: #283034;
-    --surface-scrim: rgb(0 0 0 / 0.5);
-    --border-subtle: #22282c;
-    --border: #2d3539;
-    --border-strong: #66727a;
-    --text: #e7ecee;
-    --text-secondary: #aab4b9;
-    --text-tertiary: #8f9aa0;
-    --text-disabled: #566066;
-    --text-on-accent: #04211d;
-    --accent: #3dc9b3;
-    --accent-hover: #5ad6c2;
-    --accent-text: #5ad6c2;
-    --accent-subtle: #133a35;
-    --focus-ring: #5ad6c2;
-    --selection-outline: #ffffff;
-    --selection-range: rgb(61 201 179 / 0.16);
-    --partner-outline: #aab4b9;
-    --playhead: #ff6b57;
-    --play-start: #8f9aa0;
-    --gain-line: #e7ecee;
-    --automation-line: #aab4b9;
-    --ruler-text: #aab4b9;
-    --ruler-tick: #4a555b;
-    --warn: #f0b54a;
-    --warn-text: #f3c165;
-    --warn-subtle: #3a2c12;
-    --danger: #ff776b;
-    --danger-text: #ff8a7f;
-    --danger-subtle: #3d1d1b;
-    --ok: #6fd39a;
-    --ok-text: #7fdca6;
-    --candidate: #ff776b;
-    --candidate-fill: rgb(255 119 107 / 0.13);
-    --muted-hatch: rgb(231 236 238 / 0.22);
-    --shadow-raised: 0 8px 24px rgb(0 0 0 / 0.45), 0 0 0 1px #2d3539;
-    --shadow-dialog: 0 20px 56px rgb(0 0 0 / 0.6), 0 0 0 1px #2d3539;
-    --track-0-wave: #5e9ae7;
-    --track-0-body: #192431;
-    --track-0-edge: #689bdb;
-    --track-0-label: #b9daff;
-    --track-1-wave: #fac463;
-    --track-1-body: #2a2112;
-    --track-1-edge: #cfa354;
-    --track-1-label: #f0d3a3;
-    --track-2-wave: #df7a9b;
-    --track-2-body: #2f1d22;
-    --track-2-edge: #d6809c;
-    --track-2-label: #ffc5d5;
-    --track-3-wave: #61e3ff;
-    --track-3-body: #12262e;
-    --track-3-edge: #50b9df;
-    --track-3-label: #a6e2fb;
-    --track-4-wave: #a57fd0;
-    --track-4-body: #271f2e;
-    --track-4-edge: #9c78c4;
-    --track-4-label: #e6cbfb;
-    --track-5-wave: #96c166;
-    --track-5-body: #1e2616;
-    --track-5-edge: #94b96d;
-    --track-5-label: #c8e1b1;
-    --track-music-wave: #b5aa92;
-    --track-music-body: #24211c;
-    --track-music-edge: #8e8572;
-    --track-music-label: #d8d0bf;
+    --surface-app: var(--p-gray-18);
+    --surface-lane: var(--p-gray-20);
+    --surface-lane-current: var(--p-teal-24);
+    --surface-panel: var(--p-gray-22);
+    --surface-raised: var(--p-gray-25);
+    --surface-sunken: var(--p-gray-18-b);
+    --surface-hover: var(--p-gray-27);
+    --surface-active: var(--p-gray-30);
+    --surface-scrim: var(--p-gray-0-a50);
+    --border-subtle: var(--p-gray-27-b);
+    --border: var(--p-gray-32);
+    --border-strong: var(--p-gray-54);
+    --text: var(--p-gray-94-b);
+    --text-secondary: var(--p-gray-76);
+    --text-tertiary: var(--p-gray-68);
+    --text-disabled: var(--p-gray-48);
+    --text-on-accent: var(--p-gray-22-b);
+    --accent: var(--p-teal-76);
+    --accent-hover: var(--p-teal-80);
+    --accent-text: var(--p-teal-80);
+    --accent-subtle: var(--p-teal-32);
+    --focus-ring: var(--p-teal-80);
+    --warn: var(--p-amber-81);
+    --warn-text: var(--p-amber-84);
+    --warn-subtle: var(--p-amber-30);
+    --danger: var(--p-red-73);
+    --danger-text: var(--p-red-76);
+    --danger-subtle: var(--p-red-28);
+    --ok: var(--p-green-79);
+    --ok-text: var(--p-green-82);
+    --playhead: var(--p-red-71);
+    --play-start: var(--p-gray-68);
+    --selection-range: var(--p-teal-76-a16);
+    --gain-line: var(--p-gray-94-b);
+    --automation-line: var(--p-gray-76);
+    --ruler-text: var(--p-gray-76);
+    --ruler-tick: var(--p-gray-44-b);
+    --signal-selected: var(--p-gray-100);
+    --signal-partner: var(--p-gray-76);
+    --signal-muted-hatch: var(--p-gray-94-a22);
+    --signal-placeholder: var(--p-gray-76);
+    --signal-provisional: var(--p-gray-68);
+    --signal-candidate: var(--p-red-73);
+    --signal-candidate-fill: var(--p-red-73-a13);
+    --signal-damaged: var(--p-red-73);
+    --signal-damaged-fill: var(--p-red-28);
+    --signal-removed: var(--p-red-73);
+    --signal-removed-fill: var(--p-red-73-a13);
+    --signal-added: var(--p-green-79);
+    --signal-drift: var(--p-red-73);
+    --signal-drift-text: var(--p-gray-17);
+    --signal-clipping: var(--p-red-73);
+    --signal-file-mark: var(--p-gray-18);
+    --signal-file-mark-text: var(--p-gray-94-b);
+    --signal-free: var(--p-gray-76);
+    --signal-seam: var(--p-gray-76);
+    --signal-takes: var(--p-gray-76);
+    --signal-note: var(--p-amber-81);
+    --signal-sync: var(--p-gray-76);
+    --signal-tether: var(--p-gray-76);
+    --role-speech: var(--p-gray-76);
+    --role-speech-mix: var(--p-gray-76);
+    --role-music: var(--p-sand-62);
+    --track-0-wave: var(--p-blue-68);
+    --track-1-wave: var(--p-amber-85);
+    --track-2-wave: var(--p-rose-70);
+    --track-3-wave: var(--p-sky-85);
+    --track-4-wave: var(--p-violet-66);
+    --track-5-wave: var(--p-green-76);
+    --track-music-wave: var(--p-sand-74);
+    --track-0-body: var(--p-blue-26);
+    --track-1-body: var(--p-amber-25);
+    --track-2-body: var(--p-rose-26);
+    --track-3-body: var(--p-sky-26);
+    --track-4-body: var(--p-violet-26);
+    --track-5-body: var(--p-green-26);
+    --track-music-body: var(--p-sand-25);
+    --track-0-body-alt: var(--p-blue-32);
+    --track-1-body-alt: var(--p-amber-31);
+    --track-2-body-alt: var(--p-rose-32);
+    --track-3-body-alt: var(--p-sky-32);
+    --track-4-body-alt: var(--p-violet-32);
+    --track-5-body-alt: var(--p-green-32);
+    --track-music-body-alt: var(--p-sand-31);
+    --track-0-edge: var(--p-blue-68-b);
+    --track-1-edge: var(--p-amber-74);
+    --track-2-edge: var(--p-rose-70-b);
+    --track-3-edge: var(--p-sky-74);
+    --track-4-edge: var(--p-violet-64);
+    --track-5-edge: var(--p-green-74);
+    --track-music-edge: var(--p-sand-62);
+    --track-0-label: var(--p-blue-88);
+    --track-1-label: var(--p-amber-88);
+    --track-2-label: var(--p-rose-88);
+    --track-3-label: var(--p-sky-88);
+    --track-4-label: var(--p-violet-88);
+    --track-5-label: var(--p-green-88);
+    --track-music-label: var(--p-sand-86);
+    --bus-1-spine: var(--p-slate-72);
+    --bus-1-band: var(--p-slate-72-a9);
+    --bus-1-text: var(--p-slate-86);
+    --bus-2-spine: var(--p-olive-72);
+    --bus-2-band: var(--p-olive-72-a9);
+    --bus-2-text: var(--p-olive-86);
+    --bus-3-spine: var(--p-plum-72);
+    --bus-3-band: var(--p-plum-72-a9);
+    --bus-3-text: var(--p-plum-86);
+    --bus-4-spine: var(--p-sienna-72);
+    --bus-4-band: var(--p-sienna-72-a9);
+    --bus-4-text: var(--p-sienna-86);
+    --label-1: var(--p-label-red-74);
+    --label-2: var(--p-label-orange-74);
+    --label-3: var(--p-label-yellow-74);
+    --label-4: var(--p-label-green-74);
+    --label-5: var(--p-label-blue-74);
+    --label-6: var(--p-label-purple-74);
+    --shadow-raised: 0 8px 24px var(--p-black-a45), 0 0 0 1px var(--p-gray-32);
+    --shadow-dialog: 0 20px 56px var(--p-black-a60), 0 0 0 1px var(--p-gray-32);
   }
 }
 
-/* -- dark: chosen explicitly (keep identical to the block above) ----------- */
+/* == 2. semantic roles: dark, chosen explicitly (keep identical to above) = */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --surface-app: #0f1214;
-  --surface-lane: #13171a;
-  --surface-lane-current: #172225;
-  --surface-panel: #171b1e;
-  --surface-raised: #1e2327;
-  --surface-sunken: #101316;
-  --surface-hover: #212729;
-  --surface-active: #283034;
-  --surface-scrim: rgb(0 0 0 / 0.5);
-  --border-subtle: #22282c;
-  --border: #2d3539;
-  --border-strong: #66727a;
-  --text: #e7ecee;
-  --text-secondary: #aab4b9;
-  --text-tertiary: #8f9aa0;
-  --text-disabled: #566066;
-  --text-on-accent: #04211d;
-  --accent: #3dc9b3;
-  --accent-hover: #5ad6c2;
-  --accent-text: #5ad6c2;
-  --accent-subtle: #133a35;
-  --focus-ring: #5ad6c2;
-  --selection-outline: #ffffff;
-  --selection-range: rgb(61 201 179 / 0.16);
-  --partner-outline: #aab4b9;
-  --playhead: #ff6b57;
-  --play-start: #8f9aa0;
-  --gain-line: #e7ecee;
-  --automation-line: #aab4b9;
-  --ruler-text: #aab4b9;
-  --ruler-tick: #4a555b;
-  --warn: #f0b54a;
-  --warn-text: #f3c165;
-  --warn-subtle: #3a2c12;
-  --danger: #ff776b;
-  --danger-text: #ff8a7f;
-  --danger-subtle: #3d1d1b;
-  --ok: #6fd39a;
-  --ok-text: #7fdca6;
-  --candidate: #ff776b;
-  --candidate-fill: rgb(255 119 107 / 0.13);
-  --muted-hatch: rgb(231 236 238 / 0.22);
-  --shadow-raised: 0 8px 24px rgb(0 0 0 / 0.45), 0 0 0 1px #2d3539;
-  --shadow-dialog: 0 20px 56px rgb(0 0 0 / 0.6), 0 0 0 1px #2d3539;
-  --track-0-wave: #5e9ae7;
-  --track-0-body: #192431;
-  --track-0-edge: #689bdb;
-  --track-0-label: #b9daff;
-  --track-1-wave: #fac463;
-  --track-1-body: #2a2112;
-  --track-1-edge: #cfa354;
-  --track-1-label: #f0d3a3;
-  --track-2-wave: #df7a9b;
-  --track-2-body: #2f1d22;
-  --track-2-edge: #d6809c;
-  --track-2-label: #ffc5d5;
-  --track-3-wave: #61e3ff;
-  --track-3-body: #12262e;
-  --track-3-edge: #50b9df;
-  --track-3-label: #a6e2fb;
-  --track-4-wave: #a57fd0;
-  --track-4-body: #271f2e;
-  --track-4-edge: #9c78c4;
-  --track-4-label: #e6cbfb;
-  --track-5-wave: #96c166;
-  --track-5-body: #1e2616;
-  --track-5-edge: #94b96d;
-  --track-5-label: #c8e1b1;
-  --track-music-wave: #b5aa92;
-  --track-music-body: #24211c;
-  --track-music-edge: #8e8572;
-  --track-music-label: #d8d0bf;
+  --surface-app: var(--p-gray-18);
+  --surface-lane: var(--p-gray-20);
+  --surface-lane-current: var(--p-teal-24);
+  --surface-panel: var(--p-gray-22);
+  --surface-raised: var(--p-gray-25);
+  --surface-sunken: var(--p-gray-18-b);
+  --surface-hover: var(--p-gray-27);
+  --surface-active: var(--p-gray-30);
+  --surface-scrim: var(--p-gray-0-a50);
+  --border-subtle: var(--p-gray-27-b);
+  --border: var(--p-gray-32);
+  --border-strong: var(--p-gray-54);
+  --text: var(--p-gray-94-b);
+  --text-secondary: var(--p-gray-76);
+  --text-tertiary: var(--p-gray-68);
+  --text-disabled: var(--p-gray-48);
+  --text-on-accent: var(--p-gray-22-b);
+  --accent: var(--p-teal-76);
+  --accent-hover: var(--p-teal-80);
+  --accent-text: var(--p-teal-80);
+  --accent-subtle: var(--p-teal-32);
+  --focus-ring: var(--p-teal-80);
+  --warn: var(--p-amber-81);
+  --warn-text: var(--p-amber-84);
+  --warn-subtle: var(--p-amber-30);
+  --danger: var(--p-red-73);
+  --danger-text: var(--p-red-76);
+  --danger-subtle: var(--p-red-28);
+  --ok: var(--p-green-79);
+  --ok-text: var(--p-green-82);
+  --playhead: var(--p-red-71);
+  --play-start: var(--p-gray-68);
+  --selection-range: var(--p-teal-76-a16);
+  --gain-line: var(--p-gray-94-b);
+  --automation-line: var(--p-gray-76);
+  --ruler-text: var(--p-gray-76);
+  --ruler-tick: var(--p-gray-44-b);
+  --signal-selected: var(--p-gray-100);
+  --signal-partner: var(--p-gray-76);
+  --signal-muted-hatch: var(--p-gray-94-a22);
+  --signal-placeholder: var(--p-gray-76);
+  --signal-provisional: var(--p-gray-68);
+  --signal-candidate: var(--p-red-73);
+  --signal-candidate-fill: var(--p-red-73-a13);
+  --signal-damaged: var(--p-red-73);
+  --signal-damaged-fill: var(--p-red-28);
+  --signal-removed: var(--p-red-73);
+  --signal-removed-fill: var(--p-red-73-a13);
+  --signal-added: var(--p-green-79);
+  --signal-drift: var(--p-red-73);
+  --signal-drift-text: var(--p-gray-17);
+  --signal-clipping: var(--p-red-73);
+  --signal-file-mark: var(--p-gray-18);
+  --signal-file-mark-text: var(--p-gray-94-b);
+  --signal-free: var(--p-gray-76);
+  --signal-seam: var(--p-gray-76);
+  --signal-takes: var(--p-gray-76);
+  --signal-note: var(--p-amber-81);
+  --signal-sync: var(--p-gray-76);
+  --signal-tether: var(--p-gray-76);
+  --role-speech: var(--p-gray-76);
+  --role-speech-mix: var(--p-gray-76);
+  --role-music: var(--p-sand-62);
+  --track-0-wave: var(--p-blue-68);
+  --track-1-wave: var(--p-amber-85);
+  --track-2-wave: var(--p-rose-70);
+  --track-3-wave: var(--p-sky-85);
+  --track-4-wave: var(--p-violet-66);
+  --track-5-wave: var(--p-green-76);
+  --track-music-wave: var(--p-sand-74);
+  --track-0-body: var(--p-blue-26);
+  --track-1-body: var(--p-amber-25);
+  --track-2-body: var(--p-rose-26);
+  --track-3-body: var(--p-sky-26);
+  --track-4-body: var(--p-violet-26);
+  --track-5-body: var(--p-green-26);
+  --track-music-body: var(--p-sand-25);
+  --track-0-body-alt: var(--p-blue-32);
+  --track-1-body-alt: var(--p-amber-31);
+  --track-2-body-alt: var(--p-rose-32);
+  --track-3-body-alt: var(--p-sky-32);
+  --track-4-body-alt: var(--p-violet-32);
+  --track-5-body-alt: var(--p-green-32);
+  --track-music-body-alt: var(--p-sand-31);
+  --track-0-edge: var(--p-blue-68-b);
+  --track-1-edge: var(--p-amber-74);
+  --track-2-edge: var(--p-rose-70-b);
+  --track-3-edge: var(--p-sky-74);
+  --track-4-edge: var(--p-violet-64);
+  --track-5-edge: var(--p-green-74);
+  --track-music-edge: var(--p-sand-62);
+  --track-0-label: var(--p-blue-88);
+  --track-1-label: var(--p-amber-88);
+  --track-2-label: var(--p-rose-88);
+  --track-3-label: var(--p-sky-88);
+  --track-4-label: var(--p-violet-88);
+  --track-5-label: var(--p-green-88);
+  --track-music-label: var(--p-sand-86);
+  --bus-1-spine: var(--p-slate-72);
+  --bus-1-band: var(--p-slate-72-a9);
+  --bus-1-text: var(--p-slate-86);
+  --bus-2-spine: var(--p-olive-72);
+  --bus-2-band: var(--p-olive-72-a9);
+  --bus-2-text: var(--p-olive-86);
+  --bus-3-spine: var(--p-plum-72);
+  --bus-3-band: var(--p-plum-72-a9);
+  --bus-3-text: var(--p-plum-86);
+  --bus-4-spine: var(--p-sienna-72);
+  --bus-4-band: var(--p-sienna-72-a9);
+  --bus-4-text: var(--p-sienna-86);
+  --label-1: var(--p-label-red-74);
+  --label-2: var(--p-label-orange-74);
+  --label-3: var(--p-label-yellow-74);
+  --label-4: var(--p-label-green-74);
+  --label-5: var(--p-label-blue-74);
+  --label-6: var(--p-label-purple-74);
+  --shadow-raised: 0 8px 24px var(--p-black-a45), 0 0 0 1px var(--p-gray-32);
+  --shadow-dialog: 0 20px 56px var(--p-black-a60), 0 0 0 1px var(--p-gray-32);
 }
 
-/* -- reduced motion: no animation anywhere ---------------------------------- */
+/* == 3. component tokens: only var(--semantic) ========================== */
+:root {
+  --frame-gap: var(--border); /* the 1 px lines between top bar, docks and status bar */
+  --toolbar-bg: var(--surface-panel);
+  --panel-bg: var(--surface-panel);
+  --panel-divider: var(--border-subtle);
+  --header-bg: var(--surface-panel); /* track and bus headers */
+  --header-bg-current: var(--surface-lane-current);
+  --lane-bg: var(--surface-lane);
+  --lane-separator: var(--border-subtle);
+  --ruler-bg: var(--surface-panel);
+  --button-bg: var(--surface-panel);
+  --button-text: var(--text);
+  --button-border: var(--border);
+  --button-hover-bg: var(--surface-hover);
+  --button-hover-border: var(--border-strong);
+  --button-active-bg: var(--surface-active);
+  --button-primary-bg: var(--accent); /* Play and the one primary action of a view */
+  --button-primary-hover-bg: var(--accent-hover);
+  --button-primary-text: var(--text-on-accent);
+  --input-bg: var(--surface-sunken);
+  --input-border: var(--border-strong);
+  --kbd-bg: var(--surface-sunken); /* key chips */
+  --kbd-border: var(--border);
+  --kbd-text: var(--text-secondary);
+  --toast-bg: var(--surface-raised);
+  --toast-shadow: var(--shadow-raised);
+  --mute-on-bg: var(--text-secondary); /* M pressed: neutral */
+  --solo-on-bg: var(--warn); /* S pressed: amber, and a 'Solo' chip in the top bar */
+}
+
+/* -- reduced motion: no animation anywhere ------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   :root {
     --dur-fast: 0ms;
@@ -786,6 +1158,670 @@ input[type="range"]::-moz-range-thumb { width: 9px; height: 9px; border-radius: 
 
 <script>
 "use strict";
+// -- grammar.js (copy) --
+// The visual grammar: every signal kuulas draws on a clip, a lane or a
+// group, in one place. Each signal uses ONE channel, and each channel
+// carries ONE meaning, so a glance reads the same way everywhere:
+//
+//   hue, tone   identity: who speaks (track hue), which file (tone step)
+//   opacity     audibility: muted, not heard because of solo, unused
+//   weight      selection: the 2 px neutral outline
+//   dash        reality: dashed = not real audio yet (placeholder, pending)
+//   scope       edit scope: what the next time-shifting edit takes along
+//   pattern     absent or maybe absent: muted hatch, cut candidate, damaged, removed
+//   strip       role: speech, speech mix, music (top edge; off on the timeline)
+//   badge       facts: sync group, drift, free, file mark, takes, label
+//   cap         level: clipping
+//   seam        joins: clean split (hairline) or jump cut (notch)
+//   bar         change since a checkpoint (WP31): added
+//   spine, band grouping: the bus a track belongs to
+//   line        attachment: connected clip tether (WP19b)
+//   notch       annotation: a note or marker on the clip
+//
+// Colours are never written here: each signal names its semantic tokens
+// (tokens.css), and resolvePalette reads them once per theme change for the
+// canvases. CSS uses the same token names. Spec: docs/design/GUI-DESIGN.md,
+// "The visual grammar"; tests: ui/tests/grammar.test.js.
+
+const CHANNELS = [
+  "hue",
+  "tone",
+  "opacity",
+  "weight",
+  "dash",
+  "scope",
+  "pattern",
+  "strip",
+  "badge",
+  "cap",
+  "seam",
+  "bar",
+  "spine",
+  "band",
+  "line",
+  "notch",
+];
+
+const SPEAKER_HUE_COUNT = 6;
+const BUS_HUES = 4;
+const LABEL_COLOURS = 6;
+const TRACK_HUE_NAMES = [
+  ...Array.from({ length: SPEAKER_HUE_COUNT }, (_, i) => String(i)),
+  "music",
+];
+const TRACK_PARTS = ["wave", "body", "body-alt", "edge", "label"];
+const BUS_PARTS = ["spine", "band", "text"];
+
+const trackTokens = (part) => TRACK_HUE_NAMES.map((n) => `--track-${n}-${part}`);
+const busTokens = () =>
+  Array.from({ length: BUS_HUES }, (_, i) => BUS_PARTS.map((p) => `--bus-${i + 1}-${p}`)).flat();
+
+/**
+ * Every signal. `priority`: lower is more important. `always`: never dropped
+ * by pickSignals (identity, selection, alarms); the rest compete for at most
+ * three places on a clip. `twin`: how the signal reads without colour.
+ * `status`: "built" in the editor today, "prototype" (designed and shown in
+ * the prototype, built with its work package), "planned".
+ */
+const SIGNALS = [
+  {
+    id: "speaker",
+    channel: "hue",
+    meaning: "identity",
+    priority: 0,
+    always: true,
+    tokens: [
+      ...trackTokens("wave"),
+      ...trackTokens("body"),
+      ...trackTokens("edge"),
+      ...trackTokens("label"),
+    ],
+    twin: "track name in the header and file name on the clip; the header swatch is a short pill",
+    when: "always",
+    key: "",
+    status: "built",
+  },
+  {
+    id: "file-zebra",
+    channel: "tone",
+    meaning: "identity",
+    priority: 0,
+    always: true,
+    tokens: trackTokens("body-alt"),
+    twin: "file mark chip and file name on each clip; a seam marks every change of file",
+    when: "neighbouring clips on one track come from different files",
+    key: "",
+    status: "built",
+  },
+  {
+    id: "selected",
+    channel: "weight",
+    meaning: "selection",
+    priority: 0,
+    always: true,
+    tokens: ["--signal-selected"],
+    twin: "2 px outline (shape), plus the inspector shows the clip",
+    when: "the clip is selected",
+    key: "click, Tab, Mod+A",
+    status: "built",
+  },
+  {
+    id: "muted",
+    channel: "opacity",
+    meaning: "audibility",
+    priority: 1,
+    always: true,
+    tokens: ["--signal-muted-hatch", "--signal-muted-opacity"],
+    twin: "diagonal hatch over the clip; M pressed in the header for a muted track",
+    when: "the clip is muted",
+    key: "N",
+    status: "built",
+  },
+  {
+    id: "unheard",
+    channel: "opacity",
+    meaning: "audibility",
+    priority: 1,
+    always: true,
+    tokens: ["--signal-unheard-opacity"],
+    twin: "header says 'not heard: solo' in its tooltip and the M button turns dashed",
+    when: "another track is soloed, or this track is muted",
+    key: "Shift+S, Shift+M",
+    status: "prototype",
+  },
+  {
+    id: "unused",
+    channel: "opacity",
+    meaning: "audibility",
+    priority: 6,
+    always: false,
+    tokens: ["--signal-unused-opacity"],
+    twin: "the clip bin lists it under 'not in the programme'",
+    when: "clip bin and cards: material not used in the open edit",
+    key: "",
+    status: "planned",
+  },
+  {
+    id: "placeholder",
+    channel: "dash",
+    meaning: "reality",
+    priority: 0,
+    always: true,
+    tokens: ["--signal-placeholder"],
+    twin: "dashed outline, no waveform, the script text in italics inside",
+    when: "narration placeholder (WP43)",
+    key: "T",
+    status: "prototype",
+  },
+  {
+    id: "provisional",
+    channel: "dash",
+    meaning: "reality",
+    priority: 2,
+    always: true,
+    tokens: ["--signal-provisional"],
+    twin: "short dashes (2 on, 2 off) on the outline",
+    when: "an edit is shown but the engine has not confirmed it after 150 ms",
+    key: "",
+    status: "prototype",
+  },
+  {
+    id: "partner",
+    channel: "scope",
+    meaning: "edit scope",
+    priority: 2,
+    always: true,
+    tokens: ["--signal-partner"],
+    twin: "dashed 1 px outline inset 2 px, neutral",
+    when: "a clip is selected: its sync partners that a move takes along (WP19a)",
+    key: "E toggles group editing",
+    status: "prototype",
+  },
+  {
+    id: "candidate",
+    channel: "pattern",
+    meaning: "absence",
+    priority: 1,
+    always: true,
+    tokens: ["--signal-candidate", "--signal-candidate-fill"],
+    twin: "diagonal stripes across the group's lanes and a 'cut?' flag in the ruler",
+    when: "an open cut candidate (WP18)",
+    key: "D, ] [, Enter, Backspace",
+    status: "prototype",
+  },
+  {
+    id: "damaged",
+    channel: "pattern",
+    meaning: "absence",
+    priority: 0,
+    always: true,
+    tokens: ["--signal-damaged", "--signal-damaged-fill"],
+    twin: "cross-hatch, a '!' badge with the word 'damaged', and the reason on hover",
+    when: "media that cannot be read there (plays silence)",
+    key: "",
+    status: "prototype",
+  },
+  {
+    id: "removed",
+    channel: "pattern",
+    meaning: "absence",
+    priority: 1,
+    always: true,
+    tokens: ["--signal-removed", "--signal-removed-fill"],
+    twin: "a ghost outline with hatch and a '−' glyph",
+    when: "changes view (WP31): audio in A that is gone in B",
+    key: "Alt+Mod+D, ] [",
+    status: "planned",
+  },
+  {
+    id: "role",
+    channel: "strip",
+    meaning: "role",
+    priority: 9,
+    always: false,
+    tokens: ["--role-speech", "--role-speech-mix", "--role-music"],
+    twin: "strip pattern: solid speech, dashed speech mix, dotted music; role icon in the header",
+    when: "off on the timeline (the header says it); on in the clip bin and cards",
+    key: "",
+    status: "prototype",
+  },
+  {
+    id: "drift",
+    channel: "badge",
+    meaning: "facts",
+    priority: 0,
+    always: true,
+    tokens: ["--signal-drift", "--signal-drift-text"],
+    twin: "solid badge with the offset in text ('−312 ms'), cause on hover",
+    when: "undecided drift from the sync group (WP19a)",
+    key: "R resyncs, U frees",
+    status: "prototype",
+  },
+  {
+    id: "clipping",
+    channel: "cap",
+    meaning: "level",
+    priority: 2,
+    always: false,
+    tokens: ["--signal-clipping"],
+    twin: "a 3 px block on top of the clipped column (shape) and a line in the inspector",
+    when: "a peak at or above −0.1 dBFS",
+    key: "",
+    status: "built",
+  },
+  {
+    id: "file-mark",
+    channel: "badge",
+    meaning: "facts",
+    priority: 3,
+    always: false,
+    tokens: ["--signal-file-mark", "--signal-file-mark-text"],
+    twin: "two characters from the content hash; the same on every track",
+    when: "a track holds clips from more than one file",
+    key: "",
+    status: "built",
+  },
+  {
+    id: "free",
+    channel: "badge",
+    meaning: "facts",
+    priority: 4,
+    always: false,
+    tokens: ["--signal-free"],
+    twin: "outlined badge with an unlinked-chain glyph and '+300 ms · free'",
+    when: "a clip freed from its sync group on purpose (U)",
+    key: "U",
+    status: "prototype",
+  },
+  {
+    id: "seam-jump",
+    channel: "seam",
+    meaning: "joins",
+    priority: 4,
+    always: false,
+    tokens: ["--signal-seam"],
+    twin: "a small V notch top and bottom at the join (shape)",
+    when: "two clips of one file meet but audio between them was removed",
+    key: "Tab stops here",
+    status: "built",
+  },
+  {
+    id: "takes",
+    channel: "badge",
+    meaning: "facts",
+    priority: 5,
+    always: false,
+    tokens: ["--signal-takes"],
+    twin: "stacked top-right corner (two offset edges) and '2/3'",
+    when: "a take set (WP19e)",
+    key: "Alt+] / Alt+[",
+    status: "prototype",
+  },
+  {
+    id: "note",
+    channel: "notch",
+    meaning: "annotation",
+    priority: 5,
+    always: false,
+    tokens: ["--signal-note"],
+    twin: "a triangular notch in the top edge; the text on hover",
+    when: "a note or marker on the clip's audio",
+    key: "M",
+    status: "prototype",
+  },
+  {
+    id: "sync",
+    channel: "badge",
+    meaning: "facts",
+    priority: 6,
+    always: false,
+    tokens: ["--signal-sync"],
+    twin: "chain glyph and the group number ('⛓ 1')",
+    when: "on the selected clip and its partners only; never on every clip",
+    key: "Y marks in sync",
+    status: "prototype",
+  },
+  {
+    id: "tether",
+    channel: "line",
+    meaning: "attachment",
+    priority: 6,
+    always: false,
+    tokens: ["--signal-tether"],
+    twin: "a thin line from the clip's start down to its anchor, ending in a dot",
+    when: "a connected clip (WP19b)",
+    key: "Alt+Mod+C",
+    status: "planned",
+  },
+  {
+    id: "label",
+    channel: "badge",
+    meaning: "facts",
+    priority: 7,
+    always: false,
+    tokens: Array.from({ length: LABEL_COLOURS }, (_, i) => `--label-${i + 1}`),
+    twin: "a square flag in the top-right corner; its name on hover and in the inspector",
+    when: "the user gave the clip a label colour (never set automatically)",
+    key: "",
+    status: "planned",
+  },
+  {
+    id: "seam-split",
+    channel: "seam",
+    meaning: "joins",
+    priority: 8,
+    always: false,
+    tokens: ["--signal-seam"],
+    twin: "a 1 px hairline (shape)",
+    when: "two clips of one file meet with nothing removed between them",
+    key: "",
+    status: "built",
+  },
+  {
+    id: "added",
+    channel: "bar",
+    meaning: "change",
+    priority: 1,
+    always: true,
+    tokens: ["--signal-added"],
+    twin: "a 3 px bar on the clip's left and right edges and a '+' glyph",
+    when: "changes view (WP31): audio in B that was not in A",
+    key: "Alt+Mod+D, ] [",
+    status: "planned",
+  },
+  {
+    id: "bus",
+    channel: "spine",
+    meaning: "grouping",
+    priority: 0,
+    always: true,
+    tokens: busTokens(),
+    twin: "letter badge (A, B, C) in the bus header, the transcript and the inspector",
+    when: "a track is on a bus: the spine runs from the bus header through its tracks",
+    key: "",
+    status: "built",
+  },
+  {
+    id: "bus-band",
+    channel: "band",
+    meaning: "grouping",
+    priority: 0,
+    always: true,
+    tokens: [],
+    twin: "drawn only together with the spine (the band is a tint of the spine's colour)",
+    when: "behind a bus's header and member lanes",
+    key: "",
+    status: "built",
+  },
+];
+
+/** Every semantic token the UI and the canvases may use. tokens.test.js checks
+ *  that each is defined in every shipped theme, and that nothing else is. */
+const SEMANTIC_TOKENS = [
+  "--surface-app",
+  "--surface-lane",
+  "--surface-lane-current",
+  "--surface-panel",
+  "--surface-raised",
+  "--surface-sunken",
+  "--surface-hover",
+  "--surface-active",
+  "--surface-scrim",
+  "--border-subtle",
+  "--border",
+  "--border-strong",
+  "--text",
+  "--text-secondary",
+  "--text-tertiary",
+  "--text-disabled",
+  "--text-on-accent",
+  "--accent",
+  "--accent-hover",
+  "--accent-text",
+  "--accent-subtle",
+  "--focus-ring",
+  "--warn",
+  "--warn-text",
+  "--warn-subtle",
+  "--danger",
+  "--danger-text",
+  "--danger-subtle",
+  "--ok",
+  "--ok-text",
+  "--shadow-raised",
+  "--shadow-dialog",
+  "--playhead",
+  "--play-start",
+  "--selection-range",
+  "--gain-line",
+  "--automation-line",
+  "--ruler-text",
+  "--ruler-tick",
+  "--signal-selected",
+  "--signal-partner",
+  "--signal-muted-hatch",
+  "--signal-muted-opacity",
+  "--signal-unheard-opacity",
+  "--signal-unused-opacity",
+  "--signal-placeholder",
+  "--signal-provisional",
+  "--signal-candidate",
+  "--signal-candidate-fill",
+  "--signal-damaged",
+  "--signal-damaged-fill",
+  "--signal-removed",
+  "--signal-removed-fill",
+  "--signal-added",
+  "--signal-drift",
+  "--signal-drift-text",
+  "--signal-clipping",
+  "--signal-file-mark",
+  "--signal-file-mark-text",
+  "--signal-free",
+  "--signal-seam",
+  "--signal-takes",
+  "--signal-note",
+  "--signal-sync",
+  "--signal-tether",
+  "--role-speech",
+  "--role-speech-mix",
+  "--role-music",
+  ...TRACK_PARTS.flatMap((part) => trackTokens(part)),
+  ...busTokens(),
+  ...Array.from({ length: LABEL_COLOURS }, (_, i) => `--label-${i + 1}`),
+];
+
+/** Tokens holding a number (opacity), not a colour. */
+const NUMBER_TOKENS = SEMANTIC_TOKENS.filter((name) => name.endsWith("-opacity"));
+/** Tokens holding a shadow list: themes may not override them from a manifest. */
+const SHADOW_TOKENS = ["--shadow-raised", "--shadow-dialog"];
+
+function signalTokens() {
+  return [...new Set(SIGNALS.flatMap((s) => s.tokens))];
+}
+
+const SIGNAL_BY_ID = new Map(SIGNALS.map((s) => [s.id, s]));
+const signal = (id) => SIGNAL_BY_ID.get(id);
+
+/**
+ * Which of a clip's active signals to draw. `always` signals are all kept;
+ * the others compete for `max` places by priority (registry order breaks
+ * ties). `hidden` is what did not fit: draw it as a "+2" badge, list it on hover.
+ */
+function pickSignals(active, max = 3) {
+  const known = active.map((id) => SIGNAL_BY_ID.get(id)).filter(Boolean);
+  const order = (a, b) => a.priority - b.priority || SIGNALS.indexOf(a) - SIGNALS.indexOf(b);
+  const ranked = known.filter((s) => !s.always).sort(order);
+  const shown = [...known.filter((s) => s.always).sort(order), ...ranked.slice(0, max)];
+  return { shown: shown.map((s) => s.id), hidden: ranked.slice(max).map((s) => s.id) };
+}
+
+/**
+ * What the join between two clips on one track is, or null when they do not
+ * touch. "split": same file, continuous in the source (a plain split: a
+ * hairline). "jump": same file, audio between them removed (a notch; where
+ * the auto crossfade goes). "file": a different file starts.
+ */
+function seamKind(left, right) {
+  if (left.start + left.length !== right.start) return null;
+  if (left.media !== right.media) return "file";
+  return left.offset + left.length === right.offset ? "split" : "jump";
+}
+
+/**
+ * Body tone step (0 or 1) per clip id: the step flips whenever a clip comes
+ * from a different file than the clip before it in time, so neighbours from
+ * different files never share a tone. Clips of one file in a row keep theirs.
+ */
+function zebraSteps(clips) {
+  const steps = new Map();
+  let step = 0;
+  let previous = null;
+  for (const clip of [...clips].sort((a, b) => a.start - b.start)) {
+    if (previous !== null && clip.media !== previous) step = 1 - step;
+    steps.set(clip.id, step);
+    previous = clip.media;
+  }
+  return steps;
+}
+
+// No 0/O, 1/I, 2/Z, 5/S, 8/B: a mark is read at 10 px.
+const MARK_ALPHABET = "ACDEFHJKLMNPRTUVWXY34679";
+/** Two stable characters naming a file, from its SHA-256 (hex). */
+function fileMark(sha256) {
+  if (!sha256 || sha256.length < 4) return "";
+  const n = Number.parseInt(sha256.slice(0, 4), 16);
+  const base = MARK_ALPHABET.length;
+  return MARK_ALPHABET[Math.floor(n / base) % base] + MARK_ALPHABET[n % base];
+}
+
+/** File marks only where they tell files apart: a track with 2+ files. */
+function needsFileMark(track) {
+  return new Set((track?.clips ?? []).map((clip) => clip.media)).size > 1;
+}
+
+/** Bus hue number (1..BUS_HUES) per bus id, by bus order. */
+function busHues(project) {
+  const hues = new Map();
+  (project?.buses ?? []).forEach((bus, i) => {
+    hues.set(bus.id, (i % BUS_HUES) + 1);
+  });
+  return hues;
+}
+
+/** The bus badge: A, B, … Z, AA, AB … (the non-colour twin of the bus hue). */
+function busLetter(index) {
+  let n = index;
+  let out = "";
+  do {
+    out = String.fromCharCode(65 + (n % 26)) + out;
+    n = Math.floor(n / 26) - 1;
+  } while (n >= 0);
+  return out;
+}
+
+const camel = (name) =>
+  name.replace(/^--(signal-)?/, "").replace(/-(\w)/g, (_, c) => c.toUpperCase());
+
+/**
+ * Everything the canvases draw with, read once per theme change.
+ * `get(name)` returns a token's computed value (theme.js passes
+ * getComputedStyle). Never call this per frame.
+ */
+function resolvePalette(get) {
+  const read = (name) => String(get(name) ?? "").trim();
+  const tracks = TRACK_HUE_NAMES.map((n) => ({
+    wave: read(`--track-${n}-wave`),
+    body: read(`--track-${n}-body`),
+    bodyAlt: read(`--track-${n}-body-alt`),
+    edge: read(`--track-${n}-edge`),
+    label: read(`--track-${n}-label`),
+  }));
+  const buses = Array.from({ length: BUS_HUES }, (_, i) => ({
+    spine: read(`--bus-${i + 1}-spine`),
+    band: read(`--bus-${i + 1}-band`),
+    text: read(`--bus-${i + 1}-text`),
+  }));
+  const signals = {};
+  const numbers = {};
+  const marks = {};
+  const surfaces = {};
+  const roles = {};
+  const labels = [];
+  const done = new Set([
+    ...TRACK_PARTS.flatMap((p) => trackTokens(p)),
+    ...busTokens(),
+    ...SHADOW_TOKENS,
+  ]);
+  for (const name of SEMANTIC_TOKENS) {
+    if (done.has(name)) continue;
+    const value = read(name);
+    if (NUMBER_TOKENS.includes(name)) numbers[camel(name)] = Number.parseFloat(value);
+    else if (name.startsWith("--signal-")) signals[camel(name)] = value;
+    else if (name.startsWith("--role-")) roles[camel(name.replace("--role-", "--"))] = value;
+    else if (name.startsWith("--label-")) labels.push(value);
+    else if (/^--(playhead|play-start|selection-range|gain-line|automation-line|ruler-)/.test(name))
+      marks[camel(name)] = value;
+    else surfaces[camel(name)] = value;
+  }
+  return {
+    tracks,
+    buses,
+    signals,
+    numbers,
+    marks,
+    surfaces,
+    roles,
+    labels,
+    font: read("--font-ui") || "system-ui, sans-serif",
+    mono: read("--font-mono") || "ui-monospace, monospace",
+  };
+}
+
+const HEX = /^#[0-9a-f]{6}$/i;
+const RGBA = /^rgb\(\s*\d{1,3}\s+\d{1,3}\s+\d{1,3}\s*(\/\s*(0|1|0?\.\d+))?\s*\)$/i;
+
+/**
+ * A user theme from its manifest (docs/design/GUI-DESIGN.md, "Themes"):
+ *   { name, base: "light" | "dark", density?: "comfortable" | "compact",
+ *     tokens: { "--semantic-token": "#rrggbb" | "rgb(r g b / a)" | "0.35" } }
+ * Returns { errors, attribute, base, density, css }. `css` is empty when
+ * anything is wrong: a theme is applied whole or not at all.
+ */
+function themeFromManifest(manifest) {
+  const errors = [];
+  const name = String(manifest?.name ?? "").trim();
+  if (!name) errors.push("name is missing");
+  const base = manifest?.base;
+  if (base !== "light" && base !== "dark") errors.push(`base must be light or dark, not ${base}`);
+  const density = manifest?.density ?? "comfortable";
+  if (density !== "comfortable" && density !== "compact") errors.push(`unknown density ${density}`);
+  const lines = [];
+  for (const [token, raw] of Object.entries(manifest?.tokens ?? {})) {
+    const value = String(raw).trim();
+    if (!SEMANTIC_TOKENS.includes(token) || SHADOW_TOKENS.includes(token)) {
+      errors.push(`${token} is not a theme token`);
+      continue;
+    }
+    const isNumber = NUMBER_TOKENS.includes(token);
+    const valid = isNumber ? /^(0|1|0?\.\d+)$/.test(value) : HEX.test(value) || RGBA.test(value);
+    if (!valid) {
+      errors.push(`${token}: ${value} is not a ${isNumber ? "number from 0 to 1" : "colour"}`);
+      continue;
+    }
+    lines.push(`  ${token}: ${value};`);
+  }
+  const attribute = name
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  const css = errors.length
+    ? ""
+    : `:root[data-user-theme="${attribute}"] {\n${lines.join("\n")}\n}\n`;
+  return { errors, attribute, base, density, css };
+}
+// -- end of grammar.js --
 // ---------------------------------------------------------------- params / state
 const params = new URLSearchParams(location.search);
 const S = {

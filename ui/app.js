@@ -319,6 +319,8 @@ function applyTheme() {
   timeline?.refreshTheme();
   overview?.refreshTheme();
 }
+// The OS switching light/dark repaints the canvases too (the palette is resolved once per change).
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => applyTheme());
 $("theme").addEventListener("click", () => {
   themeChoice = nextTheme(themeChoice);
   try {

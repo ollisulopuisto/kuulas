@@ -17,24 +17,39 @@ test("only an explicit choice sets data-theme; system follows the OS", () => {
   assert.equal(themeAttribute(undefined), null);
 });
 
-test("readTheme returns the speaker hues and music, in palette order", () => {
+test("readTheme resolves the registry once: hues, bus colours and signals", () => {
   const values = {
     "--track-0-body": "#000001",
+    "--track-0-body-alt": "#000005",
     "--track-0-wave": "#000002",
     "--track-0-edge": "#000003",
     "--track-0-label": "#000004",
     "--track-music-wave": "#00000a",
+    "--bus-1-band": "#0000bb",
     "--playhead": "#ff0000",
+    "--signal-selected": "#00ff00",
+    "--signal-muted-opacity": "0.4",
   };
-  const style = { getPropertyValue: (name) => ` ${values[name] ?? ""}` };
+  const asked = [];
+  const style = {
+    getPropertyValue: (name) => {
+      asked.push(name);
+      return ` ${values[name] ?? ""}`;
+    },
+  };
   const theme = readTheme(null, () => style);
   assert.equal(theme.palette.length, 7);
   assert.deepEqual(theme.palette[0], {
     fill: "#000001",
+    fillAlt: "#000005",
     wave: "#000002",
     ink: "#000003",
     label: "#000004",
   });
   assert.equal(theme.palette[6].wave, "#00000a");
+  assert.equal(theme.busBands[0], "#0000bb");
   assert.equal(theme.playhead, "#ff0000");
+  assert.equal(theme.selection, "#00ff00");
+  assert.equal(theme.mutedOpacity, 0.4);
+  assert.equal(new Set(asked).size, asked.length, "every token is read once");
 });
