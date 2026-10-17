@@ -661,7 +661,7 @@ def _tracks(job: _Job, target: Path, n: int, workers: int,
             if not audible:
                 return np.zeros((channels, count), dtype=np.float32)
             return mixer.track_stem(track, job.store, job.first + first, count,
-                                    channels, as_heard=as_heard)
+                                    channels, as_heard=as_heard, rate=job.rate)
 
         done = work / f"{base}.{ext}"
         _produce(job, done, channels, render, tags=_provenance(job, n),
