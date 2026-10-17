@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>kuulas</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <div class="editor">
+      <header class="toolbar" role="toolbar" data-i18n-aria-label="ui.toolbar.label">
+        <button id="play" type="button" class="key-button" aria-keyshortcuts="Space">
+          <span id="play-icon" aria-hidden="true">▶</span><span id="play-label"></span>
+        </button>
+        <output id="timecode" class="timecode" data-i18n-aria-label="ui.transport.time">0:00.000</output>
+        <span id="zoom-chip" class="chip"></span>
+        <span id="live-chip" class="chip warn" role="status" hidden></span>
+        <span class="spacer"></span>
+        <button id="undo" type="button" data-i18n="ui.transport.undo"></button>
+        <button id="redo" type="button" data-i18n="ui.transport.redo"></button>
+        <button id="import" type="button" class="primary" data-i18n="ui.transport.import"></button>
+        <button id="export" type="button" data-i18n="ui.transport.export" data-i18n-title="ui.export.soon" disabled></button>
+        <input id="file-input" type="file" accept="audio/*,video/*" multiple hidden />
+      </header>
+      <nav class="view-tools" data-i18n-aria-label="ui.view.title">
+        <button id="zoom-out" type="button" data-i18n-aria-label="ui.view.zoom_out" data-i18n-title="ui.view.zoom_out" aria-keyshortcuts="-">−</button>
+        <button id="zoom-in" type="button" data-i18n-aria-label="ui.view.zoom_in" data-i18n-title="ui.view.zoom_in" aria-keyshortcuts="=">+</button>
+        <button id="view-toggle" type="button" data-i18n-title="ui.view.toggle" aria-keyshortcuts="Z"></button>
+        <button id="fit" type="button" data-i18n="ui.view.fit" aria-keyshortcuts="Shift+Z"></button>
+        <span class="spacer"></span>
+        <button id="waveform-gain" type="button" class="chip-button" hidden></button>
+        <label class="inline"><span data-i18n="ui.view.waveform"></span>
+          <select id="waveform-mode">
+            <option value="half" data-i18n="ui.view.half"></option>
+            <option value="full" data-i18n="ui.view.classic"></option>
+          </select>
+        </label>
+        <button id="lane-shorter" type="button" data-i18n-aria-label="ui.view.lane_shorter" data-i18n-title="ui.view.lane_shorter">↕−</button>
+        <button id="lane-taller" type="button" data-i18n-aria-label="ui.view.lane_taller" data-i18n-title="ui.view.lane_taller">↕+</button>
+        <button id="follow" type="button" data-i18n-title="ui.view.follow_title"></button>
+      </nav>
+      <div class="work">
+        <aside class="heads">
+          <div class="heads-spacer"></div>
+          <div id="track-headers" class="heads-scroll" data-i18n-aria-label="ui.focus.tracks"></div>
+        </aside>
+        <section class="tl-column" data-panel="timeline">
+          <canvas id="overview" class="overview" data-i18n-aria-label="ui.overview.label" role="img"></canvas>
+          <div id="timeline-stack" class="timeline-stack">
+            <canvas id="wave" class="layer" aria-hidden="true"></canvas>
+            <canvas id="timeline" class="layer" tabindex="0" role="application" data-i18n-aria-label="ui.timeline.label"></canvas>
+            <p id="empty" class="empty" hidden></p>
+          </div>
+        </section>
+      </div>
+      <div class="lower">
+        <section id="panel-transcript" class="panel" data-panel="transcript" tabindex="0" data-i18n-aria-label="ui.focus.transcript">
+          <h2 data-i18n="ui.focus.transcript"></h2>
+          <p class="hint" data-i18n="ui.panel.later"></p>
+        </section>
+        <section id="panel-inspector" class="panel" data-panel="inspector" tabindex="0" data-i18n-aria-label="ui.focus.inspector"></section>
+        <section id="panel-history" class="panel" data-panel="history" tabindex="0" data-i18n-aria-label="ui.focus.history">
+          <h2 data-i18n="ui.focus.history"></h2>
+          <p class="hint" data-i18n="ui.panel.later"></p>
+        </section>
+      </div>
+      <div id="notice" class="notice" role="status" aria-live="polite" hidden>
+        <span id="notice-text"></span>
+        <button id="notice-close" type="button" data-i18n-aria-label="ui.notice.dismiss" data-i18n-title="ui.notice.dismiss">×</button>
+      </div>
+      <div id="drop" class="drop" aria-hidden="true" hidden><span data-i18n="ui.import.drop"></span></div>
+    </div>
+  </body>
+</html>
