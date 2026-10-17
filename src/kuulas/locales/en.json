@@ -372,5 +372,14 @@
   "desktop.menu.view.density": "Switch density",
   "desktop.menu.window.minimize": "Minimise",
   "cli.desktop.help": "Open the desktop window with a list of recent projects.",
-  "cli.open.window": "Open in a native window instead of the browser (needs the desktop extra)."
+  "cli.open.window": "Open in a native window instead of the browser (needs the desktop extra).",
+  "ui.inspector.track": "Track",
+  "ui.inspector.bus": "Bus",
+  "ui.track.role": "Role",
+  "ui.track.voice": "Voice preset",
+  "ui.track.voice.none": "None yet",
+  "ui.bus.name_field": "Bus name",
+  "ui.bus.parent": "Parent bus",
+  "ui.bus.parent.none": "None (top level)",
+  "ui.bus.members": "Tracks on this bus"
 }
