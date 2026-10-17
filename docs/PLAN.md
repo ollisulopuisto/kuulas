@@ -751,7 +751,7 @@ waveforms, play with Space, see the playhead move.
 
 ### WP5 — Keyboard: the Hindenburg keymap
 
-Status: infrastructure done in v26.10.18.6 (data-driven keymap in `ui/keymap-default.js`, user overrides with collision reports, dispatcher with physical keys and AltGr, cheat sheet, docked palette, in-window menu bar with enabled state and modifier alternates). Most editing commands are registered as "planned" no-ops until the commands exist; wiring each one is the remaining work. Needs WP4. This is the most important UI WP (R10).
+Status: infrastructure done in v26.10.18.6 (data-driven keymap in `ui/keymap-default.js`, user overrides with collision reports, dispatcher with physical keys and AltGr, cheat sheet, docked palette, in-window menu bar with enabled state and modifier alternates). Editing keys wired in v26.10.18.8 (split, soft delete, cut, mute, solo, group editing, trim, nudge, select all, clip gain); still planned: copy and paste, fade at cursor, lift-cut, close gap on all tracks, Compare, move to track. Needs WP4. This is the most important UI WP (R10).
 
 New files `ui/keymap.js` (the table), `ui/commands.js` (one function per
 command, each taking the store and returning nothing). `Mod` is Cmd on Mac and
@@ -2813,7 +2813,7 @@ off, a loudness-matched pair.
 
 ### WP46 — Clipboard with history
 
-Status: open (owner request 2026-10-18: "we need an EXTENSIVE clipboard, with
+Status: clipboard entries and history (`clipboard.py`) done in v26.10.18.8; paste planning, session wiring and the panel open (owner request 2026-10-18: "we need an EXTENSIVE clipboard, with
 history"). Needs WP1, WP4, WP5. Replaces and extends WP20 (paste without bloat).
 Sonnet for the logic, Opus review of the data model.
 

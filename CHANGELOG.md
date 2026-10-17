@@ -1,3 +1,19 @@
+## [v26.10.18.8] - 2026-10-18
+
+- The editing keys work in the editor: B splits at the play cursor (Shift+B on all
+  tracks), Backspace or Delete is a soft cut (mutes the selection or the in-out range
+  in place, keeps the gap, one undo brings it back), X cuts and closes the gap (Shift+X
+  on this track only), N mutes, Shift+M mutes the track, Shift+S solos it, E turns group
+  editing on or off (an amber chip shows when it is off), Q and W trim to the play cursor,
+  Mod+Left/Right nudge by 10 ms, Mod+A selects all, Shift+Mod+Up/Down change clip gain in
+  0.5 dB steps. Each shows a toast with Undo. Copy, paste, fade at the cursor and the
+  lift-cut are not built yet.
+- Building blocks, not yet visible: clipboard entries and their history (what a copy
+  keeps, pinning, pruning, saving as text); the fast-listening speed state (1.5x default,
+  1.1 to 3.0 in steps of 0.1); a check that the English and Finnish texts agree
+  (`uv run python scripts/check_locale.py`).
+- Tests that failed now and then when the computer was busy are steadier.
+
 ## [v26.10.18.7] - 2026-10-18
 
 - Auto-Silence's closed stretches now show in the editor: a dim veil over the lane,
