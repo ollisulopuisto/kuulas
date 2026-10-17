@@ -191,6 +191,68 @@ describe("painting waveforms (what the worker runs)", () => {
     assert.equal(made.laneCurrent, "#123456");
   });
 
+  test("columns under a gate band are drawn flat at a 1 px floor", () => {
+    const { ctx, calls } = fakeContext();
+    const gated = job();
+    gated.rows[0].gate = [20, 60];
+    paintWaveforms(ctx, gated, () => loud());
+    const columns = calls.filter((c) => c[0] === "rect" && c[3] === 1);
+    assert.equal(columns.length, 100, "every column still has a bar");
+    const heightOf = (x) => columns.find((c) => c[1] === x)[4];
+    assert.equal(heightOf(19), 22, "loud outside the gate");
+    assert.equal(heightOf(20), 1);
+    assert.equal(heightOf(59), 1);
+    assert.equal(heightOf(60), 22);
+  });
+
+  test("a gated column gets no clipping cap", () => {
+    const hot = () => {
+      const tile = new Float32Array(TILE_PEAKS * 2);
+      for (let i = 0; i < TILE_PEAKS; i += 1) {
+        tile[2 * i] = -1;
+        tile[2 * i + 1] = 1;
+      }
+      return tile;
+    };
+    const { ctx, calls } = fakeContext();
+    const gated = job({ clipping: "#f00" });
+    gated.rows[0].gate = [0, 100];
+    paintWaveforms(ctx, gated, () => hot());
+    assert.equal(count(calls, "fillRect"), 1, "only the clip body");
+  });
+
+  test("makeWaveformJob carries each row's gate as merged pixel runs, unless hidden", () => {
+    const state = {
+      project: {
+        rate: 48_000,
+        media: [],
+        buses: [],
+        tracks: [
+          {
+            id: "t1",
+            kind: "speech",
+            clips: [],
+            gate: [
+              [2560, 5120],
+              [5130, 7680],
+            ],
+          },
+        ],
+      },
+      scroll: 0,
+      zoom: 256,
+      scrollY: 0,
+      laneHeight: 48,
+      waveformMode: "half",
+      waveformScale: "linear",
+    };
+    const make = (over) =>
+      makeWaveformJob({ ...state, ...over }, { width: 100, height: 300, ratio: 1, id: 1 }, palette);
+    assert.deepEqual(make({}).rows[0].gate, [10, 30]);
+    assert.deepEqual(make({ showGates: true }).rows[0].gate, [10, 30]);
+    assert.deepEqual(make({ showGates: false }).rows[0].gate, []);
+  });
+
   test("a muted clip is drawn faint, then the alpha is put back", () => {
     const { ctx, sets } = fakeContext();
     const muted = job();

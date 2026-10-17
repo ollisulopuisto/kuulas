@@ -91,7 +91,10 @@
   "history.transcript": "Litterointi: {media_id}",
   "history.nhsx_import": "Hindenburg-istunnon tuonti: {name}",
   "history.migrated": "Päivitetty tallennusmuotoon 1",
-  "history.import": {"one": "Tuonti: {count} tiedosto", "other": "Tuonti: {count} tiedostoa"},
+  "history.import": {
+    "one": "Tuonti: {count} tiedosto",
+    "other": "Tuonti: {count} tiedostoa"
+  },
   "history.auto_silence": "Automaattinen hiljennys",
   "history.automix": "Automiksaus",
   "history.duck_music": "Vaimenna taustamusiikki",
@@ -112,11 +115,20 @@
   "log.package.migrating": "Päivitetään projektin tallennusmuoto versiosta {source} versioon {target}; ensin otetaan varmuuskopio.",
   "log.package.tick_failed": "Lukon elonmerkki tai varmuuskopio epäonnistui, yritetään myöhemmin uudelleen: {error}",
   "log.session.subscriber_failed": "Projektin muutoksia kuunteleva osa kaatui; itse muutos tallennettiin.",
-  "log.session.relinked": {"one": "Löytyi {count} siirretty tiedosto uudelleen.", "other": "Löytyi {count} siirrettyä tiedostoa uudelleen."},
-  "log.session.consolidated": {"one": "Kopioitiin {count} linkitetty tiedosto projektiin.", "other": "Kopioitiin {count} linkitettyä tiedostoa projektiin."},
+  "log.session.relinked": {
+    "one": "Löytyi {count} siirretty tiedosto uudelleen.",
+    "other": "Löytyi {count} siirrettyä tiedostoa uudelleen."
+  },
+  "log.session.consolidated": {
+    "one": "Kopioitiin {count} linkitetty tiedosto projektiin.",
+    "other": "Kopioitiin {count} linkitettyä tiedostoa projektiin."
+  },
   "error.engine.no_device": "Äänen ulostulolaitetta ei löytynyt. Kytke kuulokkeet tai kaiuttimet tai valitse ulostulo järjestelmän ääniasetuksista. Projekti pysyy auki.",
   "error.engine.open_failed": "Äänen ulostuloa {device} ei voitu avata: {error}",
-  "notice.engine.block_failed": {"one": "{count} äänilohko jäi toistamatta, ja sen tilalla soi hiljaisuus. Toisto jatkuu.", "other": "{count} äänilohkoa jäi toistamatta, ja niiden tilalla soi hiljaisuus. Toisto jatkuu."},
+  "notice.engine.block_failed": {
+    "one": "{count} äänilohko jäi toistamatta, ja sen tilalla soi hiljaisuus. Toisto jatkuu.",
+    "other": "{count} äänilohkoa jäi toistamatta, ja niiden tilalla soi hiljaisuus. Toisto jatkuu."
+  },
   "notice.engine.struggling": "Toisto ei pysy perässä, joten äänipuskuri on nyt {frames} näytettä. Sulje muita ohjelmia tai anna taustatöiden valmistua.",
   "notice.engine.device_changed": "Äänen ulostulo vaihtui, joten toisto pysähtyi. Jatka toistoa laitteella {device} painamalla toistoa.",
   "notice.engine.restarted": "Äänen ulostulo lakkasi vastaamasta, ja se käynnistettiin uudelleen laitteella {device}.",
@@ -133,8 +145,10 @@
   "cli.info.project": "{path}: {format}, versio {version} (luettavissa versiosta {min_reader} alkaen), kirjoittanut {written_by}, tunnus {id}",
   "cli.info.size": "  {name}: {size_mb} Mt",
   "cli.info.media": "Media: {linked} linkitetty, {working} työtiedosto, {excerpt} ote, {missing} puuttuu",
-  "cli.info.backups": {"one": "{count} automaattinen varmuuskopio", "other": "{count} automaattista varmuuskopiota"},
-
+  "cli.info.backups": {
+    "one": "{count} automaattinen varmuuskopio",
+    "other": "{count} automaattista varmuuskopiota"
+  },
   "binaries.missing": "{name} ei löydy. Asenna se — macOS:llä brew install ffmpeg — tai rakenna sovellus, joka sisältää sen.",
   "envelope.source_missing": "Tiedostoa ei löydy: {path}",
   "envelope.decode_failed": "Äänen purku epäonnistui: {name}\n{error}",
@@ -155,7 +169,6 @@
   "audio.debleed_no_path": "{name}:n vuotoa ei poistettu: vuotoreittiä ei voitu ratkaista.",
   "audio.debleed_ate_speech": "{name}:n vuotoa ei poistettu: vähennys olisi syönyt tämän mikrofonin oman puheen.",
   "audio.debleed_no_gain": "{name}:n vuotoa ei poistettu: poistettavaa ei ollut.",
-
   "error.server.internal": "Kuulaksen sisällä tapahtui virhe: {error}. Työsi on tallessa; tarkemmat tiedot ovat lokissa.",
   "error.server.bad_request": "Pyyntöä ei ymmärretty: {detail}",
   "error.server.bad_transport": "Tuntematon toistotoiminto: {action}.",
@@ -207,7 +220,10 @@
   "ui.focus.history": "Historia",
   "ui.error.title": "Jokin meni pieleen",
   "ui.import.failed": "Valittuja äänitiedostoja ei voitu tuoda.",
-  "ui.import.success": {"one": "Tuotiin {count} äänitiedosto.", "other": "Tuotiin {count} äänitiedostoa."},
+  "ui.import.success": {
+    "one": "Tuotiin {count} äänitiedosto.",
+    "other": "Tuotiin {count} äänitiedostoa."
+  },
   "ui.project.empty": "Aloita muokkaus tuomalla ääntä.",
   "ui.toolbar.label": "Toisto ja projekti",
   "ui.transport.export": "Vie",
@@ -531,5 +547,11 @@
   "ui.bus.name_field": "Väylän nimi",
   "ui.bus.parent": "Yläväylä",
   "ui.bus.parent.none": "Ei (ylin taso)",
-  "ui.bus.members": "Raitoja väylällä"
+  "ui.bus.members": "Raitoja väylällä",
+  "ui.gate.mic_closed": "Mikki kiinni",
+  "ui.gate.hover": "Mikki on kiinni. Kaksoisnapsauta avataksesi tämän kohdan.",
+  "ui.gate.open_stretch": "Avaa tämä kohta",
+  "ui.view.gates": "Näytä portit",
+  "cmd.gate.open_stretch": "Avaa tämä kohta (mikki kiinni)",
+  "cmd.gate.open_stretch.hint": "Avaa kiinni olevan mikin kohdan toistokohdan alta nykyisellä raidalla."
 }

@@ -2,6 +2,7 @@
 // Pure (no DOM), so the same numbers serve the canvas, the track headers
 // beside it and the tests.
 import { frameToX, xToFrame } from "./format.js";
+import { stretchAt } from "./gate.js";
 
 export const RULER_HEIGHT = 24;
 /** tokens.css --bus-h: a bus is ONE short line (disclosure, badge, name, M, S);
@@ -182,21 +183,27 @@ export function envelopeFrame(clip, sourceFrame) {
 /**
  * What is under pixel (x, y) of the timeline canvas.
  *
- * Returns { area: "ruler" | "lane" | "none", frame, row, clip, edge, point }.
+ * Returns { area: "ruler" | "lane" | "none", frame, row, clip, edge, point, gate }
+ * (`gate` is { trackId, index, range } over a closed stretch, else null).
  * `edge` is "start" or "end" when the pointer is within EDGE_PX of that edge of
  * `clip`; `point` is the index of the envelope point within POINT_PX.
  */
 export function hitTest({ layout, project, view, x, y }) {
   const frame = xToFrame(x, view.scroll, view.zoom);
-  const miss = { area: "none", frame, row: null, clip: null, edge: null, point: null };
+  const miss = { area: "none", frame, row: null, clip: null, edge: null, point: null, gate: null };
   if (y < RULER_HEIGHT) return { ...miss, area: y >= 0 ? "ruler" : "none" };
   const inContent = y - RULER_HEIGHT + view.scrollY;
   const row = rowAt(layout, inContent);
   // Below the last row is still lane area: a click there sets the cursor.
   if (!row) return { ...miss, area: "lane" };
-  const hit = { ...miss, area: "lane", row };
-  if (row.kind !== "track") return hit;
   const track = project.tracks.find((candidate) => candidate.id === row.id);
+  // A closed stretch of the gate (WP44), unless the user hides gates.
+  const gate =
+    row.kind === "track" && view.showGates !== false
+      ? stretchAt(project, row.id, frame, view.zoom)
+      : null;
+  const hit = { ...miss, area: "lane", row, gate };
+  if (row.kind !== "track") return hit;
   const rowY = inContent - row.top;
   let best = null;
   for (const clip of track?.clips ?? []) {

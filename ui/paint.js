@@ -3,6 +3,7 @@
 // worker (OffscreenCanvas), on the main thread when workers are unavailable,
 // and in tests with a recording context.
 import { frameToX } from "./format.js";
+import { flatBar, gatePixelRuns } from "./gate.js";
 import { busHues, SPEAKER_HUE_COUNT, zebraSteps } from "./grammar.js";
 import { layoutFor, RULER_HEIGHT, visibleRows } from "./lanes.js";
 import { columnsFromTiles, pickLevel, waveformColumns } from "./waveform.js";
@@ -79,6 +80,9 @@ export function makeWaveformJob(state, { width, height, ratio, id }, palette, co
       // group gap and the header spine say "group"; a theme may turn it on.
       band:
         row.bus && colours.memberBands ? (colours.busBands?.[groups.get(row.bus) - 1] ?? "") : "",
+      // WP44: the gate as merged pixel runs [x0, x1, ...]; the painter draws
+      // the waveform flat under them. Empty when the user hides gates.
+      gate: state.showGates === false ? [] : gatePixelRuns(track.gate, scroll, zoom, width),
       paletteIndex: hues.get(track.id) ?? 0,
       clips,
     });
@@ -156,6 +160,7 @@ export function paintWaveforms(ctx, job, lookup) {
       for (const tile of absent)
         missing.set(`${clip.media}/${level}/${tile}`, { media: clip.media, level, tile });
       const bars = waveformColumns(data, job.mode, job.scale, h, job.gain);
+      if (row.gate?.length) flattenGated(bars, data, row.gate, from, to, job.mode, h);
       ctx.fillStyle = colours.wave;
       ctx.globalAlpha = (clip.muted ? faint : 1) * WAVE_ALPHA;
       ctx.beginPath();
@@ -179,4 +184,23 @@ export function paintWaveforms(ctx, job, lookup) {
   ctx.restore();
   ctx.globalAlpha = 1;
   return { missing: [...missing.values()] };
+}
+
+/**
+ * Draw the columns inside the gate's pixel runs flat: the 1 px floor line,
+ * and no clipping cap (their peaks are zeroed). The band's veil is drawn on
+ * the overlay; this is the "waveform drawn flat under it" of the design.
+ */
+function flattenGated(bars, data, runs, from, to, mode, height) {
+  const [floorTop, floorBottom] = flatBar(mode, height);
+  for (let i = 0; i < runs.length; i += 2) {
+    const first = Math.max(runs[i], from) - from;
+    const last = Math.min(runs[i + 1], to) - from;
+    for (let column = first; column < last; column += 1) {
+      bars[2 * column] = floorTop;
+      bars[2 * column + 1] = floorBottom;
+      data[2 * column] = 0;
+      data[2 * column + 1] = 0;
+    }
+  }
 }
