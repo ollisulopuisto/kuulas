@@ -1251,7 +1251,7 @@ exactly. Also run `auto_silence` and `automix` as jobs (WP9) once WP9 lands.
 
 ### WP15 — Desktop wrapper
 
-Status: open. Last.
+Status: open. **Moved up by the owner (2026-10-18): the wrapper is part of the first version (M1)**, right after WP5, so the keymap can assume a native window (Cmd+T, Cmd+W, F6, Cmd+L free). Packaging and signing stay a later decision.
 
 Wrap the app with `pywebview` (standard OS web views: WKWebView on Mac,
 WebView2 on Windows). `kuulas` without arguments opens a window with a
@@ -1953,7 +1953,7 @@ Tests first: `test_realtime_layer_output_is_block_size_independent`,
 
 ### WP24 — Solo rules and A/B comparison
 
-Status: 24.1 done in v26.10.16.2 (mixer rule and `ops.solo`; the coalesce
+Status: level matching for A/B (`ab_match.py`) done in v26.10.18.1; 24.1 done in v26.10.16.2 (mixer rule and `ops.solo`; the coalesce
 key is in `Session.edit` since v26.10.16.7, and the keys for WP5). 24.2 open. Part 1 needs only WP0, so do it right after WP0. Part 2 needs
 WP4, WP21 and WP23.
 
@@ -2010,7 +2010,7 @@ apart to within 0.3 LU; toggling writes nothing to history.
 
 ### WP25 — Music report (royalty reporting)
 
-Status: partly done (v26.10.16.15, v26.10.17.1, v26.10.17.2): report builder,
+Status: partly done (v26.10.18.1: music tags editable and undoable via `set_music_info`; v26.10.16.15, v26.10.17.1, v26.10.17.2): report builder,
 CSV (UTF-8 with byte-order mark, semicolons, formula guard) and HTML, tags
 read at import, speech activity from the speech lanes, English and Finnish,
 times in whole seconds rounded up, `Session.music_report` and
@@ -2054,7 +2054,7 @@ Tests first: `test_report_lists_each_music_use_with_programme_times`,
 
 ### WP26 — Fast listening and scrubbing
 
-Status: open. Needs WP2, WP5.
+Status: the JKL key logic (`shuttle.py`: speed ladder, tape or grains) done in v26.10.18.1; engine, UI and fast listening open. Needs WP2, WP5.
 
 **Sped-up listening (pitch preserved).** `.` toggles between normal speed
 and *fast*. Fast defaults to 1.5× and can be set from 1.1× to 3× (Shift+. and
@@ -2713,7 +2713,7 @@ the export guard counts unrecorded placeholders.
 
 ### WP44 — Auto-Silence as merged gate ranges
 
-Status: open (owner decision 2026-10-17: "measure the need to mute very often,
+Status: gate range arithmetic (`gate.py`: merge, add, remove, ripple, mask to ranges) done in v26.10.18.1; `Track.gate`, the mixer, the wiring and the UI open (owner decision 2026-10-17: "measure the need to mute very often,
 but the muted region should be merged"). Needs WP1. Sonnet 5.5. Do it before the
 soft-cut work (cut-keeping-the-gap, see the architect's note in the session log
 and the open questions in `docs/handoffs/`), and before any long-session use.
@@ -2759,6 +2759,75 @@ against `mute_ranges` output on a short fixture); undo restores the previous gat
 re-running does not pile up; a clip edit across a gated range keeps the gate in
 time (a ripple delete shifts or trims gate ranges like automation points); the
 gate survives save and load; the mixer applies the ramp exactly once.
+
+---
+
+### WP45 — Compare: non-destructive previews and A/B by listening
+
+Status: open, design in progress (owner request 2026-10-17: "various
+non-destructive previews and A/B tests; I pretty often want options; I need a
+way to quickly compare them by listening"). Needs WP2, WP5; builds on WP24.2
+(A/B of tracks and edits), WP18 (candidate preview), WP19e (takes), WP21
+(versions), WP10 (voice presets), WP23 (FX layers). Opus for the engine part,
+Sonnet for the UI.
+
+One concept, not several: a **comparison** is a scope (a range, a track, the
+whole edit) plus two to four **variants**, each a provisional layer on top of
+the project, never committed while comparing. Variants: with or without a cut, a
+value against its default (see the double-click toggle), two tracks, two takes,
+two edits, a history step before and after, a voice preset or an FX layer on or
+off, a loudness-matched pair.
+
+- **Engine.** A variant is rendered as an alternative source for the compared
+  range; switching keeps the playhead position and crossfades 10 to 30 ms, so a
+  flip is click-free. Real-time variants render on the fly; offline-only ones
+  (dxRevive, the voice chain) are rendered first and show progress per slot.
+- **Level match on by default**, using the `ab_match` gains (O3): a louder
+  variant always sounds better, so the trim is applied and shown; switchable off.
+- **Blind mode**: slots shuffled and unlabelled until the choice is made.
+- **Decision**: "Keep this one" commits that variant as one undoable step and
+  discards the rest; Esc discards the comparison and leaves the project
+  untouched.
+- **Loop**: the compared range by default, plus 2 s each side.
+- **Tests, first:** switching preserves the playhead position; no commit happens
+  while comparing (the history head does not move); keep commits exactly one
+  step; Esc leaves the project byte-identical; the level trim equals
+  `match_gains`; blind shuffling is stable within a comparison and hidden labels
+  are revealed only after the choice.
+- **UI design** is in `docs/design/GUI-DESIGN.md` once the designer has added
+  the Compare screen.
+
+---
+
+### WP46 — Clipboard with history
+
+Status: open (owner request 2026-10-18: "we need an EXTENSIVE clipboard, with
+history"). Needs WP1, WP4, WP5. Replaces and extends WP20 (paste without bloat).
+Sonnet for the logic, Opus review of the data model.
+
+Cut (X) copies to the clipboard and removes with ripple; Delete (Backspace) is a
+soft cut that leaves the gap and never touches the clipboard; Copy (Mod+C) copies
+only. Every copy or cut makes a **clipboard entry**: a snapshot of the selected
+clips or range across tracks, kept as references (media hash, offset, length,
+gain, pan, fades, envelope, the clips' relative layout), never as audio, so it
+costs nothing. Entries are kept in a history list (a "Clipboard" panel tab) with
+a preview (play it), a name (automatic, editable), pin, delete, and "paste again".
+Paste has four forms: insert at the playhead (ripple), overwrite, paste on the
+same tracks, paste on the current track. Entries survive restarts, are stored
+per user and can be pasted into another open project (media are then linked, see
+the selective import from another project). The data model, the 'what is copied
+from a sync group' rule (WP19a) and the limits (how many entries, how long) are
+decided in the design pass.
+
+---
+
+### WP47 — Panel arrangement
+
+Status: open (owner, 2026-10-18: later). After the density work. Three slots (right
+sidebar, bottom dock, optional left sidebar); drag a panel tab into another slot;
+layout presets (Editing, Transcript first, Mixing); remembered with the other
+settings (WP35). No floating windows in the browser; the desktop wrapper (WP15) may
+add them later.
 
 ---
 

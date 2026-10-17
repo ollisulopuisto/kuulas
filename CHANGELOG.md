@@ -1,3 +1,17 @@
+## [v26.10.18.1] - 2026-10-18
+
+- Music tags can be corrected: title, artist, composer, publisher and ISRC are
+  editable per recording, as one undo step, and the music report shows the
+  corrected values. An empty value blanks a tag the file had; removing the edit
+  brings the file's own value back. (No window for it yet.)
+- Building blocks, not yet visible in the app: the JKL shuttle speeds (L, J, K
+  and the slow scrub), the arithmetic for Auto-Silence's merged gate ranges
+  (merge short gaps, add, remove, ripple), and level matching for A/B
+  comparison (the louder side is turned down by the loudness difference).
+- Tooling for the helper agents: a gate every agent must pass before reporting,
+  a script that checks each test file passes on its own, and a quota tracker
+  for the OpenCode Go plan.
+
 ## [v26.10.17.9] - 2026-10-17
 
 - Building blocks, not yet visible in the app: a typed-time parser for the

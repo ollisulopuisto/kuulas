@@ -53,7 +53,8 @@ from .model import Media, Project, SyncGroup
 #: ``media_person``: media id -> person id; ``speakers``: transcript revision
 #: (as text) -> {speaker label: person id}.
 EMPTY_MATERIAL: dict[str, Any] = {"transcripts": {}, "speakers": {}, "sync": {},
-                                  "people": {}, "interviews": {}, "media_person": {}}
+                                  "people": {}, "interviews": {}, "media_person": {},
+                                  "music_info": {}}
 
 MAIN_EDIT = "main"
 
@@ -311,11 +312,21 @@ class History:
         version = self.db.execute("pragma data_version").fetchone()[0]
         if self._composed is None or version != self._seen_version:
             root = self.material
-            owner = root["media_person"]
-            media = tuple(replace(m, person=owner.get(m.id, ""))
-                          for m in (media_from_row(r, self.rate)
-                                    for r in self.media_rows()))
-            self._composed = replace(self._edit_state, media=media,
+            owner = root.get("media_person", {})
+            music_edits = root.get("music_info", {})
+            media_list = []
+            for r in self.media_rows():
+                m = media_from_row(r, self.rate)
+                person = owner.get(m.id, "")
+                if m.id in music_edits:
+                    base_info = dict(m.extra.get("music_info") or {})
+                    base_info.update(music_edits[m.id])
+                    extra = {**m.extra, "music_info": base_info}
+                    m = replace(m, person=person, extra=extra)
+                else:
+                    m = replace(m, person=person)
+                media_list.append(m)
+            self._composed = replace(self._edit_state, media=tuple(media_list),
                                      sync_groups=sync_groups(root))
             self._seen_version = version
         return self._composed
