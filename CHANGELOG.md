@@ -1,3 +1,14 @@
+## [v26.10.18.7] - 2026-10-18
+
+- Auto-Silence's closed stretches now show in the editor: a dim veil over the lane,
+  a flat waveform under it, a small tick at each edge and the words "Mic closed" when
+  there is room. Double-click a stretch (or run "Open this stretch" from the Track menu
+  or the palette) to reopen it as one undo step. View has a "Show gates" switch. The
+  switch is global for now, not per lane.
+- Building block, not yet visible: a placement plan for importing several files
+  (side by side or one after another, by file name or recording time, track names from
+  file or person).
+
 ## [v26.10.18.6] - 2026-10-18
 
 - Keyboard layer: every key is data, so you can change it. Press `?` for the cheat
