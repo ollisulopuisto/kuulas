@@ -85,6 +85,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R53 | People and interviews in the data from the start: who speaks in every transcript, one interview linking all its recordings from different people, everything a person said across the series | data model done in v26.10.16.13 (WP41); person view and cards later (WP42) |
 | R54 | Index cards like Scrivener: bits of interviews dragged into episodes, assembled into a timeline; person view | planned: WP42 |
 | R55 | Narration placeholders: script text in the timeline with estimated length, optional speech preview, script export, recorded or imported later in place | length estimate done v26.10.17.5; rest planned: WP43 |
+| R56 | Auto-Silence stores one merged gate per track, not thousands of split clip pieces: measure finely, merge the muted regions (owner, 2026-10-17) | planned: WP44 |
 
 ## Done
 
@@ -217,6 +218,25 @@ WP27, WP38, WP42, WP15.
   playback is never confused with the live input.
 
 ## Open questions and known limits
+
+- **GUI design, 8 open questions for the owner** (`docs/design/GUI-DESIGN.md`,
+  recommended answers in brackets): waveform scale for speech dB-shaped and
+  linear for music [yes]; Spot (WP19f) moves from `=` to Mod+J [yes]; `[` `]`
+  bound by physical key on the Finnish keyboard [yes]; Mod+F finds in the
+  transcript, fade stays on G [yes]; import on Mod+I until the desktop app
+  exists [yes]; bus S solos all its tracks as a set [yes]; assigning a bus also
+  moves the track in the model [yes]; role strip off on the timeline, shown in
+  the clip bin and cards [yes].
+- **Soft cuts** (architect's note, owner has not decided yet): Backspace as
+  "Cut, keep gap" with Mod+Backspace the only real delete; Auto-Silence pieces
+  kept apart from editorial cuts (WP44 makes them a gate); "Clean up cuts" a
+  palette command only; offer soft cuts to other edits as suggestions; "Put
+  back" for ripple cuts from history. Bugs to fix first, each with a failing
+  test: unmuting leaves 30 ms dips (derive the ramp in the mixer), trailing
+  silence in export (`Project.length` must ignore muted clips), hit-testing
+  must prefer the unmuted clip, `_crossfade` must skip muted sides.
+- **WP44 and `min_reader`:** an old reader ignores the gate and plays the muted
+  audio. Owner to decide whether `min_reader` goes up (recommended: yes).
 
 - **Podcast-repo plans that overlap kuulas** (not built there yet):
   `podcast/docs/plans/2026-10-05-edit-diff.md` (diff of two edits) and

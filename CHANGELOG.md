@@ -1,3 +1,20 @@
+## [v26.10.17.8] - 2026-10-17
+
+- The editor has a designed look: a calm dark and light theme (follows the
+  system, switch with the theme button), speaker colours on clips, status bar
+  with key hints, and a Finnish and English interface.
+- Buses show as group headers above their tracks, each with its own colour
+  stripe and letter badge.
+- Clips use one visual language: muted clips are hatched, placeholders have a
+  dashed outline, sync is shown with a link mark and offset, damaged media in
+  red, and several files on one track alternate in tone with a small file mark.
+- Behind it: one central list of every visual signal and colour, so themes can
+  be added later as data. See `docs/design/GUI-DESIGN.md`; open
+  `docs/design/prototype/index.html` for a clickable prototype of the whole
+  intended interface (not all of it is built yet).
+- Also in this version: the pre-review gate and quota tracker for the helper
+  agents (`scripts/agent_gate.py`, `scripts/go_quota.py`).
+
 ## [v26.10.17.7] - 2026-10-17
 
 - The editor window works as a first version: waveforms for each track, track
