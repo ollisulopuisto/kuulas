@@ -227,7 +227,17 @@ describe("painting waveforms (what the worker runs)", () => {
         rate: 48_000,
         media: [],
         buses: [],
-        tracks: [{ id: "t1", kind: "speech", clips: [], gate: [[2560, 5120], [5130, 7680]] }],
+        tracks: [
+          {
+            id: "t1",
+            kind: "speech",
+            clips: [],
+            gate: [
+              [2560, 5120],
+              [5130, 7680],
+            ],
+          },
+        ],
       },
       scroll: 0,
       zoom: 256,

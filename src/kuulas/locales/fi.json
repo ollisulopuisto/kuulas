@@ -381,5 +381,9 @@
   "ui.bus.name_field": "Väylän nimi",
   "ui.bus.parent": "Yläväylä",
   "ui.bus.parent.none": "Ei (ylin taso)",
-  "ui.bus.members": "Raitoja väylällä"
+  "ui.bus.members": "Raitoja väylällä",
+  "ui.gate.mic_closed": "Mikki kiinni",
+  "ui.gate.hover": "Mikki on kiinni. Kaksoisnapsauta avataksesi tämän kohdan.",
+  "ui.gate.open_stretch": "Avaa tämä kohta",
+  "ui.view.gates": "Näytä portit"
 }

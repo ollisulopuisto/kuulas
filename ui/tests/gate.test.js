@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
+  flatBar,
   GATE_OPEN_COMMAND,
   gateAt,
   gateLabelFits,
   gatePixelRuns,
-  flatBar,
   openStretchEdit,
   stretchAt,
 } from "../gate.js";

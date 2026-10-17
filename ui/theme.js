@@ -72,6 +72,8 @@ export function readTheme(
     fileMark: p.signals.fileMark,
     fileMarkText: p.signals.fileMarkText,
     mutedOpacity: p.numbers.mutedOpacity,
+    gate: p.signals.gate,
+    gateOpacity: p.numbers.gateOpacity,
     font: p.font,
     mono: p.mono,
   };

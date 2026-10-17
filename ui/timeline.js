@@ -6,7 +6,9 @@
 // The overlay redraws on requestAnimationFrame when state changed; the
 // waveform layer only when something it shows changed.
 import { frameToX, xToFrame } from "./format.js";
+import { gateLabelFits, gatePixelRuns } from "./gate.js";
 import { busHues, fileMark, needsFileMark, seamKind } from "./grammar.js";
+import { t } from "./i18n.js";
 import { clipLabel, labelFacts, siblingsOf } from "./labels.js";
 import {
   clipEnd,
@@ -36,6 +38,8 @@ const SEAM_ALPHA = 0.7;
 const NOTCH_PX = 4;
 const MARK_FONT_PX = 10;
 const BRACKET_PX = 10;
+const GATE_TICK_PX = 7;
+const GATE_LABEL_MIN_LANE = 36;
 
 export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, actions }) {
   const overlay = overlayCanvas.getContext("2d");
@@ -197,9 +201,43 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
         overlay.strokeRect(left + 1, y + 1, w - 2, h - 2);
       }
     }
+    if (state.showGates !== false) drawGate(state, track, top, row.height);
     drawSeams(state, track, top, row.height);
     drawAutomation(state, track, top, row.height);
     overlay.restore();
+  }
+
+  // The gate (WP44): a dim veil in the lane colour over each closed stretch,
+  // a small tick at each edge, and 'mic closed' when the band is wide enough.
+  // The waveform under it is drawn flat by the waveform layer. Runs are merged
+  // pixels (gate.js), so thousands of ranges cost a few rectangles.
+  const gateRuns = [];
+  function drawGate(state, track, top, rowHeight) {
+    if (!track.gate?.length) return;
+    const runs = gatePixelRuns(track.gate, state.scroll, state.zoom, size.width, gateRuns);
+    if (runs.length === 0) return;
+    const y = top + 2;
+    const h = rowHeight - 4;
+    const tick = Math.min(GATE_TICK_PX, Math.floor(h / 3));
+    overlay.fillStyle = theme.gate;
+    overlay.globalAlpha = theme.gateOpacity;
+    for (let i = 0; i < runs.length; i += 2) overlay.fillRect(runs[i], y, runs[i + 1] - runs[i], h);
+    overlay.globalAlpha = 1;
+    overlay.fillStyle = theme.muted;
+    for (let i = 0; i < runs.length; i += 2) {
+      if (runs[i] > 0) overlay.fillRect(runs[i], y + h - tick, 1, tick);
+      if (runs[i + 1] < size.width) overlay.fillRect(runs[i + 1] - 1, y + h - tick, 1, tick);
+    }
+    if (rowHeight < GATE_LABEL_MIN_LANE) return;
+    const text = t("ui.gate.mic_closed");
+    overlay.font = `600 ${NAME_FONT_PX}px ${theme.font}`;
+    overlay.textBaseline = "top";
+    const textWidth = overlay.measureText(text).width;
+    for (let i = 0; i < runs.length; i += 2) {
+      const band = runs[i + 1] - runs[i];
+      if (!gateLabelFits(band, textWidth)) continue;
+      overlay.fillText(text, runs[i] + (band - textWidth) / 2, y + h / 2 - NAME_FONT_PX / 2);
+    }
   }
 
   function drawHatch(x, y, w, h, colour) {
@@ -465,12 +503,25 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     return hitTest({ layout, project: state.project, view: { ...state, width: size.width }, x, y });
   }
 
+  // Over a closed stretch the tooltip says what it is and what a double-click does.
+  function hoverGate(event) {
+    const over = hitAt(event).gate;
+    const text = over ? t("ui.gate.hover") : "";
+    if (overlayCanvas.title !== text) overlayCanvas.title = text;
+  }
   overlayCanvas.addEventListener("pointermove", (event) => {
     const state = getState();
     pointerFrame = Math.max(0, xToFrame(locate(event).x, state.scroll, state.zoom));
+    if (state.project) hoverGate(event);
   });
   overlayCanvas.addEventListener("pointerleave", () => {
     pointerFrame = null;
+  });
+  overlayCanvas.addEventListener("dblclick", (event) => {
+    if (!getState().project || event.button !== 0) return;
+    if (event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return;
+    const { gate } = hitAt(event);
+    if (gate) actions.openGate(gate);
   });
   overlayCanvas.addEventListener("pointerdown", (event) => {
     if (!getState().project || event.button !== 0) return;
