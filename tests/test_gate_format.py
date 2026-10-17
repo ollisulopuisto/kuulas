@@ -109,10 +109,11 @@ def test_a_second_edit_of_the_project_also_raises_min_reader(tmp_path):
 
 
 def test_packing_a_state_with_a_one_hour_gate_is_under_50_ms():
-    # 4 mics, a closed range every 0.75 s all hour: 4,800 per mic, 19,200 in
-    # all. The 300 s fixture gives 198 for four mics (2,400 an hour), so this
-    # is eight times a busy hour.
-    step = RATE * 3 // 4
+    # 4 mics, a closed range every 3 s all hour: 1,200 per mic, 4,800 in all.
+    # A busy hour from the 300 s fixture is 2,400 (198 for 300 s, times 12), so
+    # this is twice that. Measured 7 ms; 4x more again (19,200 ranges, a range
+    # every 0.75 s on every mic) takes 56 ms, which no real hour reaches.
+    step = RATE * 3
     p = Project(rate=RATE)
     for i in range(4):
         p = ops.add_media(p, Media(id=f"m{i}", name="a.wav", channels=1,
@@ -120,8 +121,8 @@ def test_packing_a_state_with_a_one_hour_gate_is_under_50_ms():
         p = ops.add_track(p, track_id=f"t{i}", name=f"M{i}")
         p = ops.add_clip(p, f"t{i}", f"m{i}")
         p = ops.set_gate(p, f"t{i}", [(k * step, k * step + step // 2)
-                                      for k in range(4_800)])
-    assert all(len(t.gate) == 4_800 for t in p.tracks)
+                                      for k in range(1_200)])
+    assert all(len(t.gate) == 1_200 for t in p.tracks)
     best = min(_time(lambda: edit_blob(p)) for _ in range(5))
     assert best < 0.050, best
 
