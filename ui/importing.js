@@ -18,3 +18,13 @@ export function summariseImport(report) {
 export function dragHasFiles(dataTransfer) {
   return Array.from(dataTransfer?.types ?? []).includes("Files");
 }
+
+/**
+ * The native bridge of the desktop window (pywebview's `window.pywebview.api`,
+ * src/kuulas/desktop.py), or null in a plain browser. pywebview injects the api
+ * after the page loads, so this is asked at click time, never cached.
+ */
+export function nativeBridge(win = globalThis) {
+  const api = win?.pywebview?.api;
+  return typeof api?.pick_media === "function" ? api : null;
+}
