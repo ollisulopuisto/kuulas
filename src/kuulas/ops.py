@@ -12,6 +12,7 @@ from dataclasses import replace
 from . import curves, edit_scope
 from . import gate as gatem
 from .clock import flicks_to_frames, frames_to_flicks
+from .join import join_adjacent
 from .messages import KuulasError
 from .model import Bus, Clip, Media, Point, Project, SyncGroup, Track
 
@@ -332,6 +333,67 @@ def mute_ranges(p: Project, track_id: str, ranges) -> Project:
     return _replace_track(p, replace(track, clips=clips))
 
 
+def restore_cuts(p: Project, clip_ids: list[str]) -> Project:
+    """Unmute the listed clips, then join each with its neighbours where contiguous.
+
+    Only the immediate left and right neighbours of restored clips are considered
+    for joining, leaving unrelated split clips elsewhere on the track intact.
+    """
+    target_ids = set(clip_ids)
+    if not target_ids:
+        return p
+
+    tracks = []
+    for track in p.tracks:
+        track_clip_ids = {c.id for c in track.clips}
+        in_track = target_ids & track_clip_ids
+        if not in_track:
+            tracks.append(track)
+            continue
+
+        clips = list(_sorted(track.clips))
+        # 1. Unmute restored clips
+        clips = [replace(c, muted=False) if c.id in in_track else c for c in clips]
+
+        # 2. Collect affected indices (each restored clip + immediate left & right)
+        n = len(clips)
+        affected = set()
+        for i, c in enumerate(clips):
+            if c.id in in_track:
+                affected.add(i)
+                if i > 0:
+                    affected.add(i - 1)
+                if i + 1 < n:
+                    affected.add(i + 1)
+
+        # 3. Partition affected indices into contiguous ranges [start, end)
+        ranges: list[tuple[int, int]] = []
+        sorted_affected = sorted(affected)
+        r_start = sorted_affected[0]
+        r_end = r_start + 1
+        for idx in sorted_affected[1:]:
+            if idx == r_end:
+                r_end += 1
+            else:
+                ranges.append((r_start, r_end))
+                r_start = idx
+                r_end = r_start + 1
+        ranges.append((r_start, r_end))
+
+        # 4. Reconstruct track clips
+        new_clips: list[Clip] = []
+        last_pos = 0
+        for start, end in ranges:
+            new_clips.extend(clips[last_pos:start])
+            new_clips.extend(join_adjacent(clips[start:end]))
+            last_pos = end
+        new_clips.extend(clips[last_pos:])
+
+        tracks.append(replace(track, clips=tuple(new_clips)))
+
+    return replace(p, tracks=tuple(tracks))
+
+
 # -- selections --------------------------------------------------------------
 
 
@@ -625,6 +687,7 @@ OPS = {
         set_gate, add_gate_range, remove_gate_range,
         shift_clips, set_clips, delete_clips, mark_in_sync, resync,
         split_clips, mute_range, cut_range, nudge_clips, trim_clips, adjust_clip_gain,
+        restore_cuts,
     )
 }
 

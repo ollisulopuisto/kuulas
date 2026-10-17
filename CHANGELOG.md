@@ -1,3 +1,12 @@
+## [v26.10.18.10] - 2026-10-18
+
+- Clips can have a name of your own (kept through splits and trims, one undo step,
+  empty means automatic). No window for it yet; F2 renames tracks.
+- Building blocks, not yet visible: joining adjacent pieces of a clip back together,
+  where a clipboard paste would land (insert or overwrite, mapping tracks), safe file
+  names for exported regions (Mac, Windows and Linux rules, Finnish letters kept), and a
+  Safari pinch-zoom gesture helper for the future desktop window.
+
 ## [v26.10.18.9] - 2026-10-18
 
 - Contextual help: F1 opens a docked help panel for whatever has focus (timeline, a
