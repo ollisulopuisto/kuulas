@@ -32,7 +32,7 @@ folder per OS, recents rules, title, menu model and its translations, the server
 thread starting, answering and stopping, no-argument and `--window` routing, the
 missing-extra message, bridge detection.
 
-Verified by hand on macOS 26.10 (arm64, pywebview 6.2.1), once: `kuulas open
+Verified by hand on macOS 15.8.1 (arm64, pywebview 6.2.1), once: `kuulas open
 <project> --window` created a 1400x900 on-screen window and the server answered
 `/api/state` with 200. Not seen: a screenshot (no screen-recording permission
 for the agent), so that the page rendered, and that the window title is right,
