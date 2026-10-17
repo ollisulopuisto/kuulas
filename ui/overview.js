@@ -1,8 +1,14 @@
 // The overview strip above the timeline: the whole edit in miniature, with a
 // box for the visible part. Click or drag to move the box.
 import { projectEnd } from "./lanes.js";
+import { trackHues } from "./paint.js";
 import { readTheme } from "./theme.js";
 import { overviewScroll, overviewWindow } from "./view.js";
+
+// The strip is a map, not a waveform: blocks at reduced strength so the
+// visible-part box (accent) is the strongest thing in it.
+const OVERVIEW_ALPHA = 0.6;
+const OVERVIEW_MUTED_ALPHA = 0.25;
 
 export function createOverview({ canvas, getState, getTimelineWidth, actions }) {
   const context = canvas.getContext("2d");
@@ -40,17 +46,17 @@ export function createOverview({ canvas, getState, getTimelineWidth, actions }) 
     const total = projectEnd(state.project);
     if (total === 0) return;
     const tracks = state.project.tracks;
-    const rowHeight = Math.max(1, (height - 2) / Math.max(1, tracks.length));
+    const rowHeight = Math.max(1, (height - 4) / Math.max(1, tracks.length));
+    const hues = trackHues(state.project);
     tracks.forEach((track, index) => {
-      const colours =
-        theme.palette[(track.kind === "music" ? 3 : index % 3) % theme.palette.length];
-      context.fillStyle = colours.ink;
-      context.globalAlpha = 0.6;
+      const colours = theme.palette[(hues.get(track.id) ?? 0) % theme.palette.length];
+      context.fillStyle = colours.wave;
+      context.globalAlpha = track.mute ? OVERVIEW_MUTED_ALPHA : OVERVIEW_ALPHA;
       for (const clip of track.clips) {
         const x = (clip.start / total) * width;
         context.fillRect(
           x,
-          1 + index * rowHeight,
+          2 + index * rowHeight,
           Math.max(1, (clip.length / total) * width),
           Math.max(1, rowHeight - 1),
         );
@@ -64,13 +70,13 @@ export function createOverview({ canvas, getState, getTimelineWidth, actions }) 
       width: getTimelineWidth(),
       strip: width,
     });
-    context.fillStyle = theme.accent;
-    context.globalAlpha = 0.2;
+    context.fillStyle = theme.range;
     context.fillRect(box.x, 0, box.w, height);
-    context.globalAlpha = 1;
     context.strokeStyle = theme.accent;
-    context.lineWidth = 1;
-    context.strokeRect(box.x + 0.5, 0.5, Math.max(1, box.w - 1), height - 1);
+    context.lineWidth = 1.5;
+    context.strokeRect(box.x + 0.75, 0.75, Math.max(1, box.w - 1.5), height - 1.5);
+    context.fillStyle = theme.playhead;
+    context.fillRect(Math.round((state.playhead / total) * width), 0, 1, height);
   }
 
   function moveTo(event) {

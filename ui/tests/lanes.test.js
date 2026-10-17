@@ -32,7 +32,7 @@ const project = {
 const view = { scroll: 0, zoom: 10, scrollY: 0, width: 800, height: 400 };
 
 describe("lane layout", () => {
-  test("tracks first, then buses, stacked with no gaps", () => {
+  test("tracks on no bus first; a bus with no tracks goes last; no gaps", () => {
     const layout = layoutRows(project, 48);
     assert.deepEqual(
       layout.rows.map((r) => [r.kind, r.id, r.top, r.height]),
@@ -43,6 +43,36 @@ describe("lane layout", () => {
       ],
     );
     assert.equal(layout.height, 96 + BUS_HEIGHT);
+  });
+
+  test("a bus sits above its tracks, which gather under it; others keep their place", () => {
+    // Owner, 2026-10-17: a bus is a group header (like a folder) above its members.
+    const grouped = {
+      buses: [
+        { id: "voices", name: "Voices" },
+        { id: "empty", name: "Empty" },
+      ],
+      tracks: [
+        { id: "anna", bus: "voices", clips: [] },
+        { id: "music", bus: null, clips: [] },
+        { id: "ville", bus: "voices", clips: [] },
+        { id: "fx", clips: [] },
+      ],
+    };
+    const layout = layoutRows(grouped, 48);
+    assert.deepEqual(
+      layout.rows.map((r) => [r.kind, r.id, r.top, r.index, r.bus ?? null]),
+      [
+        ["bus", "voices", 0, 0, "voices"],
+        ["track", "anna", BUS_HEIGHT, 0, "voices"],
+        ["track", "ville", BUS_HEIGHT + 48, 2, "voices"],
+        ["track", "music", BUS_HEIGHT + 96, 1, null],
+        ["track", "fx", BUS_HEIGHT + 144, 3, null],
+        ["bus", "empty", BUS_HEIGHT + 192, 1, "empty"],
+      ],
+    );
+    assert.equal(layout.rows.at(-1).members, 0, "an empty bus says so");
+    assert.equal(layout.rows[0].members, 2);
   });
 
   test("lane height is clamped to 24..160", () => {

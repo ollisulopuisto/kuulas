@@ -1,0 +1,2887 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>kuulas prototype</title>
+<!--
+  kuulas GUI prototype: the visual source of truth for docs/design/GUI-DESIGN.md.
+  One offline file, fake data, no audio at all (Space only animates the playhead).
+  URL parameters (also set by the bar at the top):
+    screen = main | transcript | history | candidates | palette | focus | empty | error
+    theme  = system | light | dark      lang = en | fi      density = comfortable | compact
+    clean  = 1   hides the prototype bar (used for the screenshots)
+  The token block below is a copy of ui/tokens.css: never edit it here, run
+  `node docs/design/sync-tokens.mjs` after changing ui/tokens.css.
+-->
+<style>
+/* kuulas design tokens. The single source of colour, type, spacing, motion
+   and size for the editor (style.css) and its canvases (grammar.js names the
+   tokens, theme.js resolves them once per theme change). Three layers:
+
+   1. PRIMITIVES  --p-<family>-<lightness>   raw colours, named by OKLCH
+      lightness (0-100), "-aNN" = alpha NN %. Theme-independent. Only the
+      theme blocks (layer 2) may reference them.
+   2. SEMANTIC    --surface-*, --text-*, --accent*, --signal-*, --track-*,
+      --bus-*, --role-*, --label-* ...   what a colour MEANS. Set per theme,
+      only as var(--p-...) (or a number). grammar.js SEMANTIC_TOKENS lists
+      every one; tokens.test.js fails if a theme misses one.
+   3. COMPONENT   --button-bg, --lane-bg ...   per component, only as
+      var(--semantic). style.css uses layers 2 and 3, never layer 1.
+
+   A theme is a set of layer-2 overrides (the light and dark blocks below;
+   user themes are JSON manifests, see GUI-DESIGN.md "Themes"). Spec:
+   docs/design/GUI-DESIGN.md. Visual reference: docs/design/prototype/
+   (it embeds a copy of this file: run node docs/design/sync-tokens.mjs).
+   tokens.test.js checks contrast (WCAG AA) for every pair in both themes. */
+
+/* == 1. primitives ===================================================== */
+:root {
+  --p-amber-25: #2a2112;
+  --p-amber-30: #3a2c12;
+  --p-amber-31: #3c2f19;
+  --p-amber-40: #693c00;
+  --p-amber-49: #8a5300;
+  --p-amber-56: #a06700;
+  --p-amber-60: #b07100;
+  --p-amber-63: #b97a00;
+  --p-amber-74: #cfa354;
+  --p-amber-81: #f0b54a;
+  --p-amber-84: #f3c165;
+  --p-amber-85: #fac463;
+  --p-amber-88: #f0d3a3;
+  --p-amber-92: #f3e2cb;
+  --p-amber-96: #fff1d6;
+  --p-amber-96-b: #fbf2e6;
+
+  --p-blue-26: #192431;
+  --p-blue-32: #243346;
+  --p-blue-40: #164781;
+  --p-blue-46: #1157a4;
+  --p-blue-46-b: #1b589e;
+  --p-blue-68: #5e9ae7;
+  --p-blue-68-b: #689bdb;
+  --p-blue-88: #b9daff;
+  --p-blue-92: #d4e5fb;
+  --p-blue-96: #ecf4ff;
+
+  --p-black-a45: rgb(0 0 0 / 0.45);
+  --p-black-a60: rgb(0 0 0 / 0.6);
+  --p-gray-22-a14: rgb(16 24 28 / 0.14);
+  --p-gray-22-a22: rgb(16 24 28 / 0.22);
+  --p-gray-22-a8: rgb(16 24 28 / 0.08);
+
+  --p-gray-0-a50: rgb(0 0 0 / 0.5);
+  --p-gray-17: #1a0c0b;
+  --p-gray-18: #0f1214;
+  --p-gray-18-b: #101316;
+  --p-gray-20: #13171a;
+  --p-gray-20-a32: rgb(16 24 28 / 0.32);
+  --p-gray-20-b: #10161a;
+  --p-gray-21: #13191c;
+  --p-gray-21-a28: rgb(19 25 28 / 0.28);
+  --p-gray-22: #171b1e;
+  --p-gray-22-b: #04211d;
+  --p-gray-25: #1e2327;
+  --p-gray-27: #212729;
+  --p-gray-27-b: #22282c;
+  --p-gray-30: #283034;
+  --p-gray-32: #2d3539;
+  --p-gray-44: #48545a;
+  --p-gray-44-b: #4a555b;
+  --p-gray-48: #566066;
+  --p-gray-51: #5c6870;
+  --p-gray-54: #66727a;
+  --p-gray-64: #858f96;
+  --p-gray-68: #8f9aa0;
+  --p-gray-72: #9aa5ab;
+  --p-gray-76: #aab4b9;
+  --p-gray-76-b: #a9b4ba;
+  --p-gray-88: #d3dadd;
+  --p-gray-93: #e2e8eb;
+  --p-gray-93-b: #e3e8eb;
+  --p-gray-94: #e8ecee;
+  --p-gray-94-a22: rgb(231 236 238 / 0.22);
+  --p-gray-94-b: #e7ecee;
+  --p-gray-96: #eef1f3;
+  --p-gray-96-b: #eef2f4;
+  --p-gray-98: #f6f8f9;
+  --p-gray-100: #ffffff;
+
+  --p-green-26: #1e2616;
+  --p-green-32: #2b3620;
+  --p-green-40: #2b5409;
+  --p-green-51: #18794a;
+  --p-green-56: #1e8a4c;
+  --p-green-56-b: #4e8626;
+  --p-green-56-c: #51852f;
+  --p-green-74: #94b96d;
+  --p-green-76: #96c166;
+  --p-green-79: #6fd39a;
+  --p-green-82: #7fdca6;
+  --p-green-88: #c8e1b1;
+  --p-green-92: #d9e9d1;
+  --p-green-96: #eef6ea;
+
+  --p-label-blue-58: #1f7dcf;
+  --p-label-blue-74: #60b0ff;
+
+  --p-label-green-58: #33903c;
+  --p-label-green-74: #6ec272;
+
+  --p-label-orange-58: #b86000;
+  --p-label-orange-74: #ea9344;
+
+  --p-label-purple-58: #8f5fc0;
+  --p-label-purple-74: #bf93f1;
+
+  --p-label-red-58: #c34f4b;
+  --p-label-red-74: #f7857d;
+
+  --p-label-yellow-58: #967700;
+  --p-label-yellow-74: #c7a92a;
+
+  --p-olive-42: #544f11;
+  --p-olive-55: #797435;
+  --p-olive-55-a7: rgb(121 116 53 / 0.07);
+  --p-olive-72: #aca868;
+  --p-olive-72-a9: rgb(172 168 104 / 0.09);
+  --p-olive-86: #d6d4a7;
+
+  --p-plum-42: #653c62;
+  --p-plum-55: #8e5f89;
+  --p-plum-55-a7: rgb(142 95 137 / 0.07);
+  --p-plum-72: #c391be;
+  --p-plum-72-a9: rgb(195 145 190 / 0.09);
+  --p-plum-86: #e8c3e4;
+
+  --p-red-28: #3d1d1b;
+  --p-red-51: #b42d1c;
+  --p-red-55: #c8321f;
+  --p-red-55-a8: rgb(200 50 31 / 0.08);
+  --p-red-55-a12: rgb(200 50 31 / 0.12);
+  --p-red-59: #d93a26;
+  --p-red-71: #ff6b57;
+  --p-red-73: #ff776b;
+  --p-red-73-a9: rgb(255 119 107 / 0.09);
+  --p-red-73-a13: rgb(255 119 107 / 0.13);
+  --p-red-76: #ff8a7f;
+  --p-red-95: #fde8e4;
+
+  --p-rose-26: #2f1d22;
+  --p-rose-32: #432931;
+  --p-rose-40: #742945;
+  --p-rose-54: #ad456b;
+  --p-rose-54-b: #a9496b;
+  --p-rose-70: #df7a9b;
+  --p-rose-70-b: #d6809c;
+  --p-rose-88: #ffc5d5;
+  --p-rose-92: #f8dae2;
+  --p-rose-97: #ffeff3;
+
+  --p-sand-25: #24211c;
+  --p-sand-31: #33302a;
+  --p-sand-40: #4f4735;
+  --p-sand-55: #7a715e;
+  --p-sand-60: #8a7f69;
+  --p-sand-62: #8e8572;
+  --p-sand-74: #b5aa92;
+  --p-sand-86: #d8d0bf;
+  --p-sand-91: #e4e1da;
+  --p-sand-96: #f2f0ec;
+
+  --p-sienna-42: #713e26;
+  --p-sienna-55: #9b6147;
+  --p-sienna-55-a7: rgb(155 97 71 / 0.07);
+  --p-sienna-72: #d29478;
+  --p-sienna-72-a9: rgb(210 148 120 / 0.09);
+  --p-sienna-86: #f4c5b1;
+
+  --p-sky-26: #12262e;
+  --p-sky-32: #193641;
+  --p-sky-41: #005370;
+  --p-sky-57: #0084a9;
+  --p-sky-59: #008bb3;
+  --p-sky-74: #50b9df;
+  --p-sky-85: #61e3ff;
+  --p-sky-88: #a6e2fb;
+  --p-sky-92: #ccebf5;
+  --p-sky-97: #e7f7fc;
+
+  --p-slate-42: #374c79;
+  --p-slate-55: #5970a4;
+  --p-slate-55-a7: rgb(89 112 164 / 0.07);
+  --p-slate-72: #8ba4db;
+  --p-slate-72-a9: rgb(139 164 219 / 0.09);
+  --p-slate-86: #bed1f9;
+
+  --p-teal-24: #172225;
+  --p-teal-32: #133a35;
+  --p-teal-47: #086a5d;
+  --p-teal-48: #0a6e60;
+  --p-teal-52: #0a7a6b;
+  --p-teal-52-a14: rgb(10 122 107 / 0.14);
+  --p-teal-76: #3dc9b3;
+  --p-teal-76-a16: rgb(61 201 179 / 0.16);
+  --p-teal-80: #5ad6c2;
+  --p-teal-94: #dff1ed;
+  --p-teal-96: #e9f3f1;
+
+  --p-violet-26: #271f2e;
+  --p-violet-32: #382c41;
+  --p-violet-40: #5a3473;
+  --p-violet-42: #643185;
+  --p-violet-42-b: #633481;
+  --p-violet-64: #9c78c4;
+  --p-violet-66: #a57fd0;
+  --p-violet-88: #e6cbfb;
+  --p-violet-92: #eaddf5;
+  --p-violet-96: #f7f0fd;
+}
+
+/* == theme-independent: type, spacing, radii, motion, sizes ============== */
+:root {
+  /* Type. System fonts: native feel, no download, full Finnish coverage. */
+  --font-ui:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI",
+    system-ui, Ubuntu, Cantarell, "Noto Sans", sans-serif;
+  --font-mono:
+    ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --text-xs: 11px; /* ruler labels, badges, key chips */
+  --text-sm: 12px; /* controls, panel headers, meta */
+  --text-md: 13px; /* body: the default */
+  --text-lg: 15px; /* transcript reading text, dialog titles */
+  --text-xl: 20px; /* the timecode */
+  --leading-tight: 1.25;
+  --leading-body: 1.45;
+  --leading-read: 1.65; /* transcript */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-strong: 600;
+
+  /* Spacing: a 4 px grid with two half steps for dense rows. */
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 12px;
+  --space-6: 16px;
+  --space-7: 24px;
+  --space-8: 32px;
+
+  /* Radii. Clips are square (canvas); everything the hand touches is soft. */
+  --radius-xs: 2px; /* badges on clips, key chips */
+  --radius-sm: 4px; /* buttons, inputs, chips in toolbars */
+  --radius-md: 6px; /* popovers, cards, list rows */
+  --radius-lg: 10px; /* dialogs, the command palette */
+  --radius-pill: 999px; /* state chips */
+
+  /* Motion. Short and functional; prefers-reduced-motion sets them to 0. */
+  --dur-fast: 90ms; /* hover, press */
+  --dur-base: 140ms; /* chips appearing, tabs */
+  --dur-layout: 120ms; /* lane height changes, focus mode shrink (WP28) */
+  --dur-flash: 600ms; /* "this changed" flash after undo/redo */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  /* Focus ring: always visible on keyboard focus, never removed. */
+  --focus-width: 2px;
+  --focus-offset: 2px;
+
+  /* Layout sizes (comfortable density). JS constants that must match are
+     named next to each. */
+  --topbar-h: 44px;
+  --statusbar-h: 26px;
+  --overview-h: 20px;
+  --ruler-h: 24px; /* lanes.js RULER_HEIGHT */
+  --heads-w: 248px;
+  --heads-w-min: 180px;
+  --heads-w-max: 360px;
+  --sidebar-w: 320px;
+  --sidebar-w-min: 260px;
+  --sidebar-w-max: 480px;
+  --dock-h: 30vh; /* transcript dock */
+  --dock-h-min: 120px;
+  --control-h: 26px;
+  --control-h-sm: 20px; /* M / S buttons, chips inside headers */
+  --lane-h: 56px; /* lanes.js DEFAULT_LANE */
+  --bus-h: 44px; /* lanes.js BUS_HEIGHT */
+  --strip-h: 16px; /* focus-mode strips (WP28) */
+  --spine-w: 4px; /* bus spine */
+  --reading-max: 72ch; /* transcript line length */
+
+  /* Numbers the canvases read with the colours (semantic, overridable). */
+  --signal-muted-opacity: 0.35; /* muted clips (with the hatch) */
+  --signal-unheard-opacity: 0.45; /* tracks not heard because of solo or mute */
+  --signal-unused-opacity: 0.5; /* material not in the open edit (clip bin) */
+  --signal-gate-opacity: 0.7; /* the gate veil: strong enough to read as closed */
+}
+
+:root[data-density="compact"] {
+  --text-md: 12px;
+  --text-lg: 14px;
+  --text-xl: 18px;
+  --topbar-h: 38px;
+  --statusbar-h: 22px;
+  --control-h: 22px;
+  --control-h-sm: 18px;
+  --heads-w: 216px;
+  --sidebar-w: 280px;
+  --lane-h: 40px;
+}
+
+/* == 2. semantic roles: light (default) ================================= */
+:root {
+  color-scheme: light;
+  --surface-app: var(--p-gray-94); /* behind everything; the 1 px gaps between docks */
+  --surface-lane: var(--p-gray-98); /* timeline background */
+  --surface-lane-current: var(--p-teal-96); /* the current track's lane and header (↑/↓ cursor) */
+  --surface-panel: var(--p-gray-100); /* headers, panels, top and status bars */
+  --surface-raised: var(--p-gray-100); /* popovers, palette, toasts (with --shadow-raised) */
+  --surface-sunken: var(--p-gray-96); /* inputs, wells, key chips */
+  --surface-hover: var(--p-gray-96-b);
+  --surface-active: var(--p-gray-93); /* pressed controls, count pills */
+  --surface-scrim: var(--p-gray-20-a32); /* behind modal dialogs */
+  --border-subtle: var(--p-gray-93-b); /* lane separators, list dividers */
+  --border: var(--p-gray-88); /* panel edges, controls at rest */
+  --border-strong: var(--p-gray-64); /* input outlines: >= 3:1 on panels */
+  --text: var(--p-gray-21);
+  --text-secondary: var(--p-gray-44);
+  --text-tertiary: var(--p-gray-51); /* still >= 4.5:1: body text, never decoration */
+  --text-disabled: var(--p-gray-72); /* disabled only (exempt from contrast) */
+  --text-on-accent: var(--p-gray-100);
+  --accent: var(--p-teal-52); /* primary buttons, focus, range edges, the overview box */
+  --accent-hover: var(--p-teal-47);
+  --accent-text: var(--p-teal-48); /* accent-coloured text on panels */
+  --accent-subtle: var(--p-teal-94); /* selected rows, selected words */
+  --focus-ring: var(--p-teal-52);
+  --warn: var(--p-amber-63); /* fills and strokes: solo, speed chip */
+  --warn-text: var(--p-amber-49);
+  --warn-subtle: var(--p-amber-96);
+  --danger: var(--p-red-55);
+  --danger-text: var(--p-red-51);
+  --danger-subtle: var(--p-red-95);
+  --ok: var(--p-green-56);
+  --ok-text: var(--p-green-51);
+  --playhead: var(--p-red-59);
+  --play-start: var(--p-gray-51); /* where the last play started (hollow mark) */
+  --selection-range: var(--p-teal-52-a14); /* in/out band on the scoped lanes */
+  --gain-line: var(--p-gray-21);
+  --automation-line: var(--p-gray-44);
+  --ruler-text: var(--p-gray-44);
+  --ruler-tick: var(--p-gray-76-b);
+  --signal-selected: var(--p-gray-20-b); /* 2 px outline: neutral, works on every hue */
+  --signal-partner: var(--p-gray-44); /* dashed: what a move takes along */
+  --signal-muted-hatch: var(--p-gray-21-a28);
+  --signal-placeholder: var(--p-gray-44); /* dashed outline of narration placeholders */
+  --signal-provisional: var(--p-gray-51);
+  --signal-candidate: var(--p-red-55); /* stripes and edges of cut candidates */
+  --signal-candidate-fill: var(--p-red-55-a12);
+  --signal-soft-cut: var(--p-red-55); /* a cut that kept its gap: edges and hatch */
+  --signal-soft-cut-fill: var(--p-red-55-a8);
+  --signal-gate: var(--p-gray-98); /* the veil over a closed gate (lane colour) */
+  --signal-damaged: var(--p-red-55);
+  --signal-damaged-fill: var(--p-red-95);
+  --signal-removed: var(--p-red-55);
+  --signal-removed-fill: var(--p-red-55-a12);
+  --signal-added: var(--p-green-56);
+  --signal-drift: var(--p-red-55); /* solid badge with the offset */
+  --signal-drift-text: var(--p-gray-100);
+  --signal-clipping: var(--p-red-55); /* the cap on a clipped column */
+  --signal-file-mark: var(--p-gray-100); /* file mark chip background */
+  --signal-file-mark-text: var(--p-gray-21);
+  --signal-free: var(--p-gray-44);
+  --signal-seam: var(--p-gray-44); /* hairline (split) and notch (jump cut) */
+  --signal-takes: var(--p-gray-44);
+  --signal-note: var(--p-amber-63);
+  --signal-sync: var(--p-gray-44);
+  --signal-tether: var(--p-gray-44);
+  --role-speech: var(--p-gray-44); /* strip pattern: solid */
+  --role-speech-mix: var(--p-gray-44); /* strip pattern: dashed */
+  --role-music: var(--p-sand-55); /* strip pattern: dotted */
+  --track-0-wave: var(--p-blue-46);
+  --track-1-wave: var(--p-amber-60);
+  --track-2-wave: var(--p-rose-54);
+  --track-3-wave: var(--p-sky-59);
+  --track-4-wave: var(--p-violet-42);
+  --track-5-wave: var(--p-green-56-b);
+  --track-music-wave: var(--p-sand-60);
+  --track-0-body: var(--p-blue-96);
+  --track-1-body: var(--p-amber-96-b);
+  --track-2-body: var(--p-rose-97);
+  --track-3-body: var(--p-sky-97);
+  --track-4-body: var(--p-violet-96);
+  --track-5-body: var(--p-green-96);
+  --track-music-body: var(--p-sand-96);
+  --track-0-body-alt: var(--p-blue-92);
+  --track-1-body-alt: var(--p-amber-92);
+  --track-2-body-alt: var(--p-rose-92);
+  --track-3-body-alt: var(--p-sky-92);
+  --track-4-body-alt: var(--p-violet-92);
+  --track-5-body-alt: var(--p-green-92);
+  --track-music-body-alt: var(--p-sand-91);
+  --track-0-edge: var(--p-blue-46-b);
+  --track-1-edge: var(--p-amber-56);
+  --track-2-edge: var(--p-rose-54-b);
+  --track-3-edge: var(--p-sky-57);
+  --track-4-edge: var(--p-violet-42-b);
+  --track-5-edge: var(--p-green-56-c);
+  --track-music-edge: var(--p-sand-55);
+  --track-0-label: var(--p-blue-40);
+  --track-1-label: var(--p-amber-40);
+  --track-2-label: var(--p-rose-40);
+  --track-3-label: var(--p-sky-41);
+  --track-4-label: var(--p-violet-40);
+  --track-5-label: var(--p-green-40);
+  --track-music-label: var(--p-sand-40);
+  --bus-1-spine: var(--p-slate-55); /* the bus spine, its group band and its badge text */
+  --bus-1-band: var(--p-slate-55-a7);
+  --bus-1-text: var(--p-slate-42);
+  --bus-2-spine: var(--p-olive-55);
+  --bus-2-band: var(--p-olive-55-a7);
+  --bus-2-text: var(--p-olive-42);
+  --bus-3-spine: var(--p-plum-55);
+  --bus-3-band: var(--p-plum-55-a7);
+  --bus-3-text: var(--p-plum-42);
+  --bus-4-spine: var(--p-sienna-55);
+  --bus-4-band: var(--p-sienna-55-a7);
+  --bus-4-text: var(--p-sienna-42);
+  --label-1: var(--p-label-red-58); /* user clip labels: never set automatically */
+  --label-2: var(--p-label-orange-58);
+  --label-3: var(--p-label-yellow-58);
+  --label-4: var(--p-label-green-58);
+  --label-5: var(--p-label-blue-58);
+  --label-6: var(--p-label-purple-58);
+  --shadow-raised: 0 6px 20px var(--p-gray-22-a14), 0 0 0 1px var(--p-gray-22-a8);
+  --shadow-dialog: 0 18px 48px var(--p-gray-22-a22), 0 0 0 1px var(--p-gray-22-a8);
+}
+
+/* == 2. semantic roles: dark, by OS preference unless light was chosen === */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface-app: var(--p-gray-18);
+    --surface-lane: var(--p-gray-20);
+    --surface-lane-current: var(--p-teal-24);
+    --surface-panel: var(--p-gray-22);
+    --surface-raised: var(--p-gray-25);
+    --surface-sunken: var(--p-gray-18-b);
+    --surface-hover: var(--p-gray-27);
+    --surface-active: var(--p-gray-30);
+    --surface-scrim: var(--p-gray-0-a50);
+    --border-subtle: var(--p-gray-27-b);
+    --border: var(--p-gray-32);
+    --border-strong: var(--p-gray-54);
+    --text: var(--p-gray-94-b);
+    --text-secondary: var(--p-gray-76);
+    --text-tertiary: var(--p-gray-68);
+    --text-disabled: var(--p-gray-48);
+    --text-on-accent: var(--p-gray-22-b);
+    --accent: var(--p-teal-76);
+    --accent-hover: var(--p-teal-80);
+    --accent-text: var(--p-teal-80);
+    --accent-subtle: var(--p-teal-32);
+    --focus-ring: var(--p-teal-80);
+    --warn: var(--p-amber-81);
+    --warn-text: var(--p-amber-84);
+    --warn-subtle: var(--p-amber-30);
+    --danger: var(--p-red-73);
+    --danger-text: var(--p-red-76);
+    --danger-subtle: var(--p-red-28);
+    --ok: var(--p-green-79);
+    --ok-text: var(--p-green-82);
+    --playhead: var(--p-red-71);
+    --play-start: var(--p-gray-68);
+    --selection-range: var(--p-teal-76-a16);
+    --gain-line: var(--p-gray-94-b);
+    --automation-line: var(--p-gray-76);
+    --ruler-text: var(--p-gray-76);
+    --ruler-tick: var(--p-gray-44-b);
+    --signal-selected: var(--p-gray-100);
+    --signal-partner: var(--p-gray-76);
+    --signal-muted-hatch: var(--p-gray-94-a22);
+    --signal-placeholder: var(--p-gray-76);
+    --signal-provisional: var(--p-gray-68);
+    --signal-candidate: var(--p-red-73);
+    --signal-candidate-fill: var(--p-red-73-a13);
+    --signal-soft-cut: var(--p-red-73);
+    --signal-soft-cut-fill: var(--p-red-73-a9);
+    --signal-gate: var(--p-gray-20);
+    --signal-damaged: var(--p-red-73);
+    --signal-damaged-fill: var(--p-red-28);
+    --signal-removed: var(--p-red-73);
+    --signal-removed-fill: var(--p-red-73-a13);
+    --signal-added: var(--p-green-79);
+    --signal-drift: var(--p-red-73);
+    --signal-drift-text: var(--p-gray-17);
+    --signal-clipping: var(--p-red-73);
+    --signal-file-mark: var(--p-gray-18);
+    --signal-file-mark-text: var(--p-gray-94-b);
+    --signal-free: var(--p-gray-76);
+    --signal-seam: var(--p-gray-76);
+    --signal-takes: var(--p-gray-76);
+    --signal-note: var(--p-amber-81);
+    --signal-sync: var(--p-gray-76);
+    --signal-tether: var(--p-gray-76);
+    --role-speech: var(--p-gray-76);
+    --role-speech-mix: var(--p-gray-76);
+    --role-music: var(--p-sand-62);
+    --track-0-wave: var(--p-blue-68);
+    --track-1-wave: var(--p-amber-85);
+    --track-2-wave: var(--p-rose-70);
+    --track-3-wave: var(--p-sky-85);
+    --track-4-wave: var(--p-violet-66);
+    --track-5-wave: var(--p-green-76);
+    --track-music-wave: var(--p-sand-74);
+    --track-0-body: var(--p-blue-26);
+    --track-1-body: var(--p-amber-25);
+    --track-2-body: var(--p-rose-26);
+    --track-3-body: var(--p-sky-26);
+    --track-4-body: var(--p-violet-26);
+    --track-5-body: var(--p-green-26);
+    --track-music-body: var(--p-sand-25);
+    --track-0-body-alt: var(--p-blue-32);
+    --track-1-body-alt: var(--p-amber-31);
+    --track-2-body-alt: var(--p-rose-32);
+    --track-3-body-alt: var(--p-sky-32);
+    --track-4-body-alt: var(--p-violet-32);
+    --track-5-body-alt: var(--p-green-32);
+    --track-music-body-alt: var(--p-sand-31);
+    --track-0-edge: var(--p-blue-68-b);
+    --track-1-edge: var(--p-amber-74);
+    --track-2-edge: var(--p-rose-70-b);
+    --track-3-edge: var(--p-sky-74);
+    --track-4-edge: var(--p-violet-64);
+    --track-5-edge: var(--p-green-74);
+    --track-music-edge: var(--p-sand-62);
+    --track-0-label: var(--p-blue-88);
+    --track-1-label: var(--p-amber-88);
+    --track-2-label: var(--p-rose-88);
+    --track-3-label: var(--p-sky-88);
+    --track-4-label: var(--p-violet-88);
+    --track-5-label: var(--p-green-88);
+    --track-music-label: var(--p-sand-86);
+    --bus-1-spine: var(--p-slate-72);
+    --bus-1-band: var(--p-slate-72-a9);
+    --bus-1-text: var(--p-slate-86);
+    --bus-2-spine: var(--p-olive-72);
+    --bus-2-band: var(--p-olive-72-a9);
+    --bus-2-text: var(--p-olive-86);
+    --bus-3-spine: var(--p-plum-72);
+    --bus-3-band: var(--p-plum-72-a9);
+    --bus-3-text: var(--p-plum-86);
+    --bus-4-spine: var(--p-sienna-72);
+    --bus-4-band: var(--p-sienna-72-a9);
+    --bus-4-text: var(--p-sienna-86);
+    --label-1: var(--p-label-red-74);
+    --label-2: var(--p-label-orange-74);
+    --label-3: var(--p-label-yellow-74);
+    --label-4: var(--p-label-green-74);
+    --label-5: var(--p-label-blue-74);
+    --label-6: var(--p-label-purple-74);
+    --shadow-raised: 0 8px 24px var(--p-black-a45), 0 0 0 1px var(--p-gray-32);
+    --shadow-dialog: 0 20px 56px var(--p-black-a60), 0 0 0 1px var(--p-gray-32);
+  }
+}
+
+/* == 2. semantic roles: dark, chosen explicitly (keep identical to above) = */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-app: var(--p-gray-18);
+  --surface-lane: var(--p-gray-20);
+  --surface-lane-current: var(--p-teal-24);
+  --surface-panel: var(--p-gray-22);
+  --surface-raised: var(--p-gray-25);
+  --surface-sunken: var(--p-gray-18-b);
+  --surface-hover: var(--p-gray-27);
+  --surface-active: var(--p-gray-30);
+  --surface-scrim: var(--p-gray-0-a50);
+  --border-subtle: var(--p-gray-27-b);
+  --border: var(--p-gray-32);
+  --border-strong: var(--p-gray-54);
+  --text: var(--p-gray-94-b);
+  --text-secondary: var(--p-gray-76);
+  --text-tertiary: var(--p-gray-68);
+  --text-disabled: var(--p-gray-48);
+  --text-on-accent: var(--p-gray-22-b);
+  --accent: var(--p-teal-76);
+  --accent-hover: var(--p-teal-80);
+  --accent-text: var(--p-teal-80);
+  --accent-subtle: var(--p-teal-32);
+  --focus-ring: var(--p-teal-80);
+  --warn: var(--p-amber-81);
+  --warn-text: var(--p-amber-84);
+  --warn-subtle: var(--p-amber-30);
+  --danger: var(--p-red-73);
+  --danger-text: var(--p-red-76);
+  --danger-subtle: var(--p-red-28);
+  --ok: var(--p-green-79);
+  --ok-text: var(--p-green-82);
+  --playhead: var(--p-red-71);
+  --play-start: var(--p-gray-68);
+  --selection-range: var(--p-teal-76-a16);
+  --gain-line: var(--p-gray-94-b);
+  --automation-line: var(--p-gray-76);
+  --ruler-text: var(--p-gray-76);
+  --ruler-tick: var(--p-gray-44-b);
+  --signal-selected: var(--p-gray-100);
+  --signal-partner: var(--p-gray-76);
+  --signal-muted-hatch: var(--p-gray-94-a22);
+  --signal-placeholder: var(--p-gray-76);
+  --signal-provisional: var(--p-gray-68);
+  --signal-candidate: var(--p-red-73);
+  --signal-candidate-fill: var(--p-red-73-a13);
+  --signal-soft-cut: var(--p-red-73);
+  --signal-soft-cut-fill: var(--p-red-73-a9);
+  --signal-gate: var(--p-gray-20);
+  --signal-damaged: var(--p-red-73);
+  --signal-damaged-fill: var(--p-red-28);
+  --signal-removed: var(--p-red-73);
+  --signal-removed-fill: var(--p-red-73-a13);
+  --signal-added: var(--p-green-79);
+  --signal-drift: var(--p-red-73);
+  --signal-drift-text: var(--p-gray-17);
+  --signal-clipping: var(--p-red-73);
+  --signal-file-mark: var(--p-gray-18);
+  --signal-file-mark-text: var(--p-gray-94-b);
+  --signal-free: var(--p-gray-76);
+  --signal-seam: var(--p-gray-76);
+  --signal-takes: var(--p-gray-76);
+  --signal-note: var(--p-amber-81);
+  --signal-sync: var(--p-gray-76);
+  --signal-tether: var(--p-gray-76);
+  --role-speech: var(--p-gray-76);
+  --role-speech-mix: var(--p-gray-76);
+  --role-music: var(--p-sand-62);
+  --track-0-wave: var(--p-blue-68);
+  --track-1-wave: var(--p-amber-85);
+  --track-2-wave: var(--p-rose-70);
+  --track-3-wave: var(--p-sky-85);
+  --track-4-wave: var(--p-violet-66);
+  --track-5-wave: var(--p-green-76);
+  --track-music-wave: var(--p-sand-74);
+  --track-0-body: var(--p-blue-26);
+  --track-1-body: var(--p-amber-25);
+  --track-2-body: var(--p-rose-26);
+  --track-3-body: var(--p-sky-26);
+  --track-4-body: var(--p-violet-26);
+  --track-5-body: var(--p-green-26);
+  --track-music-body: var(--p-sand-25);
+  --track-0-body-alt: var(--p-blue-32);
+  --track-1-body-alt: var(--p-amber-31);
+  --track-2-body-alt: var(--p-rose-32);
+  --track-3-body-alt: var(--p-sky-32);
+  --track-4-body-alt: var(--p-violet-32);
+  --track-5-body-alt: var(--p-green-32);
+  --track-music-body-alt: var(--p-sand-31);
+  --track-0-edge: var(--p-blue-68-b);
+  --track-1-edge: var(--p-amber-74);
+  --track-2-edge: var(--p-rose-70-b);
+  --track-3-edge: var(--p-sky-74);
+  --track-4-edge: var(--p-violet-64);
+  --track-5-edge: var(--p-green-74);
+  --track-music-edge: var(--p-sand-62);
+  --track-0-label: var(--p-blue-88);
+  --track-1-label: var(--p-amber-88);
+  --track-2-label: var(--p-rose-88);
+  --track-3-label: var(--p-sky-88);
+  --track-4-label: var(--p-violet-88);
+  --track-5-label: var(--p-green-88);
+  --track-music-label: var(--p-sand-86);
+  --bus-1-spine: var(--p-slate-72);
+  --bus-1-band: var(--p-slate-72-a9);
+  --bus-1-text: var(--p-slate-86);
+  --bus-2-spine: var(--p-olive-72);
+  --bus-2-band: var(--p-olive-72-a9);
+  --bus-2-text: var(--p-olive-86);
+  --bus-3-spine: var(--p-plum-72);
+  --bus-3-band: var(--p-plum-72-a9);
+  --bus-3-text: var(--p-plum-86);
+  --bus-4-spine: var(--p-sienna-72);
+  --bus-4-band: var(--p-sienna-72-a9);
+  --bus-4-text: var(--p-sienna-86);
+  --label-1: var(--p-label-red-74);
+  --label-2: var(--p-label-orange-74);
+  --label-3: var(--p-label-yellow-74);
+  --label-4: var(--p-label-green-74);
+  --label-5: var(--p-label-blue-74);
+  --label-6: var(--p-label-purple-74);
+  --shadow-raised: 0 8px 24px var(--p-black-a45), 0 0 0 1px var(--p-gray-32);
+  --shadow-dialog: 0 20px 56px var(--p-black-a60), 0 0 0 1px var(--p-gray-32);
+}
+
+/* == 3. component tokens: only var(--semantic) ========================== */
+:root {
+  --frame-gap: var(--border); /* the 1 px lines between top bar, docks and status bar */
+  --toolbar-bg: var(--surface-panel);
+  --panel-bg: var(--surface-panel);
+  --panel-divider: var(--border-subtle);
+  --header-bg: var(--surface-panel); /* track and bus headers */
+  --header-bg-current: var(--surface-lane-current);
+  --lane-bg: var(--surface-lane);
+  --lane-separator: var(--border-subtle);
+  --ruler-bg: var(--surface-panel);
+  --button-bg: var(--surface-panel);
+  --button-text: var(--text);
+  --button-border: var(--border);
+  --button-hover-bg: var(--surface-hover);
+  --button-hover-border: var(--border-strong);
+  --button-active-bg: var(--surface-active);
+  --button-primary-bg: var(--accent); /* Play and the one primary action of a view */
+  --button-primary-hover-bg: var(--accent-hover);
+  --button-primary-text: var(--text-on-accent);
+  --input-bg: var(--surface-sunken);
+  --input-border: var(--border-strong);
+  --kbd-bg: var(--surface-sunken); /* key chips */
+  --kbd-border: var(--border);
+  --kbd-text: var(--text-secondary);
+  --toast-bg: var(--surface-raised);
+  --toast-shadow: var(--shadow-raised);
+  --mute-on-bg: var(--text-secondary); /* M pressed: neutral */
+  --solo-on-bg: var(--warn); /* S pressed: amber, and a 'Solo' chip in the top bar */
+}
+
+/* -- reduced motion: no animation anywhere ------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur-base: 0ms;
+    --dur-layout: 0ms;
+  }
+}
+/* -- end of tokens.css -- */
+
+/* ===== base ============================================================= */
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; overflow: hidden;
+  background: var(--surface-app); color: var(--text);
+  font: var(--weight-regular) var(--text-md) / var(--leading-body) var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+button, select, input { font: inherit; color: inherit; }
+svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.num { font-variant-numeric: tabular-nums; }
+:focus-visible { outline: var(--focus-width) solid var(--focus-ring); outline-offset: var(--focus-offset); }
+kbd {
+  display: inline-block; min-width: 18px; padding: 0 4px; height: 18px;
+  font: var(--weight-medium) var(--text-xs)/16px var(--font-ui); text-align: center;
+  color: var(--text-secondary); background: var(--surface-sunken);
+  border: 1px solid var(--border); border-bottom-width: 2px; border-radius: var(--radius-xs);
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* ===== buttons and chips ================================================= */
+.button {
+  display: inline-flex; align-items: center; gap: var(--space-3);
+  height: var(--control-h); padding: 0 var(--space-5);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface-panel); color: var(--text); cursor: pointer; white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease-standard), border-color var(--dur-fast) var(--ease-standard);
+}
+.button:hover:not(:disabled) { background: var(--surface-hover); border-color: var(--border-strong); }
+.button:active:not(:disabled) { background: var(--surface-active); }
+.button:disabled { color: var(--text-disabled); cursor: default; }
+.button.primary { background: var(--accent); border-color: var(--accent); color: var(--text-on-accent); font-weight: var(--weight-strong); }
+.button.primary:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+.button.ghost { border-color: transparent; background: transparent; }
+.button.ghost:hover:not(:disabled) { background: var(--surface-hover); border-color: transparent; }
+.button.small { height: var(--control-h-sm); padding: 0 var(--space-4); font-size: var(--text-sm); }
+.icon-button { width: var(--control-h); padding: 0; justify-content: center; }
+.chip {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  height: 22px; padding: 0 var(--space-4); border-radius: var(--radius-pill);
+  font-size: var(--text-sm); font-weight: var(--weight-medium); white-space: nowrap;
+  border: 1px solid var(--border); color: var(--text-secondary); background: transparent;
+}
+.chip svg.i { width: 14px; height: 14px; }
+.chip.warn { background: var(--warn-subtle); border-color: var(--warn); color: var(--warn-text); }
+.chip.danger { background: var(--danger-subtle); border-color: var(--danger); color: var(--danger-text); }
+.chip.info { color: var(--text); border-color: var(--border-strong); }
+button.chip { cursor: pointer; }
+button.chip:hover { border-color: var(--border-strong); }
+
+/* ===== prototype switcher (not part of the design) ====================== */
+.proto-bar {
+  height: 30px; display: flex; align-items: center; gap: 10px; padding: 0 10px;
+  background: #000; color: #ddd; font: 12px/1 var(--font-ui); overflow-x: auto; white-space: nowrap;
+}
+.proto-bar b { color: #fff; margin-right: 4px; }
+.proto-bar select { background: #222; color: #eee; border: 1px solid #444; border-radius: 4px; height: 22px; }
+.proto-bar .sep { width: 1px; height: 16px; background: #444; }
+body.clean .proto-bar { display: none; }
+
+/* ===== app frame ========================================================= */
+.app {
+  height: calc(100vh - 30px);
+  display: grid;
+  grid-template-columns: var(--heads-w) minmax(0, 1fr) var(--sidebar-w);
+  grid-template-rows: var(--topbar-h) minmax(0, 1fr) var(--dock-h) var(--statusbar-h);
+  grid-template-areas: "top top top" "heads timeline side" "dock dock side" "status status status";
+  gap: 1px; background: var(--border);
+}
+body.clean .app { height: 100vh; }
+.app > * { background: var(--surface-panel); min-width: 0; min-height: 0; }
+
+/* ===== top bar =========================================================== */
+.topbar { grid-area: top; display: flex; align-items: center; gap: var(--space-4); padding: 0 var(--space-4) 0 0; }
+.project {
+  width: var(--heads-w); flex: none; height: 100%; display: flex; flex-direction: column; justify-content: center;
+  padding: 0 var(--space-5); border-right: 1px solid var(--border-subtle); min-width: 0; cursor: pointer;
+}
+.project:hover { background: var(--surface-hover); }
+.project .name { font-weight: var(--weight-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: var(--leading-tight); }
+.project .edit { font-size: var(--text-xs); color: var(--text-secondary); display: flex; gap: var(--space-2); align-items: center; white-space: nowrap; overflow: hidden; }
+.project .edit svg.i { width: 12px; height: 12px; }
+.transport { display: flex; align-items: center; gap: var(--space-4); padding-left: var(--space-2); }
+.play {
+  height: 30px; min-width: 30px; padding: 0 var(--space-5) 0 var(--space-4); gap: var(--space-3);
+  background: var(--accent); border-color: var(--accent); color: var(--text-on-accent); font-weight: var(--weight-strong);
+}
+.play:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+.play svg.i { fill: currentColor; stroke: none; }
+.play:disabled { background: var(--surface-panel); border-color: var(--border); color: var(--text-disabled); }
+.play kbd { background: transparent; color: inherit; border-color: color-mix(in srgb, currentColor 40%, transparent); }
+.timecode { font: var(--weight-strong) var(--text-xl)/1 var(--font-ui); font-variant-numeric: tabular-nums; letter-spacing: 0.01em; min-width: 9.2ch; }
+.timecode .ms { color: var(--text-secondary); font-weight: var(--weight-medium); }
+.modes { display: flex; gap: var(--space-3); align-items: center; min-width: 0; overflow: hidden; }
+.spacer { flex: 1; }
+.job { display: inline-flex; align-items: center; gap: var(--space-3); font-size: var(--text-sm); color: var(--text-secondary); white-space: nowrap; }
+.ring { width: 16px; height: 16px; border-radius: 50%; background: conic-gradient(var(--accent) calc(var(--p) * 1%), var(--surface-active) 0); -webkit-mask: radial-gradient(circle 5px, transparent 98%, #000 100%); mask: radial-gradient(circle 5px, transparent 98%, #000 100%); }
+.cmd-button { color: var(--text-secondary); gap: var(--space-4); padding: 0 var(--space-3) 0 var(--space-4); }
+.toolgroup { display: flex; gap: var(--space-1); }
+
+/* ===== track headers ===================================================== */
+.heads { grid-area: heads; display: flex; flex-direction: column; }
+.heads-top {
+  height: calc(var(--overview-h) + var(--ruler-h)); flex: none; display: flex; align-items: flex-end; justify-content: space-between;
+  padding: 0 var(--space-4) var(--space-2) var(--space-5); border-bottom: 1px solid var(--border);
+  font-size: var(--text-xs); color: var(--text-secondary);
+}
+.heads-scroll { flex: 1; overflow: hidden; }
+.track-header {
+  position: relative; display: grid; grid-template-rows: var(--control-h-sm) var(--control-h-sm); align-content: center; gap: var(--space-2);
+  padding: 0 var(--space-4) 0 var(--space-5); border-bottom: 1px solid var(--border-subtle); overflow: hidden;
+  transition: height var(--dur-layout) var(--ease-standard);
+}
+/* Bus spine (full height, continuous) and track hue (short pill): never the same shape. */
+.track-header::before { content: ""; position: absolute; left: calc(var(--spine-w) + var(--space-1)); top: 50%; width: 3px; height: min(22px, 60%); transform: translateY(-50%); border-radius: 2px; background: var(--track-colour, transparent); }
+.track-header[data-bus] { background: var(--bus-band); }
+.track-header[data-bus]::after { content: ""; position: absolute; inset: 0 auto 0 0; width: var(--spine-w); background: var(--bus-spine); }
+.bus-header { border-top: 1px solid var(--border); }
+.bus-header.collapsed { grid-template-rows: var(--control-h-sm); }
+.bus-header.collapsed .th-controls { display: none; }
+.bus-header .th-top { gap: var(--space-2); }
+.bus-badge { flex: none; min-width: 18px; height: 18px; padding: 0 var(--space-1); display: inline-grid; place-items: center; font: var(--weight-strong) var(--text-xs) / 1 var(--font-ui); font-style: normal; color: var(--bus-text, var(--text-secondary)); border: 1.5px solid var(--bus-spine, var(--border-strong)); border-radius: var(--radius-xs); }
+.bus-badge.mini { min-width: 14px; height: 14px; font-size: 10px; margin-left: var(--space-2); vertical-align: 1px; }
+.bus-name { flex: 1; min-width: 0; font-weight: var(--weight-strong); color: var(--bus-text, var(--text)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bus-header.no-members .bus-name { color: var(--text-tertiary); font-style: italic; font-weight: var(--weight-medium); }
+.disclose { width: 18px; height: 18px; padding: 0; display: grid; place-items: center; background: none; border: 0; color: var(--text-secondary); cursor: pointer; border-radius: var(--radius-xs); }
+.disclose:hover { background: var(--surface-hover); }
+.disclose svg.i { width: 14px; height: 14px; transition: transform var(--dur-base) var(--ease-standard); }
+.disclose[aria-expanded="false"] svg.i { transform: rotate(-90deg); }
+.bus-pick { flex: none; height: var(--control-h-sm); display: inline-flex; align-items: center; gap: 1px; padding: 0 2px 0 var(--space-2); font: var(--weight-strong) var(--text-xs) / 1 var(--font-ui); color: var(--bus-text, var(--text-secondary)); background: transparent; border: 1px solid var(--border); border-radius: var(--radius-xs); cursor: pointer; }
+.bus-pick svg.i { width: 12px; height: 12px; }
+.bus-line { display: flex; align-items: center; gap: var(--space-3); font-size: var(--text-sm); color: var(--bus-text); padding-left: var(--space-5); }
+.file-chip { font: var(--weight-strong) 10px / 14px var(--font-mono); padding: 0 var(--space-2); border: 1px solid var(--border-strong); border-radius: var(--radius-xs); background: var(--signal-file-mark); color: var(--signal-file-mark-text); }
+.drop-line { height: 2px; background: var(--bus-spine); margin: -1px 0 -1px var(--spine-w); position: relative; z-index: 2; }
+.track-header.drop-target { opacity: 0.6; }
+/* -- the clip gallery screen -- */
+body.gallery-mode .app { display: block; overflow: auto; background: var(--surface-app); }
+.gallery { max-width: 1360px; margin: 0 auto; padding: var(--space-7) var(--space-6) var(--space-8); }
+.gallery h1 { margin: 0 0 var(--space-2); font-size: var(--text-xl); }
+.gallery h2 { margin: var(--space-7) 0 var(--space-4); font-size: var(--text-lg); }
+.gallery header p { margin: 0; color: var(--text-secondary); max-width: 90ch; }
+.gallery code { font-family: var(--font-mono); font-size: var(--text-sm); }
+.g-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-5); }
+.g-buses { display: grid; grid-template-columns: repeat(auto-fill, minmax(560px, 1fr)); gap: var(--space-5); }
+.g-card { margin: 0; background: var(--surface-panel); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; display: flex; flex-direction: column; }
+.g-card canvas { display: block; width: 100%; height: 72px; border-bottom: 1px solid var(--border-subtle); }
+.g-card figcaption { padding: var(--space-4) var(--space-5) var(--space-5); font-size: var(--text-sm); }
+.g-card figcaption b { display: block; margin-bottom: var(--space-3); }
+.g-card dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px var(--space-4); margin: 0; }
+.g-card dt { color: var(--text-secondary); }
+.g-card dd { margin: 0; }
+.g-card.wide { display: grid; grid-template-columns: 260px 1fr; }
+.g-card.wide .g-heads { border-right: 1px solid var(--border-subtle); background: var(--surface-panel); }
+.g-card.wide canvas#g-summed { height: 44px; width: 100%; border: 0; }
+.track-header.current { background: var(--surface-lane-current); }
+.track-header.current .track-name { color: var(--text); }
+.track-header.compact { grid-template-rows: var(--control-h-sm); }
+.track-header.compact .th-controls { display: none; }
+.track-header.strip { grid-template-rows: 1fr; padding-top: 0; }
+.track-header.strip .th-controls, .track-header.strip .ms, .track-header.strip .role { display: none; }
+.track-header.strip .track-name { font-size: var(--text-xs); font-weight: var(--weight-medium); color: var(--text-secondary); }
+.track-header.unheard .track-name, .track-header.unheard .th-controls { opacity: 0.55; }
+.th-top, .th-controls { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.track-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--weight-strong); border: 0; background: none; padding: 0; text-align: left; cursor: default; }
+.role { display: grid; place-items: center; width: 16px; flex: none; color: var(--text-secondary); }
+.role svg.i { width: 14px; height: 14px; }
+.ms { display: inline-flex; gap: var(--space-1); flex: none; }
+.ms-button {
+  width: var(--control-h-sm); height: var(--control-h-sm); padding: 0; display: grid; place-items: center;
+  font: var(--weight-strong) var(--text-xs)/1 var(--font-ui); color: var(--text-secondary);
+  background: transparent; border: 1px solid var(--border); border-radius: var(--radius-xs); cursor: pointer;
+}
+.ms-button:hover { border-color: var(--border-strong); color: var(--text); }
+.ms-button.mute[aria-pressed="true"] { background: var(--text-secondary); border-color: var(--text-secondary); color: var(--surface-panel); }
+.ms-button.solo[aria-pressed="true"] { background: var(--warn); border-color: var(--warn); color: #1d1300; }
+.ms-button.implicit { border-style: dashed; }
+.slider-control { display: flex; align-items: center; gap: var(--space-2); min-width: 0; font-size: var(--text-xs); color: var(--text-secondary); }
+.slider-control.gain { flex: 1; }
+.slider-control.pan { width: 74px; flex: none; }
+.slider-control output { min-width: 42px; text-align: right; font-variant-numeric: tabular-nums; }
+.slider-control.pan output { min-width: 26px; }
+input[type="range"] { -webkit-appearance: none; appearance: none; flex: 1; min-width: 16px; height: 16px; background: transparent; margin: 0; cursor: pointer; }
+input[type="range"]::-webkit-slider-runnable-track { height: 3px; border-radius: 2px; background: var(--border-strong); }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 11px; height: 11px; margin-top: -4px; border-radius: 50%; background: var(--text); border: 2px solid var(--surface-panel); box-shadow: 0 0 0 1px var(--border-strong); }
+input[type="range"]::-moz-range-track { height: 3px; border-radius: 2px; background: var(--border-strong); }
+input[type="range"]::-moz-range-thumb { width: 9px; height: 9px; border-radius: 50%; background: var(--text); border: 2px solid var(--surface-panel); }
+.bus-header svg.i { width: 14px; height: 14px; }
+
+/* ===== timeline ========================================================== */
+.tl-column { grid-area: timeline; display: grid; grid-template-rows: var(--overview-h) minmax(0, 1fr); position: relative; background: var(--surface-lane); }
+.tl-column canvas { display: block; width: 100%; height: 100%; }
+#overview { border-bottom: 1px solid var(--border-subtle); background: var(--surface-panel); cursor: pointer; }
+.tl-stack { position: relative; min-height: 0; }
+.tl-stack canvas { position: absolute; inset: 0; }
+#timeline:focus-visible { outline-offset: -2px; }
+[data-focused] > .panel-head, .tl-column[data-focused]::after { }
+.tl-column[data-focused]::before, .dock[data-focused]::before, .sidebar[data-focused]::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: var(--accent); z-index: 3;
+}
+.empty-state { position: absolute; inset: var(--ruler-h) 0 0 0; display: grid; place-items: center; padding: var(--space-6); }
+.drop-card {
+  width: min(460px, 100%); padding: var(--space-8) var(--space-7); text-align: center; border-radius: var(--radius-lg);
+  border: 1.5px dashed var(--border-strong); background: var(--surface-panel); display: grid; gap: var(--space-4); justify-items: center;
+}
+.drop-card h2 { margin: 0; font-size: var(--text-lg); font-weight: var(--weight-strong); }
+.drop-card p { margin: 0; color: var(--text-secondary); }
+.drop-card .row { display: flex; gap: var(--space-4); flex-wrap: wrap; justify-content: center; margin-top: var(--space-2); }
+.drop-card .formats { font-size: var(--text-xs); color: var(--text-tertiary); }
+.drop-card svg.big { width: 40px; height: 40px; color: var(--accent-text); stroke-width: 1.3; }
+
+/* ===== shared panel parts ================================================ */
+.panel-head {
+  height: 34px; flex: none; display: flex; align-items: center; gap: var(--space-4);
+  padding: 0 var(--space-4) 0 var(--space-5); border-bottom: 1px solid var(--border-subtle);
+}
+.panel-head h2 { margin: 0; font-size: var(--text-sm); font-weight: var(--weight-strong); white-space: nowrap; }
+.panel-head .meta { font-size: var(--text-xs); color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hint { color: var(--text-secondary); font-size: var(--text-sm); }
+.empty-panel { padding: var(--space-7) var(--space-6); color: var(--text-secondary); display: grid; gap: var(--space-4); justify-items: start; max-width: 46ch; }
+.empty-panel strong { color: var(--text); font-weight: var(--weight-strong); }
+
+/* ===== transcript dock =================================================== */
+.dock { grid-area: dock; display: flex; flex-direction: column; position: relative; }
+.transcript { flex: 1; overflow: auto; padding: var(--space-5) var(--space-6) var(--space-7); }
+.para { display: grid; grid-template-columns: 132px minmax(0, var(--reading-max)); gap: var(--space-6); margin-bottom: var(--space-5); }
+.para.dim .text { color: var(--text-tertiary); }
+.speaker { display: flex; flex-direction: column; gap: 1px; padding-top: 3px; border-left: 3px solid var(--track-colour); padding-left: var(--space-4); min-width: 0; }
+.speaker b { font-size: var(--text-sm); font-weight: var(--weight-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.speaker span { font-size: var(--text-xs); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.text { font-size: var(--text-lg); line-height: var(--leading-read); margin: 0; }
+.w { border-radius: 2px; padding: 1px 0; cursor: text; }
+.w:hover { background: var(--surface-hover); }
+.w.now { box-shadow: inset 0 -2px 0 var(--accent); }
+.w.sel { background: var(--accent-subtle); box-shadow: inset 0 -2px 0 var(--accent); border-radius: 0; }
+.w.sel:not(.join) { border-top-right-radius: 2px; }
+.w.cut { text-decoration: line-through; text-decoration-thickness: 1px; color: var(--text-tertiary); }
+.w.cand { background: var(--signal-candidate-fill); text-decoration: underline wavy var(--signal-candidate); text-decoration-thickness: 1px; text-underline-offset: 4px; }
+.w.low { text-decoration: underline dotted var(--text-tertiary); text-underline-offset: 4px; }
+.placeholder { font-style: italic; color: var(--text-secondary); border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); padding: 1px var(--space-3); }
+.placeholder small { font-style: normal; font-size: var(--text-xs); color: var(--text-tertiary); margin-left: var(--space-3); }
+.word-pop {
+  position: absolute; z-index: 5; display: flex; gap: var(--space-2); align-items: center; padding: var(--space-2);
+  background: var(--surface-raised); border-radius: var(--radius-md); box-shadow: var(--shadow-raised); font-size: var(--text-sm);
+}
+.word-pop .button { height: 24px; padding: 0 var(--space-4); }
+
+/* ===== sidebar =========================================================== */
+.sidebar { grid-area: side; display: flex; flex-direction: column; position: relative; container: sidebar / inline-size; }
+.tabs { height: 36px; flex: none; display: flex; gap: var(--space-1); padding: 0 var(--space-3); border-bottom: 1px solid var(--border); align-items: stretch; }
+.tab {
+  display: inline-flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-3); margin-bottom: -1px;
+  border: 0; border-bottom: 2px solid transparent; background: none; color: var(--text-secondary);
+  font-size: var(--text-sm); font-weight: var(--weight-medium); cursor: pointer; white-space: nowrap;
+}
+.tab:hover { color: var(--text); }
+.tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+.tab .count { font-size: var(--text-xs); min-width: 16px; height: 16px; border-radius: var(--radius-pill); background: var(--surface-active); color: var(--text); padding: 0 4px; display: inline-grid; place-items: center; }
+@container sidebar (width < 400px) { .tab:not([aria-selected="true"]) .label { display: none; } .tab:not([aria-selected="true"]) { padding: 0 var(--space-4); } }
+.side-body { flex: 1; overflow: auto; }
+.section { padding: var(--space-5) var(--space-5) var(--space-4); border-bottom: 1px solid var(--border-subtle); display: grid; gap: var(--space-3); }
+.section h3 { margin: 0 0 var(--space-1); font-size: var(--text-xs); font-weight: var(--weight-strong); color: var(--text-secondary); letter-spacing: 0.02em; }
+.clip-title { display: flex; gap: var(--space-4); align-items: flex-start; }
+.clip-title .sw { width: 4px; align-self: stretch; border-radius: 2px; background: var(--track-colour); }
+.clip-title b { display: block; font-size: var(--text-lg); font-weight: var(--weight-strong); line-height: var(--leading-tight); overflow-wrap: anywhere; }
+.clip-title span { font-size: var(--text-xs); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.field { display: grid; grid-template-columns: minmax(70px, 38%) minmax(0, 1fr) auto; gap: var(--space-4); align-items: center; min-height: var(--control-h); }
+.field > label, .field > .label { color: var(--text-secondary); font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.field .val { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.field kbd { justify-self: end; }
+.input {
+  height: var(--control-h); padding: 0 var(--space-3); width: 76px; text-align: right; font-variant-numeric: tabular-nums;
+  background: var(--surface-sunken); border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+}
+.input:hover { border-color: var(--text-tertiary); }
+.input.invalid { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger); }
+.field-error { grid-column: 1 / -1; color: var(--danger-text); font-size: var(--text-xs); display: flex; gap: var(--space-2); align-items: center; }
+.select { height: var(--control-h); padding: 0 var(--space-3); background: var(--surface-sunken); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); min-width: 0; max-width: 100%; }
+.status-line { display: flex; gap: var(--space-3); align-items: flex-start; font-size: var(--text-sm); }
+.status-line svg.i { margin-top: 1px; }
+.status-line.ok { color: var(--ok-text); }
+.status-line.danger { color: var(--danger-text); }
+.button-row { display: flex; gap: var(--space-3); flex-wrap: wrap; }
+.facts { display: grid; grid-template-columns: auto 1fr; gap: 2px var(--space-5); font-size: var(--text-sm); }
+.facts dt { color: var(--text-secondary); }
+.facts dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+/* history */
+.hist { list-style: none; margin: 0; padding: var(--space-3) 0; }
+.hist li { position: relative; display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: var(--space-3); align-items: center; padding: 5px var(--space-5); font-size: var(--text-sm); cursor: default; }
+.hist li:hover { background: var(--surface-hover); }
+.hist li .t { color: var(--text-secondary); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+.hist li .lab { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hist li svg.i { width: 14px; height: 14px; color: var(--text-secondary); }
+.hist li.head { background: var(--accent-subtle); box-shadow: inset 3px 0 0 var(--accent); font-weight: var(--weight-strong); }
+.hist li.head .t { color: var(--text); }
+.hist li.future .lab, .hist li.future svg.i { color: var(--text-tertiary); }
+.hist li.branch { padding-left: calc(var(--space-5) + 18px); }
+.hist li.branch::before { content: ""; position: absolute; left: calc(var(--space-5) + 8px); top: 0; bottom: 50%; width: 8px; border-left: 1px solid var(--border-strong); border-bottom: 1px solid var(--border-strong); border-bottom-left-radius: 4px; }
+.hist li.branch .lab { color: var(--text-tertiary); }
+.hist li.pin .lab { font-weight: var(--weight-strong); }
+.hist li.pin svg.i { color: var(--accent-text); }
+.hist li.preview { box-shadow: inset 0 0 0 1px var(--border-strong); }
+.hist li.marker { display: flex; gap: var(--space-4); padding: var(--space-4) var(--space-5) var(--space-2); color: var(--text-secondary); font-size: var(--text-xs); font-weight: var(--weight-medium); }
+.hist li.marker:hover { background: none; }
+.hist li.marker::after { content: ""; flex: 1; border-top: 1px solid var(--border); align-self: center; }
+.actionbar { flex: none; display: flex; gap: var(--space-3); align-items: center; padding: var(--space-4) var(--space-5); border-top: 1px solid var(--border); background: var(--surface-panel); flex-wrap: wrap; }
+.actionbar .hint { flex: 1 1 100%; font-size: var(--text-xs); }
+
+/* candidates */
+.cand-summary { display: flex; gap: var(--space-3); flex-wrap: wrap; padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--border-subtle); }
+.cands { list-style: none; margin: 0; padding: 0; }
+.cands li { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 2px var(--space-4); padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--border-subtle); font-size: var(--text-sm); cursor: default; }
+.cands li:hover { background: var(--surface-hover); }
+.cands li.current { background: var(--accent-subtle); box-shadow: inset 3px 0 0 var(--accent); }
+.cands .when { font-variant-numeric: tabular-nums; font-weight: var(--weight-strong); }
+.cands .dur { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.cands .quote { grid-column: 2 / 4; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cands li.done .when, .cands li.done .quote { color: var(--text-tertiary); }
+.state { font-size: var(--text-xs); font-weight: var(--weight-medium); padding: 1px var(--space-3); border-radius: var(--radius-pill); border: 1px solid var(--border); color: var(--text-secondary); white-space: nowrap; }
+.state.open { border-color: var(--signal-candidate); color: var(--danger-text); }
+.state.cut { text-decoration: line-through; }
+.preview-bar { display: grid; grid-template-columns: 2fr 2.4fr 2fr; height: 26px; border-radius: var(--radius-sm); overflow: hidden; font-size: var(--text-xs); }
+.preview-bar span { display: grid; place-items: center; background: var(--surface-active); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.preview-bar span.skip { background: repeating-linear-gradient(135deg, var(--signal-candidate-fill) 0 6px, transparent 6px 12px); color: var(--danger-text); border-inline: 1px solid var(--signal-candidate); }
+
+/* ===== status bar ======================================================== */
+.statusbar { grid-area: status; display: flex; align-items: center; gap: var(--space-4); padding: 0 var(--space-4); font-size: var(--text-xs); color: var(--text-secondary); white-space: nowrap; overflow: hidden; }
+.statusbar .button { height: 20px; padding: 0 var(--space-3); font-size: var(--text-xs); color: var(--text-secondary); border-color: transparent; background: transparent; }
+.statusbar .button:hover { background: var(--surface-hover); color: var(--text); }
+.statusbar .icon-button { width: 20px; padding: 0; }
+.statusbar .div { width: 1px; height: 14px; background: var(--border); flex: none; }
+.statusbar .zoom { color: var(--text); font-weight: var(--weight-medium); min-width: 9ch; text-align: center; font-variant-numeric: tabular-nums; }
+.keyhints { display: flex; gap: var(--space-5); overflow: hidden; min-width: 0; }
+.keyhints span { display: inline-flex; gap: var(--space-2); align-items: center; }
+.keyhints kbd { height: 16px; line-height: 14px; min-width: 16px; }
+.saved { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--ok-text); }
+.saved svg.i { width: 13px; height: 13px; }
+
+/* ===== toast, dialogs ===================================================== */
+.toast {
+  position: fixed; left: 50%; bottom: calc(var(--statusbar-h) + var(--space-6)); transform: translateX(-50%); z-index: 20;
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-4); max-width: min(560px, calc(100vw - 32px));
+  padding: var(--space-4) var(--space-4) var(--space-4) var(--space-5);
+  background: var(--surface-raised); border-radius: var(--radius-md); box-shadow: var(--shadow-raised); font-size: var(--text-md);
+}
+.toast::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 2px; background: var(--accent); }
+.toast { padding-left: var(--space-6) !important; }
+.toast.error::before { background: var(--danger); }
+.toast .msg { flex: 1 1 240px; min-width: 0; }
+.toast.error { align-items: flex-start; }
+.toast.error .acts { margin-left: auto; }
+.toast .msg b { font-weight: var(--weight-strong); }
+.toast .acts { display: flex; gap: var(--space-2); flex: none; }
+.toast .button { height: 24px; }
+.toast svg.lead { color: var(--danger-text); }
+.scrim { position: fixed; inset: 0; background: var(--surface-scrim); z-index: 30; display: grid; justify-items: center; align-items: start; padding-top: 12vh; }
+.palette { width: min(640px, calc(100vw - 32px)); background: var(--surface-raised); border-radius: var(--radius-lg); box-shadow: var(--shadow-dialog); overflow: hidden; display: flex; flex-direction: column; max-height: 70vh; }
+.palette .search { display: flex; align-items: center; gap: var(--space-4); padding: 0 var(--space-6); height: 48px; border-bottom: 1px solid var(--border); }
+.palette .search input { flex: 1; border: 0; background: none; font-size: var(--text-lg); outline: none; }
+.palette .search svg.i { color: var(--text-secondary); }
+.palette ul { list-style: none; margin: 0; padding: var(--space-3) 0; overflow: auto; }
+.palette .grp { padding: var(--space-4) var(--space-6) var(--space-2); font-size: var(--text-xs); font-weight: var(--weight-strong); color: var(--text-secondary); }
+.palette li.cmd { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto auto; gap: var(--space-4); align-items: center; padding: 0 var(--space-6); height: 34px; cursor: pointer; }
+.palette li.cmd svg.i { color: var(--text-secondary); }
+.palette li.cmd.active { background: var(--accent-subtle); }
+.palette li.cmd .lab { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.palette li.cmd .lab mark { background: none; color: inherit; font-weight: var(--weight-strong); text-decoration: underline; text-underline-offset: 3px; }
+.palette li.cmd .def { font-size: var(--text-xs); color: var(--text-secondary); white-space: nowrap; }
+.palette li.cmd .keys { display: flex; gap: 2px; }
+.palette .foot { display: flex; gap: var(--space-6); padding: var(--space-3) var(--space-6); border-top: 1px solid var(--border); font-size: var(--text-xs); color: var(--text-secondary); }
+.palette .foot span { display: inline-flex; gap: var(--space-2); align-items: center; }
+.popover { position: fixed; z-index: 25; width: 300px; background: var(--surface-raised); border-radius: var(--radius-md); box-shadow: var(--shadow-raised); padding: var(--space-3) 0; font-size: var(--text-sm); }
+.popover .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2) var(--space-4); padding: var(--space-3) var(--space-5); align-items: center; }
+.popover .bar { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--surface-active); overflow: hidden; }
+.popover .bar i { display: block; height: 100%; background: var(--accent); }
+.popover .row.failed .bar i { background: var(--danger); }
+.popover .sub { grid-column: 1 / -1; font-size: var(--text-xs); color: var(--text-secondary); }
+.popover .row.failed .sub { color: var(--danger-text); }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-play" viewBox="0 0 16 16"><path d="M4.5 2.8v10.4L13 8z"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 16 16"><rect x="3.5" y="3.5" width="9" height="9" rx="1"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 16 16"><path d="M5.5 3.5 2.5 6.5l3 3"/><path d="M2.5 6.5h7a4 4 0 0 1 0 8h-3"/></symbol>
+  <symbol id="i-redo" viewBox="0 0 16 16"><path d="m10.5 3.5 3 3-3 3"/><path d="M13.5 6.5h-7a4 4 0 0 0 0 8h3"/></symbol>
+  <symbol id="i-import" viewBox="0 0 16 16"><path d="M8 2v8m-3-3 3 3 3-3"/><path d="M2.5 10.5v2a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-2"/></symbol>
+  <symbol id="i-export" viewBox="0 0 16 16"><path d="M8 10.5V2m-3 3 3-3 3 3"/><path d="M2.5 10.5v2a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-2"/></symbol>
+  <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></symbol>
+  <symbol id="i-link" viewBox="0 0 16 16"><path d="M6.5 9.5 9.5 6.5"/><path d="M7 4.5 8.3 3.2a2.5 2.5 0 0 1 3.5 3.5L10.5 8"/><path d="M9 11.5 7.7 12.8a2.5 2.5 0 0 1-3.5-3.5L5.5 8"/></symbol>
+  <symbol id="i-unlink" viewBox="0 0 16 16"><path d="M7 4.5 8.3 3.2a2.5 2.5 0 0 1 3.5 3.5L10.5 8"/><path d="M9 11.5 7.7 12.8a2.5 2.5 0 0 1-3.5-3.5L5.5 8"/><path d="m2.5 2.5 11 11"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 16 16"><path d="M8 2.5 14 13H2z"/><path d="M8 6.5v3m0 1.8v.2"/></symbol>
+  <symbol id="i-cut" viewBox="0 0 16 16"><circle cx="4.5" cy="11.5" r="2"/><circle cx="11.5" cy="11.5" r="2"/><path d="M5.8 10 11 2.5M10.2 10 5 2.5"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 16 16"><path d="M6 2.5h4l-.5 4 2.5 2.5H4l2.5-2.5z"/><path d="M8 9v4.5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 16 16"><path d="m3 8.5 3 3 7-7"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 16 16"><path d="m4.5 6 3.5 3.5L11.5 6"/></symbol>
+  <symbol id="i-x" viewBox="0 0 16 16"><path d="m4 4 8 8M12 4l-8 8"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 16 16"><path d="M3 4h10M3 8h10M3 12h10"/><circle cx="6" cy="4" r="1.4"/><circle cx="10" cy="8" r="1.4"/><circle cx="5" cy="12" r="1.4"/></symbol>
+  <symbol id="i-history" viewBox="0 0 16 16"><path d="M2.5 8a5.5 5.5 0 1 0 1.6-3.9"/><path d="M2.5 2.5v2.2h2.2"/><path d="M8 5v3.2l2 1.3"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 16 16"><path d="M8 2.5 14 5.5 8 8.5 2 5.5z"/><path d="m2 8.5 6 3 6-3"/><path d="m2 11 6 3 6-3"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 16 16"><path d="M10.5 3 13 5.5 6 12.5H3.5V10z"/></symbol>
+  <symbol id="i-split" viewBox="0 0 16 16"><path d="M8 2v12"/><path d="M2.5 5h3v6h-3M13.5 5h-3v6h3"/></symbol>
+  <symbol id="i-gain" viewBox="0 0 16 16"><path d="M2.5 11.5h11"/><path d="M4 9l3-3 2.5 2 3-4"/></symbol>
+  <symbol id="i-mute" viewBox="0 0 16 16"><path d="M3 6h2.5L9 3v10L5.5 10H3z"/><path d="m11 6.5 3 3m0-3-3 3"/></symbol>
+  <symbol id="i-open" viewBox="0 0 16 16"><path d="M2.5 4.5h4l1.5 1.5h5.5v6.5h-11z"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 16 16"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M3.4 12.6l1-1M11.6 4.4l1-1"/></symbol>
+  <symbol id="i-bus" viewBox="0 0 16 16"><path d="M2.5 4h4l3 4h4M2.5 12h4l3-4"/></symbol>
+  <symbol id="i-wave" viewBox="0 0 16 16"><path d="M2 8h1.5M5 5v6M7.5 3v10M10 6v4M12.5 7.5v1"/></symbol>
+  <symbol id="i-focus" viewBox="0 0 16 16"><path d="M2.5 5.5v-3h3M10.5 2.5h3v3M13.5 10.5v3h-3M5.5 13.5h-3v-3"/><circle cx="8" cy="8" r="1.8"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 16 16"><rect x="6" y="2" width="4" height="7.5" rx="2"/><path d="M3.8 7.5a4.2 4.2 0 0 0 8.4 0M8 11.7v2.3"/></symbol>
+  <symbol id="i-mics" viewBox="0 0 16 16"><rect x="3" y="2.5" width="3.4" height="6" rx="1.7"/><rect x="9.6" y="2.5" width="3.4" height="6" rx="1.7"/><path d="M4.7 8.5v4M11.3 8.5v4M3 12.5h10"/></symbol>
+  <symbol id="i-note" viewBox="0 0 16 16"><path d="M6 12V3.5l7-1.5V10"/><circle cx="4.3" cy="12" r="1.8"/><circle cx="11.3" cy="10.3" r="1.8"/></symbol>
+  <symbol id="i-follow" viewBox="0 0 16 16"><path d="M8 2v12"/><path d="m11 6 2.5 2-2.5 2"/></symbol>
+</svg>
+
+<div class="proto-bar" id="proto-bar">
+  <b>kuulas prototype</b>
+  <label>screen <select id="p-screen">
+    <option value="main">Main editor</option><option value="transcript">Transcript: word selected</option>
+    <option value="history">History + session marker</option><option value="candidates">Cut candidates</option>
+    <option value="palette">Command palette</option><option value="focus">Focus mode</option>
+    <option value="empty">Empty project</option><option value="error">Errors</option>
+    <option value="buses">Bus groups (one collapsed)</option><option value="gallery">Clip grammar gallery</option>
+  </select></label>
+  <span class="sep"></span>
+  <label>theme <select id="p-theme"><option>system</option><option>light</option><option>dark</option></select></label>
+  <label>lang <select id="p-lang"><option>en</option><option>fi</option></select></label>
+  <label>density <select id="p-density"><option>comfortable</option><option>compact</option></select></label>
+  <span class="sep"></span>
+  <span>Try: Space (fake play, no audio) · Mod+K · F6 · click clips, words, tabs, M/S</span>
+</div>
+
+<div class="app" id="app">
+  <header class="topbar" role="toolbar" id="topbar"></header>
+  <aside class="heads" id="heads"></aside>
+  <section class="tl-column" id="tl" data-panel="timeline">
+    <canvas id="overview" role="img"></canvas>
+    <div class="tl-stack" id="stack">
+      <canvas id="timeline" tabindex="0" role="application"></canvas>
+      <div class="empty-state" id="empty" hidden></div>
+    </div>
+  </section>
+  <section class="dock" id="dock" data-panel="transcript" tabindex="-1"></section>
+  <aside class="sidebar" id="side" data-panel="side" tabindex="-1"></aside>
+  <footer class="statusbar" id="status"></footer>
+</div>
+<div id="overlays"></div>
+
+<script>
+"use strict";
+// -- grammar.js (copy) --
+// The visual grammar: every signal kuulas draws on a clip, a lane or a
+// group, in one place. Each signal uses ONE channel, and each channel
+// carries ONE meaning, so a glance reads the same way everywhere:
+//
+//   hue, tone   identity: who speaks (track hue), which file (tone step)
+//   opacity     audibility: muted, not heard because of solo, unused
+//   weight      selection: the 2 px neutral outline
+//   dash        reality: dashed = not real audio yet (placeholder, pending)
+//   scope       edit scope: what the next time-shifting edit takes along
+//   pattern     absent or maybe absent: muted hatch, cut candidate, damaged, removed
+//   strip       role: speech, speech mix, music (top edge; off on the timeline)
+//   badge       facts: sync group, drift, free, file mark, takes, label
+//   cap         level: clipping
+//   seam        joins: clean split (hairline) or jump cut (notch)
+//   bar         change since a checkpoint (WP31): added
+//   spine, band grouping: the bus a track belongs to
+//   line        attachment: connected clip tether (WP19b)
+//   notch       annotation: a note or marker on the clip
+//
+// Colours are never written here: each signal names its semantic tokens
+// (tokens.css), and resolvePalette reads them once per theme change for the
+// canvases. CSS uses the same token names. Spec: docs/design/GUI-DESIGN.md,
+// "The visual grammar"; tests: ui/tests/grammar.test.js.
+
+const CHANNELS = [
+  "hue",
+  "tone",
+  "opacity",
+  "weight",
+  "dash",
+  "scope",
+  "pattern",
+  "strip",
+  "badge",
+  "cap",
+  "seam",
+  "bar",
+  "spine",
+  "band",
+  "line",
+  "notch",
+];
+
+const SPEAKER_HUE_COUNT = 6;
+const BUS_HUES = 4;
+const LABEL_COLOURS = 6;
+const TRACK_HUE_NAMES = [
+  ...Array.from({ length: SPEAKER_HUE_COUNT }, (_, i) => String(i)),
+  "music",
+];
+const TRACK_PARTS = ["wave", "body", "body-alt", "edge", "label"];
+const BUS_PARTS = ["spine", "band", "text"];
+
+const trackTokens = (part) => TRACK_HUE_NAMES.map((n) => `--track-${n}-${part}`);
+const busTokens = () =>
+  Array.from({ length: BUS_HUES }, (_, i) => BUS_PARTS.map((p) => `--bus-${i + 1}-${p}`)).flat();
+
+/**
+ * Every signal. `priority`: lower is more important. `always`: never dropped
+ * by pickSignals (identity, selection, alarms); the rest compete for at most
+ * three places on a clip. `twin`: how the signal reads without colour.
+ * `status`: "built" in the editor today, "prototype" (designed and shown in
+ * the prototype, built with its work package), "planned".
+ */
+const SIGNALS = [
+  {
+    id: "speaker",
+    channel: "hue",
+    meaning: "identity",
+    priority: 0,
+    always: true,
+    tokens: [
+      ...trackTokens("wave"),
+      ...trackTokens("body"),
+      ...trackTokens("edge"),
+      ...trackTokens("label"),
+    ],
+    twin: "track name in the header and file name on the clip; the header swatch is a short pill",
+    when: "always",
+    key: "",
+    status: "built",
+  },
+  {
+    id: "file-zebra",
+    channel: "tone",
+    meaning: "identity",
+    priority: 0,
+    always: true,
+    tokens: trackTokens("body-alt"),
+    twin: "file mark chip and file name on each clip; a seam marks every change of file",
+    when: "neighbouring clips on one track come from different files",
+    key: "",
+    status: "built",
+  },
+  {
+    id: "selected",
+    channel: "weight",
+    meaning: "selection",
+    priority: 0,
+    always: true,
+    tokens: ["--signal-selected"],
+    twin: "2 px outline (shape), plus the inspector shows the clip",
+    when: "the clip is selected",
+    key: "click, Tab, Mod+A",
+    status: "built",
+  },
+  {
+    id: "muted",
+    channel: "opacity",
+    meaning: "audibility",
+    priority: 1,
+    always: true,
+    tokens: ["--signal-muted-hatch", "--signal-muted-opacity"],
+    twin: "diagonal hatch over the clip; M pressed in the header for a muted track",
+    when: "the clip is muted",
+    key: "N",
+    status: "built",
+  },
+  {
+    id: "unheard",
+    channel: "opacity",
+    meaning: "audibility",
+    priority: 1,
+    always: true,
+    tokens: ["--signal-unheard-opacity"],
+    twin: "header says 'not heard: solo' in its tooltip and the M button turns dashed",
+    when: "another track is soloed, or this track is muted",
+    key: "Shift+S, Shift+M",
+    status: "prototype",
+  },
+  {
+    id: "gate",
+    channel: "opacity",
+    meaning: "audibility",
+    priority: 1,
+    always: true,
+    tokens: ["--signal-gate", "--signal-gate-opacity"],
+    twin: "the waveform under the band is drawn flat (a 1 px floor line), with a small gate tick at each edge; hover says 'Mic closed' and offers 'Open this stretch'",
+    when: "Auto-Silence: one merged gate per track closes the mic (WP44); a per-lane toggle shows or hides it",
+    key: "Alt+Mod+P runs Auto-Silence",
+    status: "prototype",
+  },
+  {
+    id: "unused",
+    channel: "opacity",
+    meaning: "audibility",
+    priority: 6,
+    always: false,
+    tokens: ["--signal-unused-opacity"],
+    twin: "the clip bin lists it under 'not in the programme'",
+    when: "clip bin and cards: material not used in the open edit",
+    key: "",
+    status: "planned",
+  },
+  {
+    id: "placeholder",
+    channel: "dash",
+    meaning: "reality",
+    priority: 0,
+    always: true,
+    tokens: ["--signal-placeholder"],
+    twin: "dashed outline, no waveform, the script text in italics inside",
+    when: "narration placeholder (WP43)",
+    key: "T",
+    status: "prototype",
+  },
+  {
+    id: "provisional",
+    channel: "dash",
+    meaning: "reality",
+    priority: 2,
+    always: true,
+    tokens: ["--signal-provisional"],
+    twin: "short dashes (2 on, 2 off) on the outline",
+    when: "an edit is shown but the engine has not confirmed it after 150 ms",
+    key: "",
+    status: "prototype",
+  },
+  {
+    id: "partner",
+    channel: "scope",
+    meaning: "edit scope",
+    priority: 2,
+    always: true,
+    tokens: ["--signal-partner"],
+    twin: "dashed 1 px outline inset 2 px, neutral",
+    when: "a clip is selected: its sync partners that a move takes along (WP19a)",
+    key: "E toggles group editing",
+    status: "prototype",
+  },
+  {
+    id: "candidate",
+    channel: "pattern",
+    meaning: "absence",
+    priority: 1,
+    always: true,
+    tokens: ["--signal-candidate", "--signal-candidate-fill"],
+    twin: "diagonal stripes across the group's lanes and a 'cut?' flag in the ruler",
+    when: "an open cut candidate (WP18)",
+    key: "D, ] [, Enter, Backspace",
+    status: "prototype",
+  },
+  {
+    id: "soft-cut",
+    channel: "pattern",
+    meaning: "absence",
+    priority: 1,
+    always: true,
+    tokens: ["--signal-soft-cut", "--signal-soft-cut-fill"],
+    twin: "hatch plus a solid 2 px edge at each end in the cut colour, and the word 'cut' when wide enough; the context menu says 'Restore'",
+    when: "a stretch cut without closing the gap ('Cut, keep gap'); 'Show cuts' (on by default) hides or shows them",
+    key: "Backspace on a range; Restore from the menu or the palette",
+    status: "prototype",
+  },
+  {
+    id: "damaged",
+    channel: "pattern",
+    meaning: "absence",
+    priority: 0,
+    always: true,
+    tokens: ["--signal-damaged", "--signal-damaged-fill"],
+    twin: "cross-hatch, a '!' badge with the word 'damaged', and the reason on hover",
+    when: "media that cannot be read there (plays silence)",
+    key: "",
+    status: "prototype",
+  },
+  {
+    id: "removed",
+    channel: "pattern",
+    meaning: "absence",
+    priority: 1,
+    always: true,
+    tokens: ["--signal-removed", "--signal-removed-fill"],
+    twin: "a ghost outline with hatch and a '−' glyph",
+    when: "changes view (WP31): audio in A that is gone in B",
+    key: "Alt+Mod+D, ] [",
+    status: "planned",
+  },
+  {
+    id: "role",
+    channel: "strip",
+    meaning: "role",
+    priority: 9,
+    always: false,
+    tokens: ["--role-speech", "--role-speech-mix", "--role-music"],
+    twin: "strip pattern: solid speech, dashed speech mix, dotted music; role icon in the header",
+    when: "off on the timeline (the header says it); on in the clip bin and cards",
+    key: "",
+    status: "prototype",
+  },
+  {
+    id: "drift",
+    channel: "badge",
+    meaning: "facts",
+    priority: 0,
+    always: true,
+    tokens: ["--signal-drift", "--signal-drift-text"],
+    twin: "solid badge with the offset in text ('−312 ms'), cause on hover",
+    when: "undecided drift from the sync group (WP19a)",
+    key: "R resyncs, U frees",
+    status: "prototype",
+  },
+  {
+    id: "clipping",
+    channel: "cap",
+    meaning: "level",
+    priority: 2,
+    always: false,
+    tokens: ["--signal-clipping"],
+    twin: "a 3 px block on top of the clipped column (shape) and a line in the inspector",
+    when: "a peak at or above −0.1 dBFS",
+    key: "",
+    status: "built",
+  },
+  {
+    id: "file-mark",
+    channel: "badge",
+    meaning: "facts",
+    priority: 3,
+    always: false,
+    tokens: ["--signal-file-mark", "--signal-file-mark-text"],
+    twin: "two characters from the content hash; the same on every track",
+    when: "a track holds clips from more than one file",
+    key: "",
+    status: "built",
+  },
+  {
+    id: "free",
+    channel: "badge",
+    meaning: "facts",
+    priority: 4,
+    always: false,
+    tokens: ["--signal-free"],
+    twin: "outlined badge with an unlinked-chain glyph and '+300 ms · free'",
+    when: "a clip freed from its sync group on purpose (U)",
+    key: "U",
+    status: "prototype",
+  },
+  {
+    id: "seam-jump",
+    channel: "seam",
+    meaning: "joins",
+    priority: 4,
+    always: false,
+    tokens: ["--signal-seam"],
+    twin: "a small V notch top and bottom at the join (shape)",
+    when: "two clips of one file meet but audio between them was removed; hover offers 'Put back' (a ripple cut)",
+    key: "Tab stops here",
+    status: "built",
+  },
+  {
+    id: "takes",
+    channel: "badge",
+    meaning: "facts",
+    priority: 5,
+    always: false,
+    tokens: ["--signal-takes"],
+    twin: "stacked top-right corner (two offset edges) and '2/3'",
+    when: "a take set (WP19e)",
+    key: "Alt+] / Alt+[",
+    status: "prototype",
+  },
+  {
+    id: "note",
+    channel: "notch",
+    meaning: "annotation",
+    priority: 5,
+    always: false,
+    tokens: ["--signal-note"],
+    twin: "a triangular notch in the top edge; the text on hover",
+    when: "a note or marker on the clip's audio",
+    key: "M",
+    status: "prototype",
+  },
+  {
+    id: "sync",
+    channel: "badge",
+    meaning: "facts",
+    priority: 6,
+    always: false,
+    tokens: ["--signal-sync"],
+    twin: "chain glyph and the group number ('⛓ 1')",
+    when: "on the selected clip and its partners only; never on every clip",
+    key: "Y marks in sync",
+    status: "prototype",
+  },
+  {
+    id: "tether",
+    channel: "line",
+    meaning: "attachment",
+    priority: 6,
+    always: false,
+    tokens: ["--signal-tether"],
+    twin: "a thin line from the clip's start down to its anchor, ending in a dot",
+    when: "a connected clip (WP19b)",
+    key: "Alt+Mod+C",
+    status: "planned",
+  },
+  {
+    id: "label",
+    channel: "badge",
+    meaning: "facts",
+    priority: 7,
+    always: false,
+    tokens: Array.from({ length: LABEL_COLOURS }, (_, i) => `--label-${i + 1}`),
+    twin: "a square flag in the top-right corner; its name on hover and in the inspector",
+    when: "the user gave the clip a label colour (never set automatically)",
+    key: "",
+    status: "planned",
+  },
+  {
+    id: "seam-split",
+    channel: "seam",
+    meaning: "joins",
+    priority: 8,
+    always: false,
+    tokens: ["--signal-seam"],
+    twin: "a 1 px hairline (shape)",
+    when: "two clips of one file meet with nothing removed between them",
+    key: "",
+    status: "built",
+  },
+  {
+    id: "added",
+    channel: "bar",
+    meaning: "change",
+    priority: 1,
+    always: true,
+    tokens: ["--signal-added"],
+    twin: "a 3 px bar on the clip's left and right edges and a '+' glyph",
+    when: "changes view (WP31): audio in B that was not in A",
+    key: "Alt+Mod+D, ] [",
+    status: "planned",
+  },
+  {
+    id: "bus",
+    channel: "spine",
+    meaning: "grouping",
+    priority: 0,
+    always: true,
+    tokens: busTokens(),
+    twin: "letter badge (A, B, C) in the bus header, the transcript and the inspector",
+    when: "a track is on a bus: the spine runs from the bus header through its tracks",
+    key: "",
+    status: "built",
+  },
+  {
+    id: "bus-band",
+    channel: "band",
+    meaning: "grouping",
+    priority: 0,
+    always: true,
+    tokens: [],
+    twin: "drawn only together with the spine (the band is a tint of the spine's colour)",
+    when: "behind a bus's header and member lanes",
+    key: "",
+    status: "built",
+  },
+];
+
+/** Every semantic token the UI and the canvases may use. tokens.test.js checks
+ *  that each is defined in every shipped theme, and that nothing else is. */
+const SEMANTIC_TOKENS = [
+  "--surface-app",
+  "--surface-lane",
+  "--surface-lane-current",
+  "--surface-panel",
+  "--surface-raised",
+  "--surface-sunken",
+  "--surface-hover",
+  "--surface-active",
+  "--surface-scrim",
+  "--border-subtle",
+  "--border",
+  "--border-strong",
+  "--text",
+  "--text-secondary",
+  "--text-tertiary",
+  "--text-disabled",
+  "--text-on-accent",
+  "--accent",
+  "--accent-hover",
+  "--accent-text",
+  "--accent-subtle",
+  "--focus-ring",
+  "--warn",
+  "--warn-text",
+  "--warn-subtle",
+  "--danger",
+  "--danger-text",
+  "--danger-subtle",
+  "--ok",
+  "--ok-text",
+  "--shadow-raised",
+  "--shadow-dialog",
+  "--playhead",
+  "--play-start",
+  "--selection-range",
+  "--gain-line",
+  "--automation-line",
+  "--ruler-text",
+  "--ruler-tick",
+  "--signal-selected",
+  "--signal-partner",
+  "--signal-muted-hatch",
+  "--signal-muted-opacity",
+  "--signal-unheard-opacity",
+  "--signal-unused-opacity",
+  "--signal-placeholder",
+  "--signal-provisional",
+  "--signal-candidate",
+  "--signal-candidate-fill",
+  "--signal-soft-cut",
+  "--signal-soft-cut-fill",
+  "--signal-gate",
+  "--signal-gate-opacity",
+  "--signal-damaged",
+  "--signal-damaged-fill",
+  "--signal-removed",
+  "--signal-removed-fill",
+  "--signal-added",
+  "--signal-drift",
+  "--signal-drift-text",
+  "--signal-clipping",
+  "--signal-file-mark",
+  "--signal-file-mark-text",
+  "--signal-free",
+  "--signal-seam",
+  "--signal-takes",
+  "--signal-note",
+  "--signal-sync",
+  "--signal-tether",
+  "--role-speech",
+  "--role-speech-mix",
+  "--role-music",
+  ...TRACK_PARTS.flatMap((part) => trackTokens(part)),
+  ...busTokens(),
+  ...Array.from({ length: LABEL_COLOURS }, (_, i) => `--label-${i + 1}`),
+];
+
+/** Tokens holding a number (opacity), not a colour. */
+const NUMBER_TOKENS = SEMANTIC_TOKENS.filter((name) => name.endsWith("-opacity"));
+/** Tokens holding a shadow list: themes may not override them from a manifest. */
+const SHADOW_TOKENS = ["--shadow-raised", "--shadow-dialog"];
+
+function signalTokens() {
+  return [...new Set(SIGNALS.flatMap((s) => s.tokens))];
+}
+
+const SIGNAL_BY_ID = new Map(SIGNALS.map((s) => [s.id, s]));
+const signal = (id) => SIGNAL_BY_ID.get(id);
+
+/**
+ * Which of a clip's active signals to draw. `always` signals are all kept;
+ * the others compete for `max` places by priority (registry order breaks
+ * ties). `hidden` is what did not fit: draw it as a "+2" badge, list it on hover.
+ */
+function pickSignals(active, max = 3) {
+  const known = active.map((id) => SIGNAL_BY_ID.get(id)).filter(Boolean);
+  const order = (a, b) => a.priority - b.priority || SIGNALS.indexOf(a) - SIGNALS.indexOf(b);
+  const ranked = known.filter((s) => !s.always).sort(order);
+  const shown = [...known.filter((s) => s.always).sort(order), ...ranked.slice(0, max)];
+  return { shown: shown.map((s) => s.id), hidden: ranked.slice(max).map((s) => s.id) };
+}
+
+/**
+ * What the join between two clips on one track is, or null when they do not
+ * touch. "split": same file, continuous in the source (a plain split: a
+ * hairline). "jump": same file, audio between them removed (a notch; where
+ * the auto crossfade goes). "file": a different file starts.
+ */
+function seamKind(left, right) {
+  if (left.start + left.length !== right.start) return null;
+  if (left.media !== right.media) return "file";
+  return left.offset + left.length === right.offset ? "split" : "jump";
+}
+
+/**
+ * Body tone step (0 or 1) per clip id: the step flips whenever a clip comes
+ * from a different file than the clip before it in time, so neighbours from
+ * different files never share a tone. Clips of one file in a row keep theirs.
+ */
+function zebraSteps(clips) {
+  const steps = new Map();
+  let step = 0;
+  let previous = null;
+  for (const clip of [...clips].sort((a, b) => a.start - b.start)) {
+    if (previous !== null && clip.media !== previous) step = 1 - step;
+    steps.set(clip.id, step);
+    previous = clip.media;
+  }
+  return steps;
+}
+
+// No 0/O, 1/I, 2/Z, 5/S, 8/B: a mark is read at 10 px.
+const MARK_ALPHABET = "ACDEFHJKLMNPRTUVWXY34679";
+/** Two stable characters naming a file, from its SHA-256 (hex). */
+function fileMark(sha256) {
+  if (!sha256 || sha256.length < 4) return "";
+  const n = Number.parseInt(sha256.slice(0, 4), 16);
+  const base = MARK_ALPHABET.length;
+  return MARK_ALPHABET[Math.floor(n / base) % base] + MARK_ALPHABET[n % base];
+}
+
+/** File marks only where they tell files apart: a track with 2+ files. */
+function needsFileMark(track) {
+  return new Set((track?.clips ?? []).map((clip) => clip.media)).size > 1;
+}
+
+/** Bus hue number (1..BUS_HUES) per bus id, by bus order. */
+function busHues(project) {
+  const hues = new Map();
+  (project?.buses ?? []).forEach((bus, i) => {
+    hues.set(bus.id, (i % BUS_HUES) + 1);
+  });
+  return hues;
+}
+
+/** The bus badge: A, B, … Z, AA, AB … (the non-colour twin of the bus hue). */
+function busLetter(index) {
+  let n = index;
+  let out = "";
+  do {
+    out = String.fromCharCode(65 + (n % 26)) + out;
+    n = Math.floor(n / 26) - 1;
+  } while (n >= 0);
+  return out;
+}
+
+const camel = (name) =>
+  name.replace(/^--(signal-)?/, "").replace(/-(\w)/g, (_, c) => c.toUpperCase());
+
+/**
+ * Everything the canvases draw with, read once per theme change.
+ * `get(name)` returns a token's computed value (theme.js passes
+ * getComputedStyle). Never call this per frame.
+ */
+function resolvePalette(get) {
+  const read = (name) => String(get(name) ?? "").trim();
+  const tracks = TRACK_HUE_NAMES.map((n) => ({
+    wave: read(`--track-${n}-wave`),
+    body: read(`--track-${n}-body`),
+    bodyAlt: read(`--track-${n}-body-alt`),
+    edge: read(`--track-${n}-edge`),
+    label: read(`--track-${n}-label`),
+  }));
+  const buses = Array.from({ length: BUS_HUES }, (_, i) => ({
+    spine: read(`--bus-${i + 1}-spine`),
+    band: read(`--bus-${i + 1}-band`),
+    text: read(`--bus-${i + 1}-text`),
+  }));
+  const signals = {};
+  const numbers = {};
+  const marks = {};
+  const surfaces = {};
+  const roles = {};
+  const labels = [];
+  const done = new Set([
+    ...TRACK_PARTS.flatMap((p) => trackTokens(p)),
+    ...busTokens(),
+    ...SHADOW_TOKENS,
+  ]);
+  for (const name of SEMANTIC_TOKENS) {
+    if (done.has(name)) continue;
+    const value = read(name);
+    if (NUMBER_TOKENS.includes(name)) numbers[camel(name)] = Number.parseFloat(value);
+    else if (name.startsWith("--signal-")) signals[camel(name)] = value;
+    else if (name.startsWith("--role-")) roles[camel(name.replace("--role-", "--"))] = value;
+    else if (name.startsWith("--label-")) labels.push(value);
+    else if (/^--(playhead|play-start|selection-range|gain-line|automation-line|ruler-)/.test(name))
+      marks[camel(name)] = value;
+    else surfaces[camel(name)] = value;
+  }
+  return {
+    tracks,
+    buses,
+    signals,
+    numbers,
+    marks,
+    surfaces,
+    roles,
+    labels,
+    font: read("--font-ui") || "system-ui, sans-serif",
+    mono: read("--font-mono") || "ui-monospace, monospace",
+  };
+}
+
+const HEX = /^#[0-9a-f]{6}$/i;
+const RGBA = /^rgb\(\s*\d{1,3}\s+\d{1,3}\s+\d{1,3}\s*(\/\s*(0|1|0?\.\d+))?\s*\)$/i;
+
+/**
+ * A user theme from its manifest (docs/design/GUI-DESIGN.md, "Themes"):
+ *   { name, base: "light" | "dark", density?: "comfortable" | "compact",
+ *     tokens: { "--semantic-token": "#rrggbb" | "rgb(r g b / a)" | "0.35" } }
+ * Returns { errors, attribute, base, density, css }. `css` is empty when
+ * anything is wrong: a theme is applied whole or not at all.
+ */
+function themeFromManifest(manifest) {
+  const errors = [];
+  const name = String(manifest?.name ?? "").trim();
+  if (!name) errors.push("name is missing");
+  const base = manifest?.base;
+  if (base !== "light" && base !== "dark") errors.push(`base must be light or dark, not ${base}`);
+  const density = manifest?.density ?? "comfortable";
+  if (density !== "comfortable" && density !== "compact") errors.push(`unknown density ${density}`);
+  const lines = [];
+  for (const [token, raw] of Object.entries(manifest?.tokens ?? {})) {
+    const value = String(raw).trim();
+    if (!SEMANTIC_TOKENS.includes(token) || SHADOW_TOKENS.includes(token)) {
+      errors.push(`${token} is not a theme token`);
+      continue;
+    }
+    const isNumber = NUMBER_TOKENS.includes(token);
+    const valid = isNumber ? /^(0|1|0?\.\d+)$/.test(value) : HEX.test(value) || RGBA.test(value);
+    if (!valid) {
+      errors.push(`${token}: ${value} is not a ${isNumber ? "number from 0 to 1" : "colour"}`);
+      continue;
+    }
+    lines.push(`  ${token}: ${value};`);
+  }
+  const attribute = name
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  const css = errors.length
+    ? ""
+    : `:root[data-user-theme="${attribute}"] {\n${lines.join("\n")}\n}\n`;
+  return { errors, attribute, base, density, css };
+}
+// -- end of grammar.js --
+// ---------------------------------------------------------------- params / state
+const params = new URLSearchParams(location.search);
+const S = {
+  screen: params.get("screen") || "main",
+  theme: params.get("theme") || "system",
+  lang: params.get("lang") || "en",
+  density: params.get("density") || "comfortable",
+  panel: "timeline",
+  tab: "inspector",
+  playing: false,
+  playhead: 754.567,
+  playStart: 751.9,
+  view: [740, 772],
+  selection: new Set(["v1"]),
+  current: "ville",
+  words: new Set(),
+  focus: null,
+  palette: false,
+  jobsOpen: false,
+  candIndex: 0,
+  speed: 1,
+  groupEditing: true,
+  collapsed: new Set(),
+};
+if (params.get("clean") === "1") document.body.classList.add("clean");
+
+// ---------------------------------------------------------------- strings (en + fi)
+const STR = {
+  en: {
+    bus: "Voices", voices: "Voices", musicbus: "Music", busSolo: "Solo every track of this bus", collapse: "Collapse bus", expand: "Expand bus", fileMark: "File mark: the same two characters on every clip of this recording", narrator: "Narrator",
+    project: "Pistejulkaisu", newProject: "Episode 13", edit: "Main edit · 58:41", play: "Play", stop: "Stop",
+    undo: "Undo", redo: "Redo", import: "Import", export: "Export", commands: "Commands",
+    groupOff: "Group editing off", soloChip: "Solo: {n}", speedChip: "{v}× fast", focusChip: "Focus: {n}",
+    reconnect: "Reconnecting…", reconnectTitle: "The connection to the kuulas engine was lost. Everything up to your last edit is saved.", savedUpTo: "Saved up to 19.58 · edits paused", jobs: "Transcribing 2 of 3", jobsShort: "2 of 3",
+    tracks: "{n} tracks", speech: "speech", speechMix: "speech mix · remote", music: "music",
+    notHeard: "not heard: solo", mute: "Mute", solo: "Solo", bus: "Voices", busLabel: "Bus",
+    anna: "Anna", ville: "Ville", pekka: "Zoom: Pekka", annab: "Anna · backup mic", music1: "Theme tune",
+    transcript: "Transcript", followPlay: "Follows playback", inspector: "Inspector", history: "History",
+    candidates: "Candidates", clips: "Clip bin",
+    level: "Level", gain: "Clip gain", pan: "Pan", fades: "Fades", fadeIn: "Fade in", fadeOut: "Fade out",
+    sync: "Sync", inSync: "Group 1 · in sync with Anna, Pekka", drift: "312 ms behind its group",
+    driftCause: "since: cut on Anna at 19.42, group editing off", resync: "Resync", free: "Free from sync",
+    voice: "Voice", voiceVal: "Speech · clean", layers: "Layers", layerVal: "dxRevive · real-time",
+    source: "Source", file: "File", format: "Format", formatVal: "48 kHz · mono · 24-bit", stored: "Stored",
+    storedVal: "linked in place", gainErr: "Use a number from −60 to +12.",
+    clipMeta: "Ville · 11:30.0–13:50.0 · 2 min 20 s",
+    restore: "Restore", restoreHint: "Restore adds a new step; nothing is lost. Hover a step to preview it.",
+    opened: "Opened today 19.30 (Helsinki)", closed: "Closed yesterday 22.14 (Helsinki)",
+    h1: "Imported 4 files", h2: "Mark in sync: Pekka", h3: "Before Pekka's story", h4: "Cut 2.4 s on 4 tracks",
+    h5: "Clip gain −2.5 dB on Ville", h6: "Mute clip on Anna", h7: "Resync 3 clips", h8: "Fade in on Theme tune",
+    h9: "Cut 0.8 s (abandoned branch)", h10: "Split at 12:31.2", now: "now",
+    candSummary: "{o} open", candCut: "{c} cut", candKept: "{k} kept", showOpen: "Open only",
+    preview: "Preview", apply: "Cut", keep: "Keep", previewBar: ["2 s", "skip 2.4 s", "2 s"],
+    candHint: "Shift+Space plays it as if cut. ] and [ step through.",
+    open: "open", cut: "cut", kept: "kept",
+    zoomClose: "Close · 30 s", wave: "Half waveform", follow: "Follow: page", tabMode: "Tab: clip edges",
+    saved: "All changes saved", theme: "Theme",
+    hTimeline: [["B", "split"], ["X", "cut"], ["Q W", "trim"], ["D", "mark cut"], ["?", "all keys"]],
+    hTranscript: [["⌫", "cut words"], ["Enter", "correct"], ["⌥D", "mark cut"], ["Esc", "timeline"]],
+    hSide: [["Enter", "restore"], ["↑↓", "step"], ["Esc", "timeline"]],
+    hCand: [["⇧Space", "preview"], ["Enter", "cut"], ["⌫", "keep"], ["] [", "next / previous"]],
+    emptyTitle: "Import audio to begin", emptyText: "Drop audio or video files here, or choose them.",
+    emptyHnd: "Open a Hindenburg session…", formats: "WAV, FLAC, MP3, M4A, AIFF and the audio of video files",
+    noTranscript: "No transcript yet.", transcribe: "Transcribe Anna.wav, Ville.wav…",
+    noTranscriptHint: "Runs in the background; you can keep editing.",
+    noSel: "Select a clip to see its level, fades and sync.", noSelHint: "Click a clip, or press Tab to move between edits.",
+    errImport: "Could not import haastattelu-3.m4a: the file is damaged after 12:40.",
+    errFix: "The first 12:40 can still be imported.", importRest: "Import the first 12:40", showFile: "Show file",
+    damaged: "damaged", jobFailed: "Transcribing Pekka failed: the model ran out of memory. Try the small model.",
+    retry: "Retry", undoToast: "Undid a step from yesterday: <b>cut at 12:31</b>", redoBtn: "Redo",
+    cutToast: "Cut 2.4 s on 4 tracks", focusEsc: "Esc leaves",
+    palettePh: "Type a command…", recent: "Recent", editing: "Editing", view: "View", file: "File",
+    pSplit: "Split at playhead", pSplitAll: "Split all tracks at playhead", pSpot: "Spot clip to time…", pSpeed: "Speed: fast listening",
+    pExport: "Export…", pExportDef: "MP3 128 kbps · mono", pSpeech: "Split by speech pauses", pSil: "Auto-Silence",
+    footMove: "move", footRun: "run", footClose: "close", footOpt: "options",
+    wordCorrect: "Correct", wordCut: "Cut on all tracks", wordMark: "Mark cut",
+    paragraphs: [
+      ["anna", "12:21.0", "Mitä sä ajattelit siitä, kun ne julkaisi sen raportin? Mä luin sen eilen illalla ja jäin miettimään yhtä kohtaa."],
+      ["ville", "12:25.9", "No mm, mä luin sen kahteen kertaan, ja ensimmäisellä kerralla mä en ihan ymmärtänyt mistä siinä oli kyse."],
+      ["pekka", "12:28.2", "Joo, se oli pitkä."],
+      ["anna", "12:32.1", "Niin oli. Mut siinä oli se yks taulukko, joka niinku öö siis muutti koko jutun."],
+      ["ville", "12:36.5", "Se taulukko on mun mielestä koko raportin tärkein osa."],
+    ],
+    narration: "Tähän kertojan siirtymä seuraavaan osioon.", toRecord: "to record · about 6 s",
+    quote1: "“niinku öö siis”", quote2: "“…mut se on eri juttu…”", quote3: "cough", quote4: "“palataan tähän”", quote5: "“tota noin”",
+  },
+  fi: {
+    bus: "Äänet", voices: "Äänet", musicbus: "Musiikki", busSolo: "Soolaa väylän kaikki raidat", collapse: "Pienennä väylä", expand: "Laajenna väylä", fileMark: "Tiedostomerkki: samat kaksi merkkiä tämän äänitteen jokaisessa leikkeessä", narrator: "Kertoja",
+    project: "Pistejulkaisu", newProject: "Jakso 13", edit: "Pääversio · 58:41", play: "Toista", stop: "Pysäytä",
+    undo: "Kumoa", redo: "Tee uudelleen", import: "Tuo", export: "Vie", commands: "Komennot",
+    groupOff: "Ryhmämuokkaus pois", soloChip: "Soolo: {n}", speedChip: "{v}× nopea", focusChip: "Fokus: {n}",
+    reconnect: "Yhdistetään…", reconnectTitle: "Yhteys kuulaksen moottoriin katkesi. Kaikki viimeiseen muokkaukseen asti on tallessa.", savedUpTo: "Tallessa klo 19.58 asti · muokkaus odottaa", jobs: "Litteroidaan 2/3", jobsShort: "2/3",
+    tracks: "{n} raitaa", speech: "puhe", speechMix: "puhemiksaus · etä", music: "musiikki",
+    notHeard: "ei kuulu: soolo", mute: "Mykistä", solo: "Soolo", bus: "Äänet", busLabel: "Väylä",
+    anna: "Anna", ville: "Ville", pekka: "Zoom: Pekka", annab: "Anna · varamikrofoni", music1: "Tunnari",
+    transcript: "Litteraatti", followPlay: "Seuraa toistoa", inspector: "Tarkastin", history: "Historia",
+    candidates: "Ehdokkaat", clips: "Leikekori",
+    level: "Taso", gain: "Leikkeen vahvistus", pan: "Panorointi", fades: "Häivytykset", fadeIn: "Sisäänhäivytys", fadeOut: "Ulos­häivytys",
+    sync: "Tahdistus", inSync: "Ryhmä 1 · tahdissa Annan ja Pekan kanssa", drift: "312 ms jäljessä ryhmästään",
+    driftCause: "syy: leikkaus Annan raidalla klo 19.42, ryhmämuokkaus pois", resync: "Tahdista", free: "Irrota tahdistuksesta",
+    voice: "Ääni", voiceVal: "Puhe · puhdas", layers: "Kerrokset", layerVal: "dxRevive · reaaliaikainen",
+    source: "Lähde", file: "Tiedosto", format: "Muoto", formatVal: "48 kHz · mono · 24-bittinen", stored: "Tallennus",
+    storedVal: "linkitetty paikallaan", gainErr: "Anna luku väliltä −60…+12.",
+    clipMeta: "Ville · 11:30,0–13:50,0 · 2 min 20 s",
+    restore: "Palauta", restoreHint: "Palautus lisää uuden askeleen; mitään ei katoa. Vie osoitin askeleen päälle nähdäksesi sen.",
+    opened: "Avattu tänään klo 19.30 (Helsinki)", closed: "Suljettu eilen klo 22.14 (Helsinki)",
+    h1: "Tuotiin 4 tiedostoa", h2: "Merkitse tahdistetuksi: Pekka", h3: "Ennen Pekan tarinaa", h4: "Leikattiin 2,4 s neljältä raidalta",
+    h5: "Leikkeen vahvistus −2,5 dB: Ville", h6: "Mykistettiin leike: Anna", h7: "Tahdistettiin 3 leikettä", h8: "Sisäänhäivytys: Tunnari",
+    h9: "Leikattiin 0,8 s (hylätty haara)", h10: "Jaettiin kohdasta 12:31,2", now: "nyt",
+    candSummary: "{o} avoinna", candCut: "{c} leikattu", candKept: "{k} pidetty", showOpen: "Vain avoimet",
+    preview: "Esikuuntele", apply: "Leikkaa", keep: "Pidä", previewBar: ["2 s", "ohitus 2,4 s", "2 s"],
+    candHint: "Vaihto+välilyönti soittaa kohdan kuin se olisi leikattu. ] ja [ siirtävät.",
+    open: "avoin", cut: "leikattu", kept: "pidetty",
+    zoomClose: "Lähi · 30 s", wave: "Puolikas aaltomuoto", follow: "Seuranta: sivu", tabMode: "Tab: leikkeiden reunat",
+    saved: "Kaikki muutokset tallessa", theme: "Teema",
+    hTimeline: [["B", "jaa"], ["X", "leikkaa"], ["Q W", "trimmaa"], ["D", "merkitse leikkaus"], ["?", "kaikki näppäimet"]],
+    hTranscript: [["⌫", "leikkaa sanat"], ["Enter", "korjaa"], ["⌥D", "merkitse"], ["Esc", "aikajana"]],
+    hSide: [["Enter", "palauta"], ["↑↓", "siirry"], ["Esc", "aikajana"]],
+    hCand: [["⇧Välilyönti", "esikuuntele"], ["Enter", "leikkaa"], ["⌫", "pidä"], ["] [", "seuraava / edellinen"]],
+    emptyTitle: "Aloita tuomalla ääntä", emptyText: "Pudota ääni- tai videotiedostoja tähän tai valitse ne.",
+    emptyHnd: "Avaa Hindenburg-istunto…", formats: "WAV, FLAC, MP3, M4A, AIFF sekä videotiedostojen ääni",
+    noTranscript: "Litteraattia ei vielä ole.", transcribe: "Litteroi Anna.wav, Ville.wav…",
+    noTranscriptHint: "Toimii taustalla; voit jatkaa muokkaamista.",
+    noSel: "Valitse leike nähdäksesi sen tason, häivytykset ja tahdistuksen.", noSelHint: "Napsauta leikettä tai siirry muokkauskohtiin Tab-näppäimellä.",
+    errImport: "Tiedostoa haastattelu-3.m4a ei voitu tuoda: tiedosto on vaurioitunut kohdan 12:40 jälkeen.",
+    errFix: "Ensimmäiset 12:40 voidaan silti tuoda.", importRest: "Tuo ensimmäiset 12:40", showFile: "Näytä tiedosto",
+    damaged: "vaurioitunut", jobFailed: "Pekan litterointi epäonnistui: mallin muisti loppui. Kokeile pientä mallia.",
+    retry: "Yritä uudelleen", undoToast: "Kumottiin eilinen askel: <b>leikkaus kohdassa 12:31</b>", redoBtn: "Tee uudelleen",
+    cutToast: "Leikattiin 2,4 s neljältä raidalta", focusEsc: "Esc poistuu",
+    palettePh: "Kirjoita komento…", recent: "Viimeisimmät", editing: "Muokkaus", view: "Näkymä", file: "Tiedosto",
+    pSplit: "Jaa toistokohdasta", pSplitAll: "Jaa kaikki raidat toistokohdasta", pSpot: "Siirrä leike aikaan…", pSpeed: "Nopeus: nopea kuuntelu",
+    pExport: "Vie…", pExportDef: "MP3 128 kbit/s · mono", pSpeech: "Jaa puhetaukojen kohdalta", pSil: "Automaattinen hiljennys",
+    footMove: "siirry", footRun: "suorita", footClose: "sulje", footOpt: "asetukset",
+    wordCorrect: "Korjaa", wordCut: "Leikkaa kaikilta raidoilta", wordMark: "Merkitse leikkaus",
+    paragraphs: null, narration: "Tähän kertojan siirtymä seuraavaan osioon.", toRecord: "äänitettävä · noin 6 s",
+    quote1: "“niinku öö siis”", quote2: "“…mut se on eri juttu…”", quote3: "yskäisy", quote4: "“palataan tähän”", quote5: "“tota noin”",
+  },
+};
+STR.fi.paragraphs = STR.en.paragraphs;
+const tr = (k, v = {}) => {
+  let s = STR[S.lang][k] ?? STR.en[k] ?? k;
+  if (typeof s === "string") for (const [a, b] of Object.entries(v)) s = s.replace(`{${a}}`, b);
+  return s;
+};
+const isMac = /Mac|iPhone|iPad/.test(navigator.platform) || true; // the owner is on a Mac; screenshots use Mac glyphs
+const MOD = isMac ? "⌘" : "Ctrl+";
+const icon = (name, cls = "i") => `<svg class="${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+const kbd = (k) => k.split(" ").map((x) => `<kbd>${x}</kbd>`).join("");
+const fmtNum = (v, d = 1) => (S.lang === "fi" ? v.toFixed(d).replace(".", ",") : v.toFixed(d)).replace("-", "−");
+
+// ---------------------------------------------------------------- data
+// Hues come from the speaker (trackHues in the app); a bus is a group header
+// above its members (lanes.js layoutRows in the app).
+const BUSES = [
+  { id: "voices", hue: 1, gain: 0 },
+  { id: "musicbus", hue: 2, gain: -3 },
+];
+const TRACKS = [
+  { id: "anna", hue: "0", kind: "speech", gain: 0, pan: -0.1, bus: "voices" },
+  { id: "ville", hue: "1", kind: "speech", gain: -1.5, pan: 0.1, bus: "voices" },
+  { id: "pekka", hue: "2", kind: "speechMix", gain: 0, pan: 0, bus: "voices" },
+  { id: "annab", hue: "0", kind: "speech", gain: -6, pan: 0, mute: true, bus: "voices" },
+  { id: "music1", hue: "music", kind: "music", gain: -4, pan: 0, bus: "musicbus" },
+];
+const name = (id) => tr(id);
+const busIndex = (id) => BUSES.findIndex((b) => b.id === id);
+const MEDIA = {
+  annaA: { name: "Anna.wav", sha: "3d331d83c5d1" },
+  annaB: { name: "Anna_take2.wav", sha: "9a20ffe1b3c4" },
+  ville: { name: "Ville.wav", sha: "d572928bb321" },
+  pekka: { name: "Zoom_Pekka.m4a", sha: "554e6f04804a" },
+  annab: { name: "Anna_backup.wav", sha: "77ac01de2290" },
+  music: { name: "Tunnari_v3.wav", sha: "defea825ce30" },
+};
+// Times in seconds for the prototype (the app counts frames). `offset` is the
+// position in the source: a1 → a2 is a clean split, a2 → a3 a jump cut
+// (2 s removed), a3 → a4 a change of file.
+const CLIPS = [
+  { id: "a1", track: "anna", media: "annaA", start: 690, length: 61.2, offset: 0 },
+  { id: "a2", track: "anna", media: "annaA", start: 751.2, length: 0.8, offset: 61.2, muted: true },
+  { id: "a3", track: "anna", media: "annaA", start: 752.0, length: 13.0, offset: 64.0, xIn: 0.08 },
+  { id: "a4", track: "anna", media: "annaB", start: 765.0, length: 65, offset: 12.0 },
+  { id: "v1", track: "ville", media: "ville", start: 690, length: 140, offset: 0, gain: -2.5, env: [[757.4, 0], [757.8, -6], [760.2, -6], [760.6, 0]] },
+  { id: "p1", track: "pekka", media: "pekka", start: 690, length: 140, offset: 0 },
+  { id: "b1", track: "annab", media: "annab", start: 690, length: 140, offset: 0 },
+  { id: "m1", track: "music1", media: "music", start: 761.5, length: 68.5, offset: 0, fadeIn: 2.5 },
+];
+for (const c of CLIPS) c.end = c.start + c.length;
+const TURNS = {
+  anna: [[725, 740.6], [741.0, 745.4], [752.1, 756.0], [771, 790]],
+  ville: [[700, 724.8], [745.9, 751.0], [756.5, 764.8]],
+  pekka: [[748.2, 749.0], [765.2, 770.6]],
+  annab: [[725, 740.6], [741.0, 745.4], [752.1, 756.0], [771, 790]],
+};
+const CANDS = [
+  { at: 757.8, end: 760.2, state: "open", q: "quote1" },
+  { at: 842.8, end: 848.9, state: "open", q: "quote2" },
+  { at: 1065.0, end: 1065.9, state: "cut", q: "quote3" },
+  { at: 1270.4, end: 1281.4, state: "kept", q: "quote4" },
+  { at: 1402.1, end: 1403.0, state: "open", q: "quote5" },
+];
+const AUTOMATION = { music1: [[761.5, 0], [764.8, 0], [765.4, -12], [770.6, -12], [771.3, 0]] };
+const TOTAL = 3521;
+
+// Seeded random so every load draws the same waveforms.
+function rng(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
+const BIN = 0.005;
+const BASE = 690, SPAN = 140, NBINS = Math.round(SPAN / BIN);
+const AMP = {};
+function buildAmps() {
+  let seed = 7;
+  for (const [id, turns] of Object.entries(TURNS)) {
+    const r = rng((seed += 101));
+    const a = new Float32Array(NBINS);
+    const level = id === "annab" ? 0.5 : id === "pekka" ? 0.75 : 1;
+    for (let i = 0; i < NBINS; i++) a[i] = 0.006 + r() * 0.01 + (id === "pekka" ? 0.02 : 0);
+    for (const [t0, t1] of turns) {
+      let t = t0;
+      while (t < t1) {
+        const dur = 0.11 + r() * 0.16;
+        const amp = (0.28 + r() * 0.55) * level;
+        const b0 = Math.round((t - BASE) / BIN), b1 = Math.round((t + dur - BASE) / BIN);
+        for (let b = Math.max(0, b0); b < Math.min(NBINS, b1); b++) {
+          const x = (b - b0) / Math.max(1, b1 - b0);
+          const v = Math.sin(Math.PI * x) ** 0.8 * amp * (0.72 + 0.28 * r());
+          if (v > a[b]) a[b] = v;
+        }
+        t += dur + (r() < 0.14 ? 0.18 + r() * 0.4 : r() * 0.035);
+      }
+    }
+    if (id === "annab") for (const [t0, t1] of TURNS.ville) for (let t = t0; t < t1; t += BIN) { const b = Math.round((t - BASE) / BIN); if (b >= 0 && b < NBINS) a[b] = Math.max(a[b], 0.04 + 0.05 * r()); }
+    AMP[id] = a;
+  }
+  const r = rng(99), m = new Float32Array(NBINS);
+  for (let i = 0; i < NBINS; i++) { const t = BASE + i * BIN; const beat = 0.5 + 0.5 * Math.max(0, Math.sin(t * Math.PI * 4)) ** 3; m[i] = (0.28 + 0.2 * beat + 0.08 * Math.sin(t * 0.7)) * (0.85 + 0.15 * r()); }
+  AMP.music1 = m;
+  for (let b = Math.round((767.3 - BASE) / BIN); b < Math.round((767.42 - BASE) / BIN); b++) AMP.pekka[b] = 1;
+}
+buildAmps();
+function peak(track, t0, t1) {
+  const a = AMP[track]; if (!a) return 0;
+  let b0 = Math.max(0, Math.floor((t0 - BASE) / BIN)); const b1 = Math.min(NBINS, Math.max(b0 + 1, Math.ceil((t1 - BASE) / BIN)));
+  let m = 0; for (let b = b0; b < b1; b++) if (a[b] > m) m = a[b];
+  return m;
+}
+
+// ---------------------------------------------------------------- screens
+function applyScreen() {
+  const s = S.screen;
+  Object.assign(S, { selection: new Set(), words: new Set(), focus: null, palette: false, tab: "inspector", panel: "timeline", current: "ville", jobsOpen: false, groupEditing: true, speed: 1, view: [740, 772], playhead: 754.567, collapsed: new Set() });
+  if (s === "main") { S.selection = new Set(["v1"]); S.speed = 1.5; }
+  if (s === "transcript") { S.panel = "transcript"; S.words = new Set(["3:9", "3:10", "3:11"]); S.current = "anna"; }
+  if (s === "history") { S.tab = "history"; S.panel = "side"; }
+  if (s === "candidates") { S.tab = "candidates"; S.panel = "side"; S.playhead = 755.8; }
+  if (s === "palette") { S.selection = new Set(["v1"]); S.palette = true; }
+  if (s === "focus") { S.focus = "ville"; S.selection = new Set(["v1"]); }
+  if (s === "error") { S.selection = new Set(["p1"]); S.groupEditing = false; S.jobsOpen = true; }
+  if (s === "buses") { S.collapsed = new Set(["musicbus"]); S.selection = new Set(["a4"]); S.current = "anna"; }
+}
+
+// ---------------------------------------------------------------- rendering: chrome
+const $ = (id) => document.getElementById(id);
+function render() {
+  const root = document.documentElement;
+  if (S.theme === "system") root.removeAttribute("data-theme"); else root.dataset.theme = S.theme;
+  if (S.density === "compact") root.dataset.density = "compact"; else root.removeAttribute("data-density");
+  root.lang = S.lang;
+  $("p-screen").value = S.screen; $("p-theme").value = S.theme; $("p-lang").value = S.lang; $("p-density").value = S.density;
+  readTokens(); // once per render: a theme change re-resolves the palette
+  const empty = S.screen === "empty";
+  document.body.classList.toggle("gallery-mode", S.screen === "gallery");
+  if (S.screen === "gallery") { renderGallery(); return; }
+  renderTop(empty); renderHeads(empty); renderDock(empty); renderSide(empty); renderStatus(empty); renderOverlays();
+  for (const n of document.querySelectorAll("[data-panel]")) n.toggleAttribute("data-focused", n.dataset.panel === S.panel);
+  $("empty").hidden = !empty;
+  if (empty) $("empty").innerHTML = `<div class="drop-card">${icon("import", "i big")}<h2>${tr("emptyTitle")}</h2><p>${tr("emptyText")}</p>
+    <div class="row"><button class="button primary" type="button">${icon("import")}${tr("import")}… ${kbd(MOD + "I")}</button>
+    <button class="button" type="button">${icon("open")}${tr("emptyHnd")}</button></div><p class="formats">${tr("formats")}</p></div>`;
+  requestAnimationFrame(drawAll);
+}
+
+function timecode(t) {
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = Math.floor(t % 60), ms = Math.round((t % 1) * 1000);
+  const sep = S.lang === "fi" ? "," : ".";
+  return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}<span class="ms">${sep}${String(ms).padStart(3, "0")}</span>`;
+}
+
+function renderTop(empty) {
+  const chips = [];
+  if (!empty) {
+    if (S.speed !== 1) chips.push(`<button class="chip warn" type="button" title=". ${tr("pSpeed")}">${fmtNum(S.speed, 1)}× ${kbd(".")}</button>`);
+    if (!S.groupEditing) chips.push(`<button class="chip warn" type="button" title="E">${icon("unlink")}${tr("groupOff")} ${kbd("E")}</button>`);
+    if (S.screen === "candidates") chips.push(`<button class="chip warn" type="button" title="⇧S">${tr("soloChip", { n: name("ville") })} ${kbd("⇧S")}</button>`);
+    if (S.focus) chips.push(`<span class="chip info">${icon("focus")}${tr("focusChip", { n: name(S.focus) })} ${kbd("Esc")}</span>`);
+    if (S.screen === "error") chips.push(`<span class="chip danger" role="status" title="${tr("reconnectTitle")}">${icon("warn")}${tr("reconnect")}</span>`);
+  }
+  $("topbar").innerHTML = `
+    <div class="project" title="${MOD}O">
+      <span class="name">${empty ? tr("newProject") : tr("project")}</span>
+      <span class="edit">${empty ? "0:00" : tr("edit")}${icon("chev")}</span>
+    </div>
+    <div class="transport">
+      <button class="button play" id="play" type="button" aria-keyshortcuts="Space" ${empty ? "disabled" : ""}>${icon(S.playing ? "stop" : "play")}${tr(S.playing ? "stop" : "play")} ${kbd("Space")}</button>
+      <output class="timecode" aria-label="Playhead">${timecode(empty ? 0 : S.playhead)}</output>
+    </div>
+    <div class="modes">${chips.join("")}</div>
+    <span class="spacer"></span>
+    ${empty ? "" : `<button class="chip" id="jobs" type="button" aria-expanded="${S.jobsOpen}"><span class="ring" style="--p:64"></span>${tr("jobs")}</button>`}
+    <div class="toolgroup">
+      <button class="button ghost icon-button" type="button" title="${tr("undo")} · ${MOD}Z" aria-label="${tr("undo")}" ${empty ? "disabled" : ""}>${icon("undo")}</button>
+      <button class="button ghost icon-button" type="button" title="${tr("redo")} · ⇧${MOD}Z" aria-label="${tr("redo")}" disabled>${icon("redo")}</button>
+    </div>
+    <button class="button ${empty ? "primary" : ""}" type="button" title="${MOD}I">${icon("import")}${tr("import")}</button>
+    <button class="button" type="button" title="${MOD}E" ${empty ? "disabled" : ""}>${icon("export")}${tr("export")}</button>
+    <button class="button cmd-button" id="cmd" type="button">${icon("search")}${tr("commands")} ${kbd(MOD + "K")}</button>`;
+  $("play").onclick = togglePlay;
+  $("cmd").onclick = () => { S.palette = true; render(); };
+  const jobs = $("jobs"); if (jobs) jobs.onclick = () => { S.jobsOpen = !S.jobsOpen; render(); };
+}
+
+const RULER = 24, BUS_H = 44, STRIP = 16;
+const WAVE_MAX = 160; // lanes.js MAX_LANE: a taller lane (focus mode) leaves the rest for automation
+
+// Rows as lanes.js lays them out: bus header, its members, then the next group.
+function laneLayout() {
+  const H = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--lane-h")) || 56;
+  const rows = [];
+  if (S.screen === "empty") return rows;
+  const avail = $("stack").clientHeight - RULER;
+  const focusing = Boolean(S.focus);
+  const others = TRACKS.filter((t) => t.id !== S.focus).length;
+  const big = focusing ? Math.max(H, avail - others * STRIP - BUSES.length * STRIP) : H;
+  let y = 0;
+  for (const bus of BUSES) {
+    const members = TRACKS.filter((t) => t.bus === bus.id);
+    const collapsed = S.collapsed.has(bus.id);
+    const h = focusing ? STRIP : collapsed ? H : BUS_H;
+    rows.push({ kind: "bus", bus, y, h, collapsed, members: members.length }); y += h;
+    if (collapsed) continue;
+    for (const t of members) {
+      const th = focusing ? (t.id === S.focus ? big : STRIP) : H;
+      rows.push({ kind: "track", t, y, h: th, bus }); y += th;
+    }
+  }
+  for (const t of TRACKS.filter((x) => !x.bus)) { rows.push({ kind: "track", t, y, h: H, bus: null }); y += H; }
+  return rows;
+}
+
+const busVars = (bus) => (bus ? `--bus-spine: var(--bus-${bus.hue}-spine); --bus-band: var(--bus-${bus.hue}-band); --bus-text: var(--bus-${bus.hue}-text);` : "");
+
+function renderHeads(empty) {
+  const rows = laneLayout();
+  const soloed = S.screen === "candidates" ? "ville" : null;
+  let html = `<div class="heads-top"><span>${empty ? "" : tr("tracks", { n: TRACKS.length })}</span></div><div class="heads-scroll">`;
+  for (const r of rows) {
+    if (r.kind === "bus") {
+      const b = r.bus, letter = busLetter(busIndex(b.id));
+      const strip = r.h < 30 ? " strip" : "";
+      html += `<section class="track-header bus-header${strip}${r.collapsed ? " collapsed" : ""}" data-bus style="height:${r.h}px; ${busVars(b)}" data-busid="${b.id}">
+        <div class="th-top"><button class="disclose" type="button" aria-expanded="${!r.collapsed}" aria-label="${r.collapsed ? tr("expand") : tr("collapse")}" title="${r.collapsed ? tr("expand") : tr("collapse")} · ⌥←/→">${icon("chev")}</button>
+          <span class="bus-badge" aria-hidden="true">${letter}</span><span class="bus-name">${tr(b.id)}</span>
+          ${r.collapsed ? `<span class="role">${r.members}</span>` : ""}
+          <span class="ms"><button class="ms-button mute" type="button" aria-pressed="false" aria-label="${tr("mute")} ${tr(b.id)}">M</button><button class="ms-button solo" type="button" aria-pressed="false" aria-label="${tr("solo")} ${tr(b.id)}" title="${tr("busSolo")}">S</button></span></div>
+        <div class="th-controls"><label class="slider-control gain"><input type="range" min="-60" max="12" value="${b.gain}" aria-label="gain"><output>${fmtNum(b.gain)} dB</output></label>
+          <label class="slider-control pan"><input type="range" min="-100" max="100" value="0" aria-label="pan"><output>C</output></label></div></section>`;
+      continue;
+    }
+    const t = r.t;
+    const cls = ["track-header"];
+    if (S.current === t.id) cls.push("current");
+    if (r.h < 30) cls.push("strip"); else if (r.h < 44) cls.push("compact");
+    const unheard = soloed && soloed !== t.id;
+    if (unheard) cls.push("unheard");
+    const roleText = tr(t.kind === "speechMix" ? "speechMix" : t.kind);
+    const role = `<span class="role" title="${unheard ? tr("notHeard") : roleText}" aria-label="${roleText}">${icon(t.kind === "music" ? "note" : t.kind === "speechMix" ? "mics" : "mic")}</span>`;
+    const pan = t.pan === 0 ? "C" : (t.pan < 0 ? (S.lang === "fi" ? "V" : "L") : (S.lang === "fi" ? "O" : "R")) + " " + Math.round(Math.abs(t.pan) * 100);
+    const busLabel = r.bus ? `${busLetter(busIndex(r.bus.id))}` : "–";
+    html += `<section class="${cls.join(" ")}" data-track="${t.id}" ${r.bus ? "data-bus" : ""} style="height:${r.h}px; --track-colour: var(--track-${t.hue}-edge); ${busVars(r.bus)}">
+      <div class="th-top">${role}<span class="track-name" title="${name(t.id)}">${name(t.id)}</span>
+        <button class="bus-pick" type="button" title="${tr("busLabel")}: ${r.bus ? tr(r.bus.id) : "–"}" aria-label="${tr("busLabel")}">${busLabel}${icon("chev")}</button>
+        <span class="ms"><button class="ms-button mute ${unheard ? "implicit" : ""}" type="button" data-ms="mute" aria-pressed="${!!t.mute}" aria-label="${tr("mute")} ${name(t.id)}" title="${tr("mute")} · ⇧M">M</button>
+        <button class="ms-button solo" type="button" data-ms="solo" aria-pressed="${soloed === t.id}" aria-label="${tr("solo")} ${name(t.id)}" title="${tr("solo")} · ⇧S">S</button></span></div>
+      <div class="th-controls"><label class="slider-control gain"><input type="range" min="-60" max="12" step="0.1" value="${t.gain}" aria-label="gain"><output>${fmtNum(t.gain)} dB</output></label>
+        <label class="slider-control pan"><input type="range" min="-100" max="100" value="${t.pan * 100}" aria-label="pan"><output>${pan}</output></label></div>
+    </section>`;
+  }
+  $("heads").innerHTML = html + "</div>";
+  for (const b of $("heads").querySelectorAll("[data-ms]")) b.onclick = (e) => { b.setAttribute("aria-pressed", String(b.getAttribute("aria-pressed") !== "true")); e.stopPropagation(); };
+  for (const h of $("heads").querySelectorAll(".track-header[data-track]")) h.onclick = () => { S.current = h.dataset.track; render(); };
+  for (const d of $("heads").querySelectorAll(".disclose")) d.onclick = (e) => { const id = d.closest("[data-busid]").dataset.busid; if (S.collapsed.has(id)) S.collapsed.delete(id); else S.collapsed.add(id); e.stopPropagation(); render(); };
+}
+
+function renderDock(empty) {
+  const head = `<div class="panel-head"><h2>${tr("transcript")}</h2><span class="meta">${empty ? "" : tr("followPlay")}</span><span class="spacer"></span>
+    ${empty ? "" : `<button class="button ghost small" type="button" aria-label="search">${icon("search")}</button>`}</div>`;
+  if (empty) { $("dock").innerHTML = head + `<div class="empty-panel"><strong>${tr("noTranscript")}</strong><span>${tr("noTranscriptHint")}</span></div>`; return; }
+  const track = (id) => TRACKS.find((t) => t.id === id);
+  let html = head + `<div class="transcript" id="tx">`;
+  tr("paragraphs").forEach(([who, when, text], pi) => {
+    const words = text.split(" ");
+    const dim = S.focus && who !== S.focus;
+    const t = track(who), bus = BUSES.find((b) => b.id === t.bus);
+    html += `<div class="para ${dim ? "dim" : ""}"><div class="speaker" style="--track-colour: var(--track-${t.hue}-edge); ${busVars(bus)}"><b>${name(who)}</b><span>${S.lang === "fi" ? when.replace(".", ",") : when}${bus ? ` <i class="bus-badge mini" title="${tr("busLabel")}: ${tr(bus.id)}">${busLetter(busIndex(bus.id))}</i>` : ""}</span></div><p class="text">`;
+    html += words.map((w, wi) => {
+      const k = `${pi}:${wi}`; const c = ["w"];
+      if (S.words.has(k)) c.push("sel");
+      if (pi === 3 && wi >= 9 && wi <= 11 && !S.words.size) c.push("cand");
+      if (pi === 1 && wi === 0) c.push("cut");
+      if (pi === 1 && wi === 12) c.push("low");
+      if (pi === 3 && wi === 2 && S.screen !== "transcript") c.push("now");
+      const joinSel = S.words.has(k) && S.words.has(`${pi}:${wi + 1}`);
+      return `<span class="${c.join(" ")}${joinSel ? " join" : ""}" data-w="${k}">${w}${joinSel ? " " : ""}</span>${joinSel || wi === words.length - 1 ? "" : " "}`;
+    }).join("");
+    html += `</p></div>`;
+    if (pi === 2) html += `<div class="para"><div class="speaker" style="--track-colour: var(--border-strong)"><b>${tr("narrator")}</b><span>12:29${S.lang === "fi" ? "," : "."}4</span></div><p class="text"><span class="placeholder">${tr("narration")}<small>${tr("toRecord")}</small></span></p></div>`;
+  });
+  html += "</div>";
+  if (S.words.size) html += `<div class="word-pop" id="wordpop" role="toolbar" aria-label="words"><button class="button" type="button">${icon("cut")}${tr("wordCut")} ${kbd("⌫")}</button><button class="button ghost" type="button">${tr("wordMark")} ${kbd("⌥D")}</button><button class="button ghost" type="button">${icon("edit")}${tr("wordCorrect")} ${kbd("Enter")}</button></div>`;
+  $("dock").innerHTML = html;
+  const first = $("dock").querySelector(".w.sel");
+  if (first) {
+    const tx = $("tx"); tx.scrollTop = Math.max(0, first.offsetTop - tx.offsetTop - 70);
+    const pop = $("wordpop"), d = $("dock").getBoundingClientRect(), r = first.getBoundingClientRect();
+    pop.style.left = `${Math.max(8, r.left - d.left)}px`; pop.style.top = `${r.top - d.top - 40}px`;
+  }
+  for (const w of $("dock").querySelectorAll(".w")) w.onclick = (e) => { if (e.shiftKey && S.words.size) S.words.add(w.dataset.w); else S.words = new Set([w.dataset.w]); S.panel = "transcript"; render(); };
+}
+
+function renderSide(empty) {
+  const tabs = [["inspector", "sliders"], ["history", "history"], ["candidates", "cut"], ["clips", "layers"]];
+  let html = `<div class="tabs" role="tablist">` + tabs.map(([k, ic]) => `<button class="tab" role="tab" type="button" data-tab="${k}" aria-selected="${S.tab === k}" title="${tr(k)}">${icon(ic)}<span class="label">${tr(k)}</span>${k === "candidates" && !empty ? `<span class="count">3</span>` : ""}</button>`).join("") + `</div><div class="side-body">`;
+  let foot = "";
+  if (S.tab === "inspector") {
+    const clipId = [...S.selection][0];
+    if (empty || !clipId) {
+      html += `<div class="empty-panel"><strong>${tr("noSel")}</strong><span>${tr("noSelHint")}</span></div>`;
+    } else {
+      const err = S.screen === "error";
+      const c = CLIPS.find((x) => x.id === clipId);
+      const t = TRACKS.find((x) => x.id === c.track);
+      const bus = BUSES.find((b) => b.id === t.bus);
+      const sep = S.lang === "fi" ? "," : ".";
+      const meta = `${name(t.id)} · 11:30${sep}0–13:50${sep}0 · 2 min 20 s`;
+      html += `<div class="section"><div class="clip-title" style="--track-colour: var(--track-${t.hue}-edge)"><span class="sw"></span><div><b>${MEDIA[c.media].name}</b><span>${meta}</span></div></div>
+        ${bus ? `<div class="bus-line" style="${busVars(bus)}"><span class="bus-badge">${busLetter(busIndex(bus.id))}</span><span>${tr("busLabel")}: ${tr(bus.id)}</span><span class="spacer"></span><span class="file-chip" title="${tr("fileMark")}">${fileMark(MEDIA[c.media].sha)}</span></div>` : ""}</div>
+      <div class="section"><h3>${tr("level")}</h3>
+        <div class="field"><label for="g">${tr("gain")}</label><span class="val"><input class="input ${err ? "invalid" : ""}" id="g" value="${err ? "+40" : fmtNum(c.gain ?? 0)}" aria-invalid="${err}"><span class="hint">dB</span></span>${kbd("⇧" + MOD + "↑")}
+          ${err ? `<span class="field-error">${icon("warn")}${tr("gainErr")}</span>` : ""}</div>
+        <div class="field"><label for="p">${tr("pan")}</label><span class="val"><input class="input" id="p" value="${S.lang === "fi" ? "V 10" : "L 10"}"></span>${kbd("⇧⌥←")}</div></div>
+      <div class="section"><h3>${tr("fades")}</h3>
+        <div class="field"><label for="fi">${tr("fadeIn")}</label><span class="val"><input class="input" id="fi" value="0"><span class="hint">ms</span></span>${kbd("G")}</div>
+        <div class="field"><label for="fo">${tr("fadeOut")}</label><span class="val"><input class="input" id="fo" value="30"><span class="hint">ms</span></span></div></div>
+      <div class="section"><h3>${tr("sync")}</h3>
+        ${err ? `<div class="status-line danger">${icon("warn")}<span><b>${tr("drift")}</b><br><span class="hint">${tr("driftCause")}</span></span></div>
+          <div class="button-row"><button class="button small" type="button">${tr("resync")} ${kbd("R")}</button><button class="button small" type="button">${icon("unlink")}${tr("free")} ${kbd("U")}</button></div>`
+        : `<div class="status-line ok">${icon("link")}<span>${tr("inSync")}</span></div>`}</div>
+      <div class="section"><h3>${tr("voice")}</h3>
+        <div class="field"><span class="label">${tr("voice")}</span><span class="val"><select class="select" aria-label="${tr("voice")}"><option>${tr("voiceVal")}</option></select></span><span></span></div>
+        <div class="field"><span class="label">${tr("layers")}</span><span class="val"><span class="chip">${tr("layerVal")}</span></span><span></span></div></div>
+      <div class="section"><h3>${tr("source")}</h3><dl class="facts"><dt>${tr("file")}</dt><dd>${MEDIA[c.media].name}</dd><dt>${tr("format")}</dt><dd>${tr("formatVal")}</dd><dt>${tr("stored")}</dt><dd>${tr("storedVal")}</dd></dl></div>`;
+    }
+  } else if (S.tab === "history") {
+    const L = (cls, ic, k, time) => `<li class="${cls}">${icon(ic)}<span class="lab">${tr(k)}</span><span class="t">${time}</span></li>`;
+    html += `<ul class="hist">
+      <li class="marker">${tr("closed")}</li>
+      ${L("", "import", "h1", "21.02")}${L("", "link", "h2", "21.06")}${L("pin", "pin", "h3", "21.40")}${L("", "cut", "h10", "22.03")}
+      <li class="marker">${tr("opened")}</li>
+      ${L("preview", "cut", "h4", "19.42")}${L("branch", "cut", "h9", "19.44")}${L("", "gain", "h5", "19.51")}
+      <li class="head">${icon("mute")}<span class="lab">${tr("h6")}</span><span class="t">${tr("now")}</span></li>
+      ${L("future", "link", "h7", "19.58")}${L("future", "wave", "h8", "20.01")}
+    </ul>`;
+    foot = `<div class="actionbar"><button class="button primary" type="button">${tr("restore")} ${kbd("Enter")}</button><span class="hint">${tr("restoreHint")}</span></div>`;
+  } else if (S.tab === "candidates") {
+    html += `<div class="cand-summary"><span class="chip info">${tr("candSummary", { o: 3 })}</span><span class="chip">${tr("candCut", { c: 1 })}</span><span class="chip">${tr("candKept", { k: 1 })}</span><span class="spacer"></span><button class="chip" type="button" aria-pressed="false">${tr("showOpen")} ${kbd("⇧" + MOD + "D")}</button></div><ul class="cands">`;
+    CANDS.forEach((c, i) => {
+      const m = Math.floor(c.at / 60), s = (c.at % 60).toFixed(1).padStart(4, "0");
+      const when = `${m}:${S.lang === "fi" ? s.replace(".", ",") : s}`;
+      html += `<li class="${i === S.candIndex ? "current" : ""} ${c.state !== "open" ? "done" : ""}"><span class="when">${when}</span><span class="dur">${fmtNum(c.end - c.at)} s</span><span class="state ${c.state}">${tr(c.state)}</span><span class="quote">${tr(c.q)}</span></li>`;
+    });
+    html += `</ul>`;
+    foot = `<div class="actionbar"><div class="preview-bar" style="flex:1 1 100%">${tr("previewBar").map((x, i) => `<span class="${i === 1 ? "skip" : ""}">${x}</span>`).join("")}</div>
+      <button class="button" type="button" title="⇧Space">${icon("play")}${tr("preview")}</button><button class="button primary" type="button" title="Enter">${icon("cut")}${tr("apply")}</button><button class="button" type="button" title="⌫">${tr("keep")}</button>
+      <span class="hint">${tr("candHint")}</span></div>`;
+  } else {
+    html += `<div class="empty-panel"><strong>${tr("clips")}</strong><span>WP17</span></div>`;
+  }
+  $("side").innerHTML = html + `</div>` + foot;
+  for (const b of $("side").querySelectorAll(".tab")) b.onclick = () => { S.tab = b.dataset.tab; S.panel = "side"; render(); };
+}
+
+function renderStatus(empty) {
+  const hints = S.panel === "transcript" ? tr("hTranscript") : S.panel === "side" ? (S.tab === "candidates" ? tr("hCand") : tr("hSide")) : tr("hTimeline");
+  $("status").innerHTML = `
+    <button class="button icon-button" type="button" aria-label="zoom out" title="−">−</button>
+    <span class="zoom" title="Z">${empty ? "—" : tr("zoomClose")}</span>
+    <button class="button icon-button" type="button" aria-label="zoom in" title="=">+</button>
+    <span class="div"></span>
+    <button class="button" type="button" title="⌥${MOD}W">${icon("wave")}${tr("wave")}</button>
+    <button class="button" type="button" title="'">${tr("tabMode")}</button>
+    <button class="button" type="button" title="follow">${icon("follow")}${tr("follow")}</button>
+    <span class="div"></span>
+    <span class="keyhints">${hints.map(([k, l]) => `<span>${kbd(k)}${l}</span>`).join("")}</span>
+    <span class="spacer"></span>
+    ${S.screen === "error" ? `<span class="hint">${tr("savedUpTo")}</span>` : `<span class="saved">${icon("check")}${tr("saved")}</span>`}
+    <button class="button icon-button" id="themeBtn" type="button" title="${tr("theme")}: ${S.theme}" aria-label="${tr("theme")}">${icon("sun")}</button>`;
+  $("themeBtn").onclick = () => { S.theme = { system: "light", light: "dark", dark: "system" }[S.theme]; render(); };
+}
+
+function renderOverlays() {
+  let html = "";
+  const s = S.screen;
+  if (s === "history") html += toast(tr("undoToast"), [tr("redoBtn")], "");
+  if (s === "main") html += toast(tr("cutToast"), [tr("undo")], "", `${MOD}Z`);
+  if (s === "error") html += toast(`<b>${tr("errImport")}</b><br>${tr("errFix")}`, [tr("importRest"), tr("showFile")], "error", "", true);
+  if (S.jobsOpen) {
+    const b = $("jobs")?.getBoundingClientRect();
+    html += `<div class="popover" style="top:${(b?.bottom ?? 44) + 6}px; left:${Math.max(8, (b?.right ?? 600) - 300)}px" role="dialog" aria-label="jobs">
+      <div class="row"><span>Anna.wav</span><span class="num hint">${S.lang === "fi" ? "valmis" : "done"}</span><span class="bar"><i style="width:100%"></i></span></div>
+      <div class="row"><span>Ville.wav</span><span class="num hint">64 % · ${S.lang === "fi" ? "noin 3 min" : "about 3 min"}</span><span class="bar"><i style="width:64%"></i></span><span class="sub"><button class="button small" type="button">${S.lang === "fi" ? "Peru" : "Cancel"}</button></span></div>
+      ${s === "error" ? `<div class="row failed"><span>Zoom_Pekka.m4a</span><span class="hint">${icon("warn")}</span><span class="bar"><i style="width:30%"></i></span><span class="sub">${tr("jobFailed")}</span><span class="sub"><button class="button small" type="button">${tr("retry")}</button></span></div>` : ""}
+    </div>`;
+  }
+  if (S.palette) html += paletteHtml();
+  $("overlays").innerHTML = html;
+  for (const b of document.querySelectorAll("[data-close]")) b.onclick = () => { $("overlays").querySelector(".toast")?.remove(); };
+  const input = document.querySelector(".palette input");
+  if (input) { input.focus(); input.setSelectionRange(3, 3); }
+}
+function toast(msg, actions, kind, keys = "", lead = false) {
+  return `<div class="toast ${kind}" role="${kind === "error" ? "alert" : "status"}">${lead ? icon("warn", "i lead") : ""}<span class="msg">${msg}</span><span class="acts">${actions.map((a, i) => `<button class="button ${i ? "ghost" : ""}" type="button">${a}${i === 0 && keys ? " " + kbd(keys) : ""}</button>`).join("")}<button class="button ghost icon-button" type="button" aria-label="dismiss" data-close>${icon("x")}</button></span></div>`;
+}
+function paletteHtml() {
+  const row = (ic, lab, keys, def = "", active = false) => `<li class="cmd ${active ? "active" : ""}" role="option" aria-selected="${active}">${icon(ic)}<span class="lab">${lab}</span><span class="def">${def}</span><span class="keys">${kbd(keys)}</span></li>`;
+  return `<div class="scrim" id="scrim"><div class="palette" role="dialog" aria-modal="true" aria-label="${tr("commands")}">
+    <div class="search">${icon("search")}<input value="spl" aria-label="${tr("palettePh")}" placeholder="${tr("palettePh")}"><kbd>Esc</kbd></div>
+    <ul role="listbox">
+      <li class="grp">${tr("editing")}</li>
+      ${row("split", `<mark>Spl</mark>${tr("pSplit").slice(3)}`, "B", "", true)}
+      ${row("split", `<mark>Spl</mark>${tr("pSplitAll").slice(3)}`, "⇧B")}
+      ${row("wave", tr("pSpeech").replace(/(sp|pa)/i, "<mark>$1</mark>"), "⌥B")}
+      <li class="grp">${tr("recent")}</li>
+      ${row("export", tr("pExport"), MOD + " E", tr("pExportDef"))}
+      ${row("gain", tr("pSil"), "⌥" + MOD + " P")}
+      ${row("follow", tr("pSpot"), MOD + " J")}
+    </ul>
+    <div class="foot"><span>${kbd("↑ ↓")}${tr("footMove")}</span><span>${kbd("Enter")}${tr("footRun")}</span><span>${kbd("⌥ Enter")}${tr("footOpt")}</span><span>${kbd("Esc")}${tr("footClose")}</span></div>
+  </div></div>`;
+}
+
+// ---------------------------------------------------------------- canvases
+// The palette is resolved ONCE per render (theme change), through the same
+// registry the app uses (grammar.js resolvePalette); drawing never reads CSS.
+let P = null;
+function readTokens() {
+  const cs = getComputedStyle(document.documentElement);
+  P = resolvePalette((n) => cs.getPropertyValue(n));
+  P.hue = (h) => P.tracks[h === "music" ? SPEAKER_HUE_COUNT : Number(h)];
+}
+function setup(canvas) {
+  const r = canvas.getBoundingClientRect(), d = devicePixelRatio || 1;
+  canvas.width = Math.round(r.width * d); canvas.height = Math.round(r.height * d);
+  const ctx = canvas.getContext("2d"); ctx.setTransform(d, 0, 0, d, 0, 0);
+  return { ctx, w: r.width, h: r.height };
+}
+function drawAll() { drawTimeline(); drawOverview(); }
+
+const zebra = new Map();
+for (const t of TRACKS) for (const [id, step] of zebraSteps(CLIPS.filter((c) => c.track === t.id))) zebra.set(id, step);
+
+function drawTimeline() {
+  const { ctx, w, h } = setup($("timeline"));
+  ctx.clearRect(0, 0, w, h);
+  if (S.screen === "empty") { drawRuler(ctx, w, true); return; }
+  const [v0, v1] = S.view; const pps = w / (v1 - v0);
+  const X = (t) => (t - v0) * pps;
+  const rows = laneLayout();
+  const rowOf = (id) => rows.find((r) => r.kind === "track" && r.t.id === id);
+  const S2 = P.signals, M = P.marks;
+  // lanes: current tint, bus bands, separators
+  for (const r of rows) {
+    const y = RULER + r.y;
+    if (r.kind === "track" && S.current === r.t.id) { ctx.fillStyle = P.surfaces.surfaceLaneCurrent; ctx.fillRect(0, y, w, r.h); }
+    if (r.bus) { const band = P.buses[r.bus.hue - 1].band; ctx.fillStyle = band; ctx.fillRect(0, y, w, r.h); if (r.kind === "bus") ctx.fillRect(0, y, w, r.h); }
+    ctx.fillStyle = P.surfaces.borderSubtle; ctx.fillRect(0, y + r.h - 1, w, 1);
+    if (r.kind === "bus" && r.collapsed) drawSummed(ctx, r, X, v0, pps, w);
+  }
+  const groupTracks = ["anna", "ville", "pekka", "annab"].filter((id) => rowOf(id));
+  if (S.screen === "transcript") {
+    ctx.fillStyle = M.selectionRange;
+    for (const id of groupTracks) { const r = rowOf(id); ctx.fillRect(X(753.3), RULER + r.y, X(754.9) - X(753.3), r.h - 1); }
+  }
+  const soloed = S.screen === "candidates" ? "ville" : null;
+  for (const c of CLIPS) {
+    const r = rowOf(c.track); if (!r) continue;
+    const t = r.t; const col = P.hue(t.hue);
+    const x0 = X(c.start), x1 = X(c.end); if (x1 < 0 || x0 > w) continue;
+    const y = RULER + r.y + 2, ch = r.h - 5;
+    const unheard = t.mute || (soloed && soloed !== t.id);
+    const alpha = c.muted ? P.numbers.mutedOpacity : unheard ? P.numbers.unheardOpacity : 1;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = zebra.get(c.id) ? col.bodyAlt : col.body; ctx.fillRect(x0, y, x1 - x0, ch);
+    ctx.fillStyle = col.wave; ctx.beginPath();
+    const capX = [];
+    for (let px = Math.max(0, Math.floor(x0)); px < Math.min(w, Math.ceil(x1)); px++) {
+      const t0 = v0 + px / pps, t1 = v0 + (px + 1) / pps;
+      const p = peak(c.track, t0, t1);
+      let g = 1; if (c.gain) g *= 10 ** (c.gain / 20);
+      if (c.fadeIn && t0 < c.start + c.fadeIn) g *= Math.max(0, (t0 - c.start) / c.fadeIn);
+      const bar = Math.min(1, p * g) * Math.min(ch, WAVE_MAX);
+      if (bar > 0.5) ctx.rect(px, y + ch - bar, 1, bar);
+      if (p >= 0.989) capX.push([px, y + ch - bar]);
+    }
+    ctx.fill(); ctx.globalAlpha = 1;
+    if (capX.length) { ctx.fillStyle = S2.clipping; for (const [px, top] of capX) ctx.fillRect(px - 1, top, 3, 3); }
+    if (c.muted) hatch(ctx, x0, y, x1 - x0, ch, S2.mutedHatch, 6);
+    if (S.screen === "error" && c.id === "p1") { const hx0 = X(762.4), hx1 = X(764.1); ctx.fillStyle = S2.damagedFill; ctx.fillRect(hx0, y, hx1 - hx0, ch); hatch(ctx, hx0, y, hx1 - hx0, ch, S2.damaged, 6, true); badge(ctx, hx0 + 4, y + 3, "! " + tr("damaged"), S2.damaged, S2.driftText, true); }
+    ctx.globalAlpha = unheard ? 0.6 : 1;
+    ctx.strokeStyle = col.edge; ctx.lineWidth = 1; ctx.strokeRect(x0 + 0.5, y + 0.5, x1 - x0 - 1, ch - 1);
+    ctx.globalAlpha = 1;
+    if (c.xIn) { const half = Math.max(3, c.xIn * pps / 2); ctx.fillStyle = col.edge; ctx.globalAlpha = 0.3; ctx.beginPath(); ctx.moveTo(x0 - half, y); ctx.lineTo(x0 + half, y + ch); ctx.lineTo(x0 - half, y + ch); ctx.fill(); ctx.globalAlpha = 1; }
+    if (c.fadeIn) {
+      const fx = X(c.start + c.fadeIn);
+      ctx.fillStyle = P.surfaces.surfaceLane; ctx.globalAlpha = 0.55; ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(fx, y);
+      for (let i = 10; i >= 0; i--) { const u = i / 10; ctx.lineTo(x0 + (fx - x0) * u, y + ch - ch * Math.sin(u * Math.PI / 2)); }
+      ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+      ctx.strokeStyle = col.edge; ctx.beginPath(); ctx.moveTo(x0, y + ch);
+      for (let i = 0; i <= 10; i++) { const u = i / 10; ctx.lineTo(x0 + (fx - x0) * u, y + ch - ch * Math.sin(u * Math.PI / 2)); }
+      ctx.stroke(); ctx.fillStyle = col.edge; ctx.fillRect(fx - 3, y, 6, 6);
+    }
+    if (r.h >= 40 && x1 - x0 > 30) {
+      const marked = needsFileMark({ clips: CLIPS.filter((k) => k.track === c.track) });
+      ctx.save(); ctx.beginPath(); ctx.rect(x0, y, x1 - x0 - 4, ch); ctx.clip();
+      let lx = Math.max(x0, 0) + 5;
+      if (marked) lx = fileChip(ctx, lx, y, fileMark(MEDIA[c.media].sha), col.edge);
+      lx = clipLabel(ctx, lx, y, MEDIA[c.media].name, col);
+      const active = [];
+      if (c.id === "p1" && S.screen !== "focus") active.push("drift");
+      if (S.selection.has(c.id) && S.screen !== "error") active.push("sync");
+      if (S.selection.has(c.id) && c.gain) active.push("gain");
+      for (const id of active) {
+        if (id === "drift") lx = badge(ctx, lx, y + 2, "−312 ms", S2.drift, S2.driftText, true) + 4;
+        if (id === "sync") lx = badge(ctx, lx, y + 2, "⛓ 1", S2.sync, S2.sync, false) + 4;
+        if (id === "gain") lx = badge(ctx, lx, y + 2, fmtNum(c.gain) + " dB", S2.sync, S2.sync, false) + 4;
+      }
+      ctx.restore();
+    }
+    if ((c.gain || c.env || S.selection.has(c.id)) && r.h >= 40) {
+      const dbY = (db) => y + 4 + ((12 - Math.max(-30, Math.min(12, db))) / 42) * (ch - 8);
+      ctx.strokeStyle = M.gainLine; ctx.globalAlpha = 0.75; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+      ctx.beginPath(); ctx.moveTo(x0, dbY(c.gain || 0));
+      if (c.env) for (const [et, db] of c.env) ctx.lineTo(X(et), dbY((c.gain || 0) + db));
+      ctx.lineTo(x1, dbY(c.gain || 0)); ctx.stroke(); ctx.setLineDash([]);
+      if (c.env) { ctx.fillStyle = M.gainLine; for (const [et, db] of c.env) { ctx.beginPath(); ctx.arc(X(et), dbY((c.gain || 0) + db), 3, 0, 7); ctx.fill(); } }
+      ctx.globalAlpha = 1;
+    }
+  }
+  // seams between clips on one track (grammar.js seamKind)
+  for (const t of TRACKS) {
+    const r = rowOf(t.id); if (!r || r.h < 20) continue;
+    const list = CLIPS.filter((c) => c.track === t.id).sort((a, b) => a.start - b.start);
+    for (let i = 1; i < list.length; i++) seam(ctx, X(list[i].start), RULER + r.y + 2, r.h - 5, seamKind(list[i - 1], list[i]), S2.seam);
+  }
+  // partners: dashed ring inset 2 px (what a move takes along)
+  if (S.selection.has("v1") && !S.focus) {
+    ctx.setLineDash([3, 3]); ctx.strokeStyle = S2.partner; ctx.lineWidth = 1;
+    for (const id of ["a1", "a3", "a4", "p1", "b1"]) { const c = CLIPS.find((x) => x.id === id); const r = rowOf(c.track); if (!r) continue; ctx.strokeRect(X(c.start) + 2.5, RULER + r.y + 4.5, X(c.end) - X(c.start) - 5, r.h - 10); }
+    ctx.setLineDash([]);
+  }
+  for (const id of S.selection) {
+    const c = CLIPS.find((x) => x.id === id); const r = rowOf(c.track); if (!r) continue;
+    ctx.strokeStyle = S2.selected; ctx.lineWidth = 2; ctx.strokeRect(X(c.start) + 1, RULER + r.y + 3, X(c.end) - X(c.start) - 2, r.h - 7);
+  }
+  for (const [id, pts] of Object.entries(AUTOMATION)) {
+    const r = rowOf(id); if (!r || r.h < 30) continue;
+    const bottom = RULER + r.y + r.h - 6, band = r.h / 3;
+    ctx.strokeStyle = M.automationLine; ctx.lineWidth = 1.5; ctx.beginPath();
+    pts.forEach(([t, db], i) => { const yy = bottom - band * (1 + db / 24); i ? ctx.lineTo(X(t), yy) : ctx.moveTo(X(t), yy); });
+    ctx.lineTo(w, bottom - band); ctx.stroke();
+    const dl = S.lang === "fi" ? "duckaus −12 dB" : "ducking −12 dB";
+    ctx.font = `500 10px ${P.font}`; ctx.textBaseline = "middle";
+    const dw = ctx.measureText(dl).width + 8, dx = X(766.2), dy = bottom - band * 0.5;
+    ctx.fillStyle = P.surfaces.surfaceLane; roundRect(ctx, dx, dy - 7, dw, 14, 2); ctx.fill();
+    ctx.fillStyle = P.surfaces.textSecondary; ctx.fillText(dl, dx + 4, dy);
+  }
+  const bandTop = groupTracks.length ? RULER + rowOf(groupTracks[0]).y : RULER;
+  const bandBot = groupTracks.length ? RULER + rowOf(groupTracks.at(-1)).y + rowOf(groupTracks.at(-1)).h : RULER;
+  for (const [i, c] of CANDS.entries()) {
+    if (c.end < v0 || c.at > v1) continue;
+    const a = X(c.at), b = X(c.end); const current = S.screen === "candidates" && i === S.candIndex;
+    ctx.fillStyle = S2.candidateFill; ctx.fillRect(a, bandTop, b - a, bandBot - bandTop);
+    hatch(ctx, a, bandTop, b - a, bandBot - bandTop, S2.candidate, 8, false, current ? 0.35 : 0.2);
+    ctx.fillStyle = S2.candidate; ctx.fillRect(Math.round(a), RULER, current ? 2 : 1, bandBot - RULER); ctx.fillRect(Math.round(b) - (current ? 2 : 1), RULER, current ? 2 : 1, bandBot - RULER);
+  }
+  if (S.screen === "history") {
+    ctx.setLineDash([5, 4]); ctx.strokeStyle = P.surfaces.textSecondary; ctx.lineWidth = 1;
+    for (const id of groupTracks) { const r = rowOf(id); ctx.strokeRect(X(753.3) + 0.5, RULER + r.y + 3.5, X(757.1) - X(753.3), r.h - 8); }
+    ctx.setLineDash([]);
+  }
+  drawRuler(ctx, w, false);
+  for (const c of CANDS) {
+    if (c.end < v0 || c.at > v1) continue;
+    const a = X(c.at), b = X(c.end);
+    const label = S.lang === "fi" ? "leikkaus? 2,4 s" : "cut? 2.4 s";
+    ctx.font = `600 10px ${P.font}`; ctx.textBaseline = "top";
+    const lw = Math.max(b - a, ctx.measureText(label).width + 10);
+    ctx.fillStyle = P.surfaces.surfacePanel; ctx.fillRect(a, 0, lw, RULER - 1);
+    ctx.fillStyle = S2.candidateFill; ctx.fillRect(a, 0, lw, RULER - 1);
+    ctx.fillStyle = S2.candidate; ctx.fillRect(a, 0, lw, 3);
+    ctx.fillStyle = P.surfaces.text; ctx.fillText(label, a + 5, 7);
+  }
+  if (S.screen === "transcript") {
+    const a = X(753.3), b = X(754.9);
+    ctx.fillStyle = P.surfaces.accent;
+    ctx.beginPath(); ctx.moveTo(a, 0); ctx.lineTo(a + 8, 0); ctx.lineTo(a, 8); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(b, 0); ctx.lineTo(b - 8, 0); ctx.lineTo(b, 8); ctx.fill();
+    ctx.fillRect(a, 0, 1, h); ctx.fillRect(b - 1, 0, 1, h);
+  }
+  const ps = X(S.playStart);
+  ctx.strokeStyle = M.playStart; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(ps - 4, RULER - 7.5); ctx.lineTo(ps + 4, RULER - 7.5); ctx.lineTo(ps, RULER - 1.5); ctx.closePath(); ctx.stroke();
+  const px = Math.round(X(S.playhead)) + 0.5;
+  ctx.strokeStyle = M.playhead; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, h); ctx.stroke();
+  ctx.fillStyle = M.playhead; ctx.beginPath(); ctx.moveTo(px - 5.5, 0); ctx.lineTo(px + 5.5, 0); ctx.lineTo(px + 5.5, 6); ctx.lineTo(px, 11); ctx.lineTo(px - 5.5, 6); ctx.closePath(); ctx.fill();
+}
+
+// A collapsed bus: the sum of its members as one half waveform in the bus colour.
+function drawSummed(ctx, r, X, v0, pps, w) {
+  const members = TRACKS.filter((t) => t.bus === r.bus.id && !t.mute);
+  const y = RULER + r.y + 4, ch = r.h - 8;
+  ctx.fillStyle = P.buses[r.bus.hue - 1].spine; ctx.globalAlpha = 0.85; ctx.beginPath();
+  for (let px = 0; px < w; px++) {
+    const t0 = v0 + px / pps, t1 = v0 + (px + 1) / pps;
+    let sum = 0;
+    for (const t of members) if (CLIPS.some((c) => c.track === t.id && c.start <= t0 && c.end > t0)) sum += peak(t.id, t0, t1) ** 2;
+    const bar = Math.min(1, Math.sqrt(sum)) * ch;
+    if (bar > 0.5) ctx.rect(px, y + ch - bar, 1, bar);
+  }
+  ctx.fill(); ctx.globalAlpha = 1;
+}
+function hatch(ctx, x, y, w, h, colour, step, cross = false, alpha = 1) {
+  ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); ctx.strokeStyle = colour; ctx.globalAlpha = alpha; ctx.lineWidth = 1; ctx.beginPath();
+  for (let o = -h; o < w; o += step) { ctx.moveTo(x + o, y + h); ctx.lineTo(x + o + h, y); if (cross) { ctx.moveTo(x + o, y); ctx.lineTo(x + o + h, y + h); } }
+  ctx.stroke(); ctx.restore();
+}
+function seam(ctx, x, y, h, kind, colour) {
+  if (kind === "split") { ctx.fillStyle = colour; ctx.globalAlpha = 0.7; ctx.fillRect(Math.round(x), y, 1, h); ctx.globalAlpha = 1; }
+  if (kind === "jump") { ctx.fillStyle = colour; ctx.beginPath(); ctx.moveTo(x - 4, y); ctx.lineTo(x + 4, y); ctx.lineTo(x, y + 5); ctx.moveTo(x - 4, y + h); ctx.lineTo(x + 4, y + h); ctx.lineTo(x, y + h - 5); ctx.fill(); }
+}
+function fileChip(ctx, x, y, text, edge) {
+  ctx.font = `600 10px ${P.mono}`; ctx.textBaseline = "top";
+  const w = ctx.measureText(text).width + 6;
+  ctx.fillStyle = P.signals.fileMark; ctx.fillRect(x - 2, y + 3, w, 12);
+  ctx.strokeStyle = edge; ctx.lineWidth = 1; ctx.strokeRect(x - 1.5, y + 3.5, w - 1, 11);
+  ctx.fillStyle = P.signals.fileMarkText; ctx.fillText(text, x + 1, y + 4);
+  return x + w + 4;
+}
+function clipLabel(ctx, x, y, text, col) {
+  ctx.font = `600 11px ${P.font}`; ctx.textBaseline = "top";
+  const tw = ctx.measureText(text).width;
+  ctx.fillStyle = col.body; ctx.globalAlpha = 0.85; ctx.fillRect(x - 3, y + 2, tw + 6, 14); ctx.globalAlpha = 1;
+  ctx.fillStyle = col.label; ctx.fillText(text, x, y + 3);
+  return x + tw + 8;
+}
+function badge(ctx, x, y, text, colour, textColour, solid) {
+  ctx.font = `600 10px ${P.font}`; ctx.textBaseline = "top";
+  const tw = ctx.measureText(text).width + 8;
+  if (solid) { ctx.fillStyle = colour; roundRect(ctx, x, y, tw, 14, 2); ctx.fill(); ctx.fillStyle = textColour; }
+  else { ctx.strokeStyle = colour; ctx.lineWidth = 1; roundRect(ctx, x + 0.5, y + 0.5, tw - 1, 13, 2); ctx.stroke(); ctx.fillStyle = textColour; }
+  ctx.fillText(text, x + 4, y + 2);
+  return x + tw;
+}
+function roundRect(ctx, x, y, w, h, r) { ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h); }
+function rulerFlags(w) {
+  const [v0, v1] = S.view; const pps = w / (v1 - v0); const out = [];
+  for (const c of CANDS) { if (c.end < v0 || c.at > v1) continue; const a = (c.at - v0) * pps; out.push([a - 2, a + Math.max((c.end - c.at) * pps, 92) + 2]); }
+  return out;
+}
+function drawRuler(ctx, w, empty) {
+  ctx.fillStyle = P.surfaces.surfacePanel; ctx.fillRect(0, 0, w, RULER);
+  ctx.fillStyle = P.surfaces.border; ctx.fillRect(0, RULER - 1, w, 1);
+  if (empty) return;
+  const [v0, v1] = S.view; const pps = w / (v1 - v0);
+  ctx.font = `11px ${P.mono}`; ctx.textBaseline = "top";
+  for (let t = Math.ceil(v0); t <= v1; t += 1) {
+    const x = Math.round((t - v0) * pps) + 0.5; const major = t % 5 === 0;
+    ctx.fillStyle = P.marks.rulerTick; ctx.fillRect(x - 0.5, RULER - (major ? 9 : 4), 1, major ? 9 : 4);
+    const covered = rulerFlags(w).some(([a, b]) => x + 40 > a && x < b);
+    if (major && !covered) { ctx.fillStyle = P.marks.rulerText; const m = Math.floor(t / 60), s = String(t % 60).padStart(2, "0"); ctx.fillText(`${m}:${s}`, x + 4, 5); }
+  }
+}
+function drawOverview() {
+  const { ctx, w, h } = setup($("overview"));
+  ctx.clearRect(0, 0, w, h);
+  if (S.screen === "empty") return;
+  const rh = (h - 4) / TRACKS.length;
+  TRACKS.forEach((t, i) => {
+    const r = rng(11 + i * 7);
+    ctx.fillStyle = P.hue(t.hue).wave; ctx.globalAlpha = t.mute ? 0.25 : 0.6;
+    if (t.kind === "music") { for (const [a, b] of [[0, 42], [761.5, 830], [1790, 1830], [3470, 3521]]) ctx.fillRect((a / TOTAL) * w, 2 + i * rh, ((b - a) / TOTAL) * w, Math.max(1, rh - 1)); return; }
+    let sec = r() * 20;
+    while (sec < TOTAL) { const len = 4 + r() * 22; if (r() > 0.45) ctx.fillRect((sec / TOTAL) * w, 2 + i * rh, Math.max(1, (len / TOTAL) * w), Math.max(1, rh - 1)); sec += len + r() * 6; }
+  });
+  ctx.globalAlpha = 1;
+  for (const c of CANDS) { if (c.state !== "open") continue; ctx.fillStyle = P.signals.candidate; ctx.fillRect((c.at / TOTAL) * w, 0, 2, h); }
+  const bx = (S.view[0] / TOTAL) * w, bw = Math.max(4, ((S.view[1] - S.view[0]) / TOTAL) * w);
+  ctx.fillStyle = P.marks.selectionRange; ctx.fillRect(bx, 0, bw, h);
+  ctx.strokeStyle = P.surfaces.accent; ctx.lineWidth = 1.5; ctx.strokeRect(bx + 0.75, 0.75, bw - 1.5, h - 1.5);
+  ctx.fillStyle = P.marks.playhead; ctx.fillRect((S.playhead / TOTAL) * w, 0, 1, h);
+}
+
+// ---------------------------------------------------------------- the clip gallery
+// Every signal of grammar.js SIGNALS on one sample clip each, in the same
+// drawing rules as the timeline. Text comes from the registry itself.
+const GALLERY = [
+  { id: "speaker", title: "Speaker hue (identity)", draw: {} },
+  { id: "file-zebra", title: "Two files on one track (zebra + file mark)", draw: { split: "file" } },
+  { id: "seam-split", title: "Clean split (hairline)", draw: { split: "split" } },
+  { id: "seam-jump", title: "Jump cut (notch, crossfade)", draw: { split: "jump" } },
+  { id: "selected", title: "Selected", draw: { selected: true } },
+  { id: "muted", title: "Muted clip", draw: { muted: true } },
+  { id: "gate", title: "Gate closed (Auto-Silence, WP44)", draw: { gate: true } },
+  { id: "soft-cut", title: "Cut, gap kept (soft cut)", draw: { softcut: true } },
+  { id: "unheard", title: "Not heard (solo elsewhere)", draw: { unheard: true } },
+  { id: "unused", title: "Unused in the programme (clip bin)", draw: { unused: true } },
+  { id: "placeholder", title: "Narration placeholder", draw: { placeholder: true } },
+  { id: "provisional", title: "Provisional (not confirmed yet)", draw: { provisional: true } },
+  { id: "partner", title: "Sync partner of the selection", draw: { partner: true } },
+  { id: "candidate", title: "Cut candidate", draw: { candidate: true } },
+  { id: "damaged", title: "Damaged media", draw: { damaged: true } },
+  { id: "clipping", title: "Clipping", draw: { clipping: true } },
+  { id: "sync", title: "Sync group (selected clip)", draw: { selected: true, badges: [["sync", "⛓ 1"]] } },
+  { id: "drift", title: "Undecided drift", draw: { badges: [["drift", "−312 ms"]] } },
+  { id: "free", title: "Free from sync, on purpose", draw: { badges: [["free", "+300 ms · free"]] } },
+  { id: "takes", title: "Alternative takes", draw: { takes: "2/3" } },
+  { id: "tether", title: "Connected clip (tether)", draw: { tether: true } },
+  { id: "note", title: "Note on the clip", draw: { note: true } },
+  { id: "label", title: "User label colour", draw: { label: 3 } },
+  { id: "added", title: "Changes view: added", draw: { added: true } },
+  { id: "removed", title: "Changes view: removed", draw: { removed: true } },
+  { id: "role", title: "Role strip (bin, cards only)", draw: { roles: true } },
+  { id: "overflow", title: "Too many signals: three, then +N", draw: { badges: [["drift", "−312 ms"], ["clip", ""], ["takes", "2/3"]], overflow: 2, clipping: true } },
+];
+function renderGallery() {
+  const rows = GALLERY.map((g) => {
+    const s = signal(g.id);
+    const meta = s ? `<dl><dt>Channel</dt><dd>${s.channel} · ${s.meaning}</dd><dt>Priority</dt><dd>${s.priority}${s.always ? " · always shown" : ""}</dd><dt>Without colour</dt><dd>${s.twin}</dd><dt>When</dt><dd>${s.when}</dd>${s.key ? `<dt>Keys</dt><dd>${s.key}</dd>` : ""}<dt>Status</dt><dd>${s.status}</dd></dl>` : `<dl><dt>Rule</dt><dd>pickSignals(): always-on signals, then the three highest-priority others; the rest become “+N”, listed on hover.</dd></dl>`;
+    return `<figure class="g-card"><canvas data-g="${g.id}" width="300" height="72"></canvas><figcaption><b>${g.title}</b>${meta}</figcaption></figure>`;
+  }).join("");
+  const app = $("app");
+  app.innerHTML = `<div class="gallery"><header><h1>Clip grammar</h1><p>Each signal uses one channel; each channel means one thing. Every colour has a shape, pattern or text twin. Source: <code>ui/grammar.js</code> (this page reads it). Theme: ${S.theme}.</p></header>
+    <section><h2>Clips</h2><div class="g-grid">${rows}</div></section>
+    <section><h2>Buses</h2><div class="g-buses" id="g-buses"></div></section></div>`;
+  requestAnimationFrame(() => { for (const c of document.querySelectorAll("canvas[data-g]")) drawSample(c, GALLERY.find((g) => g.id === c.dataset.g).draw); renderGalleryBuses(); });
+}
+function renderGalleryBuses() {
+  const b1 = BUSES[0], b2 = BUSES[1];
+  const head = (b, letter, nm, extra = "", cls = "") => `<section class="track-header bus-header ${cls}" data-bus style="height:44px; ${busVars(b)}"><div class="th-top"><button class="disclose" type="button" aria-expanded="${!cls.includes("collapsed")}">${icon("chev")}</button><span class="bus-badge">${letter}</span><span class="bus-name">${nm}</span>${extra}<span class="ms"><button class="ms-button mute" type="button" aria-pressed="false">M</button><button class="ms-button solo" type="button" aria-pressed="false">S</button></span></div><div class="th-controls"><label class="slider-control gain"><input type="range" value="0"><output>0.0 dB</output></label><label class="slider-control pan"><input type="range" value="0"><output>C</output></label></div></section>`;
+  const track = (t, b, nm, cls = "") => `<section class="track-header ${cls}" ${b ? "data-bus" : ""} style="height:44px; --track-colour: var(--track-${t}-edge); ${busVars(b)}"><div class="th-top"><span class="role">${icon("mic")}</span><span class="track-name">${nm}</span><span class="ms"><button class="ms-button mute" type="button" aria-pressed="false">M</button><button class="ms-button solo" type="button" aria-pressed="false">S</button></span></div><div class="th-controls"><label class="slider-control gain"><input type="range" value="0"><output>0.0 dB</output></label></div></section>`;
+  $("g-buses").innerHTML = `
+    <figure class="g-card wide"><div class="g-heads">${head(b1, "A", "Voices")}${track("0", b1, "Anna")}${track("1", b1, "Ville", "drop-target")}<div class="drop-line" style="--bus-spine: var(--bus-1-spine)"></div>${track("2", b1, "Zoom: Pekka")}</div><figcaption><b>Expanded bus, a track being dragged in</b><dl><dt>Spine</dt><dd>4 px, bus colour, from the header through every member; the track keeps its own hue as a short pill.</dd><dt>Band</dt><dd>a faint tint of the bus colour behind header and member lanes; twice as strong on the header row.</dd><dt>Badge</dt><dd>the bus letter: the non-colour twin, also in the transcript and the inspector.</dd><dt>Drop</dt><dd>dragging a track onto a group shows a 2 px insertion line in the bus colour; dropping on a header appends it.</dd></dl></figcaption></figure>
+    <figure class="g-card wide"><div class="g-heads">${head(b2, "B", "Music", `<span class="role">1</span>`, "collapsed")}<canvas id="g-summed" width="420" height="44"></canvas></div><figcaption><b>Collapsed bus</b><dl><dt>Shows</dt><dd>one row at lane height: the members' summed half waveform in the bus colour, the member count beside the name.</dd><dt>Keys</dt><dd>⌥← collapses, ⌥→ expands the bus of the current track.</dd></dl></figcaption></figure>
+    <figure class="g-card wide"><div class="g-heads">${head(Object.assign({}, b1, { hue: 3 }), "C", "Effects", "", "no-members")}</div><figcaption><b>A bus with no tracks</b><dl><dt>Shows</dt><dd>the header alone, name in italics; it sits after every group. Its band row is empty.</dd></dl></figcaption></figure>
+    <figure class="g-card wide"><div class="g-heads">${track("4", null, "Narrator")}</div><figcaption><b>A track on no bus</b><dl><dt>Shows</dt><dd>no spine and no band: it goes straight to the master. Ungrouped tracks keep their place between groups.</dd></dl></figcaption></figure>`;
+  const c = $("g-summed"); const { ctx, w, h } = setup(c); ctx.fillStyle = P.buses[1].band; ctx.fillRect(0, 0, w, h); ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = P.buses[1].spine; ctx.beginPath(); for (let px = 0; px < w; px++) { const t = 761.5 + px * 0.05; const bar = peak("music1", t, t + 0.05) * (h - 8); ctx.rect(px, h - 4 - bar, 1, bar); } ctx.fill();
+}
+function drawSample(canvas, d) {
+  const { ctx, w, h } = setup(canvas);
+  ctx.fillStyle = P.surfaces.surfaceLane; ctx.fillRect(0, 0, w, h);
+  const col = P.hue(d.unheard ? "2" : "0");
+  const y = 8, ch = h - 16;
+  const parts = d.split ? [[8, w / 2], [w / 2, w - 8]] : [[8, w - 8]];
+  parts.forEach(([x0, x1], i) => {
+    const alt = d.split === "file" && i === 1;
+    const alpha = d.muted ? P.numbers.mutedOpacity : d.unheard ? P.numbers.unheardOpacity : d.unused ? P.numbers.unusedOpacity : 1;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = d.removed ? P.signals.removedFill : alt ? col.bodyAlt : col.body; ctx.fillRect(x0, y, x1 - x0, ch);
+    if (!d.placeholder && !d.removed) {
+      ctx.fillStyle = col.wave; ctx.beginPath();
+      for (let px = Math.ceil(x0); px < x1; px++) { const t = 741 + (px + i * 37) * 0.03; let p = peak("anna", t, t + 0.03); if (d.clipping && px > x0 + 120 && px < x0 + 124) p = 1; const gated = d.gate && px >= 110 && px < 200; const bar = gated ? 1 : Math.min(1, p) * ch; if (bar > 0.5) ctx.rect(px, y + ch - bar, 1, bar); }
+      ctx.fill();
+      if (d.clipping) { ctx.globalAlpha = 1; ctx.fillStyle = P.signals.clipping; ctx.fillRect(x0 + 119, y, 6, 3); }
+    }
+    ctx.globalAlpha = 1;
+    if (d.muted) hatch(ctx, x0, y, x1 - x0, ch, P.signals.mutedHatch, 6);
+    if (d.gate) { ctx.globalAlpha = P.numbers.gateOpacity; ctx.fillStyle = P.signals.gate; ctx.fillRect(110, y, 90, ch); ctx.globalAlpha = 1; ctx.fillStyle = P.surfaces.textSecondary; for (const gx of [110, 199]) { ctx.fillRect(gx, y + ch - 7, 1, 7); } ctx.font = `500 10px ${P.font}`; ctx.textBaseline = "top"; ctx.fillText(S.lang === "fi" ? "mikki kiinni" : "mic closed", 116, y + 20); }
+    if (d.softcut) { ctx.fillStyle = P.signals.softCutFill; ctx.fillRect(110, y, 80, ch); hatch(ctx, 110, y, 80, ch, P.signals.softCut, 6, false, 0.45); ctx.fillStyle = P.signals.softCut; ctx.fillRect(110, y, 2, ch); ctx.fillRect(188, y, 2, ch); ctx.font = `600 10px ${P.font}`; ctx.textBaseline = "top"; ctx.fillText(S.lang === "fi" ? "leikattu" : "cut", 117, y + 20); }
+    if (d.damaged) { ctx.fillStyle = P.signals.damagedFill; ctx.fillRect(x0 + 90, y, 90, ch); hatch(ctx, x0 + 90, y, 90, ch, P.signals.damaged, 6, true); }
+    if (d.removed) hatch(ctx, x0, y, x1 - x0, ch, P.signals.removed, 6, false, 0.6);
+    ctx.lineWidth = 1;
+    if (d.placeholder) { ctx.setLineDash([5, 3]); ctx.strokeStyle = P.signals.placeholder; }
+    else if (d.provisional) { ctx.setLineDash([2, 2]); ctx.strokeStyle = P.signals.provisional; }
+    else if (d.removed) { ctx.setLineDash([5, 3]); ctx.strokeStyle = P.signals.removed; }
+    else ctx.strokeStyle = col.edge;
+    ctx.strokeRect(x0 + 0.5, y + 0.5, x1 - x0 - 1, ch - 1); ctx.setLineDash([]);
+    let lx = x0 + 5;
+    ctx.save(); ctx.beginPath(); ctx.rect(x0, y, x1 - x0 - 4, ch); ctx.clip();
+    if (d.split === "file") lx = fileChip(ctx, lx, y, fileMark(i ? MEDIA.annaB.sha : MEDIA.annaA.sha), col.edge);
+    if (d.placeholder) { ctx.font = `italic 12px ${P.font}`; ctx.fillStyle = P.surfaces.textSecondary; ctx.textBaseline = "top"; ctx.fillText("“Tähän kertojan siirtymä…” · about 6 s", lx, y + 20); }
+    lx = clipLabel(ctx, lx, y, d.placeholder ? "Narration" : d.split === "file" ? (i ? "Anna_take2.wav" : "Anna.wav") : "Anna.wav", col);
+    if (i === 0) for (const [kind, text] of d.badges ?? []) {
+      if (kind === "drift") lx = badge(ctx, lx, y + 2, text, P.signals.drift, P.signals.driftText, true) + 4;
+      if (kind === "sync") lx = badge(ctx, lx, y + 2, text, P.signals.sync, P.signals.sync, false) + 4;
+      if (kind === "free") lx = badge(ctx, lx, y + 2, text, P.signals.free, P.signals.free, false) + 4;
+      if (kind === "takes") lx = badge(ctx, lx, y + 2, text, P.signals.takes, P.signals.takes, false) + 4;
+    }
+    if (d.overflow && i === 0) badge(ctx, lx, y + 2, `+${d.overflow}`, P.surfaces.textSecondary, P.surfaces.textSecondary, false);
+    if (d.damaged && i === 0) badge(ctx, x0 + 94, y + 20, `! ${tr("damaged")}`, P.signals.damaged, P.signals.driftText, true);
+    ctx.restore();
+  });
+  if (d.split) seam(ctx, w / 2, y, ch, d.split, P.signals.seam);
+  if (d.selected) { ctx.strokeStyle = P.signals.selected; ctx.lineWidth = 2; ctx.strokeRect(9, y + 1, w - 18, ch - 2); }
+  if (d.partner) { ctx.setLineDash([3, 3]); ctx.strokeStyle = P.signals.partner; ctx.lineWidth = 1; ctx.strokeRect(10.5, y + 2.5, w - 21, ch - 5); ctx.setLineDash([]); }
+  if (d.candidate) { ctx.fillStyle = P.signals.candidateFill; ctx.fillRect(110, 0, 80, h); hatch(ctx, 110, 0, 80, h, P.signals.candidate, 8, false, 0.3); ctx.fillStyle = P.signals.candidate; ctx.fillRect(110, 0, 1, h); ctx.fillRect(189, 0, 1, h); }
+  if (d.takes) { ctx.strokeStyle = P.signals.takes; ctx.lineWidth = 1; for (const k of [1, 2]) { ctx.beginPath(); ctx.moveTo(w - 8 - 18 + k * 3, y - k * 3 + 0.5); ctx.lineTo(w - 8 + k * 3 - 0.5, y - k * 3 + 0.5); ctx.lineTo(w - 8 + k * 3 - 0.5, y + 14 - k * 3); ctx.stroke(); } }
+  if (d.tether) { ctx.strokeStyle = P.signals.tether; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(8.5, y + ch); ctx.lineTo(8.5, h); ctx.stroke(); ctx.fillStyle = P.signals.tether; ctx.beginPath(); ctx.arc(8.5, h - 2, 2.5, 0, 7); ctx.fill(); }
+  if (d.note) { ctx.fillStyle = P.signals.note; ctx.beginPath(); ctx.moveTo(150, y); ctx.lineTo(160, y); ctx.lineTo(155, y + 7); ctx.fill(); }
+  if (d.label) { ctx.fillStyle = P.labels[d.label - 1]; ctx.fillRect(w - 20, y + 3, 9, 9); }
+  if (d.added) { ctx.fillStyle = P.signals.added; ctx.fillRect(8, y, 3, ch); ctx.fillRect(w - 11, y, 3, ch); ctx.font = `700 12px ${P.font}`; ctx.fillText("+", w - 24, y + 4); }
+  if (d.removed) { ctx.fillStyle = P.signals.removed; ctx.font = `700 12px ${P.font}`; ctx.textBaseline = "top"; ctx.fillText("−", w - 24, y + 4); }
+  if (d.roles) {
+    const roles = [[P.roles.speech, []], [P.roles.speechMix, [6, 3]], [P.roles.music, [1, 3]]];
+    roles.forEach(([c, dash], k) => { ctx.strokeStyle = c; ctx.lineWidth = 2; ctx.setLineDash(dash); const x0 = 8 + k * ((w - 16) / 3); ctx.beginPath(); ctx.moveTo(x0 + 2, y + 1); ctx.lineTo(x0 + (w - 16) / 3 - 4, y + 1); ctx.stroke(); });
+    ctx.setLineDash([]);
+  }
+}
+
+// ---------------------------------------------------------------- interaction
+function togglePlay() {
+  if (S.screen === "empty") return;
+  S.playing = !S.playing;
+  if (S.playing) { S.playStart = S.playhead; let last = performance.now();
+    const step = (now) => { if (!S.playing) return; S.playhead += ((now - last) / 1000) * S.speed; last = now;
+      if (S.playhead > S.view[1] - 2) { const span = S.view[1] - S.view[0]; S.view = [S.view[0] + span, S.view[1] + span]; }
+      document.querySelector(".timecode").innerHTML = timecode(S.playhead); drawAll(); requestAnimationFrame(step); };
+    requestAnimationFrame(step); }
+  renderTop(false);
+}
+const ORDER = ["timeline", "transcript", "side"];
+document.addEventListener("keydown", (e) => {
+  const mod = e.metaKey || e.ctrlKey;
+  if (mod && e.key.toLowerCase() === "k") { e.preventDefault(); S.palette = !S.palette; render(); return; }
+  if (e.key === "Escape") { S.palette = false; S.focus = null; S.panel = "timeline"; render(); $("timeline")?.focus(); return; }
+  if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+  if (e.code === "Space") { e.preventDefault(); togglePlay(); return; }
+  if (e.key === "F6") { e.preventDefault(); const i = ORDER.indexOf(S.panel); S.panel = ORDER[(i + (e.shiftKey ? 2 : 1)) % 3]; render(); return; }
+  if (e.key === "f" && !mod) { S.focus = S.focus ? null : S.current; render(); return; }
+  if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight")) { const bus = TRACKS.find((t) => t.id === S.current)?.bus; if (bus) { if (e.key === "ArrowLeft") S.collapsed.add(bus); else S.collapsed.delete(bus); render(); } return; }
+  if (e.key === "]" && S.tab === "candidates") { S.candIndex = Math.min(CANDS.length - 1, S.candIndex + 1); render(); }
+  if (e.key === "[" && S.tab === "candidates") { S.candIndex = Math.max(0, S.candIndex - 1); render(); }
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") { const i = TRACKS.findIndex((t) => t.id === S.current); const n = TRACKS[Math.max(0, Math.min(TRACKS.length - 1, i + (e.key === "ArrowDown" ? 1 : -1)))]; S.current = n.id; if (S.focus) S.focus = n.id; render(); }
+});
+function bindTimeline() {
+  $("timeline").addEventListener("pointerdown", (e) => {
+    if (S.screen === "empty") return;
+    const rect = e.target.getBoundingClientRect(), x = e.clientX - rect.left, y = e.clientY - rect.top - RULER;
+    const t = S.view[0] + (x / rect.width) * (S.view[1] - S.view[0]);
+    S.panel = "timeline";
+    if (y < 0) { S.playhead = t; render(); return; }
+    const row = laneLayout().find((r) => y >= r.y && y < r.y + r.h);
+    if (!row || row.kind !== "track") { S.selection = new Set(); render(); return; }
+    S.current = row.t.id;
+    const clip = CLIPS.find((c) => c.track === row.t.id && t >= c.start && t < c.end);
+    if (clip) { if (e.shiftKey) S.selection.add(clip.id); else S.selection = new Set([clip.id]); S.tab = "inspector"; } else S.selection = new Set();
+    S.playhead = t; render();
+  });
+}
+document.addEventListener("click", (e) => { if (e.target.id === "scrim") { S.palette = false; render(); } });
+const APP_HTML = $("app").innerHTML;
+for (const [id, key] of [["p-screen", "screen"], ["p-theme", "theme"], ["p-lang", "lang"], ["p-density", "density"]]) {
+  $(id).addEventListener("change", (e) => {
+    const wasGallery = S.screen === "gallery";
+    S[key] = e.target.value; if (key === "screen") applyScreen();
+    const q = new URLSearchParams(location.search); q.set(key, e.target.value); history.replaceState(null, "", "?" + q);
+    if (wasGallery && S.screen !== "gallery") { $("app").innerHTML = APP_HTML; bindTimeline(); observe(); }
+    render();
+  });
+}
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+function observe() { new ResizeObserver(() => requestAnimationFrame(() => { if (S.screen === "gallery") return; renderHeads(S.screen === "empty"); drawAll(); })).observe($("stack")); }
+bindTimeline();
+observe();
+applyScreen();
+render();
+
+</script>
+</body>
+</html>

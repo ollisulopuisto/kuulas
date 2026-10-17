@@ -6,6 +6,7 @@
 // The overlay redraws on requestAnimationFrame when state changed; the
 // waveform layer only when something it shows changed.
 import { frameToX, xToFrame } from "./format.js";
+import { busHues, fileMark, needsFileMark, seamKind } from "./grammar.js";
 import {
   clipEnd,
   dbToY,
@@ -15,16 +16,24 @@ import {
   RULER_HEIGHT,
   visibleRows,
 } from "./lanes.js";
-import { makeWaveformJob, paletteIndex } from "./paint.js";
+import { makeWaveformJob, trackHues } from "./paint.js";
 import { rulerTicks } from "./ruler.js";
 import { readTheme } from "./theme.js";
 import { createWaveformLayer } from "./waveform-layer.js";
 import { wheelIntent } from "./wheel.js";
 
+// Drawing rules: docs/design/GUI-DESIGN.md, "Waveforms and the timeline".
 const NAME_FONT_PX = 11;
+const LABEL_H = 14;
+const LABEL_BACKING_ALPHA = 0.85;
 const HATCH_STEP = 6;
 const POINT_RADIUS = 3;
-const XFADE_ALPHA = 0.25;
+const XFADE_ALPHA = 0.3;
+const GAIN_ALPHA = 0.75;
+const PLAYHEAD_CAP = 5.5;
+const SEAM_ALPHA = 0.7;
+const NOTCH_PX = 4;
+const MARK_FONT_PX = 10;
 
 export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, actions }) {
   const overlay = overlayCanvas.getContext("2d");
@@ -72,7 +81,12 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       waveQueued = false;
       const state = getState();
       if (!state.project || size.width === 0) return;
-      const job = makeWaveformJob(state, { ...size, id: 0 }, theme.palette);
+      const job = makeWaveformJob(state, { ...size, id: 0 }, theme.palette, {
+        laneCurrent: theme.laneCurrent,
+        busBands: theme.busBands,
+        clipping: theme.clipping,
+        mutedOpacity: theme.mutedOpacity,
+      });
       const key = JSON.stringify(job);
       if (key === lastWaveKey) return;
       lastWaveKey = key;
@@ -100,6 +114,8 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     if (!state.project) return;
     const rate = state.project.rate;
     const layout = layoutRows(state.project, state.laneHeight);
+    const hues = trackHues(state.project);
+    const groups = busHues(state.project);
     drawRange(state, height);
     for (const row of visibleRows(layout, state.scrollY, height - RULER_HEIGHT)) {
       const top = RULER_HEIGHT + row.top - state.scrollY;
@@ -109,9 +125,11 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       overlay.moveTo(0, top + row.height - 0.5);
       overlay.lineTo(width, top + row.height - 0.5);
       overlay.stroke();
-      if (row.kind === "track") drawTrack(state, state.project.tracks[row.index], row, top);
+      if (row.kind === "track") drawTrack(state, state.project.tracks[row.index], row, top, hues);
+      else drawBusRow(row, top, groups);
     }
     drawRuler(state, rate);
+    drawInOut(state, height);
     drawPlayhead(state, height);
   }
 
@@ -119,15 +137,32 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     if (state.inPoint === null || state.outPoint === null) return;
     const x1 = frameToX(state.inPoint, state.scroll, state.zoom);
     const x2 = frameToX(state.outPoint, state.scroll, state.zoom);
-    overlay.fillStyle = theme.accent;
-    overlay.globalAlpha = 0.14;
+    overlay.fillStyle = theme.range;
     overlay.fillRect(x1, RULER_HEIGHT, x2 - x1, height - RULER_HEIGHT);
-    overlay.globalAlpha = 1;
   }
 
-  function drawTrack(state, track, row, top) {
+  // In and out: 1 px accent edges with a flag in the ruler, pointing inwards.
+  function drawInOut(state, height) {
+    if (state.inPoint === null || state.outPoint === null) return;
+    const x1 = frameToX(state.inPoint, state.scroll, state.zoom);
+    const x2 = frameToX(state.outPoint, state.scroll, state.zoom);
+    overlay.fillStyle = theme.accent;
+    overlay.fillRect(Math.round(x1), 0, 1, height);
+    overlay.fillRect(Math.round(x2) - 1, 0, 1, height);
+    overlay.beginPath();
+    overlay.moveTo(x1, 0);
+    overlay.lineTo(x1 + 8, 0);
+    overlay.lineTo(x1, 8);
+    overlay.moveTo(x2, 0);
+    overlay.lineTo(x2 - 8, 0);
+    overlay.lineTo(x2, 8);
+    overlay.fill();
+  }
+
+  function drawTrack(state, track, row, top, hues) {
     const { width } = size;
-    const colours = theme.palette[paletteIndex(track, row.index) % theme.palette.length];
+    const colours = theme.palette[(hues.get(track.id) ?? 0) % theme.palette.length];
+    const marked = needsFileMark(track);
     // Rows under the ruler must not paint over it.
     overlay.save();
     overlay.beginPath();
@@ -144,17 +179,20 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       overlay.strokeStyle = colours.ink;
       overlay.lineWidth = 1;
       overlay.strokeRect(left + 0.5, y + 0.5, w - 1, h - 1);
-      if (clip.muted) drawHatch(left, y, w, h, colours.ink);
+      if (clip.muted) drawHatch(left, y, w, h, theme.hatch);
       if (clip.xfade_in) drawCrossfade(left, y, h, clip.xfade_in / state.zoom, colours.ink);
       if (clip.xfade_out) drawCrossfade(right, y, h, clip.xfade_out / state.zoom, colours.ink);
-      if (row.height >= 36) drawName(state, clip, left, y, w, colours.ink);
-      if (row.height >= 40) drawGain(state, clip, left, right, top, row.height);
+      if (row.height >= 36) drawName(state, clip, left, y, w, colours, marked);
+      // The gain line only where it says something: not 0 dB, an envelope, or selected.
+      const gainShown = (clip.gain_db ?? 0) !== 0 || clip.envelope?.length > 0 || selected;
+      if (row.height >= 40 && gainShown) drawGain(state, clip, left, right, top, row.height);
       if (selected) {
-        overlay.strokeStyle = theme.ink;
+        overlay.strokeStyle = theme.selection;
         overlay.lineWidth = 2;
         overlay.strokeRect(left + 1, y + 1, w - 2, h - 2);
       }
     }
+    drawSeams(state, track, top, row.height);
     drawAutomation(state, track, top, row.height);
     overlay.restore();
   }
@@ -165,7 +203,6 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     overlay.rect(x, y, w, h);
     overlay.clip();
     overlay.strokeStyle = colour;
-    overlay.globalAlpha = 0.4;
     overlay.lineWidth = 1;
     overlay.beginPath();
     for (let offset = -h; offset < w; offset += HATCH_STEP) {
@@ -194,25 +231,91 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     overlay.globalAlpha = 1;
   }
 
-  function drawName(state, clip, left, y, w, colour) {
+  // A bus row (expanded): its band, twice as strong as behind its members, so
+  // the group header reads as the top of the group. Collapsed buses (a summed
+  // waveform) are designed in GUI-DESIGN.md and not built yet.
+  function drawBusRow(row, top, groups) {
+    const band = theme.busBands[(groups.get(row.id) ?? 1) - 1];
+    if (!band) return;
+    overlay.fillStyle = band;
+    overlay.fillRect(0, top, size.width, row.height - 1);
+    overlay.fillRect(0, top, size.width, row.height - 1);
+  }
+
+  // Where two clips meet (grammar.js seamKind): a hairline for a clean split,
+  // a notch top and bottom for a jump cut. A change of file needs neither:
+  // the zebra tone and the outlines already show it.
+  function drawSeams(state, track, top, rowHeight) {
+    const clips = [...track.clips].sort((a, b) => a.start - b.start);
+    overlay.fillStyle = theme.seam;
+    for (let i = 1; i < clips.length; i += 1) {
+      const kind = seamKind(clips[i - 1], clips[i]);
+      if (kind !== "split" && kind !== "jump") continue;
+      const x = Math.round(frameToX(clips[i].start, state.scroll, state.zoom));
+      if (x < 0 || x > size.width) continue;
+      const y = top + 2;
+      const h = rowHeight - 4;
+      if (kind === "split") {
+        overlay.globalAlpha = SEAM_ALPHA;
+        overlay.fillRect(x, y, 1, h);
+        overlay.globalAlpha = 1;
+      } else {
+        overlay.beginPath();
+        overlay.moveTo(x - NOTCH_PX, y);
+        overlay.lineTo(x + NOTCH_PX, y);
+        overlay.lineTo(x, y + NOTCH_PX + 1);
+        overlay.moveTo(x - NOTCH_PX, y + h);
+        overlay.lineTo(x + NOTCH_PX, y + h);
+        overlay.lineTo(x, y + h - NOTCH_PX - 1);
+        overlay.fill();
+      }
+    }
+  }
+
+  // The clip's name on a backing of its body colour, so bars never cross the
+  // text; before it, the file mark when the track holds more than one file.
+  function drawName(state, clip, left, y, w, colours, marked) {
     const media = state.project.media.find((item) => item.id === clip.media);
-    if (!media || w < 24) return;
+    if (!media || w < 30) return;
+    let x = Math.max(left, 0) + 5;
+    if (marked) x = drawFileMark(fileMark(media.sha256), x, y, colours.ink);
     overlay.font = `600 ${NAME_FONT_PX}px ${theme.font}`;
     overlay.textBaseline = "top";
-    overlay.fillStyle = colour;
+    const textWidth = overlay.measureText(media.name).width;
     overlay.save();
     overlay.beginPath();
-    overlay.rect(left, y, w, NAME_FONT_PX + 6);
+    overlay.rect(left, y, w - 4, LABEL_H + 4);
     overlay.clip();
-    overlay.fillText(media.name, Math.max(left, 0) + 4, y + 3);
+    overlay.fillStyle = colours.fill;
+    overlay.globalAlpha = LABEL_BACKING_ALPHA;
+    overlay.fillRect(x - 3, y + 2, textWidth + 6, LABEL_H);
+    overlay.globalAlpha = 1;
+    overlay.fillStyle = colours.label;
+    overlay.fillText(media.name, x, y + 3);
     overlay.restore();
+  }
+
+  // The file mark: two characters from the content hash in a small chip.
+  function drawFileMark(text, x, y, edge) {
+    if (!text) return x;
+    overlay.font = `600 ${MARK_FONT_PX}px ${theme.mono}`;
+    overlay.textBaseline = "top";
+    const w = overlay.measureText(text).width + 6;
+    overlay.fillStyle = theme.fileMark;
+    overlay.fillRect(x - 2, y + 3, w, LABEL_H - 2);
+    overlay.strokeStyle = edge;
+    overlay.lineWidth = 1;
+    overlay.strokeRect(x - 1.5, y + 3.5, w - 1, LABEL_H - 3);
+    overlay.fillStyle = theme.fileMarkText;
+    overlay.fillText(text, x + 1, y + 4);
+    return x + w + 4;
   }
 
   // Clip gain: a dashed line at gain_db; envelope points as dots joined by lines.
   function drawGain(state, clip, left, right, top, rowHeight) {
     const baseline = top + dbToY(clip.gain_db ?? 0, rowHeight);
-    overlay.strokeStyle = theme.ink;
-    overlay.globalAlpha = 0.7;
+    overlay.strokeStyle = theme.gain;
+    overlay.globalAlpha = GAIN_ALPHA;
     overlay.setLineDash([4, 3]);
     overlay.lineWidth = 1;
     overlay.beginPath();
@@ -231,7 +334,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
         else overlay.lineTo(x, y);
       }
       overlay.stroke();
-      overlay.fillStyle = theme.ink;
+      overlay.fillStyle = theme.gain;
       for (const [x, y] of points) {
         overlay.beginPath();
         overlay.arc(x, y, POINT_RADIUS, 0, Math.PI * 2);
@@ -246,9 +349,8 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     if (!track.automation?.length || rowHeight < 40) return;
     const bottom = top + rowHeight - 3;
     const band = rowHeight / 3 - 4;
-    overlay.strokeStyle = theme.ink;
-    overlay.globalAlpha = 0.5;
-    overlay.lineWidth = 1;
+    overlay.strokeStyle = theme.automation;
+    overlay.lineWidth = 1.5;
     overlay.beginPath();
     track.automation.forEach(([frame, db], i) => {
       const x = frameToX(frame, state.scroll, state.zoom);
@@ -257,29 +359,25 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       else overlay.lineTo(x, y);
     });
     overlay.stroke();
-    overlay.globalAlpha = 1;
   }
 
   function drawRuler(state, rate) {
     const { width } = size;
     overlay.fillStyle = theme.panel;
     overlay.fillRect(0, 0, width, RULER_HEIGHT);
-    overlay.strokeStyle = theme.rule;
-    overlay.beginPath();
-    overlay.moveTo(0, RULER_HEIGHT - 0.5);
-    overlay.lineTo(width, RULER_HEIGHT - 0.5);
-    overlay.stroke();
-    overlay.font = `10px ${theme.mono}`;
-    overlay.textBaseline = "middle";
-    overlay.fillStyle = theme.muted;
-    overlay.strokeStyle = theme.muted;
+    overlay.fillStyle = theme.rule;
+    overlay.fillRect(0, RULER_HEIGHT - 1, width, 1);
+    overlay.font = `11px ${theme.mono}`;
+    overlay.textBaseline = "top";
     for (const tick of rulerTicks({ scroll: state.scroll, zoom: state.zoom, width, rate })) {
       const major = tick.label !== null;
-      overlay.beginPath();
-      overlay.moveTo(Math.round(tick.x) + 0.5, RULER_HEIGHT - (major ? 8 : 4));
-      overlay.lineTo(Math.round(tick.x) + 0.5, RULER_HEIGHT - 1);
-      overlay.stroke();
-      if (major) overlay.fillText(tick.label, tick.x + 3, 9);
+      const x = Math.round(tick.x);
+      overlay.fillStyle = theme.rulerTick;
+      overlay.fillRect(x, RULER_HEIGHT - (major ? 9 : 4), 1, major ? 9 : 4);
+      if (major) {
+        overlay.fillStyle = theme.rulerText;
+        overlay.fillText(tick.label, x + 4, 5);
+      }
     }
   }
 
@@ -293,10 +391,13 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     overlay.moveTo(x, 0);
     overlay.lineTo(x, height);
     overlay.stroke();
+    // The cap: a pentagon in the ruler, so the playhead reads at a glance.
     overlay.beginPath();
-    overlay.moveTo(x - 5, 0);
-    overlay.lineTo(x + 5, 0);
-    overlay.lineTo(x, 7);
+    overlay.moveTo(x - PLAYHEAD_CAP, 0);
+    overlay.lineTo(x + PLAYHEAD_CAP, 0);
+    overlay.lineTo(x + PLAYHEAD_CAP, 6);
+    overlay.lineTo(x, 11);
+    overlay.lineTo(x - PLAYHEAD_CAP, 6);
     overlay.closePath();
     overlay.fill();
   }

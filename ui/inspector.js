@@ -1,6 +1,7 @@
 // The inspector: the selected clip's gain, pan, fades, mute and sync group.
 // Edits use `set_clip` with coalesce keys, like the track sliders.
 import { formatDb, formatNumber, t } from "./i18n.js";
+import { MUSIC_HUE, trackHues } from "./paint.js";
 import { coalesceKey, patchClip } from "./provisional.js";
 import { panText } from "./tracks.js";
 
@@ -14,7 +15,11 @@ export function selectedClip(state) {
   for (const track of state.project.tracks) {
     const clip = track.clips.find((candidate) => candidate.id === id);
     if (clip)
-      return { clip, media: state.project.media.find((item) => item.id === clip.media) ?? null };
+      return {
+        clip,
+        track,
+        media: state.project.media.find((item) => item.id === clip.media) ?? null,
+      };
   }
   return null;
 }
@@ -118,6 +123,11 @@ export function createInspector({ root, editor }) {
     const { clip, media } = found;
     const group = syncGroupOf(state.project, clip.media);
     parts.heading.textContent = media?.name ?? clip.id;
+    const hue = trackHues(state.project).get(found.track.id);
+    parts.heading.style.setProperty(
+      "--track-colour",
+      `var(--track-${hue === MUSIC_HUE ? "music" : hue}-edge)`,
+    );
     setNumber(parts.gain, Math.round(clip.gain_db * 10) / 10);
     setNumber(parts.pan, Math.round(clip.pan * 100));
     setNumber(parts.fadeIn, Math.round((clip.fade_in * 1000) / parts.rate));
