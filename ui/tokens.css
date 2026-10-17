@@ -141,10 +141,12 @@
   --p-red-28: #3d1d1b;
   --p-red-51: #b42d1c;
   --p-red-55: #c8321f;
+  --p-red-55-a8: rgb(200 50 31 / 0.08);
   --p-red-55-a12: rgb(200 50 31 / 0.12);
   --p-red-59: #d93a26;
   --p-red-71: #ff6b57;
   --p-red-73: #ff776b;
+  --p-red-73-a9: rgb(255 119 107 / 0.09);
   --p-red-73-a13: rgb(255 119 107 / 0.13);
   --p-red-76: #ff8a7f;
   --p-red-95: #fde8e4;
@@ -295,6 +297,7 @@
   --signal-muted-opacity: 0.35; /* muted clips (with the hatch) */
   --signal-unheard-opacity: 0.45; /* tracks not heard because of solo or mute */
   --signal-unused-opacity: 0.5; /* material not in the open edit (clip bin) */
+  --signal-gate-opacity: 0.7; /* the gate veil: strong enough to read as closed */
 }
 
 :root[data-density="compact"] {
@@ -357,6 +360,9 @@
   --signal-provisional: var(--p-gray-51);
   --signal-candidate: var(--p-red-55); /* stripes and edges of cut candidates */
   --signal-candidate-fill: var(--p-red-55-a12);
+  --signal-soft-cut: var(--p-red-55); /* a cut that kept its gap: edges and hatch */
+  --signal-soft-cut-fill: var(--p-red-55-a8);
+  --signal-gate: var(--p-gray-98); /* the veil over a closed gate (lane colour) */
   --signal-damaged: var(--p-red-55);
   --signal-damaged-fill: var(--p-red-95);
   --signal-removed: var(--p-red-55);
@@ -481,6 +487,9 @@
     --signal-provisional: var(--p-gray-68);
     --signal-candidate: var(--p-red-73);
     --signal-candidate-fill: var(--p-red-73-a13);
+    --signal-soft-cut: var(--p-red-73);
+    --signal-soft-cut-fill: var(--p-red-73-a9);
+    --signal-gate: var(--p-gray-20);
     --signal-damaged: var(--p-red-73);
     --signal-damaged-fill: var(--p-red-28);
     --signal-removed: var(--p-red-73);
@@ -605,6 +614,9 @@
   --signal-provisional: var(--p-gray-68);
   --signal-candidate: var(--p-red-73);
   --signal-candidate-fill: var(--p-red-73-a13);
+  --signal-soft-cut: var(--p-red-73);
+  --signal-soft-cut-fill: var(--p-red-73-a9);
+  --signal-gate: var(--p-gray-20);
   --signal-damaged: var(--p-red-73);
   --signal-damaged-fill: var(--p-red-28);
   --signal-removed: var(--p-red-73);
