@@ -50,7 +50,6 @@ import struct
 import subprocess
 import threading
 import time
-from collections import OrderedDict
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
@@ -431,7 +430,6 @@ class MediaStore:
         #: both encode it. The second waits, then finds the finished row.
         self._import_locks: dict[str, threading.Lock] = {}
         self._handles: dict[str, tuple[threading.Lock, sf.SoundFile]] = {}
-        self._cache: OrderedDict[tuple[str, int], np.ndarray] = OrderedDict()
         self._meta: dict[str, dict] = {}
         #: Is each linked file still there and unchanged? Checked (stat and,
         #: if the mtime moved, a re-hash) here, in ``missing`` and in
@@ -918,6 +916,7 @@ class MediaStore:
             if self.is_linked(m):
                 ok = self._linked_ok[m] = self._valid(m)
                 if not ok:
+                    self.budget.discard_prefix("chunks", f"{m}:")
                     lost.append(m)
         return lost
 
@@ -1097,8 +1096,7 @@ class MediaStore:
                                   "name": meta["name"]})
                 with self._lock:
                     self._handles.pop(media_id, None)
-                    for key in [k for k in self._cache if k[0] == media_id]:
-                        del self._cache[key]
+                self.budget.discard_prefix("chunks", f"{media_id}:")
                 done.append(media_id)
         return done
 
@@ -1123,12 +1121,13 @@ class MediaStore:
             return h
 
     def _chunk(self, media_id: str, index: int) -> np.ndarray:
-        key = (media_id, index)
-        with self._lock:
-            hit = self._cache.get(key)
-            if hit is not None:
-                self._cache.move_to_end(key)
-                return hit
+        if self._unreadable(media_id):
+            return np.zeros((self.meta(media_id)["channels"], CHUNK_SEC * self.rate),
+                            dtype=np.float32)
+        key = f"{media_id}:{index}"
+        hit = self.budget.get("chunks", key)
+        if hit is not None:
+            return hit
         handle = self._handle(media_id)
         step = CHUNK_SEC * self.rate
         if handle is None:
@@ -1137,10 +1136,7 @@ class MediaStore:
         with lock:
             f.seek(index * step)
             data = np.ascontiguousarray(f.read(step, dtype="float32", always_2d=True).T)
-        with self._lock:
-            self._cache[key] = data
-            while len(self._cache) > CACHE_CHUNKS:
-                self._cache.popitem(last=False)
+        self.budget.put("chunks", key, data)
         return data
 
     def read(self, media_id: str, first: int, count: int) -> np.ndarray:
