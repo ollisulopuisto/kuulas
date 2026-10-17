@@ -25,6 +25,7 @@ export function createEditor({ send, getProject, setProject, acceptServer, onErr
         coalesce: request.coalesce ?? null,
       });
       if (queue.length === 0) acceptServer(response);
+      request.done?.(response);
     } catch (error) {
       queue = [];
       onError(error);
@@ -35,7 +36,12 @@ export function createEditor({ send, getProject, setProject, acceptServer, onErr
   }
 
   return {
-    /** change({ op, args, coalesce?, label?, provisional? }) */
+    /**
+     * change({ op, args, coalesce?, label?, provisional?, combine?, done? })
+     * `combine(older, newer)` makes the args of two queued edits with the same key
+     * (a relative edit such as "+0.5 dB" must add up, not be replaced); `done(response)`
+     * is called when the server has answered this request.
+     */
     change(change) {
       if (change.provisional) setProject(change.provisional(getProject()));
       const entry = {
@@ -43,11 +49,14 @@ export function createEditor({ send, getProject, setProject, acceptServer, onErr
         args: change.args,
         label: change.label,
         coalesce: change.coalesce,
+        done: change.done,
       };
       const queued = change.coalesce
         ? queue.findIndex((item) => item.coalesce === change.coalesce)
         : -1;
-      if (queued >= 0) queue[queued] = entry;
+      if (queued >= 0 && change.combine) {
+        queue[queued] = { ...entry, args: change.combine(queue[queued].args, entry.args) };
+      } else if (queued >= 0) queue[queued] = entry;
       else queue.push(entry);
       void pump();
     },

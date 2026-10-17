@@ -80,3 +80,10 @@ describe("live messages", () => {
     assert.deepEqual(reduceLive(state, { type: "whatever" }).patch, {});
   });
 });
+
+describe("editing defaults", () => {
+  test("group editing is on at the start and the nudge step is 10 ms", () => {
+    assert.equal(initialState().groupEditing, true);
+    assert.equal(initialState().nudgeMs, 10);
+  });
+});

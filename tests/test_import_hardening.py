@@ -9,6 +9,7 @@ import os
 import shutil
 import stat
 import struct
+import time
 from collections import namedtuple
 from pathlib import PurePosixPath, PureWindowsPath
 
@@ -315,7 +316,18 @@ def test_a_hung_ffmpeg_is_killed_and_reported(store, broken, tmp_path, monkeypat
     pidfile = tmp_path / "pid"
     script = fake_binary(tmp_path, "ffmpeg", f'echo $$ > "{pidfile}"\nexec sleep 30\n')
     use_fake(monkeypatch, "ffmpeg", script)
-    monkeypatch.setattr(media_mod, "STALL_SEC", 0.5)
+
+    real_monotonic = time.monotonic
+    start = real_monotonic()
+
+    def fake_monotonic() -> float:
+        now = real_monotonic()
+        if pidfile.exists() or (now - start) > 10.0:
+            return start + 100.0
+        return start
+
+    monkeypatch.setattr(time, "monotonic", fake_monotonic)
+    monkeypatch.setattr(media_mod, "STALL_SEC", 0.1)
     [r] = store.import_batch([broken["junk_middle.mp3"]])
     assert r.error.key == "error.media.decode_timeout"
     assert leftovers(store) == []
