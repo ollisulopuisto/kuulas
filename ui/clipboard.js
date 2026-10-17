@@ -1,0 +1,86 @@
+// The clipboard's pure helpers (WP46): entry names, the paste choice and where a
+// paste lands. No DOM, no state of its own; edit-plans.js builds the copy and
+// paste plans from these, clipboard-panel.js draws the entries.
+
+export const PASTE_MODES = ["insert", "overwrite"];
+export const PASTE_TARGETS = ["same", "current"];
+
+/** m:ss, or h:mm:ss from an hour on. Whole seconds: a clipboard name is a hint, not a timecode. */
+export function shortDuration(seconds) {
+  const whole = Math.max(0, Math.floor(Number.isFinite(seconds) ? seconds : 0));
+  const h = Math.floor(whole / 3600);
+  const m = Math.floor((whole % 3600) / 60);
+  const s = String(whole % 60).padStart(2, "0");
+  return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${s}` : `${m}:${s}`;
+}
+
+/**
+ * The automatic name of a copy: "Anna +1 · 0:12", the first track's name, how many
+ * more clips ride along, and how long it is. `t` translates the stand-in for a
+ * track with no name.
+ */
+export function autoName({ trackName, clips, seconds }, t = (key) => key) {
+  const name = trackName?.trim() ? trackName.trim() : t("ui.clipboard.untitled_track");
+  const more = clips > 1 ? ` +${clips - 1}` : "";
+  return `${name}${more} · ${shortDuration(seconds)}`;
+}
+
+/** What the panel shows for an entry: its own name, else the automatic one from its counts. */
+export function entryTitle(entry, rate, t = (key) => key) {
+  const own = entry.name?.trim();
+  if (own) return own;
+  return t("ui.clipboard.untitled", {
+    count: entry.clips,
+    duration: shortDuration(entry.length / rate),
+  });
+}
+
+/** The remembered paste choice, with defaults: insert, on the same tracks. */
+export function pasteChoice(state) {
+  return {
+    mode: PASTE_MODES.includes(state?.pasteMode) ? state.pasteMode : "insert",
+    target: PASTE_TARGETS.includes(state?.pasteTarget) ? state.pasteTarget : "same",
+  };
+}
+
+/**
+ * The slot -> track id mapping for "paste on the current track": slot 0 on the
+ * current track, the next slots on the tracks below it, and the rest on the last
+ * track when the tracks run out. null when the current track is not among them.
+ */
+export function pasteTargets(slots, trackIds, currentId) {
+  const at = trackIds.indexOf(currentId);
+  if (at < 0) return null;
+  const mapping = {};
+  for (let slot = 0; slot < slots; slot += 1) {
+    mapping[slot] = trackIds[Math.min(trackIds.length - 1, at + slot)];
+  }
+  return mapping;
+}
+
+/** The clips of `trackIds` that overlap [start, end), trimmed to it. */
+export function clipsInRange(project, trackIds, start, end) {
+  const wanted = new Set(trackIds);
+  return (project?.tracks ?? [])
+    .filter((track) => wanted.has(track.id))
+    .flatMap((track) =>
+      track.clips
+        .filter((clip) => clip.start < end && clip.start + clip.length > start)
+        .map((clip) => ({
+          trackId: track.id,
+          trackName: track.name,
+          start: Math.max(clip.start, start),
+          end: Math.min(clip.start + clip.length, end),
+        })),
+    );
+}
+
+/** The `autoName` parts for a set of trimmed clips `[{ trackId, trackName, start, end }]`. */
+export function describeClips(parts, rate) {
+  if (parts.length === 0) return { trackName: "", clips: 0, seconds: 0 };
+  return {
+    trackName: parts[0].trackName,
+    clips: parts.length,
+    seconds: (Math.max(...parts.map((p) => p.end)) - Math.min(...parts.map((p) => p.start))) / rate,
+  };
+}

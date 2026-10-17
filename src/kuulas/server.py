@@ -107,6 +107,7 @@ class CopyBody(BaseModel):
     start: int | None = None
     end: int | None = None
     track_ids: list[str] | None = None
+    group_editing: bool = False
     name: str = ""
 
 
@@ -312,6 +313,7 @@ def create_app(session, engine, *, language: str | None = None,
     def post_clipboard_copy(body: CopyBody):
         out = session.clipboard_copy(clip_ids=body.clip_ids, start=body.start,
                                      end=body.end, track_ids=body.track_ids,
+                                     group_editing=body.group_editing,
                                      name=body.name)
         return JSONResponse({**out, "entries": session.clipboard_list()})
 

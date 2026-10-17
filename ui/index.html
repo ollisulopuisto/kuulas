@@ -54,7 +54,12 @@
       <aside class="sidebar">
         <!-- Help (F1): docked over the sidebar's panels while open; help-panel.js fills it. -->
         <section id="panel-help" class="panel help-panel" data-panel="help" tabindex="-1" hidden></section>
-        <section id="panel-inspector" data-help-id="inspector" class="panel" data-panel="inspector" tabindex="0" data-i18n-aria-label="ui.focus.inspector"></section>
+        <div class="side-tabs" role="tablist" data-i18n-aria-label="ui.tabs.label">
+          <button id="tab-inspector" type="button" role="tab" class="side-tab" data-tab="inspector" aria-controls="panel-inspector" data-i18n="ui.tabs.inspector"></button>
+          <button id="tab-clipboard" type="button" role="tab" class="side-tab" data-tab="clipboard" aria-controls="panel-clipboard" data-i18n="ui.tabs.clipboard"></button>
+        </div>
+        <section id="panel-inspector" data-help-id="inspector" class="panel" data-panel="inspector" role="tabpanel" aria-labelledby="tab-inspector" tabindex="0"></section>
+        <section id="panel-clipboard" class="panel" data-panel="clipboard" role="tabpanel" aria-labelledby="tab-clipboard" tabindex="0" hidden></section>
         <section id="panel-history" class="panel" data-panel="history" tabindex="0" data-i18n-aria-label="ui.focus.history">
           <h2 data-i18n="ui.focus.history"></h2>
           <p class="hint" data-i18n="ui.panel.later"></p>

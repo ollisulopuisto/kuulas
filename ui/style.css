@@ -671,7 +671,8 @@ input.has-ab {
   min-height: 0;
 }
 /* The inspector now carries Track, Bus and clip sections: most of the height. */
-.sidebar .panel[data-panel="inspector"] {
+.sidebar .panel[data-panel="inspector"],
+.sidebar .panel[data-panel="clipboard"] {
   flex: 3;
 }
 .panel h2 {
@@ -1012,6 +1013,99 @@ input[type="text"] {
 /* Last, so a class's display never shows an element that is [hidden]. */
 [hidden] {
   display: none;
+}
+
+/* -- the sidebar's tabs and the Clipboard tab (WP46) --------------------------------------- */
+.side-tabs {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--pad-panel) 0;
+  background: var(--surface-panel);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.side-tab {
+  height: var(--control-h);
+  padding: 0 var(--pad-inline);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.side-tab:hover {
+  color: var(--text);
+}
+.side-tab[aria-selected="true"] {
+  color: var(--text);
+  font-weight: var(--weight-strong);
+  border-bottom-color: var(--accent);
+}
+.sidebar[data-help-open] > .side-tabs {
+  display: none;
+}
+.clip-choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: var(--row-gap) 0 var(--space-4);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+.clip-choice label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.clip-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--row-gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.clip-entry {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+}
+.clip-entry[data-selected="true"] {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+}
+.clip-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.clip-name {
+  font-weight: var(--weight-strong);
+  overflow-wrap: anywhere;
+}
+.clip-meta {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+.clip-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: 0 var(--space-2) var(--space-2);
+}
+.clip-entry .button[aria-pressed="true"] {
+  color: var(--accent-text);
+}
+.clip-rename {
+  margin: var(--space-3) var(--space-4);
 }
 
 /* -- help (WP48; GUI-DESIGN.md "Contextual help") -------------------------------------------- */

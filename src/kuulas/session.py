@@ -290,15 +290,20 @@ class Session:
         return [self._entry_view(e, project) for e in self.clipboard.load().entries()]
 
     def clipboard_copy(self, *, clip_ids=None, start=None, end=None, track_ids=None,
-                       name: str = "") -> dict:
+                       group_editing: bool = False, name: str = "") -> dict:
         """Copy the clips, or the stretch ``[start, end)`` of the tracks, to the
-        clipboard. The project is not changed."""
+        clipboard; ``group_editing`` takes the tracks' sync groups along, as a
+        Cut of the same range would. The project is not changed."""
         project = self.state
         if clip_ids is not None:
             entry = make_entry(project, clip_ids, name=name)
         elif start is None or end is None:
             raise ops.EditError("error.edit.no_selection")
         else:
+            if track_ids is not None:
+                track_ids = edit_scope.expand_range(project, None, list(track_ids),
+                                                    int(start), int(end),
+                                                    bool(group_editing))
             entry = make_entry_range(project, int(start), int(end), track_ids, name=name)
         entry = replace(entry, source_project=str(self.package.path))
         self.clipboard.update(lambda h: h.add(entry))

@@ -207,7 +207,6 @@ export function createMenubar({ root, getMenus, run, onHint, t }) {
       } else close(true);
     } else if (key === "Tab") {
       close(false);
-
     }
   });
 

@@ -83,6 +83,15 @@ def test_a_range_copy_keeps_the_window_and_the_layout(session):
                                                          ("b", 10_000, 20_000)]
 
 
+def test_a_range_copy_takes_the_group_along_like_a_cut(session):
+    a, _ = ids(session.state)
+    # No sync groups: group editing means every track, as for a time-shifting edit.
+    alone = session.clipboard_copy(start=0, end=1000, track_ids=[a.id])["entry"]
+    grouped = session.clipboard_copy(start=0, end=1000, track_ids=[a.id],
+                                     group_editing=True)["entry"]
+    assert (alone["slots"], grouped["slots"]) == (1, 2)
+
+
 def test_insert_shifts_later_material_by_the_pasted_span(session):
     a, _ = ids(session.state)
     session.edit("add_clip", {"track_id": a.id, "media_id": a.clips[0].media,

@@ -29,6 +29,16 @@ export const getWords = () => json("/api/words");
 export const edit = ({ op, args, label = null, coalesce = null }) =>
   post("/api/edit", { op, args, label, coalesce });
 export const command = (name, args = {}) => post("/api/command", { name, args });
+// The clipboard (WP46). Cut and paste are edits (edit() with clipboard_cut / clipboard_paste);
+// copying changes no project, so it has its own route. Each answer carries `entries`.
+export const getClipboard = () => json("/api/clipboard");
+export const copyToClipboard = (body) => post("/api/clipboard/copy", body);
+export const pinClipboardEntry = (id, pinned) =>
+  post(`/api/clipboard/${encodeURIComponent(id)}/pin`, { pinned });
+export const renameClipboardEntry = (id, name) =>
+  post(`/api/clipboard/${encodeURIComponent(id)}/rename`, { name });
+export const deleteClipboardEntry = (id) =>
+  json(`/api/clipboard/${encodeURIComponent(id)}`, { method: "DELETE" });
 export const undo = () => json("/api/undo", { method: "POST" });
 export const redo = () => json("/api/redo", { method: "POST" });
 export const transport = (action, at = null, until = null) =>

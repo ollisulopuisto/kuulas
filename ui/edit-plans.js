@@ -4,6 +4,7 @@
 // or null when there is nothing to act on, which is also what `can()` asks.
 // Group editing is decided by the server (ops.py with edit_scope.py); a plan only
 // says whether it is on.
+import { autoName, clipsInRange, describeClips, pasteChoice, pasteTargets } from "./clipboard.js";
 import { clipEnd } from "./lanes.js";
 import { clipsAround, currentTrack, markedRange, selectedClips } from "./selection.js";
 
@@ -17,7 +18,9 @@ const plan = (op, args, key, values = {}, extra = {}) => ({
   op,
   args,
   label: { key: `ui.edit.label.${key}` },
-  toast: extra.silent ? null : { key: `ui.edit.toast.${key}`, values, tracks: extra.tracks },
+  toast: extra.silent
+    ? null
+    : { key: `ui.edit.toast.${key}`, values, tracks: extra.tracks, variant: extra.variant },
   ...extra.more,
 });
 
@@ -90,22 +93,111 @@ export function deletePlan(state) {
   });
 }
 
-/** X and Shift+X: ripple-delete the range or the selected clips' span. */
-export function cutPlan(state, { thisTrackOnly = false } = {}) {
+/** The trimmed clips an edit over `covered` (see span) touches, for naming its clipboard entry. */
+function coveredParts(state, covered) {
+  if (covered.fromRange)
+    return clipsInRange(state.project, covered.tracks, covered.start, covered.end);
+  return selectedClips(state).map(({ clip, trackId }) => ({
+    trackId,
+    trackName: state.project.tracks.find((track) => track.id === trackId)?.name,
+    start: clip.start,
+    end: clipEnd(clip),
+  }));
+}
+
+/** X and Shift+X: ripple-delete the range or the selected clips' span; the cut audio goes to the clipboard. */
+export function cutPlan(state, { thisTrackOnly = false, t } = {}) {
   if (!state?.project) return null;
   const covered = span(state);
   if (!covered) return null;
+  const name = autoName(describeClips(coveredParts(state, covered), rateOf(state)), t);
   return plan(
-    "cut_range",
+    "clipboard_cut",
     {
       start: covered.start,
       end: covered.end,
       track_ids: covered.tracks,
       group_editing: groupOn(state) && !thisTrackOnly,
+      name,
     },
     "cut",
     { seconds: secondsOf(state, covered.end - covered.start) },
-    { tracks: true },
+    {
+      tracks: true,
+      // A copy that failed does not undo the cut, but the user is told (WP46).
+      variant: (response) =>
+        response?.clipboard?.ok === false
+          ? { key: "ui.edit.toast.cut_uncopied", values: { error: response.clipboard.error } }
+          : null,
+    },
+  );
+}
+
+/** Mod+C: copy the range (as Cut would take it), else the selected clips. No edit, so no undo step. */
+export function copyPlan(state, t) {
+  if (!state?.project) return null;
+  const range = markedRange(state);
+  let body;
+  let parts;
+  if (range) {
+    const tracks = rangeTracks(state);
+    if (tracks.length === 0) return null;
+    parts = clipsInRange(state.project, tracks, range.start, range.end);
+    body = { ...range, track_ids: tracks, group_editing: groupOn(state) };
+  } else {
+    const chosen = selectedClips(state);
+    if (chosen.length === 0) return null;
+    parts = coveredParts(state, { fromRange: false });
+    body = { clip_ids: chosen.map((entry) => entry.clip.id) };
+  }
+  if (parts.length === 0) return null;
+  const described = describeClips(parts, rateOf(state));
+  return {
+    path: "copy",
+    body: { ...body, name: autoName(described, t) },
+    toast: { key: "ui.edit.toast.copy", values: { count: parts.length } },
+  };
+}
+
+/** The entry a paste uses: the one picked in the panel, else the newest. */
+export function pasteEntry(state) {
+  const list = state?.clipboard ?? [];
+  return list.find((entry) => entry.id === state?.clipboardSelected) ?? list[0] ?? null;
+}
+
+/**
+ * Mod+V (insert), Alt+Mod+V (overwrite): paste an entry at the play cursor. `target` is
+ * "same" (the source tracks) or "current" (the current track and the ones below it).
+ * Defaults come from the panel's remembered choice only when the caller passes it in.
+ */
+export function pastePlan(state, { mode, target } = {}) {
+  const choice = pasteChoice({ pasteMode: mode, pasteTarget: target });
+  const entry = pasteEntry(state);
+  if (!state?.project || !entry || !Number.isFinite(state.playhead)) return null;
+  let targetTracks = null;
+  if (choice.target === "current") {
+    const ids = state.project.tracks.map((track) => track.id);
+    targetTracks = pasteTargets(entry.slots, ids, currentTrack(state));
+    if (targetTracks === null) return null;
+  }
+  const key = choice.mode === "overwrite" ? "paste_overwrite" : "paste";
+  return plan(
+    "clipboard_paste",
+    { entry_id: entry.id, at: state.playhead, mode: choice.mode, target_tracks: targetTracks },
+    key,
+    { count: entry.clips },
+    {
+      variant: (response) => {
+        const done = response?.clipboard;
+        if (!done) return null;
+        if (done.placed === 0) {
+          return { key: "ui.edit.toast.paste_nothing", values: {}, undo: false };
+        }
+        return done.missing.length > 0
+          ? { key: "ui.edit.toast.paste_missing", values: { count: done.missing.length } }
+          : null;
+      },
+    },
   );
 }
 

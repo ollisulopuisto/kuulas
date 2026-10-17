@@ -1,14 +1,17 @@
 // The editing commands: B, X, Backspace and the rest of the sheet's edit keys.
 // Each one is a plan (edit-plans.js) sent through the editor; `can()` asks the same
 // plan whether there is anything to do. Keys live in keymap-default.js, never here.
+import { pasteChoice } from "./clipboard.js";
 import {
   changedTracks,
+  copyPlan,
   createBurst,
   cutPlan,
   deletePlan,
   gainPlan,
   mutePlan,
   nudgePlan,
+  pastePlan,
   soloPlan,
   splitPlan,
   trackMutePlan,
@@ -18,7 +21,8 @@ import { selectAllIds } from "./selection.js";
 
 /**
  * `app`: getState, patch(statePatch), edit(change) (the editor's change), toast(text,
- * { undo }), now(). `t` translates, `formatSeconds(seconds)` writes a number of seconds.
+ * { undo }), now(), copy(body) (-> Promise: the clipboard copy), refreshClipboard().
+ * `t` translates, `formatSeconds(seconds)` writes a number of seconds.
  */
 export function registerEditCommands(registry, { app, t, formatSeconds }) {
   const burst = createBurst();
@@ -27,13 +31,16 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
 
   function toastFor(plan, before, response) {
     if (!plan.toast) return;
-    const values = { ...plan.toast.values };
+    // A plan may change its message once the answer is in: a cut whose clipboard copy
+    // failed, a paste that lacked recordings (edit-plans.js).
+    const variant = plan.toast.variant?.(response) ?? null;
+    const values = { ...plan.toast.values, ...variant?.values };
     if (values.seconds !== undefined) values.seconds = formatSeconds(values.seconds);
     if (plan.toast.tracks) {
       values.count = changedTracks(before, response.project).length;
       if (values.count === 0) return app.toast(t("ui.edit.toast.nothing"), { undo: false });
     }
-    app.toast(t(plan.toast.key, values), { undo: true });
+    app.toast(t(variant?.key ?? plan.toast.key, values), { undo: variant?.undo !== false });
   }
 
   function send(plan) {
@@ -44,7 +51,11 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
       label: t(plan.label.key),
       coalesce: plan.coalesce,
       combine: plan.combine,
-      done: (response) => toastFor(plan, before, response),
+      done: (response) => {
+        toastFor(plan, before, response);
+        // A cut adds an entry; a paste may follow a rename elsewhere: look again.
+        if (plan.op.startsWith("clipboard_")) app.refreshClipboard?.();
+      },
     });
   }
 
@@ -62,8 +73,30 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
   planned("edit.split", (s) => splitPlan(s));
   planned("edit.split_all", (s) => splitPlan(s, { all: true }));
   planned("edit.delete", deletePlan);
-  planned("edit.cut", (s) => cutPlan(s));
-  planned("edit.cut_track", (s) => cutPlan(s, { thisTrackOnly: true }));
+  planned("edit.cut", (s) => cutPlan(s, { t }));
+  planned("edit.cut_track", (s) => cutPlan(s, { thisTrackOnly: true, t }));
+
+  // The clipboard (WP46). Mod+C copies and changes nothing in the project. The paste keys
+  // all use the newest entry (or the one picked in the Clipboard tab) at the play cursor:
+  // Mod+V inserts, Alt+Mod+V overwrites, both on the tracks the panel's choice names
+  // (the entry's own tracks unless "current track" is chosen); Shift+Mod+V inserts on
+  // the current track whatever the choice.
+  def(
+    "edit.copy",
+    () => {
+      const plan = copyPlan(app.getState(), t);
+      if (!plan) return;
+      void app.copy(plan.body).then((ok) => {
+        if (ok) app.toast(t(plan.toast.key, plan.toast.values), { undo: false });
+      });
+    },
+    (s) => copyPlan(s, t) !== null,
+  );
+  planned("edit.paste", (s) => pastePlan(s, { mode: "insert", target: pasteChoice(s).target }));
+  planned("edit.paste_overwrite", (s) =>
+    pastePlan(s, { mode: "overwrite", target: pasteChoice(s).target }),
+  );
+  planned("edit.paste_track", (s) => pastePlan(s, { mode: "insert", target: "current" }));
   planned("clip.mute", mutePlan);
   planned("edit.trim_start", (s) => trimPlan(s, "start"));
   planned("edit.trim_end", (s) => trimPlan(s, "end"));

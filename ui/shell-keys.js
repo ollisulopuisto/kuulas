@@ -34,6 +34,7 @@ export const CONTEXT_OF_PANEL = {
   timeline: "timeline",
   transcript: "transcript",
   inspector: "side",
+  clipboard: "side",
   history: "side",
   help: "side",
 };
