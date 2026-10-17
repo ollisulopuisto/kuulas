@@ -71,19 +71,15 @@ def test_silence_ranges_close_each_mic_while_the_other_talks(room):
     assert not covered(closed["V"], 8.0)
 
 
-def test_auto_silence_mutes_clip_pieces_without_moving_audio(room):
+def test_auto_silence_gates_the_track_and_never_splits_clips(room):
+    # WP44 replaced the clip pieces (owner decision 2026-10-18): same
+    # closed stretches, stored as one merged gate per track.
     p, store = room
     q = analysis.auto_silence(p, store)
-    pieces = q.track("A").clips
-    assert len(pieces) > 1
-    # Splits only: every piece still plays the source frame under it.
-    for c in pieces:
-        assert c.offset == c.start
-        assert (c.xfade_in, c.xfade_out) == (0, 0)
-    muted_at_8 = next(c for c in pieces if c.start <= 8 * RATE < c.end)
-    assert muted_at_8.muted
-    talking = next(c for c in pieces if c.start <= 2 * RATE < c.end)
-    assert not talking.muted
+    assert q.track("A").clips == p.track("A").clips
+    assert covered(q.track("A").gate, 8.0)
+    assert not covered(q.track("A").gate, 2.0)
+    assert q.track("A").gate == tuple(analysis.silence_ranges(p, store)["A"])
 
 
 def test_automix_writes_ducking_as_editable_track_automation(room):

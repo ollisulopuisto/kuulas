@@ -2843,6 +2843,29 @@ add them later.
 
 ---
 
+### WP48 — Contextual help (from v1) and onboarding (later)
+
+Status: open (owner, 2026-10-18: "we need contextual help from v1 onwards, and an
+onboarding process later"). Contextual help is part of the first version; onboarding
+comes after. Needs WP4, WP5 (the command registry).
+
+**Contextual help, v1.** Help that knows where you are: the focused panel, the
+selected clip or track, the current mode. (1) A help key (`F1` or `?`, remappable)
+opens a help panel for the focused thing; (2) every control and command has a
+one-line hint (the registry's `hintKey`) and a longer help text, both translated
+(English and Finnish) and kept as data files, not in code; (3) the menu and the
+status line show hints and shortcuts (WP5); (4) empty states say what to do next
+(already in the design); (5) a searchable help index reachable from the Help menu and
+the palette; (6) help text can link to the matching setting or command and run it;
+(7) the same registry feeds the cheat sheet, so help never drifts from the keys.
+
+**Onboarding, later.** A first-run welcome with a sample project, a short guided tour
+that does real edits and can be skipped or replayed, progressive tips tied to the
+user's first use of each feature (shown once), and a checklist of the core loop
+(import, listen, cut, undo, export). Design and content come after v1.
+
+---
+
 ## Rules that come from real Hindenburg complaints (apply everywhere)
 
 1. **Space is always the timeline transport.** No other panel takes Space.

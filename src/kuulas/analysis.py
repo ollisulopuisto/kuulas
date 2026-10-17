@@ -4,8 +4,8 @@ The decision is speechmix's (``grid.lane``, ``masks.duck_masks``,
 ``envelopes.duck_envelopes``); this module only feeds it levels from the
 project's own timeline. Two consumers:
 
-* ``auto_silence``: Pro Cut style. Each speech mic is muted wherever its
-  owner is not talking, as muted clip pieces you can see and undo.
+* ``auto_silence``: Pro Cut style. Each speech mic is closed wherever its
+  owner is not talking, as one merged gate per track (``Track.gate``).
 * ``automix``: the automixer's ducking, written as track automation points
   you can drag, not baked into samples.
 
@@ -20,6 +20,7 @@ import itertools
 import logging
 from collections.abc import Iterable
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from types import SimpleNamespace
 
 import numpy as np
@@ -29,7 +30,7 @@ from speechmix import envelopes, grid, masks
 from speechmix.dsp import FLOOR_DB
 from speechmix.stems import Lanes
 
-from . import levels, ops
+from . import gate, levels, ops
 from .media import workers
 from .messages import t
 from .mixer import Store
@@ -40,6 +41,24 @@ from .model import Project, Track
 #: mic opens and closes where the automixer would.
 OPEN_BEFORE_S = masks.DUCK_LOOKAHEAD
 OPEN_AFTER_S = masks.DUCK_HOLD
+
+#: The merge of the measured toggles into a gate (WP44, ``gate.merge_ranges``):
+#: an open stretch shorter than MIN_OPEN_S is closed, a closed stretch shorter
+#: than MIN_CLOSED_S is dropped. Tuned on the synthetic four-voice
+#: conversations of ``tests/gate_fixtures.py`` (6 seeds, bleed 0.2 to 0.8,
+#: turns of 0.2 to 3.5 s, 300 s, 4 mics; 129 to 198 raw toggles each when the
+#: room is busy): speechmix's own smoothing leaves no open stretch under
+#: 0.8 s, and the shortest closed ones are 0.14 to 0.6 s. At 0.4 s / 0.3 s
+#: the merge bridges nothing and drops at most one stretch (closed time moves
+#: by under 0.1 %); at 0.8 s / 0.5 s it still moves under 0.2 %; at 1.5 s /
+#: 0.8 s it merges 15 to 30 % of the ranges and moves the closed time by 2 to
+#: 12 %, which is audible as words cut off. So the owner's starting values
+#: stay: a floor for noisier real recordings, not a reshaping of the clean
+#: ones. MIN_OPEN_S is above a breath between two words, so a mic never
+#: flutters open for it; MIN_CLOSED_S is ten times the 30 ms edge ramp, so a
+#: closed range is never mostly ramp.
+MIN_OPEN_S = 0.4
+MIN_CLOSED_S = 0.3
 
 CHUNK_SEC = 60
 
@@ -58,7 +77,8 @@ def track_levels(p: Project, store: Store, track: Track) -> tuple[np.ndarray, np
     """``(dB per hop, valid)`` over the timeline, from the raw sources.
 
     Raw: no clip or track gain, because the decision's margin is over the
-    track's own floor and gain must not move it (``grid.lane``).
+    track's own floor and gain must not move it (``grid.lane``). The track's
+    gate is not a gain but a mute, and is left out like a muted clip.
 
     Composed from the store's cached per-media envelopes when it has them
     (``MediaStore.envelope``), so an edit reads no audio (WP36); measured
@@ -69,6 +89,13 @@ def track_levels(p: Project, store: Store, track: Track) -> tuple[np.ndarray, np
     if composed is None:
         composed = _from_audio(p, store, clips)
     mean_sq, valid = composed
+    if track.gate:
+        # A gated hop is inaudible, as one under a muted clip is: no level,
+        # not valid. Only hops wholly inside the gate; a hop the gate merely
+        # touches is still partly heard.
+        shut = gate.full_hops(track.gate, mean_sq.size, hop_frames(p.rate))
+        mean_sq = np.where(shut, 0.0, mean_sq)
+        valid = valid & ~shut
     db = 10.0 * np.log10(np.maximum(mean_sq, 1e-12))
     return np.maximum(db, FLOOR_DB).astype(np.float32), valid
 
@@ -192,12 +219,20 @@ def _dilate(mask: np.ndarray, before: int, after: int) -> np.ndarray:
     return out
 
 
-def _ranges(mask: np.ndarray, hop: int) -> list[tuple[int, int]]:
-    return [(a * hop, b * hop) for a, b, v in masks.runs(mask.astype(np.int8)) if v]
+def _ungated(p: Project) -> Project:
+    """``p`` with every gate emptied: what the measurement must see."""
+    if not any(t.gate for t in p.tracks):
+        return p
+    return replace(p, tracks=tuple(replace(t, gate=()) for t in p.tracks))
 
 
-def silence_ranges(p: Project, store: Store) -> dict[str, list[tuple[int, int]]]:
-    """Per speech track, timeline ranges where its mic should be muted.
+def raw_silence_ranges(p: Project, store: Store) -> dict[str, gate.Gate]:
+    """Per speech track, the closed ranges exactly as the measurement gives
+    them, one per toggle, before ``silence_ranges`` merges them.
+
+    The measurement is made on the raw sources, gate or no gate: the gate
+    this replaces must not hide the audio it is being decided from, or a
+    second run could never reopen a stretch the first one closed.
 
     Closed where the owner is not talking (own floor + margin, pauses under
     ``GAP_CLOSE_S`` bridged, blips under ``MIN_RUN_S`` dropped, padded by
@@ -205,7 +240,7 @@ def silence_ranges(p: Project, store: Store) -> dict[str, list[tuple[int, int]]]
     (``masks.duck_masks``: the louder mic wins, so bleed does not hold a
     mic open).
     """
-    lanes = speech_lanes(p, store)
+    lanes = speech_lanes(_ungated(p), store)
     if not lanes.speakers:
         return {}
     hop = hop_frames(p.rate)
@@ -223,19 +258,33 @@ def silence_ranges(p: Project, store: Store) -> dict[str, list[tuple[int, int]]]
         closed = ~talk
         if lane.name in ducked:
             closed |= np.asarray(ducked[lane.name], dtype=bool)[: closed.size]
-        out[track.id] = _ranges(closed, hop)
+        out[track.id] = gate.ranges_from_mask(closed, hop)
     return out
+
+
+def silence_ranges(p: Project, store: Store) -> dict[str, gate.Gate]:
+    """Per speech track, the merged timeline ranges where its mic should be
+    closed (WP44): ``raw_silence_ranges`` with every open stretch under
+    ``MIN_OPEN_S`` closed and every closed stretch under ``MIN_CLOSED_S``
+    dropped (``gate.merge_ranges``)."""
+    min_open = round(MIN_OPEN_S * p.rate)
+    min_closed = round(MIN_CLOSED_S * p.rate)
+    return {track_id: gate.merge_ranges(ranges, min_open, min_closed)
+            for track_id, ranges in raw_silence_ranges(p, store).items()}
 
 
 def auto_silence(p: Project, store: Store,
                  track_ids: Iterable[str] | None = None) -> Project:
-    """Mute each speech mic where it should be closed. ``track_ids`` limits
+    """Close each speech mic where it should be closed, as a merged gate on
+    the track (WP44). Clips are never split. ``track_ids`` limits
     which tracks are changed; every mic is still measured, because whether
     one is closed depends on the others (bleed)."""
     only = None if track_ids is None else set(track_ids)
     for track_id, ranges in silence_ranges(p, store).items():
-        if ranges and (only is None or track_id in only):
-            p = ops.mute_ranges(p, track_id, ranges)
+        if only is None or track_id in only:
+            # Replaces the track's gate: a second run does not pile up, and a
+            # track that now needs no closing is opened again.
+            p = ops.set_gate(p, track_id, ranges)
     return p
 
 

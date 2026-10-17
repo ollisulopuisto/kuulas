@@ -47,9 +47,17 @@ log = logging.getLogger("kuulas.package")
 
 FORMAT_NAME = "kuulas-project"
 #: The format this code writes. Rises with every format change.
-VERSION = 2
-#: The newest ``min_reader`` this code can read.
-READER = 1
+VERSION = 3
+#: The newest ``min_reader`` this code can read: a manifest asking for more
+#: is refused. Equal to ``VERSION``, since every format change this reader
+#: knows is one it can read.
+READER = 3
+#: What a project asks of a reader until something in it needs more.
+BASE_READER = 1
+#: A project holding a gate (WP44, format version 3) asks for this. An old
+#: reader would keep the field in ``extra`` and play the track ungated, which
+#: is audible, so it must refuse instead of guessing.
+GATE_READER = 3
 
 #: The lock is rewritten this often while the project is open...
 HEARTBEAT_S = 30
@@ -123,7 +131,7 @@ def read_manifest(folder: str | Path) -> dict | None:
 
 
 def _new_manifest(project_id: str, created_utc: str) -> dict:
-    return {"format": FORMAT_NAME, "version": VERSION, "min_reader": READER,
+    return {"format": FORMAT_NAME, "version": VERSION, "min_reader": BASE_READER,
             "created_utc": created_utc, "written_by": f"kuulas {kuulas_version()}",
             "id": project_id, "copy": secrets.token_hex(16), "lineage": []}
 
@@ -250,10 +258,21 @@ class Package:
         self._opened = _iso(now)
         self._last_beat = self._last_backup = now
         self._backed_up = self._changes()
+        self.history.on_gate = self._need_gate_reader
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         size = self.db_path.stat().st_size
         log.info(t("log.package.opened", path=str(folder), size_mb=round(size / 1e6, 1)))
+
+    def _need_gate_reader(self) -> None:
+        """Called by ``History`` before it writes a state that has a gate:
+        the manifest asks for a reader that knows gates first, so a crash
+        between the two leaves a stricter manifest, never a project an old
+        reader would open and play wrongly. Never lowered again."""
+        if int(self.manifest.get("min_reader", BASE_READER)) >= GATE_READER:
+            return
+        self.manifest = {**self.manifest, "min_reader": GATE_READER}
+        write_manifest(self.path, self.manifest)
 
     def _changes(self) -> int:
         """Rows written by this session, through either connection."""
@@ -409,6 +428,9 @@ def _upgrade(folder: Path, manifest: dict | None) -> dict:
         for key in ("id", "copy", "lineage", "created_utc"):
             if key in manifest:
                 new[key] = manifest[key]
+        # What the project already asks of a reader stays (a gate was written).
+        new["min_reader"] = max(int(manifest.get("min_reader", BASE_READER)),
+                                BASE_READER)
     write_manifest(folder, new)
     migrations.cleanup_v0(folder)
     return new
