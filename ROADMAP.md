@@ -47,7 +47,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R23 | Sync workflow: files imported or recorded together are in sync by default; align any other file by eye and mark it in sync; optional align-by-sound helper for Zoom/phone files (drift, dropouts) | core done (sync groups, default groups at import); helper WP16 |
 | R24 | Space never plays a clip list; dropping never trims to in/out; previews loudness-matched | planned: WP17 + plan-wide rules (important, can come later) |
 | R25 | Mark possible cuts on the first listen, decide on the second; markers stay on their audio through every edit | planned: WP18 |
-| R26a | Edit groups: an edit applies to the whole sync group unless group editing is switched off (Pro Tools, Reaper) | planned: WP19a, in milestone M1. Rule: time-shifting edits keep the sync group together, other edits touch exactly the selection |
+| R26a | Edit groups: an edit applies to the whole sync group unless group editing is switched off (Pro Tools, Reaper) | pure logic for partners and edit targets done v26.10.17.6, wiring into the edit commands and the UI still to do: WP19a, in milestone M1. Rule: time-shifting edits keep the sync group together, other edits touch exactly the selection |
 | R26b | Connected clips: music and effects stay attached to a moment in the speech through ripple cuts (FCP) | planned: WP19b |
 | R26c | Roles (dialogue / music / effects), stem export per role, Match Loudness (FCP, Audition) | planned: WP19c |
 | R26d | Every command bindable, user key overrides, macros that undo as one step (Reaper) | planned: WP19d |
