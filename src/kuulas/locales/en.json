@@ -229,5 +229,6 @@
   "error.chapters.empty_title": "Chapter at frame {frame} has no title.",
   "error.chapters.negative_frame": "Chapter starts at a negative frame: {frame}.",
   "error.chapters.unknown_style": "Unknown chapter style: {style}.",
+  "error.narration.bad_words_per_second": "Words per second must be greater than zero: {words_per_second}.",
   "error.music_report.bad_format": "Choose json, csv or html; {format} is not supported."
 }

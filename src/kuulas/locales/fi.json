@@ -229,5 +229,6 @@
   "error.chapters.empty_title": "Luvulla kohdassa {frame} ei ole otsikkoa.",
   "error.chapters.negative_frame": "Luku alkaa negatiivisesta kehyksestä: {frame}.",
   "error.chapters.unknown_style": "Tuntematon lukutyyli: {style}.",
+  "error.narration.bad_words_per_second": "Sanoja sekunnissa täytyy olla enemmän kuin nolla: {words_per_second}.",
   "error.music_report.bad_format": "Valitse json, csv tai html; muotoa {format} ei tueta."
 }
