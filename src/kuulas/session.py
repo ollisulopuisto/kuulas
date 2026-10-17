@@ -746,7 +746,9 @@ class Session:
                                 {"media": media_id, "person": person_id})
 
     def set_music_info(self, media_id: str, fields: dict) -> None:
-        """Edit music tags (title, artist, composer, publisher, isrc) in material root."""
+        """Edit music tags (title, artist, composer, publisher, isrc) in material root.
+
+        An empty string blanks a tag; ``None`` removes the edit (the imported tag returns)."""
         with self.lock:
             self._sha(media_id)
             allowed = {"title", "artist", "composer", "publisher", "isrc"}
@@ -757,11 +759,13 @@ class Session:
             if "music_info" not in root:
                 root["music_info"] = {}
             current_edits = dict(root["music_info"].get(media_id, {}))
+            # "" blanks a field even when the import found a value; None drops
+            # the edit, so the imported value shows again.
             for k, v in fields.items():
-                if v:
-                    current_edits[k] = str(v)
-                else:
+                if v is None:
                     current_edits.pop(k, None)
+                else:
+                    current_edits[k] = str(v)
             if current_edits:
                 root["music_info"][media_id] = current_edits
             else:

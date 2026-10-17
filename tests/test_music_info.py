@@ -155,3 +155,27 @@ def test_backwards_compatibility_missing_music_info_in_material(tmp_path: Path):
     state = s.history.state
     m = state.media_item(media.id)
     assert isinstance(m.extra.get("music_info", {}), dict)
+
+
+def _tagged_wav(path: Path) -> Path:
+    with sf.SoundFile(str(path), "w", samplerate=48000, channels=1, format="WAV") as f:
+        f.title = "Probe title"
+        f.artist = "Probe artist"
+        f.write(np.zeros(48000, dtype=np.float32))
+    return path
+
+
+def test_an_empty_string_blanks_an_imported_tag_and_none_brings_it_back(tmp_path: Path):
+    s = Session(tmp_path / "proj.kuulas")
+    p = s.import_media([str(_tagged_wav(tmp_path / "tagged.wav"))])
+    media = p.media[0]
+    assert media.extra["music_info"]["title"] == "Probe title"  # the precondition
+
+    s.set_music_info(media.id, {"title": ""})
+    shown = s.history.state.media_item(media.id).extra["music_info"]
+    assert shown["title"] == ""
+    assert shown["artist"] == "Probe artist"
+
+    s.set_music_info(media.id, {"title": None})
+    back = s.history.state.media_item(media.id).extra["music_info"]
+    assert back["title"] == "Probe title"
