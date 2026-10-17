@@ -88,6 +88,8 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R56 | Auto-Silence stores one merged gate per track, not thousands of split clip pieces: measure finely, merge the muted regions (owner, 2026-10-17) | planned: WP44 |
 | R57 | Compare: non-destructive previews and A/B by listening (cuts, values, tracks, takes, edits, voice presets), level matched, blind mode, keep one or discard all | planned: WP45 (builds on WP24.2) |
 | R58 | Extensive clipboard with history: cut copies and ripples, delete leaves the gap, entries kept as references, a Clipboard panel, four paste forms, across projects | planned: WP46 |
+| R59 | Contextual help from v1 (help key for the focused thing, hints and keys in menus, searchable help index, translated help as data) | planned: WP48 |
+| R60 | Onboarding (first-run welcome, sample project, guided tour, progressive tips) | planned later: WP48 |
 
 ## Done
 
@@ -220,6 +222,21 @@ WP27, WP38, WP42, WP15.
   playback is never confused with the live input.
 
 ## Open questions and known limits
+
+- **Key conflict to decide (K):** you decided "reject candidate" moves to K, but K is
+  also "stop" in the J K L shuttle (WP26). The keymap supports contexts, so K can be
+  "reject" inside the candidates panel and "stop" everywhere else [recommended]; or give
+  stop another key. Also open: Mod+T for import (waits for the desktop window), the
+  palette's "Recent" group, and the Play button's key chip not following a remap.
+
+- **WP44 merge thresholds need real recordings.** On the synthetic four-voice
+  fixtures the starting values (open stretches under 0.4 s closed up, closed stretches
+  under 0.3 s dropped) change almost nothing (speechmix's own smoothing already leaves
+  no short stretches); at 1.5 s and 0.8 s, 15 to 30 percent of the ranges merge and the
+  closed time moves 2 to 12 percent. The old estimate of 5,000 to 10,000 pieces an hour
+  was not reproduced (about 4,700 pieces per hour on the fixture; the gate has about
+  as many ranges as raw toggles but the state is about a fifth of the size). Owner:
+  try Auto-Silence on a real interview and tell me whether it feels too fragmented.
 
 - **CI and distribution need two things from the owner:** a repository secret
   `PODCAST_READ_TOKEN` (read access to `ollisulopuisto/podcast`) before

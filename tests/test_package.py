@@ -50,7 +50,7 @@ def test_new_package_has_manifest_lock_db_media_caches(tmp_path):
         assert (root / name).is_dir(), name
     m = manifest(root)
     assert m["format"] == "kuulas-project"
-    assert (m["version"], m["min_reader"]) == (2, 1)
+    assert (m["version"], m["min_reader"]) == (3, 1)
     assert m["written_by"].startswith("kuulas ")
     assert len(m["id"]) == 32
     assert len(m["copy"]) == 32
@@ -86,18 +86,18 @@ def test_manifest_is_written_atomically(tmp_path, monkeypatch):
     # The crash lands between writing the temp file and renaming it.
     monkeypatch.setattr(package.os, "replace", crash)
     with pytest.raises(OSError, match="power cut"):
-        package.write_manifest(pkg.path, {**manifest(pkg.path), "version": 3})
+        package.write_manifest(pkg.path, {**manifest(pkg.path), "version": 4})
     assert (pkg.path / "manifest.json").read_bytes() == before
     monkeypatch.undo()
     pkg.close()
-    assert package.open_package(pkg.path).manifest["version"] == 2
+    assert package.open_package(pkg.path).manifest["version"] == 3
 
 
 def test_newer_min_reader_refuses_with_version(tmp_path):
     pkg = package.create(tmp_path / "A.kuulas")
     pkg.close()
     m = manifest(pkg.path)
-    package.write_manifest(pkg.path, {**m, "version": 3, "min_reader": 2,
+    package.write_manifest(pkg.path, {**m, "version": 5, "min_reader": 4,
                                       "written_by": "kuulas 27.01.01.1"})
     with pytest.raises(package.PackageError) as err:
         package.open_package(pkg.path)
@@ -127,7 +127,7 @@ def test_newer_version_opens_and_keeps_unknown_keys(tmp_path):
     db.execute("insert into future_things(what) values ('keep me')")
     db.commit()
     db.close()
-    package.write_manifest(pkg.path, {**manifest(pkg.path), "version": 3,
+    package.write_manifest(pkg.path, {**manifest(pkg.path), "version": 4,
                                       "new_manifest_key": True})
 
     pkg = package.open_package(pkg.path)
@@ -156,7 +156,7 @@ def test_newer_version_opens_and_keeps_unknown_keys(tmp_path):
     assert db.execute("select what from future_things").fetchall() == [("keep me",)]
     db.close()
     m = manifest(pkg.path)
-    assert m["version"] == 3
+    assert m["version"] == 4
     assert m["new_manifest_key"] is True
 
 
@@ -280,7 +280,7 @@ def test_migration_v0_to_v1_keeps_every_state_media_and_transcript(tmp_path):
     shutil.copytree(FIXTURE, folder)
     olds = old_states()
     pkg = package.open_package(folder)
-    assert manifest(folder)["version"] == 2
+    assert manifest(folder)["version"] == 3
     assert len(list((folder / "backups").glob("pre-migration-v0-*.sqlite"))) == 1
     h = pkg.history
 
@@ -340,8 +340,8 @@ def test_migration_v0_to_v1_keeps_every_state_media_and_transcript(tmp_path):
 
     # Opening again does not migrate again.
     pkg = package.open_package(folder)
-    # (two: v0 to v1 and v1 to v2 each take their own backup)
-    assert len(list((folder / "backups").glob("pre-migration-*.sqlite"))) == 2
+    # (three: v0 to v1, v1 to v2 and v2 to v3 each take their own backup)
+    assert len(list((folder / "backups").glob("pre-migration-*.sqlite"))) == 3
     pkg.close()
 
 

@@ -751,7 +751,7 @@ waveforms, play with Space, see the playhead move.
 
 ### WP5 — Keyboard: the Hindenburg keymap
 
-Status: open. Needs WP4. This is the most important UI WP (R10).
+Status: infrastructure done in v26.10.18.6 (data-driven keymap in `ui/keymap-default.js`, user overrides with collision reports, dispatcher with physical keys and AltGr, cheat sheet, docked palette, in-window menu bar with enabled state and modifier alternates). Most editing commands are registered as "planned" no-ops until the commands exist; wiring each one is the remaining work. Needs WP4. This is the most important UI WP (R10).
 
 New files `ui/keymap.js` (the table), `ui/commands.js` (one function per
 command, each taking the store and returning nothing). `Mod` is Cmd on Mac and
@@ -2725,7 +2725,7 @@ the export guard counts unrecorded placeholders.
 
 ### WP44 — Auto-Silence as merged gate ranges
 
-Status: gate range arithmetic (`gate.py`: merge, add, remove, ripple, mask to ranges) done in v26.10.18.1; `Track.gate`, the mixer, the wiring and the UI open (owner decision 2026-10-17: "measure the need to mute very often,
+Status: backend done in v26.10.18.5 (`gate.py`, `Track.gate`, ops, the mixer ramp, audibility everywhere, format version 3 with `min_reader` raised per project); the gate bands and "Open this stretch" in the UI open (owner decision 2026-10-17: "measure the need to mute very often,
 but the muted region should be merged"). Needs WP1. Sonnet 5.5. Do it before the
 soft-cut work (cut-keeping-the-gap, see the architect's note in the session log
 and the open questions in `docs/handoffs/`), and before any long-session use.
@@ -2840,6 +2840,29 @@ sidebar, bottom dock, optional left sidebar); drag a panel tab into another slot
 layout presets (Editing, Transcript first, Mixing); remembered with the other
 settings (WP35). No floating windows in the browser; the desktop wrapper (WP15) may
 add them later.
+
+---
+
+### WP48 — Contextual help (from v1) and onboarding (later)
+
+Status: open (owner, 2026-10-18: "we need contextual help from v1 onwards, and an
+onboarding process later"). Contextual help is part of the first version; onboarding
+comes after. Needs WP4, WP5 (the command registry).
+
+**Contextual help, v1.** Help that knows where you are: the focused panel, the
+selected clip or track, the current mode. (1) A help key (`F1` or `?`, remappable)
+opens a help panel for the focused thing; (2) every control and command has a
+one-line hint (the registry's `hintKey`) and a longer help text, both translated
+(English and Finnish) and kept as data files, not in code; (3) the menu and the
+status line show hints and shortcuts (WP5); (4) empty states say what to do next
+(already in the design); (5) a searchable help index reachable from the Help menu and
+the palette; (6) help text can link to the matching setting or command and run it;
+(7) the same registry feeds the cheat sheet, so help never drifts from the keys.
+
+**Onboarding, later.** A first-run welcome with a sample project, a short guided tour
+that does real edits and can be skipped or replayed, progressive tips tied to the
+user's first use of each feature (shown once), and a checklist of the core loop
+(import, listen, cut, undo, export). Design and content come after v1.
 
 ---
 

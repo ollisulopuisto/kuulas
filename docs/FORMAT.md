@@ -188,6 +188,7 @@ pointer (`Project.transcripts` moves out).
 | Thing | Where | Unit |
 |---|---|---|
 | clip start, length, offset, fades, crossfades, envelopes, automation | edit state | project frames |
+| a track's gate: `Track.gate`, Auto-Silence's merged closed ranges (WP44) | edit state | project frames |
 | tracks, buses, master, layers, roles, tags | edit state | — |
 | markers and cut candidates (WP18) | edit state | anchor in flicks on a recording clock; timeline markers in project frames |
 | sync groups: main media, members, each member's origin | material | flicks |
@@ -286,6 +287,34 @@ migration adds the empty keys to every material revision in place, so
 `<uuid>.json`; a file with anything after the uuid (Dropbox, Syncthing,
 iCloud, OneDrive copies), an unreadable file, or one whose id differs from
 its name is reported by `SeriesStore.conflicts()` and never read as an item.
+
+**As built (WP44, format version 3).** A track gains `gate`: a list of
+`[start, end)` project-frame pairs, sorted, non-overlapping and not touching
+(`gate.normalise`). Where it is closed the track is silent whatever its clips
+say; the 30 ms edge ramps are derived by the mixer and never stored. Auto-Silence
+writes it instead of splitting clips, and running it again replaces the track's
+gate. It is part of the edit state, so history keeps it as it keeps clips (a
+ripple delete shifts and trims it in the same step). An empty gate is not
+written, so a track that never had one keeps its bytes and its state hash, and
+old projects load with an empty gate. Old projects that contain Auto-Silence
+clip pieces (muted clips with baked fades) keep working unchanged.
+
+*Version and `min_reader`.* The version rises to 3 (additive field, the 2 to 3
+migration rewrites nothing). An older reader would keep `gate` in `extra` and
+play the track ungated, which is audible, so a project that holds a gate must
+not open there: `min_reader` rises to 3 **for that project, when its first gate
+is committed**, and the manifest is written before the state that carries the
+gate (a crash between the two leaves a stricter manifest, never a gate an old
+reader plays wrongly). Projects that never get a gate stay at `min_reader` 1.
+It is never lowered again, even if the gate is cleared, because older history
+steps may still hold one. An upgrade of a version-2 project keeps whatever
+`min_reader` it already asks for.
+
+*Measured.* A state with 4,800 gate ranges (4 mics, a range every 3 s for an
+hour, twice a busy hour) packs in about 7 ms (9 KB); 19,200 ranges (a range
+every 0.75 s on every mic) take 56 ms, which no real hour reaches. The 300 s
+four-voice test conversation (198 ranges) packs to 1.7 KB with the gate
+against 8.1 KB with the clip pieces it replaces.
 
 ## Media
 

@@ -152,6 +152,7 @@ button.chip {
 
 /* -- the window: top bar, heads | timeline | sidebar, dock, status bar --------- */
 .editor {
+  position: relative; /* the palette docks to this */
   height: 100vh;
   display: grid;
   grid-template-columns: var(--heads-w) minmax(0, 1fr) var(--sidebar-w);
@@ -1011,4 +1012,205 @@ input[type="text"] {
 /* Last, so a class's display never shows an element that is [hidden]. */
 [hidden] {
   display: none;
+}
+
+/* -- keyboard layer: menu bar, command palette, keyboard sheet ---------------------
+   FIRST CUT for the designer to review: behaviour is settled, the look is not.
+   Nothing here animates, so reduced motion needs no special case. */
+.menubar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.menu-top {
+  position: relative;
+}
+.menu-title,
+.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-6);
+  width: 100%;
+  min-height: var(--control-h);
+  padding: 0 var(--space-4);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: default;
+}
+.menu-title {
+  width: auto;
+}
+.menu-title:hover,
+.menu-title[aria-expanded="true"],
+.menu-item:hover,
+.menu-item:focus-visible {
+  background: var(--surface-hover);
+}
+.menu-list {
+  position: absolute;
+  z-index: 30;
+  top: 100%;
+  left: 0;
+  min-width: 240px;
+  margin: var(--space-1) 0 0;
+  padding: var(--space-2);
+  list-style: none;
+  background: var(--surface-raised);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-raised);
+}
+.menu-list .submenu {
+  top: 0;
+  left: 100%;
+  margin: 0;
+}
+.menu-list li {
+  position: relative;
+}
+.menu-list [role="separator"] {
+  height: 1px;
+  margin: var(--space-2) var(--space-3);
+  background: var(--border-subtle);
+}
+.menu-item[aria-disabled="true"] {
+  color: var(--text-disabled);
+}
+.menu-item[data-alternate] {
+  color: var(--accent-text);
+}
+.menu-item kbd,
+.cheatsheet kbd,
+.palette-row kbd {
+  margin-left: auto;
+  color: var(--text-secondary);
+}
+.menu-item[aria-disabled="true"] kbd {
+  color: var(--text-disabled);
+}
+.menu-hint {
+  color: var(--text-secondary);
+}
+.keyhints [data-alternate] {
+  color: var(--accent-text);
+}
+
+/* The command palette (GUI-DESIGN 3.9): docked over the sidebar column, under the top
+   bar. No scrim; the timeline, ruler and playhead stay live underneath. */
+.palette {
+  position: absolute;
+  z-index: 20;
+  top: var(--topbar-h);
+  right: 0;
+  width: var(--sidebar-w);
+  max-height: calc(100% - var(--topbar-h) - var(--statusbar-h));
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-raised);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow-raised);
+}
+.palette[hidden] {
+  display: none;
+}
+.palette-input {
+  height: 48px;
+  flex: none;
+  padding: 0 var(--space-5);
+  border: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-md);
+}
+.palette-list {
+  margin: 0;
+  padding: var(--space-2);
+  overflow-y: auto;
+  list-style: none;
+}
+.palette-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 32px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+.palette-row[aria-selected="true"] {
+  background: var(--accent-subtle);
+}
+.palette-row[aria-disabled="true"] {
+  color: var(--text-tertiary);
+}
+.palette-name u {
+  text-decoration-thickness: 2px;
+}
+.palette-note {
+  margin: 0;
+  padding: var(--space-3) var(--space-5);
+}
+.tag {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+
+.cheatsheet {
+  width: min(720px, 92vw);
+  max-height: 86vh;
+  padding: var(--space-6);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  color: inherit;
+  box-shadow: var(--shadow-raised);
+}
+.cheatsheet::backdrop {
+  background: var(--surface-scrim);
+}
+.cheatsheet-search {
+  width: 100%;
+  height: var(--control-h);
+  margin: var(--space-4) 0;
+}
+.cheatsheet-body {
+  max-height: 58vh;
+  overflow-y: auto;
+}
+.cheatsheet table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.cheatsheet td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.cheatsheet td.keys {
+  text-align: right;
+  white-space: nowrap;
+}
+.cheatsheet tr.planned td:first-child {
+  color: var(--text-tertiary);
+}
+.cheatsheet tr.layer td:first-child {
+  padding-left: var(--space-7);
+  color: var(--text-secondary);
+}
+.cheatsheet tr.layer[data-held] {
+  background: var(--accent-subtle);
+}
+.cheatsheet-footer {
+  display: flex;
+  gap: var(--space-4);
+  justify-content: flex-end;
+  margin-top: var(--space-5);
 }

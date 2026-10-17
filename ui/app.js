@@ -9,11 +9,12 @@ import { frameToTime, RATE, xToFrame } from "./format.js";
 import { formatNumber, formatShortcut, initI18n, onLanguageChange, t } from "./i18n.js";
 import { dragHasFiles, nativeBridge, summariseImport } from "./importing.js";
 import { createInspector } from "./inspector.js";
-import { coreBindings, createKeymap, isTextField } from "./keys.js";
+import { isTextField } from "./keys.js";
 import { clampLaneHeight, pointerIntent, projectEnd } from "./lanes.js";
 import { connectLive } from "./live.js";
 import { motionMode } from "./motion.js";
 import { createOverview } from "./overview.js";
+import { setupKeyboard } from "./shell-keys.js";
 import { getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
 import { densityAttribute, nextTheme, themeAttribute } from "./theme.js";
 import { createTimeline } from "./timeline.js";
@@ -270,13 +271,22 @@ document.addEventListener("focusin", (event) => {
   if (panel && panel !== getState().panel) setState({ panel });
 });
 
-const keymap = createKeymap();
-for (const binding of coreBindings(actions)) keymap.bind(binding);
-// F2: rename the current track (or bus) in the inspector. Bound here, not in
-// keys.js; the keymap rewrite should take this binding over.
-keymap.bind({ code: "F2", run: () => inspector.focusName() });
-document.addEventListener("keydown", (event) => {
-  if (!event.isComposing) keymap.handle(event);
+// The whole keyboard layer: keymap, palette, cheat sheet, menu bar, hints (shell-keys.js).
+setupKeyboard({
+  actions,
+  t,
+  notify: showNotice,
+  onLanguageChange,
+  app: {
+    getState,
+    patch: setState,
+    undo: () => $("undo").click(),
+    redo: () => $("redo").click(),
+    chooseMedia: () => chooseMedia(),
+    focusName: () => inspector.focusName(),
+    seek: (frame) => void transport.seek(frame),
+    totalFrames,
+  },
 });
 // A focused button would otherwise also "click" on the key release.
 document.addEventListener("keyup", (event) => {
