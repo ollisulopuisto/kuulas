@@ -92,3 +92,9 @@ class TestSpotDelta:
     def test_relative_negative_offset(self):
         spot = Spot("relative", -250)
         assert spot_delta(spot, current_frame=400, playhead_frame=500) == -250
+
+
+@pytest.mark.parametrize("text", ["nan", "inf", "-inf", "+nan", "+infs", "1:inf"])
+def test_non_finite_numbers_are_rejected(text):
+    with pytest.raises(KuulasError):
+        parse_spot(text, RATE)

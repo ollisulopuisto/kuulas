@@ -7,6 +7,7 @@ sample rate; ``spot_delta`` turns that into the shift to apply to a clip.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 from kuulas.messages import KuulasError
@@ -24,6 +25,13 @@ def _invalid(text: str) -> KuulasError:
     return KuulasError("error.spot.invalid", text=text)
 
 
+def _finite(value: float, text: str) -> float:
+    """``value`` itself, or the "invalid" error for nan and inf."""
+    if not math.isfinite(value):
+        raise _invalid(text)
+    return value
+
+
 def _parse_absolute(text: str, rate: int) -> Spot:
     """Parse ``text`` as an absolute timecode and return the frame."""
     # Finnish users may type a decimal comma; the rest of the code wants a dot.
@@ -34,17 +42,17 @@ def _parse_absolute(text: str, rate: int) -> Spot:
 
     try:
         if len(parts) == 1:
-            seconds = float(parts[0])
+            seconds = _finite(float(parts[0]), text)
         elif len(parts) == 2:
             minutes = int(parts[0])
-            seconds = float(parts[1])
+            seconds = _finite(float(parts[1]), text)
             if minutes < 0 or seconds < 0 or seconds >= 60:
                 raise _invalid(text)
             seconds = minutes * 60 + seconds
         else:  # len(parts) == 3
             hours = int(parts[0])
             minutes = int(parts[1])
-            seconds = float(parts[2])
+            seconds = _finite(float(parts[2]), text)
             if hours < 0 or minutes < 0 or seconds < 0:
                 raise _invalid(text)
             if minutes >= 60 or seconds >= 60:
@@ -68,12 +76,12 @@ def _parse_relative(text: str, rate: int) -> Spot:
 
     if rest[-1].lower() == "s":
         try:
-            seconds = float(rest[:-1])
+            seconds = _finite(float(rest[:-1]), text)
         except ValueError as exc:
             raise _invalid(text) from exc
     else:
         try:
-            milliseconds = float(rest)
+            milliseconds = _finite(float(rest), text)
         except ValueError as exc:
             raise _invalid(text) from exc
         seconds = milliseconds / 1000
