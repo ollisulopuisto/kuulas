@@ -302,6 +302,7 @@ setupKeyboard({
     redo: () => $("redo").click(),
     chooseMedia: () => chooseMedia(),
     focusName: () => inspector.focusName(),
+    openGateStretch: () => openGateStretch(),
     seek: (frame) => void transport.seek(frame),
     totalFrames,
   },

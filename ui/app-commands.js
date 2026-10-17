@@ -33,6 +33,7 @@ const HINTED = new Set([
   "mark.out",
   "nav.start",
   "nav.end",
+  "gate.open_stretch",
 ]);
 const hint = (id) => (HINTED.has(id) ? { hintKey: `cmd.${id}.hint` } : {});
 
@@ -71,6 +72,7 @@ export function registerAppCommands(registry, { actions, app }) {
     (state) => Boolean(state?.canRedo),
   );
   def("app.import", () => app.chooseMedia());
+  def("gate.open_stretch", () => app.openGateStretch(), hasProject);
   def(
     "rename",
     () => app.focusName(),
