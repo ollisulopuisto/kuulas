@@ -381,5 +381,6 @@
   "ui.bus.name_field": "Bus name",
   "ui.bus.parent": "Parent bus",
   "ui.bus.parent.none": "None (top level)",
-  "ui.bus.members": "Tracks on this bus"
+  "ui.bus.members": "Tracks on this bus",
+  "format.speed": "{value}×"
 }

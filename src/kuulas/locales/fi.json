@@ -381,5 +381,6 @@
   "ui.bus.name_field": "Väylän nimi",
   "ui.bus.parent": "Yläväylä",
   "ui.bus.parent.none": "Ei (ylin taso)",
-  "ui.bus.members": "Raitoja väylällä"
+  "ui.bus.members": "Raitoja väylällä",
+  "format.speed": "{value}×"
 }
