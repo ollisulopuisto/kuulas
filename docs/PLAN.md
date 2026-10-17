@@ -2762,6 +2762,43 @@ gate survives save and load; the mixer applies the ramp exactly once.
 
 ---
 
+### WP45 — Compare: non-destructive previews and A/B by listening
+
+Status: open, design in progress (owner request 2026-10-17: "various
+non-destructive previews and A/B tests; I pretty often want options; I need a
+way to quickly compare them by listening"). Needs WP2, WP5; builds on WP24.2
+(A/B of tracks and edits), WP18 (candidate preview), WP19e (takes), WP21
+(versions), WP10 (voice presets), WP23 (FX layers). Opus for the engine part,
+Sonnet for the UI.
+
+One concept, not several: a **comparison** is a scope (a range, a track, the
+whole edit) plus two to four **variants**, each a provisional layer on top of
+the project, never committed while comparing. Variants: with or without a cut, a
+value against its default (see the double-click toggle), two tracks, two takes,
+two edits, a history step before and after, a voice preset or an FX layer on or
+off, a loudness-matched pair.
+
+- **Engine.** A variant is rendered as an alternative source for the compared
+  range; switching keeps the playhead position and crossfades 10 to 30 ms, so a
+  flip is click-free. Real-time variants render on the fly; offline-only ones
+  (dxRevive, the voice chain) are rendered first and show progress per slot.
+- **Level match on by default**, using the `ab_match` gains (O3): a louder
+  variant always sounds better, so the trim is applied and shown; switchable off.
+- **Blind mode**: slots shuffled and unlabelled until the choice is made.
+- **Decision**: "Keep this one" commits that variant as one undoable step and
+  discards the rest; Esc discards the comparison and leaves the project
+  untouched.
+- **Loop**: the compared range by default, plus 2 s each side.
+- **Tests, first:** switching preserves the playhead position; no commit happens
+  while comparing (the history head does not move); keep commits exactly one
+  step; Esc leaves the project byte-identical; the level trim equals
+  `match_gains`; blind shuffling is stable within a comparison and hidden labels
+  are revealed only after the choice.
+- **UI design** is in `docs/design/GUI-DESIGN.md` once the designer has added
+  the Compare screen.
+
+---
+
 ## Rules that come from real Hindenburg complaints (apply everywhere)
 
 1. **Space is always the timeline transport.** No other panel takes Space.
