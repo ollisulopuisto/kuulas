@@ -238,6 +238,9 @@ WP27, WP38, WP42, WP15.
   clipboard and ripples); an extensive clipboard with history is wanted (WP46); the
   desktop wrapper is part of the first version (WP15 moved up to M1); WP44 raises
   `min_reader`; a bus with one track merges into the track header.
+- **Owner decisions, 2026-10-18 (third round):** first version = wrapper plus
+  clipboard, Compare later; pywebview, not Electron; test on Mac and Windows, CI for
+  all three on GitHub (Mac first if critical).
 - **Owner decisions, 2026-10-18 (second round):** accepted as the designer
   recommended: Spot on Mod+J, Mod+F finds in the transcript, fade stays on G, Import
   on Mod+I now and Mod+T in the wrapper; `[` `]` by physical key on the Finnish
