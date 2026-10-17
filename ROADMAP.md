@@ -221,6 +221,17 @@ WP27, WP38, WP42, WP15.
 
 ## Open questions and known limits
 
+- **From the density rework (recommended answers; not yet confirmed by the owner):**
+  move WP18 "reject candidate" from Backspace to K so Backspace always means
+  Delete [yes]; a click on a collapsed bus selects nothing, Shift+click selects the
+  members' clips in that range [yes]; add a small Track/Bus section to the
+  inspector now (gain, pan, bus, voice preset), because merged one-track buses lose
+  their pan control otherwise [yes]; F2 renames clips and tracks [yes]; clip label
+  templates stay at the defaults until WP27 [yes]. Bus collapse is
+  Alt+Mod+Left/Right (WP5 uses Alt+Left/Right for 10 ms steps). The designer calls
+  the crosstalk backend function `transcript.cut_preview`; task G3 builds it as
+  `collateral.cut_collateral`: reconcile the name when wiring.
+
 - **Owner decisions, 2026-10-18:** Backspace is Delete (a soft cut: mutes in place,
   leaves the gap, restorable, never touches the clipboard); X is Cut (copies to the
   clipboard and ripples); an extensive clipboard with history is wanted (WP46); the
