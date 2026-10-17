@@ -10,11 +10,12 @@ import { formatNumber, formatShortcut, initI18n, onLanguageChange, t } from "./i
 import { dragHasFiles, summariseImport } from "./importing.js";
 import { createInspector } from "./inspector.js";
 import { coreBindings, createKeymap, isTextField } from "./keys.js";
-import { clampLaneHeight, projectEnd } from "./lanes.js";
+import { clampLaneHeight, pointerIntent, projectEnd } from "./lanes.js";
 import { connectLive } from "./live.js";
+import { motionMode } from "./motion.js";
 import { createOverview } from "./overview.js";
 import { getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
-import { nextTheme, themeAttribute } from "./theme.js";
+import { densityAttribute, nextTheme, themeAttribute } from "./theme.js";
 import { createTimeline } from "./timeline.js";
 import { createTrackHeaders } from "./tracks.js";
 import { createTransport } from "./transport.js";
@@ -229,23 +230,22 @@ function onWheel(intent, x) {
 // -- pointer on the timeline ------------------------------------------------------
 
 function onPointerDown(hit, event) {
+  // The click rule lives in lanes.js pointerIntent (tested): anywhere in the
+  // lane area sets the play cursor, a clip is also selected, Shift only toggles.
+  const intent = pointerIntent(hit, { shift: event.shiftKey });
+  if (!intent) return;
   const state = getState();
-  if (hit.area === "ruler") {
-    void transport.seek(hit.frame);
-    return;
-  }
-  if (hit.area !== "lane" || !hit.row) return;
   const patch = { panel: "timeline" };
-  if (hit.row.kind === "track") patch.focusTrack = hit.row.id;
-  if (event.shiftKey && hit.clip) {
+  if (hit.row?.kind === "track" && !event.shiftKey) patch.focusTrack = hit.row.id;
+  if (intent.selection === "replace") patch.selection = new Set([intent.clip.id]);
+  else if (intent.selection === "clear") patch.selection = new Set();
+  else if (intent.selection === "toggle") {
     const selection = new Set(state.selection);
-    if (!selection.delete(hit.clip.id)) selection.add(hit.clip.id);
-    setState({ ...patch, selection });
-    return;
+    if (!selection.delete(intent.clip.id)) selection.add(intent.clip.id);
+    patch.selection = selection;
   }
-  patch.selection = hit.clip ? new Set([hit.clip.id]) : new Set();
   setState(patch);
-  void transport.seek(hit.frame);
+  if (intent.seek !== null) void transport.seek(intent.seek);
 }
 
 // -- keyboard focus ------------------------------------------------------------------
@@ -321,6 +321,65 @@ function applyTheme() {
 }
 // The OS switching light/dark repaints the canvases too (the palette is resolved once per change).
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => applyTheme());
+// Density: comfortable (default, roomy) or compact. The sizes the canvases
+// and lanes.js need come from the tokens, so CSS stays the one source.
+const DENSITY_KEY = "kuulas.density";
+let densityChoice = "comfortable";
+try {
+  densityChoice = localStorage.getItem(DENSITY_KEY) === "compact" ? "compact" : "comfortable";
+} catch {
+  // Storage blocked: the default applies.
+}
+const tokenPx = (name) =>
+  Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name));
+function applyDensity() {
+  const value = densityAttribute(densityChoice);
+  if (value) document.documentElement.dataset.density = value;
+  else delete document.documentElement.dataset.density;
+  $("density").value = densityChoice;
+  setState({
+    density: densityChoice,
+    laneHeight: clampLaneHeight(tokenPx("--lane-h")),
+    busHeight: tokenPx("--bus-h"),
+    groupGap: tokenPx("--group-gap"),
+  });
+}
+$("density").addEventListener("change", (event) => {
+  densityChoice = event.target.value === "compact" ? "compact" : "comfortable";
+  try {
+    localStorage.setItem(DENSITY_KEY, densityChoice);
+  } catch {
+    // Not remembered; it still applies now.
+  }
+  applyDensity();
+});
+
+// Animation: full / subtle / off (motion.js). Without a choice it follows
+// the OS: reduced motion means off.
+const MOTION_KEY = "kuulas.motion";
+const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+let motionChoice = null;
+try {
+  motionChoice = localStorage.getItem(MOTION_KEY);
+} catch {
+  // Storage blocked: follow the OS.
+}
+function applyMotion() {
+  const mode = motionMode(motionChoice, reducedMotion.matches);
+  document.documentElement.dataset.motion = mode;
+  $("motion").value = mode;
+}
+$("motion").addEventListener("change", (event) => {
+  motionChoice = event.target.value;
+  try {
+    localStorage.setItem(MOTION_KEY, motionChoice);
+  } catch {
+    // Not remembered; it still applies now.
+  }
+  applyMotion();
+});
+reducedMotion.addEventListener("change", () => applyMotion());
+
 $("theme").addEventListener("click", () => {
   themeChoice = nextTheme(themeChoice);
   try {
@@ -456,11 +515,13 @@ function render(state, patch) {
       "waveformScale",
       "waveformGain",
       "focusTrack",
+      "busHeight",
+      "groupGap",
     )
   ) {
     timeline.redrawWaveforms();
   }
-  if (touched("project", "scroll", "zoom", "playhead")) overview.redraw();
+  if (touched("project", "scroll", "zoom", "playhead", "selection")) overview.redraw();
   if (touched("playhead", "project")) {
     $("timecode").textContent = frameToTime(state.playhead, rate());
   }
@@ -502,7 +563,8 @@ function render(state, patch) {
     $("follow").setAttribute("aria-pressed", String(state.followPaused));
   }
   if (touched("waveformMode")) $("waveform-mode").value = state.waveformMode;
-  if (touched("project", "focusTrack", "laneHeight")) trackHeaders.update(state);
+  if (touched("project", "focusTrack", "laneHeight", "busHeight", "groupGap"))
+    trackHeaders.update(state);
   if (touched("project", "selection")) inspector.update(state);
   if (touched("project")) {
     const empty = $("empty");
@@ -551,6 +613,8 @@ try {
 }
 translate();
 applyTheme();
+applyDensity();
+applyMotion();
 render(getState(), null);
 
 try {

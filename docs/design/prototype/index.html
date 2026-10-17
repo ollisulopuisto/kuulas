@@ -161,11 +161,13 @@
   --p-red-55: #c8321f;
   --p-red-55-a8: rgb(200 50 31 / 0.08);
   --p-red-55-a12: rgb(200 50 31 / 0.12);
+  --p-red-55-a18: rgb(200 50 31 / 0.18);
   --p-red-59: #d93a26;
   --p-red-71: #ff6b57;
   --p-red-73: #ff776b;
   --p-red-73-a9: rgb(255 119 107 / 0.09);
   --p-red-73-a13: rgb(255 119 107 / 0.13);
+  --p-red-73-a20: rgb(255 119 107 / 0.2);
   --p-red-76: #ff8a7f;
   --p-red-95: #fde8e4;
 
@@ -248,14 +250,16 @@
     system-ui, Ubuntu, Cantarell, "Noto Sans", sans-serif;
   --font-mono:
     ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace;
-  --text-xs: 11px; /* ruler labels, badges, key chips */
-  --text-sm: 12px; /* controls, panel headers, meta */
-  --text-md: 13px; /* body: the default */
-  --text-lg: 15px; /* transcript reading text, dialog titles */
-  --text-xl: 20px; /* the timecode */
+  /* Comfortable (the default, roomy since 2026-10-18); compact below keeps
+     the earlier, denser values. Numbers: GUI-DESIGN.md "Density". */
+  --text-xs: 12px; /* ruler labels, badges, key chips */
+  --text-sm: 13px; /* controls, panel headers, meta */
+  --text-md: 14px; /* body: the default */
+  --text-lg: 17px; /* transcript reading text, dialog titles */
+  --text-xl: 24px; /* the timecode */
   --leading-tight: 1.25;
-  --leading-body: 1.45;
-  --leading-read: 1.65; /* transcript */
+  --leading-body: 1.5;
+  --leading-read: 1.85; /* transcript */
   --weight-regular: 400;
   --weight-medium: 500;
   --weight-strong: 600;
@@ -281,6 +285,7 @@
   --dur-fast: 90ms; /* hover, press */
   --dur-base: 140ms; /* chips appearing, tabs */
   --dur-layout: 120ms; /* lane height changes, focus mode shrink (WP28) */
+  --dur-slow: 240ms; /* a ripple closing its gap, tracks arriving, a far playhead jump */
   --dur-flash: 600ms; /* "this changed" flash after undo/redo */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
@@ -291,26 +296,34 @@
 
   /* Layout sizes (comfortable density). JS constants that must match are
      named next to each. */
-  --topbar-h: 44px;
-  --statusbar-h: 26px;
-  --overview-h: 20px;
-  --ruler-h: 24px; /* lanes.js RULER_HEIGHT */
-  --heads-w: 248px;
-  --heads-w-min: 180px;
-  --heads-w-max: 360px;
-  --sidebar-w: 320px;
-  --sidebar-w-min: 260px;
-  --sidebar-w-max: 480px;
-  --dock-h: 30vh; /* transcript dock */
-  --dock-h-min: 120px;
-  --control-h: 26px;
-  --control-h-sm: 20px; /* M / S buttons, chips inside headers */
-  --lane-h: 56px; /* lanes.js DEFAULT_LANE */
-  --bus-h: 44px; /* lanes.js BUS_HEIGHT */
+  --topbar-h: 52px;
+  --statusbar-h: 32px;
+  --overview-h: 24px;
+  --ruler-h: 24px; /* lanes.js RULER_HEIGHT (both densities) */
+  --heads-w: 272px;
+  --heads-w-min: 200px;
+  --heads-w-max: 380px;
+  --sidebar-w: 360px;
+  --sidebar-w-min: 280px;
+  --sidebar-w-max: 520px;
+  --dock-h: 32vh; /* transcript dock */
+  --dock-h-min: 140px;
+  --control-h: 32px; /* buttons, inputs, selects */
+  --control-h-lg: 40px; /* top-bar buttons: 40 visible + 2 px hit margin = 44 */
+  --control-h-sm: 28px; /* M / S, bus picker, chips inside headers */
+  --target-min: 44px; /* hit target of the main controls (WCAG 2.5.5) */
+  --lane-h: 88px; /* lanes.js DEFAULT_LANE */
+  --bus-h: 32px; /* lanes.js BUS_HEIGHT: one line */
+  --bus-collapsed-h: 40px; /* a collapsed bus: ribbons or summed waveform */
+  --group-gap: 14px; /* lanes.js GROUP_GAP: plain lane between groups */
   --strip-h: 16px; /* focus-mode strips (WP28) */
   --spine-w: 4px; /* bus spine */
-  --reading-max: 72ch; /* transcript line length */
-
+  --indent-member: 14px; /* tracks inside a bus sit this far in from the spine */
+  --reading-max: 62ch; /* transcript line length */
+  --pad-panel: 20px; /* inside panels and sections */
+  --pad-inline: 16px; /* left/right padding of headers and rows */
+  --row-gap: 10px; /* between rows of fields and list items */
+  --section-gap: 16px; /* between inspector sections */
   /* Numbers the canvases read with the colours (semantic, overridable). */
   --signal-muted-opacity: 0.35; /* muted clips (with the hatch) */
   --signal-unheard-opacity: 0.45; /* tracks not heard because of solo or mute */
@@ -319,16 +332,39 @@
 }
 
 :root[data-density="compact"] {
+  /* Compact: the earlier values, unchanged; everything visible at once. */
+  --text-xs: 11px;
+  --text-sm: 12px;
   --text-md: 12px;
   --text-lg: 14px;
   --text-xl: 18px;
+  --leading-body: 1.45;
+  --leading-read: 1.65;
   --topbar-h: 38px;
   --statusbar-h: 22px;
-  --control-h: 22px;
-  --control-h-sm: 18px;
+  --overview-h: 20px;
   --heads-w: 216px;
+  --heads-w-min: 180px;
+  --heads-w-max: 360px;
   --sidebar-w: 280px;
+  --sidebar-w-min: 260px;
+  --sidebar-w-max: 480px;
+  --dock-h: 30vh;
+  --dock-h-min: 120px;
+  --control-h: 22px;
+  --control-h-lg: 26px;
+  --control-h-sm: 18px;
+  --target-min: 24px;
   --lane-h: 40px;
+  --bus-h: 24px;
+  --bus-collapsed-h: 32px;
+  --group-gap: 6px;
+  --reading-max: 72ch;
+  --pad-panel: 12px;
+  --pad-inline: 12px;
+  --row-gap: 4px;
+  --section-gap: 10px;
+  --indent-member: 10px;
 }
 
 /* == 2. semantic roles: light (default) ================================= */
@@ -380,6 +416,10 @@
   --signal-candidate-fill: var(--p-red-55-a12);
   --signal-soft-cut: var(--p-red-55); /* a cut that kept its gap: edges and hatch */
   --signal-soft-cut-fill: var(--p-red-55-a8);
+  --signal-sibling: var(--p-teal-52); /* corner brackets: same recording as the selection */
+  --signal-collateral: var(--p-red-55); /* what a transcript cut also removes */
+  --signal-collateral-fill: var(--p-red-55-a18);
+  --signal-preview: var(--p-teal-52); /* a Compare preview is playing (not committed) */
   --signal-gate: var(--p-gray-98); /* the veil over a closed gate (lane colour) */
   --signal-damaged: var(--p-red-55);
   --signal-damaged-fill: var(--p-red-95);
@@ -507,6 +547,10 @@
     --signal-candidate-fill: var(--p-red-73-a13);
     --signal-soft-cut: var(--p-red-73);
     --signal-soft-cut-fill: var(--p-red-73-a9);
+    --signal-sibling: var(--p-teal-76);
+    --signal-collateral: var(--p-red-73);
+    --signal-collateral-fill: var(--p-red-73-a20);
+    --signal-preview: var(--p-teal-76);
     --signal-gate: var(--p-gray-20);
     --signal-damaged: var(--p-red-73);
     --signal-damaged-fill: var(--p-red-28);
@@ -634,6 +678,10 @@
   --signal-candidate-fill: var(--p-red-73-a13);
   --signal-soft-cut: var(--p-red-73);
   --signal-soft-cut-fill: var(--p-red-73-a9);
+  --signal-sibling: var(--p-teal-76);
+  --signal-collateral: var(--p-red-73);
+  --signal-collateral-fill: var(--p-red-73-a20);
+  --signal-preview: var(--p-teal-76);
   --signal-gate: var(--p-gray-20);
   --signal-damaged: var(--p-red-73);
   --signal-damaged-fill: var(--p-red-28);
@@ -744,11 +792,28 @@
 
 /* -- reduced motion: no animation anywhere ------------------------------- */
 @media (prefers-reduced-motion: reduce) {
-  :root {
+  :root:not([data-motion="full"], [data-motion="subtle"]) {
     --dur-fast: 0ms;
     --dur-base: 0ms;
     --dur-layout: 0ms;
+    --dur-slow: 0ms;
+    --dur-flash: 0ms;
   }
+}
+/* The Animation setting (motion.js): subtle shortens, off stops every cue;
+   the still alternatives carry the same information. */
+:root[data-motion="subtle"] {
+  --dur-base: 90ms;
+  --dur-slow: 140ms;
+  --dur-flash: 360ms;
+  --dur-layout: 80ms;
+}
+:root[data-motion="off"] {
+  --dur-fast: 0ms;
+  --dur-base: 0ms;
+  --dur-layout: 0ms;
+  --dur-slow: 0ms;
+  --dur-flash: 0ms;
 }
 /* -- end of tokens.css -- */
 
@@ -1225,6 +1290,8 @@ input[type="range"]::-moz-range-thumb { width: 9px; height: 9px; border-radius: 
 //   spine, band grouping: the bus a track belongs to
 //   line        attachment: connected clip tether (WP19b)
 //   notch       annotation: a note or marker on the clip
+//   bracket     relation: corner brackets on clips of the same recording
+//   ribbon      activity: who sounds when, inside a collapsed bus
 //
 // Colours are never written here: each signal names its semantic tokens
 // (tokens.css), and resolvePalette reads them once per theme change for the
@@ -1248,6 +1315,8 @@ const CHANNELS = [
   "band",
   "line",
   "notch",
+  "bracket",
+  "ribbon",
 ];
 
 const SPEAKER_HUE_COUNT = 6;
@@ -1277,6 +1346,7 @@ const SIGNALS = [
     channel: "hue",
     meaning: "identity",
     priority: 0,
+    atRest: true,
     always: true,
     tokens: [
       ...trackTokens("wave"),
@@ -1294,6 +1364,7 @@ const SIGNALS = [
     channel: "tone",
     meaning: "identity",
     priority: 0,
+    atRest: true,
     always: true,
     tokens: trackTokens("body-alt"),
     twin: "file mark chip and file name on each clip; a seam marks every change of file",
@@ -1306,6 +1377,7 @@ const SIGNALS = [
     channel: "weight",
     meaning: "selection",
     priority: 0,
+    atRest: true,
     always: true,
     tokens: ["--signal-selected"],
     twin: "2 px outline (shape), plus the inspector shows the clip",
@@ -1318,6 +1390,7 @@ const SIGNALS = [
     channel: "opacity",
     meaning: "audibility",
     priority: 1,
+    atRest: true,
     always: true,
     tokens: ["--signal-muted-hatch", "--signal-muted-opacity"],
     twin: "diagonal hatch over the clip; M pressed in the header for a muted track",
@@ -1330,6 +1403,7 @@ const SIGNALS = [
     channel: "opacity",
     meaning: "audibility",
     priority: 1,
+    atRest: true,
     always: true,
     tokens: ["--signal-unheard-opacity"],
     twin: "header says 'not heard: solo' in its tooltip and the M button turns dashed",
@@ -1342,6 +1416,7 @@ const SIGNALS = [
     channel: "opacity",
     meaning: "audibility",
     priority: 1,
+    atRest: true,
     always: true,
     tokens: ["--signal-gate", "--signal-gate-opacity"],
     twin: "the waveform under the band is drawn flat (a 1 px floor line), with a small gate tick at each edge; hover says 'Mic closed' and offers 'Open this stretch'",
@@ -1354,6 +1429,8 @@ const SIGNALS = [
     channel: "opacity",
     meaning: "audibility",
     priority: 6,
+    atRest: false,
+    whenNotAtRest: "only in the clip bin and on cards",
     always: false,
     tokens: ["--signal-unused-opacity"],
     twin: "the clip bin lists it under 'not in the programme'",
@@ -1366,6 +1443,7 @@ const SIGNALS = [
     channel: "dash",
     meaning: "reality",
     priority: 0,
+    atRest: true,
     always: true,
     tokens: ["--signal-placeholder"],
     twin: "dashed outline, no waveform, the script text in italics inside",
@@ -1378,6 +1456,8 @@ const SIGNALS = [
     channel: "dash",
     meaning: "reality",
     priority: 2,
+    atRest: false,
+    whenNotAtRest: "only after 150 ms without the engine's confirmation",
     always: true,
     tokens: ["--signal-provisional"],
     twin: "short dashes (2 on, 2 off) on the outline",
@@ -1390,6 +1470,8 @@ const SIGNALS = [
     channel: "scope",
     meaning: "edit scope",
     priority: 2,
+    atRest: false,
+    whenNotAtRest: "only while a clip is selected",
     always: true,
     tokens: ["--signal-partner"],
     twin: "dashed 1 px outline inset 2 px, neutral",
@@ -1402,6 +1484,7 @@ const SIGNALS = [
     channel: "pattern",
     meaning: "absence",
     priority: 1,
+    atRest: true,
     always: true,
     tokens: ["--signal-candidate", "--signal-candidate-fill"],
     twin: "diagonal stripes across the group's lanes and a 'cut?' flag in the ruler",
@@ -1414,6 +1497,7 @@ const SIGNALS = [
     channel: "pattern",
     meaning: "absence",
     priority: 1,
+    atRest: true,
     always: true,
     tokens: ["--signal-soft-cut", "--signal-soft-cut-fill"],
     twin: "hatch plus a solid 2 px edge at each end in the cut colour, and the word 'cut' when wide enough; the context menu says 'Restore'",
@@ -1426,6 +1510,7 @@ const SIGNALS = [
     channel: "pattern",
     meaning: "absence",
     priority: 0,
+    atRest: true,
     always: true,
     tokens: ["--signal-damaged", "--signal-damaged-fill"],
     twin: "cross-hatch, a '!' badge with the word 'damaged', and the reason on hover",
@@ -1438,6 +1523,8 @@ const SIGNALS = [
     channel: "pattern",
     meaning: "absence",
     priority: 1,
+    atRest: false,
+    whenNotAtRest: "only in the changes view (WP31)",
     always: true,
     tokens: ["--signal-removed", "--signal-removed-fill"],
     twin: "a ghost outline with hatch and a '−' glyph",
@@ -1450,6 +1537,8 @@ const SIGNALS = [
     channel: "strip",
     meaning: "role",
     priority: 9,
+    atRest: false,
+    whenNotAtRest: "only in the clip bin and on cards",
     always: false,
     tokens: ["--role-speech", "--role-speech-mix", "--role-music"],
     twin: "strip pattern: solid speech, dashed speech mix, dotted music; role icon in the header",
@@ -1462,6 +1551,7 @@ const SIGNALS = [
     channel: "badge",
     meaning: "facts",
     priority: 0,
+    atRest: true,
     always: true,
     tokens: ["--signal-drift", "--signal-drift-text"],
     twin: "solid badge with the offset in text ('−312 ms'), cause on hover",
@@ -1474,6 +1564,7 @@ const SIGNALS = [
     channel: "cap",
     meaning: "level",
     priority: 2,
+    atRest: true,
     always: false,
     tokens: ["--signal-clipping"],
     twin: "a 3 px block on top of the clipped column (shape) and a line in the inspector",
@@ -1486,6 +1577,7 @@ const SIGNALS = [
     channel: "badge",
     meaning: "facts",
     priority: 3,
+    atRest: true,
     always: false,
     tokens: ["--signal-file-mark", "--signal-file-mark-text"],
     twin: "two characters from the content hash; the same on every track",
@@ -1498,6 +1590,7 @@ const SIGNALS = [
     channel: "badge",
     meaning: "facts",
     priority: 4,
+    atRest: true,
     always: false,
     tokens: ["--signal-free"],
     twin: "outlined badge with an unlinked-chain glyph and '+300 ms · free'",
@@ -1510,6 +1603,7 @@ const SIGNALS = [
     channel: "seam",
     meaning: "joins",
     priority: 4,
+    atRest: true,
     always: false,
     tokens: ["--signal-seam"],
     twin: "a small V notch top and bottom at the join (shape)",
@@ -1522,6 +1616,7 @@ const SIGNALS = [
     channel: "badge",
     meaning: "facts",
     priority: 5,
+    atRest: true,
     always: false,
     tokens: ["--signal-takes"],
     twin: "stacked top-right corner (two offset edges) and '2/3'",
@@ -1534,6 +1629,7 @@ const SIGNALS = [
     channel: "notch",
     meaning: "annotation",
     priority: 5,
+    atRest: true,
     always: false,
     tokens: ["--signal-note"],
     twin: "a triangular notch in the top edge; the text on hover",
@@ -1546,6 +1642,8 @@ const SIGNALS = [
     channel: "badge",
     meaning: "facts",
     priority: 6,
+    atRest: false,
+    whenNotAtRest: "only on the selected clip and its partners",
     always: false,
     tokens: ["--signal-sync"],
     twin: "chain glyph and the group number ('⛓ 1')",
@@ -1558,6 +1656,7 @@ const SIGNALS = [
     channel: "line",
     meaning: "attachment",
     priority: 6,
+    atRest: true,
     always: false,
     tokens: ["--signal-tether"],
     twin: "a thin line from the clip's start down to its anchor, ending in a dot",
@@ -1570,6 +1669,7 @@ const SIGNALS = [
     channel: "badge",
     meaning: "facts",
     priority: 7,
+    atRest: true,
     always: false,
     tokens: Array.from({ length: LABEL_COLOURS }, (_, i) => `--label-${i + 1}`),
     twin: "a square flag in the top-right corner; its name on hover and in the inspector",
@@ -1582,6 +1682,7 @@ const SIGNALS = [
     channel: "seam",
     meaning: "joins",
     priority: 8,
+    atRest: true,
     always: false,
     tokens: ["--signal-seam"],
     twin: "a 1 px hairline (shape)",
@@ -1594,6 +1695,8 @@ const SIGNALS = [
     channel: "bar",
     meaning: "change",
     priority: 1,
+    atRest: false,
+    whenNotAtRest: "only in the changes view (WP31)",
     always: true,
     tokens: ["--signal-added"],
     twin: "a 3 px bar on the clip's left and right edges and a '+' glyph",
@@ -1606,6 +1709,7 @@ const SIGNALS = [
     channel: "spine",
     meaning: "grouping",
     priority: 0,
+    atRest: true,
     always: true,
     tokens: busTokens(),
     twin: "letter badge (A, B, C) in the bus header, the transcript and the inspector",
@@ -1618,12 +1722,68 @@ const SIGNALS = [
     channel: "band",
     meaning: "grouping",
     priority: 0,
+    atRest: true,
     always: true,
     tokens: [],
     twin: "drawn only together with the spine (the band is a tint of the spine's colour)",
     when: "behind a bus's header and member lanes",
     key: "",
     status: "built",
+  },
+  {
+    id: "sibling",
+    channel: "bracket",
+    meaning: "relation",
+    priority: 3,
+    atRest: false,
+    whenNotAtRest: "while a clip is selected, or hovered with Alt held",
+    always: true,
+    tokens: ["--signal-sibling"],
+    twin: "corner brackets on every other clip of the same recording, a tick in the overview, and 'part 2 of 5' in the inspector",
+    when: "the selected clip's recording has other clips in the edit (any track)",
+    key: "Alt+hover",
+    status: "built",
+  },
+  {
+    id: "collateral",
+    channel: "pattern",
+    meaning: "absence",
+    priority: 0,
+    atRest: false,
+    whenNotAtRest: "only while words are selected in the transcript",
+    always: true,
+    tokens: ["--signal-collateral", "--signal-collateral-fill"],
+    twin: "other speakers' words struck through with a wavy underline, 'also removed' in the word pop-up, the stretch hatched and the affected clips outlined on the timeline",
+    when: "a transcript selection whose cut would also remove other tracks' words or audio",
+    key: "Backspace cuts all; Shift+Backspace cuts this speaker only, keeping the gap",
+    status: "prototype",
+  },
+  {
+    id: "ribbons",
+    channel: "ribbon",
+    meaning: "activity",
+    priority: 0,
+    atRest: true,
+    always: true,
+    tokens: [],
+    twin: "one strip per member in its position (top to bottom = header order), filled where the track has sound; the tooltip names the track and clip",
+    when: "a collapsed bus with two or more members (one member keeps its summed waveform)",
+    key: "Alt+← collapses, Alt+→ expands",
+    status: "prototype",
+  },
+  {
+    id: "preview",
+    channel: "dash",
+    meaning: "reality",
+    priority: 0,
+    atRest: false,
+    whenNotAtRest: "only while the Compare bar is open",
+    always: true,
+    tokens: ["--signal-preview"],
+    twin: "a dashed top band over the compared range with the slot letter ('A', 'B') in it, and the Compare bar itself",
+    when: "a Compare preview is playing: nothing is committed until 'Keep this one'",
+    key: "` flips, 1–4 pick a slot, Enter keeps, Esc discards",
+    status: "prototype",
   },
 ];
 
@@ -1699,6 +1859,10 @@ const SEMANTIC_TOKENS = [
   "--signal-note",
   "--signal-sync",
   "--signal-tether",
+  "--signal-sibling",
+  "--signal-collateral",
+  "--signal-collateral-fill",
+  "--signal-preview",
   "--role-speech",
   "--role-speech-mix",
   "--role-music",
@@ -1774,6 +1938,19 @@ function fileMark(sha256) {
 /** File marks only where they tell files apart: a track with 2+ files. */
 function needsFileMark(track) {
   return new Set((track?.clips ?? []).map((clip) => clip.media)).size > 1;
+}
+
+/**
+ * A collapsed bus with several members shows activity ribbons, one strip per
+ * member in its own hue, instead of a summed waveform that hides who talks
+ * when (owner, 2026-10-18). Strips are 8 px up to six members, thinner beyond
+ * (never under 3 px); the row is capped at 48 px. One member: null (keep the
+ * summed waveform).
+ */
+function ribbonLayout(members) {
+  if (members <= 1) return null;
+  const strip = members <= 6 ? 8 : Math.max(3, Math.floor(40 / members));
+  return { strip, height: Math.min(48, members * strip + 8) };
 }
 
 /** Bus hue number (1..BUS_HUES) per bus id, by bus order. */

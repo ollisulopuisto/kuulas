@@ -126,6 +126,9 @@ function pairs() {
       "--signal-note",
       "--signal-candidate",
       "--signal-soft-cut",
+      "--signal-sibling",
+      "--signal-collateral",
+      "--signal-preview",
     ]) {
       list.push([fg, bg, 3]);
     }

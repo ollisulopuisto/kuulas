@@ -4,12 +4,16 @@
 import { frameToX, xToFrame } from "./format.js";
 
 export const RULER_HEIGHT = 24;
-/** tokens.css --bus-h: a two-row group header (name and mute; gain and pan). */
-export const BUS_HEIGHT = 44;
+/** tokens.css --bus-h: a bus is ONE short line (disclosure, badge, name, M, S);
+ *  its levels show on hover and in the inspector (owner, 2026-10-18). Compact: 24. */
+export const BUS_HEIGHT = 32;
+/** tokens.css --group-gap: plain lane between groups, so each bus reads as a block. Compact: 6. */
+export const GROUP_GAP = 14;
 export const MIN_LANE = 24;
 export const MAX_LANE = 160;
-/** tokens.css --lane-h: two header rows (2 × 20 px) plus breathing room. */
-export const DEFAULT_LANE = 56;
+/** tokens.css --lane-h (comfortable): room for the name row at rest and the
+ *  level row on the current track. Compact: 40. */
+export const DEFAULT_LANE = 88;
 /** How close (px) a pointer must be to a clip edge or an envelope point. */
 export const EDGE_PX = 4;
 export const POINT_PX = 6;
@@ -37,15 +41,21 @@ export function projectEnd(project) {
 }
 
 /**
- * Rows top to bottom, stacked with no gaps; `top` is content y. A bus is a
- * group header above its member tracks (owner, 2026-10-17): it appears where
- * its first member would be, and its members gather under it in track order.
- * Tracks on no bus keep their place. A bus with no members goes last. Rows
- * carry `index` (into project.tracks or project.buses), `bus` (the group a
- * row belongs to) and, on bus rows, `members`.
+ * Rows top to bottom, stacked; `top` is content y. A bus is a group header
+ * above its member tracks (owner, 2026-10-17): it appears where its first
+ * member would be, and its members gather under it in track order. Tracks on
+ * no bus keep their place. A bus with no members goes last. Between groups
+ * (a bus block and the next row of another group or of no group) sits a
+ * `gap` row of plain lane (owner, 2026-10-18). Rows carry `index` (into
+ * project.tracks or project.buses), `bus` (the group a row belongs to),
+ * `last` on a group's last member (where the spine ends), and on bus rows
+ * `members`. With `mergeSingle`, a bus with exactly one member has no row of
+ * its own: the member is marked `merged` and carries the bus identity.
  */
-export function layoutRows(project, laneHeight) {
+export function layoutRows(project, laneHeight, options = {}) {
   const height = clampLaneHeight(laneHeight);
+  const busHeight = options.busHeight ?? BUS_HEIGHT;
+  const groupGap = options.groupGap ?? GROUP_GAP;
   const tracks = project?.tracks ?? [];
   const buses = project?.buses ?? [];
   const busIndex = new Map(buses.map((bus, i) => [bus.id, i]));
@@ -55,7 +65,14 @@ export function layoutRows(project, laneHeight) {
   });
   const rows = [];
   let top = 0;
+  let group;
   const push = (row) => {
+    // A gap wherever the group changes, never above the first row.
+    if (rows.length > 0 && row.bus !== group && groupGap > 0) {
+      rows.push({ kind: "gap", id: `gap:${rows.length}`, top, height: groupGap, bus: null });
+      top += groupGap;
+    }
+    group = row.bus;
     rows.push({ ...row, top });
     top += row.height;
   };
@@ -64,21 +81,33 @@ export function layoutRows(project, laneHeight) {
     if (placed.has(i)) return;
     if (members.has(track.bus)) {
       const group = members.get(track.bus);
-      push({
-        kind: "bus",
-        id: track.bus,
-        height: BUS_HEIGHT,
-        index: busIndex.get(track.bus),
-        bus: track.bus,
-        members: group.length,
-      });
-      for (const member of group) {
-        push({ kind: "track", id: tracks[member].id, height, index: member, bus: track.bus });
-        placed.add(member);
+      const merged = Boolean(options.mergeSingle) && group.length === 1;
+      if (!merged) {
+        push({
+          kind: "bus",
+          id: track.bus,
+          height: busHeight,
+          index: busIndex.get(track.bus),
+          bus: track.bus,
+          members: group.length,
+        });
       }
+      group.forEach((member, n) => {
+        const row = {
+          kind: "track",
+          id: tracks[member].id,
+          height,
+          index: member,
+          bus: track.bus,
+          last: n === group.length - 1,
+        };
+        if (merged) row.merged = true;
+        push(row);
+        placed.add(member);
+      });
       return;
     }
-    push({ kind: "track", id: track.id, height, index: i, bus: null });
+    push({ kind: "track", id: track.id, height, index: i, bus: null, last: false });
     placed.add(i);
   });
   for (const bus of buses) {
@@ -86,13 +115,37 @@ export function layoutRows(project, laneHeight) {
     push({
       kind: "bus",
       id: bus.id,
-      height: BUS_HEIGHT,
+      height: busHeight,
       index: busIndex.get(bus.id),
       bus: bus.id,
       members: 0,
     });
   }
   return { rows, height: top };
+}
+
+/** The layout for the client state: its lane, bus and gap sizes (density). */
+export function layoutFor(state) {
+  return layoutRows(state.project, state.laneHeight, {
+    busHeight: state.busHeight,
+    groupGap: state.groupGap,
+  });
+}
+
+/**
+ * What a primary click does (owner, 2026-10-18). Anywhere in the lane area
+ * (a clip, an empty stretch, a bus row, a group gap, below the last track)
+ * sets the play cursor; a clip is also selected. Shift+click only toggles the
+ * selection and never moves the cursor. The ruler seeks and keeps the
+ * selection. Returns { seek: frame | null, selection: "replace" | "toggle" |
+ * "clear" | "keep", clip } or null when the click is outside.
+ */
+export function pointerIntent(hit, { shift = false } = {}) {
+  if (!hit || hit.area === "none") return null;
+  if (hit.area === "ruler") return { seek: hit.frame, selection: "keep", clip: null };
+  const clip = hit.clip ?? null;
+  if (shift) return { seek: null, selection: clip ? "toggle" : "keep", clip };
+  return { seek: hit.frame, selection: clip ? "replace" : "clear", clip };
 }
 
 export function rowAt(layout, y) {
@@ -137,7 +190,8 @@ export function hitTest({ layout, project, view, x, y }) {
   if (y < RULER_HEIGHT) return { ...miss, area: y >= 0 ? "ruler" : "none" };
   const inContent = y - RULER_HEIGHT + view.scrollY;
   const row = rowAt(layout, inContent);
-  if (!row) return miss;
+  // Below the last row is still lane area: a click there sets the cursor.
+  if (!row) return { ...miss, area: "lane" };
   const hit = { ...miss, area: "lane", row };
   if (row.kind !== "track") return hit;
   const track = project.tracks.find((candidate) => candidate.id === row.id);

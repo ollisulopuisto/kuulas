@@ -6,8 +6,10 @@ import {
   clipEnd,
   DEFAULT_LANE,
   dbToY,
+  GROUP_GAP,
   hitTest,
   layoutRows,
+  pointerIntent,
   projectEnd,
   RULER_HEIGHT,
   rowAt,
@@ -32,21 +34,23 @@ const project = {
 const view = { scroll: 0, zoom: 10, scrollY: 0, width: 800, height: 400 };
 
 describe("lane layout", () => {
-  test("tracks on no bus first; a bus with no tracks goes last; no gaps", () => {
+  test("tracks on no bus first; a gap; a bus with no tracks goes last", () => {
     const layout = layoutRows(project, 48);
     assert.deepEqual(
       layout.rows.map((r) => [r.kind, r.id, r.top, r.height]),
       [
         ["track", "t1", 0, 48],
         ["track", "t2", 48, 48],
-        ["bus", "b1", 96, BUS_HEIGHT],
+        ["gap", "gap:2", 96, GROUP_GAP],
+        ["bus", "b1", 96 + GROUP_GAP, BUS_HEIGHT],
       ],
     );
-    assert.equal(layout.height, 96 + BUS_HEIGHT);
+    assert.equal(layout.height, 96 + GROUP_GAP + BUS_HEIGHT);
   });
 
   test("a bus sits above its tracks, which gather under it; others keep their place", () => {
-    // Owner, 2026-10-17: a bus is a group header (like a folder) above its members.
+    // Owner, 2026-10-17: a bus is a group header (like a folder) above its
+    // members; 2026-10-18: groups are separated by a gap of plain lane.
     const grouped = {
       buses: [
         { id: "voices", name: "Voices" },
@@ -59,20 +63,56 @@ describe("lane layout", () => {
         { id: "fx", clips: [] },
       ],
     };
-    const layout = layoutRows(grouped, 48);
+    const layout = layoutRows(grouped, 48, { busHeight: 30, groupGap: 10 });
     assert.deepEqual(
-      layout.rows.map((r) => [r.kind, r.id, r.top, r.index, r.bus ?? null]),
+      layout.rows.map((r) => [r.kind, r.id, r.top, r.index ?? null, r.bus ?? null]),
       [
         ["bus", "voices", 0, 0, "voices"],
-        ["track", "anna", BUS_HEIGHT, 0, "voices"],
-        ["track", "ville", BUS_HEIGHT + 48, 2, "voices"],
-        ["track", "music", BUS_HEIGHT + 96, 1, null],
-        ["track", "fx", BUS_HEIGHT + 144, 3, null],
-        ["bus", "empty", BUS_HEIGHT + 192, 1, "empty"],
+        ["track", "anna", 30, 0, "voices"],
+        ["track", "ville", 78, 2, "voices"],
+        ["gap", "gap:3", 126, null, null],
+        ["track", "music", 136, 1, null],
+        ["track", "fx", 184, 3, null],
+        ["gap", "gap:6", 232, null, null],
+        ["bus", "empty", 242, 1, "empty"],
       ],
     );
     assert.equal(layout.rows.at(-1).members, 0, "an empty bus says so");
     assert.equal(layout.rows[0].members, 2);
+    assert.equal(layout.rows[2].last, true, "the last member ends the spine");
+    assert.equal(layout.rows[1].last, false);
+  });
+
+  test("the bus row is a short single line by default, shorter than any lane", () => {
+    assert.ok(BUS_HEIGHT <= 32);
+    assert.ok(BUS_HEIGHT < DEFAULT_LANE / 2);
+  });
+
+  test("a one-track bus can merge into its track's header (no bus row)", () => {
+    const show = {
+      buses: [
+        { id: "voices", name: "Voices" },
+        { id: "music", name: "Music" },
+      ],
+      tracks: [
+        { id: "a", bus: "voices", clips: [] },
+        { id: "b", bus: "voices", clips: [] },
+        { id: "m", bus: "music", clips: [] },
+      ],
+    };
+    const merged = layoutRows(show, 80, { busHeight: 32, groupGap: 14, mergeSingle: true });
+    assert.deepEqual(
+      merged.rows.map((r) => [r.kind, r.id, r.merged ?? false]),
+      [
+        ["bus", "voices", false],
+        ["track", "a", false],
+        ["track", "b", false],
+        ["gap", "gap:3", false],
+        ["track", "m", true],
+      ],
+    );
+    const plain = layoutRows(show, 80, { busHeight: 32, groupGap: 14 });
+    assert.equal(plain.height - merged.height, 32, "merging saves one bus row");
   });
 
   test("lane height is clamped to 24..160", () => {
@@ -87,7 +127,8 @@ describe("lane layout", () => {
     assert.equal(rowAt(layout, 0).id, "t1");
     assert.equal(rowAt(layout, 47.9).id, "t1");
     assert.equal(rowAt(layout, 48).id, "t2");
-    assert.equal(rowAt(layout, 100).id, "b1");
+    assert.equal(rowAt(layout, 97).kind, "gap");
+    assert.equal(rowAt(layout, 96 + GROUP_GAP + 1).id, "b1");
     assert.equal(rowAt(layout, 500), null);
     assert.equal(rowAt(layout, -1), null);
   });
@@ -116,6 +157,19 @@ describe("lane layout", () => {
 describe("hit testing", () => {
   const layout = layoutRows(project, 48);
   const laneY = (inLane, row = 0) => RULER_HEIGHT + row * 48 + inLane;
+
+  test("a bus row, a group gap and the space below the last row are lane area", () => {
+    const below = hitTest({ layout, project, view, x: 100, y: RULER_HEIGHT + layout.height + 50 });
+    assert.equal(below.area, "lane");
+    assert.equal(below.row, null);
+    assert.equal(below.frame, 1000);
+    const gap = hitTest({ layout, project, view, x: 100, y: RULER_HEIGHT + 96 + 2 });
+    assert.equal(gap.area, "lane");
+    assert.equal(gap.row.kind, "gap");
+    const bus = hitTest({ layout, project, view, x: 100, y: RULER_HEIGHT + 96 + GROUP_GAP + 5 });
+    assert.equal(bus.area, "lane");
+    assert.equal(bus.row.kind, "bus");
+  });
 
   test("the ruler is its own area and carries a frame", () => {
     const hit = hitTest({ layout, project, view, x: 100, y: 10 });
@@ -148,12 +202,15 @@ describe("hit testing", () => {
     assert.equal(empty.clip, null);
   });
 
-  test("a bus row hits no clip; below all rows is no row", () => {
-    const bus = hitTest({ layout, project, view, x: 150, y: laneY(10, 2) });
+  test("a bus row hits no clip; below all rows is lane area with no row", () => {
+    // Was "none" until 2026-10-18; the owner's rule: a click anywhere in the
+    // lane area sets the play cursor (pointerIntent).
+    const bus = hitTest({ layout, project, view, x: 150, y: laneY(GROUP_GAP + 10, 2) });
     assert.equal(bus.row.kind, "bus");
     assert.equal(bus.clip, null);
     const below = hitTest({ layout, project, view, x: 150, y: 390 });
-    assert.equal(below.area, "none");
+    assert.equal(below.area, "lane");
+    assert.equal(below.row, null);
   });
 
   test("vertical scroll moves the rows under the pointer", () => {
@@ -183,5 +240,56 @@ describe("hit testing", () => {
     assert.ok(dbToY(0, 48) < dbToY(-30, 48));
     assert.ok(Math.abs(yToDb(dbToY(-7.5, 100), 100) + 7.5) < 1e-9);
     assert.equal(yToDb(-50, 48), 12, "clamped");
+  });
+});
+
+describe("what a click does (owner, 2026-10-18)", () => {
+  const lane = (extra) => ({
+    area: "lane",
+    frame: 500,
+    row: { kind: "bus" },
+    clip: null,
+    ...extra,
+  });
+  const clip = { id: "c1" };
+
+  test("anywhere in the lane area sets the play cursor and clears the selection", () => {
+    for (const row of [{ kind: "bus" }, { kind: "gap" }, { kind: "track" }, null]) {
+      assert.deepEqual(pointerIntent(lane({ row }), {}), {
+        seek: 500,
+        selection: "clear",
+        clip: null,
+      });
+    }
+  });
+
+  test("on a clip it also selects the clip", () => {
+    assert.deepEqual(pointerIntent(lane({ row: { kind: "track" }, clip }), {}), {
+      seek: 500,
+      selection: "replace",
+      clip,
+    });
+  });
+
+  test("Shift+click only toggles the selection; it never moves the cursor", () => {
+    assert.deepEqual(pointerIntent(lane({ clip }), { shift: true }), {
+      seek: null,
+      selection: "toggle",
+      clip,
+    });
+    assert.deepEqual(pointerIntent(lane({}), { shift: true }), {
+      seek: null,
+      selection: "keep",
+      clip: null,
+    });
+  });
+
+  test("the ruler seeks and keeps the selection; outside does nothing", () => {
+    assert.deepEqual(pointerIntent({ area: "ruler", frame: 7 }, {}), {
+      seek: 7,
+      selection: "keep",
+      clip: null,
+    });
+    assert.equal(pointerIntent({ area: "none", frame: 7 }, {}), null);
   });
 });
