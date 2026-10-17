@@ -431,8 +431,9 @@ def test_unknown_command_raises_edit_error(session):
 def test_the_command_table_is_the_plans(session):
     assert set(COMMANDS) == {"auto_silence", "automix", "cut_words", "relink",
                              "consolidate", "create_person", "edit_person",
-                             "create_interview", "edit_interview",
-                                 "set_media_person", "map_speakers", "import_nhsx"}
+                             "delete_person", "create_interview",
+                             "edit_interview", "delete_interview",
+                             "set_media_person", "map_speakers", "import_nhsx"}
 
 
 def talkers(session, tmp_path):
