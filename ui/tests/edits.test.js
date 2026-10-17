@@ -124,3 +124,47 @@ describe("provisional edits with coalesce keys", () => {
     assert.equal(h.sent.length, 2);
   });
 });
+
+describe("relative edits and completion", () => {
+  const nudge = (db) => ({
+    op: "adjust_clip_gain",
+    args: { clip_ids: ["c1"], delta_db: db },
+    coalesce: "gain:1",
+    combine: (older, newer) => ({ ...newer, delta_db: older.delta_db + newer.delta_db }),
+  });
+
+  test("queued edits with the same key add up when they carry a combine function", async () => {
+    const h = harness();
+    h.editor.change(nudge(0.5));
+    h.editor.change(nudge(0.5));
+    h.editor.change(nudge(0.5));
+    h.editor.change(nudge(0.5));
+    await h.reply(0, {});
+    assert.equal(h.sent.length, 2);
+    assert.equal(h.sent[0].args.delta_db, 0.5);
+    assert.equal(h.sent[1].args.delta_db, 1.5, "no key press is lost");
+  });
+
+  test("the combine function is not sent to the server", () => {
+    const h = harness();
+    h.editor.change(nudge(0.5));
+    assert.deepEqual(Object.keys(h.sent[0]).sort(), ["args", "coalesce", "label", "op"]);
+  });
+
+  test("done gets the server's answer when that request succeeds", async () => {
+    const h = harness();
+    const seen = [];
+    h.editor.change({ ...change(-1), done: (response) => seen.push(response) });
+    await h.reply(0, { gain: -1 });
+    assert.deepEqual(seen, [{ project: { gain: -1 } }]);
+  });
+
+  test("done is not called when the request fails", async () => {
+    const h = harness();
+    const seen = [];
+    h.editor.change({ ...change(-1), done: (response) => seen.push(response) });
+    h.waiting[0].reject(new Error("no"));
+    await new Promise((r) => setImmediate(r));
+    assert.deepEqual(seen, []);
+  });
+});

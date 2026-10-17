@@ -14,7 +14,7 @@ import bisect
 from collections.abc import Sequence
 from typing import Any
 
-from . import onsets, transcript
+from . import gate, onsets, transcript
 from .messages import KuulasError
 from .model import Project
 
@@ -37,7 +37,8 @@ def edit_points(
     """Return sorted, de-duplicated timeline frames of the chosen mode.
 
     Modes:
-    - ``"edges"``: start and end of every unmuted clip on unmuted tracks.
+    - ``"edges"``: start and end of every unmuted clip on unmuted tracks, plus
+      the edges of the track's gate (WP44), minus clip edges inside it.
     - ``"transients"``: transient onsets mapped through clips.
     - ``"words"``: starts of transcript words on the track, skipping muted ones.
 
@@ -56,8 +57,13 @@ def edit_points(
             for clip in track.clips:
                 if clip.muted:
                     continue
-                points.append(clip.start)
-                points.append(clip.end)
+                # A clip edge inside a closed gate range is not an audible
+                # edge; the gate's own edges are, where they lie in the clip.
+                points.extend(edge for edge in (clip.start, clip.end)
+                              if not gate.closed_at(track.gate, edge))
+                points.extend(
+                    edge for a, b in track.gate for edge in (a, b)
+                    if clip.start <= edge <= clip.end)
         return sorted(set(points))
 
     if mode == "transients":

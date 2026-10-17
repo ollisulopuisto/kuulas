@@ -149,6 +149,12 @@ def migrate_1_to_2(db: sqlite3.Connection, folder: Path) -> None:  # noqa: ARG00
         dbm.set_meta(db, "schema_version", "2")
 
 
+def migrate_2_to_3(db: sqlite3.Connection, folder: Path) -> None:
+    """WP44: ``Track.gate`` is new and optional (absent means empty), so
+    there is nothing to rewrite; the version rises so that a project with a
+    gate can tell an older reader to stay away (``package.GATE_READER``)."""
+
+
 def _v0_edit_state(state: dict) -> dict:
     """A v0 state without what became material: media, transcript pointers,
     sync groups, and the clips' sync fields (membership is per media now)."""
@@ -254,7 +260,7 @@ def cleanup_v0(folder: Path) -> None:
 
 #: ``version -> migration to version + 1``.
 MIGRATIONS: dict[int, Callable[[sqlite3.Connection, Path], None]] = {
-    0: migrate_0_to_1, 1: migrate_1_to_2}
+    0: migrate_0_to_1, 1: migrate_1_to_2, 2: migrate_2_to_3}
 
 
 def upgrade(db: sqlite3.Connection, folder: Path, version: int, target: int) -> None:

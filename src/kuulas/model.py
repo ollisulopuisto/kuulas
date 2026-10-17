@@ -142,17 +142,30 @@ class Track:
     solo: bool = False
     clips: tuple[Clip, ...] = ()
     automation: tuple[Point, ...] = ()
+    # Auto-Silence's result (WP44): closed ranges ``(start, end)`` in timeline
+    # frames, sorted, non-overlapping, not touching (``gate.normalise``).
+    # Where it is closed the track is silent, whatever the clips there say;
+    # the mixer derives the 30 ms edge ramps, none are stored. Part of the
+    # edit state, so history keeps it.
+    gate: tuple[tuple[int, int], ...] = ()
     extra: dict = field(default_factory=dict, hash=False)
 
     def to_dict(self) -> dict:
-        return _out(self, clips=[c.to_dict() for c in self.clips],
-                    automation=[list(pt) for pt in self.automation])
+        d = _out(self, clips=[c.to_dict() for c in self.clips],
+                 automation=[list(pt) for pt in self.automation],
+                 gate=[list(r) for r in self.gate])
+        if not self.gate:
+            # Absent means empty: a track that never had a gate keeps its
+            # bytes (and its state hash) from before the field existed.
+            del d["gate"]
+        return d
 
     @classmethod
     def from_dict(cls, d: dict) -> Track:
         known, extra = _split(cls, d)
         known["clips"] = tuple(Clip.from_dict(c) for c in known.get("clips", ()))
         known["automation"] = _points(known.get("automation", ()))
+        known["gate"] = tuple((int(a), int(b)) for a, b in known.get("gate", ()))
         return cls(**known, extra=extra)
 
 

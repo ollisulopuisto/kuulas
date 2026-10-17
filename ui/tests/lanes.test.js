@@ -311,3 +311,30 @@ describe("what a click does (owner, 2026-10-18)", () => {
     assert.equal(pointerIntent({ area: "none", frame: 7 }, {}), null);
   });
 });
+
+describe("hitTest on a gate band (WP44)", () => {
+  const gated = {
+    ...project,
+    tracks: [{ ...project.tracks[0], gate: [[3000, 4000]] }, project.tracks[1]],
+  };
+  const at = (x, extra = {}) =>
+    hitTest({
+      layout: layoutFor({ project: gated, laneHeight: 48 }),
+      project: gated,
+      view: { ...view, ...extra },
+      x,
+      y: RULER_HEIGHT + 10,
+    });
+
+  test("names the track and range under the pointer", () => {
+    assert.deepEqual(at(350).gate, { trackId: "t1", index: 0, range: [3000, 4000] });
+  });
+  test("nothing outside the band, or when gates are hidden", () => {
+    assert.equal(at(100).gate, null);
+    assert.equal(at(350, { showGates: false }).gate, null);
+  });
+  test("a clip under the band is still reported", () => {
+    assert.equal(at(250).clip?.id, "c2");
+    assert.ok(at(350).gate);
+  });
+});

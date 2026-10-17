@@ -20,6 +20,9 @@ export const initialState = () => ({
   playhead: 0,
   inPoint: null,
   outPoint: null,
+  // Group editing is on at every start (PLAN ground rule 16); E turns it off for the session.
+  groupEditing: true,
+  nudgeMs: 10,
   zoom: 48_000 / 20,
   scroll: 0,
   scrollY: 0,
@@ -32,6 +35,8 @@ export const initialState = () => ({
   waveformMode: "half",
   waveformScale: "linear",
   waveformGain: 1,
+  // Show the Auto-Silence gate bands on the lanes (WP44); a view option.
+  showGates: true,
   followMode: "page",
   followPaused: false,
   // Where the last edit happened, for the zoom anchor; null until an edit sets it.

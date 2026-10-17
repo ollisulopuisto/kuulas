@@ -34,6 +34,7 @@ import getpass
 import json
 import socket
 from collections import OrderedDict
+from collections.abc import Callable
 from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
@@ -193,6 +194,9 @@ class History:
         self.author = default_author(self.db) if author is None else author
         self.machine = machine or socket.gethostname()
         self._coalesce: str | None = None
+        #: Called with no arguments before a state with a gate is written
+        #: (``package`` raises the manifest's ``min_reader`` here, WP44).
+        self.on_gate: Callable[[], None] | None = None
         #: Bumped on every write; ``package`` backs up when it has moved.
         self.generation = 0
         if not read_only and dbm.meta(self.db, "material_head") is None:
@@ -377,6 +381,7 @@ class History:
         are stored with the step.
         """
         self._check_writable()
+        self._note_gate(state)
         if state.rate != self.rate:
             raise HistoryError("error.history.rate_change", rate=state.rate,
                                project_rate=self.rate)
@@ -414,6 +419,10 @@ class History:
         self._edit_state = replace(state, media=(), sync_groups=())
         self._remember(self.edit_hash, self._edit_state)
         self._written()
+
+    def _note_gate(self, state: Project) -> None:
+        if self.on_gate is not None and any(t.gate for t in state.tracks):
+            self.on_gate()
 
     def _path(self, target: str) -> tuple[list[dict], list[dict]]:
         """Steps to undo (head first) and redo (top first) to reach ``target``."""
@@ -648,6 +657,7 @@ class History:
         this edit's current state). Returns its id; open it with
         ``History(path, edit=id)``."""
         self._check_writable()
+        self._note_gate(state or self.state)
         edit = dbm.uuid7()
         with dbm.tx(self.db):
             self.db.execute("insert into edits(id, name, created_utc) values (?,?,?)",
