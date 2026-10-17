@@ -13,6 +13,8 @@ dependencies = [
     "numpy>=2.4.2",
     "fastapi>=0.118.0",
     "uvicorn>=0.37.0",
+    # /api/live (the editor window's position and change feed) is a WebSocket.
+    "websockets>=13.0",
     "python-multipart>=0.0.20",
     "sounddevice>=0.5.2",
     "soundfile>=0.14.0",
