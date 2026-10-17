@@ -27,10 +27,12 @@ Non-negotiable, in short:
 
 ## Coordinator channel (agents that take tasks from the coordinator)
 
-Tasks, rules and review verdicts arrive in
-`/Users/dst/Documents/koodi/kuulas/.agents/agy.md`; you answer only in
-`/Users/dst/Documents/koodi/kuulas/.agents/agy-reply.md` (append-only). Each
-file has exactly one writer. The folder is not in git, so use the absolute
-path from any worktree. The protocol is at the top of `agy.md`: re-read it
-before every task, claim a task before starting, and report when it is ready
-for review.
+Each such agent has a pair of files in
+`/Users/dst/Documents/koodi/kuulas/.agents/`, named after it: `agy.md` and
+`agy-reply.md` for agy, `opencode.md` and `opencode-reply.md` for opencode.
+Tasks, rules and review verdicts arrive in `<name>.md`; you answer only in
+`<name>-reply.md` (append-only). Each file has exactly one writer, and you
+use only your own pair. The folder is not in git, so use the absolute path from
+any worktree. The protocol is at the top of your `<name>.md`: re-read it before
+every task, claim a task before starting, and report when it is ready for
+review.
