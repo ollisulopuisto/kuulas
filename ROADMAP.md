@@ -54,7 +54,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R26e | Alternative takes in one slot, switched with one key (Pro Tools playlists, FCP auditions) | planned: WP19e |
 | R26f | Spot: type an exact time to place a clip or the playhead (Pro Tools) | planned: WP19f |
 | R26g | Skimming: hover to hear without moving the playhead (FCP) | planned: WP19g |
-| R26h | Markers and regions, batch export of regions, chapter list (Reaper) | planned: WP19h |
+| R26h | Markers and regions, batch export of regions, chapter list (Reaper) | chapter-list formatter done v26.10.17.5; rest planned: WP19h |
 | R26i | Tab to transient or to word, cycled with one key (Pro Tools) | onsets backend done v26.10.17.4; Tab key planned: WP19i |
 | R27 | Copying clips between projects never copies whole source files: reuse by hash, link in place, or copy only the used range plus 2 s handles; importing from another project lets you pick which clips, bits or regions come in | planned: WP20 (must-fix) |
 | R28 | Several edits (versions) of the same material in one project, e.g. 1 × 60 min and 4 × 20 min: shared media, transcripts and sync; separate cuts and undo; cut decisions offered across edits | planned: WP21 |
@@ -84,7 +84,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R52 | Session markers in history; undo across sittings says so | planned: WP8 |
 | R53 | People and interviews in the data from the start: who speaks in every transcript, one interview linking all its recordings from different people, everything a person said across the series | data model done in v26.10.16.13 (WP41); person view and cards later (WP42) |
 | R54 | Index cards like Scrivener: bits of interviews dragged into episodes, assembled into a timeline; person view | planned: WP42 |
-| R55 | Narration placeholders: script text in the timeline with estimated length, optional speech preview, script export, recorded or imported later in place | planned: WP43 |
+| R55 | Narration placeholders: script text in the timeline with estimated length, optional speech preview, script export, recorded or imported later in place | length estimate done v26.10.17.5; rest planned: WP43 |
 
 ## Done
 

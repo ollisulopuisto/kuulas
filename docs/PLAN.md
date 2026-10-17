@@ -1453,7 +1453,7 @@ Tests first (`tests/test_markers.py`):
 
 ### WP19 — Borrowed from other editors
 
-Status: open. 19i onset detection (backend) done in v26.10.17.4. Each part is its own small WP (19a–19i), commit each separately.
+Status: open. 19i onset detection (backend) done in v26.10.17.4; 19h chapter-list formatter (`chapters.py`) done in v26.10.17.5. Each part is its own small WP (19a–19i), commit each separately.
 Needs WP1, WP4, WP5. Every key below goes into `ui/keymap.js`, and the
 keymap collision test (WP5) must still pass.
 
@@ -2676,7 +2676,7 @@ projects with correct usage marks.
 
 ### WP43 — Narration placeholders
 
-Status: open. Needs WP4, WP5, WP7. Sonnet 5.5. Phase 2. The data model
+Status: length estimate (`narration.py`) done in v26.10.17.5; the rest open. Needs WP4, WP5, WP7. Sonnet 5.5. Phase 2. The data model
 part (a placeholder clip kind) can land with WP41 or earlier.
 
 Script text for narration that has not been recorded yet (owner, 2026-10-16):

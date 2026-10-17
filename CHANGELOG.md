@@ -1,3 +1,9 @@
+## [v26.10.17.5] - 2026-10-17
+
+- Building blocks, not yet visible in the app: a chapter-list formatter (plain
+  `hh:mm:ss Title` lines or Podcasting 2.0 JSON) and a narration-length
+  estimate (words to frames at 2.3 words per second, at least one second).
+
 ## [v26.10.17.4] - 2026-10-17
 
 - Tracks now have a kind (speech, speech-mix, music) and a speaker. Tracks of
