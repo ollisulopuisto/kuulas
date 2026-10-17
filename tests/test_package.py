@@ -271,7 +271,7 @@ def old_transcripts() -> dict[int, list[dict]]:
 
 def without_sync(tracks: list[dict]) -> list[dict]:
     gone = ("sync", "sync_origin")
-    return [{**t, "clips": [{k: v for k, v in c.items() if k not in gone}
+    return [{"speaker": "", **t, "clips": [{k: v for k, v in c.items() if k not in gone}
                             for c in t["clips"]]} for t in tracks]
 
 

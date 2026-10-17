@@ -210,15 +210,20 @@ class Session:
                                 op={"name": name, "args": args})
             return self._changed()
 
-    def command(self, name: str, args: dict) -> Project:
+    def command(self, name: str, args: dict | None = None) -> Project:
         """An edit that needs more than the project: the media store, the
         transcript. See ``COMMANDS``."""
         with self.lock:
+            if args is None:
+                args = {}
             try:
                 run = COMMANDS[name]
             except KeyError:
                 raise ops.EditError("error.edit.unknown", name=name) from None
             return run(self, args)
+
+    def duck_music(self) -> Project:
+        return self.command("duck_music")
 
     def _commit(self, label: str, new: Project, name: str, args: dict,
                 material: dict | None = None) -> Project:
@@ -877,6 +882,11 @@ def _automix(s: Session, args: dict) -> Project:
     return s._commit(t("history.automix"), new, "automix", args)
 
 
+def _duck_music(s: Session, args: dict) -> Project:
+    new = analysis.duck_music(s.history.state, s.store)
+    return s._commit(t("history.duck_music"), new, "duck_music", args)
+
+
 def _cut_words(s: Session, args: dict) -> Project:
     """Delete words from the audio: the stretch they cover is ripple-deleted
     on every track, so the speakers stay together."""
@@ -970,6 +980,7 @@ def _rebuild_media(s: Session, args: dict) -> Project:
 COMMANDS: dict[str, Callable[[Session, dict], Project]] = {
     "auto_silence": _auto_silence,
     "automix": _automix,
+    "duck_music": _duck_music,
     "cut_words": _cut_words,
     "relink": _relink,
     "consolidate": _consolidate,

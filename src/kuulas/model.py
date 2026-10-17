@@ -133,7 +133,8 @@ class Track:
 
     id: str
     name: str
-    kind: str = "speech"  # "speech" | "music"
+    kind: str = "speech"  # "speech" | "speech-mix" | "music"
+    speaker: str = ""
     bus: str | None = None
     gain_db: float = 0.0
     pan: float = 0.0

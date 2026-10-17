@@ -23,6 +23,7 @@ from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 
 import numpy as np
+from nhsx import musicbed
 from nhsx.activity import GAP_CLOSE_S, MIN_RUN_S
 from speechmix import envelopes, grid, masks
 from speechmix.dsp import FLOOR_DB
@@ -136,16 +137,32 @@ def _from_audio(p: Project, store: Store, clips) -> tuple[np.ndarray, np.ndarray
 
 
 def speech_lanes(p: Project, store: Store) -> Lanes:
-    """One lane per speech track. Tracks are measured one per core: each
-    measurement is independent, numpy releases the GIL in the heavy parts,
-    and the decision below is per lane, so the result is the same as serial."""
-    tracks = speech_tracks(p)
+    """One lane per speaker across speech and speech-mix tracks.
+
+    Tracks with the same speaker are grouped into one lane. Tracks are
+    measured one per core: each measurement is independent, numpy releases
+    the GIL in the heavy parts, and the decision below is per lane, so the
+    result is the same as serial.
+    """
+    tracks = [t for t in p.tracks if t.kind in ("speech", "speech-mix")
+              and not t.mute and t.clips]
+    if not tracks:
+        return Lanes(speakers=[])
     with ThreadPoolExecutor(max_workers=max(1, min(len(tracks), workers()))) as pool:
         measured = list(pool.map(lambda track: track_levels(p, store, track), tracks))
-    lanes = []
+
+    speaker_order: list[str] = []
+    speaker_parts: dict[str, list] = {}
     for track, (db, valid) in zip(tracks, measured, strict=True):
+        speaker = track.speaker or track.name
         floor = grid.noise_floor(grid.smooth(db), valid)
-        lanes.append(grid.lane(track.id, [(db, valid, floor, grid.FLOOR_MARGIN_DB, 0.0)]))
+        part = (db, valid, floor, grid.FLOOR_MARGIN_DB, 0.0)
+        if speaker not in speaker_parts:
+            speaker_order.append(speaker)
+            speaker_parts[speaker] = []
+        speaker_parts[speaker].append(part)
+
+    lanes = [grid.lane(speaker, speaker_parts[speaker]) for speaker in speaker_order]
     return Lanes(speakers=lanes)
 
 
@@ -193,15 +210,20 @@ def silence_ranges(p: Project, store: Store) -> dict[str, list[tuple[int, int]]]
         return {}
     hop = hop_frames(p.rate)
     ducked = masks.duck_masks(lanes, duck_settings())
+    lane_by_name = {lane.name: lane for lane in lanes.speakers}
     out = {}
-    for lane in lanes.speakers:
+    for track in speech_tracks(p):
+        speaker = track.speaker or track.name
+        lane = lane_by_name.get(speaker)
+        if lane is None:
+            continue
         talk = masks.close_gaps(np.asarray(lane.on, dtype=bool), GAP_CLOSE_S)
         talk = masks.drop_short(talk, MIN_RUN_S)
         talk = _dilate(talk, masks.hops(OPEN_BEFORE_S), masks.hops(OPEN_AFTER_S))
         closed = ~talk
         if lane.name in ducked:
             closed |= np.asarray(ducked[lane.name], dtype=bool)[: closed.size]
-        out[lane.name] = _ranges(closed, hop)
+        out[track.id] = _ranges(closed, hop)
     return out
 
 
@@ -222,6 +244,55 @@ def automix(p: Project, store: Store, depth_db: float = masks.DUCK_DB) -> Projec
     lanes = speech_lanes(p, store)
     ducks = envelopes.duck_envelopes(lanes, duck_settings(depth_db), 0.0)
     for track in speech_tracks(p):
-        points = [(round(t * p.rate), db) for t, db in ducks.get(track.id, [])]
+        speaker = track.speaker or track.name
+        points = [(round(t * p.rate), db) for t, db in ducks.get(speaker, [])]
         p = ops.set_track_automation(p, track.id, points)
     return p
+
+
+def anyone_talking_intervals(p: Project, store: Store) -> list[tuple[float, float]]:
+    """Timeline intervals [(start_s, end_s), ...] where anyone is talking.
+
+    Built from speech and speech-mix lanes with pauses under GAP_CLOSE_S
+    bridged and blips under MIN_RUN_S dropped.
+    """
+    lanes = speech_lanes(p, store)
+    if not lanes.speakers:
+        return []
+    n = max((len(lane.on) for lane in lanes.speakers), default=0)
+    if n == 0:
+        return []
+    anyone = np.zeros(n, dtype=bool)
+    for lane in lanes.speakers:
+        on = np.asarray(lane.on, dtype=bool)
+        anyone[: on.size] |= on
+    bridged = masks.close_gaps(anyone, GAP_CLOSE_S)
+    filtered = masks.drop_short(bridged, MIN_RUN_S)
+    return [
+        (a * grid.HOP_SEC, b * grid.HOP_SEC)
+        for a, b, v in masks.runs(filtered.astype(np.int8))
+        if v
+    ]
+
+
+def duck_music(p: Project, store: Store) -> Project:
+    """Write nhsx.musicbed.curve as track automation on every music track."""
+    intervals = anyone_talking_intervals(p, store)
+    first_speech_s = intervals[0][0] if intervals else float("inf")
+    music_tracks = [t for t in p.tracks if t.kind == "music"]
+    for track in music_tracks:
+        points: list[tuple[int, float]] = []
+        audible_clips = [c for c in track.clips if not c.muted]
+        for clip in sorted(audible_clips, key=lambda c: c.start):
+            start_s = clip.start / p.rate
+            end_s = clip.end / p.rate
+            cold_open = start_s < first_speech_s
+            bed_curve = musicbed.curve(start_s, end_s, intervals, cold_open=cold_open)
+            if bed_curve is not None:
+                for s_offset, db in bed_curve:
+                    frame = round((start_s + s_offset) * p.rate)
+                    points.append((frame, db))
+        points.sort(key=lambda pt: pt[0])
+        p = ops.set_track_automation(p, track.id, points)
+    return p
+
