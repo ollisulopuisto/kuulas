@@ -60,3 +60,10 @@ def _english_messages():
         yield
     finally:
         messages.set_language(before)
+
+
+@pytest.fixture(autouse=True)
+def _private_clipboard(tmp_path_factory, monkeypatch):
+    """The clipboard history is a per-user file: no test may touch the real one."""
+    folder = tmp_path_factory.mktemp("clipboard")
+    monkeypatch.setenv("KUULAS_CLIPBOARD_FILE", str(folder / "clipboard.json"))

@@ -637,5 +637,7 @@
   "cmd.edit.select_all.hint": "Valitsee kaikki projektin leikkeet.",
   "cmd.group.toggle.hint": "Kytkee ryhmämuokkauksen päälle tai pois valitun raidan ryhmälle.",
   "cmd.help.open": "Ohje tähän",
-  "error.regions.bad_template": "Aluenimien malli ei kelpaa: {template}."
+  "error.regions.bad_template": "Aluenimien malli ei kelpaa: {template}.",
+  "log.clipboard.unreadable": "Leikepöytätiedostoa {path} ei voitu lukea ({error}); leikepöytä aloitetaan tyhjänä.",
+  "log.clipboard.damaged": "Leikepöytätiedosto {path} on vioittunut ({error}); leikepöytä aloitetaan tyhjänä."
 }
