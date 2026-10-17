@@ -66,6 +66,17 @@ def local(path: str | Path, model: str = "small",
         from faster_whisper import WhisperModel
     except ImportError as e:
         raise TranscribeError("error.transcribe.missing_extra") from e
+    try:
+        import av
+        orig_open = av.open
+
+        def _compat_open(*args, **kwargs):
+            kwargs.pop("metadata_errors", None)
+            return orig_open(*args, **kwargs)
+
+        av.open = _compat_open
+    except (ImportError, AttributeError):
+        pass
     options = {"device": "auto", "compute_type": "int8"}
     if cpu_threads is not None:
         options["cpu_threads"] = max(1, int(cpu_threads))
