@@ -59,3 +59,19 @@ def test_whole_file_reads_are_flagged():
 def test_size_limits():
     assert gate.too_big(files=7, lines=100, max_files=6, max_lines=400) is True
     assert gate.too_big(files=6, lines=400, max_files=6, max_lines=400) is False
+
+
+def test_test_files_do_not_count_toward_the_size_limit():
+    numstat = [
+        "300\t10\tsrc/kuulas/clipboard.py",
+        "271\t0\ttests/test_clipboard.py",
+        "50\t0\tui/tests/wheel.test.js",
+        "5\t5\tui/wheel.js",
+    ]
+    files, lines = gate.size_without_tests(numstat)
+    assert files == 2          # clipboard.py and wheel.js
+    assert lines == 320        # 300 + 10 + 5 + 5, no test lines
+
+
+def test_binary_numstat_rows_count_as_a_file_but_no_lines():
+    assert gate.size_without_tests(["-\t-\tdocs/design/screenshots/a.png"]) == (1, 0)

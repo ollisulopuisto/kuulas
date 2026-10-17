@@ -74,6 +74,27 @@ def whole_file_reads(added: list[str]) -> list[str]:
     return [line for line in added if _WHOLE_READ.search(line)]
 
 
+def _is_test_path(path: str) -> bool:
+    name = path.rsplit("/", 1)[-1]
+    return (path.startswith(("tests/", "ui/tests/")) or name.startswith("test_")
+            or name.endswith(".test.js"))
+
+
+def size_without_tests(numstat: list[str]) -> tuple[int, int]:
+    """(files, changed lines) of a ``git diff --numstat`` output, test files left
+    out: the size rule is about the code a reviewer has to read. Binary rows
+    (``-`` counts) are a file with no lines."""
+    files = lines = 0
+    for row in numstat:
+        added, removed, path = row.split("\t", 2)
+        if _is_test_path(path):
+            continue
+        files += 1
+        lines += (int(added) if added.isdigit() else 0) + (
+            int(removed) if removed.isdigit() else 0)
+    return files, lines
+
+
 def too_big(*, files: int, lines: int, max_files: int, max_lines: int) -> bool:
     return files > max_files or lines > max_lines
 
@@ -106,13 +127,13 @@ def main() -> int:
 
     changed = _run("git", "diff", "--name-only", f"{args.base}...HEAD").stdout.split()
     stat = _run("git", "diff", "--shortstat", f"{args.base}...HEAD").stdout.strip()
-    nums = re.findall(r"(\d+) (?:insertion|deletion)", stat)
-    lines = sum(int(n) for n in nums)
+    numstat = _run("git", "diff", "--numstat", f"{args.base}...HEAD").stdout.splitlines()
+    n_files, lines = size_without_tests(numstat)
     if bad := out_of_scope(changed, args.allow):
         problems.append(f"files outside the task or coordinator-only: {', '.join(bad)}")
-    if too_big(files=len(changed), lines=lines, max_files=args.max_files,
+    if too_big(files=n_files, lines=lines, max_files=args.max_files,
                max_lines=args.max_lines):
-        problems.append(f"too big: {len(changed)} files, {lines} lines "
+        problems.append(f"too big: {n_files} files, {lines} lines, tests not counted "
                         f"(limit {args.max_files} / {args.max_lines}); ask first")
 
     loc = Path("src/kuulas/locales")

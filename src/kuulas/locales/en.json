@@ -91,7 +91,10 @@
   "history.transcript": "Transcript for {media_id}",
   "history.nhsx_import": "Import Hindenburg session {name}",
   "history.migrated": "Upgraded to format 1",
-  "history.import": {"one": "Import {count} file", "other": "Import {count} files"},
+  "history.import": {
+    "one": "Import {count} file",
+    "other": "Import {count} files"
+  },
   "history.auto_silence": "Auto-silence",
   "history.automix": "Automix",
   "history.duck_music": "Duck music",
@@ -112,11 +115,20 @@
   "log.package.migrating": "Upgrading the project format from {source} to {target}; a backup is made first.",
   "log.package.tick_failed": "Lock heartbeat or backup failed, retrying later: {error}",
   "log.session.subscriber_failed": "A listener for project changes failed; the change itself was saved.",
-  "log.session.relinked": {"one": "Found {count} moved file again.", "other": "Found {count} moved files again."},
-  "log.session.consolidated": {"one": "Copied {count} linked file into the project.", "other": "Copied {count} linked files into the project."},
+  "log.session.relinked": {
+    "one": "Found {count} moved file again.",
+    "other": "Found {count} moved files again."
+  },
+  "log.session.consolidated": {
+    "one": "Copied {count} linked file into the project.",
+    "other": "Copied {count} linked files into the project."
+  },
   "error.engine.no_device": "No audio output device was found. Connect headphones or speakers, or choose an output in the system's sound settings; the project stays open.",
   "error.engine.open_failed": "The audio output {device} could not be opened: {error}",
-  "notice.engine.block_failed": {"one": "{count} block of audio could not be played and was replaced with silence. Playback continues.", "other": "{count} blocks of audio could not be played and were replaced with silence. Playback continues."},
+  "notice.engine.block_failed": {
+    "one": "{count} block of audio could not be played and was replaced with silence. Playback continues.",
+    "other": "{count} blocks of audio could not be played and were replaced with silence. Playback continues."
+  },
   "notice.engine.struggling": "Playback is struggling to keep up, so the audio buffer is now {frames} frames. Close other programs or let background work finish.",
   "notice.engine.device_changed": "The audio output changed, so playback paused. Press play to continue on {device}.",
   "notice.engine.restarted": "The audio output stopped responding and was restarted on {device}.",
@@ -133,8 +145,10 @@
   "cli.info.project": "{path}: {format} version {version} (readable from {min_reader}), written by {written_by}, id {id}",
   "cli.info.size": "  {name}: {size_mb} MB",
   "cli.info.media": "Media: {linked} linked, {working} working, {excerpt} excerpts, {missing} missing",
-  "cli.info.backups": {"one": "{count} automatic backup", "other": "{count} automatic backups"},
-
+  "cli.info.backups": {
+    "one": "{count} automatic backup",
+    "other": "{count} automatic backups"
+  },
   "binaries.missing": "{name} was not found. Install it — brew install ffmpeg on macOS — or build the app, which bundles it.",
   "envelope.source_missing": "File not found: {path}",
   "envelope.decode_failed": "Decoding the audio failed: {name}\n{error}",
@@ -155,7 +169,6 @@
   "audio.debleed_no_path": "{name}'s bleed was not removed: the leakage path could not be solved.",
   "audio.debleed_ate_speech": "{name}'s bleed was not removed: the subtraction would have eaten this microphone's own speech.",
   "audio.debleed_no_gain": "{name}'s bleed was not removed: there was nothing to remove.",
-
   "error.server.internal": "Something went wrong inside kuulas: {error}. Your work is saved; the details are in the log.",
   "error.server.bad_request": "The request was not understood: {detail}",
   "error.server.bad_transport": "Unknown playback action: {action}.",
@@ -207,7 +220,10 @@
   "ui.focus.history": "History",
   "ui.error.title": "Something went wrong",
   "ui.import.failed": "Could not import the selected audio files.",
-  "ui.import.success": {"one": "Imported {count} audio file.", "other": "Imported {count} audio files."},
+  "ui.import.success": {
+    "one": "Imported {count} audio file.",
+    "other": "Imported {count} audio files."
+  },
   "ui.project.empty": "Import audio to begin editing.",
   "ui.toolbar.label": "Transport and project",
   "ui.transport.export": "Export",
@@ -351,6 +367,9 @@
   "error.spot.invalid": "“{text}” is not a valid time. Use a timecode like 1:02:03.500 or a signed offset like +1.5s or +120.",
   "error.edit_points.unknown_mode": "Unknown edit point mode: {mode}.",
   "error.shuttle.unknown_key": "Unknown shuttle key: {key}.",
+  "error.import_plan.bad_mode": "Unknown import mode: {mode}.",
+  "error.import_plan.bad_order": "Unknown import order: {order}.",
+  "error.import_plan.bad_track_naming": "Unknown track naming: {track_naming}.",
   "desktop.missing_extra": "The desktop window needs the desktop extra. Install it with: uv sync --extra desktop (or pip install \"kuulas[desktop]\"). To use the browser instead: kuulas open <folder>.",
   "desktop.title": "{name} – kuulas",
   "desktop.launcher.lang": "en",
@@ -529,5 +548,11 @@
   "ui.bus.parent": "Parent bus",
   "ui.bus.parent.none": "None (top level)",
   "ui.bus.members": "Tracks on this bus",
-  "format.speed": "{value}×"
+  "format.speed": "{value}×",
+  "ui.gate.mic_closed": "Mic closed",
+  "ui.gate.hover": "Mic closed. Double-click to open this stretch.",
+  "ui.gate.open_stretch": "Open this stretch",
+  "ui.view.gates": "Show gates",
+  "cmd.gate.open_stretch": "Open this stretch (closed mic)",
+  "cmd.gate.open_stretch.hint": "Reopens the closed-mic stretch under the play cursor on the current track."
 }

@@ -527,6 +527,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.app.automix",
   },
   {
+    id: "gate.open_stretch",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.gate.open_stretch",
+  },
+  {
     id: "app.auto_silence",
     keys: { mac: "Alt+Mod+P", other: "Alt+Mod+P" },
     context: "global",
