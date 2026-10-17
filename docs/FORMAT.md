@@ -299,6 +299,13 @@ written, so a track that never had one keeps its bytes and its state hash, and
 old projects load with an empty gate. Old projects that contain Auto-Silence
 clip pieces (muted clips with baked fades) keep working unchanged.
 
+**As built (derived mute ramps).** The 30 ms ramp on an open clip edge that
+touches a muted piece (same track, same media, contiguous source) is derived
+by the mixer and never stored: `mute_ranges`/`mute_range` write no fades, so
+unmuting restores the clips and their render exactly. Where an older project
+stored that fade, the longer of stored and derived applies, so it renders as
+before.
+
 *Version and `min_reader`.* The version rises to 3 (additive field, the 2 to 3
 migration rewrites nothing). An older reader would keep `gate` in `extra` and
 play the track ungated, which is audible, so a project that holds a gate must
