@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { classifyWheel, wheelIntent } from "../wheel.js";
+import { classifyWheel, gestureZoom, wheelIntent } from "../wheel.js";
 
 const wheel = (over) => ({
   deltaX: 0,
@@ -74,5 +74,27 @@ describe("wheel and trackpad", () => {
     assert.equal(up.kind, "waveform");
     assert.ok(up.factor > 1);
     assert.ok(wheelIntent(wheel({ deltaY: 100, altKey: true }), { lanesFit: true }).factor < 1);
+  });
+});
+
+describe("gestureZoom", () => {
+  test("a growing scale zooms in, a shrinking one zooms out", () => {
+    assert.ok(gestureZoom(1, 1.5).factor < 1);
+    assert.equal(gestureZoom(1, 1.5).kind, "zoom");
+    assert.ok(gestureZoom(1.5, 1).factor > 1);
+  });
+
+  test("equal scales give factor 1", () => {
+    assert.deepEqual(gestureZoom(2, 2), { kind: "zoom", factor: 1 });
+  });
+
+  test("scale of 0, a missing value, or a non-finite value returns null", () => {
+    assert.equal(gestureZoom(1, 0), null);
+    assert.equal(gestureZoom(1, undefined), null);
+    assert.equal(gestureZoom(undefined, 2), null);
+    assert.equal(gestureZoom(1, NaN), null);
+    assert.equal(gestureZoom(1, Infinity), null);
+    assert.equal(gestureZoom(NaN, 2), null);
+    assert.equal(gestureZoom(1, null), null);
   });
 });
