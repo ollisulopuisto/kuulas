@@ -1,6 +1,6 @@
-// Copies ui/tokens.css and ui/grammar.js into the prototype, between their
-// markers, so the prototype stays one offline file and never drifts from the
-// app. Run after changing either file:  node docs/design/sync-tokens.mjs
+// Copies ui/tokens.css and the pure UI modules into the prototype, between
+// their markers, so the prototype stays one offline file and never drifts
+// from the app. Run after changing any of them:  node docs/design/sync-tokens.mjs
 // ui/tests/tokens.test.js fails until you do.
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -8,6 +8,9 @@ import { fileURLToPath } from "node:url";
 const at = (path) => fileURLToPath(new URL(path, import.meta.url));
 const file = at("prototype/index.html");
 let html = readFileSync(file, "utf8");
+
+/** The modules the prototype runs as-is (no imports; exports become plain names). */
+export const EMBEDDED = ["grammar.js", "labels.js", "crosstalk.js", "motion.js", "ab-value.js"];
 
 function replaceBetween(start, end, content) {
   const from = html.indexOf(start);
@@ -21,8 +24,9 @@ replaceBetween(
   "/* -- end of tokens.css -- */",
   readFileSync(at("../../ui/tokens.css"), "utf8").trim(),
 );
-// The prototype is a classic script: the module's exports become plain names.
-const grammar = readFileSync(at("../../ui/grammar.js"), "utf8").replace(/^export /gm, "").trim();
-replaceBetween("// -- grammar.js (copy) --", "// -- end of grammar.js --", `// -- grammar.js (copy) --\n${grammar}`);
+for (const name of EMBEDDED) {
+  const code = readFileSync(at(`../../ui/${name}`), "utf8").replace(/^export /gm, "").trim();
+  replaceBetween(`// -- ${name} (copy) --`, `// -- end of ${name} --`, `// -- ${name} (copy) --\n${code}`);
+}
 writeFileSync(file, html);
-console.log("prototype tokens and grammar updated");
+console.log("prototype tokens and modules updated");
