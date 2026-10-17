@@ -504,6 +504,8 @@ def _crossfade(p: Project, clips: list[Clip], left: Clip, right: Clip) -> list[C
     is limited by how much source each has there; both use the same length,
     which is what keeps the summed gain constant.
     """
+    if left.muted or right.muted:
+        return clips
     tail = p.media_item(left.media).frames - (left.offset + left.length)
     head = right.offset
     xf = min(round(CROSSFADE_SEC * p.rate), 2 * tail, 2 * head,
