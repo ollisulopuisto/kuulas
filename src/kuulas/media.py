@@ -50,7 +50,6 @@ import struct
 import subprocess
 import threading
 import time
-from collections import OrderedDict
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
@@ -361,6 +360,38 @@ def probe(path: Path) -> Probe:
     return Probe(channels, seconds, False)
 
 
+def _music_tags(path: Path) -> dict[str, str]:
+    """Read optional music tags. Tags must never prevent a usable import."""
+    fields = {
+        "title": "title", "artist": "artist", "album": "album",
+        "composer": "composer", "lyricist": "lyricist", "publisher": "publisher",
+        "isrc": "isrc", "label": "label", "copyright": "copyright",
+        "year": "date",
+    }
+    try:
+        out = subprocess.run(  # noqa: S603 - fixed argv, no shell
+            [get_binary_path("ffprobe"), "-v", "error", "-show_entries",
+             "format_tags", "-of", "json", str(path)],
+            capture_output=True, text=True, errors="replace", check=False,
+            stdin=subprocess.DEVNULL, timeout=PROBE_TIMEOUT_SEC)
+        if out.returncode != 0:
+            return {}
+        tags = json.loads(out.stdout).get("format", {}).get("tags", {})
+        if not isinstance(tags, dict):
+            return {}
+    except (OSError, subprocess.SubprocessError, ValueError, TypeError, AttributeError):
+        return {}
+    normalised = {str(key).casefold(): value for key, value in tags.items()}
+    result = {}
+    for key, tag in fields.items():
+        value = normalised.get(tag)
+        if key == "year" and not value:
+            value = normalised.get("year")
+        if value is not None and str(value).strip():
+            result[key] = str(value).strip()
+    return result
+
+
 class MediaStore:
     """``folder`` is the package's ``media/``. The database and ``caches/``
     default to its siblings, as in a package (docs/FORMAT.md, "Layout")."""
@@ -399,7 +430,6 @@ class MediaStore:
         #: both encode it. The second waits, then finds the finished row.
         self._import_locks: dict[str, threading.Lock] = {}
         self._handles: dict[str, tuple[threading.Lock, sf.SoundFile]] = {}
-        self._cache: OrderedDict[tuple[str, int], np.ndarray] = OrderedDict()
         self._meta: dict[str, dict] = {}
         #: Is each linked file still there and unchanged? Checked (stat and,
         #: if the mtime moved, a re-hash) here, in ``missing`` and in
@@ -604,7 +634,9 @@ class MediaStore:
         pr = probe(path)
         self._check_source_rate(path)
         new = {"id": media_id, "sha256": digest, "name": path.name,
-               "time_ref_flicks": self._time_reference(path, notes)}
+               "time_ref_flicks": self._time_reference(path, notes),
+               "extra": json.dumps({"music_info": _music_tags(path)},
+                                   ensure_ascii=False)}
         if pr.channels > 2:
             notes.append(Note("warn.media.downmixed", {"name": path.name,
                                                        "channels": pr.channels}))
@@ -707,7 +739,9 @@ class MediaStore:
             raise MediaError("error.media.empty", name=source.name)
         if damaged or (short and job.probe.exact):
             partial = {"frames": frames, "expected_frames": expected}
-            row["extra"] = json.dumps({"partial": partial})
+            extra = json.loads(row.get("extra") or "{}")
+            extra["partial"] = partial
+            row["extra"] = json.dumps(extra, ensure_ascii=False)
             job.notes.append(self._partial_note(source.name, partial))
 
     @staticmethod
@@ -839,6 +873,57 @@ class MediaStore:
             shutil.copy2(source, partial)
             partial.replace(kept)
 
+    def rebuild(self, media_id: str, path: str | Path | None = None) -> Path:
+        """Re-encode a damaged working file from its original file, hash-checked."""
+        self._check_writable()
+        meta = self.meta(media_id)
+        candidate: Path | None = None
+        if path is not None:
+            p = Path(path)
+            if p.is_file():
+                candidate = p
+        if candidate is None:
+            originals = self.folder / "originals"
+            if originals.is_dir():
+                matches = list(originals.glob(f"{media_id}.*"))
+                if matches and matches[0].is_file():
+                    candidate = matches[0]
+        if candidate is None and meta.get("linked_path"):
+            p = Path(meta["linked_path"])
+            if p.is_file():
+                candidate = p
+        if candidate is None:
+            for p_str in self.seen_paths(meta["sha256"]):
+                p = Path(p_str)
+                if p.is_file():
+                    candidate = p
+                    break
+        if candidate is None:
+            raise MediaError("error.media.no_original", name=meta["name"])
+
+        digest = _sha256(candidate)
+        if digest != meta["sha256"]:
+            raise MediaError("error.media.hash_mismatch", name=meta["name"],
+                             path=str(candidate), expected=meta["sha256"][:12],
+                             actual=digest[:12])
+
+        with self._lock:
+            old = self._handles.pop(media_id, None)
+            if old:
+                old[1].close()
+
+        pr = probe(candidate)
+        job = _Job(candidate, [], pr)
+        row = {"id": media_id, "sha256": meta["sha256"], "name": meta["name"]}
+        info = _pcm_info(candidate, self.rate)
+        if info is not None:
+            self._encode_pcm(candidate, row, job)
+        else:
+            self._encode_any(candidate, row, keep_original=False, job=job)
+
+        self.budget.discard_prefix("chunks", f"{media_id}:")
+        return self.working_file(media_id)
+
     # -- linked files: missing, relink, consolidate -------------------------
 
     def is_linked(self, media_id: str) -> bool:
@@ -882,6 +967,7 @@ class MediaStore:
             if self.is_linked(m):
                 ok = self._linked_ok[m] = self._valid(m)
                 if not ok:
+                    self.budget.discard_prefix("chunks", f"{m}:")
                     lost.append(m)
         return lost
 
@@ -1061,8 +1147,7 @@ class MediaStore:
                                   "name": meta["name"]})
                 with self._lock:
                     self._handles.pop(media_id, None)
-                    for key in [k for k in self._cache if k[0] == media_id]:
-                        del self._cache[key]
+                self.budget.discard_prefix("chunks", f"{media_id}:")
                 done.append(media_id)
         return done
 
@@ -1087,12 +1172,13 @@ class MediaStore:
             return h
 
     def _chunk(self, media_id: str, index: int) -> np.ndarray:
-        key = (media_id, index)
-        with self._lock:
-            hit = self._cache.get(key)
-            if hit is not None:
-                self._cache.move_to_end(key)
-                return hit
+        if self._unreadable(media_id):
+            return np.zeros((self.meta(media_id)["channels"], CHUNK_SEC * self.rate),
+                            dtype=np.float32)
+        key = f"{media_id}:{index}"
+        hit = self.budget.get("chunks", key)
+        if hit is not None:
+            return hit
         handle = self._handle(media_id)
         step = CHUNK_SEC * self.rate
         if handle is None:
@@ -1101,10 +1187,7 @@ class MediaStore:
         with lock:
             f.seek(index * step)
             data = np.ascontiguousarray(f.read(step, dtype="float32", always_2d=True).T)
-        with self._lock:
-            self._cache[key] = data
-            while len(self._cache) > CACHE_CHUNKS:
-                self._cache.popitem(last=False)
+        self.budget.put("chunks", key, data)
         return data
 
     def read(self, media_id: str, first: int, count: int) -> np.ndarray:

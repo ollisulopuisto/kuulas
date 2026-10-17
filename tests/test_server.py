@@ -610,3 +610,32 @@ def test_edit_round_trip_on_the_heavy_hour_is_under_50_ms(tmp_path, engine):
 def test_json_responses_are_plain_json(client):
     r = client.get("/api/state")
     assert json.loads(r.content)["project"]["rate"] == RATE
+
+
+def test_get_music_report_json(client):
+    r = client.get("/api/music-report")
+    assert r.status_code == 200
+    assert "rows" in r.json()
+    assert isinstance(r.json()["rows"], list)
+
+
+def test_get_music_report_csv(client):
+    r = client.get("/api/music-report?format=csv")
+    assert r.status_code == 200
+    assert "text/csv" in r.headers["content-type"]
+    assert r.content.startswith(b"\xef\xbb\xbf")
+    assert "Order;Title;Artist" in r.text
+
+
+def test_get_music_report_html(client):
+    r = client.get("/api/music-report?format=html")
+    assert r.status_code == 200
+    assert "text/html" in r.headers["content-type"]
+    assert "<!DOCTYPE html>" in r.text
+    assert "<table" in r.text
+
+
+def test_get_music_report_bad_format_returns_400(client):
+    r = client.get("/api/music-report?format=unsupported")
+    assert r.status_code == 400
+    assert r.json()["error"]["key"] == "error.music_report.bad_format"

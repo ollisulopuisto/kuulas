@@ -18,8 +18,9 @@ import math
 import os
 import threading
 from collections.abc import Callable
-from dataclasses import replace
+from dataclasses import asdict, replace
 from pathlib import Path
+from typing import Any
 
 from lxml import etree
 from nhsx import NhsxError
@@ -34,6 +35,7 @@ from nhsx.read import time_to_seconds as nhsx_time_to_seconds
 from . import analysis, ops, package, transcribe, transcript
 from . import db as dbm
 from . import export as export_module
+from . import music_report as music_report_module
 from .clock import FLICKS, flicks_to_frames
 from .history import History
 from .jobs import Jobs
@@ -273,6 +275,32 @@ class Session:
         """Return the project's remembered settings for an export kind."""
         return export_module.last_settings(self, kind)
 
+    def music_report(self, *, format: str = "rows",
+                     title: str | None = None) -> tuple[Any, ...] | str | list[dict]:
+        """Royalty music report (WP25): every audible music use in this edit.
+
+        ``format``:
+        - ``"rows"`` (default): tuple of :class:`ReportRow` dataclasses.
+        - ``"json"``: list of row dicts.
+        - ``"csv"``: semicolon-separated UTF-8 string with BOM.
+        - ``"html"``: printable HTML document string.
+        """
+        if format not in ("rows", "json", "csv", "html"):
+            raise music_report_module.MusicReportError("error.music_report.bad_format",
+                                                       format=format)
+        # The state is immutable, so a snapshot is enough: the speech analysis
+        # behind the report can take seconds, and must not block edits.
+        with self.lock:
+            state = self.history.state
+        rows = music_report_module.build_report(state, self.store)
+        if format == "rows":
+            return rows
+        if format == "json":
+            return [asdict(r) for r in rows]
+        if format == "csv":
+            return music_report_module.render_csv(rows)
+        return music_report_module.render_html(rows, title=title)
+
     # -- import ------------------------------------------------------------
 
     def import_media(self, paths: list[str], copy: bool = False,
@@ -357,6 +385,16 @@ class Session:
                                   "track_per_file": track_per_file,
                                   "interview": self.last_import_interview},
                                  material=root), report)
+
+    def rebuild_media(self, media_id: str, path: str | Path | None = None) -> str:
+        """Re-encode a damaged working file from its original file."""
+        # The re-encode of a long file takes a while and the store has its own
+        # locks, so only the quick metadata lookup is done under the session
+        # lock (ground rule 14).
+        target = self.store.rebuild(media_id, path)
+        with self.lock:
+            name = self.store.meta(media_id)["name"]
+        return t("media.rebuilt", name=name, path=str(target))
 
     def import_nhsx(self, path: str | Path) -> Project:
         """Import a Hindenburg session with regions and words on source clocks."""
@@ -601,6 +639,27 @@ class Session:
             self._material_step(t("history.person_edited", name=new.name), root,
                                 "edit_person", {"id": person_id, **fields})
 
+    def delete_person(self, person_id: str) -> None:
+        """Remove a person. One undo step."""
+        with self.lock:
+            old = self._known_person(person_id)
+            root = self.history.material
+            del root["people"][person_id]
+            for mid, pid in list(root.get("media_person", {}).items()):
+                if pid == person_id:
+                    del root["media_person"][mid]
+            for iid, data in list(root.get("interviews", {}).items()):
+                parts = [p for p in data.get("participants", ())
+                         if p.get("person") != person_id]
+                if len(parts) != len(data.get("participants", ())):
+                    root["interviews"][iid]["participants"] = parts
+            for mid, spk_map in list(root.get("speakers", {}).items()):
+                cleaned = {lbl: pid for lbl, pid in spk_map.items() if pid != person_id}
+                if len(cleaned) != len(spk_map):
+                    root["speakers"][mid] = cleaned
+            self._material_step(t("history.person_deleted", name=old["name"]), root,
+                                "delete_person", {"id": person_id})
+
     @staticmethod
     def _check_fields(fields: dict, allowed: tuple[str, ...]) -> None:
         for name in fields:
@@ -647,6 +706,15 @@ class Session:
             root["interviews"][interview_id] = new.to_dict()
             self._material_step(t("history.interview_edited", title=new.title), root,
                                 "edit_interview", {"id": interview_id, **fields})
+
+    def delete_interview(self, interview_id: str) -> None:
+        """Remove an interview. One undo step."""
+        with self.lock:
+            old = self.interview(interview_id)
+            root = self.history.material
+            del root["interviews"][interview_id]
+            self._material_step(t("history.interview_deleted", title=old.title), root,
+                                "delete_interview", {"id": interview_id})
 
     def set_media_person(self, media_id: str, person_id: str | None) -> None:
         """Say whose voice a single-person mic file holds (None clears it)."""
@@ -852,6 +920,11 @@ def _edit_person(s: Session, args: dict) -> Project:
     return s.history.state
 
 
+def _delete_person(s: Session, args: dict) -> Project:
+    s.delete_person(args["id"])
+    return s.history.state
+
+
 def _create_interview(s: Session, args: dict) -> Project:
     s.create_interview(args.get("title", ""),
                        **{k: v for k, v in args.items() if k != "title"})
@@ -860,6 +933,11 @@ def _create_interview(s: Session, args: dict) -> Project:
 
 def _edit_interview(s: Session, args: dict) -> Project:
     s.edit_interview(args["id"], **{k: v for k, v in args.items() if k != "id"})
+    return s.history.state
+
+
+def _delete_interview(s: Session, args: dict) -> Project:
+    s.delete_interview(args["id"])
     return s.history.state
 
 
@@ -877,6 +955,14 @@ def _import_nhsx(s: Session, args: dict) -> Project:
     return s.import_nhsx(args["path"])
 
 
+def _rebuild_media(s: Session, args: dict) -> Project:
+    media_id = args.get("media") or args.get("id")
+    if not media_id:
+        raise ops.EditError("error.edit.no_media", media_id="")
+    s.rebuild_media(media_id, args.get("path"))
+    return s.history.state
+
+
 #: Name -> function(session, args) -> Project. The session lock is held.
 #: ``auto_silence``, ``automix`` and ``cut_words`` commit one step each;
 #: ``relink`` and ``consolidate`` change no state and commit nothing. The people
@@ -889,9 +975,12 @@ COMMANDS: dict[str, Callable[[Session, dict], Project]] = {
     "consolidate": _consolidate,
     "create_person": _create_person,
     "edit_person": _edit_person,
+    "delete_person": _delete_person,
     "create_interview": _create_interview,
     "edit_interview": _edit_interview,
+    "delete_interview": _delete_interview,
     "set_media_person": _set_media_person,
     "map_speakers": _map_speakers,
     "import_nhsx": _import_nhsx,
+    "rebuild_media": _rebuild_media,
 }

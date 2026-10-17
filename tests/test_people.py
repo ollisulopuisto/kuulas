@@ -117,11 +117,77 @@ def test_unknown_keys_on_people_and_interviews_round_trip():
 
 
 def test_commands_table_carries_the_people_commands(session):
-    for name in ("create_person", "edit_person", "create_interview",
-                 "edit_interview", "set_media_person", "map_speakers"):
+    for name in ("create_person", "edit_person", "delete_person",
+                 "create_interview", "edit_interview", "delete_interview",
+                 "set_media_person", "map_speakers"):
         assert name in COMMANDS
     session.command("create_person", {"name": "Anna"})
     assert [p.name for p in session.people()] == ["Anna"]
+
+
+def test_delete_person_is_undoable(session):
+    pid = session.create_person("Ville")
+    assert [p.name for p in session.people()] == ["Ville"]
+    session.delete_person(pid)
+    assert session.people() == []
+    session.undo()
+    assert [p.name for p in session.people()] == ["Ville"]
+    session.redo()
+    assert session.people() == []
+
+
+def test_delete_interview_is_undoable(session):
+    iid = session.create_interview("Chat")
+    assert [iv.title for iv in session.interviews()] == ["Chat"]
+    session.delete_interview(iid)
+    assert session.interviews() == []
+    session.undo()
+    assert [iv.title for iv in session.interviews()] == ["Chat"]
+    session.redo()
+    assert session.interviews() == []
+
+
+def test_delete_person_cleans_up_references_and_undo_restores_them(session, tmp_path):
+    path = str(wav(tmp_path / "voice.wav"))
+    session.import_media([path], copy=False)
+    mid = session.history.state.media[0].id
+
+    pid = session.create_person("Speaker")
+    session.set_media_person(mid, pid)
+    iid = session.create_interview("Ep", participants=[{"person": pid, "role": "host"}])
+
+    assert session.history.material["media_person"][mid] == pid
+    assert session.interview(iid).participants[0]["person"] == pid
+
+    session.delete_person(pid)
+    assert session.people() == []
+    assert mid not in session.history.material["media_person"]
+    assert session.interview(iid).participants == ()
+
+    session.undo()
+    assert [p.name for p in session.people()] == ["Speaker"]
+    assert session.history.material["media_person"][mid] == pid
+    assert session.interview(iid).participants[0]["person"] == pid
+
+
+def test_delete_via_commands_table(session):
+    pid = session.create_person("Test")
+    session.command("delete_person", {"id": pid})
+    assert session.people() == []
+
+    iid = session.create_interview("Interview")
+    session.command("delete_interview", {"id": iid})
+    assert session.interviews() == []
+
+
+def test_deleting_unknown_person_or_interview_raises(session):
+    with pytest.raises(EditError) as err_p:
+        session.delete_person("unknown_p")
+    assert err_p.value.key == "error.people.no_person"
+
+    with pytest.raises(EditError) as err_i:
+        session.delete_interview("unknown_i")
+    assert err_i.value.key == "error.people.no_interview"
 
 
 # -- who speaks -----------------------------------------------------------------

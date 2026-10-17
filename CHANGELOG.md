@@ -1,3 +1,48 @@
+## [v26.10.17.3] - 2026-10-17
+
+- A manual transcription test (`uv run --extra transcribe pytest -q
+  tests/manual/test_transcribe_smoke.py`) checks that local transcription
+  returns words with times in the project's units, using the machine's own
+  speech voice. It is not part of the normal test run.
+- Installing the transcription extra now keeps `av` below version 19, which
+  faster-whisper 1.2.1 does not work with.
+
+## [v26.10.17.2] - 2026-10-17
+
+- Music report: it can now be fetched from the app (`GET /api/music-report`
+  as JSON, CSV or HTML), and building it no longer blocks editing. CSV cells
+  that start with `=`, `+`, `-` or `@` get a leading apostrophe so Excel does
+  not run them as formulas.
+- People and interviews can be deleted, as one undo step. Deleting a person
+  also removes them from interviews, media and speaker maps, and undo brings
+  all of it back.
+- A damaged working file can be rebuilt from its original, checked by content
+  hash. (The playback engine's "damaged" notice is not yet cleared by a
+  rebuild.)
+- Decoded audio for playback now counts against the memory budget with the
+  other caches.
+- The test suite can run where the default Numba cache folder is not writable.
+
+## [v26.10.17.1] - 2026-10-17
+
+- Music report times are whole seconds, and partial seconds round up: a 0.4 s
+  sting is reported as one second. The out time is the in time plus the
+  duration, so the three columns always agree.
+
+## [v26.10.16.15] - 2026-10-16
+
+- Music report: lists every piece of music the programme actually plays, with
+  title, artist, composer, publisher, ISRC, in and out times, duration, and
+  whether it plays under speech ("background") or on its own ("featured").
+  Music that is muted, ducked away or under a muted speaker does not count.
+  Output is a semicolon-separated CSV that Finnish Excel opens correctly, and
+  a printable HTML table, in English or Finnish. Pieces with no title or artist
+  are flagged in the report.
+- Title, artist and the other tags are read from the music files when they are
+  imported.
+- The tests no longer depend on the machine's language or on the order they
+  run in.
+
 ## [v26.10.16.14] - 2026-10-16
 
 - Export: mix the whole edit, a selection, or each track as its own aligned

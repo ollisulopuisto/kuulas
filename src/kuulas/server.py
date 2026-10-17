@@ -35,7 +35,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.websockets import WebSocketDisconnect
 
-from . import export, messages, transcribe
+from . import export, messages, music_report, transcribe
 from .history import HistoryError
 from .media import ImportResult, MediaError
 from .messages import KuulasError, error_body, t
@@ -219,6 +219,10 @@ def create_app(session, engine, *, language: str | None = None,
         }
         return answer(e, 400 if client_error else 500)
 
+    @app.exception_handler(music_report.MusicReportError)
+    async def _music_report_error(_request: Request, e: music_report.MusicReportError):
+        return answer(e, 400)
+
     @app.exception_handler(KuulasError)
     async def _other_error(_request: Request, e: KuulasError):
         log.error(str(e))
@@ -283,6 +287,22 @@ def create_app(session, engine, *, language: str | None = None,
     @app.post("/api/export")
     def post_export(body: Annotated[dict[str, Any], Body()]):
         return state_response({"export": session.export(body)})
+
+    @app.get("/api/music-report")
+    def get_music_report(format: str = "json"):
+        if format not in ("json", "csv", "html"):
+            raise music_report.MusicReportError("error.music_report.bad_format",
+                                                format=format)
+        if format == "csv":
+            content = session.music_report(format="csv")
+            disposition = 'attachment; filename="music-report.csv"'
+            return Response(content=content, media_type="text/csv; charset=utf-8",
+                            headers={"Content-Disposition": disposition})
+        if format == "html":
+            content = session.music_report(format="html")
+            return HTMLResponse(content=content)
+        rows = session.music_report(format="json")
+        return JSONResponse({"rows": rows})
 
     @app.post("/api/restore")
     def post_restore(body: RestoreBody):

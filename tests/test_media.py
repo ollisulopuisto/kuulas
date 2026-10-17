@@ -1,6 +1,7 @@
 import os
 import struct
 import subprocess
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -10,6 +11,7 @@ from pedalboard.io import AudioFile
 from kuulas import media as media_module
 from kuulas.clock import FLICKS
 from kuulas.media import MediaError, MediaStore
+from kuulas.memory import MemoryBudget
 
 
 def write_wav(path, audio, rate):
@@ -26,6 +28,56 @@ def test_import_decodes_to_the_project_rate(tmp_path):
     assert abs(media.frames - 48000) <= 1
     piece = store.read(media.id, 1000, 10)
     np.testing.assert_allclose(piece, 0.5, atol=1e-3)
+
+
+def test_import_reads_ffprobe_music_tags(tmp_path, monkeypatch):
+    src = tmp_path / "music.wav"
+    write_wav(src, np.ones((1, 480), dtype=np.float32), 48000)
+    result = SimpleNamespace(returncode=0,
+        stdout='{"format":{"tags":{"TITLE":"Äitien laulu",'
+        '"ARTIST":"Säveltäjä","ALBUM":"Levy","COMPOSER":"Tekijä",'
+        '"LYRICIST":"Sanoittaja","PUBLISHER":"Kustantaja",'
+        '"ISRC":"FIABC1234567","LABEL":"Merkki",'
+        '"COPYRIGHT":"© 2026","DATE":"2026"}}}', stderr="")
+    calls = []
+
+    def fake_run(args, **kwargs):
+        calls.append((args, kwargs))
+        return result
+
+    monkeypatch.setattr(media_module.subprocess, "run", fake_run)
+    store = MediaStore(tmp_path / "media", rate=48000)
+
+    imported = store.import_file(src)
+
+    assert imported.extra["music_info"] == {
+        "title": "Äitien laulu", "artist": "Säveltäjä", "album": "Levy",
+        "composer": "Tekijä", "lyricist": "Sanoittaja", "publisher": "Kustantaja",
+        "isrc": "FIABC1234567", "label": "Merkki", "copyright": "© 2026",
+        "year": "2026",
+    }
+    assert "format_tags" in calls[0][0]
+    assert calls[0][1]["timeout"] > 0
+
+
+@pytest.mark.parametrize("result", [
+    SimpleNamespace(returncode=0, stdout='{"format":{}}', stderr=""),
+    SimpleNamespace(returncode=0, stdout='{"format":{"tags":[]}}', stderr=""),
+    OSError("ffprobe unavailable"),
+])
+def test_import_survives_missing_or_failed_tag_probe(tmp_path, monkeypatch, result):
+    src = tmp_path / "music.wav"
+    write_wav(src, np.ones((1, 480), dtype=np.float32), 48000)
+    def run(*_args, **_kwargs):
+        if isinstance(result, Exception):
+            raise result
+        return result
+    monkeypatch.setattr(media_module.subprocess, "run", run)
+    store = MediaStore(tmp_path / "media", rate=48000)
+
+    imported = store.import_file(src)
+
+    assert imported.extra.get("music_info", {}) == {}
 
 
 def test_reads_past_the_end_are_zero_padded(tmp_path):
@@ -369,3 +421,103 @@ def test_a_linked_file_that_vanishes_after_open_plays_silence_after_a_check(tmp_
     assert store.missing() == [media.id]  # the background check
     fresh = MediaStore(tmp_path / "media", rate=48000)
     assert not fresh.read(media.id, 0, 10).any()
+
+
+def test_decoded_chunks_are_stored_in_memory_budget(tmp_path):
+    src = tmp_path / "in.wav"
+    write_wav(src, np.full((1, 48000 * 20), 0.25, dtype=np.float32), 48000)
+    budget = MemoryBudget(limit_bytes=10 * 1024 * 1024)
+    store = MediaStore(tmp_path / "media", rate=48000, budget=budget)
+    media = store.import_file(src)
+
+    assert budget.get("chunks", f"{media.id}:0") is None
+    store.read(media.id, 0, 100)
+    chunk0 = budget.get("chunks", f"{media.id}:0")
+    assert chunk0 is not None
+    assert budget.used >= chunk0.nbytes
+
+
+def test_decoded_chunks_respect_budget_limit(tmp_path):
+    src = tmp_path / "in.wav"
+    write_wav(src, np.full((1, 48000 * 30), 0.25, dtype=np.float32), 48000)
+    # 1 chunk is 10 s * 48000 = 480000 samples * 4 bytes = 1,920,000 bytes.
+    # Set budget limit to roughly 2 chunks so 3rd chunk causes eviction.
+    budget = MemoryBudget(limit_bytes=4_000_000)
+    store = MediaStore(tmp_path / "media", rate=48000, budget=budget)
+    media = store.import_file(src)
+
+    # Read from chunk 0 (0s), chunk 1 (10s = 480000 frames), chunk 2 (20s = 960000 frames)
+    store.read(media.id, 0, 100)
+    store.read(media.id, 480_000, 100)
+    assert budget.get("chunks", f"{media.id}:0") is not None
+    assert budget.get("chunks", f"{media.id}:1") is not None
+
+    store.read(media.id, 960_000, 100)
+    assert budget.get("chunks", f"{media.id}:2") is not None
+    # Chunk 0 should have been evicted to respect the budget limit
+    assert budget.get("chunks", f"{media.id}:0") is None
+    assert budget.used <= budget.limit
+
+
+def test_rebuild_damaged_media_from_originals_folder(tmp_path):
+    src = tmp_path / "sound.wav"
+    write_wav(src, np.full((1, 44100), 0.3, dtype=np.float32), 44100)
+    store = MediaStore(tmp_path / "media", rate=48000)
+    media = store.import_file(src, copy=True)
+    working = store.working_file(media.id)
+    assert working.is_file()
+    assert (store.folder / "originals").is_dir()
+
+    # Unlink original source so it can ONLY be found in originals/
+    src.unlink()
+
+    # Damage the working file by overwriting it with empty/junk bytes
+    working.write_bytes(b"corrupted")
+
+    # Rebuild from originals folder
+    rebuilt = store.rebuild(media.id)
+    assert rebuilt == working
+    read_audio = store.read(media.id, 0, 10)
+    assert np.isclose(read_audio[0, 0], 0.3, atol=1e-3)
+
+
+def test_rebuild_damaged_media_from_explicit_path(tmp_path):
+    src = tmp_path / "original.wav"
+    write_wav(src, np.full((1, 48000), 0.4, dtype=np.float32), 48000)
+    store = MediaStore(tmp_path / "media", rate=48000)
+    media = store.import_file(src, copy=False)
+    working = store.working_file(media.id)
+
+    # Damage working file
+    working.write_bytes(b"corrupted")
+
+    # Rebuild by pointing explicitly to the original file
+    rebuilt = store.rebuild(media.id, src)
+    assert rebuilt == working
+    read_audio = store.read(media.id, 0, 10)
+    assert np.isclose(read_audio[0, 0], 0.4, atol=1e-3)
+
+
+def test_rebuild_refuses_file_with_wrong_hash(tmp_path):
+    src = tmp_path / "good.wav"
+    wrong = tmp_path / "wrong.wav"
+    write_wav(src, np.full((1, 48000), 0.5, dtype=np.float32), 48000)
+    write_wav(wrong, np.full((1, 48000), -0.5, dtype=np.float32), 48000)
+    store = MediaStore(tmp_path / "media", rate=48000)
+    media = store.import_file(src, copy=True)
+
+    with pytest.raises(MediaError) as exc_info:
+        store.rebuild(media.id, wrong)
+    assert exc_info.value.key == "error.media.hash_mismatch"
+
+
+def test_rebuild_fails_when_no_original_found(tmp_path):
+    src = tmp_path / "source.wav"
+    write_wav(src, np.full((1, 48000), 0.5, dtype=np.float32), 48000)
+    store = MediaStore(tmp_path / "media", rate=48000)
+    media = store.import_file(src, copy=False)
+    src.unlink()  # remove linked file, and no originals/ exists
+
+    with pytest.raises(MediaError) as exc_info:
+        store.rebuild(media.id)
+    assert exc_info.value.key == "error.media.no_original"

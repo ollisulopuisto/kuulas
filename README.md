@@ -27,6 +27,14 @@ by hand, volume down (plays one second of a quiet tone):
 uv run pytest -q tests/hardware -s
 ```
 
+The transcription smoke test needs faster-whisper, installed with the
+`transcribe` extra:
+
+```
+uv sync --extra transcribe
+uv run pytest -q tests/manual/test_transcribe_smoke.py -s
+```
+
 ## Projects
 
 A project is a `Name.kuulas` folder (format: `docs/FORMAT.md`). To see what

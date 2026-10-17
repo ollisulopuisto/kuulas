@@ -5,3 +5,4 @@ __pycache__/
 *.kuulas/
 node_modules/
 .claude/
+.agents/

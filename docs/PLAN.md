@@ -490,7 +490,7 @@ original" action (status lists `damaged`; the rebuild belongs to the media
 store, WP34/WP36), freezing a real-time layer when late (WP23a), prefetch
 priority over background jobs (no job runner yet; WP9). `scrub` is a seek
 while playing and a 60 ms burst when stopped, until WP26.
-Hardware test `tests/hardware/test_play.py` not yet run on Mac or Windows.
+Hardware test `tests/hardware/test_play.py` not yet run on Mac or Windows. Rebuilding a damaged file is a Session command since v26.10.17.2, but clearing the engine's damaged mark afterwards is open: it needs an `Engine.clear_damaged(media_id)` (a decision about the engine's narrow surface) and a call from the server. Finding on the default-output switch (agy, 2026-10-17): PortAudio and sounddevice have no device-change notification and cache the default device at initialisation, so a switch is only seen after the stream is closed and PortAudio re-initialised. Lowering `IDLE_CLOSE_S` from 30 s to about 5 s would pick up a switch at the next play after idle, at the cost of a slightly slower first play after idle; instant detection needs native listeners (CoreAudio, Windows Core Audio, PulseAudio) and belongs with the desktop wrapper (WP15). No code change yet.
 
 New file `src/kuulas/engine.py`.
 
@@ -1635,7 +1635,7 @@ Shift+Tab goes backwards in every mode. Transients are where cuts land
 cleanly before a consonant or a breath.
 
 Transient detection (`src/kuulas/onsets.py`), per media, computed once at
-import (a job) and cached as `media/<id>.onsets.npy` (source frames):
+import (a job) and cached as `caches/onsets/<key>.npy`, int64 flicks from the media's start (docs/FORMAT.md; the earlier "source frames" wording is superseded):
 
 - 1 ms envelope bins (abs max per bin, as `speechmix.chain.lag_samples`
   builds its envelope; reuse that construction, do not invent another).
@@ -2010,7 +2010,12 @@ apart to within 0.3 LU; toggling writes nothing to history.
 
 ### WP25 — Music report (royalty reporting)
 
-Status: open. Needs WP1, WP11, WP22 (music tags), WP21 (per edit), WP37
+Status: partly done (v26.10.16.15, v26.10.17.1, v26.10.17.2): report builder,
+CSV (UTF-8 with byte-order mark, semicolons, formula guard) and HTML, tags
+read at import, speech activity from the speech lanes, English and Finnish,
+times in whole seconds rounded up, `Session.music_report` and
+`GET /api/music-report`. **Open:** editing the tags (inspector), "all edits"
+and "export alongside the audio", and the UI warning before export. Needs WP1, WP11, WP22 (music tags), WP21 (per edit), WP37
 (the usage extractor: the report is its music-role view of an export).
 
 Hindenburg's Music Report, done properly: for each edit, a list of every
@@ -2470,7 +2475,7 @@ dialog shown twice in a row with identical answers fails a UI test.
 ### WP36 — Caches per recording
 
 Status: done in v26.10.16.10, except the scrub mix cache (needs WP26, WP31)
-and moving MediaStore's decoded-chunk cache under the budget (small follow-up).
+(the decoded-chunk cache moved under the budget in v26.10.17.2).
 Envelope composition is exact on a 60-frame grid; after a cut at another
 frame one hop can be off at a hard edge (95th-percentile error under 0.5 dB,
 silence edges within one 20 ms hop). A vanished linked file is noticed at the
@@ -2622,7 +2627,7 @@ step forever, and make history length irrelevant to speed:
 
 ### WP41 — People, interviews, who speaks (data model)
 
-Status: done in v26.10.16.13. Usage marks on passages wait for WP37/WP38. Needs WP30. Sonnet 5.5. **Before WP7 and WP9**, so transcripts
+Status: done in v26.10.16.13. Usage marks on passages wait for WP37/WP38. Delete commands for people and interviews: v26.10.17.2. Needs WP30. Sonnet 5.5. **Before WP7 and WP9**, so transcripts
 are linked to people from the first one (owner, 2026-10-16).
 
 Build docs/FORMAT.md "People, interviews and bits" for people, interviews,

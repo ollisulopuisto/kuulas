@@ -2,6 +2,7 @@
 
 import errno
 import json
+import os
 import shutil
 import struct
 import subprocess
@@ -246,6 +247,16 @@ def test_mp3_tags_say_where_it_came_from(session, out):
     assert "v1" in tags["comment"]
     assert session.history.head in tags["comment"]
     assert 90_000 < int(info["format"]["bit_rate"]) < 100_000
+
+
+def test_numba_cache_dir_is_set_and_writable():
+    cache_path = os.environ.get("NUMBA_CACHE_DIR")
+    assert cache_path is not None, "NUMBA_CACHE_DIR is not set"
+    cache = Path(cache_path)
+    assert cache.is_dir()
+    probe = cache / ".probe_write"
+    probe.write_text("ok")
+    probe.unlink()
 
 
 def test_mastering_reaches_the_target(session, out):

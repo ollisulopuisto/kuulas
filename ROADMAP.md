@@ -61,7 +61,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R29 | **MUST.** Undo you can trust: Mod+Z stays on the current branch, history restores add a step instead of rewinding, undo brings back selection and view and shows what changed | planned: WP8 |
 | R30 | **Needed.** Track tags (speech / speech-mix / music) are all speechmix needs; ducking of mics and music beds from speechmix + nhsx.musicbed; FX layers: real-time, analyse-then-live, or rendered | planned: WP22, WP23 |
 | R31 | **Needed.** Solo overrides mute and is exclusive by default (mute all, solo one at a time); A/B tracks, edits, takes and layer settings with one key, level-matched by default | planned: WP24 |
-| R32 | Music report per edit: every piece of music actually heard, with metadata, programme times, duration and background/featured, as CSV and printable table | planned: WP25 |
+| R32 | Music report per edit: every piece of music actually heard, with metadata, programme times, duration and background/featured, as CSV and printable table | report, CSV and HTML done, times round up to whole seconds (v26.10.17.1); tag editing, all-edits report and export alongside the audio open |
 | R33 | **MUST.** Sped-up listening (toggle normal/fast, pitch kept) and JKL shuttle with slow and fast scrubbing | planned: WP26 |
 | R34 | Project settings changeable later, undoably: sample rate (e.g. 44.1 → 48 kHz, every position converted), mono or stereo master, loudness target, export defaults | planned: WP27 |
 | R35 | Own project format `Name.kuulas` (package folder): shared material (media, sync, transcripts) apart from per-edit state; recording facts in flicks so they survive rate changes; versioned with forward compatibility; crash-safe, locked against two writers, automatic backups; lossless Hindenburg round trip | done: WP29 in v26.10.16.5 (package, manifest, lock, v1 schema, material apart from edits, UUIDv7 steps, checkpoints, backups, v0 migration, `kuulas info`), WP30 in v26.10.16.6 (recording facts in flicks, sync groups per media in material); Hindenburg import done (WP13, v26.10.16.14); export back to Hindenburg still open |
@@ -123,6 +123,34 @@ sizes: `docs/PLAN.md`, section "Triage".
 - Video files with several audio streams: choose the stream (today: first).
 - Desktop wrapper (pywebview or Tauri) so it is an app, not a browser tab.
 
+## Milestones
+
+Grouped from the build order in `docs/PLAN.md` (Triage). ✓ done, ◐ partly done, ! started but unowned, otherwise open.
+
+**M1 · First playable build** (12 of 16 done): Run kuulas, import, listen, edit by keyboard, undo, export WAV or MP3.
+
+✓ WP0, ✓ WP24.1, ✓ WP33a, ✓ WP29, ✓ WP30, ✓ WP1, ✓ WP34, ✓ WP36, ✓ WP2, ✓ WP3, ✓ WP33b, ! WP4, WP5, WP19a, WP35, ✓ WP11.
+
+**M2 · A usable editor** (2 of 9 done): Transcript, mouse editing, history panel, fast listening, FX layers.
+
+✓ WP41, WP8, WP22, WP26, WP19i, WP6, ✓ WP9, WP7, WP23a.
+
+**M3 · The editing loop** (2 of 18 done): What makes it better than Hindenburg: cut candidates, versions, review, paste, roles, takes.
+
+WP28, WP43, WP18, WP19f, WP24.2, WP21, WP40, WP31, WP32, WP20, ✓ WP39, ✓ WP37, WP19c, WP19d, WP19b, WP19h, WP19g, WP19e.
+
+**M4 · Pipeline depth** (2 of 5 done): Voice chain, music report, Hindenburg import, rendered FX.
+
+✓ WP14, WP10, ◐ WP25, ✓ WP13, WP23b.
+
+**M5 · Recording and alignment** (0 of 3 done): Foolproof recording, clip bin, align by sound.
+
+WP12, WP17, WP16.
+
+**M6 · Late** (0 of 4 done): Settings and rate change, series features, desktop app.
+
+WP27, WP38, WP42, WP15.
+
 ## Done in this release (v26.10.16.1)
 
 - WP0: baseline, lint clean, Biome config, README, CHANGELOG, CLAUDE.md. 87 tests pass.
@@ -173,6 +201,10 @@ sizes: `docs/PLAN.md`, section "Triage".
   real-model transcription run, two-machine portability trial, `POST
   /api/export` and jobs from a real browser.
 - WP2: playback engine with fault handling and golden renders (needs the owner's listening test on the Mac: `uv run pytest -q tests/hardware -s`).
+- WP25: music report builder, CSV and HTML, tags read at import, English and Finnish; test setup made order-independent. 497 tests.
+- Music report: durations round up to whole seconds (owner's decision, 2026-10-17). 499 tests.
+- Music report endpoint and formula guard; delete people and interviews; rebuild damaged media; decoded audio under the memory budget; test environment fallback. 521 tests (v26.10.17.2).
+- Manual transcription smoke test; `av<19` pin for the transcription extra; default-output-switch findings recorded in WP2. 521 tests (v26.10.17.3).
 
 ## Later (v2)
 
