@@ -2,7 +2,7 @@
 id: timeline
 title: The timeline
 applies-to: [timeline]
-commands: [transport.play, view.toggle, view.fit, view.zoom_in, view.zoom_out, view.back, panel.next, nav.home]
+commands: [transport.play, view.toggle, view.fit, view.zoom_in, view.zoom_out, view.back, panel.next, nav.home, help.open, help.keys]
 related: [clip, track, bus]
 ---
 Every track is a lane, and time runs left to right. A click anywhere in the lanes moves the play cursor there. A click on a clip also selects it; Shift+click adds or removes a clip.
@@ -20,5 +20,8 @@ Density, waveform and follow settings are in the View menu. {show:view-menu}
 
 ## Panels
 {key:panel.next} moves the keyboard to the next panel; {key:nav.home} brings it back here.
+
+## Help
+{key:help.open} opens help for what you are looking at; {key:help.keys} lists every key.
 
 See also [[clip]] and [[track]].

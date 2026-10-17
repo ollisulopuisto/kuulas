@@ -207,9 +207,7 @@ export function createMenubar({ root, getMenus, run, onHint, t }) {
       } else close(true);
     } else if (key === "Tab") {
       close(false);
-    } else if (key === "F1") {
-      // The keymap opens help, with this item in focus. Then the menu steps aside.
-      setTimeout(() => close(false), 0);
+
     }
   });
 
@@ -247,6 +245,11 @@ export function createMenubar({ root, getMenus, run, onHint, t }) {
   root.addEventListener("focusin", (event) =>
     reportHint(event.target.closest?.("button[data-pos]")),
   );
+  // Focus moved elsewhere (help opened from an item, say): the menu steps aside.
+  root.addEventListener("focusout", (event) => {
+    const to = event.relatedTarget;
+    if (at.open && to && !root.contains(to)) close(false);
+  });
   document.addEventListener("pointerdown", (event) => {
     if (at.open && !root.contains(event.target)) close(false);
   });

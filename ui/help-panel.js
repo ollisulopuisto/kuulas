@@ -194,6 +194,8 @@ export function createHelpPanel({
 
   async function open() {
     const inside = root.contains(doc.activeElement);
+    // Read before anything awaits or moves focus (a menu closes when help takes it).
+    const context = getContext();
     if (!inside) returnFocus = doc.activeElement;
     root.hidden = false;
     root.closest(".sidebar")?.toggleAttribute("data-help-open", true);
@@ -205,7 +207,6 @@ export function createHelpPanel({
       return;
     }
     trail = [];
-    const context = getContext();
     // On a menu item: its command's topic, else the index (not the panel behind the menu).
     if (context.command) {
       const own = topicForCommand(context.command, topics);

@@ -213,9 +213,9 @@ describe("shortcuts come from the keymap data, so remaps show", () => {
 
   test("topicForCommand: the first topic that lists the command, else null", () => {
     assert.equal(topicForCommand("edit.split", TOPICS.en)?.id, "clip");
-    assert.equal(topicForCommand("track.rename", TOPICS.en)?.id, undefined);
+    assert.equal(topicForCommand("help.open", TOPICS.en)?.id, "timeline");
     assert.equal(topicForCommand("rename", TOPICS.en)?.id, "track");
-    assert.equal(topicForCommand("help.keys", TOPICS.en), null);
+    assert.equal(topicForCommand("keymap.reset", TOPICS.en), null);
     assert.equal(topicForCommand(null, TOPICS.en), null);
   });
 });
