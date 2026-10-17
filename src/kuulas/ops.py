@@ -73,12 +73,19 @@ def add_media(p: Project, media: Media) -> Project:
     return replace(p, media=(*p.media, media))
 
 
+TRACK_KINDS = {"speech", "speech-mix", "music"}
+
+
 def add_track(p: Project, track_id: str | None = None, name: str = "Track",
-              kind: str = "speech") -> Project:
+              kind: str = "speech", speaker: str = "") -> Project:
+    if kind not in TRACK_KINDS:
+        raise EditError("error.edit.bad_track_kind", kind=kind)
     track_id = track_id or new_id("t")
     if any(t.id == track_id for t in p.tracks):
         raise EditError("error.edit.track_exists", track_id=track_id)
-    return replace(p, tracks=(*p.tracks, Track(id=track_id, name=name, kind=kind)))
+    return replace(p, tracks=(*p.tracks, Track(
+        id=track_id, name=name, kind=kind, speaker=speaker,
+    )))
 
 
 def delete_track(p: Project, track_id: str) -> Project:
@@ -86,13 +93,15 @@ def delete_track(p: Project, track_id: str) -> Project:
     return replace(p, tracks=tuple(t for t in p.tracks if t.id != track_id))
 
 
-TRACK_FIELDS = {"name", "kind", "bus", "gain_db", "pan", "mute", "solo"}
+TRACK_FIELDS = {"name", "kind", "speaker", "bus", "gain_db", "pan", "mute", "solo"}
 
 
 def set_track(p: Project, track_id: str, **fields) -> Project:
     unknown = set(fields) - TRACK_FIELDS
     if unknown:
         raise EditError("error.edit.track_no_fields", fields=", ".join(sorted(unknown)))
+    if "kind" in fields and fields["kind"] not in TRACK_KINDS:
+        raise EditError("error.edit.bad_track_kind", kind=fields["kind"])
     if fields.get("bus") is not None and not any(b.id == fields["bus"] for b in p.buses):
         raise EditError("error.edit.no_bus", bus_id=fields["bus"])
     if "pan" in fields:

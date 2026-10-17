@@ -57,10 +57,12 @@ def _stamp(seconds: int) -> str:
 def _speech_activity(project: Project, store: Store) -> tuple[tuple[int, int], ...]:
     """Timeline ranges where an audible speech lane has detected activity."""
     hop = analysis.hop_frames(project.rate)
-    muted_tracks = {track.id for track in project.tracks if track.mute}
+    muted_speakers = {
+        track.speaker or track.name for track in project.tracks if track.mute
+    }
     ranges: list[tuple[int, int]] = []
     for lane in analysis.speech_lanes(project, store).speakers:
-        if lane.name in muted_tracks:
+        if lane.name in muted_speakers:
             continue
         on = np.asarray(lane.on, dtype=bool)
         starts = np.flatnonzero(on & np.r_[True, ~on[:-1]])
