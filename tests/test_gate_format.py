@@ -123,8 +123,14 @@ def test_packing_a_state_with_a_one_hour_gate_is_under_50_ms():
         p = ops.set_gate(p, f"t{i}", [(k * step, k * step + step // 2)
                                       for k in range(1_200)])
     assert all(len(t.gate) == 1_200 for t in p.tracks)
-    best = min(_time(lambda: edit_blob(p)) for _ in range(5))
-    assert best < 0.050, best
+    # Warm-up run
+    _time(lambda: edit_blob(p))
+    times = [_time(lambda: edit_blob(p)) for _ in range(7)]
+    best = min(times)
+    timings = ", ".join(f"{t * 1000:.1f} ms" for t in times)
+    assert best < 0.050, (
+        f"best was {best * 1000:.1f} ms (budget < 50 ms); runs: [{timings}]"
+    )
 
 
 def _time(fn):
