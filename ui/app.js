@@ -7,10 +7,13 @@ import { nextPanel } from "./focus.js";
 import { followScroll } from "./follow.js";
 import { frameToTime, RATE, xToFrame } from "./format.js";
 import { GATE_OPEN_COMMAND, openStretchEdit, stretchAt } from "./gate.js";
+import { HELP_COMMAND, shortcutsFor } from "./help.js";
+import { createHelpPanel } from "./help-panel.js";
 import { formatNumber, formatShortcut, initI18n, onLanguageChange, t } from "./i18n.js";
 import { dragHasFiles, nativeBridge, summariseImport } from "./importing.js";
 import { createInspector } from "./inspector.js";
-import { isTextField } from "./keys.js";
+import { formatCombo } from "./keymap-config.js";
+import { detectPlatform, isTextField } from "./keys.js";
 import { clampLaneHeight, pointerIntent, projectEnd } from "./lanes.js";
 import { connectLive } from "./live.js";
 import { motionMode } from "./motion.js";
@@ -296,14 +299,24 @@ document.addEventListener("focusin", (event) => {
 });
 
 // The whole keyboard layer: keymap, palette, cheat sheet, menu bar, hints (shell-keys.js).
-setupKeyboard({
+const keyboard = setupKeyboard({
   actions,
   t,
   notify: showNotice,
   onLanguageChange,
+  // The Help button shows the key help has now, F1 or the user's own.
+  onRefresh(entries) {
+    const button = $("help-button");
+    const platform = detectPlatform();
+    const keys = shortcutsFor(HELP_COMMAND, entries);
+    const aria = (combo) => combo.replace(/\bMod\b/, platform === "mac" ? "Meta" : "Control");
+    button.setAttribute("aria-keyshortcuts", keys.map(aria).join(" "));
+    button.title = keys.map((combo) => formatCombo(combo, platform)).join(" ");
+  },
   app: {
     getState,
     patch: setState,
+    openHelp: () => void help.open(),
     undo: () => $("undo").click(),
     redo: () => $("redo").click(),
     edit: (change) => editor.change(change),
@@ -574,6 +587,39 @@ const trackHeaders = createTrackHeaders({
 });
 const inspector = createInspector({ root: $("panel-inspector"), editor });
 
+// -- help ---------------------------------------------------------------------------------------------
+
+// Help reads the command registry and the keymap the user has (entries(): the
+// defaults with their overrides), the same data the cheat sheet and menus read.
+const help = createHelpPanel({
+  root: $("panel-help"),
+  keymap: () => keyboard.entries(),
+  format: (combo) => keyboard.format(combo),
+  commands: () => keyboard.registry.ids().filter((id) => keyboard.registry.status(id) === "ready"),
+  runCommand: (id) => keyboard.registry.run(id, null, getState()),
+  getContext() {
+    const state = getState();
+    const active = document.activeElement;
+    return {
+      control: active?.closest?.("[data-help-id]")?.dataset.helpId ?? null,
+      empty: !state.project?.tracks?.length,
+      panel: state.panel,
+      inHeaders: Boolean(active && $("track-headers").contains(active)),
+      selection: state.selection.size,
+      focusTrack: state.focusTrack,
+      focusBus: state.focusBus,
+      // F1 on a menu item: the command it runs.
+      command: active?.closest?.("#menubar [data-command]")?.dataset.command ?? null,
+    };
+  },
+  async fetchText(path) {
+    const response = await fetch(path);
+    if (!response.ok) throw new Error(`${path}: ${response.status}`);
+    return response.text();
+  },
+});
+$("help-button").addEventListener("click", () => void help.open());
+
 const timeline = createTimeline({
   stack: $("timeline-stack"),
   waveCanvas: $("wave"),
@@ -688,6 +734,7 @@ function render(state, patch) {
   if (touched("project", "focusTrack", "focusBus", "laneHeight", "busHeight", "groupGap"))
     trackHeaders.update(state);
   if (touched("project", "selection", "focusTrack", "focusBus")) inspector.update(state);
+  if (touched("selection", "focusTrack", "focusBus", "panel")) help.update();
   if (touched("project")) {
     const empty = $("empty");
     const hasClips = state.project?.tracks.some((track) => track.clips.length > 0);

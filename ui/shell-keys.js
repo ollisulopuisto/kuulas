@@ -27,14 +27,19 @@ import { createModifierTracker } from "./modifiers.js";
 import { createPalette, paletteRows } from "./palette.js";
 import { subscribe } from "./store.js";
 
-const CONTEXT_OF_PANEL = {
+// Which keymap context a keyboard panel gives (keymap-default.js). The help panel
+// is docked in the sidebar, so it takes the side panels' keys: the timeline's
+// letters and arrows do not fire while the keyboard is in help.
+export const CONTEXT_OF_PANEL = {
   timeline: "timeline",
   transcript: "transcript",
   inspector: "side",
   history: "side",
+  help: "side",
 };
 
-export function setupKeyboard({ actions, app, t, notify, onLanguageChange }) {
+/** `onRefresh(entries)` is called whenever the keys or the language change (the Help button shows F1 from it). */
+export function setupKeyboard({ actions, app, t, notify, onLanguageChange, onRefresh }) {
   const platform = detectPlatform();
   const storage = safeStorage();
   const registry = createRegistry();
@@ -219,6 +224,7 @@ export function setupKeyboard({ actions, app, t, notify, onLanguageChange }) {
     menubar?.refresh();
     palette.refresh();
     cheat.refresh();
+    onRefresh?.(entries);
   }
 
   // -- events ------------------------------------------------------------------------
@@ -263,5 +269,15 @@ export function setupKeyboard({ actions, app, t, notify, onLanguageChange }) {
       "error",
     );
   }
-  return { registry, keymap, palette, cheat, refresh: refreshAll };
+  return {
+    registry,
+    keymap,
+    palette,
+    cheat,
+    refresh: refreshAll,
+    /** The keymap the user has right now (defaults with overrides): what help reads. */
+    entries: () => entries,
+    /** A combo as the user reads it: "⇧⌘Z" or "Ctrl+Shift+Z", the same as the cheat sheet. */
+    format: (combo) => format(combo, platform),
+  };
 }

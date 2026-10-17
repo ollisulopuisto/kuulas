@@ -16,31 +16,14 @@ export function seekOffsets(rate) {
 }
 
 const hasProject = (state) => Boolean(state?.project);
-// Only these have a one-line description in the catalogs (cmd.<id>.hint).
-const HINTED = new Set([
-  "edit.undo",
-  "edit.redo",
-  "transport.play",
-  "view.toggle",
-  "view.fit",
-  "app.import",
-  "help.keys",
-  "palette.open",
-  "keymap.import",
-  "keymap.export",
-  "keymap.reset",
-  "mark.in",
-  "mark.out",
-  "nav.start",
-  "nav.end",
-  "gate.open_stretch",
-]);
-const hint = (id) => (HINTED.has(id) ? { hintKey: `cmd.${id}.hint` } : {});
+// Every command has a one-line description, cmd.<id>.hint in the catalogs (help.test.js
+// fails for a ready command without one).
+const hint = (id) => ({ hintKey: `cmd.${id}.hint` });
 
 /**
  * `actions` is app.js's action table; `app` the few things the keymap needs from it:
  * undo, redo, chooseMedia, focusName, seek(frame), totalFrames(), patch(statePatch),
- * getState(), openPalette(), openKeys(), importKeys(), exportKeys(), resetKeys().
+ * getState(), openPalette(), openKeys(), openHelp(), importKeys(), exportKeys(), resetKeys().
  */
 export function registerAppCommands(registry, { actions, app }) {
   const def = (id, run, can = null) => registry.register(id, run, { can, ...hint(id) });
@@ -97,6 +80,7 @@ export function registerAppCommands(registry, { actions, app }) {
   def("mark.out", () => app.patch({ outPoint: app.getState().playhead }), hasProject);
   def("palette.open", () => app.openPalette());
   def("help.keys", () => app.openKeys());
+  def("help.open", () => app.openHelp());
   def("keymap.import", () => app.importKeys());
   def("keymap.export", () => app.exportKeys());
   def("keymap.reset", () => app.resetKeys());

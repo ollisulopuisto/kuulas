@@ -1014,6 +1014,128 @@ input[type="text"] {
   display: none;
 }
 
+/* -- help (WP48; GUI-DESIGN.md "Contextual help") -------------------------------------------- */
+/* Docked over the sidebar's other panels while open: not a modal, the timeline stays live. */
+.sidebar[data-help-open] > .panel:not(.help-panel) {
+  display: none;
+}
+.help-panel[hidden] {
+  display: none;
+}
+.help-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--row-gap);
+  overflow-y: auto;
+  font-size: var(--text-md);
+  line-height: var(--leading-read, 1.6);
+}
+.help-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: calc(var(--control-h) + var(--space-4));
+  margin: 0 calc(-1 * var(--pad-panel));
+  padding: 0 var(--pad-panel);
+  background: var(--surface-panel);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.help-panel .help-head h2 {
+  position: static;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: var(--text-lg);
+}
+.help-head .spacer {
+  flex: 1;
+}
+.help-body {
+  max-width: var(--reading-max, 62ch);
+}
+.help-body h3 {
+  margin: var(--space-4) 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  color: var(--text-secondary);
+}
+.help-body p,
+.help-body ul {
+  margin: 0 0 var(--space-3);
+}
+.help-body ul {
+  padding-left: var(--space-5);
+}
+.help-body kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0 var(--space-1);
+  font: var(--weight-strong) var(--text-xs) / 1.6 var(--font-ui);
+  text-align: center;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-panel);
+}
+.help-nokey {
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+.help-link {
+  color: var(--accent);
+  font-weight: var(--weight-strong);
+}
+.help-results {
+  list-style: none;
+  padding: 0;
+}
+.help-results li {
+  padding: var(--space-1) 0;
+}
+.help-command {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: var(--space-1) var(--space-3);
+  align-items: center;
+}
+.help-command .hint {
+  grid-column: 1 / -1;
+}
+.help-follow {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin-top: auto;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}
+/* "Show me": a ring around the control, pulsing twice; a still ring when motion is off. */
+.help-highlight {
+  outline: 3px solid var(--accent);
+  /* Inside the control's box: scroll containers (track headers) would clip an outer ring. */
+  outline-offset: -3px;
+  border-radius: var(--radius-xs);
+  animation: help-pulse 600ms ease-in-out 2;
+}
+@keyframes help-pulse {
+  50% {
+    outline-offset: 1px;
+  }
+}
+:root[data-motion="off"] .help-highlight {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .help-highlight {
+    animation: none;
+  }
+}
+
 /* -- keyboard layer: menu bar, command palette, keyboard sheet ---------------------
    FIRST CUT for the designer to review: behaviour is settled, the look is not.
    Nothing here animates, so reduced motion needs no special case. */
