@@ -9,7 +9,8 @@ from __future__ import annotations
 import uuid
 from dataclasses import replace
 
-from . import curves, gate as gatem
+from . import curves
+from . import gate as gatem
 from .clock import flicks_to_frames, frames_to_flicks
 from .messages import KuulasError
 from .model import Bus, Clip, Media, Point, Project, SyncGroup, Track

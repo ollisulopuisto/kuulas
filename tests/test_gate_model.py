@@ -16,8 +16,7 @@ def base():
     p = ops.add_media(p, Media(id="m", name="a.wav", channels=1, frames=60 * RATE))
     p = ops.add_track(p, track_id="t", name="Anna")
     p = ops.add_track(p, track_id="u", name="Ville")
-    p = ops.add_clip(p, track_id="t", media_id="m", clip_id="c")
-    return p
+    return ops.add_clip(p, track_id="t", media_id="m", clip_id="c")
 
 
 def test_a_track_has_no_gate_by_default():
@@ -70,7 +69,8 @@ def test_unknown_track_is_the_usual_translated_error():
 def test_gate_ops_are_in_the_edit_vocabulary():
     p = ops.apply(base(), "set_gate", {"track_id": "t", "ranges": [[1, 5]]})
     assert p.track("t").gate == ((1, 5),)
-    assert "add_gate_range" in ops.OPS and "remove_gate_range" in ops.OPS
+    assert "add_gate_range" in ops.OPS
+    assert "remove_gate_range" in ops.OPS
 
 
 def test_undo_restores_the_previous_gate(tmp_path):
