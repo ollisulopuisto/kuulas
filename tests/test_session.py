@@ -434,7 +434,7 @@ def test_the_command_table_is_the_plans(session):
         "consolidate", "create_person", "edit_person",
         "delete_person", "create_interview",
         "edit_interview", "delete_interview",
-        "set_media_person", "map_speakers", "import_nhsx",
+        "set_media_person", "set_music_info", "map_speakers", "import_nhsx",
         "rebuild_media",
     }
 
