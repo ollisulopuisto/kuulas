@@ -226,6 +226,18 @@ WP27, WP38, WP42, WP15.
   clipboard and ripples); an extensive clipboard with history is wanted (WP46); the
   desktop wrapper is part of the first version (WP15 moved up to M1); WP44 raises
   `min_reader`; a bus with one track merges into the track header.
+- **Owner decisions, 2026-10-18 (second round):** accepted as the designer
+  recommended: Spot on Mod+J, Mod+F finds in the transcript, fade stays on G, Import
+  on Mod+I now and Mod+T in the wrapper; `[` `]` by physical key on the Finnish
+  keyboard; bus S solos the set and assigning a bus moves the track in the model;
+  speech waveform dB-shaped and music linear; role strip off on the timeline; focus
+  mode by speaker and by bus; Compare with up to four variants; the small pinch task
+  (Safari and wrapper); panel arrangement as a later work package (WP47); skip
+  DeepSeek. **Parked until mockups exist (owner: too complex to answer now):** the
+  soft-cut details (Auto-Silence kept apart, "Clean up cuts", offering cuts to other
+  versions, a lift-cut key). **New idea to design:** more than one bus, including
+  nested ones (an "All speech" bus holding "Interviews" and "Narration"), useful for
+  editing as well as mixing.
 
 - **GUI design, 8 open questions for the owner** (`docs/design/GUI-DESIGN.md`,
   recommended answers in brackets): waveform scale for speech dB-shaped and

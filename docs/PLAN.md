@@ -2821,6 +2821,16 @@ decided in the design pass.
 
 ---
 
+### WP47 — Panel arrangement
+
+Status: open (owner, 2026-10-18: later). After the density work. Three slots (right
+sidebar, bottom dock, optional left sidebar); drag a panel tab into another slot;
+layout presets (Editing, Transcript first, Mixing); remembered with the other
+settings (WP35). No floating windows in the browser; the desktop wrapper (WP15) may
+add them later.
+
+---
+
 ## Rules that come from real Hindenburg complaints (apply everywhere)
 
 1. **Space is always the timeline transport.** No other panel takes Space.
