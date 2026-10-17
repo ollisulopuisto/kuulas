@@ -548,6 +548,7 @@
   "ui.bus.parent": "Parent bus",
   "ui.bus.parent.none": "None (top level)",
   "ui.bus.members": "Tracks on this bus",
+  "format.speed": "{value}×",
   "ui.gate.mic_closed": "Mic closed",
   "ui.gate.hover": "Mic closed. Double-click to open this stretch.",
   "ui.gate.open_stretch": "Open this stretch",
