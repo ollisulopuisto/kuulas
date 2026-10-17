@@ -10,7 +10,7 @@ import re
 
 from .messages import KuulasError
 
-_WORD = re.compile(r"\w+(?:[-'’.,]\w+)*", re.UNICODE)
+_WORD = re.compile(r"\w+(?:[-'\u2019.,]\w+)*", re.UNICODE)
 
 
 def count_words(text: str) -> int:

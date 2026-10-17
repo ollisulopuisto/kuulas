@@ -76,7 +76,3 @@ ignore = [
 # faster-whisper is an optional extra (`uv sync --extra transcribe`); importing
 # it inside local() keeps the base install from pulling it in.
 "src/kuulas/transcribe.py" = ["PLC0415"]
-# The WP43 word regex requires the right single quotation mark (’) so that
-# “don’t” and “don't” both count as one word; RUF001’s ambiguity warning is
-# therefore intentional and the character stays.
-"src/kuulas/narration.py" = ["RUF001"]

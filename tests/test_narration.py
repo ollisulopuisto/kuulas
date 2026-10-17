@@ -39,3 +39,7 @@ def test_bad_words_per_second_raises():
     assert exc.value.key == "error.narration.bad_words_per_second"
     with pytest.raises(KuulasError):
         estimate_frames("Hello", RATE, -1.0)
+
+
+def test_curly_apostrophe_is_one_word():
+    assert count_words("don\u2019t") == 1
