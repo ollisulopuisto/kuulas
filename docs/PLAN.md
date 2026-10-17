@@ -2711,6 +2711,57 @@ the export guard counts unrecorded placeholders.
 
 ---
 
+### WP44 — Auto-Silence as merged gate ranges
+
+Status: open (owner decision 2026-10-17: "measure the need to mute very often,
+but the muted region should be merged"). Needs WP1. Sonnet 5.5. Do it before the
+soft-cut work (cut-keeping-the-gap, see the architect's note in the session log
+and the open questions in `docs/handoffs/`), and before any long-session use.
+
+**Problem.** `analysis.auto_silence` calls `ops.mute_ranges` for every closed
+stretch, and each call splits the clip. A 1-hour 4-mic conversation gives
+thousands of pieces (an estimate: 5,000 to 10,000; measured 69 ms to pack a state
+at 8,000 pieces, over the 50 ms edit budget, and about 119 KB per history step).
+
+**Rule.** The measurement stays fine (hop by hop, every mic against the others,
+bleed included). The result is **merged**:
+1. In `silence_ranges`, after combining "no talk" with the ducked (bleed) mask,
+   close every open stretch shorter than `MIN_OPEN_S` (start with 0.4 s) and drop
+   every closed stretch shorter than `MIN_CLOSED_S` (start with 0.3 s). Constants
+   live next to `OPEN_BEFORE_S`; tune them on the fixtures and write the values
+   and the reason in the module.
+2. **Store the result as a gate, not as clip pieces:** a new field
+   `Track.gate: tuple[tuple[int, int], ...]` (frames, sorted, non-overlapping,
+   merged), part of the edit state, so history keeps it. Clips are never split by
+   Auto-Silence. `ops.set_gate(p, track_id, ranges)` replaces a track's gate (one
+   undo step); `ops.add_gate_range` and `ops.remove_gate_range` merge or split
+   correctly (removing a range from the middle of a gate range gives two).
+3. The mixer applies the gate with a derived 30 ms ramp at each edge (computed in
+   the mixer, not stored), in `_track` and `track_stem`, so playback and export
+   agree. `usage.extract`, `music_report`, `transcript.timeline_words`,
+   `analysis.track_levels` and the onset/edge points treat gated frames as
+   inaudible, as they do for muted clips today.
+4. Running Auto-Silence again replaces the track's gate (no pile-up).
+5. Old projects: no gate means an empty gate. Old projects that contain
+   Auto-Silence clip pieces keep working unchanged. FORMAT.md gets the field
+   and a version bump (`min_reader` unchanged: an old reader keeps the field in
+   `extra` and ignores the gate, which is audible, so decide with the owner
+   whether `min_reader` must go up; flag it, do not guess).
+6. UI: gated ranges are drawn as dim bands over the lane (not hatched clips),
+   a lane toggle shows or hides them, and clicking a band offers "Open this
+   stretch" (`remove_gate_range`).
+
+**Tests, first.** Fragment count on a synthetic 1-hour four-voice conversation
+stays under a fixed budget (decide it from the fixtures; the point is orders of
+magnitude fewer than one per bleed toggle); packing the state with the gate stays
+under 50 ms; export equals the old clip-piece export within the ramp (compare
+against `mute_ranges` output on a short fixture); undo restores the previous gate;
+re-running does not pile up; a clip edit across a gated range keeps the gate in
+time (a ripple delete shifts or trims gate ranges like automation points); the
+gate survives save and load; the mixer applies the ramp exactly once.
+
+---
+
 ## Rules that come from real Hindenburg complaints (apply everywhere)
 
 1. **Space is always the timeline transport.** No other panel takes Space.
