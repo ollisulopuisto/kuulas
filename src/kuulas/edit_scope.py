@@ -13,13 +13,10 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import replace
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from . import clock, history
 from .model import Clip, Project, SyncGroup, Track
-
-if TYPE_CHECKING:
-    pass
 
 
 def _sync_groups(project: Project, material: Any) -> tuple[SyncGroup, ...]:
