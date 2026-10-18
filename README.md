@@ -15,7 +15,7 @@ kuulas is a local multitrack audio editor for spoken word (podcasts, interviews,
 - **Project format (v3)**: Crash-safe `Name.kuulas` package directory, WAL SQLite history tree with constant-time branching undo/redo, and recording clock in flicks.
 - **Desktop app wrapper**: Native window via pywebview (`--extra desktop`), recent projects window, native file dialogs, and local file drag-and-drop linking.
 
-*Verification note:* Automated tests run on macOS, Linux, and Windows in CI. Hardware audio device playback and desktop window visuals are verified by hand on macOS only.
+*Verification note:* The automated tests run on the developer's Mac. A GitHub Actions workflow for macOS, Windows and Linux exists (`.github/workflows/ci.yml`) but has not run yet (it needs a `PODCAST_READ_TOKEN` secret and a push). Nobody has yet listened to playback on a real audio device with this version, or looked at the desktop window by eye.
 
 ## Running kuulas
 
