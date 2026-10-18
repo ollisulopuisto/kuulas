@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
   autoName,
+  describeClips,
   entryTitle,
   PASTE_MODES,
   PASTE_TARGETS,
   pasteChoice,
   pasteTargets,
   shortDuration,
+  timecode,
 } from "../clipboard.js";
 import { copyPlan, cutPlan, pastePlan } from "../edit-plans.js";
 
@@ -52,16 +54,35 @@ describe("durations and names", () => {
     assert.equal(shortDuration(75), "1:15");
     assert.equal(shortDuration(3723), "1:02:03");
   });
-  test("track name, +others, duration", () => {
-    assert.equal(autoName({ trackName: "Anna", clips: 1, seconds: 12 }, t), "Anna · 0:12");
-    assert.equal(autoName({ trackName: "Anna", clips: 2, seconds: 12 }, t), "Anna +1 · 0:12");
-    assert.equal(autoName({ trackName: "Anna", clips: 5, seconds: 75 }, t), "Anna +4 · 1:15");
+  test("clock stamp: hh:mm:ss, padded", () => {
+    assert.equal(timecode(0), "00:00:00");
+    assert.equal(timecode(724.9), "00:12:04");
+    assert.equal(timecode(3723), "01:02:03");
+    assert.equal(timecode(Number.NaN), "00:00:00");
+  });
+  test('"3 clips from Olli, 00:12:04": the count, the first track and where it starts', () => {
+    assert.equal(
+      autoName({ trackName: "Olli", clips: 3, seconds: 12, at: 724 }, t),
+      'ui.clipboard.auto_name{"count":3,"name":"Olli","at":"00:12:04"}',
+    );
+    assert.equal(
+      autoName({ trackName: "Olli", clips: 1, seconds: 12 }, t),
+      'ui.clipboard.auto_name{"count":1,"name":"Olli","at":"00:00:00"}',
+    );
   });
   test("a track with no name gets the translated stand-in", () => {
     assert.equal(
-      autoName({ trackName: "", clips: 1, seconds: 3 }, t),
-      "ui.clipboard.untitled_track{} · 0:03",
+      autoName({ trackName: "", clips: 1, seconds: 3, at: 5 }, t),
+      'ui.clipboard.auto_name{"count":1,"name":"ui.clipboard.untitled_track{}","at":"00:00:05"}',
     );
+  });
+  test("describeClips carries the earliest start in seconds", () => {
+    const parts = [
+      { trackId: "A", trackName: "Anna", start: 20 * S, end: 25 * S },
+      { trackId: "V", trackName: "Ville", start: 10 * S, end: 22 * S },
+    ];
+    assert.deepEqual(describeClips(parts, S), { trackName: "Anna", clips: 2, seconds: 15, at: 10 });
+    assert.deepEqual(describeClips([], S), { trackName: "", clips: 0, seconds: 0, at: 0 });
   });
   test("an entry shows its own name, else the automatic one from its counts", () => {
     assert.equal(entryTitle(entry({ name: "Intro" }), S, t), "Intro");
@@ -77,7 +98,7 @@ describe("copy", () => {
     const plan = copyPlan(state({ selection: new Set(["a1", "v1"]) }), t);
     assert.equal(plan.path, "copy");
     assert.deepEqual(plan.body.clip_ids, ["a1", "v1"]);
-    assert.equal(plan.body.name, "Anna +1 · 0:10");
+    assert.equal(plan.body.name, 'ui.clipboard.auto_name{"count":2,"name":"Anna","at":"00:00:00"}');
     assert.equal(plan.toast.values.count, 2);
   });
   test("the range on the current track, with the group when group editing is on", () => {
@@ -87,7 +108,7 @@ describe("copy", () => {
       end: 6 * S,
       track_ids: ["A"],
       group_editing: true,
-      name: "Anna · 0:04",
+      name: 'ui.clipboard.auto_name{"count":1,"name":"Anna","at":"00:00:02"}',
     });
   });
   test("the range wins over the selection, as for Cut", () => {
@@ -196,7 +217,7 @@ describe("cut names its entry like copy does", () => {
       end: 6 * S,
       track_ids: ["A"],
       group_editing: true,
-      name: "Anna · 0:04",
+      name: 'ui.clipboard.auto_name{"count":1,"name":"Anna","at":"00:00:02"}',
     });
   });
   test("the toast says when the clipboard copy failed, and still offers Undo", () => {

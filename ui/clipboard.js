@@ -14,15 +14,23 @@ export function shortDuration(seconds) {
   return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${s}` : `${m}:${s}`;
 }
 
+/** hh:mm:ss, zero-padded: where on the timeline a copy began ("00:12:04"). */
+export function timecode(seconds) {
+  const whole = Math.max(0, Math.floor(Number.isFinite(seconds) ? seconds : 0));
+  const pad = (n) => String(n).padStart(2, "0");
+  const h = pad(Math.floor(whole / 3600));
+  return `${h}:${pad(Math.floor((whole % 3600) / 60))}:${pad(whole % 60)}`;
+}
+
 /**
- * The automatic name of a copy: "Anna +1 · 0:12", the first track's name, how many
- * more clips ride along, and how long it is. `t` translates the stand-in for a
- * track with no name.
+ * The automatic name of a copy: "3 clips from Olli, 00:12:04", how many clips, the first
+ * track's name and where on the timeline the copy began (`at`, seconds). The length is
+ * not in the name: the entry shows it beside it. `t` translates the sentence and the
+ * stand-in for a track with no name.
  */
-export function autoName({ trackName, clips, seconds }, t = (key) => key) {
+export function autoName({ trackName, clips, at = 0 }, t = (key) => key) {
   const name = trackName?.trim() ? trackName.trim() : t("ui.clipboard.untitled_track");
-  const more = clips > 1 ? ` +${clips - 1}` : "";
-  return `${name}${more} · ${shortDuration(seconds)}`;
+  return t("ui.clipboard.auto_name", { count: clips, name, at: timecode(at) });
 }
 
 /** What the panel shows for an entry: its own name, else the automatic one from its counts. */
@@ -77,10 +85,12 @@ export function clipsInRange(project, trackIds, start, end) {
 
 /** The `autoName` parts for a set of trimmed clips `[{ trackId, trackName, start, end }]`. */
 export function describeClips(parts, rate) {
-  if (parts.length === 0) return { trackName: "", clips: 0, seconds: 0 };
+  if (parts.length === 0) return { trackName: "", clips: 0, seconds: 0, at: 0 };
+  const first = Math.min(...parts.map((p) => p.start));
   return {
     trackName: parts[0].trackName,
     clips: parts.length,
-    seconds: (Math.max(...parts.map((p) => p.end)) - Math.min(...parts.map((p) => p.start))) / rate,
+    seconds: (Math.max(...parts.map((p) => p.end)) - first) / rate,
+    at: first / rate,
   };
 }

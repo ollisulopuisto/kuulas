@@ -846,6 +846,7 @@
   "ui.clipboard.list_label": "Clipboard entries",
   "ui.clipboard.untitled": {"one": "{count} clip · {duration}", "other": "{count} clips · {duration}"},
   "ui.clipboard.untitled_track": "Clip",
+  "ui.clipboard.auto_name": {"one": "{count} clip from {name}, {at}", "other": "{count} clips from {name}, {at}"},
   "ui.clipboard.meta": {"one": "{count} clip · {duration}", "other": "{count} clips · {duration}"},
   "ui.clipboard.missing_here": {"one": "{count} recording is not in this project", "other": "{count} recordings are not in this project"},
   "ui.clipboard.pin": "Pin",

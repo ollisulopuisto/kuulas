@@ -846,6 +846,7 @@
   "ui.clipboard.list_label": "Leikepöydän kohteet",
   "ui.clipboard.untitled": {"one": "{count} klippi · {duration}", "other": "{count} klippiä · {duration}"},
   "ui.clipboard.untitled_track": "Klippi",
+  "ui.clipboard.auto_name": {"one": "{count} klippi: {name}, {at}", "other": "{count} klippiä: {name}, {at}"},
   "ui.clipboard.meta": {"one": "{count} klippi · {duration}", "other": "{count} klippiä · {duration}"},
   "ui.clipboard.missing_here": {"one": "{count} äänite puuttuu tästä projektista", "other": "{count} äänitettä puuttuu tästä projektista"},
   "ui.clipboard.pin": "Kiinnitä",

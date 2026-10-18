@@ -18,6 +18,7 @@ import {
 } from "../edit-plans.js";
 
 const S = 48000;
+const t = (key, values = {}) => `${key}${JSON.stringify(values)}`;
 const clip = (id, start, seconds, extra = {}) => ({
   id,
   start: start * S,
@@ -140,14 +141,14 @@ describe("close gap on all tracks", () => {
 
 describe("cut (ripple)", () => {
   test("the range, on the current track plus the group when group editing is on", () => {
-    const plan = cutPlan(state(range));
+    const plan = cutPlan(state(range), { t });
     assert.equal(plan.op, "clipboard_cut");
     assert.deepEqual(plan.args, {
       start: 2 * S,
       end: 6 * S,
       track_ids: ["A"],
       group_editing: true,
-      name: "ui.clipboard.untitled_track · 0:04",
+      name: 'ui.clipboard.auto_name{"count":1,"name":"ui.clipboard.untitled_track{}","at":"00:00:02"}',
     });
     assert.equal(plan.toast.tracks, true);
   });
@@ -155,13 +156,13 @@ describe("cut (ripple)", () => {
     assert.equal(cutPlan(state(range), { thisTrackOnly: true }).args.group_editing, false);
   });
   test("selected clips: their span, on their tracks", () => {
-    const plan = cutPlan(state({ selection: new Set(["a2", "v1"]) }));
+    const plan = cutPlan(state({ selection: new Set(["a2", "v1"]) }), { t });
     assert.deepEqual(plan.args, {
       start: 0,
       end: 20 * S,
       track_ids: ["A", "V"],
       group_editing: true,
-      name: "ui.clipboard.untitled_track +1 · 0:20",
+      name: 'ui.clipboard.auto_name{"count":2,"name":"ui.clipboard.untitled_track{}","at":"00:00:00"}',
     });
   });
   test("a range set to all tracks (Select > Range on all tracks) cuts on every track", () => {
