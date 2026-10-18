@@ -253,6 +253,61 @@ describe("painting waveforms (what the worker runs)", () => {
     assert.deepEqual(make({ showGates: false }).rows[0].gate, []);
   });
 
+  test("a row's scale follows its track's role: speech dB-shaped, music linear (auto)", () => {
+    const kinds = ["speech", "speech-mix", "music"];
+    const project = {
+      rate: 48_000,
+      media: [],
+      buses: [],
+      tracks: kinds.map((kind, i) => ({ id: `t${i}`, kind, clips: [] })),
+    };
+    const state = {
+      project,
+      scroll: 0,
+      zoom: 256,
+      scrollY: 0,
+      laneHeight: 48,
+      waveformMode: "half",
+      waveformScale: "auto",
+    };
+    const make = (over) =>
+      makeWaveformJob({ ...state, ...over }, { width: 100, height: 300, ratio: 1, id: 1 }, palette);
+    assert.deepEqual(
+      make({}).rows.map((row) => row.scale),
+      ["db", "db", "linear"],
+    );
+    // Changing the role changes the very next job (no cache keyed without the kind).
+    const flipped = {
+      ...project,
+      tracks: project.tracks.map((t) => (t.id === "t0" ? { ...t, kind: "music" } : t)),
+    };
+    assert.equal(make({ project: flipped }).rows[0].scale, "linear");
+    // A forced scale wins for every role.
+    assert.deepEqual(
+      make({ waveformScale: "linear" }).rows.map((row) => row.scale),
+      ["linear", "linear", "linear"],
+    );
+  });
+
+  test("the painter uses the row's scale: a dB row draws a taller bar than a linear one", () => {
+    const quiet = () => {
+      const tile = new Float32Array(TILE_PEAKS * 2);
+      for (let i = 0; i < TILE_PEAKS; i += 1) {
+        tile[2 * i] = -0.05;
+        tile[2 * i + 1] = 0.05;
+      }
+      return tile;
+    };
+    const height = (scale) => {
+      const { ctx, calls } = fakeContext();
+      const j = job();
+      j.rows[0].scale = scale;
+      paintWaveforms(ctx, j, () => quiet());
+      return Math.max(...calls.filter((c) => c[0] === "rect" && c[3] === 1).map((c) => c[4]));
+    };
+    assert.ok(height("db") > height("linear") * 2);
+  });
+
   test("a muted clip is drawn faint, then the alpha is put back", () => {
     const { ctx, sets } = fakeContext();
     const muted = job();

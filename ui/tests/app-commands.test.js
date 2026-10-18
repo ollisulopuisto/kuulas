@@ -214,10 +214,17 @@ describe("the commands the app registers", () => {
     const { registry, calls } = setup({ project, playhead: 5 });
     registry.run("mark.in");
     registry.run("mark.out");
+    // The marks never reverse, so each command also says what happens to the other one.
     assert.deepEqual(calls, [
-      ["patch", { inPoint: 5, rangeTracks: new Set() }],
-      ["patch", { outPoint: 5, rangeTracks: new Set() }],
+      ["patch", { inPoint: 5, outPoint: null, rangeTracks: new Set() }],
+      ["patch", { inPoint: null, outPoint: 5, rangeTracks: new Set() }],
     ]);
+  });
+
+  test("an out mark before the in mark replaces the in mark", () => {
+    const { registry, calls } = setup({ project, playhead: 2, inPoint: 9, outPoint: null });
+    registry.run("mark.out");
+    assert.deepEqual(calls, [["patch", { inPoint: null, outPoint: 2, rangeTracks: new Set() }]]);
   });
 
   test("rename needs a focused track or bus", () => {

@@ -107,12 +107,35 @@ function coveredParts(state, covered) {
 
 /** X and Shift+X: ripple-delete the range or the selected clips' span; the cut audio goes to the clipboard. */
 export function cutPlan(state, { thisTrackOnly = false, t } = {}) {
+  return cutToClipboard(state, { op: "clipboard_cut", key: "cut", thisTrackOnly, t });
+}
+
+/** Alt+X: the same target as X, copied to the clipboard, but soft-deleted in place (the gap stays). */
+export function liftCutPlan(state, { t } = {}) {
+  return cutToClipboard(state, { op: "clipboard_lift_cut", key: "lift_cut", t });
+}
+
+/** Alt+Mod+X: ripple-delete the range or the selected clips' span on every track; no clipboard. */
+export function closeGapPlan(state) {
+  if (!state?.project) return null;
+  const covered = span(state);
+  if (!covered) return null;
+  return plan(
+    "ripple_delete",
+    { start: covered.start, end: covered.end },
+    "close_gap",
+    { seconds: secondsOf(state, covered.end - covered.start) },
+    { tracks: true },
+  );
+}
+
+function cutToClipboard(state, { op, key, thisTrackOnly = false, t }) {
   if (!state?.project) return null;
   const covered = span(state);
   if (!covered) return null;
   const name = autoName(describeClips(coveredParts(state, covered), rateOf(state)), t);
   return plan(
-    "clipboard_cut",
+    op,
     {
       start: covered.start,
       end: covered.end,
@@ -120,14 +143,14 @@ export function cutPlan(state, { thisTrackOnly = false, t } = {}) {
       group_editing: groupOn(state) && !thisTrackOnly,
       name,
     },
-    "cut",
+    key,
     { seconds: secondsOf(state, covered.end - covered.start) },
     {
       tracks: true,
       // A copy that failed does not undo the cut, but the user is told (WP46).
       variant: (response) =>
         response?.clipboard?.ok === false
-          ? { key: "ui.edit.toast.cut_uncopied", values: { error: response.clipboard.error } }
+          ? { key: `ui.edit.toast.${key}_uncopied`, values: { error: response.clipboard.error } }
           : null,
     },
   );

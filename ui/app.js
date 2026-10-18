@@ -487,6 +487,14 @@ const keyboard = setupKeyboard({
           showError(error);
           return null;
         }),
+    // A plain server command (save_backup, save_checkpoint): the answer, or null after
+    // showing the error (a read-only project says who has it open).
+    command: (name, args) =>
+      api.command(name, args).catch((error) => {
+        showError(error);
+        return null;
+      }),
+    clock: () => new Date(),
     download: (path, fallback) => downloadFile(path, fallback),
     promptText: (request) => placeholderEditor.prompt(request),
     takeFor: (id) => void takeForPlaceholder(id),
@@ -846,9 +854,15 @@ window.kuulasNative = {
 // -- the canvases and panels -----------------------------------------------------------------------
 
 let overview;
+// "New bus…" (header pop-up or Track section): focus the bus and start renaming it.
+const nameNewBus = (id) => {
+  setState({ focusBus: id, focusTrack: null });
+  inspector.focusName();
+};
 const trackHeaders = createTrackHeaders({
   root: $("track-headers"),
   editor,
+  onBusCreated: nameNewBus,
   actions: {
     currentTrack: (id) => {
       if (getState().focusTrack !== id || getState().focusBus) {
@@ -867,11 +881,7 @@ const inspector = createInspector({
   root: $("panel-inspector"),
   editor,
   fetchMap: api.getSourceMap,
-  // "New bus…" in the Track section: focus the bus and start renaming it.
-  onBusCreated: (id) => {
-    setState({ focusBus: id, focusTrack: null });
-    inspector.focusName();
-  },
+  onBusCreated: nameNewBus,
   // A row of the Source list: select that clip and move the play cursor to it.
   jump: (clip, track, frame) => {
     setState({ selection: new Set([clip]), focusTrack: track, focusBus: null, panel: "timeline" });

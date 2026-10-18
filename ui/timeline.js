@@ -24,6 +24,7 @@ import {
 } from "./lanes.js";
 import { activeLoop } from "./loop-range.js";
 import { flagLayout, NOTCH_PX as MARKER_NOTCH_PX } from "./markers-model.js";
+import { markDrawing } from "./marks.js";
 import { makeWaveformJob, trackHues } from "./paint.js";
 import { aboutSeconds, placeholderLabel } from "./placeholders-model.js";
 import { canStartRangeDrag, dragRange, isDrag, trackRowsTouched } from "./range-drag.js";
@@ -194,9 +195,10 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
   }
 
   function drawRange(state, height) {
-    if (state.inPoint === null || state.outPoint === null) return;
-    const x1 = frameToX(state.inPoint, state.scroll, state.zoom);
-    const x2 = frameToX(state.outPoint, state.scroll, state.zoom);
+    const { range } = markDrawing(state);
+    if (range === null) return;
+    const x1 = frameToX(range.start, state.scroll, state.zoom);
+    const x2 = frameToX(range.end, state.scroll, state.zoom);
     overlay.fillStyle = theme.range;
     overlay.fillRect(x1, RULER_HEIGHT, x2 - x1, height - RULER_HEIGHT);
   }
@@ -215,20 +217,25 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
   }
 
   // In and out: 1 px accent edges with a flag in the ruler, pointing inwards.
+  // A lone mark is drawn too, so pressing O or I shows something at once.
   function drawInOut(state, height) {
-    if (state.inPoint === null || state.outPoint === null) return;
-    const x1 = frameToX(state.inPoint, state.scroll, state.zoom);
-    const x2 = frameToX(state.outPoint, state.scroll, state.zoom);
+    const { inFrame, outFrame } = markDrawing(state);
     overlay.fillStyle = theme.accent;
-    overlay.fillRect(Math.round(x1), 0, 1, height);
-    overlay.fillRect(Math.round(x2) - 1, 0, 1, height);
     overlay.beginPath();
-    overlay.moveTo(x1, 0);
-    overlay.lineTo(x1 + 8, 0);
-    overlay.lineTo(x1, 8);
-    overlay.moveTo(x2, 0);
-    overlay.lineTo(x2 - 8, 0);
-    overlay.lineTo(x2, 8);
+    if (inFrame !== null) {
+      const x1 = frameToX(inFrame, state.scroll, state.zoom);
+      overlay.fillRect(Math.round(x1), 0, 1, height);
+      overlay.moveTo(x1, 0);
+      overlay.lineTo(x1 + 8, 0);
+      overlay.lineTo(x1, 8);
+    }
+    if (outFrame !== null) {
+      const x2 = frameToX(outFrame, state.scroll, state.zoom);
+      overlay.fillRect(Math.round(x2) - 1, 0, 1, height);
+      overlay.moveTo(x2, 0);
+      overlay.lineTo(x2 - 8, 0);
+      overlay.lineTo(x2, 8);
+    }
     overlay.fill();
   }
 

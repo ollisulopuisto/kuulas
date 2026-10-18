@@ -7,7 +7,7 @@
 import { bindToggle } from "./ab-value.js";
 import { busHues, busLetter } from "./grammar.js";
 import { formatDb, formatNumber, t } from "./i18n.js";
-import { NEW_BUS } from "./inspector-track.js";
+import { addBusForTrack, NEW_BUS } from "./inspector-track.js";
 import { truncateMiddle } from "./labels.js";
 import { dragLaneHeight } from "./lane-sizing.js";
 import { layoutFor } from "./lanes.js";
@@ -116,7 +116,7 @@ function fitName(node, full) {
   node.textContent = truncateMiddle(full, low);
 }
 
-export function createTrackHeaders({ root, editor, actions }) {
+export function createTrackHeaders({ root, editor, actions, onBusCreated = () => {} }) {
   let signature = "";
   let rows = new Map();
 
@@ -257,11 +257,7 @@ export function createTrackHeaders({ root, editor, actions }) {
       if (bus.value !== NEW_BUS) return send("bus", bus.value || null);
       // Create the bus and put this track on it in one step.
       bus.value = lookup(id).bus ?? "";
-      editor.change({
-        op: "add_bus",
-        args: { track_ids: [id] },
-        label: t("ui.edit.label.group_bus"),
-      });
+      addBusForTrack(editor, id, onBusCreated);
     });
     gain.input.addEventListener("input", () => {
       const value = Number(gain.input.value);

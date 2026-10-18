@@ -7,13 +7,30 @@
 import { bindToggle } from "./ab-value.js";
 import { t } from "./i18n.js";
 import { coalesceKey, patchBus, patchSolo, patchTrack } from "./provisional.js";
-import { busMembers, busOptions, roleKey, TRACK_KINDS } from "./track-target.js";
+import { busMembers, busOptions, roleOptionKey, TRACK_KINDS } from "./track-target.js";
 
 // The Bus select's last option: not a bus id, it asks for a new bus.
 /** The value of the "+ New bus…" choice, in the inspector and in the track header. */
 export const NEW_BUS = "__new__";
 const GAIN = { min: -60, max: 12, step: 0.1 };
 const PAN = { min: -100, max: 100, step: 1 };
+
+/**
+ * "+ New bus…" for a track, from the header pop-up or the inspector: create the
+ * bus with the track on it in one step; once the server has answered, hand the
+ * new bus (always the last) to `onCreated` so it can be focused and named.
+ */
+export function addBusForTrack(editor, trackId, onCreated = () => {}) {
+  editor.change({
+    op: "add_bus",
+    args: { track_ids: [trackId] },
+    label: t("ui.edit.label.group_bus"),
+    done: (response) => {
+      const created = response?.project?.buses?.at(-1);
+      if (created) onCreated(created.id);
+    },
+  });
+}
 
 /** A label wrapping its control, one grid row of the inspector. */
 export function field(labelText, control) {
@@ -156,9 +173,10 @@ export function buildTrackSections({ target, editor, place, latest, onBusCreated
     for (const kind of TRACK_KINDS) {
       const option = document.createElement("option");
       option.value = kind;
-      option.textContent = t(roleKey(kind));
+      option.textContent = t(roleOptionKey(kind));
       role.append(option);
     }
+    role.title = t("ui.track.role.hint");
     role.addEventListener("change", () => send("kind", role.value));
     into.append(field(t("ui.track.role"), role));
     const { gain, pan } = levels(into, {
@@ -184,15 +202,7 @@ export function buildTrackSections({ target, editor, place, latest, onBusCreated
       if (bus.value !== NEW_BUS) return send("bus", bus.value || null);
       // Create the bus and route this track to it in one step, then name it.
       bus.value = lookup().bus ?? "";
-      editor.change({
-        op: "add_bus",
-        args: { track_ids: [id] },
-        label: t("ui.edit.label.group_bus"),
-        done: (response) => {
-          const created = response?.project?.buses?.at(-1);
-          if (created) onBusCreated(created.id);
-        },
-      });
+      addBusForTrack(editor, id, onBusCreated);
     });
     into.append(field(t("ui.track.bus"), bus));
     into.append(field(t("ui.track.voice"), readonly(t("ui.track.voice.none"))));

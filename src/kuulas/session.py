@@ -110,7 +110,7 @@ class MatchReport(dict):
 
 #: The edit names ``/api/edit`` hands to ``Session.clipboard_edit``: they are
 #: edits with a clipboard side, which ``ops`` (pure, project-only) cannot be.
-CLIPBOARD_EDITS = ("clipboard_cut", "clipboard_paste")
+CLIPBOARD_EDITS = ("clipboard_cut", "clipboard_lift_cut", "clipboard_paste")
 
 
 def _db_value(value: str | None) -> float:
@@ -229,6 +229,7 @@ class Session:
         #: The interview the latest import made (WP41), or None.
         self.last_import_interview: str | None = None
         #: The report from the latest match_loudness command (WP19c).
+        self.last_backup: Path | None = None  # the newest save_backup (Mod+S)
         self.last_match_report: MatchReport = MatchReport({"matched": [], "skipped": []})
         if not is_new and not self.read_only:
             self.history.session_opened()
@@ -435,6 +436,25 @@ class Session:
         clipboard. One undo step for the removal. A copy that fails (nothing
         under the range, a full disk) is logged and reported in the result, and
         never stops the cut: the user's edit comes first."""
+        return self._cut_to_clipboard("clipboard_cut", ops.cut_range, start=start,
+                                      end=end, track_ids=track_ids,
+                                      group_editing=group_editing, name=name,
+                                      label=label or t("history.clipboard_cut"))
+
+    def clipboard_lift_cut(self, *, start: int, end: int, track_ids,
+                           group_editing: bool = False, name: str = "",
+                           label: str | None = None) -> dict:
+        """Lift-cut (Alt+X): copy ``[start, end)`` to the clipboard and soft-delete
+        it in place (the gap stays, restorable). Same targets, one undo step and
+        failure rule as ``clipboard_cut``."""
+        return self._cut_to_clipboard("clipboard_lift_cut", ops.mute_range, start=start,
+                                      end=end, track_ids=track_ids,
+                                      group_editing=group_editing, name=name,
+                                      label=label or t("history.clipboard_lift_cut"))
+
+    def _cut_to_clipboard(self, op_name: str, remove: Callable, *, start: int, end: int,
+                          track_ids, group_editing: bool, name: str,
+                          label: str) -> dict:
         start, end = int(start), int(end)
         with self.lock:
             project = self.history.state
@@ -446,9 +466,9 @@ class Session:
                                 source_project=str(self.package.path))
             except KuulasError as e:
                 problem = t(e.key, **e.params)
-            new = ops.cut_range(project, start, end, track_ids, bool(group_editing))
-            self.history.commit(label or t("history.clipboard_cut"), new,
-                                op={"name": "clipboard_cut",
+            new = remove(project, start, end, track_ids, bool(group_editing))
+            self.history.commit(label, new,
+                                op={"name": op_name,
                                     "args": {"start": start, "end": end,
                                              "track_ids": list(track_ids),
                                              "group_editing": bool(group_editing)}})
@@ -502,10 +522,12 @@ class Session:
         return report
 
     def clipboard_edit(self, op: str, args: dict, label: str | None = None) -> dict:
-        """``/api/edit``'s door to the two edits that touch the clipboard."""
+        """``/api/edit``'s door to the edits that touch the clipboard."""
         try:
             if op == "clipboard_cut":
                 return self.clipboard_cut(**args, label=label)["clipboard"]
+            if op == "clipboard_lift_cut":
+                return self.clipboard_lift_cut(**args, label=label)["clipboard"]
             if op == "clipboard_paste":
                 return self.clipboard_paste(**args, label=label)
         except TypeError as e:
@@ -1723,6 +1745,29 @@ def _placeholder_take(s: Session, args: dict) -> Project:
     return s._commit(t("history.placeholder_take"), new, "placeholder_take", args)
 
 
+def _check_writable(s: Session) -> None:
+    if s.read_only:
+        holder = s.package.locked_by or {}
+        raise ops.EditError("error.history.read_only", host=holder.get("host", "?"))
+
+
+def _save_backup(s: Session, _args: dict) -> Project:
+    """Mod+S: the 10-minute timer's backup, now (same retention). Edits are
+    already committed, so this only makes the copy. The online backup reads
+    through its own connection, so no session lock: a slow disk must not
+    stall playback."""
+    _check_writable(s)
+    s.last_backup = s.package.backup()
+    return s.state
+
+
+def _save_checkpoint(s: Session, args: dict) -> Project:
+    """Shift+Mod+S: name the current step. Changes no edit state."""
+    _check_writable(s)
+    s.checkpoint(str(args.get("name") or "").strip() or t("history.checkpoint_default"))
+    return s.state
+
+
 #: Name -> function(session, args) -> Project. The session lock is held,
 #: except for ``LOCK_FREE_COMMANDS``.
 #: ``auto_silence``, ``automix`` and ``cut_words`` commit one step each;
@@ -1752,9 +1797,11 @@ COMMANDS: dict[str, Callable[[Session, dict], Project]] = {
     "candidate_mark": _candidate_mark,
     "match_loudness": _match_loudness,
     "placeholder_take": _placeholder_take,
+    "save_backup": _save_backup,
+    "save_checkpoint": _save_checkpoint,
 }
 
 #: Commands that run without the session lock and take it only for their
 #: snapshot and their commit: their work is slow and must not stall playback
 #: or edits (ground rule 14).
-LOCK_FREE_COMMANDS = frozenset({"candidates_detect", "match_loudness"})
+LOCK_FREE_COMMANDS = frozenset({"candidates_detect", "match_loudness", "save_backup"})

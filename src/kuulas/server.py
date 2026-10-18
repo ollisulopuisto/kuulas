@@ -340,6 +340,8 @@ def create_app(session, engine, *, language: str | None = None,
             raise
         if body.name == "import_nhsx":
             return state_response({"report": report_of(session.last_import_report)})
+        if body.name == "save_backup":
+            return state_response({"backup": session.last_backup.name})
         if body.name == "match_loudness":
             report = session.last_match_report
             return state_response({"match_report": {

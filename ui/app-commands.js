@@ -2,6 +2,7 @@
 // Everything else in the keymap is "planned" until its work package lands.
 import { canRestore } from "./history-model.js";
 import { rangeAvailable } from "./loop-range.js";
+import { setInPoint, setOutPoint } from "./marks.js";
 import { PAUSE_CHOICES } from "./transcript-model.js";
 
 /** The next or previous track's id; stops at the ends; null without a project. */
@@ -119,12 +120,18 @@ export function registerAppCommands(registry, { actions, app }) {
   def("track.next", stepFocus(1), hasProject);
   def(
     "mark.in",
-    () => app.patch({ inPoint: app.getState().playhead, rangeTracks: new Set() }),
+    () => {
+      const state = app.getState();
+      app.patch({ ...setInPoint(state, state.playhead), rangeTracks: new Set() });
+    },
     hasProject,
   );
   def(
     "mark.out",
-    () => app.patch({ outPoint: app.getState().playhead, rangeTracks: new Set() }),
+    () => {
+      const state = app.getState();
+      app.patch({ ...setOutPoint(state, state.playhead), rangeTracks: new Set() });
+    },
     hasProject,
   );
   def("mark.clear_in", () => app.patch({ inPoint: null, rangeTracks: new Set() }), hasProject);

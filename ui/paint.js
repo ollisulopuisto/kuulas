@@ -43,6 +43,17 @@ export function trackHues(project) {
 }
 
 /**
+ * The vertical scale a track's waveform uses. "auto" (the default) follows the
+ * role, an owner decision of 2026-10-18: speech dB-shaped (its detail is in the
+ * quiet parts), music linear. "linear" or "db" force one scale for all roles.
+ * Derived from the track on every job, so a role change shows on the next draw.
+ */
+export function scaleFor(kind, setting = "auto") {
+  if (setting === "linear" || setting === "db") return setting;
+  return kind === "music" ? "linear" : "db";
+}
+
+/**
  * A structured-clone-safe description of what is on screen: only rows in view
  * and, in each, only the clips that overlap the visible time.
  */
@@ -84,6 +95,7 @@ export function makeWaveformJob(state, { width, height, ratio, id }, palette, co
       // the waveform flat under them. Empty when the user hides gates.
       gate: state.showGates === false ? [] : gatePixelRuns(track.gate, scroll, zoom, width),
       paletteIndex: hues.get(track.id) ?? 0,
+      scale: scaleFor(track.kind, state.waveformScale),
       clips,
     });
   }
@@ -159,7 +171,7 @@ export function paintWaveforms(ctx, job, lookup) {
       });
       for (const tile of absent)
         missing.set(`${clip.media}/${level}/${tile}`, { media: clip.media, level, tile });
-      const bars = waveformColumns(data, job.mode, job.scale, h, job.gain);
+      const bars = waveformColumns(data, job.mode, row.scale ?? job.scale, h, job.gain);
       if (row.gate?.length) flattenGated(bars, data, row.gate, from, to, job.mode, h);
       ctx.fillStyle = colours.wave;
       ctx.globalAlpha = (clip.muted ? faint : 1) * WAVE_ALPHA;

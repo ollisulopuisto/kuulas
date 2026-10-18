@@ -15,8 +15,9 @@
 // Owner decisions (18.10.2026) kept here: Backspace is Delete (soft cut, gap kept),
 // X is Cut (ripple, to the clipboard), Mod+C copies; Spot is Mod+J, find is Mod+F,
 // fade is G, import is Mod+I (Mod+T in the desktop wrapper), K keeps a candidate (in the Candidates tab),
-// [ ] are physical keys, F2 renames. Parked and so not bound: lift-cut (Alt+X),
-// close gap on all tracks, Clean up cuts, Compare. The clipboard (WP46): X cuts to it,
+// [ ] are physical keys, F2 renames. Alt+X is lift-cut (copy, then soft delete, gap kept),
+// Alt+Mod+X closes the gap on all tracks (ripple, no clipboard). Parked and so not bound:
+// Clean up cuts, Compare. The clipboard (WP46): X cuts to it,
 // Mod+C copies only, Backspace never touches it; Mod+V pastes (insert), Alt+Mod+V
 // overwrites, Shift+Mod+V inserts on the current track.
 // J/K/L (WP26): J, K and L are the shuttle keys in every panel. In the Candidates tab Enter
@@ -315,6 +316,18 @@ export const DEFAULT_KEYMAP = [
     keys: { mac: ["Shift+X", "Shift+Mod+X"], other: ["Shift+X", "Shift+Mod+X"] },
     context: "timeline",
     labelKey: "cmd.edit.cut_track",
+  },
+  {
+    id: "edit.lift_cut",
+    keys: { mac: "Alt+X", other: "Alt+X" },
+    context: "timeline",
+    labelKey: "cmd.edit.lift_cut",
+  },
+  {
+    id: "edit.close_gap_all",
+    keys: { mac: "Alt+Mod+X", other: "Alt+Mod+X" },
+    context: "timeline",
+    labelKey: "cmd.edit.close_gap_all",
   },
   {
     id: "edit.delete",

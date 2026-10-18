@@ -2,7 +2,7 @@
 id: clip
 title: A clip
 applies-to: [clip]
-commands: [edit.split, edit.delete, edit.cut, clip.mute, clip.fade, edit.undo]
+commands: [edit.split, edit.delete, edit.cut, edit.lift_cut, edit.close_gap_all, clip.mute, clip.fade, edit.undo]
 related: [timeline, track, transcript]
 ---
 A clip is a stretch of one recording placed on a track. Several clips can come from the same recording; selecting one marks its siblings with a bracket.
@@ -11,6 +11,8 @@ A clip is a stretch of one recording placed on a track. Several clips can come f
 - Split at the play cursor: {key:edit.split}
 - Delete: {key:edit.delete}. A soft cut: the audio goes quiet, the gap stays, and the Cuts list can restore it. The clipboard is untouched.
 - Cut: {key:edit.cut}. Copies to the clipboard and closes the gap on every track of the sync group.
+- Lift-cut: {key:edit.lift_cut}. Copies to the clipboard and soft-deletes in place: the gap stays and can be restored.
+- Close the gap on all tracks: {key:edit.close_gap_all}. Ripples the selection or in-out range out of every track; the clipboard is untouched.
 - Mute the clip: {key:clip.mute}. Muted clips are drawn faint and hatched.
 - Fade in and out: {key:clip.fade}
 
