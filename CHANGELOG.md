@@ -1,3 +1,21 @@
+## [v26.10.18.65] - 2026-10-18
+
+- **Where you left off:** the play cursor, in/out marks and view are saved in a small `resume.json` inside the
+  project folder, so they come with the project through Dropbox to the other Mac; saved at least every 5 s
+  while playing, on Cmd+S and when the window closes. On opening you get "Back where you left off: ...", a
+  "Left off" flag on the ruler, a pinned row in the Markers panel and Go > "Go to where I left off".
+- **Bug reports name the build:** the status bar shows `v26.10.18.65+<commit>` and `--debug` prints it first.
+- **X now deletes and closes the gap without touching the clipboard** (Shift+X: this track only); **Cmd+X cuts
+  to the clipboard.** X works from any panel except text fields and the transcript. After a cut the in/out
+  marks and selection are cleared, and Undo brings the marks back. Esc clears the marks too.
+- **Cmd+Alt+click** selects the clip and every clip after it on all tracks.
+- **Keys:** 1 and 2 jump to the in and out marks (Cmd+1 and Cmd+2 set them); Shift+Space plays the marked range;
+  Cmd+Shift+Space rehearses the edit (3 s before the in point, jump over the range, play on).
+- **Clearer timeline:** the active track's lane is tinted with a bar at its left edge and the other lanes
+  are veiled; Tab jumps to the next clip border on any track by default; adjusting a clip no longer drags the
+  play cursor along; with overlapping clips the shorter one is clicked and drawn on top.
+- Not yet seen by eye: everything above that draws on the timeline or in the window.
+
 ## [v26.10.18.64] - 2026-10-18
 
 - **Fast listening:** the `.` key toggles pitch-kept sped-up playback; `,` and `/` slow it down and speed it
