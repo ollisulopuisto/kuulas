@@ -1055,7 +1055,8 @@ class Session:
                      track_per_file: bool = True, interview: bool | None = None,
                      interview_title: str | None = None, *,
                      mode: str | None = None, order: str = "given",
-                     track_naming: str = "file", start_frame: int = 0) -> Project:
+                     track_naming: str = "file", start_frame: int = 0,
+                     onto_track: str | None = None) -> Project:
         """``import_media_report`` without the report (it stays in
         ``last_import_report``). Raises if not one file could be imported."""
         return self.import_media_report(paths, copy=copy, track_per_file=track_per_file,
@@ -1063,13 +1064,15 @@ class Session:
                                         interview_title=interview_title,
                                         mode=mode, order=order,
                                         track_naming=track_naming,
-                                        start_frame=start_frame)[0]
+                                        start_frame=start_frame,
+                                        onto_track=onto_track)[0]
 
     def import_media_report(self, paths: list[str], copy: bool = False,
                             track_per_file: bool = True, interview: bool | None = None,
                             interview_title: str | None = None, *,
                             mode: str | None = None, order: str = "given",
                             track_naming: str = "file", start_frame: int = 0,
+                            onto_track: str | None = None,
                             ) -> tuple[Project, list[ImportResult]]:
         """Bring files in and put them on the timeline, as ONE undo step.
 
@@ -1086,6 +1089,8 @@ class Session:
           clip in the sync group is the first placed one.
         - ``track_naming``: ``"file"`` (name without extension) or ``"person"``.
         - ``start_frame``: timeline frame where placement begins (default 0).
+        - ``onto_track``: put every file on this existing track, one after another from
+          ``start_frame`` (no new track, no sync group). An unknown track is an error.
 
         Files imported side-by-side were recorded together, so they are one
         sync group, placed by their recorders' clocks (BWF time reference,
@@ -1101,6 +1106,9 @@ class Session:
         that already belong to an interview are not put in a second one.
         """
         with self.lock:
+            if onto_track is not None:
+                # Before any file is read: an unknown track must change nothing.
+                ops._find_track(self.history.state, onto_track)
             report = self.store.import_batch(paths, copy)
             self.last_import_report = report
             ok = [(str(x), r) for x, r in zip(paths, report, strict=True) if r.ok]
@@ -1113,7 +1121,9 @@ class Session:
             p = self.history.state
             root = self.history.material
 
-            if mode is not None:
+            if onto_track is not None:
+                effective_mode = "sequential"
+            elif mode is not None:
                 effective_mode = mode
             else:
                 effective_mode = "side_by_side" if track_per_file else "sequential"
@@ -1155,7 +1165,10 @@ class Session:
             clip_ids: list[str] = []
             for pl in placements:
                 m = media_pool[pl.item].pop(0)
-                if pl.new_track:
+                if pl.new_track and onto_track is not None:
+                    track_id = onto_track
+                    track_ids_by_key[pl.track_key] = track_id
+                elif pl.new_track:
                     track_id = ops.new_id("t")
                     track_ids_by_key[pl.track_key] = track_id
                     p = ops.add_track(p, track_id, pl.track_name, pl.kind)
@@ -1195,6 +1208,7 @@ class Session:
                                   "order": order,
                                   "track_naming": track_naming,
                                   "start_frame": start_frame,
+                                  "onto_track": onto_track,
                                   "interview": self.last_import_interview},
                                  material=root), report)
 

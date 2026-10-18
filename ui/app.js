@@ -48,7 +48,7 @@ import {
   onLanguageChange,
   t,
 } from "./i18n.js";
-import { collectDroppedFiles, importOptionsFor } from "./import-drop.js";
+import { collectDroppedFiles, importOptionsFor, pickerPlacement } from "./import-drop.js";
 import { createImportPanel, panelModel } from "./import-panel.js";
 import { dragHasFiles, nativeBridge, summariseImport } from "./importing.js";
 import { createInspector } from "./inspector.js";
@@ -1034,7 +1034,12 @@ async function importPaths(paths, target = null) {
 // `target`: where a drop landed (import-drop.js), null for the picker. `settled`: the
 // exact options to send (the redo of an import), else the remembered choices apply.
 async function runImport(job, target, settled = null) {
-  const options = settled ?? importOptionsFor(target, importPanel.prefs());
+  let options = settled ?? importOptionsFor(target, importPanel.prefs());
+  if (!settled && target === null) {
+    // The picker: onto the selected track when there is one (import-drop.js pickerPlacement).
+    const here = pickerPlacement(getState().project, getState().focusTrack, getState().playhead);
+    if (here) options = { ...options, ...here };
+  }
   try {
     const result = job.files
       ? await api.uploadFiles(job.files, options)

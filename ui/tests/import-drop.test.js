@@ -6,6 +6,7 @@ import {
   dropLabel,
   importOptionsFor,
   isAudioName,
+  pickerPlacement,
   resolveDropTarget,
 } from "../import-drop.js";
 import { layoutRows, RULER_HEIGHT } from "../lanes.js";
@@ -257,5 +258,28 @@ describe("dropped folders", () => {
       files.map((f) => f.name),
       ["ok.wav"],
     );
+  });
+});
+
+describe("the picker imports onto the selected track (owner, 2026-10-19)", () => {
+  const project = {
+    tracks: [
+      { id: "a", clips: [{ id: "c1", start: 0, length: 1000 }] },
+      { id: "e", clips: [] },
+    ],
+  };
+  test("an empty selected track: the files start at the play cursor", () => {
+    assert.deepEqual(pickerPlacement(project, "e", 480), { onto_track: "e", start_frame: 480 });
+  });
+  test("a track with material: after its last clip when the cursor is inside it", () => {
+    assert.deepEqual(pickerPlacement(project, "a", 400), { onto_track: "a", start_frame: 1000 });
+  });
+  test("a track with material: at the cursor when it is past the last clip", () => {
+    assert.deepEqual(pickerPlacement(project, "a", 5000), { onto_track: "a", start_frame: 5000 });
+  });
+  test("no selected track, or one that is gone: null (new tracks, as before)", () => {
+    assert.equal(pickerPlacement(project, null, 0), null);
+    assert.equal(pickerPlacement(project, "nope", 0), null);
+    assert.equal(pickerPlacement(null, "a", 0), null);
   });
 });

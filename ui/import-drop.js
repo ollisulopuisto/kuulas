@@ -35,6 +35,20 @@ export function resolveDropTarget({ x, y, alt = false }, { layout, project, view
   return fresh;
 }
 
+/**
+ * Where the picker's files go (owner, 2026-10-19): onto the selected track, one after another,
+ * whether it was made first or not. { onto_track, start_frame } or null (no usable selection:
+ * every file gets a track of its own, as before). They start at the play cursor, or after the
+ * track's last clip when the cursor is inside its material, so nothing is overwritten.
+ */
+export function pickerPlacement(project, trackId, playhead) {
+  const track = project?.tracks?.find((item) => item.id === trackId);
+  if (!track) return null;
+  const end = Math.max(0, ...track.clips.map((clip) => clip.start + clip.length));
+  const start = Math.max(0, Math.round(playhead ?? 0));
+  return { onto_track: track.id, start_frame: start >= end ? start : end };
+}
+
 /** The placement fields of POST /api/import and /api/upload for a drop (null: the picker). */
 export function importOptionsFor(target, prefs) {
   return {

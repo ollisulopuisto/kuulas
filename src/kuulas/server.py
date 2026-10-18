@@ -154,6 +154,7 @@ class ImportBody(BaseModel):
     order: str = "given"
     track_naming: str = "file"
     start_frame: int = 0
+    onto_track: str | None = None
 
 
 class WordBody(BaseModel):
@@ -646,11 +647,13 @@ def create_app(session, engine, *, language: str | None = None,
 
     def imported(paths: list[str], copy: bool, *,
                  mode: str | None = None, order: str = "given",
-                 track_naming: str = "file", start_frame: int = 0) -> JSONResponse:
+                 track_naming: str = "file", start_frame: int = 0,
+                 onto_track: str | None = None) -> JSONResponse:
         try:
             _, results = session.import_media_report(
                 paths, copy=copy, mode=mode, order=order,
                 track_naming=track_naming, start_frame=start_frame,
+                onto_track=onto_track,
             )
         except MediaError as e:
             # Nothing came in: say why, file by file, so the UI can show each.
@@ -664,7 +667,7 @@ def create_app(session, engine, *, language: str | None = None,
     def post_import(body: ImportBody):
         return imported(body.paths, body.copy_files, mode=body.mode,
                         order=body.order, track_naming=body.track_naming,
-                        start_frame=body.start_frame)
+                        start_frame=body.start_frame, onto_track=body.onto_track)
 
     @app.post("/api/upload")
     def post_upload(
@@ -673,6 +676,7 @@ def create_app(session, engine, *, language: str | None = None,
         order: Annotated[str, Form()] = "given",
         track_naming: Annotated[str, Form()] = "file",
         start_frame: Annotated[int, Form()] = 0,
+        onto_track: Annotated[str | None, Form()] = None,
     ):
         if not files:
             raise BadRequestError("error.server.bad_request", detail="files")
@@ -680,7 +684,8 @@ def create_app(session, engine, *, language: str | None = None,
         folder.mkdir(exist_ok=True)
         saved = [str(save_upload(folder, f)) for f in files]
         return imported(saved, copy=False, mode=mode, order=order,
-                        track_naming=track_naming, start_frame=start_frame)
+                        track_naming=track_naming, start_frame=start_frame,
+                        onto_track=onto_track)
 
     @app.post("/api/placeholder-take")
     def post_placeholder_take(
