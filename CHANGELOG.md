@@ -1,3 +1,9 @@
+## [v26.10.18.52] - 2026-10-18
+
+- `docs/KEYS.md`: a list of every keyboard shortcut (Mac and Windows/Linux), generated from the keymap
+  (`node scripts/make_keys_doc.mjs`; a test fails when it is out of date).
+- Building blocks for later, not visible yet: zoom to a range dragged on the ruler, and hover tips.
+
 ## [v26.10.18.51] - 2026-10-18
 
 - **Move a clip by dragging its label strip** (the top 20 px of the clip): in time and onto other tracks,
