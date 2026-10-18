@@ -6,6 +6,7 @@ import {
   EXPORT_FORMAT_IDS,
   EXPORTS,
   exportNotice,
+  exportRequest,
   filenameFromDisposition,
   registerExportCommands,
   tracksNotice,
@@ -154,6 +155,82 @@ describe("chapter and region exports (WP19h)", () => {
     assert.equal(registry.can("export.regions", { project: { markers: [] } }), false);
     assert.equal(registry.run("export.regions", null, state), true);
     assert.equal(queued.length, 1);
+  });
+});
+
+describe("asking where to export", () => {
+  const withTracks = { project: { tracks: [{ id: "a" }], markers: [] } };
+  const t = (key) => key;
+  const hint = async () => ({ folder: "/p/Ep exports", remembered: false });
+
+  function setup() {
+    const registry = createRegistry();
+    const started = [];
+    registerExportCommands(registry, {
+      t,
+      app: {
+        getState: () => withTracks,
+        toast: () => {},
+        exportFormats: () => EXPORT_FORMAT_IDS,
+        exportTracks: (format, options) => started.push(["tracks", format, options]),
+        exportMix: (format, options) => started.push(["mix", format, options]),
+      },
+    });
+    return { registry, started };
+  }
+
+  test("the ordinary commands ask, the quick one does not", () => {
+    const { registry, started } = setup();
+    registry.run("export.tracks", null, withTracks);
+    registry.run("export.tracks_flac", null, withTracks);
+    registry.run("export.mix_mp3", null, withTracks);
+    registry.run("export.tracks_quick", null, withTracks);
+    assert.deepEqual(started, [
+      ["tracks", undefined, { ask: true }],
+      ["tracks", "flac", { ask: true }],
+      ["mix", "mp3", { ask: true }],
+      ["tracks", undefined, { ask: false }],
+    ]);
+  });
+
+  test("the quick command is ready with tracks and has a hint", () => {
+    const { registry } = setup();
+    assert.equal(registry.status("export.tracks_quick"), "ready");
+    assert.equal(registry.hintKey("export.tracks_quick"), "cmd.export.tracks_quick.hint");
+    assert.equal(registry.can("export.tracks_quick", { project: { tracks: [] } }), false);
+  });
+
+  test("the request carries the chosen folder, starting at the hint", async () => {
+    const starts = [];
+    const bridge = {
+      choose_export_folder: async (start) => {
+        starts.push(start);
+        return "/chosen";
+      },
+    };
+    const options = await exportRequest({ format: "flac", ask: true, bridge, hint });
+    assert.deepEqual(options, { format: "flac", folder: "/chosen" });
+    assert.deepEqual(starts, ["/p/Ep exports"]);
+  });
+
+  test("cancelling the chooser starts nothing", async () => {
+    const bridge = { choose_export_folder: async () => null };
+    assert.equal(await exportRequest({ ask: true, bridge, hint }), null);
+  });
+
+  test("quick, or no bridge (a plain browser), sends no folder and shows no dialog", async () => {
+    let asked = 0;
+    const bridge = {
+      choose_export_folder: async () => {
+        asked++;
+        return "/x";
+      },
+    };
+    assert.deepEqual(await exportRequest({ ask: false, bridge, hint }), {});
+    assert.deepEqual(await exportRequest({ format: "wav", ask: true, bridge: null, hint }), {
+      format: "wav",
+    });
+    assert.equal(asked, 0);
   });
 });
 

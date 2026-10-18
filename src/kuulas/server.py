@@ -432,6 +432,10 @@ def create_app(session, engine, *, language: str | None = None,
     def post_export_mix(body: Annotated[dict[str, Any], Body()]):
         return JSONResponse({"jobs": session.export_mix(body)}, status_code=202)
 
+    @app.get("/api/export-folder")
+    def get_export_folder():
+        return session.export_folder_hint()
+
     @app.get("/api/export-formats")
     def get_export_formats():
         return [{"id": f.id, "label": t(f.label_key), "ext": f.ext,

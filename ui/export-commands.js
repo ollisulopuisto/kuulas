@@ -74,9 +74,26 @@ export function exportNotice(job, t, what = "tracks") {
 export const tracksNotice = (job, t) => exportNotice(job, t, "tracks");
 
 /**
+ * The body of an export request, or null when the owner cancelled. In the desktop window
+ * (`bridge` has choose_export_folder) and when `ask`, a native folder chooser opens first,
+ * starting at `hint()` ({ folder }: the remembered folder or `<project> exports`); the chosen
+ * folder is the parent the server puts the export's own sub-folder / file in. Without a
+ * bridge (plain browser) or when not asking, no folder is sent and the server uses the
+ * remembered or default one.
+ */
+export async function exportRequest({ format, ask, bridge, hint, onAsk }) {
+  const options = format ? { format } : {};
+  if (!ask || typeof bridge?.choose_export_folder !== "function") return options;
+  const { folder: start } = await hint();
+  onAsk?.();
+  const folder = await bridge.choose_export_folder(start);
+  return folder ? { ...options, folder } : null;
+}
+
+/**
  * `app`: getState, toast(text, { undo }), download(path, fallbackName) -> Promise<name | null>,
- * exportTracks(format?) -> Promise (starts the track export, WAV unless a format id is given,
- * and follows its job), exportMix(format) -> Promise (the same for the mix),
+ * exportTracks(format?, { ask }) -> Promise (asks for a folder when `ask`, then starts the track export, WAV unless a format id is given,
+ * and follows its job), exportMix(format, { ask }) -> Promise (the same for the mix),
  * exportFormats() -> the ids of the formats the server offers (null until fetched),
  * exportRegions() -> Promise (queues the one region job; the jobs list shows its progress).
  */
@@ -101,21 +118,31 @@ export function registerExportCommands(registry, { app, t }) {
       { can: hasChapters, hintKey: `cmd.${id}.hint` },
     );
   }
-  registry.register("export.tracks", () => void app.exportTracks(), {
+  // The ordinary export commands ask where to save (desktop window); the quick one uses the
+  // remembered folder, or `<project> exports` beside the project, without asking.
+  registry.register("export.tracks", () => void app.exportTracks(undefined, { ask: true }), {
     can: hasTracks,
     hintKey: "cmd.export.tracks.hint",
+  });
+  registry.register("export.tracks_quick", () => void app.exportTracks(undefined, { ask: false }), {
+    can: hasTracks,
+    hintKey: "cmd.export.tracks_quick.hint",
   });
   const offered = () => app.exportFormats?.() ?? ALWAYS_AVAILABLE;
   for (const format of EXPORT_FORMAT_IDS) {
     const can = (state) => hasTracks(state) && offered().includes(format);
-    registry.register(`export.mix_${format}`, () => void app.exportMix(format), {
+    registry.register(`export.mix_${format}`, () => void app.exportMix(format, { ask: true }), {
       can,
       hintKey: `cmd.export.mix_${format}.hint`,
     });
-    registry.register(`export.tracks_${format}`, () => void app.exportTracks(format), {
-      can,
-      hintKey: `cmd.export.tracks_${format}.hint`,
-    });
+    registry.register(
+      `export.tracks_${format}`,
+      () => void app.exportTracks(format, { ask: true }),
+      {
+        can,
+        hintKey: `cmd.export.tracks_${format}.hint`,
+      },
+    );
   }
   registry.register("export.regions", () => void app.exportRegions(), {
     can: hasRegions,

@@ -235,3 +235,78 @@ def test_bridge_reveals_only_the_last_export_folder(session, tmp_path):
     result = wait(session, session.export_tracks()[0])["result"]
     assert bridge.reveal_export() is True
     assert str(result["path"]) in ran[0][-1]
+
+
+# -- the native folder chooser and the remembered folder -------------------------
+
+
+class _FakeWebview:
+    class FileDialog:
+        FOLDER = "folder"
+
+
+class _FakeWindow:
+    def __init__(self, answer):
+        self.answer = answer
+        self.calls = []
+
+    def create_file_dialog(self, kind, **options):
+        self.calls.append((kind, options))
+        return self.answer
+
+
+def _bridge(tmp_path, answer):
+    bridge = desktop.Bridge(_FakeWebview, tmp_path / "recents")
+    bridge._window = _FakeWindow(answer)
+    return bridge
+
+
+def test_choose_export_folder_returns_the_folder(tmp_path):
+    start = tmp_path / "Episode exports"
+    start.mkdir()
+    bridge = _bridge(tmp_path, [str(tmp_path / "out")])
+    assert bridge.choose_export_folder(str(start)) == str(tmp_path / "out")
+    [(kind, options)] = bridge._window.calls
+    assert kind == "folder"
+    assert options["directory"] == str(start)
+
+
+def test_choose_export_folder_none_on_cancel(tmp_path):
+    assert _bridge(tmp_path, None).choose_export_folder(str(tmp_path)) is None
+    assert _bridge(tmp_path, []).choose_export_folder(str(tmp_path)) is None
+
+
+@pytest.mark.parametrize("bad", [None, 3, ["x"], {"a": 1}, "bad\0path"])
+def test_choose_export_folder_rejects_a_start_that_is_not_a_string(tmp_path, bad):
+    bridge = _bridge(tmp_path, [str(tmp_path)])
+    assert bridge.choose_export_folder(bad) is None
+    assert bridge._window.calls == []
+
+
+def test_choose_export_folder_starts_at_the_nearest_existing_folder(tmp_path):
+    bridge = _bridge(tmp_path, None)
+    bridge.choose_export_folder(str(tmp_path / "Episode exports"))
+    assert bridge._window.calls[0][1]["directory"] == str(tmp_path)
+
+
+def test_export_folder_hint_defaults_next_to_the_project(session, tmp_path):
+    hint = session.export_folder_hint()
+    assert hint == {"folder": str(tmp_path / "Episode exports"), "remembered": False}
+    assert not (tmp_path / "Episode exports").exists()  # made only on export
+
+
+def test_chosen_folder_is_the_parent_and_is_remembered(session, tmp_path):
+    chosen = tmp_path / "elsewhere"
+    result = wait(session, session.export_tracks({"folder": str(chosen)})[0])["result"]
+    assert Path(result["path"]).parent == chosen
+    assert Path(result["path"]).is_dir()
+    assert session.export_folder_hint() == {"folder": str(chosen), "remembered": True}
+
+
+def test_get_export_folder_route(session, tmp_path):
+    ui = tmp_path / "ui"
+    ui.mkdir()
+    with TestClient(create_app(session, _NoEngine(), language="en", ui_dir=ui)) as client:
+        r = client.get("/api/export-folder")
+        default = str(tmp_path / "Episode exports")
+        assert r.json() == {"folder": default, "remembered": False}
