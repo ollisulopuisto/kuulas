@@ -163,3 +163,41 @@ def test_launcher_page_escapes_and_lists_recents():
     page = desktop.launcher_html(['/x/<b>Show</b>.kuulas'])
     assert "<b>Show" not in page
     assert "&lt;b&gt;Show" in page
+
+
+def test_launcher_page_shows_the_mark():
+    page = desktop.launcher_html([])
+    assert "data:image/svg+xml;base64," in page
+    assert 'class="mark"' in page
+
+
+def test_icon_paths_exist_in_the_package():
+    assert desktop.icon_path("dock").is_file()
+    assert desktop.icon_path("window").is_file()
+
+
+def test_dock_icon_is_set_only_on_macos_and_never_raises(tmp_path):
+    calls = []
+
+    class FakeApp:
+        @staticmethod
+        def sharedApplication():  # noqa: N802
+            return FakeApp()
+
+        def setApplicationIconImage_(self, image):  # noqa: N802
+            calls.append(image)
+
+    class FakeImage:
+        @staticmethod
+        def alloc():
+            return FakeImage()
+
+        def initWithContentsOfFile_(self, path):  # noqa: N802
+            return ("image", path)
+
+    appkit = type("AppKit", (), {"NSApplication": FakeApp, "NSImage": FakeImage})
+    assert desktop.set_dock_icon(platform="linux", appkit=appkit) is False
+    assert calls == []
+    assert desktop.set_dock_icon(platform="darwin", appkit=appkit) is True
+    assert calls[0][0] == "image"
+    assert desktop.set_dock_icon(platform="darwin", appkit=None) is False

@@ -1,3 +1,12 @@
+## [v26.10.18.33] - 2026-10-18
+
+- App icons: the kuulas mark on a dark rounded square, as PNGs (16 to 1024 px), `kuulas.ico`
+  (Windows) and `kuulas.icns` (macOS), in `src/kuulas/assets/icons/`, made by
+  `scripts/make_icons.py` (which is also the single source of the header logo).
+- The desktop window shows the mark on the launcher page, sets the Dock icon on macOS (instead
+  of Python's rocket) and passes the icon to the window toolkit. The Dock label still says
+  "Python" until the app is packaged.
+
 ## [v26.10.18.32] - 2026-10-18
 
 - The kuulas logo (a first version) is in the app: in the header next to the name and as the
