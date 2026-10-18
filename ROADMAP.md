@@ -114,6 +114,8 @@ sizes: `docs/PLAN.md`, section "Triage".
 
 ## Next
 
+- **Display scale, zoom by dragging, remote control** (WP52, owner requests 2026-10-18): normalised
+  waveform display, drag a range on the ruler to zoom, `kuulas ctl` to drive a running window.
 - **Status tracking** (WP51, owner request 2026-10-18): Draft, Ready for review, In review, Needs
   fixes, Reviewed, Approved, Published as editable defaults; per edit, with history.
 - **Mobile listen-and-comment PWA** (owner request 2026-10-18, put last): a listening copy,

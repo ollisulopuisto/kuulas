@@ -3005,3 +3005,31 @@ be opinionated and offer some defaults."
   settings rename keeps old projects readable.
 
 ---
+
+### WP52 — Display scale, zoom by dragging, and a remote control for testing
+
+Status: open (owner requests 2026-10-18, from using the app on a real session). Three small parts.
+
+- **Track role editable and no "stereo means music" guess (in progress, Sonnet):** the inspector gets
+  a role select; the import stops marking stereo files as music. (A stereo speech file drew as a
+  small linear music waveform.)
+- **Waveform display scale:** the lane height shows the track's true level by default. Add View ▸
+  Waveform scale: *True level* (today), *Each track normalised* (the lane's loudest peak, or the
+  99th percentile so one click does not squash it, fills the lane, computed from the peak data
+  already cached) and *All tracks to the loudest*. The mode is remembered per project with the
+  view memory (WP35). A track normalised this way shows a small "×N" or "+N dB" label so the
+  display is never mistaken for true level. Pure JS for the scale factor (tested alone).
+- **Zoom to a dragged range:** a drag on the ruler zooms to that range on release (a band shows
+  while dragging; a plain click still moves the playhead). Esc cancels. Also reachable as
+  "Zoom to range" in the palette. (F fits the selection already; the overview box drags the view.)
+- **Remote control for testing and debugging:** `kuulas ctl <project> <command> [json args]` sends
+  an editor command to the already running window, and the window updates live. The server already
+  has the command API; add a discovery file in the project folder (port and a per-run token in a
+  user-only file, never printed), a CLI that reads it and posts the command, and make the UI
+  refresh when the head moves from outside (the history head id changes: reload state).
+  Localhost only. Useful for debugging, scripted demos and agents; low priority, so last.
+- **Tests first:** the scale factors (peak and percentile, silent track, clipping), ruler drag
+  range maths (reversed drag, tiny drag ignored), discovery file permissions and token check,
+  a command from the CLI changes the open session and bumps the head.
+
+---
