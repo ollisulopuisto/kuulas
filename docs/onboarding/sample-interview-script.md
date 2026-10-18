@@ -31,7 +31,7 @@ luontaista.
 | n. 0:40 | Vieras vaikenee kolmeksi sekunniksi ennen vastaustaan. | Pitkän tauon löytäminen ja karsiminen. |
 | n. 1:00 | Vieras aloittaa vastauksen täytesanalla "öö". | Täytesanan poistaminen. |
 | n. 1:15 | Luku 2 alkaa, otsikko "Työkalut ja maltti". | Luvun lisääminen. |
-| n. 1:30 | Vieras takertelee, sanoo "ei, uudestaan" ja toistaa lauseen puhtaasti. | Retkeillyn otoksen poistaminen ja puhtaan toiston säilyttäminen. |
+| n. 1:30 | Vieras takertelee, sanoo "ei, uudestaan" ja toistaa lauseen puhtaasti. | Epäonnistuneen yrityksen poistaminen ja puhtaan toiston säilyttäminen. |
 | n. 2:00 | Vieras yskäisee tai kolauttaa mikrofonia ennen vastaustaan. | Häiriön poistaminen vastauksen alta. |
 | n. 2:15 | Luku 3 alkaa, otsikko "Lopuksi". | Luvun lisääminen. |
 | n. 2:20 | Olli sanoo "tähän merkki". | Merkin asettaminen kuullun vihjeen kohdalle. |
