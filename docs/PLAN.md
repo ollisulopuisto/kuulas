@@ -3289,3 +3289,13 @@ Status: open; the glossary draft is `docs/GLOSSARY.md`. The owner noticed near-s
 verbs (mute, delete, soft delete, remove). One word per meaning across menus, hints, toasts, help and docs,
 in both languages, Hindenburg's Finnish words used where the owner knows them. Steps are in the glossary.
 
+---
+
+### Rule: one clip per moment per track (owner, 2026-10-18)
+
+There are no layers on a track: each moment on a track holds at most one clip. Moving or nudging a clip over
+others overwrites what is under it (the others are trimmed, split around it or removed when covered; the
+audio under a trimmed edge stays put and the whole move is one undo step). Old projects that already hold
+overlaps are left alone. **Alternative takes** (WP19e: several takes of one narration) are a different,
+modal thing: a take stack at one place with one take active, never overlapping clips.
+

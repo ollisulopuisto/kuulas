@@ -598,15 +598,17 @@ def cut_range(p: Project, start: int, end: int, track_ids,
         p, None, list(track_ids), start, end, group_editing))
 
 
-def nudge_clips(p: Project, clip_ids, delta: int, group_editing: bool = False) -> Project:
+def nudge_clips(p: Project, clip_ids, delta: int, group_editing: bool = False,
+                overwrite: bool = True) -> Project:
     """``shift_clips`` that takes the clips' sync partners along when
-    ``group_editing`` is on."""
-    return shift_clips(p, edit_scope.expand_clips(p, None, list(clip_ids), group_editing),
-                       delta)
+    ``group_editing`` is on. Clips they land on are overwritten (no layers)."""
+    nudged = shift_clips(
+        p, edit_scope.expand_clips(p, None, list(clip_ids), group_editing), delta)
+    return _overwrite_under(p, nudged) if overwrite else nudged
 
 
 def move_clips_to_track(p: Project, clip_ids, direction: int, delta: int = 0,
-                        group_editing: bool = False) -> Project:
+                        group_editing: bool = False, overwrite: bool = True) -> Project:
     """Drag a clip body: ``nudge_clips`` by ``delta`` frames, and the clips ``direction``
     tracks down (negative: up), in one edit.
 
@@ -619,11 +621,37 @@ def move_clips_to_track(p: Project, clip_ids, direction: int, delta: int = 0,
     index = {t.id: i for i, t in enumerate(p.tracks)}
     rows = [index[_find_clip(p, cid)[1].id] for cid in chosen]
     direction = max(-min(rows), min(len(p.tracks) - 1 - max(rows), int(direction)))
-    moved = nudge_clips(p, chosen, int(delta), group_editing)
-    if direction == 0:
-        return moved
-    for cid, row in zip(chosen, rows, strict=True):
-        moved = move_clip(moved, cid, moved.clip(cid).start, p.tracks[row + direction].id)
+    moved = nudge_clips(p, chosen, int(delta), group_editing, overwrite=False)
+    if direction != 0:
+        for cid, row in zip(chosen, rows, strict=True):
+            target = p.tracks[row + direction].id
+            moved = move_clip(moved, cid, moved.clip(cid).start, target)
+    return _overwrite_under(p, moved) if overwrite else moved
+
+
+def _overwrite_under(before: Project, moved: Project) -> Project:
+    """Clips on a track never overlap (there are no layers): where a moved clip now lies
+    on others, those are trimmed back, split around it, or removed when it covers them
+    whole. The audio under a trimmed edge stays put, so nothing is lost; one edit."""
+    start_of = {c.id: (t.id, c.start) for t in before.tracks for c in t.clips}
+    moved_ids = {c.id for t in moved.tracks for c in t.clips
+                 if start_of.get(c.id) != (t.id, c.start)}
+    for cid in sorted(moved_ids):
+        mclip, mtrack = _find_clip(moved, cid)
+        lo, hi = mclip.start, mclip.end
+        for other in [c for c in mtrack.clips if c.id != cid and c.id not in moved_ids]:
+            if other.end <= lo or other.start >= hi:
+                continue
+            if lo <= other.start and hi >= other.end:
+                moved = delete_clip(moved, other.id)
+            elif lo <= other.start:  # its front is covered
+                moved = trim_clip(moved, other.id, start=hi)
+            elif hi >= other.end:  # its end is covered
+                moved = trim_clip(moved, other.id, end=lo)
+            else:  # strictly inside: split, then trim the right piece
+                right_id = new_id("c")
+                moved = split_clip(moved, other.id, lo, new_id=right_id)
+                moved = trim_clip(moved, right_id, start=hi)
     return moved
 
 
