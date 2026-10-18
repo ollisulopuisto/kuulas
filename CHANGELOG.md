@@ -1,3 +1,9 @@
+## [v26.10.18.25] - 2026-10-18
+
+- New command `kuulas import-nhsx <session.nhsx> <Name.kuulas>` imports a Hindenburg session into a
+  project (tracks, clips, fades, gains, transcript words). Open the result with `kuulas open`.
+  Until now the import only existed inside the program with no way to start it.
+
 ## [v26.10.18.24] - 2026-10-18
 
 - kuulas remembers each project's view: zoom, scroll, lane height, waveform mode, follow mode, the

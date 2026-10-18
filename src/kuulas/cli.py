@@ -1,5 +1,6 @@
-"""The ``kuulas`` command: ``info <folder>`` (WP29), ``open <folder>`` (WP3) and,
-without arguments, the desktop window (WP15)."""
+"""The ``kuulas`` command: ``info <folder>`` (WP29), ``open <folder>`` (WP3),
+``import-nhsx <file> <folder>`` (WP13) and, without arguments, the desktop window
+(WP15)."""
 
 from __future__ import annotations
 
@@ -33,6 +34,20 @@ def info(folder: str) -> int:
         print(t("cli.info.size", name=name, size_mb=_mb(size)))
     print(t("cli.info.media", **data["media"]))
     print(t("cli.info.backups", count=data["backups"]))
+    return 0
+
+
+def import_nhsx(nhsx_path: str, folder: str) -> int:
+    """Import a Hindenburg session into the project (created if missing)."""
+    from .session import Session  # noqa: PLC0415
+
+    session = Session(folder)
+    try:
+        session.command("import_nhsx", {"path": nhsx_path})
+        print(t("cli.import_nhsx.done", path=folder, tracks=len(session.state.tracks),
+                media=len(session.state.media)))
+    finally:
+        session.close()
     return 0
 
 
@@ -87,12 +102,15 @@ def open_project(folder: str, port: int = 0, browser: bool = True) -> int:
     return 0
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911
     parser = argparse.ArgumentParser(prog="kuulas", description=t("cli.description"))
     commands = parser.add_subparsers(dest="command")
     commands.add_parser("desktop", help=t("cli.desktop.help"))
     shown = commands.add_parser("info", help=t("cli.info.help"))
     shown.add_argument("folder", help=t("cli.info.folder"))
+    imported = commands.add_parser("import-nhsx", help=t("cli.import_nhsx.help"))
+    imported.add_argument("nhsx", help=t("cli.import_nhsx.nhsx"))
+    imported.add_argument("folder", help=t("cli.import_nhsx.folder"))
     opened = commands.add_parser("open", help=t("cli.open.help"))
     opened.add_argument("folder", help=t("cli.open.folder"))
     opened.add_argument("--port", type=int, default=0, help=t("cli.open.port"))
@@ -107,6 +125,8 @@ def main(argv: list[str] | None = None) -> int:
             return desktop.run_launcher()
         if args.command == "info":
             return info(args.folder)
+        if args.command == "import-nhsx":
+            return import_nhsx(args.nhsx, args.folder)
         if args.command == "open" and args.window:
             from . import desktop  # noqa: PLC0415
 
