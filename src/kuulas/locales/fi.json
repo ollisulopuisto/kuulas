@@ -237,7 +237,7 @@
     "other": "Tuotiin {count} äänitiedostoa."
   },
   "ui.project.empty": "Aloita muokkaus tuomalla ääntä.",
-  "ui.toolbar.label": "Toisto ja projekti",
+  "ui.toolbar.label": "Valikko ja projekti",
   "ui.transport.export": "Vie",
   "ui.export.soon": "Vienti tulee myöhemmässä versiossa.",
   "ui.view.close": "Lähikuva",
@@ -1305,5 +1305,16 @@
   "cmd.transcript.remove_words": "Poista valitut sanat kaikilta raidoilta ja sulje aukko",
   "cmd.transcript.remove_words.hint": "Poistaa valittujen sanojen kohdan kaikilta raidoilta ja sulkee aukon. Mitään ei mene leikepöydälle.",
   "ui.transcript.toast.remove": {"one": "Poistettu {count} sana kaikilta raidoilta", "other": "Poistettu {count} sanaa kaikilta raidoilta"},
-  "ui.readout.type_hint": "Kaksoisnapsauta kirjoittaaksesi tarkan arvon"
+  "ui.readout.type_hint": "Kaksoisnapsauta kirjoittaaksesi tarkan arvon",
+  "ui.transport.label": "Toisto",
+  "ui.range.group": "Alku- ja loppupiste",
+  "ui.range.unset_name": "{name}: ei asetettu",
+  "ui.range.tip_in": "{name} {time} · napsauta: siirry (1) · kaksoisnapsauta: kirjoita aika",
+  "ui.range.tip_out": "{name} {time} · napsauta: siirry (2) · kaksoisnapsauta: kirjoita aika",
+  "ui.range.tip_length": "{name} {time} · napsauta: zoomaa välille (F) · kaksoisnapsauta: kirjoita pituus",
+  "ui.range.tip_unset": "{name}: ei asetettu (I ja O asettavat) · kaksoisnapsauta: kirjoita aika",
+  "ui.range.tip_length_unset": "{name}: aseta ensin alkupiste · kaksoisnapsauta: kirjoita pituus",
+  "ui.range.field": "{name}, kirjoita aika",
+  "ui.range.edit_hint": "Enter asettaa · Esc peruu · esim. 9:03,5 tai 543,8",
+  "ui.range.invalid": "Ei ole aika. Kokeile 9:03,5 tai 543,8"
 }

@@ -306,10 +306,11 @@
      named next to each. */
   --topbar-h: 52px;
   --statusbar-h: 32px;
-  --overview-h: 20px;
+  --corner-h: 72px; /* the transport corner above the track headers = overview + ruler */
+  --overview-h: calc(var(--corner-h) - var(--ruler-h));
   --ruler-h: 24px; /* lanes.js RULER_HEIGHT (both densities) */
-  --heads-w: 272px;
-  --heads-w-min: 232px;
+  --heads-w: 340px; /* as wide as the corner: Play, timecode and the in/out readout */
+  --heads-w-min: 280px;
   --heads-w-max: 380px;
   --sidebar-w: 360px;
   --sidebar-w-min: 280px;
@@ -350,9 +351,8 @@
   --leading-read: 1.65;
   --topbar-h: 38px;
   --statusbar-h: 22px;
-  --overview-h: 20px;
-  --heads-w: 216px;
-  --heads-w-min: 180px;
+  --heads-w: 340px; /* the corner needs the same room in both densities */
+  --heads-w-min: 280px;
   --heads-w-max: 360px;
   --sidebar-w: 280px;
   --sidebar-w-min: 260px;

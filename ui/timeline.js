@@ -17,7 +17,7 @@ import {
 } from "./clip-drag.js";
 import { overLabel } from "./clip-overs.js";
 import { edgeGhost, ghostGeometry, resolveEdge } from "./edge-drag.js";
-import { frameToX, xToFrame } from "./format.js";
+import { frameToTime, frameToX, xToFrame } from "./format.js";
 import {
   fadeFromX,
   fadeHandleAt,
@@ -47,7 +47,7 @@ import {
 import { leftOffFlag } from "./left-off.js";
 import { activeLoop } from "./loop-range.js";
 import { flagLayout, NOTCH_PX as MARKER_NOTCH_PX } from "./markers-model.js";
-import { markDrawing } from "./marks.js";
+import { lengthPill, markDrawing } from "./marks.js";
 import { makeWaveformJob, trackHues } from "./paint.js";
 import { aboutSeconds, placeholderLabel } from "./placeholders-model.js";
 import {
@@ -203,7 +203,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       else drawBusRow(state, row, top, groups, hues);
     }
     drawRuler(state, rate);
-    drawInOut(state, height);
+    drawInOut(state, height, rate);
     drawRangeBand(state, layout);
     if (dropPreview) drawDropPreview(state, layout);
     if (edgeSession?.dragging) drawEdgeGhost(state, layout);
@@ -319,6 +319,44 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     overlay.fillRect(x1, RULER_HEIGHT, x2 - x1, height - RULER_HEIGHT);
   }
 
+  // The band in the ruler too (drawn after the ruler, under the flags), and the length as a
+  // small accent-outlined pill centred on it; it hides the time labels under it, as the other
+  // ruler flags do. No pill when the band is too narrow (marks.js lengthPill); no dashes.
+  function drawRangeInRuler(state, rate) {
+    const { range } = markDrawing(state);
+    if (range === null) return;
+    const x1 = frameToX(range.start, state.scroll, state.zoom);
+    const x2 = frameToX(range.end, state.scroll, state.zoom);
+    overlay.fillStyle = theme.range;
+    overlay.fillRect(x1, 0, x2 - x1, RULER_HEIGHT - 1);
+    overlay.save();
+    overlay.font = `600 ${MARK_FONT_PX + 1}px ${theme.mono}`;
+    const label = frameToTime(range.end - range.start, rate);
+    const pill = lengthPill({
+      range,
+      scroll: state.scroll,
+      zoom: state.zoom,
+      width: size.width,
+      textWidth: overlay.measureText(label).width,
+    });
+    if (pill) {
+      const top = 3;
+      const h = RULER_HEIGHT - 8;
+      overlay.beginPath();
+      overlay.roundRect(Math.round(pill.x) + 0.5, top + 0.5, pill.width, h, h / 2);
+      overlay.fillStyle = theme.panel;
+      overlay.fill();
+      overlay.strokeStyle = theme.accent;
+      overlay.lineWidth = 1;
+      overlay.stroke();
+      overlay.fillStyle = theme.accentText;
+      overlay.textAlign = "center";
+      overlay.textBaseline = "middle";
+      overlay.fillText(label, pill.center, top + 1 + h / 2);
+    }
+    overlay.restore();
+  }
+
   // The range being dragged (WP6): the selection tint over the lanes it covers.
   function drawRangeBand(state, layout) {
     if (!rangeBand) return;
@@ -341,8 +379,9 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
 
   // In and out: 1 px accent edges with a flag in the ruler, pointing inwards.
   // A lone mark is drawn too, so pressing O or I shows something at once.
-  function drawInOut(state, height) {
+  function drawInOut(state, height, rate) {
     const { inFrame, outFrame } = markDrawing(state);
+    drawRangeInRuler(state, rate);
     overlay.fillStyle = theme.accent;
     overlay.beginPath();
     if (inFrame !== null) {

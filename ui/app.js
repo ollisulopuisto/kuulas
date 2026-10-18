@@ -65,6 +65,7 @@ import { connectLive } from "./live.js";
 import { activeLoop } from "./loop-range.js";
 import { regionCount } from "./markers-model.js";
 import { createMarkersPanel } from "./markers-panel.js";
+import { createMarksCorner } from "./marks-corner.js";
 import { heldFromEvent } from "./modifiers.js";
 import { monoDecision, monoEdits } from "./mono-ask.js";
 import { motionMode } from "./motion.js";
@@ -1669,6 +1670,18 @@ overview = createOverview({
   },
 });
 
+// The Alku / Loppu / Pituus readout in the transport corner.
+const marksCorner = createMarksCorner({
+  root: document.querySelector(".rcol"),
+  getState,
+  rate,
+  format: frameToTime,
+  limit: totalFrames,
+  run: (id) => keyboard.registry.run(id, null, getState()),
+  patch: setState,
+  t,
+});
+
 // -- render -----------------------------------------------------------------------------------------------
 
 function spanText(state) {
@@ -1679,7 +1692,7 @@ function spanText(state) {
   return t(`ui.zoom.${unit}`, { value: formatNumber(value, { digits: GAIN_DIGITS(value) }) });
 }
 
-// "In 12:03,250 · Out 12:41,000 · Length 0:37,750": the marked or selected section.
+// "2 clips · 12:03,250-12:41,000 · 0:37,750": the selected clips (the marks are in the corner).
 function updateRangeInfo() {
   const el = $("range-info");
   const state = getState();
@@ -1716,9 +1729,13 @@ function render(state, patch) {
   }
   if (touched("project", "scroll", "zoom", "playhead", "selection")) overview.redraw();
   if (touched("playhead", "project")) {
-    $("timecode").textContent = frameToTime(state.playhead, rate());
+    const time = frameToTime(state.playhead, rate());
+    $("timecode").textContent = time;
+    // The hour form is wider, so the corner sets it smaller.
+    $("timecode").classList.toggle("hour", time.split(":").length > 2);
   }
   if (touched("project", "selection", "inPoint", "outPoint")) updateRangeInfo();
+  if (touched("project", "inPoint", "outPoint")) marksCorner.render(state);
   if (touched("project", "words")) updateTabScope();
   if (touched("playing")) {
     $("play-icon").textContent = state.playing ? "■" : "▶";

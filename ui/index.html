@@ -17,19 +17,9 @@
       <header class="toolbar" role="toolbar" data-i18n-aria-label="ui.toolbar.label">
         <div class="project"><img class="brand-mark" src="/logo.svg" alt="" width="26" height="26" /><span class="name" data-i18n="ui.app.name"></span></div>
         <nav id="menubar" class="menubar"></nav>
-        <div class="transport">
-          <button id="play" type="button" class="play" aria-keyshortcuts="Space">
-            <span id="play-icon" class="play-icon" aria-hidden="true">▶</span><span id="play-label"></span>
-            <kbd data-shortcut="Space" aria-hidden="true"></kbd>
-          </button>
-          <button id="loop" type="button" class="button ghost" aria-pressed="false" data-i18n="ui.transport.loop"></button>
-          <output id="timecode" class="timecode" data-i18n-aria-label="ui.transport.time">0:00.000</output>
-        </div>
         <div class="modes">
           <span id="live-chip" class="chip danger" role="status" hidden></span>
           <button id="waveform-gain" type="button" class="chip warn" hidden></button>
-          <button id="speed-chip" type="button" class="chip warn" hidden></button>
-          <input id="fast-speed" class="fast-speed" type="range" min="1" max="2" step="0.05" value="1.5" data-i18n-aria-label="ui.speed.slider" data-i18n-title="ui.speed.slider" />
           <button id="group-chip" type="button" class="chip warn" hidden></button>
         </div>
         <span class="spacer"></span>
@@ -40,7 +30,30 @@
         <input id="file-input" type="file" accept="audio/*,video/*" multiple hidden />
       </header>
       <aside class="heads">
-        <div class="heads-spacer"></div>
+        <!-- The transport corner (owner, 2026-10-18, variant C-right): Play, timecode, loop and
+             fast listening sit above the track headers, level with the overview and the ruler.
+             Mockup: docs/design/transport-corner/index.html. -->
+        <div class="corner" role="toolbar" data-i18n-aria-label="ui.transport.label">
+          <button id="play" type="button" class="play" aria-keyshortcuts="Space">
+            <span id="play-icon" class="play-icon" aria-hidden="true">▶</span><span id="play-label" class="lbl"></span>
+            <kbd data-shortcut="Space" aria-hidden="true"></kbd>
+          </button>
+          <output id="timecode" class="timecode" data-i18n-aria-label="ui.transport.time">0:00.000</output>
+          <div class="t-row">
+            <button id="loop" type="button" class="button ghost icon" aria-pressed="false" aria-keyshortcuts="Meta+U Control+U">
+              <svg class="i" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 7.5v-1a2.5 2.5 0 0 1 2.5-2.5h7.5M10.5 1.8 12.7 4l-2.2 2.2M13.5 8.5v1A2.5 2.5 0 0 1 11 12H3.5M5.5 14.2 3.3 12l2.2-2.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span class="loop-name visually-hidden" data-i18n="ui.transport.loop"></span>
+            </button>
+            <input id="fast-speed" class="fast-speed" type="range" min="1" max="2" step="0.05" value="1.5" data-i18n-aria-label="ui.speed.slider" data-i18n-title="ui.speed.slider" />
+            <button id="speed-chip" type="button" class="chip warn" hidden></button>
+          </div>
+          <!-- Alku / Loppu / Pituus: marks-corner.js draws and wires the three rows. -->
+          <div class="rcol" role="group" data-i18n-aria-label="ui.range.group">
+            <button id="mark-in" type="button" class="mrow"></button>
+            <button id="mark-out" type="button" class="mrow"></button>
+            <button id="mark-length" type="button" class="mrow"></button>
+          </div>
+        </div>
         <div id="track-headers" data-help-id="track-headers" class="heads-scroll" data-i18n-aria-label="ui.focus.tracks"></div>
       </aside>
       <section class="tl-column" data-panel="timeline">
