@@ -321,6 +321,12 @@ def test_the_clipboard_file_is_not_read_or_written_under_the_session_lock(
 
 
 class _Engine:
+    def __init__(self):
+        self.previews = []
+
+    def play_preview(self, project, until=None):
+        self.previews.append(project)
+
     def status(self):
         return {"playing": False, "position": 0, "until": None, "notices": []}
 
@@ -329,11 +335,36 @@ class _Engine:
 
 
 @pytest.fixture
-def client(session, tmp_path):
+def engine():
+    return _Engine()
+
+
+@pytest.fixture
+def client(session, tmp_path, engine):
     ui = tmp_path / "ui"
     ui.mkdir()
-    with TestClient(create_app(session, _Engine(), language="en", ui_dir=ui)) as c:
+    with TestClient(create_app(session, engine, language="en", ui_dir=ui)) as c:
         yield c
+
+
+def test_api_preview_plays_a_temp_project_and_changes_nothing(client, session, engine):
+    a, _ = ids(session.state)
+    body = {"clip_ids": [a.clips[0].id]}
+    entry = client.post("/api/clipboard/copy", json=body).json()["entry"]
+    head, before = history_len(session), clips(session.state)
+    r = client.post(f"/api/clipboard/{entry['id']}/preview")
+    assert r.status_code == 200
+    assert r.json() == {"started": True, "missing": 0}
+    (temp,) = engine.previews
+    shape = [(t.id, [c.start for c in t.clips]) for t in temp.tracks]
+    assert shape == [(a.id, [0]), (ids(session.state)[1].id, [])]
+    assert history_len(session) == head
+    assert clips(session.state) == before
+
+
+def test_api_preview_of_an_unknown_entry_is_a_404(client, engine):
+    assert client.post("/api/clipboard/nope/preview").status_code == 404
+    assert engine.previews == []
 
 
 def test_api_copy_list_pin_rename_delete(client, session):

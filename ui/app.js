@@ -511,6 +511,11 @@ const keyboard = setupKeyboard({
     toast: (text, options) => showNotice(text, "ok", options),
     copy: (body) => copyToClipboard(body),
     refreshClipboard: () => void refreshClipboard(),
+    previewClipboard: (id) =>
+      api.previewClipboardEntry(id).catch((error) => {
+        showError(error);
+        return null;
+      }),
     now: () => performance.now(),
     chooseMedia: () => chooseMedia(),
     // The transcript's X: cut the words' stretch on every track.
@@ -1204,6 +1209,10 @@ const clipboardPanel = createClipboardPanel({
       void clipboardAction(() => api.deleteClipboardEntry(id))();
     },
     choose: (patch) => setState(patch),
+    preview(id) {
+      setState({ clipboardSelected: id });
+      keyboard.registry.run("edit.preview_clipboard", null, getState());
+    },
     canPasteAgain: (state) => keyboard.registry.can(pasteCommand(state), state),
     pasteAgain(id) {
       setState({ clipboardSelected: id });

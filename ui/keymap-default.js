@@ -337,6 +337,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.edit.paste_overwrite_track",
   },
   {
+    id: "edit.preview_clipboard",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.edit.preview_clipboard",
+  },
+  {
     id: "edit.split",
     keys: { mac: ["B", "Mod+B"], other: ["B", "Mod+B"] },
     context: "timeline",

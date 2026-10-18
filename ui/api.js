@@ -71,6 +71,8 @@ export const getCandidatePreview = (id, mode = "soft") =>
 // copying changes no project, so it has its own route. Each answer carries `entries`.
 export const getClipboard = () => json("/api/clipboard");
 export const copyToClipboard = (body) => post("/api/clipboard/copy", body);
+export const previewClipboardEntry = (id) =>
+  json(`/api/clipboard/${encodeURIComponent(id)}/preview`, { method: "POST" });
 export const pinClipboardEntry = (id, pinned) =>
   post(`/api/clipboard/${encodeURIComponent(id)}/pin`, { pinned });
 export const renameClipboardEntry = (id, name) =>

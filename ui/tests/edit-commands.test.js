@@ -25,12 +25,13 @@ const base = (extra = {}) => ({
   ...extra,
 });
 
-function setup(state) {
+function setup(state, previewAnswer = { started: true, missing: 0 }) {
   const registry = createRegistry();
   const sent = [];
   const patches = [];
   const toasts = [];
   const copied = [];
+  const previewed = [];
   let refreshed = 0;
   let renamed = 0;
   let now = 1000;
@@ -50,6 +51,10 @@ function setup(state) {
       focusName: () => {
         renamed += 1;
       },
+      previewClipboard: (id) => {
+        previewed.push(id);
+        return Promise.resolve(previewAnswer);
+      },
       refreshClipboard: () => {
         refreshed += 1;
       },
@@ -58,6 +63,7 @@ function setup(state) {
   return {
     registry,
     copied,
+    previewed,
     refreshed: () => refreshed,
     renamed: () => renamed,
     sent,
@@ -96,6 +102,7 @@ const WORKING = [
   "edit.paste_track",
   "edit.paste_same",
   "edit.paste_overwrite_track",
+  "edit.preview_clipboard",
 ];
 
 describe("the editing commands", () => {
@@ -282,6 +289,28 @@ describe("the clipboard commands (WP46)", () => {
       false,
     );
     assert.equal(h.registry.can("edit.paste_same", withClip({ focusTrack: null })), true);
+  });
+
+  test("Preview plays the picked (else newest) entry without an edit", async () => {
+    const state = withClip();
+    const h = setup(state);
+    assert.equal(h.registry.can("edit.preview_clipboard", base()), false);
+    assert.equal(h.registry.can("edit.preview_clipboard", state), true);
+    h.registry.run("edit.preview_clipboard", null, state);
+    assert.deepEqual(h.previewed, ["e1"]);
+    assert.equal(h.sent.length, 0);
+    await Promise.resolve();
+    assert.equal(h.toasts.length, 0);
+  });
+
+  test("a preview with nothing to hear says so, without Undo", async () => {
+    const state = withClip();
+    const h = setup(state, { started: false });
+    h.registry.run("edit.preview_clipboard", null, state);
+    await Promise.resolve();
+    await Promise.resolve();
+    assert.match(h.toasts[0][0], /^ui\.clipboard\.preview_nothing/);
+    assert.deepEqual(h.toasts[0][1], { undo: false });
   });
 
   test("paste on the current track needs a current track", () => {

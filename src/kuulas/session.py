@@ -60,6 +60,7 @@ from . import loudness_curve as loudness_curve_module
 from . import markers as markers_module
 from . import music_report as music_report_module
 from .clipboard import Entry, make_entry, make_entry_range
+from .clipboard_preview import preview_project
 from .clipboard_store import ClipboardStore, entry_dict
 from .clock import FLICKS, frames_to_flicks
 from .history import History, UndoInfo
@@ -412,6 +413,12 @@ class Session:
         project lacks."""
         project = self.state
         return [self._entry_view(e, project) for e in self.clipboard.load().entries()]
+
+    def clipboard_preview(self, entry_id: str):
+        """``(temporary project or None, missing media count)`` for playing an
+        entry without changing this project (``clipboard_preview``)."""
+        project, missing = preview_project(self.state, self._entry(entry_id))
+        return project, len(missing)
 
     def clipboard_copy(self, *, clip_ids=None, start=None, end=None, track_ids=None,
                        group_editing: bool = False, name: str = "") -> dict:

@@ -19,7 +19,7 @@ const el = (tag, props = {}, ...children) => {
 };
 
 /**
- * `actions`: select(id), pin(id, pinned), rename(id, name), remove(id), pasteAgain(id),
+ * `actions`: select(id), preview(id), pin(id, pinned), rename(id, name), remove(id), pasteAgain(id),
  * choose({ pasteMode } | { pasteTarget }), canPasteAgain(state) -> boolean.
  */
 export function createClipboardPanel({ root, actions }) {
@@ -99,6 +99,7 @@ export function createClipboardPanel({ root, actions }) {
     const buttons = el(
       "span",
       { class: "clip-actions" },
+      button("preview", t("ui.clipboard.preview"), () => actions.preview(entry.id)),
       button("paste", t("ui.clipboard.paste_again"), () => actions.pasteAgain(entry.id), {
         disabled: !canPaste,
       }),

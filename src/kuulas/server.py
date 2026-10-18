@@ -396,6 +396,15 @@ def create_app(session, engine, *, language: str | None = None,
         session.clipboard_rename(entry_id, body.name)
         return JSONResponse({"entries": session.clipboard_list()})
 
+    @app.post("/api/clipboard/{entry_id}/preview")
+    def post_clipboard_preview(entry_id: str):
+        # Plays a temporary project made from the entry; the real one is not
+        # touched, nothing is committed. Playing again or Stop ends it.
+        project, missing = session.clipboard_preview(entry_id)
+        if project is not None:
+            engine.play_preview(project)
+        return JSONResponse({"started": project is not None, "missing": missing})
+
     @app.delete("/api/clipboard/{entry_id}")
     def delete_clipboard_entry(entry_id: str):
         session.clipboard_delete(entry_id)
@@ -789,7 +798,10 @@ def create_app(session, engine, *, language: str | None = None,
                 next_poll = time.monotonic() + (tick if status["playing"]
                                                 else max(tick, LIVE_IDLE_S))
                 position = status["position"]
-                moved = status["playing"] and position != last_position
+                # A clipboard preview plays a temporary project: its frames are not
+                # the timeline's, so the playhead must not follow them.
+                moved = (status["playing"] and not status.get("preview")
+                         and position != last_position)
                 if moved or (playing and not status["playing"]):
                     await ws.send_json({"type": "position", "position": position,
                                         "playing": status["playing"]})
