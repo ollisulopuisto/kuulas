@@ -1,0 +1,48 @@
+{
+  "comment": "Shared by tests/test_gain_overs_fixture.py (gain_scale.py, clip_overs.py) and ui/tests/gain-scale.test.js, ui/tests/clip-overs.test.js (the JS ports). Numbers that cannot be JSON are strings: \"-inf\".",
+  "total": [
+    { "args": [1, 2, 3], "result": 6 },
+    { "args": [null, null, null], "result": 0 },
+    { "args": [-6, -6, 0], "result": -12 },
+    { "args": [-6, 3], "result": -3 },
+    { "args": ["-inf", 5, 0], "result": "-inf" }
+  ],
+  "scale": [
+    { "db": 0, "result": 1 },
+    { "db": 20, "result": 10 },
+    { "db": -20, "result": 0.1 },
+    { "db": 60, "result": 32 },
+    { "db": "-inf", "result": 0 },
+    { "db": 40, "max": 50, "result": 50 }
+  ],
+  "envelope": [
+    { "points": [], "frame": 10, "result": 0 },
+    { "points": [[100, -6], [200, 6]], "frame": 0, "result": -6 },
+    { "points": [[100, -6], [200, 6]], "frame": 150, "result": 0 },
+    { "points": [[100, -6], [200, 6]], "frame": 175, "result": 3 },
+    { "points": [[100, -6], [200, 6]], "frame": 900, "result": 6 },
+    { "points": [[100, -6], [200, 6], [300, 0]], "frame": 250, "result": 3 },
+    { "points": [[100, -6], [100, 6]], "frame": 100, "result": -6 }
+  ],
+  "overs": [
+    { "peaks": [], "gain": 0, "result": [] },
+    { "peaks": [[0.9, 0.9]], "gain": 0, "result": [] },
+    { "peaks": [[1, 1]], "gain": 0, "result": [[0, 0]] },
+    {
+      "peaks": [[-1, 0.2], [0.1, 0.1], [0.5, 0.9], [0.9, 0.99]],
+      "gain": 0,
+      "result": [[0, 0], [3, 3]]
+    },
+    { "peaks": [[0.5, 0.5], [0.5, 0.5]], "gain": 6, "result": [[0, 1]] },
+    { "peaks": [[0.5, 0.5], [0.4, 0.4]], "gain": 6, "result": [[0, 0]] },
+    { "peaks": [[0.5, 0.5]], "gain": 7, "limit": 0, "result": [[0, 0]] },
+    { "peaks": [[0.5, 0.5]], "gain": -6, "result": [] }
+  ],
+  "max_over": [
+    { "peaks": [], "gain": 0, "result": 0 },
+    { "peaks": [[0.5, 0.5]], "gain": 0, "result": 0 },
+    { "peaks": [[0.5, 0.5]], "gain": 12.0412, "result": 6.0206 },
+    { "peaks": [[-1, 0.2], [0.5, 0.5]], "gain": 6.0206, "result": 6.0206 },
+    { "peaks": [[1, 1]], "gain": 0, "result": 0 }
+  ]
+}
