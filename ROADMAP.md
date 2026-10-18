@@ -223,9 +223,7 @@ WP27, WP38, WP42, WP15.
 
 ## Open questions and known limits
 
-- **Follow-ups found in the transcript panel and import UI (no owner decision needed):** X
-  on selected transcript words uses `cut_words` and does not copy to the clipboard (the owner
-  decision says X copies: route it through the clipboard cut); a lane drop creates new tracks
+- **Follow-ups found in the transcript panel and import UI (no owner decision needed):** a lane drop creates new tracks
   (the backend cannot place onto an existing track yet); "One after another instead" re-uploads
   the files in the browser path and, if the re-import fails, the first import stays undone (Redo
   brings it back); the design's "speech on Voices, music on Music" bus option, the collateral
