@@ -10,6 +10,8 @@ import { frameToTime, RATE, xToFrame } from "./format.js";
 import { GATE_OPEN_COMMAND, openStretchEdit, stretchAt } from "./gate.js";
 import { HELP_COMMAND, shortcutsFor } from "./help.js";
 import { createHelpPanel } from "./help-panel.js";
+import { undoNotice } from "./history-model.js";
+import { createHistoryPanel } from "./history-panel.js";
 import { formatNumber, formatShortcut, initI18n, onLanguageChange, t } from "./i18n.js";
 import { collectDroppedFiles, importOptionsFor } from "./import-drop.js";
 import { createImportPanel, panelModel } from "./import-panel.js";
@@ -292,7 +294,7 @@ const panelElements = {
   clipboard: $("panel-clipboard"),
   history: $("panel-history"),
 };
-const SIDEBAR_TABS = ["inspector", "clipboard"];
+const SIDEBAR_TABS = ["inspector", "clipboard", "history"];
 
 function focusPanel(name) {
   // A sidebar tab that is not showing must show before it can take the focus.
@@ -312,7 +314,10 @@ for (const tab of document.querySelectorAll(".side-tab")) {
     const step = { ArrowRight: 1, ArrowLeft: -1 }[event.key];
     if (!step) return;
     event.preventDefault();
-    const next = SIDEBAR_TABS[(SIDEBAR_TABS.indexOf(tab.dataset.tab) + step + 2) % 2];
+    const next =
+      SIDEBAR_TABS[
+        (SIDEBAR_TABS.indexOf(tab.dataset.tab) + step + SIDEBAR_TABS.length) % SIDEBAR_TABS.length
+      ];
     setState({ sidebarTab: next });
     $(`tab-${next}`).focus();
   });
@@ -353,6 +358,8 @@ const keyboard = setupKeyboard({
     openHelp: () => void help.open(),
     undo: () => $("undo").click(),
     redo: () => $("redo").click(),
+    restoreStep: () => restoreStep(getState().historySelected),
+    openHistory: () => focusPanel("history"),
     edit: (change) => editor.change(change),
     toast: (text, options) => showNotice(text, "ok", options),
     copy: (body) => copyToClipboard(body),
@@ -388,8 +395,17 @@ document.addEventListener("keyup", (event) => {
 // -- toolbar ------------------------------------------------------------------------------
 
 $("play").addEventListener("click", () => actions.togglePlay());
-$("undo").addEventListener("click", () => void api.undo().then(apply).catch(showError));
-$("redo").addEventListener("click", () => void api.redo().then(apply).catch(showError));
+// Undo and redo say so when they pass a session marker: "Undid a step from yesterday: ...".
+const moveHistory = (call) => () =>
+  void call()
+    .then((response) => {
+      apply(response);
+      const notice = undoNotice(response.moved, Date.now(), t);
+      if (notice) showNotice(notice, "ok");
+    })
+    .catch(showError);
+$("undo").addEventListener("click", moveHistory(api.undo));
+$("redo").addEventListener("click", moveHistory(api.redo));
 $("zoom-in").addEventListener("click", () => actions.zoomStep(1));
 $("zoom-out").addEventListener("click", () => actions.zoomStep(-1));
 $("view-toggle").addEventListener("click", () => actions.toggleView());
@@ -686,6 +702,29 @@ const trackHeaders = createTrackHeaders({
 });
 const inspector = createInspector({ root: $("panel-inspector"), editor });
 
+// -- history (WP8) ------------------------------------------------------------------------------------
+
+// Restore adds a step equal to an older one; the step left behind stays one Undo away.
+async function restoreStep(node) {
+  if (!node || node === getState().head) return;
+  try {
+    const response = await api.restore(node);
+    apply(response);
+    setState({ historySelected: response.head });
+    showNotice(t("ui.history.restored"), "ok");
+  } catch (error) {
+    showError(error);
+  }
+}
+
+const historyPanel = createHistoryPanel({
+  root: $("panel-history"),
+  api,
+  getState,
+  setState,
+  actions: { restore: (node) => void restoreStep(node), showError },
+});
+
 // -- clipboard (WP46) -----------------------------------------------------------------------------------
 
 async function refreshClipboard() {
@@ -910,6 +949,7 @@ function render(state, patch) {
       $(`tab-${name}`).tabIndex = state.sidebarTab === name ? 0 : -1;
     }
   }
+  if (touched("head", "sidebarTab", "historySelected")) historyPanel.update(state);
   if (touched("project")) {
     const empty = $("empty");
     const hasClips = state.project?.tracks.some((track) => track.clips.length > 0);

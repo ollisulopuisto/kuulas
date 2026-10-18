@@ -145,6 +145,18 @@ export const DEFAULT_KEYMAP = [
     repeat: true,
   },
   {
+    id: "history.restore",
+    keys: { mac: "Enter", other: "Enter" },
+    context: "side",
+    labelKey: "cmd.history.restore",
+  },
+  {
+    id: "history.open",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.history.open",
+  },
+  {
     id: "panel.next",
     keys: { mac: "F6", other: "F6" },
     context: "text-field",

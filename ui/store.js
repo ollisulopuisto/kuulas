@@ -26,8 +26,10 @@ export const initialState = () => ({
   // A bus row is the current row (the inspector shows its Bus section); else null.
   focusBus: null,
   panel: "timeline",
-  // The sidebar's tab: "inspector" or "clipboard" (WP46).
+  // The sidebar's tab: "inspector", "clipboard" (WP46) or "history" (WP8).
   sidebarTab: "inspector",
+  // The History tab's pick (a step id): what Restore (Enter) applies.
+  historySelected: null,
   // The clipboard history, newest first (GET /api/clipboard); the entry picked in the tab
   // (null: the newest) and how a paste lands: "insert" | "overwrite", "same" | "current".
   clipboard: [],

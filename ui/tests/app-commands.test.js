@@ -55,6 +55,8 @@ describe("the commands the app registers", () => {
       importKeys: () => calls.push(["importKeys"]),
       exportKeys: () => calls.push(["exportKeys"]),
       resetKeys: () => calls.push(["resetKeys"]),
+      restoreStep: () => calls.push(["restoreStep"]),
+      openHistory: () => calls.push(["openHistory"]),
     };
     registerAppCommands(registry, { actions, app });
     return { registry, calls };
@@ -71,6 +73,16 @@ describe("the commands the app registers", () => {
     assert.equal(registry.can("edit.undo", { canUndo: false }), false);
     assert.equal(registry.can("edit.undo", { canUndo: true }), true);
     assert.equal(registry.can("edit.redo", { canRedo: false }), false);
+  });
+
+  test("history.restore runs in the History panel on a pick that is not the head", () => {
+    const { registry, calls } = setup();
+    const state = { panel: "history", head: "b", historySelected: "a" };
+    assert.equal(registry.can("history.restore", { ...state, panel: "timeline" }), false);
+    assert.equal(registry.can("history.restore", { ...state, historySelected: "b" }), false);
+    assert.equal(registry.run("history.restore", null, state), true);
+    assert.equal(registry.run("history.open", null, {}), true);
+    assert.deepEqual(calls, [["restoreStep"], ["openHistory"]]);
   });
 
   test("the playhead commands need a project and move by the right amount", () => {

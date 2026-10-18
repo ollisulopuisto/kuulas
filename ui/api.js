@@ -48,6 +48,11 @@ export const renameClipboardEntry = (id, name) =>
   post(`/api/clipboard/${encodeURIComponent(id)}/rename`, { name });
 export const deleteClipboardEntry = (id) =>
   json(`/api/clipboard/${encodeURIComponent(id)}`, { method: "DELETE" });
+/** A page of steps, newest first: { nodes, head, more, can_undo, can_redo }. */
+export const getHistory = ({ limit = 100, before = null } = {}) =>
+  json(`/api/history?limit=${limit}${before ? `&before=${encodeURIComponent(before)}` : ""}`);
+/** Add a step equal to an older one (nothing is lost); answers like undo, plus `context`. */
+export const restore = (node) => post("/api/restore", { node });
 export const undo = () => json("/api/undo", { method: "POST" });
 export const redo = () => json("/api/redo", { method: "POST" });
 export const transport = (action, at = null, until = null) =>
