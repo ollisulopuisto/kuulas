@@ -409,15 +409,12 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     overlay.fillText(t(key, params), label.x, label.y);
   }
 
-  // The active channel (owner, 2026-10-18: hard to tell which one is active, then 'more prominent'):
-  // an accent tint over the whole lane, a wide solid bar at its left edge and accent lines above and
-  // below; the other lanes are veiled so the active one stands out.
+  // The active channel (owner, 2026-10-18: hard to tell which one is active; then: the tint made
+  // empty spots hard to see). No fill over the lane: a wide solid bar at its left edge and accent
+  // lines above and below mark it, and the other lanes are veiled so it stands out.
   function drawFocusLane(row, top, width) {
     overlay.save();
     overlay.fillStyle = theme.accent;
-    overlay.globalAlpha = 0.16;
-    overlay.fillRect(0, top, width, row.height);
-    overlay.globalAlpha = 1;
     overlay.fillRect(0, top, 8, row.height);
     overlay.fillRect(0, top, width, 2);
     overlay.fillRect(0, top + row.height - 2, width, 2);
