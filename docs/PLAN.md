@@ -1733,9 +1733,11 @@ current level; the level decides what a stop is:
 Behaviour and keys (proposal, owner to confirm):
 - A level indicator in the status area ("Tab: words"); Shift+T cycles the level (it cycles
   word / transient / both today, which becomes clip / word / fine).
-- Direct keys so that no cycling is needed mid-edit: Tab and Shift+Tab step the current level;
-  Alt+Tab and Shift+Alt+Tab always step the clip level; Mod+Alt+Tab and Shift+Mod+Alt+Tab always step the
-  fine level. (macOS does not use Option+Tab; to check on Windows and Linux.)
+- **Keys (owner, 2026-10-18):** Tab steps to the next stop at the current level, Shift+Tab to the previous
+  one; **a modifier with Tab changes the level**: Alt+Tab goes one level finer (clip, word, fine, wrapping
+  or stopping at the end: to decide in the build), Shift+Alt+Tab one level coarser. Shift+T stays as the
+  existing cycle. Option+Tab is not used by macOS; on Windows and Linux Alt+Tab belongs to the OS, so
+  those platforms get other keys later (the keymap has keys per platform).
 - Each level also works as a filter on top of the one above: at the fine level the stops inside the
   word under the playhead come first.
 - Stops are of the focused track; with a range selected, only inside it.
