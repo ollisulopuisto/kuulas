@@ -1,3 +1,9 @@
+## [v26.10.18.43] - 2026-10-18
+
+- **Lift-cut (Alt+X):** copies the selection or in/out range to the clipboard and removes it in place,
+  keeping the gap (restorable), as one undo step. **Close gap on all tracks** is now **Alt+Mod+X**
+  (it ripple-closes the selected range on every track without touching the clipboard).
+
 ## [v26.10.18.42] - 2026-10-18
 
 - **Drag to mark a range:** drag across a lane's waveform or empty space to set the in and out marks;
