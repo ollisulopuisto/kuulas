@@ -1,3 +1,16 @@
+## [v26.10.19.1] - 2026-10-19
+
+- **Mix with the automixer from inside kuulas:** File > "Mix with the automixer…" (also in the command palette)
+  writes the stems to a temporary folder, runs your automixer on them and saves the mix beside the project
+  (`<edit> automixer <time>.wav`). Set the target loudness and an optional ad spot in the dialog; the command and
+  its folder are remembered (default `uv run automixer` in `~/Documents/koodi/podcast`). It runs in the
+  background with Cancel and a real progress bar (the automixer's `--progress` lines). The automixer gets the stems
+  folder, so it reads them from disk and a full episode does not need to fit in memory. Only speech and music
+  tracks are mixed: speech-mix tracks and buses are left out of this job (normal exports are unchanged), music is
+  exported as stereo, and a project that is not 48000 Hz is refused before anything runs. A missing program, a
+  failed run or a run that writes no file each give a clear message. Not tried against the real automixer yet,
+  only a fake one.
+
 ## [v26.10.18.70] - 2026-10-18
 
 - **The clip you drag shows its waveform:** the ghost of a moved clip now draws its real waveform (with the clip and

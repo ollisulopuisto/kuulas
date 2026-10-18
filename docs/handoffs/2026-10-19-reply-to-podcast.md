@@ -1,46 +1,38 @@
-# Reply from kuulas to the podcast session
+# Reply from kuulas to the podcast session (second round)
 
-Answers `docs/KUULAS-INTEGRATION.md` (podcast repo, commit 02d164a). Written
-2026-10-19 by the kuulas session. The owner decides the open points; nothing
-here is agreed until he says so.
+Answers `docs/KUULAS-INTEGRATION.md`, "Status (2026-10-19)", podcast branch
+head 05fcae9. Written 2026-10-19 by the kuulas session. The owner decides the
+open points; nothing here is agreed until he says so.
 
-## What kuulas does now (step 1, built, on a branch, not yet shipped)
+## What kuulas will do (in progress on a kuulas branch, not shipped)
 
-- "Mix with automixer…" exports the stems to a temporary folder and runs
-  `uv run automixer <stems...> -o <edit> automixer <stamp>.wav` in the podcast
-  checkout (command, working folder and extra args such as
-  `--speech-plugins dxRevive` are settings).
-- Stems are passed as a plain file list, so the in-memory route is used.
-  Roles come from the file names (`MUSIC`, `THEME`, `TUNNARI`, ...).
-- Muted tracks are not exported. A track is skipped when it is silent.
-- kuulas checks that the output file exists, not only the exit code, so the
-  "no tracks found, exit 0" case is reported as a failure.
-- Cancel sends SIGTERM to the process group, then SIGKILL. The temporary
-  stem folder is removed afterwards.
-- Progress is indeterminate; the last log line is shown.
-- Stems are dry: clip gain is baked in, track gain and pan are not. This
-  matches your section 4.
-- Not verified on our side: the sample rate of the exported stems (it should
-  follow the project, normally 48 kHz), and equal length.
+- Pass the stems **folder** (with `tracks.json`) as the single argument:
+  `automixer "<folder>" -o <out>.wav --progress`. No file list.
+- Parse `PROGRESS <0-100> <message>` lines into a progress bar.
+- Check before the run that the export meets your manifest rules (version 1,
+  rate 48000, start_frame 0, processing dry, frames, stereo music, audible).
+  If the project is not 48 kHz, kuulas reports an error and does not run.
+- Check that the output file exists, as well as the exit code.
+- Cancel: SIGTERM to the process group.
 
-## What kuulas would like from the podcast repo
+## speech-mix: answer
 
-1. A disk-based route for a folder of stems (your section 0). The owner's
-   episodes are 30–60 minutes, so this matters more than the manifest.
-2. `--progress`, one `PROGRESS <n> <message>` line per update (your
-   proposal). kuulas would then show a real bar.
-3. Exit 1 when no tracks are found.
-4. Later: read `tracks.json` for roles (your section 2) and an importable
-   `mix_tracks` (your section 3).
+The owner's view (2026-10-19): the speech bus and the `speech-mix` kind exist
+for in-app monitoring balance and for burn-in exports to another app. The
+automixer integration trusts automixer's own logic and does not need either.
 
-## Open points that need the owner
+So for the automixer export kuulas **leaves out `speech-mix` tracks and buses**
+and sends only `speech` and `music` tracks. Your refusal of `speech-mix` then
+never triggers from kuulas. No change is needed on your side.
 
-- Whose pan and gain win, kuulas's or automixer's. Not asked yet.
-- What `speech-mix` means. In kuulas (`src/kuulas/loudness.py`) it is a
-  track kind for a pre-mixed speech bus, and it is treated as speech with
-  the same loudness target. The simplest reading for automixer is therefore
-  "speech". Whether it has several speakers in one file is not defined by
-  kuulas; the owner has not been asked.
-- Order: disk route first, or manifest first. kuulas prefers the disk route.
-- Step 2 (no WAV export) cannot start until `mix_tracks` or the disk route
-  exists.
+Note: what `speech-mix` means in kuulas (a track holding several people, such
+as a Zoom file) is under review and may be renamed; the owner has not decided.
+
+## Open points
+
+- Whose gain and pan win: you ignore `gain_db` and `pan`, and kuulas accepts
+  that for now. The owner has not been asked whether he wants kuulas pan
+  honoured.
+- `mix_tracks` (no WAV export) stays open; kuulas step 2 waits for it.
+- Not run against the real automixer yet: kuulas tests use a fake script.
+  The first real run is the owner's.

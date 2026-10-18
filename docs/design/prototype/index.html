@@ -474,7 +474,6 @@
   --signal-sync: var(--p-gray-44);
   --signal-tether: var(--p-gray-44);
   --role-speech: var(--p-gray-44); /* strip pattern: solid */
-  --role-speech-mix: var(--p-gray-44); /* strip pattern: dashed */
   --role-music: var(--p-sand-55); /* strip pattern: dotted */
   --track-0-wave: var(--p-blue-46);
   --track-1-wave: var(--p-amber-60);
@@ -617,7 +616,6 @@
     --signal-sync: var(--p-gray-76);
     --signal-tether: var(--p-gray-76);
     --role-speech: var(--p-gray-76);
-    --role-speech-mix: var(--p-gray-76);
     --role-music: var(--p-sand-62);
     --track-0-wave: var(--p-blue-68);
     --track-1-wave: var(--p-amber-85);
@@ -760,7 +758,6 @@
   --signal-sync: var(--p-gray-76);
   --signal-tether: var(--p-gray-76);
   --role-speech: var(--p-gray-76);
-  --role-speech-mix: var(--p-gray-76);
   --role-music: var(--p-sand-62);
   --track-0-wave: var(--p-blue-68);
   --track-1-wave: var(--p-amber-85);
@@ -1477,7 +1474,7 @@ canvas.mini { display: block; width: 240px; height: 96px; border: 1px solid var(
 //   dash        reality: dashed = not real audio yet (placeholder, pending)
 //   scope       edit scope: what the next time-shifting edit takes along
 //   pattern     absent or maybe absent: muted hatch, cut candidate, damaged, removed
-//   strip       role: speech, speech mix, music (top edge; off on the timeline)
+//   strip       role: speech, music (top edge; off on the timeline)
 //   badge       facts: sync group, drift, free, file mark, takes, label
 //   cap         level: clipping
 //   seam        joins: clean split (hairline) or jump cut (notch)
@@ -1736,8 +1733,8 @@ const SIGNALS = [
     atRest: false,
     whenNotAtRest: "only in the clip bin and on cards",
     always: false,
-    tokens: ["--role-speech", "--role-speech-mix", "--role-music"],
-    twin: "strip pattern: solid speech, dashed speech mix, dotted music; role icon in the header",
+    tokens: ["--role-speech", "--role-music"],
+    twin: "strip pattern: solid speech, dotted music; role icon in the header",
     when: "off on the timeline (the header says it); on in the clip bin and cards",
     key: "",
     status: "prototype",
@@ -2060,7 +2057,6 @@ const SEMANTIC_TOKENS = [
   "--signal-collateral-fill",
   "--signal-preview",
   "--role-speech",
-  "--role-speech-mix",
   "--role-music",
   ...TRACK_PARTS.flatMap((part) => trackTokens(part)),
   ...busTokens(),
@@ -2966,12 +2962,14 @@ const HELP_FILES = {
  "en/bus": "---\nid: bus\ntitle: A bus\napplies-to: [bus]\ncommands: [bus.collapse, bus.expand, track.mute, track.solo]\nrelated: [track, timeline]\n---\nA bus groups tracks that are mixed together, such as all the voices or all the music. Its colour runs down the left edge of its tracks as a spine, and its letter badge (A, B …) appears wherever the bus is named.\n\n- Collapse the bus to one row: {key:bus.collapse}. A collapsed bus shows one thin ribbon per track, filled where that track has sound.\n- Expand it again: {key:bus.expand}\n- The bus's mute and solo act on every track in it; its fader sets the level of the whole group.\n\nA bus with only one track is merged into that track's header. To put a track on a bus, use the bus picker in its header or the inspector.\n\nSee also [[track]].\n",
  "en/transcript": "---\nid: transcript\ntitle: The transcript\napplies-to: [transcript]\ncommands: [transport.play, edit.delete, edit.cut, nav.home]\nrelated: [clip, timeline]\n---\nThe transcript is the words of every speech track, in time order, with the speaker in the margin. It follows the play cursor, and the words being heard are underlined.\n\n- Select words with the mouse; the same stretch is selected on the timeline.\n- Delete the selected words: {key:edit.delete}. They are struck through and the gap stays.\n- Cut them: {key:edit.cut}. Before the cut, the transcript shows what else would go: words other speakers say in the same stretch.\n- {key:transport.play} still plays and stops; {key:nav.home} returns to the timeline.\n\nWords removed by a cut leave a small marker; the Cuts list can put them back. See also [[clip]].\n",
  "en/history": "---\nid: history\ntitle: History\napplies-to: [history]\ncommands: [edit.undo, edit.redo]\nrelated: [clip, timeline]\n---\nHistory lists every edit since the project was made, newest at the bottom, with the time it happened. A line marks where each working session began and ended.\n\n- Undo and redo: {key:edit.undo} and {key:edit.redo}\n- Go back to any earlier step: select it in the list. Nothing is lost: the steps after it stay in the list and you can return to them.\n- Saved versions are pinned in the list.\n\nUndo never touches the clipboard. See also [[timeline]].\n",
+ "en/automix": "---\nid: automix\ntitle: Mixing with the automixer\napplies-to: []\ncommands: [export.automix]\nrelated: [track, timeline]\n---\nThe automixer mixes the finished edit for you: speech levelled and polished, music ducked under it, the whole thing at a target loudness. Kuulas hands it the edit as separate tracks, so you do not export or move any files yourself.\n\n- Start it from File, Mix with the automixer, or the command palette: {key:export.automix}\n- Set the target loudness, and optionally where an ad spot goes and how long it is.\n- It runs in the background. The notice shows the automixer's latest message; Cancel stops it.\n- The mix is saved beside the project, named after the edit and the time. Show in Finder opens the folder.\n\nOnly speech and music tracks are mixed. Speech-mix tracks and buses are for your own monitoring balance and for burn-in exports to another app; the automixer does not use them, so they are left out of this job (the normal exports are unchanged). The project must be 48000 Hz.\n\nThe first time, check the command under \"The automixer\" in the dialog. It is the program kuulas runs, normally `uv run automixer` in your podcast folder. A missing program gives a message that names it.\n\nTracks that are muted, or not soloed while another is, are left out, as in any export. See also [[track]].\n",
  "fi/timeline": "---\nid: timeline\ntitle: Aikajana\napplies-to: [timeline]\ncommands: [transport.play, view.toggle, view.fit, view.fit_selection, view.zoom_in, view.zoom_out, view.back, panel.next, nav.home, help.open, help.keys]\nrelated: [clip, track, bus]\n---\nJokainen raita on oma kaistansa, ja aika kulkee vasemmalta oikealle. Napsautus missä tahansa kaistoilla siirtää toistokohdan siihen. Napsautus leikkeeseen myös valitsee sen; vaihto+napsautus lisää leikkeen valintaan tai poistaa sen. Vetämällä kaistoilla merkitset aikavälin. Vedon aikana kaistoilla näkyvä vihje kertoo, mikä näppäin muuttaa välin sen koskettamiksi leikkeiksi (ne valitaan ja sisään- ja ulosmerkit siirtyvät niiden ylle) ja mikä peruu vedon.\n\n## Kuuntele\n- Toista tai pysäytä: {key:transport.play}. Välilyönti kuuluu aina aikajanalle, missä paneelissa oletkin.\n\n## Zoomaa ja liiku\n- Lähi- tai laajanäkymä: {key:view.toggle} {show:view-toggle}\n- Lähennä tai loitonna: {key:view.zoom_in} tai {key:view.zoom_out}\n- Näytä koko versio: {key:view.fit}\n- Sovita valintaan tai alku–loppuvälille: {key:view.fit_selection}\n- Takaisin edelliseen näkymään: {key:view.back}\n\nTiheys, aaltomuoto ja seuranta ovat Näkymä-valikossa. {show:view-menu} Samoin Sovita raidat ikkunaan ja Pidä raidat sovitettuina ikkunaan. Yhden kaistan korkeutta säädät vetämällä sen otsikon alareunaa; kaksoisnapsautus palauttaa sen.\n\n## Paneelit\n{key:panel.next} siirtää näppäimistön seuraavaan paneeliin; {key:nav.home} tuo sen takaisin tänne.\n\n## Ohje\n{key:help.open} avaa ohjeen siihen, mitä katsot; {key:help.keys} listaa kaikki näppäimet.\n\nKatso myös [[clip]] ja [[track]].\n",
  "fi/clip": "---\nid: clip\ntitle: Leike\napplies-to: [clip]\ncommands: [edit.split, edit.delete, edit.cut, edit.lift_cut, edit.close_gap_all, clip.mute, clip.fade, edit.undo]\nrelated: [timeline, track, transcript]\n---\nLeike on pätkä yhdestä äänityksestä raidalla. Samasta äänityksestä voi olla monta leikettä; kun valitset yhden, sen sisarleikkeet merkitään hakasella.\n\n## Muokkaa\n- Jaa toistokohdasta: {key:edit.split}\n- Poista: {key:edit.delete}. Pehmeä leikkaus: ääni hiljenee, väli jää ja leikkauslistalta sen voi palauttaa. Leikepöytä ei muutu.\n- Leikkaa: {key:edit.cut}. Kopioi leikepöydälle ja sulkee välin tahdistusryhmän jokaiselta raidalta.\n- Nosta: {key:edit.lift_cut}. Kopioi leikepöydälle ja poistaa pehmeästi paikallaan: väli jää ja sen voi palauttaa.\n- Sulje aukko kaikilta raidoilta: {key:edit.close_gap_all}. Poistaa valinnan tai merkityn välin jokaiselta raidalta ja sulkee aukon; leikepöytä ei muutu.\n- Mykistä leike: {key:clip.mute}. Mykistetty leike on haalea ja viivoitettu.\n- Häivytys sisään ja ulos: {key:clip.fade}\n\nJokaisen muokkauksen voi perua askel kerrallaan: {key:edit.undo}.\n\n## Katso tarkemmin\nTarkastimessa näkyvät leikkeen taso, tahdistus ja lähde. {show:inspector}\n\nKatso myös [[track]] ja [[transcript]].\n",
  "fi/track": "---\nid: track\ntitle: Raita\napplies-to: [track]\ncommands: [track.mute, track.solo, rename]\nrelated: [bus, clip, timeline]\n---\nRaidalla ovat yhden äänen tai yhdenlaisen äänen leikkeet. Kaistan vasemmalla puolella oleva otsake nimeää raidan ja näyttää sen värin; säätimet tulevat esiin, kun raita on valittuna tai osoitin on sen päällä. {show:track-headers}\n\n- Mykistä tai soolaa: {key:track.mute} ja {key:track.solo}, tai M- ja S-painikkeet.\n- Nimeä uudelleen: {key:rename}\n- Taso ja panorointi: otsakkeen liukusäätimet tai tarkastin.\n- Valitse raita nuolinäppäimillä ylös ja alas.\n\nVärillinen tappi on puhuja; vasemman reunan kisko, jos sellainen on, on raidan [[bus|väylä]].\n",
  "fi/bus": "---\nid: bus\ntitle: Väylä\napplies-to: [bus]\ncommands: [bus.collapse, bus.expand, track.mute, track.solo]\nrelated: [track, timeline]\n---\nVäylä kokoaa yhteen raidat, jotka miksataan yhdessä, esimerkiksi kaikki äänet tai kaikki musiikki. Sen väri kulkee raitojen vasemmassa reunassa selkärankana, ja sen kirjaintunnus (A, B …) näkyy kaikkialla, missä väylä mainitaan.\n\n- Pienennä väylä yhdeksi riviksi: {key:bus.collapse}. Pienennetyssä väylässä on jokaiselle raidalle ohut nauha, joka on täytetty siltä osin kuin raidalla on ääntä.\n- Laajenna takaisin: {key:bus.expand}\n- Väylän mykistys ja soolo koskevat kaikkia sen raitoja; sen liukusäädin asettaa koko ryhmän tason.\n\nVäylä, jossa on vain yksi raita, yhdistyy raidan otsakkeeseen. Raidan saa väylälle otsakkeen väylävalitsimesta tai tarkastimesta.\n\nKatso myös [[track]].\n",
  "fi/transcript": "---\nid: transcript\ntitle: Litteraatti\napplies-to: [transcript]\ncommands: [transport.play, edit.delete, edit.cut, nav.home]\nrelated: [clip, timeline]\n---\nLitteraatti on kaikkien puheraitojen sanat aikajärjestyksessä, puhuja reunassa. Se seuraa toistokohtaa, ja kuultavat sanat on alleviivattu.\n\n- Valitse sanoja hiirellä; sama kohta valitaan myös aikajanalla.\n- Poista valitut sanat: {key:edit.delete}. Ne yliviivataan ja väli jää.\n- Leikkaa ne: {key:edit.cut}. Ennen leikkausta litteraatti näyttää, mitä muuta lähtisi: muiden puhujien sanat samalta kohdalta.\n- {key:transport.play} toistaa ja pysäyttää edelleen; {key:nav.home} palaa aikajanalle.\n\nLeikkauksen poistamista sanoista jää pieni merkki; leikkauslistalta ne saa takaisin. Katso myös [[clip]].\n",
  "fi/history": "---\nid: history\ntitle: Historia\napplies-to: [history]\ncommands: [edit.undo, edit.redo]\nrelated: [clip, timeline]\n---\nHistoriassa on jokainen muokkaus projektin alusta asti, uusin alimpana, tekoaikoineen. Viiva merkitsee, missä kukin työskentelykerta alkoi ja päättyi.\n\n- Kumoa ja tee uudelleen: {key:edit.undo} ja {key:edit.redo}\n- Palaa mihin tahansa aiempaan vaiheeseen: valitse se listasta. Mitään ei menetetä: sen jälkeiset vaiheet jäävät listaan, ja niihin voi palata.\n- Tallennetut versiot on kiinnitetty listaan.\n\nKumoaminen ei koske leikepöytää. Katso myös [[timeline]].\n",
+ "fi/automix": "---\nid: automix\ntitle: Miksaus automixerilla\napplies-to: []\ncommands: [export.automix]\nrelated: [track, timeline]\n---\nAutomixer miksaa valmiin leikkauksen puolestasi: puhe tasataan ja viimeistellään, musiikki painuu puheen alle ja kokonaisuus saatetaan tavoiteäänekkyyteen. Kuulas antaa sille leikkauksen erillisinä raitoina, joten et vie tai siirrä tiedostoja itse.\n\n- Käynnistä Tiedosto-valikosta Miksaa automixerilla tai komentopaletista: {key:export.automix}\n- Aseta tavoiteäänekkyys ja halutessasi mainoskohta ja mainoksen pituus.\n- Miksaus ajetaan taustalla. Ilmoitus näyttää automixerin viimeisimmän viestin; Peruuta pysäyttää sen.\n- Miksaus tallentuu projektin viereen, nimenä leikkaus ja kellonaika. Näytä Finderissä avaa kansion.\n\nMiksataan vain puhe- ja musiikkiraidat. Puhemiksaus-raidat ja väylät ovat oman kuunteluvalvontasi tasapainoa ja toiseen sovellukseen vietäviä kiinteitä vientejä varten; automixer ei käytä niitä, joten ne jätetään tästä ajosta pois (tavalliset viennit eivät muutu). Projektin on oltava 48000 Hz.\n\nTarkista ensimmäisellä kerralla komento dialogin kohdasta Automixer. Se on ohjelma, jonka kuulas ajaa, yleensä `uv run automixer` podcast-kansiossasi. Jos ohjelmaa ei löydy, viesti kertoo sen nimen.\n\nMykistetyt raidat ja raidat, joita ei ole soolotettu toisen ollessa soolossa, jätetään pois kuten missä tahansa viennissä. Katso myös [[track]].\n",
  "catalog/en": {
   "cmd.transport.play": "Play / stop",
   "cmd.transport.play_before": "Play from a few seconds before the playhead",
@@ -3329,7 +3327,7 @@ const HELP_FILES = {
   "cmd.export.tracks_ogg": "Export all tracks as Ogg Vorbis",
   "cmd.export.tracks_ogg.hint": "One Ogg Vorbis file per track (lossy Ogg Vorbis), same start and length, edits applied, no mixing.",
   "cmd.track.cycle_kind": "Cycle track kind",
-  "cmd.track.cycle_kind.hint": "Changes the current track between speech, speech mix and music.",
+  "cmd.track.cycle_kind.hint": "Changes the current track between speech and music.",
   "cmd.edit.remove": "Delete and close the gap",
   "cmd.edit.remove.hint": "Removes the in-out range or the selected clips on all tracks and closes the gap. Nothing goes to the clipboard.",
   "cmd.edit.remove_track": "Delete and close the gap on this track only",
@@ -3354,7 +3352,9 @@ const HELP_FILES = {
   "cmd.track.delete_empty": "Delete the empty tracks",
   "cmd.track.delete_empty.hint": "Removes every track that has no clips. Tracks with clips stay. Undo brings them back.",
   "cmd.track.reset_gains": "Reset track and bus gains to 0 dB",
-  "cmd.track.reset_gains.hint": "Sets the gain of every track and every bus to 0 dB, so you can judge the levels before export. The master, clip gains and pan stay. Undo brings them back."
+  "cmd.track.reset_gains.hint": "Sets the gain of every track and every bus to 0 dB, so you can judge the levels before export. The master, clip gains and pan stay. Undo brings them back.",
+  "cmd.export.automix": "Mix with the automixer…",
+  "cmd.export.automix.hint": "Writes the stems to a temporary folder, runs the automixer on them and puts the finished mix beside the project. Runs in the background; Cancel stops it."
  },
  "catalog/fi": {
   "cmd.transport.play": "Toista / pysäytä",
@@ -3713,7 +3713,7 @@ const HELP_FILES = {
   "cmd.export.tracks_ogg": "Vie kaikki raidat: Ogg Vorbis",
   "cmd.export.tracks_ogg.hint": "Yksi Ogg Vorbis-tiedosto raitaa kohti (häviöllinen Ogg Vorbis), sama alku ja pituus, leikkaukset mukana, ei miksausta.",
   "cmd.track.cycle_kind": "Vaihda raidan tyyppiä",
-  "cmd.track.cycle_kind.hint": "Vaihtaa valitun raidan puheen, puhemiksauksen ja musiikin välillä.",
+  "cmd.track.cycle_kind.hint": "Vaihtaa valitun raidan puheen ja musiikin välillä.",
   "cmd.edit.remove": "Poista ja sulje aukko",
   "cmd.edit.remove.hint": "Poistaa merkityn välin tai valitut leikkeet kaikilta raidoilta ja sulkee aukon. Mitään ei mene leikepöydälle.",
   "cmd.edit.remove_track": "Poista ja sulje aukko vain tältä raidalta",
@@ -3738,7 +3738,9 @@ const HELP_FILES = {
   "cmd.track.delete_empty": "Poista tyhjät raidat",
   "cmd.track.delete_empty.hint": "Poistaa kaikki raidat, joilla ei ole leikkeitä. Raidat, joilla on leikkeitä, jäävät. Kumoa palauttaa ne.",
   "cmd.track.reset_gains": "Nollaa raitojen ja väylien vahvistukset 0 dB:iin",
-  "cmd.track.reset_gains.hint": "Asettaa jokaisen raidan ja väylän vahvistuksen 0 dB:iin, jotta tasot voi arvioida ennen vientiä. Master, leikkeiden vahvistukset ja panorointi jäävät. Kumoa palauttaa ne."
+  "cmd.track.reset_gains.hint": "Asettaa jokaisen raidan ja väylän vahvistuksen 0 dB:iin, jotta tasot voi arvioida ennen vientiä. Master, leikkeiden vahvistukset ja panorointi jäävät. Kumoa palauttaa ne.",
+  "cmd.export.automix": "Miksaa automixerilla…",
+  "cmd.export.automix.hint": "Kirjoittaa raidat väliaikaiseen kansioon, ajaa niille automixerin ja tallentaa valmiin miksauksen projektin viereen. Toimii taustalla; Peruuta pysäyttää."
  }
 };
 // -- end of help topics --
@@ -3750,7 +3752,7 @@ const STR = {
     undo: "Undo", redo: "Redo", import: "Import", export: "Export", commands: "Commands",
     groupOff: "Group editing off", soloChip: "Solo: {n}", speedChip: "{v}× fast", focusChip: "Focus: {n}",
     reconnect: "Reconnecting…", reconnectTitle: "The connection to the kuulas engine was lost. Everything up to your last edit is saved.", savedUpTo: "Saved up to 19.58 · edits paused", jobs: "Transcribing 2 of 3", jobsShort: "2 of 3",
-    tracks: "{n} tracks", speech: "speech", speechMix: "speech mix · remote", music: "music",
+    tracks: "{n} tracks", speech: "speech", music: "music",
     notHeard: "not heard: solo", mute: "Mute", solo: "Solo", bus: "Voices", busLabel: "Bus",
     anna: "Anna", ville: "Ville", pekka: "Zoom: Pekka", annab: "Anna · backup mic", music1: "Theme tune",
     transcript: "Transcript", followPlay: "Follows playback", inspector: "Inspector", history: "History",
@@ -3808,7 +3810,7 @@ const STR = {
     undo: "Kumoa", redo: "Tee uudelleen", import: "Tuo", export: "Vie", commands: "Komennot",
     groupOff: "Ryhmämuokkaus pois", soloChip: "Soolo: {n}", speedChip: "{v}× nopea", focusChip: "Fokus: {n}",
     reconnect: "Yhdistetään…", reconnectTitle: "Yhteys kuulaksen moottoriin katkesi. Kaikki viimeiseen muokkaukseen asti on tallessa.", savedUpTo: "Tallessa klo 19.58 asti · muokkaus odottaa", jobs: "Litteroidaan 2/3", jobsShort: "2/3",
-    tracks: "{n} raitaa", speech: "puhe", speechMix: "puhemiksaus · etä", music: "musiikki",
+    tracks: "{n} raitaa", speech: "puhe", music: "musiikki",
     notHeard: "ei kuulu: soolo", mute: "Mykistä", solo: "Soolo", bus: "Äänet", busLabel: "Väylä",
     anna: "Anna", ville: "Ville", pekka: "Zoom: Pekka", annab: "Anna · varamikrofoni", music1: "Tunnari",
     transcript: "Litteraatti", followPlay: "Seuraa toistoa", inspector: "Tarkastin", history: "Historia",
@@ -3930,7 +3932,7 @@ const TRACKS = [
   { id: "anna", hue: "0", kind: "speech", gain: 0, pan: -0.1, bus: "voices" },
   { id: "annab", hue: "0", kind: "speech", gain: -6, pan: 0, mute: true, bus: "voices" },
   { id: "ville", hue: "1", kind: "speech", gain: -1.5, pan: 0.1, bus: "voices" },
-  { id: "pekka", hue: "2", kind: "speechMix", gain: 0, pan: 0, bus: "voices" },
+  { id: "pekka", hue: "2", kind: "speech", gain: 0, pan: 0, bus: "voices" },
   { id: "music1", hue: "music", kind: "music", gain: -4, pan: 0, bus: "musicbus" },
   { id: "narr1", hue: "4", kind: "speech", gain: 0, pan: 0, bus: "narrbus" },
 ];
@@ -4176,8 +4178,8 @@ function renderHeads(empty) {
     if (r.last) cls.push("group-end");
     const unheard = soloed && soloed !== t.id;
     if (unheard) cls.push("unheard");
-    const roleText = tr(t.kind === "speechMix" ? "speechMix" : t.kind);
-    const role = `<span class="role" title="${unheard ? tr("notHeard") : roleText}" aria-label="${roleText}">${icon(t.kind === "music" ? "note" : t.kind === "speechMix" ? "mics" : "mic")}</span>`;
+    const roleText = tr(t.kind);
+    const role = `<span class="role" title="${unheard ? tr("notHeard") : roleText}" aria-label="${roleText}">${icon(t.kind === "music" ? "note" : "mic")}</span>`;
     const pan = t.pan === 0 ? "C" : (t.pan < 0 ? (S.lang === "fi" ? "V" : "L") : (S.lang === "fi" ? "O" : "R")) + " " + Math.round(Math.abs(t.pan) * 100);
     // A merged one-track bus: the badge is a label; double-click the header or ⌥⌘← collapses.
     const badge = r.merged ? `<span class="bus-badge" title="${tr("busLabel")}: ${tr(r.bus.id)} · ${tr("collapse")}: ⌥⌘←" aria-label="${tr("busLabel")}: ${tr(r.bus.id)}">${busLetter(busIndex(r.bus.id))}</span>` : "";
@@ -5026,7 +5028,7 @@ function drawSample(canvas, d) {
   if (d.note) { ctx.fillStyle = P.signals.note; ctx.beginPath(); ctx.moveTo(150, y); ctx.lineTo(160, y); ctx.lineTo(155, y + 7); ctx.fill(); }
   if (d.label) { ctx.fillStyle = P.labels[d.label - 1]; ctx.fillRect(w - 20, y + 3, 9, 9); }
   if (d.added) { ctx.fillStyle = P.signals.added; ctx.fillRect(8, y, 3, ch); ctx.fillRect(w - 11, y, 3, ch); }
-  if (d.roles) { [[P.roles.speech, []], [P.roles.speechMix, [6, 3]], [P.roles.music, [1, 3]]].forEach(([c, dash], k) => { ctx.strokeStyle = c; ctx.lineWidth = 2; ctx.setLineDash(dash); const x0 = 8 + (k * (w - 16)) / 3; ctx.beginPath(); ctx.moveTo(x0 + 2, y + 1); ctx.lineTo(x0 + (w - 16) / 3 - 4, y + 1); ctx.stroke(); }); ctx.setLineDash([]); }
+  if (d.roles) { [[P.roles.speech, []], [P.roles.music, [1, 3]]].forEach(([c, dash], k) => { ctx.strokeStyle = c; ctx.lineWidth = 2; ctx.setLineDash(dash); const x0 = 8 + (k * (w - 16)) / 3; ctx.beginPath(); ctx.moveTo(x0 + 2, y + 1); ctx.lineTo(x0 + (w - 16) / 3 - 4, y + 1); ctx.stroke(); }); ctx.setLineDash([]); }
 }
 
 // ---------------------------------------------------------------- interaction

@@ -23,6 +23,7 @@ export const MENU = [
       formatMenu("menu.export_mix", "export.mix_"),
       item("export.tracks"),
       item("export.tracks_quick"),
+      item("export.automix"),
       formatMenu("menu.export_tracks_as", "export.tracks_"),
       SEP,
       item("export.subtitles_srt"),

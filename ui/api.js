@@ -64,6 +64,13 @@ export const exportRegions = (options = {}) => post("/api/export-regions", optio
  * { jobs: [job id] }. */
 export const exportTracks = (options = {}) => post("/api/export-tracks", options);
 /** Queue the export of the mix as one file (`options.format`); answers { jobs: [job id] }. */
+/** Queue the mix with the automixer (WP68): { target_lufs, ad_spot?, ad_duration? }; answers
+ * { jobs: [job id] }. */
+export const automix = (options = {}) => post("/api/automix", options);
+/** The automixer command: { settings (as stored), resolved (defaults filled in) }. */
+export const automixerSettings = () => json("/api/settings/automixer");
+export const saveAutomixerSettings = (settings) =>
+  json("/api/settings/automixer", { method: "PUT", body: JSON.stringify(settings) });
 export const exportFolder = () => json("/api/export-folder");
 export const exportMix = (options = {}) => post("/api/export-mix", options);
 /** The formats the server can write: [{ id, label, ext, lossless }], WAV first. */

@@ -6,7 +6,7 @@ const track = (id, kind = "speech", speaker = "") => ({ id, kind, speaker, clips
 
 test("speech tracks take the speaker hues in order, music its own", () => {
   const hues = trackHues({
-    tracks: [track("a"), track("m", "music"), track("b"), track("z", "speech-mix")],
+    tracks: [track("a"), track("m", "music"), track("b"), track("z")],
   });
   assert.equal(hues.get("a"), 0);
   assert.equal(hues.get("m"), MUSIC_HUE);
