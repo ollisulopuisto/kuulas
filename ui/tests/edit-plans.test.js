@@ -6,6 +6,7 @@ import {
   closeGapPlan,
   createBurst,
   cutPlan,
+  deleteEmptyTracksPlan,
   deletePlan,
   fadePlan,
   gainPlan,
@@ -367,5 +368,35 @@ describe("add a track (empty, ready for a music bed or a voice)", () => {
   });
   test("no project, nothing", () => {
     assert.equal(addTrackPlan(null, "music", { t }), null);
+  });
+});
+
+describe("delete the empty tracks", () => {
+  test("a delete_empty_tracks edit, only when some track holds no clip", () => {
+    const withEmpty = state({
+      project: {
+        ...state().project,
+        tracks: [...state().project.tracks, { id: "E", name: "Music 4", clips: [] }],
+      },
+    });
+    const plan = deleteEmptyTracksPlan(withEmpty);
+    assert.equal(plan.op, "delete_empty_tracks");
+    const empties = withEmpty.project.tracks.filter((track) => track.clips.length === 0);
+    assert.equal(plan.toast.values.count, empties.length);
+    assert.ok(empties.some((track) => track.id === "E"));
+    assert.equal(plan.label.key, "ui.edit.label.delete_empty_tracks");
+  });
+  test("with no empty track, or no project, it does not apply", () => {
+    const full = state({
+      project: {
+        ...state().project,
+        tracks: state().project.tracks.map((t) => ({
+          ...t,
+          clips: t.clips.length ? t.clips : [{ id: "x", start: 0, length: 1 }],
+        })),
+      },
+    });
+    assert.equal(deleteEmptyTracksPlan(full), null);
+    assert.equal(deleteEmptyTracksPlan(null), null);
   });
 });

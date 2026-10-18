@@ -121,6 +121,7 @@ export const MENU = [
     items: [
       item("track.add"),
       item("track.add_music"),
+      item("track.delete_empty"),
       SEP,
       item("track.mute"),
       item("track.solo"),

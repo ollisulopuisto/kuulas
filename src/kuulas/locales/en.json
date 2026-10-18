@@ -1332,5 +1332,10 @@
   "ui.track.new_speech": "Track {n}",
   "ui.track.new_music": "Music {n}",
   "ui.edit.label.add_track": "Add a track",
-  "ui.edit.toast.add_track": {"one": "Added {name}", "other": "Added {name}"}
+  "ui.edit.toast.add_track": {"one": "Added {name}", "other": "Added {name}"},
+  "error.edit.no_empty_tracks": "There are no empty tracks.",
+  "cmd.track.delete_empty": "Delete the empty tracks",
+  "cmd.track.delete_empty.hint": "Removes every track that has no clips. Tracks with clips stay. Undo brings them back.",
+  "ui.edit.label.delete_empty_tracks": "Delete empty tracks",
+  "ui.edit.toast.delete_empty_tracks": {"one": "Deleted {count} empty track", "other": "Deleted {count} empty tracks"}
 }

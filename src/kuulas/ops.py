@@ -92,6 +92,17 @@ def add_track(p: Project, track_id: str | None = None, name: str = "Track",
     )))
 
 
+def delete_empty_tracks(p: Project) -> Project:
+    """Remove every track that holds no clip (a track made first, then emptied by moving
+    its clips elsewhere). Tracks with clips stay, in order. None empty is an error."""
+    empty = [t.id for t in p.tracks if not t.clips]
+    if not empty:
+        raise EditError("error.edit.no_empty_tracks")
+    for track_id in empty:
+        p = delete_track(p, track_id)
+    return p
+
+
 def delete_track(p: Project, track_id: str) -> Project:
     _find_track(p, track_id)
     return replace(p, tracks=tuple(t for t in p.tracks if t.id != track_id),
@@ -1162,7 +1173,8 @@ def replace_placeholder(p: Project, placeholder_id: str, media_id: str,
 OPS = {
     f.__name__: f
     for f in (
-        add_track, delete_track, set_track, solo, move_track, set_track_automation,
+        add_track, delete_track, delete_empty_tracks, set_track, solo, move_track,
+        set_track_automation,
         add_bus, set_bus, delete_bus, set_master,
         add_clip, delete_clip, move_clip, trim_clip, split_clip, set_clip,
         set_fade_at, set_clip_envelope, ripple_delete, mute_ranges,

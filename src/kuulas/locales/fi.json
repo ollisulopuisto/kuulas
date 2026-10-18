@@ -1332,5 +1332,10 @@
   "ui.track.new_speech": "Raita {n}",
   "ui.track.new_music": "Musiikki {n}",
   "ui.edit.label.add_track": "Raidan lisäys",
-  "ui.edit.toast.add_track": {"one": "Lisätty {name}", "other": "Lisätty {name}"}
+  "ui.edit.toast.add_track": {"one": "Lisätty {name}", "other": "Lisätty {name}"},
+  "error.edit.no_empty_tracks": "Tyhjiä raitoja ei ole.",
+  "cmd.track.delete_empty": "Poista tyhjät raidat",
+  "cmd.track.delete_empty.hint": "Poistaa kaikki raidat, joilla ei ole leikkeitä. Raidat, joilla on leikkeitä, jäävät. Kumoa palauttaa ne.",
+  "ui.edit.label.delete_empty_tracks": "Tyhjien raitojen poisto",
+  "ui.edit.toast.delete_empty_tracks": {"one": "Poistettu {count} tyhjä raita", "other": "Poistettu {count} tyhjää raitaa"}
 }

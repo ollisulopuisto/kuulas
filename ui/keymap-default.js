@@ -688,6 +688,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.track.add_music",
   },
   {
+    id: "track.delete_empty",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.track.delete_empty",
+  },
+  {
     id: "track.cycle_kind",
     keys: { mac: "Alt+Mod+K", other: "Alt+Mod+K" },
     context: "timeline",

@@ -127,6 +127,13 @@ export function addTrackPlan(state, kind, { t } = {}) {
   return plan("add_track", { name, kind }, "add_track", { name });
 }
 
+/** Delete every track that holds no clip (after moving its clips elsewhere). */
+export function deleteEmptyTracksPlan(state) {
+  const empty = (state?.project?.tracks ?? []).filter((track) => track.clips.length === 0);
+  if (empty.length === 0) return null;
+  return plan("delete_empty_tracks", {}, "delete_empty_tracks", { count: empty.length });
+}
+
 /**
  * Cmd+Backspace: really delete the selected clips and leave every other clip where it was
  * (owner, 2026-10-18); the gap stays. Backspace only mutes.

@@ -11,6 +11,7 @@ import {
   copyPlan,
   createBurst,
   cutPlan,
+  deleteEmptyTracksPlan,
   deletePlan,
   fadePlan,
   gainPlan,
@@ -121,6 +122,7 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
   planned("edit.delete", deletePlan);
   planned("edit.remove_clips", removeClipsPlan);
   planned("track.add", (s) => addTrackPlan(s, "speech", { t }));
+  planned("track.delete_empty", deleteEmptyTracksPlan);
   planned("track.add_music", (s) => addTrackPlan(s, "music", { t }));
   planned("edit.remove", (s) => removePlan(s));
   planned("edit.remove_track", (s) => removePlan(s, { thisTrackOnly: true }));
