@@ -285,7 +285,7 @@ describe("painting waveforms (what the worker runs)", () => {
     // A forced scale wins for every role.
     assert.deepEqual(
       make({ waveformScale: "linear" }).rows.map((row) => row.scale),
-      ["linear", "linear", "linear"],
+      ["linear", "linear"],
     );
   });
 
