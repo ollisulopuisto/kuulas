@@ -15,7 +15,9 @@ App icons (v26.10.18.33): `src/kuulas/assets/icons/` holds the PNG set, `kuulas.
 also the single source of `ui/logo.svg` and `ui/favicon.svg`). The launcher page and the macOS
 Dock icon show the mark.
 
-Open: the hole position (lower right, or upper right "Death Star" as in "Z3"); nothing reads
+Decided by the owner (2026-10-18): the hole position (lower right) is perfect.
+
+Open: nothing reads
 as more than a dotted ring at 16 px; the Dock label says "Python" until the app is packaged
 (a real .app bundle); the icons have not been looked at on a real Dock or Windows taskbar;
 colours are placeholders.
