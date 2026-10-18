@@ -7,6 +7,31 @@
 // is the word's reference for `cut_words`. Never patch it locally: it is derived.
 
 export const PAUSE_SECONDS = 1.5;
+/**
+ * View > "Break paragraphs at pauses over": the choices, by id (the id is what is
+ * remembered per user and what the commands are named after). 3 s is the default: at
+ * 1.5 s a thinking pause already splits a speaker's turn into many short paragraphs.
+ */
+export const PAUSE_CHOICES = [
+  { id: "1_5", seconds: PAUSE_SECONDS },
+  { id: "3", seconds: 3 },
+  { id: "6", seconds: 6 },
+  { id: "never", seconds: Number.POSITIVE_INFINITY },
+];
+export const DEFAULT_PAUSE_CHOICE = "3";
+/** A pause shorter than this is not worth a marker between paragraphs. */
+export const MARKER_MIN_SECONDS = 1;
+
+/** The stored choice if it is one of ours, else the default (the value is not trusted). */
+export function pauseChoiceId(stored) {
+  return PAUSE_CHOICES.some((choice) => choice.id === stored) ? stored : DEFAULT_PAUSE_CHOICE;
+}
+
+/** The pause length, in seconds, that splits paragraphs for a choice id. */
+export function pauseSecondsOf(id) {
+  return PAUSE_CHOICES.find((choice) => choice.id === pauseChoiceId(id)).seconds;
+}
+
 /** Words below this confidence are dotted (the transcripts do not carry one yet). */
 export const LOW_CONFIDENCE = 0.5;
 const SCAN_BACK = 16;
@@ -51,6 +76,26 @@ export function buildParagraphs(
     open.end = Math.max(open.end, word.e);
     open.chars += word.w.length + 1;
   });
+  return out;
+}
+
+/**
+ * The silences to show between paragraphs: Map of paragraph index -> { start, end,
+ * seconds }, for a paragraph that follows the same track's previous paragraph (a
+ * pause split it, not a speaker change) after at least MARKER_MIN_SECONDS of silence.
+ * `start`/`end` (frames) run from the previous word's end to this paragraph's first word.
+ */
+export function pauseMarkers(words, paragraphs, rate) {
+  const out = new Map();
+  for (let index = 1; index < paragraphs.length; index++) {
+    const p = paragraphs[index];
+    const previous = words[p.first - 1];
+    if (!previous || previous.track !== p.track) continue;
+    const start = previous.e;
+    const end = words[p.first].s;
+    const seconds = (end - start) / rate;
+    if (seconds >= MARKER_MIN_SECONDS) out.set(index, { start, end, seconds });
+  }
   return out;
 }
 

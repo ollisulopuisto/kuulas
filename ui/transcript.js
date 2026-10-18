@@ -6,7 +6,7 @@
 // the DOM (spacers stand for the rest), words have no listeners of their own (the list
 // listens, once), and following the playback moves two classes, never re-renders.
 import { frameToTime } from "./format.js";
-import { getLanguage, t } from "./i18n.js";
+import { formatNumber, getLanguage, t } from "./i18n.js";
 import {
   currentPosition,
   findMatches,
@@ -28,6 +28,8 @@ import {
   offsetsOf,
   ownerTracks,
   paragraphOf,
+  pauseMarkers,
+  pauseSecondsOf,
   placeCursor,
   selectedIndices,
   selectWord,
@@ -96,6 +98,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   // -- derived from the words (rebuilt only when they change) -----------------------------
   let words = [];
   let paragraphs = [];
+  let pauses = new Map(); // paragraph index -> the silence before it
   let heights = [];
   let offsets = [0];
   const measured = new Map(); // paragraph id -> real height
@@ -159,7 +162,9 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       rate: rate(),
       tracks: state.project?.tracks ?? [],
       people,
+      pauseSeconds: pauseSecondsOf(state.pauseBreak),
     });
+    pauses = pauseMarkers(words, paragraphs, rate());
     measured.clear();
     listWidth = list.clientWidth || root.clientWidth;
     layout();
@@ -291,12 +296,33 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     return name;
   }
 
+  /**
+   * The silence between two paragraphs of one speaker: a thin line with its length.
+   * Clicking selects it as the in/out range. Not a tab stop: the keyboard reaches the
+   * same range with the marks and the word cursor.
+   */
+  function pauseMarker({ start, end, seconds }) {
+    const text = t("ui.transcript.pause", { seconds: formatNumber(seconds, { digits: 1 }) });
+    const button = el("button", "tx-pause", text);
+    button.type = "button";
+    button.tabIndex = -1;
+    button.dataset.start = String(start);
+    button.dataset.end = String(end);
+    button.setAttribute(
+      "aria-label",
+      t("ui.transcript.pause.label", { seconds: formatNumber(seconds, { digits: 1 }) }),
+    );
+    return button;
+  }
+
   function buildParagraph(index) {
     const p = paragraphs[index];
     const node = el("div", "tx-para");
     node.dataset.p = String(index);
     const hue = trackHue(p.track);
     node.style.setProperty("--track-colour", `var(--track-${hue}-edge)`);
+    const pause = pauses.get(index);
+    if (pause) node.append(pauseMarker(pause));
     const speaker = el("div", "tx-speaker");
     speaker.append(el("b", "", p.name), el("span", "", frameToTime(p.start, rate())));
     const text = el("p", "tx-text");
@@ -519,6 +545,13 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     setState({ transcriptSelection: placeCursor(from) });
     setPaused(false);
     actions.seek(words[from].s);
+  });
+  list.addEventListener("click", (event) => {
+    const marker = event.target.closest?.(".tx-pause");
+    if (!marker || !list.contains(marker)) return;
+    // The app has no range selection of its own; the in/out marks are the range.
+    setState({ inPoint: Number(marker.dataset.start), outPoint: Number(marker.dataset.end) });
+    actions.seek(Number(marker.dataset.start));
   });
   list.addEventListener("dblclick", (event) => {
     const i = wordAt(event);
@@ -857,7 +890,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       const changed = patch ? new Set(Object.keys(patch)) : null;
       const touched = (...names) => changed === null || names.some((name) => changed.has(name));
       if (touched("head")) void loadWords();
-      const key = `${state.wordsHead}|${state.words?.length}|${state.project?.rate}|${state.project?.tracks?.map((x) => x.id + x.speaker + x.name).join()}|${JSON.stringify(state.people ?? {})}`;
+      const key = `${state.wordsHead}|${state.words?.length}|${state.project?.rate}|${state.project?.tracks?.map((x) => x.id + x.speaker + x.name).join()}|${JSON.stringify(state.people ?? {})}|${state.pauseBreak}`;
       if (state.words !== words || key !== lastKey) {
         lastKey = key;
         rebuild();
