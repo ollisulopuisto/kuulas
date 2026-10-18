@@ -1234,10 +1234,20 @@ class Session:
             raise NhsxImportError("error.import.nhsx_failed", path=str(source)) from None
 
         available = {str(Path(track.path).resolve()) for track in pipeline_tracks}
+        # A clipboard clip may use a recording that no track plays ("kari intro"):
+        # those files come in too, so the clip can become a clipboard entry.
+        clipboard_refs = {
+            region.get("Ref", "")
+            for _, clip in _nhsx_clipboard_clips(nhsx_session.tree.getroot())
+            for region in nhsx_children(clip, "Region")
+        }
         paths = {}
         missing = []
         for file_info in nhsx_session.files:
             found = nhsx_locate(nhsx_session, file_info)
+            if (found and file_info.id in clipboard_refs
+                    and Path(found).is_file()):
+                available.add(str(Path(found).resolve()))
             if found and str(Path(found).resolve()) in available:
                 paths[file_info.id] = str(Path(found).resolve())
             else:

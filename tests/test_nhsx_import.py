@@ -239,3 +239,30 @@ def test_import_nhsx_without_clipboard_adds_no_entries(tmp_path):
     assert count == 0
     assert clipboard_entries() == ()
     assert len(state.tracks) == 1
+
+
+def test_a_clipboard_clip_may_use_a_recording_that_no_track_uses(tmp_path):
+    """The real session: the clipboard clip also holds "kari intro", cut from a file
+    (Ref 2) that no track plays. The whole clip was skipped for it; the file must come in."""
+    write_audio(tmp_path / "speech.wav")
+    write_audio(tmp_path / "intro.wav")
+    path = tmp_path / "cb2.nhsx"
+    path.write_text(
+        '<Session><AudioPool><File Id="1" Name="speech.wav" Path="speech.wav"/>'
+        '<File Id="2" Name="intro.wav" Path="intro.wav"/></AudioPool>'
+        '<Tracks><Track Name="Voice"><Region Ref="1" Start="1.000" Length="0.500" '
+        'Offset="0.200"/></Track></Tracks>'
+        '<Clipboard><Group><Clip Track="0" Name="start" Length="00:09.000" Mode="Block">'
+        '<Region Ref="1" Track="0" Name="A" Length="2.000" Offset="1.000"/>'
+        '<Region Ref="2" Track="1" Name="kari intro" Start="3.000" Length="1.500" '
+        'Offset="0.500"/></Clip></Group></Clipboard></Session>', encoding="utf-8")
+    session = Session(tmp_path / "cb2.kuulas")
+    try:
+        session.command("import_nhsx", {"path": str(path)})
+        count = session.last_import_clipboard
+        names = {m.name for m in session.state.media}
+    finally:
+        session.close()
+    assert count == 1
+    assert len(clipboard_entries()) == 1
+    assert "intro.wav" in names
