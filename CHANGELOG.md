@@ -1,3 +1,13 @@
+## [v26.10.18.12] - 2026-10-18
+
+- Importing several files has options on the server side: place them side by side (by the
+  recorders' clocks) or one after another on one track, ordered as given, by file name
+  (take2 before take10) or by recording time, tracks named after the file or the person, and a
+  start position. The default is exactly what it was. No window for the options yet.
+- Two read-only questions the window can ask: what else a transcript cut would remove
+  (the crosstalk preview) and where a recording is used (used, cut and unused stretches, "part 2 of
+  5"). Both leave the project untouched.
+
 ## [v26.10.18.11] - 2026-10-18
 
 - Clipboard with history. Mod+C copies the selection (or the in-out range); X now copies

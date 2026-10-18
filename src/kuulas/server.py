@@ -28,7 +28,7 @@ import time
 from pathlib import Path
 from typing import Annotated, Any
 
-from fastapi import Body, FastAPI, File, Request, UploadFile, WebSocket
+from fastapi import Body, FastAPI, File, Form, Request, UploadFile, WebSocket
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -131,6 +131,10 @@ class ImportBody(BaseModel):
     paths: list[str]
     # "copy" is the API's word; the field has another name as BaseModel owns copy().
     copy_files: bool = Field(False, alias="copy")
+    mode: str | None = None
+    order: str = "given"
+    track_naming: str = "file"
+    start_frame: int = 0
 
 
 class WordBody(BaseModel):
@@ -251,7 +255,7 @@ def create_app(session, engine, *, language: str | None = None,
 
     @app.exception_handler(KuulasError)
     async def _other_error(_request: Request, e: KuulasError):
-        if e.key.startswith("error.paste."):  # a paste the entry or the tracks rule out
+        if e.key.startswith(("error.paste.", "error.import_plan.")):
             return answer(e, 400)
         log.error(str(e))
         return answer(e, 500)
@@ -435,9 +439,14 @@ def create_app(session, engine, *, language: str | None = None,
                              for n in r.warnings]})
         return out
 
-    def imported(paths: list[str], copy: bool) -> JSONResponse:
+    def imported(paths: list[str], copy: bool, *,
+                 mode: str | None = None, order: str = "given",
+                 track_naming: str = "file", start_frame: int = 0) -> JSONResponse:
         try:
-            _, results = session.import_media_report(paths, copy)
+            _, results = session.import_media_report(
+                paths, copy=copy, mode=mode, order=order,
+                track_naming=track_naming, start_frame=start_frame,
+            )
         except MediaError as e:
             # Nothing came in: say why, file by file, so the UI can show each.
             return JSONResponse({**error_body(e.key, **e.params),
@@ -447,16 +456,25 @@ def create_app(session, engine, *, language: str | None = None,
 
     @app.post("/api/import")
     def post_import(body: ImportBody):
-        return imported(body.paths, body.copy_files)
+        return imported(body.paths, body.copy_files, mode=body.mode,
+                        order=body.order, track_naming=body.track_naming,
+                        start_frame=body.start_frame)
 
     @app.post("/api/upload")
-    def post_upload(files: Annotated[list[UploadFile] | None, File()] = None):
+    def post_upload(
+        files: Annotated[list[UploadFile] | None, File()] = None,
+        mode: Annotated[str | None, Form()] = None,
+        order: Annotated[str, Form()] = "given",
+        track_naming: Annotated[str, Form()] = "file",
+        start_frame: Annotated[int, Form()] = 0,
+    ):
         if not files:
             raise BadRequestError("error.server.bad_request", detail="files")
         folder = session.package.path / "uploads"
         folder.mkdir(exist_ok=True)
         saved = [str(save_upload(folder, f)) for f in files]
-        return imported(saved, copy=False)
+        return imported(saved, copy=False, mode=mode, order=order,
+                        track_naming=track_naming, start_frame=start_frame)
 
     # -- waveforms -----------------------------------------------------------
 

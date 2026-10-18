@@ -38,6 +38,7 @@ from . import (
     analysis,
     collateral,
     edit_scope,
+    import_plan,
     ops,
     package,
     source_map,
@@ -49,7 +50,7 @@ from . import export as export_module
 from . import music_report as music_report_module
 from .clipboard import Entry, make_entry, make_entry_range
 from .clipboard_store import ClipboardStore, entry_dict
-from .clock import FLICKS, flicks_to_frames
+from .clock import FLICKS
 from .history import History, UndoInfo
 from .jobs import Jobs
 from .media import ImportResult, MediaError, MediaStore
@@ -534,15 +535,23 @@ class Session:
 
     def import_media(self, paths: list[str], copy: bool = False,
                      track_per_file: bool = True, interview: bool | None = None,
-                     interview_title: str | None = None) -> Project:
+                     interview_title: str | None = None, *,
+                     mode: str | None = None, order: str = "given",
+                     track_naming: str = "file", start_frame: int = 0) -> Project:
         """``import_media_report`` without the report (it stays in
         ``last_import_report``). Raises if not one file could be imported."""
-        return self.import_media_report(paths, copy, track_per_file, interview,
-                                        interview_title)[0]
+        return self.import_media_report(paths, copy=copy, track_per_file=track_per_file,
+                                        interview=interview,
+                                        interview_title=interview_title,
+                                        mode=mode, order=order,
+                                        track_naming=track_naming,
+                                        start_frame=start_frame)[0]
 
     def import_media_report(self, paths: list[str], copy: bool = False,
                             track_per_file: bool = True, interview: bool | None = None,
-                            interview_title: str | None = None,
+                            interview_title: str | None = None, *,
+                            mode: str | None = None, order: str = "given",
+                            track_naming: str = "file", start_frame: int = 0,
                             ) -> tuple[Project, list[ImportResult]]:
         """Bring files in and put them on the timeline, as ONE undo step.
 
@@ -551,14 +560,21 @@ class Session:
         when none can does this raise (that file's own error if it was the
         only one), and then nothing changes.
 
-        One new track per file, with one clip at the start; stereo is music,
-        mono is speech. Files imported together were recorded together, so
-        they are one sync group, placed by their recorders' clocks (BWF time
-        reference, relative to the earliest; a file without one starts at 0).
+        Placement options (WP34 pure plan):
+        - ``mode``: ``"side_by_side"`` (one track per file) or ``"sequential"``
+          (one track for all). ``None`` keeps ``track_per_file`` as the switch.
+        - ``order``: ``"given"``, ``"name"`` (case-insensitive natural sort) or
+          ``"time"``. When placing with ``order="name"`` or ``"time"``, the first
+          clip in the sync group is the first placed one.
+        - ``track_naming``: ``"file"`` (name without extension) or ``"person"``.
+        - ``start_frame``: timeline frame where placement begins (default 0).
+
+        Files imported side-by-side were recorded together, so they are one
+        sync group, placed by their recorders' clocks (BWF time reference,
+        relative to the earliest; a file without one starts at ``start_frame``).
         A file that does not belong (a Zoom or phone recording) is aligned
-        by hand and marked in sync later. ``track_per_file=False`` puts the
-        files one after another on a single track instead; that is not the
-        same moment, so no group.
+        by hand and marked in sync later. ``sequential`` puts the files one after
+        another on a single track; that is not the same moment, so no group.
 
         **One interview (WP41).** Files imported together are offered as one
         interview: ``interview=None`` (the default) makes it exactly when they
@@ -577,34 +593,74 @@ class Session:
                                  details=" ".join(str(r.error) for r in report))
             media = [r.media for _, r in ok]
             p = self.history.state
-            refs = [m.time_ref_flicks for m in media]
-            earliest = min((r for r in refs if r is not None), default=0)
+            root = self.history.material
+
+            if mode is not None:
+                effective_mode = mode
+            else:
+                effective_mode = "side_by_side" if track_per_file else "sequential"
+
+            people = root.get("people", {})
+            media_person_map = root.get("media_person", {})
+
+            def _person_name(m) -> str | None:
+                pid = media_person_map.get(m.id) or m.person
+                if pid and pid in people:
+                    return people[pid].get("name", pid)
+                return pid or None
+
+            items = [
+                import_plan.ImportItem(
+                    name=m.name,
+                    frames=m.frames,
+                    channels=m.channels,
+                    time_ref_flicks=m.time_ref_flicks,
+                    person=_person_name(m),
+                )
+                for m in media
+            ]
+
+            placements = import_plan.plan_import(
+                items,
+                p.rate,
+                mode=effective_mode,
+                start_frame=start_frame,
+                order=order,
+                track_naming=track_naming,
+            )
+
+            media_pool: dict[import_plan.ImportItem, list] = {}
+            for item, m in zip(items, media, strict=True):
+                media_pool.setdefault(item, []).append(m)
+
+            track_ids_by_key: dict[str, str] = {}
             clip_ids: list[str] = []
-            if track_per_file:
-                for m in media:
-                    track_id, clip_id = ops.new_id("t"), ops.new_id("c")
-                    start = (0 if m.time_ref_flicks is None
-                             else flicks_to_frames(m.time_ref_flicks - earliest, p.rate))
-                    p = ops.add_track(p, track_id, Path(m.name).stem,
-                                      "music" if m.channels >= 2 else "speech")
-                    p = ops.add_clip(p, track_id, m.id, start=start, clip_id=clip_id)
-                    clip_ids.append(clip_id)
-            elif media:
-                track_id, start = ops.new_id("t"), 0
-                p = ops.add_track(p, track_id, Path(media[0].name).stem,
-                                  "music" if media[0].channels >= 2 else "speech")
-                for m in media:
-                    p = ops.add_clip(p, track_id, m.id, start=start)
-                    start += m.frames
-            if track_per_file and len({m.id for m in media}) > 1:
+            for pl in placements:
+                m = media_pool[pl.item].pop(0)
+                if pl.new_track:
+                    track_id = ops.new_id("t")
+                    track_ids_by_key[pl.track_key] = track_id
+                    p = ops.add_track(p, track_id, pl.track_name, pl.kind)
+                else:
+                    track_id = track_ids_by_key[pl.track_key]
+                clip_id = ops.new_id("c")
+                p = ops.add_clip(p, track_id, m.id, start=pl.start_frame, clip_id=clip_id)
+                clip_ids.append(clip_id)
+
+            refs = [m.time_ref_flicks for m in media]
+            if effective_mode == "side_by_side" and len({m.id for m in media}) > 1:
                 # Exact clocks when every file has one (or none does); mixed,
                 # the files that have none were placed at 0, so the placement
                 # on the timeline is what the group has to say.
                 basis = "files" if len({r is None for r in refs}) == 1 else "timeline"
                 p = ops.mark_in_sync(p, clip_ids, main=clip_ids[0], basis=basis)
             label = t("history.import", count=len(media))
-            made_group = bool(p.sync_groups) and track_per_file and len(
-                {m.id for m in media}) > 1
+            distinct_media = len({m.id for m in media}) > 1
+            made_group = (
+                bool(p.sync_groups)
+                and (effective_mode == "side_by_side")
+                and distinct_media
+            )
             root = self._with_import_interview(
                 p, media, interview, interview_title, made_group)
             # Only what came in is recorded: replaying the step must not
@@ -612,6 +668,10 @@ class Session:
             return (self._commit(label, p, "import_media",
                                  {"paths": [x for x, _ in ok], "copy": copy,
                                   "track_per_file": track_per_file,
+                                  "mode": mode,
+                                  "order": order,
+                                  "track_naming": track_naming,
+                                  "start_frame": start_frame,
                                   "interview": self.last_import_interview},
                                  material=root), report)
 
