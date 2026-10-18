@@ -141,6 +141,13 @@ describe("the owner's decisions", () => {
     assert.equal(DEFAULT_KEYMAP.find((e) => e.id === "transcript.cut_words").context, "transcript");
   });
 
+  test("1 and 2 go to the in and out marks; Mod+1 and Mod+2 set them, like Hindenburg", () => {
+    assert.deepEqual(keysOf("nav.to_in", "mac"), ["1"]);
+    assert.deepEqual(keysOf("nav.to_out", "mac"), ["2"]);
+    assert.ok(keysOf("mark.in", "mac").includes("Mod+1"));
+    assert.ok(keysOf("mark.out", "mac").includes("Mod+2"));
+  });
+
   test("K stops the shuttle everywhere, including the Candidates tab", () => {
     const withK = DEFAULT_KEYMAP.filter((entry) => asList(entry.keys.other).includes("K"));
     assert.deepEqual(

@@ -1277,5 +1277,9 @@
   "cmd.edit.remove_track": "Delete and close the gap on this track only",
   "cmd.edit.remove_track.hint": "Removes the selection on the current track only and closes its gap. Nothing goes to the clipboard.",
   "ui.edit.label.remove": "Delete and close gap",
-  "ui.edit.toast.remove": {"one": "Deleted {seconds} s on {count} track", "other": "Deleted {seconds} s on {count} tracks"}
+  "ui.edit.toast.remove": {"one": "Deleted {seconds} s on {count} track", "other": "Deleted {seconds} s on {count} tracks"},
+  "cmd.nav.to_in": "Go to the in point",
+  "cmd.nav.to_in.hint": "Moves the play cursor to the in mark (Hindenburg: 1).",
+  "cmd.nav.to_out": "Go to the out point",
+  "cmd.nav.to_out.hint": "Moves the play cursor to the out mark (Hindenburg: 2)."
 }

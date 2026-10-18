@@ -168,6 +168,16 @@ export function registerAppCommands(registry, { actions, app }) {
   def("track.prev", stepFocus(-1), hasProject);
   def("track.next", stepFocus(1), hasProject);
   def(
+    "nav.to_in",
+    () => app.seek(app.getState().inPoint),
+    (state) => hasProject(state) && (state.inPoint ?? null) !== null,
+  );
+  def(
+    "nav.to_out",
+    () => app.seek(app.getState().outPoint),
+    (state) => hasProject(state) && (state.outPoint ?? null) !== null,
+  );
+  def(
     "mark.in",
     () => {
       const state = app.getState();

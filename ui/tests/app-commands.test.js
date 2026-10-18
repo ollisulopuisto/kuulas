@@ -253,6 +253,20 @@ describe("the commands the app registers", () => {
     ]);
   });
 
+  test("1 and 2 jump to the in and out marks (Hindenburg's way), only when they are set", () => {
+    const { registry, calls } = setup({ project, inPoint: 1000, outPoint: 5000 });
+    const state = { project, inPoint: 1000, outPoint: 5000 };
+    assert.equal(registry.can("nav.to_in", state), true);
+    assert.equal(registry.can("nav.to_in", { project, inPoint: null }), false);
+    assert.equal(registry.can("nav.to_out", { project }), false);
+    registry.run("nav.to_in", null, state);
+    registry.run("nav.to_out", null, state);
+    assert.deepEqual(calls, [
+      ["seek", 1000],
+      ["seek", 5000],
+    ]);
+  });
+
   test("an out mark before the in mark replaces the in mark", () => {
     const { registry, calls } = setup({ project, playhead: 2, inPoint: 9, outPoint: null });
     registry.run("mark.out");

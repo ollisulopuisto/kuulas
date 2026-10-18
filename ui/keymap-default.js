@@ -241,8 +241,30 @@ export const DEFAULT_KEYMAP = [
     context: "text-field",
     labelKey: "cmd.panel.previous",
   },
-  { id: "mark.in", keys: { mac: "I", other: "I" }, context: "timeline", labelKey: "cmd.mark.in" },
-  { id: "mark.out", keys: { mac: "O", other: "O" }, context: "timeline", labelKey: "cmd.mark.out" },
+  {
+    id: "mark.in",
+    keys: { mac: ["I", "Mod+1"], other: ["I", "Mod+1"] },
+    context: "timeline",
+    labelKey: "cmd.mark.in",
+  },
+  {
+    id: "mark.out",
+    keys: { mac: ["O", "Mod+2"], other: ["O", "Mod+2"] },
+    context: "timeline",
+    labelKey: "cmd.mark.out",
+  },
+  {
+    id: "nav.to_in",
+    keys: { mac: "1", other: "1" },
+    context: "timeline",
+    labelKey: "cmd.nav.to_in",
+  },
+  {
+    id: "nav.to_out",
+    keys: { mac: "2", other: "2" },
+    context: "timeline",
+    labelKey: "cmd.nav.to_out",
+  },
   {
     id: "mark.clear_in",
     keys: { mac: "Shift+I", other: "Shift+I" },

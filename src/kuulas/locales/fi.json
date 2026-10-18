@@ -1277,5 +1277,9 @@
   "cmd.edit.remove_track": "Poista ja sulje aukko vain tältä raidalta",
   "cmd.edit.remove_track.hint": "Poistaa valinnan vain valitulta raidalta ja sulkee sen aukon. Mitään ei mene leikepöydälle.",
   "ui.edit.label.remove": "Poisto ja aukon sulkeminen",
-  "ui.edit.toast.remove": {"one": "Poistettu {seconds} s {count} raidalta", "other": "Poistettu {seconds} s {count} raidalta"}
+  "ui.edit.toast.remove": {"one": "Poistettu {seconds} s {count} raidalta", "other": "Poistettu {seconds} s {count} raidalta"},
+  "cmd.nav.to_in": "Siirry alkumerkkiin",
+  "cmd.nav.to_in.hint": "Siirtää toistokohdan alkumerkkiin (Hindenburg: 1).",
+  "cmd.nav.to_out": "Siirry loppumerkkiin",
+  "cmd.nav.to_out.hint": "Siirtää toistokohdan loppumerkkiin (Hindenburg: 2)."
 }
