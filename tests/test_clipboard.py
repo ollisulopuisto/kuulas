@@ -9,6 +9,7 @@ from kuulas.clipboard import (
     from_json,
     make_entry,
     make_entry_range,
+    prune_entries,
     to_json,
 )
 from kuulas.model import Clip, Media, Point, Project, Track
@@ -169,14 +170,36 @@ def test_pin_protects_from_pruning():
     h.pin("e1")
     h.add(entry(id="e9", created_utc=1009.0))
 
-    assert [e.id for e in h.entries()] == ["e9", "e3", "e1"]
+    # The limit counts unpinned entries only (WP46): e1 is pinned, so three
+    # unpinned ones (e9, e3, e2) still fit beside it.
+    assert [e.id for e in h.entries()] == ["e9", "e3", "e2", "e1"]
+    h.add(entry(id="e8", created_utc=1008.0))
+    assert [e.id for e in h.entries()] == ["e8", "e9", "e3", "e1"]
 
     # Pinned entries are never dropped, so a history may exceed its max.
     h.pin("e3")
     h.pin("e9")
     h.add(entry(id="e10", created_utc=1010.0))
 
-    assert [e.id for e in h.entries()] == ["e10", "e9", "e3", "e1"]
+    assert [e.id for e in h.entries()] == ["e10", "e8", "e9", "e3", "e1"]
+
+
+def test_prune_entries_keeps_every_pinned_and_the_newest_unpinned():
+    items = [entry(id=f"e{i}", pinned=i in (1, 4)) for i in range(6)]  # newest first
+    kept = prune_entries(items, 2)
+    # unpinned: e0 e2 kept (2 newest), e3 e5 dropped; pinned e1 e4 stay in place
+    assert [e.id for e in kept] == ["e0", "e1", "e2", "e4"]
+    assert prune_entries(items, 0) == [items[0], items[1], items[4]]  # newest survives
+    assert prune_entries([], 5) == []
+
+
+def test_unpinning_prunes_past_the_limit():
+    h = ClipboardHistory(max_entries=1)
+    h.add(entry(id="a"))
+    h.pin("a")
+    h.add(entry(id="b"))
+    h.unpin("a")
+    assert [e.id for e in h.entries()] == ["b"]
 
 
 def test_pin_unpin_rename_delete():

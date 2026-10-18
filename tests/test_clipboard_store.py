@@ -61,6 +61,16 @@ def test_the_limit_is_fifty_whatever_the_file_says(tmp_path):
     assert len(store.load().entries()) == 50
 
 
+def test_pinned_entries_do_not_count_toward_the_fifty(tmp_path):
+    store = ClipboardStore(tmp_path / "clipboard.json")
+    store.update(lambda h: h.add(entry(0)))
+    store.update(lambda h: h.pin("e0"))
+    for n in range(1, 60):
+        store.update(lambda h, n=n: h.add(entry(n)))
+    ids = [e.id for e in store.load().entries()]
+    assert len(ids) == 51 and "e0" in ids
+
+
 def test_a_write_leaves_no_partial_file_and_valid_json(tmp_path):
     path = tmp_path / "clipboard.json"
     ClipboardStore(path).update(lambda h: h.add(entry(1)))
