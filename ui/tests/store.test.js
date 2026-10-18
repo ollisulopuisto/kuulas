@@ -2,6 +2,15 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { initialState, reduceLive, serverPatch } from "../store.js";
 
+describe("a clipboard change from another window", () => {
+  test("asks for the clipboard to be read again, and nothing else", () => {
+    const out = reduceLive(initialState(), { type: "clipboard_changed" });
+    assert.equal(out.clipboard, true);
+    assert.equal(out.refresh, false);
+    assert.deepEqual(out.patch, {});
+  });
+});
+
 describe("client state", () => {
   test("holds the fields the plan lists, with selection a Set", () => {
     const s = initialState();

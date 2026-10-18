@@ -117,3 +117,25 @@ def test_the_default_path_is_in_the_config_dir(monkeypatch):
     monkeypatch.delenv("KUULAS_CLIPBOARD_FILE")
     assert clipboard_store.default_path() == config_dir() / "clipboard.json"
     assert isinstance(clipboard_store.default_path(), Path)
+
+
+def test_another_window_s_write_changes_the_stamp_and_shows_in_a_fresh_load(tmp_path):
+    path = tmp_path / "clipboard.json"
+    mine, theirs = ClipboardStore(path), ClipboardStore(path)  # two windows
+    assert mine.stamp() is None  # no file yet
+    theirs.update(lambda h: h.add(entry(1)))
+    first = mine.stamp()
+    assert first is not None
+    assert [e.id for e in mine.load().entries()] == ["e1"]
+    theirs.update(lambda h: h.add(entry(2)))
+    assert mine.stamp() != first
+    assert [e.id for e in mine.load().entries()] == ["e2", "e1"]
+
+
+def test_two_windows_writing_in_turn_lose_nothing(tmp_path):
+    path = tmp_path / "clipboard.json"
+    a, b = ClipboardStore(path), ClipboardStore(path)
+    for n in range(4):
+        (a if n % 2 == 0 else b).update(lambda h, n=n: h.add(entry(n)))
+    assert [e.id for e in a.load().entries()] == ["e3", "e2", "e1", "e0"]
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["clipboard.json"]

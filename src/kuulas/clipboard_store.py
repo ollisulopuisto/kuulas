@@ -85,6 +85,17 @@ class ClipboardStore:
         history.max_entries = MAX_ENTRIES
         return history
 
+    def stamp(self) -> tuple[int, int] | None:
+        """``(mtime_ns, size)`` of the file, None when there is none. A write
+        is an atomic rename, so any change by another window (another process
+        on the same user file) changes this; the live channel compares it to
+        tell the UI to read the history again."""
+        try:
+            info = self.path.stat()
+        except OSError:
+            return None
+        return info.st_mtime_ns, info.st_size
+
     def update(self, change: Callable[[ClipboardHistory], _T]) -> _T:
         """Load, apply ``change`` to the history, write it back; return what
         ``change`` returned. Raises ``OSError`` when the file cannot be written

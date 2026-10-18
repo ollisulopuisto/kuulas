@@ -1799,6 +1799,7 @@ connectLive({
     if (Object.keys(result.patch).length > 0) setState(result.patch);
     // An answer to our own edit arrives as a state_changed too; while edits are
     // still going out, the editor shows the newest value and applies the last answer.
+    if (result.clipboard) void refreshClipboard();
     if (result.refresh && !editor.busy) void refresh().catch(showError);
     if (result.notice && result.notice.id > handledNotice) {
       handledNotice = result.notice.id;

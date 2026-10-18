@@ -159,6 +159,9 @@ export function reduceLive(state, message) {
     case "hello":
       out.refresh = message.head !== undefined && message.head !== state.head;
       break;
+    case "clipboard_changed":
+      out.clipboard = true; // the history file changed (another window): read it again
+      break;
     case "notice":
       out.notice = { id: message.id, text: message.text };
       break;

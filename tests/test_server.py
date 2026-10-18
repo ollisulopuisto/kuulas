@@ -14,6 +14,8 @@ from test_history import heavy_hour, register
 
 from kuulas import cli, messages
 from kuulas import edit_points as ep
+from kuulas.clipboard import ClipRef, Entry
+from kuulas.clipboard_store import ClipboardStore
 from kuulas.engine import EngineError
 from kuulas.playplan import PlaybackRequestError
 from kuulas.server import create_app, pick_language
@@ -606,6 +608,19 @@ def test_live_pushes_engine_notices_once(session, engine, tmp_path):
                        "params": {"count": 2}, "text": "two blocks failed"}
         engine.notices.append({"id": 2, "key": "k", "params": {}, "text": "t"})
         assert ws.receive_json()["id"] == 2  # not 1 again
+
+
+def test_live_tells_when_another_window_changes_the_clipboard(session, engine, tmp_path):
+    app = create_app(session, engine, language="en", ui_dir=tmp_path, tick=0.01)
+    with TestClient(app) as c, c.websocket_connect("/api/live") as ws:
+        ws.receive_json()
+        ws.receive_json()
+        other = ClipboardStore(session.clipboard.path)  # another window, same user file
+        fresh = Entry("x1", "", 1.0, refs=(ClipRef("a" * 64, 0, 10),), span=(0, 10))
+        other.update(lambda h: h.add(fresh))
+        assert ws.receive_json() == {"type": "clipboard_changed"}
+        other.update(lambda h: h.pin("x1"))
+        assert ws.receive_json() == {"type": "clipboard_changed"}
 
 
 # -- the page and the process --------------------------------------------------

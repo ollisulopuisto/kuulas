@@ -779,6 +779,9 @@ def create_app(session, engine, *, language: str | None = None,
             last_jobs = tuple((job["id"], job["progress"], job["state"], job["error"])
                               for job in initial_jobs)
             last_notice, playing, last_position = 0, False, None
+            # The history file is shared by every window of this user: when its
+            # stamp changes (our own writes too, which only costs a re-read), say so.
+            last_stamp = session.clipboard.stamp()
             next_poll = time.monotonic()
             while True:
                 wait = max(0.0, next_poll - time.monotonic())
@@ -792,6 +795,10 @@ def create_app(session, engine, *, language: str | None = None,
                 if signature != last_jobs:
                     await ws.send_json({"type": "jobs", "jobs": current_jobs})
                     last_jobs = signature
+                stamp = session.clipboard.stamp()
+                if stamp != last_stamp:
+                    last_stamp = stamp
+                    await ws.send_json({"type": "clipboard_changed"})
                 status = await asyncio.to_thread(engine.status)
                 session.jobs.set_interactive(
                     status["playing"] or time.monotonic() - app.state.last_input < 2)
