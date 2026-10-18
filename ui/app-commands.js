@@ -63,6 +63,9 @@ export function registerAppCommands(registry, { actions, app }) {
   def("transport.shuttle_back", () => actions.shuttle("j"), hasProject);
   def("transport.shuttle_stop", () => actions.shuttle("k"), hasProject);
   def("transport.speed", () => actions.fastListening(), hasProject);
+  def("transport.speed_down", () => actions.fastNudge(-1), hasProject);
+  def("transport.speed_up", () => actions.fastNudge(1), hasProject);
+  def("transport.speed_reset", () => actions.fastReset(), hasProject);
   def("nav.home", () => actions.goHome());
   def("panel.next", () => actions.cyclePanel(1));
   def("panel.previous", () => actions.cyclePanel(-1));

@@ -147,6 +147,30 @@ describe("the editing commands", () => {
     assert.equal(h.refreshed(), 1);
   });
 
+  test("a finished cut takes the range away from the screen: marks, range tracks, selection", () => {
+    for (const id of ["edit.cut", "edit.cut_track", "edit.lift_cut", "edit.close_gap_all"]) {
+      const state = base({ inPoint: 2 * S, outPoint: 6 * S });
+      const h = setup(state);
+      h.registry.run(id, null, state);
+      assert.deepEqual(h.patches, [], `${id}: nothing is cleared before the edit is done`);
+      h.sent[0].done({ project, clipboard: { ok: true, entry: "e9" } });
+      assert.deepEqual(h.patches.at(-1), {
+        inPoint: null,
+        outPoint: null,
+        rangeTracks: new Set(),
+        selection: new Set(),
+      });
+    }
+  });
+
+  test("Backspace (soft delete) keeps the range", () => {
+    const state = base({ inPoint: 2 * S, outPoint: 6 * S });
+    const h = setup(state);
+    h.registry.run("edit.delete", null, state);
+    h.sent[0].done?.({ project });
+    assert.deepEqual(h.patches, []);
+  });
+
   test("close gap on all tracks is a plain ripple_delete, no clipboard op", () => {
     const state = base({ inPoint: 2 * S, outPoint: 6 * S });
     const h = setup(state);

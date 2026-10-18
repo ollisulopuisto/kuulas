@@ -41,7 +41,8 @@ export function forwardFromFrame(project, frame, tracks = null) {
 
 /**
  * Per track holding a selected clip: its earliest selected clip and every clip after it.
- * With `allTracks`: every clip on every track that ends after the earliest selected start.
+ * With `allTracks`: the selected clips and every clip on every track that starts at or after the
+ * earliest selected start (a long clip that began earlier, such as a music bed, is not swept in).
  */
 export function forwardFromClips(project, selection, { allTracks = false } = {}) {
   const found = new Set();
@@ -49,7 +50,13 @@ export function forwardFromClips(project, selection, { allTracks = false } = {})
   const all = project?.tracks ?? [];
   if (allTracks) {
     const span = selectionSpan(project, selection);
-    return span ? forwardFromFrame(project, span.start) : found;
+    if (!span) return found;
+    for (const track of all) {
+      for (const clip of track.clips ?? []) {
+        if (clip.start >= span.start || selection.has(clip.id)) found.add(clip.id);
+      }
+    }
+    return found;
   }
   for (const track of all) {
     const starts = (track.clips ?? []).filter((c) => selection.has(c.id)).map((c) => c.start);

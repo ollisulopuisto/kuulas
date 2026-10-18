@@ -65,6 +65,16 @@ describe("the WP5 collision test", () => {
 });
 
 describe("the owner's decisions", () => {
+  test("fast listening: . toggles, , and / nudge it by a step (held keys repeat), Alt+0 resets", () => {
+    assert.deepEqual(keysOf("transport.speed"), ["."]);
+    assert.deepEqual(keysOf("transport.speed_down"), [","]);
+    assert.deepEqual(keysOf("transport.speed_up"), ["/"]);
+    assert.deepEqual(keysOf("transport.speed_reset"), ["Alt+0"]);
+    for (const id of ["transport.speed_down", "transport.speed_up"]) {
+      assert.equal(DEFAULT_KEYMAP.find((entry) => entry.id === id).repeat, true);
+    }
+  });
+
   test("Backspace is Delete, X is Cut, Mod+C copies", () => {
     assert.ok(keysOf("edit.delete").includes("Backspace"));
     assert.ok(keysOf("edit.cut").includes("X"));
@@ -112,6 +122,7 @@ describe("the owner's decisions", () => {
     // Not in the side panels, candidates or text fields: Tab keeps its focus move there.
     assert.deepEqual(contextsOf("Tab").sort(), ["timeline", "transcript"]);
     assert.deepEqual(contextsOf("Shift+Tab").sort(), ["timeline", "transcript"]);
+    assert.deepEqual(keysOf("nav.tab_target_cycle", "mac"), ["Alt+Tab"]);
     assert.deepEqual(keysOf("nav.tab_target_cycle"), ["Shift+T"]);
   });
 

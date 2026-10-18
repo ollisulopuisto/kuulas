@@ -39,8 +39,12 @@ callback reads that played timeline forwards, or backwards for a negative
 rate, and a speed other than 1 goes through the same soxr stream that
 handles the device rate, now at ``|rate| x project rate`` in: tape-style,
 the pitch follows the speed. The playhead is mapped back to programme
-frames, so it jumps over a skip and runs at the speed. Fast playback with the
-pitch kept (time-stretching) is not built and is refused.
+frames, so it jumps over a skip and runs at the speed. Fast listening with
+the pitch kept (WP26) does not go through soxr: ``stretch.Stretcher`` (WSOLA)
+pulls the played timeline a hop at a time in the callback, at a speed that
+``set_rate`` can change at any moment, and the playhead advances by the speed
+heard. It costs about what a block of plain playback costs (see
+``tests/test_engine_stretch.py``).
 """
 
 from __future__ import annotations
@@ -70,6 +74,9 @@ from .playplan import (
     check_loop,
     normalise_skip,
 )
+from .stretch import MAX_RATE as MAX_STRETCH
+from .stretch import MIN_RATE as MIN_STRETCH
+from .stretch import Stretcher
 
 log = logging.getLogger("kuulas.engine")
 
@@ -129,11 +136,13 @@ class _Run:
     """One play's fixed parameters. Replaced as a whole under ``_tlock``, so
     the audio thread reads one consistent reference per block."""
 
-    __slots__ = ("loop", "plan", "skip", "speed")
+    __slots__ = ("loop", "plan", "skip", "speed", "stretch")
 
     def __init__(self, plan: PlayPlan, speed: float, skip: tuple[tuple[int, int], ...],
-                 loop: tuple[int, int] | None = None):
+                 loop: tuple[int, int] | None = None, stretch: bool = False):
         self.plan, self.speed, self.skip, self.loop = plan, speed, skip, loop
+        #: Played with the pitch kept (WSOLA), at the engine's live rate.
+        self.stretch = stretch
 
 
 def _check_speed(rate: object, preserve_pitch: bool) -> float:
@@ -141,13 +150,18 @@ def _check_speed(rate: object, preserve_pitch: bool) -> float:
         speed = float(rate)  # type: ignore[arg-type]
     except (TypeError, ValueError):
         raise PlaybackRequestError("error.engine.bad_speed", speed=str(rate)) from None
-    if not math.isfinite(speed) or not MIN_SPEED <= abs(speed) <= MAX_SPEED:
+    if not math.isfinite(speed):
         raise PlaybackRequestError("error.engine.bad_speed", speed=str(rate))
     if preserve_pitch and abs(speed) != 1.0:
-        # Time-stretching (pedalboard's Rubber Band, rendered ahead in
-        # chunks) is not built yet. Refusing is better than a UI that asks
-        # for fast listening and silently gets chipmunk speech.
-        raise PlaybackRequestError("error.engine.stretch_unavailable", speed=str(rate))
+        # Pitch kept (fast listening, stepless): forward only, in the range
+        # the stretcher handles. Backward at other speeds would be chipmunk
+        # speech played in reverse; refused rather than silently wrong.
+        if speed < 0 or not MIN_STRETCH <= speed <= MAX_STRETCH:
+            raise PlaybackRequestError("error.engine.stretch_unavailable",
+                                       speed=str(rate))
+        return speed
+    if not MIN_SPEED <= abs(speed) <= MAX_SPEED:
+        raise PlaybackRequestError("error.engine.bad_speed", speed=str(rate))
     return speed
 
 
@@ -326,6 +340,15 @@ class Engine:
         self._fed = 0
         self._out = 0
         self._gen = 0
+        #: Programme frames heard so far in a pitch-kept run (float: the
+        #: speed is stepless, so this is not ``_out`` times a constant).
+        self._acc = 0.0
+        #: The live speed of a pitch-kept run, changed by ``set_rate`` while
+        #: it plays; the audio thread hands it to the stretcher every hop.
+        self._stretch_rate = 1.0
+        self._stretcher: Stretcher | None = None
+        self._stretcher_gen = -1
+        self._hop_frames = 0
 
         # Audio-thread state: the queue between mixer and device. Only the
         # callback touches these, or the control side while no stream runs.
@@ -434,11 +457,13 @@ class Engine:
         ``skip``: frame ranges ``(a, b)`` to jump over, crossfaded; empty or
         None plays everything. ``rate``: tape speed, ``MIN_SPEED`` to
         ``MAX_SPEED`` either way (negative is backward); with
-        ``preserve_pitch`` (the default) only 1 and -1 are available, since
-        time-stretching is not built. A bad ``rate`` or ``skip`` raises
-        ``PlaybackRequestError``, no device ``EngineError``; nothing changes
-        then."""
+        ``preserve_pitch`` (the default) 1 and -1 are tape-exact and any other
+        forward speed from 0.5 to 3 is time-stretched with the pitch kept
+        (``stretch.py``, WSOLA; ``set_rate`` changes it while playing). A bad
+        ``rate`` or ``skip`` raises ``PlaybackRequestError``, no device
+        ``EngineError``; nothing changes then."""
         speed = _check_speed(rate, preserve_pitch)
+        stretch = preserve_pitch and speed not in {1.0, -1.0}
         skip_list = normalise_skip(skip, 0, _FAR)
         loop_range = self._check_loop(loop, skip_list, speed)
         with self._ctl:
@@ -446,7 +471,7 @@ class Engine:
                 self._close_stream()  # died since the last tick: open afresh
             if self._stream is None:
                 self._open(refresh=True)
-            self._resampler_for(abs(speed))
+            self._resampler_for(1.0 if stretch else abs(speed))
             with self._tlock:
                 gen, run = self._gen, self._run
                 continuing = at is None and self._playing
@@ -457,7 +482,8 @@ class Engine:
                 # Same speed (forward) and skip list, only a new end: the
                 # run goes on with nothing re-queued, as before skips.
                 same = (continuing and run is not None and speed > 0
-                        and run.speed == speed and run.skip == skip_list)
+                        and run.stretch == stretch
+                        and (stretch or run.speed == speed) and run.skip == skip_list)
                 keep = same and run.loop is None and loop_range is None
                 splice = same and run.loop is not None and self._fed > 0
                 lo = self._anchor if keep else start
@@ -470,7 +496,9 @@ class Engine:
                 self._last_callback = self._clock()
                 return
             new = _Run(self._plan(lo, until, speed, skip_list, loop_range), speed,
-                       skip_list, loop_range)
+                       skip_list, loop_range, stretch)
+            if stretch:
+                self._stretch_rate = speed
             if not self._gc_frozen:
                 # Everything built so far (the app, the project) is long-lived:
                 # out of the collector's sight, a full collection during
@@ -489,6 +517,19 @@ class Engine:
             self._last_active = self._clock()
             self._last_callback = self._clock()
             self._start_thread()
+
+    def set_rate(self, rate: float) -> bool:
+        """Change the speed of a pitch-kept run that is playing, stepless and
+        without a click (the stretcher takes the new speed at its next hop,
+        about 20 ms). False, and nothing changed, if no such run is playing:
+        the caller then starts one with ``play``."""
+        speed = _check_speed(rate, True)
+        with self._tlock:
+            run = self._run
+            if not (self._playing and run is not None and run.stretch):
+                return False
+            self._stretch_rate = speed
+        return True
 
     def stop(self) -> None:
         """Stop where the sound was: the playhead stays at the heard frame
@@ -509,7 +550,7 @@ class Engine:
             run, until = self._run, self._until
         new = None if run is None else _Run(
             self._plan(frame, until, run.speed, run.skip, run.loop), run.speed,
-            run.skip, run.loop)
+            run.skip, run.loop, run.stretch)
         if new is not None:
             self._read_ahead(new, 0, WARM_S, evict=False)
         with self._tlock:
@@ -556,7 +597,8 @@ class Engine:
                 "preview": self._preview,
                 "position": int(position),
                 "until": until,
-                "speed": live.speed if live else 1.0,
+                "speed": ((self._stretch_rate if live.stretch else live.speed)
+                          if live else 1.0),
                 "skip": [list(r) for r in live.skip] if live else [],
                 "loop": list(live.loop) if live and live.loop else None,
                 "rate": self.rate,
@@ -604,13 +646,18 @@ class Engine:
         if run is not None:
             self._run = run
         self._fed = self._out = 0
+        self._acc = 0.0
         self._gen += 1
 
     def _played(self) -> int:
         """Frames of the run's played timeline that have reached the ear:
         device frames since the anchor, at |speed| x the project rate, minus
         the device's output latency (which holds that much more)."""
-        speed = abs(self._run.speed) if self._run is not None else 1.0
+        run = self._run
+        if run is not None and run.stretch:
+            live = self._stretch_rate
+            return max(0, round(self._acc - self._latency_frames * live))
+        speed = abs(run.speed) if run is not None else 1.0
         played = self._out * speed * self.rate / self._dev_rate
         return max(0, round(played - self._latency_frames * speed))
 
@@ -660,7 +707,7 @@ class Engine:
                 if gen != self._gen or self._run is not run or not self._playing:
                     return False
                 if wrap - need >= self._fed:  # still ahead of the audio thread
-                    self._run = _Run(plan, run.speed, skip, loop)
+                    self._run = _Run(plan, run.speed, skip, loop, run.stretch)
                     self._until = until
                     return True
         return False
@@ -738,7 +785,7 @@ class Engine:
         if not playing or run is None:
             return out
         project = self._project
-        speed = abs(run.speed)
+        speed = 1.0 if run.stretch else abs(run.speed)  # stretched: resample 1:1
         resampler = self._resamplers.get(speed, _MISSING)
         if resampler is _MISSING:  # play() makes it first; a bug, not a device
             raise KeyError(speed)
@@ -753,8 +800,33 @@ class Engine:
         ratio = speed * self.rate / self._dev_rate
         chunks = [self._fifo]
         have = len(self._fifo)
+        stretcher = self._stretcher_for(gen, end) if run.stretch else None
         while have < frames and not self._flushed:
-            n = min(max(1, math.ceil((frames - have) * ratio)), max(0, end - fed))
+            if stretcher is not None:
+                stretcher.set_speed(self._stretch_rate)
+                hop = stretcher.next_hop()
+                if hop is not None:
+                    self._recent.append((run, int(stretcher.position), self._hop_frames,
+                                         float(np.abs(hop[:, 0]).max()),
+                                         float(np.abs(hop[:, 1]).max())))
+                    y = hop if resampler is None else resampler.resample_chunk(hop)
+                    chunks.append(y)
+                    have += len(y)
+                    fed = int(stretcher.position) + 2 * self._hop_frames
+                if stretcher.finished:
+                    if resampler is not None:
+                        tail = resampler.resample_chunk(
+                            np.zeros((0, 2), dtype=np.float32), last=True)
+                        chunks.append(tail)
+                        have += len(tail)
+                    self._flushed = True
+                continue
+            # Always a whole block's worth of input: soxr gives no output for
+            # a handful of input frames, and the loop then went round
+            # hundreds of times mixing every track each time (measured: 489
+            # mixes, 30 ms, in one block when scrubbing back at 5x). The
+            # surplus waits in the queue for the next block.
+            n = min(max(1, math.ceil(frames * ratio)), max(0, end - fed))
             if n > 0:
                 if run.speed > 0:
                     block = plan.read(project, self._store, fed, n)
@@ -783,12 +855,32 @@ class Engine:
             if gen == self._gen:  # no seek or stop meanwhile
                 self._fed = fed
                 self._out += take
+                if run.stretch:  # programme frames heard, at the live speed
+                    self._acc += take * self._stretch_rate * self.rate / self._dev_rate
                 if done:
                     self._playing = False
                     self._anchor = (plan.final(project.length) if run.speed > 0
                                     else plan.lo)
                     self._fed = self._out = 0
+                    self._acc = 0.0
         return out
+
+    def _stretcher_for(self, gen: int, end: int) -> Stretcher:
+        """The WSOLA stretcher of this run (audio thread): made at the run's
+        first block, its input the run's played timeline mixed hop by hop."""
+        if self._stretcher is None or self._stretcher_gen != gen:
+            self._stretcher = Stretcher(self._stretch_fetch, end, self.rate,
+                                        self._stretch_rate)
+            self._stretcher_gen = gen
+            self._hop_frames = self._stretcher.hop
+        self._stretcher.length = end  # an edit while playing moves the end
+        return self._stretcher
+
+    def _stretch_fetch(self, first: int, count: int) -> np.ndarray:
+        run = self._run
+        if run is None:  # stopped between two hops: silence
+            return np.zeros((2, count), dtype=np.float32)
+        return run.plan.read(self._project, self._store, first, count)
 
     def _finished(self) -> None:
         """PortAudio's finished callback: the stream stopped. Unless we
@@ -839,7 +931,7 @@ class Engine:
         # Every speed's resampler ends at the device rate: make them afresh.
         self._resamplers = {}
         self._resampler_for(1.0)
-        if self._run is not None:
+        if self._run is not None and not self._run.stretch:
             self._resampler_for(abs(self._run.speed))
         if dev_rate != self.rate:
             self._notify("notice.engine.resampling", device=name, rate=self.rate,
@@ -886,7 +978,7 @@ class Engine:
             heard = self._heard() if playing else self._anchor
         new = (None if not playing or run is None else
                _Run(self._plan(heard, until, run.speed, run.skip, run.loop), run.speed,
-                    run.skip, run.loop))
+                    run.skip, run.loop, run.stretch))
         with self._tlock:
             if self._playing:
                 self._start_run(heard, new)
@@ -1055,7 +1147,7 @@ class Engine:
         ``fed`` (and, in a loop, from the loop's start). ``evict`` also drops
         chunks no longer wanted: only the helper does that."""
         plan, length = run.plan, self._project.length
-        ahead = self._ahead(seconds, run.speed)
+        ahead = self._ahead(seconds, MAX_STRETCH if run.stretch else run.speed)
         if run.speed > 0:
             first = plan.position(fed, length)
             last = first + ahead

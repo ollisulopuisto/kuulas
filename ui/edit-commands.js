@@ -40,6 +40,9 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
   const def = (id, run, can) => registry.register(id, run, { can, hintKey: `cmd.${id}.hint` });
   const hasProject = (state) => Boolean(state?.project);
 
+  /** The edits that use up the marked range. */
+  const RANGE_SPENT_OPS = new Set(["clipboard_cut", "clipboard_lift_cut", "ripple_delete"]);
+
   function toastFor(plan, before, response) {
     if (!plan.toast) return;
     // A plan may change its message once the answer is in: a cut whose clipboard copy
@@ -64,6 +67,16 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
       combine: plan.combine,
       done: (response) => {
         toastFor(plan, before, response);
+        // The range is spent: its marks and the selection would only be left drawn on the
+        // timeline (owner, 2026-10-18). Soft delete keeps them: the gap is still the range.
+        if (RANGE_SPENT_OPS.has(plan.op)) {
+          app.patch({
+            inPoint: null,
+            outPoint: null,
+            rangeTracks: new Set(),
+            selection: new Set(),
+          });
+        }
         // A cut adds an entry; a paste may follow a rename elsewhere: look again.
         if (plan.op.startsWith("clipboard_")) app.refreshClipboard?.();
       },

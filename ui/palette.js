@@ -32,8 +32,16 @@ export function paletteRows({
   }
   entries.forEach((entry, order) => {
     const text = label(entry.labelKey);
-    const match = fuzzyMatch(query.trim(), text);
-    if (!match) return;
+    let match = fuzzyMatch(query.trim(), text);
+    if (!match) {
+      // Not recalling the name: the one-line hint says what the command does, so a word from
+      // it finds the command too, ranked below label matches and with no letters lit.
+      const hintKey = registry.hintKey?.(entry.id);
+      const hint = hintKey ? label(hintKey) : "";
+      const viaHint = hint && hint !== hintKey ? fuzzyMatch(query.trim(), hint) : null;
+      if (!viaHint) return;
+      match = { indices: [], score: viaHint.score - 1000 };
+    }
     const planned = registry.status(entry.id) !== "ready";
     const enabled = !planned && registry.can(entry.id, state);
     rows.push({

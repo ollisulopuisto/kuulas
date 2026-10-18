@@ -23,6 +23,10 @@ These are not suggestions. A WP is done only when all of them hold.
    wrong, say why in the commit message.
 2. **Keyboard first.** Any UI feature includes its key binding and command
    palette entry in the same WP (R10; see Triage).
+   **Every command is also in a menu (owner, 2026-10-18: "ALL OPTIONS have to be found from the
+   menus", "the menus are a discoverability feature").** A command with a key and a palette entry but no
+   menu item is unfinished. A test (`ui/tests/menu-coverage.test.js`) lists the commands that are in no
+   menu and must stay empty.
    **Translated from the start (R39).** No user-facing text is written as a
    literal, in Python or in the UI: it is a message key with an English
    source string and a Finnish translation in the same commit (WP33).
@@ -1733,9 +1737,10 @@ current level; the level decides what a stop is:
 Behaviour and keys (proposal, owner to confirm):
 - A level indicator in the status area ("Tab: words"); Shift+T cycles the level (it cycles
   word / transient / both today, which becomes clip / word / fine).
-- Direct keys so that no cycling is needed mid-edit: Tab and Shift+Tab step the current level;
-  Alt+Tab and Shift+Alt+Tab always step the clip level; Mod+Alt+Tab and Shift+Mod+Alt+Tab always step the
-  fine level. (macOS does not use Option+Tab; to check on Windows and Linux.)
+- **Keys (owner, 2026-10-18):** Tab steps to the next stop at the current level, Shift+Tab to the previous
+  one. **One key cycles the level: Alt+Tab on the Mac** (replacing Shift+T there; there is no separate
+  "coarser" key). Option+Tab is not used by macOS; on Windows and Linux Alt+Tab belongs to the OS, so
+  they keep Shift+T until they get their own keys (the keymap has keys per platform).
 - Each level also works as a filter on top of the one above: at the fine level the stops inside the
   word under the playhead come first.
 - Stops are of the focused track; with a range selected, only inside it.

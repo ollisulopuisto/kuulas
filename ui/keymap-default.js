@@ -62,6 +62,29 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.transport.speed",
   },
   {
+    // Fast listening's speed is stepless, 1.0x to 2.0x in 0.05x steps (owner, 2026-10-18).
+    // Shift+. and Shift+, cannot be told from . and , (shift is part of the character), so
+    // the nudges are , (slower) and / (faster); Alt+0 puts it back to 1.0x.
+    id: "transport.speed_down",
+    keys: { mac: ",", other: "," },
+    context: "global",
+    labelKey: "cmd.transport.speed_down",
+    repeat: true,
+  },
+  {
+    id: "transport.speed_up",
+    keys: { mac: "/", other: "/" },
+    context: "global",
+    labelKey: "cmd.transport.speed_up",
+    repeat: true,
+  },
+  {
+    id: "transport.speed_reset",
+    keys: { mac: "Alt+0", other: "Alt+0" },
+    context: "global",
+    labelKey: "cmd.transport.speed_reset",
+  },
+  {
     // Mod+L is Automix; Alt or Shift variants of a taken key would show up as menu alternates.
     id: "transport.loop",
     keys: { mac: "Mod+U", other: "Mod+U" },
@@ -148,7 +171,7 @@ export const DEFAULT_KEYMAP = [
   },
   // Tab to the next word or transient (WP19i). Tab keeps its focus move in the side
   // panels and in text fields: it is bound in the timeline and the transcript only (one
-  // entry each, a keymap entry has one context). Shift+T cycles word, transient, both.
+  // entry each, a keymap entry has one context). Alt+Tab (Shift+T off the Mac) cycles the level.
   {
     id: "nav.prev_stop",
     keys: { mac: "Shift+Tab", other: "Shift+Tab" },
@@ -175,7 +198,7 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "nav.tab_target_cycle",
-    keys: { mac: "Shift+T", other: "Shift+T" },
+    keys: { mac: "Alt+Tab", other: "Shift+T" },
     context: "global",
     labelKey: "cmd.nav.tab_target_cycle",
   },

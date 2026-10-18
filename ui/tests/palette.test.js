@@ -26,6 +26,7 @@ const DATA = [
   },
 ];
 const LABELS = {
+  "cmd.edit.undo.hint": "Takes back the last change, a step at a time.",
   "cmd.undo": "Undo",
   "cmd.fit": "Fit to edit",
   "cmd.split": "Split",
@@ -36,7 +37,10 @@ const fmt = (combo, platform) => `${platform}:${combo}`;
 
 function setup(state = { canUndo: true }) {
   const registry = createRegistry();
-  registry.register("edit.undo", () => {}, { can: (s) => s.canUndo });
+  registry.register("edit.undo", () => {}, {
+    can: (s) => s.canUndo,
+    hintKey: "cmd.edit.undo.hint",
+  });
   registry.register("view.fit", () => {});
   registry.register("keymap.reset", () => {});
   registry.planned("edit.split");
@@ -144,5 +148,22 @@ describe("palette recent group", () => {
   test("without a recent list nothing changes", () => {
     const rows = recentRows({ recent: undefined });
     assert.ok(rows.every((row) => !row.recent));
+  });
+});
+
+describe("finding a command without recalling its name", () => {
+  test("a word from the command's hint finds it, without highlighting the label", () => {
+    const rows = setup()("takes back");
+    assert.deepEqual(
+      rows.map((row) => row.id),
+      ["edit.undo"],
+    );
+    assert.deepEqual(rows[0].indices, []);
+  });
+
+  test("a label match still carries its highlighted letters", () => {
+    const rows = setup()("undo");
+    assert.equal(rows[0].id, "edit.undo");
+    assert.ok(rows[0].indices.length > 0);
   });
 });
