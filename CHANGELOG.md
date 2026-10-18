@@ -1,3 +1,12 @@
+## [v26.10.18.21] - 2026-10-18
+
+- Playback engine: it can now skip stretches while playing ("as if cut") with a 15 ms equal-power
+  crossfade at each join, and it can play at tape speeds (0.25x to 5x, forwards or backwards,
+  pitch follows speed). The cut-candidate preview (Shift+Space) now uses one play with a skip list
+  instead of two plays and a timer. Pitch-kept fast listening (1.1x to 3x) is not built; asking for
+  it says "not available yet". NOT yet listened to by a person: how the crossfade sounds on speech,
+  and CPU use at high speeds on the Mac (the tests pull audio blocks from a fake output).
+
 ## [v26.10.18.20] - 2026-10-18
 
 - Markers, regions and chapters. M adds a marker at the play cursor (a pennant on the ruler),

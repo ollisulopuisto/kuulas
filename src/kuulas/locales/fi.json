@@ -128,6 +128,9 @@
   },
   "error.engine.no_device": "Äänen ulostulolaitetta ei löytynyt. Kytke kuulokkeet tai kaiuttimet tai valitse ulostulo järjestelmän ääniasetuksista. Projekti pysyy auki.",
   "error.engine.open_failed": "Äänen ulostuloa {device} ei voitu avata: {error}",
+  "error.engine.bad_skip": "Ohitettavan kohdan pitää olla kaksi kehysnumeroa, joista alku ei ole lopun jälkeen eikä kumpikaan alle nollan: {item}",
+  "error.engine.bad_speed": "Toistonopeutta {speed} ei ole. Nauhanopeus voi olla 0,25×–5×, eteen- tai taaksepäin.",
+  "error.engine.stretch_unavailable": "Nopeutettua kuuntelua sävelkorkeus säilyttäen ({speed}×) ei vielä ole. Nauhanopeus, jossa sävelkorkeus muuttuu nopeuden mukana, on käytössä.",
   "notice.engine.block_failed": {
     "one": "{count} äänilohko jäi toistamatta, ja sen tilalla soi hiljaisuus. Toisto jatkuu.",
     "other": "{count} äänilohkoa jäi toistamatta, ja niiden tilalla soi hiljaisuus. Toisto jatkuu."

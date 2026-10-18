@@ -223,6 +223,11 @@ WP27, WP38, WP42, WP47.
 
 ## Open questions and known limits
 
+- **Engine, v26.10.18.21:** skip list and tape-rate playback are tested with a fake output only;
+  please listen to the candidate preview (Shift+Space) and, once the JKL keys exist, to shuttle.
+  The crossfade is equal-power (up to +3 dB for a few ms on steady audio across a join). Pitch-kept
+  fast listening needs `pedalboard` as a new dependency and a render-ahead worker (planned).
+
 - **Candidates panel decisions to confirm:** Enter, K and Shift+Space work only while the
   Candidates tab has focus (so K stays the shuttle stop elsewhere); from the timeline you step with
   `]` and `[` and press D, but must focus the tab for Enter or K. Say if you want Enter back in the

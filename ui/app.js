@@ -4,7 +4,7 @@
 import * as api from "./api.js";
 import { listedRows, scrollToShow, stepTarget } from "./candidates-model.js";
 import { createCandidatesPanel } from "./candidates-panel.js";
-import { createPreviewPlayer } from "./candidates-preview.js";
+import { previewRequest } from "./candidates-preview.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
 import { createEditor } from "./edits.js";
 import { filenameFromDisposition } from "./export-commands.js";
@@ -127,8 +127,6 @@ const transport = createTransport({
   getState,
   setState,
   onError: showError,
-  // Any stop, play or seek of the user's ends a candidate preview in progress.
-  onUserAction: () => previewPlayer?.cancel(),
 });
 
 // -- the view: zoom, scroll, Z, history ---------------------------------------
@@ -931,7 +929,6 @@ window.addEventListener("focus", () => void refreshClipboard());
 // -- cut candidates (WP18) ------------------------------------------------------------------------------
 
 let candidatesToken = 0;
-let previewPlayer = null;
 
 /** Fetch the list again (the newest answer wins). The frames move with every edit, so this
  * runs whenever the head changes, not only while the tab is showing: the timeline draws them. */
@@ -1042,19 +1039,14 @@ async function markCandidate(start, end, track) {
   }
 }
 
-// Preview: the engine cannot skip a stretch, so the stretches around it are played one
-// after the other (candidates-preview.js). The project is not touched.
+// Preview: one play request; the engine skips the candidate with a crossfade
+// (candidates-preview.js). The project is not touched.
 async function previewCandidate(row) {
   try {
-    const data = await api.getCandidatePreview(row.id);
-    previewPlayer?.cancel();
-    previewPlayer = createPreviewPlayer({
-      rate: rate(),
-      playSegment: (at, until) => transport.playSegment(at, until),
-      stop: () => void transport.stop(),
-    });
+    const request = previewRequest(await api.getCandidatePreview(row.id));
+    if (!request) return;
     showNotice(t("ui.candidates.preview_running"), "ok");
-    await previewPlayer.start(data);
+    await transport.preview(request.at, request.until, request.skip);
   } catch (error) {
     showError(error);
   }
