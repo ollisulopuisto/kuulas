@@ -641,7 +641,7 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "clip.mute",
-    keys: { mac: ["M", "N", "Alt+Mod+M"], other: ["M", "N", "Alt+Mod+M"] },
+    keys: { mac: ["M", "Alt+Mod+M"], other: ["M", "Alt+Mod+M"] },
     context: "timeline",
     labelKey: "cmd.clip.mute",
   },
