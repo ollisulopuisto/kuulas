@@ -1,3 +1,11 @@
+## [v26.10.18.59] - 2026-10-18
+
+- **Exports ask where to save** (in the desktop window): "Export all tracks", "Export all tracks as…" and
+  "Export mix" open a folder chooser first, starting at the folder you used last time for this project
+  (else `<project> exports` next to it). The files still go into a new sub-folder named with the edit and
+  the time, so nothing is overwritten. Cancel in the chooser cancels the export. **File > Export all tracks
+  to the last folder** (and Alt+click on the "Vie" button) exports without asking.
+
 ## [v26.10.18.58] - 2026-10-18
 
 - **Fixed: exported WAV files now open in macOS Quick Look and CoreAudio.** The RIFF size field in the header
