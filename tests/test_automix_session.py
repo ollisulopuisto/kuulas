@@ -189,7 +189,7 @@ def test_automixer_settings_api(session, tmp_path, monkeypatch):
             "automixer"]
         r = c.put("/api/settings/automixer", json={"command": "automixer"})
         assert r.status_code == 400
-        assert r.json()["key"] == "error.automix.bad_settings"
+        assert r.json()["error"]["key"] == "error.automix.bad_settings"
         r = c.post("/api/automix", json={"target_lufs": "loud"})
         assert r.status_code == 400
-        assert r.json()["key"] == "error.automix.bad_target_lufs"
+        assert r.json()["error"]["key"] == "error.automix.bad_target_lufs"
