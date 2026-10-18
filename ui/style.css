@@ -259,6 +259,9 @@ button.chip {
 /* -- track headers ---------------------------------------------------------- */
 .heads {
   grid-area: heads;
+  /* The corner's narrow state is a container query on this column (a container cannot
+     style itself): 280 px below 1400 px windows. */
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
 }
@@ -270,7 +273,6 @@ button.chip {
   --rc-w: 128px; /* the readout column; 100 px at 280 */
   height: var(--corner-h);
   flex: none;
-  container-type: inline-size;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) var(--rc-w);
   grid-template-rows: 1fr 1fr;
@@ -349,6 +351,23 @@ button.chip {
   }
   .corner .timecode.hour {
     --tc: 17px;
+  }
+  /* The names give way to the ruler's own glyphs and the double arrow; the words stay
+     in the accessible names and tooltips (visually hidden, not removed). */
+  .mrow {
+    padding: 0 4px 0 6px;
+    gap: 3px;
+  }
+  .mrow .k-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .t-row .fast-speed {
+    min-width: 32px;
   }
 }
 /* Alku / Loppu / Pituus (marks-corner.js): one button per row, label and time on one line.
