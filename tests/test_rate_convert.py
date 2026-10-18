@@ -86,3 +86,13 @@ def test_spans_separated_by_one_frame_never_overlap_at_48000_to_44100():
 def test_master_gain_db_for_mono_is_minus_three():
     assert master_gain_db_for_mono() == -3.0
     assert MONO_SUM_DB == -3.0
+
+
+def test_convert_frame_is_exact_for_huge_frames_and_ties():
+    # 44100 -> 48000 over 24 hours of frames, and an exact .5 tie: integer maths, no float drift.
+    day = 24 * 3600 * 44100
+    assert convert_frame(day, 44100, 48000) == day * 48000 // 44100 + (
+        1 if (day * 48000) % 44100 * 2 >= 44100 else 0
+    )
+    assert convert_frame(1, 2, 3) == 2  # 1.5 rounds half up
+    assert convert_frame(3, 2, 1) == 2  # 1.5 rounds half up
