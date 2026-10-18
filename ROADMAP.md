@@ -443,4 +443,5 @@ WP27, WP38, WP42, WP47, WP53.
 - The owner's issue list is `docs/BUGS.md`: every reported issue stays there until the owner closes it.
 - Fast listening, scrub fix, Left/Right fine nudge, Tab scopes (words, clip borders, sounds) with Alt+Tab, right-click menus on the timeline (v26.10.18.64): all **unverified by eye or ear**; see `docs/BUGS.md` for what waits for the owner's OK. WP56 sound scope: breaths and mouth noises still to build.
 - Requested (owner 2026-10-18): WP59 hardening with fuzzing and a security review by the strongest model, after the first edits (note: the local server must check Host/Origin); WP60 smooth speaker changes with automatic crossfades (semiautomatic candidates). Plans in `docs/PLAN.md`.
+- Requested (owner 2026-10-18): WP61 Quick Look, thumbnail and Spotlight support for `.kuulas` on the Mac, after the packaged app (WP55). Plan in `docs/PLAN.md`.
 

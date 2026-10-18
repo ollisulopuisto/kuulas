@@ -3268,3 +3268,16 @@ keeps both at full level. Offered as candidates the owner accepts one by one or 
 written as clip fades and gate ramps (WP44), so it stays editable. The automixer (speechmix) may do part of this at export; decide
 with the podcast repo where each belongs.
 
+---
+
+### WP61 — Quick Look and Finder support for `.kuulas` projects on the Mac (owner, 2026-10-18)
+
+Status: open, after WP55 (the packaged app). Needs the app bundle, because Quick Look previews and
+thumbnails come from extensions inside an installed app that also declares the `.kuulas` document type
+(the package UTI, planned in WP55). Scope: a Quick Look preview extension (space bar on a project in Finder
+shows the project name, length, tracks with their names and kinds, markers, the "left off" position, the
+last edit time and, from `resume.json` and the manifest, no audio), a thumbnail (the kuulas icon with the
+project's duration), and a Spotlight metadata importer so projects are findable by name and speaker. All
+read-only on the project folder (no lock taken), and cheap: only the manifest, `resume.json` and the track
+list, never the media. Windows and Linux have no equivalent now.
+
