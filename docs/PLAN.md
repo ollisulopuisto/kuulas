@@ -3077,3 +3077,35 @@ Rules that keep it possible (apply to all work from now on):
   project), read-only by default.
 
 ---
+
+### WP54 — Selection that serves double duty (owner, 2026-10-18)
+
+Status: open; first version in the first build (Sonnet). Owner: "select this range on all channels; select
+the clips that have been touched; select all clips from here forward ... many of these are keyboard
+only in Hindenburg, but someone could easily click ... Cmd-click one clip on each track, then press a key
+to select everything following those clips. So we need a selection that serves double duty."
+
+The model: three views of "the thing I am about to edit" that convert into each other, so every
+command can use whichever the user made:
+- **Clips** (a set of clip ids), **range** (the in/out marks, plus `rangeTracks`: which lanes), and
+  **words** (transcript selection). For edit commands the target is: the range if marks are set, else
+  the span of the selected clips, as today (`selectionSpan`); this stays.
+- **Conversions (commands, Edit > Select and the palette):**
+  - `select.range_all_tracks`: the in/out range applies to every track (`rangeTracks` = all);
+  - `select.clips_in_range`: select every clip the range touches on its tracks;
+  - `select.range_from_clips`: set the in/out marks to the span of the selected clips;
+  - `select.forward`: from the playhead (or the range end), select every clip that ends after it, on the
+    selected tracks or on all tracks when none is selected;
+  - `select.forward_from_clips`: for each track holding a selected clip, add every later clip on that track;
+    with Shift: on all tracks, from the earliest selected clip's start;
+  - `select.invert`, and `select.none` (Esc when nothing else uses it).
+- **Mouse:** **Mod+click** toggles a clip in or out of the selection (Shift+click keeps adding a range of
+  clips, as today); a drag in the lanes marks a range (done).
+- **Always visible:** the status bar readout shows the selection in its own terms: "3 clips · 4:12-9:50 ·
+  5:38" (clips count, span, length) beside In/Out/Length; the lanes shade selected clips and the range.
+- **Keys:** proposed, remappable: select.forward Alt+Mod+ArrowRight? (check collisions) ... decided by the
+  job against the keymap collision test; all commands unbound-by-default are acceptable if no key is free.
+- **Tests first:** each conversion as a pure function over the project (several tracks, overlap at the edges,
+  muted clips, an empty result), the Mod+click toggle, readout text.
+
+---

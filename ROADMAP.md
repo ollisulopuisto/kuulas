@@ -114,6 +114,8 @@ sizes: `docs/PLAN.md`, section "Triage".
 
 ## Next
 
+- **Selection that serves double duty** (WP54, owner request 2026-10-18): convert between clip selection, range and
+  words (select range on all tracks, clips touched by a range, everything from here forward, Mod+click).
 - **Scriptability** (WP53, late, owner request 2026-10-18): every GUI action a documented command, a command
   catalogue, headless use, a tested "remove the ums" example; MCP and a script runner later.
 - **Drag a range to edit it** (WP6, owner request 2026-10-18): press-drag-release in the lanes
