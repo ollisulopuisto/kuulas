@@ -3303,7 +3303,7 @@ modal thing: a take stack at one place with one take active, never overlapping c
 
 ### WP63 — Aligning by eye: a real ghost while moving and smart guide lines (owner, 2026-10-18)
 
-Status: open, requested. Two parts, both for moving a clip (and later trimming):
+Status: part 1 (the ghost waveform) built in v26.10.18.70, not seen by eye; part 2 (guides, snapping, measurements) open, later. Two parts, both for moving a clip (and later trimming):
 1. **The ghost shows the clip's waveform,** not only its outline: while dragging, the moved clip's real
    waveform is drawn (semi-transparent) in its new place, from the cached peak tiles (WP36), so the owner can
    line up waveforms.

@@ -1,3 +1,9 @@
+## [v26.10.18.70] - 2026-10-18
+
+- **The clip you drag shows its waveform:** the ghost of a moved clip now draws its real waveform (with the clip and
+  track gain, in the colour of the track it would land on), so waveforms can be lined up by eye. Not seen on
+  screen yet; the smart guide lines come later.
+
 ## [v26.10.18.69] - 2026-10-18
 
 - **Dragging paints a range by default** (your preference, switchable in View > "Mouse: dragging paints a range /
