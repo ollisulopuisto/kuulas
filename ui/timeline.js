@@ -6,6 +6,7 @@
 // The overlay redraws on requestAnimationFrame when state changed; the
 // waveform layer only when something it shows changed.
 
+import { peakTile } from "./api.js";
 import { candidateBands, flagFits, flagText } from "./candidates-model.js";
 import {
   canStartClipDrag,
@@ -29,6 +30,13 @@ import {
   gainLineVisible,
 } from "./gain-drag.js";
 import { gateLabelFits, gatePixelRuns } from "./gate.js";
+import {
+  GHOST_ALPHA,
+  GHOST_MUTED_FACTOR,
+  ghostColumns,
+  ghostWindow,
+  windowCovers,
+} from "./ghost-wave.js";
 import { busHues, fileMark, needsFileMark, ribbonLayout, seamKind } from "./grammar.js";
 import { formatNumber, t } from "./i18n.js";
 import { dropGhosts, dropLabel, resolveDropTarget } from "./import-drop.js";
@@ -48,7 +56,7 @@ import { leftOffFlag } from "./left-off.js";
 import { activeLoop } from "./loop-range.js";
 import { flagLayout, NOTCH_PX as MARKER_NOTCH_PX } from "./markers-model.js";
 import { lengthPill, markDrawing } from "./marks.js";
-import { makeWaveformJob, trackHues } from "./paint.js";
+import { baseGainDb, makeWaveformJob, scaleFor, trackHues } from "./paint.js";
 import { aboutSeconds, placeholderLabel } from "./placeholders-model.js";
 import {
   canStartRangeDrag,
@@ -59,6 +67,8 @@ import {
 } from "./range-drag.js";
 import { rulerTicks } from "./ruler.js";
 import { readTheme } from "./theme.js";
+import { createTileStore } from "./tiles.js";
+import { pickLevel, waveformColumns } from "./waveform.js";
 import { createWaveformLayer } from "./waveform-layer.js";
 import { wheelIntent } from "./wheel.js";
 
@@ -84,6 +94,8 @@ const FLAG_EDGE_PX = 3;
 const REGION_BAR_PX = 5;
 const MARKER_FLAG_H = 8;
 const FLAG_EDGE_CURRENT_PX = 4;
+/** Ghost waveform columns built beyond the screen each side, so small moves need no rebuild. */
+const GHOST_MARGIN_PX = 256;
 
 export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, actions }) {
   const overlay = overlayCanvas.getContext("2d");
@@ -103,6 +115,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
   let tweakSession = null; // a gain line or fade handle being dragged
   let hoverClipId = null; // the clip under the pointer: its fade handles show
   let clipSession = null; // clips being moved by their label strip: see the pointer section
+  let ghostTiles = null; // main-thread peak tiles for the move ghosts' waveforms, made on first use
   let dropPreview = null; // files being dragged over: { kind, startFrame, mode, count } or null
   let rangeBand = null; // a range being dragged: { fromFrame, toFrame, tracks, alt, touched } or null
   let bands = []; // the open candidates in pixels (candidates-model.js), per redraw
@@ -243,17 +256,122 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     overlay.restore();
   }
 
-  // Clips being moved (WP6): dashed accent outlines at the new place, on the new track.
+  // The tiles behind the ghosts' waveforms. The worker's own cache is out of reach, so the
+  // main thread keeps a small one; the browser's HTTP cache (tiles never change) makes the
+  // second fetch of a tile a local read. A tile arriving drops the ghosts built without it.
+  function ghostStore() {
+    ghostTiles ??= createTileStore({
+      fetchTile: peakTile,
+      onChange() {
+        for (const entry of clipSession?.waves?.values() ?? [])
+          if (entry.pending) entry.stale = true;
+        requestOverlay();
+      },
+    });
+    return ghostTiles;
+  }
+
+  // One ghost's waveform columns: built for the visible part of the clip (plus a margin) and
+  // kept for the drag, so the pointer moving only translates them. Rebuilt when the zoom or
+  // the gain changes, the view slides past the built part, or missing tiles have arrived.
+  function ghostWave(state, clip, dest, box) {
+    const need = ghostWindow(box.x, box.w, size.width, 0);
+    if (!need) return null;
+    const waves = clipSession.waves;
+    const gainDb = baseGainDb(clip, dest);
+    let entry = waves.get(clip.id);
+    if (
+      !entry ||
+      entry.stale ||
+      entry.zoom !== state.zoom ||
+      entry.gainDb !== gainDb ||
+      !windowCovers(entry, need)
+    ) {
+      const built = ghostWindow(box.x, box.w, size.width, GHOST_MARGIN_PX);
+      const level = pickLevel(state.zoom);
+      const store = ghostStore();
+      const result = ghostColumns({
+        lookup: (tile) => store.lookup(clip.media, level, tile),
+        offset: clip.offset,
+        length: clip.length,
+        zoom: state.zoom,
+        gainDb,
+        envelope: clip.envelope,
+        first: built.first,
+        count: built.count,
+      });
+      store.want(result.missing.map((tile) => ({ media: clip.media, level: result.level, tile })));
+      entry = {
+        zoom: state.zoom,
+        gainDb,
+        first: result.first,
+        count: result.data.length / 2,
+        data: result.data,
+        pending: result.missing.length > 0,
+        stale: false,
+      };
+      waves.set(clip.id, entry);
+    }
+    return entry;
+  }
+
+  // The moved clip's waveform inside its ghost box, in the destination track's colour, half
+  // see-through. One rect per pixel column, only the visible ones, in a single path.
+  function drawGhostWave(state, entry, box, track, colours, muted) {
+    const bars = waveformColumns(
+      entry.data,
+      state.waveformMode,
+      scaleFor(track.kind, state.waveformScale),
+      box.h,
+      state.waveformGain ?? 1,
+    );
+    const x0 = Math.round(box.x) + entry.first;
+    overlay.save();
+    overlay.beginPath();
+    overlay.rect(box.x, box.y, box.w, box.h);
+    overlay.clip();
+    overlay.globalAlpha = GHOST_ALPHA * (muted ? GHOST_MUTED_FACTOR : 1);
+    overlay.fillStyle = colours.wave;
+    overlay.beginPath();
+    for (let column = 0; column < entry.count; column += 1) {
+      const top = bars[2 * column];
+      const bottom = bars[2 * column + 1];
+      if (bottom > top) overlay.rect(x0 + column, box.y + top, 1, bottom - top);
+    }
+    overlay.fill();
+    overlay.restore();
+  }
+
+  // Clips being moved (WP6): dashed accent outlines at the new place, on the new track, with
+  // each clip's own waveform inside (WP63) so waveforms can be lined up by eye.
   function drawMoveGhost(state, layout) {
     const ghosts = moveGhosts(state.project, clipSession.ids, clipSession.move);
+    const byClip = new Map(ghosts.map((ghost) => [ghost.clipId, ghost]));
+    const hues = trackHues(state.project);
     overlay.save();
     overlay.beginPath();
     overlay.rect(0, RULER_HEIGHT, size.width, size.height - RULER_HEIGHT);
     overlay.clip();
+    clipSession.waves ??= new Map();
+    const clips = new Map();
+    for (const track of state.project.tracks)
+      for (const clip of track.clips) if (byClip.has(clip.id)) clips.set(clip.id, clip);
+    const boxes = moveBoxes(ghosts, { view: state, layout });
+    for (const box of boxes) {
+      const ghost = byClip.get(box.clipId);
+      const clip = clips.get(box.clipId);
+      const dest = state.project.tracks.find((track) => track.id === ghost.trackId);
+      if (!(clip && dest)) continue;
+      const entry = ghostWave(state, clip, dest, box);
+      if (clip.muted) drawHatch(box.x, box.y, box.w, box.h, theme.hatch);
+      if (!entry) continue;
+      const colours = theme.palette[(hues.get(dest.id) ?? 0) % theme.palette.length];
+      drawGhostWave(state, entry, box, dest, colours, clip.muted);
+    }
     overlay.strokeStyle = theme.accent;
     overlay.lineWidth = 1.5;
     overlay.setLineDash([5, 3]);
-    for (const box of moveBoxes(ghosts, { view: state, layout })) {
+    for (const box of boxes) {
       overlay.strokeRect(box.x + 0.5, box.y + 0.5, box.w - 1, box.h - 1);
     }
     overlay.restore();

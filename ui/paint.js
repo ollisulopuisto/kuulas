@@ -56,7 +56,7 @@ export function scaleFor(kind, setting = "auto") {
 }
 
 /** Clip + track gain in dB for a job: finite (silence clamps to SILENCE_DB), 0 when unset. */
-function baseGainDb(clip, track) {
+export function baseGainDb(clip, track) {
   const db = (clip.gain_db ?? 0) + (track.gain_db ?? 0);
   if (Number.isNaN(db)) return 0;
   return Math.max(SILENCE_DB, Math.min(-SILENCE_DB, db));
@@ -141,7 +141,7 @@ export function makeWaveformJob(state, { width, height, ratio, id }, palette, co
  * column's total gain in dB, which the clipping judgement uses uncapped. At
  * 0 dB with no envelope it returns `data` itself and no per-column gains.
  */
-function gained(clip, data, startFrame, framesPerPixel) {
+export function gained(clip, data, startFrame, framesPerPixel) {
   const base = clip.gainDb ?? 0;
   if (base === 0 && !clip.envelope?.length) return { shown: data, dbs: null };
   const count = data.length / 2;
