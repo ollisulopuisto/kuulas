@@ -1316,5 +1316,9 @@
   "ui.range.tip_length_unset": "{name}: set the in mark first · double-click: type a length",
   "ui.range.field": "{name}, type a time",
   "ui.range.edit_hint": "Enter sets · Esc cancels · e.g. 9:03.5 or 543.8",
-  "ui.range.invalid": "Not a time. Try 9:03.5 or 543.8"
+  "ui.range.invalid": "Not a time. Try 9:03.5 or 543.8",
+  "cmd.edit.remove_clips": "Remove the selected clips (gap stays)",
+  "cmd.edit.remove_clips.hint": "Deletes the selected clips for good and leaves every other clip where it is. Undo brings them back. (Backspace only mutes.)",
+  "ui.edit.label.remove_clips": "Remove clips",
+  "ui.edit.toast.remove_clips": {"one": "Removed {count} clip · gap kept", "other": "Removed {count} clips · gap kept"}
 }

@@ -1316,5 +1316,9 @@
   "ui.range.tip_length_unset": "{name}: aseta ensin alkupiste · kaksoisnapsauta: kirjoita pituus",
   "ui.range.field": "{name}, kirjoita aika",
   "ui.range.edit_hint": "Enter asettaa · Esc peruu · esim. 9:03,5 tai 543,8",
-  "ui.range.invalid": "Ei ole aika. Kokeile 9:03,5 tai 543,8"
+  "ui.range.invalid": "Ei ole aika. Kokeile 9:03,5 tai 543,8",
+  "cmd.edit.remove_clips": "Poista valitut leikkeet (aukko jää)",
+  "cmd.edit.remove_clips.hint": "Poistaa valitut leikkeet kokonaan ja jättää muut leikkeet paikalleen. Kumoa palauttaa ne. (Askelpalautin vain mykistää.)",
+  "ui.edit.label.remove_clips": "Leikkeiden poisto",
+  "ui.edit.toast.remove_clips": {"one": "Poistettu {count} leike · aukko jäi", "other": "Poistettu {count} leikettä · aukko jäi"}
 }

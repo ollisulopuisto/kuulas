@@ -20,6 +20,7 @@ import {
   nudgePlan,
   pasteEntry,
   pastePlan,
+  removeClipsPlan,
   removeFromBusPlan,
   removePlan,
   soloPlan,
@@ -116,6 +117,7 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
   planned("edit.split", (s) => splitPlan(s));
   planned("edit.split_all", (s) => splitPlan(s, { all: true }));
   planned("edit.delete", deletePlan);
+  planned("edit.remove_clips", removeClipsPlan);
   planned("edit.remove", (s) => removePlan(s));
   planned("edit.remove_track", (s) => removePlan(s, { thisTrackOnly: true }));
   planned("edit.cut", (s) => cutPlan(s, { t }));

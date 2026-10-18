@@ -11,6 +11,7 @@ import {
   liftCutPlan,
   mutePlan,
   nudgePlan,
+  removeClipsPlan,
   removePlan,
   soloPlan,
   splitPlan,
@@ -322,5 +323,25 @@ describe("remove (X): ripple delete that never touches the clipboard", () => {
     const sel = state({ selection: new Set(["a2", "v1"]) });
     assert.deepEqual(removePlan(sel).args.track_ids, cutPlan(sel).args.track_ids);
     assert.equal(removePlan(state({ focusTrack: null })), null);
+  });
+});
+
+describe("remove clips (Cmd+Backspace): really delete the selected clips, nothing else moves", () => {
+  test("a delete_clips edit for the selected clips, muted ones too", () => {
+    const sel = state({ selection: new Set(["a2", "v1"]) });
+    const plan = removeClipsPlan(sel);
+    assert.equal(plan.op, "delete_clips");
+    assert.deepEqual([...plan.args.clip_ids].sort(), ["a2", "v1"]);
+    assert.equal(plan.label.key, "ui.edit.label.remove_clips");
+    assert.equal(plan.toast.key, "ui.edit.toast.remove_clips");
+    assert.equal(plan.toast.values.count, 2);
+  });
+  test("it ignores the marked range: it acts on selected clips only", () => {
+    const plan = removeClipsPlan(state({ ...range, selection: new Set(["a1"]) }));
+    assert.deepEqual(plan.args.clip_ids, ["a1"]);
+  });
+  test("nothing selected is null", () => {
+    assert.equal(removeClipsPlan(state({ selection: new Set() })), null);
+    assert.equal(removeClipsPlan(null), null);
   });
 });

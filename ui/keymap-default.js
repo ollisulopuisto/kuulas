@@ -434,6 +434,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.edit.split_all",
   },
   {
+    id: "edit.remove_clips",
+    keys: { mac: "Mod+Backspace", other: "Mod+Backspace" },
+    context: "not-transcript",
+    labelKey: "cmd.edit.remove_clips",
+  },
+  {
     id: "edit.remove",
     keys: { mac: "X", other: "X" },
     context: "not-transcript",

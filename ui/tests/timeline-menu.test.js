@@ -119,31 +119,31 @@ describe("the sections per target", () => {
       assert.equal(new Set(ids).size, ids.length, kind);
     }
   });
-  test("enabled flags come from can(id, state), which gets the state", () => {
+  test("only what is possible is listed: can(id, state) decides and gets the state", () => {
     const seen = [];
     const sections = timelineMenuItems(base, { kind: "lane" }, (id, state) => {
       seen.push(state);
       return id === "marker.add";
     });
-    const enabled = sections.flatMap((s) => s.items).filter((i) => i.enabled);
     assert.deepEqual(
-      enabled.map((i) => i.id),
+      sections.flatMap((s) => s.items).map((i) => i.id),
       ["marker.add"],
     );
+    assert.ok(sections.flatMap((s) => s.items).every((i) => i.enabled));
     assert.ok(seen.every((s) => s === base));
   });
-  test("within a section the enabled items come first, order otherwise kept", () => {
+  test("a section with nothing possible is left out, and so is a menu with nothing possible", () => {
+    const only = timelineMenuItems(base, { kind: "lane" }, (id) => id === "marker.add");
+    assert.equal(only.length, 1);
+    assert.deepEqual(timelineMenuItems(base, { kind: "clip" }, none), []);
+  });
+  test("items keep their order within a section", () => {
     const can = (id) => id === "edit.paste_same" || id === "edit.paste_track";
     const paste = timelineMenuItems(base, { kind: "lane" }, can)[0];
     assert.deepEqual(
       paste.items.map((i) => i.id),
-      ["edit.paste_track", "edit.paste_same", "edit.paste", "edit.paste_overwrite"],
+      ["edit.paste_track", "edit.paste_same"],
     );
-  });
-  test("nothing is dropped when nothing applies: the menu teaches", () => {
-    const sections = timelineMenuItems(base, { kind: "clip" }, none);
-    assert.ok(flat(sections).length > 15);
-    assert.ok(sections.every((s) => s.items.every((i) => i.enabled === false)));
   });
   test("every section has a title key", () => {
     for (const kind of ["clip", "range", "lane", "ruler"])

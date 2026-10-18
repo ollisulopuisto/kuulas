@@ -47,6 +47,7 @@ export const MENU = [
       item("edit.undo"),
       item("edit.redo"),
       SEP,
+      item("edit.remove_clips"),
       item("edit.remove"),
       item("edit.remove_track"),
       item("edit.cut"),

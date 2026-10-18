@@ -1200,6 +1200,13 @@ function showHeaderMenu(kind, id, event) {
     y: keyboardOpened ? box.top + 12 : event.clientY,
     items,
     onPick: (command) => keyboard.registry.run(command, null, getState()),
+    // What the item does goes in the status bar, as for the menu bar's items.
+    onHint: (text) => {
+      const hint = $("menu-hint");
+      hint.textContent = text ?? "";
+      hint.hidden = !text;
+      $("keyhints").hidden = Boolean(text);
+    },
   });
 }
 // Right-click on the timeline: a clip outside the selection is selected first, empty lane

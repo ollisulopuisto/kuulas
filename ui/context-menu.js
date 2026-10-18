@@ -9,7 +9,7 @@ import { t } from "./i18n.js";
  * Open the menu at viewport (x, y). `items` as from contextMenuItems; `onPick(id)` runs
  * after the menu has closed. Returns { close }.
  */
-export function openContextMenu({ x, y, items, onPick, onClose = () => {} }) {
+export function openContextMenu({ x, y, items, onPick, onClose = () => {}, onHint = () => {} }) {
   const menu = document.createElement("div");
   menu.className = "menu-list context-menu";
   menu.setAttribute("role", "menu");
@@ -39,7 +39,15 @@ export function openContextMenu({ x, y, items, onPick, onClose = () => {} }) {
       kbd.textContent = item.keys;
       button.append(kbd);
     }
-    if (item.tooltip) button.title = item.tooltip;
+    // The hint goes to the status bar, not a native tooltip: that one covers the next items
+    // (owner, 2026-10-18).
+    if (item.tooltip) {
+      const show = () => onHint(item.tooltip);
+      button.addEventListener("mouseenter", show);
+      button.addEventListener("focus", show);
+      button.addEventListener("mouseleave", () => onHint(""));
+      button.addEventListener("blur", () => onHint(""));
+    }
     button.tabIndex = -1;
     if (!item.enabled) button.setAttribute("aria-disabled", "true");
     button.addEventListener("click", () => {
@@ -87,6 +95,7 @@ export function openContextMenu({ x, y, items, onPick, onClose = () => {} }) {
     removeEventListener("blur", close);
     removeEventListener("resize", close);
     menu.remove();
+    onHint("");
     onClose();
   }
 

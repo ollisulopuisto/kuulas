@@ -105,6 +105,19 @@ export function deletePlan(state) {
   });
 }
 
+/**
+ * Cmd+Backspace: really delete the selected clips and leave every other clip where it was
+ * (owner, 2026-10-18); the gap stays. Backspace only mutes.
+ */
+export function removeClipsPlan(state) {
+  if (!state?.project) return null;
+  const chosen = selectedClips(state);
+  if (chosen.length === 0) return null;
+  return plan("delete_clips", { clip_ids: chosen.map((e) => e.clip.id) }, "remove_clips", {
+    count: chosen.length,
+  });
+}
+
 /** The trimmed clips an edit over `covered` (see span) touches, for naming its clipboard entry. */
 function coveredParts(state, covered) {
   if (covered.fromRange)

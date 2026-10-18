@@ -15,6 +15,7 @@ const SECTIONS = {
     [
       "edit",
       [
+        "edit.remove_clips",
         "edit.delete",
         "edit.split",
         "edit.group",
@@ -89,16 +90,17 @@ export function timelineTarget(hit, state) {
 
 /**
  * Sections for a target: [{ titleKey, items: [{ id, enabled }] }]. `can(id, state)` is the
- * registry's predicate. Enabled items first inside a section (stable otherwise).
+ * registry's predicate. Only what is possible here is listed (owner, 2026-10-18: the menu was
+ * taller than the screen); a section with nothing possible is left out. The menu bar still
+ * lists every command, dimmed when it cannot apply.
  */
 export function timelineMenuItems(state, target, can) {
-  return (SECTIONS[target.kind] ?? []).map(([name, ids]) => {
-    const items = ids.map((id) => ({ id, enabled: Boolean(can(id, state)) }));
-    return {
+  return (SECTIONS[target.kind] ?? [])
+    .map(([name, ids]) => ({
       titleKey: `ui.ctx.${name}`,
-      items: [...items.filter((i) => i.enabled), ...items.filter((i) => !i.enabled)],
-    };
-  });
+      items: ids.filter((id) => can(id, state)).map((id) => ({ id, enabled: true })),
+    }))
+    .filter((section) => section.items.length > 0);
 }
 
 /** Every command id any of the menus names (the coverage test reads it). */

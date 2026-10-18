@@ -2425,3 +2425,9 @@ input[type="text"] {
   touch-action: none;
   user-select: none;
 }
+
+/* A long context menu scrolls instead of running off the screen. */
+.context-menu {
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+}
