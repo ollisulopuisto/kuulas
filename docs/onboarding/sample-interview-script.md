@@ -14,7 +14,7 @@ luontaista.
 - Nauhoita näytetaajuudella 48 kHz. Valitse hiljainen huone ja sammuta
   koneet, jotka hurisevat.
 - Puhu tavallisella puheäänellä — radiota ei tarvitse esittää.
-- Tekstiin on istutettu tahallisia virheitä: tauko, täytesana, retkeily
+- Tekstiin on istutettu tahallisia virheitä: tauko, täytesana, takertelu
   ja yskä. Ne kuuluvat nauhalle juuri niin kuin ohjeistettu, joten älä
   korjaa niitä kesken otoksen. Tahaton aito moka lähellä niitä ei
   haittaa; harjoitusta ei ole koskaan liikaa.
