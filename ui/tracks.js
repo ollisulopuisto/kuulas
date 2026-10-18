@@ -77,6 +77,8 @@ function slider(label, range) {
 /**
  * Double-click a gain or pan readout to type an exact value (owner, 2026-10-18): Enter or leaving the
  * field applies it, Esc keeps the old value, and text that is not a value keeps it too.
+ * (The slider's own double-click flips between the default and the last custom value, and
+ * Alt+double-click on either resets: ab-value.js.)
  * `parse(text)` -> the value or null; `current()` the value now; `text(value)` what to show in the
  * field; `scale` converts the value to the slider's units.
  */
@@ -87,6 +89,11 @@ function editableReadout(control, { parse, current, text, format, write, scale =
     event.preventDefault();
     event.stopPropagation();
     if (output.querySelector("input")) return;
+    if (event.altKey) {
+      // Alt+double-click resets to the default and forgets the custom value, here as on the slider.
+      input.dispatchEvent(new MouseEvent("dblclick", { altKey: true }));
+      return;
+    }
     const field = el("input", "readout-edit", {
       type: "text",
       inputmode: "decimal",
