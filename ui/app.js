@@ -68,12 +68,15 @@ import { setupKeyboard } from "./shell-keys.js";
 import { chipSpeed } from "./shuttle.js";
 import { getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
 import {
-  cycleTarget,
-  mergeStops,
+  cycleScope,
+  headerFocusPatch,
   nextStop,
   prevStop,
-  targetChoice,
-  wordStops,
+  SCOPE_MODE,
+  scopeChoice,
+  scopeIndicatorKey,
+  stopsForScope,
+  wordsAreCurrent,
 } from "./tab-stops.js";
 import { densityAttribute, nextTheme, themeAttribute } from "./theme.js";
 import { createTimeline } from "./timeline.js";
@@ -297,11 +300,12 @@ const actions = {
     setState({ pauseBreak: id });
   },
   tabStop: (direction) => void tabStop(direction),
-  /** Shift+T: word, transient or both, remembered per user, named in a notice. */
-  cycleTabTarget() {
-    const mode = cycleTarget(tabTarget());
-    prefs.set(TAB_TARGET_KEY, mode);
-    showNotice(t(`ui.tab_target.${mode}`), "ok");
+  /** Alt+Tab (Shift+T): word, edge or sound scope, remembered per user, named in a notice. */
+  cycleTabScope() {
+    const scope = cycleScope(tabScope());
+    prefs.set(TAB_SCOPE_KEY, scope);
+    showNotice(t(`ui.tab_scope.${scope}`), "ok");
+    updateTabScope();
   },
   fitTracks: () => fitAllTracks(),
   toggleAutoFitTracks() {
@@ -703,42 +707,77 @@ $("density").addEventListener("change", (event) => {
   applyDensity();
 });
 
-// Tab and Shift+Tab (WP19i): what the playhead jumps to. Remembered per user; until the
-// user picks one it follows the project: words when there is a transcript, else transients.
-const TAB_TARGET_KEY = "tabTarget";
-const tabTarget = () => targetChoice(prefs.get(TAB_TARGET_KEY), getState().words.length > 0);
+// Tab and Shift+Tab (WP19i): what the playhead jumps to. The scope (word, edge, sound) is
+// remembered per user; until the user picks one it follows the project: words when there is
+// a transcript, else clip borders. An old remembered "transient" or "both" is migrated.
+const TAB_SCOPE_KEY = "tabTarget";
+const tabScope = () => scopeChoice(prefs.get(TAB_SCOPE_KEY), getState().words.length > 0);
 
-// Transient stops per head and track, kept as promises so a held Tab asks once. A new head
-// is a new key, so an edit never serves the old stops; the old ones are dropped.
-let transientCache = { head: null, stops: new Map() };
-function transientStops(track) {
+/** The scope shown beside the range info: "Tab: words". */
+function updateTabScope() {
+  const el = $("tab-scope");
+  if (!el) return;
+  const text = t(scopeIndicatorKey(tabScope()));
+  if (el.textContent !== text) el.textContent = text;
+}
+
+// Server stops (clip borders, transients) per head, mode and track, kept as promises so a
+// held Tab asks once. A new head is a new key, so an edit never serves the old stops.
+let editPointCache = { head: null, stops: new Map() };
+function serverStops(mode, track) {
   const { head } = getState();
-  if (transientCache.head !== head) transientCache = { head, stops: new Map() };
-  const key = track ?? "";
-  if (!transientCache.stops.has(key)) {
+  if (editPointCache.head !== head) editPointCache = { head, stops: new Map() };
+  const key = `${mode}|${track ?? ""}`;
+  if (!editPointCache.stops.has(key)) {
     const asked = api
-      .getEditPoints("transients", track)
+      .getEditPoints(mode, track)
       .then((body) => body.points)
       .catch((error) => {
-        transientCache.stops.delete(key);
+        editPointCache.stops.delete(key);
         throw error;
       });
-    transientCache.stops.set(key, asked);
+    editPointCache.stops.set(key, asked);
   }
-  return transientCache.stops.get(key);
+  return editPointCache.stops.get(key);
+}
+
+// The words are derived from the edit. The transcript panel reloads them on a head change,
+// but not before Tab can be pressed (or at all while it is not built): make sure the words
+// in the state are the ones of the head now. One request at a time.
+let wordsAsked = null; // { head, promise }
+async function ensureWords() {
+  while (!wordsAreCurrent(getState())) {
+    const { head } = getState();
+    if (head === null || head === undefined) return;
+    if (wordsAsked?.head !== head) {
+      const asked = { head, promise: api.getWords() };
+      wordsAsked = asked;
+      const clear = () => {
+        if (wordsAsked === asked) wordsAsked = null;
+      };
+      asked.promise.then(clear, clear);
+    }
+    const body = await wordsAsked.promise;
+    // Only if the edit did not move on while it was in flight, else ask again.
+    if (getState().head === head) {
+      setState({ words: body.words ?? [], people: body.people ?? {}, wordsHead: head });
+    }
+  }
 }
 
 async function tabStop(direction) {
   const state = getState();
   if (!state.project) return;
-  const mode = tabTarget();
+  const scope = tabScope();
   const track = state.focusTrack ?? null;
   try {
-    // Words of the focused track; a track without words (music) falls back to all words.
-    let words = mode === "transient" ? [] : wordStops(state.words, track);
-    if (words.length === 0 && mode !== "transient") words = wordStops(state.words);
-    const transients = mode === "word" ? [] : await transientStops(track);
-    const stops = mergeStops(words, transients);
+    let stops;
+    if (scope === "word") {
+      await ensureWords();
+      stops = stopsForScope(scope, { words: getState().words, track });
+    } else {
+      stops = stopsForScope(scope, { server: await serverStops(SCOPE_MODE[scope], track) });
+    }
     const from = getState().playhead ?? 0;
     const frame = direction > 0 ? nextStop(stops, from) : prevStop(stops, from);
     if (frame === null) showNotice(t("ui.tab_stop.none"), "ok");
@@ -1054,8 +1093,10 @@ const trackHeaders = createTrackHeaders({
   onBusCreated: nameNewBus,
   actions: {
     currentTrack: (id) => {
-      if (getState().focusTrack !== id || getState().focusBus) {
-        setState({ focusTrack: id, focusBus: null });
+      // A header is the timeline's keyboard context (Tab, arrows); the panel was left as it was.
+      const patch = headerFocusPatch(getState());
+      if (getState().focusTrack !== id || getState().focusBus || patch) {
+        setState({ focusTrack: id, focusBus: null, ...patch });
       }
     },
     // The kind tag in a track header: focus the track, then the same command as Alt+Mod+K.
@@ -1064,7 +1105,8 @@ const trackHeaders = createTrackHeaders({
       keyboard.registry.run("track.cycle_kind", null, getState());
     },
     currentBus: (id) => {
-      if (getState().focusBus !== id) setState({ focusBus: id });
+      const patch = headerFocusPatch(getState());
+      if (getState().focusBus !== id || patch) setState({ focusBus: id, ...patch });
     },
     // The chevron and a double-click on a bus header: fold or unfold it.
     toggleBus: (id) =>
@@ -1639,6 +1681,7 @@ function render(state, patch) {
     $("timecode").textContent = frameToTime(state.playhead, rate());
   }
   if (touched("project", "selection", "inPoint", "outPoint")) updateRangeInfo();
+  if (touched("project", "words")) updateTabScope();
   if (touched("playing")) {
     $("play-icon").textContent = state.playing ? "■" : "▶";
     $("play-label").textContent = t(state.playing ? "ui.transport.stop" : "ui.transport.play");
@@ -1892,7 +1935,7 @@ render(getState(), null);
 try {
   const [state, words] = await Promise.all([api.getState(), api.getWords()]);
   apply(state);
-  setState({ words: words.words ?? [] });
+  setState({ words: words.words ?? [], wordsHead: getState().head });
   await restoreView();
   await refreshClipboard();
 } catch (error) {

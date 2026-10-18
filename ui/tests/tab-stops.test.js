@@ -1,14 +1,19 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
-  cycleTarget,
-  defaultTarget,
+  cycleScope,
+  defaultScope,
+  headerFocusPatch,
   mergeStops,
   nextStop,
   prevStop,
-  TAB_TARGETS,
-  targetChoice,
+  SCOPE_MODE,
+  scopeChoice,
+  scopeIndicatorKey,
+  stopsForScope,
+  TAB_SCOPES,
   wordStops,
+  wordsAreCurrent,
 } from "../tab-stops.js";
 
 describe("next and previous stop", () => {
@@ -40,22 +45,68 @@ describe("merging stops", () => {
   });
 });
 
-describe("the target mode", () => {
-  test("cycles word, transient, both, word", () => {
-    assert.deepEqual(TAB_TARGETS, ["word", "transient", "both"]);
-    assert.equal(cycleTarget("word"), "transient");
-    assert.equal(cycleTarget("transient"), "both");
-    assert.equal(cycleTarget("both"), "word");
-    assert.equal(cycleTarget("junk"), "word");
+describe("the scope", () => {
+  test("cycles word, edge, sound, word", () => {
+    assert.deepEqual(TAB_SCOPES, ["word", "edge", "sound"]);
+    assert.equal(cycleScope("word"), "edge");
+    assert.equal(cycleScope("edge"), "sound");
+    assert.equal(cycleScope("sound"), "word");
+    assert.equal(cycleScope("junk"), "word");
   });
-  test("default is word with a transcript, else transient", () => {
-    assert.equal(defaultTarget(true), "word");
-    assert.equal(defaultTarget(false), "transient");
+  test("maps to the server's edit_points modes", () => {
+    assert.deepEqual(SCOPE_MODE, { edge: "edges", sound: "transients" });
+  });
+  test("default is word with a transcript, else edge", () => {
+    assert.equal(defaultScope(true), "word");
+    assert.equal(defaultScope(false), "edge");
   });
   test("a stored choice is used when valid, else the default", () => {
-    assert.equal(targetChoice("both", true), "both");
-    assert.equal(targetChoice("nope", false), "transient");
-    assert.equal(targetChoice(null, true), "word");
+    assert.equal(scopeChoice("sound", true), "sound");
+    assert.equal(scopeChoice("nope", false), "edge");
+    assert.equal(scopeChoice(null, true), "word");
+  });
+  test("old remembered values migrate: transient -> sound, both -> word", () => {
+    assert.equal(scopeChoice("transient", true), "sound");
+    assert.equal(scopeChoice("transient", false), "sound");
+    assert.equal(scopeChoice("both", false), "word");
+  });
+  test("the indicator has a catalog key per scope", () => {
+    assert.equal(scopeIndicatorKey("edge"), "ui.tab_scope.indicator.edge");
+  });
+});
+
+describe("fresh words", () => {
+  test("current only when they were fetched for the head now", () => {
+    assert.equal(wordsAreCurrent({ head: "h2", wordsHead: "h2", words: [] }), true);
+    assert.equal(wordsAreCurrent({ head: "h2", wordsHead: "h1", words: [] }), false);
+    assert.equal(wordsAreCurrent({ head: "h2", wordsHead: null, words: [] }), false);
+    assert.equal(wordsAreCurrent({ head: null, wordsHead: null, words: [] }), false);
+    assert.equal(wordsAreCurrent(null), false);
+  });
+});
+
+describe("stops of a scope", () => {
+  const words = [
+    { s: 100, track: "a" },
+    { s: 200, track: "b" },
+  ];
+  test("word: the focused track's words, all words when that track has none", () => {
+    assert.deepEqual(stopsForScope("word", { words, track: "a" }), [100]);
+    assert.deepEqual(stopsForScope("word", { words, track: "music" }), [100, 200]);
+    assert.deepEqual(stopsForScope("word", { words }), [100, 200]);
+  });
+  test("edge and sound: the server's stops, sorted and without duplicates", () => {
+    assert.deepEqual(stopsForScope("edge", { words, server: [30, 10, 10] }), [10, 30]);
+    assert.deepEqual(stopsForScope("sound", { server: [5] }), [5]);
+    assert.deepEqual(stopsForScope("sound"), []);
+  });
+});
+
+describe("header focus", () => {
+  test("a header means the timeline context, once", () => {
+    assert.deepEqual(headerFocusPatch({ panel: "transcript" }), { panel: "timeline" });
+    assert.deepEqual(headerFocusPatch({ panel: "inspector" }), { panel: "timeline" });
+    assert.equal(headerFocusPatch({ panel: "timeline" }), null);
   });
 });
 

@@ -22,8 +22,15 @@ describe("track stepping", () => {
 });
 
 describe("seek offsets", () => {
-  test("1 s, 5 s and 10 ms in frames", () => {
-    assert.deepEqual(seekOffsets(48000), { near: 48000, far: 240000, fine: 480 });
+  test("nudge is 4 screen pixels, Shift 1 s, Alt 10 ms, in frames", () => {
+    assert.deepEqual(seekOffsets(48000, 20), { nudge: 80, near: 48000, fine: 480 });
+    assert.equal(seekOffsets(48000, 0.25).nudge, 1);
+  });
+  test("the nudge is at least one frame, whole frames, and tolerates a missing zoom", () => {
+    assert.equal(seekOffsets(48000, 0.01).nudge, 1);
+    assert.equal(seekOffsets(48000, 2.6).nudge, 10);
+    assert.equal(seekOffsets(48000).nudge, 4);
+    assert.equal(seekOffsets(48000, Number.NaN).nudge, 4);
   });
 });
 
@@ -96,7 +103,7 @@ describe("the commands the app registers", () => {
     assert.deepEqual(calls, [["restoreStep"], ["openHistory"]]);
   });
 
-  test("Tab and Shift+Tab step to the next and previous stop, Shift+T cycles the target", () => {
+  test("Tab and Shift+Tab step to the next and previous stop, Alt+Tab cycles the scope", () => {
     const { registry, calls } = setup({ project });
     const state = { project };
     for (const id of ["nav.next_stop", "transcript.next_stop"]) registry.run(id, null, state);
@@ -107,7 +114,7 @@ describe("the commands the app registers", () => {
       ["tabStop", 1],
       ["tabStop", -1],
       ["tabStop", -1],
-      ["cycleTabTarget"],
+      ["cycleTabScope"],
     ]);
     assert.equal(registry.can("nav.next_stop", {}), false);
   });
@@ -174,26 +181,26 @@ describe("the commands the app registers", () => {
   });
 
   test("the playhead commands need a project and move by the right amount", () => {
-    const state = { project, playhead: 100000 };
+    const state = { project, playhead: 100000, zoom: 20 };
     const { registry, calls } = setup(state);
     assert.equal(registry.can("nav.start", {}), false);
     assert.equal(registry.can("nav.start", state), true);
     registry.run("nav.start");
     registry.run("nav.end");
-    registry.run("nav.forward");
-    registry.run("nav.back_far");
-    registry.run("nav.back_fine");
+    registry.run("nav.forward"); // 4 pixels at 20 frames per pixel
+    registry.run("nav.back_far"); // Shift: 1 s
+    registry.run("nav.back_fine"); // Alt: 10 ms
     assert.deepEqual(calls, [
       ["seek", 0],
       ["seek", 480000],
-      ["seek", 148000],
-      ["seek", 0],
+      ["seek", 100080],
+      ["seek", 52000],
       ["seek", 99520],
     ]);
   });
 
   test("seeking never goes before zero or past the end", () => {
-    const { registry, calls } = setup({ project, playhead: 10 });
+    const { registry, calls } = setup({ project, playhead: 10, zoom: 20 });
     registry.run("nav.back");
     assert.deepEqual(calls, [["seek", 0]]);
   });
