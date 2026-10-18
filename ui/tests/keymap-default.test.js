@@ -141,9 +141,17 @@ describe("the owner's decisions", () => {
     assert.deepEqual(keysOf("panel.next"), ["F6"]);
     assert.deepEqual(keysOf("panel.previous"), ["Shift+F6"]);
     assert.deepEqual(keysOf("view.toggle"), ["Z"]);
-    assert.deepEqual(keysOf("view.fit"), ["Shift+Z"]);
-    assert.deepEqual(keysOf("view.back"), ["Alt+Z"]);
-    assert.deepEqual(keysOf("view.forward"), ["Shift+Alt+Z"]);
+    assert.deepEqual(keysOf("view.fit"), ["0"]);
+    assert.deepEqual(keysOf("view.fit_selection"), ["F"]);
+    assert.deepEqual(keysOf("view.back"), ["Alt+["]);
+    assert.deepEqual(keysOf("view.forward"), ["Alt+]"]);
+    assert.deepEqual(keysOf("mark.clear_in"), ["Shift+I"]);
+    assert.deepEqual(keysOf("mark.clear_out"), ["Shift+O"]);
+    assert.deepEqual(keysOf("mark.clear"), []);
+    // Cmd+Z and Cmd+Shift+Z are undo and redo: no view command lives on a modified Z.
+    for (const entry of DEFAULT_KEYMAP.filter((e) => e.id.startsWith("view."))) {
+      for (const key of asList(entry.keys.other)) assert.doesNotMatch(key, /\+Z$/i, entry.id);
+    }
     assert.ok(keysOf("view.zoom_in").includes("="));
     assert.deepEqual(keysOf("view.zoom_out"), ["-"]);
     assert.deepEqual(keysOf("palette.open"), ["Mod+K"]);

@@ -58,6 +58,7 @@ export function registerAppCommands(registry, { actions, app }) {
   def("panel.previous", () => actions.cyclePanel(-1));
   def("view.toggle", () => actions.toggleView(), hasProject);
   def("view.fit", () => actions.fitView(), hasProject);
+  def("view.fit_selection", () => actions.fitSelection(), hasProject);
   def("view.back", () => actions.viewBack(), hasProject);
   def("view.reset_remembered", () => actions.resetRememberedView(), hasProject);
   def("view.forward", () => actions.viewForward(), hasProject);
@@ -103,6 +104,9 @@ export function registerAppCommands(registry, { actions, app }) {
   def("track.next", stepFocus(1), hasProject);
   def("mark.in", () => app.patch({ inPoint: app.getState().playhead }), hasProject);
   def("mark.out", () => app.patch({ outPoint: app.getState().playhead }), hasProject);
+  def("mark.clear_in", () => app.patch({ inPoint: null }), hasProject);
+  def("mark.clear_out", () => app.patch({ outPoint: null }), hasProject);
+  def("mark.clear", () => app.patch({ inPoint: null, outPoint: null }), hasProject);
   def("palette.open", () => app.openPalette());
   def("help.keys", () => app.openKeys());
   def("help.open", () => app.openHelp());

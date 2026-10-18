@@ -1,3 +1,13 @@
+## [v26.10.18.30] - 2026-10-18
+
+- Zoom keys: **Z** still toggles the close and wide view; **0** now always shows the whole edit;
+  **F** fits the selection or the in-out range; **Alt+[** and **Alt+]** step back and forward
+  through recent views. Nothing zoom-related sits on a modified Z any more (Cmd+Z and
+  Cmd+Shift+Z are undo and redo).
+- In and out points: **Shift+I** clears the in point, **Shift+O** the out point, and "Clear in
+  and out points" (Markers menu and palette) clears both. The in and out commands are now in
+  the Markers menu too.
+
 ## [v26.10.18.29] - 2026-10-18
 
 - **P** plays from 3 seconds before the playhead (Hindenburg's key), to hear a spot again.

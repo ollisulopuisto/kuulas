@@ -96,6 +96,26 @@ describe("the commands the app registers", () => {
     assert.deepEqual(calls, [["restoreStep"], ["openHistory"]]);
   });
 
+  test("clearing the in and out points", () => {
+    const { registry, calls } = setup({ project });
+    assert.equal(registry.run("mark.clear_in", null, { project }), true);
+    assert.equal(registry.run("mark.clear_out", null, { project }), true);
+    assert.equal(registry.run("mark.clear", null, { project }), true);
+    assert.deepEqual(calls, [
+      ["patch", { inPoint: null }],
+      ["patch", { outPoint: null }],
+      ["patch", { inPoint: null, outPoint: null }],
+    ]);
+    assert.equal(registry.can("mark.clear", {}), false);
+  });
+
+  test("0 shows the whole edit and F fits the selection", () => {
+    const { registry, calls } = setup({ project });
+    registry.run("view.fit", null, { project });
+    registry.run("view.fit_selection", null, { project });
+    assert.deepEqual(calls, [["fitView"], ["fitSelection"]]);
+  });
+
   test("P plays from the pre-roll before the playhead and needs a project", () => {
     const { registry, calls } = setup({ project, playhead: 480000 });
     assert.equal(registry.can("transport.play_before", { project }), true);

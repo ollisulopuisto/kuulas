@@ -160,13 +160,20 @@ describe("the core keys", () => {
     assert.deepEqual(calls, []);
   });
 
-  test("Z, Shift+Z and Alt+Z (by key position, so a Mac's Option does not change them)", () => {
+  test("Z toggles, 0 shows all, F fits the selection, Alt+[ and Alt+] step the views", () => {
     const { keymap, calls } = setup({ platform: "mac" });
     keymap.handle(press({ key: "z", code: "KeyZ" }));
-    keymap.handle(press({ key: "Z", code: "KeyZ", shiftKey: true }));
-    keymap.handle(press({ key: "Ω", code: "KeyZ", altKey: true }));
-    keymap.handle(press({ key: "Ω", code: "KeyZ", altKey: true, shiftKey: true }));
-    assert.deepEqual(calls, [["view.toggle"], ["view.fit"], ["view.back"], ["view.forward"]]);
+    keymap.handle(press({ key: "0", code: "Digit0" }));
+    keymap.handle(press({ key: "f", code: "KeyF" }));
+    keymap.handle(press({ key: "“", code: "BracketLeft", altKey: true }));
+    keymap.handle(press({ key: "‘", code: "BracketRight", altKey: true }));
+    assert.deepEqual(calls, [
+      ["view.toggle"],
+      ["view.fit"],
+      ["view.fit_selection"],
+      ["view.back"],
+      ["view.forward"],
+    ]);
   });
 
   test("= and - zoom, on a US layout and on a Finnish one, and a held key repeats", () => {

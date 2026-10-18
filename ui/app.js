@@ -196,6 +196,11 @@ const actions = {
     setView(result, { whole: result.views.current === "wide" && result.zoom === levels[0].zoom });
   },
   fitView() {
+    if (!getState().project) return;
+    fitWholeEdit();
+    history = View.visitView(history, { zoom: getState().zoom, scroll: getState().scroll });
+  },
+  fitSelection() {
     const state = getState();
     if (!state.project) return;
     const target = View.fitTarget(state);

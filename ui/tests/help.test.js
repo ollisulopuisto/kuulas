@@ -139,7 +139,7 @@ describe("helpChain: what help is about", () => {
 describe("shortcuts come from the keymap data, so remaps show", () => {
   test("a command's keys are its entry's keys, primary first", () => {
     assert.deepEqual(shortcutsFor("view.zoom_in", KEYMAP), ["=", "+"]);
-    assert.deepEqual(shortcutsFor("view.fit", KEYMAP), ["Shift+Z"]);
+    assert.deepEqual(shortcutsFor("view.fit", KEYMAP), ["0"]);
     assert.deepEqual(shortcutsFor("help.keys", KEYMAP), ["?"]);
     assert.deepEqual(shortcutsFor("nope", KEYMAP), []);
   });
@@ -163,7 +163,7 @@ describe("shortcuts come from the keymap data, so remaps show", () => {
     assert.deepEqual(shortcutsFor("nav.back", KEYMAP), ["ArrowLeft"]);
     assert.deepEqual(shortcutsFor("nav.back_far", KEYMAP), ["Shift+ArrowLeft"]);
     assert.deepEqual(shortcutsFor("nav.back_fine", KEYMAP), ["Alt+ArrowLeft"]);
-    assert.deepEqual(shortcutsFor("view.back", KEYMAP), ["Alt+Z"]);
+    assert.deepEqual(shortcutsFor("view.back", KEYMAP), ["Alt+["]);
   });
 
   test("help formats keys like the cheat sheet does", () => {
@@ -254,7 +254,7 @@ describe("renderHelpBody", () => {
   });
 
   test("keys are the live shortcuts, formatted; an unbound command says so", () => {
-    assert.match(renderHelpBody("{key:view.fit}", ctx), /<kbd>⇧Z<\/kbd>/);
+    assert.match(renderHelpBody("{key:view.fit}", ctx), /<kbd>0<\/kbd>/);
     assert.match(renderHelpBody("{key:edit.cut_track}", ctx), /<kbd>/);
     assert.match(renderHelpBody("{key:no.such}", ctx), /no key/);
   });

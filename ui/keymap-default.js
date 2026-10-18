@@ -10,6 +10,8 @@
 // not edited at run time. The collision test (tests/keymap-default.test.js) must
 // pass for it on both platforms.
 //
+// Zoom keys (owner, 2026-10-18): Z toggles close and wide, 0 shows the whole edit, F fits the
+// selection or in-out; no view command lives on a modified Z (Cmd+Z and Cmd+Shift+Z are undo and redo).
 // Owner decisions (18.10.2026) kept here: Backspace is Delete (soft cut, gap kept),
 // X is Cut (ripple, to the clipboard), Mod+C copies; Spot is Mod+J, find is Mod+F,
 // fade is G, import is Mod+I (Mod+T in the desktop wrapper), K keeps a candidate (in the Candidates tab),
@@ -186,6 +188,24 @@ export const DEFAULT_KEYMAP = [
   { id: "mark.in", keys: { mac: "I", other: "I" }, context: "timeline", labelKey: "cmd.mark.in" },
   { id: "mark.out", keys: { mac: "O", other: "O" }, context: "timeline", labelKey: "cmd.mark.out" },
   {
+    id: "mark.clear_in",
+    keys: { mac: "Shift+I", other: "Shift+I" },
+    context: "timeline",
+    labelKey: "cmd.mark.clear_in",
+  },
+  {
+    id: "mark.clear_out",
+    keys: { mac: "Shift+O", other: "Shift+O" },
+    context: "timeline",
+    labelKey: "cmd.mark.clear_out",
+  },
+  {
+    id: "mark.clear",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.mark.clear",
+  },
+  {
     id: "view.toggle",
     keys: { mac: "Z", other: "Z" },
     context: "global",
@@ -193,19 +213,25 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "view.fit",
-    keys: { mac: "Shift+Z", other: "Shift+Z" },
+    keys: { mac: "0", other: "0" },
     context: "global",
     labelKey: "cmd.view.fit",
   },
   {
+    id: "view.fit_selection",
+    keys: { mac: "F", other: "F" },
+    context: "global",
+    labelKey: "cmd.view.fit_selection",
+  },
+  {
     id: "view.back",
-    keys: { mac: "Alt+Z", other: "Alt+Z" },
+    keys: { mac: "Alt+[", other: "Alt+[" },
     context: "global",
     labelKey: "cmd.view.back",
   },
   {
     id: "view.forward",
-    keys: { mac: "Shift+Alt+Z", other: "Shift+Alt+Z" },
+    keys: { mac: "Alt+]", other: "Alt+]" },
     context: "global",
     labelKey: "cmd.view.forward",
   },

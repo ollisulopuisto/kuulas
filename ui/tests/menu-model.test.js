@@ -30,8 +30,8 @@ function make({ platform = "other", overrides = {}, state = {}, planned = [], he
   registry.register("app.import", () => {});
   registry.register("help.keys", () => {});
   registry.register("help.open", () => {});
-  registry.register("view.toggle", () => {});
-  registry.register("view.fit", () => {});
+  registry.register("edit.split", () => {});
+  registry.register("edit.split_all", () => {});
   registry.planned(...planned);
   const entries = resolveKeymap(DEFAULT_KEYMAP, overrides, platform);
   return resolveMenu({
@@ -137,21 +137,24 @@ describe("resolving a menu", () => {
 });
 
 describe("held modifiers", () => {
-  test("holding Shift swaps View's Z item for its Shift alternate, and back", () => {
-    const base = find(make(), "view.toggle");
-    assert.equal(base.keys, "Z");
-    const held = find(make({ held: { shift: true } }), "view.toggle");
-    assert.equal(held.id, "view.fit");
-    assert.equal(held.baseId, "view.toggle");
+  test("holding Shift swaps Edit's Split item for its Shift alternate, and back", () => {
+    const base = find(make(), "edit.split");
+    assert.equal(base.keys, "B");
+    const held = find(make({ held: { shift: true } }), "edit.split");
+    assert.equal(held.id, "edit.split_all");
+    assert.equal(held.baseId, "edit.split");
     assert.equal(held.alternate, true);
-    assert.equal(held.keys, "Shift+Z");
+    assert.equal(held.keys, "Shift+B");
     assert.equal(held.enabled, true);
-    assert.equal(find(make({ held: {} }), "view.toggle").keys, "Z");
+    assert.equal(find(make({ held: {} }), "edit.split").keys, "B");
   });
 
   test("the alternate's own enabled state counts", () => {
-    const held = find(make({ held: { alt: true } }), "view.toggle");
-    assert.equal(held.id, "view.back");
+    const held = find(
+      make({ held: { shift: true }, planned: ["edit.split_all"] }),
+      "edit.split",
+    );
+    assert.equal(held.id, "edit.split_all");
     assert.equal(held.enabled, false); // planned in this fixture
   });
 
