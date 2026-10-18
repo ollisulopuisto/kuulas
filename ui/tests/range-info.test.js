@@ -76,12 +76,9 @@ describe("rangeLine (the status bar text)", () => {
   test("nothing set, nothing to say", () => {
     assert.equal(line({}), null);
   });
-  test("marks alone read In, Out and Length as before", () => {
-    assert.equal(
-      line({ inPoint: 1000, outPoint: 3000 }),
-      "ui.range.in T1 · ui.range.out T3 · ui.range.length T2",
-    );
-    assert.equal(line({ inPoint: 1000 }), "ui.range.in T1");
+  test("marks alone say nothing: the corner shows them", () => {
+    assert.equal(line({ inPoint: 1000, outPoint: 3000 }), null);
+    assert.equal(line({ inPoint: 1000 }), null);
   });
   test("a selection reads as clips: count, start-end, length", () => {
     assert.equal(
@@ -90,16 +87,13 @@ describe("rangeLine (the status bar text)", () => {
     );
     assert.equal(line({ selection: new Set(["a"]) }), clipsText);
   });
-  test("marks and a different selection show both", () => {
-    assert.equal(
-      line({ inPoint: 0, outPoint: 1000, selection: new Set(["a"]) }),
-      `ui.range.in T0 · ui.range.out T1 · ui.range.length T1 · ${clipsText}`,
-    );
+  test("marks and a different selection: the marks are not repeated", () => {
+    assert.equal(line({ inPoint: 0, outPoint: 1000, selection: new Set(["a"]) }), clipsText);
   });
-  test("marks that say the same as the selection do not repeat the span", () => {
+  test("marks that say the same as the selection leave only the count", () => {
     assert.equal(
       line({ inPoint: 100, outPoint: 150, selection: new Set(["a"]) }),
-      "ui.range.clips_one · ui.range.in T0.1 · ui.range.out T0.15 · ui.range.length T0.05",
+      "ui.range.clips_one",
     );
   });
   test("a lone mark does not hide the selection", () => {

@@ -1692,7 +1692,7 @@ function spanText(state) {
   return t(`ui.zoom.${unit}`, { value: formatNumber(value, { digits: GAIN_DIGITS(value) }) });
 }
 
-// "In 12:03,250 · Out 12:41,000 · Length 0:37,750": the marked or selected section.
+// "2 clips · 12:03,250-12:41,000 · 0:37,750": the selected clips (the marks are in the corner).
 function updateRangeInfo() {
   const el = $("range-info");
   const state = getState();
