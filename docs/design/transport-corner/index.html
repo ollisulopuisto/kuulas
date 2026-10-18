@@ -1033,6 +1033,40 @@ table.fit td.few { color: var(--warn-text); }
 .corner.C .play.big { width: 60px; }
 .corner.C.narrow .play.big { width: 52px; height: 52px; }
 
+/* -- C with the in/out/length row ------------------------------------------------ */
+/* 5 + 26 (timecode) + 2 + 28 (small row) + 2 + 28 (readout) + 5 = 96 px. */
+.corner.C.with-marks { grid-template-rows: 26px 28px 28px; row-gap: var(--space-1); padding-top: 5px; padding-bottom: 5px; }
+.corner.C.with-marks .play.big { align-self: center; }
+.corner.C.with-marks .play.big { height: 52px; }
+.corner.C.with-marks .timecode { --tc: 26px; }
+.corner.C.with-marks.narrow .timecode { --tc: 22px; }
+.marks { grid-column: 1 / 3; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+.mark-cell {
+  position: relative; display: flex; align-items: center; justify-content: center; gap: 5px; min-width: 0;
+  height: 28px; padding: 0 var(--space-3); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+  background: var(--surface-sunken); color: var(--text-tertiary); font-size: var(--text-sm); white-space: nowrap; font-variant-numeric: tabular-nums; cursor: pointer;
+}
+/* Two lines in 28 px, as in Hindenburg: the name (10 px, with the ruler's triangle) over the value. */
+.mark-cell { flex-direction: column; gap: 0; line-height: 1; }
+.mark-cell .k { display: inline-flex; align-items: center; gap: 3px; font-size: 10px; line-height: 11px; color: var(--text-tertiary); }
+.mark-cell .v { font-weight: var(--weight-strong); line-height: 14px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.mark-cell svg.g { width: 7px; height: 9px; }
+.mark-cell svg.g[viewBox^="0 0 14"] { width: 10px; }
+.mark-cell.set { color: var(--accent-text); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+.mark-cell.set .k { color: var(--text-secondary); }
+.mark-cell:hover { border-color: var(--border-strong); }
+.mark-cell.editing { background: var(--input-bg); border-color: var(--focus-ring); outline: var(--focus-width) solid var(--focus-ring); outline-offset: var(--focus-offset); cursor: text; }
+.mark-cell input { width: 100%; min-width: 0; padding: 0; background: transparent; border: 0; outline: 0; color: var(--text); font: var(--weight-strong) var(--text-sm) / 1 var(--font-ui); font-variant-numeric: tabular-nums; }
+.mark-cell input::selection { background: var(--accent-subtle); }
+.corner.narrow .mark-cell { padding: 0 var(--space-1); }
+/* Pituus never needs the hour form's width; Alku and Loppu get the room. */
+.corner.narrow .marks { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.1fr) minmax(0, 0.8fr); }
+.statusbar > * { white-space: nowrap; }
+.mark-cell.editing { flex-direction: column; }
+.mark-cell input { text-align: center; line-height: 14px; }
+.edit-tip { position: absolute; z-index: 6; top: calc(100% + 6px); left: 0; padding: 3px 8px; border-radius: var(--radius-sm); background: var(--surface-raised); box-shadow: var(--shadow-raised); font-size: var(--text-xs); color: var(--text-secondary); white-space: nowrap; }
+.statusbar .sel { color: var(--text); }
+
 /* -- ruler + overview (the timeline's top) ------------------------------------- */
 .tl-top { position: relative; background: var(--ruler-bg); }
 .tl-top svg, .lanes svg { display: block; }
@@ -1096,11 +1130,12 @@ body[data-only] h2 { margin-top: 0; border-top: 0; }
   <header>
     <h1>Kuljetin kulmaan · transport in the corner</h1>
     <p class="lede">Mockups (owner, 18.10.2026). Toista, Silmukka, the timecode and fast listening leave the menu row and sit in the corner above the track headers, left of the ruler. The corner is 340 px wide (280 px in narrow windows). Undo, Redo, Import and Export stay top right, so the 11 menus get the width back. Dark theme, real tokens, Finnish labels.</p>
-    <nav><a href="#A">A · two rows</a><a href="#B">B · one row</a><a href="#C">C · big play</a><a href="#menus">Menu row</a><a href="#notes">Design notes</a></nav>
+    <nav><a href="#A">A · two rows</a><a href="#B">B · one row</a><a href="#C">C · big play</a><a href="#marks">C + in/out/length</a><a href="#menus">Menu row</a><a href="#notes">Design notes</a></nav>
   </header>
   <section id="A" data-sec="A"></section>
   <section id="B" data-sec="B"></section>
   <section id="C" data-sec="C"></section>
+  <section id="marks" data-sec="marks"></section>
   <section id="menus" data-sec="menus">
     <h2>Menu row: all 11 menus</h2>
     <p class="sub">The menus that fit are measured live in this page with the app's own rule (<code>fitMenus</code> in <code>ui/menu-model.js</code>: the menus in order, then "…" holding the rest).</p>
@@ -1120,6 +1155,7 @@ body[data-only] h2 { margin-top: 0; border-top: 0; }
     <h2>Design notes</h2>
     <h3>Recommendation</h3>
     <ul>
+      <li><b>Decided (owner, 18.10.2026): C.</b> In/out/length added below ("C + alku, loppu ja pituus").</li>
       <li><b>C for the comfortable density, B for compact.</b> C keeps Play the biggest target in the window (60 × 56 px) and the timecode at 28 px, readable from the back of the chair, and it says plainly that Silmukka and the speed slider are secondary. B is what C becomes in compact density: 48 px tall, so the lanes start almost where they start today.</li>
       <li>A works too, but it spends 80 px of height and puts Play, Silmukka and the speed chip in one row of three equal buttons, so Play no longer stands out by size, only by colour.</li>
       <li>Height: the corner is overview + ruler. To make room, the overview strip grows: C 72 px (overview 48), A 80 px (overview 56), B 48 px (overview 24); today it is 44 (overview 20). A taller overview is more useful anyway (12 px per track for four tracks). The top bar stays 52 px.</li>
@@ -1162,8 +1198,21 @@ body[data-only] h2 { margin-top: 0; border-top: 0; }
       <li><code>.project</code> loses <code>width: var(--heads-w)</code> (and the 1400 px rule that sets it to <code>--heads-w-min</code>).</li>
       <li>Not yet decided: where the project name and the open edit ("Pääleikkaus · 58:41", WP21) go once they exist. Suggestion: in the logo block, cut with an ellipsis at 200 px; at 1100 px that costs one more menu.</li>
     </ul>
+    <h3>In, out and length (follow-up, owner chose C)</h3>
+    <ul>
+      <li><b>Where:</b> a three-cell row across the full corner width, under Toista and the timecode. Each cell has two lines in 28 px: the name in 10 px with the ruler's own in/out triangle (the shape twin of the accent colour) over the value in 12 px tabular numerals. A second line under the timecode only (Hindenburg's three small lines) was not used: in 244 px beside Toista its lines would be about 14 px tall, far below the 28 px hit targets, and clicking them is the point.</li>
+      <li><b>Height:</b> the corner grows from 72 to <b>96 px</b> (5 + 26 timecode + 2 + 28 small row + 2 + 28 readout + 5; Toista 52 px, the timecode 26 px). The overview strip fills it (72 px). The first lane starts 24 px lower than with plain C. It does not stay at 72: that would need the small row (Silmukka, slider, chip) to go, and those are used every minute.</li>
+      <li><b>Words:</b> Alku, Loppu, Pituus from the catalogue (<code>ui.range.in</code>, <code>.out</code>, <code>.length</code>), matching the commands "Aseta alkupiste" and "Aseta loppupiste". Hindenburg's Finnish Sisään / Ulos / Aika would be a change of three strings, if the owner prefers it.</li>
+      <li><b>States:</b> not set = dim name, "—", subtle border; set = value in <code>--accent-text</code> with an accent border; the length lights only when both marks are set. Fast listening does not change Pituus: it is the edit's length, not the listening time.</li>
+      <li><b>Click</b> Alku: the cursor to the in mark (key 1). Loppu: to the out mark (key 2). Pituus: zoom to the range (F). <b>Double-click</b> (or Enter on the focused cell): the cell becomes a text field with its value selected; <code>parseTime</code> in <code>ui/time-parse.js</code> reads it (9:03,5 · 543,8 · 1:02:03,250); Enter sets the mark (an undoable edit), Esc cancels, an unreadable value gets the danger border and stays open. Typing in Pituus moves the out mark to Alku + the length. An unset cell: click sets nothing (I and O set the marks), double-click lets you type it.</li>
+      <li><b>Narrow (280 px):</b> the same cells fit, also with the hour form (1:01:56,770). Nothing is dropped.</li>
+      <li><b>On the timeline:</b> when both marks are set and the band in the ruler is at least the label's width + 16 px, the length ("0:09,159") is drawn centred on the band in a small pill outlined in accent, hiding the ruler time labels under it (as other ruler flags do). Narrower: no label (the corner has it). No extra height. The lanes get the band as a faint <code>--selection-range</code> fill; no dashes (dashes mean "not real yet").</li>
+      <li><b>Status bar:</b> <code>#range-info</code> stops repeating the marks. It keeps the selected clip count ("1 leike", "2 leikettä") and, only when the selected clips span something other than the marks, that span and its length ("2 leikettä · 9:21,480–9:33,002 · 0:11,522"). The Tab scope indicator ("Tab: klippien rajat"), the zoom span, the view toggle and the key hints stay as they are. <code>rangeLine</code> in <code>ui/range-info.js</code> drops the mark texts; <code>formatRangeInfo</code> feeds the corner.</li>
+      <li><b>DOM:</b> inside the corner, after the small row: <code>&lt;div class="marks" role="group" aria-label="Alku- ja loppupiste"&gt;</code> with three buttons <code>#mark-in</code>, <code>#mark-out</code>, <code>#mark-length</code>. Accessible names "Alku 9:03,836" / "Alku: ei asetettu"; the tooltip says what click and double-click do and gives the keys. Focus order: Toista, Silmukka, slider, chip, Alku, Loppu, Pituus.</li>
+      <li><b>B (compact density):</b> B's single row has no room. The readout becomes a second row of the same cells at 22 px, with the 24 px target that compact uses (<code>--target-min</code> 24): B goes from 48 to 72 px. Or, if compact must stay 48, the readout is left out and the marks show only on the ruler band and in the status bar, as today.</li>
+    </ul>
     <h3>Screenshots</h3>
-    <p><code>docs/design/transport-corner/variant-a.png</code>, <code>variant-b.png</code>, <code>variant-c.png</code>, <code>menu-row.png</code>, <code>notes.png</code> (headless Chrome, 1520 px wide).</p>
+    <p><code>docs/design/transport-corner/variant-a.png</code>, <code>variant-b.png</code>, <code>variant-c.png</code>, <code>variant-c-marks.png</code>, <code>menu-row.png</code>, <code>notes.png</code> (headless Chrome, 1520 px wide).</p>
   </section>
 </main>
 
@@ -1196,6 +1245,7 @@ const STATES = [
 const VARIANTS = {
   A: { title: "A · Kaksi riviä", cornerH: 80, sum: "Row 1: Toista, Silmukka and the speed chip. Row 2: the timecode at 28 px and the speed slider. Corner 80 px tall (overview 56). Found here: the key label under Toista (\"Välilyönti\") covers the timecode (see Näppäimistöfokus), so in A the key would have to live in the tooltip only." },
   B: { title: "B · Yksi tiheä rivi", cornerH: 48, sum: "One row: Toista as an icon, the timecode at 22 px, Silmukka as an icon and a split speed chip whose ▾ opens the slider. Corner 48 px tall (overview 24), almost today's 44. Found here: at 280 px with an hour-long timecode the chip runs past the corner into the ruler (see Kapea), so B at 280 px needs the chip without its icon or a smaller timecode." },
+  CM: { title: "C + alku, loppu ja pituus", cornerH: 96 },
   C: { title: "C · Iso Toista ja aikakoodi", cornerH: 72, rec: true, sum: "Toista large on the left (60 × 56), the timecode at 28 px beside it, and under it a small row: Silmukka, the speed slider and the chip (only while active, space kept). Corner 72 px tall (overview 48)." },
 };
 
@@ -1242,15 +1292,39 @@ function corner(v, s, width) {
   if (v === "B") return `<div class="corner B ${n ? "narrow" : ""}" ${label} ${st}>
       <div class="t-row">${playBtn(s, { iconOnly: true })}${timecode(s)}${loopBtn(s, { iconOnly: true })}${chip(s, { rest: "quiet", split: true })}</div>
       ${s.fast && !n ? `<div class="pop" role="dialog" aria-label="Nopea kuuntelu"><b>Nopea kuuntelu</b><div class="t-row">${slider(s)}<span class="timecode" style="--tc:13px">${num(s.speed)}×</span></div><div class="meta">, hitaammin · / nopeammin · Alt+0 normaali</div></div>` : ""}</div>`;
-  return `<div class="corner C ${n ? "narrow" : ""}" ${label} ${st}>
+  const marks = v === "CM";
+  return `<div class="corner C ${marks ? "with-marks" : ""} ${n ? "narrow" : ""}" ${label} ${st}>
       ${playBtn(s, { big: true })}${timecode(s)}
-      <div class="t-row">${loopBtn(s, { small: true, iconOnly: n })}${slider(s)}${chip(s)}</div></div>`;
+      <div class="t-row">${loopBtn(s, { small: true, iconOnly: n })}${slider(s)}${chip(s)}</div>${marks ? readout(s) : ""}</div>`;
+}
+
+// ---------- in, out and length: the readout row under C -------------------------------------
+const GLYPH = {
+  in: '<svg class="g" viewBox="0 0 10 12" aria-hidden="true"><path d="M1 1h7L1 9z" fill="currentColor"/><path d="M1 1v10" stroke="currentColor" stroke-width="1.5"/></svg>',
+  out: '<svg class="g" viewBox="0 0 10 12" aria-hidden="true"><path d="M9 1H2l7 8z" fill="currentColor"/><path d="M9 1v10" stroke="currentColor" stroke-width="1.5"/></svg>',
+  len: '<svg class="g" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 6h12M4 3 1 6l3 3M10 3l3 3-3 3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+};
+function readout(s) {
+  const len = s.inT && s.outT ? s.lenT : null;
+  const cell = (id, word, glyph, value, click, typeHint) => {
+    const set = value != null;
+    const edit = s.edit === id;
+    const name = set ? `${word} ${value}` : `${word}: ei asetettu`;
+    const tip = set ? `${word} · napsauta: ${click} · kaksoisnapsauta: kirjoita aika` : `${word}: ei asetettu · ${typeHint}`;
+    const key = `<span class="k">${GLYPH[id]}${word}</span>`;
+    if (edit) return `<span class="mark-cell editing" data-id="mark-${id}">${key}<input type="text" value="${value}" aria-label="${word}, kirjoita aika" spellcheck="false" /><span class="edit-tip">Enter asettaa · Esc peruu · esim. 9:03,5 tai 543,8</span></span>`;
+    return `<button type="button" data-id="mark-${id}" class="mark-cell ${set ? "set" : ""}" aria-label="${name}" title="${tip}">${key}<span class="v">${set ? value : "—"}</span></button>`;
+  };
+  return `<div class="marks" role="group" aria-label="Alku- ja loppupiste">
+    ${cell("in", "Alku", "", s.inT, "siirry alkuun (1)", "I asettaa toistokohtaan")}
+    ${cell("out", "Loppu", "", s.outT, "siirry loppuun (2)", "O asettaa toistokohtaan")}
+    ${cell("len", "Pituus", "", len, "zoomaa väliin (F)", "asetetaan alku- ja loppupisteellä")}</div>`;
 }
 
 // ---------- ruler + overview, lanes ---------------------------------------------------
 const PX_PER_S = 8.2;
 const START = 8 * 60 + 30; // the view starts at 8:30
-function rulerSVG(width, overviewH, { playX = (9 * 60 + 19.065 - START) * PX_PER_S, loop = null } = {}) {
+function rulerSVG(width, overviewH, { playX = (9 * 60 + 19.065 - START) * PX_PER_S, loop = null, start = START, pps = PX_PER_S, range = null } = {}) {
   const h = overviewH + 24;
   let g = `<rect width="${width}" height="${overviewH}" style="fill:var(--surface-panel)"/>`;
   // Overview: one row per track, in its wave colour at 60 %.
@@ -1269,13 +1343,32 @@ function rulerSVG(width, overviewH, { playX = (9 * 60 + 19.065 - START) * PX_PER
     g += `<rect x="${loop[0]}" y="${overviewH}" width="${loop[1] - loop[0]}" height="24" style="fill:var(--selection-range)"/>`;
     g += `<path d="M${loop[0]} ${overviewH}h7l-7 8z M${loop[1]} ${overviewH}h-7l7 8z" style="fill:var(--accent)"/>`;
   }
-  for (let s = 0, x = 0; x < width; s += 2, x = s * PX_PER_S) {
+  // In/out marks: the band, the inward triangles and, when both are set and the band
+  // is wide enough, the length centred on the band (no extra space: it lives in the ruler).
+  let pill = null;
+  if (range) {
+    const { inX, outX, label } = range;
+    if (inX != null && outX != null) g += `<rect x="${inX}" y="${overviewH}" width="${outX - inX}" height="24" style="fill:var(--selection-range)"/>`;
+    if (inX != null) g += `<path d="M${inX} ${overviewH}h7l-7 8z" style="fill:var(--accent)"/><line x1="${inX + 0.5}" x2="${inX + 0.5}" y1="${overviewH}" y2="${h}" style="stroke:var(--accent)"/>`;
+    if (outX != null) g += `<path d="M${outX} ${overviewH}h-7l7 8z" style="fill:var(--accent)"/><line x1="${outX - 0.5}" x2="${outX - 0.5}" y1="${overviewH}" y2="${h}" style="stroke:var(--accent)"/>`;
+    if (inX != null && outX != null && label) {
+      const w = label.length * 6.7 + 12;
+      if (outX - inX >= w + 16) pill = [(inX + outX) / 2 - w / 2, (inX + outX) / 2 + w / 2];
+    }
+  }
+  for (let s = 0, x = 0; x < width; s += 2, x = s * pps) {
     const major = s % 10 === 0;
     g += `<line x1="${x + 0.5}" x2="${x + 0.5}" y1="${h - (major ? 9 : 4)}" y2="${h}" style="stroke:var(--ruler-tick)"/>`;
-    if (major) {
-      const t = START + s;
-      g += `<text x="${x + 4}" y="${overviewH + 12}" style="fill:var(--ruler-text);font:11px var(--font-mono)">${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}</text>`;
+    // A label under the length pill is hidden (as under any ruler flag).
+    if (major && !(pill && x + 32 > pill[0] && x < pill[1])) {
+      const t = start + s;
+      g += `<text x="${x + 4}" y="${overviewH + 12}" style="fill:var(--ruler-text);font:11px var(--font-mono)">${t >= 3600 ? `${Math.floor(t / 3600)}:${String(Math.floor(t / 60) % 60).padStart(2, "0")}` : Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}</text>`;
     }
+  }
+  if (pill) {
+    const [a, b] = pill;
+    g += `<rect x="${a}" y="${overviewH + 3}" width="${b - a}" height="15" rx="7.5" style="fill:var(--ruler-bg);stroke:var(--accent)"/>`;
+    g += `<text x="${(a + b) / 2}" y="${overviewH + 14}" text-anchor="middle" style="fill:var(--accent-text);font:600 11px var(--font-mono)">${range.label}</text>`;
   }
   g += `<line x1="0" x2="${width}" y1="${h - 0.5}" y2="${h - 0.5}" style="stroke:var(--border)"/>`;
   g += `<path d="M${playX - 5.5} ${h - 11}h11v6l-5.5 5-5.5-5z" style="fill:var(--playhead)"/>`;
@@ -1292,7 +1385,7 @@ function wavePath(w, h, seed, music) {
   }
   return d;
 }
-function lanesSVG(width, playX) {
+function lanesSVG(width, playX, range = null) {
   let g = "";
   TRACKS.forEach((t, i) => {
     const y = i * 80;
@@ -1306,6 +1399,10 @@ function lanesSVG(width, playX) {
       g += `</g>`;
     });
   });
+  if (range?.inX != null && range?.outX != null) {
+    const H = TRACKS.length * 80;
+    g += `<rect x="${range.inX}" width="${range.outX - range.inX}" height="${H}" style="fill:var(--selection-range)"/>`;
+  }
   g += `<line x1="${playX}" x2="${playX}" y1="0" y2="${TRACKS.length * 80}" style="stroke:var(--playhead);stroke-width:1.5"/>`;
   return `<svg width="${width}" height="${TRACKS.length * 80}" aria-hidden="true">${g}</svg>`;
 }
@@ -1320,8 +1417,9 @@ const SIDEBAR = `<div class="side-tabs" role="tablist"><button class="side-tab" 
   <div class="sec"><h4>Taso <small>0 · 30 ms</small></h4><div class="row">Voimakkuus <b>0,0 dB</b></div><div class="row">Panorointi <b>K</b></div></div>
   <div class="sec"><h4>Tahdistus</h4><div class="row ok">Ryhmä 1 · tahdissa: Ville, Pekka</div></div>
   <div class="sec"><h4>Häivytykset <small>10 ms · 10 ms</small></h4></div></div>`;
-const STATUS = `<span>30 s</span><button class="sb-btn" type="button">Lähikuva</button><span class="divider"></span>
-  <span><kbd>B</kbd> jaa · <kbd>X</kbd> leikkaa · <kbd>Välilyönti</kbd> toista</span><span class="spacer"></span><span>✓ Kaikki muutokset tallennettu</span>
+// s.status: what #range-info says (the marks are no longer in it: they are in the corner).
+const statusbar = (s = {}) => `<span>30 s</span><button class="sb-btn" type="button">Lähikuva</button><span class="divider"></span>
+  ${s.narrow ? "" : `<span><kbd>B</kbd> jaa · <kbd>X</kbd> leikkaa · <kbd>Välilyönti</kbd> toista</span>`}${s.status ? `<span class="divider"></span><span class="sel">${s.status}</span>` : ""}<span>Tab: klippien rajat</span><span class="spacer"></span><span>✓ Kaikki muutokset tallennettu</span>
   <button class="sb-btn" type="button">Ohje</button><button class="sb-btn" type="button">Näkymä ▾</button>`;
 
 // ---------- the menu row ----------------------------------------------------------------
@@ -1368,37 +1466,70 @@ function fit(bar) {
 const fitReport = (shown) => shown === MENUS.length ? `<b>All 11 menus show.</b>` : `<b>${shown} of 11 show</b>; in "…": ${MENUS.slice(shown).join(", ")}.`;
 
 // ---------- the window --------------------------------------------------------------------
-function windowFrame(v, s, { W = 1440, headsW = 340, sideW = 360 } = {}) {
+function windowFrame(v, s, { W = 1440, headsW = 340, sideW = 360, start = START, pps: zoomPps = null } = {}) {
   const cornerH = VARIANTS[v].cornerH;
   const tlW = W - headsW - sideW - 2 - 2; // gaps and the frame border
-  const playX = (9 * 60 + 19.065 - START) * PX_PER_S * (tlW / 738);
+  const scale = zoomPps ? zoomPps / PX_PER_S : tlW / 738;
+  const xAt = (sec) => (sec - start) * PX_PER_S * scale;
+  const playX = xAt(s.playSec ?? 9 * 60 + 19.065);
+  const range = s.inSec != null || s.outSec != null
+    ? { inX: s.inSec != null ? xAt(s.inSec) : null, outX: s.outSec != null ? xAt(s.outSec) : null, label: s.inT && s.outT ? s.lenT : null }
+    : null;
   return `<div class="win" style="width:${W}px;--heads-w:${headsW}px;--side-w:${sideW}px;--corner-h:${cornerH}px">
     <header class="toolbar" role="toolbar" aria-label="Valikko ja projekti">${toolbar()}</header>
     ${corner(v, s, headsW)}
-    <div class="tl-top">${rulerSVG(tlW, cornerH - 24, { playX, loop: s.loop ? [playX - 120, playX + 160] : null })}</div>
+    <div class="tl-top">${rulerSVG(tlW, cornerH - 24, { playX, loop: s.loop && !range ? [playX - 120, playX + 160] : null, pps: PX_PER_S * scale, start, range })}</div>
     <aside class="heads">${headers()}</aside>
-    <div class="lanes">${lanesSVG(tlW, playX)}</div>
+    <div class="lanes">${lanesSVG(tlW, playX, range)}</div>
     <aside class="sidebar">${SIDEBAR}</aside>
-    <footer class="statusbar">${STATUS}</footer></div>`;
+    <footer class="statusbar">${statusbar(s)}</footer></div>`;
 }
 function tile(v, s) {
   const width = s.narrow ? 280 : 340;
   const cornerH = VARIANTS[v].cornerH;
-  const playX = 62;
+  let playX = 62, stubW = 150, opts = {};
+  if (v === "CM") {
+    // The stub shows about 19 s at 12 px/s, so the marks and the length pill are visible.
+    stubW = 230;
+    const base = s.base ?? 9 * 60 + 1, pps = 12, at = (sec) => (sec - base) * pps;
+    playX = at(s.playSec ?? 9 * 60 + 19.065);
+    opts = { start: base, pps, range: s.inSec != null || s.outSec != null ? { inX: s.inSec != null ? at(s.inSec) : null, outX: s.outSec != null ? at(s.outSec) : null, label: s.inT && s.outT ? s.lenT : null } : null };
+  }
   return `<figure class="tile ${v === "B" && s.fast && !s.narrow ? "has-pop" : ""}"><figcaption><b>${s.title}</b> · ${s.note}</figcaption>
-    <div class="mini" style="--w:${width}px;--corner-h:${cornerH}px">${corner(v, s, width)}
-      <div class="tl-top">${rulerSVG(150, cornerH - 24, { playX, loop: s.loop ? [20, 130] : null })}</div>
+    <div class="mini" style="--w:${width}px;--corner-h:${cornerH}px;grid-template-columns:var(--w) ${stubW}px">${corner(v, s, width)}
+      <div class="tl-top">${rulerSVG(stubW, cornerH - 24, { playX, loop: s.loop ? [20, 130] : null, ...opts })}</div>
       <div class="stub-head">${ICON.mic}<span>Anna</span></div><div class="stub-lane"></div></div></figure>`;
 }
 
 // ---------- render ---------------------------------------------------------------------------
 for (const [v, d] of Object.entries(VARIANTS)) {
+  if (v === "CM") continue;
   const sec = document.getElementById(v);
   sec.innerHTML = `<h2>${d.title} ${d.rec ? '<span class="tag rec">recommended</span>' : ""}</h2><p class="sub">${d.sum}</p>
     <h3>The window, 1440 px</h3><div class="scroll" data-fitbars>${windowFrame(v, STATES[0])}</div><p class="cap" data-report></p>
     <h3>States of the corner</h3><div class="tiles">${STATES.map((s) => tile(v, s)).join("")}</div>
     ${d.rec ? `<h3>The window, 1100 px (corner 280, sidebar 280)</h3><div class="scroll" data-fitbars>${windowFrame(v, { ...STATES[3], loop: true, narrow: true }, { W: 1100, headsW: 280, sideW: 280 })}</div><p class="cap" data-report></p>` : ""}`;
 }
+// In, out and length (owner chose C; 2026-10-18 follow-up).
+const IN = { inT: "9:03,836", inSec: 543.836 };
+const OUT = { outT: "9:12,995", outSec: 552.995, lenT: "0:09,159" };
+const T = ["9:19", "065"];
+const MSTATES = [
+  { title: "Ei merkkejä", note: "dim, \"—\"; I and O set them at the play cursor", time: T },
+  { title: "Vain alku", note: "Alku lit; one triangle in the ruler", time: T, ...IN },
+  { title: "Alku ja loppu", note: "all three lit; the length sits on the band in the ruler", time: T, ...IN, ...OUT },
+  { title: "Alue + nopea kuuntelu 1,35×", note: "playing; Pituus stays the real length", time: ["9:08", "214"], playSec: 548.214, playing: true, fast: true, speed: 1.35, ...IN, ...OUT },
+  { title: "Kaksoisnapsautus Alku-kenttään", note: "type an exact time (time-parse.js)", time: T, ...IN, ...OUT, edit: "in" },
+  { title: "Kapea, 280 px", note: "the same two-line cells; they fit", time: T, narrow: true, ...IN, ...OUT },
+  { title: "Kapea, 280 px, yli tunnin", note: "worst case: h:mm:ss,mmm, playing at 1,35×", time: ["1:02:12", "480"], base: 3711, playSec: 3732.48, playing: true, fast: true, speed: 1.35, narrow: true,
+    inT: "1:01:56,770", inSec: 3716.77, outT: "1:02:05,929", outSec: 3725.929, lenT: "0:09,159" },
+];
+document.getElementById("marks").innerHTML = `<h2>C + alku, loppu ja pituus <span class="tag rec">proposal</span></h2>
+  <p class="sub">A row of three cells under Toista and the timecode: Alku · Loppu · Pituus (the catalogue's words, <code>ui.range.in/out/length</code>). Dim "—" when a mark is not set, accent when set. Click a cell: Alku jumps to the in mark (1), Loppu to the out mark (2), Pituus zooms to the range (F). Double-click: type an exact time; on Pituus the typed length moves the out mark. The corner grows from 72 to <b>96 px</b> (overview 72). The length is also drawn on the band in the ruler, at no space cost, when the band is wide enough for it.</p>
+  <h3>The window, 1440 px: both marks set, one clip selected (the same span)</h3><div class="scroll" data-fitbars>${windowFrame("CM", { ...MSTATES[2], status: "1 leike" }, { start: 530, pps: 14 })}</div><p class="cap" data-report></p>
+  <h3>States</h3><div class="tiles">${MSTATES.map((s) => tile("CM", s)).join("")}</div>
+  <h3>The window, 1100 px (corner 280): range, fast listening on, a selection that differs from the marks; at this zoom the band is too narrow for the length label, so the ruler hides it (the corner still shows it)</h3><div class="scroll" data-fitbars>${windowFrame("CM", { ...MSTATES[3], narrow: true, status: "2 leikettä · 9:21,480–9:33,002 · 0:11,522" }, { W: 1100, headsW: 280, sideW: 280 })}</div><p class="cap" data-report></p>`;
+
 const bars = [
   ["bar-today", 1440, { today: true }],
   ["bar-1440", 1440, {}],
