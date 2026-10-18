@@ -16,7 +16,6 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 
 | # | Raised | Issue | Fixed in |
 |---|---|---|---|
-| 6 | 18.10 | Esc should clear the clip selection but keep in/out marks | v26.10.18.57 |
 | 8 | 18.10 | Alt-drag a region: the selection vanished on release | `e5925dd` (guess: the release event's Alt state); not seen on screen |
 | 9 | 18.10 | After X (cut) the in/out markers and selection stayed drawn | cleared after cut, lift-cut, track cut and close gap (`edit-commands.js`) |
 | 10 | 18.10 | "Select forward from selected clips, all tracks" selected every clip | `dd4e177` (clips starting at or after, not every overlapping clip) |
@@ -29,7 +28,6 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 | 17 | 18.10 | Tab scope: Alt+Tab cycles words / clip borders / sounds (replaces Shift+T on the Mac) | v26.10.18.64 |
 | 18 | 18.10 | Right-click context menus on clips, ranges, empty lane and ruler | merged, not tried in a browser |
 | 22 | 18.10 | Every clip deleted with X went to the clipboard (bad) | X and Shift+X are now "Delete and close the gap" (op `cut_range`, clipboard untouched); Mod+X and Shift+Mod+X are Cut to the clipboard |
-| 23 | 18.10 | Esc should clear the in/out marks from the timeline | Esc now clears selection, range and in/out in one press |
 | 24 | 18.10 | Adjusting clips (move, trim, gain, fades) moved the play cursor there | the press no longer seeks; the cursor goes there on release only if the press was a plain click. Not seen on screen. |
 | 25 | 18.10 | Undo after a cut (X) should restore the previous in/out points, to adjust one of them | `ui/range-memory.js`: Undo to the head before the cut brings the marks and lanes back (unless new marks were set); Redo clears them again. Not seen on screen. |
 | 26 | 18.10 | Keys to jump to the in and out points, Hindenburg-compatible | 1 = go to in, 2 = go to out; Mod+1 / Mod+2 also set them (Hindenburg's Ctrl+1/2); in the Go menu |
@@ -53,3 +51,5 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 | 4 | 18.10 | Exported WAVs would not play in Quick Look (RIFF size 0); fixed in v26.10.18.58 | 18.10, owner: "multitrack wav output works fine now" |
 | 5 | 18.10 | "Export all tracks" did not ask where to save; fixed in v26.10.18.59 | 18.10, owner: "export all opened up a file dialog just as it should" |
 | 7 | 18.10 | Speech tracks should be mono by default; stereo import asks; a Mono switch per track; fixed in v26.10.18.60 | 18.10, owner: "olli's track can be switched to mono and the change is audible" (the Mono checkbox on a track works; the import question and the by-default part not yet reported) |
+| 6 | 18.10 | Esc should clear the clip selection but keep in/out marks; fixed in v26.10.18.57, then changed on the owner's request | 18.10, owner: "esc clears in out markers" |
+| 23 | 18.10 | Esc should clear the in/out marks from the timeline; Esc now clears selection, range and in/out in one press | 18.10, owner: "esc clears in out markers" |
