@@ -269,7 +269,8 @@ def create_app(session, engine, *, language: str | None = None,
 
     @app.exception_handler(KuulasError)
     async def _other_error(_request: Request, e: KuulasError):
-        if e.key.startswith(("error.paste.", "error.import_plan.")):
+        if e.key.startswith(("error.paste.", "error.import_plan.", "error.chapters.",
+                             "error.regions.")):
             return answer(e, 400)
         log.error(str(e))
         return answer(e, 500)
@@ -382,6 +383,21 @@ def create_app(session, engine, *, language: str | None = None,
     @app.post("/api/export")
     def post_export(body: Annotated[dict[str, Any], Body()]):
         return state_response({"export": session.export(body)})
+
+    @app.post("/api/export-regions")
+    def post_export_regions(body: Annotated[dict[str, Any], Body()]):
+        return JSONResponse({"jobs": session.export_regions(body)})
+
+    @app.get("/api/chapters")
+    def get_chapters(style: str = "text"):
+        content = session.chapters(style)
+        if style == "json":
+            return Response(content=content, media_type="application/json",
+                            headers={"Content-Disposition":
+                                     'attachment; filename="chapters.json"'})
+        return Response(content=content, media_type="text/plain; charset=utf-8",
+                        headers={"Content-Disposition":
+                                 'attachment; filename="chapters.txt"'})
 
     @app.get("/api/music-report")
     def get_music_report(format: str = "json"):

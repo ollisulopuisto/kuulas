@@ -42,6 +42,8 @@ export async function download(path) {
   const response = await request(path);
   return { blob: await response.blob(), disposition: response.headers.get("Content-Disposition") };
 }
+/** Queue the one job that renders every region to its own file; answers { jobs: [job id] }. */
+export const exportRegions = (options = {}) => post("/api/export-regions", options);
 export const command = (name, args = {}) => post("/api/command", { name, args });
 // Cut candidates (WP18). Deciding, applying and marking are commands (one undo step each);
 // the list and the preview data only read. `state`: "open" | "cut" | "kept" or null for all.

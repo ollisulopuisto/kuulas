@@ -49,14 +49,16 @@ from . import (
     transcript,
     transcript_text,
 )
+from . import chapters as chapters_module
 from . import db as dbm
 from . import export as export_module
+from . import markers as markers_module
 from . import music_report as music_report_module
 from .clipboard import Entry, make_entry, make_entry_range
 from .clipboard_store import ClipboardStore, entry_dict
 from .clock import FLICKS, frames_to_flicks
 from .history import History, UndoInfo
-from .jobs import Jobs
+from .jobs import JobCancelledError, Jobs
 from .loudness import gain_to_target, measure_clip
 from .media import ImportResult, MediaError, MediaStore
 from .messages import KuulasError, t
@@ -556,6 +558,34 @@ class Session:
                workers: int | None = None) -> dict:
         """Render a mix, selection or track stems without changing the edit."""
         return export_module.run(self, args, progress, cancel, workers)
+
+    def chapters(self, style: str = "text") -> str:
+        """The chapter markers as a chapter list: ``"text"`` (``hh:mm:ss
+        Title`` per line) or ``"json"`` (Podcasting 2.0). The snapshot is taken
+        under the lock; the text is built outside it."""
+        with self.lock:
+            state = self.history.state
+        return chapters_module.format_chapters(
+            markers_module.chapters(state.markers), state.rate, style)
+
+    def export_regions(self, args: dict) -> list[str]:
+        """Queue ONE job that renders every region (marker kind ``region``) to
+        its own file with the selection export. Checked now, rendered in the
+        background; answers the job id in a list, like ``transcribe``."""
+        plan, settings = export_module.plan_regions(self, args)
+        title = t("job.export_regions", count=len(plan))
+
+        def run(progress):
+            try:
+                return export_module.run_regions(
+                    self, plan, settings, lambda fraction, _message: progress(fraction),
+                    progress.cancelled_event)
+            except export_module.ExportError:
+                if progress.cancelled:
+                    raise JobCancelledError from None
+                raise
+
+        return [self.jobs.submit("export", title, run)]
 
     def last_export_settings(self, kind: str) -> dict | None:
         """Return the project's remembered settings for an export kind."""
