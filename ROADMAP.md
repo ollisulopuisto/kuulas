@@ -446,4 +446,5 @@ WP27, WP38, WP42, WP47, WP53.
 - Requested (owner 2026-10-18): WP61 Quick Look, thumbnail and Spotlight support for `.kuulas` on the Mac, after the packaged app (WP55). Plan in `docs/PLAN.md`.
 - Terminology pass (WP62, owner 2026-10-18): consistent editing verbs and marks vocabulary in en and fi; draft in `docs/GLOSSARY.md`, owner decides the open rows.
 - Requested (owner 2026-10-18): WP63 real waveform in the drag ghost, plus smart guide lines and snapping between speakers' activity edges while moving a clip. Plan in `docs/PLAN.md`.
+- Parked (owner 2026-10-19, "not now"): WP64 naming a saved version: an in-window name field on Shift+Mod+S, rename in the History panel, named versions standing out. Plan in `docs/PLAN.md`.
 

@@ -3322,3 +3322,15 @@ Status: part 1 (the ghost waveform) built in v26.10.18.70, not seen by eye; part
    - Everything is display only; nothing is stored in the project.
 Needs: WP6 (drag), WP36 (peak tiles), WP44 (gate ranges) or `silence_runs`, `snap.js`.
 
+---
+
+### WP64 — Naming a saved version (owner, 2026-10-19; later, not now)
+
+Status: open, parked by the owner ("do this but not now"). Today Shift+Mod+S ("Save a named version") names the
+checkpoint itself, "Saved HH.MM", and the History panel cannot rename it. Build:
+1. Shift+Mod+S opens a small in-window name field, pre-filled with "Saved HH.MM"; Enter saves, Esc cancels, so
+   the quick path is two keys. No browser dialog (they can freeze the window).
+2. Rename in the History panel: double-click a named version to change its name later (a `rename_checkpoint`
+   server command; the name is stored with the checkpoint).
+3. Named versions stand out in the History list (a marker and bold name) so they can be found.
+
