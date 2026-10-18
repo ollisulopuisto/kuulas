@@ -35,7 +35,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.websockets import WebSocketDisconnect
 
-from . import export, messages, music_report, transcribe
+from . import export, export_formats, messages, music_report, transcribe
 from .candidates import UnknownCandidateError
 from .history import HistoryError
 from .media import ImportResult, MediaError
@@ -427,6 +427,15 @@ def create_app(session, engine, *, language: str | None = None,
     @app.post("/api/export-tracks", status_code=202)
     def post_export_tracks(body: Annotated[dict[str, Any], Body()]):
         return JSONResponse({"jobs": session.export_tracks(body)}, status_code=202)
+
+    @app.post("/api/export-mix", status_code=202)
+    def post_export_mix(body: Annotated[dict[str, Any], Body()]):
+        return JSONResponse({"jobs": session.export_mix(body)}, status_code=202)
+
+    @app.get("/api/export-formats")
+    def get_export_formats():
+        return [{"id": f.id, "label": t(f.label_key), "ext": f.ext,
+                 "lossless": f.lossless} for f in export_formats.available_formats()]
 
     @app.post("/api/export-regions")
     def post_export_regions(body: Annotated[dict[str, Any], Body()]):

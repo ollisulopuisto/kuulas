@@ -12,7 +12,7 @@ import { openContextMenu } from "./context-menu.js";
 import { contextMenuItems } from "./context-menu-model.js";
 import { edgeChange } from "./edge-drag.js";
 import { createEditor } from "./edits.js";
-import { filenameFromDisposition, tracksNotice } from "./export-commands.js";
+import { exportNotice, filenameFromDisposition } from "./export-commands.js";
 import { nextPanel } from "./focus.js";
 import { followScroll } from "./follow.js";
 import { frameToTime, RATE, xToFrame } from "./format.js";
@@ -129,6 +129,7 @@ let views = View.initialViews();
 let history = View.createViewHistory();
 let settleTimer = null;
 let wheelAnchor = 0;
+let exportFormatIds = null; // the export formats the server offers; null until fetched
 
 const rate = () => getState().project?.rate ?? RATE;
 const totalFrames = () => projectEnd(getState().project);
@@ -553,7 +554,9 @@ const keyboard = setupKeyboard({
     promptText: (request) => placeholderEditor.prompt(request),
     takeFor: (id) => void takeForPlaceholder(id),
     exportRegions: () => exportRegions(),
-    exportTracks: () => exportTracks(),
+    exportTracks: (format) => exportTracks(format),
+    exportMix: (format) => exportMix(format),
+    exportFormats: () => exportFormatIds,
     focusName: () => inspector.focusName(),
     openGateStretch: () => openGateStretch(),
     selectCandidate: (row) => selectCandidate(row),
@@ -1063,67 +1066,80 @@ const historyPanel = createHistoryPanel({
 
 // "Export all tracks" (the toolbar button, File menu, palette): one background job; the
 // notice follows it (progress with Cancel, then the folder with Show in Finder). Esc cancels.
-let tracksJob = null;
-const TRACKS_POLL_MS = 500;
+let exportJob = null;
+const EXPORT_POLL_MS = 500;
 
-async function followTracksJob(id) {
+async function followExportJob(id, what) {
   const bridge = globalThis.pywebview?.api;
-  while (tracksJob === id) {
+  while (exportJob === id) {
     let job;
     try {
       job = (await api.getJobs()).jobs.find((item) => item.id === id);
     } catch (error) {
-      tracksJob = null;
+      exportJob = null;
       showError(error);
       return;
     }
     if (!job) break;
-    const notice = tracksNotice(job, t);
+    const notice = exportNotice(job, t, what);
     let action = null;
     if (notice.cancel) {
-      action = { label: t("ui.export.cancel"), run: () => void cancelTracksJob() };
+      action = { label: t("ui.export.cancel"), run: () => void cancelExportJob() };
     } else if (notice.reveal && typeof bridge?.reveal_export === "function") {
       action = { label: t("ui.export.show_in_finder"), run: () => void bridge.reveal_export() };
     }
     // Done stays up (the owner reads the folder); failures and cancels time out as usual.
     showNotice(notice.text, notice.kind, { sticky: notice.sticky, action });
     if (job.state === "completed" || job.state === "failed" || job.state === "cancelled") {
-      tracksJob = null;
+      exportJob = null;
       return;
     }
-    await new Promise((resolve) => setTimeout(resolve, TRACKS_POLL_MS));
+    await new Promise((resolve) => setTimeout(resolve, EXPORT_POLL_MS));
   }
 }
 
-async function cancelTracksJob() {
-  if (!tracksJob) return;
+async function cancelExportJob() {
+  if (!exportJob) return;
   try {
-    await api.cancelJob(tracksJob);
+    await api.cancelJob(exportJob);
   } catch (error) {
     showError(error);
   }
 }
 
-async function exportTracks() {
-  if (tracksJob) return;
+// `what` "tracks" or "mix"; `format` is a format id, or none for WAV (tracks) / the remembered
+// one (mix). One export at a time.
+async function startExport(what, format) {
+  if (exportJob) return;
   try {
-    const { jobs } = await api.exportTracks();
-    tracksJob = jobs[0];
-    showNotice(t("ui.export.tracks_running", { percent: 0 }), "ok", {
+    const options = format ? { format } : {};
+    const { jobs } = await (what === "mix" ? api.exportMix(options) : api.exportTracks(options));
+    exportJob = jobs[0];
+    showNotice(t(`ui.export.${what}_running`, { percent: 0 }), "ok", {
       sticky: true,
-      action: { label: t("ui.export.cancel"), run: () => void cancelTracksJob() },
+      action: { label: t("ui.export.cancel"), run: () => void cancelExportJob() },
     });
-    void followTracksJob(tracksJob);
+    void followExportJob(exportJob, what);
   } catch (error) {
     showError(error);
   }
 }
+const exportTracks = (format) => startExport("tracks", format);
+const exportMix = (format) => startExport("mix", format);
+
+// The formats the server can write (ids, in its order); asked for once, at start.
+api
+  .exportFormats()
+  .then((formats) => {
+    exportFormatIds = formats.map((format) => format.id);
+  })
+  .catch(() => {});
 
 $("export").addEventListener("click", () =>
   keyboard.registry.run("export.tracks", null, getState()),
 );
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && tracksJob) void cancelTracksJob();
+  if (event.key === "Escape" && exportJob) void cancelExportJob();
 });
 
 // One background job renders every region to its own file; the jobs list shows progress.

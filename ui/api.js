@@ -52,8 +52,13 @@ export async function download(path) {
 }
 /** Queue the one job that renders every region to its own file; answers { jobs: [job id] }. */
 export const exportRegions = (options = {}) => post("/api/export-regions", options);
-/** Queue the one-button export of every track; answers { jobs: [job id] }. */
-export const exportTracks = () => post("/api/export-tracks", {});
+/** Queue the export of every track (`options.format`: a format id, default WAV); answers
+ * { jobs: [job id] }. */
+export const exportTracks = (options = {}) => post("/api/export-tracks", options);
+/** Queue the export of the mix as one file (`options.format`); answers { jobs: [job id] }. */
+export const exportMix = (options = {}) => post("/api/export-mix", options);
+/** The formats the server can write: [{ id, label, ext, lossless }], WAV first. */
+export const exportFormats = () => json("/api/export-formats");
 export const cancelJob = (id) => json(`/api/jobs/${encodeURIComponent(id)}`, { method: "DELETE" });
 export const command = (name, args = {}) => post("/api/command", { name, args });
 // Cut candidates (WP18). Deciding, applying and marking are commands (one undo step each);

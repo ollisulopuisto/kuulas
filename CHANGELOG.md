@@ -1,3 +1,12 @@
+## [v26.10.18.56] - 2026-10-18
+
+- **More export formats through ffmpeg:** WAV (still the default, 24-bit), FLAC, AIFF, MP3, AAC in an M4A
+  file (on a Mac with AudioToolbox the hardware-accelerated `aac_at` encoder), Opus and Ogg Vorbis; the list
+  shows only what your ffmpeg can encode (`kuulas export-tracks --list-formats`; on this Mac Ogg Vorbis is
+  missing because ffmpeg has no libvorbis). File > **Export mix** (one file, new) and File > **Export all
+  tracks as…** list the formats; the one-button "Export all tracks" stays WAV. Terminal: `kuulas export-mix
+  <project> [--format ID] [--kbps N]`. The mix is one file `<project> exports/<edit> <stamp> v<n>.<ext>`.
+
 ## [v26.10.18.55] - 2026-10-18
 
 - **Alt while dragging a range** turns it into the clips it touches: they are highlighted live, and on

@@ -245,6 +245,7 @@ export function setupKeyboard({ actions, app, t, notify, onLanguageChange, onRef
           label,
           platform,
           held: tracker.held(),
+          formats: app.exportFormats?.() ?? null,
         }),
       run: (id) => registry.run(id, null, app.getState()),
       onHint(text) {
