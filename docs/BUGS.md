@@ -30,6 +30,7 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 | 16 | 18.10 | Tab and Shift+Tab did not always work: after a click on a track header the keys still thought the transcript had focus; word stops could be stale after edits | v26.10.18.64 |
 | 17 | 18.10 | Tab scope: Alt+Tab cycles words / clip borders / sounds (replaces Shift+T on the Mac) | v26.10.18.64 |
 | 18 | 18.10 | Right-click context menus on clips, ranges, empty lane and ruler | merged, not tried in a browser |
+| 19 | 18.10 | X should work almost anywhere when in/out are marked | X, Shift+X, Alt+X and Alt+Mod+X now work from any panel (inspector, history, clipboard, markers, candidates) except text fields and the transcript, where X cuts the selected words |
 
 ## Closed
 
