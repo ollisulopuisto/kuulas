@@ -5,6 +5,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { registerAppCommands } from "../app-commands.js";
+import { registerCandidateCommands } from "../candidate-commands.js";
 import { cheatSheetData } from "../cheatsheet.js";
 import { createRegistry } from "../commands.js";
 import { registerEditCommands } from "../edit-commands.js";
@@ -54,6 +55,7 @@ const REGISTRY = createRegistry();
 registerAppCommands(REGISTRY, { actions: stub, app: stub });
 registerEditCommands(REGISTRY, { app: stub, t: (key) => key, formatSeconds: String });
 registerTranscriptCommands(REGISTRY, { app: stub, t: (key) => key });
+registerCandidateCommands(REGISTRY, { app: stub, t: (key) => key });
 REGISTRY.planMissing(DEFAULT_KEYMAP.map((entry) => entry.id));
 const READY = REGISTRY.ids().filter((id) => REGISTRY.status(id) === "ready");
 
