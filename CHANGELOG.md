@@ -1,3 +1,16 @@
+## [v26.10.18.20] - 2026-10-18
+
+- Markers, regions and chapters. M adds a marker at the play cursor (a pennant on the ruler),
+  Alt+M turns the in-out range into a region (a bar), Shift+Mod+Right/Left jump to the next or
+  previous marker, Shift+Alt+M deletes. The new Markers tab lists them (name, time, kind, length)
+  with jump, rename, a "Chapter" toggle and delete. Markers move with the audio when you ripple-cut
+  or insert across all tracks (a cut that touches only some tracks leaves them alone).
+- File menu: export chapters as text (`00:00:18 Title`) or as Podcasting 2.0 JSON, and export the
+  regions as separate audio files (one job with progress; names like `01 Region 1.wav`, never
+  overwriting an existing file). Two chapters on the same frame refuse to export with a message.
+- Older kuulas versions keep the markers but do not move them on a ripple (a wrong position, not
+  lost data).
+
 ## [v26.10.18.19] - 2026-10-18
 
 - G sets a fade on the clip under the play cursor (the nearer end; the other fade gives way if
