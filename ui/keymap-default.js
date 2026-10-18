@@ -57,6 +57,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.transport.play_selection",
   },
   {
+    id: "view.drag_mode",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.view.drag_mode",
+  },
+  {
     id: "transport.rehearse",
     keys: { mac: "Shift+Mod+Space", other: "Shift+Mod+Space" },
     context: "timeline",

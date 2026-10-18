@@ -1320,5 +1320,9 @@
   "cmd.edit.remove_clips": "Poista valitut leikkeet (aukko jää)",
   "cmd.edit.remove_clips.hint": "Poistaa valitut leikkeet kokonaan ja jättää muut leikkeet paikalleen. Kumoa palauttaa ne. (Askelpalautin vain mykistää.)",
   "ui.edit.label.remove_clips": "Leikkeiden poisto",
-  "ui.edit.toast.remove_clips": {"one": "Poistettu {count} leike · aukko jäi", "other": "Poistettu {count} leikettä · aukko jäi"}
+  "ui.edit.toast.remove_clips": {"one": "Poistettu {count} leike · aukko jäi", "other": "Poistettu {count} leikettä · aukko jäi"},
+  "cmd.view.drag_mode": "Hiiri: vetäminen maalaa välin / siirtää leikkeitä",
+  "cmd.view.drag_mode.hint": "Vaihtaa, mitä leikkeen vetäminen tekee: maalaa välin (jonka voi poistaa tai mykistää; leikettä siirretään sen nimirivistä tai Cmd pohjassa) tai siirtää leikettä (Shift tai Alt maalaa välin).",
+  "ui.drag_mode.now_range": "Vetäminen maalaa nyt välin. Siirrä leikettä sen nimirivistä tai pidä Cmd pohjassa.",
+  "ui.drag_mode.now_move": "Vetäminen siirtää nyt leikettä. Pidä Shift pohjassa maalataksesi välin."
 }

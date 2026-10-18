@@ -16,6 +16,7 @@ import {
   targetTrackRow,
 } from "./clip-drag.js";
 import { overLabel } from "./clip-overs.js";
+import { DEFAULT_DRAG_MODE, dragIntent } from "./drag-mode.js";
 import { edgeGhost, ghostGeometry, resolveEdge } from "./edge-drag.js";
 import { frameToTime, frameToX, xToFrame } from "./format.js";
 import {
@@ -50,13 +51,7 @@ import { flagLayout, NOTCH_PX as MARKER_NOTCH_PX } from "./markers-model.js";
 import { lengthPill, markDrawing } from "./marks.js";
 import { makeWaveformJob, trackHues } from "./paint.js";
 import { aboutSeconds, placeholderLabel } from "./placeholders-model.js";
-import {
-  canStartRangeDrag,
-  dragRange,
-  isDrag,
-  touchedResult,
-  trackRowsTouched,
-} from "./range-drag.js";
+import { dragRange, isDrag, touchedResult, trackRowsTouched } from "./range-drag.js";
 import { rulerTicks } from "./ruler.js";
 import { readTheme } from "./theme.js";
 import { createWaveformLayer } from "./waveform-layer.js";
@@ -1086,7 +1081,20 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     let cursor = hit.clip && hit.edge && hit.row?.kind === "track" ? "ew-resize" : "";
     const zone = tweakZone(hit, event, state.selection);
     if (!cursor && zone) cursor = zone.kind === "gain" ? "ns-resize" : "ew-resize";
-    if (!cursor && canStartClipDrag(hit)) cursor = "grab";
+    if (!cursor && canStartClipDrag(hit)) {
+      // The hand shows where a plain drag moves the clip: everywhere in move mode, only on the
+      // label strip in range mode (where the rest of the clip paints a range).
+      const moves =
+        dragIntent({
+          mode: state.dragMode ?? DEFAULT_DRAG_MODE,
+          hit,
+          rowY: rowYOf(event, hit),
+          shift: event.shiftKey,
+          alt: event.altKey,
+          mod: event.metaKey || event.ctrlKey,
+        }) === "move";
+      cursor = moves ? "grab" : "crosshair";
+    }
     if (overlayCanvas.style.cursor !== cursor) overlayCanvas.style.cursor = cursor;
   });
   overlayCanvas.addEventListener("pointerleave", () => {
@@ -1221,15 +1229,23 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     const hit = hitAt(event);
     const before = getState().selection; // the press may replace it; a move takes the old one
     const zone = event.shiftKey ? null : tweakZone(hit, event, before);
-    const moving = !zone && !event.shiftKey && !event.altKey && canStartClipDrag(hit);
+    // What a drag does is a preference (drag-mode.js): paint a range, or move the clip.
+    const intent = dragIntent({
+      mode: getState().dragMode ?? DEFAULT_DRAG_MODE,
+      hit,
+      rowY: hit.row ? rowYOf(event, hit) : -1,
+      shift: event.shiftKey,
+      alt: event.altKey,
+      mod: event.metaKey || event.ctrlKey,
+    });
+    const moving = !zone && intent === "move" && canStartClipDrag(hit);
     // Adjusting a clip (move, trim, gain, fade) must not drag the play cursor along: the press
     // selects, and the cursor goes there on release only when the press turned out to be a click.
     const adjusting = Boolean(
       zone || moving || (hit.clip && hit.edge && hit.row?.kind === "track"),
     );
     actions.pointerDown(hit, event, { noSeek: adjusting });
-    if (!zone && !moving && canStartRangeDrag(hit, event.shiftKey, event.altKey))
-      beginRangeDrag(event, hit);
+    if (!zone && !moving && intent === "range") beginRangeDrag(event, hit);
     if (hit.clip && hit.edge && hit.row?.kind === "track") startEdge(hit, event);
     else if (zone) startTweak(hit, event, zone);
     else if (moving) startClip(hit, event, before);

@@ -1,6 +1,7 @@
 // The editor's entry point: wires the store, the API, the live channel, the
 // canvases and the keyboard together. The decisions live in small pure modules
 // (view.js, lanes.js, keys.js, ...); this file only applies their answers.
+
 import * as api from "./api.js";
 import { memberClipsAt, toggleChange } from "./bus-collapse.js";
 import { listedRows, scrollToShow, stepTarget } from "./candidates-model.js";
@@ -11,6 +12,7 @@ import { expandGroups, toggleGroupSelection } from "./clip-groups.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
 import { openContextMenu } from "./context-menu.js";
 import { contextMenuItems } from "./context-menu-model.js";
+import { dragModeChoice, nextDragMode } from "./drag-mode.js";
 import { edgeChange } from "./edge-drag.js";
 import { createEditor } from "./edits.js";
 import { escapeAction } from "./escape.js";
@@ -235,6 +237,16 @@ function markPaused() {
 
 // Fast listening (WP26): a toggle plus a stepless chosen speed, remembered per user. The state
 // changes first, then the engine is told (a switch restarts the run, a nudge retunes it).
+// What a mouse drag does (drag-mode.js): a per-user preference; the default paints a range.
+const DRAG_MODE_KEY = "dragMode";
+setState({ dragMode: dragModeChoice(prefs.get(DRAG_MODE_KEY)) });
+function toggleDragMode() {
+  const mode = nextDragMode(getState().dragMode);
+  setState({ dragMode: mode });
+  prefs.set(DRAG_MODE_KEY, mode);
+  showNotice(t(`ui.drag_mode.now_${mode}`), "ok");
+}
+
 const FAST_KEY = "fast";
 setState({ fast: fromStored(prefs.getJson(FAST_KEY, null)) });
 function changeFast(change) {
@@ -254,6 +266,7 @@ const actions = {
   },
   shuttle: (key) => void transport.press(key),
   toggleLoop: () => setState({ loop: !getState().loop }),
+  toggleDragMode: () => toggleDragMode(),
   fastListening: () => changeFast(toggleFast),
   fastNudge: (direction) => changeFast(direction > 0 ? fastUp : fastDown),
   fastReset: () => changeFast(resetFast),

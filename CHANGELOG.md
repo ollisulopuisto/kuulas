@@ -1,3 +1,14 @@
+## [v26.10.18.69] - 2026-10-18
+
+- **Dragging paints a range by default** (your preference, switchable in View > "Mouse: dragging paints a range /
+  moves clips"): drag across a clip or an empty lane to mark a region, then Backspace to mute it or X to delete
+  it. Move a clip by dragging its **label strip** (the title row at its top) or with **Cmd** held. The old way
+  (drag moves the clip, Shift or Alt paint) is one switch away.
+- **B (split) shows at once** instead of after the server's answer.
+- **Cmd+Backspace** removes the selected clips and leaves every other clip where it is.
+- **The right-click menu** lists only what is possible, scrolls if it is still too tall, and shows hints in the
+  status bar. **Drag the speed display** (with fast listening on) to change the speed.
+
 ## [v26.10.18.68] - 2026-10-18
 
 - **The transport has its own corner:** Play, Silmukka (loop), the timecode and the fast-listening speed now sit

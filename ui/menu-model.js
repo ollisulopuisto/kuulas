@@ -295,6 +295,7 @@ export const MENU = [
     items: [
       item("view.zoom_in"),
       item("view.zoom_out"),
+      item("view.drag_mode"),
       item("view.toggle"),
       item("view.fit"),
       item("view.fit_selection"),

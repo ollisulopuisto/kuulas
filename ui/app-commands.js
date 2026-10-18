@@ -61,6 +61,8 @@ export function registerAppCommands(registry, { actions, app }) {
   const offsets = () => seekOffsets(rate(), app.getState().zoom);
 
   def("transport.play", () => actions.togglePlay());
+  // What a drag does: paint a range, or move the clip (a preference, drag-mode.js).
+  def("view.drag_mode", () => actions.toggleDragMode());
   def(
     "transport.play_before",
     () => actions.playFrom(prerollStart(app.getState().playhead ?? 0, rate())),

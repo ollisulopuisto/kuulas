@@ -1320,5 +1320,9 @@
   "cmd.edit.remove_clips": "Remove the selected clips (gap stays)",
   "cmd.edit.remove_clips.hint": "Deletes the selected clips for good and leaves every other clip where it is. Undo brings them back. (Backspace only mutes.)",
   "ui.edit.label.remove_clips": "Remove clips",
-  "ui.edit.toast.remove_clips": {"one": "Removed {count} clip · gap kept", "other": "Removed {count} clips · gap kept"}
+  "ui.edit.toast.remove_clips": {"one": "Removed {count} clip · gap kept", "other": "Removed {count} clips · gap kept"},
+  "cmd.view.drag_mode": "Mouse: dragging paints a range / moves clips",
+  "cmd.view.drag_mode.hint": "Switches what a drag on a clip does: paint a range (then delete or mute it; move a clip by its label strip or with Cmd held), or move the clip (Shift or Alt paint a range).",
+  "ui.drag_mode.now_range": "Dragging now paints a range. Move a clip by its label strip, or hold Cmd.",
+  "ui.drag_mode.now_move": "Dragging now moves the clip. Hold Shift to paint a range."
 }
