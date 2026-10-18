@@ -9,8 +9,6 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 
 | # | Raised | Issue | Notes |
 |---|---|---|---|
-| 1 | 18.10 | Left/Right should nudge the cursor finely like in Hindenburg (for cut points); jumping word to word needs another key | Design to decide: Left/Right in the timeline become zoom-dependent small steps; word jumping moves elsewhere. Today Left/Right are 1 s, Shift 5 s, Alt 10 ms. |
-| 2 | 18.10 | Tab and Shift+Tab do not always work | Two causes found: Tab only acts when the timeline has focus; the word list may go stale after edits. Redesign pending the owner's yes (Tab = clip borders, Alt+Tab = transient mode). |
 | 3 | 18.10 | Dropbox: the project lock must work with a synced folder (showstopper) | Built (per-host `locks/`, v26.10.18.63) but never tried against a real Dropbox. Move to "fixed, please check" after a real two-computer test. |
 
 ## Fixed, please check
@@ -28,6 +26,10 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 | 12 | 18.10 | Buffer underrun when scrubbing back with J at multiple speed | `d8c5fe9` (the render loop re-mixed up to 489 times a block); not heard by the owner |
 | 13 | 18.10 | Fast listening needed (stepless 1x to 2x, pitch kept, a toggle) | built, merged `da17d6f`; not heard by ear |
 | 14 | 18.10 | Every command must be in a menu | menu coverage test, all 67 added |
+| 15 | 18.10 | Left/Right should be Hindenburg-style fine cursor nudges (4 px at the current zoom; Shift 1 s, Alt 10 ms) | v26.10.18.64 |
+| 16 | 18.10 | Tab and Shift+Tab did not always work: after a click on a track header the keys still thought the transcript had focus; word stops could be stale after edits | v26.10.18.64 |
+| 17 | 18.10 | Tab scope: Alt+Tab cycles words / clip borders / sounds (replaces Shift+T on the Mac) | v26.10.18.64 |
+| 18 | 18.10 | Right-click context menus on clips, ranges, empty lane and ruler | merged, not tried in a browser |
 
 ## Closed
 
