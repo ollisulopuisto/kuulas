@@ -1,3 +1,12 @@
+## [v26.10.18.39] - 2026-10-18
+
+- Transcript: between two paragraphs of the same speaker that were split by a pause you now see the
+  length of the silence ("6,4 s"); clicking it sets the in and out marks to that silence. View menu
+  > "Break paragraphs at pauses over": 1.5 s, 3 s (the new default), 6 s or never. Before, every
+  pause over 1.5 s started a new paragraph.
+- Building blocks for status tracking (ready for review, reviewed, needs fixes): the status list and
+  history model, and the chip colours. Not visible in the app yet.
+
 ## [v26.10.18.38] - 2026-10-18
 
 - Fixed the "project is open on this machine, read only" trap: a lock left by a kuulas window
