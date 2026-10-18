@@ -1717,6 +1717,33 @@ not offered; cached onsets are reused on reopen.
 
 ---
 
+#### 19i, three levels of stops (owner, 2026-10-18)
+
+Tab is a ladder of three levels, from coarse to fine. The same two keys step through the stops of the
+current level; the level decides what a stop is:
+
+1. **Clip level:** clip borders (starts and ends of clips, cuts and soft-cut edges) on the focused track.
+   Backend exists: `edit_points` mode `"edges"`.
+2. **Word level:** the start of each transcript word (today's default when there is a transcript).
+   Backend exists: mode `"words"`.
+3. **Within-word level:** breaths, mouth noises, syllable and transient points inside and between words.
+   Transients exist (mode `"transients"`); breaths, lip smacks and syllables come with WP56 (event
+   detection) and are added to this level as new `edit_points` kinds, not as a new key.
+
+Behaviour and keys (proposal, owner to confirm):
+- A level indicator in the status area ("Tab: words"); Shift+T cycles the level (it cycles
+  word / transient / both today, which becomes clip / word / fine).
+- Direct keys so that no cycling is needed mid-edit: Tab and Shift+Tab step the current level;
+  Alt+Tab and Shift+Alt+Tab always step the clip level; Mod+Alt+Tab and Shift+Mod+Alt+Tab always step the
+  fine level. (macOS does not use Option+Tab; to check on Windows and Linux.)
+- Each level also works as a filter on top of the one above: at the fine level the stops inside the
+  word under the playhead come first.
+- Stops are of the focused track; with a range selected, only inside it.
+- Stale stops: the word list must refresh whenever the edit changes (today only the transcript panel
+  refreshes it).
+
+Tests: pure stop-list functions (`ui/stop-list.js`, T48, merged soon) with the three sources as inputs.
+
 ### WP20 — Copy clips between projects without bloat
 
 Status: open. Needs WP1, WP4. Also the mechanism under the clip bin (WP17).
