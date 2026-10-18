@@ -11,13 +11,32 @@ from .ops import CLIP_GAIN_RANGE
 
 if TYPE_CHECKING:
     from .mixer import Store
-    from .model import Clip
+    from .model import Clip, Track
 
 #: Silence threshold per BS.1770 absolute gate
 SILENCE_LUFS = -70.0
 
 #: Maximum chunk duration read from media store at once (seconds)
 CHUNK_SEC = 60
+
+
+#: Where a track of each role should sit, LUFS (WP49): speech and narration
+#: at -19, music at -23 so that it stays under the speech. "speech-mix" is a
+#: track kind (a pre-mixed speech bus), not a role of its own: it is speech.
+ROLE_TARGETS = {"speech": -19.0, "speech-mix": -19.0, "narration": -19.0,
+                "music": -23.0}
+
+
+def default_target_lufs(role: str) -> float | None:
+    """The target for a role, or None for a role this does not know."""
+    return ROLE_TARGETS.get(role)
+
+
+def track_target_lufs(track: Track) -> float | None:
+    """The track's own target, else its role's (the kind is the role)."""
+    if track.target_lufs is not None:
+        return track.target_lufs
+    return default_target_lufs(track.kind)
 
 
 def measure_clip(store: Store, clip: Clip, rate: int) -> float | None:

@@ -152,6 +152,9 @@ class Track:
     # the mixer derives the 30 ms edge ramps, none are stored. Part of the
     # edit state, so history keeps it.
     gate: tuple[tuple[int, int], ...] = ()
+    # Where this track should sit, LUFS (WP49); None means its role's default
+    # (``loudness.default_target_lufs``). Edit state, so undo and save keep it.
+    target_lufs: float | None = None
     extra: dict = field(default_factory=dict, hash=False)
 
     def to_dict(self) -> dict:
@@ -162,6 +165,8 @@ class Track:
             # Absent means empty: a track that never had a gate keeps its
             # bytes (and its state hash) from before the field existed.
             del d["gate"]
+        if self.target_lufs is None:
+            del d["target_lufs"]  # same reason: unset tracks keep their bytes
         return d
 
     @classmethod

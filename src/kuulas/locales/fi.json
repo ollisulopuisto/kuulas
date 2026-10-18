@@ -660,7 +660,7 @@
   "ui.edit.toast.trim_end": {"one": "Lyhennetty {count} pätkän loppua", "other": "Lyhennetty {count} pätkän loppua"},
   "ui.edit.toast.nothing": "Mikään ei muuttunut.",
   "cmd.clip.match_loudness": "Sovita äänenvoimakkuus",
-  "cmd.clip.match_loudness.hint": "Asettaa valittujen leikkeiden (tai nykyisen raidan) vahvistuksen niin, että ne ovat yhtä kovaäänisiä, tasolle -16 LUFS.",
+  "cmd.clip.match_loudness.hint": "Asettaa valittujen leikkeiden (tai nykyisen raidan) vahvistuksen niin, että ne ovat yhtä kovaäänisiä, raidan tavoitetasolle (puhe -19, musiikki -23 LUFS ellei toisin ole asetettu).",
   "cmd.transcript.find.hint": "Hakee sanoja litteraatista kirjoittaessasi; Enter siirtyy seuraavaan osumaan.",
   "cmd.export.subtitles_srt": "Vie tekstitys (SRT)",
   "cmd.export.subtitles_srt.hint": "Tallentaa litteraatin SRT-tekstitystiedostona.",

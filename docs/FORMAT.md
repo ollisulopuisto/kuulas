@@ -443,6 +443,26 @@ with a migration that rewrites nothing; that is left to the integrator,
 since it touches `package.VERSION`, `db.SCHEMA_VERSION` and the migration
 table that other work packages also bump.
 
+**As built (WP49 loudness targets).** The edit state gains an optional
+`Track.target_lufs` (float, LUFS, -70 to 0): where the track should sit. Absent
+means the role's default (speech and narration -19, music -23; the role is the
+track `kind`), and a track that never had one keeps its bytes and its state
+hash. It is set with `set_track` (one undo step, saved with the edit state).
+
+*Version and `min_reader`.* `min_reader` does not rise and `version` does not
+change. The target changes no sound: it is only the number "match loudness" and
+the editor's loudness curve aim at. A reader that does not know it keeps the
+key in `Track.extra` and writes it back (the unknown-field rule below), so
+nothing is lost; it only shows no target line, and its "match loudness" uses
+its own fixed level. The cost is a missing monitoring hint, never a wrong
+mix, so refusing to open is not worth it.
+
+Loudness curves (`GET /api/loudness-curve`) are a cache, not project data:
+`caches/analysis/<key>.json`, keyed on the media hashes and every field that
+changes the sound (a rename or a new target changes no key). Algorithm
+`loudness-curve@1`.
+
+
 ## Media
 
 - Identity is `sha256` of the file bytes; the id is `m` + its first 12 hex
