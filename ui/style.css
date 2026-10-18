@@ -1635,3 +1635,111 @@ input[type="text"] {
   font: inherit;
   font-size: var(--text-xs);
 }
+
+/* Inspector Source: the recording's mini map. Used solid, cut hatched, unused outlined,
+   this clip boxed: every state has a shape twin, so colour is never the only cue. */
+.inspector-summary {
+  margin-left: auto;
+  font-weight: var(--weight-normal, 400);
+  color: var(--text-tertiary);
+}
+.inspector-source-file {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+.source-map {
+  position: relative;
+  height: 22px;
+  border-radius: var(--radius-sm, 2px);
+  background: var(--surface-sunken);
+}
+.source-seg {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  box-sizing: border-box;
+}
+.source-used,
+.source-key.source-used {
+  background: var(--track-colour, var(--accent));
+}
+.source-cut,
+.source-key.source-cut {
+  border: 1px solid var(--signal-soft-cut);
+  background: repeating-linear-gradient(
+    45deg,
+    var(--signal-soft-cut-fill) 0 2px,
+    var(--signal-soft-cut) 2px 3px
+  );
+}
+.source-unused,
+.source-key.source-unused {
+  border: 1px solid var(--border-strong);
+  background: transparent;
+}
+.source-map .source-this {
+  top: 1px;
+  bottom: 1px;
+  min-width: 4px;
+  border: 2px solid var(--signal-sibling);
+  background: transparent;
+}
+.source-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: var(--space-2) 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+.source-key {
+  display: inline-block;
+  width: 12px;
+  height: 10px;
+  margin-right: var(--space-1);
+  box-sizing: border-box;
+  vertical-align: middle;
+}
+.source-key.source-this {
+  border: 2px solid var(--signal-sibling);
+}
+.source-part {
+  margin: 0 0 var(--space-2);
+}
+.source-others {
+  margin: var(--space-2) 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+}
+.source-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.source-row {
+  display: grid;
+  grid-template-columns: 3em minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--control-h);
+  align-items: center;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm, 2px);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+.source-row:hover {
+  background: var(--surface-hover);
+}
+.source-where {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
