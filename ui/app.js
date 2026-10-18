@@ -3,6 +3,8 @@
 // (view.js, lanes.js, keys.js, ...); this file only applies their answers.
 
 import * as api from "./api.js";
+import { createAutomixDialog } from "./automix-dialog.js";
+import { automixNotice } from "./automix-model.js";
 import { memberClipsAt, toggleChange } from "./bus-collapse.js";
 import { listedRows, scrollToShow, stepTarget } from "./candidates-model.js";
 import { createCandidatesPanel } from "./candidates-panel.js";
@@ -651,6 +653,7 @@ const keyboard = setupKeyboard({
     promptText: (request) => placeholderEditor.prompt(request),
     takeFor: (id) => void takeForPlaceholder(id),
     exportRegions: () => exportRegions(),
+    automix: () => void openAutomix(),
     exportTracks: (format, options) => exportTracks(format, options),
     exportMix: (format, options) => exportMix(format, options),
     exportFormats: () => exportFormatIds,
@@ -1314,7 +1317,7 @@ async function followExportJob(id, what) {
       return;
     }
     if (!job) break;
-    const notice = exportNotice(job, t, what);
+    const notice = what === "automix" ? automixNotice(job, t) : exportNotice(job, t, what);
     let action = null;
     if (notice.cancel) {
       action = { label: t("ui.export.cancel"), run: () => void cancelExportJob() };
@@ -1366,6 +1369,31 @@ async function startExport(what, format, { ask = true } = {}) {
     showError(error);
   }
 }
+// "Mix with the automixer…" (WP68): the dialog asks, the server stems and mixes; the notice
+// follows the job like an export (no percent after the stems, the tool's last line instead).
+let automixDialog = null;
+async function openAutomix() {
+  if (exportJob) return;
+  automixDialog ??= createAutomixDialog({
+    api,
+    t,
+    onStart: async (body) => {
+      try {
+        const { jobs } = await api.automix(body);
+        exportJob = jobs[0];
+        showNotice(t("ui.automix.preparing", { percent: 0 }), "ok", {
+          sticky: true,
+          action: { label: t("ui.export.cancel"), run: () => void cancelExportJob() },
+        });
+        void followExportJob(exportJob, "automix");
+      } catch (error) {
+        showError(error);
+      }
+    },
+  });
+  await automixDialog.open();
+}
+
 const exportTracks = (format, options) => startExport("tracks", format, options);
 const exportMix = (format, options) => startExport("mix", format, options);
 
