@@ -13,6 +13,9 @@ export const TRACK_KINDS = ["speech", "speech-mix", "music"];
 /** The locale key naming a track's role (speech, speech mix, music). */
 export const roleKey = (kind) => `ui.track.kind.${kind}`;
 
+/** The longer label in the Role select, so "speech mix" cannot be mistaken for a bus. */
+export const roleOptionKey = (kind) => `ui.track.role.option.${kind}`;
+
 /** "No bus" first, then every bus (an empty one too) with its badge letter. */
 export function busOptions(project) {
   return [

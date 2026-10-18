@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { busMembers, busOptions, inspectorTarget, roleKey, TRACK_KINDS } from "../track-target.js";
+import {
+  busMembers,
+  busOptions,
+  inspectorTarget,
+  roleKey,
+  roleOptionKey,
+  TRACK_KINDS,
+} from "../track-target.js";
 
 const project = {
   buses: [
@@ -97,5 +104,12 @@ describe("role choices", () => {
   test("the select offers exactly the kinds set_track accepts", () => {
     assert.deepEqual(TRACK_KINDS, ["speech", "speech-mix", "music"]);
     for (const kind of TRACK_KINDS) assert.equal(roleKey(kind), `ui.track.kind.${kind}`);
+  });
+
+  test("the select spells a role out; the header tag keeps the short word", () => {
+    for (const kind of TRACK_KINDS) {
+      assert.equal(roleOptionKey(kind), `ui.track.role.option.${kind}`);
+      assert.notEqual(roleOptionKey(kind), roleKey(kind));
+    }
   });
 });
