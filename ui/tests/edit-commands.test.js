@@ -32,6 +32,10 @@ function setup(state, previewAnswer = { started: true, missing: 0 }) {
   const toasts = [];
   const copied = [];
   const previewed = [];
+  const cleared = [];
+  const shared = [];
+  const shown = [];
+  const opened = [];
   const seeks = [];
   let refreshed = 0;
   let renamed = 0;
@@ -60,6 +64,20 @@ function setup(state, previewAnswer = { started: true, missing: 0 }) {
       refreshClipboard: () => {
         refreshed += 1;
       },
+      clearOldClipboard: (keep) => {
+        cleared.push(keep);
+        return Promise.resolve(0);
+      },
+      shareClipboard: (id, on) => {
+        shared.push([id, on]);
+        return Promise.resolve();
+      },
+      showClipboard: (view) => {
+        shown.push(view);
+      },
+      openClipboardProject: () => {
+        opened.push(true);
+      },
     },
   });
   return {
@@ -67,6 +85,10 @@ function setup(state, previewAnswer = { started: true, missing: 0 }) {
     copied,
     seeks,
     previewed,
+    cleared,
+    shared,
+    shown,
+    opened,
     refreshed: () => refreshed,
     renamed: () => renamed,
     sent,
@@ -109,6 +131,12 @@ const WORKING = [
   "edit.paste_same",
   "edit.paste_overwrite_track",
   "edit.preview_clipboard",
+  "edit.clear_old_clipboard",
+  "edit.share_clipboard",
+  "clipboard.view_project",
+  "clipboard.view_shared",
+  "clipboard.view_others",
+  "clipboard.open_project",
 ];
 
 describe("the editing commands", () => {
@@ -373,6 +401,47 @@ describe("the clipboard commands (WP46)", () => {
     assert.equal(h.sent.length, 0);
     await Promise.resolve();
     assert.equal(h.toasts.length, 0);
+  });
+
+  test("Clear old entries keeps the count the Clipboard tab names, 100 by default", () => {
+    const state = withClip();
+    const h = setup(state);
+    assert.equal(h.registry.can("edit.clear_old_clipboard", base()), false); // nothing on it
+    assert.equal(h.registry.can("edit.clear_old_clipboard", state), true);
+    h.registry.run("edit.clear_old_clipboard", null, state);
+    assert.deepEqual(h.cleared, [100]);
+    assert.equal(h.sent.length, 0); // not an edit: no undo step
+    const named = setup({ ...state, clipboardKeep: 7 });
+    named.registry.run("edit.clear_old_clipboard", null, state);
+    assert.deepEqual(named.cleared, [7]);
+  });
+
+  test("Share toggles the picked (else newest) entry and changes no project", () => {
+    const state = withClip();
+    const h = setup(state);
+    assert.equal(h.registry.can("edit.share_clipboard", base()), false);
+    assert.equal(h.registry.can("edit.share_clipboard", state), true);
+    h.registry.run("edit.share_clipboard", null, state);
+    assert.deepEqual(h.shared, [["e1", true]]);
+    const on = setup({
+      ...state,
+      clipboard: [{ ...state.clipboard[0], shared: true }],
+    });
+    on.registry.run("edit.share_clipboard", null, state);
+    assert.deepEqual(on.shared, [["e1", false]]);
+    assert.equal(h.sent.length, 0);
+  });
+
+  test("the clipboard views and Open a project are commands", () => {
+    const state = withClip();
+    const h = setup(state);
+    for (const view of ["project", "shared", "others"]) {
+      h.registry.run(`clipboard.view_${view}`, null, state);
+    }
+    assert.deepEqual(h.shown, ["project", "shared", "others"]);
+    h.registry.run("clipboard.open_project", null, state);
+    assert.equal(h.opened.length, 1);
+    assert.equal(h.registry.can("clipboard.view_shared", base({ project: null })), false);
   });
 
   test("a preview with nothing to hear says so, without Undo", async () => {

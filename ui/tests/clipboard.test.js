@@ -4,6 +4,7 @@ import {
   autoName,
   describeClips,
   entryTitle,
+  keepCount,
   PASTE_MODES,
   PASTE_TARGETS,
   pasteChoice,
@@ -227,5 +228,16 @@ describe("cut names its entry like copy does", () => {
     assert.match(failed.key, /cut_uncopied$/);
     assert.equal(failed.values.error, "disk full");
     assert.notEqual(failed.undo, false);
+  });
+});
+
+describe("how many entries Clear old entries keeps", () => {
+  test("the number the tab holds, 100 when it holds none or nonsense", () => {
+    assert.equal(keepCount({}), 100);
+    assert.equal(keepCount({ clipboardKeep: 25 }), 25);
+    assert.equal(keepCount({ clipboardKeep: "12" }), 12);
+    for (const bad of [0, -3, 1.5, "x", null, Number.NaN]) {
+      assert.equal(keepCount({ clipboardKeep: bad }), 100, String(bad));
+    }
   });
 });

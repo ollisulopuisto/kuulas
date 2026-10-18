@@ -59,9 +59,56 @@ export function entryDetails(entry, rate, t = (key) => key) {
   });
 }
 
+/** The three views of the Clipboard tab (WP65): this project's, the shared store, other projects'. */
+export const CLIPBOARD_VIEWS = ["project", "shared", "others"];
+
+export function clipboardView(state) {
+  return CLIPBOARD_VIEWS.includes(state?.clipboardView) ? state.clipboardView : "project";
+}
+
+/**
+ * "5 minutes ago": `created` and `nowSeconds` are UTC epoch seconds. "" when the time is
+ * not known (an entry made before the time was kept); a time ahead of this clock is "now".
+ */
+export function agoText(created, nowSeconds, t = (key) => key) {
+  if (!Number.isFinite(created) || created <= 0) return "";
+  const seconds = Math.max(0, nowSeconds - created);
+  if (seconds < 60) return t("ui.clipboard.ago_now");
+  if (seconds < 3600) return t("ui.clipboard.ago_minutes", { count: Math.floor(seconds / 60) });
+  if (seconds < 86400) return t("ui.clipboard.ago_hours", { count: Math.floor(seconds / 3600) });
+  return t("ui.clipboard.ago_days", { count: Math.floor(seconds / 86400) });
+}
+
+/**
+ * The metadata line of an entry: source project, track names, length and how long ago,
+ * whatever of that the entry has (entries from before the metadata was kept have less).
+ */
+export function entryMeta(entry, rate, nowSeconds, t = (key) => key) {
+  const tracks = (entry.tracks ?? []).map((name) => name?.trim()).filter(Boolean);
+  return [
+    entry.source_name?.trim() ?? "",
+    tracks.join(", "),
+    shortDuration(entry.length / rate),
+    agoText(entry.created_utc, nowSeconds, t),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+/** What the tab knows of another project's clipboard (loaded when it is opened). */
+export function foreignState(state, path) {
+  return state?.clipboardForeign?.[path] ?? { status: "idle", entries: [] };
+}
+
+/** A project in the Other projects list: its name and how many entries it has. */
+export function projectLabel(project, t = (key) => key) {
+  return `${project.name} · ${t("ui.clipboard.project_entries", { count: project.entries ?? 0 })}`;
+}
+
 /**
  * The entries a filter box leaves: every word of `query` must be found (any case) in the
- * entry's title, its track names or its source project's name. An empty query keeps all.
+ * entry's title, its track names, its source project's name or the transcript words it
+ * holds (`text`). An empty query keeps all.
  */
 export function filterEntries(entries, query, rate, t = (key) => key) {
   const list = entries ?? [];
@@ -71,11 +118,23 @@ export function filterEntries(entries, query, rate, t = (key) => key) {
     .filter(Boolean);
   if (words.length === 0) return list;
   return list.filter((entry) => {
-    const haystack = [entryTitle(entry, rate, t), ...(entry.tracks ?? []), entry.source_name ?? ""]
+    const haystack = [
+      entryTitle(entry, rate, t),
+      ...(entry.tracks ?? []),
+      entry.source_name ?? "",
+      entry.text ?? "",
+    ]
       .join("\n")
       .toLowerCase();
     return words.every((word) => haystack.includes(word));
   });
+}
+
+/** How many entries "Clear old entries" keeps: the tab's number, else the default 100. */
+export const DEFAULT_KEEP = 100;
+export function keepCount(state) {
+  const n = Number(state?.clipboardKeep);
+  return Number.isInteger(n) && n >= 1 ? n : DEFAULT_KEEP;
 }
 
 /** The remembered paste choice, with defaults: insert, on the same tracks. */
