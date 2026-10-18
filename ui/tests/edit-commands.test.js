@@ -263,6 +263,7 @@ describe("the editing commands", () => {
     assert.equal(h.sent.length, 1);
     assert.equal(h.sent[0].op, "split_clips");
     assert.match(h.sent[0].label, /^ui\.edit\.label\.split/);
+    assert.equal(typeof h.sent[0].provisional, "function"); // shows at once, before the answer
     h.sent[0].done({ project });
     assert.equal(h.toasts.length, 1);
     assert.match(h.toasts[0][0], /^ui\.edit\.toast\.split/);

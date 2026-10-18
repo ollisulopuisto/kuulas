@@ -8,6 +8,7 @@
 import { busOfFocus } from "./bus-collapse.js";
 import { autoName, clipsInRange, describeClips, pasteChoice, pasteTargets } from "./clipboard.js";
 import { clipEnd } from "./lanes.js";
+import { splitClipsProvisional } from "./provisional.js";
 import { clipsAround, currentTrack, markedRange, selectedClips } from "./selection.js";
 
 export const GAIN_STEP_DB = 0.5;
@@ -44,7 +45,17 @@ export function splitPlan(state, { all = false } = {}) {
   if (!state?.project || !Number.isFinite(state.playhead)) return null;
   const ids = all ? clipsAround(state.project, state.playhead, null) : clipsHolding(state);
   if (ids.length === 0) return null;
-  return plan("split_clips", { at: state.playhead, clip_ids: ids }, "split", { count: ids.length });
+  const at = state.playhead;
+  // The split shows at once: the server's answer replaces this guess.
+  return plan(
+    "split_clips",
+    { at, clip_ids: ids },
+    "split",
+    { count: ids.length },
+    {
+      more: { provisional: (project) => splitClipsProvisional(project, at, ids) },
+    },
+  );
 }
 
 /**

@@ -59,3 +59,50 @@ export function patchSolo(project, trackId, exclusive) {
     ),
   };
 }
+
+let provisionalSplitCounter = 0;
+
+/**
+ * B (split) on the screen at once, mirroring `ops.split_clips`: every listed clip that
+ * holds `at` strictly inside it becomes a left piece (same id, no fade out) and a right piece
+ * (a temporary id, no fade in) that plays the same audio. The server's answer replaces the
+ * project, with its own ids, as soon as it arrives.
+ */
+export function splitClipsProvisional(project, at, clipIds) {
+  const wanted = new Set(clipIds);
+  let changed = false;
+  const tracks = project.tracks.map((track) => {
+    const clips = [];
+    for (const clip of track.clips) {
+      const end = clip.start + clip.length;
+      if (!wanted.has(clip.id) || !(clip.start < at && at < end)) {
+        clips.push(clip);
+        continue;
+      }
+      changed = true;
+      const head = at - clip.start;
+      provisionalSplitCounter += 1;
+      clips.push(
+        {
+          ...clip,
+          length: head,
+          fade_out: 0,
+          xfade_out: 0,
+          fade_in: Math.min(clip.fade_in ?? 0, head),
+        },
+        {
+          ...clip,
+          id: `${clip.id}~split${provisionalSplitCounter}`,
+          start: at,
+          offset: clip.offset + head,
+          length: clip.length - head,
+          fade_in: 0,
+          xfade_in: 0,
+          fade_out: Math.min(clip.fade_out ?? 0, clip.length - head),
+        },
+      );
+    }
+    return track.clips.length === clips.length ? track : { ...track, clips };
+  });
+  return changed ? { ...project, tracks } : project;
+}

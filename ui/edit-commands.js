@@ -77,6 +77,7 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
       label: t(plan.label.key),
       coalesce: plan.coalesce,
       combine: plan.combine,
+      provisional: plan.provisional,
       done: (response) => {
         toastFor(plan, before, response);
         // The range is spent: its marks and the selection would only be left drawn on the

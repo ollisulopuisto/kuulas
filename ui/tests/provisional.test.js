@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { coalesceKey, patchBus, patchClip, patchSolo, patchTrack } from "../provisional.js";
+import {
+  coalesceKey,
+  patchBus,
+  patchClip,
+  patchSolo,
+  patchTrack,
+  splitClipsProvisional,
+} from "../provisional.js";
 
 const project = () =>
   Object.freeze({
@@ -71,5 +78,54 @@ describe("provisional results", () => {
     assert.equal(coalesceKey("track", "gain", "t1"), "track-gain-t1");
     assert.equal(coalesceKey("bus", "pan", "b1"), "bus-pan-b1");
     assert.equal(coalesceKey("clip", "gain_db", "c1"), "clip-gain_db-c1");
+  });
+});
+
+describe("a split shows at once (before the server answers)", () => {
+  const project = {
+    rate: 48000,
+    tracks: [
+      {
+        id: "t1",
+        clips: [
+          { id: "a", start: 0, offset: 100, length: 1000, fade_in: 50, fade_out: 60, muted: false },
+          { id: "b", start: 2000, offset: 0, length: 500, fade_in: 0, fade_out: 0 },
+        ],
+      },
+      { id: "t2", clips: [] },
+    ],
+  };
+
+  test("a clip holding the frame becomes a left and a right piece covering the same audio", () => {
+    const next = splitClipsProvisional(project, 400, ["a"]);
+    const clips = next.tracks[0].clips;
+    assert.equal(clips.length, 3);
+    const left = clips.find((c) => c.id === "a");
+    const right = clips.find((c) => c.id !== "a" && c.id !== "b");
+    assert.deepEqual([left.start, left.offset, left.length], [0, 100, 400]);
+    assert.deepEqual([right.start, right.offset, right.length], [400, 500, 600]);
+    assert.equal(left.fade_in, 50);
+    assert.equal(left.fade_out, 0);
+    assert.equal(right.fade_in, 0);
+    assert.equal(right.fade_out, 60);
+  });
+
+  test("clips in the list that do not hold the frame, and other clips, are left alone", () => {
+    const next = splitClipsProvisional(project, 400, ["a", "b"]);
+    assert.equal(next.tracks[0].clips.length, 3);
+    assert.equal(next.tracks[0].clips.find((c) => c.id === "b").length, 500);
+  });
+
+  test("a frame on a clip's edge splits nothing, like the server", () => {
+    assert.equal(splitClipsProvisional(project, 1000, ["a"]), project);
+    assert.equal(splitClipsProvisional(project, 0, ["a"]), project);
+  });
+
+  test("the input is not changed and the new id is unique", () => {
+    const before = JSON.stringify(project);
+    const next = splitClipsProvisional(project, 400, ["a"]);
+    assert.equal(JSON.stringify(project), before);
+    const ids = next.tracks[0].clips.map((c) => c.id);
+    assert.equal(new Set(ids).size, ids.length);
   });
 });
