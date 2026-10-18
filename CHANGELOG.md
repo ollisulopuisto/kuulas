@@ -1,3 +1,12 @@
+## [v26.10.18.53] - 2026-10-18
+
+- **Selection commands** (Edit > Select, and the palette): select the range on all tracks, the clips a range
+  touches, set the range from the selected clips, select everything forward from the playhead or range
+  end, add every later clip on each track of the selected clips (also across all tracks), invert
+  (Shift+Cmd+A) and select none (Cmd+D). **Cmd+click** toggles one clip in the selection. The status bar
+  shows the selection too: "3 clips · 4:12-9:50 · 5:38". Most of the new commands have no key yet:
+  use the menu, or map your own in the keymap.
+
 ## [v26.10.18.52] - 2026-10-18
 
 - `docs/KEYS.md`: a list of every keyboard shortcut (Mac and Windows/Linux), generated from the keymap
