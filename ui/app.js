@@ -474,6 +474,14 @@ const keyboard = setupKeyboard({
           showError(error);
           return null;
         }),
+    // A plain server command (save_backup, save_checkpoint): the answer, or null after
+    // showing the error (a read-only project says who has it open).
+    command: (name, args) =>
+      api.command(name, args).catch((error) => {
+        showError(error);
+        return null;
+      }),
+    clock: () => new Date(),
     download: (path, fallback) => downloadFile(path, fallback),
     promptText: (request) => placeholderEditor.prompt(request),
     takeFor: (id) => void takeForPlaceholder(id),
