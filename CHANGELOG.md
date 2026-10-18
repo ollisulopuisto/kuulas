@@ -1,3 +1,13 @@
+## [v26.10.19.1] - 2026-10-19
+
+- **Mix with the automixer from inside kuulas:** File > "Mix with the automixer…" (also in the command palette)
+  writes the stems to a temporary folder, runs your automixer on them and saves the mix beside the project
+  (`<edit> automixer <time>.wav`). Set the target loudness and an optional ad spot in the dialog; the command and
+  its folder are remembered (default `uv run automixer` in `~/Documents/koodi/podcast`). It runs in the
+  background with Cancel; the notice shows the automixer's last line, as it prints no percentage. A missing
+  program, a failed run or a run that writes no file each give a clear message. A full episode may need a lot of
+  memory: try a range first. Not tried against the real automixer yet, only a fake one.
+
 ## [v26.10.18.70] - 2026-10-18
 
 - **The clip you drag shows its waveform:** the ghost of a moved clip now draws its real waveform (with the clip and

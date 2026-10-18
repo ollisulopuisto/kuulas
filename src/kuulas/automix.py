@@ -133,19 +133,20 @@ def save_settings(settings: dict) -> dict:
 def _number(params: dict, key: str, low: float | None, high: float | None,
             *, default: float | None, above: float | None = None) -> float | None:
     value = params.get(key)
+    message = "error.automix.bad_" + key
     if value is None:
         return default
     try:
         number = float(value)
     except (TypeError, ValueError):
-        raise AutomixError(f"error.automix.bad_{key}", value=value) from None
+        raise AutomixError(message, value=value) from None
     bad = number != number or number in (float("inf"), float("-inf"))  # noqa: PLR0124 - NaN
     too_low = low is not None and number < low
     too_high = high is not None and number > high
     bad = bad or too_low or too_high
     bad = bad or (above is not None and number <= above)
     if bad:
-        raise AutomixError(f"error.automix.bad_{key}", value=value)
+        raise AutomixError(message, value=value)
     return number
 
 
