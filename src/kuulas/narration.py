@@ -38,3 +38,46 @@ def estimate_frames(text: str, rate: int, words_per_second: float = 2.3) -> int:
     if words == 0:
         return 0
     return max(math.ceil((words / words_per_second) * rate), rate)
+
+
+# -- the script for the narrator (WP43) ------------------------------------------
+
+#: Words of the episode shown on each side of a line, so the narrator can hear
+#: how it starts and where it lands.
+CONTEXT_WORDS = 20
+
+
+def clock(frames: int, rate: int) -> str:
+    """``m:ss``, or ``h:mm:ss`` from an hour on."""
+    seconds = int(frames // rate)
+    h, rest = divmod(seconds, 3600)
+    m, s = divmod(rest, 60)
+    return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
+
+
+def script(project, words: list[dict]) -> list[dict]:
+    """The placeholders in timeline order, each with its text, start, length
+    and the ``CONTEXT_WORDS`` words that precede and follow it.
+
+    ``words`` are ``transcript.timeline_words`` dicts (frames at the project
+    rate); muted ones are not heard, so they are no context. "Before" are the
+    words that end by the placeholder's start, "after" those that begin at or
+    after its end (what plays on other tracks meanwhile is not around it).
+    Without a transcript the context is empty.
+    """
+    rate = project.rate
+    heard = sorted((w for w in words if not w.get("muted")),
+                   key=lambda w: (w["s"], w["track"]))
+    names = {t.id: t.name for t in project.tracks}
+    out = []
+    for h in sorted(project.placeholders, key=lambda h: (h.start, h.track, h.id)):
+        before = [w["w"] for w in heard if w["e"] <= h.start][-CONTEXT_WORDS:]
+        after = [w["w"] for w in heard if w["s"] >= h.end][:CONTEXT_WORDS]
+        out.append({
+            "id": h.id, "track": h.track, "track_name": names.get(h.track, h.track),
+            "start": h.start, "time": clock(h.start, rate), "length": h.length,
+            "seconds": round(h.length / rate), "estimated": h.estimated,
+            "text": h.text, "language": h.language,
+            "before": " ".join(before), "after": " ".join(after),
+        })
+    return out

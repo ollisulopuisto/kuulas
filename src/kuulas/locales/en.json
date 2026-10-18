@@ -935,5 +935,18 @@
   "ui.markers.jump": "Go to {name}",
   "ui.markers.length": "{seconds} s",
   "ui.markers.regions_queued": "Exporting {count} regions. Progress is in the jobs list.",
-  "ui.markers.regions_failed": "Could not export the regions."
+  "ui.markers.regions_failed": "Could not export the regions.",
+  "error.placeholder.missing": "There is no narration placeholder {placeholder_id}.",
+  "error.placeholder.exists": "Narration placeholder {placeholder_id} already exists.",
+  "error.placeholder.empty_text": "A narration placeholder needs some text.",
+  "error.placeholder.bad_length": "A narration placeholder must be longer than zero.",
+  "error.placeholder.bad_start": "A narration placeholder cannot start before the beginning.",
+  "error.narration_script.bad_format": "Unknown narration script format: {format}. Use txt or md.",
+  "history.placeholder_take": "Record narration in place",
+  "narration_script.title": "Narration script",
+  "narration_script.empty": "No narration placeholders.",
+  "narration_script.length": "{seconds} s",
+  "narration_script.length_estimated": "about {seconds} s",
+  "narration_script.before": "Before",
+  "narration_script.after": "After"
 }

@@ -44,6 +44,7 @@ from .ops import EditError
 from .peaks import PeakError
 from .session import (
     CLIPBOARD_EDITS,
+    NarrationScriptError,
     NoSuchEntryError,
     SubtitlesError,
     TranscriptTextError,
@@ -442,6 +443,16 @@ def create_app(session, engine, *, language: str | None = None,
             disposition = 'attachment; filename="transcript.md"'
         return Response(content=content, media_type=media_type,
                         headers={"Content-Disposition": disposition})
+
+    @app.get("/api/narration-script")
+    def get_narration_script(format: str):
+        if format not in ("txt", "md"):
+            raise NarrationScriptError("error.narration_script.bad_format", format=format)
+        content = session.narration_script_text(format)
+        media_type = ("text/plain; charset=utf-8" if format == "txt"
+                      else "text/markdown; charset=utf-8")
+        return Response(content=content, media_type=media_type, headers={
+            "Content-Disposition": f'attachment; filename="narration-script.{format}"'})
 
     @app.post("/api/cut-preview")
     def post_cut_preview(body: CutPreviewBody):

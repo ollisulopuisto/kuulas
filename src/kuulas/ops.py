@@ -9,10 +9,10 @@ from __future__ import annotations
 import uuid
 from dataclasses import replace
 
-from . import curves, edit_scope
+from . import curves, edit_scope, narration
 from . import gate as gatem
 from . import markers as markersm
-from . import narration, placeholders as placeholdersm
+from . import placeholders as placeholdersm
 from .clock import flicks_to_frames, frames_to_flicks
 from .join import join_adjacent
 from .messages import KuulasError
@@ -827,7 +827,8 @@ def add_placeholder(p: Project, track_id: str, start: int, text: str,
     if int(start) < 0:
         raise EditError("error.placeholder.bad_start")
     estimated = length is None
-    frames = narration.estimate_frames(text, p.rate) if estimated else _clean_length(length)
+    frames = (narration.estimate_frames(text, p.rate) if estimated
+              else _clean_length(length))
     return _put_placeholder(p, Placeholder(
         id=placeholder_id, track=track_id, start=int(start), length=frames, text=text,
         estimated=estimated, language=str(language)))
@@ -877,7 +878,7 @@ def replace_placeholder(p: Project, placeholder_id: str, media_id: str,
     goes with it, as with any ripple delete.
     """
     # Imported here: paste_apply imports ops.
-    from .paste_apply import _open_gap
+    from .paste_apply import _open_gap  # noqa: PLC0415 - paste_apply imports ops
 
     h = _find_placeholder(p, placeholder_id)
     try:

@@ -42,6 +42,7 @@ import soundfile as sf
 from speechmix import programme
 
 from . import mixer
+from . import placeholders as placeholders_module
 from .messages import KuulasError, t
 from .model import Project, Track
 from .package import kuulas_version
@@ -197,6 +198,9 @@ class _Job:
     project_name: str
     head: str
     digest: str
+    #: Narration placeholders inside the exported range, which play as silence
+    #: (WP43): reported, never a reason to refuse.
+    placeholders: int = 0
 
 
 # -- settings ------------------------------------------------------------------
@@ -274,8 +278,10 @@ def _snapshot(session, kind: str, args: dict) -> _Job:
             settings["range"] = [a, b]
         edit = next((e["name"] for e in h.edits() if e["id"] == h.edit), h.edit)
         digest = _digest(project, kind, settings, h.edit_hash)
+        unrecorded = len(placeholders_module.unrecorded(
+            project.placeholders, first, first + frames))
         return _Job(kind, settings, project, session.store, rate, first, frames, ranged,
-                    edit, session.package.path.stem, h.head, digest)
+                    edit, session.package.path.stem, h.head, digest, unrecorded)
 
 
 def _digest(project: Project, kind: str, settings: dict, edit_hash: str) -> str:
@@ -580,7 +586,8 @@ def run(session, args: dict, progress: Progress | None = None,
             say(1.0, message)
             return {"kind": job.kind, "path": str(old), "paths": _listing(old),
                     "version": last["n"], "skipped": True, "unchanged_since": last["n"],
-                    "master": None, "message": message, "settings": job.settings}
+                    "master": None, "message": message, "settings": job.settings,
+                    "placeholders_skipped": job.placeholders}
         n = last["n"]  # the file is gone: make it again under the same number
     else:
         n = (last["n"] + 1) if last else 1
@@ -615,7 +622,8 @@ def run(session, args: dict, progress: Progress | None = None,
         say(1.0, "")
         return {"kind": job.kind, "path": str(target), "paths": [str(target)],
                 "version": n, "skipped": False, "unchanged_since": None,
-                "master": master_result, "message": "", "settings": job.settings}
+                "master": master_result, "message": "", "settings": job.settings,
+                "placeholders_skipped": job.placeholders}
     return _finish(session, job, n, series, target, paths, master_result, say)
 
 
@@ -730,7 +738,8 @@ def _finish(session, job: _Job, n: int, series: str, target: Path, paths: list[P
     say(1.0, message)
     return {"kind": job.kind, "path": str(target), "paths": [str(p) for p in paths],
             "version": n, "skipped": False, "unchanged_since": None, "master": master,
-            "message": message, "settings": job.settings}
+            "message": message, "settings": job.settings,
+            "placeholders_skipped": job.placeholders}
 
 
 def last_settings(session, kind: str) -> dict | None:

@@ -18,7 +18,8 @@ def base() -> Project:
     p = ops.add_media(p, Media(id="take", name="take.wav", channels=1, frames=9 * RATE))
     p = ops.add_track(p, track_id="t1", name="A")
     p = ops.add_track(p, track_id="t2", name="B")
-    p = ops.add_clip(p, track_id="t1", clip_id="c1", media_id="m1", start=0, length=30 * RATE)
+    p = ops.add_clip(p, track_id="t1", clip_id="c1", media_id="m1", start=0,
+                     length=30 * RATE)
     return ops.add_clip(p, track_id="t2", clip_id="c2", media_id="m2", start=0,
                         length=30 * RATE)
 
@@ -87,7 +88,8 @@ def test_a_manual_length_turns_the_estimate_off_and_text_edits_keep_it():
     p = ops.set_placeholder_length(p, "h1", 7 * RATE)
     assert (one(p).length, one(p).estimated) == (7 * RATE, False)
     p = ops.edit_placeholder_text(p, "h1", "changed words")
-    assert one(p).length == 7 * RATE and one(p).text == "changed words"
+    assert one(p).length == 7 * RATE
+    assert one(p).text == "changed words"
 
 
 def test_bad_length_and_missing_id():
@@ -132,7 +134,8 @@ def with_ph(start=10 * RATE, length=4 * RATE, track="t1") -> Project:
 
 def test_ripple_delete_before_shifts_it():
     p = ops.ripple_delete(with_ph(), 2 * RATE, 5 * RATE)
-    assert one(p).start == 7 * RATE and one(p).length == 4 * RATE
+    assert one(p).start == 7 * RATE
+    assert one(p).length == 4 * RATE
 
 
 def test_ripple_delete_after_leaves_it():

@@ -353,6 +353,44 @@ than this one editing a project that has markers, and the cost is a wrong
 position, not lost data, so refusing to open (as a gate does, where the cost
 is audible) is not worth it.
 
+**As built (WP43 narration placeholders).** The edit state gains an optional
+`Project.placeholders`: a list of `{"id", "track", "start", "length", "text",
+"estimated", "language"?}` sorted by `start`, in project frames. A placeholder
+is script text standing for `length` frames from `start` on one track, to be
+recorded or imported later in place. It is **not a clip**: a clip without media
+would break every reader of `Clip.media` (mixer, usage, music report, gate, the
+transcript), so it is a separate per-track collection, like markers but with a
+`track`. The key is absent while the list is empty, so a project that never had
+one keeps its bytes and its state hash. `language` is absent while empty.
+
+- `estimated` is true while `length` comes from the text
+  (`narration.estimate_frames`, about 2.3 words a second); editing the text
+  then re-estimates. A hand-set length, or a ripple cut that trimmed the
+  placeholder, clears it and the text no longer moves the length.
+- **Ripple.** It follows its own track, not the whole timeline (unlike a
+  marker): a ripple delete on a set of tracks moves, trims or removes the
+  placeholders on those tracks (`placeholders.ripple`), and an insert that
+  opens a gap on a track (`paste_apply._open_gap`) moves the later ones and
+  stretches one that straddles the point (`placeholders.open_gap`). Deleting a
+  track deletes its placeholders.
+- **Silence.** The mixer, usage and the music report read clips only, so a
+  placeholder plays as silence and counts as nothing audible. `Project.length`
+  ignores it.
+- **Replace with a take** (`ops.replace_placeholder`, the session command
+  `placeholder_take`): the placeholder becomes a clip at the same start on the
+  same track, and the later material of the tracks `edit_scope.expand_range`
+  names moves by the take's length minus the placeholder's (a gap opened where
+  the placeholder ended, or a ripple delete of the leftover); one undo step.
+- **Export.** The result of `export` carries `placeholders_skipped`: the
+  unrecorded placeholders inside the exported range. It is a warning, never a
+  refusal.
+
+*Version and `min_reader`.* Neither changes. A placeholder changes no sound, so
+an older reader plays and exports the same audio; it keeps the `placeholders`
+key in `Project.extra` and writes it back, but cannot move them when it
+ripples, so placeholders saved by it after a ripple cut can sit later than the
+material around them (a wrong position, not lost data, as for markers).
+
 **As built (WP18 cut candidates).** The material root gains an optional
 `candidates`: candidate id -> record
 
