@@ -28,8 +28,8 @@ READ_RING = 256
 SLOWEST = 3
 
 _enabled = False
-#: Where a reader is in (callbacks, mixer reads, prefetch reads).
-Cursor = tuple[int, int, int]
+#: Where a reader is in (callbacks, mixer reads, prefetch reads, misses).
+Cursor = tuple[int, int, int, int]
 
 
 def enable() -> None:
@@ -92,14 +92,27 @@ class Probe:
     def __init__(self) -> None:
         #: per callback: (total s, reads s, mix s)
         self.callbacks = Ring(CALLBACK_RING)
+        #: per callback, pushed together with ``callbacks``: (wait s, 0, 0).
+        #: ``wait`` is wall time minus the thread's CPU time: the time the
+        #: callback was not running (the GIL held by another thread, a
+        #: preempted core, or I/O).
+        self.waits = Ring(CALLBACK_RING)
+        #: per read-ahead miss (the callback found nothing cached and played
+        #: silence for that source): (0, 0, media id)
+        self.misses = Ring(READ_RING)
         #: per media read: (seconds, 0, media id); one ring per writing thread
         self.mixer_reads = Ring(READ_RING)
         self.prefetch_reads = Ring(READ_RING)
         #: read time of the callback in progress (audio thread only)
         self.acc = 0.0
 
-    def callback(self, total: float, reads: float, mix: float) -> None:
+    def callback(self, total: float, reads: float, mix: float,
+                 wait: float = 0.0) -> None:
         self.callbacks.push(total, reads, mix)
+        self.waits.push(wait, 0.0, 0.0)
+
+    def miss(self, media_id: str) -> None:
+        self.misses.push(0.0, 0.0, media_id)
 
     def mixer_read(self, seconds: float, media_id: str) -> None:
         self.acc += seconds
@@ -109,7 +122,8 @@ class Probe:
         self.prefetch_reads.push(seconds, 0.0, media_id)
 
     def cursor(self) -> Cursor:
-        return (self.callbacks.count, self.mixer_reads.count, self.prefetch_reads.count)
+        return (self.callbacks.count, self.mixer_reads.count, self.prefetch_reads.count,
+                self.misses.count)
 
     def summary(self, since: Cursor, block_ms: float,
                 name_of: Callable[[str], str]) -> tuple[dict[str, Any], Cursor]:
@@ -120,8 +134,14 @@ class Probe:
         calls = self.callbacks.since(since[0])
         mixer = self.mixer_reads.since(since[1])
         prefetch = self.prefetch_reads.since(since[2])
+        misses = self.misses.since(since[3])
+        # Same cursor as the callbacks; a reader may see a callback whose wait
+        # is not pushed yet, so line the two up from the end.
+        waits = [w[0] for w in self.waits.since(since[0])][:len(calls)]
+        waits += [0.0] * (len(calls) - len(waits))
         n = len(calls)
         worst = max(calls, default=(0.0, 0.0, 0.0))
+        worst_wait = waits[calls.index(worst)] if calls else 0.0
         slowest = sorted(mixer + prefetch, key=lambda r: r[0], reverse=True)[:SLOWEST]
         out = {
             "block_ms": block_ms,
@@ -137,8 +157,17 @@ class Probe:
             "prefetch_max_ms": max((r[0] for r in prefetch), default=0.0) * 1000,
             "slowest_reads": [{"name": name_of(r[2]), "ms": r[0] * 1000}
                               for r in slowest],
-            "slow": (slow_component(*worst) if worst[0] * 1000 > block_ms else None),
+            "slow": None,
+            "miss": len(misses),
+            "wait_max_ms": max(waits, default=0.0) * 1000,
         }
+        if worst[0] * 1000 > block_ms:
+            out["slow"] = slow_component(*worst)
+            # Late while the thread mostly was not running and the time was
+            # not a read: someone else held the GIL (the web server, a
+            # garbage collection) or the core.
+            if worst_wait - worst[1] >= 0.5 * worst[0]:
+                out["slow"] += " gil?"
         return out, cursor
 
 
@@ -148,11 +177,12 @@ def format_report(s: dict[str, Any]) -> str:
     line = (f"kuulas debug: block {s['block_ms']:.1f} ms, "
             f"callback avg {s['cb_avg_ms']:.1f} max {s['cb_max_ms']:.1f} ms "
             f"({s['callbacks']} blocks), late {s['late_blocks']} "
-            f"failed {s['failed_blocks']}, {s['device']} {s['device_rate']} Hz")
+            f"failed {s['failed_blocks']} miss {s.get('miss', 0)}, "
+            f"{s['device']} {s['device_rate']} Hz")
     if s["resampling"]:
         line += " resampling"
     if s["slow"]:
-        line += f", slow: {s['slow']}"
+        line += f", slow: {s['slow']} (waited {s.get('wait_max_ms', 0.0):.1f} ms)"
     reads = ", ".join(f"{r['name']}: {r['ms']:.1f}" for r in s["slowest_reads"])
     return f"{line}, slowest reads (ms) {reads}" if reads else line
 
