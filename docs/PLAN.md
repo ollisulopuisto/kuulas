@@ -2954,7 +2954,7 @@ the audio callback.
 
 ### WP50 — Loop playback
 
-Status: engine done in v26.10.18.31 (`Engine.play(loop=)`, `status()["loop"]`); open: the `loop` field on the play request in `server.py`, the toggle, key, ruler shading and the memory. Not heard on a real device. Engine part first (Sonnet 5.5, small), UI after
+Status: done in v26.10.18.40 (engine, play request `loop` field, toggle on Mod+U since Mod+L is Automix, ruler shading, remembered per project); open: the candidate preview and A/B audition do not use it yet. Not heard on a real device. Engine part first (Sonnet 5.5, small), UI after
 the density work. Needs the engine skip list (done) and WP4.
 
 Owner: "we need loop playback option". Nothing loops today: `Engine.play(at, until, ...)`

@@ -1,3 +1,10 @@
+## [v26.10.18.40] - 2026-10-18
+
+- **Loop playback:** a Loop button next to Play and View > Loop (key **Mod+U**; Mod+L is Automix)
+  loops the in/out marks, else the selected clips. It plays gap-free with the same short crossfade
+  as a skip and follows soft cuts; the loop is shaded on the ruler and remembered per project.
+  Not heard on a real device yet: please try it with a short in/out range.
+
 ## [v26.10.18.39] - 2026-10-18
 
 - Transcript: between two paragraphs of the same speaker that were split by a pause you now see the
