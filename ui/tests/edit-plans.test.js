@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
   changedTracks,
+  closeGapPlan,
   createBurst,
   cutPlan,
   deletePlan,
   fadePlan,
   gainPlan,
+  liftCutPlan,
   mutePlan,
   nudgePlan,
   soloPlan,
@@ -99,6 +101,40 @@ describe("delete (soft cut, gap kept)", () => {
   });
   test("a range with no current track has nowhere to act", () => {
     assert.equal(deletePlan(state({ ...range, focusTrack: null })), null);
+  });
+});
+
+describe("lift-cut (copy, then soft delete)", () => {
+  test("the same target as X, but a clipboard_lift_cut with a clear label", () => {
+    const lift = liftCutPlan(state(range));
+    const cut = cutPlan(state(range));
+    assert.equal(lift.op, "clipboard_lift_cut");
+    assert.deepEqual(lift.args, cut.args);
+    assert.equal(lift.label.key, "ui.edit.label.lift_cut");
+    assert.equal(lift.toast.tracks, true);
+  });
+  test("selected clips: their span, like X", () => {
+    const sel = state({ selection: new Set(["a2", "v1"]) });
+    assert.deepEqual(liftCutPlan(sel).args, cutPlan(sel).args);
+  });
+  test("nothing to act on is null", () => {
+    assert.equal(liftCutPlan(state({ focusTrack: null })), null);
+  });
+});
+
+describe("close gap on all tracks", () => {
+  test("ripple_delete of the range on every track, no clipboard", () => {
+    const plan = closeGapPlan(state(range));
+    assert.equal(plan.op, "ripple_delete");
+    assert.deepEqual(plan.args, { start: 2 * S, end: 6 * S });
+    assert.equal(plan.label.key, "ui.edit.label.close_gap");
+  });
+  test("selected clips: their span", () => {
+    const plan = closeGapPlan(state({ selection: new Set(["a2"]) }));
+    assert.deepEqual(plan.args, { start: 12 * S, end: 20 * S });
+  });
+  test("nothing selected is null", () => {
+    assert.equal(closeGapPlan(state()), null);
   });
 });
 

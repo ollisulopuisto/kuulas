@@ -110,7 +110,7 @@ class MatchReport(dict):
 
 #: The edit names ``/api/edit`` hands to ``Session.clipboard_edit``: they are
 #: edits with a clipboard side, which ``ops`` (pure, project-only) cannot be.
-CLIPBOARD_EDITS = ("clipboard_cut", "clipboard_paste")
+CLIPBOARD_EDITS = ("clipboard_cut", "clipboard_lift_cut", "clipboard_paste")
 
 
 def _db_value(value: str | None) -> float:
@@ -435,6 +435,25 @@ class Session:
         clipboard. One undo step for the removal. A copy that fails (nothing
         under the range, a full disk) is logged and reported in the result, and
         never stops the cut: the user's edit comes first."""
+        return self._cut_to_clipboard("clipboard_cut", ops.cut_range, start=start,
+                                      end=end, track_ids=track_ids,
+                                      group_editing=group_editing, name=name,
+                                      label=label or t("history.clipboard_cut"))
+
+    def clipboard_lift_cut(self, *, start: int, end: int, track_ids,
+                           group_editing: bool = False, name: str = "",
+                           label: str | None = None) -> dict:
+        """Lift-cut (Alt+X): copy ``[start, end)`` to the clipboard and soft-delete
+        it in place (the gap stays, restorable). Same targets, one undo step and
+        failure rule as ``clipboard_cut``."""
+        return self._cut_to_clipboard("clipboard_lift_cut", ops.mute_range, start=start,
+                                      end=end, track_ids=track_ids,
+                                      group_editing=group_editing, name=name,
+                                      label=label or t("history.clipboard_lift_cut"))
+
+    def _cut_to_clipboard(self, op_name: str, remove: Callable, *, start: int, end: int,
+                          track_ids, group_editing: bool, name: str,
+                          label: str) -> dict:
         start, end = int(start), int(end)
         with self.lock:
             project = self.history.state
@@ -446,9 +465,9 @@ class Session:
                                 source_project=str(self.package.path))
             except KuulasError as e:
                 problem = t(e.key, **e.params)
-            new = ops.cut_range(project, start, end, track_ids, bool(group_editing))
-            self.history.commit(label or t("history.clipboard_cut"), new,
-                                op={"name": "clipboard_cut",
+            new = remove(project, start, end, track_ids, bool(group_editing))
+            self.history.commit(label, new,
+                                op={"name": op_name,
                                     "args": {"start": start, "end": end,
                                              "track_ids": list(track_ids),
                                              "group_editing": bool(group_editing)}})
@@ -502,10 +521,12 @@ class Session:
         return report
 
     def clipboard_edit(self, op: str, args: dict, label: str | None = None) -> dict:
-        """``/api/edit``'s door to the two edits that touch the clipboard."""
+        """``/api/edit``'s door to the edits that touch the clipboard."""
         try:
             if op == "clipboard_cut":
                 return self.clipboard_cut(**args, label=label)["clipboard"]
+            if op == "clipboard_lift_cut":
+                return self.clipboard_lift_cut(**args, label=label)["clipboard"]
             if op == "clipboard_paste":
                 return self.clipboard_paste(**args, label=label)
         except TypeError as e:

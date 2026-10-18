@@ -174,10 +174,10 @@ describe("the owner's decisions", () => {
 
   test("parked items are not bound", () => {
     const ids = DEFAULT_KEYMAP.map((entry) => entry.id).join(" ");
-    assert.doesNotMatch(ids, /compare|lift|clean|clipboard_history|close_gap_all/);
+    assert.doesNotMatch(ids, /compare|clean|clipboard_history/);
     for (const entry of DEFAULT_KEYMAP) {
       for (const combo of [entry.keys.mac, entry.keys.other].flatMap(asList)) {
-        assert.notEqual(combo, "Alt+X", entry.id);
+        if (entry.id !== "edit.lift_cut") assert.notEqual(combo, "Alt+X", entry.id);
         assert.notEqual(combo, "`", entry.id);
       }
     }

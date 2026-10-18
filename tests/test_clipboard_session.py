@@ -524,3 +524,45 @@ def test_insert_on_every_track_moves_markers_and_a_partial_insert_does_not(sessi
     session.clipboard_paste(both["id"], at=50_000, mode="insert", group_editing=False)
     assert [(m.start, m.end) for m in session.state.markers] == [
         (10_000, 80_000), (110_000, None)]
+
+
+def test_lift_cut_copies_and_mutes_in_place_in_one_step(session):
+    a, b = ids(session.state)
+    nodes = history_len(session)
+    out = session.clipboard_lift_cut(start=10_000, end=30_000, track_ids=[a.id, b.id])
+    assert out["clipboard"]["ok"] is True
+    assert history_len(session) == nodes + 1
+    # The gap stays: nothing moved, the stretch is muted, not removed.
+    after = session.state
+    assert [(c.start, c.length, c.muted) for c in after.tracks[0].clips] == [
+        (0, 10_000, False), (10_000, 20_000, True), (30_000, 66_000, False)]
+    [kept] = entries()
+    assert kept.id == out["clipboard"]["entry"]
+    assert kept.span == (10_000, 30_000)
+    label = session.history.nodes()[-1]["label"]
+    assert label == messages.t("history.clipboard_lift_cut")
+    session.undo()
+    assert clips(session.state)[0][2:] == (0, 0, 96_000)
+    assert not any(c.muted for t in session.state.tracks for c in t.clips)
+
+
+def test_lift_cut_still_mutes_when_the_copy_fails(session, monkeypatch):
+    def full(*_a, **_k):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(ClipboardStore, "update", full)
+    a, _ = ids(session.state)
+    out = session.clipboard_lift_cut(start=10_000, end=30_000, track_ids=[a.id])
+    assert out["clipboard"]["ok"] is False
+    assert any(c.muted for c in session.state.tracks[0].clips)
+
+
+def test_api_lift_cut_goes_through_edit(client, session):
+    a, _ = ids(session.state)
+    out = client.post("/api/edit", json={
+        "op": "clipboard_lift_cut", "label": "Lift",
+        "args": {"start": 10_000, "end": 30_000, "track_ids": [a.id],
+                 "group_editing": False}})
+    assert out.status_code == 200
+    assert out.json()["clipboard"]["ok"] is True
+    assert len(entries()) == 1
