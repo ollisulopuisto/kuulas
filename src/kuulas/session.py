@@ -229,6 +229,7 @@ class Session:
         #: The interview the latest import made (WP41), or None.
         self.last_import_interview: str | None = None
         #: The report from the latest match_loudness command (WP19c).
+        self.last_backup: Path | None = None  # the newest save_backup (Mod+S)
         self.last_match_report: MatchReport = MatchReport({"matched": [], "skipped": []})
         if not is_new and not self.read_only:
             self.history.session_opened()
@@ -1744,6 +1745,29 @@ def _placeholder_take(s: Session, args: dict) -> Project:
     return s._commit(t("history.placeholder_take"), new, "placeholder_take", args)
 
 
+def _check_writable(s: Session) -> None:
+    if s.read_only:
+        holder = s.package.locked_by or {}
+        raise ops.EditError("error.history.read_only", host=holder.get("host", "?"))
+
+
+def _save_backup(s: Session, _args: dict) -> Project:
+    """Mod+S: the 10-minute timer's backup, now (same retention). Edits are
+    already committed, so this only makes the copy. The online backup reads
+    through its own connection, so no session lock: a slow disk must not
+    stall playback."""
+    _check_writable(s)
+    s.last_backup = s.package.backup()
+    return s.state
+
+
+def _save_checkpoint(s: Session, args: dict) -> Project:
+    """Shift+Mod+S: name the current step. Changes no edit state."""
+    _check_writable(s)
+    s.checkpoint(str(args.get("name") or "").strip() or t("history.checkpoint_default"))
+    return s.state
+
+
 #: Name -> function(session, args) -> Project. The session lock is held,
 #: except for ``LOCK_FREE_COMMANDS``.
 #: ``auto_silence``, ``automix`` and ``cut_words`` commit one step each;
@@ -1773,9 +1797,11 @@ COMMANDS: dict[str, Callable[[Session, dict], Project]] = {
     "candidate_mark": _candidate_mark,
     "match_loudness": _match_loudness,
     "placeholder_take": _placeholder_take,
+    "save_backup": _save_backup,
+    "save_checkpoint": _save_checkpoint,
 }
 
 #: Commands that run without the session lock and take it only for their
 #: snapshot and their commit: their work is slow and must not stall playback
 #: or edits (ground rule 14).
-LOCK_FREE_COMMANDS = frozenset({"candidates_detect", "match_loudness"})
+LOCK_FREE_COMMANDS = frozenset({"candidates_detect", "match_loudness", "save_backup"})
