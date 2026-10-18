@@ -215,6 +215,10 @@ WP27, WP38, WP42, WP47.
 
 ## Later (v2)
 
+- **Full-stack playback**: hear the mixed package (effects and loudness applied) inside
+  kuulas, rendered in chunks ahead of the playhead on spare cores (WP23b). Owner:
+  later, not in the first version.
+
 - **Focus history** (back to the previous focus) and **focus that follows
   whoever is talking** during playback. Parked from WP28.
 

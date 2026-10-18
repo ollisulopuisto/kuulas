@@ -1901,6 +1901,14 @@ estimation). So a layer is one of three tiers, and the UI shows which:
    the layer (status "rendering"). When the render is ready, playback and
    export use it (status "ready").
 
+**Full-stack playback (owner, 2026-10-18: later, not in the first version):**
+listening to the whole mixed package inside kuulas, with the effects and
+loudness normalisation applied, i.e. what export would produce. Built on tier 3:
+the programme chain (`chain.process` and mastering) renders in chunks just
+ahead of the playhead on spare cores, cached by content hash; playback uses the
+rendered chunks where ready (status "mix preview") and the plain real-time mix
+elsewhere. Phase 3, with WP23b.
+
 **Where heavy restoration goes (owner, 2026-10-16):** dxRevive and the
 speechmix voice chain probably cannot run in real time, so they are **never**
 in the playback path:
