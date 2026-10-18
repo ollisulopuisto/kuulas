@@ -1,3 +1,11 @@
+## [v26.10.18.37] - 2026-10-18
+
+- A track's role (speech, speech-mix, music) can be changed in the inspector. The import no
+  longer calls a stereo file music: only a name with "music", "musiikki" or "jingle" does. (A stereo
+  speech recording had come in as music and drawn a small linear waveform.)
+- The status bar shows In, Out and Length when in/out marks are set or something is selected.
+- The sidebar's five tabs shrink to fit the narrow sidebar instead of running off the edge.
+
 ## [v26.10.18.36] - 2026-10-18
 
 - Bus headers have two lines now: name and M on top, the bus level and pan below, always visible
