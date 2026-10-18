@@ -1,3 +1,17 @@
+## [v26.10.18.62] - 2026-10-18
+
+- **Track kind tags:** Alt+Cmd+K cycles the focused track between speech, speech mix (several people in one
+  file) and music, one undo step. The kind icon in the track header is now a button that does the same, and
+  the track inspector has a **Speaker** field: tracks with the same speaker count as one microphone in the
+  analysis (blank means the track name). Not yet seen in the real app.
+- **Clipboard, finished:** new paste forms "paste on the entry's own tracks" and "overwrite on the current
+  track" (Edit menu and palette); at most 50 unpinned entries are kept, pinned ones never drop; **Play** on a
+  clipboard entry previews it without touching the project; a copy in one window shows up in the other
+  windows; an entry can be pasted into another project (recordings are linked in place when the original file
+  is still there and unchanged). Entries get names like "3 clips from Olli, 00:12:04", and the Clipboard tab
+  has a filter box and shows source project, tracks and length. Not yet seen in the real app. Still open:
+  pasting when the original file is gone (needs excerpts), preview without gate or automation.
+
 ## [v26.10.18.61] - 2026-10-18
 
 - **Group, ungroup and merge clips**, all undoable in one step. Group (Alt+Cmd+G) ties the selected clips so
