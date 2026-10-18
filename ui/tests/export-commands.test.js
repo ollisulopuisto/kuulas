@@ -6,6 +6,7 @@ import {
   EXPORTS,
   filenameFromDisposition,
   registerExportCommands,
+  tracksNotice,
 } from "../export-commands.js";
 
 function setup(current) {
@@ -74,6 +75,48 @@ describe("filenameFromDisposition", () => {
     );
     assert.equal(filenameFromDisposition(null, "x.txt"), "x.txt");
     assert.equal(filenameFromDisposition("inline", "x.txt"), "x.txt");
+  });
+});
+
+describe("export all tracks", () => {
+  const withTracks = { project: { tracks: [{ id: "a" }], markers: [] } };
+  const t = (key, values = {}) => `${key}${JSON.stringify(values)}`;
+
+  test("needs a track and starts the one-button export", () => {
+    const registry = createRegistry();
+    const started = [];
+    registerExportCommands(registry, {
+      t,
+      app: { getState: () => withTracks, toast: () => {}, exportTracks: () => started.push(1) },
+    });
+    assert.equal(registry.can("export.tracks", { project: { tracks: [] } }), false);
+    assert.equal(registry.can("export.tracks", {}), false);
+    assert.equal(registry.run("export.tracks", null, withTracks), true);
+    assert.equal(started.length, 1);
+  });
+
+  test("progress, done, silent, failed and cancelled each have their own notice", () => {
+    const running = tracksNotice({ state: "running", progress: 0.456 }, t);
+    assert.deepEqual(
+      [running.kind, running.sticky, running.cancel, running.text],
+      ["ok", true, true, 'ui.export.tracks_running{"percent":46}'],
+    );
+    const result = { path: "/x/Main 1", track_count: 3, silent: [] };
+    const done = tracksNotice({ state: "completed", result }, t);
+    assert.equal(done.text, 'ui.export.tracks_done{"count":3,"path":"/x/Main 1"}');
+    assert.equal(done.reveal, true);
+    const quiet = tracksNotice(
+      { state: "completed", result: { ...result, silent: ["B", "C"] } },
+      t,
+    );
+    assert.equal(
+      quiet.text,
+      'ui.export.tracks_done_silent{"count":3,"path":"/x/Main 1","silent":"B, C"}',
+    );
+    const failed = tracksNotice({ state: "failed", error: { text: "Disk full" } }, t);
+    assert.deepEqual([failed.kind, failed.text], ["error", "Disk full"]);
+    assert.equal(tracksNotice({ state: "cancelled" }, t).text, "ui.export.cancelled{}");
+    assert.equal(tracksNotice({ state: "queued", progress: 0 }, t).cancel, true);
   });
 });
 
