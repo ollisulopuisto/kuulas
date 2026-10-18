@@ -1340,5 +1340,10 @@
   "cmd.track.delete_empty": "Delete the empty tracks",
   "cmd.track.delete_empty.hint": "Removes every track that has no clips. Tracks with clips stay. Undo brings them back.",
   "ui.edit.label.delete_empty_tracks": "Delete empty tracks",
-  "ui.edit.toast.delete_empty_tracks": {"one": "Deleted {count} empty track", "other": "Deleted {count} empty tracks"}
+  "ui.edit.toast.delete_empty_tracks": {"one": "Deleted {count} empty track", "other": "Deleted {count} empty tracks"},
+  "error.edit.no_gains_to_reset": "Every track and bus gain is already 0 dB.",
+  "cmd.track.reset_gains": "Reset track and bus gains to 0 dB",
+  "cmd.track.reset_gains.hint": "Sets the gain of every track and every bus to 0 dB, so you can judge the levels before export. The master, clip gains and pan stay. Undo brings them back.",
+  "ui.edit.label.reset_gains": "Reset gains to 0 dB",
+  "ui.edit.toast.reset_gains": {"one": "Reset {count} gain", "other": "Reset {count} gains"}
 }

@@ -1340,5 +1340,10 @@
   "cmd.track.delete_empty": "Poista tyhjät raidat",
   "cmd.track.delete_empty.hint": "Poistaa kaikki raidat, joilla ei ole leikkeitä. Raidat, joilla on leikkeitä, jäävät. Kumoa palauttaa ne.",
   "ui.edit.label.delete_empty_tracks": "Tyhjien raitojen poisto",
-  "ui.edit.toast.delete_empty_tracks": {"one": "Poistettu {count} tyhjä raita", "other": "Poistettu {count} tyhjää raitaa"}
+  "ui.edit.toast.delete_empty_tracks": {"one": "Poistettu {count} tyhjä raita", "other": "Poistettu {count} tyhjää raitaa"},
+  "error.edit.no_gains_to_reset": "Kaikkien raitojen ja väylien vahvistus on jo 0 dB.",
+  "cmd.track.reset_gains": "Nollaa raitojen ja väylien vahvistukset 0 dB:iin",
+  "cmd.track.reset_gains.hint": "Asettaa jokaisen raidan ja väylän vahvistuksen 0 dB:iin, jotta tasot voi arvioida ennen vientiä. Master, leikkeiden vahvistukset ja panorointi jäävät. Kumoa palauttaa ne.",
+  "ui.edit.label.reset_gains": "Vahvistusten nollaus 0 dB:iin",
+  "ui.edit.toast.reset_gains": {"one": "Nollattu {count} vahvistus", "other": "Nollattu {count} vahvistusta"}
 }
