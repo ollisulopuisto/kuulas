@@ -3144,3 +3144,24 @@ command can use whichever the user made:
   muted clips, an empty result), the Mod+click toggle, readout text.
 
 ---
+
+### WP55 — A packaged app people can install (owner, 2026-10-18: M2, M3 at the latest, "to get more eyes on the app")
+
+Status: open; in milestone M2. Needs: speechmix and nhsx published as real packages (owner decided: not a
+private git dependency), the `PODCAST_READ_TOKEN` CI secret until then, the app icons (done).
+
+- **First step, no signing:** a CI job builds a macOS `.app` (and a zipped `.dmg`) on every version tag:
+  Python, the web UI, ffmpeg and the audio libraries bundled (PyInstaller or py2app; pick by trying both
+  on the desktop wrapper, WP15), the dock icon and name "kuulas" instead of "Python", attached to a
+  GitHub release. For the owner and a few testers; right-click Open on first launch.
+- **Then:** Windows (`.exe` or MSI via the same tool) and Linux (AppImage), built by the same workflow, so
+  the three-platform CI finally has something to ship.
+- **Signing and notarising** (Apple developer account; certificates as GitHub secrets, never in the
+  repo) before wider testers: no "cannot be opened" warning. Auto-update later (Sparkle-style), not now.
+- **Beta channel notes:** a visible version number and build date in Help > About, a "Copy diagnostics"
+  button (version, OS, audio device, last errors) so testers' reports are useful, crash logs written to
+  the per-user folder, and the `--debug` playback numbers included in the diagnostics.
+- **Tests:** the bundle starts, opens a fixture project and exports one second of audio in CI on each
+  platform; the bundle contains no absolute path to the build machine.
+
+---
