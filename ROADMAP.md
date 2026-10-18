@@ -449,4 +449,5 @@ WP27, WP38, WP42, WP47, WP53.
 - Parked (owner 2026-10-19, "not now"): WP64 naming a saved version: an in-window name field on Shift+Mod+S, rename in the History panel, named versions standing out. Plan in `docs/PLAN.md`.
 - Requested (owner 2026-10-19): WP65 clipboard per project, persistent without pinning, with sharing (mark entries as shared) and browsing other projects' clipboards. Plan in `docs/PLAN.md`; three details to decide with the owner.
 - Requested (owner 2026-10-19): WP66 series templates: save tracks, buses and chosen standing clips (anchored to start, end or a marker) and start new episodes from them. Plan in `docs/PLAN.md`.
+- Requested (owner 2026-10-19): WP68 mixing with the automixer from inside kuulas: step 1 a "Mix with automixer" command that exports to a temporary folder and runs it as a job; step 2 an in-process call without WAV files. Plan in `docs/PLAN.md`; needs to know how the owner runs the automixer.
 

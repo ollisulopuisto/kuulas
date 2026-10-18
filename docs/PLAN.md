@@ -3392,3 +3392,22 @@ projects keep their bytes), set from the right-click menu, the inspector and a c
 a coloured strip on the clip's label row, a tinted region band in the ruler and a coloured marker flag, and
 searchable/filterable later ("show only red"). Never changes the sound or the waveform colour.
 
+---
+
+### WP68 — Mixing with the automixer from inside kuulas (owner, 2026-10-19)
+
+Status: open, requested. Owner: "I'd love a more integrated experience there without exporting wav files".
+Two steps:
+1. **Quick win: "Mix with automixer…"** (File menu and palette). It writes the stems and `tracks.json` to a
+   temporary folder (the same code as Export all tracks), runs the automixer on them as a background job with
+   progress and Cancel in the notice area (WP9 jobs), and puts the result beside the project (`<edit> automixer
+   <stamp>.wav`), then offers "Show in Finder". The automixer is found through a setting (a command line,
+   default `automixer` on the PATH, else the podcast repo's `run.sh automixer`); a missing tool gives one clear
+   message. Options in the dialog: target LUFS, ad spot. The temporary stems are deleted afterwards.
+2. **Integrated: no WAVs.** The automixer's pipeline (speechmix) takes tracks with start times; kuulas builds that
+   input straight from the project (clips, offsets, gains, mutes, gates, roles, buses) and calls the library
+   in-process or in a worker process, reading the recordings where they are. The edit is never written out as
+   audio first. Needs the automixer's mixing entry point to be importable (today it is an app, `apps/automixer`,
+   not a package: coordinate with the podcast repo, as for `mix_blend`).
+Tests: the temporary-folder run with a fake automixer command; cancellation; a missing tool; the cleanup.
+
