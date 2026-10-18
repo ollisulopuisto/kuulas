@@ -251,6 +251,37 @@
   "ui.live.reconnecting_title": "The connection to the kuulas server was lost. Trying again; your work is saved.",
   "ui.import.drop": "Drop audio files to import them",
   "ui.import.failed_file": "Could not import {name}: {text}",
+  "ui.import.done_one": "1 file imported as 1 track",
+  "ui.import.done_sync": {
+    "one": "{count} file imported as {count} track",
+    "other": "{count} files imported as {count} tracks, in sync"
+  },
+  "ui.import.done_sequence": {
+    "one": "{count} file imported",
+    "other": "{count} files imported one after another on one track"
+  },
+  "ui.import.done_none": "Nothing was imported",
+  "ui.import.sequence": "One after another instead",
+  "ui.import.next": "Next import:",
+  "ui.import.order": "Order",
+  "ui.import.order_given": "as picked",
+  "ui.import.order_name": "file name",
+  "ui.import.order_time": "recording time",
+  "ui.import.naming": "Track names",
+  "ui.import.naming_file": "file name",
+  "ui.import.naming_person": "person",
+  "ui.import.drop_new": {
+    "one": "1 new track",
+    "other": "{count} new tracks, in sync"
+  },
+  "ui.import.drop_sequence": {
+    "one": "1 file on a new track",
+    "other": "{count} files, one after another on one new track"
+  },
+  "ui.import.drop_at": {
+    "one": "1 new track from {time}",
+    "other": "{count} new tracks from {time}, in sync"
+  },
   "ui.import.warning": "{name}: {text}",
   "ui.pan.center": "C",
   "ui.pan.left": "L {value}",

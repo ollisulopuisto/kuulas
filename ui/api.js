@@ -44,16 +44,20 @@ export const redo = () => json("/api/redo", { method: "POST" });
 export const transport = (action, at = null, until = null) =>
   post("/api/transport", { action, at, until });
 
-/** Upload browser files (picker or drop); the server imports them and reports each. */
-export const uploadFiles = (files) => {
+/**
+ * Upload browser files (picker or drop); the server imports them and reports each.
+ * `options`: mode, order, track_naming, start_frame (the placement; see import_plan.py).
+ */
+export const uploadFiles = (files, options = {}) => {
   const form = new FormData();
   for (const file of files) form.append("files", file, file.name);
+  for (const [key, value] of Object.entries(options)) form.append(key, String(value));
   return importReport(() => json("/api/upload", { method: "POST", body: form }));
 };
 
 /** Link files in place by path (the desktop window's dialogs and drops): no upload. */
-export const importPaths = (paths) =>
-  importReport(() => post("/api/import", { paths, copy: false }));
+export const importPaths = (paths, options = {}) =>
+  importReport(() => post("/api/import", { paths, copy: false, ...options }));
 
 async function importReport(send) {
   try {

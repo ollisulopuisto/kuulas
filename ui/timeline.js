@@ -9,6 +9,7 @@ import { frameToX, xToFrame } from "./format.js";
 import { gateLabelFits, gatePixelRuns } from "./gate.js";
 import { busHues, fileMark, needsFileMark, seamKind } from "./grammar.js";
 import { t } from "./i18n.js";
+import { dropGhosts, dropLabel, resolveDropTarget } from "./import-drop.js";
 import { clipLabel, labelFacts, siblingsOf } from "./labels.js";
 import {
   clipEnd,
@@ -47,6 +48,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
   let theme = readTheme();
   let size = { width: 0, height: 0, ratio: 1 };
   let pointerFrame = null;
+  let dropPreview = null; // files being dragged over: { kind, startFrame, mode, count } or null
   let overlayQueued = false;
   let waveQueued = false;
   let lastWaveKey = "";
@@ -137,7 +139,36 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     }
     drawRuler(state, rate);
     drawInOut(state, height);
+    if (dropPreview) drawDropPreview(state, layout);
     drawPlayhead(state, height);
+  }
+
+  // Files dragged over the timeline: ghost clips (dashed) and an insertion line in the
+  // accent colour, with a label of what will happen (GUI-DESIGN.md §23).
+  function drawDropPreview(state, layout) {
+    const { line, ghosts, label } = dropGhosts(dropPreview, {
+      layout,
+      view: state,
+      size: { width: size.width, height: size.height },
+    });
+    overlay.fillStyle = theme.accent;
+    if (line.orientation === "horizontal") overlay.fillRect(0, line.y - 1, size.width, 2);
+    else overlay.fillRect(line.x - 1, RULER_HEIGHT, 2, size.height - RULER_HEIGHT);
+    overlay.save();
+    overlay.setLineDash([5, 4]);
+    overlay.strokeStyle = theme.muted;
+    overlay.lineWidth = 1.5;
+    overlay.fillStyle = theme.panel;
+    for (const ghost of ghosts) {
+      overlay.fillRect(ghost.x, ghost.y, ghost.w, ghost.h);
+      overlay.strokeRect(ghost.x + 0.5, ghost.y + 0.5, ghost.w, ghost.h);
+    }
+    overlay.restore();
+    const { key, params } = dropLabel(dropPreview);
+    overlay.font = `600 ${NAME_FONT_PX}px ${theme.font}`;
+    overlay.textBaseline = "top";
+    overlay.fillStyle = theme.ink;
+    overlay.fillText(t(key, params), label.x, label.y);
   }
 
   function drawRange(state, height) {
@@ -547,6 +578,22 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     refreshTheme,
     size: () => size,
     pointerFrame: () => pointerFrame,
+    // Files dragged over: what a drop at this pointer would do (null: the pointer is
+    // not over the timeline), and the preview drawn for it (null clears it).
+    dropTarget(event, count) {
+      const state = getState();
+      const rect = overlayCanvas.getBoundingClientRect();
+      const { x, y } = locate(event);
+      if (!state.project || x < 0 || y < 0 || x > rect.width || y > rect.height) return null;
+      return resolveDropTarget(
+        { x, y, alt: event.altKey },
+        { layout: layoutFor(state), project: state.project, view: state, count },
+      );
+    },
+    setDropPreview(preview) {
+      dropPreview = preview;
+      requestOverlay();
+    },
     layerMode: layer.mode,
     destroy() {
       observer.disconnect();

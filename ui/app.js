@@ -11,6 +11,8 @@ import { GATE_OPEN_COMMAND, openStretchEdit, stretchAt } from "./gate.js";
 import { HELP_COMMAND, shortcutsFor } from "./help.js";
 import { createHelpPanel } from "./help-panel.js";
 import { formatNumber, formatShortcut, initI18n, onLanguageChange, t } from "./i18n.js";
+import { collectDroppedFiles, importOptionsFor } from "./import-drop.js";
+import { createImportPanel, panelModel } from "./import-panel.js";
 import { dragHasFiles, nativeBridge, summariseImport } from "./importing.js";
 import { createInspector } from "./inspector.js";
 import { formatCombo } from "./keymap-config.js";
@@ -493,33 +495,62 @@ function setLaneHeight(delta) {
 
 // -- import: file picker and drag and drop ------------------------------------------------------
 
-async function importFiles(files) {
-  if (files.length === 0) return;
-  await runImport(() => api.uploadFiles(files));
+const importPanel = createImportPanel({
+  root: $("import-panel"),
+  t,
+  actions: {
+    undo: () => {
+      importPanel.hide();
+      $("undo").click();
+    },
+    sequence: () => void importSequentially(),
+  },
+});
+// Anything else that changes the project takes the panel down: Undo would undo that instead.
+subscribe(() => importPanel.sync(getState().head));
+
+let lastImport = null; // { job, options } of the import the panel is about
+
+async function importFiles(files, target = null) {
+  if (files.length > 0) await runImport({ files }, target);
 }
 
-async function importPaths(paths) {
-  if (paths.length === 0) return;
-  await runImport(() => api.importPaths(paths));
+async function importPaths(paths, target = null) {
+  if (paths.length > 0) await runImport({ paths }, target);
 }
 
-async function runImport(send) {
+// `target`: where a drop landed (import-drop.js), null for the picker. `settled`: the
+// exact options to send (the redo of an import), else the remembered choices apply.
+async function runImport(job, target, settled = null) {
+  const options = settled ?? importOptionsFor(target, importPanel.prefs());
   try {
-    const result = await send();
+    const result = job.files
+      ? await api.uploadFiles(job.files, options)
+      : await api.importPaths(job.paths, options);
     if (result.project) apply(result);
     const summary = summariseImport(result.report);
-    const lines = [];
-    if (summary.imported > 0) lines.push(t("ui.import.success", { count: summary.imported }));
-    for (const failure of summary.failures) lines.push(t("ui.import.failed_file", failure));
-    for (const warning of summary.warnings) lines.push(t("ui.import.warning", warning));
-    if (lines.length === 0) lines.push(t("ui.import.failed"));
-    showNotice(
-      lines.join(" "),
-      summary.failures.length === 0 && summary.imported > 0 ? "ok" : "error",
-    );
+    if (summary.imported === 0 && summary.failures.length === 0) {
+      showNotice(t("ui.import.failed"));
+      return;
+    }
+    lastImport = { job, options };
+    importPanel.show(panelModel(summary, options), getState().head);
   } catch (error) {
     showError(error);
   }
+}
+
+// "One after another instead": undo the import step, then bring the same files in again.
+async function importSequentially() {
+  const last = lastImport;
+  if (!last) return;
+  try {
+    apply(await api.undo());
+  } catch (error) {
+    showError(error);
+    return;
+  }
+  await runImport(last.job, null, { ...last.options, mode: "sequential" });
 }
 
 async function chooseMedia() {
@@ -543,15 +574,28 @@ $("file-input").addEventListener("change", (event) => {
 let dragDepth = 0;
 const setDrop = (on) => {
   $("drop").hidden = !on;
+  if (!on) timeline.setDropPreview(null);
 };
+const draggedCount = (dataTransfer) =>
+  Math.max(1, Array.from(dataTransfer.items ?? []).filter((item) => item.kind === "file").length);
+// Over the timeline the ghost clips say what a drop does; elsewhere the plain drop card does.
+function previewDrop(event) {
+  const target = timeline.dropTarget(event, draggedCount(event.dataTransfer));
+  timeline.setDropPreview(target);
+  $("drop").hidden = target !== null;
+  return target;
+}
 window.addEventListener("dragenter", (event) => {
   if (!dragHasFiles(event.dataTransfer)) return;
   event.preventDefault();
   dragDepth += 1;
   setDrop(true);
+  previewDrop(event);
 });
 window.addEventListener("dragover", (event) => {
-  if (dragHasFiles(event.dataTransfer)) event.preventDefault();
+  if (!dragHasFiles(event.dataTransfer)) return;
+  event.preventDefault();
+  previewDrop(event);
 });
 window.addEventListener("dragleave", (event) => {
   if (!dragHasFiles(event.dataTransfer)) return;
@@ -562,11 +606,19 @@ window.addEventListener("drop", (event) => {
   if (!dragHasFiles(event.dataTransfer)) return;
   event.preventDefault();
   dragDepth = 0;
+  const target = timeline.dropTarget(event, draggedCount(event.dataTransfer));
   setDrop(false);
   // In the desktop window Python gets the dropped paths and calls
   // kuulasNative.importPaths; uploading the bytes as well would import twice.
   if (nativeBridge()) return;
-  void importFiles([...event.dataTransfer.files]);
+  // The entries must be taken inside the event: a folder is only readable through them.
+  const entries = [...(event.dataTransfer.items ?? [])]
+    .map((item) => item.webkitGetAsEntry?.())
+    .filter(Boolean);
+  const files = [...event.dataTransfer.files];
+  void collectDroppedFiles(entries, files)
+    .then((found) => importFiles(found, target))
+    .catch(showError);
 });
 
 // Called by the desktop window (src/kuulas/desktop.py): dropped paths and native menu items.
@@ -863,6 +915,7 @@ function follow(state) {
 
 subscribe(render);
 onLanguageChange(() => {
+  importPanel.refresh();
   translate();
   applyTheme();
   render(getState(), null);
