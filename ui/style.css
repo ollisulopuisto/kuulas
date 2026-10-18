@@ -1593,6 +1593,45 @@ input[type="text"] {
 .tx-error {
   color: var(--danger-text, var(--text));
 }
+.tx-find {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  background: var(--surface-panel);
+  border-bottom: 1px solid var(--border);
+}
+.tx-find[hidden] {
+  display: none;
+}
+.tx-find-input {
+  flex: 1 1 auto;
+  min-width: 8em;
+  max-width: 28em;
+  font: inherit;
+  color: var(--text);
+  background: var(--input-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+}
+.tx-find-count {
+  min-width: 5em;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+.tx-text .w.find {
+  background: var(--surface-hover);
+  outline: 1px solid var(--border-strong);
+}
+.tx-text .w.found {
+  background: var(--accent-subtle);
+  outline: 2px solid var(--accent);
+}
 .tx-follow {
   position: sticky;
   top: calc(var(--control-h) + var(--space-5));

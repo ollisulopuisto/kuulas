@@ -8,6 +8,14 @@
 import { frameToTime } from "./format.js";
 import { getLanguage, t } from "./i18n.js";
 import {
+  currentPosition,
+  findMatches,
+  firstFrom,
+  matchedWords,
+  nextMatch,
+  prevMatch,
+} from "./transcript-find.js";
+import {
   alsoRemovedIndices,
   buildParagraphs,
   collateralBand,
@@ -62,7 +70,27 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   const pop = el("div", "tx-pop");
   pop.setAttribute("role", "toolbar");
   pop.hidden = true;
-  root.append(follow, list, empty, pop);
+  // The find bar (Mod+F): sticky at the top of the dock, hidden until asked for.
+  const findBar = el("div", "tx-find");
+  findBar.setAttribute("role", "search");
+  findBar.hidden = true;
+  const findInput = el("input", "tx-find-input");
+  findInput.type = "search";
+  findInput.autocomplete = "off";
+  findInput.spellcheck = false;
+  const findCount = el("span", "tx-find-count");
+  findCount.setAttribute("aria-live", "polite");
+  const findButton = (act, text) => {
+    const button = el("button", "button", text);
+    button.type = "button";
+    button.dataset.act = act;
+    return button;
+  };
+  const findPrev = findButton("prev", "↑");
+  const findNext = findButton("next", "↓");
+  const findClose = findButton("close", "×");
+  findBar.append(findInput, findCount, findPrev, findNext, findClose);
+  root.append(findBar, follow, list, empty, pop);
   list.setAttribute("role", "document");
 
   // -- derived from the words (rebuilt only when they change) -----------------------------
@@ -90,6 +118,10 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   let also = new Set();
   let jobs = { state: "idle", progress: 0, error: "" };
   let jobTimer = 0;
+  let findQuery = "";
+  let matches = [];
+  let found = null; // the current match: its word indices
+  let foundWords = new Set(); // every word of every match
 
   const rate = () => getState().project?.rate ?? 48000;
   const tracksById = () => new Map((getState().project?.tracks ?? []).map((x) => [x.id, x]));
@@ -138,6 +170,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     renderEmptyState();
     renderWindow();
     markNow();
+    if (!findBar.hidden) runFind(false);
   }
 
   // -- the empty state ----------------------------------------------------------------------------
@@ -253,6 +286,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     if (i === now) name += " now";
     if (bounds && i >= bounds[0] && i <= bounds[1]) name += " sel";
     if (i === sel.cursor) name += " cur";
+    if (foundWords.has(i)) name += found?.includes(i) ? " find found" : " find";
     if (also.has(i)) name += " also";
     return name;
   }
@@ -693,6 +727,89 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     return true;
   }
 
+  // -- find (Mod+F): over the words, never the DOM, so it spans the whole virtual list ------------
+  function paintFind(before) {
+    foundWords = matchedWords(matches);
+    for (const i of new Set([...before, ...foundWords])) setClass(i);
+    const label = t("ui.find.label");
+    findInput.placeholder = t("ui.find.placeholder");
+    findInput.setAttribute("aria-label", label);
+    findBar.setAttribute("aria-label", label);
+    findPrev.title = findPrev.ariaLabel = t("ui.find.previous");
+    findNext.title = findNext.ariaLabel = t("ui.find.next");
+    findClose.title = findClose.ariaLabel = t("ui.find.close");
+    const { n, m } = currentPosition(matches, found);
+    if (findQuery.trim() === "") findCount.textContent = "";
+    else findCount.textContent = m === 0 ? t("ui.find.none") : t("ui.find.count", { n, m });
+    findPrev.disabled = findNext.disabled = m === 0;
+  }
+
+  function goToMatch(match) {
+    const before = foundWords;
+    found = match;
+    paintFind(before);
+    if (!match) return;
+    setState({ transcriptSelection: placeCursor(match[0]) });
+    setPaused(false);
+    actions.seek(words[match[0]].s);
+    reveal(match[0], { place: true });
+  }
+
+  /** Search again (the query or the words changed); `jump` goes to the first match from here. */
+  function runFind(jump) {
+    const before = foundWords;
+    matches = findMatches(words, findQuery);
+    const from = now >= 0 ? now : Math.max(0, selection().cursor);
+    found = firstFrom(matches, from);
+    if (jump) goToMatch(found);
+    else paintFind(before);
+  }
+
+  function stepFind(direction) {
+    if (matches.length === 0) return;
+    const from = found ? found[0] : now;
+    goToMatch(direction > 0 ? nextMatch(matches, from) : prevMatch(matches, from));
+  }
+
+  function openFind() {
+    findBar.hidden = false;
+    findInput.focus();
+    findInput.select();
+    runFind(false);
+  }
+
+  function closeFind() {
+    findBar.hidden = true;
+    const before = foundWords;
+    findQuery = "";
+    findInput.value = "";
+    matches = [];
+    found = null;
+    paintFind(before);
+    root.focus({ preventScroll: true });
+  }
+
+  findInput.addEventListener("input", () => {
+    findQuery = findInput.value;
+    runFind(true);
+  });
+  findInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      stepFind(event.shiftKey ? -1 : 1);
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      closeFind();
+    }
+  });
+  findBar.addEventListener("click", (event) => {
+    const act = event.target.closest?.("[data-act]")?.dataset.act;
+    if (act === "next") stepFind(1);
+    else if (act === "prev") stepFind(-1);
+    else if (act === "close") closeFind();
+  });
+
   // -- loading the words ---------------------------------------------------------------------------------
   /** The words are derived from the edit: after any change of head, ask again. */
   async function loadWords(force = false) {
@@ -763,6 +880,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       }
     },
     startCorrect,
+    openFind,
     transcribe,
     /** The word indices Backspace and X act on. */
     chosen,

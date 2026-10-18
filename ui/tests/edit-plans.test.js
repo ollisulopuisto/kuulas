@@ -5,6 +5,7 @@ import {
   createBurst,
   cutPlan,
   deletePlan,
+  fadePlan,
   gainPlan,
   mutePlan,
   nudgePlan,
@@ -229,5 +230,34 @@ describe("which tracks an edit changed", () => {
     };
     assert.deepEqual(changedTracks(project, after), ["A", "M"]);
     assert.deepEqual(changedTracks(project, project), []);
+  });
+});
+
+describe("fade", () => {
+  test("G fades the current track's clip under the play cursor", () => {
+    const plan = fadePlan(state({ playhead: 1 * S }));
+    assert.equal(plan.op, "set_fade_at");
+    assert.deepEqual(plan.args, { clip_id: "a1", frame: 1 * S });
+  });
+
+  test("the first frame of a clip counts as under the cursor, its end does not", () => {
+    assert.equal(fadePlan(state({ playhead: 12 * S }))?.args.clip_id, "a2");
+    assert.equal(fadePlan(state({ playhead: 10 * S })), null);
+  });
+
+  test("a selected clip holding the cursor wins over the current track", () => {
+    const plan = fadePlan(state({ selection: new Set(["v1"]), playhead: 4 * S }));
+    assert.equal(plan.args.clip_id, "v1");
+  });
+
+  test("a selected clip that does not hold the cursor is skipped for the track's", () => {
+    const plan = fadePlan(state({ selection: new Set(["a2"]), playhead: 4 * S }));
+    assert.equal(plan.args.clip_id, "a1");
+  });
+
+  test("nothing under the cursor, no current track or no project: no plan", () => {
+    assert.equal(fadePlan(state({ playhead: 11 * S })), null);
+    assert.equal(fadePlan(state({ focusTrack: null })), null);
+    assert.equal(fadePlan({ project: null }), null);
   });
 });

@@ -13,7 +13,18 @@ export const MENU = [
   {
     id: "file",
     labelKey: "menu.file",
-    items: [item("app.import"), item("app.export"), SEP, item("app.save"), item("app.save_named")],
+    items: [
+      item("app.import"),
+      item("app.export"),
+      SEP,
+      item("export.subtitles_srt"),
+      item("export.subtitles_vtt"),
+      item("export.transcript_txt"),
+      item("export.transcript_md"),
+      SEP,
+      item("app.save"),
+      item("app.save_named"),
+    ],
   },
   {
     id: "edit",
@@ -50,6 +61,7 @@ export const MENU = [
       SEP,
       item("clip.mute"),
       item("clip.fade"),
+      item("clip.match_loudness"),
       SEP,
       item("sync.mark"),
       item("sync.resync"),

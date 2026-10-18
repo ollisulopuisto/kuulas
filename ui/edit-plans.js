@@ -223,6 +223,22 @@ export function mutePlan(state) {
   );
 }
 
+/**
+ * G: fade at the play cursor (the server fades the nearer end of the clip). The clip is a
+ * selected one holding the cursor, else the current track's clip under it.
+ */
+export function fadePlan(state) {
+  if (!state?.project || !Number.isFinite(state.playhead)) return null;
+  const at = state.playhead;
+  const holds = (clip) => clip.start <= at && at < clipEnd(clip);
+  let id = selectedClips(state).find((entry) => holds(entry.clip))?.clip.id ?? null;
+  if (id === null) {
+    const track = currentTrack(state);
+    id = state.project.tracks.find((x) => x.id === track)?.clips.find(holds)?.id ?? null;
+  }
+  return id === null ? null : plan("set_fade_at", { clip_id: id, frame: at }, "fade");
+}
+
 /** Q (edge "start") and W (edge "end"): trim to the playhead. */
 export function trimPlan(state, edge) {
   if (!state?.project || !Number.isFinite(state.playhead)) return null;

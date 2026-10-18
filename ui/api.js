@@ -37,6 +37,11 @@ export const getJobs = () => json("/api/jobs");
 /** One edit: the whole project comes back. `coalesce` merges a drag into one undo step. */
 export const edit = ({ op, args, label = null, coalesce = null }) =>
   post("/api/edit", { op, args, label, coalesce });
+/** A file the server offers for download: { blob, disposition } (Content-Disposition). */
+export async function download(path) {
+  const response = await request(path);
+  return { blob: await response.blob(), disposition: response.headers.get("Content-Disposition") };
+}
 export const command = (name, args = {}) => post("/api/command", { name, args });
 // Cut candidates (WP18). Deciding, applying and marking are commands (one undo step each);
 // the list and the preview data only read. `state`: "open" | "cut" | "kept" or null for all.

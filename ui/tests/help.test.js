@@ -9,6 +9,7 @@ import { registerCandidateCommands } from "../candidate-commands.js";
 import { cheatSheetData } from "../cheatsheet.js";
 import { createRegistry } from "../commands.js";
 import { registerEditCommands } from "../edit-commands.js";
+import { registerExportCommands } from "../export-commands.js";
 import { PANELS } from "../focus.js";
 import {
   commandLabelKey,
@@ -29,6 +30,7 @@ import {
 } from "../help.js";
 import { formatCombo, resolveKeymap } from "../keymap-config.js";
 import { DEFAULT_KEYMAP } from "../keymap-default.js";
+import { registerLoudnessCommands } from "../loudness-commands.js";
 import { MENU, menuTargets } from "../menu-model.js";
 import { paletteRows } from "../palette.js";
 import { CONTEXT_OF_PANEL } from "../shell-keys.js";
@@ -55,6 +57,8 @@ const REGISTRY = createRegistry();
 registerAppCommands(REGISTRY, { actions: stub, app: stub });
 registerEditCommands(REGISTRY, { app: stub, t: (key) => key, formatSeconds: String });
 registerTranscriptCommands(REGISTRY, { app: stub, t: (key) => key });
+registerLoudnessCommands(REGISTRY, { app: stub, t: (key) => key });
+registerExportCommands(REGISTRY, { app: stub, t: (key) => key });
 registerCandidateCommands(REGISTRY, { app: stub, t: (key) => key });
 REGISTRY.planMissing(DEFAULT_KEYMAP.map((entry) => entry.id));
 const READY = REGISTRY.ids().filter((id) => REGISTRY.status(id) === "ready");

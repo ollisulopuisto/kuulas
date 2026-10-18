@@ -21,7 +21,7 @@ export function chosenWords(state) {
 
 /**
  * `app`: getState, edit(change), toast(text, { undo }), cutWords(indices) -> Promise,
- * correct() (opens the inline edit). `t` translates.
+ * correct() (opens the inline edit), openFind() (shows the find bar). `t` translates.
  */
 export function registerTranscriptCommands(registry, { app, t }) {
   const def = (id, run, can) => registry.register(id, run, { can, hintKey: `cmd.${id}.hint` });
@@ -94,5 +94,11 @@ export function registerTranscriptCommands(registry, { app, t }) {
       const picked = chosenWords(state);
       return picked.length === 1 || (picked.length === 0 && sel.cursor >= 0);
     },
+  );
+
+  def(
+    "transcript.find",
+    () => app.openFind(),
+    (state) => (state?.words?.length ?? 0) > 0,
   );
 }

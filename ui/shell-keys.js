@@ -8,6 +8,7 @@ import { registerCandidateCommands } from "./candidate-commands.js";
 import { cheatSheetData, createCheatSheet } from "./cheatsheet.js";
 import { createRegistry } from "./commands.js";
 import { registerEditCommands } from "./edit-commands.js";
+import { registerExportCommands } from "./export-commands.js";
 import { resolveHints } from "./hints.js";
 import { formatNumber } from "./i18n.js";
 import {
@@ -22,6 +23,7 @@ import {
 } from "./keymap-config.js";
 import { DEFAULT_KEYMAP, STATUS_HINTS } from "./keymap-default.js";
 import { createKeymap, detectPlatform } from "./keys.js";
+import { registerLoudnessCommands } from "./loudness-commands.js";
 import { MENU, resolveMenu } from "./menu-model.js";
 import { createMenubar } from "./menubar.js";
 import { createModifierTracker } from "./modifiers.js";
@@ -104,6 +106,8 @@ export function setupKeyboard({ actions, app, t, notify, onLanguageChange, onRef
     formatSeconds: (seconds) => formatNumber(seconds, { digits: 1 }),
   });
   registerTranscriptCommands(registry, { app, t });
+  registerLoudnessCommands(registry, { app, t });
+  registerExportCommands(registry, { app, t });
   registerCandidateCommands(registry, { app, t });
   // The rest of the sheet is listed everywhere and does nothing until its WP lands.
   registry.planMissing(DEFAULT_KEYMAP.map((entry) => entry.id));

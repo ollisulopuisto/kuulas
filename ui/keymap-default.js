@@ -389,6 +389,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.clip.fade",
   },
   {
+    id: "clip.match_loudness",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.clip.match_loudness",
+  },
+  {
     id: "track.mute",
     keys: { mac: "Shift+M", other: "Shift+M" },
     context: "timeline",
@@ -559,6 +565,30 @@ export const DEFAULT_KEYMAP = [
     keys: { mac: "Mod+E", other: "Mod+E" },
     context: "global",
     labelKey: "cmd.app.export",
+  },
+  {
+    id: "export.subtitles_srt",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.export.subtitles_srt",
+  },
+  {
+    id: "export.subtitles_vtt",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.export.subtitles_vtt",
+  },
+  {
+    id: "export.transcript_txt",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.export.transcript_txt",
+  },
+  {
+    id: "export.transcript_md",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.export.transcript_md",
   },
   {
     id: "app.save",

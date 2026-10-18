@@ -1,0 +1,170 @@
+{
+  "cases": [
+    {
+      "name": "prefix of a word",
+      "words": [
+        {
+          "w": "Hello",
+          "track": "a"
+        },
+        {
+          "w": "world",
+          "track": "a"
+        }
+      ],
+      "query": "wor",
+      "matches": [[1]]
+    },
+    {
+      "name": "one letter finds nothing",
+      "words": [
+        {
+          "w": "Hello",
+          "track": "a"
+        },
+        {
+          "w": "world",
+          "track": "a"
+        }
+      ],
+      "query": "w",
+      "matches": []
+    },
+    {
+      "name": "empty and punctuation only",
+      "words": [
+        {
+          "w": "Hello",
+          "track": "a"
+        }
+      ],
+      "query": " ,. ",
+      "matches": []
+    },
+    {
+      "name": "accents and case are ignored",
+      "words": [
+        {
+          "w": "Äiti",
+          "track": "a"
+        },
+        {
+          "w": "Öljy",
+          "track": "a"
+        },
+        {
+          "w": "café",
+          "track": "a"
+        }
+      ],
+      "query": "aiti",
+      "matches": [[0]]
+    },
+    {
+      "name": "accented query finds plain text",
+      "words": [
+        {
+          "w": "cafe",
+          "track": "a"
+        },
+        {
+          "w": "Cafés",
+          "track": "a"
+        }
+      ],
+      "query": "CAFÉ",
+      "matches": [[0], [1]]
+    },
+    {
+      "name": "punctuation in the text is ignored",
+      "words": [
+        {
+          "w": "Hello,",
+          "track": "a"
+        },
+        {
+          "w": "world.",
+          "track": "a"
+        }
+      ],
+      "query": "hello",
+      "matches": [[0]]
+    },
+    {
+      "name": "a phrase is a run of prefixes",
+      "words": [
+        {
+          "w": "so",
+          "track": "a"
+        },
+        {
+          "w": "the",
+          "track": "a"
+        },
+        {
+          "w": "thing",
+          "track": "a"
+        },
+        {
+          "w": "the",
+          "track": "a"
+        },
+        {
+          "w": "end",
+          "track": "a"
+        }
+      ],
+      "query": "the th",
+      "matches": [[1, 2]]
+    },
+    {
+      "name": "a phrase never crosses tracks",
+      "words": [
+        {
+          "w": "good",
+          "track": "a"
+        },
+        {
+          "w": "morning",
+          "track": "b"
+        },
+        {
+          "w": "good",
+          "track": "a"
+        },
+        {
+          "w": "morning",
+          "track": "a"
+        }
+      ],
+      "query": "good morning",
+      "matches": [[2, 3]]
+    },
+    {
+      "name": "query longer than the text",
+      "words": [
+        {
+          "w": "a",
+          "track": "a"
+        }
+      ],
+      "query": "a b c",
+      "matches": []
+    },
+    {
+      "name": "digits are kept",
+      "words": [
+        {
+          "w": "2026",
+          "track": "a"
+        },
+        {
+          "w": "20",
+          "track": "a"
+        }
+      ],
+      "query": "20",
+      "matches": [[0], [1]]
+    }
+  ]
+}
