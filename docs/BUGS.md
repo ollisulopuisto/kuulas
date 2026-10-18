@@ -16,7 +16,6 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 
 | # | Raised | Issue | Fixed in |
 |---|---|---|---|
-| 5 | 18.10 | "Export all tracks" did not ask where to save | v26.10.18.59 |
 | 6 | 18.10 | Esc should clear the clip selection but keep in/out marks | v26.10.18.57 |
 | 7 | 18.10 | Speech tracks should be mono by default; stereo import asks | v26.10.18.60 |
 | 8 | 18.10 | Alt-drag a region: the selection vanished on release | `e5925dd` (guess: the release event's Alt state); not seen on screen |
@@ -53,3 +52,4 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 | # | Raised | Issue | Closed |
 |---|---|---|---|
 | 4 | 18.10 | Exported WAVs would not play in Quick Look (RIFF size 0); fixed in v26.10.18.58 | 18.10, owner: "multitrack wav output works fine now" |
+| 5 | 18.10 | "Export all tracks" did not ask where to save; fixed in v26.10.18.59 | 18.10, owner: "export all opened up a file dialog just as it should" |
