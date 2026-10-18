@@ -1209,6 +1209,7 @@ const clipboardPanel = createClipboardPanel({
       void clipboardAction(() => api.deleteClipboardEntry(id))();
     },
     choose: (patch) => setState(patch),
+    filter: (text) => setState({ clipboardFilter: text }),
     preview(id) {
       setState({ clipboardSelected: id });
       keyboard.registry.run("edit.preview_clipboard", null, getState());
@@ -1629,6 +1630,7 @@ function render(state, patch) {
     touched(
       "clipboard",
       "clipboardSelected",
+      "clipboardFilter",
       "pasteMode",
       "pasteTarget",
       "project",

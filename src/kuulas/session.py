@@ -400,7 +400,8 @@ class Session:
         return {**entry_dict(entry), "length": entry.span[1] - entry.span[0],
                 "clips": len(entry.refs),
                 "slots": len({ref.track_slot for ref in entry.refs}),
-                "missing_here": len(wanted - have)}
+                "missing_here": len(wanted - have),
+                "source_name": Path(entry.source_project).stem}
 
     def _entry(self, entry_id: str) -> Entry:
         entry = self.clipboard.load().get(entry_id)

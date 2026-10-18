@@ -657,3 +657,11 @@ def test_a_file_changed_since_is_not_linked(session, other, files):
     assert result["placed"] == 0
     assert len(result["missing"]) == 1
     assert len(other.state.media) == 1  # nothing foreign was linked
+
+
+def test_the_list_shows_the_source_track_names_and_project(session):
+    a, b = ids(session.state)
+    session.clipboard_copy(clip_ids=[a.clips[0].id, b.clips[0].id])
+    (view,) = session.clipboard_list()
+    assert view["tracks"] == [a.name, b.name]
+    assert view["source_name"] == "One"

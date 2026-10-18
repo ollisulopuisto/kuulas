@@ -3,7 +3,15 @@
 // paste lands (insert or overwrite, on the same tracks or the current one). The panel only
 // draws and reports; what a click does is app.js's (actions), what a paste does is
 // edit-plans.js's.
-import { entryTitle, PASTE_MODES, PASTE_TARGETS, pasteChoice, shortDuration } from "./clipboard.js";
+import {
+  entryDetails,
+  entryTitle,
+  filterEntries,
+  PASTE_MODES,
+  PASTE_TARGETS,
+  pasteChoice,
+  shortDuration,
+} from "./clipboard.js";
 import { getLanguage, t } from "./i18n.js";
 
 const el = (tag, props = {}, ...children) => {
@@ -19,7 +27,7 @@ const el = (tag, props = {}, ...children) => {
 };
 
 /**
- * `actions`: select(id), preview(id), pin(id, pinned), rename(id, name), remove(id), pasteAgain(id),
+ * `actions`: select(id), preview(id), filter(text), pin(id, pinned), rename(id, name), remove(id), pasteAgain(id),
  * choose({ pasteMode } | { pasteTarget }), canPasteAgain(state) -> boolean.
  */
 export function createClipboardPanel({ root, actions }) {
@@ -82,6 +90,7 @@ export function createClipboardPanel({ root, actions }) {
         },
         el("span", { class: "clip-name", textContent: title }),
         el("span", { class: "clip-meta", textContent: meta.join(" · ") }),
+        el("span", { class: "clip-meta", textContent: entryDetails(entry, rate, t) }),
       );
       name.addEventListener("click", () => actions.select(entry.id));
     }
@@ -140,14 +149,21 @@ export function createClipboardPanel({ root, actions }) {
       state.clipboardSelected,
       editing,
       canPaste,
+      state.clipboardFilter ?? "",
     ]);
     if (next === signature) return;
     signature = next;
     const active = document.activeElement;
     const keep =
       root.contains(active) && active.dataset?.id
-        ? { id: active.dataset.id, action: active.dataset.action }
+        ? {
+            id: active.dataset.id,
+            action: active.dataset.action,
+            caret: [active.selectionStart, active.selectionEnd],
+          }
         : null;
+    const query = state.clipboardFilter ?? "";
+    const shown = filterEntries(list, query, rate, t);
     root.replaceChildren(
       el("h2", { textContent: t("ui.clipboard.title") }),
       el(
@@ -172,18 +188,39 @@ export function createClipboardPanel({ root, actions }) {
     if (list.length === 0) {
       root.append(el("p", { class: "hint", textContent: t("ui.clipboard.empty") }));
     } else {
+      const filter = el("input", {
+        type: "search",
+        class: "clip-filter",
+        value: query,
+        placeholder: t("ui.clipboard.filter_placeholder"),
+        "aria-label": t("ui.clipboard.filter_label"),
+        dataset: { id: "filter", action: "filter" },
+      });
+      filter.addEventListener("input", () => actions.filter(filter.value));
+      filter.addEventListener("keydown", (event) => {
+        event.stopPropagation(); // typing a name is not a shortcut
+        if (event.key === "Escape" && filter.value) {
+          event.preventDefault();
+          actions.filter("");
+        }
+      });
+      root.append(filter);
       root.append(
-        el(
-          "ul",
-          { class: "clip-list", "aria-label": t("ui.clipboard.list_label") },
-          ...list.map((entry) => entryRow(entry, state, rate, canPaste)),
-        ),
+        shown.length === 0
+          ? el("p", { class: "hint", textContent: t("ui.clipboard.no_matches") })
+          : el(
+              "ul",
+              { class: "clip-list", "aria-label": t("ui.clipboard.list_label") },
+              ...shown.map((entry) => entryRow(entry, state, rate, canPaste)),
+            ),
       );
     }
     if (keep) {
-      root
-        .querySelector(`[data-id="${CSS.escape(keep.id)}"][data-action="${keep.action}"]`)
-        ?.focus();
+      const again = root.querySelector(
+        `[data-id="${CSS.escape(keep.id)}"][data-action="${keep.action}"]`,
+      );
+      again?.focus();
+      if (keep.caret?.[0] != null) again?.setSelectionRange?.(...keep.caret);
     }
   }
 

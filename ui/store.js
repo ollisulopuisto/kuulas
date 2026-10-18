@@ -39,6 +39,7 @@ export const initialState = () => ({
   // (null: the newest) and how a paste lands: "insert" | "overwrite", "same" | "current".
   clipboard: [],
   clipboardSelected: null,
+  clipboardFilter: "",
   pasteMode: "insert",
   pasteTarget: "same",
   // Cut candidates (WP18; GET /api/candidates): the rows with their timeline frames, the

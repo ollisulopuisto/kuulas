@@ -142,7 +142,11 @@ def _entry(project: Project, parts: list[_Part], name: str,
          for part in parts),
         key=lambda ref: (ref.rel_start, ref.track_slot, ref.offset)))
     end = max(part.start + part.length for part in parts)
-    return Entry(_new_id(moment), name, moment, refs=refs, span=(base, end))
+    # The source tracks' names by slot, so the panel can say where a copy came
+    # from without the source project (an unknown key to older readers).
+    names = [track.name for track in project.tracks if track.id in touched]
+    return Entry(_new_id(moment), name, moment, refs=refs, span=(base, end),
+                 extra={"tracks": names})
 
 
 def make_entry(project: Project, clip_ids: Iterable[str], *, name: str = "",

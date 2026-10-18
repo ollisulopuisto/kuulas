@@ -292,3 +292,17 @@ def test_an_empty_selection_raises_and_stale_ids_raise_their_own_keys():
     with pytest.raises(EditError) as err:
         make_entry_range(p, 0, 2_000, ["gone"], now=1000.0)
     assert err.value.key == "error.edit.no_track"
+
+
+def test_an_entry_remembers_its_source_track_names_by_slot():
+    p = project(
+        track("ta", clip("a1", start=5_000, length=2_000)),
+        track("tb", clip("b1", "mb", start=1_000, length=7_000)),
+        track("tc", clip("c1", start=0, length=100)),
+    )
+    got = make_entry(p, ["b1", "a1"], now=1000.0)  # not tc
+    # Slot order is the project's track order; track() names a track by its id.
+    assert got.extra["tracks"] == ["ta", "tb"]
+    assert from_json(to_json(got)).extra["tracks"] == ["ta", "tb"]
+    ranged = make_entry_range(p, 0, 50, ["tc"], now=1000.0)
+    assert ranged.extra["tracks"] == ["tc"]

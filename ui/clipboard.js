@@ -43,6 +43,41 @@ export function entryTitle(entry, rate, t = (key) => key) {
   });
 }
 
+/**
+ * The detail line under an entry: which project and tracks it came from, and how long it
+ * is. Entries made before the track names were kept have the short form.
+ */
+export function entryDetails(entry, rate, t = (key) => key) {
+  const duration = shortDuration(entry.length / rate);
+  const tracks = (entry.tracks ?? []).map((name) => name?.trim()).filter(Boolean);
+  if (tracks.length === 0 || !entry.source_name)
+    return t("ui.clipboard.details_short", { duration });
+  return t("ui.clipboard.details", {
+    source: entry.source_name,
+    tracks: tracks.join(", "),
+    duration,
+  });
+}
+
+/**
+ * The entries a filter box leaves: every word of `query` must be found (any case) in the
+ * entry's title, its track names or its source project's name. An empty query keeps all.
+ */
+export function filterEntries(entries, query, rate, t = (key) => key) {
+  const list = entries ?? [];
+  const words = String(query ?? "")
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (words.length === 0) return list;
+  return list.filter((entry) => {
+    const haystack = [entryTitle(entry, rate, t), ...(entry.tracks ?? []), entry.source_name ?? ""]
+      .join("\n")
+      .toLowerCase();
+    return words.every((word) => haystack.includes(word));
+  });
+}
+
 /** The remembered paste choice, with defaults: insert, on the same tracks. */
 export function pasteChoice(state) {
   return {
