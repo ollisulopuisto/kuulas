@@ -1,3 +1,14 @@
+## [v26.10.18.44] - 2026-10-18
+
+- **Cmd+S works:** it makes a backup copy at once and says so; Shift+Cmd+S makes a named
+  checkpoint ("Saved 11.45"; checkpoints are stored but not listed in the History panel yet).
+  Every edit was already saved as you made it.
+- **Speech waveforms are drawn in dB again by role:** speech and speech mix are dB-shaped (big),
+  music is linear (small), by default; before, every track was drawn linear, so changing a role
+  only changed the colour.
+- **New bus:** every "+ New bus…" path ends with the new bus selected and its name field ready.
+  The role choice reads "Speech mix (several people in one file)" so it is not mistaken for a bus.
+
 ## [v26.10.18.43] - 2026-10-18
 
 - **Lift-cut (Alt+X):** copies the selection or in/out range to the clipboard and removes it in place,
