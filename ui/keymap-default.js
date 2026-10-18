@@ -641,7 +641,7 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "clip.mute",
-    keys: { mac: ["N", "Alt+Mod+M"], other: ["N", "Alt+Mod+M"] },
+    keys: { mac: ["M", "N", "Alt+Mod+M"], other: ["M", "N", "Alt+Mod+M"] },
     context: "timeline",
     labelKey: "cmd.clip.mute",
   },
@@ -873,7 +873,7 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "marker.add",
-    keys: { mac: ["M", "Mod+Enter"], other: ["M", "Mod+Enter"] },
+    keys: { mac: "Mod+Enter", other: "Mod+Enter" },
     context: "global",
     labelKey: "cmd.marker.add",
   },

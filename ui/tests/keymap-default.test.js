@@ -148,8 +148,9 @@ describe("the owner's decisions", () => {
     assert.ok(keysOf("mark.out", "mac").includes("Mod+2"));
   });
 
-  test("Cmd+Enter adds a marker, as in Hindenburg (M stays)", () => {
-    assert.deepEqual(keysOf("marker.add", "mac"), ["M", "Mod+Enter"]);
+  test("Cmd+Enter adds a marker (Hindenburg); M mutes the clips, N still does too", () => {
+    assert.deepEqual(keysOf("marker.add", "mac"), ["Mod+Enter"]);
+    assert.deepEqual(keysOf("clip.mute", "mac"), ["M", "N", "Alt+Mod+M"]);
   });
 
   test("K stops the shuttle everywhere, including the Candidates tab", () => {
