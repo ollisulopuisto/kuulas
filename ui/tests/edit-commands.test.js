@@ -32,6 +32,7 @@ function setup(state, previewAnswer = { started: true, missing: 0 }) {
   const toasts = [];
   const copied = [];
   const previewed = [];
+  const seeks = [];
   let refreshed = 0;
   let renamed = 0;
   let now = 1000;
@@ -41,6 +42,7 @@ function setup(state, previewAnswer = { started: true, missing: 0 }) {
     app: {
       getState: () => state,
       patch: (p) => patches.push(p),
+      seek: (frame) => seeks.push(frame),
       edit: (change) => sent.push(change),
       toast: (text, options) => toasts.push([text, options]),
       now: () => now,
@@ -63,6 +65,7 @@ function setup(state, previewAnswer = { started: true, missing: 0 }) {
   return {
     registry,
     copied,
+    seeks,
     previewed,
     refreshed: () => refreshed,
     renamed: () => renamed,
@@ -168,6 +171,27 @@ describe("the editing commands", () => {
         rangeTracks: new Set(),
         selection: new Set(),
       });
+    }
+  });
+
+  test("after a ripple cut the play cursor goes to the splice, so P plays the join", () => {
+    for (const id of ["edit.remove", "edit.cut", "edit.close_gap_all"]) {
+      const state = base({ inPoint: 2 * S, outPoint: 6 * S, playhead: 9 * S });
+      const h = setup(state);
+      h.registry.run(id, null, state);
+      assert.deepEqual(h.seeks, [], `${id}: not before the edit is done`);
+      h.sent[0].done({ project, clipboard: { ok: true, entry: "e9" } });
+      assert.deepEqual(h.seeks, [2 * S], id);
+    }
+  });
+
+  test("lift-cut and soft delete leave the cursor where it is", () => {
+    for (const id of ["edit.lift_cut", "edit.delete"]) {
+      const state = base({ inPoint: 2 * S, outPoint: 6 * S, playhead: 9 * S });
+      const h = setup(state);
+      h.registry.run(id, null, state);
+      h.sent[0].done?.({ project, clipboard: { ok: true, entry: "e9" } });
+      assert.deepEqual(h.seeks, [], id);
     }
   });
 

@@ -49,6 +49,9 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
     "cut_range",
   ]);
 
+  /** The edits that close the gap: they leave a splice at the start of the range. */
+  const RIPPLE_OPS = new Set(["clipboard_cut", "ripple_delete", "cut_range"]);
+
   function toastFor(plan, before, response) {
     if (!plan.toast) return;
     // A plan may change its message once the answer is in: a cut whose clipboard copy
@@ -77,6 +80,11 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
         toastFor(plan, before, response);
         // The range is spent: its marks and the selection would only be left drawn on the
         // timeline (owner, 2026-10-18). Soft delete keeps them: the gap is still the range.
+        // A ripple cut leaves a splice at the range's start: the cursor goes there, so P (play from
+        // before the cursor) plays the join (owner, 2026-10-18). Lift-cut leaves a gap, not a splice.
+        if (RIPPLE_OPS.has(plan.op) && Number.isFinite(plan.args?.start)) {
+          app.seek?.(plan.args.start);
+        }
         if (RANGE_SPENT_OPS.has(plan.op)) {
           app.patch({
             inPoint: null,

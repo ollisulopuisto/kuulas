@@ -45,6 +45,7 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 | 33 | 18.10 | X in the transcript still sent the selection to the clipboard (I had said it did not) | X in the transcript now deletes the words' stretch on all tracks without the clipboard; Cmd+X cuts the words to the clipboard. Not tried by the owner. |
 | 34 | 18.10 | Transport (play, loop, timecode) mixed in with the menu bar; menus overflow into "..." | design chosen: the corner above the track headers; mockups first, owner decides |
 | 35 | 18.10 | Set exact values in the volume and pan sliders by double-clicking the number | track and bus header readouts: double-click, type ("-2,4", "3 dB", "L 30", "30 R", "C", Finnish V/O/keski too), Enter or click away applies, Esc cancels. The inspector fields already took typed values. Not seen on screen. |
+| 36 | 18.10 | After a cut (X), P should play from before the new splice, not from where the cursor was | a ripple cut (X, Cmd+X, Alt+Cmd+X) now moves the play cursor to the splice, so P plays from 3 s before it; lift-cut and Backspace leave the cursor. The transcript's X is not covered yet. Not tried by the owner. |
 | 20 | 18.10 | Cmd+Alt+click on a clip should select it and all following clips on all tracks (Hindenburg) | this commit; not tried by the owner |
 | 19 | 18.10 | X should work almost anywhere when in/out are marked | X, Shift+X, Alt+X and Alt+Mod+X now work from any panel (inspector, history, clipboard, markers, candidates) except text fields and the transcript, where X cuts the selected words |
 
