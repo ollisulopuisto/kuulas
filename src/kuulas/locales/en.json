@@ -1345,6 +1345,7 @@
   "error.automix.not_found": "The automixer could not be started: \"{command}\" was not found (folder: {cwd}). Check the command and folder in the Mix with the automixer settings.",
   "error.automix.failed": "The automixer stopped with exit code {code}.\n{tail}",
   "error.automix.no_output": "The automixer finished but wrote no mix.\n{tail}",
+  "error.automix.bad_settings": "The automixer settings are not valid: the command is a list of words, the folder text, the extra arguments a list of words.",
   "error.automix.no_audible": "Every track is muted or not soloed, so there is nothing to mix.",
   "job.automix": "Mixing with the automixer"
 }

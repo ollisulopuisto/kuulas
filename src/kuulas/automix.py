@@ -13,8 +13,9 @@ Assumptions about the tool (README, not measured): it takes the audio files as
 positional arguments and decides speech or music from the file names (the
 exporter already adds " MUSIC" to music stems), ``-o`` names the output WAV,
 ``--target-lufs``, ``--ad-spot`` and ``--ad-duration`` take numbers, it exits
-non-zero on failure and prints progress lines to stdout or stderr. Percentages
-in its output ("42%") are used as progress when present.
+non-zero on failure and prints progress lines to stdout or stderr. It prints plain
+lines with no percentage, so progress is indeterminate after the stems and the
+last line is the message.
 """
 
 from __future__ import annotations
@@ -23,7 +24,6 @@ import contextlib
 import json
 import logging
 import os
-import re
 import shutil
 import signal
 import subprocess
@@ -52,8 +52,6 @@ TAIL_LINES = 15
 LUFS_RANGE = (-40.0, 0.0)
 #: How long a terminated automixer gets to exit before it is killed.
 GRACE_SECONDS = 5
-
-_PERCENT = re.compile(r"(\d{1,3}(?:\.\d+)?)\s*%")
 
 #: ``(command, cwd, on_line, cancel) -> exit code``; see ``run_process``.
 RunProcess = Callable[
@@ -86,6 +84,52 @@ def resolve_settings(stored: dict | None, *, home: Path | None = None) -> dict[s
     return {"command": list(command), "cwd": cwd, "extra_args": list(extra)}
 
 
+def settings_path() -> Path:
+    """The user's automixer settings: ``$KUULAS_AUTOMIXER_FILE`` (tests) or
+    ``automixer.json`` in the per-user config folder."""
+    override = os.environ.get("KUULAS_AUTOMIXER_FILE")
+    if override:
+        return Path(override)
+    from .desktop import config_dir  # noqa: PLC0415 - desktop imports the session
+
+    return config_dir() / "automixer.json"
+
+
+def load_settings() -> dict:
+    """The stored settings (``command``, ``cwd``, ``extra_args``, any subset);
+    empty when the file is missing or damaged. ``resolve_settings`` fills defaults."""
+    try:
+        data = json.loads(settings_path().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def save_settings(settings: dict) -> dict:
+    """Check and store the settings (atomic write); returns what was stored.
+    Raises ``AutomixError`` (``error.automix.bad_settings``) for a wrong shape."""
+    command, cwd, extra = (settings.get(k) for k in ("command", "cwd", "extra_args"))
+    ok = (command is None or (isinstance(command, list) and command
+                              and all(isinstance(x, str) and x for x in command)))
+    ok = ok and (cwd is None or isinstance(cwd, str))
+    ok = ok and (extra is None or (isinstance(extra, list)
+                                   and all(isinstance(x, str) for x in extra)))
+    if not ok:
+        raise AutomixError("error.automix.bad_settings")
+    clean = {k: settings[k] for k in ("command", "cwd", "extra_args")
+             if settings.get(k) is not None}
+    path = settings_path()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_name(path.name + ".tmp")
+        tmp.write_text(json.dumps(clean, indent=2), encoding="utf-8")
+        os.replace(tmp, path)
+    except OSError as e:
+        raise AutomixError("error.export.cannot_write", path=str(path),
+                           error=str(e)) from e
+    return clean
+
+
 def _number(params: dict, key: str, low: float | None, high: float | None,
             *, default: float | None, above: float | None = None) -> float | None:
     value = params.get(key)
@@ -103,6 +147,13 @@ def _number(params: dict, key: str, low: float | None, high: float | None,
     if bad:
         raise AutomixError(f"error.automix.bad_{key}", value=value)
     return number
+
+
+def validate_params(params: dict) -> tuple[float, float | None, float | None]:
+    """``(target_lufs, ad_spot, ad_duration)`` of a run, or ``AutomixError``."""
+    return (_number(params, "target_lufs", *LUFS_RANGE, default=-16.0),
+            _number(params, "ad_spot", 0, None, default=None),
+            _number(params, "ad_duration", None, None, default=None, above=0))
 
 
 def _shown(number: float) -> str:
@@ -189,9 +240,7 @@ def run(session, params: dict, settings: dict, report: Report,
     run). ``report(fraction, message="", indeterminate=False)`` says how far
     it is. Raises ``AutomixError``, or ``JobCancelledError`` after cancel; the
     temporary folder and any partial output are removed in every case."""
-    lufs = _number(params, "target_lufs", *LUFS_RANGE, default=-16.0)
-    ad_spot = _number(params, "ad_spot", 0, None, default=None)
-    ad_duration = _number(params, "ad_duration", None, None, default=None, above=0)
+    lufs, ad_spot, ad_duration = validate_params(params)
     settings = resolve_settings(settings)
     if isinstance(params.get("extra_args"), list):
         settings["extra_args"] = [str(x) for x in params["extra_args"]]
@@ -232,21 +281,12 @@ def run(session, params: dict, settings: dict, report: Report,
                             ad_spot=ad_spot, ad_duration=ad_duration)
         report(STEMS_SHARE, "", indeterminate=True)
 
-        reached = [STEMS_SHARE]  # never goes back, whatever the tool prints
-
         def on_line(line: str) -> None:
-            if not line.strip():
-                return
-            lines.append(line)
-            found = _PERCENT.search(line)
-            if found and 0 <= float(found.group(1)) <= 100:
-                share = float(found.group(1)) / 100
-                reached[0] = max(
-                    reached[0], STEMS_SHARE + (1 - STEMS_SHARE) * 0.99 * share
-                )
-                report(reached[0], line)
-            else:
-                report(reached[0], line, indeterminate=reached[0] == STEMS_SHARE)
+            # The automixer prints plain lines with no percentage (measured by
+            # the podcast side): the bar stays indeterminate, the line is the message.
+            if line.strip():
+                lines.append(line)
+                report(STEMS_SHARE, line, indeterminate=True)
 
         log.info("Running %s", cmd)
         try:

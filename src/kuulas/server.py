@@ -35,7 +35,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.websockets import WebSocketDisconnect
 
-from . import export, export_formats, messages, music_report, transcribe
+from . import automix, export, export_formats, messages, music_report, transcribe
 from .build_info import build_label
 from .candidates import UnknownCandidateError
 from .history import HistoryError
@@ -288,6 +288,10 @@ def create_app(session, engine, *, language: str | None = None,
     async def _music_report_error(_request: Request, e: music_report.MusicReportError):
         return answer(e, 400)
 
+    @app.exception_handler(automix.AutomixError)
+    async def _automix_error(_request: Request, e: automix.AutomixError):
+        return answer(e, 400 if e.key.startswith("error.automix.bad_") else 500)
+
     @app.exception_handler(KuulasError)
     async def _other_error(_request: Request, e: KuulasError):
         if e.key.startswith(("error.paste.", "error.import_plan.", "error.chapters.",
@@ -457,6 +461,20 @@ def create_app(session, engine, *, language: str | None = None,
     @app.post("/api/export-mix", status_code=202)
     def post_export_mix(body: Annotated[dict[str, Any], Body()]):
         return JSONResponse({"jobs": session.export_mix(body)}, status_code=202)
+
+    @app.post("/api/automix", status_code=202)
+    def post_automix(body: Annotated[dict[str, Any], Body()]):
+        return JSONResponse({"jobs": session.automix(body)}, status_code=202)
+
+    @app.get("/api/settings/automixer")
+    def get_automixer_settings():
+        stored = automix.load_settings()
+        return {"settings": stored, "resolved": automix.resolve_settings(stored)}
+
+    @app.put("/api/settings/automixer")
+    def put_automixer_settings(body: Annotated[dict[str, Any], Body()]):
+        stored = automix.save_settings(body)
+        return {"settings": stored, "resolved": automix.resolve_settings(stored)}
 
     @app.get("/api/export-folder")
     def get_export_folder():

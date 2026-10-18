@@ -1345,6 +1345,7 @@
   "error.automix.not_found": "Automixeria ei voitu käynnistää: komentoa \"{command}\" ei löytynyt (kansio: {cwd}). Tarkista komento ja kansio automixer-miksauksen asetuksista.",
   "error.automix.failed": "Automixer pysähtyi virhekoodiin {code}.\n{tail}",
   "error.automix.no_output": "Automixer päättyi mutta ei kirjoittanut miksausta.\n{tail}",
+  "error.automix.bad_settings": "Automixerin asetukset eivät kelpaa: komento on sanalista, kansio teksti ja lisäargumentit sanalista.",
   "error.automix.no_audible": "Kaikki raidat on mykistetty tai ei ole soolotettu, joten miksattavaa ei ole.",
   "job.automix": "Miksataan automixerilla"
 }

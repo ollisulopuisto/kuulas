@@ -163,9 +163,11 @@ def test_success_runs_the_command_on_the_stems_and_cleans_up(
     assert fractions[-1] == 1.0
     assert any(f <= 0.4 for f in fractions)
     assert any(m == "mixing 50%" for _f, m, _i in reports.items)
-    # percentages the automixer prints are used; before them the state is indeterminate
-    assert any(i for _f, _m, i in reports.items)
-    assert any(0.4 < f < 1 and not i for f, _m, i in reports.items)
+    # the real CLI prints no percentage, so after the stems the bar is indeterminate
+    # and any "42%" in a log line is only text
+    log_reports = [r for r in reports.items if r[1] in result["log"]]
+    assert log_reports
+    assert all(i and f == automix.STEMS_SHARE for f, _m, i in log_reports)
     assert result["log"][-1] == "done"
 
 
