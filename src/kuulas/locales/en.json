@@ -1378,6 +1378,6 @@
   "ui.automix.cancelled": "Mixing cancelled.",
   "error.automix.bad_rate": "The automixer needs a 48000 Hz project, and this one is {rate} Hz. Nothing was exported or run.",
   "error.automix.bad_stems": "The stems do not match what the automixer reads: {detail}",
-  "ui.automix.scope_note": "Only speech and music tracks are mixed; speech-mix tracks and buses are left out.",
+  "ui.automix.scope_note": "Every speech and music track is mixed; buses are left out.",
   "ui.automix.running_percent": "The automixer is mixing… {percent} %: {line}"
 }
