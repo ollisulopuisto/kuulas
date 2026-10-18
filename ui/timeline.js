@@ -6,8 +6,26 @@
 // The overlay redraws on requestAnimationFrame when state changed; the
 // waveform layer only when something it shows changed.
 import { candidateBands, flagFits, flagText } from "./candidates-model.js";
+import {
+  canStartClipDrag,
+  clipDragIds,
+  moveBoxes,
+  moveGhosts,
+  resolveMove,
+  targetTrackRow,
+} from "./clip-drag.js";
 import { edgeGhost, ghostGeometry, resolveEdge } from "./edge-drag.js";
 import { frameToX, xToFrame } from "./format.js";
+import {
+  fadeFromX,
+  fadeHandleAt,
+  fadeHandles,
+  fadeShape,
+  gainFromY,
+  gainGrab,
+  gainLineHit,
+  gainLineVisible,
+} from "./gain-drag.js";
 import { gateLabelFits, gatePixelRuns } from "./gate.js";
 import { busHues, fileMark, needsFileMark, ribbonLayout, seamKind } from "./grammar.js";
 import { formatNumber, t } from "./i18n.js";
@@ -64,6 +82,9 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
   let size = { width: 0, height: 0, ratio: 1 };
   let pointerFrame = null;
   let edgeSession = null; // an edge being dragged: see the pointer section
+  let tweakSession = null; // a gain line or fade handle being dragged
+  let hoverClipId = null; // the clip under the pointer: its fade handles show
+  let clipSession = null; // clips being moved by their label strip: see the pointer section
   let dropPreview = null; // files being dragged over: { kind, startFrame, mode, count } or null
   let rangeBand = null; // a range being dragged: { fromFrame, toFrame, tracks } or null
   let bands = []; // the open candidates in pixels (candidates-model.js), per redraw
@@ -166,6 +187,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     drawRangeBand(state, layout);
     if (dropPreview) drawDropPreview(state, layout);
     if (edgeSession?.dragging) drawEdgeGhost(state, layout);
+    if (clipSession?.dragging) drawMoveGhost(state, layout);
     drawPlayhead(state, height);
   }
 
@@ -198,6 +220,22 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     overlay.fillStyle = theme.ink;
     const hint = t(ghost.ripple ? "ui.edge.hint_ripple" : "ui.edge.hint_roll");
     overlay.fillText(hint, Math.max(4, geometry.line.x + 6), geometry.line.y + 3);
+    overlay.restore();
+  }
+
+  // Clips being moved (WP6): dashed accent outlines at the new place, on the new track.
+  function drawMoveGhost(state, layout) {
+    const ghosts = moveGhosts(state.project, clipSession.ids, clipSession.move);
+    overlay.save();
+    overlay.beginPath();
+    overlay.rect(0, RULER_HEIGHT, size.width, size.height - RULER_HEIGHT);
+    overlay.clip();
+    overlay.strokeStyle = theme.accent;
+    overlay.lineWidth = 1.5;
+    overlay.setLineDash([5, 3]);
+    for (const box of moveBoxes(ghosts, { view: state, layout })) {
+      overlay.strokeRect(box.x + 0.5, box.y + 0.5, box.w - 1, box.h - 1);
+    }
     overlay.restore();
   }
 
@@ -300,8 +338,10 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       if (clip.xfade_out) drawCrossfade(right, y, h, clip.xfade_out / state.zoom, colours.ink);
       if (row.height >= 36) drawName(state, clip, left, y, w, colours, marked);
       // The gain line only where it says something: not 0 dB, an envelope, or selected.
-      const gainShown = (clip.gain_db ?? 0) !== 0 || clip.envelope?.length > 0 || selected;
-      if (row.height >= 40 && gainShown) drawGain(state, clip, left, right, top, row.height);
+      if (row.height >= 40 && gainLineVisible(clip, selected))
+        drawGain(state, clip, left, right, top, row.height);
+      if (row.height >= 40 && (selected || clip.id === hoverClipId))
+        drawFadeHandles(clip, { left, right, zoom: state.zoom }, { top, y, h });
       if (siblings.has(clip.id)) drawSiblingMarks(left, y, w, h);
       if (selected) {
         overlay.strokeStyle = theme.selection;
@@ -700,6 +740,27 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     overlay.globalAlpha = 1;
   }
 
+  // Fade handles (WP6): a dot at the end of each fade, with the fade's shape as a line from
+  // the clip's bottom corner while a fade is set.
+  function drawFadeHandles(clip, frame, box) {
+    const handles = fadeHandles(clip, frame);
+    overlay.strokeStyle = theme.gain;
+    overlay.fillStyle = theme.accent;
+    overlay.lineWidth = 1;
+    for (const side of ["in", "out"]) {
+      if (clip[`fade_${side}`] > 0) {
+        const shape = fadeShape(clip, side, { ...frame, top: box.y, height: box.h });
+        overlay.beginPath();
+        overlay.moveTo(shape[0][0], shape[0][1]);
+        overlay.lineTo(shape[1][0], shape[1][1]);
+        overlay.stroke();
+      }
+      overlay.beginPath();
+      overlay.arc(handles[side].x, box.top + handles[side].y, POINT_RADIUS + 0.5, 0, Math.PI * 2);
+      overlay.fill();
+    }
+  }
+
   // Track automation (the ducking curve): a thin line in the lower third of the lane.
   function drawAutomation(state, track, top, rowHeight) {
     if (!track.automation?.length || rowHeight < 40) return;
@@ -855,14 +916,34 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       if (event.pointerId === edgeSession.pointerId) updateEdge(event);
       return;
     }
+    if (clipSession) {
+      if (event.pointerId === clipSession.pointerId) updateClip(event);
+      return;
+    }
+    if (tweakSession) {
+      if (event.pointerId === tweakSession.pointerId) updateTweak(event);
+      return;
+    }
     if (!state.project) return;
     hoverGate(event);
     const hit = hitAt(event);
-    const cursor = hit.clip && hit.edge && hit.row?.kind === "track" ? "ew-resize" : "";
+    const hovered = hit.row?.kind === "track" ? (hit.clip?.id ?? null) : null;
+    if (hovered !== hoverClipId) {
+      hoverClipId = hovered;
+      requestOverlay();
+    }
+    let cursor = hit.clip && hit.edge && hit.row?.kind === "track" ? "ew-resize" : "";
+    const zone = tweakZone(hit, event, state.selection);
+    if (!cursor && zone) cursor = zone.kind === "gain" ? "ns-resize" : "ew-resize";
+    if (!cursor && canStartClipDrag(hit, rowYOf(event, hit))) cursor = "grab";
     if (overlayCanvas.style.cursor !== cursor) overlayCanvas.style.cursor = cursor;
   });
   overlayCanvas.addEventListener("pointerleave", () => {
     pointerFrame = null;
+    if (hoverClipId !== null && !tweakSession) {
+      hoverClipId = null;
+      requestOverlay();
+    }
   });
   overlayCanvas.addEventListener("dblclick", (event) => {
     if (!getState().project || event.button !== 0) return;
@@ -912,7 +993,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     const point = locate(event);
     session.ripple = event.shiftKey;
     if (!session.dragging) {
-      if (!isDrag(point.x - session.origin.x, point.y - session.origin.y)) return;
+      if (!isDrag(session.origin, point)) return;
       session.dragging = true;
       overlayCanvas.style.cursor = "ew-resize";
     }
@@ -954,21 +1035,184 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
   }
 
   overlayCanvas.addEventListener("pointerup", (event) => {
+    if (tweakSession && event.pointerId === tweakSession.pointerId) {
+      if (tweakSession.dragging) updateTweak(event);
+      endTweak(false);
+      return;
+    }
+    if (clipSession && event.pointerId === clipSession.pointerId) {
+      if (clipSession.dragging) updateClip(event);
+      endClip(true);
+      return;
+    }
     if (!edgeSession || event.pointerId !== edgeSession.pointerId) return;
     if (edgeSession.dragging) updateEdge(event);
     endEdge(true);
   });
   overlayCanvas.addEventListener("pointercancel", () => {
+    if (clipSession) endClip(false);
+    if (tweakSession) endTweak(true);
     if (edgeSession) endEdge(false);
   });
   overlayCanvas.addEventListener("pointerdown", (event) => {
     if (!getState().project || event.button !== 0) return;
     overlayCanvas.focus();
     const hit = hitAt(event);
+    const before = getState().selection; // the press may replace it; a move takes the old one
     actions.pointerDown(hit, event);
-    if (!event.shiftKey && canStartRangeDrag(hit)) beginRangeDrag(event, hit);
+    const zone = event.shiftKey ? null : tweakZone(hit, event, before);
+    const moving = !zone && !event.shiftKey && canStartClipDrag(hit, rowYOf(event, hit));
+    if (!event.shiftKey && !zone && !moving && canStartRangeDrag(hit)) beginRangeDrag(event, hit);
     if (hit.clip && hit.edge && hit.row?.kind === "track") startEdge(hit, event);
+    else if (zone) startTweak(hit, event, zone);
+    else if (moving) startClip(hit, event, before);
   });
+
+  // Dragging a clip's gain line or a fade handle (WP6): live edits (coalesced by the app, so
+  // one undo step); Esc puts the value back. A press that does not travel DRAG_PX is a click.
+  function tweakZone(hit, event, selection) {
+    if (!hit.clip || hit.row?.kind !== "track" || hit.edge) return null;
+    const state = getState();
+    const x = locate(event).x;
+    const rowY = rowYOf(event, hit);
+    const frame = {
+      left: frameToX(hit.clip.start, state.scroll, state.zoom),
+      right: frameToX(clipEnd(hit.clip), state.scroll, state.zoom),
+      zoom: state.zoom,
+    };
+    const side = fadeHandleAt(hit.clip, frame, x, rowY, hit.row.height);
+    if (side) return { kind: "fade", side };
+    if (hit.point == null && gainLineVisible(hit.clip, selection?.has(hit.clip.id))) {
+      if (gainLineHit(hit.clip, hit.row.height, rowY)) return { kind: "gain" };
+    }
+    return null;
+  }
+
+  function startTweak(hit, event, zone) {
+    const clip = hit.clip;
+    tweakSession = {
+      kind: zone.kind,
+      side: zone.side ?? null,
+      clipId: clip.id,
+      trackId: hit.row.id,
+      rowHeight: hit.row.height,
+      origin: locate(event),
+      pointerId: event.pointerId,
+      dragging: false,
+      start: zone.kind === "gain" ? (clip.gain_db ?? 0) : clip[`fade_${zone.side}`],
+      grab: zone.kind === "gain" ? gainGrab(clip, hit.row.height, rowYOf(event, hit)) : 0,
+      value: null,
+    };
+    overlayCanvas.setPointerCapture?.(event.pointerId);
+    window.addEventListener("keydown", tweakKey, true);
+  }
+
+  function sendTweak(session, value) {
+    if (session.kind === "gain") actions.clipGain({ clipId: session.clipId, gain: value });
+    else actions.clipFade({ clipId: session.clipId, side: session.side, frames: value });
+  }
+
+  function updateTweak(event) {
+    const session = tweakSession;
+    const point = locate(event);
+    if (!session.dragging) {
+      if (!isDrag(session.origin, point)) return;
+      session.dragging = true;
+      overlayCanvas.style.cursor = session.kind === "gain" ? "ns-resize" : "ew-resize";
+    }
+    const state = getState();
+    const track = state.project.tracks.find((item) => item.id === session.trackId);
+    const clip = track?.clips.find((item) => item.id === session.clipId);
+    if (!clip) return;
+    const row = layoutFor(state).rows.find((item) => item.id === session.trackId);
+    const rowY = point.y - RULER_HEIGHT + state.scrollY - (row?.top ?? 0);
+    const value =
+      session.kind === "gain"
+        ? gainFromY(session.rowHeight, rowY, session.grab)
+        : fadeFromX(clip, session.side, {
+            startFade: session.start,
+            startX: session.origin.x,
+            x: point.x,
+            zoom: state.zoom,
+          });
+    if (value === session.value) return;
+    session.value = value;
+    sendTweak(session, value);
+    requestOverlay();
+  }
+
+  function endTweak(cancel) {
+    const session = tweakSession;
+    tweakSession = null;
+    overlayCanvas.style.cursor = "";
+    window.removeEventListener("keydown", tweakKey, true);
+    overlayCanvas.releasePointerCapture?.(session.pointerId);
+    if (cancel && session.dragging && session.value !== null) sendTweak(session, session.start);
+    requestOverlay();
+  }
+
+  function tweakKey(event) {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    event.stopPropagation();
+    endTweak(true);
+  }
+
+  // Dragging clips by the label strip (WP6): as the edge drag. A press is a click until
+  // DRAG_PX of travel; then the ghosts follow the pointer in time and across tracks, Esc
+  // cancels, release sends one move_clips_to_track.
+  function rowYOf(event, hit) {
+    if (!hit.row) return -1;
+    return locate(event).y - RULER_HEIGHT + getState().scrollY - hit.row.top;
+  }
+
+  function startClip(hit, event, before) {
+    clipSession = {
+      ids: clipDragIds(hit.clip.id, before),
+      fromIndex: hit.row.index,
+      origin: locate(event),
+      pointerId: event.pointerId,
+      dragging: false,
+      move: { delta: 0, direction: 0 },
+    };
+    overlayCanvas.setPointerCapture?.(event.pointerId);
+    window.addEventListener("keydown", clipKey, true);
+  }
+
+  function updateClip(event) {
+    const session = clipSession;
+    const point = locate(event);
+    if (!session.dragging) {
+      if (!isDrag(session.origin, point)) return;
+      session.dragging = true;
+      overlayCanvas.style.cursor = "grabbing";
+    }
+    const state = getState();
+    const row = targetTrackRow(layoutFor(state), point.y - RULER_HEIGHT + state.scrollY);
+    session.move = resolveMove(state.project, session.ids, {
+      deltaFrames: (point.x - session.origin.x) * state.zoom,
+      fromIndex: session.fromIndex,
+      toIndex: row?.index ?? session.fromIndex,
+    });
+    requestOverlay();
+  }
+
+  function endClip(commit) {
+    const session = clipSession;
+    clipSession = null;
+    overlayCanvas.style.cursor = "";
+    window.removeEventListener("keydown", clipKey, true);
+    overlayCanvas.releasePointerCapture?.(session.pointerId);
+    requestOverlay();
+    if (commit && session.dragging) actions.clipDrag({ ids: session.ids, move: session.move });
+  }
+
+  function clipKey(event) {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    event.stopPropagation();
+    endClip(false);
+  }
 
   // Press, move, lift in a lane selects a time range (WP6). Until the pointer has moved
   // DRAG_PX it is the plain click pointerDown already handled; Esc cancels.
