@@ -26,6 +26,7 @@ import { getState, reduceLive, serverPatch, setState, subscribe } from "./store.
 import { densityAttribute, nextTheme, themeAttribute } from "./theme.js";
 import { createTimeline } from "./timeline.js";
 import { createTrackHeaders } from "./tracks.js";
+import { createTranscript } from "./transcript.js";
 import { createTransport } from "./transport.js";
 import * as View from "./view.js";
 
@@ -317,6 +318,20 @@ for (const tab of document.querySelectorAll(".side-tab")) {
   });
 }
 
+// The transcript dock (WP7): paragraphs per speaker turn, following the playback.
+const transcript = createTranscript({
+  root: $("panel-transcript"),
+  getState,
+  setState,
+  api,
+  actions: {
+    seek: (frame) => void transport.seek(frame),
+    showError,
+    applyResponse: apply,
+    run: (id) => keyboard.registry.run(id, null, getState()),
+  },
+});
+
 // The whole keyboard layer: keymap, palette, cheat sheet, menu bar, hints (shell-keys.js).
 const keyboard = setupKeyboard({
   actions,
@@ -344,6 +359,19 @@ const keyboard = setupKeyboard({
     refreshClipboard: () => void refreshClipboard(),
     now: () => performance.now(),
     chooseMedia: () => chooseMedia(),
+    // The transcript's X: cut the words' stretch on every track.
+    cutWords: (indices) =>
+      api
+        .command("cut_words", { indices })
+        .then((response) => {
+          apply(response);
+          return true;
+        })
+        .catch((error) => {
+          showError(error);
+          return false;
+        }),
+    correct: () => transcript.startCorrect(),
     focusName: () => inspector.focusName(),
     openGateStretch: () => openGateStretch(),
     seek: (frame) => void transport.seek(frame),
@@ -894,6 +922,7 @@ function render(state, patch) {
     }
   }
   if (touched("playhead", "playing", "zoom", "scroll", "followMode", "followPaused")) follow(state);
+  transcript.update(state, patch);
 }
 
 // While playing, keep the playhead in view (page or continuous) unless the user

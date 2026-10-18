@@ -365,6 +365,17 @@ def test_transcript_import_then_words(client, loaded):
     assert [w["w"] for w in words] == ["hello", "there"]
 
 
+def test_words_name_the_people_they_refer_to(client, loaded, session):
+    media = media_id(loaded)
+    client.post(f"/api/transcript/{media}", json=WORDS)
+    assert "people" not in client.get("/api/words").json()
+    pid = session.create_person("Anna Virtanen")
+    session.set_media_person(media, pid)
+    body = client.get("/api/words").json()
+    assert {w["person"] for w in body["words"]} == {pid}
+    assert body["people"] == {pid: "Anna Virtanen"}
+
+
 def test_transcript_import_accepts_the_whisper_shape(client, loaded):
     media = media_id(loaded)
     segments = {"segments": [{"words": WORDS}]}

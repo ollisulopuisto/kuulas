@@ -31,6 +31,7 @@ import { DEFAULT_KEYMAP } from "../keymap-default.js";
 import { MENU, menuTargets } from "../menu-model.js";
 import { paletteRows } from "../palette.js";
 import { CONTEXT_OF_PANEL } from "../shell-keys.js";
+import { registerTranscriptCommands } from "../transcript-commands.js";
 
 const at = (path) => fileURLToPath(new URL(path, import.meta.url));
 const catalog = (lang) =>
@@ -52,6 +53,7 @@ const stub = new Proxy({}, { get: () => () => {} });
 const REGISTRY = createRegistry();
 registerAppCommands(REGISTRY, { actions: stub, app: stub });
 registerEditCommands(REGISTRY, { app: stub, t: (key) => key, formatSeconds: String });
+registerTranscriptCommands(REGISTRY, { app: stub, t: (key) => key });
 REGISTRY.planMissing(DEFAULT_KEYMAP.map((entry) => entry.id));
 const READY = REGISTRY.ids().filter((id) => REGISTRY.status(id) === "ready");
 

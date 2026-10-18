@@ -26,6 +26,7 @@ import { createMenubar } from "./menubar.js";
 import { createModifierTracker } from "./modifiers.js";
 import { createPalette, paletteRows } from "./palette.js";
 import { subscribe } from "./store.js";
+import { registerTranscriptCommands } from "./transcript-commands.js";
 
 // Which keymap context a keyboard panel gives (keymap-default.js). The help panel
 // is docked in the sidebar, so it takes the side panels' keys: the timeline's
@@ -100,6 +101,7 @@ export function setupKeyboard({ actions, app, t, notify, onLanguageChange, onRef
     t,
     formatSeconds: (seconds) => formatNumber(seconds, { digits: 1 }),
   });
+  registerTranscriptCommands(registry, { app, t });
   // The rest of the sheet is listed everywhere and does nothing until its WP lands.
   registry.planMissing(DEFAULT_KEYMAP.map((entry) => entry.id));
 

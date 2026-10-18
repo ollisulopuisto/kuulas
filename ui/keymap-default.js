@@ -491,6 +491,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.transcript.delete_words",
   },
   {
+    id: "transcript.cut_words",
+    keys: { mac: ["X", "Mod+X"], other: ["X", "Mod+X"] },
+    context: "transcript",
+    labelKey: "cmd.transcript.cut_words",
+  },
+  {
     id: "transcript.correct",
     keys: { mac: "Enter", other: "Enter" },
     context: "transcript",
@@ -604,7 +610,8 @@ export const STATUS_HINTS = {
   ],
   transcript: [
     { id: "transport.play", hintKey: "ui.hint.play" },
-    { id: "transcript.delete_words", hintKey: "ui.hint.cut_words" },
+    { id: "transcript.delete_words", hintKey: "ui.hint.delete_words" },
+    { id: "transcript.cut_words", hintKey: "ui.hint.cut_words" },
     { id: "transcript.find", hintKey: "ui.hint.find" },
     { id: "panel.next", hintKey: "ui.hint.panels" },
     { id: "nav.home", hintKey: "ui.hint.home" },

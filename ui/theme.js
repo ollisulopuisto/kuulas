@@ -69,6 +69,8 @@ export function readTheme(
     clipping: p.signals.clipping,
     seam: p.signals.seam,
     sibling: p.signals.sibling,
+    collateral: p.signals.collateral,
+    collateralFill: p.signals.collateralFill,
     fileMark: p.signals.fileMark,
     fileMarkText: p.signals.fileMarkText,
     mutedOpacity: p.numbers.mutedOpacity,
