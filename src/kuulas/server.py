@@ -36,6 +36,7 @@ from pydantic import BaseModel, Field
 from starlette.websockets import WebSocketDisconnect
 
 from . import export, messages, music_report, transcribe
+from .candidates import UnknownCandidateError
 from .history import HistoryError
 from .media import ImportResult, MediaError
 from .messages import KuulasError, error_body, t
@@ -234,6 +235,10 @@ def create_app(session, engine, *, language: str | None = None,
     async def _no_entry(_request: Request, e: NoSuchEntryError):
         return answer(e, 404)
 
+    @app.exception_handler(UnknownCandidateError)
+    async def _no_candidate(_request: Request, e: UnknownCandidateError):
+        return answer(e, 404)
+
     @app.exception_handler(UnknownIdError)
     async def _unknown(_request: Request, e: UnknownIdError):
         return answer(e, 404)
@@ -390,6 +395,22 @@ def create_app(session, engine, *, language: str | None = None,
     @app.get("/api/source-map")
     def get_source_map(media: str):
         return session.source_map(media)
+
+    # -- cut candidates (WP18) ------------------------------------------------
+    # Detecting, deciding, applying and marking are commands (/api/command:
+    # candidates_detect, candidate_set_state, candidate_apply, candidate_mark),
+    # each one undo step; these two only read.
+
+    @app.get("/api/candidates")
+    def get_candidates(state: str | None = None):
+        """Every candidate (or those in ``state``) with timeline frames and
+        recording flicks, and the counts per state."""
+        return session.candidates(state)
+
+    @app.get("/api/candidates/{candidate_id}/preview")
+    def get_candidate_preview(candidate_id: str, mode: str = "soft"):
+        """"Play as if cut": ``from``, ``to`` and the frame ranges to ``skip``."""
+        return session.candidate_preview(candidate_id, mode)
 
     @app.post("/api/restore")
     def post_restore(body: RestoreBody):

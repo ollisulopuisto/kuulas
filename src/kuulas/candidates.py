@@ -537,13 +537,28 @@ def merge(existing: dict[str, dict], found: Iterable[Candidate],
         out[c.id] = c.record()
         added += 1
     if len(out) > MAX_CANDIDATES:
-        ranked = sorted(out.items(), key=lambda kv: (not _decided(kv[1]),
-                                                     -float(kv[1].get("score", 0)),
-                                                     kv[0]))
-        out = dict(ranked[:MAX_CANDIDATES])
+        out = bound(out)
         added = sum(1 for i in out if i not in existing)
     dropped = sum(1 for i in existing if i not in out)
     return out, {"added": added, "dropped": dropped}
+
+
+def bound(store: dict[str, dict]) -> dict[str, dict]:
+    """At most ``MAX_CANDIDATES``: decisions and marks first, then the open
+    ones by score, so the weakest open candidates are the ones that go."""
+    if len(store) <= MAX_CANDIDATES:
+        return store
+    ranked = sorted(store.items(), key=lambda kv: (not _decided(kv[1]),
+                                                   -float(kv[1].get("score", 0)),
+                                                   kv[0]))
+    return dict(ranked[:MAX_CANDIDATES])
+
+
+def add(store: dict[str, dict], c: Candidate) -> dict[str, dict]:
+    """The store with ``c`` in it (a mark). One already there stays as it is."""
+    if c.id in store:
+        return store
+    return bound({**store, c.id: c.record()})
 
 
 def set_state(store: dict[str, dict], cid: str, state: str) -> dict[str, dict]:
@@ -602,6 +617,41 @@ def mark(p: Project, start: int, end: int, track_id: str | None = None) -> Candi
                      reason={"key": "candidate.reason.marked", "params": {}})
 
 
+def _scope(p: Project, c: Candidate, base: list[str], a: int, b: int,
+           mode: str) -> list[str]:
+    """WP19a's track set for one span: a soft cut widens to the sync group
+    only for a group candidate; a ripple always keeps groups together."""
+    return edit_scope.expand_range(p, None, base, a, b,
+                                   mode == "ripple" or c.scope == "group")
+
+
+def default_tracks(p: Project, c: Candidate, mode: str = "soft") -> list[str]:
+    """The tracks ``apply_plan`` would touch with no ``tracks`` given."""
+    pieces = place(p, c)
+    order = [tr.id for tr in p.tracks]
+    base = sorted({x.track for x in pieces}, key=order.index)
+    touched: set[str] = set()
+    for a, b in _union((x.start, x.end) for x in pieces):
+        touched.update(_scope(p, c, base, a, b, mode))
+    return [tid for tid in order if tid in touched]
+
+
+def view(p: Project, c: Candidate) -> dict:
+    """A candidate as the API shows it: recording range in flicks, timeline
+    spans in frames (``start``/``end`` None when none of it is on the
+    timeline any more), the tracks a soft cut touches, the reason in the
+    current language and how much of it is still heard."""
+    cut = spans(p, c)
+    return {"id": c.id, "kind": c.kind, "state": c.state, "scope": c.scope,
+            "media": c.media, "start_flicks": c.start, "end_flicks": c.end,
+            "seconds": round((c.end - c.start) / FLICKS, 3),
+            "spans": [[a, b] for a, b in cut],
+            "start": cut[0][0] if cut else None, "end": cut[-1][1] if cut else None,
+            "tracks": default_tracks(p, c) if cut else [],
+            "heard": round(heard(p, c), 3), "score": c.score,
+            "reason": reason_text(c), "text": c.text}
+
+
 def apply_plan(p: Project, c: Candidate, tracks: Iterable[str] | None = None,
                mode: str = "soft") -> Plan:
     """What accepting ``c`` does, without doing it.
@@ -626,12 +676,9 @@ def apply_plan(p: Project, c: Candidate, tracks: Iterable[str] | None = None,
             else sorted({x.track for x in pieces}, key=order.index))
     out, touched = p, set()
     for a, b in reversed(cut):
-        if mode == "soft":
-            scope = edit_scope.expand_range(out, None, base, a, b, c.scope == "group")
-            out = ops.mute_range(out, a, b, scope)
-        else:
-            scope = edit_scope.expand_range(out, None, base, a, b, True)
-            out = ops.cut_range(out, a, b, scope)
+        scope = _scope(out, c, base, a, b, mode)
+        out = (ops.mute_range(out, a, b, scope) if mode == "soft"
+               else ops.cut_range(out, a, b, scope))
         touched.update(scope)
     pad = round(PREVIEW_PAD_S * p.rate)
     preview = {"from": max(0, cut[0][0] - pad), "to": cut[-1][1] + pad,

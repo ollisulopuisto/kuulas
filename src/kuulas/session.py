@@ -36,6 +36,7 @@ from nhsx.read import time_to_seconds as nhsx_time_to_seconds
 
 from . import (
     analysis,
+    candidates,
     collateral,
     edit_scope,
     import_plan,
@@ -50,7 +51,7 @@ from . import export as export_module
 from . import music_report as music_report_module
 from .clipboard import Entry, make_entry, make_entry_range
 from .clipboard_store import ClipboardStore, entry_dict
-from .clock import FLICKS
+from .clock import FLICKS, frames_to_flicks
 from .history import History, UndoInfo
 from .jobs import Jobs
 from .media import ImportResult, MediaError, MediaStore
@@ -248,14 +249,17 @@ class Session:
 
     def command(self, name: str, args: dict | None = None) -> Project:
         """An edit that needs more than the project: the media store, the
-        transcript. See ``COMMANDS``."""
+        transcript. See ``COMMANDS``. Those in ``LOCK_FREE_COMMANDS`` take the
+        lock themselves, only for their snapshot and their commit."""
+        if args is None:
+            args = {}
+        try:
+            run = COMMANDS[name]
+        except KeyError:
+            raise ops.EditError("error.edit.unknown", name=name) from None
+        if name in LOCK_FREE_COMMANDS:
+            return run(self, args)
         with self.lock:
-            if args is None:
-                args = {}
-            try:
-                run = COMMANDS[name]
-            except KeyError:
-                raise ops.EditError("error.edit.unknown", name=name) from None
             return run(self, args)
 
     def duck_music(self) -> Project:
@@ -530,6 +534,152 @@ class Session:
             "unused": [list(r) for r in unused],
             "parts": {clip_id: list(pair) for clip_id, pair in parts.items()},
         }
+
+    # -- cut candidates (WP18) -----------------------------------------------
+    #
+    # Candidates live in the material root (``candidates``: id -> record), so
+    # every edit sees them and each change is one undoable material step.
+    # Detection takes its snapshot under the lock, works outside it (it can
+    # take seconds on a long session, and the level analysis reads audio),
+    # and commits under the lock again, merged with what is stored *then*:
+    # a decision made meanwhile is never overwritten.
+
+    def _candidates_store(self) -> tuple[dict, dict]:
+        root = self.history.material
+        return root, dict(root.get("candidates", {}))
+
+    def candidates(self, state: str | None = None) -> dict:
+        """Every candidate as ``candidates.view`` shows it, by timeline start
+        (those no longer on the timeline last), and the counts per state."""
+        with self.lock:
+            project = self.history.state
+            _, stored = self._candidates_store()
+        rows = [candidates.view(project, candidates.Candidate.from_record(i, r))
+                for i, r in stored.items() if state is None or r.get("state") == state]
+        rows.sort(key=lambda r: (r["start"] is None, r["start"] or 0, r["id"]))
+        return {"candidates": rows, "summary": candidates.summary(stored)}
+
+    def candidates_detect(self, *, levels: bool = False,
+                          lang: str | None = None) -> dict:
+        """Find candidates in the transcripts (and, with ``levels``, in the
+        speech levels) and store them as one material step; nothing is
+        committed when nothing changed. Returns ``{"added", "dropped"}`` and
+        the counts per state."""
+        with self.lock:
+            project = self.history.state
+            words = self.transcripts()
+        silences = self._level_silences(project) if levels else None
+        found = candidates.detect(project, words, silences=silences, lang=lang)
+        with self.lock:
+            root, stored = self._candidates_store()
+            new, changes = candidates.merge(stored, found, self.history.state)
+            if new != stored:
+                root["candidates"] = new
+                self._material_step(t("history.candidates_detected", **changes), root,
+                                    "candidates_detect",
+                                    {"levels": bool(levels), "lang": lang})
+            return {**changes, **candidates.summary(new)}
+
+    def _level_silences(self, project: Project) -> dict[str, list] | None:
+        """Media id -> quiet ranges (flicks from its start) from the speech
+        levels: where its mic is closed, plus whatever of the file no clip
+        plays (nothing of it is heard there). Reads audio, so never under the
+        lock. A failure costs the level data, never the detection."""
+        try:
+            closed = analysis.raw_silence_ranges(project, self.store)
+        except (KuulasError, OSError, ValueError) as e:
+            log.warning(t("log.candidates.levels_failed", error=str(e)))
+            return None
+        out: dict[str, list] = {}
+        played: dict[str, list] = {}
+        rate = project.rate
+        for track in project.tracks:
+            for clip in track.clips:
+                played.setdefault(clip.media, []).append(
+                    (clip.offset, clip.offset + clip.length))
+                if track.id not in closed:
+                    continue
+                quiet = out.setdefault(clip.media, [])
+                for a, b in closed[track.id]:
+                    lo, hi = max(a, clip.start), min(b, clip.end)
+                    if lo < hi:
+                        quiet.append(
+                            (frames_to_flicks(clip.offset + lo - clip.start, rate),
+                             frames_to_flicks(clip.offset + hi - clip.start, rate)))
+        for media_id, quiet in out.items():
+            at = 0
+            for a, b in sorted(played.get(media_id, ())):
+                if a > at:
+                    quiet.append((frames_to_flicks(at, rate), frames_to_flicks(a, rate)))
+                at = max(at, b)
+            end = project.media_item(media_id).frames
+            if at < end:
+                quiet.append((frames_to_flicks(at, rate), frames_to_flicks(end, rate)))
+        return out
+
+    def candidate_set_state(self, cid: str, state: str) -> None:
+        """Open, cut or kept (K rejects: kept, and never proposed again). One
+        undo step; setting the state it already has commits nothing."""
+        with self.lock:
+            root, stored = self._candidates_store()
+            new = candidates.set_state(stored, cid, state)
+            if new == stored:
+                return
+            root["candidates"] = new
+            c = candidates.get(new, cid)
+            self._material_step(
+                t("history.candidate_state", state=_state_word(state),
+                  reason=candidates.reason_text(c)),
+                root, "candidate_set_state", {"id": cid, "state": state})
+
+    def candidate_apply(self, cid: str, mode: str = "soft",
+                        tracks: list[str] | None = None) -> dict:
+        """Accept a candidate: the soft cut (mute in place, gap kept) or, with
+        ``mode="ripple"``, the cut that closes the gap, and its state ``cut``,
+        as one undo step. Returns the spans cut and the tracks touched."""
+        with self.lock:
+            project = self.history.state
+            root, stored = self._candidates_store()
+            c = candidates.get(stored, cid)
+            if c.state == "cut":
+                raise candidates.CandidateError("error.candidates.already_cut", id=cid)
+            plan = candidates.apply_plan(project, c, tracks, mode)
+            root["candidates"] = candidates.set_state(stored, cid, "cut")
+            reason = candidates.reason_text(c)
+            label = (t("history.candidate_deleted", reason=reason) if mode == "soft"
+                     else t("history.candidate_cut", reason=reason))
+            self._commit(label, plan.project, "candidate_apply",
+                         {"id": cid, "mode": mode, "tracks": tracks}, material=root)
+        return {"mode": plan.mode, "spans": [list(x) for x in plan.spans],
+                "tracks": list(plan.tracks)}
+
+    def candidate_preview(self, cid: str, mode: str = "soft",
+                          tracks: list[str] | None = None) -> dict:
+        """"Play as if cut": where to start and stop, and the frames to skip.
+        Nothing is committed."""
+        with self.lock:
+            project = self.history.state
+            _, stored = self._candidates_store()
+        plan = candidates.apply_plan(project, candidates.get(stored, cid), tracks, mode)
+        return {**plan.preview, "tracks": list(plan.tracks)}
+
+    def candidate_mark(self, start: int, end: int, track_id: str | None = None) -> str:
+        """A user's candidate (D) over timeline ``[start, end)`` on ``track_id``;
+        one undo step. Returns its id (the same range marked twice is one)."""
+        with self.lock:
+            project = self.history.state
+            if track_id is not None:
+                ops._find_track(project, track_id)  # an unknown track is an EditError
+            c = candidates.mark(project, int(start), int(end), track_id)
+            root, stored = self._candidates_store()
+            new = candidates.add(stored, c)
+            if new != stored:
+                root["candidates"] = new
+                self._material_step(t("history.candidate_marked"), root,
+                                    "candidate_mark", {"start": int(start),
+                                                       "end": int(end),
+                                                       "track_id": track_id})
+            return c.id
 
     # -- import ------------------------------------------------------------
 
@@ -1298,7 +1448,54 @@ def _set_music_info(s: Session, args: dict) -> Project:
     return s.history.state
 
 
-#: Name -> function(session, args) -> Project. The session lock is held.
+def _state_word(state: str) -> str:
+    """The state as the history label says it."""
+    if state == "cut":
+        return t("candidate.state.cut")
+    if state == "kept":
+        return t("candidate.state.kept")
+    return t("candidate.state.open")
+
+
+def _candidates_detect(s: Session, args: dict) -> Project:
+    s.candidates_detect(levels=_truth_arg(args.get("levels")), lang=args.get("lang"))
+    return s.state
+
+
+def _truth_arg(value) -> bool:
+    return value is True or (isinstance(value, str) and _truth(value))
+
+
+def _candidate_id(args: dict) -> str:
+    cid = args.get("id")
+    if not cid:
+        raise candidates.UnknownCandidateError("error.candidates.no_candidate", id="")
+    return str(cid)
+
+
+def _candidate_set_state(s: Session, args: dict) -> Project:
+    s.candidate_set_state(_candidate_id(args), str(args.get("state", "")))
+    return s.history.state
+
+
+def _candidate_apply(s: Session, args: dict) -> Project:
+    s.candidate_apply(_candidate_id(args), str(args.get("mode", "soft")),
+                      args.get("tracks"))
+    return s.history.state
+
+
+def _candidate_mark(s: Session, args: dict) -> Project:
+    try:
+        start, end = int(args["start"]), int(args["end"])
+    except (KeyError, TypeError, ValueError):
+        raise ops.EditError("error.edit.bad_arguments", name="candidate_mark",
+                            detail="start, end") from None
+    s.candidate_mark(start, end, args.get("track_id"))
+    return s.history.state
+
+
+#: Name -> function(session, args) -> Project. The session lock is held,
+#: except for ``LOCK_FREE_COMMANDS``.
 #: ``auto_silence``, ``automix`` and ``cut_words`` commit one step each;
 #: ``relink`` and ``consolidate`` change no state and commit nothing. The people
 #: commands (WP41) each commit one material-only step.
@@ -1320,4 +1517,13 @@ COMMANDS: dict[str, Callable[[Session, dict], Project]] = {
     "map_speakers": _map_speakers,
     "import_nhsx": _import_nhsx,
     "rebuild_media": _rebuild_media,
+    "candidates_detect": _candidates_detect,
+    "candidate_set_state": _candidate_set_state,
+    "candidate_apply": _candidate_apply,
+    "candidate_mark": _candidate_mark,
 }
+
+#: Commands that run without the session lock and take it only for their
+#: snapshot and their commit: their work is slow and must not stall playback
+#: or edits (ground rule 14).
+LOCK_FREE_COMMANDS = frozenset({"candidates_detect"})
