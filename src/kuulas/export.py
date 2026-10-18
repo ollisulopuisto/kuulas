@@ -41,7 +41,7 @@ import numpy as np
 import soundfile as sf
 from speechmix import programme
 
-from . import mixer
+from . import mixer, transcript
 from . import placeholders as placeholders_module
 from .messages import KuulasError, t
 from .model import Project, Track
@@ -665,7 +665,8 @@ def _tracks(job: _Job, target: Path, n: int, workers: int,
     work.mkdir()
     p, s = job.project, job.settings
     as_heard = s["processing"] == "as_heard"
-    soloing = any(tr.solo for tr in p.tracks)
+    # The mixer's rule, bus mute included: a stem is silent where the mix is.
+    silent = transcript.silent_tracks(p)
     listing, paths, used = [], [], set()
     ext = s["format"]
     for i, track in enumerate(p.tracks):
@@ -675,7 +676,7 @@ def _tracks(job: _Job, target: Path, n: int, workers: int,
         while base in used:
             base += " (2)"
         used.add(base)
-        audible = track.solo if soloing else not track.mute
+        audible = track.id not in silent
 
         def render(first: int, count: int, track=track, channels=channels,
                    audible=audible) -> np.ndarray:
