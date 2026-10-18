@@ -38,6 +38,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.transport.play",
   },
   {
+    id: "transport.play_before",
+    keys: { mac: "P", other: "P" },
+    context: "global",
+    labelKey: "cmd.transport.play_before",
+  },
+  {
     id: "transport.play_selection",
     keys: { mac: "Shift+Space", other: "Shift+Space" },
     context: "timeline",

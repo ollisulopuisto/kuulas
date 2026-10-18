@@ -449,6 +449,8 @@
   "cli.import_nhsx.folder": "The project folder to import into (Name.kuulas). Default: next to the session file.",
   "cli.import_nhsx.done": "Imported into {path}: {tracks} tracks, {media} media files.",
   "cmd.transport.play": "Play / stop",
+  "cmd.transport.play_before": "Play from a few seconds before the playhead",
+  "cmd.transport.play_before.hint": "Jumps back 3 seconds and plays, to hear a spot again.",
   "cmd.transport.play_selection": "Play selection",
   "cmd.transport.speed": "Fast playback on / off",
   "cmd.transport.shuttle_back": "Shuttle backward",

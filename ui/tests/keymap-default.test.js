@@ -114,6 +114,14 @@ describe("the owner's decisions", () => {
     );
   });
 
+  test("P plays from a few seconds before the playhead, in every panel", () => {
+    assert.deepEqual(keysOf("transport.play_before"), ["P"]);
+    assert.equal(
+      DEFAULT_KEYMAP.find((entry) => entry.id === "transport.play_before").context,
+      "global",
+    );
+  });
+
   test("J and L shuttle from every panel", () => {
     assert.deepEqual(keysOf("transport.shuttle_back"), ["J"]);
     assert.deepEqual(keysOf("transport.shuttle_forward"), ["L"]);

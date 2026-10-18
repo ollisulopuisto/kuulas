@@ -163,6 +163,7 @@ function markPaused() {
 
 const actions = {
   togglePlay: () => void transport.toggle(),
+  playFrom: (frame) => void transport.play(frame),
   shuttle: (key) => void transport.press(key),
   fastListening: () => showNotice(t("ui.speed.fast_not_built"), "ok"),
   goHome() {

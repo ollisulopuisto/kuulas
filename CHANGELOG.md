@@ -1,3 +1,8 @@
+## [v26.10.18.29] - 2026-10-18
+
+- **P** plays from 3 seconds before the playhead (Hindenburg's key), to hear a spot again.
+  The length is fixed at 3 s for now; the setting comes with project settings (WP27).
+
 ## [v26.10.18.28] - 2026-10-18
 
 - Cut candidates: in the Candidates tab **Enter keeps** the candidate and **Backspace/Delete

@@ -449,6 +449,8 @@
   "cli.import_nhsx.folder": "Projektikansio, johon tuodaan (Nimi.kuulas). Oletus: istuntotiedoston viereen.",
   "cli.import_nhsx.done": "Tuotu kansioon {path}: {tracks} raitaa, {media} mediatiedostoa.",
   "cmd.transport.play": "Toista / pysäytä",
+  "cmd.transport.play_before": "Toista muutaman sekunnin takaa",
+  "cmd.transport.play_before.hint": "Hyppää 3 sekuntia taaksepäin ja toistaa, jotta kohdan kuulee uudelleen.",
   "cmd.transport.play_selection": "Toista valinta",
   "cmd.transport.speed": "Nopea toisto päälle / pois",
   "cmd.transport.shuttle_back": "Kelaa taaksepäin",

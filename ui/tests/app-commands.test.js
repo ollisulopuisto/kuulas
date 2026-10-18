@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { registerAppCommands, seekOffsets, stepTrack } from "../app-commands.js";
+import { prerollStart, registerAppCommands, seekOffsets, stepTrack } from "../app-commands.js";
 import { createRegistry } from "../commands.js";
 import { DEFAULT_KEYMAP } from "../keymap-default.js";
 
@@ -24,6 +24,17 @@ describe("track stepping", () => {
 describe("seek offsets", () => {
   test("1 s, 5 s and 10 ms in frames", () => {
     assert.deepEqual(seekOffsets(48000), { near: 48000, far: 240000, fine: 480 });
+  });
+});
+
+describe("play from a few seconds before the playhead", () => {
+  test("starts 3 s back by default and never before the start", () => {
+    assert.equal(prerollStart(480000, 48000), 336000);
+    assert.equal(prerollStart(100000, 48000), 0);
+    assert.equal(prerollStart(0, 48000), 0);
+  });
+  test("the length can be given", () => {
+    assert.equal(prerollStart(480000, 48000, 5), 240000);
   });
 });
 
@@ -83,6 +94,14 @@ describe("the commands the app registers", () => {
     assert.equal(registry.run("history.restore", null, state), true);
     assert.equal(registry.run("history.open", null, {}), true);
     assert.deepEqual(calls, [["restoreStep"], ["openHistory"]]);
+  });
+
+  test("P plays from the pre-roll before the playhead and needs a project", () => {
+    const { registry, calls } = setup({ project, playhead: 480000 });
+    assert.equal(registry.can("transport.play_before", { project }), true);
+    assert.equal(registry.can("transport.play_before", {}), false);
+    assert.equal(registry.run("transport.play_before", null, { project, playhead: 480000 }), true);
+    assert.deepEqual(calls, [["playFrom", 336000]]);
   });
 
   test("the playhead commands need a project and move by the right amount", () => {

@@ -16,6 +16,14 @@ export function seekOffsets(rate) {
   return { near: rate, far: rate * 5, fine: Math.round(rate / 100) };
 }
 
+/** P (Hindenburg): how many seconds before the playhead it starts playing. */
+export const PREROLL_SECONDS = 3;
+
+/** The frame P starts from: `seconds` before the playhead, never before the start. */
+export function prerollStart(playhead, rate, seconds = PREROLL_SECONDS) {
+  return Math.max(0, Math.round(playhead - rate * seconds));
+}
+
 const hasProject = (state) => Boolean(state?.project);
 // Every command has a one-line description, cmd.<id>.hint in the catalogs (help.test.js
 // fails for a ready command without one).
@@ -36,6 +44,11 @@ export function registerAppCommands(registry, { actions, app }) {
   const offsets = () => seekOffsets(rate());
 
   def("transport.play", () => actions.togglePlay());
+  def(
+    "transport.play_before",
+    () => actions.playFrom(prerollStart(app.getState().playhead ?? 0, rate())),
+    hasProject,
+  );
   def("transport.shuttle_forward", () => actions.shuttle("l"), hasProject);
   def("transport.shuttle_back", () => actions.shuttle("j"), hasProject);
   def("transport.shuttle_stop", () => actions.shuttle("k"), hasProject);
