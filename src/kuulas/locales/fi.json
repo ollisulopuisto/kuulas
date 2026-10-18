@@ -1304,6 +1304,8 @@
   "cmd.transport.rehearse": "Harjoittele leikkausta",
   "cmd.transport.rehearse.hint": "Toistaa 3 s ennen alkumerkkiä alkumerkkiin, hyppää loppumerkkiin ja jatkaa, ikään kuin väli olisi leikattu. Mitään ei muuteta. (Hindenburg: Ctrl+Shift+Space)",
   "cmd.transport.play_selection.hint": "Toistaa alku- ja loppumerkin välin kerran ja pysähtyy. (Hindenburg: Shift+Space)",
+  "ui.meter.title": "Parhaillaan soivan äänen taso dBFS-asteikolla: vasen kanava ylhäällä, oikea alhaalla, merkit -18 ja -6. Ei ole otsikoissa näkyvä raidan äänekkyys.",
+  "ui.meter.clip": "Ulostulo saavutti täyden asteikon (0 dBFS) ja saattoi leikkautua. Tyhjennä napsauttamalla.",
   "ui.build.title": "Käyttämäsi versio: versio ja commit. Mainitse se vikailmoituksessa.",
   "cmd.transcript.remove_words": "Poista valitut sanat kaikilta raidoilta ja sulje aukko",
   "cmd.transcript.remove_words.hint": "Poistaa valittujen sanojen kohdan kaikilta raidoilta ja sulkee aukon. Mitään ei mene leikepöydälle.",

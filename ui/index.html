@@ -94,6 +94,16 @@
         <span id="range-info" class="range-info" role="status" hidden></span>
         <span id="tab-scope" class="range-info tab-scope" data-i18n-title="cmd.nav.tab_target_cycle.hint"></span>
         <span class="spacer"></span>
+        <!-- The live level meter (level-meter.js): what plays now, dBFS, two thin bars with a
+             peak-hold tick; hidden while stopped, except the clip light, which stays until clicked. -->
+        <span id="level-meter" class="level-meter" hidden>
+          <span id="level-bars" class="lm-bars" role="img" data-i18n-aria-label="ui.meter.title" data-i18n-title="ui.meter.title">
+            <span class="lm-row"><i class="lm-fill" data-zone="ok"></i><i class="lm-fill" data-zone="warn"></i><i class="lm-fill" data-zone="hot"></i><i class="lm-hold"></i></span>
+            <span class="lm-row"><i class="lm-fill" data-zone="ok"></i><i class="lm-fill" data-zone="warn"></i><i class="lm-fill" data-zone="hot"></i><i class="lm-hold"></i></span>
+            <i class="lm-tick" data-db="-18"></i><i class="lm-tick" data-db="-6"></i>
+          </span>
+          <button id="level-clip" type="button" class="lm-clip" hidden data-i18n-aria-label="ui.meter.clip" data-i18n-title="ui.meter.clip"></button>
+        </span>
         <span id="build-label" class="range-info build-label" data-i18n-title="ui.build.title"></span>
         <button id="help-button" data-help-id="help-button" type="button" class="button" data-i18n="ui.help.title" aria-keyshortcuts="F1"></button>
         <button id="view-menu-button" data-help-id="view-menu" type="button" class="button" popovertarget="view-menu" data-i18n="ui.view.menu"></button>

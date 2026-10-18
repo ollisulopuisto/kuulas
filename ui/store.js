@@ -172,6 +172,9 @@ export function reduceLive(state, message) {
     case "clipboard_changed":
       out.clipboard = true; // the history file changed (another window): read it again
       break;
+    case "meter":
+      out.meter = message.meter; // drawn by the status bar's meter (level-meter.js), not state
+      break;
     case "notice":
       out.notice = { id: message.id, text: message.text };
       break;

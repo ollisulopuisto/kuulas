@@ -63,7 +63,7 @@ import numpy as np
 import sounddevice as sd
 import soxr
 
-from . import diag
+from . import diag, meter
 from .media import CHUNK_SEC
 from .messages import KuulasError, t
 from .model import Project
@@ -362,6 +362,16 @@ class Engine:
         #: (run, first played frame, count, peak left, peak right) of
         #: recent mixed blocks
         self._recent: deque = deque(maxlen=64)
+
+        #: The level meter. The callback keeps the loudest peak per channel (linear)
+        #: since the last ``meter()`` and the mean square of its latest block;
+        #: ``meter()`` reads and clears them. Plain tuples, replaced whole: an update
+        #: lost to the race between the two threads costs one block of a display,
+        #: never a lock in the callback.
+        self._m_peak = (0.0, 0.0)
+        self._m_ms = (0.0, 0.0)
+        self._hold_l = meter.PeakHold()
+        self._hold_r = meter.PeakHold()
 
         # Counters and timestamps the audio thread writes.
         self._failed = 0
@@ -764,6 +774,7 @@ class Engine:
             block = self._render(frames)
             rendered = time.perf_counter()
             outdata[:] = block
+            self._measure(block)
             ended = time.perf_counter()
             if probe is not None:
                 total = ended - began
@@ -776,6 +787,38 @@ class Engine:
             outdata.fill(0)
             self._failed += 1
             self._events.append(("failed", repr(exc)))
+
+    def _measure(self, block: np.ndarray) -> None:
+        """Peak and mean square of the block just handed to the device (the meter).
+        A bug here must cost the meter, not the sound, so it has its own guard."""
+        try:
+            peak_l, peak_r, ms_l, ms_r = meter.block_levels(block)
+            held_l, held_r = self._m_peak
+            self._m_peak = (max(held_l, peak_l), max(held_r, peak_r))
+            self._m_ms = (ms_l, ms_r)
+        except Exception as exc:  # noqa: BLE001 - the audio callback never raises
+            self._events.append(("failed", f"meter: {exc!r}"))
+
+    def meter(self) -> dict[str, float]:
+        """What the live meter shows, dBFS: ``l``/``r`` the loudest peak since the last
+        call, ``rms_l``/``rms_r`` the RMS level of the latest block, ``hold_l``/``hold_r``
+        the peak-hold ticks (they fall; see ``meter.PeakHold``). Stopped: all at the
+        floor, holds cleared. Cheap and lock-free; the live channel calls it about 15
+        times a second."""
+        peaks, self._m_peak = self._m_peak, (0.0, 0.0)
+        if not self._playing:
+            self._hold_l.reset()
+            self._hold_r.reset()
+            return {"l": meter.FLOOR_DB, "r": meter.FLOOR_DB, "rms_l": meter.FLOOR_DB,
+                    "rms_r": meter.FLOOR_DB, "hold_l": meter.FLOOR_DB,
+                    "hold_r": meter.FLOOR_DB}
+        now = self._clock()
+        left, right = meter.to_db(peaks[0]), meter.to_db(peaks[1])
+        return {"l": left, "r": right,
+                "rms_l": meter.to_db(math.sqrt(self._m_ms[0])),
+                "rms_r": meter.to_db(math.sqrt(self._m_ms[1])),
+                "hold_l": self._hold_l.update(left, now),
+                "hold_r": self._hold_r.update(right, now)}
 
     def _render(self, frames: int) -> np.ndarray:
         """``(frames, 2)`` float32 at the device rate: the next block to play."""

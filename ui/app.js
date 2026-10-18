@@ -64,6 +64,7 @@ import {
 } from "./lane-sizing.js";
 import { clampLaneHeight, layoutFor, pointerIntent, projectEnd, RULER_HEIGHT } from "./lanes.js";
 import { leftOffHere, leftOffOf, leftOffText } from "./left-off.js";
+import { createLevelMeter } from "./level-meter.js";
 import { connectLive } from "./live.js";
 import { activeLoop } from "./loop-range.js";
 import { createLoudnessLoader } from "./loudness-readout.js";
@@ -1796,6 +1797,7 @@ function render(state, patch) {
   if (touched("project", "inPoint", "outPoint")) marksCorner.render(state);
   if (touched("project", "words")) updateTabScope();
   if (touched("playing")) {
+    levelMeter.playing(state.playing);
     $("play-icon").textContent = state.playing ? "■" : "▶";
     $("play-label").textContent = t(state.playing ? "ui.transport.stop" : "ui.transport.play");
   }
@@ -1982,6 +1984,13 @@ function follow(state, moved = false) {
   }
 }
 
+// The live level meter in the status bar: drawn from the live channel's frames, outside the
+// store (about 15 frames a second must not re-render the editor).
+const levelMeter = createLevelMeter({
+  root: $("level-meter"),
+  bars: $("level-bars"),
+  clipButton: $("level-clip"),
+});
 subscribe(render);
 
 // The loudness readout in the track headers: asked in the background once the project has
@@ -2120,6 +2129,7 @@ connectLive({
     if (Object.keys(result.patch).length > 0) setState(result.patch);
     // An answer to our own edit arrives as a state_changed too; while edits are
     // still going out, the editor shows the newest value and applies the last answer.
+    if (result.meter) levelMeter.frame(result.meter);
     if (result.clipboard) void refreshClipboard();
     if (result.refresh && !editor.busy) void refresh().catch(showError);
     if (result.notice && result.notice.id > handledNotice) {

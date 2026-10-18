@@ -22,6 +22,7 @@ import asyncio
 import contextlib
 import html
 import logging
+import math
 import os
 import shutil
 import time
@@ -63,6 +64,9 @@ UI_DIR = Path(__file__).resolve().parents[2] / "ui"
 LIVE_TICK_S = 1 / 30
 #: ...and while stopped, only to hear of engine notices (the engine's own period).
 LIVE_IDLE_S = 0.25
+#: ...and the level meter goes out about 15 times a second while playing (it is a
+#: display, and a frame is a few bytes): every other tick at the display rate.
+LIVE_METER_S = 1 / 15
 #: Peak tiles never change (their ETag is the content's key), so the browser
 #: may keep them for a year and never ask again.
 TILE_CACHE = "public, max-age=31536000, immutable"
@@ -211,11 +215,20 @@ class Hub:
                 self.remove(queue)
 
 
+def meter_message(levels: dict) -> dict:
+    """The live channel's meter frame: peak and peak-hold per channel, dBFS. (The engine
+    also measures RMS; the display has no use for it yet, so it is not sent.)"""
+    return {"type": "meter",
+            "meter": {key: round(float(levels[key]), 1)
+                      for key in ("l", "r", "hold_l", "hold_r")}}
+
+
 # -- the app -------------------------------------------------------------------
 
 
 def create_app(session, engine, *, language: str | None = None,
-               ui_dir: str | Path = UI_DIR, tick: float = LIVE_TICK_S) -> FastAPI:
+               ui_dir: str | Path = UI_DIR, tick: float = LIVE_TICK_S,
+               meter_every: float = LIVE_METER_S) -> FastAPI:
     """``session`` and ``engine`` are borrowed: the caller closes them."""
     default_language = language or messages.default_language()
     ui = Path(ui_dir)
@@ -809,6 +822,7 @@ def create_app(session, engine, *, language: str | None = None,
             last_jobs = tuple((job["id"], job["progress"], job["state"], job["error"])
                               for job in initial_jobs)
             last_notice, playing, last_position = 0, False, None
+            last_meter, meter_on = -math.inf, False
             # The history file is shared by every window of this user: when its
             # stamp changes (our own writes too, which only costs a re-read), say so.
             last_stamp = session.clipboard.stamp()
@@ -843,6 +857,15 @@ def create_app(session, engine, *, language: str | None = None,
                     await ws.send_json({"type": "position", "position": position,
                                         "playing": status["playing"]})
                 playing, last_position = status["playing"], position
+                # The level meter: what plays now, only while playing, and one floor
+                # frame when it stops so the bar and the hold tick drop.
+                now = time.monotonic()
+                if status["playing"] and now - last_meter >= meter_every:
+                    last_meter, meter_on = now, True
+                    await ws.send_json(meter_message(engine.meter()))
+                elif meter_on and not status["playing"]:
+                    meter_on = False
+                    await ws.send_json(meter_message(engine.meter()))
                 for n in status["notices"]:
                     if n["id"] > last_notice:
                         last_notice = n["id"]

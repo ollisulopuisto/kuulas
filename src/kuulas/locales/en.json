@@ -1304,6 +1304,8 @@
   "cmd.transport.rehearse": "Rehearse the edit",
   "cmd.transport.rehearse.hint": "Plays from 3 s before the in point up to it, jumps to the out point and plays on, as if the range were cut. Nothing is changed. (Hindenburg: Ctrl+Shift+Space)",
   "cmd.transport.play_selection.hint": "Plays the in-out range once and stops. (Hindenburg: Shift+Space)",
+  "ui.meter.title": "Level of what is playing now, left over right, in dBFS (marks at -18 and -6). Not the track loudness shown in the headers.",
+  "ui.meter.clip": "The output reached full scale (0 dBFS) and may have clipped. Click to clear.",
   "ui.build.title": "The build you are running: version and commit. Quote it in a bug report.",
   "cmd.transcript.remove_words": "Delete the selected words on all tracks and close the gap",
   "cmd.transcript.remove_words.hint": "Removes the stretch of the selected words from every track and closes the gap. Nothing goes to the clipboard.",
