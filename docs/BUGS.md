@@ -36,6 +36,7 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 | 24 | 18.10 | Adjusting clips (move, trim, gain, fades) moved the play cursor there | the press no longer seeks; the cursor goes there on release only if the press was a plain click. Not seen on screen. |
 | 25 | 18.10 | Undo after a cut (X) should restore the previous in/out points, to adjust one of them | `ui/range-memory.js`: Undo to the head before the cut brings the marks and lanes back (unless new marks were set); Redo clears them again. Not seen on screen. |
 | 26 | 18.10 | Keys to jump to the in and out points, Hindenburg-compatible | 1 = go to in, 2 = go to out; Mod+1 / Mod+2 also set them (Hindenburg's Ctrl+1/2); in the Go menu |
+| 27 | 18.10 | Shift+Space did nothing (no handler); wanted Hindenburg's rehearse: 3 s before the in point, play to it, jump to the out point, play on | Shift+Space now plays the marked range; Mod+Shift+Space = Rehearse the edit (Transport menu, range right-click menu). Not heard by the owner. |
 | 20 | 18.10 | Cmd+Alt+click on a clip should select it and all following clips on all tracks (Hindenburg) | this commit; not tried by the owner |
 | 19 | 18.10 | X should work almost anywhere when in/out are marked | X, Shift+X, Alt+X and Alt+Mod+X now work from any panel (inspector, history, clipboard, markers, candidates) except text fields and the transcript, where X cuts the selected words |
 

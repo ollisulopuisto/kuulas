@@ -191,6 +191,7 @@ export const MENU = [
       item("transport.play"),
       item("transport.play_before"),
       item("transport.play_selection"),
+      item("transport.rehearse"),
       SEP,
       item("transport.loop"),
       item("transport.speed"),

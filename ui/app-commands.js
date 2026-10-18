@@ -1,9 +1,11 @@
 // The commands the editor can do today, registered by id (ids from keymap-default.js).
 // Everything else in the keymap is "planned" until its work package lands.
+
 import { busOfFocus, collapseAllChange, collapseChange } from "./bus-collapse.js";
 import { canRestore } from "./history-model.js";
 import { rangeAvailable } from "./loop-range.js";
 import { setInPoint, setOutPoint } from "./marks.js";
+import { playSelectionRequest, rehearseRequest } from "./rehearse.js";
 import { PAUSE_CHOICES } from "./transcript-model.js";
 
 /** The next or previous track's id; stops at the ends; null without a project. */
@@ -63,6 +65,17 @@ export function registerAppCommands(registry, { actions, app }) {
     "transport.play_before",
     () => actions.playFrom(prerollStart(app.getState().playhead ?? 0, rate())),
     hasProject,
+  );
+  // The marked range: played once (Shift+Space), or rehearsed as if cut (Mod+Shift+Space).
+  def(
+    "transport.play_selection",
+    () => actions.playRequest(playSelectionRequest(app.getState())),
+    (state) => hasProject(state) && playSelectionRequest(state) !== null,
+  );
+  def(
+    "transport.rehearse",
+    () => actions.playRequest(rehearseRequest(app.getState(), rate())),
+    (state) => hasProject(state) && rehearseRequest(state, 48000) !== null,
   );
   // On needs a range to loop; off is always possible.
   def(

@@ -267,6 +267,19 @@ describe("the commands the app registers", () => {
     ]);
   });
 
+  test("Shift+Space plays the marked range; Mod+Shift+Space rehearses the edit; both need a range", () => {
+    const state = { project, inPoint: 10 * 48000, outPoint: 20 * 48000 };
+    const { registry, calls } = setup(state);
+    assert.equal(registry.can("transport.play_selection", { project }), false);
+    assert.equal(registry.can("transport.rehearse", { project, inPoint: 5 }), false);
+    registry.run("transport.play_selection", null, state);
+    registry.run("transport.rehearse", null, state);
+    assert.deepEqual(calls, [
+      ["playRequest", { at: 480000, until: 960000, skip: null }],
+      ["playRequest", { at: 336000, until: null, skip: [[480000, 960000]] }],
+    ]);
+  });
+
   test("an out mark before the in mark replaces the in mark", () => {
     const { registry, calls } = setup({ project, playhead: 2, inPoint: 9, outPoint: null });
     registry.run("mark.out");

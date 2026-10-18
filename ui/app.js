@@ -238,6 +238,9 @@ function changeFast(change) {
 const actions = {
   togglePlay: () => void transport.toggle(),
   playFrom: (frame) => void transport.play(frame),
+  playRequest: (request) => {
+    if (request) void transport.preview(request.at, request.until, request.skip);
+  },
   shuttle: (key) => void transport.press(key),
   toggleLoop: () => setState({ loop: !getState().loop }),
   fastListening: () => changeFast(toggleFast),

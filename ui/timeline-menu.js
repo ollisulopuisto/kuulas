@@ -49,7 +49,7 @@ const SECTIONS = {
   ],
   range: [
     ["clipboard", ["edit.remove", "edit.cut", "edit.copy", "edit.delete", "edit.close_gap_all"]],
-    ["play", ["transport.play_selection", "transport.loop"]],
+    ["play", ["transport.play_selection", "transport.rehearse", "transport.loop"]],
     ["select", ["select.clips_in_range", "select.range_all_tracks"]],
     ["marks", ["mark.clear", "region.from_selection", "export.regions"]],
   ],
