@@ -1,3 +1,13 @@
+## [v26.10.18.47] - 2026-10-18
+
+- **Collapse a bus:** a chevron at the left of the bus header, a double-click on the header, or
+  Alt+Cmd+Left / Right; View > "Collapse all buses" / "Expand all buses". A collapsed bus shows one thin
+  strip per member track (in the speaker's colour). Remembered per project. Only buses with two or
+  more tracks collapse.
+- **Right-click menus** on a bus header (collapse or expand, rename, mute bus, ungroup) and on a track
+  header (rename, mute, solo, group into a new bus, remove from bus).
+- Shift+click on a collapsed bus adds the member clips at the clicked time to the selection.
+
 ## [v26.10.18.46] - 2026-10-18
 
 - **Drag a clip's edge to trim it** (6 px at each end of a clip): by default the cut moves and nothing
