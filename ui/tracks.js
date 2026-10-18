@@ -14,6 +14,7 @@ import { layoutFor } from "./lanes.js";
 import { monoTag } from "./mono-ask.js";
 import { MUSIC_HUE, trackHues } from "./paint.js";
 import { coalesceKey, patchBus, patchSolo, patchTrack } from "./provisional.js";
+import { parseDbText, parsePanText } from "./value-edit.js";
 
 const GAIN = { min: -60, max: 12, step: 0.1 };
 const PAN = { min: -100, max: 100, step: 1 };
@@ -71,6 +72,53 @@ function slider(label, range) {
   const output = el("output");
   wrap.append(input, output);
   return { wrap, input, output };
+}
+
+/**
+ * Double-click a gain or pan readout to type an exact value (owner, 2026-10-18): Enter or leaving the
+ * field applies it, Esc keeps the old value, and text that is not a value keeps it too.
+ * `parse(text)` -> the value or null; `current()` the value now; `text(value)` what to show in the
+ * field; `scale` converts the value to the slider's units.
+ */
+function editableReadout(control, { parse, current, text, format, write, scale = 1 }) {
+  const { input, output } = control;
+  output.title = t("ui.readout.type_hint");
+  output.addEventListener("dblclick", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (output.querySelector("input")) return;
+    const field = el("input", "readout-edit", {
+      type: "text",
+      inputmode: "decimal",
+      "aria-label": output.getAttribute("aria-label") ?? "",
+    });
+    field.value = text(current());
+    const shown = output.textContent;
+    output.textContent = "";
+    output.append(field);
+    field.focus();
+    field.select();
+    let done = false;
+    const finish = (apply) => {
+      if (done) return;
+      done = true;
+      const value = apply ? parse(field.value) : null;
+      field.remove();
+      if (value === null) {
+        output.textContent = shown;
+        return;
+      }
+      input.value = String(value * scale);
+      output.textContent = format(value);
+      write(value);
+    };
+    field.addEventListener("keydown", (e) => {
+      e.stopPropagation();
+      if (e.key === "Enter") finish(true);
+      else if (e.key === "Escape") finish(false);
+    });
+    field.addEventListener("blur", () => finish(true));
+  });
 }
 
 /**
@@ -280,6 +328,13 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       gain.output.textContent = formatDb(value);
       send("gain_db", value, undefined, coalesceKey("track", "gain", id));
     });
+    editableReadout(gain, {
+      parse: (value) => parseDbText(value, GAIN),
+      current: () => lookup(id).gain_db,
+      text: (value) => String(Math.round(value * 10) / 10),
+      format: formatDb,
+      write: (value) => send("gain_db", value, undefined, coalesceKey("track", "gain", id)),
+    });
     toggleable(gain, {
       key: coalesceKey("track", "gain", id),
       fallback: 0,
@@ -291,6 +346,14 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       const value = Number(pan.input.value) / 100;
       pan.output.textContent = panText(value);
       send("pan", value, undefined, coalesceKey("track", "pan", id));
+    });
+    editableReadout(pan, {
+      parse: parsePanText,
+      current: () => lookup(id).pan,
+      text: panText,
+      format: panText,
+      write: (value) => send("pan", value, undefined, coalesceKey("track", "pan", id)),
+      scale: 100,
     });
     toggleable(pan, {
       key: coalesceKey("track", "pan", id),
@@ -354,12 +417,27 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       pan.output.textContent = panText(value);
       send("pan", value, coalesceKey("bus", "pan", id));
     });
+    editableReadout(gain, {
+      parse: (value) => parseDbText(value, GAIN),
+      current: () => currentBus(id).gain_db,
+      text: (value) => String(Math.round(value * 10) / 10),
+      format: formatDb,
+      write: (value) => send("gain_db", value, coalesceKey("bus", "gain", id)),
+    });
     toggleable(gain, {
       key: coalesceKey("bus", "gain", id),
       fallback: 0,
       read: () => currentBus(id).gain_db,
       write: (value) => send("gain_db", value, coalesceKey("bus", "gain", id)),
       format: formatDb,
+    });
+    editableReadout(pan, {
+      parse: parsePanText,
+      current: () => currentBus(id).pan,
+      text: panText,
+      format: panText,
+      write: (value) => send("pan", value, coalesceKey("bus", "pan", id)),
+      scale: 100,
     });
     toggleable(pan, {
       key: coalesceKey("bus", "pan", id),

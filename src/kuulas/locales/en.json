@@ -1300,5 +1300,6 @@
   "ui.build.title": "The build you are running: version and commit. Quote it in a bug report.",
   "cmd.transcript.remove_words": "Delete the selected words on all tracks and close the gap",
   "cmd.transcript.remove_words.hint": "Removes the stretch of the selected words from every track and closes the gap. Nothing goes to the clipboard.",
-  "ui.transcript.toast.remove": {"one": "Deleted {count} word on all tracks", "other": "Deleted {count} words on all tracks"}
+  "ui.transcript.toast.remove": {"one": "Deleted {count} word on all tracks", "other": "Deleted {count} words on all tracks"},
+  "ui.readout.type_hint": "Double-click to type an exact value"
 }

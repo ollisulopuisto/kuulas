@@ -2206,3 +2206,15 @@ input[type="text"] {
 .import-mono {
   margin: 0;
 }
+
+/* Typing an exact gain or pan value into a header readout (double-click). */
+.slider-control output .readout-edit {
+  width: 4.6em;
+  font: inherit;
+  text-align: right;
+  padding: 0 0.3em;
+  background: var(--surface-input, var(--surface-panel));
+  color: inherit;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+}
