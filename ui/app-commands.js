@@ -15,9 +15,20 @@ export function stepTrack(project, current, direction) {
   return tracks[Math.min(tracks.length - 1, Math.max(0, at + direction))].id;
 }
 
-/** Playhead steps in frames: 1 s, 5 s (Shift) and 10 ms (Alt). */
-export function seekOffsets(rate) {
-  return { near: rate, far: rate * 5, fine: Math.round(rate / 100) };
+/** Screen pixels one plain Left/Right press moves the play cursor (Hindenburg-style fine nudge). */
+export const NUDGE_PIXELS = 4;
+
+/**
+ * Playhead steps in frames: `nudge` is 4 screen pixels at the current zoom (`zoom` is frames
+ * per pixel; at least 1 frame), `near` 1 s (Shift) and `fine` 10 ms (Alt).
+ */
+export function seekOffsets(rate, zoom = 1) {
+  const perPixel = Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
+  return {
+    nudge: Math.max(1, Math.round(perPixel * NUDGE_PIXELS)),
+    near: rate,
+    fine: Math.round(rate / 100),
+  };
 }
 
 /** P (Hindenburg): how many seconds before the playhead it starts playing. */
@@ -45,7 +56,7 @@ export function registerAppCommands(registry, { actions, app }) {
     const { playhead = 0 } = app.getState();
     app.seek(Math.min(app.totalFrames(), Math.max(0, playhead + frames)));
   };
-  const offsets = () => seekOffsets(rate());
+  const offsets = () => seekOffsets(rate(), app.getState().zoom);
 
   def("transport.play", () => actions.togglePlay());
   def(
@@ -133,10 +144,11 @@ export function registerAppCommands(registry, { actions, app }) {
   );
   def("nav.start", () => app.seek(0), hasProject);
   def("nav.end", () => app.seek(app.totalFrames()), hasProject);
-  def("nav.back", () => moveBy(-offsets().near)(), hasProject);
-  def("nav.forward", () => moveBy(offsets().near)(), hasProject);
-  def("nav.back_far", () => moveBy(-offsets().far)(), hasProject);
-  def("nav.forward_far", () => moveBy(offsets().far)(), hasProject);
+  // Left/Right: a few pixels; Shift: 1 s (the ids "_far" are kept so user keymaps still match).
+  def("nav.back", () => moveBy(-offsets().nudge)(), hasProject);
+  def("nav.forward", () => moveBy(offsets().nudge)(), hasProject);
+  def("nav.back_far", () => moveBy(-offsets().near)(), hasProject);
+  def("nav.forward_far", () => moveBy(offsets().near)(), hasProject);
   def("nav.back_fine", () => moveBy(-offsets().fine)(), hasProject);
   def("nav.forward_fine", () => moveBy(offsets().fine)(), hasProject);
   // Tab / Shift+Tab (WP19i): the same action from the timeline's and the transcript's keys.
