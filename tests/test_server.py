@@ -18,6 +18,7 @@ from kuulas.clipboard import ClipRef, Entry
 from kuulas.clipboard_store import ClipboardStore
 from kuulas.engine import EngineError
 from kuulas.playplan import PlaybackRequestError
+from kuulas.resume import read_resume
 from kuulas.server import create_app, pick_language
 from kuulas.session import Session
 from kuulas.view_memory import ViewMemory
@@ -882,6 +883,13 @@ def test_view_memory_round_trip_does_not_touch_the_project(client, session):
     after = client.get("/api/state").json()
     assert after["head"] == before["head"]
     assert after["can_undo"] == before["can_undo"]
+
+
+def test_view_memory_put_writes_resume_json_into_the_project(client, session):
+    head = client.get("/api/state").json()["head"]
+    client.put("/api/view-memory?now=true", json={"view": {"playhead": 4800, "zoom": 2}})
+    assert read_resume(session.package.path)["playhead"] == 4800
+    assert client.get("/api/state").json()["head"] == head
 
 
 def test_view_memory_is_keyed_by_the_project(client, session):

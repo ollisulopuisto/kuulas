@@ -845,6 +845,7 @@
   "error.regions.bad_template": "The region file name template is invalid: {template}.",
   "log.view_memory.unreadable": "The view memory file {path} could not be read ({error}); no views are remembered.",
   "log.view_memory.damaged": "The view memory file {path} is damaged ({error}); no views are remembered.",
+  "log.resume.write_failed": "The resume position in {path} could not be saved ({error}).",
   "log.view_memory.write_failed": "The view could not be remembered ({error}).",
   "error.view_memory.bad_id": "The project id is not usable.",
   "error.view_memory.not_object": "The view must be an object.",

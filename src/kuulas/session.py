@@ -73,6 +73,7 @@ from .model import Project, SyncGroup
 from .paste_apply import apply_paste
 from .paste_plan import _targets, plan_paste
 from .people import Interview, Passage, Person
+from .resume import ResumeWriter
 
 log = logging.getLogger("kuulas.session")
 
@@ -240,6 +241,8 @@ class Session:
         #: The report from the latest match_loudness command (WP19c).
         self.last_backup: Path | None = None  # the newest save_backup (Mod+S)
         self.last_match_report: MatchReport = MatchReport({"matched": [], "skipped": []})
+        #: resume.json in the project folder (not project state; docs/FORMAT.md).
+        self.resume = ResumeWriter(self.package.path, enabled=not self.read_only)
         if not is_new and not self.read_only:
             self.history.session_opened()
 
@@ -256,6 +259,7 @@ class Session:
 
     def close(self) -> None:
         self.jobs.close()
+        self.resume.close()  # while the lock is still ours
         with self.lock:
             if not self.read_only:
                 with contextlib.suppress(sqlite3.Error, KuulasError, OSError):

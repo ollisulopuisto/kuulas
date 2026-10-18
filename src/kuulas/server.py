@@ -359,9 +359,12 @@ def create_app(session, engine, *, language: str | None = None,
         return JSONResponse({"view": ViewMemory().get(session.package.manifest["id"])})
 
     @app.put("/api/view-memory")
-    def put_view_memory(body: ViewMemoryBody):
+    def put_view_memory(body: ViewMemoryBody, now: bool = False):
+        # ``now``: Mod+S and leaving the page; resume.json is then written at once
+        # instead of waiting out its 5 s throttle.
         try:
             ViewMemory().put(session.package.manifest["id"], body.view)
+            session.resume.remember(body.view, now=now)
         except ViewMemoryError as e:
             raise BadRequestError(e.key, **e.params) from None
         except OSError as e:

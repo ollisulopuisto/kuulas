@@ -845,6 +845,7 @@
   "error.regions.bad_template": "Aluenimien malli ei kelpaa: {template}.",
   "log.view_memory.unreadable": "Näkymämuistin tiedostoa {path} ei voitu lukea ({error}); näkymiä ei muisteta.",
   "log.view_memory.damaged": "Näkymämuistin tiedosto {path} on vioittunut ({error}); näkymiä ei muisteta.",
+  "log.resume.write_failed": "Jatkamiskohtaa ei voitu tallentaa kansioon {path} ({error}).",
   "log.view_memory.write_failed": "Näkymää ei voitu muistaa ({error}).",
   "error.view_memory.bad_id": "Projektin tunniste ei kelpaa.",
   "error.view_memory.not_object": "Näkymän on oltava olio.",
