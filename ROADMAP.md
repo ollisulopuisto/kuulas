@@ -114,6 +114,8 @@ sizes: `docs/PLAN.md`, section "Triage".
 
 ## Next
 
+- **A packaged app** (WP55, owner request 2026-10-18, milestone M2): CI builds a macOS app on tags, then
+  Windows and Linux, then signing; needs speechmix and nhsx published as packages first.
 - **Selection that serves double duty** (WP54, owner request 2026-10-18): convert between clip selection, range and
   words (select range on all tracks, clips touched by a range, everything from here forward, Mod+click).
 - **Scriptability** (WP53, late, owner request 2026-10-18): every GUI action a documented command, a command
