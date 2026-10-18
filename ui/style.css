@@ -1389,6 +1389,11 @@ input[type="text"] {
 .menu-hint {
   color: var(--text-secondary);
 }
+.range-info {
+  color: var(--text-secondary);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
 .keyhints [data-alternate] {
   color: var(--accent-text);
 }

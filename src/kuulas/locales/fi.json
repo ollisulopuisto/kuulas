@@ -1021,5 +1021,8 @@
   "cmd.track.new_bus.hint": "Lisää väylän, jossa ei ole raitoja, ja antaa nimetä sen.",
   "ui.edit.label.group_bus": "Ryhmittely uuteen väylään",
   "ui.edit.label.new_bus": "Uusi väylä",
-  "ui.bus.option_new": "+ Uusi väylä…"
+  "ui.bus.option_new": "+ Uusi väylä…",
+  "ui.range.in": "Alku",
+  "ui.range.out": "Loppu",
+  "ui.range.length": "Pituus"
 }
