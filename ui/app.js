@@ -398,9 +398,11 @@ function onPointerDown(hit, event) {
 
 // A dragged range (WP6) is the in and out marks, so every edit that acts on marks acts on
 // it. The edit plans take one track (the focus track), so the lanes covered are kept in
-// `rangeTracks` for when they take a set.
-function onRangeDragged({ start, end, tracks, trackId }) {
+// `rangeTracks` for when they take a set. Released with Alt held it is the clips the drag
+// touched (`selection`), the marks at their span and their tracks.
+function onRangeDragged({ start, end, tracks, trackId, selection }) {
   setState({
+    ...(selection ? { selection } : {}),
     inPoint: start,
     outPoint: end,
     rangeTracks: new Set(tracks),

@@ -684,6 +684,8 @@
   "ui.edge.ripple": "Siirrä klipin reunaa ja vedä loput mukaan",
   "ui.edge.hint_roll": "Roll: naapuri seuraa. Vaihto: ripple. Esc: peru",
   "ui.edge.hint_ripple": "Ripple: kaikki perässä siirtyy. Vapauta Vaihto: roll. Esc: peru",
+  "ui.range.hint": "Vedä: tarkka alue. Pidä Alt: koskettamat leikkeet. Esc: peru",
+  "ui.range.hint_alt": "Alt: alueen koskettamat leikkeet. Vapauta Alt: tarkka alue. Esc: peru",
   "ui.clipdrag.move": "Siirrä klippejä",
   "ui.clipdrag.gain": "Säädä klipin voimakkuutta",
   "ui.clipdrag.fade_in": "Säädä sisäänliukua",

@@ -684,6 +684,8 @@
   "ui.edge.ripple": "Ripple-trim clip edge",
   "ui.edge.hint_roll": "Roll: the neighbour follows. Shift: ripple. Esc: cancel",
   "ui.edge.hint_ripple": "Ripple: everything after moves. Release Shift: roll. Esc: cancel",
+  "ui.range.hint": "Drag: exact range. Hold Alt: the clips it touches. Esc: cancel",
+  "ui.range.hint_alt": "Alt: the clips the range touches. Release Alt: exact range. Esc: cancel",
   "ui.clipdrag.move": "Move clips",
   "ui.clipdrag.gain": "Set clip gain",
   "ui.clipdrag.fade_in": "Set fade in",

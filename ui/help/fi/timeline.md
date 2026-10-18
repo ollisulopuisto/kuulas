@@ -5,7 +5,7 @@ applies-to: [timeline]
 commands: [transport.play, view.toggle, view.fit, view.fit_selection, view.zoom_in, view.zoom_out, view.back, panel.next, nav.home, help.open, help.keys]
 related: [clip, track, bus]
 ---
-Jokainen raita on oma kaistansa, ja aika kulkee vasemmalta oikealle. Napsautus missä tahansa kaistoilla siirtää toistokohdan siihen. Napsautus leikkeeseen myös valitsee sen; vaihto+napsautus lisää leikkeen valintaan tai poistaa sen.
+Jokainen raita on oma kaistansa, ja aika kulkee vasemmalta oikealle. Napsautus missä tahansa kaistoilla siirtää toistokohdan siihen. Napsautus leikkeeseen myös valitsee sen; vaihto+napsautus lisää leikkeen valintaan tai poistaa sen. Vetämällä kaistoilla merkitset aikavälin. Vedon aikana kaistoilla näkyvä vihje kertoo, mikä näppäin muuttaa välin sen koskettamiksi leikkeiksi (ne valitaan ja sisään- ja ulosmerkit siirtyvät niiden ylle) ja mikä peruu vedon.
 
 ## Kuuntele
 - Toista tai pysäytä: {key:transport.play}. Välilyönti kuuluu aina aikajanalle, missä paneelissa oletkin.
