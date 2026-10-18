@@ -1067,6 +1067,39 @@ table.fit td.few { color: var(--warn-text); }
 .edit-tip { position: absolute; z-index: 6; top: calc(100% + 6px); left: 0; padding: 3px 8px; border-radius: var(--radius-sm); background: var(--surface-raised); box-shadow: var(--shadow-raised); font-size: var(--text-xs); color: var(--text-secondary); white-space: nowrap; }
 .statusbar .sel { color: var(--text); }
 
+/* -- C-right: in/out/length stacked at the corner's right edge, corner stays 72 px -- */
+.corner.CR { --rc-w: 128px; display: grid; grid-template-columns: auto minmax(0, 1fr) var(--rc-w); grid-template-rows: 1fr 1fr; column-gap: 10px; row-gap: 0; padding: 0 0 0 var(--space-5); align-items: center; }
+.corner.CR.narrow .chip.split .main svg { display: none; }
+.corner.CR.narrow { --rc-w: 100px; column-gap: 8px; padding-left: 10px; }
+.corner.CR .play.big { grid-row: 1 / 3; width: 56px; height: 56px; }
+.corner.CR.narrow .play.big { width: 50px; height: 52px; }
+.corner.CR .timecode { --tc: 26px; align-self: end; padding-bottom: 3px; overflow: hidden; }
+.corner.CR .timecode.hour { --tc: 20px; }
+.corner.CR.narrow .timecode { --tc: 20px; }
+.corner.CR.narrow .timecode.hour { --tc: 17px; }
+.corner.CR .t-row { grid-column: 2; align-self: start; padding-top: 3px; gap: var(--space-2); }
+.corner.CR .fast-speed { min-width: 40px; }
+.rcol { position: relative; grid-column: 3; grid-row: 1 / 3; align-self: stretch; display: grid; grid-template-rows: repeat(3, 1fr); border-left: 1px solid var(--border-subtle); background: var(--surface-sunken); }
+.mrow { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; padding: 0 8px 0 9px; border: 0; border-bottom: 1px solid var(--border-subtle); background: transparent; color: var(--text-tertiary); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; cursor: pointer; text-align: left; }
+.mrow:last-of-type { border-bottom: 0; }
+.mrow .k { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; }
+.mrow .v { font-weight: var(--weight-strong); overflow: hidden; text-overflow: ellipsis; }
+.mrow svg.g { width: 7px; height: 9px; }
+.mrow svg.g[viewBox^="0 0 14"] { width: 10px; }
+.mrow.set { box-shadow: inset 2px 0 0 var(--accent); }
+.mrow.set .k { color: var(--text-secondary); }
+.mrow.set .v { color: var(--accent-text); }
+.mrow:hover { background: var(--surface-hover); }
+.mrow.editing { background: var(--input-bg); outline: var(--focus-width) solid var(--focus-ring); outline-offset: -2px; cursor: text; }
+.mrow input { width: 100%; min-width: 0; padding: 0; text-align: right; background: transparent; border: 0; outline: 0; color: var(--text); font: var(--weight-strong) var(--text-sm) / 1 var(--font-ui); font-variant-numeric: tabular-nums; }
+.corner.narrow .mrow { padding: 0 4px 0 6px; gap: 3px; }
+.rcol .edit-tip { left: auto; right: 0; }
+table.cmp { border-collapse: collapse; font-size: var(--text-sm); margin-top: 8px; max-width: 1100px; }
+table.cmp th, table.cmp td { border: 1px solid var(--border-subtle); padding: 6px 10px; text-align: left; vertical-align: top; }
+table.cmp th { color: var(--text-secondary); font-weight: var(--weight-strong); }
+table.cmp td.good { color: var(--ok-text); }
+table.cmp td.bad { color: var(--warn-text); }
+
 /* -- ruler + overview (the timeline's top) ------------------------------------- */
 .tl-top { position: relative; background: var(--ruler-bg); }
 .tl-top svg, .lanes svg { display: block; }
@@ -1130,12 +1163,13 @@ body[data-only] h2 { margin-top: 0; border-top: 0; }
   <header>
     <h1>Kuljetin kulmaan · transport in the corner</h1>
     <p class="lede">Mockups (owner, 18.10.2026). Toista, Silmukka, the timecode and fast listening leave the menu row and sit in the corner above the track headers, left of the ruler. The corner is 340 px wide (280 px in narrow windows). Undo, Redo, Import and Export stay top right, so the 11 menus get the width back. Dark theme, real tokens, Finnish labels.</p>
-    <nav><a href="#A">A · two rows</a><a href="#B">B · one row</a><a href="#C">C · big play</a><a href="#marks">C + in/out/length</a><a href="#menus">Menu row</a><a href="#notes">Design notes</a></nav>
+    <nav><a href="#A">A · two rows</a><a href="#B">B · one row</a><a href="#C">C · big play</a><a href="#marks">C + in/out/length</a><a href="#cright">C-right</a><a href="#menus">Menu row</a><a href="#notes">Design notes</a></nav>
   </header>
   <section id="A" data-sec="A"></section>
   <section id="B" data-sec="B"></section>
   <section id="C" data-sec="C"></section>
   <section id="marks" data-sec="marks"></section>
+  <section id="cright" data-sec="cright"></section>
   <section id="menus" data-sec="menus">
     <h2>Menu row: all 11 menus</h2>
     <p class="sub">The menus that fit are measured live in this page with the app's own rule (<code>fitMenus</code> in <code>ui/menu-model.js</code>: the menus in order, then "…" holding the rest).</p>
@@ -1155,7 +1189,8 @@ body[data-only] h2 { margin-top: 0; border-top: 0; }
     <h2>Design notes</h2>
     <h3>Recommendation</h3>
     <ul>
-      <li><b>Decided (owner, 18.10.2026): C.</b> In/out/length added below ("C + alku, loppu ja pituus").</li>
+      <li><b>Decided (owner, 18.10.2026): C.</b> In/out/length added below ("C + alku, loppu ja pituus"). Owner's follow-up: the readout stacked at the right edge, <b>C-right</b>, recommended over the row under C (comparison table in that section).</li>
+      <li><b>C-right, the choices:</b> label and time on one line ("Alku 9:03,836"), the whole row one button; rows 24 px (the full 72 px corner height divided by three, so nothing is added), 128 px wide (100 at 280). 24 px is below the project's 28 px guideline but meets WCAG 2.5.8 (24 × 24); the rows are wide and touch each other, and the keys (1, 2, I, O, F) are the main path. What gives way: Silmukka shows its icon only; while fast listening is on the chip takes the slider's place (▾ opens the slider; , and / nudge); the hour-form timecode drops to 20 px (17 at 280); at 280 the names become the ruler's triangles and the chip drops its icon.</li>
       <li><b>C for the comfortable density, B for compact.</b> C keeps Play the biggest target in the window (60 × 56 px) and the timecode at 28 px, readable from the back of the chair, and it says plainly that Silmukka and the speed slider are secondary. B is what C becomes in compact density: 48 px tall, so the lanes start almost where they start today.</li>
       <li>A works too, but it spends 80 px of height and puts Play, Silmukka and the speed chip in one row of three equal buttons, so Play no longer stands out by size, only by colour.</li>
       <li>Height: the corner is overview + ruler. To make room, the overview strip grows: C 72 px (overview 48), A 80 px (overview 56), B 48 px (overview 24); today it is 44 (overview 20). A taller overview is more useful anyway (12 px per track for four tracks). The top bar stays 52 px.</li>
@@ -1212,7 +1247,7 @@ body[data-only] h2 { margin-top: 0; border-top: 0; }
       <li><b>B (compact density):</b> B's single row has no room. The readout becomes a second row of the same cells at 22 px, with the 24 px target that compact uses (<code>--target-min</code> 24): B goes from 48 to 72 px. Or, if compact must stay 48, the readout is left out and the marks show only on the ruler band and in the status bar, as today.</li>
     </ul>
     <h3>Screenshots</h3>
-    <p><code>docs/design/transport-corner/variant-a.png</code>, <code>variant-b.png</code>, <code>variant-c.png</code>, <code>variant-c-marks.png</code>, <code>menu-row.png</code>, <code>notes.png</code> (headless Chrome, 1520 px wide).</p>
+    <p><code>docs/design/transport-corner/variant-a.png</code>, <code>variant-b.png</code>, <code>variant-c.png</code>, <code>variant-c-marks.png</code>, <code>variant-c-right.png</code>,<code>menu-row.png</code>, <code>notes.png</code> (headless Chrome, 1520 px wide).</p>
   </section>
 </main>
 
@@ -1246,6 +1281,7 @@ const VARIANTS = {
   A: { title: "A · Kaksi riviä", cornerH: 80, sum: "Row 1: Toista, Silmukka and the speed chip. Row 2: the timecode at 28 px and the speed slider. Corner 80 px tall (overview 56). Found here: the key label under Toista (\"Välilyönti\") covers the timecode (see Näppäimistöfokus), so in A the key would have to live in the tooltip only." },
   B: { title: "B · Yksi tiheä rivi", cornerH: 48, sum: "One row: Toista as an icon, the timecode at 22 px, Silmukka as an icon and a split speed chip whose ▾ opens the slider. Corner 48 px tall (overview 24), almost today's 44. Found here: at 280 px with an hour-long timecode the chip runs past the corner into the ruler (see Kapea), so B at 280 px needs the chip without its icon or a smaller timecode." },
   CM: { title: "C + alku, loppu ja pituus", cornerH: 96 },
+  CR: { title: "C-right", cornerH: 72 },
   C: { title: "C · Iso Toista ja aikakoodi", cornerH: 72, rec: true, sum: "Toista large on the left (60 × 56), the timecode at 28 px beside it, and under it a small row: Silmukka, the speed slider and the chip (only while active, space kept). Corner 72 px tall (overview 48)." },
 };
 
@@ -1263,7 +1299,7 @@ function playBtn(s, { iconOnly = false, big = false } = {}) {
 function loopBtn(s, { iconOnly = false, small = false } = {}) {
   return `<button type="button" data-id="loop" class="btn ${small ? "sm" : ""} ${iconOnly ? "iconly" : ""}" aria-pressed="${!!s.loop}" aria-keyshortcuts="Meta+U Control+U" title="${s.loop ? "Silmukka päällä" : "Silmukka"} · ⌘U">${ICON.loop}<span class="${iconOnly ? "visually-hidden" : ""}">Silmukka</span></button>`;
 }
-const timecode = (s) => `<output data-id="timecode" class="timecode" aria-label="Toistokohdan sijainti">${tc(s.time)}</output>`;
+const timecode = (s) => `<output data-id="timecode" class="timecode ${s.time[0].split(":").length > 2 ? "hour" : ""}" aria-label="Toistokohdan sijainti">${tc(s.time)}</output>`;
 function slider(s, width) {
   const v = s.fast ? s.speed : 1.5;
   return `<input data-id="fast-speed" class="fast-speed ${s.fast ? "on" : ""}" type="range" min="1" max="2" step="0.05" value="${v}" ${width ? `style="flex:none;width:${width}px"` : ""} aria-label="Nopean kuuntelun nopeus (1×–2×, sävelkorkeus säilyy)" aria-valuetext="${num(v)}×" title="Nopean kuuntelun nopeus (1×–2×, sävelkorkeus säilyy)" />`;
@@ -1292,6 +1328,9 @@ function corner(v, s, width) {
   if (v === "B") return `<div class="corner B ${n ? "narrow" : ""}" ${label} ${st}>
       <div class="t-row">${playBtn(s, { iconOnly: true })}${timecode(s)}${loopBtn(s, { iconOnly: true })}${chip(s, { rest: "quiet", split: true })}</div>
       ${s.fast && !n ? `<div class="pop" role="dialog" aria-label="Nopea kuuntelu"><b>Nopea kuuntelu</b><div class="t-row">${slider(s)}<span class="timecode" style="--tc:13px">${num(s.speed)}×</span></div><div class="meta">, hitaammin · / nopeammin · Alt+0 normaali</div></div>` : ""}</div>`;
+  if (v === "CR") return `<div class="corner C CR ${n ? "narrow" : ""}" ${label} ${st}>
+      ${playBtn(s, { big: true })}${timecode(s)}
+      <div class="t-row">${loopBtn(s, { small: true, iconOnly: true })}${s.fast ? chip(s, { split: true }) : slider(s)}</div>${rcol(s)}</div>`;
   const marks = v === "CM";
   return `<div class="corner C ${marks ? "with-marks" : ""} ${n ? "narrow" : ""}" ${label} ${st}>
       ${playBtn(s, { big: true })}${timecode(s)}
@@ -1304,6 +1343,20 @@ const GLYPH = {
   out: '<svg class="g" viewBox="0 0 10 12" aria-hidden="true"><path d="M9 1H2l7 8z" fill="currentColor"/><path d="M9 1v10" stroke="currentColor" stroke-width="1.5"/></svg>',
   len: '<svg class="g" viewBox="0 0 14 12" aria-hidden="true"><path d="M1 6h12M4 3 1 6l3 3M10 3l3 3-3 3" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
 };
+// C-right: the same three values stacked in a column at the corner's right edge.
+function rcol(s) {
+  const len = s.inT && s.outT ? s.lenT : null;
+  const row = (id, word, value, click) => {
+    const set = value != null;
+    const k = `<span class="k">${GLYPH[id]}${s.narrow ? `<span class="visually-hidden">${word}</span>` : word}</span>`;
+    if (s.edit === id) return `<span class="mrow editing" data-id="mark-${id}">${k}<input type="text" value="${value}" aria-label="${word}, kirjoita aika" spellcheck="false" /></span>`;
+    const tip = set ? `${word} ${value} · napsauta: ${click} · kaksoisnapsauta: kirjoita aika` : `${word}: ei asetettu · kaksoisnapsauta: kirjoita aika`;
+    return `<button type="button" data-id="mark-${id}" class="mrow ${set ? "set" : ""}" aria-label="${set ? `${word} ${value}` : `${word}: ei asetettu`}" title="${tip}">${k}<span class="v">${set ? value : "—"}</span></button>`;
+  };
+  return `<div class="rcol" role="group" aria-label="Alku- ja loppupiste">
+    ${row("in", "Alku", s.inT, "siirry alkuun (1)")}${row("out", "Loppu", s.outT, "siirry loppuun (2)")}${row("len", "Pituus", len, "zoomaa väliin (F)")}
+    ${s.edit ? `<span class="edit-tip">Enter asettaa · Esc peruu · esim. 9:03,5 tai 543,8</span>` : ""}</div>`;
+}
 function readout(s) {
   const len = s.inT && s.outT ? s.lenT : null;
   const cell = (id, word, glyph, value, click, typeHint) => {
@@ -1488,7 +1541,7 @@ function tile(v, s) {
   const width = s.narrow ? 280 : 340;
   const cornerH = VARIANTS[v].cornerH;
   let playX = 62, stubW = 150, opts = {};
-  if (v === "CM") {
+  if (v === "CM" || v === "CR") {
     // The stub shows about 19 s at 12 px/s, so the marks and the length pill are visible.
     stubW = 230;
     const base = s.base ?? 9 * 60 + 1, pps = 12, at = (sec) => (sec - base) * pps;
@@ -1503,7 +1556,7 @@ function tile(v, s) {
 
 // ---------- render ---------------------------------------------------------------------------
 for (const [v, d] of Object.entries(VARIANTS)) {
-  if (v === "CM") continue;
+  if (v === "CM" || v === "CR") continue;
   const sec = document.getElementById(v);
   sec.innerHTML = `<h2>${d.title} ${d.rec ? '<span class="tag rec">recommended</span>' : ""}</h2><p class="sub">${d.sum}</p>
     <h3>The window, 1440 px</h3><div class="scroll" data-fitbars>${windowFrame(v, STATES[0])}</div><p class="cap" data-report></p>
@@ -1529,6 +1582,31 @@ document.getElementById("marks").innerHTML = `<h2>C + alku, loppu ja pituus <spa
   <h3>The window, 1440 px: both marks set, one clip selected (the same span)</h3><div class="scroll" data-fitbars>${windowFrame("CM", { ...MSTATES[2], status: "1 leike" }, { start: 530, pps: 14 })}</div><p class="cap" data-report></p>
   <h3>States</h3><div class="tiles">${MSTATES.map((s) => tile("CM", s)).join("")}</div>
   <h3>The window, 1100 px (corner 280): range, fast listening on, a selection that differs from the marks; at this zoom the band is too narrow for the length label, so the ruler hides it (the corner still shows it)</h3><div class="scroll" data-fitbars>${windowFrame("CM", { ...MSTATES[3], narrow: true, status: "2 leikettä · 9:21,480–9:33,002 · 0:11,522" }, { W: 1100, headsW: 280, sideW: 280 })}</div><p class="cap" data-report></p>`;
+
+// C-right (owner, 18.10.2026): the readout stacked at the right edge; the corner stays 72 px.
+const RSTATES = [
+  MSTATES[0], MSTATES[1], MSTATES[2], MSTATES[3], MSTATES[4],
+  { ...MSTATES[5], title: "Kapea, 280 px", note: "names become the ruler's triangles (kept for screen readers)" },
+  { ...MSTATES[6], note: "hour form: the timecode drops to 17 px; the chip sits where the slider was" },
+];
+document.getElementById("cright").innerHTML = `<h2>C-right · alku, loppu ja pituus oikeassa reunassa <span class="tag rec">recommended</span></h2>
+  <p class="sub">The three values stacked in a column at the corner's right edge (128 px; 100 px at 280), in the space right of the timecode and the slider. One line per row, "Alku 9:03,836", the whole row clickable; click jumps (1, 2) or zooms (F), double-click types an exact time. The column runs the full corner height, so the rows are 24 px each and <b>the corner stays 72 px</b>. To make room, Silmukka becomes an icon button (name in tooltip and accessible name) and, while fast listening is on, the speed chip takes the slider's place (its ▾ opens the slider).</p>
+  <h3>The window, 1440 px: both marks set, one clip selected</h3><div class="scroll" data-fitbars>${windowFrame("CR", { ...MSTATES[2], status: "1 leike" }, { start: 530, pps: 14 })}</div><p class="cap" data-report></p>
+  <h3>States</h3><div class="tiles">${RSTATES.map((s) => tile("CR", s)).join("")}</div>
+  <h3>The window, 1100 px (corner 280): range, fast listening on</h3><div class="scroll" data-fitbars>${windowFrame("CR", { ...MSTATES[3], narrow: true, status: "2 leikettä · 9:21,480–9:33,002 · 0:11,522" }, { W: 1100, headsW: 280, sideW: 280 })}</div><p class="cap" data-report></p>
+  <h3>C (row under, 96 px) vs C-right (column, 72 px)</h3>
+  <table class="cmp">
+    <tr><th></th><th>C + row under</th><th>C-right</th></tr>
+    <tr><th>Corner height</th><td class="bad">96 px (overview 72); the first lane 24 px lower than plain C</td><td class="good">72 px (overview 48), same as plain C</td></tr>
+    <tr><th>Readout targets</th><td class="good">3 cells, about 100 × 28 px (82 × 28 at 280)</td><td>3 rows, 128 × 24 px (100 × 24 at 280): below the project's 28 px, at the WCAG 2.5.8 minimum of 24 × 24. Rows touch (1 px rule between), so a near miss lands on a neighbour, not on nothing</td></tr>
+    <tr><th>Toista</th><td>60 × 52 px</td><td>56 × 56 px (50 × 52 at 280)</td></tr>
+    <tr><th>Silmukka</th><td class="good">label shown ("Silmukka", 28 px tall)</td><td>icon only, 28 × 28 px; name in tooltip and accessible name</td></tr>
+    <tr><th>Speed slider</th><td class="good">always shown, about 80 px</td><td>about 80 px (60 at 280) while fast listening is off; while it is on, the chip sits in its place and its ▾ opens the slider; , and / still nudge</td></tr>
+    <tr><th>Timecode</th><td class="good">26 px (22 at 280), also the hour form</td><td>26 px; the hour form drops to 20 px (17 at 280)</td></tr>
+    <tr><th>Names at 280 px</th><td class="good">Alku / Loppu / Pituus written</td><td>the ruler's triangles and ↔; the words stay in the accessible names and tooltips</td></tr>
+    <tr><th>Fits at 280 px with an hour-long timecode and the chip</th><td class="good">yes, nothing given up</td><td>yes, with the smaller timecode and the chip in the slider's place</td></tr>
+  </table>
+  <p class="cap"><b>Recommendation: C-right.</b> Height matters more here than four pixels of target: the corner sits above every track, and 24 px rows that are 128 px wide are easy to hit with a mouse (the main way in is the keyboard anyway: 1, 2, I, O, F). C with the row under stays the fallback if the owner finds the 24 px rows too small in use.</p>`;
 
 const bars = [
   ["bar-today", 1440, { today: true }],
