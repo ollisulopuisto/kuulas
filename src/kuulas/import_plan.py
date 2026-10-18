@@ -38,8 +38,15 @@ class Placement:
     new_track: bool
 
 
-def _kind(channels: int) -> str:
-    return "music" if channels >= 2 else "speech"
+# Words in a file or track name that count as evidence of music. Channel count
+# does not: a stereo speech recording was once imported as music and drew a
+# small linear waveform. Anything without evidence is speech.
+_MUSIC_WORDS = ("music", "musiikki", "jingle")
+
+
+def guess_kind(name: str) -> str:
+    lowered = name.lower()
+    return "music" if any(word in lowered for word in _MUSIC_WORDS) else "speech"
 
 
 def _track_name(item: ImportItem, track_naming: str) -> str:
@@ -137,7 +144,7 @@ def plan_import(
                 item=item,
                 track_key=f"t{index}",
                 track_name=_track_name(item, track_naming),
-                kind=_kind(item.channels),
+                kind=guess_kind(item.name),
                 start_frame=start,
                 new_track=True,
             ))
@@ -146,7 +153,7 @@ def plan_import(
     # sequential
     track_key = "t0"
     track_name = _track_name(ordered[0], track_naming)
-    track_kind = _kind(ordered[0].channels)  # one track, one kind: the first file's
+    track_kind = guess_kind(ordered[0].name)  # one track, one kind: the first file's
     placements = []
     start = start_frame
     for index, item in enumerate(ordered):

@@ -7,7 +7,7 @@
 import { bindToggle } from "./ab-value.js";
 import { t } from "./i18n.js";
 import { coalesceKey, patchBus, patchSolo, patchTrack } from "./provisional.js";
-import { busMembers, busOptions, roleKey } from "./track-target.js";
+import { busMembers, busOptions, roleKey, TRACK_KINDS } from "./track-target.js";
 
 // The Bus select's last option: not a bus id, it asks for a new bus.
 /** The value of the "+ New bus…" choice, in the inspector and in the track header. */
@@ -150,7 +150,16 @@ export function buildTrackSections({ target, editor, place, latest, onBusCreated
     );
     nameNode = name;
     into.append(field(t("ui.track.name"), name));
-    const role = readonly("");
+    const role = document.createElement("select");
+    role.className = "inspector-select";
+    role.setAttribute("aria-label", t("ui.track.role"));
+    for (const kind of TRACK_KINDS) {
+      const option = document.createElement("option");
+      option.value = kind;
+      option.textContent = t(roleKey(kind));
+      role.append(option);
+    }
+    role.addEventListener("change", () => send("kind", role.value));
     into.append(field(t("ui.track.role"), role));
     const { gain, pan } = levels(into, {
       gainLabel: t("ui.track.gain"),
@@ -203,7 +212,7 @@ export function buildTrackSections({ target, editor, place, latest, onBusCreated
       const current = state.project.tracks.find((item) => item.id === id);
       if (!current) return;
       setIfIdle(name, current.name);
-      role.textContent = t(roleKey(current.kind));
+      if (document.activeElement !== role) role.value = current.kind;
       setIfIdle(gain, round1(current.gain_db));
       setIfIdle(pan, Math.round(current.pan * 100));
       state.project.buses.forEach((item, i) => {

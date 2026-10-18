@@ -271,12 +271,13 @@ def test_the_import_label_is_translated(session, tmp_path):
     assert session.history.nodes()[1]["label"] == "Tuonti: 1 tiedosto"
 
 
-def test_import_classifies_mono_as_speech_and_stereo_as_music(session, tmp_path):
+def test_import_calls_stereo_speech_and_only_a_music_name_music(session, tmp_path):
     mono = wav(tmp_path / "voice.wav", channels=1, seed=1)
-    stereo = wav(tmp_path / "song.wav", channels=2, seed=2)
-    session.import_media([str(mono), str(stereo)])
+    stereo = wav(tmp_path / "guest.wav", channels=2, seed=2)
+    bed = wav(tmp_path / "music bed.wav", channels=2, seed=3)
+    session.import_media([str(mono), str(stereo), str(bed)])
     kinds = {t.name: t.kind for t in session.state.tracks}
-    assert kinds == {"voice": "speech", "song": "music"}
+    assert kinds == {"voice": "speech", "guest": "speech", "music bed": "music"}
 
 
 def test_reimporting_the_same_file_adds_no_media(session, tmp_path):

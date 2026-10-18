@@ -95,6 +95,23 @@ def test_import_nhsx_keeps_word_times_on_the_source_file_clock(tmp_path):
         session.close()
 
 
+def test_import_nhsx_stereo_files_are_speech_not_music(tmp_path):
+    nhsx_path = tmp_path / "h-test A.nhsx"
+    shutil.copy(FIXTURE, nhsx_path)
+    audio = tmp_path / "h-test Files"
+    audio.mkdir()
+    rng = np.random.default_rng(5)
+    for item in read_nhsx(nhsx_path).files:
+        noise = rng.uniform(-0.2, 0.2, (2 * RATE, 2)).astype(np.float32)
+        sf.write(audio / item.name, noise, RATE, subtype="PCM_16")
+    session = Session(tmp_path / "Imported.kuulas")
+    try:
+        session.command("import_nhsx", {"path": str(nhsx_path)})
+        assert {track.kind for track in session.state.tracks} == {"speech"}
+    finally:
+        session.close()
+
+
 def test_import_nhsx_invalid_xml_is_translated_and_changes_nothing(tmp_path):
     path = tmp_path / "broken.nhsx"
     path.write_text("<Session>", encoding="utf-8")
