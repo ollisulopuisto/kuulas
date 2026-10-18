@@ -1148,6 +1148,11 @@ never be repaired. So:
   reconnects to the running state.
 - Before and during: free disk space with a remaining-time estimate and a warning; a lost or changed
   device is an event (a marker in the take, a notice), not a crash.
+- **The rule that decides every design choice here (owner, 2026-10-18: "I hate it when hardware recorders
+  lose the whole recording if they die midstream"): audio already recorded is never lost.** Nothing is
+  written in a way that needs a clean stop to make the file readable: no length or index only at the end,
+  no one big file that must be finalised, no buffer held in memory for more than a few seconds. A file
+  from a killed recorder, a crashed machine or a pulled cable opens with everything up to the last flush.
 - Tests: kill the editor mid-take, kill the recorder (restart and a gap logged), fill the disk,
   simulate a device unplug, a power-cut truncated file is repaired. If Python still stalls under
   measurement, the recorder core can be rewritten in Rust or C without changing the protocol.
