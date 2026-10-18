@@ -1431,6 +1431,12 @@ input[type="text"] {
   border-radius: var(--radius-md);
   font-size: var(--text-sm);
 }
+.palette-group {
+  padding: var(--space-2) var(--space-4) 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+}
 .palette-row[aria-selected="true"] {
   background: var(--accent-subtle);
 }

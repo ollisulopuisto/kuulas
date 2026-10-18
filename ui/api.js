@@ -24,6 +24,11 @@ const json = async (path, options) => (await request(path, options)).json();
 const post = (path, body) => json(path, { method: "POST", body: JSON.stringify(body) });
 
 export const getState = () => json("/api/state");
+/** This project's remembered view (kept outside the project): { view: object | null }. */
+export const getViewMemory = () => json("/api/view-memory");
+/** `keepalive` lets the write finish while the page is being left. */
+export const putViewMemory = (view) =>
+  json("/api/view-memory", { method: "PUT", body: JSON.stringify({ view }), keepalive: true });
 export const getWords = () => json("/api/words");
 /** What cutting these words (refs: { track, clip, index }) would also remove from other tracks. */
 export const cutPreview = (words) => post("/api/cut-preview", { words });

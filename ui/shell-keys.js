@@ -30,6 +30,7 @@ import { createMenubar } from "./menubar.js";
 import { createModifierTracker } from "./modifiers.js";
 import { createPalette, paletteRows } from "./palette.js";
 import { registerPlaceholderCommands } from "./placeholder-commands.js";
+import { loadRecent, recordRecent, saveRecent } from "./recent-commands.js";
 import { subscribe } from "./store.js";
 import { registerTranscriptCommands } from "./transcript-commands.js";
 
@@ -48,10 +49,18 @@ export const CONTEXT_OF_PANEL = {
 };
 
 /** `onRefresh(entries)` is called whenever the keys or the language change (the Help button shows F1 from it). */
-export function setupKeyboard({ actions, app, t, notify, onLanguageChange, onRefresh }) {
+export function setupKeyboard({ actions, app, t, notify, onLanguageChange, onRefresh, prefs }) {
   const platform = detectPlatform();
   const storage = safeStorage();
   const registry = createRegistry();
+  // Quick actions: the last commands run, from keys or the palette (ids only, per user).
+  let recent = prefs ? loadRecent(prefs) : [];
+  registry.onRun((id) => {
+    const next = recordRecent(recent, id);
+    if (next.join() === recent.join()) return;
+    recent = next;
+    if (prefs) saveRecent(prefs, recent);
+  });
   const label = (key) => t(key);
   const format = (raw, forPlatform) => formatCombo(raw, forPlatform);
 
@@ -155,7 +164,16 @@ export function setupKeyboard({ actions, app, t, notify, onLanguageChange, onRef
 
   // -- surfaces ----------------------------------------------------------------------
   const rows = (query) =>
-    paletteRows({ entries, registry, state: app.getState(), query, label, format, platform });
+    paletteRows({
+      entries,
+      registry,
+      state: app.getState(),
+      query,
+      label,
+      format,
+      platform,
+      recent,
+    });
   palette = createPalette({
     getRows: rows,
     t,

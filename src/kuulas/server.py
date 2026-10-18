@@ -50,6 +50,7 @@ from .session import (
     SubtitlesError,
     TranscriptTextError,
 )
+from .view_memory import ViewMemory, ViewMemoryError
 
 log = logging.getLogger("kuulas.server")
 
@@ -129,6 +130,10 @@ class PinBody(BaseModel):
 
 class RenameBody(BaseModel):
     name: str
+
+
+class ViewMemoryBody(BaseModel):
+    view: dict
 
 
 class CutPreviewBody(BaseModel):
@@ -340,6 +345,26 @@ def create_app(session, engine, *, language: str | None = None,
                             for c, m, g in report.matched],
                 "skipped": list(report.skipped)}})
         return state_response()
+
+    # -- the view memory (WP35) ----------------------------------------------
+    # The user's view of this project (zoom, scroll, ...), kept outside the
+    # project: no undo step, no change to its bytes.
+
+    @app.get("/api/view-memory")
+    def get_view_memory():
+        return JSONResponse({"view": ViewMemory().get(session.package.manifest["id"])})
+
+    @app.put("/api/view-memory")
+    def put_view_memory(body: ViewMemoryBody):
+        try:
+            ViewMemory().put(session.package.manifest["id"], body.view)
+        except ViewMemoryError as e:
+            raise BadRequestError(e.key, **e.params) from None
+        except OSError as e:
+            # A convenience: say so in the log, do not fail the page.
+            log.warning(t("log.view_memory.write_failed", error=str(e)))
+            return JSONResponse({"saved": False})
+        return JSONResponse({"saved": True})
 
     # -- the clipboard (WP46) ------------------------------------------------
     # Cut and paste are edits and go through /api/edit (one undo step each);

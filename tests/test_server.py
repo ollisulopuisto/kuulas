@@ -17,6 +17,7 @@ from kuulas.engine import EngineError
 from kuulas.playplan import PlaybackRequestError
 from kuulas.server import create_app, pick_language
 from kuulas.session import Session
+from kuulas.view_memory import ViewMemory
 
 RATE = 48000
 WORDS = [{"word": "hello", "start": 0.1, "end": 0.4},
@@ -779,3 +780,29 @@ def test_undo_without_a_marker_does_not_claim_one(client, loaded):
 
 def test_nothing_to_undo_reports_no_move(client):
     assert client.post("/api/undo").json()["moved"] is None
+
+
+# -- the view memory (WP35) ---------------------------------------------------
+
+def test_view_memory_round_trip_does_not_touch_the_project(client, session):
+    before = client.get("/api/state").json()
+    assert client.get("/api/view-memory").json() == {"view": None}
+    r = client.put("/api/view-memory", json={"view": {"zoom": 3.5, "future": [1]}})
+    assert r.status_code == 200
+    assert client.get("/api/view-memory").json() == {"view": {"zoom": 3.5, "future": [1]}}
+    after = client.get("/api/state").json()
+    assert after["head"] == before["head"]
+    assert after["can_undo"] == before["can_undo"]
+
+
+def test_view_memory_is_keyed_by_the_project(client, session):
+    client.put("/api/view-memory", json={"view": {"zoom": 1}})
+    assert ViewMemory().get(session.package.manifest["id"]) == {"zoom": 1}
+
+
+@pytest.mark.parametrize("body", [{"view": 5}, {"view": [1]}, {},
+                                  {"view": {"a": "x" * 40_000}}])
+def test_view_memory_junk_is_a_translated_400(client, body):
+    r = client.put("/api/view-memory", json=body)
+    assert r.status_code == 400
+    assert r.json()["error"]["text"]
