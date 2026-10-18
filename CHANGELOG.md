@@ -1,3 +1,10 @@
+## [v26.10.18.41] - 2026-10-18
+
+- **Track heights:** View > "Fit tracks to window" sizes all lanes to fill the window; "Auto-fit
+  tracks" keeps them fitted when the window or the tracks change (the −/+ buttons switch it off).
+  Drag the bottom edge of a track header to size one lane (double-click resets it). All remembered
+  per project. Not looked at on a real window yet.
+
 ## [v26.10.18.40] - 2026-10-18
 
 - **Loop playback:** a Loop button next to Play and View > Loop (key **Mod+U**; Mod+L is Automix)
