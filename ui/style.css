@@ -955,6 +955,58 @@ input[type="text"] {
   flex: 1;
   padding-top: 3px;
 }
+/* The panel after an import (GUI-DESIGN.md §23): bottom left over the lanes, never a modal. */
+.import-panel {
+  position: fixed;
+  left: calc(var(--heads-w) + var(--space-6));
+  bottom: calc(var(--statusbar-h) + var(--space-6));
+  z-index: 20;
+  width: min(560px, 60vw);
+  padding: var(--space-5) var(--pad-panel);
+  display: grid;
+  gap: var(--row-gap);
+  font-size: var(--text-sm);
+  background: var(--toast-bg);
+  border-radius: var(--radius-md);
+  box-shadow: var(--toast-shadow);
+}
+.import-panel[hidden] {
+  display: none;
+}
+.import-panel[data-status="partial"],
+.import-panel[data-status="failed"] {
+  border-left: 3px solid var(--danger);
+}
+.import-head {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+}
+.import-panel h3 {
+  margin: 0;
+  font-size: var(--text-md);
+}
+.import-actions,
+.import-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+}
+.import-choice {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+.import-panel ul {
+  margin: 0;
+  padding-left: var(--space-6);
+  color: var(--danger-text);
+}
+.import-panel li.warn {
+  color: var(--text-secondary);
+}
 .drop {
   position: fixed;
   inset: 0;
