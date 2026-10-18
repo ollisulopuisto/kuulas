@@ -448,4 +448,5 @@ WP27, WP38, WP42, WP47, WP53.
 - Requested (owner 2026-10-18): WP63 real waveform in the drag ghost, plus smart guide lines and snapping between speakers' activity edges while moving a clip. Plan in `docs/PLAN.md`.
 - Parked (owner 2026-10-19, "not now"): WP64 naming a saved version: an in-window name field on Shift+Mod+S, rename in the History panel, named versions standing out. Plan in `docs/PLAN.md`.
 - Requested (owner 2026-10-19): WP65 clipboard per project, persistent without pinning, with sharing (mark entries as shared) and browsing other projects' clipboards. Plan in `docs/PLAN.md`; three details to decide with the owner.
+- Requested (owner 2026-10-19): WP66 series templates: save tracks, buses and chosen standing clips (anchored to start, end or a marker) and start new episodes from them. Plan in `docs/PLAN.md`.
 

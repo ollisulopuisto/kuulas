@@ -3356,3 +3356,27 @@ per-user file for every project, capped at 50 unpinned entries.
    named in each entry's `source_project` when that project is opened (owner to decide).
 Needs: WP46 (the clipboard store), the recent-projects list (WP15), WP31 for the view tabs' styling.
 
+---
+
+### WP66 — Series templates: tracks, buses and standing clips (owner, 2026-10-19)
+
+Status: open, requested. Owner: "series template, e.g. save tracks (number of, names, buses) and selected
+clips (e.g. I want three jingles in each Vikasietotila episode every time)". Related to WP38 (series).
+A **template** is a small file, `<name>.kuulastemplate` (JSON), kept in the series folder when the project
+belongs to a series (WP38) and otherwise in a per-user templates folder (so it works before WP38 exists):
+- **Tracks:** how many, in order, with names, kind (speech, speech-mix, music), speaker, mono, target LUFS,
+  gain, pan, and the bus each one sits on; **buses:** names, gains, nesting, mute; master settings.
+- **Standing clips:** chosen by selecting them in a project ("Save as template…" offers: all tracks and buses,
+  and the selected clips). Each is stored as a reference to its recording (content hash plus a path that is
+  relative to the series folder or absolute, relinkable like any media), its source range, gain, fades, the
+  track it sits on, and an **anchor**: from the start of the programme, from the end (an outro), or at a
+  marker name. The three jingles of the owner's example would be anchored.
+- **Using it:** "New project from template…" (also at import: the imported recordings go onto the template's
+  speech tracks in order) and "Apply template to this project" (adds missing tracks and the standing clips; never
+  deletes or overwrites anything; shows what it will add before it does).
+- **Updating:** "Update template from this project" replaces the stored tracks and clips after a preview.
+- Markers and regions named in the template come along (chapter markers of a fixed structure).
+Needs WP29 (project format), WP39 (portable projects: media paths), WP13/WP34 (import placement), WP21 for
+several edits. Tests: round trip of a template; applying it twice adds nothing twice; a missing jingle file is
+reported, not fatal; anchors from the end follow the programme's length.
+
