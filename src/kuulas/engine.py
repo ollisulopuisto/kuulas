@@ -754,7 +754,12 @@ class Engine:
         chunks = [self._fifo]
         have = len(self._fifo)
         while have < frames and not self._flushed:
-            n = min(max(1, math.ceil((frames - have) * ratio)), max(0, end - fed))
+            # Always a whole block's worth of input: soxr gives no output for
+            # a handful of input frames, and the loop then went round
+            # hundreds of times mixing every track each time (measured: 489
+            # mixes, 30 ms, in one block when scrubbing back at 5x). The
+            # surplus waits in the queue for the next block.
+            n = min(max(1, math.ceil(frames * ratio)), max(0, end - fed))
             if n > 0:
                 if run.speed > 0:
                     block = plan.read(project, self._store, fed, n)
