@@ -2,7 +2,9 @@
 // Delete (a soft cut on THIS speaker's track: the words go silent in place and the gap
 // stays); X is Cut (the stretch is ripple-deleted on every track, `cut_words`). Keys live
 // in keymap-default.js, under the "transcript" context.
+import { autoName, clipsInRange, describeClips } from "./clipboard.js";
 import {
+  cutRange,
   cutWordsPlan,
   deleteWordsPlan,
   noSelection,
@@ -64,8 +66,20 @@ export function registerTranscriptCommands(registry, { app, t }) {
       const indices = chosenWords(state);
       const plan = cutWordsPlan(indices);
       if (!plan) return;
-      void app.cutWords(plan.args.indices).then((ok) => {
-        if (ok) app.toast(t("ui.transcript.toast.cut", { count: indices.length }), { undo: true });
+      // X is Cut: the stretch goes to the clipboard first (the same range and every track,
+      // as the cut removes), then the words are cut. A failed copy never stops the cut.
+      const range = cutRange(state.words, indices);
+      const tracks = (state.project?.tracks ?? []).map((track) => track.id);
+      const parts = range ? clipsInRange(state.project, tracks, range.start, range.end) : [];
+      const name = autoName(describeClips(parts, state.project?.rate ?? 1), t);
+      const copying =
+        range && tracks.length > 0
+          ? app.copy({ ...range, track_ids: tracks, group_editing: false, name })
+          : Promise.resolve(false);
+      void copying.then(async (copied) => {
+        if (!(await app.cutWords(plan.args.indices))) return;
+        const key = copied ? "ui.transcript.toast.cut" : "ui.transcript.toast.cut_uncopied";
+        app.toast(t(key, { count: indices.length }), { undo: true });
       });
     },
     (state) => cutWordsPlan(chosenWords(state)) !== null,

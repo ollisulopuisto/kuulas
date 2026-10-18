@@ -90,3 +90,7 @@ export function liveUrl(location = globalThis.location) {
 }
 
 export const getTransport = () => json("/api/transport");
+
+/** Where a recording is used in the edit (the inspector's Source section); `signal` cancels. */
+export const getSourceMap = (sha256, signal) =>
+  json(`/api/source-map?media=${encodeURIComponent(sha256)}`, { signal });

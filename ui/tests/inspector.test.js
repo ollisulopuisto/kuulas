@@ -33,6 +33,7 @@ describe("inspector sections (density rework, 2026-10-18)", () => {
       level: true,
       fades: false,
       sync: true,
+      source: false,
       details: false,
     });
   });
@@ -44,6 +45,7 @@ describe("inspector sections (density rework, 2026-10-18)", () => {
       level: false,
       fades: true,
       sync: true,
+      source: false,
       details: false,
     });
     assert.deepEqual(openSections("not json"), openSections(null));

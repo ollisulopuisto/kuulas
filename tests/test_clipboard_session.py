@@ -9,7 +9,7 @@ import pytest
 import soundfile as sf
 from fastapi.testclient import TestClient
 
-from kuulas import messages
+from kuulas import messages, transcript
 from kuulas.clipboard_store import ClipboardStore, default_path
 from kuulas.ops import EditError
 from kuulas.server import create_app
@@ -490,3 +490,22 @@ def test_nothing_ripples_when_everything_is_missing(tmp_path, session):
         assert other.state == before
     finally:
         other.close()
+
+
+def test_copying_a_words_stretch_then_cut_words_is_one_entry_and_one_undo_step(session):
+    """The transcript's X: copy the range on every track, then cut_words."""
+    for m in session.state.media:
+        session.set_transcript(m.id, [
+            {"w": "one", "s": 0, "e": round(0.4 * 705_600_000), "spk": ""},
+            {"w": "two", "s": round(0.5 * 705_600_000), "e": round(0.9 * 705_600_000),
+             "spk": ""}], "t")
+    words = session.timeline_words()
+    index = next(i for i, w in enumerate(words) if w["w"] == "two")
+    start, end = transcript.cut_range(words, [index])
+    tracks = [t.id for t in session.state.tracks]
+    before_entries, before_steps = len(entries()), history_len(session)
+    session.clipboard_copy(start=start, end=end, track_ids=tracks, group_editing=False)
+    assert history_len(session) == before_steps
+    session.command("cut_words", {"indices": [index]})
+    assert len(entries()) == before_entries + 1
+    assert history_len(session) == before_steps + 1
