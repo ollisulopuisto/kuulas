@@ -5,6 +5,8 @@ import os
 import shutil
 import socket
 import sqlite3
+import subprocess
+import sys
 import zlib
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -182,6 +184,37 @@ def test_live_lock_from_another_host_opens_read_only(tmp_path):
     pkg.close()
     # The other host's lock is left exactly as it was.
     assert json.loads((pkg.path / "lock.json").read_text()) == lock
+
+
+def _lock_from_this_host(folder: Path, pid: int, age_s: float = 5) -> None:
+    lock = write_lock(folder, socket.gethostname(), age_s=age_s)
+    lock["pid"] = pid
+    (folder / "lock.json").write_text(json.dumps(lock))
+
+
+def _dead_pid() -> int:
+    child = subprocess.Popen([sys.executable, "-c", "pass"])
+    child.wait()
+    return child.pid
+
+
+def test_fresh_lock_of_a_dead_process_here_is_taken_over_at_once(tmp_path, caplog):
+    pkg = package.create(tmp_path / "A.kuulas")
+    pkg.close()
+    _lock_from_this_host(pkg.path, _dead_pid(), age_s=5)
+    with caplog.at_level("WARNING", logger="kuulas.package"):
+        pkg = package.open_package(pkg.path)
+    assert not pkg.read_only
+    pkg.close()
+
+
+def test_lock_of_a_live_process_on_this_machine_still_opens_read_only(tmp_path):
+    pkg = package.create(tmp_path / "A.kuulas")
+    pkg.close()
+    _lock_from_this_host(pkg.path, os.getppid(), age_s=5)
+    pkg = package.open_package(pkg.path)
+    assert pkg.read_only
+    pkg.close()
 
 
 def test_stale_lock_is_taken_over(tmp_path, caplog):

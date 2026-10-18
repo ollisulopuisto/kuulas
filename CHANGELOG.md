@@ -1,3 +1,13 @@
+## [v26.10.18.38] - 2026-10-18
+
+- Fixed the "project is open on this machine, read only" trap: a lock left by a kuulas window
+  that crashed or was killed on the same computer is taken over at once, instead of after two
+  minutes. A lock held by a kuulas that is really still running still opens read-only.
+- `kuulas open <project> --debug` (also `kuulas desktop --debug`) prints playback diagnostics once a
+  second to the terminal: how long each audio block took, how much of that was reading files or
+  mixing, late and failed blocks, the device and the slowest files. For finding out why
+  "playback cannot keep up".
+
 ## [v26.10.18.37] - 2026-10-18
 
 - A track's role (speech, speech-mix, music) can be changed in the inspector. The import no
