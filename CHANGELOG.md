@@ -1,3 +1,10 @@
+## [v26.10.18.67] - 2026-10-18
+
+- **Hindenburg clipboards come in with the import:** each clip in a session's clipboards (1 to 4) becomes a
+  pinned entry in the Clipboard tab, named "Hindenburg clipboard 1: start", with its regions, gains, fades
+  and mutes. Not tried on your session yet; importing the same session twice adds the entries twice.
+  Hindenburg's markers (including its in and out points) are still not imported.
+
 ## [v26.10.18.66] - 2026-10-18
 
 - **The waveform shows the gain:** its height follows the clip gain, the track gain and the clip's gain
