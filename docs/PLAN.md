@@ -860,7 +860,15 @@ All on the canvas, hit-testing in `timeline.js` (pure function, tested):
 - Drag clip body: move (horizontal) and between tracks (vertical); the whole
   selection moves together. Commit **once on mouse-up** (`shift_clips` and
   `move_clips_to_track`); draw a ghost while dragging.
-- Drag clip edge (6 px zone): trim (`trim_clip`) on mouse-up.
+- Drag clip edge (6 px zone): trim on mouse-up (owner, 2026-10-18). **Default = roll:** the edge moves
+  and nothing else on the timeline moves. If the neighbouring clip on the same track touches that
+  edge (for example a muted clip right of an active one) the drag moves the cut point between the
+  two: the clip being dragged gets longer and the neighbour shorter (its start and source offset
+  move together), up to the neighbour's length (never below one frame, never past the source
+  material). If there is a gap or nothing next to it, the edge simply trims or extends into the gap.
+  **With Shift = ripple:** only that clip changes length and everything after it (all tracks,
+  like X) shifts by the same amount, so everything stays in sync. A ghost shows the new edge
+  while dragging, Esc cancels, one undo step. Needs `roll_trim` and `ripple_trim` ops.
 - Drag the clip gain line vertically: `set_clip gain_db` with coalesce key
   `clip-gain-<id>`, live while dragging.
 - Alt+click on the gain line: add envelope point at that source frame
