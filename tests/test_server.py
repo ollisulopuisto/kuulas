@@ -17,6 +17,7 @@ from kuulas.engine import EngineError
 from kuulas.playplan import PlaybackRequestError
 from kuulas.server import create_app, pick_language
 from kuulas.session import Session
+from kuulas.view_memory import ViewMemory
 
 RATE = 48000
 WORDS = [{"word": "hello", "start": 0.1, "end": 0.4},
