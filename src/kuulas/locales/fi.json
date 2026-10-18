@@ -119,6 +119,7 @@
   "log.package.stale_lock": "Otetaan käyttöön vanhentunut lukko, jonka jätti {host} (viimeisin elonmerkki {heartbeat}).",
   "log.package.migrating": "Päivitetään projektin tallennusmuoto versiosta {source} versioon {target}; ensin otetaan varmuuskopio.",
   "log.package.tick_failed": "Lukon elonmerkki tai varmuuskopio epäonnistui, yritetään myöhemmin uudelleen: {error}",
+  "log.desktop.position_unknown": "Toistokohtaa ei voitu lukea ikkunaa suljettaessa ({error}); viimeksi tallennettu kohta jää voimaan.",
   "log.session.subscriber_failed": "Projektin muutoksia kuunteleva osa kaatui; itse muutos tallennettiin.",
   "log.session.relinked": {
     "one": "Löytyi {count} siirretty tiedosto uudelleen.",

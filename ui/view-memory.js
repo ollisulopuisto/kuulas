@@ -103,14 +103,22 @@ export function restoreFrom(record, { project, width, totalFrames }) {
   return { patch, whole: record.whole === true && zoom !== null };
 }
 
+/** While playing, the cursor is saved this often (it moves every frame). */
+export const PLAYING_SAVE_MS = 5000;
+
 /**
  * A string that changes when the saved record should be written. While playing, the
- * play cursor moves every frame; it is left out so the save is not postponed forever
- * (the flush on page hide still writes the latest cursor).
+ * play cursor moves every frame; it is left out so the save is not postponed forever.
+ * With `now` (ms), the key instead changes once per PLAYING_SAVE_MS while playing, so the
+ * cursor is written at least that often: a window closed during playback must not lose
+ * the whole listening session's position.
  */
-export function changeKey(state, { whole = false } = {}) {
+export function changeKey(state, { whole = false, now = null } = {}) {
   const record = recordOf(state, { whole });
-  if (state.playing) record.playhead = null;
+  if (state.playing) {
+    record.playhead = null;
+    if (now !== null) record.playBucket = Math.floor(now / PLAYING_SAVE_MS);
+  }
   return JSON.stringify(record);
 }
 
@@ -130,19 +138,19 @@ export function createSaver({
   let pending = null;
   let lastSent = null;
 
-  function send() {
+  function send(now) {
     timer = null;
     if (!pending) return;
     const record = pending();
     pending = null;
     const text = JSON.stringify(record);
-    if (text === lastSent) return;
+    if (text === lastSent && !now) return;
     lastSent = text;
     const failed = () => {
       if (lastSent === text) lastSent = null;
     };
     try {
-      const result = save(record);
+      const result = save(record, { now });
       if (result && typeof result.catch === "function") result.catch(failed);
     } catch {
       failed();
@@ -153,11 +161,17 @@ export function createSaver({
     touch(makeRecord) {
       pending = makeRecord;
       if (timer !== null) clearTimer(timer);
-      timer = setTimer(send, delay);
+      timer = setTimer(() => send(false), delay);
     },
-    flush() {
+    /**
+     * Write at once (page hide, Mod+S). With `makeRecord` the latest record is sent even if
+     * nothing changed since the last save, so resume.json (which the server writes at once
+     * only when told `now`) is certain to be current. The `now` flag reaches `save`.
+     */
+    flush(makeRecord) {
       if (timer !== null) clearTimer(timer);
-      send();
+      if (makeRecord) pending = makeRecord;
+      send(Boolean(makeRecord) || pending !== null);
     },
     /** Forget what was sent, so the next record is written even if equal. */
     forget() {

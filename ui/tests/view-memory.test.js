@@ -171,6 +171,12 @@ describe("changeKey", () => {
     const b = changeKey({ ...state, playing: true, playhead: 2 });
     assert.equal(a, b);
   });
+  test("while playing the key changes once every 5 s, so the cursor is still saved", () => {
+    const at = (now) => changeKey({ ...state, playing: true, playhead: now }, { now });
+    assert.equal(at(1000), at(4999));
+    assert.notEqual(at(4999), at(5000));
+    assert.notEqual(at(5000), at(10000));
+  });
   test("it does when stopped", () => {
     assert.notEqual(changeKey({ ...state, playhead: 1 }), changeKey({ ...state, playhead: 2 }));
   });
@@ -216,6 +222,35 @@ describe("createSaver", () => {
     assert.equal(timers.size, 0);
     saver.flush();
     assert.equal(saved.length, 1, "nothing pending, nothing sent");
+  });
+
+  test("flush(makeRecord) sends the latest record even when unchanged, marked now", () => {
+    const calls = [];
+    const saver = createSaver({
+      save: (record, options) => calls.push([record, options]),
+      setTimer: () => 1,
+      clearTimer: () => {},
+    });
+    saver.touch(() => ({ zoom: 1 }));
+    saver.flush();
+    saver.flush(() => ({ zoom: 1 }));
+    assert.deepEqual(calls, [
+      [{ zoom: 1 }, { now: true }],
+      [{ zoom: 1 }, { now: true }],
+    ]);
+  });
+
+  test("a debounced save is not marked now", () => {
+    const calls = [];
+    const timers = [];
+    const saver = createSaver({
+      save: (record, options) => calls.push(options),
+      setTimer: (fn) => timers.push(fn) && timers.length,
+      clearTimer: () => {},
+    });
+    saver.touch(() => ({ zoom: 1 }));
+    timers[0]();
+    assert.deepEqual(calls, [{ now: false }]);
   });
 
   test("an unchanged record is not sent again", () => {

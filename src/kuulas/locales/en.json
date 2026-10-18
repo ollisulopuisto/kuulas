@@ -119,6 +119,7 @@
   "log.package.stale_lock": "Taking over a stale lock left by {host} (last heartbeat {heartbeat}).",
   "log.package.migrating": "Upgrading the project format from {source} to {target}; a backup is made first.",
   "log.package.tick_failed": "Lock heartbeat or backup failed, retrying later: {error}",
+  "log.desktop.position_unknown": "The playhead could not be read when the window closed ({error}); the last saved position stays.",
   "log.session.subscriber_failed": "A listener for project changes failed; the change itself was saved.",
   "log.session.relinked": {
     "one": "Found {count} moved file again.",

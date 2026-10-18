@@ -6,6 +6,7 @@ import time
 from kuulas.resume import RESUME_NAME, ResumeWriter, read_resume
 from kuulas.session import Session
 from kuulas.syncmark import IGNORED
+from kuulas.view_memory import ViewMemory
 
 VIEW = {"playhead": 4800, "inPoint": 100, "outPoint": 900, "focusTrack": "t1",
         "zoom": 12.5, "scroll": 2400, "laneHeight": 60}
@@ -110,6 +111,25 @@ def test_the_session_writes_on_close_and_makes_no_history_step(tmp_path):
     assert s.history.head == head  # not project state: no step, no undo
     s.close()
     assert read_resume(folder)["playhead"] == 4800
+
+
+def test_flush_view_saves_the_given_position_to_both_places(tmp_path):
+    folder = tmp_path / "Talk.kuulas"
+    s = Session(folder)
+    manifest_id = s.package.manifest["id"]
+    s.resume.remember({**VIEW, "playhead": 10})
+    s.flush_view(playhead=999)
+    assert read_resume(folder)["playhead"] == 999
+    assert ViewMemory().get(manifest_id)["playhead"] == 999
+    s.close()
+
+
+def test_flush_view_with_nothing_remembered_changes_nothing(tmp_path):
+    folder = tmp_path / "Talk.kuulas"
+    s = Session(folder)
+    s.flush_view(playhead=999)
+    s.close()
+    assert read_resume(folder) is None
 
 
 def test_resume_json_is_never_marked_ignored_by_dropbox():

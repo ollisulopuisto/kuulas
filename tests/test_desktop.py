@@ -9,6 +9,7 @@ import httpx
 import pytest
 
 from kuulas import cli, desktop, messages
+from kuulas.resume import read_resume
 
 
 def test_config_dir_per_platform(tmp_path):
@@ -140,6 +141,20 @@ def test_running_project_serves_and_stops(tmp_path):
         second.stop()
     with pytest.raises(httpx.TransportError):
         httpx.get(first.url + "api/state", timeout=2)
+
+
+def test_closing_the_window_saves_where_the_engine_was(tmp_path):
+    """Closing while playing sends no more page events: the server knows the position."""
+    folder = tmp_path / "A.kuulas"
+    running = desktop.RunningProject(str(folder))
+    try:
+        body = {"view": {"playhead": 5, "zoom": 2}}
+        sent = httpx.put(running.url + "api/view-memory", json=body, timeout=10)
+        assert sent.status_code == 200
+        running._engine.status = lambda: {"position": 123456}
+    finally:
+        running.stop()
+    assert read_resume(folder)["playhead"] == 123456
 
 
 def test_missing_extra_gives_a_translated_message(monkeypatch, capsys):

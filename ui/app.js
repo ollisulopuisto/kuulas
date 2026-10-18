@@ -1876,13 +1876,13 @@ onLanguageChange(() => {
 // Saving starts only after the restore, or the defaults would overwrite what was kept.
 
 const currentRecord = () => recordOf(getState(), { whole: fitWhole });
-const viewSaver = createSaver({ save: (record) => api.putViewMemory(record) });
+const viewSaver = createSaver({ save: (record, options) => api.putViewMemory(record, options) });
 let viewMemoryOn = false;
 let lastViewKey = "";
 
 function scheduleViewSave(state) {
   if (!viewMemoryOn || !state.project) return;
-  const key = changeKey(state, { whole: fitWhole });
+  const key = changeKey(state, { whole: fitWhole, now: Date.now() });
   if (key === lastViewKey) return;
   lastViewKey = key;
   viewSaver.touch(currentRecord);
@@ -1914,9 +1914,16 @@ async function restoreView() {
 }
 
 // Leaving the page: write what is pending now (the debounce would be lost with the page).
-addEventListener("pagehide", () => viewSaver.flush());
+// The latest record is sent (not just what is pending), also while playing, when the cursor
+// moves without a save being queued, and the server then writes resume.json at once. A
+// desktop window may fire none of these; desktop.py flushes the position on close.
+function flushView() {
+  if (viewMemoryOn && getState().project) viewSaver.flush(currentRecord);
+}
+addEventListener("beforeunload", flushView);
+addEventListener("pagehide", flushView);
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "hidden") viewSaver.flush();
+  if (document.visibilityState === "hidden") flushView();
 });
 
 // -- start --------------------------------------------------------------------------------------------------

@@ -73,7 +73,8 @@ from .model import Project, SyncGroup
 from .paste_apply import apply_paste
 from .paste_plan import _targets, plan_paste
 from .people import Interview, Passage, Person
-from .resume import ResumeWriter
+from .resume import ResumeWriter, now_iso
+from .view_memory import ViewMemory
 
 log = logging.getLogger("kuulas.session")
 
@@ -256,6 +257,22 @@ class Session:
     @property
     def read_only(self) -> bool:
         return self.package.read_only
+
+    def flush_view(self, playhead: int | None = None) -> None:
+        """Save the last view the page sent, with ``playhead`` as the cursor, to
+        the per-user view memory and to resume.json at once. For a window that
+        closes without a last word from the page (it may be playing: the page
+        saves the cursor only every 5 s). Nothing sent this session, nothing
+        written; never raises."""
+        view = self.resume.view
+        if view is None:
+            return
+        if playhead is not None:
+            view["playhead"] = int(playhead)
+        view["saved_at"] = now_iso()
+        with contextlib.suppress(ValueError, OSError):  # ViewMemoryError is a ValueError
+            ViewMemory().put(self.package.manifest["id"], view)
+        self.resume.close(playhead=playhead)
 
     def close(self) -> None:
         self.jobs.close()
