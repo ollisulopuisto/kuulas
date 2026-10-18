@@ -28,7 +28,8 @@ def test_unknown_keys_are_kept(tmp_path):
 
 def test_unknown_top_level_keys_are_kept_on_write(tmp_path):
     path = tmp_path / "v.json"
-    path.write_text(json.dumps({"version": 1, "projects": {}, "other": 7}), encoding="utf-8")
+    seed = {"version": 1, "projects": {}, "other": 7}
+    path.write_text(json.dumps(seed), encoding="utf-8")
     ViewMemory(path).put("p1", {"zoom": 1})
     assert json.loads(path.read_text(encoding="utf-8"))["other"] == 7
 
