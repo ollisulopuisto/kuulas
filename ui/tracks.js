@@ -9,7 +9,7 @@ import { busHues, busLetter } from "./grammar.js";
 import { formatDb, formatNumber, t } from "./i18n.js";
 import { addBusForTrack, NEW_BUS } from "./inspector-track.js";
 import { truncateMiddle } from "./labels.js";
-import { dragLaneHeight } from "./lane-sizing.js";
+import { dragLaneHeight, dragStarted } from "./lane-sizing.js";
 import { layoutFor } from "./lanes.js";
 import { MUSIC_HUE, trackHues } from "./paint.js";
 import { coalesceKey, patchBus, patchSolo, patchTrack } from "./provisional.js";
@@ -218,8 +218,13 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       const startY = event.clientY;
       const startHeight = node.getBoundingClientRect().height;
       grip.setPointerCapture(event.pointerId);
-      const move = (e) =>
-        actions.setLaneHeight(id, dragLaneHeight({ startHeight, startY, y: e.clientY }));
+      // Only a real drag sizes the lane: a click or a slip on the 6 px border does nothing.
+      let dragging = false;
+      const move = (e) => {
+        dragging = dragging || dragStarted({ startY, y: e.clientY });
+        if (dragging)
+          actions.setLaneHeight(id, dragLaneHeight({ startHeight, startY, y: e.clientY }));
+      };
       const done = () => {
         grip.removeEventListener("pointermove", move);
         grip.removeEventListener("pointerup", done);

@@ -15,6 +15,9 @@ export const initialState = () => ({
   // were fetched at: a command on the words waits until it equals `head`.
   people: {},
   wordsHead: null,
+  // mutedInputsKey of the last server answer's project: when it changes under the same head
+  // (the server merges mute clicks into one step) the words are fetched again.
+  serverMutedKey: null,
   // UI state.
   selection: new Set(),
   // The transcript's word cursor and selection { cursor, anchor }, the crosstalk preview

@@ -578,6 +578,7 @@
   "menu.help": "Ohje",
   "menu.keymap": "Pikanäppäimet",
   "menu.bar": "Valikko",
+  "menu.more": "Lisää valikoita",
   "keys.context.global": "Kaikkialla",
   "keys.context.timeline": "Aikajana",
   "keys.context.transcript": "Tekstitys",

@@ -9,20 +9,48 @@
 // the menu and returns to the bar. Disabled items are focusable (they teach) but
 // do nothing. No mnemonics.
 
-import { moveItem, moveMenu } from "./menu-model.js";
+import { fitMenus, moveItem, moveMenu, overflowMenu } from "./menu-model.js";
 
 export function createMenubar({ root, getMenus, run, onHint, t }) {
   // open: whether a menu is dropped down; top: which; item/sub: positions inside it.
   const at = { open: false, top: 0, item: -1, subOpen: false, sub: -1 };
   let wantFocus = false; // one-shot: focus the current item after the next render
+  let shown = Infinity; // how many top-level menus fit; the rest sit in the "…" menu
 
   root.setAttribute("role", "menubar");
   root.setAttribute("aria-label", t("menu.bar"));
 
+  /** The bar as shown: the menus that fit, then "…" holding the others. */
+  function effective() {
+    const all = getMenus();
+    if (shown >= all.length) return all;
+    return [...all.slice(0, shown), overflowMenu(all.slice(shown), t("menu.more"))];
+  }
+
+  /** Measure the titles in the bar and the room for them; sets `shown`. */
+  function fit() {
+    const spacer = root.parentElement?.querySelector(".spacer");
+    const available = root.offsetWidth + (spacer?.offsetWidth ?? 0);
+    const widths = [...root.querySelectorAll(".menu-title")].map((el) => el.offsetWidth);
+    const gap = Number.parseFloat(getComputedStyle(root).columnGap) || 0;
+    const more = root.querySelector(".menu-more");
+    shown = fitMenus(widths, available, { gap, overflowWidth: more?.offsetWidth ?? 40 });
+  }
+
   function render() {
-    const menus = getMenus();
+    // First every menu, to measure; if they do not all fit, once more with "…".
     const focusAfter = wantFocus || root.contains(document.activeElement);
     wantFocus = false;
+    shown = Infinity;
+    draw();
+    fit();
+    if (shown < getMenus().length) draw();
+    if (focusAfter) focusCurrent();
+  }
+
+  function draw() {
+    const menus = effective();
+    if (at.top >= menus.length) at.top = menus.length - 1;
     root.replaceChildren();
     menus.forEach((menu, index) => {
       const cell = document.createElement("div");
@@ -36,11 +64,15 @@ export function createMenubar({ root, getMenus, run, onHint, t }) {
       button.tabIndex = at.top === index ? 0 : -1;
       button.dataset.pos = `${index}`;
       button.textContent = menu.label;
+      if (menu.id === "overflow") {
+        button.classList.add("menu-more");
+        button.setAttribute("aria-label", menu.label);
+        button.textContent = "…";
+      }
       cell.append(button);
       if (at.open && at.top === index) cell.append(list(menu.items, false));
       root.append(cell);
     });
-    if (focusAfter) focusCurrent();
   }
 
   function list(items, isSub) {
@@ -52,6 +84,10 @@ export function createMenubar({ root, getMenus, run, onHint, t }) {
       li.setAttribute("role", "none");
       if (item.kind === "separator") {
         li.setAttribute("role", "separator");
+        if (item.caption) {
+          li.className = "menu-caption";
+          li.textContent = item.caption;
+        }
         ul.append(li);
         return;
       }
@@ -125,13 +161,13 @@ export function createMenubar({ root, getMenus, run, onHint, t }) {
     at.open = true;
     at.subOpen = false;
     at.sub = -1;
-    at.item = first ? moveItem(currentItems(getMenus()), -1, 1) : -1;
+    at.item = first ? moveItem(currentItems(effective()), -1, 1) : -1;
     wantFocus = true;
     render();
   }
 
   function activate() {
-    const menus = getMenus();
+    const menus = effective();
     const items = currentItems(menus);
     const inSub = at.subOpen && at.sub >= 0;
     const item = inSub ? items[at.item]?.items[at.sub] : items[at.item];
@@ -149,7 +185,7 @@ export function createMenubar({ root, getMenus, run, onHint, t }) {
 
   root.addEventListener("keydown", (event) => {
     if (event.ctrlKey || event.metaKey || event.altKey) return;
-    const menus = getMenus();
+    const menus = effective();
     const key = event.key;
     const items = at.open ? currentItems(menus) : [];
     const sub = at.subOpen ? items[at.item]?.items : null;
@@ -253,6 +289,22 @@ export function createMenubar({ root, getMenus, run, onHint, t }) {
     if (at.open && !root.contains(event.target)) close(false);
   });
   window.addEventListener("blur", () => at.open && close(false));
+
+  // Refit when the room changes: the window, or the chips beside the bar.
+  if (typeof ResizeObserver !== "undefined") {
+    let lastRoom = -1;
+    const observer = new ResizeObserver(() => {
+      const spacer = root.parentElement?.querySelector(".spacer");
+      const room = root.offsetWidth + (spacer?.offsetWidth ?? 0);
+      if (room === lastRoom) return;
+      lastRoom = room;
+      render();
+    });
+    observer.observe(root);
+    const spacer = root.parentElement?.querySelector(".spacer");
+    if (root.parentElement) observer.observe(root.parentElement);
+    if (spacer) observer.observe(spacer);
+  }
 
   render();
   return {
