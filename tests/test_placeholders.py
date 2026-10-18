@@ -68,6 +68,9 @@ def test_add_refuses_blank_text_unknown_track_and_duplicate_id():
     with pytest.raises(ops.EditError) as e:
         ops.add_placeholder(p, "t1", 0, "   ")
     assert e.value.key == "error.placeholder.empty_text"
+    with pytest.raises(ops.EditError) as e:
+        ops.add_placeholder(p, "t1", 0, "... !")  # punctuation only: no words
+    assert e.value.key == "error.placeholder.empty_text"
     with pytest.raises(ops.EditError):
         ops.add_placeholder(p, "nope", 0, TEXT)
     p = ops.add_placeholder(p, "t1", 0, TEXT, placeholder_id="h1")

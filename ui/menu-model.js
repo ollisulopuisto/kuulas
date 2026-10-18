@@ -25,6 +25,8 @@ export const MENU = [
       item("export.chapters_text"),
       item("export.chapters_json"),
       item("export.regions"),
+      item("export.narration_script_txt"),
+      item("export.narration_script_md"),
       SEP,
       item("app.save"),
       item("app.save_named"),
@@ -86,6 +88,16 @@ export const MENU = [
       item("marker.next"),
       item("marker.prev"),
       item("marker.delete"),
+    ],
+  },
+  {
+    id: "narration",
+    labelKey: "menu.narration",
+    items: [
+      item("placeholder.add"),
+      item("placeholder.edit"),
+      item("placeholder.take"),
+      item("placeholder.delete"),
     ],
   },
   {

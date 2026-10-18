@@ -29,6 +29,7 @@ import { MENU, resolveMenu } from "./menu-model.js";
 import { createMenubar } from "./menubar.js";
 import { createModifierTracker } from "./modifiers.js";
 import { createPalette, paletteRows } from "./palette.js";
+import { registerPlaceholderCommands } from "./placeholder-commands.js";
 import { subscribe } from "./store.js";
 import { registerTranscriptCommands } from "./transcript-commands.js";
 
@@ -111,6 +112,7 @@ export function setupKeyboard({ actions, app, t, notify, onLanguageChange, onRef
   registerLoudnessCommands(registry, { app, t });
   registerExportCommands(registry, { app, t });
   registerMarkerCommands(registry, { app, t });
+  registerPlaceholderCommands(registry, { app, t });
   registerCandidateCommands(registry, { app, t });
   // The rest of the sheet is listed everywhere and does nothing until its WP lands.
   registry.planMissing(DEFAULT_KEYMAP.map((entry) => entry.id));

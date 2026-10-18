@@ -52,6 +52,8 @@ export const initialState = () => ({
   candidatePreview: null,
   // The marker picked in the Markers tab or by Next/Previous (WP19h); null for none.
   markerSelected: null,
+  // The narration placeholder picked on the timeline (WP43); null for none.
+  placeholderSelected: null,
   playhead: 0,
   inPoint: null,
   outPoint: null,
@@ -116,6 +118,9 @@ export function serverPatch(response, state = null) {
     );
     const kept = [...state.selection].filter((id) => ids.has(id));
     if (kept.length !== state.selection.size) patch.selection = new Set(kept);
+    const picked = state.placeholderSelected;
+    if (picked && !(response.project.placeholders ?? []).some((h) => h.id === picked))
+      patch.placeholderSelected = null;
   }
   return patch;
 }

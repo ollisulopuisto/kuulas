@@ -596,6 +596,45 @@ export const DEFAULT_KEYMAP = [
     context: "global",
     labelKey: "cmd.marker.delete",
   },
+  // Narration placeholders (WP43): T adds script text at the play cursor, Enter edits the
+  // selected one on the timeline, Shift+Alt+T deletes it; Take and the script export are
+  // in the menu and the palette.
+  {
+    id: "placeholder.add",
+    keys: { mac: "T", other: "T" },
+    context: "global",
+    labelKey: "cmd.placeholder.add",
+  },
+  {
+    id: "placeholder.edit",
+    keys: { mac: "Enter", other: "Enter" },
+    context: "timeline",
+    labelKey: "cmd.placeholder.edit",
+  },
+  {
+    id: "placeholder.take",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.placeholder.take",
+  },
+  {
+    id: "placeholder.delete",
+    keys: { mac: "Shift+Alt+T", other: "Shift+Alt+T" },
+    context: "global",
+    labelKey: "cmd.placeholder.delete",
+  },
+  {
+    id: "export.narration_script_txt",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.export.narration_script_txt",
+  },
+  {
+    id: "export.narration_script_md",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.export.narration_script_md",
+  },
   {
     id: "export.subtitles_srt",
     keys: { mac: null, other: null },

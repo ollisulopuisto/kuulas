@@ -801,8 +801,9 @@ def _put_placeholder(p: Project, h: Placeholder) -> Project:
 
 
 def _clean_text(text) -> str:
+    """Script text needs at least one word, or there is nothing to estimate."""
     text = str(text).strip()
-    if not text:
+    if narration.count_words(text) == 0:
         raise EditError("error.placeholder.empty_text")
     return text
 

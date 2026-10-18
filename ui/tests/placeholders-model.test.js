@@ -72,7 +72,10 @@ describe("selection and target", () => {
     assert.equal(targetTrack({ project: { tracks: [] } }), null);
   });
   test("ids look like the server's", () => {
-    assert.match(newPlaceholderId(() => 0.5), /^h[0-9a-f]{10}$/);
+    assert.match(
+      newPlaceholderId(() => 0.5),
+      /^h[0-9a-f]{10}$/,
+    );
   });
 });
 
