@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from test_history import heavy_hour, register
 
 from kuulas import cli, messages
+from kuulas import edit_points as ep
 from kuulas.engine import EngineError
 from kuulas.playplan import PlaybackRequestError
 from kuulas.server import create_app, pick_language
@@ -422,6 +423,46 @@ def test_word_correction_errors(client, loaded):
     assert bad.json()["error"]["key"] == "error.edit.no_word"
     unknown = client.put("/api/word", json={"media": "nope", "index": 0, "w": "x"})
     assert unknown.status_code == 404
+
+
+# -- edit points (WP19i) -------------------------------------------------------
+
+
+def click_wav(path: Path, at: int) -> Path:
+    """Quiet noise with one loud click at sample ``at``."""
+    rng = np.random.default_rng(3)
+    audio = (rng.standard_normal(RATE) * 0.001).astype(np.float32)
+    audio[at:at + 20] = 0.8
+    sf.write(path, audio, RATE, subtype="PCM_16")
+    return path
+
+
+def test_edit_points_transients_and_cache(client, tmp_path, session, monkeypatch):
+    client.post("/api/import", json={"paths": [str(click_wav(tmp_path / "c.wav", 24000))],
+                                     "copy": False})
+    first = client.get("/api/edit-points", params={"mode": "transients"}).json()
+    assert len(first["points"]) == 1
+    assert abs(first["points"][0] - 24000) <= 48
+    # Asked again at the same head: served from the cache, nothing recomputed.
+    calls = []
+    monkeypatch.setattr(ep, "edit_points", lambda *a, **k: calls.append(1) or [])
+    assert client.get("/api/edit-points", params={"mode": "transients"}).json() == first
+    assert calls == []
+
+
+def test_edit_points_for_one_track(client, tmp_path):
+    path = click_wav(tmp_path / "c.wav", 24000)
+    body = client.post("/api/import", json={"paths": [str(path)], "copy": False}).json()
+    track = body["project"]["tracks"][0]["id"]
+    got = client.get("/api/edit-points", params={"mode": "transients", "track": track})
+    assert len(got.json()["points"]) == 1
+    none = client.get("/api/edit-points", params={"mode": "transients", "track": "nope"})
+    assert none.json()["points"] == []
+
+
+def test_edit_points_unknown_mode_is_a_400(client, loaded):
+    r = client.get("/api/edit-points", params={"mode": "bogus"})
+    assert r.status_code == 400
 
 
 # -- transport -----------------------------------------------------------------

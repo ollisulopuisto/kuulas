@@ -1,3 +1,20 @@
+## [v26.10.18.51] - 2026-10-18
+
+- **Move a clip by dragging its label strip** (the top 20 px of the clip): in time and onto other tracks,
+  with a dashed ghost; Esc cancels; one undo step; sync partners follow in time under group editing.
+  A drag over the waveform still marks a range.
+- **Drag the gain line** of a clip up or down (live, +12 to -30 dB) and **drag the top corners** for fade in and
+  out; Esc restores. Handles show on a selected or hovered clip.
+- **Fixed:** dragging a clip's edge to trim never started (the drag distance was computed wrongly).
+  Edge trims (roll, and ripple with Shift) work now.
+
+## [v26.10.18.50] - 2026-10-18
+
+- **Tab and Shift+Tab** move the playhead to the next / previous word start or transient (in the timeline
+  and the transcript; Tab keeps its normal focus move in side panels and text fields). **Shift+T**
+  cycles word / transient / both; the choice is remembered. Transients are detected from the focused
+  track (or all audible tracks) in the background. Not tried on a real window yet.
+
 ## [v26.10.18.49] - 2026-10-18
 
 - Plan change (owner): mouse editing (WP6) and Tab to the next transient or word (WP19i) are part of the first

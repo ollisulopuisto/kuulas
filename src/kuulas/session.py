@@ -39,10 +39,12 @@ from . import (
     analysis,
     candidates,
     collateral,
+    edit_points,
     edit_scope,
     import_plan,
     narration,
     narration_script,
+    onsets,
     ops,
     package,
     source_map,
@@ -1567,6 +1569,31 @@ class Session:
                 return transcript.timeline_words(self.history.state, self.transcripts())
 
             return list(self._memo("timeline_words", key, compute, 300))
+
+    def edit_points(self, mode: str, track_id: str | None = None) -> list[int]:
+        """The Tab stops of ``mode`` (WP19i), memoized on the edit state, so
+        the same head asked twice costs nothing. Onset detection reads media
+        (cached per file by content), so it runs on a snapshot with the lock
+        released; edit points of an old head are never served for a new one."""
+        if mode not in edit_points.MODES:
+            raise edit_points.EditPointsError("error.edit_points.unknown_mode", mode=mode)
+        with self.lock:
+            state = self.history.state
+            revs = sorted(self.history.material["transcripts"].items())
+            key = self._view_key(self.history.edit_hash, self.history.rate, revs,
+                                 self.history.material_head, mode, track_id)
+            transcripts = self.transcripts() if mode == "words" else {}
+
+        def compute() -> list[int]:
+            found: dict[str, Any] = {}
+            if mode == "transients":
+                for media in state.media:
+                    got = onsets.onsets_for_media(self.store, media.id)
+                    if got is not None:
+                        found[media.id] = got
+            return edit_points.edit_points(state, transcripts, found, mode, track_id)
+
+        return list(self._memo("edit_points", key, compute, 8))
 
     def sync_partners(self) -> dict[str, tuple[str, ...]]:
         """Media id -> the media recorded on the same clock, memoized on the
