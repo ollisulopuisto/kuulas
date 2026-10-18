@@ -1,6 +1,7 @@
 // The commands the editor can do today, registered by id (ids from keymap-default.js).
 // Everything else in the keymap is "planned" until its work package lands.
 import { canRestore } from "./history-model.js";
+import { PAUSE_CHOICES } from "./transcript-model.js";
 
 /** The next or previous track's id; stops at the ends; null without a project. */
 export function stepTrack(project, current, direction) {
@@ -61,6 +62,11 @@ export function registerAppCommands(registry, { actions, app }) {
   def("view.fit_selection", () => actions.fitSelection(), hasProject);
   def("view.back", () => actions.viewBack(), hasProject);
   def("view.reset_remembered", () => actions.resetRememberedView(), hasProject);
+  // View > Break paragraphs at pauses over: one command per choice (no project needed;
+  // it is a user preference, remembered with the other view settings).
+  for (const choice of PAUSE_CHOICES) {
+    def(`view.pause_${choice.id}`, () => actions.setPauseBreak(choice.id));
+  }
   def("view.forward", () => actions.viewForward(), hasProject);
   def("view.zoom_in", () => actions.zoomStep(1), hasProject);
   def("view.zoom_out", () => actions.zoomStep(-1), hasProject);

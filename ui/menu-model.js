@@ -118,6 +118,17 @@ export const MENU = [
       item("view.back"),
       item("view.reset_remembered"),
       SEP,
+      {
+        kind: "submenu",
+        labelKey: "menu.pause_break",
+        items: [
+          item("view.pause_1_5"),
+          item("view.pause_3"),
+          item("view.pause_6"),
+          item("view.pause_never"),
+        ],
+      },
+      SEP,
       item("palette.open"),
     ],
   },

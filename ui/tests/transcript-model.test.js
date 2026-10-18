@@ -6,6 +6,7 @@ import {
   collateralBand,
   cutRange,
   cutWordsPlan,
+  DEFAULT_PAUSE_CHOICE,
   deleteSpan,
   deleteWordsPlan,
   dragSelection,
@@ -15,7 +16,11 @@ import {
   noSelection,
   offsetsOf,
   ownerTracks,
+  PAUSE_CHOICES,
   paragraphOf,
+  pauseChoiceId,
+  pauseMarkers,
+  pauseSecondsOf,
   placeCursor,
   selectedIndices,
   selectionBounds,
@@ -312,5 +317,77 @@ describe("cutRange", () => {
   });
   test("nothing selected: null", () => {
     assert.equal(cutRange(words, []), null);
+  });
+});
+
+describe("pause markers", () => {
+  // rate 100: frames / 100 = seconds
+  const build = (words, pauseSeconds) => ({
+    words,
+    paragraphs: buildParagraphs(words, { rate: RATE, pauseSeconds }),
+  });
+
+  test("a pause split gets a marker with its range and length", () => {
+    const { words, paragraphs } = build([word("a", 0, 100), word("b", 740, 800)], 3);
+    assert.equal(paragraphs.length, 2);
+    const markers = pauseMarkers(words, paragraphs, RATE);
+    assert.deepEqual([...markers.keys()], [1]);
+    assert.deepEqual(markers.get(1), { start: 100, end: 740, seconds: 6.4 });
+  });
+
+  test("no marker for a speaker change, even after a long gap", () => {
+    const { words, paragraphs } = build([word("a", 0, 100), word("b", 900, 950, "b")], 3);
+    assert.equal(paragraphs.length, 2);
+    assert.equal(pauseMarkers(words, paragraphs, RATE).size, 0);
+  });
+
+  test("no marker under 1 s, even when the threshold splits there", () => {
+    const { words, paragraphs } = build([word("a", 0, 100), word("b", 190, 250)], 0.5);
+    assert.equal(paragraphs.length, 2);
+    assert.equal(pauseMarkers(words, paragraphs, RATE).size, 0);
+  });
+
+  test("exactly 1 s gets a marker; the first paragraph never does", () => {
+    const { words, paragraphs } = build([word("a", 0, 100), word("b", 200, 250)], 0.5);
+    const markers = pauseMarkers(words, paragraphs, RATE);
+    assert.deepEqual([...markers.keys()], [1]);
+    assert.equal(markers.get(1).seconds, 1);
+  });
+
+  test("a gap inside a paragraph (below the threshold) has no marker", () => {
+    const { words, paragraphs } = build([word("a", 0, 100), word("b", 400, 450)], 3);
+    assert.equal(paragraphs.length, 1);
+    assert.equal(pauseMarkers(words, paragraphs, RATE).size, 0);
+  });
+});
+
+describe("pause threshold choices", () => {
+  test("four choices; 3 s is the default; never is Infinity", () => {
+    assert.deepEqual(
+      PAUSE_CHOICES.map((c) => c.id),
+      ["1_5", "3", "6", "never"],
+    );
+    assert.equal(DEFAULT_PAUSE_CHOICE, "3");
+    assert.equal(pauseSecondsOf("1_5"), 1.5);
+    assert.equal(pauseSecondsOf("3"), 3);
+    assert.equal(pauseSecondsOf("6"), 6);
+    assert.equal(pauseSecondsOf("never"), Number.POSITIVE_INFINITY);
+  });
+
+  test("an unknown or missing stored value falls back to the default", () => {
+    assert.equal(pauseChoiceId("6"), "6");
+    assert.equal(pauseChoiceId("never"), "never");
+    assert.equal(pauseChoiceId(null), "3");
+    assert.equal(pauseChoiceId("2"), "3");
+    assert.equal(pauseSecondsOf("bogus"), 3);
+  });
+
+  test("never keeps a long pause inside one paragraph", () => {
+    const words = [word("a", 0, 100), word("b", 100000, 100050)];
+    const paragraphs = buildParagraphs(words, {
+      rate: RATE,
+      pauseSeconds: pauseSecondsOf("never"),
+    });
+    assert.equal(paragraphs.length, 1);
   });
 });

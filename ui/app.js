@@ -39,6 +39,7 @@ import { densityAttribute, nextTheme, themeAttribute } from "./theme.js";
 import { createTimeline } from "./timeline.js";
 import { createTrackHeaders } from "./tracks.js";
 import { createTranscript } from "./transcript.js";
+import { pauseChoiceId } from "./transcript-model.js";
 import { createTransport } from "./transport.js";
 import * as View from "./view.js";
 import { changeKey, createSaver, recordOf, restoreFrom } from "./view-memory.js";
@@ -209,6 +210,12 @@ const actions = {
     if (target.start === 0 && target.end === totalFrames()) fitWholeEdit();
     else setView(View.fitRange({ ...target, width: width() }));
     history = View.visitView(history, { zoom: getState().zoom, scroll: getState().scroll });
+  },
+  /** View > Break paragraphs at pauses over: remembered per user, applied at once. */
+  setPauseBreak(choice) {
+    const id = pauseChoiceId(choice);
+    prefs.set(PAUSE_BREAK_KEY, id);
+    setState({ pauseBreak: id });
   },
   viewBack: () => stepHistory(View.backView),
   resetRememberedView() {
@@ -549,6 +556,10 @@ $("density").addEventListener("change", (event) => {
   prefs.set(DENSITY_KEY, densityChoice); // not remembered if storage is blocked; it applies now
   applyDensity();
 });
+
+// Break paragraphs at pauses over (View menu): a view option remembered per user.
+const PAUSE_BREAK_KEY = "pauseBreak";
+setState({ pauseBreak: pauseChoiceId(prefs.get(PAUSE_BREAK_KEY)) });
 
 // Show gates (WP44): a view option remembered per user; on by default.
 const GATES_KEY = "gates";

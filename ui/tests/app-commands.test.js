@@ -116,6 +116,19 @@ describe("the commands the app registers", () => {
     assert.deepEqual(calls, [["fitView"], ["fitSelection"]]);
   });
 
+  test("the four pause-break choices call setPauseBreak and need no project", () => {
+    const { registry, calls } = setup({});
+    for (const id of ["1_5", "3", "6", "never"]) {
+      assert.equal(registry.run(`view.pause_${id}`, null, {}), true);
+    }
+    assert.deepEqual(calls, [
+      ["setPauseBreak", "1_5"],
+      ["setPauseBreak", "3"],
+      ["setPauseBreak", "6"],
+      ["setPauseBreak", "never"],
+    ]);
+  });
+
   test("P plays from the pre-roll before the playhead and needs a project", () => {
     const { registry, calls } = setup({ project, playhead: 480000 });
     assert.equal(registry.can("transport.play_before", { project }), true);

@@ -798,6 +798,30 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.view.reset_remembered",
   },
   {
+    id: "view.pause_1_5",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.view.pause_1_5",
+  },
+  {
+    id: "view.pause_3",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.view.pause_3",
+  },
+  {
+    id: "view.pause_6",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.view.pause_6",
+  },
+  {
+    id: "view.pause_never",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.view.pause_never",
+  },
+  {
     id: "keymap.reset",
     keys: { mac: null, other: null },
     context: "global",
