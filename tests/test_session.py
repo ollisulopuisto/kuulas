@@ -437,6 +437,7 @@ def test_the_command_table_is_the_plans(session):
         "set_media_person", "set_music_info", "map_speakers", "import_nhsx",
         "rebuild_media",
         "candidates_detect", "candidate_set_state", "candidate_apply", "candidate_mark",
+        "match_loudness",
     }
 
 
