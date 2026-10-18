@@ -164,11 +164,16 @@ def remove_gate_range(p: Project, track_id: str, start: int, end: int) -> Projec
         track, gate=gatem.remove_range(track.gate, int(start), int(end))))
 
 
-def add_bus(p: Project, bus_id: str | None = None, name: str = "Bus") -> Project:
+def add_bus(p: Project, bus_id: str | None = None, name: str = "Bus",
+            track_ids=()) -> Project:
+    """Add a bus, and route ``track_ids`` to it in the same edit (one undo step)."""
     bus_id = bus_id or new_id("b")
     if any(b.id == bus_id for b in p.buses):
         raise EditError("error.edit.bus_exists", bus_id=bus_id)
-    return replace(p, buses=(*p.buses, Bus(id=bus_id, name=name)))
+    p = replace(p, buses=(*p.buses, Bus(id=bus_id, name=name)))
+    for track_id in track_ids:
+        p = set_track(p, track_id, bus=bus_id)
+    return p
 
 
 BUS_FIELDS = {"name", "gain_db", "pan", "mute"}

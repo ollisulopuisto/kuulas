@@ -1014,5 +1014,12 @@
   "ui.placeholders.editor.empty": "Type the script to see how long it takes.",
   "ui.placeholders.editor.save": "Save",
   "ui.placeholders.editor.cancel": "Cancel",
-  "ui.export.placeholders_skipped": "Narration not recorded: {count}. It is silent in this export."
+  "ui.export.placeholders_skipped": "Narration not recorded: {count}. It is silent in this export.",
+  "cmd.track.group_into_bus": "Group the selected tracks into a new bus",
+  "cmd.track.group_into_bus.hint": "Puts the tracks of the selected clips (or the current track) on a new bus and lets you name it.",
+  "cmd.track.new_bus": "New empty bus",
+  "cmd.track.new_bus.hint": "Adds a bus with no tracks on it and lets you name it.",
+  "ui.edit.label.group_bus": "Group into a new bus",
+  "ui.edit.label.new_bus": "New bus",
+  "ui.bus.option_new": "+ New bus…"
 }

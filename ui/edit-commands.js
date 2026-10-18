@@ -10,7 +10,9 @@ import {
   deletePlan,
   fadePlan,
   gainPlan,
+  groupBusPlan,
   mutePlan,
+  newBusPlan,
   nudgePlan,
   pastePlan,
   soloPlan,
@@ -107,6 +109,31 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
   planned("track.mute", trackMutePlan);
   planned("track.solo", (s) => soloPlan(s, true));
   planned("track.solo_add", (s) => soloPlan(s, false));
+
+  // Creating a bus: once the server has answered, the new one (always the last) gets the
+  // focus and its name field (F2's), so naming it is the next thing typed.
+  const plannedBus = (id, build) =>
+    def(
+      id,
+      () => {
+        const plan = build(app.getState());
+        if (!plan) return;
+        app.edit({
+          op: plan.op,
+          args: plan.args,
+          label: t(plan.label.key),
+          done: (response) => {
+            const created = response?.project?.buses?.at(-1);
+            if (!created) return;
+            app.patch({ focusBus: created.id, focusTrack: null });
+            app.focusName();
+          },
+        });
+      },
+      (state) => build(state) !== null,
+    );
+  plannedBus("track.group_into_bus", groupBusPlan);
+  plannedBus("track.new_bus", newBusPlan);
 
   // Gain's key is read when the key is pressed, so a pause starts a new undo step.
   const gain = (direction) => (s) => gainPlan(s, direction, burst.key(app.now()));
