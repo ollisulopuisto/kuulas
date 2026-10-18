@@ -1,3 +1,17 @@
+## [v26.10.18.46] - 2026-10-18
+
+- **Drag a clip's edge to trim it** (6 px at each end of a clip): by default the cut moves and nothing
+  else does: if a clip touches that edge (a muted one after an active one) it gets shorter while the
+  dragged clip gets longer; with nothing next to it the edge just trims or extends. **Shift** while
+  dragging makes it a ripple: only that clip changes length and everything after it, on all tracks,
+  shifts by the same amount (shrinking removes that stretch on the other tracks too, as X does).
+  A ghost shows the new edge, Esc cancels. Not looked at in a real window yet.
+- **Playback stalls:** the audio no longer reads files inside the audio callback (a read-ahead cache is
+  filled in the background and warmed before play starts), and the audio thread gets Python's
+  lock back faster. `--debug` shows `miss` counts and a `gil?` hint. Please run with `--debug` again.
+- Building block for nested buses: the bus tree rules (depth, badges A / A1 / A1a, mute and gain
+  cascade). Not visible yet.
+
 ## [v26.10.18.45] - 2026-10-18
 
 - **Finnish keyboard:** candidates step with **Alt+Down / Alt+Up** (the brackets stay), and the
