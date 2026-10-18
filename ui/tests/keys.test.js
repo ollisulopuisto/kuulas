@@ -273,8 +273,15 @@ describe("AltGr", () => {
 });
 
 describe("keyboard focus", () => {
-  test("the order is timeline, transcript, inspector, clipboard, history", () => {
-    assert.deepEqual(PANELS, ["timeline", "transcript", "inspector", "clipboard", "history"]);
+  test("the order is timeline, transcript, inspector, candidates, clipboard, history", () => {
+    assert.deepEqual(PANELS, [
+      "timeline",
+      "transcript",
+      "inspector",
+      "candidates",
+      "clipboard",
+      "history",
+    ]);
   });
 
   test("F6 steps forward and wraps; Shift+F6 steps back and wraps", () => {

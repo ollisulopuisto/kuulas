@@ -12,14 +12,14 @@
 //
 // Owner decisions (18.10.2026) kept here: Backspace is Delete (soft cut, gap kept),
 // X is Cut (ripple, to the clipboard), Mod+C copies; Spot is Mod+J, find is Mod+F,
-// fade is G, import is Mod+I (Mod+T in the desktop wrapper), K rejects a candidate,
+// fade is G, import is Mod+I (Mod+T in the desktop wrapper), K keeps a candidate (in the Candidates tab),
 // [ ] are physical keys, F2 renames. Parked and so not bound: lift-cut (Alt+X),
 // close gap on all tracks, Clean up cuts, Compare. The clipboard (WP46): X cuts to it,
 // Mod+C copies only, Backspace never touches it; Mod+V pastes (insert), Alt+Mod+V
 // overwrites, Shift+Mod+V inserts on the current track.
-// J/K/L: K is "reject candidate", so shuttle-stop has no key (open question).
+// J/K/L: K is "keep candidate" in the Candidates tab, so shuttle-stop has no key (open question).
 
-export const CONTEXTS = ["global", "timeline", "transcript", "side", "text-field"];
+export const CONTEXTS = ["global", "timeline", "transcript", "side", "candidates", "text-field"];
 
 export const DEFAULT_KEYMAP = [
   {
@@ -454,10 +454,12 @@ export const DEFAULT_KEYMAP = [
     context: "timeline",
     labelKey: "cmd.sync.resync_end",
   },
+  // Candidates (WP18). ] [ D and Shift+Mod+D work from every panel (none is a typing key);
+  // Enter, K and Shift+Space only while the Candidates tab has the keyboard.
   {
     id: "candidate.mark",
     keys: { mac: "D", other: "D" },
-    context: "timeline",
+    context: "global",
     labelKey: "cmd.candidate.mark",
   },
   {
@@ -469,32 +471,50 @@ export const DEFAULT_KEYMAP = [
   {
     id: "candidate.next",
     keys: { mac: "]", other: "]" },
-    context: "timeline",
+    context: "global",
     labelKey: "cmd.candidate.next",
   },
   {
     id: "candidate.previous",
     keys: { mac: "[", other: "[" },
-    context: "timeline",
+    context: "global",
     labelKey: "cmd.candidate.previous",
   },
   {
     id: "candidate.apply",
     keys: { mac: "Enter", other: "Enter" },
-    context: "timeline",
+    context: "candidates",
     labelKey: "cmd.candidate.apply",
+  },
+  {
+    id: "candidate.apply_ripple",
+    keys: { mac: null, other: null },
+    context: "candidates",
+    labelKey: "cmd.candidate.apply_ripple",
   },
   {
     id: "candidate.reject",
     keys: { mac: "K", other: "K" },
-    context: "timeline",
+    context: "candidates",
     labelKey: "cmd.candidate.reject",
+  },
+  {
+    id: "candidate.preview",
+    keys: { mac: "Shift+Space", other: "Shift+Space" },
+    context: "candidates",
+    labelKey: "cmd.candidate.preview",
   },
   {
     id: "candidate.filter",
     keys: { mac: "Shift+Mod+D", other: "Shift+Mod+D" },
-    context: "timeline",
+    context: "global",
     labelKey: "cmd.candidate.filter",
+  },
+  {
+    id: "candidate.find",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.candidate.find",
   },
   {
     id: "transcript.delete_words",
@@ -627,6 +647,13 @@ export const STATUS_HINTS = {
     { id: "transcript.find", hintKey: "ui.hint.find" },
     { id: "panel.next", hintKey: "ui.hint.panels" },
     { id: "nav.home", hintKey: "ui.hint.home" },
+  ],
+  candidates: [
+    { id: "candidate.apply", hintKey: "ui.hint.candidate_delete" },
+    { id: "candidate.reject", hintKey: "ui.hint.candidate_keep" },
+    { id: "candidate.next", hintKey: "ui.hint.candidate_next" },
+    { id: "candidate.preview", hintKey: "ui.hint.candidate_preview" },
+    { id: "panel.next", hintKey: "ui.hint.panels" },
   ],
   side: [
     { id: "transport.play", hintKey: "ui.hint.play" },

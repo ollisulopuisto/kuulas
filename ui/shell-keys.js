@@ -4,6 +4,7 @@
 // status-bar hints. app.js calls setupKeyboard once.
 
 import { registerAppCommands } from "./app-commands.js";
+import { registerCandidateCommands } from "./candidate-commands.js";
 import { cheatSheetData, createCheatSheet } from "./cheatsheet.js";
 import { createRegistry } from "./commands.js";
 import { registerEditCommands } from "./edit-commands.js";
@@ -35,6 +36,7 @@ export const CONTEXT_OF_PANEL = {
   timeline: "timeline",
   transcript: "transcript",
   inspector: "side",
+  candidates: "candidates",
   clipboard: "side",
   history: "side",
   help: "side",
@@ -102,6 +104,7 @@ export function setupKeyboard({ actions, app, t, notify, onLanguageChange, onRef
     formatSeconds: (seconds) => formatNumber(seconds, { digits: 1 }),
   });
   registerTranscriptCommands(registry, { app, t });
+  registerCandidateCommands(registry, { app, t });
   // The rest of the sheet is listed everywhere and does nothing until its WP lands.
   registry.planMissing(DEFAULT_KEYMAP.map((entry) => entry.id));
 

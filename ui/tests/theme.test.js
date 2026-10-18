@@ -38,6 +38,8 @@ test("readTheme resolves the registry once: hues, bus colours and signals", () =
     "--signal-muted-opacity": "0.4",
     "--signal-gate": "#f6f8f9",
     "--signal-gate-opacity": "0.7",
+    "--signal-candidate": "#c8321f",
+    "--signal-candidate-fill": "#c8321f20",
   };
   const asked = [];
   const style = {
@@ -61,6 +63,8 @@ test("readTheme resolves the registry once: hues, bus colours and signals", () =
   assert.equal(theme.selection, "#00ff00");
   assert.equal(theme.mutedOpacity, 0.4);
   assert.equal(theme.gate, "#f6f8f9");
+  assert.equal(theme.candidate, "#c8321f");
+  assert.equal(theme.candidateFill, "#c8321f20");
   assert.equal(theme.gateOpacity, 0.7);
   assert.equal(new Set(asked).size, asked.length, "every token is read once");
 });

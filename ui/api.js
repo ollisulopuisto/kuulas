@@ -38,6 +38,12 @@ export const getJobs = () => json("/api/jobs");
 export const edit = ({ op, args, label = null, coalesce = null }) =>
   post("/api/edit", { op, args, label, coalesce });
 export const command = (name, args = {}) => post("/api/command", { name, args });
+// Cut candidates (WP18). Deciding, applying and marking are commands (one undo step each);
+// the list and the preview data only read. `state`: "open" | "cut" | "kept" or null for all.
+export const getCandidates = (state = null) =>
+  json(`/api/candidates${state ? `?state=${encodeURIComponent(state)}` : ""}`);
+export const getCandidatePreview = (id, mode = "soft") =>
+  json(`/api/candidates/${encodeURIComponent(id)}/preview?mode=${encodeURIComponent(mode)}`);
 // The clipboard (WP46). Cut and paste are edits (edit() with clipboard_cut / clipboard_paste);
 // copying changes no project, so it has its own route. Each answer carries `entries`.
 export const getClipboard = () => json("/api/clipboard");

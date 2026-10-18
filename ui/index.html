@@ -55,10 +55,12 @@
         <section id="panel-help" class="panel help-panel" data-panel="help" tabindex="-1" hidden></section>
         <div class="side-tabs" role="tablist" data-i18n-aria-label="ui.tabs.label">
           <button id="tab-inspector" type="button" role="tab" class="side-tab" data-tab="inspector" aria-controls="panel-inspector" data-i18n="ui.tabs.inspector"></button>
+          <button id="tab-candidates" type="button" role="tab" class="side-tab" data-tab="candidates" aria-controls="panel-candidates"><span data-i18n="ui.tabs.candidates"></span><span id="cand-count" class="count" hidden></span></button>
           <button id="tab-clipboard" type="button" role="tab" class="side-tab" data-tab="clipboard" aria-controls="panel-clipboard" data-i18n="ui.tabs.clipboard"></button>
           <button id="tab-history" type="button" role="tab" class="side-tab" data-tab="history" aria-controls="panel-history" data-i18n="ui.tabs.history"></button>
         </div>
         <section id="panel-inspector" data-help-id="inspector" class="panel" data-panel="inspector" role="tabpanel" aria-labelledby="tab-inspector" tabindex="0"></section>
+        <section id="panel-candidates" class="panel" data-panel="candidates" role="tabpanel" aria-labelledby="tab-candidates" tabindex="0" hidden></section>
         <section id="panel-clipboard" class="panel" data-panel="clipboard" role="tabpanel" aria-labelledby="tab-clipboard" tabindex="0" hidden></section>
         <section id="panel-history" class="panel" data-panel="history" role="tabpanel" aria-labelledby="tab-history" tabindex="0" hidden></section>
       </aside>
