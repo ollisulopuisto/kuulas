@@ -1,3 +1,13 @@
+## [v26.10.18.18] - 2026-10-18
+
+- Match loudness (backend): a session command brings chosen clips to a target level
+  (-16 LUFS by default) by setting each clip's gain, measured in 60 s pieces off the session lock,
+  as one undo step; silent clips are skipped and reported. No key or button yet.
+- Fade at the play cursor (backend, the G key): sets the fade in or out of the clip under the cursor
+  from the cursor position, shortening the other fade if they would overlap.
+- Building blocks: finding words in a transcript (accent-insensitive, multi-word) and subtitles
+  from a transcript (SRT and VTT with line breaking, speakers and gaps).
+
 ## [v26.10.18.17] - 2026-10-18
 
 - Candidates panel: a "Candidates" tab with the counts (N open · N cut · N kept), a "Find
