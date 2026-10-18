@@ -424,6 +424,10 @@ def create_app(session, engine, *, language: str | None = None,
     def post_export(body: Annotated[dict[str, Any], Body()]):
         return state_response({"export": session.export(body)})
 
+    @app.post("/api/export-tracks", status_code=202)
+    def post_export_tracks(body: Annotated[dict[str, Any], Body()]):
+        return JSONResponse({"jobs": session.export_tracks(body)}, status_code=202)
+
     @app.post("/api/export-regions")
     def post_export_regions(body: Annotated[dict[str, Any], Body()]):
         return JSONResponse({"jobs": session.export_regions(body)})

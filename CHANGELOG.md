@@ -1,3 +1,19 @@
+## [v26.10.18.48] - 2026-10-18
+
+- **Export all tracks with one button:** the "Vie" button in the toolbar, File > Export all tracks, or
+  Shift+Alt+Cmd+E writes one 24-bit WAV per track (edits, clip gain, fades and mutes applied; no
+  track effects, buses or master), all the same length and starting at the same moment, plus a
+  `tracks.json` list, into a new folder `<project> exports/<edit> <date time> v<n>/` next to the
+  project. It runs in the background with progress and a Cancel button, and "Show in Finder" in the
+  desktop window. A muted track, or a track on a muted bus, comes out silent (the notice says
+  which). From the terminal: `kuulas export-tracks <project.kuulas> [--out F] [--format wav|flac]
+  [--bit-depth 16|24|32]`. For the automixer: music tracks get " MUSIC" in the file name, because
+  the automixer reads the role from the name.
+- Fixed: a track export ignored a muted bus (the stem came out at full level).
+- An end-to-end test now drives the whole editing loop on a synthetic three-speaker episode (import,
+  X, Backspace, trims, undo, save and reopen, export).
+- Read-only projects cannot export (the export also writes a record into the project).
+
 ## [v26.10.18.47] - 2026-10-18
 
 - **Collapse a bus:** a chevron at the left of the bus header, a double-click on the header, or

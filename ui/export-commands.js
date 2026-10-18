@@ -29,8 +29,40 @@ const hasTranscript = (state) => Boolean(state?.project) && (state?.words?.lengt
 const hasChapters = (state) => Boolean(state?.project) && chapterCount(state.project.markers) > 0;
 const hasRegions = (state) => Boolean(state?.project) && regionCount(state.project.markers) > 0;
 
+const hasTracks = (state) => (state?.project?.tracks?.length ?? 0) > 0;
+
+/**
+ * What the notice says about the "Export all tracks" job (as /api/jobs lists it):
+ * { kind, text, sticky, cancel, reveal }. `sticky` stays until replaced, `cancel` offers
+ * Cancel, `reveal` offers Show in Finder (desktop window only; the caller checks).
+ */
+export function tracksNotice(job, t) {
+  if (job.state === "completed") {
+    const { path, track_count: count, silent = [] } = job.result ?? {};
+    const text =
+      silent.length > 0
+        ? t("ui.export.tracks_done_silent", { count, path, silent: silent.join(", ") })
+        : t("ui.export.tracks_done", { count, path });
+    return { kind: "ok", text, sticky: true, cancel: false, reveal: true };
+  }
+  if (job.state === "failed") {
+    return { kind: "error", text: job.error?.text ?? "", sticky: false, cancel: false };
+  }
+  if (job.state === "cancelled") {
+    return { kind: "ok", text: t("ui.export.cancelled"), sticky: false, cancel: false };
+  }
+  const percent = Math.round((job.progress ?? 0) * 100);
+  return {
+    kind: "ok",
+    text: t("ui.export.tracks_running", { percent }),
+    sticky: true,
+    cancel: true,
+  };
+}
+
 /**
  * `app`: getState, toast(text, { undo }), download(path, fallbackName) -> Promise<name | null>,
+ * exportTracks() -> Promise (starts the one-button track export and follows its job),
  * exportRegions() -> Promise (queues the one region job; the jobs list shows its progress).
  */
 export function registerExportCommands(registry, { app, t }) {
@@ -54,6 +86,10 @@ export function registerExportCommands(registry, { app, t }) {
       { can: hasChapters, hintKey: `cmd.${id}.hint` },
     );
   }
+  registry.register("export.tracks", () => void app.exportTracks(), {
+    can: hasTracks,
+    hintKey: "cmd.export.tracks.hint",
+  });
   registry.register("export.regions", () => void app.exportRegions(), {
     can: hasRegions,
     hintKey: "cmd.export.regions.hint",
