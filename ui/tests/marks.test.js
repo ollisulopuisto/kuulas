@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { markDrawing, setInPoint, setOutPoint } from "../marks.js";
+import { lengthPill, markDrawing, setInPoint, setOutPoint } from "../marks.js";
 
 describe("setting the in and out marks", () => {
   test("a lone mark is set as it is", () => {
@@ -67,5 +67,30 @@ describe("what to draw for the marks", () => {
   });
   test("reversed marks (an old saved state) draw no range tint", () => {
     assert.equal(markDrawing({ inPoint: 500, outPoint: 100 }).range, null);
+  });
+});
+
+describe("lengthPill (the length on the ruler band)", () => {
+  const range = { start: 1000, end: 3000 };
+  const view = { scroll: 0, zoom: 10, width: 800, textWidth: 50 };
+  test("centred on the band, as wide as the label plus its padding", () => {
+    // band 100..300 px, pill 62 wide
+    assert.deepEqual(lengthPill({ range, ...view }), { x: 169, width: 62, center: 200 });
+  });
+  test("no pill without a range", () => {
+    assert.equal(lengthPill({ range: null, ...view }), null);
+  });
+  test("hidden when the band is narrower than the pill plus 16 px", () => {
+    // pill 62 + 16 = 78 px needed; 780 frames at 10 frames/px = 78 px fits, 770 does not
+    assert.notEqual(lengthPill({ range: { start: 0, end: 780 }, ...view }), null);
+    assert.equal(lengthPill({ range: { start: 0, end: 770 }, ...view }), null);
+  });
+  test("only the visible part of the band counts and carries the pill", () => {
+    const wide = { start: -5000, end: 5000 };
+    const pill = lengthPill({ range: wide, ...view });
+    assert.equal(pill.center, 250); // visible x 0..500
+    const edge = lengthPill({ range: { start: 7000, end: 12000 }, ...view });
+    assert.equal(edge.center, 750); // 100 visible px at x 700..800
+    assert.equal(lengthPill({ range: { start: 7300, end: 12000 }, ...view }), null); // 50 px left
   });
 });

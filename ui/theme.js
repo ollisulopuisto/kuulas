@@ -57,6 +57,7 @@ export function readTheme(
     panel: p.surfaces.surfacePanel,
     laneCurrent: p.surfaces.surfaceLaneCurrent,
     accent: p.surfaces.accent,
+    accentText: p.surfaces.accentText,
     playhead: p.marks.playhead,
     playStart: p.marks.playStart,
     range: p.marks.selectionRange,
