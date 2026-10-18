@@ -1337,5 +1337,14 @@
   "cmd.track.delete_empty": "Poista tyhjät raidat",
   "cmd.track.delete_empty.hint": "Poistaa kaikki raidat, joilla ei ole leikkeitä. Raidat, joilla on leikkeitä, jäävät. Kumoa palauttaa ne.",
   "ui.edit.label.delete_empty_tracks": "Tyhjien raitojen poisto",
-  "ui.edit.toast.delete_empty_tracks": {"one": "Poistettu {count} tyhjä raita", "other": "Poistettu {count} tyhjää raitaa"}
+  "ui.edit.toast.delete_empty_tracks": {"one": "Poistettu {count} tyhjä raita", "other": "Poistettu {count} tyhjää raitaa"},
+  "error.automix.bad_target_lufs": "Tavoiteäänekkyys {value} ei ole luku väliltä -40...0 LUFS.",
+  "error.automix.bad_ad_spot": "Mainoskohta {value} ei ole aika sekunteina (0 tai enemmän).",
+  "error.automix.bad_ad_duration": "Mainoksen kesto {value} ei ole sekuntimäärä, joka on suurempi kuin 0.",
+  "error.automix.bad_cwd": "Automixerin kansiota {cwd} ei ole. Muuta se automixer-miksauksen asetuksissa.",
+  "error.automix.not_found": "Automixeria ei voitu käynnistää: komentoa \"{command}\" ei löytynyt (kansio: {cwd}). Tarkista komento ja kansio automixer-miksauksen asetuksista.",
+  "error.automix.failed": "Automixer pysähtyi virhekoodiin {code}.\n{tail}",
+  "error.automix.no_output": "Automixer päättyi mutta ei kirjoittanut miksausta.\n{tail}",
+  "error.automix.no_audible": "Kaikki raidat on mykistetty tai ei ole soolotettu, joten miksattavaa ei ole.",
+  "job.automix": "Miksataan automixerilla"
 }

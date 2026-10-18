@@ -1337,5 +1337,14 @@
   "cmd.track.delete_empty": "Delete the empty tracks",
   "cmd.track.delete_empty.hint": "Removes every track that has no clips. Tracks with clips stay. Undo brings them back.",
   "ui.edit.label.delete_empty_tracks": "Delete empty tracks",
-  "ui.edit.toast.delete_empty_tracks": {"one": "Deleted {count} empty track", "other": "Deleted {count} empty tracks"}
+  "ui.edit.toast.delete_empty_tracks": {"one": "Deleted {count} empty track", "other": "Deleted {count} empty tracks"},
+  "error.automix.bad_target_lufs": "The target loudness {value} is not a number between -40 and 0 LUFS.",
+  "error.automix.bad_ad_spot": "The ad spot {value} is not a time in seconds (0 or more).",
+  "error.automix.bad_ad_duration": "The ad duration {value} is not a number of seconds above 0.",
+  "error.automix.bad_cwd": "The automixer's folder {cwd} does not exist. Change it in the Mix with the automixer settings.",
+  "error.automix.not_found": "The automixer could not be started: \"{command}\" was not found (folder: {cwd}). Check the command and folder in the Mix with the automixer settings.",
+  "error.automix.failed": "The automixer stopped with exit code {code}.\n{tail}",
+  "error.automix.no_output": "The automixer finished but wrote no mix.\n{tail}",
+  "error.automix.no_audible": "Every track is muted or not soloed, so there is nothing to mix.",
+  "job.automix": "Mixing with the automixer"
 }
