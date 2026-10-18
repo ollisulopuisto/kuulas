@@ -79,7 +79,7 @@ export const initialState = () => ({
   groupGap: GROUP_GAP,
   density: "comfortable",
   waveformMode: "half",
-  waveformScale: "linear",
+  waveformScale: "auto",
   waveformGain: 1,
   // Show the Auto-Silence gate bands on the lanes (WP44); a view option.
   showGates: true,

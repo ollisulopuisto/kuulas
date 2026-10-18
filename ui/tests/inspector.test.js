@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { openSections, selectedClip, syncGroupOf } from "../inspector.js";
+import { addBusForTrack } from "../inspector-track.js";
 
 // The server sends sync-group members as { mediaId: origin } (SyncGroup.to_dict).
 const project = {
@@ -50,5 +51,32 @@ describe("inspector sections (density rework, 2026-10-18)", () => {
     });
     assert.deepEqual(openSections("not json"), openSections(null));
     assert.deepEqual(openSections('{"level":"yes","bogus":true}'), openSections(null));
+  });
+});
+
+describe("New bus from a track (header pop-up and inspector)", () => {
+  const run = (answer) => {
+    const sent = [];
+    const created = [];
+    addBusForTrack({ change: (edit) => sent.push(edit) }, "t1", (id) => created.push(id));
+    answer?.(sent[0]);
+    return { sent, created };
+  };
+
+  test("creates the bus for the track and reports the new bus once the server answers", () => {
+    const { sent, created } = run((edit) =>
+      edit.done({ project: { buses: [{ id: "b1" }, { id: "b2" }] } }),
+    );
+    assert.equal(sent[0].op, "add_bus");
+    assert.deepEqual(sent[0].args, { track_ids: ["t1"] });
+    assert.deepEqual(created, ["b2"]);
+  });
+
+  test("an answer without a bus calls nothing back", () => {
+    const { created } = run((edit) => {
+      edit.done({ project: { buses: [] } });
+      edit.done(undefined);
+    });
+    assert.deepEqual(created, []);
   });
 });
