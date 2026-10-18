@@ -39,4 +39,5 @@ def test_riff_header_is_valid(tmp_path: Path, channels, bit_depth, frames):
     assert chunks[b"data"][0] == frames * width
     assert len(raw) % 2 == 0, "an odd data chunk is padded to an even length"
     data, rate = sf.read(path, dtype="float32", always_2d=True)
-    assert rate == 48000 and data.shape == (frames, channels)
+    assert rate == 48000
+    assert data.shape == (frames, channels)

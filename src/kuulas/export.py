@@ -168,7 +168,7 @@ class _WavWriter:
             if size % 2:  # RIFF chunks are padded to an even length
                 self.f.write(b"\0")
             end = self.f.tell()
-            # The RIFF size is the file length minus the 8-byte RIFF header. (It used to be
+            # The RIFF size is the file length minus the 8-byte RIFF header. (It was once
             # computed inside the write() call, which moved the position to the end
             # first, so the field stayed 0 and the number was appended as stray bytes:
             # editors forgave it, macOS Quick Look and CoreAudio did not.)
