@@ -87,8 +87,8 @@ def test_new_session_creates_the_folder_layout(tmp_path):
     try:
         assert json.loads((folder / "manifest.json").read_text())["format"] == (
             "kuulas-project")
-        for name in ("project.sqlite", "lock.json"):
-            assert (folder / name).is_file()
+        assert (folder / "project.sqlite").is_file()
+        assert len(list((folder / "locks").glob("*.json"))) == 1
         for name in ("media", "caches", "backups"):
             assert (folder / name).is_dir()
         assert s.state.rate == RATE

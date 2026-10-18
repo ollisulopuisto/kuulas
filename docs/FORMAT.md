@@ -41,7 +41,7 @@ in `docs/PLAN.md`.
 |---|---|---|
 | Linked media (left in place) | works: the files stay where they are | impossible, so everything is copied in |
 | Save cost | only the database pages that changed | the same, but the file is gigabytes |
-| Dropbox, Syncthing, backups | audio uploads once and never changes; only `project.sqlite` churns | a multi-GB file changes on every edit |
+| Dropbox, Syncthing, backups | audio uploads once and never changes; only `project.sqlite` churns. The lock is one small file per machine (see "locks/"), so a sync service never sees two machines write one file | a multi-GB file changes on every edit |
 | Copy to another machine | copy one folder (consolidate first if media is linked) | copy one file |
 | Corruption blast radius | a damaged database loses edits; audio is safe | everything at once |
 
@@ -55,7 +55,7 @@ folder named `Name.kuulas`.
 Name.kuulas/
   manifest.json        format identity; written at create and on upgrade only
   project.sqlite       all state: material, edits, history (WAL mode)
-  lock.json            who has it open (absent when closed)
+  locks/               who has it open: one file per open instance (empty when closed)
   media/
     <media id>.flac    working file (absent for linked media)
     excerpts/          WP20 excerpts, same naming
@@ -92,19 +92,53 @@ Name.kuulas/
   v1 to B, B sends v2 back; see "Review round trips"). Two copies with the
   same `id` and a shared history step can be merged.
 
-## lock.json
+## locks/
 
-`{"host", "pid", "user", "opened_utc", "heartbeat_utc"}`, rewritten every
-30 s while open.
+One file per open instance: `locks/<hostname>-<instance uuid>.json`,
+`{"host", "pid", "user", "instance", "opened_utc", "heartbeat_utc"}`. The
+hostname is reduced to `A-Za-z0-9._-`. A machine only ever writes its own
+file, so a sync service (Dropbox, Syncthing, iCloud) has nothing to
+conflict on and never makes a "conflicted copy". The heartbeat is rewritten
+every 60 s while open; close deletes the file.
 
-On open, kuulas reads the lock. If it is fresh (heartbeat under 2 minutes
-old) and belongs to another host or process, the project opens
-**read-only** with a banner naming that host. A stale lock is taken over,
-with a warning. Removed on close.
+On open, kuulas reads every file in `locks/`:
 
-This exists because two machines writing the same `project.sqlite` through
-a sync service corrupts it, and the owner works across a Mac and a Windows
-PC.
+- a lock of **another host** whose heartbeat is under 5 minutes old (room for
+  sync delay of minutes) refuses the open: it opens **read-only** with a
+  banner naming that host;
+- a lock of **this host** is fresh for 2 minutes, and dead at once when its
+  pid no longer runs (a crashed window is taken over without waiting);
+- older locks are ignored (with a warning) and deleted once over 1 hour old;
+- unreadable files (half-synced) and any file whose name contains
+  "conflicted copy" (in `locks/` or the project folder) are not locks and are
+  ignored, never an error.
+
+Heartbeats compare the writer's clock with the reader's, so a machine whose
+clock is minutes off can look stale or fresh wrongly. Keep both on network
+time.
+
+**Legacy `lock.json`.** Older kuulas wrote one shared `lock.json`. It is still
+read (a fresh one from another host or a live process still blocks the open)
+but never written; it is deleted when stale. No `min_reader` change: an old
+kuulas on a new project would not see the `locks/` files and could open a
+project this one holds, so keep all machines on the same version.
+
+**SQLite side files.** `project.sqlite-wal` and `-shm` are synced by Dropbox
+independently of the main file, so another machine can see a half-written
+set. kuulas runs `wal_checkpoint(truncate)` after a write burst (a tick with
+no new writes) and on close, so a closed project's main file is complete and
+the side files are empty. On macOS it also sets the Dropbox ignore attribute
+(`xattr -w com.dropbox.ignored 1`) on the side files and `caches/`, best-effort,
+on every open (SQLite recreates the files, which drops the attribute). `locks/`
+is never marked: it must sync.
+
+**As built (lock for synced folders).** The shared `lock.json` is replaced by
+`locks/` (one file per instance, see above): heartbeat 60 s, another host is
+stale after 300 s, a dead pid on this host at once, stale locks over 3600 s
+are swept, "conflicted copy" files are ignored. The WAL is truncated after a
+quiet tick and on close; `caches/` and the side files carry the Dropbox
+ignore attribute on macOS. `min_reader` and `version` are unchanged. Not
+verified against a real Dropbox.
 
 ## Database schema (`project.sqlite`, WAL, `synchronous=FULL`)
 
@@ -245,7 +279,7 @@ edits. Some are **unconditional** (just done) and some **conditional**
   - used ranges plus 2 s handles (WP20 excerpts; the default);
   - everything.
 
-  Never the lock, backups or caches.
+  Never the locks, backups or caches.
 
 ## People, interviews and bits (from the start)
 
@@ -613,6 +647,6 @@ migration needs a test fixture, not a field rollout.
    valve if a measured performance budget fails (WP40).
 3. **Interchange beyond Hindenburg:** add OpenTimelineIO export for other
    editors (Premiere, Resolve, Reaper through adapters)? Not needed for v1.
-4. **Editing from two machines:** the lock makes the second machine
+4. **Editing from two machines:** the lock (one file per machine in `locks/`) makes the second machine
    read-only. Is that enough, or do you need to hand a project over
    explicitly ("check out" to the other machine)?
