@@ -251,6 +251,37 @@
   "ui.live.reconnecting_title": "Yhteys kuulas-palvelimeen katkesi. Yritetään uudelleen; työsi on tallessa.",
   "ui.import.drop": "Pudota äänitiedostot tähän tuodaksesi ne",
   "ui.import.failed_file": "Tiedoston {name} tuonti epäonnistui: {text}",
+  "ui.import.done_one": "1 tiedosto tuotiin 1 raidalle",
+  "ui.import.done_sync": {
+    "one": "{count} tiedosto tuotiin {count} raidalle",
+    "other": "{count} tiedostoa tuotiin {count} raidalle tahdistettuina"
+  },
+  "ui.import.done_sequence": {
+    "one": "{count} tiedosto tuotiin",
+    "other": "{count} tiedostoa tuotiin peräkkäin yhdelle raidalle"
+  },
+  "ui.import.done_none": "Mitään ei tuotu",
+  "ui.import.sequence": "Peräkkäin samalle raidalle",
+  "ui.import.next": "Seuraava tuonti:",
+  "ui.import.order": "Järjestys",
+  "ui.import.order_given": "valintajärjestys",
+  "ui.import.order_name": "tiedostonimi",
+  "ui.import.order_time": "äänityshetki",
+  "ui.import.naming": "Raitojen nimet",
+  "ui.import.naming_file": "tiedostonimi",
+  "ui.import.naming_person": "henkilö",
+  "ui.import.drop_new": {
+    "one": "1 uusi raita",
+    "other": "{count} uutta raitaa, tahdistettuina"
+  },
+  "ui.import.drop_sequence": {
+    "one": "1 tiedosto uudelle raidalle",
+    "other": "{count} tiedostoa peräkkäin yhdelle uudelle raidalle"
+  },
+  "ui.import.drop_at": {
+    "one": "1 uusi raita kohdasta {time}",
+    "other": "{count} uutta raitaa kohdasta {time}, tahdistettuina"
+  },
   "ui.import.warning": "{name}: {text}",
   "ui.pan.center": "K",
   "ui.pan.left": "V {value}",
@@ -537,7 +568,7 @@
   "ui.keymap.saved_off": "Näppäimesi toimivat nyt, mutta niitä ei voitu tallentaa seuraavaa kertaa varten.",
   "ui.hint.split": "jaa",
   "ui.hint.cut": "leikkaa",
-  "ui.hint.cut_words": "poista sanat",
+  "ui.hint.cut_words": "leikkaa sanat",
   "ui.hint.find": "hae",
   "ui.menu.unavailable": "ei käytettävissä nyt",
   "ui.inspector.track": "Raita",
@@ -681,5 +712,31 @@
   "ui.edit.toast.paste_overwrite": {"one": "Liitetty {count} klippi vanhan päälle", "other": "Liitetty {count} klippiä vanhan päälle"},
   "ui.edit.toast.paste_missing": {"one": "Liitetty, mutta {count} äänite puuttuu tästä projektista", "other": "Liitetty, mutta {count} äänitettä puuttuu tästä projektista"},
   "ui.edit.toast.paste_nothing": "Mitään ei liitetty: projektista puuttuvat äänitteet.",
-  "ui.edit.toast.cut_uncopied": {"one": "Leikattu {seconds} s {count} raidalta · EI kopioitu leikepöydälle ({error})", "other": "Leikattu {seconds} s {count} raidalta · EI kopioitu leikepöydälle ({error})"}
+  "ui.edit.toast.cut_uncopied": {"one": "Leikattu {seconds} s {count} raidalta · EI kopioitu leikepöydälle ({error})", "other": "Leikattu {seconds} s {count} raidalta · EI kopioitu leikepöydälle ({error})"},
+  "ui.transcript.empty": "Ei vielä litteraattia.",
+  "ui.transcript.transcribe": "Litteroi {names}",
+  "ui.transcript.background": "Toimii taustalla; voit jatkaa muokkausta.",
+  "ui.transcript.running": "Litteroidaan taustalla; voit jatkaa muokkausta.",
+  "ui.transcript.progress": "Litteroinnin eteneminen",
+  "ui.transcript.retry": "Litterointi epäonnistui. Yritä uudelleen.",
+  "ui.transcript.follow": "Seuraa toistoa",
+  "ui.transcript.sum.none": "Mitään muuta ei poistu",
+  "ui.transcript.sum.also": "Poistaa myös {list}",
+  "ui.transcript.sum.words": {"one": "{count} sanan puhujalta {name}", "other": "{count} sanaa puhujalta {name}"},
+  "ui.transcript.sum.audio": "{seconds} s puhujalta {name}",
+  "ui.transcript.pop.label": "Valitut sanat",
+  "ui.transcript.pop.delete": "Poista nämä sanat: {name}",
+  "ui.transcript.pop.delete_title": "Mykistää vain tämän puhujan sanat paikallaan. Aukko jää, mikään muu ei siirry.",
+  "ui.transcript.pop.cut": "Leikkaa kaikilta raidoilta",
+  "ui.transcript.pop.cut_title": "Poistaa välin kaikilta raidoilta ja sulkee aukon. Muu mikä poistuu on merkitty.",
+  "ui.transcript.pop.correct": "Korjaa",
+  "ui.transcript.pop.correct_title": "Muokkaa valitun sanan tekstiä. Valitse yksi sana.",
+  "ui.transcript.label.delete": "Poista sanat",
+  "ui.transcript.toast.delete": {"one": "Poistettu {count} sana: {name} · aukko jäi", "other": "Poistettu {count} sanaa: {name} · aukko jäi"},
+  "ui.transcript.toast.cut": {"one": "Leikattu {count} sana kaikilta raidoilta", "other": "Leikattu {count} sanaa kaikilta raidoilta"},
+  "ui.hint.delete_words": "poista sanat",
+  "cmd.transcript.cut_words": "Leikkaa valitut sanat kaikilta raidoilta",
+  "cmd.transcript.cut_words.hint": "Poistaa valittujen sanojen välin kaikilta raidoilta ja sulkee aukon; myös muiden sen päälle puhumat sanat poistuvat.",
+  "cmd.transcript.delete_words.hint": "Mykistää valitut sanat vain oman puhujansa raidalta; aukko jää, mikään muu ei siirry.",
+  "cmd.transcript.correct.hint": "Muokkaa kohdistimen kohdalla olevan tai ainoan valitun sanan tekstiä."
 }

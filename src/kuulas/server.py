@@ -492,7 +492,15 @@ def create_app(session, engine, *, language: str | None = None,
 
     @app.get("/api/words")
     def get_words():
-        return JSONResponse({"words": session.timeline_words()})
+        words = session.timeline_words()
+        body: dict[str, Any] = {"words": words}
+        # The names of the people the words refer to, so the transcript can head a
+        # paragraph with "Anna" and not an id; absent when nobody is mapped.
+        used = {w["person"] for w in words if w.get("person")}
+        names = {p.id: p.name for p in session.people() if p.id in used}
+        if names:
+            body["people"] = names
+        return JSONResponse(body)
 
     @app.post("/api/transcript/{media_id}")
     def post_transcript(media_id: str, data: Annotated[Any, Body()]):

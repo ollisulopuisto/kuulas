@@ -1,3 +1,19 @@
+## [v26.10.18.13] - 2026-10-18
+
+- Transcript panel: the dock under the timeline shows the transcript as one paragraph per
+  speaker turn, follows playback, and a click on a word moves the play cursor there. Shift+click,
+  a drag or Shift+arrows select words. A pop-up offers "Delete these words on <speaker>"
+  (Backspace: mutes only that speaker's track, keeps the gap, one undo), "Cut on all tracks"
+  (X: ripple, closes the gap) and "Correct" (one word). While words are selected it says what else
+  the cut would remove: "Also removes 3 words from Ville and 1.2 s of Pekka", marks those words,
+  and hatches the affected stretch on the timeline. Long transcripts stay fast (an hour of words).
+  Note: X in the transcript does not copy to the clipboard yet.
+- Importing several files: after a drop or pick a small panel says what happened ("4 files
+  imported as 4 tracks, in sync") with "One after another instead" and Undo; failed files are
+  listed with the reason. A drag shows a preview where the files will land (below the tracks:
+  new tracks at the start; on a lane or the ruler: from that time). Order and track naming
+  defaults are remembered. Dropped folders are searched for audio and video files.
+
 ## [v26.10.18.12] - 2026-10-18
 
 - Importing several files has options on the server side: place them side by side (by the

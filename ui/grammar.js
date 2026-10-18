@@ -483,7 +483,7 @@ export const SIGNALS = [
     twin: "other speakers' words struck through with a wavy underline, 'also removed' in the word pop-up, the stretch hatched and the affected clips outlined on the timeline",
     when: "a transcript selection whose cut would also remove other tracks' words or audio",
     key: "X cuts on all tracks (ripple); Backspace deletes on this speaker only, keeping the gap",
-    status: "prototype",
+    status: "built",
   },
   {
     id: "ribbons",
