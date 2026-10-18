@@ -114,8 +114,8 @@ sizes: `docs/PLAN.md`, section "Triage".
 
 ## Next
 
-- **Level meters with a target LUFS per track** (WP49, owner request 2026-10-18): no
-  metering in the UI yet; the engine reports only a master peak.
+- **Loudness monitoring with a target LUFS per track** (WP49, owner request 2026-10-18): the
+  levels drawn from analysis against each track's target, not live meters (speechmix mixes offline).
 - Colab transcription: `colab-transcribe` only takes `.nhsx` sessions today.
   Recommended next step: add a plain-audio mode in the podcast repo
   (`--audio <file> --json <out>`) and import its word JSON with

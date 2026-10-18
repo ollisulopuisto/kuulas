@@ -2894,31 +2894,34 @@ user's first use of each feature (shown once), and a checklist of the core loop
 - Adding a crossfade to a plain split. Crossfades are only for ripple joins of
   non-adjacent audio (`ops._crossfade`).
 
-### WP49 — Level meters with a target per track
+### WP49 — Loudness monitoring with a target per track
 
 Status: open (owner request 2026-10-18). Needs WP22 (roles), WP4 (editor UI),
-the density work. Engine part first (Sonnet 5.5), UI part after the designer.
+the density work.
 
 Owner: "in the best possible version, the tracks would know what their target
 LUFS level is, and they would display that as well. So you could eyeball the
-levels." Basic metering first: which tracks play back, at roughly what level.
+levels." And: since speechmix mixes offline and automatically, live VU meters
+are not very useful, but some visual monitoring still is.
 
-- **Engine:** `Engine.levels()` today returns the master's stereo peak only and
-  nothing calls it. Extend the mixer's block loop to keep a peak and a short
-  loudness (momentary, 400 ms) per track for the block being heard, with no
-  lock or allocation in the audio callback, and expose them next to the
-  position on the existing websocket status (rate-limited, about 20 per second).
+So this is **monitoring from analysis, not live metering**: nothing new runs in
+the audio callback.
+
+- **Data:** short-term loudness (3 s windows, 1 s hop) per track and for the
+  whole mix, computed by the analysis step (like `analysis.track_levels`),
+  cached by content, recomputed in the background after an edit or a change
+  of the mix. Plus the programme's integrated LUFS and true peak.
 - **Target:** `Track.target_lufs` (float or None) in edit state, set in the
   inspector; role defaults: speech −19, music −23 (under speech), narration −19.
-  Format addition: `min_reader` rule as for any new optional field. The target
-  is also what "match loudness" aims at, so the two stay one number.
-- **UI:** a thin meter on every track header: bar for the momentary level, a
-  tick at the target, colour by distance from the target (inside ±2 LU quiet,
-  ±2 to ±5 notice, beyond that warning), a peak hold, and the master meter in
-  the transport bar. Meters use the visual grammar tokens and animate gently;
-  they idle at silence when stopped.
-- **Tests first:** per-track peaks of a known mix, the meter holds no lock,
-  target round trips through save and undo, role defaults, tick position maths
-  (pure JS).
+  Format addition: `min_reader` rule as for any new optional field. The same
+  number is what "match loudness" aims at.
+- **UI:** a thin loudness curve on each track lane against a line at the target;
+  stretches beyond ±3 LU of the target are tinted (inside ±2 quiet). Active
+  clips under the cursor are highlighted. The playhead reads the same curve
+  (a number beside the cursor), and the transport bar shows the programme's
+  integrated LUFS and true peak. Colours and animation from the visual grammar.
+- **Tests first:** windowed loudness of a known signal, cache key follows the
+  content, target round trips through save and undo, role defaults, tick and
+  tint maths (pure JS).
 
 ---
