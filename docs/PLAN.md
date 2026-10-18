@@ -1133,6 +1133,25 @@ Tests: export of a known project equals `mixer.mix` over the whole length
 
 Status: open. Needs WP1, WP2.
 
+**Architecture (owner, 2026-10-18: "foolproof, as uncrashable as possible; a stuck UI must not
+crash it"): the recorder is its own process, never part of the editor.** Python's lock stalls the
+audio thread when other threads work (measured 20 to 58 ms in playback), and a gap in a take can
+never be repaired. So:
+- `kuulas-recorder`: a small standalone program that only opens the input device, writes files, and
+  answers a few commands on a local socket (start, stop, mark a take, status, levels). It imports
+  nothing from the editor.
+- Files: raw PCM in 1 to 2 second blocks, flushed with fsync every few seconds (a power cut loses
+  seconds at most); a header is written at the end, or repaired on the next start; takes readable while
+  they grow (as below). Each file carries the recording clock (flicks) so it lines up later.
+- A supervisor restarts a dead recorder into a new numbered file and logs the gap; the editor is only a
+  viewer (levels, time, buttons): quitting or crashing it does not stop the recording, and reopening it
+  reconnects to the running state.
+- Before and during: free disk space with a remaining-time estimate and a warning; a lost or changed
+  device is an event (a marker in the take, a notice), not a crash.
+- Tests: kill the editor mid-take, kill the recorder (restart and a gap logged), fill the disk,
+  simulate a device unplug, a power-cut truncated file is repaired. If Python still stalls under
+  measurement, the recorder core can be rewritten in Rust or C without changing the protocol.
+
 Standard APIs only: `sounddevice.InputStream` (CoreAudio on Mac, WASAPI on
 Windows). No exclusive modes, no ASIO, no loopback, no aggregate-device
 creation. If a user wants several interfaces, they make an Aggregate Device in
