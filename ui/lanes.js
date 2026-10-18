@@ -55,12 +55,16 @@ export function projectEnd(project) {
  * its own: the member is marked `merged` and carries the bus identity.
  * `options.laneHeights` ({ trackId: px }) gives single tracks their own height
  * (clamped); a track without an entry uses `laneHeight`.
+ * `options.collapsed` (a Set of bus ids) folds a bus: its row stays (marked
+ * `collapsed`, with `memberIndexes` into project.tracks for the summary strip)
+ * and its member tracks get no rows. A merged one-track bus has no row to fold.
  */
 export function layoutRows(project, laneHeight, options = {}) {
   const height = clampLaneHeight(laneHeight);
   const busHeight = options.busHeight ?? BUS_HEIGHT;
   const groupGap = options.groupGap ?? GROUP_GAP;
   const own = options.laneHeights ?? {};
+  const collapsed = options.collapsed ?? new Set();
   const heightOf = (id) => (Number.isFinite(own[id]) ? clampLaneHeight(own[id]) : height);
   const tracks = project?.tracks ?? [];
   const buses = project?.buses ?? [];
@@ -88,6 +92,7 @@ export function layoutRows(project, laneHeight, options = {}) {
     if (members.has(track.bus)) {
       const group = members.get(track.bus);
       const merged = Boolean(options.mergeSingle) && group.length === 1;
+      const folded = !merged && collapsed.has(track.bus);
       if (!merged) {
         push({
           kind: "bus",
@@ -96,7 +101,13 @@ export function layoutRows(project, laneHeight, options = {}) {
           index: busIndex.get(track.bus),
           bus: track.bus,
           members: group.length,
+          collapsed: folded,
+          memberIndexes: group,
         });
+      }
+      if (folded) {
+        for (const member of group) placed.add(member);
+        return;
       }
       group.forEach((member, n) => {
         const row = {
@@ -132,6 +143,8 @@ export function layoutRows(project, laneHeight, options = {}) {
       index: busIndex.get(bus.id),
       bus: bus.id,
       members: 0,
+      collapsed: false,
+      memberIndexes: [],
     });
   }
   return { rows, height: top };
@@ -145,6 +158,7 @@ export function layoutFor(state) {
     // A bus with one track merges into the track header (owner, 2026-10-18).
     mergeSingle: true,
     laneHeights: state.laneHeights,
+    collapsed: state.collapsedBuses,
   });
 }
 

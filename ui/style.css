@@ -1425,6 +1425,32 @@ input[type="text"] {
 .menu-item[aria-disabled="true"] {
   color: var(--text-disabled);
 }
+/* The header context menu reuses the menu bar's look, placed at the pointer. */
+.context-menu {
+  position: fixed;
+  z-index: 40;
+  margin: 0;
+}
+.bus-chevron {
+  flex: none;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
+  padding: 0;
+  display: grid;
+  place-items: center;
+  color: var(--bus-text, var(--text-secondary));
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-xs);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.bus-chevron:hover {
+  background: var(--surface-hover);
+}
+.bus-chevron[hidden] {
+  display: none;
+}
 .menu-item[data-alternate] {
   color: var(--accent-text);
 }

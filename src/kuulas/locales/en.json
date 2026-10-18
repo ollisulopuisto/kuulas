@@ -1073,5 +1073,19 @@
   "ui.edit.label.close_gap": "Close gap on all tracks",
   "ui.edit.toast.lift_cut": {"one": "Lifted {seconds} s on {count} track · in the clipboard, gap kept", "other": "Lifted {seconds} s on {count} tracks · in the clipboard, gap kept"},
   "ui.edit.toast.lift_cut_uncopied": {"one": "Lifted {seconds} s on {count} track · NOT copied to the clipboard ({error})", "other": "Lifted {seconds} s on {count} tracks · NOT copied to the clipboard ({error})"},
-  "ui.edit.toast.close_gap": {"one": "Closed the gap {seconds} s on every track", "other": "Closed the gap {seconds} s on every track"}
+  "ui.edit.toast.close_gap": {"one": "Closed the gap {seconds} s on every track", "other": "Closed the gap {seconds} s on every track"},
+  "cmd.bus.mute": "Mute the bus",
+  "cmd.bus.mute.hint": "Mutes or unmutes the bus of the current track (or the current bus).",
+  "cmd.bus.ungroup": "Ungroup the bus",
+  "cmd.bus.ungroup.hint": "Removes the bus and puts all its tracks on no bus, in one undo step.",
+  "cmd.track.remove_from_bus": "Remove the track from its bus",
+  "cmd.track.remove_from_bus.hint": "Puts the current track on no bus.",
+  "cmd.view.collapse_all_buses": "Collapse all buses",
+  "cmd.view.collapse_all_buses.hint": "Shows every bus with two or more tracks as one row; remembered with the view.",
+  "cmd.view.expand_all_buses": "Expand all buses",
+  "cmd.view.expand_all_buses.hint": "Shows the tracks of every collapsed bus again.",
+  "ui.edit.label.bus_mute": "Mute bus",
+  "ui.edit.label.ungroup": "Ungroup bus",
+  "ui.edit.label.remove_from_bus": "Remove track from bus",
+  "ui.context_menu": "Actions"
 }

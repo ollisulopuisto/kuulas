@@ -33,6 +33,7 @@ export function recordOf(state, { whole = false } = {}) {
     inPoint: state.inPoint,
     outPoint: state.outPoint,
     loop: state.loop === true,
+    collapsedBuses: [...(state.collapsedBuses ?? [])].sort(),
   };
 }
 
@@ -80,6 +81,11 @@ export function restoreFrom(record, { project, width, totalFrames }) {
     patch.focusTrack = record.focusTrack;
   }
   if (typeof record.loop === "boolean") patch.loop = record.loop;
+  // Collapsed buses: only ids of buses this project has (a stale id would be dead weight).
+  if (Array.isArray(record.collapsedBuses)) {
+    const known = new Set((project?.buses ?? []).map((bus) => bus.id));
+    patch.collapsedBuses = new Set(record.collapsedBuses.filter((id) => known.has(id)));
+  }
   const playhead = num(record.playhead);
   if (playhead !== null) patch.playhead = clamp(Math.round(playhead), 0, totalFrames);
   const inPoint = num(record.inPoint);

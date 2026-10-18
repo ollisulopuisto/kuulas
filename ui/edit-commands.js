@@ -3,6 +3,7 @@
 // plan whether there is anything to do. Keys live in keymap-default.js, never here.
 import { pasteChoice } from "./clipboard.js";
 import {
+  busMutePlan,
   changedTracks,
   closeGapPlan,
   copyPlan,
@@ -17,10 +18,12 @@ import {
   newBusPlan,
   nudgePlan,
   pastePlan,
+  removeFromBusPlan,
   soloPlan,
   splitPlan,
   trackMutePlan,
   trimPlan,
+  ungroupPlan,
 } from "./edit-plans.js";
 import { selectAllIds } from "./selection.js";
 
@@ -113,6 +116,9 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
   planned("track.mute", trackMutePlan);
   planned("track.solo", (s) => soloPlan(s, true));
   planned("track.solo_add", (s) => soloPlan(s, false));
+  planned("bus.mute", busMutePlan);
+  planned("bus.ungroup", ungroupPlan);
+  planned("track.remove_from_bus", removeFromBusPlan);
 
   // Creating a bus: once the server has answered, the new one (always the last) gets the
   // focus and its name field (F2's), so naming it is the next thing typed.

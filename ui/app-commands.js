@@ -1,5 +1,6 @@
 // The commands the editor can do today, registered by id (ids from keymap-default.js).
 // Everything else in the keymap is "planned" until its work package lands.
+import { busOfFocus, collapseAllChange, collapseChange } from "./bus-collapse.js";
 import { canRestore } from "./history-model.js";
 import { rangeAvailable } from "./loop-range.js";
 import { setInPoint, setOutPoint } from "./marks.js";
@@ -71,6 +72,33 @@ export function registerAppCommands(registry, { actions, app }) {
   def("view.fit_tracks", () => actions.fitTracks(), hasProject);
   def("view.auto_fit_tracks", () => actions.toggleAutoFitTracks(), hasProject);
   def("view.back", () => actions.viewBack(), hasProject);
+  // Collapsed buses (view state, no history step). The commands act on the bus in focus
+  // (the focused bus, or the bus of the focused track) and fold the focus onto the bus
+  // header, since the track it was on is hidden afterwards.
+  const collapseBus = (collapse) => () => {
+    const state = app.getState();
+    const next = collapseChange(state, collapse);
+    if (!next) return;
+    const patch = { collapsedBuses: next };
+    if (collapse) Object.assign(patch, { focusBus: busOfFocus(state), focusTrack: null });
+    app.patch(patch);
+  };
+  def("bus.collapse", collapseBus(true), (state) => collapseChange(state, true) !== null);
+  def("bus.expand", collapseBus(false), (state) => collapseChange(state, false) !== null);
+  const collapseAll = (collapse) => () => {
+    const next = collapseAllChange(app.getState(), collapse);
+    if (next) app.patch({ collapsedBuses: next });
+  };
+  def(
+    "view.collapse_all_buses",
+    collapseAll(true),
+    (state) => collapseAllChange(state, true) !== null,
+  );
+  def(
+    "view.expand_all_buses",
+    collapseAll(false),
+    (state) => collapseAllChange(state, false) !== null,
+  );
   def("view.reset_remembered", () => actions.resetRememberedView(), hasProject);
   // View > Break paragraphs at pauses over: one command per choice (no project needed;
   // it is a user preference, remembered with the other view settings).

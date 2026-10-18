@@ -11,16 +11,24 @@ const hasOwn = (heights, id) => Number.isFinite(heights?.[id]);
  * no measured room, or every lane has a height of its own. Bus rows and group
  * gaps are fixed and come off first, and so do lanes sized by hand; the rest
  * share what is left (fitLaneHeights), rounded down so nothing overflows.
- * Buses are never collapsed in this client yet; when they can be, their members
- * go to fitLaneHeights as `collapsed`.
+ * Collapsed buses (`collapsed`, a Set of bus ids) have no member lanes: only their
+ * row counts.
  */
-export function fitHeight({ project, available, busHeight, groupGap, laneHeights = {} }) {
+export function fitHeight({
+  project,
+  available,
+  busHeight,
+  groupGap,
+  laneHeights = {},
+  collapsed,
+}) {
   if (!project || !(available > 0)) return null;
   const layout = layoutRows(project, MIN_LANE, {
     busHeight,
     groupGap,
     mergeSingle: true,
     laneHeights,
+    collapsed,
   });
   const free = layout.rows.filter((row) => row.kind === "track" && !hasOwn(laneHeights, row.id));
   if (free.length === 0) return null;
@@ -61,7 +69,7 @@ export function pruneLaneHeights(heights, project) {
  * nothing to fit (no project, no measured room). Clips, names and levels are not in
  * it, so editing audio never refits.
  */
-export function autoFitKey({ project, available, busHeight, groupGap, laneHeights }) {
+export function autoFitKey({ project, available, busHeight, groupGap, laneHeights, collapsed }) {
   if (!project || !(available > 0)) return "";
   return JSON.stringify([
     available,
@@ -70,6 +78,7 @@ export function autoFitKey({ project, available, busHeight, groupGap, laneHeight
     busHeight,
     groupGap,
     laneHeights ?? {},
+    [...(collapsed ?? [])],
   ]);
 }
 

@@ -511,6 +511,24 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.bus.expand",
   },
   {
+    id: "bus.mute",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.bus.mute",
+  },
+  {
+    id: "bus.ungroup",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.bus.ungroup",
+  },
+  {
+    id: "track.remove_from_bus",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.track.remove_from_bus",
+  },
+  {
     id: "sync.mark",
     keys: { mac: ["Y", "Alt+Mod+S"], other: ["Y", "Alt+Mod+S"] },
     context: "timeline",
@@ -829,6 +847,18 @@ export const DEFAULT_KEYMAP = [
     keys: { mac: null, other: null },
     context: "global",
     labelKey: "cmd.view.auto_fit_tracks",
+  },
+  {
+    id: "view.collapse_all_buses",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.view.collapse_all_buses",
+  },
+  {
+    id: "view.expand_all_buses",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.view.expand_all_buses",
   },
   {
     id: "view.reset_remembered",
