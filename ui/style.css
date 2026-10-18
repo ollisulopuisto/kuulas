@@ -1874,7 +1874,8 @@ input[type="text"] {
 .preview-bar span {
   display: grid;
   place-items: center;
-  min-width: 3.5em;
+  min-width: 6em;
+  white-space: nowrap;
   background: var(--surface-active);
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;

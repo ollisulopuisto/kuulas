@@ -873,11 +873,13 @@ async function findCandidates() {
 // After a decision the next open candidate becomes the current one: the second listen is
 // then Enter, Enter, K, Enter.
 async function afterDecision() {
-  await refreshCandidates();
-  const state = getState();
+  // The answer itself, not the state: a newer refresh (the live channel's) may still be
+  // in flight and the state then still lists the candidate just decided as open.
+  const answer = await refreshCandidates();
+  if (!answer) return;
   const next = stepTarget(
-    listedRows(state.candidates, true),
-    { currentId: null, playhead: state.playhead - 1 },
+    listedRows(answer.candidates, true),
+    { currentId: null, playhead: getState().playhead - 1 },
     1,
   );
   if (next) selectCandidate(next);
