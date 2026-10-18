@@ -285,7 +285,7 @@ class PlayPlan:
         one, goes on from this loop's end to ``hi``. The join at ``w`` is
         like any other; ``splice_half`` says how wide it is."""
         if self.cycle_at is None:
-            raise ValueError("then() is for a looping plan")
+            raise PlaybackRequestError("error.engine.bad_loop", loop="none")
         passes = (w - self._v0) // self._period
         prefix = self.pieces[:self.cycle_at] + self.pieces[self.cycle_at:] * passes
         if loop is not None:
