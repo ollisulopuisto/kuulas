@@ -1,3 +1,10 @@
+## [v26.10.18.55] - 2026-10-18
+
+- **Alt while dragging a range** turns it into the clips it touches: they are highlighted live, and on
+  release they become the selection and the in/out marks are set to their span. Without Alt the exact
+  range is kept. Alt+drag over a clip starts a range (a plain drag over a clip moves it, Shift+drag
+  marks a range). A hint at the top of the band says which key does what. Not seen in a real window yet.
+
 ## [v26.10.18.54] - 2026-10-18
 
 - **Dragging a clip moves it, as in Hindenburg:** a plain drag anywhere on a clip's body moves it (it was only

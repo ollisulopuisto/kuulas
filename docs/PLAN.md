@@ -1048,6 +1048,12 @@ the same frame count.
 
 ### WP11 — Export
 
+**Formats (owner, 2026-10-18):** the default stays **WAV**. Export is through ffmpeg, so more formats
+can be offered: today WAV, FLAC and MP3; to add: AIFF, AAC/M4A, Opus, Ogg Vorbis, with the list built
+from what the installed ffmpeg actually offers (`ffmpeg -encoders`), and hardware encoders used where
+there is one (on macOS the AudioToolbox AAC encoder `aac_at`; audio encoding is cheap, so this is a
+convenience, not a speed need; hardware acceleration matters for video, which is out of scope).
+
 Status: done in v26.10.16.14 (WAV/FLAC/MP3, selection, stems, mastering, versioned names; 49 export tests, mastering tests need a writable `NUMBA_CACHE_DIR`; export dialog is UI work, not built). Needs WP1.
 
 Command `export` `{path, format: "wav"|"flac"|"mp3", bit_depth: 16|24,
@@ -1148,6 +1154,9 @@ never be repaired. So:
   reconnects to the running state.
 - Before and during: free disk space with a remaining-time estimate and a warning; a lost or changed
   device is an event (a marker in the take, a notice), not a crash.
+- **Takes are recorded as raw PCM in WAV files, never as FLAC or any compressed format** (owner,
+  2026-10-18). Compressing afterwards is only ever an opt-in action (never automatic, never deleting the
+  WAV without the user asking).
 - **The rule that decides every design choice here (owner, 2026-10-18: "I hate it when hardware recorders
   lose the whole recording if they die midstream"): audio already recorded is never lost.** Nothing is
   written in a way that needs a clean stop to make the file readable: no length or index only at the end,
