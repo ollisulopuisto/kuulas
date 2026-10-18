@@ -148,7 +148,7 @@ export function registerAppCommands(registry, { actions, app }) {
   const stepFocus = (direction) => () => {
     const state = app.getState();
     const id = stepTrack(state.project, state.focusTrack, direction);
-    if (id) app.patch({ focusTrack: id, focusBus: null });
+    if (id) app.patch({ focusTrack: id, focusBus: null, rangeTracks: new Set() });
   };
   def("track.prev", stepFocus(-1), hasProject);
   def("track.next", stepFocus(1), hasProject);

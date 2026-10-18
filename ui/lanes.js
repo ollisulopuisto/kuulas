@@ -170,11 +170,12 @@ export function layoutFor(state) {
  * selection. Returns { seek: frame | null, selection: "replace" | "toggle" |
  * "clear" | "keep", clip } or null when the click is outside.
  */
-export function pointerIntent(hit, { shift = false } = {}) {
+export function pointerIntent(hit, { shift = false, mod = false } = {}) {
   if (!hit || hit.area === "none") return null;
   if (hit.area === "ruler") return { seek: hit.frame, selection: "keep", clip: null };
   const clip = hit.clip ?? null;
-  if (shift) return { seek: null, selection: clip ? "toggle" : "keep", clip };
+  // Shift+click and Mod+click both toggle the clicked clip and leave the cursor alone.
+  if (shift || mod) return { seek: null, selection: clip ? "toggle" : "keep", clip };
   return { seek: hit.frame, selection: clip ? "replace" : "clear", clip };
 }
 

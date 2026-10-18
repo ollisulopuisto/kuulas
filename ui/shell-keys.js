@@ -32,6 +32,7 @@ import { createPalette, paletteRows } from "./palette.js";
 import { registerPlaceholderCommands } from "./placeholder-commands.js";
 import { loadRecent, recordRecent, saveRecent } from "./recent-commands.js";
 import { registerSaveCommands } from "./save-commands.js";
+import { registerSelectCommands } from "./select-commands.js";
 import { subscribe } from "./store.js";
 import { registerTranscriptCommands } from "./transcript-commands.js";
 
@@ -118,6 +119,7 @@ export function setupKeyboard({ actions, app, t, notify, onLanguageChange, onRef
     t,
     formatSeconds: (seconds) => formatNumber(seconds, { digits: 1 }),
   });
+  registerSelectCommands(registry, { app });
   registerTranscriptCommands(registry, { app, t });
   registerLoudnessCommands(registry, { app, t });
   registerExportCommands(registry, { app, t });

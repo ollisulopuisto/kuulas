@@ -201,7 +201,9 @@ describe("the commands the app registers", () => {
   test("track.next focuses the next track and clears a focused bus", () => {
     const { registry, calls } = setup({ project, focusTrack: "a" });
     registry.run("track.next");
-    assert.deepEqual(calls, [["patch", { focusTrack: "b", focusBus: null }]]);
+    assert.deepEqual(calls, [
+      ["patch", { focusTrack: "b", focusBus: null, rangeTracks: new Set() }],
+    ]);
   });
 
   test("the shuttle commands press J, K and L and need a project", () => {
