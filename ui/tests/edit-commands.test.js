@@ -79,6 +79,8 @@ const WORKING = [
   "edit.split",
   "edit.split_all",
   "edit.delete",
+  "edit.remove",
+  "edit.remove_track",
   "edit.cut",
   "edit.cut_track",
   "edit.lift_cut",
@@ -148,7 +150,13 @@ describe("the editing commands", () => {
   });
 
   test("a finished cut takes the range away from the screen: marks, range tracks, selection", () => {
-    for (const id of ["edit.cut", "edit.cut_track", "edit.lift_cut", "edit.close_gap_all"]) {
+    for (const id of [
+      "edit.remove",
+      "edit.cut",
+      "edit.cut_track",
+      "edit.lift_cut",
+      "edit.close_gap_all",
+    ]) {
       const state = base({ inPoint: 2 * S, outPoint: 6 * S });
       const h = setup(state);
       h.registry.run(id, null, state);

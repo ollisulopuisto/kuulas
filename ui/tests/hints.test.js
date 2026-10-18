@@ -61,12 +61,12 @@ describe("status-bar hints", () => {
   test("with Shift held the hints show the shifted commands", () => {
     const rows = hints("timeline", {
       held: { shift: true },
-      ready: ["transport.play", "edit.cut", "edit.cut_track", "panel.next", "panel.previous"],
+      ready: ["transport.play", "edit.remove", "edit.remove_track", "panel.next", "panel.previous"],
     });
     const byId = Object.fromEntries(rows.map((r) => [r.id, r]));
-    assert.ok(byId["edit.cut_track"]);
-    assert.equal(byId["edit.cut_track"].alternate, true);
-    assert.equal(byId["edit.cut_track"].keys, "<Shift+X>");
+    assert.ok(byId["edit.remove_track"]);
+    assert.equal(byId["edit.remove_track"].alternate, true);
+    assert.equal(byId["edit.remove_track"].keys, "<Shift+X>");
   });
 
   test("an unknown panel has no hints", () => {

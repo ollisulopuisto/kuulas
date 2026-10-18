@@ -75,9 +75,10 @@ describe("the owner's decisions", () => {
     }
   });
 
-  test("Backspace is Delete, X is Cut, Mod+C copies", () => {
+  test("Backspace is Delete, X removes and closes the gap, Mod+X cuts to the clipboard, Mod+C copies", () => {
     assert.ok(keysOf("edit.delete").includes("Backspace"));
-    assert.ok(keysOf("edit.cut").includes("X"));
+    assert.deepEqual(keysOf("edit.remove"), ["X"]);
+    assert.deepEqual(keysOf("edit.cut"), ["Mod+X"]);
     assert.deepEqual(keysOf("edit.copy"), ["Mod+C"]);
   });
 
@@ -127,7 +128,14 @@ describe("the owner's decisions", () => {
   });
 
   test("X cuts the marked range from anywhere but a text field and the transcript", () => {
-    for (const id of ["edit.cut", "edit.cut_track", "edit.lift_cut", "edit.close_gap_all"]) {
+    for (const id of [
+      "edit.remove",
+      "edit.remove_track",
+      "edit.cut",
+      "edit.cut_track",
+      "edit.lift_cut",
+      "edit.close_gap_all",
+    ]) {
       assert.equal(DEFAULT_KEYMAP.find((e) => e.id === id).context, "not-transcript", id);
     }
     assert.equal(DEFAULT_KEYMAP.find((e) => e.id === "transcript.cut_words").context, "transcript");

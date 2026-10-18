@@ -3024,8 +3024,8 @@ const HELP_FILES = {
   "cmd.edit.copy": "Copy",
   "cmd.edit.paste": "Paste",
   "cmd.edit.split": "Split at the playhead",
-  "cmd.edit.cut": "Cut and close the gap",
-  "cmd.edit.cut_track": "Cut on this track only",
+  "cmd.edit.cut": "Cut to the clipboard and close the gap",
+  "cmd.edit.cut_track": "Cut to the clipboard, this track only",
   "cmd.edit.delete": "Delete, keep the gap",
   "cmd.edit.trim_start": "Trim start to the playhead",
   "cmd.edit.trim_end": "Trim end to the playhead",
@@ -3207,7 +3207,7 @@ const HELP_FILES = {
   "cmd.select.range_from_clips.hint": "Sets In and Out to the start and end of the selected clips, on their tracks.",
   "cmd.select.forward.hint": "Selects every clip that ends after the playhead, on the current track or the range's tracks (all tracks if none).",
   "cmd.select.forward_from_clips.hint": "On each track with a selected clip, selects that clip and every clip after it.",
-  "cmd.select.forward_all_tracks_from_clips.hint": "Selects every clip on every track from the start of the earliest selected clip onward.",
+  "cmd.select.forward_all_tracks_from_clips.hint": "Selects every clip on every track from the start of the earliest selected clip onward. Cmd+Alt+click on a clip does the same from that clip.",
   "cmd.select.invert.hint": "Selects the clips that are not selected, on the current track or the range's tracks (all tracks if none).",
   "cmd.select.none.hint": "Clears the clip selection and the range's track choice. The In/Out marks stay.",
   "cmd.group.toggle.hint": "Turns group editing on or off for the current track's group.",
@@ -3327,7 +3327,11 @@ const HELP_FILES = {
   "cmd.export.tracks_ogg": "Export all tracks as Ogg Vorbis",
   "cmd.export.tracks_ogg.hint": "One Ogg Vorbis file per track (lossy Ogg Vorbis), same start and length, edits applied, no mixing.",
   "cmd.track.cycle_kind": "Cycle track kind",
-  "cmd.track.cycle_kind.hint": "Changes the current track between speech, speech mix and music."
+  "cmd.track.cycle_kind.hint": "Changes the current track between speech, speech mix and music.",
+  "cmd.edit.remove": "Delete and close the gap",
+  "cmd.edit.remove.hint": "Removes the in-out range or the selected clips on all tracks and closes the gap. Nothing goes to the clipboard.",
+  "cmd.edit.remove_track": "Delete and close the gap on this track only",
+  "cmd.edit.remove_track.hint": "Removes the selection on the current track only and closes its gap. Nothing goes to the clipboard."
  },
  "catalog/fi": {
   "cmd.transport.play": "Toista / pysäytä",
@@ -3381,8 +3385,8 @@ const HELP_FILES = {
   "cmd.edit.copy": "Kopioi",
   "cmd.edit.paste": "Liitä",
   "cmd.edit.split": "Jaa toistokohdasta",
-  "cmd.edit.cut": "Leikkaa ja sulje aukko",
-  "cmd.edit.cut_track": "Leikkaa vain tältä raidalta",
+  "cmd.edit.cut": "Leikkaa leikepöydälle ja sulje aukko",
+  "cmd.edit.cut_track": "Leikkaa leikepöydälle vain tältä raidalta",
   "cmd.edit.delete": "Poista, jätä aukko",
   "cmd.edit.trim_start": "Typistä alku toistokohtaan",
   "cmd.edit.trim_end": "Typistä loppu toistokohtaan",
@@ -3564,7 +3568,7 @@ const HELP_FILES = {
   "cmd.select.range_from_clips.hint": "Asettaa Alun ja Lopun valittujen leikkeiden alkuun ja loppuun, niiden raidoille.",
   "cmd.select.forward.hint": "Valitsee kaikki leikkeet, jotka päättyvät soittokohdan jälkeen, nykyiseltä raidalta tai alueen raidoilta (ilman rajausta kaikilta).",
   "cmd.select.forward_from_clips.hint": "Valitsee jokaisella raidalla, jolla on valittu leike, sen leikkeen ja kaikki sitä seuraavat.",
-  "cmd.select.forward_all_tracks_from_clips.hint": "Valitsee kaikkien raitojen leikkeet aikaisimman valitun leikkeen alusta eteenpäin.",
+  "cmd.select.forward_all_tracks_from_clips.hint": "Valitsee kaikkien raitojen leikkeet aikaisimman valitun leikkeen alusta eteenpäin. Cmd+Alt+napsautus leikkeeseen tekee saman siitä leikkeestä alkaen.",
   "cmd.select.invert.hint": "Valitsee ne leikkeet, joita ei ole valittu, nykyiseltä raidalta tai alueen raidoilta (ilman rajausta kaikilta).",
   "cmd.select.none.hint": "Poistaa leikevalinnan ja alueen raitarajauksen. Alku- ja Loppumerkit säilyvät.",
   "cmd.group.toggle.hint": "Kytkee ryhmämuokkauksen päälle tai pois valitun raidan ryhmälle.",
@@ -3684,7 +3688,11 @@ const HELP_FILES = {
   "cmd.export.tracks_ogg": "Vie kaikki raidat: Ogg Vorbis",
   "cmd.export.tracks_ogg.hint": "Yksi Ogg Vorbis-tiedosto raitaa kohti (häviöllinen Ogg Vorbis), sama alku ja pituus, leikkaukset mukana, ei miksausta.",
   "cmd.track.cycle_kind": "Vaihda raidan tyyppiä",
-  "cmd.track.cycle_kind.hint": "Vaihtaa valitun raidan puheen, puhemiksauksen ja musiikin välillä."
+  "cmd.track.cycle_kind.hint": "Vaihtaa valitun raidan puheen, puhemiksauksen ja musiikin välillä.",
+  "cmd.edit.remove": "Poista ja sulje aukko",
+  "cmd.edit.remove.hint": "Poistaa merkityn välin tai valitut leikkeet kaikilta raidoilta ja sulkee aukon. Mitään ei mene leikepöydälle.",
+  "cmd.edit.remove_track": "Poista ja sulje aukko vain tältä raidalta",
+  "cmd.edit.remove_track.hint": "Poistaa valinnan vain valitulta raidalta ja sulkee sen aukon. Mitään ei mene leikepöydälle."
  }
 };
 // -- end of help topics --

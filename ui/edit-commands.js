@@ -21,6 +21,7 @@ import {
   pasteEntry,
   pastePlan,
   removeFromBusPlan,
+  removePlan,
   soloPlan,
   splitPlan,
   trackMutePlan,
@@ -41,7 +42,12 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
   const hasProject = (state) => Boolean(state?.project);
 
   /** The edits that use up the marked range. */
-  const RANGE_SPENT_OPS = new Set(["clipboard_cut", "clipboard_lift_cut", "ripple_delete"]);
+  const RANGE_SPENT_OPS = new Set([
+    "clipboard_cut",
+    "clipboard_lift_cut",
+    "ripple_delete",
+    "cut_range",
+  ]);
 
   function toastFor(plan, before, response) {
     if (!plan.toast) return;
@@ -100,6 +106,8 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
   planned("edit.split", (s) => splitPlan(s));
   planned("edit.split_all", (s) => splitPlan(s, { all: true }));
   planned("edit.delete", deletePlan);
+  planned("edit.remove", (s) => removePlan(s));
+  planned("edit.remove_track", (s) => removePlan(s, { thisTrackOnly: true }));
   planned("edit.cut", (s) => cutPlan(s, { t }));
   planned("edit.cut_track", (s) => cutPlan(s, { thisTrackOnly: true, t }));
   planned("edit.lift_cut", (s) => liftCutPlan(s, { t }));

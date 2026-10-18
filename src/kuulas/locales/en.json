@@ -505,8 +505,8 @@
   "cmd.edit.copy": "Copy",
   "cmd.edit.paste": "Paste",
   "cmd.edit.split": "Split at the playhead",
-  "cmd.edit.cut": "Cut and close the gap",
-  "cmd.edit.cut_track": "Cut on this track only",
+  "cmd.edit.cut": "Cut to the clipboard and close the gap",
+  "cmd.edit.cut_track": "Cut to the clipboard, this track only",
   "cmd.edit.delete": "Delete, keep the gap",
   "cmd.edit.trim_start": "Trim start to the playhead",
   "cmd.edit.trim_end": "Trim end to the playhead",
@@ -1271,5 +1271,11 @@
   "ui.ctx.play": "Play",
   "ui.ctx.marks": "Range",
   "ui.ctx.insert": "Insert here",
-  "ui.ctx.zoom": "Zoom"
+  "ui.ctx.zoom": "Zoom",
+  "cmd.edit.remove": "Delete and close the gap",
+  "cmd.edit.remove.hint": "Removes the in-out range or the selected clips on all tracks and closes the gap. Nothing goes to the clipboard.",
+  "cmd.edit.remove_track": "Delete and close the gap on this track only",
+  "cmd.edit.remove_track.hint": "Removes the selection on the current track only and closes its gap. Nothing goes to the clipboard.",
+  "ui.edit.label.remove": "Delete and close gap",
+  "ui.edit.toast.remove": {"one": "Deleted {seconds} s on {count} track", "other": "Deleted {seconds} s on {count} tracks"}
 }

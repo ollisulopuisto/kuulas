@@ -10,7 +10,7 @@ const PASTE = ["edit.paste", "edit.paste_overwrite", "edit.paste_track", "edit.p
 // Section title keys are `ui.ctx.<name>`; the ids are what the menu bar names too.
 const SECTIONS = {
   clip: [
-    ["clipboard", ["edit.cut", "edit.copy"]],
+    ["clipboard", ["edit.remove", "edit.cut", "edit.copy"]],
     ["paste", PASTE],
     [
       "edit",
@@ -48,7 +48,7 @@ const SECTIONS = {
     ],
   ],
   range: [
-    ["clipboard", ["edit.cut", "edit.copy", "edit.delete", "edit.close_gap_all"]],
+    ["clipboard", ["edit.remove", "edit.cut", "edit.copy", "edit.delete", "edit.close_gap_all"]],
     ["play", ["transport.play_selection", "transport.loop"]],
     ["select", ["select.clips_in_range", "select.range_all_tracks"]],
     ["marks", ["mark.clear", "region.from_selection", "export.regions"]],

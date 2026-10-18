@@ -11,6 +11,7 @@ import {
   liftCutPlan,
   mutePlan,
   nudgePlan,
+  removePlan,
   soloPlan,
   splitPlan,
   trackMutePlan,
@@ -300,5 +301,26 @@ describe("fade", () => {
     assert.equal(fadePlan(state({ playhead: 11 * S })), null);
     assert.equal(fadePlan(state({ focusTrack: null })), null);
     assert.equal(fadePlan({ project: null }), null);
+  });
+});
+
+describe("remove (X): ripple delete that never touches the clipboard", () => {
+  test("the same target as Cut, but a plain cut_range edit", () => {
+    const remove = removePlan(state(range));
+    const cut = cutPlan(state(range));
+    assert.equal(remove.op, "cut_range");
+    const { name: _name, ...sameArgs } = cut.args;
+    assert.deepEqual(remove.args, sameArgs);
+    assert.equal(remove.label.key, "ui.edit.label.remove");
+    assert.equal(remove.toast.key, "ui.edit.toast.remove");
+    assert.equal(remove.toast.tracks, true);
+  });
+  test("this track only turns group editing off", () => {
+    assert.equal(removePlan(state(range), { thisTrackOnly: true }).args.group_editing, false);
+  });
+  test("selected clips: their span; nothing to act on is null", () => {
+    const sel = state({ selection: new Set(["a2", "v1"]) });
+    assert.deepEqual(removePlan(sel).args.track_ids, cutPlan(sel).args.track_ids);
+    assert.equal(removePlan(state({ focusTrack: null })), null);
   });
 });

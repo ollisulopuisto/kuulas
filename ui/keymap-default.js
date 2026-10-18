@@ -397,14 +397,26 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.edit.split_all",
   },
   {
+    id: "edit.remove",
+    keys: { mac: "X", other: "X" },
+    context: "not-transcript",
+    labelKey: "cmd.edit.remove",
+  },
+  {
+    id: "edit.remove_track",
+    keys: { mac: "Shift+X", other: "Shift+X" },
+    context: "not-transcript",
+    labelKey: "cmd.edit.remove_track",
+  },
+  {
     id: "edit.cut",
-    keys: { mac: ["X", "Mod+X"], other: ["X", "Mod+X"] },
+    keys: { mac: "Mod+X", other: "Mod+X" },
     context: "not-transcript",
     labelKey: "cmd.edit.cut",
   },
   {
     id: "edit.cut_track",
-    keys: { mac: ["Shift+X", "Shift+Mod+X"], other: ["Shift+X", "Shift+Mod+X"] },
+    keys: { mac: "Shift+Mod+X", other: "Shift+Mod+X" },
     context: "not-transcript",
     labelKey: "cmd.edit.cut_track",
   },
@@ -1069,7 +1081,7 @@ export const STATUS_HINTS = {
     { id: "transport.play", hintKey: "ui.hint.play" },
     { id: "view.toggle", hintKey: "ui.hint.view" },
     { id: "edit.split", hintKey: "ui.hint.split" },
-    { id: "edit.cut", hintKey: "ui.hint.cut" },
+    { id: "edit.remove", hintKey: "ui.hint.cut" },
     { id: "panel.next", hintKey: "ui.hint.panels" },
   ],
   transcript: [

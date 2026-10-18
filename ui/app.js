@@ -250,11 +250,14 @@ const actions = {
       inTextField: isTextField(active),
       selection: state.selection,
       rangeTracks: state.rangeTracks,
+      inPoint: state.inPoint,
+      outPoint: state.outPoint,
     });
     if (what === "blur") active.blur();
-    // Clear the clip selection, keep the in and out marks (owner, 2026-10-18).
-    if (what === "clear") setState({ selection: new Set(), rangeTracks: new Set() });
-    else focusPanel("timeline");
+    // Clear the clip selection, the range and the in and out marks (owner, 2026-10-18).
+    if (what === "clear") {
+      setState({ selection: new Set(), rangeTracks: new Set(), inPoint: null, outPoint: null });
+    } else focusPanel("timeline");
   },
   cyclePanel: (direction) => focusPanel(nextPanel(getState().panel, direction)),
   zoomStep(direction) {

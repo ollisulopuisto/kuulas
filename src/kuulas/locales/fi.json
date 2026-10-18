@@ -505,8 +505,8 @@
   "cmd.edit.copy": "Kopioi",
   "cmd.edit.paste": "Liitä",
   "cmd.edit.split": "Jaa toistokohdasta",
-  "cmd.edit.cut": "Leikkaa ja sulje aukko",
-  "cmd.edit.cut_track": "Leikkaa vain tältä raidalta",
+  "cmd.edit.cut": "Leikkaa leikepöydälle ja sulje aukko",
+  "cmd.edit.cut_track": "Leikkaa leikepöydälle vain tältä raidalta",
   "cmd.edit.delete": "Poista, jätä aukko",
   "cmd.edit.trim_start": "Typistä alku toistokohtaan",
   "cmd.edit.trim_end": "Typistä loppu toistokohtaan",
@@ -1271,5 +1271,11 @@
   "ui.ctx.play": "Toisto",
   "ui.ctx.marks": "Alue",
   "ui.ctx.insert": "Lisää tähän",
-  "ui.ctx.zoom": "Zoomaus"
+  "ui.ctx.zoom": "Zoomaus",
+  "cmd.edit.remove": "Poista ja sulje aukko",
+  "cmd.edit.remove.hint": "Poistaa merkityn välin tai valitut leikkeet kaikilta raidoilta ja sulkee aukon. Mitään ei mene leikepöydälle.",
+  "cmd.edit.remove_track": "Poista ja sulje aukko vain tältä raidalta",
+  "cmd.edit.remove_track.hint": "Poistaa valinnan vain valitulta raidalta ja sulkee sen aukon. Mitään ei mene leikepöydälle.",
+  "ui.edit.label.remove": "Poisto ja aukon sulkeminen",
+  "ui.edit.toast.remove": {"one": "Poistettu {seconds} s {count} raidalta", "other": "Poistettu {seconds} s {count} raidalta"}
 }

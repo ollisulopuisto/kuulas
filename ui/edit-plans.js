@@ -122,6 +122,29 @@ export function cutPlan(state, { thisTrackOnly = false, t } = {}) {
   return cutToClipboard(state, { op: "clipboard_cut", key: "cut", thisTrackOnly, t });
 }
 
+/**
+ * X and Shift+X: ripple-delete the range or the selected clips' span and close the gap. The
+ * clipboard is left alone (owner, 2026-10-18: every clip deleted with X must not land there);
+ * Cut (Mod+X) is the one that keeps what it removes.
+ */
+export function removePlan(state, { thisTrackOnly = false } = {}) {
+  if (!state?.project) return null;
+  const covered = span(state);
+  if (!covered) return null;
+  return plan(
+    "cut_range",
+    {
+      start: covered.start,
+      end: covered.end,
+      track_ids: covered.tracks,
+      group_editing: groupOn(state) && !thisTrackOnly,
+    },
+    "remove",
+    { seconds: secondsOf(state, covered.end - covered.start) },
+    { tracks: true },
+  );
+}
+
 /** Alt+X: the same target as X, copied to the clipboard, but soft-deleted in place (the gap stays). */
 export function liftCutPlan(state, { t } = {}) {
   return cutToClipboard(state, { op: "clipboard_lift_cut", key: "lift_cut", t });
