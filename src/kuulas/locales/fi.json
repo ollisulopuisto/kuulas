@@ -1324,5 +1324,13 @@
   "cmd.view.drag_mode": "Hiiri: vetäminen maalaa välin / siirtää leikkeitä",
   "cmd.view.drag_mode.hint": "Vaihtaa, mitä leikkeen vetäminen tekee: maalaa välin (jonka voi poistaa tai mykistää; leikettä siirretään sen nimirivistä tai Cmd pohjassa) tai siirtää leikettä (Shift tai Alt maalaa välin).",
   "ui.drag_mode.now_range": "Vetäminen maalaa nyt välin. Siirrä leikettä sen nimirivistä tai pidä Cmd pohjassa.",
-  "ui.drag_mode.now_move": "Vetäminen siirtää nyt leikettä. Pidä Shift pohjassa maalataksesi välin."
+  "ui.drag_mode.now_move": "Vetäminen siirtää nyt leikettä. Pidä Shift pohjassa maalataksesi välin.",
+  "cmd.track.add": "Lisää raita",
+  "cmd.track.add_music": "Lisää musiikkiraita",
+  "cmd.track.add.hint": "Lisää tyhjän puheraidan alimmaiseksi; tuo ääntä sille myöhemmin.",
+  "cmd.track.add_music.hint": "Lisää tyhjän musiikkiraidan alimmaiseksi: se vaimenee puheen alla ja saa viennissä MUSIC-päätteen tiedostonimeen.",
+  "ui.track.new_speech": "Raita {n}",
+  "ui.track.new_music": "Musiikki {n}",
+  "ui.edit.label.add_track": "Raidan lisäys",
+  "ui.edit.toast.add_track": {"one": "Lisätty {name}", "other": "Lisätty {name}"}
 }

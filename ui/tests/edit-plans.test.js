@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
+  addTrackPlan,
   changedTracks,
   closeGapPlan,
   createBurst,
@@ -343,5 +344,28 @@ describe("remove clips (Cmd+Backspace): really delete the selected clips, nothin
   test("nothing selected is null", () => {
     assert.equal(removeClipsPlan(state({ selection: new Set() })), null);
     assert.equal(removeClipsPlan(null), null);
+  });
+});
+
+describe("add a track (empty, ready for a music bed or a voice)", () => {
+  const t = (key, values = {}) => `${key}${values.n ?? ""}`;
+  test("a speech track and a music track: add_track with a name and the kind", () => {
+    const speech = addTrackPlan(state(), "speech", { t });
+    assert.equal(speech.op, "add_track");
+    assert.equal(speech.args.kind, "speech");
+    assert.match(speech.args.name, /^ui\.track\.new_speech/);
+    const music = addTrackPlan(state(), "music", { t });
+    assert.equal(music.args.kind, "music");
+    assert.match(music.args.name, /^ui\.track\.new_music/);
+    assert.equal(music.label.key, "ui.edit.label.add_track");
+    assert.equal(music.toast.key, "ui.edit.toast.add_track");
+  });
+  test("the number goes on past the tracks that exist", () => {
+    const plan = addTrackPlan(state(), "speech", { t });
+    const count = state().project.tracks.length;
+    assert.equal(plan.args.name, `ui.track.new_speech${count + 1}`);
+  });
+  test("no project, nothing", () => {
+    assert.equal(addTrackPlan(null, "music", { t }), null);
   });
 });

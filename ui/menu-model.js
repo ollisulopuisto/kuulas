@@ -119,6 +119,9 @@ export const MENU = [
     id: "track",
     labelKey: "menu.track",
     items: [
+      item("track.add"),
+      item("track.add_music"),
+      SEP,
       item("track.mute"),
       item("track.solo"),
       item("track.solo_add"),

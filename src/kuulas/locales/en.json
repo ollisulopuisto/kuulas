@@ -1324,5 +1324,13 @@
   "cmd.view.drag_mode": "Mouse: dragging paints a range / moves clips",
   "cmd.view.drag_mode.hint": "Switches what a drag on a clip does: paint a range (then delete or mute it; move a clip by its label strip or with Cmd held), or move the clip (Shift or Alt paint a range).",
   "ui.drag_mode.now_range": "Dragging now paints a range. Move a clip by its label strip, or hold Cmd.",
-  "ui.drag_mode.now_move": "Dragging now moves the clip. Hold Shift to paint a range."
+  "ui.drag_mode.now_move": "Dragging now moves the clip. Hold Shift to paint a range.",
+  "cmd.track.add": "Add a track",
+  "cmd.track.add_music": "Add a music track",
+  "cmd.track.add.hint": "Adds an empty speech track at the bottom; import audio onto it afterwards.",
+  "cmd.track.add_music.hint": "Adds an empty music track at the bottom: ducked under speech, and exported with MUSIC in its file name.",
+  "ui.track.new_speech": "Track {n}",
+  "ui.track.new_music": "Music {n}",
+  "ui.edit.label.add_track": "Add a track",
+  "ui.edit.toast.add_track": {"one": "Added {name}", "other": "Added {name}"}
 }

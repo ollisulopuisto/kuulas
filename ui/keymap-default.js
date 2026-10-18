@@ -676,6 +676,18 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.track.solo_add",
   },
   {
+    id: "track.add",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.track.add",
+  },
+  {
+    id: "track.add_music",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.track.add_music",
+  },
+  {
     id: "track.cycle_kind",
     keys: { mac: "Alt+Mod+K", other: "Alt+Mod+K" },
     context: "timeline",

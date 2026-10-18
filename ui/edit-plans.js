@@ -117,6 +117,17 @@ export function deletePlan(state) {
 }
 
 /**
+ * "Add a track" / "Add a music track" (owner, 2026-10-19: create the track first, then put audio
+ * on it). An empty track at the bottom, named by its kind and a number.
+ */
+export function addTrackPlan(state, kind, { t } = {}) {
+  if (!state?.project) return null;
+  const n = state.project.tracks.length + 1;
+  const name = t(kind === "music" ? "ui.track.new_music" : "ui.track.new_speech", { n });
+  return plan("add_track", { name, kind }, "add_track", { name });
+}
+
+/**
  * Cmd+Backspace: really delete the selected clips and leave every other clip where it was
  * (owner, 2026-10-18); the gap stays. Backspace only mutes.
  */

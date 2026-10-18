@@ -4,6 +4,7 @@
 import { expandGroups, groupClipsPlan, mergeClipsPlan, ungroupClipsPlan } from "./clip-groups.js";
 import { pasteChoice } from "./clipboard.js";
 import {
+  addTrackPlan,
   busMutePlan,
   changedTracks,
   closeGapPlan,
@@ -119,6 +120,8 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
   planned("edit.split_all", (s) => splitPlan(s, { all: true }));
   planned("edit.delete", deletePlan);
   planned("edit.remove_clips", removeClipsPlan);
+  planned("track.add", (s) => addTrackPlan(s, "speech", { t }));
+  planned("track.add_music", (s) => addTrackPlan(s, "music", { t }));
   planned("edit.remove", (s) => removePlan(s));
   planned("edit.remove_track", (s) => removePlan(s, { thisTrackOnly: true }));
   planned("edit.cut", (s) => cutPlan(s, { t }));
