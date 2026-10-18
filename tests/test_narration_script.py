@@ -167,7 +167,8 @@ def test_placeholder_take_upload_route(client, session):
                         files={"file": ("take.wav", f, "audio/wav")})
     assert r.status_code == 200
     assert "placeholders" not in r.json()["project"]
-    assert session.state.tracks[0].clips[-1].length == 9 * RATE
+    assert any(c.length == 9 * RATE and c.start == 10 * RATE
+               for c in session.state.tracks[0].clips)
 
 
 def test_placeholder_take_with_a_bad_file_changes_nothing(session, tmp_path):
