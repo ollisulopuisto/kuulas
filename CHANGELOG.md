@@ -1,3 +1,19 @@
+## [v26.10.18.19] - 2026-10-18
+
+- G sets a fade on the clip under the play cursor (the nearer end; the other fade gives way if
+  they would overlap). One undo step.
+- Track menu and palette: "Match loudness" sets the selected clips (or all clips of the current
+  track) to -16 LUFS, shows "Measuring N clips…" while it works, then "Matched N clips · M skipped
+  (silent)" with Undo. (The -16 target is fixed for now; there is no project loudness setting yet.)
+- File menu and palette: export subtitles (SRT or VTT) and the transcript as text or Markdown.
+  Disabled when there is no transcript. In the desktop window these use the browser download, not
+  the native save dialog yet.
+- Mod+F: a find bar in the transcript. Accent-insensitive ("paiva" finds "päivää"), shows "2 / 5",
+  Enter and Shift+Enter step with wrap-around, the transcript and the play cursor follow.
+- Fixed a test that failed now and then: two exports one second apart differ in the clock time
+  stored in the WAV header; the audio was always identical.
+- Building blocks: speaking time, turns and words per minute per speaker; the transcript as text.
+
 ## [v26.10.18.18] - 2026-10-18
 
 - Match loudness (backend): a session command brings chosen clips to a target level
