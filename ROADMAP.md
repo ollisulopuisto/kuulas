@@ -223,6 +223,13 @@ WP27, WP38, WP42, WP15.
 
 ## Open questions and known limits
 
+- **Cut candidates (WP18 backend merged, v26.10.18.16):** the panel, preview playback (the engine
+  `skip`), keys (D, ] [, Enter, K) and the breath/noise kind are open. Thresholds (1.5 s pause,
+  4 s repeat window) need tuning on a real interview. Candidates live in the material root, so
+  with several edits "cut" means accepted in some edit (open for WP21). The format `version` should
+  rise to 4 with a no-op migration (the key is additive and older readers keep it; no `min_reader`
+  change): deferred, it touches `package.VERSION`, `db.SCHEMA_VERSION` and the migration table.
+
 - **Follow-ups found in the transcript panel and import UI (no owner decision needed):** a lane drop creates new tracks
   (the backend cannot place onto an existing track yet); "One after another instead" re-uploads
   the files in the browser path and, if the re-import fails, the first import stays undone (Redo

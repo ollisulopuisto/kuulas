@@ -1,3 +1,15 @@
+## [v26.10.18.16] - 2026-10-18
+
+- Cut candidates (backend, no panel yet): kuulas can propose cuts and remember your decisions.
+  It finds long pauses (1.5 s and over, leaving 0.5 s each side), filler words and hesitations in
+  English and Finnish (öö, ää, niinku, tota ...), and repeated words or phrases (retakes),
+  skipping anything already muted, gated or cut. Each proposal is open, cut or kept; kept ones
+  never come back; your own marks stay. Accepting one is a soft cut on that speaker's track (a
+  pause: on every track of the group) in one undo step, or a ripple cut if you ask. They are
+  stored in the project so decisions survive edits and undo; older kuulas versions keep them
+  untouched. Read them at `/api/candidates`. Thresholds are first guesses, not tuned on real
+  recordings, and Whisper often drops "um"s, so fillers will be fewer than you expect.
+
 ## [v26.10.18.15] - 2026-10-18
 
 - History panel: the History tab lists every step of the edit, newest first, in pages (it can
