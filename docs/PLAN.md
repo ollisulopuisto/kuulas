@@ -2066,7 +2066,7 @@ Tests first: `test_report_lists_each_music_use_with_programme_times`,
 
 ### WP26 — Fast listening and scrubbing
 
-Status: the JKL key logic (`shuttle.py`: speed ladder, tape or grains) done in v26.10.18.1; engine skip list and tape-rate playback done in v26.10.18.21 (not yet heard); the JKL keys, scrub grains above 2x, pitch-kept fast listening (pedalboard chunk rendering, plan in the engine job report) and the UI open. Needs WP2, WP5.
+Status: the JKL key logic (`shuttle.py`: speed ladder, tape or grains) done in v26.10.18.1; engine skip list and tape-rate playback done in v26.10.18.21 (not yet heard); JKL keys and the speed chip done in v26.10.18.23; hold-K scrub and K-tap steps, scrub grains above 2x, pitch-kept fast listening (pedalboard chunk rendering, plan in the engine job report) and the UI open. Needs WP2, WP5.
 
 **Sped-up listening (pitch preserved).** `.` toggles between normal speed
 and *fast*. Fast defaults to 1.5× and can be set from 1.1× to 3× (Shift+. and

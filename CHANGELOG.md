@@ -1,3 +1,11 @@
+## [v26.10.18.23] - 2026-10-18
+
+- JKL shuttle: L plays forward and each further L goes faster (1x, 1.5x, 2x, 3x, 5x), J plays
+  backwards the same way, K stops (in the Candidates tab K still means "keep"). A speed chip in the top
+  bar shows the speed while it is not 1x; click it to return to normal play. Playback runs tape-style
+  (pitch follows speed). The "." fast-listening key says it is not built yet. Hold-K slow scrub and
+  K-tap 10 ms steps are not built. Not heard by a person (tested against a simulated engine).
+
 ## [v26.10.18.22] - 2026-10-18
 
 - Narration placeholders: T puts script text on the current track at the play cursor, with a live
