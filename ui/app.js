@@ -6,15 +6,17 @@ import { memberClipsAt, toggleChange } from "./bus-collapse.js";
 import { listedRows, scrollToShow, stepTarget } from "./candidates-model.js";
 import { createCandidatesPanel } from "./candidates-panel.js";
 import { previewRequest } from "./candidates-preview.js";
+import { clipDragChange } from "./clip-drag.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
 import { openContextMenu } from "./context-menu.js";
 import { contextMenuItems } from "./context-menu-model.js";
 import { edgeChange } from "./edge-drag.js";
 import { createEditor } from "./edits.js";
-import { filenameFromDisposition } from "./export-commands.js";
+import { filenameFromDisposition, tracksNotice } from "./export-commands.js";
 import { nextPanel } from "./focus.js";
 import { followScroll } from "./follow.js";
 import { frameToTime, RATE, xToFrame } from "./format.js";
+import { fadeChange, gainChange } from "./gain-drag.js";
 import { GATE_OPEN_COMMAND, openStretchEdit, stretchAt } from "./gate.js";
 import { HELP_COMMAND, shortcutsFor } from "./help.js";
 import { createHelpPanel } from "./help-panel.js";
@@ -44,10 +46,19 @@ import { motionMode } from "./motion.js";
 import { createOverview } from "./overview.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
 import { createPrefs } from "./prefs.js";
+import { patchClip } from "./provisional.js";
 import { formatRangeInfo, rangeInfo } from "./range-info.js";
 import { setupKeyboard } from "./shell-keys.js";
 import { chipSpeed } from "./shuttle.js";
 import { getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
+import {
+  cycleTarget,
+  mergeStops,
+  nextStop,
+  prevStop,
+  targetChoice,
+  wordStops,
+} from "./tab-stops.js";
 import { densityAttribute, nextTheme, themeAttribute } from "./theme.js";
 import { createTimeline } from "./timeline.js";
 import { createTrackHeaders } from "./tracks.js";
@@ -82,17 +93,25 @@ function translate() {
 
 let noticeTimer = null;
 // `undo`: the message offers an Undo button (the edit keys' toast).
-function showNotice(text, kind = "error", { undo = false } = {}) {
+// `sticky`: it stays until replaced or closed (a running export). `action`: { label, run }
+// shows one more button (Cancel, Show in Finder).
+let noticeAction = null;
+function showNotice(text, kind = "error", { undo = false, sticky = false, action = null } = {}) {
   const notice = $("notice");
   $("notice-text").textContent = text;
   $("notice-undo").hidden = !undo;
+  noticeAction = action;
+  $("notice-action").hidden = !action;
+  if (action) $("notice-action").textContent = action.label;
   notice.dataset.kind = kind;
   notice.hidden = false;
   clearTimeout(noticeTimer);
+  if (sticky) return;
   noticeTimer = setTimeout(() => {
     notice.hidden = true;
   }, NOTICE_MS[kind]);
 }
+$("notice-action").addEventListener("click", () => noticeAction?.run());
 const showError = (error) => showNotice(error?.message || t("ui.error.title"));
 $("notice-close").addEventListener("click", () => {
   $("notice").hidden = true;
@@ -234,6 +253,13 @@ const actions = {
     const id = pauseChoiceId(choice);
     prefs.set(PAUSE_BREAK_KEY, id);
     setState({ pauseBreak: id });
+  },
+  tabStop: (direction) => void tabStop(direction),
+  /** Shift+T: word, transient or both, remembered per user, named in a notice. */
+  cycleTabTarget() {
+    const mode = cycleTarget(tabTarget());
+    prefs.set(TAB_TARGET_KEY, mode);
+    showNotice(t(`ui.tab_target.${mode}`), "ok");
   },
   fitTracks: () => fitAllTracks(),
   toggleAutoFitTracks() {
@@ -520,6 +546,7 @@ const keyboard = setupKeyboard({
     promptText: (request) => placeholderEditor.prompt(request),
     takeFor: (id) => void takeForPlaceholder(id),
     exportRegions: () => exportRegions(),
+    exportTracks: () => exportTracks(),
     focusName: () => inspector.focusName(),
     openGateStretch: () => openGateStretch(),
     selectCandidate: (row) => selectCandidate(row),
@@ -613,6 +640,51 @@ $("density").addEventListener("change", (event) => {
   prefs.set(DENSITY_KEY, densityChoice); // not remembered if storage is blocked; it applies now
   applyDensity();
 });
+
+// Tab and Shift+Tab (WP19i): what the playhead jumps to. Remembered per user; until the
+// user picks one it follows the project: words when there is a transcript, else transients.
+const TAB_TARGET_KEY = "tabTarget";
+const tabTarget = () => targetChoice(prefs.get(TAB_TARGET_KEY), getState().words.length > 0);
+
+// Transient stops per head and track, kept as promises so a held Tab asks once. A new head
+// is a new key, so an edit never serves the old stops; the old ones are dropped.
+let transientCache = { head: null, stops: new Map() };
+function transientStops(track) {
+  const { head } = getState();
+  if (transientCache.head !== head) transientCache = { head, stops: new Map() };
+  const key = track ?? "";
+  if (!transientCache.stops.has(key)) {
+    const asked = api
+      .getEditPoints("transients", track)
+      .then((body) => body.points)
+      .catch((error) => {
+        transientCache.stops.delete(key);
+        throw error;
+      });
+    transientCache.stops.set(key, asked);
+  }
+  return transientCache.stops.get(key);
+}
+
+async function tabStop(direction) {
+  const state = getState();
+  if (!state.project) return;
+  const mode = tabTarget();
+  const track = state.focusTrack ?? null;
+  try {
+    // Words of the focused track; a track without words (music) falls back to all words.
+    let words = mode === "transient" ? [] : wordStops(state.words, track);
+    if (words.length === 0 && mode !== "transient") words = wordStops(state.words);
+    const transients = mode === "word" ? [] : await transientStops(track);
+    const stops = mergeStops(words, transients);
+    const from = getState().playhead ?? 0;
+    const frame = direction > 0 ? nextStop(stops, from) : prevStop(stops, from);
+    if (frame === null) showNotice(t("ui.tab_stop.none"), "ok");
+    else void transport.seek(frame);
+  } catch (error) {
+    showError(error);
+  }
+}
 
 // Break paragraphs at pauses over (View menu): a view option remembered per user.
 const PAUSE_BREAK_KEY = "pauseBreak";
@@ -982,6 +1054,71 @@ const historyPanel = createHistoryPanel({
 
 // -- markers, regions, chapters (WP19h) ------------------------------------------------------------------
 
+// "Export all tracks" (the toolbar button, File menu, palette): one background job; the
+// notice follows it (progress with Cancel, then the folder with Show in Finder). Esc cancels.
+let tracksJob = null;
+const TRACKS_POLL_MS = 500;
+
+async function followTracksJob(id) {
+  const bridge = globalThis.pywebview?.api;
+  while (tracksJob === id) {
+    let job;
+    try {
+      job = (await api.getJobs()).jobs.find((item) => item.id === id);
+    } catch (error) {
+      tracksJob = null;
+      showError(error);
+      return;
+    }
+    if (!job) break;
+    const notice = tracksNotice(job, t);
+    let action = null;
+    if (notice.cancel) {
+      action = { label: t("ui.export.cancel"), run: () => void cancelTracksJob() };
+    } else if (notice.reveal && typeof bridge?.reveal_export === "function") {
+      action = { label: t("ui.export.show_in_finder"), run: () => void bridge.reveal_export() };
+    }
+    // Done stays up (the owner reads the folder); failures and cancels time out as usual.
+    showNotice(notice.text, notice.kind, { sticky: notice.sticky, action });
+    if (job.state === "completed" || job.state === "failed" || job.state === "cancelled") {
+      tracksJob = null;
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, TRACKS_POLL_MS));
+  }
+}
+
+async function cancelTracksJob() {
+  if (!tracksJob) return;
+  try {
+    await api.cancelJob(tracksJob);
+  } catch (error) {
+    showError(error);
+  }
+}
+
+async function exportTracks() {
+  if (tracksJob) return;
+  try {
+    const { jobs } = await api.exportTracks();
+    tracksJob = jobs[0];
+    showNotice(t("ui.export.tracks_running", { percent: 0 }), "ok", {
+      sticky: true,
+      action: { label: t("ui.export.cancel"), run: () => void cancelTracksJob() },
+    });
+    void followTracksJob(tracksJob);
+  } catch (error) {
+    showError(error);
+  }
+}
+
+$("export").addEventListener("click", () =>
+  keyboard.registry.run("export.tracks", null, getState()),
+);
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && tracksJob) void cancelTracksJob();
+});
+
 // One background job renders every region to its own file; the jobs list shows progress.
 async function exportRegions() {
   const count = regionCount(getState().project?.markers);
@@ -1255,6 +1392,32 @@ const timeline = createTimeline({
   actions: {
     pointerDown: onPointerDown,
     rangeDragged: onRangeDragged,
+    clipDrag({ ids, move }) {
+      const change = clipDragChange(ids, move, getState().groupEditing !== false);
+      if (!change) return;
+      setState({ selection: new Set(ids) }); // the press selected one clip; a move keeps all
+      editor.change({ op: change.op, args: change.args, label: t(change.labelKey) });
+    },
+    clipGain({ clipId, gain }) {
+      const { op, args, coalesce, labelKey } = gainChange(clipId, gain);
+      editor.change({
+        op,
+        args,
+        coalesce,
+        label: t(labelKey),
+        provisional: (p) => patchClip(p, clipId, { gain_db: gain }),
+      });
+    },
+    clipFade({ clipId, side, frames }) {
+      const { op, args, coalesce, labelKey } = fadeChange(clipId, side, frames);
+      editor.change({
+        op,
+        args,
+        coalesce,
+        label: t(labelKey),
+        provisional: (p) => patchClip(p, clipId, { [`fade_${side}`]: frames }),
+      });
+    },
     edgeDrag({ clipId, edge, frame, ripple }) {
       const { op, args, labelKey } = edgeChange(clipId, edge, frame, ripple);
       editor.change({ op, args, label: t(labelKey) });

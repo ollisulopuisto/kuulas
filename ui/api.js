@@ -30,6 +30,9 @@ export const getViewMemory = () => json("/api/view-memory");
 export const putViewMemory = (view) =>
   json("/api/view-memory", { method: "PUT", body: JSON.stringify({ view }), keepalive: true });
 export const getWords = () => json("/api/words");
+/** The frames Tab stops at in one mode (edges, transients, words): { points: [frame] }. */
+export const getEditPoints = (mode, track = null) =>
+  json(`/api/edit-points?mode=${mode}${track ? `&track=${encodeURIComponent(track)}` : ""}`);
 /** What cutting these words (refs: { track, clip, index }) would also remove from other tracks. */
 export const cutPreview = (words) => post("/api/cut-preview", { words });
 /** Correct one word's text (a new transcript revision, one undo step). */
@@ -49,6 +52,9 @@ export async function download(path) {
 }
 /** Queue the one job that renders every region to its own file; answers { jobs: [job id] }. */
 export const exportRegions = (options = {}) => post("/api/export-regions", options);
+/** Queue the one-button export of every track; answers { jobs: [job id] }. */
+export const exportTracks = () => post("/api/export-tracks", {});
+export const cancelJob = (id) => json(`/api/jobs/${encodeURIComponent(id)}`, { method: "DELETE" });
 export const command = (name, args = {}) => post("/api/command", { name, args });
 // Cut candidates (WP18). Deciding, applying and marking are commands (one undo step each);
 // the list and the preview data only read. `state`: "open" | "cut" | "kept" or null for all.

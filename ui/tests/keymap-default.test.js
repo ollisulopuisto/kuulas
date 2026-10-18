@@ -106,6 +106,15 @@ describe("the owner's decisions", () => {
     assert.deepEqual(keysOf("candidate.apply_ripple"), []);
   });
 
+  test("Tab steps to a word or transient in the timeline and the transcript only", () => {
+    const contextsOf = (combo) =>
+      DEFAULT_KEYMAP.filter((e) => asList(e.keys.other).includes(combo)).map((e) => e.context);
+    // Not in the side panels, candidates or text fields: Tab keeps its focus move there.
+    assert.deepEqual(contextsOf("Tab").sort(), ["timeline", "transcript"]);
+    assert.deepEqual(contextsOf("Shift+Tab").sort(), ["timeline", "transcript"]);
+    assert.deepEqual(keysOf("nav.tab_target_cycle"), ["Shift+T"]);
+  });
+
   test("K stops the shuttle everywhere, including the Candidates tab", () => {
     const withK = DEFAULT_KEYMAP.filter((entry) => asList(entry.keys.other).includes("K"));
     assert.deepEqual(

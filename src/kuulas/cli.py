@@ -58,6 +58,43 @@ def import_nhsx(nhsx_path: str, folder: str | None = None) -> int:
     return 0
 
 
+def export_tracks(folder: str, out: str | None = None, fmt: str | None = None,
+                  bit_depth: int | None = None) -> int:
+    """Export every track of a project as a file, without a window or server.
+    ``out`` is the folder the export folder goes into (default: ``<project>
+    exports`` beside the project). A project open in a window is read-only here,
+    and the export refuses, saying who holds it."""
+    from .session import Session  # noqa: PLC0415
+
+    if not Path(folder).expanduser().is_dir():
+        raise KuulasError("error.cli.not_a_project", path=folder)
+    session = Session(str(Path(folder).expanduser()))
+    try:
+        last = -1
+
+        def progress(fraction: float, _message: str) -> None:
+            nonlocal last
+            step = int(fraction * 10) * 10
+            if step > last:
+                last = step
+                print(t("cli.export_tracks.progress", percent=step), flush=True)
+
+        result = session.export(
+            session.tracks_export_args(
+                {"folder": out, "format": fmt, "bit_depth": bit_depth}),
+            progress=progress)
+        print(t("cli.export_tracks.done", count=result["track_count"],
+                path=result["path"]))
+        for path in result["paths"]:
+            print(path)
+        if result["silent"]:
+            print(t("cli.export_tracks.silent", count=len(result["silent"]),
+                    names=", ".join(result["silent"])))
+    finally:
+        session.close()
+    return 0
+
+
 def bind_local(port: int = 0) -> socket.socket:
     """A listening socket on 127.0.0.1; port 0 takes a free one. Handing the
     socket to uvicorn (rather than a port number) leaves no gap in which
@@ -118,6 +155,13 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911
     imported = commands.add_parser("import-nhsx", help=t("cli.import_nhsx.help"))
     imported.add_argument("nhsx", help=t("cli.import_nhsx.nhsx"))
     imported.add_argument("folder", nargs="?", help=t("cli.import_nhsx.folder"))
+    exported = commands.add_parser("export-tracks", help=t("cli.export_tracks.help"))
+    exported.add_argument("folder", help=t("cli.export_tracks.folder"))
+    exported.add_argument("--out", help=t("cli.export_tracks.out"))
+    exported.add_argument("--format", choices=["wav", "flac"],
+                          help=t("cli.export_tracks.format"))
+    exported.add_argument("--bit-depth", type=int, choices=[16, 24, 32],
+                          help=t("cli.export_tracks.bit_depth"))
     opened = commands.add_parser("open", help=t("cli.open.help"))
     opened.add_argument("folder", help=t("cli.open.folder"))
     opened.add_argument("--port", type=int, default=0, help=t("cli.open.port"))
@@ -138,6 +182,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911
             return info(args.folder)
         if args.command == "import-nhsx":
             return import_nhsx(args.nhsx, args.folder)
+        if args.command == "export-tracks":
+            return export_tracks(args.folder, args.out, args.format, args.bit_depth)
         if args.command == "open" and args.window:
             from . import desktop  # noqa: PLC0415
 

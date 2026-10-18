@@ -1,3 +1,42 @@
+## [v26.10.18.51] - 2026-10-18
+
+- **Move a clip by dragging its label strip** (the top 20 px of the clip): in time and onto other tracks,
+  with a dashed ghost; Esc cancels; one undo step; sync partners follow in time under group editing.
+  A drag over the waveform still marks a range.
+- **Drag the gain line** of a clip up or down (live, +12 to -30 dB) and **drag the top corners** for fade in and
+  out; Esc restores. Handles show on a selected or hovered clip.
+- **Fixed:** dragging a clip's edge to trim never started (the drag distance was computed wrongly).
+  Edge trims (roll, and ripple with Shift) work now.
+
+## [v26.10.18.50] - 2026-10-18
+
+- **Tab and Shift+Tab** move the playhead to the next / previous word start or transient (in the timeline
+  and the transcript; Tab keeps its normal focus move in side panels and text fields). **Shift+T**
+  cycles word / transient / both; the choice is remembered. Transients are detected from the focused
+  track (or all audible tracks) in the background. Not tried on a real window yet.
+
+## [v26.10.18.49] - 2026-10-18
+
+- Plan change (owner): mouse editing (WP6) and Tab to the next transient or word (WP19i) are part of the first
+  playable build now. Building block for the status list settings (rename, add, remove, reorder statuses):
+  logic only, not visible yet.
+
+## [v26.10.18.48] - 2026-10-18
+
+- **Export all tracks with one button:** the "Vie" button in the toolbar, File > Export all tracks, or
+  Shift+Alt+Cmd+E writes one 24-bit WAV per track (edits, clip gain, fades and mutes applied; no
+  track effects, buses or master), all the same length and starting at the same moment, plus a
+  `tracks.json` list, into a new folder `<project> exports/<edit> <date time> v<n>/` next to the
+  project. It runs in the background with progress and a Cancel button, and "Show in Finder" in the
+  desktop window. A muted track, or a track on a muted bus, comes out silent (the notice says
+  which). From the terminal: `kuulas export-tracks <project.kuulas> [--out F] [--format wav|flac]
+  [--bit-depth 16|24|32]`. For the automixer: music tracks get " MUSIC" in the file name, because
+  the automixer reads the role from the name.
+- Fixed: a track export ignored a muted bus (the stem came out at full level).
+- An end-to-end test now drives the whole editing loop on a synthetic three-speaker episode (import,
+  X, Backspace, trims, undo, save and reopen, export).
+- Read-only projects cannot export (the export also writes a record into the project).
+
 ## [v26.10.18.47] - 2026-10-18
 
 - **Collapse a bus:** a chevron at the left of the bus header, a double-click on the header, or

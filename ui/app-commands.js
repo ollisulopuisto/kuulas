@@ -139,6 +139,12 @@ export function registerAppCommands(registry, { actions, app }) {
   def("nav.forward_far", () => moveBy(offsets().far)(), hasProject);
   def("nav.back_fine", () => moveBy(-offsets().fine)(), hasProject);
   def("nav.forward_fine", () => moveBy(offsets().fine)(), hasProject);
+  // Tab / Shift+Tab (WP19i): the same action from the timeline's and the transcript's keys.
+  for (const prefix of ["nav", "transcript"]) {
+    def(`${prefix}.next_stop`, () => actions.tabStop(1), hasProject);
+    def(`${prefix}.prev_stop`, () => actions.tabStop(-1), hasProject);
+  }
+  def("nav.tab_target_cycle", () => actions.cycleTabTarget(), hasProject);
   const stepFocus = (direction) => () => {
     const state = app.getState();
     const id = stepTrack(state.project, state.focusTrack, direction);

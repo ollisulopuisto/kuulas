@@ -39,10 +39,12 @@ from . import (
     analysis,
     candidates,
     collateral,
+    edit_points,
     edit_scope,
     import_plan,
     narration,
     narration_script,
+    onsets,
     ops,
     package,
     source_map,
@@ -220,6 +222,8 @@ class Session:
             is_new = True
         self.package.start()
         self.jobs = Jobs()
+        #: Folder of the last "Export all tracks" this run made, for Show in Finder.
+        self.last_export_folder: str | None = None
         self.history: History = self.package.history
         self.store: MediaStore = self.package.store
         self._subscribers: list[Callable[[Project], None]] = []
@@ -621,6 +625,38 @@ class Session:
                 raise
 
         return [self.jobs.submit("export", title, run)]
+
+    def tracks_export_args(self, args: dict | None = None) -> dict:
+        """The export arguments of the one-button track export: ``export.ALL_TRACKS``
+        (the folder is ``<project> exports`` beside the project) and any
+        ``format``, ``bit_depth`` or ``folder`` the caller chose. Each run gets
+        its own folder (the template carries the time), so nothing is overwritten."""
+        chosen = {k: v for k, v in (args or {}).items()
+                  if k in {"format", "bit_depth", "folder"} and v is not None}
+        return {**export_module.ALL_TRACKS, **chosen}
+
+    def export_tracks(self, args: dict | None = None) -> list[str]:
+        """Queue ONE job that exports every track as a file (see
+        ``tracks_export_args``). Fails now if the project is read-only. The
+        finished job's ``result`` is the export result with ``track_count`` and
+        ``silent``; ``last_export_folder`` is where it went."""
+        export_args = self.tracks_export_args(args)
+        with self.lock:
+            self.history._check_writable()
+
+        def run(progress):
+            try:
+                result = export_module.run(
+                    self, export_args, lambda fraction, _message: progress(fraction),
+                    progress.cancelled_event)
+            except export_module.ExportError:
+                if progress.cancelled:
+                    raise JobCancelledError from None
+                raise
+            self.last_export_folder = result["path"]
+            return result
+
+        return [self.jobs.submit("export", t("job.export_tracks"), run, keep_result=True)]
 
     def last_export_settings(self, kind: str) -> dict | None:
         """Return the project's remembered settings for an export kind."""
@@ -1533,6 +1569,31 @@ class Session:
                 return transcript.timeline_words(self.history.state, self.transcripts())
 
             return list(self._memo("timeline_words", key, compute, 300))
+
+    def edit_points(self, mode: str, track_id: str | None = None) -> list[int]:
+        """The Tab stops of ``mode`` (WP19i), memoized on the edit state, so
+        the same head asked twice costs nothing. Onset detection reads media
+        (cached per file by content), so it runs on a snapshot with the lock
+        released; edit points of an old head are never served for a new one."""
+        if mode not in edit_points.MODES:
+            raise edit_points.EditPointsError("error.edit_points.unknown_mode", mode=mode)
+        with self.lock:
+            state = self.history.state
+            revs = sorted(self.history.material["transcripts"].items())
+            key = self._view_key(self.history.edit_hash, self.history.rate, revs,
+                                 self.history.material_head, mode, track_id)
+            transcripts = self.transcripts() if mode == "words" else {}
+
+        def compute() -> list[int]:
+            found: dict[str, Any] = {}
+            if mode == "transients":
+                for media in state.media:
+                    got = onsets.onsets_for_media(self.store, media.id)
+                    if got is not None:
+                        found[media.id] = got
+            return edit_points.edit_points(state, transcripts, found, mode, track_id)
+
+        return list(self._memo("edit_points", key, compute, 8))
 
     def sync_partners(self) -> dict[str, tuple[str, ...]]:
         """Media id -> the media recorded on the same clock, memoized on the

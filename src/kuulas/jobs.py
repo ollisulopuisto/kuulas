@@ -43,6 +43,7 @@ class _Progress:
 class _Work:
     fn: Callable
     on_done: Callable[[Any], None] | None
+    keep_result: bool = False
     cancel: threading.Event = field(default_factory=threading.Event)
     future: Future | None = None
 
@@ -64,9 +65,12 @@ class Jobs:
 
     def submit(self, kind: str, title: str,
                fn: Callable[[Callable[[float], None]], Any],
-               on_done: Callable[[Any], None] | None = None) -> str:
+               on_done: Callable[[Any], None] | None = None,
+               *, keep_result: bool = False) -> str:
+        """Queue ``fn``. ``keep_result``: the value it returns (JSON-able) is
+        listed with the finished job as ``result``, for a UI that has to show it."""
         job_id = uuid.uuid4().hex
-        work = _Work(fn, on_done)
+        work = _Work(fn, on_done, keep_result)
         with self._lock:
             if self._closed:
                 raise KuulasError("error.jobs.closed")
@@ -99,6 +103,8 @@ class Jobs:
             with self._lock:
                 item = self._items[job_id]
                 item.update(state="completed", progress=1.0, remaining_seconds=0)
+                if work.keep_result:
+                    item["result"] = value
         except JobCancelledError:
             with self._lock:
                 self._items[job_id].update(state="cancelled", remaining_seconds=None)

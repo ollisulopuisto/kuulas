@@ -41,7 +41,7 @@ import numpy as np
 import soundfile as sf
 from speechmix import programme
 
-from . import mixer
+from . import mixer, transcript
 from . import placeholders as placeholders_module
 from .messages import KuulasError, t
 from .model import Project, Track
@@ -64,6 +64,11 @@ RENDER_VERSION = 1
 #: The 32-bit RIFF size limit, less room for the headers.
 MAX_WAV_BYTES = 0xFFFFFFFF - 4096
 
+#: File-name words the automixer (``podcast/apps/automixer``, ``MUSIC_WORDS``)
+#: reads as "this is music, not speech". A music track whose name lacks one
+#: gets " MUSIC" added to its file name, or it would be mixed as a voice.
+MUSIC_WORDS = ("MUSIC", "THEME", "TUNNARI", "MUSA", "MUSIIKKI", "TUNNUS", "JINGLE")
+
 KINDS = ("mix", "selection", "tracks")
 FORMATS = ("wav", "flac", "mp3")
 #: ``bit_depth`` 32 is float: what a bit-exact copy of the mix needs.
@@ -84,6 +89,13 @@ DEFAULTS: dict[str, dict[str, Any]] = {
                "template": "{edit}{span} tracks v{n}", "processing": "dry",
                "list_file": False},
 }
+#: What the one-button "Export all tracks" starts from. Dry stems with the edit
+#: applied (cuts, clip gain, fades, mutes) and no bus or master: what a mixer
+#: such as the automixer wants, which does its own processing. One folder per
+#: run, named by edit and local time, so nothing is overwritten.
+ALL_TRACKS: dict[str, Any] = {
+    "kind": "tracks", "format": "wav", "bit_depth": 24, "processing": "dry",
+    "list_file": True, "template": "{edit} {stamp} v{n}"}
 #: Settings that are not remembered: they are about this one export.
 NOT_REMEMBERED = ("range",)
 #: Settings that do not change the rendered audio, so they stay out of the hash.
@@ -201,6 +213,11 @@ class _Job:
     #: Narration placeholders inside the exported range, which play as silence
     #: (WP43): reported, never a reason to refuse.
     placeholders: int = 0
+    #: Local clock at the start, for names ("2026-10-18 143012"): the one-button
+    #: track export puts it in the folder name so no run overwrites another.
+    stamp: str = ""
+    #: Names of the tracks that come out as silence (muted, or not soloed).
+    silent: tuple[str, ...] = ()
 
 
 # -- settings ------------------------------------------------------------------
@@ -280,8 +297,17 @@ def _snapshot(session, kind: str, args: dict) -> _Job:
         digest = _digest(project, kind, settings, h.edit_hash)
         unrecorded = len(placeholders_module.unrecorded(
             project.placeholders, first, first + frames))
+        silent = tuple(tr.name for tr in project.tracks if not _audible(project, tr))
         return _Job(kind, settings, project, session.store, rate, first, frames, ranged,
-                    edit, session.package.path.stem, h.head, digest, unrecorded)
+                    edit, session.package.path.stem, h.head, digest, unrecorded,
+                    datetime.now(UTC).astimezone().strftime("%Y-%m-%d %H%M%S"), silent)
+
+
+def _audible(project: Project, track: Track) -> bool:
+    """Does the track sound in the programme? The mixer's rule: while anything is
+    soloed only soloed tracks do, otherwise the mute switch decides, and a muted
+    bus silences its tracks."""
+    return track.id not in transcript.silent_tracks(project)
 
 
 def _digest(project: Project, kind: str, settings: dict, edit_hash: str) -> str:
@@ -319,7 +345,8 @@ def _name(job: _Job, n: int | str) -> str:
         a, b = s["range"]
         span = f" {_stamp(a, job.rate)}\N{EN DASH}{_stamp(b, job.rate)}"
     fields = {"edit": _safe(job.edit), "n": n, "ext": s["format"], "span": span,
-              "project": _safe(job.project_name)}
+              "project": _safe(job.project_name),
+              "stamp": job.stamp}
     fields["from"] = _stamp(s["range"][0], job.rate) if job.ranged else "0m00s"
     fields["to"] = _stamp(s["range"][1], job.rate) if job.ranged else _stamp(
         job.frames, job.rate)
@@ -587,7 +614,7 @@ def run(session, args: dict, progress: Progress | None = None,
             return {"kind": job.kind, "path": str(old), "paths": _listing(old),
                     "version": last["n"], "skipped": True, "unchanged_since": last["n"],
                     "master": None, "message": message, "settings": job.settings,
-                    "placeholders_skipped": job.placeholders}
+                    "placeholders_skipped": job.placeholders, **_counts(job)}
         n = last["n"]  # the file is gone: make it again under the same number
     else:
         n = (last["n"] + 1) if last else 1
@@ -623,7 +650,7 @@ def run(session, args: dict, progress: Progress | None = None,
         return {"kind": job.kind, "path": str(target), "paths": [str(target)],
                 "version": n, "skipped": False, "unchanged_since": None,
                 "master": master_result, "message": "", "settings": job.settings,
-                "placeholders_skipped": job.placeholders}
+                "placeholders_skipped": job.placeholders, **_counts(job)}
     return _finish(session, job, n, series, target, paths, master_result, say)
 
 
@@ -665,17 +692,18 @@ def _tracks(job: _Job, target: Path, n: int, workers: int,
     work.mkdir()
     p, s = job.project, job.settings
     as_heard = s["processing"] == "as_heard"
-    soloing = any(tr.solo for tr in p.tracks)
     listing, paths, used = [], [], set()
     ext = s["format"]
     for i, track in enumerate(p.tracks):
         channels = _track_channels(p, track)
         stem = _safe(track.name)
+        if track.kind == "music" and not any(w in stem.upper() for w in MUSIC_WORDS):
+            stem += " MUSIC"  # the automixer reads the role from the file name
         base = _safe(f"{job.edit} \N{EN DASH} {stem}")
         while base in used:
             base += " (2)"
         used.add(base)
-        audible = track.solo if soloing else not track.mute
+        audible = _audible(p, track)
 
         def render(first: int, count: int, track=track, channels=channels,
                    audible=audible) -> np.ndarray:
@@ -690,8 +718,8 @@ def _tracks(job: _Job, target: Path, n: int, workers: int,
                  tick=lambda f, i=i: say(0.95 * (i + f) / len(p.tracks)), scratch=[])
         paths.append(done)
         listing.append({"id": track.id, "name": track.name, "kind": track.kind,
-                        "channels": channels, "file": done.name, "gain_db": track.gain_db,
-                        "pan": track.pan})
+                        "speaker": track.speaker, "channels": channels, "file": done.name,
+                        "audible": audible, "gain_db": track.gain_db, "pan": track.pan})
     if s.get("list_file"):
         (work / "tracks.json").write_text(json.dumps({
             "edit": job.edit, "project": job.project_name, "version": n, "rate": job.rate,
@@ -739,7 +767,14 @@ def _finish(session, job: _Job, n: int, series: str, target: Path, paths: list[P
     return {"kind": job.kind, "path": str(target), "paths": [str(p) for p in paths],
             "version": n, "skipped": False, "unchanged_since": None, "master": master,
             "message": message, "settings": job.settings,
-            "placeholders_skipped": job.placeholders}
+            "placeholders_skipped": job.placeholders, **_counts(job)}
+
+
+def _counts(job: _Job) -> dict:
+    """How many tracks a track export covers and which came out silent."""
+    if job.kind != "tracks":
+        return {}
+    return {"track_count": len(job.project.tracks), "silent": list(job.silent)}
 
 
 def last_settings(session, kind: str) -> dict | None:

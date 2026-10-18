@@ -18,6 +18,7 @@ import base64
 import html
 import json
 import os
+import subprocess
 import sys
 import threading
 from pathlib import Path
@@ -205,6 +206,22 @@ def load_webview():
     return webview
 
 
+def reveal_command(folder: str | Path, platform: str | None = None) -> list[str]:
+    """The command that shows ``folder`` in the file manager: Finder (selected),
+    Explorer (selected) or the default file manager. A list, never a shell line."""
+    platform = platform or sys.platform
+    path = str(folder)
+    if platform == "darwin":
+        return ["open", "-R", path]
+    if platform.startswith("win"):
+        return ["explorer", f"/select,{path}"]
+    return ["xdg-open", path]
+
+
+def _spawn(command: list[str]) -> None:
+    subprocess.Popen(command)  # noqa: S603 - fixed program, path made by the exporter
+
+
 class Bridge:
     """Exposed to the page as ``window.pywebview.api``. Every public method is
     callable from JS; the window and state are underscore-private so pywebview
@@ -215,6 +232,7 @@ class Bridge:
         self._recents = recents
         self._window = None
         self._project: RunningProject | None = None
+        self._runner = _spawn
 
     # -- dialogs, for the page ---------------------------------------
 
@@ -232,6 +250,20 @@ class Bridge:
     def pick_save(self, name: str = "") -> str | None:
         got = self._dialog(self._webview.FileDialog.SAVE, save_filename=name)
         return got[0] if got else None
+
+    def reveal_export(self) -> bool:
+        """Show the folder of the last "Export all tracks" in Finder / Explorer.
+        Takes no argument: the page cannot name a path, only ask for the one the
+        exporter made in this run."""
+        folder = getattr(getattr(self._project, "_session", None),
+                         "last_export_folder", None)
+        if not folder or not Path(folder).is_dir():
+            return False
+        try:
+            self._runner(reveal_command(folder))
+        except OSError:
+            return False
+        return True
 
     def dropped(self, event: dict) -> None:
         """A file drop: pywebview gives full paths only here, on the Python side."""
