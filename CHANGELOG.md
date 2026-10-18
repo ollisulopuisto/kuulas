@@ -1,3 +1,8 @@
+## [v26.10.18.35] - 2026-10-18
+
+- The bus choice in each track's header has "+ New bus…" too: it makes a bus and puts the track
+  on it in one step (it was only in the inspector before).
+
 ## [v26.10.18.34] - 2026-10-18
 
 - A Finnish script for the onboarding sample project (a 3-minute interview about pruning an apple

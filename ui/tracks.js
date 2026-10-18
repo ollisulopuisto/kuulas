@@ -7,6 +7,7 @@
 import { bindToggle } from "./ab-value.js";
 import { busHues, busLetter } from "./grammar.js";
 import { formatDb, formatNumber, t } from "./i18n.js";
+import { NEW_BUS } from "./inspector-track.js";
 import { truncateMiddle } from "./labels.js";
 import { layoutFor } from "./lanes.js";
 import { MUSIC_HUE, trackHues } from "./paint.js";
@@ -195,6 +196,10 @@ export function createTrackHeaders({ root, editor, actions }) {
       option.textContent = t("ui.bus.option", { letter: busLetter(i), name: item.name });
       bus.append(option);
     });
+    const newBus = el("option");
+    newBus.value = NEW_BUS;
+    newBus.textContent = t("ui.bus.option_new");
+    bus.append(newBus);
     top.append(name, tag, bus, buttons);
     const controls = el("div", "th-controls");
     const gain = slider(t("ui.track.gain"), GAIN);
@@ -226,7 +231,16 @@ export function createTrackHeaders({ root, editor, actions }) {
         provisional: (p) => patchSolo(p, id, exclusive),
       });
     });
-    bus.addEventListener("change", () => send("bus", bus.value || null));
+    bus.addEventListener("change", () => {
+      if (bus.value !== NEW_BUS) return send("bus", bus.value || null);
+      // Create the bus and put this track on it in one step.
+      bus.value = lookup(id).bus ?? "";
+      editor.change({
+        op: "add_bus",
+        args: { track_ids: [id] },
+        label: t("ui.edit.label.group_bus"),
+      });
+    });
     gain.input.addEventListener("input", () => {
       const value = Number(gain.input.value);
       gain.output.textContent = formatDb(value);

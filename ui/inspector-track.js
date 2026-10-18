@@ -10,7 +10,8 @@ import { coalesceKey, patchBus, patchSolo, patchTrack } from "./provisional.js";
 import { busMembers, busOptions, roleKey } from "./track-target.js";
 
 // The Bus select's last option: not a bus id, it asks for a new bus.
-const NEW_BUS = "__new__";
+/** The value of the "+ New bus…" choice, in the inspector and in the track header. */
+export const NEW_BUS = "__new__";
 const GAIN = { min: -60, max: 12, step: 0.1 };
 const PAN = { min: -100, max: 100, step: 1 };
 
