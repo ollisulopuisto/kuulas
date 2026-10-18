@@ -6,7 +6,7 @@
 // The overlay redraws on requestAnimationFrame when state changed; the
 // waveform layer only when something it shows changed.
 import { candidateBands, flagFits, flagText } from "./candidates-model.js";
-import { edgeGhost, ghostGeometry, isDrag, resolveEdge } from "./edge-drag.js";
+import { edgeGhost, ghostGeometry, resolveEdge } from "./edge-drag.js";
 import { frameToX, xToFrame } from "./format.js";
 import { gateLabelFits, gatePixelRuns } from "./gate.js";
 import { busHues, fileMark, needsFileMark, seamKind } from "./grammar.js";
