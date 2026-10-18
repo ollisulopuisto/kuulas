@@ -42,6 +42,7 @@ from .media import ImportResult, MediaError
 from .messages import KuulasError, error_body, t
 from .ops import EditError
 from .peaks import PeakError
+from .playplan import PlaybackRequestError, check_skip
 from .session import (
     CLIPBOARD_EDITS,
     NoSuchEntryError,
@@ -157,6 +158,11 @@ class TransportBody(BaseModel):
     action: str
     at: int | None = None
     until: int | None = None
+    # play only: frame ranges [a, b) to jump over (crossfaded), the tape
+    # speed (negative is backward) and whether the pitch must be kept.
+    skip: list[list[int]] | None = None
+    speed: float = 1.0
+    preserve_pitch: bool = True
 
 
 class TranscribeBody(BaseModel):
@@ -234,6 +240,10 @@ def create_app(session, engine, *, language: str | None = None,
 
     @app.exception_handler(BadRequestError)
     async def _bad_request(_request: Request, e: BadRequestError):
+        return answer(e, 400)
+
+    @app.exception_handler(PlaybackRequestError)
+    async def _bad_playback(_request: Request, e: PlaybackRequestError):
         return answer(e, 400)
 
     @app.exception_handler(NoSuchEntryError)
@@ -641,7 +651,10 @@ def create_app(session, engine, *, language: str | None = None,
         if action in ("seek", "scrub") and body.at is None:
             raise BadRequestError("error.server.missing_field", field="at")
         if action == "play":
-            engine.play(body.at, body.until)
+            # Checked here too, so a bad list is a 400 whatever the engine.
+            skip = check_skip(body.skip)
+            engine.play(body.at, body.until, rate=body.speed,
+                        preserve_pitch=body.preserve_pitch, skip=skip)
         elif action == "stop":
             engine.stop()
         elif action == "seek":

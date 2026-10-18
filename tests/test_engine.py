@@ -135,8 +135,9 @@ class Rig:
         return self.streams[-1]
 
 
-@pytest.fixture
-def rig(monkeypatch):
+def install_rig(monkeypatch) -> Rig:
+    """Replace sounddevice's stream and device queries with the fakes (also
+    used by the skip and tape-rate tests)."""
     r = Rig()
     monkeypatch.setattr(sd, "OutputStream", lambda **kw: FakeStream(r, **kw))
 
@@ -154,6 +155,11 @@ def rig(monkeypatch):
     monkeypatch.setattr(sd, "_terminate", lambda: None)
     monkeypatch.setattr(sd, "_initialize", refresh)
     return r
+
+
+@pytest.fixture
+def rig(monkeypatch):
+    return install_rig(monkeypatch)
 
 
 class Clock:

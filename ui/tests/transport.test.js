@@ -81,38 +81,37 @@ describe("transport", () => {
   });
 });
 
-describe("transport: a stretch with an end (the candidate preview)", () => {
-  function withHook() {
+describe("transport: the candidate preview", () => {
+  test("preview plays `at` to `until` skipping the ranges, in one request", async () => {
     const calls = [];
     let state = { playhead: 0, playing: false };
     const transport = createTransport({
-      post: async (action, at, until) => {
-        calls.push([action, at, until]);
-        return { playing: action === "play", position: at ?? 0 };
+      post: async (action, at, until, skip) => {
+        calls.push([action, at, until, skip]);
+        return { playing: true, position: 120 };
       },
       getState: () => state,
       setState: (patch) => {
         state = { ...state, ...patch };
       },
       onError: () => {},
-      onUserAction: () => calls.push(["user"]),
     });
-    return { transport, calls };
-  }
-
-  test("playSegment plays from `at` to `until` and is not a user action", async () => {
-    const { transport, calls } = withHook();
-    await transport.playSegment(100, 300);
-    assert.deepEqual(calls, [["play", 100, 300]]);
+    await transport.preview(100, 300, [[150, 200]]);
+    assert.deepEqual(calls, [["play", 100, 300, [[150, 200]]]]);
+    assert.deepEqual(state, { playhead: 120, playing: true });
   });
 
-  test("toggle, stop, seek and play tell the hook first: a preview in progress must end", async () => {
-    const { transport, calls } = withHook();
-    await transport.toggle();
-    await transport.stop();
-    await transport.seek(5);
-    await transport.play(7);
-    assert.deepEqual(calls.filter((call) => call[0] === "user").length, 4);
-    assert.equal(calls[0][0], "user", "the hook comes before the request");
+  test("a refused preview is reported like any failed play", async () => {
+    const errors = [];
+    const transport = createTransport({
+      post: async () => {
+        throw new Error("A range to skip must be two frame numbers");
+      },
+      getState: () => ({ playhead: 0, playing: false }),
+      setState: () => {},
+      onError: (e) => errors.push(e.message),
+    });
+    await transport.preview(0, 10, [[5, 1]]);
+    assert.equal(errors.length, 1);
   });
 });

@@ -14,6 +14,7 @@ from test_history import heavy_hour, register
 
 from kuulas import cli, messages
 from kuulas.engine import EngineError
+from kuulas.playplan import PlaybackRequestError
 from kuulas.server import create_app, pick_language
 from kuulas.session import Session
 
@@ -44,8 +45,12 @@ class FakeEngine:
         return {"playing": self.playing, "position": self.position,
                 "until": self.until, "notices": list(self.notices)}
 
-    def play(self, at=None, until=None):
+    def play(self, at=None, until=None, *, rate=1.0, preserve_pitch=True, skip=None):
         self.calls.append(("play", at, until))
+        self.play_options = {"rate": rate, "preserve_pitch": preserve_pitch,
+                             "skip": skip}
+        if rate not in (1.0, -1.0) and preserve_pitch:  # as the real engine
+            raise PlaybackRequestError("error.engine.stretch_unavailable", speed=rate)
         if self.fail_play:
             raise EngineError("error.engine.no_device")
         self.playing, self.until = True, until
@@ -447,6 +452,47 @@ def test_transport_errors(client, engine):
     r = client.post("/api/transport", json={"action": "play"})
     assert r.status_code == 500
     assert r.json()["error"]["key"] == "error.engine.no_device"
+
+
+def test_transport_play_takes_a_skip_list(client, engine):
+    r = client.post("/api/transport", json={"action": "play", "at": 100, "until": 900,
+                                            "skip": [[300, 500], [600, 650]]})
+    assert r.status_code == 200
+    assert engine.calls == [("play", 100, 900)]
+    assert engine.play_options == {"rate": 1.0, "preserve_pitch": True,
+                                   "skip": ((300, 500), (600, 650))}
+
+
+def test_transport_play_without_skip_plays_everything(client, engine):
+    client.post("/api/transport", json={"action": "play", "at": 100})
+    assert engine.play_options["skip"] == ()
+
+
+@pytest.mark.parametrize("skip", [[[500, 300]], [[1]], [[1, 2, 3]], [[-5, 10]]])
+def test_transport_refuses_a_malformed_skip_with_a_translated_400(client, engine, skip):
+    r = client.post("/api/transport", json={"action": "play", "at": 0, "skip": skip})
+    assert r.status_code == 400
+    error = r.json()["error"]
+    assert error["key"] == "error.engine.bad_skip"
+    assert error["text"] != error["key"]
+    assert engine.calls == []  # nothing played
+
+
+def test_transport_refuses_a_skip_that_is_not_a_list(client, engine):
+    r = client.post("/api/transport", json={"action": "play", "skip": "soon"})
+    assert r.status_code == 400
+    assert r.json()["error"]["key"] == "error.server.bad_request"
+    assert engine.calls == []
+
+
+def test_transport_tape_speed_and_the_refused_pitch_kept_speed(client, engine):
+    r = client.post("/api/transport", json={"action": "play", "at": 0, "speed": -2.0,
+                                            "preserve_pitch": False})
+    assert r.status_code == 200
+    assert engine.play_options["rate"] == -2.0
+    r = client.post("/api/transport", json={"action": "play", "at": 0, "speed": 1.5})
+    assert r.status_code == 400
+    assert r.json()["error"]["key"] == "error.engine.stretch_unavailable"
 
 
 # -- the push channel ----------------------------------------------------------
