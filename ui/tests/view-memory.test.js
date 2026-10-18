@@ -244,7 +244,7 @@ describe("createSaver", () => {
     const calls = [];
     const timers = [];
     const saver = createSaver({
-      save: (record, options) => calls.push(options),
+      save: (_record, options) => calls.push(options),
       setTimer: (fn) => timers.push(fn) && timers.length,
       clearTimer: () => {},
     });

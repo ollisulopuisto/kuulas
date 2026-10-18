@@ -36,7 +36,15 @@ import { HELP_COMMAND, shortcutsFor } from "./help.js";
 import { createHelpPanel } from "./help-panel.js";
 import { undoNotice } from "./history-model.js";
 import { createHistoryPanel } from "./history-panel.js";
-import { formatNumber, formatShortcut, initI18n, onLanguageChange, t } from "./i18n.js";
+import {
+  formatClock,
+  formatNumber,
+  formatShortcut,
+  getLanguage,
+  initI18n,
+  onLanguageChange,
+  t,
+} from "./i18n.js";
 import { collectDroppedFiles, importOptionsFor } from "./import-drop.js";
 import { createImportPanel, panelModel } from "./import-panel.js";
 import { dragHasFiles, nativeBridge, summariseImport } from "./importing.js";
@@ -52,6 +60,7 @@ import {
   withLaneHeight,
 } from "./lane-sizing.js";
 import { clampLaneHeight, layoutFor, pointerIntent, projectEnd, RULER_HEIGHT } from "./lanes.js";
+import { leftOffHere, leftOffOf, leftOffText } from "./left-off.js";
 import { connectLive } from "./live.js";
 import { activeLoop } from "./loop-range.js";
 import { regionCount } from "./markers-model.js";
@@ -597,6 +606,12 @@ const keyboard = setupKeyboard({
         return null;
       }),
     clock: () => new Date(),
+    // A save is also where the user left off: the flag moves here and resume.json is
+    // written at once (flushView sends the record marked "now").
+    markLeftOff() {
+      setState({ leftOff: leftOffHere(getState().playhead, new Date()) });
+      flushView();
+    },
     download: (path, fallback) => downloadFile(path, fallback),
     promptText: (request) => placeholderEditor.prompt(request),
     takeFor: (id) => void takeForPlaceholder(id),
@@ -1372,6 +1387,7 @@ const clipboardPanel = createClipboardPanel({
 const markersPanel = createMarkersPanel({
   root: $("panel-markers"),
   actions: {
+    jumpLeftOff: () => keyboard.registry.run("nav.to_resume", null, getState()),
     jump(id) {
       const marker = getState().project?.markers?.find((item) => item.id === id);
       if (!marker) return;
@@ -1888,6 +1904,13 @@ function scheduleViewSave(state) {
   viewSaver.touch(currentRecord);
 }
 
+/** What leftOffText needs from the UI: translation, clock format, language. */
+const leftOffWords = () => ({
+  t,
+  clock: (seconds) => formatClock(seconds),
+  language: getLanguage(),
+});
+
 async function restoreView() {
   try {
     const { view } = await api.getViewMemory();
@@ -1904,6 +1927,13 @@ async function restoreView() {
     delete patch.scroll;
     setState(patch);
     if (patch.playhead) void transport.seek(patch.playhead);
+    // "Back where you left off": the automatic marker, and a notice for a few seconds.
+    const leftOff = leftOffOf(view, totalFrames());
+    setState({ leftOff });
+    if (leftOff) {
+      const rate = getState().project?.rate ?? 48000;
+      showNotice(leftOffText(leftOff, rate, leftOffWords(), "notice"), "ok");
+    }
   } catch (error) {
     // Nothing remembered, or the server is not reachable: start with the defaults.
     console.warn("the remembered view could not be restored", error);

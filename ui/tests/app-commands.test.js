@@ -180,6 +180,16 @@ describe("the commands the app registers", () => {
     assert.deepEqual(calls, [["toggleLoop"]]);
   });
 
+  test("nav.to_resume goes to the left-off position, and needs one", () => {
+    const state = { project, playhead: 5, leftOff: { frame: 96000, savedAt: null } };
+    const { registry, calls } = setup(state);
+    assert.equal(registry.can("nav.to_resume", {}), false);
+    assert.equal(registry.can("nav.to_resume", { project, leftOff: null }), false);
+    assert.equal(registry.can("nav.to_resume", state), true);
+    registry.run("nav.to_resume");
+    assert.deepEqual(calls, [["seek", 96000]]);
+  });
+
   test("the playhead commands need a project and move by the right amount", () => {
     const state = { project, playhead: 100000, zoom: 20 };
     const { registry, calls } = setup(state);

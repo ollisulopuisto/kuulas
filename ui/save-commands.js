@@ -14,13 +14,17 @@ const hasProject = (state) => Boolean(state?.project);
 
 /**
  * `app`: toast(text, { undo }), command(name, args) -> Promise<response | null> (null after
- * an error it has already shown, e.g. a read-only project), clock() -> Date.
+ * an error it has already shown, e.g. a read-only project), clock() -> Date,
+ * markLeftOff() (a save is also "where I left off": the playhead now, written to resume.json).
  */
 export function registerSaveCommands(registry, { app, t }) {
   registry.register(
     "app.save",
     async () => {
-      if (await app.command("save_backup", {})) app.toast(t("ui.save.done"), { undo: false });
+      if (await app.command("save_backup", {})) {
+        app.toast(t("ui.save.done"), { undo: false });
+        app.markLeftOff();
+      }
     },
     { can: hasProject, hintKey: "cmd.app.save.hint" },
   );
@@ -30,6 +34,7 @@ export function registerSaveCommands(registry, { app, t }) {
       const name = t("ui.save.checkpoint_name", { time: clockTime(app.clock()) });
       if (await app.command("save_checkpoint", { name })) {
         app.toast(t("ui.save.named", { name }), { undo: false });
+        app.markLeftOff();
       }
     },
     { can: hasProject, hintKey: "cmd.app.save_named.hint" },

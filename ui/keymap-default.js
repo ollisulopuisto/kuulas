@@ -128,6 +128,14 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.nav.end",
   },
   {
+    // The automatic "left off" marker (left-off.js). No chord: every sensible one is taken,
+    // and it is a command for the Go menu and the palette that is used once per session.
+    id: "nav.to_resume",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.nav.to_resume",
+  },
+  {
     id: "nav.back",
     keys: { mac: "ArrowLeft", other: "ArrowLeft" },
     context: "timeline",

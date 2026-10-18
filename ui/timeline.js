@@ -41,6 +41,7 @@ import {
   RULER_HEIGHT,
   visibleRows,
 } from "./lanes.js";
+import { leftOffFlag } from "./left-off.js";
 import { activeLoop } from "./loop-range.js";
 import { flagLayout, NOTCH_PX as MARKER_NOTCH_PX } from "./markers-model.js";
 import { markDrawing } from "./marks.js";
@@ -841,6 +842,48 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     }
     drawCandidateFlags(state);
     drawMarkerFlags(state);
+    drawLeftOffFlag(state);
+  }
+
+  // The automatic "left off" flag (left-off.js; not a project marker): a dashed pole and a
+  // diamond in the accent colour, so it cannot be mistaken for a marker's note-coloured
+  // pennant, and its name when there is room to the right.
+  function drawLeftOffFlag(state) {
+    const flag = leftOffFlag(state.leftOff, {
+      scroll: state.scroll,
+      zoom: state.zoom,
+      width: size.width,
+    });
+    if (!flag) return;
+    const x = Math.round(flag.x);
+    const half = MARKER_FLAG_H / 2;
+    const top = RULER_HEIGHT - 2 * half - 2;
+    overlay.fillStyle = theme.accent;
+    overlay.strokeStyle = theme.accent;
+    overlay.lineWidth = 1;
+    overlay.setLineDash([2, 2]);
+    overlay.beginPath();
+    overlay.moveTo(x + 0.5, 0);
+    overlay.lineTo(x + 0.5, top);
+    overlay.stroke();
+    overlay.setLineDash([]);
+    overlay.beginPath();
+    overlay.moveTo(x, top);
+    overlay.lineTo(x + half, top + half);
+    overlay.lineTo(x, top + 2 * half);
+    overlay.lineTo(x - half, top + half);
+    overlay.closePath();
+    overlay.fill();
+    overlay.font = `600 ${MARK_FONT_PX}px ${theme.font}`;
+    overlay.textBaseline = "middle";
+    const label = t("ui.resume.flag");
+    const w = overlay.measureText(label).width;
+    if (x + half + 3 + w < size.width) {
+      overlay.fillStyle = theme.panel;
+      overlay.fillRect(x + half + 1, 1, w + 4, RULER_HEIGHT - 3);
+      overlay.fillStyle = theme.accent;
+      overlay.fillText(label, x + half + 3, RULER_HEIGHT / 2 + 1);
+    }
   }
 
   // Markers, chapters and regions (WP19h) in the ruler, in the note colour: a marker is a
