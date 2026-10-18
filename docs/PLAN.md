@@ -2913,7 +2913,7 @@ user's first use of each feature (shown once), and a checklist of the core loop
 
 ### WP49 — Loudness monitoring with a target per track
 
-Status: open (owner request 2026-10-18). Needs WP22 (roles), WP4 (editor UI),
+Status: backend done in v26.10.18.31 (`Track.target_lufs`, role defaults, `loudness_curve`, `/api/loudness-curve`); UI open, and the UI still sends an explicit -16 to Match loudness (`DEFAULT_LOUDNESS_LUFS` in `ui/loudness-commands.js`, `matchLoudness` in `ui/app.js`: change it to use the track target). Needs WP22 (roles), WP4 (editor UI),
 the density work.
 
 Owner: "in the best possible version, the tracks would know what their target
@@ -2945,7 +2945,7 @@ the audio callback.
 
 ### WP50 — Loop playback
 
-Status: open (owner request 2026-10-18). Engine part first (Sonnet 5.5, small), UI after
+Status: engine done in v26.10.18.31 (`Engine.play(loop=)`, `status()["loop"]`); open: the `loop` field on the play request in `server.py`, the toggle, key, ruler shading and the memory. Not heard on a real device. Engine part first (Sonnet 5.5, small), UI after
 the density work. Needs the engine skip list (done) and WP4.
 
 Owner: "we need loop playback option". Nothing loops today: `Engine.play(at, until, ...)`
