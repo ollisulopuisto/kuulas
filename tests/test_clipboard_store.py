@@ -68,7 +68,8 @@ def test_pinned_entries_do_not_count_toward_the_fifty(tmp_path):
     for n in range(1, 60):
         store.update(lambda h, n=n: h.add(entry(n)))
     ids = [e.id for e in store.load().entries()]
-    assert len(ids) == 51 and "e0" in ids
+    assert len(ids) == 51
+    assert "e0" in ids
 
 
 def test_a_write_leaves_no_partial_file_and_valid_json(tmp_path):
