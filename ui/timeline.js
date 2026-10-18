@@ -1007,6 +1007,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       origin: locate(event),
       pointerId: event.pointerId,
       dragging: false,
+      seekFrame: hit.frame,
       ripple: event.shiftKey,
       raw: null,
       frame: hit.edge === "start" ? hit.clip.start : hit.clip.start + hit.clip.length,
@@ -1048,6 +1049,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     window.removeEventListener("keyup", edgeKey, true);
     overlayCanvas.releasePointerCapture?.(session.pointerId);
     requestOverlay();
+    if (commit && !session.dragging) actions.seek?.(session.seekFrame);
     if (commit && session.dragging) {
       actions.edgeDrag({
         clipId: session.clipId,
@@ -1096,9 +1098,14 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     overlayCanvas.focus();
     const hit = hitAt(event);
     const before = getState().selection; // the press may replace it; a move takes the old one
-    actions.pointerDown(hit, event);
     const zone = event.shiftKey ? null : tweakZone(hit, event, before);
     const moving = !zone && !event.shiftKey && !event.altKey && canStartClipDrag(hit);
+    // Adjusting a clip (move, trim, gain, fade) must not drag the play cursor along: the press
+    // selects, and the cursor goes there on release only when the press turned out to be a click.
+    const adjusting = Boolean(
+      zone || moving || (hit.clip && hit.edge && hit.row?.kind === "track"),
+    );
+    actions.pointerDown(hit, event, { noSeek: adjusting });
     if (!zone && !moving && canStartRangeDrag(hit, event.shiftKey, event.altKey))
       beginRangeDrag(event, hit);
     if (hit.clip && hit.edge && hit.row?.kind === "track") startEdge(hit, event);
@@ -1137,6 +1144,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       origin: locate(event),
       pointerId: event.pointerId,
       dragging: false,
+      seekFrame: hit.frame,
       start: zone.kind === "gain" ? (clip.gain_db ?? 0) : clip[`fade_${zone.side}`],
       grab: zone.kind === "gain" ? gainGrab(clip, hit.row.height, rowYOf(event, hit)) : 0,
       value: null,
@@ -1186,6 +1194,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     window.removeEventListener("keydown", tweakKey, true);
     overlayCanvas.releasePointerCapture?.(session.pointerId);
     if (cancel && session.dragging && session.value !== null) sendTweak(session, session.start);
+    if (!cancel && !session.dragging) actions.seek?.(session.seekFrame);
     requestOverlay();
   }
 
@@ -1211,6 +1220,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       origin: locate(event),
       pointerId: event.pointerId,
       dragging: false,
+      seekFrame: hit.frame,
       move: { delta: 0, direction: 0 },
     };
     overlayCanvas.setPointerCapture?.(event.pointerId);
@@ -1242,6 +1252,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     window.removeEventListener("keydown", clipKey, true);
     overlayCanvas.releasePointerCapture?.(session.pointerId);
     requestOverlay();
+    if (commit && !session.dragging) actions.seek?.(session.seekFrame);
     if (commit && session.dragging) actions.clipDrag({ ids: session.ids, move: session.move });
   }
 

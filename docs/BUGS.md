@@ -9,6 +9,7 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 
 | # | Raised | Issue | Notes |
 |---|---|---|---|
+| 21 | 18.10 | Question: how to limit I-O + Cmd+C to one track, or to several | answered in chat: focus a track (and switch group editing off with E), or drag the range across the lanes wanted; a dedicated key/menu to pick tracks for the range is not built |
 | 3 | 18.10 | Dropbox: the project lock must work with a synced folder (showstopper) | Built (per-host `locks/`, v26.10.18.63) but never tried against a real Dropbox. Move to "fixed, please check" after a real two-computer test. |
 
 ## Fixed, please check
@@ -30,6 +31,9 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 | 16 | 18.10 | Tab and Shift+Tab did not always work: after a click on a track header the keys still thought the transcript had focus; word stops could be stale after edits | v26.10.18.64 |
 | 17 | 18.10 | Tab scope: Alt+Tab cycles words / clip borders / sounds (replaces Shift+T on the Mac) | v26.10.18.64 |
 | 18 | 18.10 | Right-click context menus on clips, ranges, empty lane and ruler | merged, not tried in a browser |
+| 22 | 18.10 | Every clip deleted with X went to the clipboard (bad) | X and Shift+X are now "Delete and close the gap" (op `cut_range`, clipboard untouched); Mod+X and Shift+Mod+X are Cut to the clipboard |
+| 23 | 18.10 | Esc should clear the in/out marks from the timeline | Esc now clears selection, range and in/out in one press |
+| 24 | 18.10 | Adjusting clips (move, trim, gain, fades) moved the play cursor there | the press no longer seeks; the cursor goes there on release only if the press was a plain click. Not seen on screen. |
 | 20 | 18.10 | Cmd+Alt+click on a clip should select it and all following clips on all tracks (Hindenburg) | this commit; not tried by the owner |
 | 19 | 18.10 | X should work almost anywhere when in/out are marked | X, Shift+X, Alt+X and Alt+Mod+X now work from any panel (inspector, history, clipboard, markers, candidates) except text fields and the transcript, where X cuts the selected words |
 

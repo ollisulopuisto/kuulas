@@ -411,7 +411,7 @@ export const commands = { [GATE_OPEN_COMMAND]: () => openGateStretch() };
 
 // -- pointer on the timeline ------------------------------------------------------
 
-function onPointerDown(hit, event) {
+function onPointerDown(hit, event, { noSeek = false } = {}) {
   // The click rule lives in lanes.js pointerIntent (tested): anywhere in the
   // lane area sets the play cursor, a clip is also selected, Shift only toggles.
   const mod = heldFromEvent(event, detectPlatform()).mod;
@@ -443,7 +443,7 @@ function onPointerDown(hit, event) {
   else if (intent.selection === "toggle")
     patch.selection = toggleGroupSelection(state.project, state.selection, intent.clip.id);
   setState(patch);
-  if (intent.seek !== null) void transport.seek(intent.seek);
+  if (intent.seek !== null && !noSeek) void transport.seek(intent.seek);
 }
 
 // A dragged range (WP6) is the in and out marks, so every edit that acts on marks acts on
@@ -1579,6 +1579,7 @@ const timeline = createTimeline({
   getState,
   actions: {
     pointerDown: onPointerDown,
+    seek: (frame) => void transport.seek(frame),
     contextMenu: (hit, event) => showTimelineMenu(hit, event),
     rangeDragged: onRangeDragged,
     clipDrag({ ids, move }) {
