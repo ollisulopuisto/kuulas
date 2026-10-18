@@ -1,3 +1,11 @@
+## [v26.10.18.42] - 2026-10-18
+
+- **Drag to mark a range:** drag across a lane's waveform or empty space to set the in and out marks;
+  X, Backspace, Mod+C, play selection and the loop then act on that range. Esc cancels.
+- **In and out marks:** a lone mark is drawn now (before, nothing appeared until both were set), and the
+  marks can no longer reverse: an out mark before the in mark replaces the in mark, and an in
+  mark after the out mark replaces the out mark.
+
 ## [v26.10.18.41] - 2026-10-18
 
 - **Track heights:** View > "Fit tracks to window" sizes all lanes to fill the window; "Auto-fit
