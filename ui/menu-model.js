@@ -3,11 +3,15 @@
 // the registry and the keymap the user has, so a remapped key shows at once.
 // Holding Alt or Shift swaps an item for its alternate (modifiers.js).
 
+import { ALWAYS_AVAILABLE, EXPORT_FORMAT_IDS } from "./export-commands.js";
 import { formatCombo } from "./keymap-config.js";
 import { modifierLayers, pickLayer } from "./modifiers.js";
 
 const item = (id) => ({ kind: "item", id });
 const SEP = { kind: "separator" };
+// A submenu whose items are one command per export format the server offers:
+// `formatPrefix` + the format id (resolveMenu's `formats` lists the ids).
+const formatMenu = (labelKey, formatPrefix) => ({ kind: "submenu", labelKey, formatPrefix });
 
 export const MENU = [
   {
@@ -16,7 +20,9 @@ export const MENU = [
     items: [
       item("app.import"),
       item("app.export"),
+      formatMenu("menu.export_mix", "export.mix_"),
       item("export.tracks"),
+      formatMenu("menu.export_tracks_as", "export.tracks_"),
       SEP,
       item("export.subtitles_srt"),
       item("export.subtitles_vtt"),
@@ -178,7 +184,9 @@ export function menuTargets(menu) {
   const walk = (items) => {
     for (const entry of items) {
       if (entry.kind === "item") ids.push(entry.id);
-      else if (entry.kind === "submenu") walk(entry.items);
+      else if (entry.formatPrefix) {
+        for (const format of EXPORT_FORMAT_IDS) ids.push(entry.formatPrefix + format);
+      } else if (entry.kind === "submenu") walk(entry.items);
     }
   };
   for (const top of menu) walk(top.items);
@@ -189,8 +197,10 @@ export function menuTargets(menu) {
  * -> [{ id, label, items: [{ kind: "item", id, baseId, label, keys, enabled, planned,
  *    alternate, hint, tooltip } | { kind: "separator" } | { kind: "submenu", label, items }] }]
  * `keys` is the first key of the command ("" when it has none), `held` the modifiers down.
+ * `formats`: the export format ids the server offers, in its order (the always-available
+ * ones while that is not known yet), for the submenus that list one command per format.
  */
-export function resolveMenu({ menu, entries, registry, state, label, platform, held }) {
+export function resolveMenu({ menu, entries, registry, state, label, platform, held, formats }) {
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
   const layers = modifierLayers(entries, platform);
   const none = { alt: false, shift: false, mod: false };
@@ -221,6 +231,14 @@ export function resolveMenu({ menu, entries, registry, state, label, platform, h
   function resolveItems(items) {
     return items.map((entry) => {
       if (entry.kind === "separator") return entry;
+      if (entry.formatPrefix) {
+        const ids = (formats ?? ALWAYS_AVAILABLE).filter((id) => EXPORT_FORMAT_IDS.includes(id));
+        return {
+          kind: "submenu",
+          label: label(entry.labelKey),
+          items: ids.map((id) => resolveItem(entry.formatPrefix + id)),
+        };
+      }
       if (entry.kind === "submenu") {
         return { kind: "submenu", label: label(entry.labelKey), items: resolveItems(entry.items) };
       }
