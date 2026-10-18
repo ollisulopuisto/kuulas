@@ -260,6 +260,7 @@ class Session:
         #: not opened since it was moved into projects.
         self.shared_clipboard = shared_clipboard or ClipboardStore()
         self._move_shared_history()
+        self._reconcile_shared_flags()
         self.jobs = Jobs()
         #: Folder of the last "Export all tracks" this run made, for Show in Finder.
         self.last_export_folder: str | None = None
@@ -494,6 +495,28 @@ class Session:
         except OSError as e:
             log.warning(t("log.clipboard.move_failed", error=str(e)))
 
+    def _reconcile_shared_flags(self) -> None:
+        """The shared store is what says whether an entry is shared: an own
+        entry flagged shared that the shared store no longer has (unshared from
+        another project's Shared view, or the file was lost) loses its flag.
+        Same rules as ``_move_shared_history``: not read-only, never raises."""
+        if self.read_only:
+            return
+        try:
+            flagged = [e.id for e in self.clipboard.load().entries() if e.shared]
+            if not flagged:
+                return
+            have = {e.id for e in self.shared_clipboard.load().entries()}
+            stale = [i for i in flagged if i not in have]
+            if stale:
+                def clear(history):
+                    for entry_id in stale:
+                        history.set_shared(entry_id, False)
+
+                self.clipboard.update(clear)
+        except OSError as e:
+            log.warning(t("log.clipboard.move_failed", error=str(e)))
+
     def _describe(self, entry: Entry) -> Entry:
         """``entry`` with what only the session knows (WP65): this project's
         folder, name and manifest id, and the transcript words inside the
@@ -521,6 +544,40 @@ class Session:
         project lacks."""
         project = self.state
         return [self._entry_view(e, project) for e in self.clipboard.load().entries()]
+
+    def clipboard_shared(self) -> list[dict]:
+        """The shared store, newest first, in the same view as ``clipboard_list``
+        (the missing-here count is against this project)."""
+        project = self.state
+        return [self._entry_view(e, project)
+                for e in self.shared_clipboard.load().entries()]
+
+    def clipboard_share(self, entry_id: str, shared: bool = True) -> None:
+        """Mark one of this project's entries as worth sharing, or take it back.
+
+        Marking puts a copy (same id, ``shared`` true) into the shared store and
+        flags the own entry; unmarking removes the shared copy and clears the
+        flag. The id may also be one that only the shared store has (another
+        project's): unmarking then removes it from the shared store, and that
+        project's own flag is cleaned up when it opens. The shared store is
+        written first, so a failure leaves the flag unset rather than set for
+        nothing. Not project state: no undo step."""
+        own = self.clipboard.load().get(entry_id)
+        try:
+            if shared:
+                if own is None:
+                    raise NoSuchEntryError("error.clipboard.no_entry", entry_id=entry_id)
+                copy = replace(own, shared=True)
+                self.shared_clipboard.update(lambda h: h.put(copy))
+            else:
+                known = self.shared_clipboard.update(
+                    lambda h: h.remove([entry_id]) > 0)
+                if own is None and not known:
+                    raise NoSuchEntryError("error.clipboard.no_entry", entry_id=entry_id)
+        except OSError as e:
+            raise ops.EditError("error.clipboard.write_failed", error=str(e)) from None
+        if own is not None:
+            self._change_history(entry_id, lambda h: h.set_shared(entry_id, shared))
 
     def clipboard_preview(self, entry_id: str):
         """``(temporary project or None, missing media count)`` for playing an
@@ -695,12 +752,24 @@ class Session:
         self._change_history(entry_id, lambda h: h.pin(entry_id) if pinned
                              else h.unpin(entry_id))
 
+    def _follow_shared(self, entry_id: str, change: Callable) -> None:
+        """Apply ``change`` to the shared copy of an entry, if there is one. The
+        shared copy is a convenience: a failure here is a warning, and the
+        project's own entry (already changed) is what counts."""
+        try:
+            self.shared_clipboard.update(
+                lambda h: change(h) if h.get(entry_id) is not None else None)
+        except OSError as e:
+            log.warning(t("log.clipboard.copy_failed", error=str(e)))
+
     def clipboard_rename(self, entry_id: str, name: str) -> None:
         clean = str(name).strip()[:200]
         self._change_history(entry_id, lambda h: h.rename(entry_id, clean))
+        self._follow_shared(entry_id, lambda h: h.rename(entry_id, clean))
 
     def clipboard_delete(self, entry_id: str) -> None:
         self._change_history(entry_id, lambda h: h.delete(entry_id))
+        self._follow_shared(entry_id, lambda h: h.delete(entry_id))
 
     # -- history -----------------------------------------------------------
 

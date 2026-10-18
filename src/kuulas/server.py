@@ -134,6 +134,10 @@ class RenameBody(BaseModel):
     name: str
 
 
+class ShareBody(BaseModel):
+    shared: bool
+
+
 class ClearOldBody(BaseModel):
     keep: int = Field(100, ge=1)
 
@@ -397,6 +401,16 @@ def create_app(session, engine, *, language: str | None = None,
     @app.get("/api/clipboard")
     def get_clipboard():
         return JSONResponse({"entries": session.clipboard_list()})
+
+    @app.get("/api/clipboard/shared")
+    def get_clipboard_shared():
+        return JSONResponse({"entries": session.clipboard_shared()})
+
+    @app.post("/api/clipboard/{entry_id}/share")
+    def post_clipboard_share(entry_id: str, body: ShareBody):
+        session.clipboard_share(entry_id, body.shared)
+        return JSONResponse({"entries": session.clipboard_list(),
+                             "shared": session.clipboard_shared()})
 
     @app.post("/api/clipboard/copy")
     def post_clipboard_copy(body: CopyBody):

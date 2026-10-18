@@ -349,6 +349,18 @@ class ClipboardHistory:
         if self.max_entries is not None:
             self._entries = prune_entries(self._entries, self.max_entries)
 
+    def put(self, entry: Entry) -> None:
+        """Replace the entry with ``entry``'s id in place, or add it at the front."""
+        if any(item.id == entry.id for item in self._entries):
+            self._entries = [entry if item.id == entry.id else item
+                             for item in self._entries]
+        else:
+            self.add(entry)
+
+    def set_shared(self, entry_id: str, shared: bool) -> None:
+        """Mark an entry as shared (or not); the flag only, nothing moves."""
+        self._replace(entry_id, shared=bool(shared))
+
     def merge(self, entries: Iterable[Entry]) -> int:
         """Add the entries whose id is not here yet; return how many came in.
         The list stays newest first (by ``created_utc``, ties keep their place)."""
