@@ -273,13 +273,14 @@ describe("AltGr", () => {
 });
 
 describe("keyboard focus", () => {
-  test("the order is timeline, transcript, inspector, candidates, clipboard, history", () => {
+  test("the order is timeline, transcript, inspector, candidates, clipboard, markers, history", () => {
     assert.deepEqual(PANELS, [
       "timeline",
       "transcript",
       "inspector",
       "candidates",
       "clipboard",
+      "markers",
       "history",
     ]);
   });

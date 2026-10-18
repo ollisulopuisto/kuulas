@@ -50,6 +50,8 @@ export const initialState = () => ({
   candidateBusy: false,
   candidateFound: null,
   candidatePreview: null,
+  // The marker picked in the Markers tab or by Next/Previous (WP19h); null for none.
+  markerSelected: null,
   playhead: 0,
   inPoint: null,
   outPoint: null,

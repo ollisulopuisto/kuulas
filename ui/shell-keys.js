@@ -40,6 +40,7 @@ export const CONTEXT_OF_PANEL = {
   inspector: "side",
   candidates: "candidates",
   clipboard: "side",
+  markers: "side",
   history: "side",
   help: "side",
 };
