@@ -60,16 +60,17 @@ describe("trackRowsTouched", () => {
 
 describe("canStartRangeDrag", () => {
   const lane = { area: "lane", row: trackRow("a", 0), clip: null, edge: null, point: null };
-  test("empty lane and waveform start a drag", () => {
+  test("an empty lane starts a drag; over a clip only with Shift", () => {
     assert.equal(canStartRangeDrag(lane), true);
-    assert.equal(canStartRangeDrag({ ...lane, clip: { id: "x" } }), true);
+    assert.equal(canStartRangeDrag({ ...lane, clip: { id: "x" } }), false);
+    assert.equal(canStartRangeDrag({ ...lane, clip: { id: "x" } }, true), true);
   });
   test("not on the ruler, a bus row, a trim edge or an envelope point", () => {
     assert.equal(canStartRangeDrag({ ...lane, area: "ruler", row: null }), false);
     assert.equal(canStartRangeDrag({ ...lane, row: { kind: "bus", id: "b" } }), false);
     assert.equal(canStartRangeDrag({ ...lane, row: null }), false);
-    assert.equal(canStartRangeDrag({ ...lane, clip: { id: "x" }, edge: "start" }), false);
-    assert.equal(canStartRangeDrag({ ...lane, clip: { id: "x" }, point: 0 }), false);
+    assert.equal(canStartRangeDrag({ ...lane, clip: { id: "x" }, edge: "start" }, true), false);
+    assert.equal(canStartRangeDrag({ ...lane, clip: { id: "x" }, point: 0 }, true), false);
     assert.equal(canStartRangeDrag(null), false);
   });
 });

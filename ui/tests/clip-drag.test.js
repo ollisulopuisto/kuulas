@@ -46,7 +46,8 @@ describe("the grab zone", () => {
     assert.equal(canStartClipDrag({ clip, edge: null, point: null, row }, 5), true);
     assert.equal(canStartClipDrag({ clip, edge: "end", point: null, row }, 5), false);
     assert.equal(canStartClipDrag({ clip, edge: null, point: 0, row }, 5), false);
-    assert.equal(canStartClipDrag({ clip, edge: null, point: null, row }, 60), false);
+    // The whole clip body moves it (owner, 2026-10-18: Hindenburg's way), not only the strip.
+    assert.equal(canStartClipDrag({ clip, edge: null, point: null, row }, 60), true);
     assert.equal(canStartClipDrag({ clip: null, edge: null, point: null, row }, 5), false);
     assert.equal(
       canStartClipDrag({ clip, edge: null, point: null, row: { kind: "bus" } }, 5),

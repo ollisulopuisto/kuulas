@@ -16,10 +16,13 @@ export function inMoveZone(rowY) {
   return rowY >= 0 && rowY < MOVE_STRIP_PX;
 }
 
-/** A press may start a move on a clip's body: not on its trim edges or an envelope point. */
-export function canStartClipDrag(hit, rowY) {
+/**
+ * A press may start a move anywhere on a clip's body (Hindenburg's way, owner 2026-10-18):
+ * not on its trim edges or an envelope point. A range over a clip takes Shift+drag.
+ */
+export function canStartClipDrag(hit) {
   if (!hit?.clip || hit.row?.kind !== "track") return false;
-  return hit.edge == null && hit.point == null && inMoveZone(rowY);
+  return hit.edge == null && hit.point == null;
 }
 
 /** The clips a drag of `pressedId` moves: the selection if it holds that clip, else the clip. */

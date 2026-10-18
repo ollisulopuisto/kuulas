@@ -31,10 +31,12 @@ export function trackRowsTouched(layout, y0, y1) {
 }
 
 /**
- * A press may start a range drag in a track's empty part or waveform, but not on a clip's
- * trim zone or an envelope point (those keep their own behaviour), the ruler or a bus row.
+ * A press may start a range drag in a track's empty part, or over a clip with Shift held (a
+ * plain drag on a clip moves it, as in Hindenburg), but not on a clip's trim zone or an
+ * envelope point (those keep their own behaviour), the ruler or a bus row.
  */
-export function canStartRangeDrag(hit) {
+export function canStartRangeDrag(hit, shift = false) {
   if (!hit || hit.area !== "lane" || hit.row?.kind !== "track") return false;
-  return hit.edge == null && hit.point == null;
+  if (hit.edge != null || hit.point != null) return false;
+  return hit.clip == null || shift === true;
 }

@@ -1,3 +1,9 @@
+## [v26.10.18.54] - 2026-10-18
+
+- **Dragging a clip moves it, as in Hindenburg:** a plain drag anywhere on a clip's body moves it (it was only
+  the top strip). To mark a range over a clip, hold **Shift** and drag; a plain drag on empty lane space
+  still marks a range. Edges still trim, the gain line and fade corners still work.
+
 ## [v26.10.18.53] - 2026-10-18
 
 - **Selection commands** (Edit > Select, and the palette): select the range on all tracks, the clips a range

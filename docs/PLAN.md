@@ -848,6 +848,8 @@ All on the canvas, hit-testing in `timeline.js` (pure function, tested):
 
 - Click clip: select (Shift+click adds, Mod+click toggles). Click empty
   space: clear selection, set playhead.
+- **Drag rules (owner, 2026-10-18, Hindenburg's way):** a plain drag on a clip body MOVES it; Shift+drag over a clip, or a plain
+  drag on empty lane space, marks a range; edges trim; gain line and fade corners as built.
 - **Drag a range to edit it (owner, 2026-10-18):** press, move and release in the lanes selects a
   time range: dragging across the waveform area of one lane selects that track's range, dragging
   vertically across lanes selects the range on every lane it touches (a band is drawn over the

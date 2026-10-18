@@ -935,7 +935,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     let cursor = hit.clip && hit.edge && hit.row?.kind === "track" ? "ew-resize" : "";
     const zone = tweakZone(hit, event, state.selection);
     if (!cursor && zone) cursor = zone.kind === "gain" ? "ns-resize" : "ew-resize";
-    if (!cursor && canStartClipDrag(hit, rowYOf(event, hit))) cursor = "grab";
+    if (!cursor && canStartClipDrag(hit)) cursor = "grab";
     if (overlayCanvas.style.cursor !== cursor) overlayCanvas.style.cursor = cursor;
   });
   overlayCanvas.addEventListener("pointerleave", () => {
@@ -1061,8 +1061,8 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     const before = getState().selection; // the press may replace it; a move takes the old one
     actions.pointerDown(hit, event);
     const zone = event.shiftKey ? null : tweakZone(hit, event, before);
-    const moving = !zone && !event.shiftKey && canStartClipDrag(hit, rowYOf(event, hit));
-    if (!event.shiftKey && !zone && !moving && canStartRangeDrag(hit)) beginRangeDrag(event, hit);
+    const moving = !zone && !event.shiftKey && canStartClipDrag(hit);
+    if (!zone && !moving && canStartRangeDrag(hit, event.shiftKey)) beginRangeDrag(event, hit);
     if (hit.clip && hit.edge && hit.row?.kind === "track") startEdge(hit, event);
     else if (zone) startTweak(hit, event, zone);
     else if (moving) startClip(hit, event, before);
