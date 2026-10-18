@@ -1187,5 +1187,15 @@
   "ui.export.show_in_finder": "Näytä Finderissä",
   "ui.export.cancelled": "Vienti peruutettiin.",
   "ui.range.clips_one": "1 leike",
-  "ui.range.clips_many": "{count} leikettä"
+  "ui.range.clips_many": "{count} leikettä",
+  "cmd.track.cycle_kind": "Vaihda raidan tyyppiä",
+  "cmd.track.cycle_kind.hint": "Vaihtaa valitun raidan puheen, puhemiksauksen ja musiikin välillä.",
+  "ui.edit.label.track_kind": "Raidan tyyppi",
+  "ui.edit.toast.track_kind.speech": "{name}: puhe",
+  "ui.edit.toast.track_kind.speech-mix": "{name}: puhemiksaus",
+  "ui.edit.toast.track_kind.music": "{name}: musiikki",
+  "ui.track.kind.cycle": "{kind} (vaihda napsauttamalla)",
+  "ui.track.speaker": "Puhuja",
+  "ui.track.speaker.hint": "Saman puhujan raidat lasketaan analyysissa yhdeksi mikrofoniksi. Tyhjä: raidan nimi.",
+  "ui.track.speaker.shared": "Jakaa mikrofonin: {names}"
 }

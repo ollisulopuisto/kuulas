@@ -81,6 +81,7 @@ const WORKING = [
   "track.mute",
   "track.solo",
   "track.solo_add",
+  "track.cycle_kind",
   "group.toggle",
   "edit.trim_start",
   "edit.trim_end",
@@ -104,6 +105,20 @@ describe("the editing commands", () => {
       assert.ok(ids.has(id), `${id} has a keymap entry`);
       assert.equal(registry.status(id), "ready", id);
     }
+  });
+
+  test("Alt+Mod+K cycles the focused track's kind: one set_track edit and a toast", () => {
+    const keys = DEFAULT_KEYMAP.find((e) => e.id === "track.cycle_kind").keys;
+    assert.deepEqual(keys, { mac: "Alt+Mod+K", other: "Alt+Mod+K" });
+    const state = base({
+      project: { ...project, tracks: [{ id: "A", name: "Anna", kind: "music", clips: [] }] },
+    });
+    const h = setup(state);
+    assert.equal(h.registry.run("track.cycle_kind", null, state), true);
+    assert.equal(h.sent.length, 1);
+    assert.deepEqual(h.sent[0].args, { track_id: "A", kind: "speech" });
+    h.sent[0].done({ project: state.project });
+    assert.match(h.toasts[0][0], /^ui\.edit\.toast\.track_kind\.speech/);
   });
 
   test("Alt+X is lift-cut and Alt+Mod+X closes the gap on all tracks", () => {

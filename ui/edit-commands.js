@@ -26,6 +26,7 @@ import {
   ungroupPlan,
 } from "./edit-plans.js";
 import { selectAllIds } from "./selection.js";
+import { cycleKindPlan } from "./track-kind.js";
 
 /**
  * `app`: getState, patch(statePatch), edit(change) (the editor's change), toast(text,
@@ -116,6 +117,7 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
   planned("track.mute", trackMutePlan);
   planned("track.solo", (s) => soloPlan(s, true));
   planned("track.solo_add", (s) => soloPlan(s, false));
+  planned("track.cycle_kind", cycleKindPlan);
   planned("bus.mute", busMutePlan);
   planned("bus.ungroup", ungroupPlan);
   planned("track.remove_from_bus", removeFromBusPlan);

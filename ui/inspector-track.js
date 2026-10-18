@@ -7,6 +7,7 @@
 import { bindToggle } from "./ab-value.js";
 import { t } from "./i18n.js";
 import { coalesceKey, patchBus, patchSolo, patchTrack } from "./provisional.js";
+import { laneMates, speakerArgs } from "./track-kind.js";
 import { busMembers, busOptions, roleOptionKey, TRACK_KINDS } from "./track-target.js";
 
 // The Bus select's last option: not a bus id, it asks for a new bus.
@@ -179,6 +180,30 @@ export function buildTrackSections({ target, editor, place, latest, onBusCreated
     role.title = t("ui.track.role.hint");
     role.addEventListener("change", () => send("kind", role.value));
     into.append(field(t("ui.track.role"), role));
+    // Speaker: blank means the track name; same speaker = one microphone in the analysis.
+    const speaker = document.createElement("input");
+    speaker.type = "text";
+    speaker.className = "inspector-name";
+    speaker.setAttribute("aria-label", t("ui.track.speaker"));
+    speaker.autocomplete = "off";
+    speaker.title = t("ui.track.speaker.hint");
+    const finishSpeaker = () => {
+      const current = lookup();
+      const args = speakerArgs(current, speaker.value);
+      if (args.speaker !== (current.speaker ?? "")) send("speaker", args.speaker);
+      else speaker.value = current.speaker ?? "";
+    };
+    speaker.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        finishSpeaker();
+      } else if (event.key === "Escape") speaker.value = lookup().speaker ?? "";
+    });
+    speaker.addEventListener("blur", finishSpeaker);
+    into.append(field(t("ui.track.speaker"), speaker));
+    const mates = readonly("");
+    mates.hidden = true;
+    into.append(mates);
     const { gain, pan } = levels(into, {
       gainLabel: t("ui.track.gain"),
       panLabel: t("ui.track.pan"),
@@ -223,6 +248,13 @@ export function buildTrackSections({ target, editor, place, latest, onBusCreated
       if (!current) return;
       setIfIdle(name, current.name);
       if (document.activeElement !== role) role.value = current.kind;
+      speaker.placeholder = current.name;
+      setIfIdle(speaker, current.speaker ?? "");
+      const sharing = laneMates(state.project, id);
+      mates.hidden = sharing.length === 0;
+      mates.textContent = t("ui.track.speaker.shared", {
+        names: sharing.map((item) => item.name).join(", "),
+      });
       setIfIdle(gain, round1(current.gain_db));
       setIfIdle(pan, Math.round(current.pan * 100));
       state.project.buses.forEach((item, i) => {
