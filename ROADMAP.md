@@ -286,6 +286,11 @@ WP27, WP38, WP42, WP47.
   and solo; badges A, A1, A1a; eight bus hues), no tags. These are no longer parked; they are
   built after the density work. Still open: the designer's further questions 14 to 19 in
   `docs/design/GUI-DESIGN.md`.
+- **Decided by the owner, 2026-10-18 (designer's questions 18, 19, 21, 22):** nested-bus badges
+  A / A1 / A1a and no tags; help "Follow what I select" on by default; the sample project for
+  onboarding is a 3-minute scripted interview recorded for kuulas (needs recording; a script is
+  to be written). Question 11 (what clicking a collapsed bus selects) is open: the owner wants
+  to try buses first, so a way to create and assign a bus is being built (UI).
 - **Owner on packaging, 2026-10-18:** speechmix and nhsx get published as real packages
   (not a private git dependency). Needs work in the podcast repo; `PODCAST_READ_TOKEN`
   is still needed for CI until then.
