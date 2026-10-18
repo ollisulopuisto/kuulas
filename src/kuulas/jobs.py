@@ -35,8 +35,13 @@ class _Progress:
     def cancelled(self) -> bool:
         return self.cancelled_event.is_set()
 
-    def __call__(self, value: float) -> None:
-        self.jobs._checkpoint(self.job_id, value, self.cancelled_event)
+    def __call__(self, value: float, message: str | None = None,
+                 indeterminate: bool = False) -> None:
+        """``value`` 0..1. ``message`` (a line to show beside the bar) and
+        ``indeterminate`` (the bar cannot say how far it is) are for work whose
+        progress is not a number, e.g. a child process that prints lines."""
+        self.jobs._checkpoint(self.job_id, value, self.cancelled_event,
+                              message, indeterminate)
 
 
 @dataclass
@@ -76,6 +81,7 @@ class Jobs:
                 raise KuulasError("error.jobs.closed")
             self._items[job_id] = {"id": job_id, "kind": kind, "title": title,
                                    "progress": 0.0, "state": "queued", "error": None,
+                                   "message": "", "indeterminate": False,
                                    "remaining_seconds": None, "created": time.monotonic(),
                                    "started": None}
             self._work[job_id] = work
@@ -102,7 +108,8 @@ class Jobs:
                 work.on_done(value)
             with self._lock:
                 item = self._items[job_id]
-                item.update(state="completed", progress=1.0, remaining_seconds=0)
+                item.update(state="completed", progress=1.0, remaining_seconds=0,
+                            indeterminate=False)
                 if work.keep_result:
                     item["result"] = value
         except JobCancelledError:
@@ -139,12 +146,15 @@ class Jobs:
             self._active = max(0, self._active - 1)
             self._gate.notify_all()
 
-    def _checkpoint(self, job_id: str, value: float,
-                    cancelled: threading.Event) -> None:
+    def _checkpoint(self, job_id: str, value: float, cancelled: threading.Event,
+                    message: str | None = None, indeterminate: bool = False) -> None:
         with self._gate:
             item = self._items.get(job_id)
             if item is not None:
                 item["progress"] = max(item["progress"], min(1.0, max(0.0, value)))
+                item["indeterminate"] = bool(indeterminate)
+                if message is not None:
+                    item["message"] = message
             if not self._interactive:
                 return
             self._active = max(0, self._active - 1)
@@ -170,7 +180,7 @@ class Jobs:
                     progress = item["progress"]
                     copy["remaining_seconds"] = (
                         round(elapsed * (1 - progress) / progress)
-                        if progress > 0 else None)
+                        if progress > 0 and not item["indeterminate"] else None)
                 result.append(copy)
             return result
 

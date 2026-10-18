@@ -1024,6 +1024,12 @@ export const DEFAULT_KEYMAP = [
     })),
   ),
   {
+    id: "export.automix",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.export.automix",
+  },
+  {
     id: "export.regions",
     keys: { mac: null, other: null },
     context: "global",

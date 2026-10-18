@@ -3396,7 +3396,7 @@ searchable/filterable later ("show only red"). Never changes the sound or the wa
 
 ### WP68 — Mixing with the automixer from inside kuulas (owner, 2026-10-19)
 
-Status: open, requested. Owner: "I'd love a more integrated experience there without exporting wav files".
+Status: step 1 built (v26.10.19.1, untested against the real automixer); step 2 open. Owner: "I'd love a more integrated experience there without exporting wav files".
 Two steps:
 1. **Quick win: "Mix with automixer…"** (File menu and palette). It writes the stems and `tracks.json` to a
    temporary folder (the same code as Export all tracks), runs the automixer on them as a background job with

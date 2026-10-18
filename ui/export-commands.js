@@ -95,7 +95,8 @@ export async function exportRequest({ format, ask, bridge, hint, onAsk }) {
  * exportTracks(format?, { ask }) -> Promise (asks for a folder when `ask`, then starts the track export, WAV unless a format id is given,
  * and follows its job), exportMix(format, { ask }) -> Promise (the same for the mix),
  * exportFormats() -> the ids of the formats the server offers (null until fetched),
- * exportRegions() -> Promise (queues the one region job; the jobs list shows its progress).
+ * exportRegions() -> Promise (queues the one region job; the jobs list shows its progress),
+ * automix() -> opens the "Mix with the automixer" dialog (WP68).
  */
 export function registerExportCommands(registry, { app, t }) {
   for (const { id, path, file } of EXPORTS) {
@@ -144,6 +145,10 @@ export function registerExportCommands(registry, { app, t }) {
       },
     );
   }
+  registry.register("export.automix", () => void app.automix(), {
+    can: hasTracks,
+    hintKey: "cmd.export.automix.hint",
+  });
   registry.register("export.regions", () => void app.exportRegions(), {
     can: hasRegions,
     hintKey: "cmd.export.regions.hint",

@@ -56,6 +56,7 @@ from . import (
     transcript,
     transcript_text,
 )
+from . import automix as automix_module
 from . import chapters as chapters_module
 from . import db as dbm
 from . import export as export_module
@@ -755,6 +756,31 @@ class Session:
     def export_mix(self, args: dict | None = None) -> list[str]:
         """Queue ONE job that exports the mix as one file (see ``mix_export_args``)."""
         return self._export_job(self.mix_export_args(args), t("job.export_mix"))
+
+    def automix(self, params: dict | None = None) -> list[str]:
+        """Queue ONE job that mixes the edit with the automixer (WP68): stems to a
+        temporary folder, the tool, the mix beside the project. ``params``:
+        ``target_lufs``, ``ad_spot``, ``ad_duration``, ``extra_args``. Bad
+        numbers and a read-only project fail now. The job's ``result`` is
+        ``{"path", "name", "log", "command"}``; ``last_export_folder`` becomes its
+        folder."""
+        params = dict(params or {})
+        automix_module.validate_params(params)
+        automix_module.check_rate(self)
+        with self.lock:
+            self.history._check_writable()
+        settings = automix_module.load_settings()
+
+        def run(progress):
+            result = automix_module.run(
+                self, params, settings,
+                lambda fraction, message="", indeterminate=False: progress(
+                    fraction, message, indeterminate),
+                progress.cancelled_event)
+            self.last_export_folder = str(Path(result["path"]).parent)
+            return result
+
+        return [self.jobs.submit("automix", t("job.automix"), run, keep_result=True)]
 
     def export_folder_hint(self) -> dict:
         """Where an export goes when the caller names no folder: the folder the

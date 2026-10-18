@@ -2543,3 +2543,29 @@ input[type="text"] {
   max-height: calc(100vh - 16px);
   overflow-y: auto;
 }
+
+/* Mix with the automixer (WP68) */
+.automix-dialog form {
+  display: grid;
+  gap: var(--space-3);
+}
+.automix-field {
+  display: grid;
+  gap: var(--space-1);
+}
+.automix-field input {
+  height: var(--control-h);
+}
+.automix-dialog fieldset {
+  display: grid;
+  gap: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.automix-note {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+.automix-error {
+  color: var(--danger-text);
+}
