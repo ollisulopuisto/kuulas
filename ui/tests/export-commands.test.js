@@ -3,7 +3,9 @@ import { describe, test } from "node:test";
 import { createRegistry } from "../commands.js";
 import {
   CHAPTER_EXPORTS,
+  EXPORT_FORMAT_IDS,
   EXPORTS,
+  exportNotice,
   filenameFromDisposition,
   registerExportCommands,
   tracksNotice,
@@ -152,5 +154,73 @@ describe("chapter and region exports (WP19h)", () => {
     assert.equal(registry.can("export.regions", { project: { markers: [] } }), false);
     assert.equal(registry.run("export.regions", null, state), true);
     assert.equal(queued.length, 1);
+  });
+});
+
+describe("export formats", () => {
+  const withTracks = { project: { tracks: [{ id: "a" }], markers: [] } };
+  const t = (key, values = {}) => `${key}${JSON.stringify(values)}`;
+
+  function formatSetup(available) {
+    const registry = createRegistry();
+    const started = [];
+    registerExportCommands(registry, {
+      t,
+      app: {
+        getState: () => withTracks,
+        toast: () => {},
+        exportFormats: () => available,
+        exportTracks: (format) => started.push(["tracks", format]),
+        exportMix: (format) => started.push(["mix", format]),
+      },
+    });
+    return { registry, started };
+  }
+
+  test("the ids are the registry's, WAV first", () => {
+    assert.deepEqual(EXPORT_FORMAT_IDS, ["wav", "flac", "mp3", "aiff", "m4a", "opus", "ogg"]);
+  });
+
+  test("every format has a mix command and an all-tracks command", () => {
+    const { registry } = formatSetup(EXPORT_FORMAT_IDS);
+    for (const id of EXPORT_FORMAT_IDS) {
+      for (const prefix of ["export.mix_", "export.tracks_"]) {
+        assert.equal(registry.status(prefix + id), "ready", prefix + id);
+        assert.equal(registry.hintKey(prefix + id), `cmd.${prefix}${id}.hint`);
+      }
+    }
+  });
+
+  test("a format the server does not offer is disabled", () => {
+    const { registry } = formatSetup(["wav", "flac"]);
+    assert.equal(registry.can("export.mix_flac", withTracks), true);
+    assert.equal(registry.can("export.mix_m4a", withTracks), false);
+    assert.equal(registry.can("export.tracks_opus", withTracks), false);
+    assert.equal(registry.can("export.mix_wav", { project: { tracks: [] } }), false);
+  });
+
+  test("running one starts the job with that format", () => {
+    const { registry, started } = formatSetup(EXPORT_FORMAT_IDS);
+    registry.run("export.mix_m4a", null, withTracks);
+    registry.run("export.tracks_aiff", null, withTracks);
+    assert.deepEqual(started, [
+      ["mix", "m4a"],
+      ["tracks", "aiff"],
+    ]);
+  });
+
+  test("the one-button tracks export stays WAV and needs no format", () => {
+    const { registry, started } = formatSetup(["wav"]);
+    registry.run("export.tracks", null, withTracks);
+    assert.deepEqual(started, [["tracks", undefined]]);
+  });
+
+  test("the mix has its own progress and done notices", () => {
+    const running = exportNotice({ state: "running", progress: 0.5 }, t, "mix");
+    assert.equal(running.text, 'ui.export.mix_running{"percent":50}');
+    assert.equal(running.cancel, true);
+    const done = exportNotice({ state: "completed", result: { path: "/x/Main.flac" } }, t, "mix");
+    assert.equal(done.text, 'ui.export.mix_done{"path":"/x/Main.flac"}');
+    assert.equal(done.reveal, true);
   });
 });
