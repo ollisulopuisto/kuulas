@@ -107,6 +107,12 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
     pastePlan(s, { mode: "overwrite", target: pasteChoice(s).target }),
   );
   planned("edit.paste_track", (s) => pastePlan(s, { mode: "insert", target: "current" }));
+  // The other two of the four paste forms, fixed whatever the panel's choice says: insert on
+  // the entry's own tracks, overwrite on the current track. Menu and palette, no keys.
+  planned("edit.paste_same", (s) => pastePlan(s, { mode: "insert", target: "same" }));
+  planned("edit.paste_overwrite_track", (s) =>
+    pastePlan(s, { mode: "overwrite", target: "current" }),
+  );
   planned("clip.mute", mutePlan);
   planned("clip.fade", fadePlan);
   planned("edit.trim_start", (s) => trimPlan(s, "start"));

@@ -323,6 +323,19 @@ export const DEFAULT_KEYMAP = [
     context: "global",
     labelKey: "cmd.edit.paste_track",
   },
+  // Fixed forms of the other two paste choices: unbound, in the Edit menu and the palette.
+  {
+    id: "edit.paste_same",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.edit.paste_same",
+  },
+  {
+    id: "edit.paste_overwrite_track",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.edit.paste_overwrite_track",
+  },
   {
     id: "edit.split",
     keys: { mac: ["B", "Mod+B"], other: ["B", "Mod+B"] },

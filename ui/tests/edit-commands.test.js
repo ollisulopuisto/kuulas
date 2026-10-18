@@ -94,6 +94,8 @@ const WORKING = [
   "edit.paste",
   "edit.paste_overwrite",
   "edit.paste_track",
+  "edit.paste_same",
+  "edit.paste_overwrite_track",
 ];
 
 describe("the editing commands", () => {
@@ -264,6 +266,22 @@ describe("the clipboard commands (WP46)", () => {
       assert.equal(registry.can(id, base({ clipboard: [] })), false, id);
       assert.equal(registry.can(id, withClip()), true, id);
     }
+  });
+
+  test("the four paste forms are fixed commands whatever the panel's choice says", () => {
+    const state = withClip({ pasteTarget: "current", pasteMode: "overwrite" });
+    const h = setup(state);
+    h.registry.run("edit.paste_same", null, state);
+    h.registry.run("edit.paste_overwrite_track", null, state);
+    assert.equal(h.sent[0].args.mode, "insert");
+    assert.equal(h.sent[0].args.target_tracks, null);
+    assert.equal(h.sent[1].args.mode, "overwrite");
+    assert.deepEqual(h.sent[1].args.target_tracks, { 0: "A" });
+    assert.equal(
+      h.registry.can("edit.paste_overwrite_track", withClip({ focusTrack: null })),
+      false,
+    );
+    assert.equal(h.registry.can("edit.paste_same", withClip({ focusTrack: null })), true);
   });
 
   test("paste on the current track needs a current track", () => {
