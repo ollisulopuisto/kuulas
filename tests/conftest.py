@@ -67,3 +67,10 @@ def _private_clipboard(tmp_path_factory, monkeypatch):
     """The clipboard history is a per-user file: no test may touch the real one."""
     folder = tmp_path_factory.mktemp("clipboard")
     monkeypatch.setenv("KUULAS_CLIPBOARD_FILE", str(folder / "clipboard.json"))
+
+
+@pytest.fixture(autouse=True)
+def _private_view_memory(tmp_path_factory, monkeypatch):
+    """The remembered views are a per-user file: no test may touch the real one."""
+    folder = tmp_path_factory.mktemp("view-memory")
+    monkeypatch.setenv("KUULAS_VIEW_MEMORY_FILE", str(folder / "view-memory.json"))
