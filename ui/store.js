@@ -57,6 +57,8 @@ export const initialState = () => ({
   playhead: 0,
   inPoint: null,
   outPoint: null,
+  // The lanes a dragged range covered (WP6, ids); empty after a click.
+  rangeTracks: new Set(),
   // Loop playback (WP50): on or off; the range is the marks, else the selected clips.
   loop: false,
   // Group editing is on at every start (PLAN ground rule 16); E turns it off for the session.

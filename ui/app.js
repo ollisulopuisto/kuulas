@@ -325,7 +325,7 @@ function onPointerDown(hit, event) {
   const intent = pointerIntent(hit, { shift: event.shiftKey });
   if (!intent) return;
   const state = getState();
-  const patch = { panel: "timeline" };
+  const patch = { panel: "timeline", rangeTracks: new Set() };
   if (hit.row?.kind === "track" && !event.shiftKey) {
     patch.focusTrack = hit.row.id;
     patch.focusBus = null;
@@ -342,6 +342,19 @@ function onPointerDown(hit, event) {
   }
   setState(patch);
   if (intent.seek !== null) void transport.seek(intent.seek);
+}
+
+// A dragged range (WP6) is the in and out marks, so every edit that acts on marks acts on
+// it. The edit plans take one track (the focus track), so the lanes covered are kept in
+// `rangeTracks` for when they take a set.
+function onRangeDragged({ start, end, tracks, trackId }) {
+  setState({
+    inPoint: start,
+    outPoint: end,
+    rangeTracks: new Set(tracks),
+    focusTrack: trackId,
+    focusBus: null,
+  });
 }
 
 // -- keyboard focus ------------------------------------------------------------------
@@ -1163,6 +1176,7 @@ const timeline = createTimeline({
   getState,
   actions: {
     pointerDown: onPointerDown,
+    rangeDragged: onRangeDragged,
     openGate: openGateStretch,
     editPlaceholder(placeholder) {
       setState({ placeholderSelected: placeholder.id });

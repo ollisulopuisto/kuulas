@@ -18,6 +18,7 @@ import {
   envelopeFrame,
   hitTest,
   layoutFor,
+  projectEnd,
   RULER_HEIGHT,
   visibleRows,
 } from "./lanes.js";
@@ -25,6 +26,7 @@ import { activeLoop } from "./loop-range.js";
 import { flagLayout, NOTCH_PX as MARKER_NOTCH_PX } from "./markers-model.js";
 import { makeWaveformJob, trackHues } from "./paint.js";
 import { aboutSeconds, placeholderLabel } from "./placeholders-model.js";
+import { canStartRangeDrag, dragRange, isDrag, trackRowsTouched } from "./range-drag.js";
 import { rulerTicks } from "./ruler.js";
 import { readTheme } from "./theme.js";
 import { createWaveformLayer } from "./waveform-layer.js";
@@ -60,6 +62,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
   let size = { width: 0, height: 0, ratio: 1 };
   let pointerFrame = null;
   let dropPreview = null; // files being dragged over: { kind, startFrame, mode, count } or null
+  let rangeBand = null; // a range being dragged: { fromFrame, toFrame, tracks } or null
   let bands = []; // the open candidates in pixels (candidates-model.js), per redraw
   let overlayQueued = false;
   let waveQueued = false;
@@ -157,6 +160,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     }
     drawRuler(state, rate);
     drawInOut(state, height);
+    drawRangeBand(state, layout);
     if (dropPreview) drawDropPreview(state, layout);
     drawPlayhead(state, height);
   }
@@ -195,6 +199,19 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     const x2 = frameToX(state.outPoint, state.scroll, state.zoom);
     overlay.fillStyle = theme.range;
     overlay.fillRect(x1, RULER_HEIGHT, x2 - x1, height - RULER_HEIGHT);
+  }
+
+  // The range being dragged (WP6): the selection tint over the lanes it covers.
+  function drawRangeBand(state, layout) {
+    if (!rangeBand) return;
+    const x1 = frameToX(rangeBand.fromFrame, state.scroll, state.zoom);
+    const x2 = frameToX(rangeBand.toFrame, state.scroll, state.zoom);
+    overlay.fillStyle = theme.range;
+    for (const row of layout.rows) {
+      if (!rangeBand.tracks.includes(row.id)) continue;
+      const top = RULER_HEIGHT + row.top - state.scrollY;
+      overlay.fillRect(Math.min(x1, x2), top, Math.abs(x2 - x1), row.height);
+    }
   }
 
   // In and out: 1 px accent edges with a flag in the ruler, pointing inwards.
@@ -784,8 +801,66 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
   overlayCanvas.addEventListener("pointerdown", (event) => {
     if (!getState().project || event.button !== 0) return;
     overlayCanvas.focus();
-    actions.pointerDown(hitAt(event), event);
+    const hit = hitAt(event);
+    actions.pointerDown(hit, event);
+    if (!event.shiftKey && canStartRangeDrag(hit)) beginRangeDrag(event, hit);
   });
+
+  // Press, move, lift in a lane selects a time range (WP6). Until the pointer has moved
+  // DRAG_PX it is the plain click pointerDown already handled; Esc cancels.
+  function beginRangeDrag(event, hit) {
+    const from = locate(event);
+    const contentY = (y) => y - RULER_HEIGHT + getState().scrollY;
+    let dragging = false;
+    const current = (e) => {
+      const at = locate(e);
+      const state = getState();
+      return {
+        at,
+        frame: xToFrame(at.x, state.scroll, state.zoom),
+        tracks: trackRowsTouched(layoutFor(state), contentY(from.y), contentY(at.y)),
+      };
+    };
+    const end = () => {
+      overlayCanvas.removeEventListener("pointermove", move);
+      overlayCanvas.removeEventListener("pointerup", up);
+      overlayCanvas.removeEventListener("pointercancel", cancel);
+      window.removeEventListener("keydown", key, true);
+      rangeBand = null;
+      requestOverlay();
+    };
+    const move = (e) => {
+      const now = current(e);
+      if (!dragging && !isDrag(from, now.at)) return;
+      dragging = true;
+      rangeBand = { fromFrame: hit.frame, toFrame: now.frame, tracks: now.tracks };
+      requestOverlay();
+    };
+    const up = (e) => {
+      const now = current(e);
+      const state = getState();
+      end();
+      if (!dragging) return;
+      const range = dragRange(hit.frame, now.frame, projectEnd(state.project));
+      if (range) actions.rangeDragged({ ...range, tracks: now.tracks, trackId: hit.row.id });
+    };
+    const cancel = () => end();
+    const key = (e) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      e.stopPropagation();
+      end();
+    };
+    overlayCanvas.addEventListener("pointermove", move);
+    overlayCanvas.addEventListener("pointerup", up);
+    overlayCanvas.addEventListener("pointercancel", cancel);
+    window.addEventListener("keydown", key, true);
+    try {
+      overlayCanvas.setPointerCapture(event.pointerId);
+    } catch {
+      // No capture (synthetic events): the drag still works while the pointer stays over the canvas.
+    }
+  }
   overlayCanvas.addEventListener(
     "wheel",
     (event) => {
