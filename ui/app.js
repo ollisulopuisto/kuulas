@@ -1716,14 +1716,16 @@ function render(state, patch) {
       node.toggleAttribute("data-focused", node.dataset.panel === state.panel);
     }
   }
-  if (touched("playhead", "playing", "zoom", "scroll", "followMode", "followPaused")) follow(state);
+  if (touched("playhead", "playing", "zoom", "scroll", "followMode", "followPaused"))
+    follow(state, touched("playhead"));
   transcript.update(state, patch);
 }
 
 // While playing, keep the playhead in view (page or continuous) unless the user
 // scrolled away by hand.
-function follow(state) {
+function follow(state, moved = false) {
   const next = followScroll({
+    moved,
     mode: state.followMode,
     paused: state.followPaused,
     playing: state.playing,

@@ -35,4 +35,30 @@ describe("following the playhead", () => {
     const back = followScroll({ ...base, paused: true, scroll: 0, playhead: 5000 });
     assert.equal(back.paused, false);
   });
+
+  test("a jump while stopped brings the playhead into view (Home, End, Tab)", () => {
+    const end = followScroll({ ...base, playing: false, moved: true, playhead: 50_000 });
+    assert.equal(end.scroll, 50_000 - 0.1 * 1000 * 10);
+    const home = followScroll({
+      ...base,
+      playing: false,
+      moved: true,
+      scroll: 40_000,
+      playhead: 0,
+    });
+    assert.equal(home.scroll, 0);
+  });
+
+  test("a jump to a place already in view does not scroll, nor does a stopped scroll by hand", () => {
+    const seen = followScroll({ ...base, playing: false, moved: true, playhead: 5000 });
+    assert.equal(seen.scroll, 0);
+    const byHand = followScroll({
+      ...base,
+      playing: false,
+      moved: false,
+      scroll: 20_000,
+      playhead: 0,
+    });
+    assert.equal(byHand.scroll, 20_000);
+  });
 });
