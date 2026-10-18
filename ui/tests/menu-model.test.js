@@ -150,10 +150,7 @@ describe("held modifiers", () => {
   });
 
   test("the alternate's own enabled state counts", () => {
-    const held = find(
-      make({ held: { shift: true }, planned: ["edit.split_all"] }),
-      "edit.split",
-    );
+    const held = find(make({ held: { shift: true }, planned: ["edit.split_all"] }), "edit.split");
     assert.equal(held.id, "edit.split_all");
     assert.equal(held.enabled, false); // planned in this fixture
   });
