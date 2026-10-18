@@ -1047,5 +1047,19 @@
   "ui.bus.option_new": "+ Uusi väylä…",
   "ui.range.in": "Alku",
   "ui.range.out": "Loppu",
-  "ui.range.length": "Pituus"
+  "ui.range.length": "Pituus",
+  "cmd.bus.mute": "Mykistä väylä",
+  "cmd.bus.mute.hint": "Mykistää väylän tai palauttaa sen äänen: nykyisen raidan väylän (tai nykyisen väylän).",
+  "cmd.bus.ungroup": "Pura väylä",
+  "cmd.bus.ungroup.hint": "Poistaa väylän ja siirtää kaikki sen raidat pois väylältä yhdellä kumoamisaskeleella.",
+  "cmd.track.remove_from_bus": "Poista raita väylältä",
+  "cmd.track.remove_from_bus.hint": "Siirtää nykyisen raidan pois väylältä.",
+  "cmd.view.collapse_all_buses": "Supista kaikki väylät",
+  "cmd.view.collapse_all_buses.hint": "Näyttää jokaisen vähintään kahden raidan väylän yhtenä rivinä; muistetaan näkymän mukana.",
+  "cmd.view.expand_all_buses": "Laajenna kaikki väylät",
+  "cmd.view.expand_all_buses.hint": "Näyttää kaikkien supistettujen väylien raidat taas.",
+  "ui.edit.label.bus_mute": "Väylän mykistys",
+  "ui.edit.label.ungroup": "Väylän purku",
+  "ui.edit.label.remove_from_bus": "Raidan poisto väylältä",
+  "ui.context_menu": "Toiminnot"
 }

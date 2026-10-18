@@ -1047,5 +1047,19 @@
   "ui.bus.option_new": "+ New bus…",
   "ui.range.in": "In",
   "ui.range.out": "Out",
-  "ui.range.length": "Length"
+  "ui.range.length": "Length",
+  "cmd.bus.mute": "Mute the bus",
+  "cmd.bus.mute.hint": "Mutes or unmutes the bus of the current track (or the current bus).",
+  "cmd.bus.ungroup": "Ungroup the bus",
+  "cmd.bus.ungroup.hint": "Removes the bus and puts all its tracks on no bus, in one undo step.",
+  "cmd.track.remove_from_bus": "Remove the track from its bus",
+  "cmd.track.remove_from_bus.hint": "Puts the current track on no bus.",
+  "cmd.view.collapse_all_buses": "Collapse all buses",
+  "cmd.view.collapse_all_buses.hint": "Shows every bus with two or more tracks as one row; remembered with the view.",
+  "cmd.view.expand_all_buses": "Expand all buses",
+  "cmd.view.expand_all_buses.hint": "Shows the tracks of every collapsed bus again.",
+  "ui.edit.label.bus_mute": "Mute bus",
+  "ui.edit.label.ungroup": "Ungroup bus",
+  "ui.edit.label.remove_from_bus": "Remove track from bus",
+  "ui.context_menu": "Actions"
 }

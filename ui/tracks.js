@@ -240,6 +240,7 @@ export function createTrackHeaders({ root, editor, actions }) {
 
     node.addEventListener("pointerdown", () => actions.currentTrack(id));
     node.addEventListener("focusin", () => actions.currentTrack(id));
+    node.addEventListener("contextmenu", (event) => actions.contextMenu("track", id, event));
     name.addEventListener("dblclick", () => rename(name, id));
     mute.addEventListener("click", () => {
       const now = !lookup(id).mute;
@@ -295,6 +296,9 @@ export function createTrackHeaders({ root, editor, actions }) {
     const node = el("section", "track-header bus-header");
     // A group header, like a folder: badge, name and mute on top, levels below.
     const top = el("div", "th-top");
+    // The disclosure chevron folds the bus to its header row (a double-click on the
+    // header does the same); its name and state are set in update().
+    const chevron = el("button", "bus-chevron", { type: "button" });
     const badge = el("span", "bus-badge", { "aria-hidden": "true" });
     badge.textContent = busLetter(index);
     const name = el("span", "bus-name");
@@ -310,11 +314,17 @@ export function createTrackHeaders({ root, editor, actions }) {
     const faderLabel = el("span", "fader-label", { "aria-hidden": "true" });
     faderLabel.textContent = t("ui.bus.fader");
     controls.append(faderLabel, gain.wrap, pan.wrap);
-    top.append(badge, name, buttons);
+    top.append(chevron, badge, name, buttons);
     node.append(top, controls);
     const id = bus.id;
     node.addEventListener("pointerdown", () => actions.currentBus(id));
     node.addEventListener("focusin", () => actions.currentBus(id));
+    chevron.addEventListener("click", () => actions.toggleBus(id));
+    // Double-click the header itself, not its buttons, sliders or the name being edited.
+    node.addEventListener("dblclick", (event) => {
+      if (!event.target.closest("button, input, select, label, output")) actions.toggleBus(id);
+    });
+    node.addEventListener("contextmenu", (event) => actions.contextMenu("bus", id, event));
     const send = (field, value, key) =>
       editor.change({
         op: "set_bus",
@@ -348,7 +358,7 @@ export function createTrackHeaders({ root, editor, actions }) {
       format: panText,
       scale: 100,
     });
-    return { node, name, mute, gain, pan, kind: "bus" };
+    return { node, name, mute, gain, pan, chevron, kind: "bus" };
   }
 
   // The latest project, for handlers that need a value that may have changed.
@@ -404,6 +414,7 @@ export function createTrackHeaders({ root, editor, actions }) {
     const next = JSON.stringify([
       state.project.tracks.map((track) => [track.id, track.kind, track.bus ?? ""]),
       state.project.buses.map((bus) => [bus.id, bus.name]),
+      [...(state.collapsedBuses ?? [])],
       document.documentElement.lang,
     ]);
     if (next !== signature) {
@@ -451,6 +462,15 @@ export function createTrackHeaders({ root, editor, actions }) {
         parts.name.textContent = bus.name;
         parts.node.title = t("ui.bus.name", { name: bus.name });
         parts.node.classList.toggle("no-members", row.members === 0);
+        parts.node.classList.toggle("collapsed", Boolean(row.collapsed));
+        // A bus with fewer than two tracks has nothing to fold (a single track merges
+        // into its own header).
+        parts.chevron.hidden = row.members < 2;
+        parts.chevron.setAttribute("aria-expanded", String(!row.collapsed));
+        const verb = t(row.collapsed ? "cmd.bus.expand" : "cmd.bus.collapse");
+        parts.chevron.setAttribute("aria-label", verb);
+        parts.chevron.title = verb;
+        parts.chevron.textContent = row.collapsed ? "\u25B8" : "\u25BE";
         parts.mute.setAttribute("aria-pressed", String(bus.mute));
         setSlider(parts.gain, bus.gain_db, formatDb(bus.gain_db));
         setSlider(parts.pan, Math.round(bus.pan * 100), panText(bus.pan));

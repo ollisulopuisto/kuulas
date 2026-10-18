@@ -8,7 +8,7 @@
 import { candidateBands, flagFits, flagText } from "./candidates-model.js";
 import { frameToX, xToFrame } from "./format.js";
 import { gateLabelFits, gatePixelRuns } from "./gate.js";
-import { busHues, fileMark, needsFileMark, seamKind } from "./grammar.js";
+import { busHues, fileMark, needsFileMark, ribbonLayout, seamKind } from "./grammar.js";
 import { formatNumber, t } from "./i18n.js";
 import { dropGhosts, dropLabel, resolveDropTarget } from "./import-drop.js";
 import { clipLabel, labelFacts, siblingsOf } from "./labels.js";
@@ -153,7 +153,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       overlay.lineTo(width, top + row.height - 0.5);
       overlay.stroke();
       if (row.kind === "track") drawTrack(state, state.project.tracks[row.index], row, top, hues);
-      else drawBusRow(row, top, groups);
+      else drawBusRow(state, row, top, groups, hues);
     }
     drawRuler(state, rate);
     drawInOut(state, height);
@@ -461,15 +461,38 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     overlay.globalAlpha = 1;
   }
 
-  // A bus row (expanded): its band, twice as strong as behind its members, so
-  // the group header reads as the top of the group. Collapsed buses (a summed
-  // waveform) are designed in GUI-DESIGN.md and not built yet.
-  function drawBusRow(row, top, groups) {
+  // A bus row: its band, twice as strong as behind its members, so the group header
+  // reads as the top of the group. Collapsed (GUI-DESIGN.md section 6): one thin strip
+  // per member (ribbonLayout), in the member's own speaker hue, filled where the track
+  // has a clip; muted clips are dimmer. Waveform-based activity and hover names are
+  // not built yet.
+  function drawBusRow(state, row, top, groups, hues) {
     const band = theme.busBands[(groups.get(row.id) ?? 1) - 1];
-    if (!band) return;
-    overlay.fillStyle = band;
-    overlay.fillRect(0, top, size.width, row.height - 1);
-    overlay.fillRect(0, top, size.width, row.height - 1);
+    if (band) {
+      overlay.fillStyle = band;
+      overlay.fillRect(0, top, size.width, row.height - 1);
+      overlay.fillRect(0, top, size.width, row.height - 1);
+    }
+    if (!row.collapsed || row.memberIndexes.length === 0) return;
+    const count = row.memberIndexes.length;
+    const strip = Math.max(
+      2,
+      Math.min(ribbonLayout(count)?.strip ?? 8, Math.floor((row.height - 6) / count)),
+    );
+    const first = top + Math.round((row.height - count * strip) / 2);
+    row.memberIndexes.forEach((index, n) => {
+      const track = state.project.tracks[index];
+      const colours = theme.palette[(hues.get(track.id) ?? 0) % theme.palette.length];
+      overlay.fillStyle = colours?.wave ?? theme.muted;
+      for (const clip of track.clips) {
+        const left = frameToX(clip.start, state.scroll, state.zoom);
+        const right = frameToX(clipEnd(clip), state.scroll, state.zoom);
+        if (right < 0 || left > size.width) continue;
+        overlay.globalAlpha = clip.muted ? 0.3 : 0.85;
+        overlay.fillRect(left, first + n * strip, Math.max(1, right - left), strip - 1);
+      }
+    });
+    overlay.globalAlpha = 1;
   }
 
   // Where two clips meet (grammar.js seamKind): a hairline for a clean split,

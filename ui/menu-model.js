@@ -117,6 +117,8 @@ export const MENU = [
       item("view.fit_selection"),
       item("view.fit_tracks"),
       item("view.auto_fit_tracks"),
+      item("view.collapse_all_buses"),
+      item("view.expand_all_buses"),
       item("view.back"),
       item("view.reset_remembered"),
       SEP,

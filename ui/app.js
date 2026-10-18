@@ -2,10 +2,13 @@
 // canvases and the keyboard together. The decisions live in small pure modules
 // (view.js, lanes.js, keys.js, ...); this file only applies their answers.
 import * as api from "./api.js";
+import { memberClipsAt, toggleChange } from "./bus-collapse.js";
 import { listedRows, scrollToShow, stepTarget } from "./candidates-model.js";
 import { createCandidatesPanel } from "./candidates-panel.js";
 import { previewRequest } from "./candidates-preview.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
+import { openContextMenu } from "./context-menu.js";
+import { contextMenuItems } from "./context-menu-model.js";
 import { createEditor } from "./edits.js";
 import { filenameFromDisposition } from "./export-commands.js";
 import { nextPanel } from "./focus.js";
@@ -234,6 +237,7 @@ const actions = {
       laneHeight: clampLaneHeight(tokenPx("--lane-h")),
       laneHeights: {},
       autoFitTracks: false,
+      collapsedBuses: new Set(),
       waveformMode: "half",
       followMode: "page",
       sidebarTab: "inspector",
@@ -333,7 +337,12 @@ function onPointerDown(hit, event) {
   // A narration placeholder is picked like a clip (WP43): one at a time, never with a clip.
   if (!event.shiftKey)
     patch.placeholderSelected = hit.placeholder && !hit.clip ? hit.placeholder.id : null;
-  if (intent.selection === "replace") patch.selection = new Set([intent.clip.id]);
+  if (event.shiftKey && hit.row?.kind === "bus" && hit.row.collapsed) {
+    // Shift+click on a folded bus: add the member clips under the pointer to the selection.
+    const selection = new Set(state.selection);
+    for (const id of memberClipsAt(state.project, hit.row.id, hit.frame)) selection.add(id);
+    patch.selection = selection;
+  } else if (intent.selection === "replace") patch.selection = new Set([intent.clip.id]);
   else if (intent.selection === "clear") patch.selection = new Set();
   else if (intent.selection === "toggle") {
     const selection = new Set(state.selection);
@@ -624,6 +633,7 @@ const fitInput = (state) => ({
   busHeight: state.busHeight,
   groupGap: state.groupGap,
   laneHeights: state.laneHeights,
+  collapsed: state.collapsedBuses,
 });
 function fitTracks() {
   const state = getState();
@@ -845,11 +855,37 @@ const trackHeaders = createTrackHeaders({
     currentBus: (id) => {
       if (getState().focusBus !== id) setState({ focusBus: id });
     },
+    // The chevron and a double-click on a bus header: fold or unfold it.
+    toggleBus: (id) =>
+      setState({
+        collapsedBuses: toggleChange(getState(), id),
+        focusBus: id,
+        focusTrack: null,
+      }),
+    contextMenu: (kind, id, event) => showHeaderMenu(kind, id, event),
     // Drag a lane's bottom border (null resets it to the global height).
     setLaneHeight: (id, height) =>
       setState({ laneHeights: withLaneHeight(getState().laneHeights, id, height) }),
   },
 });
+// Right-click on a track or bus header: focus it, then offer its commands.
+function showHeaderMenu(kind, id, event) {
+  event.preventDefault();
+  if (kind === "track") setState({ focusTrack: id, focusBus: null, selection: new Set() });
+  else setState({ focusBus: id, focusTrack: null });
+  const state = getState();
+  const target = kind === "bus" ? { kind, collapsed: state.collapsedBuses.has(id) } : { kind };
+  const items = contextMenuItems(target, (command) => keyboard.registry.can(command, state));
+  // From the keyboard (the menu key) the event has no pointer position: use the header.
+  const box = event.currentTarget.getBoundingClientRect();
+  const keyboardOpened = event.clientX === 0 && event.clientY === 0;
+  openContextMenu({
+    x: keyboardOpened ? box.left + 24 : event.clientX,
+    y: keyboardOpened ? box.top + 12 : event.clientY,
+    items,
+    onPick: (command) => keyboard.registry.run(command, null, getState()),
+  });
+}
 const inspector = createInspector({
   root: $("panel-inspector"),
   editor,
@@ -1231,6 +1267,7 @@ function render(state, patch) {
       "scrollY",
       "laneHeight",
       "laneHeights",
+      "collapsedBuses",
       "waveformMode",
       "waveformScale",
       "waveformGain",
@@ -1320,12 +1357,14 @@ function render(state, patch) {
       "focusBus",
       "laneHeight",
       "laneHeights",
+      "collapsedBuses",
       "busHeight",
       "groupGap",
     )
   )
     trackHeaders.update(state);
-  if (touched("project", "autoFitTracks", "laneHeights", "busHeight", "groupGap")) autoFit(state);
+  if (touched("project", "autoFitTracks", "laneHeights", "collapsedBuses", "busHeight", "groupGap"))
+    autoFit(state);
   if (touched("project", "selection", "focusTrack", "focusBus")) inspector.update(state);
   if (touched("selection", "focusTrack", "focusBus", "panel")) help.update();
   if (

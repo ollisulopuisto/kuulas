@@ -38,14 +38,28 @@ describe("recordOf", () => {
       inPoint: 1000,
       outPoint: 5000,
       loop: false,
+      collapsedBuses: [],
     });
   });
   test("remembers the loop switch", () => {
     assert.equal(recordOf({ ...state, loop: true }).loop, true);
   });
+  test("remembers which buses are collapsed, as a sorted list", () => {
+    const record = recordOf({ ...state, collapsedBuses: new Set(["b2", "b1"]) });
+    assert.deepEqual(record.collapsedBuses, ["b1", "b2"]);
+  });
 });
 
 describe("restoreFrom", () => {
+  test("brings collapsed buses back, only those that exist here", () => {
+    const withBuses = { ...context, project: { ...project, buses: [{ id: "b1" }, { id: "b2" }] } };
+    const patch = restoreFrom({ collapsedBuses: ["b2", "gone", 7] }, withBuses).patch;
+    assert.deepEqual([...patch.collapsedBuses], ["b2"]);
+    assert.ok(patch.collapsedBuses instanceof Set);
+    assert.equal("collapsedBuses" in restoreFrom({ collapsedBuses: "b1" }, withBuses).patch, false);
+    assert.equal("collapsedBuses" in restoreFrom({}, withBuses).patch, false);
+  });
+
   test("brings the loop switch back, only if it is a boolean", () => {
     assert.equal(restoreFrom({ loop: true }, context).patch.loop, true);
     assert.equal(restoreFrom({ loop: false }, context).patch.loop, false);
@@ -70,6 +84,7 @@ describe("restoreFrom", () => {
       inPoint: 1000,
       outPoint: 5000,
       loop: false,
+      collapsedBuses: new Set(),
     });
   });
 

@@ -72,6 +72,9 @@ export const initialState = () => ({
   // Lanes sized by hand (drag a header's bottom border): { trackId: px }. Remembered
   // per project with the view (view-memory.js), never in the edit history.
   laneHeights: {},
+  // Buses folded to their header row (ids). View state: remembered per project with
+  // the view (view-memory.js), never in the edit history. Always replaced, never mutated.
+  collapsedBuses: new Set(),
   // Recompute laneHeight whenever the lane area, the tracks or the buses change.
   autoFitTracks: false,
   // Density (tokens.css --bus-h, --group-gap); app.js reads them from the tokens.

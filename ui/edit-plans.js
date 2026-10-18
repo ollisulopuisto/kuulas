@@ -4,6 +4,8 @@
 // or null when there is nothing to act on, which is also what `can()` asks.
 // Group editing is decided by the server (ops.py with edit_scope.py); a plan only
 // says whether it is on.
+
+import { busOfFocus } from "./bus-collapse.js";
 import { autoName, clipsInRange, describeClips, pasteChoice, pasteTargets } from "./clipboard.js";
 import { clipEnd } from "./lanes.js";
 import { clipsAround, currentTrack, markedRange, selectedClips } from "./selection.js";
@@ -347,6 +349,34 @@ export function groupBusPlan(state) {
 export function newBusPlan(state) {
   if (!state?.project) return null;
   return plan("add_bus", {}, "new_bus", {}, { silent: true });
+}
+
+/** Mute the bus in focus (the focused bus, else the bus of the focused track). */
+export function busMutePlan(state) {
+  const id = busOfFocus(state);
+  const bus = (state?.project?.buses ?? []).find((item) => item.id === id);
+  if (!bus) return null;
+  return plan("set_bus", { bus_id: bus.id, mute: !bus.mute }, "bus_mute", {}, { silent: true });
+}
+
+/** Ungroup: delete the bus in focus; ops.delete_bus puts all its tracks on no bus, in one step. */
+export function ungroupPlan(state) {
+  const id = busOfFocus(state);
+  if (id === null || !(state?.project?.buses ?? []).some((bus) => bus.id === id)) return null;
+  return plan("delete_bus", { bus_id: id }, "ungroup", {}, { silent: true });
+}
+
+/** Take the current track off its bus. */
+export function removeFromBusPlan(state) {
+  const track = trackOf(state);
+  if (!track?.bus) return null;
+  return plan(
+    "set_track",
+    { track_id: track.id, bus: null },
+    "remove_from_bus",
+    {},
+    { silent: true },
+  );
 }
 
 /** Ids of the tracks whose clips differ between two projects. */
