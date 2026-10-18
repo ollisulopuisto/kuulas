@@ -63,6 +63,8 @@ export const MENU = [
     items: [
       item("track.mute"),
       item("track.solo"),
+      item("track.group_into_bus"),
+      item("track.new_bus"),
       item("group.toggle"),
       SEP,
       item("clip.mute"),

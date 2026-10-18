@@ -143,6 +143,17 @@ def test_edit_commits_one_undo_step(session):
     assert not session.undo()
 
 
+def test_add_bus_with_tracks_is_one_undo_step(session):
+    session.edit("add_track", {"track_id": "A"})
+    steps = len(session.history.nodes())
+    session.edit("add_bus", {"bus_id": "b1", "track_ids": ["A"]})
+    assert len(session.history.nodes()) == steps + 1
+    assert session.state.track("A").bus == "b1"
+    assert session.undo()
+    assert session.state.buses == ()
+    assert session.state.track("A").bus is None
+
+
 def test_edit_label_defaults_to_the_edit_name_and_the_op_is_kept(session):
     session.edit("add_track", {"track_id": "A"})
     session.edit("set_master", {"gain_db": -3.0}, label="quieter")

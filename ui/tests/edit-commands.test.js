@@ -32,6 +32,7 @@ function setup(state) {
   const toasts = [];
   const copied = [];
   let refreshed = 0;
+  let renamed = 0;
   let now = 1000;
   registerEditCommands(registry, {
     t: (key, values = {}) => `${key}${JSON.stringify(values)}`,
@@ -46,6 +47,9 @@ function setup(state) {
         copied.push(body);
         return Promise.resolve(true);
       },
+      focusName: () => {
+        renamed += 1;
+      },
       refreshClipboard: () => {
         refreshed += 1;
       },
@@ -55,6 +59,7 @@ function setup(state) {
     registry,
     copied,
     refreshed: () => refreshed,
+    renamed: () => renamed,
     sent,
     patches,
     toasts,
@@ -314,5 +319,47 @@ describe("the clipboard commands (WP46)", () => {
     h.sent[0].done({ project, clipboard: { placed: 0, missing: ["x"], entry: "e1" } });
     assert.match(h.toasts[1][0], /^ui\.edit\.toast\.paste_nothing/);
     assert.deepEqual(h.toasts[1][1], { undo: false });
+  });
+});
+
+describe("buses (add_bus)", () => {
+  test("both commands are in the keymap, unbound, and ready", () => {
+    const { registry } = setup(base());
+    for (const id of ["track.group_into_bus", "track.new_bus"]) {
+      const entry = DEFAULT_KEYMAP.find((e) => e.id === id);
+      assert.deepEqual(entry.keys, { mac: null, other: null }, id);
+      assert.equal(registry.status(id), "ready", id);
+    }
+  });
+
+  test("grouping sends add_bus with the tracks of the selected clips, in track order", () => {
+    const h = setup(base({ selection: new Set(["v1", "a1"]), focusTrack: null }));
+    h.registry.run("track.group_into_bus");
+    assert.equal(h.sent.length, 1);
+    assert.equal(h.sent[0].op, "add_bus");
+    assert.deepEqual(h.sent[0].args, { track_ids: ["A", "V"] });
+  });
+
+  test("with no selection the focused track counts", () => {
+    const h = setup(base({ focusTrack: "V" }));
+    h.registry.run("track.group_into_bus");
+    assert.deepEqual(h.sent[0].args, { track_ids: ["V"] });
+  });
+
+  test("grouping needs a track; a new empty bus needs only a project", () => {
+    const state = base({ focusTrack: null });
+    const none = setup(state);
+    assert.equal(none.registry.can("track.group_into_bus", state), false);
+    assert.equal(none.registry.can("track.new_bus", state), true);
+    none.registry.run("track.new_bus");
+    assert.deepEqual(none.sent[0].args, {});
+  });
+
+  test("the new bus is focused and renamed once the server answers", () => {
+    const h = setup(base());
+    h.registry.run("track.new_bus");
+    h.sent[0].done({ project: { buses: [{ id: "b1" }, { id: "b9" }] } });
+    assert.deepEqual(h.patches.at(-1), { focusBus: "b9", focusTrack: null });
+    assert.equal(h.renamed(), 1);
   });
 });

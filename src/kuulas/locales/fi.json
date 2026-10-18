@@ -1014,5 +1014,12 @@
   "ui.placeholders.editor.empty": "Kirjoita teksti nähdäksesi, kuinka kauan sen lukeminen kestää.",
   "ui.placeholders.editor.save": "Tallenna",
   "ui.placeholders.editor.cancel": "Peruuta",
-  "ui.export.placeholders_skipped": "Äänittämätöntä selostusta: {count}. Se on hiljaista tässä viennissä."
+  "ui.export.placeholders_skipped": "Äänittämätöntä selostusta: {count}. Se on hiljaista tässä viennissä.",
+  "cmd.track.group_into_bus": "Ryhmittele valitut raidat uuteen väylään",
+  "cmd.track.group_into_bus.hint": "Siirtää valittujen klippien raidat (tai nykyisen raidan) uuteen väylään ja antaa nimetä sen.",
+  "cmd.track.new_bus": "Uusi tyhjä väylä",
+  "cmd.track.new_bus.hint": "Lisää väylän, jossa ei ole raitoja, ja antaa nimetä sen.",
+  "ui.edit.label.group_bus": "Ryhmittely uuteen väylään",
+  "ui.edit.label.new_bus": "Uusi väylä",
+  "ui.bus.option_new": "+ Uusi väylä…"
 }
