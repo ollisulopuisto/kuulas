@@ -78,11 +78,40 @@ describe("the owner's decisions", () => {
     assert.deepEqual(keysOf("app.import"), ["Mod+I"]);
   });
 
-  test("candidates use the physical brackets, K rejects, F2 renames", () => {
+  test("candidates use the physical brackets, K keeps, F2 renames", () => {
     assert.deepEqual(keysOf("candidate.next"), ["]"]);
     assert.deepEqual(keysOf("candidate.previous"), ["["]);
     assert.deepEqual(keysOf("candidate.reject"), ["K"]);
     assert.deepEqual(keysOf("rename"), ["F2"]);
+  });
+
+  test("the candidate keys: stepping and marking everywhere, deciding in the tab only", () => {
+    const contextOf = (id) => DEFAULT_KEYMAP.find((entry) => entry.id === id).context;
+    for (const id of [
+      "candidate.next",
+      "candidate.previous",
+      "candidate.mark",
+      "candidate.filter",
+    ]) {
+      assert.equal(contextOf(id), "global", id);
+    }
+    for (const id of ["candidate.apply", "candidate.reject", "candidate.preview"]) {
+      assert.equal(contextOf(id), "candidates", id);
+    }
+    assert.deepEqual(keysOf("candidate.apply"), ["Enter"]);
+    assert.deepEqual(keysOf("candidate.preview"), ["Shift+Space"]);
+    assert.deepEqual(keysOf("candidate.filter"), ["Shift+Mod+D"]);
+    assert.deepEqual(keysOf("candidate.mark"), ["D"]);
+    // The ripple apply is a button and a palette entry, not a key.
+    assert.deepEqual(keysOf("candidate.apply_ripple"), []);
+  });
+
+  test("K means keep only in the Candidates tab: no other context binds it", () => {
+    const withK = DEFAULT_KEYMAP.filter((entry) => asList(entry.keys.other).includes("K"));
+    assert.deepEqual(
+      withK.map((entry) => [entry.id, entry.context]),
+      [["candidate.reject", "candidates"]],
+    );
   });
 
   test("buses collapse on Alt+Mod+Left/Right", () => {

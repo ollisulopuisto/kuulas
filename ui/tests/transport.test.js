@@ -80,3 +80,39 @@ describe("transport", () => {
     assert.equal(h.state().playing, false);
   });
 });
+
+describe("transport: a stretch with an end (the candidate preview)", () => {
+  function withHook() {
+    const calls = [];
+    let state = { playhead: 0, playing: false };
+    const transport = createTransport({
+      post: async (action, at, until) => {
+        calls.push([action, at, until]);
+        return { playing: action === "play", position: at ?? 0 };
+      },
+      getState: () => state,
+      setState: (patch) => {
+        state = { ...state, ...patch };
+      },
+      onError: () => {},
+      onUserAction: () => calls.push(["user"]),
+    });
+    return { transport, calls };
+  }
+
+  test("playSegment plays from `at` to `until` and is not a user action", async () => {
+    const { transport, calls } = withHook();
+    await transport.playSegment(100, 300);
+    assert.deepEqual(calls, [["play", 100, 300]]);
+  });
+
+  test("toggle, stop, seek and play tell the hook first: a preview in progress must end", async () => {
+    const { transport, calls } = withHook();
+    await transport.toggle();
+    await transport.stop();
+    await transport.seek(5);
+    await transport.play(7);
+    assert.deepEqual(calls.filter((call) => call[0] === "user").length, 4);
+    assert.equal(calls[0][0], "user", "the hook comes before the request");
+  });
+});

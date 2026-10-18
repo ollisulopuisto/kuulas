@@ -151,10 +151,20 @@ describe("candidateBands (the stripes across the lanes)", () => {
     );
   });
   test("a candidate in two pieces has two bands but one flag, on the first", () => {
-    const bands = candidateBands([row("a", 1000, { spans: [[1000, 1100], [3000, 3100]] })], {
-      ...view,
-      currentId: null,
-    });
+    const bands = candidateBands(
+      [
+        row("a", 1000, {
+          spans: [
+            [1000, 1100],
+            [3000, 3100],
+          ],
+        }),
+      ],
+      {
+        ...view,
+        currentId: null,
+      },
+    );
     assert.deepEqual(
       bands.map((b) => b.flag),
       [true, false],
@@ -169,8 +179,14 @@ describe("candidateBands (the stripes across the lanes)", () => {
 describe("the ruler flag", () => {
   const t = (key, values) => `${key}|${values.seconds}`;
   test("flagText carries the length with one decimal", () => {
-    assert.equal(flagText({ seconds: 2.4 }, t, (n) => n.toFixed(1)), "ui.candidates.flag|2.4");
-    assert.equal(flagText({ seconds: 3 }, t, (n) => n.toFixed(1)), "ui.candidates.flag|3.0");
+    assert.equal(
+      flagText({ seconds: 2.4 }, t, (n) => n.toFixed(1)),
+      "ui.candidates.flag|2.4",
+    );
+    assert.equal(
+      flagText({ seconds: 3 }, t, (n) => n.toFixed(1)),
+      "ui.candidates.flag|3.0",
+    );
   });
   test("the text shows only when it fits in the band with room to spare", () => {
     assert.equal(flagFits(80, 60), true);
@@ -185,7 +201,14 @@ describe("previewBar", () => {
     assert.deepEqual(previewBar(preview, 100), { before: 2, skipped: 3, after: 5 });
   });
   test("several skipped pieces add up", () => {
-    const preview = { from: 100, to: 900, skip: [[200, 300], [400, 450]] };
+    const preview = {
+      from: 100,
+      to: 900,
+      skip: [
+        [200, 300],
+        [400, 450],
+      ],
+    };
     assert.deepEqual(previewBar(preview, 100), { before: 1, skipped: 1.5, after: 4.5 });
   });
   test("nothing to preview: null", () => {
