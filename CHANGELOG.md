@@ -1,3 +1,17 @@
+## [v26.10.18.17] - 2026-10-18
+
+- Candidates panel: a "Candidates" tab with the counts (N open · N cut · N kept), a "Find
+  candidates" button, and the list in time order with kind (silence, filler, retake, marked),
+  the quote or reason and the state. `]` and `[` step through (the play cursor and timeline follow);
+  open candidates show as faint bands on the affected lanes and a "cut? 2.4 s" flag in the ruler.
+  In the tab: Enter deletes the stretch (soft cut, gap kept), the "Cut and close gap" button
+  ripples, K keeps it (it never comes back). D marks your own candidate at the in-out range
+  or between two presses at the play cursor. Shift+Space previews "as if cut": it plays before the
+  stretch, then after it (two plays with a short timer; not yet listened to by a person). Not built:
+  the overview strip's candidate ticks, and a help topic.
+- Building blocks: nudge steps (1 ms, 10 ms, 100 ms, 1 s), the list of recordings the edit
+  does not play (for the clip bin).
+
 ## [v26.10.18.16] - 2026-10-18
 
 - Cut candidates (backend, no panel yet): kuulas can propose cuts and remember your decisions.
