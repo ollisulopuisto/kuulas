@@ -3214,3 +3214,27 @@ in iZotope RX, Descript, Hindenburg, Auphonic, Adobe Podcast, open-source VAD an
 No machine-learning model unless a rule-based detector measurably fails on real material.
 Needs: WP18 (cut candidates), WP19i (transient stops), real marked recordings from the owner.
 
+---
+
+### WP57 — The waveform shows gain, and shows clipping (owner, 2026-10-18)
+
+Status: open. Two requests:
+1. **Waveform size reflects the channel gain setting.** The drawn waveform is scaled by clip gain, the
+   clip's envelope and the track gain (a pure scale function in `ui/waveform-scale.js`, which exists for
+   the display scale), so turning a track up makes its waveform taller. Pan and mute do not change the size.
+2. **Clipping is marked visually, in red.** Where the level after clip gain, envelope and track gain would
+   pass full scale (0 dBFS; the limit to be a setting, default -0.1 dBFS), that stretch of the waveform is
+   drawn red. Computed from the cached peak pyramid (WP36), so it costs nothing at draw time. A tooltip or
+   a status line says how far over ("+2.1 dB over"). Bus gain and master are shown the same way later.
+Needs WP36 (peak caches) and WP4.
+
+---
+
+### WP58 — Selects: a second edit in the same project (owner, 2026-10-18; last on the feature list)
+
+Status: open, last. The clean way to make selects: one project holds the interview tape plus a second edit
+called "Selects" that shares the same recordings. While listening the owner marks bits (from the transcript
+with one key, or a range), each with a note and a colour; a list view orders them; a bit is pulled into
+the story edit and remembers where it came from. Builds on WP21 (several edits in one project), WP17 (the
+clip bin) and WP42 (bits as index cards). Until then the pinned clipboard entries are the stopgap.
+

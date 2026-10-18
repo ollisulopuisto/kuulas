@@ -90,6 +90,9 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R58 | Extensive clipboard with history: cut copies and ripples, delete leaves the gap, entries kept as references, a Clipboard panel, four paste forms, across projects | planned: WP46 |
 | R59 | Contextual help from v1 (help key for the focused thing, hints and keys in menus, searchable help index, translated help as data) | planned: WP48 |
 | R60 | Onboarding (first-run welcome, sample project, guided tour, progressive tips) | planned later: WP48 |
+| R61 | The waveform drawn at its real size: clip gain and track gain change its height (owner, 2026-10-18) | requested: WP57 |
+| R62 | Clipping shown on the waveform (red) when the clip or track gain makes it too loud (owner, 2026-10-18) | requested: WP57 |
+| R63 | A second edit in the same project called "Selects" that shares the recordings: mark bits while listening, order them, pull them into the story (owner, 2026-10-18; last on the feature list) | requested, last: WP58 (needs WP21, WP17, WP42) |
 
 ## Done
 
