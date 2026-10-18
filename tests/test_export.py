@@ -7,6 +7,7 @@ import shutil
 import struct
 import subprocess
 import threading
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import numpy as np
@@ -120,8 +121,39 @@ def test_float_wav_export_equals_the_mixer_bit_exact(session, out):
     assert np.array_equal(float_wav(r["path"]), whole_mix(session))
 
 
+class _Clock:
+    """Stands in for ``export.datetime``: ``now`` moves ``step`` seconds per call."""
+
+    def __init__(self, step: float):
+        self.at = datetime(2026, 10, 18, 12, 0, 0, tzinfo=UTC)
+        self.step = step
+
+    def now(self, tz=None):
+        self.at += timedelta(seconds=self.step)
+        return self.at
+
+
+#: The bext origination time ("HH:MM:SS"): 12 + 8 + 256 + 32 + 32 + 10 into the file.
+BEXT_TIME = slice(350, 358)
+
+
+def test_two_wav_exports_differ_only_in_the_bext_origination_time(
+        session, out, monkeypatch):
+    # The "flaky" parallel-vs-serial failure: bext stamps the wall clock to the
+    # second, so two exports that straddle a second boundary differ in that
+    # one field and nowhere else (audio, sizes, everything else identical).
+    monkeypatch.setattr(export, "datetime", _Clock(step=1))
+    monkeypatch.setattr(export, "BLOCK_SECONDS", 0.7)
+    a = Path(run(session, out / "a", workers=1)["path"]).read_bytes()
+    b = Path(run(session, out / "b", workers=4)["path"]).read_bytes()
+    assert a[BEXT_TIME] != b[BEXT_TIME]
+    cut = BEXT_TIME
+    assert a[:cut.start] + a[cut.stop:] == b[:cut.start] + b[cut.stop:]
+
+
 def test_parallel_and_serial_renders_are_identical(session, out, monkeypatch):
     monkeypatch.setattr(export, "BLOCK_SECONDS", 0.7)  # several blocks
+    monkeypatch.setattr(export, "datetime", _Clock(step=0))  # bext stamps the second
     serial = run(session, out / "s", workers=1)
     parallel = run(session, out / "p", workers=4)
     assert Path(serial["path"]).read_bytes() == Path(parallel["path"]).read_bytes()
