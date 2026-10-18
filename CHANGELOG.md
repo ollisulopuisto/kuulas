@@ -1,3 +1,13 @@
+## [v26.10.18.24] - 2026-10-18
+
+- kuulas remembers each project's view: zoom, scroll, lane height, waveform mode, follow mode, the
+  current track, the sidebar tab, the play cursor and the in-out marks come back when you reopen the
+  project. It is kept in a per-user file outside the project (no undo steps, the project is untouched).
+  View menu and palette: "Reset remembered view".
+- The command palette shows a "Recent" group (your last 8 commands, not navigation or undo) when
+  the search box is empty.
+- Panel sizes are not remembered because panels are not resizable yet.
+
 ## [v26.10.18.23] - 2026-10-18
 
 - JKL shuttle: L plays forward and each further L goes faster (1x, 1.5x, 2x, 3x, 5x), J plays

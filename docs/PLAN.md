@@ -2454,7 +2454,7 @@ header, zero-length, MP3 with junk in the middle, video without audio,
 
 ### WP35 — Remembered settings, quick actions, view memory
 
-Status: open. Needs WP4, WP5. Sonnet 5.5. Right after WP5.
+Status: first version done in v26.10.18.24 (view memory per project, user-preference helper, Recent commands, reset command); panel sizes (no resizable panels yet) and per-dialog last values open.
 
 - **Where things are remembered** (ground rule 16): user settings
   (`platformdirs` user config dir: `~/Library/Application Support/kuulas`,
