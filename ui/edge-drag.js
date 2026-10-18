@@ -120,10 +120,17 @@ export function ghostGeometry(ghost, { view, row }) {
 }
 
 /** The edit to send on release: roll, or ripple while Shift is held. */
-export function edgeChange(clipId, edge, frame, ripple) {
+export function edgeChange(clipId, edge, frame, ripple, groupEditing = false) {
   return {
     op: ripple ? "ripple_trim" : "roll_trim",
-    args: { clip_id: clipId, edge, frame },
+    // A ripple with group editing on also gives the material back on the tracks cut at the
+    // same splice (the server extends their clips by the same amount).
+    args: {
+      clip_id: clipId,
+      edge,
+      frame,
+      ...(ripple && groupEditing ? { extend_partners: true } : {}),
+    },
     labelKey: ripple ? "ui.edge.ripple" : "ui.edge.roll",
   };
 }

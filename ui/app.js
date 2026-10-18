@@ -1686,7 +1686,13 @@ const timeline = createTimeline({
       });
     },
     edgeDrag({ clipId, edge, frame, ripple }) {
-      const { op, args, labelKey } = edgeChange(clipId, edge, frame, ripple);
+      const { op, args, labelKey } = edgeChange(
+        clipId,
+        edge,
+        frame,
+        ripple,
+        getState().groupEditing !== false,
+      );
       editor.change({ op, args, label: t(labelKey) });
     },
     openGate: openGateStretch,

@@ -127,6 +127,17 @@ describe("edgeChange", () => {
       labelKey: "ui.edge.ripple",
     });
   });
+  test("a ripple with group editing on asks the other tracks to give material back too", () => {
+    assert.deepEqual(edgeChange("a", "end", 7 * S, true, true).args, {
+      clip_id: "a",
+      edge: "end",
+      frame: 7 * S,
+      extend_partners: true,
+    });
+    // Roll never does, and neither does a ripple with group editing off.
+    assert.equal(edgeChange("a", "end", 7 * S, false, true).args.extend_partners, undefined);
+    assert.equal(edgeChange("a", "end", 7 * S, true, false).args.extend_partners, undefined);
+  });
 });
 
 describe("edgeGhost", () => {

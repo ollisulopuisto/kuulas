@@ -913,7 +913,8 @@ def roll_trim(p: Project, clip_id: str, edge: str, frame: int) -> Project:
     return p if other is None else trim_clip(p, other.id, end=frame)
 
 
-def ripple_trim(p: Project, clip_id: str, edge: str, frame: int) -> Project:
+def ripple_trim(p: Project, clip_id: str, edge: str, frame: int,
+                extend_partners: bool = False) -> Project:
     """Drag one edge of a clip to ``frame``; everything after the clip, on every
     track, moves by the change in its length, so the tracks stay in sync.
 
@@ -923,6 +924,11 @@ def ripple_trim(p: Project, clip_id: str, edge: str, frame: int) -> Project:
     ripple delete does (the stretch it lost goes from every track); a longer
     one opens a gap of the same length on every track, with markers,
     automation and gates following.
+
+    ``extend_partners`` (a longer end edge): the clips on the other tracks that end
+    at the same splice (within 50 ms) grow by the same amount instead of leaving a
+    gap, as far as their recordings reach: the material cut from every track at
+    once comes back on every track at once.
     """
     edge = _edge(edge)
     clip, _ = _find_clip(p, clip_id)
@@ -951,6 +957,12 @@ def ripple_trim(p: Project, clip_id: str, edge: str, frame: int) -> Project:
     p = _replace_clip(p, changed)
     if delta < 0:
         p = ripple_delete(p, new_end, clip.end)
+    elif extend_partners and edge == "end":
+        near = p.rate // 20
+        for track in p.tracks:
+            for other in track.clips:
+                if other.id != clip_id and abs(other.end - clip.end) <= near:
+                    p = trim_clip(p, other.id, end=other.end + delta)
     return p
 
 

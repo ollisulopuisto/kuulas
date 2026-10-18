@@ -15,6 +15,9 @@
 - **Moving clips snaps:** the edges of the moved clips snap to other clips' edges, the playhead and the in/out marks
   (within 8 pixels, shown by a thin line); hold **Shift** to move finely (a tenth of the travel) and **Alt** to
   turn snapping off.
+- **Giving material back on all tracks at once:** Shift+drag a clip's end edge outwards (with group editing on):
+  the clips on the other tracks that end at the same splice grow by the same amount, as far as their recordings
+  reach, and everything after moves along, so no track is left with a gap.
 - **B (split) shows at once** instead of after the server's answer.
 - **Cmd+Backspace** removes the selected clips and leaves every other clip where it is.
 - **The right-click menu** lists only what is possible, scrolls if it is still too tall, and shows hints in the
