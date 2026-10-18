@@ -1,10 +1,11 @@
 """Which build is running: the version plus the commit, for bug reports.
 
-The owner tests on one computer while the code is edited on another, so "v26.10.18.64" alone
-does not say which commits are in the build (the version moves only in a docs commit). The label
-adds the short commit (and "+dirty" for uncommitted changes) when the code runs from a git
-checkout: ``v26.10.18.64+ff96b16``. It is shown in the window's status bar and printed first
-by ``--debug``. Never raises: a label is a convenience.
+The owner tests on one computer while the code is edited on another, so
+"v26.10.18.64" alone does not say which commits are in the build (the version
+moves only in a docs commit). The label adds the short commit (and "+dirty" for
+uncommitted changes) when the code runs from a git checkout, for example
+``v26.10.18.64+ff96b16``. It is shown in the window's status bar and printed
+first by ``--debug``. Never raises: a label is a convenience.
 """
 
 from __future__ import annotations
@@ -35,8 +36,11 @@ def _version(root: Path) -> str | None:
 
 def _git(root: Path, *args: str) -> str | None:
     try:
-        done = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True,
-                              timeout=3, check=True)
+        # Fixed git arguments from this file only, in the code's own checkout.
+        done = subprocess.run(  # noqa: S603
+            ["git", *args],  # noqa: S607
+            cwd=root, capture_output=True, text=True, timeout=3, check=True,
+        )
     except (OSError, subprocess.SubprocessError):
         return None
     return done.stdout.strip()
