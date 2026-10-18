@@ -10,6 +10,12 @@ design rounds). Colour is the apple green `#8CBF3F`, a placeholder not yet tied 
 - `ui/favicon.svg` (`kuulas-disc-7.svg`): seven bars, the favicon and small sizes.
 - `kuulas-mark-9/7/5.svg`: the earlier apple-in-a-waveform direction, kept for reference.
 
+App icons (v26.10.18.33): `src/kuulas/assets/icons/` holds the PNG set, `kuulas.ico`,
+`kuulas.icns` and the dock image, all made by `scripts/make_icons.py` (run it on macOS; it is
+also the single source of `ui/logo.svg` and `ui/favicon.svg`). The launcher page and the macOS
+Dock icon show the mark.
+
 Open: the hole position (lower right, or upper right "Death Star" as in "Z3"); nothing reads
-as more than a dotted ring at 16 px; macOS and Windows app icon exports; the desktop launcher
-window and the dock icon do not show the mark yet.
+as more than a dotted ring at 16 px; the Dock label says "Python" until the app is packaged
+(a real .app bundle); the icons have not been looked at on a real Dock or Windows taskbar;
+colours are placeholders.
