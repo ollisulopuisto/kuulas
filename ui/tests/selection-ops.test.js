@@ -73,18 +73,32 @@ describe("forwardFromClips", () => {
   test("with several selected on one track the earliest counts", () => {
     assert.deepEqual(ids(forwardFromClips(project, new Set(["a1", "a3"]))), ["a1", "a2", "a3"]);
   });
-  test("allTracks: every clip ending after the earliest selected start", () => {
+  test("allTracks: the selected clips and every clip starting at or after the earliest selected start", () => {
     assert.deepEqual(ids(forwardFromClips(project, new Set(["a2"]), { allTracks: true })), [
       "a2",
       "a3",
       "b2",
     ]);
+    // a1 began before b1 and merely overlaps it: it is not "after" b1.
     assert.deepEqual(ids(forwardFromClips(project, new Set(["b1"]), { allTracks: true })), [
-      "a1",
       "a2",
       "a3",
       "b1",
       "b2",
+    ]);
+  });
+  test("allTracks: a long clip that began earlier (a music bed) is not swept in", () => {
+    const withBed = {
+      tracks: [
+        ...project.tracks,
+        { id: "M", clips: [clip("bed", 0, 1000), clip("sting", 450, 10)] },
+      ],
+    };
+    assert.deepEqual(ids(forwardFromClips(withBed, new Set(["a2"]), { allTracks: true })), [
+      "a2",
+      "a3",
+      "b2",
+      "sting",
     ]);
   });
   test("empty selection gives an empty set", () => {
