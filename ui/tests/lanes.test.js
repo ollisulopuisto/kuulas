@@ -101,9 +101,9 @@ describe("lane layout", () => {
     );
   });
 
-  test("the bus row is a short single line by default, shorter than any lane", () => {
-    assert.ok(BUS_HEIGHT <= 32);
-    assert.ok(BUS_HEIGHT < DEFAULT_LANE / 2);
+  test("the bus row holds a name line and a level line, and is shorter than a lane", () => {
+    assert.ok(BUS_HEIGHT >= 56);
+    assert.ok(BUS_HEIGHT < DEFAULT_LANE);
   });
 
   test("a one-track bus can merge into its track's header (no bus row)", () => {

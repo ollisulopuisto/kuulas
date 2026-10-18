@@ -57,6 +57,7 @@ import numpy as np
 import sounddevice as sd
 import soxr
 
+from . import diag
 from .media import CHUNK_SEC
 from .messages import KuulasError, t
 from .model import Project
@@ -157,10 +158,27 @@ class _SafeStore:
         self.store = store
         self.step = CHUNK_SEC * rate
         self.events = events
+        #: diag.Probe when --debug is on, else None
+        self.probe: diag.Probe | None = None
         #: media id -> indices of chunks that failed to decode
         self.damaged: dict[str, set[int]] = {}
 
-    def read(self, media_id: str, first: int, count: int) -> np.ndarray:
+    def read(self, media_id: str, first: int, count: int, *,
+             prefetch: bool = False) -> np.ndarray:
+        probe = self.probe
+        if probe is None:
+            return self._read(media_id, first, count)
+        began = time.perf_counter()
+        try:
+            return self._read(media_id, first, count)
+        finally:
+            took = time.perf_counter() - began
+            if prefetch:
+                probe.prefetch_read(took, media_id)
+            else:
+                probe.mixer_read(took, media_id)
+
+    def _read(self, media_id: str, first: int, count: int) -> np.ndarray:
         if not self.damaged.get(media_id):
             try:
                 return self.store.read(media_id, first, count)
@@ -204,7 +222,7 @@ class Engine:
 
     def __init__(self, session, blocksize: int = BLOCKSIZE, device=None, *,
                  clock: Callable[[], float] = time.monotonic,
-                 background: bool = True):
+                 background: bool = True, debug: bool | None = None):
         self._session = session
         self._project: Project = session.state
         self.rate = self._project.rate
@@ -217,6 +235,12 @@ class Engine:
         #: append and popleft are atomic, so neither side waits.
         self._events: deque = deque(maxlen=1000)
         self._store = _SafeStore(session.store, self.rate, self._events)
+        #: --debug: timings of the callback and the media reads (diag.py)
+        self._probe = diag.Probe() if (diag.enabled() if debug is None else debug) \
+            else None
+        self._store.probe = self._probe
+        self._report_cursor = (0, 0, 0)
+        self._reporter: threading.Thread | None = None
 
         # Transport, shared with the audio thread under _tlock (held only for
         # a few assignments). A seek or play starts a new "run": _gen counts
@@ -372,14 +396,27 @@ class Engine:
             self.play(frame, frame + round(SCRUB_S * self.rate))
 
     def status(self) -> dict[str, Any]:
+        """The transport, device and counters, and the notices. With
+        ``--debug`` also ``"debug"`` (absent otherwise): timings over the last
+        ~500 callbacks, in milliseconds: ``block_ms`` (what a block lasts),
+        ``callbacks``, ``cb_avg_ms``/``cb_max_ms`` (whole callback),
+        ``reads_avg_ms``/``reads_max_ms`` (the mixer waiting for media),
+        ``mix_avg_ms``/``mix_max_ms`` (mixing and resampling without the
+        reads), ``prefetch_reads``/``prefetch_ms``/``prefetch_max_ms`` (the
+        helper thread's reads), ``slowest_reads`` (``[{name, ms}]``, three,
+        mixer and prefetch together), ``slow`` (``reads``, ``mix``, ``other``
+        or None when the worst callback fit in a block), and the status
+        fields ``late_blocks``, ``failed_blocks``, ``device``,
+        ``device_rate``, ``resampling``."""
         with self._tlock:
             playing, until, run = self._playing, self._until, self._run
             position = self._heard() if playing else self._anchor
         live = run if playing and run is not None else None
         with self._ctl:
+            debug = self._debug_numbers((0, 0, 0))[0] if self._probe else None
             notices = [{"id": n["id"], "key": n["key"], "params": n["params"],
                         "text": t(n["key"], **n["params"])} for n in self._notices]
-            return {
+            out = {
                 "playing": playing,
                 "position": int(position),
                 "until": until,
@@ -396,6 +433,9 @@ class Engine:
                 "damaged": sorted(self._store.damaged),
                 "notices": notices,
             }
+            if debug is not None:
+                out["debug"] = debug
+            return out
 
     def levels(self) -> dict[str, Any]:
         """Peak level per channel (linear, 1.0 = full scale) of the block
@@ -529,13 +569,21 @@ class Engine:
         """PortAudio's callback. Never raises: a failing block is silence."""
         now = self._clock()
         self._last_callback = now
+        probe = self._probe
         try:
             if status.output_underflow:
                 self._late += 1
                 self._late_times.append(now)
             began = time.perf_counter()
-            outdata[:] = self._render(frames)
-            if time.perf_counter() - began > frames / self._dev_rate:
+            if probe is not None:
+                probe.acc = 0.0
+            block = self._render(frames)
+            rendered = time.perf_counter()
+            outdata[:] = block
+            ended = time.perf_counter()
+            if probe is not None:
+                probe.callback(ended - began, probe.acc, rendered - began - probe.acc)
+            if ended - began > frames / self._dev_rate:
                 self._late += 1
                 self._late_times.append(now)
         except Exception as exc:  # noqa: BLE001 - the audio callback never raises
@@ -721,9 +769,43 @@ class Engine:
     def _start_thread(self) -> None:
         if not self._background or self._thread is not None:
             return
+        if self._probe is not None:
+            self._reporter = threading.Thread(target=self._report_loop,
+                                              name="kuulas-debug", daemon=True)
+            self._reporter.start()
         self._thread = threading.Thread(target=self._helper, name="kuulas-engine",
                                         daemon=True)
         self._thread.start()
+
+    def _debug_numbers(self, since, blocksize: int | None = None):
+        """``diag.Probe.summary`` plus the counters and the device."""
+        def name_of(media_id: str) -> str:
+            try:
+                return self._project.media_item(media_id).name
+            except KeyError:
+                return media_id
+
+        block_ms = (blocksize or self._blocksize) / self._dev_rate * 1000
+        numbers, cursor = self._probe.summary(since, block_ms, name_of)
+        numbers.update(late_blocks=self._late, failed_blocks=self._failed,
+                       device=self._device_name, device_rate=self._dev_rate,
+                       resampling=self._dev_rate != self.rate)
+        return numbers, cursor
+
+    def _report(self) -> None:
+        """Print the line for what happened since the last one."""
+        numbers, self._report_cursor = self._debug_numbers(self._report_cursor)
+        diag.emit(diag.format_report(numbers))
+
+    def _report_loop(self) -> None:
+        while not self._halt.wait(1.0):
+            with self._tlock:
+                playing = self._playing
+            if playing:
+                try:
+                    self._report()
+                except Exception:  # the reporter must outlive any one bug
+                    log.exception(t("log.engine.tick_failed"))
 
     def _helper(self) -> None:
         while not self._halt.wait(TICK_S):
@@ -768,6 +850,11 @@ class Engine:
         self._last_escalation = now
         self._late_times.clear()
         if self._blocksize < SAFE_BLOCKSIZE:
+            if self._probe is not None:
+                numbers = self._debug_numbers((0, 0, 0), self._blocksize)[0]
+                diag.emit(diag.format_raise(
+                    self._blocksize, SAFE_BLOCKSIZE, self._late,
+                    numbers["cb_max_ms"], numbers["block_ms"]))
             self._blocksize = SAFE_BLOCKSIZE
             self._reopen(resume=True, key="notice.engine.struggling")
         else:
@@ -838,5 +925,5 @@ class Engine:
                     src_end = src + (hi - lo)
                     at = src
                     while at < src_end:
-                        self._store.read(clip.media, at, 1)
+                        self._store.read(clip.media, at, 1, prefetch=True)
                         at = (at // step + 1) * step

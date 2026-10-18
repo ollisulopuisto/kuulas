@@ -24,9 +24,15 @@ class TestSideBySide:
             Placement(item, "t0", "take", "speech", 100, True),
         )
 
-    def test_stereo_is_music(self):
+    def test_stereo_alone_is_not_music(self):
         item = _item("bed.wav", RATE, channels=2)
         result = plan_import([item], RATE, mode="side_by_side")
+        assert result[0].kind == "speech"
+
+    @pytest.mark.parametrize(
+        "name", ["Music bed.wav", "taustamusiikki.wav", "Jingle_2.wav"])
+    def test_a_music_name_is_music(self, name):
+        result = plan_import([_item(name, RATE, channels=1)], RATE, mode="side_by_side")
         assert result[0].kind == "music"
 
     def test_two_time_refs_two_seconds_apart(self):
@@ -103,7 +109,7 @@ class TestEquivalenceWithImportMediaDocstring:
 
         - clips are placed by BWF time reference relative to the earliest;
         - a file without one starts at 0;
-        - stereo is music, mono is speech.
+        - a music-named file is music, anything else is speech.
         """
         with_ref_late = _item("late.wav", RATE, time_ref_flicks=3 * 705_600_000)
         no_ref = _item("phone.wav", RATE)
@@ -119,6 +125,7 @@ class TestEquivalenceWithImportMediaDocstring:
         assert by_name["late.wav"].start_frame == 2 * RATE
         assert by_name["phone.wav"].start_frame == 0
         assert by_name["music.wav"].kind == "music"
+        assert by_name["phone.wav"].kind == "speech"
 
 
 class TestErrors:

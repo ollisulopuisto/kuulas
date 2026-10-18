@@ -444,6 +444,7 @@
   "desktop.menu.view.density": "Vaihda tiheyttä",
   "desktop.menu.window.minimize": "Pienennä",
   "cli.desktop.help": "Avaa työpöytäikkuna, jossa on lista viimeksi avatuista projekteista.",
+  "cli.debug.help": "Tulosta toiston ajoitukset (takaisinkutsu, median luku, miksaus) kerran sekunnissa virhevirtaan.",
   "cli.open.window": "Avaa selaimen sijaan omaan ikkunaan (vaatii desktop-lisäosan).",
   "cli.import_nhsx.help": "Tuo Hindenburg-sessio (.nhsx) projektiin; luo projektin, jos sitä ei ole.",
   "cli.import_nhsx.nhsx": "Hindenburg-sessiotiedosto (.nhsx).",
@@ -1021,5 +1022,8 @@
   "cmd.track.new_bus.hint": "Lisää väylän, jossa ei ole raitoja, ja antaa nimetä sen.",
   "ui.edit.label.group_bus": "Ryhmittely uuteen väylään",
   "ui.edit.label.new_bus": "Uusi väylä",
-  "ui.bus.option_new": "+ Uusi väylä…"
+  "ui.bus.option_new": "+ Uusi väylä…",
+  "ui.range.in": "Alku",
+  "ui.range.out": "Loppu",
+  "ui.range.length": "Pituus"
 }

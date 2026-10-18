@@ -100,7 +100,7 @@ def test_set_music_info_rejects_bad_key_and_unknown_media(tmp_path: Path):
 
 
 def test_music_report_reflects_edited_tags(tmp_path: Path):
-    wav = _make_wav(tmp_path / "music.wav", seconds=2.0)
+    wav = _make_wav(tmp_path / "take.wav", seconds=2.0)
     s = Session(tmp_path / "proj.kuulas")
     p = s.import_media([str(wav)])
     media = p.media[0]

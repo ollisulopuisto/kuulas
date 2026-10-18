@@ -1114,7 +1114,7 @@ class Session:
                     continue
                 if track_id is None:
                     track_id = ops.new_id("t")
-                    kind = "music" if media.channels >= 2 else "speech"
+                    kind = import_plan.guess_kind(source_track.name or "")
                     p = ops.add_track(p, track_id, source_track.name or "Track", kind)
                     p = ops.set_track(p, track_id, gain_db=track_gain, pan=track_pan,
                                       mute=track_muted)

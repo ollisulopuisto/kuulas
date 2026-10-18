@@ -31,6 +31,7 @@ import { motionMode } from "./motion.js";
 import { createOverview } from "./overview.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
 import { createPrefs } from "./prefs.js";
+import { formatRangeInfo, rangeInfo } from "./range-info.js";
 import { setupKeyboard } from "./shell-keys.js";
 import { chipSpeed } from "./shuttle.js";
 import { getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
@@ -1137,6 +1138,25 @@ function spanText(state) {
   return t(`ui.zoom.${unit}`, { value: formatNumber(value, { digits: GAIN_DIGITS(value) }) });
 }
 
+// "In 12:03,250 · Out 12:41,000 · Length 0:37,750": the marked or selected section.
+function updateRangeInfo() {
+  const el = $("range-info");
+  const state = getState();
+  const info = rangeInfo(state);
+  el.hidden = info === null;
+  if (info === null) return;
+  const { inText, outText, lengthText } = formatRangeInfo(info, rate(), frameToTime);
+  const parts = [
+    [inText, "ui.range.in"],
+    [outText, "ui.range.out"],
+    [lengthText, "ui.range.length"],
+  ];
+  el.textContent = parts
+    .filter(([text]) => text !== null)
+    .map(([text, key]) => `${t(key)} ${text}`)
+    .join(" · ");
+}
+
 function render(state, patch) {
   const changed = patch ? new Set(Object.keys(patch)) : null;
   const touched = (...names) => changed === null || names.some((name) => changed.has(name));
@@ -1164,6 +1184,7 @@ function render(state, patch) {
   if (touched("playhead", "project")) {
     $("timecode").textContent = frameToTime(state.playhead, rate());
   }
+  if (touched("project", "selection", "inPoint", "outPoint")) updateRangeInfo();
   if (touched("playing")) {
     $("play-icon").textContent = state.playing ? "■" : "▶";
     $("play-label").textContent = t(state.playing ? "ui.transport.stop" : "ui.transport.play");
