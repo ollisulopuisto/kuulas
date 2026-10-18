@@ -774,7 +774,7 @@ record mode (only the log keys). Changes to the table below, which the
 collision test must accept:
 
 - split **B** (alias Mod+B); cut and close gap **X** (Mod+X); cut this
-  track only **Shift+X**; close gap on all tracks **Alt+X**
+  track only **Shift+X**; lift-cut (copy, soft delete, gap kept) **Alt+X**; close gap on all tracks **Alt+Mod+X**
 - mute clips **N** (Alt+Mod+M); fade **G** (Mod+F); clip gain **+ / -** on a
   selection (Shift+Mod+↑/↓), with time zoom on = / - only when nothing is
   selected; group editing **E** (Mod+G)

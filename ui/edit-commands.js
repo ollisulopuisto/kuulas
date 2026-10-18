@@ -4,6 +4,7 @@
 import { pasteChoice } from "./clipboard.js";
 import {
   changedTracks,
+  closeGapPlan,
   copyPlan,
   createBurst,
   cutPlan,
@@ -11,6 +12,7 @@ import {
   fadePlan,
   gainPlan,
   groupBusPlan,
+  liftCutPlan,
   mutePlan,
   newBusPlan,
   nudgePlan,
@@ -78,6 +80,8 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
   planned("edit.delete", deletePlan);
   planned("edit.cut", (s) => cutPlan(s, { t }));
   planned("edit.cut_track", (s) => cutPlan(s, { thisTrackOnly: true, t }));
+  planned("edit.lift_cut", (s) => liftCutPlan(s, { t }));
+  planned("edit.close_gap_all", closeGapPlan);
 
   // The clipboard (WP46). Mod+C copies and changes nothing in the project. The paste keys
   // all use the newest entry (or the one picked in the Clipboard tab) at the play cursor:

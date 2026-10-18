@@ -75,6 +75,8 @@ const WORKING = [
   "edit.delete",
   "edit.cut",
   "edit.cut_track",
+  "edit.lift_cut",
+  "edit.close_gap_all",
   "clip.mute",
   "track.mute",
   "track.solo",
@@ -104,9 +106,29 @@ describe("the editing commands", () => {
     }
   });
 
-  test("no key is bound to the parked lift-cut", () => {
-    const keys = DEFAULT_KEYMAP.flatMap((e) => [e.keys.mac, e.keys.other].flat());
-    assert.equal(keys.includes("Alt+X"), false);
+  test("Alt+X is lift-cut and Alt+Mod+X closes the gap on all tracks", () => {
+    const keysOf = (id) => DEFAULT_KEYMAP.find((e) => e.id === id).keys;
+    assert.deepEqual(keysOf("edit.lift_cut"), { mac: "Alt+X", other: "Alt+X" });
+    assert.deepEqual(keysOf("edit.close_gap_all"), { mac: "Alt+Mod+X", other: "Alt+Mod+X" });
+  });
+
+  test("lift-cut sends one clipboard_lift_cut edit and refreshes the list; Backspace stays off the clipboard", () => {
+    const state = base({ inPoint: 2 * S, outPoint: 6 * S });
+    const h = setup(state);
+    h.registry.run("edit.lift_cut", null, state);
+    assert.equal(h.sent.length, 1);
+    assert.equal(h.sent[0].op, "clipboard_lift_cut");
+    assert.match(h.sent[0].label, /^ui\.edit\.label\.lift_cut/);
+    h.sent[0].done({ project, clipboard: { ok: true, entry: "e9" } });
+    assert.equal(h.refreshed(), 1);
+  });
+
+  test("close gap on all tracks is a plain ripple_delete, no clipboard op", () => {
+    const state = base({ inPoint: 2 * S, outPoint: 6 * S });
+    const h = setup(state);
+    h.registry.run("edit.close_gap_all", null, state);
+    assert.equal(h.sent[0].op, "ripple_delete");
+    assert.equal(h.refreshed(), 0);
   });
 
   test("G fades at the play cursor: set_fade_at on the clip under it, one step, a toast with Undo", () => {
@@ -138,6 +160,8 @@ describe("the editing commands", () => {
       "edit.delete",
       "edit.cut",
       "edit.cut_track",
+      "edit.lift_cut",
+      "edit.close_gap_all",
       "clip.mute",
       "edit.nudge_left",
       "clip.gain_up",

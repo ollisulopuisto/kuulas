@@ -1047,5 +1047,15 @@
   "ui.bus.option_new": "+ Uusi väylä…",
   "ui.range.in": "Alku",
   "ui.range.out": "Loppu",
-  "ui.range.length": "Pituus"
+  "ui.range.length": "Pituus",
+  "cmd.edit.lift_cut": "Nosta leikepöydälle ja jätä aukko",
+  "cmd.edit.lift_cut.hint": "Kopioi valinta tai merkitty väli leikepöydälle ja mykistä se paikallaan; aukko jää ja sen voi palauttaa",
+  "cmd.edit.close_gap_all": "Sulje aukko kaikilta raidoilta",
+  "cmd.edit.close_gap_all.hint": "Poista valinta tai merkitty väli kaikilta raidoilta ja sulje aukko koskematta leikepöytään",
+  "history.clipboard_lift_cut": "Nosto leikepöydälle (aukko jäi)",
+  "ui.edit.label.lift_cut": "Nosto (aukko jää)",
+  "ui.edit.label.close_gap": "Aukon sulkeminen kaikilta raidoilta",
+  "ui.edit.toast.lift_cut": {"one": "Nostettu {seconds} s {count} raidalta · leikepöydällä, aukko jäi", "other": "Nostettu {seconds} s {count} raidalta · leikepöydällä, aukko jäi"},
+  "ui.edit.toast.lift_cut_uncopied": {"one": "Nostettu {seconds} s {count} raidalta · EI kopioitu leikepöydälle ({error})", "other": "Nostettu {seconds} s {count} raidalta · EI kopioitu leikepöydälle ({error})"},
+  "ui.edit.toast.close_gap": {"one": "Aukko suljettu {seconds} s kaikilta raidoilta", "other": "Aukko suljettu {seconds} s kaikilta raidoilta"}
 }

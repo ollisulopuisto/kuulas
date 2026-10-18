@@ -41,6 +41,8 @@ export const MENU = [
       SEP,
       item("edit.cut"),
       item("edit.cut_track"),
+      item("edit.lift_cut"),
+      item("edit.close_gap_all"),
       item("edit.copy"),
       item("edit.paste"),
       item("edit.paste_overwrite"),
