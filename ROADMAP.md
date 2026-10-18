@@ -433,3 +433,5 @@ WP27, WP38, WP42, WP47, WP53.
 - Clip groups (group/ungroup/merge, v26.10.18.61) merged; **unverified by eye**: group badge, dragging a grouped clip. Decided (owner, 2026-10-18): merge joins touching clips only; bouncing/rendering in the editor is not needed now, it may come back with heavy effects (WP23b, tier 3 render).
 
 - WP22 UI (track kind tags, Speaker field) and WP46 clipboard (paste forms, limit, preview, sharing between windows, paste into another project, names, filter) merged v26.10.18.62; **unverified by eye**. Open: WP46 excerpts when the original file is gone (use `excerpt_media.py`), preview without gate/automation; WP22 voice condition (Alt+Mod+J).
+- WP56 (late, owner 2026-10-18): cut like a tape editor: lip smacks and fillers as candidates, breaths kept, silences trimmed around them, cut edges moved to syllable boundaries. Plan in `docs/PLAN.md`. Needs real recordings with marked examples from the owner; prior-art search first.
+

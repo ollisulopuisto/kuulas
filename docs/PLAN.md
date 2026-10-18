@@ -3172,3 +3172,30 @@ private git dependency), the `PODCAST_READ_TOKEN` CI secret until then, the app 
   platform; the bundle contains no absolute path to the build machine.
 
 ---
+
+---
+
+### WP56 — Cut like a tape editor: mouth noises, breaths, syllable-aware edges (late; owner, 2026-10-18)
+
+Status: open, late. Next level of the "jump to transient" idea (WP19i): the editor looks at the waveform
+the way an experienced tape cutter does.
+
+What the owner wants, as rules the tool can apply or suggest (never silently):
+- **Remove small noises:** lip smacks, clicks, throat sounds and other short non-speech events, found
+  from the audio, offered as cut candidates (WP18) with a reason ("lip smack").
+- **Fillers** (um, er): from the transcript words and the audio, offered as candidates.
+- **Keep breaths.** Silence around a breath is trimmed, the breath is kept: speech, silence, breath: drop
+  the silence before the breath; breath, then a pause: keep the breath, drop the pause. A breath is never
+  cut out by a gap-closing edit unless the owner asks.
+- **Cut at syllable edges.** When a cut removes more than a few syllables, its start and end are moved
+  (suggested, shown, one key to accept) to word or syllable boundaries from the transcript, and to a
+  nearby zero crossing or low-energy point so there is no click.
+
+Build order: (1) event detection in the audio (silence, breath, click/smack by short-time energy,
+spectral flatness and duration; tested on real recordings the owner marks), (2) the rules above as pure
+planning functions over words plus events, producing candidate cuts, (3) UI: candidates with reasons,
+Tab between them, accept, reject. Prior art to search first, as always: breath and mouth-noise removal
+in iZotope RX, Descript, Hindenburg, Auphonic, Adobe Podcast, open-source VAD and breath detectors.
+No machine-learning model unless a rule-based detector measurably fails on real material.
+Needs: WP18 (cut candidates), WP19i (transient stops), real marked recordings from the owner.
+
