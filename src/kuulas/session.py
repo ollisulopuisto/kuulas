@@ -673,6 +673,18 @@ class Session:
         """Queue ONE job that exports the mix as one file (see ``mix_export_args``)."""
         return self._export_job(self.mix_export_args(args), t("job.export_mix"))
 
+    def export_folder_hint(self) -> dict:
+        """Where an export goes when the caller names no folder: the folder the
+        last export of this project used (``remembered``), else ``<project> exports``
+        beside the project, which is made only when an export runs. The desktop
+        folder chooser starts here."""
+        with self.lock:
+            saved = self.history.meta_json("export", {}).get("folder")
+        if saved:
+            return {"folder": str(saved), "remembered": True}
+        default = self.package.path.parent / f"{self.package.path.stem} exports"
+        return {"folder": str(default), "remembered": False}
+
     def last_export_settings(self, kind: str) -> dict | None:
         """Return the project's remembered settings for an export kind."""
         return export_module.last_settings(self, kind)

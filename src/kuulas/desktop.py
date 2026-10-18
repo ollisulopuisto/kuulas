@@ -251,6 +251,19 @@ class Bridge:
         got = self._dialog(self._webview.FileDialog.SAVE, save_filename=name)
         return got[0] if got else None
 
+    def choose_export_folder(self, start: str | None = None) -> str | None:
+        """Native folder chooser for an export: the chosen folder, or None when
+        cancelled. The page passes only a start hint (a string); it is not used
+        as a path to write to, only as where the dialog opens, at the nearest
+        folder that exists (the default ``<project> exports`` may not yet)."""
+        if not isinstance(start, str) or not start or "\0" in start:
+            return None
+        folder = Path(start)
+        while not folder.is_dir() and folder != folder.parent:
+            folder = folder.parent
+        got = self._dialog(self._webview.FileDialog.FOLDER, directory=str(folder))
+        return got[0] if got else None
+
     def reveal_export(self) -> bool:
         """Show the folder of the last "Export all tracks" in Finder / Explorer.
         Takes no argument: the page cannot name a path, only ask for the one the
