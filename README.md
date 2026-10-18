@@ -1,86 +1,84 @@
 # kuulas
 
-kuulas is a multitrack editor for spoken word (podcasts, interviews, radio).
-It is modelled on Hindenburg PRO: keyboard-first, with the transcript and the
-audio as one thing. Its signal processing comes from the podcast repo's
-`speechmix` and `nhsx` packages.
+kuulas is a local multitrack audio editor for spoken word (podcasts, interviews, radio). It is modelled on Hindenburg PRO: keyboard-first, speech-aware, with the transcript and the audio treated as one thing. The engine runs locally on Python 3.13 and serves a browser UI over local HTTP/WebSocket; audio analysis and signal processing come from the podcast repo's `speechmix` and `nhsx` packages.
 
-## Running the tests
+## What works today
 
-kuulas needs the podcast repo checked out next to it, at `../podcast`, because
-`speechmix` and `nhsx` are path dependencies.
+- **Multitrack editor window**: Timeline with comfortable (80 px) and compact densities, waveform pyramid rendering, overview navigation strip, and live WebSocket playhead feed.
+- **Hindenburg-level keyboard editing**: Full customizable keymap (`?` cheat sheet), B split (Shift+B all tracks), Backspace/Delete soft cut, X ripple cut, Q/W trim to cursor, N mute, Shift+M track mute, Shift+S solo, E group editing, and modifier nudge/gain controls.
+- **Contextual help and command palette**: Docked F1 help panel with topic search and "Show me" ring highlights, Mod+K palette, and in-window menu bar with live modifier previews.
+- **Clipboard with persistent history**: Mod+C / X copy, Mod+V insert paste (sync groups follow), Alt+Mod+V overwrite, and sidebar Clipboard tab with cross-project history, pin, rename, and delete.
+- **Auto-Silence and non-destructive gates**: Speech activity analysis marks closed-mic stretches as gates with smooth 30 ms boundaries; visible in the editor and reopenable stretch by stretch.
+- **Batch import with flexible placement**: Import multiple files side by side (aligned by BWF recording clocks into sync groups) or sequentially on one track, with natural name sorting and track naming by file or person.
+- **Sync groups and edit expansion**: Tracks recorded together stay locked; edits time-shift the entire sync group; subclips can be resynced to the main clip.
+- **Music reporting**: Session royalty reports (CSV with formula injection protection, HTML) via CLI and `/api/music-report`.
+- **Project format (v3)**: Crash-safe `Name.kuulas` package directory, WAL SQLite history tree with constant-time branching undo/redo, and recording clock in flicks.
+- **Desktop app wrapper**: Native window via pywebview (`--extra desktop`), recent projects window, native file dialogs, and local file drag-and-drop linking.
 
+*Verification note:* Automated tests run on macOS, Linux, and Windows in CI. Hardware audio device playback and desktop window visuals are verified by hand on macOS only.
+
+## Running kuulas
+
+kuulas requires Python 3.13 and `uv`. Audio decoding uses ffmpeg (`brew install ffmpeg` on macOS). kuulas needs the podcast repo checked out next to it at `../podcast` because `speechmix` and `nhsx` are path dependencies.
+
+To inspect or open a project (created automatically if missing):
+
+```bash
+uv run kuulas info Interview.kuulas
+uv run kuulas open Interview.kuulas
 ```
+
+This starts the local backend server on `127.0.0.1` and opens the editor in your default browser.
+
+### Desktop app
+
+To run kuulas in a native window (which frees browser-reserved shortcuts like Cmd+W and Cmd+T, adds native file dialogs, and links dropped files in place):
+
+```bash
+uv sync --extra desktop
+uv run kuulas                         # opens launcher with recent projects
+uv run kuulas open Interview.kuulas --window
+```
+
+Platform requirements: macOS uses WKWebView (Safari engine); Windows requires WebView2 runtime; Linux requires GTK WebKit2 packages (`python3-gi`, `gir1.2-webkit2-4.1`). See `docs/desktop.md`.
+
+## Testing and checks
+
+Run the complete automated test and lint suite:
+
+```bash
 uv sync
-uv run pytest -q
-uv run ruff check .
-node --test ui/tests/                       # UI unit tests
-npx @biomejs/biome@2.2.4 check ui/         # UI lint
+uv run pytest -q                      # Python unit tests (1000+ tests)
+uv run ruff check .                   # Python lint
+uv run ruff format --check .          # Python formatting
+node --test ui/tests/                 # UI unit tests (500+ tests)
+npx @biomejs/biome@2.2.4 check ui/    # UI lint and format
 ```
 
-Audio decoding uses ffmpeg. Install it first (`brew install ffmpeg` on a Mac).
+Repository verification tools in `scripts/`:
 
-Tests that need a real audio device are kept out of the default run. Run them
-by hand, volume down (plays one second of a quiet tone):
-
+```bash
+uv run python scripts/check_isolation.py  # Run every test file alone to ensure test isolation
+uv run python scripts/check_locale.py     # Verify English/Finnish translation parity and references
+uv run python scripts/check_docs.py       # Check CalVer, pyproject.toml, and roadmap alignment
 ```
+
+Optional and manual tests:
+
+```bash
+# Real audio output test (volume down; plays a short quiet tone)
 uv run pytest -q tests/hardware -s
-```
 
-The transcription smoke test needs faster-whisper, installed with the
-`transcribe` extra:
-
-```
+# Local transcription smoke test (requires faster-whisper)
 uv sync --extra transcribe
 uv run pytest -q tests/manual/test_transcribe_smoke.py -s
 ```
 
-Check test isolation: the default language follows the machine, so a test can
-pass or fail depending on run order (`uv run python scripts/check_isolation.py`).
+## Documentation and development
 
-Check locale parity and references: ensure English and Finnish locale files stay
-in sync and all referenced keys exist (`uv run python scripts/check_locale.py`).
+- `ROADMAP.md`: What kuulas must do, requirements status, and planned milestones.
+- `docs/PLAN.md`: Implementation work packages, triage, and project ground rules.
+- `docs/FORMAT.md`: On-disk package structure, SQLite history, and material catalog.
+- `docs/desktop.md`: Desktop wrapper architecture, pywebview boundaries, and verification.
 
-## Projects
-
-A project is a `Name.kuulas` folder (format: `docs/FORMAT.md`). To see what
-is in one:
-
-```
-uv run kuulas info Interview.kuulas
-```
-
-To open one (it is created if missing) in the browser, served on 127.0.0.1
-only: `uv run kuulas open Interview.kuulas`. The page is a placeholder until
-the UI (WP4) lands; the HTTP API behind it is described in `docs/PLAN.md`
-(WP3). What is done and what is left: `ROADMAP.md`.
-
-The `kuulas.usage.extract(project)` API lists the recording-time ranges used
-by a project, including audibility and excerpt-to-original mapping. Its
-results are shared by future music reports, series tracking and change views.
-
-## Desktop app
-
-A native window instead of a browser tab (WP15): it frees the keys a browser
-keeps (Cmd+T, Cmd+W, Cmd+N, F6, Cmd+L) and adds native file dialogs, a menu and
-drag and drop that links media in place instead of uploading it. It uses the
-system web view through pywebview and the same server as `kuulas open`.
-
-```
-uv sync --extra desktop            # installs pywebview
-uv run kuulas                      # window with a recent-projects list
-uv run kuulas open Interview.kuulas --window
-```
-
-Without the extra, `kuulas` says how to install it; `kuulas open <folder>`
-without `--window` keeps serving to a browser.
-
-Per OS: macOS uses WKWebView (Safari's engine). Windows needs the WebView2
-runtime (already on Windows 11). Linux needs system packages first:
-`python3-gi gir1.2-webkit2-4.1` (Debian/Ubuntu) and a PyGObject install. Not
-signed or notarised; no updater. Details and what is verified: `docs/desktop.md`.
-
-## Where to read next
-
-- `ROADMAP.md`: what kuulas must do, what is done, and what is next.
-- `docs/PLAN.md`: how it is built, in work packages, with the ground rules.
+agents work through `.agents/` and `scripts/agent_gate.py`.
