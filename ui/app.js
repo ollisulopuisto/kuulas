@@ -2,6 +2,9 @@
 // canvases and the keyboard together. The decisions live in small pure modules
 // (view.js, lanes.js, keys.js, ...); this file only applies their answers.
 import * as api from "./api.js";
+import { listedRows, scrollToShow, stepTarget } from "./candidates-model.js";
+import { createCandidatesPanel } from "./candidates-panel.js";
+import { createPreviewPlayer } from "./candidates-preview.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
 import { createEditor } from "./edits.js";
 import { nextPanel } from "./focus.js";
@@ -117,6 +120,8 @@ const transport = createTransport({
   getState,
   setState,
   onError: showError,
+  // Any stop, play or seek of the user's ends a candidate preview in progress.
+  onUserAction: () => previewPlayer?.cancel(),
 });
 
 // -- the view: zoom, scroll, Z, history ---------------------------------------
@@ -291,10 +296,11 @@ const panelElements = {
   timeline: $("timeline"),
   transcript: $("panel-transcript"),
   inspector: $("panel-inspector"),
+  candidates: $("panel-candidates"),
   clipboard: $("panel-clipboard"),
   history: $("panel-history"),
 };
-const SIDEBAR_TABS = ["inspector", "clipboard", "history"];
+const SIDEBAR_TABS = ["inspector", "candidates", "clipboard", "history"];
 
 function focusPanel(name) {
   // A sidebar tab that is not showing must show before it can take the focus.
@@ -381,6 +387,12 @@ const keyboard = setupKeyboard({
     correct: () => transcript.startCorrect(),
     focusName: () => inspector.focusName(),
     openGateStretch: () => openGateStretch(),
+    selectCandidate: (row) => selectCandidate(row),
+    findCandidates: () => void findCandidates(),
+    applyCandidate: (id, mode) => void applyCandidate(id, mode),
+    keepCandidate: (id) => void keepCandidate(id),
+    markCandidate: (start, end, track) => void markCandidate(start, end, track),
+    previewCandidate: (row) => void previewCandidate(row),
     seek: (frame) => void transport.seek(frame),
     totalFrames,
   },
@@ -791,6 +803,150 @@ const clipboardPanel = createClipboardPanel({
 // Another window of kuulas may have copied something: look again when this one is back.
 window.addEventListener("focus", () => void refreshClipboard());
 
+// -- cut candidates (WP18) ------------------------------------------------------------------------------
+
+let candidatesToken = 0;
+let previewPlayer = null;
+
+/** Fetch the list again (the newest answer wins). The frames move with every edit, so this
+ * runs whenever the head changes, not only while the tab is showing: the timeline draws them. */
+async function refreshCandidates() {
+  const mine = ++candidatesToken;
+  try {
+    const answer = await api.getCandidates();
+    if (mine === candidatesToken) {
+      setState({ candidates: answer.candidates, candidateSummary: answer.summary });
+    }
+    return answer;
+  } catch (error) {
+    if (mine === candidatesToken) showError(error);
+    return null;
+  }
+}
+
+// A row picked (click, ] [ or the arrows): the play cursor goes to its start, the timeline
+// scrolls so it shows, and the preview bar's numbers are fetched.
+function selectCandidate(row) {
+  const state = getState();
+  const patch = { candidateCurrent: row.id, candidatePreview: null };
+  if (row.start !== null) {
+    patch.scroll = View.clampScroll(
+      scrollToShow(row.start, { scroll: state.scroll, zoom: state.zoom, width: width() }),
+      state.zoom,
+      width(),
+      totalFrames(),
+    );
+  }
+  setState(patch);
+  if (row.start === null) return;
+  void transport.seek(row.start);
+  api
+    .getCandidatePreview(row.id)
+    .then((data) => {
+      if (getState().candidateCurrent === row.id) {
+        setState({ candidatePreview: { id: row.id, ...data } });
+      }
+    })
+    .catch(showError);
+}
+
+async function findCandidates() {
+  const before = new Set(getState().candidates.map((row) => row.id));
+  setState({ candidateBusy: true, candidateFound: null });
+  try {
+    apply(await api.command("candidates_detect", {}));
+    const answer = await refreshCandidates();
+    const after = new Set((answer?.candidates ?? []).map((row) => row.id));
+    setState({
+      candidateFound: {
+        added: [...after].filter((id) => !before.has(id)).length,
+        dropped: [...before].filter((id) => !after.has(id)).length,
+      },
+    });
+  } catch (error) {
+    showError(error);
+  } finally {
+    setState({ candidateBusy: false });
+  }
+}
+
+// After a decision the next open candidate becomes the current one: the second listen is
+// then Enter, Enter, K, Enter.
+async function afterDecision() {
+  // The answer itself, not the state: a newer refresh (the live channel's) may still be
+  // in flight and the state then still lists the candidate just decided as open.
+  const answer = await refreshCandidates();
+  if (!answer) return;
+  const next = stepTarget(
+    listedRows(answer.candidates, true),
+    { currentId: null, playhead: getState().playhead - 1 },
+    1,
+  );
+  if (next) selectCandidate(next);
+}
+
+async function applyCandidate(id, mode) {
+  try {
+    apply(await api.command("candidate_apply", { id, mode }));
+    showNotice(t(mode === "soft" ? "ui.candidates.deleted" : "ui.candidates.cut"), "ok", {
+      undo: true,
+    });
+    await afterDecision();
+  } catch (error) {
+    showError(error);
+  }
+}
+
+async function keepCandidate(id) {
+  try {
+    apply(await api.command("candidate_set_state", { id, state: "kept" }));
+    showNotice(t("ui.candidates.kept"), "ok", { undo: true });
+    await afterDecision();
+  } catch (error) {
+    showError(error);
+  }
+}
+
+async function markCandidate(start, end, track) {
+  try {
+    apply(await api.command("candidate_mark", { start, end, track_id: track }));
+    showNotice(t("ui.candidates.marked"), "ok", { undo: true });
+    await refreshCandidates();
+  } catch (error) {
+    showError(error);
+  }
+}
+
+// Preview: the engine cannot skip a stretch, so the stretches around it are played one
+// after the other (candidates-preview.js). The project is not touched.
+async function previewCandidate(row) {
+  try {
+    const data = await api.getCandidatePreview(row.id);
+    previewPlayer?.cancel();
+    previewPlayer = createPreviewPlayer({
+      rate: rate(),
+      playSegment: (at, until) => transport.playSegment(at, until),
+      stop: () => void transport.stop(),
+    });
+    showNotice(t("ui.candidates.preview_running"), "ok");
+    await previewPlayer.start(data);
+  } catch (error) {
+    showError(error);
+  }
+}
+
+const candidatesPanel = createCandidatesPanel({
+  root: $("panel-candidates"),
+  getState,
+  actions: {
+    select: (row) => selectCandidate(row),
+    find: () => keyboard.registry.run("candidate.find", null, getState()),
+    toggleOpenOnly: () => keyboard.registry.run("candidate.filter", null, getState()),
+    can: (id, state) => keyboard.registry.can(id, state),
+    run: (id) => keyboard.registry.run(id, null, getState()),
+  },
+});
+
 // -- help ---------------------------------------------------------------------------------------------
 
 // Help reads the command registry and the keymap the user has (entries(): the
@@ -951,6 +1107,25 @@ function render(state, patch) {
     )
   )
     clipboardPanel.update(state);
+  if (state.head && touched("head")) void refreshCandidates();
+  if (
+    touched(
+      "candidates",
+      "candidateSummary",
+      "candidateCurrent",
+      "candidatesOpenOnly",
+      "candidateBusy",
+      "candidateFound",
+      "candidatePreview",
+      "project",
+    )
+  )
+    candidatesPanel.update(state);
+  if (touched("candidateSummary")) {
+    const open = state.candidateSummary?.open ?? 0;
+    $("cand-count").hidden = open === 0;
+    $("cand-count").textContent = String(open);
+  }
   if (touched("sidebarTab")) {
     for (const name of SIDEBAR_TABS) {
       $(`panel-${name}`).hidden = state.sidebarTab !== name;
