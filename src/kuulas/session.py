@@ -44,6 +44,7 @@ from . import (
     ops,
     package,
     source_map,
+    subtitles,
     transcribe,
     transcript,
 )
@@ -72,6 +73,10 @@ class NhsxImportError(KuulasError, ValueError):
 
 class NoSuchEntryError(ops.EditError):
     """The clipboard has no entry with that id (the API answers 404)."""
+
+
+class SubtitlesError(ops.EditError):
+    """Unknown subtitle format."""
 
 
 class MatchReport(dict):
@@ -576,6 +581,24 @@ class Session:
         if format == "csv":
             return music_report_module.render_csv(rows)
         return music_report_module.render_html(rows, title=title)
+
+    def subtitles(self, format: str) -> str:
+        """Export timeline transcript as subtitles text (SRT or WebVTT).
+
+        ``format``:
+        - ``"srt"``: SubRip subtitle format (.srt).
+        - ``"vtt"``: WebVTT subtitle format (.vtt).
+        """
+        if format not in ("srt", "vtt"):
+            raise SubtitlesError("error.subtitles.bad_format", format=format)
+        with self.lock:
+            state = self.history.state
+            words_by_media = self.transcripts()
+        words = transcript.timeline_words(state, words_by_media)
+        cue_list = subtitles.cues(words, rate=state.rate)
+        if format == "srt":
+            return subtitles.to_srt(cue_list)
+        return subtitles.to_vtt(cue_list)
 
     def cut_preview(self, selected: list[dict]) -> dict[str, Any]:
         """Preview crosstalk that cutting ``selected`` words would remove (WP18).
