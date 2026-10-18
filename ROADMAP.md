@@ -430,4 +430,4 @@ WP27, WP38, WP42, WP47.
 - Clock drift between recorders (a file running slow over an hour) is not
   handled; sync groups fix offsets only.
 
-- Clip groups (group/ungroup/merge, v26.10.18.61) merged; **unverified by eye**: group badge, dragging a grouped clip. Open: does "merge" also mean bounce non-touching clips?
+- Clip groups (group/ungroup/merge, v26.10.18.61) merged; **unverified by eye**: group badge, dragging a grouped clip. Decided (owner, 2026-10-18): merge joins touching clips only; bouncing/rendering in the editor is not needed now, it may come back with heavy effects (WP23b, tier 3 render).
