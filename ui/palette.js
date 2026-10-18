@@ -103,6 +103,14 @@ export function createPalette({ getRows, run, t, root = document.body }) {
     rows = getRows(input.value);
     selected = Math.min(selected, Math.max(0, rows.length - 1));
     list.replaceChildren();
+    // The "Recent" heading; the rest follows under none (the first recent row comes first).
+    if (rows[0]?.recent) {
+      const heading = document.createElement("li");
+      heading.setAttribute("role", "presentation");
+      heading.className = "palette-group";
+      heading.textContent = t("ui.palette.recent");
+      list.append(heading);
+    }
     rows.forEach((row, index) => {
       const li = document.createElement("li");
       li.id = `palette-row-${index}`;
@@ -142,7 +150,7 @@ export function createPalette({ getRows, run, t, root = document.body }) {
     input.setAttribute("aria-activedescendant", rows.length ? `palette-row-${selected}` : "");
     if (rows.length === 0) note.textContent = t("ui.palette.none");
     else note.textContent = "";
-    list.children[selected]?.scrollIntoView?.({ block: "nearest" });
+    list.querySelector(`#palette-row-${selected}`)?.scrollIntoView?.({ block: "nearest" });
   }
 
   function accept() {

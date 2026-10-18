@@ -50,7 +50,7 @@ from .session import (
     SubtitlesError,
     TranscriptTextError,
 )
-from .view_memory import ViewMemory
+from .view_memory import ViewMemory, ViewMemoryError
 
 log = logging.getLogger("kuulas.server")
 
@@ -358,8 +358,8 @@ def create_app(session, engine, *, language: str | None = None,
     def put_view_memory(body: ViewMemoryBody):
         try:
             ViewMemory().put(session.package.manifest["id"], body.view)
-        except ValueError as e:
-            raise BadRequestError("error.view_memory.junk", detail=str(e)) from None
+        except ViewMemoryError as e:
+            raise BadRequestError(e.key, **e.params) from None
         except OSError as e:
             # A convenience: say so in the log, do not fail the page.
             log.warning(t("log.view_memory.write_failed", error=str(e)))

@@ -6,7 +6,7 @@ import logging
 import pytest
 
 from kuulas import view_memory
-from kuulas.view_memory import MAX_PROJECTS, ViewMemory
+from kuulas.view_memory import MAX_PROJECTS, ViewMemory, ViewMemoryError
 
 
 def test_a_missing_file_remembers_nothing(tmp_path):
@@ -74,13 +74,13 @@ def test_writing_a_project_again_makes_it_the_newest(tmp_path):
 
 @pytest.mark.parametrize("bad", [[], "x", 3, None, {"a": "x" * 40_000}])
 def test_junk_is_refused(tmp_path, bad):
-    with pytest.raises(ValueError, match="view"):
+    with pytest.raises(ViewMemoryError):
         ViewMemory(tmp_path / "v.json").put("p1", bad)
 
 
 @pytest.mark.parametrize("project_id", ["", "x" * 300, 5, None])
 def test_a_bad_project_id_is_refused(tmp_path, project_id):
-    with pytest.raises(ValueError, match="project id"):
+    with pytest.raises(ViewMemoryError):
         ViewMemory(tmp_path / "v.json").put(project_id, {"zoom": 1})
 
 

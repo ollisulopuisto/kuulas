@@ -108,6 +108,7 @@ export const MENU = [
       item("view.zoom_out"),
       item("view.toggle"),
       item("view.back"),
+      item("view.reset_remembered"),
       SEP,
       item("palette.open"),
     ],

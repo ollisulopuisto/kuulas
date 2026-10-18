@@ -748,6 +748,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.keymap.export",
   },
   {
+    id: "view.reset_remembered",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.view.reset_remembered",
+  },
+  {
     id: "keymap.reset",
     keys: { mac: null, other: null },
     context: "global",

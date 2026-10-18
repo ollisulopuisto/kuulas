@@ -30,6 +30,7 @@ import { createMarkersPanel } from "./markers-panel.js";
 import { motionMode } from "./motion.js";
 import { createOverview } from "./overview.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
+import { createPrefs } from "./prefs.js";
 import { setupKeyboard } from "./shell-keys.js";
 import { chipSpeed } from "./shuttle.js";
 import { getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
@@ -39,8 +40,10 @@ import { createTrackHeaders } from "./tracks.js";
 import { createTranscript } from "./transcript.js";
 import { createTransport } from "./transport.js";
 import * as View from "./view.js";
+import { changeKey, createSaver, recordOf, restoreFrom } from "./view-memory.js";
 
 const $ = (id) => document.getElementById(id);
+const prefs = createPrefs();
 const WAVEFORM_GAIN = { min: 1 / 8, max: 32, snap: 0.04 };
 const LANE_STEP = 8;
 const SETTLE_MS = 160;
@@ -201,6 +204,20 @@ const actions = {
     history = View.visitView(history, { zoom: getState().zoom, scroll: getState().scroll });
   },
   viewBack: () => stepHistory(View.backView),
+  resetRememberedView() {
+    fitWholeEdit();
+    setState({
+      laneHeight: clampLaneHeight(tokenPx("--lane-h")),
+      waveformMode: "half",
+      followMode: "page",
+      sidebarTab: "inspector",
+      inPoint: null,
+      outPoint: null,
+    });
+    viewSaver.touch(currentRecord);
+    viewSaver.flush();
+    showNotice(t("ui.view.reset_remembered_done"), "ok");
+  },
   viewForward: () => stepHistory(View.forwardView),
 };
 
@@ -375,6 +392,7 @@ const transcript = createTranscript({
 // The whole keyboard layer: keymap, palette, cheat sheet, menu bar, hints (shell-keys.js).
 const keyboard = setupKeyboard({
   actions,
+  prefs,
   t,
   notify: showNotice,
   onLanguageChange,
@@ -486,13 +504,8 @@ $("follow").addEventListener("click", () => {
 });
 // The theme: follow the OS unless the user picked light or dark. A per-viewer
 // convenience until remembered settings (WP35) own it; storage may be blocked.
-const THEME_KEY = "kuulas.theme";
-let themeChoice = "system";
-try {
-  themeChoice = localStorage.getItem(THEME_KEY) ?? "system";
-} catch {
-  // Private mode or blocked storage: the OS decides.
-}
+const THEME_KEY = "theme";
+let themeChoice = prefs.get(THEME_KEY) ?? "system"; // no storage: the OS decides
 function applyTheme() {
   const value = themeAttribute(themeChoice);
   if (value) document.documentElement.dataset.theme = value;
@@ -508,13 +521,8 @@ function applyTheme() {
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => applyTheme());
 // Density: comfortable (default, roomy) or compact. The sizes the canvases
 // and lanes.js need come from the tokens, so CSS stays the one source.
-const DENSITY_KEY = "kuulas.density";
-let densityChoice = "comfortable";
-try {
-  densityChoice = localStorage.getItem(DENSITY_KEY) === "compact" ? "compact" : "comfortable";
-} catch {
-  // Storage blocked: the default applies.
-}
+const DENSITY_KEY = "density";
+let densityChoice = prefs.get(DENSITY_KEY) === "compact" ? "compact" : "comfortable";
 const tokenPx = (name) =>
   Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name));
 function applyDensity() {
@@ -531,40 +539,23 @@ function applyDensity() {
 }
 $("density").addEventListener("change", (event) => {
   densityChoice = event.target.value === "compact" ? "compact" : "comfortable";
-  try {
-    localStorage.setItem(DENSITY_KEY, densityChoice);
-  } catch {
-    // Not remembered; it still applies now.
-  }
+  prefs.set(DENSITY_KEY, densityChoice); // not remembered if storage is blocked; it applies now
   applyDensity();
 });
 
 // Show gates (WP44): a view option remembered per user; on by default.
-const GATES_KEY = "kuulas.gates";
-try {
-  setState({ showGates: localStorage.getItem(GATES_KEY) !== "off" });
-} catch {
-  // Storage blocked: gates show.
-}
+const GATES_KEY = "gates";
+setState({ showGates: prefs.get(GATES_KEY) !== "off" });
 $("show-gates").addEventListener("change", (event) => {
   setState({ showGates: event.target.checked });
-  try {
-    localStorage.setItem(GATES_KEY, event.target.checked ? "on" : "off");
-  } catch {
-    // Not remembered; it still applies now.
-  }
+  prefs.set(GATES_KEY, event.target.checked ? "on" : "off");
 });
 
 // Animation: full / subtle / off (motion.js). Without a choice it follows
 // the OS: reduced motion means off.
-const MOTION_KEY = "kuulas.motion";
+const MOTION_KEY = "motion";
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
-let motionChoice = null;
-try {
-  motionChoice = localStorage.getItem(MOTION_KEY);
-} catch {
-  // Storage blocked: follow the OS.
-}
+let motionChoice = prefs.get(MOTION_KEY); // null: follow the OS
 function applyMotion() {
   const mode = motionMode(motionChoice, reducedMotion.matches);
   document.documentElement.dataset.motion = mode;
@@ -572,22 +563,14 @@ function applyMotion() {
 }
 $("motion").addEventListener("change", (event) => {
   motionChoice = event.target.value;
-  try {
-    localStorage.setItem(MOTION_KEY, motionChoice);
-  } catch {
-    // Not remembered; it still applies now.
-  }
+  prefs.set(MOTION_KEY, motionChoice);
   applyMotion();
 });
 reducedMotion.addEventListener("change", () => applyMotion());
 
 $("theme").addEventListener("click", () => {
   themeChoice = nextTheme(themeChoice);
-  try {
-    localStorage.setItem(THEME_KEY, themeChoice);
-  } catch {
-    // Not remembered; it still applies now.
-  }
+  prefs.set(THEME_KEY, themeChoice);
   applyTheme();
 });
 
@@ -1308,6 +1291,55 @@ onLanguageChange(() => {
   render(getState(), null);
 });
 
+// -- view memory (WP35) -----------------------------------------------------------------
+// Zoom, scroll, tab, cursor and marks come back when the project is opened again. The
+// record lives in a per-user file on the server, never in the project (no undo step).
+// Saving starts only after the restore, or the defaults would overwrite what was kept.
+
+const currentRecord = () => recordOf(getState(), { whole: fitWhole });
+const viewSaver = createSaver({ save: (record) => api.putViewMemory(record) });
+let viewMemoryOn = false;
+let lastViewKey = "";
+
+function scheduleViewSave(state) {
+  if (!viewMemoryOn || !state.project) return;
+  const key = changeKey(state, { whole: fitWhole });
+  if (key === lastViewKey) return;
+  lastViewKey = key;
+  viewSaver.touch(currentRecord);
+}
+
+async function restoreView() {
+  try {
+    const { view } = await api.getViewMemory();
+    const { patch, whole } = restoreFrom(view, {
+      project: getState().project,
+      width: width(),
+      totalFrames: totalFrames(),
+    });
+    if (patch.zoom !== undefined) {
+      setView({ zoom: patch.zoom, scroll: patch.scroll ?? 0 }, { record: false, whole });
+      if (whole) fitWholeEdit();
+    }
+    delete patch.zoom; // applied by setView, with its scroll
+    delete patch.scroll;
+    setState(patch);
+    if (patch.playhead) void transport.seek(patch.playhead);
+  } catch (error) {
+    // Nothing remembered, or the server is not reachable: start with the defaults.
+    console.warn("the remembered view could not be restored", error);
+  }
+  viewMemoryOn = true;
+  lastViewKey = changeKey(getState(), { whole: fitWhole });
+  subscribe(scheduleViewSave);
+}
+
+// Leaving the page: write what is pending now (the debounce would be lost with the page).
+addEventListener("pagehide", () => viewSaver.flush());
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") viewSaver.flush();
+});
+
 // -- start --------------------------------------------------------------------------------------------------
 
 try {
@@ -1325,6 +1357,7 @@ try {
   const [state, words] = await Promise.all([api.getState(), api.getWords()]);
   apply(state);
   setState({ words: words.words ?? [] });
+  await restoreView();
   await refreshClipboard();
 } catch (error) {
   showError(error);

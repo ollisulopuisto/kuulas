@@ -22,7 +22,7 @@ import tempfile
 import threading
 from pathlib import Path
 
-from .messages import t
+from .messages import KuulasError, t
 
 log = logging.getLogger("kuulas.view_memory")
 
@@ -33,6 +33,10 @@ MAX_VIEW_BYTES = 16_384
 MAX_ID_LENGTH = 128
 
 _LOCK = threading.RLock()
+
+
+class ViewMemoryError(KuulasError, ValueError):
+    """A view that cannot be remembered (a message key, so the API can translate)."""
 
 
 def default_path() -> Path:
@@ -50,15 +54,15 @@ def default_path() -> Path:
 def _check(project_id: object, view: object) -> None:
     ok = isinstance(project_id, str) and 0 < len(project_id) <= MAX_ID_LENGTH
     if not ok:
-        raise ValueError("project id")
+        raise ViewMemoryError("error.view_memory.bad_id")
     if not isinstance(view, dict):
-        raise ValueError("view must be an object")  # noqa: TRY004 (callers catch ValueError)
+        raise ViewMemoryError("error.view_memory.not_object")
     try:
         size = len(json.dumps(view, allow_nan=False))
     except (TypeError, ValueError, RecursionError) as e:
-        raise ValueError(f"view is not plain JSON: {e}") from None
+        raise ViewMemoryError("error.view_memory.not_json", detail=str(e)) from None
     if size > MAX_VIEW_BYTES:
-        raise ValueError("view is too large")
+        raise ViewMemoryError("error.view_memory.too_large", limit=MAX_VIEW_BYTES)
 
 
 class ViewMemory:
@@ -100,7 +104,8 @@ class ViewMemory:
 
     def put(self, project_id: str, view: dict) -> None:
         """Remember ``view`` (replacing the old one) and make the project the
-        newest. Raises ``ValueError`` for junk, ``OSError`` when the file cannot
+        newest. Raises ``ViewMemoryError`` (a ``ValueError``) for junk, ``OSError``
+        when the file cannot
         be written (the old file is then untouched)."""
         _check(project_id, view)
         with _LOCK:

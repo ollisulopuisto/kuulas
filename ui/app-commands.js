@@ -46,6 +46,7 @@ export function registerAppCommands(registry, { actions, app }) {
   def("view.toggle", () => actions.toggleView(), hasProject);
   def("view.fit", () => actions.fitView(), hasProject);
   def("view.back", () => actions.viewBack(), hasProject);
+  def("view.reset_remembered", () => actions.resetRememberedView(), hasProject);
   def("view.forward", () => actions.viewForward(), hasProject);
   def("view.zoom_in", () => actions.zoomStep(1), hasProject);
   def("view.zoom_out", () => actions.zoomStep(-1), hasProject);
