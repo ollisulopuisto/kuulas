@@ -1,3 +1,21 @@
+## [v26.10.18.32] - 2026-10-18
+
+- The kuulas logo (a first version) is in the app: in the header next to the name and as the
+  browser tab icon. The desktop launcher and dock icon do not show it yet.
+
+## [v26.10.18.31] - 2026-10-18
+
+- **Buses can be made now:** Track menu / palette "Group the selected tracks into a new bus" and
+  "New empty bus", and "+ New bus…" at the end of the Bus choice in the inspector. (Nesting and
+  clicking a collapsed bus are still to come.)
+- Engine: loop playback (not reachable from the UI yet): the engine can loop a range with the
+  same 15 ms crossfade as a skip, gap-free, and follows soft cuts. Nothing has been heard on a
+  real device.
+- Loudness targets: a track can have a target loudness (speech and narration -19, music -23 by
+  default); "Match loudness" aims at it unless a target is given (the interface still sends -16
+  until the monitoring panel lands). A per-track and mix loudness curve with integrated LUFS and
+  true peak is available from the engine (`/api/loudness-curve`); the display comes later.
+
 ## [v26.10.18.30] - 2026-10-18
 
 - Zoom keys: **Z** still toggles the close and wide view; **0** now always shows the whole edit;
