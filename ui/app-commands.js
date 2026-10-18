@@ -1,6 +1,7 @@
 // The commands the editor can do today, registered by id (ids from keymap-default.js).
 // Everything else in the keymap is "planned" until its work package lands.
 import { canRestore } from "./history-model.js";
+import { rangeAvailable } from "./loop-range.js";
 
 /** The next or previous track's id; stops at the ends; null without a project. */
 export function stepTrack(project, current, direction) {
@@ -48,6 +49,12 @@ export function registerAppCommands(registry, { actions, app }) {
     "transport.play_before",
     () => actions.playFrom(prerollStart(app.getState().playhead ?? 0, rate())),
     hasProject,
+  );
+  // On needs a range to loop; off is always possible.
+  def(
+    "transport.loop",
+    () => actions.toggleLoop(),
+    (state) => Boolean(state?.project) && (state.loop === true || rangeAvailable(state) !== null),
   );
   def("transport.shuttle_forward", () => actions.shuttle("l"), hasProject);
   def("transport.shuttle_back", () => actions.shuttle("j"), hasProject);

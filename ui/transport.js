@@ -6,6 +6,7 @@
 // `speed` in the state is the engine's tape speed (signed; 1 at rest). Every answer
 // sets it: what the engine says while playing, 1 when it is not.
 
+import { activeLoop } from "./loop-range.js";
 import { press } from "./shuttle.js";
 
 export function createTransport({ post, getState, setState, onError }) {
@@ -29,12 +30,26 @@ export function createTransport({ post, getState, setState, onError }) {
       onError(error);
     }
   }
+  // Normal-speed play carries the loop while it is on and has a range (WP50).
+  const playOptions = () => {
+    const loop = activeLoop(getState());
+    return loop ? { loop } : null;
+  };
   return {
     toggle() {
       const { playing, playhead } = getState();
-      return playing ? run("stop") : run("play", playhead);
+      return playing ? run("stop") : run("play", playhead, null, null, playOptions());
     },
-    play: (at) => run("play", at),
+    play: (at) => run("play", at, null, null, playOptions()),
+    /**
+     * The loop or its range changed while playing: tell the engine without stopping.
+     * It plays on from the playhead; the engine takes the new range at the next wrap.
+     */
+    resendLoop() {
+      const { playing, playhead, speed = 1 } = getState();
+      if (!playing || speed !== 1) return Promise.resolve();
+      return run("play", playhead, null, null, playOptions());
+    },
     stop: () => run("stop"),
     /**
      * Play `at` to `until` (frames), jumping over each `[a, b)` in `skip` (the engine

@@ -178,18 +178,24 @@ export function fitRange({ start, end, width, padding = 0.05 }) {
   return { zoom, scroll: Math.max(0, Math.round(start - padding * width * zoom)) };
 }
 
-/** What Shift+Z fits: the selection, else in to out, else the whole edit. */
-export function fitTarget({ project, selection, inPoint, outPoint }) {
+/** The frames the selected clips cover as { start, end }, or null when none is selected. */
+export function selectionSpan(project, selection) {
   let start = Number.POSITIVE_INFINITY;
   let end = 0;
   for (const track of project?.tracks ?? []) {
-    for (const clip of track.clips) {
+    for (const clip of track.clips ?? []) {
       if (!selection.has(clip.id)) continue;
       start = Math.min(start, clip.start);
       end = Math.max(end, clip.start + clip.length);
     }
   }
-  if (Number.isFinite(start)) return { start, end };
+  return Number.isFinite(start) ? { start, end } : null;
+}
+
+/** What Shift+Z fits: the selection, else in to out, else the whole edit. */
+export function fitTarget({ project, selection, inPoint, outPoint }) {
+  const span = selectionSpan(project, selection);
+  if (span) return span;
   if (inPoint !== null && outPoint !== null && outPoint > inPoint) {
     return { start: inPoint, end: outPoint };
   }

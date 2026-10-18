@@ -62,6 +62,11 @@ describe("the menu data", () => {
     for (const id of menuTargets(MENU)) assert.ok(ids.has(id), id);
   });
 
+  test("the View menu has the loop toggle", () => {
+    const view = MENU.find((m) => m.id === "view");
+    assert.ok(menuTargets([view]).includes("transport.loop"));
+  });
+
   test("Help has Keyboard shortcuts", () => {
     assert.ok(menuTargets(MENU).includes("help.keys"));
     assert.ok(menuTargets(MENU).includes("help.open"));

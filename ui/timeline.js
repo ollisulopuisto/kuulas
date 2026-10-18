@@ -21,6 +21,7 @@ import {
   RULER_HEIGHT,
   visibleRows,
 } from "./lanes.js";
+import { activeLoop } from "./loop-range.js";
 import { flagLayout, NOTCH_PX as MARKER_NOTCH_PX } from "./markers-model.js";
 import { makeWaveformJob, trackHues } from "./paint.js";
 import { aboutSeconds, placeholderLabel } from "./placeholders-model.js";
@@ -634,12 +635,26 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     overlay.stroke();
   }
 
+  // The loop range (WP50): an accent band over the ruler while the loop is on.
+  function drawLoop(state) {
+    const loop = activeLoop(state);
+    if (!loop) return;
+    const x1 = frameToX(loop[0], state.scroll, state.zoom);
+    const x2 = frameToX(loop[1], state.scroll, state.zoom);
+    overlay.save();
+    overlay.globalAlpha = 0.28;
+    overlay.fillStyle = theme.accent;
+    overlay.fillRect(x1, 0, x2 - x1, RULER_HEIGHT - 1);
+    overlay.restore();
+  }
+
   function drawRuler(state, rate) {
     const { width } = size;
     overlay.fillStyle = theme.panel;
     overlay.fillRect(0, 0, width, RULER_HEIGHT);
     overlay.fillStyle = theme.rule;
     overlay.fillRect(0, RULER_HEIGHT - 1, width, 1);
+    drawLoop(state);
     overlay.font = `11px ${theme.mono}`;
     overlay.textBaseline = "top";
     for (const tick of rulerTicks({ scroll: state.scroll, zoom: state.zoom, width, rate })) {

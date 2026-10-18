@@ -118,6 +118,8 @@ export const MENU = [
       item("view.back"),
       item("view.reset_remembered"),
       SEP,
+      item("transport.loop"),
+      SEP,
       item("palette.open"),
     ],
   },

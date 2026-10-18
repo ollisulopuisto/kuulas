@@ -25,6 +25,7 @@ import { formatCombo } from "./keymap-config.js";
 import { detectPlatform, isTextField } from "./keys.js";
 import { clampLaneHeight, pointerIntent, projectEnd } from "./lanes.js";
 import { connectLive } from "./live.js";
+import { activeLoop } from "./loop-range.js";
 import { regionCount } from "./markers-model.js";
 import { createMarkersPanel } from "./markers-panel.js";
 import { motionMode } from "./motion.js";
@@ -165,6 +166,7 @@ const actions = {
   togglePlay: () => void transport.toggle(),
   playFrom: (frame) => void transport.play(frame),
   shuttle: (key) => void transport.press(key),
+  toggleLoop: () => setState({ loop: !getState().loop }),
   fastListening: () => showNotice(t("ui.speed.fast_not_built"), "ok"),
   goHome() {
     const active = document.activeElement;
@@ -480,6 +482,9 @@ document.addEventListener("keyup", (event) => {
 // -- toolbar ------------------------------------------------------------------------------
 
 $("play").addEventListener("click", () => actions.togglePlay());
+$("loop").addEventListener("click", () =>
+  keyboard.registry.run("transport.loop", null, getState()),
+);
 // Undo and redo say so when they pass a session marker: "Undid a step from yesterday: ...".
 const moveHistory = (call) => () =>
   void call()
@@ -1137,6 +1142,8 @@ function spanText(state) {
   return t(`ui.zoom.${unit}`, { value: formatNumber(value, { digits: GAIN_DIGITS(value) }) });
 }
 
+let lastLoopKey = "null";
+
 function render(state, patch) {
   const changed = patch ? new Set(Object.keys(patch)) : null;
   const touched = (...names) => changed === null || names.some((name) => changed.has(name));
@@ -1167,6 +1174,18 @@ function render(state, patch) {
   if (touched("playing")) {
     $("play-icon").textContent = state.playing ? "■" : "▶";
     $("play-label").textContent = t(state.playing ? "ui.transport.stop" : "ui.transport.play");
+  }
+  if (touched("loop", "project", "inPoint", "outPoint", "selection")) {
+    const button = $("loop");
+    button.setAttribute("aria-pressed", String(state.loop));
+    button.disabled = !keyboard.registry.can("transport.loop", state);
+    button.title = t(state.loop ? "ui.transport.loop_on" : "ui.transport.loop");
+    // A new range or a switch while playing goes to the engine without stopping.
+    const loopKey = JSON.stringify(activeLoop(state));
+    if (loopKey !== lastLoopKey) {
+      lastLoopKey = loopKey;
+      if (state.playing) void transport.resendLoop();
+    }
   }
   if (touched("speed", "playing")) {
     const chip = $("speed-chip");

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { loopRange, previewLoop } from "../loop-range.js";
+import { activeLoop, loopRange, previewLoop, rangeAvailable } from "../loop-range.js";
 
 describe("loopRange", () => {
   test("marks win over the selection", () => {
@@ -133,5 +133,25 @@ describe("previewLoop", () => {
 
   test("null in gives null out", () => {
     assert.equal(previewLoop(null, { rate: 48000, total: 1000 }), null);
+  });
+});
+
+describe("activeLoop", () => {
+  const project = { tracks: [{ id: "t", clips: [{ id: "a", start: 1000, length: 500 }] }] };
+  const base = { project, loop: true, inPoint: null, outPoint: null, selection: new Set() };
+
+  test("is the range the loop plays, as a frame pair, only while the loop is on", () => {
+    assert.deepEqual(activeLoop({ ...base, inPoint: 10, outPoint: 90 }), [10, 90]);
+    assert.equal(activeLoop({ ...base, loop: false, inPoint: 10, outPoint: 90 }), null);
+  });
+  test("falls back to the selected clips and then to nothing", () => {
+    assert.deepEqual(activeLoop({ ...base, selection: new Set(["a"]) }), [1000, 1500]);
+    assert.equal(activeLoop(base), null);
+    assert.equal(activeLoop({ ...base, project: null }), null);
+  });
+  test("rangeAvailable ignores the switch: it says whether the loop could be turned on", () => {
+    const marked = { ...base, loop: false, inPoint: 10, outPoint: 90 };
+    assert.deepEqual(rangeAvailable(marked), { start: 10, end: 90, source: "marks" });
+    assert.equal(rangeAvailable({ ...base, loop: false }), null);
   });
 });

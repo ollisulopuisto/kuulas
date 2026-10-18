@@ -14,6 +14,7 @@ import {
   pickAnchor,
   rememberView,
   SNAP_TOLERANCE,
+  selectionSpan,
   snapZoom,
   spanParts,
   stepZoom,
@@ -255,6 +256,22 @@ describe("fitting", () => {
     });
     assert.deepEqual(fitTarget(base), { start: 0, end: 500 });
     assert.deepEqual(fitTarget({ ...base, selection: new Set(["gone"]) }), { start: 0, end: 500 });
+  });
+});
+
+describe("selectionSpan", () => {
+  const project = {
+    tracks: [
+      { id: "t1", clips: [{ id: "a", start: 100, length: 50 }] },
+      { id: "t2", clips: [{ id: "b", start: 400, length: 100 }] },
+    ],
+  };
+  test("the frames the selected clips cover, or null", () => {
+    assert.deepEqual(selectionSpan(project, new Set(["a", "b"])), { start: 100, end: 500 });
+    assert.deepEqual(selectionSpan(project, new Set(["b"])), { start: 400, end: 500 });
+    assert.equal(selectionSpan(project, new Set()), null);
+    assert.equal(selectionSpan(project, new Set(["gone"])), null);
+    assert.equal(selectionSpan(null, new Set(["a"])), null);
   });
 });
 

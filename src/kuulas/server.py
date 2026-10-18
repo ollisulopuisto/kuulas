@@ -42,7 +42,7 @@ from .media import ImportResult, MediaError
 from .messages import KuulasError, error_body, t
 from .ops import EditError
 from .peaks import PeakError
-from .playplan import PlaybackRequestError, check_skip
+from .playplan import PlaybackRequestError, check_loop, check_skip
 from .session import (
     CLIPBOARD_EDITS,
     NarrationScriptError,
@@ -169,6 +169,8 @@ class TransportBody(BaseModel):
     skip: list[list[int]] | None = None
     speed: float = 1.0
     preserve_pitch: bool = True
+    # play only: [start, end] in frames, played over and over (WP50).
+    loop: list[int] | None = None
 
 
 class TranscribeBody(BaseModel):
@@ -710,8 +712,10 @@ def create_app(session, engine, *, language: str | None = None,
         if action == "play":
             # Checked here too, so a bad list is a 400 whatever the engine.
             skip = check_skip(body.skip)
+            loop = (None if body.loop is None
+                    else check_loop(body.loop, skip, getattr(engine, "rate", 48000)))
             engine.play(body.at, body.until, rate=body.speed,
-                        preserve_pitch=body.preserve_pitch, skip=skip)
+                        preserve_pitch=body.preserve_pitch, skip=skip, loop=loop)
         elif action == "stop":
             engine.stop()
         elif action == "seek":
