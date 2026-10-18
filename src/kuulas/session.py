@@ -38,6 +38,7 @@ from nhsx.read import time_to_seconds as nhsx_time_to_seconds
 from . import (
     analysis,
     candidates,
+    clipboard_link,
     collateral,
     edit_points,
     edit_scope,
@@ -60,6 +61,7 @@ from . import loudness_curve as loudness_curve_module
 from . import markers as markers_module
 from . import music_report as music_report_module
 from .clipboard import Entry, make_entry, make_entry_range
+from .clipboard_preview import preview_project
 from .clipboard_store import ClipboardStore, entry_dict
 from .clock import FLICKS, frames_to_flicks
 from .history import History, UndoInfo
@@ -403,7 +405,8 @@ class Session:
         return {**entry_dict(entry), "length": entry.span[1] - entry.span[0],
                 "clips": len(entry.refs),
                 "slots": len({ref.track_slot for ref in entry.refs}),
-                "missing_here": len(wanted - have)}
+                "missing_here": len(wanted - have),
+                "source_name": Path(entry.source_project).stem}
 
     def _entry(self, entry_id: str) -> Entry:
         entry = self.clipboard.load().get(entry_id)
@@ -417,6 +420,12 @@ class Session:
         project lacks."""
         project = self.state
         return [self._entry_view(e, project) for e in self.clipboard.load().entries()]
+
+    def clipboard_preview(self, entry_id: str):
+        """``(temporary project or None, missing media count)`` for playing an
+        entry without changing this project (``clipboard_preview``)."""
+        project, missing = preview_project(self.state, self._entry(entry_id))
+        return project, len(missing)
 
     def clipboard_copy(self, *, clip_ids=None, start=None, end=None, track_ids=None,
                        group_editing: bool = False, name: str = "") -> dict:
@@ -492,6 +501,25 @@ class Session:
             return {"clipboard": {"ok": False, "entry": None, "error": problem}}
         return {"clipboard": {"ok": True, "entry": entry.id, "error": None}}
 
+    def _link_missing_media(self, entry: Entry) -> None:
+        """Pasting into another project: link, in place and without copying,
+        the recordings this project lacks from the files the entry's source
+        project imported them from, when such a file is still there and still
+        has the hash. What cannot be found stays missing (reported by the
+        paste). Media are material shared by every edit, so linking is not an
+        undo step of its own; the paste after it is."""
+        here = Path(self.package.path)
+        if not entry.source_project or Path(entry.source_project) == here:
+            return
+        have = {m.sha256 for m in self.state.media}
+        for digest in sorted({r.media_sha256 for r in entry.refs} - have):
+            for path in clipboard_link.candidate_paths(entry.source_project, digest):
+                if not clipboard_link.has_digest(path, digest):
+                    continue
+                result = self.store.import_batch([path], copy=False)[0]
+                if result.ok:
+                    break
+
     def clipboard_paste(self, entry_id: str, *, at: int, mode: str = "insert",
                         target_tracks=None, group_editing: bool = True,
                         label: str | None = None) -> dict:
@@ -505,6 +533,7 @@ class Session:
         tracks, so a sync group stays in step; the tracks that only shift get
         no clips."""
         entry = self._entry(entry_id)
+        self._link_missing_media(entry)
         mapping = (None if target_tracks is None
                    else {int(slot): track for slot, track in target_tracks.items()})
         at = int(at)

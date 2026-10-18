@@ -1173,6 +1173,17 @@ input[type="text"] {
   align-items: center;
   gap: var(--space-3);
 }
+.clip-filter {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 var(--row-gap);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
 .clip-list {
   display: flex;
   flex-direction: column;

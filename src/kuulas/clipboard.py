@@ -142,7 +142,11 @@ def _entry(project: Project, parts: list[_Part], name: str,
          for part in parts),
         key=lambda ref: (ref.rel_start, ref.track_slot, ref.offset)))
     end = max(part.start + part.length for part in parts)
-    return Entry(_new_id(moment), name, moment, refs=refs, span=(base, end))
+    # The source tracks' names by slot, so the panel can say where a copy came
+    # from without the source project (an unknown key to older readers).
+    names = [track.name for track in project.tracks if track.id in touched]
+    return Entry(_new_id(moment), name, moment, refs=refs, span=(base, end),
+                 extra={"tracks": names})
 
 
 def make_entry(project: Project, clip_ids: Iterable[str], *, name: str = "",
@@ -258,12 +262,29 @@ def from_json(text: str) -> Entry:
     return _entry_in(json.loads(text))
 
 
+def prune_entries(entries: Iterable[Entry], max_unpinned: int) -> list[Entry]:
+    """``entries`` (newest first) without the oldest unpinned ones beyond
+    ``max_unpinned``. Pinned entries are always kept, in place, and do not
+    count toward the limit. At least the newest entry survives, so a fresh
+    copy is never lost to a limit of 0."""
+    items = list(entries)
+    budget = max(1, int(max_unpinned))
+    kept: list[Entry] = []
+    for item in items:
+        if item.pinned:
+            kept.append(item)
+        elif budget > 0:
+            budget -= 1
+            kept.append(item)
+    return kept
+
+
 class ClipboardHistory:
     """The clipboard's entries, newest first, kept as references.
 
-    Adding beyond ``max_entries`` drops the oldest unpinned entries, so a
-    pinned entry is never dropped, and a history holding more pinned
-    entries than the max keeps them all.
+    ``max_entries`` limits the *unpinned* entries (``prune_entries``): adding
+    beyond it drops the oldest unpinned ones, a pinned entry is never
+    dropped, and pinned entries do not count toward the limit.
     """
 
     def __init__(self, max_entries: int = 50) -> None:
@@ -273,23 +294,9 @@ class ClipboardHistory:
         self.extra: dict = {}
 
     def add(self, entry: Entry) -> None:
-        """Add ``entry`` at the front, then prune the oldest unpinned.
-
-        The entry being added never drops itself, so a history whose older
-        entries are all pinned grows past the max rather than losing the
-        fresh copy.
-        """
+        """Add ``entry`` at the front, then prune the oldest unpinned."""
         self._entries.insert(0, entry)
-        excess = len(self._entries) - self.max_entries
-        if excess <= 0:
-            return
-        kept: list[Entry] = []
-        for item in reversed(self._entries):  # the oldest first
-            if excess > 0 and not item.pinned and item is not entry:
-                excess -= 1
-                continue
-            kept.append(item)
-        self._entries = list(reversed(kept))
+        self._entries = prune_entries(self._entries, self.max_entries)
 
     def _find(self, entry_id: str) -> Entry:
         for item in self._entries:
@@ -308,8 +315,9 @@ class ClipboardHistory:
         self._replace(entry_id, pinned=True)
 
     def unpin(self, entry_id: str) -> None:
-        """Let an entry be pruned again."""
+        """Let an entry be pruned again (and prune now if it is over the limit)."""
         self._replace(entry_id, pinned=False)
+        self._entries = prune_entries(self._entries, self.max_entries)
 
     def rename(self, entry_id: str, name: str) -> None:
         """Give an entry a new name."""

@@ -365,6 +365,71 @@ def test_set_project_is_heard_in_the_next_block(rig, clock):
     np.testing.assert_array_equal(out, mixer.mix(louder, store, 1024, 1024).T)
 
 
+# -- previewing a temporary project (clipboard entry, WP46) -------------------
+
+
+def preview_of(session):
+    """A stand-in temporary project: the real one with a quieter track."""
+    return ops.set_track(session.state, "t-m", gain_db=-6.0)
+
+
+def test_preview_plays_the_temporary_project_not_the_real_one(rig, clock):
+    engine, session, store = make(rig, clock)
+    engine.seek(5000)
+    temp = preview_of(session)
+    engine.play_preview(temp)
+    out = engine._render(1024)
+    np.testing.assert_array_equal(out, mixer.mix(temp, store, 0, 1024).T)
+    assert engine.status()["preview"] is True
+    assert session.state.tracks[0].gain_db == 0.0
+
+
+def test_an_edit_during_preview_is_remembered_not_played(rig, clock):
+    engine, session, store = make(rig, clock)
+    temp = preview_of(session)
+    engine.play_preview(temp)
+    louder = ops.set_track(session.state, "t-m", gain_db=6.0)
+    session.change(louder)
+    out = engine._render(1024)
+    np.testing.assert_array_equal(out, mixer.mix(temp, store, 0, 1024).T)
+    engine.stop()
+    assert engine.status()["preview"] is False
+    engine.play(0)
+    out = engine._render(1024)
+    np.testing.assert_array_equal(out, mixer.mix(louder, store, 0, 1024).T)
+
+
+def test_stop_ends_the_preview_and_puts_the_playhead_back(rig, clock):
+    engine, session, _ = make(rig, clock)
+    engine.seek(5000)
+    engine.play_preview(preview_of(session))
+    engine._render(1024)
+    engine.stop()
+    status = engine.status()
+    got = (status["preview"], status["playing"], status["position"])
+    assert got == (False, False, 5000)
+
+
+def test_a_preview_that_runs_out_ends_itself(rig, clock):
+    engine, session, _ = make(rig, clock)
+    engine.seek(700)
+    engine.play_preview(preview_of(session), until=2048)
+    for _ in range(4):
+        engine._render(1024)
+    status = engine.status()
+    got = (status["preview"], status["playing"], status["position"])
+    assert got == (False, False, 700)
+
+
+def test_play_during_a_preview_plays_the_real_project(rig, clock):
+    engine, session, store = make(rig, clock)
+    engine.play_preview(preview_of(session))
+    engine.play(0)
+    assert engine.status()["preview"] is False
+    out = engine._render(1024)
+    np.testing.assert_array_equal(out, mixer.mix(session.state, store, 0, 1024).T)
+
+
 # -- with a real session -----------------------------------------------------
 
 

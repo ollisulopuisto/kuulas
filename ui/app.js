@@ -520,6 +520,11 @@ const keyboard = setupKeyboard({
     toast: (text, options) => showNotice(text, "ok", options),
     copy: (body) => copyToClipboard(body),
     refreshClipboard: () => void refreshClipboard(),
+    previewClipboard: (id) =>
+      api.previewClipboardEntry(id).catch((error) => {
+        showError(error);
+        return null;
+      }),
     now: () => performance.now(),
     chooseMedia: () => chooseMedia(),
     // The transcript's X: cut the words' stretch on every track.
@@ -1241,6 +1246,11 @@ const clipboardPanel = createClipboardPanel({
       void clipboardAction(() => api.deleteClipboardEntry(id))();
     },
     choose: (patch) => setState(patch),
+    filter: (text) => setState({ clipboardFilter: text }),
+    preview(id) {
+      setState({ clipboardSelected: id });
+      keyboard.registry.run("edit.preview_clipboard", null, getState());
+    },
     canPasteAgain: (state) => keyboard.registry.can(pasteCommand(state), state),
     pasteAgain(id) {
       setState({ clipboardSelected: id });
@@ -1657,6 +1667,7 @@ function render(state, patch) {
     touched(
       "clipboard",
       "clipboardSelected",
+      "clipboardFilter",
       "pasteMode",
       "pasteTarget",
       "project",
@@ -1827,6 +1838,7 @@ connectLive({
     if (Object.keys(result.patch).length > 0) setState(result.patch);
     // An answer to our own edit arrives as a state_changed too; while edits are
     // still going out, the editor shows the newest value and applies the last answer.
+    if (result.clipboard) void refreshClipboard();
     if (result.refresh && !editor.busy) void refresh().catch(showError);
     if (result.notice && result.notice.id > handledNotice) {
       handledNotice = result.notice.id;

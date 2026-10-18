@@ -18,6 +18,7 @@ import {
   mutePlan,
   newBusPlan,
   nudgePlan,
+  pasteEntry,
   pastePlan,
   removeFromBusPlan,
   soloPlan,
@@ -107,11 +108,32 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
     },
     (s) => copyPlan(s, t) !== null,
   );
+  // Play-preview of the picked (else newest) entry: a temporary project on the server, so
+  // no edit, no undo step and the real project is not touched.
+  def(
+    "edit.preview_clipboard",
+    () => {
+      const entry = pasteEntry(app.getState());
+      if (!entry) return;
+      void app.previewClipboard(entry.id).then((answer) => {
+        if (answer && !answer.started) {
+          app.toast(t("ui.clipboard.preview_nothing"), { undo: false });
+        }
+      });
+    },
+    (s) => hasProject(s) && pasteEntry(s) !== null,
+  );
   planned("edit.paste", (s) => pastePlan(s, { mode: "insert", target: pasteChoice(s).target }));
   planned("edit.paste_overwrite", (s) =>
     pastePlan(s, { mode: "overwrite", target: pasteChoice(s).target }),
   );
   planned("edit.paste_track", (s) => pastePlan(s, { mode: "insert", target: "current" }));
+  // The other two of the four paste forms, fixed whatever the panel's choice says: insert on
+  // the entry's own tracks, overwrite on the current track. Menu and palette, no keys.
+  planned("edit.paste_same", (s) => pastePlan(s, { mode: "insert", target: "same" }));
+  planned("edit.paste_overwrite_track", (s) =>
+    pastePlan(s, { mode: "overwrite", target: "current" }),
+  );
   planned("clip.mute", mutePlan);
   planned("clip.fade", fadePlan);
   planned("edit.trim_start", (s) => trimPlan(s, "start"));

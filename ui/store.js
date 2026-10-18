@@ -39,6 +39,7 @@ export const initialState = () => ({
   // (null: the newest) and how a paste lands: "insert" | "overwrite", "same" | "current".
   clipboard: [],
   clipboardSelected: null,
+  clipboardFilter: "",
   pasteMode: "insert",
   pasteTarget: "same",
   // Cut candidates (WP18; GET /api/candidates): the rows with their timeline frames, the
@@ -158,6 +159,9 @@ export function reduceLive(state, message) {
     case "state_changed":
     case "hello":
       out.refresh = message.head !== undefined && message.head !== state.head;
+      break;
+    case "clipboard_changed":
+      out.clipboard = true; // the history file changed (another window): read it again
       break;
     case "notice":
       out.notice = { id: message.id, text: message.text };

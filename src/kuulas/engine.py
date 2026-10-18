@@ -291,6 +291,11 @@ class Engine:
                  background: bool = True, debug: bool | None = None):
         self._session = session
         self._project: Project = session.state
+        #: Previewing a temporary project (``play_preview``): the real
+        #: project to go back to, where the playhead was, and whether it is on.
+        self._preview = False
+        self._base: Project = session.state
+        self._preview_anchor = 0
         self.rate = self._project.rate
         self._blocksize = int(blocksize)
         self._device = device
@@ -367,12 +372,53 @@ class Engine:
     def set_project(self, project: Project) -> None:
         """The project to play from the next block on. Called by the session
         after every change; one attribute assignment, so the audio thread
-        never sees half a project."""
-        self._project = project
+        never sees half a project. During a preview the real project is only
+        remembered, and comes back when the preview ends."""
+        if self._preview:
+            self._base = project
+        else:
+            self._project = project
+
+    def play_preview(self, project: Project, until: int | None = None) -> None:
+        """Play a temporary ``project`` from its start (a clipboard entry,
+        WP46) without touching the real one. The playhead is put back where it
+        was when the preview ends: by ``stop``, ``seek``, ``play`` or running
+        out. Edits made meanwhile are kept for then."""
+        with self._ctl:
+            self._end_preview()
+            with self._tlock:
+                self._preview_anchor = self._heard() if self._playing else self._anchor
+            self._base = self._project
+            self._project = project
+            self._preview = True
+            try:
+                self._play(0, until)
+            except BaseException:
+                self._end_preview()
+                raise
+
+    def _end_preview(self) -> None:
+        """Back to the real project and the playhead as it was; silent."""
+        with self._ctl:
+            if not self._preview:
+                return
+            with self._tlock:
+                self._playing = False
+                self._project = self._base
+                self._preview = False
+                self._start_run(self._preview_anchor)
 
     def play(self, at: int | None = None, until: int | None = None, *,
              rate: float = 1.0, preserve_pitch: bool = True,
              skip=None, loop=None) -> None:
+        """Play the real project (ending a preview first); see ``_play``."""
+        self._end_preview()
+        self._play(at, until, rate=rate, preserve_pitch=preserve_pitch,
+                   skip=skip, loop=loop)
+
+    def _play(self, at: int | None = None, until: int | None = None, *,
+              rate: float = 1.0, preserve_pitch: bool = True,
+              skip=None, loop=None) -> None:
         """Play from ``at`` (default: where the playhead is) to ``until``
         (default: the end of the project; below ``at`` when ``rate`` is
         negative, default the start).
@@ -445,7 +491,9 @@ class Engine:
             self._start_thread()
 
     def stop(self) -> None:
-        """Stop where the sound was: the playhead stays at the heard frame."""
+        """Stop where the sound was: the playhead stays at the heard frame
+        (after a preview: where it was before it)."""
+        self._end_preview()
         with self._ctl, self._tlock:
             if self._playing:
                 self._start_run(self._heard())
@@ -455,6 +503,7 @@ class Engine:
     def seek(self, frame: int) -> None:
         """Move the playhead; playback, if on, continues from there at the
         same speed, still skipping the same ranges."""
+        self._end_preview()
         frame = max(0, int(frame))
         with self._tlock:
             run, until = self._run, self._until
@@ -491,6 +540,10 @@ class Engine:
         fields ``late_blocks``, ``failed_blocks``, ``device``,
         ``device_rate``, ``resampling``."""
         with self._tlock:
+            previewing, playing = self._preview, self._playing
+        if previewing and not playing:
+            self._end_preview()  # it ran out by itself
+        with self._tlock:
             playing, until, run = self._playing, self._until, self._run
             position = self._heard() if playing else self._anchor
         live = run if playing and run is not None else None
@@ -500,6 +553,7 @@ class Engine:
                         "text": t(n["key"], **n["params"])} for n in self._notices]
             out = {
                 "playing": playing,
+                "preview": self._preview,
                 "position": int(position),
                 "until": until,
                 "speed": live.speed if live else 1.0,
