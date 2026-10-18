@@ -1430,3 +1430,156 @@ input[type="text"] {
   justify-content: flex-end;
   margin-top: var(--space-5);
 }
+
+/* -- the transcript dock (WP7) ------------------------------------------------------ */
+.dock {
+  position: relative;
+}
+.tx-list {
+  padding-top: var(--space-2);
+}
+.tx-para {
+  display: grid;
+  grid-template-columns: 140px minmax(0, var(--reading-max));
+  gap: var(--space-7);
+  margin-bottom: calc(var(--row-gap) * 1.6);
+}
+.tx-speaker {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0 0 var(--space-4);
+  border-left: 3px solid var(--track-colour, var(--border-strong));
+  min-width: 0;
+}
+.tx-speaker b {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tx-speaker span {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.tx-text {
+  margin: 0;
+  font-size: var(--text-lg);
+  line-height: var(--leading-read);
+  user-select: none;
+}
+.tx-text .w {
+  border-radius: 2px;
+  padding: 1px 0;
+  cursor: text;
+  white-space: pre-wrap;
+}
+.tx-text .w:hover {
+  background: var(--surface-hover);
+}
+.tx-text .w.now {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+.tx-text .w.sel {
+  background: var(--accent-subtle);
+  box-shadow: inset 0 -2px 0 var(--accent);
+  border-radius: 0;
+}
+.tx-text .w.cut {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  color: var(--text-tertiary);
+}
+.tx-text .w.low {
+  text-decoration: underline dotted var(--text-tertiary);
+  text-underline-offset: 4px;
+}
+.tx-text .w.cut.low {
+  text-decoration: line-through underline dotted var(--text-tertiary);
+}
+/* The word cursor: a thin outline while the panel has the keyboard. */
+[data-panel="transcript"]:focus-visible .w.cur {
+  outline: 2px solid var(--focus-ring, var(--accent));
+  outline-offset: 1px;
+}
+/* Other speakers' words a cut would also remove (GUI-DESIGN.md, section 19): the colour
+   plus a wavy strike and a cross, so it reads without colour too. */
+.tx-text .w.also {
+  color: var(--signal-collateral);
+  background: var(--signal-collateral-fill);
+  text-decoration: line-through wavy var(--signal-collateral);
+  text-decoration-thickness: 1.5px;
+}
+.tx-text .w.also::after {
+  content: "×";
+  font-size: 0.7em;
+  vertical-align: super;
+}
+.tx-edit {
+  font: inherit;
+  color: var(--text);
+  background: var(--input-bg);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-2);
+}
+.tx-empty {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-4);
+  padding: var(--space-6) 0;
+  color: var(--text-secondary);
+}
+.tx-empty strong {
+  color: var(--text);
+}
+.tx-empty progress {
+  width: 240px;
+}
+.tx-error {
+  color: var(--danger-text, var(--text));
+}
+.tx-follow {
+  position: sticky;
+  top: calc(var(--control-h) + var(--space-5));
+  float: right;
+  z-index: 2;
+}
+.tx-pop {
+  position: absolute;
+  z-index: 5;
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  max-width: min(560px, 90%);
+  background: var(--surface-raised);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-raised);
+  font-size: var(--text-sm);
+}
+.tx-pop[hidden] {
+  display: none;
+}
+.tx-sum {
+  color: var(--signal-collateral);
+  font-weight: var(--weight-medium);
+}
+.tx-sum.none {
+  color: var(--text-secondary);
+}
+.tx-sum:empty {
+  display: none;
+}
+.tx-acts {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.tx-acts kbd {
+  margin-left: var(--space-3);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--text-xs);
+}
