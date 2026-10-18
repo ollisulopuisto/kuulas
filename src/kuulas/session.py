@@ -554,7 +554,8 @@ class Session:
         with self.lock:
             project = self.history.state
             _, stored = self._candidates_store()
-        rows = [candidates.view(project, candidates.Candidate.from_record(i, r))
+        index = candidates.ClipIndex(project)
+        rows = [candidates.view(project, candidates.Candidate.from_record(i, r), index)
                 for i, r in stored.items() if state is None or r.get("state") == state]
         rows.sort(key=lambda r: (r["start"] is None, r["start"] or 0, r["id"]))
         return {"candidates": rows, "summary": candidates.summary(stored)}

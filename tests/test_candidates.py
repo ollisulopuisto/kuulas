@@ -6,6 +6,7 @@ optional silence data in, candidates and plans out. Nothing here reads audio.
 
 from __future__ import annotations
 
+import time
 from dataclasses import replace
 
 import pytest
@@ -424,3 +425,26 @@ def test_summary_counts_states():
     recs = {"1": {"state": "open"}, "2": {"state": "cut"}, "3": {"state": "kept"},
             "4": {"state": "open"}}
     assert cm.summary(recs) == {"open": 2, "cut": 1, "kept": 1, "total": 4}
+
+
+def test_listing_a_full_store_over_a_heavily_cut_hour_is_quick():
+    """Ground rule 14: the list is read on every panel refresh. Measured
+    20 ms here (1,000 candidates, 1,204 clips); the bound leaves 25 times that."""
+    hour = 3600
+    ms = tuple(media(f"m{i}", hour) for i in range(4))
+    ts = tuple(Track(id=f"t{i}", name="t", clips=(Clip(id=f"c{i}", media=f"m{i}",
+                                                       start=0, offset=0,
+                                                       length=fr(hour)),))
+               for i in range(4))
+    p = Project(rate=RATE, media=ms, tracks=ts, sync_groups=(
+        SyncGroup(id="g", main="m0", members=tuple((f"m{i}", 0) for i in range(4))),))
+    for k in range(300):
+        p = ops.ripple_delete(p, fr(3000 - k * 10), fr(3000 - k * 10 + 0.5))
+    found = [cm.Candidate(id=str(i), kind="filler", media=f"m{i % 4}",
+                          start=f(i * 3.0), end=f(i * 3.0 + 0.4))
+             for i in range(cm.MAX_CANDIDATES)]
+    began = time.perf_counter()
+    index = cm.ClipIndex(p)
+    rows = [cm.view(p, c, index) for c in found]
+    assert time.perf_counter() - began < 0.5
+    assert len(rows) == cm.MAX_CANDIDATES
