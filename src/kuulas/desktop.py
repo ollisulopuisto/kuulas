@@ -14,6 +14,7 @@ the tests, never need it.
 
 from __future__ import annotations
 
+import base64
 import html
 import json
 import os
@@ -29,6 +30,36 @@ from .messages import KuulasError, t
 
 #: Most recent first; older entries fall off.
 MAX_RECENT = 20
+
+#: The app icons, written by ``scripts/make_icons.py``.
+ICON_DIR = Path(__file__).parent / "assets" / "icons"
+
+
+def icon_path(kind: str) -> Path:
+    """``"dock"``: the macOS-style icon with its margin; ``"window"``: the plain one."""
+    return ICON_DIR / ("kuulas-dock.png" if kind == "dock" else "kuulas-256.png")
+
+
+def set_dock_icon(platform: str | None = None, appkit: Any = ...) -> bool:
+    """Show the kuulas icon in the macOS Dock. A window run from ``uv run`` is a
+    Python process, so without this the Dock shows Python's rocket. True when it
+    was set; False on other systems or when pyobjc is missing. Never raises."""
+    platform = sys.platform if platform is None else platform
+    if platform != "darwin":
+        return False
+    if appkit is ...:
+        try:
+            import AppKit as appkit  # noqa: PLC0415, N813
+        except ImportError:
+            return False
+    if appkit is None:
+        return False
+    try:
+        image = appkit.NSImage.alloc().initWithContentsOfFile_(str(icon_path("dock")))
+        appkit.NSApplication.sharedApplication().setApplicationIconImage_(image)
+    except Exception:  # noqa: BLE001 - an icon is never worth a crash
+        return False
+    return True
 
 
 # -- where per-user state lives -------------------------------------
@@ -274,16 +305,19 @@ def launcher_html(recent: list[str]) -> str:
         f"{html.escape(Path(p).name.removesuffix('.kuulas'))}</button>"
         f"<small>{html.escape(p)}</small></li>" for p in recent)
     empty = "" if recent else f"<p>{html.escape(t('desktop.launcher.none'))}</p>"
+    mark = base64.b64encode((ICON_DIR / "kuulas-icon.svg").read_bytes()).decode()
     return f"""<!doctype html><html lang="{html.escape(t('desktop.launcher.lang'))}">
 <head><meta charset="utf-8"><title>kuulas</title>
 <meta name="color-scheme" content="light dark">
 <style>
 body{{font:15px system-ui,sans-serif;max-width:40rem;margin:3rem auto;padding:0 1rem}}
 ul{{list-style:none;padding:0}} li{{margin:.6rem 0}} small{{display:block;opacity:.6}}
+h1{{display:flex;align-items:center;gap:.6rem}} .mark{{border-radius:22%}}
 button{{font:inherit;padding:.35rem .8rem}} li button{{border:0;background:none;
 color:LinkText;cursor:pointer;padding:0;font-size:1.05rem}}
 </style></head><body>
-<h1>kuulas</h1>
+<h1><img class="mark" alt="" width="40" height="40"
+src="data:image/svg+xml;base64,{mark}"> kuulas</h1>
 <p><button id="open">{html.escape(t('desktop.launcher.open'))}</button>
 <button id="new">{html.escape(t('desktop.launcher.new'))}</button></p>
 <h2>{html.escape(t('desktop.launcher.recent'))}</h2>{empty}<ul>{rows}</ul>
@@ -329,10 +363,11 @@ def run_window(folder: str | None = None) -> int:
     window.events.closed += bridge.close
 
     def start() -> None:
+        set_dock_icon()
         if folder is not None:
             bridge.open_project(folder)
 
-    webview.start(start, menu=_menu(bridge))
+    webview.start(start, menu=_menu(bridge), icon=str(icon_path("window")))
     bridge.close()
     return 0
 
