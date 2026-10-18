@@ -185,8 +185,9 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       overlay.moveTo(0, top + row.height - 0.5);
       overlay.lineTo(width, top + row.height - 0.5);
       overlay.stroke();
-      if (row.kind === "track" && state.focusTrack === row.id) drawFocusLane(row, top, width);
       if (row.kind === "track") drawTrack(state, state.project.tracks[row.index], row, top, hues);
+      if (row.kind === "track" && state.focusTrack === row.id) drawFocusLane(row, top, width);
+      else if (row.kind === "track" && state.focusTrack) drawVeil(row, top, width);
       else drawBusRow(state, row, top, groups, hues);
     }
     drawRuler(state, rate);
@@ -274,17 +275,26 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     overlay.fillText(t(key, params), label.x, label.y);
   }
 
-  // The active channel (owner, 2026-10-18: it was hard to tell which one is active): a faint
-  // accent tint over the whole lane, a solid bar at its left edge and accent lines above and below.
+  // The active channel (owner, 2026-10-18: hard to tell which one is active, then 'more prominent'):
+  // an accent tint over the whole lane, a wide solid bar at its left edge and accent lines above and
+  // below; the other lanes are veiled so the active one stands out.
   function drawFocusLane(row, top, width) {
     overlay.save();
     overlay.fillStyle = theme.accent;
-    overlay.globalAlpha = 0.07;
+    overlay.globalAlpha = 0.16;
     overlay.fillRect(0, top, width, row.height);
     overlay.globalAlpha = 1;
-    overlay.fillRect(0, top, 4, row.height);
-    overlay.fillRect(0, top, width, 1);
-    overlay.fillRect(0, top + row.height - 1, width, 1);
+    overlay.fillRect(0, top, 8, row.height);
+    overlay.fillRect(0, top, width, 2);
+    overlay.fillRect(0, top + row.height - 2, width, 2);
+    overlay.restore();
+  }
+
+  function drawVeil(row, top, width) {
+    overlay.save();
+    overlay.fillStyle = theme.panel;
+    overlay.globalAlpha = 0.3;
+    overlay.fillRect(0, top, width, row.height);
     overlay.restore();
   }
 
