@@ -1021,5 +1021,8 @@
   "cmd.track.new_bus.hint": "Adds a bus with no tracks on it and lets you name it.",
   "ui.edit.label.group_bus": "Group into a new bus",
   "ui.edit.label.new_bus": "New bus",
-  "ui.bus.option_new": "+ New bus…"
+  "ui.bus.option_new": "+ New bus…",
+  "ui.range.in": "In",
+  "ui.range.out": "Out",
+  "ui.range.length": "Length"
 }
