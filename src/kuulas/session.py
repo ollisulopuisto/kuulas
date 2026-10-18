@@ -34,7 +34,16 @@ from nhsx.mix import plan as nhsx_mix_plan
 from nhsx.read import descendants as nhsx_descendants
 from nhsx.read import time_to_seconds as nhsx_time_to_seconds
 
-from . import analysis, collateral, edit_scope, ops, package, transcribe, transcript
+from . import (
+    analysis,
+    collateral,
+    edit_scope,
+    ops,
+    package,
+    source_map,
+    transcribe,
+    transcript,
+)
 from . import db as dbm
 from . import export as export_module
 from . import music_report as music_report_module
@@ -498,6 +507,27 @@ class Session:
             "span": list(res.span),
             "other_words": list(res.other_words),
             "audio": {t: [list(r) for r in ranges] for t, ranges in res.audio.items()},
+        }
+
+    def source_map(self, media_sha256: str) -> dict[str, Any]:
+        """Source map for a recording (where it is used on the timeline).
+
+        Returns ``{"clips": [...], "used": [...], "cut": [...],
+        "unused": [...], "parts": {clip_id: [n, of]}}``.
+        """
+        with self.lock:
+            state = self.history.state
+        if not any(m.sha256 == media_sha256 for m in state.media):
+            raise ops.EditError("error.edit.no_media", media_id=media_sha256)
+        clips = source_map.recording_clips(state, media_sha256)
+        used, cut, unused = source_map.coverage(state, media_sha256)
+        parts = source_map.part_numbers(state, media_sha256)
+        return {
+            "clips": [list(c) for c in clips],
+            "used": [list(r) for r in used],
+            "cut": [list(r) for r in cut],
+            "unused": [list(r) for r in unused],
+            "parts": {clip_id: list(pair) for clip_id, pair in parts.items()},
         }
 
     # -- import ------------------------------------------------------------

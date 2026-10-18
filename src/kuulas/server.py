@@ -370,6 +370,10 @@ def create_app(session, engine, *, language: str | None = None,
     def post_cut_preview(body: CutPreviewBody):
         return session.cut_preview(body.words)
 
+    @app.get("/api/source-map")
+    def get_source_map(media: str):
+        return session.source_map(media)
+
     @app.post("/api/restore")
     def post_restore(body: RestoreBody):
         session.restore(str(body.node))
