@@ -114,6 +114,8 @@ sizes: `docs/PLAN.md`, section "Triage".
 
 ## Next
 
+- **Scriptability** (WP53, late, owner request 2026-10-18): every GUI action a documented command, a command
+  catalogue, headless use, a tested "remove the ums" example; MCP and a script runner later.
 - **Drag a range to edit it** (WP6, owner request 2026-10-18): press-drag-release in the lanes
   selects a range for X / Backspace; clips move by their label strip.
 - **Display scale, zoom by dragging, remote control** (WP52, owner requests 2026-10-18): normalised
