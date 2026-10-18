@@ -29,11 +29,12 @@ import { connectLive } from "./live.js";
 import { activeLoop } from "./loop-range.js";
 import { regionCount } from "./markers-model.js";
 import { createMarkersPanel } from "./markers-panel.js";
+import { heldFromEvent } from "./modifiers.js";
 import { motionMode } from "./motion.js";
 import { createOverview } from "./overview.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
 import { createPrefs } from "./prefs.js";
-import { formatRangeInfo, rangeInfo } from "./range-info.js";
+import { rangeLine } from "./range-info.js";
 import { setupKeyboard } from "./shell-keys.js";
 import { chipSpeed } from "./shuttle.js";
 import { getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
@@ -322,16 +323,20 @@ export const commands = { [GATE_OPEN_COMMAND]: () => openGateStretch() };
 function onPointerDown(hit, event) {
   // The click rule lives in lanes.js pointerIntent (tested): anywhere in the
   // lane area sets the play cursor, a clip is also selected, Shift only toggles.
-  const intent = pointerIntent(hit, { shift: event.shiftKey });
+  const mod = heldFromEvent(event, detectPlatform()).mod;
+  const additive = event.shiftKey || mod;
+  const intent = pointerIntent(hit, { shift: event.shiftKey, mod });
   if (!intent) return;
   const state = getState();
   const patch = { panel: "timeline" };
-  if (hit.row?.kind === "track" && !event.shiftKey) {
+  if (hit.row?.kind === "track" && !additive) {
     patch.focusTrack = hit.row.id;
     patch.focusBus = null;
-  } else if (hit.row?.kind === "bus" && !event.shiftKey) patch.focusBus = hit.row.id;
+    // The range's tracks (Select > Range on all tracks) end with a click elsewhere.
+    patch.rangeTracks = null;
+  } else if (hit.row?.kind === "bus" && !additive) patch.focusBus = hit.row.id;
   // A narration placeholder is picked like a clip (WP43): one at a time, never with a clip.
-  if (!event.shiftKey)
+  if (!additive)
     patch.placeholderSelected = hit.placeholder && !hit.clip ? hit.placeholder.id : null;
   if (intent.selection === "replace") patch.selection = new Set([intent.clip.id]);
   else if (intent.selection === "clear") patch.selection = new Set();
@@ -1203,19 +1208,9 @@ function spanText(state) {
 function updateRangeInfo() {
   const el = $("range-info");
   const state = getState();
-  const info = rangeInfo(state);
-  el.hidden = info === null;
-  if (info === null) return;
-  const { inText, outText, lengthText } = formatRangeInfo(info, rate(), frameToTime);
-  const parts = [
-    [inText, "ui.range.in"],
-    [outText, "ui.range.out"],
-    [lengthText, "ui.range.length"],
-  ];
-  el.textContent = parts
-    .filter(([text]) => text !== null)
-    .map(([text, key]) => `${t(key)} ${text}`)
-    .join(" · ");
+  const text = rangeLine(state, rate(), frameToTime, t);
+  el.hidden = text === null;
+  if (text !== null) el.textContent = text;
 }
 let lastLoopKey = "null";
 

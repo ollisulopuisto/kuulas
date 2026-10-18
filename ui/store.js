@@ -57,6 +57,9 @@ export const initialState = () => ({
   playhead: 0,
   inPoint: null,
   outPoint: null,
+  // The tracks the in/out range applies to, set by Select > Range on all tracks (WP54):
+  // a list of track ids, or null for "this track, else the selected clips' tracks".
+  rangeTracks: null,
   // Loop playback (WP50): on or off; the range is the marks, else the selected clips.
   loop: false,
   // Group editing is on at every start (PLAN ground rule 16); E turns it off for the session.

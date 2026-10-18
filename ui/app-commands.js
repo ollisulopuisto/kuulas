@@ -113,7 +113,7 @@ export function registerAppCommands(registry, { actions, app }) {
   const stepFocus = (direction) => () => {
     const state = app.getState();
     const id = stepTrack(state.project, state.focusTrack, direction);
-    if (id) app.patch({ focusTrack: id, focusBus: null });
+    if (id) app.patch({ focusTrack: id, focusBus: null, rangeTracks: null });
   };
   def("track.prev", stepFocus(-1), hasProject);
   def("track.next", stepFocus(1), hasProject);
@@ -121,7 +121,11 @@ export function registerAppCommands(registry, { actions, app }) {
   def("mark.out", () => app.patch({ outPoint: app.getState().playhead }), hasProject);
   def("mark.clear_in", () => app.patch({ inPoint: null }), hasProject);
   def("mark.clear_out", () => app.patch({ outPoint: null }), hasProject);
-  def("mark.clear", () => app.patch({ inPoint: null, outPoint: null }), hasProject);
+  def(
+    "mark.clear",
+    () => app.patch({ inPoint: null, outPoint: null, rangeTracks: null }),
+    hasProject,
+  );
   def("palette.open", () => app.openPalette());
   def("help.keys", () => app.openKeys());
   def("help.open", () => app.openHelp());

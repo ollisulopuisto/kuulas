@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { formatRangeInfo, rangeInfo } from "../range-info.js";
+import { formatRangeInfo, rangeInfo, rangeLine } from "../range-info.js";
 
 const project = {
   tracks: [
@@ -64,6 +64,46 @@ describe("rangeInfo", () => {
   });
   test("a selection of unknown clips is nothing", () => {
     assert.equal(rangeInfo({ ...none, selection: new Set(["zzz"]) }), null);
+  });
+});
+
+describe("rangeLine (the status bar text)", () => {
+  const fmt = (frame, rate) => `T${frame / rate}`;
+  const tr = (key, values = {}) => `${key}${values.count ?? ""}`;
+  const line = (extra) => rangeLine({ ...none, ...extra }, 1000, fmt, tr);
+  const clipsText = "ui.range.clips_one · T0.1-T0.15 · T0.05";
+
+  test("nothing set, nothing to say", () => {
+    assert.equal(line({}), null);
+  });
+  test("marks alone read In, Out and Length as before", () => {
+    assert.equal(
+      line({ inPoint: 1000, outPoint: 3000 }),
+      "ui.range.in T1 · ui.range.out T3 · ui.range.length T2",
+    );
+    assert.equal(line({ inPoint: 1000 }), "ui.range.in T1");
+  });
+  test("a selection reads as clips: count, start-end, length", () => {
+    assert.equal(
+      line({ selection: new Set(["a", "b"]) }),
+      "ui.range.clips_many2 · T0.1-T0.5 · T0.4",
+    );
+    assert.equal(line({ selection: new Set(["a"]) }), clipsText);
+  });
+  test("marks and a different selection show both", () => {
+    assert.equal(
+      line({ inPoint: 0, outPoint: 1000, selection: new Set(["a"]) }),
+      `ui.range.in T0 · ui.range.out T1 · ui.range.length T1 · ${clipsText}`,
+    );
+  });
+  test("marks that say the same as the selection do not repeat the span", () => {
+    assert.equal(
+      line({ inPoint: 100, outPoint: 150, selection: new Set(["a"]) }),
+      "ui.range.clips_one · ui.range.in T0.1 · ui.range.out T0.15 · ui.range.length T0.05",
+    );
+  });
+  test("a lone mark does not hide the selection", () => {
+    assert.equal(line({ inPoint: 5, selection: new Set(["a"]) }), clipsText);
   });
 });
 

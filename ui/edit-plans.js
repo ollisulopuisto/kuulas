@@ -45,8 +45,17 @@ export function splitPlan(state, { all = false } = {}) {
   return plan("split_clips", { at: state.playhead, clip_ids: ids }, "split", { count: ids.length });
 }
 
-/** Where a range edit lands: this track, else the tracks the selection sits on. */
-function rangeTracks(state) {
+/**
+ * Where a range edit lands: the tracks chosen with Select > Range on all tracks (those
+ * still in the project), else this track, else the tracks the selection sits on.
+ */
+export function rangeTracks(state) {
+  const chosen = state?.rangeTracks;
+  if (Array.isArray(chosen)) {
+    const live = new Set((state.project?.tracks ?? []).map((track) => track.id));
+    const kept = chosen.filter((id) => live.has(id));
+    if (kept.length > 0) return kept;
+  }
   const track = currentTrack(state);
   if (track !== null) return [track];
   return unique(selectedClips(state).map((entry) => entry.trackId));

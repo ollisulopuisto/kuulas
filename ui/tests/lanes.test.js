@@ -302,6 +302,19 @@ describe("what a click does (owner, 2026-10-18)", () => {
     });
   });
 
+  test("Mod+click toggles one clip in or out of the selection, without moving the cursor", () => {
+    assert.deepEqual(pointerIntent(lane({ clip }), { mod: true }), {
+      seek: null,
+      selection: "toggle",
+      clip,
+    });
+    assert.deepEqual(pointerIntent(lane({}), { mod: true }), {
+      seek: null,
+      selection: "keep",
+      clip: null,
+    });
+  });
+
   test("the ruler seeks and keeps the selection; outside does nothing", () => {
     assert.deepEqual(pointerIntent({ area: "ruler", frame: 7 }, {}), {
       seek: 7,

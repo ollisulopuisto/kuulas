@@ -396,6 +396,56 @@ export const DEFAULT_KEYMAP = [
     context: "timeline",
     labelKey: "cmd.select.to_start_all",
   },
+  // WP54. Unbound: no free key worth taking; they are in the Edit > Select menu and the palette.
+  {
+    id: "select.range_all_tracks",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.select.range_all_tracks",
+  },
+  {
+    id: "select.clips_in_range",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.select.clips_in_range",
+  },
+  {
+    id: "select.range_from_clips",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.select.range_from_clips",
+  },
+  {
+    id: "select.forward",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.select.forward",
+  },
+  {
+    id: "select.forward_from_clips",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.select.forward_from_clips",
+  },
+  {
+    id: "select.forward_all_tracks_from_clips",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.select.forward_all_tracks_from_clips",
+  },
+  {
+    id: "select.invert",
+    keys: { mac: "Shift+Mod+A", other: "Shift+Mod+A" },
+    context: "timeline",
+    labelKey: "cmd.select.invert",
+  },
+  {
+    id: "select.none",
+    // Not Escape: nav.home has it in every context.
+    keys: { mac: "Mod+D", other: "Mod+D" },
+    context: "timeline",
+    labelKey: "cmd.select.none",
+  },
   {
     id: "clip.gain_up",
     keys: { mac: "Shift+Mod+ArrowUp", other: "Shift+Mod+ArrowUp" },

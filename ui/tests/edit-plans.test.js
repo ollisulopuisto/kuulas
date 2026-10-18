@@ -128,6 +128,10 @@ describe("cut (ripple)", () => {
       name: "ui.clipboard.untitled_track +1 · 0:20",
     });
   });
+  test("a range set to all tracks (Select > Range on all tracks) cuts on every track", () => {
+    const plan = cutPlan(state({ ...range, rangeTracks: ["A", "V", "M"] }));
+    assert.deepEqual(plan.args.track_ids, ["A", "V", "M"]);
+  });
   test("nothing to cut", () => {
     assert.equal(cutPlan(state()), null);
   });
