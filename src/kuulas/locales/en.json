@@ -856,5 +856,6 @@
   "ui.candidates.marked": "Marked as a candidate.",
   "ui.candidates.deleted": "Deleted. Undo brings it back.",
   "ui.candidates.cut": "Cut and closed the gap. Undo brings it back.",
-  "ui.candidates.kept": "Kept. It will not be proposed again."
+  "ui.candidates.kept": "Kept. It will not be proposed again.",
+  "ui.candidates.seconds": "{seconds} s"
 }

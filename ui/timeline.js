@@ -5,10 +5,11 @@
 //     ruler, clip outlines and names, gain lines, selection, in/out, playhead.
 // The overlay redraws on requestAnimationFrame when state changed; the
 // waveform layer only when something it shows changed.
+import { candidateBands, flagFits, flagText } from "./candidates-model.js";
 import { frameToX, xToFrame } from "./format.js";
 import { gateLabelFits, gatePixelRuns } from "./gate.js";
 import { busHues, fileMark, needsFileMark, seamKind } from "./grammar.js";
-import { t } from "./i18n.js";
+import { formatNumber, t } from "./i18n.js";
 import { dropGhosts, dropLabel, resolveDropTarget } from "./import-drop.js";
 import { clipLabel, labelFacts, siblingsOf } from "./labels.js";
 import {
@@ -41,6 +42,11 @@ const MARK_FONT_PX = 10;
 const BRACKET_PX = 10;
 const GATE_TICK_PX = 7;
 const GATE_LABEL_MIN_LANE = 36;
+const CANDIDATE_STRIPE_ALPHA = 0.35;
+const CANDIDATE_EDGE_PX = 1;
+const CANDIDATE_EDGE_CURRENT_PX = 2;
+const FLAG_EDGE_PX = 3;
+const FLAG_EDGE_CURRENT_PX = 4;
 
 export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, actions }) {
   const overlay = overlayCanvas.getContext("2d");
@@ -49,6 +55,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
   let size = { width: 0, height: 0, ratio: 1 };
   let pointerFrame = null;
   let dropPreview = null; // files being dragged over: { kind, startFrame, mode, count } or null
+  let bands = []; // the open candidates in pixels (candidates-model.js), per redraw
   let overlayQueued = false;
   let waveQueued = false;
   let lastWaveKey = "";
@@ -124,6 +131,12 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     const layout = layoutFor(state);
     const hues = trackHues(state.project);
     const groups = busHues(state.project);
+    bands = candidateBands(state.candidates ?? [], {
+      scroll: state.scroll,
+      zoom: state.zoom,
+      width,
+      currentId: state.candidateCurrent,
+    });
     drawRange(state, height);
     for (const row of visibleRows(layout, state.scrollY, height - RULER_HEIGHT)) {
       const top = RULER_HEIGHT + row.top - state.scrollY;
@@ -234,6 +247,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     }
     if (state.collateral?.tracks.includes(track.id)) drawCollateral(state, track, row, top);
     if (state.showGates !== false) drawGate(state, track, top, row.height);
+    drawCandidates(track.id, top, row.height);
     drawSeams(state, track, top, row.height);
     drawAutomation(state, track, top, row.height);
     overlay.restore();
@@ -296,6 +310,57 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       const band = runs[i + 1] - runs[i];
       if (!gateLabelFits(band, textWidth)) continue;
       overlay.fillText(text, runs[i] + (band - textWidth) / 2, y + h / 2 - NAME_FONT_PX / 2);
+    }
+  }
+
+  // Open cut candidates (WP18): a faint fill with 1 px edges on every lane the cut would
+  // touch; the current one has 2 px edges and diagonal stripes (the stripe is the twin of
+  // the colour). Only the current one is striped: stripes on every band were the loudest
+  // thing on screen (GUI-DESIGN.md, the table of rejected options).
+  function drawCandidates(trackId, top, rowHeight) {
+    const y = top + 2;
+    const h = rowHeight - 4;
+    for (const band of bands) {
+      if (!band.tracks.includes(trackId)) continue;
+      const w = band.x1 - band.x0;
+      overlay.fillStyle = theme.candidateFill;
+      overlay.fillRect(band.x0, y, w, h);
+      if (band.current) drawHatchAt(band.x0, y, w, h, theme.candidate, CANDIDATE_STRIPE_ALPHA);
+      const edge = band.current ? CANDIDATE_EDGE_CURRENT_PX : CANDIDATE_EDGE_PX;
+      overlay.fillStyle = theme.candidate;
+      overlay.fillRect(Math.round(band.x0), y, edge, h);
+      overlay.fillRect(Math.round(band.x1) - edge, y, edge, h);
+    }
+  }
+
+  function drawHatchAt(x, y, w, h, colour, alpha) {
+    overlay.globalAlpha = alpha;
+    drawHatch(x, y, w, h, colour);
+    overlay.globalAlpha = 1;
+  }
+
+  // The ruler flag of a candidate: its length on the fill with a 3 px top edge ("cut? 2.4 s").
+  // It hides the time labels under it rather than overlapping them; a band too narrow for
+  // the words keeps only the edge.
+  function drawCandidateFlags(state) {
+    const rows = new Map((state.candidates ?? []).map((row) => [row.id, row]));
+    overlay.font = `600 ${MARK_FONT_PX}px ${theme.font}`;
+    overlay.textBaseline = "middle";
+    for (const band of bands) {
+      if (!band.flag) continue;
+      const row = rows.get(band.id);
+      const w = band.x1 - band.x0;
+      overlay.fillStyle = theme.panel;
+      overlay.fillRect(band.x0, 0, w, RULER_HEIGHT - 1);
+      overlay.fillStyle = theme.candidateFill;
+      overlay.fillRect(band.x0, 0, w, RULER_HEIGHT - 1);
+      overlay.fillStyle = theme.candidate;
+      overlay.fillRect(band.x0, 0, w, band.current ? FLAG_EDGE_CURRENT_PX : FLAG_EDGE_PX);
+      const text = flagText(row, t, (value) => formatNumber(value, { digits: 1 }));
+      const textWidth = overlay.measureText(text).width;
+      if (!flagFits(w, textWidth)) continue;
+      overlay.fillStyle = theme.ink;
+      overlay.fillText(text, band.x0 + (w - textWidth) / 2, RULER_HEIGHT / 2 + 1);
     }
   }
 
@@ -525,6 +590,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
         overlay.fillText(tick.label, x + 4, 5);
       }
     }
+    drawCandidateFlags(state);
   }
 
   function drawPlayhead(state, height) {

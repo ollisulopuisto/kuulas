@@ -856,5 +856,6 @@
   "ui.candidates.marked": "Merkitty ehdokkaaksi.",
   "ui.candidates.deleted": "Poistettu. Kumoa palauttaa sen.",
   "ui.candidates.cut": "Leikattu ja aukko suljettu. Kumoa palauttaa sen.",
-  "ui.candidates.kept": "Pidetty. Sitä ei ehdoteta uudelleen."
+  "ui.candidates.kept": "Pidetty. Sitä ei ehdoteta uudelleen.",
+  "ui.candidates.seconds": "{seconds} s"
 }

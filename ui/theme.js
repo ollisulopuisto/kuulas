@@ -74,6 +74,8 @@ export function readTheme(
     fileMark: p.signals.fileMark,
     fileMarkText: p.signals.fileMarkText,
     mutedOpacity: p.numbers.mutedOpacity,
+    candidate: p.signals.candidate,
+    candidateFill: p.signals.candidateFill,
     gate: p.signals.gate,
     gateOpacity: p.numbers.gateOpacity,
     font: p.font,
