@@ -12,10 +12,11 @@ from dataclasses import replace
 from . import curves, edit_scope
 from . import gate as gatem
 from . import markers as markersm
+from . import narration, placeholders as placeholdersm
 from .clock import flicks_to_frames, frames_to_flicks
 from .join import join_adjacent
 from .messages import KuulasError
-from .model import Bus, Clip, Marker, Media, Point, Project, SyncGroup, Track
+from .model import Bus, Clip, Marker, Media, Placeholder, Point, Project, SyncGroup, Track
 
 #: Crossfade where a cut joins audio that was not adjacent in the source.
 #: A butt splice of two unrelated samples clicks and the room tone jumps;
@@ -93,7 +94,8 @@ def add_track(p: Project, track_id: str | None = None, name: str = "Track",
 
 def delete_track(p: Project, track_id: str) -> Project:
     _find_track(p, track_id)
-    return replace(p, tracks=tuple(t for t in p.tracks if t.id != track_id))
+    return replace(p, tracks=tuple(t for t in p.tracks if t.id != track_id),
+                   placeholders=tuple(h for h in p.placeholders if h.track != track_id))
 
 
 TRACK_FIELDS = {"name", "kind", "speaker", "bus", "gain_db", "pan", "mute", "solo"}
@@ -668,7 +670,9 @@ def ripple_delete(p: Project, start: int, end: int,
     # track is cut, otherwise the audio they point at has not moved.
     moved = (markersm.ripple(p.markers, start, end)
              if scope >= {t.id for t in p.tracks} else p.markers)
-    return replace(p, tracks=tuple(tracks), markers=moved)
+    # A placeholder is a range of one track (WP43): it follows its own track.
+    return replace(p, tracks=tuple(tracks), markers=moved,
+                   placeholders=placeholdersm.ripple(p.placeholders, scope, start, end))
 
 
 def _crossfade(p: Project, clips: list[Clip], left: Clip, right: Clip) -> list[Clip]:
@@ -781,6 +785,127 @@ def delete_marker(p: Project, marker_id: str) -> Project:
     return replace(p, markers=tuple(m for m in p.markers if m.id != marker_id))
 
 
+# -- narration placeholders (WP43) ----------------------------------------------
+
+
+def _find_placeholder(p: Project, placeholder_id: str) -> Placeholder:
+    for h in p.placeholders:
+        if h.id == placeholder_id:
+            return h
+    raise EditError("error.placeholder.missing", placeholder_id=placeholder_id)
+
+
+def _put_placeholder(p: Project, h: Placeholder) -> Project:
+    others = tuple(x for x in p.placeholders if x.id != h.id)
+    return replace(p, placeholders=placeholdersm.ordered((*others, h)))
+
+
+def _clean_text(text) -> str:
+    text = str(text).strip()
+    if not text:
+        raise EditError("error.placeholder.empty_text")
+    return text
+
+
+def _clean_length(length) -> int:
+    length = int(length)
+    if length <= 0:
+        raise EditError("error.placeholder.bad_length")
+    return length
+
+
+def add_placeholder(p: Project, track_id: str, start: int, text: str,
+                    length: int | None = None, placeholder_id: str | None = None,
+                    language: str = "") -> Project:
+    """Script text at ``start`` on a track. Without ``length`` it is estimated
+    from the text (``narration.estimate_frames``) and stays an estimate."""
+    _find_track(p, track_id)
+    text = _clean_text(text)
+    placeholder_id = placeholder_id or new_id("h")
+    if any(h.id == placeholder_id for h in p.placeholders):
+        raise EditError("error.placeholder.exists", placeholder_id=placeholder_id)
+    if int(start) < 0:
+        raise EditError("error.placeholder.bad_start")
+    estimated = length is None
+    frames = narration.estimate_frames(text, p.rate) if estimated else _clean_length(length)
+    return _put_placeholder(p, Placeholder(
+        id=placeholder_id, track=track_id, start=int(start), length=frames, text=text,
+        estimated=estimated, language=str(language)))
+
+
+def edit_placeholder_text(p: Project, placeholder_id: str, text: str) -> Project:
+    """New text; the length follows it while it is still an estimate."""
+    h = _find_placeholder(p, placeholder_id)
+    text = _clean_text(text)
+    if h.estimated:
+        h = replace(h, length=narration.estimate_frames(text, p.rate))
+    return _put_placeholder(p, replace(h, text=text))
+
+
+def set_placeholder_length(p: Project, placeholder_id: str, length: int) -> Project:
+    """A hand-set length: no longer an estimate, so editing the text keeps it."""
+    h = _find_placeholder(p, placeholder_id)
+    return _put_placeholder(p, replace(h, length=_clean_length(length), estimated=False))
+
+
+def move_placeholder(p: Project, placeholder_id: str, start: int,
+                     track_id: str | None = None) -> Project:
+    h = _find_placeholder(p, placeholder_id)
+    if int(start) < 0:
+        raise EditError("error.placeholder.bad_start")
+    if track_id is not None:
+        _find_track(p, track_id)
+    return _put_placeholder(p, replace(h, start=int(start), track=track_id or h.track))
+
+
+def delete_placeholder(p: Project, placeholder_id: str) -> Project:
+    _find_placeholder(p, placeholder_id)
+    return replace(p, placeholders=tuple(h for h in p.placeholders
+                                         if h.id != placeholder_id))
+
+
+def replace_placeholder(p: Project, placeholder_id: str, media_id: str,
+                        offset: int = 0, group_editing: bool = True) -> Project:
+    """Record it: the placeholder becomes a clip of ``media_id`` (from
+    ``offset``) at the same start on the same track, and the later material
+    moves by the take's length minus the placeholder's, on the tracks
+    ``edit_scope.expand_range`` names (the placeholder's track and, with
+    ``group_editing``, its sync group). One pure step, so one undo.
+
+    A longer take opens a gap where the placeholder ended, a shorter one
+    ripple-deletes the leftover; anything on the track inside that leftover
+    goes with it, as with any ripple delete.
+    """
+    # Imported here: paste_apply imports ops.
+    from .paste_apply import _open_gap
+
+    h = _find_placeholder(p, placeholder_id)
+    try:
+        media = p.media_item(media_id)
+    except KeyError:
+        raise EditError("error.edit.no_media", media_id=media_id) from None
+    offset = int(offset)
+    take = media.frames - offset
+    if offset < 0 or take <= 0:
+        raise EditError("error.edit.clip_outside_media")
+    p = delete_placeholder(p, placeholder_id)
+    delta = take - h.length
+    if delta > 0:
+        scope = edit_scope.expand_range(p, None, [h.track], h.end, h.end + delta,
+                                        group_editing)
+        for track in p.tracks:
+            if track.id in scope:
+                p = _open_gap(p, track.id, h.end, delta)
+        if set(scope) >= {t.id for t in p.tracks}:
+            p = replace(p, markers=markersm.open_gap(p.markers, h.end, delta))
+    elif delta < 0:
+        cut_from, cut_to = h.start + take, h.end
+        scope = edit_scope.expand_range(p, None, [h.track], cut_from, cut_to,
+                                        group_editing)
+        p = ripple_delete(p, cut_from, cut_to, scope)
+    return add_clip(p, h.track, media_id, h.start, offset, take)
+
+
 # -- dispatch ----------------------------------------------------------------
 
 OPS = {
@@ -793,6 +918,8 @@ OPS = {
         set_gate, add_gate_range, remove_gate_range,
         add_marker, rename_marker, move_marker, set_region_end, delete_marker,
         set_marker_kind,
+        add_placeholder, edit_placeholder_text, set_placeholder_length,
+        move_placeholder, delete_placeholder, replace_placeholder,
         shift_clips, set_clips, delete_clips, mark_in_sync, resync,
         split_clips, mute_range, cut_range, nudge_clips, trim_clips, adjust_clip_gain,
         restore_cuts,
