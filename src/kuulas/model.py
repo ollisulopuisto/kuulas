@@ -143,7 +143,7 @@ class Track:
 
     id: str
     name: str
-    kind: str = "speech"  # "speech" | "speech-mix" | "music"
+    kind: str = "speech"  # "speech" | "music"
     speaker: str = ""
     bus: str | None = None
     gain_db: float = 0.0
@@ -187,6 +187,10 @@ class Track:
         known["clips"] = tuple(Clip.from_dict(c) for c in known.get("clips", ()))
         known["automation"] = _points(known.get("automation", ()))
         known["gate"] = tuple((int(a), int(b)) for a, b in known.get("gate", ()))
+        if known.get("kind") == "speech-mix":
+            # Removed 2026-10-19 (separating a downmixed file is out of scope): saved
+            # projects and history snapshots that hold it load as plain speech.
+            known["kind"] = "speech"
         return cls(**known, extra=extra)
 
 

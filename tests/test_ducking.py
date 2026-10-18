@@ -1,8 +1,7 @@
 """Track kinds and music ducking (WP22).
 
-- Track.kind: speech, speech-mix, music
+- Track.kind: speech, music (speech-mix was removed 2026-10-19)
 - Track.speaker: defaults to "" (track's name), grouping tracks into lanes
-- speech-mix: counts as talking, never ducked or silenced per mic
 - duck_music: ducking music beds under speech using nhsx.musicbed.curve
 """
 
@@ -11,7 +10,7 @@ import pytest
 import soundfile as sf
 from nhsx import musicbed
 
-from kuulas import analysis, curves, ops
+from kuulas import analysis, ops
 from kuulas.model import Media, Project, Track
 from kuulas.ops import EditError
 from kuulas.session import Session
@@ -47,9 +46,6 @@ def test_track_kind_validation_and_speaker_field():
     assert p.track("t1").kind == "speech"
     assert p.track("t1").speaker == ""
 
-    p = ops.set_track(p, "t1", kind="speech-mix")
-    assert p.track("t1").kind == "speech-mix"
-
     p = ops.set_track(p, "t1", kind="music")
     assert p.track("t1").kind == "music"
 
@@ -59,6 +55,22 @@ def test_track_kind_validation_and_speaker_field():
     with pytest.raises(EditError) as err:
         ops.set_track(p, "t1", kind="invalid-kind")
     assert err.value.key == "error.edit.bad_track_kind"
+
+    # speech-mix was removed (2026-10-19): editing to it is an error now
+    with pytest.raises(EditError) as err:
+        ops.set_track(p, "t1", kind="speech-mix")
+    assert err.value.key == "error.edit.bad_track_kind"
+    with pytest.raises(EditError):
+        ops.add_track(p, track_id="t2", kind="speech-mix")
+
+
+def test_saved_speech_mix_kind_loads_as_speech():
+    # Projects and history snapshots saved before 2026-10-19 hold "speech-mix".
+    data = {"id": "t1", "name": "Zoom", "kind": "speech-mix", "clips": []}
+    assert Track.from_dict(data).kind == "speech"
+    p = Project.from_dict({"rate": RATE, "tracks": [data], "media": [], "buses": []})
+    assert p.track("t1").kind == "speech"
+    assert "speech-mix" not in str(p.to_dict())
 
 
 def test_old_project_state_without_speaker_loads():
@@ -117,72 +129,6 @@ def test_tracks_with_the_same_speaker_are_one_lane():
     hop = analysis.hop_frames(RATE)
     assert lane.on[int(1.5 * RATE / hop)]
     assert lane.on[int(6.5 * RATE / hop)]
-
-
-def test_speech_mix_tracks_are_never_ducked_or_silenced():
-    rng = np.random.default_rng(20)
-    n = SEC * RATE
-    anna = np.zeros(n, dtype=np.float32)
-    zoom = np.zeros(n, dtype=np.float32)
-    anna[:4 * RATE] = speech(rng, 4)
-    zoom[6 * RATE:10 * RATE] = speech(rng, 4)
-    floor = lambda: 0.0003 * rng.standard_normal(n).astype(np.float32)  # noqa: E731
-    store = MemoryStore({
-        "a": (anna + floor())[None, :],
-        "z": (zoom + floor())[None, :],
-    })
-
-    p = Project(rate=RATE)
-    p = ops.add_media(p, Media(id="a", name="a.wav", channels=1, frames=n))
-    p = ops.add_media(p, Media(id="z", name="z.wav", channels=1, frames=n))
-    p = ops.add_track(p, track_id="A", name="Anna", kind="speech")
-    p = ops.add_track(p, track_id="Z", name="Zoom", kind="speech-mix")
-    p = ops.add_clip(p, track_id="A", media_id="a", clip_id="ca")
-    p = ops.add_clip(p, track_id="Z", media_id="z", clip_id="cz")
-
-    # 1. silence_ranges must not contain speech-mix track
-    ranges = analysis.silence_ranges(p, store)
-    assert "Z" not in ranges
-    assert "A" in ranges
-
-    # 2. auto_silence must leave speech-mix clips untouched
-    p_silenced = analysis.auto_silence(p, store)
-    assert len(p_silenced.track("Z").clips) == 1
-    assert not p_silenced.track("Z").clips[0].muted
-
-    # 3. automix must not write automation to speech-mix track
-    p_mixed = analysis.automix(p, store)
-    assert not p_mixed.track("Z").automation
-    assert p_mixed.track("A").automation
-
-
-def test_speech_mix_counts_as_talking_for_music_ducking():
-    rng = np.random.default_rng(30)
-    n = 20 * RATE
-    zoom = np.zeros(n, dtype=np.float32)
-    # Zoom speech between 4s and 10s
-    zoom[4 * RATE:10 * RATE] = speech(rng, 6)
-    music_audio = 0.2 * rng.standard_normal((2, n)).astype(np.float32)
-    store = MemoryStore({
-        "z": zoom[None, :],
-        "m": music_audio,
-    })
-
-    p = Project(rate=RATE)
-    p = ops.add_media(p, Media(id="z", name="zoom.wav", channels=1, frames=n))
-    p = ops.add_media(p, Media(id="m", name="music.wav", channels=2, frames=n))
-    p = ops.add_track(p, track_id="Z", name="Zoom", kind="speech-mix")
-    p = ops.add_track(p, track_id="M", name="Music", kind="music")
-    p = ops.add_clip(p, track_id="Z", media_id="z", clip_id="cz")
-    p = ops.add_clip(p, track_id="M", media_id="m", clip_id="cm")
-
-    p_ducked = analysis.duck_music(p, store)
-    auto = p_ducked.track("M").automation
-    assert auto, "Music track should have ducking automation under speech-mix"
-    # Should duck during speech (around 7s) and be higher before speech (around 2s)
-    val_speech = curves.value_at(auto, 7 * RATE)
-    val_quiet = curves.value_at(auto, 2 * RATE)
-    assert val_speech < val_quiet
 
 
 def test_music_automation_follows_nhsx_musicbed_curve():

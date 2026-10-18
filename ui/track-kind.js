@@ -1,10 +1,10 @@
-// Track kind (speech / speech-mix / music) and speaker, the WP22 tags. Pure; the header tag
+// Track kind (speech / music) and speaker, the WP22 tags. Pure; the header tag
 // and the inspector field live in tracks.js and inspector-track.js.
 
 import { currentTrack } from "./selection.js";
 import { TRACK_KINDS } from "./track-target.js";
 
-/** The kind Alt+Mod+K gives next: speech, speech-mix, music, back to speech. */
+/** The kind Alt+Mod+K gives next: speech, music, back to speech. */
 export function nextKind(kind) {
   const at = TRACK_KINDS.indexOf(kind);
   return TRACK_KINDS[(at + 1) % TRACK_KINDS.length];

@@ -623,9 +623,6 @@ button.chip {
   mask: var(--role-icon) center / contain no-repeat;
   --role-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round'%3E%3Crect x='6' y='2' width='4' height='7.5' rx='2'/%3E%3Cpath d='M3.8 7.5a4.2 4.2 0 0 0 8.4 0M8 11.7v2.3'/%3E%3C/svg%3E");
 }
-.tag.kind-speech-mix {
-  --role-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round'%3E%3Crect x='3' y='2.5' width='3.4' height='6' rx='1.7'/%3E%3Crect x='9.6' y='2.5' width='3.4' height='6' rx='1.7'/%3E%3Cpath d='M4.7 8.5v4M11.3 8.5v4M3 12.5h10'/%3E%3C/svg%3E");
-}
 .tag.kind-music {
   --role-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M6 12V3.5l7-1.5V10'/%3E%3Ccircle cx='4.3' cy='12' r='1.8'/%3E%3Ccircle cx='11.3' cy='10.3' r='1.8'/%3E%3C/svg%3E");
 }

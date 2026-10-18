@@ -160,7 +160,7 @@ values.
 Layout of a track header (lane height; rows of 28 px in comfortable):
 
 - row 1 (aligned with the clip names at the top of the lane): role icon (mic =
-  speech, two mics = speech mix, note = music; the role name is the tooltip and
+  speech, note = music; the role name is the tooltip and
   the accessible name) · name (600; long names are shortened **in the middle**,
   "Anna · varam…foni", with the full name in the tooltip and accessible name;
   double-click renames) · [bus picker] · M · S
@@ -435,7 +435,6 @@ Light is the default `:root`; dark applies by `prefers-color-scheme` unless
 | `--signal-collateral-fill` | `rgb(200 50 31 / 0.18)` | `rgb(255 119 107 / 0.2)` |  |
 | `--signal-preview` | `#0a7a6b` | `#3dc9b3` | a Compare preview is playing (not committed) |
 | `--role-speech` | `#48545a` | `#aab4b9` | strip pattern: solid |
-| `--role-speech-mix` | `#48545a` | `#aab4b9` | strip pattern: dashed |
 | `--role-music` | `#7a715e` | `#8e8572` | strip pattern: dotted |
 
 Contrast, checked by the test (WCAG 2.2: text ≥ 4.5, graphics and outlines ≥ 3):
@@ -637,7 +636,7 @@ WP / planned.
 | 30 | **tether** | line · attachment | 6 | shown | `#48545a` | `#aab4b9` | a thin line from the clip's start down to its anchor, ending in a dot | a connected clip (WP19b) | Alt+Mod+C | planned |
 | 31 | **label** | badge · facts | 7 | shown | track/bus/label hues | track/bus/label hues | a square flag in the top-right corner; its name on hover and in the inspector | the user gave the clip a label colour (never set automatically) | — | planned |
 | 32 | **seam-split** | seam · joins | 8 | shown | `#48545a` | `#aab4b9` | a 1 px hairline (shape) | two clips of one file meet with nothing removed between them | — | built |
-| 33 | **role** | strip · role | 9 | only in the clip bin and on cards | `#48545a` `#48545a` `#7a715e` | `#aab4b9` `#aab4b9` `#8e8572` | strip pattern: solid speech, dashed speech mix, dotted music; role icon in the header | off on the timeline (the header says it); on in the clip bin and cards | — | prototype |
+| 33 | **role** | strip · role | 9 | only in the clip bin and on cards | `#48545a` `#48545a` `#7a715e` | `#aab4b9` `#aab4b9` `#8e8572` | strip pattern: solid speech, dotted music; role icon in the header | off on the timeline (the header says it); on in the clip bin and cards | — | prototype |
 
 **At most three ranked signals per clip.** `pickSignals(active)` keeps every
 "always" signal, then the three highest-priority others; the rest collapse
@@ -761,7 +760,7 @@ ribbons.
   open question 6 of section 15); gain coalesces drags.
 
 **A typical show** (prototype screen "Typical show"): bus A Voices (Anna's
-mic, Anna's backup mic sharing her hue, Ville, a Zoom speech-mix track for
+mic, Anna's backup mic sharing her hue, Ville, a Zoom speech track for
 Pekka), bus B Music (one track, merged, with ducking drawn), bus C Narration
 (one track, merged, holding two placeholders and a recorded take), gaps between
 them. At 1440 × 900 all six tracks fit in comfortable.
