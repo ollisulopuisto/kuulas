@@ -251,6 +251,37 @@
   "ui.live.reconnecting_title": "Yhteys kuulas-palvelimeen katkesi. Yritetään uudelleen; työsi on tallessa.",
   "ui.import.drop": "Pudota äänitiedostot tähän tuodaksesi ne",
   "ui.import.failed_file": "Tiedoston {name} tuonti epäonnistui: {text}",
+  "ui.import.done_one": "1 tiedosto tuotiin 1 raidalle",
+  "ui.import.done_sync": {
+    "one": "{count} tiedosto tuotiin {count} raidalle",
+    "other": "{count} tiedostoa tuotiin {count} raidalle tahdistettuina"
+  },
+  "ui.import.done_sequence": {
+    "one": "{count} tiedosto tuotiin",
+    "other": "{count} tiedostoa tuotiin peräkkäin yhdelle raidalle"
+  },
+  "ui.import.done_none": "Mitään ei tuotu",
+  "ui.import.sequence": "Peräkkäin samalle raidalle",
+  "ui.import.next": "Seuraava tuonti:",
+  "ui.import.order": "Järjestys",
+  "ui.import.order_given": "valintajärjestys",
+  "ui.import.order_name": "tiedostonimi",
+  "ui.import.order_time": "äänityshetki",
+  "ui.import.naming": "Raitojen nimet",
+  "ui.import.naming_file": "tiedostonimi",
+  "ui.import.naming_person": "henkilö",
+  "ui.import.drop_new": {
+    "one": "1 uusi raita",
+    "other": "{count} uutta raitaa, tahdistettuina"
+  },
+  "ui.import.drop_sequence": {
+    "one": "1 tiedosto uudelle raidalle",
+    "other": "{count} tiedostoa peräkkäin yhdelle uudelle raidalle"
+  },
+  "ui.import.drop_at": {
+    "one": "1 uusi raita kohdasta {time}",
+    "other": "{count} uutta raitaa kohdasta {time}, tahdistettuina"
+  },
   "ui.import.warning": "{name}: {text}",
   "ui.pan.center": "K",
   "ui.pan.left": "V {value}",
