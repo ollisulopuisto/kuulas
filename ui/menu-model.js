@@ -62,6 +62,18 @@ export const MENU = [
       item("edit.paste_overwrite_track"),
       item("edit.preview_clipboard"),
       item("edit.clear_old_clipboard"),
+      {
+        kind: "submenu",
+        labelKey: "menu.clipboard",
+        items: [
+          item("edit.share_clipboard"),
+          SEP,
+          item("clipboard.view_project"),
+          item("clipboard.view_shared"),
+          item("clipboard.view_others"),
+          item("clipboard.open_project"),
+        ],
+      },
       item("edit.delete"),
       item("rename"),
       SEP,

@@ -1393,6 +1393,72 @@ input[type="text"] {
   color: var(--text);
   font: inherit;
 }
+.clip-views {
+  display: flex;
+  gap: 0;
+  margin: var(--row-gap) 0;
+}
+.clip-view {
+  flex: 1 1 0;
+  border-radius: 0;
+}
+.clip-view:first-child {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+.clip-view:last-child {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.clip-view[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+  color: var(--text);
+  font-weight: var(--weight-strong);
+}
+.clip-star[aria-pressed="true"] {
+  color: var(--accent);
+}
+.clip-clear,
+.clip-open {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--row-gap) 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+.clip-keep {
+  width: 5em;
+}
+.clip-path {
+  flex: 1 1 12em;
+  min-width: 0;
+}
+.clip-projects {
+  display: flex;
+  flex-direction: column;
+  gap: var(--row-gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.clip-project {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.clip-project[aria-expanded="true"] {
+  border-color: var(--accent);
+}
 .clip-list {
   display: flex;
   flex-direction: column;
@@ -1400,6 +1466,9 @@ input[type="text"] {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+.clip-project-item > .clip-list {
+  margin: var(--row-gap) 0 0 var(--space-4);
 }
 .clip-entry {
   display: flex;

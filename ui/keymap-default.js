@@ -416,6 +416,36 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.edit.clear_old_clipboard",
   },
   {
+    id: "edit.share_clipboard",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.edit.share_clipboard",
+  },
+  {
+    id: "clipboard.view_project",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.clipboard.view_project",
+  },
+  {
+    id: "clipboard.view_shared",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.clipboard.view_shared",
+  },
+  {
+    id: "clipboard.view_others",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.clipboard.view_others",
+  },
+  {
+    id: "clipboard.open_project",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.clipboard.open_project",
+  },
+  {
     id: "edit.split",
     keys: { mac: ["B", "Mod+B"], other: ["B", "Mod+B"] },
     context: "timeline",

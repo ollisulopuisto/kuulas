@@ -9,6 +9,7 @@ import { createCandidatesPanel } from "./candidates-panel.js";
 import { previewRequest } from "./candidates-preview.js";
 import { clipDragChange } from "./clip-drag.js";
 import { expandGroups, toggleGroupSelection } from "./clip-groups.js";
+import { entryTitle } from "./clipboard.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
 import { openContextMenu } from "./context-menu.js";
 import { contextMenuItems } from "./context-menu-model.js";
@@ -592,6 +593,9 @@ const keyboard = setupKeyboard({
     copy: (body) => copyToClipboard(body),
     refreshClipboard: () => void refreshClipboard(),
     clearOldClipboard: (keep) => clearOldClipboard(keep),
+    shareClipboard: (id, on) => shareClipboardEntry(id, on),
+    showClipboard: (view) => showClipboard(view),
+    openClipboardProject: () => void openClipboardProject(),
     rememberRange: () => {
       const { head, inPoint, outPoint, rangeTracks } = getState();
       rangeMemory = rememberRange(head, { inPoint, outPoint, rangeTracks });
@@ -1402,7 +1406,143 @@ async function refreshClipboard() {
   } catch (error) {
     showError(error);
   }
+  void loadSharedClipboard();
 }
+
+// -- clipboard sharing and other projects (WP65) --------------------------------------------------
+
+async function loadSharedClipboard() {
+  try {
+    setState({ clipboardShared: (await api.getClipboardShared()).entries });
+  } catch (error) {
+    showError(error);
+  }
+}
+
+// The recent projects, with the ones picked by hand in front. The counts are read by the
+// server each time, so they are not stale.
+async function loadClipboardProjects() {
+  try {
+    const recent = (await api.getClipboardProjects()).projects;
+    const opened = getState().clipboardOpened ?? [];
+    const known = new Set(opened.map((project) => project.path));
+    setState({ clipboardProjects: [...opened, ...recent.filter((p) => !known.has(p.path))] });
+  } catch (error) {
+    showError(error);
+  }
+}
+
+function setForeign(path, value) {
+  setState({ clipboardForeign: { ...(getState().clipboardForeign ?? {}), [path]: value } });
+}
+
+async function loadForeignClipboard(path) {
+  setForeign(path, { status: "loading", entries: [] });
+  try {
+    const answer = await api.getClipboardProject(path);
+    setForeign(path, { status: "ok", entries: answer.entries });
+    return answer;
+  } catch (error) {
+    setForeign(path, { status: "error", entries: [] });
+    showError(error);
+    return null;
+  }
+}
+
+function setClipboardView(view) {
+  setState({ clipboardView: view });
+  if (view === "shared") void loadSharedClipboard();
+  if (view === "others") void loadClipboardProjects();
+}
+
+function showClipboard(view) {
+  focusPanel("clipboard");
+  setClipboardView(view);
+}
+
+function toggleClipboardProject(path) {
+  const open = getState().clipboardExpanded ?? [];
+  if (open.includes(path)) {
+    setState({ clipboardExpanded: open.filter((item) => item !== path) });
+    return;
+  }
+  setState({ clipboardExpanded: [...open, path] });
+  void loadForeignClipboard(path);
+}
+
+// Any project's clipboard, read-only: the desktop picks the folder natively; a browser types it.
+const clipboardPicker = () =>
+  typeof globalThis.pywebview?.api?.pick_project_folder === "function"
+    ? globalThis.pywebview.api
+    : null;
+
+async function openClipboardProjectAt(path) {
+  const answer = await loadForeignClipboard(path);
+  if (!answer) return;
+  const project = {
+    name: answer.project.name,
+    path: answer.project.path,
+    last_opened: "",
+    entries: answer.entries.length,
+  };
+  const opened = [
+    project,
+    ...(getState().clipboardOpened ?? []).filter((p) => p.path !== project.path),
+  ];
+  const expanded = getState().clipboardExpanded ?? [];
+  // The server resolved the path (links, trailing slash): list and expand it under that name.
+  if (project.path !== path) setForeign(project.path, { status: "ok", entries: answer.entries });
+  setState({
+    clipboardOpened: opened,
+    clipboardExpanded: expanded.includes(project.path) ? expanded : [...expanded, project.path],
+  });
+  void loadClipboardProjects();
+}
+
+async function openClipboardProject() {
+  showClipboard("others");
+  const picker = clipboardPicker();
+  if (!picker) {
+    queueMicrotask(() => $("panel-clipboard").querySelector(".clip-path")?.focus());
+    return;
+  }
+  try {
+    const path = await picker.pick_project_folder();
+    if (path) await openClipboardProjectAt(path);
+  } catch (error) {
+    showError(error);
+  }
+}
+
+async function shareClipboardEntry(id, on) {
+  try {
+    const answer = await api.shareClipboardEntry(id, on);
+    setState({ clipboard: answer.entries, clipboardShared: answer.shared });
+    showNotice(t(on ? "ui.clipboard.shared" : "ui.clipboard.unshared"), "ok", { undo: false });
+  } catch (error) {
+    showError(error);
+  }
+}
+
+// Copy an entry of the shared store or another project into this project's clipboard. It becomes
+// the newest entry and is picked, so the paste keys paste it. Returns whether it worked.
+async function adoptClipboardEntry(entry, from, { quiet = false } = {}) {
+  try {
+    const answer = await api.adoptClipboardEntry(entry, from);
+    setState({ clipboard: answer.entries, clipboardSelected: answer.entry.id });
+    if (!quiet) {
+      showNotice(t("ui.clipboard.adopted", { name: entryTitle(answer.entry, rateOf(), t) }), "ok", {
+        undo: false,
+      });
+    }
+    return true;
+  } catch (error) {
+    showError(error);
+    return false;
+  }
+}
+
+const rateOf = () => getState().project?.rate ?? 48000;
 
 // Copy changes no project: it has its own route. A new copy becomes the newest entry, so
 // the tab's pick is dropped and Mod+V pastes what was just copied. Returns whether it worked.
@@ -1460,6 +1600,19 @@ const clipboardPanel = createClipboardPanel({
     },
     choose: (patch) => setState(patch),
     filter: (text) => setState({ clipboardFilter: text }),
+    share: (id, on) => void shareClipboardEntry(id, on),
+    view: (name) => setClipboardView(name),
+    toggleProject: (path) => toggleClipboardProject(path),
+    openProject: () => keyboard.registry.run("clipboard.open_project", null, getState()),
+    openPath: (path) => void openClipboardProjectAt(path),
+    hasPicker: () => clipboardPicker() !== null,
+    now: () => Date.now() / 1000,
+    adopt: (entry, from) => void adoptClipboardEntry(entry, from),
+    async pasteHere(entry, from) {
+      if (await adoptClipboardEntry(entry, from, { quiet: true })) {
+        keyboard.registry.run(pasteCommand(getState()), null, getState());
+      }
+    },
     keep: (value) => setState({ clipboardKeep: Number(value) }),
     clearOld: () => keyboard.registry.run("edit.clear_old_clipboard", null, getState()),
     preview(id) {
@@ -1921,6 +2074,11 @@ function render(state, patch) {
       "clipboardSelected",
       "clipboardFilter",
       "clipboardKeep",
+      "clipboardView",
+      "clipboardShared",
+      "clipboardProjects",
+      "clipboardForeign",
+      "clipboardExpanded",
       "pasteMode",
       "pasteTarget",
       "project",

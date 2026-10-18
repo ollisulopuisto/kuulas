@@ -85,6 +85,17 @@ export const renameClipboardEntry = (id, name) =>
   post(`/api/clipboard/${encodeURIComponent(id)}/rename`, { name });
 export const deleteClipboardEntry = (id) =>
   json(`/api/clipboard/${encodeURIComponent(id)}`, { method: "DELETE" });
+/** The shared store: { entries }. Marking is post(.../share): { entries, shared }. */
+export const getClipboardShared = () => json("/api/clipboard/shared");
+export const shareClipboardEntry = (id, shared) =>
+  post(`/api/clipboard/${encodeURIComponent(id)}/share`, { shared });
+/** The recent projects ({ projects }) and one project's clipboard, read-only ({ project, entries }). */
+export const getClipboardProjects = () => json("/api/clipboard/projects");
+export const getClipboardProject = (path) =>
+  json(`/api/clipboard/project?path=${encodeURIComponent(path)}`);
+/** Copy an entry of the shared store or another project into this project: { entry, entries }. */
+export const adoptClipboardEntry = (entry, fromProject = "") =>
+  post("/api/clipboard/adopt", { entry, from_project: fromProject });
 /** Drop this project's oldest entries, keeping the newest `keep`: { removed, entries }. */
 export const clearOldClipboard = (keep) => post("/api/clipboard/clear-old", { keep });
 /** A page of steps, newest first: { nodes, head, more, can_undo, can_redo }. */
