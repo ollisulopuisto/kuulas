@@ -70,6 +70,13 @@ def _private_clipboard(tmp_path_factory, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _private_recents(tmp_path_factory, monkeypatch):
+    """The recent projects are a per-user file: no test may read the real one."""
+    folder = tmp_path_factory.mktemp("recents")
+    monkeypatch.setenv("KUULAS_RECENTS_FILE", str(folder / "recent.json"))
+
+
+@pytest.fixture(autouse=True)
 def _private_view_memory(tmp_path_factory, monkeypatch):
     """The remembered views are a per-user file: no test may touch the real one."""
     folder = tmp_path_factory.mktemp("view-memory")

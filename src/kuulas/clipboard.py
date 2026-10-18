@@ -300,6 +300,59 @@ def _entry_in(d: dict) -> Entry:
     return Entry(**known, extra=extra)
 
 
+def entry_from_view(d: object) -> Entry:
+    """An entry from the dict the panel got from the API and sends back to adopt it.
+
+    The API view carries computed keys (``length``, ``clips``, ``missing_here``
+    ...) beside the data; only the keys an entry has are taken, the rest are
+    dropped, so a view never leaks into a file. Raises ``EditError``
+    (``error.clipboard.bad_entry``) when what is left is not a usable entry: no
+    references, or a reference without a SHA-256 recording, a non-negative offset
+    and a positive length."""
+    if not isinstance(d, dict):
+        raise EditError("error.clipboard.bad_entry")
+    refs = d.get("refs")
+    if not isinstance(refs, list) or not refs:
+        raise EditError("error.clipboard.bad_entry")
+    clean = []
+    for ref in refs:
+        if not isinstance(ref, dict):
+            raise EditError("error.clipboard.bad_entry")
+        digest = ref.get("media_sha256")
+        offset, length = ref.get("offset"), ref.get("length")
+        ints = all(isinstance(n, int) and not isinstance(n, bool)
+                   for n in (offset, length))
+        valid = isinstance(digest, str) and len(digest) == 64
+        ok = valid and ints and offset >= 0 < length
+        if not ok:
+            raise EditError("error.clipboard.bad_entry")
+        clean.append({key: ref[key] for key in _REF_KEYS if key in ref})
+    kept = {key: d[key] for key in _ENTRY_KEYS if key in d}
+    kept["refs"] = clean
+    if "id" not in kept:
+        kept["id"] = _new_id(time.time())
+    kept.setdefault("name", "")
+    kept.setdefault("created_utc", 0.0)
+    try:
+        return _entry_in(kept)
+    except (TypeError, KeyError, IndexError, AttributeError, ValueError):
+        raise EditError("error.clipboard.bad_entry") from None
+
+
+def adopted_copy(entry: Entry, *, from_project: str = "",
+                 now: float | None = None) -> Entry:
+    """``entry`` as this project's own copy: a new id, made now (so it is the
+    newest), not shared (the copy here is this project's own), and
+    ``adopted_from`` the project it came from. Its media are still looked for
+    where the original's were (``source_project``, or ``from_project`` when the
+    original did not say). The original's time is kept as ``adopted_created_utc``."""
+    moment = time.time() if now is None else float(now)
+    return replace(entry, id=_new_id(moment), created_utc=moment, shared=False,
+                   adopted_from=from_project or entry.source_project,
+                   source_project=entry.source_project or from_project,
+                   pinned=False, extra={"adopted_created_utc": entry.created_utc})
+
+
 def to_json(entry: Entry) -> str:
     """The entry as clipboard JSON (WP20's text clipboard format)."""
     return json.dumps(_entry_out(entry), separators=(",", ":"))

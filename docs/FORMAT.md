@@ -199,6 +199,15 @@ the exact name `clipboard.json` is read; a file with "conflicted copy" in its
 name is another file and ignored. A damaged file reads as an empty clipboard (and
 is replaced by the next write).
 
+**Browsing and adopting (WP65).** The Clipboard tab can list another project's
+clipboard. That is read-only: kuulas reads only `<folder>/clipboard.json` of
+that project, never takes its lock, never opens its database. The folder must
+be an absolute path with no `..`, an existing `*.kuulas` folder (links resolved)
+holding a `manifest.json`; `clipboard.json` itself must be a plain file, not a
+link. A missing, damaged or oversized file is an empty list, never an error.
+Adopting copies an entry into the open project's own clipboard with a new id and
+`adopted_from` set (the original's `created_utc` is kept in `adopted_created_utc`).
+
 The per-user file `clipboard.json` in the config folder (or
 `$KUULAS_CLIPBOARD_FILE`) has the same format and is the **shared** store: the
 entries the user marked as worth sharing across projects (WP65).

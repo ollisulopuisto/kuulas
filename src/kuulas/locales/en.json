@@ -869,6 +869,8 @@
   "history.clipboard_paste": "Paste from the clipboard",
   "error.clipboard.no_entry": "The clipboard has no entry {entry_id}.",
   "error.clipboard.write_failed": "The clipboard file could not be written ({error}).",
+  "error.clipboard.bad_project": "{path} is not a kuulas project folder (an absolute path to a *.kuulas folder is needed).",
+  "error.clipboard.bad_entry": "That is not a usable clipboard entry.",
   "log.clipboard.copy_failed": "Cut went through but the clipboard copy failed: {error}",
   "cmd.edit.paste_overwrite": "Paste over (overwrite)",
   "cmd.edit.paste_track": "Paste on the current track",

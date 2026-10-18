@@ -869,6 +869,8 @@
   "history.clipboard_paste": "Liitä leikepöydältä",
   "error.clipboard.no_entry": "Leikepöydällä ei ole kohdetta {entry_id}.",
   "error.clipboard.write_failed": "Leikepöytätiedostoa ei voitu kirjoittaa ({error}).",
+  "error.clipboard.bad_project": "{path} ei ole kuulas-projektin kansio (tarvitaan *.kuulas-kansion absoluuttinen polku).",
+  "error.clipboard.bad_entry": "Tämä ei ole käyttökelpoinen leikepöydän kohde.",
   "log.clipboard.copy_failed": "Leikkaus onnistui, mutta leikepöydälle kopiointi epäonnistui: {error}",
   "cmd.edit.paste_overwrite": "Liitä päälle (korvaa)",
   "cmd.edit.paste_track": "Liitä nykyiselle raidalle",

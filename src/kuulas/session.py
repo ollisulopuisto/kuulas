@@ -40,6 +40,7 @@ from nhsx.read import time_to_seconds as nhsx_time_to_seconds
 from . import (
     analysis,
     candidates,
+    clipboard_browse,
     clipboard_link,
     collateral,
     edit_points,
@@ -62,7 +63,15 @@ from . import export as export_module
 from . import loudness_curve as loudness_curve_module
 from . import markers as markers_module
 from . import music_report as music_report_module
-from .clipboard import ClipRef, Entry, entry_from_refs, make_entry, make_entry_range
+from .clipboard import (
+    ClipRef,
+    Entry,
+    adopted_copy,
+    entry_from_refs,
+    entry_from_view,
+    make_entry,
+    make_entry_range,
+)
 from .clipboard_preview import preview_project
 from .clipboard_store import ClipboardStore, entry_dict, project_path
 from .clipboard_text import entry_text
@@ -578,6 +587,36 @@ class Session:
             raise ops.EditError("error.clipboard.write_failed", error=str(e)) from None
         if own is not None:
             self._change_history(entry_id, lambda h: h.set_shared(entry_id, shared))
+
+    def clipboard_projects(self) -> list[dict]:
+        """The recent projects other than this one, with how many clipboard
+        entries each has (read now, read-only): the desktop's recents list, so
+        headless, or with none remembered, it is empty."""
+        from . import desktop  # noqa: PLC0415  (heavy, and only the desktop has recents)
+
+        recents = desktop.load_recents(desktop.recents_file())
+        return clipboard_browse.recent_projects(recents, self.package.path)
+
+    def clipboard_project(self, path: str) -> dict:
+        """Another project's clipboard, read-only: ``{project: {name, path},
+        entries: [view...]}``. ``path`` must be a kuulas project folder
+        (``clipboard_browse.project_folder``); a missing or damaged
+        ``clipboard.json`` is an empty list."""
+        folder = clipboard_browse.project_folder(path)
+        project = self.state
+        return {"project": {"name": folder.stem, "path": str(folder)},
+                "entries": [self._entry_view(e, project)
+                            for e in clipboard_browse.read_entries(folder)]}
+
+    def clipboard_adopt(self, entry: object, from_project: str = "") -> dict:
+        """Copy an entry from the shared store or another project into THIS
+        project's clipboard (new id, ``adopted_from`` set) and return its view;
+        the normal paste then works on it. ``entry`` is the view the API listed.
+        The original is untouched."""
+        parsed = entry_from_view(entry)
+        mine = adopted_copy(parsed, from_project=str(from_project or ""))
+        self.clipboard.update(lambda h: h.add(mine))
+        return self._entry_view(mine, self.state)
 
     def clipboard_preview(self, entry_id: str):
         """``(temporary project or None, missing media count)`` for playing an

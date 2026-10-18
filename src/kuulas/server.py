@@ -134,6 +134,11 @@ class RenameBody(BaseModel):
     name: str
 
 
+class AdoptBody(BaseModel):
+    entry: dict[str, Any]
+    from_project: str = ""
+
+
 class ShareBody(BaseModel):
     shared: bool
 
@@ -405,6 +410,20 @@ def create_app(session, engine, *, language: str | None = None,
     @app.get("/api/clipboard/shared")
     def get_clipboard_shared():
         return JSONResponse({"entries": session.clipboard_shared()})
+
+    @app.get("/api/clipboard/projects")
+    def get_clipboard_projects():
+        return JSONResponse({"projects": session.clipboard_projects()})
+
+    @app.get("/api/clipboard/project")
+    def get_clipboard_project(path: str = ""):
+        # Read-only: the other project's clipboard.json and nothing else.
+        return JSONResponse(session.clipboard_project(path))
+
+    @app.post("/api/clipboard/adopt")
+    def post_clipboard_adopt(body: AdoptBody):
+        entry = session.clipboard_adopt(body.entry, body.from_project)
+        return JSONResponse({"entry": entry, "entries": session.clipboard_list()})
 
     @app.post("/api/clipboard/{entry_id}/share")
     def post_clipboard_share(entry_id: str, body: ShareBody):
