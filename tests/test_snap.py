@@ -95,3 +95,11 @@ class TestSoftSnap:
     def test_soft_snap_no_target_returns_raw_frame(self):
         targets = (0, 100, 200)
         assert soft_snap(85, targets, 10, hold_frames=5) == (85, None)
+
+
+def test_a_tiny_grid_on_a_long_project_stays_bounded():
+    p = Project(rate=48000, tracks=(Track(id="t1", name="a", clips=(
+        Clip(id="c", media="m", start=0, offset=0, length=48000 * 3600),)),))
+    targets = snap_targets(p, kinds=("grid",), grid=1)
+    assert len(targets) <= 100_001
+    assert targets[0] == 0 and all(b - a == targets[1] for a, b in zip(targets, targets[1:]))

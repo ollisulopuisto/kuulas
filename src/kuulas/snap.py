@@ -14,14 +14,23 @@ from kuulas.model import Project
 Kind = str
 
 
+#: At most this many grid targets: a 1-frame grid on a one-hour project would be
+#: 170 million. Past the cap the grid is coarsened to a multiple of ``grid`` (a
+#: pointer cannot hit a finer grid than the zoom shows anyway).
+MAX_GRID_TARGETS = 100_000
+
+
 def _grid_targets(length: int, grid: int) -> Iterable[int]:
-    """Multiples of ``grid`` from 0 up to and including ``length``."""
+    """Multiples of ``grid`` from 0 up to and including ``length``, at most
+    ``MAX_GRID_TARGETS`` of them (the step grows in whole multiples of ``grid``)."""
     if grid <= 0:
         return
+    count = length // grid + 1
+    step = grid * max(1, -(-count // MAX_GRID_TARGETS))
     frame = 0
     while frame <= length:
         yield frame
-        frame += grid
+        frame += step
 
 
 def snap_targets(
