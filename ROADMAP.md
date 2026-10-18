@@ -130,31 +130,31 @@ sizes: `docs/PLAN.md`, section "Triage".
 
 ## Milestones
 
-Grouped from the build order in `docs/PLAN.md` (Triage). ✓ done, ◐ partly done, ▶ being built now, ↻ built and in review (not merged yet), otherwise open.
+Grouped from the build order in `docs/PLAN.md` (Triage). ✓ done, ◐ partly done (some of it built and merged), ▶ being built now, ↻ built and in review (not merged yet), otherwise open. Generated from the roadmap page data; the page is the live view.
 
-**M1 · First playable build** (12 of 16 done): Run kuulas, import, listen, edit by keyboard, undo, export WAV or MP3.
+**M1 · First playable build** (11 of 18 done, 6 partly): Run kuulas, import, listen, edit by keyboard, undo, export WAV or MP3.
 
-✓ WP0, ✓ WP24.1, ✓ WP33a, ✓ WP29, ✓ WP30, ✓ WP1, ✓ WP34, ✓ WP36, ✓ WP2, ✓ WP3, ✓ WP33b, ▶ WP4, WP5, WP19a, WP35, ✓ WP11.
+✓ WP0, ✓ WP24.1, ✓ WP33a, ✓ WP29, ✓ WP30, ✓ WP1, ◐ WP34, ✓ WP36, ✓ WP2, ✓ WP3, ✓ WP33b, ◐ WP4, ◐ WP5, ◐ WP19a, WP35, ✓ WP11, ◐ WP15, ◐ WP46.
 
-**M2 · A usable editor** (2 of 9 done): Transcript, mouse editing, history panel, fast listening, FX layers.
+**M2 · A usable editor** (2 of 11 done, 7 partly): Transcript, mouse editing, history panel, fast listening, FX layers.
 
-✓ WP41, WP8, WP22, WP26, ▶ WP19i, WP6, ✓ WP9, WP7, WP23a.
+✓ WP41, ◐ WP8, ◐ WP22, ◐ WP26, ◐ WP19i, WP6, ✓ WP9, ◐ WP7, WP23a, ◐ WP44, ◐ WP48.
 
-**M3 · The editing loop** (2 of 18 done): What makes it better than Hindenburg: cut candidates, versions, review, paste, roles, takes.
+**M3 · The editing loop** (2 of 19 done, 9 partly): What makes it better than Hindenburg: cut candidates, versions, review, paste, roles, takes.
 
-WP28, WP43, WP18, WP19f, WP24.2, WP21, ↻ WP40, WP31, WP32, WP20, ✓ WP39, ✓ WP37, WP19c, WP19d, WP19b, WP19h, WP19g, WP19e.
+WP28, ◐ WP43, ◐ WP18, ◐ WP19f, ◐ WP24.2, WP21, ◐ WP40, ◐ WP31, WP32, WP20, ✓ WP39, ✓ WP37, ◐ WP19c, WP19d, WP19b, ◐ WP19h, ◐ WP19g, WP19e, WP45.
 
-**M4 · Pipeline depth** (2 of 5 done): Voice chain, music report, Hindenburg import, rendered FX.
+**M4 · Pipeline depth** (2 of 5 done, 1 partly): Voice chain, music report, Hindenburg import, rendered FX.
 
 ✓ WP14, WP10, ◐ WP25, ✓ WP13, WP23b.
 
-**M5 · Recording and alignment** (0 of 3 done): Foolproof recording, clip bin, align by sound.
+**M5 · Recording and alignment** (0 of 3 done, 1 partly): Foolproof recording, clip bin, align by sound.
 
-WP12, WP17, WP16.
+WP12, ◐ WP17, WP16.
 
-**M6 · Late** (0 of 4 done): Settings and rate change, series features, desktop app.
+**M6 · Late** (0 of 4 done, 0 partly): Settings and rate change, series features, desktop app.
 
-WP27, WP38, WP42, WP15.
+WP27, WP38, WP42, WP47.
 
 ## Done in this release (v26.10.16.1)
 
