@@ -16,6 +16,7 @@ export const MENU = [
     items: [
       item("app.import"),
       item("app.export"),
+      item("export.tracks"),
       SEP,
       item("export.subtitles_srt"),
       item("export.subtitles_vtt"),

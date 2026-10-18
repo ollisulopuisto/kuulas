@@ -7,7 +7,7 @@ import { createCandidatesPanel } from "./candidates-panel.js";
 import { previewRequest } from "./candidates-preview.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
 import { createEditor } from "./edits.js";
-import { filenameFromDisposition } from "./export-commands.js";
+import { filenameFromDisposition, tracksNotice } from "./export-commands.js";
 import { nextPanel } from "./focus.js";
 import { followScroll } from "./follow.js";
 import { frameToTime, RATE, xToFrame } from "./format.js";
@@ -71,17 +71,25 @@ function translate() {
 
 let noticeTimer = null;
 // `undo`: the message offers an Undo button (the edit keys' toast).
-function showNotice(text, kind = "error", { undo = false } = {}) {
+// `sticky`: it stays until replaced or closed (a running export). `action`: { label, run }
+// shows one more button (Cancel, Show in Finder).
+let noticeAction = null;
+function showNotice(text, kind = "error", { undo = false, sticky = false, action = null } = {}) {
   const notice = $("notice");
   $("notice-text").textContent = text;
   $("notice-undo").hidden = !undo;
+  noticeAction = action;
+  $("notice-action").hidden = !action;
+  if (action) $("notice-action").textContent = action.label;
   notice.dataset.kind = kind;
   notice.hidden = false;
   clearTimeout(noticeTimer);
+  if (sticky) return;
   noticeTimer = setTimeout(() => {
     notice.hidden = true;
   }, NOTICE_MS[kind]);
 }
+$("notice-action").addEventListener("click", () => noticeAction?.run());
 const showError = (error) => showNotice(error?.message || t("ui.error.title"));
 $("notice-close").addEventListener("click", () => {
   $("notice").hidden = true;
@@ -478,6 +486,7 @@ const keyboard = setupKeyboard({
     promptText: (request) => placeholderEditor.prompt(request),
     takeFor: (id) => void takeForPlaceholder(id),
     exportRegions: () => exportRegions(),
+    exportTracks: () => exportTracks(),
     focusName: () => inspector.focusName(),
     openGateStretch: () => openGateStretch(),
     selectCandidate: (row) => selectCandidate(row),
@@ -890,6 +899,71 @@ const historyPanel = createHistoryPanel({
 });
 
 // -- markers, regions, chapters (WP19h) ------------------------------------------------------------------
+
+// "Export all tracks" (the toolbar button, File menu, palette): one background job; the
+// notice follows it (progress with Cancel, then the folder with Show in Finder). Esc cancels.
+let tracksJob = null;
+const TRACKS_POLL_MS = 500;
+
+async function followTracksJob(id) {
+  const bridge = globalThis.pywebview?.api;
+  while (tracksJob === id) {
+    let job;
+    try {
+      job = (await api.getJobs()).jobs.find((item) => item.id === id);
+    } catch (error) {
+      tracksJob = null;
+      showError(error);
+      return;
+    }
+    if (!job) break;
+    const notice = tracksNotice(job, t);
+    let action = null;
+    if (notice.cancel) {
+      action = { label: t("ui.export.cancel"), run: () => void cancelTracksJob() };
+    } else if (notice.reveal && typeof bridge?.reveal_export === "function") {
+      action = { label: t("ui.export.show_in_finder"), run: () => void bridge.reveal_export() };
+    }
+    // Done stays up (the owner reads the folder); failures and cancels time out as usual.
+    showNotice(notice.text, notice.kind, { sticky: notice.sticky, action });
+    if (job.state === "completed" || job.state === "failed" || job.state === "cancelled") {
+      tracksJob = null;
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, TRACKS_POLL_MS));
+  }
+}
+
+async function cancelTracksJob() {
+  if (!tracksJob) return;
+  try {
+    await api.cancelJob(tracksJob);
+  } catch (error) {
+    showError(error);
+  }
+}
+
+async function exportTracks() {
+  if (tracksJob) return;
+  try {
+    const { jobs } = await api.exportTracks();
+    tracksJob = jobs[0];
+    showNotice(t("ui.export.tracks_running", { percent: 0 }), "ok", {
+      sticky: true,
+      action: { label: t("ui.export.cancel"), run: () => void cancelTracksJob() },
+    });
+    void followTracksJob(tracksJob);
+  } catch (error) {
+    showError(error);
+  }
+}
+
+$("export").addEventListener("click", () =>
+  keyboard.registry.run("export.tracks", null, getState()),
+);
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && tracksJob) void cancelTracksJob();
+});
 
 // One background job renders every region to its own file; the jobs list shows progress.
 async function exportRegions() {

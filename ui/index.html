@@ -35,7 +35,7 @@
         <button id="undo" type="button" class="button ghost" data-i18n="ui.transport.undo" aria-keyshortcuts="Meta+Z Control+Z"></button>
         <button id="redo" type="button" class="button ghost" data-i18n="ui.transport.redo" aria-keyshortcuts="Shift+Meta+Z Shift+Control+Z"></button>
         <button id="import" type="button" class="button" data-i18n="ui.transport.import"></button>
-        <button id="export" type="button" class="button" data-i18n="ui.transport.export" data-i18n-title="ui.export.soon" disabled></button>
+        <button id="export" type="button" class="button" data-i18n="ui.transport.export" data-i18n-title="cmd.export.tracks.hint"></button>
         <input id="file-input" type="file" accept="audio/*,video/*" multiple hidden />
       </header>
       <aside class="heads">
@@ -123,7 +123,8 @@
       </div>
       <div id="notice" class="notice" role="status" aria-live="polite" hidden>
         <span id="notice-text"></span>
-        <button id="notice-undo" type="button" class="button ghost" data-i18n="ui.transport.undo" hidden></button>
+        <button id="notice-action" type="button" class="button ghost" hidden></button>
+        <button id="notice-undo"type="button" class="button ghost" data-i18n="ui.transport.undo" hidden></button>
         <button id="notice-close" type="button" class="button ghost icon" data-i18n-aria-label="ui.notice.dismiss" data-i18n-title="ui.notice.dismiss">×</button>
       </div>
       <div id="import-panel" class="import-panel" role="status" aria-live="polite" hidden></div>

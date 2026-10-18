@@ -731,6 +731,13 @@ export const DEFAULT_KEYMAP = [
     context: "global",
     labelKey: "cmd.export.chapters_json",
   },
+  // The plan's Tracks key (WP11); Mod+E is the Mix export's, not built yet.
+  {
+    id: "export.tracks",
+    keys: { mac: "Shift+Alt+Mod+E", other: "Shift+Alt+Mod+E" },
+    context: "global",
+    labelKey: "cmd.export.tracks",
+  },
   {
     id: "export.regions",
     keys: { mac: null, other: null },
