@@ -57,6 +57,7 @@ import { chipSpeed } from "./shuttle.js";
 import { getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
 import {
   cycleScope,
+  headerFocusPatch,
   nextStop,
   prevStop,
   SCOPE_MODE,
@@ -1054,8 +1055,10 @@ const trackHeaders = createTrackHeaders({
   onBusCreated: nameNewBus,
   actions: {
     currentTrack: (id) => {
-      if (getState().focusTrack !== id || getState().focusBus) {
-        setState({ focusTrack: id, focusBus: null });
+      // A header is the timeline's keyboard context (Tab, arrows); the panel was left as it was.
+      const patch = headerFocusPatch(getState());
+      if (getState().focusTrack !== id || getState().focusBus || patch) {
+        setState({ focusTrack: id, focusBus: null, ...patch });
       }
     },
     // The kind tag in a track header: focus the track, then the same command as Alt+Mod+K.
@@ -1064,7 +1067,8 @@ const trackHeaders = createTrackHeaders({
       keyboard.registry.run("track.cycle_kind", null, getState());
     },
     currentBus: (id) => {
-      if (getState().focusBus !== id) setState({ focusBus: id });
+      const patch = headerFocusPatch(getState());
+      if (getState().focusBus !== id || patch) setState({ focusBus: id, ...patch });
     },
     // The chevron and a double-click on a bus header: fold or unfold it.
     toggleBus: (id) =>

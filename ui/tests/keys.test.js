@@ -357,3 +357,28 @@ describe("keyboard focus", () => {
     assert.equal(nextPanel("nowhere", -1), "history");
   });
 });
+
+describe("Tab in the timeline context", () => {
+  const tab = (over = {}) => press({ key: "Tab", code: "Tab", ...over });
+  test("steps whatever non-text control has the focus: canvas, a header button, the body", () => {
+    for (const target of [{ tagName: "CANVAS" }, { tagName: "BUTTON" }, { tagName: "BODY" }]) {
+      const { keymap, calls } = setup({ context: "timeline" });
+      const event = tab({ target });
+      assert.equal(keymap.handle(event), true);
+      assert.equal(event.prevented, true);
+      assert.deepEqual(calls, [["nav.next_stop"]]);
+    }
+  });
+  test("Shift+Tab steps back", () => {
+    const { keymap, calls } = setup({ context: "timeline" });
+    keymap.handle(tab({ shiftKey: true, target: { tagName: "BUTTON" } }));
+    assert.deepEqual(calls, [["nav.prev_stop"]]);
+  });
+  test("keeps the browser's focus move in text fields and in the side panels", () => {
+    const typing = setup({ context: "timeline" });
+    assert.equal(typing.keymap.handle(tab({ target: field })), false);
+    const side = setup({ context: "side" });
+    assert.equal(side.keymap.handle(tab({ target: { tagName: "BUTTON" } })), false);
+    assert.deepEqual([...typing.calls, ...side.calls], []);
+  });
+});
