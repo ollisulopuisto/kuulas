@@ -890,7 +890,7 @@ Tests: paragraph grouping and word-selection-to-indices as pure functions.
 
 ### WP8 — History panel
 
-Status: open. Needs WP4.
+Status: first half done in v26.10.18.4 (undo context and session markers) and the History panel in v26.10.18.15 (paged steps, markers, restore, undo-across-marker toast); hover preview, pinned steps and checkpoints (WP31) open. Needs WP4.
 
 `ui/history.js`. Shows `GET /api/history` as a tree: the current branch as a
 list, with abandoned branches as indented, dimmed entries under the node
