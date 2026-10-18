@@ -172,6 +172,15 @@ def make_entry(project: Project, clip_ids: Iterable[str], *, name: str = "",
     return _entry(project, parts, name, moment)
 
 
+def entry_from_refs(refs: Iterable[ClipRef], *, name: str, span: tuple[int, int],
+                    source_project: str = "", pinned: bool = False,
+                    extra: dict | None = None, now: float | None = None) -> Entry:
+    """An entry built from ready-made references (an import, not a copy)."""
+    moment = time.time() if now is None else float(now)
+    return Entry(_new_id(moment), name, moment, refs=tuple(refs), span=span,
+                 source_project=source_project, pinned=pinned, extra=dict(extra or {}))
+
+
 def make_entry_range(project: Project, start: int, end: int,
                      track_ids: Iterable[str] | None = None, *,
                      name: str = "",

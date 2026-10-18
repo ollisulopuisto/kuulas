@@ -52,7 +52,8 @@ def import_nhsx(nhsx_path: str, folder: str | None = None) -> int:
     try:
         session.command("import_nhsx", {"path": nhsx_path})
         print(t("cli.import_nhsx.done", path=folder, tracks=len(session.state.tracks),
-                media=len(session.state.media)))
+                media=len(session.state.media),
+                 clipboard=session.last_import_clipboard))
     finally:
         session.close()
     return 0

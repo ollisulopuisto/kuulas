@@ -32,7 +32,9 @@ from nhsx import read as read_nhsx
 from nhsx import tracks as nhsx_tracks
 from nhsx.mix import level_at as nhsx_level_at
 from nhsx.mix import plan as nhsx_mix_plan
+from nhsx.read import children as nhsx_children
 from nhsx.read import descendants as nhsx_descendants
+from nhsx.read import localname as nhsx_localname
 from nhsx.read import time_to_seconds as nhsx_time_to_seconds
 
 from . import (
@@ -60,7 +62,7 @@ from . import export as export_module
 from . import loudness_curve as loudness_curve_module
 from . import markers as markers_module
 from . import music_report as music_report_module
-from .clipboard import Entry, make_entry, make_entry_range
+from .clipboard import ClipRef, Entry, entry_from_refs, make_entry, make_entry_range
 from .clipboard_preview import preview_project
 from .clipboard_store import ClipboardStore, entry_dict
 from .clock import FLICKS, frames_to_flicks
@@ -134,6 +136,29 @@ def _time_value(value: str | None) -> float:
 
 def _truth(value: str | None) -> bool:
     return (value or "").strip().lower() in {"true", "1", "yes"}
+
+
+def _region_levels(elem, rate: int) -> dict:
+    """The gain, pan, fades and mute a Hindenburg region element carries, in
+    the keyword names clips and clipboard references share."""
+    clip_gain = elem.get("ClipGain")
+    gain = _db_value(clip_gain) if clip_gain is not None else _db_value(elem.get("Gain"))
+    return {"gain_db": gain,
+            "pan": max(-1.0, min(1.0, _db_value(elem.get("Pan")))),
+            "fade_in": round(_time_value(elem.get("FadeIn")) * rate),
+            "fade_out": round(_time_value(elem.get("FadeOut")) * rate),
+            "muted": _truth(elem.get("Muted"))}
+
+
+def _nhsx_clipboard_clips(root) -> list[tuple[int, Any]]:
+    """``(clipboard number, Clip element)`` for every clip in the session's
+    ``<Clipboard>``; the number counts groups from 1, empty ones included."""
+    out = []
+    for board in nhsx_children(root, "Clipboard"):
+        for number, group in enumerate(
+                (g for g in board if nhsx_localname(g) == "Group"), start=1):
+            out.extend((number, clip) for clip in nhsx_children(group, "Clip"))
+    return out
 
 
 def _element_xml(elem) -> str:
@@ -232,6 +257,9 @@ class Session:
         #: What became of each file in the latest import (WP34), for the UI
         #: to show: the failures and why, and the warnings of those that came in.
         self.last_import_report: list[ImportResult] = []
+        #: How many Hindenburg clipboard clips the last ``import_nhsx`` turned
+        #: into clipboard entries.
+        self.last_import_clipboard = 0
         #: The interview the latest import made (WP41), or None.
         self.last_import_interview: str | None = None
         #: New stereo speech tracks of the latest import, ``[{id, name}]``: the
@@ -1248,16 +1276,10 @@ class Session:
                 p = ops.add_clip(p, track_id, media.id, start=start, offset=offset,
                                  length=length, clip_id=clip_id)
                 elem = region.elem
-                clip_gain = elem.get("ClipGain")
-                region_gain = (_db_value(clip_gain) if clip_gain is not None
-                               else _db_value(elem.get("Gain")))
-                region_pan = _db_value(elem.get("Pan"))
-                fade_in = round(_time_value(elem.get("FadeIn")) * self.history.rate)
-                fade_out = round(_time_value(elem.get("FadeOut")) * self.history.rate)
-                p = ops.set_clip(p, clip_id, gain_db=region_gain,
-                                 pan=max(-1.0, min(1.0, region_pan)),
-                                 fade_in=fade_in, fade_out=fade_out,
-                                 muted=_truth(elem.get("Muted")))
+                levels = _region_levels(elem, self.history.rate)
+                p = ops.set_clip(p, clip_id, gain_db=levels["gain_db"],
+                                 pan=levels["pan"], fade_in=levels["fade_in"],
+                                 fade_out=levels["fade_out"], muted=levels["muted"])
                 p = ops.set_clip_extra(p, clip_id, "nhsx", {
                     "source_xml": _element_xml(elem)})
                 key = (source_track.name, file_path, region.start, region.length,
@@ -1286,6 +1308,8 @@ class Session:
                     (media.id, None, digest, '{"tool":"nhsx"}', dbm.utc_now()))
                 root["transcripts"][media.id] = int(cur.lastrowid)
 
+        self.last_import_clipboard = self._import_nhsx_clipboard(
+            nhsx_session, media_by_file)
         if p == self.history.state and root == self.history.material:
             return p
         p = replace(p, extra={**p.extra, "nhsx": {"source_xml": source_xml}})
@@ -1293,6 +1317,65 @@ class Session:
         self.last_import_stereo = []
         return self._commit(t("history.nhsx_import", name=source.name), p,
                             "import_nhsx", {"path": str(source)}, material=root)
+
+    def _import_nhsx_clipboard(self, nhsx_session, media_by_file: dict) -> int:
+        """Turn the session's non-empty clipboard clips into pinned entries of
+        the user's clipboard history; return how many came in. A clip that
+        cannot become an entry is skipped with a log line, never an error."""
+        entries = []
+        for number, clip in _nhsx_clipboard_clips(nhsx_session.tree.getroot()):
+            name = t("clipboard.nhsx_entry", number=number, name=clip.get("Name", ""))
+            try:
+                entries.append(self._nhsx_clipboard_entry(
+                    clip, name, media_by_file, nhsx_session))
+            except ValueError as e:
+                reason = str(e)
+                if reason.startswith("log.import."):
+                    reason = t(reason)
+                log.warning(t("log.import.nhsx_clipboard_skipped", name=name,
+                              error=reason))
+        if not entries:
+            return 0
+        try:
+            # The first group ends up on top of the history.
+            for entry in reversed(entries):
+                self.clipboard.update(lambda h, e=entry: h.add(e))
+        except OSError as e:
+            log.warning(t("log.clipboard.copy_failed", error=str(e)))
+            return 0
+        return len(entries)
+
+    def _nhsx_clipboard_entry(self, clip, name: str, media_by_file: dict,
+                              nhsx_session) -> Entry:
+        rate = self.history.rate
+        tracks = sorted({r.get("Track", "0") for r in nhsx_children(clip, "Region")})
+        refs = []
+        for region in nhsx_children(clip, "Region"):
+            media = media_by_file.get(region.get("Ref", ""))
+            if media is None:
+                raise ValueError("log.import.nhsx_clipboard_unknown_ref")
+            offset = round(nhsx_time_to_seconds(region.get("Offset", "0")) * rate)
+            length = round(nhsx_time_to_seconds(region.get("Length")) * rate)
+            if offset < 0 or offset >= media.frames or length <= 0:
+                raise ValueError("log.import.nhsx_clipboard_bad_region")
+            levels = _region_levels(region, rate)
+            refs.append(ClipRef(
+                media.sha256, offset, min(length, media.frames - offset),
+                rel_start=round(nhsx_time_to_seconds(region.get("Start", "0")) * rate),
+                track_slot=tracks.index(region.get("Track", "0")), **levels))
+        if not refs:
+            raise ValueError("log.import.nhsx_clipboard_bad_region")
+        end = max(ref.rel_start + ref.length for ref in refs)
+        end = max(end, round(_time_value(clip.get("Length")) * rate))
+        names = []
+        for index in tracks:
+            try:
+                names.append(nhsx_session.tracks[int(index)].name)
+            except (ValueError, IndexError):
+                names.append("")
+        return entry_from_refs(refs, name=name, span=(0, end), pinned=True,
+                               source_project=str(self.package.path),
+                               extra={"tracks": names})
 
     def _with_import_interview(self, p: Project, media: list, want: bool | None,
                                title: str | None, made_group: bool) -> dict | None:

@@ -177,3 +177,65 @@ def test_import_nhsx_command_endpoint_returns_translated_bad_file(tmp_path):
         assert response.json()["error"]["key"] == "error.import.nhsx_failed"
     finally:
         session.close()
+
+
+CLIPBOARD_SESSION = (
+    '<Session><AudioPool><File Id="1" Name="speech.wav" Path="speech.wav"/></AudioPool>'
+    '<Tracks><Track Name="Voice"><Region Ref="1" Start="1.000" Length="0.500" '
+    'Offset="0.200"/></Track></Tracks>{clipboard}</Session>')
+CLIPBOARD = (
+    '<Clipboard>'
+    '<Group><Clip Track="0" Name="start" Length="00:09.000" Mode="Block">'
+    '<Region Ref="1" Track="0" Name="A" Length="2.000" Offset="1.000" Muted="True"/>'
+    '<Region Ref="1" Track="0" Name="A" Start="3.000" Length="1.500" Offset="4.000" '
+    'ClipGain="-3" FadeIn="0.100"/></Clip></Group>'
+    '<Group/>'
+    '<Group><Clip Track="0" Name="bad" Length="1.000" Mode="Block">'
+    '<Region Ref="9" Track="0" Name="X" Length="1.000" Offset="0"/></Clip></Group>'
+    '</Clipboard>')
+
+
+def clipboard_entries():
+    from kuulas.clipboard_store import ClipboardStore  # noqa: PLC0415
+
+    return ClipboardStore().load().entries()
+
+
+def import_clipboard_session(tmp_path, clipboard):
+    write_audio(tmp_path / "speech.wav")
+    path = tmp_path / "cb.nhsx"
+    path.write_text(CLIPBOARD_SESSION.format(clipboard=clipboard), encoding="utf-8")
+    session = Session(tmp_path / "cb.kuulas")
+    try:
+        session.command("import_nhsx", {"path": str(path)})
+        return session.state, str(session.package.path), session.last_import_clipboard
+    finally:
+        session.close()
+
+
+def test_import_nhsx_turns_clipboard_clips_into_pinned_entries(tmp_path):
+    state, project, count = import_clipboard_session(tmp_path, CLIPBOARD)
+    entries = clipboard_entries()
+    assert count == 1
+    assert len(entries) == 1  # the empty group and the bad Ref add none
+    entry = entries[0]
+    assert entry.pinned
+    assert entry.name == "Hindenburg clipboard 1: start"
+    assert entry.source_project == project
+    assert entry.span == (0, 9 * RATE)
+    first, second = entry.refs
+    assert first.media_sha256 == second.media_sha256 == state.media[0].sha256
+    assert (first.rel_start, first.offset, first.length) == (0, RATE, 2 * RATE)
+    assert first.muted
+    assert (second.rel_start, second.offset, second.length) == (
+        3 * RATE, 4 * RATE, round(1.5 * RATE))
+    assert not second.muted
+    assert second.gain_db == -3
+    assert second.fade_in == round(0.1 * RATE)
+
+
+def test_import_nhsx_without_clipboard_adds_no_entries(tmp_path):
+    state, _, count = import_clipboard_session(tmp_path, "")
+    assert count == 0
+    assert clipboard_entries() == ()
+    assert len(state.tracks) == 1
