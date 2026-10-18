@@ -69,6 +69,11 @@ export const initialState = () => ({
   // The engine's tape speed (signed; JKL shuttle). 1 whenever nothing is shuttling.
   speed: 1,
   laneHeight: DEFAULT_LANE,
+  // Lanes sized by hand (drag a header's bottom border): { trackId: px }. Remembered
+  // per project with the view (view-memory.js), never in the edit history.
+  laneHeights: {},
+  // Recompute laneHeight whenever the lane area, the tracks or the buses change.
+  autoFitTracks: false,
   // Density (tokens.css --bus-h, --group-gap); app.js reads them from the tokens.
   busHeight: BUS_HEIGHT,
   groupGap: GROUP_GAP,

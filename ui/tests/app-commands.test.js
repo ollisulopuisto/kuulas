@@ -129,6 +129,15 @@ describe("the commands the app registers", () => {
     ]);
   });
 
+  test("fit tracks and auto-fit need a project and call the actions", () => {
+    const { registry, calls } = setup({ project });
+    assert.equal(registry.can("view.fit_tracks", {}), false);
+    assert.equal(registry.can("view.auto_fit_tracks", {}), false);
+    registry.run("view.fit_tracks", null, { project });
+    registry.run("view.auto_fit_tracks", null, { project });
+    assert.deepEqual(calls, [["fitTracks"], ["toggleAutoFitTracks"]]);
+  });
+
   test("P plays from the pre-roll before the playhead and needs a project", () => {
     const { registry, calls } = setup({ project, playhead: 480000 });
     assert.equal(registry.can("transport.play_before", { project }), true);

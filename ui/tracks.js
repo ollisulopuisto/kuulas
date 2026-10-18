@@ -9,6 +9,7 @@ import { busHues, busLetter } from "./grammar.js";
 import { formatDb, formatNumber, t } from "./i18n.js";
 import { NEW_BUS } from "./inspector-track.js";
 import { truncateMiddle } from "./labels.js";
+import { dragLaneHeight } from "./lane-sizing.js";
 import { layoutFor } from "./lanes.js";
 import { MUSIC_HUE, trackHues } from "./paint.js";
 import { coalesceKey, patchBus, patchSolo, patchTrack } from "./provisional.js";
@@ -206,8 +207,29 @@ export function createTrackHeaders({ root, editor, actions }) {
     const pan = slider(t("ui.track.pan"), PAN);
     pan.wrap.classList.add("pan");
     controls.append(gain.wrap, pan.wrap);
-    node.append(top, controls);
+    // A thin grab zone on the bottom edge: drag to size this lane, double-click to reset it.
+    const grip = el("div", "lane-grip", { title: t("ui.track.resize"), "aria-hidden": "true" });
+    node.append(top, controls, grip);
     const id = track.id;
+    grip.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const startY = event.clientY;
+      const startHeight = node.getBoundingClientRect().height;
+      grip.setPointerCapture(event.pointerId);
+      const move = (e) =>
+        actions.setLaneHeight(id, dragLaneHeight({ startHeight, startY, y: e.clientY }));
+      const done = () => {
+        grip.removeEventListener("pointermove", move);
+        grip.removeEventListener("pointerup", done);
+        grip.removeEventListener("pointercancel", done);
+      };
+      grip.addEventListener("pointermove", move);
+      grip.addEventListener("pointerup", done);
+      grip.addEventListener("pointercancel", done);
+    });
+    grip.addEventListener("dblclick", () => actions.setLaneHeight(id, null));
     const send = (field, value, patch, key) =>
       editor.change({
         op: "set_track",

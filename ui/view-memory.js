@@ -4,6 +4,7 @@
 // patch, with every value checked: the file is not trusted (a hand edit, an older
 // version, another project of the same id). The debounced saver is the only stateful
 // part, with timers injected so tests need no clock.
+import { pruneLaneHeights } from "./lane-sizing.js";
 import { clampLaneHeight } from "./lanes.js";
 import { SAMPLE_ZOOM } from "./view.js";
 
@@ -22,6 +23,8 @@ export function recordOf(state, { whole = false } = {}) {
     scroll: state.scroll,
     whole,
     laneHeight: state.laneHeight,
+    laneHeights: state.laneHeights ?? {},
+    autoFitTracks: state.autoFitTracks === true,
     waveformMode: state.waveformMode,
     followMode: state.followMode,
     focusTrack: state.focusTrack,
@@ -57,6 +60,16 @@ export function restoreFrom(record, { project, width, totalFrames }) {
   }
   const lane = num(record.laneHeight);
   if (lane !== null) patch.laneHeight = clampLaneHeight(lane);
+  // Lanes sized by hand: only tracks that exist here, only numbers, always within the limits.
+  const own = record.laneHeights;
+  if (own && typeof own === "object" && !Array.isArray(own)) {
+    const numeric = Object.entries(own).filter(([, height]) => num(height) !== null);
+    patch.laneHeights = pruneLaneHeights(
+      Object.fromEntries(numeric.map(([id, height]) => [id, clampLaneHeight(height)])),
+      project,
+    );
+  }
+  if (typeof record.autoFitTracks === "boolean") patch.autoFitTracks = record.autoFitTracks;
   if (WAVEFORM_MODES.includes(record.waveformMode)) patch.waveformMode = record.waveformMode;
   if (FOLLOW_MODES.includes(record.followMode)) patch.followMode = record.followMode;
   if (SIDEBAR_TABS.includes(record.sidebarTab)) patch.sidebarTab = record.sidebarTab;

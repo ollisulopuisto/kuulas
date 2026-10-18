@@ -67,6 +67,13 @@ describe("the menu data", () => {
     assert.ok(menuTargets([view]).includes("transport.loop"));
   });
 
+  test("View has fit tracks and auto-fit", () => {
+    const view = MENU.find((top) => top.id === "view");
+    const ids = menuTargets([view]);
+    assert.ok(ids.includes("view.fit_tracks"));
+    assert.ok(ids.includes("view.auto_fit_tracks"));
+  });
+
   test("Help has Keyboard shortcuts", () => {
     assert.ok(menuTargets(MENU).includes("help.keys"));
     assert.ok(menuTargets(MENU).includes("help.open"));

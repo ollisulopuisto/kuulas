@@ -130,6 +130,15 @@ describe("the owner's decisions", () => {
     }
   });
 
+  test("fitting tracks to the window is unbound by default", () => {
+    for (const id of ["view.fit_tracks", "view.auto_fit_tracks"]) {
+      const entry = DEFAULT_KEYMAP.find((e) => e.id === id);
+      assert.ok(entry, id);
+      assert.deepEqual(keysOf(id), [], id);
+      assert.equal(entry.context, "global", id);
+    }
+  });
+
   test("buses collapse on Alt+Mod+Left/Right", () => {
     assert.deepEqual(keysOf("bus.collapse"), ["Alt+Mod+ArrowLeft"]);
     assert.deepEqual(keysOf("bus.expand"), ["Alt+Mod+ArrowRight"]);

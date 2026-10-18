@@ -115,6 +115,8 @@ export const MENU = [
       item("view.toggle"),
       item("view.fit"),
       item("view.fit_selection"),
+      item("view.fit_tracks"),
+      item("view.auto_fit_tracks"),
       item("view.back"),
       item("view.reset_remembered"),
       SEP,

@@ -53,11 +53,15 @@ export function projectEnd(project) {
  * `last` on a group's last member (where the spine ends), and on bus rows
  * `members`. With `mergeSingle`, a bus with exactly one member has no row of
  * its own: the member is marked `merged` and carries the bus identity.
+ * `options.laneHeights` ({ trackId: px }) gives single tracks their own height
+ * (clamped); a track without an entry uses `laneHeight`.
  */
 export function layoutRows(project, laneHeight, options = {}) {
   const height = clampLaneHeight(laneHeight);
   const busHeight = options.busHeight ?? BUS_HEIGHT;
   const groupGap = options.groupGap ?? GROUP_GAP;
+  const own = options.laneHeights ?? {};
+  const heightOf = (id) => (Number.isFinite(own[id]) ? clampLaneHeight(own[id]) : height);
   const tracks = project?.tracks ?? [];
   const buses = project?.buses ?? [];
   const busIndex = new Map(buses.map((bus, i) => [bus.id, i]));
@@ -98,7 +102,7 @@ export function layoutRows(project, laneHeight, options = {}) {
         const row = {
           kind: "track",
           id: tracks[member].id,
-          height,
+          height: heightOf(tracks[member].id),
           index: member,
           bus: track.bus,
           last: n === group.length - 1,
@@ -109,7 +113,14 @@ export function layoutRows(project, laneHeight, options = {}) {
       });
       return;
     }
-    push({ kind: "track", id: track.id, height, index: i, bus: null, last: false });
+    push({
+      kind: "track",
+      id: track.id,
+      height: heightOf(track.id),
+      index: i,
+      bus: null,
+      last: false,
+    });
     placed.add(i);
   });
   for (const bus of buses) {
@@ -133,6 +144,7 @@ export function layoutFor(state) {
     groupGap: state.groupGap,
     // A bus with one track merges into the track header (owner, 2026-10-18).
     mergeSingle: true,
+    laneHeights: state.laneHeights,
   });
 }
 

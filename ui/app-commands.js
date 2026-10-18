@@ -67,6 +67,8 @@ export function registerAppCommands(registry, { actions, app }) {
   def("view.toggle", () => actions.toggleView(), hasProject);
   def("view.fit", () => actions.fitView(), hasProject);
   def("view.fit_selection", () => actions.fitSelection(), hasProject);
+  def("view.fit_tracks", () => actions.fitTracks(), hasProject);
+  def("view.auto_fit_tracks", () => actions.toggleAutoFitTracks(), hasProject);
   def("view.back", () => actions.viewBack(), hasProject);
   def("view.reset_remembered", () => actions.resetRememberedView(), hasProject);
   // View > Break paragraphs at pauses over: one command per choice (no project needed;

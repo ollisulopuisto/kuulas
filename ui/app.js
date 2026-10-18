@@ -23,7 +23,8 @@ import { dragHasFiles, nativeBridge, summariseImport } from "./importing.js";
 import { createInspector } from "./inspector.js";
 import { formatCombo } from "./keymap-config.js";
 import { detectPlatform, isTextField } from "./keys.js";
-import { clampLaneHeight, pointerIntent, projectEnd } from "./lanes.js";
+import { autoFitKey, fitHeight, shouldAutoFit, withLaneHeight } from "./lane-sizing.js";
+import { clampLaneHeight, pointerIntent, projectEnd, RULER_HEIGHT } from "./lanes.js";
 import { connectLive } from "./live.js";
 import { activeLoop } from "./loop-range.js";
 import { regionCount } from "./markers-model.js";
@@ -219,11 +220,20 @@ const actions = {
     prefs.set(PAUSE_BREAK_KEY, id);
     setState({ pauseBreak: id });
   },
+  fitTracks: () => fitTracks(),
+  toggleAutoFitTracks() {
+    const on = !getState().autoFitTracks;
+    lastFitKey = "";
+    setState({ autoFitTracks: on });
+    showNotice(t(on ? "ui.view.auto_fit_on" : "ui.view.auto_fit_off"), "ok");
+  },
   viewBack: () => stepHistory(View.backView),
   resetRememberedView() {
     fitWholeEdit();
     setState({
       laneHeight: clampLaneHeight(tokenPx("--lane-h")),
+      laneHeights: {},
+      autoFitTracks: false,
       waveformMode: "half",
       followMode: "page",
       sidebarTab: "inspector",
@@ -601,8 +611,39 @@ $("track-headers").addEventListener("scroll", (event) =>
   setState({ scrollY: event.target.scrollTop }),
 );
 
+// The - and + buttons are a manual choice: they switch auto-fit off.
 function setLaneHeight(delta) {
-  setState({ laneHeight: clampLaneHeight(getState().laneHeight + delta) });
+  setState({ laneHeight: clampLaneHeight(getState().laneHeight + delta), autoFitTracks: false });
+}
+
+// Fit the lanes to the window: the lane area is the timeline minus the ruler.
+const laneArea = () => $("timeline-stack").clientHeight - RULER_HEIGHT;
+const fitInput = (state) => ({
+  project: state.project,
+  available: laneArea(),
+  busHeight: state.busHeight,
+  groupGap: state.groupGap,
+  laneHeights: state.laneHeights,
+});
+function fitTracks() {
+  const state = getState();
+  const height = fitHeight(fitInput(state));
+  if (height !== null && height !== state.laneHeight) setState({ laneHeight: height });
+}
+// Auto-fit: refit when what moves the lanes changes (lane-sizing.js decides). Called
+// from render and from the resize hook; the fit itself runs after the current
+// listeners, because setState inside a listener would leave the later ones with a
+// stale state.
+let lastFitKey = "";
+function autoFit(state) {
+  if (!state.autoFitTracks) {
+    lastFitKey = "";
+    return;
+  }
+  const key = autoFitKey(fitInput(state));
+  if (!shouldAutoFit({ on: true, key, last: lastFitKey })) return;
+  lastFitKey = key;
+  queueMicrotask(fitTracks);
 }
 
 // -- narration placeholders (WP43) ---------------------------------------------------------------------
@@ -804,6 +845,9 @@ const trackHeaders = createTrackHeaders({
     currentBus: (id) => {
       if (getState().focusBus !== id) setState({ focusBus: id });
     },
+    // Drag a lane's bottom border (null resets it to the global height).
+    setLaneHeight: (id, height) =>
+      setState({ laneHeights: withLaneHeight(getState().laneHeights, id, height) }),
   },
 });
 const inspector = createInspector({
@@ -1127,6 +1171,7 @@ const timeline = createTimeline({
     wheel: onWheel,
     resized() {
       if (fitWhole && getState().project) fitWholeEdit();
+      autoFit(getState());
       overview?.redraw();
     },
   },
@@ -1185,6 +1230,7 @@ function render(state, patch) {
       "zoom",
       "scrollY",
       "laneHeight",
+      "laneHeights",
       "waveformMode",
       "waveformScale",
       "waveformGain",
@@ -1267,8 +1313,19 @@ function render(state, patch) {
     chip.title = t("ui.mode.group_off_title");
   }
   if (touched("waveformMode")) $("waveform-mode").value = state.waveformMode;
-  if (touched("project", "focusTrack", "focusBus", "laneHeight", "busHeight", "groupGap"))
+  if (
+    touched(
+      "project",
+      "focusTrack",
+      "focusBus",
+      "laneHeight",
+      "laneHeights",
+      "busHeight",
+      "groupGap",
+    )
+  )
     trackHeaders.update(state);
+  if (touched("project", "autoFitTracks", "laneHeights", "busHeight", "groupGap")) autoFit(state);
   if (touched("project", "selection", "focusTrack", "focusBus")) inspector.update(state);
   if (touched("selection", "focusTrack", "focusBus", "panel")) help.update();
   if (

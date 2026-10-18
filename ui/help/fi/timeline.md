@@ -17,7 +17,7 @@ Jokainen raita on oma kaistansa, ja aika kulkee vasemmalta oikealle. Napsautus m
 - Sovita valintaan tai alku–loppuvälille: {key:view.fit_selection}
 - Takaisin edelliseen näkymään: {key:view.back}
 
-Tiheys, aaltomuoto ja seuranta ovat Näkymä-valikossa. {show:view-menu}
+Tiheys, aaltomuoto ja seuranta ovat Näkymä-valikossa. {show:view-menu} Samoin Sovita raidat ikkunaan ja Pidä raidat sovitettuina ikkunaan. Yhden kaistan korkeutta säädät vetämällä sen otsikon alareunaa; kaksoisnapsautus palauttaa sen.
 
 ## Paneelit
 {key:panel.next} siirtää näppäimistön seuraavaan paneeliin; {key:nav.home} tuo sen takaisin tänne.
