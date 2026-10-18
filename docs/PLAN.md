@@ -3281,3 +3281,11 @@ project's duration), and a Spotlight metadata importer so projects are findable 
 read-only on the project folder (no lock taken), and cheap: only the manifest, `resume.json` and the track
 list, never the media. Windows and Linux have no equivalent now.
 
+---
+
+### WP62 — Terminology pass (owner, 2026-10-18)
+
+Status: open; the glossary draft is `docs/GLOSSARY.md`. The owner noticed near-synonyms for the editing
+verbs (mute, delete, soft delete, remove). One word per meaning across menus, hints, toasts, help and docs,
+in both languages, Hindenburg's Finnish words used where the owner knows them. Steps are in the glossary.
+
