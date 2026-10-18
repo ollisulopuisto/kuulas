@@ -595,6 +595,22 @@ def create_app(session, engine, *, language: str | None = None,
         return imported(saved, copy=False, mode=mode, order=order,
                         track_naming=track_naming, start_frame=start_frame)
 
+    @app.post("/api/placeholder-take")
+    def post_placeholder_take(
+        file: Annotated[UploadFile, File()],
+        placeholder_id: Annotated[str, Form()],
+        offset: Annotated[int, Form()] = 0,
+    ):
+        """A browser's take (WP43): the file is saved like an upload and replaces
+        the placeholder in one step. The desktop window links by path through
+        ``/api/command`` ``placeholder_take`` instead."""
+        folder = session.package.path / "uploads"
+        folder.mkdir(exist_ok=True)
+        path = save_upload(folder, file)
+        session.command("placeholder_take", {"placeholder_id": placeholder_id,
+                                             "path": str(path), "offset": offset})
+        return state_response()
+
     # -- waveforms -----------------------------------------------------------
 
     @app.get("/api/peaks/{media_id}/{level}/{tile}")

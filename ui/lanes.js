@@ -3,6 +3,7 @@
 // beside it and the tests.
 import { frameToX, xToFrame } from "./format.js";
 import { stretchAt } from "./gate.js";
+import { placeholderAt } from "./placeholders-model.js";
 
 export const RULER_HEIGHT = 24;
 /** tokens.css --bus-h: a bus is ONE short line (disclosure, badge, name, M, S);
@@ -183,14 +184,24 @@ export function envelopeFrame(clip, sourceFrame) {
 /**
  * What is under pixel (x, y) of the timeline canvas.
  *
- * Returns { area: "ruler" | "lane" | "none", frame, row, clip, edge, point, gate }
- * (`gate` is { trackId, index, range } over a closed stretch, else null).
+ * Returns { area: "ruler" | "lane" | "none", frame, row, clip, edge, point, gate, placeholder }
+ * (`gate` is { trackId, index, range } over a closed stretch, else null; `placeholder` is the
+ * narration placeholder (WP43) under the pointer on that track, else null).
  * `edge` is "start" or "end" when the pointer is within EDGE_PX of that edge of
  * `clip`; `point` is the index of the envelope point within POINT_PX.
  */
 export function hitTest({ layout, project, view, x, y }) {
   const frame = xToFrame(x, view.scroll, view.zoom);
-  const miss = { area: "none", frame, row: null, clip: null, edge: null, point: null, gate: null };
+  const miss = {
+    area: "none",
+    frame,
+    row: null,
+    clip: null,
+    edge: null,
+    point: null,
+    gate: null,
+    placeholder: null,
+  };
   if (y < RULER_HEIGHT) return { ...miss, area: y >= 0 ? "ruler" : "none" };
   const inContent = y - RULER_HEIGHT + view.scrollY;
   const row = rowAt(layout, inContent);
@@ -202,7 +213,9 @@ export function hitTest({ layout, project, view, x, y }) {
     row.kind === "track" && view.showGates !== false
       ? stretchAt(project, row.id, frame, view.zoom)
       : null;
-  const hit = { ...miss, area: "lane", row, gate };
+  const placeholder =
+    row.kind === "track" ? placeholderAt(project.placeholders, row.id, frame) : null;
+  const hit = { ...miss, area: "lane", row, gate, placeholder };
   if (row.kind !== "track") return hit;
   const rowY = inContent - row.top;
   let best = null;

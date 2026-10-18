@@ -160,6 +160,16 @@ def test_placeholder_take_through_the_command_route(client, session):
     assert session.state.placeholders == ()
 
 
+def test_placeholder_take_upload_route(client, session):
+    add(session, "a", 10 * RATE, "line", length=4 * RATE)
+    with session.take_path.open("rb") as f:
+        r = client.post("/api/placeholder-take", data={"placeholder_id": "a"},
+                        files={"file": ("take.wav", f, "audio/wav")})
+    assert r.status_code == 200
+    assert "placeholders" not in r.json()["project"]
+    assert session.state.tracks[0].clips[-1].length == 9 * RATE
+
+
 def test_placeholder_take_with_a_bad_file_changes_nothing(session, tmp_path):
     add(session, "a", 10 * RATE, "line", length=4 * RATE)
     bad = tmp_path / "x.txt"
