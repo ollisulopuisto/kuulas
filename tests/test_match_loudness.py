@@ -87,7 +87,7 @@ def test_silent_clip_skipped_and_reported(session: Session, tmp_path: Path):
     assert session.state.clip(silent_clip.id).gain_db == 0.0
 
 
-def test_target_defaults_to_minus_16(session: Session, tmp_path: Path):
+def test_target_defaults_to_the_speech_role_target(session: Session, tmp_path: Path):
     w = make_tone_wav(tmp_path / "tone.wav", -26.0)
     session.import_media([str(w)])
     c_id = session.state.tracks[0].clips[0].id
@@ -97,7 +97,7 @@ def test_target_defaults_to_minus_16(session: Session, tmp_path: Path):
     raw = measure_clip(session.store, clip, RATE)
     assert raw is not None
     effective = raw + clip.gain_db
-    assert abs(effective - (-16.0)) <= 0.3
+    assert abs(effective - (-19.0)) <= 0.3  # WP49: was -16 before tracks had targets
 
 
 def test_undo_restores_old_gains_and_redo_reapplies(session: Session, tmp_path: Path):

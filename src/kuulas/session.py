@@ -54,6 +54,7 @@ from . import (
 from . import chapters as chapters_module
 from . import db as dbm
 from . import export as export_module
+from . import loudness_curve as loudness_curve_module
 from . import markers as markers_module
 from . import music_report as music_report_module
 from .clipboard import Entry, make_entry, make_entry_range
@@ -61,7 +62,7 @@ from .clipboard_store import ClipboardStore, entry_dict
 from .clock import FLICKS, frames_to_flicks
 from .history import History, UndoInfo
 from .jobs import JobCancelledError, Jobs
-from .loudness import gain_to_target, measure_clip
+from .loudness import gain_to_target, measure_clip, track_target_lufs
 from .media import ImportResult, MediaError, MediaStore
 from .messages import KuulasError, t
 from .model import Project, SyncGroup
@@ -302,7 +303,8 @@ class Session:
     def duck_music(self) -> Project:
         return self.command("duck_music")
 
-    def match_loudness(self, clip_ids: list[str], target_lufs: float = -16.0) -> Project:
+    def match_loudness(self, clip_ids: list[str],
+                       target_lufs: float | None = None) -> Project:
         """Set each clip's gain_db so its loudness matches target_lufs (WP19c).
 
         Measuring runs outside the session lock in a thread pool of at most 4 workers.
@@ -310,15 +312,20 @@ class Session:
         Silent clips (quieter than -70 LUFS or too short) are skipped.
         Remembers MatchReport in ``last_match_report``.
         """
-        target_lufs = float(target_lufs)
+        if target_lufs is not None:
+            target_lufs = float(target_lufs)
         with self.lock:
             state = self.history.state
             initial_head = self.history.head
             clips_to_measure = []
+            targets: dict[str, float | None] = {}
             for cid in clip_ids:
                 try:
-                    clip, _ = state.clip_and_track(cid)
+                    clip, track = state.clip_and_track(cid)
                     clips_to_measure.append(clip)
+                    # An explicit target wins; else the track's own, else its role's.
+                    targets[cid] = (target_lufs if target_lufs is not None
+                                    else track_target_lufs(track))
                 except KeyError:
                     raise ops.EditError("error.edit.no_clip", clip_id=cid) from None
 
@@ -339,7 +346,7 @@ class Session:
             if measured is None:
                 skipped.append(cid)
                 continue
-            new_gain = gain_to_target(measured, target_lufs)
+            new_gain = gain_to_target(measured, targets[cid])
             if new_gain is None:
                 skipped.append(cid)
                 continue
@@ -596,6 +603,17 @@ class Session:
     def last_export_settings(self, kind: str) -> dict | None:
         """Return the project's remembered settings for an export kind."""
         return export_module.last_settings(self, kind)
+
+    def loudness_curve(self) -> dict:
+        """Short-term loudness per track and for the mix, with the mix's
+        integrated LUFS and true peak (WP49, ``loudness_curve``). Measuring
+        takes seconds on a long programme, so it works on a snapshot and the
+        lock is not held; cached by content, so an edit costs only what it
+        changed."""
+        with self.lock:
+            state = self.history.state
+        return loudness_curve_module.project_curves(
+            state, self.store, getattr(self.store, "cache_root", None))
 
     def music_report(self, *, format: str = "rows",
                      title: str | None = None) -> tuple[Any, ...] | str | list[dict]:
@@ -1679,7 +1697,7 @@ def _candidate_mark(s: Session, args: dict) -> Project:
 def _match_loudness(s: Session, args: dict) -> Project:
     clip_ids = args.get("clip_ids", [])
     target = args.get("target_lufs")
-    target_lufs = float(target) if target is not None else -16.0
+    target_lufs = None if target is None else float(target)
     return s.match_loudness(clip_ids, target_lufs=target_lufs)
 
 

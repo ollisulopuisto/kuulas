@@ -435,6 +435,11 @@ def create_app(session, engine, *, language: str | None = None,
                         headers={"Content-Disposition":
                                  'attachment; filename="chapters.txt"'})
 
+    @app.get("/api/loudness-curve")
+    def get_loudness_curve():
+        # Measured outside the session lock (Session.loudness_curve); cached by content.
+        return JSONResponse(session.loudness_curve())
+
     @app.get("/api/music-report")
     def get_music_report(format: str = "json"):
         if format not in ("json", "csv", "html"):

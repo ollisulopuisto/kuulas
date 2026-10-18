@@ -670,7 +670,7 @@
   "ui.edit.toast.trim_end": {"one": "Trimmed the end of {count} clip", "other": "Trimmed the end of {count} clips"},
   "ui.edit.toast.nothing": "Nothing changed there.",
   "cmd.clip.match_loudness": "Match loudness",
-  "cmd.clip.match_loudness.hint": "Sets the gain of the selected clips (or the current track's) so they are equally loud, at -16 LUFS.",
+  "cmd.clip.match_loudness.hint": "Sets the gain of the selected clips (or the current track's) so they are equally loud, at the track's target (speech -19, music -23 LUFS unless set).",
   "cmd.transcript.find.hint": "Finds words in the transcript as you type; Enter goes to the next match.",
   "cmd.export.subtitles_srt": "Export subtitles (SRT)",
   "cmd.export.subtitles_srt.hint": "Saves the transcript as an SRT subtitle file.",

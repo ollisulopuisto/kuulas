@@ -98,7 +98,8 @@ def delete_track(p: Project, track_id: str) -> Project:
                    placeholders=tuple(h for h in p.placeholders if h.track != track_id))
 
 
-TRACK_FIELDS = {"name", "kind", "speaker", "bus", "gain_db", "pan", "mute", "solo"}
+TRACK_FIELDS = {"name", "kind", "speaker", "bus", "gain_db", "pan", "mute", "solo",
+                "target_lufs"}
 
 
 def set_track(p: Project, track_id: str, **fields) -> Project:
@@ -111,7 +112,24 @@ def set_track(p: Project, track_id: str, **fields) -> Project:
         raise EditError("error.edit.no_bus", bus_id=fields["bus"])
     if "pan" in fields:
         fields["pan"] = max(-1.0, min(1.0, float(fields["pan"])))
+    if fields.get("target_lufs") is not None:
+        fields["target_lufs"] = _target_lufs(fields["target_lufs"])
     return _replace_track(p, replace(_find_track(p, track_id), **fields))
+
+
+#: A loudness target outside this is a typo (-70 is the BS.1770 gate floor).
+TARGET_LUFS_RANGE = (-70.0, 0.0)
+
+
+def _target_lufs(value) -> float:
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        v = float("nan")
+    if not (TARGET_LUFS_RANGE[0] <= v <= TARGET_LUFS_RANGE[1]):  # also false for nan
+        raise EditError("error.edit.bad_arguments", name="set_track",
+                        detail=f"target_lufs {value!r}")
+    return v
 
 
 def move_track(p: Project, track_id: str, index: int) -> Project:
