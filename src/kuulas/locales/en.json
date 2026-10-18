@@ -937,7 +937,7 @@
   "ui.transcript.toast.cut": {"one": "Cut {count} word on all tracks · in the clipboard", "other": "Cut {count} words on all tracks · in the clipboard"},
   "ui.transcript.toast.cut_uncopied": {"one": "Cut {count} word on all tracks · NOT copied to the clipboard", "other": "Cut {count} words on all tracks · NOT copied to the clipboard"},
   "ui.hint.delete_words": "delete words",
-  "cmd.transcript.cut_words": "Cut the selected words on all tracks",
+  "cmd.transcript.cut_words": "Cut the selected words to the clipboard, all tracks",
   "cmd.transcript.cut_words.hint": "Removes the stretch of the selected words from every track and closes the gap; the words other speakers say over it go too.",
   "cmd.transcript.delete_words.hint": "Silences the selected words on their own speaker's track only; the gap stays and nothing else moves.",
   "cmd.transcript.correct.hint": "Edit the text of the word under the cursor or the single selected word.",
@@ -1297,5 +1297,8 @@
   "cmd.transport.rehearse": "Rehearse the edit",
   "cmd.transport.rehearse.hint": "Plays from 3 s before the in point up to it, jumps to the out point and plays on, as if the range were cut. Nothing is changed. (Hindenburg: Ctrl+Shift+Space)",
   "cmd.transport.play_selection.hint": "Plays the in-out range once and stops. (Hindenburg: Shift+Space)",
-  "ui.build.title": "The build you are running: version and commit. Quote it in a bug report."
+  "ui.build.title": "The build you are running: version and commit. Quote it in a bug report.",
+  "cmd.transcript.remove_words": "Delete the selected words on all tracks and close the gap",
+  "cmd.transcript.remove_words.hint": "Removes the stretch of the selected words from every track and closes the gap. Nothing goes to the clipboard.",
+  "ui.transcript.toast.remove": {"one": "Deleted {count} word on all tracks", "other": "Deleted {count} words on all tracks"}
 }

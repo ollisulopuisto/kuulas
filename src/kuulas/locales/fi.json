@@ -937,7 +937,7 @@
   "ui.transcript.toast.cut": {"one": "Leikattu {count} sana kaikilta raidoilta · leikepöydällä", "other": "Leikattu {count} sanaa kaikilta raidoilta · leikepöydällä"},
   "ui.transcript.toast.cut_uncopied": {"one": "Leikattu {count} sana kaikilta raidoilta · EI kopioitu leikepöydälle", "other": "Leikattu {count} sanaa kaikilta raidoilta · EI kopioitu leikepöydälle"},
   "ui.hint.delete_words": "poista sanat",
-  "cmd.transcript.cut_words": "Leikkaa valitut sanat kaikilta raidoilta",
+  "cmd.transcript.cut_words": "Leikkaa valitut sanat leikepöydälle, kaikki raidat",
   "cmd.transcript.cut_words.hint": "Poistaa valittujen sanojen välin kaikilta raidoilta ja sulkee aukon; myös muiden sen päälle puhumat sanat poistuvat.",
   "cmd.transcript.delete_words.hint": "Mykistää valitut sanat vain oman puhujansa raidalta; aukko jää, mikään muu ei siirry.",
   "cmd.transcript.correct.hint": "Muokkaa kohdistimen kohdalla olevan tai ainoan valitun sanan tekstiä.",
@@ -1297,5 +1297,8 @@
   "cmd.transport.rehearse": "Harjoittele leikkausta",
   "cmd.transport.rehearse.hint": "Toistaa 3 s ennen alkumerkkiä alkumerkkiin, hyppää loppumerkkiin ja jatkaa, ikään kuin väli olisi leikattu. Mitään ei muuteta. (Hindenburg: Ctrl+Shift+Space)",
   "cmd.transport.play_selection.hint": "Toistaa alku- ja loppumerkin välin kerran ja pysähtyy. (Hindenburg: Shift+Space)",
-  "ui.build.title": "Käyttämäsi versio: versio ja commit. Mainitse se vikailmoituksessa."
+  "ui.build.title": "Käyttämäsi versio: versio ja commit. Mainitse se vikailmoituksessa.",
+  "cmd.transcript.remove_words": "Poista valitut sanat kaikilta raidoilta ja sulje aukko",
+  "cmd.transcript.remove_words.hint": "Poistaa valittujen sanojen kohdan kaikilta raidoilta ja sulkee aukon. Mitään ei mene leikepöydälle.",
+  "ui.transcript.toast.remove": {"one": "Poistettu {count} sana kaikilta raidoilta", "other": "Poistettu {count} sanaa kaikilta raidoilta"}
 }

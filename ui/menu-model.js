@@ -254,6 +254,7 @@ export const MENU = [
     labelKey: "menu.transcript",
     items: [
       item("transcript.delete_words"),
+      item("transcript.remove_words"),
       item("transcript.cut_words"),
       item("transcript.correct"),
       item("transcript.mark_candidate"),

@@ -80,7 +80,7 @@ describe("transcript commands", () => {
     assert.match(calls.toasts[0], /"count":2,"name":"Anna"/);
   });
 
-  test("X sends cut_words with the indices, to every track", async () => {
+  test("Mod+X sends cut_words with the indices, to every track", async () => {
     const state = stateWith(extendTo(placeCursor(1), 2));
     const { registry, calls } = setup(state);
     registry.run("transcript.cut_words", null, state);
@@ -89,7 +89,18 @@ describe("transcript commands", () => {
     assert.equal(calls.edits.length, 0);
   });
 
-  test("X copies the stretch to the clipboard first, then cuts", async () => {
+  test("X deletes the words' stretch on every track and leaves the clipboard alone", async () => {
+    const state = stateWith(extendTo(placeCursor(1), 2));
+    const { registry, calls } = setup(state);
+    registry.run("transcript.remove_words", null, state);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.deepEqual(calls.cuts, [[1, 2]]);
+    assert.deepEqual(calls.copies, []);
+    assert.match(calls.toasts[0], /ui\.transcript\.toast\.remove/);
+    assert.equal(registry.can("transcript.remove_words", stateWith(placeCursor(-1))), false);
+  });
+
+  test("Mod+X copies the stretch to the clipboard first, then cuts", async () => {
     const state = stateWith(extendTo(placeCursor(1), 2));
     const { registry, calls } = setup(state);
     registry.run("transcript.cut_words", null, state);
@@ -104,7 +115,7 @@ describe("transcript commands", () => {
     assert.match(calls.toasts[0], /ui\.transcript\.toast\.cut /);
   });
 
-  test("a failed copy still cuts, and the toast says it was not copied", async () => {
+  test("Mod+X: a failed copy still cuts, and the toast says it was not copied", async () => {
     const state = stateWith(extendTo(placeCursor(1), 2));
     const { registry, calls } = setup(state, { copyOk: false });
     registry.run("transcript.cut_words", null, state);

@@ -59,6 +59,22 @@ export function registerTranscriptCommands(registry, { app, t }) {
     (state) => deleteWordsPlan(state.words ?? [], chosenWords(state)) !== null,
   );
 
+  // X: delete the words' stretch on every track and close the gap; the clipboard is left alone
+  // (owner, 2026-10-18). Mod+X below is the Cut that keeps what it removes.
+  def(
+    "transcript.remove_words",
+    () => {
+      const indices = chosenWords(app.getState());
+      const plan = cutWordsPlan(indices);
+      if (!plan) return;
+      void app.cutWords(plan.args.indices).then((done) => {
+        if (done)
+          app.toast(t("ui.transcript.toast.remove", { count: indices.length }), { undo: true });
+      });
+    },
+    (state) => cutWordsPlan(chosenWords(state)) !== null,
+  );
+
   def(
     "transcript.cut_words",
     () => {

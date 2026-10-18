@@ -3226,7 +3226,7 @@ const HELP_FILES = {
   "cmd.edit.paste_overwrite_track.hint": "Paste the newest clipboard entry at the play cursor over what is on the current track; nothing moves",
   "cmd.edit.preview_clipboard": "Play clipboard entry",
   "cmd.edit.preview_clipboard.hint": "Play the newest (or picked) clipboard entry from a temporary copy; the project does not change",
-  "cmd.transcript.cut_words": "Cut the selected words on all tracks",
+  "cmd.transcript.cut_words": "Cut the selected words to the clipboard, all tracks",
   "cmd.transcript.cut_words.hint": "Removes the stretch of the selected words from every track and closes the gap; the words other speakers say over it go too.",
   "cmd.transcript.delete_words.hint": "Silences the selected words on their own speaker's track only; the gap stays and nothing else moves.",
   "cmd.transcript.correct.hint": "Edit the text of the word under the cursor or the single selected word.",
@@ -3340,7 +3340,9 @@ const HELP_FILES = {
   "cmd.nav.to_out.hint": "Moves the play cursor to the out mark (Hindenburg: 2).",
   "cmd.transport.rehearse": "Rehearse the edit",
   "cmd.transport.rehearse.hint": "Plays from 3 s before the in point up to it, jumps to the out point and plays on, as if the range were cut. Nothing is changed. (Hindenburg: Ctrl+Shift+Space)",
-  "cmd.transport.play_selection.hint": "Plays the in-out range once and stops. (Hindenburg: Shift+Space)"
+  "cmd.transport.play_selection.hint": "Plays the in-out range once and stops. (Hindenburg: Shift+Space)",
+  "cmd.transcript.remove_words": "Delete the selected words on all tracks and close the gap",
+  "cmd.transcript.remove_words.hint": "Removes the stretch of the selected words from every track and closes the gap. Nothing goes to the clipboard."
  },
  "catalog/fi": {
   "cmd.transport.play": "Toista / pysäytä",
@@ -3596,7 +3598,7 @@ const HELP_FILES = {
   "cmd.edit.paste_overwrite_track.hint": "Liitä uusin leikepöydän kohde toistokohtaan nykyisen raidan olemassa olevan päälle; mikään ei siirry",
   "cmd.edit.preview_clipboard": "Soita leikepöydän kohde",
   "cmd.edit.preview_clipboard.hint": "Soita uusin (tai valittu) leikepöydän kohde väliaikaisesta kopiosta; projekti ei muutu",
-  "cmd.transcript.cut_words": "Leikkaa valitut sanat kaikilta raidoilta",
+  "cmd.transcript.cut_words": "Leikkaa valitut sanat leikepöydälle, kaikki raidat",
   "cmd.transcript.cut_words.hint": "Poistaa valittujen sanojen välin kaikilta raidoilta ja sulkee aukon; myös muiden sen päälle puhumat sanat poistuvat.",
   "cmd.transcript.delete_words.hint": "Mykistää valitut sanat vain oman puhujansa raidalta; aukko jää, mikään muu ei siirry.",
   "cmd.transcript.correct.hint": "Muokkaa kohdistimen kohdalla olevan tai ainoan valitun sanan tekstiä.",
@@ -3710,7 +3712,9 @@ const HELP_FILES = {
   "cmd.nav.to_out.hint": "Siirtää toistokohdan loppumerkkiin (Hindenburg: 2).",
   "cmd.transport.rehearse": "Harjoittele leikkausta",
   "cmd.transport.rehearse.hint": "Toistaa 3 s ennen alkumerkkiä alkumerkkiin, hyppää loppumerkkiin ja jatkaa, ikään kuin väli olisi leikattu. Mitään ei muuteta. (Hindenburg: Ctrl+Shift+Space)",
-  "cmd.transport.play_selection.hint": "Toistaa alku- ja loppumerkin välin kerran ja pysähtyy. (Hindenburg: Shift+Space)"
+  "cmd.transport.play_selection.hint": "Toistaa alku- ja loppumerkin välin kerran ja pysähtyy. (Hindenburg: Shift+Space)",
+  "cmd.transcript.remove_words": "Poista valitut sanat kaikilta raidoilta ja sulje aukko",
+  "cmd.transcript.remove_words.hint": "Poistaa valittujen sanojen kohdan kaikilta raidoilta ja sulkee aukon. Mitään ei mene leikepöydälle."
  }
 };
 // -- end of help topics --
