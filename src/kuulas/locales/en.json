@@ -128,6 +128,9 @@
   },
   "error.engine.no_device": "No audio output device was found. Connect headphones or speakers, or choose an output in the system's sound settings; the project stays open.",
   "error.engine.open_failed": "The audio output {device} could not be opened: {error}",
+  "error.engine.bad_skip": "A range to skip must be two frame numbers, the start not after the end and neither below zero: {item}",
+  "error.engine.bad_speed": "Playback speed {speed} is not available. Tape speed runs from 0.25× to 5×, forward or backward.",
+  "error.engine.stretch_unavailable": "Fast listening with the pitch kept (at {speed}×) is not available yet. Tape speed, where the pitch follows the speed, is.",
   "notice.engine.block_failed": {
     "one": "{count} block of audio could not be played and was replaced with silence. Playback continues.",
     "other": "{count} blocks of audio could not be played and were replaced with silence. Playback continues."
