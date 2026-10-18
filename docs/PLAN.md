@@ -3334,3 +3334,25 @@ checkpoint itself, "Saved HH.MM", and the History panel cannot rename it. Build:
    server command; the name is stored with the checkpoint).
 3. Named versions stand out in the History list (a marker and bold name) so they can be found.
 
+---
+
+### WP65 — The clipboard per project, with sharing and browsing (owner, 2026-10-19)
+
+Status: open, design agreed in outline (owner: "persistent without pinning; per session by default; sharing
+between sessions is an excellent idea, we just gotta rethink the UI"). Today (WP46) the clipboard is one
+per-user file for every project, capped at 50 unpinned entries.
+1. **Persistent without pinning.** Every copy or cut stays until the owner deletes it; no silent dropping. Pinning
+   goes away (or becomes "keep on top"). A "Clear old entries" command and a size note instead of a hidden cap.
+2. **Per project by default.** Each project's entries live in a `clipboard.json` in its own folder (written
+   atomically by the lock holder, like `resume.json`; not project state, no undo step, travels with Dropbox).
+   Opening a project shows its own clipboard.
+3. **Sharing, two directions** (the Clipboard tab gets three views: *This project*, *Shared*, *Other projects*):
+   - **From the originating side:** an entry has a "Share" toggle (a star or the context menu): only the entries
+     marked shared are copied into the per-user shared list that every project's *Shared* view shows.
+   - **From the receiving side ("spelunking"):** *Other projects* lists the recent projects; opening one shows ITS
+     clipboard, all entries, read-only (the file is read without taking the project's lock), with the same
+     preview and "Paste here" as the local tab. Pasting links the recordings by hash as today.
+4. **Migration:** the existing per-user history becomes the *Shared* list on first run, or is moved into the project
+   named in each entry's `source_project` when that project is opened (owner to decide).
+Needs: WP46 (the clipboard store), the recent-projects list (WP15), WP31 for the view tabs' styling.
+
