@@ -25,6 +25,7 @@ const post = (path, body) => json(path, { method: "POST", body: JSON.stringify(b
 
 export const getState = () => json("/api/state");
 /** This project's remembered view (kept outside the project): { view: object | null }. */
+export const getBuild = () => json("/api/build");
 export const getViewMemory = () => json("/api/view-memory");
 /** `keepalive` lets the write finish while the page is being left. */
 export const putViewMemory = (view) =>

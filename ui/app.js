@@ -1959,6 +1959,14 @@ applyDensity();
 applyMotion();
 render(getState(), null);
 
+// Which build is this: the label goes in the status bar so a bug report names it.
+api
+  .getBuild()
+  .then(({ build }) => {
+    $("build-label").textContent = build;
+  })
+  .catch(() => {});
+
 try {
   const [state, words] = await Promise.all([api.getState(), api.getWords()]);
   apply(state);

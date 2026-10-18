@@ -36,6 +36,7 @@ from pydantic import BaseModel, Field
 from starlette.websockets import WebSocketDisconnect
 
 from . import export, export_formats, messages, music_report, transcribe
+from .build_info import build_label
 from .candidates import UnknownCandidateError
 from .history import HistoryError
 from .media import ImportResult, MediaError
@@ -353,6 +354,11 @@ def create_app(session, engine, *, language: str | None = None,
     # -- the view memory (WP35) ----------------------------------------------
     # The user's view of this project (zoom, scroll, ...), kept outside the
     # project: no undo step, no change to its bytes.
+
+    @app.get("/api/build")
+    def get_build():
+        """Which version and commit this is, for bug reports (build_info.py)."""
+        return JSONResponse({"build": build_label()})
 
     @app.get("/api/view-memory")
     def get_view_memory():

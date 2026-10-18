@@ -1284,5 +1284,6 @@
   "cmd.nav.to_out.hint": "Moves the play cursor to the out mark (Hindenburg: 2).",
   "cmd.transport.rehearse": "Rehearse the edit",
   "cmd.transport.rehearse.hint": "Plays from 3 s before the in point up to it, jumps to the out point and plays on, as if the range were cut. Nothing is changed. (Hindenburg: Ctrl+Shift+Space)",
-  "cmd.transport.play_selection.hint": "Plays the in-out range once and stops. (Hindenburg: Shift+Space)"
+  "cmd.transport.play_selection.hint": "Plays the in-out range once and stops. (Hindenburg: Shift+Space)",
+  "ui.build.title": "The build you are running: version and commit. Quote it in a bug report."
 }

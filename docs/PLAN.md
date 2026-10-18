@@ -3238,3 +3238,33 @@ with one key, or a range), each with a note and a colour; a list view orders the
 the story edit and remembers where it came from. Builds on WP21 (several edits in one project), WP17 (the
 clip bin) and WP42 (bits as index cards). Until then the pinned clipboard entries are the stopgap.
 
+---
+
+### WP59 — Hardening: fuzzing and a security review (owner, 2026-10-18)
+
+Status: open, after the first edits are done (not during the episode work). The owner suggested asking the
+strongest model (Fable) to fuzz the inputs and do basic hardening. Scope:
+- **Untrusted files:** WAV/FLAC/MP3 decoding and ffmpeg arguments, `.nhsx` import, a damaged `.kuulas`
+  folder (corrupt SQLite, manifest, `locks/`, `resume.json`, view-memory and clipboard history files),
+  imported keymap files. Property-based tests (Hypothesis) and a corpus of mutated files; the rule is
+  "an error message, never a crash or a hang, never a changed project".
+- **The local web server:** it binds to 127.0.0.1 but any web page in the owner's browser can send
+  requests to it. Check Host/Origin handling (DNS rebinding, cross-site POSTs to `/api/command`, `/api/edit`,
+  export and upload routes), path traversal in every route that takes a path or a file name, and the
+  desktop bridge methods.
+- **Command arguments:** random types and values into every op in `OPS` (the JSON arguments of
+  `/api/command`), and into the UI's pure planners.
+- **Exports:** file names, destination folders, overwriting, partial files on failure.
+Output: a report, failing tests turned into regression tests, small fixes; bigger findings into this plan.
+
+### WP60 — Smooth speaker changes: automatic crossfades (owner, 2026-10-18)
+
+Status: open, proposal. When the speaker changes, either the switch is hard and exactly timed, or the next
+speaker fades in under the previous one and the previous fades out under the next. Smart rules from the
+transcript's speaker turns (`speaker_turns`, `talk_share`) and the gaps between words (`gap_kinds`):
+a gap longer than about 0.5 s gets no overlap (just short fades at the cut); a short gap gets an
+equal-power crossfade around the gap's middle that never starts inside a word; real overlap (talk-over)
+keeps both at full level. Offered as candidates the owner accepts one by one or all at once ("semiautomatic"),
+written as clip fades and gate ramps (WP44), so it stays editable. The automixer (speechmix) may do part of this at export; decide
+with the podcast repo where each belongs.
+

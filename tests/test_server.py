@@ -871,6 +871,13 @@ def test_nothing_to_undo_reports_no_move(client):
     assert client.post("/api/undo").json()["moved"] is None
 
 
+# -- the build label ------------------------------------------------------------
+
+def test_build_label_is_served(client):
+    body = client.get("/api/build").json()
+    assert body["build"].startswith("v") or body["build"] == "unknown"
+
+
 # -- the view memory (WP35) ---------------------------------------------------
 
 def test_view_memory_round_trip_does_not_touch_the_project(client, session):

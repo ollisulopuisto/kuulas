@@ -1284,5 +1284,6 @@
   "cmd.nav.to_out.hint": "Siirtää toistokohdan loppumerkkiin (Hindenburg: 2).",
   "cmd.transport.rehearse": "Harjoittele leikkausta",
   "cmd.transport.rehearse.hint": "Toistaa 3 s ennen alkumerkkiä alkumerkkiin, hyppää loppumerkkiin ja jatkaa, ikään kuin väli olisi leikattu. Mitään ei muuteta. (Hindenburg: Ctrl+Shift+Space)",
-  "cmd.transport.play_selection.hint": "Toistaa alku- ja loppumerkin välin kerran ja pysähtyy. (Hindenburg: Shift+Space)"
+  "cmd.transport.play_selection.hint": "Toistaa alku- ja loppumerkin välin kerran ja pysähtyy. (Hindenburg: Shift+Space)",
+  "ui.build.title": "Käyttämäsi versio: versio ja commit. Mainitse se vikailmoituksessa."
 }

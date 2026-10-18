@@ -14,6 +14,7 @@ from pathlib import Path
 import uvicorn
 
 from . import diag, export_formats, package
+from .build_info import build_label
 from .messages import KuulasError, t
 
 #: The server answers this machine only: the API can change and delete a
@@ -205,6 +206,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911
     args = parser.parse_args(argv)
     if getattr(args, "debug", False):
         diag.enable()
+        diag.emit(f"kuulas debug: build {build_label()}")
     try:
         if args.command in (None, "desktop"):
             from . import desktop  # noqa: PLC0415
