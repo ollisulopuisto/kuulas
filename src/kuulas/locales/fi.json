@@ -837,7 +837,7 @@
   "cmd.select.range_from_clips.hint": "Asettaa Alun ja Lopun valittujen leikkeiden alkuun ja loppuun, niiden raidoille.",
   "cmd.select.forward.hint": "Valitsee kaikki leikkeet, jotka päättyvät soittokohdan jälkeen, nykyiseltä raidalta tai alueen raidoilta (ilman rajausta kaikilta).",
   "cmd.select.forward_from_clips.hint": "Valitsee jokaisella raidalla, jolla on valittu leike, sen leikkeen ja kaikki sitä seuraavat.",
-  "cmd.select.forward_all_tracks_from_clips.hint": "Valitsee kaikkien raitojen leikkeet aikaisimman valitun leikkeen alusta eteenpäin.",
+  "cmd.select.forward_all_tracks_from_clips.hint": "Valitsee kaikkien raitojen leikkeet aikaisimman valitun leikkeen alusta eteenpäin. Cmd+Alt+napsautus leikkeeseen tekee saman siitä leikkeestä alkaen.",
   "cmd.select.invert.hint": "Valitsee ne leikkeet, joita ei ole valittu, nykyiseltä raidalta tai alueen raidoilta (ilman rajausta kaikilta).",
   "cmd.select.none.hint": "Poistaa leikevalinnan ja alueen raitarajauksen. Alku- ja Loppumerkit säilyvät.",
   "cmd.group.toggle.hint": "Kytkee ryhmämuokkauksen päälle tai pois valitun raidan ryhmälle.",

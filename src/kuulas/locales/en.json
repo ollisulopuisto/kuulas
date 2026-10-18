@@ -837,7 +837,7 @@
   "cmd.select.range_from_clips.hint": "Sets In and Out to the start and end of the selected clips, on their tracks.",
   "cmd.select.forward.hint": "Selects every clip that ends after the playhead, on the current track or the range's tracks (all tracks if none).",
   "cmd.select.forward_from_clips.hint": "On each track with a selected clip, selects that clip and every clip after it.",
-  "cmd.select.forward_all_tracks_from_clips.hint": "Selects every clip on every track from the start of the earliest selected clip onward.",
+  "cmd.select.forward_all_tracks_from_clips.hint": "Selects every clip on every track from the start of the earliest selected clip onward. Cmd+Alt+click on a clip does the same from that clip.",
   "cmd.select.invert.hint": "Selects the clips that are not selected, on the current track or the range's tracks (all tracks if none).",
   "cmd.select.none.hint": "Clears the clip selection and the range's track choice. The In/Out marks stay.",
   "cmd.group.toggle.hint": "Turns group editing on or off for the current track's group.",

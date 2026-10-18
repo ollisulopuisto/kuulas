@@ -64,6 +64,7 @@ import { createPlaceholderEditor } from "./placeholder-editor.js";
 import { createPrefs } from "./prefs.js";
 import { patchClip } from "./provisional.js";
 import { rangeLine } from "./range-info.js";
+import { forwardFromClip } from "./selection-ops.js";
 import { setupKeyboard } from "./shell-keys.js";
 import { chipSpeed } from "./shuttle.js";
 import { getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
@@ -425,7 +426,10 @@ function onPointerDown(hit, event) {
   // A narration placeholder is picked like a clip (WP43): one at a time, never with a clip.
   if (!additive)
     patch.placeholderSelected = hit.placeholder && !hit.clip ? hit.placeholder.id : null;
-  if (event.shiftKey && hit.row?.kind === "bus" && hit.row.collapsed) {
+  if (mod && event.altKey && hit.clip && hit.row?.kind === "track") {
+    // Cmd+Alt+click (Hindenburg): this clip and every clip after it, on all tracks.
+    patch.selection = expandGroups(state.project, forwardFromClip(state.project, hit.clip.id));
+  } else if (event.shiftKey && hit.row?.kind === "bus" && hit.row.collapsed) {
     // Shift+click on a folded bus: add the member clips under the pointer to the selection.
     const selection = new Set(state.selection);
     for (const id of memberClipsAt(state.project, hit.row.id, hit.frame)) selection.add(id);

@@ -67,6 +67,17 @@ export function forwardFromClips(project, selection, { allTracks = false } = {})
   return found;
 }
 
+/**
+ * Cmd+Alt+click (Hindenburg's way): the clicked clip and every clip on every track that
+ * starts at or after it.
+ */
+export function forwardFromClip(project, clipId) {
+  const known = (project?.tracks ?? []).some((track) =>
+    (track.clips ?? []).some((clip) => clip.id === clipId),
+  );
+  return known ? forwardFromClips(project, new Set([clipId]), { allTracks: true }) : new Set();
+}
+
 /** The clips on the given tracks that are not selected. */
 export function invert(project, selection, tracks = null) {
   const found = new Set();

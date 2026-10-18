@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
   clipsInRange,
+  forwardFromClip,
   forwardFromClips,
   forwardFromFrame,
   invert,
@@ -118,5 +119,14 @@ describe("invert", () => {
     assert.equal(invert(project, new Set()).size, 5);
     assert.equal(invert({ tracks: [] }, new Set()).size, 0);
     assert.equal(invert(null, new Set()).size, 0);
+  });
+});
+
+describe("forwardFromClip (Cmd+Alt+click)", () => {
+  test("the clicked clip and every clip starting at or after it, on all tracks", () => {
+    assert.deepEqual(ids(forwardFromClip(project, "a2")), ["a2", "a3", "b2"]);
+  });
+  test("an unknown clip selects nothing", () => {
+    assert.equal(forwardFromClip(project, "nope").size, 0);
   });
 });
