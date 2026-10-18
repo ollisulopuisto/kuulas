@@ -243,7 +243,7 @@ def test_import_nhsx_without_clipboard_adds_no_entries(tmp_path):
 
 def test_a_clipboard_clip_may_use_a_recording_that_no_track_uses(tmp_path):
     """The real session: the clipboard clip also holds "kari intro", cut from a file
-    (Ref 2) that no track plays. The whole clip was skipped for it; the file must come in."""
+    (Ref 2) that no track plays. The whole clip was skipped; the file must come in."""
     write_audio(tmp_path / "speech.wav")
     write_audio(tmp_path / "intro.wav")
     path = tmp_path / "cb2.nhsx"
