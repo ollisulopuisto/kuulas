@@ -61,6 +61,7 @@ export const MENU = [
       item("edit.paste_same"),
       item("edit.paste_overwrite_track"),
       item("edit.preview_clipboard"),
+      item("edit.clear_old_clipboard"),
       item("edit.delete"),
       item("rename"),
       SEP,

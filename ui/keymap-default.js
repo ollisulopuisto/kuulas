@@ -410,6 +410,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.edit.preview_clipboard",
   },
   {
+    id: "edit.clear_old_clipboard",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.edit.clear_old_clipboard",
+  },
+  {
     id: "edit.split",
     keys: { mac: ["B", "Mod+B"], other: ["B", "Mod+B"] },
     context: "timeline",

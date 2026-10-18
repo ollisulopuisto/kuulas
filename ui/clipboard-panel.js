@@ -1,5 +1,5 @@
 // The Clipboard tab (WP46): the history of copies and cuts, newest first. Each entry has
-// its name, how long it is, pin, rename, delete and "Paste again"; two choices say how a
+// its name, how long it is, rename, delete and "Paste again"; two choices say how a
 // paste lands (insert or overwrite, on the same tracks or the current one). The panel only
 // draws and reports; what a click does is app.js's (actions), what a paste does is
 // edit-plans.js's.
@@ -7,6 +7,7 @@ import {
   entryDetails,
   entryTitle,
   filterEntries,
+  keepCount,
   PASTE_MODES,
   PASTE_TARGETS,
   pasteChoice,
@@ -27,8 +28,8 @@ const el = (tag, props = {}, ...children) => {
 };
 
 /**
- * `actions`: select(id), preview(id), filter(text), pin(id, pinned), rename(id, name), remove(id), pasteAgain(id),
- * choose({ pasteMode } | { pasteTarget }), canPasteAgain(state) -> boolean.
+ * `actions`: select(id), preview(id), filter(text), rename(id, name), remove(id), pasteAgain(id),
+ * choose({ pasteMode } | { pasteTarget }), keep(n), clearOld(), canPasteAgain(state) -> boolean.
  */
 export function createClipboardPanel({ root, actions }) {
   let signature = "";
@@ -112,12 +113,6 @@ export function createClipboardPanel({ root, actions }) {
       button("paste", t("ui.clipboard.paste_again"), () => actions.pasteAgain(entry.id), {
         disabled: !canPaste,
       }),
-      button(
-        "pin",
-        t(entry.pinned ? "ui.clipboard.unpin" : "ui.clipboard.pin"),
-        () => actions.pin(entry.id, !entry.pinned),
-        { "aria-pressed": String(entry.pinned) },
-      ),
       button("rename", t("ui.clipboard.rename"), () => {
         editing = entry.id;
         signature = "";
@@ -131,6 +126,35 @@ export function createClipboardPanel({ root, actions }) {
       { class: "clip-entry", dataset: { id: entry.id, selected: String(selected) } },
       name,
       buttons,
+    );
+  }
+
+  // "Clear old entries" (WP65): the one way entries leave besides deleting one by hand.
+  function clearRow(state) {
+    const field = el("input", {
+      type: "number",
+      class: "clip-keep",
+      min: "1",
+      step: "1",
+      value: String(keepCount(state)),
+      "aria-label": t("ui.clipboard.keep_label"),
+      dataset: { id: "keep", action: "keep" },
+    });
+    field.addEventListener("change", () => actions.keep(field.value));
+    field.addEventListener("keydown", (event) => event.stopPropagation());
+    const clear = el("button", {
+      type: "button",
+      class: "button ghost",
+      textContent: t("ui.clipboard.clear_old"),
+      dataset: { id: "clear-old", action: "clear-old" },
+    });
+    clear.addEventListener("click", () => actions.clearOld());
+    return el(
+      "div",
+      { class: "clip-clear" },
+      el("span", { textContent: t("ui.clipboard.keep_label") }),
+      field,
+      clear,
     );
   }
 
@@ -150,6 +174,7 @@ export function createClipboardPanel({ root, actions }) {
       editing,
       canPaste,
       state.clipboardFilter ?? "",
+      state.clipboardKeep,
     ]);
     if (next === signature) return;
     signature = next;
@@ -215,6 +240,7 @@ export function createClipboardPanel({ root, actions }) {
             ),
       );
     }
+    if (list.length > 0) root.append(clearRow(state));
     if (keep) {
       const again = root.querySelector(
         `[data-id="${CSS.escape(keep.id)}"][data-action="${keep.action}"]`,

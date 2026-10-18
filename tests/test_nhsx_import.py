@@ -195,10 +195,11 @@ CLIPBOARD = (
     '</Clipboard>')
 
 
-def clipboard_entries():
-    from kuulas.clipboard_store import ClipboardStore  # noqa: PLC0415
+def clipboard_entries(project):
+    """The entries on the imported project's own clipboard (per project since WP65)."""
+    from kuulas.clipboard_store import ClipboardStore, project_path  # noqa: PLC0415
 
-    return ClipboardStore().load().entries()
+    return ClipboardStore(project_path(project)).load().entries()
 
 
 def import_clipboard_session(tmp_path, clipboard):
@@ -215,7 +216,7 @@ def import_clipboard_session(tmp_path, clipboard):
 
 def test_import_nhsx_turns_clipboard_clips_into_pinned_entries(tmp_path):
     state, project, count = import_clipboard_session(tmp_path, CLIPBOARD)
-    entries = clipboard_entries()
+    entries = clipboard_entries(project)
     assert count == 1
     assert len(entries) == 1  # the empty group and the bad Ref add none
     entry = entries[0]
@@ -235,7 +236,7 @@ def test_import_nhsx_turns_clipboard_clips_into_pinned_entries(tmp_path):
 
 
 def test_import_nhsx_without_clipboard_adds_no_entries(tmp_path):
-    state, _, count = import_clipboard_session(tmp_path, "")
+    state, project, count = import_clipboard_session(tmp_path, "")
     assert count == 0
-    assert clipboard_entries() == ()
+    assert clipboard_entries(project) == ()
     assert len(state.tracks) == 1

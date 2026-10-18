@@ -291,13 +291,15 @@ def prune_entries(entries: Iterable[Entry], max_unpinned: int) -> list[Entry]:
 class ClipboardHistory:
     """The clipboard's entries, newest first, kept as references.
 
-    ``max_entries`` limits the *unpinned* entries (``prune_entries``): adding
-    beyond it drops the oldest unpinned ones, a pinned entry is never
-    dropped, and pinned entries do not count toward the limit.
+    ``max_entries`` ``None`` (the default, and what the stores use) means no
+    limit: nothing is ever dropped silently (WP65). With a number, it limits
+    the *unpinned* entries (``prune_entries``): adding beyond it drops the
+    oldest unpinned ones, a pinned entry is never dropped. The only prune in
+    the app is the explicit "Clear old entries" (``prune``).
     """
 
-    def __init__(self, max_entries: int = 50) -> None:
-        self.max_entries = int(max_entries)
+    def __init__(self, max_entries: int | None = None) -> None:
+        self.max_entries = None if max_entries is None else int(max_entries)
         self._entries: list[Entry] = []
         # Unknown keys a newer kuulas wrote (docs/FORMAT.md, "Unknown keys").
         self.extra: dict = {}
@@ -305,7 +307,15 @@ class ClipboardHistory:
     def add(self, entry: Entry) -> None:
         """Add ``entry`` at the front, then prune the oldest unpinned."""
         self._entries.insert(0, entry)
-        self._entries = prune_entries(self._entries, self.max_entries)
+        if self.max_entries is not None:
+            self._entries = prune_entries(self._entries, self.max_entries)
+
+    def prune(self, keep: int) -> int:
+        """Drop the oldest unpinned entries beyond the newest ``keep`` (at
+        least one); return how many went. The explicit "Clear old entries"."""
+        before = len(self._entries)
+        self._entries = prune_entries(self._entries, keep)
+        return before - len(self._entries)
 
     def _find(self, entry_id: str) -> Entry:
         for item in self._entries:
@@ -326,7 +336,8 @@ class ClipboardHistory:
     def unpin(self, entry_id: str) -> None:
         """Let an entry be pruned again (and prune now if it is over the limit)."""
         self._replace(entry_id, pinned=False)
-        self._entries = prune_entries(self._entries, self.max_entries)
+        if self.max_entries is not None:
+            self._entries = prune_entries(self._entries, self.max_entries)
 
     def rename(self, entry_id: str, name: str) -> None:
         """Give an entry a new name."""
@@ -348,15 +359,17 @@ class ClipboardHistory:
 
     def to_json(self) -> str:
         """The whole history as clipboard JSON, entries newest first."""
-        d = {"max_entries": self.max_entries,
-             "entries": [_entry_out(entry) for entry in self._entries]}
+        d: dict = {"entries": [_entry_out(entry) for entry in self._entries]}
+        if self.max_entries is not None:
+            d["max_entries"] = self.max_entries
         return json.dumps({**self.extra, **d}, separators=(",", ":"))
 
     @classmethod
     def from_json(cls, text: str) -> ClipboardHistory:
         """The history in ``text``; unknown keys are kept and re-emitted."""
         d = json.loads(text)
-        history = cls(int(d.get("max_entries", 50)))
+        limit = d.get("max_entries")
+        history = cls(None if limit is None else int(limit))
         history._entries = [_entry_in(entry) for entry in d.get("entries", [])]
         history.extra = {key: value for key, value in d.items()
                          if key not in ("max_entries", "entries")}

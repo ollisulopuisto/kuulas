@@ -134,6 +134,10 @@ class RenameBody(BaseModel):
     name: str
 
 
+class ClearOldBody(BaseModel):
+    keep: int = Field(100, ge=1)
+
+
 class ViewMemoryBody(BaseModel):
     view: dict
 
@@ -401,6 +405,11 @@ def create_app(session, engine, *, language: str | None = None,
                                      group_editing=body.group_editing,
                                      name=body.name)
         return JSONResponse({**out, "entries": session.clipboard_list()})
+
+    @app.post("/api/clipboard/clear-old")
+    def post_clipboard_clear_old(body: ClearOldBody):
+        removed = session.clipboard_clear_old(body.keep)
+        return JSONResponse({"removed": removed, "entries": session.clipboard_list()})
 
     @app.post("/api/clipboard/{entry_id}/pin")
     def post_clipboard_pin(entry_id: str, body: PinBody):
@@ -797,6 +806,9 @@ def create_app(session, engine, *, language: str | None = None,
             while True:
                 await ws.receive_text()
 
+        def clipboard_stamp() -> tuple:
+            return session.clipboard.stamp(), session.shared_clipboard.stamp()
+
         async def push() -> None:
             await ws.send_json({"type": "hello", "head": session.history.head})
             initial_jobs = session.jobs.list()
@@ -804,9 +816,10 @@ def create_app(session, engine, *, language: str | None = None,
             last_jobs = tuple((job["id"], job["progress"], job["state"], job["error"])
                               for job in initial_jobs)
             last_notice, playing, last_position = 0, False, None
-            # The history file is shared by every window of this user: when its
-            # stamp changes (our own writes too, which only costs a re-read), say so.
-            last_stamp = session.clipboard.stamp()
+            # The project's clipboard and the shared one are files other windows
+            # write too: when a stamp changes (our own writes too, which only
+            # costs a re-read), say so.
+            last_stamp = clipboard_stamp()
             next_poll = time.monotonic()
             while True:
                 wait = max(0.0, next_poll - time.monotonic())
@@ -820,7 +833,7 @@ def create_app(session, engine, *, language: str | None = None,
                 if signature != last_jobs:
                     await ws.send_json({"type": "jobs", "jobs": current_jobs})
                     last_jobs = signature
-                stamp = session.clipboard.stamp()
+                stamp = clipboard_stamp()
                 if stamp != last_stamp:
                     last_stamp = stamp
                     await ws.send_json({"type": "clipboard_changed"})

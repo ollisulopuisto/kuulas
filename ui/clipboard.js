@@ -78,6 +78,13 @@ export function filterEntries(entries, query, rate, t = (key) => key) {
   });
 }
 
+/** How many entries "Clear old entries" keeps: the tab's number, else the default 100. */
+export const DEFAULT_KEEP = 100;
+export function keepCount(state) {
+  const n = Number(state?.clipboardKeep);
+  return Number.isInteger(n) && n >= 1 ? n : DEFAULT_KEEP;
+}
+
 /** The remembered paste choice, with defaults: insert, on the same tracks. */
 export function pasteChoice(state) {
   return {

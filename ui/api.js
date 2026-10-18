@@ -85,6 +85,8 @@ export const renameClipboardEntry = (id, name) =>
   post(`/api/clipboard/${encodeURIComponent(id)}/rename`, { name });
 export const deleteClipboardEntry = (id) =>
   json(`/api/clipboard/${encodeURIComponent(id)}`, { method: "DELETE" });
+/** Drop this project's oldest entries, keeping the newest `keep`: { removed, entries }. */
+export const clearOldClipboard = (keep) => post("/api/clipboard/clear-old", { keep });
 /** A page of steps, newest first: { nodes, head, more, can_undo, can_redo }. */
 export const getHistory = ({ limit = 100, before = null } = {}) =>
   json(`/api/history?limit=${limit}${before ? `&before=${encodeURIComponent(before)}` : ""}`);

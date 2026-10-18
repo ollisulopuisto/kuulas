@@ -32,6 +32,7 @@ function setup(state, previewAnswer = { started: true, missing: 0 }) {
   const toasts = [];
   const copied = [];
   const previewed = [];
+  const cleared = [];
   const seeks = [];
   let refreshed = 0;
   let renamed = 0;
@@ -60,6 +61,10 @@ function setup(state, previewAnswer = { started: true, missing: 0 }) {
       refreshClipboard: () => {
         refreshed += 1;
       },
+      clearOldClipboard: (keep) => {
+        cleared.push(keep);
+        return Promise.resolve(0);
+      },
     },
   });
   return {
@@ -67,6 +72,7 @@ function setup(state, previewAnswer = { started: true, missing: 0 }) {
     copied,
     seeks,
     previewed,
+    cleared,
     refreshed: () => refreshed,
     renamed: () => renamed,
     sent,
@@ -109,6 +115,7 @@ const WORKING = [
   "edit.paste_same",
   "edit.paste_overwrite_track",
   "edit.preview_clipboard",
+  "edit.clear_old_clipboard",
 ];
 
 describe("the editing commands", () => {
@@ -373,6 +380,19 @@ describe("the clipboard commands (WP46)", () => {
     assert.equal(h.sent.length, 0);
     await Promise.resolve();
     assert.equal(h.toasts.length, 0);
+  });
+
+  test("Clear old entries keeps the count the Clipboard tab names, 100 by default", () => {
+    const state = withClip();
+    const h = setup(state);
+    assert.equal(h.registry.can("edit.clear_old_clipboard", base()), false); // nothing on it
+    assert.equal(h.registry.can("edit.clear_old_clipboard", state), true);
+    h.registry.run("edit.clear_old_clipboard", null, state);
+    assert.deepEqual(h.cleared, [100]);
+    assert.equal(h.sent.length, 0); // not an edit: no undo step
+    const named = setup({ ...state, clipboardKeep: 7 });
+    named.registry.run("edit.clear_old_clipboard", null, state);
+    assert.deepEqual(named.cleared, [7]);
   });
 
   test("a preview with nothing to hear says so, without Undo", async () => {

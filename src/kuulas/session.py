@@ -64,7 +64,7 @@ from . import markers as markers_module
 from . import music_report as music_report_module
 from .clipboard import ClipRef, Entry, entry_from_refs, make_entry, make_entry_range
 from .clipboard_preview import preview_project
-from .clipboard_store import ClipboardStore, entry_dict
+from .clipboard_store import ClipboardStore, entry_dict, project_path
 from .clock import FLICKS, frames_to_flicks
 from .history import History, UndoInfo
 from .jobs import JobCancelledError, Jobs
@@ -237,11 +237,9 @@ class Session:
     exist. ``rate`` applies to a new project only: an existing one keeps its own."""
 
     def __init__(self, folder: str | Path, rate: int = 48000,
-                 clipboard: ClipboardStore | None = None):
+                 clipboard: ClipboardStore | None = None,
+                 shared_clipboard: ClipboardStore | None = None):
         folder = Path(folder)
-        #: The per-user clipboard history (WP46), shared by every project and
-        #: every kuulas window of this user.
-        self.clipboard = clipboard or ClipboardStore()
         self.lock = threading.RLock()
         if (folder / "manifest.json").exists() or (folder / "project.sqlite").exists():
             self.package = package.open_package(folder)
@@ -250,6 +248,16 @@ class Session:
             self.package = package.create(folder, rate)
             is_new = True
         self.package.start()
+        #: This project's clipboard (WP65): ``clipboard.json`` in the project
+        #: folder. Not project state (no history step); only the instance that
+        #: holds the lock writes it, a read-only open keeps it in memory, and a
+        #: failed write is a warning, never an error.
+        self.clipboard = clipboard or ClipboardStore(
+            project_path(self.package.path), writable=not self.read_only, soft=True)
+        #: The shared store (WP65): the per-user file. It holds what the user
+        #: marked as worth sharing, and the old history of projects that have
+        #: not opened since it was moved into projects.
+        self.shared_clipboard = shared_clipboard or ClipboardStore()
         self.jobs = Jobs()
         #: Folder of the last "Export all tracks" this run made, for Show in Finder.
         self.last_export_folder: str | None = None
@@ -545,6 +553,8 @@ class Session:
                 self.clipboard.update(lambda h, e=entry: h.add(e))
             except OSError as e:
                 problem = t("error.clipboard.write_failed", error=str(e))
+        if problem is None and self.clipboard.write_error:
+            problem = t("error.clipboard.write_failed", error=self.clipboard.write_error)
         if problem is not None:
             log.warning(t("log.clipboard.copy_failed", error=problem))
             return {"clipboard": {"ok": False, "entry": None, "error": problem}}
@@ -629,6 +639,13 @@ class Session:
             change(history)
 
         self.clipboard.update(run)
+
+    def clipboard_clear_old(self, keep: int = 100) -> int:
+        """"Clear old entries": drop this project's oldest entries beyond the
+        newest ``keep`` (default 100, at least one; pinned ones stay); return
+        how many went. The only way entries ever leave the clipboard except
+        deleting one by hand."""
+        return self.clipboard.update(lambda h: h.prune(int(keep))) or 0
 
     def clipboard_pin(self, entry_id: str, pinned: bool = True) -> None:
         self._change_history(entry_id, lambda h: h.pin(entry_id) if pinned

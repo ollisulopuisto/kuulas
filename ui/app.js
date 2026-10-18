@@ -591,6 +591,7 @@ const keyboard = setupKeyboard({
     toast: (text, options) => showNotice(text, "ok", options),
     copy: (body) => copyToClipboard(body),
     refreshClipboard: () => void refreshClipboard(),
+    clearOldClipboard: (keep) => clearOldClipboard(keep),
     rememberRange: () => {
       const { head, inPoint, outPoint, rangeTracks } = getState();
       rangeMemory = rememberRange(head, { inPoint, outPoint, rangeTracks });
@@ -1416,6 +1417,25 @@ async function copyToClipboard(body) {
   }
 }
 
+// "Clear old entries": keep the newest `keep` of this project's, say how many went.
+async function clearOldClipboard(keep) {
+  try {
+    const answer = await api.clearOldClipboard(keep);
+    setState({ clipboard: answer.entries, clipboardSelected: null });
+    showNotice(
+      answer.removed > 0
+        ? t("ui.clipboard.cleared", { count: answer.removed })
+        : t("ui.clipboard.cleared_none"),
+      "ok",
+      { undo: false },
+    );
+    return answer.removed;
+  } catch (error) {
+    showError(error);
+    return 0;
+  }
+}
+
 // Every entry action answers with the whole list, so the tab cannot drift from the file.
 const clipboardAction = (call) => async () => {
   try {
@@ -1433,7 +1453,6 @@ const clipboardPanel = createClipboardPanel({
   root: $("panel-clipboard"),
   actions: {
     select: (id) => setState({ clipboardSelected: id }),
-    pin: (id, pinned) => void clipboardAction(() => api.pinClipboardEntry(id, pinned))(),
     rename: (id, name) => void clipboardAction(() => api.renameClipboardEntry(id, name))(),
     remove: (id) => {
       if (getState().clipboardSelected === id) setState({ clipboardSelected: null });
@@ -1441,6 +1460,8 @@ const clipboardPanel = createClipboardPanel({
     },
     choose: (patch) => setState(patch),
     filter: (text) => setState({ clipboardFilter: text }),
+    keep: (value) => setState({ clipboardKeep: Number(value) }),
+    clearOld: () => keyboard.registry.run("edit.clear_old_clipboard", null, getState()),
     preview(id) {
       setState({ clipboardSelected: id });
       keyboard.registry.run("edit.preview_clipboard", null, getState());
@@ -1899,6 +1920,7 @@ function render(state, patch) {
       "clipboard",
       "clipboardSelected",
       "clipboardFilter",
+      "clipboardKeep",
       "pasteMode",
       "pasteTarget",
       "project",
