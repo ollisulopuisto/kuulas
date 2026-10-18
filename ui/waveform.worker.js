@@ -11,6 +11,7 @@ let canvas = null;
 let context = null;
 let latest = null;
 let scheduled = false;
+let lastOvers = "";
 
 const store = createTileStore({ fetchTile: peakTile, onChange: schedule });
 
@@ -30,10 +31,16 @@ function paint() {
     canvas.width = width;
     canvas.height = height;
   }
-  const { missing } = paintWaveforms(context, job, (media, level, tile) =>
+  const { missing, overs } = paintWaveforms(context, job, (media, level, tile) =>
     store.lookup(media, level, tile),
   );
   store.want(missing);
+  // Tell the page which clips clip (WP57), only when that changed: tiles arriving repaint often.
+  const key = JSON.stringify(overs);
+  if (key !== lastOvers) {
+    lastOvers = key;
+    self.postMessage({ type: "overs", overs });
+  }
 }
 
 self.addEventListener("message", ({ data }) => {

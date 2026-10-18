@@ -700,6 +700,8 @@
   "format.speed": "{value}×",
   "ui.gate.mic_closed": "Mikki kiinni",
   "ui.gate.hover": "Mikki on kiinni. Kaksoisnapsauta avataksesi tämän kohdan.",
+  "ui.clip.over": "Säröää: +{db} dB yli täyden asteikon",
+  "ui.clip.at_limit": "Säröää: rajalla, hieman alle täyden asteikon",
   "ui.edge.roll": "Siirrä klipin reunaa",
   "ui.edge.ripple": "Siirrä klipin reunaa ja vedä loput mukaan",
   "ui.edge.hint_roll": "Roll: naapuri seuraa. Vaihto: ripple. Esc: peru",

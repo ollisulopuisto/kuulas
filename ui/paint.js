@@ -2,7 +2,9 @@
 // It takes a plain-data job and a tile lookup, so it runs unchanged in the
 // worker (OffscreenCanvas), on the main thread when workers are unavailable,
 // and in tests with a recording context.
+import { CLIP_LIMIT_DB, columnOvers } from "./clip-overs.js";
 import { frameToX } from "./format.js";
+import { columnGainsDb, waveformScale } from "./gain-scale.js";
 import { flatBar, gatePixelRuns } from "./gate.js";
 import { busHues, SPEAKER_HUE_COUNT, zebraSteps } from "./grammar.js";
 import { layoutFor, RULER_HEIGHT, visibleRows } from "./lanes.js";
@@ -10,8 +12,8 @@ import { columnsFromTiles, pickLevel, waveformColumns } from "./waveform.js";
 
 /** Fallback for --signal-muted-opacity when a job carries none (tests). */
 const MUTED_ALPHA = 0.35;
-/** -0.1 dBFS: a column at or above it gets the clipping cap. */
-const CLIP_LEVEL = 0.989;
+/** Below this a gain is silence: JSON cannot carry -Infinity, so the job clamps to it. */
+const SILENCE_DB = -200;
 const CAP_PX = 3;
 /** Bars are opaque: --track-N-wave on --track-N-body is checked at >= 3:1 (tokens.test.js). */
 const WAVE_ALPHA = 1;
@@ -53,6 +55,13 @@ export function scaleFor(kind, setting = "auto") {
   return kind === "music" ? "linear" : "db";
 }
 
+/** Clip + track gain in dB for a job: finite (silence clamps to SILENCE_DB), 0 when unset. */
+function baseGainDb(clip, track) {
+  const db = (clip.gain_db ?? 0) + (track.gain_db ?? 0);
+  if (Number.isNaN(db)) return 0;
+  return Math.max(SILENCE_DB, Math.min(-SILENCE_DB, db));
+}
+
 /**
  * A structured-clone-safe description of what is on screen: only rows in view
  * and, in each, only the clips that overlap the visible time.
@@ -73,7 +82,7 @@ export function makeWaveformJob(state, { width, height, ratio, id }, palette, co
     const steps = zebraSteps(track.clips);
     for (const clip of track.clips) {
       if (clip.start + clip.length < first || clip.start > last) continue;
-      clips.push({
+      const entry = {
         id: clip.id,
         media: clip.media,
         start: clip.start,
@@ -81,7 +90,13 @@ export function makeWaveformJob(state, { width, height, ratio, id }, palette, co
         length: clip.length,
         muted: Boolean(clip.muted),
         step: steps.get(clip.id) ?? 0,
-      });
+      };
+      // WP57: the size follows clip + track gain and the clip's envelope. Pan and mute do
+      // not; bus gain is not included yet. Absent at 0 dB, so a job is unchanged there.
+      const gainDb = baseGainDb(clip, track);
+      if (gainDb !== 0) entry.gainDb = gainDb;
+      if (clip.envelope?.length) entry.envelope = clip.envelope;
+      clips.push(entry);
     }
     rows.push({
       top: row.top,
@@ -121,12 +136,35 @@ export function makeWaveformJob(state, { width, height, ratio, id }, palette, co
 }
 
 /**
+ * What the waveform shows for one clip's columns: the display peaks (scaled by
+ * the clip's gain, capped as gain_scale.waveform_scale caps it) and each
+ * column's total gain in dB, which the clipping judgement uses uncapped. At
+ * 0 dB with no envelope it returns `data` itself and no per-column gains.
+ */
+function gained(clip, data, startFrame, framesPerPixel) {
+  const base = clip.gainDb ?? 0;
+  if (base === 0 && !clip.envelope?.length) return { shown: data, dbs: null };
+  const count = data.length / 2;
+  const dbs = columnGainsDb(base, clip.envelope, startFrame, framesPerPixel, count);
+  const shown = new Float32Array(data.length);
+  for (let column = 0; column < count; column += 1) {
+    const scale = waveformScale(dbs[column]);
+    shown[2 * column] = data[2 * column] * scale;
+    shown[2 * column + 1] = data[2 * column + 1] * scale;
+  }
+  return { shown, dbs };
+}
+
+/**
  * Paint `job` into `ctx`. `lookup(media, level, tile)` returns a tile's
- * Float32Array or undefined. Returns { missing }: the tiles to fetch before
- * painting again.
+ * Float32Array or undefined. Returns { missing, overs }: the tiles to fetch
+ * before painting again, and for each clip with columns over the clipping
+ * limit after gain, how far its loudest column is above full scale in dB
+ * (0 when only between the limit and full scale).
  */
 export function paintWaveforms(ctx, job, lookup) {
   const missing = new Map();
+  const overs = {};
   ctx.setTransform(job.ratio, 0, 0, job.ratio, 0, 0);
   ctx.clearRect(0, 0, job.width, job.height);
   ctx.save();
@@ -171,23 +209,42 @@ export function paintWaveforms(ctx, job, lookup) {
       });
       for (const tile of absent)
         missing.set(`${clip.media}/${level}/${tile}`, { media: clip.media, level, tile });
-      const bars = waveformColumns(data, job.mode, row.scale ?? job.scale, h, job.gain);
+      const { shown, dbs } = gained(clip, data, startFrame, job.zoom);
+      const bars = waveformColumns(shown, job.mode, row.scale ?? job.scale, h, job.gain);
       if (row.gate?.length) flattenGated(bars, data, row.gate, from, to, job.mode, h);
+      // Clipping is judged per drawn column (a peak bucket at this zoom), on the true gain,
+      // not the capped display scale. Gated columns are zeroed above, so they never clip.
+      // A muted clip does not play, so it is not flagged.
+      const judged = clip.muted
+        ? null
+        : columnOvers(data, dbs ?? new Float32Array(to - from), CLIP_LIMIT_DB);
+      const anyOver = judged?.over.includes(1) ?? false;
+      if (anyOver) overs[clip.id] = judged.maxOver;
+      const flagged = job.clipping && anyOver ? judged.over : null;
       ctx.fillStyle = colours.wave;
       ctx.globalAlpha = (clip.muted ? faint : 1) * WAVE_ALPHA;
       ctx.beginPath();
       for (let column = 0; column < to - from; column += 1) {
         const barTop = bars[2 * column];
         const barBottom = bars[2 * column + 1];
-        if (barBottom > barTop) ctx.rect(from + column, y + barTop, 1, barBottom - barTop);
+        if (barBottom > barTop && !flagged?.[column])
+          ctx.rect(from + column, y + barTop, 1, barBottom - barTop);
       }
       ctx.fill();
-      // Clipping: a cap on top of each column whose peak reaches -0.1 dBFS.
-      if (job.clipping) {
+      // Clipping: the whole bar of a column over the limit in the clipping colour, with a
+      // cap on top (the shape twin of the colour, grammar.js `clipping`).
+      if (flagged) {
         ctx.fillStyle = job.clipping;
+        ctx.beginPath();
         for (let column = 0; column < to - from; column += 1) {
-          const peak = Math.max(Math.abs(data[2 * column]), Math.abs(data[2 * column + 1]));
-          if (peak >= CLIP_LEVEL) ctx.fillRect(from + column, y + bars[2 * column], 1, CAP_PX);
+          if (!flagged[column]) continue;
+          const barTop = bars[2 * column];
+          const barBottom = bars[2 * column + 1];
+          if (barBottom > barTop) ctx.rect(from + column, y + barTop, 1, barBottom - barTop);
+        }
+        ctx.fill();
+        for (let column = 0; column < to - from; column += 1) {
+          if (flagged[column]) ctx.fillRect(from + column, y + bars[2 * column], 1, CAP_PX);
         }
       }
       ctx.globalAlpha = 1;
@@ -195,7 +252,7 @@ export function paintWaveforms(ctx, job, lookup) {
   }
   ctx.restore();
   ctx.globalAlpha = 1;
-  return { missing: [...missing.values()] };
+  return { missing: [...missing.values()], overs };
 }
 
 /**
