@@ -2,6 +2,7 @@
 // time, kind and Jump, Rename, Chapter (toggle) and Delete. At the top: add a marker, and the
 // three exports. The panel only draws and reports; what a click does is app.js's (actions).
 import { formatClock, formatNumber, getLanguage, t } from "./i18n.js";
+import { LEFT_OFF_ID, leftOffRow, leftOffText } from "./left-off.js";
 import { markerRows } from "./markers-model.js";
 
 const el = (tag, props = {}, ...children) => {
@@ -114,6 +115,25 @@ export function createMarkersPanel({ root, actions }) {
     );
   }
 
+  // The automatic "left off" row, pinned first: not a project marker, so no rename, chapter
+  // or delete; the whole row is one button (click or Enter goes there).
+  function leftOffEntry(item, rate) {
+    const words = { t, clock: (seconds) => formatClock(seconds, 1), language: getLanguage() };
+    const text = leftOffText({ frame: item.frame, savedAt: item.savedAt }, rate, words, "row");
+    const main = el("button", {
+      type: "button",
+      class: "clip-main",
+      title: t("ui.resume.jump"),
+      dataset: { id: LEFT_OFF_ID, action: "jump" },
+    });
+    main.append(
+      el("span", { class: "clip-name", textContent: t("ui.resume.flag") }),
+      el("span", { class: "clip-meta", textContent: text }),
+    );
+    main.addEventListener("click", () => actions.jumpLeftOff());
+    return el("li", { class: "clip-entry", dataset: { id: LEFT_OFF_ID, pinned: "true" } }, main);
+  }
+
   const toolbarButton = (command, label, state) => {
     const node = el("button", {
       type: "button",
@@ -135,7 +155,16 @@ export function createMarkersPanel({ root, actions }) {
       "export.chapters_json",
       "export.regions",
     ].map((id) => actions.can(id, state));
-    const next = JSON.stringify([getLanguage(), rows, rate, state.markerSelected, editing, can]);
+    const pinned = leftOffRow(state.leftOff, rate);
+    const next = JSON.stringify([
+      getLanguage(),
+      rows,
+      rate,
+      state.markerSelected,
+      editing,
+      can,
+      pinned,
+    ]);
     if (next === signature) return;
     signature = next;
     const active = document.activeElement;
@@ -154,13 +183,14 @@ export function createMarkersPanel({ root, actions }) {
         toolbarButton("export.regions", t("cmd.export.regions"), state),
       ),
     );
-    if (rows.length === 0) {
+    if (rows.length === 0 && !pinned) {
       root.append(el("p", { class: "hint", textContent: t("ui.markers.empty") }));
     } else {
       root.append(
         el(
           "ul",
           { class: "clip-list", "aria-label": t("ui.markers.list_label") },
+          ...(pinned ? [leftOffEntry(pinned, rate)] : []),
           ...rows.map((item) => row(item, state.markerSelected === item.id)),
         ),
       );

@@ -56,6 +56,7 @@ Name.kuulas/
   manifest.json        format identity; written at create and on upgrade only
   project.sqlite       all state: material, edits, history (WAL mode)
   locks/               who has it open: one file per open instance (empty when closed)
+  resume.json          where the user left off (not project state; see "resume.json")
   media/
     <media id>.flac    working file (absent for linked media)
     excerpts/          WP20 excerpts, same naming
@@ -139,6 +140,27 @@ are swept, "conflicted copy" files are ignored. The WAL is truncated after a
 quiet tick and on close; `caches/` and the side files carry the Dropbox
 ignore attribute on macOS. `min_reader` and `version` are unchanged. Not
 verified against a real Dropbox.
+
+## resume.json
+
+`{"version": 1, "saved_at", "host", "user", "playhead", "in", "out",
+"focus_track", "zoom", "scroll"}`: where the user left off, so the position
+travels with the project through Dropbox to the other Mac. `saved_at` is UTC
+(`2026-10-18T19:00:00Z`); positions are frames, `zoom` frames per pixel. Fields
+that are not valid numbers/strings are left out.
+
+**Not project state.** Never in the history or the database, no undo step, no
+change to the bytes of `project.sqlite`. Opening a project does not write it;
+it is a convenience whose loss costs nothing. The server rewrites it atomically
+(temp file, fsync, rename) whenever the view memory is saved, at most once every
+5 s (a trailing write keeps the last position), at once on Mod+S, on page hide
+and on close. Only the instance that holds the lock writes (a read-only open
+never does). A write failure is a logged warning, never an error.
+
+On open the UI restores from the newer of this file and the per-user view
+memory (`saved_at`). A damaged file, or one without `saved_at`, is ignored; so
+is any file with "conflicted copy" in its name (only the exact name
+`resume.json` is read). `syncmark.py` leaves it alone: it must sync.
 
 ## Database schema (`project.sqlite`, WAL, `synchronous=FULL`)
 

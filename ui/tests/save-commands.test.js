@@ -5,7 +5,7 @@ import { clockTime, registerSaveCommands } from "../save-commands.js";
 
 function setup(answers = {}) {
   const registry = createRegistry();
-  const calls = { commands: [], toasts: [] };
+  const calls = { commands: [], toasts: [], left: [] };
   registerSaveCommands(registry, {
     t: (key, values = {}) => `${key}${JSON.stringify(values)}`,
     app: {
@@ -15,6 +15,7 @@ function setup(answers = {}) {
         return name in answers ? answers[name] : {};
       },
       clock: () => new Date(2026, 9, 18, 9, 5),
+      markLeftOff: () => calls.left.push("mark"),
     },
   });
   return { registry, calls };
@@ -53,6 +54,19 @@ describe("save commands", () => {
       ["save_checkpoint", { name: 'ui.save.checkpoint_name{"time":"09.05"}' }],
     ]);
     assert.match(calls.toasts[0][0], /^ui\.save\.named.*checkpoint_name/);
+  });
+
+  test("a save also records where the user left off; a failed one does not", async () => {
+    const ok = setup();
+    ok.registry.run("app.save", null, { project: {} });
+    ok.registry.run("app.save_named", null, { project: {} });
+    await settle();
+    assert.deepEqual(ok.calls.left, ["mark", "mark"]);
+    const failed = setup({ save_backup: null, save_checkpoint: null });
+    failed.registry.run("app.save", null, { project: {} });
+    failed.registry.run("app.save_named", null, { project: {} });
+    await settle();
+    assert.deepEqual(failed.calls.left, []);
   });
 
   test("a failed command shows no success notice", async () => {

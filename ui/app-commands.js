@@ -160,6 +160,15 @@ export function registerAppCommands(registry, { actions, app }) {
   );
   def("nav.start", () => app.seek(0), hasProject);
   def("nav.end", () => app.seek(app.totalFrames()), hasProject);
+  // The automatic "left off" marker (left-off.js): where the project was last saved or closed.
+  def(
+    "nav.to_resume",
+    () => {
+      const { leftOff } = app.getState();
+      if (leftOff) app.seek(leftOff.frame);
+    },
+    (state) => hasProject(state) && Boolean(state.leftOff),
+  );
   // Left/Right: a few pixels; Shift: 1 s (the ids "_far" are kept so user keymaps still match).
   def("nav.back", () => moveBy(-offsets().nudge)(), hasProject);
   def("nav.forward", () => moveBy(offsets().nudge)(), hasProject);

@@ -56,6 +56,9 @@ export const initialState = () => ({
   candidatePreview: null,
   // The marker picked in the Markers tab or by Next/Previous (WP19h); null for none.
   markerSelected: null,
+  // The automatic "left off" marker (left-off.js): { frame, savedAt } or null. UI state only,
+  // never a project marker.
+  leftOff: null,
   // The narration placeholder picked on the timeline (WP43); null for none.
   placeholderSelected: null,
   playhead: 0,

@@ -28,8 +28,12 @@ export const getState = () => json("/api/state");
 export const getBuild = () => json("/api/build");
 export const getViewMemory = () => json("/api/view-memory");
 /** `keepalive` lets the write finish while the page is being left. */
-export const putViewMemory = (view) =>
-  json("/api/view-memory", { method: "PUT", body: JSON.stringify({ view }), keepalive: true });
+export const putViewMemory = (view, { now = false } = {}) =>
+  json(`/api/view-memory${now ? "?now=true" : ""}`, {
+    method: "PUT",
+    body: JSON.stringify({ view }),
+    keepalive: true,
+  });
 export const getWords = () => json("/api/words");
 /** The frames Tab stops at in one mode (edges, transients, words): { points: [frame] }. */
 export const getEditPoints = (mode, track = null) =>

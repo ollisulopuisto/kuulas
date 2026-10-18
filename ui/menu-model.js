@@ -218,6 +218,7 @@ export const MENU = [
       item("nav.end"),
       item("nav.to_in"),
       item("nav.to_out"),
+      item("nav.to_resume"),
       SEP,
       {
         kind: "submenu",

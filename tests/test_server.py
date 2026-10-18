@@ -18,6 +18,7 @@ from kuulas.clipboard import ClipRef, Entry
 from kuulas.clipboard_store import ClipboardStore
 from kuulas.engine import EngineError
 from kuulas.playplan import PlaybackRequestError
+from kuulas.resume import read_resume
 from kuulas.server import create_app, pick_language
 from kuulas.session import Session
 from kuulas.view_memory import ViewMemory
@@ -885,15 +886,90 @@ def test_view_memory_round_trip_does_not_touch_the_project(client, session):
     assert client.get("/api/view-memory").json() == {"view": None}
     r = client.put("/api/view-memory", json={"view": {"zoom": 3.5, "future": [1]}})
     assert r.status_code == 200
-    assert client.get("/api/view-memory").json() == {"view": {"zoom": 3.5, "future": [1]}}
+    got = client.get("/api/view-memory").json()["view"]
+    assert got == {"zoom": 3.5, "future": [1], "saved_at": got["saved_at"]}  # + the stamp
     after = client.get("/api/state").json()
     assert after["head"] == before["head"]
     assert after["can_undo"] == before["can_undo"]
 
 
+def test_view_memory_put_writes_resume_json_into_the_project(client, session):
+    head = client.get("/api/state").json()["head"]
+    client.put("/api/view-memory?now=true", json={"view": {"playhead": 4800, "zoom": 2}})
+    assert read_resume(session.package.path)["playhead"] == 4800
+    assert client.get("/api/state").json()["head"] == head
+
+
+def _resume_file(session, saved_at, **fields):
+    record = {"version": 1, "saved_at": saved_at, "host": "other-mac", "user": "olli",
+              **fields}
+    path = session.package.path / "resume.json"
+    path.write_text(json.dumps(record), encoding="utf-8")
+
+
+def _local(session, saved_at, view):
+    ViewMemory().put(session.package.manifest["id"], {**view, "saved_at": saved_at})
+
+
+def test_a_put_stamps_saved_at_on_the_per_user_record(client, session):
+    client.put("/api/view-memory", json={"view": {"zoom": 1}})
+    stamp = ViewMemory().get(session.package.manifest["id"])["saved_at"]
+    assert stamp.endswith("Z")
+    assert client.get("/api/view-memory").json()["view"]["saved_at"] >= stamp
+
+
+def test_restore_only_local(client, session):
+    _local(session, "2026-10-18T10:00:00Z", {"playhead": 10, "zoom": 3})
+    view = client.get("/api/view-memory").json()["view"]
+    assert (view["playhead"], view["zoom"]) == (10, 3)
+
+
+def test_restore_only_resume(client, session):
+    _resume_file(session, "2026-10-18T10:00:00Z", playhead=77, **{"in": 5, "out": 9},
+                 focus_track="t1", zoom=2.5, scroll=40)
+    view = client.get("/api/view-memory").json()["view"]
+    assert view == {"saved_at": "2026-10-18T10:00:00Z", "playhead": 77, "inPoint": 5,
+                    "outPoint": 9, "focusTrack": "t1", "zoom": 2.5, "scroll": 40}
+
+
+def test_restore_newer_resume_wins_and_keeps_other_local_keys(client, session):
+    _local(session, "2026-10-18T10:00:00Z", {"playhead": 10, "zoom": 3, "laneHeight": 60})
+    _resume_file(session, "2026-10-18T11:00:00Z", playhead=99)
+    view = client.get("/api/view-memory").json()["view"]
+    assert (view["playhead"], view["zoom"], view["laneHeight"]) == (99, 3, 60)
+    assert view["saved_at"] == "2026-10-18T11:00:00Z"
+
+
+def test_restore_newer_local_wins(client, session):
+    _local(session, "2026-10-18T12:00:00Z", {"playhead": 10})
+    _resume_file(session, "2026-10-18T11:00:00Z", playhead=99)
+    assert client.get("/api/view-memory").json()["view"]["playhead"] == 10
+
+
+def test_restore_a_local_record_without_saved_at_loses_to_resume(client, session):
+    ViewMemory().put(session.package.manifest["id"], {"playhead": 10})
+    _resume_file(session, "2026-10-18T11:00:00Z", playhead=99)
+    assert client.get("/api/view-memory").json()["view"]["playhead"] == 99
+
+
+@pytest.mark.parametrize("text", ["{nope", "[1]", '{"playhead": 5}', ""])
+def test_restore_ignores_a_corrupt_resume_file(client, session, text):
+    _local(session, "2026-10-18T10:00:00Z", {"playhead": 10})
+    (session.package.path / "resume.json").write_text(text, encoding="utf-8")
+    assert client.get("/api/view-memory").json()["view"]["playhead"] == 10
+
+
+def test_restore_ignores_a_conflicted_copy(client, session):
+    name = "resume (Mac's conflicted copy 2026-10-18).json"
+    (session.package.path / name).write_text(
+        json.dumps({"version": 1, "saved_at": "2030-01-01T00:00:00Z", "playhead": 99}),
+        encoding="utf-8")
+    assert client.get("/api/view-memory").json() == {"view": None}
+
+
 def test_view_memory_is_keyed_by_the_project(client, session):
     client.put("/api/view-memory", json={"view": {"zoom": 1}})
-    assert ViewMemory().get(session.package.manifest["id"]) == {"zoom": 1}
+    assert ViewMemory().get(session.package.manifest["id"])["zoom"] == 1
 
 
 @pytest.mark.parametrize("body", [{"view": 5}, {"view": [1]}, {},

@@ -17,6 +17,7 @@ from __future__ import annotations
 import base64
 import html
 import json
+import logging
 import os
 import subprocess
 import sys
@@ -28,6 +29,8 @@ import uvicorn
 
 from .cli import HOST, bind_local, uvicorn_config
 from .messages import KuulasError, t
+
+log = logging.getLogger("kuulas.desktop")
 
 #: Most recent first; older entries fall off.
 MAX_RECENT = 20
@@ -184,6 +187,14 @@ class RunningProject:
             threading.Event().wait(0.02)
 
     def stop(self) -> None:
+        # The page may be gone already (pywebview does not always fire pagehide, and
+        # a playing cursor is saved only every 5 s): write the engine's playhead.
+        try:
+            position = int(self._engine.status()["position"])
+        except Exception as e:  # noqa: BLE001 - closing must go on whatever the engine says
+            log.warning(t("log.desktop.position_unknown", error=str(e)))
+            position = None
+        self._session.flush_view(playhead=position)
         self._server.should_exit = True
         self._thread.join(timeout=10)
         self._sock.close()
