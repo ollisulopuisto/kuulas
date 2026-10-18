@@ -12,7 +12,7 @@ Automixer miksaa valmiin leikkauksen puolestasi: puhe tasataan ja viimeistellä�
 - Miksaus ajetaan taustalla. Ilmoitus näyttää automixerin viimeisimmän viestin; Peruuta pysäyttää sen.
 - Miksaus tallentuu projektin viereen, nimenä leikkaus ja kellonaika. Näytä Finderissä avaa kansion.
 
-Kokonainen jakso voi vaatia paljon muistia. Kokeile ensin rajattua aluetta.
+Miksataan vain puhe- ja musiikkiraidat. Puhemiksaus-raidat ja väylät ovat oman kuunteluvalvontasi tasapainoa ja toiseen sovellukseen vietäviä kiinteitä vientejä varten; automixer ei käytä niitä, joten ne jätetään tästä ajosta pois (tavalliset viennit eivät muutu). Projektin on oltava 48000 Hz.
 
 Tarkista ensimmäisellä kerralla komento dialogin kohdasta Automixer. Se on ohjelma, jonka kuulas ajaa, yleensä `uv run automixer` podcast-kansiossasi. Jos ohjelmaa ei löydy, viesti kertoo sen nimen.
 

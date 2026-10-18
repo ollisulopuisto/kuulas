@@ -1351,7 +1351,6 @@
   "cmd.export.automix": "Mix with the automixer…",
   "cmd.export.automix.hint": "Writes the stems to a temporary folder, runs the automixer on them and puts the finished mix beside the project. Runs in the background; Cancel stops it.",
   "ui.automix.title": "Mix with the automixer",
-  "ui.automix.memory_note": "Full episodes may need a lot of memory; try a range first",
   "ui.automix.target_lufs": "Target loudness (LUFS)",
   "ui.automix.ad_spot": "Ad spot at (seconds, empty for none)",
   "ui.automix.ad_duration": "Ad length (seconds)",
@@ -1369,5 +1368,9 @@
   "ui.automix.running": "The automixer is mixing…",
   "ui.automix.running_line": "The automixer is mixing: {line}",
   "ui.automix.done": "Mixed with the automixer: {path}",
-  "ui.automix.cancelled": "Mixing cancelled."
+  "ui.automix.cancelled": "Mixing cancelled.",
+  "error.automix.bad_rate": "The automixer needs a 48000 Hz project, and this one is {rate} Hz. Nothing was exported or run.",
+  "error.automix.bad_stems": "The stems do not match what the automixer reads: {detail}",
+  "ui.automix.scope_note": "Only speech and music tracks are mixed; speech-mix tracks and buses are left out.",
+  "ui.automix.running_percent": "The automixer is mixing… {percent} %: {line}"
 }

@@ -13,9 +13,10 @@ Assumptions about the tool (README, not measured): it takes the audio files as
 positional arguments and decides speech or music from the file names (the
 exporter already adds " MUSIC" to music stems), ``-o`` names the output WAV,
 ``--target-lufs``, ``--ad-spot`` and ``--ad-duration`` take numbers, it exits
-non-zero on failure and prints progress lines to stdout or stderr. It prints plain
-lines with no percentage, so progress is indeterminate after the stems and the
-last line is the message.
+non-zero on failure and prints progress lines to stdout or stderr. With
+``--progress`` it prints ``PROGRESS <0-100> <message>`` lines (percentages never
+fall, the last is ``PROGRESS 100 done``); any other line is only shown as the
+message.
 """
 
 from __future__ import annotations
@@ -24,6 +25,7 @@ import contextlib
 import json
 import logging
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -33,7 +35,9 @@ from collections import deque
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
+
+import soundfile as sf
 
 from . import export
 from .jobs import JobCancelledError
@@ -50,6 +54,7 @@ STEMS_SHARE = 0.4
 LOG_LINES = 200
 TAIL_LINES = 15
 LUFS_RANGE = (-40.0, 0.0)
+_PROGRESS = re.compile(r"PROGRESS\s+(\d{1,3})(?:\s+(.*))?$")
 #: How long a terminated automixer gets to exit before it is killed.
 GRACE_SECONDS = 5
 
@@ -157,17 +162,79 @@ def validate_params(params: dict) -> tuple[float, float | None, float | None]:
             _number(params, "ad_duration", None, None, default=None, above=0))
 
 
+#: What the automixer's folder route accepts (podcast repo, docs/KUULAS-INTEGRATION.md).
+MANIFEST_RATE = 48000
+
+
+def check_rate(session) -> None:
+    """The automixer only takes 48 kHz: refuse before anything is written."""
+    rate = session.history.state.rate
+    if rate != MANIFEST_RATE:
+        raise AutomixError("error.automix.bad_rate", rate=rate)
+
+
+def check_stems(folder: Path) -> None:
+    """Check the stems folder against the rules the automixer's folder route reads
+    ``tracks.json`` with, so a mismatch is our error with the field named, not a
+    refusal from the tool: version 1, rate 48000, start_frame 0, processing "dry",
+    ``frames`` matching every file, each file's rate and channels, no speech-mix,
+    music stereo, unique names. Raises ``AutomixError`` (``bad_stems``)."""
+    def fail(detail: str) -> NoReturn:
+        raise AutomixError("error.automix.bad_stems", detail=detail)
+
+    try:
+        listing = json.loads((folder / "tracks.json").read_text("utf-8"))
+    except (OSError, ValueError) as e:
+        fail(f"tracks.json: {e}")
+    for field, wanted in (("version", 1), ("rate", MANIFEST_RATE), ("start_frame", 0),
+                          ("processing", "dry")):
+        if listing.get(field) != wanted:
+            fail(f"{field} is {listing.get(field)!r}, must be {wanted!r}")
+    names: set[str] = set()
+    for track in listing.get("tracks", []):
+        name = track.get("name")
+        if name in names:
+            fail(f"duplicate track name {name!r}")
+        names.add(name)
+        if track.get("kind") == "speech-mix":
+            fail(f"track {name!r}: kind speech-mix is not accepted")
+        if track.get("kind") == "music" and track.get("channels") != 2:
+            fail(f"track {name!r}: music must be stereo")
+        try:
+            info = sf.info(folder / track["file"])
+        except (OSError, KeyError, RuntimeError) as e:
+            fail(f"track {name!r}: file missing or unreadable ({e})")
+        if info.frames != listing.get("frames"):
+            fail(f"track {name!r}: frames {info.frames} differ from "
+                 f"frames {listing.get('frames')}")
+        if info.samplerate != MANIFEST_RATE:
+            fail(f"track {name!r}: rate {info.samplerate}")
+        if info.channels != track.get("channels"):
+            fail(f"track {name!r}: channels {info.channels} differ from the list")
+
+
+def export_stems(session, folder: Path | str, report=None,
+                 cancel: threading.Event | None = None) -> dict:
+    """Write the stems for the automixer into ``folder``: the "Export all tracks"
+    files (dry, equal length, 48 kHz), without ``speech-mix`` tracks, music as
+    stereo and ``tracks.json`` as version 1. Returns the export result."""
+    args = {**session.tracks_export_args({"folder": str(folder)}), "for_automixer": True}
+    return export.run(session, args, report, cancel, file_name="stems")
+
+
 def _shown(number: float) -> str:
     return str(int(number)) if number == int(number) else str(number)
 
 
-def build_command(settings: dict, stems: list[Path], output: Path, *,
+def build_command(settings: dict, folder: Path, output: Path, *,
                   target_lufs: float, ad_spot: float | None,
                   ad_duration: float | None) -> list[str]:
-    """The argument list (never a shell string): the command, the stems, ``-o``,
-    the options of this run, then the user's extra arguments."""
-    cmd = [*settings["command"], *map(str, stems), "-o", str(output),
-           "--target-lufs", _shown(target_lufs)]
+    """The argument list (never a shell string): the command, the stems FOLDER (the
+    one with ``tracks.json``; a list of files would take the automixer's in-memory
+    route), ``-o``, the options of this run, ``--progress``, then the user's extra
+    arguments."""
+    cmd = [*settings["command"], str(folder), "-o", str(output),
+           "--target-lufs", _shown(target_lufs), "--progress"]
     if ad_spot is not None:
         cmd += ["--ad-spot", _shown(ad_spot)]
         if ad_duration is not None:
@@ -242,6 +309,7 @@ def run(session, params: dict, settings: dict, report: Report,
     it is. Raises ``AutomixError``, or ``JobCancelledError`` after cancel; the
     temporary folder and any partial output are removed in every case."""
     lufs, ad_spot, ad_duration = validate_params(params)
+    check_rate(session)
     settings = resolve_settings(settings)
     if isinstance(params.get("extra_args"), list):
         settings["extra_args"] = [str(x) for x in params["extra_args"]]
@@ -254,20 +322,19 @@ def run(session, params: dict, settings: dict, report: Report,
     try:
         report(0.0, "")
         try:
-            done = export.run(
-                session, session.tracks_export_args({"folder": str(scratch)}),
+            done = export_stems(
+                session, scratch,
                 lambda fraction, message="": report(STEMS_SHARE * fraction, message),
-                cancel, file_name="stems")
+                cancel)
         except export.ExportError:
             if cancel.is_set():
                 raise JobCancelledError from None
             raise
         listing = json.loads((Path(done["path"]) / "tracks.json").read_text("utf-8"))
-        stems = [
-            Path(done["path"]) / t["file"] for t in listing["tracks"] if t["audible"]
-        ]
-        if not stems:
+        stems = Path(done["path"])
+        if not any(t["audible"] for t in listing["tracks"]):
             raise AutomixError("error.automix.no_audible")
+        check_stems(stems)
 
         folder = Path(session.export_folder_hint()["folder"])
         try:
@@ -282,12 +349,21 @@ def run(session, params: dict, settings: dict, report: Report,
                             ad_spot=ad_spot, ad_duration=ad_duration)
         report(STEMS_SHARE, "", indeterminate=True)
 
+        reached = [STEMS_SHARE]  # the bar never goes back, whatever the tool prints
+
         def on_line(line: str) -> None:
-            # The automixer prints plain lines with no percentage (measured by
-            # the podcast side): the bar stays indeterminate, the line is the message.
-            if line.strip():
-                lines.append(line)
-                report(STEMS_SHARE, line, indeterminate=True)
+            if not line.strip():
+                return
+            lines.append(line)
+            found = _PROGRESS.match(line)
+            if found:  # "PROGRESS 40 message"; the last is "PROGRESS 100 done"
+                share = min(100, int(found.group(1))) / 100
+                reached[0] = max(
+                    reached[0], STEMS_SHARE + (1 - STEMS_SHARE) * 0.99 * share
+                )
+                report(reached[0], (found.group(2) or "").strip() or line)
+            else:  # any other line is only the message
+                report(reached[0], line, indeterminate=reached[0] == STEMS_SHARE)
 
         log.info("Running %s", cmd)
         try:

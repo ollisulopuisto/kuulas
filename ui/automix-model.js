@@ -72,14 +72,21 @@ export function automixNotice(job, t) {
   if (job.state === "cancelled") {
     return { kind: "ok", text: t("ui.automix.cancelled"), sticky: false, cancel: false };
   }
+  const progress = job.progress ?? 0;
   let text;
-  if (job.indeterminate || (job.progress ?? 0) >= STEMS_SHARE) {
+  if (job.indeterminate) {
+    // The tool has not printed a PROGRESS line yet: only its last line.
     text = job.message
       ? t("ui.automix.running_line", { line: job.message })
       : t("ui.automix.running");
-  } else {
-    const percent = Math.round(Math.min(1, (job.progress ?? 0) / STEMS_SHARE) * 100);
+  } else if (progress <= STEMS_SHARE) {
+    const percent = Math.round(Math.min(1, progress / STEMS_SHARE) * 100);
     text = t("ui.automix.preparing", { percent });
+  } else {
+    text = t("ui.automix.running_percent", {
+      percent: Math.round(progress * 100),
+      line: job.message ?? "",
+    });
   }
   return { kind: "ok", text, sticky: true, cancel: true, reveal: false };
 }

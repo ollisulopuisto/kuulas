@@ -766,6 +766,7 @@ class Session:
         folder."""
         params = dict(params or {})
         automix_module.validate_params(params)
+        automix_module.check_rate(self)
         with self.lock:
             self.history._check_writable()
         settings = automix_module.load_settings()

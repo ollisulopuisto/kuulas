@@ -27,17 +27,23 @@ FAKE = textwrap.dedent('''
     mode = argv[argv.index("--mode") + 1] if "--mode" in argv else "ok"
     out = argv[argv.index("-o") + 1]
     valued = {"-o", "--mode", "--target-lufs", "--ad-spot", "--ad-duration"}
-    files, i = [], 0
+    positional, i = [], 0
     while i < len(argv):
         if argv[i] in valued:
             i += 2
         elif argv[i].startswith("--"):
             i += 1
         else:
-            files.append(argv[i])
+            positional.append(argv[i])
             i += 1
+    files = []
+    if len(positional) == 1 and os.path.isdir(positional[0]):
+        listing = json.load(open(os.path.join(positional[0], "tracks.json")))
+        files = [os.path.join(positional[0], t["file"])
+                 for t in listing["tracks"] if t["audible"]]
     with open(os.environ["FAKE_LOG"], "w") as f:
-        json.dump({"argv": argv, "files": files, "cwd": os.getcwd(),
+        json.dump({"argv": argv, "positional": positional, "files": files,
+                   "cwd": os.getcwd(),
                    "exists": [os.path.exists(p) for p in files]}, f)
     print("loading", len(files), "tracks", flush=True)
     if mode == "fail":
@@ -47,10 +53,13 @@ FAKE = textwrap.dedent('''
         sf.write(out, np.zeros(100, dtype="float32"), 48000)
         print("working", flush=True)
         time.sleep(60)
-    for pct in (25, 50, 75):
-        print(f"mixing {pct}%", flush=True)
+    assert "--progress" in argv
+    for pct, msg in ((25, "Engine: speech"), (10, "late old line"), (50, "Engine: music"),
+                     (75, "Engine: master")):
+        print(f"PROGRESS {pct} {msg}", flush=True)
+    print("some other line", flush=True)
     sf.write(out, np.zeros(4800, dtype="float32"), 48000)
-    print("done", flush=True)
+    print("PROGRESS 100 done", flush=True)
 ''')
 
 
@@ -119,14 +128,16 @@ def test_defaults_when_nothing_is_stored(tmp_path):
 def test_command_line_is_an_argument_list():
     settings = {"command": ["uv", "run", "automixer"],
                 "extra_args": ["--speech-plugins", "dxRevive"]}
+    # the stems FOLDER is the one positional argument: a file list would take the
+    # automixer's in-memory route
     cmd = automix.build_command(
-        settings, [Path("/s/a.wav"), Path("/s/b MUSIC.wav")], Path("/o/out.wav"),
+        settings, Path("/s/stems"), Path("/o/out.wav"),
         target_lufs=-16, ad_spot=None, ad_duration=None)
-    assert cmd == ["uv", "run", "automixer", "/s/a.wav", "/s/b MUSIC.wav",
-                   "-o", "/o/out.wav", "--target-lufs", "-16",
+    assert cmd == ["uv", "run", "automixer", "/s/stems",
+                   "-o", "/o/out.wav", "--target-lufs", "-16", "--progress",
                    "--speech-plugins", "dxRevive"]
     cmd = automix.build_command(
-        {"command": ["automixer"], "extra_args": []}, [Path("/s/a.wav")],
+        {"command": ["automixer"], "extra_args": []}, Path("/s/stems"),
         Path("/o/x.wav"), target_lufs=-14.5, ad_spot=1200, ad_duration=45)
     assert cmd[-4:] == ["--ad-spot", "1200", "--ad-duration", "45"]
     assert "-14.5" in cmd
@@ -162,13 +173,24 @@ def test_success_runs_the_command_on_the_stems_and_cleans_up(
     assert fractions == sorted(fractions)
     assert fractions[-1] == 1.0
     assert any(f <= 0.4 for f in fractions)
-    assert any(m == "mixing 50%" for _f, m, _i in reports.items)
-    # the real CLI prints no percentage, so after the stems the bar is indeterminate
-    # and any "42%" in a log line is only text
-    log_reports = [r for r in reports.items if r[1] in result["log"]]
-    assert log_reports
-    assert all(i and f == automix.STEMS_SHARE for f, _m, i in log_reports)
-    assert result["log"][-1] == "done"
+    # one positional argument: the folder that holds tracks.json
+    assert len(seen["positional"]) == 1
+    assert (Path(seen["positional"][0]) / "tracks.json").name == "tracks.json"
+    assert "--progress" in seen["argv"]
+    # PROGRESS <0-100> <message> lines are the bar; the message is what follows
+    mix = [(f, m, i) for f, m, i in reports.items if m.startswith("Engine")]
+    assert [m for _f, m, _i in mix] == [
+        "Engine: speech", "Engine: music", "Engine: master"]
+    assert all(not i for _f, _m, i in mix)
+    assert mix[0][0] == pytest.approx(0.4 + 0.6 * 0.99 * 0.25)
+    # a lower percentage after a higher one never moves the bar back
+    late = [f for f, m, _i in reports.items if m == "late old line"]
+    assert late == [mix[0][0]]
+    # other lines are the message, and the bar stays where it was
+    other = [r for r in reports.items if r[1] == "some other line"]
+    assert other
+    assert other[0][0] == mix[-1][0]
+    assert result["log"][-1] == "PROGRESS 100 done"
 
 
 def test_a_muted_track_is_not_given_to_the_automixer(session, fake, tmp_path):

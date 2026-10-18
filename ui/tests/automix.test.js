@@ -67,15 +67,22 @@ describe("automixNotice", () => {
     assert.match(n.text, /ui\.automix\.running/);
   });
 
-  test("running shows the last log line, no percent while indeterminate", () => {
+  test("before the first PROGRESS line the last log line shows, with no percent", () => {
     const n = automixNotice({ state: "running", message: "Mixing Olli", indeterminate: true }, t);
     assert.match(n.text, /Mixing Olli/);
     assert.doesNotMatch(n.text, /%/);
   });
 
-  test("the stems part shows a percent", () => {
+  test("the stems part shows a percent of the stems", () => {
     const n = automixNotice({ state: "running", message: "", progress: 0.2 }, t);
-    assert.match(n.text, /"percent":50/);
+    assert.match(n.text, /ui\.automix\.preparing.*"percent":50/);
+  });
+
+  test("the mix part shows the real percent and the tool's message", () => {
+    const n = automixNotice({ state: "running", message: "Engine: music", progress: 0.7 }, t);
+    assert.match(n.text, /ui\.automix\.running_percent/);
+    assert.match(n.text, /"percent":70/);
+    assert.match(n.text, /Engine: music/);
   });
 
   test("done offers Show in Finder; failed shows the server text; cancelled says so", () => {

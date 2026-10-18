@@ -1351,7 +1351,6 @@
   "cmd.export.automix": "Miksaa automixerilla…",
   "cmd.export.automix.hint": "Kirjoittaa raidat väliaikaiseen kansioon, ajaa niille automixerin ja tallentaa valmiin miksauksen projektin viereen. Toimii taustalla; Peruuta pysäyttää.",
   "ui.automix.title": "Miksaa automixerilla",
-  "ui.automix.memory_note": "Kokonainen jakso voi vaatia paljon muistia; kokeile ensin rajattua aluetta",
   "ui.automix.target_lufs": "Tavoiteäänekkyys (LUFS)",
   "ui.automix.ad_spot": "Mainoskohta (sekuntia, tyhjä = ei mainosta)",
   "ui.automix.ad_duration": "Mainoksen pituus (sekuntia)",
@@ -1369,5 +1368,9 @@
   "ui.automix.running": "Automixer miksaa…",
   "ui.automix.running_line": "Automixer miksaa: {line}",
   "ui.automix.done": "Miksattu automixerilla: {path}",
-  "ui.automix.cancelled": "Miksaus peruutettiin."
+  "ui.automix.cancelled": "Miksaus peruutettiin.",
+  "error.automix.bad_rate": "Automixer tarvitsee 48000 Hz:n projektin, ja tämä on {rate} Hz. Mitään ei viety eikä ajettu.",
+  "error.automix.bad_stems": "Raidat eivät vastaa sitä, mitä automixer lukee: {detail}",
+  "ui.automix.scope_note": "Miksataan vain puhe- ja musiikkiraidat; puhemiksaus-raidat ja väylät jätetään pois.",
+  "ui.automix.running_percent": "Automixer miksaa… {percent} %: {line}"
 }

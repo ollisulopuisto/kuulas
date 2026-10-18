@@ -88,7 +88,7 @@ DEFAULTS: dict[str, dict[str, Any]] = {
                   "latest": False},
     "tracks": {"format": "wav", "bit_depth": 24, "mp3_kbps": None,
                "template": "{edit}{span} tracks v{n}", "processing": "dry",
-               "list_file": False},
+               "list_file": False, "for_automixer": False},
 }
 #: What the one-button "Export all tracks" starts from. Dry stems with the edit
 #: applied (cuts, clip gain, fades, mutes) and no bus or master: what a mixer
@@ -101,7 +101,7 @@ ALL_TRACKS: dict[str, Any] = {
 #: in the exports folder, named by edit and local time so no run overwrites another.
 MIX_FILE: dict[str, Any] = {"kind": "mix", "template": "{edit} {stamp} v{n}.{ext}"}
 #: Settings that are not remembered: they are about this one export.
-NOT_REMEMBERED = ("range",)
+NOT_REMEMBERED = ("range", "for_automixer")
 #: Settings that do not change the rendered audio, so they stay out of the hash.
 NOT_HASHED = ("folder", "template", "latest")
 
@@ -284,7 +284,18 @@ def _settings(kind: str, remembered: dict | None, args: dict) -> dict[str, Any]:
     elif kind == "selection":
         raise _fail("error.export.bad_range")
     merged["latest"] = bool(merged.get("latest", False))
+    if kind == "tracks":
+        merged["for_automixer"] = bool(merged.get("for_automixer", False))
     return merged
+
+
+def _exported(project: Project, settings: dict) -> list[Track]:
+    """The tracks a track export writes. The stems for the automixer (WP68) leave
+    out ``speech-mix`` tracks: that kind is kuulas's own monitoring balance and
+    burn-in bus, which the automixer refuses. Every other export writes all."""
+    if settings.get("for_automixer"):
+        return [t for t in project.tracks if t.kind != "speech-mix"]
+    return list(project.tracks)
 
 
 def _snapshot(session, kind: str, args: dict) -> _Job:
@@ -315,7 +326,8 @@ def _snapshot(session, kind: str, args: dict) -> _Job:
         digest = _digest(project, kind, settings, h.edit_hash)
         unrecorded = len(placeholders_module.unrecorded(
             project.placeholders, first, first + frames))
-        silent = tuple(tr.name for tr in project.tracks if not _audible(project, tr))
+        silent = tuple(tr.name for tr in _exported(project, settings)
+                       if not _audible(project, tr))
         return _Job(kind, settings, project, session.store, rate, first, frames, ranged,
                     edit, session.package.path.stem, h.head, digest, unrecorded,
                     datetime.now(UTC).astimezone().strftime("%Y-%m-%d %H%M%S"), silent)
@@ -733,8 +745,11 @@ def _tracks(job: _Job, target: Path, n: int, workers: int,
     as_heard = s["processing"] == "as_heard"
     listing, paths, used = [], [], set()
     ext = _format(job).ext
-    for i, track in enumerate(p.tracks):
+    tracks = _exported(p, s)
+    for i, track in enumerate(tracks):
         channels = _track_channels(p, track)
+        if s.get("for_automixer") and track.kind == "music":
+            channels = 2  # the automixer refuses mono music
         stem = _safe(track.name)
         if track.kind == "music" and not any(w in stem.upper() for w in MUSIC_WORDS):
             stem += " MUSIC"  # the automixer reads the role from the file name
@@ -754,14 +769,17 @@ def _tracks(job: _Job, target: Path, n: int, workers: int,
         done = work / f"{base}.{ext}"
         _produce(job, done, channels, render, tags=_provenance(job, n),
                  master_lufs=None, workers=workers, cancel=cancel,
-                 tick=lambda f, i=i: say(0.95 * (i + f) / len(p.tracks)), scratch=[])
+                 tick=lambda f, i=i: say(0.95 * (i + f) / len(tracks)), scratch=[])
         paths.append(done)
         listing.append({"id": track.id, "name": track.name, "kind": track.kind,
                         "speaker": track.speaker, "channels": channels, "file": done.name,
                         "audible": audible, "gain_db": track.gain_db, "pan": track.pan})
     if s.get("list_file"):
         (work / "tracks.json").write_text(json.dumps({
-            "edit": job.edit, "project": job.project_name, "version": n, "rate": job.rate,
+            "edit": job.edit, "project": job.project_name,
+            # the automixer's folder route reads "version" as the manifest version (1)
+            "version": 1 if s.get("for_automixer") else n,
+            **({"export_version": n} if s.get("for_automixer") else {}), "rate": job.rate,
             "start_frame": job.first, "frames": job.frames, "processing": s["processing"],
             "format": ext, "bit_depth": s["bit_depth"], "tracks": listing},
             indent=1, ensure_ascii=False), encoding="utf-8")
@@ -813,7 +831,8 @@ def _counts(job: _Job) -> dict:
     """How many tracks a track export covers and which came out silent."""
     if job.kind != "tracks":
         return {}
-    return {"track_count": len(job.project.tracks), "silent": list(job.silent)}
+    return {"track_count": len(_exported(job.project, job.settings)),
+            "silent": list(job.silent)}
 
 
 def last_settings(session, kind: str) -> dict | None:

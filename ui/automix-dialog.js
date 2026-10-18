@@ -40,7 +40,7 @@ export function createAutomixDialog({ api, t, onStart }) {
   heading.textContent = t("ui.automix.title");
   const note = document.createElement("p");
   note.className = "automix-note";
-  note.textContent = t("ui.automix.memory_note");
+  note.textContent = t("ui.automix.scope_note");
   const error = document.createElement("p");
   error.className = "automix-error";
   error.setAttribute("role", "alert");
