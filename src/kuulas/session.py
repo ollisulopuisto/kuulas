@@ -65,6 +65,7 @@ from . import music_report as music_report_module
 from .clipboard import ClipRef, Entry, entry_from_refs, make_entry, make_entry_range
 from .clipboard_preview import preview_project
 from .clipboard_store import ClipboardStore, entry_dict, project_path
+from .clipboard_text import entry_text
 from .clock import FLICKS, frames_to_flicks
 from .history import History, UndoInfo
 from .jobs import JobCancelledError, Jobs
@@ -463,7 +464,22 @@ class Session:
                 "clips": len(entry.refs),
                 "slots": len({ref.track_slot for ref in entry.refs}),
                 "missing_here": len(wanted - have),
-                "source_name": Path(entry.source_project).stem}
+                "source_name": entry.source_name or Path(entry.source_project).stem}
+
+    def _describe(self, entry: Entry) -> Entry:
+        """``entry`` with what only the session knows (WP65): this project's
+        folder, name and manifest id, and the transcript words inside the
+        copied stretch. Reads the transcripts, so a project without any gives
+        an empty text."""
+        try:
+            text = entry_text(self.state, entry, self.transcripts())
+        except (KeyError, ValueError, TypeError) as e:
+            # The text is a convenience for searching; it never stops a copy.
+            log.warning(t("log.clipboard.text_failed", error=str(e)))
+            text = ""
+        return replace(entry, source_project=str(self.package.path),
+                       source_name=Path(self.package.path).stem,
+                       source_id=str(self.package.manifest.get("id", "")), text=text)
 
     def _entry(self, entry_id: str) -> Entry:
         entry = self.clipboard.load().get(entry_id)
@@ -500,7 +516,7 @@ class Session:
                                                     int(start), int(end),
                                                     bool(group_editing))
             entry = make_entry_range(project, int(start), int(end), track_ids, name=name)
-        entry = replace(entry, source_project=str(self.package.path))
+        entry = self._describe(entry)
         self.clipboard.update(lambda h: h.add(entry))
         return {"entry": self._entry_view(entry, project)}
 
@@ -537,8 +553,8 @@ class Session:
                                             bool(group_editing))
             entry, problem = None, None
             try:
-                entry = replace(make_entry_range(project, start, end, scope, name=name),
-                                source_project=str(self.package.path))
+                entry = self._describe(
+                    make_entry_range(project, start, end, scope, name=name))
             except KuulasError as e:
                 problem = t(e.key, **e.params)
             new = remove(project, start, end, track_ids, bool(group_editing))

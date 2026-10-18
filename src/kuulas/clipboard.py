@@ -59,6 +59,10 @@ class ClipRef:
     envelope: tuple[Point, ...] = ()
     rel_start: int = 0
     track_slot: int = 0
+    # The recording's file name when it was copied: for people reading the
+    # entry (panel, search), never an identity (that is ``media_sha256``), so
+    # it takes no part in comparing two references.
+    media_name: str = field(default="", compare=False)
     # Unknown keys a newer kuulas wrote (docs/FORMAT.md, "Unknown keys").
     extra: dict = field(default_factory=dict, hash=False)
 
@@ -73,6 +77,15 @@ class Entry:
     range when a range copy's edges were silent. ``source_project`` is the
     source project's folder (WP20's clipboard format), empty until the
     session wiring fills it in: the ``Project`` dataclass carries no path.
+
+    The rest is what later sorting and searching read (WP65), kept in the
+    entry so it still means something when its project is gone or far away:
+    ``source_name`` and ``source_id`` (the project's name and manifest id),
+    ``tracks`` and ``track_kinds`` (the source tracks' names and kinds by
+    slot), ``text`` (the transcript words inside the copied stretch, one line
+    per track), ``shared`` (marked as worth sharing across projects) and
+    ``adopted_from`` (the folder of the project an adopted copy came from).
+    Every one defaults, so an entry from before loads.
     """
 
     id: str
@@ -82,6 +95,13 @@ class Entry:
     span: tuple[int, int] = (0, 0)
     source_project: str = ""
     pinned: bool = False
+    source_name: str = ""
+    source_id: str = ""
+    tracks: tuple[str, ...] = ()
+    track_kinds: tuple[str, ...] = ()
+    text: str = ""
+    shared: bool = False
+    adopted_from: str = ""
     # Unknown keys a newer kuulas wrote (docs/FORMAT.md, "Unknown keys").
     extra: dict = field(default_factory=dict, hash=False)
 
@@ -105,6 +125,14 @@ def _sha256_of(project: Project, clip: Clip) -> str:
         return project.media_item(clip.media).sha256
     except KeyError:
         raise EditError("error.edit.no_media", media_id=clip.media) from None
+
+
+def _media_name(project: Project, clip: Clip) -> str:
+    """The file name of the recording behind a clip ("" when it has none)."""
+    try:
+        return project.media_item(clip.media).name
+    except KeyError:
+        return ""
 
 
 def _chosen_tracks(project: Project,
@@ -138,15 +166,17 @@ def _entry(project: Project, parts: list[_Part], name: str,
                  gain_db=part.clip.gain_db, pan=part.clip.pan,
                  fade_in=part.fade_in, fade_out=part.fade_out,
                  muted=part.clip.muted, envelope=part.clip.envelope,
-                 rel_start=part.start - base, track_slot=slots[part.track_id])
+                 rel_start=part.start - base, track_slot=slots[part.track_id],
+                 media_name=_media_name(project, part.clip))
          for part in parts),
         key=lambda ref: (ref.rel_start, ref.track_slot, ref.offset)))
     end = max(part.start + part.length for part in parts)
-    # The source tracks' names by slot, so the panel can say where a copy came
-    # from without the source project (an unknown key to older readers).
-    names = [track.name for track in project.tracks if track.id in touched]
+    # The source tracks' names and kinds by slot, so the panel can say where a
+    # copy came from without the source project.
+    source = [track for track in project.tracks if track.id in touched]
     return Entry(_new_id(moment), name, moment, refs=refs, span=(base, end),
-                 extra={"tracks": names})
+                 tracks=tuple(track.name for track in source),
+                 track_kinds=tuple(track.kind for track in source))
 
 
 def make_entry(project: Project, clip_ids: Iterable[str], *, name: str = "",
@@ -218,9 +248,10 @@ def make_entry_range(project: Project, start: int, end: int,
 # -- JSON --------------------------------------------------------------------
 
 _REF_KEYS = ("media_sha256", "offset", "length", "gain_db", "pan", "fade_in",
-             "fade_out", "muted", "envelope", "rel_start", "track_slot")
+             "fade_out", "muted", "envelope", "rel_start", "track_slot", "media_name")
 _ENTRY_KEYS = ("id", "name", "created_utc", "refs", "span", "source_project",
-               "pinned")
+               "pinned", "source_name", "source_id", "tracks", "track_kinds", "text",
+               "shared", "adopted_from")
 
 
 def _ref_out(ref: ClipRef) -> dict:
@@ -229,7 +260,8 @@ def _ref_out(ref: ClipRef) -> dict:
          "fade_in": ref.fade_in, "fade_out": ref.fade_out,
          "muted": ref.muted,
          "envelope": [[frame, db] for frame, db in ref.envelope],
-         "rel_start": ref.rel_start, "track_slot": ref.track_slot}
+         "rel_start": ref.rel_start, "track_slot": ref.track_slot,
+         "media_name": ref.media_name}
     # A known key always wins over an extra of the same name.
     return {**ref.extra, **d}
 
@@ -247,7 +279,11 @@ def _entry_out(entry: Entry) -> dict:
          "created_utc": entry.created_utc,
          "refs": [_ref_out(ref) for ref in entry.refs],
          "span": [entry.span[0], entry.span[1]],
-         "source_project": entry.source_project, "pinned": entry.pinned}
+         "source_project": entry.source_project, "pinned": entry.pinned,
+         "source_name": entry.source_name, "source_id": entry.source_id,
+         "tracks": list(entry.tracks), "track_kinds": list(entry.track_kinds),
+         "text": entry.text, "shared": entry.shared,
+         "adopted_from": entry.adopted_from}
     # A known key always wins over an extra of the same name.
     return {**entry.extra, **d}
 
@@ -257,6 +293,9 @@ def _entry_in(d: dict) -> Entry:
     known["refs"] = tuple(_ref_in(ref) for ref in known.get("refs", ()))
     if "span" in known:
         known["span"] = (int(known["span"][0]), int(known["span"][1]))
+    for key in ("tracks", "track_kinds"):
+        if key in known:
+            known[key] = tuple(str(item) for item in known[key])
     extra = {key: value for key, value in d.items() if key not in _ENTRY_KEYS}
     return Entry(**known, extra=extra)
 

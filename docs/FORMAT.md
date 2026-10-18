@@ -173,6 +173,18 @@ the metadata the panel shows and later sorting and search use: `id`, `name`,
 copied in), `pinned` (kept for compatibility; the UI no longer pins), and the
 keys below. Unknown keys are kept and written back.
 
+Metadata kept for sorting and searching (all optional; an entry without them
+loads with the defaults):
+
+| key | meaning |
+|---|---|
+| `source_name`, `source_id` | the source project's name (folder stem) and manifest `id` |
+| `tracks`, `track_kinds` | the names and kinds of the source tracks, by slot |
+| `text` | the transcript words inside the copied stretch, one line per track, original case (search lowercases) |
+| `shared` | `true` when marked as worth sharing across projects (WP65 step 4) |
+| `adopted_from` | the folder of the project an adopted copy came from |
+| `refs[].media_name` | the recording's file name when copied (never an identity; the hash is) |
+
 **Not project state.** Never in the history or the database, no undo step, no
 change to the bytes of `project.sqlite`. The file is rewritten atomically
 (temp file, fsync, rename) on every copy, cut, rename, delete and clear. Only the
