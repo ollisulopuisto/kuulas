@@ -3380,3 +3380,15 @@ Needs WP29 (project format), WP39 (portable projects: media paths), WP13/WP34 (i
 several edits. Tests: round trip of a template; applying it twice adds nothing twice; a missing jingle file is
 reported, not fatal; anchors from the end follow the programme's length.
 
+---
+
+### WP67 — Label colours for clips, regions and markers (owner question, 2026-10-19)
+
+Status: open, proposed. The design grammar already reserves "a label colour the user gave a clip (never set
+automatically)" (`ui/grammar.js`), but there is no colour field in the model yet: only tracks have colours,
+assigned automatically. One small palette (8 colours plus none) used by clips, regions and markers (and later the
+selects of WP58, where each bit gets a colour): stored as an optional `label` field (omitted when none, so old
+projects keep their bytes), set from the right-click menu, the inspector and a command with number keys, shown as
+a coloured strip on the clip's label row, a tinted region band in the ruler and a coloured marker flag, and
+searchable/filterable later ("show only red"). Never changes the sound or the waveform colour.
+
