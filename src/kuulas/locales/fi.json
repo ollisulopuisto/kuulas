@@ -1259,5 +1259,14 @@
   "ui.track.mono": "Mono",
   "ui.track.tag.mono": "mono",
   "ui.track.tag.stereo": "stereo",
-  "ui.edit.label.mono": "Muuta monoksi"
+  "ui.edit.label.mono": "Muuta monoksi",
+  "ui.ctx.clipboard": "Leikepöytä",
+  "ui.ctx.paste": "Liitä",
+  "ui.ctx.edit": "Muokkaa",
+  "ui.ctx.select": "Valitse",
+  "ui.ctx.adjust": "Rajaus, siirto, taso",
+  "ui.ctx.play": "Toisto",
+  "ui.ctx.marks": "Alue",
+  "ui.ctx.insert": "Lisää tähän",
+  "ui.ctx.zoom": "Zoomaus"
 }

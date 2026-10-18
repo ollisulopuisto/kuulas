@@ -981,6 +981,14 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     if (placeholder && !clip) actions.editPlaceholder(placeholder);
     else if (gate) actions.openGate(gate);
   });
+  // Right-click: the browser's menu never opens; the app shows the timeline menu for what is
+  // under the pointer. The press itself (button 2) is ignored by the pointerdown handler
+  // below, so it starts no drag and moves nothing; the app decides what it selects.
+  overlayCanvas.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+    if (!getState().project || edgeSession || clipSession || tweakSession) return;
+    actions.contextMenu?.(hitAt(event), event);
+  });
   // Dragging a clip edge (WP6). A press on the edge zone behaves as a click (selects, sets the
   // cursor) and also arms a session; after DRAG_PX of travel it is a drag: ghost while moving,
   // Shift (any time) switches roll to ripple, Esc cancels, release sends the edit.

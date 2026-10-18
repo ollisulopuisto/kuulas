@@ -313,6 +313,28 @@ export function setupKeyboard({ actions, app, t, notify, onLanguageChange, onRef
     palette,
     cheat,
     refresh: refreshAll,
+    /**
+     * Label, keys and tooltip for these command ids, as the menu bar shows them now:
+     * a Map id -> { label, keys, tooltip } (the timeline context menus read it).
+     */
+    describe(ids) {
+      const [menu] = resolveMenu({
+        menu: [
+          {
+            id: "ctx",
+            labelKey: "ui.context_menu",
+            items: ids.map((id) => ({ kind: "item", id })),
+          },
+        ],
+        entries,
+        registry,
+        state: app.getState(),
+        label,
+        platform,
+        held: tracker.held(),
+      });
+      return new Map(menu.items.map((item) => [item.baseId, item]));
+    },
     /** The keymap the user has right now (defaults with overrides): what help reads. */
     entries: () => entries,
     /** A combo as the user reads it: "⇧⌘Z" or "Ctrl+Shift+Z", the same as the cheat sheet. */
