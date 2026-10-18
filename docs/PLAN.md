@@ -1937,9 +1937,18 @@ in the playback path:
   and switching is loudness-matched (speechmix meter). Changing settings in
   the plug-in's own window (speechmix.editor) re-renders the window in the
   background and swaps it in when ready. **Enter** keeps the setting, and the
-  full source render starts. If speechmix measures that the parameter is a
-  linear dry/wet mix, offer a continuous slider by blending one 100 % render
-  with the original instead.
+  full source render starts. **Measured by the podcast repo (2026-10-18, dxRevive, one speaker, two 10 s
+  windows):** the Mix parameter is a gain-preserving crossfade with dry weight
+  a(m) = (1 − m)^2.37 (25 % = 0.50/0.50, 50 % = 0.20/0.80, 75 % = 0.04/0.96),
+  not a plain blend. So the slider is `out(m) = a(m)·raw + (1 − a(m))·render(100 %)`:
+  one render, instant, about −28 dB from the plug-in's own output (its own
+  run-to-run noise is −25 to −38 dB, so separate renders per setting are less
+  consistent than one render). Needs about 8 s of preroll before the window
+  (about 2.6 s per 10 s render on one worker). Open: wet render delay of 0 to −3
+  samples against the input; align the wet render to the raw per window.
+  Needs `speechmix.mix_blend(raw, render100, m, wet_shift=None)` from the
+  podcast repo (proposed there; do not build it here). The model (Studio or
+  Studio 2) is in the plug-in state blob; Studio is 13 dB noisier.
 - **Render in → out** (Shift+Mod+B, Logic's bounce in place): render the
   selected clips, or in→out on the selected tracks, through all their layers
   into new media (FLAC, content-addressed), with 2 s handles. The clips are
