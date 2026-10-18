@@ -1298,7 +1298,9 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     };
     const up = (e) => {
       const now = current(e);
-      alt = e.altKey;
+      // Not `alt = e.altKey`: the release event does not always carry the modifier (the owner's
+      // alt-drag preview showed the clips and the selection vanished on release), so the
+      // state tracked from the moves and the Alt key events decides.
       end();
       if (!dragging) return;
       const { range, touched } = outcome(now);
