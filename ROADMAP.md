@@ -227,6 +227,9 @@ WP27, WP38, WP42, WP47.
 
 ## Later (v2)
 
+- **Hindenburg round trip** (export back to a Hindenburg session, `.nhsx`): punted by the owner on
+  2026-10-18 ("it can happen way later"). The import stays; the fallback for now is "Export all tracks"
+  (per-track WAVs, same length and start) which Hindenburg can import at time zero.
 - **Full-stack playback**: hear the mixed package (effects and loudness applied) inside
   kuulas, rendered in chunks ahead of the playhead on spare cores (WP23b). Owner:
   later, not in the first version.
