@@ -34,6 +34,7 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 | 22 | 18.10 | Every clip deleted with X went to the clipboard (bad) | X and Shift+X are now "Delete and close the gap" (op `cut_range`, clipboard untouched); Mod+X and Shift+Mod+X are Cut to the clipboard |
 | 23 | 18.10 | Esc should clear the in/out marks from the timeline | Esc now clears selection, range and in/out in one press |
 | 24 | 18.10 | Adjusting clips (move, trim, gain, fades) moved the play cursor there | the press no longer seeks; the cursor goes there on release only if the press was a plain click. Not seen on screen. |
+| 25 | 18.10 | Undo after a cut (X) should restore the previous in/out points, to adjust one of them | `ui/range-memory.js`: Undo to the head before the cut brings the marks and lanes back (unless new marks were set); Redo clears them again. Not seen on screen. |
 | 20 | 18.10 | Cmd+Alt+click on a clip should select it and all following clips on all tracks (Hindenburg) | this commit; not tried by the owner |
 | 19 | 18.10 | X should work almost anywhere when in/out are marked | X, Shift+X, Alt+X and Alt+Mod+X now work from any panel (inspector, history, clipboard, markers, candidates) except text fields and the transcript, where X cuts the selected words |
 

@@ -64,6 +64,7 @@ import { createPlaceholderEditor } from "./placeholder-editor.js";
 import { createPrefs } from "./prefs.js";
 import { patchClip } from "./provisional.js";
 import { rangeLine } from "./range-info.js";
+import { rememberRange, stepRangeMemory } from "./range-memory.js";
 import { forwardFromClip } from "./selection-ops.js";
 import { setupKeyboard } from "./shell-keys.js";
 import { chipSpeed } from "./shuttle.js";
@@ -409,6 +410,9 @@ function openGateStretch(gate) {
 // Command registry for the keyboard layer: id -> function.
 export const commands = { [GATE_OPEN_COMMAND]: () => openGateStretch() };
 
+// The marks a cut used up come back on Undo (range-memory.js).
+let rangeMemory = null;
+
 // -- pointer on the timeline ------------------------------------------------------
 
 function onPointerDown(hit, event, { noSeek = false } = {}) {
@@ -560,6 +564,10 @@ const keyboard = setupKeyboard({
     toast: (text, options) => showNotice(text, "ok", options),
     copy: (body) => copyToClipboard(body),
     refreshClipboard: () => void refreshClipboard(),
+    rememberRange: () => {
+      const { head, inPoint, outPoint, rangeTracks } = getState();
+      rangeMemory = rememberRange(head, { inPoint, outPoint, rangeTracks });
+    },
     previewClipboard: (id) =>
       api.previewClipboardEntry(id).catch((error) => {
         showError(error);
@@ -1810,6 +1818,11 @@ function render(state, patch) {
   if (touched("project", "markerSelected", "playhead", "inPoint", "outPoint"))
     markersPanel.update(state);
   if (state.head && touched("head")) void refreshCandidates();
+  if (touched("head") && rangeMemory) {
+    const step = stepRangeMemory(rangeMemory, state.head, state);
+    rangeMemory = step.memory;
+    if (step.patch) setState(step.patch);
+  }
   if (
     touched(
       "candidates",

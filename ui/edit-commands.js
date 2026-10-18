@@ -65,6 +65,8 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
 
   function send(plan) {
     const before = app.getState().project;
+    // Undo brings back the marks this edit is about to use up (range-memory.js).
+    if (RANGE_SPENT_OPS.has(plan.op)) app.rememberRange?.();
     app.edit({
       op: plan.op,
       args: plan.args,
