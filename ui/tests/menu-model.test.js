@@ -61,10 +61,22 @@ const find = (menus, id) => {
 };
 
 describe("the menu data", () => {
-  test("has File, Edit, Track, Markers, Narration, View and Help, and names only known commands", () => {
+  test("has the expected menus in order, and names only known commands", () => {
     assert.deepEqual(
       MENU.map((m) => m.id),
-      ["file", "edit", "track", "markers", "narration", "view", "help"],
+      [
+        "file",
+        "edit",
+        "track",
+        "markers",
+        "transport",
+        "go",
+        "transcript",
+        "candidates",
+        "narration",
+        "view",
+        "help",
+      ],
     );
     const ids = new Set(DEFAULT_KEYMAP.map((e) => e.id));
     for (const id of menuTargets(MENU)) assert.ok(ids.has(id), id);
