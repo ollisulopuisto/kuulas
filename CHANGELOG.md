@@ -1,3 +1,15 @@
+## [v26.10.18.14] - 2026-10-18
+
+- Inspector "Source" section: for a selected clip it shows how much of its recording is used
+  ("Used 62% · 3 parts"), a small map of the whole recording (used solid, cut hatched, unused
+  outlined, this clip boxed), "Part 2 of 3", and a list of the other clips from the same
+  recording that you can click to jump to. Collapsed by default.
+- X on selected transcript words now copies them to the clipboard before cutting (the toast says
+  "in the clipboard", or "NOT copied" if the copy failed while the cut still happened).
+- The README is up to date (what works, how to run and test, what has not been verified).
+- Building block: measuring how loud a clip is (read in 60 s pieces) and the gain that would
+  bring it to a target level.
+
 ## [v26.10.18.13] - 2026-10-18
 
 - Transcript panel: the dock under the timeline shows the transcript as one paragraph per

@@ -3,9 +3,11 @@
 
 import { bindToggle } from "./ab-value.js";
 import { formatDb, formatNumber, t } from "./i18n.js";
+import { createSourceSection } from "./inspector-source.js";
 import { buildTrackSections, field } from "./inspector-track.js";
 import { MUSIC_HUE, trackHues } from "./paint.js";
 import { coalesceKey, patchClip } from "./provisional.js";
+import { createSourceMaps } from "./source-map.js";
 import { inspectorTarget } from "./track-target.js";
 import { panText } from "./tracks.js";
 
@@ -28,13 +30,14 @@ export function selectedClip(state) {
   return null;
 }
 
-/** Which sections start open: Track/Bus, Level and Sync; the rest wait to be asked for. */
+/** Which sections start open: Track/Bus, Level and Sync; Source (one-line summary) and the rest wait to be asked for. */
 const SECTION_DEFAULTS = {
   track: true,
   bus: true,
   level: true,
   fades: false,
   sync: true,
+  source: false,
   details: false,
 };
 const SECTIONS_KEY = "kuulas.inspector.sections";
@@ -73,7 +76,22 @@ export function syncGroupOf(project, mediaId) {
   return project.sync_groups?.find((group) => mediaId in group.members) ?? null;
 }
 
-export function createInspector({ root, editor }) {
+export function createInspector({ root, editor, jump = () => {}, fetchMap }) {
+  let sourceParts = null;
+  const maps = createSourceMaps({
+    fetchMap: fetchMap ?? (() => new Promise(() => {})),
+    onChange: () => redrawSource(),
+    onError: () => {},
+  });
+  function redrawSource() {
+    if (!sourceParts || !current || !latestState) return;
+    sourceParts.update(
+      current,
+      maps.get(current.media?.sha256, latestState.head),
+      latestState.project,
+    );
+  }
+
   let builtFor = "";
   let parts = null;
   let trackParts = null;
@@ -86,6 +104,7 @@ export function createInspector({ root, editor }) {
     root.append(title);
     parts = null;
     trackParts = null;
+    sourceParts = null;
     const hasTarget = Boolean(target.track || target.bus);
     if (!found && !hasTarget) {
       const empty = document.createElement("p");
@@ -213,6 +232,7 @@ export function createInspector({ root, editor }) {
     const sync = document.createElement("p");
     sync.className = "hint";
     section("sync").append(sync);
+    sourceParts = createSourceSection({ details: section("source"), jump });
     const readout = document.createElement("p");
     readout.className = "hint";
     section("details").append(readout);
@@ -244,6 +264,8 @@ export function createInspector({ root, editor }) {
       build(state, found, target);
     }
     trackParts?.update(state);
+    maps.want(found?.media?.sha256 ?? "", state.head);
+    redrawSource();
     if (!found || !parts) return;
     const { clip, media } = found;
     const group = syncGroupOf(state.project, clip.media);

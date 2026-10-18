@@ -261,6 +261,27 @@ export function deleteWordsPlan(words, indices) {
   return edits.length === 0 ? null : edits;
 }
 
+/**
+ * The stretch X removes for these words, in frames: the same range the server's
+ * `transcript.cut_range` computes (each side to the middle of the pause to the
+ * neighbouring word, the word itself at the ends of the programme). Null for none.
+ */
+export function cutRange(words, indices) {
+  if (indices.length === 0) return null;
+  const first = Math.min(...indices.map((i) => words[i].s));
+  const last = Math.max(...indices.map((i) => words[i].e));
+  let before = null;
+  let after = null;
+  for (const word of words) {
+    if (word.e <= first && (before === null || word.e > before)) before = word.e;
+    if (word.s >= last && (after === null || word.s < after)) after = word.s;
+  }
+  return {
+    start: before === null ? first : Math.floor((before + first) / 2),
+    end: after === null ? last : Math.floor((last + after) / 2),
+  };
+}
+
 /** The command for X: `cut_words` with the selected indices, or null. */
 export function cutWordsPlan(indices) {
   return indices.length === 0 ? null : { name: "cut_words", args: { indices: [...indices] } };

@@ -7,9 +7,10 @@ import { extendTo, placeCursor, selectWord } from "../transcript-model.js";
 const word = (w, s, e, track = "a") => ({ w, s, e, track, clip: "c", index: 0 });
 const words = [word("a", 0, 50), word("b", 60, 120), word("c", 300, 350, "b")];
 const project = {
+  rate: 100,
   tracks: [
-    { id: "a", name: "Anna.wav", speaker: "Anna" },
-    { id: "b", name: "Ville.wav", speaker: "" },
+    { id: "a", name: "Anna.wav", speaker: "Anna", clips: [{ start: 0, length: 400 }] },
+    { id: "b", name: "Ville.wav", speaker: "", clips: [{ start: 0, length: 400 }] },
   ],
 };
 const stateWith = (transcriptSelection, extra = {}) => ({
@@ -21,8 +22,8 @@ const stateWith = (transcriptSelection, extra = {}) => ({
   ...extra,
 });
 
-function setup(state) {
-  const calls = { edits: [], cuts: [], toasts: [], corrects: 0 };
+function setup(state, { copyOk = true } = {}) {
+  const calls = { edits: [], cuts: [], toasts: [], copies: [], order: [], corrects: 0 };
   const registry = createRegistry();
   registerTranscriptCommands(registry, {
     t: (key, values) => `${key} ${JSON.stringify(values ?? {})}`,
@@ -33,7 +34,13 @@ function setup(state) {
         change.done?.({});
       },
       toast: (text) => calls.toasts.push(text),
+      copy: async (body) => {
+        calls.order.push("copy");
+        calls.copies.push(body);
+        return copyOk;
+      },
       cutWords: async (indices) => {
+        calls.order.push("cut");
         calls.cuts.push(indices);
         return true;
       },
@@ -74,9 +81,33 @@ describe("transcript commands", () => {
     const state = stateWith(extendTo(placeCursor(1), 2));
     const { registry, calls } = setup(state);
     registry.run("transcript.cut_words", null, state);
-    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
     assert.deepEqual(calls.cuts, [[1, 2]]);
     assert.equal(calls.edits.length, 0);
+  });
+
+  test("X copies the stretch to the clipboard first, then cuts", async () => {
+    const state = stateWith(extendTo(placeCursor(1), 2));
+    const { registry, calls } = setup(state);
+    registry.run("transcript.cut_words", null, state);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.deepEqual(calls.order, ["copy", "cut"]);
+    // The middle of the pauses: (50+60)/2 = 55 to 350 (the end of the programme).
+    assert.equal(calls.copies[0].start, 55);
+    assert.equal(calls.copies[0].end, 350);
+    assert.deepEqual(calls.copies[0].track_ids, ["a", "b"]);
+    assert.equal(calls.copies[0].group_editing, false);
+    assert.match(calls.copies[0].name, /Anna/);
+    assert.match(calls.toasts[0], /ui\.transcript\.toast\.cut /);
+  });
+
+  test("a failed copy still cuts, and the toast says it was not copied", async () => {
+    const state = stateWith(extendTo(placeCursor(1), 2));
+    const { registry, calls } = setup(state, { copyOk: false });
+    registry.run("transcript.cut_words", null, state);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.deepEqual(calls.cuts, [[1, 2]]);
+    assert.match(calls.toasts[0], /cut_uncopied/);
   });
 
   test("Enter corrects one selected word, or the word under the cursor", () => {

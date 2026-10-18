@@ -4,6 +4,7 @@ import {
   alsoRemovedIndices,
   buildParagraphs,
   collateralBand,
+  cutRange,
   cutWordsPlan,
   deleteSpan,
   deleteWordsPlan,
@@ -296,5 +297,20 @@ describe("the crosstalk preview", () => {
   });
   test("the band is the stretch and the affected tracks", () => {
     assert.deepEqual(collateralBand(preview), { range: [0, 50], tracks: ["b", "m"] });
+  });
+});
+
+describe("cutRange", () => {
+  const w = (s, e) => ({ s, e });
+  const words = [w(0, 50), w(60, 120), w(200, 260), w(300, 350)];
+  test("each side goes to the middle of the pause", () => {
+    assert.deepEqual(cutRange(words, [1, 2]), { start: 55, end: 280 });
+  });
+  test("at the ends of the programme it cuts to the word", () => {
+    assert.deepEqual(cutRange(words, [0]), { start: 0, end: 55 });
+    assert.deepEqual(cutRange(words, [3]), { start: 280, end: 350 });
+  });
+  test("nothing selected: null", () => {
+    assert.equal(cutRange(words, []), null);
   });
 });
