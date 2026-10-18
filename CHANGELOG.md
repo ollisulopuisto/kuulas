@@ -1,3 +1,24 @@
+## [v26.10.18.64] - 2026-10-18
+
+- **Fast listening:** the `.` key toggles pitch-kept sped-up playback; `,` and `/` slow it down and speed it
+  up in 0.05× steps between 1.0× and 2.0× (hold to repeat), Alt+0 goes back to normal; a slider and a chip show
+  the exact speed (for example 1.35×). Stepless, can be changed while playing, remembered. Not yet heard by
+  ear.
+- **Scrubbing back with J at speed no longer runs the audio dry:** the engine re-mixed the tracks up to 489
+  times in one block; it now mixes once (worst block 56 ms down to 0.9 ms in the benchmark).
+- **Cursor keys:** Left/Right now move the cursor a few pixels at the current zoom, like Hindenburg, for fine
+  work on cut points; Shift+Left/Right is 1 s, Alt+Left/Right 10 ms. (The old 5 s step is gone.)
+- **Tab:** steps through the stops of a scope you cycle with Alt+Tab on the Mac (Shift+T elsewhere): words,
+  clip borders, or sounds; the status bar shows "Tab: words" and so on. Tab now also works after clicking a
+  track header, and the word stops are always current.
+- **Right-click menus** on the timeline: on a clip (cut, copy, paste forms, split, group, merge, select
+  forward, trim, level), on a marked range, on empty lane space and on the ruler. Every command is also in the
+  menu bar (new Transport, Go, Transcript and Cut candidates menus).
+- **Cuts:** after X, Alt+X or closing a gap, the in/out marks, the range and the selection are cleared from
+  the screen. Palette: a word from a command's description finds it. "Select forward from selected clips, all
+  tracks" no longer picks up long clips that merely overlap.
+- Not yet tried by eye: the right-click menus, the status-bar scope indicator, the speed slider.
+
 ## [v26.10.18.63] - 2026-10-18
 
 - **Projects can live in Dropbox (and Syncthing, iCloud):** each open copy of kuulas now writes its own small
