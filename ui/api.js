@@ -66,8 +66,9 @@ export const getHistory = ({ limit = 100, before = null } = {}) =>
 export const restore = (node) => post("/api/restore", { node });
 export const undo = () => json("/api/undo", { method: "POST" });
 export const redo = () => json("/api/redo", { method: "POST" });
-export const transport = (action, at = null, until = null) =>
-  post("/api/transport", { action, at, until });
+/** `skip` (play only): frame ranges [a, b) the engine jumps over, crossfaded. */
+export const transport = (action, at = null, until = null, skip = null) =>
+  post("/api/transport", skip === null ? { action, at, until } : { action, at, until, skip });
 
 /**
  * Upload browser files (picker or drop); the server imports them and reports each.
