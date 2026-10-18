@@ -116,6 +116,28 @@ describe("the commands the app registers", () => {
     assert.deepEqual(calls, [["patch", { focusTrack: "b", focusBus: null }]]);
   });
 
+  test("the shuttle commands press J, K and L and need a project", () => {
+    const state = { project };
+    const { registry, calls } = setup(state);
+    assert.equal(registry.can("transport.shuttle_forward", {}), false);
+    assert.equal(registry.can("transport.shuttle_forward", state), true);
+    registry.run("transport.shuttle_back", null, state);
+    registry.run("transport.shuttle_stop", null, state);
+    registry.run("transport.shuttle_forward", null, state);
+    assert.deepEqual(calls, [
+      ["shuttle", "j"],
+      ["shuttle", "k"],
+      ["shuttle", "l"],
+    ]);
+  });
+
+  test("the fast-listening key says it is not built yet", () => {
+    const { registry, calls } = setup({ project });
+    assert.equal(registry.status("transport.speed"), "ready");
+    registry.run("transport.speed", null, { project });
+    assert.deepEqual(calls, [["fastListening"]]);
+  });
+
   test("mark.in and mark.out set the points at the playhead", () => {
     const { registry, calls } = setup({ project, playhead: 5 });
     registry.run("mark.in");

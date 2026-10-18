@@ -1,0 +1,285 @@
+{
+  "press": [
+    {
+      "speed": 0,
+      "key": "j",
+      "result": -1.0
+    },
+    {
+      "speed": 0,
+      "key": "k",
+      "result": 0.0
+    },
+    {
+      "speed": 0,
+      "key": "l",
+      "result": 1.0
+    },
+    {
+      "speed": 1,
+      "key": "j",
+      "result": -1.0
+    },
+    {
+      "speed": 1,
+      "key": "k",
+      "result": 0.0
+    },
+    {
+      "speed": 1,
+      "key": "l",
+      "result": 1.5
+    },
+    {
+      "speed": 1.5,
+      "key": "j",
+      "result": -1.0
+    },
+    {
+      "speed": 1.5,
+      "key": "k",
+      "result": 0.0
+    },
+    {
+      "speed": 1.5,
+      "key": "l",
+      "result": 2.0
+    },
+    {
+      "speed": 2,
+      "key": "j",
+      "result": -1.0
+    },
+    {
+      "speed": 2,
+      "key": "k",
+      "result": 0.0
+    },
+    {
+      "speed": 2,
+      "key": "l",
+      "result": 3.0
+    },
+    {
+      "speed": 3,
+      "key": "j",
+      "result": -1.0
+    },
+    {
+      "speed": 3,
+      "key": "k",
+      "result": 0.0
+    },
+    {
+      "speed": 3,
+      "key": "l",
+      "result": 5.0
+    },
+    {
+      "speed": 5,
+      "key": "j",
+      "result": -1.0
+    },
+    {
+      "speed": 5,
+      "key": "k",
+      "result": 0.0
+    },
+    {
+      "speed": 5,
+      "key": "l",
+      "result": 5.0
+    },
+    {
+      "speed": -1,
+      "key": "j",
+      "result": -1.5
+    },
+    {
+      "speed": -1,
+      "key": "k",
+      "result": 0.0
+    },
+    {
+      "speed": -1,
+      "key": "l",
+      "result": 1.0
+    },
+    {
+      "speed": -1.5,
+      "key": "j",
+      "result": -2.0
+    },
+    {
+      "speed": -1.5,
+      "key": "k",
+      "result": 0.0
+    },
+    {
+      "speed": -1.5,
+      "key": "l",
+      "result": 1.0
+    },
+    {
+      "speed": -2,
+      "key": "j",
+      "result": -3.0
+    },
+    {
+      "speed": -2,
+      "key": "k",
+      "result": 0.0
+    },
+    {
+      "speed": -2,
+      "key": "l",
+      "result": 1.0
+    },
+    {
+      "speed": -3,
+      "key": "j",
+      "result": -5.0
+    },
+    {
+      "speed": -3,
+      "key": "k",
+      "result": 0.0
+    },
+    {
+      "speed": -3,
+      "key": "l",
+      "result": 1.0
+    },
+    {
+      "speed": -5,
+      "key": "j",
+      "result": -5.0
+    },
+    {
+      "speed": -5,
+      "key": "k",
+      "result": 0.0
+    },
+    {
+      "speed": -5,
+      "key": "l",
+      "result": 1.0
+    },
+    {
+      "speed": 0.25,
+      "key": "j",
+      "result": -1.0
+    },
+    {
+      "speed": 0.25,
+      "key": "k",
+      "result": 0.0
+    },
+    {
+      "speed": 0.25,
+      "key": "l",
+      "result": 1.0
+    },
+    {
+      "speed": -0.25,
+      "key": "j",
+      "result": -1.0
+    },
+    {
+      "speed": -0.25,
+      "key": "k",
+      "result": 0.0
+    },
+    {
+      "speed": -0.25,
+      "key": "l",
+      "result": 1.0
+    },
+    {
+      "speed": 2.5,
+      "key": "j",
+      "result": -1.0
+    },
+    {
+      "speed": 2.5,
+      "key": "k",
+      "result": 0.0
+    },
+    {
+      "speed": 2.5,
+      "key": "l",
+      "result": 3.0
+    },
+    {
+      "speed": -4,
+      "key": "j",
+      "result": -5.0
+    },
+    {
+      "speed": -4,
+      "key": "k",
+      "result": 0.0
+    },
+    {
+      "speed": -4,
+      "key": "l",
+      "result": 1.0
+    }
+  ],
+  "scrub_style": [
+    {
+      "speed": 0,
+      "style": "tape"
+    },
+    {
+      "speed": 0.25,
+      "style": "tape"
+    },
+    {
+      "speed": 1,
+      "style": "tape"
+    },
+    {
+      "speed": 2,
+      "style": "tape"
+    },
+    {
+      "speed": 2.5,
+      "style": "grains"
+    },
+    {
+      "speed": 3,
+      "style": "grains"
+    },
+    {
+      "speed": 5,
+      "style": "grains"
+    },
+    {
+      "speed": -1,
+      "style": "tape"
+    },
+    {
+      "speed": -2,
+      "style": "tape"
+    },
+    {
+      "speed": -2.5,
+      "style": "grains"
+    },
+    {
+      "speed": -5,
+      "style": "grains"
+    }
+  ],
+  "held": [
+    {
+      "direction": "l",
+      "speed": 0.25
+    },
+    {
+      "direction": "j",
+      "speed": -0.25
+    }
+  ]
+}

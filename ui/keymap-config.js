@@ -13,9 +13,13 @@ export const STORAGE_KEY = "kuulas.keymap";
 
 const asList = (value) => (value === null || value === undefined ? [] : [value].flat());
 const EVERYWHERE = new Set(["global", "text-field"]);
+/** Every panel's keys except the Candidates tab's (K stops the shuttle, but keeps there). */
+const NOT_CANDIDATES = "not-candidates";
 
 /** Do two contexts ever have the same key available at once? */
 export function contextsOverlap(a, b) {
+  if (a === NOT_CANDIDATES) return b !== "candidates";
+  if (b === NOT_CANDIDATES) return a !== "candidates";
   return a === b || EVERYWHERE.has(a) || EVERYWHERE.has(b);
 }
 

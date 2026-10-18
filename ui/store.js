@@ -64,6 +64,8 @@ export const initialState = () => ({
   scroll: 0,
   scrollY: 0,
   playing: false,
+  // The engine's tape speed (signed; JKL shuttle). 1 whenever nothing is shuttling.
+  speed: 1,
   laneHeight: DEFAULT_LANE,
   // Density (tokens.css --bus-h, --group-gap); app.js reads them from the tokens.
   busHeight: BUS_HEIGHT,
@@ -135,6 +137,8 @@ export function reduceLive(state, message) {
   switch (message.type) {
     case "position":
       out.patch = { playhead: message.position, playing: message.playing };
+      // Playback ended (reverse reached the start, or a stop from elsewhere): 1x again.
+      if (!message.playing) out.patch.speed = 1;
       break;
     case "state_changed":
     case "hello":

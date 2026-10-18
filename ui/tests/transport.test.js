@@ -98,7 +98,7 @@ describe("transport: the candidate preview", () => {
     });
     await transport.preview(100, 300, [[150, 200]]);
     assert.deepEqual(calls, [["play", 100, 300, [[150, 200]]]]);
-    assert.deepEqual(state, { playhead: 120, playing: true });
+    assert.deepEqual(state, { playhead: 120, playing: true, speed: 1 });
   });
 
   test("a refused preview is reported like any failed play", async () => {
@@ -113,5 +113,123 @@ describe("transport: the candidate preview", () => {
     });
     await transport.preview(0, 10, [[5, 1]]);
     assert.equal(errors.length, 1);
+  });
+});
+
+describe("transport: the JKL shuttle", () => {
+  // The fake engine answers like the real one: the speed it was asked for while playing.
+  function shuttleHarness(initial = {}) {
+    let state = { playhead: 0, playing: false, speed: 1, ...initial };
+    const calls = [];
+    const engine = { speed: 1, playing: false, position: 0 };
+    const transport = createTransport({
+      post: async (action, at, until, skip, options) => {
+        calls.push([action, at, until, skip, options ?? null]);
+        if (action === "play") {
+          engine.playing = true;
+          engine.speed = options?.speed ?? 1;
+          if (at !== null) engine.position = at;
+        } else if (action === "stop") {
+          engine.playing = false;
+          engine.speed = 1;
+        }
+        return { playing: engine.playing, position: engine.position, speed: engine.speed };
+      },
+      getState: () => state,
+      setState: (patch) => {
+        state = { ...state, ...patch };
+      },
+      onError: () => {},
+    });
+    return { transport, calls, state: () => state, engine };
+  }
+
+  test("L from a stop plays forward at 1x from the playhead, pitch not kept", async () => {
+    const h = shuttleHarness({ playhead: 4800 });
+    await h.transport.shuttle(1);
+    assert.deepEqual(h.calls, [["play", 4800, null, null, { speed: 1, preserve_pitch: false }]]);
+    assert.equal(h.state().playing, true);
+    assert.equal(h.state().speed, 1);
+  });
+
+  test("a faster speed starts from the live playhead and the state mirrors the engine", async () => {
+    const h = shuttleHarness({ playhead: 9000, playing: true });
+    await h.transport.shuttle(-2);
+    assert.deepEqual(h.calls[0].slice(0, 2), ["play", 9000]);
+    assert.equal(h.state().speed, -2);
+  });
+
+  test("speed 0 stops, and the state is back to 1x", async () => {
+    const h = shuttleHarness({ playhead: 100 });
+    await h.transport.shuttle(3);
+    await h.transport.shuttle(0);
+    assert.equal(h.calls.at(-1)[0], "stop");
+    assert.equal(h.state().playing, false);
+    assert.equal(h.state().speed, 1);
+  });
+
+  test("Space, stop and the candidate preview reset the speed to 1x", async () => {
+    const h = shuttleHarness({ playhead: 100 });
+    await h.transport.shuttle(2);
+    await h.transport.toggle();
+    assert.equal(h.state().speed, 1);
+    await h.transport.shuttle(2);
+    await h.transport.preview(10, 20, []);
+    assert.equal(h.state().speed, 1);
+    await h.transport.shuttle(2);
+    await h.transport.play(0);
+    assert.equal(h.state().speed, 1);
+  });
+
+  test("a seek keeps whatever speed the engine answers with", async () => {
+    const h = shuttleHarness({ playhead: 100 });
+    await h.transport.shuttle(2);
+    await h.transport.seek(500);
+    assert.equal(h.state().speed, 2);
+  });
+
+  test("pressing L, L, J, K walks the ladder from what the engine is doing", async () => {
+    const h = shuttleHarness({ playhead: 0 });
+    const speeds = [];
+    for (const key of ["l", "l", "l", "j", "k"]) {
+      await h.transport.press(key);
+      speeds.push(h.state().playing ? h.state().speed : 0);
+    }
+    assert.deepEqual(speeds, [1, 1.5, 2, -1, 0]);
+  });
+
+  test("Space-started playback at 1x goes to 1.5x on L", async () => {
+    const h = shuttleHarness({ playhead: 0 });
+    await h.transport.toggle();
+    await h.transport.press("l");
+    assert.equal(h.state().speed, 1.5);
+  });
+
+  test("quick presses climb the ladder without waiting for the engine's answers", async () => {
+    const h = shuttleHarness({ playhead: 0 });
+    await Promise.all(["l", "l", "l"].map((key) => h.transport.press(key)));
+    assert.deepEqual(
+      h.calls.map((call) => call[4].speed),
+      [1, 1.5, 2],
+    );
+    assert.equal(h.state().speed, 2);
+  });
+
+  test("a failed shuttle changes nothing", async () => {
+    const errors = [];
+    let state = { playhead: 0, playing: false, speed: 1 };
+    const transport = createTransport({
+      post: async () => {
+        throw new Error("no audio device");
+      },
+      getState: () => state,
+      setState: (p) => {
+        state = { ...state, ...p };
+      },
+      onError: (e) => errors.push(e.message),
+    });
+    await transport.shuttle(2);
+    assert.deepEqual(errors, ["no audio device"]);
+    assert.deepEqual(state, { playhead: 0, playing: false, speed: 1 });
   });
 });

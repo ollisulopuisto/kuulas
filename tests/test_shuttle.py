@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from kuulas.messages import KuulasError, set_language
@@ -103,3 +106,26 @@ class TestHeldScrubSpeed:
 def test_press_returns_only_ladder_values_or_zero(start, key):
     result = press(start, key)
     assert result == 0.0 or abs(result) in LADDER
+
+
+class TestSharedCases:
+    """ui/shuttle.js must agree: both read ui/tests/fixtures/shuttle-cases.json."""
+
+    FIXTURE = (
+        Path(__file__).parent.parent / "ui" / "tests" / "fixtures" / "shuttle-cases.json"
+    )
+    CASES = json.loads(FIXTURE.read_text(encoding="utf-8"))
+
+    @pytest.mark.parametrize(
+        "case", CASES["press"], ids=lambda c: f"{c['speed']}{c['key']}"
+    )
+    def test_press(self, case):
+        assert press(case["speed"], case["key"]) == case["result"]
+
+    @pytest.mark.parametrize("case", CASES["scrub_style"], ids=lambda c: str(c["speed"]))
+    def test_scrub_style(self, case):
+        assert scrub_style(case["speed"]) == case["style"]
+
+    @pytest.mark.parametrize("case", CASES["held"], ids=lambda c: c["direction"])
+    def test_held(self, case):
+        assert held_scrub_speed(case["direction"]) == case["speed"]

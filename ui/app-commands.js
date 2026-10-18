@@ -36,6 +36,10 @@ export function registerAppCommands(registry, { actions, app }) {
   const offsets = () => seekOffsets(rate());
 
   def("transport.play", () => actions.togglePlay());
+  def("transport.shuttle_forward", () => actions.shuttle("l"), hasProject);
+  def("transport.shuttle_back", () => actions.shuttle("j"), hasProject);
+  def("transport.shuttle_stop", () => actions.shuttle("k"), hasProject);
+  def("transport.speed", () => actions.fastListening(), hasProject);
   def("nav.home", () => actions.goHome());
   def("panel.next", () => actions.cyclePanel(1));
   def("panel.previous", () => actions.cyclePanel(-1));
