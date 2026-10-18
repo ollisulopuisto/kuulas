@@ -2418,3 +2418,10 @@ input[type="text"] {
   border: 1px solid var(--accent);
   border-radius: 3px;
 }
+
+/* The speed display is a drag handle while fast listening is on. */
+#speed-chip.draggable {
+  cursor: ew-resize;
+  touch-action: none;
+  user-select: none;
+}

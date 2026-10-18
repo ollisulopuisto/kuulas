@@ -26,6 +26,10 @@ export function toggle(state) {
 export const stepUp = (state) => ({ ...state, fast: clamp(state.fast + STEP) });
 export const stepDown = (state) => ({ ...state, fast: clamp(state.fast - STEP) });
 export const setFast = (state, value) => ({ ...state, fast: clamp(value) });
+/** Pixels of a horizontal drag on the speed display for one step (120 px cover 1.0 to 2.0). */
+export const PX_PER_STEP = 6;
+/** The speed after dragging the display `dx` pixels from `start`: right is faster. */
+export const dragSpeed = (start, dx) => clamp(start + (dx / PX_PER_STEP) * STEP);
 /** Back to normal: chosen speed 1.0 and off. */
 export const reset = () => ({ fast: MIN_FAST, active: false });
 

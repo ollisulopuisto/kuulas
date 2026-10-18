@@ -793,7 +793,7 @@
   "ui.mode.group_off_title": "Edits touch only the track you are on. Click to turn group editing on.",
   "ui.speed.chip": "{speed}×",
   "ui.speed.chip_title": "Shuttle speed. Click to play normally.",
-  "ui.speed.fast_chip_title": "Fast listening. Click to switch it off.",
+  "ui.speed.fast_chip_title": "Fast listening. Drag left or right to change the speed; click to switch it off.",
   "ui.speed.slider": "Fast listening speed (1× to 2×, pitch kept)",
   "error.paste.missing_slot": "The clipboard entry has material for source track {slot}, but the paste has no target track for it.",
   "error.paste.unknown_mode": "Unknown paste mode: {mode}. Expected insert or overwrite.",

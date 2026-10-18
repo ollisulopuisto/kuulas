@@ -793,7 +793,7 @@
   "ui.mode.group_off_title": "Muutokset koskevat vain raitaa, jolla olet. Napsauta, niin ryhmämuokkaus kytkeytyy takaisin päälle.",
   "ui.speed.chip": "{speed}×",
   "ui.speed.chip_title": "Kelausnopeus. Napsauta, niin toisto palaa normaaliksi.",
-  "ui.speed.fast_chip_title": "Nopea kuuntelu. Napsauta, niin se kytkeytyy pois.",
+  "ui.speed.fast_chip_title": "Nopea kuuntelu. Vedä vasemmalle tai oikealle muuttaaksesi nopeutta; napsauta, niin se kytkeytyy pois.",
   "ui.speed.slider": "Nopean kuuntelun nopeus (1×–2×, sävelkorkeus säilyy)",
   "error.paste.missing_slot": "Leikepöydän merkinnässä on ainesta lähderaidalle {slot}, mutta liittämistä varten ei ole kohderaitaa.",
   "error.paste.unknown_mode": "Tuntematon liittotapa: {mode}. Pitää olla insert tai overwrite.",

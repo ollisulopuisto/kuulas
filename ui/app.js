@@ -17,6 +17,7 @@ import { escapeAction } from "./escape.js";
 import { exportNotice, exportRequest, filenameFromDisposition } from "./export-commands.js";
 import {
   chipFast,
+  dragSpeed,
   STEP as FAST_STEP,
   stepDown as fastDown,
   stepUp as fastUp,
@@ -683,7 +684,32 @@ $("waveform-mode").addEventListener("change", (event) =>
 );
 $("waveform-gain").addEventListener("click", () => setState({ waveformGain: 1 }));
 // The chip: fast listening on -> a click switches it off; a shuttle speed -> plays normally.
-$("speed-chip").addEventListener("click", () => {
+// With fast listening on, the chip is also a handle: drag it left or right to change the speed
+// (owner, 2026-10-18); a press that does not travel is the click that switches it off.
+const speedChip = $("speed-chip");
+let chipDrag = null;
+speedChip.addEventListener("pointerdown", (event) => {
+  if (event.button !== 0 || !getState().fast.active) return;
+  chipDrag = { x: event.clientX, start: getState().fast.fast, moved: false };
+  speedChip.setPointerCapture?.(event.pointerId);
+});
+speedChip.addEventListener("pointermove", (event) => {
+  if (!chipDrag) return;
+  const dx = event.clientX - chipDrag.x;
+  if (!chipDrag.moved && Math.abs(dx) < 4) return;
+  chipDrag.moved = true;
+  actions.fastSet(dragSpeed(chipDrag.start, dx));
+});
+speedChip.addEventListener("pointerup", () => {
+  // The click that follows a drag must not switch fast listening off.
+  if (chipDrag?.moved) speedChip.dataset.dragged = "1";
+  chipDrag = null;
+});
+speedChip.addEventListener("click", () => {
+  if (speedChip.dataset.dragged) {
+    delete speedChip.dataset.dragged;
+    return;
+  }
   if (getState().fast.active) actions.fastListening();
   else void transport.play(getState().playhead);
 });
@@ -1762,6 +1788,7 @@ function render(state, patch) {
     chip.hidden = label === null;
     if (label !== null) chip.textContent = t("ui.speed.chip", { speed: label });
     chip.title = t(fastLabel === null ? "ui.speed.chip_title" : "ui.speed.fast_chip_title");
+    chip.classList.toggle("draggable", fastLabel !== null);
     const slider = $("fast-speed");
     if (Number(slider.value) !== state.fast.fast) slider.value = String(state.fast.fast);
     slider.setAttribute(

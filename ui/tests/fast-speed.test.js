@@ -4,10 +4,12 @@ import { describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import {
   chipFast,
+  dragSpeed,
   effective,
   fromStored,
   MAX_FAST,
   MIN_FAST,
+  PX_PER_STEP,
   reset,
   STEP,
   setFast,
@@ -78,5 +80,21 @@ describe("the chip", () => {
     assert.equal(chipFast({ fast: 1.35, active: true }, format), "1.35");
     assert.equal(chipFast({ fast: 1.5, active: true }, format), "1.5");
     assert.equal(chipFast({ fast: 2, active: true }, format), "2");
+  });
+});
+
+describe("dragging the speed display (owner, 2026-10-18)", () => {
+  test("every PX_PER_STEP pixels to the right is one step faster, to the left slower", () => {
+    assert.equal(dragSpeed(1.5, PX_PER_STEP), 1.55);
+    assert.equal(dragSpeed(1.5, -5 * PX_PER_STEP), 1.25);
+    assert.equal(dragSpeed(1.5, 0), 1.5);
+  });
+  test("a part of a step rounds to the nearest step, with no float dust", () => {
+    assert.equal(dragSpeed(1.35, PX_PER_STEP * 0.4), 1.35);
+    assert.equal(dragSpeed(1.35, PX_PER_STEP * 0.6), 1.4);
+  });
+  test("stays within 1.0 and 2.0", () => {
+    assert.equal(dragSpeed(1.9, 100 * PX_PER_STEP), MAX_FAST);
+    assert.equal(dragSpeed(1.1, -100 * PX_PER_STEP), MIN_FAST);
   });
 });
