@@ -156,7 +156,7 @@ export function registerAppCommands(registry, { actions, app }) {
     def(`${prefix}.next_stop`, () => actions.tabStop(1), hasProject);
     def(`${prefix}.prev_stop`, () => actions.tabStop(-1), hasProject);
   }
-  def("nav.tab_target_cycle", () => actions.cycleTabTarget(), hasProject);
+  def("nav.tab_target_cycle", () => actions.cycleTabScope(), hasProject);
   const stepFocus = (direction) => () => {
     const state = app.getState();
     const id = stepTrack(state.project, state.focusTrack, direction);

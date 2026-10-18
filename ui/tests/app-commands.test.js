@@ -103,7 +103,7 @@ describe("the commands the app registers", () => {
     assert.deepEqual(calls, [["restoreStep"], ["openHistory"]]);
   });
 
-  test("Tab and Shift+Tab step to the next and previous stop, Shift+T cycles the target", () => {
+  test("Tab and Shift+Tab step to the next and previous stop, Alt+Tab cycles the scope", () => {
     const { registry, calls } = setup({ project });
     const state = { project };
     for (const id of ["nav.next_stop", "transcript.next_stop"]) registry.run(id, null, state);
@@ -114,7 +114,7 @@ describe("the commands the app registers", () => {
       ["tabStop", 1],
       ["tabStop", -1],
       ["tabStop", -1],
-      ["cycleTabTarget"],
+      ["cycleTabScope"],
     ]);
     assert.equal(registry.can("nav.next_stop", {}), false);
   });
