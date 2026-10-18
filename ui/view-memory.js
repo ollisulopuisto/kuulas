@@ -29,6 +29,7 @@ export function recordOf(state, { whole = false } = {}) {
     playhead: state.playhead,
     inPoint: state.inPoint,
     outPoint: state.outPoint,
+    loop: state.loop === true,
   };
 }
 
@@ -65,6 +66,7 @@ export function restoreFrom(record, { project, width, totalFrames }) {
   ) {
     patch.focusTrack = record.focusTrack;
   }
+  if (typeof record.loop === "boolean") patch.loop = record.loop;
   const playhead = num(record.playhead);
   if (playhead !== null) patch.playhead = clamp(Math.round(playhead), 0, totalFrames);
   const inPoint = num(record.inPoint);

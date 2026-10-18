@@ -58,6 +58,13 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.transport.speed",
   },
   {
+    // Mod+L is Automix; Alt or Shift variants of a taken key would show up as menu alternates.
+    id: "transport.loop",
+    keys: { mac: "Mod+U", other: "Mod+U" },
+    context: "global",
+    labelKey: "cmd.transport.loop",
+  },
+  {
     id: "transport.shuttle_back",
     keys: { mac: "J", other: "J" },
     context: "global",

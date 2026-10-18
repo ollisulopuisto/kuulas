@@ -33,11 +33,22 @@ describe("recordOf", () => {
       playhead: 24_000,
       inPoint: 1000,
       outPoint: 5000,
+      loop: false,
     });
+  });
+  test("remembers the loop switch", () => {
+    assert.equal(recordOf({ ...state, loop: true }).loop, true);
   });
 });
 
 describe("restoreFrom", () => {
+  test("brings the loop switch back, only if it is a boolean", () => {
+    assert.equal(restoreFrom({ loop: true }, context).patch.loop, true);
+    assert.equal(restoreFrom({ loop: false }, context).patch.loop, false);
+    assert.equal("loop" in restoreFrom({ loop: "yes" }, context).patch, false);
+    assert.equal("loop" in restoreFrom({}, context).patch, false);
+  });
+
   test("round-trips a record", () => {
     const back = restoreFrom(recordOf(state, { whole: false }), context);
     assert.equal(back.whole, false);
@@ -52,6 +63,7 @@ describe("restoreFrom", () => {
       playhead: 24_000,
       inPoint: 1000,
       outPoint: 5000,
+      loop: false,
     });
   });
 

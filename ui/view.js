@@ -183,7 +183,7 @@ export function selectionSpan(project, selection) {
   let start = Number.POSITIVE_INFINITY;
   let end = 0;
   for (const track of project?.tracks ?? []) {
-    for (const clip of track.clips) {
+    for (const clip of track.clips ?? []) {
       if (!selection?.has(clip.id)) continue;
       start = Math.min(start, clip.start);
       end = Math.max(end, clip.start + clip.length);

@@ -137,6 +137,17 @@ describe("the commands the app registers", () => {
     assert.deepEqual(calls, [["playFrom", 336000]]);
   });
 
+  test("the loop toggle needs a range to loop, or the loop already on", () => {
+    const { registry, calls } = setup({ project });
+    const idle = { project, loop: false, inPoint: null, outPoint: null, selection: new Set() };
+    assert.equal(registry.can("transport.loop", idle), false);
+    assert.equal(registry.can("transport.loop", { ...idle, inPoint: 10, outPoint: 90 }), true);
+    assert.equal(registry.can("transport.loop", { ...idle, loop: true }), true);
+    assert.equal(registry.can("transport.loop", {}), false);
+    registry.run("transport.loop", null, { ...idle, inPoint: 10, outPoint: 90 });
+    assert.deepEqual(calls, [["toggleLoop"]]);
+  });
+
   test("the playhead commands need a project and move by the right amount", () => {
     const state = { project, playhead: 100000 };
     const { registry, calls } = setup(state);

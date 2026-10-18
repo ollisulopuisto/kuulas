@@ -233,3 +233,61 @@ describe("transport: the JKL shuttle", () => {
     assert.deepEqual(state, { playhead: 0, playing: false, speed: 1 });
   });
 });
+
+describe("loop playback", () => {
+  function loopHarness(initial = {}) {
+    let state = {
+      project: { tracks: [] },
+      playhead: 100,
+      playing: false,
+      loop: true,
+      inPoint: 1000,
+      outPoint: 5000,
+      ...initial,
+    };
+    const calls = [];
+    const transport = createTransport({
+      post: async (action, at, _until, _skip, options) => {
+        calls.push({ action, at, options });
+        return { playing: action === "play", position: at ?? 0 };
+      },
+      getState: () => state,
+      setState: (p) => {
+        state = { ...state, ...p };
+      },
+      onError: (e) => calls.push({ error: e.message }),
+    });
+    return {
+      transport,
+      calls,
+      set: (p) => {
+        state = { ...state, ...p };
+      },
+    };
+  }
+
+  test("Space with the loop on sends the loop range", async () => {
+    const h = loopHarness();
+    await h.transport.toggle();
+    assert.deepEqual(h.calls, [{ action: "play", at: 100, options: { loop: [1000, 5000] } }]);
+  });
+  test("without the loop, or without a range, play has no loop field", async () => {
+    const off = loopHarness({ loop: false });
+    await off.transport.toggle();
+    const none = loopHarness({ inPoint: null, outPoint: null });
+    await none.transport.toggle();
+    assert.equal(off.calls[0].options, undefined);
+    assert.equal(none.calls[0].options, undefined);
+  });
+  test("resendLoop plays on from the playhead with the new range, never stopping", async () => {
+    const h = loopHarness({ playing: true, playhead: 2000 });
+    h.set({ outPoint: 8000 });
+    await h.transport.resendLoop();
+    assert.deepEqual(h.calls, [{ action: "play", at: 2000, options: { loop: [1000, 8000] } }]);
+  });
+  test("resendLoop does nothing while stopped", async () => {
+    const h = loopHarness();
+    await h.transport.resendLoop();
+    assert.deepEqual(h.calls, []);
+  });
+});

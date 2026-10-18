@@ -46,10 +46,11 @@ class FakeEngine:
         return {"playing": self.playing, "position": self.position,
                 "until": self.until, "notices": list(self.notices)}
 
-    def play(self, at=None, until=None, *, rate=1.0, preserve_pitch=True, skip=None):
+    def play(self, at=None, until=None, *, rate=1.0, preserve_pitch=True, skip=None,
+             loop=None):
         self.calls.append(("play", at, until))
         self.play_options = {"rate": rate, "preserve_pitch": preserve_pitch,
-                             "skip": skip}
+                             "skip": skip, "loop": loop}
         if rate not in (1.0, -1.0) and preserve_pitch:  # as the real engine
             raise PlaybackRequestError("error.engine.stretch_unavailable", speed=rate)
         if self.fail_play:
@@ -461,7 +462,7 @@ def test_transport_play_takes_a_skip_list(client, engine):
     assert r.status_code == 200
     assert engine.calls == [("play", 100, 900)]
     assert engine.play_options == {"rate": 1.0, "preserve_pitch": True,
-                                   "skip": ((300, 500), (600, 650))}
+                                   "skip": ((300, 500), (600, 650)), "loop": None}
 
 
 def test_transport_play_without_skip_plays_everything(client, engine):
@@ -483,6 +484,23 @@ def test_transport_refuses_a_skip_that_is_not_a_list(client, engine):
     r = client.post("/api/transport", json={"action": "play", "skip": "soon"})
     assert r.status_code == 400
     assert r.json()["error"]["key"] == "error.server.bad_request"
+    assert engine.calls == []
+
+
+def test_transport_play_takes_a_loop(client, engine):
+    r = client.post("/api/transport", json={"action": "play", "at": 0,
+                                            "loop": [48000, 240000]})
+    assert r.status_code == 200
+    assert engine.play_options["loop"] == (48000, 240000)
+
+
+@pytest.mark.parametrize("loop", [[500, 300], [1], [0, 100], [-5, 96000], [0, 96000, 5]])
+def test_transport_refuses_a_bad_loop_with_a_translated_400(client, engine, loop):
+    r = client.post("/api/transport", json={"action": "play", "at": 0, "loop": loop})
+    assert r.status_code == 400
+    error = r.json()["error"]
+    assert error["key"] == "error.engine.bad_loop"
+    assert error["text"] != error["key"]
     assert engine.calls == []
 
 

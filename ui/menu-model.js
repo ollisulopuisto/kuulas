@@ -128,6 +128,7 @@ export const MENU = [
           item("view.pause_never"),
         ],
       },
+      item("transport.loop"),
       SEP,
       item("palette.open"),
     ],
