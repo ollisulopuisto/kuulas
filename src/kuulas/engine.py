@@ -60,7 +60,13 @@ import soxr
 from .media import CHUNK_SEC
 from .messages import KuulasError, t
 from .model import Project
-from .playplan import PlaybackRequestError, PlayPlan, normalise_skip
+from .playplan import (
+    XFADE_S,
+    PlaybackRequestError,
+    PlayPlan,
+    check_loop,
+    normalise_skip,
+)
 
 log = logging.getLogger("kuulas.engine")
 
@@ -92,6 +98,10 @@ MAX_NOTICES = 20
 #: fastest (5x), either direction.
 MIN_SPEED = 0.25
 MAX_SPEED = 5.0
+#: How many times a loop change looks for a wrap the audio thread has not
+#: reached yet before it restarts the run instead (it only loses a race with
+#: a callback that runs between two of its own steps).
+SPLICE_TRIES = 4
 #: A frame past any project, for keeping a skip list unclipped.
 _FAR = 2**62
 #: "No resampler made for this speed" (None means none is needed).
@@ -106,10 +116,11 @@ class _Run:
     """One play's fixed parameters. Replaced as a whole under ``_tlock``, so
     the audio thread reads one consistent reference per block."""
 
-    __slots__ = ("plan", "skip", "speed")
+    __slots__ = ("loop", "plan", "skip", "speed")
 
-    def __init__(self, plan: PlayPlan, speed: float, skip: tuple[tuple[int, int], ...]):
-        self.plan, self.speed, self.skip = plan, speed, skip
+    def __init__(self, plan: PlayPlan, speed: float, skip: tuple[tuple[int, int], ...],
+                 loop: tuple[int, int] | None = None):
+        self.plan, self.speed, self.skip, self.loop = plan, speed, skip, loop
 
 
 def _check_speed(rate: object, preserve_pitch: bool) -> float:
@@ -268,10 +279,18 @@ class Engine:
 
     def play(self, at: int | None = None, until: int | None = None, *,
              rate: float = 1.0, preserve_pitch: bool = True,
-             skip=None) -> None:
+             skip=None, loop=None) -> None:
         """Play from ``at`` (default: where the playhead is) to ``until``
         (default: the end of the project; below ``at`` when ``rate`` is
         negative, default the start).
+
+        ``loop``: a ``(start, end)`` pair of frames. Playing runs to ``end``
+        and wraps back to ``start`` with the crossfade of a skip, for ever
+        (``until`` is then not used), respecting ``skip``. The end is cut at
+        the project's end. Called while playing from where it is, with
+        another loop or none, it takes effect at the next wrap, never
+        mid-block: with none, playing goes on past the loop's end. Loops
+        play forward only. ``status()["loop"]`` reports the loop.
 
         ``skip``: frame ranges ``(a, b)`` to jump over, crossfaded; empty or
         None plays everything. ``rate``: tape speed, ``MIN_SPEED`` to
@@ -282,6 +301,7 @@ class Engine:
         then."""
         speed = _check_speed(rate, preserve_pitch)
         skip_list = normalise_skip(skip, 0, _FAR)
+        loop_range = self._check_loop(loop, skip_list, speed)
         with self._ctl:
             if self._stream is not None and (self._died or not self._stream.active):
                 self._close_stream()  # died since the last tick: open afresh
@@ -297,10 +317,18 @@ class Engine:
                     start = self._anchor if at is None else max(0, int(at))
                 # Same speed (forward) and skip list, only a new end: the
                 # run goes on with nothing re-queued, as before skips.
-                keep = (continuing and run is not None and speed > 0
+                same = (continuing and run is not None and speed > 0
                         and run.speed == speed and run.skip == skip_list)
+                keep = same and run.loop is None and loop_range is None
+                splice = same and run.loop is not None and self._fed > 0
                 lo = self._anchor if keep else start
-            new = _Run(self._plan(lo, until, speed, skip_list), speed, skip_list)
+            if splice and (loop_range == run.loop or self._splice(
+                    run, gen, loop_range, until, skip_list)):
+                self._last_active = self._clock()
+                self._last_callback = self._clock()
+                return
+            new = _Run(self._plan(lo, until, speed, skip_list, loop_range), speed,
+                       skip_list, loop_range)
             with self._tlock:
                 if keep and self._gen == gen and self._playing:
                     self._run = new
@@ -326,8 +354,9 @@ class Engine:
         frame = max(0, int(frame))
         with self._tlock:
             run, until = self._run, self._until
-        new = None if run is None else _Run(self._plan(frame, until, run.speed, run.skip),
-                                            run.speed, run.skip)
+        new = None if run is None else _Run(
+            self._plan(frame, until, run.speed, run.skip, run.loop), run.speed,
+            run.skip, run.loop)
         with self._tlock:
             self._start_run(frame, new)
 
@@ -356,6 +385,7 @@ class Engine:
                 "until": until,
                 "speed": live.speed if live else 1.0,
                 "skip": [list(r) for r in live.skip] if live else [],
+                "loop": list(live.loop) if live and live.loop else None,
                 "rate": self.rate,
                 "device": self._device_name,
                 "device_rate": self._dev_rate,
@@ -420,11 +450,55 @@ class Engine:
             return run.plan.position(self._played(), length)
         return run.plan.position(max(0, run.plan.length(length) - self._played()), length)
 
+    def _check_loop(self, loop: object, skip: tuple[tuple[int, int], ...],
+                    speed: float) -> tuple[int, int] | None:
+        """The loop as asked, cut at the project's end, or a refusal (nothing
+        has changed yet): backward loops are not built."""
+        if loop is None:
+            return None
+        rate = self.rate
+        start, end = check_loop(loop, skip, rate)
+        if speed < 0:
+            raise PlaybackRequestError("error.engine.bad_loop", loop=str(loop)[:40])
+        return check_loop((start, min(end, self._project.length)), skip, rate)
+
+    def _splice(self, run: _Run, gen: int, loop: tuple[int, int] | None,
+                until: int | None, skip: tuple[tuple[int, int], ...]) -> bool:
+        """Change or end the loop of a running ``run`` at its next wrap: the
+        new plan plays as the old one up to a wrap the audio thread has not
+        started to mix, so what it has mixed stays true, and takes over
+        there. False if the run changed meanwhile (the caller restarts)."""
+        margin = 2 * round(XFADE_S * self.rate / 2)  # both crossfades, at most
+        for _ in range(SPLICE_TRIES):
+            with self._tlock:
+                if gen != self._gen or self._run is not run or not self._playing:
+                    return False
+                fed = self._fed
+            wrap = run.plan.wrap_at_or_after(fed + margin)
+            length = self._project.length
+            plan = run.plan.then(wrap, loop=loop, skip=skip,
+                                 hi=length if until is None else int(until),
+                                 open_end=until is None, capped=True)
+            need = max(run.plan.wrap_half, plan.splice_half)
+            with self._tlock:
+                if gen != self._gen or self._run is not run or not self._playing:
+                    return False
+                if wrap - need >= self._fed:  # still ahead of the audio thread
+                    self._run = _Run(plan, run.speed, skip, loop)
+                    self._until = until
+                    return True
+        return False
+
     def _plan(self, start: int, until: int | None, speed: float,
-              skip: tuple[tuple[int, int], ...]) -> PlayPlan:
+              skip: tuple[tuple[int, int], ...],
+              loop: tuple[int, int] | None = None) -> PlayPlan:
         """The plan for playing from ``start`` (control side, outside
         ``_tlock``: it computes the crossfade curves)."""
         length = self._project.length
+        if loop is not None:
+            # Endless: the lead-in to the loop's end, then the loop for ever.
+            return PlayPlan(start, loop[1], skip, rate=self.rate, open_end=False,
+                            loop=loop)
         if speed > 0:
             hi = length if until is None else int(until)
             # Forward, the end follows edits made while playing: the
@@ -618,7 +692,8 @@ class Engine:
             playing, run, until = self._playing, self._run, self._until
             heard = self._heard() if playing else self._anchor
         new = (None if not playing or run is None else
-               _Run(self._plan(heard, until, run.speed, run.skip), run.speed, run.skip))
+               _Run(self._plan(heard, until, run.speed, run.skip, run.loop), run.speed,
+                    run.skip, run.loop))
         with self._tlock:
             if self._playing:
                 self._start_run(heard, new)
@@ -750,14 +825,18 @@ class Engine:
             last = plan.position(max(0, plan.length(length) - fed), length)
             first = max(0, last - ahead)
         step = self._store.step
-        for track in project.tracks:
-            for clip in track.clips:
-                lo, hi = max(first, clip.heard_start), min(last, clip.heard_end)
-                if hi <= lo:
-                    continue
-                src = clip.offset + (lo - clip.start)
-                src_end = src + (hi - lo)
-                at = src
-                while at < src_end:
-                    self._store.read(clip.media, at, 1)
-                    at = (at // step + 1) * step
+        windows = [(first, last)]
+        if run.loop is not None:  # the wrap goes back to the loop's start
+            windows.append((run.loop[0], run.loop[0] + ahead))
+        for first, last in windows:
+            for track in project.tracks:
+                for clip in track.clips:
+                    lo, hi = max(first, clip.heard_start), min(last, clip.heard_end)
+                    if hi <= lo:
+                        continue
+                    src = clip.offset + (lo - clip.start)
+                    src_end = src + (hi - lo)
+                    at = src
+                    while at < src_end:
+                        self._store.read(clip.media, at, 1)
+                        at = (at // step + 1) * step
