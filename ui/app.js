@@ -65,6 +65,7 @@ import { connectLive } from "./live.js";
 import { activeLoop } from "./loop-range.js";
 import { regionCount } from "./markers-model.js";
 import { createMarkersPanel } from "./markers-panel.js";
+import { createMarksCorner } from "./marks-corner.js";
 import { heldFromEvent } from "./modifiers.js";
 import { monoDecision, monoEdits } from "./mono-ask.js";
 import { motionMode } from "./motion.js";
@@ -1669,6 +1670,18 @@ overview = createOverview({
   },
 });
 
+// The Alku / Loppu / Pituus readout in the transport corner.
+const marksCorner = createMarksCorner({
+  root: document.querySelector(".rcol"),
+  getState,
+  rate,
+  format: frameToTime,
+  limit: totalFrames,
+  run: (id) => keyboard.registry.run(id, null, getState()),
+  patch: setState,
+  t,
+});
+
 // -- render -----------------------------------------------------------------------------------------------
 
 function spanText(state) {
@@ -1722,6 +1735,7 @@ function render(state, patch) {
     $("timecode").classList.toggle("hour", time.split(":").length > 2);
   }
   if (touched("project", "selection", "inPoint", "outPoint")) updateRangeInfo();
+  if (touched("project", "inPoint", "outPoint")) marksCorner.render(state);
   if (touched("project", "words")) updateTabScope();
   if (touched("playing")) {
     $("play-icon").textContent = state.playing ? "■" : "▶";

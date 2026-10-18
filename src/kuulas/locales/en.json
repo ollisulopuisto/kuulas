@@ -1306,5 +1306,15 @@
   "cmd.transcript.remove_words.hint": "Removes the stretch of the selected words from every track and closes the gap. Nothing goes to the clipboard.",
   "ui.transcript.toast.remove": {"one": "Deleted {count} word on all tracks", "other": "Deleted {count} words on all tracks"},
   "ui.readout.type_hint": "Double-click to type an exact value",
-  "ui.transport.label": "Playback"
+  "ui.transport.label": "Playback",
+  "ui.range.group": "In and out points",
+  "ui.range.unset_name": "{name}: not set",
+  "ui.range.tip_in": "{name} {time} · click: go to it (1) · double-click: type a time",
+  "ui.range.tip_out": "{name} {time} · click: go to it (2) · double-click: type a time",
+  "ui.range.tip_length": "{name} {time} · click: zoom to the range (F) · double-click: type a length",
+  "ui.range.tip_unset": "{name}: not set (I and O set the marks) · double-click: type a time",
+  "ui.range.tip_length_unset": "{name}: set the in mark first · double-click: type a length",
+  "ui.range.field": "{name}, type a time",
+  "ui.range.edit_hint": "Enter sets · Esc cancels · e.g. 9:03.5 or 543.8",
+  "ui.range.invalid": "Not a time. Try 9:03.5 or 543.8"
 }
