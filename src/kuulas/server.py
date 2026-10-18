@@ -42,7 +42,7 @@ from .media import ImportResult, MediaError
 from .messages import KuulasError, error_body, t
 from .ops import EditError
 from .peaks import PeakError
-from .session import CLIPBOARD_EDITS, NoSuchEntryError
+from .session import CLIPBOARD_EDITS, NoSuchEntryError, SubtitlesError
 
 log = logging.getLogger("kuulas.server")
 
@@ -387,6 +387,20 @@ def create_app(session, engine, *, language: str | None = None,
             return HTMLResponse(content=content)
         rows = session.music_report(format="json")
         return JSONResponse({"rows": rows})
+
+    @app.get("/api/subtitles")
+    def get_subtitles(format: str):
+        if format not in ("srt", "vtt"):
+            raise SubtitlesError("error.subtitles.bad_format", format=format)
+        content = session.subtitles(format)
+        if format == "srt":
+            media_type = "application/x-subrip"
+            disposition = 'attachment; filename="subtitles.srt"'
+        else:
+            media_type = "text/vtt"
+            disposition = 'attachment; filename="subtitles.vtt"'
+        return Response(content=content, media_type=media_type,
+                        headers={"Content-Disposition": disposition})
 
     @app.post("/api/cut-preview")
     def post_cut_preview(body: CutPreviewBody):

@@ -409,6 +409,7 @@
   "error.chapters.unknown_style": "Tuntematon lukutyyli: {style}.",
   "error.narration.bad_words_per_second": "Sanoja sekunnissa täytyy olla enemmän kuin nolla: {words_per_second}.",
   "error.music_report.bad_format": "Valitse json, csv tai html; muotoa {format} ei tueta.",
+  "error.subtitles.bad_format": "Tuntematon tekstitysmuoto: {format}. Käytä srt tai vtt.",
   "error.spot.invalid": "“{text}” ei ole kelvollinen aika. Käytä aikakoodia kuten 1:02:03.500 tai etumerkittyä siirtymää kuten +1.5s tai +120.",
   "error.edit_points.unknown_mode": "Tuntematon leikkauspistetila: {mode}.",
   "error.shuttle.unknown_key": "Tuntematon kelkausnäppäin: {key}.",
