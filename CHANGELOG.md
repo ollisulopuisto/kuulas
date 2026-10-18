@@ -1,3 +1,10 @@
+## [v26.10.18.50] - 2026-10-18
+
+- **Tab and Shift+Tab** move the playhead to the next / previous word start or transient (in the timeline
+  and the transcript; Tab keeps its normal focus move in side panels and text fields). **Shift+T**
+  cycles word / transient / both; the choice is remembered. Transients are detected from the focused
+  track (or all audible tracks) in the background. Not tried on a real window yet.
+
 ## [v26.10.18.49] - 2026-10-18
 
 - Plan change (owner): mouse editing (WP6) and Tab to the next transient or word (WP19i) are part of the first

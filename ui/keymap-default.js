@@ -144,17 +144,38 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.nav.forward_fine",
     repeat: true,
   },
+  // Tab to the next word or transient (WP19i). Tab keeps its focus move in the side
+  // panels and in text fields: it is bound in the timeline and the transcript only (one
+  // entry each, a keymap entry has one context). Shift+T cycles word, transient, both.
   {
-    id: "nav.prev_edit",
+    id: "nav.prev_stop",
     keys: { mac: "Shift+Tab", other: "Shift+Tab" },
     context: "timeline",
-    labelKey: "cmd.nav.prev_edit",
+    labelKey: "cmd.nav.prev_stop",
   },
   {
-    id: "nav.next_edit",
+    id: "nav.next_stop",
     keys: { mac: "Tab", other: "Tab" },
     context: "timeline",
-    labelKey: "cmd.nav.next_edit",
+    labelKey: "cmd.nav.next_stop",
+  },
+  {
+    id: "transcript.prev_stop",
+    keys: { mac: "Shift+Tab", other: "Shift+Tab" },
+    context: "transcript",
+    labelKey: "cmd.transcript.prev_stop",
+  },
+  {
+    id: "transcript.next_stop",
+    keys: { mac: "Tab", other: "Tab" },
+    context: "transcript",
+    labelKey: "cmd.transcript.next_stop",
+  },
+  {
+    id: "nav.tab_target_cycle",
+    keys: { mac: "Shift+T", other: "Shift+T" },
+    context: "global",
+    labelKey: "cmd.nav.tab_target_cycle",
   },
   {
     id: "track.prev",

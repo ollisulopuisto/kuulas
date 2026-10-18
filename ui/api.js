@@ -30,6 +30,9 @@ export const getViewMemory = () => json("/api/view-memory");
 export const putViewMemory = (view) =>
   json("/api/view-memory", { method: "PUT", body: JSON.stringify({ view }), keepalive: true });
 export const getWords = () => json("/api/words");
+/** The frames Tab stops at in one mode (edges, transients, words): { points: [frame] }. */
+export const getEditPoints = (mode, track = null) =>
+  json(`/api/edit-points?mode=${mode}${track ? `&track=${encodeURIComponent(track)}` : ""}`);
 /** What cutting these words (refs: { track, clip, index }) would also remove from other tracks. */
 export const cutPreview = (words) => post("/api/cut-preview", { words });
 /** Correct one word's text (a new transcript revision, one undo step). */

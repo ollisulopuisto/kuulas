@@ -288,7 +288,7 @@ def create_app(session, engine, *, language: str | None = None,
     @app.exception_handler(KuulasError)
     async def _other_error(_request: Request, e: KuulasError):
         if e.key.startswith(("error.paste.", "error.import_plan.", "error.chapters.",
-                             "error.regions.")):
+                             "error.regions.", "error.edit_points.")):
             return answer(e, 400)
         log.error(str(e))
         return answer(e, 500)
@@ -684,6 +684,12 @@ def create_app(session, engine, *, language: str | None = None,
         if names:
             body["people"] = names
         return JSONResponse(body)
+
+    @app.get("/api/edit-points")
+    def get_edit_points(mode: str, track: str | None = None):
+        """The frames Tab jumps between (WP19i): ``mode`` edges, transients or
+        words, on one track or on every audible one."""
+        return JSONResponse({"points": session.edit_points(mode, track)})
 
     @app.post("/api/transcript/{media_id}")
     def post_transcript(media_id: str, data: Annotated[Any, Body()]):

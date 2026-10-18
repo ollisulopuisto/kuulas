@@ -48,6 +48,14 @@ import { formatRangeInfo, rangeInfo } from "./range-info.js";
 import { setupKeyboard } from "./shell-keys.js";
 import { chipSpeed } from "./shuttle.js";
 import { getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
+import {
+  cycleTarget,
+  mergeStops,
+  nextStop,
+  prevStop,
+  targetChoice,
+  wordStops,
+} from "./tab-stops.js";
 import { densityAttribute, nextTheme, themeAttribute } from "./theme.js";
 import { createTimeline } from "./timeline.js";
 import { createTrackHeaders } from "./tracks.js";
@@ -242,6 +250,13 @@ const actions = {
     const id = pauseChoiceId(choice);
     prefs.set(PAUSE_BREAK_KEY, id);
     setState({ pauseBreak: id });
+  },
+  tabStop: (direction) => void tabStop(direction),
+  /** Shift+T: word, transient or both, remembered per user, named in a notice. */
+  cycleTabTarget() {
+    const mode = cycleTarget(tabTarget());
+    prefs.set(TAB_TARGET_KEY, mode);
+    showNotice(t(`ui.tab_target.${mode}`), "ok");
   },
   fitTracks: () => fitAllTracks(),
   toggleAutoFitTracks() {
@@ -622,6 +637,51 @@ $("density").addEventListener("change", (event) => {
   prefs.set(DENSITY_KEY, densityChoice); // not remembered if storage is blocked; it applies now
   applyDensity();
 });
+
+// Tab and Shift+Tab (WP19i): what the playhead jumps to. Remembered per user; until the
+// user picks one it follows the project: words when there is a transcript, else transients.
+const TAB_TARGET_KEY = "tabTarget";
+const tabTarget = () => targetChoice(prefs.get(TAB_TARGET_KEY), getState().words.length > 0);
+
+// Transient stops per head and track, kept as promises so a held Tab asks once. A new head
+// is a new key, so an edit never serves the old stops; the old ones are dropped.
+let transientCache = { head: null, stops: new Map() };
+function transientStops(track) {
+  const { head } = getState();
+  if (transientCache.head !== head) transientCache = { head, stops: new Map() };
+  const key = track ?? "";
+  if (!transientCache.stops.has(key)) {
+    const asked = api
+      .getEditPoints("transients", track)
+      .then((body) => body.points)
+      .catch((error) => {
+        transientCache.stops.delete(key);
+        throw error;
+      });
+    transientCache.stops.set(key, asked);
+  }
+  return transientCache.stops.get(key);
+}
+
+async function tabStop(direction) {
+  const state = getState();
+  if (!state.project) return;
+  const mode = tabTarget();
+  const track = state.focusTrack ?? null;
+  try {
+    // Words of the focused track; a track without words (music) falls back to all words.
+    let words = mode === "transient" ? [] : wordStops(state.words, track);
+    if (words.length === 0 && mode !== "transient") words = wordStops(state.words);
+    const transients = mode === "word" ? [] : await transientStops(track);
+    const stops = mergeStops(words, transients);
+    const from = getState().playhead ?? 0;
+    const frame = direction > 0 ? nextStop(stops, from) : prevStop(stops, from);
+    if (frame === null) showNotice(t("ui.tab_stop.none"), "ok");
+    else void transport.seek(frame);
+  } catch (error) {
+    showError(error);
+  }
+}
 
 // Break paragraphs at pauses over (View menu): a view option remembered per user.
 const PAUSE_BREAK_KEY = "pauseBreak";
