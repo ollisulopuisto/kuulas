@@ -299,6 +299,13 @@ WP27, WP38, WP42, WP47.
   onboarding is a 3-minute scripted interview recorded for kuulas (needs recording; a script is
   to be written). Question 11 (what clicking a collapsed bus selects) is open: the owner wants
   to try buses first, so a way to create and assign a bus is being built (UI).
+- **Owner answers, 2026-10-18 (second card round):** tips (Q23) are **hover tips**: hovering over
+  an action shows its short hint and its key, instead of a timed tip every N minutes (the
+  `cmd.*.hint` strings are the text; a hover-tip system is still to be built, WP48). The
+  status list for WP51 is right as listed. `speechmix.mix_blend(raw, render100, m, wet_shift=None)`
+  is a **yes** for the podcast repo (the owner must tell the podcast session; this session cannot
+  reach it). Q11 (what clicking a collapsed bus selects) waits until collapsing a bus exists in
+  the GUI (a job is building it: chevron, double-click, right-click menu).
 - **Owner on packaging, 2026-10-18:** speechmix and nhsx get published as real packages
   (not a private git dependency). Needs work in the podcast repo; `PODCAST_READ_TOKEN`
   is still needed for CI until then.

@@ -4,7 +4,15 @@ import { createRegistry } from "../commands.js";
 import { setCatalogs, setLanguageNow } from "../i18n.js";
 import { resolveKeymap } from "../keymap-config.js";
 import { DEFAULT_KEYMAP } from "../keymap-default.js";
-import { MENU, menuTargets, moveItem, moveMenu, resolveMenu } from "../menu-model.js";
+import {
+  fitMenus,
+  MENU,
+  menuTargets,
+  moveItem,
+  moveMenu,
+  overflowMenu,
+  resolveMenu,
+} from "../menu-model.js";
 
 const LABELS = {
   "menu.file": "File",
@@ -200,5 +208,50 @@ describe("keyboard navigation", () => {
     assert.equal(moveMenu(5, 4, 1), 0);
     assert.equal(moveMenu(5, 0, -1), 4);
     assert.equal(moveMenu(5, 2, 1), 3);
+  });
+});
+
+describe("menus that do not fit the bar", () => {
+  const widths = [50, 50, 50, 50]; // gap 4 between titles; "…" button 30 wide
+  const fit = (available) => fitMenus(widths, available, { gap: 4, overflowWidth: 30 });
+
+  test("all menus are shown when they fit, with no overflow button", () => {
+    assert.equal(fit(212), 4); // 4 * 50 + 3 * 4
+    assert.equal(fit(1000), 4);
+  });
+
+  test("when they do not fit, the last ones move behind the overflow button", () => {
+    assert.equal(fit(211), 3); // 3 * 50 + 2 * 4 + 4 + 30 = 192
+    assert.equal(fit(191), 2); // 2 * 50 + 4 + 4 + 30 = 138 fits, 3 does not
+    assert.equal(fit(137), 1);
+    assert.equal(fit(0), 0);
+  });
+
+  test("an empty bar and a negative width are safe", () => {
+    assert.equal(fitMenus([], 100, { gap: 4, overflowWidth: 30 }), 0);
+    assert.equal(fit(-5), 0);
+  });
+
+  test("the overflow menu holds the hidden menus, each under a caption, and keys skip the captions", () => {
+    const menus = [
+      { id: "a", label: "A", items: [{ kind: "item", id: "a.1", label: "One" }] },
+      {
+        id: "b",
+        label: "B",
+        items: [
+          { kind: "item", id: "b.1", label: "Two" },
+          { kind: "submenu", label: "More", items: [] },
+        ],
+      },
+      { id: "c", label: "C", items: [{ kind: "item", id: "c.1", label: "Three" }] },
+    ];
+    const more = overflowMenu(menus.slice(1), "…");
+    assert.equal(more.label, "…");
+    assert.deepEqual(
+      more.items.map((i) => i.kind + (i.caption ?? i.id ?? i.label)),
+      ["separatorB", "itemb.1", "submenuMore", "separatorC", "itemc.1"],
+    );
+    assert.equal(moveItem(more.items, -1, 1), 1); // first real item, not the caption
+    assert.equal(moveItem(more.items, 2, 1), 4);
   });
 });

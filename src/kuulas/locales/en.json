@@ -578,6 +578,7 @@
   "menu.help": "Help",
   "menu.keymap": "Keyboard shortcuts",
   "menu.bar": "Menu",
+  "menu.more": "More menus",
   "keys.context.global": "Everywhere",
   "keys.context.timeline": "Timeline",
   "keys.context.transcript": "Transcript",

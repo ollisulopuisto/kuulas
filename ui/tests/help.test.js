@@ -163,7 +163,7 @@ describe("shortcuts come from the keymap data, so remaps show", () => {
     assert.deepEqual(shortcutsFor("nav.back", KEYMAP), ["ArrowLeft"]);
     assert.deepEqual(shortcutsFor("nav.back_far", KEYMAP), ["Shift+ArrowLeft"]);
     assert.deepEqual(shortcutsFor("nav.back_fine", KEYMAP), ["Alt+ArrowLeft"]);
-    assert.deepEqual(shortcutsFor("view.back", KEYMAP), ["Alt+["]);
+    assert.deepEqual(shortcutsFor("view.back", KEYMAP), ["Alt+[", "Alt+Mod+Shift+ArrowLeft"]);
   });
 
   test("help formats keys like the cheat sheet does", () => {

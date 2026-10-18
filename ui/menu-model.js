@@ -231,3 +231,30 @@ export function moveItem(items, index, direction) {
 export function moveMenu(count, index, direction) {
   return (index + direction + count) % count;
 }
+
+/**
+ * How many top-level menus fit in `available` px. Everything fits -> all of them;
+ * otherwise as many as leave room for the "…" overflow button after them.
+ * widths: each title's width; gap: space between two; overflowWidth: the "…" button.
+ */
+export function fitMenus(widths, available, { gap, overflowWidth }) {
+  const used = (count) =>
+    widths.slice(0, count).reduce((sum, w) => sum + w, 0) + Math.max(0, count - 1) * gap;
+  if (used(widths.length) <= available) return widths.length;
+  for (let count = widths.length - 1; count > 0; count--) {
+    if (used(count) + gap + overflowWidth <= available) return count;
+  }
+  return 0;
+}
+
+/**
+ * The "…" menu: the hidden menus' items one after another, each group under a
+ * caption (a separator that carries its menu's name). Submenus stay submenus.
+ */
+export function overflowMenu(hidden, label) {
+  const items = hidden.flatMap((menu) => [
+    { kind: "separator", caption: menu.label },
+    ...menu.items.filter((item) => item.kind !== "separator"),
+  ]);
+  return { id: "overflow", label, items };
+}

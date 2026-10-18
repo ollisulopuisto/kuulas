@@ -1,3 +1,14 @@
+## [v26.10.18.45] - 2026-10-18
+
+- **Finnish keyboard:** candidates step with **Alt+Down / Alt+Up** (the brackets stay), and the
+  previous/next view with **Alt+Cmd+Shift+Left / Right** (Alt+[ and Alt+] stay).
+- **Menu bar:** menus that do not fit the window move into a "…" menu instead of hiding behind the
+  Play button.
+- **Fit tracks to window** fits every track (it resets lanes you had sized by hand); a lane is only
+  resized after a real drag of the header's edge; a scroll thumb shows when the lanes do not fit.
+- **Transcript:** muting then unmuting a track no longer leaves its words struck through (the server
+  merged the two clicks into one step, so the head did not change and the transcript never reloaded).
+
 ## [v26.10.18.44] - 2026-10-18
 
 - **Cmd+S works:** it makes a backup copy at once and says so; Shift+Cmd+S makes a named
