@@ -89,7 +89,7 @@ def test_master_gain_db_for_mono_is_minus_three():
 
 
 def test_convert_frame_is_exact_for_huge_frames_and_ties():
-    # 44100 -> 48000 over 24 hours of frames, and an exact .5 tie: integer maths, no float drift.
+    # 44100 -> 48000 over 24 hours of frames, and exact .5 ties: no float drift.
     day = 24 * 3600 * 44100
     assert convert_frame(day, 44100, 48000) == day * 48000 // 44100 + (
         1 if (day * 48000) % 44100 * 2 >= 44100 else 0
