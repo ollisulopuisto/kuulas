@@ -3299,3 +3299,26 @@ audio under a trimmed edge stays put and the whole move is one undo step). Old p
 overlaps are left alone. **Alternative takes** (WP19e: several takes of one narration) are a different,
 modal thing: a take stack at one place with one take active, never overlapping clips.
 
+---
+
+### WP63 — Aligning by eye: a real ghost while moving and smart guide lines (owner, 2026-10-18)
+
+Status: open, requested. Two parts, both for moving a clip (and later trimming):
+1. **The ghost shows the clip's waveform,** not only its outline: while dragging, the moved clip's real
+   waveform is drawn (semi-transparent) in its new place, from the cached peak tiles (WP36), so the owner can
+   line up waveforms.
+2. **Guide lines and snapping, Photoshop-style.** The owner often eyeballs the change from speaker A to
+   speaker B by looking at where A's waveform dies down and B's starts. While a clip is dragged:
+   - Each track offers its **activity edges**: where speech starts and ends (from the gate ranges (WP44) or
+     `silence_runs` over the loudness series; for the moved clip, its own edges at the new position).
+   - A **vertical guide line** through every other track appears **only when an edge of the moved clip is
+     close to an edge elsewhere** (within about 40 px; it fades in as the distance shrinks, so nothing
+     clutters the screen while far away), and gets stronger when the edges are within the snap distance.
+   - **Snapping** within 8 px (`ui/snap.js`, T44, is the pure logic) to those edges, clip borders, the
+     playhead and the in/out marks; hold Cmd to disable snapping (as the spec says).
+   - A **measurement badge** when the moved clip's start sits exactly between two edges (equal gaps), and the
+     gap length ("0,42 s") between the edge of speaker A and the start of speaker B, so the owner can judge
+     the pause between speakers.
+   - Everything is display only; nothing is stored in the project.
+Needs: WP6 (drag), WP36 (peak tiles), WP44 (gate ranges) or `silence_runs`, `snap.js`.
+

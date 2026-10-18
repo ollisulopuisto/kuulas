@@ -445,4 +445,5 @@ WP27, WP38, WP42, WP47, WP53.
 - Requested (owner 2026-10-18): WP59 hardening with fuzzing and a security review by the strongest model, after the first edits (note: the local server must check Host/Origin); WP60 smooth speaker changes with automatic crossfades (semiautomatic candidates). Plans in `docs/PLAN.md`.
 - Requested (owner 2026-10-18): WP61 Quick Look, thumbnail and Spotlight support for `.kuulas` on the Mac, after the packaged app (WP55). Plan in `docs/PLAN.md`.
 - Terminology pass (WP62, owner 2026-10-18): consistent editing verbs and marks vocabulary in en and fi; draft in `docs/GLOSSARY.md`, owner decides the open rows.
+- Requested (owner 2026-10-18): WP63 real waveform in the drag ghost, plus smart guide lines and snapping between speakers' activity edges while moving a clip. Plan in `docs/PLAN.md`.
 
