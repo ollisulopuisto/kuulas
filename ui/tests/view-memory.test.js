@@ -135,7 +135,7 @@ describe("restoreFrom", () => {
   });
 
   test("clamps the lane height", () => {
-    assert.equal(restoreFrom({ laneHeight: 9999 }, context).patch.laneHeight, 160);
+    assert.equal(restoreFrom({ laneHeight: 9999 }, context).patch.laneHeight, 360);
   });
 
   test("per-lane heights: clamped, only for tracks that exist, numbers only", () => {
@@ -143,7 +143,7 @@ describe("restoreFrom", () => {
       { laneHeights: { t1: 9999, t2: 3, gone: 70, bad: "x" } },
       context,
     ).patch;
-    assert.deepEqual(patch.laneHeights, { t1: 160, t2: 24 });
+    assert.deepEqual(patch.laneHeights, { t1: 360, t2: 24 });
     assert.equal(restoreFrom({ laneHeights: [1, 2] }, context).patch.laneHeights, undefined);
     assert.equal(restoreFrom({ laneHeights: "x" }, context).patch.laneHeights, undefined);
   });

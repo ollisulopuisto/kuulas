@@ -12,7 +12,7 @@ export const BUS_HEIGHT = 60;
 /** tokens.css --group-gap: plain lane between groups, so each bus reads as a block. Compact: 6. */
 export const GROUP_GAP = 14;
 export const MIN_LANE = 24;
-export const MAX_LANE = 160;
+export const MAX_LANE = 360;
 /** tokens.css --lane-h (comfortable): room for the name row at rest and the
  *  level row on the current track. Compact: 40. */
 export const DEFAULT_LANE = 80;

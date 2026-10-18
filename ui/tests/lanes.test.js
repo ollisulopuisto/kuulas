@@ -134,11 +134,11 @@ describe("lane layout", () => {
     assert.equal(plain.height - merged.height, 32, "merging saves one bus row");
   });
 
-  test("lane height is clamped to 24..160", () => {
+  test("lane height is clamped to 24..360", () => {
     assert.equal(clampLaneHeight(5), 24);
-    assert.equal(clampLaneHeight(500), 160);
+    assert.equal(clampLaneHeight(500), 360);
     assert.equal(clampLaneHeight(Number.NaN), DEFAULT_LANE);
-    assert.equal(layoutRows(project, 9999).rows[1].top, 160);
+    assert.equal(layoutRows(project, 9999).rows[1].top, 360);
   });
 
   test("rowAt finds the row at a content y, or none", () => {
@@ -442,7 +442,7 @@ describe("layoutRows with per-track heights", () => {
 
   test("own heights are clamped; unknown ids and junk values are ignored", () => {
     const layout = layoutRows(three, 80, { laneHeights: { t1: 9999, t2: 3, t3: "x", nope: 50 } });
-    assert.equal(heightOf(layout, "t1"), 160);
+    assert.equal(heightOf(layout, "t1"), 360);
     assert.equal(heightOf(layout, "t2"), 24);
     assert.equal(heightOf(layout, "t3"), 80);
   });
