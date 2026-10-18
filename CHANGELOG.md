@@ -1,3 +1,9 @@
+## [v26.10.18.49] - 2026-10-18
+
+- Plan change (owner): mouse editing (WP6) and Tab to the next transient or word (WP19i) are part of the first
+  playable build now. Building block for the status list settings (rename, add, remove, reorder statuses):
+  logic only, not visible yet.
+
 ## [v26.10.18.48] - 2026-10-18
 
 - **Export all tracks with one button:** the "Vie" button in the toolbar, File > Export all tracks, or
