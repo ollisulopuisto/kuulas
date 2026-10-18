@@ -240,7 +240,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       title: t("ui.track.rename"),
       tabindex: "-1",
     });
-    // The kind tag is a button: a click cycles speech / speech mix / music (Alt+Mod+K).
+    // The kind tag is a button: a click cycles speech / music (Alt+Mod+K).
     const tag = el("button", `tag kind-${track.kind}`, { type: "button", tabindex: "-1" });
     paintTag(tag, track.kind);
     const channelTag = el("span", "channel-tag");

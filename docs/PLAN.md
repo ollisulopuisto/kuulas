@@ -1878,13 +1878,12 @@ Tests first (`tests/test_edits.py`):
 Status: backend done in v26.10.17.4 (track kinds, speakers, `duck_music` command); the UI for tagging tracks waits for WP4. Needs WP1, WP4.
 
 The editor only has to say **what each track is**. Everything else speechmix
-decides. `Track.kind` gets three values, chosen in the track header with a
+decides. `Track.kind` gets two values, chosen in the track header with a
 one-key toggle (Alt+Mod+K cycles them on the focused track):
 
 | Tag | Meaning | Used by |
 |---|---|---|
 | `speech` | one person's microphone | per-mic ducking and Auto-Silence (`analysis`), "who is talking", music ducking |
-| `speech-mix` | several people in one file: a Zoom or phone recording | counts as "someone is talking" for music ducking and the transcript; **never** ducked or silenced per mic, because muting it would mute everyone |
 | `music` | music beds, stingers, effects | ducked under speech |
 
 `Track.speaker: str = ""` (default: the track's name) for the case where one
@@ -1893,12 +1892,18 @@ one lane in the speech grid (`speechmix.timeline.Track.speaker` works the
 same way). Stereo `speech` sources are averaged to mono for analysis, which
 `analysis.track_levels` already does.
 
+**`speech-mix` was removed on 2026-10-19.** It was meant for several people in one
+downmixed file (a Zoom or phone recording). The owner decided that automatic separation of
+a downmixed multi-person file is outside kuulas's scope, so the kind has no job left. Saved
+projects and history snapshots that hold it load as `speech` (`Track.from_dict`); setting it
+through `set_track` is `error.edit.bad_track_kind`. The Alt+Mod+K cycle is speech, music.
+
 Import guesses the tag (mono: `speech`, stereo: `music`) and the user corrects
 it. This is the only setup speechmix needs.
 
 **Voice condition (R38), once speechmix has presets:** a sub-choice of the
-speech tags, never a separate property. A track is `music`, or `speech` /
-`speech-mix` with a condition `auto` | `clean` | `room` | `remote` | `phone`
+speech tags, never a separate property. A track is `music`, or `speech`
+with a condition `auto` | `clean` | `room` | `remote` | `phone`
 (default `auto`); music tracks have no condition. In the track header it
 reads as one choice: "Speech · remote". Alt+Mod+K cycles the kind; Alt+Mod+J
 cycles the condition and does nothing on a music track. `auto` shows speechmix's suggestion
@@ -1911,7 +1916,7 @@ Until the presets exist in speechmix, leave this field out.
 - **Mics under each other:** `analysis.automix` (done) writes
   `speechmix.envelopes.duck_envelopes` as track automation on `speech` tracks.
 - **Music under speech:** new `analysis.duck_music(p, store)` builds "anyone
-  is talking" intervals from the `speech` and `speech-mix` lanes (the same rule
+  is talking" intervals from the `speech` lanes (the same rule
   as `nhsx.activity.speech_intervals`: pauses under `GAP_CLOSE_S` bridged,
   blips under `MIN_RUN_S` dropped) and, for each `music` clip, calls
   `nhsx.musicbed.curve(start, end, speech, cold_open=...)`. That is the bed
@@ -1921,8 +1926,7 @@ Until the presets exist in speechmix, leave this field out.
   the programme.
 - Mod+L (automix) runs both; each is also its own command.
 
-Tests first: `test_speech_mix_tracks_are_never_ducked_or_silenced`,
-`test_speech_mix_counts_as_talking_for_music_ducking`,
+Tests first: `test_saved_speech_mix_kind_loads_as_speech`,
 `test_tracks_with_the_same_speaker_are_one_lane`,
 `test_music_automation_follows_nhsx_musicbed_curve` (compare to
 `nhsx.musicbed.curve` directly on the same intervals),
@@ -3364,7 +3368,7 @@ Status: open, requested. Owner: "series template, e.g. save tracks (number of, n
 clips (e.g. I want three jingles in each Vikasietotila episode every time)". Related to WP38 (series).
 A **template** is a small file, `<name>.kuulastemplate` (JSON), kept in the series folder when the project
 belongs to a series (WP38) and otherwise in a per-user templates folder (so it works before WP38 exists):
-- **Tracks:** how many, in order, with names, kind (speech, speech-mix, music), speaker, mono, target LUFS,
+- **Tracks:** how many, in order, with names, kind (speech, music), speaker, mono, target LUFS,
   gain, pan, and the bus each one sits on; **buses:** names, gains, nesting, mute; master settings.
 - **Standing clips:** chosen by selecting them in a project ("Save as template…" offers: all tracks and buses,
   and the selected clips). Each is stored as a reference to its recording (content hash plus a path that is

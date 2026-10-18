@@ -474,7 +474,6 @@
   --signal-sync: var(--p-gray-44);
   --signal-tether: var(--p-gray-44);
   --role-speech: var(--p-gray-44); /* strip pattern: solid */
-  --role-speech-mix: var(--p-gray-44); /* strip pattern: dashed */
   --role-music: var(--p-sand-55); /* strip pattern: dotted */
   --track-0-wave: var(--p-blue-46);
   --track-1-wave: var(--p-amber-60);
@@ -617,7 +616,6 @@
     --signal-sync: var(--p-gray-76);
     --signal-tether: var(--p-gray-76);
     --role-speech: var(--p-gray-76);
-    --role-speech-mix: var(--p-gray-76);
     --role-music: var(--p-sand-62);
     --track-0-wave: var(--p-blue-68);
     --track-1-wave: var(--p-amber-85);
@@ -760,7 +758,6 @@
   --signal-sync: var(--p-gray-76);
   --signal-tether: var(--p-gray-76);
   --role-speech: var(--p-gray-76);
-  --role-speech-mix: var(--p-gray-76);
   --role-music: var(--p-sand-62);
   --track-0-wave: var(--p-blue-68);
   --track-1-wave: var(--p-amber-85);
@@ -1477,7 +1474,7 @@ canvas.mini { display: block; width: 240px; height: 96px; border: 1px solid var(
 //   dash        reality: dashed = not real audio yet (placeholder, pending)
 //   scope       edit scope: what the next time-shifting edit takes along
 //   pattern     absent or maybe absent: muted hatch, cut candidate, damaged, removed
-//   strip       role: speech, speech mix, music (top edge; off on the timeline)
+//   strip       role: speech, music (top edge; off on the timeline)
 //   badge       facts: sync group, drift, free, file mark, takes, label
 //   cap         level: clipping
 //   seam        joins: clean split (hairline) or jump cut (notch)
@@ -1736,8 +1733,8 @@ const SIGNALS = [
     atRest: false,
     whenNotAtRest: "only in the clip bin and on cards",
     always: false,
-    tokens: ["--role-speech", "--role-speech-mix", "--role-music"],
-    twin: "strip pattern: solid speech, dashed speech mix, dotted music; role icon in the header",
+    tokens: ["--role-speech", "--role-music"],
+    twin: "strip pattern: solid speech, dotted music; role icon in the header",
     when: "off on the timeline (the header says it); on in the clip bin and cards",
     key: "",
     status: "prototype",
@@ -2060,7 +2057,6 @@ const SEMANTIC_TOKENS = [
   "--signal-collateral-fill",
   "--signal-preview",
   "--role-speech",
-  "--role-speech-mix",
   "--role-music",
   ...TRACK_PARTS.flatMap((part) => trackTokens(part)),
   ...busTokens(),
@@ -3329,7 +3325,7 @@ const HELP_FILES = {
   "cmd.export.tracks_ogg": "Export all tracks as Ogg Vorbis",
   "cmd.export.tracks_ogg.hint": "One Ogg Vorbis file per track (lossy Ogg Vorbis), same start and length, edits applied, no mixing.",
   "cmd.track.cycle_kind": "Cycle track kind",
-  "cmd.track.cycle_kind.hint": "Changes the current track between speech, speech mix and music.",
+  "cmd.track.cycle_kind.hint": "Changes the current track between speech and music.",
   "cmd.edit.remove": "Delete and close the gap",
   "cmd.edit.remove.hint": "Removes the in-out range or the selected clips on all tracks and closes the gap. Nothing goes to the clipboard.",
   "cmd.edit.remove_track": "Delete and close the gap on this track only",
@@ -3711,7 +3707,7 @@ const HELP_FILES = {
   "cmd.export.tracks_ogg": "Vie kaikki raidat: Ogg Vorbis",
   "cmd.export.tracks_ogg.hint": "Yksi Ogg Vorbis-tiedosto raitaa kohti (häviöllinen Ogg Vorbis), sama alku ja pituus, leikkaukset mukana, ei miksausta.",
   "cmd.track.cycle_kind": "Vaihda raidan tyyppiä",
-  "cmd.track.cycle_kind.hint": "Vaihtaa valitun raidan puheen, puhemiksauksen ja musiikin välillä.",
+  "cmd.track.cycle_kind.hint": "Vaihtaa valitun raidan puheen ja musiikin välillä.",
   "cmd.edit.remove": "Poista ja sulje aukko",
   "cmd.edit.remove.hint": "Poistaa merkityn välin tai valitut leikkeet kaikilta raidoilta ja sulkee aukon. Mitään ei mene leikepöydälle.",
   "cmd.edit.remove_track": "Poista ja sulje aukko vain tältä raidalta",
@@ -3746,7 +3742,7 @@ const STR = {
     undo: "Undo", redo: "Redo", import: "Import", export: "Export", commands: "Commands",
     groupOff: "Group editing off", soloChip: "Solo: {n}", speedChip: "{v}× fast", focusChip: "Focus: {n}",
     reconnect: "Reconnecting…", reconnectTitle: "The connection to the kuulas engine was lost. Everything up to your last edit is saved.", savedUpTo: "Saved up to 19.58 · edits paused", jobs: "Transcribing 2 of 3", jobsShort: "2 of 3",
-    tracks: "{n} tracks", speech: "speech", speechMix: "speech mix · remote", music: "music",
+    tracks: "{n} tracks", speech: "speech", music: "music",
     notHeard: "not heard: solo", mute: "Mute", solo: "Solo", bus: "Voices", busLabel: "Bus",
     anna: "Anna", ville: "Ville", pekka: "Zoom: Pekka", annab: "Anna · backup mic", music1: "Theme tune",
     transcript: "Transcript", followPlay: "Follows playback", inspector: "Inspector", history: "History",
@@ -3804,7 +3800,7 @@ const STR = {
     undo: "Kumoa", redo: "Tee uudelleen", import: "Tuo", export: "Vie", commands: "Komennot",
     groupOff: "Ryhmämuokkaus pois", soloChip: "Soolo: {n}", speedChip: "{v}× nopea", focusChip: "Fokus: {n}",
     reconnect: "Yhdistetään…", reconnectTitle: "Yhteys kuulaksen moottoriin katkesi. Kaikki viimeiseen muokkaukseen asti on tallessa.", savedUpTo: "Tallessa klo 19.58 asti · muokkaus odottaa", jobs: "Litteroidaan 2/3", jobsShort: "2/3",
-    tracks: "{n} raitaa", speech: "puhe", speechMix: "puhemiksaus · etä", music: "musiikki",
+    tracks: "{n} raitaa", speech: "puhe", music: "musiikki",
     notHeard: "ei kuulu: soolo", mute: "Mykistä", solo: "Soolo", bus: "Äänet", busLabel: "Väylä",
     anna: "Anna", ville: "Ville", pekka: "Zoom: Pekka", annab: "Anna · varamikrofoni", music1: "Tunnari",
     transcript: "Litteraatti", followPlay: "Seuraa toistoa", inspector: "Tarkastin", history: "Historia",
@@ -3926,7 +3922,7 @@ const TRACKS = [
   { id: "anna", hue: "0", kind: "speech", gain: 0, pan: -0.1, bus: "voices" },
   { id: "annab", hue: "0", kind: "speech", gain: -6, pan: 0, mute: true, bus: "voices" },
   { id: "ville", hue: "1", kind: "speech", gain: -1.5, pan: 0.1, bus: "voices" },
-  { id: "pekka", hue: "2", kind: "speechMix", gain: 0, pan: 0, bus: "voices" },
+  { id: "pekka", hue: "2", kind: "speech", gain: 0, pan: 0, bus: "voices" },
   { id: "music1", hue: "music", kind: "music", gain: -4, pan: 0, bus: "musicbus" },
   { id: "narr1", hue: "4", kind: "speech", gain: 0, pan: 0, bus: "narrbus" },
 ];
@@ -4172,8 +4168,8 @@ function renderHeads(empty) {
     if (r.last) cls.push("group-end");
     const unheard = soloed && soloed !== t.id;
     if (unheard) cls.push("unheard");
-    const roleText = tr(t.kind === "speechMix" ? "speechMix" : t.kind);
-    const role = `<span class="role" title="${unheard ? tr("notHeard") : roleText}" aria-label="${roleText}">${icon(t.kind === "music" ? "note" : t.kind === "speechMix" ? "mics" : "mic")}</span>`;
+    const roleText = tr(t.kind);
+    const role = `<span class="role" title="${unheard ? tr("notHeard") : roleText}" aria-label="${roleText}">${icon(t.kind === "music" ? "note" : "mic")}</span>`;
     const pan = t.pan === 0 ? "C" : (t.pan < 0 ? (S.lang === "fi" ? "V" : "L") : (S.lang === "fi" ? "O" : "R")) + " " + Math.round(Math.abs(t.pan) * 100);
     // A merged one-track bus: the badge is a label; double-click the header or ⌥⌘← collapses.
     const badge = r.merged ? `<span class="bus-badge" title="${tr("busLabel")}: ${tr(r.bus.id)} · ${tr("collapse")}: ⌥⌘←" aria-label="${tr("busLabel")}: ${tr(r.bus.id)}">${busLetter(busIndex(r.bus.id))}</span>` : "";
@@ -5022,7 +5018,7 @@ function drawSample(canvas, d) {
   if (d.note) { ctx.fillStyle = P.signals.note; ctx.beginPath(); ctx.moveTo(150, y); ctx.lineTo(160, y); ctx.lineTo(155, y + 7); ctx.fill(); }
   if (d.label) { ctx.fillStyle = P.labels[d.label - 1]; ctx.fillRect(w - 20, y + 3, 9, 9); }
   if (d.added) { ctx.fillStyle = P.signals.added; ctx.fillRect(8, y, 3, ch); ctx.fillRect(w - 11, y, 3, ch); }
-  if (d.roles) { [[P.roles.speech, []], [P.roles.speechMix, [6, 3]], [P.roles.music, [1, 3]]].forEach(([c, dash], k) => { ctx.strokeStyle = c; ctx.lineWidth = 2; ctx.setLineDash(dash); const x0 = 8 + (k * (w - 16)) / 3; ctx.beginPath(); ctx.moveTo(x0 + 2, y + 1); ctx.lineTo(x0 + (w - 16) / 3 - 4, y + 1); ctx.stroke(); }); ctx.setLineDash([]); }
+  if (d.roles) { [[P.roles.speech, []], [P.roles.music, [1, 3]]].forEach(([c, dash], k) => { ctx.strokeStyle = c; ctx.lineWidth = 2; ctx.setLineDash(dash); const x0 = 8 + (k * (w - 16)) / 3; ctx.beginPath(); ctx.moveTo(x0 + 2, y + 1); ctx.lineTo(x0 + (w - 16) / 3 - 4, y + 1); ctx.stroke(); }); ctx.setLineDash([]); }
 }
 
 // ---------------------------------------------------------------- interaction

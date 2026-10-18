@@ -254,7 +254,7 @@ describe("painting waveforms (what the worker runs)", () => {
   });
 
   test("a row's scale follows its track's role: speech dB-shaped, music linear (auto)", () => {
-    const kinds = ["speech", "speech-mix", "music"];
+    const kinds = ["speech", "music"];
     const project = {
       rate: 48_000,
       media: [],
@@ -274,7 +274,7 @@ describe("painting waveforms (what the worker runs)", () => {
       makeWaveformJob({ ...state, ...over }, { width: 100, height: 300, ratio: 1, id: 1 }, palette);
     assert.deepEqual(
       make({}).rows.map((row) => row.scale),
-      ["db", "db", "linear"],
+      ["db", "linear"],
     );
     // Changing the role changes the very next job (no cache keyed without the kind).
     const flipped = {

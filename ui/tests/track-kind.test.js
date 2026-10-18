@@ -12,10 +12,12 @@ const project = {
 const state = (extra = {}) => ({ project, focusTrack: "A", focusBus: null, ...extra });
 
 describe("kind cycle", () => {
-  test("speech -> speech-mix -> music -> speech", () => {
-    assert.equal(nextKind("speech"), "speech-mix");
-    assert.equal(nextKind("speech-mix"), "music");
+  test("speech -> music -> speech", () => {
+    assert.equal(nextKind("speech"), "music");
     assert.equal(nextKind("music"), "speech");
+  });
+  test("a leftover speech-mix restarts at speech", () => {
+    assert.equal(nextKind("speech-mix"), "speech");
   });
   test("an unknown kind restarts at speech", () => {
     assert.equal(nextKind("weird"), "speech");
@@ -26,9 +28,9 @@ describe("cycleKindPlan", () => {
   test("one set_track edit for the focused track, with a toast naming the new kind", () => {
     const plan = cycleKindPlan(state());
     assert.equal(plan.op, "set_track");
-    assert.deepEqual(plan.args, { track_id: "A", kind: "speech-mix" });
+    assert.deepEqual(plan.args, { track_id: "A", kind: "music" });
     assert.deepEqual(plan.label, { key: "ui.edit.label.track_kind" });
-    assert.equal(plan.toast.key, "ui.edit.toast.track_kind.speech-mix");
+    assert.equal(plan.toast.key, "ui.edit.toast.track_kind.music");
     assert.deepEqual(plan.toast.values, { name: "Anna" });
   });
   test("music wraps to speech", () => {

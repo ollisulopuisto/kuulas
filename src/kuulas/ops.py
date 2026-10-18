@@ -77,7 +77,7 @@ def add_media(p: Project, media: Media) -> Project:
     return replace(p, media=(*p.media, media))
 
 
-TRACK_KINDS = {"speech", "speech-mix", "music"}
+TRACK_KINDS = {"speech", "music"}
 
 
 def add_track(p: Project, track_id: str | None = None, name: str = "Track",
