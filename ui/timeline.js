@@ -5,6 +5,7 @@
 //     ruler, clip outlines and names, gain lines, selection, in/out, playhead.
 // The overlay redraws on requestAnimationFrame when state changed; the
 // waveform layer only when something it shows changed.
+
 import { candidateBands, flagFits, flagText } from "./candidates-model.js";
 import {
   canStartClipDrag,
@@ -14,6 +15,7 @@ import {
   resolveMove,
   targetTrackRow,
 } from "./clip-drag.js";
+import { overLabel } from "./clip-overs.js";
 import { edgeGhost, ghostGeometry, resolveEdge } from "./edge-drag.js";
 import { frameToX, xToFrame } from "./format.js";
 import {
@@ -83,7 +85,15 @@ const FLAG_EDGE_CURRENT_PX = 4;
 
 export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, actions }) {
   const overlay = overlayCanvas.getContext("2d");
-  const layer = createWaveformLayer(waveCanvas);
+  // Clips whose waveform clips after gain (WP57): clip id -> dB above full scale, as the
+  // painter judged the visible columns. Drives the tooltip and the red gain line.
+  let clipOvers = {};
+  const layer = createWaveformLayer(waveCanvas, {
+    onOvers(overs) {
+      clipOvers = overs ?? {};
+      requestOverlay();
+    },
+  });
   let theme = readTheme();
   let size = { width: 0, height: 0, ratio: 1 };
   let pointerFrame = null;
@@ -376,7 +386,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       if (clip.xfade_out) drawCrossfade(right, y, h, clip.xfade_out / state.zoom, colours.ink);
       if (row.height >= 36) drawName(state, clip, left, y, w, colours, marked);
       // The gain line only where it says something: not 0 dB, an envelope, or selected.
-      if (row.height >= 40 && gainLineVisible(clip, selected))
+      if (row.height >= 40 && gainLineVisible(clip, selected || Object.hasOwn(clipOvers, clip.id)))
         drawGain(state, clip, left, right, top, row.height);
       if (row.height >= 40 && (selected || clip.id === hoverClipId))
         drawFadeHandles(clip, { left, right, zoom: state.zoom }, { top, y, h });
@@ -764,7 +774,9 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
   // Clip gain: a dashed line at gain_db; envelope points as dots joined by lines.
   function drawGain(state, clip, left, right, top, rowHeight) {
     const baseline = top + dbToY(clip.gain_db ?? 0, rowHeight);
-    overlay.strokeStyle = theme.gain;
+    const hot = Object.hasOwn(clipOvers, clip.id);
+    const lineColour = hot ? theme.clipping : theme.gain;
+    overlay.strokeStyle = lineColour;
     overlay.globalAlpha = GAIN_ALPHA;
     overlay.setLineDash([4, 3]);
     overlay.lineWidth = 1;
@@ -784,7 +796,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
         else overlay.lineTo(x, y);
       }
       overlay.stroke();
-      overlay.fillStyle = theme.gain;
+      overlay.fillStyle = lineColour;
       for (const [x, y] of points) {
         overlay.beginPath();
         overlay.arc(x, y, POINT_RADIUS, 0, Math.PI * 2);
@@ -961,6 +973,8 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     let text = "";
     if (hit.placeholder && !hit.clip) text = t("ui.placeholders.hover");
     else if (hit.gate) text = t("ui.gate.hover");
+    else if (hit.clip && Object.hasOwn(clipOvers, hit.clip.id))
+      text = overLabel(clipOvers[hit.clip.id], t, (value) => formatNumber(value, { digits: 1 }));
     if (overlayCanvas.title !== text) overlayCanvas.title = text;
   }
   overlayCanvas.addEventListener("pointermove", (event) => {

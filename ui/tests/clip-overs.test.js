@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { CLIP_LIMIT_DB, columnOvers, maxOverDb, overs } from "../clip-overs.js";
+import { CLIP_LIMIT_DB, columnOvers, maxOverDb, overLabel, overs } from "../clip-overs.js";
 
 // The same cases tests/test_gain_overs_fixture.py reads: this must match clip_overs.py.
 const cases = JSON.parse(
@@ -30,6 +30,17 @@ describe("clip overs edge cases", () => {
     assert.throws(() => overs([], 0, 1));
     assert.throws(() => overs([], Number.NaN));
     assert.throws(() => maxOverDb([], Number.POSITIVE_INFINITY));
+  });
+});
+
+describe("overLabel", () => {
+  const t = (key, values = {}) => `${key}${values.db === undefined ? "" : `:${values.db}`}`;
+  const format = (value) => value.toFixed(1);
+  test("says how far over full scale", () => {
+    assert.equal(overLabel(2.14, t, format), "ui.clip.over:2.1");
+  });
+  test("between the limit and full scale it says it is at the limit", () => {
+    assert.equal(overLabel(0, t, format), "ui.clip.at_limit");
   });
 });
 

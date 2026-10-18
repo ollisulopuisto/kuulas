@@ -68,3 +68,13 @@ export function columnOvers(data, dbPerColumn, limitDb = CLIP_LIMIT_DB) {
   }
   return { over, maxOver: max > 1 ? 20 * Math.log10(max) : 0 };
 }
+
+/**
+ * The words for a clipped clip: "+2.1 dB over" (above full scale), or "At the
+ * clipping limit" when the peak is over -0.1 dBFS but not over 0. `t` is
+ * i18n's t, `format` a one-decimal number formatter.
+ */
+export function overLabel(maxOver, t, format) {
+  if (!(maxOver > 0)) return t("ui.clip.at_limit");
+  return t("ui.clip.over", { db: format(maxOver) });
+}

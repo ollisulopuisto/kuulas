@@ -697,6 +697,8 @@
   "format.speed": "{value}×",
   "ui.gate.mic_closed": "Mic closed",
   "ui.gate.hover": "Mic closed. Double-click to open this stretch.",
+  "ui.clip.over": "Clipping: +{db} dB over full scale",
+  "ui.clip.at_limit": "Clipping: at the limit, just under full scale",
   "ui.edge.roll": "Roll clip edge",
   "ui.edge.ripple": "Ripple-trim clip edge",
   "ui.edge.hint_roll": "Roll: the neighbour follows. Shift: ripple. Esc: cancel",

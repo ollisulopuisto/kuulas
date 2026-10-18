@@ -4,7 +4,7 @@ import { peakTile } from "./api.js";
 import { paintWaveforms } from "./paint.js";
 import { createTileStore } from "./tiles.js";
 
-export function createWaveformLayer(canvas) {
+export function createWaveformLayer(canvas, { onOvers } = {}) {
   const canTransfer =
     typeof Worker !== "undefined" && typeof canvas.transferControlToOffscreen === "function";
   if (canTransfer) {
@@ -13,6 +13,9 @@ export function createWaveformLayer(canvas) {
         type: "module",
       });
       const offscreen = canvas.transferControlToOffscreen();
+      worker.addEventListener("message", ({ data }) => {
+        if (data?.type === "overs") onOvers?.(data.overs);
+      });
       worker.postMessage({ type: "init", canvas: offscreen }, [offscreen]);
       return { mode: "worker", draw: (job) => worker.postMessage({ type: "draw", job }) };
     } catch (error) {
@@ -22,6 +25,7 @@ export function createWaveformLayer(canvas) {
   const context = canvas.getContext("2d");
   let latest = null;
   let scheduled = false;
+  let lastOvers = "";
   const store = createTileStore({ fetchTile: peakTile, onChange: () => schedule() });
   function schedule() {
     if (scheduled) return;
@@ -35,8 +39,15 @@ export function createWaveformLayer(canvas) {
         canvas.width = width;
         canvas.height = height;
       }
-      const { missing } = paintWaveforms(context, latest, (m, l, t) => store.lookup(m, l, t));
+      const { missing, overs } = paintWaveforms(context, latest, (m, l, t) =>
+        store.lookup(m, l, t),
+      );
       store.want(missing);
+      const key = JSON.stringify(overs);
+      if (key !== lastOvers) {
+        lastOvers = key;
+        onOvers?.(overs);
+      }
     });
   }
   return {
