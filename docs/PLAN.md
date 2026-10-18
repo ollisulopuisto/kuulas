@@ -23,6 +23,10 @@ These are not suggestions. A WP is done only when all of them hold.
    wrong, say why in the commit message.
 2. **Keyboard first.** Any UI feature includes its key binding and command
    palette entry in the same WP (R10; see Triage).
+   **Every command is also in a menu (owner, 2026-10-18: "ALL OPTIONS have to be found from the
+   menus", "the menus are a discoverability feature").** A command with a key and a palette entry but no
+   menu item is unfinished. A test (`ui/tests/menu-coverage.test.js`) lists the commands that are in no
+   menu and must stay empty.
    **Translated from the start (R39).** No user-facing text is written as a
    literal, in Python or in the UI: it is a message key with an English
    source string and a Finnish translation in the same commit (WP33).
