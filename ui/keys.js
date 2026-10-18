@@ -239,6 +239,8 @@ export function createKeymap({
         if (typing && entry.context !== "text-field") continue;
         if (entry.context === "not-candidates") {
           if (context === "candidates") continue;
+        } else if (entry.context === "not-transcript") {
+          if (context === "transcript") continue;
         } else if (!EVERYWHERE.has(entry.context) && entry.context !== context) continue;
         if (!entry.parsed.some((p) => matchesCombo(event, p, platform))) continue;
         // A planned command is only listed; its key stays the browser's.

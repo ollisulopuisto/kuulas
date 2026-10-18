@@ -29,6 +29,7 @@ import { EXPORT_FORMAT_IDS } from "./export-commands.js";
 export const CONTEXTS = [
   "global",
   "not-candidates",
+  "not-transcript",
   "timeline",
   "transcript",
   "side",
@@ -398,25 +399,25 @@ export const DEFAULT_KEYMAP = [
   {
     id: "edit.cut",
     keys: { mac: ["X", "Mod+X"], other: ["X", "Mod+X"] },
-    context: "timeline",
+    context: "not-transcript",
     labelKey: "cmd.edit.cut",
   },
   {
     id: "edit.cut_track",
     keys: { mac: ["Shift+X", "Shift+Mod+X"], other: ["Shift+X", "Shift+Mod+X"] },
-    context: "timeline",
+    context: "not-transcript",
     labelKey: "cmd.edit.cut_track",
   },
   {
     id: "edit.lift_cut",
     keys: { mac: "Alt+X", other: "Alt+X" },
-    context: "timeline",
+    context: "not-transcript",
     labelKey: "cmd.edit.lift_cut",
   },
   {
     id: "edit.close_gap_all",
     keys: { mac: "Alt+Mod+X", other: "Alt+Mod+X" },
-    context: "timeline",
+    context: "not-transcript",
     labelKey: "cmd.edit.close_gap_all",
   },
   {

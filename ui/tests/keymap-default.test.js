@@ -126,6 +126,13 @@ describe("the owner's decisions", () => {
     assert.deepEqual(keysOf("nav.tab_target_cycle"), ["Shift+T"]);
   });
 
+  test("X cuts the marked range from anywhere but a text field and the transcript", () => {
+    for (const id of ["edit.cut", "edit.cut_track", "edit.lift_cut", "edit.close_gap_all"]) {
+      assert.equal(DEFAULT_KEYMAP.find((e) => e.id === id).context, "not-transcript", id);
+    }
+    assert.equal(DEFAULT_KEYMAP.find((e) => e.id === "transcript.cut_words").context, "transcript");
+  });
+
   test("K stops the shuttle everywhere, including the Candidates tab", () => {
     const withK = DEFAULT_KEYMAP.filter((entry) => asList(entry.keys.other).includes("K"));
     assert.deepEqual(
