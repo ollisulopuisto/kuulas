@@ -43,6 +43,7 @@ import { activeLoop } from "./loop-range.js";
 import { regionCount } from "./markers-model.js";
 import { createMarkersPanel } from "./markers-panel.js";
 import { heldFromEvent } from "./modifiers.js";
+import { monoDecision, monoEdits } from "./mono-ask.js";
 import { motionMode } from "./motion.js";
 import { createOverview } from "./overview.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
@@ -840,12 +841,21 @@ const importPanel = createImportPanel({
       $("undo").click();
     },
     sequence: () => void importSequentially(),
+    mono: (tracks) => turnIntoMono(tracks),
+    keepStereo: () => {},
   },
 });
 // Anything else that changes the project takes the panel down: Undo would undo that instead.
 subscribe(() => importPanel.sync(getState().head));
 
 let lastImport = null; // { job, options } of the import the panel is about
+
+// One undoable step per track: the user can take back one voice and keep the other.
+function turnIntoMono(tracks) {
+  for (const edit of monoEdits(tracks)) {
+    editor.change({ ...edit, label: t(edit.labelKey), labelKey: undefined });
+  }
+}
 
 async function importFiles(files, target = null) {
   if (files.length > 0) await runImport({ files }, target);
@@ -870,7 +880,11 @@ async function runImport(job, target, settled = null) {
       return;
     }
     lastImport = { job, options };
-    importPanel.show(panelModel(summary, options), getState().head);
+    // New stereo speech tracks: turn into mono, keep, or ask (the remembered choice).
+    const decision = monoDecision(importPanel.prefs().mono, result.stereo);
+    if (decision.action === "mono") turnIntoMono(decision.tracks);
+    const asking = decision.action === "ask" ? decision.tracks : [];
+    importPanel.show(panelModel(summary, options, asking), getState().head);
   } catch (error) {
     showError(error);
   }

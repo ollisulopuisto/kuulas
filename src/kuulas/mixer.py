@@ -148,12 +148,19 @@ def _clip_signal(clip: Clip, store: Store, first: int, count: int,
     return lo, hi, audio * g
 
 
+def downmix(audio: np.ndarray) -> np.ndarray:
+    """``(channels, n)`` to ``(1, n)`` as (L+R)/2: a centred voice keeps its level."""
+    return audio.mean(axis=0, keepdims=True) if audio.shape[0] > 1 else audio
+
+
 def _clip_into(out: np.ndarray, clip: Clip, store: Store, first: int, count: int,
-               ramps: tuple[int, int] = (0, 0)) -> None:
+               ramps: tuple[int, int] = (0, 0), mono: bool = False) -> None:
     signal = _clip_signal(clip, store, first, count, ramps)
     if signal is None:
         return
     lo, hi, audio = signal
+    if mono:
+        audio = downmix(audio)
     n, a = hi - lo, lo - first
     if audio.shape[0] == 1:
         left_g, right_g = pan_gains(clip.pan * 100.0, "power")
@@ -182,7 +189,7 @@ def _track(track: Track, store: Store, first: int, count: int,
     buf = np.zeros((2, count), dtype=np.float64)
     ramps = _mute_ramps(track, rate)
     for clip in clips:
-        _clip_into(buf, clip, store, first, count, ramps.get(clip.id, (0, 0)))
+        _clip_into(buf, clip, store, first, count, ramps.get(clip.id, (0, 0)), track.mono)
     gate = _gate_gain(track.gate, first, count, rate)
     if gate is not None:
         buf *= gate
@@ -239,6 +246,8 @@ def track_stem(track: Track, store: Store, first: int, count: int, channels: int
         if signal is None:
             continue
         lo, hi, audio = signal
+        if track.mono:
+            audio = downmix(audio)
         if audio.shape[0] < channels:  # a mono clip on a stereo track
             audio = np.repeat(audio[:1], channels, axis=0)
         buf[:, lo - first:hi - first] += audio[:channels]

@@ -572,6 +572,8 @@ def _produce(job: _Job, target: Path, channels: int,
 
 
 def _track_channels(project: Project, track: Track) -> int:
+    if track.mono:
+        return 1
     widths = [project.media_item(c.media).channels for c in track.clips]
     return max(widths, default=1)
 
