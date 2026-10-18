@@ -290,6 +290,39 @@ def set_clip(p: Project, clip_id: str, **fields) -> Project:
     return _replace_clip(p, replace(clip, **fields))
 
 
+def set_fade_at(p: Project, clip_id: str, frame: int,
+                side: str | None = None) -> Project:
+    clip, _ = _find_clip(p, clip_id)
+    frame = int(frame)
+    if not (clip.start <= frame < clip.end):
+        raise EditError("error.edit.split_outside")
+
+    if side is None:
+        effective_side = "in" if frame - clip.start <= clip.end - frame else "out"
+    elif side in ("in", "fade_in"):
+        effective_side = "in"
+    elif side in ("out", "fade_out"):
+        effective_side = "out"
+    else:
+        raise EditError("error.edit.bad_arguments", name="set_fade_at",
+                        detail=f"unknown side: {side}")
+
+    if effective_side == "in":
+        new_fade_in = max(0, min(clip.length, int(frame - clip.start)))
+        if new_fade_in + clip.fade_out > clip.length:
+            new_fade_out = max(0, clip.length - new_fade_in)
+        else:
+            new_fade_out = clip.fade_out
+    else:
+        new_fade_out = max(0, min(clip.length, int(clip.end - frame)))
+        if clip.fade_in + new_fade_out > clip.length:
+            new_fade_in = max(0, clip.length - new_fade_out)
+        else:
+            new_fade_in = clip.fade_in
+
+    return _replace_clip(p, replace(clip, fade_in=new_fade_in, fade_out=new_fade_out))
+
+
 def set_clip_envelope(p: Project, clip_id: str, points) -> Project:
     clip, _ = _find_clip(p, clip_id)
     return _replace_clip(p, replace(clip, envelope=_points(points)))
@@ -683,7 +716,7 @@ OPS = {
         add_track, delete_track, set_track, solo, move_track, set_track_automation,
         add_bus, set_bus, delete_bus, set_master,
         add_clip, delete_clip, move_clip, trim_clip, split_clip, set_clip,
-        set_clip_envelope, ripple_delete, mute_ranges,
+        set_fade_at, set_clip_envelope, ripple_delete, mute_ranges,
         set_gate, add_gate_range, remove_gate_range,
         shift_clips, set_clips, delete_clips, mark_in_sync, resync,
         split_clips, mute_range, cut_range, nudge_clips, trim_clips, adjust_clip_gain,
