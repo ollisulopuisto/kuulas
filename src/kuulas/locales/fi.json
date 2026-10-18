@@ -444,6 +444,7 @@
   "desktop.menu.view.density": "Vaihda tiheyttä",
   "desktop.menu.window.minimize": "Pienennä",
   "cli.desktop.help": "Avaa työpöytäikkuna, jossa on lista viimeksi avatuista projekteista.",
+  "cli.debug.help": "Tulosta toiston ajoitukset (takaisinkutsu, median luku, miksaus) kerran sekunnissa virhevirtaan.",
   "cli.open.window": "Avaa selaimen sijaan omaan ikkunaan (vaatii desktop-lisäosan).",
   "cli.import_nhsx.help": "Tuo Hindenburg-sessio (.nhsx) projektiin; luo projektin, jos sitä ei ole.",
   "cli.import_nhsx.nhsx": "Hindenburg-sessiotiedosto (.nhsx).",

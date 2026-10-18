@@ -444,6 +444,7 @@
   "desktop.menu.view.density": "Switch density",
   "desktop.menu.window.minimize": "Minimise",
   "cli.desktop.help": "Open the desktop window with a list of recent projects.",
+  "cli.debug.help": "Print playback timings (callback, media reads, mixing) to stderr once a second.",
   "cli.open.window": "Open in a native window instead of the browser (needs the desktop extra).",
   "cli.import_nhsx.help": "Import a Hindenburg session (.nhsx) into a project, creating it if it does not exist.",
   "cli.import_nhsx.nhsx": "The Hindenburg session file (.nhsx).",
