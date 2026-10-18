@@ -1190,5 +1190,19 @@
   "ui.export.show_in_finder": "Show in Finder",
   "ui.export.cancelled": "Export cancelled.",
   "ui.range.clips_one": "1 clip",
-  "ui.range.clips_many": "{count} clips"
+  "ui.range.clips_many": "{count} clips",
+  "ui.import.mono_question": {
+    "one": "{names} is a stereo recording. Turn it into mono?",
+    "other": "{names} are stereo recordings. Turn them into mono?"
+  },
+  "ui.import.mono_yes": "Turn into mono",
+  "ui.import.mono_no": "Keep stereo",
+  "ui.import.mono": "Stereo speech",
+  "ui.import.mono_ask": "always ask",
+  "ui.import.mono_always": "always mono",
+  "ui.import.mono_never": "always stereo",
+  "ui.track.mono": "Mono",
+  "ui.track.tag.mono": "mono",
+  "ui.track.tag.stereo": "stereo",
+  "ui.edit.label.mono": "Turn into mono"
 }

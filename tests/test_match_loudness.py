@@ -130,7 +130,7 @@ def test_session_lock_is_free_while_measuring(
     free = []
     real_measure = sm.measure_clip
 
-    def measure_with_probe(store, clip, rate):
+    def measure_with_probe(store, clip, rate, **kw):
         def try_lock():
             got = session.lock.acquire(timeout=1.0)
             if got:
@@ -140,7 +140,7 @@ def test_session_lock_is_free_while_measuring(
         other = threading.Thread(target=try_lock)
         other.start()
         other.join()
-        return real_measure(store, clip, rate)
+        return real_measure(store, clip, rate, **kw)
 
     monkeypatch.setattr(sm, "measure_clip", measure_with_probe)
 
@@ -157,10 +157,10 @@ def test_head_moved_concurrently_raises_error(
 
     real_measure = sm.measure_clip
 
-    def measure_and_mutate(store, clip, rate):
+    def measure_and_mutate(store, clip, rate, **kw):
         # Concurrently perform an edit that advances the history head
         session.edit("add_track", {"name": "ConcurrentTrack"})
-        return real_measure(store, clip, rate)
+        return real_measure(store, clip, rate, **kw)
 
     monkeypatch.setattr(sm, "measure_clip", measure_and_mutate)
 

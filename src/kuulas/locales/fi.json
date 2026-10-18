@@ -1190,5 +1190,19 @@
   "ui.export.show_in_finder": "Näytä Finderissä",
   "ui.export.cancelled": "Vienti peruutettiin.",
   "ui.range.clips_one": "1 leike",
-  "ui.range.clips_many": "{count} leikettä"
+  "ui.range.clips_many": "{count} leikettä",
+  "ui.import.mono_question": {
+    "one": "{names} on stereoäänite. Muutetaanko monoksi?",
+    "other": "{names} ovat stereoäänitteitä. Muutetaanko monoksi?"
+  },
+  "ui.import.mono_yes": "Muuta monoksi",
+  "ui.import.mono_no": "Pidä stereona",
+  "ui.import.mono": "Stereopuhe",
+  "ui.import.mono_ask": "kysy aina",
+  "ui.import.mono_always": "aina mono",
+  "ui.import.mono_never": "aina stereo",
+  "ui.track.mono": "Mono",
+  "ui.track.tag.mono": "mono",
+  "ui.track.tag.stereo": "stereo",
+  "ui.edit.label.mono": "Muuta monoksi"
 }

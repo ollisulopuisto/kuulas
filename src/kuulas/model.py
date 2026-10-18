@@ -155,6 +155,10 @@ class Track:
     # Where this track should sit, LUFS (WP49); None means its role's default
     # (``loudness.default_target_lufs``). Edit state, so undo and save keep it.
     target_lufs: float | None = None
+    # Mixed down to ONE channel everywhere it is rendered, (L+R)/2 (the mixer,
+    # stems, loudness). False (the default) keeps the source's channels; an
+    # old reader ignores the field and plays stereo.
+    mono: bool = False
     extra: dict = field(default_factory=dict, hash=False)
 
     def to_dict(self) -> dict:
@@ -167,6 +171,8 @@ class Track:
             del d["gate"]
         if self.target_lufs is None:
             del d["target_lufs"]  # same reason: unset tracks keep their bytes
+        if not self.mono:
+            del d["mono"]  # and stereo tracks keep theirs
         return d
 
     @classmethod

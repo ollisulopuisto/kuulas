@@ -632,7 +632,8 @@ def create_app(session, engine, *, language: str | None = None,
             return JSONResponse({**error_body(e.key, **e.params),
                                  "report": report_of(session.last_import_report)},
                                 status_code=500)
-        return state_response({"report": report_of(results)})
+        return state_response({"report": report_of(results),
+                               "stereo": session.last_import_stereo})
 
     @app.post("/api/import")
     def post_import(body: ImportBody):

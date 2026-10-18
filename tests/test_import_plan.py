@@ -21,7 +21,7 @@ class TestSideBySide:
         item = _item("take.wav", RATE)
         result = plan_import([item], RATE, mode="side_by_side", start_frame=100)
         assert result == (
-            Placement(item, "t0", "take", "speech", 100, True),
+            Placement(item, "t0", "take", "speech", 100, True, mono=True),
         )
 
     def test_stereo_alone_is_not_music(self):
