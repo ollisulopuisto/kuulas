@@ -15,7 +15,8 @@
 // Owner decisions (18.10.2026) kept here: Backspace is Delete (soft cut, gap kept),
 // X is Cut (ripple, to the clipboard), Mod+C copies; Spot is Mod+J, find is Mod+F,
 // fade is G, import is Mod+I (Mod+T in the desktop wrapper), K keeps a candidate (in the Candidates tab),
-// [ ] are physical keys, F2 renames. Parked and so not bound: lift-cut (Alt+X),
+// [ ] are physical keys (Finnish Mac: Option+8/9, so Alt+Down/Up also step candidates and
+// Alt+Mod+Shift+Left/Right the views; Alt+Shift+Arrow is pan), F2 renames. Parked and so not bound: lift-cut (Alt+X),
 // close gap on all tracks, Clean up cuts, Compare. The clipboard (WP46): X cuts to it,
 // Mod+C copies only, Backspace never touches it; Mod+V pastes (insert), Alt+Mod+V
 // overwrites, Shift+Mod+V inserts on the current track.
@@ -232,13 +233,19 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "view.back",
-    keys: { mac: "Alt+[", other: "Alt+[" },
+    keys: {
+      mac: ["Alt+[", "Alt+Mod+Shift+ArrowLeft"],
+      other: ["Alt+[", "Alt+Mod+Shift+ArrowLeft"],
+    },
     context: "global",
     labelKey: "cmd.view.back",
   },
   {
     id: "view.forward",
-    keys: { mac: "Alt+]", other: "Alt+]" },
+    keys: {
+      mac: ["Alt+]", "Alt+Mod+Shift+ArrowRight"],
+      other: ["Alt+]", "Alt+Mod+Shift+ArrowRight"],
+    },
     context: "global",
     labelKey: "cmd.view.forward",
   },
@@ -536,13 +543,13 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "candidate.next",
-    keys: { mac: "]", other: "]" },
+    keys: { mac: ["]", "Alt+ArrowDown"], other: ["]", "Alt+ArrowDown"] },
     context: "global",
     labelKey: "cmd.candidate.next",
   },
   {
     id: "candidate.previous",
-    keys: { mac: "[", other: "[" },
+    keys: { mac: ["[", "Alt+ArrowUp"], other: ["[", "Alt+ArrowUp"] },
     context: "global",
     labelKey: "cmd.candidate.previous",
   },

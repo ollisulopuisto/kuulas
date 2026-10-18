@@ -33,6 +33,7 @@ import {
   placeCursor,
   selectedIndices,
   selectWord,
+  shouldLoadWords,
   summaryParts,
   visibleRange,
   wordAtTime,
@@ -104,6 +105,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   const measured = new Map(); // paragraph id -> real height
   let listWidth = 0;
   let fetchedHead = null;
+  let fetchedKey = null; // the muted inputs the last fetch was started for
   let fetching = false;
   let lastKey = "";
 
@@ -846,12 +848,15 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   // -- loading the words ---------------------------------------------------------------------------------
   /** The words are derived from the edit: after any change of head, ask again. */
   async function loadWords(force = false) {
-    const head = getState().head;
-    if (fetching || head === null || (!force && head === fetchedHead)) return;
+    const { head, serverMutedKey: key } = getState();
+    if (!shouldLoadWords({ head, key, fetchedHead, fetchedKey, fetching, force })) return;
     fetching = true;
+    let ok = false;
     try {
       const body = await api.getWords();
       fetchedHead = head;
+      fetchedKey = key;
+      ok = true;
       const sel = selection();
       setState({
         words: body.words ?? [],
@@ -866,7 +871,9 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       actions.showError(error);
     } finally {
       fetching = false;
-      if (getState().head !== fetchedHead) void loadWords();
+      // The edit moved on while this was in flight (head, or the mute/solo inputs under
+      // the same head): ask again. Not after a failure, or a dead server loops.
+      if (ok) void loadWords();
     }
   }
 
@@ -889,7 +896,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     update(state, patch) {
       const changed = patch ? new Set(Object.keys(patch)) : null;
       const touched = (...names) => changed === null || names.some((name) => changed.has(name));
-      if (touched("head")) void loadWords();
+      if (touched("head", "serverMutedKey")) void loadWords();
       const key = `${state.wordsHead}|${state.words?.length}|${state.project?.rate}|${state.project?.tracks?.map((x) => x.id + x.speaker + x.name).join()}|${JSON.stringify(state.people ?? {})}|${state.pauseBreak}`;
       if (state.words !== words || key !== lastKey) {
         lastKey = key;

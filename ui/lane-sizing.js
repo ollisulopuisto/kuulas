@@ -77,3 +77,36 @@ export function autoFitKey({ project, available, busHeight, groupGap, laneHeight
 export function shouldAutoFit({ on, key, last }) {
   return Boolean(on) && key !== "" && key !== last;
 }
+
+/** Pointer travel (px) before a border press becomes a drag: a click or a slip sizes nothing. */
+export const DRAG_THRESHOLD = 4;
+
+/** Has the pointer moved far enough from where it went down to count as a drag? */
+export function dragStarted({ startY, y }) {
+  return Math.abs(y - startY) >= DRAG_THRESHOLD;
+}
+
+/**
+ * View > Fit tracks to window: an explicit fit means every track, so the lanes sized by
+ * hand are cleared first. { laneHeight, laneHeights: {} }, or null when there is nothing
+ * to fit. (Auto-fit keeps hand-sized lanes: fitHeight.)
+ */
+export function explicitFit(input) {
+  const laneHeight = fitHeight({ ...input, laneHeights: {} });
+  return laneHeight === null ? null : { laneHeight, laneHeights: {} };
+}
+
+const MIN_THUMB = 24;
+
+/**
+ * The scroll indicator for the lanes area: where the thumb sits (px from the top of the
+ * area) and how tall it is, or null when all lanes are visible. The headers column
+ * scrolls natively, but a thin overlay scrollbar is invisible on a Mac.
+ */
+export function scrollThumb({ contentHeight, viewHeight, scrollY }) {
+  if (!(viewHeight > 0) || !(contentHeight > viewHeight)) return null;
+  const height = Math.max(MIN_THUMB, Math.round((viewHeight * viewHeight) / contentHeight));
+  const room = viewHeight - height;
+  const share = Math.min(1, Math.max(0, scrollY / (contentHeight - viewHeight)));
+  return { top: Math.round(room * share), height };
+}

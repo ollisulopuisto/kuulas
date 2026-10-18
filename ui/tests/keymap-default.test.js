@@ -79,8 +79,8 @@ describe("the owner's decisions", () => {
   });
 
   test("candidates use the physical brackets, Enter keeps, F2 renames", () => {
-    assert.deepEqual(keysOf("candidate.next"), ["]"]);
-    assert.deepEqual(keysOf("candidate.previous"), ["["]);
+    assert.deepEqual(keysOf("candidate.next"), ["]", "Alt+ArrowDown"]);
+    assert.deepEqual(keysOf("candidate.previous"), ["[", "Alt+ArrowUp"]);
     assert.deepEqual(keysOf("candidate.reject"), ["Enter"]);
     assert.deepEqual(keysOf("rename"), ["F2"]);
   });
@@ -152,8 +152,8 @@ describe("the owner's decisions", () => {
     assert.deepEqual(keysOf("view.toggle"), ["Z"]);
     assert.deepEqual(keysOf("view.fit"), ["0"]);
     assert.deepEqual(keysOf("view.fit_selection"), ["F"]);
-    assert.deepEqual(keysOf("view.back"), ["Alt+["]);
-    assert.deepEqual(keysOf("view.forward"), ["Alt+]"]);
+    assert.deepEqual(keysOf("view.back"), ["Alt+[", "Alt+Mod+Shift+ArrowLeft"]);
+    assert.deepEqual(keysOf("view.forward"), ["Alt+]", "Alt+Mod+Shift+ArrowRight"]);
     assert.deepEqual(keysOf("mark.clear_in"), ["Shift+I"]);
     assert.deepEqual(keysOf("mark.clear_out"), ["Shift+O"]);
     assert.deepEqual(keysOf("mark.clear"), []);

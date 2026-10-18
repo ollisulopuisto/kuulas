@@ -176,6 +176,21 @@ describe("the core keys", () => {
     ]);
   });
 
+  test("layout-free keys: Alt+Down/Up step candidates, Cmd+Alt+Shift+Left/Right step the views", () => {
+    const { keymap, calls } = setup({ platform: "mac" });
+    keymap.handle(press({ key: "ArrowDown", code: "ArrowDown", altKey: true }));
+    keymap.handle(press({ key: "ArrowUp", code: "ArrowUp", altKey: true }));
+    const chord = { metaKey: true, altKey: true, shiftKey: true };
+    keymap.handle(press({ key: "ArrowLeft", code: "ArrowLeft", ...chord }));
+    keymap.handle(press({ key: "ArrowRight", code: "ArrowRight", ...chord }));
+    assert.deepEqual(calls, [
+      ["candidate.next"],
+      ["candidate.previous"],
+      ["view.back"],
+      ["view.forward"],
+    ]);
+  });
+
   test("= and - zoom, on a US layout and on a Finnish one, and a held key repeats", () => {
     const { keymap, calls } = setup();
     keymap.handle(press({ key: "=", code: "Equal" }));

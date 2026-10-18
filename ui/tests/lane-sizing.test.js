@@ -2,9 +2,13 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
   autoFitKey,
+  DRAG_THRESHOLD,
   dragLaneHeight,
+  dragStarted,
+  explicitFit,
   fitHeight,
   pruneLaneHeights,
+  scrollThumb,
   shouldAutoFit,
   withLaneHeight,
 } from "../lane-sizing.js";
@@ -139,5 +143,62 @@ describe("auto-fit trigger", () => {
     assert.equal(shouldAutoFit({ on: true, key: unmeasured, last: "" }), false);
     const noProject = autoFitKey({ ...input, project: null });
     assert.equal(shouldAutoFit({ on: true, key: noProject, last: "" }), false);
+  });
+});
+
+describe("a border drag needs a real drag", () => {
+  test("a click or a move under 4 px never starts it", () => {
+    assert.equal(DRAG_THRESHOLD, 4);
+    assert.equal(dragStarted({ startY: 200, y: 200 }), false);
+    assert.equal(dragStarted({ startY: 200, y: 203 }), false);
+    assert.equal(dragStarted({ startY: 200, y: 197 }), false);
+  });
+  test("4 px either way does, and junk does not", () => {
+    assert.equal(dragStarted({ startY: 200, y: 204 }), true);
+    assert.equal(dragStarted({ startY: 200, y: 196 }), true);
+    assert.equal(dragStarted({ startY: 200, y: Number.NaN }), false);
+  });
+});
+
+describe("explicitFit (View > Fit tracks to window)", () => {
+  test("hand-sized lanes are cleared and every track is fitted", () => {
+    const input = { ...base, project: project(4), available: 400, laneHeights: { t1: 40 } };
+    assert.equal(fitHeight(input), 120); // auto-fit keeps t1 at 40: the others share 360
+    assert.deepEqual(explicitFit(input), { laneHeight: 100, laneHeights: {} });
+  });
+  test("with every lane hand-sized it still fits (fitHeight alone gives null)", () => {
+    const input = {
+      ...base,
+      project: project(2),
+      available: 200,
+      laneHeights: { t1: 40, t2: 50 },
+    };
+    assert.equal(fitHeight(input), null);
+    assert.deepEqual(explicitFit(input), { laneHeight: 100, laneHeights: {} });
+  });
+  test("nothing to fit gives null", () => {
+    assert.equal(explicitFit({ ...base, project: null, available: 400 }), null);
+  });
+});
+
+describe("scrollThumb (the lanes area scroll indicator)", () => {
+  test("none while everything fits", () => {
+    assert.equal(scrollThumb({ contentHeight: 300, viewHeight: 300, scrollY: 0 }), null);
+    assert.equal(scrollThumb({ contentHeight: 100, viewHeight: 300, scrollY: 0 }), null);
+  });
+  test("size is the visible share, position follows the scroll", () => {
+    assert.deepEqual(scrollThumb({ contentHeight: 600, viewHeight: 300, scrollY: 0 }), {
+      top: 0,
+      height: 150,
+    });
+    assert.deepEqual(scrollThumb({ contentHeight: 600, viewHeight: 300, scrollY: 300 }), {
+      top: 150,
+      height: 150,
+    });
+  });
+  test("never thinner than 24 px, never past the end", () => {
+    const thumb = scrollThumb({ contentHeight: 30_000, viewHeight: 300, scrollY: 99_999 });
+    assert.equal(thumb.height, 24);
+    assert.equal(thumb.top, 276);
   });
 });

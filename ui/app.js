@@ -23,8 +23,15 @@ import { dragHasFiles, nativeBridge, summariseImport } from "./importing.js";
 import { createInspector } from "./inspector.js";
 import { formatCombo } from "./keymap-config.js";
 import { detectPlatform, isTextField } from "./keys.js";
-import { autoFitKey, fitHeight, shouldAutoFit, withLaneHeight } from "./lane-sizing.js";
-import { clampLaneHeight, pointerIntent, projectEnd, RULER_HEIGHT } from "./lanes.js";
+import {
+  autoFitKey,
+  explicitFit,
+  fitHeight,
+  scrollThumb,
+  shouldAutoFit,
+  withLaneHeight,
+} from "./lane-sizing.js";
+import { clampLaneHeight, layoutFor, pointerIntent, projectEnd, RULER_HEIGHT } from "./lanes.js";
 import { connectLive } from "./live.js";
 import { activeLoop } from "./loop-range.js";
 import { regionCount } from "./markers-model.js";
@@ -41,7 +48,7 @@ import { densityAttribute, nextTheme, themeAttribute } from "./theme.js";
 import { createTimeline } from "./timeline.js";
 import { createTrackHeaders } from "./tracks.js";
 import { createTranscript } from "./transcript.js";
-import { pauseChoiceId } from "./transcript-model.js";
+import { mutedInputsKey, pauseChoiceId } from "./transcript-model.js";
 import { createTransport } from "./transport.js";
 import * as View from "./view.js";
 import { changeKey, createSaver, recordOf, restoreFrom } from "./view-memory.js";
@@ -107,7 +114,11 @@ const viewLevels = () =>
 const bounds = () => ({ width: width(), totalFrames: totalFrames() });
 
 function apply(response) {
-  setState(serverPatch(response, getState()));
+  const patch = serverPatch(response, getState());
+  // What the server's mute/solo state is, for the transcript's struck-through words; the
+  // project on screen may hold a provisional toggle the server has not answered yet.
+  if (response.project) patch.serverMutedKey = mutedInputsKey(response.project);
+  setState(patch);
   if (fitWhole) fitWholeEdit();
   // An export that left unrecorded narration silent says so (WP43): a warning, not a refusal.
   const skipped = response.export?.placeholders_skipped ?? 0;
@@ -220,7 +231,7 @@ const actions = {
     prefs.set(PAUSE_BREAK_KEY, id);
     setState({ pauseBreak: id });
   },
-  fitTracks: () => fitTracks(),
+  fitTracks: () => fitAllTracks(),
   toggleAutoFitTracks() {
     const on = !getState().autoFitTracks;
     lastFitKey = "";
@@ -630,6 +641,26 @@ function fitTracks() {
   const height = fitHeight(fitInput(state));
   if (height !== null && height !== state.laneHeight) setState({ laneHeight: height });
 }
+// View > Fit tracks to window is explicit, so it means every track: hand-sized lanes are cleared.
+function fitAllTracks() {
+  const fit = explicitFit(fitInput(getState()));
+  if (fit) setState(fit);
+}
+// The lanes area scrolls when even the smallest lanes do not fit; a thumb shows where.
+function updateLanesScroll(state) {
+  const thumb = scrollThumb({
+    contentHeight: layoutFor(state).height,
+    viewHeight: laneArea(),
+    scrollY: state.scrollY,
+  });
+  const bar = $("lanes-scroll");
+  bar.hidden = thumb === null;
+  if (thumb) {
+    bar.firstElementChild.style.top = `${thumb.top}px`;
+    bar.firstElementChild.style.height = `${thumb.height}px`;
+  }
+}
+
 // Auto-fit: refit when what moves the lanes changes (lane-sizing.js decides). Called
 // from render and from the resize hook; the fit itself runs after the current
 // listeners, because setState inside a listener would leave the later ones with a
@@ -1172,6 +1203,7 @@ const timeline = createTimeline({
     resized() {
       if (fitWhole && getState().project) fitWholeEdit();
       autoFit(getState());
+      updateLanesScroll(getState());
       overview?.redraw();
     },
   },
@@ -1326,6 +1358,8 @@ function render(state, patch) {
   )
     trackHeaders.update(state);
   if (touched("project", "autoFitTracks", "laneHeights", "busHeight", "groupGap")) autoFit(state);
+  if (touched("project", "scrollY", "laneHeight", "laneHeights", "busHeight", "groupGap"))
+    updateLanesScroll(state);
   if (touched("project", "selection", "focusTrack", "focusBus")) inspector.update(state);
   if (touched("selection", "focusTrack", "focusBus", "panel")) help.update();
   if (

@@ -13,6 +13,7 @@ import {
   estimateHeight,
   extendTo,
   moveCursor,
+  mutedInputsKey,
   noSelection,
   offsetsOf,
   ownerTracks,
@@ -25,6 +26,7 @@ import {
   selectedIndices,
   selectionBounds,
   selectWord,
+  shouldLoadWords,
   speakerName,
   summaryParts,
   visibleRange,
@@ -389,5 +391,61 @@ describe("pause threshold choices", () => {
       pauseSeconds: pauseSecondsOf("never"),
     });
     assert.equal(paragraphs.length, 1);
+  });
+});
+
+describe("when the words are fetched again (muted flags come from the server)", () => {
+  const project = (track = {}, bus = {}, clip = {}) => ({
+    tracks: [
+      {
+        id: "t1",
+        mute: false,
+        solo: false,
+        bus: "b1",
+        clips: [{ id: "c1", muted: false, ...clip }],
+        ...track,
+      },
+      { id: "t2", mute: false, solo: false, clips: [] },
+    ],
+    buses: [{ id: "b1", mute: false, ...bus }],
+  });
+
+  test("the key changes with mute, solo, bus mute and clip mute, and with nothing else", () => {
+    const base = mutedInputsKey(project());
+    assert.notEqual(mutedInputsKey(project({ mute: true })), base);
+    assert.notEqual(mutedInputsKey(project({ solo: true })), base);
+    assert.notEqual(mutedInputsKey(project({}, { mute: true })), base);
+    assert.notEqual(mutedInputsKey(project({}, {}, { muted: true })), base);
+    assert.equal(mutedInputsKey(project({ gain: 3, name: "x" })), base);
+    assert.equal(mutedInputsKey(null), "");
+  });
+
+  const idle = { head: "h1", key: "K0", fetchedHead: "h1", fetchedKey: "K0", fetching: false };
+
+  test("nothing changed: no fetch", () => {
+    assert.equal(shouldLoadWords(idle), false);
+  });
+
+  test("a new head, or a new key under the same head, fetches", () => {
+    assert.equal(shouldLoadWords({ ...idle, head: "h2" }), true);
+    assert.equal(shouldLoadWords({ ...idle, key: "K1" }), true);
+  });
+
+  test("mute then unmute: the server merges both into one step (same head), the key still differs from the fetch", () => {
+    // M1 answered (head h1, key K1) and fetched; M2 coalesces into h1: head unchanged, key back to K0.
+    const afterFetch = { ...idle, head: "h1", fetchedHead: "h1", fetchedKey: "K1", key: "K0" };
+    assert.equal(shouldLoadWords(afterFetch), true);
+  });
+
+  test("a fetch in flight waits, and is repeated when the key moved meanwhile", () => {
+    assert.equal(shouldLoadWords({ ...idle, key: "K1", fetching: true }), false);
+    // It finished having started for K0; the state is K1 now.
+    assert.equal(shouldLoadWords({ ...idle, key: "K1", fetching: false }), true);
+  });
+
+  test("no head yet: nothing to fetch; force always fetches", () => {
+    assert.equal(shouldLoadWords({ ...idle, head: null, key: "K1" }), false);
+    assert.equal(shouldLoadWords({ ...idle, force: true }), true);
+    assert.equal(shouldLoadWords({ ...idle, force: true, fetching: true }), false);
   });
 });

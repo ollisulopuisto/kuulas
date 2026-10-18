@@ -393,3 +393,36 @@ export function collateralBand(preview) {
   if (tracks.length === 0) return null;
   return { range: [preview.span[0], preview.span[1]], tracks };
 }
+
+/**
+ * Everything that decides a word's `muted` flag on the server (transcript.py): the tracks'
+ * mute and solo, the buses' mute, each clip's mute and the size of a track's gate. Taken
+ * from a server answer, never from a provisional project. "" for no project.
+ */
+export function mutedInputsKey(project) {
+  if (!project) return "";
+  const gateSize = (gate) => (Array.isArray(gate) ? gate.length : gate ? 1 : 0);
+  return JSON.stringify([
+    (project.tracks ?? []).map((track) => [
+      track.id,
+      Boolean(track.mute),
+      Boolean(track.solo),
+      track.bus ?? "",
+      gateSize(track.gate),
+      (track.clips ?? []).filter((clip) => clip.muted).map((clip) => clip.id),
+    ]),
+    (project.buses ?? []).map((bus) => [bus.id, Boolean(bus.mute)]),
+  ]);
+}
+
+/**
+ * Should the words be fetched now? The head alone is not enough: the server merges
+ * a run of mute/unmute clicks on one track into one history step (session.py
+ * _coalesce_key), so the head stays put while the flags change. The key of the inputs
+ * that decide the flags is compared too, against what the last fetch was started for.
+ * Called again when a fetch ends, so a change that came in flight is repeated.
+ */
+export function shouldLoadWords({ head, key, fetchedHead, fetchedKey, fetching, force = false }) {
+  if (fetching || head === null) return false;
+  return force || head !== fetchedHead || key !== fetchedKey;
+}
