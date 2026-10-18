@@ -159,6 +159,7 @@ def test_media_the_project_lacks_are_reported_not_raised(tmp_path, files, sessio
     # Another project, which has a's recording (a copy under another name)
     # but not b's (it has c instead, so two tracks).
     shutil.copy(files[0], tmp_path / "same-as-a.wav")
+    files[1].unlink()  # b's recording is gone from disk, so it cannot be linked
     other = Session(tmp_path / "Two.kuulas")
     try:
         other.import_media([str(tmp_path / "same-as-a.wav"),
@@ -174,9 +175,10 @@ def test_media_the_project_lacks_are_reported_not_raised(tmp_path, files, sessio
         other.close()
 
 
-def test_nothing_placeable_commits_nothing(tmp_path, session):
+def test_nothing_placeable_commits_nothing(tmp_path, session, files):
     a, _ = ids(session.state)
     entry = session.clipboard_copy(clip_ids=[a.clips[0].id])["entry"]
+    files[0].unlink()  # gone from disk, so it cannot be linked either
     sha = session.state.media_item(a.clips[0].media).sha256
     other = Session(tmp_path / "Two.kuulas")
     try:
@@ -509,9 +511,13 @@ def test_group_insert_shifts_the_partners_automation_and_gate_and_undoes_in_one_
     assert session.state == before
 
 
-def test_nothing_ripples_when_everything_is_missing(tmp_path, session):
+def test_nothing_ripples_when_everything_is_missing(tmp_path, session, files):
     a, _b = ids(session.state)
     entry = session.clipboard_copy(clip_ids=[a.clips[0].id])["entry"]
+    # The recordings are gone from disk too, so linking them cannot help (it can
+    # when they are still there: see the tests on pasting into another project).
+    for f in files:
+        f.unlink()
     other = Session(tmp_path / "Two.kuulas")
     try:
         other.import_media([str(wav(tmp_path / "d.wav", 4)),
@@ -597,3 +603,57 @@ def test_api_lift_cut_goes_through_edit(client, session):
     assert out.status_code == 200
     assert out.json()["clipboard"]["ok"] is True
     assert len(entries()) == 1
+
+
+# -- pasting into another project: the media are linked on paste ----------------
+
+
+@pytest.fixture
+def other(tmp_path):
+    s = Session(tmp_path / "Two.kuulas")
+    s.import_media([str(wav(tmp_path / "d.wav", 4))])
+    yield s
+    s.close()
+
+
+def test_pasting_into_another_project_links_the_recording_from_where_it_lives(
+        session, other, files):
+    a, _ = ids(session.state)
+    sha = session.state.media[0].sha256
+    entry = session.clipboard_copy(clip_ids=[a.clips[0].id])["entry"]
+    assert sha not in {m.sha256 for m in other.state.media}
+    media_before = len(other.state.media)
+    head = history_len(other)
+    result = other.clipboard_paste(entry["id"], at=0, mode="overwrite")
+    assert result["placed"] == 1
+    assert result["missing"] == []
+    assert sha in {m.sha256 for m in other.state.media}
+    assert len(other.state.media) == media_before + 1
+    assert history_len(other) == head + 1  # the paste is the one undo step
+    linked = next(m for m in other.state.media if m.sha256 == sha)
+    assert other.store.is_linked(linked.id)  # linked in place, not copied
+    assert Path(other.store.meta(linked.id)["linked_path"]) == files[0].resolve()
+    placed = [c for t in other.state.tracks for c in t.clips if c.media == linked.id]
+    assert [c.length for c in placed] == [a.clips[0].length]
+
+
+def test_a_recording_that_has_gone_is_reported_missing_not_an_error(
+        session, other, files):
+    a, _ = ids(session.state)
+    entry = session.clipboard_copy(clip_ids=[a.clips[0].id])["entry"]
+    files[0].unlink()
+    before = other.state
+    result = other.clipboard_paste(entry["id"], at=0, mode="insert")
+    assert result["placed"] == 0
+    assert len(result["missing"]) == 1
+    assert other.state == before
+
+
+def test_a_file_changed_since_is_not_linked(session, other, files):
+    a, _ = ids(session.state)
+    entry = session.clipboard_copy(clip_ids=[a.clips[0].id])["entry"]
+    wav(files[0], 99)  # same name, different bytes
+    result = other.clipboard_paste(entry["id"], at=0, mode="insert")
+    assert result["placed"] == 0
+    assert len(result["missing"]) == 1
+    assert len(other.state.media) == 1  # nothing foreign was linked

@@ -38,6 +38,7 @@ from nhsx.read import time_to_seconds as nhsx_time_to_seconds
 from . import (
     analysis,
     candidates,
+    clipboard_link,
     collateral,
     edit_points,
     edit_scope,
@@ -494,6 +495,25 @@ class Session:
             return {"clipboard": {"ok": False, "entry": None, "error": problem}}
         return {"clipboard": {"ok": True, "entry": entry.id, "error": None}}
 
+    def _link_missing_media(self, entry: Entry) -> None:
+        """Pasting into another project: link, in place and without copying,
+        the recordings this project lacks from the files the entry's source
+        project imported them from, when such a file is still there and still
+        has the hash. What cannot be found stays missing (reported by the
+        paste). Media are material shared by every edit, so linking is not an
+        undo step of its own; the paste after it is."""
+        here = Path(self.package.path)
+        if not entry.source_project or Path(entry.source_project) == here:
+            return
+        have = {m.sha256 for m in self.state.media}
+        for digest in sorted({r.media_sha256 for r in entry.refs} - have):
+            for path in clipboard_link.candidate_paths(entry.source_project, digest):
+                if not clipboard_link.has_digest(path, digest):
+                    continue
+                result = self.store.import_batch([path], copy=False)[0]
+                if result.ok:
+                    break
+
     def clipboard_paste(self, entry_id: str, *, at: int, mode: str = "insert",
                         target_tracks=None, group_editing: bool = True,
                         label: str | None = None) -> dict:
@@ -507,6 +527,7 @@ class Session:
         tracks, so a sync group stays in step; the tracks that only shift get
         no clips."""
         entry = self._entry(entry_id)
+        self._link_missing_media(entry)
         mapping = (None if target_tracks is None
                    else {int(slot): track for slot, track in target_tracks.items()})
         at = int(at)
