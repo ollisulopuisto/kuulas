@@ -15,6 +15,7 @@ import {
   nudgePlan,
   removeClipsPlan,
   removePlan,
+  resetGainsPlan,
   soloPlan,
   splitPlan,
   trackMutePlan,
@@ -398,5 +399,33 @@ describe("delete the empty tracks", () => {
     });
     assert.equal(deleteEmptyTracksPlan(full), null);
     assert.equal(deleteEmptyTracksPlan(null), null);
+  });
+});
+
+describe("reset gains to 0 dB", () => {
+  const withGains = (tracks, buses) =>
+    state({
+      project: {
+        ...project,
+        tracks: project.tracks.map((track, i) => ({ ...track, gain_db: tracks[i] ?? 0 })),
+        buses: buses.map((gain_db, i) => ({ id: `b${i}`, gain_db })),
+      },
+    });
+
+  test("one reset_gains edit; the toast counts the tracks and buses that are not at 0", () => {
+    const plan = resetGainsPlan(withGains([-3, 0, 1.5], [2, 0]));
+    assert.equal(plan.op, "reset_gains");
+    assert.deepEqual(plan.args, {});
+    assert.equal(plan.toast.key, "ui.edit.toast.reset_gains");
+    assert.equal(plan.toast.values.count, 3);
+    assert.equal(plan.label.key, "ui.edit.label.reset_gains");
+  });
+  test("a bus alone is enough", () => {
+    assert.equal(resetGainsPlan(withGains([0, 0, 0], [-1])).toast.values.count, 1);
+  });
+  test("with every gain at 0, or no project, it does not apply (the menu dims it)", () => {
+    assert.equal(resetGainsPlan(withGains([0, 0, 0], [0])), null);
+    assert.equal(resetGainsPlan(state()), null);
+    assert.equal(resetGainsPlan(null), null);
   });
 });

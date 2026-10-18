@@ -775,6 +775,9 @@
   "ui.edit.toast.fade": "Leike häivytetty toistokohdasta",
   "ui.loudness.measuring": {"one": "Mitataan {count} leikettä…", "other": "Mitataan {count} leikettä…"},
   "ui.loudness.done": {"one": "Sovitettu {count} leike · {skipped} ohitettu (hiljainen)", "other": "Sovitettu {count} leikettä · {skipped} ohitettu (hiljaisia)"},
+  "ui.loudness.readout": "{value} / {target} LUFS",
+  "ui.loudness.readout_no_target": "{value} LUFS",
+  "ui.loudness.readout.tip": "Raidan kokonaisäänekkyys suhteessa sen tavoitteeseen; tavoite asetetaan tarkastimessa",
   "history.checkpoint_default": "Tallennettu versio",
   "cmd.app.save.hint": "Tekee varmuuskopion heti. Jokainen muutos tallentuu jo tehdessäsi.",
   "cmd.app.save_named.hint": "Merkitsee tämän vaiheen historiaan nimellä \"Tallennettu HH.MM\", jotta voit palata siihen.",
@@ -1301,6 +1304,8 @@
   "cmd.transport.rehearse": "Harjoittele leikkausta",
   "cmd.transport.rehearse.hint": "Toistaa 3 s ennen alkumerkkiä alkumerkkiin, hyppää loppumerkkiin ja jatkaa, ikään kuin väli olisi leikattu. Mitään ei muuteta. (Hindenburg: Ctrl+Shift+Space)",
   "cmd.transport.play_selection.hint": "Toistaa alku- ja loppumerkin välin kerran ja pysähtyy. (Hindenburg: Shift+Space)",
+  "ui.meter.title": "Parhaillaan soivan äänen taso dBFS-asteikolla: vasen kanava ylhäällä, oikea alhaalla, merkit -18 ja -6. Ei ole otsikoissa näkyvä raidan äänekkyys.",
+  "ui.meter.clip": "Ulostulo saavutti täyden asteikon (0 dBFS) ja saattoi leikkautua. Tyhjennä napsauttamalla.",
   "ui.build.title": "Käyttämäsi versio: versio ja commit. Mainitse se vikailmoituksessa.",
   "cmd.transcript.remove_words": "Poista valitut sanat kaikilta raidoilta ja sulje aukko",
   "cmd.transcript.remove_words.hint": "Poistaa valittujen sanojen kohdan kaikilta raidoilta ja sulkee aukon. Mitään ei mene leikepöydälle.",
@@ -1337,5 +1342,10 @@
   "cmd.track.delete_empty": "Poista tyhjät raidat",
   "cmd.track.delete_empty.hint": "Poistaa kaikki raidat, joilla ei ole leikkeitä. Raidat, joilla on leikkeitä, jäävät. Kumoa palauttaa ne.",
   "ui.edit.label.delete_empty_tracks": "Tyhjien raitojen poisto",
-  "ui.edit.toast.delete_empty_tracks": {"one": "Poistettu {count} tyhjä raita", "other": "Poistettu {count} tyhjää raitaa"}
+  "ui.edit.toast.delete_empty_tracks": {"one": "Poistettu {count} tyhjä raita", "other": "Poistettu {count} tyhjää raitaa"},
+  "error.edit.no_gains_to_reset": "Kaikkien raitojen ja väylien vahvistus on jo 0 dB.",
+  "cmd.track.reset_gains": "Nollaa raitojen ja väylien vahvistukset 0 dB:iin",
+  "cmd.track.reset_gains.hint": "Asettaa jokaisen raidan ja väylän vahvistuksen 0 dB:iin, jotta tasot voi arvioida ennen vientiä. Master, leikkeiden vahvistukset ja panorointi jäävät. Kumoa palauttaa ne.",
+  "ui.edit.label.reset_gains": "Vahvistusten nollaus 0 dB:iin",
+  "ui.edit.toast.reset_gains": {"one": "Nollattu {count} vahvistus", "other": "Nollattu {count} vahvistusta"}
 }

@@ -25,6 +25,7 @@ import {
   removeClipsPlan,
   removeFromBusPlan,
   removePlan,
+  resetGainsPlan,
   soloPlan,
   splitPlan,
   trackMutePlan,
@@ -123,6 +124,7 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
   planned("edit.remove_clips", removeClipsPlan);
   planned("track.add", (s) => addTrackPlan(s, "speech", { t }));
   planned("track.delete_empty", deleteEmptyTracksPlan);
+  planned("track.reset_gains", resetGainsPlan);
   planned("track.add_music", (s) => addTrackPlan(s, "music", { t }));
   planned("edit.remove", (s) => removePlan(s));
   planned("edit.remove_track", (s) => removePlan(s, { thisTrackOnly: true }));

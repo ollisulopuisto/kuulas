@@ -193,3 +193,21 @@ def test_route(session, tmp_path):
     body = client.get("/api/loudness-curve").json()
     assert len(body["tracks"]) == 2
     assert "true_peak_db" in body["mix"]
+
+
+def test_each_track_reports_its_target_own_or_role_default(session):
+    first, second = session.state.tracks
+    session.edit("set_track", {"track_id": first.id, "target_lufs": -21.0})
+    session.edit("set_track", {"track_id": second.id, "kind": "music"})
+    out = session.loudness_curve()
+    assert out["tracks"][0]["target_lufs"] == -21.0  # the track's own
+    assert out["tracks"][1]["target_lufs"] == -23.0  # music role default
+
+
+def test_a_new_target_shows_without_a_remeasure(session, monkeypatch):
+    session.loudness_curve()
+    session.edit("set_track", {"track_id": session.state.tracks[0].id,
+                               "target_lufs": -30.0})
+    calls = spy_reads(session, monkeypatch)
+    assert session.loudness_curve()["tracks"][0]["target_lufs"] == -30.0
+    assert calls == []

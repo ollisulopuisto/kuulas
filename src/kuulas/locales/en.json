@@ -775,6 +775,9 @@
   "ui.edit.toast.fade": "Faded the clip at the play cursor",
   "ui.loudness.measuring": {"one": "Measuring {count} clip…", "other": "Measuring {count} clips…"},
   "ui.loudness.done": {"one": "Matched {count} clip · {skipped} skipped (silent)", "other": "Matched {count} clips · {skipped} skipped (silent)"},
+  "ui.loudness.readout": "{value} / {target} LUFS",
+  "ui.loudness.readout_no_target": "{value} LUFS",
+  "ui.loudness.readout.tip": "Integrated loudness of this track against its target; set the target in the inspector",
   "history.checkpoint_default": "Saved version",
   "cmd.app.save.hint": "Makes a backup copy now. Every change is saved as you make it already.",
   "cmd.app.save_named.hint": "Marks this step in the history as \"Saved HH.MM\" so you can return to it.",
@@ -1301,6 +1304,8 @@
   "cmd.transport.rehearse": "Rehearse the edit",
   "cmd.transport.rehearse.hint": "Plays from 3 s before the in point up to it, jumps to the out point and plays on, as if the range were cut. Nothing is changed. (Hindenburg: Ctrl+Shift+Space)",
   "cmd.transport.play_selection.hint": "Plays the in-out range once and stops. (Hindenburg: Shift+Space)",
+  "ui.meter.title": "Level of what is playing now, left over right, in dBFS (marks at -18 and -6). Not the track loudness shown in the headers.",
+  "ui.meter.clip": "The output reached full scale (0 dBFS) and may have clipped. Click to clear.",
   "ui.build.title": "The build you are running: version and commit. Quote it in a bug report.",
   "cmd.transcript.remove_words": "Delete the selected words on all tracks and close the gap",
   "cmd.transcript.remove_words.hint": "Removes the stretch of the selected words from every track and closes the gap. Nothing goes to the clipboard.",
@@ -1337,5 +1342,10 @@
   "cmd.track.delete_empty": "Delete the empty tracks",
   "cmd.track.delete_empty.hint": "Removes every track that has no clips. Tracks with clips stay. Undo brings them back.",
   "ui.edit.label.delete_empty_tracks": "Delete empty tracks",
-  "ui.edit.toast.delete_empty_tracks": {"one": "Deleted {count} empty track", "other": "Deleted {count} empty tracks"}
+  "ui.edit.toast.delete_empty_tracks": {"one": "Deleted {count} empty track", "other": "Deleted {count} empty tracks"},
+  "error.edit.no_gains_to_reset": "Every track and bus gain is already 0 dB.",
+  "cmd.track.reset_gains": "Reset track and bus gains to 0 dB",
+  "cmd.track.reset_gains.hint": "Sets the gain of every track and every bus to 0 dB, so you can judge the levels before export. The master, clip gains and pan stay. Undo brings them back.",
+  "ui.edit.label.reset_gains": "Reset gains to 0 dB",
+  "ui.edit.toast.reset_gains": {"one": "Reset {count} gain", "other": "Reset {count} gains"}
 }
