@@ -204,6 +204,8 @@ export function buildTrackSections({ target, editor, place, latest, onBusCreated
     const mates = readonly("");
     mates.hidden = true;
     into.append(mates);
+    const mono = checkbox(t("ui.track.mono"), (checked) => send("mono", checked));
+    into.append(field(t("ui.track.mono"), mono));
     const { gain, pan } = levels(into, {
       gainLabel: t("ui.track.gain"),
       panLabel: t("ui.track.pan"),
@@ -255,6 +257,7 @@ export function buildTrackSections({ target, editor, place, latest, onBusCreated
       mates.textContent = t("ui.track.speaker.shared", {
         names: sharing.map((item) => item.name).join(", "),
       });
+      mono.checked = Boolean(current.mono);
       setIfIdle(gain, round1(current.gain_db));
       setIfIdle(pan, Math.round(current.pan * 100));
       state.project.buses.forEach((item, i) => {

@@ -330,6 +330,24 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.edit.split",
   },
   {
+    id: "edit.group",
+    keys: { mac: "Alt+Mod+G", other: "Alt+Mod+G" },
+    context: "timeline",
+    labelKey: "cmd.edit.group",
+  },
+  {
+    id: "edit.ungroup",
+    keys: { mac: "Shift+Alt+Mod+G", other: "Shift+Alt+Mod+G" },
+    context: "timeline",
+    labelKey: "cmd.edit.ungroup",
+  },
+  {
+    id: "edit.merge",
+    keys: { mac: "Alt+Mod+J", other: "Alt+Mod+J" },
+    context: "timeline",
+    labelKey: "cmd.edit.merge",
+  },
+  {
     id: "edit.split_all",
     keys: { mac: "Shift+B", other: "Shift+B" },
     context: "timeline",
@@ -854,6 +872,13 @@ export const DEFAULT_KEYMAP = [
     keys: { mac: "Shift+Alt+Mod+E", other: "Shift+Alt+Mod+E" },
     context: "global",
     labelKey: "cmd.export.tracks",
+  },
+  // The same export without the folder question (no key by default).
+  {
+    id: "export.tracks_quick",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.export.tracks_quick",
   },
   // One mix and one all-tracks command per export format (File menu submenus); no keys.
   ...EXPORT_FORMAT_IDS.flatMap((format) =>

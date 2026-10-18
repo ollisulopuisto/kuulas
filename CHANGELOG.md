@@ -1,3 +1,42 @@
+## [v26.10.18.61] - 2026-10-18
+
+- **Group, ungroup and merge clips**, all undoable in one step. Group (Alt+Cmd+G) ties the selected clips so
+  clicking, dragging, cutting or muting one takes the whole group; Ungroup is Shift+Alt+Cmd+G. Merge
+  (Alt+Cmd+J) joins touching clips of the same source and gain into one clip. Edit menu and palette have all
+  three. Grouped clips show a small joined-rings badge. Not yet seen in the real app: the badge and
+  dragging a grouped clip.
+
+## [v26.10.18.60] - 2026-10-18
+
+- **Mono speech tracks:** a track has a **Mono** switch (inspector checkbox, and a "mono" or "stereo" tag on
+  speech tracks). A mono track is mixed to one channel everywhere, (L+R)/2, so a centred voice keeps its
+  level, and its exported stem is a one-channel file. Speech from a mono file is mono by default.
+- **A stereo speech file comes in as stereo speech** and, after the import, a notice asks "Turn into mono /
+  Keep stereo" (naming the tracks); a setting in the import options remembers the answer (always ask,
+  always mono, always stereo). **Not for projects imported from Hindenburg:** tick Mono on a track's
+  inspector yourself (for example Olli).
+
+## [v26.10.18.59] - 2026-10-18
+
+- **Exports ask where to save** (in the desktop window): "Export all tracks", "Export all tracks as…" and
+  "Export mix" open a folder chooser first, starting at the folder you used last time for this project
+  (else `<project> exports` next to it). The files still go into a new sub-folder named with the edit and
+  the time, so nothing is overwritten. Cancel in the chooser cancels the export. **File > Export all tracks
+  to the last folder** (and Alt+click on the "Vie" button) exports without asking.
+
+## [v26.10.18.58] - 2026-10-18
+
+- **Fixed: exported WAV files now open in macOS Quick Look and CoreAudio.** The RIFF size field in the header
+  was 0 (and the right number was written as four stray bytes at the end); audio editors tolerated it,
+  Apple's player did not. Re-export any WAVs made with earlier versions. Applies to every WAV export
+  (stems and mix), and an odd-length data chunk is now padded as the format requires.
+
+## [v26.10.18.57] - 2026-10-18
+
+- **Esc clears the clip selection** (and the lanes of a dragged range) but keeps the in and out marks.
+  Inside a text field Esc still leaves the field first; with nothing selected it still returns focus to
+  the timeline.
+
 ## [v26.10.18.56] - 2026-10-18
 
 - **More export formats through ffmpeg:** WAV (still the default, 24-bit), FLAC, AIFF, MP3, AAC in an M4A

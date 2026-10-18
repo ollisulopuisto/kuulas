@@ -2173,3 +2173,16 @@ input[type="text"] {
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
 }
+
+/* "mono" or "stereo" beside the role icon of a speech track. */
+.channel-tag {
+  flex: none;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+.channel-tag[hidden] {
+  display: none;
+}
+.import-mono {
+  margin: 0;
+}
