@@ -201,9 +201,37 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
         overlay.strokeRect(left + 1, y + 1, w - 2, h - 2);
       }
     }
+    if (state.collateral?.tracks.includes(track.id)) drawCollateral(state, track, row, top);
     if (state.showGates !== false) drawGate(state, track, top, row.height);
     drawSeams(state, track, top, row.height);
     drawAutomation(state, track, top, row.height);
+    overlay.restore();
+  }
+
+  // Collateral (GUI-DESIGN.md section 19): while words are selected in the transcript, the
+  // stretch a cut would also take is hatched on every affected track and the clips it
+  // touches are outlined dashed (the hatch and dashes are the twin of the colour).
+  function drawCollateral(state, track, row, top) {
+    const [from, to] = state.collateral.range;
+    const x1 = frameToX(from, state.scroll, state.zoom);
+    const x2 = frameToX(to, state.scroll, state.zoom);
+    if (x2 < 0 || x1 > size.width) return;
+    const y = top + 2;
+    const h = row.height - 4;
+    const w = Math.max(2, x2 - x1);
+    overlay.fillStyle = theme.collateralFill;
+    overlay.fillRect(x1, y, w, h);
+    drawHatch(x1, y, w, h, theme.collateral);
+    overlay.save();
+    overlay.strokeStyle = theme.collateral;
+    overlay.lineWidth = 2;
+    overlay.setLineDash([4, 3]);
+    for (const clip of track.clips) {
+      if (clip.start >= to || clipEnd(clip) <= from) continue;
+      const left = frameToX(clip.start, state.scroll, state.zoom);
+      const right = frameToX(clipEnd(clip), state.scroll, state.zoom);
+      overlay.strokeRect(left + 1, y + 1, Math.max(1, right - left - 2), h - 2);
+    }
     overlay.restore();
   }
 

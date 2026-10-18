@@ -1952,7 +1952,7 @@ const SIGNALS = [
     twin: "other speakers' words struck through with a wavy underline, 'also removed' in the word pop-up, the stretch hatched and the affected clips outlined on the timeline",
     when: "a transcript selection whose cut would also remove other tracks' words or audio",
     key: "X cuts on all tracks (ripple); Backspace deletes on this speaker only, keeping the gap",
-    status: "prototype",
+    status: "built",
   },
   {
     id: "ribbons",
@@ -3135,7 +3135,13 @@ const HELP_FILES = {
   "cmd.edit.select_all_track.hint": "Selects every clip on the current track.",
   "cmd.edit.select_all.hint": "Selects every clip in the project.",
   "cmd.group.toggle.hint": "Turns group editing on or off for the current track's group.",
-  "cmd.help.open": "Help for this"
+  "cmd.help.open": "Help for this",
+  "cmd.edit.paste_overwrite": "Paste over (overwrite)",
+  "cmd.edit.paste_track": "Paste on the current track",
+  "cmd.edit.copy.hint": "Copy the in-out range or the selected clips to the clipboard; nothing changes in the project",
+  "cmd.edit.paste.hint": "Insert the newest clipboard entry at the play cursor and move later material right",
+  "cmd.edit.paste_overwrite.hint": "Paste the newest clipboard entry at the play cursor over what is there; nothing moves",
+  "cmd.edit.paste_track.hint": "Insert the newest clipboard entry at the play cursor on the current track"
  },
  "catalog/fi": {
   "cmd.transport.play": "Toista / pysäytä",
@@ -3300,7 +3306,13 @@ const HELP_FILES = {
   "cmd.edit.select_all_track.hint": "Valitsee kaikki valitun raidan leikkeet.",
   "cmd.edit.select_all.hint": "Valitsee kaikki projektin leikkeet.",
   "cmd.group.toggle.hint": "Kytkee ryhmämuokkauksen päälle tai pois valitun raidan ryhmälle.",
-  "cmd.help.open": "Ohje tähän"
+  "cmd.help.open": "Ohje tähän",
+  "cmd.edit.paste_overwrite": "Liitä päälle (korvaa)",
+  "cmd.edit.paste_track": "Liitä nykyiselle raidalle",
+  "cmd.edit.copy.hint": "Kopioi in-out-väli tai valitut klipit leikepöydälle; projekti ei muutu",
+  "cmd.edit.paste.hint": "Lisää uusin leikepöydän kohde toistokohtaan ja siirrä myöhempää ääntä oikealle",
+  "cmd.edit.paste_overwrite.hint": "Liitä uusin leikepöydän kohde toistokohtaan olemassa olevan päälle; mikään ei siirry",
+  "cmd.edit.paste_track.hint": "Lisää uusin leikepöydän kohde toistokohtaan nykyiselle raidalle"
  }
 };
 // -- end of help topics --
