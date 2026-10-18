@@ -126,3 +126,9 @@ test("newMarkerId makes a 11 character id starting with k", () => {
     /^k0{10}$/,
   );
 });
+
+test("the keyboard setup registers the marker commands (they would be planned otherwise)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const source = readFileSync(new URL("../shell-keys.js", import.meta.url), "utf8");
+  assert.match(source, /registerMarkerCommands\(registry/);
+});
