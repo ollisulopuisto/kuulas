@@ -6,6 +6,7 @@
 // The overlay redraws on requestAnimationFrame when state changed; the
 // waveform layer only when something it shows changed.
 import { candidateBands, flagFits, flagText } from "./candidates-model.js";
+import { edgeGhost, ghostGeometry, isDrag, resolveEdge } from "./edge-drag.js";
 import { frameToX, xToFrame } from "./format.js";
 import { gateLabelFits, gatePixelRuns } from "./gate.js";
 import { busHues, fileMark, needsFileMark, seamKind } from "./grammar.js";
@@ -59,6 +60,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
   let theme = readTheme();
   let size = { width: 0, height: 0, ratio: 1 };
   let pointerFrame = null;
+  let edgeSession = null; // an edge being dragged: see the pointer section
   let dropPreview = null; // files being dragged over: { kind, startFrame, mode, count } or null
   let bands = []; // the open candidates in pixels (candidates-model.js), per redraw
   let overlayQueued = false;
@@ -158,7 +160,40 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     drawRuler(state, rate);
     drawInOut(state, height);
     if (dropPreview) drawDropPreview(state, layout);
+    if (edgeSession?.dragging) drawEdgeGhost(state, layout);
     drawPlayhead(state, height);
+  }
+
+  // A clip edge being dragged (WP6): a thin line at the new edge, the clip's new outline and,
+  // for roll, the neighbour's. Ripple is drawn dashed with the accent line, roll solid.
+  function drawEdgeGhost(state, layout) {
+    const row = layout.rows.find((item) => item.id === edgeSession.trackId);
+    const track = state.project.tracks.find((item) => item.id === edgeSession.trackId);
+    const clip = track?.clips.find((item) => item.id === edgeSession.clipId);
+    if (!(row && clip)) return;
+    const ghost = edgeGhost(state.project, track, clip, edgeSession.edge, edgeSession.frame, {
+      ripple: edgeSession.ripple,
+    });
+    const geometry = ghostGeometry(ghost, { view: state, row });
+    overlay.save();
+    overlay.beginPath();
+    overlay.rect(0, RULER_HEIGHT, size.width, size.height - RULER_HEIGHT);
+    overlay.clip();
+    overlay.strokeStyle = theme.accent;
+    overlay.lineWidth = 1.5;
+    overlay.setLineDash(ghost.ripple ? [5, 3] : []);
+    for (const box of [geometry.clip, geometry.neighbour]) {
+      if (box) overlay.strokeRect(box.x + 0.5, box.y + 0.5, box.w - 1, box.h - 1);
+    }
+    overlay.setLineDash([]);
+    overlay.fillStyle = theme.accent;
+    overlay.fillRect(Math.round(geometry.line.x) - 1, geometry.line.y, 2, geometry.line.h);
+    overlay.font = `600 ${NAME_FONT_PX}px ${theme.font}`;
+    overlay.textBaseline = "top";
+    overlay.fillStyle = theme.ink;
+    const hint = t(ghost.ripple ? "ui.edge.hint_ripple" : "ui.edge.hint_roll");
+    overlay.fillText(hint, Math.max(4, geometry.line.x + 6), geometry.line.y + 3);
+    overlay.restore();
   }
 
   // Files dragged over the timeline: ghost clips (dashed) and an insertion line in the
@@ -769,7 +804,15 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
   overlayCanvas.addEventListener("pointermove", (event) => {
     const state = getState();
     pointerFrame = Math.max(0, xToFrame(locate(event).x, state.scroll, state.zoom));
-    if (state.project) hoverGate(event);
+    if (edgeSession) {
+      if (event.pointerId === edgeSession.pointerId) updateEdge(event);
+      return;
+    }
+    if (!state.project) return;
+    hoverGate(event);
+    const hit = hitAt(event);
+    const cursor = hit.clip && hit.edge && hit.row?.kind === "track" ? "ew-resize" : "";
+    if (overlayCanvas.style.cursor !== cursor) overlayCanvas.style.cursor = cursor;
   });
   overlayCanvas.addEventListener("pointerleave", () => {
     pointerFrame = null;
@@ -781,10 +824,102 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     if (placeholder && !clip) actions.editPlaceholder(placeholder);
     else if (gate) actions.openGate(gate);
   });
+  // Dragging a clip edge (WP6). A press on the edge zone behaves as a click (selects, sets the
+  // cursor) and also arms a session; after DRAG_PX of travel it is a drag: ghost while moving,
+  // Shift (any time) switches roll to ripple, Esc cancels, release sends the edit.
+  function edgeTarget(session) {
+    const state = getState();
+    const track = state.project.tracks.find((item) => item.id === session.trackId);
+    const clip = track?.clips.find((item) => item.id === session.clipId);
+    return { state, track, clip };
+  }
+
+  function startEdge(hit, event) {
+    edgeSession = {
+      clipId: hit.clip.id,
+      trackId: hit.row.id,
+      edge: hit.edge,
+      origin: locate(event),
+      pointerId: event.pointerId,
+      dragging: false,
+      ripple: event.shiftKey,
+      raw: null,
+      frame: hit.edge === "start" ? hit.clip.start : hit.clip.start + hit.clip.length,
+    };
+    overlayCanvas.setPointerCapture?.(event.pointerId);
+    window.addEventListener("keydown", edgeKey, true);
+    window.addEventListener("keyup", edgeKey, true);
+  }
+
+  // The edge's frame under the pointer, clamped by the rules of the current mode.
+  function clampEdge() {
+    const { state, track, clip } = edgeTarget(edgeSession);
+    if (!clip || edgeSession.raw === null) return;
+    edgeSession.frame = resolveEdge(state.project, track, clip, edgeSession.edge, edgeSession.raw, {
+      ripple: edgeSession.ripple,
+    }).frame;
+  }
+
+  function updateEdge(event) {
+    const session = edgeSession;
+    const point = locate(event);
+    session.ripple = event.shiftKey;
+    if (!session.dragging) {
+      if (!isDrag(point.x - session.origin.x, point.y - session.origin.y)) return;
+      session.dragging = true;
+      overlayCanvas.style.cursor = "ew-resize";
+    }
+    const state = getState();
+    session.raw = xToFrame(point.x, state.scroll, state.zoom);
+    clampEdge();
+    requestOverlay();
+  }
+
+  function endEdge(commit) {
+    const session = edgeSession;
+    edgeSession = null;
+    overlayCanvas.style.cursor = "";
+    window.removeEventListener("keydown", edgeKey, true);
+    window.removeEventListener("keyup", edgeKey, true);
+    overlayCanvas.releasePointerCapture?.(session.pointerId);
+    requestOverlay();
+    if (commit && session.dragging) {
+      actions.edgeDrag({
+        clipId: session.clipId,
+        edge: session.edge,
+        frame: session.frame,
+        ripple: session.ripple,
+      });
+    }
+  }
+
+  function edgeKey(event) {
+    if (!edgeSession) return;
+    if (event.key === "Escape" && event.type === "keydown") {
+      event.preventDefault();
+      event.stopPropagation();
+      endEdge(false);
+    } else if (event.key === "Shift") {
+      edgeSession.ripple = event.type === "keydown";
+      clampEdge();
+      requestOverlay();
+    }
+  }
+
+  overlayCanvas.addEventListener("pointerup", (event) => {
+    if (!edgeSession || event.pointerId !== edgeSession.pointerId) return;
+    if (edgeSession.dragging) updateEdge(event);
+    endEdge(true);
+  });
+  overlayCanvas.addEventListener("pointercancel", () => {
+    if (edgeSession) endEdge(false);
+  });
   overlayCanvas.addEventListener("pointerdown", (event) => {
     if (!getState().project || event.button !== 0) return;
     overlayCanvas.focus();
-    actions.pointerDown(hitAt(event), event);
+    const hit = hitAt(event);
+    actions.pointerDown(hit, event);
+    if (hit.clip && hit.edge && hit.row?.kind === "track") startEdge(hit, event);
   });
   overlayCanvas.addEventListener(
     "wheel",

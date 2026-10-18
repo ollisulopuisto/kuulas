@@ -6,6 +6,7 @@ import { listedRows, scrollToShow, stepTarget } from "./candidates-model.js";
 import { createCandidatesPanel } from "./candidates-panel.js";
 import { previewRequest } from "./candidates-preview.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
+import { edgeChange } from "./edge-drag.js";
 import { createEditor } from "./edits.js";
 import { filenameFromDisposition } from "./export-commands.js";
 import { nextPanel } from "./focus.js";
@@ -1163,6 +1164,10 @@ const timeline = createTimeline({
   getState,
   actions: {
     pointerDown: onPointerDown,
+    edgeDrag({ clipId, edge, frame, ripple }) {
+      const { op, args, labelKey } = edgeChange(clipId, edge, frame, ripple);
+      editor.change({ op, args, label: t(labelKey) });
+    },
     openGate: openGateStretch,
     editPlaceholder(placeholder) {
       setState({ placeholderSelected: placeholder.id });

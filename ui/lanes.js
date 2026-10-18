@@ -17,7 +17,7 @@ export const MAX_LANE = 160;
  *  level row on the current track. Compact: 40. */
 export const DEFAULT_LANE = 80;
 /** How close (px) a pointer must be to a clip edge or an envelope point. */
-export const EDGE_PX = 4;
+export const EDGE_PX = 6;
 export const POINT_PX = 6;
 // The gain line's range inside a lane: +12 dB at the top, -30 dB at the bottom,
 // with a small inset so a point at either end stays inside the lane.

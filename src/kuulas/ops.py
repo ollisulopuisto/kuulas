@@ -740,6 +740,110 @@ def _ripple_points(points, start: int, end: int) -> tuple[Point, ...]:
     return tuple(out)
 
 
+# -- dragging a clip edge (WP6) ---------------------------------------------------
+
+
+def _edge(edge: str) -> str:
+    if edge not in ("start", "end"):
+        raise EditError("error.edit.bad_edge", edge=edge)
+    return edge
+
+
+def _source_span(p: Project, clip: Clip) -> tuple[int, int]:
+    """The timeline frames ``clip`` can be stretched to without needing source
+    material before the media's first frame or after its last."""
+    media = p.media_item(clip.media)
+    origin = clip.start - clip.offset  # where the media's first frame would sit
+    return max(origin, 0), origin + media.frames
+
+
+def _touching(track: Track, clip: Clip, edge: str) -> Clip | None:
+    """The clip on the same track that meets ``clip`` exactly at ``edge``."""
+    for other in track.clips:
+        if other.id == clip.id:
+            continue
+        if edge == "end" and other.start == clip.end:
+            return other
+        if edge == "start" and other.end == clip.start:
+            return other
+    return None
+
+
+def roll_trim(p: Project, clip_id: str, edge: str, frame: int) -> Project:
+    """Drag one edge of a clip to ``frame``; nothing else on the timeline moves.
+
+    If a clip on the same track touches that edge, the cut point between the
+    two moves: one grows, the other shrinks, each source offset keeping the
+    audio where it was. With nothing touching it is a plain trim into (or out
+    of) the gap. ``frame`` is clamped so no clip drops below one frame and no
+    clip needs source beyond its media.
+    """
+    edge = _edge(edge)
+    clip, track = _find_clip(p, clip_id)
+    other = _touching(track, clip, edge)
+    low, high = _source_span(p, clip)
+    if edge == "end":
+        low = clip.start + 1
+    else:
+        high = clip.end - 1
+    if other is not None:
+        o_low, o_high = _source_span(p, other)
+        if edge == "end":
+            # The neighbour's start moves: it keeps 1 frame, or needs its source.
+            low, high = max(low, o_low), min(high, other.end - 1)
+        else:
+            low, high = max(low, other.start + 1), min(high, o_high)
+    if low > high:
+        raise EditError("error.edit.trim_empty")
+    frame = max(low, min(high, int(frame)))
+    if edge == "end":
+        p = trim_clip(p, clip_id, end=frame)
+        return p if other is None else trim_clip(p, other.id, start=frame)
+    p = trim_clip(p, clip_id, start=frame)
+    return p if other is None else trim_clip(p, other.id, end=frame)
+
+
+def ripple_trim(p: Project, clip_id: str, edge: str, frame: int) -> Project:
+    """Drag one edge of a clip to ``frame``; everything after the clip, on every
+    track, moves by the change in its length, so the tracks stay in sync.
+
+    The clip keeps its start on the timeline. Dragging its start edge to
+    ``frame`` takes (or gives back) the source between its start and ``frame``,
+    and what follows moves by that much. A shorter clip closes the gap as a
+    ripple delete does (the stretch it lost goes from every track); a longer
+    one opens a gap of the same length on every track, with markers,
+    automation and gates following.
+    """
+    edge = _edge(edge)
+    clip, _ = _find_clip(p, clip_id)
+    if edge == "end":
+        new_end = max(clip.start + 1, min(_source_span(p, clip)[1], int(frame)))
+        take = 0
+    else:
+        # frame - start is the source taken from the head; negative gives it back.
+        frame = max(clip.start - clip.offset, min(clip.end - 1, int(frame)))
+        take = frame - clip.start
+        new_end = clip.end - take
+    delta = new_end - clip.end
+    if delta == 0:
+        return p
+    if delta > 0:
+        from .paste_apply import _open_gap  # noqa: PLC0415 - paste_apply imports ops
+        for track in p.tracks:
+            p = _open_gap(p, track.id, clip.end, delta)
+        p = replace(p, markers=markersm.open_gap(p.markers, clip.end, delta))
+    length = new_end - clip.start
+    changed = replace(
+        clip, offset=clip.offset + take, length=length,
+        fade_in=min(clip.fade_in, length), fade_out=min(clip.fade_out, length),
+        xfade_in=clip.xfade_in if take == 0 else 0,
+        xfade_out=clip.xfade_out if delta == 0 else 0)
+    p = _replace_clip(p, changed)
+    if delta < 0:
+        p = ripple_delete(p, new_end, clip.end)
+    return p
+
+
 # -- markers, regions, chapters (WP19h) -----------------------------------------
 
 
@@ -947,7 +1051,7 @@ OPS = {
         move_placeholder, delete_placeholder, replace_placeholder,
         shift_clips, set_clips, delete_clips, mark_in_sync, resync,
         split_clips, mute_range, cut_range, nudge_clips, trim_clips, adjust_clip_gain,
-        restore_cuts,
+        restore_cuts, roll_trim, ripple_trim,
     )
 }
 
