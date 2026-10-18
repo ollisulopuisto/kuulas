@@ -12,7 +12,8 @@ import pytest
 from kuulas.clip_overs import max_over_db, overs
 from kuulas.gain_scale import envelope_db_at, total_gain_db, waveform_scale
 
-FIXTURE = Path(__file__).parent.parent / "ui" / "tests" / "fixtures" / "gain-overs-cases.json"
+FIXTURES = Path(__file__).parent.parent / "ui" / "tests" / "fixtures"
+FIXTURE = FIXTURES / "gain-overs-cases.json"
 CASES = json.loads(FIXTURE.read_text(encoding="utf-8"))
 
 
