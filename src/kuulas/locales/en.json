@@ -1205,6 +1205,16 @@
   "ui.export.cancelled": "Export cancelled.",
   "ui.range.clips_one": "1 clip",
   "ui.range.clips_many": "{count} clips",
+  "cmd.track.cycle_kind": "Cycle track kind",
+  "cmd.track.cycle_kind.hint": "Changes the current track between speech, speech mix and music.",
+  "ui.edit.label.track_kind": "Track kind",
+  "ui.edit.toast.track_kind.speech": "{name}: speech",
+  "ui.edit.toast.track_kind.speech-mix": "{name}: speech mix",
+  "ui.edit.toast.track_kind.music": "{name}: music",
+  "ui.track.kind.cycle": "{kind} (click to change)",
+  "ui.track.speaker": "Speaker",
+  "ui.track.speaker.hint": "Tracks with the same speaker count as one microphone in the analysis. Blank: the track name.",
+  "ui.track.speaker.shared": "Shares a microphone with: {names}",
   "ui.import.mono_question": {
     "one": "{names} is a stereo recording. Turn it into mono?",
     "other": "{names} are stereo recordings. Turn them into mono?"

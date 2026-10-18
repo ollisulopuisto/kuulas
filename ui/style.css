@@ -401,6 +401,9 @@ button.chip {
   flex: none;
   width: 14px;
   height: 14px;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
   overflow: hidden;
   text-indent: 100%;
   white-space: nowrap;

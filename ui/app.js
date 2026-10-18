@@ -1015,6 +1015,11 @@ const trackHeaders = createTrackHeaders({
         setState({ focusTrack: id, focusBus: null });
       }
     },
+    // The kind tag in a track header: focus the track, then the same command as Alt+Mod+K.
+    cycleKind: (id) => {
+      setState({ focusTrack: id, focusBus: null });
+      keyboard.registry.run("track.cycle_kind", null, getState());
+    },
     currentBus: (id) => {
       if (getState().focusBus !== id) setState({ focusBus: id });
     },

@@ -34,6 +34,13 @@ function kindLabel(kind) {
   return text === key ? kind : text;
 }
 
+/** The kind tag's icon class, text (for screen readers) and tooltip. */
+function paintTag(tag, kind) {
+  tag.className = `tag kind-${kind}`;
+  tag.textContent = kindLabel(kind);
+  tag.title = t("ui.track.kind.cycle", { kind: kindLabel(kind) });
+}
+
 function el(tag, className, attrs = {}) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -178,9 +185,9 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       title: t("ui.track.rename"),
       tabindex: "-1",
     });
-    const tag = el("span", `tag kind-${track.kind}`);
-    tag.textContent = kindLabel(track.kind);
-    tag.title = kindLabel(track.kind);
+    // The kind tag is a button: a click cycles speech / speech mix / music (Alt+Mod+K).
+    const tag = el("button", `tag kind-${track.kind}`, { type: "button", tabindex: "-1" });
+    paintTag(tag, track.kind);
     const channelTag = el("span", "channel-tag");
     const mute = toggle(t("ui.track.mute"), t("ui.track.mute.short"), "mute");
     const solo = toggle(t("ui.track.solo"), t("ui.track.solo.short"), "solo");
@@ -249,6 +256,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     node.addEventListener("focusin", () => actions.currentTrack(id));
     node.addEventListener("contextmenu", (event) => actions.contextMenu("track", id, event));
     name.addEventListener("dblclick", () => rename(name, id));
+    tag.addEventListener("click", () => actions.cycleKind(id));
     mute.addEventListener("click", () => {
       const now = !lookup(id).mute;
       send("mute", now);
@@ -292,7 +300,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       format: panText,
       scale: 100,
     });
-    return { node, name, channelTag, mute, solo, bus, gain, pan, kind: "track" };
+    return { node, name, tag, channelTag, mute, solo, bus, gain, pan, kind: "track" };
   }
 
   function buildBus(bus, index) {
@@ -451,6 +459,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
           `var(--track-${hue === MUSIC_HUE ? "music" : hue}-edge)`,
         );
         if (parts.name.isConnected) fitName(parts.name, track.name);
+        if (!parts.tag.classList.contains(`kind-${track.kind}`)) paintTag(parts.tag, track.kind);
         const channels = monoTag(track, state.project);
         parts.channelTag.hidden = channels === null;
         parts.channelTag.textContent = channels ? t(`ui.track.tag.${channels}`) : "";

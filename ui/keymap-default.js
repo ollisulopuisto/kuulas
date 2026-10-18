@@ -572,6 +572,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.track.solo_add",
   },
   {
+    id: "track.cycle_kind",
+    keys: { mac: "Alt+Mod+K", other: "Alt+Mod+K" },
+    context: "timeline",
+    labelKey: "cmd.track.cycle_kind",
+  },
+  {
     id: "track.group_into_bus",
     keys: { mac: null, other: null },
     context: "timeline",
