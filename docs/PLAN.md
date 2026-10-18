@@ -3218,7 +3218,7 @@ Needs: WP18 (cut candidates), WP19i (transient stops), real marked recordings fr
 
 ### WP57 — The waveform shows gain, and shows clipping (owner, 2026-10-18)
 
-Status: open. Two requests:
+Status: built in v26.10.18.66 (not seen by eye; bus gain and master not included, the inspector's gain field is not tinted). Two requests:
 1. **Waveform size reflects the channel gain setting.** The drawn waveform is scaled by clip gain, the
    clip's envelope and the track gain (a pure scale function in `ui/waveform-scale.js`, which exists for
    the display scale), so turning a track up makes its waveform taller. Pan and mute do not change the size.

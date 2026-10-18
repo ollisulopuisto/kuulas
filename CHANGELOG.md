@@ -1,3 +1,10 @@
+## [v26.10.18.66] - 2026-10-18
+
+- **The waveform shows the gain:** its height follows the clip gain, the track gain and the clip's gain
+  envelope (at 0 dB it looks exactly as before). Parts that would clip after the gains (over -0.1 dBFS) are
+  drawn **red**; hovering a clipped clip says how far over it is ("Clipping: +2.1 dB over full scale"), and its
+  gain line turns red too. Bus gain is not counted yet. Not yet seen by eye.
+
 ## [v26.10.18.65] - 2026-10-18
 
 - **Where you left off:** the play cursor, in/out marks and view are saved in a small `resume.json` inside the
