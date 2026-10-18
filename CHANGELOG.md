@@ -1,3 +1,15 @@
+## [v26.10.18.15] - 2026-10-18
+
+- History panel: the History tab lists every step of the edit, newest first, in pages (it can
+  hold thousands), with the session markers as dividers ("Opened today 19.30", "Closed yesterday
+  22.14"), the current step highlighted, steps you can redo dimmed and abandoned branches dimmed
+  and indented. Pick a step with the mouse or Up/Down and press Enter (or double-click) to restore
+  it: that adds a new step and nothing is lost. Undo or redo across a session marker says
+  "Undid a step from yesterday: <step>". Times are Helsinki time, the tooltip names the zone.
+  Not built: hover preview of a step, pinned steps, and step icons.
+- The history route can return pages (`/api/history?limit=...&before=...`); undo and redo
+  answers say whether they crossed a marker.
+
 ## [v26.10.18.14] - 2026-10-18
 
 - Inspector "Source" section: for a selected clip it shows how much of its recording is used
