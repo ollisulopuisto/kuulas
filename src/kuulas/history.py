@@ -650,6 +650,29 @@ class History:
             r["context"] = _parse_context(r.get("context"))
         return rows
 
+    def sides(self) -> dict[str, str]:
+        """Where each step of this edit lies relative to the head: ``head``, ``past``
+        (an ancestor), ``redo`` (the chain Redo would walk) or ``branch`` (left behind
+        by a later edit; reachable only by restoring). One query, whatever the size."""
+        parent: dict[str, str | None] = {}
+        children: dict[str, list[str]] = {}
+        for node, up in self.db.execute(
+                "select id, parent from nodes where edit=? order by id", (self.edit,)):
+            parent[node] = up
+            if up is not None:
+                children.setdefault(up, []).append(node)
+        side = dict.fromkeys(parent, "branch")
+        node = parent.get(self.head)
+        while node is not None:
+            side[node] = "past"
+            node = parent[node]
+        node = self.head
+        side[node] = "head"
+        while children.get(node):
+            node = children[node][-1]
+            side[node] = "redo"
+        return side
+
     # -- several edits (WP21 builds on this) -------------------------------
 
     def create_edit(self, name: str, state: Project | None = None) -> str:

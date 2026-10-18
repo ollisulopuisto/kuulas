@@ -61,6 +61,10 @@ class UnknownIdError(KuulasError):
     """The id in the request names nothing (404)."""
 
 
+HISTORY_PAGE = 100
+HISTORY_PAGE_MAX = 500
+
+
 class BadRequestError(KuulasError):
     """The request is not one the API takes (400)."""
 
@@ -340,15 +344,24 @@ def create_app(session, engine, *, language: str | None = None,
         session.clipboard_delete(entry_id)
         return JSONResponse({"entries": session.clipboard_list()})
 
+    def moved_info(direction: str, info) -> dict | None:
+        """What an undo or redo did, for the toast: the step it passed over and whether
+        a session marker (opened / closed) lay in between."""
+        if info is None:
+            return None
+        step = info.step or {}
+        return {"direction": direction, "crossed_marker": info.marker is not None,
+                "marker": info.marker,
+                "step": {"id": step.get("id"), "label": step.get("label"),
+                         "created": step.get("created_utc")}}
+
     @app.post("/api/undo")
     def post_undo():
-        session.undo()
-        return state_response()
+        return state_response({"moved": moved_info("undo", session.undo())})
 
     @app.post("/api/redo")
     def post_redo():
-        session.redo()
-        return state_response()
+        return state_response({"moved": moved_info("redo", session.redo())})
 
     @app.post("/api/export")
     def post_export(body: Annotated[dict[str, Any], Body()]):
@@ -385,10 +398,29 @@ def create_app(session, engine, *, language: str | None = None,
         return state_response({"context": None})
 
     @app.get("/api/history")
-    def get_history():
+    def get_history(limit: int | None = None, before: str | None = None):
+        """Without ``limit`` or ``before``: every step, oldest first (the old shape).
+        With them: a page, newest first, for the History panel."""
         with session.lock:
-            return JSONResponse({"nodes": session.history.nodes(),
-                                 "head": session.history.head})
+            h = session.history
+            if limit is None and before is None:
+                return JSONResponse({"nodes": h.nodes(), "head": h.head})
+            limit = HISTORY_PAGE if limit is None else limit
+            if not 1 <= limit <= HISTORY_PAGE_MAX:
+                raise BadRequestError("error.server.bad_request",
+                                      detail=f"limit: 1..{HISTORY_PAGE_MAX}")
+            rows = h.nodes_page(limit + 1, before)
+            more = len(rows) > limit
+            side = h.sides()
+            nodes = [{"id": r["id"], "parent": r["parent"], "label": r["label"],
+                      "created": r["created"], "author": r["author"],
+                      "op": r["op"].get("name"), "is_marker": h.is_marker(r),
+                      "marker": (r["op"].get("args") or {}).get("kind")
+                      if h.is_marker(r) else None,
+                      "is_head": r["id"] == h.head, "side": side[r["id"]]}
+                     for r in rows[:limit]]
+            return JSONResponse({"nodes": nodes, "head": h.head, "more": more,
+                                 "can_undo": h.can_undo, "can_redo": h.can_redo})
 
     @app.get("/api/jobs")
     def get_jobs():
