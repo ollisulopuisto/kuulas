@@ -1,3 +1,33 @@
+## [v26.10.18.38] - 2026-10-18
+
+- Fixed the "project is open on this machine, read only" trap: a lock left by a kuulas window
+  that crashed or was killed on the same computer is taken over at once, instead of after two
+  minutes. A lock held by a kuulas that is really still running still opens read-only.
+- `kuulas open <project> --debug` (also `kuulas desktop --debug`) prints playback diagnostics once a
+  second to the terminal: how long each audio block took, how much of that was reading files or
+  mixing, late and failed blocks, the device and the slowest files. For finding out why
+  "playback cannot keep up".
+
+## [v26.10.18.37] - 2026-10-18
+
+- A track's role (speech, speech-mix, music) can be changed in the inspector. The import no
+  longer calls a stereo file music: only a name with "music", "musiikki" or "jingle" does. (A stereo
+  speech recording had come in as music and drawn a small linear waveform.)
+- The status bar shows In, Out and Length when in/out marks are set or something is selected.
+- The sidebar's five tabs shrink to fit the narrow sidebar instead of running off the edge.
+
+## [v26.10.18.36] - 2026-10-18
+
+- Bus headers have two lines now: name and M on top, the bus level and pan below, always visible
+  and large enough to use (they were squeezed onto one line and shown only on hover).
+- The transcript shows the words of a silent track as deleted text: a muted track, a track on
+  a muted bus, and every track while another one is soloed.
+
+## [v26.10.18.35] - 2026-10-18
+
+- The bus choice in each track's header has "+ New bus…" too: it makes a bus and puts the track
+  on it in one step (it was only in the inspector before).
+
 ## [v26.10.18.34] - 2026-10-18
 
 - A Finnish script for the onboarding sample project (a 3-minute interview about pruning an apple

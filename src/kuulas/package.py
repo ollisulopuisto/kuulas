@@ -164,6 +164,22 @@ def _is_mine(lock: dict) -> bool:
     return lock.get("host") == me["host"] and lock.get("pid") == me["pid"]
 
 
+def _pid_alive(pid: object) -> bool:
+    """Is process `pid` running on this machine? Unknown or odd pids count as alive,
+    so a lock is only taken over early when we are sure its owner is gone."""
+    if not isinstance(pid, int) or pid <= 0:
+        return True
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return True
+    return True
+
+
 def _write_lock(folder: Path, now: datetime, opened: str | None = None) -> None:
     write_json_atomic(folder / "lock.json",
                       {**_me(), "opened_utc": opened or _iso(now),
@@ -179,7 +195,10 @@ def _lock_holder(folder: Path, now: datetime) -> dict | None:
     if lock is None or _is_mine(lock):
         return None
     age = (now - _parse_iso(lock["heartbeat_utc"])).total_seconds()
-    if age < STALE_S:
+    # A lock of a process on this very machine that no longer runs is dead at once:
+    # waiting two minutes for a crashed or killed window helps nobody.
+    owner_gone = lock.get("host") == _me()["host"] and not _pid_alive(lock.get("pid"))
+    if age < STALE_S and not owner_gone:
         return lock
     log.warning(t("log.package.stale_lock", host=lock.get("host", "?"),
                   heartbeat=lock["heartbeat_utc"]))

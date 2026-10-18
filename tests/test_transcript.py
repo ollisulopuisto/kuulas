@@ -76,3 +76,27 @@ def test_rate_change_leaves_words_untouched():
         assert [(w["s"], w["e"]) for w in tw] == [
             (rate + rate // 2, 2 * rate), (rate + 9 * rate // 4, rate + 11 * rate // 4)]
     assert stored == before
+
+
+def _muted(p):
+    return [w["muted"] for w in transcript.timeline_words(p, WORDS)]
+
+
+def test_a_muted_track_makes_its_words_deleted_text():
+    p = ops.set_track(project(), "t", mute=True)
+    assert _muted(p) == [True, True, True]
+
+
+def test_words_of_a_muted_bus_are_deleted_text():
+    p = ops.add_bus(project(), bus_id="b", track_ids=("t",))
+    assert _muted(p) == [False, False, False]
+    p = ops.set_bus(p, "b", mute=True)
+    assert _muted(p) == [True, True, True]
+
+
+def test_solo_on_another_track_silences_this_tracks_words():
+    p = ops.add_track(project(), track_id="u", name="B")
+    p = ops.set_track(p, "u", solo=True)
+    assert _muted(p) == [True, True, True]
+    p = ops.set_track(p, "t", solo=True)
+    assert _muted(p) == [False, False, False]

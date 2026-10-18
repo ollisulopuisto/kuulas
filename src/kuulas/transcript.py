@@ -15,6 +15,16 @@ from .gate import closed_at
 from .model import Project
 
 
+def silent_tracks(p: Project) -> set[str]:
+    """The tracks nobody hears, by the mixer's rule: while anything is soloed
+    only soloed tracks play (muted or not), otherwise muted tracks do not; and
+    a muted bus silences every track on it."""
+    soloing = any(t.solo for t in p.tracks)
+    muted_buses = {b.id for b in p.buses if b.mute}
+    return {t.id for t in p.tracks
+            if (not t.solo if soloing else t.mute) or t.bus in muted_buses}
+
+
 def timeline_words(p: Project, transcripts: dict[str, list[dict]]) -> list[dict]:
     """Every word some clip plays, on the timeline, in time order.
 
@@ -22,6 +32,7 @@ def timeline_words(p: Project, transcripts: dict[str, list[dict]]) -> list[dict]
     word shows it once, on the side that keeps most of it.
     """
     out = []
+    silent = silent_tracks(p)
     for track in p.tracks:
         for clip in track.clips:
             words = transcripts.get(clip.media)
@@ -43,7 +54,7 @@ def timeline_words(p: Project, transcripts: dict[str, list[dict]]) -> list[dict]
                         "s": max(clip.start, s + shift),
                         "e": min(clip.end, e + shift),
                         "track": track.id, "clip": clip.id, "media": clip.media,
-                        "index": i, "muted": clip.muted or track.mute or gated,
+                        "index": i, "muted": clip.muted or track.id in silent or gated,
                     })
     out.sort(key=lambda w: (w["s"], w["track"]))
     return out
