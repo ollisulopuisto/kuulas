@@ -57,6 +57,7 @@ import { leftOffFlag } from "./left-off.js";
 import { activeLoop } from "./loop-range.js";
 import { flagLayout, NOTCH_PX as MARKER_NOTCH_PX } from "./markers-model.js";
 import { lengthPill, markDrawing } from "./marks.js";
+import { advanceDelta, movedSpans, moveTargets, snapMove } from "./move-snap.js";
 import { baseGainDb, makeWaveformJob, scaleFor, trackHues } from "./paint.js";
 import { aboutSeconds, placeholderLabel } from "./placeholders-model.js";
 import { dragRange, isDrag, touchedResult, trackRowsTouched } from "./range-drag.js";
@@ -341,6 +342,14 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
   // each clip's own waveform inside (WP63) so waveforms can be lined up by eye.
   function drawMoveGhost(state, layout) {
     const ghosts = moveGhosts(state.project, clipSession.ids, clipSession.move);
+    if (clipSession.snapAt !== null) {
+      // The snap line: a thin accent line where the moved edge landed.
+      const x = frameToX(clipSession.snapAt, state.scroll, state.zoom);
+      overlay.save();
+      overlay.fillStyle = theme.accent;
+      overlay.fillRect(Math.round(x), RULER_HEIGHT, 1, size.height - RULER_HEIGHT);
+      overlay.restore();
+    }
     const byClip = new Map(ghosts.map((ghost) => [ghost.clipId, ghost]));
     const hues = trackHues(state.project);
     overlay.save();
@@ -1482,6 +1491,12 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       dragging: false,
       seekFrame: hit.frame,
       move: { delta: 0, direction: 0 },
+      // Snapping and fine movement (move-snap.js): where the pointer's travel stands, the clips'
+      // spans before the move, and the frames worth snapping to (fixed for the whole drag).
+      pos: { delta: 0, lastX: locate(event).x },
+      spans: movedSpans(getState().project, clipDragIds(hit.clip.id, before)),
+      targets: moveTargets(getState().project, clipDragIds(hit.clip.id, before), getState()),
+      snapAt: null,
     };
     overlayCanvas.setPointerCapture?.(event.pointerId);
     window.addEventListener("keydown", clipKey, true);
@@ -1497,8 +1512,23 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     }
     const state = getState();
     const row = targetTrackRow(layoutFor(state), point.y - RULER_HEIGHT + state.scrollY);
+    // Shift: fine adjust (a tenth of the travel). Alt: no snapping. Otherwise the edges snap
+    // to other clips' edges, the playhead and the marks within 8 px.
+    session.pos = advanceDelta(session.pos, point.x, { fine: event.shiftKey, zoom: state.zoom });
+    let deltaFrames = session.pos.delta;
+    session.snapAt = null;
+    if (!event.altKey) {
+      const snapped = snapMove({
+        moved: session.spans,
+        delta: deltaFrames,
+        targets: session.targets,
+        zoom: state.zoom,
+      });
+      deltaFrames = snapped.delta;
+      session.snapAt = snapped.at;
+    }
     session.move = resolveMove(state.project, session.ids, {
-      deltaFrames: (point.x - session.origin.x) * state.zoom,
+      deltaFrames,
       fromIndex: session.fromIndex,
       toIndex: row?.index ?? session.fromIndex,
     });

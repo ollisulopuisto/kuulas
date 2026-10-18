@@ -12,6 +12,9 @@
   (drag moves the clip, Shift or Alt paint) is one switch away.
 - **A selection of several clips is dragged as it is:** after "Select forward" a plain drag on any selected clip
   moves them all; a single clip you just clicked still paints a range.
+- **Moving clips snaps:** the edges of the moved clips snap to other clips' edges, the playhead and the in/out marks
+  (within 8 pixels, shown by a thin line); hold **Shift** to move finely (a tenth of the travel) and **Alt** to
+  turn snapping off.
 - **B (split) shows at once** instead of after the server's answer.
 - **Cmd+Backspace** removes the selected clips and leaves every other clip where it is.
 - **The right-click menu** lists only what is possible, scrolls if it is still too tall, and shows hints in the
