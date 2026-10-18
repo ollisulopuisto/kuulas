@@ -849,6 +849,13 @@ export const DEFAULT_KEYMAP = [
     context: "global",
     labelKey: "cmd.export.tracks",
   },
+  // The same export without the folder question (no key by default).
+  {
+    id: "export.tracks_quick",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.export.tracks_quick",
+  },
   // One mix and one all-tracks command per export format (File menu submenus); no keys.
   ...EXPORT_FORMAT_IDS.flatMap((format) =>
     ["mix", "tracks"].map((what) => ({

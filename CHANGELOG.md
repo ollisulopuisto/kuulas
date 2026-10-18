@@ -1,3 +1,21 @@
+## [v26.10.18.60] - 2026-10-18
+
+- **Mono speech tracks:** a track has a **Mono** switch (inspector checkbox, and a "mono" or "stereo" tag on
+  speech tracks). A mono track is mixed to one channel everywhere, (L+R)/2, so a centred voice keeps its
+  level, and its exported stem is a one-channel file. Speech from a mono file is mono by default.
+- **A stereo speech file comes in as stereo speech** and, after the import, a notice asks "Turn into mono /
+  Keep stereo" (naming the tracks); a setting in the import options remembers the answer (always ask,
+  always mono, always stereo). **Not for projects imported from Hindenburg:** tick Mono on a track's
+  inspector yourself (for example Olli).
+
+## [v26.10.18.59] - 2026-10-18
+
+- **Exports ask where to save** (in the desktop window): "Export all tracks", "Export all tracks as…" and
+  "Export mix" open a folder chooser first, starting at the folder you used last time for this project
+  (else `<project> exports` next to it). The files still go into a new sub-folder named with the edit and
+  the time, so nothing is overwritten. Cancel in the chooser cancels the export. **File > Export all tracks
+  to the last folder** (and Alt+click on the "Vie" button) exports without asking.
+
 ## [v26.10.18.58] - 2026-10-18
 
 - **Fixed: exported WAV files now open in macOS Quick Look and CoreAudio.** The RIFF size field in the header

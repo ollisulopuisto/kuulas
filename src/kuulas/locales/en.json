@@ -1134,7 +1134,10 @@
   "cli.export_tracks.done": "Exported {count} tracks to {path}",
   "cli.export_tracks.silent": "Silent in the export (muted or not soloed): {count}: {names}",
   "cmd.export.tracks": "Export all tracks",
-  "cmd.export.tracks.hint": "One file per track, same start and length, edits applied, no mixing: for the automixer or a DAW.",
+  "cmd.export.tracks.hint": "One file per track, same start and length, edits applied, no mixing: for the automixer or a DAW. Asks which folder first (desktop window).",
+  "cmd.export.tracks_quick": "Export all tracks to the last folder",
+  "cmd.export.tracks_quick.hint": "The same export without asking: into the folder used last time, or \"<project> exports\" beside the project.",
+  "ui.export.choose_folder": "Choose the folder to export the tracks to",
   "export.format.wav": "WAV",
   "export.format.flac": "FLAC",
   "export.format.mp3": "MP3",
@@ -1187,5 +1190,19 @@
   "ui.export.show_in_finder": "Show in Finder",
   "ui.export.cancelled": "Export cancelled.",
   "ui.range.clips_one": "1 clip",
-  "ui.range.clips_many": "{count} clips"
+  "ui.range.clips_many": "{count} clips",
+  "ui.import.mono_question": {
+    "one": "{names} is a stereo recording. Turn it into mono?",
+    "other": "{names} are stereo recordings. Turn them into mono?"
+  },
+  "ui.import.mono_yes": "Turn into mono",
+  "ui.import.mono_no": "Keep stereo",
+  "ui.import.mono": "Stereo speech",
+  "ui.import.mono_ask": "always ask",
+  "ui.import.mono_always": "always mono",
+  "ui.import.mono_never": "always stereo",
+  "ui.track.mono": "Mono",
+  "ui.track.tag.mono": "mono",
+  "ui.track.tag.stereo": "stereo",
+  "ui.edit.label.mono": "Turn into mono"
 }

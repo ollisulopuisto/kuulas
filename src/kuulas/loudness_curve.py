@@ -198,8 +198,9 @@ def project_curves(p: Project, store: mixer.Store,
 
     step = CHUNK_SEC * p.rate
     by_id = {tr.id: tr for tr in tracks}
-    channels = {tr.id: max(1, min(2, max(p.media_item(c.media).channels
-                                         for c in tr.clips))) for tr in tracks}
+    channels = {tr.id: 1 if tr.mono else
+                max(1, min(2, max(p.media_item(c.media).channels for c in tr.clips)))
+                for tr in tracks}
     for first in range(0, p.length if pending else 0, step):
         count = min(step, p.length - first)
         for ident, (acc, _) in pending.items():

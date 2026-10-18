@@ -11,6 +11,7 @@ import { addBusForTrack, NEW_BUS } from "./inspector-track.js";
 import { truncateMiddle } from "./labels.js";
 import { dragLaneHeight, dragStarted } from "./lane-sizing.js";
 import { layoutFor } from "./lanes.js";
+import { monoTag } from "./mono-ask.js";
 import { MUSIC_HUE, trackHues } from "./paint.js";
 import { coalesceKey, patchBus, patchSolo, patchTrack } from "./provisional.js";
 
@@ -180,6 +181,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     const tag = el("span", `tag kind-${track.kind}`);
     tag.textContent = kindLabel(track.kind);
     tag.title = kindLabel(track.kind);
+    const channelTag = el("span", "channel-tag");
     const mute = toggle(t("ui.track.mute"), t("ui.track.mute.short"), "mute");
     const solo = toggle(t("ui.track.solo"), t("ui.track.solo.short"), "solo");
     const buttons = el("span", "ms");
@@ -201,7 +203,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     newBus.value = NEW_BUS;
     newBus.textContent = t("ui.bus.option_new");
     bus.append(newBus);
-    top.append(name, tag, bus, buttons);
+    top.append(name, tag, channelTag, bus, buttons);
     const controls = el("div", "th-controls");
     const gain = slider(t("ui.track.gain"), GAIN);
     const pan = slider(t("ui.track.pan"), PAN);
@@ -290,7 +292,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       format: panText,
       scale: 100,
     });
-    return { node, name, mute, solo, bus, gain, pan, kind: "track" };
+    return { node, name, channelTag, mute, solo, bus, gain, pan, kind: "track" };
   }
 
   function buildBus(bus, index) {
@@ -449,6 +451,9 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
           `var(--track-${hue === MUSIC_HUE ? "music" : hue}-edge)`,
         );
         if (parts.name.isConnected) fitName(parts.name, track.name);
+        const channels = monoTag(track, state.project);
+        parts.channelTag.hidden = channels === null;
+        parts.channelTag.textContent = channels ? t(`ui.track.tag.${channels}`) : "";
         parts.mute.setAttribute("aria-pressed", String(track.mute));
         parts.solo.setAttribute("aria-pressed", String(track.solo));
         if (document.activeElement !== parts.bus) parts.bus.value = track.bus ?? "";

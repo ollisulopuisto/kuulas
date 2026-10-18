@@ -443,6 +443,17 @@ with a migration that rewrites nothing; that is left to the integrator,
 since it touches `package.VERSION`, `db.SCHEMA_VERSION` and the migration
 table that other work packages also bump.
 
+**As built (mono speech tracks).** The edit state gains an optional
+`Track.mono` (boolean, default false): the track is mixed down to ONE channel
+everywhere it is rendered, as (L+R)/2 so a centred voice keeps its level, then
+pan and gain apply as for any mono track. The stems export writes it as a
+1-channel file, and the loudness curve and Match loudness measure the mono
+signal. The key is absent while false, so a track that never had it keeps its
+bytes and its state hash. It is set with `set_track` (one undo step).
+`min_reader` does not rise: a reader that does not know it keeps the key in
+`Track.extra` and plays the track in stereo, which is audibly different from
+the mono mix but loses nothing and writes the key back.
+
 **As built (WP49 loudness targets).** The edit state gains an optional
 `Track.target_lufs` (float, LUFS, -70 to 0): where the track should sit. Absent
 means the role's default (speech and narration -19, music -23; the role is the

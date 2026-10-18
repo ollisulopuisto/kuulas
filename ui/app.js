@@ -13,7 +13,7 @@ import { contextMenuItems } from "./context-menu-model.js";
 import { edgeChange } from "./edge-drag.js";
 import { createEditor } from "./edits.js";
 import { escapeAction } from "./escape.js";
-import { exportNotice, filenameFromDisposition } from "./export-commands.js";
+import { exportNotice, exportRequest, filenameFromDisposition } from "./export-commands.js";
 import { nextPanel } from "./focus.js";
 import { followScroll } from "./follow.js";
 import { frameToTime, RATE, xToFrame } from "./format.js";
@@ -44,6 +44,7 @@ import { activeLoop } from "./loop-range.js";
 import { regionCount } from "./markers-model.js";
 import { createMarkersPanel } from "./markers-panel.js";
 import { heldFromEvent } from "./modifiers.js";
+import { monoDecision, monoEdits } from "./mono-ask.js";
 import { motionMode } from "./motion.js";
 import { createOverview } from "./overview.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
@@ -563,8 +564,8 @@ const keyboard = setupKeyboard({
     promptText: (request) => placeholderEditor.prompt(request),
     takeFor: (id) => void takeForPlaceholder(id),
     exportRegions: () => exportRegions(),
-    exportTracks: (format) => exportTracks(format),
-    exportMix: (format) => exportMix(format),
+    exportTracks: (format, options) => exportTracks(format, options),
+    exportMix: (format, options) => exportMix(format, options),
     exportFormats: () => exportFormatIds,
     focusName: () => inspector.focusName(),
     openGateStretch: () => openGateStretch(),
@@ -849,12 +850,21 @@ const importPanel = createImportPanel({
       $("undo").click();
     },
     sequence: () => void importSequentially(),
+    mono: (tracks) => turnIntoMono(tracks),
+    keepStereo: () => {},
   },
 });
 // Anything else that changes the project takes the panel down: Undo would undo that instead.
 subscribe(() => importPanel.sync(getState().head));
 
 let lastImport = null; // { job, options } of the import the panel is about
+
+// One undoable step per track: the user can take back one voice and keep the other.
+function turnIntoMono(tracks) {
+  for (const edit of monoEdits(tracks)) {
+    editor.change({ ...edit, label: t(edit.labelKey), labelKey: undefined });
+  }
+}
 
 async function importFiles(files, target = null) {
   if (files.length > 0) await runImport({ files }, target);
@@ -879,7 +889,11 @@ async function runImport(job, target, settled = null) {
       return;
     }
     lastImport = { job, options };
-    importPanel.show(panelModel(summary, options), getState().head);
+    // New stereo speech tracks: turn into mono, keep, or ask (the remembered choice).
+    const decision = monoDecision(importPanel.prefs().mono, result.stereo);
+    if (decision.action === "mono") turnIntoMono(decision.tracks);
+    const asking = decision.action === "ask" ? decision.tracks : [];
+    importPanel.show(panelModel(summary, options, asking), getState().head);
   } catch (error) {
     showError(error);
   }
@@ -1118,10 +1132,19 @@ async function cancelExportJob() {
 
 // `what` "tracks" or "mix"; `format` is a format id, or none for WAV (tracks) / the remembered
 // one (mix). One export at a time.
-async function startExport(what, format) {
+async function startExport(what, format, { ask = true } = {}) {
   if (exportJob) return;
   try {
-    const options = format ? { format } : {};
+    // Desktop window: the native folder chooser first; cancelling ends here, quietly.
+    const options = await exportRequest({
+      format,
+      ask,
+      bridge: globalThis.pywebview?.api,
+      hint: () => api.exportFolder(),
+      // The native folder dialog has no title of its own, so say what it is for.
+      onAsk: () => what === "tracks" && showNotice(t("ui.export.choose_folder"), "ok"),
+    });
+    if (!options) return;
     const { jobs } = await (what === "mix" ? api.exportMix(options) : api.exportTracks(options));
     exportJob = jobs[0];
     showNotice(t(`ui.export.${what}_running`, { percent: 0 }), "ok", {
@@ -1133,8 +1156,8 @@ async function startExport(what, format) {
     showError(error);
   }
 }
-const exportTracks = (format) => startExport("tracks", format);
-const exportMix = (format) => startExport("mix", format);
+const exportTracks = (format, options) => startExport("tracks", format, options);
+const exportMix = (format, options) => startExport("mix", format, options);
 
 // The formats the server can write (ids, in its order); asked for once, at start.
 api
@@ -1144,8 +1167,9 @@ api
   })
   .catch(() => {});
 
-$("export").addEventListener("click", () =>
-  keyboard.registry.run("export.tracks", null, getState()),
+// Alt-click skips the folder question (the quick export).
+$("export").addEventListener("click", (event) =>
+  keyboard.registry.run(event.altKey ? "export.tracks_quick" : "export.tracks", null, getState()),
 );
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && exportJob) void cancelExportJob();

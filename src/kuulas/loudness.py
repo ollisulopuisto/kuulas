@@ -39,7 +39,8 @@ def track_target_lufs(track: Track) -> float | None:
     return default_target_lufs(track.kind)
 
 
-def measure_clip(store: Store, clip: Clip, rate: int) -> float | None:
+def measure_clip(store: Store, clip: Clip, rate: int,
+                 mono: bool = False) -> float | None:
     """Integrated loudness of a clip's own audio range in LUFS.
 
     Reads in chunks of at most 60 seconds and feeds the integrated meter
@@ -58,6 +59,8 @@ def measure_clip(store: Store, clip: Clip, rate: int) -> float | None:
     while pos < end:
         count = min(chunk_step, end - pos)
         chunk = store.read(clip.media, pos, count)
+        if mono and chunk.shape[0] > 1:
+            chunk = chunk.mean(axis=0, keepdims=True)
         meter.add(chunk)
         pos += count
 

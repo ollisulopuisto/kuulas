@@ -99,7 +99,7 @@ def delete_track(p: Project, track_id: str) -> Project:
 
 
 TRACK_FIELDS = {"name", "kind", "speaker", "bus", "gain_db", "pan", "mute", "solo",
-                "target_lufs"}
+                "target_lufs", "mono"}
 
 
 def set_track(p: Project, track_id: str, **fields) -> Project:
@@ -112,6 +112,8 @@ def set_track(p: Project, track_id: str, **fields) -> Project:
         raise EditError("error.edit.no_bus", bus_id=fields["bus"])
     if "pan" in fields:
         fields["pan"] = max(-1.0, min(1.0, float(fields["pan"])))
+    if "mono" in fields:
+        fields["mono"] = bool(fields["mono"])
     if fields.get("target_lufs") is not None:
         fields["target_lufs"] = _target_lufs(fields["target_lufs"])
     return _replace_track(p, replace(_find_track(p, track_id), **fields))
