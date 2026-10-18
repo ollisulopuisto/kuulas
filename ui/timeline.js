@@ -185,6 +185,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       overlay.moveTo(0, top + row.height - 0.5);
       overlay.lineTo(width, top + row.height - 0.5);
       overlay.stroke();
+      if (row.kind === "track" && state.focusTrack === row.id) drawFocusLane(row, top, width);
       if (row.kind === "track") drawTrack(state, state.project.tracks[row.index], row, top, hues);
       else drawBusRow(state, row, top, groups, hues);
     }
@@ -271,6 +272,20 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     overlay.textBaseline = "top";
     overlay.fillStyle = theme.ink;
     overlay.fillText(t(key, params), label.x, label.y);
+  }
+
+  // The active channel (owner, 2026-10-18: it was hard to tell which one is active): a faint
+  // accent tint over the whole lane, a solid bar at its left edge and accent lines above and below.
+  function drawFocusLane(row, top, width) {
+    overlay.save();
+    overlay.fillStyle = theme.accent;
+    overlay.globalAlpha = 0.07;
+    overlay.fillRect(0, top, width, row.height);
+    overlay.globalAlpha = 1;
+    overlay.fillRect(0, top, 4, row.height);
+    overlay.fillRect(0, top, width, 1);
+    overlay.fillRect(0, top + row.height - 1, width, 1);
+    overlay.restore();
   }
 
   function drawRange(state, height) {

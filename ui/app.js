@@ -728,7 +728,8 @@ $("density").addEventListener("change", (event) => {
 // Tab and Shift+Tab (WP19i): what the playhead jumps to. The scope (word, edge, sound) is
 // remembered per user; until the user picks one it follows the project: words when there is
 // a transcript, else clip borders. An old remembered "transient" or "both" is migrated.
-const TAB_SCOPE_KEY = "tabTarget";
+// A new key: the old one may hold a "word" chosen before edges became the default.
+const TAB_SCOPE_KEY = "tabScope";
 const tabScope = () => scopeChoice(prefs.get(TAB_SCOPE_KEY), getState().words.length > 0);
 
 /** The scope shown beside the range info: "Tab: words". */
@@ -794,7 +795,9 @@ async function tabStop(direction) {
       await ensureWords();
       stops = stopsForScope(scope, { words: getState().words, track });
     } else {
-      stops = stopsForScope(scope, { server: await serverStops(SCOPE_MODE[scope], track) });
+      // Seams are on any track; sounds follow the focused track.
+      const serverTrack = scope === "edge" ? null : track;
+      stops = stopsForScope(scope, { server: await serverStops(SCOPE_MODE[scope], serverTrack) });
     }
     const from = getState().playhead ?? 0;
     const frame = direction > 0 ? nextStop(stops, from) : prevStop(stops, from);

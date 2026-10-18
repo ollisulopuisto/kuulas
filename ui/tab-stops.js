@@ -17,8 +17,11 @@ export function cycleScope(scope) {
   return TAB_SCOPES[(at + 1) % TAB_SCOPES.length];
 }
 
-/** Word stops need a transcript; without one the clip borders are the stops. */
-export const defaultScope = (hasTranscript) => (hasTranscript ? "word" : "edge");
+/**
+ * Tab goes to the next seam (clip border) on any track by default (owner, 2026-10-18: it is hard to
+ * tell which channel is active). Words and sounds are one Alt+Tab away.
+ */
+export const defaultScope = () => "edge";
 
 /** A remembered scope if valid (old values migrate: transient to sound, both to word), else the default. */
 export function scopeChoice(stored, hasTranscript) {

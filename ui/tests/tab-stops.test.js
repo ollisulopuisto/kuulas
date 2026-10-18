@@ -57,13 +57,13 @@ describe("the scope", () => {
     assert.deepEqual(SCOPE_MODE, { edge: "edges", sound: "transients" });
   });
   test("default is word with a transcript, else edge", () => {
-    assert.equal(defaultScope(true), "word");
+    assert.equal(defaultScope(true), "edge"); // the owner: Tab jumps to the next seam by default
     assert.equal(defaultScope(false), "edge");
   });
   test("a stored choice is used when valid, else the default", () => {
     assert.equal(scopeChoice("sound", true), "sound");
     assert.equal(scopeChoice("nope", false), "edge");
-    assert.equal(scopeChoice(null, true), "word");
+    assert.equal(scopeChoice(null, true), "edge");
   });
   test("old remembered values migrate: transient -> sound, both -> word", () => {
     assert.equal(scopeChoice("transient", true), "sound");
