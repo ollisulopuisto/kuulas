@@ -1,3 +1,11 @@
+## [v26.10.18.61] - 2026-10-18
+
+- **Group, ungroup and merge clips**, all undoable in one step. Group (Alt+Cmd+G) ties the selected clips so
+  clicking, dragging, cutting or muting one takes the whole group; Ungroup is Shift+Alt+Cmd+G. Merge
+  (Alt+Cmd+J) joins touching clips of the same source and gain into one clip. Edit menu and palette have all
+  three. Grouped clips show a small joined-rings badge. Not yet seen in the real app: the badge and
+  dragging a grouped clip.
+
 ## [v26.10.18.60] - 2026-10-18
 
 - **Mono speech tracks:** a track has a **Mono** switch (inspector checkbox, and a "mono" or "stereo" tag on
