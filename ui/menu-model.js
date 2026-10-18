@@ -120,6 +120,7 @@ export const MENU = [
       item("view.back"),
       item("view.reset_remembered"),
       SEP,
+      item("nav.tab_target_cycle"),
       {
         kind: "submenu",
         labelKey: "menu.pause_break",
