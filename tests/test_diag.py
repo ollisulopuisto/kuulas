@@ -63,7 +63,7 @@ def test_summary_picks_the_slow_component_of_the_worst_callback():
     probe.mixer_read(0.001, "m2")
     probe.prefetch_read(0.050, "m3")
     probe.prefetch_read(0.002, "m4")
-    s, _ = probe.summary((0, 0, 0), block_ms=21.0, name_of=lambda i: i.upper())
+    s, _ = probe.summary((0, 0, 0, 0), block_ms=21.0, name_of=lambda i: i.upper())
     assert s["callbacks"] == 2
     assert s["cb_max_ms"] == pytest.approx(40.0)
     assert s["slow"] == "reads"
@@ -75,7 +75,7 @@ def test_summary_picks_the_slow_component_of_the_worst_callback():
 def test_summary_has_no_slow_part_while_the_callback_keeps_up():
     probe = diag.Probe()
     probe.callback(total=0.002, reads=0.0005, mix=0.001)
-    s, _ = probe.summary((0, 0, 0), block_ms=21.0, name_of=str)
+    s, _ = probe.summary((0, 0, 0, 0), block_ms=21.0, name_of=str)
     assert s["slow"] is None
 
 
@@ -132,3 +132,34 @@ def test_engine_prints_one_line_per_report_and_one_when_the_buffer_grows(
     err = capsys.readouterr().err
     assert "2048" in err
     assert len(err.strip().splitlines()) == 1
+
+
+def test_summary_counts_misses_and_reports_them():
+    probe = diag.Probe()
+    probe.callback(total=0.002, reads=0.0, mix=0.001)
+    probe.miss("m1")
+    probe.miss("m1")
+    s, cursor = probe.summary((0, 0, 0, 0), block_ms=21.0, name_of=str)
+    assert s["miss"] == 2
+    s2, _ = probe.summary(cursor, block_ms=21.0, name_of=str)
+    assert s2["miss"] == 0
+    line = diag.format_report({**s, "late_blocks": 0, "failed_blocks": 0,
+                               "device": "d", "device_rate": 48000,
+                               "resampling": False})
+    assert "miss 2" in line
+
+
+def test_a_stall_without_reads_or_mix_work_is_named_gil():
+    probe = diag.Probe()
+    # 40 ms on the wall, 1 ms of reads, 2 ms of mixing, 36 ms not running
+    probe.callback(total=0.040, reads=0.001, mix=0.002, wait=0.036)
+    s, _ = probe.summary((0, 0, 0, 0), block_ms=21.0, name_of=str)
+    assert s["slow"] == "other gil?"
+    assert s["wait_max_ms"] == pytest.approx(36.0)
+
+
+def test_a_slow_read_is_not_blamed_on_the_gil():
+    probe = diag.Probe()
+    probe.callback(total=0.030, reads=0.028, mix=0.001, wait=0.028)
+    s, _ = probe.summary((0, 0, 0, 0), block_ms=21.0, name_of=str)
+    assert s["slow"] == "reads"

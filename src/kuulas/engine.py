@@ -45,8 +45,10 @@ pitch kept (time-stretching) is not built and is refused.
 
 from __future__ import annotations
 
+import gc
 import logging
 import math
+import sys
 import threading
 import time
 from collections import deque
@@ -80,6 +82,16 @@ SAFE_BLOCKSIZE = 2048
 TICK_S = 0.25
 #: How far ahead the helper thread decodes media.
 PREFETCH_S = 5.0
+#: What must be read ahead before a play, seek or loop change takes effect, so
+#: the first blocks find their audio cached (the rest follows on the next tick).
+WARM_S = 2.0
+#: Python's thread switch interval while the stream is open. The default 5 ms
+#: is how long the audio callback may wait for the GIL each time another
+#: thread (the web server, the helper) holds it; 0.5 ms makes the wait short.
+SWITCH_S = 0.0005
+#: A read-ahead chunk nobody wants any more is dropped after this long (a seek
+#: warms new chunks just before the helper's next tick counts them as wanted).
+KEEP_S = 3.0
 #: A callback that has not run for this long while playing is a dead stream.
 WATCHDOG_S = 1.0
 #: This many late blocks within ``LATE_WINDOW_S`` count as struggling. One
@@ -162,21 +174,75 @@ class _SafeStore:
         self.probe: diag.Probe | None = None
         #: media id -> indices of chunks that failed to decode
         self.damaged: dict[str, set[int]] = {}
+        #: The read-ahead: (media id, chunk index) -> (whole chunk, last time
+        #: wanted). Written by the helper and control threads, read by the
+        #: audio thread with plain dict get/set/pop (atomic), so no lock.
+        self.cache: dict[tuple[str, int], tuple[np.ndarray, float]] = {}
+        #: media id -> channel count of its cached chunks
+        self.channels: dict[str, int] = {}
+        #: reads that found nothing cached (audio thread writes)
+        self.misses = 0
 
-    def read(self, media_id: str, first: int, count: int, *,
-             prefetch: bool = False) -> np.ndarray:
+    def read(self, media_id: str, first: int, count: int) -> np.ndarray:
+        """The audio thread's read: copies from the read-ahead cache and never
+        touches the disk. What is not cached plays as silence and is counted
+        as a miss (the helper thread was late, or the source is new)."""
         probe = self.probe
         if probe is None:
-            return self._read(media_id, first, count)
+            return self._cached(media_id, first, count)
         began = time.perf_counter()
         try:
-            return self._read(media_id, first, count)
+            return self._cached(media_id, first, count)
         finally:
-            took = time.perf_counter() - began
-            if prefetch:
-                probe.prefetch_read(took, media_id)
+            probe.mixer_read(time.perf_counter() - began, media_id)
+
+    def _cached(self, media_id: str, first: int, count: int) -> np.ndarray:
+        step, cache = self.step, self.cache
+        pieces: list[tuple[int, np.ndarray]] = []
+        pos, end, missed = max(first, 0), first + count, False
+        while pos < end:
+            index = pos // step
+            n = min(end, (index + 1) * step) - pos
+            hit = cache.get((media_id, index))
+            if hit is None:
+                missed = True
             else:
-                probe.mixer_read(took, media_id)
+                a = pos - index * step
+                pieces.append((pos - first, hit[0][:, a:a + n]))
+            pos += n
+        channels = max((d.shape[0] for _, d in pieces),
+                       default=self.channels.get(media_id, 1))
+        out = np.zeros((channels, count), dtype=np.float32)
+        for at, data in pieces:
+            out[:, at:at + data.shape[1]] = data
+        if missed:
+            self.misses += 1
+            if self.probe is not None:
+                self.probe.miss(media_id)
+        return out
+
+    def fill(self, media_id: str, index: int, now: float) -> None:
+        """The helper thread's read: decode chunk ``index`` into the cache
+        (once; a chunk already there just has its time refreshed). Only the
+        helper and the control side call this, never the audio thread."""
+        key = (media_id, index)
+        hit = self.cache.get(key)
+        if hit is not None:
+            self.cache[key] = (hit[0], now)
+            return
+        probe = self.probe
+        began = time.perf_counter()
+        data = self._read(media_id, index * self.step, self.step)
+        if probe is not None:
+            probe.prefetch_read(time.perf_counter() - began, media_id)
+        self.channels[media_id] = data.shape[0]
+        self.cache[key] = (data, now)
+
+    def evict(self, wanted: set[tuple[str, int]], now: float) -> None:
+        """Drop chunks that are not wanted and have not been for ``KEEP_S``."""
+        for key, (_, stamp) in list(self.cache.items()):
+            if key not in wanted and now - stamp > KEEP_S:
+                self.cache.pop(key, None)
 
     def _read(self, media_id: str, first: int, count: int) -> np.ndarray:
         if not self.damaged.get(media_id):
@@ -239,7 +305,7 @@ class Engine:
         self._probe = diag.Probe() if (diag.enabled() if debug is None else debug) \
             else None
         self._store.probe = self._probe
-        self._report_cursor = (0, 0, 0)
+        self._report_cursor = (0, 0, 0, 0)
         self._reporter: threading.Thread | None = None
 
         # Transport, shared with the audio thread under _tlock (held only for
@@ -290,6 +356,9 @@ class Engine:
         self._closed = False
         self._halt = threading.Event()
         self._thread: threading.Thread | None = None
+        #: the switch interval before ours (None: not changed)
+        self._saved_switch: float | None = None
+        self._gc_frozen = False
 
         session.subscribe(self.set_project)
 
@@ -346,6 +415,9 @@ class Engine:
                 keep = same and run.loop is None and loop_range is None
                 splice = same and run.loop is not None and self._fed > 0
                 lo = self._anchor if keep else start
+            if loop_range is not None:  # the wrap must find the loop's start cached
+                self._fill_windows([(loop_range[0], loop_range[0] + self._ahead(
+                    WARM_S, speed))])
             if splice and (loop_range == run.loop or self._splice(
                     run, gen, loop_range, until, skip_list)):
                 self._last_active = self._clock()
@@ -353,6 +425,14 @@ class Engine:
                 return
             new = _Run(self._plan(lo, until, speed, skip_list, loop_range), speed,
                        skip_list, loop_range)
+            if not self._gc_frozen:
+                # Everything built so far (the app, the project) is long-lived:
+                # out of the collector's sight, a full collection during
+                # playback has far less to walk.
+                gc.freeze()
+                self._gc_frozen = True
+            if not keep:  # the first blocks must find their audio cached
+                self._read_ahead(new, 0, WARM_S, evict=False)
             with self._tlock:
                 if keep and self._gen == gen and self._playing:
                     self._run = new
@@ -381,6 +461,8 @@ class Engine:
         new = None if run is None else _Run(
             self._plan(frame, until, run.speed, run.skip, run.loop), run.speed,
             run.skip, run.loop)
+        if new is not None:
+            self._read_ahead(new, 0, WARM_S, evict=False)
         with self._tlock:
             self._start_run(frame, new)
 
@@ -413,7 +495,7 @@ class Engine:
             position = self._heard() if playing else self._anchor
         live = run if playing and run is not None else None
         with self._ctl:
-            debug = self._debug_numbers((0, 0, 0))[0] if self._probe else None
+            debug = self._debug_numbers((0, 0, 0, 0))[0] if self._probe else None
             notices = [{"id": n["id"], "key": n["key"], "params": n["params"],
                         "text": t(n["key"], **n["params"])} for n in self._notices]
             out = {
@@ -575,6 +657,7 @@ class Engine:
                 self._late += 1
                 self._late_times.append(now)
             began = time.perf_counter()
+            cpu = time.thread_time() if probe is not None else 0.0
             if probe is not None:
                 probe.acc = 0.0
             block = self._render(frames)
@@ -582,7 +665,9 @@ class Engine:
             outdata[:] = block
             ended = time.perf_counter()
             if probe is not None:
-                probe.callback(ended - began, probe.acc, rendered - began - probe.acc)
+                total = ended - began
+                probe.callback(total, probe.acc, rendered - began - probe.acc,
+                               max(0.0, total - (time.thread_time() - cpu)))
             if ended - began > frames / self._dev_rate:
                 self._late += 1
                 self._late_times.append(now)
@@ -721,11 +806,17 @@ class Engine:
             raise EngineError("error.engine.open_failed", device=name,
                               error=str(exc)) from None
         self._stream = stream
+        if self._saved_switch is None:
+            self._saved_switch = sys.getswitchinterval()
+        sys.setswitchinterval(SWITCH_S)
 
     def _close_stream(self) -> None:
         stream, self._stream = self._stream, None
         if stream is None:
             return
+        if self._saved_switch is not None:
+            sys.setswitchinterval(self._saved_switch)
+            self._saved_switch = None
         self._expect_finish = True
         try:
             stream.close()
@@ -851,7 +942,7 @@ class Engine:
         self._late_times.clear()
         if self._blocksize < SAFE_BLOCKSIZE:
             if self._probe is not None:
-                numbers = self._debug_numbers((0, 0, 0), self._blocksize)[0]
+                numbers = self._debug_numbers((0, 0, 0, 0), self._blocksize)[0]
                 diag.emit(diag.format_raise(
                     self._blocksize, SAFE_BLOCKSIZE, self._late,
                     numbers["cb_max_ms"], numbers["block_ms"]))
@@ -895,35 +986,51 @@ class Engine:
                               "tag": tag})
 
     def _prefetch(self) -> None:
-        """Decode every clip's audio for the next few seconds now, so the
-        audio thread finds it cached. One frame per decode chunk is enough
-        to make the store decode and cache that chunk."""
-        project = self._project
+        """Read every clip's audio for the next few seconds into the
+        read-ahead cache, so the audio thread finds it there."""
         with self._tlock:
             run, fed = self._run, self._fed
-        if run is None:
-            return
-        plan, length = run.plan, project.length
-        ahead = round(PREFETCH_S * self.rate * max(1.0, abs(run.speed)))
+        if run is not None:
+            self._read_ahead(run, fed, PREFETCH_S, evict=True)
+
+    def _ahead(self, seconds: float, speed: float) -> int:
+        return round(seconds * self.rate * max(1.0, abs(speed)))
+
+    def _read_ahead(self, run: _Run, fed: int, seconds: float, *, evict: bool) -> None:
+        """Fill the cache for ``seconds`` of ``run`` from its played frame
+        ``fed`` (and, in a loop, from the loop's start). ``evict`` also drops
+        chunks no longer wanted: only the helper does that."""
+        plan, length = run.plan, self._project.length
+        ahead = self._ahead(seconds, run.speed)
         if run.speed > 0:
             first = plan.position(fed, length)
             last = first + ahead
         else:
             last = plan.position(max(0, plan.length(length) - fed), length)
             first = max(0, last - ahead)
-        step = self._store.step
         windows = [(first, last)]
         if run.loop is not None:  # the wrap goes back to the loop's start
             windows.append((run.loop[0], run.loop[0] + ahead))
+        self._fill_windows(windows, evict=evict)
+
+    def _fill_windows(self, windows: list[tuple[int, int]], *,
+                      evict: bool = False) -> None:
+        """Read the chunks every clip needs for the programme-frame
+        ``windows``. Never holds a lock the audio thread takes."""
+        project, store = self._project, self._store
+        step, now = store.step, time.monotonic()
+        wanted: set[tuple[str, int]] = set()
         for first, last in windows:
             for track in project.tracks:
                 for clip in track.clips:
                     lo, hi = max(first, clip.heard_start), min(last, clip.heard_end)
                     if hi <= lo:
                         continue
-                    src = clip.offset + (lo - clip.start)
-                    src_end = src + (hi - lo)
-                    at = src
-                    while at < src_end:
-                        self._store.read(clip.media, at, 1, prefetch=True)
-                        at = (at // step + 1) * step
+                    src = max(0, clip.offset + (lo - clip.start))
+                    src_end = clip.offset + (hi - clip.start)
+                    for index in range(src // step, (src_end - 1) // step + 1):
+                        wanted.add((clip.media, index))
+        for media_id, index in sorted(wanted):
+            store.fill(media_id, index, now)
+        if evict:
+            store.evict(wanted, now)

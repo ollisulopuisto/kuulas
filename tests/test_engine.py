@@ -7,6 +7,7 @@ The engine's helper thread is off (``background=False``); tests call
 ``_tick`` themselves with a fake clock, so nothing depends on timing.
 """
 
+import gc
 import hashlib
 import json
 import subprocess
@@ -416,7 +417,7 @@ def test_prefetch_decodes_the_next_five_seconds(rig, clock):
     project = project_with(arrays, starts={"m": RATE, "late": 14 * RATE})
     engine = Engine(FakeSession(project, store), background=False, clock=clock)
     engine.play(8 * RATE)  # clip "m" starts at 1 s: source 7 s .. 12 s
-    store.reads.clear()
+    # (playing warms 2 s, the helper's tick the rest: chunks 0 and 1 together)
     engine._tick()
     step = CHUNK_SEC * RATE
     touched = {first // step for media_id, first, _ in store.reads if media_id == "m"}
@@ -426,11 +427,11 @@ def test_prefetch_decodes_the_next_five_seconds(rig, clock):
 
 
 def test_prefetch_thread_runs_while_playing(rig):
-    arrays = {"m": noise(3)}
+    arrays = {"m": noise(25)}
     store = MemoryStore(arrays)
     engine = Engine(FakeSession(project_with(arrays), store))
     try:
-        engine.play(0)
+        engine.play(8 * RATE)  # warms chunk 0; the thread reads chunk 1
         store.reads.clear()
         deadline = time.monotonic() + 3
         while not store.reads and time.monotonic() < deadline:
@@ -439,6 +440,111 @@ def test_prefetch_thread_runs_while_playing(rig):
     finally:
         engine.close()
     assert rig.stream.closed
+
+
+# -- read-ahead: the callback never reads the disk -----------------------------
+
+
+class ReadSpy(MemoryStore):
+    """A store that notes reads and can pretend to be a slow disk."""
+
+    def __init__(self, arrays):
+        super().__init__(arrays)
+        self.delay = 0.0
+
+    def read(self, media_id, first, count):
+        time.sleep(self.delay)
+        return super().read(media_id, first, count)
+
+
+def test_play_warms_the_first_seconds_before_any_callback(rig, clock):
+    arrays = {"m": noise(25)}
+    store = ReadSpy(arrays)
+    engine = Engine(FakeSession(project_with(arrays), store), background=False,
+                    clock=clock)
+    engine.play(0)
+    assert store.reads, "nothing was read ahead when playing started"
+    store.reads.clear()
+    for _ in range(20):
+        rig.stream.pump()
+    assert not store.reads, "the callback read from the store"
+
+
+def test_the_callback_never_reads_even_across_a_chunk_boundary(rig, clock):
+    arrays = {"m": noise(25)}
+    store = ReadSpy(arrays)
+    engine = Engine(FakeSession(project_with(arrays), store), background=False,
+                    clock=clock)
+    engine.play(CHUNK_SEC * RATE - 3000)
+    store.reads.clear()
+    store.delay = 0.05  # a read in the callback would now be audible as a stall
+    out = np.concatenate([engine._render(1024) for _ in range(10)])
+    assert not store.reads
+    assert np.std(out) > 0.01  # both sides of the boundary play
+
+
+def test_seek_warms_the_new_place_so_the_callback_finds_it(rig, clock):
+    arrays = {"m": noise(25)}
+    store = ReadSpy(arrays)
+    engine = Engine(FakeSession(project_with(arrays), store), background=False,
+                    clock=clock)
+    engine.play(0)
+    engine.seek(18 * RATE)
+    store.reads.clear()
+    out = engine._render(1024)
+    assert not store.reads
+    assert np.std(out) > 0.01
+
+
+def test_play_with_a_loop_warms_the_loops_start(rig, clock):
+    arrays = {"m": noise(25)}
+    store = ReadSpy(arrays)
+    engine = Engine(FakeSession(project_with(arrays), store), background=False,
+                    clock=clock)
+    engine.play(0, loop=(12 * RATE, 14 * RATE))
+    assert any(first // (CHUNK_SEC * RATE) == 1 for _, first, _ in store.reads)
+
+
+def test_a_miss_plays_silence_for_that_source_and_is_counted(rig, clock):
+    arrays = {"m": noise(3), "n": noise(3, seed=1)}
+    store = ReadSpy(arrays)
+    session = FakeSession(project_with({"m": arrays["m"]}), store)
+    engine = Engine(session, background=False, clock=clock, debug=True)
+    engine.play(0)
+    session.change(project_with(arrays))  # "n" has not been read ahead yet
+    store.reads.clear()
+    cold = engine._render(1024)
+    assert not [r for r in store.reads if r[0] == "n"], "the callback read a cold source"
+    assert np.std(cold) > 0.01  # "m" still plays
+    rig.stream.pump()
+    assert engine.status()["debug"]["miss"] >= 1
+    engine._tick()  # the helper catches up
+    engine.seek(0)
+    assert engine.status()["debug"]["miss"] >= 1
+    store.reads.clear()
+    engine._render(1024)
+    assert not store.reads
+
+
+def test_the_switch_interval_is_short_while_the_stream_is_open(rig, clock):
+    before = sys.getswitchinterval()
+    engine, _, _ = make(rig, clock)
+    try:
+        engine.play(0)
+        assert sys.getswitchinterval() == pytest.approx(0.0005)
+    finally:
+        engine.close()
+    assert sys.getswitchinterval() == pytest.approx(before)
+
+
+def test_play_freezes_start_up_objects_out_of_the_collector(rig, clock, monkeypatch):
+    frozen = []
+    monkeypatch.setattr(gc, "freeze", lambda: frozen.append(1))
+    engine, _, _ = make(rig, clock)
+    engine.play(0)
+    engine.stop()
+    engine.play(0)
+    assert frozen == [1], "freeze once per engine, not per play"
 
 
 # -- fault tolerance ---------------------------------------------------------
