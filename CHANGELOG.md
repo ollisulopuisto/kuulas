@@ -1,3 +1,8 @@
+## [v26.10.18.32] - 2026-10-18
+
+- The kuulas logo (a first version) is in the app: in the header next to the name and as the
+  browser tab icon. The desktop launcher and dock icon do not show it yet.
+
 ## [v26.10.18.31] - 2026-10-18
 
 - **Buses can be made now:** Track menu / palette "Group the selected tracks into a new bus" and

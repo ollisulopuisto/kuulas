@@ -206,6 +206,12 @@ button.chip {
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+.brand-mark {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  margin-right: var(--space-3);
+}
 .transport {
   display: flex;
   align-items: center;
