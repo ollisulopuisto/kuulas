@@ -1,3 +1,11 @@
+## [v26.10.18.34] - 2026-10-18
+
+- A Finnish script for the onboarding sample project (a 3-minute interview about pruning an apple
+  tree, with planted edits to practise on) is in `docs/onboarding/`; it still has to be recorded.
+- Building blocks for later features, not visible yet: which range loops (marks, selection or
+  clip), fitting track heights to the window, the loudness-against-target colours, and the maths
+  for aligning recordings by sound and choosing which media parts travel with a hand-off.
+
 ## [v26.10.18.33] - 2026-10-18
 
 - App icons: the kuulas mark on a dark rounded square, as PNGs (16 to 1024 px), `kuulas.ico`
