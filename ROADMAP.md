@@ -276,15 +276,20 @@ WP27, WP38, WP42, WP47.
   (see "speechmix as a package"). The wrapper cannot be shipped to other people
   until then.
 
-- **Waiting for the owner (look at the prototype screens `cuts`, `nested`,
-  `nested-collapsed`, and spec sections 24 and 25):** (A) keep Auto-Silence out of the
-  Cuts list and the transcript, one summary line instead [recommended]; (B) "Clean up
-  cuts" as a palette command only [recommended]; (C) offer one edit's soft cuts to
-  other versions as quiet suggestions [recommended]; (D) lift-cut on Alt+X, which
-  moves "close gap on all tracks" to Alt+Mod+X (WP5's list must change) [recommended];
-  nested buses with one new field `Bus.parent` (tree, depth 3, cascading gain, mute
-  and solo; badges A, A1, A1a; eight bus hues), tags not needed [recommended]; the
-  designer's further open questions 14 to 19 in `docs/design/GUI-DESIGN.md`.
+- **Decided by the owner, 2026-10-18 (about 10.10 Helsinki):** (A) Auto-Silence stays out of the
+  Cuts list and the transcript, one summary line instead; (B) "Clean up cuts" is a palette
+  command only; (C) one edit's soft cuts can be offered to other versions as quiet
+  suggestions; (D) lift-cut on Alt+X, and "close gap on all tracks" moves to Alt+Mod+X
+  (WP5's list must change); nested buses with `Bus.parent` (tree, depth 3, cascading gain, mute
+  and solo; badges A, A1, A1a; eight bus hues), no tags. These are no longer parked; they are
+  built after the density work. Still open: the designer's further questions 14 to 19 in
+  `docs/design/GUI-DESIGN.md`.
+- **Owner on packaging, 2026-10-18:** speechmix and nhsx get published as real packages
+  (not a private git dependency). Needs work in the podcast repo; `PODCAST_READ_TOKEN`
+  is still needed for CI until then.
+- **Owner question, 2026-10-18, open:** J, K and L are the playback keys. Is K overloaded by
+  "reject candidate" inside the Candidates tab? Recommendation: Enter accepts and Backspace
+  rejects there (as in the review panel, WP32), and K stays the shuttle stop everywhere.
 - **Owner on menus, 2026-10-18:** menu items must be unavailable when they cannot
   apply, and every item must show its keyboard shortcut ("we must teach the users
   the shortcuts in the menu too"). pywebview's native menus cannot do this, so
