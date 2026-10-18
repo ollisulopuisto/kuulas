@@ -751,6 +751,10 @@ def create_app(session, engine, *, language: str | None = None,
                     else check_loop(body.loop, skip, getattr(engine, "rate", 48000)))
             engine.play(body.at, body.until, rate=body.speed,
                         preserve_pitch=body.preserve_pitch, skip=skip, loop=loop)
+        elif action == "rate":
+            # Fast listening's stepless speed while it plays (WP26): the
+            # stretcher takes it at its next hop. Not playing fast: nothing.
+            engine.set_rate(body.speed)
         elif action == "stop":
             engine.stop()
         elif action == "seek":

@@ -74,6 +74,9 @@ export const initialState = () => ({
   playing: false,
   // The engine's tape speed (signed; JKL shuttle). 1 whenever nothing is shuttling.
   speed: 1,
+  // Fast listening (WP26, ui/fast-speed.js): the chosen stepless speed (1.0-2.0) and whether
+  // it is switched on. Remembered per user (app.js); the pitch is kept by the engine.
+  fast: { fast: 1.5, active: false },
   laneHeight: DEFAULT_LANE,
   // Lanes sized by hand (drag a header's bottom border): { trackId: px }. Remembered
   // per project with the view (view-memory.js), never in the edit history.

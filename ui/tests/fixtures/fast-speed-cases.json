@@ -1,0 +1,520 @@
+{
+  "ops": [
+    {
+      "state": {
+        "fast": 1.5,
+        "active": false
+      },
+      "op": "toggle",
+      "result": {
+        "fast": 1.5,
+        "active": true
+      }
+    },
+    {
+      "state": {
+        "fast": 1.5,
+        "active": false
+      },
+      "op": "up",
+      "result": {
+        "fast": 1.55,
+        "active": false
+      }
+    },
+    {
+      "state": {
+        "fast": 1.5,
+        "active": false
+      },
+      "op": "down",
+      "result": {
+        "fast": 1.45,
+        "active": false
+      }
+    },
+    {
+      "state": {
+        "fast": 1.5,
+        "active": false
+      },
+      "op": "reset",
+      "result": {
+        "fast": 1.0,
+        "active": false
+      }
+    },
+    {
+      "state": {
+        "fast": 1.5,
+        "active": true
+      },
+      "op": "toggle",
+      "result": {
+        "fast": 1.5,
+        "active": false
+      }
+    },
+    {
+      "state": {
+        "fast": 1.5,
+        "active": true
+      },
+      "op": "up",
+      "result": {
+        "fast": 1.55,
+        "active": true
+      }
+    },
+    {
+      "state": {
+        "fast": 1.5,
+        "active": true
+      },
+      "op": "down",
+      "result": {
+        "fast": 1.45,
+        "active": true
+      }
+    },
+    {
+      "state": {
+        "fast": 1.5,
+        "active": true
+      },
+      "op": "reset",
+      "result": {
+        "fast": 1.0,
+        "active": false
+      }
+    },
+    {
+      "state": {
+        "fast": 1.0,
+        "active": false
+      },
+      "op": "toggle",
+      "result": {
+        "fast": 1.5,
+        "active": true
+      }
+    },
+    {
+      "state": {
+        "fast": 1.0,
+        "active": false
+      },
+      "op": "up",
+      "result": {
+        "fast": 1.05,
+        "active": false
+      }
+    },
+    {
+      "state": {
+        "fast": 1.0,
+        "active": false
+      },
+      "op": "down",
+      "result": {
+        "fast": 1.0,
+        "active": false
+      }
+    },
+    {
+      "state": {
+        "fast": 1.0,
+        "active": false
+      },
+      "op": "reset",
+      "result": {
+        "fast": 1.0,
+        "active": false
+      }
+    },
+    {
+      "state": {
+        "fast": 1.0,
+        "active": true
+      },
+      "op": "toggle",
+      "result": {
+        "fast": 1.0,
+        "active": false
+      }
+    },
+    {
+      "state": {
+        "fast": 1.0,
+        "active": true
+      },
+      "op": "up",
+      "result": {
+        "fast": 1.05,
+        "active": true
+      }
+    },
+    {
+      "state": {
+        "fast": 1.0,
+        "active": true
+      },
+      "op": "down",
+      "result": {
+        "fast": 1.0,
+        "active": true
+      }
+    },
+    {
+      "state": {
+        "fast": 1.0,
+        "active": true
+      },
+      "op": "reset",
+      "result": {
+        "fast": 1.0,
+        "active": false
+      }
+    },
+    {
+      "state": {
+        "fast": 2.0,
+        "active": true
+      },
+      "op": "toggle",
+      "result": {
+        "fast": 2.0,
+        "active": false
+      }
+    },
+    {
+      "state": {
+        "fast": 2.0,
+        "active": true
+      },
+      "op": "up",
+      "result": {
+        "fast": 2.0,
+        "active": true
+      }
+    },
+    {
+      "state": {
+        "fast": 2.0,
+        "active": true
+      },
+      "op": "down",
+      "result": {
+        "fast": 1.95,
+        "active": true
+      }
+    },
+    {
+      "state": {
+        "fast": 2.0,
+        "active": true
+      },
+      "op": "reset",
+      "result": {
+        "fast": 1.0,
+        "active": false
+      }
+    },
+    {
+      "state": {
+        "fast": 1.95,
+        "active": false
+      },
+      "op": "toggle",
+      "result": {
+        "fast": 1.95,
+        "active": true
+      }
+    },
+    {
+      "state": {
+        "fast": 1.95,
+        "active": false
+      },
+      "op": "up",
+      "result": {
+        "fast": 2.0,
+        "active": false
+      }
+    },
+    {
+      "state": {
+        "fast": 1.95,
+        "active": false
+      },
+      "op": "down",
+      "result": {
+        "fast": 1.9,
+        "active": false
+      }
+    },
+    {
+      "state": {
+        "fast": 1.95,
+        "active": false
+      },
+      "op": "reset",
+      "result": {
+        "fast": 1.0,
+        "active": false
+      }
+    },
+    {
+      "state": {
+        "fast": 1.05,
+        "active": true
+      },
+      "op": "toggle",
+      "result": {
+        "fast": 1.05,
+        "active": false
+      }
+    },
+    {
+      "state": {
+        "fast": 1.05,
+        "active": true
+      },
+      "op": "up",
+      "result": {
+        "fast": 1.1,
+        "active": true
+      }
+    },
+    {
+      "state": {
+        "fast": 1.05,
+        "active": true
+      },
+      "op": "down",
+      "result": {
+        "fast": 1.0,
+        "active": true
+      }
+    },
+    {
+      "state": {
+        "fast": 1.05,
+        "active": true
+      },
+      "op": "reset",
+      "result": {
+        "fast": 1.0,
+        "active": false
+      }
+    },
+    {
+      "state": {
+        "fast": 1.35,
+        "active": false
+      },
+      "op": "toggle",
+      "result": {
+        "fast": 1.35,
+        "active": true
+      }
+    },
+    {
+      "state": {
+        "fast": 1.35,
+        "active": false
+      },
+      "op": "up",
+      "result": {
+        "fast": 1.4,
+        "active": false
+      }
+    },
+    {
+      "state": {
+        "fast": 1.35,
+        "active": false
+      },
+      "op": "down",
+      "result": {
+        "fast": 1.3,
+        "active": false
+      }
+    },
+    {
+      "state": {
+        "fast": 1.35,
+        "active": false
+      },
+      "op": "reset",
+      "result": {
+        "fast": 1.0,
+        "active": false
+      }
+    },
+    {
+      "state": {
+        "fast": 1.8,
+        "active": true
+      },
+      "op": "toggle",
+      "result": {
+        "fast": 1.8,
+        "active": false
+      }
+    },
+    {
+      "state": {
+        "fast": 1.8,
+        "active": true
+      },
+      "op": "up",
+      "result": {
+        "fast": 1.85,
+        "active": true
+      }
+    },
+    {
+      "state": {
+        "fast": 1.8,
+        "active": true
+      },
+      "op": "down",
+      "result": {
+        "fast": 1.75,
+        "active": true
+      }
+    },
+    {
+      "state": {
+        "fast": 1.8,
+        "active": true
+      },
+      "op": "reset",
+      "result": {
+        "fast": 1.0,
+        "active": false
+      }
+    },
+    {
+      "state": {
+        "fast": 1.5,
+        "active": true
+      },
+      "op": "set",
+      "arg": 0.5,
+      "result": {
+        "fast": 1.0,
+        "active": true
+      }
+    },
+    {
+      "state": {
+        "fast": 1.5,
+        "active": true
+      },
+      "op": "set",
+      "arg": 1.0,
+      "result": {
+        "fast": 1.0,
+        "active": true
+      }
+    },
+    {
+      "state": {
+        "fast": 1.5,
+        "active": true
+      },
+      "op": "set",
+      "arg": 1.02,
+      "result": {
+        "fast": 1.0,
+        "active": true
+      }
+    },
+    {
+      "state": {
+        "fast": 1.5,
+        "active": true
+      },
+      "op": "set",
+      "arg": 1.03,
+      "result": {
+        "fast": 1.05,
+        "active": true
+      }
+    },
+    {
+      "state": {
+        "fast": 1.5,
+        "active": true
+      },
+      "op": "set",
+      "arg": 1.23,
+      "result": {
+        "fast": 1.25,
+        "active": true
+      }
+    },
+    {
+      "state": {
+        "fast": 1.5,
+        "active": true
+      },
+      "op": "set",
+      "arg": 1.37,
+      "result": {
+        "fast": 1.35,
+        "active": true
+      }
+    },
+    {
+      "state": {
+        "fast": 1.5,
+        "active": true
+      },
+      "op": "set",
+      "arg": 1.5,
+      "result": {
+        "fast": 1.5,
+        "active": true
+      }
+    },
+    {
+      "state": {
+        "fast": 1.5,
+        "active": true
+      },
+      "op": "set",
+      "arg": 1.999,
+      "result": {
+        "fast": 2.0,
+        "active": true
+      }
+    },
+    {
+      "state": {
+        "fast": 1.5,
+        "active": true
+      },
+      "op": "set",
+      "arg": 2.0,
+      "result": {
+        "fast": 2.0,
+        "active": true
+      }
+    },
+    {
+      "state": {
+        "fast": 1.5,
+        "active": true
+      },
+      "op": "set",
+      "arg": 5.0,
+      "result": {
+        "fast": 2.0,
+        "active": true
+      }
+    }
+  ]
+}
