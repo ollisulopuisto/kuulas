@@ -9,6 +9,7 @@ import socket
 import sys
 import threading
 import webbrowser
+from pathlib import Path
 
 import uvicorn
 
@@ -37,10 +38,16 @@ def info(folder: str) -> int:
     return 0
 
 
-def import_nhsx(nhsx_path: str, folder: str) -> int:
-    """Import a Hindenburg session into the project (created if missing)."""
+def import_nhsx(nhsx_path: str, folder: str | None = None) -> int:
+    """Import a Hindenburg session into the project (created if missing).
+    Without a folder the project is ``<session name>.kuulas`` beside the session."""
     from .session import Session  # noqa: PLC0415
 
+    source = Path(nhsx_path).expanduser()
+    target = Path(folder).expanduser() if folder else source.with_suffix(".kuulas")
+    if not source.is_file() or (target.exists() and not target.is_dir()):
+        raise KuulasError("error.import.nhsx_failed", path=str(source))
+    folder = str(target)
     session = Session(folder)
     try:
         session.command("import_nhsx", {"path": nhsx_path})
@@ -110,7 +117,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911
     shown.add_argument("folder", help=t("cli.info.folder"))
     imported = commands.add_parser("import-nhsx", help=t("cli.import_nhsx.help"))
     imported.add_argument("nhsx", help=t("cli.import_nhsx.nhsx"))
-    imported.add_argument("folder", help=t("cli.import_nhsx.folder"))
+    imported.add_argument("folder", nargs="?", help=t("cli.import_nhsx.folder"))
     opened = commands.add_parser("open", help=t("cli.open.help"))
     opened.add_argument("folder", help=t("cli.open.folder"))
     opened.add_argument("--port", type=int, default=0, help=t("cli.open.port"))

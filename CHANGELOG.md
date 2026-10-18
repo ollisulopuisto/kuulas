@@ -1,3 +1,9 @@
+## [v26.10.18.26] - 2026-10-18
+
+- `kuulas import-nhsx <session.nhsx>` now needs no project folder: it makes `<session name>.kuulas`
+  beside the session file. A missing session or a file given as the folder gives a plain error
+  instead of a traceback.
+
 ## [v26.10.18.25] - 2026-10-18
 
 - New command `kuulas import-nhsx <session.nhsx> <Name.kuulas>` imports a Hindenburg session into a
