@@ -6,6 +6,7 @@
 // `speed` in the state is the engine's tape speed (signed; 1 at rest). Every answer
 // sets it: what the engine says while playing, 1 when it is not.
 
+import { effective } from "./fast-speed.js";
 import { activeLoop } from "./loop-range.js";
 import { press } from "./shuttle.js";
 
@@ -30,10 +31,14 @@ export function createTransport({ post, getState, setState, onError }) {
       onError(error);
     }
   }
-  // Normal-speed play carries the loop while it is on and has a range (WP50).
+  // Normal play carries the loop while it is on and has a range (WP50), and the fast
+  // listening speed while that is on (WP26: the engine keeps the pitch).
   const playOptions = () => {
-    const loop = activeLoop(getState());
-    return loop ? { loop } : null;
+    const state = getState();
+    const loop = activeLoop(state);
+    const speed = state.fast ? effective(state.fast) : 1;
+    if (!loop && speed === 1) return null;
+    return { ...(loop ? { loop } : {}), ...(speed === 1 ? {} : { speed, preserve_pitch: true }) };
   };
   return {
     toggle() {
@@ -46,11 +51,30 @@ export function createTransport({ post, getState, setState, onError }) {
      * It plays on from the playhead; the engine takes the new range at the next wrap.
      */
     resendLoop() {
-      const { playing, playhead, speed = 1 } = getState();
-      if (!playing || speed !== 1) return Promise.resolve();
+      const state = getState();
+      const { playing, playhead, speed = 1 } = state;
+      // Only a plain or fast run takes a loop; a shuttle (any other speed) does not.
+      if (!playing || speed !== (state.fast ? effective(state.fast) : 1)) return Promise.resolve();
       return run("play", playhead, null, null, playOptions());
     },
     stop: () => run("stop"),
+    /**
+     * Fast listening was switched on or off, or its speed nudged. Playing: a switch restarts
+     * from the playhead at the new speed; a nudge while fast is on changes the speed of the
+     * running stretch without restarting (stepless, no click). Stopped: nothing to tell the
+     * engine, the next play uses the state.
+     */
+    fastChanged(before, after) {
+      const { playing, playhead, speed = 1 } = getState();
+      if (!playing) return Promise.resolve();
+      if (before.active !== after.active) return run("play", playhead, null, null, playOptions());
+      // `speed` is the engine's last answer and lags a held key; any speed but 1 means the
+      // running stretch is there to be told.
+      if (after.active && before.fast !== after.fast && speed !== 1) {
+        return run("rate", null, null, null, { speed: after.fast });
+      }
+      return Promise.resolve();
+    },
     /**
      * Play `at` to `until` (frames), jumping over each `[a, b)` in `skip` (the engine
      * crossfades the joins and stops at `until`): the candidate preview.

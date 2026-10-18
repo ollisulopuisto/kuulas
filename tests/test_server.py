@@ -54,13 +54,18 @@ class FakeEngine:
         self.calls.append(("play", at, until))
         self.play_options = {"rate": rate, "preserve_pitch": preserve_pitch,
                              "skip": skip, "loop": loop}
-        if rate not in (1.0, -1.0) and preserve_pitch:  # as the real engine
+        if rate not in (1.0, -1.0) and preserve_pitch and not 0.5 <= rate <= 3.0:
+            # as the real engine: pitch kept is forward from 0.5x to 3x
             raise PlaybackRequestError("error.engine.stretch_unavailable", speed=rate)
         if self.fail_play:
             raise EngineError("error.engine.no_device")
         self.playing, self.until = True, until
         if at is not None:
             self.position = at
+
+    def set_rate(self, rate):
+        self.calls.append(("set_rate", rate))
+        return self.playing
 
     def stop(self):
         self.calls.append(("stop",))
@@ -552,9 +557,19 @@ def test_transport_tape_speed_and_the_refused_pitch_kept_speed(client, engine):
                                             "preserve_pitch": False})
     assert r.status_code == 200
     assert engine.play_options["rate"] == -2.0
-    r = client.post("/api/transport", json={"action": "play", "at": 0, "speed": 1.5})
+    r = client.post("/api/transport", json={"action": "play", "at": 0, "speed": -1.5})
     assert r.status_code == 400
     assert r.json()["error"]["key"] == "error.engine.stretch_unavailable"
+    r = client.post("/api/transport", json={"action": "play", "at": 0, "speed": 1.35})
+    assert r.status_code == 200
+    assert engine.play_options["rate"] == 1.35
+    assert engine.play_options["preserve_pitch"] is True
+
+
+def test_transport_rate_changes_fast_listening_while_it_plays(client, engine):
+    r = client.post("/api/transport", json={"action": "rate", "speed": 1.55})
+    assert r.status_code == 200
+    assert engine.calls[-1] == ("set_rate", 1.55)
 
 
 # -- the push channel ----------------------------------------------------------

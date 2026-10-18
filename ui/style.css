@@ -243,6 +243,15 @@ button.chip {
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
 }
+/* Fast listening's stepless speed (1.0-2.0x): dimmed while fast listening is off. */
+.fast-speed {
+  flex: none;
+  width: 84px;
+  opacity: 0.55;
+}
+.fast-speed.on {
+  opacity: 1;
+}
 .modes {
   display: flex;
   align-items: center;

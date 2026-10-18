@@ -15,6 +15,18 @@ import { edgeChange } from "./edge-drag.js";
 import { createEditor } from "./edits.js";
 import { escapeAction } from "./escape.js";
 import { exportNotice, exportRequest, filenameFromDisposition } from "./export-commands.js";
+import {
+  chipFast,
+  STEP as FAST_STEP,
+  stepDown as fastDown,
+  stepUp as fastUp,
+  fromStored,
+  MAX_FAST,
+  MIN_FAST,
+  reset as resetFast,
+  setFast,
+  toggle as toggleFast,
+} from "./fast-speed.js";
 import { nextPanel } from "./focus.js";
 import { followScroll } from "./follow.js";
 import { frameToTime, RATE, xToFrame } from "./format.js";
@@ -204,12 +216,28 @@ function markPaused() {
   if (getState().playing) setState({ followPaused: true });
 }
 
+// Fast listening (WP26): a toggle plus a stepless chosen speed, remembered per user. The state
+// changes first, then the engine is told (a switch restarts the run, a nudge retunes it).
+const FAST_KEY = "fast";
+setState({ fast: fromStored(prefs.getJson(FAST_KEY, null)) });
+function changeFast(change) {
+  const before = getState().fast;
+  const after = change(before);
+  if (after.fast === before.fast && after.active === before.active) return;
+  setState({ fast: after });
+  prefs.setJson(FAST_KEY, after);
+  void transport.fastChanged(before, after);
+}
+
 const actions = {
   togglePlay: () => void transport.toggle(),
   playFrom: (frame) => void transport.play(frame),
   shuttle: (key) => void transport.press(key),
   toggleLoop: () => setState({ loop: !getState().loop }),
-  fastListening: () => showNotice(t("ui.speed.fast_not_built"), "ok"),
+  fastListening: () => changeFast(toggleFast),
+  fastNudge: (direction) => changeFast(direction > 0 ? fastUp : fastDown),
+  fastReset: () => changeFast(resetFast),
+  fastSet: (value) => changeFast((state) => setFast(state, value)),
   goHome() {
     const active = document.activeElement;
     const state = getState();
@@ -615,7 +643,16 @@ $("waveform-mode").addEventListener("change", (event) =>
   setState({ waveformMode: event.target.value }),
 );
 $("waveform-gain").addEventListener("click", () => setState({ waveformGain: 1 }));
-$("speed-chip").addEventListener("click", () => void transport.play(getState().playhead));
+// The chip: fast listening on -> a click switches it off; a shuttle speed -> plays normally.
+$("speed-chip").addEventListener("click", () => {
+  if (getState().fast.active) actions.fastListening();
+  else void transport.play(getState().playhead);
+});
+const fastSlider = $("fast-speed");
+fastSlider.min = String(MIN_FAST);
+fastSlider.max = String(MAX_FAST);
+fastSlider.step = String(FAST_STEP);
+fastSlider.addEventListener("input", () => actions.fastSet(Number(fastSlider.value)));
 $("group-chip").addEventListener("click", () => setState({ groupEditing: true }));
 $("lane-taller").addEventListener("click", () => setLaneHeight(LANE_STEP));
 $("lane-shorter").addEventListener("click", () => setLaneHeight(-LANE_STEP));
@@ -1585,12 +1622,22 @@ function render(state, patch) {
       if (state.playing) void transport.resendLoop();
     }
   }
-  if (touched("speed", "playing")) {
+  if (touched("speed", "playing", "fast")) {
     const chip = $("speed-chip");
-    const label = chipSpeed(state.speed, state.playing, formatNumber);
+    // Fast listening on shows its exact speed even while stopped (nobody should edit at
+    // 1.35x by mistake); otherwise a shuttle speed while it plays.
+    const fastLabel = chipFast(state.fast, formatNumber);
+    const label = fastLabel ?? chipSpeed(state.speed, state.playing, formatNumber);
     chip.hidden = label === null;
     if (label !== null) chip.textContent = t("ui.speed.chip", { speed: label });
-    chip.title = t("ui.speed.chip_title");
+    chip.title = t(fastLabel === null ? "ui.speed.chip_title" : "ui.speed.fast_chip_title");
+    const slider = $("fast-speed");
+    if (Number(slider.value) !== state.fast.fast) slider.value = String(state.fast.fast);
+    slider.setAttribute(
+      "aria-valuetext",
+      t("ui.speed.chip", { speed: formatNumber(state.fast.fast, { digits: 2 }) }),
+    );
+    slider.classList.toggle("on", state.fast.active);
   }
   if (touched("zoom", "project", "scroll")) {
     const view = t(views.current === "close" ? "ui.view.close" : "ui.view.wide");

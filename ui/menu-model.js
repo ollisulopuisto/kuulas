@@ -192,6 +192,9 @@ export const MENU = [
       SEP,
       item("transport.loop"),
       item("transport.speed"),
+      item("transport.speed_down"),
+      item("transport.speed_up"),
+      item("transport.speed_reset"),
       {
         kind: "submenu",
         labelKey: "menu.shuttle",

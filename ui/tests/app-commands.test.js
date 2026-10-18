@@ -221,11 +221,18 @@ describe("the commands the app registers", () => {
     ]);
   });
 
-  test("the fast-listening key says it is not built yet", () => {
+  test("the fast-listening keys toggle, nudge and reset", () => {
     const { registry, calls } = setup({ project });
-    assert.equal(registry.status("transport.speed"), "ready");
-    registry.run("transport.speed", null, { project });
-    assert.deepEqual(calls, [["fastListening"]]);
+    for (const id of ["speed", "speed_down", "speed_up", "speed_reset"]) {
+      assert.equal(registry.status(`transport.${id}`), "ready");
+      registry.run(`transport.${id}`, null, { project });
+    }
+    assert.deepEqual(calls, [
+      ["fastListening"],
+      ["fastNudge", -1],
+      ["fastNudge", 1],
+      ["fastReset"],
+    ]);
   });
 
   test("mark.in and mark.out set the points at the playhead", () => {

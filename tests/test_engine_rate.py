@@ -7,7 +7,7 @@ already uses for devices that cannot run the project rate. The tests pull
 blocks from the engine and compare them with a one-shot soxr resampling of
 the whole mix, check that a tone comes out at ``r`` times its frequency
 (independent of soxr), and that the playhead moves ``r`` frames per frame.
-Time-stretching with the pitch kept is not built: asking for it is refused.
+Pitch-kept playback is in test_engine_stretch.py.
 Nothing here opens a real device or plays a sound.
 """
 
@@ -195,11 +195,15 @@ def test_a_seek_keeps_the_speed(rig, clock):
     assert engine.status()["position"] == RATE + 10000
 
 
-def test_keeping_the_pitch_at_another_speed_is_refused_for_now(rig, clock):
+@pytest.mark.parametrize("speed", [-1.5, 0.0, 0.3, 3.5, float("nan")])
+def test_keeping_the_pitch_outside_forward_0_5_to_3_is_refused(rig, clock, speed):
+    """Pitch-kept playback (WP26, stretch.py) exists forward from 0.5x to 3x;
+    this was "refused for now" for every speed before it was built."""
     engine, _, _ = make(rig, clock)
     with pytest.raises(KuulasError) as caught:
-        engine.play(0, rate=1.5)  # preserve_pitch defaults to True
-    assert caught.value.key == "error.engine.stretch_unavailable"
+        engine.play(0, rate=speed)  # preserve_pitch defaults to True
+    assert caught.value.key in ("error.engine.stretch_unavailable",
+                                "error.engine.bad_speed")
     assert str(caught.value) != caught.value.key  # translated
     assert not engine.status()["playing"]
     assert rig.streams == []  # nothing was opened, nothing pitch-shifted
