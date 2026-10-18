@@ -223,6 +223,12 @@ WP27, WP38, WP42, WP15.
 
 ## Open questions and known limits
 
+- **Candidates panel decisions to confirm:** Enter, K and Shift+Space work only while the
+  Candidates tab has focus (so K stays the shuttle stop elsewhere); from the timeline you step with
+  `]` and `[` and press D, but must focus the tab for Enter or K. Say if you want Enter back in the
+  timeline context. The preview is two plays with a timer (the engine has no skip list yet);
+  someone must listen to it.
+
 - **Cut candidates (WP18 backend merged, v26.10.18.16):** the panel, preview playback (the engine
   `skip`), keys (D, ] [, Enter, K) and the breath/noise kind are open. Thresholds (1.5 s pause,
   4 s repeat window) need tuning on a real interview. Candidates live in the material root, so

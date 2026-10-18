@@ -26,7 +26,7 @@ export const initialState = () => ({
   // A bus row is the current row (the inspector shows its Bus section); else null.
   focusBus: null,
   panel: "timeline",
-  // The sidebar's tab: "inspector", "clipboard" (WP46) or "history" (WP8).
+  // The sidebar's tab: "inspector", "candidates" (WP18), "clipboard" (WP46) or "history" (WP8).
   sidebarTab: "inspector",
   // The History tab's pick (a step id): what Restore (Enter) applies.
   historySelected: null,
@@ -38,6 +38,18 @@ export const initialState = () => ({
   clipboardSelected: null,
   pasteMode: "insert",
   pasteTarget: "same",
+  // Cut candidates (WP18; GET /api/candidates): the rows with their timeline frames, the
+  // counts, the one picked in the tab (its id), "Open only", the start of a stretch begun
+  // with D, a search in progress and its result { added, dropped }, and the preview data
+  // { id, from, to, skip } of the picked one (the tab's preview bar).
+  candidates: [],
+  candidateSummary: { open: 0, cut: 0, kept: 0 },
+  candidateCurrent: null,
+  candidatesOpenOnly: true,
+  candidateMarkStart: null,
+  candidateBusy: false,
+  candidateFound: null,
+  candidatePreview: null,
   playhead: 0,
   inPoint: null,
   outPoint: null,

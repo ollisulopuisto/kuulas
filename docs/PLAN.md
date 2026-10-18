@@ -1392,7 +1392,7 @@ length.
 
 ### WP18 — Cut candidates: mark on the first listen, decide on the second
 
-Status: backend done in v26.10.18.16 (detection, decisions, apply as soft or ripple cut, API); panel, preview playback and keys open. Needs WP1, WP4, WP5. High value: this is the user's core
+Status: backend done in v26.10.18.16 and the panel with keys and a jump preview in v26.10.18.17; an engine skip list for a gapless preview, the overview ticks, breath detection and tuning on real recordings open. Needs WP1, WP4, WP5. High value: this is the user's core
 editing loop.
 
 The workflow: listen once and mark possible deletions without stopping. On
