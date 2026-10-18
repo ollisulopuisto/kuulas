@@ -25,6 +25,15 @@ const post = (path, body) => json(path, { method: "POST", body: JSON.stringify(b
 
 export const getState = () => json("/api/state");
 export const getWords = () => json("/api/words");
+/** What cutting these words (refs: { track, clip, index }) would also remove from other tracks. */
+export const cutPreview = (words) => post("/api/cut-preview", { words });
+/** Correct one word's text (a new transcript revision, one undo step). */
+export const correctWord = (media, index, w) =>
+  json("/api/word", { method: "PUT", body: JSON.stringify({ media, index, w }) });
+/** Queue local transcription of these media; answers { jobs: [job id] }. */
+export const transcribe = (mediaIds) =>
+  post("/api/transcribe", { media_ids: mediaIds, backend: "local" });
+export const getJobs = () => json("/api/jobs");
 /** One edit: the whole project comes back. `coalesce` merges a drag into one undo step. */
 export const edit = ({ op, args, label = null, coalesce = null }) =>
   post("/api/edit", { op, args, label, coalesce });

@@ -11,8 +11,17 @@ export const initialState = () => ({
   canUndo: false,
   canRedo: false,
   words: [],
+  // The names of the people the words refer to (GET /api/words), and the head the words
+  // were fetched at: a command on the words waits until it equals `head`.
+  people: {},
+  wordsHead: null,
   // UI state.
   selection: new Set(),
+  // The transcript's word cursor and selection { cursor, anchor }, the crosstalk preview
+  // of the selected words (POST /api/cut-preview) and the band it draws on the timeline.
+  transcriptSelection: { cursor: -1, anchor: null },
+  cutPreview: null,
+  collateral: null,
   focusTrack: null,
   // A bus row is the current row (the inspector shows its Bus section); else null.
   focusBus: null,
