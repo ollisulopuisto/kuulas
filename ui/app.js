@@ -12,6 +12,7 @@ import { openContextMenu } from "./context-menu.js";
 import { contextMenuItems } from "./context-menu-model.js";
 import { edgeChange } from "./edge-drag.js";
 import { createEditor } from "./edits.js";
+import { escapeAction } from "./escape.js";
 import { exportNotice, filenameFromDisposition } from "./export-commands.js";
 import { nextPanel } from "./focus.js";
 import { followScroll } from "./follow.js";
@@ -209,8 +210,16 @@ const actions = {
   fastListening: () => showNotice(t("ui.speed.fast_not_built"), "ok"),
   goHome() {
     const active = document.activeElement;
-    if (isTextField(active)) active.blur();
-    focusPanel("timeline");
+    const state = getState();
+    const what = escapeAction({
+      inTextField: isTextField(active),
+      selection: state.selection,
+      rangeTracks: state.rangeTracks,
+    });
+    if (what === "blur") active.blur();
+    // Clear the clip selection, keep the in and out marks (owner, 2026-10-18).
+    if (what === "clear") setState({ selection: new Set(), rangeTracks: new Set() });
+    else focusPanel("timeline");
   },
   cyclePanel: (direction) => focusPanel(nextPanel(getState().panel, direction)),
   zoomStep(direction) {

@@ -1,3 +1,9 @@
+## [v26.10.18.57] - 2026-10-18
+
+- **Esc clears the clip selection** (and the lanes of a dragged range) but keeps the in and out marks.
+  Inside a text field Esc still leaves the field first; with nothing selected it still returns focus to
+  the timeline.
+
 ## [v26.10.18.56] - 2026-10-18
 
 - **More export formats through ffmpeg:** WAV (still the default, 24-bit), FLAC, AIFF, MP3, AAC in an M4A
