@@ -70,6 +70,16 @@ describe("the menu data", () => {
     for (const id of menuTargets(MENU)) assert.ok(ids.has(id), id);
   });
 
+  test("File has the mix and all-tracks format submenus", () => {
+    const file = MENU.find((m) => m.id === "file");
+    const ids = menuTargets([file]);
+    for (const id of ["wav", "flac", "mp3", "aiff", "m4a", "opus", "ogg"]) {
+      assert.ok(ids.includes(`export.mix_${id}`), id);
+      assert.ok(ids.includes(`export.tracks_${id}`), id);
+    }
+    assert.ok(ids.includes("export.tracks"));
+  });
+
   test("the View menu has the loop toggle", () => {
     const view = MENU.find((m) => m.id === "view");
     assert.ok(menuTargets([view]).includes("transport.loop"));
@@ -85,6 +95,49 @@ describe("the menu data", () => {
   test("Help has Keyboard shortcuts", () => {
     assert.ok(menuTargets(MENU).includes("help.keys"));
     assert.ok(menuTargets(MENU).includes("help.open"));
+  });
+});
+
+describe("export format submenus", () => {
+  test("list only the formats the server offers, in the server's order", () => {
+    const ids = ["wav", "flac", "m4a"];
+    const registry = createRegistry();
+    for (const id of ids) {
+      registry.register(`export.mix_${id}`, () => {});
+      registry.register(`export.tracks_${id}`, () => {});
+    }
+    const menus = resolveMenu({
+      menu: MENU,
+      entries: resolveKeymap(DEFAULT_KEYMAP, {}, "other"),
+      registry,
+      state: {},
+      label,
+      platform: "other",
+      held: { alt: false, shift: false, mod: false },
+      formats: ids,
+    });
+    const file = menus.find((m) => m.id === "file");
+    const subs = file.items.filter((i) => i.kind === "submenu");
+    const mix = subs.find((s) => s.label === "menu.export_mix");
+    const tracks = subs.find((s) => s.label === "menu.export_tracks_as");
+    assert.deepEqual(
+      mix.items.map((i) => i.id),
+      ["export.mix_wav", "export.mix_flac", "export.mix_m4a"],
+    );
+    assert.deepEqual(
+      tracks.items.map((i) => i.id),
+      ["export.tracks_wav", "export.tracks_flac", "export.tracks_m4a"],
+    );
+    assert.ok(file.items.some((i) => i.id === "export.tracks"));
+  });
+
+  test("without a list from the server only the always-available formats show", () => {
+    const file = make().find((m) => m.id === "file");
+    const mix = file.items.find((i) => i.kind === "submenu" && i.label === "menu.export_mix");
+    assert.deepEqual(
+      mix.items.map((i) => i.baseId),
+      ["export.mix_wav", "export.mix_flac"],
+    );
   });
 });
 

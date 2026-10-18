@@ -41,7 +41,7 @@ import numpy as np
 import soundfile as sf
 from speechmix import programme
 
-from . import mixer, transcript
+from . import export_formats, mixer, transcript
 from . import placeholders as placeholders_module
 from .messages import KuulasError, t
 from .model import Project, Track
@@ -70,10 +70,11 @@ MAX_WAV_BYTES = 0xFFFFFFFF - 4096
 MUSIC_WORDS = ("MUSIC", "THEME", "TUNNARI", "MUSA", "MUSIIKKI", "TUNNUS", "JINGLE")
 
 KINDS = ("mix", "selection", "tracks")
-FORMATS = ("wav", "flac", "mp3")
+#: Every format id the registry knows; which of them this machine can write is
+#: ``export_formats.available_formats()``, checked in ``_settings``.
+FORMATS = tuple(f.id for f in export_formats.ALL_FORMATS)
 #: ``bit_depth`` 32 is float: what a bit-exact copy of the mix needs.
 BIT_DEPTHS = (16, 24, 32)
-MP3_KBPS = (64, 320)
 PROCESSING = ("dry", "as_heard")
 
 #: What each export starts from (owner, 2026-10-16); the last settings used
@@ -96,6 +97,9 @@ DEFAULTS: dict[str, dict[str, Any]] = {
 ALL_TRACKS: dict[str, Any] = {
     "kind": "tracks", "format": "wav", "bit_depth": 24, "processing": "dry",
     "list_file": True, "template": "{edit} {stamp} v{n}"}
+#: What the one-button mix export starts from: the programme as heard, one file
+#: in the exports folder, named by edit and local time so no run overwrites another.
+MIX_FILE: dict[str, Any] = {"kind": "mix", "template": "{edit} {stamp} v{n}.{ext}"}
 #: Settings that are not remembered: they are about this one export.
 NOT_REMEMBERED = ("range",)
 #: Settings that do not change the rendered audio, so they stay out of the hash.
@@ -232,20 +236,27 @@ def _settings(kind: str, remembered: dict | None, args: dict) -> dict[str, Any]:
     if kind not in KINDS:
         raise _fail("error.export.bad_kind", kind=kind)
     allowed = set(DEFAULTS[kind]) | {"folder"}
-    merged = {**DEFAULTS[kind], **{k: v for k, v in (remembered or {}).items()
-                                   if k in allowed},
+    remembered = dict(remembered or {})
+    if args.get("kbps") is not None:  # the public name of ``mp3_kbps``
+        args = {**args, "mp3_kbps": args["kbps"]}
+    if args.get("format") not in (None, remembered.get("format")):
+        remembered.pop("mp3_kbps", None)  # a bitrate means little for another codec
+    merged = {**DEFAULTS[kind], **{k: v for k, v in remembered.items() if k in allowed},
               **{k: v for k, v in args.items() if k in allowed and v is not None}}
-    fmt = merged["format"]
-    if fmt not in FORMATS:
-        raise _fail("error.export.bad_format", format=fmt)
+    fmt = export_formats.get(merged["format"])
+    if fmt is None:
+        raise _fail("error.export.bad_format", format=merged["format"],
+                    available=", ".join(f.id for f in export_formats.available_formats()))
     if merged["bit_depth"] not in BIT_DEPTHS:
         raise _fail("error.export.bad_bit_depth", bit_depth=merged["bit_depth"])
-    if fmt == "flac" and merged["bit_depth"] == 32:
+    if fmt.bit_depths and merged["bit_depth"] not in fmt.bit_depths:
         merged["bit_depth"] = 24  # FLAC has no float
     kbps = merged.get("mp3_kbps")
-    if kbps is not None and (not isinstance(kbps, int) or isinstance(kbps, bool)
-                             or not MP3_KBPS[0] <= kbps <= MP3_KBPS[1]):
-        raise _fail("error.export.bad_kbps", kbps=kbps, low=MP3_KBPS[0], high=MP3_KBPS[1])
+    if kbps is not None:
+        low, high = fmt.kbps or (64, 320)
+        if (not isinstance(kbps, int) or isinstance(kbps, bool)
+                or (fmt.kbps and not low <= kbps <= high)):
+            raise _fail("error.export.bad_kbps", kbps=kbps, low=low, high=high)
     lufs = merged.get("master_lufs")
     if kind == "tracks":
         merged.pop("master_lufs", None)  # a mastered stem would not sum to the mix
@@ -344,7 +355,7 @@ def _name(job: _Job, n: int | str) -> str:
     if job.ranged:
         a, b = s["range"]
         span = f" {_stamp(a, job.rate)}\N{EN DASH}{_stamp(b, job.rate)}"
-    fields = {"edit": _safe(job.edit), "n": n, "ext": s["format"], "span": span,
+    fields = {"edit": _safe(job.edit), "n": n, "ext": _format(job).ext, "span": span,
               "project": _safe(job.project_name),
               "stamp": job.stamp}
     fields["from"] = _stamp(s["range"][0], job.rate) if job.ranged else "0m00s"
@@ -358,10 +369,11 @@ def _name(job: _Job, n: int | str) -> str:
 
 def _describe(job: _Job) -> str:
     s = job.settings
-    if s["format"] == "mp3":
-        what = f"MP3 {_kbps(job, 2)} kbps"
+    if not _format(job).lossless:
+        what = f"{s['format'].upper()} {_kbps(job, 2)} kbps"
     else:
-        depth = "32-bit float" if s["bit_depth"] == 32 else f"{s['bit_depth']}-bit"
+        float32 = s["bit_depth"] == 32 and s["format"] == "wav"
+        depth = "32-bit float" if float32 else f"{s['bit_depth']}-bit"
         what = f"{s['format'].upper()} {depth}"
     if job.kind == "tracks":
         return t("export.what.tracks", what=what,
@@ -371,8 +383,16 @@ def _describe(job: _Job) -> str:
     return what
 
 
+def _format(job: _Job) -> export_formats.Format:
+    fmt = export_formats.get(job.settings["format"])
+    if fmt is None:  # checked in _settings; gone only if ffmpeg changed under us
+        raise _fail("error.export.bad_format", format=job.settings["format"],
+                    available=", ".join(f.id for f in export_formats.available_formats()))
+    return fmt
+
+
 def _kbps(job: _Job, channels: int) -> int:
-    return job.settings.get("mp3_kbps") or (128 if channels == 1 else 192)
+    return job.settings.get("mp3_kbps") or _format(job).default_kbps(channels)
 
 
 # -- rendering -----------------------------------------------------------------
@@ -513,11 +533,12 @@ def _produce(job: _Job, target: Path, channels: int,
         gain = _edge_gain(first, count, total, fade) if fade else None
         return block if gain is None else (block * gain).astype(np.float32)
 
-    mp3 = s["format"] == "mp3"
-    wav_bytes = total * channels * (4 if mp3 else s["bit_depth"] // 8)
-    if (mp3 or s["format"] == "wav") and wav_bytes > MAX_WAV_BYTES:
+    fmt = _format(job)
+    encoded = not fmt.internal  # ffmpeg encodes it from a float WAV
+    wav_bytes = total * channels * (4 if encoded else s["bit_depth"] // 8)
+    if (encoded or s["format"] == "wav") and wav_bytes > MAX_WAV_BYTES:
         raise _fail("error.export.too_big")
-    if mp3:
+    if encoded:
         source = target.with_name(target.name + ".float.partial")
         scratch.append(source)
         depth = 32
@@ -538,14 +559,12 @@ def _produce(job: _Job, target: Path, channels: int,
         sink.close(complete=False)
         raise
     sink.close()
-    if mp3:
-        kbps = _kbps(job, channels)
-        _run_ffmpeg(["ffmpeg", "-v", "error", "-y", "-i", str(source),
-                     "-c:a", "libmp3lame", "-b:a", f"{kbps}k", "-id3v2_version", "3",
-                     "-metadata", f"title={tags.title}", "-metadata",
-                     f"album={tags.album}",
-                     "-metadata", f"comment={tags.comment}", "-f", "mp3", str(partial)],
-                    cancel, total / rate)
+    if encoded:
+        cmd = ["ffmpeg", "-v", "error", "-y", "-i", str(source),
+               *fmt.codec_args(s["bit_depth"], s.get("mp3_kbps"), channels),
+               "-metadata", f"title={tags.title}", "-metadata", f"album={tags.album}",
+               "-metadata", f"comment={tags.comment}", str(partial)]
+        _run_ffmpeg(cmd, cancel, total / rate)
         source.unlink(missing_ok=True)
     os.replace(partial, target)
     scratch.remove(partial)
@@ -566,6 +585,17 @@ def _provenance(job: _Job, n: int) -> _Tags:
 
 
 # -- the entry point -------------------------------------------------------------
+
+
+def check(session, args: dict) -> None:
+    """Raise now what ``run`` would raise for bad settings or a read-only project,
+    so a background job is not queued to fail at once. (An empty edit is still
+    reported by the job.)"""
+    kind = args.get("kind", "mix")
+    with session.lock:
+        h = session.history
+        h._check_writable()
+        _settings(kind, h.meta_json("export", {}).get("settings", {}).get(kind), args)
 
 
 def run(session, args: dict, progress: Progress | None = None,
@@ -693,7 +723,7 @@ def _tracks(job: _Job, target: Path, n: int, workers: int,
     p, s = job.project, job.settings
     as_heard = s["processing"] == "as_heard"
     listing, paths, used = [], [], set()
-    ext = s["format"]
+    ext = _format(job).ext
     for i, track in enumerate(p.tracks):
         channels = _track_channels(p, track)
         stem = _safe(track.name)
@@ -813,11 +843,13 @@ def plan_regions(session, args: dict) -> tuple[list[tuple[int, int, str]], dict]
     folder_path = Path(folder)
     existing = ([p.name for p in folder_path.iterdir()]
                 if folder_path.is_dir() else [])
-    fmt = args.get("format") or "wav"
-    if fmt not in FORMATS:
-        raise _fail("error.export.bad_format", format=fmt)
+    fmt = args.get("format") or export_formats.DEFAULT
+    chosen = export_formats.get(fmt)
+    if chosen is None:
+        raise _fail("error.export.bad_format", format=fmt,
+                    available=", ".join(f.id for f in export_formats.available_formats()))
     names = region_filenames([(m.name, m.start / rate) for m, _a, _b in spans],
-                             template, fmt, existing)
+                             template, chosen.ext, existing)
     settings = {"folder": str(folder), "format": fmt}
     for key in ("bit_depth", "mp3_kbps", "master_lufs"):
         if args.get(key) is not None:

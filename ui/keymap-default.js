@@ -24,6 +24,8 @@
 // J/K/L (WP26): J, K and L are the shuttle keys in every panel. In the Candidates tab Enter
 // keeps the candidate and Backspace/Delete deletes it (owner, 2026-10-18).
 
+import { EXPORT_FORMAT_IDS } from "./export-commands.js";
+
 export const CONTEXTS = [
   "global",
   "not-candidates",
@@ -847,6 +849,15 @@ export const DEFAULT_KEYMAP = [
     context: "global",
     labelKey: "cmd.export.tracks",
   },
+  // One mix and one all-tracks command per export format (File menu submenus); no keys.
+  ...EXPORT_FORMAT_IDS.flatMap((format) =>
+    ["mix", "tracks"].map((what) => ({
+      id: `export.${what}_${format}`,
+      keys: { mac: null, other: null },
+      context: "global",
+      labelKey: `cmd.export.${what}_${format}`,
+    })),
+  ),
   {
     id: "export.regions",
     keys: { mac: null, other: null },

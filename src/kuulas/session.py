@@ -632,17 +632,21 @@ class Session:
         ``format``, ``bit_depth`` or ``folder`` the caller chose. Each run gets
         its own folder (the template carries the time), so nothing is overwritten."""
         chosen = {k: v for k, v in (args or {}).items()
-                  if k in {"format", "bit_depth", "folder"} and v is not None}
+                  if k in {"format", "bit_depth", "kbps", "folder"} and v is not None}
         return {**export_module.ALL_TRACKS, **chosen}
 
-    def export_tracks(self, args: dict | None = None) -> list[str]:
-        """Queue ONE job that exports every track as a file (see
-        ``tracks_export_args``). Fails now if the project is read-only. The
-        finished job's ``result`` is the export result with ``track_count`` and
-        ``silent``; ``last_export_folder`` is where it went."""
-        export_args = self.tracks_export_args(args)
-        with self.lock:
-            self.history._check_writable()
+    def mix_export_args(self, args: dict | None = None) -> dict:
+        """The export arguments of the one-button mix export: ``export.MIX_FILE``
+        (a file in ``<project> exports`` named by edit, time and version) and any
+        ``format``, ``bit_depth``, ``kbps`` or ``folder`` the caller chose."""
+        chosen = {k: v for k, v in (args or {}).items()
+                  if k in {"format", "bit_depth", "kbps", "folder"} and v is not None}
+        return {**export_module.MIX_FILE, **chosen}
+
+    def _export_job(self, export_args: dict, title: str) -> list[str]:
+        """Queue ONE export as a background job. Bad settings and a read-only
+        project fail now. ``last_export_folder`` becomes where it went."""
+        export_module.check(self, export_args)
 
         def run(progress):
             try:
@@ -653,10 +657,21 @@ class Session:
                 if progress.cancelled:
                     raise JobCancelledError from None
                 raise
-            self.last_export_folder = result["path"]
+            path = Path(result["path"])
+            self.last_export_folder = str(path if path.is_dir() else path.parent)
             return result
 
-        return [self.jobs.submit("export", t("job.export_tracks"), run, keep_result=True)]
+        return [self.jobs.submit("export", title, run, keep_result=True)]
+
+    def export_tracks(self, args: dict | None = None) -> list[str]:
+        """Queue ONE job that exports every track as a file (see
+        ``tracks_export_args``). The finished job's ``result`` is the export
+        result with ``track_count`` and ``silent``."""
+        return self._export_job(self.tracks_export_args(args), t("job.export_tracks"))
+
+    def export_mix(self, args: dict | None = None) -> list[str]:
+        """Queue ONE job that exports the mix as one file (see ``mix_export_args``)."""
+        return self._export_job(self.mix_export_args(args), t("job.export_mix"))
 
     def last_export_settings(self, kind: str) -> dict | None:
         """Return the project's remembered settings for an export kind."""

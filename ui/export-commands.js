@@ -31,18 +31,28 @@ const hasRegions = (state) => Boolean(state?.project) && regionCount(state.proje
 
 const hasTracks = (state) => (state?.project?.tracks?.length ?? 0) > 0;
 
+// The formats the server can write (GET /api/export-formats), in the registry's order:
+// src/kuulas/export_formats.py (tests/test_export_formats.py checks the two agree). Each
+// has a mix command export.mix_<id> and an all-tracks command export.tracks_<id>; the menus
+// list the ones the server offers, and the commands are disabled for the others.
+export const EXPORT_FORMAT_IDS = ["wav", "flac", "mp3", "aiff", "m4a", "opus", "ogg"];
+/** WAV, FLAC and AIFF need no codec; WAV and FLAC need not even ffmpeg. */
+export const ALWAYS_AVAILABLE = ["wav", "flac"];
+
 /**
- * What the notice says about the "Export all tracks" job (as /api/jobs lists it):
- * { kind, text, sticky, cancel, reveal }. `sticky` stays until replaced, `cancel` offers
- * Cancel, `reveal` offers Show in Finder (desktop window only; the caller checks).
+ * What the notice says about an export job (as /api/jobs lists it), `kind` "tracks" (the
+ * default) or "mix": { kind, text, sticky, cancel, reveal }. `sticky` stays until replaced,
+ * `cancel` offers Cancel, `reveal` offers Show in Finder (desktop window only; the caller
+ * checks).
  */
-export function tracksNotice(job, t) {
+export function exportNotice(job, t, what = "tracks") {
   if (job.state === "completed") {
     const { path, track_count: count, silent = [] } = job.result ?? {};
-    const text =
-      silent.length > 0
-        ? t("ui.export.tracks_done_silent", { count, path, silent: silent.join(", ") })
-        : t("ui.export.tracks_done", { count, path });
+    let text;
+    if (what === "mix") text = t("ui.export.mix_done", { path });
+    else if (silent.length > 0) {
+      text = t("ui.export.tracks_done_silent", { count, path, silent: silent.join(", ") });
+    } else text = t("ui.export.tracks_done", { count, path });
     return { kind: "ok", text, sticky: true, cancel: false, reveal: true };
   }
   if (job.state === "failed") {
@@ -54,15 +64,20 @@ export function tracksNotice(job, t) {
   const percent = Math.round((job.progress ?? 0) * 100);
   return {
     kind: "ok",
-    text: t("ui.export.tracks_running", { percent }),
+    text: t(what === "mix" ? "ui.export.mix_running" : "ui.export.tracks_running", { percent }),
     sticky: true,
     cancel: true,
   };
 }
 
+/** The "Export all tracks" notice (see exportNotice). */
+export const tracksNotice = (job, t) => exportNotice(job, t, "tracks");
+
 /**
  * `app`: getState, toast(text, { undo }), download(path, fallbackName) -> Promise<name | null>,
- * exportTracks() -> Promise (starts the one-button track export and follows its job),
+ * exportTracks(format?) -> Promise (starts the track export, WAV unless a format id is given,
+ * and follows its job), exportMix(format) -> Promise (the same for the mix),
+ * exportFormats() -> the ids of the formats the server offers (null until fetched),
  * exportRegions() -> Promise (queues the one region job; the jobs list shows its progress).
  */
 export function registerExportCommands(registry, { app, t }) {
@@ -90,6 +105,18 @@ export function registerExportCommands(registry, { app, t }) {
     can: hasTracks,
     hintKey: "cmd.export.tracks.hint",
   });
+  const offered = () => app.exportFormats?.() ?? ALWAYS_AVAILABLE;
+  for (const format of EXPORT_FORMAT_IDS) {
+    const can = (state) => hasTracks(state) && offered().includes(format);
+    registry.register(`export.mix_${format}`, () => void app.exportMix(format), {
+      can,
+      hintKey: `cmd.export.mix_${format}.hint`,
+    });
+    registry.register(`export.tracks_${format}`, () => void app.exportTracks(format), {
+      can,
+      hintKey: `cmd.export.tracks_${format}.hint`,
+    });
+  }
   registry.register("export.regions", () => void app.exportRegions(), {
     can: hasRegions,
     hintKey: "cmd.export.regions.hint",

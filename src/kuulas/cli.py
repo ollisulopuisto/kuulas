@@ -13,7 +13,7 @@ from pathlib import Path
 
 import uvicorn
 
-from . import diag, package
+from . import diag, export_formats, package
 from .messages import KuulasError, t
 
 #: The server answers this machine only: the API can change and delete a
@@ -58,12 +58,10 @@ def import_nhsx(nhsx_path: str, folder: str | None = None) -> int:
     return 0
 
 
-def export_tracks(folder: str, out: str | None = None, fmt: str | None = None,
-                  bit_depth: int | None = None) -> int:
-    """Export every track of a project as a file, without a window or server.
-    ``out`` is the folder the export folder goes into (default: ``<project>
-    exports`` beside the project). A project open in a window is read-only here,
-    and the export refuses, saying who holds it."""
+def _export_cli(folder: str, args: dict, tracks: bool) -> int:
+    """Run one export without a window or server and print where it went. A
+    project open in a window is read-only here, and the export refuses, saying
+    who holds it."""
     from .session import Session  # noqa: PLC0415
 
     if not Path(folder).expanduser().is_dir():
@@ -80,19 +78,45 @@ def export_tracks(folder: str, out: str | None = None, fmt: str | None = None,
                 print(t("cli.export_tracks.progress", percent=step), flush=True)
 
         result = session.export(
-            session.tracks_export_args(
-                {"folder": out, "format": fmt, "bit_depth": bit_depth}),
+            session.tracks_export_args(args) if tracks else session.mix_export_args(args),
             progress=progress)
-        print(t("cli.export_tracks.done", count=result["track_count"],
-                path=result["path"]))
-        for path in result["paths"]:
-            print(path)
-        if result["silent"]:
-            print(t("cli.export_tracks.silent", count=len(result["silent"]),
-                    names=", ".join(result["silent"])))
+        if tracks:
+            print(t("cli.export_tracks.done", count=result["track_count"],
+                    path=result["path"]))
+            for path in result["paths"]:
+                print(path)
+            if result["silent"]:
+                print(t("cli.export_tracks.silent", count=len(result["silent"]),
+                        names=", ".join(result["silent"])))
+        else:
+            print(t("cli.export_mix.done", path=result["path"]))
+            print(result["path"])
     finally:
         session.close()
     return 0
+
+
+def list_formats() -> int:
+    """The export formats this machine's ffmpeg can write, one id per line."""
+    for fmt in export_formats.available_formats():
+        print(fmt.id)
+    return 0
+
+
+def export_tracks(folder: str, out: str | None = None, fmt: str | None = None,
+                  bit_depth: int | None = None, kbps: int | None = None) -> int:
+    """Export every track of a project as a file. ``out`` is the folder the
+    export folder goes into (default: ``<project> exports`` beside the project)."""
+    return _export_cli(folder, {"folder": out, "format": fmt, "bit_depth": bit_depth,
+                                "kbps": kbps}, tracks=True)
+
+
+def export_mix(folder: str, out: str | None = None, fmt: str | None = None,
+               bit_depth: int | None = None, kbps: int | None = None) -> int:
+    """Export the mix of a project as one file in ``out`` (default: ``<project>
+    exports`` beside the project)."""
+    return _export_cli(folder, {"folder": out, "format": fmt, "bit_depth": bit_depth,
+                                "kbps": kbps}, tracks=False)
 
 
 def bind_local(port: int = 0) -> socket.socket:
@@ -155,13 +179,21 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911
     imported = commands.add_parser("import-nhsx", help=t("cli.import_nhsx.help"))
     imported.add_argument("nhsx", help=t("cli.import_nhsx.nhsx"))
     imported.add_argument("folder", nargs="?", help=t("cli.import_nhsx.folder"))
+    format_ids = [f.id for f in export_formats.ALL_FORMATS]
     exported = commands.add_parser("export-tracks", help=t("cli.export_tracks.help"))
-    exported.add_argument("folder", help=t("cli.export_tracks.folder"))
-    exported.add_argument("--out", help=t("cli.export_tracks.out"))
-    exported.add_argument("--format", choices=["wav", "flac"],
-                          help=t("cli.export_tracks.format"))
-    exported.add_argument("--bit-depth", type=int, choices=[16, 24, 32],
-                          help=t("cli.export_tracks.bit_depth"))
+    exported.add_argument("folder", nargs="?", help=t("cli.export_tracks.folder"))
+    exported.add_argument("--list-formats", action="store_true",
+                          help=t("cli.export_tracks.list_formats"))
+    mixed = commands.add_parser("export-mix", help=t("cli.export_mix.help"))
+    mixed.add_argument("folder", help=t("cli.export_tracks.folder"))
+    for sub in (exported, mixed):
+        sub.add_argument("--out", help=t("cli.export_tracks.out"))
+        sub.add_argument("--format", choices=format_ids, metavar="FORMAT",
+                         help=t("cli.export_tracks.format",
+                                formats=", ".join(format_ids)))
+        sub.add_argument("--bit-depth", type=int, choices=[16, 24, 32],
+                         help=t("cli.export_tracks.bit_depth"))
+        sub.add_argument("--kbps", type=int, help=t("cli.export_tracks.kbps"))
     opened = commands.add_parser("open", help=t("cli.open.help"))
     opened.add_argument("folder", help=t("cli.open.folder"))
     opened.add_argument("--port", type=int, default=0, help=t("cli.open.port"))
@@ -182,8 +214,14 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911
             return info(args.folder)
         if args.command == "import-nhsx":
             return import_nhsx(args.nhsx, args.folder)
-        if args.command == "export-tracks":
-            return export_tracks(args.folder, args.out, args.format, args.bit_depth)
+        if args.command == "export-tracks" and args.list_formats:
+            return list_formats()
+        if args.command in {"export-tracks", "export-mix"}:
+            if not args.folder:
+                parser.error(t("cli.export_tracks.need_folder"))
+            run_export = export_tracks if args.command == "export-tracks" else export_mix
+            return run_export(args.folder, args.out, args.format, args.bit_depth,
+                              args.kbps)
         if args.command == "open" and args.window:
             from . import desktop  # noqa: PLC0415
 
