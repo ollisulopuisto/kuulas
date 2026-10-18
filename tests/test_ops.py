@@ -178,3 +178,18 @@ def test_selection_wide_edits():
     assert p.clip("c1").gain_db == p.clip("c2").gain_db == -3.0
     p = ops.delete_clips(p, ["c1", "c2"])
     assert all(not t.clips for t in p.tracks)
+
+
+def test_add_bus_with_track_ids_assigns_them_in_the_same_edit():
+    p = ops.add_bus(project_with_two_tracks(), bus_id="b1", name="Voices",
+                    track_ids=["t1", "t2"])
+    assert [b.id for b in p.buses] == ["b1"]
+    assert p.track("t1").bus == "b1"
+    assert p.track("t2").bus == "b1"
+
+
+def test_add_bus_with_an_unknown_track_changes_nothing():
+    before = project_with_two_tracks()
+    with pytest.raises(ops.EditError):
+        ops.add_bus(before, track_ids=["t1", "nope"])
+    assert before.buses == ()

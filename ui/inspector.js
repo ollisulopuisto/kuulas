@@ -76,7 +76,13 @@ export function syncGroupOf(project, mediaId) {
   return project.sync_groups?.find((group) => mediaId in group.members) ?? null;
 }
 
-export function createInspector({ root, editor, jump = () => {}, fetchMap }) {
+export function createInspector({
+  root,
+  editor,
+  jump = () => {},
+  fetchMap,
+  onBusCreated = () => {},
+}) {
   let sourceParts = null;
   const maps = createSourceMaps({
     fetchMap: fetchMap ?? (() => new Promise(() => {})),
@@ -136,6 +142,7 @@ export function createInspector({ root, editor, jump = () => {}, fetchMap }) {
         editor,
         place: section,
         latest: () => latestState,
+        onBusCreated,
       });
     }
     if (!found) return;

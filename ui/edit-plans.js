@@ -331,6 +331,24 @@ export function soloPlan(state, exclusive) {
   return plan("solo", { track_id: track.id, exclusive }, "solo", {}, { silent: true });
 }
 
+/**
+ * "Group the selected tracks into a new bus": the tracks holding selected clips (in track
+ * order), else the focused track. Null when there is none.
+ */
+export function groupBusPlan(state) {
+  const held = new Set(selectedClips(state).map((entry) => entry.trackId));
+  const focus = currentTrack(state);
+  const ids = held.size > 0 ? [...held] : focus === null ? [] : [focus];
+  if (ids.length === 0) return null;
+  return plan("add_bus", { track_ids: ids }, "group_bus", {}, { silent: true });
+}
+
+/** "New empty bus". */
+export function newBusPlan(state) {
+  if (!state?.project) return null;
+  return plan("add_bus", {}, "new_bus", {}, { silent: true });
+}
+
 /** Ids of the tracks whose clips differ between two projects. */
 export function changedTracks(before, after) {
   const was = new Map((before?.tracks ?? []).map((t) => [t.id, JSON.stringify(t.clips)]));

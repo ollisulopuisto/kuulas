@@ -422,6 +422,18 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.track.solo_add",
   },
   {
+    id: "track.group_into_bus",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.track.group_into_bus",
+  },
+  {
+    id: "track.new_bus",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.track.new_bus",
+  },
+  {
     id: "group.toggle",
     keys: { mac: ["E", "Mod+G"], other: ["E", "Mod+G"] },
     context: "timeline",

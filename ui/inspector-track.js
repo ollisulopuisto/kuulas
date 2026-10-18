@@ -9,6 +9,8 @@ import { t } from "./i18n.js";
 import { coalesceKey, patchBus, patchSolo, patchTrack } from "./provisional.js";
 import { busMembers, busOptions, roleKey } from "./track-target.js";
 
+// The Bus select's last option: not a bus id, it asks for a new bus.
+const NEW_BUS = "__new__";
 const GAIN = { min: -60, max: 12, step: 0.1 };
 const PAN = { min: -100, max: 100, step: 1 };
 
@@ -74,7 +76,7 @@ function nameInput(label, read, commit) {
  * (which returns a <details>). `latest()` gives the newest client state.
  * Returns { update(state), focusName() }.
  */
-export function buildTrackSections({ target, editor, place, latest }) {
+export function buildTrackSections({ target, editor, place, latest, onBusCreated = () => {} }) {
   const parts = [];
   let nameNode = null;
 
@@ -165,7 +167,23 @@ export function buildTrackSections({ target, editor, place, latest }) {
       node.value = option.value;
       bus.append(node);
     }
-    bus.addEventListener("change", () => send("bus", bus.value || null));
+    const newBus = document.createElement("option");
+    newBus.value = NEW_BUS;
+    bus.append(newBus);
+    bus.addEventListener("change", () => {
+      if (bus.value !== NEW_BUS) return send("bus", bus.value || null);
+      // Create the bus and route this track to it in one step, then name it.
+      bus.value = lookup().bus ?? "";
+      editor.change({
+        op: "add_bus",
+        args: { track_ids: [id] },
+        label: t("ui.edit.label.group_bus"),
+        done: (response) => {
+          const created = response?.project?.buses?.at(-1);
+          if (created) onBusCreated(created.id);
+        },
+      });
+    });
     into.append(field(t("ui.track.bus"), bus));
     into.append(field(t("ui.track.voice"), readonly(t("ui.track.voice.none"))));
     const mute = checkbox(t("ui.track.mute"), (checked) => send("mute", checked));
@@ -189,12 +207,12 @@ export function buildTrackSections({ target, editor, place, latest }) {
       setIfIdle(pan, Math.round(current.pan * 100));
       state.project.buses.forEach((item, i) => {
         const text = busOptions(state.project)[i + 1];
-        bus.options[i + 1].textContent = t("ui.bus.option", {
-          letter: text.letter,
-          name: item.name,
-        });
+        const option = bus.options[i + 1];
+        if (!option || option.value === NEW_BUS) return;
+        option.textContent = t("ui.bus.option", { letter: text.letter, name: item.name });
       });
       bus.options[0].textContent = t("ui.bus.option_none");
+      newBus.textContent = t("ui.bus.option_new");
       if (document.activeElement !== bus) bus.value = current.bus ?? "";
       mute.checked = Boolean(current.mute);
       solo.checked = Boolean(current.solo);
