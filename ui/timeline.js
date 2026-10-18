@@ -207,7 +207,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       overlay.lineTo(width, top + row.height - 0.5);
       overlay.stroke();
       if (row.kind === "track") drawTrack(state, state.project.tracks[row.index], row, top, hues);
-      if (row.kind === "track" && state.focusTrack === row.id) drawFocusLane(row, top, width);
+      if (row.kind === "track" && state.focusTrack === row.id) drawFocusLane(row, top);
       else if (row.kind === "track" && state.focusTrack) drawVeil(row, top, width);
       else drawBusRow(state, row, top, groups, hues);
     }
@@ -410,21 +410,19 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
   }
 
   // The active channel (owner, 2026-10-18: hard to tell which one is active; then: the tint made
-  // empty spots hard to see). No fill over the lane: a wide solid bar at its left edge and accent
-  // lines above and below mark it, and the other lanes are veiled so it stands out.
-  function drawFocusLane(row, top, width) {
+  // empty spots hard to see, then: the top and bottom lines too). Just a wide solid bar at its left
+  // edge, and the other lanes are veiled more strongly so the active one stands out.
+  function drawFocusLane(row, top) {
     overlay.save();
     overlay.fillStyle = theme.accent;
     overlay.fillRect(0, top, 8, row.height);
-    overlay.fillRect(0, top, width, 2);
-    overlay.fillRect(0, top + row.height - 2, width, 2);
     overlay.restore();
   }
 
   function drawVeil(row, top, width) {
     overlay.save();
     overlay.fillStyle = theme.panel;
-    overlay.globalAlpha = 0.3;
+    overlay.globalAlpha = 0.45;
     overlay.fillRect(0, top, width, row.height);
     overlay.restore();
   }
