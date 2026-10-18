@@ -1,3 +1,16 @@
+## [v26.10.18.63] - 2026-10-18
+
+- **Projects can live in Dropbox (and Syncthing, iCloud):** each open copy of kuulas now writes its own small
+  lock file in `locks/` instead of everyone rewriting one `lock.json`, so a synced folder no longer grows
+  "conflicted copy" files. Opening checks all of them: a fresh lock from another computer refuses the open
+  and names it; a lock older than 5 minutes (sync delay allowed) is ignored. The database side files are
+  flushed when nothing is being written and on close, and marked "ignored" for Dropbox on macOS.
+  **Every computer must run this version:** an older kuulas does not see the new locks. Not tried against a
+  real Dropbox yet; keep one computer on a project at a time.
+- Fixed: after a jump with the player stopped (Home, End, Tab, markers) the timeline now scrolls to show the
+  playhead.
+- Finnish: narration is now "juonto" (juontopaikka, juontokäsikirjoitus).
+
 ## [v26.10.18.62] - 2026-10-18
 
 - **Track kind tags:** Alt+Cmd+K cycles the focused track between speech, speech mix (several people in one
