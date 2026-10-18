@@ -873,7 +873,7 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "marker.add",
-    keys: { mac: "M", other: "M" },
+    keys: { mac: ["M", "Mod+Enter"], other: ["M", "Mod+Enter"] },
     context: "global",
     labelKey: "cmd.marker.add",
   },

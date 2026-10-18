@@ -148,6 +148,10 @@ describe("the owner's decisions", () => {
     assert.ok(keysOf("mark.out", "mac").includes("Mod+2"));
   });
 
+  test("Cmd+Enter adds a marker, as in Hindenburg (M stays)", () => {
+    assert.deepEqual(keysOf("marker.add", "mac"), ["M", "Mod+Enter"]);
+  });
+
   test("K stops the shuttle everywhere, including the Candidates tab", () => {
     const withK = DEFAULT_KEYMAP.filter((entry) => asList(entry.keys.other).includes("K"));
     assert.deepEqual(
