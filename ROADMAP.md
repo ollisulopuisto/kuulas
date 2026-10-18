@@ -114,6 +114,10 @@ sizes: `docs/PLAN.md`, section "Triage".
 
 ## Next
 
+- **Status tracking** (WP51, owner request 2026-10-18): Draft, Ready for review, In review, Needs
+  fixes, Reviewed, Approved, Published as editable defaults; per edit, with history.
+- **Mobile listen-and-comment PWA** (owner request 2026-10-18, put last): a listening copy,
+  a read-only PWA with play/skip and comments by dictation, comments imported as markers.
 - **Loop playback** (WP50, owner request 2026-10-18): loop the in/out range, selection or
   clip; engine wrap with the skip crossfade, toggle on Mod+L.
 - **Loudness monitoring with a target LUFS per track** (WP49, owner request 2026-10-18): the

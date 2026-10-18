@@ -2971,3 +2971,37 @@ plays once.
   callback (reuse the existing engine tests' fake output).
 
 ---
+
+### WP51 — Status tracking (ready for review, reviewed, needs fixes)
+
+Status: open (owner request 2026-10-18; later in the plan, after the review round trip's design
+is settled). Related to the "episode ready" metadata discussion.
+
+Owner: "this file is ready for review, this file has been reviewed, this file needs fixes,
+whatever. Probably kind of free form because people will have different workflows, but let's
+be opinionated and offer some defaults."
+
+- **What has a status:** each edit (version, WP21) of a project: a single current status plus a
+  short history (status, time in UTC, who, optional note). Not per clip; not per media file.
+- **Default list (opinionated, ordered):** Draft · Ready for review · In review · Needs fixes ·
+  Reviewed · Approved · Published. Free form: the list is per user in settings (rename, add,
+  remove, reorder, colour); a status is stored by its label so a project opened elsewhere
+  still shows it, and an unknown label is shown as a plain chip. Each status may be marked
+  "done" (done statuses do not nag in the launcher).
+- **Where it shows:** a chip in the toolbar next to the project name (click to change, a small
+  menu with the list and a note field); in the launcher's recent list (chip and filter by
+  status); in the versions list (WP21) and the History panel; in the exported hand-off
+  summary; a palette command "Set status…" and keys unbound by default.
+- **Changing it is metadata, not an edit:** it never makes an undo step and never changes the
+  audio, but it is recorded in the status history and survives save/reopen.
+- **Ties to the review round trip (WP32):** "Send for review" sets Ready for review (or the
+  list's equivalent) and a received copy with changes sets Needs fixes; both only suggest the
+  change with one click to accept, never silently.
+- **Storage:** `status` and `status_history` in edit state (or the project manifest if it is
+  per project; decide with WP21 and write the choice in docs/FORMAT.md); optional keys, so no
+  `min_reader` raise.
+- **Tests first:** default list and ordering; set status adds a history entry with UTC time;
+  changing status is not an undo step; unknown label round trips; launcher filter by status;
+  settings rename keeps old projects readable.
+
+---
