@@ -78,10 +78,10 @@ describe("the owner's decisions", () => {
     assert.deepEqual(keysOf("app.import"), ["Mod+I"]);
   });
 
-  test("candidates use the physical brackets, K keeps, F2 renames", () => {
+  test("candidates use the physical brackets, Enter keeps, F2 renames", () => {
     assert.deepEqual(keysOf("candidate.next"), ["]"]);
     assert.deepEqual(keysOf("candidate.previous"), ["["]);
-    assert.deepEqual(keysOf("candidate.reject"), ["K"]);
+    assert.deepEqual(keysOf("candidate.reject"), ["Enter"]);
     assert.deepEqual(keysOf("rename"), ["F2"]);
   });
 
@@ -98,7 +98,7 @@ describe("the owner's decisions", () => {
     for (const id of ["candidate.apply", "candidate.reject", "candidate.preview"]) {
       assert.equal(contextOf(id), "candidates", id);
     }
-    assert.deepEqual(keysOf("candidate.apply"), ["Enter"]);
+    assert.deepEqual(keysOf("candidate.apply"), ["Backspace", "Delete"]);
     assert.deepEqual(keysOf("candidate.preview"), ["Shift+Space"]);
     assert.deepEqual(keysOf("candidate.filter"), ["Shift+Mod+D"]);
     assert.deepEqual(keysOf("candidate.mark"), ["D"]);
@@ -106,14 +106,11 @@ describe("the owner's decisions", () => {
     assert.deepEqual(keysOf("candidate.apply_ripple"), []);
   });
 
-  test("K means keep in the Candidates tab and stop the shuttle everywhere else", () => {
+  test("K stops the shuttle everywhere, including the Candidates tab", () => {
     const withK = DEFAULT_KEYMAP.filter((entry) => asList(entry.keys.other).includes("K"));
     assert.deepEqual(
       withK.map((entry) => [entry.id, entry.context]),
-      [
-        ["transport.shuttle_stop", "not-candidates"],
-        ["candidate.reject", "candidates"],
-      ],
+      [["transport.shuttle_stop", "global"]],
     );
   });
 

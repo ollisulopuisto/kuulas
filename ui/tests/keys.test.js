@@ -92,15 +92,21 @@ describe("text fields", () => {
 });
 
 describe("the shuttle keys", () => {
-  test("K stops the shuttle in every context except the Candidates tab, where it keeps", () => {
-    for (const context of ["timeline", "transcript", "side"]) {
+  test("K stops the shuttle in every context, the Candidates tab included", () => {
+    for (const context of ["timeline", "transcript", "side", "candidates"]) {
       const { keymap, calls } = setup({ context });
       assert.equal(keymap.handle(press({ code: "KeyK", key: "k" })), true);
       assert.deepEqual(calls, [["transport.shuttle_stop"]], context);
     }
-    const { keymap, calls } = setup({ context: "candidates" });
-    keymap.handle(press({ code: "KeyK", key: "k" }));
-    assert.deepEqual(calls, [["candidate.reject"]]);
+  });
+
+  test("in the Candidates tab Enter keeps and Backspace deletes the candidate", () => {
+    const keep = setup({ context: "candidates" });
+    keep.keymap.handle(press({ code: "Enter", key: "Enter" }));
+    assert.deepEqual(keep.calls, [["candidate.reject"]]);
+    const del = setup({ context: "candidates" });
+    del.keymap.handle(press({ code: "Backspace", key: "Backspace" }));
+    assert.deepEqual(del.calls, [["candidate.apply"]]);
   });
 
   test("J and L shuttle in every context, and not while typing", () => {

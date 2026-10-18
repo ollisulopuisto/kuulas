@@ -1,3 +1,9 @@
+## [v26.10.18.28] - 2026-10-18
+
+- Cut candidates: in the Candidates tab **Enter keeps** the candidate and **Backspace/Delete
+  deletes** it, the same as everywhere else. K no longer does anything special there: J, K and L
+  are the shuttle keys in every panel.
+
 ## [v26.10.18.27] - 2026-10-18
 
 - Two internal building blocks for later features, not yet visible in the program: the maths for

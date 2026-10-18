@@ -17,8 +17,8 @@
 // close gap on all tracks, Clean up cuts, Compare. The clipboard (WP46): X cuts to it,
 // Mod+C copies only, Backspace never touches it; Mod+V pastes (insert), Alt+Mod+V
 // overwrites, Shift+Mod+V inserts on the current track.
-// J/K/L (WP26): K is "keep candidate" in the Candidates tab and stops the shuttle everywhere
-// else (context "not-candidates"); J and L shuttle from every panel.
+// J/K/L (WP26): J, K and L are the shuttle keys in every panel. In the Candidates tab Enter
+// keeps the candidate and Backspace/Delete deletes it (owner, 2026-10-18).
 
 export const CONTEXTS = [
   "global",
@@ -64,7 +64,7 @@ export const DEFAULT_KEYMAP = [
   {
     id: "transport.shuttle_stop",
     keys: { mac: "K", other: "K" },
-    context: "not-candidates",
+    context: "global",
     labelKey: "cmd.transport.shuttle_stop",
   },
   {
@@ -497,7 +497,7 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "candidate.apply",
-    keys: { mac: "Enter", other: "Enter" },
+    keys: { mac: ["Backspace", "Delete"], other: ["Backspace", "Delete"] },
     context: "candidates",
     labelKey: "cmd.candidate.apply",
   },
@@ -509,7 +509,7 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "candidate.reject",
-    keys: { mac: "K", other: "K" },
+    keys: { mac: "Enter", other: "Enter" },
     context: "candidates",
     labelKey: "cmd.candidate.reject",
   },

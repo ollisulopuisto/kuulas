@@ -289,9 +289,8 @@ WP27, WP38, WP42, WP47.
 - **Owner on packaging, 2026-10-18:** speechmix and nhsx get published as real packages
   (not a private git dependency). Needs work in the podcast repo; `PODCAST_READ_TOKEN`
   is still needed for CI until then.
-- **Owner question, 2026-10-18, open:** J, K and L are the playback keys. Is K overloaded by
-  "reject candidate" inside the Candidates tab? Recommendation: Enter accepts and Backspace
-  rejects there (as in the review panel, WP32), and K stays the shuttle stop everywhere.
+- **Decided by the owner, 2026-10-18:** J, K and L stay playback keys in every panel. In the
+  Candidates tab Enter keeps a candidate and Backspace/Delete deletes it (done, v26.10.18.28).
 - **Owner on menus, 2026-10-18:** menu items must be unavailable when they cannot
   apply, and every item must show its keyboard shortcut ("we must teach the users
   the shortcuts in the menu too"). pywebview's native menus cannot do this, so
