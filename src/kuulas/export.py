@@ -169,9 +169,9 @@ class _WavWriter:
                 self.f.write(b"\0")
             end = self.f.tell()
             # The RIFF size is the file length minus the 8-byte RIFF header. (It used to be
-            # computed inside the write() call, which moved the position to the end first,
-            # so the field stayed 0 and the number was appended as stray bytes: editors
-            # forgave it, macOS Quick Look and CoreAudio did not.)
+            # computed inside the write() call, which moved the position to the end
+            # first, so the field stayed 0 and the number was appended as stray bytes:
+            # editors forgave it, macOS Quick Look and CoreAudio did not.)
             self.f.seek(4)
             self.f.write(struct.pack("<I", end - 8))
             self.f.seek(self.data_at - 4)

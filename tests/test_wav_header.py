@@ -12,7 +12,8 @@ from kuulas import export
 
 
 def _chunks(raw: bytes) -> list[tuple[bytes, int, int]]:
-    assert raw[:4] == b"RIFF" and raw[8:12] == b"WAVE"
+    assert raw[:4] == b"RIFF"
+    assert raw[8:12] == b"WAVE"
     out, at = [], 12
     while at + 8 <= len(raw):
         cid, size = raw[at:at + 4], struct.unpack("<I", raw[at + 4:at + 8])[0]
