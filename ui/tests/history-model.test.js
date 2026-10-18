@@ -4,6 +4,7 @@ import { beforeEach, describe, test } from "node:test";
 import { fileURLToPath } from "node:url";
 import {
   canRestore,
+  currentStep,
   dayDistance,
   groupRows,
   mergePage,
@@ -110,6 +111,30 @@ describe("grouping steps by session marker", () => {
   });
 });
 
+describe("the current step", () => {
+  test("a session marker on top of the head makes the step under it current", () => {
+    const list = [
+      node("6", "2026-10-18T16:00:00Z", {
+        is_marker: true,
+        marker: "opened",
+        is_head: true,
+        side: "head",
+      }),
+      node("5", "2026-10-18T16:00:00Z", { is_marker: true, marker: "closed" }),
+      node("4", "2026-10-18T16:00:00Z"),
+    ];
+    assert.equal(currentStep(list, "6"), "4");
+    assert.equal(groupRows(list, NOW, t).find((r) => r.head).id, "4");
+    assert.equal(selectionAfterLoad(null, list, "6"), "4");
+    assert.equal(currentStep(list, "gone"), null);
+  });
+  test("restore compares with the current step, not the marker", () => {
+    const state = { panel: "history", head: "6", historyCurrent: "4", historySelected: "4" };
+    assert.equal(canRestore(state), false);
+    assert.equal(canRestore({ ...state, historySelected: "3" }), true);
+  });
+});
+
 describe("the redo side", () => {
   test("is what Redo would walk, newest first", () => {
     const list = [
@@ -176,7 +201,7 @@ describe("selection", () => {
   });
   test("else the head, else the newest step", () => {
     assert.equal(selectionAfterLoad("gone", list, "5"), "5");
-    assert.equal(selectionAfterLoad(null, list, "4"), "5");
+    assert.equal(selectionAfterLoad(null, list, "4"), "3");
     assert.equal(selectionAfterLoad(null, [], null), null);
   });
   test("a marker is never selected", () => {

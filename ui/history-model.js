@@ -61,11 +61,23 @@ export function relativeTime(created, now, t) {
 }
 
 /**
+ * The step that is the current state: the head, or, when the head is a session marker
+ * (opening a project writes one on top), the newest real step under it, whose state is
+ * the same. null when there is none in the list.
+ */
+export function currentStep(nodes, head) {
+  const at = nodes.findIndex((node) => node.id === head);
+  if (at < 0) return null;
+  return nodes.slice(at).find((node) => !node.is_marker)?.id ?? null;
+}
+
+/**
  * The rows to draw, in the order given (newest first). A marker step becomes a thin
  * divider ("Opened today 19.30"); a step is dimmed on the redo side and in an abandoned
  * branch, and a branch step is indented.
  */
 export function groupRows(nodes, now, t) {
+  const current = currentStep(nodes, nodes.find((node) => node.is_head)?.id);
   return nodes.map((node) => {
     if (node.is_marker) {
       const kind = node.marker === "closed" ? "closed" : "opened";
@@ -81,7 +93,7 @@ export function groupRows(nodes, now, t) {
       label: node.label,
       time: relativeTime(node.created, now, t),
       created: node.created,
-      head: Boolean(node.is_head),
+      head: node.id === current,
       dimmed: node.side === "redo" || node.side === "branch",
       redo: node.side === "redo",
       indent: node.side === "branch",
@@ -111,11 +123,12 @@ export function needsMore({ scrollTop, clientHeight, scrollHeight, more, loading
 
 const isStep = (node) => !node.is_marker;
 
-/** Which step is picked after the list loaded: the pick if still there, else the head, else the newest. */
+/** Which step is picked after the list loaded: the pick if still there, else the current step, else the newest. */
 export function selectionAfterLoad(selected, nodes, head) {
   const steps = nodes.filter(isStep);
   if (selected && steps.some((node) => node.id === selected)) return selected;
-  if (head && steps.some((node) => node.id === head)) return head;
+  const current = currentStep(nodes, head);
+  if (current) return current;
   return steps[0]?.id ?? null;
 }
 
@@ -132,7 +145,7 @@ export function moveSelection(nodes, selected, direction) {
 export const canRestore = (state) =>
   state?.panel === "history" &&
   Boolean(state.historySelected) &&
-  state.historySelected !== state.head;
+  state.historySelected !== (state.historyCurrent ?? state.head);
 
 /**
  * The toast after an Undo or Redo (the `moved` of the route's answer): only when it

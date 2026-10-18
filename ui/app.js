@@ -706,7 +706,7 @@ const inspector = createInspector({ root: $("panel-inspector"), editor });
 
 // Restore adds a step equal to an older one; the step left behind stays one Undo away.
 async function restoreStep(node) {
-  if (!node || node === getState().head) return;
+  if (!node || node === getState().historyCurrent) return;
   try {
     const response = await api.restore(node);
     apply(response);

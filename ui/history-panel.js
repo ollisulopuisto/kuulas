@@ -5,6 +5,7 @@
 // is history-model.js's; what Restore does is app.js's (actions.restore).
 
 import {
+  currentStep,
   groupRows,
   mergePage,
   moveSelection,
@@ -90,6 +91,7 @@ export function createHistoryPanel({
       nodes = fetched;
       more = hasMore;
       loadedHead = head;
+      setState({ historyCurrent: currentStep(nodes, head) });
       pick(selectionAfterLoad(getState().historySelected, nodes, head));
     } catch (error) {
       if (mine === token) actions.showError(error);
@@ -181,7 +183,7 @@ export function createHistoryPanel({
     });
     node.addEventListener("dblclick", () => {
       pick(row.id);
-      if (row.id !== getState().head) actions.restore(row.id);
+      if (row.id !== getState().historyCurrent) actions.restore(row.id);
     });
     return node;
   }
@@ -189,7 +191,14 @@ export function createHistoryPanel({
   function draw() {
     const state = getState();
     const selected = state.historySelected;
-    const next = JSON.stringify([getLanguage(), nodes, more, loading, selected, state.head]);
+    const next = JSON.stringify([
+      getLanguage(),
+      nodes,
+      more,
+      loading,
+      selected,
+      state.historyCurrent,
+    ]);
     if (next === signature) return;
     signature = next;
     const keepFocus = list.contains(document.activeElement)
@@ -202,7 +211,7 @@ export function createHistoryPanel({
     older.hidden = !more || loading;
     older.textContent = t("ui.history.older");
     restore.textContent = t("ui.history.restore");
-    restore.disabled = !selected || selected === state.head;
+    restore.disabled = !selected || selected === state.historyCurrent;
     hint.textContent = t("ui.history.restore_hint");
     list.replaceChildren(
       ...groupRows(nodes, now(), t).map((row) =>
@@ -215,8 +224,8 @@ export function createHistoryPanel({
   }
 
   restore.addEventListener("click", () => {
-    const { historySelected, head } = getState();
-    if (historySelected && historySelected !== head) actions.restore(historySelected);
+    const { historySelected, historyCurrent } = getState();
+    if (historySelected && historySelected !== historyCurrent) actions.restore(historySelected);
   });
 
   root.addEventListener("keydown", (event) => {
