@@ -205,6 +205,16 @@ describe("transport: the JKL shuttle", () => {
     assert.equal(h.state().speed, 1.5);
   });
 
+  test("quick presses climb the ladder without waiting for the engine's answers", async () => {
+    const h = shuttleHarness({ playhead: 0 });
+    await Promise.all(["l", "l", "l"].map((key) => h.transport.press(key)));
+    assert.deepEqual(
+      h.calls.map((call) => call[4].speed),
+      [1, 1.5, 2],
+    );
+    assert.equal(h.state().speed, 2);
+  });
+
   test("a failed shuttle changes nothing", async () => {
     const errors = [];
     let state = { playhead: 0, playing: false, speed: 1 };

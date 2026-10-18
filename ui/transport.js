@@ -9,6 +9,12 @@
 import { press } from "./shuttle.js";
 
 export function createTransport({ post, getState, setState, onError }) {
+  // Quick J/K/L presses arrive before the engine has answered the last one: the ladder
+  // climbs from the speed asked for (`intended`), and the requests go out in order.
+  let intended = null;
+  let pending = 0;
+  let queue = Promise.resolve();
+
   async function run(action, at = null, until = null, skip = null, options = null) {
     try {
       const status = await (options
@@ -47,7 +53,16 @@ export function createTransport({ post, getState, setState, onError }) {
     /** A J, K or L press: the next speed on the ladder from what is playing now. */
     press(key) {
       const { playing, speed = 1 } = getState();
-      return this.shuttle(press(playing ? speed : 0, key));
+      const next = press(intended ?? (playing ? speed : 0), key);
+      intended = next;
+      pending += 1;
+      queue = queue
+        .then(() => this.shuttle(next))
+        .finally(() => {
+          pending -= 1;
+          if (pending === 0) intended = null;
+        });
+      return queue;
     },
     /** The playhead moves on screen at once; the engine follows. */
     seek(frame) {
