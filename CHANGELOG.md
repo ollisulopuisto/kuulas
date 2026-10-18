@@ -1,3 +1,13 @@
+## [v26.10.18.60] - 2026-10-18
+
+- **Mono speech tracks:** a track has a **Mono** switch (inspector checkbox, and a "mono" or "stereo" tag on
+  speech tracks). A mono track is mixed to one channel everywhere, (L+R)/2, so a centred voice keeps its
+  level, and its exported stem is a one-channel file. Speech from a mono file is mono by default.
+- **A stereo speech file comes in as stereo speech** and, after the import, a notice asks "Turn into mono /
+  Keep stereo" (naming the tracks); a setting in the import options remembers the answer (always ask,
+  always mono, always stereo). **Not for projects imported from Hindenburg:** tick Mono on a track's
+  inspector yourself (for example Olli).
+
 ## [v26.10.18.59] - 2026-10-18
 
 - **Exports ask where to save** (in the desktop window): "Export all tracks", "Export all tracks as…" and
