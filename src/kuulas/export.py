@@ -45,6 +45,7 @@ from . import mixer
 from .messages import KuulasError, t
 from .model import Project, Track
 from .package import kuulas_version
+from .region_names import region_filenames
 
 log = logging.getLogger("kuulas.export")
 
@@ -535,14 +536,21 @@ def _provenance(job: _Job, n: int) -> _Tags:
 
 
 def run(session, args: dict, progress: Progress | None = None,
-        cancel: threading.Event | None = None, workers: int | None = None) -> dict:
+        cancel: threading.Event | None = None, workers: int | None = None,
+        *, file_name: str | None = None) -> dict:
     """Export; see the module docstring. ``args`` carries ``kind`` (default
     ``mix``) and any settings to change; the rest come from the last export of
-    that kind. Returns ``{"kind", "path", "paths", "version", "skipped",
-    "unchanged_since", "master", "message"}``. Raises ``ExportError``.
+    that kind. ``file_name`` (a whole file name, extension included) is for the
+    region batch: the file gets exactly that name, and the export is not
+    versioned, remembered or checkpointed (the batch does that once). Returns
+    ``{"kind", "path", "paths", "version", "skipped", "unchanged_since",
+    "master", "message"}``. Raises ``ExportError``.
     """
     job = _snapshot(session, args.get("kind", "mix"), args)
     workers = workers or min(8, os.cpu_count() or 1)
+    if file_name is not None:
+        job.settings["template"] = (
+            Path(file_name).stem.replace("{", "{{").replace("}", "}}") + ".{ext}")
 
     def say(fraction: float, message: str = "") -> None:
         if progress is not None:
@@ -552,7 +560,7 @@ def run(session, args: dict, progress: Progress | None = None,
     series = _name(job, "#")
     with session.lock:
         runs = session.history.meta_json("export", {}).get("runs", {})
-    last = runs.get(f"{job.kind}|{series}")
+    last = None if file_name is not None else runs.get(f"{job.kind}|{series}")
     reuse = bool(last and last["digest"] == job.digest)
     if reuse:
         old = folder / _name(job, last["n"])
@@ -580,7 +588,7 @@ def run(session, args: dict, progress: Progress | None = None,
         folder.mkdir(parents=True, exist_ok=True)
     except OSError as e:
         raise _fail("error.export.cannot_write", path=str(folder), error=str(e)) from e
-    while not reuse and (folder / _name(job, n)).exists():
+    while file_name is None and not reuse and (folder / _name(job, n)).exists():
         n += 1  # never overwrite a file we did not make
     target = folder / _name(job, n)
 
@@ -603,6 +611,11 @@ def run(session, args: dict, progress: Progress | None = None,
     except BaseException:
         _clean(scratch)
         raise
+    if file_name is not None:
+        say(1.0, "")
+        return {"kind": job.kind, "path": str(target), "paths": [str(target)],
+                "version": n, "skipped": False, "unchanged_since": None,
+                "master": master_result, "message": "", "settings": job.settings}
     return _finish(session, job, n, series, target, paths, master_result, say)
 
 
@@ -724,3 +737,72 @@ def last_settings(session, kind: str) -> dict | None:
     """The settings the last export of ``kind`` used in this project, if any."""
     with session.lock:
         return session.history.meta_json("export", {}).get("settings", {}).get(kind)
+
+
+# -- regions (WP19h) -----------------------------------------------------------
+
+REGION_TEMPLATE = "{n:02d} {name}"
+
+
+def plan_regions(session, args: dict) -> tuple[list[tuple[int, int, str]], dict]:
+    """Each region as ``(first, end, file name)`` and the settings to render
+    them with, checked now so a bad request fails before a job is queued.
+
+    A region is clamped to the programme; one that starts past its end has
+    nothing to render and is left out. File names come from the region names
+    (``region_names.region_filenames``) and avoid what is already in the
+    folder, so a second run never overwrites the first.
+    """
+    template = args.get("name_template") or REGION_TEMPLATE
+    with session.lock:
+        project = session.history.state
+        saved = session.history.meta_json("export", {})
+        folder = (args.get("folder") or saved.get("folder")
+                  or str(session.package.path.parent
+                         / f"{session.package.path.stem} exports"))
+        regions = [m for m in project.markers if m.kind == "region"]
+        total = project.length
+        rate = project.rate
+    spans = [(m, m.start, min(m.end, total)) for m in regions if m.start < total]
+    if not spans:
+        raise KuulasError("error.regions.none")
+    folder_path = Path(folder)
+    existing = ([p.name for p in folder_path.iterdir()]
+                if folder_path.is_dir() else [])
+    fmt = args.get("format") or "wav"
+    if fmt not in FORMATS:
+        raise _fail("error.export.bad_format", format=fmt)
+    names = region_filenames([(m.name, m.start / rate) for m, _a, _b in spans],
+                             template, fmt, existing)
+    settings = {"folder": str(folder), "format": fmt}
+    for key in ("bit_depth", "mp3_kbps", "master_lufs"):
+        if args.get(key) is not None:
+            settings[key] = args[key]
+    plan = [(a, b, name) for (_m, a, b), name in zip(spans, names, strict=True)]
+    return plan, settings
+
+
+def run_regions(session, plan: list[tuple[int, int, str]], settings: dict,
+                progress: Progress | None = None,
+                cancel: threading.Event | None = None) -> dict:
+    """Render every planned region to its own file with the selection export.
+    One call, one progress bar: ``progress`` sees 0..1 over all of them."""
+    paths: list[str] = []
+    with session.lock:
+        head = session.history.head
+    count = len(plan)
+    for i, (first, end, name) in enumerate(plan):
+        if cancel is not None and cancel.is_set():
+            raise _fail("error.export.cancelled")
+
+        def say(fraction: float, message: str = "", i=i) -> None:
+            if progress is not None:
+                progress((i + fraction) / count, message)
+
+        result = run(session, {**settings, "kind": "selection", "range": [first, end]},
+                     say, cancel, file_name=name)
+        paths.append(result["path"])
+    with session.lock:
+        session.history.checkpoint(t("history.export_regions", count=count),
+                                   "export", node=head)
+    return {"paths": paths, "count": count, "folder": settings["folder"]}

@@ -11,10 +11,11 @@ from dataclasses import replace
 
 from . import curves, edit_scope
 from . import gate as gatem
+from . import markers as markersm
 from .clock import flicks_to_frames, frames_to_flicks
 from .join import join_adjacent
 from .messages import KuulasError
-from .model import Bus, Clip, Media, Point, Project, SyncGroup, Track
+from .model import Bus, Clip, Marker, Media, Point, Project, SyncGroup, Track
 
 #: Crossfade where a cut joins audio that was not adjacent in the source.
 #: A butt splice of two unrelated samples clicks and the room tone jumps;
@@ -663,7 +664,11 @@ def ripple_delete(p: Project, start: int, end: int,
         tracks.append(replace(track, clips=_sorted(clips),
                               automation=_ripple_points(track.automation, start, end),
                               gate=gatem.ripple(track.gate, start, end)))
-    return replace(p, tracks=tuple(tracks))
+    # Markers sit on the timeline, not on a track: they move only when every
+    # track is cut, otherwise the audio they point at has not moved.
+    moved = (markersm.ripple(p.markers, start, end)
+             if scope >= {t.id for t in p.tracks} else p.markers)
+    return replace(p, tracks=tuple(tracks), markers=moved)
 
 
 def _crossfade(p: Project, clips: list[Clip], left: Clip, right: Clip) -> list[Clip]:
@@ -708,6 +713,74 @@ def _ripple_points(points, start: int, end: int) -> tuple[Point, ...]:
     return tuple(out)
 
 
+# -- markers, regions, chapters (WP19h) -----------------------------------------
+
+
+def _find_marker(p: Project, marker_id: str) -> Marker:
+    for m in p.markers:
+        if m.id == marker_id:
+            return m
+    raise EditError("error.marker.missing", marker_id=marker_id)
+
+
+def _put_marker(p: Project, marker: Marker) -> Project:
+    others = tuple(m for m in p.markers if m.id != marker.id)
+    return replace(p, markers=markersm.ordered((*others, marker)))
+
+
+def _checked(marker: Marker) -> Marker:
+    if marker.kind not in markersm.KINDS:
+        raise EditError("error.marker.bad_kind", kind=marker.kind)
+    if marker.start < 0 or (marker.kind == "region") != (marker.end is not None) or (
+            marker.end is not None and marker.end <= marker.start):
+        raise EditError("error.marker.bad_range")
+    return marker
+
+
+def add_marker(p: Project, marker_id: str | None, name: str, start: int,
+               end: int | None = None, kind: str = "marker") -> Project:
+    """A marker, chapter (``end`` None) or region (``end`` after ``start``)."""
+    marker_id = marker_id or new_id("k")
+    if any(m.id == marker_id for m in p.markers):
+        raise EditError("error.marker.exists", marker_id=marker_id)
+    return _put_marker(p, _checked(Marker(
+        id=marker_id, name=str(name).strip(), start=int(start),
+        end=None if end is None else int(end), kind=kind)))
+
+
+def rename_marker(p: Project, marker_id: str, name: str) -> Project:
+    return _put_marker(p, replace(_find_marker(p, marker_id), name=str(name).strip()))
+
+
+def move_marker(p: Project, marker_id: str, start: int) -> Project:
+    """Move to ``start``; a region keeps its length."""
+    m = _find_marker(p, marker_id)
+    start = int(start)
+    end = None if m.end is None else start + (m.end - m.start)
+    return _put_marker(p, _checked(replace(m, start=start, end=end)))
+
+
+def set_region_end(p: Project, marker_id: str, end: int) -> Project:
+    m = _find_marker(p, marker_id)
+    if m.kind != "region":
+        raise EditError("error.marker.not_region", marker_id=marker_id)
+    return _put_marker(p, _checked(replace(m, end=int(end))))
+
+
+def set_marker_kind(p: Project, marker_id: str, kind: str,
+                    end: int | None = None) -> Project:
+    """Change the kind. To a region it needs an ``end`` (or already has one);
+    from a region the end is dropped."""
+    m = _find_marker(p, marker_id)
+    end = (m.end if end is None else int(end)) if kind == "region" else None
+    return _put_marker(p, _checked(replace(m, kind=kind, end=end)))
+
+
+def delete_marker(p: Project, marker_id: str) -> Project:
+    _find_marker(p, marker_id)
+    return replace(p, markers=tuple(m for m in p.markers if m.id != marker_id))
+
+
 # -- dispatch ----------------------------------------------------------------
 
 OPS = {
@@ -718,6 +791,8 @@ OPS = {
         add_clip, delete_clip, move_clip, trim_clip, split_clip, set_clip,
         set_fade_at, set_clip_envelope, ripple_delete, mute_ranges,
         set_gate, add_gate_range, remove_gate_range,
+        add_marker, rename_marker, move_marker, set_region_end, delete_marker,
+        set_marker_kind,
         shift_clips, set_clips, delete_clips, mark_in_sync, resync,
         split_clips, mute_range, cut_range, nudge_clips, trim_clips, adjust_clip_gain,
         restore_cuts,

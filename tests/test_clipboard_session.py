@@ -509,3 +509,18 @@ def test_copying_a_words_stretch_then_cut_words_is_one_entry_and_one_undo_step(s
     session.command("cut_words", {"indices": [index]})
     assert len(entries()) == before_entries + 1
     assert history_len(session) == before_steps + 1
+
+
+def test_insert_on_every_track_moves_markers_and_a_partial_insert_does_not(session):
+    a, b = ids(session.state)
+    session.edit("add_marker", {"marker_id": "m", "name": "After", "start": 90_000})
+    session.edit("add_marker", {"marker_id": "r", "name": "Span", "start": 10_000,
+                                "end": 60_000, "kind": "region"})
+    one = session.clipboard_copy(start=0, end=20_000, track_ids=[a.id])["entry"]
+    session.clipboard_paste(one["id"], at=50_000, mode="insert", group_editing=False)
+    assert [(m.start, m.end) for m in session.state.markers] == [
+        (10_000, 60_000), (90_000, None)]  # only track a rippled
+    both = session.clipboard_copy(start=0, end=20_000, track_ids=[a.id, b.id])["entry"]
+    session.clipboard_paste(both["id"], at=50_000, mode="insert", group_editing=False)
+    assert [(m.start, m.end) for m in session.state.markers] == [
+        (10_000, 80_000), (110_000, None)]

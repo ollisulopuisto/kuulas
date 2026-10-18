@@ -886,5 +886,13 @@
   "ui.candidates.deleted": "Deleted. Undo brings it back.",
   "ui.candidates.cut": "Cut and closed the gap. Undo brings it back.",
   "ui.candidates.kept": "Kept. It will not be proposed again.",
-  "ui.candidates.seconds": "{seconds} s"
+  "ui.candidates.seconds": "{seconds} s",
+  "error.marker.missing": "There is no marker {marker_id}.",
+  "error.marker.exists": "Marker {marker_id} already exists.",
+  "error.marker.bad_kind": "Unknown marker kind: {kind}. Expected marker, chapter, or region.",
+  "error.marker.bad_range": "A marker needs a start of 0 or more; only a region has an end, and it must be after the start.",
+  "error.marker.not_region": "Marker {marker_id} is not a region.",
+  "error.regions.none": "There are no regions to export. Make one from the in and out points first.",
+  "job.export_regions": "Exporting {count} regions",
+  "history.export_regions": "{count} regions exported"
 }
