@@ -7,6 +7,9 @@ import { busLetter } from "./grammar.js";
 export const busMembers = (project, busId) =>
   project.tracks.filter((track) => track.bus === busId).length;
 
+/** The kinds ops.TRACK_KINDS accepts, in the order the role select lists them. */
+export const TRACK_KINDS = ["speech", "speech-mix", "music"];
+
 /** The locale key naming a track's role (speech, speech mix, music). */
 export const roleKey = (kind) => `ui.track.kind.${kind}`;
 
