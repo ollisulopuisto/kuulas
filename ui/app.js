@@ -16,6 +16,7 @@ import { filenameFromDisposition, tracksNotice } from "./export-commands.js";
 import { nextPanel } from "./focus.js";
 import { followScroll } from "./follow.js";
 import { frameToTime, RATE, xToFrame } from "./format.js";
+import { fadeChange, gainChange } from "./gain-drag.js";
 import { GATE_OPEN_COMMAND, openStretchEdit, stretchAt } from "./gate.js";
 import { HELP_COMMAND, shortcutsFor } from "./help.js";
 import { createHelpPanel } from "./help-panel.js";
@@ -45,6 +46,7 @@ import { motionMode } from "./motion.js";
 import { createOverview } from "./overview.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
 import { createPrefs } from "./prefs.js";
+import { patchClip } from "./provisional.js";
 import { formatRangeInfo, rangeInfo } from "./range-info.js";
 import { setupKeyboard } from "./shell-keys.js";
 import { chipSpeed } from "./shuttle.js";
@@ -1335,6 +1337,26 @@ const timeline = createTimeline({
       if (!change) return;
       setState({ selection: new Set(ids) }); // the press selected one clip; a move keeps all
       editor.change({ op: change.op, args: change.args, label: t(change.labelKey) });
+    },
+    clipGain({ clipId, gain }) {
+      const { op, args, coalesce, labelKey } = gainChange(clipId, gain);
+      editor.change({
+        op,
+        args,
+        coalesce,
+        label: t(labelKey),
+        provisional: (p) => patchClip(p, clipId, { gain_db: gain }),
+      });
+    },
+    clipFade({ clipId, side, frames }) {
+      const { op, args, coalesce, labelKey } = fadeChange(clipId, side, frames);
+      editor.change({
+        op,
+        args,
+        coalesce,
+        label: t(labelKey),
+        provisional: (p) => patchClip(p, clipId, { [`fade_${side}`]: frames }),
+      });
     },
     edgeDrag({ clipId, edge, frame, ripple }) {
       const { op, args, labelKey } = edgeChange(clipId, edge, frame, ripple);
