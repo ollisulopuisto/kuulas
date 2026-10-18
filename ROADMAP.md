@@ -150,17 +150,17 @@ sizes: `docs/PLAN.md`, section "Triage".
 
 Grouped from the build order in `docs/PLAN.md` (Triage). ✓ done, ◐ partly done (some of it built and merged), ▶ being built now, ↻ built and in review (not merged yet), otherwise open. Generated from the roadmap page data; the page is the live view.
 
-**M1 · First playable build** (10 of 20 done, 10 partly): Run kuulas, import, listen, edit by keyboard and mouse, undo, export WAV or MP3. (Owner, 2026-10-18: WP6 mouse editing and WP19i Tab to transient or word are brought forward into the first build.)
+**M1 · First playable build** (14 of 21 done, 7 partly): Run kuulas, import, listen, edit by keyboard and mouse, undo, export WAV or MP3. (Owner, 2026-10-18: WP6 mouse editing and WP19i Tab to transient or word are brought forward into the first build.)
 
-✓ WP0, ✓ WP24.1, ✓ WP33a, ✓ WP29, ✓ WP30, ✓ WP1, ◐ WP34, ✓ WP36, ✓ WP2, ✓ WP3, ✓ WP33b, ◐ WP4, ◐ WP5, ◐ WP19a, WP35, ✓ WP11, ◐ WP15, ◐ WP46, ◐ WP19i, ◐ WP6.
+✓ WP0, ✓ WP24.1, ✓ WP33a, ✓ WP29, ✓ WP30, ✓ WP1, ✓ WP34, ✓ WP36, ✓ WP2, ✓ WP3, ✓ WP33b, ◐ WP4, ◐ WP5, ◐ WP19a, ◐ WP35, ✓ WP11, ◐ WP15, ◐ WP46, ✓ WP19i, ◐ WP6, ✓ WP54.
 
-**M2 · A usable editor** (2 of 9 done, 6 partly): Transcript, history panel, fast listening, FX layers.
+**M2 · A usable editor** (3 of 13 done, 8 partly): Transcript, history panel, fast listening, FX layers.
 
-✓ WP41, ◐ WP8, ◐ WP22, ◐ WP26, ✓ WP9, ◐ WP7, WP23a, ◐ WP44, ◐ WP48.
+✓ WP41, ◐ WP8, ◐ WP22, ◐ WP26, ✓ WP9, ◐ WP7, WP23a, ◐ WP44, ◐ WP48, ◐ WP49, ✓ WP50, ◐ WP52, WP55.
 
-**M3 · The editing loop** (2 of 19 done, 9 partly): What makes it better than Hindenburg: cut candidates, versions, review, paste, roles, takes.
+**M3 · The editing loop** (2 of 20 done, 10 partly): What makes it better than Hindenburg: cut candidates, versions, review, paste, roles, takes.
 
-WP28, ◐ WP43, ◐ WP18, ◐ WP19f, ◐ WP24.2, WP21, ◐ WP40, ◐ WP31, WP32, WP20, ✓ WP39, ✓ WP37, ◐ WP19c, WP19d, WP19b, ◐ WP19h, ◐ WP19g, WP19e, WP45.
+WP28, ◐ WP43, ◐ WP18, ◐ WP19f, ◐ WP24.2, WP21, ◐ WP40, ◐ WP31, WP32, WP20, ✓ WP39, ✓ WP37, ◐ WP19c, WP19d, WP19b, ◐ WP19h, ◐ WP19g, WP19e, WP45, ◐ WP51.
 
 **M4 · Pipeline depth** (2 of 5 done, 1 partly): Voice chain, music report, Hindenburg import, rendered FX.
 
@@ -170,9 +170,9 @@ WP28, ◐ WP43, ◐ WP18, ◐ WP19f, ◐ WP24.2, WP21, ◐ WP40, ◐ WP31, WP32,
 
 WP12, ◐ WP17, WP16.
 
-**M6 · Late** (0 of 4 done, 0 partly): Settings and rate change, series features, desktop app.
+**M6 · Late** (0 of 5 done, 0 partly): Settings and rate change, series features, desktop app.
 
-WP27, WP38, WP42, WP47.
+WP27, WP38, WP42, WP47, WP53.
 
 ## Done in this release (v26.10.16.1)
 
