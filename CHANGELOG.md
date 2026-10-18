@@ -1,3 +1,9 @@
+## [v26.10.18.27] - 2026-10-18
+
+- Two internal building blocks for later features, not yet visible in the program: the maths for
+  "align recordings by sound" (offset, drift, jumps, where to split) and the plan for which parts
+  of each recording travel when an edit is sent for review or copied to another project.
+
 ## [v26.10.18.26] - 2026-10-18
 
 - `kuulas import-nhsx <session.nhsx>` now needs no project folder: it makes `<session name>.kuulas`

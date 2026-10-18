@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from kuulas import align_math
 from kuulas.align_math import (
     clear_windows,
     fit_drift,
@@ -207,8 +208,6 @@ class TestSplitPoint:
 
 
 def test_jumps_and_clear_windows_share_the_clear_threshold(monkeypatch):
-    from kuulas import align_math
-
     monkeypatch.setattr(align_math, "_MIN_RATIO", 3.0)
     measurements = [(0.0, 0.0, 2.0), (60.0, 1.0, 4.0), (120.0, 0.0, 5.0)]
     # With the threshold at 3, the first window is unclear and must not be
