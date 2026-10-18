@@ -256,11 +256,25 @@ export function hitTest({ layout, project, view, x, y }) {
     if (!inside && !edge) continue;
     // Where two clips touch, the nearer edge wins; otherwise the one the pointer is inside.
     const distance = edge ? Math.min(toStart, toEnd) : EDGE_PX + 1;
-    if (!best || distance < best.distance) best = { clip, edge, distance };
+    // Overlapping clips at the pointer: the shorter one is the more specific, and the later one
+    // in the list is drawn on top. Neither may hide the other (owner, 2026-10-18).
+    const wins =
+      !best ||
+      distance < best.distance ||
+      (distance === best.distance && !edge && !best.edge && clip.length <= best.clip.length);
+    if (wins) best = { clip, edge, distance };
   }
   if (!best) return hit;
   const point = envelopePointAt(best.clip, view, x, rowY, row.height);
   return { ...hit, clip: best.clip, edge: best.edge, point };
+}
+
+/**
+ * The order clips are painted in: long ones first, so a short clip lying inside a long one is
+ * drawn on top, and is the one hitTest picks (a stable sort: ties keep the list order).
+ */
+export function paintOrder(clips) {
+  return [...(clips ?? [])].sort((a, b) => b.length - a.length);
 }
 
 function envelopePointAt(clip, view, x, rowY, rowHeight) {

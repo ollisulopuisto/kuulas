@@ -10,6 +10,7 @@ import {
   hitTest,
   layoutFor,
   layoutRows,
+  paintOrder,
   pointerIntent,
   projectEnd,
   RULER_HEIGHT,
@@ -325,6 +326,46 @@ describe("what a click does (owner, 2026-10-18)", () => {
   });
 });
 
+describe("hit testing overlapping clips on one track", () => {
+  const clipIn = (id, start, length) => ({
+    id,
+    start,
+    offset: 0,
+    length,
+    gain_db: 0,
+    envelope: [],
+  });
+  const layoutOf = (clips) => {
+    const p = { rate: 48_000, buses: [], tracks: [{ id: "t1", clips }] };
+    return { p, layout: layoutRows(p, 48) };
+  };
+  const at = (p, layout, frame) =>
+    hitTest({
+      layout,
+      project: p,
+      view,
+      x: frame / view.zoom,
+      y: RULER_HEIGHT + 24,
+    });
+
+  test("a short clip lying inside a long one is the one that gets clicked, whatever the order", () => {
+    for (const clips of [
+      [clipIn("long", 0, 3000), clipIn("short", 1000, 400)],
+      [clipIn("short", 1000, 400), clipIn("long", 0, 3000)],
+    ]) {
+      const { p, layout } = layoutOf(clips);
+      assert.equal(at(p, layout, 1200).clip.id, "short");
+      // Outside the short one the long clip is still reachable.
+      assert.equal(at(p, layout, 2500).clip.id, "long");
+    }
+  });
+
+  test("two overlapping clips of one length: the later one in the list is on top", () => {
+    const { p, layout } = layoutOf([clipIn("a", 0, 1000), clipIn("b", 500, 1000)]);
+    assert.equal(at(p, layout, 700).clip.id, "b");
+  });
+});
+
 describe("hitTest on a gate band (WP44)", () => {
   const gated = {
     ...project,
@@ -421,5 +462,24 @@ describe("layoutRows with per-track heights", () => {
       laneHeights: { t3: 40 },
     });
     assert.equal(heightOf(layout, "t3"), 40);
+  });
+});
+
+describe("paintOrder (overlapping clips)", () => {
+  test("long clips first, short ones on top, ties in list order; the input is not changed", () => {
+    const clips = [
+      { id: "s", length: 100 },
+      { id: "l", length: 900 },
+      { id: "m1", length: 400 },
+      { id: "m2", length: 400 },
+    ];
+    assert.deepEqual(
+      paintOrder(clips).map((c) => c.id),
+      ["l", "m1", "m2", "s"],
+    );
+    assert.deepEqual(
+      clips.map((c) => c.id),
+      ["s", "l", "m1", "m2"],
+    );
   });
 });

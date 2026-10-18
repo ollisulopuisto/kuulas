@@ -37,6 +37,7 @@ import {
   envelopeFrame,
   hitTest,
   layoutFor,
+  paintOrder,
   projectEnd,
   RULER_HEIGHT,
   visibleRows,
@@ -360,7 +361,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     overlay.beginPath();
     overlay.rect(0, RULER_HEIGHT, width, size.height - RULER_HEIGHT);
     overlay.clip();
-    for (const clip of track.clips) {
+    for (const clip of paintOrder(track.clips)) {
       const left = frameToX(clip.start, state.scroll, state.zoom);
       const right = frameToX(clipEnd(clip), state.scroll, state.zoom);
       if (right < 0 || left > width) continue;
