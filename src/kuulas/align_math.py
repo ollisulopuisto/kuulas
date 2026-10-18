@@ -14,14 +14,18 @@ import numpy as np
 # 1 ms per 10 minutes, expressed as seconds of lag per second.
 _DRIFT_THRESHOLD = 0.001 / 600
 
+#: A window counts as clear when its best peak is this many times the second best.
+_MIN_RATIO = 1.5
+
 
 def clear_windows(
     measurements: Sequence[tuple[float, float, float]],
     *,
-    min_ratio: float = 1.5,
+    min_ratio: float | None = None,
 ) -> list[tuple[float, float, float]]:
     """Return measurements whose ``peak_ratio`` is at least ``min_ratio``."""
-    return [m for m in measurements if m[2] >= min_ratio]
+    threshold = _MIN_RATIO if min_ratio is None else min_ratio
+    return [m for m in measurements if m[2] >= threshold]
 
 
 def fit_drift(
@@ -66,7 +70,7 @@ def jumps(
     clear = clear_windows(measurements)
     result = []
     for original_index, (time, lag, _ratio) in zip(
-        (i for i, m in enumerate(measurements) if m[2] >= 1.5),
+        (i for i, m in enumerate(measurements) if m[2] >= _MIN_RATIO),
         clear,
         strict=True,
     ):
