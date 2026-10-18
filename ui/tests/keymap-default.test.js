@@ -112,6 +112,7 @@ describe("the owner's decisions", () => {
     // Not in the side panels, candidates or text fields: Tab keeps its focus move there.
     assert.deepEqual(contextsOf("Tab").sort(), ["timeline", "transcript"]);
     assert.deepEqual(contextsOf("Shift+Tab").sort(), ["timeline", "transcript"]);
+    assert.deepEqual(keysOf("nav.tab_target_cycle", "mac"), ["Alt+Tab"]);
     assert.deepEqual(keysOf("nav.tab_target_cycle"), ["Shift+T"]);
   });
 
