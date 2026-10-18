@@ -17,9 +17,18 @@
 // close gap on all tracks, Clean up cuts, Compare. The clipboard (WP46): X cuts to it,
 // Mod+C copies only, Backspace never touches it; Mod+V pastes (insert), Alt+Mod+V
 // overwrites, Shift+Mod+V inserts on the current track.
-// J/K/L: K is "keep candidate" in the Candidates tab, so shuttle-stop has no key (open question).
+// J/K/L (WP26): K is "keep candidate" in the Candidates tab and stops the shuttle everywhere
+// else (context "not-candidates"); J and L shuttle from every panel.
 
-export const CONTEXTS = ["global", "timeline", "transcript", "side", "candidates", "text-field"];
+export const CONTEXTS = [
+  "global",
+  "not-candidates",
+  "timeline",
+  "transcript",
+  "side",
+  "candidates",
+  "text-field",
+];
 
 export const DEFAULT_KEYMAP = [
   {
@@ -41,22 +50,22 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.transport.speed",
   },
   {
-    id: "transport.reverse",
+    id: "transport.shuttle_back",
     keys: { mac: "J", other: "J" },
-    context: "timeline",
-    labelKey: "cmd.transport.reverse",
+    context: "global",
+    labelKey: "cmd.transport.shuttle_back",
   },
   {
-    id: "transport.forward",
+    id: "transport.shuttle_forward",
     keys: { mac: "L", other: "L" },
-    context: "timeline",
-    labelKey: "cmd.transport.forward",
+    context: "global",
+    labelKey: "cmd.transport.shuttle_forward",
   },
   {
-    id: "transport.stop",
-    keys: { mac: null, other: null },
-    context: "timeline",
-    labelKey: "cmd.transport.stop",
+    id: "transport.shuttle_stop",
+    keys: { mac: "K", other: "K" },
+    context: "not-candidates",
+    labelKey: "cmd.transport.shuttle_stop",
   },
   {
     id: "nav.home",

@@ -30,6 +30,7 @@ import { createMarkersPanel } from "./markers-panel.js";
 import { motionMode } from "./motion.js";
 import { createOverview } from "./overview.js";
 import { setupKeyboard } from "./shell-keys.js";
+import { chipSpeed } from "./shuttle.js";
 import { getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
 import { densityAttribute, nextTheme, themeAttribute } from "./theme.js";
 import { createTimeline } from "./timeline.js";
@@ -155,6 +156,8 @@ function markPaused() {
 
 const actions = {
   togglePlay: () => void transport.toggle(),
+  shuttle: (key) => void transport.press(key),
+  fastListening: () => showNotice(t("ui.speed.fast_not_built"), "ok"),
   goHome() {
     const active = document.activeElement;
     if (isTextField(active)) active.blur();
@@ -463,6 +466,7 @@ $("waveform-mode").addEventListener("change", (event) =>
   setState({ waveformMode: event.target.value }),
 );
 $("waveform-gain").addEventListener("click", () => setState({ waveformGain: 1 }));
+$("speed-chip").addEventListener("click", () => void transport.play(getState().playhead));
 $("group-chip").addEventListener("click", () => setState({ groupEditing: true }));
 $("lane-taller").addEventListener("click", () => setLaneHeight(LANE_STEP));
 $("lane-shorter").addEventListener("click", () => setLaneHeight(-LANE_STEP));
@@ -1118,6 +1122,13 @@ function render(state, patch) {
   if (touched("playing")) {
     $("play-icon").textContent = state.playing ? "■" : "▶";
     $("play-label").textContent = t(state.playing ? "ui.transport.stop" : "ui.transport.play");
+  }
+  if (touched("speed", "playing")) {
+    const chip = $("speed-chip");
+    const label = chipSpeed(state.speed, state.playing, formatNumber);
+    chip.hidden = label === null;
+    if (label !== null) chip.textContent = t("ui.speed.chip", { speed: label });
+    chip.title = t("ui.speed.chip_title");
   }
   if (touched("zoom", "project", "scroll")) {
     const view = t(views.current === "close" ? "ui.view.close" : "ui.view.wide");

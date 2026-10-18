@@ -111,12 +111,14 @@ def test_press_returns_only_ladder_values_or_zero(start, key):
 class TestSharedCases:
     """ui/shuttle.js must agree: both read ui/tests/fixtures/shuttle-cases.json."""
 
-    CASES = json.loads(
-        (Path(__file__).parent.parent / "ui" / "tests" / "fixtures" / "shuttle-cases.json")
-        .read_text(encoding="utf-8")
+    FIXTURE = (
+        Path(__file__).parent.parent / "ui" / "tests" / "fixtures" / "shuttle-cases.json"
     )
+    CASES = json.loads(FIXTURE.read_text(encoding="utf-8"))
 
-    @pytest.mark.parametrize("case", CASES["press"], ids=lambda c: f"{c['speed']}{c['key']}")
+    @pytest.mark.parametrize(
+        "case", CASES["press"], ids=lambda c: f"{c['speed']}{c['key']}"
+    )
     def test_press(self, case):
         assert press(case["speed"], case["key"]) == case["result"]
 

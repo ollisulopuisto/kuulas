@@ -49,6 +49,11 @@ describe("client state", () => {
 describe("live messages", () => {
   const state = { ...initialState(), head: "h1" };
 
+  test("a position that says playback ended puts the shuttle back to 1x", () => {
+    const out = reduceLive(state, { type: "position", position: 0, playing: false });
+    assert.deepEqual(out.patch, { playhead: 0, playing: false, speed: 1 });
+  });
+
   test("position moves the playhead and the playing flag", () => {
     const out = reduceLive(state, { type: "position", position: 4800, playing: true });
     assert.deepEqual(out.patch, { playhead: 4800, playing: true });
@@ -60,7 +65,7 @@ describe("live messages", () => {
       { ...state, playing: true },
       { type: "position", position: 9, playing: false },
     );
-    assert.deepEqual(out.patch, { playhead: 9, playing: false });
+    assert.deepEqual(out.patch, { playhead: 9, playing: false, speed: 1 });
   });
 
   test("a changed head, from state_changed or hello, asks for a refresh", () => {

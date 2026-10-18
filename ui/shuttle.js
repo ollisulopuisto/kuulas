@@ -28,3 +28,12 @@ export function heldScrubSpeed(direction) {
   if (direction === "j") return -0.25;
   throw new Error(`unknown shuttle key: ${direction}`);
 }
+
+/**
+ * The speed chip's text ("2", "−1.5" through `format`, the UI's number formatter), or null
+ * when the chip stays hidden: nothing playing, or playing at plain 1x.
+ */
+export function chipSpeed(speed, playing, format) {
+  if (!playing || speed === 1) return null;
+  return format(speed, { digits: Number.isInteger(speed) ? 0 : 1 });
+}

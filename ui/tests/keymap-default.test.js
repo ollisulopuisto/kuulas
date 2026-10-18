@@ -106,12 +106,23 @@ describe("the owner's decisions", () => {
     assert.deepEqual(keysOf("candidate.apply_ripple"), []);
   });
 
-  test("K means keep only in the Candidates tab: no other context binds it", () => {
+  test("K means keep in the Candidates tab and stop the shuttle everywhere else", () => {
     const withK = DEFAULT_KEYMAP.filter((entry) => asList(entry.keys.other).includes("K"));
     assert.deepEqual(
       withK.map((entry) => [entry.id, entry.context]),
-      [["candidate.reject", "candidates"]],
+      [
+        ["transport.shuttle_stop", "not-candidates"],
+        ["candidate.reject", "candidates"],
+      ],
     );
+  });
+
+  test("J and L shuttle from every panel", () => {
+    assert.deepEqual(keysOf("transport.shuttle_back"), ["J"]);
+    assert.deepEqual(keysOf("transport.shuttle_forward"), ["L"]);
+    for (const id of ["transport.shuttle_back", "transport.shuttle_forward"]) {
+      assert.equal(DEFAULT_KEYMAP.find((entry) => entry.id === id).context, "global");
+    }
   });
 
   test("buses collapse on Alt+Mod+Left/Right", () => {

@@ -91,6 +91,38 @@ describe("text fields", () => {
   });
 });
 
+describe("the shuttle keys", () => {
+  test("K stops the shuttle in every context except the Candidates tab, where it keeps", () => {
+    for (const context of ["timeline", "transcript", "side"]) {
+      const { keymap, calls } = setup({ context });
+      assert.equal(keymap.handle(press({ code: "KeyK", key: "k" })), true);
+      assert.deepEqual(calls, [["transport.shuttle_stop"]], context);
+    }
+    const { keymap, calls } = setup({ context: "candidates" });
+    keymap.handle(press({ code: "KeyK", key: "k" }));
+    assert.deepEqual(calls, [["candidate.reject"]]);
+  });
+
+  test("J and L shuttle in every context, and not while typing", () => {
+    for (const context of ["timeline", "transcript", "side", "candidates"]) {
+      const { keymap, calls } = setup({ context });
+      keymap.handle(press({ code: "KeyJ", key: "j" }));
+      keymap.handle(press({ code: "KeyL", key: "l" }));
+      assert.deepEqual(calls, [["transport.shuttle_back"], ["transport.shuttle_forward"]], context);
+    }
+    const { keymap, calls } = setup();
+    keymap.handle(press({ code: "KeyL", key: "l", target: field }));
+    assert.deepEqual(calls, []);
+  });
+
+  test("the keys can be remapped", () => {
+    const { keymap, calls } = setup({ overrides: { "transport.shuttle_forward": "Alt+L" } });
+    keymap.handle(press({ code: "KeyL", key: "l" }));
+    keymap.handle(press({ code: "KeyL", key: "l", altKey: true }));
+    assert.deepEqual(calls, [["transport.shuttle_forward"]]);
+  });
+});
+
 describe("the core keys", () => {
   test("Space plays/stops, on any element except a text field", () => {
     for (const tag of [

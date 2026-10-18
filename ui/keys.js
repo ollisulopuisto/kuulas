@@ -237,7 +237,9 @@ export function createKeymap({
       const context = getContext();
       for (const entry of entries) {
         if (typing && entry.context !== "text-field") continue;
-        if (!EVERYWHERE.has(entry.context) && entry.context !== context) continue;
+        if (entry.context === "not-candidates") {
+          if (context === "candidates") continue;
+        } else if (!EVERYWHERE.has(entry.context) && entry.context !== context) continue;
         if (!entry.parsed.some((p) => matchesCombo(event, p, platform))) continue;
         // A planned command is only listed; its key stays the browser's.
         if (registry.status(entry.id) === "planned") continue;
