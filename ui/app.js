@@ -7,6 +7,7 @@ import { listedRows, scrollToShow, stepTarget } from "./candidates-model.js";
 import { createCandidatesPanel } from "./candidates-panel.js";
 import { previewRequest } from "./candidates-preview.js";
 import { clipDragChange } from "./clip-drag.js";
+import { expandGroups, toggleGroupSelection } from "./clip-groups.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
 import { openContextMenu } from "./context-menu.js";
 import { contextMenuItems } from "./context-menu-model.js";
@@ -395,14 +396,12 @@ function onPointerDown(hit, event) {
     // Shift+click on a folded bus: add the member clips under the pointer to the selection.
     const selection = new Set(state.selection);
     for (const id of memberClipsAt(state.project, hit.row.id, hit.frame)) selection.add(id);
-    patch.selection = selection;
-  } else if (intent.selection === "replace") patch.selection = new Set([intent.clip.id]);
+    patch.selection = expandGroups(state.project, selection);
+  } else if (intent.selection === "replace")
+    patch.selection = expandGroups(state.project, [intent.clip.id]);
   else if (intent.selection === "clear") patch.selection = new Set();
-  else if (intent.selection === "toggle") {
-    const selection = new Set(state.selection);
-    if (!selection.delete(intent.clip.id)) selection.add(intent.clip.id);
-    patch.selection = selection;
-  }
+  else if (intent.selection === "toggle")
+    patch.selection = toggleGroupSelection(state.project, state.selection, intent.clip.id);
   setState(patch);
   if (intent.seek !== null) void transport.seek(intent.seek);
 }

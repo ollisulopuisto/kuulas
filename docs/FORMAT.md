@@ -468,6 +468,20 @@ nothing is lost; it only shows no target line, and its "match loudness" uses
 its own fixed level. The cost is a missing monitoring hint, never a wrong
 mix, so refusing to open is not worth it.
 
+**As built (clip groups).** A clip gains an optional `group` (a string id).
+Clips sharing an id are selected, moved, cut and muted together; the grouping
+itself is in the edit state, so it is one undo step (`group_clips`,
+`ungroup_clips`) and a split keeps it on both halves. Absent means ungrouped,
+and an ungrouped clip is written without the key, so old projects keep their
+bytes and state hash. `merge_clips` joins touching pieces of one recording into
+one clip (the first id, fade-in and name, the last fade-out); only clips of the
+same group (or all ungrouped) join.
+
+*Version and `min_reader`.* `min_reader` does not rise and `version` does not
+change. A group changes no sound. A reader that does not know it keeps the key
+in `Clip.extra`, writes it back, and treats the clips as ungrouped: they then
+select and move one by one. The cost is a convenience, never a wrong mix.
+
 Loudness curves (`GET /api/loudness-curve`) are a cache, not project data:
 `caches/analysis/<key>.json`, keyed on the media hashes and every field that
 changes the sound (a rename or a new target changes no key). Algorithm

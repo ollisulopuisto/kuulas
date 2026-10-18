@@ -9,7 +9,7 @@ def join_adjacent(clips: list[Clip]) -> list[Clip]:
     """Return ``clips`` with every joinable run merged into a single clip.
 
     Two clips are joined when they are the same media, contiguous both on the
-    timeline and in the source, and share the same gain, pan and mute state,
+    timeline and in the source, and share the same gain, pan, mute state and edit group,
     and have no envelope or crossfade at the boundary. The first clip's id and
     ``fade_in`` are kept, the last clip's ``fade_out`` is kept, and the length
     is the total. The result is sorted by timeline start and the input list is
@@ -39,6 +39,7 @@ def _can_join(a: Clip, b: Clip) -> bool:
         and a.gain_db == b.gain_db
         and a.pan == b.pan
         and a.muted == b.muted
+        and a.group == b.group
         and a.envelope == ()
         and b.envelope == ()
         and a.xfade_out == 0
@@ -61,5 +62,6 @@ def _join_two(a: Clip, b: Clip) -> Clip:
         envelope=(),
         xfade_in=a.xfade_in,
         xfade_out=b.xfade_out,
+        group=a.group,
         extra=a.extra,
     )

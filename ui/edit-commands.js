@@ -1,6 +1,7 @@
 // The editing commands: B, X, Backspace and the rest of the sheet's edit keys.
 // Each one is a plan (edit-plans.js) sent through the editor; `can()` asks the same
 // plan whether there is anything to do. Keys live in keymap-default.js, never here.
+import { expandGroups, groupClipsPlan, mergeClipsPlan, ungroupClipsPlan } from "./clip-groups.js";
 import { pasteChoice } from "./clipboard.js";
 import {
   busMutePlan,
@@ -78,6 +79,9 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
       (state) => build(state) !== null,
     );
 
+  planned("edit.group", groupClipsPlan);
+  planned("edit.ungroup", ungroupClipsPlan);
+  planned("edit.merge", mergeClipsPlan);
   planned("edit.split", (s) => splitPlan(s));
   planned("edit.split_all", (s) => splitPlan(s, { all: true }));
   planned("edit.delete", deletePlan);
@@ -163,7 +167,10 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
   }
 
   const selectAll = (allTracks) => ({
-    run: () => app.patch({ selection: new Set(selectAllIds(app.getState(), allTracks)) }),
+    run: () => {
+      const state = app.getState();
+      app.patch({ selection: expandGroups(state.project, selectAllIds(state, allTracks)) });
+    },
     can: (s) => selectAllIds(s, allTracks).length > 0,
   });
   def("edit.select_all_track", selectAll(false).run, selectAll(false).can);

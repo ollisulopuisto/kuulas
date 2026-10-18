@@ -330,6 +330,24 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.edit.split",
   },
   {
+    id: "edit.group",
+    keys: { mac: "Alt+Mod+G", other: "Alt+Mod+G" },
+    context: "timeline",
+    labelKey: "cmd.edit.group",
+  },
+  {
+    id: "edit.ungroup",
+    keys: { mac: "Shift+Alt+Mod+G", other: "Shift+Alt+Mod+G" },
+    context: "timeline",
+    labelKey: "cmd.edit.ungroup",
+  },
+  {
+    id: "edit.merge",
+    keys: { mac: "Alt+Mod+J", other: "Alt+Mod+J" },
+    context: "timeline",
+    labelKey: "cmd.edit.merge",
+  },
+  {
     id: "edit.split_all",
     keys: { mac: "Shift+B", other: "Shift+B" },
     context: "timeline",

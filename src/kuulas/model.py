@@ -101,6 +101,10 @@ class Clip:
     # timeline does not move. Even lengths; zero at a plain split.
     xfade_in: int = 0
     xfade_out: int = 0
+    # Edit group (Group clips): clips sharing an id are selected, moved, cut and
+    # muted together. None when ungrouped, and then the key is not written, so
+    # old projects keep their bytes and an older reader just sees ungrouped clips.
+    group: str | None = None
     # Sync is per media, not per clip (``Project.sync_groups``): every piece
     # cut from a file shares its clock, so subclips need no fields of their own.
     extra: dict = field(default_factory=dict, hash=False)
@@ -109,6 +113,8 @@ class Clip:
         d = _out(self, envelope=[list(pt) for pt in self.envelope])
         if not self.name:
             del d["name"]
+        if self.group is None:
+            del d["group"]
         return d
 
     @classmethod

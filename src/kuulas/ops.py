@@ -300,6 +300,64 @@ def _cut(clip: Clip, at: int, right_id: str) -> tuple[Clip, Clip]:
     return left, right
 
 
+# -- groups and merge ---------------------------------------------------------
+
+
+def _map_clips(p: Project, change) -> Project:
+    """``p`` with ``change(clip)`` applied to every clip of every track."""
+    return replace(p, tracks=tuple(
+        replace(t, clips=tuple(change(c) for c in t.clips)) for t in p.tracks))
+
+
+def group_clips(p: Project, clip_ids) -> Project:
+    """Put the clips in one new group. A clip already in a group leaves it
+    (the rest of that group stays together)."""
+    ids = list(dict.fromkeys(clip_ids))
+    if len(ids) < 2:
+        raise EditError("error.edit.bad_arguments", name="group_clips",
+                        detail="a group needs at least 2 clips")
+    for clip_id in ids:
+        _find_clip(p, clip_id)
+    group = new_id("g")
+    wanted = set(ids)
+    return _map_clips(p, lambda c: replace(c, group=group) if c.id in wanted else c)
+
+
+def ungroup_clips(p: Project, clip_ids) -> Project:
+    """Dissolve the groups the clips belong to: every member is ungrouped."""
+    dissolved = {g for cid in clip_ids if (g := _find_clip(p, cid)[0].group) is not None}
+    return _map_clips(p, lambda c: replace(c, group=None) if c.group in dissolved else c)
+
+
+def merge_clips(p: Project, clip_ids) -> Project:
+    """Join the selected clips that ``join_adjacent`` would join, per track.
+
+    Lossless: nothing leaves the source media, and a split at the old boundary
+    gives the old clips back (group, name and gain carry over to both halves).
+    Clips that cannot be joined stay as they are; refused when none can.
+    """
+    wanted = set(clip_ids)
+    for clip_id in wanted:
+        _find_clip(p, clip_id)
+    tracks = []
+    changed = False
+    for track in p.tracks:
+        picked = [c for c in track.clips if c.id in wanted]
+        joined = join_adjacent(picked)
+        if len(joined) == len(picked):
+            tracks.append(track)
+            continue
+        changed = True
+        names = {c.id: c.name for c in picked}
+        rest = [c for c in track.clips if c.id not in wanted]
+        # The joined clip keeps the first clip's id, so it keeps its name too.
+        joined = [replace(c, name=names[c.id]) for c in joined]
+        tracks.append(replace(track, clips=_sorted([*rest, *joined])))
+    if not changed:
+        raise EditError("error.edit.merge_nothing")
+    return replace(p, tracks=tuple(tracks))
+
+
 CLIP_FIELDS = {"gain_db", "pan", "fade_in", "fade_out", "muted", "name"}
 
 
@@ -1076,7 +1134,7 @@ OPS = {
         shift_clips, set_clips, delete_clips, mark_in_sync, resync,
         split_clips, mute_range, cut_range, nudge_clips, move_clips_to_track,
         trim_clips, adjust_clip_gain,
-        restore_cuts, roll_trim, ripple_trim,
+        restore_cuts, roll_trim, ripple_trim, group_clips, ungroup_clips, merge_clips,
     )
 }
 

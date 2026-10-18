@@ -637,11 +637,27 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     }
   }
 
+  // A grouped clip (clip.group) wears a thin link mark, two joined rings, at the right
+  // end of its label strip. Groups have no colour in this version.
+  function drawGroupBadge(left, y, w, colours) {
+    if (w < 24) return;
+    const x = Math.min(left + w, size.width) - 16;
+    overlay.save();
+    overlay.strokeStyle = colours.label;
+    overlay.lineWidth = 1.5;
+    overlay.beginPath();
+    overlay.roundRect(x, y + 5, 7, 5, 2.5);
+    overlay.roundRect(x + 4, y + 5, 7, 5, 2.5);
+    overlay.stroke();
+    overlay.restore();
+  }
+
   // The clip's name on a backing of its body colour, so bars never cross the
   // text; before it, the file mark when the track holds more than one file.
   // The label says what the clip is, by the width there is (labels.js):
   // nothing, the person, "Olli 3", "Olli 3 · 1:20–3:20", then the first words.
   function drawName(state, clip, left, y, w, colours, marked) {
+    if (clip.group) drawGroupBadge(left, y, w, colours);
     const media = state.project.media.find((item) => item.id === clip.media);
     if (!media || w < 30) return;
     let x = Math.max(left, 0) + 5;
