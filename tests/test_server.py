@@ -647,3 +647,89 @@ def test_get_music_report_bad_format_returns_400(client):
     r = client.get("/api/music-report?format=unsupported")
     assert r.status_code == 400
     assert r.json()["error"]["key"] == "error.music_report.bad_format"
+
+
+# -- the history panel's pages and what undo reports ----------------------------
+
+
+def test_history_page_is_newest_first_and_pages_backwards(client, loaded):
+    track = loaded["project"]["tracks"][0]["id"]
+    for g in (-1.0, -2.0, -3.0):
+        client.post("/api/edit", json={"op": "set_track", "label": f"gain {g}",
+                                       "args": {"track_id": track, "gain_db": g}})
+    first = client.get("/api/history", params={"limit": 2}).json()
+    assert [n["label"] for n in first["nodes"]] == ["gain -3.0", "gain -2.0"]
+    assert first["head"] == first["nodes"][0]["id"]
+    assert first["nodes"][0]["is_head"] is True
+    assert first["nodes"][1]["side"] == "past"
+    assert first["can_undo"] is True
+    assert first["can_redo"] is False
+    assert first["more"] is True
+    cursor = first["nodes"][-1]["id"]
+    second = client.get("/api/history", params={"limit": 2, "before": cursor}).json()
+    assert second["nodes"][0]["label"] == "gain -1.0"
+    assert {"id", "label", "created", "author", "is_marker", "op", "parent",
+            "side"} <= set(second["nodes"][0])
+    assert second["nodes"][0]["op"] == "set_track"
+    assert "context" not in second["nodes"][0]
+    # the whole of it eventually ends
+    before = second["nodes"][-1]["id"]
+    last = client.get("/api/history", params={"limit": 50, "before": before}).json()
+    assert last["more"] is False
+
+
+def test_history_page_marks_markers_and_the_redo_side(client, session, loaded):
+    track = loaded["project"]["tracks"][0]["id"]
+    client.post("/api/edit", json={"op": "set_track", "label": "quieter",
+                                   "args": {"track_id": track, "gain_db": -6.0}})
+    session.history.session_closed()
+    client.post("/api/undo")
+    page = client.get("/api/history", params={"limit": 10}).json()
+    marker = page["nodes"][0]
+    assert marker["is_marker"] is True
+    assert marker["marker"] == "closed"
+    assert marker["side"] == "redo"
+    assert page["can_redo"] is True
+
+
+def test_history_page_limit_is_checked(client):
+    r = client.get("/api/history", params={"limit": 0})
+    assert r.status_code == 400
+    assert r.json()["error"]["key"] == "error.server.bad_request"
+    r = client.get("/api/history", params={"limit": 100000})
+    assert r.status_code == 400
+
+
+def test_history_without_a_limit_still_lists_everything(client, loaded):
+    body = client.get("/api/history").json()
+    assert body["nodes"][0]["label"] == "new project"
+
+
+def test_undo_across_a_marker_says_which_step_and_which_marker(client, session, loaded):
+    track = loaded["project"]["tracks"][0]["id"]
+    client.post("/api/edit", json={"op": "set_track", "label": "quieter",
+                                   "args": {"track_id": track, "gain_db": -6.0}})
+    session.history.session_closed()
+    session.history.session_opened()
+    undone = client.post("/api/undo").json()
+    assert undone["moved"]["direction"] == "undo"
+    assert undone["moved"]["step"]["label"] == "quieter"
+    assert undone["moved"]["step"]["created"]
+    assert undone["moved"]["crossed_marker"] is True
+    redone = client.post("/api/redo").json()
+    assert redone["moved"]["direction"] == "redo"
+    # the markers lie after the step, so redoing it passes none
+    assert redone["moved"]["crossed_marker"] is False
+
+
+def test_undo_without_a_marker_does_not_claim_one(client, loaded):
+    track = loaded["project"]["tracks"][0]["id"]
+    client.post("/api/edit", json={"op": "set_track", "label": "quieter",
+                                   "args": {"track_id": track, "gain_db": -6.0}})
+    undone = client.post("/api/undo").json()
+    assert undone["moved"]["crossed_marker"] is False
+    assert undone["moved"]["step"]["label"] == "quieter"
+
+
+def test_nothing_to_undo_reports_no_move(client):
+    assert client.post("/api/undo").json()["moved"] is None

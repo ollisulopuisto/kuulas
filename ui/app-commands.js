@@ -1,5 +1,6 @@
 // The commands the editor can do today, registered by id (ids from keymap-default.js).
 // Everything else in the keymap is "planned" until its work package lands.
+import { canRestore } from "./history-model.js";
 
 /** The next or previous track's id; stops at the ends; null without a project. */
 export function stepTrack(project, current, direction) {
@@ -54,6 +55,12 @@ export function registerAppCommands(registry, { actions, app }) {
     () => app.redo(),
     (state) => Boolean(state?.canRedo),
   );
+  def(
+    "history.restore",
+    () => app.restoreStep(),
+    (state) => canRestore(state),
+  );
+  def("history.open", () => app.openHistory());
   def("app.import", () => app.chooseMedia());
   def("gate.open_stretch", () => app.openGateStretch(), hasProject);
   def(
