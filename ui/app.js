@@ -65,6 +65,7 @@ import {
 } from "./tab-stops.js";
 import { densityAttribute, nextTheme, themeAttribute } from "./theme.js";
 import { createTimeline } from "./timeline.js";
+import { contextPress, menuFromSections, timelineMenuItems } from "./timeline-menu.js";
 import { createTrackHeaders } from "./tracks.js";
 import { createTranscript } from "./transcript.js";
 import { mutedInputsKey, pauseChoiceId } from "./transcript-model.js";
@@ -1059,6 +1060,37 @@ function showHeaderMenu(kind, id, event) {
     onPick: (command) => keyboard.registry.run(command, null, getState()),
   });
 }
+// Right-click on the timeline: a clip outside the selection is selected first, empty lane
+// and the ruler put the playhead there, then the menu offers what the target allows.
+function showTimelineMenu(hit, event) {
+  const plan = contextPress(hit, getState());
+  const patch = { panel: "timeline" };
+  if (plan.selection) {
+    patch.selection = plan.selection;
+    patch.focusTrack = hit.row.id;
+    patch.focusBus = null;
+  }
+  if (plan.focusTrack) {
+    patch.focusTrack = plan.focusTrack;
+    patch.focusBus = null;
+  }
+  setState(patch);
+  if (plan.seek !== null) void transport.seek(plan.seek);
+  const sections = timelineMenuItems(getState(), { kind: plan.kind }, (id, state) =>
+    keyboard.registry.can(id, state),
+  );
+  const ids = sections.flatMap((section) => section.items.map((item) => item.id));
+  const items = menuFromSections(sections, keyboard.describe(ids), t);
+  // From the keyboard (the menu key) the event has no pointer position: use the canvas corner.
+  const box = event.currentTarget.getBoundingClientRect();
+  const keyboardOpened = event.clientX === 0 && event.clientY === 0;
+  openContextMenu({
+    x: keyboardOpened ? box.left + 24 : event.clientX,
+    y: keyboardOpened ? box.top + 24 : event.clientY,
+    items,
+    onPick: (command) => keyboard.registry.run(command, null, getState()),
+  });
+}
 const inspector = createInspector({
   root: $("panel-inspector"),
   editor,
@@ -1461,6 +1493,7 @@ const timeline = createTimeline({
   getState,
   actions: {
     pointerDown: onPointerDown,
+    contextMenu: (hit, event) => showTimelineMenu(hit, event),
     rangeDragged: onRangeDragged,
     clipDrag({ ids, move }) {
       const change = clipDragChange(ids, move, getState().groupEditing !== false);

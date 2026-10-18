@@ -1,4 +1,4 @@
-// A small context menu for the track and bus headers. The items come from
+// A small context menu for the track and bus headers and the timeline canvas. The items come from
 // context-menu-model.js (commands from the registry); this file only draws them and
 // handles the pointer and the keys: arrows step, Enter or Space picks, Escape and a
 // click outside close it. One menu at a time.
@@ -18,6 +18,10 @@ export function openContextMenu({ x, y, items, onPick, onClose = () => {} }) {
     if (item.separator) {
       const rule = document.createElement("div");
       rule.setAttribute("role", "separator");
+      if (item.caption) {
+        rule.className = "menu-caption";
+        rule.textContent = item.caption;
+      }
       menu.append(rule);
       return null;
     }
@@ -25,7 +29,17 @@ export function openContextMenu({ x, y, items, onPick, onClose = () => {} }) {
     button.type = "button";
     button.className = "menu-item";
     button.setAttribute("role", "menuitem");
-    button.textContent = t(item.labelKey);
+    // Header menus name a label key; the timeline menus bring the resolved label, the
+    // key combo and the tooltip the menu bar shows.
+    const name = document.createElement("span");
+    name.textContent = item.label ?? t(item.labelKey);
+    button.append(name);
+    if (item.keys) {
+      const kbd = document.createElement("kbd");
+      kbd.textContent = item.keys;
+      button.append(kbd);
+    }
+    if (item.tooltip) button.title = item.tooltip;
     button.tabIndex = -1;
     if (!item.enabled) button.setAttribute("aria-disabled", "true");
     button.addEventListener("click", () => {

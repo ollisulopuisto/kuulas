@@ -1242,5 +1242,14 @@
   "ui.track.mono": "Mono",
   "ui.track.tag.mono": "mono",
   "ui.track.tag.stereo": "stereo",
-  "ui.edit.label.mono": "Turn into mono"
+  "ui.edit.label.mono": "Turn into mono",
+  "ui.ctx.clipboard": "Clipboard",
+  "ui.ctx.paste": "Paste",
+  "ui.ctx.edit": "Edit",
+  "ui.ctx.select": "Select",
+  "ui.ctx.adjust": "Trim, nudge, level",
+  "ui.ctx.play": "Play",
+  "ui.ctx.marks": "Range",
+  "ui.ctx.insert": "Insert here",
+  "ui.ctx.zoom": "Zoom"
 }
