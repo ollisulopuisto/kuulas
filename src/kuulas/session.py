@@ -34,7 +34,7 @@ from nhsx.mix import plan as nhsx_mix_plan
 from nhsx.read import descendants as nhsx_descendants
 from nhsx.read import time_to_seconds as nhsx_time_to_seconds
 
-from . import analysis, edit_scope, ops, package, transcribe, transcript
+from . import analysis, collateral, edit_scope, ops, package, transcribe, transcript
 from . import db as dbm
 from . import export as export_module
 from . import music_report as music_report_module
@@ -482,6 +482,23 @@ class Session:
         if format == "csv":
             return music_report_module.render_csv(rows)
         return music_report_module.render_html(rows, title=title)
+
+    def cut_preview(self, selected: list[dict]) -> dict[str, Any]:
+        """Preview crosstalk that cutting ``selected`` words would remove (WP18).
+
+        ``selected`` is a list of word refs (``track``, ``clip``, ``index``).
+        Returns ``{"span": [start, end], "other_words": [...],
+        "audio": {track_id: [[start, end], ...]}}``.
+        """
+        with self.lock:
+            state = self.history.state
+            transcripts = self.transcripts()
+        res = collateral.cut_collateral(state, transcripts, selected)
+        return {
+            "span": list(res.span),
+            "other_words": list(res.other_words),
+            "audio": {t: [list(r) for r in ranges] for t, ranges in res.audio.items()},
+        }
 
     # -- import ------------------------------------------------------------
 

@@ -119,6 +119,10 @@ class RenameBody(BaseModel):
     name: str
 
 
+class CutPreviewBody(BaseModel):
+    words: list[dict[str, Any]] = Field(default_factory=list)
+
+
 class RestoreBody(BaseModel):
     node: str | int
 
@@ -361,6 +365,10 @@ def create_app(session, engine, *, language: str | None = None,
             return HTMLResponse(content=content)
         rows = session.music_report(format="json")
         return JSONResponse({"rows": rows})
+
+    @app.post("/api/cut-preview")
+    def post_cut_preview(body: CutPreviewBody):
+        return session.cut_preview(body.words)
 
     @app.post("/api/restore")
     def post_restore(body: RestoreBody):
