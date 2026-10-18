@@ -1,3 +1,10 @@
+## [v26.10.18.58] - 2026-10-18
+
+- **Fixed: exported WAV files now open in macOS Quick Look and CoreAudio.** The RIFF size field in the header
+  was 0 (and the right number was written as four stray bytes at the end); audio editors tolerated it,
+  Apple's player did not. Re-export any WAVs made with earlier versions. Applies to every WAV export
+  (stems and mix), and an odd-length data chunk is now padded as the format requires.
+
 ## [v26.10.18.57] - 2026-10-18
 
 - **Esc clears the clip selection** (and the lanes of a dragged range) but keeps the in and out marks.
