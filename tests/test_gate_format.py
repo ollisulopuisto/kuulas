@@ -58,7 +58,7 @@ def test_an_old_reader_refuses_a_project_with_a_gate(tmp_path, monkeypatch):
     with pytest.raises(package.PackageError) as err:
         package.open_package(tmp_path / "A.kuulas")
     assert err.value.key == "error.package.too_new"
-    assert not (tmp_path / "A.kuulas" / "lock.json").exists()
+    assert not list((tmp_path / "A.kuulas" / "locks").glob("*.json"))
 
 
 def test_an_old_reader_still_opens_a_project_that_never_had_a_gate(tmp_path, monkeypatch):

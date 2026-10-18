@@ -113,6 +113,13 @@ def connect(path: str | Path, *, read_only: bool = False) -> sqlite3.Connection:
     return db
 
 
+def checkpoint(db: sqlite3.Connection) -> None:
+    """Fold the WAL into the main file and truncate it. A sync service uploads
+    the side files independently, so a closed project should have none to
+    speak of. Does nothing (not an error) while a reader still holds the log."""
+    db.execute("pragma wal_checkpoint(truncate)").fetchall()
+
+
 def tables(db: sqlite3.Connection) -> set[str]:
     return {r[0] for r in db.execute("select name from sqlite_master where type='table'")}
 

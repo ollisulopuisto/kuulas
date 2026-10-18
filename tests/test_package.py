@@ -37,6 +37,11 @@ def wav(path: Path, frames: int = 4800, seed: int = 0) -> Path:
     return path
 
 
+def lock_files(folder: Path) -> list[Path]:
+    """The per-instance lock files in ``locks/`` (none when closed)."""
+    return sorted((folder / "locks").glob("*.json"))
+
+
 def manifest(folder: Path) -> dict:
     return json.loads((folder / "manifest.json").read_text())
 
@@ -44,8 +49,10 @@ def manifest(folder: Path) -> dict:
 def test_new_package_has_manifest_lock_db_media_caches(tmp_path):
     pkg = package.create(tmp_path / "Interview.kuulas")
     root = pkg.path
-    for name in ("manifest.json", "lock.json", "project.sqlite"):
+    for name in ("manifest.json", "project.sqlite"):
         assert (root / name).is_file(), name
+    # One lock file per open instance; the shared lock.json is no longer written.
+    assert not (root / "lock.json").exists()
     for name in ("media", "media/excerpts", "media/originals", "caches/peaks",
                  "caches/onsets", "caches/analysis", "caches/render", "backups",
                  "recordings"):
@@ -58,9 +65,11 @@ def test_new_package_has_manifest_lock_db_media_caches(tmp_path):
     assert len(m["copy"]) == 32
     assert m["lineage"] == []
     assert m["created_utc"].endswith("Z")
-    lock = json.loads((root / "lock.json").read_text())
+    (mine,) = lock_files(root)
+    lock = json.loads(mine.read_text())
     assert lock["host"] == socket.gethostname()
     assert lock["pid"] == os.getpid()
+    assert mine.name.startswith(f"{socket.gethostname()}-")
     assert not pkg.read_only
     # The database knows which project it belongs to, even on its own.
     db = sqlite3.connect(root / "project.sqlite")
@@ -69,7 +78,7 @@ def test_new_package_has_manifest_lock_db_media_caches(tmp_path):
     assert meta["schema_version"] == "3"
     db.close()
     pkg.close()
-    assert not (root / "lock.json").exists()
+    assert lock_files(root) == []
 
 
 def test_create_refuses_an_existing_project(tmp_path):
@@ -106,7 +115,7 @@ def test_newer_min_reader_refuses_with_version(tmp_path):
     assert err.value.key == "error.package.too_new"
     assert "kuulas 27.01.01.1" in str(err.value)
     # Refusing touched nothing, not even the lock.
-    assert not (pkg.path / "lock.json").exists()
+    assert lock_files(pkg.path) == []
 
 
 def test_newer_version_opens_and_keeps_unknown_keys(tmp_path):
@@ -225,16 +234,188 @@ def test_stale_lock_is_taken_over(tmp_path, caplog):
         pkg = package.open_package(pkg.path)
     assert not pkg.read_only
     assert "windows-pc" in caplog.text
-    lock = json.loads((pkg.path / "lock.json").read_text())
+    (mine,) = lock_files(pkg.path)
+    lock = json.loads(mine.read_text())
     assert (lock["host"], lock["pid"]) == (socket.gethostname(), os.getpid())
     pkg.close()
+
+
+def write_host_lock(folder: Path, host: str, age_s: float, *, pid: int = 4242,
+                    name: str | None = None, now: datetime | None = None) -> Path:
+    """What another machine's kuulas leaves in ``locks/`` once Dropbox has synced it."""
+    beat = ((now or datetime.now(UTC)) - timedelta(seconds=age_s)).strftime(
+        "%Y-%m-%dT%H:%M:%SZ")
+    path = folder / "locks" / (name or f"{host}-{'ab' * 16}.json")
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(json.dumps({"host": host, "pid": pid, "user": "ville",
+                                "opened_utc": beat, "heartbeat_utc": beat}))
+    return path
+
+
+def as_host(monkeypatch, host: str) -> None:
+    monkeypatch.setattr(package, "_hostname", lambda: host)
+
+
+def test_two_hosts_the_second_is_refused_while_the_first_heartbeat_is_fresh(
+        tmp_path, monkeypatch):
+    as_host(monkeypatch, "mac-studio")
+    a = package.create(tmp_path / "A.kuulas")
+    t0 = datetime.now(UTC)
+    a.heartbeat(t0)
+    as_host(monkeypatch, "macbook")
+    b = package.open_package(a.path, now=t0 + timedelta(seconds=200))
+    assert b.read_only
+    assert b.locked_by["host"] == "mac-studio"
+    with pytest.raises(HistoryError) as err:
+        b.history.commit("edit", ops.set_master(b.history.state, -1.0))
+    assert "mac-studio" in str(err.value)
+    b.close()
+    # The reader wrote no lock of its own and left the holder's alone.
+    assert [p.name.rsplit("-", 1)[0] for p in lock_files(a.path)] == ["mac-studio"]
+    a.close()
+
+
+def test_two_hosts_the_second_may_open_once_the_first_heartbeat_is_old(
+        tmp_path, monkeypatch, caplog):
+    as_host(monkeypatch, "mac-studio")
+    a = package.create(tmp_path / "A.kuulas")
+    t0 = datetime.now(UTC)
+    a.heartbeat(t0)
+    as_host(monkeypatch, "macbook")
+    # Just under the limit: still held (a slow sync must not look like a crash).
+    assert package.open_package(
+        a.path, now=t0 + timedelta(seconds=package.STALE_FOREIGN_S - 5)).read_only
+    with caplog.at_level("WARNING", logger="kuulas.package"):
+        b = package.open_package(
+            a.path, now=t0 + timedelta(seconds=package.STALE_FOREIGN_S + 5))
+    assert not b.read_only
+    assert "mac-studio" in caplog.text
+    hosts = sorted(p.name.rsplit("-", 1)[0] for p in lock_files(a.path))
+    assert hosts == ["mac-studio", "macbook"]
+    b.close()
+
+
+def test_heartbeat_is_every_minute_and_foreign_staleness_allows_for_sync_delay():
+    assert package.HEARTBEAT_S == 60
+    assert package.STALE_FOREIGN_S == 300
+    assert package.STALE_FOREIGN_S >= 4 * package.HEARTBEAT_S
+
+
+def test_a_dead_pid_on_this_host_is_taken_over_from_locks_too(tmp_path):
+    pkg = package.create(tmp_path / "A.kuulas")
+    pkg.close()
+    write_host_lock(pkg.path, socket.gethostname(), 5, pid=_dead_pid())
+    pkg = package.open_package(pkg.path)
+    assert not pkg.read_only
+    pkg.close()
+
+
+def test_a_live_pid_on_this_host_in_locks_blocks(tmp_path):
+    pkg = package.create(tmp_path / "A.kuulas")
+    pkg.close()
+    write_host_lock(pkg.path, socket.gethostname(), 5, pid=os.getppid())
+    pkg = package.open_package(pkg.path)
+    assert pkg.read_only
+    pkg.close()
+
+
+def test_conflicted_copies_are_ignored_and_never_crash_the_open(tmp_path):
+    pkg = package.create(tmp_path / "A.kuulas")
+    pkg.close()
+    # A fresh foreign lock, but in a file Dropbox renamed: not a lock.
+    write_host_lock(pkg.path, "windows-pc", 5,
+                    name="windows-pc-abab (Olli's conflicted copy 2026-10-18).json")
+    (pkg.path / "locks" / "garbage conflicted copy.json").write_text("{not json")
+    (pkg.path / "lock conflicted copy.json").write_text("{not json")
+    (pkg.path / "lock (Olli's MacBook's conflicted copy 2026-10-18).json").write_text(
+        json.dumps({"host": "x", "pid": 1, "heartbeat_utc": "2999-01-01T00:00:00Z"}))
+    pkg = package.open_package(pkg.path)
+    assert not pkg.read_only
+    pkg.close()
+
+
+def test_unreadable_lock_files_are_nobodys(tmp_path):
+    pkg = package.create(tmp_path / "A.kuulas")
+    pkg.close()
+    (pkg.path / "locks" / "half-written.json").write_text('{"host": ')
+    pkg = package.open_package(pkg.path)
+    assert not pkg.read_only
+    pkg.close()
+
+
+def test_heartbeats_write_only_the_own_file(tmp_path, monkeypatch):
+    as_host(monkeypatch, "mac-studio")
+    a = package.create(tmp_path / "A.kuulas")
+    other = write_host_lock(a.path, "macbook", 1000)  # stale, young enough to keep
+    before = other.read_text()
+    write_lock(a.path, "windows-pc", age_s=1000)
+    legacy_before = (a.path / "lock.json").read_text()
+    (mine,) = [p for p in lock_files(a.path) if p.name.startswith("mac-studio")]
+    for i in range(1, 4):
+        a.tick(now=datetime.now(UTC) + timedelta(seconds=60 * i))
+    assert other.read_text() == before
+    assert (a.path / "lock.json").read_text() == legacy_before
+    assert json.loads(mine.read_text())["host"] == "mac-studio"
+    assert sorted(p.name for p in (a.path / "locks").iterdir()) == sorted(
+        [mine.name, other.name])
+    a.close()
+
+
+def test_close_removes_only_the_own_file(tmp_path, monkeypatch):
+    as_host(monkeypatch, "mac-studio")
+    a = package.create(tmp_path / "A.kuulas")
+    other = write_host_lock(a.path, "macbook", 1000)
+    a.close()
+    assert lock_files(a.path) == [other]
+
+
+def test_old_foreign_locks_are_swept_after_an_hour_young_ones_kept(tmp_path):
+    pkg = package.create(tmp_path / "A.kuulas")
+    pkg.close()
+    old = write_host_lock(pkg.path, "old-pc", 2 * 3600)
+    young = write_host_lock(pkg.path, "young-pc", 20 * 60, name="young-pc-1.json")
+    pkg = package.open_package(pkg.path)
+    assert not old.exists()
+    assert young.exists()
+    pkg.close()
+
+
+def test_legacy_lock_json_from_another_host_still_blocks_and_is_never_written(tmp_path):
+    pkg = package.create(tmp_path / "A.kuulas")
+    pkg.close()
+    legacy = write_lock(pkg.path, "windows-pc", age_s=20)
+    b = package.open_package(pkg.path)
+    assert b.read_only
+    b.tick(now=datetime.now(UTC) + timedelta(seconds=600))
+    b.close()
+    assert json.loads((pkg.path / "lock.json").read_text()) == legacy
+    # A stale legacy lock does not block, and an opener does not write one.
+    write_lock(pkg.path, "windows-pc", age_s=1000)
+    c = package.open_package(pkg.path)
+    assert not c.read_only
+    c.tick(now=datetime.now(UTC) + timedelta(seconds=600))
+    c.close()
+
+
+def test_a_failed_open_removes_its_own_lock_file(tmp_path, monkeypatch):
+    pkg = package.create(tmp_path / "A.kuulas")
+    pkg.close()
+    package.write_manifest(pkg.path, {**manifest(pkg.path), "version": 1})
+
+    def boom(*a, **k):
+        raise RuntimeError("upgrade failed")
+    monkeypatch.setattr(package, "_upgrade", boom)
+    with pytest.raises(RuntimeError):
+        package.open_package(pkg.path)
+    assert lock_files(pkg.path) == []
 
 
 def test_heartbeat_refreshes_the_lock(tmp_path):
     pkg = package.create(tmp_path / "A.kuulas")
     later = datetime.now(UTC) + timedelta(minutes=5)
     pkg.tick(now=later)
-    lock = json.loads((pkg.path / "lock.json").read_text())
+    (mine,) = lock_files(pkg.path)
+    lock = json.loads(mine.read_text())
     assert lock["heartbeat_utc"] == later.strftime("%Y-%m-%dT%H:%M:%SZ")
     pkg.close()
 
@@ -263,8 +444,11 @@ def test_backup_retention_keeps_12_recent_and_one_per_day(tmp_path):
     assert kept == want | {"pre-migration-v0-20260101T000000Z.sqlite"}
 
 
-def test_backup_never_writes_the_live_file(tmp_path):
+def test_backup_never_writes_the_live_file(tmp_path, monkeypatch):
     pkg = package.create(tmp_path / "A.kuulas")
+    # The quiet-tick WAL checkpoint legitimately rewrites the live file (tested
+    # below); this test is about the backup alone.
+    monkeypatch.setattr(pkg, "checkpoint", lambda: None)
     pkg.history.commit("edit", ops.set_master(pkg.history.state, -1.0))
     live = [pkg.path / n for n in ("project.sqlite", "project.sqlite-wal")]
 
@@ -419,7 +603,7 @@ def test_info_reports_manifest_sizes_media_and_backups(tmp_path, capsys):
     assert "kuulas-project" in out
     assert "missing" in out
     # info only reads: no lock was taken.
-    assert not (pkg.path / "lock.json").exists()
+    assert lock_files(pkg.path) == []
 
 
 def test_migrated_sync_keeps_the_main_pieces_origin_when_clips_disagree(caplog):
@@ -445,3 +629,37 @@ def test_create_refuses_a_rate_flicks_cannot_hold(tmp_path):
         package.create(tmp_path / "Odd.kuulas", rate=37800)
     assert err.value.key == "error.clock.rate"
     assert not (tmp_path / "Odd.kuulas").exists()
+
+
+# -- WAL hygiene ------------------------------------------------------------------
+
+
+def wal_size(folder: Path) -> int:
+    wal = folder / "project.sqlite-wal"
+    return wal.stat().st_size if wal.exists() else 0
+
+
+def test_a_quiet_tick_after_a_write_burst_truncates_the_wal(tmp_path):
+    pkg = package.create(tmp_path / "A.kuulas")
+    pkg.history.commit("edit", ops.set_master(pkg.history.state, -2.0))
+    assert wal_size(pkg.path) > 0
+    t0 = datetime.now(UTC)
+    pkg.tick(now=t0 + timedelta(seconds=60))   # may still be bursting
+    pkg.tick(now=t0 + timedelta(seconds=120))  # nothing new since the last tick
+    assert wal_size(pkg.path) == 0
+    pkg.close()
+
+
+def test_close_leaves_a_complete_main_file_and_no_wal_content(tmp_path):
+    pkg = package.create(tmp_path / "A.kuulas")
+    pkg.history.commit("edit", ops.set_master(pkg.history.state, -2.0))
+    pkg.close()
+    assert wal_size(pkg.path) == 0
+    # The main file alone holds the edit: copy only it, as a half-synced folder would.
+    alone = tmp_path / "alone.sqlite"
+    shutil.copy(pkg.path / "project.sqlite", alone)
+    db = sqlite3.connect(alone)
+    assert db.execute("select count(*) from meta").fetchone()[0] > 0
+    assert db.execute("pragma integrity_check").fetchone()[0] == "ok"
+    db.close()
+    assert not (tmp_path / "alone.sqlite-wal").exists()

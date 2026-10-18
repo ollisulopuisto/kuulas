@@ -511,7 +511,7 @@ def test_the_backup_restores_to_the_same_project(env, tmp_path, make):
     backup = env.session.package.backup()
     restored = tmp_path / "Restored.kuulas"
     shutil.copytree(env.folder, restored, ignore=shutil.ignore_patterns(
-        "project.sqlite*", "lock.json", "backups"))
+        "project.sqlite*", "lock.json", "locks", "backups"))
     shutil.copy(backup, restored / "project.sqlite")
     again = make(restored)
     assert not again.session.read_only
@@ -522,9 +522,10 @@ def test_a_second_session_on_the_same_folder_is_read_only_with_a_clear_error(env
     x_cut(env, "on")
     state = env.snapshot()
     # Another kuulas window is another process: a live lock of one on this machine.
-    lock = json.loads((env.folder / "lock.json").read_text())
-    (env.folder / "lock.json").write_text(json.dumps({
-        **lock, "host": socket.gethostname(), "pid": os.getppid()}))
+    (own,) = (env.folder / "locks").glob("*.json")
+    lock = json.loads(own.read_text())
+    (env.folder / "locks" / "other-window.json").write_text(json.dumps({
+        **lock, "instance": "other", "host": socket.gethostname(), "pid": os.getppid()}))
     second = make()
     assert second.session.read_only
     assert second.snapshot() == state  # it can read

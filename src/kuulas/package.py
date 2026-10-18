@@ -1,7 +1,7 @@
 """``Name.kuulas``: the project package (docs/FORMAT.md).
 
 A folder holding ``manifest.json`` (what format this is), ``project.sqlite``
-(all state), ``lock.json`` (who has it open), the media, rebuildable
+(all state), ``locks/`` (who has it open), the media, rebuildable
 ``caches/`` and automatic ``backups/``. This module creates and opens one:
 
 * **Reader rules.** A ``min_reader`` above ours refuses to open, naming the
@@ -9,7 +9,9 @@ A folder holding ``manifest.json`` (what format this is), ``project.sqlite``
   it does not understand is carried through saves.
 * **One writer.** A fresh lock held by another host or process opens the
   project read-only. Two machines writing one ``project.sqlite`` through a
-  sync service corrupt it, and the owner works on a Mac and a Windows PC.
+  sync service corrupt it, and the owner works on a Mac Studio and a MacBook.
+  Every open instance writes only its *own* file in ``locks/``, so a sync
+  service never sees two machines change one file (no "conflicted copy").
 * **Migrations** run after a backup, then the manifest is rewritten.
 * **Backups** every 10 minutes while there are changes, by SQLite's online
   backup API, never by touching the live file.
@@ -36,7 +38,7 @@ from pathlib import Path
 from typing import Any
 
 from . import db as dbm
-from . import migrations
+from . import migrations, syncmark
 from .clock import RateError, check_rate
 from .history import History
 from .media import MediaStore
@@ -59,12 +61,20 @@ BASE_READER = 1
 #: is audible, so it must refuse instead of guessing.
 GATE_READER = 3
 
-#: The lock is rewritten this often while the project is open...
-HEARTBEAT_S = 30
-#: ...and a lock whose heartbeat is older than this was left by a crash.
-#: Four missed heartbeats: a sleeping laptop or a slow sync must not make a
-#: live project look abandoned.
+#: The lock is rewritten this often while the project is open. A minute, not
+#: 30 s: every write is sync traffic.
+HEARTBEAT_S = 60
+#: A lock of a process on this machine whose heartbeat is older than this was
+#: left by a crash (a live pid with a silent lock: a hung or reused pid).
 STALE_S = 120
+#: A lock of another host is judged by what the sync service has delivered, so
+#: it must allow for sync delay of minutes: five heartbeats. A sleeping laptop
+#: or a slow upload must not make a live project look abandoned.
+STALE_FOREIGN_S = 300
+#: A stale lock this old is deleted. Younger ones are only ignored, so a
+#: delete is never the first thing a sync service sees of a slow machine.
+SWEEP_S = 3600
+LOCKS_DIR = "locks"
 #: Automatic backup interval, while there are changes to back up.
 BACKUP_EVERY_S = 600
 #: Kept: the newest 12 automatic backups (two hours of work)...
@@ -73,7 +83,7 @@ KEEP_RECENT = 12
 KEEP_DAYS = 14
 
 DIRS = ("media", "media/excerpts", "media/originals", "caches/peaks", "caches/onsets",
-        "caches/analysis", "caches/render", "backups", "recordings")
+        "caches/analysis", "caches/render", "backups", "recordings", LOCKS_DIR)
 
 _STAMP = "%Y%m%dT%H%M%SZ"
 _AUTO = re.compile(r"^auto-(\d{8}T\d{6}Z)\.sqlite$")
@@ -139,24 +149,55 @@ def _new_manifest(project_id: str, created_utc: str) -> dict:
 # -- lock ------------------------------------------------------------------------
 
 
+def _hostname() -> str:
+    return socket.gethostname()
+
+
 def _me() -> dict:
     try:
         user = getpass.getuser()
     except (OSError, KeyError):
         user = ""
-    return {"host": socket.gethostname(), "pid": os.getpid(), "user": user}
+    return {"host": _hostname(), "pid": os.getpid(), "user": user}
 
 
-def _read_lock(folder: Path) -> dict | None:
-    try:
-        lock = json.loads((folder / "lock.json").read_text(encoding="utf-8"))
-        _parse_iso(lock["heartbeat_utc"])
-    except FileNotFoundError:
+def _is_conflict(name: str) -> bool:
+    """A file a sync service renamed because two machines wrote it (Dropbox:
+    "x (Olli's MacBook's conflicted copy 2026-10-18).json"). Never a lock."""
+    return "conflicted copy" in name.lower()
+
+
+def _own_lock_path(folder: Path, instance: str) -> Path:
+    host = re.sub(r"[^A-Za-z0-9._-]+", "_", _hostname())[:40].strip("._-") or "host"
+    return folder / LOCKS_DIR / f"{host}-{instance}.json"
+
+
+def _read_lock(path: Path) -> dict | None:
+    """A lock file's content, or None for anything that is not a lock: a
+    half-synced file, a crash mid-write, a conflicted copy. Never raises."""
+    if _is_conflict(path.name):
         return None
-    except (ValueError, KeyError, TypeError):
-        # Unreadable (a crash mid-write, a sync conflict copy): nobody's.
-        return {"host": "?", "pid": None, "heartbeat_utc": "1970-01-01T00:00:00Z"}
-    return lock
+    try:
+        lock = json.loads(path.read_text(encoding="utf-8"))
+        _parse_iso(lock["heartbeat_utc"])
+    except (OSError, ValueError, KeyError, TypeError):
+        return None
+    return lock if isinstance(lock, dict) else None
+
+
+def _all_locks(folder: Path) -> list[tuple[Path, dict]]:
+    """Every readable lock: the per-instance files in ``locks/`` and the legacy
+    shared ``lock.json`` (read for projects last opened by an older kuulas)."""
+    try:
+        files = sorted((folder / LOCKS_DIR).glob("*.json"))
+    except OSError:
+        files = []
+    found = []
+    for path in [folder / "lock.json", *files]:
+        lock = _read_lock(path)
+        if lock is not None:
+            found.append((path, lock))
+    return found
 
 
 def _is_mine(lock: dict) -> bool:
@@ -180,29 +221,44 @@ def _pid_alive(pid: object) -> bool:
     return True
 
 
-def _write_lock(folder: Path, now: datetime, opened: str | None = None) -> None:
-    write_json_atomic(folder / "lock.json",
-                      {**_me(), "opened_utc": opened or _iso(now),
-                       "heartbeat_utc": _iso(now)})
+def _write_lock(folder: Path, instance: str, now: datetime,
+                opened: str | None = None) -> None:
+    """Write this instance's own lock file, and nobody else's."""
+    path = _own_lock_path(folder, instance)
+    path.parent.mkdir(exist_ok=True)
+    write_json_atomic(path, {**_me(), "instance": instance,
+                             "opened_utc": opened or _iso(now),
+                             "heartbeat_utc": _iso(now)})
 
 
-def _lock_holder(folder: Path, now: datetime) -> dict | None:
+def _remove_lock(folder: Path, instance: str) -> None:
+    _own_lock_path(folder, instance).unlink(missing_ok=True)
+
+
+def _lock_holder(folder: Path, now: datetime, instance: str = "") -> dict | None:
     """The live lock of another host or process, if there is one.
 
-    A stale one is taken over (with a warning) by returning None.
+    Stale ones are ignored (with a warning); one that is dead for certain (its
+    pid is gone, here) or over ``SWEEP_S`` old is also deleted, best-effort.
     """
-    lock = _read_lock(folder)
-    if lock is None or _is_mine(lock):
-        return None
-    age = (now - _parse_iso(lock["heartbeat_utc"])).total_seconds()
-    # A lock of a process on this very machine that no longer runs is dead at once:
-    # waiting two minutes for a crashed or killed window helps nobody.
-    owner_gone = lock.get("host") == _me()["host"] and not _pid_alive(lock.get("pid"))
-    if age < STALE_S and not owner_gone:
-        return lock
-    log.warning(t("log.package.stale_lock", host=lock.get("host", "?"),
-                  heartbeat=lock["heartbeat_utc"]))
-    return None
+    holder, holder_age = None, 0.0
+    for path, lock in _all_locks(folder):
+        if lock.get("instance") == instance or _is_mine(lock):
+            continue
+        age = (now - _parse_iso(lock["heartbeat_utc"])).total_seconds()
+        here = lock.get("host") == _hostname()
+        # A lock of a process on this very machine that no longer runs is dead at
+        # once: waiting two minutes for a crashed or killed window helps nobody.
+        gone = here and not _pid_alive(lock.get("pid"))
+        if age < (STALE_S if here else STALE_FOREIGN_S) and not gone:
+            if holder is None or age < holder_age:
+                holder, holder_age = lock, age
+            continue
+        log.warning(t("log.package.stale_lock", host=lock.get("host", "?"),
+                      heartbeat=lock["heartbeat_utc"]))
+        if gone or age > SWEEP_S:
+            path.unlink(missing_ok=True)
+    return holder
 
 
 # -- backups ---------------------------------------------------------------------
@@ -261,8 +317,9 @@ class Package:
     """An open project: its ``history``, its media ``store``, the lock and backups."""
 
     def __init__(self, folder: Path, manifest: dict, *, locked_by: dict | None,
-                 author: str | None = None):
+                 author: str | None = None, instance: str = ""):
         self.path = folder
+        self.instance = instance
         self.manifest = manifest
         self.locked_by = locked_by
         self.read_only = locked_by is not None
@@ -277,9 +334,12 @@ class Package:
         self._opened = _iso(now)
         self._last_beat = self._last_backup = now
         self._backed_up = self._changes()
+        self._checkpointed = self._seen = self._backed_up
         self.history.on_gate = self._need_gate_reader
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
+        if not self.read_only:
+            syncmark.mark_package(folder)
         size = self.db_path.stat().st_size
         log.info(t("log.package.opened", path=str(folder), size_mb=round(size / 1e6, 1)))
 
@@ -303,8 +363,22 @@ class Package:
         if self.read_only:
             return
         now = now or datetime.now(UTC)
-        _write_lock(self.path, now, self._opened)
+        _write_lock(self.path, self.instance, now, self._opened)
         self._last_beat = now
+
+    def checkpoint(self) -> None:
+        """Fold the write-ahead logs into the main file and empty them, so a
+        sync service never uploads a main file that lacks its latest edits."""
+        if self.read_only:
+            return
+        for db in (self.history.db, self.store.db):
+            try:
+                dbm.checkpoint(db)
+            except sqlite3.Error as e:
+                # A reader holds the log open: the next quiet tick tries again.
+                log.warning(t("log.package.tick_failed", error=str(e)))
+                return
+        self._checkpointed = self._changes()
 
     def backup(self, now: datetime | None = None) -> Path:
         now = now or datetime.now(UTC)
@@ -327,6 +401,11 @@ class Package:
         now = now or datetime.now(UTC)
         if (now - self._last_beat).total_seconds() >= HEARTBEAT_S:
             self.heartbeat(now)
+        # After a write burst: nothing written since the previous tick.
+        changes = self._changes()
+        if changes == self._seen and changes != self._checkpointed:
+            self.checkpoint()
+        self._seen = changes
         due = (now - self._last_backup).total_seconds() >= BACKUP_EVERY_S
         if due and self._changes() != self._backed_up:
             return self.backup(now)
@@ -349,12 +428,11 @@ class Package:
         self._stop.set()
         if self._thread is not None:
             self._thread.join()
+        self.checkpoint()
         self.history.close()
         self.store.close()
         if not self.read_only:
-            lock = _read_lock(self.path)
-            if lock is not None and _is_mine(lock):
-                (self.path / "lock.json").unlink(missing_ok=True)
+            _remove_lock(self.path, self.instance)
 
 
 def create(path: str | Path, rate: int = Project().rate, *,
@@ -377,12 +455,15 @@ def create(path: str | Path, rate: int = Project().rate, *,
         dbm.set_meta(db, "project_id", project_id)
         dbm.set_meta(db, "created_utc", _iso(now))
     db.close()
-    _write_lock(folder, now)
+    instance = secrets.token_hex(16)
+    _write_lock(folder, instance, now)
     write_manifest(folder, _new_manifest(project_id, _iso(now)))
-    return Package(folder, read_manifest(folder) or {}, locked_by=None, author=author)
+    return Package(folder, read_manifest(folder) or {}, locked_by=None, author=author,
+                   instance=instance)
 
 
-def open_package(path: str | Path, *, author: str | None = None) -> Package:
+def open_package(path: str | Path, *, author: str | None = None,
+                 now: datetime | None = None) -> Package:
     """Open a project, migrating an older format after a backup.
 
     Read-only when another live host or process holds the lock.
@@ -399,22 +480,24 @@ def open_package(path: str | Path, *, author: str | None = None) -> Package:
         if int(manifest.get("min_reader", 1)) > READER:
             raise PackageError("error.package.too_new",
                                written_by=manifest.get("written_by", "?"))
-    now = datetime.now(UTC)
-    holder = _lock_holder(folder, now)
+    now = now or datetime.now(UTC)
+    instance = secrets.token_hex(16)
+    holder = _lock_holder(folder, now, instance)
     if holder is not None:
         log.info(t("log.package.read_only", host=holder.get("host", "?")))
     behind = manifest is None or int(manifest.get("version", 0)) < VERSION
     if behind and holder is not None:
         raise PackageError("error.package.upgrade_locked", host=holder.get("host", "?"))
     if holder is None:
-        _write_lock(folder, now)
+        _write_lock(folder, instance, now)
     try:
         if behind:
             manifest = _upgrade(folder, manifest)
-        return Package(folder, manifest or {}, locked_by=holder, author=author)
+        return Package(folder, manifest or {}, locked_by=holder, author=author,
+                       instance=instance)
     except BaseException:
         if holder is None:
-            (folder / "lock.json").unlink(missing_ok=True)
+            _remove_lock(folder, instance)
         raise
 
 
