@@ -1716,7 +1716,10 @@ function render(state, patch) {
   }
   if (touched("project", "scroll", "zoom", "playhead", "selection")) overview.redraw();
   if (touched("playhead", "project")) {
-    $("timecode").textContent = frameToTime(state.playhead, rate());
+    const time = frameToTime(state.playhead, rate());
+    $("timecode").textContent = time;
+    // The hour form is wider, so the corner sets it smaller.
+    $("timecode").classList.toggle("hour", time.split(":").length > 2);
   }
   if (touched("project", "selection", "inPoint", "outPoint")) updateRangeInfo();
   if (touched("project", "words")) updateTabScope();

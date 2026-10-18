@@ -237,7 +237,7 @@
     "other": "Imported {count} audio files."
   },
   "ui.project.empty": "Import audio to begin editing.",
-  "ui.toolbar.label": "Transport and project",
+  "ui.toolbar.label": "Menus and project",
   "ui.transport.export": "Export",
   "ui.export.soon": "Export arrives in a later version.",
   "ui.view.close": "Close",
@@ -1305,5 +1305,6 @@
   "cmd.transcript.remove_words": "Delete the selected words on all tracks and close the gap",
   "cmd.transcript.remove_words.hint": "Removes the stretch of the selected words from every track and closes the gap. Nothing goes to the clipboard.",
   "ui.transcript.toast.remove": {"one": "Deleted {count} word on all tracks", "other": "Deleted {count} words on all tracks"},
-  "ui.readout.type_hint": "Double-click to type an exact value"
+  "ui.readout.type_hint": "Double-click to type an exact value",
+  "ui.transport.label": "Playback"
 }
