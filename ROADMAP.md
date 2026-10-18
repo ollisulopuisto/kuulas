@@ -114,6 +114,8 @@ sizes: `docs/PLAN.md`, section "Triage".
 
 ## Next
 
+- **Drag a range to edit it** (WP6, owner request 2026-10-18): press-drag-release in the lanes
+  selects a range for X / Backspace; clips move by their label strip.
 - **Display scale, zoom by dragging, remote control** (WP52, owner requests 2026-10-18): normalised
   waveform display, drag a range on the ruler to zoom, `kuulas ctl` to drive a running window.
 - **Status tracking** (WP51, owner request 2026-10-18): Draft, Ready for review, In review, Needs

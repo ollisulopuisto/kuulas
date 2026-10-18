@@ -1,3 +1,10 @@
+## [v26.10.18.36] - 2026-10-18
+
+- Bus headers have two lines now: name and M on top, the bus level and pan below, always visible
+  and large enough to use (they were squeezed onto one line and shown only on hover).
+- The transcript shows the words of a silent track as deleted text: a muted track, a track on
+  a muted bus, and every track while another one is soloed.
+
 ## [v26.10.18.35] - 2026-10-18
 
 - The bus choice in each track's header has "+ New bus…" too: it makes a bus and puts the track

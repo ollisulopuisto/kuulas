@@ -848,6 +848,15 @@ All on the canvas, hit-testing in `timeline.js` (pure function, tested):
 
 - Click clip: select (Shift+click adds, Mod+click toggles). Click empty
   space: clear selection, set playhead.
+- **Drag a range to edit it (owner, 2026-10-18):** press, move and release in the lanes selects a
+  time range: dragging across the waveform area of one lane selects that track's range, dragging
+  vertically across lanes selects the range on every lane it touches (a band is drawn over the
+  lanes while dragging, Esc cancels). The range is the edit target: **X** ripple-cuts it on all
+  tracks (with the collateral preview), **Backspace** soft-deletes it on the selected tracks
+  only and keeps the gap, Mod+C copies it, and it is what Play selection, loop (WP50) and
+  zoom-to-range (WP52) use. Clip moves then need their own grab zone: the clip's label strip
+  (top edge), so that a drag on the waveform means "select". Recommended; to confirm with
+  the owner when WP6 is built.
 - Drag clip body: move (horizontal) and between tracks (vertical); the whole
   selection moves together. Commit **once on mouse-up** (`shift_clips` and
   `move_clips_to_track`); draw a ghost while dragging.

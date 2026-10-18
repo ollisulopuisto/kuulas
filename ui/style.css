@@ -500,23 +500,23 @@ input[type="range"]::-moz-range-thumb {
   background: var(--text);
   border: 2px solid var(--surface-panel);
 }
-/* A bus is one short line: badge, name, (levels on hover/focus), M. */
+/* A bus is two lines: badge, name and M on top, its level and pan below. */
 .bus-header {
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-2);
   padding-top: 0;
   color: var(--text-secondary);
   font-size: var(--text-sm);
 }
 .bus-header .th-top {
-  flex: 1;
+  flex: none;
 }
 .bus-header .th-controls {
-  flex: 0 1 auto;
+  flex: none;
   min-width: 0;
-}
-.bus-header:not(:hover, :focus-within) .th-controls {
-  display: none;
+  display: flex;
 }
 .bus-header .slider-control.pan,
 .th-controls .slider-control.pan {

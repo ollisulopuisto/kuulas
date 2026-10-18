@@ -276,8 +276,8 @@ export function createTrackHeaders({ root, editor, actions }) {
     const badge = el("span", "bus-badge", { "aria-hidden": "true" });
     badge.textContent = busLetter(index);
     const name = el("span", "bus-name");
-    // One short line (owner, 2026-10-18): badge, name, levels (shown on hover
-    // and focus), M. The levels also belong in a bus inspector section.
+    // Two lines (owner, 2026-10-18: the levels were too small to use on one line):
+    // badge, name and M on top, the bus level and pan below, always shown.
     const mute = toggle(t("ui.bus.mute"), t("ui.track.mute.short"), "mute");
     const buttons = el("span", "ms");
     buttons.append(mute);
@@ -288,8 +288,8 @@ export function createTrackHeaders({ root, editor, actions }) {
     const faderLabel = el("span", "fader-label", { "aria-hidden": "true" });
     faderLabel.textContent = t("ui.bus.fader");
     controls.append(faderLabel, gain.wrap, pan.wrap);
-    top.append(badge, name, controls, buttons);
-    node.append(top);
+    top.append(badge, name, buttons);
+    node.append(top, controls);
     const id = bus.id;
     node.addEventListener("pointerdown", () => actions.currentBus(id));
     node.addEventListener("focusin", () => actions.currentBus(id));
