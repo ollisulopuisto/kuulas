@@ -6,10 +6,12 @@ from pathlib import Path
 import numpy as np
 import pytest
 import soundfile as sf
+from fastapi.testclient import TestClient
 
 from kuulas import ops
 from kuulas import session as sm
 from kuulas.loudness import measure_clip
+from kuulas.server import create_app
 from kuulas.session import Session
 
 RATE = 48000
@@ -166,3 +168,26 @@ def test_head_moved_concurrently_raises_error(
         session.command("match_loudness", {"clip_ids": [c_id], "target_lufs": -20.0})
 
     assert exc_info.value.key == "error.session.concurrent_edit"
+
+
+def test_command_response_carries_the_match_report(tmp_path: Path):
+    class Engine:
+        def status(self):
+            return {"playing": False, "position": 0, "until": None, "notices": []}
+
+        def close(self):
+            pass
+
+    s = Session(tmp_path / "Report.kuulas")
+    loud = make_tone_wav(tmp_path / "loud.wav", -12.0)
+    quiet = make_silent_wav(tmp_path / "quiet.wav")
+    s.import_media([str(loud), str(quiet)])
+    ids = [t.clips[0].id for t in s.state.tracks]
+    ui = tmp_path / "ui"
+    ui.mkdir()
+    client = TestClient(create_app(s, Engine(), language="en", ui_dir=ui))
+    body = client.post("/api/command",
+                       json={"name": "match_loudness", "args": {"clip_ids": ids}}).json()
+    assert [m["clip_id"] for m in body["match_report"]["matched"]] == [ids[0]]
+    assert body["match_report"]["skipped"] == [ids[1]]
+    s.close()

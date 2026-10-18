@@ -7,6 +7,7 @@ import { createCandidatesPanel } from "./candidates-panel.js";
 import { createPreviewPlayer } from "./candidates-preview.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
 import { createEditor } from "./edits.js";
+import { filenameFromDisposition } from "./export-commands.js";
 import { nextPanel } from "./focus.js";
 import { followScroll } from "./follow.js";
 import { frameToTime, RATE, xToFrame } from "./format.js";
@@ -329,6 +330,23 @@ for (const tab of document.querySelectorAll(".side-tab")) {
   });
 }
 
+/** Download a file the server builds (subtitles, transcript text); -> its name, or null. */
+async function downloadFile(path, fallback) {
+  try {
+    const { blob, disposition } = await api.download(path);
+    const name = filenameFromDisposition(disposition, fallback);
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = name;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
+    return name;
+  } catch (error) {
+    showError(error);
+    return null;
+  }
+}
+
 // The transcript dock (WP7): paragraphs per speaker turn, following the playback.
 const transcript = createTranscript({
   root: $("panel-transcript"),
@@ -385,6 +403,23 @@ const keyboard = setupKeyboard({
           return false;
         }),
     correct: () => transcript.startCorrect(),
+    openFind: () => {
+      focusPanel("transcript");
+      transcript.openFind();
+    },
+    // Match loudness measures for seconds; the answer carries the report.
+    matchLoudness: (clipIds, target) =>
+      api
+        .command("match_loudness", { clip_ids: clipIds, target_lufs: target })
+        .then((response) => {
+          apply(response);
+          return response.match_report;
+        })
+        .catch((error) => {
+          showError(error);
+          return null;
+        }),
+    download: (path, fallback) => downloadFile(path, fallback),
     focusName: () => inspector.focusName(),
     openGateStretch: () => openGateStretch(),
     selectCandidate: (row) => selectCandidate(row),

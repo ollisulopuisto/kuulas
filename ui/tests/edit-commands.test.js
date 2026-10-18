@@ -99,13 +99,31 @@ describe("the editing commands", () => {
     }
   });
 
-  test("lift-cut, compare, close-gap-all and fade stay planned; no key is bound to lift-cut", () => {
-    const { registry } = setup(base());
+  test("no key is bound to the parked lift-cut", () => {
     const keys = DEFAULT_KEYMAP.flatMap((e) => [e.keys.mac, e.keys.other].flat());
     assert.equal(keys.includes("Alt+X"), false);
-    for (const id of ["clip.fade"]) {
-      assert.notEqual(registry.status(id), "ready", id);
-    }
+  });
+
+  test("G fades at the play cursor: set_fade_at on the clip under it, one step, a toast with Undo", () => {
+    const state = base({ playhead: 1 * S });
+    const h = setup(state);
+    assert.equal(h.registry.status("clip.fade"), "ready");
+    assert.equal(h.registry.run("clip.fade", null, state), true);
+    assert.equal(h.sent.length, 1);
+    assert.equal(h.sent[0].op, "set_fade_at");
+    assert.deepEqual(h.sent[0].args, { clip_id: "a1", frame: 1 * S });
+    assert.match(h.sent[0].label, /^ui\.edit\.label\.fade/);
+    h.sent[0].done({ project });
+    assert.match(h.toasts[0][0], /^ui\.edit\.toast\.fade/);
+    assert.deepEqual(h.toasts[0][1], { undo: true });
+  });
+
+  test("fade is disabled with no clip under the play cursor", () => {
+    const h = setup(base());
+    assert.equal(h.registry.can("clip.fade", base({ playhead: 20 * S })), false);
+    assert.equal(h.registry.can("clip.fade", base({ focusTrack: null })), false);
+    assert.equal(h.registry.run("clip.fade", null, base({ playhead: 20 * S })), false);
+    assert.equal(h.sent.length, 0);
   });
 
   test("each is disabled when there is nothing to act on", () => {

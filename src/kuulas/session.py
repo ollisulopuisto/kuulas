@@ -47,6 +47,7 @@ from . import (
     subtitles,
     transcribe,
     transcript,
+    transcript_text,
 )
 from . import db as dbm
 from . import export as export_module
@@ -77,6 +78,10 @@ class NoSuchEntryError(ops.EditError):
 
 class SubtitlesError(ops.EditError):
     """Unknown subtitle format."""
+
+
+class TranscriptTextError(ops.EditError):
+    """Unknown transcript text format."""
 
 
 class MatchReport(dict):
@@ -599,6 +604,22 @@ class Session:
         if format == "srt":
             return subtitles.to_srt(cue_list)
         return subtitles.to_vtt(cue_list)
+
+    def transcript_text(self, format: str) -> str:
+        """The timeline transcript as readable text: ``"txt"`` or ``"md"``.
+
+        The snapshot is taken under the lock; the text is built outside it.
+        """
+        if format not in ("txt", "md"):
+            raise TranscriptTextError("error.transcript_text.bad_format", format=format)
+        with self.lock:
+            state = self.history.state
+            words_by_media = self.transcripts()
+        words = transcript.timeline_words(state, words_by_media)
+        paras = transcript_text.paragraphs(words, rate=state.rate)
+        if format == "txt":
+            return transcript_text.to_text(paras)
+        return transcript_text.to_markdown(paras)
 
     def cut_preview(self, selected: list[dict]) -> dict[str, Any]:
         """Preview crosstalk that cutting ``selected`` words would remove (WP18).

@@ -42,7 +42,12 @@ from .media import ImportResult, MediaError
 from .messages import KuulasError, error_body, t
 from .ops import EditError
 from .peaks import PeakError
-from .session import CLIPBOARD_EDITS, NoSuchEntryError, SubtitlesError
+from .session import (
+    CLIPBOARD_EDITS,
+    NoSuchEntryError,
+    SubtitlesError,
+    TranscriptTextError,
+)
 
 log = logging.getLogger("kuulas.server")
 
@@ -316,6 +321,12 @@ def create_app(session, engine, *, language: str | None = None,
             raise
         if body.name == "import_nhsx":
             return state_response({"report": report_of(session.last_import_report)})
+        if body.name == "match_loudness":
+            report = session.last_match_report
+            return state_response({"match_report": {
+                "matched": [{"clip_id": c, "measured": m, "gain_db": g}
+                            for c, m, g in report.matched],
+                "skipped": list(report.skipped)}})
         return state_response()
 
     # -- the clipboard (WP46) ------------------------------------------------
@@ -399,6 +410,20 @@ def create_app(session, engine, *, language: str | None = None,
         else:
             media_type = "text/vtt"
             disposition = 'attachment; filename="subtitles.vtt"'
+        return Response(content=content, media_type=media_type,
+                        headers={"Content-Disposition": disposition})
+
+    @app.get("/api/transcript-text")
+    def get_transcript_text(format: str):
+        if format not in ("txt", "md"):
+            raise TranscriptTextError("error.transcript_text.bad_format", format=format)
+        content = session.transcript_text(format)
+        if format == "txt":
+            media_type = "text/plain; charset=utf-8"
+            disposition = 'attachment; filename="transcript.txt"'
+        else:
+            media_type = "text/markdown; charset=utf-8"
+            disposition = 'attachment; filename="transcript.md"'
         return Response(content=content, media_type=media_type,
                         headers={"Content-Disposition": disposition})
 

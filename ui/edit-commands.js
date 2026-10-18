@@ -8,6 +8,7 @@ import {
   createBurst,
   cutPlan,
   deletePlan,
+  fadePlan,
   gainPlan,
   mutePlan,
   nudgePlan,
@@ -98,6 +99,7 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
   );
   planned("edit.paste_track", (s) => pastePlan(s, { mode: "insert", target: "current" }));
   planned("clip.mute", mutePlan);
+  planned("clip.fade", fadePlan);
   planned("edit.trim_start", (s) => trimPlan(s, "start"));
   planned("edit.trim_end", (s) => trimPlan(s, "end"));
   planned("edit.nudge_left", (s) => nudgePlan(s, -1));

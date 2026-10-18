@@ -47,6 +47,9 @@ function setup(state, { copyOk = true } = {}) {
       correct: () => {
         calls.corrects++;
       },
+      openFind: () => {
+        calls.finds = (calls.finds ?? 0) + 1;
+      },
     },
   });
   return { registry, calls };
@@ -118,5 +121,16 @@ describe("transcript commands", () => {
     assert.equal(registry.can("transcript.correct", stateWith(placeCursor(-1))), false);
     registry.run("transcript.correct", null, stateWith(selectWord(1)));
     assert.equal(calls.corrects, 1);
+  });
+});
+
+describe("transcript.find (Mod+F)", () => {
+  test("opens the find bar when there are words, and is disabled without", () => {
+    const { registry, calls } = setup(stateWith(placeCursor(0)));
+    assert.equal(registry.status("transcript.find"), "ready");
+    assert.equal(registry.can("transcript.find", stateWith(placeCursor(0))), true);
+    assert.equal(registry.can("transcript.find", stateWith(placeCursor(0), { words: [] })), false);
+    assert.equal(registry.run("transcript.find", null, stateWith(placeCursor(0))), true);
+    assert.equal(calls.finds, 1);
   });
 });
