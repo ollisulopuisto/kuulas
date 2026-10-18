@@ -545,6 +545,28 @@ def nudge_clips(p: Project, clip_ids, delta: int, group_editing: bool = False) -
                        delta)
 
 
+def move_clips_to_track(p: Project, clip_ids, direction: int, delta: int = 0,
+                        group_editing: bool = False) -> Project:
+    """Drag a clip body: ``nudge_clips`` by ``delta`` frames, and the clips ``direction``
+    tracks down (negative: up), in one edit.
+
+    ``direction`` is clamped so that no clip leaves the tracks (the selection keeps its
+    shape). Sync partners that ``group_editing`` brings along follow in time only: they
+    stay on their own tracks, as in a nudge."""
+    chosen = list(clip_ids)
+    if not chosen:
+        raise EditError("error.edit.no_selection")
+    index = {t.id: i for i, t in enumerate(p.tracks)}
+    rows = [index[_find_clip(p, cid)[1].id] for cid in chosen]
+    direction = max(-min(rows), min(len(p.tracks) - 1 - max(rows), int(direction)))
+    moved = nudge_clips(p, chosen, int(delta), group_editing)
+    if direction == 0:
+        return moved
+    for cid, row in zip(chosen, rows, strict=True):
+        moved = move_clip(moved, cid, moved.clip(cid).start, p.tracks[row + direction].id)
+    return moved
+
+
 def trim_clips(p: Project, clip_ids, start: int | None = None,
                end: int | None = None) -> Project:
     """``trim_clip`` on several clips; one that would end up empty refuses all."""
@@ -1050,7 +1072,8 @@ OPS = {
         add_placeholder, edit_placeholder_text, set_placeholder_length,
         move_placeholder, delete_placeholder, replace_placeholder,
         shift_clips, set_clips, delete_clips, mark_in_sync, resync,
-        split_clips, mute_range, cut_range, nudge_clips, trim_clips, adjust_clip_gain,
+        split_clips, mute_range, cut_range, nudge_clips, move_clips_to_track,
+        trim_clips, adjust_clip_gain,
         restore_cuts, roll_trim, ripple_trim,
     )
 }

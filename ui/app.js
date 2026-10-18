@@ -6,6 +6,7 @@ import { memberClipsAt, toggleChange } from "./bus-collapse.js";
 import { listedRows, scrollToShow, stepTarget } from "./candidates-model.js";
 import { createCandidatesPanel } from "./candidates-panel.js";
 import { previewRequest } from "./candidates-preview.js";
+import { clipDragChange } from "./clip-drag.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
 import { openContextMenu } from "./context-menu.js";
 import { contextMenuItems } from "./context-menu-model.js";
@@ -1329,6 +1330,12 @@ const timeline = createTimeline({
   actions: {
     pointerDown: onPointerDown,
     rangeDragged: onRangeDragged,
+    clipDrag({ ids, move }) {
+      const change = clipDragChange(ids, move, getState().groupEditing !== false);
+      if (!change) return;
+      setState({ selection: new Set(ids) }); // the press selected one clip; a move keeps all
+      editor.change({ op: change.op, args: change.args, label: t(change.labelKey) });
+    },
     edgeDrag({ clipId, edge, frame, ripple }) {
       const { op, args, labelKey } = edgeChange(clipId, edge, frame, ripple);
       editor.change({ op, args, label: t(labelKey) });
