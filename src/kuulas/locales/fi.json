@@ -864,6 +864,7 @@
   "log.clipboard.damaged": "Leikepöytätiedosto {path} on vioittunut ({error}); leikepöytä aloitetaan tyhjänä.",
   "log.clipboard.write_failed": "Leikepöytätiedostoa {path} ei voitu kirjoittaa ({error}); merkinnät pysyvät toistaiseksi muistissa.",
   "log.clipboard.text_failed": "Leikepöydälle kopioidun kohteen litteraattisanoja ei voitu lukea ({error}); kohde säilytetään ilman niitä.",
+  "log.clipboard.move_failed": "Vanhaa leikepöytähistoriaa ei voitu siirtää tähän projektiin ({error}); se pysyy entisellä paikallaan ja siirtoa yritetään uudelleen ensi kerralla.",
   "history.clipboard_cut": "Leikkaus leikepöydälle",
   "history.clipboard_paste": "Liitä leikepöydältä",
   "error.clipboard.no_entry": "Leikepöydällä ei ole kohdetta {entry_id}.",

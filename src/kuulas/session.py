@@ -259,6 +259,7 @@ class Session:
         #: marked as worth sharing, and the old history of projects that have
         #: not opened since it was moved into projects.
         self.shared_clipboard = shared_clipboard or ClipboardStore()
+        self._move_shared_history()
         self.jobs = Jobs()
         #: Folder of the last "Export all tracks" this run made, for Show in Finder.
         self.last_export_folder: str | None = None
@@ -465,6 +466,33 @@ class Session:
                 "slots": len({ref.track_slot for ref in entry.refs}),
                 "missing_here": len(wanted - have),
                 "source_name": entry.source_name or Path(entry.source_project).stem}
+
+    def _move_shared_history(self) -> None:
+        """Once per entry (WP65 step 3): the old per-user history becomes the
+        shared store, and the entries this project made move into its own
+        clipboard. Entries marked shared stay (they are the shared copies), as
+        do those of other or unknown projects, until their project opens.
+
+        Copy first, remove second: if the project's file cannot be written
+        nothing leaves the shared one, and a shared file that cannot be written
+        back only leaves duplicates that the next open clears. Idempotent. A
+        read-only open moves nothing (it may not write the project). Never
+        raises: the clipboard must not stop a project opening."""
+        if self.read_only:
+            return
+        try:
+            mine = [e for e in self.shared_clipboard.load().entries()
+                    if not e.shared and clipboard_link.same_folder(
+                        e.source_project, self.package.path)]
+            if not mine:
+                return
+            self.clipboard.update(lambda h: h.merge(mine))
+            if self.clipboard.write_error:
+                return
+            moved = [e.id for e in mine]
+            self.shared_clipboard.update(lambda h: h.remove(moved))
+        except OSError as e:
+            log.warning(t("log.clipboard.move_failed", error=str(e)))
 
     def _describe(self, entry: Entry) -> Entry:
         """``entry`` with what only the session knows (WP65): this project's

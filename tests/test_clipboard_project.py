@@ -62,6 +62,16 @@ def test_prune_to_the_newest_keeps_that_many():
     assert h.prune(4) == 0
 
 
+def test_merge_adds_only_new_ids_and_keeps_newest_first_and_remove_takes_out():
+    h = ClipboardHistory()
+    for n in (1, 5):
+        h.add(entry(n))
+    assert h.merge([entry(3), entry(5), entry(9)]) == 2
+    assert [e.id for e in h.entries()] == ["e0009", "e0005", "e0003", "e0001"]
+    assert h.remove(["e0005", "nope"]) == 1
+    assert [e.id for e in h.entries()] == ["e0009", "e0003", "e0001"]
+
+
 def test_a_store_that_may_not_write_keeps_entries_in_memory_only(tmp_path):
     path = tmp_path / "clipboard.json"
     ClipboardStore(path).update(lambda h: h.add(entry(1)))

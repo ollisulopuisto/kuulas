@@ -349,6 +349,23 @@ class ClipboardHistory:
         if self.max_entries is not None:
             self._entries = prune_entries(self._entries, self.max_entries)
 
+    def merge(self, entries: Iterable[Entry]) -> int:
+        """Add the entries whose id is not here yet; return how many came in.
+        The list stays newest first (by ``created_utc``, ties keep their place)."""
+        have = {item.id for item in self._entries}
+        fresh = [item for item in entries if item.id not in have]
+        if fresh:
+            self._entries = sorted([*self._entries, *fresh],
+                                   key=lambda item: -item.created_utc)
+        return len(fresh)
+
+    def remove(self, entry_ids: Iterable[str]) -> int:
+        """Take the entries with these ids out; return how many were here."""
+        gone = set(entry_ids)
+        before = len(self._entries)
+        self._entries = [item for item in self._entries if item.id not in gone]
+        return before - len(self._entries)
+
     def prune(self, keep: int) -> int:
         """Drop the oldest unpinned entries beyond the newest ``keep`` (at
         least one); return how many went. The explicit "Clear old entries"."""

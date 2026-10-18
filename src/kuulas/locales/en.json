@@ -864,6 +864,7 @@
   "log.clipboard.damaged": "The clipboard file {path} is damaged ({error}); starting with an empty clipboard.",
   "log.clipboard.write_failed": "The clipboard file {path} could not be written ({error}); the entries stay in memory for now.",
   "log.clipboard.text_failed": "The transcript words of a clipboard copy could not be read ({error}); the entry is kept without them.",
+  "log.clipboard.move_failed": "Could not move the old clipboard history into this project ({error}); it stays where it was and is tried again next time.",
   "history.clipboard_cut": "Cut to the clipboard",
   "history.clipboard_paste": "Paste from the clipboard",
   "error.clipboard.no_entry": "The clipboard has no entry {entry_id}.",
