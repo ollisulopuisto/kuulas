@@ -50,7 +50,6 @@ Run the complete automated test and lint suite:
 uv sync
 uv run pytest -q                      # Python unit tests (1000+ tests)
 uv run ruff check .                   # Python lint
-uv run ruff format --check .          # Python formatting
 node --test ui/tests/                 # UI unit tests (500+ tests)
 npx @biomejs/biome@2.2.4 check ui/    # UI lint and format
 ```
