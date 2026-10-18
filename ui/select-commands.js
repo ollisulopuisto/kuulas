@@ -3,6 +3,7 @@
 // "Which tracks" is the same answer an edit would use (edit-plans.js rangeTracks):
 // the range's chosen tracks, else this track, else the selected clips' tracks; with
 // none of those, every track.
+import { expandGroups } from "./clip-groups.js";
 import { rangeTracks } from "./edit-plans.js";
 import { markedRange, selectedClips } from "./selection.js";
 import {
@@ -55,7 +56,10 @@ export function registerSelectCommands(registry, { app }) {
   for (const [id, choose] of Object.entries(chooser)) {
     def(
       id,
-      () => app.patch({ selection: choose(app.getState()) }),
+      () => {
+        const state = app.getState();
+        app.patch({ selection: expandGroups(state.project, choose(state)) });
+      },
       (state) => (choose(state)?.size ?? 0) > 0,
     );
   }
