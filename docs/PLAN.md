@@ -1465,7 +1465,7 @@ Tests first (`tests/test_markers.py`):
 
 ### WP19 — Borrowed from other editors
 
-Status: open. 19a partners and edit targets (`edit_scope.py`, pure logic, not yet wired into the edit commands) done in v26.10.17.6. 19i onset detection (backend) done in v26.10.17.4; 19h chapter-list formatter (`chapters.py`) done in v26.10.17.5; 19f typed-time parser (`spot.py`, not yet bound to a key) done in v26.10.17.9. Each part is its own small WP (19a–19i), commit each separately.
+Status: open. 19h markers, regions, chapter export and regions as files done in v26.10.18.20 (the formatter and file-name helpers earlier). 19a partners and edit targets (`edit_scope.py`, pure logic, not yet wired into the edit commands) done in v26.10.17.6. 19i onset detection (backend) done in v26.10.17.4; 19h chapter-list formatter (`chapters.py`) done in v26.10.17.5; 19f typed-time parser (`spot.py`, not yet bound to a key) done in v26.10.17.9. Each part is its own small WP (19a–19i), commit each separately.
 Needs WP1, WP4, WP5. Every key below goes into `ui/keymap.js`, and the
 keymap collision test (WP5) must still pass.
 

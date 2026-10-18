@@ -21,6 +21,7 @@ import {
   RULER_HEIGHT,
   visibleRows,
 } from "./lanes.js";
+import { flagLayout, NOTCH_PX as MARKER_NOTCH_PX } from "./markers-model.js";
 import { makeWaveformJob, trackHues } from "./paint.js";
 import { rulerTicks } from "./ruler.js";
 import { readTheme } from "./theme.js";
@@ -46,6 +47,8 @@ const CANDIDATE_STRIPE_ALPHA = 0.35;
 const CANDIDATE_EDGE_PX = 1;
 const CANDIDATE_EDGE_CURRENT_PX = 2;
 const FLAG_EDGE_PX = 3;
+const REGION_BAR_PX = 5;
+const MARKER_FLAG_H = 8;
 const FLAG_EDGE_CURRENT_PX = 4;
 
 export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, actions }) {
@@ -591,6 +594,58 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       }
     }
     drawCandidateFlags(state);
+    drawMarkerFlags(state);
+  }
+
+  // Markers, chapters and regions (WP19h) in the ruler, in the note colour: a marker is a
+  // pennant on a pole, a chapter a square flag, a region a 5 px bar along the top with
+  // posts at its ends. The name goes beside a flag only when it fits before the next one
+  // (markers-model.js), on a panel-coloured backing so it hides the time labels under it.
+  function drawMarkerFlags(state) {
+    const markers = state.project?.markers;
+    if (!markers?.length) return;
+    overlay.font = `600 ${MARK_FONT_PX}px ${theme.font}`;
+    overlay.textBaseline = "middle";
+    const { flags, bars } = flagLayout(markers, {
+      scroll: state.scroll,
+      zoom: state.zoom,
+      width: size.width,
+      measure: (text) => overlay.measureText(text).width,
+    });
+    const middle = RULER_HEIGHT / 2 + 1;
+    const backed = (x, label) => {
+      const w = overlay.measureText(label).width;
+      overlay.fillStyle = theme.panel;
+      overlay.fillRect(x - 2, 1, w + 4, RULER_HEIGHT - 3);
+      overlay.fillStyle = theme.ink;
+      overlay.fillText(label, x, middle);
+    };
+    for (const bar of bars) {
+      overlay.fillStyle = theme.note;
+      overlay.globalAlpha = bar.id === state.markerSelected ? 0.9 : 0.55;
+      overlay.fillRect(bar.x0, 0, bar.x1 - bar.x0, REGION_BAR_PX);
+      overlay.globalAlpha = 1;
+      if (bar.startsInView) overlay.fillRect(Math.round(bar.x0), 0, 2, RULER_HEIGHT - 1);
+      if (bar.x1 < size.width) overlay.fillRect(Math.round(bar.x1) - 2, 0, 2, RULER_HEIGHT - 1);
+      if (bar.label) backed(bar.labelX, bar.label);
+    }
+    for (const flag of flags) {
+      const x = Math.round(flag.x);
+      const picked = flag.id === state.markerSelected;
+      overlay.fillStyle = theme.note;
+      overlay.fillRect(x, 0, picked ? 2 : 1, RULER_HEIGHT - 1);
+      overlay.beginPath();
+      if (flag.kind === "chapter") {
+        overlay.rect(x, 0, MARKER_NOTCH_PX, MARKER_FLAG_H);
+      } else {
+        overlay.moveTo(x, 0);
+        overlay.lineTo(x + MARKER_NOTCH_PX, MARKER_FLAG_H / 2);
+        overlay.lineTo(x, MARKER_FLAG_H);
+        overlay.closePath();
+      }
+      overlay.fill();
+      if (flag.label) backed(flag.labelX, flag.label);
+    }
   }
 
   function drawPlayhead(state, height) {

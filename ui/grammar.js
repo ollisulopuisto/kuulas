@@ -359,9 +359,9 @@ export const SIGNALS = [
     atRest: true,
     always: false,
     tokens: ["--signal-note"],
-    twin: "a triangular notch in the top edge; the text on hover",
-    when: "a note or marker on the clip's audio",
-    key: "M",
+    twin: "a triangular notch in the top edge; the text on hover. On the ruler (WP19h): a pennant for a marker, a square flag for a chapter, a bar for a region, with the name beside it",
+    when: "a note on the clip's audio, or a marker, chapter or region on the timeline",
+    key: "M adds a marker, Alt+M makes a region from the in-out range",
     status: "prototype",
   },
   {

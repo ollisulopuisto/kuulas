@@ -324,6 +324,35 @@ every 0.75 s on every mic) take 56 ms, which no real hour reaches. The 300 s
 four-voice test conversation (198 ranges) packs to 1.7 KB with the gate
 against 8.1 KB with the clip pieces it replaces.
 
+**As built (WP19h markers, regions, chapters).** The edit state gains an
+optional `Project.markers`: a list of `{"id", "name", "start", "end"?, "kind"}`
+sorted by `start`, in project frames (timeline markers, not recording anchors:
+the WP18 table row above is about recording-clock anchors, which this does not
+build). `kind` is `"marker"` (a point), `"chapter"` (a point that goes in the
+chapter list) or `"region"` (a range `[start, end)`; only a region has `end`).
+The key is absent while the list is empty, so a project that never had a marker
+keeps its bytes and its state hash and old projects load with none.
+
+- **Ripple.** A ripple delete moves them with the audio, but only when every
+  track is cut (a scoped cut moves other tracks' audio less than the timeline
+  the marker sits on): a point inside the cut goes to the cut start, a region
+  loses the overlap and goes if nothing is left. An insert paste on every
+  track opens the same gap (`markers.open_gap`): later points move right, a
+  region that straddles the point is stretched.
+- **Chapter list.** Only kind `chapter` is listed (`GET /api/chapters`); two
+  chapters on one frame (a ripple can bring them there) make the export refuse
+  with a translated error rather than drop one.
+
+*Version and `min_reader`.* `min_reader` does not rise and `version` does not
+change. Markers change no sound, so an older reader plays and exports exactly
+what this one does. Such a reader keeps the `markers` key in `Project.extra`
+and writes it back (the unknown-field rule above), so nothing is lost; what it
+cannot do is move them when it ripples, so markers saved by it after a
+ripple cut can sit later than their audio. That only matters for a build older
+than this one editing a project that has markers, and the cost is a wrong
+position, not lost data, so refusing to open (as a gate does, where the cost
+is audible) is not worth it.
+
 **As built (WP18 cut candidates).** The material root gains an optional
 `candidates`: candidate id -> record
 

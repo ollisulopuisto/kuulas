@@ -25,6 +25,8 @@ import { formatCombo } from "./keymap-config.js";
 import { detectPlatform, isTextField } from "./keys.js";
 import { clampLaneHeight, pointerIntent, projectEnd } from "./lanes.js";
 import { connectLive } from "./live.js";
+import { regionCount } from "./markers-model.js";
+import { createMarkersPanel } from "./markers-panel.js";
 import { motionMode } from "./motion.js";
 import { createOverview } from "./overview.js";
 import { setupKeyboard } from "./shell-keys.js";
@@ -297,9 +299,10 @@ const panelElements = {
   inspector: $("panel-inspector"),
   candidates: $("panel-candidates"),
   clipboard: $("panel-clipboard"),
+  markers: $("panel-markers"),
   history: $("panel-history"),
 };
-const SIDEBAR_TABS = ["inspector", "candidates", "clipboard", "history"];
+const SIDEBAR_TABS = ["inspector", "candidates", "clipboard", "markers", "history"];
 
 function focusPanel(name) {
   // A sidebar tab that is not showing must show before it can take the focus.
@@ -418,6 +421,7 @@ const keyboard = setupKeyboard({
           return null;
         }),
     download: (path, fallback) => downloadFile(path, fallback),
+    exportRegions: () => exportRegions(),
     focusName: () => inspector.focusName(),
     openGateStretch: () => openGateStretch(),
     selectCandidate: (row) => selectCandidate(row),
@@ -779,6 +783,23 @@ const historyPanel = createHistoryPanel({
   actions: { restore: (node) => void restoreStep(node), showError },
 });
 
+// -- markers, regions, chapters (WP19h) ------------------------------------------------------------------
+
+// One background job renders every region to its own file; the jobs list shows progress.
+async function exportRegions() {
+  const count = regionCount(getState().project?.markers);
+  try {
+    await api.exportRegions();
+    showNotice(t("ui.markers.regions_queued", { count }), "ok");
+  } catch (error) {
+    showError(error);
+  }
+}
+
+function sendMarkerEdit(op, args, labelKey) {
+  editor.change({ op, args, label: t(labelKey) });
+}
+
 // -- clipboard (WP46) -----------------------------------------------------------------------------------
 
 async function refreshClipboard() {
@@ -833,6 +854,28 @@ const clipboardPanel = createClipboardPanel({
     },
   },
 });
+const markersPanel = createMarkersPanel({
+  root: $("panel-markers"),
+  actions: {
+    jump(id) {
+      const marker = getState().project?.markers?.find((item) => item.id === id);
+      if (!marker) return;
+      setState({ markerSelected: id });
+      void transport.seek(marker.start);
+    },
+    rename: (id, name) =>
+      sendMarkerEdit("rename_marker", { marker_id: id, name }, "ui.markers.history.rename"),
+    setKind: (id, kind) =>
+      sendMarkerEdit("set_marker_kind", { marker_id: id, kind }, "ui.markers.history.kind"),
+    remove(id) {
+      setState({ markerSelected: id });
+      keyboard.registry.run("marker.delete", null, getState());
+    },
+    can: (id, state) => keyboard.registry.can(id, state),
+    run: (id) => keyboard.registry.run(id, null, getState()),
+  },
+});
+
 // Another window of kuulas may have copied something: look again when this one is back.
 window.addEventListener("focus", () => void refreshClipboard());
 
@@ -1134,6 +1177,8 @@ function render(state, patch) {
     )
   )
     clipboardPanel.update(state);
+  if (touched("project", "markerSelected", "playhead", "inPoint", "outPoint"))
+    markersPanel.update(state);
   if (state.head && touched("head")) void refreshCandidates();
   if (
     touched(

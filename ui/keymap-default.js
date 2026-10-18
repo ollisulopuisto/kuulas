@@ -567,6 +567,36 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.app.export",
   },
   {
+    id: "marker.add",
+    keys: { mac: "M", other: "M" },
+    context: "global",
+    labelKey: "cmd.marker.add",
+  },
+  {
+    id: "region.from_selection",
+    keys: { mac: "Alt+M", other: "Alt+M" },
+    context: "global",
+    labelKey: "cmd.region.from_selection",
+  },
+  {
+    id: "marker.next",
+    keys: { mac: "Shift+Mod+ArrowRight", other: "Shift+Mod+ArrowRight" },
+    context: "global",
+    labelKey: "cmd.marker.next",
+  },
+  {
+    id: "marker.prev",
+    keys: { mac: "Shift+Mod+ArrowLeft", other: "Shift+Mod+ArrowLeft" },
+    context: "global",
+    labelKey: "cmd.marker.prev",
+  },
+  {
+    id: "marker.delete",
+    keys: { mac: "Shift+Alt+M", other: "Shift+Alt+M" },
+    context: "global",
+    labelKey: "cmd.marker.delete",
+  },
+  {
     id: "export.subtitles_srt",
     keys: { mac: null, other: null },
     context: "global",
@@ -589,6 +619,24 @@ export const DEFAULT_KEYMAP = [
     keys: { mac: null, other: null },
     context: "global",
     labelKey: "cmd.export.transcript_md",
+  },
+  {
+    id: "export.chapters_text",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.export.chapters_text",
+  },
+  {
+    id: "export.chapters_json",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.export.chapters_json",
+  },
+  {
+    id: "export.regions",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.export.regions",
   },
   {
     id: "app.save",

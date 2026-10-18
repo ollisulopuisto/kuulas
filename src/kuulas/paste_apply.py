@@ -15,6 +15,7 @@ from dataclasses import replace
 
 from . import curves, ops
 from . import gate as gatem
+from . import markers as markersm
 from .clipboard import Entry
 from .model import Project, Track
 from .paste_plan import PastePlan
@@ -73,6 +74,9 @@ def apply_paste(project: Project, entry: Entry, plan: PastePlan, at: int,
         for track in project.tracks:  # project order, so the result is stable
             if track.id in rippled:
                 p = _open_gap(p, track.id, at, plan.shift)
+        if rippled >= {t.id for t in project.tracks}:
+            # Markers sit on the timeline: they move only when every track did.
+            p = replace(p, markers=markersm.open_gap(p.markers, at, plan.shift))
     else:
         for track_id, start, end in plan.removed:
             p = _clear(p, track_id, start, end)

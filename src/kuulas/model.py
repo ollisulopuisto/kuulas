@@ -217,6 +217,37 @@ class SyncGroup:
 
 
 @dataclass(frozen=True)
+class Marker:
+    """A named point or range on the timeline (WP19h), in project frames.
+
+    ``kind``: ``"marker"`` (a point), ``"chapter"`` (a point that goes in the
+    chapter list) or ``"region"`` (a range ``[start, end)``; only a region has
+    an ``end``). Edit state: undoable, and it moves with ripple edits.
+    """
+
+    id: str
+    name: str
+    start: int
+    end: int | None = None
+    kind: str = "marker"
+    extra: dict = field(default_factory=dict, hash=False)
+
+    def to_dict(self) -> dict:
+        d = _out(self)
+        if self.end is None:
+            del d["end"]
+        return d
+
+    @classmethod
+    def from_dict(cls, d: dict) -> Marker:
+        known, extra = _split(cls, d)
+        known["start"] = int(known["start"])
+        if known.get("end") is not None:
+            known["end"] = int(known["end"])
+        return cls(**known, extra=extra)
+
+
+@dataclass(frozen=True)
 class Project:
     rate: int = 48000
     media: tuple[Media, ...] = ()
@@ -226,6 +257,9 @@ class Project:
     # Material, shared by every edit (``History`` keeps it apart): sync groups
     # here; transcripts in ``History.transcripts``.
     sync_groups: tuple[SyncGroup, ...] = ()
+    # Edit state (WP19h): sorted by start. Absent from the JSON when empty, so
+    # a project that never had one keeps its bytes and its state hash.
+    markers: tuple[Marker, ...] = ()
     extra: dict = field(default_factory=dict, hash=False)
 
     # -- lookups ----------------------------------------------------------
@@ -291,10 +325,14 @@ class Project:
     # -- serialisation ----------------------------------------------------
 
     def to_dict(self) -> dict:
-        return _out(self, media=[m.to_dict() for m in self.media],
-                    tracks=[t.to_dict() for t in self.tracks],
-                    buses=[b.to_dict() for b in self.buses],
-                    sync_groups=[g.to_dict() for g in self.sync_groups])
+        d = _out(self, media=[m.to_dict() for m in self.media],
+                 tracks=[t.to_dict() for t in self.tracks],
+                 buses=[b.to_dict() for b in self.buses],
+                 sync_groups=[g.to_dict() for g in self.sync_groups],
+                 markers=[m.to_dict() for m in self.markers])
+        if not self.markers:
+            del d["markers"]
+        return d
 
     def to_json(self) -> str:
         return json.dumps(self.to_dict(), separators=(",", ":"))
@@ -307,6 +345,7 @@ class Project:
         known["buses"] = tuple(Bus.from_dict(b) for b in known.get("buses", ()))
         known["sync_groups"] = tuple(SyncGroup.from_dict(g)
                                      for g in known.get("sync_groups", ()))
+        known["markers"] = tuple(Marker.from_dict(m) for m in known.get("markers", ()))
         return cls(**known, extra=extra)
 
     @classmethod

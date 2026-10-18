@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { createRegistry } from "../commands.js";
-import { EXPORTS, filenameFromDisposition, registerExportCommands } from "../export-commands.js";
+import {
+  CHAPTER_EXPORTS,
+  EXPORTS,
+  filenameFromDisposition,
+  registerExportCommands,
+} from "../export-commands.js";
 
 function setup(current) {
   const registry = createRegistry();
@@ -69,5 +74,40 @@ describe("filenameFromDisposition", () => {
     );
     assert.equal(filenameFromDisposition(null, "x.txt"), "x.txt");
     assert.equal(filenameFromDisposition("inline", "x.txt"), "x.txt");
+  });
+});
+
+describe("chapter and region exports (WP19h)", () => {
+  const withChapters = { project: { markers: [{ id: "a", kind: "chapter", start: 0 }] } };
+
+  test("chapter exports need a chapter marker, and download their route", async () => {
+    const { registry, calls } = setup(withChapters);
+    assert.equal(registry.can("export.chapters_text", { project: { markers: [] } }), false);
+    assert.equal(
+      registry.can("export.chapters_json", { project: { markers: [{ kind: "marker" }] } }),
+      false,
+    );
+    registry.run("export.chapters_json", null, withChapters);
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(calls.downloads, [["/api/chapters?style=json", "chapters.json"]]);
+    assert.equal(CHAPTER_EXPORTS.length, 2);
+  });
+
+  test("Export regions needs a region and queues the job", () => {
+    const state = { project: { markers: [{ id: "r", kind: "region", start: 0, end: 9 }] } };
+    const registry = createRegistry();
+    const queued = [];
+    registerExportCommands(registry, {
+      t: (key) => key,
+      app: {
+        getState: () => state,
+        toast: () => {},
+        download: async () => null,
+        exportRegions: () => queued.push(1),
+      },
+    });
+    assert.equal(registry.can("export.regions", { project: { markers: [] } }), false);
+    assert.equal(registry.run("export.regions", null, state), true);
+    assert.equal(queued.length, 1);
   });
 });

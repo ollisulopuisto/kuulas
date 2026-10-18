@@ -24,6 +24,7 @@ import {
 import { DEFAULT_KEYMAP, STATUS_HINTS } from "./keymap-default.js";
 import { createKeymap, detectPlatform } from "./keys.js";
 import { registerLoudnessCommands } from "./loudness-commands.js";
+import { registerMarkerCommands } from "./marker-commands.js";
 import { MENU, resolveMenu } from "./menu-model.js";
 import { createMenubar } from "./menubar.js";
 import { createModifierTracker } from "./modifiers.js";
@@ -40,6 +41,7 @@ export const CONTEXT_OF_PANEL = {
   inspector: "side",
   candidates: "candidates",
   clipboard: "side",
+  markers: "side",
   history: "side",
   help: "side",
 };
@@ -108,6 +110,7 @@ export function setupKeyboard({ actions, app, t, notify, onLanguageChange, onRef
   registerTranscriptCommands(registry, { app, t });
   registerLoudnessCommands(registry, { app, t });
   registerExportCommands(registry, { app, t });
+  registerMarkerCommands(registry, { app, t });
   registerCandidateCommands(registry, { app, t });
   // The rest of the sheet is listed everywhere and does nothing until its WP lands.
   registry.planMissing(DEFAULT_KEYMAP.map((entry) => entry.id));
