@@ -56,6 +56,7 @@ export const exportRegions = (options = {}) => post("/api/export-regions", optio
  * { jobs: [job id] }. */
 export const exportTracks = (options = {}) => post("/api/export-tracks", options);
 /** Queue the export of the mix as one file (`options.format`); answers { jobs: [job id] }. */
+export const exportFolder = () => json("/api/export-folder");
 export const exportMix = (options = {}) => post("/api/export-mix", options);
 /** The formats the server can write: [{ id, label, ext, lossless }], WAV first. */
 export const exportFormats = () => json("/api/export-formats");

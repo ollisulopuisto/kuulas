@@ -401,6 +401,9 @@ button.chip {
   flex: none;
   width: 14px;
   height: 14px;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
   overflow: hidden;
   text-indent: 100%;
   white-space: nowrap;
@@ -2180,4 +2183,17 @@ input[type="text"] {
 .source-where {
   color: var(--text-secondary);
   font-variant-numeric: tabular-nums;
+}
+
+/* "mono" or "stereo" beside the role icon of a speech track. */
+.channel-tag {
+  flex: none;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+.channel-tag[hidden] {
+  display: none;
+}
+.import-mono {
+  margin: 0;
 }

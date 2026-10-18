@@ -234,6 +234,9 @@ class Session:
         self.last_import_report: list[ImportResult] = []
         #: The interview the latest import made (WP41), or None.
         self.last_import_interview: str | None = None
+        #: New stereo speech tracks of the latest import, ``[{id, name}]``: the
+        #: UI asks whether to turn them into mono.
+        self.last_import_stereo: list[dict] = []
         #: The report from the latest match_loudness command (WP19c).
         self.last_backup: Path | None = None  # the newest save_backup (Mod+S)
         self.last_match_report: MatchReport = MatchReport({"matched": [], "skipped": []})
@@ -326,10 +329,12 @@ class Session:
             initial_head = self.history.head
             clips_to_measure = []
             targets: dict[str, float | None] = {}
+            mono: dict[str, bool] = {}
             for cid in clip_ids:
                 try:
                     clip, track = state.clip_and_track(cid)
                     clips_to_measure.append(clip)
+                    mono[cid] = track.mono  # a mono track is measured as heard
                     # An explicit target wins; else the track's own, else its role's.
                     targets[cid] = (target_lufs if target_lufs is not None
                                     else track_target_lufs(track))
@@ -339,7 +344,7 @@ class Session:
         max_workers = min(4, max(1, len(clips_to_measure)))
 
         def _measure(clip):
-            val = measure_clip(self.store, clip, state.rate)
+            val = measure_clip(self.store, clip, state.rate, mono=mono[clip.id])
             return clip.id, val
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -701,6 +706,18 @@ class Session:
     def export_mix(self, args: dict | None = None) -> list[str]:
         """Queue ONE job that exports the mix as one file (see ``mix_export_args``)."""
         return self._export_job(self.mix_export_args(args), t("job.export_mix"))
+
+    def export_folder_hint(self) -> dict:
+        """Where an export goes when the caller names no folder: the folder the
+        last export of this project used (``remembered``), else ``<project> exports``
+        beside the project, which is made only when an export runs. The desktop
+        folder chooser starts here."""
+        with self.lock:
+            saved = self.history.meta_json("export", {}).get("folder")
+        if saved:
+            return {"folder": str(saved), "remembered": True}
+        default = self.package.path.parent / f"{self.package.path.stem} exports"
+        return {"folder": str(default), "remembered": False}
 
     def last_export_settings(self, kind: str) -> dict | None:
         """Return the project's remembered settings for an export kind."""
@@ -1093,6 +1110,8 @@ class Session:
                     track_id = ops.new_id("t")
                     track_ids_by_key[pl.track_key] = track_id
                     p = ops.add_track(p, track_id, pl.track_name, pl.kind)
+                    if pl.mono:
+                        p = ops.set_track(p, track_id, mono=True)
                 else:
                     track_id = track_ids_by_key[pl.track_key]
                 clip_id = ops.new_id("c")
@@ -1106,6 +1125,9 @@ class Session:
                 # on the timeline is what the group has to say.
                 basis = "files" if len({r is None for r in refs}) == 1 else "timeline"
                 p = ops.mark_in_sync(p, clip_ids, main=clip_ids[0], basis=basis)
+            self.last_import_stereo = [
+                {"id": track_ids_by_key[pl.track_key], "name": pl.track_name}
+                for pl in import_plan.stereo_speech(placements)]
             label = t("history.import", count=len(media))
             distinct_media = len({m.id for m in media}) > 1
             made_group = (
@@ -1268,6 +1290,7 @@ class Session:
             return p
         p = replace(p, extra={**p.extra, "nhsx": {"source_xml": source_xml}})
         self.last_import_interview = None
+        self.last_import_stereo = []
         return self._commit(t("history.nhsx_import", name=source.name), p,
                             "import_nhsx", {"path": str(source)}, material=root)
 

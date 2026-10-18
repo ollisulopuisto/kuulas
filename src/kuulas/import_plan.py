@@ -36,6 +36,9 @@ class Placement:
     kind: str
     start_frame: int
     new_track: bool
+    # Speech from a one-channel source is mono; stereo speech stays stereo
+    # until the user answers the question (``stereo_speech``). Never music.
+    mono: bool = False
 
 
 # Words in a file or track name that count as evidence of music. Channel count
@@ -47,6 +50,17 @@ _MUSIC_WORDS = ("music", "musiikki", "jingle")
 def guess_kind(name: str) -> str:
     lowered = name.lower()
     return "music" if any(word in lowered for word in _MUSIC_WORDS) else "speech"
+
+
+def _mono(kind: str, item: ImportItem) -> bool:
+    return kind != "music" and item.channels == 1
+
+
+def stereo_speech(placements) -> tuple[Placement, ...]:
+    """The new speech tracks whose source is stereo (one per track): what the
+    user is asked about, "turn into mono?"."""
+    return tuple(pl for pl in placements
+                 if pl.new_track and pl.kind != "music" and not pl.mono)
 
 
 def _track_name(item: ImportItem, track_naming: str) -> str:
@@ -147,6 +161,7 @@ def plan_import(
                 kind=guess_kind(item.name),
                 start_frame=start,
                 new_track=True,
+                mono=_mono(guess_kind(item.name), item),
             ))
         return tuple(placements)
 
@@ -164,6 +179,7 @@ def plan_import(
             kind=track_kind,
             start_frame=start,
             new_track=index == 0,
+            mono=_mono(track_kind, ordered[0]),
         ))
         start += item.frames
     return tuple(placements)

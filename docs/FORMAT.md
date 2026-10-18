@@ -443,6 +443,17 @@ with a migration that rewrites nothing; that is left to the integrator,
 since it touches `package.VERSION`, `db.SCHEMA_VERSION` and the migration
 table that other work packages also bump.
 
+**As built (mono speech tracks).** The edit state gains an optional
+`Track.mono` (boolean, default false): the track is mixed down to ONE channel
+everywhere it is rendered, as (L+R)/2 so a centred voice keeps its level, then
+pan and gain apply as for any mono track. The stems export writes it as a
+1-channel file, and the loudness curve and Match loudness measure the mono
+signal. The key is absent while false, so a track that never had it keeps its
+bytes and its state hash. It is set with `set_track` (one undo step).
+`min_reader` does not rise: a reader that does not know it keeps the key in
+`Track.extra` and plays the track in stereo, which is audibly different from
+the mono mix but loses nothing and writes the key back.
+
 **As built (WP49 loudness targets).** The edit state gains an optional
 `Track.target_lufs` (float, LUFS, -70 to 0): where the track should sit. Absent
 means the role's default (speech and narration -19, music -23; the role is the
@@ -456,6 +467,20 @@ key in `Track.extra` and writes it back (the unknown-field rule below), so
 nothing is lost; it only shows no target line, and its "match loudness" uses
 its own fixed level. The cost is a missing monitoring hint, never a wrong
 mix, so refusing to open is not worth it.
+
+**As built (clip groups).** A clip gains an optional `group` (a string id).
+Clips sharing an id are selected, moved, cut and muted together; the grouping
+itself is in the edit state, so it is one undo step (`group_clips`,
+`ungroup_clips`) and a split keeps it on both halves. Absent means ungrouped,
+and an ungrouped clip is written without the key, so old projects keep their
+bytes and state hash. `merge_clips` joins touching pieces of one recording into
+one clip (the first id, fade-in and name, the last fade-out); only clips of the
+same group (or all ungrouped) join.
+
+*Version and `min_reader`.* `min_reader` does not rise and `version` does not
+change. A group changes no sound. A reader that does not know it keeps the key
+in `Clip.extra`, writes it back, and treats the clips as ungrouped: they then
+select and move one by one. The cost is a convenience, never a wrong mix.
 
 Loudness curves (`GET /api/loudness-curve`) are a cache, not project data:
 `caches/analysis/<key>.json`, keyed on the media hashes and every field that

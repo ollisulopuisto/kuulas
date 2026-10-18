@@ -3,9 +3,11 @@
 // per file, and the remembered choices for the next import. The model and the
 // remembered choices are pure; the panel itself is a few DOM nodes.
 
+import { MONO_CHOICES } from "./mono-ask.js";
+
 export const PREFS_KEY = "kuulas.import";
 /** What "as today" means: the order the files were given, names from the files. */
-export const DEFAULT_PREFS = Object.freeze({ order: "given", trackNaming: "file" });
+export const DEFAULT_PREFS = Object.freeze({ order: "given", trackNaming: "file", mono: "ask" });
 export const ORDERS = ["given", "name", "time"];
 export const NAMINGS = ["file", "person"];
 /** A clean result goes away by itself; one with failures stays until closed. */
@@ -24,6 +26,7 @@ export function loadImportPrefs(storage = globalThis.localStorage) {
   return {
     order: pick(stored.order, ORDERS, DEFAULT_PREFS.order),
     trackNaming: pick(stored.trackNaming, NAMINGS, DEFAULT_PREFS.trackNaming),
+    mono: pick(stored.mono, MONO_CHOICES, DEFAULT_PREFS.mono),
   };
 }
 
@@ -37,9 +40,10 @@ export function saveImportPrefs(prefs, storage = globalThis.localStorage) {
 
 /**
  * What the panel says. `summary` is summariseImport's result; `options` the
- * placement that was sent ({ mode }). status: ok | partial | failed.
+ * placement that was sent ({ mode }). `monoAsk`: the new stereo speech tracks
+ * ([{id, name}]) the user is asked about. status: ok | partial | failed.
  */
-export function panelModel(summary, options) {
+export function panelModel(summary, options, monoAsk = []) {
   const { imported, failures, warnings } = summary;
   let status = "ok";
   if (imported === 0) status = "failed";
@@ -56,6 +60,7 @@ export function panelModel(summary, options) {
     imported,
     failures,
     warnings,
+    monoAsk,
     canUndo: imported > 0,
     canSequence: imported > 1 && options.mode !== "sequential",
   };
@@ -68,11 +73,16 @@ const LABELS = {
     time: "ui.import.order_time",
   },
   naming: { file: "ui.import.naming_file", person: "ui.import.naming_person" },
+  mono: {
+    ask: "ui.import.mono_ask",
+    mono: "ui.import.mono_always",
+    stereo: "ui.import.mono_never",
+  },
 };
 
 /**
- * `root` is an empty element. `actions.undo()` and `actions.sequence()` do the
- * work; `t` translates. show() puts a result up and remembers the history head
+ * `root` is an empty element. `actions.undo()`, `actions.sequence()`,
+ * `actions.mono(tracks)` and `actions.keepStereo()` do the work; `t` translates. show() puts a result up and remembers the history head
  * it belongs to; sync(head) takes it down once anything else has changed the
  * project (Undo would then undo something else).
  */
@@ -119,6 +129,21 @@ export function createImportPanel({ root, t, actions, storage, schedule = setTim
     close.textContent = "×";
     close.setAttribute("aria-label", t("ui.notice.dismiss"));
     root.append(el("div", { className: "import-head" }, title, close));
+    if (model.monoAsk.length > 0) {
+      const names = model.monoAsk.map((track) => track.name).join(", ");
+      root.append(
+        el("p", {
+          className: "import-mono",
+          textContent: t("ui.import.mono_question", { count: model.monoAsk.length, names }),
+        }),
+        el(
+          "div",
+          { className: "import-actions" },
+          button("ui.import.mono_yes", () => answerMono(true)),
+          button("ui.import.mono_no", () => answerMono(false), "button ghost"),
+        ),
+      );
+    }
     const row = el("div", { className: "import-actions" });
     if (model.canSequence) row.append(button("ui.import.sequence", () => actions.sequence()));
     if (model.canUndo)
@@ -143,9 +168,22 @@ export function createImportPanel({ root, t, actions, storage, schedule = setTim
         choice("ui.import.naming", "naming", NAMINGS, prefs.trackNaming, (value) =>
           remember({ trackNaming: value }),
         ),
+        choice("ui.import.mono", "mono", MONO_CHOICES, prefs.mono, (value) =>
+          remember({ mono: value }),
+        ),
       ),
     );
     root.hidden = false;
+  }
+
+  function answerMono(makeMono) {
+    const tracks = shown.model.monoAsk;
+    shown = { ...shown, model: { ...shown.model, monoAsk: [] } };
+    if (makeMono) actions.mono(tracks);
+    else actions.keepStereo();
+    // Turning into mono edits the project, which takes the panel down via sync().
+    render();
+    restartTimer();
   }
 
   function remember(change) {
@@ -157,7 +195,12 @@ export function createImportPanel({ root, t, actions, storage, schedule = setTim
   function restartTimer() {
     clearTimeout(timer);
     timer = null;
-    if (shown && shown.model.status === "ok" && shown.model.warnings.length === 0)
+    if (
+      shown &&
+      shown.model.status === "ok" &&
+      shown.model.warnings.length === 0 &&
+      shown.model.monoAsk.length === 0
+    )
       timer = schedule(hide, CLEAN_MS);
   }
 

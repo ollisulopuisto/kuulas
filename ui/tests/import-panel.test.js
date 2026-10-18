@@ -29,25 +29,39 @@ const summary = (imported, failures = [], warnings = []) => ({ imported, failure
 
 describe("remembered import choices", () => {
   test("nothing stored: the defaults, which change nothing from today", () => {
-    assert.deepEqual(loadImportPrefs(memory()), { order: "given", trackNaming: "file" });
-    assert.deepEqual(DEFAULT_PREFS, { order: "given", trackNaming: "file" });
+    assert.deepEqual(loadImportPrefs(memory()), {
+      order: "given",
+      trackNaming: "file",
+      mono: "ask",
+    });
+    assert.deepEqual(DEFAULT_PREFS, { order: "given", trackNaming: "file", mono: "ask" });
   });
 
   test("a saved choice comes back", () => {
     const storage = memory();
-    saveImportPrefs({ order: "name", trackNaming: "person" }, storage);
-    assert.deepEqual(loadImportPrefs(storage), { order: "name", trackNaming: "person" });
+    saveImportPrefs({ order: "name", trackNaming: "person", mono: "mono" }, storage);
+    assert.deepEqual(loadImportPrefs(storage), {
+      order: "name",
+      trackNaming: "person",
+      mono: "mono",
+    });
   });
 
   test("garbage in storage falls back field by field", () => {
     const storage = memory({ [PREFS_KEY]: '{"order":"sideways","trackNaming":"person"}' });
-    assert.deepEqual(loadImportPrefs(storage), { order: "given", trackNaming: "person" });
+    assert.deepEqual(loadImportPrefs(storage), {
+      order: "given",
+      trackNaming: "person",
+      mono: "ask",
+    });
     assert.deepEqual(loadImportPrefs(memory({ [PREFS_KEY]: "{nope" })), DEFAULT_PREFS);
   });
 
   test("blocked storage neither throws nor loses the defaults", () => {
     assert.deepEqual(loadImportPrefs(broken), DEFAULT_PREFS);
-    assert.doesNotThrow(() => saveImportPrefs({ order: "time", trackNaming: "file" }, broken));
+    assert.doesNotThrow(() =>
+      saveImportPrefs({ order: "time", trackNaming: "file", mono: "ask" }, broken),
+    );
     assert.deepEqual(loadImportPrefs(undefined), DEFAULT_PREFS);
   });
 });
@@ -107,5 +121,18 @@ describe("the panel after an import", () => {
     const model = panelModel(summary(0), { mode: "side_by_side" });
     assert.equal(model.status, "failed");
     assert.deepEqual(model.failures, []);
+  });
+});
+
+describe("the mono question in the panel", () => {
+  const stereo = [{ id: "t1", name: "Olli" }];
+
+  test("stereo speech tracks put the question in the model", () => {
+    const model = panelModel(summary(1), { mode: "side_by_side" }, stereo);
+    assert.deepEqual(model.monoAsk, stereo);
+  });
+
+  test("no question when none is asked", () => {
+    assert.deepEqual(panelModel(summary(1), { mode: "side_by_side" }).monoAsk, []);
   });
 });

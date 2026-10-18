@@ -3158,6 +3158,13 @@ private git dependency), the `PODCAST_READ_TOKEN` CI secret until then, the app 
   the three-platform CI finally has something to ship.
 - **Signing and notarising** (Apple developer account; certificates as GitHub secrets, never in the
   repo) before wider testers: no "cannot be opened" warning. Auto-update later (Sparkle-style), not now.
+- **The `.kuulas` file type (owner, 2026-10-18):** register it so double-clicking opens the app. A project is a
+  folder, so on macOS it is declared as a *package* document type in the app's Info.plist (a UTI
+  conforming to `com.apple.package`, `LSTypeIsPackage`, the app icon as the document icon), which makes
+  Finder show the folder as one file. Windows and Linux cannot make a folder double-clickable the same
+  way: the installer registers the extension for a project *file* form (a small `.kuulas` launcher file
+  pointing at the folder, or a zip form: decide with WP29/WP20 hand-off copies) and "Open project…" always
+  works. Also register the app as the opener for `.nhsx`? No: only an Import command, never a default handler.
 - **Beta channel notes:** a visible version number and build date in Help > About, a "Copy diagnostics"
   button (version, OS, audio device, last errors) so testers' reports are useful, crash logs written to
   the per-user folder, and the `--debug` playback numbers included in the diagnostics.
