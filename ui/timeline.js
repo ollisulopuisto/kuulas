@@ -1210,6 +1210,8 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
           shift: event.shiftKey,
           alt: event.altKey,
           mod: event.metaKey || event.ctrlKey,
+          inSelection: Boolean(hit.clip && state.selection.has(hit.clip.id)),
+          selectionSize: state.selection.size,
         }) === "move";
       cursor = moves ? "grab" : "crosshair";
     }
@@ -1355,6 +1357,8 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       shift: event.shiftKey,
       alt: event.altKey,
       mod: event.metaKey || event.ctrlKey,
+      inSelection: Boolean(hit.clip && before.has(hit.clip.id)),
+      selectionSize: before.size,
     });
     const moving = !zone && intent === "move" && canStartClipDrag(hit);
     // Adjusting a clip (move, trim, gain, fade) must not drag the play cursor along: the press

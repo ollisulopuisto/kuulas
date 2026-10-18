@@ -10,6 +10,8 @@
   moves clips"): drag across a clip or an empty lane to mark a region, then Backspace to mute it or X to delete
   it. Move a clip by dragging its **label strip** (the title row at its top) or with **Cmd** held. The old way
   (drag moves the clip, Shift or Alt paint) is one switch away.
+- **A selection of several clips is dragged as it is:** after "Select forward" a plain drag on any selected clip
+  moves them all; a single clip you just clicked still paints a range.
 - **B (split) shows at once** instead of after the server's answer.
 - **Cmd+Backspace** removes the selected clips and leaves every other clip where it is.
 - **The right-click menu** lists only what is possible, scrolls if it is still too tall, and shows hints in the

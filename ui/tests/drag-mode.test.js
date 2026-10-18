@@ -36,6 +36,24 @@ describe("range mode: dragging paints a range (the default)", () => {
   });
 });
 
+describe("range mode: a selection of several clips is dragged as it is", () => {
+  const mode = "range";
+  test("a plain drag that starts on one of two or more selected clips moves them", () => {
+    assert.equal(dragIntent({ mode, ...press({ inSelection: true, selectionSize: 5 }) }), "move");
+  });
+  test("a single selected clip (just clicked) still paints, or you could not paint on it", () => {
+    assert.equal(dragIntent({ mode, ...press({ inSelection: true, selectionSize: 1 }) }), "range");
+  });
+  test("starting on an unselected clip paints even when many are selected", () => {
+    assert.equal(dragIntent({ mode, ...press({ inSelection: false, selectionSize: 5 }) }), "range");
+  });
+  test("Shift and Alt still paint on a selected clip", () => {
+    const sel = { inSelection: true, selectionSize: 5 };
+    assert.equal(dragIntent({ mode, ...press({ ...sel, shift: true }) }), "range");
+    assert.equal(dragIntent({ mode, ...press({ ...sel, alt: true }) }), "range");
+  });
+});
+
 describe("move mode: dragging moves a clip (Hindenburg's way)", () => {
   const mode = "move";
   test("a plain drag on a clip moves it, Shift or Alt paint a range", () => {
