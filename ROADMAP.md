@@ -114,6 +114,8 @@ sizes: `docs/PLAN.md`, section "Triage".
 
 ## Next
 
+- **Loop playback** (WP50, owner request 2026-10-18): loop the in/out range, selection or
+  clip; engine wrap with the skip crossfade, toggle on Mod+L.
 - **Loudness monitoring with a target LUFS per track** (WP49, owner request 2026-10-18): the
   levels drawn from analysis against each track's target, not live meters (speechmix mixes offline).
 - Colab transcription: `colab-transcribe` only takes `.nhsx` sessions today.

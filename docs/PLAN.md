@@ -2942,3 +2942,32 @@ the audio callback.
   tint maths (pure JS).
 
 ---
+
+### WP50 — Loop playback
+
+Status: open (owner request 2026-10-18). Engine part first (Sonnet 5.5, small), UI after
+the density work. Needs the engine skip list (done) and WP4.
+
+Owner: "we need loop playback option". Nothing loops today: `Engine.play(at, until, ...)`
+plays once.
+
+- **Engine:** `Engine.play(..., loop=(start, end))` wraps from `end` back to `start`
+  without a gap: the same 15 ms equal-power crossfade as a skip, no click, no
+  allocation in the callback (the wrap is a skip entry whose target is earlier; check
+  that the playplan handles a backward skip). The loop respects the skip list and
+  soft cuts, so a loop over a cut plays what the edit would sound like. Changing the
+  loop range or ending the loop while playing takes effect at the next wrap, never
+  mid-block. `Engine.status()` reports `loop` so the UI can draw it.
+- **Which range loops:** the in/out marks if both are set, else the selection, else the
+  selected clip, else nothing (the toggle is unavailable, shown greyed in the menu).
+- **UI:** a loop toggle in the transport (a button and the Transport menu), default key
+  Mod+L (customisable; L alone stays shuttle forward), the loop range shaded on the
+  ruler while on, and the choice remembered per project with the view memory (WP35).
+- **Reuse:** the candidate preview (Shift+Space) and the A/B audition (WP23) loop their
+  compared range plus 2 s each side with this same mechanism.
+- **Tests first:** wrap lands on the sample after `end` maps to `start`; crossfade
+  length 15 ms; loop over a skip plays the skipped version; ending the loop at the
+  next wrap; backward skip in `playplan`; status reports the loop; no I/O in the
+  callback (reuse the existing engine tests' fake output).
+
+---
