@@ -5,7 +5,7 @@ applies-to: [timeline]
 commands: [transport.play, view.toggle, view.fit, view.fit_selection, view.zoom_in, view.zoom_out, view.back, panel.next, nav.home, help.open, help.keys]
 related: [clip, track, bus]
 ---
-Every track is a lane, and time runs left to right. A click anywhere in the lanes moves the play cursor there. A click on a clip also selects it; Shift+click adds or removes a clip.
+Every track is a lane, and time runs left to right. A click anywhere in the lanes moves the play cursor there. A click on a clip also selects it; Shift+click adds or removes a clip. Drag across the lanes to mark a time range. While you drag, a hint on the lanes tells which key turns the range into the clips it touches (they are selected and the in and out marks go to their span) and which key cancels.
 
 ## Listen
 - Play or stop: {key:transport.play}. Space always belongs to the timeline, whichever panel you are in.

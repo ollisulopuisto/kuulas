@@ -46,7 +46,13 @@ import { flagLayout, NOTCH_PX as MARKER_NOTCH_PX } from "./markers-model.js";
 import { markDrawing } from "./marks.js";
 import { makeWaveformJob, trackHues } from "./paint.js";
 import { aboutSeconds, placeholderLabel } from "./placeholders-model.js";
-import { canStartRangeDrag, dragRange, isDrag, trackRowsTouched } from "./range-drag.js";
+import {
+  canStartRangeDrag,
+  dragRange,
+  isDrag,
+  touchedResult,
+  trackRowsTouched,
+} from "./range-drag.js";
 import { rulerTicks } from "./ruler.js";
 import { readTheme } from "./theme.js";
 import { createWaveformLayer } from "./waveform-layer.js";
@@ -86,7 +92,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
   let hoverClipId = null; // the clip under the pointer: its fade handles show
   let clipSession = null; // clips being moved by their label strip: see the pointer section
   let dropPreview = null; // files being dragged over: { kind, startFrame, mode, count } or null
-  let rangeBand = null; // a range being dragged: { fromFrame, toFrame, tracks } or null
+  let rangeBand = null; // a range being dragged: { fromFrame, toFrame, tracks, alt, touched } or null
   let bands = []; // the open candidates in pixels (candidates-model.js), per redraw
   let overlayQueued = false;
   let waveQueued = false;
@@ -287,6 +293,13 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       const top = RULER_HEIGHT + row.top - state.scrollY;
       overlay.fillRect(Math.min(x1, x2), top, Math.abs(x2 - x1), row.height);
     }
+    overlay.save();
+    overlay.font = `600 ${NAME_FONT_PX}px ${theme.font}`;
+    overlay.textBaseline = "top";
+    overlay.fillStyle = theme.ink;
+    const hint = t(rangeBand.alt ? "ui.range.hint_alt" : "ui.range.hint");
+    overlay.fillText(hint, Math.max(4, Math.min(x1, x2) + 4), RULER_HEIGHT + 3);
+    overlay.restore();
   }
 
   // In and out: 1 px accent edges with a flag in the ruler, pointing inwards.
@@ -329,7 +342,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       const y = top + 2;
       const h = row.height - 4;
       const w = Math.max(1, right - left);
-      const selected = state.selection.has(clip.id);
+      const selected = state.selection.has(clip.id) || !!rangeBand?.touched?.has(clip.id);
       overlay.strokeStyle = colours.ink;
       overlay.lineWidth = 1;
       overlay.strokeRect(left + 0.5, y + 0.5, w - 1, h - 1);
@@ -1061,8 +1074,9 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     const before = getState().selection; // the press may replace it; a move takes the old one
     actions.pointerDown(hit, event);
     const zone = event.shiftKey ? null : tweakZone(hit, event, before);
-    const moving = !zone && !event.shiftKey && canStartClipDrag(hit);
-    if (!zone && !moving && canStartRangeDrag(hit, event.shiftKey)) beginRangeDrag(event, hit);
+    const moving = !zone && !event.shiftKey && !event.altKey && canStartClipDrag(hit);
+    if (!zone && !moving && canStartRangeDrag(hit, event.shiftKey, event.altKey))
+      beginRangeDrag(event, hit);
     if (hit.clip && hit.edge && hit.row?.kind === "track") startEdge(hit, event);
     else if (zone) startTweak(hit, event, zone);
     else if (moving) startClip(hit, event, before);
@@ -1220,6 +1234,8 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     const from = locate(event);
     const contentY = (y) => y - RULER_HEIGHT + getState().scrollY;
     let dragging = false;
+    let alt = event.altKey;
+    let last = null; // the latest { frame, tracks } while dragging
     const current = (e) => {
       const at = locate(e);
       const state = getState();
@@ -1229,31 +1245,60 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
         tracks: trackRowsTouched(layoutFor(state), contentY(from.y), contentY(at.y)),
       };
     };
+    // Alt holds the clips the range touches; the exact range otherwise (decided afresh each time).
+    const outcome = (now) => {
+      const project = getState().project;
+      const range = dragRange(hit.frame, now.frame, projectEnd(project));
+      const touched = alt && range ? touchedResult(project, range, now.tracks) : null;
+      return { range, touched };
+    };
+    const show = () => {
+      if (!last) return;
+      rangeBand = {
+        fromFrame: hit.frame,
+        toFrame: last.frame,
+        tracks: last.tracks,
+        alt,
+        touched: outcome(last).touched?.selection ?? null,
+      };
+      requestOverlay();
+    };
     const end = () => {
       overlayCanvas.removeEventListener("pointermove", move);
       overlayCanvas.removeEventListener("pointerup", up);
       overlayCanvas.removeEventListener("pointercancel", cancel);
       window.removeEventListener("keydown", key, true);
+      window.removeEventListener("keyup", altKey, true);
       rangeBand = null;
       requestOverlay();
     };
     const move = (e) => {
       const now = current(e);
+      alt = e.altKey;
       if (!dragging && !isDrag(from, now.at)) return;
       dragging = true;
-      rangeBand = { fromFrame: hit.frame, toFrame: now.frame, tracks: now.tracks };
-      requestOverlay();
+      last = now;
+      show();
     };
     const up = (e) => {
       const now = current(e);
-      const state = getState();
+      alt = e.altKey;
       end();
       if (!dragging) return;
-      const range = dragRange(hit.frame, now.frame, projectEnd(state.project));
-      if (range) actions.rangeDragged({ ...range, tracks: now.tracks, trackId: hit.row.id });
+      const { range, touched } = outcome(now);
+      if (!range) return;
+      const base = { tracks: now.tracks, trackId: hit.row.id };
+      actions.rangeDragged(touched ? { ...base, ...touched } : { ...base, ...range });
+    };
+    // Alt pressed or released mid-drag changes the preview without a mouse move.
+    const altKey = (e) => {
+      if (e.key !== "Alt" || e.altKey === alt) return;
+      alt = e.altKey;
+      show();
     };
     const cancel = () => end();
     const key = (e) => {
+      if (e.key === "Alt") return altKey(e);
       if (e.key !== "Escape") return;
       e.preventDefault();
       e.stopPropagation();
@@ -1263,6 +1308,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     overlayCanvas.addEventListener("pointerup", up);
     overlayCanvas.addEventListener("pointercancel", cancel);
     window.addEventListener("keydown", key, true);
+    window.addEventListener("keyup", altKey, true);
     try {
       overlayCanvas.setPointerCapture(event.pointerId);
     } catch {
