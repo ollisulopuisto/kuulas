@@ -20,6 +20,7 @@ import os
 import sqlite3
 import threading
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any
@@ -54,6 +55,7 @@ from .clipboard_store import ClipboardStore, entry_dict
 from .clock import FLICKS, frames_to_flicks
 from .history import History, UndoInfo
 from .jobs import Jobs
+from .loudness import gain_to_target, measure_clip
 from .media import ImportResult, MediaError, MediaStore
 from .messages import KuulasError, t
 from .model import Project, SyncGroup
@@ -70,6 +72,21 @@ class NhsxImportError(KuulasError, ValueError):
 
 class NoSuchEntryError(ops.EditError):
     """The clipboard has no entry with that id (the API answers 404)."""
+
+
+class MatchReport(dict):
+    """Report from match_loudness: matched (clip_id, measured, new_gain) and skipped."""
+
+    @property
+    def matched(self) -> list[tuple[str, float, float]]:
+        return self["matched"]
+
+    @property
+    def skipped(self) -> list[str]:
+        return self["skipped"]
+
+    def __iter__(self):
+        return iter((self["matched"], self["skipped"]))
 
 
 #: The edit names ``/api/edit`` hands to ``Session.clipboard_edit``: they are
@@ -192,6 +209,8 @@ class Session:
         self.last_import_report: list[ImportResult] = []
         #: The interview the latest import made (WP41), or None.
         self.last_import_interview: str | None = None
+        #: The report from the latest match_loudness command (WP19c).
+        self.last_match_report: MatchReport = MatchReport({"matched": [], "skipped": []})
         if not is_new and not self.read_only:
             self.history.session_opened()
 
@@ -264,6 +283,67 @@ class Session:
 
     def duck_music(self) -> Project:
         return self.command("duck_music")
+
+    def match_loudness(self, clip_ids: list[str], target_lufs: float = -16.0) -> Project:
+        """Set each clip's gain_db so its loudness matches target_lufs (WP19c).
+
+        Measuring runs outside the session lock in a thread pool of at most 4 workers.
+        Commits ONE undoable step with all updated clip gains.
+        Silent clips (quieter than -70 LUFS or too short) are skipped.
+        Remembers MatchReport in ``last_match_report``.
+        """
+        target_lufs = float(target_lufs)
+        with self.lock:
+            state = self.history.state
+            initial_head = self.history.head
+            clips_to_measure = []
+            for cid in clip_ids:
+                try:
+                    clip, _ = state.clip_and_track(cid)
+                    clips_to_measure.append(clip)
+                except KeyError:
+                    raise ops.EditError("error.edit.no_clip", clip_id=cid) from None
+
+        max_workers = min(4, max(1, len(clips_to_measure)))
+
+        def _measure(clip):
+            val = measure_clip(self.store, clip, state.rate)
+            return clip.id, val
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            measured_results = list(executor.map(_measure, clips_to_measure))
+
+        matched: list[tuple[str, float, float]] = []
+        skipped: list[str] = []
+        new_gains: dict[str, float] = {}
+
+        for cid, measured in measured_results:
+            if measured is None:
+                skipped.append(cid)
+                continue
+            new_gain = gain_to_target(measured, target_lufs)
+            if new_gain is None:
+                skipped.append(cid)
+                continue
+            matched.append((cid, measured, new_gain))
+            new_gains[cid] = new_gain
+
+        with self.lock:
+            if self.history.head != initial_head:
+                raise ops.EditError("error.session.concurrent_edit")
+
+            new_state = self.history.state
+            for cid, g in new_gains.items():
+                new_state = ops.set_clip(new_state, cid, gain_db=g)
+
+            self.last_match_report = MatchReport({
+                "matched": matched,
+                "skipped": skipped,
+            })
+            args = {"clip_ids": list(clip_ids), "target_lufs": target_lufs}
+            return self._commit(
+                t("history.match_loudness"), new_state, "match_loudness", args
+            )
 
     def _commit(self, label: str, new: Project, name: str, args: dict,
                 material: dict | None = None) -> Project:
@@ -1495,6 +1575,13 @@ def _candidate_mark(s: Session, args: dict) -> Project:
     return s.history.state
 
 
+def _match_loudness(s: Session, args: dict) -> Project:
+    clip_ids = args.get("clip_ids", [])
+    target = args.get("target_lufs")
+    target_lufs = float(target) if target is not None else -16.0
+    return s.match_loudness(clip_ids, target_lufs=target_lufs)
+
+
 #: Name -> function(session, args) -> Project. The session lock is held,
 #: except for ``LOCK_FREE_COMMANDS``.
 #: ``auto_silence``, ``automix`` and ``cut_words`` commit one step each;
@@ -1522,9 +1609,10 @@ COMMANDS: dict[str, Callable[[Session, dict], Project]] = {
     "candidate_set_state": _candidate_set_state,
     "candidate_apply": _candidate_apply,
     "candidate_mark": _candidate_mark,
+    "match_loudness": _match_loudness,
 }
 
 #: Commands that run without the session lock and take it only for their
 #: snapshot and their commit: their work is slow and must not stall playback
 #: or edits (ground rule 14).
-LOCK_FREE_COMMANDS = frozenset({"candidates_detect"})
+LOCK_FREE_COMMANDS = frozenset({"candidates_detect", "match_loudness"})
