@@ -64,12 +64,16 @@ export function registerTranscriptCommands(registry, { app, t }) {
   def(
     "transcript.remove_words",
     () => {
-      const indices = chosenWords(app.getState());
+      const state = app.getState();
+      const indices = chosenWords(state);
       const plan = cutWordsPlan(indices);
       if (!plan) return;
+      const range = cutRange(state.words, indices);
       void app.cutWords(plan.args.indices).then((done) => {
-        if (done)
-          app.toast(t("ui.transcript.toast.remove", { count: indices.length }), { undo: true });
+        if (!done) return;
+        // The cursor goes to the splice, so P plays the join (owner, 2026-10-18).
+        if (range) app.seek?.(range.start);
+        app.toast(t("ui.transcript.toast.remove", { count: indices.length }), { undo: true });
       });
     },
     (state) => cutWordsPlan(chosenWords(state)) !== null,
@@ -94,6 +98,7 @@ export function registerTranscriptCommands(registry, { app, t }) {
           : Promise.resolve(false);
       void copying.then(async (copied) => {
         if (!(await app.cutWords(plan.args.indices))) return;
+        if (range) app.seek?.(range.start);
         const key = copied ? "ui.transcript.toast.cut" : "ui.transcript.toast.cut_uncopied";
         app.toast(t(key, { count: indices.length }), { undo: true });
       });

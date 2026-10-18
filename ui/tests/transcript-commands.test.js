@@ -23,7 +23,7 @@ const stateWith = (transcriptSelection, extra = {}) => ({
 });
 
 function setup(state, { copyOk = true } = {}) {
-  const calls = { edits: [], cuts: [], toasts: [], copies: [], order: [], corrects: 0 };
+  const calls = { edits: [], cuts: [], toasts: [], copies: [], order: [], corrects: 0, seeks: [] };
   const registry = createRegistry();
   registerTranscriptCommands(registry, {
     t: (key, values) => `${key} ${JSON.stringify(values ?? {})}`,
@@ -44,6 +44,7 @@ function setup(state, { copyOk = true } = {}) {
         calls.cuts.push(indices);
         return true;
       },
+      seek: (frame) => calls.seeks.push(frame),
       correct: () => {
         calls.corrects++;
       },
@@ -98,6 +99,17 @@ describe("transcript commands", () => {
     assert.deepEqual(calls.copies, []);
     assert.match(calls.toasts[0], /ui\.transcript\.toast\.remove/);
     assert.equal(registry.can("transcript.remove_words", stateWith(placeCursor(-1))), false);
+  });
+
+  test("after X or Mod+X the cursor goes to the splice, so P plays the join", async () => {
+    for (const id of ["transcript.remove_words", "transcript.cut_words"]) {
+      const state = stateWith(extendTo(placeCursor(1), 2));
+      const { registry, calls } = setup(state);
+      registry.run(id, null, state);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      // The middle of the pause before the first selected word: (50+60)/2 = 55.
+      assert.deepEqual(calls.seeks, [55], id);
+    }
   });
 
   test("Mod+X copies the stretch to the clipboard first, then cuts", async () => {
