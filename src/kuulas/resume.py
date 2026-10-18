@@ -144,3 +144,23 @@ class ResumeWriter:
                 self._view["playhead"] = int(playhead)
                 self._dirty = True
             self._write()
+
+
+def merge_view(local: dict | None, resume: dict | None) -> dict | None:
+    """The view to restore: the newer of the per-user record and ``resume.json``
+    by ``saved_at`` (a tie, or a resume record that is older, goes to the local
+    one; a local record without ``saved_at`` loses). When resume.json wins, its
+    fields replace the same fields of the local record, which keeps the rest
+    (lane heights, tab, ...) as it was."""
+    if resume is None:
+        return local
+    if local is None:
+        local = {}
+    elif str(local.get("saved_at", "")) >= str(resume["saved_at"]):
+        return local
+    merged = dict(local)
+    for key, target in _FIELDS.items():
+        if key in resume and _clean(key, resume[key]):
+            merged[target] = resume[key]
+    merged["saved_at"] = resume["saved_at"]
+    return merged

@@ -43,6 +43,7 @@ from .messages import KuulasError, error_body, t
 from .ops import EditError
 from .peaks import PeakError
 from .playplan import PlaybackRequestError, check_loop, check_skip
+from .resume import merge_view, now_iso, read_resume
 from .session import (
     CLIPBOARD_EDITS,
     NarrationScriptError,
@@ -356,22 +357,28 @@ def create_app(session, engine, *, language: str | None = None,
 
     @app.get("/api/view-memory")
     def get_view_memory():
-        return JSONResponse({"view": ViewMemory().get(session.package.manifest["id"])})
+        # The newer of this user's own record and the project's resume.json (the
+        # position the other Mac left, through Dropbox).
+        local = ViewMemory().get(session.package.manifest["id"])
+        resume = read_resume(session.package.path)
+        return JSONResponse({"view": merge_view(local, resume)})
 
     @app.put("/api/view-memory")
     def put_view_memory(body: ViewMemoryBody, now: bool = False):
         # ``now``: Mod+S and leaving the page; resume.json is then written at once
         # instead of waiting out its 5 s throttle.
+        view = {**body.view, "saved_at": now_iso()}
+        saved = True
         try:
-            ViewMemory().put(session.package.manifest["id"], body.view)
-            session.resume.remember(body.view, now=now)
+            ViewMemory().put(session.package.manifest["id"], view)
         except ViewMemoryError as e:
             raise BadRequestError(e.key, **e.params) from None
         except OSError as e:
             # A convenience: say so in the log, do not fail the page.
             log.warning(t("log.view_memory.write_failed", error=str(e)))
-            return JSONResponse({"saved": False})
-        return JSONResponse({"saved": True})
+            saved = False
+        session.resume.remember(view, now=now)  # never raises
+        return JSONResponse({"saved": saved})
 
     # -- the clipboard (WP46) ------------------------------------------------
     # Cut and paste are edits and go through /api/edit (one undo step each);
