@@ -13,7 +13,7 @@ from pathlib import Path
 
 import uvicorn
 
-from . import package
+from . import diag, package
 from .messages import KuulasError, t
 
 #: The server answers this machine only: the API can change and delete a
@@ -112,7 +112,7 @@ def open_project(folder: str, port: int = 0, browser: bool = True) -> int:
 def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911
     parser = argparse.ArgumentParser(prog="kuulas", description=t("cli.description"))
     commands = parser.add_subparsers(dest="command")
-    commands.add_parser("desktop", help=t("cli.desktop.help"))
+    desktop_parser = commands.add_parser("desktop", help=t("cli.desktop.help"))
     shown = commands.add_parser("info", help=t("cli.info.help"))
     shown.add_argument("folder", help=t("cli.info.folder"))
     imported = commands.add_parser("import-nhsx", help=t("cli.import_nhsx.help"))
@@ -123,8 +123,12 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911
     opened.add_argument("--port", type=int, default=0, help=t("cli.open.port"))
     opened.add_argument("--no-browser", action="store_true",
                         help=t("cli.open.no_browser"))
+    for sub in (opened, desktop_parser):
+        sub.add_argument("--debug", action="store_true", help=t("cli.debug.help"))
     opened.add_argument("--window", action="store_true", help=t("cli.open.window"))
     args = parser.parse_args(argv)
+    if getattr(args, "debug", False):
+        diag.enable()
     try:
         if args.command in (None, "desktop"):
             from . import desktop  # noqa: PLC0415
