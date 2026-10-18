@@ -117,11 +117,23 @@ export function registerAppCommands(registry, { actions, app }) {
   };
   def("track.prev", stepFocus(-1), hasProject);
   def("track.next", stepFocus(1), hasProject);
-  def("mark.in", () => app.patch({ inPoint: app.getState().playhead }), hasProject);
-  def("mark.out", () => app.patch({ outPoint: app.getState().playhead }), hasProject);
-  def("mark.clear_in", () => app.patch({ inPoint: null }), hasProject);
-  def("mark.clear_out", () => app.patch({ outPoint: null }), hasProject);
-  def("mark.clear", () => app.patch({ inPoint: null, outPoint: null }), hasProject);
+  def(
+    "mark.in",
+    () => app.patch({ inPoint: app.getState().playhead, rangeTracks: new Set() }),
+    hasProject,
+  );
+  def(
+    "mark.out",
+    () => app.patch({ outPoint: app.getState().playhead, rangeTracks: new Set() }),
+    hasProject,
+  );
+  def("mark.clear_in", () => app.patch({ inPoint: null, rangeTracks: new Set() }), hasProject);
+  def("mark.clear_out", () => app.patch({ outPoint: null, rangeTracks: new Set() }), hasProject);
+  def(
+    "mark.clear",
+    () => app.patch({ inPoint: null, outPoint: null, rangeTracks: new Set() }),
+    hasProject,
+  );
   def("palette.open", () => app.openPalette());
   def("help.keys", () => app.openKeys());
   def("help.open", () => app.openHelp());

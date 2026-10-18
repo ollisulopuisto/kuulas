@@ -102,9 +102,9 @@ describe("the commands the app registers", () => {
     assert.equal(registry.run("mark.clear_out", null, { project }), true);
     assert.equal(registry.run("mark.clear", null, { project }), true);
     assert.deepEqual(calls, [
-      ["patch", { inPoint: null }],
-      ["patch", { outPoint: null }],
-      ["patch", { inPoint: null, outPoint: null }],
+      ["patch", { inPoint: null, rangeTracks: new Set() }],
+      ["patch", { outPoint: null, rangeTracks: new Set() }],
+      ["patch", { inPoint: null, outPoint: null, rangeTracks: new Set() }],
     ]);
     assert.equal(registry.can("mark.clear", {}), false);
   });
@@ -215,8 +215,8 @@ describe("the commands the app registers", () => {
     registry.run("mark.in");
     registry.run("mark.out");
     assert.deepEqual(calls, [
-      ["patch", { inPoint: 5 }],
-      ["patch", { outPoint: 5 }],
+      ["patch", { inPoint: 5, rangeTracks: new Set() }],
+      ["patch", { outPoint: 5, rangeTracks: new Set() }],
     ]);
   });
 
