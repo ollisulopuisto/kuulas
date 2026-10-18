@@ -359,3 +359,54 @@ describe("hit testing placeholders (WP43)", () => {
     assert.equal(hitTest({ layout, project, view, x: 60, y: onT2 }).placeholder, null);
   });
 });
+
+describe("layoutRows with per-track heights", () => {
+  const three = {
+    buses: [{ id: "b1", name: "Voices" }],
+    tracks: [
+      { id: "t1", bus: "b1", clips: [] },
+      { id: "t2", bus: "b1", clips: [] },
+      { id: "t3", clips: [] },
+    ],
+  };
+  const heightOf = (layout, id) => layout.rows.find((row) => row.id === id).height;
+  const topOf = (layout, id) => layout.rows.find((row) => row.id === id).top;
+
+  test("a track with its own height uses it; the others use the global one", () => {
+    const layout = layoutRows(three, 80, { laneHeights: { t2: 120 } });
+    assert.equal(heightOf(layout, "t1"), 80);
+    assert.equal(heightOf(layout, "t2"), 120);
+    assert.equal(heightOf(layout, "t3"), 80);
+  });
+
+  test("rows below stack on the taller lane and the total follows", () => {
+    const plain = layoutRows(three, 80);
+    const tall = layoutRows(three, 80, { laneHeights: { t1: 100 } });
+    assert.equal(topOf(tall, "t2") - topOf(plain, "t2"), 20);
+    assert.equal(tall.height - plain.height, 20);
+  });
+
+  test("own heights are clamped; unknown ids and junk values are ignored", () => {
+    const layout = layoutRows(three, 80, { laneHeights: { t1: 9999, t2: 3, t3: "x", nope: 50 } });
+    assert.equal(heightOf(layout, "t1"), 160);
+    assert.equal(heightOf(layout, "t2"), 24);
+    assert.equal(heightOf(layout, "t3"), 80);
+  });
+
+  test("a merged one-track bus lane takes its own height too", () => {
+    const one = { buses: [{ id: "b1", name: "V" }], tracks: [{ id: "t1", bus: "b1", clips: [] }] };
+    const layout = layoutRows(one, 80, { mergeSingle: true, laneHeights: { t1: 50 } });
+    assert.equal(heightOf(layout, "t1"), 50);
+  });
+
+  test("layoutFor passes the state's laneHeights", () => {
+    const layout = layoutFor({
+      project: three,
+      laneHeight: 80,
+      busHeight: 32,
+      groupGap: 14,
+      laneHeights: { t3: 40 },
+    });
+    assert.equal(heightOf(layout, "t3"), 40);
+  });
+});

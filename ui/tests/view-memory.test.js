@@ -8,6 +8,8 @@ const state = {
   zoom: 12,
   scroll: 4800,
   laneHeight: 96,
+  laneHeights: { t1: 50 },
+  autoFitTracks: true,
   waveformMode: "full",
   followMode: "continuous",
   focusTrack: "t2",
@@ -26,6 +28,8 @@ describe("recordOf", () => {
       scroll: 4800,
       whole: false,
       laneHeight: 96,
+      laneHeights: { t1: 50 },
+      autoFitTracks: true,
       waveformMode: "full",
       followMode: "continuous",
       focusTrack: "t2",
@@ -45,6 +49,8 @@ describe("restoreFrom", () => {
       zoom: 12,
       scroll: 4800,
       laneHeight: 96,
+      laneHeights: { t1: 50 },
+      autoFitTracks: true,
       waveformMode: "full",
       followMode: "continuous",
       focusTrack: "t2",
@@ -103,6 +109,28 @@ describe("restoreFrom", () => {
 
   test("clamps the lane height", () => {
     assert.equal(restoreFrom({ laneHeight: 9999 }, context).patch.laneHeight, 160);
+  });
+
+  test("per-lane heights: clamped, only for tracks that exist, numbers only", () => {
+    const patch = restoreFrom(
+      { laneHeights: { t1: 9999, t2: 3, gone: 70, bad: "x" } },
+      context,
+    ).patch;
+    assert.deepEqual(patch.laneHeights, { t1: 160, t2: 24 });
+    assert.equal(restoreFrom({ laneHeights: [1, 2] }, context).patch.laneHeights, undefined);
+    assert.equal(restoreFrom({ laneHeights: "x" }, context).patch.laneHeights, undefined);
+  });
+
+  test("auto-fit is restored only as a real boolean", () => {
+    assert.equal(restoreFrom({ autoFitTracks: true }, context).patch.autoFitTracks, true);
+    assert.equal(restoreFrom({ autoFitTracks: false }, context).patch.autoFitTracks, false);
+    assert.equal(restoreFrom({ autoFitTracks: "yes" }, context).patch.autoFitTracks, undefined);
+  });
+
+  test("a state without these fields records them as empty and off", () => {
+    const record = recordOf({ ...state, laneHeights: undefined, autoFitTracks: undefined });
+    assert.deepEqual(record.laneHeights, {});
+    assert.equal(record.autoFitTracks, false);
   });
 
   test("keeps unknown keys out of the patch (they stay in the file)", () => {

@@ -17,7 +17,7 @@ Every track is a lane, and time runs left to right. A click anywhere in the lane
 - Fit the selection or in-out range: {key:view.fit_selection}
 - Back to the view before: {key:view.back}
 
-Density, waveform and follow settings are in the View menu. {show:view-menu}
+Density, waveform and follow settings are in the View menu. {show:view-menu} So are Fit tracks to the window and Keep tracks fitted to the window. To size one lane, drag the bottom edge of its header; double-click the edge to reset it.
 
 ## Panels
 {key:panel.next} moves the keyboard to the next panel; {key:nav.home} brings it back here.

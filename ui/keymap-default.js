@@ -792,6 +792,18 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.keymap.export",
   },
   {
+    id: "view.fit_tracks",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.view.fit_tracks",
+  },
+  {
+    id: "view.auto_fit_tracks",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.view.auto_fit_tracks",
+  },
+  {
     id: "view.reset_remembered",
     keys: { mac: null, other: null },
     context: "global",

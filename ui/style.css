@@ -281,6 +281,18 @@ button.chip {
   border-bottom: 1px solid var(--border-subtle);
   overflow: hidden;
 }
+/* The grab zone on a lane header's bottom edge (drag = this lane's height). */
+.lane-grip {
+  position: absolute;
+  inset: auto 0 0;
+  height: 6px;
+  cursor: ns-resize;
+  touch-action: none;
+  z-index: 1;
+}
+.lane-grip:hover {
+  background: var(--border-subtle);
+}
 /* The track's hue (trackHues in paint.js), set by tracks.js as --track-colour. */
 /* Two marks at the left edge that never fight (GUI-DESIGN.md, "Buses"):
    the BUS spine, full height and continuous from the bus header down through
