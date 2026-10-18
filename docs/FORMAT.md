@@ -190,7 +190,8 @@ pointer (`Project.transcripts` moves out).
 | clip start, length, offset, fades, crossfades, envelopes, automation | edit state | project frames |
 | a track's gate: `Track.gate`, Auto-Silence's merged closed ranges (WP44) | edit state | project frames |
 | tracks, buses, master, layers, roles, tags | edit state | — |
-| markers and cut candidates (WP18) | edit state | anchor in flicks on a recording clock; timeline markers in project frames |
+| markers (WP18) | edit state | anchor in flicks on a recording clock; timeline markers in project frames |
+| cut candidates (WP18, as built) | material root `candidates` | flicks from the anchor media's start |
 | sync groups: main media, members, each member's origin | material | flicks |
 | BWF start time | media row | flicks |
 | transcript words (`w`, `s`, `e`, `spk`, `conf`) | words blob, per revision | flicks from the media's start |
@@ -322,6 +323,58 @@ hour, twice a busy hour) packs in about 7 ms (9 KB); 19,200 ranges (a range
 every 0.75 s on every mic) take 56 ms, which no real hour reaches. The 300 s
 four-voice test conversation (198 ranges) packs to 1.7 KB with the gate
 against 8.1 KB with the clip pieces it replaces.
+
+**As built (WP18 cut candidates).** The material root gains an optional
+`candidates`: candidate id -> record
+
+```
+{"kind": "silence" | "filler" | "retake" | "breath" | "marked",
+ "media": media id,        # the anchor recording
+ "start": flicks, "end": flicks,   # from that media's start, like transcript words
+ "scope": "track" | "group",
+ "state": "open" | "cut" | "kept",
+ "score": 0..1, "reason": {"key", "params"}, "text": the words under it}
+```
+
+- **Anchoring.** A candidate names a recording range, never a timeline
+  position; its timeline spans are derived from the clips every time
+  (`candidates.place`), so it follows its audio through every move, trim
+  and cut, and a fully cut-away candidate simply has no spans. A `group`
+  candidate (a pause nobody in a sync group fills, or a mark over a clip in a
+  group) is anchored to the group's **main** media and covers every member,
+  each through its origin; a `track` candidate (a filler, a retake) covers
+  only the clips of its own media.
+- **Ids** are `"k" + sha256("<media sha256>|<kind>|<start>|<end>")[:16]`: a
+  second detection finds the same ids and keeps their decisions. A new
+  candidate overlapping a `cut` or `kept` one (or a mark) is not added, so a
+  rejected stretch is not proposed again when a corrected transcript moves it
+  a little.
+- **Why material, not edit state** (the table above planned edit state):
+  candidates describe the recording, are found from material (transcripts),
+  and a decision made in one edit should be seen in the others (WP21's
+  "cut decisions travel between edits"). Each change is one material step,
+  undone with Undo; applying a candidate is one step that changes the edit
+  state (muted clips or a ripple) and the material (state `cut`) together.
+  Open point for WP21: with several edits, `cut` says the candidate was
+  accepted in *some* edit; whether this edit still plays it is derived
+  (`heard` in `GET /api/candidates`), which is what an "offer cuts to other
+  edits" view needs.
+- **Bounded:** at most 1,000 records (`candidates.MAX_CANDIDATES`); the
+  weakest open ones go first, decisions and marks stay. Measured: 1,000
+  records pack to 19 KB in 8 ms per material revision.
+- **Preserved:** records are updated field by field, so keys a newer kuulas
+  adds to a record are kept, as are unknown root keys.
+
+*Version and `min_reader`.* `min_reader` does not rise: the key is optional,
+absent until the first candidate exists (old projects stay byte-identical),
+and a reader that does not know it keeps it (roots are updated key by key)
+and plays the project exactly as this version does, because a candidate
+changes no audio until it is applied, and applying writes ordinary muted
+clips or a ripple into the edit state. Such a reader only does not show the
+candidates. By the "additive change" rule below, `version` should rise to 4
+with a migration that rewrites nothing; that is left to the integrator,
+since it touches `package.VERSION`, `db.SCHEMA_VERSION` and the migration
+table that other work packages also bump.
 
 ## Media
 
