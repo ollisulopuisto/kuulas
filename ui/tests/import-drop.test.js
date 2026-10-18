@@ -99,14 +99,14 @@ describe("what the import sends", () => {
     });
   });
 
-  test("a lane drop sends its time, and the remembered choices", () => {
+  test("a lane drop sends its time and its track, and the remembered choices", () => {
     const target = at(250, RULER_HEIGHT + 100);
-    assert.deepEqual(importOptionsFor(target, { order: "name", trackNaming: "person" }), {
-      mode: "side_by_side",
-      order: "name",
-      track_naming: "person",
-      start_frame: 25_000,
-    });
+    const options = importOptionsFor(target, { order: "name", trackNaming: "person" });
+    assert.equal(options.mode, "sequential"); // one file after another on that track
+    assert.equal(options.order, "name");
+    assert.equal(options.track_naming, "person");
+    assert.equal(options.start_frame, 25_000);
+    assert.equal(typeof options.onto_track, "string");
   });
 
   test("no target (the picker) is new tracks at the start", () => {
@@ -281,5 +281,26 @@ describe("the picker imports onto the selected track (owner, 2026-10-19)", () =>
     assert.equal(pickerPlacement(project, null, 0), null);
     assert.equal(pickerPlacement(project, "nope", 0), null);
     assert.equal(pickerPlacement(null, "a", 0), null);
+  });
+});
+
+describe("a drop on a lane goes onto that track (owner, 2026-10-19)", () => {
+  test("the options carry the track, one after another from the drop time", () => {
+    const options = importOptionsFor(
+      { kind: "lane", trackId: "t1", startFrame: 4800, mode: "side_by_side" },
+      { order: "given", trackNaming: "file" },
+    );
+    assert.equal(options.onto_track, "t1");
+    assert.equal(options.mode, "sequential");
+    assert.equal(options.start_frame, 4800);
+  });
+  test("a drop in the ruler or in empty space still makes new tracks", () => {
+    for (const kind of ["new", "ruler"]) {
+      const options = importOptionsFor(
+        { kind, trackId: null, startFrame: 0, mode: "side_by_side" },
+        { order: "given", trackNaming: "file" },
+      );
+      assert.equal(options.onto_track, undefined);
+    }
   });
 });

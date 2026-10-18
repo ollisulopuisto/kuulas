@@ -1,6 +1,7 @@
 """Importing onto an existing track (owner, 2026-10-19): more than one file on the same
 track, and onto the track that is selected, whether it was made first or not."""
 
+from itertools import pairwise
 from pathlib import Path
 
 import numpy as np
@@ -70,3 +71,33 @@ def test_one_undo_step_and_the_step_replays_with_the_track(session, tmp_path):
     assert session.history.can_undo
     session.undo()
     assert clips_of(session, "T") == []
+
+
+def stereo_wav(path: Path, seconds: float = 1.0) -> str:
+    rng = np.random.default_rng(3)
+    data = (rng.standard_normal((round(seconds * RATE), 2)) * 0.1).astype(np.float32)
+    sf.write(path, data, RATE, subtype="PCM_16")
+    return str(path)
+
+
+def test_a_stereo_file_onto_a_music_track_is_not_offered_as_mono(session, tmp_path):
+    session.edit("add_track", {"track_id": "M", "name": "Music", "kind": "music"})
+    session.import_media([stereo_wav(tmp_path / "bed.wav")], onto_track="M")
+    assert session.last_import_stereo == []
+
+
+def test_a_stereo_file_onto_a_speech_track_still_asks(session, tmp_path):
+    session.edit("add_track", {"track_id": "S", "name": "Voice", "kind": "speech"})
+    session.import_media([stereo_wav(tmp_path / "talk.wav")], onto_track="S")
+    assert [entry["id"] for entry in session.last_import_stereo] == ["S"]
+
+
+def test_imported_clips_overwrite_what_is_under_them_no_layers(session, tmp_path):
+    session.import_media([wav(tmp_path / "base.wav", 10.0, 5)])
+    track = session.state.tracks[0]
+    session.import_media([wav(tmp_path / "jingle.wav", 2.0, 6)],
+                         onto_track=track.id, start_frame=3 * RATE)
+    spans = clips_of(session, track.id)
+    assert (3 * RATE, 5 * RATE) in spans
+    flat = sorted(spans)
+    assert all(a[1] <= b[0] for a, b in pairwise(flat))

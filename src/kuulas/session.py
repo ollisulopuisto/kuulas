@@ -1180,6 +1180,9 @@ class Session:
                 p = ops.add_clip(p, track_id, m.id, start=pl.start_frame, clip_id=clip_id)
                 clip_ids.append(clip_id)
 
+            if onto_track is not None:
+                # No layers: what the new clips land on is trimmed back, as for a move.
+                p = ops._overwrite_under(self.history.state, p)
             refs = [m.time_ref_flicks for m in media]
             if effective_mode == "side_by_side" and len({m.id for m in media}) > 1:
                 # Exact clocks when every file has one (or none does); mixed,
@@ -1187,9 +1190,18 @@ class Session:
                 # on the timeline is what the group has to say.
                 basis = "files" if len({r is None for r in refs}) == 1 else "timeline"
                 p = ops.mark_in_sync(p, clip_ids, main=clip_ids[0], basis=basis)
-            self.last_import_stereo = [
-                {"id": track_ids_by_key[pl.track_key], "name": pl.track_name}
-                for pl in import_plan.stereo_speech(placements)]
+            if onto_track is not None:
+                # The target track decides: stereo on a music track stays stereo (no
+                # "turn into mono?" question); on a speech track it is still offered.
+                target = next(t for t in p.tracks if t.id == onto_track)
+                stereo_in = any(pl.item.channels >= 2 for pl in placements)
+                self.last_import_stereo = (
+                    [{"id": target.id, "name": target.name}]
+                    if stereo_in and target.kind == "speech" else [])
+            else:
+                self.last_import_stereo = [
+                    {"id": track_ids_by_key[pl.track_key], "name": pl.track_name}
+                    for pl in import_plan.stereo_speech(placements)]
             label = t("history.import", count=len(media))
             distinct_media = len({m.id for m in media}) > 1
             made_group = (

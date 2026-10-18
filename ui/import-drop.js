@@ -51,11 +51,14 @@ export function pickerPlacement(project, trackId, playhead) {
 
 /** The placement fields of POST /api/import and /api/upload for a drop (null: the picker). */
 export function importOptionsFor(target, prefs) {
+  const onLane = target?.kind === "lane" && target.trackId;
   return {
-    mode: target?.mode ?? "side_by_side",
+    // Dropped on a lane: onto that track, one file after another from the drop time.
+    mode: onLane ? "sequential" : (target?.mode ?? "side_by_side"),
     order: prefs.order,
     track_naming: prefs.trackNaming,
     start_frame: target?.startFrame ?? 0,
+    ...(onLane ? { onto_track: target.trackId } : {}),
   };
 }
 
