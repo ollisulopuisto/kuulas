@@ -2403,6 +2403,39 @@ input[type="text"] {
 .channel-tag[hidden] {
   display: none;
 }
+/* Integrated loudness against the target (WP49), tinted by loudness-tint.js's three states.
+   While a newer measure runs the old value stays, dimmed. A header too short for text (compact)
+   keeps only a tinted dot; the tooltip has the numbers. */
+.loudness-readout {
+  flex: none;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.loudness-readout[hidden] {
+  display: none;
+}
+.loudness-readout[data-state="ok"] {
+  color: var(--ok-text);
+}
+.loudness-readout[data-state="notice"] {
+  color: var(--warn-text);
+}
+.loudness-readout[data-state="warn"] {
+  color: var(--danger-text);
+}
+.loudness-readout.stale {
+  opacity: 0.55;
+}
+.track-header.compact .loudness-readout {
+  width: 8px;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: currentColor;
+  font-size: 0;
+}
 .import-mono {
   margin: 0;
 }

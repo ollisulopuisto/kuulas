@@ -104,6 +104,9 @@ export const initialState = () => ({
   lastEditPoint: null,
   fitted: false,
   live: "connecting",
+  // Integrated loudness per track from the analysis (loudness-readout.js): { head, status,
+  // tracks }, null until the first answer. Read-only for the headers; never an edit.
+  loudness: null,
 });
 
 let state = initialState();

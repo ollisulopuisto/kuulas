@@ -11,6 +11,7 @@ import { addBusForTrack, NEW_BUS } from "./inspector-track.js";
 import { truncateMiddle } from "./labels.js";
 import { dragLaneHeight, dragStarted } from "./lane-sizing.js";
 import { layoutFor } from "./lanes.js";
+import { readoutText, trackReadout } from "./loudness-readout.js";
 import { monoTag } from "./mono-ask.js";
 import { MUSIC_HUE, trackHues } from "./paint.js";
 import { coalesceKey, patchBus, patchSolo, patchTrack } from "./provisional.js";
@@ -172,6 +173,20 @@ function fitName(node, full) {
   node.textContent = truncateMiddle(full, low);
 }
 
+/**
+ * The loudness readout: "−21,3 / −19 LUFS" tinted ok / notice / warn. The tooltip says what it is
+ * and carries the numbers, which is all a compact header shows (a tinted dot, see style.css).
+ */
+function paintLoudness(node, readout) {
+  const text = readoutText(readout, formatNumber, t);
+  node.hidden = readout.phase === "none";
+  node.textContent = text;
+  node.dataset.state = readout.phase === "value" ? readout.state : "none";
+  node.classList.toggle("stale", Boolean(readout.stale));
+  const tip = t("ui.loudness.readout.tip");
+  node.title = readout.phase === "value" ? `${text}. ${tip}` : tip;
+}
+
 export function createTrackHeaders({ root, editor, actions, onBusCreated = () => {} }) {
   let signature = "";
   let rows = new Map();
@@ -237,6 +252,9 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     const tag = el("button", `tag kind-${track.kind}`, { type: "button", tabindex: "-1" });
     paintTag(tag, track.kind);
     const channelTag = el("span", "channel-tag");
+    // Integrated loudness against the target (WP49); filled in by update() from the analysis.
+    const loudness = el("span", "loudness-readout");
+    loudness.hidden = true;
     const mute = toggle(t("ui.track.mute"), t("ui.track.mute.short"), "mute");
     const solo = toggle(t("ui.track.solo"), t("ui.track.solo.short"), "solo");
     const buttons = el("span", "ms");
@@ -258,7 +276,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     newBus.value = NEW_BUS;
     newBus.textContent = t("ui.bus.option_new");
     bus.append(newBus);
-    top.append(name, tag, channelTag, bus, buttons);
+    top.append(name, tag, channelTag, loudness, bus, buttons);
     const controls = el("div", "th-controls");
     const gain = slider(t("ui.track.gain"), GAIN);
     const pan = slider(t("ui.track.pan"), PAN);
@@ -363,7 +381,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       format: panText,
       scale: 100,
     });
-    return { node, name, tag, channelTag, mute, solo, bus, gain, pan, kind: "track" };
+    return { node, name, tag, channelTag, loudness, mute, solo, bus, gain, pan, kind: "track" };
   }
 
   function buildBus(bus, index) {
@@ -541,6 +559,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         const channels = monoTag(track, state.project);
         parts.channelTag.hidden = channels === null;
         parts.channelTag.textContent = channels ? t(`ui.track.tag.${channels}`) : "";
+        paintLoudness(parts.loudness, trackReadout(state.loudness, track.id));
         parts.mute.setAttribute("aria-pressed", String(track.mute));
         parts.solo.setAttribute("aria-pressed", String(track.solo));
         if (document.activeElement !== parts.bus) parts.bus.value = track.bus ?? "";

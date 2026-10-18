@@ -39,6 +39,7 @@ from speechmix.chain import true_peak
 from speechmix.meter import IntegratedMeter
 
 from . import caches, mixer
+from .loudness import track_target_lufs
 from .messages import t
 
 if TYPE_CHECKING:
@@ -179,7 +180,12 @@ def project_curves(p: Project, store: mixer.Store,
     """``{"tracks": [{"track_id", "curve", "integrated", "true_peak_db"}],
     "mix": {"curve", "integrated", "true_peak_db"}}`` for the timeline
     ``[0, p.length)``. Takes a snapshot ``Project``: the caller does not hold
-    the session lock while this runs. Tracks without clips are left out."""
+    the session lock while this runs. Tracks without clips are left out.
+
+    A track's ``integrated`` is BS.1770 gated, over the stem as heard: gated
+    stretches and muted clips are silence in the stem, and the gate leaves
+    silence out, so they do not count. The track's own mute switch is not
+    applied (a muted track still reads what it would contribute)."""
     tracks = [tr for tr in p.tracks if tr.clips]
     wanted: list[tuple[str, Track | None]] = [(tr.id, tr) for tr in tracks]
     wanted.append(("", None))  # the mix
@@ -214,5 +220,9 @@ def project_curves(p: Project, store: mixer.Store,
         results[ident] = acc.result().to_dict()
         _save(where, results[ident])
 
-    return {"tracks": [{"track_id": tr.id, **results[tr.id]} for tr in tracks],
+    # The target is edit state that changes no sample, so it is added here and
+    # never cached: setting one costs no remeasure. The readout in the track
+    # header (own target, else the role's) is this number against "integrated".
+    return {"tracks": [{"track_id": tr.id, **results[tr.id],
+                        "target_lufs": track_target_lufs(tr)} for tr in tracks],
             "mix": results[""]}

@@ -66,6 +66,7 @@ import { clampLaneHeight, layoutFor, pointerIntent, projectEnd, RULER_HEIGHT } f
 import { leftOffHere, leftOffOf, leftOffText } from "./left-off.js";
 import { connectLive } from "./live.js";
 import { activeLoop } from "./loop-range.js";
+import { createLoudnessLoader } from "./loudness-readout.js";
 import { regionCount } from "./markers-model.js";
 import { createMarkersPanel } from "./markers-panel.js";
 import { createMarksCorner } from "./marks-corner.js";
@@ -1880,6 +1881,7 @@ function render(state, patch) {
       "collapsedBuses",
       "busHeight",
       "groupGap",
+      "loudness",
     )
   )
     trackHeaders.update(state);
@@ -1981,6 +1983,14 @@ function follow(state, moved = false) {
 }
 
 subscribe(render);
+
+// The loudness readout in the track headers: asked in the background once the project has
+// settled (loudness-readout.js), never blocking an edit.
+const loudnessLoader = createLoudnessLoader({
+  fetchCurve: (signal) => api.getLoudnessCurve(signal),
+  onChange: (patch) => setState(patch),
+});
+subscribe(() => loudnessLoader.settle(getState().project ? getState().head : null));
 onLanguageChange(() => {
   importPanel.refresh();
   translate();
