@@ -1737,6 +1737,7 @@ input[type="text"] {
 #panel-history > .actionbar .hint {
   flex: 1 1 100%;
   font-size: var(--text-xs);
+}
 /* Inspector Source: the recording's mini map. Used solid, cut hatched, unused outlined,
    this clip boxed: every state has a shape twin, so colour is never the only cue. */
 .inspector-summary {
