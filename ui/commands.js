@@ -6,7 +6,12 @@
 
 export function createRegistry() {
   const commands = new Map();
+  const listeners = [];
   return {
+    /** `fn(id)` is called after a command ran (not for one that could not apply). */
+    onRun(fn) {
+      listeners.push(fn);
+    },
     register(id, run, { can = null, hintKey = null } = {}) {
       commands.set(id, { run, can, hintKey, planned: false });
     },
@@ -41,6 +46,13 @@ export function createRegistry() {
       if (!command || command.planned) return false;
       if (state !== undefined && !this.can(id, state)) return false;
       command.run(event);
+      for (const listener of listeners) {
+        try {
+          listener(id);
+        } catch {
+          // A listener (the recent list) must never undo a command that ran.
+        }
+      }
       return true;
     },
     ids: () => [...commands.keys()],

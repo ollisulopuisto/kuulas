@@ -102,3 +102,47 @@ describe("selection", () => {
     assert.equal(moveSelection(0, 1, 0), -1);
   });
 });
+
+describe("palette recent group", () => {
+  function recentRows({ canUndo = true, query = "", recent }) {
+    const registry = createRegistry();
+    registry.register("edit.undo", () => {}, { can: (st) => st.canUndo });
+    registry.register("view.fit", () => {});
+    registry.register("keymap.reset", () => {});
+    registry.register("edit.split", () => {});
+    return paletteRows({
+      entries: resolveKeymap(DATA, {}, "other"),
+      registry,
+      state: { canUndo },
+      query,
+      label,
+      format: fmt,
+      platform: "other",
+      recent,
+    });
+  }
+  test("with an empty query the recent commands come first, in recent order", () => {
+    const rows = recentRows({ recent: ["edit.split", "edit.undo"] });
+    assert.deepEqual(
+      rows.slice(0, 2).map((row) => [row.id, row.recent]),
+      [
+        ["edit.split", true],
+        ["edit.undo", true],
+      ],
+    );
+    assert.equal(rows.filter((row) => row.id === "edit.split").length, 1, "listed once");
+    assert.ok(rows.slice(2).every((row) => !row.recent));
+  });
+  test("a typed query ignores the recent group", () => {
+    const rows = recentRows({ query: "fit", recent: ["edit.split"] });
+    assert.ok(rows.every((row) => !row.recent));
+  });
+  test("recent commands that cannot apply or are unknown are skipped", () => {
+    const rows = recentRows({ canUndo: false, recent: ["edit.undo", "gone.id"] });
+    assert.ok(rows.every((row) => !row.recent));
+  });
+  test("without a recent list nothing changes", () => {
+    const rows = recentRows({ recent: undefined });
+    assert.ok(rows.every((row) => !row.recent));
+  });
+});

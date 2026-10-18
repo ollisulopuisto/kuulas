@@ -9,8 +9,27 @@ import { fuzzyMatch } from "./fuzzy.js";
  * Enabled commands first, then ones that cannot apply right now, then planned ones.
  * -> [{ id, label, keys, planned, enabled, indices }]
  */
-export function paletteRows({ entries, registry, state, query = "", label, format, platform }) {
+export function paletteRows({
+  entries,
+  registry,
+  state,
+  query = "",
+  label,
+  format,
+  platform,
+  recent = [],
+}) {
   const rows = [];
+  // "Recent" first when the query is empty (GUI-DESIGN 3.9): commands that still exist
+  // and can apply now, in the order they were last used.
+  const recentRank = new Map();
+  if (query.trim() === "") {
+    for (const id of recent) {
+      if (!recentRank.has(id) && registry.has(id) && registry.can(id, state)) {
+        recentRank.set(id, recentRank.size);
+      }
+    }
+  }
   entries.forEach((entry, order) => {
     const text = label(entry.labelKey);
     const match = fuzzyMatch(query.trim(), text);
@@ -27,10 +46,18 @@ export function paletteRows({ entries, registry, state, query = "", label, forma
       score: match.score,
       group: planned ? 2 : enabled ? 0 : 1,
       order,
+      recent: recentRank.has(entry.id) || undefined,
+      rank: recentRank.get(entry.id),
     });
   });
-  rows.sort((a, b) => a.group - b.group || b.score - a.score || a.order - b.order);
-  return rows.map(({ score, group, order, ...row }) => row);
+  rows.sort(
+    (a, b) =>
+      (a.rank ?? Number.POSITIVE_INFINITY) - (b.rank ?? Number.POSITIVE_INFINITY) ||
+      a.group - b.group ||
+      b.score - a.score ||
+      a.order - b.order,
+  );
+  return rows.map(({ score, group, order, rank, ...row }) => row);
 }
 
 /** Arrow keys: move and wrap; -1 when there is nothing to select. */
