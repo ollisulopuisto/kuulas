@@ -1,3 +1,15 @@
+## [v26.10.18.68] - 2026-10-18
+
+- **The transport has its own corner:** Play, Silmukka (loop), the timecode and the fast-listening speed now sit
+  above the track headers instead of in the menu row, so all 11 menus fit at 1280 px and wider. Next to
+  them, **Alku, Loppu and Pituus** (in, out and length of the marked range) are stacked: click one to jump
+  there (Pituus zooms to the range), double-click to type an exact time. The length is also drawn on the
+  range band in the ruler, and the status bar no longer repeats the marks. Narrow windows (under about 1400 px)
+  use a more compact corner. Checked in a browser by the builder, not yet on your screen.
+- **No overlapping clips:** moving or nudging a clip onto others now overwrites them: the clips under it are
+  trimmed, split around it, or removed when covered; one undo step; nothing is lost (a trimmed clip still
+  points at its whole source). Old projects keep their overlaps.
+
 ## [v26.10.18.67] - 2026-10-18
 
 - **Hindenburg clipboards come in with the import:** each clip in a session's clipboards (1 to 4) becomes a
