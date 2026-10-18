@@ -41,6 +41,8 @@ from . import (
     collateral,
     edit_scope,
     import_plan,
+    narration,
+    narration_script,
     ops,
     package,
     source_map,
@@ -80,6 +82,10 @@ class NoSuchEntryError(ops.EditError):
 
 class SubtitlesError(ops.EditError):
     """Unknown subtitle format."""
+
+
+class NarrationScriptError(ops.EditError):
+    """The narration script was asked for in a format that does not exist."""
 
 
 class TranscriptTextError(ops.EditError):
@@ -650,6 +656,27 @@ class Session:
         if format == "txt":
             return transcript_text.to_text(paras)
         return transcript_text.to_markdown(paras)
+
+    def narration_script(self) -> list[dict]:
+        """The narration placeholders in timeline order, each with its text,
+        start (``m:ss``), estimated length and the 20 words of the episode
+        before and after it (``narration.script``). The snapshot is taken under
+        the lock; the context is built outside it."""
+        with self.lock:
+            state = self.history.state
+            words_by_media = self.transcripts()
+        words = transcript.timeline_words(state, words_by_media)
+        return narration.script(state, words)
+
+    def narration_script_text(self, format: str) -> str:
+        """The narration script as ``"txt"`` or ``"md"``, for the narrator."""
+        if format not in ("txt", "md"):
+            raise NarrationScriptError("error.narration_script.bad_format",
+                                       format=format)
+        items = self.narration_script()
+        if format == "txt":
+            return narration_script.to_text(items)
+        return narration_script.to_markdown(items)
 
     def cut_preview(self, selected: list[dict]) -> dict[str, Any]:
         """Preview crosstalk that cutting ``selected`` words would remove (WP18).
@@ -1656,6 +1683,28 @@ def _match_loudness(s: Session, args: dict) -> Project:
     return s.match_loudness(clip_ids, target_lufs=target_lufs)
 
 
+def _placeholder_take(s: Session, args: dict) -> Project:
+    """Import ONE file and make it the take of a narration placeholder (WP43),
+    as one undo step: the file comes into the project's media, the placeholder
+    becomes a clip and the later material moves by the difference in length.
+    A file that cannot be imported changes nothing."""
+    try:
+        placeholder_id, path = args["placeholder_id"], args["path"]
+        offset = int(args.get("offset", 0))
+    except (KeyError, TypeError, ValueError) as e:
+        raise ops.EditError("error.edit.bad_arguments", name="placeholder_take",
+                            detail=str(e)) from None
+    project = s.history.state
+    ops._find_placeholder(project, placeholder_id)  # fail before importing
+    result = s.store.import_batch([path], bool(args.get("copy", False)))[0]
+    s.last_import_report = [result]
+    if not result.ok:
+        raise result.error
+    new = ops.replace_placeholder(s.history.state, placeholder_id, result.media.id,
+                                  offset, bool(args.get("group_editing", True)))
+    return s._commit(t("history.placeholder_take"), new, "placeholder_take", args)
+
+
 #: Name -> function(session, args) -> Project. The session lock is held,
 #: except for ``LOCK_FREE_COMMANDS``.
 #: ``auto_silence``, ``automix`` and ``cut_words`` commit one step each;
@@ -1684,6 +1733,7 @@ COMMANDS: dict[str, Callable[[Session, dict], Project]] = {
     "candidate_apply": _candidate_apply,
     "candidate_mark": _candidate_mark,
     "match_loudness": _match_loudness,
+    "placeholder_take": _placeholder_take,
 }
 
 #: Commands that run without the session lock and take it only for their

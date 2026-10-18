@@ -248,6 +248,44 @@ class Marker:
 
 
 @dataclass(frozen=True)
+class Placeholder:
+    """Narration script that is not recorded yet (WP43): ``text`` standing for
+    ``length`` frames from ``start`` on ``track``, in project frames.
+
+    It plays silence and is no clip (a clip without media would break every
+    place that reads ``Clip.media``). ``estimated`` says ``length`` still comes
+    from the text (``narration.estimate_frames``); a hand-set length clears it.
+    ``language`` is a language tag, empty for the project's.
+    """
+
+    id: str
+    track: str
+    start: int
+    length: int
+    text: str
+    estimated: bool = True
+    language: str = ""
+    extra: dict = field(default_factory=dict, hash=False)
+
+    @property
+    def end(self) -> int:
+        return self.start + self.length
+
+    def to_dict(self) -> dict:
+        d = _out(self)
+        if not self.language:
+            del d["language"]
+        return d
+
+    @classmethod
+    def from_dict(cls, d: dict) -> Placeholder:
+        known, extra = _split(cls, d)
+        known["start"] = int(known["start"])
+        known["length"] = int(known["length"])
+        return cls(**known, extra=extra)
+
+
+@dataclass(frozen=True)
 class Project:
     rate: int = 48000
     media: tuple[Media, ...] = ()
@@ -260,6 +298,8 @@ class Project:
     # Edit state (WP19h): sorted by start. Absent from the JSON when empty, so
     # a project that never had one keeps its bytes and its state hash.
     markers: tuple[Marker, ...] = ()
+    # Edit state (WP43), sorted by start; absent from the JSON when empty.
+    placeholders: tuple[Placeholder, ...] = ()
     extra: dict = field(default_factory=dict, hash=False)
 
     # -- lookups ----------------------------------------------------------
@@ -329,9 +369,12 @@ class Project:
                  tracks=[t.to_dict() for t in self.tracks],
                  buses=[b.to_dict() for b in self.buses],
                  sync_groups=[g.to_dict() for g in self.sync_groups],
-                 markers=[m.to_dict() for m in self.markers])
+                 markers=[m.to_dict() for m in self.markers],
+                 placeholders=[h.to_dict() for h in self.placeholders])
         if not self.markers:
             del d["markers"]
+        if not self.placeholders:
+            del d["placeholders"]
         return d
 
     def to_json(self) -> str:
@@ -346,6 +389,8 @@ class Project:
         known["sync_groups"] = tuple(SyncGroup.from_dict(g)
                                      for g in known.get("sync_groups", ()))
         known["markers"] = tuple(Marker.from_dict(m) for m in known.get("markers", ()))
+        known["placeholders"] = tuple(Placeholder.from_dict(h)
+                                      for h in known.get("placeholders", ()))
         return cls(**known, extra=extra)
 
     @classmethod

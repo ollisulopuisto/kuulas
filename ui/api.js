@@ -92,6 +92,14 @@ export const uploadFiles = (files, options = {}) => {
   return importReport(() => json("/api/upload", { method: "POST", body: form }));
 };
 
+/** A browser's take for a narration placeholder (WP43): uploaded and put in its place. */
+export const uploadTake = (placeholderId, file) => {
+  const form = new FormData();
+  form.append("file", file, file.name);
+  form.append("placeholder_id", placeholderId);
+  return json("/api/placeholder-take", { method: "POST", body: form });
+};
+
 /** Link files in place by path (the desktop window's dialogs and drops): no upload. */
 export const importPaths = (paths, options = {}) =>
   importReport(() => post("/api/import", { paths, copy: false, ...options }));

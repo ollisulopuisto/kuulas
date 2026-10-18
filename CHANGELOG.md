@@ -1,3 +1,15 @@
+## [v26.10.18.22] - 2026-10-18
+
+- Narration placeholders: T puts script text on the current track at the play cursor, with a live
+  "14 words, about 6 s" estimate; it shows as a dashed box with the text. Enter or a double-click
+  edits it (the length follows the text until you set it by hand). A placeholder moves with ripple
+  cuts on its own track. Narration menu ▸ "Record or import a take" replaces it with a real clip in
+  place; later material on the sync group shifts by the difference, in one undo step. File menu:
+  export the script as text or Markdown (each placeholder with its time, estimate and 20 words of
+  context either side). Exports warn how many placeholders were skipped. Shift+Alt+T deletes one.
+  Not built: the "to record" row in the transcript, and the browser file picker for takes was not
+  tried by a person.
+
 ## [v26.10.18.21] - 2026-10-18
 
 - Playback engine: it can now skip stretches while playing ("as if cut") with a 15 ms equal-power

@@ -2688,7 +2688,7 @@ projects with correct usage marks.
 
 ### WP43 — Narration placeholders
 
-Status: length estimate (`narration.py`) done in v26.10.17.5; the rest open. Needs WP4, WP5, WP7. Sonnet 5.5. Phase 2. The data model
+Status: first version done in v26.10.18.22 (placeholders in the edit state, ops, replace with a take, script export, export warning, T key and prompt); the "to record" row in the transcript and an in-app recorder open. Needs WP4, WP5, WP7. Sonnet 5.5. Phase 2. The data model
 part (a placeholder clip kind) can land with WP41 or earlier.
 
 Script text for narration that has not been recorded yet (owner, 2026-10-16):

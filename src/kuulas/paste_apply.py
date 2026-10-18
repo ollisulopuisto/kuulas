@@ -16,6 +16,7 @@ from dataclasses import replace
 from . import curves, ops
 from . import gate as gatem
 from . import markers as markersm
+from . import placeholders as placeholdersm
 from .clipboard import Entry
 from .model import Project, Track
 from .paste_plan import PastePlan
@@ -53,7 +54,9 @@ def _open_gap(p: Project, track_id: str, at: int, length: int) -> Project:
         else:  # the gate straddles the point: the gap itself stays open
             gate.extend([(a, at), (at + length, b + length)])
     track = replace(track, automation=automation, gate=gatem.normalise(gate))
-    return replace(p, tracks=tuple(track if t.id == track_id else t for t in p.tracks))
+    return replace(p, tracks=tuple(track if t.id == track_id else t for t in p.tracks),
+                   placeholders=placeholdersm.open_gap(p.placeholders, {track_id},
+                                                       at, length))
 
 
 def _clear(p: Project, track_id: str, start: int, end: int) -> Project:

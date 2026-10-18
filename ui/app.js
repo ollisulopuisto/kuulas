@@ -29,6 +29,7 @@ import { regionCount } from "./markers-model.js";
 import { createMarkersPanel } from "./markers-panel.js";
 import { motionMode } from "./motion.js";
 import { createOverview } from "./overview.js";
+import { createPlaceholderEditor } from "./placeholder-editor.js";
 import { setupKeyboard } from "./shell-keys.js";
 import { chipSpeed } from "./shuttle.js";
 import { getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
@@ -101,6 +102,9 @@ const bounds = () => ({ width: width(), totalFrames: totalFrames() });
 function apply(response) {
   setState(serverPatch(response, getState()));
   if (fitWhole) fitWholeEdit();
+  // An export that left unrecorded narration silent says so (WP43): a warning, not a refusal.
+  const skipped = response.export?.placeholders_skipped ?? 0;
+  if (skipped > 0) showNotice(t("ui.export.placeholders_skipped", { count: skipped }), "ok");
 }
 
 async function refresh() {
@@ -283,6 +287,9 @@ function onPointerDown(hit, event) {
     patch.focusTrack = hit.row.id;
     patch.focusBus = null;
   } else if (hit.row?.kind === "bus" && !event.shiftKey) patch.focusBus = hit.row.id;
+  // A narration placeholder is picked like a clip (WP43): one at a time, never with a clip.
+  if (!event.shiftKey)
+    patch.placeholderSelected = hit.placeholder && !hit.clip ? hit.placeholder.id : null;
   if (intent.selection === "replace") patch.selection = new Set([intent.clip.id]);
   else if (intent.selection === "clear") patch.selection = new Set();
   else if (intent.selection === "toggle") {
@@ -424,6 +431,8 @@ const keyboard = setupKeyboard({
           return null;
         }),
     download: (path, fallback) => downloadFile(path, fallback),
+    promptText: (request) => placeholderEditor.prompt(request),
+    takeFor: (id) => void takeForPlaceholder(id),
     exportRegions: () => exportRegions(),
     focusName: () => inspector.focusName(),
     openGateStretch: () => openGateStretch(),
@@ -588,6 +597,44 @@ $("track-headers").addEventListener("scroll", (event) =>
 
 function setLaneHeight(delta) {
   setState({ laneHeight: clampLaneHeight(getState().laneHeight + delta) });
+}
+
+// -- narration placeholders (WP43) ---------------------------------------------------------------------
+
+const placeholderEditor = createPlaceholderEditor({ root: $("placeholder-editor"), t });
+
+// Record it in place: pick one file and it replaces the placeholder, later material moving by
+// the difference in length, as one undo step. The desktop window links the file by path; a
+// browser uploads it.
+async function takeForPlaceholder(placeholderId) {
+  const done = (response) => {
+    apply(response);
+    showNotice(t("ui.placeholders.take_done"), "ok", { undo: true });
+  };
+  try {
+    const bridge = nativeBridge();
+    if (bridge) {
+      const [path] = await bridge.pick_media();
+      if (path)
+        done(await api.command("placeholder_take", { placeholder_id: placeholderId, path }));
+      return;
+    }
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "audio/*,video/*";
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      try {
+        done(await api.uploadTake(placeholderId, file));
+      } catch (error) {
+        showError(error);
+      }
+    });
+    input.click();
+  } catch (error) {
+    showError(error);
+  }
 }
 
 // -- import: file picker and drag and drop ------------------------------------------------------
@@ -1062,6 +1109,10 @@ const timeline = createTimeline({
   actions: {
     pointerDown: onPointerDown,
     openGate: openGateStretch,
+    editPlaceholder(placeholder) {
+      setState({ placeholderSelected: placeholder.id });
+      keyboard.registry.run("placeholder.edit", null, getState());
+    },
     wheel: onWheel,
     resized() {
       if (fitWhole && getState().project) fitWholeEdit();

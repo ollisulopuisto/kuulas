@@ -23,6 +23,7 @@ import {
 } from "./lanes.js";
 import { flagLayout, NOTCH_PX as MARKER_NOTCH_PX } from "./markers-model.js";
 import { makeWaveformJob, trackHues } from "./paint.js";
+import { aboutSeconds, placeholderLabel } from "./placeholders-model.js";
 import { rulerTicks } from "./ruler.js";
 import { readTheme } from "./theme.js";
 import { createWaveformLayer } from "./waveform-layer.js";
@@ -248,12 +249,70 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
         overlay.strokeRect(left + 1, y + 1, w - 2, h - 2);
       }
     }
+    drawPlaceholders(state, track, row, top);
     if (state.collateral?.tracks.includes(track.id)) drawCollateral(state, track, row, top);
     if (state.showGates !== false) drawGate(state, track, top, row.height);
     drawCandidates(track.id, top, row.height);
     drawSeams(state, track, top, row.height);
     drawAutomation(state, track, top, row.height);
     overlay.restore();
+  }
+
+  // Narration placeholders (WP43): the `placeholder` signal of grammar.js: a dashed 1 px
+  // outline, no waveform, the script text in italics inside (clipped to the width) and, when
+  // the room is there, "about 6 s" while the length is still the text's estimate.
+  function drawPlaceholders(state, track, row, top) {
+    const all = state.project.placeholders;
+    if (!all?.length) return;
+    const rate = state.project.rate;
+    const y = top + 2;
+    const h = row.height - 4;
+    for (const ph of all) {
+      if (ph.track !== track.id) continue;
+      const left = frameToX(ph.start, state.scroll, state.zoom);
+      const right = frameToX(ph.start + ph.length, state.scroll, state.zoom);
+      if (right < 0 || left > size.width) continue;
+      const w = Math.max(1, right - left);
+      overlay.save();
+      overlay.beginPath();
+      overlay.rect(left, y, w, h);
+      overlay.clip();
+      overlay.fillStyle = theme.panel;
+      overlay.globalAlpha = 0.5;
+      overlay.fillRect(left, y, w, h);
+      overlay.globalAlpha = 1;
+      overlay.setLineDash([5, 3]);
+      overlay.strokeStyle = theme.placeholder;
+      overlay.lineWidth = 1;
+      overlay.strokeRect(left + 0.5, y + 0.5, w - 1, h - 1);
+      overlay.setLineDash([]);
+      if (row.height >= 36) {
+        overlay.font = `italic ${NAME_FONT_PX}px ${theme.font}`;
+        overlay.textBaseline = "top";
+        const estimate = ph.estimated
+          ? t("ui.placeholders.about", { seconds: aboutSeconds(ph.length, rate) })
+          : "";
+        const label = placeholderLabel({
+          text: ph.text,
+          estimate,
+          width: w,
+          measure: (text) => overlay.measureText(text).width,
+        });
+        overlay.fillStyle = theme.muted;
+        overlay.fillText(label.script, left + 6, y + 5);
+        if (label.estimate) {
+          const used = overlay.measureText(label.script).width;
+          overlay.font = `${NAME_FONT_PX}px ${theme.font}`;
+          overlay.fillText(label.estimate, left + 6 + used, y + 5);
+        }
+      }
+      if (ph.id === state.placeholderSelected) {
+        overlay.strokeStyle = theme.selection;
+        overlay.lineWidth = 2;
+        overlay.strokeRect(left + 1, y + 1, w - 2, h - 2);
+      }
+      overlay.restore();
+    }
   }
 
   // Collateral (GUI-DESIGN.md section 19): while words are selected in the transcript, the
@@ -683,10 +742,13 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     return hitTest({ layout, project: state.project, view: { ...state, width: size.width }, x, y });
   }
 
-  // Over a closed stretch the tooltip says what it is and what a double-click does.
+  // Over a closed stretch the tooltip says what it is and what a double-click does; over a
+  // narration placeholder (WP43) it says it is to be recorded and that Enter edits it.
   function hoverGate(event) {
-    const over = hitAt(event).gate;
-    const text = over ? t("ui.gate.hover") : "";
+    const hit = hitAt(event);
+    let text = "";
+    if (hit.placeholder && !hit.clip) text = t("ui.placeholders.hover");
+    else if (hit.gate) text = t("ui.gate.hover");
     if (overlayCanvas.title !== text) overlayCanvas.title = text;
   }
   overlayCanvas.addEventListener("pointermove", (event) => {
@@ -700,8 +762,9 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
   overlayCanvas.addEventListener("dblclick", (event) => {
     if (!getState().project || event.button !== 0) return;
     if (event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return;
-    const { gate } = hitAt(event);
-    if (gate) actions.openGate(gate);
+    const { gate, placeholder, clip } = hitAt(event);
+    if (placeholder && !clip) actions.editPlaceholder(placeholder);
+    else if (gate) actions.openGate(gate);
   });
   overlayCanvas.addEventListener("pointerdown", (event) => {
     if (!getState().project || event.button !== 0) return;

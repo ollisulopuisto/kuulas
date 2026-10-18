@@ -338,3 +338,24 @@ describe("hitTest on a gate band (WP44)", () => {
     assert.ok(at(350).gate);
   });
 });
+
+describe("hit testing placeholders (WP43)", () => {
+  const withPh = { ...project, placeholders: [{ id: "h1", track: "t2", start: 500, length: 400 }] };
+  const layout = layoutRows(withPh, 48);
+  const onT2 = RULER_HEIGHT + 48 + 20;
+
+  test("names the placeholder under the pointer on its own track", () => {
+    const hit = hitTest({ layout, project: withPh, view, x: 60, y: onT2 });
+    assert.equal(hit.placeholder.id, "h1");
+    assert.equal(hit.clip, null);
+  });
+
+  test("none beside it, on another track, or in a project without any", () => {
+    assert.equal(hitTest({ layout, project: withPh, view, x: 20, y: onT2 }).placeholder, null);
+    assert.equal(
+      hitTest({ layout, project: withPh, view, x: 60, y: RULER_HEIGHT + 20 }).placeholder,
+      null,
+    );
+    assert.equal(hitTest({ layout, project, view, x: 60, y: onT2 }).placeholder, null);
+  });
+});

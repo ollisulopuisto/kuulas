@@ -46,6 +46,28 @@ describe("client state", () => {
   });
 });
 
+describe("the placeholder selection (WP43)", () => {
+  const answer = (placeholders) => ({
+    project: { tracks: [], ...(placeholders ? { placeholders } : {}) },
+    head: "h",
+  });
+
+  test("starts empty", () => {
+    assert.equal(initialState().placeholderSelected, null);
+  });
+
+  test("a placeholder that no longer exists is dropped from the selection", () => {
+    const state = { ...initialState(), placeholderSelected: "h1" };
+    assert.equal(serverPatch(answer(undefined), state).placeholderSelected, null);
+    assert.equal(serverPatch(answer([{ id: "h2" }]), state).placeholderSelected, null);
+  });
+
+  test("one that is still there stays", () => {
+    const state = { ...initialState(), placeholderSelected: "h1" };
+    assert.equal("placeholderSelected" in serverPatch(answer([{ id: "h1" }]), state), false);
+  });
+});
+
 describe("live messages", () => {
   const state = { ...initialState(), head: "h1" };
 

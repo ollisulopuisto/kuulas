@@ -1007,6 +1007,24 @@ input[type="text"] {
 .import-panel li.warn {
   color: var(--text-secondary);
 }
+.placeholder-editor h3 {
+  margin: 0;
+  font-size: var(--text-md);
+}
+.placeholder-field {
+  display: grid;
+  gap: var(--space-2);
+}
+.placeholder-field textarea {
+  width: 100%;
+  font: inherit;
+  font-style: italic;
+  resize: vertical;
+}
+.placeholder-estimate {
+  margin: 0;
+  color: var(--text-secondary);
+}
 .drop {
   position: fixed;
   inset: 0;

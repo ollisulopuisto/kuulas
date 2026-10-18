@@ -45,6 +45,7 @@ from .peaks import PeakError
 from .playplan import PlaybackRequestError, check_skip
 from .session import (
     CLIPBOARD_EDITS,
+    NarrationScriptError,
     NoSuchEntryError,
     SubtitlesError,
     TranscriptTextError,
@@ -453,6 +454,16 @@ def create_app(session, engine, *, language: str | None = None,
         return Response(content=content, media_type=media_type,
                         headers={"Content-Disposition": disposition})
 
+    @app.get("/api/narration-script")
+    def get_narration_script(format: str):
+        if format not in ("txt", "md"):
+            raise NarrationScriptError("error.narration_script.bad_format", format=format)
+        content = session.narration_script_text(format)
+        media_type = ("text/plain; charset=utf-8" if format == "txt"
+                      else "text/markdown; charset=utf-8")
+        return Response(content=content, media_type=media_type, headers={
+            "Content-Disposition": f'attachment; filename="narration-script.{format}"'})
+
     @app.post("/api/cut-preview")
     def post_cut_preview(body: CutPreviewBody):
         return session.cut_preview(body.words)
@@ -593,6 +604,22 @@ def create_app(session, engine, *, language: str | None = None,
         saved = [str(save_upload(folder, f)) for f in files]
         return imported(saved, copy=False, mode=mode, order=order,
                         track_naming=track_naming, start_frame=start_frame)
+
+    @app.post("/api/placeholder-take")
+    def post_placeholder_take(
+        file: Annotated[UploadFile, File()],
+        placeholder_id: Annotated[str, Form()],
+        offset: Annotated[int, Form()] = 0,
+    ):
+        """A browser's take (WP43): the file is saved like an upload and replaces
+        the placeholder in one step. The desktop window links by path through
+        ``/api/command`` ``placeholder_take`` instead."""
+        folder = session.package.path / "uploads"
+        folder.mkdir(exist_ok=True)
+        path = save_upload(folder, file)
+        session.command("placeholder_take", {"placeholder_id": placeholder_id,
+                                             "path": str(path), "offset": offset})
+        return state_response()
 
     # -- waveforms -----------------------------------------------------------
 
