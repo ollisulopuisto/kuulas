@@ -43,3 +43,32 @@ and its buttons, the native open/import dialogs, drag-and-drop paths, the menu
 items (zoom, density, export call existing buttons), Windows, Linux, and CI
 itself (never run; needs the `PODCAST_READ_TOKEN` secret because kuulas imports
 the private podcast repo).
+
+## Tester build spike (WP73 part a, 2026-10-19)
+
+Question: can a Briefcase bundle run pywebview with the FastAPI thread, and does a
+double-clicked `.kuulas` folder reach the app as an open-files event?
+
+Result: yes, with Briefcase 0.4.6 (no fall-back to PyInstaller needed). A throw-away
+app (pywebview 6, fastapi, uvicorn; 126 MB `.app`, 217 MB build folder) was built with
+`briefcase create` + `build`, launched with `open -n -a App.app Demo.kuulas`:
+
+- the window opened and the uvicorn thread answered `/api/state` from inside the bundle;
+- the open-files event arrived at launch (about 0.4 s after the server started) and a
+  second one while running (`open -a App.app Second.kuulas`), as paths, with a package
+  type that conforms to nothing registered (`open -a` sends the event whatever the type);
+- how: pywebview's `BrowserView.AppDelegate` has no `application:openFiles:`; adding the
+  method to that class with `objc.classAddMethod` before `webview.start()` is enough, and
+  the delegate then replies `replyToOpenOrPrint_(0)`.
+
+Things the spike found that shape the build:
+
+- Briefcase installs wheels only (`--only-binary`). `proxy_tools`, which pywebview needs,
+  has no wheel, so `scripts/build_wheels.sh` builds one and passes it through
+  `requirement_installer_args = ["--find-links=..."]`.
+- Briefcase refuses a project without a PEP 639 licence definition.
+- The Info.plist template supports `CFBundleTypeRole`, `LSHandlerRank`,
+  `LSItemContentTypes` and `UTTypeConformsTo` per document type, so no plist patching:
+  `LSHandlerRank = "Owner"` is what makes it write the *exported* UTI declaration, and
+  `UTTypeConformsTo = ["com.apple.package", ...]` makes the folder a package.
+- `BRIEFCASE_HOME` moves Briefcase's template and support-package cache out of `~/Library/Caches`.
