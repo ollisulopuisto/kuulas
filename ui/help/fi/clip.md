@@ -5,7 +5,7 @@ applies-to: [clip]
 commands: [edit.split, edit.delete, edit.cut, edit.lift_cut, edit.close_gap_all, clip.mute, clip.fade, edit.undo]
 related: [timeline, track, transcript]
 ---
-Leike on pätkä yhdestä äänityksestä raidalla. Samasta äänityksestä voi olla monta leikettä; kun valitset yhden, sen sisarleikkeet merkitään hakasella.
+Leike on pala yhdestä äänityksestä raidalla. Samasta äänityksestä voi olla monta leikettä; kun valitset yhden, sen sisarleikkeet merkitään hakasella.
 
 ## Muokkaa
 - Jaa toistokohdasta: {key:edit.split}

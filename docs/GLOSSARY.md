@@ -18,6 +18,25 @@ because the owner knows them.
 | Split a clip at the cursor | **Split** | B | Jaa | Jaa | |
 | Copy, then mute in place | **Lift-cut** | Alt+X | (to name) | – | rarely used |
 
+## Bus, group, clip, mix, export (decided WP74, owner 2026-10-19)
+
+Checked against every `cmd.*`, `ui.*`, `error.*`, `stats.*` string in `fi.json` and `ui/help/fi/*.md`.
+
+| Meaning | English | Finnish | Not |
+|---|---|---|---|
+| Tracks mixed together, with one fader, mute and solo | **bus** | **väylä** (Supista väylä, Väylän taso) | bussi, ryhmä |
+| Clips (or tracks) the owner edits together | **group** | **ryhmä** (Ryhmitä leikkeet, Pura ryhmä) | väylä |
+| Clips that keep their relative place to align them | **sync group** | **tahdistusryhmä** | |
+| A stretch of audio on a track | **clip** | **leike** (leikkeen, leikkeitä) | klippi, pätkä |
+| The rendered programme, one file | **mix** | **miksaus** (to mix: miksata) | |
+| Writing files out | **export** | **vienti**, verb **vie** | |
+| A track's ducking written as automation | **ducking (automation)** | **vaimennus (automaatio)** | "automix" |
+| The external mixing tool | **automixer** | **automixer** | automiksaus |
+
+"Bus" is never "group" and "group" is never "bus": "Collapse the bus" is "Supista väylä" (a
+bus is collapsed to one row), "Group clips" is "Ryhmitä leikkeet". The verb "ryhmitellä" is not
+used for putting tracks on a bus: they are moved there ("Siirrä valitut raidat uuteen väylään").
+
 ## Marks and time
 
 | Meaning | English | Finnish today | Hindenburg (fi) | Decision needed |
@@ -26,7 +45,7 @@ because the owner knows them.
 | The end | Out point | Loppupiste / Loppu | Ulos | |
 | Length between them | Length | Pituus | Aika | |
 | Narration to be recorded | Narration | **Juonto** (decided 18 Oct) | – | |
-| A clip on a track | Clip | leike (and "pätkä" in places) | (region) | pick one |
+| A clip on a track | Clip | **leike** (decided 19 Oct; "klippi" and "pätkä" are gone) | (region) | done |
 
 ## To do (WP62)
 
