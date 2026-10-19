@@ -10,7 +10,7 @@ Automixer miksaa valmiin leikkauksen puolestasi: puhe tasataan ja viimeistellä�
 - Käynnistä Tiedosto-valikosta Miksaa automixerilla tai komentopaletista: {key:export.automix}
 - Aseta tavoiteäänekkyys ja halutessasi mainoskohta ja mainoksen pituus.
 - Miksaus ajetaan taustalla. Ilmoitus näyttää automixerin viimeisimmän viestin; Peruuta pysäyttää sen.
-- Miksaus tallentuu projektin viereen, nimenä leikkaus ja kellonaika. Näytä Finderissä avaa kansion.
+- Miksaus tallentuu projektin .kuulas-kansion viereen (kansioon, jossa se on, ei koskaan sen sisään), nimenä leikkaus ja kellonaika. Dialogissa voi valita toisen kansion. Näytä Finderissä avaa kansion.
 
 Miksataan vain puhe- ja musiikkiraidat. Väylät ovat oman kuunteluvalvontasi tasapainoa ja toiseen sovellukseen vietäviä kiinteitä vientejä varten; automixer ei käytä niitä, joten ne jätetään tästä ajosta pois (tavalliset viennit eivät muutu). Raitojen liukusäätimiä ja panorointia ei myöskään käytetä: automixer tasaa raidat ja levittää puhujat itse. Klipin vahvistus ja leikkauksesi otetaan huomioon. Äänitteet voivat olla missä tahansa muodossa ja näytteenottotaajuudella, koska kuulas renderöi ne automixerille; itse projektin on oltava 48000 Hz. Miksaus on 16-bittinen WAV.
 

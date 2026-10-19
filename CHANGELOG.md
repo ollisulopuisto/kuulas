@@ -1,3 +1,32 @@
+## [v26.10.19.8] - 2026-10-19
+
+- **The automixer mix is now saved next to the project** (in the folder that holds the `.kuulas` folder, never
+  inside it and not in the remembered export folder, which can sit in a synced folder), named
+  "<edit> automixer <time>.wav". The dialog has a "Save the mix in" field if you want another folder.
+- **A local `Kuulas.app` and the `.kuulas` file type (macOS, first step):** `uv run python scripts/make_app.py`
+  builds `~/Applications/Kuulas.app` and registers the type, so Finder shows a project folder as one file with the
+  kuulas icon and double-click, Open with… and dropping a project on the app or the Dock icon open it. A project
+  that is already open on this computer is brought forward instead of opened twice (macOS asks once for
+  permission to control System Events). Not signed; it needs the repo and `uv`. Undo with the `lsregister -u`
+  line in `docs/desktop.md`. Not tried in Finder yet: that is for you.
+
+## [v26.10.19.7] - 2026-10-19
+
+- **Two-finger scroll zooms** (your choice): on a trackpad, moving two fingers up and down now zooms the
+  timeline around the pointer, side to side scrolls time, and with the shift key held up and down scrolls the
+  tracks. The notched mouse wheel is unchanged, and command or control plus scroll, pinch and alt plus scroll
+  work as before. Switch back to plain scrolling in View > "Two-finger scroll: zooms / scrolls". Not tried on a
+  real trackpad yet: check that the zoom direction feels right and that shift plus two fingers scrolls tracks
+  (some browsers swap the axis).
+- **Durations per clip, track and session** (statistics, inspector, status bar): the statistics now show the
+  session duration and a table with one row per track: first clip start to last clip end, content (sum of clips),
+  muted (muted clips plus the stretches Auto-Silence closed) and audible (the track without its mutes); a track
+  that is muted or silenced by solo is flagged. Longest, shortest and average clip are listed. The inspector has
+  a labelled Length field for the selected clip, and the status bar shows the total length of the selected
+  clips. Lengths use the timeline's h:mm:ss.mmm. The old "audible speech" row is gone. Not seen on screen yet.
+- Mix with the automixer: the help and dialog now say that track faders and pan are not applied, any recording
+  format works and the project must be 48 kHz.
+
 ## [v26.10.19.6] - 2026-10-19
 
 - **Session statistics:** File > "Statistics…" (also in the command palette) shows how big and how worked-on a

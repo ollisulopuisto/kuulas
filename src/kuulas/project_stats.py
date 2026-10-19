@@ -26,6 +26,7 @@ from zoneinfo import ZoneInfo
 from . import talk_share as talk_sharem
 from . import transcript
 from .clip_gaps import clip_gaps
+from .gate import split_by_gate
 from .messages import t
 from .model import Project
 from .speech_stats import TURN_GAP_SECONDS, _speaker, speaker_stats
@@ -78,19 +79,6 @@ def _seconds(frames: int | float, rate: int) -> float:
     return round(frames / rate, 3) if rate else 0.0
 
 
-def _union_length(ranges: Iterable[tuple[int, int]]) -> int:
-    total = 0
-    end = None
-    for start, stop in sorted(ranges):
-        if end is None or start > end:
-            total += stop - start
-            end = stop
-        elif stop > end:
-            total += stop - end
-            end = stop
-    return total
-
-
 def _parse(text: str) -> datetime:
     return datetime.strptime(text, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
 
@@ -122,7 +110,6 @@ def _root(project_media: dict, media_id: str) -> str:
 def _runtime(project: Project, steps: list[dict]) -> dict:
     audible = _audible(project)
     rate = project.rate
-    speech = _union_length((a, b) for _t, kind, a, b in audible if kind == "speech")
     cut = 0
     unmeasured = 0
     for s in steps:
@@ -136,11 +123,51 @@ def _runtime(project: Project, steps: list[dict]) -> dict:
     originals = sum(m.frames for m in project.media if not m.excerpt_of)
     return {
         "edit_seconds": _seconds(max((b for *_x, b in audible), default=0), rate),
-        "speech_seconds": _seconds(speech, rate),
+        # The end of the last clip of any kind, muted or not: where the timeline
+        # really stops, counted from time 0.
+        "span_seconds": _seconds(max((c.end for tr in project.tracks
+                                      for c in tr.clips), default=0), rate),
         "recordings_seconds": _seconds(originals, rate),
         "cut_seconds": _seconds(cut, rate),
         "cut_unmeasured": unmeasured,
     }
+
+
+def _clip_muted(track, clip) -> int:
+    """Frames of ``clip`` the mixer renders as silence because of the clip's own
+    mute flag or the track's gate: the whole clip when it is muted, else the
+    closed pieces of the gate inside it. A clip is looked at alone, so a stretch is
+    never counted twice (a muted clip's gated part is just muted). Track mute and
+    solo are not here: they are flags of the track, not muted time."""
+    if clip.muted:
+        return clip.end - clip.start
+    return sum(b - a for a, b, is_open in split_by_gate(track.gate, clip.start, clip.end)
+               if not is_open)
+
+
+def _tracks(project: Project) -> list[dict]:
+    """One row per track, in track order (WP70 rework)."""
+    rate = project.rate
+    soloing = any(tr.solo for tr in project.tracks)
+    rows = []
+    for tr in project.tracks:
+        content = sum(c.end - c.start for c in tr.clips)
+        muted = sum(_clip_muted(tr, c) for c in tr.clips)
+        span = (max(c.end for c in tr.clips) - min(c.start for c in tr.clips)
+                if tr.clips else 0)
+        rows.append({
+            "id": tr.id, "name": tr.name, "kind": tr.kind, "clips": len(tr.clips),
+            "span_seconds": _seconds(span, rate),
+            "content_seconds": _seconds(content, rate),
+            "muted_seconds": _seconds(muted, rate),
+            "audible_seconds": _seconds(content - muted, rate),
+            # The mixer: while anything is soloed only soloed tracks are heard, muted
+            # or not; otherwise a muted track is silent.
+            "solo": bool(tr.solo),
+            "track_muted": bool(tr.mute) and not soloing,
+            "solo_silenced": soloing and not tr.solo,
+        })
+    return rows
 
 
 def _counts(project: Project) -> dict:
@@ -158,7 +185,14 @@ def _counts(project: Project) -> dict:
         gaps += len(found)
         gap_frames += sum(b - a for a, b in found)
     clips = [c for tr in project.tracks for c in tr.clips]
+    lengths = [c.end - c.start for c in clips]
     return {
+        "clip_lengths": {
+            "longest_seconds": _seconds(max(lengths, default=0), rate),
+            "shortest_seconds": _seconds(min(lengths, default=0), rate),
+            "average_seconds": _seconds(
+                sum(lengths) / len(lengths) if lengths else 0, rate),
+        },
         "tracks": len(project.tracks),
         "speech_tracks": sum(tr.kind == "speech" for tr in project.tracks),
         "music_tracks": sum(tr.kind == "music" for tr in project.tracks),
@@ -264,6 +298,7 @@ def compute(project: Project, *, words: list[dict] | None = None,
     names = {**{tr.id: tr.name for tr in project.tracks}, **(names or {})}
     out = {
         "runtime": _runtime(project, [s for s in steps if s["name"]]),
+        "tracks": _tracks(project),
         "counts": _counts(project),
     }
     talk = _talk(project, words, names) if words else None
@@ -339,6 +374,29 @@ def duration(seconds: float) -> str:
     return t("stats.fmt.s", seconds=secs)
 
 
+def duration_ms(seconds: float) -> str:
+    """``2:05.500`` or ``1:05:03.250``: the timeline's h:mm:ss.mmm clock."""
+    whole, millis = divmod(round(seconds * 1000), 1000)
+    hours, rest = divmod(whole, 3600)
+    minutes, secs = divmod(rest, 60)
+    head = f"{hours}:{minutes:02d}" if hours else str(minutes)
+    return f"{head}:{secs:02d}{t('stats.fmt.point')}{millis:03d}"
+
+
+def _track_row(r: dict) -> list[str]:
+    flags = []
+    if r["track_muted"]:
+        flags.append(t("stats.tracks.flag_muted"))
+    if r["solo_silenced"]:
+        flags.append(t("stats.tracks.flag_solo_silenced"))
+    if r["solo"]:
+        flags.append(t("stats.tracks.flag_solo"))
+    return [r["name"] or r["id"], t(f"stats.tracks.kind_{r['kind']}"), str(r["clips"]),
+            duration_ms(r["span_seconds"]), duration_ms(r["content_seconds"]),
+            duration_ms(r["muted_seconds"]), duration_ms(r["audible_seconds"]),
+            ", ".join(flags)]
+
+
 def size_text(n: int) -> str:
     if n >= 1_000_000_000:
         return t("stats.fmt.gb", value=f"{n / 1e9:.1f}")
@@ -364,7 +422,8 @@ def groups(stats: dict) -> list[dict]:
 
     rows = [
         [t("stats.runtime.edit"), duration(run["edit_seconds"])],
-        [t("stats.runtime.speech"), duration(run["speech_seconds"])],
+        *([[t("stats.runtime.span"), duration(run["span_seconds"])]]
+          if run["span_seconds"] != run["edit_seconds"] else []),
         [t("stats.runtime.recordings"), duration(run["recordings_seconds"])],
         [t("stats.runtime.cut"), duration(run["cut_seconds"])],
     ]
@@ -372,13 +431,20 @@ def groups(stats: dict) -> list[dict]:
         rows.append([t("stats.runtime.cut_unmeasured"), str(run["cut_unmeasured"])])
     out.append({"title": t("stats.group.runtime"), "rows": rows})
 
+    if stats["tracks"]:
+        keys = ("name", "kind", "clips", "span", "content", "muted", "audible", "flags")
+        out.append({"title": t("stats.group.tracks"), "rows": [], "table": {
+            "head": [t(f"stats.tracks.{k}") for k in keys],
+            "rows": [_track_row(r) for r in stats["tracks"]],
+        }})
+
     rows = [
         [t("stats.counts.tracks"), t("stats.counts.tracks_value", total=c["tracks"],
                                      speech=c["speech_tracks"], music=c["music_tracks"])],
         [t("stats.counts.buses"), str(c["buses"])],
         [t("stats.counts.clips"), str(c["clips"])],
-        *([t("stats.counts.clips_on", name=p["name"] or p["id"]), str(p["clips"])]
-          for p in c["clips_per_track"]),
+        *([t(f"stats.counts.clip_{k}"), duration_ms(c["clip_lengths"][f"{k}_seconds"])]
+          for k in ("longest", "shortest", "average")),
         [t("stats.counts.recordings"), t("stats.counts.recordings_value",
                                          used=c["recordings_used"],
                                          unused=c["recordings_unused"])],
@@ -432,6 +498,12 @@ def to_text(stats: dict, title: str | None = None) -> str:
             lines.append("")
         lines.append(group["title"])
         lines.extend(f"  {label}: {value}" for label, value in group["rows"])
+        table = group.get("table")
+        if table:
+            for row in table["rows"]:
+                cells = [f"{h}: {v}" for h, v
+                         in zip(table["head"][1:], row[1:], strict=True) if v]
+                lines.append(f"  {row[0]}: " + "; ".join(cells))
     return "\n".join(lines) + "\n"
 
 

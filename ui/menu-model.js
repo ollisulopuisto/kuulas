@@ -325,6 +325,7 @@ export const MENU = [
       item("view.zoom_in"),
       item("view.zoom_out"),
       item("view.drag_mode"),
+      item("view.wheel_mode"),
       item("view.clip_words"),
       item("view.toggle"),
       item("view.fit"),

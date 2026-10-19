@@ -25,7 +25,7 @@ export function rangeInfo({ inPoint, outPoint, selection, project }) {
 /**
  * The status bar text. The in and out marks and their length live in the transport corner
  * (marks-readout.js) and are not repeated here. Selected clips read "3 clips · 4:12-9:50 ·
- * 5:38" (count, span, length); when the span is exactly the marked range, only the count is
+ * Length 5:38" (count, span, the clips' lengths added up); when the span is exactly the marked range, only the count is
  * said. `format(frame, rate)` writes a timecode, `t(key, values)` translates. Null: nothing
  * is selected.
  */
@@ -34,13 +34,20 @@ export function rangeLine(state, rate, format, t) {
   const span = selectionSpan(project, selection);
   if (!span) return null;
   let count = 0;
-  for (const track of project.tracks) for (const c of track.clips) count += selection.has(c.id);
+  let total = 0; // the clips' own lengths added up, not the span (a hole between is not length)
+  for (const track of project.tracks) {
+    for (const c of track.clips) {
+      if (!selection.has(c.id)) continue;
+      count += 1;
+      total += c.length;
+    }
+  }
   const countText = count === 1 ? t("ui.range.clips_one") : t("ui.range.clips_many", { count });
   const marks = rangeInfo({ inPoint, outPoint, selection: new Set(), project });
   const same = marks?.start === span.start && marks?.end === span.end;
   if (same) return countText;
   const spanText = `${format(span.start, rate)}-${format(span.end, rate)}`;
-  return [countText, spanText, format(span.end - span.start, rate)].join(" · ");
+  return [countText, spanText, `${t("ui.range.length")} ${format(total, rate)}`].join(" · ");
 }
 
 /** Timecodes for each side; `format(frame, rate)` is the app's own (frameToTime). */

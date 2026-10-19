@@ -63,6 +63,8 @@ export function registerAppCommands(registry, { actions, app }) {
   def("transport.play", () => actions.togglePlay());
   // What a drag does: paint a range, or move the clip (a preference, drag-mode.js).
   def("view.drag_mode", () => actions.toggleDragMode());
+  // What a two-finger trackpad scroll does: zoom, or scroll (a preference, wheel.js).
+  def("view.wheel_mode", () => actions.toggleWheelMode());
   // The transcript words along the top of each clip when zoomed in (WP69, clip-words.js).
   def("view.clip_words", () => actions.toggleClipWords());
   def(

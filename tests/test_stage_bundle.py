@@ -13,6 +13,8 @@ if str(scripts_dir) not in sys.path:
 
 import stage_bundle  # noqa: E402
 
+from kuulas import macapp  # noqa: E402
+
 REPO = Path(__file__).parent.parent
 
 
@@ -67,6 +69,15 @@ def test_the_document_type_is_a_package_that_the_app_owns(tmp_path):
     assert doc["macOS"]["LSHandlerRank"] == "Owner"
     assert doc["macOS"]["LSItemContentTypes"] == ["fi.sulopuisto.kuulas.project"]
     assert "com.apple.package" in doc["macOS"]["UTTypeConformsTo"]
+
+
+def test_identifiers_equal_the_wp72_launcher_apps(tmp_path):
+    # Two apps declare the same type; if they disagreed, Finder would use one at random.
+    assert f"{stage_bundle.BUNDLE}.{stage_bundle.APP_NAME}" == macapp.BUNDLE_ID
+    assert stage_bundle.UTI == macapp.UTI
+    assert stage_bundle.EXTENSION == macapp.EXTENSION
+    exported = macapp.plist_keys()["UTExportedTypeDeclarations"][0]
+    assert tuple(exported["UTTypeConformsTo"]) == stage_bundle.UTI_CONFORMS_TO
 
 
 def test_minimum_macos_is_what_numba_wheels_need(tmp_path):

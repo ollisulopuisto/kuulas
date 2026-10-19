@@ -163,7 +163,8 @@ def test_success_runs_the_command_on_the_stems_and_cleans_up(
     out = Path(result["path"])
     assert out.exists()
     assert out.suffix == ".wav"
-    assert out.parent == tmp_path / "Episode exports"
+    assert out.parent == tmp_path  # beside Episode.kuulas, no exports folder
+    assert not (tmp_path / "Episode exports").exists()
     assert " automixer " in out.name
     assert not list(out.parent.glob("*.partial*"))
     seen = call(tmp_path)
@@ -216,7 +217,7 @@ def test_failure_gives_a_translated_error_with_the_last_lines(
     assert "boom: no plug-in" in e.value.params["tail"]
     assert "boom: no plug-in" in str(messages.t(e.value.key, **e.value.params))
     assert list(temp_root.iterdir()) == []
-    assert not list((tmp_path / "Episode exports").glob("*automixer*"))
+    assert not list(tmp_path.glob("* automixer *"))
 
 
 def test_the_tail_is_at_most_fifteen_lines(session, fake):
@@ -280,8 +281,7 @@ def test_cancel_stops_the_process_and_removes_everything(
         automix.run(session, {}, fake, reports, cancel)
     assert time.monotonic() - started < 20  # did not wait out the 60 s sleep
     assert list(temp_root.iterdir()) == []
-    exports = tmp_path / "Episode exports"
-    assert not exports.exists() or not list(exports.glob("*automixer*"))
+    assert not list(tmp_path.glob("* automixer *"))
 
 
 def test_cancel_during_the_stems_export(session, fake, temp_root):
@@ -302,7 +302,9 @@ def test_the_project_is_not_changed_and_the_export_folder_not_remembered(session
 def test_an_empty_flags_file_is_not_left_behind(session, fake, tmp_path, temp_root):
     result = automix.run(session, {}, fake, Reports(), threading.Event())
     folder = Path(result["path"]).parent
-    assert [p.name for p in folder.iterdir()] == [Path(result["path"]).name]
+    mixes = sorted(p.name for p in folder.glob("* automixer *"))
+    assert mixes == [Path(result["path"]).name]
+    assert not list(folder.glob("*flags*"))
 
 
 def test_flags_with_content_are_kept_beside_the_mix(
@@ -320,8 +322,8 @@ def test_a_failed_run_leaves_no_flags_file(session, fake, tmp_path, temp_root):
     fake["extra_args"] = ["--mode", "fail"]
     with pytest.raises(automix.AutomixError):
         automix.run(session, {}, fake, Reports(), threading.Event())
-    folder = tmp_path / "Episode exports"
-    assert not folder.exists() or list(folder.iterdir()) == []
+    assert not list(tmp_path.glob("* automixer *"))
+    assert not list(tmp_path.glob("*flags*"))
 
 
 def test_the_tool_does_not_inherit_the_callers_virtual_env(tmp_path, monkeypatch):
@@ -386,3 +388,33 @@ def test_the_temporary_folder_is_a_setting(tmp_path, monkeypatch):
         "temp_dir"] == "/Volumes/Big/tmp"
     with pytest.raises(automix.AutomixError):
         automix.save_settings({"temp_dir": 5})
+
+
+def test_the_mix_lands_beside_the_project_package_not_in_the_remembered_export_folder(
+        session, fake, tmp_path, temp_root):
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    session.history.set_meta_json("export", {"folder": str(elsewhere)})
+    result = automix.run(session, {}, fake, Reports(), threading.Event())
+    out = Path(result["path"])
+    assert out.parent == session.package.path.parent
+    assert not out.is_relative_to(session.package.path)
+    assert not list(elsewhere.iterdir())
+
+
+def test_an_output_folder_setting_overrides_the_default(
+        session, fake, tmp_path, temp_root):
+    chosen = tmp_path / "mixes" / "episode"
+    fake["output_dir"] = str(chosen)
+    result = automix.run(session, {}, fake, Reports(), threading.Event())
+    assert Path(result["path"]).parent == chosen
+    assert not list(tmp_path.glob("* automixer *"))
+
+
+def test_the_output_folder_is_a_setting(tmp_path, monkeypatch):
+    monkeypatch.setenv("KUULAS_AUTOMIXER_FILE", str(tmp_path / "automixer.json"))
+    assert automix.resolve_settings({}, home=tmp_path)["output_dir"] is None
+    assert automix.save_settings({"output_dir": "/Volumes/Mixes"}) == {
+        "output_dir": "/Volumes/Mixes"}
+    with pytest.raises(automix.AutomixError):
+        automix.save_settings({"output_dir": 3})

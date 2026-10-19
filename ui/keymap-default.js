@@ -63,6 +63,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.view.clip_words",
   },
   {
+    id: "view.wheel_mode",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.view.wheel_mode",
+  },
+  {
     id: "view.drag_mode",
     keys: { mac: null, other: null },
     context: "global",

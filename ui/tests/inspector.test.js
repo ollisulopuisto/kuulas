@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { openSections, selectedClip, syncGroupOf } from "../inspector.js";
+import { clipLengthText, openSections, selectedClip, syncGroupOf } from "../inspector.js";
 import { addBusForTrack } from "../inspector-track.js";
 
 // The server sends sync-group members as { mediaId: origin } (SyncGroup.to_dict).
@@ -23,6 +23,14 @@ describe("inspector lookups", () => {
     assert.equal(selectedClip(base).track.id, "t1", "the track gives the header colour");
     assert.equal(selectedClip({ ...base, selection: new Set(["c1", "x"]) }), null);
     assert.equal(selectedClip({ ...base, selection: new Set(["gone"]) }), null);
+  });
+});
+
+describe("clip length readout", () => {
+  test("a clip's length is h:mm:ss.mmm like every timecode", () => {
+    assert.equal(clipLengthText({ length: 48_000 * 125.5 }, 48_000), "2:05.500");
+    assert.equal(clipLengthText({ length: 48_000 * 3725.25 }, 48_000), "1:02:05.250");
+    assert.equal(clipLengthText({ length: 0 }, 48_000), "0:00.000");
   });
 });
 
