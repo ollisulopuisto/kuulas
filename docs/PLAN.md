@@ -1342,6 +1342,11 @@ Hardware test `tests/hardware/test_record.py` for Mac, then Windows.
 
 ---
 
+**Sub-packages named 2026-10-19 (owner requests):**
+- **WP12d** voiceover take notes (marks and notes while recording, per-take notes, notes anchored to words).
+- **WP12e** Recordings list: every take of the project is listed (File menu), used or not, and can be put back at any time; Restore: to a new track at its original position (default, never replaces anything), to the playhead, to the original position, or to the clipboard. Needs the take's timeline position and track in its `.take.json` (`take_position.py`, built), the list model (`take_list.py`, built) and the placement plan (`take_restore.py`, built). Ground rule 17.
+- **WP12f** Self-describing take file names (`take_filename.py` built: `YYYY-MM-DD HH-MM-SS <project> - <track> - <take>`, only for new takes, never renaming existing files) and live waveforms while recording (`ui/live-wave.js` built; the drawing is open).
+
 ### WP13 — Hindenburg session import
 
 Status: done in v26.10.16.14 as import only (`import_nhsx`; original XML kept under `extra["nhsx"]`; Hindenburg export not built, so the round trip is open). Needs WP1.
@@ -3903,3 +3908,11 @@ range on any track.
   crossing two clips, the same content restored twice).
 - Related: the take folder of WP19e (deliberate loop-recorded takes) stays separate; recording over audio (WP12)
   needs nothing from this to work and gets it for free.
+
+### WP82 — Search for cut passages, and the clipboard's loudness (owner, 2026-10-19)
+
+Status: pure-logic parts built (`word_search.py`: find words/phrases in a media's transcript and say whether each hit is `in`, `cut` or `partly` in the edit; `ui/history-filter.js`: filter and highlight for the History list); the panels are open.
+
+**Search for cut passages.** Search the transcript for words; for each hit say whether it is in the current edit (a clip covers it) or cut; a cut hit has one click to bring it back (restore options as WP12e: new track at its original position by default, the playhead, the clipboard) and, from History, the step that removed it. The Clipboard panel gets the same search over the words of its saved pieces, and the History list a text filter. One search field and one word index serve all three.
+
+**Clipboard preview level.** Previewing a clipboard entry must never be much louder than the project. Material pasted from elsewhere (a YouTube clip at about -14 LUFS) is far louder than a quietly recorded session. Rule (owner 2026-10-19): the preview plays at about the level of the project's own tracks, or quieter, never louder: measure the project's reference level (the average loudness of its speech tracks, from the existing loudness analysis; peak as a second guard) and the entry's, apply only attenuation (never a boost) so the entry does not exceed the reference, and keep a safety limiter on the preview so peaks cannot jump out. Applies to the preview only; the pasted audio itself is not changed. A setting can switch it off.

@@ -151,31 +151,31 @@ sizes: `docs/PLAN.md`, section "Triage".
 
 ## Milestones
 
-Grouped from the build order in `docs/PLAN.md` (Triage). ✓ done, ◐ partly done (some of it built and merged), ▶ being built now, ↻ built and in review (not merged yet), otherwise open. Generated from the roadmap page data; the page is the live view.
+Grouped from the build order in `docs/PLAN.md` (Triage) and updated by the owner's decisions. ✓ done (built and merged; owner testing is tracked in `docs/BUGS.md`), ◐ partly done, ▶ being built now, ↻ built and in review (not merged yet), otherwise open. Mirrors the roadmap page.
 
-**M1 · First playable build** (16 of 21 done, 5 partly; owner 2026-10-19: WP15 counts done for Mac only, WP35's remaining parts (panel sizes, per-dialog last values) moved to M2): Run kuulas, import, listen, edit by keyboard and mouse, undo, export WAV or MP3. (Owner, 2026-10-18: WP6 mouse editing and WP19i Tab to transient or word are brought forward into the first build.)
+**M1 · First playable build** (23 of 28 done, 5 partly): Run kuulas, import, listen, edit by keyboard, undo, export WAV or MP3.
 
-✓ WP0, ✓ WP24.1, ✓ WP33a, ✓ WP29, ✓ WP30, ✓ WP1, ✓ WP34, ✓ WP36, ✓ WP2, ✓ WP3, ✓ WP33b, ◐ WP4, ◐ WP5, ◐ WP19a, ✓ WP35, ✓ WP11, ✓ WP15, ◐ WP46, ✓ WP19i, ◐ WP6, ✓ WP54.
+✓ WP0, ✓ WP24.1, ✓ WP33a, ✓ WP29, ✓ WP30, ✓ WP1, ✓ WP34, ✓ WP36, ✓ WP2, ✓ WP3, ✓ WP33b, ◐ WP4, ◐ WP5, ◐ WP19a, ✓ WP35, ✓ WP11, ✓ WP15, ◐ WP46, ✓ WP19i, ◐ WP6, ✓ WP54, ✓ WP72, ✓ WP73, ✓ WP74, ✓ WP75, ✓ WP76, ✓ WP81, ✓ WP71.
 
-**M2 · A usable editor** (3 of 13 done, 8 partly; plus WP35's remaining parts, from M1): Transcript, history panel, fast listening, FX layers.
+**M2 · A usable editor** (7 of 21 done, 12 partly): Transcript, mouse editing, history panel, fast listening, FX layers.
 
-✓ WP41, ◐ WP8, ◐ WP22, ◐ WP26, ✓ WP9, ◐ WP7, WP23a, ◐ WP44, ◐ WP48, ◐ WP49, ✓ WP50, ◐ WP52, WP55.
+✓ WP41, ◐ WP8, ◐ WP22, ◐ WP26, ✓ WP9, ◐ WP7, WP23a, ◐ WP44, ◐ WP48, ◐ WP49, ✓ WP50, ◐ WP52, ◐ WP55, ✓ WP57, ◐ WP63, WP62, ✓ WP69, ✓ WP70, ◐ WP77, ◐ WP78, ✓ WP79.
 
-**M3 · The editing loop** (2 of 20 done, 10 partly): What makes it better than Hindenburg: cut candidates, versions, review, paste, roles, takes.
+**M3 · The editing loop** (3 of 25 done, 11 partly): What makes it better than Hindenburg: cut candidates, versions, review, paste, roles, takes.
 
-WP28, ◐ WP43, ◐ WP18, ◐ WP19f, ◐ WP24.2, WP21, ◐ WP40, ◐ WP31, WP32, WP20, ✓ WP39, ✓ WP37, ◐ WP19c, WP19d, WP19b, ◐ WP19h, ◐ WP19g, WP19e, WP45, ◐ WP51.
+WP28, ◐ WP43, ◐ WP18, ◐ WP19f, ◐ WP24.2, WP21, ◐ WP40, ◐ WP31, WP32, WP20, ✓ WP39, ✓ WP37, ◐ WP19c, WP19d, WP19b, ◐ WP19h, ◐ WP19g, WP19e, WP45, ◐ WP51, WP60, ✓ WP65, WP80, WP64, ◐ WP82.
 
-**M4 · Pipeline depth** (2 of 5 done, 1 partly): Voice chain, music report, Hindenburg import, rendered FX.
+**M4 · Pipeline depth** (2 of 6 done, 2 partly): Voice chain, music report, Hindenburg import, rendered FX.
 
-✓ WP14, WP10, ◐ WP25, ✓ WP13, WP23b.
+✓ WP14, WP10, ◐ WP25, ✓ WP13, WP23b, ◐ WP68.
 
-**M5 · Recording and alignment** (0 of 3 done, 1 partly): Foolproof recording, clip bin, align by sound.
+**M5 · Recording and alignment** (3 of 10 done, 2 partly): Foolproof recording, clip bin, align by sound.
 
-WP12, ◐ WP17, WP16.
+◐ WP12, ◐ WP17, WP16, ✓ WP12a, ✓ WP12b, ✓ WP12c, WP59, WP12d, WP12e, WP12f.
 
-**M6 · Late** (0 of 5 done, 0 partly): Settings and rate change, series features, desktop app.
+**M6 · Late** (0 of 9 done, 0 partly): Settings and rate change, series features, desktop app.
 
-WP27, WP38, WP42, WP47, WP53.
+WP27, WP38, WP42, WP47, WP53, WP58, WP61, WP66, WP56.
 
 ## Done in this release (v26.10.16.1)
 
@@ -259,6 +259,7 @@ WP27, WP38, WP42, WP47, WP53.
 - **Recordings list, restore options (owner, 2026-10-19):** each take row has Restore…: *to a new track at its original position* (default: never replaces anything), to the playhead, to the original position (replaces timeline only, as an import does), or to the clipboard. Needs the take's timeline position and track stored in its `.take.json`. Not built yet.
 - **Self-describing take file names (owner, 2026-10-19):** a take's file name should be findable in Finder a year later: `2026-10-15 14-32-07 vst s13e04 - Olli - Take 1.wav` (starts with local yyyy-mm-dd hh-mm-ss, then the text: project, track, take; sortable, no characters Finder or Windows dislike; `.take.json` sidecar keeps UTC and the rest). Only new takes get it; existing files are never renamed (rule 17). Builds on `take_names.file_stem`. Not built yet.
 - **Search for cut passages (owner idea, 2026-10-19):** search the transcript for words, and for each hit say whether it is in the current edit; a hit no clip covers is "cut", with one click to bring it back (to a new track at its original position, as for takes, or to the playhead or clipboard) and, from History, the step that removed it. The transcript is per media and the clips are windows on media, so "is this word in the edit" needs no history walk. A text filter on the History list (step labels) comes with it. The Clipboard panel gets the same search (owner, 2026-10-19): filter the saved pieces by the words they contain, using the transcript of the media they come from. Not built yet.
+- **Clipboard preview level (owner, 2026-10-19):** previewing a clipboard entry plays at about the project's own level or quieter, never louder (attenuation only, plus a safety limiter), because pasted material (e.g. -14 LUFS from YouTube) is much louder than a quietly recorded session. WP82 in `docs/PLAN.md`. Not built yet.
 - **Panel buttons (owner, 2026-10-19, after the top-bar rework merges):** at most three per panel, in the Play button's style (rounded, accent fill for the primary, outline for the rest): History Restore + Undo/Redo; Candidates Accept, Reject, Preview; Markers Add marker, previous/next drift; Clipboard Paste, Clear. Not built yet.
 - **Engine, v26.10.18.21:** skip list and tape-rate playback are tested with a fake output only;
   please listen to the candidate preview (Shift+Space) and, once the JKL keys exist, to shuttle.
