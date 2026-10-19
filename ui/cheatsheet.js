@@ -64,12 +64,14 @@ export function createCheatSheet({ getData, t, actions, getHeld }) {
     button.type = "button";
     button.className = "button";
     button.dataset.id = id;
+    button.dataset.icon = id.split(".")[1];
     button.addEventListener("click", () => run());
     return button;
   });
   const close = document.createElement("button");
   close.type = "button";
   close.className = "button primary";
+  close.dataset.icon = "close";
   close.addEventListener("click", () => dialog.close());
   footer.append(...buttons, close);
   dialog.append(heading, search, body, footer);

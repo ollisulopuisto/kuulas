@@ -61,6 +61,7 @@ import {
   onLanguageChange,
   t,
 } from "./i18n.js";
+import { installIcons } from "./icons.js";
 import {
   collectDroppedFiles,
   createDropMemory,
@@ -135,6 +136,7 @@ import { changeKey, createSaver, recordOf, restoreFrom } from "./view-memory.js"
 import { nextWheelMode, wheelModeChoice } from "./wheel.js";
 
 const $ = (id) => document.getElementById(id);
+installIcons();
 const prefs = createPrefs();
 const WAVEFORM_GAIN = { min: 1 / 8, max: 32, snap: 0.04 };
 const LANE_STEP = 8;

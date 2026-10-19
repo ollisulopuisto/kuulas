@@ -61,11 +61,13 @@ export function createExportDialog({ t, formats, canChooseFolder, onStart }) {
   const cancel = document.createElement("button");
   cancel.type = "button";
   cancel.className = "button";
+  cancel.dataset.icon = "close";
   cancel.textContent = t("ui.exportdialog.cancel");
   cancel.addEventListener("click", () => dialog.close());
   const start = document.createElement("button");
   start.type = "submit";
   start.className = "button primary";
+  start.dataset.icon = "check";
   start.textContent = t("ui.exportdialog.start");
   buttons.append(cancel, start);
   form.append(formatLabel, askLabel, buttons);

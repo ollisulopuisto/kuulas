@@ -111,8 +111,8 @@
           <button id="level-clip" type="button" class="lm-clip" hidden data-i18n-aria-label="ui.meter.clip" data-i18n-title="ui.meter.clip"></button>
         </span>
         <span id="build-label" class="range-info build-label" data-i18n-title="ui.build.title"></span>
-        <button id="help-button" data-help-id="help-button" type="button" class="button" data-i18n="ui.help.title" aria-keyshortcuts="F1"></button>
-        <button id="view-menu-button" data-help-id="view-menu" type="button" class="button" popovertarget="view-menu" data-i18n="ui.view.menu"></button>
+        <button id="help-button" data-help-id="help-button" type="button" class="button" data-icon="help" data-i18n="ui.help.title" aria-keyshortcuts="F1"></button>
+        <button id="view-menu-button" data-help-id="view-menu" type="button" class="button" data-icon="menu" popovertarget="view-menu" data-i18n="ui.view.menu"></button>
       </footer>
       <!-- Everything else about the view: one click away, not on screen at rest. -->
       <div id="view-menu" class="view-menu" popover data-i18n-aria-label="ui.view.menu">
@@ -122,7 +122,7 @@
             <button id="zoom-in" type="button" class="button icon" data-i18n-aria-label="ui.view.zoom_in" data-i18n-title="ui.view.zoom_in" aria-keyshortcuts="=">+</button>
           </span>
         </div>
-        <button id="fit" type="button" class="button" data-i18n="ui.view.fit" aria-keyshortcuts="Shift+Z"></button>
+        <button id="fit" type="button" class="button" data-icon="fit" data-i18n="ui.view.fit" aria-keyshortcuts="Shift+Z"></button>
         <label class="menu-row"><span data-i18n="ui.view.waveform"></span>
           <select id="waveform-mode" class="button">
             <option value="half" data-i18n="ui.view.half"></option>
@@ -135,7 +135,7 @@
             <button id="lane-taller" type="button" class="button icon" data-i18n-aria-label="ui.view.lane_taller" data-i18n-title="ui.view.lane_taller">+</button>
           </span>
         </div>
-        <button id="follow" type="button" class="button" data-i18n-title="ui.view.follow_title"></button>
+        <button id="follow" type="button" class="button" data-icon="follow" data-i18n-title="ui.view.follow_title"></button>
         <label class="menu-row"><span data-i18n="ui.view.gates"></span>
           <input id="show-gates" type="checkbox" checked />
         </label>
@@ -152,12 +152,12 @@
             <option value="off" data-i18n="ui.motion.off"></option>
           </select>
         </label>
-        <button id="theme" type="button" class="button"></button>
+        <button id="theme" type="button" class="button" data-icon="theme"></button>
       </div>
       <div id="notice" class="notice" role="status" aria-live="polite" hidden>
         <span id="notice-text"></span>
         <button id="notice-action" type="button" class="button ghost" hidden></button>
-        <button id="notice-undo"type="button" class="button ghost" data-i18n="ui.transport.undo" hidden></button>
+        <button id="notice-undo" type="button" class="button ghost" data-icon="undo" data-i18n="ui.transport.undo" hidden></button>
         <button id="notice-close" type="button" class="button ghost icon" data-i18n-aria-label="ui.notice.dismiss" data-i18n-title="ui.notice.dismiss">×</button>
       </div>
       <div id="import-panel" class="import-panel" role="status" aria-live="polite" hidden></div>
