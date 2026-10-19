@@ -1,3 +1,7 @@
+## [v26.10.19.29] - 2026-10-19
+
+- **Fixes the app not starting (v26.10.19.28):** a crash at start-up ("cannot import name HOST") when the app is opened from Finder, caused by the new language setting being read too early. The build's self-test now runs without locale variables, like Finder does, so this is caught before a release.
+
 ## [v26.10.19.28] - 2026-10-19
 
 - **Sync never moves anything; groups do.** Dragging a clip no longer drags its sync partners along: sync only lets you see drift and put a clip back (R). Clips move, trim, delete and mute together only when you have grouped them (Clip > Group clips, now Cmd+G; Shift+Cmd+G ungroups).

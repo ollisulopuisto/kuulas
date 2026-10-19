@@ -64,13 +64,28 @@ def _apple_languages() -> list[str]:
 AUTO = "auto"
 
 
+def config_dir(platform: str | None = None, env: dict[str, str] | None = None,
+               home: Path | None = None) -> Path:
+    """The per-user kuulas folder, found without a dependency (platformdirs)."""
+    platform = sys.platform if platform is None else platform
+    env = dict(os.environ) if env is None else env
+    home = Path.home() if home is None else home
+    if platform == "darwin":
+        return home / "Library" / "Application Support" / "kuulas"
+    if platform.startswith("win"):
+        base = env.get("APPDATA")
+        return (Path(base) if base else home / "AppData" / "Roaming") / "kuulas"
+    base = env.get("XDG_CONFIG_HOME")
+    return (Path(base) if base else home / ".config") / "kuulas"
+
+
+
 def settings_file() -> Path:
     """The per-user app settings: ``$KUULAS_SETTINGS_FILE`` (tests, portable
     setups) or ``settings.json`` in the per-user config folder."""
     override = os.environ.get("KUULAS_SETTINGS_FILE")
     if override:
         return Path(override)
-    from .desktop import config_dir  # noqa: PLC0415 - desktop imports this module
     return config_dir() / "settings.json"
 
 

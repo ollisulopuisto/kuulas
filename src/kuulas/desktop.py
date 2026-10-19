@@ -77,19 +77,9 @@ def set_dock_icon(platform: str | None = None, appkit: Any = ...) -> bool:
 # -- where per-user state lives -------------------------------------
 
 
-def config_dir(platform: str | None = None, env: dict[str, str] | None = None,
-               home: Path | None = None) -> Path:
-    """The per-user kuulas folder, found without a dependency (platformdirs)."""
-    platform = sys.platform if platform is None else platform
-    env = dict(os.environ) if env is None else env
-    home = Path.home() if home is None else home
-    if platform == "darwin":
-        return home / "Library" / "Application Support" / "kuulas"
-    if platform.startswith("win"):
-        base = env.get("APPDATA")
-        return (Path(base) if base else home / "AppData" / "Roaming") / "kuulas"
-    base = env.get("XDG_CONFIG_HOME")
-    return (Path(base) if base else home / ".config") / "kuulas"
+# The per-user folder lives in messages.py (a leaf module): the language setting is read
+# while the first import of the app runs, long before this module can be loaded.
+from .messages import config_dir  # noqa: E402
 
 
 def recents_file() -> Path:
