@@ -1234,8 +1234,19 @@ class Session:
         and another content is never taken). Not an edit: nothing is committed.
         Returns ``{"found": [{id, name, path}], "still_missing": [...],
         "partial": [...]}``, the last two as in ``media_status``."""
-        if not isinstance(folder, str) or not Path(folder).expanduser().is_dir():
-            raise MediaError("error.locate.no_folder", folder=str(folder or ""))
+        if (
+            not isinstance(folder, str)
+            or not folder.strip()
+            or "\0" in folder
+            or len(folder) > 4096
+        ):
+            raise MediaError("error.locate.no_folder", folder=str(folder or "")[:200])
+        try:
+            target = Path(folder).expanduser()
+            if not target.is_dir():
+                raise MediaError("error.locate.no_folder", folder=str(folder)[:200])
+        except (OSError, RuntimeError):
+            raise MediaError("error.locate.no_folder", folder=str(folder)[:200]) from None
         before = self.media_status()
         completable = any(p["can_complete"] for p in before["partial"])
         if not before["missing"] and not completable:

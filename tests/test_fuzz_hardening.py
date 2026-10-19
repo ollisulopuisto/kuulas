@@ -111,7 +111,7 @@ def test_fuzz_ops_and_commands(tmp_path: Path):
     # Non-existent or bad ops
     res = client.post("/api/edit", json={"op": "non_existent_op_xyz", "args": {}})
     assert res.status_code == 400
-    assert res.json()["error"]["key"] == "error.edit.unknown_op"
+    assert res.json()["error"]["key"] == "error.edit.unknown"
 
     # Non-existent command
     res = client.post("/api/command", json={"name": "non_existent_command", "args": {}})
