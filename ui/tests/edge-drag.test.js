@@ -201,3 +201,86 @@ describe("ghostGeometry", () => {
     assert.equal(g.neighbour, null);
   });
 });
+
+describe("an edge drag overwrites its neighbours (WP83)", () => {
+  const S2 = S;
+  const three = {
+    rate: S,
+    media: [{ id: "m", frames: 10 * S }],
+    tracks: [
+      {
+        id: "T",
+        clips: [
+          { id: "c1", media: "m", start: 2 * S, offset: 2 * S, length: 2 * S },
+          { id: "c2", media: "m", start: 4 * S, offset: 4 * S, length: S },
+          { id: "c3", media: "m", start: 5 * S, offset: 5 * S, length: 4 * S },
+        ],
+      },
+    ],
+  };
+  const tt = three.tracks[0];
+  const [c1, c2, c3] = tt.clips;
+  const on = { ripple: false, overwrite: true };
+
+  test("extending the start leftwards is not stopped by the neighbours", () => {
+    const limits = edgeLimits(three, tt, c3, "start", on);
+    assert.equal(limits.low, 0);
+    assert.equal(resolveEdge(three, tt, c3, "start", 3 * S, on).frame, 3 * S);
+    assert.equal(resolveEdge(three, tt, c3, "start", -9 * S, on).frame, 0);
+  });
+  test("extending the end rightwards is bounded by the clip's own media", () => {
+    assert.equal(resolveEdge(three, tt, c1, "end", 99 * S, on).frame, 10 * S);
+  });
+  test("with overwrite off the edge stops at the neighbour as before", () => {
+    const off = { ripple: false, overwrite: false };
+    assert.equal(resolveEdge(three, tt, c3, "start", 0, off).frame, 4 * S + 1);
+  });
+  test("shrinking an edge still rolls the neighbour", () => {
+    const r = resolveEdge(three, tt, c3, "start", 7 * S, on);
+    assert.equal(r.frame, 7 * S);
+    assert.equal(r.neighbour, c2);
+    const ghost = edgeGhost(three, tt, c3, "start", 7 * S, on);
+    assert.deepEqual(ghost.neighbour, { start: 4 * S, end: 7 * S });
+    assert.deepEqual(ghost.covered, []);
+  });
+  test("extending names what is trimmed and what is removed", () => {
+    const ghost = edgeGhost(three, tt, c3, "start", 3 * S, on);
+    assert.equal(ghost.neighbour, null);
+    assert.deepEqual(ghost.region, { start: 3 * S, end: 5 * S });
+    assert.deepEqual(ghost.covered, [
+      { id: "c1", start: 2 * S, end: 4 * S, kept: { start: 2 * S, end: 3 * S } },
+      { id: "c2", start: 4 * S, end: 5 * S, kept: null },
+    ]);
+  });
+  test("covering the end of a clip keeps its front; the end edge trims the front of the next", () => {
+    const ghost = edgeGhost(three, tt, c1, "end", 4.5 * S2, on);
+    assert.deepEqual(ghost.covered, [
+      { id: "c2", start: 4 * S, end: 5 * S, kept: { start: 4.5 * S2, end: 5 * S } },
+    ]);
+  });
+  test("ripple and overwrite off cover nothing", () => {
+    assert.deepEqual(
+      edgeGhost(three, tt, c3, "start", 3 * S, { ripple: true, overwrite: true }).covered,
+      [],
+    );
+    assert.deepEqual(
+      edgeGhost(three, tt, c3, "start", 4.5 * S, { ripple: false, overwrite: false }).covered,
+      [],
+    );
+  });
+  test("the covered clips and the region get canvas boxes", () => {
+    const view = { scroll: 0, zoom: 100, scrollY: 0 };
+    const row = { top: 40, height: 80 };
+    const g = ghostGeometry(edgeGhost(three, tt, c3, "start", 3 * S, on), { view, row });
+    assert.equal(g.region.x, (3 * S) / 100);
+    assert.equal(g.region.w, (2 * S) / 100);
+    assert.equal(g.covered.length, 2);
+    assert.equal(g.covered[1].x, (4 * S) / 100);
+    assert.equal(g.covered[1].removed, true);
+    assert.equal(g.covered[0].removed, false);
+  });
+  test("the edit carries overwrite=false only when Alt is held", () => {
+    assert.equal(edgeChange("a", "end", 1, false, false, true).args.overwrite, undefined);
+    assert.equal(edgeChange("a", "end", 1, false, false, false).args.overwrite, false);
+  });
+});

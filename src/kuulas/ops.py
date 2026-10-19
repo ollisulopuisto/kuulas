@@ -692,13 +692,16 @@ def move_clips_to_track(p: Project, clip_ids, direction: int, delta: int = 0,
     return _overwrite_under(p, moved) if overwrite else moved
 
 
-def _overwrite_under(before: Project, moved: Project) -> Project:
+def _overwrite_under(before: Project, moved: Project,
+                     only: set[str] | None = None) -> Project:
     """Clips on a track never overlap (there are no layers): where a moved clip now lies
     on others, those are trimmed back, split around it, or removed when it covers them
-    whole. The audio under a trimmed edge stays put, so nothing is lost; one edit."""
+    whole. The audio under a trimmed edge stays put, so nothing is lost; one edit.
+    ``only``: the clips that count as moved (an edge drag moves no start)."""
     start_of = {c.id: (t.id, c.start) for t in before.tracks for c in t.clips}
-    moved_ids = {c.id for t in moved.tracks for c in t.clips
-                 if start_of.get(c.id) != (t.id, c.start)}
+    moved_ids = set(only) if only is not None else {
+        c.id for t in moved.tracks for c in t.clips
+        if start_of.get(c.id) != (t.id, c.start)}
     for cid in sorted(moved_ids):
         mclip, mtrack = _find_clip(moved, cid)
         lo, hi = mclip.start, mclip.end
@@ -1000,8 +1003,15 @@ def _touching(track: Track, clip: Clip, edge: str) -> Clip | None:
     return None
 
 
-def roll_trim(p: Project, clip_id: str, edge: str, frame: int) -> Project:
+def roll_trim(p: Project, clip_id: str, edge: str, frame: int,
+              overwrite: bool = True) -> Project:
     """Drag one edge of a clip to ``frame``; nothing else on the timeline moves.
+
+    ``overwrite`` (the default, as a clip move does): an edge dragged outwards
+    covers its neighbours like a moved clip does (no layers): what it covers is
+    trimmed or, when covered whole, removed, across several clips. Only the
+    clip's own media limits the drag. ``overwrite=False`` (Alt) stops at the
+    neighbour as below. Shrinking an edge is the same either way.
 
     If a clip on the same track touches that edge, the cut point between the
     two moves: one grows, the other shrinks, each source offset keeping the
@@ -1011,6 +1021,18 @@ def roll_trim(p: Project, clip_id: str, edge: str, frame: int) -> Project:
     """
     edge = _edge(edge)
     clip, track = _find_clip(p, clip_id)
+    if overwrite:
+        own_low, own_high = _source_span(p, clip)
+        if edge == "end":
+            target = max(clip.start + 1, min(own_high, int(frame)))
+            if target > clip.end:
+                p = trim_clip(p, clip_id, end=target)
+                return _overwrite_under(p, p, {clip_id})
+        else:
+            target = max(own_low, min(clip.end - 1, int(frame)))
+            if target < clip.start:
+                p = trim_clip(p, clip_id, start=target)
+                return _overwrite_under(p, p, {clip_id})
     other = _touching(track, clip, edge)
     low, high = _source_span(p, clip)
     if edge == "end":
@@ -1024,6 +1046,12 @@ def roll_trim(p: Project, clip_id: str, edge: str, frame: int) -> Project:
             low, high = max(low, o_low), min(high, other.end - 1)
         else:
             low, high = max(low, other.start + 1), min(high, o_high)
+    elif edge == "end":  # a gap: stop at the next clip, as the drag does
+        high = min([high, *(c.start for c in track.clips
+                            if c.id != clip_id and c.start >= clip.end)])
+    else:
+        low = max([low, *(c.end for c in track.clips
+                          if c.id != clip_id and c.end <= clip.start)])
     if low > high:
         raise EditError("error.edit.trim_empty")
     frame = max(low, min(high, int(frame)))
