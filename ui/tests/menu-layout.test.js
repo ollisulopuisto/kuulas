@@ -161,7 +161,13 @@ describe("top-level bar (owner, 2026-10-19)", () => {
     const names = top("playback")
       .items.filter((e) => e.kind === "submenu")
       .map((e) => e.labelKey);
-    assert.deepEqual(names, ["menu.fast_playback", "menu.shuttle", "menu.go", "menu.markers"]);
+    assert.deepEqual(names, [
+      "menu.record_settings",
+      "menu.fast_playback",
+      "menu.shuttle",
+      "menu.go",
+      "menu.markers",
+    ]);
     for (const id of ["transport.play", "transport.record", "transport.loop"]) {
       assert.ok(direct("playback").includes(id), id);
     }
