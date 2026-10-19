@@ -84,11 +84,13 @@ import { clampLaneHeight, layoutFor, pointerIntent, projectEnd, RULER_HEIGHT } f
 import { leftOffHere, leftOffOf, leftOffText } from "./left-off.js";
 import { createLevelMeter } from "./level-meter.js";
 import { connectLive } from "./live.js";
+import { createLocateDialog } from "./locate-dialog.js";
 import { activeLoop } from "./loop-range.js";
 import { createLoudnessLoader } from "./loudness-readout.js";
 import { regionCount } from "./markers-model.js";
 import { createMarkersPanel } from "./markers-panel.js";
 import { createMarksCorner } from "./marks-corner.js";
+import { missingNotice } from "./media-copy-model.js";
 import { heldFromEvent } from "./modifiers.js";
 import { monoDecision, monoEdits } from "./mono-ask.js";
 import { motionMode } from "./motion.js";
@@ -102,6 +104,7 @@ import { rangeLine } from "./range-info.js";
 import { rememberRange, stepRangeMemory } from "./range-memory.js";
 import { createRecordView } from "./record-view.js";
 import { forwardFromClip } from "./selection-ops.js";
+import { createSendCopyDialog } from "./send-copy-dialog.js";
 import { setupKeyboard } from "./shell-keys.js";
 import { chipSpeed } from "./shuttle.js";
 import { createStatsDialog } from "./stats-dialog.js";
@@ -808,6 +811,8 @@ const keyboard = setupKeyboard({
     exportRegions: () => exportRegions(),
     automix: () => void openAutomix(),
     openStatistics: () => void openStatistics(),
+    openLocateMedia: () => void openLocateMedia(),
+    openSendCopy: () => void openSendCopy(),
     openRecord: () => void recordView.open(),
     cycleStopMode: () => cycleStopMode(),
     cyclePreroll: () => cyclePreroll(),
@@ -1735,6 +1740,48 @@ async function openStatistics() {
     },
   });
   await statsDialog.open();
+}
+
+// File > Locate media… (WP39) and File > Send a copy… (WP32). The desktop window has a native
+// folder chooser; a plain browser types the folder.
+const folderChooser = () =>
+  typeof globalThis.pywebview?.api?.pick_project_folder === "function"
+    ? () => globalThis.pywebview.api.pick_project_folder()
+    : null;
+let locateDialog = null;
+async function openLocateMedia() {
+  locateDialog ??= createLocateDialog({
+    api,
+    t,
+    pickFolder: folderChooser(),
+    onChanged: () => void refresh().catch(showError),
+  });
+  await locateDialog.open();
+}
+let sendCopyDialog = null;
+async function openSendCopy() {
+  sendCopyDialog ??= createSendCopyDialog({
+    api,
+    t,
+    pickFolder: folderChooser(),
+    onDone: (report) => showNotice(t("ui.send_copy.done", { path: report.path }), "ok"),
+  });
+  await sendCopyDialog.open();
+}
+/** A project that opens with audio files missing says so once, with one click to locate them. */
+function offerToLocate(missing) {
+  const notice = missingNotice(missing);
+  if (!notice) return;
+  showNotice(t(notice.key, notice.values), "ok", {
+    sticky: true,
+    action: {
+      label: t("ui.locate.notice_action"),
+      run: () => {
+        $("notice").hidden = true;
+        void openLocateMedia();
+      },
+    },
+  });
 }
 
 const exportTracks = (format, options) => startExport("tracks", format, options);
@@ -2717,6 +2764,7 @@ api
 try {
   const [state, words] = await Promise.all([api.getState(), api.getWords()]);
   apply(state);
+  offerToLocate(state.missing);
   setState({ words: words.words ?? [], wordsHead: getState().head });
   await restoreView();
   await refreshClipboard();

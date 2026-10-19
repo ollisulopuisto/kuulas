@@ -67,6 +67,7 @@ from . import export as export_module
 from . import loudness_curve as loudness_curve_module
 from . import markers as markers_module
 from . import music_report as music_report_module
+from . import send_copy as send_copy_module
 from .clipboard import (
     ClipRef,
     Entry,
@@ -1186,6 +1187,67 @@ class Session:
             state = self.history.state
         return loudness_curve_module.project_curves(
             state, self.store, getattr(self.store, "cache_root", None))
+
+    def send_copy_plan(self) -> dict:
+        """What each audio choice of File > Send a copy… would carry."""
+        with self.lock:
+            state = self.history.state
+        return send_copy_module.plan(self.store, state)
+
+    def send_copy(self, folder: str, media: str = "used") -> dict:
+        """File > Send a copy… (WP32): write a copy of the project into ``folder`` with
+        ``media`` = none | used | all. This history gets a ``sent`` checkpoint first (when
+        this window may write), so the step that was sent can be found again."""
+        new_copy = send_copy_module.new_copy_id()
+
+        def freeze(target: Path) -> tuple[Project, dict]:
+            with self.lock:
+                if not self.read_only:
+                    self.history.checkpoint(
+                        t("history.sent_copy", media=t(f"send_copy.{media}")),
+                        "sent", copy=new_copy)
+                package.backup_to(self.package.db_path, target)
+                return self.history.state, dict(self.package.manifest)
+
+        return send_copy_module.make(self.store, freeze, self.package.path.stem, folder,
+                                     media, new_copy)
+
+    def _media_line(self, media_id: str) -> dict:
+        meta = self.store.meta(media_id)
+        return {"id": media_id, "name": meta["name"], "size": meta["linked_size"]}
+
+    def media_status(self) -> dict:
+        """What "Locate media…" shows before a folder is chosen: the linked media whose
+        file is gone, and the media that hold only the parts a copy carried."""
+        partial = []
+        for media_id in self.store.partial_ids():
+            info = self.store.partial_info(media_id) or {}
+            partial.append({
+                "id": media_id, "name": self.store.meta(media_id)["name"],
+                "can_complete": bool(info.get("source_size"))})
+        return {"missing": [self._media_line(m) for m in self.store.missing()],
+                "partial": partial}
+
+    def locate_media(self, folder: str) -> dict:
+        """File > Locate media… (WP39): look under ``folder`` for the missing media,
+        and for the whole files of partial copies, by SHA-256 (a file of the same size
+        and another content is never taken). Not an edit: nothing is committed.
+        Returns ``{"found": [{id, name, path}], "still_missing": [...],
+        "partial": [...]}``, the last two as in ``media_status``."""
+        if not isinstance(folder, str) or not Path(folder).expanduser().is_dir():
+            raise MediaError("error.locate.no_folder", folder=str(folder or ""))
+        before = self.media_status()
+        completable = any(p["can_complete"] for p in before["partial"])
+        if not before["missing"] and not completable:
+            return {"found": [], "still_missing": [], "partial": before["partial"]}
+        if self.read_only:
+            raise MediaError("error.locate.read_only")
+        found = self.store.relink(Path(folder).expanduser())
+        log.info(t("log.session.relinked", count=len(found)))
+        after = self.media_status()
+        return {"found": [{"id": m, "name": self.store.meta(m)["name"], "path": path}
+                          for m, path in sorted(found.items())],
+                "still_missing": after["missing"], "partial": after["partial"]}
 
     def stats(self) -> dict:
         """The session's statistics (WP70, ``project_stats``). Only the snapshot is

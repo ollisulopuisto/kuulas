@@ -53,6 +53,14 @@ export const stopRecording = (body) => post("/api/record/stop", body);
 export const importTakes = (takes) => post("/api/record/import", { takes });
 /** The session's statistics (WP70): { stats, groups: [{ title, rows: [[label, value]] }], text }. */
 export const getStats = () => json("/api/stats");
+/** File > Locate media… (WP39): { missing: [{ id, name, size }], partial: [{ id, name, can_complete }] }. */
+export const getMediaStatus = () => json("/api/media/status");
+/** Look under a folder by SHA-256: { found: [{ id, name, path }], still_missing, partial }. */
+export const locateMedia = (folder) => post("/api/media/locate", { folder });
+/** File > Send a copy… (WP32): what each choice would carry: { none, used, all: { bytes, ... }, offline }. */
+export const getSendCopyPlan = () => json("/api/send-copy/plan");
+/** Write the copy: { path, copy, media, carried, relink, unavailable, bytes }. */
+export const sendCopy = (body) => post("/api/send-copy", body);
 /** Short-term loudness per track and for the mix, with each track's integrated LUFS and target
  * (WP49). Takes seconds on a long programme: always asked in the background; `signal` cancels. */
 export const getLoudnessCurve = (signal) => json("/api/loudness-curve", { signal });

@@ -938,6 +938,11 @@ class MediaStore:
             raise MediaError("error.media.offline", name=meta["name"])
         return Path(meta["linked_path"])
 
+    def linked_file(self, media_id: str) -> Path:
+        """Where a linked media's file is on this machine now (after any relink)."""
+        found = self._resolved_paths.get(media_id)
+        return Path(found or self.meta(media_id)["linked_path"])
+
     def ids(self) -> list[str]:
         with self._db_lock:
             return [r[0] for r in self.db.execute("select id from media order by id")]
@@ -1097,18 +1102,70 @@ class MediaStore:
     def set_series_root(self, folder: str | Path | None) -> None:
         self.series_root = Path(folder) if folder else None
 
+    def partial_ids(self) -> list[str]:
+        """Media whose file holds only the parts a hand-off copy carried
+        (``Media.extra["partial_copy"]``, ``send_copy``). They play as silence
+        outside those parts; ``relink`` swaps in the whole file when it finds it."""
+        return [m for m in self.ids() if self.partial_info(m) is not None]
+
+    def partial_info(self, media_id: str) -> dict | None:
+        """``{"ranges": [[first, last]...], "source_size": int | None}`` or None."""
+        info = json.loads(self.meta(media_id)["extra"] or "{}").get("partial_copy")
+        return info if isinstance(info, dict) else None
+
+    def _adopt_full(self, media_id: str, path: Path) -> str:
+        """Replace a partial copy by the whole file it was cut from, checked by
+        hash. Returns the path used, or "" when the file is not that media."""
+        info = self.partial_info(media_id)
+        try:
+            path = path.resolve()
+            st = path.stat()
+            if info is None or st.st_size != info.get("source_size"):
+                return ""
+            if _sha256(path) != self.meta(media_id)["sha256"]:
+                return ""
+        except OSError:
+            return ""
+        extra = json.loads(self.meta(media_id)["extra"] or "{}")
+        del extra["partial_copy"]
+        self._update(media_id, storage="linked", linked_path=str(path),
+                     linked_size=st.st_size, linked_mtime_ns=st.st_mtime_ns,
+                     linked_package_rel=_relative(path, self.package_root),
+                     linked_series_rel=_relative(path, self.series_root),
+                     lossless=1, extra=json.dumps(extra, ensure_ascii=False))
+        self._resolved_paths[media_id] = str(path)
+        self._linked_ok[media_id] = True
+        self._remember(self.meta(media_id)["sha256"], path)
+        with self._lock:
+            old = self._handles.pop(media_id, None)
+            if old:
+                old[1].close()
+        self.budget.discard_prefix("chunks", f"{media_id}:")
+        self.working_file(media_id).unlink(missing_ok=True)
+        # Peaks, onsets and analysis made from the partial file are keyed by the
+        # same hash as the whole one would be, so they must go. Caches are
+        # rebuildable by definition.
+        for kind in caches.KINDS:
+            shutil.rmtree(self.cache_root / kind, ignore_errors=True)
+        return str(path)
+
     def relink(self, search: str | Path | None = None) -> dict[str, str]:
         """Find missing linked files again by content: remembered paths first,
-        then every file of the right size under ``search``."""
+        then every file of the right size under ``search``. Also swaps a partial
+        copy (``partial_ids``) for the whole file when its size is known."""
         found: dict[str, str] = {}
         lost = self.missing()
-        if not lost:
+        sizes = {m: self.meta(m)["linked_size"] for m in lost}
+        partial = {m: (self.partial_info(m) or {}).get("source_size")
+                   for m in self.partial_ids()}
+        sizes.update({m: n for m, n in partial.items() if n})
+        if not sizes:
             return found
         self._check_writable()
         by_size: dict[int, list[str]] = {}
-        for media_id in lost:
-            by_size.setdefault(self.meta(media_id)["linked_size"], []).append(media_id)
-        candidates = [Path(p) for m in lost
+        for media_id, size in sizes.items():
+            by_size.setdefault(size, []).append(media_id)
+        candidates = [Path(p) for m in sizes
                       for p in self.seen_paths(self.meta(m)["sha256"])]
         candidates += [p for folder in self._media_folders for p in folder.rglob("*")
                        if p.is_file()]
@@ -1126,7 +1183,9 @@ class MediaStore:
             digest = _sha256(path)
             for media_id in waiting:
                 if self.meta(media_id)["sha256"] == digest:
-                    where = self._accept_path(media_id, path)
+                    whole = media_id in partial
+                    accept = self._adopt_full if whole else self._accept_path
+                    where = accept(media_id, path)
                     if where:
                         found[media_id] = where
         with self._lock:

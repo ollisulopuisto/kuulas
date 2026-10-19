@@ -77,6 +77,8 @@ describe("the commands the app registers", () => {
       restoreStep: () => calls.push(["restoreStep"]),
       openHistory: () => calls.push(["openHistory"]),
       openStatistics: () => calls.push(["openStatistics"]),
+      openLocateMedia: () => calls.push(["openLocateMedia"]),
+      openSendCopy: () => calls.push(["openSendCopy"]),
       newProject: () => calls.push(["newProject"]),
       openProject: () => calls.push(["openProject"]),
       autoSilence: () => calls.push(["autoSilence"]),
@@ -144,6 +146,16 @@ describe("the commands the app registers", () => {
     assert.equal(registry.can("app.statistics", { project }), true);
     assert.equal(registry.run("app.statistics", null, { project }), true);
     assert.deepEqual(calls, [["openStatistics"]]);
+  });
+
+  test("Locate media… and Send a copy… open their dialogs once a project is open (WP39, WP32)", () => {
+    const { registry, calls } = setup();
+    for (const id of ["app.locate_media", "app.send_copy"]) {
+      assert.equal(registry.can(id, {}), false, id);
+      assert.equal(registry.can(id, { project }), true, id);
+      assert.equal(registry.run(id, null, { project }), true, id);
+    }
+    assert.deepEqual(calls, [["openLocateMedia"], ["openSendCopy"]]);
   });
 
   test("Tab and Shift+Tab step to the next and previous stop, Alt+Tab cycles the scope", () => {

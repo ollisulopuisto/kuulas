@@ -163,6 +163,10 @@ export function registerAppCommands(registry, { actions, app }) {
   def("app.open", () => app.openProject());
   // File > Statistics… (WP70): runtime, counts, talk, work and sizes of this session.
   def("app.statistics", () => app.openStatistics(), hasProject);
+  // File > Locate media… (WP39) and Send a copy… (WP32): no default key (the Finnish layout
+  // leaves no free one that is not AltGr or Shift+digit); both are in the File menu.
+  def("app.locate_media", () => app.openLocateMedia(), hasProject);
+  def("app.send_copy", () => app.openSendCopy(), hasProject);
   // Transport > Record… (WP12a) and how a take is stopped (a preference: two steps by default).
   def("transport.record", () => app.openRecord(), hasProject);
   def("record.stop_mode", () => app.cycleStopMode());

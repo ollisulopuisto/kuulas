@@ -1,3 +1,12 @@
+## [v26.10.19.24] - 2026-10-19
+
+- **Recording pre-roll (default 60 s):** with the record view open, the recorder listens and keeps the last 60 seconds (setting: off / 10 / 30 / 60 / 120 s) in memory only; nothing is written until you press Record, and then the take starts that many seconds earlier. The take lands so the pre-roll ends where you pressed Record. The microphone is released by itself two minutes after the editor stops asking.
+- **Transcription runs as a background job:** local and Colab transcriptions continue when you close the window; finished transcripts are added to the project automatically with a notice (one undo step per recording). Interrupted jobs are listed and can be restarted (Transcribe > Restart interrupted transcriptions).
+- **Locate media… and Send a copy… (File menu):** point at a folder and missing media is relinked by content; "Send a copy" makes a copy of the project without media, with only the used parts (plus 2 s each side), or with everything.
+- **Re-syncing asks first:** re-sync, re-sync all, re-sync to the end and send home show what will move before doing it (setting View > "Confirm before re-syncing"). The sync commands sit next to Undo in the Edit menu.
+- **Cleaner window:** the duplicate macOS menus are gone (the app menu, Edit and View remain); the Undo, Redo, Import and Export buttons are gone from the top bar (Undo and Redo are at the top of the History panel); the transcript text lines up with the start of the tracks; the clock and start, end and length sit beside the transcript; a Record button sits next to Play. Note: Cmd+M (minimise) is gone with the Window menu.
+- **Rule 17: recorded material is never lost** (written down in the plan; the Recordings list that makes every take recoverable is still to be built).
+
 ## [v26.10.19.23] - 2026-10-19
 
 - **Next and previous drifting clip (Markers tab) are F7 and Shift+F7**, not N: N sits between B (split) and M
