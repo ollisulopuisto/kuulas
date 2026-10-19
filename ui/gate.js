@@ -7,8 +7,6 @@
 export const GATE_OPEN_COMMAND = "gate.open_stretch";
 /** A band narrower than this many pixels is still easy to point at. */
 export const MIN_HIT_PX = 4;
-/** Room kept on each side of the label inside a band. */
-export const LABEL_PAD_PX = 8;
 
 /** Index of the first range whose end is after `frame` (binary search). */
 function firstEndingAfter(ranges, frame) {
@@ -71,11 +69,6 @@ export function gateAt(ranges, frame, zoom) {
     if (start - pad > frame) break;
   }
   return -1;
-}
-
-/** Does 'mic closed' fit in a band `bandPx` wide when the text is `textPx` wide? */
-export function gateLabelFits(bandPx, textPx) {
-  return bandPx >= textPx + 2 * LABEL_PAD_PX;
 }
 
 /** [top, bottom] of the flat 1 px floor line the waveform shows under a gate. */

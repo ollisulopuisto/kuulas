@@ -17,6 +17,8 @@ const SILENCE_DB = -200;
 const CAP_PX = 3;
 /** Bars are opaque: --track-N-wave on --track-N-body is checked at >= 3:1 (tokens.test.js). */
 const WAVE_ALPHA = 1;
+/** Pixels between hatch lines: a muted clip and an Auto-Silence gate band share it. */
+export const HATCH_STEP = 6;
 /** Clip bodies stand 2 px inside their lane so neighbours do not touch. */
 const BODY_INSET = 2;
 /** Speaker hues in tokens.css (--track-0 .. --track-5); then music's own. */
@@ -265,4 +267,30 @@ function flattenGated(bars, data, runs, from, to, mode, height) {
       data[2 * column + 1] = 0;
     }
   }
+}
+
+/**
+ * The diagonal hatch of silence: a hand-made mute (Clip.muted) and an Auto-Silence gate band
+ * (Track.gate) both draw it, so the two look the same. `colour` is --signal-muted-hatch.
+ */
+export function drawSilenceHatch(ctx, x, y, w, h, colour) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
+  ctx.strokeStyle = colour;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let offset = -h; offset < w; offset += HATCH_STEP) {
+    ctx.moveTo(x + offset, y + h);
+    ctx.lineTo(x + offset + h, y);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** The gate's pixel runs [x0, x1, ...] (gatePixelRuns), each hatched like a muted clip. */
+export function drawGateHatch(ctx, runs, y, h, colour) {
+  for (let i = 0; i < runs.length; i += 2)
+    drawSilenceHatch(ctx, runs[i], y, runs[i + 1] - runs[i], h, colour);
 }
