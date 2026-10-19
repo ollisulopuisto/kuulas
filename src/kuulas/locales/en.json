@@ -553,8 +553,8 @@
   "cmd.group.toggle": "Group editing on / off",
   "cmd.bus.collapse": "Collapse the bus",
   "cmd.bus.expand": "Expand the bus",
-  "cmd.sync.mark": "Mark in sync",
-  "cmd.sync.resync": "Resync",
+  "cmd.sync.mark": "Mark in sync (first selected is the anchor)",
+  "cmd.sync.resync": "Sync selected clips to the anchor",
   "cmd.sync.point1": "Set the first sync point",
   "cmd.sync.point2": "Set the second sync point",
   "cmd.sync.resync_end": "Resync to the end, all tracks",
@@ -1613,7 +1613,7 @@
   "cmd.sync.free_all": "Free all drifting clips",
   "cmd.sync.drift_next": "Next drifting clip",
   "cmd.sync.drift_previous": "Previous drifting clip",
-  "cmd.sync.resync.hint": "Puts the selected clips back where their sync group puts them. Clips you freed from sync are left alone.",
+  "cmd.sync.resync.hint": "Moves the selected clips in time to where they belong relative to the sync anchor (the track marked with the anchor tag). Works on one clip, or on a selection; the anchor itself, clips freed from sync and tracks are never touched. To use another clip as the reference, select it and choose \"Make this the sync anchor\". Y (mark in sync) makes the first selected clip the anchor.",
   "cmd.sync.resync_end.hint": "Resyncs every clip from the play cursor on, on all tracks (the fix for an accidental one-track cut). Free clips are skipped and counted.",
   "cmd.sync.free.hint": "Declares the selected clips free from sync on purpose (they get no drift badge, and are nobody's partner), or links them again.",
   "cmd.sync.resync_all.hint": "Resyncs every clip in the drift list. Nothing resyncs unless you ask.",
@@ -1645,5 +1645,35 @@
   "ui.sync.drift.row": "{time} · {offset}",
   "ui.sync.drift.cause": "since: {label}",
   "ui.sync.drift.cause_group_off": "since: {label}, group editing off",
-  "ui.sync.drift.jump": "Go to this clip"
+  "ui.sync.drift.jump": "Go to this clip",
+  "toast.sync.synced": {
+    "one": "Synced {count} clip to {anchor}. Time only, tracks unchanged.",
+    "other": "Synced {count} clips to {anchor}. Time only, tracks unchanged."
+  },
+  "toast.sync.skipped_free": {
+    "one": "skipped {count} free",
+    "other": "skipped {count} free"
+  },
+  "toast.sync.ungrouped": "The selection is not in a sync group",
+  "toast.sync.anchor_only": "Selection contains the anchor, nothing to move",
+  "toast.sync.nothing": "Nothing to do, already in sync",
+  "error.edit.no_sync_group": "That clip is not in a sync group.",
+  "cmd.sync.set_anchor": "Make this the sync anchor",
+  "cmd.sync.set_anchor.hint": "Makes the selected clip's recording the anchor of its sync group: the one that sync is measured against. Nothing moves now; what is in sync stays in sync. Afterwards Resync puts clips relative to the new anchor.",
+  "cmd.sync.send_home": "Put back on its original track",
+  "cmd.sync.send_home.hint": "Moves the selected clips back to the track they were dragged away from, at the same time position. Resync only fixes time, never the track.",
+  "ui.sync.history.anchor": "Make the sync anchor",
+  "ui.sync.history.send_home": "Put back on the original track",
+  "ui.sync.toast.anchor": "{name} is now the sync anchor",
+  "ui.sync.toast.sent_home": {
+    "one": "{count} clip is back on its original track",
+    "other": "{count} clips are back on their original tracks"
+  },
+  "ui.sync.toast.marked": "Marked in sync. The anchor is {name}",
+  "ui.sync.history.mark": "Mark in sync",
+  "ui.sync.anchor_tag": "anchor",
+  "ui.sync.anchor_title": "Sync anchor: the clips of this sync group are kept in sync relative to this one.",
+  "ui.sync.badge.drift_title_anchor": "Out of sync by {offset} relative to {anchor}. R puts it back, U says it is deliberate.",
+  "ui.sync.badge.free_title_anchor": "Free from sync on purpose (anchor: {anchor}). U links it again.",
+  "ui.sync.moved_from": "moved from {track}"
 }

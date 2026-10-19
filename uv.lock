@@ -584,7 +584,7 @@ wheels = [
 
 [[package]]
 name = "nhsx"
-version = "2026.10.9.2"
+version = "2026.10.5.3"
 source = { editable = "../podcast/packages/nhsx" }
 dependencies = [
     { name = "lxml" },
@@ -1306,7 +1306,7 @@ wheels = [
 
 [[package]]
 name = "speechmix"
-version = "2026.10.9.1"
+version = "2026.10.8.6"
 source = { editable = "../podcast/packages/speechmix" }
 dependencies = [
     { name = "numba" },

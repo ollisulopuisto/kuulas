@@ -6,6 +6,21 @@
 import { driftRows, stepDrift } from "./sync-state.js";
 
 const hasProject = (state) => Boolean(state?.project);
+
+const groupOf = (project, mediaId) =>
+  project.sync_groups?.find((group) => mediaId in group.members) ?? null;
+
+/** The selected clips that sit on a different track from the one they came from. */
+function movedAway(state) {
+  const ids = new Set(state?.selection ?? []);
+  const out = [];
+  for (const track of state?.project?.tracks ?? []) {
+    for (const clip of track.clips) {
+      if (ids.has(clip.id) && clip.home && clip.home !== track.id) out.push(clip.id);
+    }
+  }
+  return out;
+}
 const selected = (state) => [...(state?.selection ?? [])];
 
 function clipsById(state) {
@@ -55,6 +70,67 @@ export function registerSyncCommands(registry, { app, t }) {
       );
     },
     (state) => hasProject(state) && selected(state).length > 0,
+  );
+
+  const trackName = (state, clipId) =>
+    state.project.tracks.find((track) => track.clips.some((c) => c.id === clipId))?.name ?? "";
+
+  // Y: the selected clips are in sync as they sit now; the first selected is the anchor.
+  def(
+    "sync.mark",
+    () => {
+      const state = app.getState();
+      const ids = selected(state);
+      if (ids.length < 2) return;
+      app.edit({
+        op: "mark_in_sync",
+        args: { clip_ids: ids, main: ids[0], basis: "timeline" },
+        label: t("ui.sync.history.mark"),
+        done: () =>
+          app.toast(t("ui.sync.toast.marked", { name: trackName(state, ids[0]) }), { undo: true }),
+      });
+    },
+    (state) => hasProject(state) && selected(state).length >= 2,
+  );
+
+  // Makes the first selected clip's recording the anchor; nothing moves.
+  def(
+    "sync.set_anchor",
+    () => {
+      const state = app.getState();
+      const [id] = selected(state);
+      if (!id) return;
+      app.edit({
+        op: "set_sync_anchor",
+        args: { clip_id: id },
+        label: t("ui.sync.history.anchor"),
+        done: () =>
+          app.toast(t("ui.sync.toast.anchor", { name: trackName(state, id) }), { undo: true }),
+      });
+    },
+    (state) => {
+      if (!hasProject(state)) return false;
+      const [id] = selected(state);
+      const clip = id ? clipsById(state).get(id) : null;
+      const group = clip ? groupOf(state.project, clip.media) : null;
+      return Boolean(group) && group.main !== clip.media;
+    },
+  );
+
+  // Time stays; the clips go back to the track they were dragged away from.
+  def(
+    "sync.send_home",
+    () => {
+      const ids = movedAway(app.getState());
+      if (ids.length === 0) return;
+      app.edit({
+        op: "send_home",
+        args: { clip_ids: ids },
+        label: t("ui.sync.history.send_home"),
+        done: () => app.toast(t("ui.sync.toast.sent_home", { count: ids.length }), { undo: true }),
+      });
+    },
+    (state) => hasProject(state) && movedAway(state).length > 0,
   );
 
   def(

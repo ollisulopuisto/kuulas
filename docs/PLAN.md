@@ -1576,6 +1576,12 @@ group together; any other edit touches exactly what you selected.**
 - **Never overeager:** nothing ever resyncs automatically; "resync from the
   playhead" skips free clips and says so ("Resynced 14 clips · skipped 2
   free").
+- **The anchor** (owner, 2026-10-19): a sync group's reference is `SyncGroup.main`, shown by an "anchor" tag on
+  its clips; `ops.set_sync_anchor` (Shift+Y) re-expresses the members' origins so nothing moves. Y (mark in
+  sync) makes the first selected clip the anchor. R / "Sync selected clips to the anchor" moves the selected
+  non-anchor, non-free clips in **time only** (a clip's track is not part of sync) and always names the result.
+  A clip dragged to another track keeps `Clip.home`; Shift+U (`ops.send_home`) puts it back, same time.
+  Partners no longer exclude clips on the same track (only the clip itself).
 - Mod+G (or E, WP5) toggles group editing for the session. When it is off, the toolbar
   shows a persistent warning chip "Group editing off", because that state
   is how the accident happens.

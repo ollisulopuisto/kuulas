@@ -63,7 +63,15 @@ import { baseGainDb, makeWaveformJob, scaleFor, trackHues } from "./paint.js";
 import { aboutSeconds, placeholderLabel } from "./placeholders-model.js";
 import { dragRange, isDrag, touchedResult, trackRowsTouched } from "./range-drag.js";
 import { rulerTicks } from "./ruler.js";
-import { badgeFor, formatOffset, partnerIds, syncIndex } from "./sync-state.js";
+import {
+  anchorIds,
+  anchorNameFor,
+  badgeFor,
+  formatOffset,
+  homeNameFor,
+  partnerIds,
+  syncIndex,
+} from "./sync-state.js";
 import { readTheme } from "./theme.js";
 import { createTileStore } from "./tiles.js";
 import { selectionBounds, wordAtTime } from "./transcript-model.js";
@@ -859,6 +867,15 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     }
     return syncRows;
   }
+  let anchorsFrom = null;
+  let anchorSet = new Set();
+  function anchorsOf(state) {
+    if (state.syncAnchors !== anchorsFrom) {
+      anchorsFrom = state.syncAnchors;
+      anchorSet = anchorIds(state.syncAnchors);
+    }
+    return anchorSet;
+  }
   let partnersFrom = null;
   let partnersSel = null;
   let partnerSet = new Set();
@@ -916,6 +933,35 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     overlay.restore();
   }
 
+  // The anchor of a sync group (its main recording's pieces) wears a small "anchor" tag, so the
+  // user sees what the others are kept in sync with. Text as well as the mark; right end of the
+  // label strip, where the drift badge of the others sits.
+  function drawAnchorTag(state, clip, left, y, w, colours) {
+    if (!anchorsOf(state).has(clip.id) || w < 24) return;
+    const right = Math.min(left + w, size.width) - 6 - (clip.group ? 16 : 0);
+    overlay.save();
+    overlay.font = `600 ${NAME_FONT_PX}px ${theme.font}`;
+    overlay.textBaseline = "top";
+    const text = t("ui.sync.anchor_tag");
+    const wide = w >= 40 + overlay.measureText(text).width + 16;
+    const textWidth = wide ? overlay.measureText(text).width + 3 : 0;
+    const x = right - textWidth - 9;
+    overlay.fillStyle = colours.fill;
+    overlay.globalAlpha = LABEL_BACKING_ALPHA;
+    overlay.fillRect(x - 3, y + 2, textWidth + 9 + 6, LABEL_H);
+    overlay.globalAlpha = 1;
+    overlay.fillStyle = theme.selection;
+    overlay.beginPath();
+    overlay.moveTo(x + 3.5, y + 4);
+    overlay.lineTo(x + 7, y + 8);
+    overlay.lineTo(x + 3.5, y + 12);
+    overlay.lineTo(x, y + 8);
+    overlay.closePath();
+    overlay.fill();
+    if (wide) overlay.fillText(text, x + 10, y + 3);
+    overlay.restore();
+  }
+
   // The partners of the selected clip (clips of its sync group that play the same stretch of the
   // recording) get a dashed outline, so the user sees what a move will take along (the dash is the
   // twin of the colour). Not drawn while group editing is off: nothing would follow.
@@ -950,6 +996,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
   function drawName(state, clip, left, y, w, colours, marked) {
     if (clip.group) drawGroupBadge(left, y, w, colours);
     drawSyncBadge(state, clip, left, y, w, colours);
+    drawAnchorTag(state, clip, left, y, w, colours);
     const media = state.project.media.find((item) => item.id === clip.media);
     if (!media || w < 30) return;
     let x = Math.max(left, 0) + 5;
@@ -1328,6 +1375,27 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
 
   // Over a closed stretch the tooltip says what it is and what a double-click does; over a
   // narration placeholder (WP43) it says it is to be recorded and that Enter edits it.
+  // What the sync badge, the anchor tag and a moved clip say on hover: relative to which anchor,
+  // and which track the clip came from.
+  function syncTooltip(state, clip) {
+    const lines = [];
+    const row = syncRowsOf(state).get(clip.id);
+    const anchor = anchorNameFor(state.project, state.syncAnchors, clip);
+    if (anchorsOf(state).has(clip.id)) lines.push(t("ui.sync.anchor_title"));
+    else if (row?.state === "drift" || row?.state === "free") {
+      const offset = formatOffset(row.offset, state.project.rate, (v) =>
+        formatNumber(v, { digits: 1 }),
+      );
+      if (row.state === "drift")
+        lines.push(t("ui.sync.badge.drift_title_anchor", { offset, anchor }));
+      else lines.push(t("ui.sync.badge.free_title_anchor", { anchor }));
+    }
+    const track = state.project.tracks.find((tr) => tr.clips.some((c) => c.id === clip.id));
+    const home = homeNameFor(state.project, clip, track?.id);
+    if (home) lines.push(t("ui.sync.moved_from", { track: home }));
+    return lines.join("\n");
+  }
+
   function hoverGate(event) {
     const hit = hitAt(event);
     let text = "";
@@ -1335,6 +1403,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     else if (hit.gate) text = t("ui.gate.hover");
     else if (hit.clip && Object.hasOwn(clipOvers, hit.clip.id))
       text = overLabel(clipOvers[hit.clip.id], t, (value) => formatNumber(value, { digits: 1 }));
+    else if (hit.clip) text = syncTooltip(getState(), hit.clip);
     if (overlayCanvas.title !== text) overlayCanvas.title = text;
   }
   overlayCanvas.addEventListener("pointermove", (event) => {

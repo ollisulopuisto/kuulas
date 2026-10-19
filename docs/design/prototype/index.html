@@ -3060,8 +3060,8 @@ const HELP_FILES = {
   "cmd.group.toggle": "Group editing on / off",
   "cmd.bus.collapse": "Collapse the bus",
   "cmd.bus.expand": "Expand the bus",
-  "cmd.sync.mark": "Mark in sync",
-  "cmd.sync.resync": "Resync",
+  "cmd.sync.mark": "Mark in sync (first selected is the anchor)",
+  "cmd.sync.resync": "Sync selected clips to the anchor",
   "cmd.sync.point1": "Set the first sync point",
   "cmd.sync.point2": "Set the second sync point",
   "cmd.sync.resync_end": "Resync to the end, all tracks",
@@ -3392,13 +3392,17 @@ const HELP_FILES = {
   "cmd.sync.free_all": "Free all drifting clips",
   "cmd.sync.drift_next": "Next drifting clip",
   "cmd.sync.drift_previous": "Previous drifting clip",
-  "cmd.sync.resync.hint": "Puts the selected clips back where their sync group puts them. Clips you freed from sync are left alone.",
+  "cmd.sync.resync.hint": "Moves the selected clips in time to where they belong relative to the sync anchor (the track marked with the anchor tag). Works on one clip, or on a selection; the anchor itself, clips freed from sync and tracks are never touched. To use another clip as the reference, select it and choose \"Make this the sync anchor\". Y (mark in sync) makes the first selected clip the anchor.",
   "cmd.sync.resync_end.hint": "Resyncs every clip from the play cursor on, on all tracks (the fix for an accidental one-track cut). Free clips are skipped and counted.",
   "cmd.sync.free.hint": "Declares the selected clips free from sync on purpose (they get no drift badge, and are nobody's partner), or links them again.",
   "cmd.sync.resync_all.hint": "Resyncs every clip in the drift list. Nothing resyncs unless you ask.",
   "cmd.sync.free_all.hint": "Declares every clip in the drift list free from sync on purpose.",
   "cmd.sync.drift_next.hint": "Moves the play cursor to the next clip that has drifted out of sync and selects it.",
-  "cmd.sync.drift_previous.hint": "Moves the play cursor to the previous clip that has drifted out of sync and selects it."
+  "cmd.sync.drift_previous.hint": "Moves the play cursor to the previous clip that has drifted out of sync and selects it.",
+  "cmd.sync.set_anchor": "Make this the sync anchor",
+  "cmd.sync.set_anchor.hint": "Makes the selected clip's recording the anchor of its sync group: the one that sync is measured against. Nothing moves now; what is in sync stays in sync. Afterwards Resync puts clips relative to the new anchor.",
+  "cmd.sync.send_home": "Put back on its original track",
+  "cmd.sync.send_home.hint": "Moves the selected clips back to the track they were dragged away from, at the same time position. Resync only fixes time, never the track."
  },
  "catalog/fi": {
   "cmd.transport.play": "Toista / pysäytä",
@@ -3488,8 +3492,8 @@ const HELP_FILES = {
   "cmd.group.toggle": "Ryhmämuokkaus päälle / pois",
   "cmd.bus.collapse": "Supista väylä",
   "cmd.bus.expand": "Laajenna väylä",
-  "cmd.sync.mark": "Merkitse synkkaan",
-  "cmd.sync.resync": "Synkkaa uudelleen",
+  "cmd.sync.mark": "Merkitse synkkaan (ensimmäinen valittu on ankkuri)",
+  "cmd.sync.resync": "Synkkaa valitut leikkeet ankkuriin",
   "cmd.sync.point1": "Aseta ensimmäinen synkkapiste",
   "cmd.sync.point2": "Aseta toinen synkkapiste",
   "cmd.sync.resync_end": "Synkkaa loppuun, kaikki raidat",
@@ -3820,13 +3824,17 @@ const HELP_FILES = {
   "cmd.sync.free_all": "Vapauta kaikki ajautuneet leikkeet",
   "cmd.sync.drift_next": "Seuraava ajautunut leike",
   "cmd.sync.drift_previous": "Edellinen ajautunut leike",
-  "cmd.sync.resync.hint": "Palauttaa valitut leikkeet paikkaan, johon synkkaryhmä ne asettaa. Synkasta vapauttamasi leikkeet jätetään rauhaan.",
+  "cmd.sync.resync.hint": "Siirtää valitut leikkeet ajassa paikkaan, jossa ne ovat ankkuriin (ankkurimerkillä merkitty raita) nähden. Toimii yhdelle leikkeelle tai valinnalle; ankkuria itseään, synkasta vapautettuja leikkeitä tai raitoja ei koskaan kosketa. Jos haluat toisen leikkeen vertailukohdaksi, valitse se ja valitse \"Tee tästä synkan ankkuri\". Y (merkitse synkkaan) tekee ensimmäisenä valitusta leikkeestä ankkurin.",
   "cmd.sync.resync_end.hint": "Synkkaa kaikki leikkeet toistokohdasta eteenpäin kaikilla raidoilla (korjaa vahingossa yhdelle raidalle tehdyn leikkauksen). Vapaat leikkeet ohitetaan ja lasketaan.",
   "cmd.sync.free.hint": "Merkitsee valitut leikkeet tarkoituksella synkasta vapaiksi (ei ajautumismerkkiä, eikä kenenkään kumppani) tai liittää ne takaisin.",
   "cmd.sync.resync_all.hint": "Synkkaa jokaisen ajautumisluettelon leikkeen. Mikään ei synkkaudu itsestään.",
   "cmd.sync.free_all.hint": "Merkitsee jokaisen ajautumisluettelon leikkeen tarkoituksella synkasta vapaaksi.",
   "cmd.sync.drift_next.hint": "Siirtää toistokohdan seuraavaan synkasta ajautuneeseen leikkeeseen ja valitsee sen.",
-  "cmd.sync.drift_previous.hint": "Siirtää toistokohdan edelliseen synkasta ajautuneeseen leikkeeseen ja valitsee sen."
+  "cmd.sync.drift_previous.hint": "Siirtää toistokohdan edelliseen synkasta ajautuneeseen leikkeeseen ja valitsee sen.",
+  "cmd.sync.set_anchor": "Tee tästä synkan ankkuri",
+  "cmd.sync.set_anchor.hint": "Tekee valitun leikkeen äänityksestä tahdistusryhmän ankkurin, johon synkkaa verrataan. Mikään ei siirry nyt; mikä on synkassa, pysyy synkassa. Sen jälkeen Synkkaa uudelleen asettaa leikkeet uuteen ankkuriin nähden.",
+  "cmd.sync.send_home": "Palauta alkuperäiselle raidalle",
+  "cmd.sync.send_home.hint": "Siirtää valitut leikkeet takaisin raidalle, jolta ne vedettiin pois, samaan aikakohtaan. Synkkaus korjaa vain ajan, ei koskaan raitaa."
  }
 };
 // -- end of help topics --

@@ -110,6 +110,10 @@ class Clip:
     # Pieces split from it inherit it (a split is ``replace``). Not written when
     # False, like ``group``.
     free: bool = False
+    # The track this clip was dragged away from (``ops.move_clip``), so "Put back
+    # on its original track" can undo it; None when it never left. Pieces split
+    # from it inherit it. Not written when None.
+    home: str | None = None
     # Sync is per media, not per clip (``Project.sync_groups``): every piece
     # cut from a file shares its clock, so subclips need no fields of their own.
     extra: dict = field(default_factory=dict, hash=False)
@@ -122,6 +126,8 @@ class Clip:
             del d["group"]
         if not self.free:
             del d["free"]
+        if self.home is None:
+            del d["home"]
         return d
 
     @classmethod

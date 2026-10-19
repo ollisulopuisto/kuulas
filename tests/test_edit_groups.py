@@ -276,7 +276,8 @@ def test_resync_skips_free_clips_and_says_so(s):
     s.command("resync_from", {"frame": 0})
     assert s.last_resync["resynced"] == 1
     assert s.last_resync["skipped"] == 1
-    assert s.last_resync["message"] == "Resynced 1 clip · skipped 1 free"
+    assert s.last_resync["message"].startswith("Synced 1 clip to ")
+    assert s.last_resync["message"].endswith("skipped 1 free")
     assert clips_on(s, "A")[0].start == 0
     assert clips_on(s, "V")[0].start == 4800  # free: left alone
 

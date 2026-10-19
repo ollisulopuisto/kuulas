@@ -67,3 +67,21 @@ export function driftingAmong(clips, ids) {
     .filter((row) => wanted.has(row.clip_id))
     .map((row) => row.clip_id);
 }
+
+/** The ids of the anchor clips (pieces of a sync group's main recording), from GET /api/sync. */
+export function anchorIds(anchors) {
+  return new Set((anchors ?? []).map((anchor) => anchor.clip_id));
+}
+
+/** The track the anchor of this clip's sync group sits on, by name; "" when it has no group. */
+export function anchorNameFor(project, anchors, clip) {
+  const group = project?.sync_groups?.find((g) => clip.media in g.members);
+  if (!group) return "";
+  return (anchors ?? []).find((anchor) => anchor.group === group.id)?.name ?? "";
+}
+
+/** The name of the track a clip was dragged away from, "" while it is on its own track. */
+export function homeNameFor(project, clip, trackId) {
+  if (!clip?.home || clip.home === trackId) return "";
+  return project?.tracks?.find((track) => track.id === clip.home)?.name ?? "";
+}

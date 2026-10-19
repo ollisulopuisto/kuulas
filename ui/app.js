@@ -205,7 +205,8 @@ async function refresh() {
 
 async function refreshSync() {
   try {
-    setState({ syncClips: (await api.getSync()).clips });
+    const answer = await api.getSync();
+    setState({ syncClips: answer.clips, syncAnchors: answer.anchors ?? [] });
   } catch {
     // The badges are a help: a failed look leaves the last ones, the next edit looks again.
   }
@@ -228,7 +229,9 @@ async function syncCommand(name, args) {
   try {
     const response = await api.command(name, args);
     apply(response);
-    if (response.resync?.message) showNotice(response.resync.message, "ok", { undo: true });
+    // Undo only when something moved: a resync that did nothing made no step.
+    if (response.resync?.message)
+      showNotice(response.resync.message, "ok", { undo: response.resync.resynced > 0 });
     return response;
   } catch (error) {
     showError(error);
