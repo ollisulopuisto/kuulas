@@ -1,3 +1,17 @@
+## [v26.10.19.28] - 2026-10-19
+
+- **Sync never moves anything; groups do.** Dragging a clip no longer drags its sync partners along: sync only lets you see drift and put a clip back (R). Clips move, trim, delete and mute together only when you have grouped them (Clip > Group clips, now Cmd+G; Shift+Cmd+G ungroups).
+- **Which tracks a range edit touches:** the old "group editing" switch (E) is replaced by a visible scope. I/O marks and the keyboard act on ALL tracks; painting a range with the mouse in one lane acts on that lane only; clicking track headers (Cmd+click adds, Esc clears) limits cut, copy, lift-cut, close gap and delete to those tracks. **E** toggles "all tracks / selected tracks only" (also in the Edit menu and by clicking the chip in the status bar). Tracks that will not be touched are dimmed, and the status bar says what the next edit touches. It returns to "all tracks" when a project opens.
+- **Dragging a clip's edge now overwrites its neighbours** instead of stopping at the first one (a short muted piece in between no longer blocks it); the preview shows what is trimmed or removed. Hold Alt to stop at the neighbour. Undo is one step; media files are never touched.
+- **Slow listening:** hold Shift+J (backward) or Shift+L (forward) to play at half speed (0.25x, 0.5x or 0.75x, Playback > Slow listening) only while the key is down. The fast-listening speed nudges moved to `,` (slower) and Alt+`.` (faster).
+- **Export:** the options dialog now lets you export the whole mix, the in/out range or chosen tracks, pick MP3 bitrate, WAV/FLAC depth and a loudness target, and says which tracks are silent because of mute or solo. Cmd+E repeats the last scope; File > Export in/out range.
+- **Automixer dialog** redesigned: Mix, Output and a collapsed Advanced section, with defaults shown.
+- **Timestamps:** type digits like Final Cut (110 is 1:10, 10000 is 1:00:00); **View > Language** switches Finnish and English.
+- **Mac commands:** Cmd+N, Cmd+O, Cmd+W (Close project; refuses while recording), Cmd+, (Preferences), File > Open Recent, Cmd+M.
+- **Clipboard preview** is never louder than the project (attenuation only, with a safety limiter; View > "Limit the clipboard preview to the project's level").
+- **Security:** the local server refuses requests with a foreign Host or Origin header.
+- The app icon's mark is larger. The menu opens submenus faster on hover (90 ms).
+
 ## [v26.10.19.27] - 2026-10-19
 
 - **Start page:** each recent project is a card with when it was last opened, its tracks, length and size on disk, a marker if its folder is missing, arrow-key navigation, and Open/New in the app's button style.

@@ -3919,7 +3919,7 @@ Status: pure-logic parts built (`word_search.py`: find words/phrases in a media'
 
 ### WP83 — What an edit touches: sync, groups and the track scope (owner, 2026-10-19)
 
-Status: decided 2026-10-19, not built (the clip-drag fix "a vertical drag moves only the grabbed clip" is built and is a stop-gap). Owner: "sync is not the same as group. Sync does nothing except help you return an unsynced clip to its original location."
+Status: **built 2026-10-19 in v26.10.19.28** (sync no longer expands anything; `edit_scope.range_tracks`, `ui/range-scope.js`, E toggles the scope, header selection, dimming, the status chip, Mod+G Group; edge-drag overwrite; not yet seen on screen). Original status: decided 2026-10-19, not built (the clip-drag fix "a vertical drag moves only the grabbed clip" is built and is a stop-gap). Owner: "sync is not the same as group. Sync does nothing except help you return an unsynced clip to its original location."
 
 **Three separate ideas, never mixed:**
 1. **Sync** is knowledge only: a clip knows where it belongs relative to others (Resync R, Free, the drift list and badges). Dragging a clip never moves its sync partners. `edit_scope.expand_clips` must stop expanding by sync partners; it expands only by explicit groups.
