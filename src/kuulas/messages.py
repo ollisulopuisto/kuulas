@@ -135,7 +135,7 @@ def default_language() -> str:
     return _normalise(value) if value else SOURCE
 
 
-_language = default_language()
+_language = None
 
 
 def set_language(lang: str) -> None:
@@ -150,6 +150,9 @@ def catalog(lang: str) -> dict[str, Any] | None:
 
 
 def language() -> str:
+    global _language  # noqa: PLW0602
+    if _language is None:
+        _language = default_language()
     return _language
 
 
@@ -194,8 +197,9 @@ def t(key: str, /, **values: Any) -> str:
     Order: the current language, then English, then the key itself. A
     ``count`` value picks the plural category of an entry that has one.
     """
-    template = _template(_language, key, values.get("count"))
-    if template is None and _language != SOURCE:
+    lang = language()
+    template = _template(lang, key, values.get("count"))
+    if template is None and lang != SOURCE:
         template = _template(SOURCE, key, values.get("count"))
     if template is None:
         return _bare(key, values)
