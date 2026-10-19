@@ -25,13 +25,19 @@ export function prerollLabel(seconds, t) {
   return seconds === 0 ? t("ui.record.preroll.off") : t("ui.record.preroll.seconds", { seconds });
 }
 
-/** The body of POST /api/record/arm: the same input and channel the take will use. */
-export function armRequest({ device, channel, seconds }) {
-  return {
+/**
+ * The body of POST /api/record/arm: the same input and channels the take will use. `channels`
+ * (several, WP12b) are listed once each in ascending order, as the recorder compares them to
+ * the take's; `channel` is the one-channel form.
+ */
+export function armRequest({ device, channel, channels, seconds }) {
+  const body = {
     device: device ? { index: device.index, name: device.name } : null,
-    channel: Math.max(1, Math.round(Number(channel)) || 1),
     preroll_s: seconds,
   };
+  if (!channels) return { ...body, channel: Math.max(1, Math.round(Number(channel)) || 1) };
+  const listed = channels.map((n) => Math.round(Number(n))).filter((n) => n >= 1);
+  return { ...body, channels: [...new Set(listed)].sort((a, b) => a - b) };
 }
 
 /** The line that says whether the microphone is being listened to. `status`: the server's view. */

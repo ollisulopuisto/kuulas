@@ -684,3 +684,28 @@ def test_api_arms_and_disarms(session, tmp_path, recorder):
             assert r.json()["armed"] is False
     finally:
         rs.close()
+
+
+def test_api_records_several_channels_onto_several_tracks(session, tmp_path, recorder):
+    rs = live(session, recorder)
+    try:
+        with api(session, tmp_path, rs) as c:
+            r = c.post("/api/record/arm", json={
+                "device": {"index": 0, "name": "Fake Mic"}, "channels": [1, 2],
+                "preroll_s": 30})
+            assert r.status_code == 200, r.text
+            r = c.post("/api/record/start", json={
+                "device": {"index": 0, "name": "Fake Mic"}, "at": 0,
+                "channels": [{"channel": 1, "track_id": "new", "name": "Host"},
+                             {"channel": 2, "track_id": "new", "name": "Guest"}]})
+            assert r.status_code == 200, r.text
+            assert [lane["track_name"] for lane in r.json()["plan"]["lanes"]] == [
+                "Host", "Guest"]
+            time.sleep(0.6)
+            r = c.post("/api/record/stop", json={"mode": "one_click"})
+            assert r.status_code == 200, r.text
+            assert [t["name"] for t in r.json()["project"]["tracks"]] == ["Host", "Guest"]
+            r = c.post("/api/record/start", json={"channels": [{"channel": 0}]})
+            assert r.status_code == 400
+    finally:
+        rs.close()

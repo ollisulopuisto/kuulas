@@ -18,12 +18,16 @@ import {
   prerollLabel,
 } from "./preroll.js";
 import {
-  channelChoices,
+  channelPeaks,
   formatElapsed,
   importedMessage,
+  initialRows,
+  meterLabels,
   pickDevice,
   recordKeyAction,
   recordPhase,
+  selectedLanes,
+  startProblem,
   startRequest,
   stopLabel,
 } from "./record-model.js";
@@ -31,7 +35,7 @@ import { CONFIRM_MS, createStopGesture, STOP_MODES, stopModeChoice } from "./sto
 
 const STOP_MODE_KEY = "recordStopMode";
 const DEVICE_KEY = "recordDevice";
-const CHANNEL_KEY = "recordChannel";
+const CHANNELS_KEY = "recordChannels"; // the channels last recorded, as a list of numbers
 const PREROLL_KEY = "recordPreroll";
 const FLOOR_DB = -60;
 const RING = 2 * Math.PI * 52; // the stop ring's circumference (r = 52 in its 120 box)
@@ -79,8 +83,62 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
   let frame = null;
   let position = 0;
   const notices = [];
-  const meter = createPeakHold({ floorDb: FLOOR_DB });
-  let meterView = { bar: FLOOR_DB, peak: FLOOR_DB, clipped: false };
+  // One level meter per channel (WP12b): the setup's while armed (by channel number) and the
+  // take's while recording (in the recorder's order, which is channel order).
+  let rows = [];
+  let rowsDeviceKey = "";
+  let rowsSig = null;
+  const rowEls = [];
+  const setupMeters = new Map();
+  let liveMeters = [];
+  let liveKey = "";
+
+  /** A meter with its label and its own clip flag; `labelText` also names it for a screen reader. */
+  function createMeter(labelText) {
+    const row = el("div", "record-meter-row");
+    const label = el("span", "record-meter-label", labelText);
+    const box = el("div", "record-meter");
+    box.setAttribute("role", "img");
+    box.setAttribute("aria-label", labelText);
+    const fill = el("i", "record-meter-fill");
+    const hold = el("i", "record-meter-hold");
+    box.append(fill, hold);
+    const clip = el("button", "record-clip", t("ui.record.clip"));
+    clip.type = "button";
+    clip.title = t("ui.record.clip_title");
+    clip.hidden = true;
+    row.append(label, box, clip);
+    const tracker = createPeakHold({ floorDb: FLOOR_DB });
+    const meter = {
+      row,
+      label,
+      fill,
+      hold,
+      clip,
+      tracker,
+      view: { bar: FLOOR_DB, peak: FLOOR_DB, clipped: false },
+    };
+    clip.addEventListener("click", () => {
+      tracker.clearClip();
+      meter.view = { ...meter.view, clipped: false };
+      paintMeter(meter);
+    });
+    return meter;
+  }
+
+  function paintMeter(m) {
+    const pct = (db) => `${Math.max(0, Math.min(100, ((db - FLOOR_DB) / -FLOOR_DB) * 100))}%`;
+    m.fill.style.width = pct(m.view.bar);
+    m.hold.style.left = pct(m.view.peak);
+    m.fill.dataset.zone = m.view.bar > -6 ? "hot" : m.view.bar > -18 ? "warn" : "ok";
+    m.clip.hidden = !m.view.clipped;
+  }
+
+  function feedMeter(m, reading) {
+    m.view = m.tracker.update(reading.db, performance.now());
+    if (reading.clipped) m.view = { ...m.view, clipped: true };
+    paintMeter(m);
+  }
 
   // -- the frame -----------------------------------------------------------------------
   const dialog = el("dialog", "cheatsheet record-view");
@@ -125,53 +183,111 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
       return control;
     };
     setup.device = row(t("ui.record.device"), el("select"));
-    setup.channel = row(t("ui.record.channel"), el("select"));
-    setup.track = row(t("ui.record.track"), el("select"));
-    setup.name = row(t("ui.record.name"), el("input"));
-    setup.name.type = "text";
-    setup.name.autocomplete = "off";
+    // Every channel of the input: whether to record it and onto which track (WP12b).
+    setup.channels = el("fieldset", "record-channels");
+    setup.channels.append(el("legend", "record-label", t("ui.record.channels")));
+    box.append(setup.channels);
     setup.preroll = row(t("ui.record.preroll"), el("select"));
     setup.armed = el("p", "record-armed");
     setup.armed.setAttribute("role", "status");
-    const armedMeter = el("div", "record-meter");
-    armedMeter.setAttribute("role", "img");
-    armedMeter.setAttribute("aria-label", t("ui.record.level"));
-    setup.fill = el("i", "record-meter-fill");
-    setup.hold = el("i", "record-meter-hold");
-    armedMeter.append(setup.fill, setup.hold);
-    setup.meter = armedMeter;
     setup.at = el("p", "record-at");
     setup.disk = el("p", "record-disk");
     setup.message = el("p", "record-message");
     setup.message.setAttribute("role", "status");
     setup.record = el("button", "button record-button", t("ui.record.record"));
     setup.record.type = "button";
-    box.append(setup.armed, setup.meter, setup.at, setup.disk, setup.message, setup.record);
+    box.append(setup.armed, setup.at, setup.disk, setup.message, setup.record);
     setup.device.addEventListener("change", () => {
       const device = devices?.[Number(setup.device.value)];
       if (device) prefs.setJson(DEVICE_KEY, { index: device.index, name: device.name });
-      fillChannels();
-      void syncArm();
-    });
-    setup.channel.addEventListener("change", () => {
-      prefs.set(CHANNEL_KEY, setup.channel.value);
+      fillSetup();
       void syncArm();
     });
     setup.preroll.addEventListener("change", () => setPreroll(setup.preroll.value));
-    setup.track.addEventListener("change", () => {
-      setup.name.disabled = setup.track.value !== "new";
-    });
     setup.record.addEventListener("click", () => void start());
     return box;
   }
 
-  function fillChannels() {
-    const device = devices?.[Number(setup.device.value)];
-    const remembered = Number(prefs.get(CHANNEL_KEY)) || 1;
-    setup.channel.replaceChildren(
-      ...channelChoices(device).map((n) => new Option(t("ui.record.channel_n", { n }), String(n))),
-    );
-    if (channelChoices(device).includes(remembered)) setup.channel.value = String(remembered);
+  const chosenDevice = () => devices?.[Number(setup.device.value)] ?? null;
+  const chosenChannels = () => selectedLanes(rows).map((lane) => lane.channel);
+
+  /** One row per channel of the chosen input: use it, onto which track, named what. */
+  function buildRows(tracks) {
+    rowEls.length = 0;
+    setupMeters.clear();
+    const items = rows.map((r) => {
+      const item = el("div", "record-channel");
+      const use = el("label", "record-channel-use");
+      const check = el("input");
+      check.type = "checkbox";
+      use.append(check, el("span", "", t("ui.record.channel_n", { n: r.channel })));
+      const target = el("select");
+      target.setAttribute("aria-label", t("ui.record.channel_track_label", { n: r.channel }));
+      target.replaceChildren(
+        new Option(t("ui.record.new_track"), "new"),
+        ...tracks.map((track) => new Option(track.name, track.id)),
+      );
+      const name = el("input");
+      name.type = "text";
+      name.autocomplete = "off";
+      name.placeholder = t("record.channel_track", { n: r.channel });
+      name.setAttribute("aria-label", t("ui.record.channel_name_label", { n: r.channel }));
+      const meter = createMeter(t("ui.record.level_of", { name: String(r.channel) }));
+      meter.label.hidden = true;
+      setupMeters.set(r.channel, meter);
+      check.addEventListener("change", () => {
+        r.on = check.checked;
+        prefs.setJson(CHANNELS_KEY, chosenChannels());
+        fillSetup();
+        void syncArm();
+      });
+      target.addEventListener("change", () => {
+        r.target = target.value;
+        fillSetup();
+      });
+      name.addEventListener("input", () => {
+        r.name = name.value;
+      });
+      item.append(use, target, name, meter.row);
+      rowEls.push({ check, target, name, meter });
+      return item;
+    });
+    setup.channels.replaceChildren(setup.channels.firstChild, ...items);
+  }
+
+  /** The rows' controls follow the model (and the armed state, for the meters). */
+  function syncRows() {
+    const armed = preroll > 0 && Boolean(status?.armed);
+    rows.forEach((r, i) => {
+      const e = rowEls[i];
+      if (!e) return;
+      e.check.checked = r.on;
+      e.target.value = r.target;
+      e.target.disabled = !r.on;
+      e.name.value = r.name;
+      e.name.disabled = !r.on || r.target !== "new";
+      e.meter.row.hidden = !(armed && r.on);
+    });
+  }
+
+  function fillRows() {
+    const device = chosenDevice();
+    const tracks = getState().project?.tracks ?? [];
+    const deviceKey = `${device?.index}|${device?.name}|${device?.channels}`;
+    if (deviceKey !== rowsDeviceKey) {
+      const remembered = prefs.getJson(CHANNELS_KEY, null);
+      rows = initialRows(device, Array.isArray(remembered) ? remembered : null);
+      rowsDeviceKey = deviceKey;
+      rowsSig = null;
+    }
+    const sig = tracks.map((track) => `${track.id}:${track.name}`).join("|");
+    if (sig !== rowsSig) {
+      rowsSig = sig;
+      for (const r of rows)
+        if (r.target !== "new" && !tracks.some((track) => track.id === r.target)) r.target = "new";
+      buildRows(tracks);
+    }
+    syncRows();
   }
 
   function fillSetup() {
@@ -188,22 +304,13 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
       ),
     );
     if (chosen) setup.device.value = String(list.indexOf(chosen));
-    fillChannels();
-    const tracks = state.project?.tracks ?? [];
-    const before = setup.track.value;
-    setup.track.replaceChildren(
-      new Option(t("ui.record.new_track"), "new"),
-      ...tracks.map((track) => new Option(track.name, track.id)),
-    );
-    setup.track.value = tracks.some((track) => track.id === before) ? before : "new";
-    setup.name.disabled = setup.track.value !== "new";
+    fillRows();
     setup.preroll.replaceChildren(
       ...PREROLL_CHOICES.map((s) => new Option(prerollLabel(s, t), String(s))),
     );
     setup.preroll.value = String(preroll);
     setup.armed.textContent = armedNotice(status, preroll, t);
     setup.armed.dataset.armed = preroll > 0 && status?.armed ? "on" : "off";
-    setup.meter.hidden = !(preroll > 0 && status?.armed);
     setup.at.textContent = t("ui.record.at", {
       time: formatElapsed(state.playhead ?? 0, rate()),
     });
@@ -212,8 +319,10 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
     if (deviceError) message = deviceError;
     else if (devices === null) message = t("ui.record.loading");
     else if (list.length === 0) message = t("ui.record.no_devices");
+    const problem = chosen ? startProblem(rows) : null;
+    if (!message && problem) message = t(problem);
     setup.message.textContent = message;
-    setup.record.disabled = !chosen || stopping;
+    setup.record.disabled = !chosen || stopping || problem !== null;
   }
 
   function renderDisk(node) {
@@ -240,25 +349,26 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
   // The recorder keeps the last N seconds in memory while armed and writes nothing. The view
   // arms it when it is open in setup with pre-roll on, repeats that as a keepalive (the recorder
   // lets go by itself after two minutes without), and disarms when it closes or pre-roll is off.
-  let arming = false;
-  async function syncArm() {
-    if (!dialog.open || phase() !== "setup" || stopping || arming) return;
-    const device = devices?.[Number(setup.device.value)] ?? null;
+  // Calls queue, so a start right after a click on a channel waits for the arm that click sent
+  // (an armed recorder refuses a take for other channels than the ones it listens to).
+  let armQueue = Promise.resolve();
+  function syncArm() {
+    armQueue = armQueue.then(doArm);
+    return armQueue;
+  }
+  async function doArm() {
+    if (!dialog.open || phase() !== "setup" || stopping) return;
+    const device = chosenDevice();
     try {
-      arming = true;
       if (preroll === 0 || !device) {
         if (status?.armed) setStatus(await api.disarmRecording());
         return;
       }
-      setStatus(
-        await api.armRecording(
-          armRequest({ device, channel: setup.channel.value, seconds: preroll }),
-        ),
-      );
+      const channels = chosenChannels();
+      if (channels.length === 0) return;
+      setStatus(await api.armRecording(armRequest({ device, channels, seconds: preroll })));
     } catch (error) {
       setup.message.textContent = error.message;
-    } finally {
-      arming = false;
     }
     // Closed while the recorder was opening the input: let it go again.
     if (!dialog.open) void releaseArm();
@@ -281,23 +391,19 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
   dialog.addEventListener("close", () => void releaseArm());
 
   async function start() {
-    const device = devices?.[Number(setup.device.value)] ?? null;
+    const device = chosenDevice();
+    if (startProblem(rows) !== null) return;
     setup.record.disabled = true;
     try {
       // Armed for these very settings, or the take would have no pre-roll.
       if (preroll > 0) await syncArm();
       const answer = await api.startRecording(
-        startRequest({
-          device,
-          channel: setup.channel.value,
-          target: setup.track.value,
-          name: setup.name.value,
-          at: getState().playhead ?? 0,
-        }),
+        startRequest({ device, lanes: selectedLanes(rows), at: getState().playhead ?? 0 }),
       );
       notices.length = 0;
       position = 0;
-      meter.reset();
+      liveMeters = [];
+      liveKey = "";
       setStatus(answer);
     } catch (error) {
       setup.message.textContent = error.message;
@@ -312,23 +418,7 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
     rec.take = el("p", "record-take");
     rec.elapsed = el("output", "record-elapsed");
     rec.elapsed.setAttribute("aria-label", t("ui.record.elapsed"));
-    const meterBox = el("div", "record-meter");
-    meterBox.setAttribute("role", "img");
-    meterBox.setAttribute("aria-label", t("ui.record.level"));
-    rec.fill = el("i", "record-meter-fill");
-    rec.hold = el("i", "record-meter-hold");
-    meterBox.append(rec.fill, rec.hold);
-    rec.clip = el("button", "record-clip", t("ui.record.clip"));
-    rec.clip.type = "button";
-    rec.clip.title = t("ui.record.clip_title");
-    rec.clip.hidden = true;
-    rec.clip.addEventListener("click", () => {
-      meter.clearClip();
-      meterView = { ...meterView, clipped: false };
-      rec.clip.hidden = true;
-    });
-    const meterRow = el("div", "record-meter-row");
-    meterRow.append(meterBox, rec.clip);
+    rec.meters = el("div", "record-meters");
     rec.disk = el("p", "record-disk");
     rec.preroll = el("p", "record-preroll-note");
     rec.notices = el("ul", "record-notices");
@@ -352,7 +442,7 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
       rec.take,
       rec.elapsed,
       rec.preroll,
-      meterRow,
+      rec.meters,
       rec.disk,
       rec.notices,
       rec.stop,
@@ -361,14 +451,16 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
     return box;
   }
 
-  // `parts`: the recording view's meter (`rec`, the default) or the armed setup's (`setup`).
-  function renderMeter(parts = rec) {
-    if (!parts.fill) return;
-    const pct = (db) => `${Math.max(0, Math.min(100, ((db - FLOOR_DB) / -FLOOR_DB) * 100))}%`;
-    parts.fill.style.width = pct(meterView.bar);
-    parts.hold.style.left = pct(meterView.peak);
-    parts.fill.dataset.zone = meterView.bar > -6 ? "hot" : meterView.bar > -18 ? "warn" : "ok";
-    if (parts.clip) parts.clip.hidden = !meterView.clipped;
+  /** The take's meters: one per recorded channel, labelled with its track (rebuilt when the lanes change). */
+  function renderMeters() {
+    const lanes =
+      status?.plan?.lanes ??
+      (status?.channels ?? []).map((c) => ({ channel: c.channel, track_name: c.name }));
+    const key = lanes.map((l) => `${l.channel}:${l.track_name}`).join("|");
+    if (key === liveKey) return;
+    liveKey = key;
+    liveMeters = meterLabels(lanes, t).map((m) => createMeter(m.text));
+    rec.meters.replaceChildren(...liveMeters.map((m) => m.row));
   }
 
   function renderStop() {
@@ -404,7 +496,7 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
       included > 0 ? t("ui.record.preroll_included", { seconds: included }) : "";
     rec.preroll.hidden = included <= 0;
     renderDisk(rec.disk);
-    renderMeter();
+    renderMeters();
     renderStop();
     renderNotices();
   }
@@ -573,7 +665,7 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
 
   async function refreshStatus() {
     try {
-      setStatus(await api.getRecordStatus());
+      setStatus(await api.getRecordStatus(chosenChannels().length));
     } catch (error) {
       notify(error.message);
     }
@@ -666,18 +758,24 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
     live(message) {
       if (message.kind === "level") {
         if (!recording()) {
-          // Armed: the meter shows the input before Record.
-          if (status?.armed && setup.fill) {
-            meterView = meter.update(message.peak_dbfs?.[0] ?? FLOOR_DB, now());
-            renderMeter(setup);
+          // Armed: every armed channel's meter shows the input before Record (the readings
+          // come in the order of the channels the recorder was armed with).
+          const armed = status?.armed_channels ?? [];
+          if (status?.armed && setupMeters.size) {
+            const readings = channelPeaks(message, armed.length);
+            armed.forEach((channel, i) => {
+              const meter = setupMeters.get(channel);
+              if (meter) feedMeter(meter, readings[i]);
+            });
           }
           return;
         }
         position = message.position_frames ?? position;
-        meterView = meter.update(message.peak_dbfs?.[0] ?? FLOOR_DB, now());
-        if (message.clipped?.[0]) meterView = { ...meterView, clipped: true };
+        const readings = channelPeaks(message, liveMeters.length);
+        liveMeters.forEach((meter, i) => {
+          feedMeter(meter, readings[i]);
+        });
         if (rec.elapsed) rec.elapsed.textContent = formatElapsed(shownPosition(), rate());
-        renderMeter();
         renderChip();
       } else if (message.kind === "status") {
         if (!stopping) setStatus(message.status);

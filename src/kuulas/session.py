@@ -1700,47 +1700,66 @@ class Session:
     def import_take(self, files: list[tuple[Path, int] | tuple[Path, int, int]], *,
                     track_id: str | None, track_name: str, clip_name: str,
                     take: str) -> tuple[Project, list[str]]:
-        """A recorded take onto the timeline (WP12a), as ONE undo step.
+        """A recorded take of one channel onto the timeline (WP12a): ``import_take_lanes``
+        with a single lane."""
+        return self.import_take_lanes([(files, track_id, track_name)],
+                                      clip_name=clip_name, take=take)
 
-        ``files`` are the take's WAVs in ``recordings/`` with the timeline frame each
-        starts at (one per segment), and optionally how many frames to cut from the
-        file's head (pre-roll that would fall before the timeline's start, WP12c; the
-        file itself is never changed). They are linked in place, never copied. The clips
-        go on ``track_id`` (what they land on is trimmed back, as for an import onto a
-        track) or, when that is None or gone, on a new mono speech track named
-        ``track_name``. Several segments are one sync group: the gaps between them are
-        real time. Returns the project and the new clips' ids. A file that cannot be
+    def import_take_lanes(
+            self, lanes: list[tuple[list[tuple[Path, int] | tuple[Path, int, int]],
+                                    str | None, str]], *, clip_name: str,
+            take: str) -> tuple[Project, list[str]]:
+        """A recorded take onto the timeline (WP12a, several channels WP12b), as ONE undo
+        step.
+
+        ``lanes``: one ``(files, track_id, track_name)`` per recorded channel. ``files``
+        are the channel's WAVs in ``recordings/`` with the timeline frame each starts at
+        (one per segment), and optionally how many frames to cut from the file's head
+        (pre-roll that would fall before the timeline's start, WP12c; the file itself is
+        never changed). They are linked in place, never copied. The clips go on
+        ``track_id`` (what they land on is trimmed back, as for an import onto a track)
+        or, when that is None or gone, on a new mono speech track named ``track_name``;
+        a lane none of whose files could be imported makes no track. All the take's clips
+        are one sync group: the channels share one clock, and the gaps between segments
+        are real time. Returns the project and the new clips' ids. A file that cannot be
         imported is left out; when none can, nothing changes and its error is raised.
         """
         with self.lock:
             _check_writable(self)
-            report = self.store.import_batch([str(f[0]) for f in files], copy=False)
+            every = [f for files, _, _ in lanes for f in files]
+            report = self.store.import_batch([str(f[0]) for f in every], copy=False)
             self.last_import_report = report
-            ok = [(r.media, f[1], f[2] if len(f) > 2 else 0)
-                  for r, f in zip(report, files, strict=True) if r.ok]
+            ok = {id(f): r.media for r, f in zip(report, every, strict=True) if r.ok}
             if not ok:
                 raise report[0].error
             before = p = self.history.state
-            if track_id is None or not any(tr.id == track_id for tr in p.tracks):
-                track_id = ops.new_id("t")
-                p = ops.add_track(p, track_id, track_name, "speech")
-                p = ops.set_track(p, track_id, mono=True)
             clip_ids = []
-            for media, start, cut in ok:
-                if cut >= media.frames:
-                    continue  # all of it lies before the start of the timeline
-                clip_id = ops.new_id("c")
-                p = ops.add_clip(p, track_id, media.id, start=start, offset=cut,
-                                 clip_id=clip_id)
-                p = ops.set_clip(p, clip_id, name=clip_name)
-                clip_ids.append(clip_id)
+            lane_tracks: list[str] = []
+            for files, wanted_track, track_name in lanes:
+                placed = [(ok[id(f)], f[1], f[2] if len(f) > 2 else 0)
+                          for f in files if id(f) in ok]
+                placed = [(m, start, cut) for m, start, cut in placed if cut < m.frames]
+                if not placed:
+                    continue  # nothing of this channel to show: no empty track
+                dest = wanted_track
+                if dest is None or not any(tr.id == dest for tr in p.tracks):
+                    dest = ops.new_id("t")
+                    p = ops.add_track(p, dest, track_name, "speech")
+                    p = ops.set_track(p, dest, mono=True)
+                lane_tracks.append(dest)
+                for media, start, cut in placed:
+                    clip_id = ops.new_id("c")
+                    p = ops.add_clip(p, dest, media.id, start=start, offset=cut,
+                                     clip_id=clip_id)
+                    p = ops.set_clip(p, clip_id, name=clip_name)
+                    clip_ids.append(clip_id)
             p = ops._overwrite_under(before, p)
             if len(clip_ids) > 1:
                 p = ops.mark_in_sync(p, clip_ids, main=clip_ids[0], basis="timeline")
             project = self._commit(t("history.record_take", name=clip_name), p,
                                    "import_take",
-                                   {"take": take, "files": [str(f[0]) for f in files],
-                                    "track_id": track_id})
+                                   {"take": take, "files": [str(f[0]) for f in every],
+                                    "track_id": lane_tracks[0] if lane_tracks else None})
             return project, clip_ids
 
     def linked_files(self) -> set[Path]:

@@ -50,6 +50,12 @@ describe("the arm request", () => {
       preroll_s: 60,
     });
   });
+  test("several channels are armed as a list, in order, without duplicates", () => {
+    assert.deepEqual(
+      armRequest({ device: { index: 2, name: "Mic" }, channels: [3, "1", 3, 0], seconds: 10 }),
+      { device: { index: 2, name: "Mic" }, channels: [1, 3], preroll_s: 10 },
+    );
+  });
   test("keeps the recorder armed well inside its time-to-live of two minutes", () => {
     assert.ok(ARM_KEEPALIVE_MS <= 30000);
     assert.ok(ARM_KEEPALIVE_MS >= 5000);

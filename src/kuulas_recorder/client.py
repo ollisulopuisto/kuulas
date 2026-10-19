@@ -23,7 +23,16 @@ import threading
 import time
 from pathlib import Path
 
+import kuulas_recorder
+from kuulas_recorder import names
 from kuulas_recorder.transport import Connection, UnixTransport, default_socket_path
+
+#: The one function that builds a take's file names (``names.segment_file``), here for
+#: the editor, which may import nothing of the recorder but this module.
+segment_file = names.segment_file
+#: The protocol version this client library speaks; ``hello`` of a running recorder
+#: reports the one it speaks, and an editor compares the two.
+PROTOCOL = kuulas_recorder.PROTOCOL
 
 
 class RecorderError(Exception):

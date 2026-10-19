@@ -227,6 +227,9 @@ class TranscribeBody(BaseModel):
 
 class RecordStartBody(BaseModel):
     device: dict[str, Any] | None = None
+    # Several channels (WP12b): [{channel, track_id, name}], each onto its own track.
+    # Without it, the one-channel form below.
+    channels: list[dict[str, Any]] | None = None
     channel: int = 1
     track_id: str | None = None  # None or "new": a new speech track named ``name``
     name: str = ""
@@ -236,6 +239,7 @@ class RecordStartBody(BaseModel):
 class RecordArmBody(BaseModel):
     # Listen for pre-roll (WP12c): the same input and channel the take will use.
     device: dict[str, Any] | None = None
+    channels: list[int] | None = None  # the device channels the take will record
     channel: int = 1
     preroll_s: float = 60.0
 
@@ -1026,11 +1030,11 @@ def create_app(session, engine, *, language: str | None = None,
         return recorder
 
     @app.get("/api/record/status")
-    def record_status():
+    def record_status(channels: int = 1):
         if recorder is None:
             return {"available": False, "recording": False, "state": "idle",
                     "ours": False, "pending": [], "notices": []}
-        return recorder.status()
+        return recorder.status(channels)
 
     @app.get("/api/record/devices")
     def record_devices():
@@ -1041,15 +1045,15 @@ def create_app(session, engine, *, language: str | None = None,
         rec = need_recorder()
         # No listening while recording (owner, 2026-10-19): monitoring is the interface's.
         engine.stop()
-        return rec.start(device=body.device, channel=body.channel, track_id=body.track_id,
-                         name=body.name, at=body.at)
+        return rec.start(device=body.device, channels=body.channels, channel=body.channel,
+                         track_id=body.track_id, name=body.name, at=body.at)
 
     @app.post("/api/record/arm")
     def record_arm(body: RecordArmBody):
         # Also the keepalive: the page repeats it, and the recorder lets the microphone
         # go by itself when it stops coming.
-        return need_recorder().arm(device=body.device, channel=body.channel,
-                                   preroll_s=body.preroll_s)
+        return need_recorder().arm(device=body.device, channels=body.channels,
+                                   channel=body.channel, preroll_s=body.preroll_s)
 
     @app.post("/api/record/disarm")
     def record_disarm():

@@ -2,11 +2,16 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
   channelChoices,
+  channelPeaks,
   formatElapsed,
   importedMessage,
+  initialRows,
+  meterLabels,
   pickDevice,
   recordKeyAction,
   recordPhase,
+  selectedLanes,
+  startProblem,
   startRequest,
   stopLabel,
 } from "../record-model.js";
@@ -131,6 +136,96 @@ describe("after the take", () => {
     assert.equal(
       importedMessage({ take: "Take 2", clips: 1, gaps: 0, interrupted: true }, t),
       'ui.record.imported_interrupted{"take":"Take 2"}',
+    );
+  });
+});
+
+describe("several channels (WP12b)", () => {
+  const scarlett = { index: 3, name: "Scarlett 2i2", channels: 4 };
+  test("a device's channels start with the remembered ones on, else channel 1", () => {
+    assert.deepEqual(
+      initialRows(scarlett, [2, 3]).map((r) => [r.channel, r.on]),
+      [
+        [1, false],
+        [2, true],
+        [3, true],
+        [4, false],
+      ],
+    );
+    assert.deepEqual(
+      initialRows(scarlett, null).map((r) => r.on),
+      [true, false, false, false],
+    );
+    // remembered channels this device lacks are no use: channel 1 then
+    assert.deepEqual(
+      initialRows({ channels: 2 }, [5, 6]).map((r) => r.on),
+      [true, false],
+    );
+  });
+  test("a row is a new track until the user picks one", () => {
+    const [row] = initialRows(scarlett, null);
+    assert.equal(row.target, "new");
+    assert.equal(row.name, "");
+  });
+  test("the lanes are the rows that are on, in channel order", () => {
+    const rows = initialRows(scarlett, [3, 1]);
+    rows[2].name = " Guest ";
+    rows[0].target = "t1";
+    assert.deepEqual(selectedLanes(rows), [
+      { channel: 1, track_id: "t1", name: "" },
+      { channel: 3, track_id: null, name: "Guest" },
+    ]);
+  });
+  test("the request carries every lane, and the one-channel form still works", () => {
+    const rows = initialRows(scarlett, [1, 2]);
+    const body = startRequest({ device: scarlett, lanes: selectedLanes(rows), at: 9.6 });
+    assert.deepEqual(body.channels, [
+      { channel: 1, track_id: null, name: "" },
+      { channel: 2, track_id: null, name: "" },
+    ]);
+    assert.equal(body.at, 10);
+    assert.equal("channel" in body, false);
+  });
+  test("nothing chosen, or one track chosen twice, is a problem before Record", () => {
+    const rows = initialRows(scarlett, [1, 2]);
+    assert.equal(startProblem(rows), null);
+    rows[0].target = "t1";
+    rows[1].target = "t1";
+    assert.equal(startProblem(rows), "error.record.same_track");
+    for (const r of rows) r.on = false;
+    assert.equal(startProblem(rows), "ui.record.no_channel");
+  });
+  test("two new tracks may have the same name; the server numbers them", () => {
+    const rows = initialRows(scarlett, [1, 2]);
+    rows[0].name = "Mic";
+    rows[1].name = "Mic";
+    assert.equal(startProblem(rows), null);
+  });
+  test("meters are labelled with the track each channel goes to", () => {
+    const lanes = [
+      { channel: 1, track_name: "Host" },
+      { channel: 3, track_name: "Guest" },
+    ];
+    assert.deepEqual(
+      meterLabels(lanes, t).map((m) => m.text),
+      ['ui.record.level_of{"name":"Host"}', 'ui.record.level_of{"name":"Guest"}'],
+    );
+    assert.deepEqual(meterLabels(null, t), []);
+  });
+  test("a level frame is read per channel; a missing channel reads as silence", () => {
+    assert.deepEqual(channelPeaks({ peak_dbfs: [-12, -3], clipped: [false, true] }, 3), [
+      { db: -12, clipped: false },
+      { db: -3, clipped: true },
+      { db: -120, clipped: false },
+    ]);
+  });
+  test("a take that lost a channel says so", () => {
+    assert.equal(
+      importedMessage(
+        { take: "Take 2", clips: 1, gaps: 0, interrupted: false, failed_channels: ["Guest"] },
+        t,
+      ),
+      'ui.record.imported_failed{"take":"Take 2","names":"Guest"}',
     );
   });
 });

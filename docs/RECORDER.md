@@ -89,7 +89,7 @@ resamples behind our back. There is no live resampling, ever.
 ## Running it
 
 ```
-kuulas-recorder serve [--socket PATH] [--state-dir DIR] [--flush-seconds 1.0]
+kuulas-recorder serve [--socket PATH] [--state-dir DIR] [--flush-seconds 1.0] [--idle-exit 60]
 kuulas-recorder devices [--json]          # input devices
 kuulas-recorder repair FILE.wav ...       # repair WAVs left by a crash
 kuulas-recorder send CMD ['{"json": 1}']  # one command, print the answer
@@ -131,7 +131,7 @@ the file path.
 ## The protocol
 
 Newline-delimited JSON over the socket, UTF-8, one object per line, at most
-1 MB a line. Protocol version: `PROTOCOL = 1` (`hello` reports it).
+1 MB a line. Protocol version: `PROTOCOL = 2` (`hello` reports it; 2 added pre-roll `arm` and `channel_failed`).
 
 **Requests** carry `cmd` and an optional `id` that the answer echoes:
 
@@ -226,6 +226,9 @@ disk), `segments`, `gaps`, `dropouts`, `overflows`, `worker_restarts`,
 | `disarmed` | `reason` (`disarmed`, `rearmed`, `expired`, `shutdown`, `device_lost`, `worker_died`), `text` | the recorder stopped listening; nothing was recorded |
 | `stopped` | `folder`, `take`, `stop_reason`, `frames`, `sidecar` | the take is over and every file closed |
 
+`warning` `channel_failed` (`name`, `at_frame`): one channel's file could not be written
+(not a full disk); see [several channels](#several-channels-wp12b).
+
 ### Error keys
 
 `bad_request`, `unknown_command`, `bad_name`, `already_recording`,
@@ -239,6 +242,28 @@ for other channels or another input than the armed one), `already_running` (from
 
 Names (`take`, `names`): letters of any script, digits, space and
 `- _ . , ( ) ' +  &`, up to 80 characters, no leading dot or space, no `~`.
+
+## Several channels (WP12b)
+
+`start` takes any number of `channels` of the one device, each to its own mono file
+(`<take>-<name>.wav`; names distinct, case-insensitively, since macOS disks fold case).
+All channels share one clock: every file of a segment starts on the same frame, and
+pre-roll gives every channel the same head. The meters (`level`, `levels`) list one
+reading per channel in the order of `channels`; an armed recorder compares `channels` as
+an ordered list, so the editor always sends them ascending.
+
+- **A channel's problem never loses the others' audio.** A write or flush error on one
+  file (anything but a full disk, which is everyone's) marks that channel failed: it
+  keeps every whole frame it had (its header is valid), the others go on. The worker
+  reports `channel_failed`; the supervisor journals it, lists it in the sidecar's
+  `failed_channels` (`name`, `at_frame`, `text`) and warns. Only when every channel
+  has failed does the take end with a `write_failed` error. A failed channel gets a
+  fresh file in the next segment. Tests: `tests/test_recorder_channels.py`.
+- **File names** are built in one place, `names.segment_file(take, name, segment)`; the
+  editor reads names from the sidecar and uses `client.segment_file` only to avoid
+  collisions. Changing the naming scheme (for example
+  `YYYY-MM-DD HH-MM-SS <project> - <track> - <take>`) is a change in that function; existing
+  files are never renamed.
 
 ## Pre-roll (WP12c)
 
@@ -274,6 +299,18 @@ minute of one channel at 48 kHz is 11.5 MB), plus one block. The meters run, so
 - The editor places the clip so that the pre-roll ends where Record was pressed
   (`record_take.clip_plan`): at `at + start_frame - preroll_frames`, with what
   would fall before the start of the timeline cut from the clip's head.
+
+## Lifetime and old recorders
+
+- **The recorder does not run for ever.** Idle (no take, not listening) and with no
+  client connected for `--idle-exit` seconds (default 60; `0` never) it exits by itself.
+  A take, a listener or any connected client resets the clock, so it never exits with a
+  take running (rule 17). `quit` while idle (or only listening) exits at once.
+- **A recorder outlives the editor**, so a new editor can meet an older one. The editor
+  compares `hello`'s `protocol` with its own (`client.PROTOCOL`) before `arm`: older and
+  idle or listening, it is sent `quit` and a fresh recorder is started; older and recording,
+  it is not touched: the take goes on and the editor answers `error.record.old_recorder`
+  (pre-roll waits for the next idle moment). Test: `tests/test_record_old_recorder.py`.
 
 ## Files
 
