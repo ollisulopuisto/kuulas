@@ -12,7 +12,10 @@ Import button uses a native dialog and a dropped file arrives as a path (pywebvi
 gives paths only on the Python side), and the project links the file in place
 (`POST /api/import`, `copy: false`). In a plain browser nothing changes: the
 file input and upload still work. The native menu (File, Edit, View, Window)
-calls `window.kuulasNative.menu(id)`.
+calls `window.kuulasNative.menu(id)`. The editor's own File > New project… / Open project…
+use the bridge (`new_project_in_window`, `open_project_in_window`): a native dialog, then
+the project opens in a window of its own; a plain browser asks for a path instead
+(`POST /api/project/new`, `/api/project/open`).
 
 ## pywebview limits we design around
 

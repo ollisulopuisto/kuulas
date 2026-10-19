@@ -3559,9 +3559,10 @@ a pywebview app with a FastAPI thread.
 
 ### WP74 — Menu reorganisation (owner, 2026-10-19; notes are coming menu by menu)
 
-Status: collecting the owner's notes with the Menu Sketchbook (https://claude.ai/artifact/TBU8UJkMqe21XHbwUXw58v):
-the current menus have 215 items in 11 menus (Edit 54, Track 35, File 33, Go 24, View 22). Nothing is changed
-until he has gone through the menus. Rules: every command stays in a menu (menu-coverage test), keys do not
+Status: implemented on branch worktree-agent-ae4ff3ceb88126de3 (menus, keys, New/Open project, the "(options)…" export
+dialog, Finnish terminology and docs/GLOSSARY.md); not yet merged, and not seen on screen. Notes were collected with the Menu
+Sketchbook (https://claude.ai/artifact/TBU8UJkMqe21XHbwUXw58v): the menus had 215 items in 11 menus (Edit 54, Track 35,
+File 33, Go 24, View 22). Rules: every command stays in a menu (menu-coverage test), keys do not
 change unless he says so, en and fi strings.
 
 **File menu, first notes (2026-10-19):**

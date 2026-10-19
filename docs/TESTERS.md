@@ -31,7 +31,7 @@ blocked again the same way.
 A Kuulas project is a folder called `Name.kuulas`. Finder shows it as one file with the
 Kuulas icon (after the app has been opened once from Applications), and **double-clicking
 it opens it in Kuulas**. Open several and each gets its own window. A project already
-open is brought to the front, not opened twice. File > New / Open in the window also work.
+open is brought to the front, not opened twice. File > New project… and Open project… in the editor each open a project in a window of its own.
 
 The first time you record, macOS asks for microphone access.
 

@@ -117,7 +117,7 @@ def test_error_body_has_key_params_and_text():
                               "text": "There is no clip c1."}}
     messages.set_language("fi")
     assert messages.error_body("error.edit.no_clip", clip_id="c1")["error"]["text"] == (
-        "Klippiä c1 ei ole.")
+        "Leikettä c1 ei ole.")
 
 
 def test_error_body_params_are_json_safe(tmp_path):
@@ -132,7 +132,7 @@ def test_exception_text_is_translated_at_read_time():
     assert err.params == {"clip_id": "c1"}
     assert str(err) == "There is no clip c1."
     messages.set_language("fi")
-    assert str(err) == "Klippiä c1 ei ole."
+    assert str(err) == "Leikettä c1 ei ole."
 
 
 def test_media_and_transcribe_errors_keep_their_base_classes():

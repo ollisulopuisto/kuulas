@@ -314,7 +314,7 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "mark.clear",
-    keys: { mac: null, other: null },
+    keys: { mac: "Shift+Alt+I", other: "Shift+Alt+I" },
     context: "timeline",
     labelKey: "cmd.mark.clear",
   },
@@ -882,13 +882,13 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "candidate.next",
-    keys: { mac: ["]", "Alt+ArrowDown"], other: ["]", "Alt+ArrowDown"] },
+    keys: { mac: ["Alt+ArrowDown", "]"], other: ["Alt+ArrowDown", "]"] },
     context: "not-markers",
     labelKey: "cmd.candidate.next",
   },
   {
     id: "candidate.previous",
-    keys: { mac: ["[", "Alt+ArrowUp"], other: ["[", "Alt+ArrowUp"] },
+    keys: { mac: ["Alt+ArrowUp", "["], other: ["Alt+ArrowUp", "["] },
     context: "not-markers",
     labelKey: "cmd.candidate.previous",
   },
@@ -972,11 +972,22 @@ export const DEFAULT_KEYMAP = [
     context: "global",
     labelKey: "cmd.app.import",
   },
+  // File: New / Open project (no keys: Cmd+N and Cmd+O belong to the browser).
+  { id: "app.new", keys: { mac: null, other: null }, context: "global", labelKey: "cmd.app.new" },
+  { id: "app.open", keys: { mac: null, other: null }, context: "global", labelKey: "cmd.app.open" },
+  // The export keys are layers of Mod+E (modifiers.js): Mod+E exports the mix as it is, Shift
+  // adds the options dialog. Alt+Mod+E exports all tracks as they are, Shift+Alt+Mod+E asks.
   {
     id: "app.export",
     keys: { mac: "Mod+E", other: "Mod+E" },
     context: "global",
     labelKey: "cmd.app.export",
+  },
+  {
+    id: "export.mix_options",
+    keys: { mac: "Shift+Mod+E", other: "Shift+Mod+E" },
+    context: "global",
+    labelKey: "cmd.export.mix_options",
   },
   {
     id: "marker.add",
@@ -1083,21 +1094,21 @@ export const DEFAULT_KEYMAP = [
     context: "global",
     labelKey: "cmd.export.chapters_json",
   },
-  // The plan's Tracks key (WP11); Mod+E is the Mix export's, not built yet.
+  // The plan's Tracks key (WP11); now the options version of the all-tracks export.
   {
     id: "export.tracks",
     keys: { mac: "Shift+Alt+Mod+E", other: "Shift+Alt+Mod+E" },
     context: "global",
     labelKey: "cmd.export.tracks",
   },
-  // The same export without the folder question (no key by default).
+  // The same export without the folder question: the default one, on Alt+Mod+E.
   {
     id: "export.tracks_quick",
-    keys: { mac: null, other: null },
+    keys: { mac: "Alt+Mod+E", other: "Alt+Mod+E" },
     context: "global",
     labelKey: "cmd.export.tracks_quick",
   },
-  // One mix and one all-tracks command per export format (File menu submenus); no keys.
+  // One mix and one all-tracks command per export format: palette only (not in the menus), no keys.
   ...EXPORT_FORMAT_IDS.flatMap((format) =>
     ["mix", "tracks"].map((what) => ({
       id: `export.${what}_${format}`,

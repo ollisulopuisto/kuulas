@@ -74,6 +74,11 @@ export const automixerSettings = () => json("/api/settings/automixer");
 export const saveAutomixerSettings = (settings) =>
   json("/api/settings/automixer", { method: "PUT", body: JSON.stringify(settings) });
 export const exportFolder = () => json("/api/export-folder");
+/** File > New project… in a plain browser: make `<parent>/<name>.kuulas` and open it in a new
+ * tab; answers { path }. */
+export const newProject = (body) => post("/api/project/new", body);
+/** File > Open project… in a plain browser: open the project at `body.path` in a new tab. */
+export const openProject = (body) => post("/api/project/open", body);
 export const exportMix = (options = {}) => post("/api/export-mix", options);
 /** The formats the server can write: [{ id, label, ext, lossless }], WAV first. */
 export const exportFormats = () => json("/api/export-formats");

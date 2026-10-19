@@ -7,7 +7,7 @@ related: [track, timeline]
 ---
 The automixer mixes the finished edit for you: speech levelled and polished, music ducked under it, the whole thing at a target loudness. Kuulas hands it the edit as separate tracks, so you do not export or move any files yourself.
 
-- Start it from File, Mix with the automixer, or the command palette: {key:export.automix}
+- Start it from File, Export mix (automixer)…, or the command palette: {key:export.automix}
 - Set the target loudness, and optionally where an ad spot goes and how long it is.
 - It runs in the background. The notice shows the automixer's latest message; Cancel stops it.
 - The mix is saved next to the project's .kuulas folder (in the folder that holds it, never inside it), named after the edit and the time. The dialog can name another folder. Show in Finder opens the folder.

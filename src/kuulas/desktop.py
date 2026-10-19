@@ -29,6 +29,7 @@ import uvicorn
 
 from .cli import HOST, bind_local, uvicorn_config
 from .messages import KuulasError, t
+from .new_project import SUFFIX, folder_name
 from .openfiles import project_paths
 
 log = logging.getLogger("kuulas.desktop")
@@ -248,6 +249,9 @@ class Bridge:
         self._window = None
         self._project: RunningProject | None = None
         self._runner = _spawn
+        #: Opens a folder in a window of its own (``WindowApp._open_one``); None when the
+        #: bridge has no app around it, then the folder opens in this window.
+        self._opener = None
 
     @property
     def project_folder(self) -> str | None:
@@ -330,6 +334,36 @@ class Bridge:
             return False
         folder = got[0] if got[0].endswith(".kuulas") else got[0] + ".kuulas"
         return self.open_project(folder)
+
+    def _open_in_window(self, folder: str) -> bool:
+        if self._opener is None:
+            return self.open_project(folder)
+        self._opener(folder)
+        return True
+
+    def new_project_in_window(self) -> bool:
+        """File > New project... : a native save dialog for the name and the folder,
+        then the empty project opens in a window of its own (this one keeps its
+        project). False when cancelled or the name cannot be a folder (the page is
+        told)."""
+        got = self._dialog(self._webview.FileDialog.SAVE,
+                           save_filename="Untitled" + SUFFIX)
+        if not got:
+            return False
+        chosen = Path(got[0])
+        try:
+            folder = chosen.with_name(folder_name(chosen.name))
+        except KuulasError as e:
+            if self._window is not None:
+                self._window.evaluate_js(f"alert({json.dumps(str(e))})")
+            return False
+        return self._open_in_window(str(folder))
+
+    def open_project_in_window(self) -> bool:
+        """File > Open project... : a native folder chooser, then that project opens in a
+        window of its own."""
+        got = self._dialog(self._webview.FileDialog.FOLDER)
+        return bool(got) and self._open_in_window(got[0])
 
     def open_project(self, folder: str) -> bool:
         try:
@@ -493,6 +527,7 @@ class WindowApp:
             window_title(None), html=launcher_html(bridge.recent()), js_api=bridge,
             width=1400, height=900, min_size=(900, 600), **options)
         bridge._window = window
+        bridge._opener = self._open_one
 
         def drop_handlers() -> None:
             # Registered on every page load: a navigation replaces the document.

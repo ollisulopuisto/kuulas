@@ -90,8 +90,9 @@ describe("the owner's decisions", () => {
   });
 
   test("candidates use the physical brackets, Enter keeps, F2 renames", () => {
-    assert.deepEqual(keysOf("candidate.next"), ["]", "Alt+ArrowDown"]);
-    assert.deepEqual(keysOf("candidate.previous"), ["[", "Alt+ArrowUp"]);
+    // The first alias is what the menu shows: the one a Finnish keyboard can type.
+    assert.deepEqual(keysOf("candidate.next"), ["Alt+ArrowDown", "]"]);
+    assert.deepEqual(keysOf("candidate.previous"), ["Alt+ArrowUp", "["]);
     assert.deepEqual(keysOf("candidate.reject"), ["Enter"]);
     assert.deepEqual(keysOf("rename"), ["F2"]);
   });
@@ -216,7 +217,7 @@ describe("the owner's decisions", () => {
     assert.deepEqual(keysOf("view.forward"), ["Alt+]", "Alt+Mod+Shift+ArrowRight"]);
     assert.deepEqual(keysOf("mark.clear_in"), ["Shift+I"]);
     assert.deepEqual(keysOf("mark.clear_out"), ["Shift+O"]);
-    assert.deepEqual(keysOf("mark.clear"), []);
+    assert.deepEqual(keysOf("mark.clear"), ["Shift+Alt+I"]);
     // Cmd+Z and Cmd+Shift+Z are undo and redo: no view command lives on a modified Z.
     for (const entry of DEFAULT_KEYMAP.filter((e) => e.id.startsWith("view."))) {
       for (const key of asList(entry.keys.other)) assert.doesNotMatch(key, /\+Z$/i, entry.id);

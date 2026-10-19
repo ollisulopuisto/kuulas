@@ -85,17 +85,28 @@ describe("export all tracks", () => {
   const withTracks = { project: { tracks: [{ id: "a" }], markers: [] } };
   const t = (key, values = {}) => `${key}${JSON.stringify(values)}`;
 
-  test("needs a track and starts the one-button export", () => {
+  test("needs a track; the plain command exports at once, the (options) one opens the dialog", () => {
     const registry = createRegistry();
     const started = [];
     registerExportCommands(registry, {
       t,
-      app: { getState: () => withTracks, toast: () => {}, exportTracks: () => started.push(1) },
+      app: {
+        getState: () => withTracks,
+        toast: () => {},
+        exportTracks: (format, options) => started.push(["tracks", format, options]),
+        openExportDialog: (what) => started.push(["dialog", what]),
+      },
     });
-    assert.equal(registry.can("export.tracks", { project: { tracks: [] } }), false);
-    assert.equal(registry.can("export.tracks", {}), false);
+    for (const id of ["export.tracks", "export.tracks_quick"]) {
+      assert.equal(registry.can(id, { project: { tracks: [] } }), false, id);
+      assert.equal(registry.can(id, {}), false, id);
+    }
+    assert.equal(registry.run("export.tracks_quick", null, withTracks), true);
     assert.equal(registry.run("export.tracks", null, withTracks), true);
-    assert.equal(started.length, 1);
+    assert.deepEqual(started, [
+      ["tracks", undefined, { ask: false }],
+      ["dialog", "tracks"],
+    ]);
   });
 
   test("progress, done, silent, failed and cancelled each have their own notice", () => {
@@ -179,18 +190,35 @@ describe("asking where to export", () => {
     return { registry, started };
   }
 
-  test("the ordinary commands ask, the quick one does not", () => {
+  test("the per-format commands ask, the quick ones do not", () => {
     const { registry, started } = setup();
-    registry.run("export.tracks", null, withTracks);
     registry.run("export.tracks_flac", null, withTracks);
     registry.run("export.mix_mp3", null, withTracks);
     registry.run("export.tracks_quick", null, withTracks);
+    registry.run("app.export", null, withTracks);
     assert.deepEqual(started, [
-      ["tracks", undefined, { ask: true }],
       ["tracks", "flac", { ask: true }],
       ["mix", "mp3", { ask: true }],
       ["tracks", undefined, { ask: false }],
+      ["mix", undefined, { ask: false }],
     ]);
+  });
+
+  test("Export mix (options)… and Export all tracks (options)… open the dialog", () => {
+    const registry = createRegistry();
+    const opened = [];
+    registerExportCommands(registry, {
+      t,
+      app: { getState: () => withTracks, toast: () => {}, openExportDialog: (w) => opened.push(w) },
+    });
+    registry.run("export.mix_options", null, withTracks);
+    registry.run("export.tracks", null, withTracks);
+    assert.deepEqual(opened, ["mix", "tracks"]);
+    assert.equal(registry.can("export.mix_options", { project: { tracks: [] } }), false);
+    for (const id of ["export.mix_options", "app.export"]) {
+      assert.equal(registry.status(id), "ready", id);
+      assert.equal(registry.hintKey(id), `cmd.${id}.hint`, id);
+    }
   });
 
   test("the quick command is ready with tracks and has a hint", () => {
@@ -286,9 +314,9 @@ describe("export formats", () => {
     ]);
   });
 
-  test("the one-button tracks export stays WAV and needs no format", () => {
+  test("the quick tracks export stays WAV and needs no format", () => {
     const { registry, started } = formatSetup(["wav"]);
-    registry.run("export.tracks", null, withTracks);
+    registry.run("export.tracks_quick", null, withTracks);
     assert.deepEqual(started, [["tracks", undefined]]);
   });
 
