@@ -28,6 +28,7 @@ import shutil
 import time
 from pathlib import Path
 from typing import Annotated, Any
+from urllib.parse import urlparse
 
 from fastapi import Body, FastAPI, File, Form, Request, UploadFile, WebSocket
 from fastapi.exceptions import RequestValidationError
@@ -315,6 +316,32 @@ def create_app(session, engine, *, language: str | None = None,
 
     @app.middleware("http")
     async def per_request(request: Request, call_next):
+        # 1. Host header validation against local loopback interfaces
+        host = (request.url.hostname or "").lower()
+        if host and host not in {"127.0.0.1", "localhost", "::1", "testserver"}:
+            return JSONResponse(
+                error_body("error.server.bad_request", detail="Invalid Host header"),
+                status_code=400,
+            )
+
+        # 2. Origin header validation: if Origin header is present, check against loopback
+        origin = request.headers.get("origin")
+        if origin:
+            if origin.lower() == "null":
+                return JSONResponse(
+                    error_body("error.server.forbidden", detail="Forbidden Origin"),
+                    status_code=403,
+                )
+            try:
+                origin_host = (urlparse(origin).hostname or "").lower()
+            except ValueError:
+                origin_host = ""
+            if origin_host not in {"127.0.0.1", "localhost", "::1", "testserver"}:
+                return JSONResponse(
+                    error_body("error.server.forbidden", detail="Forbidden Origin"),
+                    status_code=403,
+                )
+
         messages.set_language(pick_language(request.headers.get("accept-language"),
                                             default_language))
         if request.url.path != "/api/jobs" and request.method != "GET":
