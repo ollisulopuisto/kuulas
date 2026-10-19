@@ -44,10 +44,12 @@ from starlette.websockets import WebSocketDisconnect
 
 from . import (
     automix,
+    clipboard_browse,
     export,
     export_formats,
     messages,
     music_report,
+    new_project,
     project_stats,
     transcribe,
 )
@@ -546,6 +548,22 @@ def create_app(session, engine, *, language: str | None = None,
     def put_automixer_settings(body: Annotated[dict[str, Any], Body()]):
         stored = automix.save_settings(body)
         return {"settings": stored, "resolved": automix.resolve_settings(stored)}
+
+    @app.post("/api/project/new")
+    def post_new_project(body: Annotated[dict[str, Any], Body()]):
+        """File > New project... in a plain browser (WP74): make the empty project at
+        ``parent``/``name``.kuulas and open it in a new tab."""
+        folder = new_project.create(body.get("parent"), body.get("name"))
+        new_project.start_window(str(folder))
+        return {"path": str(folder)}
+
+    @app.post("/api/project/open")
+    def post_open_project(body: Annotated[dict[str, Any], Body()]):
+        """File > Open project... in a plain browser (WP74): the same path rule as the
+        clipboard browser, then a new tab on it."""
+        folder = clipboard_browse.project_folder(body.get("path"))
+        new_project.start_window(str(folder))
+        return {"path": str(folder)}
 
     @app.get("/api/export-folder")
     def get_export_folder():
