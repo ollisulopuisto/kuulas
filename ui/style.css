@@ -245,6 +245,7 @@ button.chip {
 .fast-speed {
   flex: 1 1 auto;
   min-width: 40px;
+  max-width: 140px; /* never runs into the track headers' edge */
   height: 28px;
   margin: 0;
   opacity: 0.55;
@@ -280,7 +281,7 @@ button.chip {
   grid-template-columns: auto auto minmax(0, 1fr);
   column-gap: 10px;
   align-items: center;
-  padding: 0 0 0 var(--space-5);
+  padding: 0 var(--space-5) 0 var(--space-5);
   border-bottom: 1px solid var(--border);
 }
 .corner .play {
