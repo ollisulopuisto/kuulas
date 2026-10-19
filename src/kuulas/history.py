@@ -318,18 +318,20 @@ class History:
         if self._composed is None or version != self._seen_version:
             root = self.material
             owner = root.get("media_person", {})
+            timings = root.get("media_timing", {})
             music_edits = root.get("music_info", {})
             media_list = []
             for r in self.media_rows():
                 m = media_from_row(r, self.rate)
                 person = owner.get(m.id, "")
+                timing = timings.get(m.id, "")
                 if m.id in music_edits:
                     base_info = dict(m.extra.get("music_info") or {})
                     base_info.update(music_edits[m.id])
                     extra = {**m.extra, "music_info": base_info}
-                    m = replace(m, person=person, extra=extra)
+                    m = replace(m, person=person, timing=timing, extra=extra)
                 else:
-                    m = replace(m, person=person)
+                    m = replace(m, person=person, timing=timing)
                 media_list.append(m)
             self._composed = replace(self._edit_state, media=tuple(media_list),
                                      sync_groups=sync_groups(root))
@@ -788,12 +790,17 @@ class History:
     # -- transcripts -------------------------------------------------------
 
     def add_transcript(self, media_id: str, words: list[dict],
-                       engine: dict | None = None, label: str | None = None) -> int:
+                       engine: dict | None = None, label: str | None = None,
+                       timing: str | None = None) -> int:
         """Store a transcript revision and make it the one ``media_id`` uses.
 
         Words are in flicks from the media's start (``transcribe``). Using
         them is a material step in this edit, so it undoes, and every edit
         sees it.
+
+        ``timing`` (WP78): None leaves the media's timing marker alone (a corrected
+        word keeps it), "" clears it (another engine made these words), any other text
+        sets it. The root key ``media_timing`` exists only while some marker is set.
         """
         self._check_writable()
         with dbm.tx(self.db):
@@ -806,6 +813,15 @@ class History:
             rev = int(cur.lastrowid)
             root = self.material
             root["transcripts"] = {**root["transcripts"], media_id: rev}
+            if timing is not None:
+                marks = {k: v for k, v in root.get("media_timing", {}).items()
+                         if k != media_id}
+                if timing:
+                    marks[media_id] = timing
+                if marks:
+                    root["media_timing"] = marks
+                else:
+                    root.pop("media_timing", None)
             self.commit(label or t("history.transcript", media_id=media_id),
                         self.state, material=root)
         return rev

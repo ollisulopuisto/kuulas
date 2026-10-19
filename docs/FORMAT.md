@@ -588,6 +588,19 @@ change. A group changes no sound. A reader that does not know it keeps the key
 in `Clip.extra`, writes it back, and treats the clips as ungrouped: they then
 select and move one by one. The cost is a convenience, never a wrong mix.
 
+**As built (WP78 transcript timing).** The material root gains an optional
+`media_timing` (media id -> `"whisper"` or `"ctc-v1"`): how exact the word times of that
+media's current transcript are (`ctc-v1`: starts corrected by the podcast aligner). It is set
+in the same material step as the transcript it describes, so Undo takes both back together;
+a transcript from another engine (local transcription) clears it; correcting a word keeps
+it. The key is written only while some media has a marker, so a project that never used it
+keeps its bytes and hashes. `Media.timing` (a string, `""` when none) is that marker as the
+composed state shows it, like `person`, and `Media.to_dict` leaves it out when empty.
+
+*Version and `min_reader`.* Neither changes. The marker changes no sound and no word. A
+reader that does not know it keeps the root key (roots are updated key by key) and shows no
+marker.
+
 Loudness curves (`GET /api/loudness-curve`) are a cache, not project data:
 `caches/analysis/<key>.json`, keyed on the media hashes and every field that
 changes the sound (a rename or a new target changes no key). Algorithm

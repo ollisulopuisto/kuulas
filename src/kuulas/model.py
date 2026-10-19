@@ -65,10 +65,18 @@ class Media:
     # Whose voice is on this file, for a single-person mic (WP41). Material:
     # filled in from the material root by ``History.state``, not a database column.
     person: str = ""
+    # How exact the word times of this media's transcript are (WP78): "whisper" (as the
+    # engine gave them) or "ctc-v1" (starts corrected by the podcast aligner). Material
+    # like ``person``: filled in from the material root's ``media_timing``, and written
+    # only when set, so a project without it keeps its bytes.
+    timing: str = ""
     extra: dict = field(default_factory=dict, hash=False)
 
     def to_dict(self) -> dict:
-        return _out(self)
+        d = _out(self)
+        if not self.timing:
+            d.pop("timing", None)
+        return d
 
     @classmethod
     def from_dict(cls, d: dict) -> Media:
