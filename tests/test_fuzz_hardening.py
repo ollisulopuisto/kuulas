@@ -187,9 +187,10 @@ def test_desktop_bridge_hardening(tmp_path: Path):
     from kuulas.desktop import Bridge, reveal_command  # noqa: PLC0415
 
     b = Bridge(None, tmp_path)
+    b._copier = lambda cmd, text: None
 
     # Test copy text logic length limits
-    assert not b.copy_text("valid text")
+    assert b.copy_text("valid text")
     assert not b.copy_text(123)  # type: ignore
     assert not b.copy_text("A" * 201)
 
