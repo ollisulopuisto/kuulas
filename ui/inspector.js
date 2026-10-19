@@ -2,7 +2,8 @@
 // Edits use `set_clip` with coalesce keys, like the track sliders.
 
 import { bindToggle } from "./ab-value.js";
-import { formatDb, formatNumber, t } from "./i18n.js";
+import { frameToTime } from "./format.js";
+import { formatDb, t } from "./i18n.js";
 import { createSourceSection } from "./inspector-source.js";
 import { buildTrackSections, field } from "./inspector-track.js";
 import { MUSIC_HUE, trackHues } from "./paint.js";
@@ -13,6 +14,11 @@ import { panText } from "./tracks.js";
 
 const GAIN = { min: -60, max: 12, step: 0.1 };
 const FADE_MAX_MS = 30_000;
+
+/** A clip's duration as the timeline writes any time: h:mm:ss.mmm ("2:05.500"). */
+export function clipLengthText(clip, rate) {
+  return frameToTime(clip.length, rate);
+}
 
 /** The one selected clip and its media, or null (nothing or several selected). */
 export function selectedClip(state) {
@@ -159,6 +165,10 @@ export function createInspector({
     const heading = document.createElement("p");
     heading.className = "inspector-media";
     root.append(heading);
+    // The clip's duration, labelled, in the timeline's own clock (h:mm:ss.mmm).
+    const length = document.createElement("output");
+    length.className = "inspector-readonly";
+    root.append(field(t("ui.clip.length"), length));
 
     let into = root;
     const number = (name, range, toModel) => {
@@ -243,7 +253,7 @@ export function createInspector({
     const readout = document.createElement("p");
     readout.className = "hint";
     section("details").append(readout);
-    parts = { heading, gain, pan, fadeIn, fadeOut, muted, sync, readout, rate };
+    parts = { heading, length, gain, pan, fadeIn, fadeOut, muted, sync, readout, rate };
   }
 
   function setNumber(input, value) {
@@ -289,10 +299,8 @@ export function createInspector({
     parts.muted.checked = Boolean(clip.muted);
     const where = group ? t("ui.clip.sync.group", { id: group.id }) : t("ui.clip.sync.none");
     parts.sync.textContent = t("ui.clip.sync", { where });
-    const length = t("ui.unit.seconds", {
-      value: formatNumber(clip.length / parts.rate, { digits: 1 }),
-    });
-    parts.readout.textContent = `${formatDb(clip.gain_db)} · ${panText(clip.pan)} · ${length}`;
+    parts.length.textContent = clipLengthText(clip, parts.rate);
+    parts.readout.textContent = `${formatDb(clip.gain_db)} · ${panText(clip.pan)}`;
   }
 
   return {

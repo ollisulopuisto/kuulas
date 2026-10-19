@@ -19,7 +19,7 @@ export function createStatsDialog({ api, t, copyText, saveJson }) {
   body.setAttribute("aria-live", "polite");
   const note = document.createElement("p");
   note.className = "stats-note";
-  note.textContent = t("ui.stats.no_undo");
+  note.textContent = `${t("ui.stats.muted_note")} ${t("ui.stats.no_undo")}`;
 
   const buttons = document.createElement("div");
   buttons.className = "cheatsheet-footer";
@@ -41,6 +41,42 @@ export function createStatsDialog({ api, t, copyText, saveJson }) {
   dialog.append(heading, body, note, buttons);
   document.body.append(dialog);
 
+  function listOf(rows) {
+    const list = document.createElement("dl");
+    for (const [label, value] of rows) {
+      const dt = document.createElement("dt");
+      dt.textContent = label;
+      const dd = document.createElement("dd");
+      dd.textContent = value;
+      list.append(dt, dd);
+    }
+    return list;
+  }
+
+  // The per-track durations: one row per track, the first column is the row header.
+  function tableOf({ head, rows }) {
+    const table = document.createElement("table");
+    table.className = "stats-table";
+    const top = table.createTHead().insertRow();
+    for (const text of head) {
+      const th = document.createElement("th");
+      th.scope = "col";
+      th.textContent = text;
+      top.append(th);
+    }
+    const bodyRows = table.createTBody();
+    for (const row of rows) {
+      const tr = bodyRows.insertRow();
+      row.forEach((text, index) => {
+        const cell = document.createElement(index === 0 ? "th" : "td");
+        if (index === 0) cell.scope = "row";
+        cell.textContent = text;
+        tr.append(cell);
+      });
+    }
+    return table;
+  }
+
   function render(groups) {
     body.replaceChildren();
     for (const group of groups) {
@@ -48,15 +84,9 @@ export function createStatsDialog({ api, t, copyText, saveJson }) {
       section.className = "stats-group";
       const title = document.createElement("h3");
       title.textContent = group.title;
-      const list = document.createElement("dl");
-      for (const [label, value] of group.rows) {
-        const dt = document.createElement("dt");
-        dt.textContent = label;
-        const dd = document.createElement("dd");
-        dd.textContent = value;
-        list.append(dt, dd);
-      }
-      section.append(title, list);
+      section.append(title);
+      if (group.table) section.append(tableOf(group.table));
+      if (group.rows.length) section.append(listOf(group.rows));
       body.append(section);
     }
   }

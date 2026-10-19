@@ -2667,6 +2667,28 @@ input[type="text"] {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.stats-table th,
+.stats-table td {
+  padding: var(--space-1) var(--space-2);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.stats-table th:first-child,
+.stats-table th:nth-child(2),
+.stats-table td:nth-child(2),
+.stats-table th:last-child,
+.stats-table td:last-child {
+  text-align: left;
+}
+.stats-table thead th {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
 .stats-note {
   color: var(--text-tertiary);
   font-size: var(--text-xs);

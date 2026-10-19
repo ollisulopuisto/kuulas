@@ -67,9 +67,9 @@ def test_runtime_counts_and_sizes():
     run = s["runtime"]
     # The music clip ends last (30 s) and is audible.
     assert run["edit_seconds"] == 30.0
-    # Audible speech: t1 0-10 and 12-20, t2 0-6 (union 0-10, 12-20); the muted clip
-    # is out.
-    assert run["speech_seconds"] == 18.0
+    # The span from 0 to the end of the last clip of any kind is also 30 s here.
+    assert run["span_seconds"] == 30.0
+    assert "speech_seconds" not in run  # replaced by the per-track table (WP70 rework)
     # Recordings imported: 10 + 20 + 5 + 40 seconds.
     assert run["recordings_seconds"] == 75.0
     assert run["cut_seconds"] == 0.0
@@ -92,6 +92,85 @@ def test_runtime_counts_and_sizes():
 def test_a_muted_track_is_not_audible_in_the_runtime():
     p = ops.set_track(build(), "tm", mute=True)
     assert project_stats.compute(p)["runtime"]["edit_seconds"] == 20.0
+
+
+def rows(s):
+    return {r["id"]: r for r in s["tracks"]}
+
+
+def test_track_table_span_content_muted_audible():
+    r = rows(project_stats.compute(build()))
+    ids = [x["id"] for x in project_stats.compute(build())["tracks"]]
+    assert ids == ["t1", "t2", "tm"]
+    # Host: clips 0-10 and 12-20. The span runs from the first start to the last end,
+    # the content is the sum of the clip lengths (the 2 s hole is in neither the
+    # content nor the muted time).
+    assert (r["t1"]["name"], r["t1"]["kind"], r["t1"]["clips"]) == ("Host", "speech", 2)
+    assert (r["t1"]["span_seconds"], r["t1"]["content_seconds"]) == (20.0, 18.0)
+    assert (r["t1"]["muted_seconds"], r["t1"]["audible_seconds"]) == (0.0, 18.0)
+    # Guest: 0-6 and a muted 10-14: the muted clip's whole length is muted time.
+    assert (r["t2"]["span_seconds"], r["t2"]["content_seconds"]) == (14.0, 10.0)
+    assert (r["t2"]["muted_seconds"], r["t2"]["audible_seconds"]) == (4.0, 6.0)
+    assert r["tm"]["kind"] == "music"
+    assert (r["tm"]["span_seconds"], r["tm"]["audible_seconds"]) == (30.0, 30.0)
+
+
+def test_gate_closed_time_counts_as_muted_once():
+    p = build()
+    # Closed 2-4 s and 11-14 s on Host: 2-4 lies in c1 (2 s), 12-14 in c2 (2 s); the
+    # 11-12 s hole is no clip. On Guest the gate 3-12 s overlaps the muted clip c4
+    # (10-12): that part must not be counted twice (it is muted already).
+    p = ops.set_gate(p, "t1", [(sec(2), sec(4)), (sec(11), sec(14))])
+    p = ops.set_gate(p, "t2", [(sec(3), sec(12))])
+    r = rows(project_stats.compute(p))
+    assert r["t1"]["muted_seconds"] == 4.0
+    assert r["t1"]["audible_seconds"] == 14.0
+    # c3 (0-6): closed 3-6 = 3 s; c4 (10-14) is muted whole = 4 s, not 4 + 2.
+    assert r["t2"]["muted_seconds"] == 7.0
+    assert r["t2"]["audible_seconds"] == 3.0
+    t2 = r["t2"]
+    assert t2["muted_seconds"] + t2["audible_seconds"] == t2["content_seconds"]
+
+
+def test_track_mute_and_solo_are_flags_not_muted_time():
+    p = ops.set_track(build(), "t1", mute=True)
+    r = rows(project_stats.compute(p))
+    assert r["t1"]["track_muted"] is True
+    assert (r["t1"]["muted_seconds"], r["t1"]["audible_seconds"]) == (0.0, 18.0)
+    assert (r["t2"]["track_muted"], r["t2"]["solo_silenced"]) == (False, False)
+    # While tm is soloed the others are silenced by the solo, and a muted track that
+    # is itself soloed is heard (the mixer's rule: solo overrides mute).
+    p = ops.set_track(p, "tm", solo=True)
+    r = rows(project_stats.compute(p))
+    assert (r["t1"]["solo_silenced"], r["t2"]["solo_silenced"]) == (True, True)
+    assert (r["tm"]["solo_silenced"], r["tm"]["solo"]) == (False, True)
+    p = ops.set_track(p, "t1", solo=True)
+    r = rows(project_stats.compute(p))
+    assert (r["t1"]["track_muted"], r["t1"]["solo_silenced"]) == (False, False)
+
+
+def test_clip_length_extremes_and_span_when_the_last_clip_is_muted():
+    s = project_stats.compute(build())
+    cl = s["counts"]["clip_lengths"]
+    # Clips: 10, 8, 6, 4 and 30 s.
+    assert (cl["longest_seconds"], cl["shortest_seconds"]) == (30.0, 4.0)
+    assert cl["average_seconds"] == pytest.approx(11.6)
+    p = ops.add_clip(build(), "t1", "mm", start=sec(32), length=sec(5), clip_id="c9")
+    p = ops.set_clip(p, "c9", muted=True)
+    run = project_stats.compute(p)["runtime"]
+    assert run["edit_seconds"] == 30.0
+    assert run["span_seconds"] == 37.0
+
+
+def test_tracks_in_the_words_and_the_text():
+    s = project_stats.compute(ops.set_track(build(), "t1", mute=True))
+    text = project_stats.to_text(s)
+    assert all(word in text for word in ("Session duration", "Host", "Guest"))
+    table = next(g for g in project_stats.groups(s) if g.get("table"))
+    assert len(table["table"]["rows"]) == 3
+    assert len(table["table"]["head"]) == len(table["table"]["rows"][0])
+    messages.set_language("fi")
+    assert "Istunnon kesto" in project_stats.to_text(s)
 
 
 def test_talk_section_per_speaker():
@@ -162,7 +241,7 @@ def test_no_undo_count_is_invented():
 
 def test_empty_project_is_all_zeros():
     s = project_stats.compute(Project(rate=R), now=datetime(2026, 10, 19, tzinfo=UTC))
-    assert s["runtime"] == {"edit_seconds": 0.0, "speech_seconds": 0.0,
+    assert s["runtime"] == {"edit_seconds": 0.0, "span_seconds": 0.0,
                             "recordings_seconds": 0.0, "cut_seconds": 0.0,
                             "cut_unmeasured": 0}
     assert s["counts"]["clips"] == 0
