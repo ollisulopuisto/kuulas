@@ -1793,6 +1793,10 @@ input[type="text"] {
 .menu-item[aria-disabled="true"] {
   color: var(--text-disabled);
 }
+/* A switch in the menu (Words in clips): a check mark before its name while it is on. */
+.menu-item[aria-checked="true"] > span:first-child::before {
+  content: "✓ ";
+}
 /* The header context menu reuses the menu bar's look, placed at the pointer. */
 .context-menu {
   position: fixed;

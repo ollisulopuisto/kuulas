@@ -57,6 +57,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.transport.play_selection",
   },
   {
+    id: "view.clip_words",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.view.clip_words",
+  },
+  {
     id: "view.drag_mode",
     keys: { mac: null, other: null },
     context: "global",

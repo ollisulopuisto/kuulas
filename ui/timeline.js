@@ -17,6 +17,7 @@ import {
   targetTrackRow,
 } from "./clip-drag.js";
 import { overLabel } from "./clip-overs.js";
+import { averageWordFrames, layoutClipWords, wordsWideEnough } from "./clip-words.js";
 import { DEFAULT_DRAG_MODE, dragIntent } from "./drag-mode.js";
 import { edgeGhost, ghostGeometry, resolveEdge } from "./edge-drag.js";
 import { frameToTime, frameToX, xToFrame } from "./format.js";
@@ -64,6 +65,7 @@ import { dragRange, isDrag, touchedResult, trackRowsTouched } from "./range-drag
 import { rulerTicks } from "./ruler.js";
 import { readTheme } from "./theme.js";
 import { createTileStore } from "./tiles.js";
+import { selectionBounds, wordAtTime } from "./transcript-model.js";
 import { pickLevel, waveformColumns } from "./waveform.js";
 import { createWaveformLayer } from "./waveform-layer.js";
 import { wheelIntent } from "./wheel.js";
@@ -72,6 +74,16 @@ import { wheelIntent } from "./wheel.js";
 const NAME_FONT_PX = 11;
 const LABEL_H = 14;
 const LABEL_BACKING_ALPHA = 0.85;
+// The words row (WP69) sits under the label strip; it needs a lane tall enough to leave
+// waveform below it. Plain words are the label colour dimmed, so they read as secondary.
+const WORDS_FONT_PX = 10;
+const WORDS_ROW_H = 12;
+const WORDS_MIN_LANE = 52;
+const WORDS_PLAIN_ALPHA = 0.7;
+const WORDS_BACKING_ALPHA = 0.55;
+const WORDS_SELECTED_ALPHA = 0.5;
+/** The longest word that can start before the view and still reach into it (seconds). */
+const WORDS_LOOKBACK_S = 10;
 const HATCH_STEP = 6;
 const POINT_RADIUS = 3;
 const XFADE_ALPHA = 0.3;
@@ -523,6 +535,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     const colours = theme.palette[(hues.get(track.id) ?? 0) % theme.palette.length];
     const marked = needsFileMark(track);
     const siblings = siblingsOf(state.project, state.selection);
+    const wordsView = clipWordsView(state);
     // Rows under the ruler must not paint over it.
     overlay.save();
     overlay.beginPath();
@@ -543,6 +556,8 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       if (clip.xfade_in) drawCrossfade(left, y, h, clip.xfade_in / state.zoom, colours.ink);
       if (clip.xfade_out) drawCrossfade(right, y, h, clip.xfade_out / state.zoom, colours.ink);
       if (row.height >= 36) drawName(state, clip, left, y, w, colours, marked);
+      if (wordsView && row.height >= WORDS_MIN_LANE)
+        drawClipWords(state, track, clip, wordsView, { left, y, w }, colours);
       // The gain line only where it says something: not 0 dB, an envelope, or selected.
       if (row.height >= 40 && gainLineVisible(clip, selected || Object.hasOwn(clipOvers, clip.id)))
         drawGain(state, clip, left, right, top, row.height);
@@ -873,6 +888,67 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     overlay.globalAlpha = 1;
     overlay.fillStyle = colours.label;
     overlay.fillText(text, x, y + 3);
+    overlay.restore();
+  }
+
+  // Words in the clips (WP69, clip-words.js). Nothing is looked up when the option is off, there
+  // are no words, or the zoom is too wide for the average word to be readable; the average is
+  // measured once per words list.
+  let averageFrom = null;
+  let averageFrames = 0;
+  function clipWordsView(state) {
+    const words = state.words;
+    if (state.showClipWords === false || !words?.length) return null;
+    if (words !== averageFrom) {
+      averageFrom = words;
+      averageFrames = averageWordFrames(words);
+    }
+    if (!wordsWideEnough(averageFrames, state.zoom)) return null;
+    return {
+      words,
+      current: wordAtTime(words, state.playhead ?? 0),
+      selected: selectionBounds(state.transcriptSelection),
+      lookback: WORDS_LOOKBACK_S * (state.project?.rate ?? 48000),
+    };
+  }
+
+  function drawClipWords(state, track, clip, view, box, colours) {
+    const { left, y, w } = box;
+    overlay.font = `${WORDS_FONT_PX}px ${theme.font}`;
+    const items = layoutClipWords({
+      words: view.words,
+      trackId: track.id,
+      clip,
+      scroll: state.scroll,
+      zoom: state.zoom,
+      viewWidth: size.width,
+      lookback: view.lookback,
+      measure: (text) => overlay.measureText(text).width,
+      current: view.current,
+      selected: view.selected,
+    });
+    if (items.length === 0) return;
+    const rowY = y + LABEL_H + 4;
+    overlay.save();
+    overlay.beginPath();
+    overlay.rect(left + 1, rowY, w - 2, WORDS_ROW_H);
+    overlay.clip();
+    const base = clip.muted ? theme.mutedOpacity : 1;
+    overlay.textBaseline = "top";
+    overlay.fillStyle = colours.fill;
+    overlay.globalAlpha = base * WORDS_BACKING_ALPHA;
+    overlay.fillRect(left + 1, rowY, w - 2, WORDS_ROW_H);
+    overlay.fillStyle = theme.selection;
+    overlay.globalAlpha = base * WORDS_SELECTED_ALPHA;
+    for (const item of items) {
+      if (item.mark === "selected") overlay.fillRect(item.x, rowY, item.w, WORDS_ROW_H);
+    }
+    for (const item of items) {
+      const bright = item.mark !== "plain";
+      overlay.fillStyle = bright ? theme.ink : colours.label;
+      overlay.globalAlpha = base * (bright ? 1 : WORDS_PLAIN_ALPHA);
+      overlay.fillText(item.text, item.x, rowY + 1);
+    }
     overlay.restore();
   }
 

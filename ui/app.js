@@ -252,6 +252,16 @@ function toggleDragMode() {
   showNotice(t(`ui.drag_mode.now_${mode}`), "ok");
 }
 
+// Words in the clips on the timeline (clip-words.js, WP69): on by default, remembered per user.
+const CLIP_WORDS_KEY = "clipWords";
+setState({ showClipWords: prefs.get(CLIP_WORDS_KEY) !== "off" });
+function toggleClipWords() {
+  const on = getState().showClipWords === false;
+  setState({ showClipWords: on });
+  prefs.set(CLIP_WORDS_KEY, on ? "on" : "off");
+  showNotice(t(on ? "ui.clip_words.on" : "ui.clip_words.off"), "ok");
+}
+
 const FAST_KEY = "fast";
 setState({ fast: fromStored(prefs.getJson(FAST_KEY, null)) });
 function changeFast(change) {
@@ -272,6 +282,7 @@ const actions = {
   shuttle: (key) => void transport.press(key),
   toggleLoop: () => setState({ loop: !getState().loop }),
   toggleDragMode: () => toggleDragMode(),
+  toggleClipWords: () => toggleClipWords(),
   fastListening: () => changeFast(toggleFast),
   fastNudge: (direction) => changeFast(direction > 0 ? fastUp : fastDown),
   fastReset: () => changeFast(resetFast),

@@ -40,6 +40,7 @@ function make({ platform = "other", overrides = {}, state = {}, planned = [], he
   registry.register("help.open", () => {});
   registry.register("edit.split", () => {});
   registry.register("edit.split_all", () => {});
+  registry.register("view.clip_words", () => {});
   registry.planned(...planned);
   const entries = resolveKeymap(DEFAULT_KEYMAP, overrides, platform);
   return resolveMenu({
@@ -102,6 +103,16 @@ describe("the menu data", () => {
     const ids = menuTargets([view]);
     assert.ok(ids.includes("view.fit_tracks"));
     assert.ok(ids.includes("view.auto_fit_tracks"));
+  });
+
+  test("View has Words in clips, shown checked unless switched off", () => {
+    const view = MENU.find((top) => top.id === "view");
+    assert.ok(menuTargets([view]).includes("view.clip_words"));
+    const find2 = (state) => find(make({ state }), "view.clip_words");
+    assert.equal(find2({ showClipWords: true }).checked, true);
+    assert.equal(find2({ showClipWords: false }).checked, false);
+    assert.equal(find2({}).checked, true);
+    assert.equal(find(make(), "edit.undo").checked, undefined);
   });
 
   test("Help has Keyboard shortcuts", () => {

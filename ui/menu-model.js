@@ -13,6 +13,14 @@ const SEP = { kind: "separator" };
 // `formatPrefix` + the format id (resolveMenu's `formats` lists the ids).
 const formatMenu = (labelKey, formatPrefix) => ({ kind: "submenu", labelKey, formatPrefix });
 
+/**
+ * Menu items that are switches: base command id -> whether it is on in a state. The menu
+ * shows them checked (aria-checked); other items carry no `checked` at all.
+ */
+export const CHECKED = {
+  "view.clip_words": (state) => state?.showClipWords !== false,
+};
+
 export const MENU = [
   {
     id: "file",
@@ -315,6 +323,7 @@ export const MENU = [
       item("view.zoom_in"),
       item("view.zoom_out"),
       item("view.drag_mode"),
+      item("view.clip_words"),
       item("view.toggle"),
       item("view.fit"),
       item("view.fit_selection"),
@@ -399,6 +408,7 @@ export function resolveMenu({ menu, entries, registry, state, label, platform, h
       label: name,
       keys,
       enabled: !planned && registry.can(id, state),
+      checked: CHECKED[baseId] ? CHECKED[baseId](state) : undefined,
       planned,
       alternate: Boolean(alternateEntry),
       hint,

@@ -98,6 +98,8 @@ export const initialState = () => ({
   waveformGain: 1,
   // Show the Auto-Silence gate bands on the lanes (WP44); a view option.
   showGates: true,
+  // The transcript words along the top of each clip when zoomed in (WP69); a per-user view option.
+  showClipWords: true,
   followMode: "page",
   followPaused: false,
   // Where the last edit happened, for the zoom anchor; null until an edit sets it.
