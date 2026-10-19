@@ -262,8 +262,9 @@ def test_a_clipboard_clip_may_use_a_recording_that_no_track_uses(tmp_path):
         session.command("import_nhsx", {"path": str(path)})
         count = session.last_import_clipboard
         names = {m.name for m in session.state.media}
+        project = str(session.package.path)
     finally:
         session.close()
     assert count == 1
-    assert len(clipboard_entries()) == 1
+    assert len(clipboard_entries(project)) == 1
     assert "intro.wav" in names
