@@ -1717,6 +1717,19 @@ AGAINST / costs: the take-set model must hold several clips and gaps per take ov
 lanes, as in Logic, not only one media + offset as sketched above), because a recording can cross clip borders;
 edits (cut, ripple, split, sync groups, the transcript, which must follow the ACTIVE take) must understand take
 sets; (a take shorter than its slot leaves silence, nothing ripples: see "No ripple, ever"); the UI needs a take badge, a contextual menu and keys; Compare (WP45, parked) is the natural audition tool.
+**Owner's second thought, same day: do not make people walk a sequential undo history to get an earlier take back; go
+straight to the clip and manipulate the state there, and do not let a contextual history menu grow without end after
+many re-records.** Consequences for the design: (a) clips are windows on media, and overwriting only shrinks or
+splits the clips under the new one (their source offsets are kept), so the replaced audio never leaves the project:
+dragging the edge of the neighbouring clip outward uncovers the original again (to be verified: that an outward
+trim overwrites the clip it runs into instead of being blocked); (b) a take that is covered COMPLETELY by a later
+recording has no clip left to extend, so it needs another way back: a **"Versions of this part"** view for a
+selected range that reads the existing complete history non-sequentially (distinct audio contents that were ever in
+that range on that track, de-duplicated by recording, newest first, a short list with a waveform thumbnail each and
+"More…"), where choosing one is an ordinary new edit step ("put this version here"), never an undo, so nothing after
+it is rolled back; (c) the take folder of 19e stays the deliberate tool for loop-recorded narration, and recording
+over existing audio does not have to create one. Open for the owner: whether (b) is enough or covered takes should
+be kept as hidden underlay in the clip.
 Staging: (1) WP12a records onto empty space or over existing audio with the ordinary overwrite (one undo step);
 (2) WP19e take folders with loop recording over an in/out range (each pass a take, played in turn); (3) recording
 over existing audio keeps the overwritten material as the first take of the slot and the new recording becomes the
