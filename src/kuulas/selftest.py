@@ -1,0 +1,122 @@
+"""``kuulas --selftest``: a headless smoke check of an installed build (WP73).
+
+Run by ``scripts/build_dmg.sh`` against the built app, and by a tester who wants to know
+whether a build works at all. No window and no audio device: it checks that the libraries
+load from where they are installed, that ffmpeg is found, that the UI files are served,
+that a project opens and the server answers, and that the numba-compiled loudness meter
+runs. The report lines are a fixed format for the build script to read, not user text, so
+they are not translated: ``ok   <check>: <detail>`` / ``FAIL <check>: <error>``, then one
+summary line.
+"""
+
+from __future__ import annotations
+
+import importlib
+import json
+import subprocess
+import tempfile
+import urllib.request
+from pathlib import Path
+
+#: Imported to prove the compiled libraries and their bundled dylibs load.
+LIBRARIES = ("numpy", "scipy", "numba", "pedalboard", "soundfile", "soxr", "lxml",
+             "sounddevice", "speechmix", "nhsx", "fastapi", "uvicorn")
+
+TIMEOUT = 20
+
+
+class SelftestError(Exception):
+    """A failed check. Its text is a diagnostic line for the build script and for the
+    bug report, in English like the rest of the report (see the module docstring)."""
+
+
+def check_build() -> str:
+    from .build_info import build_label  # noqa: PLC0415
+
+    return build_label()
+
+
+def check_libraries() -> str:
+    for name in LIBRARIES:
+        importlib.import_module(name)
+    import soundfile  # noqa: PLC0415
+
+    return f"{len(LIBRARIES)} imported, libsndfile {soundfile.__libsndfile_version__}"
+
+
+def check_ffmpeg() -> str:
+    from speechmix.binaries import get_binary_path  # noqa: PLC0415
+
+    lines = []
+    for tool in ("ffmpeg", "ffprobe"):
+        path = get_binary_path(tool)
+        done = subprocess.run(  # noqa: S603 - the tool speechmix found, fixed argument
+            [path, "-version"], capture_output=True, text=True, timeout=TIMEOUT,
+            check=True, stdin=subprocess.DEVNULL)
+        lines.append(f"{done.stdout.splitlines()[0].split(' Copyright')[0]} ({path})")
+    return "; ".join(lines)
+
+
+def check_ui() -> str:
+    from .server import UI_DIR  # noqa: PLC0415
+
+    index = UI_DIR / "index.html"
+    if not index.is_file():
+        problem = f"no index.html in {UI_DIR}"
+        raise SelftestError(problem)
+    return str(UI_DIR)
+
+
+def check_server() -> str:
+    """A tiny project, opened as the window opens it: the same thread and app."""
+    from .desktop import RunningProject  # noqa: PLC0415
+
+    with tempfile.TemporaryDirectory(prefix="kuulas-selftest-") as tmp:
+        running = RunningProject(str(Path(tmp) / "Selftest.kuulas"))
+        try:
+            with urllib.request.urlopen(running.url + "api/state",  # noqa: S310 - 127.0.0.1
+                                        timeout=TIMEOUT) as r:
+                state = json.loads(r.read())
+            with urllib.request.urlopen(running.url, timeout=TIMEOUT) as r:  # noqa: S310
+                page = r.read().decode("utf-8", "replace")
+        finally:
+            running.stop()
+    if "<html" not in page.lower():
+        problem = "the UI page was not served"
+        raise SelftestError(problem)
+    return f"/api/state answered ({len(state)} keys), UI page served"
+
+
+def check_meter() -> str:
+    """The loudness meter compiles with numba on first use: the library most likely to
+    fail only once installed (a missing cache folder, a blocked JIT)."""
+    import numpy as np  # noqa: PLC0415
+    from speechmix.meter import IntegratedMeter  # noqa: PLC0415
+
+    rate = 48000
+    t = np.arange(rate * 2) / rate
+    meter = IntegratedMeter(rate)
+    meter.add(0.1 * np.sin(2 * np.pi * 440 * t))
+    value = meter.value()
+    if value is None or not -40 < value < 0:
+        problem = f"implausible loudness {value}"
+        raise SelftestError(problem)
+    return f"{value:.1f} LUFS for a 440 Hz sine at 0.1"
+
+
+#: In the order they run; each is the function ``check_<name>`` in this module, looked
+#: up when it runs (so a test can replace one).
+CHECKS = ("build", "libraries", "ffmpeg", "ui", "server", "meter")
+
+
+def run() -> int:
+    """Run every check, print one line each, return 0 when all passed."""
+    failed = 0
+    for name in CHECKS:
+        try:
+            print(f"ok   {name}: {globals()[f'check_{name}']()}", flush=True)
+        except Exception as e:  # noqa: BLE001 - every failure is a line in the report
+            failed += 1
+            print(f"FAIL {name}: {type(e).__name__}: {e}", flush=True)
+    print("selftest passed" if not failed else f"selftest FAILED ({failed})", flush=True)
+    return 1 if failed else 0

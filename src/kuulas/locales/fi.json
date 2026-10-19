@@ -120,6 +120,7 @@
   "log.package.migrating": "Päivitetään projektin tallennusmuoto versiosta {source} versioon {target}; ensin otetaan varmuuskopio.",
   "log.package.tick_failed": "Lukon elonmerkki tai varmuuskopio epäonnistui, yritetään myöhemmin uudelleen: {error}",
   "log.desktop.position_unknown": "Toistokohtaa ei voitu lukea ikkunaa suljettaessa ({error}); viimeksi tallennettu kohta jää voimaan.",
+  "log.desktop.open_hook_failed": "Projektien avaaminen Finderista ei ole käytettävissä ({error}); käytä ikkunan Avaa-toimintoa.",
   "log.session.subscriber_failed": "Projektin muutoksia kuunteleva osa kaatui; itse muutos tallennettiin.",
   "log.session.relinked": {
     "one": "Löytyi {count} siirretty tiedosto uudelleen.",
@@ -448,6 +449,7 @@
   "desktop.menu.view.density": "Vaihda tiheyttä",
   "desktop.menu.window.minimize": "Pienennä",
   "cli.desktop.help": "Avaa työpöytäikkuna, jossa on lista viimeksi avatuista projekteista.",
+  "cli.selftest.help": "Tarkista, että asennus toimii (kirjastot, ffmpeg, käyttöliittymän tiedostot, projekti ja palvelin) avaamatta ikkunaa, ja lopeta.",
   "cli.debug.help": "Tulosta toiston ajoitukset (takaisinkutsu, median luku, miksaus) kerran sekunnissa virhevirtaan.",
   "cli.open.window": "Avaa selaimen sijaan omaan ikkunaan (vaatii desktop-lisäosan).",
   "cli.import_nhsx.help": "Tuo Hindenburg-sessio (.nhsx) projektiin; luo projektin, jos sitä ei ole.",

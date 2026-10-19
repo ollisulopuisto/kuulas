@@ -198,6 +198,7 @@ def open_project(folder: str, port: int = 0, browser: bool = True) -> int:
 
 def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911
     parser = argparse.ArgumentParser(prog="kuulas", description=t("cli.description"))
+    parser.add_argument("--selftest", action="store_true", help=t("cli.selftest.help"))
     commands = parser.add_subparsers(dest="command")
     desktop_parser = commands.add_parser("desktop", help=t("cli.desktop.help"))
     shown = commands.add_parser("info", help=t("cli.info.help"))
@@ -232,6 +233,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911
         sub.add_argument("--debug", action="store_true", help=t("cli.debug.help"))
     opened.add_argument("--window", action="store_true", help=t("cli.open.window"))
     args = parser.parse_args(argv)
+    if args.selftest:
+        from . import selftest  # noqa: PLC0415
+
+        return selftest.run()
     if getattr(args, "debug", False):
         diag.enable()
         diag.emit(f"kuulas debug: build {build_label()}")
