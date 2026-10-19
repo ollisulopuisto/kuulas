@@ -1147,6 +1147,17 @@ safety architecture below, so everything that makes it foolproof is in from the 
 (several channels of one device, each to its own track and its own file in sync, armed per track, then several takes
 and punch-in). WP12a is a complete usable feature: choose the input, arm a track (or make a new one), a big
 modal record view, record, stop with a 2 s hold, and the take appears as a clip where it was recorded.
+**Owner decisions 2026-10-19 for WP12a:** (1) **no listening while recording in the first version**
+(recording while hearing the existing mix comes later, with latency compensation); monitoring is the interface's
+own direct monitoring; (2) the recorded files live **inside the `.kuulas` folder** (`recordings/`), so a project is
+one self-contained thing (Dropbox syncs them: documented); (3) **the recorder is a separate process from the very
+first version**; (4) the microphone permission is fine (the .dmg app already carries the usage text; a development
+run from a terminal needs the terminal to be allowed).
+**WP12a parts, in order:** (A) `kuulas_recorder`, the standalone recorder program: protocol, progressive WAV
+files, journal, supervisor, tests with a fake audio source, `docs/RECORDER.md` (Opus: the architecture-critical
+part); (B) the editor side: device list, a client, "record a take onto a track", importing the finished or
+interrupted take as a clip in place, and the record view with the 2 s hold to stop (Sonnet, after A); small pure
+pieces by the cheap agents meanwhile (disk-time estimate, take names, the hold-to-stop state machine).
 Prior art searched 2026-10-19: little that fits. The pattern is the usual one (callback copies into a queue, a writer
 thread drains to disk; for example [pastream](https://pastream.readthedocs.io/en/v0.1.2/_modules/pastream.html) on
 top of sounddevice and soundfile); no open source recorder was found that treats "never lose recorded audio" as
