@@ -310,6 +310,19 @@ def meter_message(levels: dict) -> dict:
 # -- the app -------------------------------------------------------------------
 
 
+_LOCAL_HOSTS = frozenset({"127.0.0.1", "localhost", "::1", "testserver"})
+
+
+def _local_origin(origin: str) -> bool:
+    """Is the Origin header a page served by this machine's own loopback address?"""
+    from urllib.parse import urlsplit  # noqa: PLC0415 - only the check needs it
+    try:
+        host = (urlsplit(origin).hostname or "").lower()
+    except ValueError:
+        return False
+    return host in _LOCAL_HOSTS
+
+
 def create_app(session, engine, *, language: str | None = None,
                ui_dir: str | Path = UI_DIR, tick: float = LIVE_TICK_S,
                meter_every: float = LIVE_METER_S, recorder=None) -> FastAPI:
@@ -337,6 +350,15 @@ def create_app(session, engine, *, language: str | None = None,
             return JSONResponse(
                 error_body("error.server.bad_request", detail="Invalid Host header"),
                 status_code=400,
+            )
+        # A page on another site (or a sandboxed one, Origin "null") must not drive the
+        # server: browsers send Origin on cross-site requests. Calls without Origin (the
+        # app's own same-origin reads, curl, `kuulas ctl`, tests) pass.
+        origin = request.headers.get("origin")
+        if origin is not None and not _local_origin(origin):
+            return JSONResponse(
+                error_body("error.server.bad_request", detail="Invalid Origin header"),
+                status_code=403,
             )
 
         messages.set_language(request_language(request.headers.get("accept-language"),
