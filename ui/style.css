@@ -166,6 +166,10 @@ button.chip {
     "status status status";
   gap: 1px;
   background: var(--frame-gap);
+  /* The header column's width: the transcript text starts where the timeline does, so the dock
+     measures from here. Follows the grid-template-columns below. */
+  --heads-col: var(--heads-w);
+  --tx-speaker-w: 120px; /* the speaker name and time, left of the text */
 }
 .editor > * {
   min-width: 0;
@@ -270,19 +274,16 @@ button.chip {
    docs/design/transport-corner/index.html (C-right). Columns: Play | timecode over the
    loop/speed row | the in/out/length readout (right edge, full height). */
 .corner {
-  --rc-w: 128px; /* the readout column; 100 px at 280 */
   height: var(--corner-h);
   flex: none;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) var(--rc-w);
-  grid-template-rows: 1fr 1fr;
+  grid-template-columns: auto auto minmax(0, 1fr);
   column-gap: 10px;
   align-items: center;
   padding: 0 0 0 var(--space-5);
   border-bottom: 1px solid var(--border);
 }
 .corner .play {
-  grid-row: 1 / 3;
   position: relative;
   flex-direction: column;
   justify-content: center;
@@ -299,25 +300,39 @@ button.chip {
 .corner .play .lbl {
   font-size: var(--text-xs);
 }
-.corner .timecode {
+/* Record: Play's size and shape, a recording-red dot instead of the primary fill. */
+.corner .rec-button {
+  background: var(--surface-raised);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.corner .rec-button:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+}
+.rec-dot {
+  color: var(--danger-text);
+}
+/* The clock now lives in the dock's left column (.tx-numbers, below). */
+.tx-numbers .timecode {
   --tc: 26px;
-  grid-column: 2;
-  align-self: end;
-  padding-bottom: 3px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: calc(var(--control-h) + var(--space-4)); /* level with the dock's heading row */
+  padding: 0 0 0 var(--space-5);
   overflow: hidden;
 }
 /* The hour form ("1:02:19,065") is wider: it gives way a little. */
-.corner .timecode.hour {
+.tx-numbers .timecode.hour {
   --tc: 20px;
 }
 .t-row {
-  grid-column: 2;
-  align-self: start;
+  grid-column: 3;
   display: flex;
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
-  padding-top: 3px;
 }
 .t-row .button.icon {
   width: 28px;
@@ -338,19 +353,12 @@ button.chip {
 }
 @container (max-width: 300px) {
   .corner {
-    --rc-w: 100px;
     column-gap: 8px;
     padding-left: 10px;
   }
   .corner .play {
     width: 50px;
     height: 52px;
-  }
-  .corner .timecode {
-    --tc: 20px;
-  }
-  .corner .timecode.hour {
-    --tc: 17px;
   }
   /* The names give way to the ruler's own glyphs and the double arrow; the words stay
      in the accessible names and tooltips (visually hidden, not removed). */
@@ -375,11 +383,10 @@ button.chip {
    72 px divided by three (the mockup's reasoning: WCAG 2.5.8 minimum, the keys are the main path). */
 .rcol {
   position: relative;
-  grid-column: 3;
-  grid-row: 1 / 3;
-  align-self: stretch;
+  flex: none;
   display: grid;
-  grid-template-rows: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 24px);
+  margin-left: var(--space-5);
   border-left: 1px solid var(--border-subtle);
   background: var(--surface-sunken);
 }
@@ -1376,6 +1383,7 @@ input[type="text"] {
 }
 @media (max-width: 1399px) {
   .editor {
+    --heads-col: var(--heads-w-min);
     grid-template-columns: var(--heads-w-min) minmax(0, 1fr) var(--sidebar-w-min);
   }
 }
@@ -2100,7 +2108,16 @@ input[type="text"] {
 }
 .tx-para {
   display: grid;
-  grid-template-columns: 140px minmax(0, var(--reading-max));
+  /* The text's left edge is the timeline's (heads column + the 1 px grid gap); the speaker
+     column sits in the free space left of it, under the track headers. */
+  margin-left: calc(
+    var(--heads-col) +
+    1px -
+    var(--pad-panel) -
+    var(--tx-speaker-w) -
+    var(--space-7)
+  );
+  grid-template-columns: var(--tx-speaker-w) minmax(0, var(--reading-max));
   gap: var(--space-7);
   margin-bottom: calc(var(--row-gap) * 1.6);
 }
@@ -2819,11 +2836,11 @@ input[type="text"] {
 }
 
 /* The clock copies on click and types on double-click (clock.js, WP76). */
-.corner .timecode {
+.tx-numbers .timecode {
   cursor: copy;
   border-radius: var(--radius-sm);
 }
-.corner .timecode:focus-visible {
+.tx-numbers .timecode:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
@@ -3044,4 +3061,71 @@ input[type="text"] {
 }
 .rec-chip {
   font-variant-numeric: tabular-nums;
+}
+
+/* -- the transcript dock's left column: the clock and Alku / Loppu / Pituus ------------------
+   Over the dock's grid cell (the dock scrolls, these do not), left of the speaker column. The
+   heading text starts at the timeline's x as well. */
+#panel-transcript h2 {
+  padding-left: calc(var(--heads-col) + 1px);
+}
+.tx-numbers {
+  grid-area: dock;
+  z-index: 2;
+  align-self: start;
+  justify-self: start;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: calc(var(--heads-col) - var(--tx-speaker-w) - var(--space-7));
+  max-height: 100%;
+  overflow: hidden;
+}
+@media (max-width: 1399px) {
+  .tx-numbers .timecode {
+    --tc: 20px;
+  }
+  .tx-numbers .timecode.hour {
+    --tc: 17px;
+  }
+  .mrow {
+    padding: 0 4px 0 6px;
+    gap: 3px;
+  }
+  .mrow .k-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+/* Under 1100 px the transcript is a right-hand panel: no timeline x to align to. The numbers
+   become a row along its bottom edge and the text keeps a plain speaker column. */
+@media (max-width: 1099px) {
+  .tx-numbers {
+    align-self: end;
+    flex-direction: row;
+    align-items: center;
+    width: auto;
+    background: var(--surface-panel);
+  }
+  .tx-numbers .rcol {
+    margin-left: var(--space-3);
+  }
+  .tx-para {
+    margin-left: 0;
+  }
+  #panel-transcript h2 {
+    padding-left: var(--pad-panel);
+  }
+}
+
+/* Undo / Redo above the History list (they left the header, 2026-10-19). */
+.hist-undo {
+  flex: none;
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
 }

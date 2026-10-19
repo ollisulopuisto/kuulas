@@ -31,7 +31,7 @@ const el = (tag, props = {}, ...children) => {
 
 /**
  * `api.getHistory({ limit, before })` answers { nodes, more }; `actions.restore(id)`,
- * `actions.showError(error)`. `now()` is the clock (tests and the page differ).
+ * `actions.undo()`, `actions.redo()`, `actions.showError(error)`. `now()` is the clock (tests and the page differ).
  */
 export function createHistoryPanel({
   root,
@@ -61,7 +61,12 @@ export function createHistoryPanel({
   const hint = el("span", { class: "hint" });
   const bar = el("div", { class: "actionbar" }, restore, hint);
   const title = el("h2");
-  root.replaceChildren(title, status, scroller, older, bar);
+  // Undo and Redo, above the list (owner, 2026-10-19; they left the header). The same two
+  // commands are in the Edit menu with their keys.
+  const undo = el("button", { type: "button", class: "button ghost" });
+  const redo = el("button", { type: "button", class: "button ghost" });
+  const stepper = el("div", { class: "hist-undo", role: "group" }, undo, redo);
+  root.replaceChildren(title, stepper, status, scroller, older, bar);
 
   async function fetchPage(before, limit) {
     const page = await api.getHistory({ limit, before });
@@ -198,6 +203,8 @@ export function createHistoryPanel({
       loading,
       selected,
       state.historyCurrent,
+      state.canUndo,
+      state.canRedo,
     ]);
     if (next === signature) return;
     signature = next;
@@ -208,6 +215,11 @@ export function createHistoryPanel({
     list.setAttribute("aria-label", t("ui.history.list_label"));
     status.hidden = !(nodes.length === 0 || loading);
     status.textContent = loading ? t("ui.history.loading") : t("ui.history.empty");
+    stepper.setAttribute("aria-label", t("ui.history.undo_group"));
+    undo.textContent = t("ui.transport.undo");
+    redo.textContent = t("ui.transport.redo");
+    undo.disabled = !state.canUndo;
+    redo.disabled = !state.canRedo;
     older.hidden = !more || loading;
     older.textContent = t("ui.history.older");
     restore.textContent = t("ui.history.restore");
@@ -223,6 +235,8 @@ export function createHistoryPanel({
     if (keepFocus) rowOf(keepFocus)?.focus({ preventScroll: true });
   }
 
+  undo.addEventListener("click", () => actions.undo());
+  redo.addEventListener("click", () => actions.redo());
   restore.addEventListener("click", () => {
     const { historySelected, historyCurrent } = getState();
     if (historySelected && historySelected !== historyCurrent) actions.restore(historySelected);
@@ -231,7 +245,7 @@ export function createHistoryPanel({
   root.addEventListener("keydown", (event) => {
     const direction = { ArrowDown: 1, ArrowUp: -1 }[event.key];
     if (!direction || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-    if (event.target.closest?.(".actionbar")) return;
+    if (event.target.closest?.(".actionbar, .hist-undo")) return;
     event.preventDefault();
     const next = moveSelection(nodes, getState().historySelected, direction);
     if (!next) return;
