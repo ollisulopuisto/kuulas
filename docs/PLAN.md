@@ -3442,3 +3442,33 @@ word into its width with a text-measure callback, the ellipsis rule) with node t
 Tests first. No backend change.
 **Open:** whether to also show the speaker change as a small mark in the row; whether the row replaces the "first
 words" in the label at close zoom.
+
+---
+
+### WP70 — Session statistics (owner, 2026-10-19)
+
+Status: open. Owner: "we need per session (file) stats: runtime, number of edits/clips etc." A session is one
+project folder. Pure pieces already exist (`speech_stats.py`, `talk_share.py`, `clip_gaps.py`, `silence_runs.py`,
+`usage.py`); nothing shows them yet.
+
+**What it shows** (one dictionary, built by `src/kuulas/project_stats.py`, read-only, cheap enough to compute on
+open and on demand; never changes the project):
+- **Runtime:** length of the edit (end of the last audible clip), audible speech time (union of unmuted speech
+  clips), total length of the recordings imported, and the time cut out (sum of what cut and delete operations
+  removed, read from the history).
+- **Counts:** tracks (speech, music), buses, clips (total, per track), recordings used and unused, markers,
+  regions, gaps between clips, groups, muted clips.
+- **Talk:** per speaker talk time and share, turns, words, longest stretch, overlap time (`talk_share`,
+  `speech_stats`); only when a transcript exists.
+- **Work:** number of history steps, steps by kind (split, cut, move, trim, gain, mute, ...), saved versions,
+  undo count if the history records it, first and last edit time, and **active editing time** (the sum of the gaps
+  between steps shorter than 10 minutes, so a night away does not count), time since the last export.
+- **Size:** project folder size, recordings size (linked in place), caches.
+
+**Where:** Project (or File) menu "Statistics…" opens a dialog with these in groups, plus "Copy as text" and "Save
+as JSON"; the palette command; `kuulas stats <project> [--json]` on the command line (same numbers, no window);
+GET `/api/stats`. A small Statistics line in the Help topic. Every command in a menu. All words in en and fi.
+**Tests first:** a project built from fixtures with known counts; the history-based numbers with a fake clock; a
+project without a transcript (no talk section, no error); an empty project (zeros, no division by zero).
+**Open:** whether the numbers are also kept in the project as a snapshot per saved version (to chart progress
+over an episode series later); whether "time cut out" should count mutes.
