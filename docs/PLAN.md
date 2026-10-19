@@ -3765,7 +3765,7 @@ local defaults), several recordings in one Colab session, and what to do with sp
 
 ### WP79 — Transcription as a detached background job (owner, 2026-10-19)
 
-Status: proposed. Owner: "can't we move transcription into a background process that does not need kuulas to be
+Status: proposed; **owner decided 2026-10-19: a finished transcript is added to the project automatically, with a notice** (one undo step). Owner: "can't we move transcription into a background process that does not need kuulas to be
 open?" Today (WP9, WP78) a transcribe job is a thread inside the kuulas process: closing the app or the project
 loses it, and a Colab run is lost with it. Same answer as for the recorder (WP12): a separate process that does
 the work and keeps going when the editor is gone; the editor only submits, watches and ingests.
