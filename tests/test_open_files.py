@@ -112,7 +112,7 @@ def make_app(tmp_path, monkeypatch):
     monkeypatch.setattr(desktop, "RunningProject", FakeRunning)
     FakeRunning.stopped = []
     webview = FakeWebview()
-    app = desktop.WindowApp(webview, tmp_path / "recent.json", lambda _bridge: None)
+    app = desktop.WindowApp(webview, tmp_path / "recent.json")
     first = app.new_window()
     return app, webview, first
 

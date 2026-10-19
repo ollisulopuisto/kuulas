@@ -1288,25 +1288,10 @@ window.addEventListener("drop", (event) => {
     .catch(showError);
 });
 
-// Called by the desktop window (src/kuulas/desktop.py): dropped paths and native menu items.
-const menuActions = {
-  // The native Help menu cannot hold a text field: its "Search commands…" opens the search as a
-  // panel over the window (WP75). The in-window Help menu has the field itself.
-  "help.search": () => keyboard.searchPanel.open(),
-  "file.import": () => chooseMedia(),
-  "file.export": () => $("export").click(),
-  "edit.undo": () => $("undo").click(),
-  "edit.redo": () => $("redo").click(),
-  "view.zoom_in": () => $("zoom-in").click(),
-  "view.zoom_out": () => $("zoom-out").click(),
-  "view.density": () => {
-    $("density").value = $("density").value === "compact" ? "comfortable" : "compact";
-    $("density").dispatchEvent(new Event("change"));
-  },
-};
+// Called by the desktop window (src/kuulas/desktop.py): dropped paths. The native menu bar holds
+// no menus of ours; every command lives in the in-window bar.
 window.kuulasNative = {
   importPaths: (paths) => void importPaths(paths, dropMemory.take(Date.now())),
-  menu: (id) => void menuActions[id]?.(),
 };
 
 // -- the canvases and panels -----------------------------------------------------------------------

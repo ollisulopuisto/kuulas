@@ -11,11 +11,26 @@ The page finds the bridge with `nativeBridge()` (`ui/importing.js`). With it, th
 Import button uses a native dialog and a dropped file arrives as a path (pywebview
 gives paths only on the Python side), and the project links the file in place
 (`POST /api/import`, `copy: false`). In a plain browser nothing changes: the
-file input and upload still work. The native menu (File, Edit, View, Window)
-calls `window.kuulasNative.menu(id)`. The editor's own File > New project… / Open project…
+file input and upload still work. The native menu bar has no
+menus of ours (see "The native menu bar" below); every command is in the in-window bar. The editor's own File > New project… / Open project…
 use the bridge (`new_project_in_window`, `open_project_in_window`): a native dialog, then
 the project opens in a window of its own; a plain browser asks for a path instead
 (`POST /api/project/new`, `/api/project/open`).
+
+## The native menu bar
+
+`menu_model()` is empty on purpose: the in-window bar is the one real menu (enabled
+states, modifier alternates, the Help search field), and a smaller native copy next to
+it only confused (owner, 2026-10-19). pywebview 6.2.1 (cocoa `_recreate_menus`) always
+builds the app menu (About, Services, Hide, Quit) and, while `SHOW_DEFAULT_MENUS` is
+true, a standard English Edit (Cut, Copy, Paste, Select All) and View (Enter Full
+Screen, Ctrl+Cmd+F). With no custom menu the macOS bar is therefore: app menu, Edit,
+View. We keep those two: WKWebView needs the Edit responder-chain items for Cmd+C/V/X/A
+in text fields, and View is the only fullscreen toggle (the in-window bar has none).
+They are English whatever the language (pywebview's localisation of them has no effect
+on macOS). Help search stays reachable by Shift+Mod+K and the in-window Help menu. The
+old `Bridge.menu` handler and `kuulasNative.menu` are gone. Cmd+M (minimise) was only in
+our old Window menu; the yellow window button still minimises.
 
 ## pywebview limits we design around
 
@@ -23,7 +38,7 @@ the project opens in a window of its own; a plain browser asks for a path instea
   `gir1.2-webkit2-4.1`) or Qt. CI uses GTK/WebKit2 4.1.
 - Windows needs the WebView2 runtime.
 - macOS WKWebView is Safari's engine: pinch arrives as gesture events.
-- Native menus are basic (no icons, shortcuts shown in the menu are not wired).
+- Native menus are basic (no icons, shortcuts shown in the menu are not wired), so we use none.
 - No built-in updater. Signing and notarising the Mac app, and packaging
   (PyInstaller), are separate later chores.
 - Dropped-file paths exist only through pywebview's own DOM event API.

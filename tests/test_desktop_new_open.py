@@ -88,16 +88,6 @@ def test_without_a_window_app_the_project_opens_in_this_window(tmp_path, monkeyp
     assert seen == [str(tmp_path / "Other.kuulas")]
 
 
-def test_help_search_in_the_native_menu_opens_the_search_panel_in_the_page(tmp_path):
-    """A native menu cannot hold a text field (WP75): Help > Search commands... asks
-    the page to open the same search as a panel over the window."""
-    bridge, _opened = _bridge(tmp_path, None)
-    bridge._project = object()  # a project is open, so the page is the editor
-    bridge.menu("help.search")
-    [script] = bridge._window.evaluated
-    assert 'kuulasNative.menu("help.search")' in script
-
-
 def test_a_save_dialog_that_answers_with_one_string_is_one_path(tmp_path):
     # pywebview on macOS answers a SAVE dialog with a plain str, not a tuple; read as a
     # list of paths it gave "/" (its first character) and "name cannot be empty".
