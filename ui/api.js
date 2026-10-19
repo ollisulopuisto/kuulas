@@ -70,6 +70,11 @@ export const colabSettings = () => json("/api/settings/colab");
 export const saveColabSettings = (settings) =>
   json("/api/settings/colab", { method: "PUT", body: JSON.stringify(settings) });
 export const getJobs = () => json("/api/jobs");
+/** What the background transcription jobs did since the last call, told once:
+ * { notices: [{ kind: "ok" | "error", text, job }] } (WP79). */
+export const jobNotices = () => json("/api/jobs/notices");
+/** Start every interrupted background transcription again: { restarted: [job id] }. */
+export const restartInterrupted = () => post("/api/jobs/restart-interrupted", {});
 /** One edit: the whole project comes back. `coalesce` merges a drag into one undo step. */
 export const edit = ({ op, args, label = null, coalesce = null }) =>
   post("/api/edit", { op, args, label, coalesce });

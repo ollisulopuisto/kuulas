@@ -39,6 +39,7 @@ from nhsx.read import time_to_seconds as nhsx_time_to_seconds
 
 from . import (
     analysis,
+    bgjobs,
     candidates,
     clipboard_browse,
     clipboard_link,
@@ -55,7 +56,6 @@ from . import (
     source_map,
     subtitles,
     sync_state,
-    transcribe,
     transcript,
     transcript_text,
 )
@@ -314,6 +314,17 @@ class Session:
         self.resume = ResumeWriter(self.package.path, enabled=not self.read_only)
         if not is_new and not self.read_only:
             self.history.session_opened()
+        # Background transcription (WP79): finished results are taken in at open and
+        # then as they arrive; ``_finished_jobs`` keeps what this run added, to list.
+        self._notices: list[dict] = []
+        self._notice_lock = threading.Lock()
+        self._ingest_lock = threading.Lock()
+        self._finished_jobs: dict[str, dict] = {}
+        self._watch_stop = threading.Event()
+        self.poll_background()
+        self._watcher = threading.Thread(target=self._watch_background, daemon=True,
+                                         name="kuulas-bgjobs")
+        self._watcher.start()
 
     # -- the project -------------------------------------------------------
 
@@ -519,6 +530,8 @@ class Session:
         self.resume.close(playhead=playhead)
 
     def close(self) -> None:
+        self._watch_stop.set()
+        self._watcher.join(5)
         self.jobs.close()
         self.resume.close()  # while the lock is still ours
         with self.lock:
@@ -2165,52 +2178,20 @@ class Session:
             self.history.add_transcript(media_id, words, label=label, timing=timing)
             return self._changed()
 
+    # -- transcription as a detached background job (WP79) -------------------
+
+    #: How often the open project looks for finished background jobs.
+    BACKGROUND_POLL_S = 1.0
+
     def transcribe(self, media_ids: list[str], model: str | None = None,
                    language: str | None = None, backend: str = "local") -> list[str]:
-        """Queue transcript jobs: ``local`` one per selected media item, ``colab`` ONE
-        for all of them (``transcribe_colab``)."""
-        if backend == "colab":
-            return self.transcribe_colab(media_ids, model, language)
-        model = model or "small"
-        ids = list(dict.fromkeys(media_ids))
-        job_ids = []
-        cpu_threads = max(1, (os.cpu_count() or 2) // self.jobs.max_workers)
-        for media_id in ids:
-            with self.lock:
-                try:
-                    item = self.history.state.media_item(media_id)
-                except KeyError:
-                    raise ops.EditError(
-                        "error.edit.no_media", media_id=media_id) from None
-                source = self.store.transcription_path(media_id)
-                previous = self.history.material["transcripts"].get(media_id)
-                title = t("job.transcribe", name=item.name)
-
-            def run(progress, source=source):
-                return transcribe.local(source, model=model, language=language,
-                                        progress=progress, cpu_threads=cpu_threads)
-
-            def commit(words, media_id=media_id, previous=previous):
-                with self.lock:
-                    current = self.history.material["transcripts"].get(media_id)
-                    if current != previous:
-                        raise KuulasError("error.transcribe.changed")
-                    # A local engine made these words: no "ctc-v1" claim survives.
-                    self.set_transcript(media_id, words,
-                                        t("history.transcript", media_id=media_id),
-                                        timing="")
-
-            job_ids.append(self.jobs.submit("transcribe", title, run, commit))
-        return job_ids
-
-    def transcribe_colab(self, media_ids: list[str], model: str | None = None,
-                         language: str | None = None) -> list[str]:
-        """Queue ONE job that transcribes the recordings on Google Colab with the
-        ``colab-transcribe`` tool (WP78). The audio is passed as the local backend
-        resolves it: the linked file as it is, or the working FLAC when the source is
-        not a plain audio file. The words and the timing marker are stored when the
-        tool is done, one undo step per media, and only if none of the transcripts
-        changed meanwhile (all or nothing). Returns the job id in a list."""
+        """Start ONE background job for the chosen recordings (``local``:
+        faster-whisper here; ``colab``: the WP78 tool). The job is a file in the
+        project and a separate worker process (``kuulas.transcribe_worker``) that
+        goes on when the window or the app is closed; the finished words are
+        added by ``poll_background`` (here, or at the next open) as one undo step
+        per media, and only where the transcript did not change meanwhile.
+        Returns the job id in a list."""
         ids = list(dict.fromkeys(media_ids))
         items, previous, names = [], {}, []
         with self.lock:
@@ -2225,31 +2206,211 @@ class Session:
                               "path": self.store.transcription_path(media_id)})
                 previous[media_id] = self.history.material["transcripts"].get(media_id)
                 names.append(item.name)
-        settings = colab_module.load_settings()
-        params = {"model": model, "language": language}
-        title = t("job.transcribe_colab", names=", ".join(names))
+        colab = backend == "colab"
+        job_id = bgjobs.create_job(
+            self.package.path, backend="colab" if colab else "local", items=items,
+            previous=previous, names=names, model=model if colab else (model or "small"),
+            language=language, cpu_threads=max(1, os.cpu_count() or 1),
+            settings=colab_module.resolve_settings(colab_module.load_settings())
+            if colab else None)
+        self._launch_background(job_id)
+        return [job_id]
 
-        def run(progress):
-            return colab_module.run(
-                items, params, settings,
-                lambda fraction, message="", indeterminate=False: progress(
-                    fraction, message, indeterminate),
-                progress.cancelled_event)
+    def _launch_background(self, job_id: str) -> None:
+        try:
+            bgjobs.launch_worker(bgjobs.job_file(self.package.path, job_id))
+        except OSError as e:
+            bgjobs.remove_files(self.package.path, job_id)
+            raise bgjobs.BackgroundJobError("error.transcribe.cannot_start",
+                                            error=str(e)) from e
 
-        def commit(result):
-            with self.lock:
-                for media_id in ids:
-                    if self.history.material["transcripts"].get(media_id) \
-                            != previous[media_id]:
-                        raise KuulasError("error.transcribe.changed")
-                for media_id in ids:
-                    found = result["results"][media_id]
-                    self.set_transcript(
-                        media_id, found["words"],
-                        t("history.transcript", media_id=media_id),
-                        timing=found["timing"])
+    def background_jobs(self) -> list[dict]:
+        """The project's transcription jobs as ``/api/jobs`` lists them: running,
+        waiting, interrupted, failed (kept until dismissed), and those this run
+        added to the project (shown as completed)."""
+        folder = self.package.path
+        self.poll_background()  # a result that is ready goes in before it is listed
+        found = [d for job_id in bgjobs.job_ids(folder)
+                 if (d := bgjobs.describe(folder, job_id)) is not None]
+        if not self.read_only:
+            for d in found:
+                if d["state"] == "completed":  # the worker is done, the words not yet in
+                    d.update(state="running", progress=0.99)
+        shown = {d["id"] for d in found}
+        return found + [d for job_id, d in self._finished_jobs.items()
+                        if job_id not in shown]
 
-        return [self.jobs.submit("transcribe", title, run, commit)]
+    def is_background(self, job_id: str) -> bool:
+        return job_id in self._finished_jobs \
+            or bgjobs.job_file(self.package.path, job_id).is_file()
+
+    def drain_notices(self) -> list[dict]:
+        """The notices the background jobs made since the last call, once:
+        ``[{kind: "ok" | "error", text, job}]``."""
+        with self._notice_lock:
+            notices, self._notices = self._notices, []
+        return notices
+
+    def _notify(self, kind: str, job_id: str, key: str, **params) -> None:
+        with self._notice_lock:
+            self._notices.append({"kind": kind, "job": job_id,
+                                  "text": str(t(key, **params))})
+
+    def poll_background(self) -> None:
+        """Add every finished result to the project (once), with a notice. Not in a
+        read-only project: a project another computer holds is not ours to change."""
+        if self.read_only:
+            return
+        folder = self.package.path
+        with self._ingest_lock:
+            for job_id in bgjobs.job_ids(folder):
+                try:
+                    self._ingest(job_id)
+                except OSError:
+                    log.exception("could not take in background job %s", job_id)
+
+    def _ingest(self, job_id: str) -> None:
+        folder = self.package.path
+        job = bgjobs.read_json(bgjobs.job_file(folder, job_id))
+        status = bgjobs.read_json(bgjobs.status_file(folder, job_id)) or {}
+        if job is None:
+            return
+        marker = bgjobs.read_json(bgjobs.marker_file(folder, job_id)) or {}
+        done: dict[str, str] = dict(marker.get("media") or {})
+        state = status.get("state")
+        if state != "completed":
+            info = bgjobs.describe(folder, job_id) or {}
+            lost = info.get("state") in {"failed", "interrupted"}
+            if lost and not marker.get("reported"):
+                error = info.get("error") or {}
+                self._notify("error", job_id, "notice.transcribe.failed",
+                             names=", ".join(job.get("names") or []),
+                             error=error.get("text", ""))
+                bgjobs.write_json_atomic(bgjobs.marker_file(folder, job_id),
+                                         {"media": {}, "reported": True})
+            return
+        mine = job.get("host") == package._hostname()
+        names = {i["id"]: i["name"] for i in job.get("items", [])}
+        new: dict[str, str] = {}
+        for media_id in names:
+            if media_id in done:
+                continue
+            outcome = self._ingest_one(job, job_id, media_id, mine)
+            if outcome:
+                new[media_id] = outcome
+        if not new:
+            return
+        done.update(new)
+        bgjobs.write_json_atomic(bgjobs.marker_file(folder, job_id),
+                                 {"media": done, "reported": True})
+        for what, key in (("added", "notice.transcribe.added"),
+                          ("conflict", "notice.transcribe.conflict"),
+                          ("invalid", "notice.transcribe.invalid"),
+                          ("missing", "notice.transcribe.missing")):
+            listed = [names[m] for m, o in new.items() if o == what]
+            if listed:
+                self._notify("ok" if what == "added" else "error", job_id, key,
+                             names=", ".join(listed))
+        if len(done) >= len(names) and all(o == "added" for o in done.values()):
+            shown = bgjobs.describe(folder, job_id)
+            bgjobs.remove_files(folder, job_id)
+            if shown:
+                self._finished_jobs[job_id] = {**shown, "state": "completed",
+                                               "progress": 1.0, "error": None}
+                while len(self._finished_jobs) > 20:
+                    del self._finished_jobs[next(iter(self._finished_jobs))]
+
+    def _ingest_one(self, job: dict, job_id: str, media_id: str, mine: bool) -> str:
+        """Store one media's result. Returns ``added``, ``conflict`` (the transcript
+        changed since the job started: the result file is kept), ``invalid`` (the
+        file is unreadable), ``missing`` (the media is gone), or "" when the result
+        has not arrived yet (another computer's, still syncing)."""
+        path = bgjobs.result_file(self.package.path, job_id, media_id)
+        if not path.is_file():
+            return "missing" if mine else ""
+        try:
+            found = colab_module.read_words_json(path)
+        except colab_module.ColabError:
+            return "invalid"
+        with self.lock:
+            previous = (job.get("previous") or {}).get(media_id)
+            if self.history.material["transcripts"].get(media_id) != previous:
+                return "conflict"
+            try:
+                self.set_transcript(
+                    media_id, found["words"],
+                    t("history.transcript", media_id=media_id),
+                    # A local engine made these words: no "ctc-v1" claim survives.
+                    timing=found["timing"] if job.get("backend") == "colab" else "")
+            except ops.EditError:
+                return "missing"
+        with contextlib.suppress(OSError):
+            path.unlink()
+        return "added"
+
+    def cancel_background(self, job_id: str) -> None:
+        """Cancel a running job; dismiss a failed or cancelled one; an interrupted
+        one becomes cancelled. Refused for another computer's running job."""
+        self._finished_jobs.pop(job_id, None)
+        folder = self.package.path
+        info = bgjobs.describe(folder, job_id)
+        if info is None:
+            return
+        if info["state"] in {"failed", "cancelled"}:
+            bgjobs.remove_files(folder, job_id)
+        elif info["state"] != "completed":
+            bgjobs.request_cancel(folder, job_id)
+
+    def restart_background(self, job_id: str) -> None:
+        """Run a failed, cancelled or interrupted job again from the start (a local
+        run starts over; so does the Colab run), against the transcripts as they are
+        now: restarting after "changed meanwhile" replaces the newer text."""
+        folder = self.package.path
+        info = bgjobs.describe(folder, job_id)
+        job = bgjobs.read_json(bgjobs.job_file(folder, job_id))
+        if info is None or job is None:
+            raise bgjobs.BackgroundJobError("error.jobs.unknown", job_id=job_id)
+        if info["foreign"]:
+            raise bgjobs.BackgroundJobError("error.transcribe.foreign_host",
+                                            host=info["host"])
+        if info["state"] not in {"failed", "cancelled", "interrupted"}:
+            raise bgjobs.BackgroundJobError("error.transcribe.not_restartable")
+        with self.lock:
+            self.history._check_writable()
+            previous = {}
+            for item in job["items"]:
+                try:
+                    self.history.state.media_item(item["id"])
+                except KeyError:
+                    raise ops.EditError(
+                        "error.edit.no_media", media_id=item["id"]) from None
+                previous[item["id"]] = self.history.material["transcripts"].get(
+                    item["id"])
+        for path in bgjobs.jobs_dir(folder).glob(f"{job_id}.*"):
+            if path != bgjobs.job_file(folder, job_id):
+                path.unlink(missing_ok=True)
+        package.write_json_atomic(bgjobs.job_file(folder, job_id),
+                                  {**job, "previous": previous})
+        package.write_json_atomic(bgjobs.status_file(folder, job_id), {
+            "state": "queued", "progress": 0.0, "message": "", "indeterminate": True,
+            "log": [], "pid": None, "host": job.get("host"), "finished": None})
+        self._launch_background(job_id)
+
+    def restart_interrupted(self) -> list[str]:
+        """Restart every interrupted job of this computer; returns their ids."""
+        restarted = []
+        for info in self.background_jobs():
+            if info["state"] == "interrupted" and not info["foreign"]:
+                self.restart_background(info["id"])
+                restarted.append(info["id"])
+        return restarted
+
+    def _watch_background(self) -> None:
+        while not self._watch_stop.wait(self.BACKGROUND_POLL_S):
+            try:
+                self.poll_background()
+            except Exception:  # the watcher must outlive one bad job file
+                log.exception("background job poll failed")
 
     def correct_word(self, media_id: str, index: int, text: str) -> Project:
         """Correct the text of one word of one media's transcript: a new

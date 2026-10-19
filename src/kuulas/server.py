@@ -44,6 +44,7 @@ from starlette.websockets import WebSocketDisconnect
 
 from . import (
     automix,
+    bgjobs,
     clipboard_browse,
     colab_transcribe,
     export,
@@ -358,6 +359,10 @@ def create_app(session, engine, *, language: str | None = None,
 
     @app.exception_handler(music_report.MusicReportError)
     async def _music_report_error(_request: Request, e: music_report.MusicReportError):
+        return answer(e, 400)
+
+    @app.exception_handler(bgjobs.BackgroundJobError)
+    async def _background_job_error(_request: Request, e: bgjobs.BackgroundJobError):
         return answer(e, 400)
 
     @app.exception_handler(colab_transcribe.ColabError)
@@ -805,14 +810,36 @@ def create_app(session, engine, *, language: str | None = None,
 
     @app.get("/api/jobs")
     def get_jobs():
-        return JSONResponse({"jobs": session.jobs.list()})
+        # Background transcription jobs (WP79) live in the project, not in this process.
+        return JSONResponse({"jobs": [*session.jobs.list(), *session.background_jobs()]})
+
+    @app.get("/api/jobs/notices")
+    def get_job_notices():
+        # What the background jobs did since the last call (a result added, a failure),
+        # told once. Its own route: the transcript panel polls /api/jobs and must not
+        # swallow them.
+        return JSONResponse({"notices": session.drain_notices()})
 
     @app.delete("/api/jobs/{job_id}")
     def delete_job(job_id: str):
-        if not any(job["id"] == job_id for job in session.jobs.list()):
+        if session.is_background(job_id):
+            session.cancel_background(job_id)
+        elif any(job["id"] == job_id for job in session.jobs.list()):
+            session.jobs.cancel(job_id)
+        else:
             raise UnknownIdError("error.jobs.unknown", job_id=job_id)
-        session.jobs.cancel(job_id)
-        return JSONResponse({"jobs": session.jobs.list()})
+        return JSONResponse({"jobs": [*session.jobs.list(), *session.background_jobs()]})
+
+    @app.post("/api/jobs/restart-interrupted", status_code=202)
+    def restart_interrupted_jobs():
+        return JSONResponse({"restarted": session.restart_interrupted()}, status_code=202)
+
+    @app.post("/api/jobs/{job_id}/restart", status_code=202)
+    def restart_job(job_id: str):
+        if not session.is_background(job_id):
+            raise UnknownIdError("error.jobs.unknown", job_id=job_id)
+        session.restart_background(job_id)
+        return JSONResponse({"jobs": [job_id]}, status_code=202)
 
     @app.post("/api/transcribe", status_code=202)
     def post_transcribe(body: TranscribeBody):
