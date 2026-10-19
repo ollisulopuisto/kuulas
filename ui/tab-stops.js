@@ -83,15 +83,24 @@ export function wordStops(words, trackId = null) {
 
 /**
  * The stops of a scope. `words` are the transcript words, `server` the stops the server
- * gave for the scope (edges or transients). Word stops are the focused track's; a track
+ * gave for the scope (edges or transients), `markers` the project's markers and regions,
+ * which are stops in every scope. Word stops are the focused track's; a track
  * without words (music) falls back to all words.
  */
-export function stopsForScope(scope, { words = [], track = null, server = [] } = {}) {
+export function stopsForScope(scope, { words = [], track = null, server = [], markers = [] } = {}) {
+  const marked = markerStops(markers);
   if (scope === "word") {
     const own = wordStops(words, track);
-    return own.length > 0 || track === null ? own : wordStops(words);
+    return mergeStops(own.length > 0 || track === null ? own : wordStops(words), marked);
   }
-  return mergeStops(server);
+  return mergeStops(server, marked);
+}
+
+/** The frames of the markers (a region gives its start and its end): Tab stops in every scope. */
+export function markerStops(markers) {
+  return mergeStops(
+    (markers ?? []).flatMap((marker) => [marker.start, marker.end].filter(Number.isFinite)),
+  );
 }
 
 /**

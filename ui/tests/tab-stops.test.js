@@ -95,6 +95,20 @@ describe("stops of a scope", () => {
     assert.deepEqual(stopsForScope("word", { words, track: "music" }), [100, 200]);
     assert.deepEqual(stopsForScope("word", { words }), [100, 200]);
   });
+  test("markers are stops in every scope (owner, 2026-10-19), a region's start and end both", () => {
+    const markers = [
+      { id: "m1", start: 500 },
+      { id: "r1", start: 700, end: 900 },
+    ];
+    assert.deepEqual(stopsForScope("word", { words, track: "a", markers }), [100, 500, 700, 900]);
+    assert.deepEqual(
+      stopsForScope("edge", { server: [30, 600], markers }),
+      [30, 500, 600, 700, 900],
+    );
+    assert.deepEqual(stopsForScope("sound", { server: [5], markers }), [5, 500, 700, 900]);
+    assert.deepEqual(stopsForScope("edge", { server: [10], markers: [] }), [10]);
+    assert.deepEqual(stopsForScope("edge", { server: [10] }), [10]);
+  });
   test("edge and sound: the server's stops, sorted and without duplicates", () => {
     assert.deepEqual(stopsForScope("edge", { words, server: [30, 10, 10] }), [10, 30]);
     assert.deepEqual(stopsForScope("sound", { server: [5] }), [5]);

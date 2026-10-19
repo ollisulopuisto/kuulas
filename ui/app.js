@@ -883,11 +883,18 @@ async function tabStop(direction) {
     let stops;
     if (scope === "word") {
       await ensureWords();
-      stops = stopsForScope(scope, { words: getState().words, track });
+      stops = stopsForScope(scope, {
+        words: getState().words,
+        track,
+        markers: state.project.markers,
+      });
     } else {
       // Seams are on any track; sounds follow the focused track.
       const serverTrack = scope === "edge" ? null : track;
-      stops = stopsForScope(scope, { server: await serverStops(SCOPE_MODE[scope], serverTrack) });
+      stops = stopsForScope(scope, {
+        server: await serverStops(SCOPE_MODE[scope], serverTrack),
+        markers: state.project.markers,
+      });
     }
     const from = getState().playhead ?? 0;
     const frame = direction > 0 ? nextStop(stops, from) : prevStop(stops, from);
