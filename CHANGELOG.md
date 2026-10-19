@@ -1,3 +1,9 @@
+## [v26.10.19.26] - 2026-10-19
+
+- **The menu bar is shorter:** File, Edit, Clip, Track, Text, Playback, View, Help. Edit is back to the everyday things (undo, clipboard, select, find) with "Sync back" next to Undo; clip editing (split, merge, trim, group, mute, fade, level, sync) is in the new Clip menu; transcribing, the transcript and narration commands and cut candidates are in the new Text menu (Text > Transcribe). Rename is in Track and "Jump to typed time" in Playback. The recording settings are a submenu of Playback.
+- **Colab progress is readable:** terminal colour codes no longer show up as boxes in the notice.
+- A fresh recording can be given its place on the timeline later: the take file now has room for its position and track (groundwork for restoring a take).
+
 ## [v26.10.19.25] - 2026-10-19
 
 - **Recording several channels at once:** the record view lists every input channel of the device; tick the ones you want, give each its own track (or a new one), and each gets its own meter. All takes land at the play cursor in one undo step. If one channel's file fails, the others keep recording and what the failed one had is kept.
