@@ -1,3 +1,9 @@
+## [v26.10.19.27] - 2026-10-19
+
+- **Start page:** each recent project is a card with when it was last opened, its tracks, length and size on disk, a marker if its folder is missing, arrow-key navigation, and Open/New in the app's button style.
+- **Side panel buttons** are blocks like Play and Record (icon above the label), in one bar at the top of each panel; the duplicated panel title is gone.
+- **The speed slider** no longer runs into the track headers.
+
 ## [v26.10.19.26] - 2026-10-19
 
 - **The menu bar is shorter:** File, Edit, Clip, Track, Text, Playback, View, Help. Edit is back to the everyday things (undo, clipboard, select, find) with "Sync back" next to Undo; clip editing (split, merge, trim, group, mute, fade, level, sync) is in the new Clip menu; transcribing, the transcript and narration commands and cut candidates are in the new Text menu (Text > Transcribe). Rename is in Track and "Jump to typed time" in Playback. The recording settings are a submenu of Playback.
