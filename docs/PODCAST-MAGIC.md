@@ -24,13 +24,18 @@ Seconds are not stored. Flicks only appear for the recording clock of a media fi
 neighbour (the ramp is inside the open stretch). A muted track, or a track not soloed while another is, becomes an
 all-zero stem and `"audible": false` in `tracks.json`. Pan, buses and master are not applied. `tracks.json` v1 has
 `rate`, `start_frame` (timeline frame of the first stem sample) and `frames`, plus per track `id, name, kind,
-speaker, channels, file, audible, gain_db, pan`. There is no field about muted ranges today.
+speaker, channels, file, audible, gain_db, pan`. Muted ranges are listed by the two optional fields below.
 
-**Proposal (assumed, not built):** two optional per-track fields on the stem's own clock (frame 0 = the stem's first
+**Built (WP85 step 1, `stem_ranges.py`):** two optional per-track fields on the stem's own clock (frame 0 = the stem's first
 sample, i.e. timeline frame minus `start_frame`), in frames, so no rounding; the consumer divides by the manifest's `rate`:
 
 - `"muted_frames": [[start, end], ...]` = hand-made clip mutes, merged, `end` exclusive;
 - `"gate_frames": [[start, end], ...]` = Auto-Silence gate ranges.
+
+Both are integer frames, sorted, merged (touching ranges are one), clipped to the exported range `[0, frames)`, so a
+range or selection export counts from its own first sample. A field is left out when its list is empty, and for a
+track that is not audible neither is written (the whole stem is silence, `audible: false`). `version` is unchanged:
+older readers ignore the fields. The same fields are written for the automixer route.
 
 They are kept apart on purpose: learning a silence threshold should use the **hand-made** mutes only, never the
 machine-made gate (that would learn from its own output). Names and unit are open for Olli (frames vs seconds).

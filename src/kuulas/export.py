@@ -41,7 +41,7 @@ import numpy as np
 import soundfile as sf
 from speechmix import programme
 
-from . import export_formats, mixer, transcript
+from . import export_formats, mixer, stem_ranges, transcript
 from . import placeholders as placeholders_module
 from .messages import KuulasError, t
 from .model import Project, Track
@@ -815,6 +815,13 @@ def _tracks(job: _Job, target: Path, n: int, workers: int,
         listing.append({"id": track.id, "name": track.name, "kind": track.kind,
                         "speaker": track.speaker, "channels": channels, "file": done.name,
                         "audible": audible, "gain_db": track.gain_db, "pan": track.pan})
+        if audible:  # an inaudible stem is all silence: audible=false says it
+            span = (job.first, job.frames)
+            for key, found in (
+                    ("muted_frames", stem_ranges.muted_ranges(track, *span)),
+                    ("gate_frames", stem_ranges.gate_ranges(track, *span))):
+                if found:
+                    listing[-1][key] = found
     if s.get("list_file"):
         (work / "tracks.json").write_text(json.dumps({
             "edit": job.edit, "project": job.project_name,
