@@ -15,6 +15,7 @@ import {
   filterEntries,
   foreignState,
   keepCount,
+  levelHint,
   PASTE_MODES,
   PASTE_TARGETS,
   pasteChoice,
@@ -153,10 +154,14 @@ export function createClipboardPanel({ root, actions }) {
       }),
       button(entry.id, "delete", t("ui.clipboard.delete"), () => actions.remove(entry.id)),
     );
+    const hint = levelHint(state.clipboardLevel, entry.id, t);
     return el(
       "li",
       { class: "clip-entry", dataset: { id: entry.id, selected: String(selected) } },
       name,
+      ...(hint
+        ? [el("span", { class: "clip-meta clip-level", role: "status", textContent: hint })]
+        : []),
       buttons,
     );
   }
@@ -429,6 +434,7 @@ export function createClipboardPanel({ root, actions }) {
       actions.hasPicker(),
       state.clipboardFilter ?? "",
       state.clipboardKeep,
+      state.clipboardLevel,
       // "5 minutes ago" moves on by the minute, not with the cursor.
       Math.floor(actions.now() / 60),
     ]);

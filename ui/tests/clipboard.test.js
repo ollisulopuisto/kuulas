@@ -5,6 +5,7 @@ import {
   describeClips,
   entryTitle,
   keepCount,
+  levelHint,
   PASTE_MODES,
   PASTE_TARGETS,
   pasteChoice,
@@ -239,5 +240,18 @@ describe("how many entries Clear old entries keeps", () => {
     for (const bad of [0, -3, 1.5, "x", null, Number.NaN]) {
       assert.equal(keepCount({ clipboardKeep: bad }), 100, String(bad));
     }
+  });
+});
+
+describe("levelHint (WP82)", () => {
+  const t = (key, values) => (values ? `${key}:${values.db}` : key);
+  test("says how far the entry was turned down, with a proper minus sign", () => {
+    assert.equal(levelHint({ id: "e1", db: -9.04 }, "e1", t), "ui.clipboard.level_hint:−9");
+  });
+  test("is empty for another entry, no attenuation, or nothing played yet", () => {
+    assert.equal(levelHint({ id: "e1", db: -9 }, "e2", t), "");
+    assert.equal(levelHint({ id: "e1", db: 0 }, "e1", t), "");
+    assert.equal(levelHint({ id: "e1", db: -0.3 }, "e1", t), "");
+    assert.equal(levelHint(null, "e1", t), "");
   });
 });

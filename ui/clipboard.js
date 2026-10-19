@@ -80,6 +80,16 @@ export function agoText(created, nowSeconds, t = (key) => key) {
 }
 
 /**
+ * The hint beside an entry whose preview was turned down to the project's level (WP82):
+ * "−9 dB to match the project". `level` is `{ id, db }` from the latest preview; empty when it
+ * is another entry or the change is under a dB (nothing worth saying).
+ */
+export function levelHint(level, entryId, t = (key) => key) {
+  if (!level || level.id !== entryId || !(level.db <= -0.5)) return "";
+  return t("ui.clipboard.level_hint", { db: `−${Math.abs(Math.round(level.db))}` });
+}
+
+/**
  * The metadata line of an entry: source project, track names, length and how long ago,
  * whatever of that the entry has (entries from before the metadata was kept have less).
  */

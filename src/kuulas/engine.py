@@ -63,7 +63,7 @@ import numpy as np
 import sounddevice as sd
 import soxr
 
-from . import diag, meter
+from . import diag, meter, preview_level
 from .media import CHUNK_SEC
 from .messages import KuulasError, t
 from .model import Project
@@ -308,6 +308,7 @@ class Engine:
         #: Previewing a temporary project (``play_preview``): the real
         #: project to go back to, where the playhead was, and whether it is on.
         self._preview = False
+        self._preview_limit = False  # the safety limiter, on a preview only (WP82)
         self._base: Project = session.state
         self._preview_anchor = 0
         self.rate = self._project.rate
@@ -412,13 +413,16 @@ class Engine:
         else:
             self._project = project
 
-    def play_preview(self, project: Project, until: int | None = None) -> None:
+    def play_preview(self, project: Project, until: int | None = None,
+                     limit: bool = False) -> None:
         """Play a temporary ``project`` from its start (a clipboard entry,
         WP46) without touching the real one. The playhead is put back where it
         was when the preview ends: by ``stop``, ``seek``, ``play`` or running
-        out. Edits made meanwhile are kept for then."""
+        out. Edits made meanwhile are kept for then. ``limit`` puts the safety
+        limiter on this preview's output only (WP82)."""
         with self._ctl:
             self._end_preview()
+            self._preview_limit = limit
             with self._tlock:
                 self._preview_anchor = self._heard() if self._playing else self._anchor
             self._base = self._project
@@ -906,6 +910,8 @@ class Engine:
                                     else plan.lo)
                     self._fed = self._out = 0
                     self._acc = 0.0
+        if self._preview and self._preview_limit:
+            out = preview_level.soft_limit(out)
         return out
 
     def _stretcher_for(self, gen: int, end: int) -> Stretcher:

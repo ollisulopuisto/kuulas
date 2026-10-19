@@ -390,6 +390,17 @@ function toggleClipWords() {
   showNotice(t(on ? "ui.clip_words.on" : "ui.clip_words.off"), "ok");
 }
 
+// The clipboard preview is turned down to the project's level (WP82): on by default, remembered
+// per user. The server does the measuring; this is only the switch.
+const CLIPBOARD_LIMIT_KEY = "clipboardLimit";
+setState({ clipboardLimit: prefs.get(CLIPBOARD_LIMIT_KEY) !== "off" });
+function toggleClipboardLimit() {
+  const on = getState().clipboardLimit === false;
+  setState({ clipboardLimit: on });
+  prefs.set(CLIPBOARD_LIMIT_KEY, on ? "on" : "off");
+  showNotice(t(on ? "ui.clipboard.limit.on" : "ui.clipboard.limit.off"), "ok");
+}
+
 const FAST_KEY = "fast";
 setState({ fast: fromStored(prefs.getJson(FAST_KEY, null)) });
 function changeFast(change) {
@@ -412,6 +423,7 @@ const actions = {
   toggleDragMode: () => toggleDragMode(),
   toggleWheelMode: () => toggleWheelMode(),
   toggleClipWords: () => toggleClipWords(),
+  toggleClipboardLimit: () => toggleClipboardLimit(),
   fastListening: () => changeFast(toggleFast),
   fastNudge: (direction) => changeFast(direction > 0 ? fastUp : fastDown),
   fastReset: () => changeFast(resetFast),
@@ -752,10 +764,17 @@ const keyboard = setupKeyboard({
       rangeMemory = rememberRange(head, { inPoint, outPoint, rangeTracks });
     },
     previewClipboard: (id) =>
-      api.previewClipboardEntry(id).catch((error) => {
-        showError(error);
-        return null;
-      }),
+      api
+        .previewClipboardEntry(id, getState().clipboardLimit !== false)
+        .then((answer) => {
+          // How far the preview was turned down, for the hint beside the entry.
+          setState({ clipboardLevel: { id, db: answer?.attenuation_db ?? 0 } });
+          return answer;
+        })
+        .catch((error) => {
+          showError(error);
+          return null;
+        }),
     now: () => performance.now(),
     chooseMedia: () => chooseMedia(),
     // The transcript's X: cut the words' stretch on every track.

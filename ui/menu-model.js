@@ -41,6 +41,7 @@ export const PALETTE_ONLY = EXPORT_FORMAT_IDS.flatMap((format) => [
  */
 export const CHECKED = {
   "view.clip_words": (state) => state?.showClipWords !== false,
+  "view.clipboard_limit": (state) => state?.clipboardLimit !== false,
   "sync.confirm": (state) => state?.confirmSync !== false,
 };
 
@@ -367,6 +368,7 @@ export const MENU = [
       submenu("menu.buses", [item("view.collapse_all_buses"), item("view.expand_all_buses")]),
       submenu("menu.mouse", [item("view.drag_mode"), item("view.wheel_mode")]),
       item("view.clip_words"),
+      item("view.clipboard_limit"),
       item("sync.confirm"),
       item("view.reset_remembered"),
       SEP,
