@@ -1,3 +1,14 @@
+## [v26.10.19.25] - 2026-10-19
+
+- **Recording several channels at once:** the record view lists every input channel of the device; tick the ones you want, give each its own track (or a new one), and each gets its own meter. All takes land at the play cursor in one undo step. If one channel's file fails, the others keep recording and what the failed one had is kept.
+- **The recorder no longer lingers:** it exits by itself after 60 s when nothing is recording and no editor is connected (never while a take or listening is on). A newer editor replaces an older idle recorder automatically; an older recorder that is recording is left alone and pre-roll waits.
+- **Transcription works in the installed app:** it failed with "Litterointi keskeytyi" because the background worker could not start inside the app. The app's self-test now starts a worker, so a broken build is caught. Programs such as `uvx` and `colab` are found in the usual places even when the app is started from Finder.
+- **Colab asks you to sign in to Google first:** Edit > Transcribe > "Sign in to Google for Colab…" opens the Google page, takes the code you copy back, and the transcription only starts after that.
+- **Transcript panel:** one row per recording that has no transcript, each with "on this computer" and "on Colab" buttons (and "all N files"); the offer no longer covers the clock and start/end/length; the speaker's colour bar sits at the start of the words.
+- **Menus:** the bar is now File, Edit, Track, Playback, View, Help. Playback holds Go to and Markers; Edit holds Transcribe, Transcript and narration, and Cut candidates. Submenus open when you hover over them.
+- **Look:** the side panel's tab names are readable, buttons share one outlined style with icons, the inspector's fields line up.
+- Take file names and the Recordings list (recover a take after undo) are designed but not built yet.
+
 ## [v26.10.19.24] - 2026-10-19
 
 - **Recording pre-roll (default 60 s):** with the record view open, the recorder listens and keeps the last 60 seconds (setting: off / 10 / 30 / 60 / 120 s) in memory only; nothing is written until you press Record, and then the take starts that many seconds earlier. The take lands so the pre-roll ends where you pressed Record. The microphone is released by itself two minutes after the editor stops asking.
