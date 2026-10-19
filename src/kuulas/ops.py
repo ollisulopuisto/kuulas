@@ -663,22 +663,30 @@ def nudge_clips(p: Project, clip_ids, delta: int, group_editing: bool = False,
 
 
 def move_clips_to_track(p: Project, clip_ids, direction: int, delta: int = 0,
-                        group_editing: bool = False, overwrite: bool = True) -> Project:
+                        group_editing: bool = False, overwrite: bool = True,
+                        anchor_clip_id: str | None = None) -> Project:
     """Drag a clip body: ``nudge_clips`` by ``delta`` frames, and the clips ``direction``
     tracks down (negative: up), in one edit.
 
-    ``direction`` is clamped so that no clip leaves the tracks (the selection keeps its
-    shape). Sync partners that ``group_editing`` brings along follow in time only: they
-    stay on their own tracks, as in a nudge."""
+    Without group editing ``direction`` is clamped so that no clip leaves the tracks (the
+    selection keeps its shape). With group editing and an ``anchor_clip_id`` (the clip the
+    user grabbed) only the anchor changes track, clamped by itself: sync groups relate
+    clips on different tracks, so a vertical drag never reassigns a partner's track. Every
+    other clip, selected or a sync partner, follows in time only and stays on its own
+    track."""
     chosen = list(clip_ids)
     if not chosen:
         raise EditError("error.edit.no_selection")
+    movers = chosen
+    if group_editing and anchor_clip_id is not None:
+        _find_clip(p, anchor_clip_id)  # unknown anchor: EditError
+        movers = [anchor_clip_id]
     index = {t.id: i for i, t in enumerate(p.tracks)}
-    rows = [index[_find_clip(p, cid)[1].id] for cid in chosen]
+    rows = [index[_find_clip(p, cid)[1].id] for cid in movers]
     direction = max(-min(rows), min(len(p.tracks) - 1 - max(rows), int(direction)))
     moved = nudge_clips(p, chosen, int(delta), group_editing, overwrite=False)
     if direction != 0:
-        for cid, row in zip(chosen, rows, strict=True):
+        for cid, row in zip(movers, rows, strict=True):
             target = p.tracks[row + direction].id
             moved = move_clip(moved, cid, moved.clip(cid).start, target)
     return _overwrite_under(p, moved) if overwrite else moved

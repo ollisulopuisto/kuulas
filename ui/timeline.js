@@ -11,6 +11,7 @@ import { candidateBands, flagFits, flagText } from "./candidates-model.js";
 import {
   canStartClipDrag,
   clipDragIds,
+  dragAnchor,
   moveBoxes,
   moveGhosts,
   resolveMove,
@@ -362,7 +363,12 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
   // Clips being moved (WP6): dashed accent outlines at the new place, on the new track, with
   // each clip's own waveform inside (WP63) so waveforms can be lined up by eye.
   function drawMoveGhost(state, layout) {
-    const ghosts = moveGhosts(state.project, clipSession.ids, clipSession.move);
+    const ghosts = moveGhosts(
+      state.project,
+      clipSession.ids,
+      clipSession.move,
+      sessionAnchor(clipSession, state),
+    );
     if (clipSession.snapAt !== null) {
       // The snap line: a thin accent line where the moved edge landed.
       const x = frameToX(clipSession.snapAt, state.scroll, state.zoom);
@@ -1706,8 +1712,14 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     return locate(event).y - RULER_HEIGHT + getState().scrollY - hit.row.top;
   }
 
+  // The clip whose track change counts (see dragAnchor); the same rule app.js sends.
+  function sessionAnchor(session, state) {
+    return dragAnchor(session.pressedId, state.groupEditing !== false, session.alone);
+  }
+
   function startClip(hit, event, before) {
     clipSession = {
+      pressedId: hit.clip.id,
       ids: clipDragIds(hit.clip.id, before),
       fromIndex: hit.row.index,
       origin: locate(event),
@@ -1753,11 +1765,12 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       deltaFrames = snapped.delta;
       session.snapAt = snapped.at;
     }
-    session.move = resolveMove(state.project, session.ids, {
-      deltaFrames,
-      fromIndex: session.fromIndex,
-      toIndex: row?.index ?? session.fromIndex,
-    });
+    session.move = resolveMove(
+      state.project,
+      session.ids,
+      { deltaFrames, fromIndex: session.fromIndex, toIndex: row?.index ?? session.fromIndex },
+      sessionAnchor(session, state),
+    );
     requestOverlay();
   }
 
@@ -1770,7 +1783,12 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     requestOverlay();
     if (commit && !session.dragging) actions.seek?.(session.seekFrame);
     if (commit && session.dragging) {
-      actions.clipDrag({ ids: session.ids, move: session.move, alone: session.alone });
+      actions.clipDrag({
+        ids: session.ids,
+        move: session.move,
+        alone: session.alone,
+        pressedId: session.pressedId,
+      });
     }
   }
 
