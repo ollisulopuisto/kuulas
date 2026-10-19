@@ -23,7 +23,7 @@ const OTHER_MODS = { Mod: "Ctrl", Alt: "Alt", Shift: "Shift", Ctrl: "Ctrl" };
 function formatCombo(combo, mods) {
   return combo
     .split("+")
-    .map((part) => mods[part] || part)
+    .map((part) => mods[part] || (part === "Comma" ? "," : part))
     .join("+");
 }
 

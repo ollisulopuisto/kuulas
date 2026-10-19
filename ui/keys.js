@@ -63,6 +63,7 @@ const NAMED = [
   "Backspace",
   "Delete",
   "Tab",
+  "Comma", // by position, for Mod+Comma (Preferences): the same key on a US and a Finnish board
   "Home",
   "End",
   "PageUp",

@@ -242,6 +242,25 @@ class RunningProject:
             log.debug("project summary: %s", e)
             return {}
 
+    def record_busy(self) -> str | None:
+        """Why this project must not be closed now: ``"recording"`` while a take of it
+        records (or one was heard recording and the recorder cannot be asked),
+        ``"armed"`` while the microphone listens for pre-roll; None when nothing holds
+        it. Closing never walks away from a take (ground rule 17). Never raises."""
+        try:
+            heard = self._recorder.recording_now()
+            view = self._recorder.status()
+        except Exception as e:  # noqa: BLE001 - a recorder that cannot be asked
+            log.debug("record state: %s", e)
+            return None
+        if view.get("recording") and view.get("ours"):
+            return "recording"
+        if heard and view.get("available") is False:
+            return "recording"
+        if view.get("armed"):
+            return "armed"
+        return None
+
     def stop(self) -> None:
         summary = self.summary()
         # The page may be gone already (pywebview does not always fire pagehide, and
@@ -475,6 +494,36 @@ class Bridge:
         if previous is not None:
             previous.stop()
         return True
+
+    def open_recent_in_window(self, folder: str) -> bool:
+        """File > Open Recent: the project opens in a window of its own (as Open project
+        does). False when the folder is gone (the page says so; the menu greys it out)."""
+        if not Path(folder).is_dir():
+            return False
+        return self._open_in_window(folder)
+
+    def clear_recent(self) -> bool:
+        """File > Open Recent > Clear menu: the start page's list too. The projects are
+        not touched."""
+        with _RECENTS_LOCK:
+            _write_records(self._recents, [])
+        return True
+
+    def minimise(self) -> None:
+        """View > Minimise (Cmd+M): the window goes to the Dock."""
+        if self._window is not None:
+            self._window.minimize()
+
+    def close_project(self) -> dict:
+        """File > Close project (Cmd+W): back to the start page. Every edit is already
+        on disk and a transcription runs in its own process, so nothing is lost; but a
+        running take or an armed microphone refuses it (``reason``)."""
+        if self._project is not None:
+            busy = self._project.record_busy()
+            if busy:
+                return {"closed": False, "reason": busy}
+        self.show_launcher()
+        return {"closed": True}
 
     def show_launcher(self) -> None:
         self._window.set_title(window_title(None))

@@ -166,7 +166,21 @@ export function registerAppCommands(registry, { actions, app }) {
   def("app.import", () => app.chooseMedia());
   // File > New project… / Open project… (WP74): a window of its own; no project needed.
   def("app.new", () => app.newProject());
-  def("app.open", () => app.openProject());
+  def("app.open", (path) =>
+    typeof path === "string" && path !== "" ? app.openRecent(path) : app.openProject(),
+  );
+  // The standard Mac commands (owner, 2026-10-19). Close project goes back to the start page
+  // (desktop window only; the app says so in a browser); Preferences gathers the user settings;
+  // Minimise is the window's. An Open Recent entry runs Open project with its path as the
+  // argument (a key press passes the event, which is not a path).
+  def("app.close_project", () => app.closeProject(), hasProject);
+  def("app.preferences", () => app.openPreferences());
+  def("app.minimise", () => app.minimise());
+  def(
+    "app.clear_recent",
+    () => app.clearRecent(),
+    (state) => (state?.recentProjects?.length ?? 0) > 0,
+  );
   // File > Statistics… (WP70): runtime, counts, talk, work and sizes of this session.
   def("app.statistics", () => app.openStatistics(), hasProject);
   // File > Locate media… (WP39) and Send a copy… (WP32): no default key (the Finnish layout

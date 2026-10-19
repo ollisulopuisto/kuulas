@@ -19,6 +19,8 @@ describe("File", () => {
     assert.deepEqual(shape, [
       "app.new",
       "app.open",
+      "submenu",
+      "app.close_project",
       "app.import",
       "app.locate_media",
       "separator",
@@ -35,6 +37,8 @@ describe("File", () => {
       "submenu",
       "separator",
       "app.statistics",
+      "separator",
+      "app.preferences",
     ]);
   });
   test("Export transcripts holds the text exports", () => {

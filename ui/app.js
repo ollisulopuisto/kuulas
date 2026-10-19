@@ -100,12 +100,14 @@ import { monoDecision, monoEdits } from "./mono-ask.js";
 import { motionMode } from "./motion.js";
 import { createOverview } from "./overview.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
+import { createPreferencesDialog } from "./preferences-dialog.js";
 import { createPrefs } from "./prefs.js";
 import { nextPreroll, prerollLabel } from "./preroll.js";
 import { createProjectDialog } from "./project-dialog.js";
 import { patchClip } from "./provisional.js";
 import { rangeLine } from "./range-info.js";
 import { rememberRange, stepRangeMemory } from "./range-memory.js";
+import { recentMenuItems } from "./recent-menu-model.js";
 import { createRecordView } from "./record-view.js";
 import { forwardFromClip } from "./selection-ops.js";
 import { createSendCopyDialog } from "./send-copy-dialog.js";
@@ -868,6 +870,11 @@ const keyboard = setupKeyboard({
     openExportDialog: (what) => openExportDialog(what),
     newProject: () => void newProject(),
     openProject: () => void openProject(),
+    closeProject: () => void closeProject(),
+    openPreferences: () => openPreferences(),
+    minimise: () => void minimise(),
+    openRecent: (path) => void openRecent(path),
+    clearRecent: () => void clearRecent(),
     focusName: () => inspector.focusName(),
     editTime: () => clock.open(),
     copyTime: () => void clock.copy(),
@@ -1934,6 +1941,120 @@ async function openProject() {
   } catch (error) {
     showError(error);
   }
+}
+
+// -- the standard Mac commands (owner, 2026-10-19) -------------------------------------------
+// Close project, Open Recent and Minimise talk to the desktop window (src/kuulas/desktop.py);
+// in a plain browser tab there is no window to close and no recents list, so they say so.
+
+/** File > Close project (Cmd+W): back to the start page. The window refuses while a take records. */
+async function closeProject() {
+  const bridge = globalThis.pywebview?.api;
+  if (typeof bridge?.close_project !== "function") {
+    showNotice(t("ui.project.close_desktop_only"));
+    return;
+  }
+  // A running take is the recorder's, not this page's, but it is never walked away from.
+  if (recordView.isRecording()) {
+    showNotice(t("ui.project.close_recording"), "error");
+    return;
+  }
+  try {
+    const answer = await bridge.close_project();
+    if (answer?.closed === false) {
+      showNotice(
+        t(answer.reason === "recording" ? "ui.project.close_recording" : "ui.project.close_armed"),
+        "error",
+      );
+    }
+  } catch (error) {
+    showNotice(t("ui.project.close_failed", { error: error?.message ?? String(error) }), "error");
+  }
+}
+
+/** View > Minimise (Cmd+M): the window goes to the Dock. */
+async function minimise() {
+  const bridge = globalThis.pywebview?.api;
+  if (typeof bridge?.minimise !== "function") {
+    showNotice(t("ui.window.minimise_desktop_only"));
+    return;
+  }
+  try {
+    await bridge.minimise();
+  } catch (error) {
+    showError(error);
+  }
+}
+
+// File > Open Recent: the start page's records, read from the desktop window (the same
+// recent.json); state.recentProjects holds the menu's entries (recent-menu-model.js).
+async function refreshRecent() {
+  const bridge = globalThis.pywebview?.api;
+  if (typeof bridge?.recent_records !== "function") return;
+  try {
+    const records = await bridge.recent_records();
+    setState({
+      recentProjects: recentMenuItems(records, { nowMs: Date.now(), lang: getLanguage() }),
+    });
+  } catch {
+    // The list is a convenience; the menu keeps what it had.
+  }
+}
+window.addEventListener("pywebviewready", () => void refreshRecent());
+window.addEventListener("focus", () => void refreshRecent());
+onLanguageChange(() => void refreshRecent());
+void refreshRecent();
+
+async function openRecent(path) {
+  const bridge = globalThis.pywebview?.api;
+  if (typeof bridge?.open_recent_in_window !== "function") return;
+  try {
+    if ((await bridge.open_recent_in_window(path)) === false) {
+      showNotice(t("ui.project.recent_missing", { path }), "error");
+    }
+  } catch (error) {
+    showError(error);
+  }
+  void refreshRecent();
+}
+
+async function clearRecent() {
+  const bridge = globalThis.pywebview?.api;
+  if (typeof bridge?.clear_recent !== "function") return;
+  try {
+    await bridge.clear_recent();
+    showNotice(t("ui.project.recent_cleared"), "ok", { undo: false });
+  } catch (error) {
+    showError(error);
+  }
+  void refreshRecent();
+}
+
+// File > Preferences… (Cmd+,): every control calls the setter of the setting's own menu command.
+let preferencesDialog = null;
+function openPreferences() {
+  preferencesDialog ??= createPreferencesDialog({
+    t,
+    read: () => ({
+      state: getState(),
+      record: { stopMode: recordView.stopMode, preroll: recordView.preroll },
+    }),
+    setters: {
+      language: (choice) => void actions.setLanguageChoice(choice),
+      stopMode: (mode) => recordView.setStopMode(mode),
+      preroll: (seconds) => recordView.setPreroll(seconds),
+      confirmSync: (on) => {
+        if (on !== (getState().confirmSync !== false)) toggleConfirmSync();
+      },
+      clipboardLimit: (on) => {
+        if (on !== (getState().clipboardLimit !== false)) toggleClipboardLimit();
+      },
+      fast: (speed) => changeFast((fast) => setFast(fast, speed)),
+    },
+    run: (command) => keyboard.registry.run(command, null, getState()),
+    canRun: (command) => keyboard.registry.can(command, getState()),
+  });
+  preferencesDialog.open();
 }
 
 // The formats the server can write (ids, in its order); asked for once, at start.

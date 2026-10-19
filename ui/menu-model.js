@@ -151,6 +151,15 @@ const SYNC_BACK = submenu("menu.sync_back", [
   item("sync.send_home"),
 ]);
 
+// File > Open Recent: the projects come from the state (state.recentProjects, recent-menu-model.js)
+// when the menu is resolved; the static items after them are Clear menu.
+const OPEN_RECENT = {
+  kind: "submenu",
+  labelKey: "menu.open_recent",
+  source: "recent",
+  items: [item("app.clear_recent")],
+};
+
 export const MENU = [
   {
     id: "file",
@@ -158,6 +167,8 @@ export const MENU = [
     items: [
       item("app.new"),
       item("app.open"),
+      OPEN_RECENT,
+      item("app.close_project"),
       item("app.import"),
       item("app.locate_media"),
       SEP,
@@ -187,6 +198,8 @@ export const MENU = [
       ]),
       SEP,
       item("app.statistics"),
+      SEP,
+      item("app.preferences"),
     ],
   },
   {
@@ -390,6 +403,8 @@ export const MENU = [
       ]),
       SEP,
       item("palette.open"),
+      SEP,
+      item("app.minimise"),
     ],
   },
   {
@@ -456,11 +471,56 @@ export function resolveMenu({ menu, entries, registry, state, label, platform, h
     };
   }
 
+  // The projects of Open Recent, each carrying its path as `arg` for the command.
+  function recentItems() {
+    const projects = Array.isArray(state?.recentProjects) ? state.recentProjects : [];
+    if (projects.length === 0) {
+      const name = label("menu.recent_none");
+      return [
+        {
+          kind: "item",
+          id: "app.open",
+          baseId: "app.open",
+          label: name,
+          keys: "",
+          enabled: false,
+          planned: false,
+          alternate: false,
+          hint: name,
+          tooltip: name,
+        },
+        SEP,
+      ];
+    }
+    const hint = registry.hintKey("app.open");
+    return [
+      ...projects.map((project) => ({
+        kind: "item",
+        id: "app.open",
+        baseId: "app.open",
+        arg: project.path,
+        label: project.label,
+        keys: "",
+        enabled: !project.missing && registry.can("app.open", state),
+        planned: false,
+        alternate: false,
+        hint: hint ? label(hint) : project.label,
+        tooltip: [project.path, project.detail].filter(Boolean).join(" · "),
+      })),
+      SEP,
+    ];
+  }
+
   function resolveItems(items) {
     return items.map((entry) => {
       if (entry.kind === "separator") return entry;
       if (entry.kind === "submenu") {
-        return { kind: "submenu", label: label(entry.labelKey), items: resolveItems(entry.items) };
+        const own = resolveItems(entry.items);
+        return {
+          kind: "submenu",
+          label: label(entry.labelKey),
+          items: entry.source === "recent" ? [...recentItems(), ...own] : own,
+        };
       }
       if (entry.kind === "search") return { ...resolveItem(entry.id), kind: "search" };
       return resolveItem(entry.id);
