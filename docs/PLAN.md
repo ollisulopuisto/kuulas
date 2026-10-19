@@ -3760,3 +3760,40 @@ branch (`...podcast@feat/transcribe-align#subdirectory=colab-transcribe`). **Nee
 plain-audio mode alone, and option A or B for the aligner.
 **Open:** model and language choices in the UI (the Transcribe command today uses the
 local defaults), several recordings in one Colab session, and what to do with speaker labels.
+
+---
+
+### WP79 — Transcription as a detached background job (owner, 2026-10-19)
+
+Status: proposed. Owner: "can't we move transcription into a background process that does not need kuulas to be
+open?" Today (WP9, WP78) a transcribe job is a thread inside the kuulas process: closing the app or the project
+loses it, and a Colab run is lost with it. Same answer as for the recorder (WP12): a separate process that does
+the work and keeps going when the editor is gone; the editor only submits, watches and ingests.
+
+**Design**
+- **A job file in the project:** `<project>.kuulas/jobs/<id>.json` (media ids and the audio paths as resolved,
+  backend `local` or `colab`, model, language, extra args, the host that owns it, created time) written before
+  anything starts, and a `<id>.status.json` the worker updates (state, percent, message, the last log lines, the
+  worker's pid, finished time). Results go next to it as `<id>.<media>.words.json` in the Colab contract's shape
+  (`{"version":1,"timing":...,"language":...,"words":[...]}`), never into the project database by the worker: the
+  worker never opens the project's history or takes its lock.
+- **The worker** is a small program (`kuulas-worker transcribe <job file>`, or an mode of `kuulas-recorder`'s
+  pattern: its own package that imports nothing from the editor) started detached in its own session
+  (`spawn_supervisor` style), so it survives the app quitting. It runs the chosen engine (faster-whisper locally, or
+  `colab-transcribe` through the same runner as WP78), keeps the machine awake while it works, handles SIGTERM as
+  cancel (stopping the Colab session), and exits when done. It survives the app but not a logout or reboot: a job
+  file whose worker is gone and whose state is not finished is shown as "interrupted" and can be restarted (a local
+  run starts over; the Colab run too).
+- **The editor** watches `jobs/` (the existing live channel): shows running jobs (also after reopening the app:
+  the project's jobs list), Cancel, and **ingests a finished result** when the project is open, or at the next open:
+  one undo step per media, with the `timing` marker, and the existing "changed meanwhile" guard checked at ingest
+  time (a conflict keeps the result file and says so; nothing is lost). Open: automatic add with a notice, or a notice
+  with one click to add (the recording takes in WP12 use "never import silently"; the owner decides for transcripts).
+- **Several computers (Dropbox):** the job file names its host; other computers show the job but do not run or
+  cancel it and do not ingest while the owner host's worker is running; results synced in a project folder can be
+  ingested on any computer that opens the project writable.
+- **Prerequisites:** none beyond WP78's runner; reuses the process-spawning, supervision and "keep awake" code of
+  `kuulas_recorder`. Also needed: the bundle (WP73) carries the worker like the recorder.
+**Tests:** the worker with a fake engine (success, failure, SIGTERM cancel, killed worker leaves an "interrupted" job),
+ingest with a transcript changed meanwhile, a job finished while the project was closed, two hosts, the status file
+never half-written (atomic replace).
