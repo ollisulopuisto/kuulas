@@ -3598,3 +3598,37 @@ change unless he says so, en and fi strings.
 - **File (later notes):** "Export transcripts" is its own submenu in File (subtitles, transcript text, chapters,
   regions, narration script live there); Import stays in File; and File needs **New** (a new empty project: ask
   for a name and a folder, create the `.kuulas` folder, open it in a window).
+
+---
+
+### WP75 — Help search: find the right command by typing (owner, 2026-10-19; "very important")
+
+Status: open. Owner: "we need a text field in the Help menu that you can type into to find the right command".
+Like the Help menu's search field on macOS: the first item of the Help menu is a text field; typing lists the
+matching commands, and choosing one runs it or shows where it lives. The command palette (Cmd+K) already
+searches commands; this is the same search where a person looks for help: in the menu.
+
+**Behaviour**
+- The Help menu opens with the cursor already in a field "Search commands and help…". Typing filters live
+  (accents and case ignored, several words all must match, Finnish and English names both found in either UI
+  language, because people remember the English name from other programs).
+- Results, at most about 12, best first: the command's name, **where it is in the menus** (for example
+  "File > Export transcripts > SRT subtitles"), its key (or "no key"), and one line of its hint. Then matching
+  help topics (title and body) below the commands.
+- Up/Down move through results, **Enter runs the command** (greyed ones show why: no project open), **Alt+Enter or
+  a "Show in menu" button opens that menu and highlights the item** so the person learns where it is, Esc closes.
+  Clicking a help topic opens it in the Help panel.
+- It searches every command the app knows, including the ones that are only in the palette (the per-format
+  exports); those show "Command palette only".
+- It also finds by what the command does, not only its name: search the hint text and a small list of synonyms
+  (for example "remove", "erase" find Delete; "volume" finds Gain; "mic", "microphone"; "save as", "export",
+  "render", "bounce"). Keep the synonym list in one data file with tests.
+- Works in the in-window menu bar and, in the desktop window, the same search is available as the Help menu's
+  first item (native menus cannot hold a text field: then the item "Search commands…" (Cmd+Shift+/ or the key the
+  Help command already has) opens the same search in a small panel over the window). Say what you chose.
+- Pure matching and ranking in a module (`ui/command-search.js`) with node tests; strings in en and fi; the
+  palette uses the same module so the two never disagree; a Help topic line. Every command in a menu stays true.
+
+**Tests first:** ranking (exact name beats hint match), several words, accents, the menu path of nested items,
+synonyms, commands without a key, greyed commands with a reason, an empty query shows nothing (or the recent
+commands). No DOM in the matching tests.
