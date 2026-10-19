@@ -1,3 +1,20 @@
+## [v26.10.19.22] - 2026-10-19
+
+- **Recording a single track (first version):** Transport > Record… opens the record view: choose the input and
+  channel, the track to record onto (or a new one), watch the level meter (peak hold, clip light), the time and the
+  disk time left, and press Record. **Stopping is two steps by default:** the first Space or click asks "Stop
+  recording? Press again" (about 4 seconds; if you do nothing it keeps recording), the second stops. Settings
+  (Transport > "Stopping a recording"): one click, or hold 2 seconds. Esc, hiding the view and closing the window do
+  not stop a take (a red "Recording" chip brings the view back); the take is written by the separate recorder
+  program, so quitting or crashing the editor does not stop it, and reopening the editor reconnects. When you stop,
+  the take lands on the track as a clip at the play cursor in one undo step; the files are inside the project in
+  `recordings/`. A take that was never imported (a crash) is offered when the project opens, never imported by
+  itself. Playback is stopped while recording (use your interface's direct monitoring). A lost microphone, a low
+  disk and a dead recorder all keep what was recorded and tell you. **Not tried with a real microphone yet and
+  not in the .dmg app:** try it from Terminal with `uv run kuulas open <project>` and allow the microphone for
+  Terminal; the checklist is in `docs/RECORDER.md` and `docs/TESTERS.md`. Not built: a level meter before you press
+  Record, take markers, several channels (WP12b), pre-roll (WP12c).
+
 ## [v26.10.19.21] - 2026-10-19
 
 - **Fixes from your testing:** a file dragged in from Finder now lands where you dropped it, not at the play cursor
