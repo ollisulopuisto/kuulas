@@ -1341,6 +1341,24 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.view.pause_never",
   },
   {
+    id: "view.language_auto",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.view.language_auto",
+  },
+  {
+    id: "view.language_fi",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.view.language_fi",
+  },
+  {
+    id: "view.language_en",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.view.language_en",
+  },
+  {
     id: "keymap.reset",
     keys: { mac: null, other: null },
     context: "global",

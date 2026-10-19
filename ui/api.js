@@ -26,6 +26,10 @@ const post = (path, body) => json(path, { method: "POST", body: JSON.stringify(b
 export const getState = () => json("/api/state");
 /** This project's remembered view (kept outside the project): { view: object | null }. */
 export const getBuild = () => json("/api/build");
+/** View > Language: { setting: "auto" | "en" | "fi", language } (the server's own view). */
+export const getLanguage = () => json("/api/language");
+export const putLanguage = (setting) =>
+  json("/api/language", { method: "PUT", body: JSON.stringify({ setting }) });
 export const getViewMemory = () => json("/api/view-memory");
 /** `keepalive` lets the write finish while the page is being left. */
 export const putViewMemory = (view, { now = false } = {}) =>

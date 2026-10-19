@@ -569,7 +569,7 @@
   "ui.clock.copied": "Kopioitu {time}",
   "ui.clock.copy_failed": "Ajan kopiointi ei onnistunut",
   "ui.clock.field": "Hyppää aikaan",
-  "ui.clock.edit_hint": "Enter hyppää · Esc peruu · 1:23,5 tai +100 / -30 tästä",
+  "ui.clock.edit_hint": "Kirjoita numeroita, ne täyttyvät oikealta (110 on 1:10; pilkku aloittaa murto-osan) · +100 / -30 tästä · Enter hyppää · Esc peruu",
   "ui.clock.invalid": "Ei ole aika. Kokeile 1:23,5, +100 tai -30",
   "cmd.rename": "Nimeä uudelleen",
   "cmd.app.import": "Tuo…",
@@ -2043,5 +2043,12 @@
   "ui.colab.signin_cancel": "Peru kirjautuminen",
   "ui.colab.signin_output": "Mitä kirjautumisohjelma sanoo",
   "ui.colab.signin_state_yes": "Kirjauduttu Googleen Colabia varten.",
-  "ui.colab.signin_state_no": "Ei kirjauduttu Googleen Colabia varten."
-}
+  "ui.colab.signin_state_no": "Ei kirjauduttu Googleen Colabia varten.",
+  "menu.language": "Kieli",
+  "cmd.view.language_auto": "Kieli: Automaattinen (järjestelmä)",
+  "cmd.view.language_auto.hint": "Käytä järjestelmän kieltä näytössä ja kuulaksen viesteissä; muistetaan sinulle",
+  "cmd.view.language_fi": "Kieli: Suomi",
+  "cmd.view.language_fi.hint": "Näytä kuulas suomeksi järjestelmän kielestä riippumatta; muistetaan sinulle",
+  "cmd.view.language_en": "Kieli: English",
+  "cmd.view.language_en.hint": "Näytä kuulas englanniksi järjestelmän kielestä riippumatta; muistetaan sinulle",
+  "ui.language.failed": "Kieltä ei voitu tallentaa: {error}"}

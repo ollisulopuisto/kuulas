@@ -3,7 +3,8 @@
 // once; a submenu opens after the pointer rests on its row, and closes when the pointer
 // moves to another row (after a short grace when it is travelling toward the submenu).
 
-export const HOVER_DELAY = 200; // ms
+export const HOVER_DELAY = 90; // ms (owner, M1 testing: 200 felt slow)
+export const GRACE_DELAY = 200; // ms the open submenu stays while the pointer travels toward it
 
 /** Only a mouse hovers. Touch and pen get the click and keyboard behaviour only. */
 export function isHoverPointer(pointerType) {
@@ -26,7 +27,7 @@ export function rowHover({ subOpen, openRow, row, rowIsSubmenu, towardSub }) {
     return { act: "open-sub", delay: HOVER_DELAY };
   }
   if (!subOpen) return { act: "cancel" };
-  return { act: "close-sub", delay: towardSub ? HOVER_DELAY : 0 };
+  return { act: "close-sub", delay: towardSub ? GRACE_DELAY : 0 };
 }
 
 /**

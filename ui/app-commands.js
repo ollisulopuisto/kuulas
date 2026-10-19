@@ -138,6 +138,10 @@ export function registerAppCommands(registry, { actions, app }) {
   for (const choice of PAUSE_CHOICES) {
     def(`view.pause_${choice.id}`, () => actions.setPauseBreak(choice.id));
   }
+  // View > Language: a user preference (no project needed), kept on the server.
+  for (const choice of ["auto", "fi", "en"]) {
+    def(`view.language_${choice}`, () => actions.setLanguageChoice(choice));
+  }
   def("view.forward", () => actions.viewForward(), hasProject);
   def("view.zoom_in", () => actions.zoomStep(1), hasProject);
   def("view.zoom_out", () => actions.zoomStep(-1), hasProject);

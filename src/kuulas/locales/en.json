@@ -567,7 +567,7 @@
   "ui.clock.copied": "Copied {time}",
   "ui.clock.copy_failed": "Could not copy the time",
   "ui.clock.field": "Jump to time",
-  "ui.clock.edit_hint": "Enter jumps · Esc cancels · 1:23.5, or +100 / -30 from here",
+  "ui.clock.edit_hint": "Type digits, they fill in from the right (110 is 1:10; a comma starts a fraction) · +100 / -30 from here · Enter jumps · Esc cancels",
   "ui.clock.invalid": "Not a time. Try 1:23.5, +100 or -30",
   "cmd.rename": "Rename",
   "cmd.app.import": "Import…",
@@ -1941,5 +1941,12 @@
   "ui.colab.signin_cancel": "Cancel sign-in",
   "ui.colab.signin_output": "What the sign-in program says",
   "ui.colab.signin_state_yes": "Signed in to Google for Colab.",
-  "ui.colab.signin_state_no": "Not signed in to Google for Colab."
-}
+  "ui.colab.signin_state_no": "Not signed in to Google for Colab.",
+  "menu.language": "Language",
+  "cmd.view.language_auto": "Language: Automatic (system)",
+  "cmd.view.language_auto.hint": "Use the system's language for the screen and for kuulas's messages; remembered for you",
+  "cmd.view.language_fi": "Language: Suomi",
+  "cmd.view.language_fi.hint": "Show kuulas in Finnish, whatever the system's language is; remembered for you",
+  "cmd.view.language_en": "Language: English",
+  "cmd.view.language_en.hint": "Show kuulas in English, whatever the system's language is; remembered for you",
+  "ui.language.failed": "The language could not be saved: {error}"}

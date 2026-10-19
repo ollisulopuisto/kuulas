@@ -61,10 +61,52 @@ def _apple_languages() -> list[str]:
     return re.findall(r'[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]+)*', done.stdout)
 
 
+AUTO = "auto"
+
+
+def settings_file() -> Path:
+    """The per-user app settings: ``$KUULAS_SETTINGS_FILE`` (tests, portable
+    setups) or ``settings.json`` in the per-user config folder."""
+    override = os.environ.get("KUULAS_SETTINGS_FILE")
+    if override:
+        return Path(override)
+    from .desktop import config_dir  # noqa: PLC0415 - desktop imports this module
+    return config_dir() / "settings.json"
+
+
+def language_setting() -> str:
+    """View > Language: ``"auto"`` (follow the system), ``"en"`` or ``"fi"``.
+    A missing or damaged file, or a language we do not ship, means ``"auto"``."""
+    try:
+        data = json.loads(settings_file().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return AUTO
+    value = data.get("language") if isinstance(data, dict) else None
+    return value if value in LANGUAGES else AUTO
+
+
+def save_language_setting(value: str) -> None:
+    """Remember the choice for this user. ``ValueError`` for anything but
+    ``"auto"`` or a shipped language; ``OSError`` if the file cannot be written."""
+    if value != AUTO and value not in LANGUAGES:
+        raise ValueError(value)
+    path = settings_file()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
+    data["language"] = value
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+
 def default_language() -> str:
     """The language the OS asks for.
 
-    Order: LC_ALL and LC_MESSAGES (an explicit override), the macOS language
+    Order: LC_ALL and LC_MESSAGES (an explicit override), the app's own
+    language setting (View > Language), the macOS language
     list, LANG, then the locale. The first language kuulas ships wins on the
     macOS list; one we do not ship is skipped, as the system itself does.
     """
@@ -72,6 +114,9 @@ def default_language() -> str:
         value = os.environ.get(var, "")
         if value:
             return _normalise(value)
+    chosen = language_setting()
+    if chosen != AUTO:
+        return chosen
     apple = _apple_languages()
     for tag in apple:
         primary = _normalise(tag)

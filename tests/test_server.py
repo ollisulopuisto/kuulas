@@ -188,6 +188,26 @@ def test_error_text_follows_accept_language(client):
     assert r.json()["error"]["text"] == "There is no track x."
 
 
+def test_language_setting_round_trip_and_beats_accept_language(client):
+    assert client.get("/api/language").json() == {"setting": "auto", "language": "en"}
+    r = client.put("/api/language", json={"setting": "fi"})
+    assert r.json() == {"setting": "fi", "language": "fi"}
+    # An explicit choice outranks the browser's Accept-Language.
+    r = client.post("/api/edit", json={"op": "set_track", "args": {"track_id": "x"}},
+                    headers={"Accept-Language": "en"})
+    assert r.json()["error"]["text"] == "Raitaa x ei ole."
+    r = client.put("/api/language", json={"setting": "auto"})
+    assert r.json()["setting"] == "auto"
+    r = client.post("/api/edit", json={"op": "set_track", "args": {"track_id": "x"}},
+                    headers={"Accept-Language": "fi"})
+    assert r.json()["error"]["text"] == "Raitaa x ei ole."
+
+
+def test_language_setting_refuses_an_unknown_language(client):
+    r = client.put("/api/language", json={"setting": "sv"})
+    assert r.status_code == 400
+
+
 def test_pick_language():
     assert pick_language("fi-FI,fi;q=0.9", "en") == "fi"
     assert pick_language("sv, fi;q=0.8, en;q=0.5", "en") == "fi"

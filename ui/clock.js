@@ -2,11 +2,18 @@
 //   click          copies the shown time to the system clipboard ("Copied")
 //   double-click   an inline field with the time selected; Enter jumps, Esc cancels
 //   Enter / Cmd+J  (Spot) the same field from the keyboard
-// Typed text is absolute ("1:23.5") or relative ("+100", "-30", "+1:30", "500ms"):
-// time-jump.js decides, text that is no time keeps the field open and the cursor where it is.
+// Typing is like Final Cut (time-entry.js): digits fill in from the right and the whole timestamp
+// stays visible (110 is 0:01:10), a comma starts a fraction, Backspace takes the last digit off.
+// A sign, a colon or a unit ("+100", "-30", "+1:30", "500ms") or a pasted timestamp turns the field
+// into plain text: absolute ("1:23.5") or relative, and time-jump.js decides. Text that is no
+// time keeps the field open and the cursor where it is.
 // The field owns the keys while it has focus: + and - type, they do not zoom.
 import { browserRoutes, copyText } from "./copy-text.js";
+import { getLanguage } from "./i18n.js";
+import { fieldKey, fieldPaste, fieldText, fieldValue, openField } from "./time-entry.js";
 import { resolveTime } from "./time-jump.js";
+
+const decimal = () => (getLanguage() === "fi" ? "," : ".");
 
 /**
  * `el` is the #timecode element. `getState()`, `rate()`, `limit()` (end of the edit, frames),
@@ -14,7 +21,8 @@ import { resolveTime } from "./time-jump.js";
  * `routes()` gives the clipboard routes (tests pass fakes).
  */
 export function createClock({ el, getState, rate, limit, format, seek, notify, t, routes }) {
-  let field = null;
+  let field = null; // the open <input>
+  let entry = null; // time-entry.js's state of what it holds
   el.tabIndex = 0;
   el.setAttribute("role", "button");
   el.title = t("ui.clock.tip");
@@ -38,8 +46,15 @@ export function createClock({ el, getState, rate, limit, format, seek, notify, t
     if (!field) return;
     const shown = format(getState().playhead ?? 0, rate());
     field = null;
+    entry = null;
     el.textContent = shown;
     if (focus) el.focus();
+  }
+
+  /** Put the entry's text in the field, the caret at the end. */
+  function show(input) {
+    input.value = fieldText(entry, decimal());
+    input.setSelectionRange(input.value.length, input.value.length);
   }
 
   function open() {
@@ -52,6 +67,7 @@ export function createClock({ el, getState, rate, limit, format, seek, notify, t
     input.setAttribute("aria-label", t("ui.clock.field"));
     input.title = t("ui.clock.edit_hint");
     input.value = el.textContent;
+    entry = openField(el.textContent);
     field = input;
     el.textContent = "";
     el.append(input);
@@ -62,7 +78,7 @@ export function createClock({ el, getState, rate, limit, format, seek, notify, t
       event.stopPropagation();
       if (event.key === "Enter") {
         event.preventDefault();
-        const frame = resolveTime(input.value, {
+        const frame = resolveTime(fieldValue(entry), {
           from: getState().playhead ?? 0,
           end: limit(),
           rate: rate(),
@@ -79,7 +95,24 @@ export function createClock({ el, getState, rate, limit, format, seek, notify, t
         close(true);
       } else {
         input.removeAttribute("aria-invalid");
+        const modified = event.metaKey || event.ctrlKey || event.altKey;
+        const result = fieldKey(entry, event.key, modified);
+        entry = result.field;
+        if (result.handled) {
+          event.preventDefault();
+          show(input);
+        }
       }
+    });
+    // Plain text is edited by the browser; keep our copy of it.
+    input.addEventListener("input", () => {
+      if (entry.free) entry = { ...entry, text: input.value };
+    });
+    input.addEventListener("paste", (event) => {
+      event.preventDefault();
+      entry = fieldPaste(entry, event.clipboardData?.getData("text") ?? "");
+      input.removeAttribute("aria-invalid");
+      show(input);
     });
     // Clicking away cancels: a jump only happens on Enter.
     input.addEventListener("blur", () => {

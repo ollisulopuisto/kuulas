@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { HOVER_DELAY, isHoverPointer, movingToward, rowHover, topHover } from "../menu-hover.js";
+import {
+  GRACE_DELAY,
+  HOVER_DELAY,
+  isHoverPointer,
+  movingToward,
+  rowHover,
+  topHover,
+} from "../menu-hover.js";
 
 describe("which pointers hover", () => {
   test("only a mouse does; touch and pen do nothing special", () => {
@@ -30,7 +37,7 @@ describe("rows in a list", () => {
       act: "open-sub",
       delay: HOVER_DELAY,
     });
-    assert.equal(HOVER_DELAY, 200);
+    assert.equal(HOVER_DELAY, 90);
   });
   test("resting on the row whose submenu is open keeps it", () => {
     assert.deepEqual(rowHover({ ...base, subOpen: true, openRow: 3, row: 3, rowIsSubmenu: true }), {
@@ -62,8 +69,10 @@ describe("rows in a list", () => {
         rowIsSubmenu: false,
         towardSub: true,
       }),
-      { act: "close-sub", delay: HOVER_DELAY },
+      { act: "close-sub", delay: GRACE_DELAY },
     );
+    // The open is quick, the grace for a wobbly diagonal stays generous.
+    assert.ok(HOVER_DELAY < GRACE_DELAY);
   });
 });
 

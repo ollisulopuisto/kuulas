@@ -128,7 +128,18 @@ def pick_language(header: str | None, default: str) -> str:
     return default
 
 
+def request_language(header: str | None, default: str) -> str:
+    """The language of one request: the user's explicit choice (View > Language)
+    first, then the browser's ``Accept-Language``, then ``default``."""
+    chosen = messages.language_setting()
+    return chosen if chosen != messages.AUTO else pick_language(header, default)
+
+
 # -- bodies --------------------------------------------------------------------
+
+
+class LanguageBody(BaseModel):
+    setting: str
 
 
 class EditBody(BaseModel):
@@ -315,8 +326,8 @@ def create_app(session, engine, *, language: str | None = None,
 
     @app.middleware("http")
     async def per_request(request: Request, call_next):
-        messages.set_language(pick_language(request.headers.get("accept-language"),
-                                            default_language))
+        messages.set_language(request_language(request.headers.get("accept-language"),
+                                               default_language))
         if request.url.path != "/api/jobs" and request.method != "GET":
             app.state.last_input = time.monotonic()
         try:
@@ -507,6 +518,25 @@ def create_app(session, engine, *, language: str | None = None,
     def get_build():
         """Which version and commit this is, for bug reports (build_info.py)."""
         return JSONResponse({"build": build_label()})
+
+    @app.get("/api/language")
+    def get_language():
+        """View > Language: the stored choice and the language in use now."""
+        return JSONResponse({"setting": messages.language_setting(),
+                             "language": messages.language()})
+
+    @app.put("/api/language")
+    def put_language(body: LanguageBody):
+        try:
+            messages.save_language_setting(body.setting)
+        except ValueError:
+            raise BadRequestError("error.server.bad_request",
+                                  detail=body.setting) from None
+        except OSError as e:
+            raise BadRequestError("error.server.bad_request", detail=str(e)) from None
+        messages.set_language(request_language(None, default_language))
+        return JSONResponse({"setting": messages.language_setting(),
+                             "language": messages.language()})
 
     @app.get("/api/view-memory")
     def get_view_memory():
@@ -1140,8 +1170,8 @@ def create_app(session, engine, *, language: str | None = None,
     @app.websocket("/api/live")
     async def live(ws: WebSocket):
         await ws.accept()
-        messages.set_language(pick_language(ws.headers.get("accept-language"),
-                                            default_language))
+        messages.set_language(request_language(ws.headers.get("accept-language"),
+                                               default_language))
         queue: asyncio.Queue = asyncio.Queue()
         hub.add(asyncio.get_running_loop(), queue)
 

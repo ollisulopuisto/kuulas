@@ -53,12 +53,14 @@ import { createHelpPanel } from "./help-panel.js";
 import { undoNotice } from "./history-model.js";
 import { createHistoryPanel } from "./history-panel.js";
 import {
+  detectLanguage,
   formatClock,
   formatNumber,
   formatShortcut,
   getLanguage,
   initI18n,
   onLanguageChange,
+  setLanguage,
   t,
 } from "./i18n.js";
 import { installIcons } from "./icons.js";
@@ -471,6 +473,21 @@ const actions = {
     history = View.visitView(history, { zoom: getState().zoom, scroll: getState().scroll });
   },
   /** View > Break paragraphs at pauses over: remembered per user, applied at once. */
+  /** View > Language: stored on the server (its messages follow), applied here at once. */
+  async setLanguageChoice(choice) {
+    try {
+      await api.putLanguage(choice);
+    } catch (error) {
+      showNotice(t("ui.language.failed", { error: error.message }));
+      return;
+    }
+    setState({ languageChoice: choice });
+    try {
+      await setLanguage(choice === "auto" ? detectLanguage() : choice);
+    } catch (error) {
+      showError(error);
+    }
+  },
   setPauseBreak(choice) {
     const id = pauseChoiceId(choice);
     prefs.set(PAUSE_BREAK_KEY, id);
@@ -2761,8 +2778,19 @@ document.addEventListener("visibilitychange", () => {
 
 // -- start --------------------------------------------------------------------------------------------------
 
+// View > Language: an explicit choice (kept on the server) beats the browser's language.
+let languageChoice = "auto";
 try {
-  await initI18n({ document });
+  languageChoice = (await api.getLanguage()).setting;
+} catch {
+  // No answer: follow the browser, as before.
+}
+setState({ languageChoice });
+try {
+  await initI18n({
+    document,
+    language: languageChoice === "auto" ? detectLanguage() : languageChoice,
+  });
 } catch (error) {
   console.error("the translations could not be loaded; showing message keys", error);
 }
