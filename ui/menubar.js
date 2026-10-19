@@ -109,6 +109,10 @@ export function createMenubar({ root, getMenus, run, onHint, t }) {
         button.append(arrow);
       } else {
         button.setAttribute("aria-disabled", String(!item.enabled));
+        if (item.checked !== undefined) {
+          button.setAttribute("role", "menuitemcheckbox");
+          button.setAttribute("aria-checked", String(item.checked));
+        }
         if (item.alternate) button.dataset.alternate = "";
         button.title = item.tooltip;
         if (item.keys) {
