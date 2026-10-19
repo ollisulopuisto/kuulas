@@ -38,8 +38,11 @@ test("inspector rows are a two-column grid with full-width controls", () => {
   assert.match(rule(".inspector-readonly"), /text-align:\s*left/);
 });
 
-test("History Undo and Redo are shared .button buttons with an icon and a label", () => {
-  assert.match(historyPanel, /const undo = el\("button", \{ type: "button", class: "button",/);
+test("History Undo and Redo are shared .button.block buttons with an icon and a label", () => {
+  assert.match(
+    historyPanel,
+    /const undo = el\("button", \{ type: "button", class: "button block",/,
+  );
   assert.doesNotMatch(historyPanel, /const (undo|redo) = el\("button", \{[^}]*ghost/);
   assert.match(historyPanel, /"data-icon": "undo"/);
   assert.match(historyPanel, /"data-icon": "redo"/);

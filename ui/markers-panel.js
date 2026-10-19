@@ -136,10 +136,11 @@ export function createMarkersPanel({ root, actions }) {
     return el("li", { class: "clip-entry", dataset: { id: LEFT_OFF_ID, pinned: "true" } }, main);
   }
 
-  const toolbarButton = (command, label, state) => {
+  const toolbarButton = (command, label, state, icon) => {
     const node = el("button", {
       type: "button",
-      class: "button",
+      class: "button block",
+      "data-icon": icon,
       textContent: label,
       disabled: !actions.can(command, state),
       dataset: { action: command },
@@ -221,24 +222,25 @@ export function createMarkersPanel({ root, actions }) {
         : null;
     root.replaceChildren(
       el("h2", { textContent: t("ui.markers.title") }),
+      // The one action bar, at the top; the drift actions join it while clips drift.
       el(
         "div",
-        { class: "clip-choice" },
-        toolbarButton("marker.add", t("cmd.marker.add"), state),
-        toolbarButton("export.chapters_text", t("cmd.export.chapters_text"), state),
-        toolbarButton("export.chapters_json", t("cmd.export.chapters_json"), state),
-        toolbarButton("export.regions", t("cmd.export.regions"), state),
+        { class: "actionbar", role: "group", "aria-label": t("ui.markers.title") },
+        toolbarButton("marker.add", t("cmd.marker.add"), state, "plus"),
+        toolbarButton("export.chapters_text", t("cmd.export.chapters_text"), state, "export"),
+        toolbarButton("export.chapters_json", t("cmd.export.chapters_json"), state, "export"),
+        toolbarButton("export.regions", t("cmd.export.regions"), state, "export"),
+        ...(drifting.length > 0
+          ? [
+              toolbarButton("sync.resync_all", t("cmd.sync.resync_all"), state, "reset"),
+              toolbarButton("sync.free_all", t("cmd.sync.free_all"), state, "close"),
+            ]
+          : []),
       ),
     );
     if (drifting.length > 0) {
       root.append(
         el("h3", { textContent: t("ui.sync.drift.title") }),
-        el(
-          "div",
-          { class: "clip-choice" },
-          toolbarButton("sync.resync_all", t("cmd.sync.resync_all"), state),
-          toolbarButton("sync.free_all", t("cmd.sync.free_all"), state),
-        ),
         el(
           "ul",
           { class: "clip-list", "aria-label": t("ui.sync.drift.list_label") },

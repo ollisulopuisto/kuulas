@@ -62,7 +62,7 @@ export function createCheatSheet({ getData, t, actions, getHeld }) {
   ].map(([id, run]) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "button";
+    button.className = "button block";
     button.dataset.id = id;
     button.dataset.icon = id.split(".")[1];
     button.addEventListener("click", () => run());
@@ -70,7 +70,7 @@ export function createCheatSheet({ getData, t, actions, getHeld }) {
   });
   const close = document.createElement("button");
   close.type = "button";
-  close.className = "button primary";
+  close.className = "button block primary";
   close.dataset.icon = "close";
   close.addEventListener("click", () => dialog.close());
   footer.append(...buttons, close);

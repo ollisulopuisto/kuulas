@@ -30,7 +30,7 @@ export function createCandidatesPanel({ root, getState, actions }) {
   const title = el("h2");
   const find = el("button", {
     type: "button",
-    class: "button",
+    class: "button block",
     "data-icon": "search",
     id: "cand-find",
   });
@@ -45,31 +45,38 @@ export function createCandidatesPanel({ root, getState, actions }) {
   const bar = el("div", { class: "preview-bar", hidden: true, role: "img" });
   const preview = el("button", {
     type: "button",
-    class: "button",
+    class: "button block",
     "data-icon": "play",
     id: "cand-preview",
   });
   const del = el("button", {
     type: "button",
-    class: "button primary",
+    class: "button block primary",
     "data-icon": "trash",
     id: "cand-delete",
   });
-  const cut = el("button", { type: "button", class: "button", "data-icon": "cut", id: "cand-cut" });
+  const cut = el("button", {
+    type: "button",
+    class: "button block",
+    "data-icon": "cut",
+    id: "cand-cut",
+  });
   const keep = el("button", {
     type: "button",
-    class: "button",
+    class: "button block",
     "data-icon": "check",
     id: "cand-keep",
   });
-  const actionbar = el("div", { class: "actionbar" }, bar, preview, del, cut, keep);
+  // The one action bar, at the top; the preview bar is a readout and stays under the list.
+  const actionbar = el("div", { class: "actionbar", role: "group" }, find, preview, del, cut, keep);
   root.replaceChildren(
     title,
-    el("div", { class: "cand-tools" }, find, filterLabel),
+    actionbar,
+    el("div", { class: "cand-tools" }, filterLabel),
     chips,
     status,
     scroller,
-    actionbar,
+    bar,
   );
 
   const rowOf = (id) => list.querySelector(`[data-id="${CSS.escape(id)}"]`);

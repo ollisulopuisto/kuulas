@@ -250,12 +250,18 @@ export function createClipboardPanel({ root, actions }) {
     const clear = button("clear-old", "clear-old", t("ui.clipboard.clear_old"), () =>
       actions.clearOld(),
     );
+    clear.className = "button block";
+    clear.dataset.icon = "trash";
     return el(
       "div",
-      { class: "clip-clear" },
-      el("span", { textContent: t("ui.clipboard.keep_label") }),
-      field,
+      { class: "actionbar clip-clear", role: "group", "aria-label": t("ui.clipboard.title") },
       clear,
+      el(
+        "label",
+        { class: "clip-keep-field" },
+        el("span", { textContent: t("ui.clipboard.keep_label") }),
+        field,
+      ),
     );
   }
 
@@ -273,7 +279,6 @@ export function createClipboardPanel({ root, actions }) {
             t("ui.clipboard.list_label"),
             shown.map((entry) => ownRow(entry, state, rate, canPaste)),
           ),
-      clearRow(state),
     ];
   }
 
@@ -439,8 +444,11 @@ export function createClipboardPanel({ root, actions }) {
           }
         : null;
     const query = state.clipboardFilter ?? "";
+    // The one action bar, at the top: only the project view with entries has actions here.
+    const bar = view === "project" && (state.clipboard ?? []).length > 0 ? [clearRow(state)] : [];
     root.replaceChildren(
       el("h2", { textContent: t("ui.clipboard.title") }),
+      ...bar,
       viewSwitch(view),
       el(
         "div",
