@@ -57,6 +57,7 @@ Name.kuulas/
   project.sqlite       all state: material, edits, history (WAL mode)
   locks/               who has it open: one file per open instance (empty when closed)
   resume.json          where the user left off (not project state; see "resume.json")
+  clipboard.json       this project's clipboard (not project state; see "clipboard.json")
   media/
     <media id>.flac    working file (absent for linked media)
     excerpts/          WP20 excerpts, same naming
@@ -161,6 +162,55 @@ On open the UI restores from the newer of this file and the per-user view
 memory (`saved_at`). A damaged file, or one without `saved_at`, is ignored; so
 is any file with "conflicted copy" in its name (only the exact name
 `resume.json` is read). `syncmark.py` leaves it alone: it must sync.
+
+## clipboard.json
+
+`{"entries": [Entry, ...]}`, newest first: the project's own clipboard (WP46,
+WP65). An entry is a snapshot of copied clips as references (media SHA-256,
+source offset and length, gain, pan, fades, envelope, layout), never audio, plus
+the metadata the panel shows and later sorting and search use: `id`, `name`,
+`created_utc` (epoch seconds, UTC), `span`, `source_project` (the folder it was
+copied in), `pinned` (kept for compatibility; the UI no longer pins), and the
+keys below. Unknown keys are kept and written back.
+
+Metadata kept for sorting and searching (all optional; an entry without them
+loads with the defaults):
+
+| key | meaning |
+|---|---|
+| `source_name`, `source_id` | the source project's name (folder stem) and manifest `id` |
+| `tracks`, `track_kinds` | the names and kinds of the source tracks, by slot |
+| `text` | the transcript words inside the copied stretch, one line per track, original case (search lowercases) |
+| `shared` | `true` when marked as worth sharing across projects (WP65 step 4) |
+| `adopted_from` | the folder of the project an adopted copy came from |
+| `refs[].media_name` | the recording's file name when copied (never an identity; the hash is) |
+
+**Not project state.** Never in the history or the database, no undo step, no
+change to the bytes of `project.sqlite`. The file is rewritten atomically
+(temp file, fsync, rename) on every copy, cut, rename, delete and clear. Only the
+instance that holds the lock writes it; a read-only open keeps its clipboard in
+memory and never writes. A write failure is a logged warning, never an error;
+nothing the user copied is dropped for size (the only prune is the explicit
+"Clear old entries").
+
+**It must sync.** The clipboard travels with the project through Dropbox to the
+other Mac, so `syncmark.py` never marks it and it is not in any ignore list. Only
+the exact name `clipboard.json` is read; a file with "conflicted copy" in its
+name is another file and ignored. A damaged file reads as an empty clipboard (and
+is replaced by the next write).
+
+**Browsing and adopting (WP65).** The Clipboard tab can list another project's
+clipboard. That is read-only: kuulas reads only `<folder>/clipboard.json` of
+that project, never takes its lock, never opens its database. The folder must
+be an absolute path with no `..`, an existing `*.kuulas` folder (links resolved)
+holding a `manifest.json`; `clipboard.json` itself must be a plain file, not a
+link. A missing, damaged or oversized file is an empty list, never an error.
+Adopting copies an entry into the open project's own clipboard with a new id and
+`adopted_from` set (the original's `created_utc` is kept in `adopted_created_utc`).
+
+The per-user file `clipboard.json` in the config folder (or
+`$KUULAS_CLIPBOARD_FILE`) has the same format and is the **shared** store: the
+entries the user marked as worth sharing across projects (WP65).
 
 ## Database schema (`project.sqlite`, WAL, `synchronous=FULL`)
 

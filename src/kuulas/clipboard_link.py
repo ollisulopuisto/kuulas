@@ -40,6 +40,19 @@ def candidate_paths(source_project: str, digest: str) -> list[Path]:
     return [p for p in (Path(r[0]) for r in rows) if p.is_file()]
 
 
+def same_folder(a: str | Path, b: str | Path) -> bool:
+    """Whether two project folders are the same place, however spelled (a
+    symlink, a trailing ``..``). An empty path is no place."""
+    if not str(a) or not str(b):
+        return False
+    if str(a) == str(b):
+        return True
+    try:
+        return Path(a).resolve() == Path(b).resolve()
+    except (OSError, RuntimeError):
+        return False
+
+
 def has_digest(path: Path, digest: str) -> bool:
     """Whether the file at ``path`` still has the SHA-256 ``digest``."""
     try:

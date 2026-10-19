@@ -85,7 +85,10 @@ def config_dir(platform: str | None = None, env: dict[str, str] | None = None,
 
 
 def recents_file() -> Path:
-    return config_dir() / "recent.json"
+    """The recent projects file: ``$KUULAS_RECENTS_FILE`` (tests, portable setups)
+    or ``recent.json`` in the per-user config folder."""
+    override = os.environ.get("KUULAS_RECENTS_FILE")
+    return Path(override) if override else config_dir() / "recent.json"
 
 
 def load_recents(file: Path) -> list[str]:
@@ -273,6 +276,14 @@ class Bridge:
         while not folder.is_dir() and folder != folder.parent:
             folder = folder.parent
         got = self._dialog(self._webview.FileDialog.FOLDER, directory=str(folder))
+        return got[0] if got else None
+
+    def pick_project_folder(self) -> str | None:
+        """Native folder chooser for "Open a project..." in the Clipboard tab:
+        the chosen folder, or None when cancelled. It only names a folder; the
+        server decides whether it is a project (``clipboard_browse.project_folder``)
+        and only ever reads its ``clipboard.json``."""
+        got = self._dialog(self._webview.FileDialog.FOLDER)
         return got[0] if got else None
 
     def reveal_export(self) -> bool:

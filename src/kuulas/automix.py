@@ -177,7 +177,7 @@ def check_stems(folder: Path) -> None:
     """Check the stems folder against the rules the automixer's folder route reads
     ``tracks.json`` with, so a mismatch is our error with the field named, not a
     refusal from the tool: version 1, rate 48000, start_frame 0, processing "dry",
-    ``frames`` matching every file, each file's rate and channels, no speech-mix,
+    ``frames`` matching every file, each file's rate and channels,
     music stereo, unique names. Raises ``AutomixError`` (``bad_stems``)."""
     def fail(detail: str) -> NoReturn:
         raise AutomixError("error.automix.bad_stems", detail=detail)
@@ -196,8 +196,6 @@ def check_stems(folder: Path) -> None:
         if name in names:
             fail(f"duplicate track name {name!r}")
         names.add(name)
-        if track.get("kind") == "speech-mix":
-            fail(f"track {name!r}: kind speech-mix is not accepted")
         if track.get("kind") == "music" and track.get("channels") != 2:
             fail(f"track {name!r}: music must be stereo")
         try:
@@ -216,7 +214,7 @@ def check_stems(folder: Path) -> None:
 def export_stems(session, folder: Path | str, report=None,
                  cancel: threading.Event | None = None) -> dict:
     """Write the stems for the automixer into ``folder``: the "Export all tracks"
-    files (dry, equal length, 48 kHz), without ``speech-mix`` tracks, music as
+    files (dry, equal length, 48 kHz), music as
     stereo and ``tracks.json`` as version 1. Returns the export result."""
     args = {**session.tracks_export_args({"folder": str(folder)}), "for_automixer": True}
     return export.run(session, args, report, cancel, file_name="stems")

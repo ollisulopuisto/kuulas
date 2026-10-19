@@ -33,7 +33,7 @@ def test_role_defaults():
     assert default_target_lufs("speech") == -19.0
     assert default_target_lufs("music") == -23.0
     assert default_target_lufs("narration") == -19.0
-    assert default_target_lufs("speech-mix") == -19.0
+    assert default_target_lufs("speech-mix") is None
     assert default_target_lufs("nonsense") is None
 
 

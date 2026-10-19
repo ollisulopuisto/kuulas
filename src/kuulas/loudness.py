@@ -21,10 +21,8 @@ CHUNK_SEC = 60
 
 
 #: Where a track of each role should sit, LUFS (WP49): speech and narration
-#: at -19, music at -23 so that it stays under the speech. "speech-mix" is a
-#: track kind (a pre-mixed speech bus), not a role of its own: it is speech.
-ROLE_TARGETS = {"speech": -19.0, "speech-mix": -19.0, "narration": -19.0,
-                "music": -23.0}
+#: at -19, music at -23 so that it stays under the speech.
+ROLE_TARGETS = {"speech": -19.0, "narration": -19.0, "music": -23.0}
 
 
 def default_target_lufs(role: str) -> float | None:
