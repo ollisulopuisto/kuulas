@@ -74,11 +74,22 @@ class Reporter:
         self._thread.join(timeout)
 
 
-def _read_commands(stdin: TextIO, stop: threading.Event, why: list[str]) -> None:
+def _read_commands(stdin: TextIO, stop: threading.Event, why: list[str],
+                   cap: Capture) -> None:
     for line in stdin:
-        if line.strip() == "stop":
+        text = line.strip()
+        if text == "stop":
             why.append("stopped")
             stop.set()
+        elif text.startswith("{"):
+            # {"cmd": "record", folder, take, names}: an armed worker starts the take
+            # (the pre-roll first). Anything else is ignored.
+            try:
+                msg = json.loads(text)
+                if msg.get("cmd") == "record":
+                    cap.begin(msg["folder"], msg["take"], list(msg["names"]))
+            except (ValueError, KeyError, TypeError, AttributeError):
+                continue
     # stdin closed: the supervisor is gone. Stop cleanly rather than record on
     # with nobody able to stop it.
     why.append("supervisor_gone")
@@ -105,10 +116,13 @@ def _run(config: dict, stdin: TextIO, reporter: Reporter, stop: threading.Event,
                              int(config.get("blocksize", 1024)))
         kwargs = {k: config[k] for k in ("flush_seconds", "ring_seconds",
                                          "max_data_bytes", "blocksize") if k in config}
-        cap = Capture(source, folder=config["folder"], take=config["take"],
-                      channels=channels, names=list(config["names"]),
+        armed = bool(config.get("armed"))
+        # Armed (pre-roll): no take yet; the folder, take and names come with "record".
+        cap = Capture(source, folder=config.get("folder"), take=config.get("take"),
+                      channels=channels, names=list(config.get("names") or []),
                       rate=int(config["rate"]), segment=int(config.get("segment", 1)),
-                      report=report, **kwargs)
+                      report=report, armed=armed,
+                      preroll_seconds=float(config.get("preroll_seconds", 0)), **kwargs)
     except (KeyError, TypeError, ValueError) as e:
         report({"ev": "error", "key": "bad_config", "text": f"Bad worker config: {e}"})
         return EXIT_BAD_CONFIG
@@ -126,7 +140,7 @@ def _run(config: dict, stdin: TextIO, reporter: Reporter, stop: threading.Event,
                 "text": f"Cannot write the take: {e.strerror or e}"})
         return EXIT_OPEN_FAILED
     report({"ev": "started", "device": source.describe()})
-    threading.Thread(target=_read_commands, args=(stdin, stop, why), name="stdin",
+    threading.Thread(target=_read_commands, args=(stdin, stop, why, cap), name="stdin",
                      daemon=True).start()
     with contextlib.suppress(ValueError):  # not the main thread (in-process tests)
         signal.signal(signal.SIGTERM, lambda *_: (why.append("terminated"), stop.set()))

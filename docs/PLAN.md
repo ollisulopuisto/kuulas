@@ -1178,7 +1178,12 @@ undoable). Costs: a small memory buffer (a minute of 48 kHz 24-bit mono is about
 is open while armed, so an unmistakable "Armed: listening, not recording" indicator is needed (privacy: nothing is
 written to disk until Record, and the buffer is discarded on disarm, quit or crash); a short pre-roll audio of
 chatter before Record is in the take, which is the point. The recorder's worker already owns a ring buffer, so it
-fits the architecture; the protocol gets `arm`/`disarm` and `start` takes a `preroll_s`. Not in the first version.
+fits the architecture; the protocol gets `arm`/`disarm`. **Built 2026-10-19 (fake device only; not run with a real
+microphone, nor in a built app):** `arm {preroll_s, channels, device}` makes the worker listen into an in-memory buffer
+and write nothing; an ordinary `start` then writes the buffer first (`preroll_frames` in the sidecar); the recorder
+lets go by itself 120 s after the last `arm` (the editor re-arms every 20 s while its record view is open); the
+clip is placed so the pre-roll ends at Record and is trimmed at the timeline start; preference
+Off/10/30/60/120 s (default 60, `record.preroll`, Transport menu). See `docs/RECORDER.md`, "Pre-roll".
 **WP12d (proposed): voiceover take notes (owner, 2026-10-19).** "For recording voiceover, the outtakes are really good:
 you do several takes and then you mark them. When we get to markup on recordings while still recording, keep voiceover in
 mind: not only per-take notes, maybe notes inside words in those takes." Design direction: while recording, a key or button

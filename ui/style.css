@@ -2910,6 +2910,27 @@ input[type="text"] {
   border-radius: var(--radius-md);
   background: var(--surface-sunken);
 }
+/* Pre-roll (WP12c): the microphone is listened to while this reads "Armed". It must be
+   unmistakable, so it is a filled warning band, not a hint line. */
+.record-armed {
+  margin: 0;
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+}
+.record-armed[data-armed="on"] {
+  background: var(--warn-subtle);
+  color: var(--warn-text);
+  font-weight: var(--weight-strong);
+}
+.record-armed[data-armed="on"]::before {
+  content: "◉ ";
+}
+.record-preroll-note {
+  margin: 0;
+  color: var(--text-secondary);
+}
 .record-button {
   justify-self: start;
   min-width: 10rem;

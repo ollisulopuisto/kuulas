@@ -261,6 +261,7 @@ export const MENU = [
       SEP,
       item("transport.record"),
       item("record.stop_mode"),
+      item("record.preroll"),
       SEP,
       item("transport.loop"),
       submenu("menu.fast_playback", [

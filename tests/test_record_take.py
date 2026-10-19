@@ -227,3 +227,43 @@ def test_the_editor_uses_only_the_recorders_client():
             for name in names:
                 if name.split(".")[0] == "kuulas_recorder":
                     assert name == "kuulas_recorder.client", f"{path.name} imports {name}"
+
+
+# -- pre-roll (WP12c) --------------------------------------------------------------------
+
+
+def test_the_preroll_ends_where_record_was_pressed():
+    plans = rt.clip_plan(sidecar(preroll_frames=48000), at=96000)
+    assert plans == [rt.ClipPlan(file="Take 1-Olli.wav", start=48000, segment=1)]
+
+
+def test_preroll_before_the_timeline_start_is_trimmed_from_the_clip_head():
+    plans = rt.clip_plan(sidecar(preroll_frames=48000), at=10000)
+    assert [(p.start, p.offset) for p in plans] == [(0, 38000)]
+
+
+def test_later_segments_keep_their_place_relative_to_record():
+    segs = [seg(1, 0, "a.wav", 90000), seg(2, 100000, "b.wav", 50000)]
+    plans = rt.clip_plan(sidecar(segments=segs, preroll_frames=48000), at=10000)
+    assert [(p.file, p.start, p.offset) for p in plans] == [
+        ("a.wav", 0, 38000), ("b.wav", 62000, 0)]
+
+
+def test_a_segment_wholly_inside_the_trimmed_head_makes_no_clip():
+    segs = [seg(1, 0, "a.wav", 20000), seg(2, 25000, "b.wav", 60000)]
+    plans = rt.clip_plan(sidecar(segments=segs, preroll_frames=48000), at=0)
+    assert [(p.file, p.start, p.offset) for p in plans] == [("b.wav", 0, 23000)]
+
+
+def test_a_take_without_preroll_is_placed_as_before():
+    assert rt.clip_plan(sidecar(preroll_frames=0), at=500)[0].start == 500
+    assert rt.clip_plan(sidecar(), at=500)[0].offset == 0
+
+
+def test_a_lost_listener_is_a_notice_a_chosen_disarm_is_not():
+    lost = rt.event_notice({"event": "disarmed", "reason": "device_lost"}, rate=48000)
+    assert lost["key"] == "record.event.disarmed"
+    assert lost["level"] == "warning"
+    own = {"event": "disarmed", "reason": "disarmed"}
+    assert rt.event_notice(own, rate=48000) is None
+    assert rt.event_notice({"event": "armed"}, rate=48000) is None

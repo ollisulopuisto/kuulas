@@ -166,6 +166,8 @@ export function registerAppCommands(registry, { actions, app }) {
   // Transport > Record… (WP12a) and how a take is stopped (a preference: two steps by default).
   def("transport.record", () => app.openRecord(), hasProject);
   def("record.stop_mode", () => app.cycleStopMode());
+  // Pre-roll before Record (WP12c): off / 10 / 30 / 60 (default) / 120 s.
+  def("record.preroll", () => app.cyclePreroll());
   def("gate.open_stretch", () => app.openGateStretch(), hasProject);
   // Track > Auto: these three had a menu item and a key but no handler (greyed out).
   def("app.auto_silence", () => app.autoSilence(), hasProject);

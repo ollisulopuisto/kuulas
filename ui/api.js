@@ -42,6 +42,11 @@ export const getRecordStatus = () => json("/api/record/status");
 export const getRecordDevices = () => json("/api/record/devices");
 /** { device: {index, name} | null, channel, track_id (null: new track), name, at } */
 export const startRecording = (body) => post("/api/record/start", body);
+/** Pre-roll (WP12c): listen to the input, keeping the last seconds in memory only, nothing on
+ * disk. { device, channel, preroll_s }. Repeated, it keeps the recorder armed. */
+export const armRecording = (body) => post("/api/record/arm", body);
+/** Stop listening and drop the buffer. */
+export const disarmRecording = () => post("/api/record/disarm", {});
 /** { mode: "two_step" | "one_click" | "hold", held_ms }: the server refuses a stop without one. */
 export const stopRecording = (body) => post("/api/record/stop", body);
 /** Put takes left by a crash on the timeline: the state, plus { imported, pending }. */
