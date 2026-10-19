@@ -33,6 +33,16 @@ FAKE = textwrap.dedent('''
     if mode == "hang":
         print("PROGRESS 5 connecting", flush=True)
         time.sleep(60)
+    if mode == "sigint":
+        import signal
+        def stop_session(*_):
+            print("stopping the Colab session", flush=True)
+            open(os.environ["FAKE_LOG"] + ".stopped", "w").write("ok")
+            sys.exit(0)
+        signal.signal(signal.SIGINT, stop_session)
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)  # the tool does not handle SIGTERM
+        print("PROGRESS 5 connecting", flush=True)
+        time.sleep(60)
     body = os.environ.get("FAKE_BODY")
     for n, path in enumerate(audio):
         stem = os.path.splitext(os.path.basename(path))[0]
@@ -114,7 +124,7 @@ def test_defaults():
         "colab-transcribe"]
     assert s["cwd"] is None
     assert s["extra_args"] == []
-    assert s["no_drive"] is True
+    assert s["no_drive"] is False  # the plain-audio mode never uses Drive
     assert s["model"] == "turbo"
     assert s["language"] is None
 
@@ -130,7 +140,7 @@ def test_stored_values_win_and_junk_falls_back():
                              "model": 3, "cwd": " "})
     assert s["command"][0] == "uvx"
     assert s["extra_args"] == []
-    assert s["no_drive"] is True
+    assert s["no_drive"] is False
     assert s["model"] == "turbo"
     assert s["cwd"] is None
 
@@ -274,7 +284,7 @@ def test_success_one_call_for_all_files_and_cleans_up(tmp_path, fake, temp_root)
     assert "--progress" in seen["argv"]
     assert seen["argv"][seen["argv"].index("--model") + 1] == "small"
     assert seen["argv"][seen["argv"].index("--language") + 1] == "fi"
-    assert "--no-drive" in seen["argv"]
+    assert "--no-drive" not in seen["argv"]
     assert list(temp_root.iterdir()) == []
     fractions = [r[0] for r in reports.items]
     assert fractions == sorted(fractions)
@@ -396,3 +406,51 @@ def test_every_error_key_has_english_and_finnish_text():
     keys = [k for k in en if k.startswith("error.colab.")]
     assert len(keys) >= 12
     assert all(k in fi for k in keys)
+
+
+def test_cancel_asks_the_tool_to_stop_its_colab_session_with_sigint_first(
+        tmp_path, fake, temp_root):
+    """The tool stops the Colab session on SIGINT; SIGTERM is not handled (the podcast
+    session's answer), so a plain SIGTERM would leave the session billing."""
+    fake["extra_args"] = ["--mode", "sigint"]
+    cancel, reports = threading.Event(), Reports()
+
+    def watch():
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            if any("connecting" in m for _f, m, _i in reports.items):
+                cancel.set()
+                return
+            time.sleep(0.02)
+
+    threading.Thread(target=watch, daemon=True).start()
+    with pytest.raises(JobCancelledError):
+        run(files(tmp_path, "Olli.wav"), fake, reports=reports, cancel=cancel)
+    assert (tmp_path / "call.json.stopped").read_text() == "ok"
+    assert list(temp_root.iterdir()) == []
+
+
+@pytest.mark.parametrize("timing", ["whisper", "ctc-v1", "ctc-v2", "ctc-v10"])
+def test_known_timing_values_including_future_aligner_versions(
+        tmp_path, fake, temp_root, monkeypatch, timing):
+    monkeypatch.setenv("FAKE_BODY", json.dumps(doc(timing=timing)))
+    result, _ = run(files(tmp_path, "Olli.wav"), fake)
+    assert result["results"]["olli"]["timing"] == timing
+
+
+@pytest.mark.parametrize("timing", ["ctc", "ctc-v", "CTC-v1", "ctc-vx", "other", 1])
+def test_other_timing_values_are_refused(tmp_path, fake, temp_root, monkeypatch, timing):
+    monkeypatch.setenv("FAKE_BODY", json.dumps(doc(timing=timing)))
+    with pytest.raises(ct.ColabError) as info:
+        run(files(tmp_path, "Olli.wav"), fake)
+    assert info.value.key == "error.colab.result_timing"
+
+
+def test_the_rejected_count_of_a_corrected_transcript_is_passed_on(
+        tmp_path, fake, temp_root, monkeypatch):
+    monkeypatch.setenv("FAKE_BODY", json.dumps(doc(timing="ctc-v1", rejected=3)))
+    result, _ = run(files(tmp_path, "Olli.wav"), fake)
+    assert result["results"]["olli"]["rejected"] == 3
+    monkeypatch.setenv("FAKE_BODY", json.dumps(doc()))
+    result, _ = run(files(tmp_path, "Olli.wav"), fake)
+    assert result["results"]["olli"]["rejected"] == 0

@@ -3725,5 +3725,17 @@ when set, in `docs/FORMAT.md`). A missing tool, a failed run and a malformed res
 **Privacy:** the audio leaves the computer (Google Colab, and Drive unless the tool's `--no-drive` path is used):
 the first use shows a notice saying so and the remembered choice is a setting; kuulas never uploads without the user
 starting the job. Tests with a fake `colab-transcribe` script (success, failure, cancel, malformed JSON, missing
-tool, per-file progress). **Open:** model and language choices in the UI (the Transcribe command today uses the
+tool, per-file progress). **Podcast session's answer (2026-10-19, `docs/KUULAS-COLAB.md` on podcast branch `feat/transcribe-align`, PR #60,
+not merged): the contract above is accepted with changes; nothing is built on their side yet.** Changes: the JSON
+words are guaranteed in time order with start < end (overlaps are fixed on their side), `e` is approximate, `timing`
+is `whisper` or `ctc-vN` (kuulas accepts any N), and an optional `"rejected": n` counts the words the aligner could not
+place; SIGTERM is not handled by the tool today (SIGINT is, and stops the Colab session), so kuulas cancels with
+SIGINT first, then SIGTERM, then SIGKILL, and they will make SIGTERM the same path; the plain-audio mode never uses
+Drive (kuulas no longer passes `--no-drive` by default); several `--audio` files share one Colab VM; first-run cost and
+time per hour of audio are not measured. The word-start aligner (torch 2.8.0, about 1.2 GB) runs either on the Mac
+after the download (their option A, their recommendation) or on the VM (B, unknown); the command setting will then
+carry `--with torch==2.8.0 --with torchaudio==2.8.0`. Until the mode is on podcast `main`, the command can name the
+branch (`...podcast@feat/transcribe-align#subdirectory=colab-transcribe`). **Needs the owner:** start with the
+plain-audio mode alone, and option A or B for the aligner.
+**Open:** model and language choices in the UI (the Transcribe command today uses the
 local defaults), several recordings in one Colab session, and what to do with speaker labels.
