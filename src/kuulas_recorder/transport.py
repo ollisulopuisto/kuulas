@@ -21,6 +21,7 @@ from __future__ import annotations
 import contextlib
 import os
 import socket
+import struct
 import sys
 from pathlib import Path
 
@@ -55,6 +56,7 @@ class Connection:
     def __init__(self, sock: socket.socket):
         self.sock = sock
         self._file = sock.makefile("rb")
+        self._send_timeout: float | None = None
 
     def read_line(self) -> bytes | None:
         """The next line without its newline, or None when the peer closed.
@@ -72,7 +74,16 @@ class Connection:
         return line[:-1]
 
     def send(self, data: bytes, timeout: float | None = None) -> None:
-        self.sock.settimeout(timeout)
+        """Send all of ``data``; with ``timeout``, raise ``OSError`` if the peer
+        stops reading for that long. The timeout is the kernel's send timeout
+        (``SO_SNDTIMEO``): ``socket.settimeout`` would also cut the reads of a
+        client that is only quiet."""
+        if timeout != self._send_timeout:
+            sec = int(timeout or 0)
+            usec = int(((timeout or 0) - sec) * 1_000_000)
+            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDTIMEO,
+                                 struct.pack("ll", sec, usec))
+            self._send_timeout = timeout
         self.sock.sendall(data)
 
     def close(self) -> None:

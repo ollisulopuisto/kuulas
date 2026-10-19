@@ -499,3 +499,12 @@ def test_a_device_that_sends_no_audio_is_refused_at_start(client, sup, fake, tmp
     assert list((tmp_path / "r").iterdir()) == []
     assert sup.status()["state"] == "idle"
     assert not sup.keep_awake.active
+
+
+def test_an_idle_client_stays_connected(sup, monkeypatch):
+    """The send timeout that drops a stuck client must not drop a quiet one."""
+    monkeypatch.setattr(supervisor, "CLIENT_SEND_TIMEOUT", 0.2)
+    with RecorderClient.connect(sup.socket_path) as c:
+        for _ in range(3):
+            assert c.request("ping")["pong"]
+            time.sleep(0.6)  # the editor has nothing to say for a while
