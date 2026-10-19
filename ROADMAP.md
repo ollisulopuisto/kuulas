@@ -251,6 +251,7 @@ WP27, WP38, WP42, WP47, WP53.
 
 ## Open questions and known limits
 
+- **Never lose a recording (owner, 2026-10-19; ground rule 17).** Undoing past a take removed its clip; the file was safe in `recordings/` but nothing offered it back. Planned: a Recordings list (File menu) of every take in the project, used or not, with one-click "add at the playhead"; history steps containing takes are not pruned; audit that no path deletes or rewrites a recorded file. Not built yet.
 - **Engine, v26.10.18.21:** skip list and tape-rate playback are tested with a fake output only;
   please listen to the candidate preview (Shift+Space) and, once the JKL keys exist, to shuttle.
   The crossfade is equal-power (up to +3 dB for a few ms on steady audio across a join). Pitch-kept

@@ -83,6 +83,15 @@ These are not suggestions. A WP is done only when all of them hold.
     dialog (WP35). The plain key runs an action with the remembered settings;
     ⌥ + the key opens the dialog. Safety states reset on open: group editing
     is on, recording is not armed.
+17. **Recorded material is never lost; edits come second.** (Owner, 2026-10-19.)
+    A recording cannot be re-recorded, an edit can be redone. So: no code path
+    deletes, overwrites or truncates a recorded file (takes, imported media) -
+    deleting one is a deliberate, confirmed, separate act, never a side effect
+    of undo, restore, cleanup or a failed write. Undo and history restore only
+    change the timeline, never the files. A take stays listed (File >
+    Recordings) and re-addable even when no clip uses it, and history steps
+    that hold takes are not pruned. Losing an edit is the second worst
+    outcome: history is kept long.
 
 The project owner's standing rules, which apply to every WP on top of the above:
 
