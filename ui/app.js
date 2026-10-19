@@ -1604,7 +1604,7 @@ async function duckMicrophones() {
 }
 
 /**
- * Track > Transcribe > On this computer / On Colab: the focused track's recordings, else every
+ * Text > Transcribe > On this computer / On Colab: the focused track's recordings, else every
  * speech track's. Colab uploads the audio to Google, so it asks first (transcribeOnColab).
  */
 async function transcribeTrack(backend = "local") {
@@ -1643,7 +1643,7 @@ async function watchBackgroundJobs() {
   }
 }
 
-// Track > Transcribe > Restart interrupted transcriptions.
+// Text > Transcribe > Restart interrupted transcriptions.
 async function restartTranscriptions() {
   try {
     const { restarted } = await api.restartInterrupted();

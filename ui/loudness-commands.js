@@ -1,4 +1,4 @@
-// Match loudness (a Track-menu / palette command, no default key): sets each clip's gain
+// Match loudness (a Clip-menu / palette command, no default key): sets each clip's gain
 // so its measured loudness lands on the target. Measuring takes seconds, so a toast says so
 // first; the server answers with a report (matched, skipped as silent) and one undo step.
 import { selectedClips } from "./selection.js";
