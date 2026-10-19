@@ -3472,3 +3472,44 @@ GET `/api/stats`. A small Statistics line in the Help topic. Every command in a 
 project without a transcript (no talk section, no error); an empty project (zeros, no division by zero).
 **Open:** whether the numbers are also kept in the project as a snapshot per saved version (to chart progress
 over an episode series later); whether "time cut out" should count mutes.
+
+---
+
+### WP72 — Kuulas.app and the .kuulas file type on macOS (owner, 2026-10-19; next target)
+
+Status: open. The owner's next target. A `.kuulas` project is a folder. To make Finder show it as one file and
+open it by double-click, a macOS app must declare the type in its Info.plist (a UTI that conforms to
+`com.apple.package`, like `.logicx` or `.band`), and the app must receive the "open document" event. Not
+possible with the command line or `uvx` alone.
+
+**Step 1 (this WP): a light launcher app, built locally, no PyInstaller, no signing.**
+- `scripts/make_app.sh` (or a Python script) builds `Kuulas.app` with `osacompile`: an AppleScript applet whose
+  `on open` handler gets the dropped/double-clicked projects and runs
+  `uvx --from "<repo>[desktop]" --with-editable "<repo>[desktop]" kuulas open <project> --window` (the command
+  from the README; the repo path is written into the app when it is built, with a clear message if the repo moved).
+  Opened without a document it runs `kuulas desktop` (the launcher with recent projects). One window per project;
+  if that project is already open in a running kuulas, bring that window forward instead of opening a second
+  (the lock files already tell which projects are open).
+- Info.plist edited by the script: bundle id `fi.sulopuisto.kuulas` (check the name against anything already used
+  in the repo), `CFBundleDocumentTypes` for the extension `kuulas` with role Editor, an exported UTI
+  `fi.sulopuisto.kuulas.project` conforming to `com.apple.package` and `public.composite-content`, the app icon
+  from `src/kuulas/assets/icons/` (`scripts/make_icons.py` makes them; add the `.icns`), a document icon, and
+  `LSMultipleInstancesProhibited` as needed.
+- Registration: the script runs `lsregister -f` on the built app so Finder knows the type, and documents how to
+  undo it (`lsregister -u`). Result to check by hand: a `Name.kuulas` folder shows as a file with the kuulas icon,
+  double-click opens it, "Open with…" lists Kuulas, a project dragged onto the app (or the Dock icon) opens.
+- Where the app goes: built into `~/Applications/Kuulas.app` by default (a flag chooses another folder); never
+  into `/Applications` (no sudo). Rebuilding replaces it.
+- Dropbox: a Dropbox-synced `.kuulas` folder works the same; note it in `docs/desktop.md`.
+- Tests: the pure parts (the Info.plist content, the command line the applet runs with correct quoting of paths
+  with spaces and quotes, which project paths are accepted: a folder ending in `.kuulas` with a manifest) as a
+  Python module with tests; the build script checked with a dry-run flag that prints the plan; a macOS-only test
+  (skipped elsewhere) that builds the app into a temp folder and validates the plist with `plutil -lint` and that
+  `osacompile` produced a bundle. Do not launch the app or open windows in tests.
+
+**Step 2 (later):** a real bundle with py2app or PyInstaller, signing and notarisation (needs an Apple developer
+account, only if the app goes to other people); requires `speechmix` as a package (ROADMAP).
+**Windows and Linux (later):** a folder cannot carry a file association; the option is a small marker file
+inside the project (`Name.kuulas.json`) that opens its folder. Not in this WP.
+**Open:** whether double-clicking a project that is locked by another computer (Dropbox) should say so before
+opening; whether the Dock icon menu should list recent projects.
