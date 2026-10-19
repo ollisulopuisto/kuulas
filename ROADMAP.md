@@ -251,6 +251,10 @@ WP27, WP38, WP42, WP47, WP53.
 
 ## Open questions and known limits
 
+
+- **Built, not yet seen by the owner (v26.10.19.24):** pre-roll (WP12c; real microphone untried), detached transcription (WP79; real Colab and the bundled worker untried), Locate media and Send a copy (dialogs unseen), sync confirmation dialog, top bar and transcript layout, Record button. Owner hardware test so far: unplug and replug of a USB microphone and Force Quit both left the recording intact (2026-10-19).
+- **Pending owner answer:** move WP35's remaining parts to M2 and mark WP15 done for Mac only? Compare (WP45) waits for mockups. Clip-moving report (could not reproduce; needs the symptom).
+- **Next:** WP12b multi-track recording, then live waveforms, then one fuzzing pass on the recorder (WP59 part).
 - **Never lose a recording (owner, 2026-10-19; ground rule 17).** Undoing past a take removed its clip; the file was safe in `recordings/` but nothing offered it back. Planned: a Recordings list (File menu) of every take in the project, used or not, with one-click "add at the playhead"; history steps containing takes are not pruned; audit that no path deletes or rewrites a recorded file. Not built yet.
 - **Recordings list, restore options (owner, 2026-10-19):** each take row has Restore…: *to a new track at its original position* (default: never replaces anything), to the playhead, to the original position (replaces timeline only, as an import does), or to the clipboard. Needs the take's timeline position and track stored in its `.take.json`. Not built yet.
 - **Self-describing take file names (owner, 2026-10-19):** a take's file name should be findable in Finder a year later: `2026-10-15 14-32-07 vst s13e04 - Olli - Take 1.wav` (starts with local yyyy-mm-dd hh-mm-ss, then the text: project, track, take; sortable, no characters Finder or Windows dislike; `.take.json` sidecar keeps UTC and the rest). Only new takes get it; existing files are never renamed (rule 17). Builds on `take_names.file_stem`. Not built yet.
