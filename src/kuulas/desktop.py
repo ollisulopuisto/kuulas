@@ -178,16 +178,19 @@ class RunningProject:
     def __init__(self, folder: str) -> None:
         # Imported here: the engine pulls in the audio libraries.
         from .engine import Engine  # noqa: PLC0415
+        from .record_session import RecordSession  # noqa: PLC0415
         from .server import create_app  # noqa: PLC0415
         from .session import Session  # noqa: PLC0415
 
         self.folder = folder
         self._session = Session(folder)
         self._engine = Engine(self._session)
+        # Only a viewer of the recorder (WP12a): closing the window never stops a take.
+        self._recorder = RecordSession(self._session)
         self._sock = bind_local(0)
         self.url = f"http://{HOST}:{self._sock.getsockname()[1]}/"
-        self._server = uvicorn.Server(
-            uvicorn_config(create_app(self._session, self._engine), self._sock))
+        self._server = uvicorn.Server(uvicorn_config(
+            create_app(self._session, self._engine, recorder=self._recorder), self._sock))
         self._thread = threading.Thread(
             target=self._server.run, kwargs={"sockets": [self._sock]},
             name="kuulas-server", daemon=True)
@@ -207,6 +210,7 @@ class RunningProject:
         self._server.should_exit = True
         self._thread.join(timeout=10)
         self._sock.close()
+        self._recorder.close()
         self._engine.close()
         self._session.close()
 
