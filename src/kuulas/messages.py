@@ -150,7 +150,7 @@ def catalog(lang: str) -> dict[str, Any] | None:
 
 
 def language() -> str:
-    global _language  # noqa: PLW0602
+    global _language  # noqa: PLW0603
     if _language is None:
         _language = default_language()
     return _language

@@ -62,7 +62,7 @@ def suggest_gain(
 
 
 def suggest_all(
-    entries: list[dict[str, float | None | str]], tolerance: float = 1.0
+    entries: list[dict[str, float | str | None]], tolerance: float = 1.0
 ) -> dict[str, dict[str, float | bool]]:
     """Suggest a gain for each entry, keyed by its ``id`` in entry order.
 
