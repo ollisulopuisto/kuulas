@@ -1,3 +1,13 @@
+## [v26.10.19.5] - 2026-10-19
+
+- **Mix with the automixer: where the temporary stems go.** By default they go to your system's temporary folder
+  (whatever the OS or `$TMPDIR` says), in a private folder of their own that is removed when the mix is done,
+  cancelled or failed. The dialog's new "Temporary files folder" field lets you point them at another disk
+  (for example an external drive) to save space on the main one; empty means the system folder.
+- The automixer run now leaves nothing behind in the export folder (its empty "flags" file is removed; a flags
+  file with notes in it is kept beside the mix) and no longer prints a confusing virtual-environment warning.
+  First checked against the real automixer (a short test project, mix, progress bar and Cancel all worked).
+
 ## [v26.10.19.4] - 2026-10-19
 
 - **Words inside the clips on the timeline** (as in Hindenburg): zoom in until a word is wide enough to read and

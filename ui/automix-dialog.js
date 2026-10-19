@@ -69,6 +69,7 @@ export function createAutomixDialog({ api, t, onStart }) {
     legend,
     field("command", "ui.automix.command", "ui.automix.command_hint"),
     field("cwd", "ui.automix.cwd"),
+    field("tempDir", "ui.automix.temp_dir", "ui.automix.temp_dir_hint"),
     field("extra", "ui.automix.extra_args"),
   );
   const buttons = document.createElement("div");
@@ -116,6 +117,7 @@ export function createAutomixDialog({ api, t, onStart }) {
       await api.saveAutomixerSettings({
         command: words.length > 0 ? words : undefined,
         cwd: fields.cwd.value.trim() || undefined,
+        temp_dir: fields.tempDir.value.trim() || undefined,
         extra_args: parseWords(fields.extra.value),
       });
       saveForm(values);
@@ -136,6 +138,7 @@ export function createAutomixDialog({ api, t, onStart }) {
         const { resolved } = await api.automixerSettings();
         fields.command.value = formatWords(resolved.command);
         fields.cwd.value = resolved.cwd ?? "";
+        fields.tempDir.value = resolved.temp_dir ?? "";
         fields.extra.value = formatWords(resolved.extra_args);
       } catch (e) {
         showError(e.message, "command");

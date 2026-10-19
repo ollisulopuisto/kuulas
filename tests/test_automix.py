@@ -332,3 +332,57 @@ def test_the_tool_does_not_inherit_the_callers_virtual_env(tmp_path, monkeypatch
         str(tmp_path), lines.append, threading.Event())
     assert code == 0
     assert lines == ["None"]
+
+
+def test_the_temporary_stems_go_to_the_chosen_folder_and_are_removed(
+        session, fake, tmp_path, temp_root):
+    chosen = tmp_path / "bigdisk"
+    chosen.mkdir()
+    fake["temp_dir"] = str(chosen)
+    automix.run(session, {}, fake, Reports(), threading.Event())
+    stems = Path(call(tmp_path)["positional"][0])
+    assert stems.parent.parent == chosen
+    assert stems.parent.name.startswith("kuulas-automix-")
+    assert list(chosen.iterdir()) == []  # removed afterwards
+    assert list(temp_root.iterdir()) == []  # the system folder was not used
+
+
+def test_without_a_chosen_folder_the_system_temporary_folder_is_used(
+        session, fake, tmp_path, temp_root):
+    automix.run(session, {}, fake, Reports(), threading.Event())
+    stems = Path(call(tmp_path)["positional"][0])
+    assert stems.parent.parent == temp_root
+
+
+def test_the_scratch_folder_is_private_to_the_user(session, fake, tmp_path):
+    chosen = tmp_path / "bigdisk"
+    chosen.mkdir()
+    fake["temp_dir"] = str(chosen)
+    seen = {}
+
+    def runner(cmd, cwd, on_line, cancel):
+        stems = next(a for a in cmd if "kuulas-automix-" in a)
+        seen["mode"] = Path(stems).parent.stat().st_mode & 0o777
+        Path(cmd[cmd.index("-o") + 1]).write_bytes(b"RIFF")
+        return 0
+
+    automix.run(session, {}, fake, Reports(), threading.Event(), run_process=runner)
+    assert seen["mode"] == 0o700
+
+
+def test_a_missing_temporary_folder_is_one_clear_error(session, fake, tmp_path):
+    fake["temp_dir"] = str(tmp_path / "gone")
+    with pytest.raises(automix.AutomixError) as info:
+        automix.run(session, {}, fake, Reports(), threading.Event())
+    assert info.value.key == "error.automix.bad_temp_dir"
+
+
+def test_the_temporary_folder_is_a_setting(tmp_path, monkeypatch):
+    monkeypatch.setenv("KUULAS_AUTOMIXER_FILE", str(tmp_path / "automixer.json"))
+    assert automix.resolve_settings({}, home=tmp_path)["temp_dir"] is None
+    saved = automix.save_settings({"temp_dir": "/Volumes/Big/tmp"})
+    assert saved == {"temp_dir": "/Volumes/Big/tmp"}
+    assert automix.resolve_settings(automix.load_settings(), home=tmp_path)[
+        "temp_dir"] == "/Volumes/Big/tmp"
+    with pytest.raises(automix.AutomixError):
+        automix.save_settings({"temp_dir": 5})

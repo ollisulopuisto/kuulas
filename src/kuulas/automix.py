@@ -72,8 +72,10 @@ class AutomixError(KuulasError, RuntimeError):
 
 def resolve_settings(stored: dict | None, *, home: Path | None = None) -> dict[str, Any]:
     """The automixer settings with their defaults filled in: ``command`` (list),
-    ``cwd`` (folder or None) and ``extra_args`` (list of strings). The default
-    folder is the podcast checkout when it exists."""
+    ``cwd`` (folder or None), ``extra_args`` (list of strings) and ``temp_dir``
+    (where the temporary stems go; None means the system's temporary folder, as the
+    OS or ``$TMPDIR`` sets it). The default folder is the podcast checkout when it
+    exists."""
     stored = stored or {}
     command = stored.get("command")
     if not (isinstance(command, list) and command
@@ -86,7 +88,10 @@ def resolve_settings(stored: dict | None, *, home: Path | None = None) -> dict[s
     if not (isinstance(cwd, str) and cwd.strip()):
         default = (Path.home() if home is None else home) / DEFAULT_CWD
         cwd = str(default) if default.is_dir() else None
-    return {"command": list(command), "cwd": cwd, "extra_args": list(extra)}
+    temp = stored.get("temp_dir")
+    temp = temp.strip() if isinstance(temp, str) and temp.strip() else None
+    return {"command": list(command), "cwd": cwd, "extra_args": list(extra),
+            "temp_dir": temp}
 
 
 def settings_path() -> Path:
@@ -113,15 +118,17 @@ def load_settings() -> dict:
 def save_settings(settings: dict) -> dict:
     """Check and store the settings (atomic write); returns what was stored.
     Raises ``AutomixError`` (``error.automix.bad_settings``) for a wrong shape."""
-    command, cwd, extra = (settings.get(k) for k in ("command", "cwd", "extra_args"))
+    command, cwd, extra, temp = (settings.get(k) for k in
+                                 ("command", "cwd", "extra_args", "temp_dir"))
     ok = (command is None or (isinstance(command, list) and command
                               and all(isinstance(x, str) and x for x in command)))
     ok = ok and (cwd is None or isinstance(cwd, str))
+    ok = ok and (temp is None or isinstance(temp, str))
     ok = ok and (extra is None or (isinstance(extra, list)
                                    and all(isinstance(x, str) for x in extra)))
     if not ok:
         raise AutomixError("error.automix.bad_settings")
-    clean = {k: settings[k] for k in ("command", "cwd", "extra_args")
+    clean = {k: settings[k] for k in ("command", "cwd", "extra_args", "temp_dir")
              if settings.get(k) is not None}
     path = settings_path()
     try:
@@ -346,7 +353,15 @@ def run(session, params: dict, settings: dict, report: Report,
         raise AutomixError("error.automix.bad_cwd", cwd=settings["cwd"])
 
     lines: deque[str] = deque(maxlen=LOG_LINES)
-    scratch = Path(tempfile.mkdtemp(prefix="kuulas-automix-"))
+    temp_dir = settings.get("temp_dir")
+    if temp_dir and not Path(temp_dir).is_dir():
+        raise AutomixError("error.automix.bad_temp_dir", path=temp_dir)
+    # mkdtemp makes the folder private to the user (0700), in the chosen folder or, by
+    # default, wherever the system's temporary folder is.
+    try:
+        scratch = Path(tempfile.mkdtemp(prefix="kuulas-automix-", dir=temp_dir or None))
+    except OSError as e:
+        raise AutomixError("error.automix.bad_temp_dir", path=temp_dir or "") from e
     partial: Path | None = None
     try:
         report(0.0, "")
