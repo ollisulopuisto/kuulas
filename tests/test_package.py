@@ -71,7 +71,8 @@ def test_new_package_has_manifest_lock_db_media_caches(tmp_path):
     assert lock["host"] == socket.gethostname()
     assert lock["pid"] == os.getpid()
     # The file name carries the host as the lock writer cleans it (characters, 40 long).
-    host = re.sub(r"[^A-Za-z0-9._-]+", "_", socket.gethostname())[:40].strip("._-") or "host"
+    cleaned = re.sub(r"[^A-Za-z0-9._-]+", "_", socket.gethostname())
+    host = cleaned[:40].strip("._-") or "host"
     assert mine.name.startswith(f"{host}-")
     assert not pkg.read_only
     # The database knows which project it belongs to, even on its own.
