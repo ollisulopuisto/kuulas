@@ -3667,7 +3667,12 @@ click also seems natural to start a drag of the readout nowhere, so it is safe h
 
 ### WP77 — Better word times with a forced aligner (proposed, parked; owner 2026-10-19)
 
-Status: parked until the owner decides and podcast PR #59 is merged. The podcast session's answer
+Status: update 2026-10-19 (later): the owner has asked the podcast agent to put the correction into the podcast
+transcribe module as a post-step after Whisper, so transcripts that arrive through the `.nhsx` import (Colab or
+transcribe app) will carry corrected times without any kuulas change; what is left for kuulas is (a) checking the
+result on a real session when the commit lands, (b) a way to tell corrected from raw transcripts (`timing` marker),
+and (c) kuulas's own local transcription (faster-whisper, `src/kuulas/transcribe.py`), which would still produce raw
+times. The rest of this section stays as the plan for (b) and (c). Earlier status: parked until the owner decides and podcast PR #59 is merged. The podcast session's answer
 (2026-10-19, `docs/KUULAS-TIMECODES.md` in the podcast repo): there is **no fix to integrate yet**, only a
 measurement and an experimental script. Measured on one speaker, one episode, 15 hand-marked word starts:
 Whisper's word start is early in 14 of 15 (median 87 ms, after a pause 263 ms); about 1 % of words (8 of 707) are
