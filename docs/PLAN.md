@@ -1701,6 +1701,23 @@ macro undoes in one step.
 Tests: switching takes changes the heard audio; a longer take ripples later
 clips of the group; switching back restores positions exactly.
 
+**Owner's idea 2026-10-19 (extends 19e to recording): takes instead of overwriting.** "Like Logic, Pro Tools and
+Ableton: mark an in and an out, record it many times, and when it loops it starts a new alt take; browse between the
+alt takes; good for narration. Why not use the same for recording over something on a track: I view it as a kind
+of undo history; the timeline shows the selected take, and through a contextual menu you can go back to the version
+that was there before." Design notes (argued both ways in the session): FOR: recording over never destroys
+anything, which fits "audio already recorded is never lost"; the same mechanism serves loop-recording a narration
+line; one visible thing on the timeline, no layers; the old audio is browsable without undoing everything after it.
+AGAINST / costs: the take-set model must hold several clips and gaps per take over one time range (a take folder of
+lanes, as in Logic, not only one media + offset as sketched above), because a recording can cross clip borders;
+edits (cut, ripple, split, sync groups, the transcript, which must follow the ACTIVE take) must understand take
+sets; a take that is shorter or longer than its slot ripples (avoided when a take is cut to exactly the recorded
+range); the UI needs a take badge, a contextual menu and keys; Compare (WP45, parked) is the natural audition tool.
+Staging: (1) WP12a records onto empty space or over existing audio with the ordinary overwrite (one undo step);
+(2) WP19e take folders with loop recording over an in/out range (each pass a take, played in turn); (3) recording
+over existing audio keeps the overwritten material as the first take of the slot and the new recording becomes the
+active take; (4) later, comping (pick segments across takes).
+
 #### 19f — Spot (Pro Tools spot mode)
 
 `=` opens a time field in the toolbar. Typing `h:mm:ss.mmm` (or `+/-` and an
