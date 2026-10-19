@@ -273,6 +273,7 @@ export const SYNONYMS = {
   "mark.out": ["end of range", "end selection", "loppupiste", "loppu"],
   "mark.clear": ["remove range", "reset range", "poista alue", "nollaa"],
   spot: ["find", "locate", "go to time", "jump to time", "hyppää"],
+  "time.copy": ["copy timestamp", "copy time", "clipboard", "timecode", "kopioi aika"],
   rename: ["name", "title", "label", "nimeä"],
 
   // -- moving around ----------------------------------------------------------------------------

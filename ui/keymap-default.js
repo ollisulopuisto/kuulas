@@ -978,6 +978,13 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.transcript.find",
   },
   { id: "spot", keys: { mac: "Mod+J", other: "Mod+J" }, context: "global", labelKey: "cmd.spot" },
+  // Copy the time shown in the corner (WP76); clicking the clock does the same. No key by default.
+  {
+    id: "time.copy",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.time.copy",
+  },
   { id: "rename", keys: { mac: "F2", other: "F2" }, context: "global", labelKey: "cmd.rename" },
   {
     id: "app.import",

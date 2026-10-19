@@ -173,6 +173,9 @@ export function registerAppCommands(registry, { actions, app }) {
     () => app.focusName(),
     (state) => Boolean(state?.focusTrack || state?.focusBus),
   );
+  // Spot (Cmd+J) types a time into the clock; "+100" / "-30" are relative to the play cursor (WP76).
+  def("spot", () => app.editTime(), hasProject);
+  def("time.copy", () => app.copyTime(), hasProject);
   def("nav.start", () => app.seek(0), hasProject);
   def("nav.end", () => app.seek(app.totalFrames()), hasProject);
   // The automatic "left off" marker (left-off.js): where the project was last saved or closed.

@@ -3,7 +3,8 @@ import { describe, it } from "node:test";
 import { resolveTime } from "../time-jump.js";
 
 const RATE = 48_000;
-const at = (text, from = 10 * RATE, end = 600 * RATE) => resolveTime(text, { from, end, rate: RATE });
+const at = (text, from = 10 * RATE, end = 600 * RATE) =>
+  resolveTime(text, { from, end, rate: RATE });
 
 describe("resolveTime absolute", () => {
   it("reads seconds and m:ss, dot or comma", () => {
@@ -39,7 +40,20 @@ describe("resolveTime relative", () => {
 
 describe("resolveTime invalid", () => {
   it("returns null so the value is left alone", () => {
-    for (const bad of ["", "  ", "abc", "+", "-", "++5", "1:60", "5x", "ms", "1:30ms", null, undefined]) {
+    for (const bad of [
+      "",
+      "  ",
+      "abc",
+      "+",
+      "-",
+      "++5",
+      "1:60",
+      "5x",
+      "ms",
+      "1:30ms",
+      null,
+      undefined,
+    ]) {
       assert.equal(at(bad), null, String(bad));
     }
   });

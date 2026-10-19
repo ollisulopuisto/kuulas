@@ -238,6 +238,20 @@ def reveal_command(folder: str | Path, platform: str | None = None) -> list[str]
     return ["xdg-open", path]
 
 
+def clipboard_command(platform: str | None = None) -> list[str]:
+    """The program that reads the system clipboard's new text from stdin. A list."""
+    platform = platform or sys.platform
+    if platform == "darwin":
+        return ["pbcopy"]
+    if platform.startswith("win"):
+        return ["clip"]
+    return ["xclip", "-selection", "clipboard"]
+
+
+def _pipe_to(command: list[str], text: str) -> None:
+    subprocess.run(command, input=text.encode(), check=True, timeout=5)  # noqa: S603 - fixed program
+
+
 def _spawn(command: list[str]) -> None:
     subprocess.Popen(command)  # noqa: S603 - fixed program, path made by the exporter
 
@@ -253,6 +267,7 @@ class Bridge:
         self._window = None
         self._project: RunningProject | None = None
         self._runner = _spawn
+        self._copier = _pipe_to
         #: Opens a folder in a window of its own (``WindowApp._open_one``); None when the
         #: bridge has no app around it, then the folder opens in this window.
         self._opener = None
@@ -302,6 +317,17 @@ class Bridge:
         and only ever reads its ``clipboard.json``."""
         got = self._dialog(self._webview.FileDialog.FOLDER)
         return got[0] if got else None
+
+    def copy_text(self, text: str) -> bool:
+        """Put a short text (the shown time) on the system clipboard, for when the web
+        view blocks navigator.clipboard. False when it could not."""
+        if not isinstance(text, str) or len(text) > 200:
+            return False
+        try:
+            self._copier(clipboard_command(), text)
+        except (OSError, subprocess.SubprocessError):
+            return False
+        return True
 
     def reveal_export(self) -> bool:
         """Show the folder of the last "Export all tracks" in Finder / Explorer.

@@ -13,6 +13,7 @@ import { clipDragChange } from "./clip-drag.js";
 import { expandGroups, toggleGroupSelection } from "./clip-groups.js";
 import { entryTitle } from "./clipboard.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
+import { createClock } from "./clock.js";
 import { openContextMenu } from "./context-menu.js";
 import { contextMenuItems } from "./context-menu-model.js";
 import { dragModeChoice, nextDragMode } from "./drag-mode.js";
@@ -770,6 +771,8 @@ const keyboard = setupKeyboard({
     newProject: () => void newProject(),
     openProject: () => void openProject(),
     focusName: () => inspector.focusName(),
+    editTime: () => clock.open(),
+    copyTime: () => void clock.copy(),
     openGateStretch: () => openGateStretch(),
     selectCandidate: (row) => selectCandidate(row),
     findCandidates: () => void findCandidates(),
@@ -2165,6 +2168,19 @@ const marksCorner = createMarksCorner({
   limit: totalFrames,
   run: (id) => keyboard.registry.run(id, null, getState()),
   patch: setState,
+  copy: (text) => void clock.copy(text),
+  t,
+});
+
+// The big play-cursor time: click copies it, double-click (or Spot, Cmd+J) types a time to jump to.
+const clock = createClock({
+  el: $("timecode"),
+  getState,
+  rate,
+  limit: totalFrames,
+  format: frameToTime,
+  seek: (frame) => void transport.seek(frame),
+  notify: showNotice,
   t,
 });
 
@@ -2216,7 +2232,7 @@ function render(state, patch) {
   if (touched("project", "scroll", "zoom", "playhead", "selection")) overview.redraw();
   if (touched("playhead", "project")) {
     const time = frameToTime(state.playhead, rate());
-    $("timecode").textContent = time;
+    clock.render(time);
     // The hour form is wider, so the corner sets it smaller.
     $("timecode").classList.toggle("hour", time.split(":").length > 2);
   }
