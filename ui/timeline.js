@@ -31,7 +31,7 @@ import {
   gainLineHit,
   gainLineVisible,
 } from "./gain-drag.js";
-import { gateLabelFits, gatePixelRuns } from "./gate.js";
+import { gatePixelRuns } from "./gate.js";
 import {
   GHOST_ALPHA,
   GHOST_MUTED_FACTOR,
@@ -59,7 +59,14 @@ import { activeLoop } from "./loop-range.js";
 import { flagLayout, NOTCH_PX as MARKER_NOTCH_PX } from "./markers-model.js";
 import { lengthPill, markDrawing } from "./marks.js";
 import { advanceDelta, movedSpans, moveTargets, snapMove } from "./move-snap.js";
-import { baseGainDb, makeWaveformJob, scaleFor, trackHues } from "./paint.js";
+import {
+  baseGainDb,
+  drawGateHatch,
+  drawSilenceHatch,
+  makeWaveformJob,
+  scaleFor,
+  trackHues,
+} from "./paint.js";
 import { aboutSeconds, placeholderLabel } from "./placeholders-model.js";
 import { dragRange, isDrag, touchedResult, trackRowsTouched } from "./range-drag.js";
 import { dimmedTracks } from "./range-scope.js";
@@ -95,7 +102,6 @@ const WORDS_BACKING_ALPHA = 0.55;
 const WORDS_SELECTED_ALPHA = 0.5;
 /** The longest word that can start before the view and still reach into it (seconds). */
 const WORDS_LOOKBACK_S = 10;
-const HATCH_STEP = 6;
 const POINT_RADIUS = 3;
 const XFADE_ALPHA = 0.3;
 const GAIN_ALPHA = 0.75;
@@ -105,7 +111,6 @@ const NOTCH_PX = 4;
 const MARK_FONT_PX = 10;
 const BRACKET_PX = 10;
 const GATE_TICK_PX = 7;
-const GATE_LABEL_MIN_LANE = 36;
 const CANDIDATE_STRIPE_ALPHA = 0.35;
 const CANDIDATE_EDGE_PX = 1;
 const CANDIDATE_EDGE_CURRENT_PX = 2;
@@ -592,6 +597,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     overlay.beginPath();
     overlay.rect(0, RULER_HEIGHT, width, size.height - RULER_HEIGHT);
     overlay.clip();
+    drawGateBands(state, track, top, row.height);
     for (const clip of paintOrder(track.clips)) {
       const left = frameToX(clip.start, state.scroll, state.zoom);
       const right = frameToX(clipEnd(clip), state.scroll, state.zoom);
@@ -714,8 +720,8 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     overlay.restore();
   }
 
-  // The gate (WP44): a dim veil in the lane colour over each closed stretch,
-  // a small tick at each edge, and 'mic closed' when the band is wide enough.
+  // The gate (WP44): each closed stretch is hatched like a muted clip (drawGateBands) and gets
+  // a small tick at each edge, the one difference, since a band has no outline of its own.
   // The waveform under it is drawn flat by the waveform layer. Runs are merged
   // pixels (gate.js), so thousands of ranges cost a few rectangles.
   const gateRuns = [];
@@ -726,25 +732,19 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     const y = top + 2;
     const h = rowHeight - 4;
     const tick = Math.min(GATE_TICK_PX, Math.floor(h / 3));
-    overlay.fillStyle = theme.gate;
-    overlay.globalAlpha = theme.gateOpacity;
-    for (let i = 0; i < runs.length; i += 2) overlay.fillRect(runs[i], y, runs[i + 1] - runs[i], h);
-    overlay.globalAlpha = 1;
     overlay.fillStyle = theme.muted;
     for (let i = 0; i < runs.length; i += 2) {
       if (runs[i] > 0) overlay.fillRect(runs[i], y + h - tick, 1, tick);
       if (runs[i + 1] < size.width) overlay.fillRect(runs[i + 1] - 1, y + h - tick, 1, tick);
     }
-    if (rowHeight < GATE_LABEL_MIN_LANE) return;
-    const text = t("ui.gate.mic_closed");
-    overlay.font = `600 ${NAME_FONT_PX}px ${theme.font}`;
-    overlay.textBaseline = "top";
-    const textWidth = overlay.measureText(text).width;
-    for (let i = 0; i < runs.length; i += 2) {
-      const band = runs[i + 1] - runs[i];
-      if (!gateLabelFits(band, textWidth)) continue;
-      overlay.fillText(text, runs[i] + (band - textWidth) / 2, y + h / 2 - NAME_FONT_PX / 2);
-    }
+  }
+
+  // The hatch of the gate: the same drawing as a muted clip's, drawn before the clips so it
+  // sits on the same layer (under names, gain lines and the selection outline).
+  function drawGateBands(state, track, top, rowHeight) {
+    if (state.showGates === false || !track.gate?.length) return;
+    const runs = gatePixelRuns(track.gate, state.scroll, state.zoom, size.width, gateRuns);
+    drawGateHatch(overlay, runs, top + 2, rowHeight - 4, theme.hatch);
   }
 
   // Open cut candidates (WP18): a faint fill with 1 px edges on every lane the cut would
@@ -799,19 +799,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
   }
 
   function drawHatch(x, y, w, h, colour) {
-    overlay.save();
-    overlay.beginPath();
-    overlay.rect(x, y, w, h);
-    overlay.clip();
-    overlay.strokeStyle = colour;
-    overlay.lineWidth = 1;
-    overlay.beginPath();
-    for (let offset = -h; offset < w; offset += HATCH_STEP) {
-      overlay.moveTo(x + offset, y + h);
-      overlay.lineTo(x + offset + h, y);
-    }
-    overlay.stroke();
-    overlay.restore();
+    drawSilenceHatch(overlay, x, y, w, h, colour);
   }
 
   // A crossfade is a darker triangle pair centred on the edge: one falling, one rising.

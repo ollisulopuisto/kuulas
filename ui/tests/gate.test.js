@@ -4,7 +4,6 @@ import {
   flatBar,
   GATE_OPEN_COMMAND,
   gateAt,
-  gateLabelFits,
   gatePixelRuns,
   openStretchEdit,
   stretchAt,
@@ -81,14 +80,6 @@ describe("gateAt", () => {
     assert.equal(gateAt(ranges, 3005, 10), 1);
     assert.equal(gateAt(ranges, 3020, 10), 1);
     assert.equal(gateAt(ranges, 3100, 10), -1);
-  });
-});
-
-describe("gateLabelFits", () => {
-  test("needs the text plus padding on both sides", () => {
-    assert.equal(gateLabelFits(100, 60), true);
-    assert.equal(gateLabelFits(70, 60), false);
-    assert.equal(gateLabelFits(0, 60), false);
   });
 });
 
