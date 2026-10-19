@@ -125,9 +125,9 @@ describe("keys", () => {
     assert.equal(entry("mark.clear").keys.mac, "Shift+Alt+I");
     assert.equal(entry("mark.clear").keys.other, "Shift+Alt+I");
   });
-  test("the candidate keys list the Finnish-keyboard-friendly alias first", () => {
-    assert.deepEqual(entry("candidate.next").keys.mac, ["Alt+ArrowDown", "]"]);
-    assert.deepEqual(entry("candidate.previous").keys.mac, ["Alt+ArrowUp", "["]);
+  test("no default key is on a bracket key (Finnish keyboards need AltGr for them)", () => {
+    assert.deepEqual(entry("candidate.next").keys.mac, "Alt+ArrowDown");
+    assert.deepEqual(entry("candidate.previous").keys.mac, "Alt+ArrowUp");
   });
   test("the export keys: Mod+E is the plain mix, Shift adds the options", () => {
     assert.equal(entry("app.export").keys.mac, "Mod+E");

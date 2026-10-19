@@ -160,20 +160,12 @@ describe("the core keys", () => {
     assert.deepEqual(calls, []);
   });
 
-  test("Z toggles, 0 shows all, F fits the selection, Alt+[ and Alt+] step the views", () => {
+  test("Z toggles, 0 shows all, and F fits the selection", () => {
     const { keymap, calls } = setup({ platform: "mac" });
     keymap.handle(press({ key: "z", code: "KeyZ" }));
     keymap.handle(press({ key: "0", code: "Digit0" }));
     keymap.handle(press({ key: "f", code: "KeyF" }));
-    keymap.handle(press({ key: "“", code: "BracketLeft", altKey: true }));
-    keymap.handle(press({ key: "‘", code: "BracketRight", altKey: true }));
-    assert.deepEqual(calls, [
-      ["view.toggle"],
-      ["view.fit"],
-      ["view.fit_selection"],
-      ["view.back"],
-      ["view.forward"],
-    ]);
+    assert.deepEqual(calls, [["view.toggle"], ["view.fit"], ["view.fit_selection"]]);
   });
 
   test("layout-free keys: Alt+Down/Up step candidates, Cmd+Alt+Shift+Left/Right step the views", () => {
@@ -284,20 +276,36 @@ describe("user overrides in the dispatcher", () => {
 });
 
 describe("physical keys on a Finnish layout", () => {
-  test("[ and ] are the keys at BracketLeft/BracketRight, whatever they print", () => {
-    const { keymap, calls } = setup();
-    keymap.handle(press({ key: "å", code: "BracketLeft" })); // Finnish: Å sits there
-    keymap.handle(press({ key: "¨", code: "BracketRight" }));
-    keymap.handle(press({ key: "[", code: "BracketLeft" })); // US
-    assert.deepEqual(calls, [["candidate.previous"], ["candidate.next"], ["candidate.previous"]]);
+  test("no default key is on a bracket key: [ ] Alt+[ Alt+] Å ¨ and Option+8/9 do nothing", () => {
+    for (const platform of ["mac", "other"]) {
+      const { keymap, calls } = setup({ platform });
+      for (const altKey of [false, true]) {
+        keymap.handle(press({ key: "å", code: "BracketLeft", altKey }));
+        keymap.handle(press({ key: "¨", code: "BracketRight", altKey }));
+        keymap.handle(press({ key: "[", code: "BracketLeft", altKey }));
+        keymap.handle(press({ key: "]", code: "BracketRight", altKey }));
+      }
+      keymap.handle(press({ key: "[", code: "Digit8", altKey: true }));
+      assert.deepEqual(calls, [], platform);
+    }
   });
 
-  test("[ typed with AltGr (Finnish Windows/Linux) or Option (Finnish Mac) also works", () => {
-    const win = setup();
+  test("a user's own [ and ] overrides still work: by position, and typed with AltGr/Option", () => {
+    const overrides = { "candidate.previous": "[", "candidate.next": "]" };
+    const one = setup({ overrides });
+    one.keymap.handle(press({ key: "å", code: "BracketLeft" })); // Finnish: Å sits there
+    one.keymap.handle(press({ key: "¨", code: "BracketRight" }));
+    one.keymap.handle(press({ key: "[", code: "BracketLeft" })); // US
+    assert.deepEqual(one.calls, [
+      ["candidate.previous"],
+      ["candidate.next"],
+      ["candidate.previous"],
+    ]);
+    const win = setup({ overrides });
     win.keymap.handle(press({ key: "[", code: "Digit8", ...altGr }));
     win.keymap.handle(press({ key: "]", code: "Digit9", ...altGr }));
     assert.deepEqual(win.calls, [["candidate.previous"], ["candidate.next"]]);
-    const mac = setup({ platform: "mac" });
+    const mac = setup({ platform: "mac", overrides });
     mac.keymap.handle(press({ key: "[", code: "Digit8", altKey: true }));
     assert.deepEqual(mac.calls, [["candidate.previous"]]);
   });

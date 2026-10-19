@@ -15,8 +15,9 @@
 // Owner decisions (18.10.2026) kept here: Backspace is Delete (soft cut, gap kept),
 // X is Cut (ripple, to the clipboard), Mod+C copies; Spot is Mod+J, find is Mod+F,
 // fade is G, import is Mod+I (Mod+T in the desktop wrapper), K keeps a candidate (in the Candidates tab),
-// [ ] are physical keys (Finnish Mac: Option+8/9, so Alt+Down/Up also step candidates and
-// Alt+Mod+Shift+Left/Right the views; Alt+Shift+Arrow is pan), F2 renames. Alt+X is lift-cut
+// No default is on [ or ] (owner, 2026-10-19: they need AltGr/Option+8/9 on a Finnish keyboard):
+// Alt+Down/Up step candidates, Alt+Mod+Shift+Left/Right the views (Alt+Shift+Arrow is pan),
+// N / Shift+N the drift list. keys.js still parses "[" and "]" so a user's own override works. F2 renames. Alt+X is lift-cut
 // (copy, then soft delete, gap kept), Alt+Mod+X closes the gap on all tracks (ripple, no
 // clipboard). Parked and so not bound: Clean up cuts, Compare. The clipboard (WP46): X cuts to it,
 // Mod+C copies only, Backspace never touches it; Mod+V pastes (insert), Alt+Mod+V
@@ -92,16 +93,16 @@ export const DEFAULT_KEYMAP = [
   {
     // Fast listening's speed is stepless, 1.0x to 2.0x in 0.05x steps (owner, 2026-10-18).
     // Shift+. and Shift+, cannot be told from . and , (shift is part of the character), so
-    // the nudges are , (slower) and / (faster); Alt+0 puts it back to 1.0x.
+    // the nudges are Shift+J or , (slower) and Shift+L (faster; "/" is Shift+7 on a Finnish keyboard, so no default); Alt+0 puts it back to 1.0x.
     id: "transport.speed_down",
-    keys: { mac: ",", other: "," },
+    keys: { mac: ["Shift+J", ","], other: ["Shift+J", ","] },
     context: "global",
     labelKey: "cmd.transport.speed_down",
     repeat: true,
   },
   {
     id: "transport.speed_up",
-    keys: { mac: "/", other: "/" },
+    keys: { mac: "Shift+L", other: "Shift+L" },
     context: "global",
     labelKey: "cmd.transport.speed_up",
     repeat: true,
@@ -338,19 +339,13 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "view.back",
-    keys: {
-      mac: ["Alt+[", "Alt+Mod+Shift+ArrowLeft"],
-      other: ["Alt+[", "Alt+Mod+Shift+ArrowLeft"],
-    },
+    keys: { mac: "Alt+Mod+Shift+ArrowLeft", other: "Alt+Mod+Shift+ArrowLeft" },
     context: "global",
     labelKey: "cmd.view.back",
   },
   {
     id: "view.forward",
-    keys: {
-      mac: ["Alt+]", "Alt+Mod+Shift+ArrowRight"],
-      other: ["Alt+]", "Alt+Mod+Shift+ArrowRight"],
-    },
+    keys: { mac: "Alt+Mod+Shift+ArrowRight", other: "Alt+Mod+Shift+ArrowRight" },
     context: "global",
     labelKey: "cmd.view.forward",
   },
@@ -869,17 +864,17 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "sync.drift_next",
-    keys: { mac: "]", other: "]" },
+    keys: { mac: "N", other: "N" },
     context: "markers",
     labelKey: "cmd.sync.drift_next",
   },
   {
     id: "sync.drift_previous",
-    keys: { mac: "[", other: "[" },
+    keys: { mac: "Shift+N", other: "Shift+N" },
     context: "markers",
     labelKey: "cmd.sync.drift_previous",
   },
-  // Candidates (WP18). ] [ D and Shift+Mod+D work from every panel (none is a typing key);
+  // Candidates (WP18). Alt+Down/Up, D and Shift+Mod+D work from every panel (none is a typing key);
   // Enter, K and Shift+Space only while the Candidates tab has the keyboard.
   {
     id: "candidate.mark",
@@ -895,13 +890,13 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "candidate.next",
-    keys: { mac: ["Alt+ArrowDown", "]"], other: ["Alt+ArrowDown", "]"] },
+    keys: { mac: "Alt+ArrowDown", other: "Alt+ArrowDown" },
     context: "not-markers",
     labelKey: "cmd.candidate.next",
   },
   {
     id: "candidate.previous",
-    keys: { mac: ["Alt+ArrowUp", "["], other: ["Alt+ArrowUp", "["] },
+    keys: { mac: "Alt+ArrowUp", other: "Alt+ArrowUp" },
     context: "not-markers",
     labelKey: "cmd.candidate.previous",
   },
@@ -1218,10 +1213,9 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.help.open",
   },
   {
-    // WP75. Mod+/ because "/" alone is the faster-playback nudge and "?" is the key sheet; a Mac's
-    // Cmd+Shift+/ (the Help search of other Mac programs) is the same key: Shift is not compared.
+    // WP75. Shift+Mod+K, next to Mod+K (the palette): Mod+/ is Cmd+Shift+7 on a Finnish keyboard (owner, 2026-10-19).
     id: "help.search",
-    keys: { mac: "Mod+/", other: "Mod+/" },
+    keys: { mac: "Shift+Mod+K", other: "Shift+Mod+K" },
     context: "text-field",
     labelKey: "cmd.help.search",
   },

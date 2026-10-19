@@ -64,11 +64,30 @@ describe("the WP5 collision test", () => {
   }
 });
 
+describe("Finnish keyboard (owner, 2026-10-19)", () => {
+  test("no default key is on [ ] / \\ or the backquote (AltGr or Shift+digit there)", () => {
+    for (const entry of DEFAULT_KEYMAP) {
+      for (const platform of ["mac", "other"]) {
+        const raw = entry.keys[platform];
+        for (const combo of raw === null ? [] : [raw].flat()) {
+          const parsed = parseCombo(combo);
+          assert.ok(parsed, `${entry.id}: ${combo}`);
+          assert.ok(!"[]/\\`".includes(parsed.key), `${entry.id} is bound to ${combo}`);
+        }
+      }
+    }
+  });
+
+  test("help search is Shift+Mod+K, not Mod+/", () => {
+    assert.deepEqual(keysOf("help.search"), ["Shift+Mod+K"]);
+  });
+});
+
 describe("the owner's decisions", () => {
-  test("fast listening: . toggles, , and / nudge it by a step (held keys repeat), Alt+0 resets", () => {
+  test("fast listening: . toggles, Shift+J or , slow it and Shift+L speeds it by a step (held keys repeat), Alt+0 resets", () => {
     assert.deepEqual(keysOf("transport.speed"), ["."]);
-    assert.deepEqual(keysOf("transport.speed_down"), [","]);
-    assert.deepEqual(keysOf("transport.speed_up"), ["/"]);
+    assert.deepEqual(keysOf("transport.speed_down"), ["Shift+J", ","]);
+    assert.deepEqual(keysOf("transport.speed_up"), ["Shift+L"]);
     assert.deepEqual(keysOf("transport.speed_reset"), ["Alt+0"]);
     for (const id of ["transport.speed_down", "transport.speed_up"]) {
       assert.equal(DEFAULT_KEYMAP.find((entry) => entry.id === id).repeat, true);
@@ -89,10 +108,9 @@ describe("the owner's decisions", () => {
     assert.deepEqual(keysOf("app.import"), ["Mod+I"]);
   });
 
-  test("candidates use the physical brackets, Enter keeps, F2 renames", () => {
-    // The first alias is what the menu shows: the one a Finnish keyboard can type.
-    assert.deepEqual(keysOf("candidate.next"), ["Alt+ArrowDown", "]"]);
-    assert.deepEqual(keysOf("candidate.previous"), ["Alt+ArrowUp", "["]);
+  test("candidates use Alt+Down/Up (no bracket keys), Enter keeps, F2 renames", () => {
+    assert.deepEqual(keysOf("candidate.next"), ["Alt+ArrowDown"]);
+    assert.deepEqual(keysOf("candidate.previous"), ["Alt+ArrowUp"]);
     assert.deepEqual(keysOf("candidate.reject"), ["Enter"]);
     assert.deepEqual(keysOf("rename"), ["F2"]);
   });
@@ -127,12 +145,12 @@ describe("the owner's decisions", () => {
     assert.deepEqual(keysOf("nav.tab_target_cycle"), ["Shift+T"]);
   });
 
-  test("sync: U frees, ] and [ step the drift list in the Markers tab, the rest has no key", () => {
+  test("sync: U frees, N and Shift+N step the drift list in the Markers tab, the rest has no key", () => {
     const contextOf = (id) => DEFAULT_KEYMAP.find((entry) => entry.id === id).context;
     assert.deepEqual(keysOf("sync.free"), ["U"]);
     assert.equal(contextOf("sync.free"), "timeline");
-    assert.deepEqual(keysOf("sync.drift_next"), ["]"]);
-    assert.deepEqual(keysOf("sync.drift_previous"), ["["]);
+    assert.deepEqual(keysOf("sync.drift_next"), ["N"]);
+    assert.deepEqual(keysOf("sync.drift_previous"), ["Shift+N"]);
     for (const id of ["sync.drift_next", "sync.drift_previous"]) {
       assert.equal(contextOf(id), "markers", id);
     }
@@ -213,8 +231,8 @@ describe("the owner's decisions", () => {
     assert.deepEqual(keysOf("view.toggle"), ["Z"]);
     assert.deepEqual(keysOf("view.fit"), ["0"]);
     assert.deepEqual(keysOf("view.fit_selection"), ["F"]);
-    assert.deepEqual(keysOf("view.back"), ["Alt+[", "Alt+Mod+Shift+ArrowLeft"]);
-    assert.deepEqual(keysOf("view.forward"), ["Alt+]", "Alt+Mod+Shift+ArrowRight"]);
+    assert.deepEqual(keysOf("view.back"), ["Alt+Mod+Shift+ArrowLeft"]);
+    assert.deepEqual(keysOf("view.forward"), ["Alt+Mod+Shift+ArrowRight"]);
     assert.deepEqual(keysOf("mark.clear_in"), ["Shift+I"]);
     assert.deepEqual(keysOf("mark.clear_out"), ["Shift+O"]);
     assert.deepEqual(keysOf("mark.clear"), ["Shift+Alt+I"]);

@@ -1,5 +1,5 @@
 // The Candidates commands (WP18 UI), registered by id like the editor's. The ids and keys
-// are in keymap-default.js: ] [ D and Shift+Mod+D work everywhere (they are not typing
+// are in keymap-default.js: Alt+Down/Up, D and Shift+Mod+D work everywhere (they are not typing
 // keys), Enter, K and Shift+Space only while the Candidates tab has the keyboard, because
 // Enter and Shift+Space mean other things elsewhere and K is kept for the shuttle's stop.
 // Enter is the soft cut (Delete: the gap stays); closing the gap is a second command.

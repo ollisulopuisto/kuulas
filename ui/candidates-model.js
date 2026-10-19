@@ -28,7 +28,7 @@ export function listedRows(rows, openOnly) {
 export const extractCurrent = (rows, id) => rows.find((row) => row.id === id) ?? null;
 
 /**
- * The row ] or [ goes to (`direction` 1 or -1), among the rows shown; null at the ends.
+ * The row Alt+Down or Alt+Up goes to (`direction` 1 or -1), among the rows shown; null at the ends.
  * Standing on the current one (the play cursor is at its start), it is the neighbour in
  * the list, so two candidates at one instant are both visited. Otherwise it is by
  * position: the first that starts after the cursor, the last that starts before it.

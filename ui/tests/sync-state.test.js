@@ -163,7 +163,7 @@ describe("the sync commands", () => {
     assert.deepEqual(calls.edits[0].args, { clip_ids: ["a", "c"], free: true });
   });
 
-  test("] and [ select and show the next and previous drifting clip", async () => {
+  test("N and Shift+N select and show the next and previous drifting clip", async () => {
     const { registry, calls, get } = await setup({
       playhead: 10,
       syncClips: [row("a", 0, 5), row("c", 20, 1)],
@@ -177,18 +177,18 @@ describe("the sync commands", () => {
   });
 });
 
-describe("] and [ in the keymap", () => {
+describe("N and Shift+N in the keymap", () => {
   function keyboard(context) {
     const calls = [];
     const registry = createRegistry();
     for (const entry of DEFAULT_KEYMAP) registry.register(entry.id, () => calls.push(entry.id));
     const keymap = createKeymap({ platform: "other", getContext: () => context, registry });
     keymap.setEntries(resolveKeymap(DEFAULT_KEYMAP, {}, "other"));
-    const press = (key) =>
+    const press = (key, shiftKey = false) =>
       keymap.handle({
         key,
-        code: key === "]" ? "BracketRight" : "BracketLeft",
-        shiftKey: false,
+        code: "KeyN",
+        shiftKey,
         altKey: false,
         ctrlKey: false,
         metaKey: false,
@@ -199,14 +199,14 @@ describe("] and [ in the keymap", () => {
       });
     return { calls, press };
   }
-  test("in the Markers tab they step the drift list, elsewhere the candidates", () => {
+  test("in the Markers tab they step the drift list; the bracket keys do nothing", () => {
     const markers = keyboard("markers");
-    markers.press("]");
-    markers.press("[");
+    markers.press("n");
+    markers.press("N", true);
     assert.deepEqual(markers.calls, ["sync.drift_next", "sync.drift_previous"]);
     const timeline = keyboard("timeline");
-    timeline.press("]");
     timeline.press("[");
-    assert.deepEqual(timeline.calls, ["candidate.next", "candidate.previous"]);
+    timeline.press("]");
+    assert.deepEqual(timeline.calls, []);
   });
 });

@@ -594,7 +594,7 @@
   "cmd.transport.shuttle_back.hint": "Play backward; each further press is faster",
   "cmd.transport.shuttle_stop.hint": "Stop the shuttle",
   "cmd.transport.loop.hint": "Play the in-to-out range, or the selected clips, over and over",
-  "cmd.transport.speed.hint": "Switch fast listening (pitch kept) on or off; its speed is set with the slider or the , and / keys",
+  "cmd.transport.speed.hint": "Switch fast listening (pitch kept) on or off; its speed is set with the slider or the Shift+J, Shift+L and , keys",
   "cmd.transport.speed_down.hint": "Lower the fast listening speed by 0.05× (hold to keep going)",
   "cmd.transport.speed_up.hint": "Raise the fast listening speed by 0.05× (hold to keep going), up to 2×",
   "cmd.transport.speed_reset.hint": "Back to normal speed, and fast listening off",

@@ -1516,7 +1516,7 @@ Keys (add to WP5):
 |---|---|
 | D | while playing: first press starts a candidate at the playhead, second press ends it. Playback never stops |
 | Alt+D | candidate from in to out, or over the selected words in the transcript |
-| ] / [ | next / previous open candidate; playhead to 2 s before it (brackets: Hindenburg's cut-point keys; Alt+Tab is taken by Windows) |
+| Alt+Down / Alt+Up | next / previous open candidate; playhead to 2 s before it (no bracket keys since 19.10.2026: they need AltGr on a Finnish keyboard; Alt+Tab is taken by Windows) |
 | Shift+Space on a candidate | **preview the cut**: play 2 s before, skip the candidate, play 2 s after |
 | Enter | apply the candidate (`apply_cut_marker`) |
 | Backspace | reject it (kept, dimmed, state `rejected`) |
@@ -3618,8 +3618,8 @@ change unless he says so, en and fi strings.
   (4 items) in its own submenu.
 - **Go:** "Previous/Next stop" appear twice (`nav.*` and `transcript.*`; they differ only by context):
   show each once. "Track above/below" are "Select the track above / below".
-- **Cut candidates:** make sure Next/Previous candidate keys work on a Finnish keyboard (today `[` and `]` are
-  physical keys: Option+8 and Option+9 on a Finnish Mac; Alt+Down and Alt+Up also step candidates).
+- **Cut candidates:** make sure Next/Previous candidate keys work on a Finnish keyboard (done 19.10.2026: the
+  bracket keys are no longer bound; Alt+Down and Alt+Up step candidates).
 - **View:** too busy; submenus (for example Zoom and fit, Mouse and trackpad, Buses).
 - **Transcript, Narration, Help:** no notes.
 - **File (later notes):** "Export transcripts" is its own submenu in File (subtitles, transcript text, chapters,

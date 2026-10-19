@@ -178,7 +178,7 @@ describe("resolving a menu", () => {
     const help = make().find((m) => m.id === "help");
     assert.equal(help.items[0].kind, "search");
     assert.equal(help.items[0].id, "help.search");
-    assert.equal(help.items[0].keys, "Ctrl+/");
+    assert.equal(help.items[0].keys, "Ctrl+Shift+K");
     assert.ok(menuTargets(MENU).includes("help.search"), "the coverage test sees it as in a menu");
   });
 
