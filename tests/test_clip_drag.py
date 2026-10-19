@@ -86,7 +86,7 @@ def test_anchor_direction_is_clamped_by_the_anchor_only():
         project(), ["ca", "cv"], -1, group_editing=True, anchor_clip_id="ca")
     assert where(p, "ca") == ("A", 0)
     assert where(p, "cv") == ("V", 0)
-    # Dropped on the partner's track, the anchor overwrites it (_overwrite_under, as ever).
+    # Dropped on the partner's track, the anchor overwrites it.
     p = ops.move_clips_to_track(
         project(), ["ca", "cv"], 1, group_editing=True, anchor_clip_id="ca")
     assert where(p, "ca") == ("V", 0)
