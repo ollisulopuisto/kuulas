@@ -3,7 +3,7 @@
 The projects the user opened lately, as pure functions over lists of path
 strings, most recent first: opening a project moves it to the front and the
 oldest overflow falls off, the paths that no longer exist are filtered out
-by a caller-supplied ``exists`` (this module does no I/O of its own), and
+by a caller-supplied ``exists`` (the list functions do no I/O of their own), and
 the display names the "Other projects" list shows drop the parent folder
 and the ``.kuulas`` suffix, sortable by name.
 
@@ -11,6 +11,9 @@ and the ``.kuulas`` suffix, sortable by name.
 a folder can be written with a trailing slash or a ``./`` inside and still
 be that folder. No kuulas imports, no I/O, no user-facing strings: a bad
 limit is a plain ``ValueError``. No function touches its input.
+
+The records part keeps what is remembered beside each path (opened time, track
+count, length, size); its only I/O is ``folder_size``, which reads and is capped.
 """
 
 from __future__ import annotations
@@ -74,3 +77,118 @@ def sort_by_name(paths: list[str]) -> list[str]:
     the full path string breaks the ties, so the order is total.
     """
     return sorted(paths, key=lambda p: (display_name(p).casefold(), p))
+
+
+# -- records: what is remembered beside each path ----------------------------------
+
+#: The facts kept per project, beside ``path`` and ``opened_utc``. All optional.
+META_FIELDS = ("tracks", "duration_s", "size_bytes")
+
+#: How many directory entries ``folder_size`` looks at before giving up.
+SIZE_MAX_ENTRIES = 20_000
+
+
+def _is_count(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 0
+
+
+def _is_amount(value: object) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0
+
+
+def normalize_record(item: object) -> dict | None:
+    """A clean record from what the recents file holds, or None.
+
+    A bare string is the old format: just the path. A dict keeps ``path``,
+    ``opened_utc`` and the valid ``META_FIELDS``; unknown or invalid keys are
+    dropped, so a damaged value never reaches the start page.
+    """
+    if isinstance(item, str):
+        return {"path": item} if item else None
+    if not isinstance(item, dict):
+        return None
+    path = item.get("path")
+    if not isinstance(path, str) or not path:
+        return None
+    record: dict = {"path": path}
+    if isinstance(item.get("opened_utc"), str):
+        record["opened_utc"] = item["opened_utc"]
+    if _is_count(item.get("tracks")):
+        record["tracks"] = item["tracks"]
+    for key in ("duration_s", "size_bytes"):
+        if _is_amount(item.get(key)):
+            record[key] = item[key]
+    return record
+
+
+def make_record(path: str, opened_utc: str | None = None, **meta: float | None) -> dict:
+    """A record for ``path``; ``None`` facts are left out."""
+    record: dict = {"path": path}
+    if opened_utc is not None:
+        record["opened_utc"] = opened_utc
+    for key in META_FIELDS:
+        if meta.get(key) is not None:
+            record[key] = meta[key]
+    return normalize_record(record) or {"path": path}
+
+
+def merge_record(existing: list[dict], new: dict, limit: int = 20) -> list[dict]:
+    """``merge_recent`` for records: ``new`` goes first, and the facts an earlier
+    copy of the same project had that ``new`` does not carry are kept.
+    ``existing`` is left alone."""
+    if limit < 1:
+        msg = f"recent projects limit must be at least 1, not {limit}"
+        raise ValueError(msg)
+    norm = os.path.normpath(new["path"])
+    merged = dict(new)
+    for old in existing:
+        if os.path.normpath(old["path"]) == norm:
+            for key in ("opened_utc", *META_FIELDS):
+                if key in old and key not in merged:
+                    merged[key] = old[key]
+    rest = [dict(r) for r in existing if os.path.normpath(r["path"]) != norm]
+    return [merged, *rest][:limit]
+
+
+def update_record(existing: list[dict], path: str, **meta: float | None) -> list[dict]:
+    """A new list with the facts of ``path`` replaced, order and ``opened_utc``
+    untouched. A ``None`` fact is left as it was; a path not in the list changes
+    nothing."""
+    norm = os.path.normpath(path)
+    result = []
+    for old in existing:
+        record = dict(old)
+        if os.path.normpath(record["path"]) == norm:
+            for key in META_FIELDS:
+                if meta.get(key) is not None:
+                    record[key] = meta[key]
+            record = normalize_record(record) or record
+        result.append(record)
+    return result
+
+
+def folder_size(path: str | os.PathLike[str],
+                max_entries: int = SIZE_MAX_ENTRIES) -> int | None:
+    """The bytes of the files under ``path``, symbolic links not followed (a
+    linked medium is not part of the project). None when the folder cannot be
+    read or has more than ``max_entries`` entries: a huge tree is not walked to
+    the end for a number on a start page. Reads only."""
+    total = 0
+    seen = 0
+    stack = [os.fspath(path)]
+    try:
+        while stack:
+            with os.scandir(stack.pop()) as entries:
+                for entry in entries:
+                    seen += 1
+                    if seen > max_entries:
+                        return None
+                    if entry.is_symlink():
+                        continue
+                    if entry.is_dir():
+                        stack.append(entry.path)
+                    elif entry.is_file():
+                        total += entry.stat().st_size
+    except OSError:
+        return None
+    return total
