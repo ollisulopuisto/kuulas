@@ -15,7 +15,7 @@ Use a copy of a real episode (two or three tracks, 10 to 60 minutes), not the or
 | 4 | Space plays and pauses; click the ruler to seek; play across a clip join; loop (Mod+U) | sound is clean and continuous, the cursor follows, nothing clicks at joins | 2 |  |
 | 5 | Split (B), mute (M), delete (Backspace), cut (X) with in/out marks (I, O), lift-cut (Alt+X), Tab to jump between clip edges | each does what its menu hint says; Undo (Cmd+Z) and Redo undo exactly one step | 5, 19i, 29 |  |
 | 6 | Copy, cut, paste (Cmd+C, X, V); look at the Clipboard tab | pasted clips land at the cursor; the entry stays listed | 46 |  |
-| 7 | With the mouse: drag a range on the lanes, move a clip by its label strip, trim an edge, select with Cmd+Alt+click | each works without modifiers where the hint says so | 6, 54 |  |
+| 7 | With the mouse: drag a range on the lanes, move a clip by its label strip, trim an edge, select with Cmd+Alt+click | each works without modifiers where the hint says so | 6, 54 Found a bug 2026-10-19: dragging a synced clip down to another track also moved its partner (BUGS 91); fix in progress |
 | 8 | Move a clip out of sync, then press R | the confirm dialog says what will move; confirming puts it back (a hole where the clip covered something is a known open point, BUGS 84) | 19a |  |
 | 9 | Undo 20 steps and redo them; use Kumoa and Tee uudelleen in the History tab | state matches at each step | 29, 8 |  |
 | 10 | Close the app mid-edit (Cmd+Q), reopen the project | every edit is there | 29 |  |

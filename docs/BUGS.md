@@ -9,6 +9,7 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 
 | # | Raised | Issue | Notes |
 |---|---|---|---|
+| 91 | 19.10 | Dragging a clip from track 2 to track 3 while it is in sync with a clip on track 1 also moves the partner from track 1 to track 2 (track 2 ends up empty). Probably the same cause as 83 (clips could not be moved) | in progress: a vertical drag with group editing on moves only the grabbed clip to the new track; sync partners follow in time only (M1 step 7) |
 | 84 | 19.10 | Moving a synced clip out and back (R) leaves a hole: what the clip covered is not revealed | open, needs the owner's choice: extend the neighbours automatically (when source-contiguous) or a "fill the gap" command |
 | 83 | 19.10 | Clips could not be moved after some session work (could not reproduce) | open, needs the exact symptom from the owner |
 | 82 | 19.10 | Undoing past a take removes its clip and nothing offers it back (the file stays in `recordings/`) | open: the Recordings list with Restore options is planned (ROADMAP, ground rule 17) |
