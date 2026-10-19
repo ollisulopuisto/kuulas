@@ -2029,7 +2029,7 @@
   "error.record.device_list_failed": "Tulojen luetteloa ei voitu lukea.",
   "error.record.device_not_found": "Tuloa ei ole kytketty.",
   "error.record.channels_unavailable": "Tulossa ei ole valittua kanavaa.",
-  "error.record.device_rate_mismatch": "Tulo ei toimi projektin taajuudella {rate} Hz. Aseta se Audio-MIDI-asetuksissa taajuudelle {rate} Hz ja yritä uudelleen.",
+  "error.record.device_rate_mismatch": "Tulo ei toimi projektin taajuudella {rate} Hz. Aseta se Ääni- ja MIDI-asetuksissa taajuudelle {rate} Hz ja yritä uudelleen.",
   "error.record.device_open_failed": "Tuloa ei voitu avata. Käyttääkö jokin muu ohjelma sitä?",
   "error.record.device_no_audio": "Tulosta ei tule ääntä. Salli Macissa mikrofoni: Järjestelmäasetukset > Tietosuoja ja suojaus > Mikrofoni.",
   "error.record.file_exists": "Samanniminen äänitystiedosto on jo olemassa; mitään ei korvattu.",

@@ -3939,7 +3939,7 @@ Status: **built 2026-10-19 in v26.10.19.28** (sync no longer expands anything; `
 
 ### WP85 — Learn silence from hand-made mutes, with podcast-magic (owner approved the direction, 2026-10-19)
 
-Status: kuulas side step 1 in progress (manifest fields); the rest depends on the podcast repo. Contract agreed with the podcast session (docs/PODCAST-MAGIC.md and its reply): kuulas and speechmix/nhsx are path dependencies, so the learning code (podcast `packages/silencelearn`, one stdlib-only file) can be used in process; no command-line contract is needed for it.
+Status: step 1 (manifest fields `muted_frames`, `gate_frames` in tracks.json) built 2026-10-19; the rest depends on the podcast repo. Contract agreed with the podcast session (docs/PODCAST-MAGIC.md and its reply): kuulas and speechmix/nhsx are path dependencies, so the learning code (podcast `packages/silencelearn`, one stdlib-only file) can be used in process; no command-line contract is needed for it.
 1. **Manifest (kuulas, now):** `tracks.json` v1 gets two OPTIONAL per-track fields, additive (the automixer reads `version`, so no v2): `muted_frames` = hand-made clip mutes and `gate_frames` = Auto-Silence gate ranges; integer frames on the stem's own clock (0 = the stem's first sample = timeline frame `start_frame`), end exclusive, sorted and merged; kept apart because learning must use only the hand-made mutes.
 2. **speechmix (podcast repo):** a per-track threshold override in the speech grid (one change serves Auto-Silence and the automixer).
 3. **silencelearn (podcast repo):** a words-free mode; kuulas can supply per-media words (seconds on the media clock) when it calls it in process.
