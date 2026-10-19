@@ -4,9 +4,11 @@
     stage_bundle.py --src <checkout> --out <stage> --wheels <folder> --label <label>
 
 ``--src`` is a clean checkout (``build_dmg.sh`` makes it with ``git archive``). The stage
-folder it fills is a self-contained Briefcase project: the package and the UI files as
-two source folders (Briefcase copies each into ``Resources/app``, which is where
-``kuulas.paths.find_ui_dir`` looks), the icons, the wheels, and a generated
+folder it fills is a self-contained Briefcase project: the package, the recorder
+(``kuulas_recorder``, WP12a: the app starts it as its own process through
+``bundle.recorder_args``) and the UI files as source folders (Briefcase copies each into
+``Resources/app``, which is where ``kuulas.paths.find_ui_dir`` looks), the icons, the
+wheels, and a generated
 ``pyproject.toml``. The document type and its UTI live here, in :func:`render_config`:
 the single place that says what Finder shows for a ``.kuulas`` folder.
 
@@ -93,7 +95,7 @@ url = "https://sulopuis.to"
 formal_name = "{FORMAL_NAME}"
 description = "Multitrack spoken-word editor"
 icon = "icons/kuulas"
-sources = ["src/kuulas", "src/ui"]
+sources = ["src/kuulas", "src/kuulas_recorder", "src/ui"]
 requires = {toml_list(requires)}
 test_requires = []
 # Briefcase installs wheels only; proxy_tools (a pywebview dependency) publishes none.
@@ -136,6 +138,8 @@ def stage(src: Path, out: Path, wheels: Path, label: str) -> Path:
     shutil.copytree(src / "src" / "kuulas", package,
                     ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
     (package / "build_label.txt").write_text(label + "\n", encoding="utf-8")
+    shutil.copytree(src / "src" / "kuulas_recorder", out / "src" / "kuulas_recorder",
+                    ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
     shutil.copytree(src / "ui", out / "src" / "ui",
                     ignore=shutil.ignore_patterns(*UI_SKIP))
     (out / "icons").mkdir()
