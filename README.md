@@ -55,6 +55,8 @@ uv run kuulas open Interview.kuulas --window
 
 Platform requirements: macOS uses WKWebView (Safari engine); Windows requires WebView2 runtime; Linux requires GTK WebKit2 packages (`python3-gi`, `gir1.2-webkit2-4.1`). See `docs/desktop.md`.
 
+**Mac test build (no Python needed):** `scripts/build_dmg.sh` makes an unsigned `Kuulas <version>.dmg`; testers follow `docs/TESTERS.md`.
+
 ## Testing and checks
 
 Run the complete automated test and lint suite:

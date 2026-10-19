@@ -101,8 +101,8 @@ requirement_installer_args = ["--find-links={wheels_dir}"]
 
 [tool.briefcase.app.{APP_NAME}.macOS]
 universal_build = false
-# numba and llvmlite publish arm64 wheels for macOS 12 and later only (checked in uv.lock),
-# and Briefcase installs wheels for the minimum version it is told.
+# numba and llvmlite publish arm64 wheels for macOS 12 and later only (see uv.lock);
+# Briefcase installs the wheels for the minimum version it is told.
 min_os_version = "{MIN_MACOS}"
 
 [tool.briefcase.app.{APP_NAME}.macOS.info]

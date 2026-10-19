@@ -98,3 +98,59 @@ Things the spike found that shape the build:
 - **UI files.** `kuulas.paths.find_ui_dir` looks in `kuulas/ui` (wheel), `ui` beside the
   package (the bundle: Briefcase copies each source folder into `Resources/app`) and the
   repo's `ui` (checkout), and takes the first that has an `index.html`.
+
+## Tester build: the app, the file type, the dmg (WP73 parts c to e)
+
+Build (Apple-silicon Mac, uv, network; HEAD of the checkout, nothing else):
+
+```
+scripts/build_dmg.sh            # writes dist/Kuulas <version>.dmg and prints size + sha256
+```
+
+It exports HEAD with `git archive`, builds the wheels (`build_wheels.sh`), fetches ffmpeg
+(`fetch_ffmpeg.sh`), stages a Briefcase project (`stage_bundle.py`), runs
+`briefcase create`, copies ffmpeg into `Contents/Resources/bin` before `build` (which
+signs ad hoc), runs `Kuulas.app --selftest`, packages the dmg, mounts it and runs
+`--selftest` on the app inside. Everything lives in `build/dmg` (git-ignored); the
+Briefcase cache is there too (`BRIEFCASE_HOME`), so `rm -rf build` frees all of it.
+Measured 2026-10-19 on an M1 Max: the app is 556 MB (scipy 96, llvmlite 125, ffmpeg and
+ffprobe 126, Python 93, numpy 39, numba 14), the dmg 165 MB.
+
+- **Entry point.** `python -m kuulas` (`bundle.py`): the log goes to
+  `~/Library/Logs/Kuulas/kuulas.log` (1 MB, 3 kept; also stdout, stderr and
+  `faulthandler`), the bundled `bin` is first on `PATH`, `NUMBA_CACHE_DIR` is
+  `~/Library/Caches/Kuulas/numba` (numba would otherwise write into the signed bundle),
+  Finder's `-psn_` argument is dropped. No arguments opens the launcher (`kuulas desktop`);
+  the other `kuulas` commands work with the bundle's executable too, and
+  `--selftest`/`--help` print to the terminal instead of the log. The build label is
+  baked in (`kuulas/build_label.txt`, read by `build_info.baked_label`) because a bundle has
+  no git checkout.
+- **File type.** `stage_bundle.render_config` is the one place that defines it:
+  bundle id `fi.sulopuisto.kuulas`, document type `kuulas` (role Editor, rank Owner), an
+  exported type `fi.sulopuisto.kuulas.project` conforming to `com.apple.package` and
+  `public.composite-content`. Checked in the built `Info.plist` (`plutil -p`).
+  WP72's `macapp` module was not on main when this was written, so these identifiers exist
+  twice once it lands; keep them equal.
+- **Open events.** `desktop.install_open_files_hook` adds `application:openFiles:` to
+  pywebview's app delegate (see the spike above). `WindowApp` receives the paths
+  (`openfiles.project_paths` keeps `.kuulas` folders and folders with a manifest): at
+  launch the project replaces the launcher in the first window; later ones open a new window;
+  a project already open is brought forward (two servers on one project would fight over its
+  lock). The menu bar acts on the window that is in front.
+- **Not in the bundle:** `ui/tests`, `biome.json`, the docs. Unsigned and not notarised; the
+  testers' steps are `docs/TESTERS.md`.
+
+Verified headlessly: the unit tests (`tests/test_open_files.py`, `test_bundle.py`,
+`test_stage_bundle.py`, `test_ui_dir.py`); the whole build from a clean `git archive`;
+`--selftest` on the built app and on the app inside the mounted dmg; the built `Info.plist`;
+and, with a copy of the built app in a temp folder (registered with Launch Services there
+only, unregistered after): `open -n -a Kuulas.app One.kuulas` opened that project (the
+log shows the server and project opening), a second `open -a ... Two.kuulas` opened a
+second project in the same process, and a repeat of `One.kuulas` opened nothing new.
+
+Not verified (needs a person at the screen): that the windows look right (no screenshot
+was possible), opening the dmg and dragging to Applications, the right-click Open step,
+that Finder shows a `.kuulas` folder as one file with the icon and that a Finder
+double-click opens it (the `open -a` test sends the same Apple event but skips the Finder
+type lookup), "Open with", the Dock-icon drop, the microphone prompt, a Mac that is not
+this one (a clean user, no Homebrew), macOS older than 15.
