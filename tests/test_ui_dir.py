@@ -1,4 +1,4 @@
-"""Where the UI files are: next to the package in a bundle, in the repo otherwise (WP73)."""
+"""Where the UI files are: in a bundle or the repo (WP73)."""
 
 from __future__ import annotations
 
