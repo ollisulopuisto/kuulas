@@ -30,6 +30,14 @@ export function clipDragIds(pressedId, selection) {
   return selection?.has(pressedId) ? [...selection] : [pressedId];
 }
 
+/**
+ * The clip whose track change counts: the pressed one while group editing is on and Alt is up
+ * (then every other clip follows in time only), else null (the selection keeps its shape).
+ */
+export function dragAnchor(pressedId, groupEditing, alone) {
+  return groupEditing && !alone ? pressedId : null;
+}
+
 function distanceToRow(row, contentY) {
   if (contentY < row.top) return row.top - contentY;
   if (contentY >= row.top + row.height) return contentY - (row.top + row.height) + 1;
@@ -64,14 +72,16 @@ function located(project, ids) {
 /**
  * { delta, direction } for the pointer's travel: whole frames, the earliest clip stops at
  * frame 0, and the track change is cut back until every clip is on a track (the selection
- * keeps its shape). The same clamps as ops.move_clips_to_track, so the ghost is the result.
+ * keeps its shape). With an `anchorId` only that clip changes track, so only it limits the
+ * track change. The same clamps as ops.move_clips_to_track, so the ghost is the result.
  */
-export function resolveMove(project, ids, { deltaFrames, fromIndex, toIndex }) {
+export function resolveMove(project, ids, { deltaFrames, fromIndex, toIndex }, anchorId = null) {
   const chosen = located(project, ids);
   if (chosen.length === 0) return { delta: 0, direction: 0 };
   const earliest = Math.min(...chosen.map((entry) => entry.clip.start));
   const delta = Math.max(Math.round(deltaFrames), -earliest);
-  const rows = chosen.map((entry) => entry.index);
+  const anchored = anchorId === null ? [] : chosen.filter((entry) => entry.clip.id === anchorId);
+  const rows = (anchored.length > 0 ? anchored : chosen).map((entry) => entry.index);
   const direction = Math.max(
     -Math.min(...rows),
     Math.min(project.tracks.length - 1 - Math.max(...rows), toIndex - fromIndex),
@@ -80,10 +90,10 @@ export function resolveMove(project, ids, { deltaFrames, fromIndex, toIndex }) {
 }
 
 /** Where each dragged clip ends up: { clipId, trackId, start, end } in frames. */
-export function moveGhosts(project, ids, { delta, direction }) {
+export function moveGhosts(project, ids, { delta, direction }, anchorId = null) {
   return located(project, ids).map(({ clip, index }) => ({
     clipId: clip.id,
-    trackId: project.tracks[index + direction].id,
+    trackId: project.tracks[index + (anchorId === null || clip.id === anchorId ? direction : 0)].id,
     start: clip.start + delta,
     end: clip.start + delta + clip.length,
   }));
@@ -108,11 +118,13 @@ export function moveBoxes(ghosts, { view, layout }) {
 }
 
 /** The edit to send on release, or null when the clips did not move. */
-export function clipDragChange(ids, { delta, direction }, groupEditing) {
+export function clipDragChange(ids, { delta, direction }, groupEditing, anchorId = null) {
   if (delta === 0 && direction === 0) return null;
+  const args = { clip_ids: ids, direction, delta, group_editing: Boolean(groupEditing) };
+  if (anchorId !== null) args.anchor_clip_id = anchorId;
   return {
     op: "move_clips_to_track",
-    args: { clip_ids: ids, direction, delta, group_editing: Boolean(groupEditing) },
+    args,
     labelKey: "ui.clipdrag.move",
   };
 }

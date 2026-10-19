@@ -9,7 +9,7 @@ import { memberClipsAt, toggleChange } from "./bus-collapse.js";
 import { listedRows, scrollToShow, stepTarget } from "./candidates-model.js";
 import { createCandidatesPanel } from "./candidates-panel.js";
 import { previewRequest } from "./candidates-preview.js";
-import { clipDragChange } from "./clip-drag.js";
+import { clipDragChange, dragAnchor } from "./clip-drag.js";
 import { expandGroups, toggleGroupSelection } from "./clip-groups.js";
 import { entryTitle } from "./clipboard.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
@@ -2339,10 +2339,12 @@ const timeline = createTimeline({
     seek: (frame) => void transport.seek(frame),
     contextMenu: (hit, event) => showTimelineMenu(hit, event),
     rangeDragged: onRangeDragged,
-    clipDrag({ ids, move, alone = false }) {
+    clipDrag({ ids, move, alone = false, pressedId = null }) {
       // Alt held: this clip moves alone, whatever group editing says, and then asks whether it
       // should stay free from sync (owner, 2026-10-16).
-      const change = clipDragChange(ids, move, getState().groupEditing !== false && !alone);
+      const grouped = getState().groupEditing !== false && !alone;
+      const anchor = pressedId === null ? null : dragAnchor(pressedId, grouped, alone);
+      const change = clipDragChange(ids, move, grouped, anchor);
       if (!change) return;
       setState({ selection: new Set(ids) }); // the press selected one clip; a move keeps all
       editor.change({
