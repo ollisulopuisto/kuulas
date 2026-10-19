@@ -1701,6 +1701,11 @@ macro undoes in one step.
 Tests: switching takes changes the heard audio; a longer take ripples later
 clips of the group; switching back restores positions exactly.
 
+**No ripple, ever (owner 2026-10-19, replaces the "ripples by the difference" sketch above):** the slot of a take set
+is fixed (the marked in/out range, or the range that was recorded over). A take shorter than the slot leaves silence
+after it; a take can never be longer than its slot (loop takes stop at the out point). Case 2: a one-minute clip with
+30 seconds recorded over it: exactly those 30 seconds are replaced (the old 30 seconds become the first take of that
+slot), and nothing after it moves.
 **Owner's idea 2026-10-19 (extends 19e to recording): takes instead of overwriting. The take folder (several clips and gaps per take over one range, lanes as in Logic) is approved by the owner.** "Like Logic, Pro Tools and
 Ableton: mark an in and an out, record it many times, and when it loops it starts a new alt take; browse between the
 alt takes; good for narration. Why not use the same for recording over something on a track: I view it as a kind
@@ -1711,8 +1716,7 @@ line; one visible thing on the timeline, no layers; the old audio is browsable w
 AGAINST / costs: the take-set model must hold several clips and gaps per take over one time range (a take folder of
 lanes, as in Logic, not only one media + offset as sketched above), because a recording can cross clip borders;
 edits (cut, ripple, split, sync groups, the transcript, which must follow the ACTIVE take) must understand take
-sets; a take that is shorter or longer than its slot ripples (avoided when a take is cut to exactly the recorded
-range); the UI needs a take badge, a contextual menu and keys; Compare (WP45, parked) is the natural audition tool.
+sets; (a take shorter than its slot leaves silence, nothing ripples: see "No ripple, ever"); the UI needs a take badge, a contextual menu and keys; Compare (WP45, parked) is the natural audition tool.
 Staging: (1) WP12a records onto empty space or over existing audio with the ordinary overwrite (one undo step);
 (2) WP19e take folders with loop recording over an in/out range (each pass a take, played in turn); (3) recording
 over existing audio keeps the overwritten material as the first take of the slot and the new recording becomes the
