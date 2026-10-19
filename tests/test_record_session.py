@@ -135,8 +135,12 @@ def test_a_take_is_imported_once(session):
     folder = recordings(session)
     write_take(folder, plan=rt.TakePlan("Take 1", 0, None, "Olli", 1))
     rs = offline(session)
-    assert rs.import_take("Take 1") is not None
-    assert rs.import_take("Take 1") is None
+    first = rs.import_take("Take 1")
+    assert first is not None
+    # The stop answer and the stopped event both import; whichever comes second gets the
+    # same result, not None (found as a flaky test: the stop answer had no clips).
+    assert rs.import_take("Take 1") == first
+    assert len(session.state.tracks) == 1
     # a fresh editor (a restart) sees it in the project too
     assert offline(session).import_take("Take 1") is None
     assert offline(session).pending() == []

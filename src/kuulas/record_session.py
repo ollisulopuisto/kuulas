@@ -112,7 +112,8 @@ class RecordSession:
         self._available = False
         self._position = 0
         self._notices: deque = deque(maxlen=NOTICES_KEPT)
-        self._imported: set[str] = set()
+        #: Takes this editor imported (or found empty) -> what the import reported.
+        self._imported: dict[str, dict | None] = {}
         self._closed = threading.Event()
         self._wake = threading.Event()
         self._thread = None
@@ -374,7 +375,9 @@ class RecordSession:
                 raise RecordError("error.record.take_not_found", status=404, detail=take)
             linked = self.session.linked_files()
             if self._is_imported(take, sidecar, linked):
-                return None
+                # The stop answer and the stopped event both import: the second caller
+                # gets the first one's result (None after a restart: nothing to report).
+                return self._imported.get(take)
             if rt.readiness(sidecar, running=False) == "repair":
                 status = self.status()
                 if status["recording"] and status["ours"] and status["take"] == take:
@@ -394,17 +397,17 @@ class RecordSession:
             summary = rt.summary(sidecar)
             interrupted = sidecar.get("state") != "stopped"
             if not clips:
-                self._imported.add(take)
+                self._imported[take] = None
                 return None
             clip_name = t("record.take_interrupted", name=take) if interrupted else take
             _, clip_ids = self.session.import_take(
                 [(self.folder / c.file, c.start) for c in clips],
                 track_id=plan.track_id, track_name=plan.track_name,
                 clip_name=clip_name, take=take)
-            self._imported.add(take)
             result = {**summary, "take": take, "clips": len(clip_ids),
                       "clip_ids": clip_ids, "start": clips[0].start,
                       "interrupted": interrupted}
+            self._imported[take] = result
             self.publish({"type": "record", "kind": "imported", **result})
             return result
 
