@@ -72,3 +72,29 @@ Things the spike found that shape the build:
   `LSHandlerRank = "Owner"` is what makes it write the *exported* UTI declaration, and
   `UTTypeConformsTo = ["com.apple.package", ...]` makes the folder a package.
 - `BRIEFCASE_HOME` moves Briefcase's template and support-package cache out of `~/Library/Caches`.
+
+## Tester build: dependencies, ffmpeg, UI files (WP73 part b)
+
+- **speechmix and nhsx** are path dependencies on `../podcast/packages/`. The bundle
+  installs their wheels instead: `scripts/build_wheels.sh <folder>` clones the podcast
+  repo's `origin/main` (read only; the working checkout, dirty or not, is never touched)
+  and runs `uv build --wheel` on both. `PODCAST_SRC=<clean checkout>` uses one you made.
+- **ffmpeg: bundled.** Checked with `soundfile.available_formats()` (libsndfile 1.2.2):
+  it reads WAV, FLAC, OGG, MP3 and AIFF in-process. It does not read m4a, aac, mp4, mov,
+  mkv or webm, which the import dialog offers (phone recordings are m4a), and kuulas
+  needs `ffprobe` to measure them. Export to MP3, AAC, Opus and Vorbis also runs
+  `ffmpeg`. A double-clicked app has a minimal `PATH` (no Homebrew), so a tester's Mac
+  would fail on exactly the common files. `scripts/fetch_ffmpeg.sh <folder>` fetches
+  static arm64 `ffmpeg` and `ffprobe` (132 MB together, compress to about 50 MB in the
+  dmg); the app puts its own `Resources/bin` first on `PATH` (speechmix's
+  `get_binary_path` only looks at `PATH` outside PyInstaller).
+- **Licence of the bundled ffmpeg.** The builds are from <https://ffmpeg.martin-riedl.de>
+  (release builds, `--enable-gpl --enable-version3`, so GPLv3; they include libmp3lame,
+  libopus, libvorbis and the AudioToolbox AAC encoder). They are separate programs
+  that kuulas starts as subprocesses, not linked into it, so kuulas's own licence is not
+  affected; the GPL requires that the recipient can get the source, which that site and
+  <https://ffmpeg.org> provide. The dmg's notice (`docs/TESTERS.md`) names this. If kuulas
+  is ever distributed beyond testers, re-check with the ffmpeg build used then.
+- **UI files.** `kuulas.paths.find_ui_dir` looks in `kuulas/ui` (wheel), `ui` beside the
+  package (the bundle: Briefcase copies each source folder into `Resources/app`) and the
+  repo's `ui` (checkout), and takes the first that has an `index.html`.
