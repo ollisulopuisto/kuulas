@@ -191,6 +191,7 @@ def test_a_job_whose_worker_is_gone_is_interrupted(folder):
     shown = bgjobs.describe(folder, job_id)
     assert shown["state"] == "interrupted"
     assert shown["error"]["key"] == "error.transcribe.interrupted"
+    assert shown["media"] == ["m0", "m1"]  # the dock lists what is missing per recording
 
 
 # -- the real worker program ---------------------------------------------------

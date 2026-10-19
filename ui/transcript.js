@@ -7,6 +7,7 @@
 // listens, once), and following the playback moves two classes, never re-renders.
 import { frameToTime } from "./format.js";
 import { formatNumber, getLanguage, t } from "./i18n.js";
+import { setIcon } from "./icons.js";
 import {
   currentPosition,
   findMatches,
@@ -40,6 +41,7 @@ import {
   wordAtTime,
   wordRefs,
 } from "./transcript-model.js";
+import { anyActive, offerRows } from "./transcript-offer.js";
 
 const MARGIN_PX = 600;
 const PREVIEW_DELAY_MS = 120;
@@ -94,7 +96,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   const findNext = findButton("next", "↓");
   const findClose = findButton("close", "×");
   findBar.append(findInput, findCount, findPrev, findNext, findClose);
-  root.append(findBar, follow, list, empty, pop);
+  root.append(findBar, follow, empty, list, pop);
   list.setAttribute("role", "document");
 
   // -- derived from the words (rebuilt only when they change) -----------------------------
@@ -122,7 +124,8 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   let previewSeq = 0;
   let previewKey = "";
   let also = new Set();
-  let jobs = { state: "idle", progress: 0, error: "" };
+  let allJobs = [];
+  let lastRows = [];
   let jobTimer = 0;
   let findQuery = "";
   let matches = [];
@@ -193,80 +196,100 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     return project.media.filter((item) => used.has(item.id));
   }
 
+  /** The offer: one row per recording without a transcript (transcript-offer.js). */
   function renderEmptyState() {
     const has = words.length > 0;
     list.hidden = !has;
-    empty.hidden = has || !getState().project;
-    if (has) return;
-    empty.replaceChildren();
     const targets = transcribeTargets();
-    empty.append(el("strong", "", t("ui.transcript.empty")));
-    if (jobs.state === "running") {
-      const bar = el("progress");
-      bar.max = 1;
-      bar.value = jobs.progress;
-      bar.setAttribute("aria-label", t("ui.transcript.progress"));
-      empty.append(el("span", "", t("ui.transcript.running")), bar);
+    const { rows, all } = offerRows({
+      media: targets,
+      transcribed: words.map((word) => word.media),
+      jobs: allJobs,
+    });
+    lastRows = rows;
+    empty.hidden = !getState().project || (has && rows.length === 0);
+    empty.replaceChildren();
+    if (empty.hidden) return;
+    if (rows.length === 0) {
+      empty.append(el("strong", "", t("ui.transcript.empty")));
       return;
     }
-    if (jobs.state === "failed") empty.append(el("span", "tx-error", jobs.error));
-    if (targets.length === 0) return;
-    const names = targets.map((item) => item.name);
-    const label = names.length > 2 ? `${names.slice(0, 2).join(", ")}…` : names.join(", ");
-    const button = el("button", "button primary", t("ui.transcript.transcribe", { names: label }));
+    empty.append(el("strong", "", t("ui.transcript.missing")));
+    const table = el("ul", "tx-missing");
+    for (const row of rows) table.append(offerRow(row));
+    if (all) table.append(offerRow({ all }));
+    empty.append(table, el("span", "tx-hint", t("ui.transcript.background")));
+    scheduleWindow();
+  }
+
+  function offerButton(act, ids, text, icon, primary) {
+    const button = el("button", primary ? "button primary" : "button", text);
     button.type = "button";
-    button.dataset.act = "transcribe";
-    // The second way (WP78): the audio goes to Google Colab; the app asks before it leaves.
-    const colab = el("button", "button", t("ui.transcript.transcribe_colab", { names: label }));
-    colab.type = "button";
-    colab.dataset.act = "transcribe-colab";
-    empty.append(
-      button,
-      colab,
+    button.dataset.act = act;
+    button.dataset.ids = ids.join(",");
+    return setIcon(button, icon);
+  }
+
+  /** A row: the name, what is happening, and the two ways (or the progress of the job). */
+  function offerRow(row) {
+    const item = el("li", "tx-miss-row");
+    const ids = row.all ?? [row.id];
+    item.dataset.ids = ids.join(",");
+    const name = row.all ? t("ui.transcript.all_files", { count: row.all.length }) : row.name;
+    item.append(el("span", "tx-miss-name", name));
+    const status = row.all ? "none" : row.status;
+    if (status === "queued" || status === "running") {
+      const bar = el("progress");
+      bar.max = 1;
+      bar.value = row.progress;
+      bar.setAttribute("aria-label", t("ui.transcript.progress"));
+      item.append(el("span", "tx-miss-status", t(`ui.transcript.status.${status}`)));
+      if (status === "running") item.append(bar);
+      return item;
+    }
+    item.append(
       el(
         "span",
-        "",
-        jobs.state === "failed" ? t("ui.transcript.retry") : t("ui.transcript.background"),
+        status === "failed" ? "tx-miss-status tx-error" : "tx-miss-status",
+        status === "failed"
+          ? row.error || t("ui.transcript.retry")
+          : row.all
+            ? ""
+            : t("ui.transcript.status.none"),
       ),
     );
+    const buttons = el("span", "tx-miss-buttons");
+    buttons.append(
+      offerButton("transcribe", ids, t("ui.transcript.transcribe"), "play", true),
+      offerButton("transcribe-colab", ids, t("ui.transcript.transcribe_colab"), "export", false),
+    );
+    item.append(buttons);
+    return item;
   }
 
   async function transcribe(onlyIds) {
     const ids = onlyIds ?? transcribeTargets().map((item) => item.id);
     if (ids.length === 0) return;
     try {
-      const { jobs: started } = await api.transcribe(ids);
-      jobs = { state: "running", progress: 0, error: "", ids: started };
-      renderEmptyState();
-      pollJobs();
+      await api.transcribe(ids);
+      await refreshJobs();
     } catch (error) {
       actions.showError(error);
     }
   }
 
-  function pollJobs() {
+  /** Ask /api/jobs and redraw; while a recording waits on a job, ask again until it is done. */
+  async function refreshJobs() {
     clearTimeout(jobTimer);
-    jobTimer = setTimeout(async () => {
-      try {
-        const all = (await api.getJobs()).jobs.filter((job) => jobs.ids?.includes(job.id));
-        const failed = all.find((job) =>
-          ["failed", "cancelled", "interrupted"].includes(job.state),
-        );
-        if (failed)
-          jobs = { state: "failed", progress: 0, error: failed.error?.text || failed.title };
-        else if (all.length === 0 || all.every((job) => job.state === "completed"))
-          jobs = { state: "idle", progress: 0, error: "" };
-        else {
-          const sum = all.reduce((total, job) => total + job.progress, 0);
-          jobs = { ...jobs, progress: sum / all.length };
-        }
-      } catch {
-        // A poll that fails is tried again; the live channel reports the real outcome.
-      }
-      renderEmptyState();
-      if (jobs.state === "running") pollJobs();
-      else void loadWords(true);
-    }, JOB_POLL_MS);
+    const before = anyActive(lastRows);
+    try {
+      allJobs = (await api.getJobs()).jobs;
+    } catch {
+      // A poll that fails is tried again; the live channel reports the real outcome.
+    }
+    renderEmptyState();
+    if (anyActive(lastRows)) jobTimer = setTimeout(() => void refreshJobs(), JOB_POLL_MS);
+    else if (before) void loadWords(true);
   }
 
   // -- drawing the window --------------------------------------------------------------------------
@@ -598,9 +621,11 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     if (getState().playing && !paused) setPaused(true);
   });
   empty.addEventListener("click", (event) => {
-    if (event.target.closest?.("[data-act='transcribe']")) void transcribe();
-    else if (event.target.closest?.("[data-act='transcribe-colab']"))
-      actions.transcribeColab?.(transcribeTargets().map((item) => item.id));
+    const button = event.target.closest?.("button[data-act]");
+    if (!button) return;
+    const ids = (button.dataset.ids ?? "").split(",").filter(Boolean);
+    if (button.dataset.act === "transcribe") void transcribe(ids);
+    else if (button.dataset.act === "transcribe-colab") actions.transcribeColab?.(ids);
   });
 
   // -- the pop-up over the selection ----------------------------------------------------------------
@@ -913,7 +938,12 @@ export function createTranscript({ root, getState, setState, api, actions }) {
         lastKey = key;
         rebuild();
       }
-      if (touched("project") && !changed?.has("words") && words.length === 0) renderEmptyState();
+      if (
+        touched("project") &&
+        !changed?.has("words") &&
+        (lastRows.length > 0 || words.length === 0)
+      )
+        void refreshJobs();
       if (touched("playhead", "playing")) {
         if (touched("playing") && state.playing) setPaused(false);
         if (touched("playing") && !state.playing) follow.hidden = true;
@@ -936,6 +966,8 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     startCorrect,
     openFind,
     transcribe,
+    /** Look at the background jobs again (a job was started elsewhere, e.g. on Colab). */
+    refreshJobs,
     /** The recordings the Transcribe buttons would take: every speech track's. */
     targetIds: () => transcribeTargets().map((item) => item.id),
     /** The word indices Backspace and X act on. */
