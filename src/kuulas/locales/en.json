@@ -952,7 +952,7 @@
   "cmd.clipboard.view_shared.hint": "Show the entries marked as shared, from every project; paste or copy them into this one",
   "cmd.clipboard.view_others": "Clipboard: other projects",
   "cmd.clipboard.view_others.hint": "Look into the clipboards of your recent projects (read-only) and copy entries from them to this project",
-  "cmd.clipboard.open_project": "Clipboard: open a project...",
+  "cmd.clipboard.open_project": "Clipboard: open a project…",
   "cmd.clipboard.open_project.hint": "Pick any .kuulas project and list its clipboard, read-only",
   "ui.clipboard.keep_label": "Keep the newest",
   "ui.clipboard.clear_old": "Clear old entries",
