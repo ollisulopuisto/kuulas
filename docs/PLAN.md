@@ -1693,7 +1693,7 @@ macro undoes in one step.
 - Alt+Mod+T on two or more selected clips stacks them into one **take set**
   at the first clip's position: `Clip.takes: tuple[Take, ...]`, `Clip.take:
   int` (active). `Take = (media, offset, length, gain_db)`.
-- Alt+] / Alt+[ switches to the next / previous take. If the new take is
+- **Switch takes with Alt+Mod+ArrowDown / Alt+Mod+ArrowUp (next / previous take) — NOT the bracket keys (owner 2026-10-19: "[ and ] are horrible keys" on the Finnish keymap); the take folder model (lanes) is approved by the owner ("ottokansio on fine").** (Original sketch: Alt+] / Alt+[ switches to the next / previous take.) If the new take is
   longer or shorter, everything after it on the clip's edit group ripples by
   the difference, so later material stays in sync. One commit per switch.
 - The clip shows "2/3" in its header.
@@ -1701,7 +1701,7 @@ macro undoes in one step.
 Tests: switching takes changes the heard audio; a longer take ripples later
 clips of the group; switching back restores positions exactly.
 
-**Owner's idea 2026-10-19 (extends 19e to recording): takes instead of overwriting.** "Like Logic, Pro Tools and
+**Owner's idea 2026-10-19 (extends 19e to recording): takes instead of overwriting. The take folder (several clips and gaps per take over one range, lanes as in Logic) is approved by the owner.** "Like Logic, Pro Tools and
 Ableton: mark an in and an out, record it many times, and when it loops it starts a new alt take; browse between the
 alt takes; good for narration. Why not use the same for recording over something on a track: I view it as a kind
 of undo history; the timeline shows the selected take, and through a contextual menu you can go back to the version
