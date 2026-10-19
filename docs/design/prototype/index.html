@@ -1682,7 +1682,7 @@ const SIGNALS = [
     tokens: ["--signal-candidate", "--signal-candidate-fill"],
     twin: "diagonal stripes across the group's lanes and a 'cut?' flag in the ruler",
     when: "an open cut candidate (WP18)",
-    key: "D, ] [, Enter, Backspace",
+    key: "D, Alt+Down / Alt+Up, Enter, Backspace",
     status: "prototype",
   },
   {
@@ -1722,7 +1722,7 @@ const SIGNALS = [
     tokens: ["--signal-removed", "--signal-removed-fill"],
     twin: "a ghost outline with hatch and a '−' glyph",
     when: "changes view (WP31): audio in A that is gone in B",
-    key: "Alt+Mod+D, ] [",
+    key: "Alt+Mod+D, Alt+Down / Alt+Up",
     status: "planned",
   },
   {
@@ -1814,7 +1814,7 @@ const SIGNALS = [
     tokens: ["--signal-takes"],
     twin: "stacked top-right corner (two offset edges) and '2/3'",
     when: "a take set (WP19e)",
-    key: "Alt+] / Alt+[",
+    key: "none yet (WP19e)",
     status: "prototype",
   },
   {
@@ -1894,7 +1894,7 @@ const SIGNALS = [
     tokens: ["--signal-added"],
     twin: "a 3 px bar on the clip's left and right edges and a '+' glyph",
     when: "changes view (WP31): audio in B that was not in A",
-    key: "Alt+Mod+D, ] [",
+    key: "Alt+Mod+D, Alt+Down / Alt+Up",
     status: "planned",
   },
   {
@@ -3098,7 +3098,7 @@ const HELP_FILES = {
   "cmd.transport.shuttle_back.hint": "Play backward; each further press is faster",
   "cmd.transport.shuttle_stop.hint": "Stop the shuttle",
   "cmd.transport.loop.hint": "Play the in-to-out range, or the selected clips, over and over",
-  "cmd.transport.speed.hint": "Switch fast listening (pitch kept) on or off; its speed is set with the slider or the , and / keys",
+  "cmd.transport.speed.hint": "Switch fast listening (pitch kept) on or off; its speed is set with the slider or the Shift+J, Shift+L and , keys",
   "cmd.transport.speed_down.hint": "Lower the fast listening speed by 0.05× (hold to keep going)",
   "cmd.transport.speed_up.hint": "Raise the fast listening speed by 0.05× (hold to keep going), up to 2×",
   "cmd.transport.speed_reset.hint": "Back to normal speed, and fast listening off",
@@ -3539,7 +3539,7 @@ const HELP_FILES = {
   "cmd.transport.shuttle_back.hint": "Toistaa taaksepäin; jokainen lisäpainallus nopeuttaa",
   "cmd.transport.shuttle_stop.hint": "Pysäyttää kelauksen",
   "cmd.transport.loop.hint": "Toistaa In–Out-välin tai valitut leikkeet uudelleen ja uudelleen",
-  "cmd.transport.speed.hint": "Kytkee nopean kuuntelun (sävelkorkeus säilyy) päälle tai pois; nopeus valitaan liukusäätimellä tai näppäimillä , ja /",
+  "cmd.transport.speed.hint": "Kytkee nopean kuuntelun (sävelkorkeus säilyy) päälle tai pois; nopeus valitaan liukusäätimellä tai näppäimillä Vaihto+J, Vaihto+L ja ,",
   "cmd.transport.speed_down.hint": "Pienentää nopean kuuntelun nopeutta 0,05× (pidä pohjassa, niin se jatkuu)",
   "cmd.transport.speed_up.hint": "Suurentaa nopean kuuntelun nopeutta 0,05× (pidä pohjassa, niin se jatkuu), enintään 2×",
   "cmd.transport.speed_reset.hint": "Takaisin normaaliin nopeuteen, ja nopea kuuntelu pois",

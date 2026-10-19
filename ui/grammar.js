@@ -216,7 +216,7 @@ export const SIGNALS = [
     tokens: ["--signal-candidate", "--signal-candidate-fill"],
     twin: "diagonal stripes across the group's lanes and a 'cut?' flag in the ruler",
     when: "an open cut candidate (WP18)",
-    key: "D, ] [, Enter, Backspace",
+    key: "D, Alt+Down / Alt+Up, Enter, Backspace",
     status: "prototype",
   },
   {
@@ -256,7 +256,7 @@ export const SIGNALS = [
     tokens: ["--signal-removed", "--signal-removed-fill"],
     twin: "a ghost outline with hatch and a '−' glyph",
     when: "changes view (WP31): audio in A that is gone in B",
-    key: "Alt+Mod+D, ] [",
+    key: "Alt+Mod+D, Alt+Down / Alt+Up",
     status: "planned",
   },
   {
@@ -348,7 +348,7 @@ export const SIGNALS = [
     tokens: ["--signal-takes"],
     twin: "stacked top-right corner (two offset edges) and '2/3'",
     when: "a take set (WP19e)",
-    key: "Alt+] / Alt+[",
+    key: "none yet (WP19e)",
     status: "prototype",
   },
   {
@@ -428,7 +428,7 @@ export const SIGNALS = [
     tokens: ["--signal-added"],
     twin: "a 3 px bar on the clip's left and right edges and a '+' glyph",
     when: "changes view (WP31): audio in B that was not in A",
-    key: "Alt+Mod+D, ] [",
+    key: "Alt+Mod+D, Alt+Down / Alt+Up",
     status: "planned",
   },
   {

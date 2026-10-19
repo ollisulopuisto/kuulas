@@ -18,7 +18,7 @@ const NOT_CANDIDATES = "not-candidates";
 /** Every panel's keys except the transcript's (X cuts the marked range there, but cuts words in the transcript). */
 const NOT_TRANSCRIPT = "not-transcript";
 
-/** Every panel's keys except the Markers tab's (] and [ step the drift list there, candidates elsewhere). */
+/** Every panel's keys except the Markers tab's (N and Shift+N step the drift list there, Alt+Down/Up candidates elsewhere). */
 const NOT_MARKERS = "not-markers";
 
 /** Do two contexts ever have the same key available at once? */

@@ -596,7 +596,7 @@
   "cmd.transport.shuttle_back.hint": "Toistaa taaksepäin; jokainen lisäpainallus nopeuttaa",
   "cmd.transport.shuttle_stop.hint": "Pysäyttää kelauksen",
   "cmd.transport.loop.hint": "Toistaa In–Out-välin tai valitut leikkeet uudelleen ja uudelleen",
-  "cmd.transport.speed.hint": "Kytkee nopean kuuntelun (sävelkorkeus säilyy) päälle tai pois; nopeus valitaan liukusäätimellä tai näppäimillä , ja /",
+  "cmd.transport.speed.hint": "Kytkee nopean kuuntelun (sävelkorkeus säilyy) päälle tai pois; nopeus valitaan liukusäätimellä tai näppäimillä Vaihto+J, Vaihto+L ja ,",
   "cmd.transport.speed_down.hint": "Pienentää nopean kuuntelun nopeutta 0,05× (pidä pohjassa, niin se jatkuu)",
   "cmd.transport.speed_up.hint": "Suurentaa nopean kuuntelun nopeutta 0,05× (pidä pohjassa, niin se jatkuu), enintään 2×",
   "cmd.transport.speed_reset.hint": "Takaisin normaaliin nopeuteen, ja nopea kuuntelu pois",

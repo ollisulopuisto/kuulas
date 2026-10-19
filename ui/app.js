@@ -1993,7 +1993,7 @@ async function refreshCandidates() {
   }
 }
 
-// A row picked (click, ] [ or the arrows): the play cursor goes to its start, the timeline
+// A row picked (click, Alt+Down/Up or the arrows): the play cursor goes to its start, the timeline
 // scrolls so it shows, and the preview bar's numbers are fetched.
 function selectCandidate(row) {
   const state = getState();

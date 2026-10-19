@@ -28,7 +28,7 @@ export function badgeFor(row) {
   return null;
 }
 
-/** The rows that are drifting (undecided), in timeline order: the list ] and [ step through. */
+/** The rows that are drifting (undecided), in timeline order: the list N and Shift+N step through. */
 export function driftRows(clips) {
   return (clips ?? [])
     .filter((row) => row.state === "drift")
