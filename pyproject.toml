@@ -36,6 +36,8 @@ desktop = ["pywebview>=5"]
 kuulas = "kuulas.cli:main"
 # The standalone recorder (WP12a, docs/RECORDER.md): its own process, never the editor.
 kuulas-recorder = "kuulas_recorder.cli:main"
+# The detached transcription worker (WP79): started by the editor, outlives it.
+kuulas-worker = "kuulas.transcribe_worker:main"
 
 [tool.uv.sources]
 speechmix = { path = "../podcast/packages/speechmix", editable = true }

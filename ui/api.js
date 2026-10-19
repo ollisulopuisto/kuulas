@@ -42,6 +42,11 @@ export const getRecordStatus = () => json("/api/record/status");
 export const getRecordDevices = () => json("/api/record/devices");
 /** { device: {index, name} | null, channel, track_id (null: new track), name, at } */
 export const startRecording = (body) => post("/api/record/start", body);
+/** Pre-roll (WP12c): listen to the input, keeping the last seconds in memory only, nothing on
+ * disk. { device, channel, preroll_s }. Repeated, it keeps the recorder armed. */
+export const armRecording = (body) => post("/api/record/arm", body);
+/** Stop listening and drop the buffer. */
+export const disarmRecording = () => post("/api/record/disarm", {});
 /** { mode: "two_step" | "one_click" | "hold", held_ms }: the server refuses a stop without one. */
 export const stopRecording = (body) => post("/api/record/stop", body);
 /** Put takes left by a crash on the timeline: the state, plus { imported, pending }. */
@@ -70,6 +75,11 @@ export const colabSettings = () => json("/api/settings/colab");
 export const saveColabSettings = (settings) =>
   json("/api/settings/colab", { method: "PUT", body: JSON.stringify(settings) });
 export const getJobs = () => json("/api/jobs");
+/** What the background transcription jobs did since the last call, told once:
+ * { notices: [{ kind: "ok" | "error", text, job }] } (WP79). */
+export const jobNotices = () => json("/api/jobs/notices");
+/** Start every interrupted background transcription again: { restarted: [job id] }. */
+export const restartInterrupted = () => post("/api/jobs/restart-interrupted", {});
 /** One edit: the whole project comes back. `coalesce` merges a drag into one undo step. */
 export const edit = ({ op, args, label = null, coalesce = null }) =>
   post("/api/edit", { op, args, label, coalesce });

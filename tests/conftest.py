@@ -81,3 +81,21 @@ def _private_view_memory(tmp_path_factory, monkeypatch):
     """The remembered views are a per-user file: no test may touch the real one."""
     folder = tmp_path_factory.mktemp("view-memory")
     monkeypatch.setenv("KUULAS_VIEW_MEMORY_FILE", str(folder / "view-memory.json"))
+
+
+@pytest.fixture(autouse=True)
+def _inline_transcription_worker(monkeypatch):
+    """A background transcription job (WP79) runs in a thread of the test process,
+    so no test starts a detached process by accident and a test can patch the
+    engine (``kuulas.transcribe.local``). Tests of the real worker program start it
+    themselves (tests/test_transcribe_worker.py)."""
+    import threading  # noqa: PLC0415
+
+    from kuulas import bgjobs  # noqa: PLC0415
+    from kuulas.transcribe_worker import run_job  # noqa: PLC0415
+
+    def launch(path):
+        threading.Thread(target=run_job, args=(path,), kwargs={"status_interval": 0},
+                         daemon=True).start()
+
+    monkeypatch.setattr(bgjobs, "launch_worker", launch)

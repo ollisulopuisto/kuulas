@@ -11,6 +11,7 @@ import {
   consentNeeded,
   rememberConsent,
   rememberedConsent,
+  resumableJob,
 } from "../colab-model.js";
 import { createPrefs } from "../prefs.js";
 
@@ -130,6 +131,32 @@ describe("colabNotice", () => {
   });
 });
 
+describe("background transcription (WP79)", () => {
+  test("a local background job has its own words, an interrupted one says how to go on", () => {
+    const local = { state: "running", backend: "local", indeterminate: true, message: "" };
+    assert.equal(colabNotice(local, t).text, "ui.transcribe.running{}");
+    assert.equal(
+      colabNotice({ state: "completed", backend: "local" }, t, "A").text,
+      'ui.transcribe.done{"names":"A"}',
+    );
+    const gone = colabNotice({ state: "interrupted", backend: "colab" }, t);
+    assert.deepEqual(
+      [gone.kind, gone.text, gone.cancel],
+      ["error", "ui.colab.interrupted{}", false],
+    );
+  });
+
+  test("a running background job is picked up again after the window is reopened", () => {
+    const jobs = [
+      { id: "a", kind: "export", state: "running" },
+      { id: "b", kind: "transcribe", background: true, state: "completed" },
+      { id: "c", kind: "transcribe", background: true, state: "running" },
+    ];
+    assert.equal(resumableJob(jobs)?.id, "c");
+    assert.equal(resumableJob(jobs.slice(0, 2)), undefined);
+  });
+});
+
 describe("commands and menus", () => {
   const read = (path) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), "utf8");
 
@@ -137,7 +164,12 @@ describe("commands and menus", () => {
     const { DEFAULT_KEYMAP } = await import("../keymap-default.js");
     const { MENU, menuTargets } = await import("../menu-model.js");
     const targets = new Set(menuTargets(MENU));
-    for (const id of ["app.transcribe", "app.transcribe_colab", "app.colab_settings"]) {
+    for (const id of [
+      "app.transcribe",
+      "app.transcribe_colab",
+      "app.colab_settings",
+      "app.transcribe_restart",
+    ]) {
       assert.ok(
         DEFAULT_KEYMAP.some((entry) => entry.id === id),
         `${id} has no keymap entry`,
@@ -150,6 +182,7 @@ describe("commands and menus", () => {
     const source = read("../app-commands.js");
     assert.match(source, /"app\.transcribe_colab"/);
     assert.match(source, /"app\.colab_settings"/);
+    assert.match(source, /"app\.transcribe_restart"/);
   });
 
   test("the strings exist in English and Finnish", () => {
@@ -161,6 +194,11 @@ describe("commands and menus", () => {
       "cmd.app.colab_settings",
       "cmd.app.colab_settings.hint",
       "menu.transcribe",
+      "cmd.app.transcribe_restart",
+      "cmd.app.transcribe_restart.hint",
+      "ui.colab.interrupted",
+      "ui.transcribe.running",
+      "ui.transcribe.done",
     ]) {
       assert.ok(en[key], `en ${key}`);
       assert.ok(fi[key], `fi ${key}`);

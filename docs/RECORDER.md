@@ -168,6 +168,8 @@ never slows the recording.
 | `subscribe` | `events` (default true), `levels` (default false) | the same two flags |
 | `devices` | | `devices`: `[{index, name, channels, default_rate, hostapi, default}]` (inputs only) |
 | `start` | `folder` (absolute), `take`, `channels` (1-based, default `[1]`), `names` (default `ch<n>`), `rate` (default 48000), `device` (index, name, `{index, name}` or absent for the default input) | the status, plus `warning` when space is low |
+| `arm` | `preroll_s` (above 0, at most 600), `channels` (default `[1]`), `rate`, `device` (as `start`) | the status, with `armed: {device, channels, rate, preroll_s}` (WP12c; see [pre-roll](#pre-roll-wp12c)) |
+| `disarm` | | the status; harmless when not armed |
 | `stop` | | `take`: `{folder, take, stop_reason, frames, sidecar}` once every file is closed |
 | `status` | | the status (below) |
 | `levels` | | `names`, `peak_dbfs` (per armed channel since this client's last call, floor -120), `clipped` |
@@ -197,11 +199,13 @@ Examples:
 {"id": 6, "ok": true, "take": {"folder": "...", "take": "take-001", "stop_reason": "stopped", "frames": 2976000, "sidecar": ".../take-001.take.json"}}
 ```
 
-**Status** fields: `state` (`idle`, `checking`, `starting`, `recording`,
+**Status** fields: `state` (`idle`, `checking`, `arming`, `armed`,
+`disarming`, `starting`, `recording`,
 `restarting`, `device_lost`, `stopping`), `pid`, `worker_pid`, `last_take`,
 `recovered` (takes repaired at this recorder's start), and while a take is on:
 `take`, `folder`, `device`, `channels`, `rate`, `start_utc`,
-`position_frames` (now, on the take's clock), `frames_flushed` (durable on
+`position_frames` (now, on the take's clock), `preroll_frames` (the part of
+the take heard before Record, 0 without pre-roll), `frames_flushed` (durable on
 disk), `segments`, `gaps`, `dropouts`, `overflows`, `worker_restarts`,
 `markers` (count), `disk` (`free_bytes`, `seconds_left`).
 
@@ -218,6 +222,8 @@ disk), `segments`, `gaps`, `dropouts`, `overflows`, `worker_restarts`,
 | `worker_restarted` | `take`, `exit`, `restarts`, `text` | the worker died and is being restarted |
 | `marked` | `take`, `at_frame`, `text`, `utc` | a client sent `mark` |
 | `error` | `key`, `text` | `disk_full`, `worker_keeps_failing` (the take then stops) |
+| `armed` | `device`, `channels`, `rate`, `preroll_s` | the input delivers audio and is being listened to (WP12c) |
+| `disarmed` | `reason` (`disarmed`, `rearmed`, `expired`, `shutdown`, `device_lost`, `worker_died`), `text` | the recorder stopped listening; nothing was recorded |
 | `stopped` | `folder`, `take`, `stop_reason`, `frames`, `sidecar` | the take is over and every file closed |
 
 ### Error keys
@@ -226,12 +232,48 @@ disk), `segments`, `gaps`, `dropouts`, `overflows`, `worker_restarts`,
 `not_recording`, `busy`, `take_exists`, `folder_not_writable`, `disk_full`,
 `device_list_failed`, `device_not_found`, `channels_unavailable`,
 `device_rate_mismatch`, `device_open_failed`, `device_no_audio`,
-`file_exists`, `worker_failed`, `take_not_found`, `already_running` (from
+`file_exists`, `worker_failed`, `take_not_found`, `armed_mismatch` (a `start`
+for other channels or another input than the armed one), `already_running` (from
 `serve`), `internal`; and from the client library `timeout`,
 `disconnected`, `spawn_failed`.
 
 Names (`take`, `names`): letters of any script, digits, space and
 `- _ . , ( ) ' +  &`, up to 80 characters, no leading dot or space, no `~`.
+
+## Pre-roll (WP12c)
+
+"You can never start recording too late" (owner, 2026-10-19). `arm` opens the
+input in a worker that **listens**: it keeps the last `preroll_s` seconds of the
+armed channels in memory (float32, whole blocks, trimmed to the exact length at
+Record) and writes **nothing**: no file, no sidecar, no journal, no
+`current.json`. Memory is bounded: `preroll_s` x rate x 4 bytes a channel (a
+minute of one channel at 48 kHz is 11.5 MB), plus one block. The meters run, so
+`level` events flow while armed.
+
+- **Record** is an ordinary `start` while armed. The supervisor sends the
+  listening worker `record`; it opens the files, writes the buffered audio
+  first and goes on. The take's frame 0 is the oldest buffered frame, so
+  `position_frames` already counts the pre-roll when `start` answers, and the
+  sidecar says `preroll_frames` (the frame where Record was pressed; 0 when
+  nothing was armed or nothing was heard yet). Less than `preroll_s` is used
+  when the recorder listened for less.
+- `start` must ask for the armed channels, rate and (when it names one) input,
+  or it is refused with `armed_mismatch` and the recorder stays armed. A refused
+  `start` (`take_exists`, disk) leaves it armed too.
+- **The microphone is let go by itself**: `arm_ttl` (default 120 s) after the
+  last `arm`. Arming again with the same settings only extends it (a keepalive;
+  the editor repeats it every 20 s while its record view is open), so a closed
+  or crashed editor never leaves a microphone listening. `disarm`, a different
+  `arm`, `quit` and shutdown also end it. A lost input or a dying worker ends
+  it with `disarmed` (`device_lost`, `worker_died`): there is no recovery to
+  do, nothing was written.
+- Nothing is written, so a crash while armed leaves nothing to repair, and
+  the buffer is gone with the process (privacy).
+- `stop` while only armed is `not_recording`; `arm` while recording is
+  `already_recording`.
+- The editor places the clip so that the pre-roll ends where Record was pressed
+  (`record_take.clip_plan`): at `at + start_frame - preroll_frames`, with what
+  would fall before the start of the timeline cut from the clip's head.
 
 ## Files
 
@@ -298,6 +340,7 @@ flush, and recovery reads the files.
  "start_monotonic_ns": 912873465120,
  "rate": 48000,
  "sample_format": "pcm_s24le",
+ "preroll_frames": 0,
  "device": {"index": 3, "name": "Scarlett 2i2", "channels": 2, "default_rate": 48000.0, "hostapi": "Core Audio", "default": true},
  "channels": [{"channel": 1, "name": "Host"}, {"channel": 2, "name": "Guest"}],
  "segments": [
@@ -507,9 +550,14 @@ On the owner's Mac Studio (M1 Max), 2026-10-19:
   `-m kuulas_recorder ...` arguments to the recorder before it opens its log (the
   worker's stdout is its event pipe). `kuulas --selftest` records one second from the fake
   source. Not yet run in a built app.
-- **Not in part B:** a level meter before the take starts (the recorder reports levels
-  only while recording), the take log (`mark`, WP12's log panel), several channels
-  (WP12b), pre-roll (WP12c, needs a recorder change).
+- **Pre-roll (WP12c).** The record view arms the recorder while it is open in setup
+  (`POST /api/record/arm`, repeated every 20 s as the keepalive; `/disarm` when the view
+  closes or pre-roll is set to off), as a preference (off, 10, 30, 60 default, 120 s;
+  Transport > Pre-roll, `record.preroll`). It shows "Armed: listening, not recording"
+  and a level meter before Record. Armed is not recording: playback is not blocked by
+  it, the take starts at Record exactly as before, and `Session.import_take` takes an
+  optional per-clip head cut for the part before the timeline start.
+- **Not in part B:** the take log (`mark`, WP12's log panel), several channels (WP12b).
 
 ## Open problems
 

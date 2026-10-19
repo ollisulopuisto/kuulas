@@ -237,7 +237,11 @@ def test_a_transcript_changed_meanwhile_is_kept(session, client, tool, monkeypat
     assert job["state"] == "failed"
     assert job["error"]["key"] == "error.transcribe.changed"
     assert session.transcripts()[first][0]["w"] == "mine"
-    assert len(session.transcripts()) == 1  # all or nothing
+    # WP79: per media, not all or nothing (the owner's choice: a result is added
+    # automatically; only the one that would overwrite newer text is kept back).
+    assert list(session.transcripts()) == ids(session)
+    other = session.state.media[1]
+    assert session.transcripts()[other.id][0]["w"] == Path(other.name).stem
 
 
 def test_unknown_backend_and_media_are_refused(session, client, tool):
@@ -255,7 +259,7 @@ def test_local_transcription_still_works_and_clears_timing(session, client, tool
     def fake_local(path, model="small", language=None, progress=None, **kwargs):
         return [{"w": "local", "s": 0, "e": 100, "spk": ""}]
 
-    monkeypatch.setattr("kuulas.session.transcribe.local", fake_local)
+    monkeypatch.setattr("kuulas.transcribe.local", fake_local)
     r = client.post("/api/transcribe", json={"media_ids": [first]})
     wait_job(client, r.json()["jobs"][0])
     by_id = {m.id: m for m in session.state.media}
