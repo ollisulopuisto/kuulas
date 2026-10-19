@@ -396,6 +396,57 @@ class Session:
 
             return list(self._memo("sync_overview", key, compute, 120))
 
+    def sync_preview(self, name: str, args: dict | None = None) -> dict:
+        """What a sync command that MOVES clips would do, without doing it (owner,
+        2026-10-19: sync asks first). ``name``: ``resync``, ``resync_from`` or
+        ``send_home``, with the command's own args. It runs the same pure op on the
+        current state and diffs, so the listed shifts are the real ones. ``moves``: one
+        row per clip that would change, in timeline order: ``clip_id``, ``track`` (its
+        track's name now), ``name`` (the clip's own, may be empty), ``shift`` (frames,
+        signed) and ``to_track`` for a clip that would change track. Clips that stay are
+        not listed. Changes nothing, no history step."""
+        args = args or {}
+        with self.lock:
+            before = self.history.state
+            if name == "send_home":
+                ids = _resync_ids(before, args)
+                new = ops.send_home(before, ids)
+                outcome = {"skipped": 0, "anchor": ""}
+            elif name in ("resync", "resync_from"):
+                pick = _resync_from_ids if name == "resync_from" else _resync_ids
+                ids = pick(before, args)
+                new = ops.resync(before, ids)
+                outcome = _sync_outcome(before, ids, new)
+            else:
+                raise ops.EditError("error.edit.unknown", name=name)
+            moves = []
+            for track in before.tracks:
+                for clip in track.clips:
+                    if clip.id not in ids:
+                        continue
+                    try:
+                        after, after_track = new.clip_and_track(clip.id)
+                    except KeyError:  # overwritten by a clip that came home
+                        continue
+                    shift = after.start - clip.start
+                    if shift == 0 and after_track.id == track.id:
+                        continue
+                    changed = after_track.id != track.id
+                    moves.append({
+                        "clip_id": clip.id, "track": track.name, "name": clip.name,
+                        "start": clip.start, "shift": shift,
+                        "to_track": after_track.name if changed else None})
+            moves.sort(key=lambda m: (m["start"], m["clip_id"]))
+            result = {"command": name, "rate": before.rate, "moves": moves,
+                      "count": len(moves), "skipped_free": outcome["skipped"],
+                      "anchor": outcome["anchor"]}
+            if moves:
+                return {**result, "kind": "move"}
+            if name == "send_home":
+                message = t("toast.sync.nothing_home")
+                return {**result, "kind": "nothing", "message": message}
+            return {**result, "kind": "nothing", "message": outcome["message"]}
+
     def sync_anchors(self) -> list[dict]:
         """The anchor pieces of every sync group (clips of the group's main
         media): what the timeline tags and what drift is measured against."""
@@ -2326,17 +2377,14 @@ def _cut_words(s: Session, args: dict) -> Project:
                      {**args, "start": start, "end": end, "group_editing": on})
 
 
-def _resync_clips(s: Session, ids: list[str]) -> Project:
-    """Resync ``ids`` (free clips are skipped and counted) in one step; what
-    happened, in words, is in ``s.last_resync`` for the page's message. Time
-    only: a clip's track is not part of sync. A resync that moves nothing makes
-    no history step."""
-    before = s.history.state
+def _sync_outcome(before: Project, ids: list[str], new: Project) -> dict:
+    """What a resync of ``ids`` does (``new`` is ``ops.resync(before, ids)``), in one
+    place so the command and its preview (``Session.sync_preview``) cannot disagree:
+    how many moved, how many were free, and the message for the page."""
     clips = [before.clip(cid) for cid in ids]
     free = sum(1 for c in clips if c.free)
     grouped = [c for c in clips if before.sync_group(c.media) is not None]
     anchors = [c for c in grouped if c.media == before.sync_group(c.media).main]
-    new = ops.resync(before, ids)
     moved = sum(1 for cid in ids if new.clip(cid).start != before.clip(cid).start)
     anchor = _anchor_name(before, grouped[0]) if grouped else ""
     if moved:
@@ -2350,11 +2398,23 @@ def _resync_clips(s: Session, ids: list[str]) -> Project:
         kind, message = "anchor", t("toast.sync.anchor_only")
     else:
         kind, message = "nothing", t("toast.sync.nothing")
-    s.last_resync = {"resynced": moved, "skipped": free, "kind": kind, "anchor": anchor,
-                     "message": message}
+    return {"resynced": moved, "skipped": free, "kind": kind, "anchor": anchor,
+            "message": message}
+
+
+def _resync_clips(s: Session, ids: list[str]) -> Project:
+    """Resync ``ids`` (free clips are skipped and counted) in one step; what
+    happened, in words, is in ``s.last_resync`` for the page's message. Time
+    only: a clip's track is not part of sync. A resync that moves nothing makes
+    no history step."""
+    before = s.history.state
+    new = ops.resync(before, ids)
+    s.last_resync = _sync_outcome(before, ids, new)
+    moved = s.last_resync["resynced"]
     if not moved:
         return before
-    return s._commit(t("history.resync", count=moved, skipped=free), new, "resync",
+    skipped = s.last_resync["skipped"]
+    return s._commit(t("history.resync", count=moved, skipped=skipped), new, "resync",
                      {"clip_ids": ids})
 
 
@@ -2367,21 +2427,29 @@ def _anchor_name(p: Project, clip) -> str:
     return ""
 
 
-def _resync(s: Session, args: dict) -> Project:
-    """R / Alt+Mod+R: resync the selected clips."""
+def _resync_ids(_p: Project, args: dict) -> list[str]:
     ids = list(args.get("clip_ids") or ())
     if not ids:
         raise ops.EditError("error.edit.no_selection")
-    return _resync_clips(s, ids)
+    return ids
+
+
+def _resync_from_ids(p: Project, args: dict) -> list[str]:
+    ids = ops.clips_from(p, int(args["frame"]), args.get("track_id"))
+    if not ids:
+        raise ops.EditError("error.edit.no_selection")
+    return ids
+
+
+def _resync(s: Session, args: dict) -> Project:
+    """R / Alt+Mod+R: resync the selected clips."""
+    return _resync_clips(s, _resync_ids(s.history.state, args))
 
 
 def _resync_from(s: Session, args: dict) -> Project:
     """Shift+Alt+Mod+R: resync every clip from ``frame`` on, on all tracks (the
     fix for an accidental one-track cut). Free clips are skipped and reported."""
-    ids = ops.clips_from(s.history.state, int(args["frame"]), args.get("track_id"))
-    if not ids:
-        raise ops.EditError("error.edit.no_selection")
-    return _resync_clips(s, ids)
+    return _resync_clips(s, _resync_from_ids(s.history.state, args))
 
 
 def _relink(s: Session, args: dict) -> Project:

@@ -100,6 +100,7 @@ import { chipSpeed } from "./shuttle.js";
 import { createStatsDialog } from "./stats-dialog.js";
 import { nextStopMode } from "./stop-mode.js";
 import { getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
+import { createSyncConfirm } from "./sync-confirm.js";
 import { driftingAmong, missingPartners } from "./sync-state.js";
 import {
   cycleScope,
@@ -243,6 +244,30 @@ async function syncCommand(name, args) {
     if (response.resync?.message)
       showNotice(response.resync.message, "ok", { undo: response.resync.resynced > 0 });
     return response;
+  } catch (error) {
+    showError(error);
+    return null;
+  }
+}
+
+// Sync asks first (owner, 2026-10-19): "Confirm before re-syncing" is on until switched off in the
+// View menu; remembered per user.
+const CONFIRM_SYNC_KEY = "confirmSync";
+setState({ confirmSync: prefs.get(CONFIRM_SYNC_KEY) !== "off" });
+function toggleConfirmSync() {
+  const on = getState().confirmSync === false;
+  setState({ confirmSync: on });
+  prefs.set(CONFIRM_SYNC_KEY, on ? "on" : "off");
+  showNotice(t(on ? "ui.sync.confirm.on" : "ui.sync.confirm.off"), "ok");
+}
+let syncConfirm = null;
+const confirmSync = (preview) => {
+  syncConfirm ??= createSyncConfirm({ t, format: (value) => formatNumber(value, { digits: 2 }) });
+  return syncConfirm.ask(preview);
+};
+async function syncPreview(name, args) {
+  try {
+    return await api.syncPreview(name, args);
   } catch (error) {
     showError(error);
     return null;
@@ -758,6 +783,11 @@ const keyboard = setupKeyboard({
         return null;
       }),
     syncCommand: (name, args) => syncCommand(name, args),
+    syncPreview: (name, args) => syncPreview(name, args),
+    confirmSync: (preview) => confirmSync(preview),
+    confirmEnabled: () => getState().confirmSync !== false,
+    toggleConfirmSync: () => toggleConfirmSync(),
+    notice: (text) => showNotice(text, "ok"),
     clock: () => new Date(),
     // A save is also where the user left off: the flag moves here and resume.json is
     // written at once (flushView sends the record marked "now").

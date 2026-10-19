@@ -88,6 +88,8 @@ describe("partners of the selection", () => {
   });
 });
 
+const flush = () => new Promise((resolve) => setImmediate(resolve));
+
 describe("the sync commands", () => {
   async function setup(initial) {
     const { registerSyncCommands } = await import("../sync-commands.js");
@@ -99,7 +101,7 @@ describe("the sync commands", () => {
       ...initial,
     };
     const registry = createRegistry();
-    const calls = { edits: [], toasts: [], seeks: [], server: [], patches: [] };
+    const calls = { edits: [], toasts: [], seeks: [], server: [], patches: [], asked: [] };
     registerSyncCommands(registry, {
       t: (key, values = {}) => `${key}${values.count === undefined ? "" : `:${values.count}`}`,
       app: {
@@ -118,6 +120,13 @@ describe("the sync commands", () => {
           calls.server.push([name, args]);
           return Promise.resolve();
         },
+        syncPreview: async () => ({ kind: "move", count: 1, moves: [{}] }),
+        confirmSync: async (preview) => {
+          calls.asked.push(preview);
+          return true;
+        },
+        confirmEnabled: () => true,
+        notice: () => {},
       },
     });
     return { registry, calls, get: () => state };
@@ -144,6 +153,7 @@ describe("the sync commands", () => {
     const { registry, calls, get } = await setup({ playhead: 4800 });
     registry.run("sync.resync", null, get());
     registry.run("sync.resync_end", null, get());
+    await flush();
     assert.deepEqual(calls.server, [
       ["resync", { clip_ids: ["a"] }],
       ["resync_from", { frame: 4800 }],
@@ -158,6 +168,7 @@ describe("the sync commands", () => {
       syncClips: [row("a", 0, 5), row("b", 9, 7, "free"), row("c", 20, 1)],
     });
     registry.run("sync.resync_all", null, get());
+    await flush();
     assert.deepEqual(calls.server, [["resync", { clip_ids: ["a", "c"] }]]);
     registry.run("sync.free_all", null, get());
     assert.deepEqual(calls.edits[0].args, { clip_ids: ["a", "c"], free: true });

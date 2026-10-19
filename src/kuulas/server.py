@@ -454,6 +454,11 @@ def create_app(session, engine, *, language: str | None = None,
         return JSONResponse({"clips": session.sync_overview(),
                              "anchors": session.sync_anchors()})
 
+    @app.post("/api/sync/preview")
+    def post_sync_preview(body: CommandBody):
+        """What resync / resync_from / send_home would move, without moving it."""
+        return JSONResponse(session.sync_preview(body.name, body.args))
+
     @app.get("/api/partners")
     def get_partners(ids: str = ""):
         """The partners of each clip (``ids``: comma separated), for the dashed
