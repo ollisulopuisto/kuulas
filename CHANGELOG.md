@@ -1,3 +1,10 @@
+## [v26.10.19.12] - 2026-10-19
+
+- **Tab also stops at markers and regions** (in every Tab scope: words, clip borders, sounds); a region gives its
+  start and its end. Not tried on screen yet.
+- Merged the other session's work (edit groups and free/drift sync states) with this session's packaging,
+  statistics, scroll and automixer changes.
+
 ## [v26.10.19.11] - 2026-10-19
 
 - **Edit groups and sync states on the screen (WP19a, R51):** Mod+G switches group editing off and on (the
