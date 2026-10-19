@@ -82,7 +82,33 @@ describe("Edit", () => {
       "menu.groups",
       "menu.select",
     ]);
-    assert.ok(direct("edit").length <= 10);
+    assert.ok(direct("edit").length <= 16);
+  });
+  test("the sync commands that put things back follow Undo and Redo, in one group (owner, 2026-10-19)", () => {
+    const ids = top("edit").items.map((e) => (e.kind === "separator" ? "-" : (e.id ?? e.kind)));
+    assert.deepEqual(ids.slice(0, 9), [
+      "edit.undo",
+      "edit.redo",
+      "-",
+      "sync.resync",
+      "sync.resync_all",
+      "sync.free",
+      "sync.free_all",
+      "sync.send_home",
+      "-",
+    ]);
+  });
+  test("the rarer sync commands stay under Track > Sync, and the dialog switch is in View", () => {
+    assert.deepEqual(subIds("track", "menu.sync"), [
+      "sync.mark",
+      "sync.set_anchor",
+      "sync.point1",
+      "sync.point2",
+      "sync.resync_end",
+      "sync.drift_next",
+      "sync.drift_previous",
+    ]);
+    assert.ok(direct("view").includes("sync.confirm"));
   });
 });
 

@@ -17,7 +17,8 @@ const anchors = [{ clip_id: "cz", track_id: "t3", name: "Zoom", group: "g" }];
 
 function setup(selection) {
   const registry = createRegistry();
-  const calls = { edits: [], syncs: [], toasts: [] };
+  const calls = { edits: [], syncs: [], toasts: [], previews: [], asked: [], notices: [] };
+  const config = { preview: { kind: "move", count: 1, moves: [{}] }, answer: true, confirm: true };
   const state = { project, selection: new Set(selection), syncClips: [], playhead: 0 };
   registerSyncCommands(registry, {
     t: (key, values = {}) => `${key}${JSON.stringify(values)}`,
@@ -31,10 +32,22 @@ function setup(selection) {
       },
       toast: (text, options) => calls.toasts.push([text, options]),
       syncCommand: (name, args) => calls.syncs.push([name, args]),
+      syncPreview: async (name, args) => {
+        calls.previews.push([name, args]);
+        return config.preview;
+      },
+      confirmSync: async (preview) => {
+        calls.asked.push(preview);
+        return config.answer;
+      },
+      confirmEnabled: () => config.confirm,
+      notice: (text) => calls.notices.push(text),
     },
   });
-  return { registry, calls, state };
+  return { registry, calls, state, config };
 }
+
+const flush = () => new Promise((resolve) => setImmediate(resolve));
 
 describe("anchor commands", () => {
   test("make this the anchor works on a clip that is not the anchor", () => {
@@ -69,16 +82,18 @@ describe("anchor commands", () => {
     assert.equal(one.registry.can("sync.mark", one.state), false);
   });
 
-  test("sync selected clips to the anchor asks the server to resync the selection", () => {
+  test("sync selected clips to the anchor asks the server to resync the selection", async () => {
     const { registry, calls, state } = setup(["ca"]);
     registry.run("sync.resync", null, state);
+    await flush();
     assert.deepEqual(calls.syncs, [["resync", { clip_ids: ["ca"] }]]);
   });
 
-  test("put back on the original track works on the clips that were moved", () => {
+  test("put back on the original track works on the clips that were moved", async () => {
     const { registry, calls, state } = setup(["ca"]);
     assert.equal(registry.can("sync.send_home", state), true);
     registry.run("sync.send_home", null, state);
+    await flush();
     assert.equal(calls.edits[0].op, "send_home");
     assert.deepEqual(calls.edits[0].args, { clip_ids: ["ca"] });
     const never = setup(["cv"]);
@@ -112,5 +127,71 @@ describe("the anchor and the home track on the screen", () => {
     assert.equal(homeNameFor(project, moved, "t2"), "");
     assert.equal(homeNameFor(project, project.tracks[1].clips[0], "t2"), "");
     assert.equal(homeNameFor(project, { id: "q", home: "gone" }, "t1"), "");
+  });
+});
+
+describe("sync asks first (owner, 2026-10-19)", () => {
+  const moving = [
+    ["sync.resync", ["ca"], "resync", { clip_ids: ["ca"] }],
+    ["sync.resync_end", ["ca"], "resync_from", { frame: 0 }],
+    ["sync.send_home", ["ca"], "send_home", { clip_ids: ["ca"] }],
+  ];
+
+  for (const [id, selection, name, args] of moving) {
+    test(`${id} previews, asks, then does it`, async () => {
+      const { registry, calls, state } = setup(selection);
+      registry.run(id, null, state);
+      await flush();
+      assert.deepEqual(calls.previews, [[name, args]]);
+      assert.equal(calls.asked.length, 1);
+      assert.equal(calls.syncs.length + calls.edits.length, 1);
+    });
+
+    test(`${id} does nothing when the dialog is cancelled`, async () => {
+      const { registry, calls, state, config } = setup(selection);
+      config.answer = false;
+      registry.run(id, null, state);
+      await flush();
+      assert.equal(calls.asked.length, 1);
+      assert.deepEqual([calls.syncs, calls.edits, calls.toasts], [[], [], []]);
+    });
+
+    test(`${id} says so and opens no dialog when nothing would move`, async () => {
+      const { registry, calls, state, config } = setup(selection);
+      config.preview = { kind: "nothing", message: "already in sync", moves: [] };
+      registry.run(id, null, state);
+      await flush();
+      assert.deepEqual(calls.notices, ["already in sync"]);
+      assert.deepEqual([calls.asked, calls.syncs, calls.edits], [[], [], []]);
+    });
+
+    test(`${id} goes straight through when "Confirm before re-syncing" is off`, async () => {
+      const { registry, calls, state, config } = setup(selection);
+      config.confirm = false;
+      registry.run(id, null, state);
+      await flush();
+      assert.equal(calls.asked.length, 0);
+      assert.equal(calls.syncs.length + calls.edits.length, 1);
+    });
+  }
+
+  test("re-sync all previews the drift list", async () => {
+    const { registry, calls, state } = setup([]);
+    state.syncClips = [{ clip_id: "ca", state: "drift", start: 0, offset: 5 }];
+    registry.run("sync.resync_all", null, state);
+    await flush();
+    assert.deepEqual(calls.previews, [["resync", { clip_ids: ["ca"] }]]);
+    assert.equal(calls.asked.length, 1);
+    assert.deepEqual(calls.syncs, [["resync", { clip_ids: ["ca"] }]]);
+  });
+
+  test("freeing never asks: nothing moves", async () => {
+    const { registry, calls, state } = setup(["ca"]);
+    state.syncClips = [{ clip_id: "ca", state: "drift", start: 0, offset: 5 }];
+    registry.run("sync.free", null, state);
+    registry.run("sync.free_all", null, state);
+    await flush();
+    assert.deepEqual([calls.previews, calls.asked], [[], []]);
+    assert.equal(calls.edits.length, 2);
   });
 });

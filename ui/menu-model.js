@@ -41,6 +41,7 @@ export const PALETTE_ONLY = EXPORT_FORMAT_IDS.flatMap((format) => [
  */
 export const CHECKED = {
   "view.clip_words": (state) => state?.showClipWords !== false,
+  "sync.confirm": (state) => state?.confirmSync !== false,
 };
 
 export const MENU = [
@@ -84,6 +85,14 @@ export const MENU = [
     items: [
       item("edit.undo"),
       item("edit.redo"),
+      SEP,
+      // Sync is a spiritual brother to undo (owner, 2026-10-19): the commands that put things back
+      // sit right after Undo and Redo. The re-syncs ask first (sync-confirm.js); freeing is instant.
+      item("sync.resync"),
+      item("sync.resync_all"),
+      item("sync.free"),
+      item("sync.free_all"),
+      item("sync.send_home"),
       SEP,
       item("edit.cut"),
       item("edit.copy"),
@@ -200,15 +209,10 @@ export const MENU = [
         items: [
           item("sync.mark"),
           item("sync.set_anchor"),
-          item("sync.resync"),
           item("sync.point1"),
           item("sync.point2"),
           item("sync.resync_end"),
           SEP,
-          item("sync.free"),
-          item("sync.send_home"),
-          item("sync.resync_all"),
-          item("sync.free_all"),
           item("sync.drift_next"),
           item("sync.drift_previous"),
         ],
@@ -370,6 +374,7 @@ export const MENU = [
       submenu("menu.buses", [item("view.collapse_all_buses"), item("view.expand_all_buses")]),
       submenu("menu.mouse", [item("view.drag_mode"), item("view.wheel_mode")]),
       item("view.clip_words"),
+      item("sync.confirm"),
       item("view.reset_remembered"),
       SEP,
       submenu("menu.pause_break", [

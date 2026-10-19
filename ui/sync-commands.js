@@ -3,6 +3,11 @@
 // Markers tab's list of drifting clips has Resync all, Free all and ] / [ to step through it.
 // Nothing here resyncs by itself: every command is something the user asked for. Keys are in
 // keymap-default.js, the list is the Markers tab.
+// Sync asks first (owner, 2026-10-19): a command that MOVES clips (re-sync, re-sync from the cursor,
+// re-sync all, send home) first asks the server what it would do (a preview that changes nothing),
+// shows it in a confirm dialog, and only then applies it as one undo step. Nothing to move: a
+// notice, no dialog. Freeing moves nothing and stays instant. "Confirm before re-syncing" (View)
+// switches the dialog off.
 import { driftRows, stepDrift } from "./sync-state.js";
 
 const hasProject = (state) => Boolean(state?.project);
@@ -40,11 +45,32 @@ export function freeing(state, ids) {
 /**
  * `app`: getState, patch(statePatch), edit(change), toast(text, { undo }), seek(frame),
  * syncCommand(name, args) (a server command that answers with the resync report; resolves when the
- * state is applied). `t` translates.
+ * state is applied), syncPreview(name, args) (what it would move, or null when the server refused),
+ * confirmSync(preview) (the dialog; resolves true on Confirm), confirmEnabled() (the preference),
+ * notice(text), toggleConfirmSync(). `t` translates.
  */
 export function registerSyncCommands(registry, { app, t }) {
   const def = (id, run, can) => registry.register(id, run, { can, hintKey: `cmd.${id}.hint` });
   const drifting = (state) => driftRows(state?.syncClips);
+
+  /** Preview, ask, then `apply()`: the one path of every command that moves clips. */
+  async function askThen(name, args, apply) {
+    if (!app.confirmEnabled()) {
+      apply();
+      return;
+    }
+    const preview = await app.syncPreview(name, args);
+    if (!preview) return;
+    if (preview.kind !== "move") {
+      app.notice(preview.message);
+      return;
+    }
+    if (await app.confirmSync(preview)) apply();
+  }
+  const resyncThen = (name, args) => askThen(name, args, () => app.syncCommand(name, args));
+
+  // A preference, not an edit: whether the commands above show their dialog first.
+  def("sync.confirm", () => app.toggleConfirmSync());
 
   function setFree(ids, free, label, message) {
     app.edit({
@@ -123,12 +149,15 @@ export function registerSyncCommands(registry, { app, t }) {
     () => {
       const ids = movedAway(app.getState());
       if (ids.length === 0) return;
-      app.edit({
-        op: "send_home",
-        args: { clip_ids: ids },
-        label: t("ui.sync.history.send_home"),
-        done: () => app.toast(t("ui.sync.toast.sent_home", { count: ids.length }), { undo: true }),
-      });
+      void askThen("send_home", { clip_ids: ids }, () =>
+        app.edit({
+          op: "send_home",
+          args: { clip_ids: ids },
+          label: t("ui.sync.history.send_home"),
+          done: () =>
+            app.toast(t("ui.sync.toast.sent_home", { count: ids.length }), { undo: true }),
+        }),
+      );
     },
     (state) => hasProject(state) && movedAway(state).length > 0,
   );
@@ -137,14 +166,14 @@ export function registerSyncCommands(registry, { app, t }) {
     "sync.resync",
     () => {
       const ids = selected(app.getState());
-      if (ids.length > 0) void app.syncCommand("resync", { clip_ids: ids });
+      if (ids.length > 0) void resyncThen("resync", { clip_ids: ids });
     },
     (state) => hasProject(state) && selected(state).length > 0,
   );
 
   def(
     "sync.resync_end",
-    () => void app.syncCommand("resync_from", { frame: app.getState().playhead }),
+    () => void resyncThen("resync_from", { frame: app.getState().playhead }),
     hasProject,
   );
 
@@ -152,7 +181,7 @@ export function registerSyncCommands(registry, { app, t }) {
     "sync.resync_all",
     () => {
       const ids = drifting(app.getState()).map((row) => row.clip_id);
-      if (ids.length > 0) void app.syncCommand("resync", { clip_ids: ids });
+      if (ids.length > 0) void resyncThen("resync", { clip_ids: ids });
     },
     (state) => hasProject(state) && drifting(state).length > 0,
   );

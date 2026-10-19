@@ -201,6 +201,8 @@ export const getTransport = () => json("/api/transport");
 
 /** Every drifting or free clip with its offset in frames: what the timeline's badges draw (R51). */
 export const getSync = () => json("/api/sync");
+/** What a moving sync command (resync, resync_from, send_home) would do; changes nothing. */
+export const syncPreview = (name, args = {}) => post("/api/sync/preview", { name, args });
 /** The partners of each clip (the dashed outline): { partners: { clipId: [clipId] } }. */
 export const getPartners = (ids) => json(`/api/partners?ids=${encodeURIComponent(ids.join(","))}`);
 /** The history step that put a clip out of sync: { cause: { label, group_editing, ... } | null }. */

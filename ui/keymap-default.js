@@ -798,6 +798,13 @@ export const DEFAULT_KEYMAP = [
     context: "timeline",
     labelKey: "cmd.track.remove_from_bus",
   },
+  // "Confirm before re-syncing": the preference that switches the confirm dialog off (View menu).
+  {
+    id: "sync.confirm",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.sync.confirm",
+  },
   {
     id: "sync.mark",
     keys: { mac: ["Y", "Alt+Mod+S"], other: ["Y", "Alt+Mod+S"] },
