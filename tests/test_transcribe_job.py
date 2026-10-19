@@ -43,7 +43,7 @@ def test_local_transcription_job_commits_words_once(tmp_path, monkeypatch):
         progress(1.0)
         return [{"w": "hello", "s": 0, "e": 100, "spk": ""}]
 
-    monkeypatch.setattr("kuulas.session.transcribe.local", fake_local)
+    monkeypatch.setattr("kuulas.transcribe.local", fake_local)
     try:
         app = create_app(session, Engine(), language="en", ui_dir=tmp_path)
         with TestClient(app) as client:
@@ -79,7 +79,7 @@ def test_transcription_does_not_replace_words_added_while_job_runs(tmp_path, mon
         assert finish.wait(2)
         return [{"w": "stale", "s": 0, "e": 100, "spk": ""}]
 
-    monkeypatch.setattr("kuulas.session.transcribe.local", slow_local)
+    monkeypatch.setattr("kuulas.transcribe.local", slow_local)
     try:
         app = create_app(session, Engine(), language="en", ui_dir=tmp_path)
         with TestClient(app) as client:

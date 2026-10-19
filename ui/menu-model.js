@@ -222,6 +222,7 @@ export const MENU = [
       submenu("menu.transcribe", [
         item("app.transcribe"),
         item("app.transcribe_colab"),
+        item("app.transcribe_restart"),
         SEP,
         item("app.colab_settings"),
       ]),

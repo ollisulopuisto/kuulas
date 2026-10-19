@@ -1189,6 +1189,14 @@ export const DEFAULT_KEYMAP = [
     context: "global",
     labelKey: "cmd.app.transcribe_colab",
   },
+  // WP79: transcription runs in a background process; one that a restart of the computer
+  // interrupted is started again from here.
+  {
+    id: "app.transcribe_restart",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.app.transcribe_restart",
+  },
   {
     id: "app.colab_settings",
     keys: { mac: null, other: null },

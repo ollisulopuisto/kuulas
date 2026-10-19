@@ -15,7 +15,13 @@ import { entryTitle } from "./clipboard.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
 import { createClock } from "./clock.js";
 import { createColabDialogs } from "./colab-dialog.js";
-import { colabNotice, consentNeeded, rememberConsent, rememberedConsent } from "./colab-model.js";
+import {
+  colabNotice,
+  consentNeeded,
+  rememberConsent,
+  rememberedConsent,
+  resumableJob,
+} from "./colab-model.js";
 import { openContextMenu } from "./context-menu.js";
 import { contextMenuItems } from "./context-menu-model.js";
 import { dragModeChoice, nextDragMode } from "./drag-mode.js";
@@ -776,6 +782,7 @@ const keyboard = setupKeyboard({
     autoSilence: () => void autoSilence(),
     duckMicrophones: () => void duckMicrophones(),
     transcribeTrack: (backend) => void transcribeTrack(backend),
+    restartTranscriptions: () => void restartTranscriptions(),
     openColabSettings: () => void colabDialogsFor().openSettings(),
     exportTracks: (format, options) => exportTracks(format, options),
     exportMix: (format, options) => exportMix(format, options),
@@ -1573,6 +1580,50 @@ async function transcribeTrack(backend = "local") {
   const ids = track ? [...new Set(track.clips.map((clip) => clip.media))] : undefined;
   if (backend === "colab") await transcribeOnColab(ids ?? transcript.targetIds());
   else await transcript.transcribe(ids);
+}
+
+// Transcription is a background job in a separate process (WP79): it goes on when this window
+// is closed. The window looks for what the jobs did meanwhile (a result added, a failure) every
+// few seconds and once at the start, and follows a job that is still running.
+const BACKGROUND_POLL_MS = 3000;
+let backgroundBusy = false;
+
+async function watchBackgroundJobs() {
+  if (backgroundBusy) return;
+  backgroundBusy = true;
+  try {
+    const { notices } = await api.jobNotices();
+    for (const notice of notices) showNotice(notice.text, notice.kind);
+    if (notices.some((notice) => notice.kind === "ok")) await refresh();
+    if (!exportJob) {
+      const running = resumableJob((await api.getJobs()).jobs);
+      if (running) {
+        exportJob = running.id;
+        colabNames = running.title;
+        void followExportJob(running.id, "colab");
+      }
+    }
+  } catch {
+    // The next look tries again; a failed look must not hide the project.
+  } finally {
+    backgroundBusy = false;
+  }
+}
+
+// Track > Transcribe > Restart interrupted transcriptions.
+async function restartTranscriptions() {
+  try {
+    const { restarted } = await api.restartInterrupted();
+    showNotice(
+      restarted.length > 0
+        ? t("ui.colab.restarted", { count: restarted.length })
+        : t("ui.colab.none_interrupted"),
+      "ok",
+    );
+    void watchBackgroundJobs();
+  } catch (error) {
+    showError(error);
+  }
 }
 
 // Transcribe on Colab (WP78): the audio leaves the computer, so the first use in a session asks
@@ -2647,6 +2698,8 @@ try {
 } catch (error) {
   showError(error);
 }
+void watchBackgroundJobs();
+setInterval(() => void watchBackgroundJobs(), BACKGROUND_POLL_MS);
 // A take running for this project shows the record view again; takes a crash left behind
 // are offered with one click (never imported by themselves).
 void recordView.start();
