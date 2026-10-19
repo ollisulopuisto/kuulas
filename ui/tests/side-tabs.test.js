@@ -27,6 +27,17 @@ test("tabs keep their roles and the selected underline", () => {
   assert.match(rule('.side-tab[aria-selected="true"]'), /border-bottom-color:\s*var\(--accent\)/);
 });
 
+test("inspector rows are a two-column grid with full-width controls", () => {
+  assert.match(
+    rule(".inspector-field"),
+    /grid-template-columns:\s*minmax\(0, 2fr\) minmax\(0, 3fr\)/,
+  );
+  assert.doesNotMatch(css, /\.inspector-field[^{]*\{[^}]*max-width:\s*160px/);
+  assert.doesNotMatch(css, /\.inspector-field input\[type="number"\] \{[^}]*width:\s*92px/);
+  assert.match(rule('.inspector-field input[type="checkbox"]'), /justify-self:\s*start/);
+  assert.match(rule(".inspector-readonly"), /text-align:\s*left/);
+});
+
 test("History Undo and Redo are shared .button buttons with an icon and a label", () => {
   assert.match(historyPanel, /const undo = el\("button", \{ type: "button", class: "button" \}/);
   assert.doesNotMatch(historyPanel, /const (undo|redo) = el\("button", \{[^}]*ghost/);

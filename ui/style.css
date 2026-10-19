@@ -958,7 +958,9 @@ input.has-ab {
 }
 .inspector-field {
   display: grid;
-  grid-template-columns: minmax(70px, 1fr) auto;
+  /* Two columns for every inspector row: the label, then one control column whose left edge
+     and width are the same for text, select, number, read-only value and checkbox. */
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
   align-items: center;
   gap: var(--space-4);
   min-height: var(--control-h);
@@ -977,10 +979,12 @@ input[type="text"] {
   font-variant-numeric: tabular-nums;
 }
 .inspector-field input[type="number"] {
-  width: 92px;
+  width: 100%;
+  min-width: 0;
   text-align: right;
 }
 .inspector-field input[type="checkbox"] {
+  justify-self: start;
   width: 16px;
   height: 16px;
   margin: 0;
@@ -992,7 +996,6 @@ input[type="text"] {
 .inspector-field .inspector-select {
   width: 100%;
   min-width: 0;
-  max-width: 160px;
   height: var(--control-h);
   padding: 0 var(--space-3);
   background: var(--input-bg);
@@ -1001,16 +1004,13 @@ input[type="text"] {
   color: var(--text);
   text-overflow: ellipsis;
 }
-.inspector-field {
-  grid-template-columns: minmax(0, 1fr) auto;
-}
 .inspector-field > span {
   overflow-wrap: anywhere;
 }
 .inspector-readonly {
-  max-width: 160px;
+  min-width: 0;
   color: var(--text);
-  text-align: right;
+  text-align: left;
   overflow-wrap: anywhere;
 }
 
