@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
   collectDroppedFiles,
+  createDropMemory,
   dropGhosts,
   dropLabel,
   importOptionsFor,
@@ -302,5 +303,32 @@ describe("a drop on a lane goes onto that track (owner, 2026-10-19)", () => {
       );
       assert.equal(options.onto_track, undefined);
     }
+  });
+});
+
+describe("the drop place survives until the desktop window's paths arrive (owner, 2026-10-19)", () => {
+  const where = { kind: "lane", trackId: "t1", startFrame: 4800, mode: "side_by_side" };
+  test("a drop target remembered for a moment is given back once", () => {
+    const memory = createDropMemory();
+    memory.remember(where, 1000);
+    assert.deepEqual(memory.take(1500), where);
+    assert.equal(memory.take(1600), null);
+  });
+  test("a target that is too old is not used (a picker import much later)", () => {
+    const memory = createDropMemory({ maxAgeMs: 3000 });
+    memory.remember(where, 1000);
+    assert.equal(memory.take(4001), null);
+  });
+  test("a newer drop replaces an older one, and nothing remembered gives null", () => {
+    const memory = createDropMemory();
+    assert.equal(memory.take(10), null);
+    memory.remember(where, 100);
+    memory.remember({ ...where, startFrame: 9600 }, 200);
+    assert.equal(memory.take(300).startFrame, 9600);
+  });
+  test("time going backwards counts as just now", () => {
+    const memory = createDropMemory();
+    memory.remember(where, 5000);
+    assert.deepEqual(memory.take(4000), where);
   });
 });

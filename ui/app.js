@@ -55,7 +55,12 @@ import {
   onLanguageChange,
   t,
 } from "./i18n.js";
-import { collectDroppedFiles, importOptionsFor, pickerPlacement } from "./import-drop.js";
+import {
+  collectDroppedFiles,
+  createDropMemory,
+  importOptionsFor,
+  pickerPlacement,
+} from "./import-drop.js";
 import { createImportPanel, panelModel } from "./import-panel.js";
 import { dragHasFiles, nativeBridge, summariseImport } from "./importing.js";
 import { createInspector } from "./inspector.js";
@@ -1154,6 +1159,8 @@ function turnIntoMono(tracks) {
   }
 }
 
+const dropMemory = createDropMemory();
+
 async function importFiles(files, target = null) {
   if (files.length > 0) await runImport({ files }, target);
 }
@@ -1261,8 +1268,12 @@ window.addEventListener("drop", (event) => {
   const target = timeline.dropTarget(event, draggedCount(event.dataTransfer));
   setDrop(false);
   // In the desktop window Python gets the dropped paths and calls
-  // kuulasNative.importPaths; uploading the bytes as well would import twice.
-  if (nativeBridge()) return;
+  // kuulasNative.importPaths; uploading the bytes as well would import twice. The place of the
+  // drop is remembered for those paths (they would otherwise go to the play cursor).
+  if (nativeBridge()) {
+    dropMemory.remember(target, Date.now());
+    return;
+  }
   // The entries must be taken inside the event: a folder is only readable through them.
   const entries = [...(event.dataTransfer.items ?? [])]
     .map((item) => item.webkitGetAsEntry?.())
@@ -1290,7 +1301,7 @@ const menuActions = {
   },
 };
 window.kuulasNative = {
-  importPaths: (paths) => void importPaths(paths),
+  importPaths: (paths) => void importPaths(paths, dropMemory.take(Date.now())),
   menu: (id) => void menuActions[id]?.(),
 };
 

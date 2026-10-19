@@ -62,6 +62,28 @@ export function importOptionsFor(target, prefs) {
   };
 }
 
+/**
+ * Where the last drop landed, kept for a moment. In the desktop window the page sees the drop
+ * (and its place) first, and Python sends the file PATHS a moment later: those must go where the
+ * pointer was, not to the play cursor. `take` gives the target back once, or null when nothing
+ * was remembered or it is older than `maxAgeMs`.
+ */
+export function createDropMemory({ maxAgeMs = 3000 } = {}) {
+  let target = null;
+  let at = 0;
+  return {
+    remember(next, now) {
+      target = next;
+      at = now;
+    },
+    take(now) {
+      const found = target;
+      target = null;
+      return found !== null && now - at <= maxAgeMs ? found : null;
+    },
+  };
+}
+
 /** The label drawn on the preview: a catalog key and its values. */
 export function dropLabel(preview) {
   const count = preview.count;
