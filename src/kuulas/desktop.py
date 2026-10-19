@@ -268,6 +268,9 @@ class Bridge:
         if self._window is None:
             return []
         result = self._window.create_file_dialog(kind, **options)
+        if isinstance(result, str):
+            # pywebview on macOS answers a SAVE dialog with one str, not a tuple.
+            result = [result]
         return [str(p) for p in result or []]
 
     def pick_media(self) -> list[str]:

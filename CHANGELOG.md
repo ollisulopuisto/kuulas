@@ -1,3 +1,9 @@
+## [v26.10.19.14] - 2026-10-19
+
+- **Fixed: File > New project said "A project name cannot be empty" for any name.** On the Mac the save dialog
+  hands back one path, which kuulas read as a list of letters (so the name came out empty). The same fault
+  hit every other save dialog (exports). New project and Save as now take the name you typed.
+
 ## [v26.10.19.13] - 2026-10-19
 
 - **The menus are reorganised** (your notes, WP74). **File:** New project…, Open project…, Import…; Save and
