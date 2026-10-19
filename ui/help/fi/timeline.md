@@ -2,7 +2,7 @@
 id: timeline
 title: Aikajana
 applies-to: [timeline]
-commands: [transport.play, view.toggle, view.fit, view.fit_selection, view.zoom_in, view.zoom_out, view.back, view.clip_words, panel.next, nav.home, help.open, help.keys]
+commands: [transport.play, view.toggle, view.fit, view.fit_selection, view.zoom_in, view.zoom_out, view.back, view.wheel_mode, view.clip_words, panel.next, nav.home, help.open, help.keys]
 related: [clip, track, bus]
 ---
 Jokainen raita on oma kaistansa, ja aika kulkee vasemmalta oikealle. Napsautus missä tahansa kaistoilla siirtää toistokohdan siihen. Napsautus leikkeeseen myös valitsee sen; vaihto+napsautus lisää leikkeen valintaan tai poistaa sen. Vetämällä kaistoilla merkitset aikavälin. Vedon aikana kaistoilla näkyvä vihje kertoo, mikä näppäin muuttaa välin sen koskettamiksi leikkeiksi (ne valitaan ja sisään- ja ulosmerkit siirtyvät niiden ylle) ja mikä peruu vedon.
@@ -18,6 +18,8 @@ Jokainen raita on oma kaistansa, ja aika kulkee vasemmalta oikealle. Napsautus m
 - Takaisin edelliseen näkymään: {key:view.back}
 
 Tiheys, aaltomuoto ja seuranta ovat Näkymä-valikossa. {show:view-menu} Samoin Sovita raidat ikkunaan ja Pidä raidat sovitettuina ikkunaan. Yhden kaistan korkeutta säädät vetämällä sen otsikon alareunaa; kaksoisnapsautus palauttaa sen.
+
+Kahden sormen vieritys ohjauslevyllä zoomaa aika-akselia osoittimen kohdalta oletuksena; sivuttain liikkuminen vierittää aikaa, ja ylös tai alas vaihtonäppäin pohjassa vierittää raitoja (myös vierityspalkki ja näppäimet toimivat). Hiiren rulla vierittää edelleen, ja vieritys komento- tai control-näppäin pohjassa sekä nipistys zoomaavat aina. Vaihda tästä: {run:view.wheel_mode}
 
 Kun lähennys on tarpeeksi suuri sanojen lukemiseen, jokainen puheleike kirjoittaa sanansa nimensä alle, joten näet, missä aaltomuodon kohdassa mikin sana on. Toistokohdan alla oleva sana on kirkkaampi, ja litteraatiosta valitut sanat erottuvat. {run:view.clip_words}
 

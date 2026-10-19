@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { classifyWheel, gestureZoom, wheelIntent } from "../wheel.js";
+import {
+  classifyWheel,
+  DEFAULT_WHEEL_MODE,
+  gestureZoom,
+  nextWheelMode,
+  wheelIntent,
+  wheelModeChoice,
+} from "../wheel.js";
 
 const wheel = (over) => ({
   deltaX: 0,
@@ -22,7 +29,10 @@ describe("wheel and trackpad", () => {
   });
 
   test("a trackpad scrolls naturally in both directions", () => {
-    const out = wheelIntent(wheel({ deltaX: 12, deltaY: 5.5 }), { lanesFit: true });
+    const out = wheelIntent(wheel({ deltaX: 12, deltaY: 5.5 }), {
+      lanesFit: true,
+      mode: "scroll",
+    });
     assert.deepEqual(out, { kind: "scroll", dx: 12, dy: 5.5 });
   });
 
@@ -74,6 +84,128 @@ describe("wheel and trackpad", () => {
     assert.equal(up.kind, "waveform");
     assert.ok(up.factor > 1);
     assert.ok(wheelIntent(wheel({ deltaY: 100, altKey: true }), { lanesFit: true }).factor < 1);
+  });
+});
+
+describe("two-finger scroll preference", () => {
+  const zoomMode = { lanesFit: false, mode: "zoom" };
+  const scrollMode = { lanesFit: false, mode: "scroll" };
+
+  test("the default is zoom, and stored junk falls back to it", () => {
+    assert.equal(DEFAULT_WHEEL_MODE, "zoom");
+    assert.equal(wheelModeChoice(null), "zoom");
+    assert.equal(wheelModeChoice("bogus"), "zoom");
+    assert.equal(wheelModeChoice("scroll"), "scroll");
+    assert.equal(nextWheelMode("zoom"), "scroll");
+    assert.equal(nextWheelMode("scroll"), "zoom");
+  });
+
+  test("a missing mode means zoom", () => {
+    const out = wheelIntent(wheel({ deltaY: 5.5 }), { lanesFit: false });
+    assert.equal(out.kind, "zoom");
+  });
+
+  test("zoom mode: vertical trackpad movement zooms like Cmd + wheel, same sign", () => {
+    for (const lanesFit of [true, false]) {
+      for (const deltaY of [-7.5, 7.5]) {
+        const out = wheelIntent(wheel({ deltaY }), { lanesFit, mode: "zoom" });
+        const cmd = wheelIntent(wheel({ deltaY, metaKey: true }), { lanesFit, mode: "zoom" });
+        assert.deepEqual(out, cmd);
+      }
+    }
+    assert.ok(wheelIntent(wheel({ deltaY: -7.5 }), zoomMode).factor < 1);
+    assert.ok(wheelIntent(wheel({ deltaY: 7.5 }), zoomMode).factor > 1);
+  });
+
+  test("zoom mode: horizontal movement scrolls time only", () => {
+    assert.deepEqual(wheelIntent(wheel({ deltaX: 12.5 }), zoomMode), {
+      kind: "scroll",
+      dx: 12.5,
+      dy: 0,
+    });
+  });
+
+  test("zoom mode: a diagonal swipe goes by the dominant axis", () => {
+    assert.deepEqual(wheelIntent(wheel({ deltaX: 12.5, deltaY: 3.5 }), zoomMode), {
+      kind: "scroll",
+      dx: 12.5,
+      dy: 0,
+    });
+    assert.equal(wheelIntent(wheel({ deltaX: 3.5, deltaY: 12.5 }), zoomMode).kind, "zoom");
+  });
+
+  test("zoom mode: Shift + vertical scrolls the lanes", () => {
+    for (const lanesFit of [true, false]) {
+      assert.deepEqual(
+        wheelIntent(wheel({ deltaY: 9.5, shiftKey: true }), { lanesFit, mode: "zoom" }),
+        {
+          kind: "scroll",
+          dx: 0,
+          dy: 9.5,
+        },
+      );
+    }
+  });
+
+  test("zoom mode: Shift + horizontal (axis swapped by the OS) still scrolls time", () => {
+    assert.deepEqual(wheelIntent(wheel({ deltaX: 9.5, shiftKey: true }), zoomMode), {
+      kind: "scroll",
+      dx: 9.5,
+      dy: 0,
+    });
+  });
+
+  test("scroll mode keeps today's trackpad behaviour", () => {
+    assert.deepEqual(wheelIntent(wheel({ deltaX: 12, deltaY: 5.5 }), scrollMode), {
+      kind: "scroll",
+      dx: 12,
+      dy: 5.5,
+    });
+    assert.deepEqual(wheelIntent(wheel({ deltaY: 5.5, shiftKey: true }), scrollMode), {
+      kind: "scroll",
+      dx: 5.5,
+      dy: 0,
+    });
+  });
+
+  test("a notched mouse wheel is the same in both modes", () => {
+    for (const mode of ["zoom", "scroll"]) {
+      assert.deepEqual(wheelIntent(wheel({ deltaY: 100 }), { lanesFit: false, mode }), {
+        kind: "scroll",
+        dx: 0,
+        dy: 100,
+      });
+      assert.deepEqual(wheelIntent(wheel({ deltaY: 100 }), { lanesFit: true, mode }), {
+        kind: "scroll",
+        dx: 100,
+        dy: 0,
+      });
+      assert.equal(
+        wheelIntent(wheel({ deltaY: 3, deltaMode: 1 }), { lanesFit: false, mode }).dy,
+        48,
+      );
+      assert.equal(
+        wheelIntent(wheel({ deltaY: 100, metaKey: true }), { lanesFit: false, mode }).kind,
+        "zoom",
+      );
+    }
+  });
+
+  test("Mod zooms and Alt changes the waveform in both modes", () => {
+    for (const mode of ["zoom", "scroll"]) {
+      for (const key of ["ctrlKey", "metaKey"]) {
+        const out = wheelIntent(wheel({ deltaX: 3, deltaY: -10, [key]: true }), {
+          lanesFit: true,
+          mode,
+        });
+        assert.equal(out.kind, "zoom");
+        assert.ok(out.factor < 1);
+      }
+      assert.equal(
+        wheelIntent(wheel({ deltaY: -10, altKey: true }), { lanesFit: true, mode }).kind,
+        "waveform",
+      );
+    }
   });
 });
 

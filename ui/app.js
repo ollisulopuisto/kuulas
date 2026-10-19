@@ -108,6 +108,7 @@ import { mutedInputsKey, pauseChoiceId } from "./transcript-model.js";
 import { createTransport } from "./transport.js";
 import * as View from "./view.js";
 import { changeKey, createSaver, recordOf, restoreFrom } from "./view-memory.js";
+import { nextWheelMode, wheelModeChoice } from "./wheel.js";
 
 const $ = (id) => document.getElementById(id);
 const prefs = createPrefs();
@@ -253,6 +254,16 @@ function toggleDragMode() {
   showNotice(t(`ui.drag_mode.now_${mode}`), "ok");
 }
 
+// What a two-finger trackpad scroll does (wheel.js): a per-user preference; the default zooms.
+const WHEEL_MODE_KEY = "wheelMode";
+setState({ wheelMode: wheelModeChoice(prefs.get(WHEEL_MODE_KEY)) });
+function toggleWheelMode() {
+  const mode = nextWheelMode(getState().wheelMode);
+  setState({ wheelMode: mode });
+  prefs.set(WHEEL_MODE_KEY, mode);
+  showNotice(t(`ui.wheel_mode.now_${mode}`), "ok");
+}
+
 // Words in the clips on the timeline (clip-words.js, WP69): on by default, remembered per user.
 const CLIP_WORDS_KEY = "clipWords";
 setState({ showClipWords: prefs.get(CLIP_WORDS_KEY) !== "off" });
@@ -283,6 +294,7 @@ const actions = {
   shuttle: (key) => void transport.press(key),
   toggleLoop: () => setState({ loop: !getState().loop }),
   toggleDragMode: () => toggleDragMode(),
+  toggleWheelMode: () => toggleWheelMode(),
   toggleClipWords: () => toggleClipWords(),
   fastListening: () => changeFast(toggleFast),
   fastNudge: (direction) => changeFast(direction > 0 ? fastUp : fastDown),

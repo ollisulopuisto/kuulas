@@ -1720,7 +1720,11 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       event.preventDefault();
       const layout = layoutFor(state);
       const lanesFit = layout.height <= size.height - RULER_HEIGHT;
-      actions.wheel(wheelIntent(event, { lanesFit }), locate(event).x, event);
+      actions.wheel(
+        wheelIntent(event, { lanesFit, mode: state.wheelMode }),
+        locate(event).x,
+        event,
+      );
     },
     { passive: false },
   );
