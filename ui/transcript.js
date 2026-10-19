@@ -223,7 +223,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   }
 
   function offerButton(act, ids, text, icon, primary) {
-    const button = el("button", primary ? "button primary" : "button", text);
+    const button = el("button", primary ? "button block primary" : "button block", text);
     button.type = "button";
     button.dataset.act = act;
     button.dataset.ids = ids.join(",");

@@ -45,12 +45,12 @@ export function createProjectDialog({ api, t, onDone }) {
   buttons.className = "cheatsheet-footer";
   const cancel = document.createElement("button");
   cancel.type = "button";
-  cancel.className = "button";
+  cancel.className = "button block";
   cancel.textContent = t("ui.project.cancel");
   cancel.addEventListener("click", () => dialog.close());
   const go = document.createElement("button");
   go.type = "submit";
-  go.className = "button primary";
+  go.className = "button block primary";
   buttons.append(cancel, go);
   form.append(
     field("name", "ui.project.name"),

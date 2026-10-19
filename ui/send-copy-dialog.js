@@ -100,7 +100,7 @@ export function createSendCopyDialog({ api, t, pickFolder = null, onDone = () =>
   const button = (labelKey, onClick, extra = "", type = "button") => {
     const b = document.createElement("button");
     b.type = type;
-    b.className = `button ${extra}`.trim();
+    b.className = `button block ${extra}`.trim();
     b.textContent = t(labelKey);
     if (onClick) b.addEventListener("click", onClick);
     return b;

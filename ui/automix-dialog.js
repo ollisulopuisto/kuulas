@@ -77,13 +77,13 @@ export function createAutomixDialog({ api, t, onStart }) {
   buttons.className = "cheatsheet-footer";
   const cancel = document.createElement("button");
   cancel.type = "button";
-  cancel.className = "button";
+  cancel.className = "button block";
   cancel.dataset.icon = "close";
   cancel.textContent = t("ui.automix.close");
   cancel.addEventListener("click", () => dialog.close());
   const start = document.createElement("button");
   start.type = "submit";
-  start.className = "button primary";
+  start.className = "button block primary";
   start.dataset.icon = "check";
   start.textContent = t("ui.automix.start");
   buttons.append(cancel, start);

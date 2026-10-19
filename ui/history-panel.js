@@ -58,20 +58,23 @@ export function createHistoryPanel({
   const status = el("p", { class: "hint", hidden: true });
   const older = el("button", {
     type: "button",
-    class: "button ghost",
+    class: "button block",
     "data-icon": "older",
     hidden: true,
   });
-  const restore = el("button", { type: "button", class: "button primary", "data-icon": "restore" });
+  const restore = el("button", {
+    type: "button",
+    class: "button block primary",
+    "data-icon": "restore",
+  });
   const hint = el("span", { class: "hint" });
-  const bar = el("div", { class: "actionbar" }, restore, hint);
+  // The one action bar, at the top (owner, 2026-10-19). Undo and Redo left the header; the
+  // same two commands are in the Edit menu with their keys.
+  const undo = el("button", { type: "button", class: "button block", "data-icon": "undo" });
+  const redo = el("button", { type: "button", class: "button block", "data-icon": "redo" });
+  const bar = el("div", { class: "actionbar", role: "group" }, undo, redo, restore, hint);
   const title = el("h2");
-  // Undo and Redo, above the list (owner, 2026-10-19; they left the header). The same two
-  // commands are in the Edit menu with their keys.
-  const undo = el("button", { type: "button", class: "button", "data-icon": "undo" });
-  const redo = el("button", { type: "button", class: "button", "data-icon": "redo" });
-  const stepper = el("div", { class: "hist-undo", role: "group" }, undo, redo);
-  root.replaceChildren(title, stepper, status, scroller, older, bar);
+  root.replaceChildren(title, bar, status, scroller, older);
 
   async function fetchPage(before, limit) {
     const page = await api.getHistory({ limit, before });
@@ -220,7 +223,7 @@ export function createHistoryPanel({
     list.setAttribute("aria-label", t("ui.history.list_label"));
     status.hidden = !(nodes.length === 0 || loading);
     status.textContent = loading ? t("ui.history.loading") : t("ui.history.empty");
-    stepper.setAttribute("aria-label", t("ui.history.undo_group"));
+    bar.setAttribute("aria-label", t("ui.history.undo_group"));
     undo.textContent = t("ui.transport.undo");
     redo.textContent = t("ui.transport.redo");
     undo.disabled = !state.canUndo;
@@ -250,7 +253,7 @@ export function createHistoryPanel({
   root.addEventListener("keydown", (event) => {
     const direction = { ArrowDown: 1, ArrowUp: -1 }[event.key];
     if (!direction || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-    if (event.target.closest?.(".actionbar, .hist-undo")) return;
+    if (event.target.closest?.(".actionbar")) return;
     event.preventDefault();
     const next = moveSelection(nodes, getState().historySelected, direction);
     if (!next) return;

@@ -63,7 +63,7 @@ export function createLocateDialog({ api, t, pickFolder = null, onChanged = () =
   const button = (labelKey, onClick, extra = "") => {
     const b = document.createElement("button");
     b.type = "button";
-    b.className = `button ${extra}`.trim();
+    b.className = `button block ${extra}`.trim();
     b.textContent = t(labelKey);
     b.addEventListener("click", onClick);
     return b;
