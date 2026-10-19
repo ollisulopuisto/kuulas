@@ -15,7 +15,13 @@ import { entryTitle } from "./clipboard.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
 import { createClock } from "./clock.js";
 import { createColabDialogs } from "./colab-dialog.js";
-import { colabNotice, consentNeeded, rememberConsent, rememberedConsent } from "./colab-model.js";
+import {
+  colabNotice,
+  consentNeeded,
+  rememberConsent,
+  rememberedConsent,
+  resumableJob,
+} from "./colab-model.js";
 import { openContextMenu } from "./context-menu.js";
 import { contextMenuItems } from "./context-menu-model.js";
 import { dragModeChoice, nextDragMode } from "./drag-mode.js";
@@ -89,6 +95,7 @@ import { motionMode } from "./motion.js";
 import { createOverview } from "./overview.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
 import { createPrefs } from "./prefs.js";
+import { nextPreroll, prerollLabel } from "./preroll.js";
 import { createProjectDialog } from "./project-dialog.js";
 import { patchClip } from "./provisional.js";
 import { rangeLine } from "./range-info.js";
@@ -174,7 +181,7 @@ $("notice-close").addEventListener("click", () => {
 });
 $("notice-undo").addEventListener("click", () => {
   $("notice").hidden = true;
-  $("undo").click();
+  undo();
 });
 
 // -- server state -----------------------------------------------------------
@@ -723,8 +730,8 @@ const keyboard = setupKeyboard({
     getState,
     patch: setState,
     openHelp: () => void help.open(),
-    undo: () => $("undo").click(),
-    redo: () => $("redo").click(),
+    undo: () => undo(),
+    redo: () => redo(),
     restoreStep: () => restoreStep(getState().historySelected),
     openHistory: () => focusPanel("history"),
     edit: (change) => editor.change(change),
@@ -803,9 +810,11 @@ const keyboard = setupKeyboard({
     openStatistics: () => void openStatistics(),
     openRecord: () => void recordView.open(),
     cycleStopMode: () => cycleStopMode(),
+    cyclePreroll: () => cyclePreroll(),
     autoSilence: () => void autoSilence(),
     duckMicrophones: () => void duckMicrophones(),
     transcribeTrack: (backend) => void transcribeTrack(backend),
+    restartTranscriptions: () => void restartTranscriptions(),
     openColabSettings: () => void colabDialogsFor().openSettings(),
     exportTracks: (format, options) => exportTracks(format, options),
     exportMix: (format, options) => exportMix(format, options),
@@ -837,6 +846,10 @@ document.addEventListener("keyup", (event) => {
 // -- toolbar ------------------------------------------------------------------------------
 
 $("play").addEventListener("click", () => actions.togglePlay());
+// Record sits beside Play: the same command as Transport > Record… (no key of its own yet).
+$("record").addEventListener("click", () =>
+  keyboard.registry.run("transport.record", null, getState()),
+);
 $("loop").addEventListener("click", () =>
   keyboard.registry.run("transport.loop", null, getState()),
 );
@@ -849,8 +862,8 @@ const moveHistory = (call) => () =>
       if (notice) showNotice(notice, "ok");
     })
     .catch(showError);
-$("undo").addEventListener("click", moveHistory(api.undo));
-$("redo").addEventListener("click", moveHistory(api.redo));
+const undo = moveHistory(api.undo);
+const redo = moveHistory(api.redo);
 $("zoom-in").addEventListener("click", () => actions.zoomStep(1));
 $("zoom-out").addEventListener("click", () => actions.zoomStep(-1));
 $("view-toggle").addEventListener("click", () => actions.toggleView());
@@ -1174,7 +1187,7 @@ const importPanel = createImportPanel({
   actions: {
     undo: () => {
       importPanel.hide();
-      $("undo").click();
+      undo();
     },
     sequence: () => void importSequentially(),
     mono: (tracks) => turnIntoMono(tracks),
@@ -1257,7 +1270,6 @@ async function chooseMedia() {
     showError(error);
   }
 }
-$("import").addEventListener("click", () => void chooseMedia());
 $("file-input").addEventListener("change", (event) => {
   const files = [...event.target.files];
   event.target.value = "";
@@ -1454,7 +1466,12 @@ const historyPanel = createHistoryPanel({
   api,
   getState,
   setState,
-  actions: { restore: (node) => void restoreStep(node), showError },
+  actions: {
+    restore: (node) => void restoreStep(node),
+    undo: () => undo(),
+    redo: () => redo(),
+    showError,
+  },
 });
 
 // -- markers, regions, chapters (WP19h) ------------------------------------------------------------------
@@ -1590,6 +1607,50 @@ async function transcribeTrack(backend = "local") {
   else await transcript.transcribe(ids);
 }
 
+// Transcription is a background job in a separate process (WP79): it goes on when this window
+// is closed. The window looks for what the jobs did meanwhile (a result added, a failure) every
+// few seconds and once at the start, and follows a job that is still running.
+const BACKGROUND_POLL_MS = 3000;
+let backgroundBusy = false;
+
+async function watchBackgroundJobs() {
+  if (backgroundBusy) return;
+  backgroundBusy = true;
+  try {
+    const { notices } = await api.jobNotices();
+    for (const notice of notices) showNotice(notice.text, notice.kind);
+    if (notices.some((notice) => notice.kind === "ok")) await refresh();
+    if (!exportJob) {
+      const running = resumableJob((await api.getJobs()).jobs);
+      if (running) {
+        exportJob = running.id;
+        colabNames = running.title;
+        void followExportJob(running.id, "colab");
+      }
+    }
+  } catch {
+    // The next look tries again; a failed look must not hide the project.
+  } finally {
+    backgroundBusy = false;
+  }
+}
+
+// Track > Transcribe > Restart interrupted transcriptions.
+async function restartTranscriptions() {
+  try {
+    const { restarted } = await api.restartInterrupted();
+    showNotice(
+      restarted.length > 0
+        ? t("ui.colab.restarted", { count: restarted.length })
+        : t("ui.colab.none_interrupted"),
+      "ok",
+    );
+    void watchBackgroundJobs();
+  } catch (error) {
+    showError(error);
+  }
+}
+
 // Transcribe on Colab (WP78): the audio leaves the computer, so the first use in a session asks
 // (unless the user chose "Do not ask again", a stored preference). One job for all the
 // recordings; the notice follows it like the automixer, with Cancel. The words arrive through
@@ -1647,6 +1708,13 @@ function cycleStopMode() {
   const mode = nextStopMode(recordView.stopMode);
   recordView.setStopMode(mode);
   showNotice(t("ui.record.stop_mode.now", { mode: t(`ui.record.stop_mode.${mode}`) }), "ok");
+}
+
+// Transport > Pre-roll (WP12c): seconds before Record that the take includes; 0 is off.
+function cyclePreroll() {
+  const seconds = nextPreroll(recordView.preroll);
+  recordView.setPreroll(seconds);
+  showNotice(t("ui.record.preroll.now", { value: prerollLabel(seconds, t) }), "ok");
 }
 
 async function openStatistics() {
@@ -1726,10 +1794,6 @@ api
   })
   .catch(() => {});
 
-// Alt-click skips the folder question (the quick export).
-$("export").addEventListener("click", (event) =>
-  keyboard.registry.run(event.altKey ? "export.tracks_quick" : "export.tracks", null, getState()),
-);
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && exportJob) void cancelExportJob();
 });
@@ -2390,10 +2454,6 @@ function render(state, patch) {
     );
     chip.title = state.live === "reconnecting" ? t("ui.live.reconnecting_title") : "";
   }
-  if (touched("canUndo", "canRedo")) {
-    $("undo").disabled = !state.canUndo;
-    $("redo").disabled = !state.canRedo;
-  }
   if (touched("waveformGain")) {
     const button = $("waveform-gain");
     button.hidden = state.waveformGain === 1;
@@ -2504,7 +2564,8 @@ function render(state, patch) {
       $(`tab-${name}`).tabIndex = state.sidebarTab === name ? 0 : -1;
     }
   }
-  if (touched("head", "sidebarTab", "historySelected")) historyPanel.update(state);
+  if (touched("head", "sidebarTab", "historySelected", "canUndo", "canRedo"))
+    historyPanel.update(state);
   if (touched("project")) {
     const empty = $("empty");
     const hasClips = state.project?.tracks.some((track) => track.clips.length > 0);
@@ -2662,6 +2723,8 @@ try {
 } catch (error) {
   showError(error);
 }
+void watchBackgroundJobs();
+setInterval(() => void watchBackgroundJobs(), BACKGROUND_POLL_MS);
 // A take running for this project shows the record view again; takes a crash left behind
 // are offered with one click (never imported by themselves).
 void recordView.start();

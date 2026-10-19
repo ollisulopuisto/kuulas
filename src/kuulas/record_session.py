@@ -59,6 +59,10 @@ NOTICES_KEPT = 50
 BYTES_PER_SAMPLE = 3
 #: How long ``stop`` may take: the recorder answers once every file is closed.
 STOP_TIMEOUT_S = 60.0
+#: The recorder's states while it listens for pre-roll without recording (WP12c).
+ARMED_STATES = ("arming", "armed", "disarming")
+#: The longest pre-roll the recorder accepts (``kuulas_recorder.supervisor``).
+MAX_PREROLL_S = 600
 
 
 class RecordError(KuulasError):
@@ -71,7 +75,7 @@ class RecordError(KuulasError):
 
 #: Recorder error keys that mean "not now" (409) rather than "wrong request" (400).
 _CONFLICT = {"already_recording", "busy", "not_recording", "take_exists",
-             "another_project"}
+             "another_project", "armed_mismatch"}
 _UNAVAILABLE = {"timeout", "disconnected", "spawn_failed", "unavailable"}
 
 
@@ -114,6 +118,7 @@ class RecordSession:
         self._notices: deque = deque(maxlen=NOTICES_KEPT)
         #: Takes this editor imported (or found empty) -> what the import reported.
         self._imported: dict[str, dict | None] = {}
+        self._we_armed = False  # this editor armed the recorder (pre-roll)
         self._closed = threading.Event()
         self._wake = threading.Event()
         self._thread = None
@@ -126,11 +131,17 @@ class RecordSession:
         self.publish = publish
 
     def close(self) -> None:
-        """Stop listening. A take that is recording goes on (that is the point)."""
+        """Stop listening. A take that is recording goes on (that is the point); a
+        microphone this editor armed for pre-roll is let go (the recorder would also do
+        it itself once nobody keeps it armed)."""
         self._closed.set()
         self._wake.set()
         if self._thread is not None:
             self._thread.join(timeout=5)
+        if self._we_armed:
+            self._we_armed = False
+            with contextlib.suppress(RecordError):
+                self._command("disarm", timeout=5.0)
 
     # -- talking to the recorder ------------------------------------------------
 
@@ -189,7 +200,8 @@ class RecordSession:
             return False
 
     def _recording(self, status: dict) -> bool:
-        return status.get("state", "idle") not in ("idle", None)
+        # Listening for pre-roll (armed) is not recording: nothing is written.
+        return status.get("state", "idle") not in ("idle", None, *ARMED_STATES)
 
     def recording_now(self) -> bool:
         """Is a take recording, as last heard (no question to the recorder: playback asks
@@ -231,10 +243,15 @@ class RecordSession:
         recording = self._recording(status)
         take = status.get("take") if recording else None
         plan = rt.read_plan(self.folder, take) if (take and ours) else None
+        armed = status.get("state") == "armed"
         return {
             "available": available,
             "state": status.get("state", "idle"),
             "recording": recording,
+            # Listening into the pre-roll buffer, nothing written (the page says so).
+            "armed": armed,
+            "preroll_s": (status.get("armed") or {}).get("preroll_s") if armed else None,
+            "preroll_frames": int(status.get("preroll_frames") or 0) if recording else 0,
             "ours": ours,
             "elsewhere": recording and not ours,
             "take": take,
@@ -252,6 +269,39 @@ class RecordSession:
             "pending": self.pending(running_take=take if ours else None),
             "hold_ms": self.hold_ms,
         }
+
+    def arm(self, *, device: dict | None, channel: int, preroll_s: float) -> dict:
+        """Listen for pre-roll (WP12c): the recorder opens the input and keeps the last
+        ``preroll_s`` seconds in memory, writing nothing, so a take started next begins
+        that long before Record was pressed. Arming again with the same settings only
+        keeps it armed (the recorder lets go by itself when nobody does)."""
+        if self.session.read_only:
+            holder = self.session.package.locked_by or {}
+            raise ops.EditError("error.history.read_only", host=holder.get("host", "?"))
+        if not isinstance(channel, int) or channel < 1:
+            raise RecordError("error.record.bad_channel", channel=channel)
+        if (not isinstance(preroll_s, (int, float)) or isinstance(preroll_s, bool)
+                or not 0 < preroll_s <= MAX_PREROLL_S):
+            raise RecordError("error.record.bad_request", detail="preroll_s")
+        args = {"channels": [channel], "rate": self.rate, "preroll_s": float(preroll_s)}
+        if device:
+            args["device"] = {"index": device.get("index"), "name": device.get("name")}
+        answer = self._command("arm", spawn=True, **args)
+        self._we_armed = True
+        return self._publish_answer(answer)
+
+    def disarm(self) -> dict:
+        """Stop listening and drop the buffer. Harmless when not armed."""
+        answer = self._command("disarm", timeout=20.0)
+        self._we_armed = False
+        return self._publish_answer(answer)
+
+    def _publish_answer(self, answer: dict) -> dict:
+        with self._lock:
+            self._status, self._available = answer, True
+        view = self._view(answer, True)
+        self.publish({"type": "record", "kind": "status", "status": view})
+        return view
 
     def start(self, *, device: dict | None, channel: int, track_id: str | None,
               name: str, at: int) -> dict:
@@ -401,7 +451,7 @@ class RecordSession:
                 return None
             clip_name = t("record.take_interrupted", name=take) if interrupted else take
             _, clip_ids = self.session.import_take(
-                [(self.folder / c.file, c.start) for c in clips],
+                [(self.folder / c.file, c.start, c.offset) for c in clips],
                 track_id=plan.track_id, track_name=plan.track_name,
                 clip_name=clip_name, take=take)
             result = {**summary, "take": take, "clips": len(clip_ids),
@@ -478,8 +528,9 @@ class RecordSession:
         kind = event.get("event")
         with self._lock:
             ours = self._ours(self._status)
+            armed = self._status.get("state") == "armed"
         if kind == "level":
-            if ours:
+            if ours or armed:  # the meter also runs while armed
                 with self._lock:
                     self._position = int(event.get("position_frames", self._position))
                 self.publish({"type": "record", "kind": "level",
@@ -491,6 +542,11 @@ class RecordSession:
             if self._ours(event) and event.get("take"):
                 self._import_later(event["take"])
             self.publish({"type": "record", "kind": "status", "status": self.status()})
+            return
+        if kind in ("armed", "disarmed"):
+            self.publish({"type": "record", "kind": "status", "status": self.status()})
+            if kind == "disarmed":
+                self._notice(event)
             return
         if kind == "started" or (ours and kind in ("device_lost", "device_back", "gap",
                                                    "worker_restarted")):

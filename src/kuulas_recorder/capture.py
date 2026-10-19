@@ -13,6 +13,14 @@ then writes the same number of frames of silence so every channel stays in
 sync with the recording clock, and reports a ``dropout``. A host input
 overflow (audio lost before it reached the callback) is counted and reported
 with its position; its length is unknown, so nothing is inserted.
+
+**Armed (pre-roll, WP12c).** An armed capture listens without a take: the writer
+keeps the last ``preroll_seconds`` of audio in memory (``PreRoll``) and writes
+no file at all. ``begin`` (Record) hands the writer the take's folder, name and
+channel names; it opens the files, writes the buffered audio first and goes on
+as a normal capture, so the take starts that many seconds before Record was
+pressed. Stopping while still armed leaves nothing on disk and the buffer is
+gone with the process.
 """
 
 from __future__ import annotations
@@ -21,6 +29,7 @@ import contextlib
 import errno
 import threading
 import time
+from collections import deque
 from collections.abc import Callable
 from pathlib import Path
 
@@ -87,6 +96,40 @@ class Ring:
         return self.written - self.read
 
 
+class PreRoll:
+    """The last ``limit`` frames of audio, in memory, as whole blocks.
+
+    Memory is bounded: blocks older than ``limit`` frames are dropped as new ones
+    come, so the buffer never holds more than ``limit`` plus one block.
+    """
+
+    def __init__(self, limit: int):
+        self.limit = max(0, limit)
+        self.frames = 0
+        self._blocks: deque[tuple[np.ndarray, int]] = deque()
+
+    def add(self, block: np.ndarray, t_ns: int) -> None:
+        """``block``: frames x channels, a copy this buffer may keep; ``t_ns``: the
+        monotonic time the block arrived (the end of its audio)."""
+        if self.limit == 0 or not len(block):
+            return
+        self._blocks.append((block, t_ns))
+        self.frames += len(block)
+        while self._blocks and self.frames - len(self._blocks[0][0]) >= self.limit:
+            self.frames -= len(self._blocks.popleft()[0])
+
+    def drain(self) -> tuple[np.ndarray | None, int]:
+        """The last ``limit`` frames (or all there are) and the arrival time of the
+        newest block; the buffer is emptied."""
+        if not self._blocks:
+            return None, 0
+        newest = self._blocks[-1][1]
+        audio = np.concatenate([b for b, _ in self._blocks])[-self.limit:]
+        self._blocks.clear()
+        self.frames = 0
+        return audio, newest
+
+
 class Capture:
     """Record one device's armed channels to progressive WAVs.
 
@@ -96,17 +139,19 @@ class Capture:
     to ``report`` as a small dict; ``report`` must not block.
     """
 
-    def __init__(self, source: AudioSource, *, folder: Path | str, take: str,
-                 channels: list[int], names: list[str], rate: int = 48000,
-                 segment: int = 1, report: Report, blocksize: int = 1024,
-                 flush_seconds: float = 1.0, ring_seconds: float = 20.0,
-                 level_seconds: float = 0.1, max_data_bytes: int = MAX_DATA_BYTES,
+    def __init__(self, source: AudioSource, *, folder: Path | str | None,
+                 take: str | None, channels: list[int], names: list[str],
+                 rate: int = 48000, segment: int = 1, report: Report,
+                 blocksize: int = 1024, flush_seconds: float = 1.0,
+                 ring_seconds: float = 20.0, level_seconds: float = 0.1,
+                 max_data_bytes: int = MAX_DATA_BYTES,
                  opener: Callable[..., ProgressiveWav] = ProgressiveWav,
-                 poll_seconds: float = 0.005):
-        if len(channels) != len(names) or not channels:
+                 poll_seconds: float = 0.005, armed: bool = False,
+                 preroll_seconds: float = 0.0):
+        if not channels or (not armed and len(channels) != len(names)):
             raise ValueError("one name per armed channel")
         self.source = source
-        self.folder = Path(folder)
+        self.folder = Path(folder) if folder is not None else None
         self.take = take
         self.channels = list(channels)
         self.names = list(names)
@@ -139,6 +184,11 @@ class Capture:
         self._since_levels = 0
         self._overflows_reported = 0
         self._closed = False
+        # Pre-roll: ``recording`` is False while armed and no take has begun.
+        self.recording = not armed
+        self._preroll = PreRoll(round(preroll_seconds * rate)) if armed else None
+        self._begin: tuple[Path, str, list[str]] | None = None
+        self._listening_reported = False
 
     # --- files ------------------------------------------------------------------
 
@@ -221,11 +271,13 @@ class Capture:
     def start(self) -> None:
         """Open the device first (so a refused device leaves no files), then the
         files, then let the writer run. Raises ``SourceError`` or ``OSError``."""
-        self.folder.mkdir(parents=True, exist_ok=True)
+        if self.recording:
+            self.folder.mkdir(parents=True, exist_ok=True)
         self.started_ns = time.monotonic_ns()
         self.source.start(self.ring.push, self._on_lost)
         try:
-            self._open_segment()
+            if self.recording:
+                self._open_segment()
         except BaseException:
             self.source.stop()
             raise
@@ -252,6 +304,8 @@ class Capture:
     def _drain_loop(self) -> None:
         ring = self.ring
         while True:
+            if self._begin is not None and not self.recording:
+                self._start_recording()
             if ring.pending():
                 self._take_block()
                 continue
@@ -267,6 +321,9 @@ class Capture:
         s = ring.read % ring.slots
         frames = int(ring.frames[s])
         silence = int(ring.silence_before[s])
+        if not self.recording:
+            self._listen_block(s, frames, silence)
+            return
         if not self.first_block_seen:
             self.first_block_seen = True
             # The block's first frame was captured one block before it arrived.
@@ -290,6 +347,54 @@ class Capture:
         self._levels(block)
         if self._since_flush >= self.flush_frames:
             self._flush()
+
+    def _listen_block(self, s: int, frames: int, silence: int) -> None:
+        """Armed: the block goes to the pre-roll buffer (and the meters), not to disk."""
+        ring = self.ring
+        if not self._listening_reported:
+            self._listening_reported = True
+            self.report({"ev": "listening"})
+        t_ns = int(ring.t_ns[s])
+        if silence:  # the ring overflowed: keep the buffer on the clock
+            self._preroll.add(np.zeros((silence, len(self.cols)), np.float32), t_ns)
+        block = ring.buf[s, :frames][:, self.cols]  # a copy (fancy index)
+        ring.read += 1
+        self._preroll.add(block, t_ns)
+        self._levels(block)
+
+    def begin(self, folder: Path | str, take: str, names: list[str]) -> None:
+        """Record (armed captures): the writer opens the files and writes the buffered
+        audio first. Returns at once; a failure is reported as an ``error`` event."""
+        if self.recording or self._preroll is None:
+            raise ValueError("begin is for an armed capture that has not begun")
+        if len(names) != len(self.cols):
+            raise ValueError("one name per armed channel")
+        self._begin = (Path(folder), take, list(names))
+
+    def buffered_frames(self) -> int:
+        """Frames the pre-roll buffer holds now (0 once recording)."""
+        return self._preroll.frames if self._preroll is not None else 0
+
+    def _start_recording(self) -> None:
+        """The writer thread's half of ``begin``: open the files, write the pre-roll."""
+        self.folder, self.take, self.names = self._begin
+        self._begin = None
+        self.folder.mkdir(parents=True, exist_ok=True)
+        self._open_segment()
+        audio, newest_ns = self._preroll.drain()
+        self._preroll = None
+        self.recording = True
+        self._flushed_at = time.monotonic()
+        frames = 0 if audio is None else len(audio)
+        self.report({"ev": "preroll", "frames": frames})
+        if not frames:
+            return  # the first block to come starts the take, as without pre-roll
+        # The take's frame 0 is the oldest buffered frame; blocks are contiguous.
+        start_ns = newest_ns - frames * 1_000_000_000 // self.rate
+        self.first_block_seen = True
+        self.report({"ev": "first_block", "segment": self.segment, "mono_ns": start_ns,
+                     "utc_ns": time.time_ns() - (time.monotonic_ns() - start_ns)})
+        self._write(audio)
 
     def _levels(self, block: np.ndarray) -> None:
         if len(block):
@@ -340,6 +445,8 @@ class Capture:
         self._stop.set()
         if self._writer is not None:
             self._writer.join()
+        if not self.recording:
+            return  # armed and never begun: nothing was written, nothing to close
         if self.error is None:
             try:
                 self._flush()

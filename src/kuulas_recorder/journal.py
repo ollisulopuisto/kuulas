@@ -82,6 +82,9 @@ class TakeRecord:
             "channels": [{"channel": c, "name": n}
                          for c, n in zip(channels, names, strict=True)],
             "segments": [],
+            # Frames at the start of the take that were heard before Record was
+            # pressed (WP12c pre-roll): Record was pressed at this frame.
+            "preroll_frames": 0,
             "frames": 0,
             "gaps": [],
             "dropouts": [],

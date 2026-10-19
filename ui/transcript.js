@@ -249,8 +249,11 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     jobTimer = setTimeout(async () => {
       try {
         const all = (await api.getJobs()).jobs.filter((job) => jobs.ids?.includes(job.id));
-        const failed = all.find((job) => job.state === "failed" || job.state === "cancelled");
-        if (failed) jobs = { state: "failed", progress: 0, error: failed.error || failed.title };
+        const failed = all.find((job) =>
+          ["failed", "cancelled", "interrupted"].includes(job.state),
+        );
+        if (failed)
+          jobs = { state: "failed", progress: 0, error: failed.error?.text || failed.title };
         else if (all.length === 0 || all.every((job) => job.state === "completed"))
           jobs = { state: "idle", progress: 0, error: "" };
         else {

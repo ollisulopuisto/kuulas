@@ -86,6 +86,7 @@ class ClipPlan:
     file: str  # in the recordings folder
     start: int  # timeline frame
     segment: int
+    offset: int = 0  # frames cut from the head of the file (pre-roll before the timeline)
 
 
 def _channel(sidecar: dict) -> str | None:
@@ -96,11 +97,17 @@ def _channel(sidecar: dict) -> str | None:
 def clip_plan(sidecar: dict, at: int, on_disk: set[str] | None = None) -> list[ClipPlan]:
     """One clip per segment of the take's (first) channel, at ``at`` plus the segment's
     place on the take's clock. A file with no frames (the snapshot's count, or absent
-    from ``on_disk`` when given) and a segment with no known start make no clip."""
+    from ``on_disk`` when given) and a segment with no known start make no clip.
+
+    Pre-roll (WP12c): the take's clock starts ``preroll_frames`` before Record was
+    pressed, so the take is placed that much earlier and the pre-roll ends at ``at``.
+    What would fall before the start of the timeline is cut from the clip's head
+    (``offset``); a segment that lies wholly in the cut part makes no clip."""
     if at < 0:
         msg = f"at must not be negative, got {at}"
         raise ValueError(msg)
     name = _channel(sidecar)
+    preroll = max(0, int(sidecar.get("preroll_frames") or 0))
     plans: list[ClipPlan] = []
     for seg in sorted(sidecar.get("segments") or [], key=lambda s: s.get("segment", 0)):
         entry = (seg.get("files") or {}).get(name) if name else None
@@ -108,9 +115,13 @@ def clip_plan(sidecar: dict, at: int, on_disk: set[str] | None = None) -> list[C
             continue
         has_audio = (entry["file"] in on_disk) if on_disk is not None else (
             entry.get("frames", 0) > 0)
-        if has_audio:
-            plans.append(ClipPlan(entry["file"], at + int(seg["start_frame"]),
-                                  int(seg["segment"])))
+        if not has_audio:
+            continue
+        start = at + int(seg["start_frame"]) - preroll
+        cut = max(0, -start)
+        if cut and cut >= int(entry.get("frames", 0)) > 0:
+            continue  # nothing of this segment lies on the timeline
+        plans.append(ClipPlan(entry["file"], max(0, start), int(seg["segment"]), cut))
     return plans
 
 
@@ -180,7 +191,7 @@ RECORDER_ERRORS = (
     "device_open_failed", "device_no_audio", "file_exists", "worker_failed",
     "take_not_found", "internal", "timeout", "disconnected", "spawn_failed",
     "other", "unavailable", "hold_required", "another_project", "no_device",
-    "bad_channel", "stop_gesture", "no_playback",
+    "bad_channel", "stop_gesture", "no_playback", "armed_mismatch",
 )
 
 
@@ -193,7 +204,7 @@ EVENT_KEYS = (
     "record.event.disk_low", "record.event.input_overflow", "record.event.dropout",
     "record.event.device_lost", "record.event.device_back", "record.event.gap",
     "record.event.worker_restarted", "record.event.disk_full",
-    "record.event.worker_keeps_failing", "record.event.error",
+    "record.event.worker_keeps_failing", "record.event.error", "record.event.disarmed",
 )
 
 
@@ -221,6 +232,9 @@ _NOTICES = {
                     lambda e, r: {"seconds": _seconds(int(e.get("frames", 0)), r)}),
     ("worker_restarted", None): ("record.event.worker_restarted", "warning",
                                  lambda e, _r: {"count": int(e.get("restarts", 1))}),
+    # Only a listener that was lost is news; the user's own disarm, a replaced listener
+    # and the time-to-live running out are not (``event_notice`` filters them).
+    ("disarmed", None): ("record.event.disarmed", "warning", lambda _e, _r: {}),
     ("error", "disk_full"): ("record.event.disk_full", "alarm", lambda _e, _r: {}),
     ("error", "worker_keeps_failing"): ("record.event.worker_keeps_failing", "alarm",
                                         lambda _e, _r: {}),
@@ -236,6 +250,8 @@ def event_notice(event: dict, rate: int) -> dict | None:
     event that is not a message (levels, started, stopped: the view shows those, and
     warnings of a kind this version does not know)."""
     kind = event.get("event")
+    if kind == "disarmed" and event.get("reason") not in ("device_lost", "worker_died"):
+        return None
     sub = event.get("key") if kind in ("warning", "error") else None
     found = _NOTICES.get((kind, sub))
     if found is None:

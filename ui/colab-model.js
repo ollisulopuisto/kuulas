@@ -51,23 +51,40 @@ export function colabSettingsBody(form) {
  * tool has printed no PROGRESS line there is no number, only its last line.
  */
 export function colabNotice(job, t, names = "") {
+  // WP79: every transcription is a background job; a local one has its own words.
+  const p = job.backend === "local" ? "ui.transcribe" : "ui.colab";
   if (job.state === "completed") {
-    return { kind: "ok", text: t("ui.colab.done", { names }), sticky: false, cancel: false };
+    return { kind: "ok", text: t(`${p}.done`, { names }), sticky: false, cancel: false };
   }
   if (job.state === "failed") {
     return { kind: "error", text: job.error?.text ?? "", sticky: false, cancel: false };
   }
+  if (job.state === "interrupted") {
+    return { kind: "error", text: t("ui.colab.interrupted"), sticky: false, cancel: false };
+  }
   if (job.state === "cancelled") {
-    return { kind: "ok", text: t("ui.colab.cancelled"), sticky: false, cancel: false };
+    return { kind: "ok", text: t(`${p}.cancelled`), sticky: false, cancel: false };
   }
   let text;
   if (job.indeterminate) {
-    text = job.message ? t("ui.colab.running_line", { line: job.message }) : t("ui.colab.running");
+    text = job.message ? t(`${p}.running_line`, { line: job.message }) : t(`${p}.running`);
   } else {
-    text = t("ui.colab.running_percent", {
+    text = t(`${p}.running_percent`, {
       percent: Math.round((job.progress ?? 0) * 100),
       line: job.message ?? "",
     });
   }
   return { kind: "ok", text, sticky: true, cancel: true };
 }
+
+/**
+ * The background transcription job (WP79) a reopened window should follow again: the first
+ * transcription job that is still waiting or running, or undefined.
+ */
+export const resumableJob = (jobs) =>
+  jobs.find(
+    (job) =>
+      job.background === true &&
+      job.kind === "transcribe" &&
+      (job.state === "queued" || job.state === "running"),
+  );

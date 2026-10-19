@@ -56,6 +56,13 @@ RESERVE_BYTES = 200 * 1024 * 1024
 # not restarted again: the take stops with an error instead of a crash loop.
 RESTART_LIMIT = 5
 
+# Pre-roll (WP12c). An armed recorder listens with the microphone open, so it
+# disarms itself unless a client keeps arming it (the editor does every 20 s):
+# an editor that crashed or was closed must not leave the microphone listening.
+ARM_TTL_S = 120.0
+MAX_PREROLL_S = 600.0  # a ten-minute buffer is ~85 MB per channel as float32
+ARMED_STATES = ("arming", "armed", "disarming")
+
 LEVEL_FLOOR_DB = -120.0
 CLIENT_QUEUE = 512  # events queued for one client before it counts as stuck
 CLIENT_SEND_TIMEOUT = 5.0
@@ -212,7 +219,7 @@ class Supervisor:
                  max_data_bytes: int | None = None, start_timeout: float = 10.0,
                  stop_timeout: float = 15.0, tick: float = 0.25,
                  device_poll: float = 1.0, stuck_after: float | None = None,
-                 restart_backoff: float = 0.2):
+                 restart_backoff: float = 0.2, arm_ttl: float = ARM_TTL_S):
         self.socket_path = Path(socket_path)
         self.state_dir = Path(state_dir) if state_dir else self.socket_path.parent
         self.transport = transport or UnixTransport()
@@ -229,6 +236,11 @@ class Supervisor:
         self.tick = tick
         self.device_poll = device_poll
         self.restart_backoff = restart_backoff
+        self.arm_ttl = arm_ttl
+        self.armed: dict | None = None  # what the armed worker listens to
+        self.armed_device: dict | None = None  # the device's full description
+        self.armed_until = 0.0
+        self.disarm_reason: str | None = None
         # Longer than the worker's ring (20 s): a disk that stalls and recovers
         # inside that time loses nothing, and killing the worker would.
         self.stuck_after = stuck_after or max(30.0, 5 * flush_seconds)
@@ -303,8 +315,10 @@ class Supervisor:
 
     def close(self) -> None:
         with self.lock:
-            busy = self.state != "idle"
-        if busy:
+            state = self.state
+        if state in ARMED_STATES:
+            self.disarm("shutdown")
+        elif state != "idle":
             with contextlib.suppress(ProtocolError):
                 self.stop("shutdown", wait=True)
         if self.listener is not None:
@@ -425,6 +439,13 @@ class Supervisor:
     def cmd_stop(self, _client: Client, _msg: dict) -> dict:
         return self.stop("stopped", wait=True)
 
+    def cmd_arm(self, _client: Client, msg: dict) -> dict:
+        return self.arm(msg)
+
+    def cmd_disarm(self, _client: Client, _msg: dict) -> dict:
+        self.disarm("disarmed")
+        return self.status()
+
     def cmd_repair(self, _client: Client, msg: dict) -> dict:
         folder, take = msg.get("folder"), msg.get("take")
         if not isinstance(folder, str) or not naming.valid_name(take):
@@ -437,9 +458,9 @@ class Supervisor:
 
     def cmd_quit(self, _client: Client, _msg: dict) -> dict:
         with self.lock:
-            if self.state != "idle":
+            if self.state not in ("idle", *ARMED_STATES):
                 raise ProtocolError("busy", "A take is recording; stop it first.")
-        self.request_shutdown()
+        self.request_shutdown()  # close() ends a listening (armed) worker too
         return {"quitting": True}
 
     def _devices(self) -> list[dict]:
@@ -467,12 +488,15 @@ class Supervisor:
             out: dict = {"state": self.state, "pid": os.getpid(),
                          "worker_pid": self.worker.pid if self.worker else None,
                          "last_take": self.last_take, "recovered": self.recovered}
+            if self.armed is not None and self.state in ARMED_STATES:
+                out["armed"] = dict(self.armed)
             if take is not None:
                 d = take.data
                 out.update({
                     "take": take.take, "folder": str(take.folder),
                     "device": d["device"], "channels": d["channels"], "rate": d["rate"],
                     "start_utc": d["start_utc"], "position_frames": self.position(),
+                    "preroll_frames": d.get("preroll_frames", 0),
                     "frames_flushed": take.last_end(), "segments": d["segments"],
                     "gaps": d["gaps"], "dropouts": len(d["dropouts"]),
                     "overflows": d["overflows"], "worker_restarts": d["worker_restarts"],
@@ -521,16 +545,31 @@ class Supervisor:
             raise ProtocolError("bad_request", "rate is a sample rate in Hz.")
         path = Path(folder)
         with self.lock:
-            if self.state != "idle":
+            before = self.state
+            if before in ("arming", "disarming"):
+                raise ProtocolError("busy", "The recorder is changing between "
+                                    "listening and idle; try again.")
+            if before not in ("idle", "armed"):
                 raise ProtocolError("already_recording", "A take is already recording.")
+            listening = before == "armed"  # a worker is listening: it holds the pre-roll
+            if listening:
+                self._check_armed_start(channels, rate, msg)
             self.state = "checking"
         try:
-            device = self._check_start(path, take, channels, names, rate, msg)
+            if listening:
+                self._check_take(path, take, names, rate)
+                device = self.armed_device
+            else:
+                device = self._check_start(path, take, channels, names, rate, msg)
         except BaseException:
             with self.lock:
-                self.state = "idle"
+                self.state = before  # still listening, if it was
             raise
         with self.lock:
+            if listening and self.worker is None:  # the listener died in between
+                self.state = "idle"
+                raise ProtocolError("worker_failed", "The listening recorder stopped; "
+                                    "press Record again.")
             self.take = TakeRecord.new(path, take, rate=rate, device=device,
                                        channels=channels, names=names)
             self.params = {"device": {"index": device["index"], "name": device["name"]},
@@ -544,7 +583,12 @@ class Supervisor:
             self.start_error = None
             atomic_write_json(self.state_dir / "current.json", self.params)
             self.keep_awake.start()
-            self._spawn(1)
+            if listening:
+                self.armed = None
+                self.worker.send(json.dumps({"cmd": "record", "folder": str(path),
+                                             "take": take, "names": names}))
+            else:
+                self._spawn(1)
             deadline = time.monotonic() + self.start_timeout
             while self.state == "starting":
                 left = deadline - time.monotonic()
@@ -569,6 +613,22 @@ class Supervisor:
 
     def _check_start(self, path: Path, take: str, channels: list[int],
                      names: list[str], rate: int, msg: dict) -> dict:
+        self._check_take(path, take, names, rate)
+        return self._check_device(channels, rate, msg.get("device"))
+
+    def _check_armed_start(self, channels: list[int], rate: int, msg: dict) -> None:
+        """A take started while listening must be what is being listened to: the
+        buffered audio is of that device and those channels (lock held)."""
+        a = self.armed
+        want = msg.get("device")
+        named = want.get("name") if isinstance(want, dict) else want
+        if (a is None or channels != a["channels"] or rate != a["rate"]
+                or (isinstance(named, str) and named != a["device"]["name"])):
+            raise ProtocolError("armed_mismatch", "The recorder is listening to other "
+                                "channels or another input than this take asks for; "
+                                "arm it again first.")
+
+    def _check_take(self, path: Path, take: str, names: list[str], rate: int) -> None:
         if (path / naming.sidecar_file(take)).exists() or any(
                 (path / naming.segment_file(take, n, 1)).exists() for n in names):
             raise ProtocolError("take_exists",
@@ -588,8 +648,10 @@ class Supervisor:
             raise ProtocolError("disk_full",
                                 f"Only {free // (1024 * 1024)} MB free on the disk of "
                                 f"{path}: not enough to record.")
+
+    def _check_device(self, channels: list[int], rate: int, want: object) -> dict:
         try:
-            device = resolve_device(self._devices(), msg.get("device"))
+            device = resolve_device(self._devices(), want)
             check_rate(device["name"], device["default_rate"], rate)
         except SourceError as e:
             raise ProtocolError(e.key, e.text) from e
@@ -598,6 +660,125 @@ class Supervisor:
                                 f"{device['name']} has {device['channels']} input "
                                 f"channels; channel {max(channels)} was asked for.")
         return device
+
+    # --- arm: listen into the pre-roll buffer (WP12c) --------------------------------
+
+    def arm(self, msg: dict) -> dict:
+        """Open the input and keep the last ``preroll_s`` seconds in memory, writing
+        nothing. A ``start`` for the same input and channels then begins the take that
+        many seconds before it. Arming again with the same settings only extends the
+        time-to-live (``arm_ttl``); other settings replace the listener."""
+        channels = msg.get("channels", [1])
+        rate = msg.get("rate", 48000)
+        preroll = msg.get("preroll_s")
+        if (not isinstance(preroll, (int, float)) or isinstance(preroll, bool)
+                or not 0 < preroll <= MAX_PREROLL_S):
+            raise ProtocolError("bad_request", f"preroll_s is seconds, above 0 and at "
+                                f"most {MAX_PREROLL_S:g}.")
+        if (not isinstance(channels, list) or not channels
+                or not all(isinstance(c, int) and not isinstance(c, bool) and c >= 1
+                           for c in channels) or len(set(channels)) != len(channels)):
+            raise ProtocolError("bad_request", "channels is a list of distinct device "
+                                "channel numbers, counted from 1.")
+        if (not isinstance(rate, int) or isinstance(rate, bool)
+                or not 8000 <= rate <= 384000):
+            raise ProtocolError("bad_request", "rate is a sample rate in Hz.")
+        device = self._check_device(channels, rate, msg.get("device"))
+        wanted = {"device": {"index": device["index"], "name": device["name"]},
+                  "channels": channels, "rate": rate, "preroll_s": float(preroll)}
+        with self.lock:
+            if self.state == "armed" and self.armed == wanted and self.worker is not None:
+                self.armed_until = time.monotonic() + self.arm_ttl
+                return self.status()
+        if self.state in ARMED_STATES:
+            self.disarm("rearmed")
+        with self.lock:
+            if self.state != "idle":
+                raise ProtocolError("already_recording", "A take is already recording.")
+            self.state = "arming"
+            self.armed, self.armed_device = wanted, device
+            self.disarm_reason = None
+            self.start_error = None
+            config = dict(wanted, armed=True, preroll_seconds=wanted["preroll_s"],
+                          segment=1, flush_seconds=self.flush_seconds,
+                          blocksize=self.blocksize)
+            self.gen += 1
+            try:
+                self.worker = Worker(self, self.gen, self.worker_argv, config,
+                                     self._stderr)
+            except OSError as e:
+                self._end_arming()
+                raise ProtocolError("worker_failed",
+                                    f"Could not start the recorder: {e}") from e
+            deadline = time.monotonic() + self.start_timeout
+            while self.state == "arming":
+                left = deadline - time.monotonic()
+                if left <= 0:
+                    break
+                self.changed.wait(left)
+            if self.state == "arming":
+                self.start_error = ("device_no_audio",
+                                    f"{device['name']} opened but sent no audio.")
+                if self.worker is not None:
+                    self.worker.kill()
+                while self.state == "arming":
+                    self.changed.wait(1.0)
+            if self.state != "armed":
+                key, text = self.start_error or ("worker_failed", "The recorder stopped.")
+                raise ProtocolError(key, text)
+            self.armed_until = time.monotonic() + self.arm_ttl
+            return self.status()
+
+    def _end_arming(self) -> None:
+        self.armed = self.armed_device = None
+        self.worker = None
+        self.state = "idle"
+        self.changed.notify_all()
+
+    def disarm(self, reason: str) -> None:
+        """Stop listening and drop the buffer. Nothing was written, so nothing remains.
+        Harmless when not armed."""
+        with self.lock:
+            if self.state not in ARMED_STATES:
+                return
+            self.disarm_reason = reason
+            self.state = "disarming"
+            if self.worker is not None:
+                self.worker.send("stop")
+            deadline = time.monotonic() + self.stop_timeout
+            while self.state == "disarming":
+                left = deadline - time.monotonic()
+                if left <= 0:
+                    if self.worker is not None:
+                        self.worker.kill()
+                    self.changed.wait(1.0)
+                    continue
+                self.changed.wait(left)
+
+    def _on_armed_exit(self, w: Worker, code: int) -> None:
+        """The listening worker is gone (lock held)."""
+        was = self.state
+        reason = self.disarm_reason
+        if reason is None:
+            reason = "device_lost" if (code == EXIT_DEVICE_LOST or w.lost_reason) else (
+                "worker_died")
+        if was == "arming" and self.start_error is None:
+            if w.lost_reason:
+                self.start_error = ("device_no_audio", "The input opened but sent "
+                                    "no audio.")
+            else:
+                self.start_error = w.error or (
+                    "worker_failed", f"The recorder stopped at start (exit {code}).")
+        self.armed = self.armed_device = None
+        self.state = "idle"
+        if was != "arming":
+            log.info("disarmed (%s)", reason)
+            self.emit("disarmed", reason=reason,
+                      text="The recorder stopped listening; nothing was recorded."
+                      if reason not in ("device_lost", "worker_died") else
+                      "The input stopped, so the recorder stopped listening. "
+                      "Nothing was recorded.")
+        self.changed.notify_all()
 
     def _disk_warning_now(self) -> dict | None:
         s = self.disk_seconds
@@ -634,8 +815,14 @@ class Supervisor:
         with self.lock:
             if w is not self.worker:
                 return
+            if self.state in ARMED_STATES:
+                self._on_armed_event(w, ev)
+                return
             take = self.take
             if take is None:
+                return
+            if kind == "preroll":
+                take.data["preroll_frames"] = int(ev.get("frames", 0))
                 return
             if kind == "opened":
                 self._on_opened(w, ev)
@@ -663,6 +850,23 @@ class Supervisor:
             elif kind in ("hello", "started", "stopped"):
                 return
             self.changed.notify_all()
+
+    def _on_armed_event(self, w: Worker, ev: dict) -> None:
+        """What a listening worker says (lock held): it hears audio, meters, trouble."""
+        kind = ev.get("ev")
+        if kind == "listening" and self.state == "arming":
+            self.state = "armed"
+            self.armed_until = time.monotonic() + self.arm_ttl
+            self.emit("armed", **self.armed)
+        elif kind == "levels":
+            self._on_levels(ev)
+            return
+        elif kind == "device_lost":
+            w.lost_reason = ev.get("reason") or "lost"
+        elif kind == "error":
+            w.error = (ev.get("key", "worker_failed"), ev.get("text", ""))
+            log.warning("worker error %s: %s", *w.error)
+        self.changed.notify_all()
 
     def _abs_frame(self, ev: dict) -> int:
         """A frame counted within a worker (``at``) on the take's clock."""
@@ -773,8 +977,11 @@ class Supervisor:
             if w is not self.worker:
                 return
             self.worker = None
-            take = self.take
             log.info("worker %d exited with %s", w.gen, code)
+            if self.state in ARMED_STATES:
+                self._on_armed_exit(w, code)
+                return
+            take = self.take
             if take is not None:
                 for n in w.segments:
                     seg = take.segment(n)
@@ -887,7 +1094,7 @@ class Supervisor:
 
     def stop(self, reason: str, *, wait: bool) -> dict:
         with self.lock:
-            if self.state in ("idle", "checking"):
+            if self.state in ("idle", "checking", *ARMED_STATES):
                 raise ProtocolError("not_recording", "No take is recording.")
             take = self.take
             if self.stop_reason is None:
@@ -947,6 +1154,9 @@ class Supervisor:
         with self.lock:
             state = self.state
             w = self.worker
+            expired = state == "armed" and now > self.armed_until
+        if expired:
+            self.disarm("expired")  # nobody kept it armed: the microphone is let go
         if state in ("recording", "restarting", "device_lost"):
             self._disk_tick()
         with self.lock:
