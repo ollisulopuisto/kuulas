@@ -1001,8 +1001,18 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.app.import",
   },
   // File: New / Open project (no keys: Cmd+N and Cmd+O belong to the browser).
-  { id: "app.new", keys: { mac: "Mod+N", other: "Mod+N" }, context: "global", labelKey: "cmd.app.new" },
-  { id: "app.open", keys: { mac: "Mod+O", other: "Mod+O" }, context: "global", labelKey: "cmd.app.open" },
+  {
+    id: "app.new",
+    keys: { mac: "Mod+N", other: "Mod+N" },
+    context: "global",
+    labelKey: "cmd.app.new",
+  },
+  {
+    id: "app.open",
+    keys: { mac: "Mod+O", other: "Mod+O" },
+    context: "global",
+    labelKey: "cmd.app.open",
+  },
   // The export keys are layers of Mod+E (modifiers.js): Mod+E exports the mix as it is, Shift
   // adds the options dialog. Alt+Mod+E exports all tracks as they are, Shift+Alt+Mod+E asks.
   {
