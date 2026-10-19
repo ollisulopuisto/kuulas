@@ -1161,7 +1161,7 @@ steps (default), one click, and hold 2 s (the state machine in `ui/hold-stop.js`
 clicking elsewhere never stop a take.
 **WP12c (proposed): speculative recording / pre-roll** (owner idea 2026-10-19: "like video cameras: you are
 actually rolling into a one-minute buffer, and when you press record you start from that; you can never start
-recording too late"). While armed, the recorder listens and keeps the last N seconds (default 30 or 60, a setting,
+recording too late"). While armed, the recorder listens and keeps the last N seconds (**default 60 seconds, owner 2026-10-19**; a setting,
 0 = off) in a ring buffer in memory; when Record is pressed the buffered audio is written first and the take starts
 that many seconds earlier on the recording clock; the clip is placed so the pre-roll ends where Record was pressed
 (clamped at the start of the timeline, the pre-roll trimmed, and what is under it is overwritten as for any import,
