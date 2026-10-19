@@ -34,6 +34,8 @@ desktop = ["pywebview>=5"]
 
 [project.scripts]
 kuulas = "kuulas.cli:main"
+# The standalone recorder (WP12a, docs/RECORDER.md): its own process, never the editor.
+kuulas-recorder = "kuulas_recorder.cli:main"
 
 [tool.uv.sources]
 speechmix = { path = "../podcast/packages/speechmix", editable = true }
@@ -47,7 +49,8 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/kuulas"]
+# kuulas_recorder imports nothing from kuulas (tests/test_recorder_isolation.py).
+packages = ["src/kuulas", "src/kuulas_recorder"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

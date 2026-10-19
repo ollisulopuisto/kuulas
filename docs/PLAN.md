@@ -1141,7 +1141,7 @@ Tests: export of a known project equals `mixer.mix` over the whole length
 
 ### WP12 — Basic multitrack recording (R22, Mac first)
 
-Status: open. **Next big push (owner, 2026-10-19): "bring recording forward; first single-track, then multi".**
+Status: open. **WP12a part A done 2026-10-19 (not yet run on a real input device; this Mac has none):** `kuulas_recorder`, the standalone recorder (supervisor + worker processes, progressive WAVs, `<take>.take.json` + journal, JSON-lines protocol, fault tests with a fake device); see `docs/RECORDER.md`, whose "For the editor" section is part B's brief. Part B and WP12b open. **Next big push (owner, 2026-10-19): "bring recording forward; first single-track, then multi".**
 Split into **WP12a single track** (one input device, one channel, one take at a time, end to end, with the whole
 safety architecture below, so everything that makes it foolproof is in from the first version) and **WP12b multi**
 (several channels of one device, each to its own track and its own file in sync, armed per track, then several takes
