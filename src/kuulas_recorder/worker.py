@@ -152,6 +152,12 @@ def main() -> int:
     # Ctrl+C in a terminal signals the whole process group; only the supervisor
     # decides when a take stops.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
+    # The audio callback must take the GIL before it runs. With a thread that
+    # never sleeps holding it, the callback waited up to 22 ms at Python's
+    # default 5 ms switch interval and 4 ms at 1 ms (tests/manual/
+    # test_recorder_bench.py, 2026-10-19). The worker has no such thread; this
+    # caps the cost if one ever appears (a library, a stuck reporter).
+    sys.setswitchinterval(0.001)
     line = sys.stdin.readline()
     try:
         config = json.loads(line)

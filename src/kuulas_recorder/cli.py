@@ -19,6 +19,7 @@ import logging
 import logging.handlers
 import signal
 import sys
+import time
 from pathlib import Path
 
 from kuulas_recorder import transport as transport_mod
@@ -32,8 +33,11 @@ def _serve(args) -> int:
     state.mkdir(parents=True, exist_ok=True, mode=0o700)
     handler = logging.handlers.RotatingFileHandler(
         state / "recorder.log", maxBytes=5 * 1024 * 1024, backupCount=3)
-    handler.setFormatter(logging.Formatter(
-        "%(asctime)s %(levelname)s %(threadName)s %(message)s"))
+    # Log times are UTC and say so (the owner's rule: a time carries its zone).
+    fmt = logging.Formatter("%(asctime)s %(levelname)s %(threadName)s %(message)s",
+                            datefmt="%Y-%m-%dT%H:%M:%SZ")
+    fmt.converter = time.gmtime
+    handler.setFormatter(fmt)
     root = logging.getLogger("kuulas_recorder")
     root.setLevel(logging.INFO)
     root.addHandler(handler)
