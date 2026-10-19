@@ -3372,7 +3372,19 @@ const HELP_FILES = {
   "cmd.export.automix": "Mix with the automixer…",
   "cmd.export.automix.hint": "Writes the stems to a temporary folder, runs the automixer on them and puts the finished mix beside the project. Runs in the background; Cancel stops it.",
   "cmd.app.statistics": "Statistics…",
-  "cmd.app.statistics.hint": "Runtime, counts, who talked, the work done and sizes for this session. Copy as text or save as JSON."
+  "cmd.app.statistics.hint": "Runtime, counts, who talked, the work done and sizes for this session. Copy as text or save as JSON.",
+  "cmd.sync.free": "Free from sync / link again",
+  "cmd.sync.resync_all": "Resync all drifting clips",
+  "cmd.sync.free_all": "Free all drifting clips",
+  "cmd.sync.drift_next": "Next drifting clip",
+  "cmd.sync.drift_previous": "Previous drifting clip",
+  "cmd.sync.resync.hint": "Puts the selected clips back where their sync group puts them. Clips you freed from sync are left alone.",
+  "cmd.sync.resync_end.hint": "Resyncs every clip from the play cursor on, on all tracks (the fix for an accidental one-track cut). Free clips are skipped and counted.",
+  "cmd.sync.free.hint": "Declares the selected clips free from sync on purpose (they get no drift badge, and are nobody's partner), or links them again.",
+  "cmd.sync.resync_all.hint": "Resyncs every clip in the drift list. Nothing resyncs unless you ask.",
+  "cmd.sync.free_all.hint": "Declares every clip in the drift list free from sync on purpose.",
+  "cmd.sync.drift_next.hint": "Moves the play cursor to the next clip that has drifted out of sync and selects it.",
+  "cmd.sync.drift_previous.hint": "Moves the play cursor to the previous clip that has drifted out of sync and selects it."
  },
  "catalog/fi": {
   "cmd.transport.play": "Toista / pysäytä",
@@ -3776,7 +3788,19 @@ const HELP_FILES = {
   "cmd.export.automix": "Miksaa automixerilla…",
   "cmd.export.automix.hint": "Kirjoittaa raidat väliaikaiseen kansioon, ajaa niille automixerin ja tallentaa valmiin miksauksen projektin viereen. Toimii taustalla; Peruuta pysäyttää.",
   "cmd.app.statistics": "Tilastot…",
-  "cmd.app.statistics.hint": "Tämän istunnon kesto, määrät, kuka puhui, tehty työ ja koot. Kopioi tekstinä tai tallenna JSON-tiedostona."
+  "cmd.app.statistics.hint": "Tämän istunnon kesto, määrät, kuka puhui, tehty työ ja koot. Kopioi tekstinä tai tallenna JSON-tiedostona.",
+  "cmd.sync.free": "Vapauta synkasta / liitä takaisin",
+  "cmd.sync.resync_all": "Synkkaa kaikki ajautuneet klipit",
+  "cmd.sync.free_all": "Vapauta kaikki ajautuneet klipit",
+  "cmd.sync.drift_next": "Seuraava ajautunut klippi",
+  "cmd.sync.drift_previous": "Edellinen ajautunut klippi",
+  "cmd.sync.resync.hint": "Palauttaa valitut klipit paikkaan, johon synkkaryhmä ne asettaa. Synkasta vapauttamasi klipit jätetään rauhaan.",
+  "cmd.sync.resync_end.hint": "Synkkaa kaikki klipit toistokohdasta eteenpäin kaikilla raidoilla (korjaa vahingossa yhdelle raidalle tehdyn leikkauksen). Vapaat klipit ohitetaan ja lasketaan.",
+  "cmd.sync.free.hint": "Merkitsee valitut klipit tarkoituksella synkasta vapaiksi (ei ajautumismerkkiä, eikä kenenkään kumppani) tai liittää ne takaisin.",
+  "cmd.sync.resync_all.hint": "Synkkaa jokaisen ajautumisluettelon klipin. Mikään ei synkkaudu itsestään.",
+  "cmd.sync.free_all.hint": "Merkitsee jokaisen ajautumisluettelon klipin tarkoituksella synkasta vapaaksi.",
+  "cmd.sync.drift_next.hint": "Siirtää toistokohdan seuraavaan synkasta ajautuneeseen klippiin ja valitsee sen.",
+  "cmd.sync.drift_previous.hint": "Siirtää toistokohdan edelliseen synkasta ajautuneeseen klippiin ja valitsee sen."
  }
 };
 // -- end of help topics --
