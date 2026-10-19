@@ -1,3 +1,8 @@
+## [v26.10.19.23] - 2026-10-19
+
+- **Next and previous drifting clip (Markers tab) are F7 and Shift+F7**, not N: N sits between B (split) and M
+  (mute) and stays free. (Sync keys may be a little less handy than the everyday ones.)
+
 ## [v26.10.19.22] - 2026-10-19
 
 - **Recording a single track (first version):** Transport > Record… opens the record view: choose the input and

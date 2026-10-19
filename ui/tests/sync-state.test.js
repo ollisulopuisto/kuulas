@@ -163,7 +163,7 @@ describe("the sync commands", () => {
     assert.deepEqual(calls.edits[0].args, { clip_ids: ["a", "c"], free: true });
   });
 
-  test("N and Shift+N select and show the next and previous drifting clip", async () => {
+  test("F7 and Shift+F7 select and show the next and previous drifting clip", async () => {
     const { registry, calls, get } = await setup({
       playhead: 10,
       syncClips: [row("a", 0, 5), row("c", 20, 1)],
@@ -177,7 +177,7 @@ describe("the sync commands", () => {
   });
 });
 
-describe("N and Shift+N in the keymap", () => {
+describe("F7 and Shift+F7 in the keymap", () => {
   function keyboard(context) {
     const calls = [];
     const registry = createRegistry();
@@ -187,7 +187,7 @@ describe("N and Shift+N in the keymap", () => {
     const press = (key, shiftKey = false) =>
       keymap.handle({
         key,
-        code: "KeyN",
+        code: key.toUpperCase() === "F7" ? "F7" : `Key${key.toUpperCase()}`,
         shiftKey,
         altKey: false,
         ctrlKey: false,
@@ -201,8 +201,8 @@ describe("N and Shift+N in the keymap", () => {
   }
   test("in the Markers tab they step the drift list; the bracket keys do nothing", () => {
     const markers = keyboard("markers");
-    markers.press("n");
-    markers.press("N", true);
+    markers.press("F7");
+    markers.press("F7", true);
     assert.deepEqual(markers.calls, ["sync.drift_next", "sync.drift_previous"]);
     const timeline = keyboard("timeline");
     timeline.press("[");

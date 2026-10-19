@@ -3673,6 +3673,10 @@ change unless he says so, en and fi strings.
   bracket keys are no longer bound; Alt+Down and Alt+Up step candidates).
 - **View:** too busy; submenus (for example Zoom and fit, Mouse and trackpad, Buses).
 - **Transcript, Narration, Help:** no notes.
+- **Sync (owner, 2026-10-19): "sync or restore sync is almost a spiritual brother to undo".** Menu consequence to
+  apply in the next menu pass: the sync commands that put things back (Re-sync / restore sync, Free from sync, Send home)
+  sit at the top of Edit next to Undo and Redo, in one group, instead of only inside Track > Sync; the rarer ones (anchor,
+  drift list) stay under Track > Sync. Keys stay (R, U, Shift+U; drift is F7 / Shift+F7: N is kept free).
 - **File (later notes):** "Export transcripts" is its own submenu in File (subtitles, transcript text, chapters,
   regions, narration script live there); Import stays in File; and File needs **New** (a new empty project: ask
   for a name and a folder, create the `.kuulas` folder, open it in a window).

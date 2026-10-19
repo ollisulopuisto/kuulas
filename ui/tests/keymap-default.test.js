@@ -145,12 +145,12 @@ describe("the owner's decisions", () => {
     assert.deepEqual(keysOf("nav.tab_target_cycle"), ["Shift+T"]);
   });
 
-  test("sync: U frees, N and Shift+N step the drift list in the Markers tab, the rest has no key", () => {
+  test("sync: U frees, F7 and Shift+F7 step the drift list in the Markers tab, the rest has no key", () => {
     const contextOf = (id) => DEFAULT_KEYMAP.find((entry) => entry.id === id).context;
     assert.deepEqual(keysOf("sync.free"), ["U"]);
     assert.equal(contextOf("sync.free"), "timeline");
-    assert.deepEqual(keysOf("sync.drift_next"), ["N"]);
-    assert.deepEqual(keysOf("sync.drift_previous"), ["Shift+N"]);
+    assert.deepEqual(keysOf("sync.drift_next"), ["F7"]);
+    assert.deepEqual(keysOf("sync.drift_previous"), ["Shift+F7"]);
     for (const id of ["sync.drift_next", "sync.drift_previous"]) {
       assert.equal(contextOf(id), "markers", id);
     }
@@ -265,6 +265,17 @@ describe("the owner's decisions", () => {
   test("the palette and keymap file commands exist, with no key", () => {
     for (const id of ["keymap.import", "keymap.export", "keymap.reset"]) {
       assert.deepEqual(keysOf(id), [], id);
+    }
+  });
+});
+
+describe("the N key stays free (owner, 2026-10-19)", () => {
+  test("N sits between B (split) and M (mute): no default binding uses N or Shift+N", () => {
+    for (const entry of DEFAULT_KEYMAP) {
+      for (const platform of ["mac", "other"]) {
+        const keys = [entry.keys?.[platform]].flat().filter(Boolean);
+        assert.ok(!keys.includes("N") && !keys.includes("Shift+N"), `${entry.id} ${platform}`);
+      }
     }
   });
 });

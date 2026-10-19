@@ -17,7 +17,7 @@
 // fade is G, import is Mod+I (Mod+T in the desktop wrapper), K keeps a candidate (in the Candidates tab),
 // No default is on [ or ] (owner, 2026-10-19: they need AltGr/Option+8/9 on a Finnish keyboard):
 // Alt+Down/Up step candidates, Alt+Mod+Shift+Left/Right the views (Alt+Shift+Arrow is pan),
-// N / Shift+N the drift list. keys.js still parses "[" and "]" so a user's own override works. F2 renames. Alt+X is lift-cut
+// F7 / Shift+F7 the drift list (not N: it sits between B split and M mute, owner 2026-10-19). keys.js still parses "[" and "]" so a user's own override works. F2 renames. Alt+X is lift-cut
 // (copy, then soft delete, gap kept), Alt+Mod+X closes the gap on all tracks (ripple, no
 // clipboard). Parked and so not bound: Clean up cuts, Compare. The clipboard (WP46): X cuts to it,
 // Mod+C copies only, Backspace never touches it; Mod+V pastes (insert), Alt+Mod+V
@@ -864,13 +864,13 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "sync.drift_next",
-    keys: { mac: "N", other: "N" },
+    keys: { mac: "F7", other: "F7" },
     context: "markers",
     labelKey: "cmd.sync.drift_next",
   },
   {
     id: "sync.drift_previous",
-    keys: { mac: "Shift+N", other: "Shift+N" },
+    keys: { mac: "Shift+F7", other: "Shift+F7" },
     context: "markers",
     labelKey: "cmd.sync.drift_previous",
   },
