@@ -9,6 +9,7 @@ import { buildTrackSections, field } from "./inspector-track.js";
 import { MUSIC_HUE, trackHues } from "./paint.js";
 import { coalesceKey, patchClip } from "./provisional.js";
 import { createSourceMaps } from "./source-map.js";
+import { homeNameFor } from "./sync-state.js";
 import { inspectorTarget } from "./track-target.js";
 import { panText } from "./tracks.js";
 
@@ -298,7 +299,9 @@ export function createInspector({
     setNumber(parts.fadeOut, Math.round((clip.fade_out * 1000) / parts.rate));
     parts.muted.checked = Boolean(clip.muted);
     const where = group ? t("ui.clip.sync.group", { id: group.id }) : t("ui.clip.sync.none");
-    parts.sync.textContent = t("ui.clip.sync", { where });
+    const home = homeNameFor(state.project, clip, found.track.id);
+    parts.sync.textContent =
+      t("ui.clip.sync", { where }) + (home ? ` · ${t("ui.sync.moved_from", { track: home })}` : "");
     parts.length.textContent = clipLengthText(clip, parts.rate);
     parts.readout.textContent = `${formatDb(clip.gain_db)} · ${panText(clip.pan)}`;
   }

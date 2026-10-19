@@ -1,3 +1,21 @@
+## [v26.10.19.15] - 2026-10-19
+
+- **The sync anchor is visible and choosable.** The anchor (the recording the others are kept in sync with) wears
+  a small "anchor" tag on its clips' label strip, and hovering a drifting or free clip says "relative to
+  <track>". **Shift+Y** (Sync menu: "Make this the sync anchor") makes the selected clip's recording the anchor.
+  Nothing moves: what was in sync stays in sync, and Resync from then on goes relative to the new anchor.
+  **Y** (Mark in sync, now wired; it needs two or more clips selected) makes the first selected clip the anchor.
+- **"Sync selected clips to the anchor"** (R, Sync menu, palette) says what it did: "Synced 2 clips to Zoom. Time
+  only, tracks unchanged.", "Nothing to do, already in sync", "Selection contains the anchor, nothing to move" or
+  "The selection is not in a sync group". It already worked on a single clip that is not the anchor; the anchor
+  itself is never moved. A resync that moves nothing makes no undo step.
+- **Resync fixes time, never the track.** A clip dragged to another track remembers where it came from (the
+  inspector and the hover say "moved from Anna"); **Shift+U** (Sync menu: "Put back on its original track") sends
+  it back at the same time position.
+- A clip moved onto the track of its own partner (or the anchor) is still a partner and no longer breaks group
+  editing or drift (before, same-track clips were never partners).
+- Not seen on screen yet. Sync points 1 and 2 (Alt+Mod+1/2) are still not wired.
+
 ## [v26.10.19.14] - 2026-10-19
 
 - **Fixed: File > New project said "A project name cannot be empty" for any name.** On the Mac the save dialog

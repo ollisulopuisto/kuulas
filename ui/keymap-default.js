@@ -842,6 +842,19 @@ export const DEFAULT_KEYMAP = [
     context: "timeline",
     labelKey: "cmd.sync.free",
   },
+  // The anchor is what sync is measured against; Shift+Y picks it, Shift+U undoes a track change.
+  {
+    id: "sync.set_anchor",
+    keys: { mac: "Shift+Y", other: "Shift+Y" },
+    context: "timeline",
+    labelKey: "cmd.sync.set_anchor",
+  },
+  {
+    id: "sync.send_home",
+    keys: { mac: "Shift+U", other: "Shift+U" },
+    context: "timeline",
+    labelKey: "cmd.sync.send_home",
+  },
   {
     id: "sync.resync_all",
     keys: { mac: null, other: null },

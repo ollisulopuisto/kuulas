@@ -73,6 +73,7 @@ export const initialState = () => ({
   // Drifting and free clips (R51, GET /api/sync) and the partners of the selected clips (the dashed
   // outline, GET /api/partners): both are looked up after an edit, never guessed on the page.
   syncClips: [],
+  syncAnchors: [],
   partners: {},
   nudgeMs: 10,
   zoom: 48_000 / 20,
