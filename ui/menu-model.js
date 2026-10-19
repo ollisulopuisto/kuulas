@@ -47,6 +47,8 @@ export const MENU = [
       SEP,
       item("app.save"),
       item("app.save_named"),
+      SEP,
+      item("app.statistics"),
     ],
   },
   {

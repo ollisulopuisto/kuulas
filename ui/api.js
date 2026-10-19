@@ -35,6 +35,8 @@ export const putViewMemory = (view, { now = false } = {}) =>
     keepalive: true,
   });
 export const getWords = () => json("/api/words");
+/** The session's statistics (WP70): { stats, groups: [{ title, rows: [[label, value]] }], text }. */
+export const getStats = () => json("/api/stats");
 /** Short-term loudness per track and for the mix, with each track's integrated LUFS and target
  * (WP49). Takes seconds on a long programme: always asked in the background; `signal` cancels. */
 export const getLoudnessCurve = (signal) => json("/api/loudness-curve", { signal });

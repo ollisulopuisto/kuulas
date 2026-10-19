@@ -86,6 +86,7 @@ import { rememberRange, stepRangeMemory } from "./range-memory.js";
 import { forwardFromClip } from "./selection-ops.js";
 import { setupKeyboard } from "./shell-keys.js";
 import { chipSpeed } from "./shuttle.js";
+import { createStatsDialog } from "./stats-dialog.js";
 import { getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
 import {
   cycleScope,
@@ -670,6 +671,7 @@ const keyboard = setupKeyboard({
     takeFor: (id) => void takeForPlaceholder(id),
     exportRegions: () => exportRegions(),
     automix: () => void openAutomix(),
+    openStatistics: () => void openStatistics(),
     exportTracks: (format, options) => exportTracks(format, options),
     exportMix: (format, options) => exportMix(format, options),
     exportFormats: () => exportFormatIds,
@@ -1408,6 +1410,28 @@ async function openAutomix() {
     },
   });
   await automixDialog.open();
+}
+
+// File > Statistics… (WP70): the server counts and words it; the dialog shows, copies, saves.
+let statsDialog = null;
+async function openStatistics() {
+  statsDialog ??= createStatsDialog({
+    api,
+    t,
+    copyText: async (text) => {
+      try {
+        await navigator.clipboard.writeText(text);
+        showNotice(t("ui.stats.copied"), "ok");
+      } catch (error) {
+        showError(error);
+      }
+    },
+    saveJson: async () => {
+      const name = await downloadFile("/api/stats?format=file", "statistics.json");
+      if (name) showNotice(t("ui.stats.saved", { name }), "ok");
+    },
+  });
+  await statsDialog.open();
 }
 
 const exportTracks = (format, options) => startExport("tracks", format, options);

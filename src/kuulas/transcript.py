@@ -10,6 +10,8 @@ ripple cut computed here.
 
 from __future__ import annotations
 
+from bisect import bisect_left
+
 from .clock import flicks_to_frames
 from .gate import closed_at
 from .model import Project
@@ -25,6 +27,19 @@ def silent_tracks(p: Project) -> set[str]:
             if (not t.solo if soloing else t.mute) or t.bus in muted_buses}
 
 
+class _SortedView:
+    """``values`` read through ``order`` (indices that sort them), for bisect."""
+
+    def __init__(self, values: list[int], order: list[int]):
+        self.values, self.order = values, order
+
+    def __len__(self) -> int:
+        return len(self.order)
+
+    def __getitem__(self, i: int) -> int:
+        return self.values[self.order[i]]
+
+
 def timeline_words(p: Project, transcripts: dict[str, list[dict]]) -> list[dict]:
     """Every word some clip plays, on the timeline, in time order.
 
@@ -33,6 +48,22 @@ def timeline_words(p: Project, transcripts: dict[str, list[dict]]) -> list[dict]
     """
     out = []
     silent = silent_tracks(p)
+    # Each media's words in frames, once, with their midpoints in order: a clip
+    # then finds its words by bisection instead of reading every word of the
+    # media (a cut hour has hundreds of clips on one recording; WP70 measured
+    # 1.5 s for a 12k-word hour before this, nearly all of it in this loop).
+    prepared: dict[str, tuple[list[int], list[int], list[int], list[int]]] = {}
+
+    def frames_of(media: str, words: list[dict]):
+        if media not in prepared:
+            starts = [flicks_to_frames(w["s"], p.rate) for w in words]
+            ends = [max(s + 1, flicks_to_frames(w["e"], p.rate))
+                    for s, w in zip(starts, words, strict=True)]
+            mids = [(s + e) // 2 for s, e in zip(starts, ends, strict=True)]
+            order = sorted(range(len(words)), key=mids.__getitem__)
+            prepared[media] = (starts, ends, mids, order)
+        return prepared[media]
+
     for track in p.tracks:
         for clip in track.clips:
             words = transcripts.get(clip.media)
@@ -40,22 +71,21 @@ def timeline_words(p: Project, transcripts: dict[str, list[dict]]) -> list[dict]
                 continue
             lo, hi = clip.offset, clip.offset + clip.length
             shift = clip.start - clip.offset
-            for i, w in enumerate(words):
-                s = flicks_to_frames(w["s"], p.rate)
-                e = max(s + 1, flicks_to_frames(w["e"], p.rate))
-                mid = (s + e) // 2
-                if lo <= mid < hi:
-                    # A word is gated when its midpoint is: the same
-                    # rule that decides which clip owns it.
-                    gated = closed_at(track.gate, mid + shift) if track.gate else False
-                    out.append({
-                        "w": w["w"], "spk": w.get("spk", ""),
-                        "person": w.get("person", ""),
-                        "s": max(clip.start, s + shift),
-                        "e": min(clip.end, e + shift),
-                        "track": track.id, "clip": clip.id, "media": clip.media,
-                        "index": i, "muted": clip.muted or track.id in silent or gated,
-                    })
+            starts, ends, mids, order = frames_of(clip.media, words)
+            by_mid = _SortedView(mids, order)
+            for i in sorted(order[bisect_left(by_mid, lo):bisect_left(by_mid, hi)]):
+                s, e, mid = starts[i], ends[i], mids[i]
+                # A word is gated when its midpoint is: the same
+                # rule that decides which clip owns it.
+                gated = closed_at(track.gate, mid + shift) if track.gate else False
+                out.append({
+                    "w": words[i]["w"], "spk": words[i].get("spk", ""),
+                    "person": words[i].get("person", ""),
+                    "s": max(clip.start, s + shift),
+                    "e": min(clip.end, e + shift),
+                    "track": track.id, "clip": clip.id, "media": clip.media,
+                    "index": i, "muted": clip.muted or track.id in silent or gated,
+                })
     out.sort(key=lambda w: (w["s"], w["track"]))
     return out
 

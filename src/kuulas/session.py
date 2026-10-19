@@ -51,6 +51,7 @@ from . import (
     onsets,
     ops,
     package,
+    project_stats,
     source_map,
     subtitles,
     transcribe,
@@ -977,6 +978,13 @@ class Session:
             state = self.history.state
         return loudness_curve_module.project_curves(
             state, self.store, getattr(self.store, "cache_root", None))
+
+    def stats(self) -> dict:
+        """The session's statistics (WP70, ``project_stats``). Only the snapshot is
+        taken under the lock; the history is read on its own connection and the
+        counting, the words and the folder sizes run with the lock released."""
+        return project_stats.gather(self.history, self.package.path, lock=self.lock,
+                                    transcripts=self.transcripts)
 
     def music_report(self, *, format: str = "rows",
                      title: str | None = None) -> tuple[Any, ...] | str | list[dict]:
@@ -2051,7 +2059,9 @@ def _cut_words(s: Session, args: dict) -> Project:
     quoted = " ".join(words[i]["w"] for i in chosen[:LABEL_WORDS])
     if len(chosen) > LABEL_WORDS:
         quoted += "…"
-    return s._commit(t("history.cut_words", text=quoted), new, "cut_words", args)
+    # The range goes in the step so the statistics (WP70) can say how much time was cut.
+    return s._commit(t("history.cut_words", text=quoted), new, "cut_words",
+                     {**args, "start": start, "end": end})
 
 
 def _relink(s: Session, args: dict) -> Project:
