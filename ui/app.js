@@ -1564,6 +1564,7 @@ async function openAutomix() {
   automixDialog ??= createAutomixDialog({
     api,
     t,
+    pickFolder: folderChooser(),
     onStart: async (body) => {
       try {
         const { jobs } = await api.automix(body);

@@ -29,6 +29,7 @@ export const ICONS = {
   export: s("M12 15V4M7 9l5-5 5 5M5 20h14"),
   reset: s("M4 4v6h6M4.5 15a8 8 0 1 0 1.2-8L4 10"),
   save: s("M5 4h11l3 3v13H5ZM8 4v5h7V4M8 20v-6h8v6"),
+  folder: s("M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"),
   plus: s("M12 5v14M5 12h14"),
   layers: s("m12 3 9 5-9 5-9-5ZM3 13l9 5 9-5"),
 };

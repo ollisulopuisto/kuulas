@@ -182,6 +182,8 @@ def test_automixer_settings_api(session, tmp_path, monkeypatch):
         assert r.status_code == 200
         assert r.json()["settings"] == {}
         assert r.json()["resolved"]["command"] == ["uv", "run", "automixer"]
+        # Shown as the Output folder's default; the job still decides itself.
+        assert r.json()["default_output_dir"] == str(session.package.path.parent)
         r = c.put("/api/settings/automixer",
                   json={"command": ["automixer"], "extra_args": ["-v"]})
         assert r.status_code == 200
