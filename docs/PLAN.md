@@ -3554,3 +3554,25 @@ a pywebview app with a FastAPI thread.
 
 **Later:** signing and notarisation if an Apple Developer account is bought; Windows; auto-update.
 **Open:** the bundle size; whether the first-run needs the user's ffmpeg; where logs go; crash reports.
+
+---
+
+### WP74 — Menu reorganisation (owner, 2026-10-19; notes are coming menu by menu)
+
+Status: collecting the owner's notes with the Menu Sketchbook (https://claude.ai/artifact/TBU8UJkMqe21XHbwUXw58v):
+the current menus have 215 items in 11 menus (Edit 54, Track 35, File 33, Go 24, View 22). Nothing is changed
+until he has gone through the menus. Rules: every command stays in a menu (menu-coverage test), keys do not
+change unless he says so, en and fi strings.
+
+**File menu, first notes (2026-10-19):**
+- Too many export items. Principle: show the default action, and put everything else behind an "(options)…"
+  item that opens a modal asking for format and the rest. So "Export mix" and "Export mix (options)…", and the
+  same for "Export all tracks". Idea: a key for the default export and the same key with a modifier for the
+  options version.
+- Wanted File menu shape (his sketch, top level, no submenus for formats): Save; Save named version; then
+  Mix session (the automixer); Export mix; Export stems / tracks; Export transcripts; then Statistics.
+- Open question he asked: what is the difference between "mix session" (Mix with the automixer…) and "Export
+  mix"? Answer: Export mix renders the edit as it sounds in kuulas (clip and track gain, gates, automation) into
+  one file; the automixer runs its own chain on the dry stems (levelling, de-bleed, ducking, mastering to a
+  target loudness). Names to consider: "Export mix (as heard)" and "Auto-mix with the automixer".
+- Still to place: Import, subtitles, chapters, regions, narration script, the Export mix format submenu.
