@@ -174,7 +174,7 @@ $("notice-close").addEventListener("click", () => {
 });
 $("notice-undo").addEventListener("click", () => {
   $("notice").hidden = true;
-  $("undo").click();
+  undo();
 });
 
 // -- server state -----------------------------------------------------------
@@ -723,8 +723,8 @@ const keyboard = setupKeyboard({
     getState,
     patch: setState,
     openHelp: () => void help.open(),
-    undo: () => $("undo").click(),
-    redo: () => $("redo").click(),
+    undo: () => undo(),
+    redo: () => redo(),
     restoreStep: () => restoreStep(getState().historySelected),
     openHistory: () => focusPanel("history"),
     edit: (change) => editor.change(change),
@@ -837,6 +837,10 @@ document.addEventListener("keyup", (event) => {
 // -- toolbar ------------------------------------------------------------------------------
 
 $("play").addEventListener("click", () => actions.togglePlay());
+// Record sits beside Play: the same command as Transport > Record… (no key of its own yet).
+$("record").addEventListener("click", () =>
+  keyboard.registry.run("transport.record", null, getState()),
+);
 $("loop").addEventListener("click", () =>
   keyboard.registry.run("transport.loop", null, getState()),
 );
@@ -849,8 +853,8 @@ const moveHistory = (call) => () =>
       if (notice) showNotice(notice, "ok");
     })
     .catch(showError);
-$("undo").addEventListener("click", moveHistory(api.undo));
-$("redo").addEventListener("click", moveHistory(api.redo));
+const undo = moveHistory(api.undo);
+const redo = moveHistory(api.redo);
 $("zoom-in").addEventListener("click", () => actions.zoomStep(1));
 $("zoom-out").addEventListener("click", () => actions.zoomStep(-1));
 $("view-toggle").addEventListener("click", () => actions.toggleView());
@@ -1174,7 +1178,7 @@ const importPanel = createImportPanel({
   actions: {
     undo: () => {
       importPanel.hide();
-      $("undo").click();
+      undo();
     },
     sequence: () => void importSequentially(),
     mono: (tracks) => turnIntoMono(tracks),
@@ -1257,7 +1261,6 @@ async function chooseMedia() {
     showError(error);
   }
 }
-$("import").addEventListener("click", () => void chooseMedia());
 $("file-input").addEventListener("change", (event) => {
   const files = [...event.target.files];
   event.target.value = "";
@@ -1454,7 +1457,12 @@ const historyPanel = createHistoryPanel({
   api,
   getState,
   setState,
-  actions: { restore: (node) => void restoreStep(node), showError },
+  actions: {
+    restore: (node) => void restoreStep(node),
+    undo: () => undo(),
+    redo: () => redo(),
+    showError,
+  },
 });
 
 // -- markers, regions, chapters (WP19h) ------------------------------------------------------------------
@@ -1726,10 +1734,6 @@ api
   })
   .catch(() => {});
 
-// Alt-click skips the folder question (the quick export).
-$("export").addEventListener("click", (event) =>
-  keyboard.registry.run(event.altKey ? "export.tracks_quick" : "export.tracks", null, getState()),
-);
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && exportJob) void cancelExportJob();
 });
@@ -2390,10 +2394,6 @@ function render(state, patch) {
     );
     chip.title = state.live === "reconnecting" ? t("ui.live.reconnecting_title") : "";
   }
-  if (touched("canUndo", "canRedo")) {
-    $("undo").disabled = !state.canUndo;
-    $("redo").disabled = !state.canRedo;
-  }
   if (touched("waveformGain")) {
     const button = $("waveform-gain");
     button.hidden = state.waveformGain === 1;
@@ -2504,7 +2504,8 @@ function render(state, patch) {
       $(`tab-${name}`).tabIndex = state.sidebarTab === name ? 0 : -1;
     }
   }
-  if (touched("head", "sidebarTab", "historySelected")) historyPanel.update(state);
+  if (touched("head", "sidebarTab", "historySelected", "canUndo", "canRedo"))
+    historyPanel.update(state);
   if (touched("project")) {
     const empty = $("empty");
     const hasClips = state.project?.tracks.some((track) => track.clips.length > 0);
