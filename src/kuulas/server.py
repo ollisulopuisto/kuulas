@@ -331,6 +331,14 @@ def create_app(session, engine, *, language: str | None = None,
 
     @app.middleware("http")
     async def per_request(request: Request, call_next):
+        # Validate Host header against local loopback interfaces and test server
+        host = (request.url.hostname or "").lower()
+        if host and host not in {"127.0.0.1", "localhost", "::1", "testserver"}:
+            return JSONResponse(
+                error_body("error.server.bad_request", detail="Invalid Host header"),
+                status_code=400,
+            )
+
         messages.set_language(request_language(request.headers.get("accept-language"),
                                                default_language))
         if request.url.path != "/api/jobs" and request.method != "GET":
