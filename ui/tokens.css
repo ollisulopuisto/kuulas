@@ -24,17 +24,13 @@
   --p-amber-30: #3a2c12;
   --p-amber-31: #3c2f19;
   --p-amber-40: #693c00;
-  --p-amber-49: #8a5300;
   --p-amber-56: #a06700;
-  --p-amber-60: #b07100;
-  --p-amber-63: #b97a00;
   --p-amber-74: #cfa354;
   --p-amber-81: #f0b54a;
   --p-amber-84: #f3c165;
   --p-amber-85: #fac463;
   --p-amber-88: #f0d3a3;
   --p-amber-92: #f3e2cb;
-  --p-amber-96: #fff1d6;
   --p-amber-96-b: #fbf2e6;
 
   --p-blue-26: #192431;
@@ -60,9 +56,6 @@
   --p-gray-18-b: #101316;
   --p-gray-20: #13171a;
   --p-gray-20-a32: rgb(16 24 28 / 0.32);
-  --p-gray-20-b: #10161a;
-  --p-gray-21: #13191c;
-  --p-gray-21-a28: rgb(19 25 28 / 0.28);
   --p-gray-22: #171b1e;
   --p-gray-22-b: #04211d;
   --p-gray-25: #1e2327;
@@ -70,32 +63,17 @@
   --p-gray-27-b: #22282c;
   --p-gray-30: #283034;
   --p-gray-32: #2d3539;
-  --p-gray-44: #48545a;
   --p-gray-44-b: #4a555b;
   --p-gray-48: #566066;
-  --p-gray-51: #5c6870;
   --p-gray-54: #66727a;
-  --p-gray-64: #858f96;
   --p-gray-68: #8f9aa0;
-  --p-gray-72: #9aa5ab;
   --p-gray-76: #aab4b9;
-  --p-gray-76-b: #a9b4ba;
-  --p-gray-88: #d3dadd;
-  --p-gray-93: #e2e8eb;
-  --p-gray-93-b: #e3e8eb;
-  --p-gray-94: #e8ecee;
   --p-gray-94-a22: rgb(231 236 238 / 0.22);
   --p-gray-94-b: #e7ecee;
-  --p-gray-96: #eef1f3;
-  --p-gray-96-b: #eef2f4;
-  --p-gray-98: #f6f8f9;
   --p-gray-100: #ffffff;
 
   --p-green-26: #1e2616;
   --p-green-32: #2b3620;
-  --p-green-40: #2b5409;
-  --p-green-51: #18794a;
-  --p-green-56: #1e8a4c;
   --p-green-56-b: #4e8626;
   --p-green-56-c: #51852f;
   --p-green-74: #94b96d;
@@ -109,7 +87,6 @@
   --p-label-blue-58: #1f7dcf;
   --p-label-blue-74: #60b0ff;
 
-  --p-label-green-58: #33903c;
   --p-label-green-74: #6ec272;
 
   --p-label-orange-58: #b86000;
@@ -139,19 +116,12 @@
   --p-plum-86: #e8c3e4;
 
   --p-red-28: #3d1d1b;
-  --p-red-51: #b42d1c;
-  --p-red-55: #c8321f;
-  --p-red-55-a8: rgb(200 50 31 / 0.08);
-  --p-red-55-a12: rgb(200 50 31 / 0.12);
-  --p-red-55-a18: rgb(200 50 31 / 0.18);
-  --p-red-59: #d93a26;
   --p-red-71: #ff6b57;
   --p-red-73: #ff776b;
   --p-red-73-a9: rgb(255 119 107 / 0.09);
   --p-red-73-a13: rgb(255 119 107 / 0.13);
   --p-red-73-a20: rgb(255 119 107 / 0.2);
   --p-red-76: #ff8a7f;
-  --p-red-95: #fde8e4;
 
   --p-rose-26: #2f1d22;
   --p-rose-32: #432931;
@@ -168,7 +138,6 @@
   --p-sand-31: #33302a;
   --p-sand-40: #4f4735;
   --p-sand-55: #7a715e;
-  --p-sand-60: #8a7f69;
   --p-sand-62: #8e8572;
   --p-sand-74: #b5aa92;
   --p-sand-86: #d8d0bf;
@@ -184,9 +153,7 @@
 
   --p-sky-26: #12262e;
   --p-sky-32: #193641;
-  --p-sky-41: #005370;
   --p-sky-57: #0084a9;
-  --p-sky-59: #008bb3;
   --p-sky-74: #50b9df;
   --p-sky-85: #61e3ff;
   --p-sky-88: #a6e2fb;
@@ -202,15 +169,9 @@
 
   --p-teal-24: #172225;
   --p-teal-32: #133a35;
-  --p-teal-47: #086a5d;
-  --p-teal-48: #0a6e60;
-  --p-teal-52: #0a7a6b;
-  --p-teal-52-a14: rgb(10 122 107 / 0.14);
   --p-teal-76: #3dc9b3;
   --p-teal-76-a16: rgb(61 201 179 / 0.16);
   --p-teal-80: #5ad6c2;
-  --p-teal-94: #dff1ed;
-  --p-teal-96: #e9f3f1;
 
   --p-violet-26: #271f2e;
   --p-violet-32: #382c41;
@@ -248,6 +209,48 @@
   --p-brick-84: #fab6ba;
   --p-brick-88: #fac9cc;
   --p-brick-84-a9: rgb(250 182 186 / 0.09);
+  --p-gray-79: #b4bbc1;
+  --p-gray-89: #d8dcdf;
+  --p-gray-87: #cfd4d8;
+  --p-gray-94-c: #e9ecee;
+  --p-gray-93-c: #e3e7ea;
+  --p-gray-83: #c1c7cc;
+  --p-gray-79-b: #b5bcc2;
+  --p-gray-49: #55616a;
+  --p-gray-18-c: #0e1316;
+  --p-gray-30-b: #263036;
+  --p-gray-37: #35414a;
+  --p-gray-62: #7d878d;
+  --p-teal-49: #07705f;
+  --p-teal-44: #05604f;
+  --p-teal-43: #055e51;
+  --p-amber-55: #9c6200;
+  --p-amber-89: #efd9ad;
+  --p-red-52: #b82c1a;
+  --p-red-42: #8a1f12;
+  --p-red-87: #efc9c2;
+  --p-green-51-b: #167a40;
+  --p-red-55-b: #c92f1b;
+  --p-teal-49-a22: rgb(7 112 95 / 0.22);
+  --p-gray-54-b: #66717a;
+  --p-gray-17-b: #0b1114;
+  --p-gray-18-a38: rgb(14 19 22 / 0.38);
+  --p-red-52-a14: rgb(184 44 26 / 0.14);
+  --p-red-52-a10: rgb(184 44 26 / 0.1);
+  --p-red-52-a20: rgb(184 44 26 / 0.2);
+  --p-teal-38: #04503f;
+  --p-green-40-b: #0b5530;
+  --p-amber-39: #633a00;
+  --p-teal-81: #98cdc2;
+  --p-teal-87: #bcdcd5;
+  --p-amber-53: #946000;
+  --p-sky-54: #00789d;
+  --p-sand-53: #76694f;
+  --p-sky-34: #003f56;
+  --p-green-34: #1f4106;
+  --p-label-green-52: #2a7d32;
+  --p-gray-64: #848e96;
+  --p-gray-79-c: #b3bac0;
 }
 
 /* == theme-independent: type, spacing, radii, motion, sizes ============== */
@@ -378,82 +381,82 @@
 /* == 2. semantic roles: light (default) ================================= */
 :root {
   color-scheme: light;
-  --surface-app: var(--p-gray-94); /* behind everything; the 1 px gaps between docks */
-  --surface-lane: var(--p-gray-98); /* timeline background */
-  --surface-lane-current: var(--p-teal-96); /* the current track's lane and header (↑/↓ cursor) */
-  --surface-panel: var(--p-gray-100); /* headers, panels, top and status bars */
-  --surface-raised: var(--p-gray-100); /* popovers, palette, toasts (with --shadow-raised) */
-  --surface-sunken: var(--p-gray-96); /* inputs, wells, key chips */
-  --surface-hover: var(--p-gray-96-b);
-  --surface-active: var(--p-gray-93); /* pressed controls, count pills */
+  --surface-app: var(--p-gray-79); /* behind everything; the 1 px gaps between docks */
+  --surface-lane: var(--p-gray-89); /* timeline background */
+  --surface-lane-current: var(--p-teal-87); /* the current track's lane and header (↑/↓ cursor) */
+  --surface-panel: var(--p-gray-87); /* headers, panels, top and status bars */
+  --surface-raised: var(--p-gray-94-c); /* popovers, palette, toasts (with --shadow-raised) */
+  --surface-sunken: var(--p-gray-93-c); /* inputs, wells, key chips */
+  --surface-hover: var(--p-gray-83);
+  --surface-active: var(--p-gray-79-b); /* pressed controls, count pills */
   --surface-scrim: var(--p-gray-20-a32); /* behind modal dialogs */
-  --border-subtle: var(--p-gray-93-b); /* lane separators, list dividers */
-  --border: var(--p-gray-88); /* panel edges, controls at rest */
-  --border-strong: var(--p-gray-64); /* input outlines: >= 3:1 on panels */
-  --text: var(--p-gray-21);
-  --text-secondary: var(--p-gray-44);
-  --text-tertiary: var(--p-gray-51); /* still >= 4.5:1: body text, never decoration */
-  --text-disabled: var(--p-gray-72); /* disabled only (exempt from contrast) */
+  --border-subtle: var(--p-gray-79-c); /* lane separators, list dividers */
+  --border: var(--p-gray-64); /* panel edges, controls at rest */
+  --border-strong: var(--p-gray-49); /* input outlines: >= 3:1 on panels */
+  --text: var(--p-gray-18-c);
+  --text-secondary: var(--p-gray-30-b);
+  --text-tertiary: var(--p-gray-37); /* still >= 4.5:1: body text, never decoration */
+  --text-disabled: var(--p-gray-62); /* disabled only (exempt from contrast) */
   --text-on-accent: var(--p-gray-100);
-  --accent: var(--p-teal-52); /* primary buttons, focus, range edges, the overview box */
-  --accent-hover: var(--p-teal-47);
-  --accent-text: var(--p-teal-48); /* accent-coloured text on panels */
-  --accent-subtle: var(--p-teal-94); /* selected rows, selected words */
-  --focus-ring: var(--p-teal-52);
-  --warn: var(--p-amber-63); /* fills and strokes: solo, speed chip */
-  --warn-text: var(--p-amber-49);
-  --warn-subtle: var(--p-amber-96);
-  --danger: var(--p-red-55);
-  --danger-text: var(--p-red-51);
-  --danger-subtle: var(--p-red-95);
-  --ok: var(--p-green-56);
-  --ok-text: var(--p-green-51);
-  --playhead: var(--p-red-59);
-  --play-start: var(--p-gray-51); /* where the last play started (hollow mark) */
-  --selection-range: var(--p-teal-52-a14); /* in/out band on the scoped lanes */
-  --gain-line: var(--p-gray-21);
-  --automation-line: var(--p-gray-44);
-  --ruler-text: var(--p-gray-44);
-  --ruler-tick: var(--p-gray-76-b);
-  --signal-selected: var(--p-gray-20-b); /* 2 px outline: neutral, works on every hue */
-  --signal-partner: var(--p-gray-44); /* dashed: what a move takes along */
-  --signal-muted-hatch: var(--p-gray-21-a28);
-  --signal-placeholder: var(--p-gray-44); /* dashed outline of narration placeholders */
-  --signal-provisional: var(--p-gray-51);
-  --signal-candidate: var(--p-red-55); /* stripes and edges of cut candidates */
-  --signal-candidate-fill: var(--p-red-55-a12);
-  --signal-soft-cut: var(--p-red-55); /* a cut that kept its gap: edges and hatch */
-  --signal-soft-cut-fill: var(--p-red-55-a8);
-  --signal-sibling: var(--p-teal-52); /* corner brackets: same recording as the selection */
-  --signal-collateral: var(--p-red-55); /* what a transcript cut also removes */
-  --signal-collateral-fill: var(--p-red-55-a18);
-  --signal-preview: var(--p-teal-52); /* a Compare preview is playing (not committed) */
-  --signal-gate: var(--p-gray-98); /* the veil over a closed gate (lane colour) */
-  --signal-damaged: var(--p-red-55);
-  --signal-damaged-fill: var(--p-red-95);
-  --signal-removed: var(--p-red-55);
-  --signal-removed-fill: var(--p-red-55-a12);
-  --signal-added: var(--p-green-56);
-  --signal-drift: var(--p-red-55); /* solid badge with the offset */
+  --accent: var(--p-teal-49); /* primary buttons, focus, range edges, the overview box */
+  --accent-hover: var(--p-teal-44);
+  --accent-text: var(--p-teal-38); /* accent-coloured text on panels */
+  --accent-subtle: var(--p-teal-81); /* selected rows, selected words */
+  --focus-ring: var(--p-teal-43);
+  --warn: var(--p-amber-55); /* fills and strokes: solo, speed chip */
+  --warn-text: var(--p-amber-39);
+  --warn-subtle: var(--p-amber-89);
+  --danger: var(--p-red-52);
+  --danger-text: var(--p-red-42);
+  --danger-subtle: var(--p-red-87);
+  --ok: var(--p-green-51-b);
+  --ok-text: var(--p-green-40-b);
+  --playhead: var(--p-red-55-b);
+  --play-start: var(--p-gray-37); /* where the last play started (hollow mark) */
+  --selection-range: var(--p-teal-49-a22); /* in/out band on the scoped lanes */
+  --gain-line: var(--p-gray-18-c);
+  --automation-line: var(--p-gray-30-b);
+  --ruler-text: var(--p-gray-30-b);
+  --ruler-tick: var(--p-gray-54-b);
+  --signal-selected: var(--p-gray-17-b); /* 2 px outline: neutral, works on every hue */
+  --signal-partner: var(--p-gray-30-b); /* dashed: what a move takes along */
+  --signal-muted-hatch: var(--p-gray-18-a38);
+  --signal-placeholder: var(--p-gray-30-b); /* dashed outline of narration placeholders */
+  --signal-provisional: var(--p-gray-37);
+  --signal-candidate: var(--p-red-52); /* stripes and edges of cut candidates */
+  --signal-candidate-fill: var(--p-red-52-a14);
+  --signal-soft-cut: var(--p-red-52); /* a cut that kept its gap: edges and hatch */
+  --signal-soft-cut-fill: var(--p-red-52-a10);
+  --signal-sibling: var(--p-teal-49); /* corner brackets: same recording as the selection */
+  --signal-collateral: var(--p-red-52); /* what a transcript cut also removes */
+  --signal-collateral-fill: var(--p-red-52-a20);
+  --signal-preview: var(--p-teal-49); /* a Compare preview is playing (not committed) */
+  --signal-gate: var(--p-gray-89); /* the veil over a closed gate (lane colour) */
+  --signal-damaged: var(--p-red-52);
+  --signal-damaged-fill: var(--p-red-87);
+  --signal-removed: var(--p-red-52);
+  --signal-removed-fill: var(--p-red-52-a14);
+  --signal-added: var(--p-green-51-b);
+  --signal-drift: var(--p-red-52); /* solid badge with the offset */
   --signal-drift-text: var(--p-gray-100);
-  --signal-clipping: var(--p-red-55); /* the cap on a clipped column */
-  --signal-file-mark: var(--p-gray-100); /* file mark chip background */
-  --signal-file-mark-text: var(--p-gray-21);
-  --signal-free: var(--p-gray-44);
-  --signal-seam: var(--p-gray-44); /* hairline (split) and notch (jump cut) */
-  --signal-takes: var(--p-gray-44);
-  --signal-note: var(--p-amber-63);
-  --signal-sync: var(--p-gray-44);
-  --signal-tether: var(--p-gray-44);
-  --role-speech: var(--p-gray-44); /* strip pattern: solid */
+  --signal-clipping: var(--p-red-52); /* the cap on a clipped column */
+  --signal-file-mark: var(--p-gray-94-c); /* file mark chip background */
+  --signal-file-mark-text: var(--p-gray-18-c);
+  --signal-free: var(--p-gray-30-b);
+  --signal-seam: var(--p-gray-30-b); /* hairline (split) and notch (jump cut) */
+  --signal-takes: var(--p-gray-30-b);
+  --signal-note: var(--p-amber-55);
+  --signal-sync: var(--p-gray-30-b);
+  --signal-tether: var(--p-gray-30-b);
+  --role-speech: var(--p-gray-30-b); /* strip pattern: solid */
   --role-music: var(--p-sand-55); /* strip pattern: dotted */
   --track-0-wave: var(--p-blue-46);
-  --track-1-wave: var(--p-amber-60);
+  --track-1-wave: var(--p-amber-53);
   --track-2-wave: var(--p-rose-54);
-  --track-3-wave: var(--p-sky-59);
+  --track-3-wave: var(--p-sky-54);
   --track-4-wave: var(--p-violet-42);
   --track-5-wave: var(--p-green-56-b);
-  --track-music-wave: var(--p-sand-60);
+  --track-music-wave: var(--p-sand-53);
   --track-0-body: var(--p-blue-96);
   --track-1-body: var(--p-amber-96-b);
   --track-2-body: var(--p-rose-97);
@@ -478,9 +481,9 @@
   --track-0-label: var(--p-blue-40);
   --track-1-label: var(--p-amber-40);
   --track-2-label: var(--p-rose-40);
-  --track-3-label: var(--p-sky-41);
+  --track-3-label: var(--p-sky-34);
   --track-4-label: var(--p-violet-40);
-  --track-5-label: var(--p-green-40);
+  --track-5-label: var(--p-green-34);
   --track-music-label: var(--p-sand-40);
   --bus-1-spine: var(--p-slate-55); /* the bus spine, its group band and its badge text */
   --bus-1-band: var(--p-slate-55-a7);
@@ -509,7 +512,7 @@
   --label-1: var(--p-label-red-58); /* user clip labels: never set automatically */
   --label-2: var(--p-label-orange-58);
   --label-3: var(--p-label-yellow-58);
-  --label-4: var(--p-label-green-58);
+  --label-4: var(--p-label-green-52);
   --label-5: var(--p-label-blue-58);
   --label-6: var(--p-label-purple-58);
   --shadow-raised: 0 6px 20px var(--p-gray-22-a14), 0 0 0 1px var(--p-gray-22-a8);

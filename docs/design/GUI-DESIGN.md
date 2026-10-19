@@ -359,101 +359,114 @@ Light is the default `:root`; dark applies by `prefers-color-scheme` unless
 `data-theme="light"`, or by `data-theme="dark"`. The accent is a clear teal
 (kuulas means "clear"); the playhead is a warm red that no track hue uses.
 
+The light palette is a soft mid-light grey with a slight cool bias, not white
+(owner, 2026-10-19: "more contrasty, background less white"). Steps, dark to
+light: app frame `#b4bbc1`, hover/active `#c1c7cc` / `#b5bcc2`, panel `#cfd4d8`,
+lane `#d8dcdf` (a little lighter than the panel so waveforms sit on the
+lightest ground), inputs `#e3e7ea`, popovers `#e9ecee`. Clip bodies stay light
+tints, so a clip reads as an object on the grey lane. Targets, pinned by
+`ui/tests/theme-contrast.test.js` for the light theme: `--text` ≥ 7:1 on every
+surface, secondary and status text ≥ 4.5:1 (secondary ≥ 7 on panel, lane,
+raised), `--border-strong`, focus ring, ruler ticks ≥ 3:1, icons and lines
+(secondary text, gain and automation lines, play-start) ≥ 4.5:1, playhead ≥ 3.5:1
+on the lane, waveforms and clip edges ≥ 3:1 on the lane, clip labels ≥ 7:1 on
+the body, the closed-gate veil equal to the lane colour. Dark is unchanged.
+
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--surface-app` | `#e8ecee` | `#0f1214` | behind everything; the 1 px gaps between docks |
-| `--surface-lane` | `#f6f8f9` | `#13171a` | timeline background |
-| `--surface-lane-current` | `#e9f3f1` | `#172225` | the current track's lane and header (↑/↓ cursor) |
-| `--surface-panel` | `#ffffff` | `#171b1e` | headers, panels, top and status bars |
-| `--surface-raised` | `#ffffff` | `#1e2327` | popovers, palette, toasts (with --shadow-raised) |
-| `--surface-sunken` | `#eef1f3` | `#101316` | inputs, wells, key chips |
-| `--surface-hover` | `#eef2f4` | `#212729` |  |
-| `--surface-active` | `#e2e8eb` | `#283034` | pressed controls, count pills |
+| `--surface-app` | `#b4bbc1` | `#0f1214` | behind everything; the 1 px gaps between docks |
+| `--surface-lane` | `#d8dcdf` | `#13171a` | timeline background |
+| `--surface-lane-current` | `#bcdcd5` | `#172225` | the current track's lane and header (↑/↓ cursor) |
+| `--surface-panel` | `#cfd4d8` | `#171b1e` | headers, panels, top and status bars |
+| `--surface-raised` | `#e9ecee` | `#1e2327` | popovers, palette, toasts (with --shadow-raised) |
+| `--surface-sunken` | `#e3e7ea` | `#101316` | inputs, wells, key chips |
+| `--surface-hover` | `#c1c7cc` | `#212729` |  |
+| `--surface-active` | `#b5bcc2` | `#283034` | pressed controls, count pills |
 | `--surface-scrim` | `rgb(16 24 28 / 0.32)` | `rgb(0 0 0 / 0.5)` | behind modal dialogs |
-| `--border-subtle` | `#e3e8eb` | `#22282c` | lane separators, list dividers |
-| `--border` | `#d3dadd` | `#2d3539` | panel edges, controls at rest |
-| `--border-strong` | `#858f96` | `#66727a` | input outlines: >= 3:1 on panels |
-| `--text` | `#13191c` | `#e7ecee` |  |
-| `--text-secondary` | `#48545a` | `#aab4b9` |  |
-| `--text-tertiary` | `#5c6870` | `#8f9aa0` | still >= 4.5:1: body text, never decoration |
-| `--text-disabled` | `#9aa5ab` | `#566066` | disabled only (exempt from contrast) |
+| `--border-subtle` | `#b3bac0` | `#22282c` | lane separators, list dividers |
+| `--border` | `#848e96` | `#2d3539` | panel edges, controls at rest |
+| `--border-strong` | `#55616a` | `#66727a` | input outlines: >= 3:1 on panels |
+| `--text` | `#0e1316` | `#e7ecee` |  |
+| `--text-secondary` | `#263036` | `#aab4b9` |  |
+| `--text-tertiary` | `#35414a` | `#8f9aa0` | still >= 4.5:1: body text, never decoration |
+| `--text-disabled` | `#7d878d` | `#566066` | disabled only (exempt from contrast) |
 | `--text-on-accent` | `#ffffff` | `#04211d` |  |
-| `--accent` | `#0a7a6b` | `#3dc9b3` | primary buttons, focus, range edges, the overview box |
-| `--accent-hover` | `#086a5d` | `#5ad6c2` |  |
-| `--accent-text` | `#0a6e60` | `#5ad6c2` | accent-coloured text on panels |
-| `--accent-subtle` | `#dff1ed` | `#133a35` | selected rows, selected words |
-| `--focus-ring` | `#0a7a6b` | `#5ad6c2` |  |
-| `--warn` | `#b97a00` | `#f0b54a` | fills and strokes: solo, speed chip |
-| `--warn-text` | `#8a5300` | `#f3c165` |  |
-| `--warn-subtle` | `#fff1d6` | `#3a2c12` |  |
-| `--danger` | `#c8321f` | `#ff776b` |  |
-| `--danger-text` | `#b42d1c` | `#ff8a7f` |  |
-| `--danger-subtle` | `#fde8e4` | `#3d1d1b` |  |
-| `--ok` | `#1e8a4c` | `#6fd39a` |  |
-| `--ok-text` | `#18794a` | `#7fdca6` |  |
+| `--accent` | `#07705f` | `#3dc9b3` | primary buttons, focus, range edges, the overview box |
+| `--accent-hover` | `#05604f` | `#5ad6c2` |  |
+| `--accent-text` | `#04503f` | `#5ad6c2` | accent-coloured text on panels |
+| `--accent-subtle` | `#98cdc2` | `#133a35` | selected rows, selected words |
+| `--focus-ring` | `#055e51` | `#5ad6c2` |  |
+| `--warn` | `#9c6200` | `#f0b54a` | fills and strokes: solo, speed chip |
+| `--warn-text` | `#633a00` | `#f3c165` |  |
+| `--warn-subtle` | `#efd9ad` | `#3a2c12` |  |
+| `--danger` | `#b82c1a` | `#ff776b` |  |
+| `--danger-text` | `#8a1f12` | `#ff8a7f` |  |
+| `--danger-subtle` | `#efc9c2` | `#3d1d1b` |  |
+| `--ok` | `#167a40` | `#6fd39a` |  |
+| `--ok-text` | `#0b5530` | `#7fdca6` |  |
 | `--shadow-raised` | `0 6px 20px var(--p-gray-22-a14), 0 0 0 1px var(--p-gray-22-a8)` | `0 8px 24px var(--p-black-a45), 0 0 0 1px var(--p-gray-32)` |  |
 | `--shadow-dialog` | `0 18px 48px var(--p-gray-22-a22), 0 0 0 1px var(--p-gray-22-a8)` | `0 20px 56px var(--p-black-a60), 0 0 0 1px var(--p-gray-32)` |  |
-| `--playhead` | `#d93a26` | `#ff6b57` |  |
-| `--play-start` | `#5c6870` | `#8f9aa0` | where the last play started (hollow mark) |
-| `--selection-range` | `rgb(10 122 107 / 0.14)` | `rgb(61 201 179 / 0.16)` | in/out band on the scoped lanes |
-| `--gain-line` | `#13191c` | `#e7ecee` |  |
-| `--automation-line` | `#48545a` | `#aab4b9` |  |
-| `--ruler-text` | `#48545a` | `#aab4b9` |  |
-| `--ruler-tick` | `#a9b4ba` | `#4a555b` |  |
-| `--signal-selected` | `#10161a` | `#ffffff` | 2 px outline: neutral, works on every hue |
-| `--signal-partner` | `#48545a` | `#aab4b9` | dashed: what a move takes along |
-| `--signal-muted-hatch` | `rgb(19 25 28 / 0.28)` | `rgb(231 236 238 / 0.22)` |  |
+| `--playhead` | `#c92f1b` | `#ff6b57` |  |
+| `--play-start` | `#35414a` | `#8f9aa0` | where the last play started (hollow mark) |
+| `--selection-range` | `rgb(7 112 95 / 0.22)` | `rgb(61 201 179 / 0.16)` | in/out band on the scoped lanes |
+| `--gain-line` | `#0e1316` | `#e7ecee` |  |
+| `--automation-line` | `#263036` | `#aab4b9` |  |
+| `--ruler-text` | `#263036` | `#aab4b9` |  |
+| `--ruler-tick` | `#66717a` | `#4a555b` |  |
+| `--signal-selected` | `#0b1114` | `#ffffff` | 2 px outline: neutral, works on every hue |
+| `--signal-partner` | `#263036` | `#aab4b9` | dashed: what a move takes along |
+| `--signal-muted-hatch` | `rgb(14 19 22 / 0.38)` | `rgb(231 236 238 / 0.22)` |  |
 | `--signal-muted-opacity` | `0.35` | `0.35` |  |
 | `--signal-unheard-opacity` | `0.45` | `0.45` |  |
 | `--signal-unused-opacity` | `0.5` | `0.5` |  |
-| `--signal-placeholder` | `#48545a` | `#aab4b9` | dashed outline of narration placeholders |
-| `--signal-provisional` | `#5c6870` | `#8f9aa0` |  |
-| `--signal-candidate` | `#c8321f` | `#ff776b` | stripes and edges of cut candidates |
-| `--signal-candidate-fill` | `rgb(200 50 31 / 0.12)` | `rgb(255 119 107 / 0.13)` |  |
-| `--signal-soft-cut` | `#c8321f` | `#ff776b` | a cut that kept its gap: edges and hatch |
-| `--signal-soft-cut-fill` | `rgb(200 50 31 / 0.08)` | `rgb(255 119 107 / 0.09)` |  |
-| `--signal-gate` | `#f6f8f9` | `#13171a` | the veil over a closed gate (lane colour) |
+| `--signal-placeholder` | `#263036` | `#aab4b9` | dashed outline of narration placeholders |
+| `--signal-provisional` | `#35414a` | `#8f9aa0` |  |
+| `--signal-candidate` | `#b82c1a` | `#ff776b` | stripes and edges of cut candidates |
+| `--signal-candidate-fill` | `rgb(184 44 26 / 0.14)` | `rgb(255 119 107 / 0.13)` |  |
+| `--signal-soft-cut` | `#b82c1a` | `#ff776b` | a cut that kept its gap: edges and hatch |
+| `--signal-soft-cut-fill` | `rgb(184 44 26 / 0.1)` | `rgb(255 119 107 / 0.09)` |  |
+| `--signal-gate` | `#d8dcdf` | `#13171a` | the veil over a closed gate (lane colour) |
 | `--signal-gate-opacity` | `0.7` | `0.7` |  |
-| `--signal-damaged` | `#c8321f` | `#ff776b` |  |
-| `--signal-damaged-fill` | `#fde8e4` | `#3d1d1b` |  |
-| `--signal-removed` | `#c8321f` | `#ff776b` |  |
-| `--signal-removed-fill` | `rgb(200 50 31 / 0.12)` | `rgb(255 119 107 / 0.13)` |  |
-| `--signal-added` | `#1e8a4c` | `#6fd39a` |  |
-| `--signal-drift` | `#c8321f` | `#ff776b` | solid badge with the offset |
+| `--signal-damaged` | `#b82c1a` | `#ff776b` |  |
+| `--signal-damaged-fill` | `#efc9c2` | `#3d1d1b` |  |
+| `--signal-removed` | `#b82c1a` | `#ff776b` |  |
+| `--signal-removed-fill` | `rgb(184 44 26 / 0.14)` | `rgb(255 119 107 / 0.13)` |  |
+| `--signal-added` | `#167a40` | `#6fd39a` |  |
+| `--signal-drift` | `#b82c1a` | `#ff776b` | solid badge with the offset |
 | `--signal-drift-text` | `#ffffff` | `#1a0c0b` |  |
-| `--signal-clipping` | `#c8321f` | `#ff776b` | the cap on a clipped column |
-| `--signal-file-mark` | `#ffffff` | `#0f1214` | file mark chip background |
-| `--signal-file-mark-text` | `#13191c` | `#e7ecee` |  |
-| `--signal-free` | `#48545a` | `#aab4b9` |  |
-| `--signal-seam` | `#48545a` | `#aab4b9` | hairline (split) and notch (jump cut) |
-| `--signal-takes` | `#48545a` | `#aab4b9` |  |
-| `--signal-note` | `#b97a00` | `#f0b54a` |  |
-| `--signal-sync` | `#48545a` | `#aab4b9` |  |
-| `--signal-tether` | `#48545a` | `#aab4b9` |  |
-| `--signal-sibling` | `#0a7a6b` | `#3dc9b3` | corner brackets: same recording as the selection |
-| `--signal-collateral` | `#c8321f` | `#ff776b` | what a transcript cut also removes |
-| `--signal-collateral-fill` | `rgb(200 50 31 / 0.18)` | `rgb(255 119 107 / 0.2)` |  |
-| `--signal-preview` | `#0a7a6b` | `#3dc9b3` | a Compare preview is playing (not committed) |
-| `--role-speech` | `#48545a` | `#aab4b9` | strip pattern: solid |
+| `--signal-clipping` | `#b82c1a` | `#ff776b` | the cap on a clipped column |
+| `--signal-file-mark` | `#e9ecee` | `#0f1214` | file mark chip background |
+| `--signal-file-mark-text` | `#0e1316` | `#e7ecee` |  |
+| `--signal-free` | `#263036` | `#aab4b9` |  |
+| `--signal-seam` | `#263036` | `#aab4b9` | hairline (split) and notch (jump cut) |
+| `--signal-takes` | `#263036` | `#aab4b9` |  |
+| `--signal-note` | `#9c6200` | `#f0b54a` |  |
+| `--signal-sync` | `#263036` | `#aab4b9` |  |
+| `--signal-tether` | `#263036` | `#aab4b9` |  |
+| `--signal-sibling` | `#07705f` | `#3dc9b3` | corner brackets: same recording as the selection |
+| `--signal-collateral` | `#b82c1a` | `#ff776b` | what a transcript cut also removes |
+| `--signal-collateral-fill` | `rgb(184 44 26 / 0.2)` | `rgb(255 119 107 / 0.2)` |  |
+| `--signal-preview` | `#07705f` | `#3dc9b3` | a Compare preview is playing (not committed) |
+| `--role-speech` | `#263036` | `#aab4b9` | strip pattern: solid |
 | `--role-music` | `#7a715e` | `#8e8572` | strip pattern: dotted |
 
 Contrast, checked by the test (WCAG 2.2: text ≥ 4.5, graphics and outlines ≥ 3):
 
 | Text token | on panel (light / dark) | on lane | on raised |
 |---|---|---|---|
-| `--text` | 17.7 / 14.5 | 16.7 / 15.1 | 17.7 / 13.3 |
-| `--text-secondary` | 7.8 / 8.2 | 7.3 / 8.5 | 7.8 / 7.5 |
-| `--text-tertiary` | 5.7 / 6.0 | 5.4 / 6.3 | 5.7 / 5.5 |
-| `--accent-text` | 6.2 / 9.8 | 5.8 / 10.2 | 6.2 / 8.9 |
-| `--warn-text` | 6.3 / 10.4 | 5.9 / 10.8 | 6.3 / 9.5 |
-| `--danger-text` | 6.3 / 7.6 | 5.9 / 7.9 | 6.3 / 6.9 |
-| `--ok-text` | 5.4 / 10.5 | 5.1 / 10.9 | 5.4 / 9.6 |
-| `--text-on-accent` on `--accent` | 5.2 / 8.2 | | |
+| `--text` | 12.5 / 14.5 | 13.6 / 15.1 | 15.8 / 13.3 |
+| `--text-secondary` | 9.0 / 8.2 | 9.8 / 8.5 | 11.4 / 7.5 |
+| `--text-tertiary` | 7.0 / 6.0 | 7.6 / 6.3 | 8.8 / 5.5 |
+| `--accent-text` | 6.3 / 9.8 | 6.8 / 10.2 | 8.0 / 8.9 |
+| `--warn-text` | 6.6 / 10.4 | 7.1 / 10.8 | 8.3 / 9.5 |
+| `--danger-text` | 6.2 / 7.6 | 6.7 / 7.9 | 7.7 / 6.9 |
+| `--ok-text` | 6.0 / 10.5 | 6.5 / 10.9 | 7.5 / 9.6 |
+| `--text-on-accent` on `--accent` | 6.0 / 8.2 | | |
 | `--focus-ring` on `--surface-panel` | 5.2 / 9.8 | | |
-| `--border-strong` on `--surface-panel` | 3.3 / 3.5 | | |
-| `--playhead` on `--surface-lane` | 4.3 / 6.4 | | |
-| `--signal-selected` on `--track-0-body` | 16.5 / 15.7 | | |
-| `--signal-drift-text` on `--signal-drift` | 5.3 / 7.4 | | |
+| `--border-strong` on `--surface-panel` | 4.3 / 3.5 | | |
+| `--playhead` on `--surface-lane` | 3.9 / 6.4 | | |
+| `--signal-selected` on `--track-0-body` | 17.2 / 15.7 | | |
+| `--signal-drift-text` on `--signal-drift` | 6.2 / 7.4 | | |
 
 ### 4.3 Track hues (speaker identity)
 
@@ -468,37 +481,37 @@ other file's tone, zebra), `edge` (outline, header pill), `label` (clip name).
 | 0 | wave | `#1157a4` | `#5e9ae7` | wave/body 6.5 / 5.4; wave/alt 5.6 / 4.4 |
 | 0 | body | `#ecf4ff` | `#192431` |  |
 | 0 | body-alt | `#d4e5fb` | `#243346` |  |
-| 0 | edge | `#1b589e` | `#689bdb` | edge/lane 6.7 / 6.3 |
+| 0 | edge | `#1b589e` | `#689bdb` | edge/lane 5.2 / 6.3 |
 | 0 | label | `#164781` | `#b9daff` | label/body 8.4 / 10.9 |
-| 1 | wave | `#b07100` | `#fac463` | wave/body 3.6 / 9.9; wave/alt 3.2 / 8.1 |
+| 1 | wave | `#946000` | `#fac463` | wave/body 4.8 / 9.9; wave/alt 4.2 / 8.1 |
 | 1 | body | `#fbf2e6` | `#2a2112` |  |
 | 1 | body-alt | `#f3e2cb` | `#3c2f19` |  |
-| 1 | edge | `#a06700` | `#cfa354` | edge/lane 4.4 / 7.7 |
+| 1 | edge | `#a06700` | `#cfa354` | edge/lane 3.4 / 7.7 |
 | 1 | label | `#693c00` | `#f0d3a3` | label/body 8.4 / 11.0 |
 | 2 | wave | `#ad456b` | `#df7a9b` | wave/body 4.9 / 5.6; wave/alt 4.2 / 4.6 |
 | 2 | body | `#ffeff3` | `#2f1d22` |  |
 | 2 | body-alt | `#f8dae2` | `#432931` |  |
-| 2 | edge | `#a9496b` | `#d6809c` | edge/lane 5.1 / 6.4 |
+| 2 | edge | `#a9496b` | `#d6809c` | edge/lane 4.0 / 6.4 |
 | 2 | label | `#742945` | `#ffc5d5` | label/body 8.8 / 10.8 |
-| 3 | wave | `#008bb3` | `#61e3ff` | wave/body 3.6 / 10.4; wave/alt 3.1 / 8.5 |
+| 3 | wave | `#00789d` | `#61e3ff` | wave/body 4.6 / 10.4; wave/alt 4.0 / 8.5 |
 | 3 | body | `#e7f7fc` | `#12262e` |  |
 | 3 | body-alt | `#ccebf5` | `#193641` |  |
-| 3 | edge | `#0084a9` | `#50b9df` | edge/lane 4.0 / 8.0 |
-| 3 | label | `#005370` | `#a6e2fb` | label/body 7.7 / 11.1 |
+| 3 | edge | `#0084a9` | `#50b9df` | edge/lane 3.1 / 8.0 |
+| 3 | label | `#003f56` | `#a6e2fb` | label/body 10.4 / 11.1 |
 | 4 | wave | `#643185` | `#a57fd0` | wave/body 8.1 / 5.0; wave/alt 7.0 / 4.1 |
 | 4 | body | `#f7f0fd` | `#271f2e` |  |
 | 4 | body-alt | `#eaddf5` | `#382c41` |  |
-| 4 | edge | `#633481` | `#9c78c4` | edge/lane 8.4 / 5.1 |
+| 4 | edge | `#633481` | `#9c78c4` | edge/lane 6.5 / 5.1 |
 | 4 | label | `#5a3473` | `#e6cbfb` | label/body 8.7 / 10.8 |
 | 5 | wave | `#4e8626` | `#96c166` | wave/body 4.0 / 7.5; wave/alt 3.5 / 6.1 |
 | 5 | body | `#eef6ea` | `#1e2616` |  |
 | 5 | body-alt | `#d9e9d1` | `#2b3620` |  |
-| 5 | edge | `#51852f` | `#94b96d` | edge/lane 4.2 / 8.1 |
-| 5 | label | `#2b5409` | `#c8e1b1` | label/body 8.0 / 11.1 |
-| music | wave | `#8a7f69` | `#b5aa92` | wave/body 3.5 / 7.0; wave/alt 3.0 / 5.7 |
+| 5 | edge | `#51852f` | `#94b96d` | edge/lane 3.2 / 8.1 |
+| 5 | label | `#1f4106` | `#c8e1b1` | label/body 10.5 / 11.1 |
+| music | wave | `#76694f` | `#b5aa92` | wave/body 4.7 / 7.0; wave/alt 4.1 / 5.7 |
 | music | body | `#f2f0ec` | `#24211c` |  |
 | music | body-alt | `#e4e1da` | `#33302a` |  |
-| music | edge | `#7a715e` | `#8e8572` | edge/lane 4.5 / 4.9 |
+| music | edge | `#7a715e` | `#8e8572` | edge/lane 3.5 / 4.9 |
 | music | label | `#4f4735` | `#d8d0bf` | label/body 8.1 / 10.5 |
 
 CVD separation, light, min OKLab ΔE×100 between waveform colours (first four / all six): normal 14.9 / 13.5, deuteranopia 11.0 / 5.4, protanopia 10.5 / 1.8, tritanopia 7.8 / 7.1.
@@ -519,14 +532,14 @@ different lightness tier. Letters A, B, C … (A1, A1a when nested) are the twin
 
 | Bus | Letter | Spine light / dark | Text light / dark | Checked text/panel, spine/panel (light; dark) |
 |---|---|---|---|---|
-| 1 | A | `#5970a4` / `#8ba4db` | `#374c79` / `#bed1f9` | 8.5, 4.9; 11.3, 7.0 |
-| 2 | B | `#797435` / `#aca868` | `#544f11` / `#d6d4a7` | 8.4, 4.8; 11.4, 7.1 |
-| 3 | C | `#8e5f89` / `#c391be` | `#653c62` / `#e8c3e4` | 8.8, 5.1; 11.0, 6.7 |
-| 4 | D | `#9b6147` / `#d29478` | `#713e26` / `#f4c5b1` | 8.7, 5.0; 11.1, 6.8 |
-| 5 | E | `#005c4a` / `#91dcc7` | `#005545` / `#b2e4d5` | 8.8, 8.0; 12.3, 10.9 |
-| 6 | F | `#514279` / `#cec1fa` | `#4b3e6e` / `#d9d1f9` | 9.5, 8.7; 11.9, 10.4 |
-| 7 | G | `#664600` / `#e6c58f` | `#5e4205` / `#ebd4af` | 9.3, 8.6; 12.0, 10.5 |
-| 8 | H | `#76363d` / `#fab6ba` | `#6c343a` / `#fac9cc` | 9.6, 8.9; 11.8, 10.3 |
+| 1 | A | `#5970a4` / `#8ba4db` | `#374c79` / `#bed1f9` | 5.7, 3.3; 11.3, 7.0 |
+| 2 | B | `#797435` / `#aca868` | `#544f11` / `#d6d4a7` | 5.6, 3.2; 11.4, 7.1 |
+| 3 | C | `#8e5f89` / `#c391be` | `#653c62` / `#e8c3e4` | 5.9, 3.4; 11.0, 6.7 |
+| 4 | D | `#9b6147` / `#d29478` | `#713e26` / `#f4c5b1` | 5.8, 3.4; 11.1, 6.8 |
+| 5 | E | `#005c4a` / `#91dcc7` | `#005545` / `#b2e4d5` | 5.9, 5.3; 12.3, 10.9 |
+| 6 | F | `#514279` / `#cec1fa` | `#4b3e6e` / `#d9d1f9` | 6.4, 5.8; 11.9, 10.4 |
+| 7 | G | `#664600` / `#e6c58f` | `#5e4205` / `#ebd4af` | 6.2, 5.8; 12.0, 10.5 |
+| 8 | H | `#76363d` / `#fab6ba` | `#6c343a` / `#fac9cc` | 6.4, 5.9; 11.8, 10.3 |
 
 The band is the spine colour at 7 % (light) / 9 % (dark) alpha behind the
 group, doubled on the header row.
@@ -606,37 +619,37 @@ WP / planned.
 |---|---|---|---|---|---|---|---|---|---|---|
 | 1 | **speaker** | hue · identity | 0 (always) | shown | track/bus/label hues | track/bus/label hues | track name in the header and file name on the clip; the header swatch is a short pill | always | — | built |
 | 2 | **file-zebra** | tone · identity | 0 (always) | shown | track/bus/label hues | track/bus/label hues | file mark chip and file name on each clip; a seam marks every change of file | neighbouring clips on one track come from different files | — | built |
-| 3 | **selected** | weight · selection | 0 (always) | shown | `#10161a` | `#ffffff` | 2 px outline (shape), plus the inspector shows the clip | the clip is selected | click, Tab, Mod+A | built |
-| 4 | **placeholder** | dash · reality | 0 (always) | shown | `#48545a` | `#aab4b9` | dashed outline, no waveform, the script text in italics inside | narration placeholder (WP43) | T | prototype |
-| 5 | **damaged** | pattern · absence | 0 (always) | shown | `#c8321f` `#fde8e4` | `#ff776b` `#3d1d1b` | cross-hatch, a '!' badge with the word 'damaged', and the reason on hover | media that cannot be read there (plays silence) | — | prototype |
-| 6 | **drift** | badge · facts | 0 (always) | shown | `#c8321f` `#ffffff` | `#ff776b` `#1a0c0b` | solid badge with the offset in text ('−312 ms'), cause on hover | undecided drift from the sync group (WP19a) | R resyncs, U frees | prototype |
+| 3 | **selected** | weight · selection | 0 (always) | shown | `#0b1114` | `#ffffff` | 2 px outline (shape), plus the inspector shows the clip | the clip is selected | click, Tab, Mod+A | built |
+| 4 | **placeholder** | dash · reality | 0 (always) | shown | `#263036` | `#aab4b9` | dashed outline, no waveform, the script text in italics inside | narration placeholder (WP43) | T | prototype |
+| 5 | **damaged** | pattern · absence | 0 (always) | shown | `#b82c1a` `#efc9c2` | `#ff776b` `#3d1d1b` | cross-hatch, a '!' badge with the word 'damaged', and the reason on hover | media that cannot be read there (plays silence) | — | prototype |
+| 6 | **drift** | badge · facts | 0 (always) | shown | `#b82c1a` `#ffffff` | `#ff776b` `#1a0c0b` | solid badge with the offset in text ('−312 ms'), cause on hover | undecided drift from the sync group (WP19a) | R resyncs, U frees | prototype |
 | 7 | **bus** | spine · grouping | 0 (always) | shown | track/bus/label hues | track/bus/label hues | letter badge (A, B, C) in the bus header, the transcript and the inspector | a track is on a bus: the spine runs from the bus header through its tracks | — | built |
 | 8 | **bus-band** | band · grouping | 0 (always) | shown | — | — | drawn only together with the spine (the band is a tint of the spine's colour) | behind a bus's header and member lanes | — | built |
-| 9 | **collateral** | pattern · absence | 0 (always) | only while words are selected in the transcript | `#c8321f` `rgb(200 50 31 / 0.18)` | `#ff776b` `rgb(255 119 107 / 0.2)` | other speakers' words struck through with a wavy underline, 'also removed' in the word pop-up, the stretch hatched and the affected clips outlined on the timeline | a transcript selection whose cut would also remove other tracks' words or audio | X cuts on all tracks (ripple); Backspace deletes on this speaker only, keeping the gap | prototype |
+| 9 | **collateral** | pattern · absence | 0 (always) | only while words are selected in the transcript | `#b82c1a` `rgb(184 44 26 / 0.2)` | `#ff776b` `rgb(255 119 107 / 0.2)` | other speakers' words struck through with a wavy underline, 'also removed' in the word pop-up, the stretch hatched and the affected clips outlined on the timeline | a transcript selection whose cut would also remove other tracks' words or audio | X cuts on all tracks (ripple); Backspace deletes on this speaker only, keeping the gap | prototype |
 | 10 | **ribbons** | ribbon · activity | 0 (always) | shown | — | — | one strip per member in its position (top to bottom = header order), filled where the track has sound; the tooltip names the track and clip | a collapsed bus with two or more members (one member keeps its summed waveform) | Alt+Mod+← collapses, Alt+Mod+→ expands | prototype |
 | 11 | **preview** | dash · reality | 0 (always) | only while the Compare bar is open | `#0a7a6b` | `#3dc9b3` | a dashed top band over the compared range with the slot letter ('A', 'B') in it, and the Compare bar itself | a Compare preview is playing: nothing is committed until 'Keep this one' | ` flips, 1–4 pick a slot, Enter keeps, Esc discards | prototype |
 | 12 | **muted** | opacity · audibility | 1 (always) | shown | `rgb(19 25 28 / 0.28)` `0.35` | `rgb(231 236 238 / 0.22)` `0.35` | diagonal hatch over the clip; M pressed in the header for a muted track | the clip is muted | N | built |
 | 13 | **unheard** | opacity · audibility | 1 (always) | shown | `0.45` | `0.45` | header says 'not heard: solo' in its tooltip and the M button turns dashed | another track is soloed, or this track is muted | Shift+S, Shift+M | prototype |
-| 14 | **gate** | opacity · audibility | 1 (always) | shown | `#f6f8f9` `0.7` | `#13171a` `0.7` | the waveform under the band is drawn flat (a 1 px floor line), with a small gate tick at each edge; hover says 'Mic closed' and offers 'Open this stretch' | Auto-Silence: one merged gate per track closes the mic (WP44); a per-lane toggle shows or hides it | Alt+Mod+P runs Auto-Silence | prototype |
-| 15 | **candidate** | pattern · absence | 1 (always) | shown | `#c8321f` `rgb(200 50 31 / 0.12)` | `#ff776b` `rgb(255 119 107 / 0.13)` | diagonal stripes across the group's lanes and a 'cut?' flag in the ruler | an open cut candidate (WP18) | D, ] [, Enter, Backspace | prototype |
-| 16 | **soft-cut** | pattern · absence | 1 (always) | shown | `#c8321f` `rgb(200 50 31 / 0.08)` | `#ff776b` `rgb(255 119 107 / 0.09)` | hatch plus a solid 2 px edge at each end in the cut colour, and the word 'cut' when wide enough; the context menu says 'Restore' | Delete (Backspace): audio removed in place, the gap kept, restorable; 'Show cuts' (on by default) hides or shows them | Backspace (Delete); Restore from the menu or the palette | prototype |
-| 17 | **removed** | pattern · absence | 1 (always) | only in the changes view (WP31) | `#c8321f` `rgb(200 50 31 / 0.12)` | `#ff776b` `rgb(255 119 107 / 0.13)` | a ghost outline with hatch and a '−' glyph | changes view (WP31): audio in A that is gone in B | Alt+Mod+D, ] [ | planned |
+| 14 | **gate** | opacity · audibility | 1 (always) | shown | `#d8dcdf` `0.7` | `#13171a` `0.7` | the waveform under the band is drawn flat (a 1 px floor line), with a small gate tick at each edge; hover says 'Mic closed' and offers 'Open this stretch' | Auto-Silence: one merged gate per track closes the mic (WP44); a per-lane toggle shows or hides it | Alt+Mod+P runs Auto-Silence | prototype |
+| 15 | **candidate** | pattern · absence | 1 (always) | shown | `#b82c1a` `rgb(184 44 26 / 0.14)` | `#ff776b` `rgb(255 119 107 / 0.13)` | diagonal stripes across the group's lanes and a 'cut?' flag in the ruler | an open cut candidate (WP18) | D, ] [, Enter, Backspace | prototype |
+| 16 | **soft-cut** | pattern · absence | 1 (always) | shown | `#b82c1a` `rgb(184 44 26 / 0.1)` | `#ff776b` `rgb(255 119 107 / 0.09)` | hatch plus a solid 2 px edge at each end in the cut colour, and the word 'cut' when wide enough; the context menu says 'Restore' | Delete (Backspace): audio removed in place, the gap kept, restorable; 'Show cuts' (on by default) hides or shows them | Backspace (Delete); Restore from the menu or the palette | prototype |
+| 17 | **removed** | pattern · absence | 1 (always) | only in the changes view (WP31) | `#b82c1a` `rgb(184 44 26 / 0.14)` | `#ff776b` `rgb(255 119 107 / 0.13)` | a ghost outline with hatch and a '−' glyph | changes view (WP31): audio in A that is gone in B | Alt+Mod+D, ] [ | planned |
 | 18 | **added** | bar · change | 1 (always) | only in the changes view (WP31) | `#1e8a4c` | `#6fd39a` | a 3 px bar on the clip's left and right edges and a '+' glyph | changes view (WP31): audio in B that was not in A | Alt+Mod+D, ] [ | planned |
 | 19 | **provisional** | dash · reality | 2 (always) | only after 150 ms without the engine's confirmation | `#5c6870` | `#8f9aa0` | short dashes (2 on, 2 off) on the outline | an edit is shown but the engine has not confirmed it after 150 ms | — | prototype |
-| 20 | **partner** | scope · edit scope | 2 (always) | only while a clip is selected | `#48545a` | `#aab4b9` | dashed 1 px outline inset 2 px, neutral | a clip is selected: its sync partners that a move takes along (WP19a) | E toggles group editing | prototype |
-| 21 | **clipping** | cap · level | 2 | shown | `#c8321f` | `#ff776b` | a 3 px block on top of the clipped column (shape) and a line in the inspector | a peak at or above −0.1 dBFS | — | built |
-| 22 | **file-mark** | badge · facts | 3 | shown | `#ffffff` `#13191c` | `#0f1214` `#e7ecee` | two characters from the content hash; the same on every track | a track holds clips from more than one file | — | built |
+| 20 | **partner** | scope · edit scope | 2 (always) | only while a clip is selected | `#263036` | `#aab4b9` | dashed 1 px outline inset 2 px, neutral | a clip is selected: its sync partners that a move takes along (WP19a) | E toggles group editing | prototype |
+| 21 | **clipping** | cap · level | 2 | shown | `#b82c1a` | `#ff776b` | a 3 px block on top of the clipped column (shape) and a line in the inspector | a peak at or above −0.1 dBFS | — | built |
+| 22 | **file-mark** | badge · facts | 3 | shown | `#e9ecee` `#0e1316` | `#0f1214` `#e7ecee` | two characters from the content hash; the same on every track | a track holds clips from more than one file | — | built |
 | 23 | **sibling** | bracket · relation | 3 (always) | while a clip is selected, or hovered with Alt held | `#0a7a6b` | `#3dc9b3` | corner brackets on every other clip of the same recording, a tick in the overview, and 'part 2 of 5' in the inspector | the selected clip's recording has other clips in the edit (any track) | Alt+hover | built |
-| 24 | **free** | badge · facts | 4 | shown | `#48545a` | `#aab4b9` | outlined badge with an unlinked-chain glyph and '+300 ms · free' | a clip freed from its sync group on purpose (U) | U | prototype |
-| 25 | **seam-jump** | seam · joins | 4 | shown | `#48545a` | `#aab4b9` | a small V notch top and bottom at the join (shape) | two clips of one file meet but audio between them was removed; hover offers 'Put back' (a ripple cut) | Tab stops here | built |
-| 26 | **takes** | badge · facts | 5 | shown | `#48545a` | `#aab4b9` | stacked top-right corner (two offset edges) and '2/3' | a take set (WP19e) | Alt+] / Alt+[ | prototype |
+| 24 | **free** | badge · facts | 4 | shown | `#263036` | `#aab4b9` | outlined badge with an unlinked-chain glyph and '+300 ms · free' | a clip freed from its sync group on purpose (U) | U | prototype |
+| 25 | **seam-jump** | seam · joins | 4 | shown | `#263036` | `#aab4b9` | a small V notch top and bottom at the join (shape) | two clips of one file meet but audio between them was removed; hover offers 'Put back' (a ripple cut) | Tab stops here | built |
+| 26 | **takes** | badge · facts | 5 | shown | `#263036` | `#aab4b9` | stacked top-right corner (two offset edges) and '2/3' | a take set (WP19e) | Alt+] / Alt+[ | prototype |
 | 27 | **note** | notch · annotation | 5 | shown | `#b97a00` | `#f0b54a` | a triangular notch in the top edge; the text on hover | a note or marker on the clip's audio | M | prototype |
 | 28 | **unused** | opacity · audibility | 6 | only in the clip bin and on cards | `0.5` | `0.5` | the clip bin lists it under 'not in the programme' | clip bin and cards: material not used in the open edit | — | planned |
-| 29 | **sync** | badge · facts | 6 | only on the selected clip and its partners | `#48545a` | `#aab4b9` | chain glyph and the group number ('⛓ 1') | on the selected clip and its partners only; never on every clip | Y marks in sync | prototype |
-| 30 | **tether** | line · attachment | 6 | shown | `#48545a` | `#aab4b9` | a thin line from the clip's start down to its anchor, ending in a dot | a connected clip (WP19b) | Alt+Mod+C | planned |
+| 29 | **sync** | badge · facts | 6 | only on the selected clip and its partners | `#263036` | `#aab4b9` | chain glyph and the group number ('⛓ 1') | on the selected clip and its partners only; never on every clip | Y marks in sync | prototype |
+| 30 | **tether** | line · attachment | 6 | shown | `#263036` | `#aab4b9` | a thin line from the clip's start down to its anchor, ending in a dot | a connected clip (WP19b) | Alt+Mod+C | planned |
 | 31 | **label** | badge · facts | 7 | shown | track/bus/label hues | track/bus/label hues | a square flag in the top-right corner; its name on hover and in the inspector | the user gave the clip a label colour (never set automatically) | — | planned |
-| 32 | **seam-split** | seam · joins | 8 | shown | `#48545a` | `#aab4b9` | a 1 px hairline (shape) | two clips of one file meet with nothing removed between them | — | built |
-| 33 | **role** | strip · role | 9 | only in the clip bin and on cards | `#48545a` `#48545a` `#7a715e` | `#aab4b9` `#aab4b9` `#8e8572` | strip pattern: solid speech, dotted music; role icon in the header | off on the timeline (the header says it); on in the clip bin and cards | — | prototype |
+| 32 | **seam-split** | seam · joins | 8 | shown | `#263036` | `#aab4b9` | a 1 px hairline (shape) | two clips of one file meet with nothing removed between them | — | built |
+| 33 | **role** | strip · role | 9 | only in the clip bin and on cards | `#263036` `#263036` `#7a715e` | `#aab4b9` `#aab4b9` `#8e8572` | strip pattern: solid speech, dotted music; role icon in the header | off on the timeline (the header says it); on in the clip bin and cards | — | prototype |
 
 **At most three ranked signals per clip.** `pickSignals(active)` keeps every
 "always" signal, then the three highest-priority others; the rest collapse
