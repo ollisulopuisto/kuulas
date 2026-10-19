@@ -1141,7 +1141,17 @@ Tests: export of a known project equals `mixer.mix` over the whole length
 
 ### WP12 — Basic multitrack recording (R22, Mac first)
 
-Status: open. Needs WP1, WP2.
+Status: open. **Next big push (owner, 2026-10-19): "bring recording forward; first single-track, then multi".**
+Split into **WP12a single track** (one input device, one channel, one take at a time, end to end, with the whole
+safety architecture below, so everything that makes it foolproof is in from the first version) and **WP12b multi**
+(several channels of one device, each to its own track and its own file in sync, armed per track, then several takes
+and punch-in). WP12a is a complete usable feature: choose the input, arm a track (or make a new one), a big
+modal record view, record, stop with a 2 s hold, and the take appears as a clip where it was recorded.
+Prior art searched 2026-10-19: little that fits. The pattern is the usual one (callback copies into a queue, a writer
+thread drains to disk; for example [pastream](https://pastream.readthedocs.io/en/v0.1.2/_modules/pastream.html) on
+top of sounddevice and soundfile); no open source recorder was found that treats "never lose recorded audio" as
+this plan does (no length or index only at the end, fsync every few seconds, a separate recorder process), so this is
+built, not adopted. Needs WP1, WP2.
 
 **Architecture (owner, 2026-10-18: "foolproof, as uncrashable as possible; a stuck UI must not
 crash it"): the recorder is its own process, never part of the editor.** Python's lock stalls the
