@@ -137,34 +137,12 @@ def window_title(folder: str | None) -> str:
     return t("desktop.title", name=name)
 
 
-def _item(item_id: str) -> dict[str, str]:
-    return {"id": item_id, "label": f"desktop.menu.{item_id}"}
-
-
 def menu_model() -> list[dict[str, Any]]:
-    """The native menu as data: ``label`` is a message key, ``None`` a separator.
-    The ids are what the window sends back to :meth:`Bridge.menu`."""
-    return [
-        {"id": "file", "label": "desktop.menu.file", "items": [
-            _item("file.open"), _item("file.import"), None, _item("file.export")]},
-        {"id": "edit", "label": "desktop.menu.edit", "items": [
-            _item("edit.undo"), _item("edit.redo")]},
-        {"id": "view", "label": "desktop.menu.view", "items": [
-            _item("view.zoom_in"), _item("view.zoom_out"), None, _item("view.density")]},
-        {"id": "window", "label": "desktop.menu.window", "items": [
-            _item("window.minimize")]},
-        # A native menu cannot hold a text field (WP75), so Help's search is an item that
-        # asks the page to open the same search as a panel over the window.
-        {"id": "help", "label": "desktop.menu.help", "items": [
-            _item("help.search")]},
-    ]
-
-
-def localised_menu() -> list[dict[str, Any]]:
-    return [{**m, "label": t(m["label"]),
-             "items": [None if i is None else {**i, "label": t(i["label"])}
-                       for i in m["items"]]}
-            for m in menu_model()]
+    """Our own top-level menus in the native menu bar: none. The in-window bar is the
+    one real menu (enabled states, modifier alternates, the Help search field), so the
+    macOS bar keeps only what pywebview gives it: the app menu and the standard Edit
+    and View (Cut/Copy/Paste/Select All for text fields, full screen)."""
+    return []
 
 
 # -- the server behind a window -------------------------------------
@@ -429,17 +407,6 @@ class Bridge:
             self._project.stop()
             self._project = None
 
-    # -- the native menu ---------------------------------------------
-
-    def menu(self, item_id: str) -> None:
-        if item_id == "file.open":
-            self.show_launcher()
-        elif item_id == "window.minimize":
-            self._window.minimize()
-        elif self._project is not None:
-            self._window.evaluate_js(
-                f"window.kuulasNative && window.kuulasNative.menu({json.dumps(item_id)})")
-
 
 def launcher_html(recent: list[str]) -> str:
     """The start page: recent projects and Open / New. Plain, no scripts but
@@ -472,17 +439,6 @@ document.getElementById("new").onclick = () => api().new_project();
 for (const b of document.querySelectorAll("li button"))
   b.onclick = () => api().open_project(b.dataset.path);
 </script></body></html>"""
-
-
-def _menu(bridge: Bridge) -> list:
-    from webview.menu import Menu, MenuAction, MenuSeparator  # noqa: PLC0415
-
-    def action(item):
-        return MenuAction(item["label"], lambda: bridge.menu(item["id"]))
-
-    return [Menu(m["label"], [MenuSeparator() if i is None else action(i)
-                              for i in m["items"]])
-            for m in localised_menu()]
 
 
 # -- several windows, and documents opened from Finder ---------------
@@ -544,25 +500,20 @@ class WindowApp:
     servers on one project would fight over its lock). Documents that arrive
     before the first window is up wait for :meth:`ready`."""
 
-    def __init__(self, webview, recents: Path, menu_factory=None) -> None:
+    def __init__(self, webview, recents: Path) -> None:
         self._webview = webview
         self._recents = recents
-        self._menu_factory = menu_factory
         self._lock = threading.RLock()
         self._bridges: list[Bridge] = []
         self._ready = False
         self._pending: list[str] = []
 
-    def new_window(self, menu: bool = True) -> Bridge:
-        """A window on the launcher page. ``menu=False`` for the first one, whose
-        menu is the app menu given to ``webview.start``."""
+    def new_window(self) -> Bridge:
+        """A window on the launcher page."""
         bridge = Bridge(self._webview, self._recents)
-        options: dict[str, Any] = {}
-        if menu and self._menu_factory is not None:
-            options["menu"] = self._menu_factory(bridge)
         window = self._webview.create_window(
             window_title(None), html=launcher_html(bridge.recent()), js_api=bridge,
-            width=1400, height=900, min_size=(900, 600), **options)
+            width=1400, height=900, min_size=(900, 600))
         bridge._window = window
         bridge._opener = self._open_one
 
@@ -622,17 +573,6 @@ class WindowApp:
                 log.debug("bring forward %s: %s", name, e)
 
 
-def _menu(bridge: Bridge) -> list:
-    from webview.menu import Menu, MenuAction, MenuSeparator  # noqa: PLC0415
-
-    def action(item):
-        return MenuAction(item["label"], lambda: bridge.menu(item["id"]))
-
-    return [Menu(m["label"], [MenuSeparator() if i is None else action(i)
-                              for i in m["items"]])
-            for m in localised_menu()]
-
-
 def run_window(folder: str | None = None) -> int:
     """Open the window (the launcher, or ``folder`` straight away) and block until
     the last window closes. 1 with a message when the ``desktop`` extra is missing."""
@@ -640,8 +580,8 @@ def run_window(folder: str | None = None) -> int:
     if webview is None:
         print(t("desktop.missing_extra"), file=sys.stderr)
         return 1
-    app = WindowApp(webview, recents_file(), _menu)
-    bridge = app.new_window(menu=False)
+    app = WindowApp(webview, recents_file())
+    bridge = app.new_window()
     install_open_files_hook(app.open_paths)
 
     def start() -> None:
@@ -650,7 +590,7 @@ def run_window(folder: str | None = None) -> int:
             bridge.open_project(folder)
         app.ready()
 
-    webview.start(start, menu=_menu(bridge), icon=str(icon_path("window")))
+    webview.start(start, icon=str(icon_path("window")))
     bridge.close()
     return 0
 

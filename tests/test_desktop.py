@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import httpx
 import pytest
@@ -98,34 +99,35 @@ def test_window_title_uses_the_project_name():
     assert desktop.window_title(None) == "kuulas"
 
 
-def test_menu_model_has_the_planned_menus_and_unique_ids():
-    menus = desktop.menu_model()
-    assert [m["id"] for m in menus] == ["file", "edit", "view", "window", "help"]
-    ids = [i["id"] for m in menus for i in m["items"] if i is not None]
-    assert len(ids) == len(set(ids))
-    wanted = {"file.open", "file.import", "file.export", "edit.undo", "edit.redo",
-              "view.zoom_in", "view.zoom_out", "view.density", "help.search"}
-    assert wanted <= set(ids)
+def test_the_native_menu_adds_no_top_level_menus_of_its_own():
+    """The in-window bar is the one real menu; the macOS bar keeps only pywebview's
+    app menu and standard Edit/View, so ours (Tiedosto, Muokkaa, ...) are not repeated."""
+    assert desktop.menu_model() == []
 
 
-@pytest.mark.parametrize("lang", ["en", "fi"])
-def test_menu_labels_exist_in_both_catalogs(lang):
-    catalog = messages._CATALOGS[lang]
-    for menu in desktop.menu_model():
-        assert menu["label"] in catalog
-        for item in menu["items"]:
-            if item is not None:
-                assert item["label"] in catalog
+class _Hook:
+    def __iadd__(self, other):
+        return self
 
 
-def test_localised_menu_resolves_labels(monkeypatch):
-    messages.set_language("fi")
-    try:
-        menus = desktop.localised_menu()
-        assert menus[0]["label"] == messages.t("desktop.menu.file")
-        assert menus[0]["label"] != "desktop.menu.file"
-    finally:
-        messages.set_language("en")
+def test_the_window_is_started_without_a_custom_menu(tmp_path, monkeypatch):
+    seen = {}
+
+    class Webview:
+        def create_window(self, *a, **k):
+            seen["window"] = k
+            events = SimpleNamespace(loaded=_Hook(), closed=_Hook())
+            return SimpleNamespace(events=events, minimize=lambda: None)
+
+        def start(self, func=None, **k):
+            seen["start"] = k
+
+    monkeypatch.setattr(desktop, "load_webview", Webview)
+    monkeypatch.setattr(desktop, "recents_file", lambda: tmp_path / "recents")
+    monkeypatch.setattr(desktop, "install_open_files_hook", lambda cb: None)
+    assert desktop.run_window() == 0
+    assert not seen["start"].get("menu")
+    assert "menu" not in seen["window"]
 
 
 def test_running_project_serves_and_stops(tmp_path):
