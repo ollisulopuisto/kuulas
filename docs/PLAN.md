@@ -1170,6 +1170,15 @@ is open while armed, so an unmistakable "Armed: listening, not recording" indica
 written to disk until Record, and the buffer is discarded on disarm, quit or crash); a short pre-roll audio of
 chatter before Record is in the take, which is the point. The recorder's worker already owns a ring buffer, so it
 fits the architecture; the protocol gets `arm`/`disarm` and `start` takes a `preroll_s`. Not in the first version.
+**WP12d (proposed): voiceover take notes (owner, 2026-10-19).** "For recording voiceover, the outtakes are really good:
+you do several takes and then you mark them. When we get to markup on recordings while still recording, keep voiceover in
+mind: not only per-take notes, maybe notes inside words in those takes." Design direction: while recording, a key or button
+drops a mark on the take's clock (the recorder's `mark` and its sidecar already keep a list); marks can be typed notes
+or quick flags (good, outtake, redo, pickup); after the take, per-take notes and a star or reject; once the take has a
+transcript (WP79 background job) notes can be anchored to words (a word's time range, so they survive trimming and
+moving, like transcript text does), shown in the transcript and on the clip, searchable ("show all outtakes"); a take
+list for a spot ties in with the take folder (WP19e) and "Versions of this part" (WP80). Nothing of this is built;
+the recorder's journal already keeps marks, so the data side starts there.
 **WP12a parts, in order:** (A) `kuulas_recorder`, the standalone recorder program: protocol, progressive WAV
 files, journal, supervisor, tests with a fake audio source, `docs/RECORDER.md` (Opus: the architecture-critical
 part); (B) the editor side: device list, a client, "record a take onto a track", importing the finished or
@@ -3673,6 +3682,12 @@ change unless he says so, en and fi strings.
   bracket keys are no longer bound; Alt+Down and Alt+Up step candidates).
 - **View:** too busy; submenus (for example Zoom and fit, Mouse and trackpad, Buses).
 - **Transcript, Narration, Help:** no notes.
+- **Re-sync asks first (owner, 2026-10-19):** "sync is an operation that could ask for confirmation: you can
+  unsync clips freely, but moving one or more clips with the press of a button is not good. It should ask, and even say what it is
+  going to do first." Rule: Free / unsync stays instant (nothing moves). Anything that MOVES clips to restore sync (R re-sync,
+  re-sync all, send home, sync to the anchor) first shows what it will do ("Move 3 clips: Olli 2 by +1.24 s, Kari by -0.31 s,
+  to line up with the anchor") with Confirm and Cancel (Enter confirms, Esc cancels), then is one undo step. Applies to the
+  commands built in WP19a/R51 (the other kuulas session owns that code: message it, do not rewrite it here).
 - **Sync (owner, 2026-10-19): "sync or restore sync is almost a spiritual brother to undo".** Menu consequence to
   apply in the next menu pass: the sync commands that put things back (Re-sync / restore sync, Free from sync, Send home)
   sit at the top of Edit next to Undo and Redo, in one group, instead of only inside Track > Sync; the rarer ones (anchor,
