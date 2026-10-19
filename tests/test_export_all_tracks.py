@@ -310,3 +310,20 @@ def test_get_export_folder_route(session, tmp_path):
         r = client.get("/api/export-folder")
         default = str(tmp_path / "Episode exports")
         assert r.json() == {"folder": default, "remembered": False}
+
+
+def test_tracks_json_lists_hand_made_mutes_and_gate_apart_on_the_stem_clock(session):
+    olli, maija, ville = session.state.tracks
+    session.edit("mute_range", {"start": RATE, "end": 2 * RATE, "track_ids": [olli.id]})
+    session.edit("set_gate", {"track_id": maija.id, "ranges": [[3 * RATE, 4 * RATE]]})
+    session.edit("set_track", {"track_id": ville.id, "mute": True})
+    result = wait(session, session.export_tracks()[0])["result"]
+    listing = json.loads((Path(result["path"]) / "tracks.json").read_text("utf-8"))
+    o, m, v = listing["tracks"]
+    assert o["muted_frames"] == [[RATE, 2 * RATE]]
+    assert "gate_frames" not in o
+    assert m["gate_frames"] == [[3 * RATE, 4 * RATE]]
+    assert "muted_frames" not in m
+    assert not v["audible"]
+    assert "muted_frames" not in v
+    assert "gate_frames" not in v

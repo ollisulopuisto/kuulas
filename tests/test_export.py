@@ -662,3 +662,14 @@ def test_the_two_catalogs_have_the_export_messages():
 
 def test_ffmpeg_is_present_for_mp3():
     assert shutil.which("ffmpeg")
+
+
+def test_tracks_list_counts_mutes_from_the_stems_first_sample(session, out):
+    track = session.state.tracks[0].id
+    session.edit("mute_range", {"start": RATE // 2, "end": 3 * RATE // 2,
+                                "track_ids": [track]})
+    r = run(session, out, kind="tracks", range=[RATE, 2 * RATE], list_file=True)
+    listing = json.loads((Path(r["path"]) / "tracks.json").read_text("utf-8"))
+    assert listing["start_frame"] == RATE
+    assert listing["tracks"][0]["muted_frames"] == [[0, RATE // 2]]
+    assert "muted_frames" not in listing["tracks"][1]
