@@ -1,3 +1,16 @@
+## [v26.10.19.6] - 2026-10-19
+
+- **Session statistics:** File > "Statistics…" (also in the command palette) shows how big and how worked-on a
+  session is: runtime (edit length, audible speech, recordings, time cut out), counts (tracks, clips, recordings
+  used and unused, markers, regions, gaps, muted clips), who talked how much (when there is a transcript), and
+  the work (number of edits by kind, saved versions, exports, first and last edit, active editing time where a
+  break over 10 minutes does not count) and sizes. "Copy as text" and "Save as JSON" are in the dialog, and
+  `kuulas stats <project> [--json]` prints the same from the command line without opening a window. Notes: undo
+  is not recorded in the history, so there is no undo count; cuts made by transcript word-cutting before this
+  version have no recorded length and are counted separately; mutes are not part of "time cut out". Not seen on
+  screen yet. Also: building the timeline's word list is much faster on long sessions (about 1.5 s down to about
+  0.1 s on a four-hour fixture).
+
 ## [v26.10.19.5] - 2026-10-19
 
 - **Mix with the automixer: where the temporary stems go.** By default they go to your system's temporary folder
