@@ -246,7 +246,7 @@ export function createMenubar({ root, getMenus, run, onHint, t, search = null })
     }
     if (!item.enabled) return; // greyed: it stays, it teaches, it does nothing
     close(false);
-    run(item.id);
+    run(item.id, item.arg); // `arg`: what the item carries (an Open Recent entry's path)
   }
 
   root.addEventListener("keydown", (event) => {

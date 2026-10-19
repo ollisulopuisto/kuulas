@@ -257,7 +257,13 @@ const NAMED = {
   Mod: "key.ctrl",
   Alt: "key.alt",
 };
-const ARROWS = { ArrowLeft: "←", ArrowRight: "→", ArrowUp: "↑", ArrowDown: "↓" };
+const ARROWS = {
+  ArrowLeft: "←",
+  ArrowRight: "→",
+  ArrowUp: "↑",
+  ArrowDown: "↓",
+  Comma: ",", // Mod+Comma is matched by position (keys.js), shown as the comma it is
+};
 
 /** One key's label: "⌘" on a Mac for Mod, "Ctrl" elsewhere, "Välilyönti" for Space in fi. */
 export function keyName(key, platform = detectPlatform()) {

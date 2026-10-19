@@ -76,6 +76,11 @@ describe("the commands the app registers", () => {
       resetKeys: () => calls.push(["resetKeys"]),
       restoreStep: () => calls.push(["restoreStep"]),
       openHistory: () => calls.push(["openHistory"]),
+      closeProject: () => calls.push(["closeProject"]),
+      openPreferences: () => calls.push(["openPreferences"]),
+      minimise: () => calls.push(["minimise"]),
+      openRecent: (path) => calls.push(["openRecent", path]),
+      clearRecent: () => calls.push(["clearRecent"]),
       openStatistics: () => calls.push(["openStatistics"]),
       openLocateMedia: () => calls.push(["openLocateMedia"]),
       openSendCopy: () => calls.push(["openSendCopy"]),
@@ -121,6 +126,33 @@ describe("the commands the app registers", () => {
     registry.run("app.new", null, {});
     registry.run("app.open", null, {});
     assert.deepEqual(calls, [["newProject"], ["openProject"]]);
+  });
+
+  test("Close project needs a project; Preferences and Minimise need none", () => {
+    const { registry, calls } = setup();
+    const withProject = { project: { tracks: [] } };
+    assert.equal(registry.can("app.close_project", {}), false);
+    assert.equal(registry.can("app.close_project", withProject), true);
+    for (const id of ["app.close_project", "app.preferences", "app.minimise"]) {
+      assert.equal(registry.status(id), "ready", id);
+      assert.equal(registry.hintKey(id), `cmd.${id}.hint`, id);
+    }
+    registry.run("app.close_project", null, withProject);
+    registry.run("app.preferences", null, {});
+    registry.run("app.minimise", null, {});
+    assert.deepEqual(calls, [["closeProject"], ["openPreferences"], ["minimise"]]);
+  });
+
+  test("Open Recent opens the path it is given; Clear menu empties the list", () => {
+    const { registry, calls } = setup();
+    const none = { recentProjects: [] };
+    const some = { recentProjects: [{ path: "/p/A.kuulas" }] };
+    assert.equal(registry.can("app.clear_recent", none), false);
+    assert.equal(registry.can("app.clear_recent", some), true);
+    registry.run("app.open", "/p/A.kuulas", some); // an Open Recent entry
+    registry.run("app.open", { type: "keydown" }, some); // the key: the dialog
+    registry.run("app.clear_recent", null, some);
+    assert.deepEqual(calls, [["openRecent", "/p/A.kuulas"], ["openProject"], ["clearRecent"]]);
   });
 
   test("undo and redo can only apply when there is something to undo or redo", () => {

@@ -202,6 +202,24 @@ describe("the core keys", () => {
     ]);
   });
 
+  test("Cmd+, matches the Comma key by position, on a Finnish and a US layout", () => {
+    const { keymap, calls } = setup({ platform: "mac" });
+    keymap.handle(press({ key: ",", code: "Comma", metaKey: true }));
+    keymap.handle(press({ key: "≤", code: "Comma", metaKey: true })); // a layout that types something else
+    keymap.handle(press({ key: ",", code: "Comma" })); // plain comma stays slower-playback
+    assert.deepEqual(calls, [["app.preferences"], ["app.preferences"], ["transport.speed_down"]]);
+  });
+
+  test("Cmd+W and Cmd+M run Close project and Minimise, plain M does not", () => {
+    const { keymap, calls } = setup({ platform: "mac" });
+    keymap.handle(press({ key: "w", code: "KeyW", metaKey: true }));
+    keymap.handle(press({ key: "m", code: "KeyM", metaKey: true }));
+    keymap.handle(press({ key: "m", code: "KeyM" }));
+    assert.equal(calls[0][0], "app.close_project");
+    assert.equal(calls[1][0], "app.minimise");
+    assert.notEqual(calls[2]?.[0], "app.minimise");
+  });
+
   test("= and - zoom, on a US layout and on a Finnish one, and a held key repeats", () => {
     const { keymap, calls } = setup();
     keymap.handle(press({ key: "=", code: "Equal" }));

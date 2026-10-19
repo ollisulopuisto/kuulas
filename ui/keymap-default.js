@@ -1043,8 +1043,44 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.app.import",
   },
   // File: New / Open project (no keys: Cmd+N and Cmd+O belong to the browser).
-  { id: "app.new", keys: { mac: "Mod+N", other: "Mod+N" }, context: "global", labelKey: "cmd.app.new" },
-  { id: "app.open", keys: { mac: "Mod+O", other: "Mod+O" }, context: "global", labelKey: "cmd.app.open" },
+  {
+    id: "app.new",
+    keys: { mac: "Mod+N", other: "Mod+N" },
+    context: "global",
+    labelKey: "cmd.app.new",
+  },
+  {
+    id: "app.open",
+    keys: { mac: "Mod+O", other: "Mod+O" },
+    context: "global",
+    labelKey: "cmd.app.open",
+  },
+  // The standard Mac keys: Close project (back to the start page), Preferences, Minimise. Open
+  // Recent's entries and Clear menu have no key. Mod+Comma is matched by position (keys.js).
+  {
+    id: "app.close_project",
+    keys: { mac: "Mod+W", other: "Mod+W" },
+    context: "global",
+    labelKey: "cmd.app.close_project",
+  },
+  {
+    id: "app.preferences",
+    keys: { mac: "Mod+Comma", other: "Mod+Comma" },
+    context: "global",
+    labelKey: "cmd.app.preferences",
+  },
+  {
+    id: "app.minimise",
+    keys: { mac: "Mod+M", other: "Mod+M" },
+    context: "global",
+    labelKey: "cmd.app.minimise",
+  },
+  {
+    id: "app.clear_recent",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.app.clear_recent",
+  },
   // The export keys are layers of Mod+E (modifiers.js): Mod+E exports the mix as it is, Shift
   // adds the options dialog. Alt+Mod+E exports all tracks as they are, Shift+Alt+Mod+E asks.
   {

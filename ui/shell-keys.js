@@ -321,7 +321,7 @@ export function setupKeyboard({
           platform,
           held: tracker.held(),
         }),
-      run: (id) => registry.run(id, null, app.getState()),
+      run: (id, arg) => registry.run(id, arg ?? null, app.getState()),
       onHint(text) {
         if (!menuHint || !hintBar) return;
         menuHint.textContent = text ?? "";
@@ -347,6 +347,7 @@ export function setupKeyboard({
       !patch ||
       "panel" in patch ||
       "project" in patch ||
+      "recentProjects" in patch ||
       "canUndo" in patch ||
       "canRedo" in patch
     ) {

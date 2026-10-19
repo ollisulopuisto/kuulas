@@ -67,6 +67,16 @@ used for putting tracks on a bus: they are moved there ("Siirrä valitut raidat 
 | A project copy made to be sent | Send a copy… | Lähetä kopio… | |
 | Only the played stretches of a file | the used parts | käytetyt osat | handles: "molemmin puolin" |
 
+## The standard Mac commands (used 2026-10-19, owner to confirm)
+
+| Meaning | English | Finnish | Note |
+|---|---|---|---|
+| Leave the open project for the start page | Close project (Cmd+W) | Sulje projekti | refuses while a take records |
+| The user's settings in one place | Preferences… (Cmd+,) | Asetukset… | macOS Finnish says "Asetukset" |
+| The last projects opened | Open Recent | Avaa viimeisin | Finder's own wording |
+| Empty that list | Clear menu | Tyhjennä valikko | the projects are not touched |
+| Put the window in the Dock | Minimise (Cmd+M) | Pienennä | |
+
 ## To do (WP62)
 
 1. Audit every label, hint, toast, menu title and help topic for these words; make a table of the

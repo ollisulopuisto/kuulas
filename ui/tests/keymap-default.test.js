@@ -279,6 +279,21 @@ describe("the owner's decisions", () => {
   });
 });
 
+describe("the standard Mac keys (owner, 2026-10-19)", () => {
+  test("Cmd+W closes the project, Cmd+, opens Preferences, Cmd+M minimises", () => {
+    assert.deepEqual(keysOf("app.close_project"), ["Mod+W"]);
+    assert.deepEqual(keysOf("app.preferences"), ["Mod+Comma"]);
+    assert.deepEqual(keysOf("app.minimise"), ["Mod+M"]);
+  });
+  test("Open Recent has no key and Revert to saved does not exist", () => {
+    assert.deepEqual(keysOf("app.clear_recent"), []);
+    assert.equal(
+      DEFAULT_KEYMAP.some((entry) => /revert/i.test(entry.id)),
+      false,
+    );
+  });
+});
+
 describe("the N key stays free (owner, 2026-10-19)", () => {
   test("N sits between B (split) and M (mute): no default binding uses N or Shift+N", () => {
     for (const entry of DEFAULT_KEYMAP) {
