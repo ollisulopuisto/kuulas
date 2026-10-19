@@ -39,8 +39,22 @@ test("inspector rows are a two-column grid with full-width controls", () => {
 });
 
 test("History Undo and Redo are shared .button buttons with an icon and a label", () => {
-  assert.match(historyPanel, /const undo = el\("button", \{ type: "button", class: "button" \}/);
+  assert.match(historyPanel, /const undo = el\("button", \{ type: "button", class: "button",/);
   assert.doesNotMatch(historyPanel, /const (undo|redo) = el\("button", \{[^}]*ghost/);
-  assert.match(historyPanel, /btn-icon/);
+  assert.match(historyPanel, /"data-icon": "undo"/);
+  assert.match(historyPanel, /"data-icon": "redo"/);
+  assert.doesNotMatch(historyPanel, /\\u21B[67]/);
   assert.match(css, /\.button,\n\.play \{[^}]*border:\s*1px solid var\(--button-border\)/);
+});
+
+test("every data-icon in the UI names an icon in the set", async () => {
+  const { ICONS, iconCss } = await import("../icons.js");
+  const sources = ["../index.html", "../history-panel.js", "../candidates-panel.js"];
+  const used = sources.flatMap((p) =>
+    [...read(p).matchAll(/data-icon"?[:=] ?"([a-z]+)"/g)].map((m) => m[1]),
+  );
+  assert.ok(used.length >= 10);
+  for (const name of used) assert.ok(name in ICONS, name);
+  assert.match(iconCss(), /mask-image/);
+  assert.doesNotMatch(iconCss(), /http:\/\/(?!www\.w3\.org)/);
 });

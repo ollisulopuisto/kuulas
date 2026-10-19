@@ -113,10 +113,6 @@ kbd {
   background: var(--button-primary-hover-bg);
   border-color: var(--button-primary-hover-bg);
 }
-.btn-icon {
-  width: 1em;
-  text-align: center;
-}
 .button.icon {
   width: var(--control-h);
   padding: 0;

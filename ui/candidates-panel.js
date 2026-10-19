@@ -28,7 +28,12 @@ export function createCandidatesPanel({ root, getState, actions }) {
   let signature = "";
 
   const title = el("h2");
-  const find = el("button", { type: "button", class: "button", id: "cand-find" });
+  const find = el("button", {
+    type: "button",
+    class: "button",
+    "data-icon": "search",
+    id: "cand-find",
+  });
   const filter = el("input", { type: "checkbox", id: "cand-open-only" });
   const filterLabel = el("label", { class: "cand-filter", htmlFor: "cand-open-only" }, filter);
   const filterText = el("span");
@@ -38,10 +43,25 @@ export function createCandidatesPanel({ root, getState, actions }) {
   const list = el("ul", { class: "cands", role: "listbox" });
   const scroller = el("div", { class: "cand-scroll" }, list);
   const bar = el("div", { class: "preview-bar", hidden: true, role: "img" });
-  const preview = el("button", { type: "button", class: "button", id: "cand-preview" });
-  const del = el("button", { type: "button", class: "button primary", id: "cand-delete" });
-  const cut = el("button", { type: "button", class: "button", id: "cand-cut" });
-  const keep = el("button", { type: "button", class: "button", id: "cand-keep" });
+  const preview = el("button", {
+    type: "button",
+    class: "button",
+    "data-icon": "play",
+    id: "cand-preview",
+  });
+  const del = el("button", {
+    type: "button",
+    class: "button primary",
+    "data-icon": "trash",
+    id: "cand-delete",
+  });
+  const cut = el("button", { type: "button", class: "button", "data-icon": "cut", id: "cand-cut" });
+  const keep = el("button", {
+    type: "button",
+    class: "button",
+    "data-icon": "check",
+    id: "cand-keep",
+  });
   const actionbar = el("div", { class: "actionbar" }, bar, preview, del, cut, keep);
   root.replaceChildren(
     title,

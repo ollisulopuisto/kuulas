@@ -32,8 +32,10 @@ export function createColabDialogs({ api, t, onSettingsSaved = () => {} }) {
   const consentButtons = make("div", "cheatsheet-footer");
   const consentCancel = make("button", "button", t("ui.colab.consent_cancel"));
   consentCancel.type = "button";
+  consentCancel.dataset.icon = "close";
   const consentOk = make("button", "button primary", t("ui.colab.consent_ok"));
   consentOk.type = "submit";
+  consentOk.dataset.icon = "check";
   consentButtons.append(consentCancel, consentOk);
   consentForm.append(rememberLabel, consentButtons);
   consent.append(consentTitle, consentText, consentForm);
@@ -89,9 +91,11 @@ export function createColabDialogs({ api, t, onSettingsSaved = () => {} }) {
   const buttons = make("div", "cheatsheet-footer");
   const close = make("button", "button", t("ui.colab.close"));
   close.type = "button";
+  close.dataset.icon = "close";
   close.addEventListener("click", () => dialog.close());
   const save = make("button", "button primary", t("ui.colab.save"));
   save.type = "submit";
+  save.dataset.icon = "save";
   buttons.append(close, save);
   form.append(
     field("command", "ui.colab.command", "ui.colab.command_hint"),
