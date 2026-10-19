@@ -10,7 +10,7 @@ def test_step_is_the_smallest_wide_enough():
 
 
 def test_step_falls_back_to_the_largest():
-    assert tick_step(1_000_000, 48000) == 7200
+    assert tick_step(1_000_000_000, 48000) == 7200
 
 
 def test_step_boundary_counts():
@@ -20,7 +20,7 @@ def test_step_boundary_counts():
 @pytest.mark.parametrize(("fpp", "rate", "px"), [(0, 48000, 80), (-1, 48000, 80),
                                                  (10, 0, 80), (10, 48000, 0)])
 def test_step_bad_arguments(fpp, rate, px):
-    with pytest.raises(ValueError, match="positive|zero|must"):
+    with pytest.raises(ValueError, match="must be positive"):
         tick_step(fpp, rate, px)
 
 
