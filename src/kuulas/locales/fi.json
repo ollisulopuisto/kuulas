@@ -1671,45 +1671,45 @@
   "ui.exportdialog.start": "Vie",
   "ui.exportdialog.cancel": "Peruuta",
   "history.resync": {
-    "one": "Synkattu uudelleen {count} klippi · ohitettu {skipped} vapaata",
-    "other": "Synkattu uudelleen {count} klippiä · ohitettu {skipped} vapaata"
+    "one": "Synkattu uudelleen {count} leike · ohitettu {skipped} vapaata",
+    "other": "Synkattu uudelleen {count} leikettä · ohitettu {skipped} vapaata"
   },
   "cmd.sync.free": "Vapauta synkasta / liitä takaisin",
-  "cmd.sync.resync_all": "Synkkaa kaikki ajautuneet klipit",
-  "cmd.sync.free_all": "Vapauta kaikki ajautuneet klipit",
-  "cmd.sync.drift_next": "Seuraava ajautunut klippi",
-  "cmd.sync.drift_previous": "Edellinen ajautunut klippi",
-  "cmd.sync.resync.hint": "Palauttaa valitut klipit paikkaan, johon synkkaryhmä ne asettaa. Synkasta vapauttamasi klipit jätetään rauhaan.",
-  "cmd.sync.resync_end.hint": "Synkkaa kaikki klipit toistokohdasta eteenpäin kaikilla raidoilla (korjaa vahingossa yhdelle raidalle tehdyn leikkauksen). Vapaat klipit ohitetaan ja lasketaan.",
-  "cmd.sync.free.hint": "Merkitsee valitut klipit tarkoituksella synkasta vapaiksi (ei ajautumismerkkiä, eikä kenenkään kumppani) tai liittää ne takaisin.",
-  "cmd.sync.resync_all.hint": "Synkkaa jokaisen ajautumisluettelon klipin. Mikään ei synkkaudu itsestään.",
-  "cmd.sync.free_all.hint": "Merkitsee jokaisen ajautumisluettelon klipin tarkoituksella synkasta vapaaksi.",
-  "cmd.sync.drift_next.hint": "Siirtää toistokohdan seuraavaan synkasta ajautuneeseen klippiin ja valitsee sen.",
-  "cmd.sync.drift_previous.hint": "Siirtää toistokohdan edelliseen synkasta ajautuneeseen klippiin ja valitsee sen.",
+  "cmd.sync.resync_all": "Synkkaa kaikki ajautuneet leikkeet",
+  "cmd.sync.free_all": "Vapauta kaikki ajautuneet leikkeet",
+  "cmd.sync.drift_next": "Seuraava ajautunut leike",
+  "cmd.sync.drift_previous": "Edellinen ajautunut leike",
+  "cmd.sync.resync.hint": "Palauttaa valitut leikkeet paikkaan, johon synkkaryhmä ne asettaa. Synkasta vapauttamasi leikkeet jätetään rauhaan.",
+  "cmd.sync.resync_end.hint": "Synkkaa kaikki leikkeet toistokohdasta eteenpäin kaikilla raidoilla (korjaa vahingossa yhdelle raidalle tehdyn leikkauksen). Vapaat leikkeet ohitetaan ja lasketaan.",
+  "cmd.sync.free.hint": "Merkitsee valitut leikkeet tarkoituksella synkasta vapaiksi (ei ajautumismerkkiä, eikä kenenkään kumppani) tai liittää ne takaisin.",
+  "cmd.sync.resync_all.hint": "Synkkaa jokaisen ajautumisluettelon leikkeen. Mikään ei synkkaudu itsestään.",
+  "cmd.sync.free_all.hint": "Merkitsee jokaisen ajautumisluettelon leikkeen tarkoituksella synkasta vapaaksi.",
+  "cmd.sync.drift_next.hint": "Siirtää toistokohdan seuraavaan synkasta ajautuneeseen leikkeeseen ja valitsee sen.",
+  "cmd.sync.drift_previous.hint": "Siirtää toistokohdan edelliseen synkasta ajautuneeseen leikkeeseen ja valitsee sen.",
   "keys.context.markers": "Merkit-välilehti",
   "keys.context.not-markers": "Kaikkialla paitsi Merkit-välilehdellä",
   "ui.sync.history.free": "Vapautus synkasta",
   "ui.sync.history.link": "Liitetty takaisin synkkaan",
-  "ui.sync.history.free_all": "Ajautuneet klipit vapautettu synkasta",
+  "ui.sync.history.free_all": "Ajautuneet leikkeet vapautettu synkasta",
   "ui.sync.toast.freed": {
-    "one": "{count} klippi on nyt vapaa synkasta",
-    "other": "{count} klippiä on nyt vapaana synkasta"
+    "one": "{count} leike on nyt vapaa synkasta",
+    "other": "{count} leikettä on nyt vapaana synkasta"
   },
   "ui.sync.toast.linked": {
-    "one": "{count} klippi on taas liitetty synkkaan",
-    "other": "{count} klippiä on taas liitetty synkkaan"
+    "one": "{count} leike on taas liitetty synkkaan",
+    "other": "{count} leikettä on taas liitetty synkkaan"
   },
   "ui.sync.badge.free": "{offset} · vapaa",
   "ui.sync.badge.free_zero": "vapaa",
   "ui.sync.badge.free_title": "Tarkoituksella vapaa synkasta. U liittää takaisin.",
   "ui.sync.badge.drift_title": "Poissa synkasta {offset}. R palauttaa, U kertoo että se on tarkoituksellista.",
-  "ui.sync.prompt": "Pidetäänkö tämä klippi vapaana synkasta?",
+  "ui.sync.prompt": "Pidetäänkö tämä leike vapaana synkasta?",
   "ui.sync.prompt_yes": "Vapauta",
   "ui.sync.drift.title": "Poissa synkasta",
   "ui.sync.drift.empty": "Mikään ei ole ajautunut pois synkasta.",
-  "ui.sync.drift.list_label": "Synkasta ajautuneet klipit",
+  "ui.sync.drift.list_label": "Synkasta ajautuneet leikkeet",
   "ui.sync.drift.row": "{time} · {offset}",
   "ui.sync.drift.cause": "alkaen: {label}",
   "ui.sync.drift.cause_group_off": "alkaen: {label}, ryhmämuokkaus pois",
-  "ui.sync.drift.jump": "Siirry tähän klippiin"
+  "ui.sync.drift.jump": "Siirry tähän leikkeeseen"
 }
