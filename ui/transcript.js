@@ -216,8 +216,13 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     const button = el("button", "button primary", t("ui.transcript.transcribe", { names: label }));
     button.type = "button";
     button.dataset.act = "transcribe";
+    // The second way (WP78): the audio goes to Google Colab; the app asks before it leaves.
+    const colab = el("button", "button", t("ui.transcript.transcribe_colab", { names: label }));
+    colab.type = "button";
+    colab.dataset.act = "transcribe-colab";
     empty.append(
       button,
+      colab,
       el(
         "span",
         "",
@@ -591,6 +596,8 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   });
   empty.addEventListener("click", (event) => {
     if (event.target.closest?.("[data-act='transcribe']")) void transcribe();
+    else if (event.target.closest?.("[data-act='transcribe-colab']"))
+      actions.transcribeColab?.(transcribeTargets().map((item) => item.id));
   });
 
   // -- the pop-up over the selection ----------------------------------------------------------------
@@ -926,6 +933,8 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     startCorrect,
     openFind,
     transcribe,
+    /** The recordings the Transcribe buttons would take: every speech track's. */
+    targetIds: () => transcribeTargets().map((item) => item.id),
     /** The word indices Backspace and X act on. */
     chosen,
     reveal,

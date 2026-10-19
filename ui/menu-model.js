@@ -219,7 +219,12 @@ export const MENU = [
         item("app.auto_silence"),
         item("gate.open_stretch"),
       ]),
-      item("app.transcribe"),
+      submenu("menu.transcribe", [
+        item("app.transcribe"),
+        item("app.transcribe_colab"),
+        SEP,
+        item("app.colab_settings"),
+      ]),
     ],
   },
   {

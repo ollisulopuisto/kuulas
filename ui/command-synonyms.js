@@ -246,6 +246,19 @@ export const SYNONYMS = {
     "puheesta tekstiksi",
     "sanat",
   ],
+  "app.transcribe_colab": [
+    "colab",
+    "google",
+    "gpu",
+    "cloud",
+    "upload",
+    "whisper",
+    "speech to text",
+    "litteroi",
+    "pilvi",
+    "puheesta tekstiksi",
+  ],
+  "app.colab_settings": ["colab", "colab-transcribe", "uvx", "asetukset", "litterointi"],
 
   // -- finding, marking ------------------------------------------------------------------------
   "transcript.find": ["search", "find text", "hae", "etsi", "haku", "sanahaku"],

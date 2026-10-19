@@ -1,3 +1,13 @@
 {
-  "topics": ["timeline", "clip", "track", "bus", "transcript", "history", "automix", "search"]
+  "topics": [
+    "timeline",
+    "clip",
+    "track",
+    "bus",
+    "transcript",
+    "colab",
+    "history",
+    "automix",
+    "search"
+  ]
 }

@@ -14,6 +14,8 @@ import { expandGroups, toggleGroupSelection } from "./clip-groups.js";
 import { entryTitle } from "./clipboard.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
 import { createClock } from "./clock.js";
+import { createColabDialogs } from "./colab-dialog.js";
+import { colabNotice, consentNeeded, rememberConsent, rememberedConsent } from "./colab-model.js";
 import { openContextMenu } from "./context-menu.js";
 import { contextMenuItems } from "./context-menu-model.js";
 import { dragModeChoice, nextDragMode } from "./drag-mode.js";
@@ -659,6 +661,7 @@ const transcript = createTranscript({
     showError,
     applyResponse: apply,
     run: (id) => keyboard.registry.run(id, null, getState()),
+    transcribeColab: (ids) => void transcribeOnColab(ids),
   },
 });
 
@@ -763,7 +766,8 @@ const keyboard = setupKeyboard({
     openStatistics: () => void openStatistics(),
     autoSilence: () => void autoSilence(),
     duckMicrophones: () => void duckMicrophones(),
-    transcribeTrack: () => void transcribeTrack(),
+    transcribeTrack: (backend) => void transcribeTrack(backend),
+    openColabSettings: () => void colabDialogsFor().openSettings(),
     exportTracks: (format, options) => exportTracks(format, options),
     exportMix: (format, options) => exportMix(format, options),
     exportFormats: () => exportFormatIds,
@@ -1442,7 +1446,10 @@ async function followExportJob(id, what) {
       return;
     }
     if (!job) break;
-    const notice = what === "automix" ? automixNotice(job, t) : exportNotice(job, t, what);
+    let notice;
+    if (what === "automix") notice = automixNotice(job, t);
+    else if (what === "colab") notice = colabNotice(job, t, colabNames);
+    else notice = exportNotice(job, t, what);
     let action = null;
     if (notice.cancel) {
       action = { label: t("ui.export.cancel"), run: () => void cancelExportJob() };
@@ -1541,12 +1548,59 @@ async function duckMicrophones() {
   }
 }
 
-/** Track > Transcribe the track: the focused track's recordings, else every speech track's. */
-async function transcribeTrack() {
+/**
+ * Track > Transcribe > On this computer / On Colab: the focused track's recordings, else every
+ * speech track's. Colab uploads the audio to Google, so it asks first (transcribeOnColab).
+ */
+async function transcribeTrack(backend = "local") {
   const state = getState();
   const track = state.project?.tracks.find((item) => item.id === state.focusTrack);
   const ids = track ? [...new Set(track.clips.map((clip) => clip.media))] : undefined;
-  await transcript.transcribe(ids);
+  if (backend === "colab") await transcribeOnColab(ids ?? transcript.targetIds());
+  else await transcript.transcribe(ids);
+}
+
+// Transcribe on Colab (WP78): the audio leaves the computer, so the first use in a session asks
+// (unless the user chose "Do not ask again", a stored preference). One job for all the
+// recordings; the notice follows it like the automixer, with Cancel. The words arrive through
+// the head change, like any transcript.
+let colabDialogs = null;
+let colabSessionOk = false;
+let colabNames = "";
+const colabDialogsFor = () => {
+  colabDialogs ??= createColabDialogs({
+    api,
+    t,
+    onSettingsSaved: () => showNotice(t("ui.colab.saved"), "ok"),
+  });
+  return colabDialogs;
+};
+
+async function transcribeOnColab(ids) {
+  const project = getState().project;
+  if (exportJob || !project || !ids || ids.length === 0) return;
+  const names = project.media
+    .filter((item) => ids.includes(item.id))
+    .map((item) => item.name)
+    .join(", ");
+  if (consentNeeded({ remembered: rememberedConsent(prefs), session: colabSessionOk })) {
+    const answer = await colabDialogsFor().askConsent(names);
+    if (!answer.ok) return;
+    colabSessionOk = true;
+    if (answer.remember) rememberConsent(prefs);
+  }
+  try {
+    const { jobs } = await api.transcribe(ids, { backend: "colab" });
+    exportJob = jobs[0];
+    colabNames = names;
+    showNotice(t("ui.colab.preparing"), "ok", {
+      sticky: true,
+      action: { label: t("ui.export.cancel"), run: () => void cancelExportJob() },
+    });
+    void followExportJob(exportJob, "colab");
+  } catch (error) {
+    showError(error);
+  }
 }
 
 async function openStatistics() {

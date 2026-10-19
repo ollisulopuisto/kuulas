@@ -3699,8 +3699,9 @@ copy), whether to refine automatically after transcription, measuring word ends,
 
 ### WP78 — Transcribe on Colab straight from kuulas, no .nhsx (owner, 2026-10-19)
 
-Status: open; the kuulas side can be built against a fake tool, the podcast side (a plain-audio mode in
-`colab-transcribe`) is requested from the podcast session. Owner: the goal is that kuulas calls
+Status: kuulas side built on the worktree branch (not yet merged or released), against a fake tool only; no real
+Colab run has been made, and the podcast side (a plain-audio mode in `colab-transcribe`) is still requested from the
+podcast session. Owner: the goal is that kuulas calls
 `colab-transcribe` directly, with nhsx not involved at all. This is the "colab backend" the WP9 text left as an open
 question (`/api/transcribe` with `backend: "colab"` answers `error.transcribe.colab_unavailable` today).
 
