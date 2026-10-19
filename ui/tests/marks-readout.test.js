@@ -71,7 +71,7 @@ describe("entryPatch", () => {
     for (const which of ["in", "out", "length"]) {
       assert.deepEqual(entryPatch(which, "abc", state, RATE), { ok: false });
       assert.deepEqual(entryPatch(which, "", state, RATE), { ok: false });
-      assert.deepEqual(entryPatch(which, "-3", state, RATE), { ok: false });
+      assert.deepEqual(entryPatch(which, "+x", state, RATE), { ok: false });
     }
   });
   test("a limit clamps to the end of the edit; a length that cannot fit is refused", () => {
@@ -85,6 +85,27 @@ describe("entryPatch", () => {
     });
     const atEnd = { inPoint: 8000, outPoint: null };
     assert.equal(entryPatch("length", "1", atEnd, RATE, 8000).ok, false);
+  });
+  test("a relative value moves the mark from where it is (WP76)", () => {
+    assert.deepEqual(entryPatch("in", "+1", state, RATE), {
+      ok: true,
+      patch: { inPoint: 3000, outPoint: 5000 },
+    });
+    assert.deepEqual(entryPatch("out", "-1", state, RATE), {
+      ok: true,
+      patch: { inPoint: 2000, outPoint: 4000 },
+    });
+    assert.equal(entryPatch("in", "-99", state, RATE).patch.inPoint, 0);
+  });
+  test("a relative value on an unset mark counts from the play cursor", () => {
+    const at = { inPoint: null, outPoint: null, playhead: 10_000 };
+    assert.equal(entryPatch("in", "-2", at, RATE).patch.inPoint, 8000);
+    assert.equal(entryPatch("out", "+2", at, RATE).patch.outPoint, 12_000);
+  });
+  test("a relative length grows or shrinks the range", () => {
+    assert.equal(entryPatch("length", "+1", state, RATE).patch.outPoint, 6000);
+    assert.equal(entryPatch("length", "-1", state, RATE).patch.outPoint, 4000);
+    assert.equal(entryPatch("length", "-3", state, RATE).ok, false);
   });
   test("the seconds are rounded to whole frames", () => {
     assert.equal(entryPatch("in", "0,0004", none, RATE).patch.inPoint, 0);
