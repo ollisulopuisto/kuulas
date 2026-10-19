@@ -530,6 +530,7 @@ class WindowApp:
             self._open_one(folder)
 
     def _open_one(self, folder: str) -> None:
+        log.info(t("log.desktop.opening", path=folder))
         with self._lock:
             for bridge in self._bridges:
                 if bridge.project_folder == folder:

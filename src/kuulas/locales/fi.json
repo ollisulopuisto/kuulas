@@ -120,6 +120,7 @@
   "log.package.migrating": "Päivitetään projektin tallennusmuoto versiosta {source} versioon {target}; ensin otetaan varmuuskopio.",
   "log.package.tick_failed": "Lukon elonmerkki tai varmuuskopio epäonnistui, yritetään myöhemmin uudelleen: {error}",
   "log.desktop.position_unknown": "Toistokohtaa ei voitu lukea ikkunaa suljettaessa ({error}); viimeksi tallennettu kohta jää voimaan.",
+  "log.desktop.opening": "Avataan projekti {path}",
   "log.desktop.open_hook_failed": "Projektien avaaminen Finderista ei ole käytettävissä ({error}); käytä ikkunan Avaa-toimintoa.",
   "log.session.subscriber_failed": "Projektin muutoksia kuunteleva osa kaatui; itse muutos tallennettiin.",
   "log.session.relinked": {
