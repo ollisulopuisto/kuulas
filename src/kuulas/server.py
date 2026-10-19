@@ -419,7 +419,8 @@ def create_app(session, engine, *, language: str | None = None,
     @app.get("/api/sync")
     def get_sync():
         """Every drifting or free clip with its offset: what the badges draw."""
-        return JSONResponse({"clips": session.sync_overview()})
+        return JSONResponse({"clips": session.sync_overview(),
+                             "anchors": session.sync_anchors()})
 
     @app.get("/api/partners")
     def get_partners(ids: str = ""):

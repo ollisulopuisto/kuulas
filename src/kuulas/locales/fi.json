@@ -555,8 +555,8 @@
   "cmd.group.toggle": "Ryhmämuokkaus päälle / pois",
   "cmd.bus.collapse": "Supista väylä",
   "cmd.bus.expand": "Laajenna väylä",
-  "cmd.sync.mark": "Merkitse synkkaan",
-  "cmd.sync.resync": "Synkkaa uudelleen",
+  "cmd.sync.mark": "Merkitse synkkaan (ensimmäinen valittu on ankkuri)",
+  "cmd.sync.resync": "Synkkaa valitut leikkeet ankkuriin",
   "cmd.sync.point1": "Aseta ensimmäinen synkkapiste",
   "cmd.sync.point2": "Aseta toinen synkkapiste",
   "cmd.sync.resync_end": "Synkkaa loppuun, kaikki raidat",
@@ -1683,7 +1683,7 @@
   "cmd.sync.free_all": "Vapauta kaikki ajautuneet leikkeet",
   "cmd.sync.drift_next": "Seuraava ajautunut leike",
   "cmd.sync.drift_previous": "Edellinen ajautunut leike",
-  "cmd.sync.resync.hint": "Palauttaa valitut leikkeet paikkaan, johon synkkaryhmä ne asettaa. Synkasta vapauttamasi leikkeet jätetään rauhaan.",
+  "cmd.sync.resync.hint": "Siirtää valitut leikkeet ajassa paikkaan, jossa ne ovat ankkuriin (ankkurimerkillä merkitty raita) nähden. Toimii yhdelle leikkeelle tai valinnalle; ankkuria itseään, synkasta vapautettuja leikkeitä tai raitoja ei koskaan kosketa. Jos haluat toisen leikkeen vertailukohdaksi, valitse se ja valitse \"Tee tästä synkan ankkuri\". Y (merkitse synkkaan) tekee ensimmäisenä valitusta leikkeestä ankkurin.",
   "cmd.sync.resync_end.hint": "Synkkaa kaikki leikkeet toistokohdasta eteenpäin kaikilla raidoilla (korjaa vahingossa yhdelle raidalle tehdyn leikkauksen). Vapaat leikkeet ohitetaan ja lasketaan.",
   "cmd.sync.free.hint": "Merkitsee valitut leikkeet tarkoituksella synkasta vapaiksi (ei ajautumismerkkiä, eikä kenenkään kumppani) tai liittää ne takaisin.",
   "cmd.sync.resync_all.hint": "Synkkaa jokaisen ajautumisluettelon leikkeen. Mikään ei synkkaudu itsestään.",
@@ -1715,5 +1715,35 @@
   "ui.sync.drift.row": "{time} · {offset}",
   "ui.sync.drift.cause": "alkaen: {label}",
   "ui.sync.drift.cause_group_off": "alkaen: {label}, ryhmämuokkaus pois",
-  "ui.sync.drift.jump": "Siirry tähän leikkeeseen"
+  "ui.sync.drift.jump": "Siirry tähän leikkeeseen",
+  "toast.sync.synced": {
+    "one": "Synkattiin {count} leike ankkuriin {anchor}. Vain ajassa, raidat ennallaan.",
+    "other": "Synkattiin {count} leikettä ankkuriin {anchor}. Vain ajassa, raidat ennallaan."
+  },
+  "toast.sync.skipped_free": {
+    "one": "ohitettiin {count} vapaa",
+    "other": "ohitettiin {count} vapaata"
+  },
+  "toast.sync.ungrouped": "Valinta ei ole tahdistusryhmässä",
+  "toast.sync.anchor_only": "Valinnassa on ankkuri, ei mitään siirrettävää",
+  "toast.sync.nothing": "Ei tehtävää, jo synkassa",
+  "error.edit.no_sync_group": "Tämä leike ei ole tahdistusryhmässä.",
+  "cmd.sync.set_anchor": "Tee tästä synkan ankkuri",
+  "cmd.sync.set_anchor.hint": "Tekee valitun leikkeen äänityksestä tahdistusryhmän ankkurin, johon synkkaa verrataan. Mikään ei siirry nyt; mikä on synkassa, pysyy synkassa. Sen jälkeen Synkkaa uudelleen asettaa leikkeet uuteen ankkuriin nähden.",
+  "cmd.sync.send_home": "Palauta alkuperäiselle raidalle",
+  "cmd.sync.send_home.hint": "Siirtää valitut leikkeet takaisin raidalle, jolta ne vedettiin pois, samaan aikakohtaan. Synkkaus korjaa vain ajan, ei koskaan raitaa.",
+  "ui.sync.history.anchor": "Synkan ankkuriksi",
+  "ui.sync.history.send_home": "Palautettu alkuperäiselle raidalle",
+  "ui.sync.toast.anchor": "{name} on nyt synkan ankkuri",
+  "ui.sync.toast.sent_home": {
+    "one": "{count} leike on takaisin alkuperäisellä raidallaan",
+    "other": "{count} leikettä on takaisin alkuperäisillä raidoillaan"
+  },
+  "ui.sync.toast.marked": "Merkitty synkkaan. Ankkuri on {name}",
+  "ui.sync.history.mark": "Merkitty synkkaan",
+  "ui.sync.anchor_tag": "ankkuri",
+  "ui.sync.anchor_title": "Synkan ankkuri: tämän tahdistusryhmän leikkeet pidetään synkassa tähän nähden.",
+  "ui.sync.badge.drift_title_anchor": "Poissa synkasta {offset} ankkuriin {anchor} nähden. R palauttaa, U kertoo että se on tarkoituksellista.",
+  "ui.sync.badge.free_title_anchor": "Tarkoituksella vapaa synkasta (ankkuri: {anchor}). U liittää takaisin.",
+  "ui.sync.moved_from": "siirretty raidalta {track}"
 }

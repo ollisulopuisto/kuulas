@@ -276,6 +276,9 @@ def move_clip(p: Project, clip_id: str, start: int,
     moved = replace(clip, start=max(0, int(start)))
     if track_id is None or track_id == track.id:
         return _replace_clip(p, moved)
+    # Remember the track it came from (the first one; back home forgets it).
+    home = clip.home if clip.home is not None else track.id
+    moved = replace(moved, home=None if home == track_id else home)
     target = _find_track(p, track_id)
     p = delete_clip(p, clip_id)
     return _replace_track(p, replace(target, clips=_sorted((*target.clips, moved))))
@@ -795,6 +798,37 @@ def resync(p: Project, clip_ids) -> Project:
     return p
 
 
+def send_home(p: Project, clip_ids) -> Project:
+    """Put clips back on the track they were dragged away from, at the same time
+    position. Clips that never left (or whose home track is gone) stay."""
+    tracks = {t.id for t in p.tracks}
+    before = p
+    for clip_id in clip_ids:
+        c, _ = _find_clip(p, clip_id)
+        if c.home is not None and c.home in tracks:
+            p = move_clip(p, clip_id, c.start, c.home)
+    return _overwrite_under(before, p) if p != before else p
+
+
+def set_sync_anchor(p: Project, clip_id: str) -> Project:
+    """Make this clip's media the main of its sync group (the anchor that resync
+    and the drift badge measure against) without moving anything: every member's
+    origin is re-expressed relative to the new main, so the differences between
+    them, and so every clip's sync state, stay as they are."""
+    clip, _ = _find_clip(p, clip_id)
+    group = p.sync_group(clip.media)
+    if group is None:
+        raise EditError("error.edit.no_sync_group")
+    if group.main == clip.media:
+        return p
+    shift = dict(group.members).get(clip.media, 0)
+    members = tuple(sorted(
+        (m, o - shift) for m, o in {**dict(group.members), group.main: 0}.items()))
+    new = replace(group, main=clip.media, members=members)
+    return replace(p, sync_groups=tuple(new if g.id == group.id else g
+                                        for g in p.sync_groups))
+
+
 def set_free(p: Project, clip_ids, free: bool | None = None) -> Project:
     """Declare clips free from sync (or link them again). ``free=None`` toggles
     the selection: if any clip is linked they all become free, else all link."""
@@ -1231,6 +1265,7 @@ OPS = {
         add_placeholder, edit_placeholder_text, set_placeholder_length,
         move_placeholder, delete_placeholder, replace_placeholder,
         shift_clips, set_clips, delete_clips, mark_in_sync, resync, set_free,
+        send_home, set_sync_anchor,
         split_clips, mute_range, cut_range, nudge_clips, move_clips_to_track,
         trim_clips, adjust_clip_gain,
         restore_cuts, roll_trim, ripple_trim, group_clips, ungroup_clips, merge_clips,

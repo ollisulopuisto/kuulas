@@ -395,6 +395,15 @@ class Session:
 
             return list(self._memo("sync_overview", key, compute, 120))
 
+    def sync_anchors(self) -> list[dict]:
+        """The anchor pieces of every sync group (clips of the group's main
+        media): what the timeline tags and what drift is measured against."""
+        with self.lock:
+            p = self.history.state
+            return [{"clip_id": c.id, "track_id": tr.id, "name": tr.name, "group": g.id}
+                    for g in p.sync_groups for tr in p.tracks for c in tr.clips
+                    if c.media == g.main]
+
     def partners_of(self, clip_ids: list[str]) -> dict[str, list[str]]:
         """Clip id -> its partners' ids: the dashed outline around what a move of
         the selection would take along (free clips are no one's partner)."""
@@ -2207,15 +2216,44 @@ def _cut_words(s: Session, args: dict) -> Project:
 
 
 def _resync_clips(s: Session, ids: list[str]) -> Project:
-    """Resync ``ids`` (free clips are skipped and counted) in one step; the
-    counts are in ``s.last_resync`` for the page's message."""
+    """Resync ``ids`` (free clips are skipped and counted) in one step; what
+    happened, in words, is in ``s.last_resync`` for the page's message. Time
+    only: a clip's track is not part of sync. A resync that moves nothing makes
+    no history step."""
     before = s.history.state
-    free = sum(1 for cid in ids if before.clip(cid).free)
+    clips = [before.clip(cid) for cid in ids]
+    free = sum(1 for c in clips if c.free)
+    grouped = [c for c in clips if before.sync_group(c.media) is not None]
+    anchors = [c for c in grouped if c.media == before.sync_group(c.media).main]
     new = ops.resync(before, ids)
     moved = sum(1 for cid in ids if new.clip(cid).start != before.clip(cid).start)
-    label = t("history.resync", count=moved, skipped=free)
-    s.last_resync = {"resynced": moved, "skipped": free, "message": label}
-    return s._commit(label, new, "resync", {"clip_ids": ids})
+    anchor = _anchor_name(before, grouped[0]) if grouped else ""
+    if moved:
+        kind = "synced"
+        message = t("toast.sync.synced", count=moved, anchor=anchor)
+        if free:
+            message += " · " + t("toast.sync.skipped_free", count=free)
+    elif not grouped:
+        kind, message = "ungrouped", t("toast.sync.ungrouped")
+    elif anchors and len(anchors) == len(grouped) - free:
+        kind, message = "anchor", t("toast.sync.anchor_only")
+    else:
+        kind, message = "nothing", t("toast.sync.nothing")
+    s.last_resync = {"resynced": moved, "skipped": free, "kind": kind, "anchor": anchor,
+                     "message": message}
+    if not moved:
+        return before
+    return s._commit(t("history.resync", count=moved, skipped=free), new, "resync",
+                     {"clip_ids": ids})
+
+
+def _anchor_name(p: Project, clip) -> str:
+    """The track the group's anchor sits on (its first piece), for messages."""
+    group = p.sync_group(clip.media)
+    for track in p.tracks:
+        if any(c.media == group.main for c in track.clips):
+            return track.name
+    return ""
 
 
 def _resync(s: Session, args: dict) -> Project:

@@ -56,7 +56,7 @@ def partners(project: Project, material: Any, clip_id: str) -> list[Clip]:
     p = replace(project, sync_groups=groups) if project.sync_groups != groups else project
 
     try:
-        clip, track = p.clip_and_track(clip_id)
+        clip, _track = p.clip_and_track(clip_id)
     except (KeyError, ValueError):
         return []
 
@@ -71,10 +71,10 @@ def partners(project: Project, material: Any, clip_id: str) -> list[Clip]:
 
     res: list[Clip] = []
     for other_track in p.tracks:
-        if other_track.id == track.id:
-            continue
         for other_clip in other_track.clips:
-            if other_clip.free or p.sync_group(other_clip.media) != group:
+            # Never itself; a clip dragged onto its partner's track is still a partner.
+            if (other_clip.id == clip.id or other_clip.free
+                    or p.sync_group(other_clip.media) != group):
                 continue
             o_rec = _recorded_range(p, other_clip)
             if o_rec is None:
