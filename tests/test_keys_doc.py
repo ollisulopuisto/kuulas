@@ -33,7 +33,8 @@ def _load_keymap() -> dict:
 
 
 def _format_combo(combo: str, mods: dict[str, str]) -> str:
-    return "+".join(mods.get(part, "," if part == "Comma" else part) for part in combo.split("+"))
+    names = {**mods, "Comma": ","}
+    return "+".join(names.get(part, part) for part in combo.split("+"))
 
 
 def _format_entry_keys(keys: str | list[str] | None, mods: dict[str, str]) -> str:
