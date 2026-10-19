@@ -1368,7 +1368,7 @@ exactly. Also run `auto_silence` and `automix` as jobs (WP9) once WP9 lands.
 
 ### WP15 — Desktop wrapper
 
-Status: first cut done in v26.10.18.4 (`desktop.py`, `kuulas`/`kuulas open --window`, recents, native dialogs, CI workflow); not yet seen by a person. **Moved up by the owner (2026-10-18): the wrapper is part of the first version (M1)**, right after WP5, so the keymap can assume a native window (Cmd+T, Cmd+W, F6, Cmd+L free). Packaging and signing stay a later decision.
+Status: **owner 2026-10-19: done for Mac** (installed and tested from the dmg; Windows and signing stay open). First cut done in v26.10.18.4 (`desktop.py`, `kuulas`/`kuulas open --window`, recents, native dialogs, CI workflow); not yet seen by a person. **Moved up by the owner (2026-10-18): the wrapper is part of the first version (M1)**, right after WP5, so the keymap can assume a native window (Cmd+T, Cmd+W, F6, Cmd+L free). Packaging and signing stay a later decision.
 **Owner decisions 2026-10-18:** first-version (M1) scope is the wrapper plus the
 clipboard (WP46); Compare (WP45) comes later. Technology: `pywebview` (the owner
 has used it in other apps and dislikes Electron). Platforms: the owner can test on
@@ -2643,7 +2643,7 @@ header, zero-length, MP3 with junk in the middle, video without audio,
 
 ### WP35 — Remembered settings, quick actions, view memory
 
-Status: first version done in v26.10.18.24 (view memory per project, user-preference helper, Recent commands, reset command); panel sizes (no resizable panels yet) and per-dialog last values open.
+Status: **owner 2026-10-19: counts as done for M1; the remaining parts (panel sizes together with per-dialog last values) are one task in M2.** First version done in v26.10.18.24 (view memory per project, user-preference helper, Recent commands, reset command); panel sizes (no resizable panels yet) and per-dialog last values open.
 
 - **Where things are remembered** (ground rule 16): user settings
   (`platformdirs` user config dir: `~/Library/Application Support/kuulas`,

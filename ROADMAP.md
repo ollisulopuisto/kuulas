@@ -153,11 +153,11 @@ sizes: `docs/PLAN.md`, section "Triage".
 
 Grouped from the build order in `docs/PLAN.md` (Triage). ✓ done, ◐ partly done (some of it built and merged), ▶ being built now, ↻ built and in review (not merged yet), otherwise open. Generated from the roadmap page data; the page is the live view.
 
-**M1 · First playable build** (14 of 21 done, 7 partly): Run kuulas, import, listen, edit by keyboard and mouse, undo, export WAV or MP3. (Owner, 2026-10-18: WP6 mouse editing and WP19i Tab to transient or word are brought forward into the first build.)
+**M1 · First playable build** (16 of 21 done, 5 partly; owner 2026-10-19: WP15 counts done for Mac only, WP35's remaining parts (panel sizes, per-dialog last values) moved to M2): Run kuulas, import, listen, edit by keyboard and mouse, undo, export WAV or MP3. (Owner, 2026-10-18: WP6 mouse editing and WP19i Tab to transient or word are brought forward into the first build.)
 
-✓ WP0, ✓ WP24.1, ✓ WP33a, ✓ WP29, ✓ WP30, ✓ WP1, ✓ WP34, ✓ WP36, ✓ WP2, ✓ WP3, ✓ WP33b, ◐ WP4, ◐ WP5, ◐ WP19a, ◐ WP35, ✓ WP11, ◐ WP15, ◐ WP46, ✓ WP19i, ◐ WP6, ✓ WP54.
+✓ WP0, ✓ WP24.1, ✓ WP33a, ✓ WP29, ✓ WP30, ✓ WP1, ✓ WP34, ✓ WP36, ✓ WP2, ✓ WP3, ✓ WP33b, ◐ WP4, ◐ WP5, ◐ WP19a, ✓ WP35, ✓ WP11, ✓ WP15, ◐ WP46, ✓ WP19i, ◐ WP6, ✓ WP54.
 
-**M2 · A usable editor** (3 of 13 done, 8 partly): Transcript, history panel, fast listening, FX layers.
+**M2 · A usable editor** (3 of 13 done, 8 partly; plus WP35's remaining parts, from M1): Transcript, history panel, fast listening, FX layers.
 
 ✓ WP41, ◐ WP8, ◐ WP22, ◐ WP26, ✓ WP9, ◐ WP7, WP23a, ◐ WP44, ◐ WP48, ◐ WP49, ✓ WP50, ◐ WP52, WP55.
 

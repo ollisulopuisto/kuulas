@@ -9,6 +9,11 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 
 | # | Raised | Issue | Notes |
 |---|---|---|---|
+| 84 | 19.10 | Moving a synced clip out and back (R) leaves a hole: what the clip covered is not revealed | open, needs the owner's choice: extend the neighbours automatically (when source-contiguous) or a "fill the gap" command |
+| 83 | 19.10 | Clips could not be moved after some session work (could not reproduce) | open, needs the exact symptom from the owner |
+| 82 | 19.10 | Undoing past a take removes its clip and nothing offers it back (the file stays in `recordings/`) | open: the Recordings list with Restore options is planned (ROADMAP, ground rule 17) |
+| 81 | 19.10 | The downloaded dmg is "damaged" until `xattr -dr com.apple.quarantine` is run | open: needs Apple signing and notarisation |
+| 80 | 19.10 | Cmd+M (minimise) is gone with the native Window menu | open: the yellow button still minimises |
 | 21 | 18.10 | Question: how to limit I-O + Cmd+C to one track, or to several | answered in chat: focus a track (and switch group editing off with E), or drag the range across the lanes wanted; a dedicated key/menu to pick tracks for the range is not built |
 | 3 | 18.10 | Dropbox: the project lock must work with a synced folder (showstopper) | Built (per-host `locks/`, v26.10.18.63) but never tried against a real Dropbox. Move to "fixed, please check" after a real two-computer test. |
 
@@ -16,6 +21,12 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 
 | # | Raised | Issue | Fixed in |
 |---|---|---|---|
+| 90 | 19.10 | The transcript's speaker colour bar should sit at the timeline's left edge, left of the words | built in v26.10.19.25; not seen on screen | 19.10, owner |
+| 89 | 19.10 | Side panel tab names truncated ("Tarka…"); buttons not in one design language; inspector fields misaligned | built in v26.10.19.25 (tabs wrap, shared outlined buttons with icons, a two-column inspector grid); not seen on screen | 19.10, owner |
+| 88 | 19.10 | Menus should open on hover; fewer, better grouped menus | hover built in v26.10.19.25; bar is now File, Edit, Track, Playback, View, Help; the Edit menu is still far too long, an advisor proposal is in progress | 19.10, owner |
+| 87 | 19.10 | Recording: "recorder does not know the command" (an older recorder process kept running); the recorder should not run forever | built in v26.10.19.25 (protocol check replaces an idle older recorder; idle exit after 60 s); not tried with a real microphone | 19.10, owner |
+| 86 | 19.10 | Colab transcription "Litterointi keskeytyi" in the installed app; no Google sign-in step; Colab output garbled with escape codes | worker start in the bundle and Colab sign-in built in v26.10.19.25; escape codes stripped after that (see CHANGELOG); the real Colab run is untried | 19.10, owner |
+| 85 | 19.10 | Transcript panel offer overlapped the clock/start/end block; only one button for two untranscribed files | one row per file, no overlap; built in v26.10.19.25; not seen on screen | 19.10, owner |
 | 8 | 18.10 | Alt-drag a region: the selection vanished on release | `e5925dd` (guess: the release event's Alt state); not seen on screen |
 | 9 | 18.10 | After X (cut) the in/out markers and selection stayed drawn | cleared after cut, lift-cut, track cut and close gap (`edit-commands.js`) |
 | 10 | 18.10 | "Select forward from selected clips, all tracks" selected every clip | `dd4e177` (clips starting at or after, not every overlapping clip) |
