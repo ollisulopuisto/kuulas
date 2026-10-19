@@ -154,8 +154,9 @@ def test_transport_and_peak_fuzzing(tmp_path: Path):
 
 
 def test_take_plan_parsing_hardening(tmp_path: Path):
-    import json
-    from kuulas.record_take import read_plan, write_plan, TakePlan
+    import json  # noqa: PLC0415
+
+    from kuulas.record_take import TakePlan, read_plan, write_plan  # noqa: PLC0415
 
     # Normal plan
     plan = TakePlan(take="Take 1", at=100, track_id="t1", track_name="Host", channel=1)
@@ -165,7 +166,8 @@ def test_take_plan_parsing_hardening(tmp_path: Path):
     # Excessively long strings
     long_str = "A" * 5000
     with open(tmp_path / "LongTake.editor.json", "w") as f:
-        json.dump({"take": long_str, "at": 100, "track_id": long_str, "track_name": long_str, "channel": 1}, f)
+        json.dump({"take": long_str, "at": 100, "track_id": long_str,
+                   "track_name": long_str, "channel": 1}, f)
 
     got = read_plan(tmp_path, "LongTake")
     assert got is not None
@@ -175,20 +177,21 @@ def test_take_plan_parsing_hardening(tmp_path: Path):
 
     # Large file
     with open(tmp_path / "HugeTake.editor.json", "w") as f:
-        f.write("{" + '"take": "1", ' + ', '.join(f'"{i}": "{long_str}"' for i in range(100)) + "}")
+        f.write("{" + '"take": "1", ' + ', '.join(f'"{i}": "{long_str}"'
+                                                  for i in range(100)) + "}")
 
     assert read_plan(tmp_path, "HugeTake") is None
 
 
-def test_desktop_bridge_hardening():
-    from kuulas.desktop import Bridge, reveal_command
+def test_desktop_bridge_hardening(tmp_path: Path):
+    from kuulas.desktop import Bridge, reveal_command  # noqa: PLC0415
 
-    b = Bridge(None, Path('/tmp'))
+    b = Bridge(None, tmp_path)
 
     # Test copy text logic length limits
-    assert b.copy_text("valid text") == False  # copier will fail since it's stubbed, but it shouldn't raise exception
-    assert b.copy_text(123) == False
-    assert b.copy_text("A" * 201) == False
+    assert not b.copy_text("valid text")
+    assert not b.copy_text(123)  # type: ignore
+    assert not b.copy_text("A" * 201)
 
     # Test reveal_command sanitizes hyphen and prevents shell injection flags
     assert reveal_command("-rf /")[-1] == "./-rf /"

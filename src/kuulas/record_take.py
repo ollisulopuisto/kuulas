@@ -221,7 +221,8 @@ def read_plan(folder: Path, take: str) -> TakePlan | None:
             return None
 
         take_val = str(raw["take"])[:1024]
-        track_id = str(raw["track_id"])[:1024] if raw.get("track_id") is not None else None
+        raw_tid = raw.get("track_id")
+        track_id = str(raw_tid)[:1024] if raw_tid is not None else None
         track_name = str(raw.get("track_name") or take_val)[:1024]
         channel = int(raw.get("channel", 1))
 
@@ -233,7 +234,8 @@ def read_plan(folder: Path, take: str) -> TakePlan | None:
         for lane in raw.get("lanes") or []:
             if not isinstance(lane, dict):
                 continue
-            l_track_id = str(lane["track_id"])[:1024] if lane.get("track_id") is not None else None
+            raw_ltid = lane.get("track_id")
+            l_track_id = str(raw_ltid)[:1024] if raw_ltid is not None else None
             lanes.append(Lane(
                 channel=int(lane["channel"]),
                 name=str(lane["name"])[:1024],
