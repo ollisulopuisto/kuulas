@@ -56,6 +56,12 @@ def clean_argv(argv: list[str]) -> list[str]:
     return [a for a in argv[1:] if not a.startswith("-psn_")]
 
 
+def wants_log(args: list[str]) -> bool:
+    """Whether output goes to the log file. Not for ``--selftest``: the build script
+    reads its report from the terminal, and ``--help`` is read there too."""
+    return not any(a in ("--selftest", "--help", "-h") for a in args)
+
+
 def _open_log(home: Path):
     """The log file, rotated (1 MB, 3 kept), also taking stdout, stderr and fatal
     crashes: a bundle has no terminal, so this file is all a tester can send."""
@@ -78,12 +84,14 @@ def main() -> int:
     """The bundle's entry point (``python -m kuulas``)."""
     home = Path.home()
     resources = resources_dir(__file__)
+    args = clean_argv(sys.argv)
     if resources is not None:
         os.environ.update(environment(resources, dict(os.environ), home))
-        _open_log(home)
+        if wants_log(args):
+            _open_log(home)
     from .build_info import build_label  # noqa: PLC0415
     from .cli import main as cli_main  # noqa: PLC0415
 
     logging.getLogger("kuulas").info("kuulas %s starting, argv %s", build_label(),
-                                     sys.argv[1:])
-    return cli_main(clean_argv(sys.argv))
+                                     args)
+    return cli_main(args)

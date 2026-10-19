@@ -59,6 +59,13 @@ def test_finder_launch_arguments_are_dropped():
         "open", "a.kuulas"]
 
 
+def test_selftest_and_help_print_to_the_terminal_not_the_log():
+    assert not bundle.wants_log(["--selftest"])
+    assert not bundle.wants_log(["--help"])
+    assert bundle.wants_log([])
+    assert bundle.wants_log(["open", "a.kuulas"])
+
+
 def test_the_baked_label_is_used_when_there_is_no_checkout(tmp_path):
     package = tmp_path / "kuulas"
     package.mkdir()
