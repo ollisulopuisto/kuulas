@@ -95,18 +95,6 @@ const TRANSCRIBE = submenu("menu.transcribe", [
   item("app.colab_signin"),
   item("app.colab_settings"),
 ]);
-const TRANSCRIPT_NARRATION = submenu("menu.transcript_narration", [
-  item("transcript.delete_words"),
-  item("transcript.remove_words"),
-  item("transcript.cut_words"),
-  item("transcript.correct"),
-  item("transcript.mark_candidate"),
-  SEP,
-  item("placeholder.add"),
-  item("placeholder.edit"),
-  item("placeholder.take"),
-  item("placeholder.delete"),
-]);
 const CANDIDATES = submenu("menu.candidates", [
   item("candidate.find"),
   item("candidate.mark"),
@@ -120,6 +108,43 @@ const CANDIDATES = submenu("menu.candidates", [
   item("candidate.apply"),
   item("candidate.apply_ripple"),
   item("candidate.reject"),
+]);
+
+const TRIM_NUDGE = submenu("menu.trim_nudge", [
+  item("edit.trim_start"),
+  item("edit.trim_end"),
+  SEP,
+  item("edit.nudge_left"),
+  item("edit.nudge_right"),
+  SEP,
+  item("edit.move_up"),
+  item("edit.move_down"),
+]);
+const LEVEL_PAN = submenu("menu.level_pan", [
+  item("clip.gain_up"),
+  item("clip.gain_down"),
+  SEP,
+  item("clip.pan_left"),
+  item("clip.pan_right"),
+]);
+// The per-clip sync commands. The ones that put things back (re-sync, free, send home) are under
+// Edit > Sync back, next to Undo and Redo (owner, 2026-10-19).
+const SYNC = submenu("menu.sync", [
+  item("sync.mark"),
+  item("sync.set_anchor"),
+  item("sync.point1"),
+  item("sync.point2"),
+  item("sync.resync_end"),
+  SEP,
+  item("sync.drift_next"),
+  item("sync.drift_previous"),
+]);
+const SYNC_BACK = submenu("menu.sync_back", [
+  item("sync.resync"),
+  item("sync.resync_all"),
+  item("sync.free"),
+  item("sync.free_all"),
+  item("sync.send_home"),
 ]);
 
 export const MENU = [
@@ -165,25 +190,17 @@ export const MENU = [
     items: [
       item("edit.undo"),
       item("edit.redo"),
-      SEP,
-      // Sync is a spiritual brother to undo (owner, 2026-10-19): the commands that put things back
-      // sit right after Undo and Redo. The re-syncs ask first (sync-confirm.js); freeing is instant.
-      item("sync.resync"),
-      item("sync.resync_all"),
-      item("sync.free"),
-      item("sync.free_all"),
-      item("sync.send_home"),
+      SYNC_BACK,
       SEP,
       item("edit.cut"),
       item("edit.copy"),
       item("edit.paste"),
-      SEP,
-      item("edit.select_all"),
-      item("transcript.find"),
-      item("spot"),
-      item("time.copy"),
-      item("rename"),
-      SEP,
+      submenu("menu.paste_variants", [
+        item("edit.paste_overwrite"),
+        item("edit.paste_track"),
+        item("edit.paste_same"),
+        item("edit.paste_overwrite_track"),
+      ]),
       submenu("menu.delete_cut", [
         item("edit.delete"),
         item("edit.remove_clips"),
@@ -193,12 +210,6 @@ export const MENU = [
         item("edit.cut_track"),
         item("edit.lift_cut"),
         item("edit.close_gap_all"),
-      ]),
-      submenu("menu.paste_variants", [
-        item("edit.paste_overwrite"),
-        item("edit.paste_track"),
-        item("edit.paste_same"),
-        item("edit.paste_overwrite_track"),
       ]),
       submenu("menu.clipboard", [
         item("edit.preview_clipboard"),
@@ -211,18 +222,9 @@ export const MENU = [
         item("clipboard.view_others"),
         item("clipboard.open_project"),
       ]),
-      submenu("menu.trim_nudge", [
-        item("edit.trim_start"),
-        item("edit.trim_end"),
-        SEP,
-        item("edit.nudge_left"),
-        item("edit.nudge_right"),
-        SEP,
-        item("edit.move_up"),
-        item("edit.move_down"),
-      ]),
-      submenu("menu.split_merge", [item("edit.split"), item("edit.split_all"), item("edit.merge")]),
-      submenu("menu.groups", [item("edit.group"), item("edit.ungroup")]),
+      item("time.copy"),
+      SEP,
+      item("edit.select_all"),
       submenu("menu.select", [
         item("edit.select_all_track"),
         SEP,
@@ -242,10 +244,27 @@ export const MENU = [
         item("select.invert"),
         item("select.none"),
       ]),
+      item("transcript.find"),
+    ],
+  },
+  {
+    id: "clip",
+    labelKey: "menu.clip",
+    items: [
+      item("edit.split"),
+      item("edit.split_all"),
+      item("edit.merge"),
+      TRIM_NUDGE,
       SEP,
-      TRANSCRIBE,
-      TRANSCRIPT_NARRATION,
-      CANDIDATES,
+      item("edit.group"),
+      item("edit.ungroup"),
+      SEP,
+      item("clip.mute"),
+      item("clip.fade"),
+      item("clip.match_loudness"),
+      LEVEL_PAN,
+      SEP,
+      SYNC,
     ],
   },
   {
@@ -256,6 +275,7 @@ export const MENU = [
       item("track.add_music"),
       item("track.delete_empty"),
       item("track.reset_gains"),
+      item("rename"),
       SEP,
       item("track.mute"),
       item("track.solo"),
@@ -272,41 +292,29 @@ export const MENU = [
         items: [item("bus.collapse"), item("bus.expand"), item("bus.mute"), item("bus.ungroup")],
       },
       SEP,
-      item("clip.mute"),
-      item("clip.fade"),
-      item("clip.match_loudness"),
-      {
-        kind: "submenu",
-        labelKey: "menu.level_pan",
-        items: [
-          item("clip.gain_up"),
-          item("clip.gain_down"),
-          SEP,
-          item("clip.pan_left"),
-          item("clip.pan_right"),
-        ],
-      },
-      SEP,
-      {
-        kind: "submenu",
-        labelKey: "menu.sync",
-        items: [
-          item("sync.mark"),
-          item("sync.set_anchor"),
-          item("sync.point1"),
-          item("sync.point2"),
-          item("sync.resync_end"),
-          SEP,
-          item("sync.drift_next"),
-          item("sync.drift_previous"),
-        ],
-      },
-      SEP,
       submenu("menu.auto", [
         item("app.automix"),
         item("app.auto_silence"),
         item("gate.open_stretch"),
       ]),
+    ],
+  },
+  {
+    id: "text",
+    labelKey: "menu.text",
+    items: [
+      TRANSCRIBE,
+      item("transcript.delete_words"),
+      item("transcript.remove_words"),
+      item("transcript.cut_words"),
+      item("transcript.correct"),
+      item("transcript.mark_candidate"),
+      item("placeholder.add"),
+      item("placeholder.edit"),
+      item("placeholder.take"),
+      item("placeholder.delete"),
+      SEP,
+      CANDIDATES,
     ],
   },
   {
@@ -335,6 +343,7 @@ export const MENU = [
       ]),
       SEP,
       GO,
+      item("spot"),
       // Markers are mostly navigation (owner, 2026-10-19), so they sit here. To move them to Edit
       // later, move this one line.
       MARKERS,
