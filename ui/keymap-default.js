@@ -1173,6 +1173,20 @@ export const DEFAULT_KEYMAP = [
     context: "global",
     labelKey: "cmd.app.transcribe",
   },
+  // Transcribe on Colab (WP78): the audio is uploaded to Google, so no key: a menu or palette
+  // choice, after the upload notice.
+  {
+    id: "app.transcribe_colab",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.app.transcribe_colab",
+  },
+  {
+    id: "app.colab_settings",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.app.colab_settings",
+  },
   {
     id: "app.automix",
     keys: { mac: "Mod+L", other: "Mod+L" },

@@ -61,6 +61,7 @@ from . import (
 )
 from . import automix as automix_module
 from . import chapters as chapters_module
+from . import colab_transcribe as colab_module
 from . import db as dbm
 from . import export as export_module
 from . import loudness_curve as loudness_curve_module
@@ -2047,19 +2048,25 @@ class Session:
                         self.history.resolved_words(media_id, rev, root), 150)
             return out
 
-    def set_transcript(self, media_id: str, words: list[dict], label: str) -> Project:
-        """A new transcript for one media: one step, undone with Undo."""
+    def set_transcript(self, media_id: str, words: list[dict], label: str,
+                       timing: str | None = None) -> Project:
+        """A new transcript for one media: one step, undone with Undo. ``timing``
+        (WP78): None keeps the media's timing marker, "" clears it, text sets it."""
         with self.lock:
             try:
                 self.history.state.media_item(media_id)
             except KeyError:
                 raise ops.EditError("error.edit.no_media", media_id=media_id) from None
-            self.history.add_transcript(media_id, words, label=label)
+            self.history.add_transcript(media_id, words, label=label, timing=timing)
             return self._changed()
 
-    def transcribe(self, media_ids: list[str], model: str = "small",
-                   language: str | None = None) -> list[str]:
-        """Queue one local transcript job for every selected media item."""
+    def transcribe(self, media_ids: list[str], model: str | None = None,
+                   language: str | None = None, backend: str = "local") -> list[str]:
+        """Queue transcript jobs: ``local`` one per selected media item, ``colab`` ONE
+        for all of them (``transcribe_colab``)."""
+        if backend == "colab":
+            return self.transcribe_colab(media_ids, model, language)
+        model = model or "small"
         ids = list(dict.fromkeys(media_ids))
         job_ids = []
         cpu_threads = max(1, (os.cpu_count() or 2) // self.jobs.max_workers)
@@ -2083,11 +2090,61 @@ class Session:
                     current = self.history.material["transcripts"].get(media_id)
                     if current != previous:
                         raise KuulasError("error.transcribe.changed")
+                    # A local engine made these words: no "ctc-v1" claim survives.
                     self.set_transcript(media_id, words,
-                                        t("history.transcript", media_id=media_id))
+                                        t("history.transcript", media_id=media_id),
+                                        timing="")
 
             job_ids.append(self.jobs.submit("transcribe", title, run, commit))
         return job_ids
+
+    def transcribe_colab(self, media_ids: list[str], model: str | None = None,
+                         language: str | None = None) -> list[str]:
+        """Queue ONE job that transcribes the recordings on Google Colab with the
+        ``colab-transcribe`` tool (WP78). The audio is passed as the local backend
+        resolves it: the linked file as it is, or the working FLAC when the source is
+        not a plain audio file. The words and the timing marker are stored when the
+        tool is done, one undo step per media, and only if none of the transcripts
+        changed meanwhile (all or nothing). Returns the job id in a list."""
+        ids = list(dict.fromkeys(media_ids))
+        items, previous, names = [], {}, []
+        with self.lock:
+            self.history._check_writable()
+            for media_id in ids:
+                try:
+                    item = self.history.state.media_item(media_id)
+                except KeyError:
+                    raise ops.EditError(
+                        "error.edit.no_media", media_id=media_id) from None
+                items.append({"id": media_id, "name": item.name,
+                              "path": self.store.transcription_path(media_id)})
+                previous[media_id] = self.history.material["transcripts"].get(media_id)
+                names.append(item.name)
+        settings = colab_module.load_settings()
+        params = {"model": model, "language": language}
+        title = t("job.transcribe_colab", names=", ".join(names))
+
+        def run(progress):
+            return colab_module.run(
+                items, params, settings,
+                lambda fraction, message="", indeterminate=False: progress(
+                    fraction, message, indeterminate),
+                progress.cancelled_event)
+
+        def commit(result):
+            with self.lock:
+                for media_id in ids:
+                    if self.history.material["transcripts"].get(media_id) \
+                            != previous[media_id]:
+                        raise KuulasError("error.transcribe.changed")
+                for media_id in ids:
+                    found = result["results"][media_id]
+                    self.set_transcript(
+                        media_id, found["words"],
+                        t("history.transcript", media_id=media_id),
+                        timing=found["timing"])
+
+        return [self.jobs.submit("transcribe", title, run, commit)]
 
     def correct_word(self, media_id: str, index: int, text: str) -> Project:
         """Correct the text of one word of one media's transcript: a new

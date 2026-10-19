@@ -48,9 +48,16 @@ export const cutPreview = (words) => post("/api/cut-preview", { words });
 /** Correct one word's text (a new transcript revision, one undo step). */
 export const correctWord = (media, index, w) =>
   json("/api/word", { method: "PUT", body: JSON.stringify({ media, index, w }) });
-/** Queue local transcription of these media; answers { jobs: [job id] }. */
-export const transcribe = (mediaIds) =>
-  post("/api/transcribe", { media_ids: mediaIds, backend: "local" });
+/**
+ * Queue transcription of these media; answers { jobs: [job id] }. `backend` "local" (one job per
+ * recording) or "colab" (ONE job, the audio is uploaded to Google: ask first, see app.js).
+ */
+export const transcribe = (mediaIds, { backend = "local", model, language } = {}) =>
+  post("/api/transcribe", { media_ids: mediaIds, backend, model, language });
+/** The Colab transcription command: { settings (as stored), resolved (defaults filled in) }. */
+export const colabSettings = () => json("/api/settings/colab");
+export const saveColabSettings = (settings) =>
+  json("/api/settings/colab", { method: "PUT", body: JSON.stringify(settings) });
 export const getJobs = () => json("/api/jobs");
 /** One edit: the whole project comes back. `coalesce` merges a drag into one undo step. */
 export const edit = ({ op, args, label = null, coalesce = null }) =>

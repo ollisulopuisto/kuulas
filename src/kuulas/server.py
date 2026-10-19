@@ -45,6 +45,7 @@ from starlette.websockets import WebSocketDisconnect
 from . import (
     automix,
     clipboard_browse,
+    colab_transcribe,
     export,
     export_formats,
     messages,
@@ -217,7 +218,7 @@ class TransportBody(BaseModel):
 
 class TranscribeBody(BaseModel):
     media_ids: list[str]
-    model: str = "small"
+    model: str | None = None
     language: str | None = None
     backend: str = "local"
 
@@ -335,6 +336,10 @@ def create_app(session, engine, *, language: str | None = None,
     @app.exception_handler(music_report.MusicReportError)
     async def _music_report_error(_request: Request, e: music_report.MusicReportError):
         return answer(e, 400)
+
+    @app.exception_handler(colab_transcribe.ColabError)
+    async def _colab_error(_request: Request, e: colab_transcribe.ColabError):
+        return answer(e, 400 if e.key.startswith("error.colab.bad_") else 500)
 
     @app.exception_handler(automix.AutomixError)
     async def _automix_error(_request: Request, e: automix.AutomixError):
@@ -579,6 +584,17 @@ def create_app(session, engine, *, language: str | None = None,
     def post_automix(body: Annotated[dict[str, Any], Body()]):
         return JSONResponse({"jobs": session.automix(body)}, status_code=202)
 
+    # Transcription on Colab (WP78): the tool's command, folder and options.
+    @app.get("/api/settings/colab")
+    def get_colab_settings():
+        stored = colab_transcribe.load_settings()
+        return {"settings": stored, "resolved": colab_transcribe.resolve_settings(stored)}
+
+    @app.put("/api/settings/colab")
+    def put_colab_settings(body: Annotated[dict[str, Any], Body()]):
+        stored = colab_transcribe.save_settings(body)
+        return {"settings": stored, "resolved": colab_transcribe.resolve_settings(stored)}
+
     @app.get("/api/settings/automixer")
     def get_automixer_settings():
         stored = automix.load_settings()
@@ -770,9 +786,7 @@ def create_app(session, engine, *, language: str | None = None,
     def post_transcribe(body: TranscribeBody):
         if not body.media_ids:
             raise BadRequestError("error.server.bad_request", detail="media_ids")
-        if body.backend == "colab":
-            raise BadRequestError("error.transcribe.colab_unavailable")
-        if body.backend != "local":
+        if body.backend not in {"local", "colab"}:
             raise BadRequestError("error.server.bad_request", detail="backend")
         if session.read_only:
             holder = session.package.locked_by or {}
@@ -781,7 +795,8 @@ def create_app(session, engine, *, language: str | None = None,
         for media_id in body.media_ids:
             require_media(media_id)
         try:
-            job_ids = session.transcribe(body.media_ids, body.model, body.language)
+            job_ids = session.transcribe(body.media_ids, body.model, body.language,
+                                         body.backend)
         except MediaError as exc:
             return answer(exc, 400)
         return JSONResponse({"jobs": job_ids}, status_code=202)
