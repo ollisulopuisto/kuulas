@@ -226,8 +226,8 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     );
   }
 
-  async function transcribe() {
-    const ids = transcribeTargets().map((item) => item.id);
+  async function transcribe(onlyIds) {
+    const ids = onlyIds ?? transcribeTargets().map((item) => item.id);
     if (ids.length === 0) return;
     try {
       const { jobs: started } = await api.transcribe(ids);

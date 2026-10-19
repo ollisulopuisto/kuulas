@@ -78,6 +78,9 @@ describe("the commands the app registers", () => {
       openStatistics: () => calls.push(["openStatistics"]),
       newProject: () => calls.push(["newProject"]),
       openProject: () => calls.push(["openProject"]),
+      autoSilence: () => calls.push(["autoSilence"]),
+      duckMicrophones: () => calls.push(["duckMicrophones"]),
+      transcribeTrack: () => calls.push(["transcribeTrack"]),
     };
     registerAppCommands(registry, { actions, app });
     return { registry, calls };
@@ -87,6 +90,22 @@ describe("the commands the app registers", () => {
     const { registry } = setup();
     const ids = new Set(DEFAULT_KEYMAP.map((e) => e.id));
     for (const id of registry.ids()) assert.ok(ids.has(id), id);
+  });
+
+  test("Track > Auto-Silence, Duck the microphones and Transcribe work with a project (they were inert)", () => {
+    const { registry, calls } = setup();
+    const withProject = { project: { tracks: [{ id: "a" }] } };
+    const ids = ["app.auto_silence", "app.automix", "app.transcribe"];
+    for (const id of ids) {
+      assert.equal(registry.status(id), "ready", id);
+      assert.equal(registry.can(id, withProject), true, id);
+      assert.equal(registry.can(id, {}), false, id);
+    }
+    for (const id of ids) registry.run(id, null, withProject);
+    assert.deepEqual(
+      calls.map((call) => call[0]),
+      ["autoSilence", "duckMicrophones", "transcribeTrack"],
+    );
   });
 
   test("File > New project… and Open project… need no project and ask the app", () => {

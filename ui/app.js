@@ -751,6 +751,9 @@ const keyboard = setupKeyboard({
     exportRegions: () => exportRegions(),
     automix: () => void openAutomix(),
     openStatistics: () => void openStatistics(),
+    autoSilence: () => void autoSilence(),
+    duckMicrophones: () => void duckMicrophones(),
+    transcribeTrack: () => void transcribeTrack(),
     exportTracks: (format, options) => exportTracks(format, options),
     exportMix: (format, options) => exportMix(format, options),
     exportFormats: () => exportFormatIds,
@@ -1503,6 +1506,34 @@ async function openAutomix() {
 
 // File > Statistics… (WP70): the server counts and words it; the dialog shows, copies, saves.
 let statsDialog = null;
+/** Track > Auto > Auto-Silence: close each speech mic where its owner is not talking (one undo step). */
+async function autoSilence() {
+  try {
+    apply(await api.command("auto_silence", {}));
+    showNotice(t("ui.auto_silence.done"), "ok", { undo: true });
+  } catch (error) {
+    showError(error);
+  }
+}
+
+/** Track > Auto > Duck the microphones: write the ducking into each speech track's automation. */
+async function duckMicrophones() {
+  try {
+    apply(await api.command("automix", {}));
+    showNotice(t("ui.duck.done"), "ok", { undo: true });
+  } catch (error) {
+    showError(error);
+  }
+}
+
+/** Track > Transcribe the track: the focused track's recordings, else every speech track's. */
+async function transcribeTrack() {
+  const state = getState();
+  const track = state.project?.tracks.find((item) => item.id === state.focusTrack);
+  const ids = track ? [...new Set(track.clips.map((clip) => clip.media))] : undefined;
+  await transcript.transcribe(ids);
+}
+
 async function openStatistics() {
   statsDialog ??= createStatsDialog({
     api,

@@ -164,6 +164,10 @@ export function registerAppCommands(registry, { actions, app }) {
   // File > Statistics… (WP70): runtime, counts, talk, work and sizes of this session.
   def("app.statistics", () => app.openStatistics(), hasProject);
   def("gate.open_stretch", () => app.openGateStretch(), hasProject);
+  // Track > Auto: these three had a menu item and a key but no handler (greyed out).
+  def("app.auto_silence", () => app.autoSilence(), hasProject);
+  def("app.automix", () => app.duckMicrophones(), hasProject);
+  def("app.transcribe", () => app.transcribeTrack(), hasProject);
   def(
     "rename",
     () => app.focusName(),

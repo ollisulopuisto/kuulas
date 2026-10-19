@@ -1,3 +1,23 @@
+## [v26.10.19.13] - 2026-10-19
+
+- **The menus are reorganised** (your notes, WP74). **File:** New project…, Open project…, Import…; Save and
+  Save a named version; Export mix (no automixer) on Cmd+E, Export mix (options)… on Shift+Cmd+E (the options
+  window asks for the format and folder), Export mix (automixer)…, Export all tracks on Alt+Cmd+E and Export all
+  tracks (options)…; Export transcripts as a submenu (subtitles, transcript text, chapters, regions, narration
+  script); Statistics…. Holding Shift or Alt on an export item swaps it for its sibling. The per-format export
+  commands left the menus (they are in the command palette). **Edit:** grouped into submenus (Delete and cut,
+  Paste variants, Clipboard, Trim nudge and move, Split and merge, Groups, Select). **Track:** "Automix" is now
+  "Duck the microphones (automation)" with an explanation, in a new Auto submenu with Auto-Silence. **View:**
+  submenus Zoom and fit, Buses, Mouse and trackpad; no duplicate Loop. **Transport:** "Jump back and play" and a
+  Fast playback submenu. **Go:** each Tab stop once; "Select the track above/below". **Markers:** Clear in and
+  out points is Shift+Alt+I. **Cut candidates:** the menu shows Alt+Down/Up, which work on a Finnish keyboard
+  (the bracket keys still work). Not seen on screen yet.
+- **Auto-Silence, Duck the microphones and Transcribe the track now work from the menu and their keys** (they
+  were greyed out and did nothing in the editor window before). Transcribe the track transcribes the focused
+  track's recordings, or all speech tracks when none is focused.
+- **Finnish terms:** väylä is a bus, ryhmä is a group, leike is a clip everywhere (about 60 strings changed);
+  the table is in `docs/GLOSSARY.md` and a test keeps the old words out.
+
 ## [v26.10.19.12] - 2026-10-19
 
 - **Tab also stops at markers and regions** (in every Tab scope: words, clip borders, sounds); a region gives its
