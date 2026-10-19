@@ -3916,3 +3916,23 @@ Status: pure-logic parts built (`word_search.py`: find words/phrases in a media'
 **Search for cut passages.** Search the transcript for words; for each hit say whether it is in the current edit (a clip covers it) or cut; a cut hit has one click to bring it back (restore options as WP12e: new track at its original position by default, the playhead, the clipboard) and, from History, the step that removed it. The Clipboard panel gets the same search over the words of its saved pieces, and the History list a text filter. One search field and one word index serve all three.
 
 **Clipboard preview level.** Previewing a clipboard entry must never be much louder than the project. Material pasted from elsewhere (a YouTube clip at about -14 LUFS) is far louder than a quietly recorded session. Rule (owner 2026-10-19): the preview plays at about the level of the project's own tracks, or quieter, never louder: measure the project's reference level (the average loudness of its speech tracks, from the existing loudness analysis; peak as a second guard) and the entry's, apply only attenuation (never a boost) so the entry does not exceed the reference, and keep a safety limiter on the preview so peaks cannot jump out. Applies to the preview only; the pasted audio itself is not changed. A setting can switch it off.
+
+### WP83 — What an edit touches: sync, groups and the track scope (owner, 2026-10-19)
+
+Status: decided 2026-10-19, not built (the clip-drag fix "a vertical drag moves only the grabbed clip" is built and is a stop-gap). Owner: "sync is not the same as group. Sync does nothing except help you return an unsynced clip to its original location."
+
+**Three separate ideas, never mixed:**
+1. **Sync** is knowledge only: a clip knows where it belongs relative to others (Resync R, Free, the drift list and badges). Dragging a clip never moves its sync partners. `edit_scope.expand_clips` must stop expanding by sync partners; it expands only by explicit groups.
+2. **Group** (Ryhmitä leikkeet, Cmd+G; `edit.group` / `edit.ungroup`) is the only thing that makes clips move, trim, delete or mute together.
+3. **Track scope** decides which tracks a RANGE operation (cut X, copy Cmd+C, lift-cut Alt+X, close gap Alt+Mod+X, delete range, mute range) acts on. The old "group editing" toggle (E) is retired in favour of this.
+
+**The range is a rectangle:** time (the in/out marks or a mouse-painted range) times a set of tracks.
+- **Keyboard:** I and O set the time; the track set is ALL tracks by default (owner: "very strongly default to all tracks, especially on the keyboard"; the Hindenburg mistake is editing one track by accident).
+- **Mouse:** dragging a range inside one lane makes the rectangle for that lane only (dragging across several lanes: those lanes); the time part also sets in/out.
+- **Track selection overrides the default:** clicking a track header selects it, Cmd+click adds another, Esc clears the track selection. While any track is selected, range operations act only on those tracks, from the keyboard as well. Nothing selected means all tracks.
+- A **modal switch** "Range operations: all tracks / selected tracks only" in the Edit menu and shown in the status bar, for people who work one channel at a time with I/O; default all tracks, and it resets to all on project open (safety states reset on open, WP35).
+- Every range operation uses the same rectangle (consistency: delete, copy, cut, mute, lift-cut).
+
+**Showing what is affected (owner: dim the others rather than highlight the active one):** tracks the next range operation will NOT touch are dimmed strongly (lane, header and waveform); the affected tracks keep full brightness; a status-bar chip says exactly what the next operation touches ("range 1:34-2:10 on all 4 tracks" or "on Olli, Kari"). In all uses the active track keeps its brightness and the others dim, instead of a highlight on the current track.
+
+**Edge drag overwrites by default (owner, 2026-10-19):** dragging a clip's edge over its neighbours behaves like moving a clip: what it covers is trimmed or removed (no layers), also across several clips, limited only by the clip's own media (the source runs out). A neighbour whose edge is covered is trimmed; one covered whole is removed. Undo restores in one step; the drag shows a preview of what will be trimmed or removed. With Alt held the edge stops at the neighbour as before. (Today it stops at the first neighbour; a short muted piece between two clips blocks the drag.)
