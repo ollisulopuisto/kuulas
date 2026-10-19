@@ -1,0 +1,104 @@
+"""The Briefcase project laid out for the tester build (WP73): the generated config, the
+document type and the files staged. No Briefcase run."""
+
+from __future__ import annotations
+
+import sys
+import tomllib
+from pathlib import Path
+
+scripts_dir = Path(__file__).parent.parent / "scripts"
+if str(scripts_dir) not in sys.path:
+    sys.path.insert(0, str(scripts_dir))
+
+import stage_bundle  # noqa: E402
+
+from kuulas import macapp  # noqa: E402
+
+REPO = Path(__file__).parent.parent
+
+
+def wheels(tmp_path: Path) -> Path:
+    folder = tmp_path / "wheels"
+    folder.mkdir()
+    for name in ("speechmix-1-py3-none-any.whl", "nhsx-1-py3-none-any.whl",
+                 "proxy_tools-0.1.0-py3-none-any.whl"):
+        (folder / name).write_text("", encoding="utf-8")
+    return folder
+
+
+def test_local_dependencies_are_replaced_by_wheel_paths(tmp_path):
+    got = stage_bundle.bundle_requires(
+        ["speechmix", "nhsx", "numpy>=2.4.2", "fastapi>=0.118.0"],
+        sorted(wheels(tmp_path).glob("*.whl")))
+    names = [stage_bundle.requirement_name(r) for r in got]
+    assert "speechmix" not in got
+    assert got[:2] == ["numpy>=2.4.2", "fastapi>=0.118.0"]
+    assert "pywebview>=5" in got
+    assert sum(r.endswith("speechmix-1-py3-none-any.whl") for r in got) == 1
+    assert sum(r.endswith("nhsx-1-py3-none-any.whl") for r in got) == 1
+    assert names.count("numpy") == 1
+
+
+def test_requirement_names():
+    assert stage_bundle.requirement_name("python-multipart>=0.0.20") == "python-multipart"
+    assert stage_bundle.requirement_name("Foo_Bar[extra]>=1") == "foo-bar"
+    assert stage_bundle.requirement_name("nhsx") == "nhsx"
+
+
+def config(tmp_path):
+    text = stage_bundle.render_config("26.10.19.6", ["numpy"], tmp_path)
+    return tomllib.loads(text)["tool"]["briefcase"]
+
+
+def test_the_config_is_valid_toml_with_the_bundle_identity(tmp_path):
+    briefcase = config(tmp_path)
+    app = briefcase["app"]["kuulas"]
+    assert briefcase["bundle"] == "fi.sulopuisto"
+    assert briefcase["version"] == "26.10.19.6"
+    assert app["formal_name"] == "Kuulas"
+    assert app["sources"] == ["src/kuulas", "src/ui"]
+    assert app["requires"] == ["numpy"]
+
+
+def test_the_document_type_is_a_package_that_the_app_owns(tmp_path):
+    doc = config(tmp_path)["app"]["kuulas"]["document_type"]["kuulas"]
+    assert doc["extension"] == "kuulas"
+    assert doc["macOS"]["CFBundleTypeRole"] == "Editor"
+    # "Owner" is what makes Briefcase write an *exported* type declaration.
+    assert doc["macOS"]["LSHandlerRank"] == "Owner"
+    assert doc["macOS"]["LSItemContentTypes"] == ["fi.sulopuisto.kuulas.project"]
+    assert "com.apple.package" in doc["macOS"]["UTTypeConformsTo"]
+
+
+def test_identifiers_equal_the_wp72_launcher_apps(tmp_path):
+    # Two apps declare the same type; if they disagreed, Finder would use one at random.
+    assert f"{stage_bundle.BUNDLE}.{stage_bundle.APP_NAME}" == macapp.BUNDLE_ID
+    assert stage_bundle.UTI == macapp.UTI
+    assert stage_bundle.EXTENSION == macapp.EXTENSION
+    exported = macapp.plist_keys()["UTExportedTypeDeclarations"][0]
+    assert tuple(exported["UTTypeConformsTo"]) == stage_bundle.UTI_CONFORMS_TO
+
+
+def test_minimum_macos_is_what_numba_wheels_need(tmp_path):
+    assert config(tmp_path)["app"]["kuulas"]["macOS"]["min_os_version"] == "12.0"
+
+
+def test_the_microphone_reason_is_declared(tmp_path):
+    info = config(tmp_path)["app"]["kuulas"]["macOS"]["info"]
+    assert info["NSMicrophoneUsageDescription"]
+
+
+def test_stage_lays_out_a_self_contained_project(tmp_path):
+    out = stage_bundle.stage(REPO, tmp_path / "stage", wheels(tmp_path), "v1+abc")
+    assert (out / "src/kuulas/__main__.py").is_file()
+    assert (out / "src/kuulas/build_label.txt").read_text().strip() == "v1+abc"
+    assert (out / "src/ui/index.html").is_file()
+    assert (out / "icons/kuulas.icns").is_file()
+    assert (out / "LICENSE").is_file()
+    assert not (out / "src/ui/tests").exists()
+    assert not (out / "src/ui/biome.json").exists()
+    assert not list(out.rglob("__pycache__"))
+    parsed = tomllib.loads((out / "pyproject.toml").read_text())
+    version = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["version"]
+    assert parsed["tool"]["briefcase"]["version"] == version

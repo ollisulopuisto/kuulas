@@ -29,6 +29,7 @@ import uvicorn
 
 from .cli import HOST, bind_local, uvicorn_config
 from .messages import KuulasError, t
+from .openfiles import project_paths
 
 log = logging.getLogger("kuulas.desktop")
 
@@ -248,6 +249,11 @@ class Bridge:
         self._project: RunningProject | None = None
         self._runner = _spawn
 
+    @property
+    def project_folder(self) -> str | None:
+        """The project this window shows, or None on the launcher page."""
+        return None if self._project is None else self._project.folder
+
     # -- dialogs, for the page ---------------------------------------
 
     def _dialog(self, kind, **options) -> list[str]:
@@ -408,31 +414,169 @@ def _menu(bridge: Bridge) -> list:
             for m in localised_menu()]
 
 
+# -- several windows, and documents opened from Finder ---------------
+
+#: ``NSApplicationDelegateReplySuccess``: tells AppKit the files were handled.
+_REPLY_SUCCESS = 0
+
+
+def make_open_files_method(callback):
+    """The body of the delegate's ``application:openFiles:``. The event arrives on
+    the Cocoa main thread, which must not wait for a server to start, so the paths
+    go to ``callback`` on a worker thread; AppKit is told at once that they are
+    handled (a failure to open one is shown in the window, not by Finder)."""
+
+    def open_files(_self, nsapp, files):
+        paths = [str(f) for f in files]
+        threading.Thread(target=callback, args=(paths,), name="kuulas-open",
+                         daemon=True).start()
+        nsapp.replyToOpenOrPrint_(_REPLY_SUCCESS)
+
+    return open_files
+
+
+def install_open_files_hook(callback, platform: str | None = None, objc: Any = ...,
+                            delegate_class: Any = ...) -> bool:
+    """Make a double-clicked ``.kuulas`` folder reach ``callback(paths)``.
+
+    pywebview owns the Cocoa loop and its own app delegate, which does not
+    implement ``application:openFiles:``. Adding the method to that class (spiked in
+    a Briefcase bundle, 2026-10-19: at launch and while running) is enough; call
+    this before ``webview.start()``. True when installed; False off macOS or when
+    PyObjC is missing. Never raises: opening from the dialog still works."""
+    platform = sys.platform if platform is None else platform
+    if platform != "darwin":
+        return False
+    try:
+        if objc is ...:
+            import objc  # noqa: PLC0415
+        if delegate_class is ...:
+            from webview.platforms.cocoa import BrowserView  # noqa: PLC0415
+
+            delegate_class = BrowserView.AppDelegate
+        if objc is None or delegate_class is None:
+            return False
+        method = objc.selector(make_open_files_method(callback),
+                               selector=b"application:openFiles:", signature=b"v@:@@")
+        objc.classAddMethod(delegate_class, b"application:openFiles:", method)
+    except Exception as e:  # noqa: BLE001 - a missing hook must not stop the window
+        log.warning(t("log.desktop.open_hook_failed", error=str(e)))
+        return False
+    return True
+
+
+class WindowApp:
+    """The windows of one running app: the first is the launcher (or the project
+    given on the command line); a project opened later, from Finder or the Dock,
+    goes to the launcher window if it still shows the launcher, else to a new
+    window. A project already open is brought forward, never opened twice (two
+    servers on one project would fight over its lock). Documents that arrive
+    before the first window is up wait for :meth:`ready`."""
+
+    def __init__(self, webview, recents: Path, menu_factory=None) -> None:
+        self._webview = webview
+        self._recents = recents
+        self._menu_factory = menu_factory
+        self._lock = threading.RLock()
+        self._bridges: list[Bridge] = []
+        self._ready = False
+        self._pending: list[str] = []
+
+    def new_window(self, menu: bool = True) -> Bridge:
+        """A window on the launcher page. ``menu=False`` for the first one, whose
+        menu is the app menu given to ``webview.start``."""
+        bridge = Bridge(self._webview, self._recents)
+        options: dict[str, Any] = {}
+        if menu and self._menu_factory is not None:
+            options["menu"] = self._menu_factory(bridge)
+        window = self._webview.create_window(
+            window_title(None), html=launcher_html(bridge.recent()), js_api=bridge,
+            width=1400, height=900, min_size=(900, 600), **options)
+        bridge._window = window
+
+        def drop_handlers() -> None:
+            # Registered on every page load: a navigation replaces the document.
+            from webview.dom import DOMEventHandler  # noqa: PLC0415
+            window.dom.document.events.drop += DOMEventHandler(
+                bridge.dropped, prevent_default=True, stop_propagation=False)
+
+        def closed() -> None:
+            bridge.close()
+            with self._lock:
+                if bridge in self._bridges:
+                    self._bridges.remove(bridge)
+
+        window.events.loaded += drop_handlers
+        window.events.closed += closed
+        with self._lock:
+            self._bridges.append(bridge)
+        return bridge
+
+    def ready(self) -> None:
+        """The first window exists: open what arrived while it did not."""
+        with self._lock:
+            self._ready = True
+            pending, self._pending = self._pending, []
+        self.open_paths(pending)
+
+    def open_paths(self, paths) -> None:
+        """Open the projects among ``paths`` (any thread)."""
+        projects = project_paths(paths)
+        with self._lock:
+            if not self._ready:
+                self._pending.extend(projects)
+                return
+        for folder in projects:
+            self._open_one(folder)
+
+    def _open_one(self, folder: str) -> None:
+        log.info(t("log.desktop.opening", path=folder))
+        with self._lock:
+            for bridge in self._bridges:
+                if bridge.project_folder == folder:
+                    self._bring_forward(bridge)
+                    return
+            bridge = next((b for b in self._bridges if b.project_folder is None), None)
+        if bridge is None:
+            bridge = self.new_window()
+        bridge.open_project(folder)
+
+    @staticmethod
+    def _bring_forward(bridge: Bridge) -> None:
+        for name in ("restore", "show"):
+            try:
+                getattr(bridge._window, name)()
+            except Exception as e:  # noqa: BLE001 - best effort, window may be gone
+                log.debug("bring forward %s: %s", name, e)
+
+
+def _menu(bridge: Bridge) -> list:
+    from webview.menu import Menu, MenuAction, MenuSeparator  # noqa: PLC0415
+
+    def action(item):
+        return MenuAction(item["label"], lambda: bridge.menu(item["id"]))
+
+    return [Menu(m["label"], [MenuSeparator() if i is None else action(i)
+                              for i in m["items"]])
+            for m in localised_menu()]
+
+
 def run_window(folder: str | None = None) -> int:
     """Open the window (the launcher, or ``folder`` straight away) and block until
-    it closes. 1 with a message when the ``desktop`` extra is missing."""
+    the last window closes. 1 with a message when the ``desktop`` extra is missing."""
     webview = load_webview()
     if webview is None:
         print(t("desktop.missing_extra"), file=sys.stderr)
         return 1
-    bridge = Bridge(webview, recents_file())
-    bridge._window = window = webview.create_window(
-        window_title(folder), html=launcher_html(bridge.recent()),
-        js_api=bridge, width=1400, height=900, min_size=(900, 600))
-
-    def drop_handlers() -> None:
-        # Registered on every page load: a navigation replaces the document.
-        from webview.dom import DOMEventHandler  # noqa: PLC0415
-        window.dom.document.events.drop += DOMEventHandler(
-            bridge.dropped, prevent_default=True, stop_propagation=False)
-
-    window.events.loaded += drop_handlers
-    window.events.closed += bridge.close
+    app = WindowApp(webview, recents_file(), _menu)
+    bridge = app.new_window(menu=False)
+    install_open_files_hook(app.open_paths)
 
     def start() -> None:
         set_dock_icon()
         if folder is not None:
             bridge.open_project(folder)
+        app.ready()
 
     webview.start(start, menu=_menu(bridge), icon=str(icon_path("window")))
     bridge.close()

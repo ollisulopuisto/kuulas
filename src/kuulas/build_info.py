@@ -34,6 +34,17 @@ def _version(root: Path) -> str | None:
         return None
 
 
+def baked_label(package: Path | None = None) -> str | None:
+    """The label written into an app bundle when it was built (``build_label.txt``
+    beside the package): a bundle has no checkout to ask. None in a checkout."""
+    package = Path(__file__).resolve().parent if package is None else package
+    try:
+        text = (package / "build_label.txt").read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return text or None
+
+
 def _git(root: Path, *args: str) -> str | None:
     try:
         # Fixed git arguments from this file only, in the code's own checkout.
@@ -48,7 +59,11 @@ def _git(root: Path, *args: str) -> str | None:
 
 def build_label(root: Path | None = None) -> str:
     """``v<version>+<commit>[+dirty]`` (or just ``v<version>``, or ``unknown``)."""
-    root = root if root is not None else _repo_root()
+    if root is None:
+        baked = baked_label()
+        if baked:
+            return baked
+        root = _repo_root()
     version = _version(root) if root.exists() else None
     if version is None:
         return UNKNOWN

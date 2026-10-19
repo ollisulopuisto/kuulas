@@ -120,6 +120,8 @@
   "log.package.migrating": "Upgrading the project format from {source} to {target}; a backup is made first.",
   "log.package.tick_failed": "Lock heartbeat or backup failed, retrying later: {error}",
   "log.desktop.position_unknown": "The playhead could not be read when the window closed ({error}); the last saved position stays.",
+  "log.desktop.opening": "Opening project {path}",
+  "log.desktop.open_hook_failed": "Opening projects from Finder is not available ({error}); use Open in the window instead.",
   "log.session.subscriber_failed": "A listener for project changes failed; the change itself was saved.",
   "log.session.relinked": {
     "one": "Found {count} moved file again.",
@@ -449,6 +451,7 @@
   "desktop.menu.view.density": "Switch density",
   "desktop.menu.window.minimize": "Minimise",
   "cli.desktop.help": "Open the desktop window with a list of recent projects.",
+  "cli.selftest.help": "Check that this installation works (libraries, ffmpeg, UI files, a project and the server) without opening a window, then exit.",
   "cli.debug.help": "Print playback timings (callback, media reads, mixing) to stderr once a second.",
   "cli.open.window": "Open in a native window instead of the browser (needs the desktop extra).",
   "cli.import_nhsx.help": "Import a Hindenburg session (.nhsx) into a project, creating it if it does not exist.",

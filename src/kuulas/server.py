@@ -57,6 +57,7 @@ from .history import HistoryError
 from .media import ImportResult, MediaError
 from .messages import KuulasError, error_body, t
 from .ops import EditError
+from .paths import find_ui_dir
 from .peaks import PeakError
 from .playplan import PlaybackRequestError, check_loop, check_skip
 from .resume import merge_view, now_iso, read_resume
@@ -71,8 +72,9 @@ from .view_memory import ViewMemory, ViewMemoryError
 
 log = logging.getLogger("kuulas.server")
 
-#: The repository's ``ui/`` folder; served at ``/`` when it has an index.html.
-UI_DIR = Path(__file__).resolve().parents[2] / "ui"
+#: The ``ui/`` folder (repo, wheel or app bundle: ``paths.find_ui_dir``); served at
+#: ``/`` when it has an index.html.
+UI_DIR = find_ui_dir(__file__)
 #: How often the live channel looks at the engine while playing: the display
 #: rate, so the playhead moves as often as the screen can show it.
 LIVE_TICK_S = 1 / 30
