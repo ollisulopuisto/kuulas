@@ -22,3 +22,13 @@ def test_a_module_imports_first_without_locale_variables(module, tmp_path):
         [sys.executable, "-c", f"import {module}"], env=env,
         capture_output=True, text=True, timeout=120, check=False)
     assert done.returncode == 0, done.stderr[-800:]
+
+
+def test_the_language_is_not_looked_up_at_import(tmp_path):
+    """Looking it up on macOS runs `defaults read` (a subprocess): not at import time."""
+    code = ("import kuulas.messages as m; assert m._language is None; "
+            "m.language(); assert m._language is not None")
+    done = subprocess.run(  # noqa: S603 - our own interpreter, a fixed command
+        [sys.executable, "-c", code], env={**os.environ, "HOME": str(tmp_path)},
+        capture_output=True, text=True, timeout=120, check=False)
+    assert done.returncode == 0, done.stderr[-800:]
