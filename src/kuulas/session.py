@@ -240,11 +240,6 @@ def _sync_partners(groups: tuple[SyncGroup, ...]) -> dict[str, tuple[str, ...]]:
     return out
 
 
-def _range(args: dict) -> dict:
-    """The range target (tracks, start, end) of an op's arguments."""
-    return {"track_ids": args["track_ids"], "start": args["start"], "end": args["end"]}
-
-
 def _coalesce_key(name: str, args: dict) -> str | None:
     if name == "solo":
         return SOLO_KEY
@@ -254,12 +249,13 @@ def _coalesce_key(name: str, args: dict) -> str | None:
     return None
 
 
-#: Edit ops whose target ``Session.edit_target`` widens (WP19a), and the kind
-#: of time-shifting edit each one is.
-SCOPED_OPS = {
-    "cut_range": "cut", "ripple_delete": "close_gap", "ripple_trim": "ripple_trim",
-    "nudge_clips": "nudge", "move_clips_to_track": "move", "shift_clips": "move",
-}
+#: Edit ops that act on a rectangle of time by tracks (WP83): with no tracks
+#: given they act on all tracks.
+RANGE_OPS = frozenset({"cut_range", "clear_range", "mute_range", "ripple_delete"})
+
+#: Edit ops that move clips by id: the members of the clips' explicit groups go
+#: along (WP83). Sync partners never do.
+GROUPED_OPS = frozenset({"nudge_clips", "move_clips_to_track", "shift_clips"})
 
 #: How many steps back ``sync_cause`` looks for the edit that moved a clip.
 CAUSE_STEPS = 300
@@ -340,63 +336,22 @@ class Session:
         with self.lock:
             return self.history.state
 
-    # Group editing (WP19a, Mod+G) is session state, never history: toggling it
-    # edits nothing and undo does not touch it. On by default.
-    group_editing: bool = True
-
-    def set_group_editing(self, on: bool) -> bool:
-        self.group_editing = bool(on)
-        return self.group_editing
-
-    def edit_target(self, kind: str, target: dict,
-                    group_editing: bool | None = None) -> dict:
-        """What an edit of ``kind`` touches (``edit_scope.edit_target``): the
-        sync group's tracks or the clips' partners for time-shifting kinds,
-        exactly ``target`` otherwise. ``group_editing`` overrides the session's
-        switch for this one edit (the page sends its own)."""
-        with self.lock:
-            on = self.group_editing if group_editing is None else bool(group_editing)
-            return edit_scope.edit_target(self.history.state, None, kind, target, on)
-
     def _scoped(self, name: str, args: dict) -> tuple[dict, dict]:
-        """``(args for the op, args to record)`` for a time-shifting op: the
-        target widened by ``edit_target``, and ``group_editing`` written down so
-        that history can say why a clip drifted."""
-        kind = SCOPED_OPS.get(name)
-        if kind is None:
-            return args, args
-        state = self.history.state
-        on = args.get("group_editing")
-        on = self.group_editing if on is None else bool(on)
+        """``(args for the op, args to record)``. WP83: an edit touches what it
+        names, plus the members of the clips' explicit groups; sync partners are
+        never added, and the retired ``group_editing`` switch is dropped if an
+        older page still sends it. A range op with no tracks acts on all tracks."""
         rest = {k: v for k, v in args.items() if k != "group_editing"}
-        if name == "cut_range":
-            wide = self.edit_target(kind, {**_range(args)}, on)
-            rest["track_ids"] = wide["track_ids"]
-            rest["group_editing"] = on
-            return rest, {**rest}
-        if name == "ripple_delete":
-            if rest.get("track_ids") is not None:
-                wide = self.edit_target(kind, _range(rest), on)
-                rest["track_ids"] = wide["track_ids"]
-            return rest, {**rest, "group_editing": on}
-        if name == "ripple_trim":
-            clip, track = state.clip_and_track(rest["clip_id"])
-            wide = self.edit_target(kind, {"track_ids": [track.id], "start": clip.start,
-                                           "end": clip.end}, on)
-            rest["track_ids"] = wide["track_ids"]
-            return rest, {**rest, "group_editing": on}
-        # Clip sets: nudges and moves widen to partners. The ops widen again
-        # when group_editing is passed, which is harmless (partners of partners
-        # are the same set).
-        if name == "shift_clips":
-            if "group_editing" in args:
-                rest["clip_ids"] = self.edit_target(kind, {"clip_ids": rest["clip_ids"]},
-                                                    on)["clip_ids"]
-            return rest, {**rest, "group_editing": on}
-        wide = self.edit_target(kind, {"clip_ids": rest["clip_ids"]}, on)
-        rest["clip_ids"] = wide["clip_ids"]
-        rest["group_editing"] = on
-        return rest, {**rest}
+        if name in GROUPED_OPS and rest.get("clip_ids") is not None:
+            rest["clip_ids"] = edit_scope.expand_clips(self.history.state,
+                                                       rest["clip_ids"])
+        elif name in RANGE_OPS:
+            try:
+                rest["track_ids"] = edit_scope.range_tracks(self.history.state,
+                                                            rest.get("track_ids"))
+            except KeyError as e:
+                raise ops.EditError("error.edit.no_track", track_id=e.args[0]) from None
+        return rest, rest
 
     def sync_state(self, clip_id: str) -> sync_state.SyncState:
         with self.lock:
@@ -475,8 +430,8 @@ class Session:
                     if c.media == g.main]
 
     def partners_of(self, clip_ids: list[str]) -> dict[str, list[str]]:
-        """Clip id -> its partners' ids: the dashed outline around what a move of
-        the selection would take along (free clips are no one's partner)."""
+        """Clip id -> its sync partners' ids (free clips are no one's partner).
+        Knowledge only: no edit takes a partner along (WP83)."""
         with self.lock:
             state = self.history.state
             return {cid: [c.id for c in edit_scope.partners(state, None, cid)]
@@ -498,18 +453,15 @@ class Session:
 
     def sync_cause(self, clip_id: str) -> dict | None:
         """The history step that put ``clip_id`` out of sync, read from history:
-        ``{"label", "op", "group_editing", "track_id", "created"}``, or None when
-        the clip is not drifting (or the step is more than ``CAUSE_STEPS`` back).
-        ``group_editing`` is False when that edit ran with group editing off."""
+        ``{"label", "op", "track_id", "created"}``, or None when the clip is not
+        drifting (or the step is more than ``CAUSE_STEPS`` back)."""
         with self.lock:
             steps = self.history.recent(CAUSE_STEPS)
             index = sync_state.cause([p for _, p in steps], clip_id)
             if index is None:
                 return None
             row, project = steps[index]
-            args = (row["op"] or {}).get("args") or {}
             return {"label": row["label"], "op": (row["op"] or {}).get("name"),
-                    "group_editing": args.get("group_editing"),
                     "track_id": project.clip_and_track(clip_id)[1].id,
                     "created": row["created_utc"]}
 
@@ -874,68 +826,65 @@ class Session:
         return got
 
     def clipboard_copy(self, *, clip_ids=None, start=None, end=None, track_ids=None,
-                       group_editing: bool = False, name: str = "") -> dict:
-        """Copy the clips, or the stretch ``[start, end)`` of the tracks, to the
-        clipboard; ``group_editing`` takes the tracks' sync groups along, as a
-        Cut of the same range would. The project is not changed."""
+                       name: str = "") -> dict:
+        """Copy the clips, or the stretch ``[start, end)`` of the tracks (``None``:
+        all tracks), to the clipboard. The project is not changed."""
         project = self.state
         if clip_ids is not None:
             entry = make_entry(project, clip_ids, name=name)
         elif start is None or end is None:
             raise ops.EditError("error.edit.no_selection")
         else:
-            if track_ids is not None:
-                track_ids = edit_scope.expand_range(project, None, list(track_ids),
-                                                    int(start), int(end),
-                                                    bool(group_editing))
+            track_ids = self._range_scope(project, track_ids)
             entry = make_entry_range(project, int(start), int(end), track_ids, name=name)
         entry = self._describe(entry)
         self.clipboard.update(lambda h: h.add(entry))
         return {"entry": self._entry_view(entry, project)}
 
-    def clipboard_cut(self, *, start: int, end: int, track_ids,
-                      group_editing: bool = False, name: str = "",
-                      label: str | None = None) -> dict:
+    @staticmethod
+    def _range_scope(project: Project, track_ids) -> list[str]:
+        """``edit_scope.range_tracks`` with an unknown track as an ``EditError``."""
+        try:
+            return edit_scope.range_tracks(project, track_ids)
+        except KeyError as e:
+            raise ops.EditError("error.edit.no_track", track_id=e.args[0]) from None
+
+    def clipboard_cut(self, *, start: int, end: int, track_ids=None,
+                      name: str = "", label: str | None = None) -> dict:
         """Cut (X): ripple-delete ``[start, end)`` and keep what went on the
         clipboard. One undo step for the removal. A copy that fails (nothing
         under the range, a full disk) is logged and reported in the result, and
         never stops the cut: the user's edit comes first."""
         return self._cut_to_clipboard("clipboard_cut", ops.cut_range, start=start,
-                                      end=end, track_ids=track_ids,
-                                      group_editing=group_editing, name=name,
+                                      end=end, track_ids=track_ids, name=name,
                                       label=label or t("history.clipboard_cut"))
 
-    def clipboard_lift_cut(self, *, start: int, end: int, track_ids,
-                           group_editing: bool = False, name: str = "",
-                           label: str | None = None) -> dict:
+    def clipboard_lift_cut(self, *, start: int, end: int, track_ids=None,
+                           name: str = "", label: str | None = None) -> dict:
         """Lift-cut (Alt+X): copy ``[start, end)`` to the clipboard and delete it, leaving
         the gap (nothing moves; one undo step restores it). Same targets and failure rule
         as ``clipboard_cut``."""
         return self._cut_to_clipboard("clipboard_lift_cut", ops.clear_range, start=start,
-                                      end=end, track_ids=track_ids,
-                                      group_editing=group_editing, name=name,
+                                      end=end, track_ids=track_ids, name=name,
                                       label=label or t("history.clipboard_lift_cut"))
 
     def _cut_to_clipboard(self, op_name: str, remove: Callable, *, start: int, end: int,
-                          track_ids, group_editing: bool, name: str,
-                          label: str) -> dict:
+                          track_ids, name: str, label: str) -> dict:
         start, end = int(start), int(end)
         with self.lock:
             project = self.history.state
-            scope = edit_scope.expand_range(project, None, list(track_ids), start, end,
-                                            bool(group_editing))
+            scope = self._range_scope(project, track_ids)
             entry, problem = None, None
             try:
                 entry = self._describe(
                     make_entry_range(project, start, end, scope, name=name))
             except KuulasError as e:
                 problem = t(e.key, **e.params)
-            new = remove(project, start, end, track_ids, bool(group_editing))
+            new = remove(project, start, end, scope)
             self.history.commit(label, new,
                                 op={"name": op_name,
                                     "args": {"start": start, "end": end,
-                                             "track_ids": list(track_ids),
-                                             "group_editing": bool(group_editing)}})
+                                             "track_ids": list(scope)}})
             self._changed()
         if entry is not None:
             try:
@@ -969,17 +918,14 @@ class Session:
                     break
 
     def clipboard_paste(self, entry_id: str, *, at: int, mode: str = "insert",
-                        target_tracks=None, group_editing: bool = True,
-                        label: str | None = None) -> dict:
+                        target_tracks=None, label: str | None = None) -> dict:
         """Paste an entry at frame ``at`` as one undo step; ``mode`` is
         ``insert`` (ripple) or ``overwrite``. ``target_tracks`` maps the
         entry's track slots to track ids (``None``: the same tracks). Media
         the project lacks are reported in ``missing`` and their clips left
         out; a paste that places nothing commits nothing. An insert is a
-        time-shifting edit (WP19a): with ``group_editing`` (the default) it
-        ripples every track ``edit_scope.expand_range`` names for the target
-        tracks, so a sync group stays in step; the tracks that only shift get
-        no clips."""
+        time-shifting edit: it ripples the target tracks only (WP83: a sync group
+        is not a scope)."""
         entry = self._entry(entry_id)
         self._link_missing_media(entry)
         mapping = (None if target_tracks is None
@@ -993,22 +939,19 @@ class Session:
             if not plan.placements:
                 return report
             landed = set(_targets(project, entry, mapping).values())
-            if mode == "insert":
-                landed |= set(edit_scope.expand_range(
-                    project, None, sorted(landed), at, at + plan.shift,
-                    bool(group_editing)))
             new = apply_paste(project, entry, plan, at, landed, mode)
             self.history.commit(
                 label or t("history.clipboard_paste"), new,
                 op={"name": "clipboard_paste",
                     "args": {"entry_id": entry.id, "at": at, "mode": mode,
-                             "target_tracks": target_tracks,
-                             "group_editing": bool(group_editing)}})
+                             "target_tracks": target_tracks}})
             self._changed()
         return report
 
     def clipboard_edit(self, op: str, args: dict, label: str | None = None) -> dict:
-        """``/api/edit``'s door to the edits that touch the clipboard."""
+        """``/api/edit``'s door to the edits that touch the clipboard. The retired
+        ``group_editing`` switch (WP83) is ignored if an older page sends it."""
+        args = {k: v for k, v in args.items() if k != "group_editing"}
         try:
             if op == "clipboard_cut":
                 return self.clipboard_cut(**args, label=label)["clipboard"]
@@ -2654,21 +2597,17 @@ def _cut_words(s: Session, args: dict) -> Project:
         raise ops.EditError("error.session.bad_word_index", index=chosen[-1],
                             count=len(words))
     start, end = transcript.cut_range(words, chosen)
-    # The tracks the words were spoken on, widened to their sync group when
-    # group editing is on (WP19a); music and other ungrouped tracks follow the old
-    # rule only when a word's own track is ungrouped.
-    seeds = args.get("track_ids") or sorted({words[i]["track"] for i in chosen})
-    scope = s.edit_target("cut_words", {"track_ids": seeds, "start": start, "end": end},
-                          args.get("group_editing"))["track_ids"]
+    # The tracks given (the track scope of WP83), else all tracks, so the speakers
+    # stay together.
+    scope = s._range_scope(s.history.state, args.get("track_ids"))
     new = ops.ripple_delete(s.history.state, start, end, scope)
     quoted = " ".join(words[i]["w"] for i in chosen[:LABEL_WORDS])
     if len(chosen) > LABEL_WORDS:
         quoted += "…"
-    on = args.get("group_editing")
-    on = s.group_editing if on is None else bool(on)
     # The range goes in the step so the statistics (WP70) can say how much time was cut.
+    rest = {k: v for k, v in args.items() if k != "group_editing"}
     return s._commit(t("history.cut_words", text=quoted), new, "cut_words",
-                     {**args, "start": start, "end": end, "group_editing": on})
+                     {**rest, "track_ids": scope, "start": start, "end": end})
 
 
 def _sync_outcome(before: Project, ids: list[str], new: Project) -> dict:
@@ -2896,7 +2835,7 @@ def _placeholder_take(s: Session, args: dict) -> Project:
     if not result.ok:
         raise result.error
     new = ops.replace_placeholder(s.history.state, placeholder_id, result.media.id,
-                                  offset, bool(args.get("group_editing", True)))
+                                  offset, args.get("track_ids"))
     return s._commit(t("history.placeholder_take"), new, "placeholder_take", args)
 
 

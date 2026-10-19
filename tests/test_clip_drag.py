@@ -52,50 +52,19 @@ def test_selection_keeps_its_shape_when_one_clip_hits_the_edge():
     assert where(p, "cm") == ("M", 0)
 
 
-def test_partners_follow_in_time_only_when_group_editing():
-    p = ops.move_clips_to_track(project(), ["ca"], 0, delta=S // 2, group_editing=True)
-    assert where(p, "cv") == ("V", S // 2)
-    p = ops.move_clips_to_track(project(), ["ca"], 0, delta=S // 2, group_editing=False)
+def test_sync_partners_never_follow():
+    p = ops.move_clips_to_track(project(), ["ca"], 0, delta=S // 2)
+    assert where(p, "ca") == ("A", S // 2)
     assert where(p, "cv") == ("V", 0)
+
+
+def test_an_explicit_group_moves_together_in_time_and_track():
+    p = ops.group_clips(project(), ["ca", "cv"])
+    p = ops.move_clips_to_track(p, ["ca"], 1, delta=S // 2)
+    assert where(p, "ca") == ("V", S // 2)
+    assert where(p, "cv") == ("M", S // 2)
 
 
 def test_never_before_zero():
     p = ops.move_clips_to_track(project(), ["ca"], 0, delta=-S)
     assert where(p, "ca") == ("A", 0)
-
-
-def test_anchor_alone_changes_track_when_group_editing():
-    """Owner bug (M1 step 7): the partner in the selection must not change track."""
-    p = ops.move_clips_to_track(
-        project(), ["ca", "cv"], 1, delta=S // 2, group_editing=True, anchor_clip_id="cv")
-    assert where(p, "cv") == ("M", S // 2)  # the grabbed clip: track 2 -> 3
-    assert where(p, "ca") == ("A", S // 2)  # the partner: own track, same time shift
-
-
-def test_anchor_drop_overwrites_the_clip_on_the_target_track():
-    p = ops.move_clips_to_track(
-        project(), ["ca", "cv"], 1, group_editing=True, anchor_clip_id="cv")
-    assert where(p, "cv") == ("M", 0)
-    assert where(p, "cm") is None  # covered whole by the dropped clip
-    assert where(p, "ca") == ("A", 0)
-
-
-def test_anchor_direction_is_clamped_by_the_anchor_only():
-    # The anchor is on the first track: it cannot go up, and the partner stays put too.
-    p = ops.move_clips_to_track(
-        project(), ["ca", "cv"], -1, group_editing=True, anchor_clip_id="ca")
-    assert where(p, "ca") == ("A", 0)
-    assert where(p, "cv") == ("V", 0)
-    # Dropped on the partner's track, the anchor overwrites it.
-    p = ops.move_clips_to_track(
-        project(), ["ca", "cv"], 1, group_editing=True, anchor_clip_id="ca")
-    assert where(p, "ca") == ("V", 0)
-    assert where(p, "cv") is None
-
-
-def test_anchor_is_ignored_without_group_editing():
-    p = ops.move_clips_to_track(
-        project(), ["ca", "cv"], 1, group_editing=False, anchor_clip_id="cv")
-    assert where(p, "ca") == ("V", 0)
-    assert where(p, "cv") == ("M", 0)
-

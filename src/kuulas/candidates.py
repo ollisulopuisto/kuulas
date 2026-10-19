@@ -649,10 +649,18 @@ def mark(p: Project, start: int, end: int, track_id: str | None = None) -> Candi
 
 def _scope(p: Project, c: Candidate, base: list[str], a: int, b: int,
            mode: str) -> list[str]:
-    """WP19a's track set for one span: a soft cut widens to the sync group
-    only for a group candidate; a ripple always keeps groups together."""
-    return edit_scope.expand_range(p, None, base, a, b,
-                                   mode == "ripple" or c.scope == "group")
+    """The track set for one span (WP83): a ripple cut is a range cut, so it takes
+    every track (``edit_scope.range_tracks``) and nothing slips out of step; a soft
+    cut mutes the tracks that play the candidate, plus, for a group candidate, the
+    tracks that carry its sync group's recordings (the same sound, heard on each)."""
+    if mode == "ripple":
+        return edit_scope.range_tracks(p)
+    if c.scope != "group":
+        return list(base)
+    carried = {tr.id for tr in p.tracks for cl in tr.clips
+               if (g := p.sync_group(cl.media)) is not None
+               and g.main == c.media and cl.start < b and cl.end > a}
+    return [tr.id for tr in p.tracks if tr.id in carried or tr.id in base]
 
 
 def default_tracks(p: Project, c: Candidate, mode: str = "soft",
@@ -692,10 +700,9 @@ def apply_plan(p: Project, c: Candidate, tracks: Iterable[str] | None = None,
     ``ops.mute_range`` and leaves the gap. ``ripple`` (Cut) removes it with
     ``ops.cut_range``, last span first so the earlier ones stay where they
     are. ``tracks``: where to apply (default: the tracks that play the
-    candidate's recording). The track set is widened by WP19a's rule
-    (``edit_scope.expand_range``): a group candidate covers its whole sync
-    group, and a ripple always keeps a group together and moves tracks in no
-    group with it, so nothing slips out of step.
+    candidate's recording). The track set follows ``_scope``: a group candidate
+    covers its whole sync group's tracks, and a ripple takes every track, so
+    nothing slips out of step.
     """
     if mode not in MODES:
         raise CandidateError("error.candidates.bad_mode", mode=mode)
