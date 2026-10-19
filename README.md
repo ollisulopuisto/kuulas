@@ -21,6 +21,19 @@ kuulas is a local multitrack audio editor for spoken word (podcasts, interviews,
 
 kuulas requires Python 3.13 and `uv`. Audio decoding uses ffmpeg (`brew install ffmpeg` on macOS). kuulas needs the podcast repo checked out next to it at `../podcast` because `speechmix` and `nhsx` are path dependencies.
 
+From any folder, without `cd`ing to the repo (tested 2026-10-19 from the home folder):
+
+```bash
+K=~/Documents/koodi/kuulas
+uvx --from "$K[desktop]" --with-editable "$K[desktop]" kuulas desktop
+```
+
+The `--with-editable` part is needed: the UI files (`ui/`) are read from the repository, and a plain
+`uvx --from <folder>` installs a copy in uv's cache where `ui/` does not exist (the window then shows only
+a placeholder page). `speechmix` and `nhsx` are found through the repo's `../podcast` paths, so the podcast
+checkout must still sit next to it. A shell alias makes it one word:
+`alias kuulas='uvx --from "$K[desktop]" --with-editable "$K[desktop]" kuulas'`.
+
 To inspect or open a project (created automatically if missing):
 
 ```bash
