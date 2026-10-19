@@ -2,6 +2,7 @@
 // scrim, the timeline stays live (GUI-DESIGN 3.9). Rows are pure data (tested);
 // the DOM part below only draws them.
 
+import { matchCommand } from "./command-search.js";
 import { fuzzyMatch } from "./fuzzy.js";
 
 /**
@@ -18,6 +19,8 @@ export function paletteRows({
   format,
   platform,
   recent = [],
+  otherLabels = [],
+  synonymsFor = () => [],
 }) {
   const rows = [];
   // "Recent" first when the query is empty (GUI-DESIGN 3.9): commands that still exist
@@ -32,16 +35,25 @@ export function paletteRows({
   }
   entries.forEach((entry, order) => {
     const text = label(entry.labelKey);
-    let match = fuzzyMatch(query.trim(), text);
-    if (!match) {
-      // Not recalling the name: the one-line hint says what the command does, so a word from
-      // it finds the command too, ranked below label matches and with no letters lit.
-      const hintKey = registry.hintKey?.(entry.id);
-      const hint = hintKey ? label(hintKey) : "";
-      const viaHint = hint && hint !== hintKey ? fuzzyMatch(query.trim(), hint) : null;
-      if (!viaHint) return;
-      match = { indices: [], score: viaHint.score - 1000 };
-    }
+    // The same matching as Help search (command-search.js): name in either language, every word
+    // of the query, a word of the hint, a synonym. Letters in order (the palette's old habit)
+    // still find a command, below all of those.
+    const hintKey = registry.hintKey?.(entry.id);
+    const hints = [hintKey, ...otherLabels.map(() => hintKey)]
+      .map((key, i) => (key ? (i === 0 ? label(key) : otherLabels[i - 1](key)) : ""))
+      .filter((hint) => hint && hint !== hintKey);
+    const names = [text, ...otherLabels.map((other) => other(entry.labelKey))].filter(
+      (name, i) => name && (i === 0 || name !== entry.labelKey),
+    );
+    const found = matchCommand({ names, hints, synonyms: synonymsFor(entry.id) }, query.trim());
+    const fuzzy = fuzzyMatch(query.trim(), text);
+    if (!found && !fuzzy) return;
+    // Letters are lit only where the typed text is in the name itself.
+    const nameHit = found ? found.tier >= 50 : true;
+    const match = {
+      indices: nameHit && fuzzy ? fuzzy.indices : [],
+      score: found ? found.score : fuzzy.score - 100000,
+    };
     const planned = registry.status(entry.id) !== "ready";
     const enabled = !planned && registry.can(entry.id, state);
     rows.push({

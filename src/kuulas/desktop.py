@@ -153,6 +153,10 @@ def menu_model() -> list[dict[str, Any]]:
             _item("view.zoom_in"), _item("view.zoom_out"), None, _item("view.density")]},
         {"id": "window", "label": "desktop.menu.window", "items": [
             _item("window.minimize")]},
+        # A native menu cannot hold a text field (WP75), so Help's search is an item that
+        # asks the page to open the same search as a panel over the window.
+        {"id": "help", "label": "desktop.menu.help", "items": [
+            _item("help.search")]},
     ]
 
 

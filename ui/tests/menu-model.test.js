@@ -5,6 +5,7 @@ import { setCatalogs, setLanguageNow } from "../i18n.js";
 import { resolveKeymap } from "../keymap-config.js";
 import { DEFAULT_KEYMAP } from "../keymap-default.js";
 import {
+  findItem,
   fitMenus,
   MENU,
   menuTargets,
@@ -159,14 +160,26 @@ describe("resolving a menu", () => {
     assert.ok(menus.find((m) => m.id === "edit").items.some((i) => i.kind === "separator"));
   });
 
-  test("Help for this is first in Help, always enabled, with its key and a remap", () => {
-    const items = (overrides) => make({ overrides }).find((m) => m.id === "help").items;
+  test("Help for this follows the search field in Help, always enabled, with its key and a remap", () => {
+    // WP75: the search field is the first item of Help; Help for this is the first command after it.
+    const items = (overrides) =>
+      make({ overrides })
+        .find((m) => m.id === "help")
+        .items.filter((i) => i.kind === "item");
     assert.equal(items()[0].id, "help.open");
     assert.equal(items()[0].label, "Help for this");
     assert.equal(items()[0].enabled, true);
     assert.equal(items()[0].keys, "F1");
     assert.equal(items({ "help.open": "F3" })[0].keys, "F3");
     assert.equal(items()[1].id, "help.keys");
+  });
+
+  test("the search field is the first item of Help, a command with its key (WP75)", () => {
+    const help = make().find((m) => m.id === "help");
+    assert.equal(help.items[0].kind, "search");
+    assert.equal(help.items[0].id, "help.search");
+    assert.equal(help.items[0].keys, "Ctrl+/");
+    assert.ok(menuTargets(MENU).includes("help.search"), "the coverage test sees it as in a menu");
   });
 
   test("a menu title is its message key", () => {
@@ -271,5 +284,35 @@ describe("menus that do not fit the bar", () => {
     );
     assert.equal(moveItem(more.items, -1, 1), 1); // first real item, not the caption
     assert.equal(moveItem(more.items, 2, 1), 4);
+  });
+});
+
+describe("finding an item in the resolved menus (Alt+Enter in Help search)", () => {
+  test("a top-level item gives its menu and position", () => {
+    const menus = make();
+    const at = findItem(menus, "edit.undo");
+    assert.equal(menus[at.top].id, "edit");
+    assert.equal(menus[at.top].items[at.item].baseId, "edit.undo");
+    assert.equal(at.sub, -1);
+  });
+  test("an item inside a submenu gives the submenu's position and its own", () => {
+    const menus = make();
+    const at = findItem(menus, "export.subtitles_srt");
+    assert.equal(menus[at.top].id, "file");
+    const sub = menus[at.top].items[at.item];
+    assert.equal(sub.kind, "submenu");
+    assert.equal(sub.items[at.sub].baseId, "export.subtitles_srt");
+  });
+  test("a command in no menu, or an alias, is not found", () => {
+    assert.equal(findItem(make(), "export.mix_wav"), null);
+    assert.equal(findItem(make(), "no.such"), null);
+  });
+  test("it also finds an item inside the overflow menu", () => {
+    const menus = make();
+    const more = overflowMenu(menus.slice(1), "…");
+    const shown = [menus[0], more];
+    const at = findItem(shown, "edit.undo");
+    assert.equal(shown[at.top].id, "overflow");
+    assert.equal(shown[at.top].items[at.item].baseId, "edit.undo");
   });
 });

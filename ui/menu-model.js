@@ -9,6 +9,9 @@ import { modifierLayers, pickLayer } from "./modifiers.js";
 
 const item = (id) => ({ kind: "item", id });
 const SEP = { kind: "separator" };
+// The search field of the Help menu (WP75). It names its command so the menu-coverage rule holds;
+// the menu bar draws a text field for it instead of a button (menubar.js).
+const search = (id) => ({ kind: "search", id });
 const submenu = (labelKey, items) => ({ kind: "submenu", labelKey, items });
 
 /**
@@ -372,6 +375,8 @@ export const MENU = [
     id: "help",
     labelKey: "menu.help",
     items: [
+      search("help.search"),
+      SEP,
       item("help.open"),
       item("help.keys"),
       {
@@ -388,7 +393,7 @@ export function menuTargets(menu) {
   const ids = [];
   const walk = (items) => {
     for (const entry of items) {
-      if (entry.kind === "item") ids.push(entry.id);
+      if (entry.kind === "item" || entry.kind === "search") ids.push(entry.id);
       else if (entry.kind === "submenu") walk(entry.items);
     }
   };
@@ -436,6 +441,7 @@ export function resolveMenu({ menu, entries, registry, state, label, platform, h
       if (entry.kind === "submenu") {
         return { kind: "submenu", label: label(entry.labelKey), items: resolveItems(entry.items) };
       }
+      if (entry.kind === "search") return { ...resolveItem(entry.id), kind: "search" };
       return resolveItem(entry.id);
     });
   }
@@ -445,6 +451,26 @@ export function resolveMenu({ menu, entries, registry, state, label, platform, h
     label: label(top.labelKey),
     items: resolveItems(top.items),
   }));
+}
+
+/**
+ * Where a command sits in the menus as drawn (resolved, possibly with the "…" overflow menu):
+ * { top, item, sub } with sub -1 for an item that is not inside a submenu, else null.
+ */
+export function findItem(menus, id) {
+  const is = (entry) => entry.kind === "item" && (entry.baseId === id || entry.id === id);
+  for (let top = 0; top < menus.length; top++) {
+    const items = menus[top].items;
+    for (let item = 0; item < items.length; item++) {
+      const entry = items[item];
+      if (is(entry)) return { top, item, sub: -1 };
+      if (entry.kind === "submenu") {
+        const sub = entry.items.findIndex(is);
+        if (sub >= 0) return { top, item, sub };
+      }
+    }
+  }
+  return null;
 }
 
 /** Up/Down: the next item that is not a separator, wrapping. From -1 (nothing) Down is first. */

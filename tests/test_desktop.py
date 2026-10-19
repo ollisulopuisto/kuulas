@@ -100,11 +100,11 @@ def test_window_title_uses_the_project_name():
 
 def test_menu_model_has_the_planned_menus_and_unique_ids():
     menus = desktop.menu_model()
-    assert [m["id"] for m in menus] == ["file", "edit", "view", "window"]
+    assert [m["id"] for m in menus] == ["file", "edit", "view", "window", "help"]
     ids = [i["id"] for m in menus for i in m["items"] if i is not None]
     assert len(ids) == len(set(ids))
     wanted = {"file.open", "file.import", "file.export", "edit.undo", "edit.redo",
-              "view.zoom_in", "view.zoom_out", "view.density"}
+              "view.zoom_in", "view.zoom_out", "view.density", "help.search"}
     assert wanted <= set(ids)
 
 

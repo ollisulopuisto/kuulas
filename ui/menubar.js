@@ -9,9 +9,9 @@
 // the menu and returns to the bar. Disabled items are focusable (they teach) but
 // do nothing. No mnemonics.
 
-import { fitMenus, moveItem, moveMenu, overflowMenu } from "./menu-model.js";
+import { findItem, fitMenus, moveItem, moveMenu, overflowMenu } from "./menu-model.js";
 
-export function createMenubar({ root, getMenus, run, onHint, t }) {
+export function createMenubar({ root, getMenus, run, onHint, t, search = null }) {
   // open: whether a menu is dropped down; top: which; item/sub: positions inside it.
   const at = { open: false, top: 0, item: -1, subOpen: false, sub: -1 };
   let wantFocus = false; // one-shot: focus the current item after the next render
@@ -91,6 +91,16 @@ export function createMenubar({ root, getMenus, run, onHint, t }) {
         ul.append(li);
         return;
       }
+      if (item.kind === "search" && search) {
+        // WP75: the Help menu's first item is a text field (command-search-ui.js). Its own keys
+        // are the field's; the bar's handler below leaves them alone.
+        li.className = "menu-search";
+        search.element.dataset.pos = `${isSub ? "s" : "i"}${index}`;
+        li.append(search.element);
+        ul.classList.add("has-search");
+        ul.append(li);
+        return;
+      }
       const button = document.createElement("button");
       button.type = "button";
       button.className = "menu-item";
@@ -141,6 +151,11 @@ export function createMenubar({ root, getMenus, run, onHint, t }) {
     if (at.open && at.subOpen && at.sub >= 0) selector = `[data-pos="s${at.sub}"]`;
     else if (at.open && at.item >= 0) selector = `[data-pos="i${at.item}"]`;
     const element = root.querySelector(selector);
+    if (element === search?.element) {
+      search.focus();
+      onHint?.(null);
+      return;
+    }
     element?.focus();
     reportHint(element);
   }
@@ -150,6 +165,7 @@ export function createMenubar({ root, getMenus, run, onHint, t }) {
   }
 
   function close(returnFocus = true) {
+    search?.reset();
     at.open = false;
     at.item = -1;
     at.subOpen = false;
@@ -160,14 +176,49 @@ export function createMenubar({ root, getMenus, run, onHint, t }) {
     if (!returnFocus) onHint?.(null);
   }
 
-  function openMenu(index, { first = false } = {}) {
+  function openMenu(index, { first = false, item = null } = {}) {
+    // A fresh query each time the menu with the search field is opened.
+    if (!(at.open && at.top === index)) search?.reset();
     at.top = index;
     at.open = true;
     at.subOpen = false;
     at.sub = -1;
-    at.item = first ? moveItem(currentItems(effective()), -1, 1) : -1;
+    const items = currentItems(effective());
+    at.item = first ? moveItem(items, -1, 1) : -1;
+    // The Help menu opens with the cursor in its search field, whichever way it was opened.
+    if (items[0]?.kind === "search") at.item = 0;
+    if (item !== null) at.item = item;
     wantFocus = true;
     render();
+  }
+
+  /** Open the menu that holds the search field and put the cursor in it (the Help search key). */
+  function openSearch() {
+    if (!search) return false;
+    const menus = effective();
+    const top = menus.findIndex((menu) => menu.items.some((entry) => entry.kind === "search"));
+    if (top < 0) return false;
+    openMenu(top, { item: menus[top].items.findIndex((entry) => entry.kind === "search") });
+    return true;
+  }
+
+  /** Alt+Enter in the search: open the command's own menu and highlight its item. */
+  function reveal(id) {
+    if (!findItem(effective(), id)) return false;
+    search?.reset();
+    at.open = true;
+    render();
+    // Drawing may have moved menus behind "…"; find the place again as drawn.
+    const place = findItem(effective(), id);
+    if (!place) return false;
+    at.top = place.top;
+    at.open = true;
+    at.item = place.item;
+    at.subOpen = place.sub >= 0;
+    at.sub = place.sub;
+    wantFocus = true;
+    render();
+    return true;
   }
 
   function activate() {
@@ -176,6 +227,7 @@ export function createMenubar({ root, getMenus, run, onHint, t }) {
     const inSub = at.subOpen && at.sub >= 0;
     const item = inSub ? items[at.item]?.items[at.sub] : items[at.item];
     if (!item) return;
+    if (item.kind === "search") return; // Enter in the field is the field's (command-search-ui.js)
     if (item.kind === "submenu") {
       at.subOpen = true;
       at.sub = moveItem(item.items, -1, 1);
@@ -188,6 +240,8 @@ export function createMenubar({ root, getMenus, run, onHint, t }) {
   }
 
   root.addEventListener("keydown", (event) => {
+    // Typing in the search field is the field's: no arrows, Space or letters are the bar's.
+    if (search?.element.contains(event.target)) return;
     if (event.ctrlKey || event.metaKey || event.altKey) return;
     const menus = effective();
     const key = event.key;
@@ -310,10 +364,35 @@ export function createMenubar({ root, getMenus, run, onHint, t }) {
     if (spacer) observer.observe(spacer);
   }
 
+  search?.setHooks({
+    // Esc in the field: back to the title, as Esc in any menu. Enter or Tab: the menu is done.
+    close: ({ restoreFocus }) => close(restoreFocus),
+    // An arrow key the field has no use for moves on in the bar.
+    exit(key) {
+      const menus = effective();
+      const items = currentItems(menus);
+      if (key === "ArrowDown" || key === "ArrowUp") {
+        at.item = moveItem(items, at.item, key === "ArrowDown" ? 1 : -1);
+        wantFocus = true;
+        render();
+      } else
+        openMenu(moveMenu(menus.length, at.top, key === "ArrowRight" ? 1 : -1), { first: true });
+    },
+  });
+
   render();
   return {
     isOpen: () => at.open,
-    /** Redraw from live data (a modifier went down or up, a key was remapped, the state changed). */
-    refresh: render,
+    openSearch,
+    reveal,
+    /**
+     * Redraw from live data (a modifier went down or up, a key was remapped, the state changed).
+     * While the cursor is in the search field the menu stays as it is, so typing is never
+     * interrupted; only the results are searched again.
+     */
+    refresh() {
+      if (search?.isFocused()) search.refresh();
+      else render();
+    },
   };
 }
