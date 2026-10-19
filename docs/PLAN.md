@@ -1153,6 +1153,23 @@ own direct monitoring; (2) the recorded files live **inside the `.kuulas` folder
 one self-contained thing (Dropbox syncs them: documented); (3) **the recorder is a separate process from the very
 first version**; (4) the microphone permission is fine (the .dmg app already carries the usage text; a development
 run from a terminal needs the terminal to be allowed).
+**Stop rule (owner, 2026-10-19, replaces the 2-second hold as the default):** "I find it's too easy to stop
+recording." Stopping is a **two-step stop** by default: the first Space or click does not stop, it asks "Stop
+recording? Press again" (recording continues, a countdown of about 4 seconds), and a second press within the window
+stops; if the window runs out nothing happened. A user preference "Stopping a recording" has three values: two
+steps (default), one click, and hold 2 s (the state machine in `ui/hold-stop.js`). Esc, closing the window and
+clicking elsewhere never stop a take.
+**WP12c (proposed): speculative recording / pre-roll** (owner idea 2026-10-19: "like video cameras: you are
+actually rolling into a one-minute buffer, and when you press record you start from that; you can never start
+recording too late"). While armed, the recorder listens and keeps the last N seconds (default 30 or 60, a setting,
+0 = off) in a ring buffer in memory; when Record is pressed the buffered audio is written first and the take starts
+that many seconds earlier on the recording clock; the clip is placed so the pre-roll ends where Record was pressed
+(clamped at the start of the timeline, the pre-roll trimmed, and what is under it is overwritten as for any import,
+undoable). Costs: a small memory buffer (a minute of 48 kHz 24-bit mono is about 8 MB per channel); the input device
+is open while armed, so an unmistakable "Armed: listening, not recording" indicator is needed (privacy: nothing is
+written to disk until Record, and the buffer is discarded on disarm, quit or crash); a short pre-roll audio of
+chatter before Record is in the take, which is the point. The recorder's worker already owns a ring buffer, so it
+fits the architecture; the protocol gets `arm`/`disarm` and `start` takes a `preroll_s`. Not in the first version.
 **WP12a parts, in order:** (A) `kuulas_recorder`, the standalone recorder program: protocol, progressive WAV
 files, journal, supervisor, tests with a fake audio source, `docs/RECORDER.md` (Opus: the architecture-critical
 part); (B) the editor side: device list, a client, "record a take onto a track", importing the finished or
