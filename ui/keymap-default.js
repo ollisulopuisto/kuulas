@@ -1072,6 +1072,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.export.automix",
   },
   {
+    id: "app.statistics",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.app.statistics",
+  },
+  {
     id: "export.regions",
     keys: { mac: null, other: null },
     context: "global",

@@ -1,10 +1,12 @@
-"""The ``kuulas`` command: ``info <folder>`` (WP29), ``open <folder>`` (WP3),
+"""The ``kuulas`` command: ``info <folder>`` (WP29), ``stats <folder>`` (WP70),
+``open <folder>`` (WP3),
 ``import-nhsx <file> <folder>`` (WP13) and, without arguments, the desktop window
 (WP15)."""
 
 from __future__ import annotations
 
 import argparse
+import json
 import socket
 import sys
 import threading
@@ -36,6 +38,28 @@ def info(folder: str) -> int:
         print(t("cli.info.size", name=name, size_mb=_mb(size)))
     print(t("cli.info.media", **data["media"]))
     print(t("cli.info.backups", count=data["backups"]))
+    return 0
+
+
+def stats(folder: str, as_json: bool = False) -> int:
+    """Print the session's statistics (WP70) without opening a window or taking
+    the project's lock: the history is read-only, so a project open elsewhere is fine."""
+    from . import project_stats  # noqa: PLC0415
+    from .history import History  # noqa: PLC0415
+
+    path = Path(folder).expanduser()
+    manifest = package.read_manifest(path) if path.is_dir() else None
+    if manifest is None or manifest.get("format") != package.FORMAT_NAME:
+        raise KuulasError("error.package.not_a_project", path=folder)
+    history = History(path / "project.sqlite", read_only=True)
+    try:
+        data = project_stats.gather(history, path)
+    finally:
+        history.close()
+    if as_json:
+        print(json.dumps(data, indent=2, ensure_ascii=False))
+    else:
+        print(project_stats.to_text(data, t("stats.title", name=path.stem)), end="")
     return 0
 
 
@@ -178,6 +202,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911
     desktop_parser = commands.add_parser("desktop", help=t("cli.desktop.help"))
     shown = commands.add_parser("info", help=t("cli.info.help"))
     shown.add_argument("folder", help=t("cli.info.folder"))
+    counted = commands.add_parser("stats", help=t("cli.stats.help"))
+    counted.add_argument("folder", help=t("cli.info.folder"))
+    counted.add_argument("--json", action="store_true", help=t("cli.stats.json"))
     imported = commands.add_parser("import-nhsx", help=t("cli.import_nhsx.help"))
     imported.add_argument("nhsx", help=t("cli.import_nhsx.nhsx"))
     imported.add_argument("folder", nargs="?", help=t("cli.import_nhsx.folder"))
@@ -215,6 +242,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911
             return desktop.run_launcher()
         if args.command == "info":
             return info(args.folder)
+        if args.command == "stats":
+            return stats(args.folder, args.json)
         if args.command == "import-nhsx":
             return import_nhsx(args.nhsx, args.folder)
         if args.command == "export-tracks" and args.list_formats:

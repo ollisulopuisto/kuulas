@@ -31,12 +31,26 @@ from typing import Annotated, Any
 
 from fastapi import Body, FastAPI, File, Form, Request, UploadFile, WebSocket
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    Response,
+)
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.websockets import WebSocketDisconnect
 
-from . import automix, export, export_formats, messages, music_report, transcribe
+from . import (
+    automix,
+    export,
+    export_formats,
+    messages,
+    music_report,
+    project_stats,
+    transcribe,
+)
 from .build_info import build_label
 from .candidates import UnknownCandidateError
 from .history import HistoryError
@@ -559,6 +573,18 @@ def create_app(session, engine, *, language: str | None = None,
     def get_loudness_curve():
         # Measured outside the session lock (Session.loudness_curve); cached by content.
         return JSONResponse(session.loudness_curve())
+
+    @app.get("/api/stats")
+    def get_stats(format: str = "json"):
+        # WP70: the snapshot is taken under the lock, the counting is not (Session.stats).
+        described = project_stats.describe(session.stats())
+        if format == "text":
+            return PlainTextResponse(described["text"])
+        if format == "file":
+            # "Save as JSON": the numbers alone, as a file.
+            return JSONResponse(described["stats"], headers={
+                "Content-Disposition": 'attachment; filename="statistics.json"'})
+        return JSONResponse(described)
 
     @app.get("/api/music-report")
     def get_music_report(format: str = "json"):

@@ -156,6 +156,8 @@ export function registerAppCommands(registry, { actions, app }) {
   );
   def("history.open", () => app.openHistory());
   def("app.import", () => app.chooseMedia());
+  // File > Statistics… (WP70): runtime, counts, talk, work and sizes of this session.
+  def("app.statistics", () => app.openStatistics(), hasProject);
   def("gate.open_stretch", () => app.openGateStretch(), hasProject);
   def(
     "rename",

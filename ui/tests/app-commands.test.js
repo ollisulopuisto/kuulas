@@ -75,6 +75,7 @@ describe("the commands the app registers", () => {
       resetKeys: () => calls.push(["resetKeys"]),
       restoreStep: () => calls.push(["restoreStep"]),
       openHistory: () => calls.push(["openHistory"]),
+      openStatistics: () => calls.push(["openStatistics"]),
     };
     registerAppCommands(registry, { actions, app });
     return { registry, calls };
@@ -101,6 +102,14 @@ describe("the commands the app registers", () => {
     assert.equal(registry.run("history.restore", null, state), true);
     assert.equal(registry.run("history.open", null, {}), true);
     assert.deepEqual(calls, [["restoreStep"], ["openHistory"]]);
+  });
+
+  test("Statistics opens its dialog once a project is open (WP70)", () => {
+    const { registry, calls } = setup();
+    assert.equal(registry.can("app.statistics", {}), false);
+    assert.equal(registry.can("app.statistics", { project }), true);
+    assert.equal(registry.run("app.statistics", null, { project }), true);
+    assert.deepEqual(calls, [["openStatistics"]]);
   });
 
   test("Tab and Shift+Tab step to the next and previous stop, Alt+Tab cycles the scope", () => {

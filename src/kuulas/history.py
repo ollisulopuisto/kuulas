@@ -33,6 +33,7 @@ import copy
 import getpass
 import json
 import socket
+import sqlite3
 from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import replace
@@ -649,6 +650,44 @@ class History:
             r["op"] = json.loads(r["op"])
             r["context"] = _parse_context(r.get("context"))
         return rows
+
+    def story(self, head: str | None = None) -> tuple[list[dict], list[dict]]:
+        """What the statistics (WP70) read: the steps from the start of this
+        edit to ``head``, oldest first, as ``{"name", "args", "created"}`` (steps
+        undone and left behind on another branch are not in it), and every
+        checkpoint of the edit as ``{"kind", "created_utc"}``.
+
+        Read on a connection of its own, so a long history never makes the
+        caller hold the session lock; WAL lets it read beside the writer. The
+        coalesced run of a drag is one step with its last time. Undo leaves
+        nothing behind (the head moves), so there is no undo count to read.
+        """
+        head = head or self.head
+        try:
+            db = dbm.connect(self.path, read_only=True)
+        except sqlite3.Error:  # cannot open a second reader: use ours
+            db = self.db
+        try:
+            rows = db.execute(
+                "with recursive chain(id, parent, op, created_utc) as ("
+                " select id, parent, op, created_utc from nodes where id=?"
+                " union all select n.id, n.parent, n.op, n.created_utc"
+                " from nodes n join chain c on n.id = c.parent)"
+                " select op, created_utc from chain order by id",
+                (head,)).fetchall()
+            checkpoints = _rows(db.execute(
+                "select c.kind, c.created_utc from checkpoints c"
+                " join nodes n on n.id = c.node where n.edit=?"
+                " order by c.created_utc", (self.edit,)))
+        finally:
+            if db is not self.db:
+                db.close()
+        steps = []
+        for raw, created in rows:
+            op = _parse_context(raw) or {}
+            steps.append({"name": op.get("name"), "args": op.get("args") or {},
+                          "created": created})
+        return steps, checkpoints
 
     def sides(self) -> dict[str, str]:
         """Where each step of this edit lies relative to the head: ``head``, ``past``

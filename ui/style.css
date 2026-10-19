@@ -2639,3 +2639,35 @@ input[type="text"] {
 .automix-error {
   color: var(--danger-text);
 }
+
+/* Statistics (WP70) */
+.stats-dialog {
+  display: grid;
+  gap: var(--space-3);
+}
+.stats-body {
+  display: grid;
+  gap: var(--space-4);
+  overflow-y: auto;
+  max-height: 60vh;
+}
+.stats-group h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.stats-group dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+}
+.stats-group dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.stats-note {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
