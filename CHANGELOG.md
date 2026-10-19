@@ -1,3 +1,20 @@
+## [v26.10.19.7] - 2026-10-19
+
+- **Two-finger scroll zooms** (your choice): on a trackpad, moving two fingers up and down now zooms the
+  timeline around the pointer, side to side scrolls time, and with the shift key held up and down scrolls the
+  tracks. The notched mouse wheel is unchanged, and command or control plus scroll, pinch and alt plus scroll
+  work as before. Switch back to plain scrolling in View > "Two-finger scroll: zooms / scrolls". Not tried on a
+  real trackpad yet: check that the zoom direction feels right and that shift plus two fingers scrolls tracks
+  (some browsers swap the axis).
+- **Durations per clip, track and session** (statistics, inspector, status bar): the statistics now show the
+  session duration and a table with one row per track: first clip start to last clip end, content (sum of clips),
+  muted (muted clips plus the stretches Auto-Silence closed) and audible (the track without its mutes); a track
+  that is muted or silenced by solo is flagged. Longest, shortest and average clip are listed. The inspector has
+  a labelled Length field for the selected clip, and the status bar shows the total length of the selected
+  clips. Lengths use the timeline's h:mm:ss.mmm. The old "audible speech" row is gone. Not seen on screen yet.
+- Mix with the automixer: the help and dialog now say that track faders and pan are not applied, any recording
+  format works and the project must be 48 kHz.
+
 ## [v26.10.19.6] - 2026-10-19
 
 - **Session statistics:** File > "Statistics…" (also in the command palette) shows how big and how worked-on a

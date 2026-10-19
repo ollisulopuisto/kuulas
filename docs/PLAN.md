@@ -3447,7 +3447,7 @@ words" in the label at close zoom.
 
 ### WP70 — Session statistics (owner, 2026-10-19)
 
-Status: built in v26.10.19.6, not yet seen on screen (no undo count: the history does not record undo; mutes are not in "time cut out"). Owner: "we need per session (file) stats: runtime, number of edits/clips etc." A session is one
+Status: built in v26.10.19.6, durations reworked in v26.10.19.7 (session, per-track span/content/muted/audible, clip lengths; the old "audible speech" row is gone), not yet seen on screen (no undo count: the history does not record undo; mutes are not in "time cut out"). Owner: "we need per session (file) stats: runtime, number of edits/clips etc." A session is one
 project folder. Pure pieces already exist (`speech_stats.py`, `talk_share.py`, `clip_gaps.py`, `silence_runs.py`,
 `usage.py`); nothing shows them yet.
 
