@@ -3662,3 +3662,30 @@ timestamp to system clipboard? kb shortcuts for moving forwards and backwards a 
   command in a menu), tests first for the parsing and the clamping (pure functions), no DOM in those tests.
 **Open:** whether the click-to-copy should be a separate small copy button instead of a single click (a single
 click also seems natural to start a drag of the readout nowhere, so it is safe here).
+
+---
+
+### WP77 — Better word times with a forced aligner (proposed, parked; owner 2026-10-19)
+
+Status: parked until the owner decides and podcast PR #59 is merged. The podcast session's answer
+(2026-10-19, `docs/KUULAS-TIMECODES.md` in the podcast repo): there is **no fix to integrate yet**, only a
+measurement and an experimental script. Measured on one speaker, one episode, 15 hand-marked word starts:
+Whisper's word start is early in 14 of 15 (median 87 ms, after a pause 263 ms); about 1 % of words (8 of 707) are
+1.0 to 2.5 s early (the word's interval swallows the pause and the end of the previous word, so deleting such a
+word by text would also cut the previous word). A forced aligner (torchaudio MMS_FA, CTC, 20 ms frames, in
+`scripts/ab/ctc_align.py` on branch `feat/ctc-word-align`) gives a median absolute error of 28 ms (12 of 15 within
+50 ms). No constant offset fixes it; drift over a long recording, word ends and other speakers are NOT measured.
+Format today: Whisper JSON in seconds from the audio file's start; the script writes a CSV
+`word,whisper_start,whisper_end,ctc_start,ctc_end` (empty = not aligned, never zero; use `ctc_end` from the same row
+as `ctc_start`; ends are unverified). It needs torch 2.8.0 and about 1.2 GB of weights: kuulas must not import it.
+
+**If the owner says yes, the kuulas side** (same pattern as the automixer integration, WP68): a background job
+"Refine word times…" that (1) writes a Whisper-shaped JSON from the words kuulas stores for a recording
+(`segments[].words[]` with `word`, `start`, `end` in seconds from the media's start), (2) runs the aligner command
+set in settings in the podcast checkout (`uv run --package speechmix --with torch==2.8.0 --with torchaudio==2.8.0
+python scripts/ab/ctc_align.py <json> <audio> --csv <out>`), with progress and Cancel, (3) merges the CSV into the
+stored words (a word keeps its Whisper time when `ctc_*` is empty), validates start < end and word order, converts
+to flicks, and (4) marks the media `timing: "ctc-v1"` (new optional field, written only when set, documented in
+`docs/FORMAT.md`) so a corrected transcript can be told from an old one. One undo step. Tests with a fake aligner
+script. **Open:** where the aligner ultimately lives (podcast transcribe post-step, a `speechmix` module, the Colab
+copy), whether to refine automatically after transcription, measuring word ends, a second speaker.
