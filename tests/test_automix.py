@@ -45,6 +45,10 @@ FAKE = textwrap.dedent('''
         json.dump({"argv": argv, "positional": positional, "files": files,
                    "cwd": os.getcwd(),
                    "exists": [os.path.exists(p) for p in files]}, f)
+    # the real automixer writes "<output without extension> flags.txt" (places to
+    # listen to), empty or not
+    with open(os.path.splitext(out)[0] + " flags.txt", "w") as flags:
+        flags.write(os.environ.get("FAKE_FLAGS", ""))
     print("loading", len(files), "tracks", flush=True)
     if mode == "fail":
         print("boom: no plug-in", flush=True)
@@ -293,3 +297,38 @@ def test_the_project_is_not_changed_and_the_export_folder_not_remembered(session
     automix.run(session, {}, fake, Reports(), threading.Event())
     assert session.history.head == head
     assert session.export_folder_hint()["remembered"] is False
+
+
+def test_an_empty_flags_file_is_not_left_behind(session, fake, tmp_path, temp_root):
+    result = automix.run(session, {}, fake, Reports(), threading.Event())
+    folder = Path(result["path"]).parent
+    assert [p.name for p in folder.iterdir()] == [Path(result["path"]).name]
+
+
+def test_flags_with_content_are_kept_beside_the_mix(
+        session, fake, tmp_path, temp_root, monkeypatch):
+    monkeypatch.setenv("FAKE_FLAGS", "12.5 s: check this\n")
+    result = automix.run(session, {}, fake, Reports(), threading.Event())
+    out = Path(result["path"])
+    kept = out.with_name(f"{out.stem} flags.txt")
+    assert kept.read_text(encoding="utf-8") == "12.5 s: check this\n"
+    assert result["flags"] == str(kept)
+    assert not list(out.parent.glob("*partial*"))
+
+
+def test_a_failed_run_leaves_no_flags_file(session, fake, tmp_path, temp_root):
+    fake["extra_args"] = ["--mode", "fail"]
+    with pytest.raises(automix.AutomixError):
+        automix.run(session, {}, fake, Reports(), threading.Event())
+    folder = tmp_path / "Episode exports"
+    assert not folder.exists() or list(folder.iterdir()) == []
+
+
+def test_the_tool_does_not_inherit_the_callers_virtual_env(tmp_path, monkeypatch):
+    monkeypatch.setenv("VIRTUAL_ENV", "/some/other/.venv")
+    lines = []
+    code = automix.run_process(
+        [sys.executable, "-c", "import os; print(os.environ.get('VIRTUAL_ENV'))"],
+        str(tmp_path), lines.append, threading.Event())
+    assert code == 0
+    assert lines == ["None"]

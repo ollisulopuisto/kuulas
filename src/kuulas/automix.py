@@ -240,6 +240,13 @@ def build_command(settings: dict, folder: Path, output: Path, *,
     return [*cmd, *settings["extra_args"]]
 
 
+def _tool_env() -> dict[str, str]:
+    """The environment for the tool: ours without ``VIRTUAL_ENV``, which belongs to
+    kuulas's own environment and makes ``uv run`` in the automixer's checkout warn
+    that it will be ignored."""
+    return {k: v for k, v in os.environ.items() if k != "VIRTUAL_ENV"}
+
+
 def run_process(cmd: list[str], cwd: str | None, on_line: Callable[[str], None],
                 cancel: threading.Event) -> int:
     """Run ``cmd`` without a shell, feeding each output line (stdout and stderr
@@ -249,7 +256,7 @@ def run_process(cmd: list[str], cwd: str | None, on_line: Callable[[str], None],
     proc = subprocess.Popen(  # noqa: S603 - an argument list from settings, no shell
         cmd, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT, text=True, errors="replace", bufsize=1,
-        start_new_session=True)
+        start_new_session=True, env=_tool_env())
 
     def read() -> None:
         if proc.stdout is None:
@@ -287,6 +294,30 @@ def _stop(proc: subprocess.Popen) -> int:
     except subprocess.TimeoutExpired:
         _signal(proc, signal.SIGKILL)
         return proc.wait()
+
+
+def _flags_file(output: Path) -> Path:
+    """Where the automixer writes its "places to listen to" for ``-o output``: the
+    output's name without its extension, plus " flags.txt" (seen on the real tool)."""
+    return output.with_name(f"{output.stem} flags.txt")
+
+
+def _keep_flags(partial: Path, final: Path) -> str | None:
+    """Rename the automixer's flags file beside the mix when it has something in it,
+    else remove it. Returns the kept file's path."""
+    flags = _flags_file(partial)
+    try:
+        text = ""
+        if flags.is_file():
+            text = flags.read_text(encoding="utf-8", errors="replace")
+        if text.strip():
+            kept = final.with_name(f"{final.stem} flags.txt")
+            os.replace(flags, kept)
+            return str(kept)
+        flags.unlink(missing_ok=True)
+    except OSError:
+        log.warning("could not tidy the automixer's flags file %s", flags)
+    return None
 
 
 def _unique(folder: Path, name: str) -> Path:
@@ -378,13 +409,16 @@ def run(session, params: dict, settings: dict, report: Report,
         if not partial.is_file():
             raise AutomixError("error.automix.no_output",
                                tail="\n".join(list(lines)[-TAIL_LINES:]))
+        flags = _keep_flags(partial, final)
         os.replace(partial, final)
         partial = None
         report(1.0, "")
         return {"path": str(final), "name": final.name, "log": list(lines),
-                "command": cmd}
+                "command": cmd, "flags": flags}
     finally:
         if partial is not None:
             with contextlib.suppress(OSError):
                 partial.unlink(missing_ok=True)
+            with contextlib.suppress(OSError):
+                _flags_file(partial).unlink(missing_ok=True)
         shutil.rmtree(scratch, ignore_errors=True)
