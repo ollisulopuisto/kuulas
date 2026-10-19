@@ -6,11 +6,14 @@
 import { registerAppCommands } from "./app-commands.js";
 import { registerCandidateCommands } from "./candidate-commands.js";
 import { cheatSheetData, createCheatSheet } from "./cheatsheet.js";
+import { commandRecords, searchAll } from "./command-search.js";
+import { createCommandSearch, createSearchPanel } from "./command-search-ui.js";
+import { synonymsFor } from "./command-synonyms.js";
 import { createRegistry } from "./commands.js";
 import { registerEditCommands } from "./edit-commands.js";
 import { registerExportCommands } from "./export-commands.js";
 import { resolveHints } from "./hints.js";
-import { formatNumber } from "./i18n.js";
+import { ensureCatalog, formatNumber, getLanguage, LANGUAGES, tIn } from "./i18n.js";
 import {
   formatCombo,
   loadOverrides,
@@ -25,7 +28,7 @@ import { DEFAULT_KEYMAP, STATUS_HINTS } from "./keymap-default.js";
 import { createKeymap, detectPlatform } from "./keys.js";
 import { registerLoudnessCommands } from "./loudness-commands.js";
 import { registerMarkerCommands } from "./marker-commands.js";
-import { MENU, resolveMenu } from "./menu-model.js";
+import { MENU, MENU_ALIASES, resolveMenu } from "./menu-model.js";
 import { createMenubar } from "./menubar.js";
 import { createModifierTracker } from "./modifiers.js";
 import { createPalette, paletteRows } from "./palette.js";
@@ -51,8 +54,21 @@ export const CONTEXT_OF_PANEL = {
   help: "side",
 };
 
-/** `onRefresh(entries)` is called whenever the keys or the language change (the Help button shows F1 from it). */
-export function setupKeyboard({ actions, app, t, notify, onLanguageChange, onRefresh, prefs }) {
+/**
+ * `onRefresh(entries)` is called whenever the keys or the language change (the Help button shows F1 from it).
+ * `help` (WP75, Help search): { topics() -> the loaded help topics, load() -> promise of them,
+ * open(id) -> show that topic }; read lazily, the help panel is made after this.
+ */
+export function setupKeyboard({
+  actions,
+  app,
+  t,
+  notify,
+  onLanguageChange,
+  onRefresh,
+  prefs,
+  help = null,
+}) {
   const platform = detectPlatform();
   const storage = safeStorage();
   const registry = createRegistry();
@@ -101,11 +117,15 @@ export function setupKeyboard({ actions, app, t, notify, onLanguageChange, onRef
   let palette;
   let cheat;
   let menubar;
+  let searchPanel;
   registerAppCommands(registry, {
     actions,
     app: {
       ...app,
       openPalette: () => palette.toggle(),
+      // Help search (WP75): the field in the in-window Help menu; the panel over the window
+      // where there is no such menu (or the desktop app's native Help menu asks for it).
+      openSearch: () => (menubar?.openSearch() ? true : searchPanel.open()),
       openKeys: () => cheat.toggle(),
       importKeys: () => importKeys(),
       exportKeys: () => exportKeys(),
@@ -169,6 +189,11 @@ export function setupKeyboard({ actions, app, t, notify, onLanguageChange, onRef
   }
 
   // -- surfaces ----------------------------------------------------------------------
+  // The names in the other language(s) also find a command (people remember the English name
+  // from other programs); Help search and the palette share this (command-search.js).
+  const otherLabels = () =>
+    LANGUAGES.filter((lang) => lang !== getLanguage()).map((lang) => (key) => tIn(lang, key));
+  for (const lang of LANGUAGES) void ensureCatalog(lang).then(() => refreshSearch());
   const rows = (query) =>
     paletteRows({
       entries,
@@ -179,7 +204,52 @@ export function setupKeyboard({ actions, app, t, notify, onLanguageChange, onRef
       format,
       platform,
       recent,
+      otherLabels: otherLabels(),
+      synonymsFor,
     });
+
+  // -- Help search (WP75) --------------------------------------------------------------
+  const searchRecords = () =>
+    commandRecords({
+      entries,
+      registry,
+      state: app.getState(),
+      menu: MENU,
+      aliases: MENU_ALIASES,
+      label,
+      otherLabels: otherLabels(),
+      format,
+      platform,
+      synonymsFor,
+      reasons: {
+        planned: t("ui.search.reason.planned"),
+        noProject: t("ui.search.reason.no_project"),
+        unavailable: t("ui.search.reason.unavailable"),
+      },
+    });
+  const makeSearch = (hooks) =>
+    createCommandSearch({
+      t,
+      hooks,
+      search: (query) =>
+        searchAll({ records: searchRecords(), topics: help?.topics() ?? [], query, recent }),
+      run: (id) => registry.run(id, null, app.getState()),
+      reveal: (id) => menubar?.reveal(id) ?? false,
+      openTopic: (id) => help?.open(id),
+    });
+  const menuSearch = makeSearch({});
+  menuSearch.input.addEventListener(
+    "focus",
+    () => void help?.load().then(() => menuSearch.refresh()),
+  );
+  searchPanel = createSearchPanel({
+    t,
+    makeSearch: (hooks) => makeSearch(hooks),
+  });
+  function refreshSearch() {
+    if (menubar?.isOpen()) menuSearch.refresh();
+    searchPanel?.refresh();
+  }
   palette = createPalette({
     getRows: rows,
     t,
@@ -238,6 +308,7 @@ export function setupKeyboard({ actions, app, t, notify, onLanguageChange, onRef
     menubar = createMenubar({
       root,
       t,
+      search: menuSearch,
       getMenus: () =>
         resolveMenu({
           menu: MENU,
@@ -261,6 +332,7 @@ export function setupKeyboard({ actions, app, t, notify, onLanguageChange, onRef
   function refreshAll() {
     renderHints();
     menubar?.refresh();
+    searchPanel?.refresh();
     palette.refresh();
     cheat.refresh();
     onRefresh?.(entries);
@@ -313,6 +385,7 @@ export function setupKeyboard({ actions, app, t, notify, onLanguageChange, onRef
     keymap,
     palette,
     cheat,
+    searchPanel,
     refresh: refreshAll,
     /**
      * Label, keys and tooltip for these command ids, as the menu bar shows them now:

@@ -167,3 +167,79 @@ describe("finding a command without recalling its name", () => {
     assert.ok(rows[0].indices.length > 0);
   });
 });
+
+describe("the palette finds what Help search finds (WP75, command-search.js)", () => {
+  function rowsFor(query, extra = {}) {
+    const registry = createRegistry();
+    registry.register("edit.undo", () => {}, { hintKey: "cmd.edit.undo.hint" });
+    registry.register("view.fit", () => {});
+    registry.register("keymap.reset", () => {});
+    registry.register("edit.split", () => {});
+    return paletteRows({
+      entries: resolveKeymap(DATA, {}, "other"),
+      registry,
+      state: {},
+      query,
+      label,
+      format: fmt,
+      platform: "other",
+      ...extra,
+    });
+  }
+  test("the name in the other language finds the command", () => {
+    const otherLabels = [(key) => ({ "cmd.undo": "Kumoa" })[key]];
+    assert.deepEqual(
+      rowsFor("kumoa", { otherLabels }).map((r) => r.id),
+      ["edit.undo"],
+    );
+  });
+  test("a synonym finds the command, with no letters lit", () => {
+    const synonymsFor = (id) => (id === "edit.undo" ? ["revert"] : []);
+    const rows = rowsFor("revert", { synonymsFor });
+    assert.deepEqual(
+      rows.map((r) => r.id),
+      ["edit.undo"],
+    );
+    assert.deepEqual(rows[0].indices, []);
+  });
+  test("several words all must match, in any order, accents ignored", () => {
+    assert.deepEqual(
+      rowsFor("TAKES  Back").map((r) => r.id),
+      ["edit.undo"],
+    );
+    assert.deepEqual(rowsFor("takes banana"), []);
+  });
+  test("a name match outranks a hint match, as in Help search", () => {
+    const rows = paletteRows({
+      entries: resolveKeymap(
+        [
+          { id: "a.hint", keys: { mac: null, other: null }, context: "global", labelKey: "k.a" },
+          { id: "b.name", keys: { mac: null, other: null }, context: "global", labelKey: "k.b" },
+        ],
+        {},
+        "other",
+      ),
+      registry: (() => {
+        const r = createRegistry();
+        r.register("a.hint", () => {}, { hintKey: "k.a.hint" });
+        r.register("b.name", () => {});
+        return r;
+      })(),
+      state: {},
+      query: "cut",
+      label: (key) => ({ "k.a": "Alpha", "k.a.hint": "Will cut things", "k.b": "Cut" })[key] ?? key,
+      format: fmt,
+      platform: "other",
+    });
+    assert.deepEqual(
+      rows.map((r) => r.id),
+      ["b.name", "a.hint"],
+    );
+  });
+  test("letters in order still find a command (the palette's fuzzy habit), below the rest", () => {
+    assert.deepEqual(
+      rowsFor("ud").map((r) => r.id),
+      ["edit.undo"],
+    );
+  });
+});

@@ -70,6 +70,7 @@ describe("the commands the app registers", () => {
       openPalette: () => calls.push(["palette"]),
       openKeys: () => calls.push(["keys"]),
       openHelp: () => calls.push(["help"]),
+      openSearch: () => calls.push(["openSearch"]),
       importKeys: () => calls.push(["importKeys"]),
       exportKeys: () => calls.push(["exportKeys"]),
       resetKeys: () => calls.push(["resetKeys"]),
@@ -351,6 +352,14 @@ describe("the commands the app registers", () => {
     assert.equal(registry.hintKey("help.open"), "cmd.help.open.hint");
     registry.run("help.open", null, {});
     assert.deepEqual(calls, [["help"]]);
+  });
+
+  test("help.search is always available and opens the Help search (WP75)", () => {
+    const { registry, calls } = setup();
+    assert.equal(registry.can("help.search", undefined), true);
+    assert.equal(registry.hintKey("help.search"), "cmd.help.search.hint");
+    registry.run("help.search", null, {});
+    assert.deepEqual(calls, [["openSearch"]]);
   });
 
   test("hints are given for the commands that have a one-line description", () => {

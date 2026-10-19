@@ -1183,6 +1183,14 @@ export const DEFAULT_KEYMAP = [
     context: "text-field",
     labelKey: "cmd.help.open",
   },
+  {
+    // WP75. Mod+/ because "/" alone is the faster-playback nudge and "?" is the key sheet; a Mac's
+    // Cmd+Shift+/ (the Help search of other Mac programs) is the same key: Shift is not compared.
+    id: "help.search",
+    keys: { mac: "Mod+/", other: "Mod+/" },
+    context: "text-field",
+    labelKey: "cmd.help.search",
+  },
   { id: "help.keys", keys: { mac: "?", other: "?" }, context: "global", labelKey: "cmd.help.keys" },
   {
     id: "keymap.import",

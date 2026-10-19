@@ -196,3 +196,26 @@ describe("the language", () => {
     i18n.setDocument(null);
   });
 });
+
+describe("another language's text (Help search finds both names)", () => {
+  test("tIn reads a loaded catalog without changing the language; a missing one gives undefined", () => {
+    assert.equal(i18n.tIn("fi", "cmd.edit.undo"), "Kumoa");
+    assert.equal(i18n.getLanguage(), "en");
+    assert.equal(i18n.tIn("fi", "no.such.key"), undefined);
+    i18n.setCatalogs({ en: { a: "A" } });
+    assert.equal(i18n.tIn("fi", "a"), undefined);
+  });
+
+  test("ensureCatalog loads a catalog that is missing, once", async () => {
+    let loads = 0;
+    i18n.setCatalogs({ en: { a: "A" } });
+    i18n.setCatalogLoader(async (lang) => {
+      loads++;
+      return { a: `A in ${lang}` };
+    });
+    await i18n.ensureCatalog("fi");
+    await i18n.ensureCatalog("fi");
+    assert.equal(loads, 1);
+    assert.equal(i18n.tIn("fi", "a"), "A in fi");
+  });
+});

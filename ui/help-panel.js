@@ -221,6 +221,18 @@ export function createHelpPanel({
     q(".help-title").focus();
   }
 
+  /** Show one topic by id (a click on a topic in Help search), whatever the panel was showing. */
+  async function openTopic(id) {
+    if (!root.contains(doc.activeElement)) returnFocus = doc.activeElement;
+    root.hidden = false;
+    root.closest(".sidebar")?.toggleAttribute("data-help-open", true);
+    await ensureTopics();
+    trail = [];
+    current = null;
+    await goTo(id, { push: false });
+    q(".help-title").focus();
+  }
+
   function close() {
     root.hidden = true;
     root.closest(".sidebar")?.toggleAttribute("data-help-open", false);
@@ -237,5 +249,16 @@ export function createHelpPanel({
     if (topic && topic.id !== current) showTopic(topic);
   }
 
-  return { open, close, update, showMe, isOpen: () => !root.hidden };
+  return {
+    open,
+    openTopic,
+    close,
+    update,
+    showMe,
+    isOpen: () => !root.hidden,
+    /** The topics loaded so far in the current language ([] before the first load). */
+    topics: () => topics,
+    /** Load them (once per language); Help search calls this when its field gets the cursor. */
+    load: ensureTopics,
+  };
 }

@@ -95,6 +95,23 @@ export async function setLanguage(lang) {
   setLanguageNow(next);
 }
 
+/** Load a catalog without switching to it (once); a failure is swallowed, the language is absent. */
+export async function ensureCatalog(lang) {
+  const wanted = normalise(lang);
+  if (catalogs[wanted]) return;
+  try {
+    catalogs[wanted] = await loader(wanted);
+  } catch {
+    // Search then knows only the names in the current language: not worth an error.
+  }
+}
+
+/** A plain message of another language, undefined when that catalog or key is missing. */
+export function tIn(lang, key) {
+  const entry = catalogs[lang]?.[key];
+  return typeof entry === "string" ? entry : undefined;
+}
+
 /** Choose the start-up language (default: the browser's) and load its catalog. */
 export async function initI18n({ language = detectLanguage(), document = null } = {}) {
   if (document) setDocument(document);

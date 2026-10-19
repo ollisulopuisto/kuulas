@@ -665,6 +665,12 @@ const keyboard = setupKeyboard({
   t,
   notify: showNotice,
   onLanguageChange,
+  // Help search (WP75) lists matching help topics and opens one on a click; `help` is made below.
+  help: {
+    topics: () => help.topics(),
+    load: () => help.load(),
+    open: (id) => void help.openTopic(id),
+  },
   // The Help button shows the key help has now, F1 or the user's own.
   onRefresh(entries) {
     const button = $("help-button");
@@ -1259,6 +1265,9 @@ window.addEventListener("drop", (event) => {
 
 // Called by the desktop window (src/kuulas/desktop.py): dropped paths and native menu items.
 const menuActions = {
+  // The native Help menu cannot hold a text field: its "Search commands…" opens the search as a
+  // panel over the window (WP75). The in-window Help menu has the field itself.
+  "help.search": () => keyboard.searchPanel.open(),
   "file.import": () => chooseMedia(),
   "file.export": () => $("export").click(),
   "edit.undo": () => $("undo").click(),

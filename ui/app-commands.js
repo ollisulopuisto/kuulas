@@ -240,6 +240,7 @@ export function registerAppCommands(registry, { actions, app }) {
   def("palette.open", () => app.openPalette());
   def("help.keys", () => app.openKeys());
   def("help.open", () => app.openHelp());
+  def("help.search", () => app.openSearch());
   def("keymap.import", () => app.importKeys());
   def("keymap.export", () => app.exportKeys());
   def("keymap.reset", () => app.resetKeys());

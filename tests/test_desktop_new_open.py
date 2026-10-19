@@ -86,3 +86,13 @@ def test_without_a_window_app_the_project_opens_in_this_window(tmp_path, monkeyp
                         lambda folder: seen.append(folder) or True)
     assert bridge.open_project_in_window() is True
     assert seen == [str(tmp_path / "Other.kuulas")]
+
+
+def test_help_search_in_the_native_menu_opens_the_search_panel_in_the_page(tmp_path):
+    """A native menu cannot hold a text field (WP75): Help > Search commands... asks
+    the page to open the same search as a panel over the window."""
+    bridge, _opened = _bridge(tmp_path, None)
+    bridge._project = object()  # a project is open, so the page is the editor
+    bridge.menu("help.search")
+    [script] = bridge._window.evaluated
+    assert 'kuulasNative.menu("help.search")' in script

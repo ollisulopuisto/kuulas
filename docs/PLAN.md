@@ -3603,7 +3603,7 @@ change unless he says so, en and fi strings.
 
 ### WP75 — Help search: find the right command by typing (owner, 2026-10-19; "very important")
 
-Status: open. Owner: "we need a text field in the Help menu that you can type into to find the right command".
+Status: implemented on branch worktree-agent-ace3144436f83df50 (command-search.js + command-synonyms.js, Help menu field, panel for the native menu via Help > Search commands…, key Mod+/, palette shares the matching); not yet seen in the desktop window; owner to try. Owner: "we need a text field in the Help menu that you can type into to find the right command".
 Like the Help menu's search field on macOS: the first item of the Help menu is a text field; typing lists the
 matching commands, and choosing one runs it or shows where it lives. The command palette (Cmd+K) already
 searches commands; this is the same search where a person looks for help: in the menu.

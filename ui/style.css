@@ -1915,6 +1915,130 @@ input[type="text"] {
   font-size: var(--text-xs);
 }
 
+/* Help search (WP75): the field at the top of the Help menu, and the same box in a panel over the
+   window for the desktop app's native menu. Results are rows of name + key, menu path, hint. */
+.menu-list.has-search {
+  width: min(480px, calc(100vw - 2 * var(--space-4)));
+}
+/* Help is the last menu: open it leftwards so the wide list stays inside the window. */
+.menu-top:last-child > .menu-list.has-search {
+  left: auto;
+  right: 0;
+}
+.menu-search {
+  padding: var(--space-1);
+}
+.cmd-search {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.cmd-search-input {
+  height: var(--control-h);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-sm);
+}
+.cmd-search-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+.cmd-search-list {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  max-height: min(60vh, 480px);
+  overflow-y: auto;
+  list-style: none;
+}
+.cmd-search-list[hidden] {
+  display: none;
+}
+.cmd-search-group {
+  padding: var(--space-2) var(--space-3) var(--space-1);
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+}
+.cmd-search-row {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+}
+.cmd-search-row[aria-selected="true"] {
+  background: var(--accent-subtle);
+}
+.cmd-search-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+}
+.cmd-search-name {
+  flex: 1;
+  min-width: 0;
+}
+.cmd-search-row[aria-disabled="true"] .cmd-search-name {
+  color: var(--text-disabled);
+}
+.cmd-search-nokey,
+.cmd-search-where,
+.cmd-search-hint,
+.cmd-search-reason {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+.cmd-search-reason {
+  color: var(--accent-text);
+}
+.cmd-search-hint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cmd-search-show {
+  position: absolute;
+  right: var(--space-3);
+  bottom: var(--space-2);
+  display: none;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-xs);
+}
+.cmd-search-row[aria-selected="true"] .cmd-search-show,
+.cmd-search-row:hover .cmd-search-show {
+  display: block;
+}
+.cmd-search-note {
+  margin: var(--space-2) var(--space-3) var(--space-1);
+  font-size: var(--text-xs);
+}
+.cmd-search-panel {
+  position: fixed;
+  z-index: 50;
+  top: calc(var(--topbar-h) + var(--space-3));
+  left: 50%;
+  width: min(560px, calc(100vw - 2 * var(--space-4)));
+  transform: translateX(-50%);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-raised);
+}
+.cmd-search-panel[hidden] {
+  display: none;
+}
+
 .cheatsheet {
   width: min(720px, 92vw);
   max-height: 86vh;
