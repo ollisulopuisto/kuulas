@@ -3477,7 +3477,7 @@ over an episode series later); whether "time cut out" should count mutes.
 
 ### WP72 — Kuulas.app and the .kuulas file type on macOS (owner, 2026-10-19; next target)
 
-Status: open. The owner's next target. A `.kuulas` project is a folder. To make Finder show it as one file and
+Status: step 1 built in v26.10.19.8 (`src/kuulas/macapp.py`, `scripts/make_app.py`, `docs/desktop.md`); not yet tried in Finder. The owner's next target. A `.kuulas` project is a folder. To make Finder show it as one file and
 open it by double-click, a macOS app must declare the type in its Info.plist (a UTI that conforms to
 `com.apple.package`, like `.logicx` or `.band`), and the app must receive the "open document" event. Not
 possible with the command line or `uvx` alone.

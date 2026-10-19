@@ -1,3 +1,15 @@
+## [v26.10.19.8] - 2026-10-19
+
+- **The automixer mix is now saved next to the project** (in the folder that holds the `.kuulas` folder, never
+  inside it and not in the remembered export folder, which can sit in a synced folder), named
+  "<edit> automixer <time>.wav". The dialog has a "Save the mix in" field if you want another folder.
+- **A local `Kuulas.app` and the `.kuulas` file type (macOS, first step):** `uv run python scripts/make_app.py`
+  builds `~/Applications/Kuulas.app` and registers the type, so Finder shows a project folder as one file with the
+  kuulas icon and double-click, Open with… and dropping a project on the app or the Dock icon open it. A project
+  that is already open on this computer is brought forward instead of opened twice (macOS asks once for
+  permission to control System Events). Not signed; it needs the repo and `uv`. Undo with the `lsregister -u`
+  line in `docs/desktop.md`. Not tried in Finder yet: that is for you.
+
 ## [v26.10.19.7] - 2026-10-19
 
 - **Two-finger scroll zooms** (your choice): on a trackpad, moving two fingers up and down now zooms the
