@@ -386,6 +386,34 @@ export function nudgePlan(state, direction) {
   );
 }
 
+/**
+ * Mod+Up / Mod+Down: the selected clips one track up (`direction` -1) or down (+1), at the
+ * same time. Null when nothing is selected or the selection already sits on the first (last)
+ * track, so the command is greyed instead of making an empty step.
+ */
+export function moveTrackPlan(state, direction) {
+  if (!state?.project) return null;
+  const chosen = selectedClips(state);
+  if (chosen.length === 0) return null;
+  const index = new Map(state.project.tracks.map((track, i) => [track.id, i]));
+  const rows = chosen.map((entry) => index.get(entry.trackId)).filter((i) => i !== undefined);
+  if (rows.length === 0) return null;
+  const last = state.project.tracks.length - 1;
+  if (direction < 0 ? Math.min(...rows) <= 0 : Math.max(...rows) >= last) return null;
+  return plan(
+    "move_clips_to_track",
+    {
+      clip_ids: chosen.map((e) => e.clip.id),
+      direction: direction < 0 ? -1 : 1,
+      delta: 0,
+      group_editing: groupOn(state),
+    },
+    "move_track",
+    {},
+    { silent: true },
+  );
+}
+
 /** Presses closer together than `gapMs` are one burst, which the server undoes as one step. */
 export function createBurst(gapMs = GAIN_BURST_MS) {
   let id = 0;

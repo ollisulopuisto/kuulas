@@ -805,10 +805,10 @@ class Session:
     def clipboard_lift_cut(self, *, start: int, end: int, track_ids,
                            group_editing: bool = False, name: str = "",
                            label: str | None = None) -> dict:
-        """Lift-cut (Alt+X): copy ``[start, end)`` to the clipboard and soft-delete
-        it in place (the gap stays, restorable). Same targets, one undo step and
-        failure rule as ``clipboard_cut``."""
-        return self._cut_to_clipboard("clipboard_lift_cut", ops.mute_range, start=start,
+        """Lift-cut (Alt+X): copy ``[start, end)`` to the clipboard and delete it, leaving
+        the gap (nothing moves; one undo step restores it). Same targets and failure rule
+        as ``clipboard_cut``."""
+        return self._cut_to_clipboard("clipboard_lift_cut", ops.clear_range, start=start,
                                       end=end, track_ids=track_ids,
                                       group_editing=group_editing, name=name,
                                       label=label or t("history.clipboard_lift_cut"))

@@ -11,6 +11,7 @@ import {
   fadePlan,
   gainPlan,
   liftCutPlan,
+  moveTrackPlan,
   mutePlan,
   nudgePlan,
   removeClipsPlan,
@@ -233,6 +234,33 @@ describe("nudge", () => {
   });
   test("needs a selection", () => {
     assert.equal(nudgePlan(state(), 1), null);
+  });
+});
+
+describe("move to the track above or below (Mod+Up and Mod+Down)", () => {
+  test("one track down is direction +1 and up is -1, same time, with the group when on", () => {
+    const down = moveTrackPlan(state({ selection: new Set(["a1"]) }), 1);
+    assert.equal(down.op, "move_clips_to_track");
+    assert.deepEqual(down.args, {
+      clip_ids: ["a1"],
+      direction: 1,
+      delta: 0,
+      group_editing: true,
+    });
+    const up = moveTrackPlan(state({ selection: new Set(["v1"]) }), -1);
+    assert.equal(up.args.direction, -1);
+  });
+  test("a selection that is already on the first or last track cannot move that way", () => {
+    assert.equal(moveTrackPlan(state({ selection: new Set(["a1"]) }), -1), null);
+    assert.equal(moveTrackPlan(state({ selection: new Set(["a1", "v1"]) }), -1), null);
+    assert.ok(moveTrackPlan(state({ selection: new Set(["a1", "v1"]) }), 1));
+  });
+  test("needs a selection and a project", () => {
+    assert.equal(moveTrackPlan(state(), 1), null);
+    assert.equal(moveTrackPlan({ ...state(), project: null }, 1), null);
+  });
+  test("a silent step: no toast", () => {
+    assert.equal(moveTrackPlan(state({ selection: new Set(["a1"]) }), 1).toast, null);
   });
 });
 

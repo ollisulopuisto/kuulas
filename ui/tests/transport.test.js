@@ -291,3 +291,44 @@ describe("loop playback", () => {
     assert.deepEqual(h.calls, []);
   });
 });
+
+describe("quick seeks (owner, 2026-10-19: Alt+arrow pressed many times made the cursor jerk back)", () => {
+  test("an older seek's answer arriving late does not move the playhead back", async () => {
+    let state = { playhead: 0, playing: false };
+    const waiting = [];
+    const transport = createTransport({
+      post: (_action, at) =>
+        new Promise((resolve) => waiting.push(() => resolve({ playing: false, position: at }))),
+      getState: () => state,
+      setState: (patch) => {
+        state = { ...state, ...patch };
+      },
+      onError: () => {},
+    });
+    const first = transport.seek(480);
+    const second = transport.seek(960);
+    const third = transport.seek(1440);
+    assert.equal(state.playhead, 1440); // on screen at once
+    waiting[2](); // the newest answer arrives first
+    await third;
+    waiting[0](); // then the oldest one, late
+    await first;
+    waiting[1]();
+    await second;
+    assert.equal(state.playhead, 1440);
+  });
+
+  test("a single seek still takes the engine's answer", async () => {
+    const h = harness();
+    h.engine.position = 0;
+    await h.transport.seek(2400);
+    assert.equal(h.state().playhead, 2400);
+  });
+
+  test("a play after a seek is not dropped", async () => {
+    const h = harness();
+    await h.transport.seek(2400);
+    await h.transport.toggle();
+    assert.equal(h.state().playing, true);
+  });
+});

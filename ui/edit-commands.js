@@ -17,6 +17,7 @@ import {
   gainPlan,
   groupBusPlan,
   liftCutPlan,
+  moveTrackPlan,
   mutePlan,
   newBusPlan,
   nudgePlan,
@@ -211,6 +212,8 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
   planned("edit.trim_end", (s) => trimPlan(s, "end"));
   planned("edit.nudge_left", (s) => nudgePlan(s, -1));
   planned("edit.nudge_right", (s) => nudgePlan(s, 1));
+  planned("edit.move_up", (s) => moveTrackPlan(s, -1));
+  planned("edit.move_down", (s) => moveTrackPlan(s, 1));
   planned("track.mute", trackMutePlan);
   planned("track.solo", (s) => soloPlan(s, true));
   planned("track.solo_add", (s) => soloPlan(s, false));

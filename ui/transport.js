@@ -17,11 +17,16 @@ export function createTransport({ post, getState, setState, onError }) {
   let pending = 0;
   let queue = Promise.resolve();
 
-  async function run(action, at = null, until = null, skip = null, options = null) {
+  // The newest seek asked for. Quick Alt+arrow presses send many seeks; their answers can
+  // arrive out of order, and an older answer must not pull the playhead back.
+  let seekSeq = 0;
+
+  async function run(action, at = null, until = null, skip = null, options = null, mine = null) {
     try {
       const status = await (options
         ? post(action, at, until, skip, options)
         : post(action, at, until, skip));
+      if (mine !== null && mine !== seekSeq) return; // a newer seek is on its way
       setState({
         playing: status.playing,
         playhead: status.position,
@@ -106,8 +111,9 @@ export function createTransport({ post, getState, setState, onError }) {
     /** The playhead moves on screen at once; the engine follows. */
     seek(frame) {
       const at = Math.max(0, Math.round(frame));
+      seekSeq += 1;
       setState({ playhead: at });
-      return run("seek", at);
+      return run("seek", at, null, null, null, seekSeq);
     },
   };
 }

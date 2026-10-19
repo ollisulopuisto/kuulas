@@ -571,16 +571,16 @@ def test_insert_on_every_track_moves_markers_and_a_partial_insert_does_not(sessi
         (10_000, 80_000), (110_000, None)]
 
 
-def test_lift_cut_copies_and_mutes_in_place_in_one_step(session):
+def test_lift_cut_copies_and_deletes_leaving_the_gap_in_one_step(session):
     a, b = ids(session.state)
     nodes = history_len(session)
     out = session.clipboard_lift_cut(start=10_000, end=30_000, track_ids=[a.id, b.id])
     assert out["clipboard"]["ok"] is True
     assert history_len(session) == nodes + 1
-    # The gap stays: nothing moved, the stretch is muted, not removed.
+    # The gap stays: nothing moved, the stretch is REMOVED (owner 2026-10-19: not muted).
     after = session.state
     assert [(c.start, c.length, c.muted) for c in after.tracks[0].clips] == [
-        (0, 10_000, False), (10_000, 20_000, True), (30_000, 66_000, False)]
+        (0, 10_000, False), (30_000, 66_000, False)]
     [kept] = entries(session)
     assert kept.id == out["clipboard"]["entry"]
     assert kept.span == (10_000, 30_000)
@@ -591,7 +591,7 @@ def test_lift_cut_copies_and_mutes_in_place_in_one_step(session):
     assert not any(c.muted for t in session.state.tracks for c in t.clips)
 
 
-def test_lift_cut_still_mutes_when_the_copy_fails(session, monkeypatch):
+def test_lift_cut_still_deletes_when_the_copy_fails(session, monkeypatch):
     def full(*_a, **_k):
         raise OSError("disk full")
 
@@ -599,7 +599,9 @@ def test_lift_cut_still_mutes_when_the_copy_fails(session, monkeypatch):
     a, _ = ids(session.state)
     out = session.clipboard_lift_cut(start=10_000, end=30_000, track_ids=[a.id])
     assert out["clipboard"]["ok"] is False
-    assert any(c.muted for c in session.state.tracks[0].clips)
+    assert [(c.start, c.length) for c in session.state.tracks[0].clips] == [
+        (0, 10_000), (30_000, 66_000)]
+    assert not any(c.muted for c in session.state.tracks[0].clips)
 
 
 def test_api_lift_cut_goes_through_edit(client, session):

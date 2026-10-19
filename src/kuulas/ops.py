@@ -613,6 +613,35 @@ def mute_range(p: Project, start: int, end: int, track_ids,
     return p
 
 
+def clear_range(p: Project, start: int, end: int, track_ids,
+                group_editing: bool = False) -> Project:
+    """Delete ``[start, end)`` on the tracks (the sync group's too when ``group_editing``)
+    and LEAVE the gap: the clips on either side keep their places and the audio keeps its
+    place in its recording. Nothing moves; markers, automation and gates are untouched.
+    Lift-cut's removal (owner, 2026-10-19: Alt+X must delete, not mute)."""
+    start, end = int(start), int(end)
+    if end <= start:
+        raise EditError("error.edit.empty_range")
+    scope = set(edit_scope.expand_range(p, None, list(track_ids), start, end,
+                                        group_editing))
+    tracks = []
+    for track in p.tracks:
+        if track.id not in scope:
+            tracks.append(track)
+            continue
+        clips: list[Clip] = []
+        for c in track.clips:
+            if c.end <= start or c.start >= end:
+                clips.append(c)
+                continue
+            if c.start < start:
+                clips.append(_cut(c, start, "")[0])
+            if c.end > end:
+                clips.append(_cut(c, end, c.id if c.start >= start else new_id("c"))[1])
+        tracks.append(replace(track, clips=_sorted(clips)))
+    return replace(p, tracks=tuple(tracks))
+
+
 def cut_range(p: Project, start: int, end: int, track_ids,
               group_editing: bool = False) -> Project:
     """Ripple-delete ``[start, end)`` on the tracks, or on the sync group's
