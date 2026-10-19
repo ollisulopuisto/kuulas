@@ -9,6 +9,7 @@
 // the menu and returns to the bar. Disabled items are focusable (they teach) but
 // do nothing. No mnemonics.
 
+import { isHoverPointer, movingToward, rowHover, topHover } from "./menu-hover.js";
 import { findItem, fitMenus, moveItem, moveMenu, overflowMenu } from "./menu-model.js";
 
 export function createMenubar({ root, getMenus, run, onHint, t, search = null }) {
@@ -16,6 +17,13 @@ export function createMenubar({ root, getMenus, run, onHint, t, search = null })
   const at = { open: false, top: 0, item: -1, subOpen: false, sub: -1 };
   let wantFocus = false; // one-shot: focus the current item after the next render
   let shown = Infinity; // how many top-level menus fit; the rest sit in the "…" menu
+  let hoverTimer = null; // a submenu opening or closing that waits for the pointer to rest
+  let lastPointer = null; // where the mouse was, for the diagonal-movement grace
+
+  function cancelHover() {
+    clearTimeout(hoverTimer);
+    hoverTimer = null;
+  }
 
   root.setAttribute("role", "menubar");
   root.setAttribute("aria-label", t("menu.bar"));
@@ -165,6 +173,7 @@ export function createMenubar({ root, getMenus, run, onHint, t, search = null })
   }
 
   function close(returnFocus = true) {
+    cancelHover();
     search?.reset();
     at.open = false;
     at.item = -1;
@@ -177,6 +186,7 @@ export function createMenubar({ root, getMenus, run, onHint, t, search = null })
   }
 
   function openMenu(index, { first = false, item = null } = {}) {
+    cancelHover();
     // A fresh query each time the menu with the search field is opened.
     if (!(at.open && at.top === index)) search?.reset();
     at.top = index;
@@ -323,13 +333,59 @@ export function createMenubar({ root, getMenus, run, onHint, t, search = null })
     activate();
   });
 
-  // Moving over a menu while one is open follows the pointer, as on every desktop.
+  // Mouse hover, as on a Mac: with a menu open, another title opens at once; a submenu opens
+  // when the pointer rests on its row and closes when it moves to another row. Touch and pen
+  // skip this (click and keys are unchanged). The decisions live in menu-hover.js.
   root.addEventListener("pointerover", (event) => {
     const button = event.target.closest?.("button[data-pos]");
     if (!button) return;
     reportHint(button);
+    if (!isHoverPointer(event.pointerType)) return;
     const pos = button.dataset.pos;
-    if (/^\d+$/.test(pos) && at.open && at.top !== Number(pos)) openMenu(Number(pos));
+    if (/^\d+$/.test(pos)) {
+      cancelHover();
+      if (topHover({ open: at.open, top: at.top, target: Number(pos) }) === "open")
+        openMenu(Number(pos));
+      return;
+    }
+    if (!at.open) return;
+    if (pos[0] === "s") {
+      cancelHover(); // arrived in the submenu: nothing pending applies any more
+      return;
+    }
+    const row = Number(pos.slice(1));
+    const rowIsSubmenu = button.getAttribute("aria-haspopup") === "menu";
+    const subRect = root.querySelector(".submenu")?.getBoundingClientRect();
+    const here = { x: event.clientX, y: event.clientY };
+    const decision = rowHover({
+      subOpen: at.subOpen,
+      openRow: at.item,
+      row,
+      rowIsSubmenu,
+      towardSub: at.subOpen && movingToward(lastPointer, here, subRect),
+    });
+    cancelHover();
+    if (decision.act === "cancel") return;
+    const apply = () => {
+      hoverTimer = null;
+      if (!at.open) return;
+      if (decision.act === "open-sub") {
+        const items = currentItems(effective());
+        if (items[row]?.kind !== "submenu") return;
+        at.item = row;
+        at.subOpen = true;
+        at.sub = -1;
+      } else {
+        at.subOpen = false;
+        at.sub = -1;
+      }
+      render();
+    };
+    if (decision.delay > 0) hoverTimer = setTimeout(apply, decision.delay);
+    else apply();
+  });
+  root.addEventListener("pointermove", (event) => {
+    if (isHoverPointer(event.pointerType)) lastPointer = { x: event.clientX, y: event.clientY };
   });
   root.addEventListener("pointerout", (event) => {
     if (!root.contains(event.relatedTarget))
