@@ -1,3 +1,14 @@
+## [v26.10.19.9] - 2026-10-19
+
+- **A downloadable Mac app for testers (unsigned):** `scripts/build_dmg.sh` builds `Kuulas <version>.dmg`
+  (about 165 MB): drag Kuulas to Applications, open it once with right-click, Open (it is not signed), and
+  double-click `.kuulas` projects. No Python, `uv`, repo or podcast checkout is needed: kuulas, its audio
+  libraries and ffmpeg are inside. Each project opened from Finder gets its own window. Read `docs/TESTERS.md`
+  for the testers' steps (including where the log is). Needs Apple silicon, `uv` and a network to build. Not
+  opened in Finder yet: that is for you. Note: the local `Kuulas.app` launcher from `make_app.py` and this app
+  both claim `.kuulas`, so remove the launcher (`lsregister -u`, see `docs/desktop.md`) before trying the dmg.
+  ffmpeg in the bundle is a GPLv3 build (separate program; notice in the docs).
+
 ## [v26.10.19.8] - 2026-10-19
 
 - **The automixer mix is now saved next to the project** (in the folder that holds the `.kuulas` folder, never

@@ -3518,7 +3518,7 @@ opening; whether the Dock icon menu should list recent projects.
 
 ### WP73 — Tester build: an unsigned .dmg for macOS (owner, 2026-10-19)
 
-Status: open. Owner decisions 2026-10-19: **unsigned** `.dmg` first; **Mac only** (no Windows testers). The goal is
+Status: built in v26.10.19.9 (Briefcase 0.4.6 carried it; app 556 MB, dmg 165 MB; `--selftest` passes on the built app and the app inside the dmg); not opened in Finder yet. ffmpeg bundled (GPLv3 static build, not checksum-pinned yet). Owner decisions 2026-10-19: **unsigned** `.dmg` first; **Mac only** (no Windows testers). The goal is
 that a tester downloads one file, drags Kuulas to Applications, opens it (the first time with right-click, Open,
 because it is unsigned), and double-clicks `.kuulas` projects. No Python, `uv`, repo or podcast checkout needed.
 Prior art searched 2026-10-19: [Briefcase](https://briefcase.beeware.org) (BeeWare) builds the macOS `.app` and
@@ -3594,3 +3594,6 @@ change unless he says so, en and fi strings.
   physical keys: Option+8 and Option+9 on a Finnish Mac; Alt+Down and Alt+Up also step candidates).
 - **View:** too busy; submenus (for example Zoom and fit, Mouse and trackpad, Buses).
 - **Transcript, Narration, Help:** no notes.
+- **File (later notes):** "Export transcripts" is its own submenu in File (subtitles, transcript text, chapters,
+  regions, narration script live there); Import stays in File; and File needs **New** (a new empty project: ask
+  for a name and a folder, create the `.kuulas` folder, open it in a window).
