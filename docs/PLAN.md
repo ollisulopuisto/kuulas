@@ -3576,3 +3576,21 @@ change unless he says so, en and fi strings.
   one file; the automixer runs its own chain on the dry stems (levelling, de-bleed, ducking, mastering to a
   target loudness). Names to consider: "Export mix (as heard)" and "Auto-mix with the automixer".
 - Still to place: Import, subtitles, chapters, regions, narration script, the Export mix format submenu.
+
+**All other menus, notes (2026-10-19, from the Menu Sketchbook):**
+- **File:** two export-mix items, "Export mix (automixer)" and "Export mix (no automixer)", plus the shape above.
+- **Edit:** the second part is a long list with no submenus: group it (the clipboard commands, the cut and
+  delete variants, split and merge, group, select).
+- **Track:** "Automix" (`app.automix`, Cmd+L) is confusing next to File's automixer. It is the old "write the mic
+  ducking into each speech track's automation" command and has no hint text. Rename it ("Duck the microphones
+  (automation)") and give it a hint, or move it under an Auto submenu with Auto-Silence. Also: make the Finnish
+  terms consistent (Bus, Group, and the other terminology; see `docs/GLOSSARY.md`).
+- **Markers:** a key for "Clear in and out points" (`mark.clear`, none today).
+- **Transport:** rename "Play from a few seconds before the playhead" to "Jump back and play"; fast playback
+  (4 items) in its own submenu.
+- **Go:** "Previous/Next stop" appear twice (`nav.*` and `transcript.*`; they differ only by context):
+  show each once. "Track above/below" are "Select the track above / below".
+- **Cut candidates:** make sure Next/Previous candidate keys work on a Finnish keyboard (today `[` and `]` are
+  physical keys: Option+8 and Option+9 on a Finnish Mac; Alt+Down and Alt+Up also step candidates).
+- **View:** too busy; submenus (for example Zoom and fit, Mouse and trackpad, Buses).
+- **Transcript, Narration, Help:** no notes.
