@@ -80,6 +80,10 @@ export function createColabDialogs({ api, t, onSettingsSaved = () => {} }) {
   noDrive.type = "checkbox";
   const noDriveLabel = make("label", "automix-field");
   noDriveLabel.append(noDrive, make("span", "", t("ui.colab.no_drive")));
+  const align = make("input");
+  align.type = "checkbox";
+  const alignLabel = make("label", "automix-field");
+  alignLabel.append(align, make("span", "", t("ui.colab.align")));
   const form = make("form");
   form.method = "dialog";
   const buttons = make("div", "cheatsheet-footer");
@@ -95,6 +99,7 @@ export function createColabDialogs({ api, t, onSettingsSaved = () => {} }) {
     field("extra", "ui.colab.extra_args"),
     field("model", "ui.colab.model"),
     field("language", "ui.colab.language"),
+    alignLabel,
     noDriveLabel,
     error,
     buttons,
@@ -112,7 +117,9 @@ export function createColabDialogs({ api, t, onSettingsSaved = () => {} }) {
     error.hidden = true;
     const values = Object.fromEntries(Object.entries(fields).map(([k, input]) => [k, input.value]));
     try {
-      await api.saveColabSettings(colabSettingsBody({ ...values, noDrive: noDrive.checked }));
+      await api.saveColabSettings(
+        colabSettingsBody({ ...values, noDrive: noDrive.checked, align: align.checked }),
+      );
       dialog.close();
       onSettingsSaved();
     } catch (e) {
@@ -139,6 +146,7 @@ export function createColabDialogs({ api, t, onSettingsSaved = () => {} }) {
         const form = colabForm(resolved);
         for (const key of Object.keys(fields)) fields[key].value = form[key];
         noDrive.checked = form.noDrive;
+        align.checked = form.align;
       } catch (e) {
         showError(e.message);
       }

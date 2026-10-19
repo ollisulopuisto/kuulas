@@ -1722,6 +1722,7 @@
   "ui.colab.extra_args": "Extra arguments",
   "ui.colab.model": "Model",
   "ui.colab.language": "Language (empty: the tool decides)",
+  "ui.colab.align": "Correct the word starts after transcribing (--align; the result says whether it ran)",
   "ui.colab.no_drive": "Also pass --no-drive (only older versions of the tool need it)",
   "ui.colab.save": "Save",
   "ui.colab.close": "Close",

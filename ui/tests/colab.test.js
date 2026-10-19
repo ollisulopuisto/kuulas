@@ -56,12 +56,14 @@ describe("settings form", () => {
       model: "small",
       language: "fi",
       noDrive: true,
+      align: false,
     };
     assert.deepEqual(colabSettingsBody(form), {
       command: ["uv", "run", "my tool"],
       cwd: "/p",
       extra_args: ["--a", "--b"],
       no_drive: true,
+      align: false,
       model: "small",
       language: "fi",
     });
@@ -74,7 +76,7 @@ describe("settings form", () => {
         language: "",
         noDrive: false,
       }),
-      { extra_args: [], no_drive: false },
+      { extra_args: [], no_drive: false, align: true },
     );
   });
 
@@ -84,6 +86,7 @@ describe("settings form", () => {
       cwd: null,
       extra_args: ["--x"],
       no_drive: true,
+      align: true,
       model: "turbo",
       language: null,
     });
@@ -94,6 +97,7 @@ describe("settings form", () => {
       model: "turbo",
       language: "",
       noDrive: true,
+      align: true,
     });
   });
 });

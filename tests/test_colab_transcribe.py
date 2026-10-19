@@ -125,6 +125,7 @@ def test_defaults():
     assert s["cwd"] is None
     assert s["extra_args"] == []
     assert s["no_drive"] is False  # the plain-audio mode never uses Drive
+    assert s["align"] is True  # the word starts are corrected after Whisper (--align)
     assert s["model"] == "turbo"
     assert s["language"] is None
 
@@ -173,9 +174,10 @@ def test_command_line_is_an_argument_list():
                            Path("/t/out"), model="turbo", language="fi")
     assert cmd == ["uvx", "colab-transcribe", "--audio", "/a/One.wav", "--audio",
                    "/b/Two.flac", "--json", "/t/out", "--progress", "--model", "turbo",
-                   "--language", "fi", "--no-drive", "--gpu", "L4"]
-    cmd = ct.build_command({"command": ["c"], "extra_args": [], "no_drive": False},
-                           [Path("/a/One.wav")], Path("/t"), model="small", language=None)
+                   "--language", "fi", "--align", "--no-drive", "--gpu", "L4"]
+    cmd = ct.build_command(
+        {"command": ["c"], "extra_args": [], "no_drive": False, "align": False},
+        [Path("/a/One.wav")], Path("/t"), model="small", language=None)
     assert cmd == ["c", "--audio", "/a/One.wav", "--json", "/t", "--progress",
                    "--model", "small"]
 
@@ -454,3 +456,26 @@ def test_the_rejected_count_of_a_corrected_transcript_is_passed_on(
     monkeypatch.setenv("FAKE_BODY", json.dumps(doc()))
     result, _ = run(files(tmp_path, "Olli.wav"), fake)
     assert result["results"]["olli"]["rejected"] == 0
+
+
+def test_the_command_asks_for_the_word_start_correction_by_default():
+    cmd = ct.build_command(ct.resolve_settings({"command": ["c"]}), [Path("a.wav")],
+                           Path("/o"), model="turbo", language=None)
+    assert "--align" in cmd
+    assert cmd.index("--align") > cmd.index("--progress")
+
+
+def test_the_correction_can_be_switched_off_and_junk_means_on():
+    off = ct.resolve_settings({"align": False})
+    assert off["align"] is False
+    assert ct.resolve_settings({"align": "no"})["align"] is True
+    cmd = ct.build_command({**off, "command": ["c"]}, [Path("a.wav")], Path("/o"),
+                           model="m", language=None)
+    assert "--align" not in cmd
+
+
+def test_align_is_a_stored_setting(tmp_path, monkeypatch):
+    monkeypatch.setenv("KUULAS_COLAB_FILE", str(tmp_path / "colab.json"))
+    assert ct.save_settings({"align": False}) == {"align": False}
+    with pytest.raises(ct.ColabError):
+        ct.save_settings({"align": "yes"})

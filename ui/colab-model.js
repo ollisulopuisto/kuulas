@@ -26,7 +26,8 @@ export function colabForm(resolved) {
     extra: formatWords(resolved.extra_args),
     model: resolved.model ?? "",
     language: resolved.language ?? "",
-    noDrive: resolved.no_drive !== false,
+    noDrive: resolved.no_drive === true,
+    align: resolved.align !== false,
   };
 }
 
@@ -38,6 +39,7 @@ export function colabSettingsBody(form) {
   if (form.cwd.trim()) body.cwd = form.cwd.trim();
   body.extra_args = parseWords(form.extra);
   body.no_drive = Boolean(form.noDrive);
+  body.align = form.align !== false;
   if (form.model.trim()) body.model = form.model.trim();
   if (form.language.trim()) body.language = form.language.trim();
   return body;

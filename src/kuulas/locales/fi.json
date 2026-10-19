@@ -1818,6 +1818,7 @@
   "ui.colab.extra_args": "Lisäargumentit",
   "ui.colab.model": "Malli",
   "ui.colab.language": "Kieli (tyhjä: työkalu päättää)",
+  "ui.colab.align": "Korjaa sanojen alkuajat litteroinnin jälkeen (--align; tulos kertoo, ajettiinko korjaus)",
   "ui.colab.no_drive": "Anna myös --no-drive (vain työkalun vanhat versiot tarvitsevat sitä)",
   "ui.colab.save": "Tallenna",
   "ui.colab.close": "Sulje",

@@ -12,6 +12,7 @@ from scripts.check_locale import (  # noqa: E402
     main,
     parity,
     referenced_keys,
+    scan_sources,
     unused,
 )
 
@@ -144,3 +145,13 @@ def test_main_cli_succeeds_on_clean_locales(tmp_path: Path, capsys):
     assert rc == 0
     captured = capsys.readouterr()
     assert "unused.key" in captured.out  # Warning reported
+
+
+def test_the_standalone_recorder_has_its_own_error_keys(tmp_path):
+    src = tmp_path / "src"
+    (src / "kuulas_recorder").mkdir(parents=True)
+    (src / "kuulas_recorder" / "x.py").write_text(
+        'raise ProtocolError("already_recording", "A take is recording.")\n')
+    (src / "kuulas").mkdir()
+    (src / "kuulas" / "y.py").write_text('raise KuulasError("error.real.key")\n')
+    assert scan_sources(src, tmp_path / "ui") == {"error.real.key"}

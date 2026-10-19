@@ -121,12 +121,16 @@ def resolve_settings(stored: dict | None) -> dict[str, Any]:
     model = stored.get("model")
     language = stored.get("language")
     no_drive = stored.get("no_drive")
+    align = stored.get("align")
     return {
         "command": list(command) if _words(command) else list(DEFAULT_COMMAND),
         "cwd": cwd.strip() if isinstance(cwd, str) and cwd.strip() else None,
         "extra_args": list(extra) if isinstance(extra, list)
         and all(isinstance(x, str) for x in extra) else [],
         "no_drive": no_drive if isinstance(no_drive, bool) else False,
+        # The podcast tool corrects the word starts after Whisper with --align: on by
+        # default; the result says which it is (`timing`).
+        "align": align if isinstance(align, bool) else True,
         "model": model.strip() if isinstance(model, str) and model.strip()
         else DEFAULT_MODEL,
         "language": language.strip() if isinstance(language, str) and language.strip()
@@ -156,16 +160,16 @@ def load_settings() -> dict:
 def save_settings(settings: dict) -> dict:
     """Check and store the settings (atomic write); returns what was stored.
     Raises ``ColabError`` (``error.colab.bad_settings``) for a wrong shape."""
-    command, cwd, extra, no_drive, model, language = (settings.get(k) for k in (
-        "command", "cwd", "extra_args", "no_drive", "model", "language"))
+    command, cwd, extra, no_drive, model, language, align = (settings.get(k) for k in (
+        "command", "cwd", "extra_args", "no_drive", "model", "language", "align"))
     ok = command is None or _words(command)
     ok = ok and all(v is None or isinstance(v, str) for v in (cwd, model, language))
-    ok = ok and (no_drive is None or isinstance(no_drive, bool))
+    ok = ok and all(v is None or isinstance(v, bool) for v in (no_drive, align))
     ok = ok and (extra is None or (isinstance(extra, list)
                                    and all(isinstance(x, str) for x in extra)))
     if not ok:
         raise ColabError("error.colab.bad_settings")
-    keys = ("command", "cwd", "extra_args", "no_drive", "model", "language")
+    keys = ("command", "cwd", "extra_args", "no_drive", "model", "language", "align")
     clean = {k: settings[k] for k in keys if settings.get(k) is not None}
     path = settings_path()
     try:
@@ -185,7 +189,8 @@ def save_settings(settings: dict) -> dict:
 def build_command(settings: dict, audio: list[Path], folder: Path, *,
                   model: str, language: str | None) -> list[str]:
     """The argument list (never a shell string): the command, ``--audio`` per file,
-    ``--json`` folder, ``--progress``, the model and language, ``--no-drive`` when set,
+    ``--json`` folder, ``--progress``, the model and language, ``--align`` (the word-start
+    correction, on by default), ``--no-drive`` when set,
     then the user's extra arguments."""
     cmd = [*settings["command"]]
     for path in audio:
@@ -193,6 +198,8 @@ def build_command(settings: dict, audio: list[Path], folder: Path, *,
     cmd += ["--json", str(folder), "--progress", "--model", model]
     if language:
         cmd += ["--language", language]
+    if settings.get("align", True):
+        cmd.append("--align")
     if settings.get("no_drive"):
         cmd.append("--no-drive")
     return [*cmd, *settings["extra_args"]]
