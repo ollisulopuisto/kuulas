@@ -129,15 +129,27 @@ describe("lift-cut (copy, then soft delete)", () => {
 });
 
 describe("close gap on all tracks", () => {
-  test("ripple_delete of the range on every track, no clipboard", () => {
-    const plan = closeGapPlan(state(range));
+  test("ripple_delete of the range on the sync group's tracks, no clipboard", () => {
+    // The tracks the range is on go with it; the server widens them to the group (WP19a), also
+    // when group editing is off, because closing a gap on all tracks is what brings them back.
+    const plan = closeGapPlan(state({ ...range, groupEditing: false }));
     assert.equal(plan.op, "ripple_delete");
-    assert.deepEqual(plan.args, { start: 2 * S, end: 6 * S });
+    assert.deepEqual(plan.args, {
+      start: 2 * S,
+      end: 6 * S,
+      track_ids: ["A"],
+      group_editing: true,
+    });
     assert.equal(plan.label.key, "ui.edit.label.close_gap");
   });
   test("selected clips: their span", () => {
     const plan = closeGapPlan(state({ selection: new Set(["a2"]) }));
-    assert.deepEqual(plan.args, { start: 12 * S, end: 20 * S });
+    assert.deepEqual(plan.args, {
+      start: 12 * S,
+      end: 20 * S,
+      track_ids: ["A"],
+      group_editing: true,
+    });
   });
   test("nothing selected is null", () => {
     assert.equal(closeGapPlan(state()), null);

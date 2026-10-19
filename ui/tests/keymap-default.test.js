@@ -98,13 +98,12 @@ describe("the owner's decisions", () => {
 
   test("the candidate keys: stepping and marking everywhere, deciding in the tab only", () => {
     const contextOf = (id) => DEFAULT_KEYMAP.find((entry) => entry.id === id).context;
-    for (const id of [
-      "candidate.next",
-      "candidate.previous",
-      "candidate.mark",
-      "candidate.filter",
-    ]) {
+    for (const id of ["candidate.mark", "candidate.filter"]) {
       assert.equal(contextOf(id), "global", id);
+    }
+    // ] and [ step the drift list while the Markers tab has the keyboard (WP19a), candidates elsewhere.
+    for (const id of ["candidate.next", "candidate.previous"]) {
+      assert.equal(contextOf(id), "not-markers", id);
     }
     for (const id of ["candidate.apply", "candidate.reject", "candidate.preview"]) {
       assert.equal(contextOf(id), "candidates", id);
@@ -125,6 +124,20 @@ describe("the owner's decisions", () => {
     assert.deepEqual(contextsOf("Shift+Tab").sort(), ["timeline", "transcript"]);
     assert.deepEqual(keysOf("nav.tab_target_cycle", "mac"), ["Alt+Tab"]);
     assert.deepEqual(keysOf("nav.tab_target_cycle"), ["Shift+T"]);
+  });
+
+  test("sync: U frees, ] and [ step the drift list in the Markers tab, the rest has no key", () => {
+    const contextOf = (id) => DEFAULT_KEYMAP.find((entry) => entry.id === id).context;
+    assert.deepEqual(keysOf("sync.free"), ["U"]);
+    assert.equal(contextOf("sync.free"), "timeline");
+    assert.deepEqual(keysOf("sync.drift_next"), ["]"]);
+    assert.deepEqual(keysOf("sync.drift_previous"), ["["]);
+    for (const id of ["sync.drift_next", "sync.drift_previous"]) {
+      assert.equal(contextOf(id), "markers", id);
+    }
+    for (const id of ["sync.resync_all", "sync.free_all"]) assert.deepEqual(keysOf(id), [], id);
+    assert.deepEqual(keysOf("sync.resync"), ["R", "Alt+Mod+R"]);
+    assert.deepEqual(keysOf("sync.resync_end"), ["Shift+Alt+Mod+R"]);
   });
 
   test("X cuts the marked range from anywhere but a text field and the transcript", () => {

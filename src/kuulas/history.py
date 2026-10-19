@@ -617,6 +617,23 @@ class History:
         ctx = _parse_context(target.get("context"))
         return UndoInfo(ctx, step=target)
 
+    def recent(self, limit: int = 200) -> list[tuple[dict, Project]]:
+        """The last ``limit`` steps on the way to the head, oldest first, each
+        with the project it produced (sync groups as of now: they are material,
+        not part of an edit state). The step before the first is not included."""
+        rows = []
+        node: str | None = self.head
+        while node is not None and len(rows) < limit:
+            row = self._node(node)
+            rows.append(row)
+            node = row["parent"]
+        groups = self.state.sync_groups
+        out = []
+        for row in reversed(rows):
+            row["op"] = json.loads(row["op"])
+            out.append((row, replace(self._load(row["id"]), sync_groups=groups)))
+        return out
+
     def nodes(self) -> list[dict]:
         rows = _rows(self.db.execute(
             "select id, parent, label, author, machine, op, created_utc as created,"

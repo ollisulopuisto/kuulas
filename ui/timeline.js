@@ -63,6 +63,7 @@ import { baseGainDb, makeWaveformJob, scaleFor, trackHues } from "./paint.js";
 import { aboutSeconds, placeholderLabel } from "./placeholders-model.js";
 import { dragRange, isDrag, touchedResult, trackRowsTouched } from "./range-drag.js";
 import { rulerTicks } from "./ruler.js";
+import { badgeFor, formatOffset, partnerIds, syncIndex } from "./sync-state.js";
 import { readTheme } from "./theme.js";
 import { createTileStore } from "./tiles.js";
 import { selectionBounds, wordAtTime } from "./transcript-model.js";
@@ -541,6 +542,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     overlay.beginPath();
     overlay.rect(0, RULER_HEIGHT, width, size.height - RULER_HEIGHT);
     overlay.clip();
+    const partners = partnersOf(state);
     for (const clip of paintOrder(track.clips)) {
       const left = frameToX(clip.start, state.scroll, state.zoom);
       const right = frameToX(clipEnd(clip), state.scroll, state.zoom);
@@ -564,6 +566,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       if (row.height >= 40 && (selected || clip.id === hoverClipId))
         drawFadeHandles(clip, { left, right, zoom: state.zoom }, { top, y, h });
       if (siblings.has(clip.id)) drawSiblingMarks(left, y, w, h);
+      if (state.groupEditing !== false && partners.has(clip.id)) drawPartnerOutline(left, y, w, h);
       if (selected) {
         overlay.strokeStyle = theme.selection;
         overlay.lineWidth = 2;
@@ -845,6 +848,86 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     }
   }
 
+  // Sync states (R51, WP19a). The server's list of drifting and free clips, indexed once per
+  // list; the partners of the selection, once per (partners, selection).
+  let syncFrom = null;
+  let syncRows = new Map();
+  function syncRowsOf(state) {
+    if (state.syncClips !== syncFrom) {
+      syncFrom = state.syncClips;
+      syncRows = syncIndex(state.syncClips);
+    }
+    return syncRows;
+  }
+  let partnersFrom = null;
+  let partnersSel = null;
+  let partnerSet = new Set();
+  function partnersOf(state) {
+    if (state.partners !== partnersFrom || state.selection !== partnersSel) {
+      partnersFrom = state.partners;
+      partnersSel = state.selection;
+      partnerSet = partnerIds(state.partners, state.selection);
+    }
+    return partnerSet;
+  }
+
+  // A clip that is free from sync wears a grey unlinked icon and its offset ("+300 ms · free"); one
+  // that has drifted wears a red badge with the offset. Both are text as well as colour. Right end of
+  // the label strip, left of the group mark.
+  function drawSyncBadge(state, clip, left, y, w, colours) {
+    const badge = badgeFor(syncRowsOf(state).get(clip.id));
+    if (!badge || w < 24) return;
+    const free = badge.kind === "free";
+    const offset = formatOffset(badge.offset, state.project.rate, (v) =>
+      formatNumber(v, { digits: 1 }),
+    );
+    const right = Math.min(left + w, size.width) - 6 - (clip.group ? 16 : 0);
+    const colour = free ? theme.muted : theme.collateral;
+    overlay.save();
+    overlay.font = `600 ${NAME_FONT_PX}px ${theme.font}`;
+    overlay.textBaseline = "top";
+    let text = "";
+    if (free) {
+      text =
+        badge.offset === 0 ? t("ui.sync.badge.free_zero") : t("ui.sync.badge.free", { offset });
+    } else {
+      text = offset;
+    }
+    const wide = w >= 40 + overlay.measureText(text).width + 16;
+    const textWidth = wide ? overlay.measureText(text).width : 0;
+    const x = right - textWidth - (free ? 14 : 0);
+    if (wide || !free) {
+      overlay.fillStyle = colours.fill;
+      overlay.globalAlpha = LABEL_BACKING_ALPHA;
+      overlay.fillRect(x - 3, y + 2, textWidth + (free ? 14 : 0) + 6, LABEL_H);
+      overlay.globalAlpha = 1;
+    }
+    overlay.strokeStyle = colour;
+    overlay.fillStyle = colour;
+    overlay.lineWidth = 1.5;
+    if (free) {
+      // Two rings that do not touch: an unlinked chain.
+      overlay.beginPath();
+      overlay.roundRect(x, y + 5, 6, 5, 2.5);
+      overlay.roundRect(x + 8, y + 5, 6, 5, 2.5);
+      overlay.stroke();
+    }
+    if (wide) overlay.fillText(text, free ? x + 16 : x, y + 3);
+    overlay.restore();
+  }
+
+  // The partners of the selected clip (clips of its sync group that play the same stretch of the
+  // recording) get a dashed outline, so the user sees what a move will take along (the dash is the
+  // twin of the colour). Not drawn while group editing is off: nothing would follow.
+  function drawPartnerOutline(left, y, w, h) {
+    overlay.save();
+    overlay.strokeStyle = theme.selection;
+    overlay.lineWidth = 1.5;
+    overlay.setLineDash([4, 3]);
+    overlay.strokeRect(left + 1, y + 1, Math.max(1, w - 2), h - 2);
+    overlay.restore();
+  }
+
   // A grouped clip (clip.group) wears a thin link mark, two joined rings, at the right
   // end of its label strip. Groups have no colour in this version.
   function drawGroupBadge(left, y, w, colours) {
@@ -866,6 +949,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
   // nothing, the person, "Olli 3", "Olli 3 · 1:20–3:20", then the first words.
   function drawName(state, clip, left, y, w, colours, marked) {
     if (clip.group) drawGroupBadge(left, y, w, colours);
+    drawSyncBadge(state, clip, left, y, w, colours);
     const media = state.project.media.find((item) => item.id === clip.media);
     if (!media || w < 30) return;
     let x = Math.max(left, 0) + 5;
@@ -1560,6 +1644,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       origin: locate(event),
       pointerId: event.pointerId,
       dragging: false,
+      alone: event.altKey,
       seekFrame: hit.frame,
       move: { delta: 0, direction: 0 },
       // Snapping and fine movement (move-snap.js): where the pointer's travel stands, the clips'
@@ -1582,6 +1667,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       overlayCanvas.style.cursor = "grabbing";
     }
     const state = getState();
+    session.alone = event.altKey; // Alt held when it lets go: this clip moves alone (R51)
     const row = targetTrackRow(layoutFor(state), point.y - RULER_HEIGHT + state.scrollY);
     // Shift: fine adjust (a tenth of the travel). Alt: no snapping. Otherwise the edges snap
     // to other clips' edges, the playhead and the marks within 8 px.
@@ -1614,7 +1700,9 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     overlayCanvas.releasePointerCapture?.(session.pointerId);
     requestOverlay();
     if (commit && !session.dragging) actions.seek?.(session.seekFrame);
-    if (commit && session.dragging) actions.clipDrag({ ids: session.ids, move: session.move });
+    if (commit && session.dragging) {
+      actions.clipDrag({ ids: session.ids, move: session.move, alone: session.alone });
+    }
   }
 
   function clipKey(event) {

@@ -335,14 +335,20 @@
   "ui.inspector.fades": "Häivytykset",
   "ui.inspector.sync": "Tahdistus",
   "ui.inspector.source": "Lähde",
-  "ui.inspector.source.summary": {"one": "Käytetty {percent} % · {count} osa", "other": "Käytetty {percent} % · {count} osaa"},
+  "ui.inspector.source.summary": {
+    "one": "Käytetty {percent} % · {count} osa",
+    "other": "Käytetty {percent} % · {count} osaa"
+  },
   "ui.inspector.source.map": "Koko äänitteen kartta: käytetyt, leikatut ja käyttämättömät kohdat sekä tämä leike",
   "ui.inspector.source.used": "Käytetty",
   "ui.inspector.source.cut": "Leikattu",
   "ui.inspector.source.unused": "Käyttämätön",
   "ui.inspector.source.this": "Tämä leike",
   "ui.inspector.source.loading": "Ladataan…",
-  "ui.inspector.source.others": {"one": "Muut leikkeet tästä äänitteestä ({count})", "other": "Muut leikkeet tästä äänitteestä ({count})"},
+  "ui.inspector.source.others": {
+    "one": "Muut leikkeet tästä äänitteestä ({count})",
+    "other": "Muut leikkeet tästä äänitteestä ({count})"
+  },
   "ui.inspector.source.none": "Tästä äänitteestä ei ole muita leikkeitä.",
   "ui.inspector.source.jump": "Valitse tämä leike ja siirrä toistokohta kohtaan {time}",
   "ui.inspector.details": "Tiedot",
@@ -734,10 +740,22 @@
   "ui.edit.label.group_clips": "Ryhmitys",
   "ui.edit.label.ungroup_clips": "Ryhmän purku",
   "ui.edit.label.merge_clips": "Yhdistäminen",
-  "ui.edit.toast.group_clips": {"one": "Ryhmitetty {count} leike", "other": "Ryhmitetty {count} leikettä"},
-  "ui.edit.toast.ungroup_clips": {"one": "Purettu {count} ryhmä", "other": "Purettu {count} ryhmää"},
-  "ui.edit.toast.merge": {"one": "Yhdistetty {count} leike yhteen: {into}", "other": "Yhdistetty {count} leikettä {into} leikkeeksi"},
-  "ui.edit.toast.merge_partial": {"one": "Yhdistetty {count} leike yhteen: {into}; {left} jäi yhdistämättä (eivät kosketa, eri lähde tai eri voimakkuus)", "other": "Yhdistetty {count} leikettä {into} leikkeeksi; {left} jäi yhdistämättä (eivät kosketa, eri lähde tai eri voimakkuus)"},
+  "ui.edit.toast.group_clips": {
+    "one": "Ryhmitetty {count} leike",
+    "other": "Ryhmitetty {count} leikettä"
+  },
+  "ui.edit.toast.ungroup_clips": {
+    "one": "Purettu {count} ryhmä",
+    "other": "Purettu {count} ryhmää"
+  },
+  "ui.edit.toast.merge": {
+    "one": "Yhdistetty {count} leike yhteen: {into}",
+    "other": "Yhdistetty {count} leikettä {into} leikkeeksi"
+  },
+  "ui.edit.toast.merge_partial": {
+    "one": "Yhdistetty {count} leike yhteen: {into}; {left} jäi yhdistämättä (eivät kosketa, eri lähde tai eri voimakkuus)",
+    "other": "Yhdistetty {count} leikettä {into} leikkeeksi; {left} jäi yhdistämättä (eivät kosketa, eri lähde tai eri voimakkuus)"
+  },
   "cmd.edit.cut.hint": "Poista valinta tai merkitty väli ja sulje aukko",
   "cmd.edit.delete.hint": "Mykistä valinta tai väli paikallaan; aukko jää ja sen voi palauttaa",
   "cmd.clip.mute.hint": "Mykistä valitut pätkät tai palauta niiden ääni",
@@ -753,14 +771,38 @@
   "ui.edit.label.gain": "Pätkän taso",
   "ui.edit.label.track_mute": "Raidan mykistys",
   "ui.edit.label.solo": "Raidan soolo",
-  "ui.edit.toast.split": {"one": "Jaettu {count} pätkä", "other": "Jaettu {count} pätkää"},
-  "ui.edit.toast.delete_clips": {"one": "Poistettu {count} pätkä · aukko jäi", "other": "Poistettu {count} pätkää · aukko jäi"},
-  "ui.edit.toast.delete_range": {"one": "Poistettu {seconds} s {count} raidalta · aukko jäi", "other": "Poistettu {seconds} s {count} raidalta · aukko jäi"},
-  "ui.edit.toast.cut": {"one": "Leikattu {seconds} s {count} raidalta · leikepöydällä", "other": "Leikattu {seconds} s {count} raidalta · leikepöydällä"},
-  "ui.edit.toast.mute": {"one": "Mykistetty {count} pätkä", "other": "Mykistetty {count} pätkää"},
-  "ui.edit.toast.unmute": {"one": "Mykistys purettu {count} pätkältä", "other": "Mykistys purettu {count} pätkältä"},
-  "ui.edit.toast.trim_start": {"one": "Lyhennetty {count} pätkän alkua", "other": "Lyhennetty {count} pätkän alkua"},
-  "ui.edit.toast.trim_end": {"one": "Lyhennetty {count} pätkän loppua", "other": "Lyhennetty {count} pätkän loppua"},
+  "ui.edit.toast.split": {
+    "one": "Jaettu {count} pätkä",
+    "other": "Jaettu {count} pätkää"
+  },
+  "ui.edit.toast.delete_clips": {
+    "one": "Poistettu {count} pätkä · aukko jäi",
+    "other": "Poistettu {count} pätkää · aukko jäi"
+  },
+  "ui.edit.toast.delete_range": {
+    "one": "Poistettu {seconds} s {count} raidalta · aukko jäi",
+    "other": "Poistettu {seconds} s {count} raidalta · aukko jäi"
+  },
+  "ui.edit.toast.cut": {
+    "one": "Leikattu {seconds} s {count} raidalta · leikepöydällä",
+    "other": "Leikattu {seconds} s {count} raidalta · leikepöydällä"
+  },
+  "ui.edit.toast.mute": {
+    "one": "Mykistetty {count} pätkä",
+    "other": "Mykistetty {count} pätkää"
+  },
+  "ui.edit.toast.unmute": {
+    "one": "Mykistys purettu {count} pätkältä",
+    "other": "Mykistys purettu {count} pätkältä"
+  },
+  "ui.edit.toast.trim_start": {
+    "one": "Lyhennetty {count} pätkän alkua",
+    "other": "Lyhennetty {count} pätkän alkua"
+  },
+  "ui.edit.toast.trim_end": {
+    "one": "Lyhennetty {count} pätkän loppua",
+    "other": "Lyhennetty {count} pätkän loppua"
+  },
   "ui.edit.toast.nothing": "Mikään ei muuttunut.",
   "cmd.clip.match_loudness": "Sovita äänenvoimakkuus",
   "cmd.clip.match_loudness.hint": "Asettaa valittujen leikkeiden (tai nykyisen raidan) vahvistuksen niin, että ne ovat yhtä kovaäänisiä, raidan tavoitetasolle (puhe -19, musiikki -23 LUFS ellei toisin ole asetettu).",
@@ -775,8 +817,14 @@
   "cmd.export.transcript_md.hint": "Tallentaa litteraatin Markdown-tiedostona, yksi kappale per puheenvuoro.",
   "ui.edit.label.fade": "Häivytys",
   "ui.edit.toast.fade": "Leike häivytetty toistokohdasta",
-  "ui.loudness.measuring": {"one": "Mitataan {count} leikettä…", "other": "Mitataan {count} leikettä…"},
-  "ui.loudness.done": {"one": "Sovitettu {count} leike · {skipped} ohitettu (hiljainen)", "other": "Sovitettu {count} leikettä · {skipped} ohitettu (hiljaisia)"},
+  "ui.loudness.measuring": {
+    "one": "Mitataan {count} leikettä…",
+    "other": "Mitataan {count} leikettä…"
+  },
+  "ui.loudness.done": {
+    "one": "Sovitettu {count} leike · {skipped} ohitettu (hiljainen)",
+    "other": "Sovitettu {count} leikettä · {skipped} ohitettu (hiljaisia)"
+  },
   "ui.loudness.readout": "{value} / {target} LUFS",
   "ui.loudness.readout_no_target": "{value} LUFS",
   "ui.loudness.readout.tip": "Raidan kokonaisäänekkyys suhteessa sen tavoitteeseen; tavoite asetetaan tarkastimessa",
@@ -904,7 +952,10 @@
   "cmd.clipboard.open_project.hint": "Valitse mikä tahansa .kuulas-projekti ja listaa sen leikepöytä, vain luku",
   "ui.clipboard.keep_label": "Säilytä uusimmat",
   "ui.clipboard.clear_old": "Tyhjennä vanhat kohteet",
-  "ui.clipboard.cleared": {"one": "Tyhjennetty {count} vanha leikepöydän kohde", "other": "Tyhjennetty {count} vanhaa leikepöydän kohdetta"},
+  "ui.clipboard.cleared": {
+    "one": "Tyhjennetty {count} vanha leikepöydän kohde",
+    "other": "Tyhjennetty {count} vanhaa leikepöydän kohdetta"
+  },
   "ui.clipboard.cleared_none": "Ei tyhjennettävää: kohteita ei ole säilytettävää määrää enempää",
   "ui.clipboard.view_label": "Leikepöydän näkymä",
   "ui.clipboard.view.project": "Tässä projektissa",
@@ -928,16 +979,31 @@
   "ui.clipboard.project_path_label": "Polku .kuulas-projektin kansioon",
   "ui.clipboard.project_path_placeholder": "/polku/Projekti.kuulas",
   "ui.clipboard.project_show": "Näytä",
-  "ui.clipboard.project_entries": {"one": "{count} kohde", "other": "{count} kohdetta"},
+  "ui.clipboard.project_entries": {
+    "one": "{count} kohde",
+    "other": "{count} kohdetta"
+  },
   "ui.clipboard.project_used": "viimeksi käytetty {date}",
   "ui.clipboard.project_loading": "Luetaan…",
   "ui.clipboard.project_unreadable": "Tämän projektin leikepöytää ei voitu lukea.",
   "ui.clipboard.project_empty": "Tämän projektin leikepöytä on tyhjä.",
-  "ui.clipboard.clip_count": {"one": "{count} klippi", "other": "{count} klippiä"},
+  "ui.clipboard.clip_count": {
+    "one": "{count} klippi",
+    "other": "{count} klippiä"
+  },
   "ui.clipboard.ago_now": "juuri nyt",
-  "ui.clipboard.ago_minutes": {"one": "{count} minuutti sitten", "other": "{count} minuuttia sitten"},
-  "ui.clipboard.ago_hours": {"one": "{count} tunti sitten", "other": "{count} tuntia sitten"},
-  "ui.clipboard.ago_days": {"one": "{count} päivä sitten", "other": "{count} päivää sitten"},
+  "ui.clipboard.ago_minutes": {
+    "one": "{count} minuutti sitten",
+    "other": "{count} minuuttia sitten"
+  },
+  "ui.clipboard.ago_hours": {
+    "one": "{count} tunti sitten",
+    "other": "{count} tuntia sitten"
+  },
+  "ui.clipboard.ago_days": {
+    "one": "{count} päivä sitten",
+    "other": "{count} päivää sitten"
+  },
   "ui.clipboard.preview": "Soita",
   "ui.clipboard.preview_nothing": "Ei soitettavaa: tämän kohteen äänitteet eivät ole tässä projektissa",
   "ui.focus.clipboard": "Leikepöytä",
@@ -947,16 +1013,28 @@
   "ui.clipboard.title": "Leikepöytä",
   "ui.clipboard.empty": "Täällä ei ole vielä mitään. Kopioi tai leikkaa jotain, niin se odottaa tässä valmiina liitettäväksi uudelleen. Merkitse kohde tähdellä, niin se on käytettävissä muissa projekteissasi.",
   "ui.clipboard.list_label": "Leikepöydän kohteet",
-  "ui.clipboard.untitled": {"one": "{count} klippi · {duration}", "other": "{count} klippiä · {duration}"},
+  "ui.clipboard.untitled": {
+    "one": "{count} klippi · {duration}",
+    "other": "{count} klippiä · {duration}"
+  },
   "ui.clipboard.untitled_track": "Klippi",
-  "ui.clipboard.auto_name": {"one": "{count} klippi: {name}, {at}", "other": "{count} klippiä: {name}, {at}"},
+  "ui.clipboard.auto_name": {
+    "one": "{count} klippi: {name}, {at}",
+    "other": "{count} klippiä: {name}, {at}"
+  },
   "ui.clipboard.filter_label": "Suodata",
   "ui.clipboard.filter_placeholder": "Suodata kohteita: nimi, raita, projekti tai sanottu teksti",
   "ui.clipboard.no_matches": "Mikään kohde ei vastaa suodatinta.",
   "ui.clipboard.details": "Lähde {source}: {tracks} · {duration}",
   "ui.clipboard.details_short": "{duration}",
-  "ui.clipboard.meta": {"one": "{count} klippi · {duration}", "other": "{count} klippiä · {duration}"},
-  "ui.clipboard.missing_here": {"one": "{count} äänite puuttuu tästä projektista", "other": "{count} äänitettä puuttuu tästä projektista"},
+  "ui.clipboard.meta": {
+    "one": "{count} klippi · {duration}",
+    "other": "{count} klippiä · {duration}"
+  },
+  "ui.clipboard.missing_here": {
+    "one": "{count} äänite puuttuu tästä projektista",
+    "other": "{count} äänitettä puuttuu tästä projektista"
+  },
   "ui.clipboard.rename": "Nimeä uudelleen",
   "ui.clipboard.rename_label": "Kohteen nimi",
   "ui.clipboard.delete": "Poista",
@@ -969,12 +1047,27 @@
   "ui.clipboard.target.current": "Nykyinen raita",
   "ui.edit.label.paste": "Liitä",
   "ui.edit.label.paste_overwrite": "Liitä päälle",
-  "ui.edit.toast.copy": {"one": "Leikepöydälle kopioitu {count} klippi", "other": "Leikepöydälle kopioitu {count} klippiä"},
-  "ui.edit.toast.paste": {"one": "Liitetty {count} klippi", "other": "Liitetty {count} klippiä"},
-  "ui.edit.toast.paste_overwrite": {"one": "Liitetty {count} klippi vanhan päälle", "other": "Liitetty {count} klippiä vanhan päälle"},
-  "ui.edit.toast.paste_missing": {"one": "Liitetty, mutta {count} äänite puuttuu tästä projektista", "other": "Liitetty, mutta {count} äänitettä puuttuu tästä projektista"},
+  "ui.edit.toast.copy": {
+    "one": "Leikepöydälle kopioitu {count} klippi",
+    "other": "Leikepöydälle kopioitu {count} klippiä"
+  },
+  "ui.edit.toast.paste": {
+    "one": "Liitetty {count} klippi",
+    "other": "Liitetty {count} klippiä"
+  },
+  "ui.edit.toast.paste_overwrite": {
+    "one": "Liitetty {count} klippi vanhan päälle",
+    "other": "Liitetty {count} klippiä vanhan päälle"
+  },
+  "ui.edit.toast.paste_missing": {
+    "one": "Liitetty, mutta {count} äänite puuttuu tästä projektista",
+    "other": "Liitetty, mutta {count} äänitettä puuttuu tästä projektista"
+  },
   "ui.edit.toast.paste_nothing": "Mitään ei liitetty: projektista puuttuvat äänitteet.",
-  "ui.edit.toast.cut_uncopied": {"one": "Leikattu {seconds} s {count} raidalta · EI kopioitu leikepöydälle ({error})", "other": "Leikattu {seconds} s {count} raidalta · EI kopioitu leikepöydälle ({error})"},
+  "ui.edit.toast.cut_uncopied": {
+    "one": "Leikattu {seconds} s {count} raidalta · EI kopioitu leikepöydälle ({error})",
+    "other": "Leikattu {seconds} s {count} raidalta · EI kopioitu leikepöydälle ({error})"
+  },
   "ui.transcript.empty": "Ei vielä litteraattia.",
   "ui.transcript.transcribe": "Litteroi {names}",
   "ui.transcript.background": "Toimii taustalla; voit jatkaa muokkausta.",
@@ -984,7 +1077,10 @@
   "ui.transcript.follow": "Seuraa toistoa",
   "ui.transcript.sum.none": "Mitään muuta ei poistu",
   "ui.transcript.sum.also": "Poistaa myös {list}",
-  "ui.transcript.sum.words": {"one": "{count} sanan puhujalta {name}", "other": "{count} sanaa puhujalta {name}"},
+  "ui.transcript.sum.words": {
+    "one": "{count} sanan puhujalta {name}",
+    "other": "{count} sanaa puhujalta {name}"
+  },
   "ui.transcript.sum.audio": "{seconds} s puhujalta {name}",
   "ui.transcript.pop.label": "Valitut sanat",
   "ui.transcript.pop.delete": "Poista nämä sanat: {name}",
@@ -994,9 +1090,18 @@
   "ui.transcript.pop.correct": "Korjaa",
   "ui.transcript.pop.correct_title": "Muokkaa valitun sanan tekstiä. Valitse yksi sana.",
   "ui.transcript.label.delete": "Poista sanat",
-  "ui.transcript.toast.delete": {"one": "Poistettu {count} sana: {name} · aukko jäi", "other": "Poistettu {count} sanaa: {name} · aukko jäi"},
-  "ui.transcript.toast.cut": {"one": "Leikattu {count} sana kaikilta raidoilta · leikepöydällä", "other": "Leikattu {count} sanaa kaikilta raidoilta · leikepöydällä"},
-  "ui.transcript.toast.cut_uncopied": {"one": "Leikattu {count} sana kaikilta raidoilta · EI kopioitu leikepöydälle", "other": "Leikattu {count} sanaa kaikilta raidoilta · EI kopioitu leikepöydälle"},
+  "ui.transcript.toast.delete": {
+    "one": "Poistettu {count} sana: {name} · aukko jäi",
+    "other": "Poistettu {count} sanaa: {name} · aukko jäi"
+  },
+  "ui.transcript.toast.cut": {
+    "one": "Leikattu {count} sana kaikilta raidoilta · leikepöydällä",
+    "other": "Leikattu {count} sanaa kaikilta raidoilta · leikepöydällä"
+  },
+  "ui.transcript.toast.cut_uncopied": {
+    "one": "Leikattu {count} sana kaikilta raidoilta · EI kopioitu leikepöydälle",
+    "other": "Leikattu {count} sanaa kaikilta raidoilta · EI kopioitu leikepöydälle"
+  },
   "ui.hint.delete_words": "poista sanat",
   "cmd.transcript.cut_words": "Leikkaa valitut sanat leikepöydälle, kaikki raidat",
   "cmd.transcript.cut_words.hint": "Poistaa valittujen sanojen välin kaikilta raidoilta ja sulkee aukon; myös muiden sen päälle puhumat sanat poistuvat.",
@@ -1017,7 +1122,10 @@
   "ui.history.branch_title": "Hylätyltä polulta; Palauta tuo sen takaisin uutena vaiheena",
   "ui.history.step_title": "{time} · {author}",
   "ui.history.just_now": "juuri nyt",
-  "ui.history.ago_minutes": {"one": "{count} min sitten", "other": "{count} min sitten"},
+  "ui.history.ago_minutes": {
+    "one": "{count} min sitten",
+    "other": "{count} min sitten"
+  },
   "ui.history.when.today": "tänään {time}",
   "ui.history.when.yesterday": "eilen {time}",
   "ui.history.when.date": "{date} {time}",
@@ -1227,9 +1335,18 @@
   "history.clipboard_lift_cut": "Nosto leikepöydälle (aukko jäi)",
   "ui.edit.label.lift_cut": "Nosto (aukko jää)",
   "ui.edit.label.close_gap": "Aukon sulkeminen kaikilta raidoilta",
-  "ui.edit.toast.lift_cut": {"one": "Nostettu {seconds} s {count} raidalta · leikepöydällä, aukko jäi", "other": "Nostettu {seconds} s {count} raidalta · leikepöydällä, aukko jäi"},
-  "ui.edit.toast.lift_cut_uncopied": {"one": "Nostettu {seconds} s {count} raidalta · EI kopioitu leikepöydälle ({error})", "other": "Nostettu {seconds} s {count} raidalta · EI kopioitu leikepöydälle ({error})"},
-  "ui.edit.toast.close_gap": {"one": "Aukko suljettu {seconds} s kaikilta raidoilta", "other": "Aukko suljettu {seconds} s kaikilta raidoilta"},
+  "ui.edit.toast.lift_cut": {
+    "one": "Nostettu {seconds} s {count} raidalta · leikepöydällä, aukko jäi",
+    "other": "Nostettu {seconds} s {count} raidalta · leikepöydällä, aukko jäi"
+  },
+  "ui.edit.toast.lift_cut_uncopied": {
+    "one": "Nostettu {seconds} s {count} raidalta · EI kopioitu leikepöydälle ({error})",
+    "other": "Nostettu {seconds} s {count} raidalta · EI kopioitu leikepöydälle ({error})"
+  },
+  "ui.edit.toast.close_gap": {
+    "one": "Aukko suljettu {seconds} s kaikilta raidoilta",
+    "other": "Aukko suljettu {seconds} s kaikilta raidoilta"
+  },
   "cmd.bus.mute": "Mykistä väylä",
   "cmd.bus.mute.hint": "Mykistää väylän tai palauttaa sen äänen: nykyisen raidan väylän (tai nykyisen väylän).",
   "cmd.bus.ungroup": "Pura väylä",
@@ -1349,7 +1466,10 @@
   "cmd.edit.remove_track": "Poista ja sulje aukko vain tältä raidalta",
   "cmd.edit.remove_track.hint": "Poistaa valinnan vain valitulta raidalta ja sulkee sen aukon. Mitään ei mene leikepöydälle.",
   "ui.edit.label.remove": "Poisto ja aukon sulkeminen",
-  "ui.edit.toast.remove": {"one": "Poistettu {seconds} s {count} raidalta", "other": "Poistettu {seconds} s {count} raidalta"},
+  "ui.edit.toast.remove": {
+    "one": "Poistettu {seconds} s {count} raidalta",
+    "other": "Poistettu {seconds} s {count} raidalta"
+  },
   "cmd.nav.to_in": "Siirry alkumerkkiin",
   "cmd.nav.to_in.hint": "Siirtää toistokohdan alkumerkkiin (Hindenburg: 1).",
   "cmd.nav.to_out": "Siirry loppumerkkiin",
@@ -1362,7 +1482,10 @@
   "ui.build.title": "Käyttämäsi versio: versio ja commit. Mainitse se vikailmoituksessa.",
   "cmd.transcript.remove_words": "Poista valitut sanat kaikilta raidoilta ja sulje aukko",
   "cmd.transcript.remove_words.hint": "Poistaa valittujen sanojen kohdan kaikilta raidoilta ja sulkee aukon. Mitään ei mene leikepöydälle.",
-  "ui.transcript.toast.remove": {"one": "Poistettu {count} sana kaikilta raidoilta", "other": "Poistettu {count} sanaa kaikilta raidoilta"},
+  "ui.transcript.toast.remove": {
+    "one": "Poistettu {count} sana kaikilta raidoilta",
+    "other": "Poistettu {count} sanaa kaikilta raidoilta"
+  },
   "ui.readout.type_hint": "Kaksoisnapsauta kirjoittaaksesi tarkan arvon",
   "ui.transport.label": "Toisto",
   "ui.range.group": "Alku- ja loppupiste",
@@ -1378,7 +1501,10 @@
   "cmd.edit.remove_clips": "Poista valitut leikkeet (aukko jää)",
   "cmd.edit.remove_clips.hint": "Poistaa valitut leikkeet kokonaan ja jättää muut leikkeet paikalleen. Kumoa palauttaa ne. (Askelpalautin vain mykistää.)",
   "ui.edit.label.remove_clips": "Leikkeiden poisto",
-  "ui.edit.toast.remove_clips": {"one": "Poistettu {count} leike · aukko jäi", "other": "Poistettu {count} leikettä · aukko jäi"},
+  "ui.edit.toast.remove_clips": {
+    "one": "Poistettu {count} leike · aukko jäi",
+    "other": "Poistettu {count} leikettä · aukko jäi"
+  },
   "cmd.view.drag_mode": "Hiiri: vetäminen maalaa välin / siirtää leikkeitä",
   "cmd.view.drag_mode.hint": "Vaihtaa, mitä leikkeen vetäminen tekee: maalaa välin (jonka voi poistaa tai mykistää; leikettä siirretään sen nimirivistä tai Cmd pohjassa) tai siirtää leikettä (Shift tai Alt maalaa välin).",
   "ui.drag_mode.now_range": "Vetäminen maalaa nyt välin. Siirrä leikettä sen nimirivistä tai pidä Cmd pohjassa.",
@@ -1398,17 +1524,26 @@
   "ui.track.new_speech": "Raita {n}",
   "ui.track.new_music": "Musiikki {n}",
   "ui.edit.label.add_track": "Raidan lisäys",
-  "ui.edit.toast.add_track": {"one": "Lisätty {name}", "other": "Lisätty {name}"},
+  "ui.edit.toast.add_track": {
+    "one": "Lisätty {name}",
+    "other": "Lisätty {name}"
+  },
   "error.edit.no_empty_tracks": "Tyhjiä raitoja ei ole.",
   "cmd.track.delete_empty": "Poista tyhjät raidat",
   "cmd.track.delete_empty.hint": "Poistaa kaikki raidat, joilla ei ole leikkeitä. Raidat, joilla on leikkeitä, jäävät. Kumoa palauttaa ne.",
   "ui.edit.label.delete_empty_tracks": "Tyhjien raitojen poisto",
-  "ui.edit.toast.delete_empty_tracks": {"one": "Poistettu {count} tyhjä raita", "other": "Poistettu {count} tyhjää raitaa"},
+  "ui.edit.toast.delete_empty_tracks": {
+    "one": "Poistettu {count} tyhjä raita",
+    "other": "Poistettu {count} tyhjää raitaa"
+  },
   "error.edit.no_gains_to_reset": "Kaikkien raitojen ja väylien vahvistus on jo 0 dB.",
   "cmd.track.reset_gains": "Nollaa raitojen ja väylien vahvistukset 0 dB:iin",
   "cmd.track.reset_gains.hint": "Asettaa jokaisen raidan ja väylän vahvistuksen 0 dB:iin, jotta tasot voi arvioida ennen vientiä. Master, leikkeiden vahvistukset ja panorointi jäävät. Kumoa palauttaa ne.",
   "ui.edit.label.reset_gains": "Vahvistusten nollaus 0 dB:iin",
-  "ui.edit.toast.reset_gains": {"one": "Nollattu {count} vahvistus", "other": "Nollattu {count} vahvistusta"},
+  "ui.edit.toast.reset_gains": {
+    "one": "Nollattu {count} vahvistus",
+    "other": "Nollattu {count} vahvistusta"
+  },
   "error.automix.bad_target_lufs": "Tavoiteäänekkyys {value} ei ole luku väliltä -40...0 LUFS.",
   "error.automix.bad_ad_spot": "Mainoskohta {value} ei ole aika sekunteina (0 tai enemmän).",
   "error.automix.bad_ad_duration": "Mainoksen kesto {value} ei ole sekuntimäärä, joka on suurempi kuin 0.",
@@ -1534,5 +1669,47 @@
   "ui.stats.saved": "Tallennettu {name}",
   "ui.stats.loading": "Lasketaan…",
   "ui.stats.no_undo": "Kumoamista ei tallenneta historiaan, joten sitä ei lasketa.",
-  "ui.stats.muted_note": "Jänne: ensimmäisen leikkeen alusta viimeisen loppuun. Sisältö: leikkeiden pituudet yhteensä. Mykistetty: mykistetyt leikkeet ja portin sulkema aika, kukin kerran. Ilman mykistyksiä: sisältö miinus mykistetty. Mykistetty tai soolon hiljentämä raita vain merkitään, sitä ei lasketa."
+  "ui.stats.muted_note": "Jänne: ensimmäisen leikkeen alusta viimeisen loppuun. Sisältö: leikkeiden pituudet yhteensä. Mykistetty: mykistetyt leikkeet ja portin sulkema aika, kukin kerran. Ilman mykistyksiä: sisältö miinus mykistetty. Mykistetty tai soolon hiljentämä raita vain merkitään, sitä ei lasketa.",
+  "history.resync": {
+    "one": "Synkattu uudelleen {count} klippi · ohitettu {skipped} vapaata",
+    "other": "Synkattu uudelleen {count} klippiä · ohitettu {skipped} vapaata"
+  },
+  "cmd.sync.free": "Vapauta synkasta / liitä takaisin",
+  "cmd.sync.resync_all": "Synkkaa kaikki ajautuneet klipit",
+  "cmd.sync.free_all": "Vapauta kaikki ajautuneet klipit",
+  "cmd.sync.drift_next": "Seuraava ajautunut klippi",
+  "cmd.sync.drift_previous": "Edellinen ajautunut klippi",
+  "cmd.sync.resync.hint": "Palauttaa valitut klipit paikkaan, johon synkkaryhmä ne asettaa. Synkasta vapauttamasi klipit jätetään rauhaan.",
+  "cmd.sync.resync_end.hint": "Synkkaa kaikki klipit toistokohdasta eteenpäin kaikilla raidoilla (korjaa vahingossa yhdelle raidalle tehdyn leikkauksen). Vapaat klipit ohitetaan ja lasketaan.",
+  "cmd.sync.free.hint": "Merkitsee valitut klipit tarkoituksella synkasta vapaiksi (ei ajautumismerkkiä, eikä kenenkään kumppani) tai liittää ne takaisin.",
+  "cmd.sync.resync_all.hint": "Synkkaa jokaisen ajautumisluettelon klipin. Mikään ei synkkaudu itsestään.",
+  "cmd.sync.free_all.hint": "Merkitsee jokaisen ajautumisluettelon klipin tarkoituksella synkasta vapaaksi.",
+  "cmd.sync.drift_next.hint": "Siirtää toistokohdan seuraavaan synkasta ajautuneeseen klippiin ja valitsee sen.",
+  "cmd.sync.drift_previous.hint": "Siirtää toistokohdan edelliseen synkasta ajautuneeseen klippiin ja valitsee sen.",
+  "keys.context.markers": "Merkit-välilehti",
+  "keys.context.not-markers": "Kaikkialla paitsi Merkit-välilehdellä",
+  "ui.sync.history.free": "Vapautus synkasta",
+  "ui.sync.history.link": "Liitetty takaisin synkkaan",
+  "ui.sync.history.free_all": "Ajautuneet klipit vapautettu synkasta",
+  "ui.sync.toast.freed": {
+    "one": "{count} klippi on nyt vapaa synkasta",
+    "other": "{count} klippiä on nyt vapaana synkasta"
+  },
+  "ui.sync.toast.linked": {
+    "one": "{count} klippi on taas liitetty synkkaan",
+    "other": "{count} klippiä on taas liitetty synkkaan"
+  },
+  "ui.sync.badge.free": "{offset} · vapaa",
+  "ui.sync.badge.free_zero": "vapaa",
+  "ui.sync.badge.free_title": "Tarkoituksella vapaa synkasta. U liittää takaisin.",
+  "ui.sync.badge.drift_title": "Poissa synkasta {offset}. R palauttaa, U kertoo että se on tarkoituksellista.",
+  "ui.sync.prompt": "Pidetäänkö tämä klippi vapaana synkasta?",
+  "ui.sync.prompt_yes": "Vapauta",
+  "ui.sync.drift.title": "Poissa synkasta",
+  "ui.sync.drift.empty": "Mikään ei ole ajautunut pois synkasta.",
+  "ui.sync.drift.list_label": "Synkasta ajautuneet klipit",
+  "ui.sync.drift.row": "{time} · {offset}",
+  "ui.sync.drift.cause": "alkaen: {label}",
+  "ui.sync.drift.cause_group_off": "alkaen: {label}, ryhmämuokkaus pois",
+  "ui.sync.drift.jump": "Siirry tähän klippiin"
 }

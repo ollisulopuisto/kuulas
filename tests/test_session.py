@@ -450,6 +450,7 @@ def test_the_command_table_is_the_plans(session):
         "rebuild_media",
         "candidates_detect", "candidate_set_state", "candidate_apply", "candidate_mark",
         "match_loudness", "placeholder_take", "save_backup", "save_checkpoint",
+        "resync", "resync_from",  # WP19a: they report how many free clips they skipped
     }
 
 

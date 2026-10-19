@@ -103,6 +103,10 @@
   "history.auto_silence": "Auto-silence",
   "history.automix": "Automix",
   "history.duck_music": "Duck music",
+  "history.resync": {
+    "one": "Resynced {count} clip · skipped {skipped} free",
+    "other": "Resynced {count} clips · skipped {skipped} free"
+  },
   "history.cut_words": "cut “{text}”",
   "log.cache.recompute": "Recomputing the {kind} cache for {media_id}.",
   "error.peaks.damaged": "The peak file is damaged.",
@@ -1534,5 +1538,43 @@
   "ui.stats.saved": "Saved {name}",
   "ui.stats.loading": "Counting…",
   "ui.stats.no_undo": "Undo is not recorded in the history, so it is not counted.",
-  "ui.stats.muted_note": "Span: first clip start to last clip end. Content: the clips' lengths added up. Muted: muted clips plus what a gate has closed, each counted once. Without mutes: content minus muted. A muted track or one silenced by solo is only noted, not counted."
+  "ui.stats.muted_note": "Span: first clip start to last clip end. Content: the clips' lengths added up. Muted: muted clips plus what a gate has closed, each counted once. Without mutes: content minus muted. A muted track or one silenced by solo is only noted, not counted.",
+  "cmd.sync.free": "Free from sync / link again",
+  "cmd.sync.resync_all": "Resync all drifting clips",
+  "cmd.sync.free_all": "Free all drifting clips",
+  "cmd.sync.drift_next": "Next drifting clip",
+  "cmd.sync.drift_previous": "Previous drifting clip",
+  "cmd.sync.resync.hint": "Puts the selected clips back where their sync group puts them. Clips you freed from sync are left alone.",
+  "cmd.sync.resync_end.hint": "Resyncs every clip from the play cursor on, on all tracks (the fix for an accidental one-track cut). Free clips are skipped and counted.",
+  "cmd.sync.free.hint": "Declares the selected clips free from sync on purpose (they get no drift badge, and are nobody's partner), or links them again.",
+  "cmd.sync.resync_all.hint": "Resyncs every clip in the drift list. Nothing resyncs unless you ask.",
+  "cmd.sync.free_all.hint": "Declares every clip in the drift list free from sync on purpose.",
+  "cmd.sync.drift_next.hint": "Moves the play cursor to the next clip that has drifted out of sync and selects it.",
+  "cmd.sync.drift_previous.hint": "Moves the play cursor to the previous clip that has drifted out of sync and selects it.",
+  "keys.context.markers": "Markers tab",
+  "keys.context.not-markers": "Everywhere but the Markers tab",
+  "ui.sync.history.free": "Free from sync",
+  "ui.sync.history.link": "Link to sync again",
+  "ui.sync.history.free_all": "Free drifting clips from sync",
+  "ui.sync.toast.freed": {
+    "one": "{count} clip is now free from sync",
+    "other": "{count} clips are now free from sync"
+  },
+  "ui.sync.toast.linked": {
+    "one": "{count} clip is linked to sync again",
+    "other": "{count} clips are linked to sync again"
+  },
+  "ui.sync.badge.free": "{offset} · free",
+  "ui.sync.badge.free_zero": "free",
+  "ui.sync.badge.free_title": "Free from sync on purpose. U links it again.",
+  "ui.sync.badge.drift_title": "Out of sync by {offset}. R puts it back, U says it is deliberate.",
+  "ui.sync.prompt": "Keep this clip free from sync?",
+  "ui.sync.prompt_yes": "Free it",
+  "ui.sync.drift.title": "Out of sync",
+  "ui.sync.drift.empty": "Nothing has drifted out of sync.",
+  "ui.sync.drift.list_label": "Clips that have drifted out of sync",
+  "ui.sync.drift.row": "{time} · {offset}",
+  "ui.sync.drift.cause": "since: {label}",
+  "ui.sync.drift.cause_group_off": "since: {label}, group editing off",
+  "ui.sync.drift.jump": "Go to this clip"
 }

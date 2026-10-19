@@ -206,14 +206,16 @@ export function liftCutPlan(state, { t } = {}) {
   return cutToClipboard(state, { op: "clipboard_lift_cut", key: "lift_cut", t });
 }
 
-/** Alt+Mod+X: ripple-delete the range or the selected clips' span on every track; no clipboard. */
+/** Alt+Mod+X: ripple-delete the range or the selected clips' span on every track of the sync group; no clipboard. */
 export function closeGapPlan(state) {
   if (!state?.project) return null;
   const covered = span(state);
   if (!covered) return null;
+  // The tracks the range or clips are on; the server widens them to the sync group (WP19a), so a
+  // gap left by a one-track cut is closed on every track of the group, group editing or not.
   return plan(
     "ripple_delete",
-    { start: covered.start, end: covered.end },
+    { start: covered.start, end: covered.end, track_ids: covered.tracks, group_editing: true },
     "close_gap",
     { seconds: secondsOf(state, covered.end - covered.start) },
     { tracks: true },

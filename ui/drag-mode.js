@@ -31,6 +31,8 @@ export function dragIntent({
   if (!hit || hit.area !== "lane" || hit.row?.kind !== "track") return null;
   if (hit.edge != null || hit.point != null) return null;
   if (hit.clip == null) return "range";
+  // Alt+Cmd (Ctrl) on a clip moves it alone, out of its sync group (R51); Alt alone paints a range.
+  if (alt && mod) return "move";
   if (shift || alt) return "range";
   if (mod) return "move";
   if (mode === "move") return "move";
