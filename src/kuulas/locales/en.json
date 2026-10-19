@@ -103,6 +103,10 @@
   "history.auto_silence": "Auto-silence",
   "history.automix": "Automix",
   "history.duck_music": "Duck music",
+  "history.resync": {
+    "one": "Resynced {count} clip · skipped {skipped} free",
+    "other": "Resynced {count} clips · skipped {skipped} free"
+  },
   "history.cut_words": "cut “{text}”",
   "log.cache.recompute": "Recomputing the {kind} cache for {media_id}.",
   "error.peaks.damaged": "The peak file is damaged.",

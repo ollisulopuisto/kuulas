@@ -1,3 +1,17 @@
+## [v26.10.19.5] - 2026-10-19
+
+- **Edits that move time keep the sync group together (engine; the screen comes next):** one rule now decides what
+  an edit touches. Cutting and closing a gap, ripple delete, ripple trim, nudging and moving clips, and deleting
+  words from the transcript take the whole sync group along (every track of it, or each clip's partners from the
+  same stretch of the recording). Gain, pan, mute and Backspace-delete use exactly what you selected. With group
+  editing off, only the focused track is edited. Music and other tracks outside the group are left alone when the
+  edit started on a grouped track.
+- **Free or drifting, never guessed:** a clip can be declared free from sync (pieces you split from it stay free; it
+  is nobody's partner). A clip that sits away from where its sync group puts it, and was not declared free, is
+  "drifting", with its offset and the edit that caused it read from the history. Nothing resyncs by itself. Resync
+  from the playhead skips free clips and says "Resynced 14 clips · skipped 2 free". New: a list of drifting clips.
+  The buttons, keys (Mod+G, U, `]` `[`) and badges follow in the next version; not tried on screen yet.
+
 ## [v26.10.19.4] - 2026-10-19
 
 - **Words inside the clips on the timeline** (as in Hindenburg): zoom in until a word is wide enough to read and

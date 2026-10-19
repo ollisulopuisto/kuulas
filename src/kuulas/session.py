@@ -53,6 +53,7 @@ from . import (
     package,
     source_map,
     subtitles,
+    sync_state,
     transcribe,
     transcript,
     transcript_text,
@@ -234,6 +235,11 @@ def _sync_partners(groups: tuple[SyncGroup, ...]) -> dict[str, tuple[str, ...]]:
     return out
 
 
+def _range(args: dict) -> dict:
+    """The range target (tracks, start, end) of an op's arguments."""
+    return {"track_ids": args["track_ids"], "start": args["start"], "end": args["end"]}
+
+
 def _coalesce_key(name: str, args: dict) -> str | None:
     if name == "solo":
         return SOLO_KEY
@@ -241,6 +247,17 @@ def _coalesce_key(name: str, args: dict) -> str | None:
     if name == "set_track" and args.get("track_id") and switches <= MUTE_FIELDS:
         return f"mute:{args['track_id']}"
     return None
+
+
+#: Edit ops whose target ``Session.edit_target`` widens (WP19a), and the kind
+#: of time-shifting edit each one is.
+SCOPED_OPS = {
+    "cut_range": "cut", "ripple_delete": "close_gap", "ripple_trim": "ripple_trim",
+    "nudge_clips": "nudge", "move_clips_to_track": "move", "shift_clips": "move",
+}
+
+#: How many steps back ``sync_cause`` looks for the edit that moved a clip.
+CAUSE_STEPS = 300
 
 
 class Session:
@@ -303,6 +320,103 @@ class Session:
         with self.lock:
             return self.history.state
 
+    # Group editing (WP19a, Mod+G) is session state, never history: toggling it
+    # edits nothing and undo does not touch it. On by default.
+    group_editing: bool = True
+
+    def set_group_editing(self, on: bool) -> bool:
+        self.group_editing = bool(on)
+        return self.group_editing
+
+    def edit_target(self, kind: str, target: dict,
+                    group_editing: bool | None = None) -> dict:
+        """What an edit of ``kind`` touches (``edit_scope.edit_target``): the
+        sync group's tracks or the clips' partners for time-shifting kinds,
+        exactly ``target`` otherwise. ``group_editing`` overrides the session's
+        switch for this one edit (the page sends its own)."""
+        with self.lock:
+            on = self.group_editing if group_editing is None else bool(group_editing)
+            return edit_scope.edit_target(self.history.state, None, kind, target, on)
+
+    def _scoped(self, name: str, args: dict) -> tuple[dict, dict]:
+        """``(args for the op, args to record)`` for a time-shifting op: the
+        target widened by ``edit_target``, and ``group_editing`` written down so
+        that history can say why a clip drifted."""
+        kind = SCOPED_OPS.get(name)
+        if kind is None:
+            return args, args
+        state = self.history.state
+        on = args.get("group_editing")
+        on = self.group_editing if on is None else bool(on)
+        rest = {k: v for k, v in args.items() if k != "group_editing"}
+        if name == "cut_range":
+            wide = self.edit_target(kind, {**_range(args)}, on)
+            rest["track_ids"] = wide["track_ids"]
+            rest["group_editing"] = on
+            return rest, {**rest}
+        if name == "ripple_delete":
+            if rest.get("track_ids") is not None:
+                wide = self.edit_target(kind, _range(rest), on)
+                rest["track_ids"] = wide["track_ids"]
+            return rest, {**rest, "group_editing": on}
+        if name == "ripple_trim":
+            clip, track = state.clip_and_track(rest["clip_id"])
+            wide = self.edit_target(kind, {"track_ids": [track.id], "start": clip.start,
+                                           "end": clip.end}, on)
+            rest["track_ids"] = wide["track_ids"]
+            return rest, {**rest, "group_editing": on}
+        # Clip sets: nudges and moves widen to partners. The ops widen again
+        # when group_editing is passed, which is harmless (partners of partners
+        # are the same set).
+        if name == "shift_clips":
+            if "group_editing" in args:
+                rest["clip_ids"] = self.edit_target(kind, {"clip_ids": rest["clip_ids"]},
+                                                    on)["clip_ids"]
+            return rest, {**rest, "group_editing": on}
+        wide = self.edit_target(kind, {"clip_ids": rest["clip_ids"]}, on)
+        rest["clip_ids"] = wide["clip_ids"]
+        rest["group_editing"] = on
+        return rest, {**rest}
+
+    def sync_state(self, clip_id: str) -> sync_state.SyncState:
+        with self.lock:
+            return sync_state.sync_state(self.history.state, clip_id)
+
+    def drift_list(self, with_cause: bool = False) -> list[dict]:
+        """Clips in undecided drift, in timeline order: the markers panel's
+        list (] and [ step through it). Free clips are not on it. ``with_cause``
+        adds ``sync_cause`` to each (it reads history, so it costs more)."""
+        with self.lock:
+            found = sync_state.drifts(self.history.state)
+        out = []
+        for d in found:
+            row = {"clip_id": d.clip_id, "track_id": d.track_id, "start": d.start,
+                   "offset": d.offset}
+            if with_cause:
+                row["cause"] = self.sync_cause(d.clip_id)
+            out.append(row)
+        return out
+
+    def sync_cause(self, clip_id: str) -> dict | None:
+        """The history step that put ``clip_id`` out of sync, read from history:
+        ``{"label", "op", "group_editing", "track_id", "created"}``, or None when
+        the clip is not drifting (or the step is more than ``CAUSE_STEPS`` back).
+        ``group_editing`` is False when that edit ran with group editing off."""
+        with self.lock:
+            steps = self.history.recent(CAUSE_STEPS)
+            index = sync_state.cause([p for _, p in steps], clip_id)
+            if index is None:
+                return None
+            row, project = steps[index]
+            args = (row["op"] or {}).get("args") or {}
+            return {"label": row["label"], "op": (row["op"] or {}).get("name"),
+                    "group_editing": args.get("group_editing"),
+                    "track_id": project.clip_and_track(clip_id)[1].id,
+                    "created": row["created_utc"]}
+
+    #: What the last ``resync`` / ``resync_from`` did, for the page's message.
+    last_resync: dict | None = None
+
     @property
     def read_only(self) -> bool:
         return self.package.read_only
@@ -359,10 +473,11 @@ class Session:
         ``coalesce`` to choose another run, such as a slider drag.
         """
         with self.lock:
-            new = ops.apply(self.history.state, name, args)
+            applied, recorded = self._scoped(name, args)
+            new = ops.apply(self.history.state, name, applied)
             self.history.commit(label or name, new,
                                 coalesce or _coalesce_key(name, args),
-                                op={"name": name, "args": args})
+                                op={"name": name, "args": recorded})
             return self._changed()
 
     def command(self, name: str, args: dict | None = None) -> Project:
@@ -2047,11 +2162,49 @@ def _cut_words(s: Session, args: dict) -> Project:
         raise ops.EditError("error.session.bad_word_index", index=chosen[-1],
                             count=len(words))
     start, end = transcript.cut_range(words, chosen)
-    new = ops.ripple_delete(s.history.state, start, end)
+    # The tracks the words were spoken on, widened to their sync group when
+    # group editing is on (WP19a); music and other ungrouped tracks follow the old
+    # rule only when a word's own track is ungrouped.
+    seeds = args.get("track_ids") or sorted({words[i]["track"] for i in chosen})
+    scope = s.edit_target("cut_words", {"track_ids": seeds, "start": start, "end": end},
+                          args.get("group_editing"))["track_ids"]
+    new = ops.ripple_delete(s.history.state, start, end, scope)
     quoted = " ".join(words[i]["w"] for i in chosen[:LABEL_WORDS])
     if len(chosen) > LABEL_WORDS:
         quoted += "…"
-    return s._commit(t("history.cut_words", text=quoted), new, "cut_words", args)
+    on = args.get("group_editing")
+    on = s.group_editing if on is None else bool(on)
+    return s._commit(t("history.cut_words", text=quoted), new, "cut_words",
+                     {**args, "group_editing": on})
+
+
+def _resync_clips(s: Session, ids: list[str]) -> Project:
+    """Resync ``ids`` (free clips are skipped and counted) in one step; the
+    counts are in ``s.last_resync`` for the page's message."""
+    before = s.history.state
+    free = sum(1 for cid in ids if before.clip(cid).free)
+    new = ops.resync(before, ids)
+    moved = sum(1 for cid in ids if new.clip(cid).start != before.clip(cid).start)
+    label = t("history.resync", count=moved, skipped=free)
+    s.last_resync = {"resynced": moved, "skipped": free, "message": label}
+    return s._commit(label, new, "resync", {"clip_ids": ids})
+
+
+def _resync(s: Session, args: dict) -> Project:
+    """R / Alt+Mod+R: resync the selected clips."""
+    ids = list(args.get("clip_ids") or ())
+    if not ids:
+        raise ops.EditError("error.edit.no_selection")
+    return _resync_clips(s, ids)
+
+
+def _resync_from(s: Session, args: dict) -> Project:
+    """Shift+Alt+Mod+R: resync every clip from ``frame`` on, on all tracks (the
+    fix for an accidental one-track cut). Free clips are skipped and reported."""
+    ids = ops.clips_from(s.history.state, int(args["frame"]), args.get("track_id"))
+    if not ids:
+        raise ops.EditError("error.edit.no_selection")
+    return _resync_clips(s, ids)
 
 
 def _relink(s: Session, args: dict) -> Project:
@@ -2241,6 +2394,8 @@ COMMANDS: dict[str, Callable[[Session, dict], Project]] = {
     "automix": _automix,
     "duck_music": _duck_music,
     "cut_words": _cut_words,
+    "resync": _resync,
+    "resync_from": _resync_from,
     "relink": _relink,
     "consolidate": _consolidate,
     "create_person": _create_person,

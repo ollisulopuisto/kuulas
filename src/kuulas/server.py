@@ -116,6 +116,10 @@ class EditBody(BaseModel):
     coalesce: str | None = None
 
 
+class GroupEditingBody(BaseModel):
+    on: bool
+
+
 class CommandBody(BaseModel):
     name: str
     args: dict[str, Any] = {}
@@ -381,7 +385,30 @@ def create_app(session, engine, *, language: str | None = None,
                 "matched": [{"clip_id": c, "measured": m, "gain_db": g}
                             for c, m, g in report.matched],
                 "skipped": list(report.skipped)}})
+        if body.name in ("resync", "resync_from"):
+            return state_response({"resync": session.last_resync})
         return state_response()
+
+    # -- sync states and group editing (WP19a, R51) ----------------------------
+    # Group editing is session state (Mod+G): it edits nothing, so no undo step.
+
+    @app.get("/api/drift")
+    def get_drift(cause: bool = False):
+        """Clips in undecided drift in timeline order, with their offset in
+        frames (and, with ``cause``, the history step that moved them)."""
+        return JSONResponse({"drift": session.drift_list(cause)})
+
+    @app.get("/api/sync-cause/{clip_id}")
+    def get_sync_cause(clip_id: str):
+        return JSONResponse({"cause": session.sync_cause(clip_id)})
+
+    @app.get("/api/group-editing")
+    def get_group_editing():
+        return JSONResponse({"on": session.group_editing})
+
+    @app.post("/api/group-editing")
+    def post_group_editing(body: GroupEditingBody):
+        return JSONResponse({"on": session.set_group_editing(body.on)})
 
     # -- the view memory (WP35) ----------------------------------------------
     # The user's view of this project (zoom, scroll, ...), kept outside the

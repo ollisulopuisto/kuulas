@@ -47,7 +47,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R23 | Sync workflow: files imported or recorded together are in sync by default; align any other file by eye and mark it in sync; optional align-by-sound helper for Zoom/phone files (drift, dropouts) | core done (sync groups, default groups at import); helper WP16 |
 | R24 | Space never plays a clip list; dropping never trims to in/out; previews loudness-matched | planned: WP17 + plan-wide rules (important, can come later) |
 | R25 | Mark possible cuts on the first listen, decide on the second; markers stay on their audio through every edit | planned: WP18 |
-| R26a | Edit groups: an edit applies to the whole sync group unless group editing is switched off (Pro Tools, Reaper) | pure logic for partners and edit targets done v26.10.17.6, wiring into the edit commands and the UI still to do: WP19a, in milestone M1. Rule: time-shifting edits keep the sync group together, other edits touch exactly the selection |
+| R26a | Edit groups: an edit applies to the whole sync group unless group editing is switched off (Pro Tools, Reaper) | pure logic for partners and edit targets done v26.10.17.6; `Session.edit_target` and the wiring into cut, ripple delete, ripple trim, nudge, move and cut_words done v26.10.19.5 (engine); UI (Mod+G chip, dashed partner outline, Alt+Mod+X) still to do: WP19a, in milestone M1. Rule: time-shifting edits keep the sync group together, other edits touch exactly the selection |
 | R26b | Connected clips: music and effects stay attached to a moment in the speech through ripple cuts (FCP) | planned: WP19b |
 | R26c | Roles (dialogue / music / effects), stem export per role, Match Loudness (FCP, Audition) | planned: WP19c |
 | R26d | Every command bindable, user key overrides, macros that undo as one step (Reaper) | planned: WP19d |
@@ -80,7 +80,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R48 | Series: material reused across episodes is tracked even when the other project is closed; badges, series view, unused material, cross-series search; published only when marked | usage extraction done (WP37, v26.10.16.14); series files and views planned (WP38) |
 | R49 | Portable projects: user B opens user A's project with different paths; relink once and the rest follows, always verified by hash | done: WP39 in v26.10.16.14 (not yet tried across two real machines) |
 | R50 | Long history stays fast: keep every step forever, open under 1 s, incremental backups, thinning only if a speed budget fails | planned: WP40 |
-| R51 | Sync states made explicit: free from sync on purpose (U, or answer after Alt-drag) vs. undecided drift with its cause; never auto-resync | planned: WP19a |
+| R51 | Sync states made explicit: free from sync on purpose (U, or answer after Alt-drag) vs. undecided drift with its cause; never auto-resync | engine done v26.10.19.5 (`Clip.free`, `sync_state.py`, drift list and cause from history, resync skips free); badges, U, Alt-drag prompt and the drift list in the markers panel still to do: WP19a |
 | R52 | Session markers in history; undo across sittings says so | planned: WP8 |
 | R53 | People and interviews in the data from the start: who speaks in every transcript, one interview linking all its recordings from different people, everything a person said across the series | data model done in v26.10.16.13 (WP41); person view and cards later (WP42) |
 | R54 | Index cards like Scrivener: bits of interviews dragged into episodes, assembled into a timeline; person view | planned: WP42 |

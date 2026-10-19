@@ -103,6 +103,10 @@
   "history.auto_silence": "Automaattinen hiljennys",
   "history.automix": "Automiksaus",
   "history.duck_music": "Vaimenna taustamusiikki",
+  "history.resync": {
+    "one": "Synkattu uudelleen {count} klippi · ohitettu {skipped} vapaata",
+    "other": "Synkattu uudelleen {count} klippiä · ohitettu {skipped} vapaata"
+  },
   "history.cut_words": "leikkaus ”{text}”",
   "log.cache.recompute": "Lasketaan {kind}-välimuisti uudelleen: {media_id}.",
   "error.peaks.damaged": "Huipputiedosto on vaurioitunut.",

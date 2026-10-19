@@ -105,6 +105,11 @@ class Clip:
     # muted together. None when ungrouped, and then the key is not written, so
     # old projects keep their bytes and an older reader just sees ungrouped clips.
     group: str | None = None
+    # Free from sync on purpose (R51): the user said this clip's offset from its
+    # sync group is deliberate. It is no one's partner and never shows drift.
+    # Pieces split from it inherit it (a split is ``replace``). Not written when
+    # False, like ``group``.
+    free: bool = False
     # Sync is per media, not per clip (``Project.sync_groups``): every piece
     # cut from a file shares its clock, so subclips need no fields of their own.
     extra: dict = field(default_factory=dict, hash=False)
@@ -115,6 +120,8 @@ class Clip:
             del d["name"]
         if self.group is None:
             del d["group"]
+        if not self.free:
+            del d["free"]
         return d
 
     @classmethod
