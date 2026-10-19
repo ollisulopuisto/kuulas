@@ -56,8 +56,8 @@ def icon_svg(n: int = 9, margin: float = 0.0) -> str:
     bars, hole = _bars_and_hole(n, 1.5, 60)
     side = 1024 * (1 - 2 * margin)
     offset = 1024 * margin
-    scale = side * 0.66 / 100
-    shift = offset + side * 0.17
+    scale = side * 0.78 / 100
+    shift = offset + side * 0.11
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">'
             f'<rect x="{offset}" y="{offset}" width="{side}" height="{side}" '
             f'rx="{side * 0.2237:.1f}" fill="{DEEP}"/>'
