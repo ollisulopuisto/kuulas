@@ -259,6 +259,15 @@ def _tool_env() -> dict[str, str]:
     return toolpath.tool_env()
 
 
+_ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?|\x1b")
+
+
+def clean_output_line(line: str) -> str:
+    """A tool's output line as plain text: terminal colour, erase and title codes removed
+    (progress bars print them), and only what follows the last carriage return kept."""
+    return _ANSI.sub("", line.rsplit("\r", 1)[-1])
+
+
 def run_process(cmd: list[str], cwd: str | None, on_line: Callable[[str], None],
                 cancel: threading.Event,
                 stop: Callable[[subprocess.Popen], int] | None = None) -> int:
@@ -280,7 +289,7 @@ def run_process(cmd: list[str], cwd: str | None, on_line: Callable[[str], None],
         if proc.stdout is None:
             raise AutomixError("error.automix.failed")
         for line in proc.stdout:
-            on_line(line.rstrip("\r\n"))
+            on_line(clean_output_line(line.rstrip("\r\n")))
 
     reader = threading.Thread(target=read, daemon=True, name="kuulas-automix-log")
     reader.start()
