@@ -101,7 +101,7 @@ ALL_TRACKS: dict[str, Any] = {
 #: in the exports folder, named by edit and local time so no run overwrites another.
 MIX_FILE: dict[str, Any] = {"kind": "mix", "template": "{edit} {stamp} v{n}.{ext}"}
 #: Settings that are not remembered: they are about this one export.
-NOT_REMEMBERED = ("range", "for_automixer")
+NOT_REMEMBERED = ("range", "for_automixer", "track_ids")
 #: Settings that do not change the rendered audio, so they stay out of the hash.
 NOT_HASHED = ("folder", "template", "latest")
 
@@ -243,9 +243,13 @@ def _settings(kind: str, remembered: dict | None, args: dict) -> dict[str, Any]:
     if kind not in KINDS:
         raise _fail("error.export.bad_kind", kind=kind)
     allowed = set(DEFAULTS[kind]) | {"folder"}
+    if kind == "tracks":
+        allowed.add("track_ids")
     remembered = dict(remembered or {})
     if args.get("kbps") is not None:  # the public name of ``mp3_kbps``
         args = {**args, "mp3_kbps": args["kbps"]}
+    if "master_lufs" in args and args["master_lufs"] is None:
+        remembered.pop("master_lufs", None)  # said "off": forget the remembered target
     if args.get("format") not in (None, remembered.get("format")):
         remembered.pop("mp3_kbps", None)  # a bitrate means little for another codec
     merged = {**DEFAULTS[kind], **{k: v for k, v in remembered.items() if k in allowed},
@@ -284,15 +288,52 @@ def _settings(kind: str, remembered: dict | None, args: dict) -> dict[str, Any]:
     elif kind == "selection":
         raise _fail("error.export.bad_range")
     merged["latest"] = bool(merged.get("latest", False))
+    ids = merged.get("track_ids")
+    if ids is not None and (
+            not isinstance(ids, list) or not ids
+            or not all(isinstance(i, str) for i in ids)):
+        raise _fail("error.export.bad_tracks")
     if kind == "tracks":
         merged["for_automixer"] = bool(merged.get("for_automixer", False))
     return merged
 
 
 def _exported(project: Project, settings: dict) -> list[Track]:
-    """The tracks a track export writes: all of them (buses are never stems)."""
-    del settings
-    return list(project.tracks)
+    """The tracks a track export writes: all of them, or the ``track_ids`` chosen
+    (buses are never stems)."""
+    ids = settings.get("track_ids")
+    if ids is None:
+        return list(project.tracks)
+    return [tr for tr in project.tracks if tr.id in ids]
+
+
+def _check_tracks(project: Project, settings: dict) -> None:
+    """Every chosen track must exist in this edit."""
+    ids = settings.get("track_ids")
+    if ids is not None and not set(ids) <= {tr.id for tr in project.tracks}:
+        raise _fail("error.export.bad_tracks")
+
+
+def options(kind: str, base: dict, args: dict) -> dict:
+    """The arguments of a one-button export: ``base`` (``MIX_FILE`` or ``ALL_TRACKS``)
+    plus what the caller chose. ``name`` is a file name the owner typed: it is taken
+    literally, the range (if any) and ``v{n}`` follow it, so a name never overwrites."""
+    keys = {"format", "bit_depth", "kbps", "folder", "range", "master_lufs", "track_ids"}
+    chosen = {k: v for k, v in args.items() if k in keys and v is not None}
+    out = {**base, **chosen}
+    if kind == "mix":
+        ext = ".{ext}"
+        if "master_lufs" in args and args["master_lufs"] is None:
+            out["master_lufs"] = None  # an explicit "off", not "say nothing"
+    else:
+        out.pop("master_lufs", None)
+        ext = ""
+    if args.get("name"):
+        literal = str(args["name"]).replace("{", "{{").replace("}", "}}")
+        out["template"] = f"{literal}{{span}} v{{n}}{ext}"
+    elif chosen.get("range") is not None:
+        out["template"] = base["template"].replace("{edit}", "{edit}{span}", 1)
+    return out
 
 
 def _snapshot(session, kind: str, args: dict) -> _Job:
@@ -307,6 +348,7 @@ def _snapshot(session, kind: str, args: dict) -> _Job:
                          / f"{session.package.path.stem} exports")
         settings["folder"] = str(folder)
         project = h.state
+        _check_tracks(project, settings)
         rate = project.rate
         total = project.length
         if total <= 0:
@@ -613,7 +655,9 @@ def check(session, args: dict) -> None:
     with session.lock:
         h = session.history
         h._check_writable()
-        _settings(kind, h.meta_json("export", {}).get("settings", {}).get(kind), args)
+        settings = _settings(
+            kind, h.meta_json("export", {}).get("settings", {}).get(kind), args)
+        _check_tracks(h.state, settings)
 
 
 def run(session, args: dict, progress: Progress | None = None,
@@ -825,9 +869,10 @@ def _finish(session, job: _Job, n: int, series: str, target: Path, paths: list[P
 
 
 def _counts(job: _Job) -> dict:
-    """How many tracks a track export covers and which came out silent."""
+    """How many tracks a track export covers and which came out silent (a mix
+    reports only the silent ones)."""
     if job.kind != "tracks":
-        return {}
+        return {"silent": list(job.silent)}
     return {"track_count": len(_exported(job.project, job.settings)),
             "silent": list(job.silent)}
 

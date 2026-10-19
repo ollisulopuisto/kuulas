@@ -117,6 +117,9 @@ export const automix = (options = {}) => post("/api/automix", options);
 export const automixerSettings = () => json("/api/settings/automixer");
 export const saveAutomixerSettings = (settings) =>
   json("/api/settings/automixer", { method: "PUT", body: JSON.stringify(settings) });
+/** What the export dialog starts from: { mix, tracks (the last settings or null), folder,
+ * remembered, edit, project (the project's path) }. */
+export const exportSettings = () => json("/api/export-settings");
 export const exportFolder = () => json("/api/export-folder");
 /** File > New project… in a plain browser: make `<parent>/<name>.kuulas` and open it in a new
  * tab; answers { path }. */

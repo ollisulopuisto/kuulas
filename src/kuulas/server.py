@@ -734,6 +734,10 @@ def create_app(session, engine, *, language: str | None = None,
     def get_export_folder():
         return session.export_folder_hint()
 
+    @app.get("/api/export-settings")
+    def get_export_settings():
+        return session.export_settings()
+
     @app.get("/api/export-formats")
     def get_export_formats():
         return [{"id": f.id, "label": t(f.label_key), "ext": f.ext,

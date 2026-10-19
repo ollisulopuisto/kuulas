@@ -30,6 +30,7 @@ import { createEditor } from "./edits.js";
 import { escapeAction } from "./escape.js";
 import { exportNotice, exportRequest, filenameFromDisposition } from "./export-commands.js";
 import { createExportDialog } from "./export-dialog.js";
+import { quickPlan } from "./export-dialog-model.js";
 import {
   chipFast,
   dragSpeed,
@@ -845,6 +846,7 @@ const keyboard = setupKeyboard({
     openColabSignin: () => void colabDialogsFor().signIn(),
     exportTracks: (format, options) => exportTracks(format, options),
     exportMix: (format, options) => exportMix(format, options),
+    exportQuick: (force) => exportQuick(force),
     exportFormats: () => exportFormatIds,
     openExportDialog: (what) => openExportDialog(what),
     newProject: () => void newProject(),
@@ -1551,7 +1553,7 @@ async function cancelExportJob() {
 
 // `what` "tracks" or "mix"; `format` is a format id, or none for WAV (tracks) / the remembered
 // one (mix). One export at a time.
-async function startExport(what, format, { ask = true } = {}) {
+async function startExport(what, format, { ask = true, extra = {} } = {}) {
   if (exportJob) return;
   try {
     // Desktop window: the native folder chooser first; cancelling ends here, quietly.
@@ -1564,7 +1566,8 @@ async function startExport(what, format, { ask = true } = {}) {
       onAsk: () => what === "tracks" && showNotice(t("ui.export.choose_folder"), "ok"),
     });
     if (!options) return;
-    const { jobs } = await (what === "mix" ? api.exportMix(options) : api.exportTracks(options));
+    const body = { ...extra, ...options };
+    const { jobs } = await (what === "mix" ? api.exportMix(body) : api.exportTracks(body));
     exportJob = jobs[0];
     showNotice(t(`ui.export.${what}_running`, { percent: 0 }), "ok", {
       sticky: true,
@@ -1826,6 +1829,41 @@ function offerToLocate(missing) {
 const exportTracks = (format, options) => startExport("tracks", format, options);
 const exportMix = (format, options) => startExport("mix", format, options);
 
+// What each project last exported (scope, chosen tracks, whether to ask for the folder),
+// remembered per user and project (the project's path); the format, quality and loudness the
+// server remembers in the project (GET /api/export-settings).
+const scopeKey = (project) => `exportscope.${project}`;
+const scopeMemory = (project) => prefs.getJson(scopeKey(project), null);
+let exportProject = "";
+
+/**
+ * Mod+E (and Export in/out range, `force` "range"): export at once with the project's last
+ * scope and settings. When the remembered scope cannot be had (no marks now, the tracks are
+ * gone) the options open and say why, instead of exporting something else.
+ */
+async function exportQuick(force) {
+  if (exportJob) return;
+  try {
+    const server = await api.exportSettings();
+    exportProject = server.project;
+    const state = getState();
+    const plan = quickPlan({
+      memory: scopeMemory(server.project),
+      marks: state,
+      project: state.project,
+      force,
+    });
+    if (plan.dialog) {
+      showNotice(t(plan.dialog), "ok");
+      void openExportDialog("mix");
+      return;
+    }
+    await startExport(plan.what, undefined, { ask: false, extra: plan.body });
+  } catch (error) {
+    showError(error);
+  }
+}
+
 // File > Export mix (options)… / Export all tracks (options)… (WP74): format, and whether to
 // choose the folder first (only the desktop window has a folder chooser).
 let exportDialog = null;
@@ -1834,10 +1872,20 @@ function openExportDialog(what) {
     t,
     formats: () => exportFormatList,
     canChooseFolder: () => typeof globalThis.pywebview?.api?.choose_export_folder === "function",
-    onStart: ({ what: kind, format, ask }) =>
-      kind === "mix" ? exportMix(format, { ask }) : exportTracks(format, { ask }),
+    context: async () => {
+      const server = await api.exportSettings();
+      exportProject = server.project;
+      return {
+        server,
+        memory: scopeMemory(server.project),
+        state: getState(),
+        frames: totalFrames(),
+      };
+    },
+    saveMemory: (memory) => prefs.setJson(scopeKey(exportProject), memory),
+    onStart: ({ what: kind, body, ask }) => startExport(kind, body.format, { ask, extra: body }),
   });
-  exportDialog.open(what);
+  void exportDialog.open(what).catch(showError);
 }
 
 // File > New project… / Open project… (WP74). The desktop window uses its native dialogs and

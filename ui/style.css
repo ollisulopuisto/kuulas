@@ -2939,6 +2939,65 @@ input[type="text"] {
   color: var(--danger-text);
   font-size: var(--text-xs);
 }
+
+/* Export options: the inspector's two-column rows inside the dialog */
+.export-dialog form {
+  gap: var(--space-2);
+}
+.export-dialog .export-row[hidden],
+.export-dialog [hidden] {
+  display: none;
+}
+.export-dialog .inspector-field {
+  margin: 0;
+}
+.export-choices,
+.export-tracks {
+  display: grid;
+  gap: var(--space-2);
+}
+.export-choice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--text);
+}
+.export-choice input {
+  margin: 0;
+  accent-color: var(--accent);
+}
+.export-choice input:disabled + span {
+  color: var(--text-tertiary);
+}
+.export-tracks-box {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.export-tracks-tools {
+  display: flex;
+  gap: var(--space-2);
+}
+.export-tracks {
+  max-height: 10rem;
+  overflow-y: auto;
+}
+.export-silence {
+  margin: 0;
+  padding: var(--space-3);
+  border-left: 3px solid var(--border-strong);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+.export-dialog .automix-error:empty {
+  display: none;
+}
+.automix-error {
+  color: var(--danger-text);
+  font-size: var(--text-xs);
+}
 .automix-advanced {
   border-top: 1px solid var(--panel-divider);
   padding-top: var(--space-2);

@@ -28,6 +28,7 @@ describe("File", () => {
       "separator",
       "app.export",
       "export.mix_options",
+      "export.range",
       "export.automix",
       "export.tracks_quick",
       "export.tracks",
