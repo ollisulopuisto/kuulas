@@ -9,8 +9,6 @@ import {
   driftingAmong,
   driftRows,
   formatOffset,
-  missingPartners,
-  partnerIds,
   stepDrift,
   syncIndex,
 } from "../sync-state.js";
@@ -73,18 +71,6 @@ describe("the drift list", () => {
   });
   test("after a move, only the clips that drifted are asked about", () => {
     assert.deepEqual(driftingAmong(clips, ["late", "free", "gone"]), ["late"]);
-  });
-});
-
-describe("partners of the selection", () => {
-  test("the outline is the partners that are not selected themselves", () => {
-    const partners = { a: ["b", "c"], b: ["a", "c"] };
-    assert.deepEqual([...partnerIds(partners, new Set(["a"]))].sort(), ["b", "c"]);
-    assert.deepEqual([...partnerIds(partners, new Set(["a", "b"]))], ["c"]);
-    assert.deepEqual([...partnerIds({}, new Set(["a"]))], []);
-  });
-  test("only the clips not asked about yet are fetched", () => {
-    assert.deepEqual(missingPartners({ a: [] }, new Set(["a", "b"])), ["b"]);
   });
 });
 

@@ -9,7 +9,7 @@ import { memberClipsAt, toggleChange } from "./bus-collapse.js";
 import { listedRows, scrollToShow, stepTarget } from "./candidates-model.js";
 import { createCandidatesPanel } from "./candidates-panel.js";
 import { previewRequest } from "./candidates-preview.js";
-import { clipDragChange, dragAnchor } from "./clip-drag.js";
+import { clipDragChange } from "./clip-drag.js";
 import { expandGroups, toggleGroupSelection } from "./clip-groups.js";
 import { entryTitle } from "./clipboard.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
@@ -106,6 +106,13 @@ import { createProjectDialog } from "./project-dialog.js";
 import { patchClip } from "./provisional.js";
 import { rangeLine } from "./range-info.js";
 import { rememberRange, stepRangeMemory } from "./range-memory.js";
+import {
+  clearTrackSelection,
+  resolveScope,
+  scopeChip,
+  selectTrack as selectTrackPatch,
+  toggleScopeMode,
+} from "./range-scope.js";
 import { createRecordView } from "./record-view.js";
 import { forwardFromClip } from "./selection-ops.js";
 import { createSendCopyDialog } from "./send-copy-dialog.js";
@@ -115,7 +122,7 @@ import { createStatsDialog } from "./stats-dialog.js";
 import { nextStopMode } from "./stop-mode.js";
 import { getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
 import { createSyncConfirm } from "./sync-confirm.js";
-import { driftingAmong, missingPartners } from "./sync-state.js";
+import { driftingAmong } from "./sync-state.js";
 import {
   cycleScope,
   headerFocusPatch,
@@ -235,18 +242,6 @@ async function refreshSync() {
     setState({ syncClips: answer.clips, syncAnchors: answer.anchors ?? [] });
   } catch {
     // The badges are a help: a failed look leaves the last ones, the next edit looks again.
-  }
-}
-
-async function refreshPartners() {
-  const { selection, partners } = getState();
-  const missing = missingPartners(partners, selection);
-  if (missing.length === 0) return;
-  try {
-    const answer = await api.getPartners(missing);
-    setState({ partners: { ...getState().partners, ...answer.partners } });
-  } catch {
-    // No outline this time.
   }
 }
 
@@ -440,8 +435,11 @@ const actions = {
       rangeTracks: state.rangeTracks,
       inPoint: state.inPoint,
       outPoint: state.outPoint,
+      trackSelection: state.trackSelection,
+      rangeMode: state.rangeMode,
     });
     if (what === "blur") active.blur();
+    if (what === "clear_tracks") setState(clearTrackSelection());
     // Clear the clip selection, the range and the in and out marks (owner, 2026-10-18).
     if (what === "clear") {
       setState({ selection: new Set(), rangeTracks: new Set(), inPoint: null, outPoint: null });
@@ -796,9 +794,14 @@ const keyboard = setupKeyboard({
     now: () => performance.now(),
     chooseMedia: () => chooseMedia(),
     // The transcript's X: cut the words' stretch on every track.
-    cutWords: (indices) =>
-      api
-        .command("cut_words", { indices, group_editing: getState().groupEditing !== false })
+    cutWords: (indices) => {
+      const scope = resolveScope(getState());
+      if (scope.none) {
+        showNotice(t("ui.scope.none_selected"), "warn");
+        return Promise.resolve(false);
+      }
+      return api
+        .command("cut_words", { indices, track_ids: scope.tracks })
         .then((response) => {
           apply(response);
           return true;
@@ -806,7 +809,8 @@ const keyboard = setupKeyboard({
         .catch((error) => {
           showError(error);
           return false;
-        }),
+        });
+    },
     correct: () => transcript.startCorrect(),
     openFind: () => {
       focusPanel("transcript");
@@ -953,7 +957,7 @@ fastSlider.min = String(MIN_FAST);
 fastSlider.max = String(MAX_FAST);
 fastSlider.step = String(FAST_STEP);
 fastSlider.addEventListener("input", () => actions.fastSet(Number(fastSlider.value)));
-$("group-chip").addEventListener("click", () => setState({ groupEditing: true }));
+$("scope-chip").addEventListener("click", () => setState(toggleScopeMode(getState())));
 $("lane-taller").addEventListener("click", () => setLaneHeight(LANE_STEP));
 $("lane-shorter").addEventListener("click", () => setLaneHeight(-LANE_STEP));
 $("follow").addEventListener("click", () => {
@@ -1395,6 +1399,9 @@ const trackHeaders = createTrackHeaders({
   editor,
   onBusCreated: nameNewBus,
   actions: {
+    // Click / Cmd+click on a track header (WP83): the track joins the selection that range
+    // operations act on, and the scope becomes "selected tracks only".
+    selectTrack: (id, options) => setState(selectTrackPatch(getState(), id, options)),
     currentTrack: (id) => {
       // A header is the timeline's keyboard context (Tab, arrows); the panel was left as it was.
       const patch = headerFocusPatch(getState());
@@ -2404,12 +2411,10 @@ const timeline = createTimeline({
     seek: (frame) => void transport.seek(frame),
     contextMenu: (hit, event) => showTimelineMenu(hit, event),
     rangeDragged: onRangeDragged,
-    clipDrag({ ids, move, alone = false, pressedId = null }) {
-      // Alt held: this clip moves alone, whatever group editing says, and then asks whether it
-      // should stay free from sync (owner, 2026-10-16).
-      const grouped = getState().groupEditing !== false && !alone;
-      const anchor = pressedId === null ? null : dragAnchor(pressedId, grouped, alone);
-      const change = clipDragChange(ids, move, grouped, anchor);
+    clipDrag({ ids, move, alone = false }) {
+      // Alt held: it then asks whether the clip should stay free from sync (owner, 2026-10-16).
+      // Nothing but an explicit group moves along with it (WP83).
+      const change = clipDragChange(ids, move);
       if (!change) return;
       setState({ selection: new Set(ids) }); // the press selected one clip; a move keeps all
       editor.change({
@@ -2440,13 +2445,7 @@ const timeline = createTimeline({
       });
     },
     edgeDrag({ clipId, edge, frame, ripple }) {
-      const { op, args, labelKey } = edgeChange(
-        clipId,
-        edge,
-        frame,
-        ripple,
-        getState().groupEditing !== false,
-      );
+      const { op, args, labelKey } = edgeChange(clipId, edge, frame, ripple);
       editor.change({ op, args, label: t(labelKey) });
     },
     openGate: openGateStretch,
@@ -2511,6 +2510,32 @@ function spanText(state) {
   return t(`ui.zoom.${unit}`, { value: formatNumber(value, { digits: GAIN_DIGITS(value) }) });
 }
 
+// The status bar's scope chip (WP83): what the next range operation touches, from the one scope
+// function (range-scope.js). A warning tone when no track is selected in selected-only mode.
+function updateScopeChip(state) {
+  const el = $("scope-chip");
+  const chip = scopeChip(state);
+  el.hidden = chip === null || !state.project;
+  if (el.hidden) return;
+  el.classList.toggle("warn", chip.kind === "none");
+  el.title = t("ui.scope.chip_title");
+  if (chip.kind === "none") {
+    el.textContent = t("ui.scope.chip_none");
+    return;
+  }
+  const where = chip.all
+    ? t("ui.scope.where_all", { count: chip.count })
+    : t("ui.scope.where_some", { names: chip.names.join(", ") });
+  el.textContent =
+    chip.kind === "range"
+      ? t("ui.scope.chip_range", {
+          from: frameToTime(chip.start, rate()),
+          to: frameToTime(chip.end, rate()),
+          where,
+        })
+      : t("ui.scope.chip_mode", { where });
+}
+
 // "2 clips · 12:03,250-12:41,000 · 0:37,750": the selected clips (the marks are in the corner).
 function updateRangeInfo() {
   const el = $("range-info");
@@ -2538,7 +2563,6 @@ function render(state, patch) {
       "waveformScale",
       "waveformGain",
       "showGates",
-      "focusTrack",
       "focusBus",
       "busHeight",
       "groupGap",
@@ -2621,18 +2645,16 @@ function render(state, patch) {
     $("follow").setAttribute("aria-pressed", String(state.followPaused));
   }
   if (touched("showGates")) $("show-gates").checked = state.showGates;
-  if (touched("groupEditing")) {
-    // A mode chip shows only when the safe default is off (design 8.2).
-    const chip = $("group-chip");
-    chip.hidden = state.groupEditing;
-    chip.textContent = t("ui.mode.group_off");
-    chip.title = t("ui.mode.group_off_title");
-  }
+  if (touched("project", "inPoint", "outPoint", "rangeMode", "trackSelection", "rangeTracks"))
+    updateScopeChip(state);
   if (touched("waveformMode")) $("waveform-mode").value = state.waveformMode;
   if (
     touched(
       "project",
       "focusTrack",
+      "rangeMode",
+      "trackSelection",
+      "rangeTracks",
       "focusBus",
       "laneHeight",
       "laneHeights",
@@ -2682,11 +2704,6 @@ function render(state, patch) {
     markersPanel.update(state);
   if (state.head && touched("head")) void refreshCandidates();
   if (state.head && touched("head")) void refreshSync();
-  // Partners are asked for after an edit lands (head), not at every provisional step of a drag.
-  if (touched("head") && Object.keys(state.partners).length > 0) setState({ partners: {} });
-  if (touched("selection", "partners", "head") && state.project?.sync_groups?.length > 0)
-    void refreshPartners();
-  if (touched("groupEditing")) void api.setGroupEditing(state.groupEditing).catch(() => {});
   if (touched("head") && rangeMemory) {
     const step = stepRangeMemory(rangeMemory, state.head, state);
     rangeMemory = step.memory;

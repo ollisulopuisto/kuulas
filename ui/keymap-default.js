@@ -468,13 +468,13 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "edit.group",
-    keys: { mac: "Alt+Mod+G", other: "Alt+Mod+G" },
+    keys: { mac: ["Mod+G", "Alt+Mod+G"], other: ["Mod+G", "Alt+Mod+G"] },
     context: "timeline",
     labelKey: "cmd.edit.group",
   },
   {
     id: "edit.ungroup",
-    keys: { mac: "Shift+Alt+Mod+G", other: "Shift+Alt+Mod+G" },
+    keys: { mac: ["Shift+Mod+G", "Shift+Alt+Mod+G"], other: ["Shift+Mod+G", "Shift+Alt+Mod+G"] },
     context: "timeline",
     labelKey: "cmd.edit.ungroup",
   },
@@ -769,10 +769,10 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.track.new_bus",
   },
   {
-    id: "group.toggle",
-    keys: { mac: ["E", "Mod+G"], other: ["E", "Mod+G"] },
+    id: "range.scope_toggle",
+    keys: { mac: "E", other: "E" },
     context: "timeline",
-    labelKey: "cmd.group.toggle",
+    labelKey: "cmd.range.scope_toggle",
   },
   {
     id: "bus.collapse",

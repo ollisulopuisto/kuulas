@@ -76,7 +76,6 @@ describe("transcript commands", () => {
     assert.equal(calls.edits.length, 1);
     assert.equal(calls.edits[0].op, "mute_range");
     assert.deepEqual(calls.edits[0].args.track_ids, ["a"]);
-    assert.equal(calls.edits[0].args.group_editing, false);
     assert.equal(calls.cuts.length, 0);
     assert.match(calls.toasts[0], /"count":2,"name":"Anna"/);
   });
@@ -122,7 +121,6 @@ describe("transcript commands", () => {
     assert.equal(calls.copies[0].start, 55);
     assert.equal(calls.copies[0].end, 350);
     assert.deepEqual(calls.copies[0].track_ids, ["a", "b"]);
-    assert.equal(calls.copies[0].group_editing, false);
     assert.match(calls.copies[0].name, /Anna/);
     assert.match(calls.toasts[0], /ui\.transcript\.toast\.cut /);
   });

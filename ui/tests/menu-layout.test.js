@@ -74,6 +74,7 @@ describe("Edit", () => {
       "edit.paste",
       ">menu.paste_variants",
       ">menu.delete_cut",
+      "range.scope_toggle",
       ">menu.clipboard",
       "time.copy",
       "-",

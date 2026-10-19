@@ -236,12 +236,8 @@ export const getTransport = () => json("/api/transport");
 export const getSync = () => json("/api/sync");
 /** What a moving sync command (resync, resync_from, send_home) would do; changes nothing. */
 export const syncPreview = (name, args = {}) => post("/api/sync/preview", { name, args });
-/** The partners of each clip (the dashed outline): { partners: { clipId: [clipId] } }. */
-export const getPartners = (ids) => json(`/api/partners?ids=${encodeURIComponent(ids.join(","))}`);
-/** The history step that put a clip out of sync: { cause: { label, group_editing, ... } | null }. */
+/** The history step that put a clip out of sync: { cause: { label, op, track_id, created } | null }. */
 export const getSyncCause = (clipId) => json(`/api/sync-cause/${encodeURIComponent(clipId)}`);
-/** Mod+G: the server's default for edits that do not say (session state, not history). */
-export const setGroupEditing = (on) => post("/api/group-editing", { on });
 
 /** Where a recording is used in the edit (the inspector's Source section); `signal` cancels. */
 export const getSourceMap = (sha256, signal) =>

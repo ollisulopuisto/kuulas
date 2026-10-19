@@ -48,7 +48,8 @@ const state = (extra = {}) => ({
   playhead: 4 * S,
   inPoint: null,
   outPoint: null,
-  groupEditing: true,
+  rangeMode: "all",
+  trackSelection: new Set(),
   nudgeMs: 10,
   ...extra,
 });
@@ -76,19 +77,21 @@ describe("split", () => {
 });
 
 describe("delete (soft cut, gap kept)", () => {
-  test("the range is muted in place on the current track, with the group when on", () => {
+  test("the range from the keyboard is muted in place on all tracks", () => {
     const plan = deletePlan(state(range));
     assert.equal(plan.op, "mute_range");
-    assert.deepEqual(plan.args, {
-      start: 2 * S,
-      end: 6 * S,
-      track_ids: ["A"],
-      group_editing: true,
-    });
+    assert.deepEqual(plan.args, { start: 2 * S, end: 6 * S, track_ids: ["A", "V", "M"] });
     assert.equal(plan.toast.values.seconds, 4);
   });
-  test("group editing off is passed on", () => {
-    assert.equal(deletePlan(state({ ...range, groupEditing: false })).args.group_editing, false);
+  test("selected tracks override: only those, also from the keyboard", () => {
+    const plan = deletePlan(
+      state({ ...range, rangeMode: "selected", trackSelection: new Set(["V"]) }),
+    );
+    assert.deepEqual(plan.args.track_ids, ["V"]);
+  });
+  test("selected-only mode with no track selected refuses instead of doing nothing", () => {
+    const plan = deletePlan(state({ ...range, rangeMode: "selected" }));
+    assert.deepEqual(plan, { refuse: { key: "ui.scope.none_selected" } });
   });
   test("selected clips are muted, with no clipboard and no range needed", () => {
     const plan = deletePlan(state({ selection: new Set(["a1", "v1"]) }));
@@ -106,8 +109,12 @@ describe("delete (soft cut, gap kept)", () => {
     };
     assert.equal(deletePlan(state({ project: muted, selection: new Set(["a1"]) })), null);
   });
-  test("a range with no current track has nowhere to act", () => {
-    assert.equal(deletePlan(state({ ...range, focusTrack: null })), null);
+  test("the current track does not narrow a range: it is still all tracks", () => {
+    assert.deepEqual(deletePlan(state({ ...range, focusTrack: null })).args.track_ids, [
+      "A",
+      "V",
+      "M",
+    ]);
   });
 });
 
@@ -127,30 +134,21 @@ describe("lift-cut (copy, then soft delete)", () => {
   test("nothing to act on is null", () => {
     assert.equal(liftCutPlan(state({ focusTrack: null })), null);
   });
+  test("selected-only mode with nothing selected refuses", () => {
+    assert.ok(liftCutPlan(state({ ...range, rangeMode: "selected" })).refuse);
+  });
 });
 
 describe("close gap on all tracks", () => {
-  test("ripple_delete of the range on the sync group's tracks, no clipboard", () => {
-    // The tracks the range is on go with it; the server widens them to the group (WP19a), also
-    // when group editing is off, because closing a gap on all tracks is what brings them back.
-    const plan = closeGapPlan(state({ ...range, groupEditing: false }));
+  test("ripple_delete of the range on the scope's tracks (all by default), no clipboard", () => {
+    const plan = closeGapPlan(state(range));
     assert.equal(plan.op, "ripple_delete");
-    assert.deepEqual(plan.args, {
-      start: 2 * S,
-      end: 6 * S,
-      track_ids: ["A"],
-      group_editing: true,
-    });
+    assert.deepEqual(plan.args, { start: 2 * S, end: 6 * S, track_ids: ["A", "V", "M"] });
     assert.equal(plan.label.key, "ui.edit.label.close_gap");
   });
   test("selected clips: their span", () => {
     const plan = closeGapPlan(state({ selection: new Set(["a2"]) }));
-    assert.deepEqual(plan.args, {
-      start: 12 * S,
-      end: 20 * S,
-      track_ids: ["A"],
-      group_editing: true,
-    });
+    assert.deepEqual(plan.args, { start: 12 * S, end: 20 * S, track_ids: ["A"] });
   });
   test("nothing selected is null", () => {
     assert.equal(closeGapPlan(state()), null);
@@ -158,20 +156,15 @@ describe("close gap on all tracks", () => {
 });
 
 describe("cut (ripple)", () => {
-  test("the range, on the current track plus the group when group editing is on", () => {
+  test("the range from the keyboard, on all tracks", () => {
     const plan = cutPlan(state(range), { t });
     assert.equal(plan.op, "clipboard_cut");
-    assert.deepEqual(plan.args, {
-      start: 2 * S,
-      end: 6 * S,
-      track_ids: ["A"],
-      group_editing: true,
-      name: 'ui.clipboard.auto_name{"count":1,"name":"ui.clipboard.untitled_track{}","at":"00:00:02"}',
-    });
+    assert.deepEqual(plan.args.track_ids, ["A", "V", "M"]);
+    assert.equal(plan.args.group_editing, undefined);
     assert.equal(plan.toast.tracks, true);
   });
-  test("Shift+X never takes the group along", () => {
-    assert.equal(cutPlan(state(range), { thisTrackOnly: true }).args.group_editing, false);
+  test("Shift+X cuts the current track only", () => {
+    assert.deepEqual(cutPlan(state(range), { thisTrackOnly: true }).args.track_ids, ["A"]);
   });
   test("selected clips: their span, on their tracks", () => {
     const plan = cutPlan(state({ selection: new Set(["a2", "v1"]) }), { t });
@@ -179,7 +172,6 @@ describe("cut (ripple)", () => {
       start: 0,
       end: 20 * S,
       track_ids: ["A", "V"],
-      group_editing: true,
       name: 'ui.clipboard.auto_name{"count":2,"name":"ui.clipboard.untitled_track{}","at":"00:00:00"}',
     });
   });
@@ -226,10 +218,10 @@ describe("trim (Q, W)", () => {
 });
 
 describe("nudge", () => {
-  test("by the nudge step, later or earlier, with the group when on", () => {
+  test("by the nudge step, later or earlier (an explicit group goes together on the server)", () => {
     const plan = nudgePlan(state({ selection: new Set(["a1"]) }), 1);
     assert.equal(plan.op, "nudge_clips");
-    assert.deepEqual(plan.args, { clip_ids: ["a1"], delta: 480, group_editing: true });
+    assert.deepEqual(plan.args, { clip_ids: ["a1"], delta: 480 });
     assert.equal(nudgePlan(state({ selection: new Set(["a1"]) }), -1).args.delta, -480);
   });
   test("needs a selection", () => {
@@ -238,15 +230,10 @@ describe("nudge", () => {
 });
 
 describe("move to the track above or below (Mod+Up and Mod+Down)", () => {
-  test("one track down is direction +1 and up is -1, same time, with the group when on", () => {
+  test("one track down is direction +1 and up is -1, same time", () => {
     const down = moveTrackPlan(state({ selection: new Set(["a1"]) }), 1);
     assert.equal(down.op, "move_clips_to_track");
-    assert.deepEqual(down.args, {
-      clip_ids: ["a1"],
-      direction: 1,
-      delta: 0,
-      group_editing: true,
-    });
+    assert.deepEqual(down.args, { clip_ids: ["a1"], direction: 1, delta: 0 });
     const up = moveTrackPlan(state({ selection: new Set(["v1"]) }), -1);
     assert.equal(up.args.direction, -1);
   });
@@ -359,8 +346,8 @@ describe("remove (X): ripple delete that never touches the clipboard", () => {
     assert.equal(remove.toast.key, "ui.edit.toast.remove");
     assert.equal(remove.toast.tracks, true);
   });
-  test("this track only turns group editing off", () => {
-    assert.equal(removePlan(state(range), { thisTrackOnly: true }).args.group_editing, false);
+  test("this track only names the current track", () => {
+    assert.deepEqual(removePlan(state(range), { thisTrackOnly: true }).args.track_ids, ["A"]);
   });
   test("selected clips: their span; nothing to act on is null", () => {
     const sel = state({ selection: new Set(["a2", "v1"]) });

@@ -471,8 +471,7 @@ def create_app(session, engine, *, language: str | None = None,
             return state_response({"resync": session.last_resync})
         return state_response()
 
-    # -- sync states and group editing (WP19a, R51) ----------------------------
-    # Group editing is session state (Mod+G): it edits nothing, so no undo step.
+    # -- sync states (WP19a, R51; sync is knowledge only, WP83) ---------------------
 
     @app.get("/api/drift")
     def get_drift(cause: bool = False):

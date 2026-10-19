@@ -15,6 +15,7 @@ import { readoutText, trackReadout } from "./loudness-readout.js";
 import { monoTag } from "./mono-ask.js";
 import { MUSIC_HUE, trackHues } from "./paint.js";
 import { coalesceKey, patchBus, patchSolo, patchTrack } from "./provisional.js";
+import { dimmedTracks } from "./range-scope.js";
 import { parseDbText, parsePanText } from "./value-edit.js";
 
 const GAIN = { min: -60, max: 12, step: 0.1 };
@@ -326,6 +327,12 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       });
 
     node.addEventListener("pointerdown", () => actions.currentTrack(id));
+    // A click on the header itself (not on its buttons, sliders or name field) selects the track:
+    // range operations then act on the selected tracks only; Cmd+click adds (WP83).
+    node.addEventListener("click", (event) => {
+      if (event.target.closest?.("button, input, select, textarea, .lane-grip")) return;
+      actions.selectTrack(id, { add: event.metaKey || event.ctrlKey });
+    });
     node.addEventListener("focusin", () => actions.currentTrack(id));
     node.addEventListener("contextmenu", (event) => actions.contextMenu("track", id, event));
     name.addEventListener("dblclick", () => rename(name, id));
@@ -538,6 +545,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     const layout = layoutFor(state);
     const hues = trackHues(state.project);
     const busHue = busHues(state.project);
+    const dimmed = dimmedTracks(state);
     for (const row of layout.rows) {
       const parts = rows.get(row.id);
       if (!parts) continue;
@@ -556,6 +564,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       if (parts.kind === "track") {
         const track = state.project.tracks[row.index];
         parts.node.classList.toggle("current", state.focusTrack === track.id);
+        parts.node.classList.toggle("scope-dim", dimmed.has(track.id));
         const hue = hues.get(track.id);
         parts.node.style.setProperty(
           "--track-colour",

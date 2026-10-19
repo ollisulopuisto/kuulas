@@ -20,6 +20,21 @@ describe("what Esc does", () => {
       "clear",
     );
   });
+  test("the track selection is cleared first, before the clips and the range (WP83)", () => {
+    const marked = { selection: new Set(["a"]), inPoint: 1, outPoint: 9 };
+    assert.equal(
+      escapeAction({ inTextField: false, ...marked, trackSelection: new Set(["t"]) }),
+      "clear_tracks",
+    );
+    assert.equal(
+      escapeAction({ inTextField: false, ...marked, rangeMode: "selected" }),
+      "clear_tracks",
+    );
+    assert.equal(
+      escapeAction({ inTextField: false, ...marked, trackSelection: new Set() }),
+      "clear",
+    );
+  });
   test("with nothing selected it goes home (the timeline gets focus)", () => {
     assert.equal(escapeAction({ inTextField: false, selection: new Set() }), "home");
     assert.equal(escapeAction({ inTextField: false }), "home");

@@ -6,7 +6,7 @@
 
 Pure: the project in, the state out. The reference is ``ops.synced_start``, the
 same rule as ``ops.resync``, so what the badge shows is what resync would undo.
-The *cause* of a drift (which edit moved it, with group editing off or on) is
+The *cause* of a drift (which edit moved it) is
 history, not model: ``cause`` finds the step, ``Session.sync_cause`` describes it.
 """
 

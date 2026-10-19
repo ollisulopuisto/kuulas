@@ -109,16 +109,6 @@ describe("painting waveforms (what the worker runs)", () => {
     assert.equal(count(calls, "fillRect"), 0);
   });
 
-  test("the current track's lane is tinted under its clips, and only that lane", () => {
-    const { ctx, calls, sets } = fakeContext();
-    const current = job({ laneCurrent: "#abcdef" });
-    current.rows[0].current = true;
-    paintWaveforms(ctx, current, () => loud());
-    assert.equal(count(calls, "fillRect"), 2, "the lane, then the clip body");
-    const fills = sets.filter((s) => s[0] === "fillStyle").map((s) => s[1]);
-    assert.equal(fills[0], "#abcdef");
-  });
-
   test("a clip from the other file of a pair takes the alternate body tone", () => {
     const { ctx, sets } = fakeContext();
     const zebra = job({
@@ -157,7 +147,7 @@ describe("painting waveforms (what the worker runs)", () => {
     assert.equal(sets.find((s) => s[0] === "fillStyle")[1], "#00ff0011");
   });
 
-  test("makeWaveformJob marks the current track's row", () => {
+  test("makeWaveformJob marks no current-track highlight", () => {
     const state = {
       project: {
         rate: 48_000,
@@ -179,16 +169,17 @@ describe("painting waveforms (what the worker runs)", () => {
     const made = makeWaveformJob(state, { width: 100, height: 300, ratio: 1, id: 1 }, palette, {
       laneCurrent: "#123456",
     });
-    assert.deepEqual(
-      made.rows.map((row) => row.current),
-      [false, true],
+    assert.equal(
+      made.rows.some((row) => "current" in row),
+      false,
+      "no highlight on the current track: the others are dimmed by the overlay (WP83)",
     );
     assert.deepEqual(
       made.rows.map((row) => row.band),
       ["", ""],
       "no bus, no band",
     );
-    assert.equal(made.laneCurrent, "#123456");
+    assert.equal("laneCurrent" in made, false);
   });
 
   test("columns under a gate band are drawn flat at a 1 px floor", () => {

@@ -2,20 +2,26 @@
 // state (selection.js says what the selection and the range mean). A plan is
 //   { op, args, label: { key }, toast: { key, values } | null, coalesce?, combine? }
 // or null when there is nothing to act on, which is also what `can()` asks.
-// Group editing is decided by the server (ops.py with edit_scope.py); a plan only
-// says whether it is on.
+// Which tracks a range operation acts on is range-scope.js (WP83); a plan sends them as
+// track_ids. Sync never widens it, and an explicit clip group is expanded by the server.
 
 import { busOfFocus } from "./bus-collapse.js";
 import { autoName, clipsInRange, describeClips, pasteChoice, pasteTargets } from "./clipboard.js";
 import { clipEnd } from "./lanes.js";
 import { splitClipsProvisional } from "./provisional.js";
+import { resolveScope } from "./range-scope.js";
 import { clipsAround, currentTrack, markedRange, selectedClips } from "./selection.js";
 
 export const GAIN_STEP_DB = 0.5;
 export const GAIN_BURST_MS = 600;
 export const DEFAULT_NUDGE_MS = 10;
 
-const groupOn = (state) => state?.groupEditing !== false;
+/**
+ * What a range command returns when the scope is "selected tracks only" and no track is
+ * selected: not null (the command stays enabled) but a refusal, so the user is told why
+ * nothing happens instead of getting a silent no-op (WP83).
+ */
+export const scopeRefusal = () => ({ refuse: { key: "ui.scope.none_selected" } });
 const rateOf = (state) => state.project?.rate ?? 48000;
 const plan = (op, args, key, values = {}, extra = {}) => ({
   op,
@@ -59,28 +65,21 @@ export function splitPlan(state, { all = false } = {}) {
 }
 
 /**
- * Where a range edit lands: the tracks chosen with Select > Range on all tracks (those
- * still in the project), else this track, else the tracks the selection sits on.
+ * The tracks a range edit acts on: the one scope function of range-scope.js (all tracks by
+ * default; the lanes of a mouse-painted range; the selected tracks while any are selected).
+ * Empty when the mode is "selected tracks only" and none is selected.
  */
 export function rangeTracks(state) {
-  const chosen = state?.rangeTracks;
-  const ids = chosen instanceof Set ? [...chosen] : Array.isArray(chosen) ? chosen : [];
-  if (ids.length > 0) {
-    const live = new Set((state.project?.tracks ?? []).map((track) => track.id));
-    const kept = ids.filter((id) => live.has(id));
-    if (kept.length > 0) return kept;
-  }
-  const track = currentTrack(state);
-  if (track !== null) return [track];
-  return unique(selectedClips(state).map((entry) => entry.trackId));
+  return resolveScope(state).tracks;
 }
 
 /** The frames an edit covers and the tracks it starts from: the range, else the selected clips' span. */
 function span(state) {
   const range = markedRange(state);
   if (range) {
-    const tracks = rangeTracks(state);
-    return tracks.length === 0 ? null : { ...range, tracks, fromRange: true };
+    const scope = resolveScope(state);
+    if (scope.none) return { refused: true };
+    return { ...range, tracks: scope.tracks, fromRange: true };
   }
   const chosen = selectedClips(state);
   if (chosen.length === 0) return null;
@@ -99,11 +98,11 @@ export function deletePlan(state) {
   if (!state?.project) return null;
   const range = markedRange(state);
   if (range) {
-    const tracks = rangeTracks(state);
-    if (tracks.length === 0) return null;
+    const scope = resolveScope(state);
+    if (scope.none) return scopeRefusal();
     return plan(
       "mute_range",
-      { ...range, track_ids: tracks, group_editing: groupOn(state) },
+      { ...range, track_ids: scope.tracks },
       "delete_range",
       { seconds: secondsOf(state, range.end - range.start) },
       { tracks: true },
@@ -173,6 +172,13 @@ function coveredParts(state, covered) {
   }));
 }
 
+/** The explicit "this track only" commands name the current track; else the scope's tracks. */
+function onlyThisTrack(state, tracks, thisTrackOnly) {
+  if (!thisTrackOnly) return tracks;
+  const track = currentTrack(state);
+  return track === null ? tracks : [track];
+}
+
 /** X and Shift+X: ripple-delete the range or the selected clips' span; the cut audio goes to the clipboard. */
 export function cutPlan(state, { thisTrackOnly = false, t } = {}) {
   return cutToClipboard(state, { op: "clipboard_cut", key: "cut", thisTrackOnly, t });
@@ -187,14 +193,11 @@ export function removePlan(state, { thisTrackOnly = false } = {}) {
   if (!state?.project) return null;
   const covered = span(state);
   if (!covered) return null;
+  if (covered.refused) return scopeRefusal();
+  const tracks = onlyThisTrack(state, covered.tracks, thisTrackOnly);
   return plan(
     "cut_range",
-    {
-      start: covered.start,
-      end: covered.end,
-      track_ids: covered.tracks,
-      group_editing: groupOn(state) && !thisTrackOnly,
-    },
+    { start: covered.start, end: covered.end, track_ids: tracks },
     "remove",
     { seconds: secondsOf(state, covered.end - covered.start) },
     { tracks: true },
@@ -211,11 +214,10 @@ export function closeGapPlan(state) {
   if (!state?.project) return null;
   const covered = span(state);
   if (!covered) return null;
-  // The tracks the range or clips are on; the server widens them to the sync group (WP19a), so a
-  // gap left by a one-track cut is closed on every track of the group, group editing or not.
+  if (covered.refused) return scopeRefusal();
   return plan(
     "ripple_delete",
-    { start: covered.start, end: covered.end, track_ids: covered.tracks, group_editing: true },
+    { start: covered.start, end: covered.end, track_ids: covered.tracks },
     "close_gap",
     { seconds: secondsOf(state, covered.end - covered.start) },
     { tracks: true },
@@ -226,14 +228,15 @@ function cutToClipboard(state, { op, key, thisTrackOnly = false, t }) {
   if (!state?.project) return null;
   const covered = span(state);
   if (!covered) return null;
+  if (covered.refused) return scopeRefusal();
+  const tracks = onlyThisTrack(state, covered.tracks, thisTrackOnly);
   const name = autoName(describeClips(coveredParts(state, covered), rateOf(state)), t);
   return plan(
     op,
     {
       start: covered.start,
       end: covered.end,
-      track_ids: covered.tracks,
-      group_editing: groupOn(state) && !thisTrackOnly,
+      track_ids: tracks,
       name,
     },
     key,
@@ -256,10 +259,10 @@ export function copyPlan(state, t) {
   let body;
   let parts;
   if (range) {
-    const tracks = rangeTracks(state);
-    if (tracks.length === 0) return null;
-    parts = clipsInRange(state.project, tracks, range.start, range.end);
-    body = { ...range, track_ids: tracks, group_editing: groupOn(state) };
+    const scope = resolveScope(state);
+    if (scope.none) return scopeRefusal();
+    parts = clipsInRange(state.project, scope.tracks, range.start, range.end);
+    body = { ...range, track_ids: scope.tracks };
   } else {
     const chosen = selectedClips(state);
     if (chosen.length === 0) return null;
@@ -304,8 +307,6 @@ export function pastePlan(state, { mode, target } = {}) {
       at: state.playhead,
       mode: choice.mode,
       target_tracks: targetTracks,
-      // An insert shifts time: the sync group follows unless group editing is off (WP19a).
-      group_editing: groupOn(state),
     },
     key,
     { count: entry.clips },
@@ -365,7 +366,7 @@ export function trimPlan(state, edge) {
   });
 }
 
-/** Mod+Left / Mod+Right: direction -1 or 1, one nudge step; the group follows when on. */
+/** Mod+Left / Mod+Right: direction -1 or 1, one nudge step; an explicit group goes together. */
 export function nudgePlan(state, direction) {
   const chosen = selectedClips(state);
   if (chosen.length === 0) return null;
@@ -378,7 +379,6 @@ export function nudgePlan(state, direction) {
     {
       clip_ids: chosen.map((e) => e.clip.id),
       delta: direction * step,
-      group_editing: groupOn(state),
     },
     "nudge",
     {},
@@ -406,7 +406,6 @@ export function moveTrackPlan(state, direction) {
       clip_ids: chosen.map((e) => e.clip.id),
       direction: direction < 0 ? -1 : 1,
       delta: 0,
-      group_editing: groupOn(state),
     },
     "move_track",
     {},

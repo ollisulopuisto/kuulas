@@ -68,13 +68,15 @@ export const initialState = () => ({
   rangeTracks: new Set(),
   // Loop playback (WP50): on or off; the range is the marks, else the selected clips.
   loop: false,
-  // Group editing is on at every start (PLAN ground rule 16); E turns it off for the session.
-  groupEditing: true,
-  // Drifting and free clips (R51, GET /api/sync) and the partners of the selected clips (the dashed
-  // outline, GET /api/partners): both are looked up after an edit, never guessed on the page.
+  // Which tracks a range operation acts on (WP83, range-scope.js): "all" at every start (PLAN
+  // ground rule 16: safety states reset on open; a project opens in a new window, so a new
+  // store); "selected" while track headers are selected. E flips it for the session.
+  rangeMode: "all",
+  // The track headers clicked (Cmd+click adds): ids. Esc clears them first.
+  trackSelection: new Set(),
+  // Drifting and free clips (R51, GET /api/sync): looked up after an edit, never guessed on the page.
   syncClips: [],
   syncAnchors: [],
-  partners: {},
   nudgeMs: 10,
   zoom: 48_000 / 20,
   scroll: 0,

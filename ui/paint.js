@@ -101,7 +101,6 @@ export function makeWaveformJob(state, { width, height, ratio, id }, palette, co
     rows.push({
       top: row.top,
       height: row.height,
-      current: track.id === state.focusTrack,
       // Member lanes carry no band at rest (density rework, 2026-10-18): the
       // group gap and the header spine say "group"; a theme may turn it on.
       band:
@@ -127,7 +126,6 @@ export function makeWaveformJob(state, { width, height, ratio, id }, palette, co
     scale: state.waveformScale,
     gain: state.waveformGain ?? 1,
     palette,
-    laneCurrent: colours.laneCurrent ?? "",
     clipping: colours.clipping ?? "",
     mutedOpacity: colours.mutedOpacity ?? MUTED_ALPHA,
     rows,
@@ -176,11 +174,6 @@ export function paintWaveforms(ctx, job, lookup) {
     const top = job.rulerHeight + row.top - job.scrollY;
     if (top > job.height || top + row.height < job.rulerHeight) continue;
     const colours = job.palette[row.paletteIndex % job.palette.length];
-    // The current track (the ↑/↓ cursor) reads across the whole lane.
-    if (row.current && job.laneCurrent) {
-      ctx.fillStyle = job.laneCurrent;
-      ctx.fillRect(0, top, job.width, row.height - 1);
-    }
     // The bus band: a faint tint of the bus colour behind the group's lanes.
     if (row.band) {
       ctx.fillStyle = row.band;

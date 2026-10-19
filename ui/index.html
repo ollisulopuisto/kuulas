@@ -22,7 +22,6 @@
           <!-- While a take records (record-view.js): opens the record view; the take never stops here. -->
           <button id="rec-chip" type="button" class="chip danger rec-chip" hidden></button>
           <button id="waveform-gain" type="button" class="chip warn" hidden></button>
-          <button id="group-chip" type="button" class="chip warn" hidden></button>
         </div>
         <span class="spacer"></span>
         <input id="file-input" type="file" accept="audio/*,video/*" multiple hidden />
@@ -98,6 +97,7 @@
         <span id="keyhints" class="keyhints" aria-hidden="true"></span>
         <span id="menu-hint" class="keyhints menu-hint" role="status" hidden></span>
         <span id="range-info" class="range-info" role="status" hidden></span>
+        <button id="scope-chip" type="button" class="chip scope-chip" data-help-id="scope-chip" aria-keyshortcuts="E" hidden></button>
         <span id="tab-scope" class="range-info tab-scope" data-i18n-title="cmd.nav.tab_target_cycle.hint"></span>
         <span class="spacer"></span>
         <!-- The live level meter (level-meter.js): what plays now, dBFS, two thin bars with a

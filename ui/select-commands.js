@@ -1,11 +1,11 @@
 // The Select commands (WP54): the selection and the in/out range made from one another.
 // UI state only (no edit, no undo step); the arithmetic is in selection-ops.js.
-// "Which tracks" is the same answer an edit would use (edit-plans.js rangeTracks):
-// the range's chosen tracks, else this track, else the selected clips' tracks; with
-// none of those, every track.
+// "Which tracks": the painted range's lanes or the selected track headers when there are any
+// (range-scope.js, the same answer a range edit uses), else this track, else the selected clips'
+// tracks; with none of those, every track.
 import { expandGroups } from "./clip-groups.js";
-import { rangeTracks } from "./edit-plans.js";
-import { markedRange, selectedClips } from "./selection.js";
+import { resolveScope } from "./range-scope.js";
+import { currentTrack, markedRange, selectedClips } from "./selection.js";
 import {
   clipsInRange,
   forwardFromClips,
@@ -26,8 +26,12 @@ export const SELECT_COMMANDS = [
 ];
 
 const scope = (state) => {
-  const tracks = rangeTracks(state);
-  return tracks.length > 0 ? tracks : null;
+  const resolved = resolveScope(state);
+  if (resolved.source === "lanes" || resolved.source === "selected") return resolved.tracks;
+  const track = currentTrack(state);
+  if (track !== null) return [track];
+  const onClips = [...new Set(selectedClips(state).map((entry) => entry.trackId))];
+  return onClips.length > 0 ? onClips : null;
 };
 
 /** `app`: getState, patch(statePatch). */

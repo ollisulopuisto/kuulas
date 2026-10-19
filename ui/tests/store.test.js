@@ -126,8 +126,9 @@ describe("live messages", () => {
 });
 
 describe("editing defaults", () => {
-  test("group editing is on at the start and the nudge step is 10 ms", () => {
-    assert.equal(initialState().groupEditing, true);
+  test("range operations start on all tracks (reset on open) and the nudge step is 10 ms", () => {
+    assert.equal(initialState().rangeMode, "all");
+    assert.equal(initialState().trackSelection.size, 0);
     assert.equal(initialState().nudgeMs, 10);
   });
 });
