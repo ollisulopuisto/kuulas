@@ -29,6 +29,7 @@ FORMAL_NAME = "Kuulas"
 UTI = "fi.sulopuisto.kuulas.project"
 UTI_CONFORMS_TO = ("com.apple.package", "public.composite-content")
 EXTENSION = "kuulas"
+MIN_MACOS = "12.0"
 
 #: Dependencies of the root project that the bundle gets as local wheels instead.
 LOCAL = ("speechmix", "nhsx")
@@ -100,6 +101,9 @@ requirement_installer_args = ["--find-links={wheels_dir}"]
 
 [tool.briefcase.app.{APP_NAME}.macOS]
 universal_build = false
+# numba and llvmlite publish arm64 wheels for macOS 12 and later only (checked in uv.lock),
+# and Briefcase installs wheels for the minimum version it is told.
+min_os_version = "{MIN_MACOS}"
 
 [tool.briefcase.app.{APP_NAME}.macOS.info]
 NSMicrophoneUsageDescription = "Kuulas records narration and takes from your microphone."

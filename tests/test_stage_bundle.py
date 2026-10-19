@@ -69,6 +69,10 @@ def test_the_document_type_is_a_package_that_the_app_owns(tmp_path):
     assert "com.apple.package" in doc["macOS"]["UTTypeConformsTo"]
 
 
+def test_minimum_macos_is_what_numba_wheels_need(tmp_path):
+    assert config(tmp_path)["app"]["kuulas"]["macOS"]["min_os_version"] == "12.0"
+
+
 def test_the_microphone_reason_is_declared(tmp_path):
     info = config(tmp_path)["app"]["kuulas"]["macOS"]["info"]
     assert info["NSMicrophoneUsageDescription"]
