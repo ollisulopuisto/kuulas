@@ -234,6 +234,7 @@ describe("top-level bar (owner, 2026-10-19)", () => {
     assert.deepEqual(names, [
       "menu.record_settings",
       "menu.fast_playback",
+      "menu.slow_listening",
       "menu.shuttle",
       "menu.go",
       "menu.markers",

@@ -97,6 +97,13 @@ export function registerAppCommands(registry, { actions, app }) {
   def("transport.speed", () => actions.fastListening(), hasProject);
   def("transport.speed_down", () => actions.fastNudge(-1), hasProject);
   def("transport.speed_up", () => actions.fastNudge(1), hasProject);
+  // Slow listening plays only while Shift+J / Shift+L is held; from a menu it listens for 1 s.
+  def("transport.slow_back", (event) => actions.slowListen("j", event), hasProject);
+  def("transport.slow_forward", (event) => actions.slowListen("l", event), hasProject);
+  def("transport.slow_speed_025", () => actions.setSlowSpeed(0.25));
+  def("transport.slow_speed_050", () => actions.setSlowSpeed(0.5));
+  def("transport.slow_speed_075", () => actions.setSlowSpeed(0.75));
+  def("transport.slow_info", () => actions.slowInfo());
   def("transport.speed_reset", () => actions.fastReset(), hasProject);
   def("nav.home", () => actions.goHome());
   def("panel.next", () => actions.cyclePanel(1));

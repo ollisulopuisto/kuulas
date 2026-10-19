@@ -84,10 +84,20 @@ describe("Finnish keyboard (owner, 2026-10-19)", () => {
 });
 
 describe("the owner's decisions", () => {
-  test("fast listening: . toggles, Shift+J or , slow it and Shift+L speeds it by a step (held keys repeat), Alt+0 resets", () => {
+  test("slow listening: Shift+J backward and Shift+L forward while held, Shift+K unused, no key for the speeds", () => {
+    assert.deepEqual(keysOf("transport.slow_back"), ["Shift+J"]);
+    assert.deepEqual(keysOf("transport.slow_forward"), ["Shift+L"]);
+    const all = DEFAULT_KEYMAP.flatMap((e) => [e.keys.mac, e.keys.other].flat()).filter(Boolean);
+    assert.ok(!all.includes("Shift+K"));
+    for (const id of ["slow_speed_025", "slow_speed_050", "slow_speed_075", "slow_info"]) {
+      assert.deepEqual(keysOf(`transport.${id}`), [], id);
+    }
+  });
+
+  test("fast listening: . toggles, , slows it and Alt+. speeds it by a step (held keys repeat), Alt+0 resets", () => {
     assert.deepEqual(keysOf("transport.speed"), ["."]);
-    assert.deepEqual(keysOf("transport.speed_down"), ["Shift+J", ","]);
-    assert.deepEqual(keysOf("transport.speed_up"), ["Shift+L"]);
+    assert.deepEqual(keysOf("transport.speed_down"), [","]);
+    assert.deepEqual(keysOf("transport.speed_up"), ["Alt+."]);
     assert.deepEqual(keysOf("transport.speed_reset"), ["Alt+0"]);
     for (const id of ["transport.speed_down", "transport.speed_up"]) {
       assert.equal(DEFAULT_KEYMAP.find((entry) => entry.id === id).repeat, true);

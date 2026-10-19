@@ -111,6 +111,7 @@ import { forwardFromClip } from "./selection-ops.js";
 import { createSendCopyDialog } from "./send-copy-dialog.js";
 import { setupKeyboard } from "./shell-keys.js";
 import { chipSpeed } from "./shuttle.js";
+import { createSlowHold, normaliseSlow, slowSpeed } from "./slow-hold.js";
 import { createStatsDialog } from "./stats-dialog.js";
 import { nextStopMode } from "./stop-mode.js";
 import { getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
@@ -415,7 +416,39 @@ function changeFast(change) {
   void transport.fastChanged(before, after);
 }
 
+// Slow listening (WP26): Shift+J / Shift+L play slowed down while the key is held. Ignored while
+// anything is playing (it never disturbs a run). Tape-style: the pitch follows the speed.
+const SLOW_KEY = "slowSpeed";
+setState({ slowSpeed: normaliseSlow(prefs.get(SLOW_KEY)) });
+const slowHold = createSlowHold({
+  canStart: () => Boolean(getState().project) && !getState().playing,
+  start: (direction) => void transport.slowStart(slowSpeed(direction, getState().slowSpeed)),
+  stop: () => void transport.slowStop(),
+});
+let slowTimer = null;
+function slowListen(direction, event) {
+  if (event?.type === "keydown") {
+    slowHold.press(direction, event.code);
+    return;
+  }
+  // From a menu or the palette there is no key to hold: listen for one second.
+  clearTimeout(slowTimer);
+  slowHold.press(direction, "menu");
+  slowTimer = setTimeout(() => slowHold.cancel(), 1000);
+}
+function setSlowSpeed(speed) {
+  setState({ slowSpeed: speed });
+  prefs.set(SLOW_KEY, speed);
+  const id = String(Math.round(speed * 100)).padStart(3, "0");
+  showNotice(t("ui.slow.now", { speed: t(`cmd.transport.slow_speed_${id}`) }), "ok");
+}
+
 const actions = {
+  slowListen,
+  slowRelease: (code) => slowHold.release(code),
+  slowCancel: () => slowHold.cancel(),
+  setSlowSpeed,
+  slowInfo: () => showNotice(t("ui.slow.info"), "ok"),
   togglePlay: () => void transport.toggle(),
   playFrom: (frame) => void transport.play(frame),
   playRequest: (request) => {

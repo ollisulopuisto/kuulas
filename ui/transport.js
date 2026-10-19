@@ -94,6 +94,21 @@ export function createTransport({ post, getState, setState, onError }) {
       const { playhead } = getState();
       return run("play", playhead, null, null, { speed, preserve_pitch: false });
     },
+    /**
+     * Slow hold-to-play: tape-style at a signed `speed` from the playhead (the pitch follows
+     * the speed). Queued, so a release right after the key went down stops after it started.
+     */
+    slowStart(speed) {
+      const next = queue.then(() => this.shuttle(speed));
+      queue = next.catch(() => {});
+      return next;
+    },
+    /** The key was let go: stop where the audio is (the answer sets the playhead). */
+    slowStop() {
+      const next = queue.then(() => run("stop"));
+      queue = next.catch(() => {});
+      return next;
+    },
     /** A J, K or L press: the next speed on the ladder from what is playing now. */
     press(key) {
       const { playing, speed = 1 } = getState();

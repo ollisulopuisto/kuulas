@@ -75,6 +75,8 @@ export function setupKeyboard({
   // Quick actions: the last commands run, from keys or the palette (ids only, per user).
   let recent = prefs ? loadRecent(prefs) : [];
   registry.onRun((id) => {
+    // Any other command ends a held slow listening (it only plays while its key is down).
+    if (!id.startsWith("transport.slow_")) actions.slowCancel?.();
     const next = recordRecent(recent, id);
     if (next.join() === recent.join()) return;
     recent = next;
@@ -361,12 +363,26 @@ export function setupKeyboard({
     tracker.update(event);
     if (!event.isComposing) keymap.handle(event);
   });
-  document.addEventListener("keyup", (event) => tracker.update(event));
+  document.addEventListener("keyup", (event) => {
+    tracker.update(event);
+    actions.slowRelease?.(event.code);
+  });
   // A modifier released while the window had no focus never sends a keyup; pointer
   // events carry the truth, and blur or a hidden tab let go of everything.
   document.addEventListener("pointermove", (event) => tracker.update(event), { passive: true });
-  window.addEventListener("blur", () => tracker.reset());
-  document.addEventListener("visibilitychange", () => document.hidden && tracker.reset());
+  window.addEventListener("blur", () => {
+    tracker.reset();
+    actions.slowCancel?.();
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) return;
+    tracker.reset();
+    actions.slowCancel?.();
+  });
+  // Focus moving out of the page (a dialog, the address bar) never sends the keyup.
+  document.addEventListener("focusout", (event) => {
+    if (!event.relatedTarget && !document.hasFocus()) actions.slowCancel?.();
+  });
 
   // -- start --------------------------------------------------------------------------
   const loaded = validateOverrides(loadOverrides(storage), DEFAULT_KEYMAP, platform);
