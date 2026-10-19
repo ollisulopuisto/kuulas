@@ -55,7 +55,6 @@ export function readTheme(
     rule: p.surfaces.borderSubtle,
     border: p.surfaces.border,
     panel: p.surfaces.surfacePanel,
-    laneCurrent: p.surfaces.surfaceLaneCurrent,
     accent: p.surfaces.accent,
     accentText: p.surfaces.accentText,
     playhead: p.marks.playhead,

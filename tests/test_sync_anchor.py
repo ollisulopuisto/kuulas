@@ -231,9 +231,7 @@ def test_a_clip_moved_onto_its_partners_track_is_still_a_partner(s):
     p = _moved_onto_z(s)
     assert {c.id for c in edit_scope.partners(p, None, a)} == {z, s.clip_of["V"]}
     assert a in [c.id for c in edit_scope.partners(p, None, z)]
-    wide = edit_scope.expand_clips(p, None, [a], True)
-    assert wide.count(a) == 1
-    assert z in wide
+    assert edit_scope.expand_clips(p, [a]) == [a]  # WP83: partners never move with it
 
 
 def test_drift_of_a_clip_on_the_anchors_track_is_measured_against_the_anchor(s):

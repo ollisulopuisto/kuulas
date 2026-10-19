@@ -46,6 +46,7 @@ export const CHECKED = {
   "transport.slow_speed_025": (state) => (state?.slowSpeed ?? 0.5) === 0.25,
   "transport.slow_speed_050": (state) => (state?.slowSpeed ?? 0.5) === 0.5,
   "transport.slow_speed_075": (state) => (state?.slowSpeed ?? 0.5) === 0.75,
+  "range.scope_toggle": (state) => state?.rangeMode === "selected",
   "view.language_auto": (state) => (state?.languageChoice ?? "auto") === "auto",
   "view.language_fi": (state) => state?.languageChoice === "fi",
   "view.language_en": (state) => state?.languageChoice === "en",
@@ -232,6 +233,7 @@ export const MENU = [
         item("edit.lift_cut"),
         item("edit.close_gap_all"),
       ]),
+      item("range.scope_toggle"),
       submenu("menu.clipboard", [
         item("edit.preview_clipboard"),
         item("edit.clear_old_clipboard"),
@@ -306,7 +308,6 @@ export const MENU = [
       item("track.group_into_bus"),
       item("track.new_bus"),
       item("track.remove_from_bus"),
-      item("group.toggle"),
       {
         kind: "submenu",
         labelKey: "menu.bus",

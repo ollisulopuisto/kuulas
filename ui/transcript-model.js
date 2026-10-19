@@ -315,7 +315,7 @@ export function deleteWordsPlan(words, indices) {
     if (span) {
       edits.push({
         op: "mute_range",
-        args: { ...span, track_ids: [track], group_editing: false },
+        args: { ...span, track_ids: [track] },
       });
     }
   }

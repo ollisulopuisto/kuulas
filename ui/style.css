@@ -598,8 +598,10 @@ button.chip {
   gap: var(--space-3);
   min-width: 0;
 }
-.track-header.current {
-  background: var(--header-bg-current);
+/* The tracks the next range operation will not touch are dimmed, the affected ones keep full
+   brightness (WP83). There is no highlight on the current track any more. */
+.track-header.scope-dim {
+  opacity: 0.35;
 }
 .track-header.compact {
   grid-template-rows: var(--control-h-sm);

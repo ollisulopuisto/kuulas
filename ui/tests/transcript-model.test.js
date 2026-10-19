@@ -249,7 +249,7 @@ describe("delete on this speaker only", () => {
   });
   test("the plan is one mute_range on that track alone, group editing off", () => {
     assert.deepEqual(deleteWordsPlan(words, [1]), [
-      { op: "mute_range", args: { start: 55, end: 210, track_ids: ["a"], group_editing: false } },
+      { op: "mute_range", args: { start: 55, end: 210, track_ids: ["a"] } },
     ]);
   });
   test("a selection over two speakers mutes each on their own track", () => {

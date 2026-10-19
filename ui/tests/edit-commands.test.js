@@ -21,7 +21,8 @@ const base = (extra = {}) => ({
   playhead: 4 * S,
   inPoint: null,
   outPoint: null,
-  groupEditing: true,
+  rangeMode: "all",
+  trackSelection: new Set(),
   ...extra,
 });
 
@@ -115,7 +116,7 @@ const WORKING = [
   "track.solo",
   "track.solo_add",
   "track.cycle_kind",
-  "group.toggle",
+  "range.scope_toggle",
   "edit.trim_start",
   "edit.trim_end",
   "edit.nudge_left",
@@ -281,8 +282,8 @@ describe("the editing commands", () => {
       assert.equal(registry.can(id, empty), false, id);
     }
     assert.equal(registry.can("edit.select_all", empty), true);
-    assert.equal(registry.can("group.toggle", empty), true);
-    assert.equal(registry.can("group.toggle", { project: null }), false);
+    assert.equal(registry.can("range.scope_toggle", empty), true);
+    assert.equal(registry.can("range.scope_toggle", { project: null }), false);
   });
 
   test("split sends split_clips with a translated label and a toast with Undo after the answer", () => {
@@ -342,13 +343,23 @@ describe("the editing commands", () => {
     assert.equal(typeof h.sent[0].combine, "function");
   });
 
-  test("select all picks the clip ids; E flips group editing", () => {
+  test("a range command in selected-only mode with no track selected says why, and sends nothing", () => {
+    const state = base({ inPoint: 0, outPoint: 3 * S, rangeMode: "selected" });
+    const h = setup(state);
+    assert.equal(h.registry.can("edit.delete", state), true);
+    h.registry.run("edit.delete", null, state);
+    assert.equal(h.sent.length, 0);
+    assert.match(h.toasts[0][0], /^ui\.scope\.none_selected/);
+    assert.deepEqual(h.toasts[0][1], { undo: false });
+  });
+
+  test("select all picks the clip ids; E flips the range scope", () => {
     const state = base();
     const h = setup(state);
     h.registry.run("edit.select_all", null, state);
     assert.deepEqual([...h.patches[0].selection], ["a1", "v1"]);
-    h.registry.run("group.toggle", null, state);
-    assert.deepEqual(h.patches[1], { groupEditing: false });
+    h.registry.run("range.scope_toggle", null, state);
+    assert.deepEqual(h.patches[1], { rangeMode: "selected" });
   });
 
   test("a command that cannot apply does not send anything", () => {
@@ -515,7 +526,6 @@ describe("the clipboard commands (WP46)", () => {
       at: 4 * S,
       mode: "insert",
       target_tracks: { 0: "A" },
-      group_editing: true,
     });
     assert.equal(h.sent[1].args.mode, "overwrite");
     assert.deepEqual(h.sent[2].args.target_tracks, { 0: "A" });

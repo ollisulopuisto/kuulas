@@ -202,14 +202,15 @@ def test_replace_uses_the_offset():
     assert (taken.offset, taken.length) == (2 * RATE, 7 * RATE)
 
 
-def test_replace_ripples_the_other_tracks_only_with_group_editing():
+def test_replace_ripples_all_tracks_by_default_and_only_the_named_ones_when_given():
     p = with_ph(start=10 * RATE, length=4 * RATE)
     group = ops.mark_in_sync(p, ["c1", "c2"], main="c1")
-    out = ops.replace_placeholder(group, "h1", "take", group_editing=True)
+    out = ops.replace_placeholder(group, "h1", "take")
     # c2 spans the stretch; its tail moved right by 5 s, so a split happened.
     assert sum(c.length for c in out.tracks[1].clips) == 30 * RATE
     assert max(c.end for c in out.tracks[1].clips) == 35 * RATE
-    alone = ops.replace_placeholder(group, "h1", "take", group_editing=False)
+    only = [group.placeholders[0].track]
+    alone = ops.replace_placeholder(group, "h1", "take", track_ids=only)
     assert max(c.end for c in alone.tracks[1].clips) == 30 * RATE
 
 

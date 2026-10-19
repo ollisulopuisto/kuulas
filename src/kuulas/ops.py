@@ -600,30 +600,34 @@ def split_clips(p: Project, at: int, clip_ids) -> Project:
     return p
 
 
-def mute_range(p: Project, start: int, end: int, track_ids,
-               group_editing: bool = False) -> Project:
-    """Soft-cut ``[start, end)``: mute it in place on the tracks (the sync
-    group's too when ``group_editing``), leaving the gap. Nothing moves."""
+def mute_range(p: Project, start: int, end: int, track_ids=None) -> Project:
+    """Soft-cut ``[start, end)``: mute it in place on the tracks (``None``: all
+    tracks, ``edit_scope.range_tracks``), leaving the gap. Nothing moves."""
     start, end = int(start), int(end)
     if end <= start:
         raise EditError("error.edit.empty_range")
-    for track_id in edit_scope.expand_range(p, None, list(track_ids), start, end,
-                                            group_editing):
+    for track_id in _range_tracks(p, track_ids):
         p = mute_ranges(p, track_id, [(start, end)])
     return p
 
 
-def clear_range(p: Project, start: int, end: int, track_ids,
-                group_editing: bool = False) -> Project:
-    """Delete ``[start, end)`` on the tracks (the sync group's too when ``group_editing``)
+def _range_tracks(p: Project, track_ids) -> list[str]:
+    """``edit_scope.range_tracks`` with an unknown track as an ``EditError``."""
+    try:
+        return edit_scope.range_tracks(p, track_ids)
+    except KeyError as e:
+        raise EditError("error.edit.no_track", track_id=e.args[0]) from None
+
+
+def clear_range(p: Project, start: int, end: int, track_ids=None) -> Project:
+    """Delete ``[start, end)`` on the tracks (``None``: all tracks)
     and LEAVE the gap: the clips on either side keep their places and the audio keeps its
     place in its recording. Nothing moves; markers, automation and gates are untouched.
     Lift-cut's removal (owner, 2026-10-19: Alt+X must delete, not mute)."""
     start, end = int(start), int(end)
     if end <= start:
         raise EditError("error.edit.empty_range")
-    scope = set(edit_scope.expand_range(p, None, list(track_ids), start, end,
-                                        group_editing))
+    scope = set(_range_tracks(p, track_ids))
     tracks = []
     for track in p.tracks:
         if track.id not in scope:
@@ -642,51 +646,36 @@ def clear_range(p: Project, start: int, end: int, track_ids,
     return replace(p, tracks=tuple(tracks))
 
 
-def cut_range(p: Project, start: int, end: int, track_ids,
-              group_editing: bool = False) -> Project:
-    """Ripple-delete ``[start, end)`` on the tracks, or on the sync group's
-    tracks when ``group_editing`` (tracks in no group: all, as in WP19a)."""
+def cut_range(p: Project, start: int, end: int, track_ids=None) -> Project:
+    """Ripple-delete ``[start, end)`` on the tracks (``None``: all tracks)."""
     start, end = int(start), int(end)
     if end <= start:
         raise EditError("error.edit.empty_range")
-    return ripple_delete(p, start, end, edit_scope.expand_range(
-        p, None, list(track_ids), start, end, group_editing))
+    return ripple_delete(p, start, end, _range_tracks(p, track_ids))
 
 
-def nudge_clips(p: Project, clip_ids, delta: int, group_editing: bool = False,
-                overwrite: bool = True) -> Project:
-    """``shift_clips`` that takes the clips' sync partners along when
-    ``group_editing`` is on. Clips they land on are overwritten (no layers)."""
-    nudged = shift_clips(
-        p, edit_scope.expand_clips(p, None, list(clip_ids), group_editing), delta)
+def nudge_clips(p: Project, clip_ids, delta: int, overwrite: bool = True) -> Project:
+    """``shift_clips`` that takes the members of the clips' explicit groups along
+    (never their sync partners: WP83). Clips they land on are overwritten (no layers)."""
+    nudged = shift_clips(p, edit_scope.expand_clips(p, list(clip_ids)), delta)
     return _overwrite_under(p, nudged) if overwrite else nudged
 
 
 def move_clips_to_track(p: Project, clip_ids, direction: int, delta: int = 0,
-                        group_editing: bool = False, overwrite: bool = True,
-                        anchor_clip_id: str | None = None) -> Project:
+                        overwrite: bool = True) -> Project:
     """Drag a clip body: ``nudge_clips`` by ``delta`` frames, and the clips ``direction``
-    tracks down (negative: up), in one edit.
-
-    Without group editing ``direction`` is clamped so that no clip leaves the tracks (the
-    selection keeps its shape). With group editing and an ``anchor_clip_id`` (the clip the
-    user grabbed) only the anchor changes track, clamped by itself: sync groups relate
-    clips on different tracks, so a vertical drag never reassigns a partner's track. Every
-    other clip, selected or a sync partner, follows in time only and stays on its own
-    track."""
-    chosen = list(clip_ids)
+    tracks down (negative: up), in one edit. ``direction`` is clamped so that no clip
+    leaves the tracks (the selection, with its explicit group, keeps its shape). Sync
+    partners are not moved."""
+    chosen = edit_scope.expand_clips(p, list(clip_ids))
     if not chosen:
         raise EditError("error.edit.no_selection")
-    movers = chosen
-    if group_editing and anchor_clip_id is not None:
-        _find_clip(p, anchor_clip_id)  # unknown anchor: EditError
-        movers = [anchor_clip_id]
     index = {t.id: i for i, t in enumerate(p.tracks)}
-    rows = [index[_find_clip(p, cid)[1].id] for cid in movers]
+    rows = [index[_find_clip(p, cid)[1].id] for cid in chosen]
     direction = max(-min(rows), min(len(p.tracks) - 1 - max(rows), int(direction)))
-    moved = nudge_clips(p, chosen, int(delta), group_editing, overwrite=False)
+    moved = nudge_clips(p, chosen, int(delta), overwrite=False)
     if direction != 0:
-        for cid, row in zip(movers, rows, strict=True):
+        for cid, row in zip(chosen, rows, strict=True):
             target = p.tracks[row + direction].id
             moved = move_clip(moved, cid, moved.clip(cid).start, target)
     return _overwrite_under(p, moved) if overwrite else moved
@@ -1075,9 +1064,7 @@ def ripple_trim(p: Project, clip_id: str, edge: str, frame: int,
     one opens a gap of the same length on every track, with markers,
     automation and gates following.
 
-    ``track_ids``: the tracks that shift (None: all, as above). The Session
-    passes the clip's sync group (``edit_target``) so that, with group editing
-    off, only the clip's own track closes or opens.
+    ``track_ids``: the tracks that shift (None: all, as above).
 
     ``extend_partners`` (a longer end edge): the clips on the other tracks that end
     at the same splice (within 50 ms) grow by the same amount instead of leaving a
@@ -1273,12 +1260,11 @@ def delete_placeholder(p: Project, placeholder_id: str) -> Project:
 
 
 def replace_placeholder(p: Project, placeholder_id: str, media_id: str,
-                        offset: int = 0, group_editing: bool = True) -> Project:
+                        offset: int = 0, track_ids=None) -> Project:
     """Record it: the placeholder becomes a clip of ``media_id`` (from
     ``offset``) at the same start on the same track, and the later material
-    moves by the take's length minus the placeholder's, on the tracks
-    ``edit_scope.expand_range`` names (the placeholder's track and, with
-    ``group_editing``, its sync group). One pure step, so one undo.
+    moves by the take's length minus the placeholder's, on ``track_ids`` (``None``:
+    all tracks, ``edit_scope.range_tracks``). One pure step, so one undo.
 
     A longer take opens a gap where the placeholder ended, a shorter one
     ripple-deletes the leftover; anything on the track inside that leftover
@@ -1299,8 +1285,7 @@ def replace_placeholder(p: Project, placeholder_id: str, media_id: str,
     p = delete_placeholder(p, placeholder_id)
     delta = take - h.length
     if delta > 0:
-        scope = edit_scope.expand_range(p, None, [h.track], h.end, h.end + delta,
-                                        group_editing)
+        scope = _range_tracks(p, track_ids)
         for track in p.tracks:
             if track.id in scope:
                 p = _open_gap(p, track.id, h.end, delta)
@@ -1308,8 +1293,7 @@ def replace_placeholder(p: Project, placeholder_id: str, media_id: str,
             p = replace(p, markers=markersm.open_gap(p.markers, h.end, delta))
     elif delta < 0:
         cut_from, cut_to = h.start + take, h.end
-        scope = edit_scope.expand_range(p, None, [h.track], cut_from, cut_to,
-                                        group_editing)
+        scope = _range_tracks(p, track_ids)
         p = ripple_delete(p, cut_from, cut_to, scope)
     return add_clip(p, h.track, media_id, h.start, offset, take)
 

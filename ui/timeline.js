@@ -11,7 +11,6 @@ import { candidateBands, flagFits, flagText } from "./candidates-model.js";
 import {
   canStartClipDrag,
   clipDragIds,
-  dragAnchor,
   moveBoxes,
   moveGhosts,
   resolveMove,
@@ -63,6 +62,7 @@ import { advanceDelta, movedSpans, moveTargets, snapMove } from "./move-snap.js"
 import { baseGainDb, makeWaveformJob, scaleFor, trackHues } from "./paint.js";
 import { aboutSeconds, placeholderLabel } from "./placeholders-model.js";
 import { dragRange, isDrag, touchedResult, trackRowsTouched } from "./range-drag.js";
+import { dimmedTracks } from "./range-scope.js";
 import { rulerTicks } from "./ruler.js";
 import {
   anchorIds,
@@ -70,7 +70,6 @@ import {
   badgeFor,
   formatOffset,
   homeNameFor,
-  partnerIds,
   syncIndex,
 } from "./sync-state.js";
 import { readTheme } from "./theme.js";
@@ -81,6 +80,8 @@ import { createWaveformLayer } from "./waveform-layer.js";
 import { wheelIntent } from "./wheel.js";
 
 // Drawing rules: docs/design/GUI-DESIGN.md, "Waveforms and the timeline".
+// How strongly a track the next range operation will not touch is veiled (WP83).
+const DIM_ALPHA = 0.72;
 const NAME_FONT_PX = 11;
 const LABEL_H = 14;
 const LABEL_BACKING_ALPHA = 0.85;
@@ -178,7 +179,6 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       const state = getState();
       if (!state.project || size.width === 0) return;
       const job = makeWaveformJob(state, { ...size, id: 0 }, theme.palette, {
-        laneCurrent: theme.laneCurrent,
         busBands: theme.busBands,
         clipping: theme.clipping,
         mutedOpacity: theme.mutedOpacity,
@@ -219,6 +219,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       currentId: state.candidateCurrent,
     });
     drawRange(state, height);
+    const dimmed = dimmedTracks(state);
     for (const row of visibleRows(layout, state.scrollY, height - RULER_HEIGHT)) {
       const top = RULER_HEIGHT + row.top - state.scrollY;
       if (row.kind === "gap") continue; // plain lane between groups: nothing drawn
@@ -229,8 +230,9 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       overlay.lineTo(width, top + row.height - 0.5);
       overlay.stroke();
       if (row.kind === "track") drawTrack(state, state.project.tracks[row.index], row, top, hues);
-      if (row.kind === "track" && state.focusTrack === row.id) drawFocusLane(row, top);
-      else if (row.kind === "track" && state.focusTrack) drawVeil(row, top, width);
+      // The tracks the next range operation will not touch are dimmed (lane, waveform and
+      // clips under one veil), the affected ones keep full brightness (WP83).
+      if (row.kind === "track" && dimmed.has(row.id)) drawVeil(row, top, width);
       else drawBusRow(state, row, top, groups, hues);
     }
     drawRuler(state, rate);
@@ -409,12 +411,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
   // Clips being moved (WP6): dashed accent outlines at the new place, on the new track, with
   // each clip's own waveform inside (WP63) so waveforms can be lined up by eye.
   function drawMoveGhost(state, layout) {
-    const ghosts = moveGhosts(
-      state.project,
-      clipSession.ids,
-      clipSession.move,
-      sessionAnchor(clipSession, state),
-    );
+    const ghosts = moveGhosts(state.project, clipSession.ids, clipSession.move);
     if (clipSession.snapAt !== null) {
       // The snap line: a thin accent line where the moved edge landed.
       const x = frameToX(clipSession.snapAt, state.scroll, state.zoom);
@@ -485,17 +482,10 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
   // The active channel (owner, 2026-10-18: hard to tell which one is active; then: the tint made
   // empty spots hard to see, then: the top and bottom lines too). Just a wide solid bar at its left
   // edge, and the other lanes are veiled more strongly so the active one stands out.
-  function drawFocusLane(row, top) {
-    overlay.save();
-    overlay.fillStyle = theme.accent;
-    overlay.fillRect(0, top, 8, row.height);
-    overlay.restore();
-  }
-
   function drawVeil(row, top, width) {
     overlay.save();
     overlay.fillStyle = theme.panel;
-    overlay.globalAlpha = 0.45;
+    overlay.globalAlpha = DIM_ALPHA;
     overlay.fillRect(0, top, width, row.height);
     overlay.restore();
   }
@@ -602,7 +592,6 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     overlay.beginPath();
     overlay.rect(0, RULER_HEIGHT, width, size.height - RULER_HEIGHT);
     overlay.clip();
-    const partners = partnersOf(state);
     for (const clip of paintOrder(track.clips)) {
       const left = frameToX(clip.start, state.scroll, state.zoom);
       const right = frameToX(clipEnd(clip), state.scroll, state.zoom);
@@ -626,7 +615,6 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       if (row.height >= 40 && (selected || clip.id === hoverClipId))
         drawFadeHandles(clip, { left, right, zoom: state.zoom }, { top, y, h });
       if (siblings.has(clip.id)) drawSiblingMarks(left, y, w, h);
-      if (state.groupEditing !== false && partners.has(clip.id)) drawPartnerOutline(left, y, w, h);
       if (selected) {
         overlay.strokeStyle = theme.selection;
         overlay.lineWidth = 2;
@@ -909,7 +897,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
   }
 
   // Sync states (R51, WP19a). The server's list of drifting and free clips, indexed once per
-  // list; the partners of the selection, once per (partners, selection).
+  // list.
   let syncFrom = null;
   let syncRows = new Map();
   function syncRowsOf(state) {
@@ -927,17 +915,6 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       anchorSet = anchorIds(state.syncAnchors);
     }
     return anchorSet;
-  }
-  let partnersFrom = null;
-  let partnersSel = null;
-  let partnerSet = new Set();
-  function partnersOf(state) {
-    if (state.partners !== partnersFrom || state.selection !== partnersSel) {
-      partnersFrom = state.partners;
-      partnersSel = state.selection;
-      partnerSet = partnerIds(state.partners, state.selection);
-    }
-    return partnerSet;
   }
 
   // A clip that is free from sync wears a grey unlinked icon and its offset ("+300 ms · free"); one
@@ -1011,18 +988,6 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     overlay.closePath();
     overlay.fill();
     if (wide) overlay.fillText(text, x + 10, y + 3);
-    overlay.restore();
-  }
-
-  // The partners of the selected clip (clips of its sync group that play the same stretch of the
-  // recording) get a dashed outline, so the user sees what a move will take along (the dash is the
-  // twin of the colour). Not drawn while group editing is off: nothing would follow.
-  function drawPartnerOutline(left, y, w, h) {
-    overlay.save();
-    overlay.strokeStyle = theme.selection;
-    overlay.lineWidth = 1.5;
-    overlay.setLineDash([4, 3]);
-    overlay.strokeRect(left + 1, y + 1, Math.max(1, w - 2), h - 2);
     overlay.restore();
   }
 
@@ -1766,11 +1731,6 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     return locate(event).y - RULER_HEIGHT + getState().scrollY - hit.row.top;
   }
 
-  // The clip whose track change counts (see dragAnchor); the same rule app.js sends.
-  function sessionAnchor(session, state) {
-    return dragAnchor(session.pressedId, state.groupEditing !== false, session.alone);
-  }
-
   function startClip(hit, event, before) {
     clipSession = {
       pressedId: hit.clip.id,
@@ -1819,12 +1779,11 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       deltaFrames = snapped.delta;
       session.snapAt = snapped.at;
     }
-    session.move = resolveMove(
-      state.project,
-      session.ids,
-      { deltaFrames, fromIndex: session.fromIndex, toIndex: row?.index ?? session.fromIndex },
-      sessionAnchor(session, state),
-    );
+    session.move = resolveMove(state.project, session.ids, {
+      deltaFrames,
+      fromIndex: session.fromIndex,
+      toIndex: row?.index ?? session.fromIndex,
+    });
     requestOverlay();
   }
 

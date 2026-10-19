@@ -46,20 +46,6 @@ export function stepDrift(rows, playhead, direction) {
   return rows[rows.length - 1];
 }
 
-/** Ids of the partners of the selected clips that are not selected themselves (the dashed outline). */
-export function partnerIds(partners, selection) {
-  const out = new Set();
-  for (const id of selection ?? []) {
-    for (const other of partners?.[id] ?? []) if (!selection.has(other)) out.add(other);
-  }
-  return out;
-}
-
-/** The selected ids that the server has not answered for yet: what to ask /api/partners. */
-export function missingPartners(partners, selection) {
-  return [...(selection ?? [])].filter((id) => !(id in (partners ?? {})));
-}
-
 /** Of `ids`, those that are drifting now (after a move, the ones to ask "keep this clip free?" about). */
 export function driftingAmong(clips, ids) {
   const wanted = new Set(ids);

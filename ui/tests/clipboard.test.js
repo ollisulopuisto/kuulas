@@ -43,7 +43,8 @@ const state = (extra = {}) => ({
   playhead: 4 * S,
   inPoint: null,
   outPoint: null,
-  groupEditing: true,
+  rangeMode: "all",
+  trackSelection: new Set(),
   clipboard: [entry()],
   ...extra,
 });
@@ -103,23 +104,33 @@ describe("copy", () => {
     assert.equal(plan.body.name, 'ui.clipboard.auto_name{"count":2,"name":"Anna","at":"00:00:00"}');
     assert.equal(plan.toast.values.count, 2);
   });
-  test("the range on the current track, with the group when group editing is on", () => {
+  test("the range from the keyboard, on all tracks; selected tracks override", () => {
     const plan = copyPlan(state({ inPoint: 2 * S, outPoint: 6 * S }), t);
     assert.deepEqual(plan.body, {
       start: 2 * S,
       end: 6 * S,
-      track_ids: ["A"],
-      group_editing: true,
-      name: 'ui.clipboard.auto_name{"count":1,"name":"Anna","at":"00:00:02"}',
+      track_ids: ["A", "V", "M"],
+      name: 'ui.clipboard.auto_name{"count":2,"name":"Anna","at":"00:00:02"}',
     });
+    const picked = copyPlan(
+      state({
+        inPoint: 2 * S,
+        outPoint: 6 * S,
+        rangeMode: "selected",
+        trackSelection: new Set(["A"]),
+      }),
+      t,
+    );
+    assert.deepEqual(picked.body.track_ids, ["A"]);
   });
   test("the range wins over the selection, as for Cut", () => {
     const plan = copyPlan(state({ selection: new Set(["v1"]), inPoint: 0, outPoint: 3 * S }), t);
     assert.equal(plan.body.clip_ids, undefined);
     assert.equal(plan.body.start, 0);
   });
-  test("a range with no current track and no selection has nothing to copy", () => {
-    assert.equal(copyPlan(state({ focusTrack: null, inPoint: 0, outPoint: 3 * S }), t), null);
+  test("selected-only mode with no track selected refuses the copy", () => {
+    const plan = copyPlan(state({ rangeMode: "selected", inPoint: 0, outPoint: 3 * S }), t);
+    assert.deepEqual(plan, { refuse: { key: "ui.scope.none_selected" } });
   });
   test("nothing selected, no range: nothing to copy", () => {
     assert.equal(copyPlan(state(), t), null);
@@ -136,9 +147,7 @@ describe("paste", () => {
       at: 4 * S,
       mode: "insert",
       target_tracks: null,
-      group_editing: true,
     });
-    assert.equal(pastePlan(state({ groupEditing: false })).args.group_editing, false);
     assert.match(plan.label.key, /paste$/);
   });
   test("overwrite is its own mode, label and toast", () => {
@@ -211,15 +220,14 @@ describe("the mode and target choice", () => {
 });
 
 describe("cut names its entry like copy does", () => {
-  test("clipboard_cut carries the range, the group flag and the automatic name", () => {
+  test("clipboard_cut carries the range, the tracks and the automatic name", () => {
     const plan = cutPlan(state({ inPoint: 2 * S, outPoint: 6 * S }), { t });
     assert.equal(plan.op, "clipboard_cut");
     assert.deepEqual(plan.args, {
       start: 2 * S,
       end: 6 * S,
-      track_ids: ["A"],
-      group_editing: true,
-      name: 'ui.clipboard.auto_name{"count":1,"name":"Anna","at":"00:00:02"}',
+      track_ids: ["A", "V", "M"],
+      name: 'ui.clipboard.auto_name{"count":2,"name":"Anna","at":"00:00:02"}',
     });
   });
   test("the toast says when the clipboard copy failed, and still offers Undo", () => {

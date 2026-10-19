@@ -149,10 +149,6 @@ class EditBody(BaseModel):
     coalesce: str | None = None
 
 
-class GroupEditingBody(BaseModel):
-    on: bool
-
-
 class CommandBody(BaseModel):
     name: str
     args: dict[str, Any] = {}
@@ -163,7 +159,6 @@ class CopyBody(BaseModel):
     start: int | None = None
     end: int | None = None
     track_ids: list[str] | None = None
-    group_editing: bool = False
     name: str = ""
 
 
@@ -506,8 +501,7 @@ def create_app(session, engine, *, language: str | None = None,
             return state_response({"resync": session.last_resync})
         return state_response()
 
-    # -- sync states and group editing (WP19a, R51) ----------------------------
-    # Group editing is session state (Mod+G): it edits nothing, so no undo step.
+    # -- sync states (WP19a, R51; sync is knowledge only, WP83) ---------------------
 
     @app.get("/api/drift")
     def get_drift(cause: bool = False):
@@ -536,14 +530,6 @@ def create_app(session, engine, *, language: str | None = None,
     @app.get("/api/sync-cause/{clip_id}")
     def get_sync_cause(clip_id: str):
         return JSONResponse({"cause": session.sync_cause(clip_id)})
-
-    @app.get("/api/group-editing")
-    def get_group_editing():
-        return JSONResponse({"on": session.group_editing})
-
-    @app.post("/api/group-editing")
-    def post_group_editing(body: GroupEditingBody):
-        return JSONResponse({"on": session.set_group_editing(body.on)})
 
     # -- the view memory (WP35) ----------------------------------------------
     # The user's view of this project (zoom, scroll, ...), kept outside the
@@ -634,7 +620,6 @@ def create_app(session, engine, *, language: str | None = None,
     def post_clipboard_copy(body: CopyBody):
         out = session.clipboard_copy(clip_ids=body.clip_ids, start=body.start,
                                      end=body.end, track_ids=body.track_ids,
-                                     group_editing=body.group_editing,
                                      name=body.name)
         return JSONResponse({**out, "entries": session.clipboard_list()})
 

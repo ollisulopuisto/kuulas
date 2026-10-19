@@ -94,7 +94,7 @@ export function registerTranscriptCommands(registry, { app, t }) {
       const name = autoName(describeClips(parts, state.project?.rate ?? 1), t);
       const copying =
         range && tracks.length > 0
-          ? app.copy({ ...range, track_ids: tracks, group_editing: false, name })
+          ? app.copy({ ...range, track_ids: tracks, name })
           : Promise.resolve(false);
       void copying.then(async (copied) => {
         if (!(await app.cutWords(plan.args.indices))) return;

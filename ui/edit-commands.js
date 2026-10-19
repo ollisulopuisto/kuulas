@@ -33,6 +33,7 @@ import {
   trimPlan,
   ungroupPlan,
 } from "./edit-plans.js";
+import { toggleScopeMode } from "./range-scope.js";
 import { selectAllIds } from "./selection.js";
 import { cycleKindPlan } from "./track-kind.js";
 
@@ -105,13 +106,17 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
     });
   }
 
+  /** A range command with "selected tracks only" and no track selected says why it did nothing. */
+  const refuse = (plan) => app.toast(t(plan.refuse.key), { undo: false });
+
   /** Register `id` as "send the plan this builds from the state". */
   const planned = (id, build) =>
     def(
       id,
       () => {
         const plan = build(app.getState());
-        if (plan) send(plan);
+        if (plan?.refuse) refuse(plan);
+        else if (plan) send(plan);
       },
       (state) => build(state) !== null,
     );
@@ -144,6 +149,7 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
     () => {
       const plan = copyPlan(app.getState(), t);
       if (!plan) return;
+      if (plan.refuse) return refuse(plan);
       void app.copy(plan.body).then((ok) => {
         if (ok) app.toast(t(plan.toast.key, plan.toast.values), { undo: false });
       });
@@ -274,9 +280,6 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
   def("edit.select_all_track", selectAll(false).run, selectAll(false).can);
   def("edit.select_all", selectAll(true).run, selectAll(true).can);
 
-  def(
-    "group.toggle",
-    () => app.patch({ groupEditing: app.getState().groupEditing === false }),
-    hasProject,
-  );
+  // E, the Edit menu item and the status chip: all tracks <-> selected tracks only (WP83).
+  def("range.scope_toggle", () => app.patch(toggleScopeMode(app.getState())), hasProject);
 }

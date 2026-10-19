@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from kuulas import edit_scope, history, ops
 from kuulas.model import Media, Project
 
@@ -76,58 +78,39 @@ def test_partners_found_by_recording_time_not_timeline_overlap():
     assert cv_overlap_partners == []
 
 
-def test_scene_1_cut_range_group_editing_on():
-    """Scene 1: Cut a range with group editing on expands to all sync group tracks."""
+def test_sync_is_not_a_scope_for_a_range():
+    """WP83: a range names its tracks; the sync group never widens it."""
     p = make_project_with_group()
-    material = {"sync": history.sync_root(p.sync_groups)}
-
-    expanded = edit_scope.expand_range(
-        p, material, tracks=["A"], start=40 * RATE, end=55 * RATE, group_editing=True
-    )
-    # Should expand to Anna, Ville, Zoom (tracks of the sync group), but NOT Music (M)
-    assert expanded == ["A", "V", "Z"]
+    assert edit_scope.range_tracks(p, ["A"]) == ["A"]
+    assert edit_scope.range_tracks(p, ["M"]) == ["M"]
 
 
-def test_scene_2_cut_range_group_editing_off():
-    """Scene 2: Cut a range with group editing off touches only the selected track."""
+def test_no_tracks_given_means_all_tracks():
     p = make_project_with_group()
-    material = {"sync": history.sync_root(p.sync_groups)}
-
-    expanded = edit_scope.expand_range(
-        p, material, tracks=["A"], start=40 * RATE, end=55 * RATE, group_editing=False
-    )
-    assert expanded == ["A"]
+    assert edit_scope.range_tracks(p) == ["A", "V", "Z", "M"]
+    assert edit_scope.range_tracks(p, []) == ["A", "V", "Z", "M"]
 
 
-def test_scene_4_nudge_clip_group_editing_on():
-    """Scene 4: Nudge one clip with group editing on takes along its partner clips."""
+def test_range_tracks_accepts_track_objects_and_keeps_project_order():
     p = make_project_with_group()
-    material = {"sync": history.sync_root(p.sync_groups)}
-
-    # Selected Anna's clip
-    expanded = edit_scope.expand_clips(p, material, clip_ids=["ca"], group_editing=True)
-    assert set(expanded) == {"ca", "cv", "cz"}
+    assert edit_scope.range_tracks(p, [p.track("V"), "A", "V"]) == ["A", "V"]
 
 
-def test_scene_5_delete_leave_gap_or_group_editing_off():
-    """Scene 5: Non-time-shifting edit touches only the selected clip."""
+def test_range_tracks_rejects_an_unknown_track():
+    with pytest.raises(KeyError):
+        edit_scope.range_tracks(make_project_with_group(), ["nope"])
+
+
+def test_expand_clips_never_adds_sync_partners():
     p = make_project_with_group()
-    material = {"sync": history.sync_root(p.sync_groups)}
-
-    expanded = edit_scope.expand_clips(p, material, clip_ids=["ca"], group_editing=False)
-    assert list(expanded) == ["ca"]
+    assert edit_scope.expand_clips(p, ["ca"]) == ["ca"]
 
 
-def test_tracks_outside_any_group_expand_to_all_tracks():
-    """Tracks outside any sync group follow old rule: expand to all project tracks."""
+def test_expand_clips_adds_the_members_of_an_explicit_group_only():
     p = make_project_with_group()
-    material = {"sync": history.sync_root(p.sync_groups)}
-
-    # Track M is music (outside any sync group)
-    expanded = edit_scope.expand_range(
-        p, material, tracks=["M"], start=10 * RATE, end=20 * RATE, group_editing=True
-    )
-    assert expanded == ["A", "V", "Z", "M"]
+    p = ops.group_clips(p, ["ca", "cm"])
+    assert set(edit_scope.expand_clips(p, ["ca"])) == {"ca", "cm"}
+    assert edit_scope.expand_clips(p, ["cv"]) == ["cv"]
 
 
 def test_partners_with_none_material():
@@ -195,24 +178,3 @@ def test_partners_multiple_clips_on_same_track():
 
     partners = edit_scope.partners(p, None, "ca")
     assert [c.id for c in partners] == ["cv1", "cv2"]
-
-
-def test_expand_clips_multiple_selected():
-    """Multiple clips selected: expands them and partners without duplicates."""
-    p = make_project_with_group()
-    # ca and cv selected
-    expanded = edit_scope.expand_clips(p, None, ["ca", "cv"], group_editing=True)
-    # Both ca and cv are in, cz is their partner
-    assert set(expanded) == {"ca", "cv", "cz"}
-    assert len(expanded) == 3
-
-
-def test_expand_range_with_track_objects_and_deduplication():
-    """expand_range accepts Track objects and deduplicates gracefully."""
-    p = make_project_with_group()
-    # Pass Track objects for A and V
-    tracks = [p.track("A"), p.track("V")]
-    expanded = edit_scope.expand_range(
-        p, None, tracks=tracks, start=0, end=1000, group_editing=True
-    )
-    assert expanded == ["A", "V", "Z"]

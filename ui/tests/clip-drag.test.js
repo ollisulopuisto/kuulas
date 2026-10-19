@@ -4,7 +4,6 @@ import {
   canStartClipDrag,
   clipDragChange,
   clipDragIds,
-  dragAnchor,
   inMoveZone,
   MOVE_STRIP_PX,
   moveBoxes,
@@ -121,39 +120,13 @@ describe("moveGhosts and moveBoxes", () => {
 });
 
 describe("clipDragChange", () => {
-  test("one move_clips_to_track edit with the group setting", () => {
-    const c = clipDragChange(["a"], { delta: 5, direction: -1 }, true);
+  test("one move_clips_to_track edit; sync partners and group editing are not part of it", () => {
+    const c = clipDragChange(["a"], { delta: 5, direction: -1 });
     assert.equal(c.op, "move_clips_to_track");
-    assert.deepEqual(c.args, { clip_ids: ["a"], direction: -1, delta: 5, group_editing: true });
+    assert.deepEqual(c.args, { clip_ids: ["a"], direction: -1, delta: 5 });
     assert.equal(c.labelKey, "ui.clipdrag.move");
   });
   test("nothing to send when nothing moved", () => {
-    assert.equal(clipDragChange(["a"], { delta: 0, direction: 0 }, true), null);
-  });
-});
-
-describe("group editing: only the grabbed clip changes track", () => {
-  test("resolveMove clamps the track change by the anchor alone", () => {
-    const down = { deltaFrames: 0, fromIndex: 0, toIndex: 2 };
-    // a (track 0) and c (track 2) selected, anchor a: the block would be clamped to 0.
-    assert.equal(resolveMove(project, ["a", "c"], down).direction, 0);
-    assert.equal(resolveMove(project, ["a", "c"], down, "a").direction, 2);
-  });
-  test("moveGhosts: the others change time only", () => {
-    const ghosts = moveGhosts(project, ["a", "b"], { delta: S, direction: 1 }, "b");
-    assert.deepEqual(ghosts, [
-      { clipId: "a", trackId: "A", start: 3 * S, end: 7 * S },
-      { clipId: "b", trackId: "C", start: 6 * S, end: 8 * S },
-    ]);
-  });
-  test("clipDragChange carries anchor_clip_id", () => {
-    const c = clipDragChange(["a", "b"], { delta: 5, direction: 1 }, true, "b");
-    assert.equal(c.args.anchor_clip_id, "b");
-    assert.equal(c.args.group_editing, true);
-  });
-  test("dragAnchor: the pressed clip only while group editing is on and Alt is up", () => {
-    assert.equal(dragAnchor("b", true, false), "b");
-    assert.equal(dragAnchor("b", false, false), null);
-    assert.equal(dragAnchor("b", true, true), null);
+    assert.equal(clipDragChange(["a"], { delta: 0, direction: 0 }), null);
   });
 });

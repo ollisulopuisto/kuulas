@@ -123,20 +123,19 @@ describe("edgeChange", () => {
     });
     assert.deepEqual(edgeChange("a", "start", 3 * S, true), {
       op: "ripple_trim",
-      args: { clip_id: "a", edge: "start", frame: 3 * S },
+      args: { clip_id: "a", edge: "start", frame: 3 * S, extend_partners: true },
       labelKey: "ui.edge.ripple",
     });
   });
-  test("a ripple with group editing on asks the other tracks to give material back too", () => {
-    assert.deepEqual(edgeChange("a", "end", 7 * S, true, true).args, {
+  test("a ripple asks the tracks cut at the same splice to give material back too", () => {
+    assert.deepEqual(edgeChange("a", "end", 7 * S, true).args, {
       clip_id: "a",
       edge: "end",
       frame: 7 * S,
       extend_partners: true,
     });
-    // Roll never does, and neither does a ripple with group editing off.
-    assert.equal(edgeChange("a", "end", 7 * S, false, true).args.extend_partners, undefined);
-    assert.equal(edgeChange("a", "end", 7 * S, true, false).args.extend_partners, undefined);
+    // A roll never does.
+    assert.equal(edgeChange("a", "end", 7 * S, false).args.extend_partners, undefined);
   });
 });
 
@@ -280,7 +279,7 @@ describe("an edge drag overwrites its neighbours (WP83)", () => {
     assert.equal(g.covered[0].removed, false);
   });
   test("the edit carries overwrite=false only when Alt is held", () => {
-    assert.equal(edgeChange("a", "end", 1, false, false, true).args.overwrite, undefined);
-    assert.equal(edgeChange("a", "end", 1, false, false, false).args.overwrite, false);
+    assert.equal(edgeChange("a", "end", 1, false, true).args.overwrite, undefined);
+    assert.equal(edgeChange("a", "end", 1, false, false).args.overwrite, false);
   });
 });

@@ -61,16 +61,16 @@ def test_mute_range_mutes_the_stretch_on_the_given_tracks_only():
     assert [c.start for c in p.track("M").clips] == [0, 2 * S, 4 * S]  # nothing moved
 
 
-def test_mute_range_follows_the_sync_group_when_group_editing_is_on():
-    p = ops.mute_range(project(), 2 * S, 4 * S, ["A"], group_editing=True)
-    for track in ("A", "V"):
-        assert [(a, b) for a, b, m in spans(p, track) if m] == [(2 * S, 4 * S)]
-
-
-def test_mute_range_group_editing_off_stays_on_the_track():
-    p = ops.mute_range(project(), 2 * S, 4 * S, ["A"], group_editing=False)
+def test_mute_range_never_follows_the_sync_group():
+    p = ops.mute_range(project(), 2 * S, 4 * S, ["A"])
     assert any(m for _, _, m in spans(p, "A"))
     assert not any(m for _, _, m in spans(p, "V"))
+
+
+def test_mute_range_without_tracks_acts_on_all_tracks():
+    p = ops.mute_range(project(), 2 * S, 4 * S, None)
+    for track in ("A", "V", "M"):
+        assert [(a, b) for a, b, m in spans(p, track) if m] == [(2 * S, 4 * S)]
 
 
 def test_mute_range_empty_is_refused():
@@ -79,18 +79,16 @@ def test_mute_range_empty_is_refused():
     assert error.value.key == "error.edit.empty_range"
 
 
-def test_cut_range_closes_the_gap_on_the_group():
-    p = ops.cut_range(project(), 2 * S, 4 * S, ["A"], group_editing=True)
+def test_cut_range_cuts_only_the_given_tracks_sync_is_not_a_scope():
+    p = ops.cut_range(project(), 2 * S, 4 * S, ["A"])
     assert p.track("A").clips[-1].end == 8 * S
-    assert p.track("V").clips[-1].end == 8 * S
-    # edit_scope.expand_range: a track outside the group is left alone.
+    assert p.track("V").clips[-1].end == 10 * S
     assert p.track("M").clips[-1].end == 10 * S
 
 
-def test_cut_range_group_editing_off_cuts_the_one_track():
-    p = ops.cut_range(project(), 2 * S, 4 * S, ["A"], group_editing=False)
-    assert p.track("A").clips[-1].end == 8 * S
-    assert p.track("V").clips[-1].end == 10 * S
+def test_cut_range_without_tracks_cuts_all_tracks():
+    p = ops.cut_range(project(), 2 * S, 4 * S, None)
+    assert [p.track(t).clips[-1].end for t in "AVM"] == [8 * S] * 3
 
 
 def test_cut_range_empty_is_refused():
@@ -98,21 +96,22 @@ def test_cut_range_empty_is_refused():
         ops.cut_range(project(), 4 * S, 2 * S, ["A"])
 
 
-def test_nudge_clips_takes_the_partners_along_when_group_editing_is_on():
-    p = ops.nudge_clips(project(), ["ca"], S // 100, group_editing=True)
-    assert p.clip("ca").start == S // 100
-    assert p.clip("cv").start == S // 100
-    assert p.clip("cm").start == 0
-
-
-def test_nudge_clips_alone_when_group_editing_is_off():
-    p = ops.nudge_clips(project(), ["ca"], S // 100, group_editing=False)
+def test_nudge_clips_never_takes_sync_partners_along():
+    p = ops.nudge_clips(project(), ["ca"], S // 100)
     assert p.clip("ca").start == S // 100
     assert p.clip("cv").start == 0
 
 
+def test_nudge_clips_takes_an_explicit_group_along():
+    p = ops.group_clips(project(), ["ca", "cm"])
+    p = ops.nudge_clips(p, ["ca"], S // 100)
+    assert p.clip("ca").start == S // 100
+    assert p.clip("cm").start == S // 100
+    assert p.clip("cv").start == 0
+
+
 def test_nudge_clips_never_goes_before_zero():
-    p = ops.nudge_clips(project(), ["ca"], -S, group_editing=False)
+    p = ops.nudge_clips(project(), ["ca"], -S)
     assert p.clip("ca").start == 0
 
 

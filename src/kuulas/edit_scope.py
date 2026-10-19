@@ -1,19 +1,21 @@
-"""Edit scope and grouping rules (WP19a).
+"""What an edit touches (WP83; WP19a before it).
 
-Determines what an edit touches:
-- A time-shifting edit keeps the sync group together:
-  - A range edit expands to every track in the sync group
-    (or all tracks if outside any group).
-  - A clip edit expands to each clip's partners (clips of the same sync group on
-    other tracks playing the same stretch of recording).
-- Any other edit touches exactly what was selected.
-- A clip declared free from sync (``Clip.free``) is no one's partner: moving it
-  takes nobody along, and nobody's move takes it along.
+Three separate ideas, never mixed:
+
+- Sync is knowledge only. ``partners`` says which clips on other tracks play
+  the same stretch of recording (Resync, Free, the drift list and badges use it).
+  No edit ever moves, trims, deletes or mutes a clip because it is a sync partner.
+- An explicit group (``Clip.group``, Group clips) is the only thing that makes
+  clips move, trim, delete or mute together: ``expand_clips``.
+- A range operation acts on a rectangle of time by tracks. ``range_tracks`` is the
+  one place that turns the requested track set into the tracks to edit: nothing
+  given means all tracks (the default, so one track is never edited by accident).
+- A clip declared free from sync (``Clip.free``) is no one's partner.
 """
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable
 from dataclasses import replace
 from typing import Any
 
@@ -87,105 +89,37 @@ def partners(project: Project, material: Any, clip_id: str) -> list[Clip]:
     return sorted(res, key=lambda c: (c.start, c.id))
 
 
-def expand_range(
-    project: Project,
-    material: Any,
-    tracks: Sequence[str | Track] | set[str],
-    start: int,
-    end: int,
-    group_editing: bool,
-) -> list[str]:
-    """For a time-shifting range edit, return the tracks to apply it to:
-    every track of the group when ``group_editing`` is on, else just ``tracks``;
-    tracks outside any group follow the old rule (all tracks).
-    """
-    track_ids = [t if isinstance(t, str) else t.id for t in tracks]
-    if not group_editing:
-        return list(track_ids)
-
-    groups = _sync_groups(project, material)
-    p = replace(project, sync_groups=groups) if project.sync_groups != groups else project
-
-    # Identify sync groups associated with the selected tracks
-    target_group_ids: set[str] = set()
-    track_map = {t.id: t for t in p.tracks}
-
-    for tid in track_ids:
-        t = track_map.get(tid)
-        if t is None:
-            continue
-        # Check clips in range first, or all clips on track if none in range
-        in_range_clips = [c for c in t.clips if c.start < end and c.end > start]
-        clips_to_check = in_range_clips if in_range_clips else list(t.clips)
-        t_groups = {
-            g.id for c in clips_to_check if (g := p.sync_group(c.media)) is not None
-        }
-        if not t_groups:
-            # This track is outside any sync group -> follow old rule (all tracks)
-            return [tr.id for tr in p.tracks]
-        target_group_ids.update(t_groups)
-
-    if not target_group_ids:
-        return [tr.id for tr in p.tracks]
-
-    # Expand to all project tracks that belong to any of target_group_ids
-    out: list[str] = []
-    for tr in p.tracks:
-        tr_groups = {g.id for c in tr.clips if (g := p.sync_group(c.media)) is not None}
-        if (tr_groups & target_group_ids) or (tr.id in track_ids):
-            out.append(tr.id)
-
-    return out
+def range_tracks(project: Project,
+                 track_ids: Iterable[str | Track] | None = None) -> list[str]:
+    """The tracks a range operation (cut, copy, lift-cut, close gap, delete, mute)
+    acts on, in project order. ``None`` (not given) means all tracks; so does an
+    empty list, so a range operation can never silently become a no-op or an edit
+    of one track. Unknown ids are an error (``KeyError``)."""
+    order = [t.id for t in project.tracks]
+    if track_ids is None:
+        return order
+    wanted = {t if isinstance(t, str) else t.id for t in track_ids}
+    if not wanted:
+        return order
+    unknown = wanted - set(order)
+    if unknown:
+        raise KeyError(sorted(unknown)[0])
+    return [tid for tid in order if tid in wanted]
 
 
-def expand_clips(
-    project: Project,
-    material: Any,
-    clip_ids: Sequence[str] | set[str],
-    group_editing: bool,
-) -> list[str]:
-    """For a time-shifting clip edit, return the clip ids plus their partners
-    when ``group_editing`` is on, else just the selected clips.
-    """
-    initial_ids = list(clip_ids)
-    if not group_editing:
-        return initial_ids
-
-    out = list(initial_ids)
+def expand_clips(project: Project, clip_ids: Iterable[str]) -> list[str]:
+    """The clip ids plus every member of an explicit group any of them belongs to.
+    Sync partners are not included (WP83): sync never moves anything."""
+    initial = list(dict.fromkeys(clip_ids))
+    groups = {c.group for t in project.tracks for c in t.clips
+              if c.id in set(initial) and c.group is not None}
+    if not groups:
+        return initial
+    out = list(initial)
     seen = set(out)
-    for cid in initial_ids:
-        for partner in partners(project, material, cid):
-            if partner.id not in seen:
-                seen.add(partner.id)
-                out.append(partner.id)
-
-    return out
-
-
-#: The kinds of edit that shift time (WP19a). Everything else (gain, pan, mute,
-#: fades, FX, delete leaving a gap, trim without ripple) uses its target exactly.
-TIME_SHIFTING = frozenset({
-    "cut", "close_gap", "ripple_delete", "insert", "move", "nudge", "ripple_trim",
-    "cut_words",
-})
-
-
-def edit_target(project: Project, material: Any, kind: str, target: dict,
-                group_editing: bool) -> dict:
-    """The one answer to "what does this edit touch?".
-
-    ``target`` is a range ``{"track_ids", "start", "end"}`` or a clip set
-    ``{"clip_ids"}``; the answer has the same keys with ``track_ids`` or
-    ``clip_ids`` widened when ``kind`` shifts time and ``group_editing`` is on,
-    and is a copy of ``target`` otherwise. Other keys pass through.
-    """
-    out = dict(target)
-    if kind not in TIME_SHIFTING or not group_editing:
-        return out
-    if target.get("clip_ids") is not None:
-        out["clip_ids"] = expand_clips(project, material, target["clip_ids"], True)
-    elif target.get("track_ids") is not None:
-        out["track_ids"] = expand_range(
-            project, material, list(target["track_ids"]), int(target["start"]),
-            int(target["end"]), True)
+    for t in project.tracks:
+        for c in t.clips:
+            if c.group in groups and c.id not in seen:
+                seen.add(c.id)
+                out.append(c.id)
     return out

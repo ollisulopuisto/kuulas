@@ -142,7 +142,13 @@ export const SYNONYMS = {
   "bus.ungroup": ["dissolve", "remove bus", "pura", "väylä"],
   "view.collapse_all_buses": ["fold", "hide tracks", "taita kaikki", "väylä"],
   "view.expand_all_buses": ["unfold", "show tracks", "avaa kaikki", "väylä"],
-  "group.toggle": ["linked editing", "edit together", "ryhmä", "yhteismuokkaus"],
+  "range.scope_toggle": [
+    "all tracks",
+    "selected tracks",
+    "track scope",
+    "kaikki raidat",
+    "valitut raidat",
+  ],
 
   // -- saving, exporting ---------------------------------------------------------------------
   "app.save": ["write", "store", "keep", "tallenna", "talleta"],
