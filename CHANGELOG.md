@@ -16,6 +16,17 @@
   editing or drift (before, same-track clips were never partners).
 - Not seen on screen yet. Sync points 1 and 2 (Alt+Mod+1/2) are still not wired.
 
+## [v26.10.19.18] - 2026-10-19
+
+- **Transcribe on Colab from kuulas (the kuulas side):** Track > Transcribe is now a submenu: "…on this computer",
+  "…on Colab (audio is uploaded to Google)…" and the Colab settings. The Colab job runs `colab-transcribe` in a
+  plain-audio mode (no `.nhsx`): progress and Cancel in the notice area, the words are stored with one undo step
+  per recording and the recording is marked with how its times were made (`timing`: raw Whisper or corrected).
+  The first Colab use per session shows a notice that the audio leaves the computer (you can tick "do not ask
+  again"); Drive is skipped by default. **It cannot work yet:** the podcast side of that plain-audio mode
+  (`--audio … --json … --progress`) does not exist; kuulas was built and tested against a fake tool, and the
+  request is with the podcast session. Not seen on screen. Local transcription clears the `timing` marker.
+
 ## [v26.10.19.17] - 2026-10-19
 
 - **The big clock is a control:** a single click copies the shown time to the system clipboard ("Copied 0:08,938");
