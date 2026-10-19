@@ -30,10 +30,12 @@ export const CONTEXTS = [
   "global",
   "not-candidates",
   "not-transcript",
+  "not-markers",
   "timeline",
   "transcript",
   "side",
   "candidates",
+  "markers",
   "text-field",
 ];
 
@@ -825,6 +827,39 @@ export const DEFAULT_KEYMAP = [
     context: "timeline",
     labelKey: "cmd.sync.resync_end",
   },
+  // Free or drifting (R51, WP19a). U frees the selected clips from sync on purpose; the drift list
+  // lives in the Markers tab, where ] and [ step through it (the Candidates' ] and [ work
+  // everywhere else). Resync all and Free all are that list's buttons: menu and palette too.
+  {
+    id: "sync.free",
+    keys: { mac: "U", other: "U" },
+    context: "timeline",
+    labelKey: "cmd.sync.free",
+  },
+  {
+    id: "sync.resync_all",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.sync.resync_all",
+  },
+  {
+    id: "sync.free_all",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.sync.free_all",
+  },
+  {
+    id: "sync.drift_next",
+    keys: { mac: "]", other: "]" },
+    context: "markers",
+    labelKey: "cmd.sync.drift_next",
+  },
+  {
+    id: "sync.drift_previous",
+    keys: { mac: "[", other: "[" },
+    context: "markers",
+    labelKey: "cmd.sync.drift_previous",
+  },
   // Candidates (WP18). ] [ D and Shift+Mod+D work from every panel (none is a typing key);
   // Enter, K and Shift+Space only while the Candidates tab has the keyboard.
   {
@@ -842,13 +877,13 @@ export const DEFAULT_KEYMAP = [
   {
     id: "candidate.next",
     keys: { mac: ["]", "Alt+ArrowDown"], other: ["]", "Alt+ArrowDown"] },
-    context: "global",
+    context: "not-markers",
     labelKey: "cmd.candidate.next",
   },
   {
     id: "candidate.previous",
     keys: { mac: ["[", "Alt+ArrowUp"], other: ["[", "Alt+ArrowUp"] },
-    context: "global",
+    context: "not-markers",
     labelKey: "cmd.candidate.previous",
   },
   {

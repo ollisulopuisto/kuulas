@@ -327,3 +327,35 @@ def test_the_page_can_read_drift_and_switch_group_editing(s, tmp_path):
         r = c.post("/api/command", json={"name": "resync", "args": {"clip_ids": [a]}})
         assert r.json()["resync"]["resynced"] == 1
         assert c.get("/api/drift").json() == {"drift": []}
+        s.edit("nudge_clips", {"clip_ids": [a], "delta": 2400})
+        s.edit("set_free", {"clip_ids": [a]})
+        sync = c.get("/api/sync").json()["clips"]
+        assert [(r["clip_id"], r["state"], r["offset"]) for r in sync] == [
+            (a, "free", 2400)]
+        v = s.clip_of["V"]
+        got = c.get("/api/partners", params={"ids": f"{v},nope"}).json()["partners"]
+        assert got[v] == [s.clip_of["Z"]]  # A is free: no partner
+        assert got["nope"] == []
+        # A free clip is not drifting, so it has no cause.
+        assert c.get(f"/api/sync-cause/{a}").json() == {"cause": None}
+
+
+def test_sync_overview_lists_drift_and_free_clips_for_the_badges(s):
+    a, v = s.clip_of["A"], s.clip_of["V"]
+    s.set_group_editing(False)
+    s.edit("nudge_clips", {"clip_ids": [a], "delta": 14400})
+    s.edit("nudge_clips", {"clip_ids": [v], "delta": 4800})
+    s.edit("set_free", {"clip_ids": [v]})
+    rows = {r["clip_id"]: (r["state"], r["offset"]) for r in s.sync_overview()}
+    assert rows == {a: ("drift", 14400), v: ("free", 4800)}
+    # The same head asked twice is the same answer (memoized on the edit state).
+    assert s.sync_overview() == s.sync_overview()
+
+
+def test_partners_of_gives_the_dashed_outline_set(s):
+    a = s.clip_of["A"]
+    got = s.partners_of([a])
+    assert set(got[a]) == {s.clip_of["V"], s.clip_of["Z"]}
+    s.edit("set_free", {"clip_ids": [s.clip_of["V"]]})
+    assert s.partners_of([a])[a] == [s.clip_of["Z"]]
+    assert s.partners_of([s.clip_of["M"]]) == {s.clip_of["M"]: []}

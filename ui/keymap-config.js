@@ -18,10 +18,17 @@ const NOT_CANDIDATES = "not-candidates";
 /** Every panel's keys except the transcript's (X cuts the marked range there, but cuts words in the transcript). */
 const NOT_TRANSCRIPT = "not-transcript";
 
+/** Every panel's keys except the Markers tab's (] and [ step the drift list there, candidates elsewhere). */
+const NOT_MARKERS = "not-markers";
+
 /** Do two contexts ever have the same key available at once? */
 export function contextsOverlap(a, b) {
   if (a === NOT_CANDIDATES) return b !== "candidates";
   if (b === NOT_CANDIDATES) return a !== "candidates";
+  if (a === NOT_MARKERS) return b !== "markers";
+  if (b === NOT_MARKERS) return a !== "markers";
+  // The Markers tab also has the side panels' keys.
+  if ((a === "markers" && b === "side") || (a === "side" && b === "markers")) return true;
   if (a === NOT_TRANSCRIPT) return b !== "transcript";
   if (b === NOT_TRANSCRIPT) return a !== "transcript";
   return a === b || EVERYWHERE.has(a) || EVERYWHERE.has(b);

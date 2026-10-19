@@ -174,6 +174,15 @@ export function liveUrl(location = globalThis.location) {
 
 export const getTransport = () => json("/api/transport");
 
+/** Every drifting or free clip with its offset in frames: what the timeline's badges draw (R51). */
+export const getSync = () => json("/api/sync");
+/** The partners of each clip (the dashed outline): { partners: { clipId: [clipId] } }. */
+export const getPartners = (ids) => json(`/api/partners?ids=${encodeURIComponent(ids.join(","))}`);
+/** The history step that put a clip out of sync: { cause: { label, group_editing, ... } | null }. */
+export const getSyncCause = (clipId) => json(`/api/sync-cause/${encodeURIComponent(clipId)}`);
+/** Mod+G: the server's default for edits that do not say (session state, not history). */
+export const setGroupEditing = (on) => post("/api/group-editing", { on });
+
 /** Where a recording is used in the edit (the inspector's Source section); `signal` cancels. */
 export const getSourceMap = (sha256, signal) =>
   json(`/api/source-map?media=${encodeURIComponent(sha256)}`, { signal });

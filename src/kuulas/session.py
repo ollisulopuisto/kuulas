@@ -382,18 +382,37 @@ class Session:
         with self.lock:
             return sync_state.sync_state(self.history.state, clip_id)
 
+    def sync_overview(self) -> list[dict]:
+        """Every clip that is drifting or free, in timeline order, with its
+        ``state`` and ``offset`` (frames): what the timeline's badges draw.
+        Memoized on the edit state and the sync groups, so the page can ask after
+        every edit."""
+        with self.lock:
+            key = self._view_key(self.history.edit_hash, self.history.material_head)
+            def compute() -> list[dict]:
+                return [asdict(d) for d in sync_state.overview(self.history.state)]
+
+            return list(self._memo("sync_overview", key, compute, 120))
+
+    def partners_of(self, clip_ids: list[str]) -> dict[str, list[str]]:
+        """Clip id -> its partners' ids: the dashed outline around what a move of
+        the selection would take along (free clips are no one's partner)."""
+        with self.lock:
+            state = self.history.state
+            return {cid: [c.id for c in edit_scope.partners(state, None, cid)]
+                    for cid in clip_ids}
+
     def drift_list(self, with_cause: bool = False) -> list[dict]:
         """Clips in undecided drift, in timeline order: the markers panel's
         list (] and [ step through it). Free clips are not on it. ``with_cause``
         adds ``sync_cause`` to each (it reads history, so it costs more)."""
-        with self.lock:
-            found = sync_state.drifts(self.history.state)
         out = []
-        for d in found:
-            row = {"clip_id": d.clip_id, "track_id": d.track_id, "start": d.start,
-                   "offset": d.offset}
+        for d in self.sync_overview():
+            if d["state"] != sync_state.DRIFT:
+                continue
+            row = {k: d[k] for k in ("clip_id", "track_id", "start", "offset")}
             if with_cause:
-                row["cause"] = self.sync_cause(d.clip_id)
+                row["cause"] = self.sync_cause(d["clip_id"])
             out.append(row)
         return out
 

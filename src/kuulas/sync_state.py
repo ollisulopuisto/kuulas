@@ -47,18 +47,25 @@ class Drift:
     track_id: str
     start: int
     offset: int
+    state: str = DRIFT
+
+
+def overview(p: Project) -> list[Drift]:
+    """Every clip the timeline marks: those in undecided drift (red badge) and
+    those declared free (grey icon, with their offset), in timeline order."""
+    found = []
+    for track in p.tracks:
+        for clip in track.clips:
+            s = sync_state(p, clip)
+            if s.state != IN_SYNC:
+                found.append(Drift(clip.id, track.id, clip.start, s.offset, s.state))
+    return sorted(found, key=lambda d: (d.start, d.clip_id))
 
 
 def drifts(p: Project) -> list[Drift]:
     """Every clip in undecided drift, in timeline order (the list ] and [ step
     through). Free clips are never on it."""
-    found = []
-    for track in p.tracks:
-        for clip in track.clips:
-            s = sync_state(p, clip)
-            if s.state == DRIFT:
-                found.append(Drift(clip.id, track.id, clip.start, s.offset))
-    return sorted(found, key=lambda d: (d.start, d.clip_id))
+    return [d for d in overview(p) if d.state == DRIFT]
 
 
 def cause(states: list[Project], clip_id: str) -> int | None:

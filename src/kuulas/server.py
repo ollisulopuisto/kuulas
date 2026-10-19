@@ -398,6 +398,18 @@ def create_app(session, engine, *, language: str | None = None,
         frames (and, with ``cause``, the history step that moved them)."""
         return JSONResponse({"drift": session.drift_list(cause)})
 
+    @app.get("/api/sync")
+    def get_sync():
+        """Every drifting or free clip with its offset: what the badges draw."""
+        return JSONResponse({"clips": session.sync_overview()})
+
+    @app.get("/api/partners")
+    def get_partners(ids: str = ""):
+        """The partners of each clip (``ids``: comma separated), for the dashed
+        outline."""
+        wanted = [i for i in ids.split(",") if i]
+        return JSONResponse({"partners": session.partners_of(wanted)})
+
     @app.get("/api/sync-cause/{clip_id}")
     def get_sync_cause(clip_id: str):
         return JSONResponse({"cause": session.sync_cause(clip_id)})

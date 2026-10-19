@@ -70,6 +70,10 @@ export const initialState = () => ({
   loop: false,
   // Group editing is on at every start (PLAN ground rule 16); E turns it off for the session.
   groupEditing: true,
+  // Drifting and free clips (R51, GET /api/sync) and the partners of the selected clips (the dashed
+  // outline, GET /api/partners): both are looked up after an edit, never guessed on the page.
+  syncClips: [],
+  partners: {},
   nudgeMs: 10,
   zoom: 48_000 / 20,
   scroll: 0,

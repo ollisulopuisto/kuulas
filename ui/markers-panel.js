@@ -4,6 +4,7 @@
 import { formatClock, formatNumber, getLanguage, t } from "./i18n.js";
 import { LEFT_OFF_ID, leftOffRow, leftOffText } from "./left-off.js";
 import { markerRows } from "./markers-model.js";
+import { driftRows, formatOffset } from "./sync-state.js";
 
 const el = (tag, props = {}, ...children) => {
   const node = document.createElement(tag);
@@ -19,7 +20,8 @@ const el = (tag, props = {}, ...children) => {
 
 /**
  * `actions`: jump(id), rename(id, name), remove(id), setKind(id, kind), run(commandId),
- * can(commandId, state) -> boolean.
+ * can(commandId, state) -> boolean, jumpClip(clipId, start), syncCause(clipId) -> Promise of
+ * { label, group_editing } | null (the drift list's hover text).
  */
 export function createMarkersPanel({ root, actions }) {
   let signature = "";
@@ -146,8 +148,50 @@ export function createMarkersPanel({ root, actions }) {
     return node;
   };
 
+  // The drift list (R51, WP19a): clips that sit away from their sync group and that nobody has
+  // called deliberate, in timeline order. ] and [ step through it while this tab has the keyboard;
+  // Resync all and Free all are buttons here, in the Sync menu and in the palette. The cause is read
+  // from history when the pointer rests on a row.
+  function driftEntry(item, state) {
+    const rate = state.project?.rate ?? 48000;
+    const track = state.project?.tracks?.find((candidate) => candidate.id === item.track_id);
+    const offset = formatOffset(item.offset, rate, (v) => formatNumber(v, { digits: 1 }));
+    const jump = t("ui.sync.drift.jump");
+    const main = el(
+      "button",
+      {
+        type: "button",
+        class: "clip-main",
+        title: jump,
+        dataset: { id: item.clip_id, action: "drift-jump" },
+      },
+      el("span", { class: "clip-name", textContent: track?.name ?? item.track_id }),
+      el("span", {
+        class: "clip-meta",
+        textContent: t("ui.sync.drift.row", { time: formatClock(item.start / rate, 1), offset }),
+      }),
+    );
+    main.addEventListener("click", () => actions.jumpClip(item.clip_id, item.start));
+    let asked = false;
+    main.addEventListener("pointerenter", () => {
+      if (asked) return;
+      asked = true;
+      actions
+        .syncCause(item.clip_id)
+        .then((cause) => {
+          if (!cause) return;
+          const key = cause.group_editing === false ? "cause_group_off" : "cause";
+          main.title = [jump, t(`ui.sync.drift.${key}`, { label: cause.label })].join("\n");
+        })
+        .catch(() => {});
+    });
+    return el("li", { class: "clip-entry", dataset: { id: item.clip_id, drift: "true" } }, main);
+  }
+
   function update(state) {
     const rate = state.project?.rate ?? 48000;
+    const drifting = driftRows(state.syncClips);
+    const driftCan = ["sync.resync_all", "sync.free_all"].map((id) => actions.can(id, state));
     const rows = markerRows(state.project?.markers, rate);
     const can = [
       "marker.add",
@@ -164,6 +208,9 @@ export function createMarkersPanel({ root, actions }) {
       editing,
       can,
       pinned,
+      drifting,
+      driftCan,
+      drifting.length > 0 ? state.project?.tracks?.map((track) => track.name) : null,
     ]);
     if (next === signature) return;
     signature = next;
@@ -183,6 +230,22 @@ export function createMarkersPanel({ root, actions }) {
         toolbarButton("export.regions", t("cmd.export.regions"), state),
       ),
     );
+    if (drifting.length > 0) {
+      root.append(
+        el("h3", { textContent: t("ui.sync.drift.title") }),
+        el(
+          "div",
+          { class: "clip-choice" },
+          toolbarButton("sync.resync_all", t("cmd.sync.resync_all"), state),
+          toolbarButton("sync.free_all", t("cmd.sync.free_all"), state),
+        ),
+        el(
+          "ul",
+          { class: "clip-list", "aria-label": t("ui.sync.drift.list_label") },
+          ...drifting.map((item) => driftEntry(item, state)),
+        ),
+      );
+    }
     if (rows.length === 0 && !pinned) {
       root.append(el("p", { class: "hint", textContent: t("ui.markers.empty") }));
     } else {

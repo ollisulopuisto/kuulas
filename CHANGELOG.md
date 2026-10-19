@@ -1,3 +1,19 @@
+## [v26.10.19.6] - 2026-10-19
+
+- **Edit groups and sync states on the screen (WP19a, R51):** Mod+G switches group editing off and on (the
+  "Group editing off" chip stays visible while it is off). Select a clip and its partners, the clips of its sync
+  group that play the same stretch of the recording, get a dashed outline: that is what a move will take along.
+  Alt+Cmd (Alt+Ctrl) drag moves a clip alone; when it ends up out of sync, a message asks "Keep this clip free from
+  sync?" with "Free it" (nothing changes unless you answer). **U** frees the selected clips from sync, or links them
+  again: a free clip wears a grey unlinked icon and its offset ("+300 ms · free"), and is nobody's partner. A clip
+  that drifted out of sync wears a red badge with its offset. The Markers tab lists the drifting clips, with the
+  cause when you rest the pointer on one (read from the history, for example "since: cut, group editing off");
+  `]` and `[` step through the list while that tab has the keyboard (the candidates keep `]` and `[` everywhere else),
+  and "Resync all" and "Free all" are buttons there and in the Sync menu and the command palette. R, Alt+Mod+R and
+  Shift+Alt+Mod+R (resync from the play cursor on) now work and say "Resynced 14 clips · skipped 2 free".
+  Alt+Mod+X closes a gap on every track of the sync group. Not tried on screen yet: how the badges and the dashed
+  outline look and fit in narrow clips, the message after an Alt+Cmd drag, and the Markers tab list.
+
 ## [v26.10.19.5] - 2026-10-19
 
 - **Edits that move time keep the sync group together (engine; the screen comes next):** one rule now decides what
