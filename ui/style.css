@@ -2420,7 +2420,7 @@ input[type="text"] {
 .side-tab .count {
   margin-left: var(--space-2);
   padding: 0 var(--space-3);
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm);
   background: var(--surface-active);
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
@@ -2504,7 +2504,7 @@ input[type="text"] {
 .cand .state {
   padding: 0 var(--space-3);
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm);
   font-size: var(--text-xs);
 }
 .cand .state.open {
@@ -2534,7 +2534,7 @@ input[type="text"] {
   flex: 1 1 100%;
   display: grid;
   height: 28px;
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm);
   overflow: hidden;
   font-size: var(--text-xs);
 }
@@ -2816,4 +2816,29 @@ input[type="text"] {
 .stats-note {
   color: var(--text-tertiary);
   font-size: var(--text-xs);
+}
+
+/* The clock copies on click and types on double-click (clock.js, WP76). */
+.corner .timecode {
+  cursor: copy;
+  border-radius: var(--radius-sm);
+}
+.corner .timecode:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+.timecode .clock-edit {
+  width: 100%;
+  min-width: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid currentColor;
+  outline: none;
+  padding: 0;
+}
+.timecode .clock-edit[aria-invalid="true"] {
+  border-bottom-color: var(--danger);
 }

@@ -2,7 +2,7 @@
 id: timeline
 title: The timeline
 applies-to: [timeline]
-commands: [transport.play, view.toggle, view.fit, view.fit_selection, view.zoom_in, view.zoom_out, view.back, view.wheel_mode, view.clip_words, panel.next, nav.home, help.open, help.keys]
+commands: [transport.play, view.toggle, view.fit, view.fit_selection, view.zoom_in, view.zoom_out, view.back, view.wheel_mode, view.clip_words, panel.next, nav.home, spot, time.copy, help.open, help.keys]
 related: [clip, track, bus]
 ---
 Every track is a lane, and time runs left to right. A click anywhere in the lanes moves the play cursor there. A click on a clip also selects it; Shift+click adds or removes a clip. Drag across the lanes to mark a time range. While you drag, a hint on the lanes tells which key turns the range into the clips it touches (they are selected and the in and out marks go to their span) and which key cancels.
@@ -22,6 +22,11 @@ Density, waveform and follow settings are in the View menu. {show:view-menu} So 
 Two-finger scrolling on a trackpad zooms the time axis around the pointer by default; sideways movement scrolls time, and up or down with the shift key held scrolls the lanes (the scrollbar and keys work too). A mouse wheel still scrolls, and scrolling with the command or control key held, like pinching, always zooms. Change it here: {run:view.wheel_mode}
 
 Zoomed in far enough to read them, each speech clip writes its words under its name, so you see which word is where in the waveform. The word under the play cursor is brighter, and words you select in the transcript stand out. {run:view.clip_words}
+
+## Jump to a time
+- Click the big time in the corner to copy it to the clipboard; double-click it, or press {key:spot}, to type a time and jump there. Confirming the field jumps; leaving it cancels.
+- Type 1:23.5 (or 83,2) for that time, or start with + or - to move from the play cursor: +100 is 100 seconds on, -30 is 30 back, +1:30 is 90 on, +500ms is half a second. The result stays inside the edit.
+- The same works in the In, Out and Length rows: a time sets the mark, +2 or -2 moves it. Alt+click on a row copies its time.
 
 ## Panels
 {key:panel.next} moves the keyboard to the next panel; {key:nav.home} brings it back here.

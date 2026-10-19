@@ -3643,7 +3643,7 @@ commands). No DOM in the matching tests.
 
 ### WP76 — The timestamp: copy, edit, jump, and typed offsets (owner, 2026-10-19)
 
-Status: open. Owner: "double click on timestamp to edit it and jump to that point; single click to copy
+Status: implemented on branch worktree-agent-a796ec65e2300604f (ui/clock.js, time-jump.js, copy-text.js, desktop bridge copy_text; Spot wired); not yet seen in a browser or the desktop window; owner to try. Owner: "double click on timestamp to edit it and jump to that point; single click to copy
 timestamp to system clipboard? kb shortcuts for moving forwards and backwards a certain time like in FCP, e.g.
 +100 = forwards 100 seconds, and yes I know + is taken as a key but the functionality".
 - **The clock** (the big play-cursor time in the transport corner, `0:08,938`, and the Alku / Loppu / Pituus

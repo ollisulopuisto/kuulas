@@ -92,6 +92,7 @@ export const MENU = [
       item("edit.select_all"),
       item("transcript.find"),
       item("spot"),
+      item("time.copy"),
       item("rename"),
       SEP,
       submenu("menu.delete_cut", [

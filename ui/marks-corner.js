@@ -3,6 +3,7 @@
 //   click        jump to the in mark (nav.to_in), the out mark (nav.to_out), or zoom to the
 //                range (view.fit_selection); nothing happens for an unset mark
 //   Enter or double-click
+//   Alt+click    copies the row's time to the clipboard (WP76)
 //                an inline text field: Enter sets the mark (marks are UI state, no undo step),
 //                Esc cancels, text that is not a time keeps the field open (red, aria-invalid)
 // What each row says and what a typed time does is marks-readout.js (tested); this file only
@@ -51,9 +52,9 @@ function glyph(which) {
  * `root` holds the three buttons (#mark-in, #mark-out, #mark-length). `getState()` gives the
  * app state, `rate()` the frame rate, `format(frame, rate)` the timecode writer, `limit()` the
  * end of the edit in frames, `run(id)` runs a registered command, `patch(statePatch)` sets
- * state, `t` translates.
+ * state, `copy(text)` copies a time to the clipboard (Alt+click), `t` translates.
  */
-export function createMarksCorner({ root, getState, rate, format, limit, run, patch, t }) {
+export function createMarksCorner({ root, getState, rate, format, limit, run, patch, copy, t }) {
   const buttons = new Map(ROWS.map((row) => [row.which, root.querySelector(`#${row.id}`)]));
   let editing = null; // { which, field, wrap, tip } while a field is open
 
@@ -175,6 +176,12 @@ export function createMarksCorner({ root, getState, rate, format, limit, run, pa
     let pending = null;
     button.addEventListener("click", (event) => {
       if (editing) return;
+      if (event.altKey) {
+        // Alt+click copies the row's time (WP76); a plain click keeps jumping to the mark.
+        const { set, text } = readoutRows(getState(), rate(), format)[row.which];
+        if (set) copy(text);
+        return;
+      }
       if (row.which !== "length" || event.detail === 0) return run(row.command);
       clearTimeout(pending);
       pending = setTimeout(() => run(row.command), DOUBLE_CLICK_MS);
