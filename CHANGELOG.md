@@ -1,3 +1,12 @@
+## [v26.10.19.3] - 2026-10-19
+
+- **Selecting words in the transcript also marks them on the timeline:** the selected words become the in and out
+  marks, so you see where the edit would land in the waveform and can drag the marks to fine-tune it before you
+  cut. (The transcript pop-up still acts on the words; to cut your fine-tuned range press X on the timeline.)
+  Not tried on screen yet.
+- Behind the scenes, small tested building blocks for coming features (series templates, chapter lists, filler
+  words, safe file names, loudness number formats): nothing to see yet.
+
 ## [v26.10.19.2] - 2026-10-19
 
 - **Levels before you export:** each track header shows the track's integrated loudness against the target

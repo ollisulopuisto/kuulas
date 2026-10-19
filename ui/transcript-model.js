@@ -213,6 +213,22 @@ export function selectionBounds(sel) {
   return [Math.min(sel.anchor, sel.cursor), Math.max(sel.anchor, sel.cursor)];
 }
 
+/**
+ * The selected words as in/out marks: the earliest start and latest end of the run, so the
+ * range shows on the timeline (where it can be fine-tuned). Null without a usable selection.
+ */
+export function selectionFrames(words, sel) {
+  const bounds = selectionBounds(sel);
+  if (!bounds || bounds[0] < 0 || bounds[1] >= words.length) return null;
+  let inPoint = Number.POSITIVE_INFINITY;
+  let outPoint = Number.NEGATIVE_INFINITY;
+  for (let i = bounds[0]; i <= bounds[1]; i += 1) {
+    inPoint = Math.min(inPoint, words[i].s);
+    outPoint = Math.max(outPoint, words[i].e);
+  }
+  return { inPoint, outPoint };
+}
+
 /** A plain click or a plain arrow: the cursor goes to `to`, nothing is selected. */
 export const placeCursor = (to) => ({ cursor: to, anchor: null });
 
