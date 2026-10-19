@@ -94,7 +94,7 @@ const TRANSCRIBE = submenu("menu.transcribe", [
   SEP,
   item("app.colab_settings"),
 ]);
-const TRANSCRIPT_NARRATION =submenu("menu.transcript_narration", [
+const TRANSCRIPT_NARRATION = submenu("menu.transcript_narration", [
   item("transcript.delete_words"),
   item("transcript.remove_words"),
   item("transcript.cut_words"),
