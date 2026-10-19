@@ -16,6 +16,15 @@
   editing or drift (before, same-track clips were never partners).
 - Not seen on screen yet. Sync points 1 and 2 (Alt+Mod+1/2) are still not wired.
 
+## [v26.10.19.19] - 2026-10-19
+
+- **Colab transcription follows the podcast session's answer** (the tool's plain-audio mode is still to be built on
+  their side): Cancel now asks the tool to stop its Colab session first (SIGINT, up to 30 seconds), then terminates
+  it, so a cancelled run does not leave a Colab machine running; the result's `timing` accepts any aligner version
+  (`ctc-v1`, `ctc-v2`, …) and an optional count of words the aligner could not place; Google Drive is not mentioned
+  or used (the mode sends the audio directly), so the "no Drive" setting is now an extra flag only older versions of
+  the tool need and is off by default. The upload notice says the audio goes to a Google Colab machine directly.
+
 ## [v26.10.19.18] - 2026-10-19
 
 - **Transcribe on Colab from kuulas (the kuulas side):** Track > Transcribe is now a submenu: "…on this computer",

@@ -37,6 +37,8 @@ import math
 import os
 import re
 import shutil
+import signal
+import subprocess
 import tempfile
 import threading
 from collections import deque
@@ -44,7 +46,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, NoReturn
 
-from .automix import run_process
+from .automix import _signal
+from .automix import run_process as _run_process
 from .clock import FLICKS
 from .jobs import JobCancelledError
 from .messages import KuulasError
@@ -61,8 +64,32 @@ LOG_LINES = 200
 TAIL_LINES = 15
 #: Results files the tool writes, by audio stem.
 RESULT_SUFFIX = ".words.json"
-TIMINGS = ("whisper", "ctc-v1")
+#: How the word times were made: ``whisper`` (as Whisper gave them) or ``ctc-v<N>`` (the
+#: starts corrected by the forced aligner, alignment version N; the number changes when
+#: its rule or model does, so a later version must not be refused).
+_TIMING = re.compile(r"whisper|ctc-v[0-9]+")
+#: Seconds to wait after SIGINT (the tool stops its Colab session on it) before SIGTERM.
+SESSION_STOP_SECONDS = 30
 _PROGRESS = re.compile(r"PROGRESS\s+(\d{1,3})(?:\s+(.*))?$")
+
+def _stop_session(proc: subprocess.Popen) -> int:
+    """Cancel: SIGINT first (the tool stops its Colab session on it; SIGTERM is not
+    handled, so a plain terminate would leave the session billing), then SIGTERM, then
+    SIGKILL."""
+    for sig, wait in ((signal.SIGINT, SESSION_STOP_SECONDS), (signal.SIGTERM, 10)):
+        _signal(proc, sig)
+        try:
+            return proc.wait(timeout=wait)
+        except subprocess.TimeoutExpired:
+            continue
+    _signal(proc, signal.SIGKILL)
+    return proc.wait()
+
+
+def run_process(cmd, cwd, on_line, cancel):
+    """``automix.run_process`` with the cancel that stops the Colab session."""
+    return _run_process(cmd, cwd, on_line, cancel, stop=_stop_session)
+
 
 RunProcess = Callable[
     [list[str], str | None, Callable[[str], None], threading.Event], int
@@ -99,7 +126,7 @@ def resolve_settings(stored: dict | None) -> dict[str, Any]:
         "cwd": cwd.strip() if isinstance(cwd, str) and cwd.strip() else None,
         "extra_args": list(extra) if isinstance(extra, list)
         and all(isinstance(x, str) for x in extra) else [],
-        "no_drive": no_drive if isinstance(no_drive, bool) else True,
+        "no_drive": no_drive if isinstance(no_drive, bool) else False,
         "model": model.strip() if isinstance(model, str) and model.strip()
         else DEFAULT_MODEL,
         "language": language.strip() if isinstance(language, str) and language.strip()
@@ -197,7 +224,7 @@ def read_words_json(path: Path | str) -> dict:
     if data.get("version") != 1 or isinstance(data.get("version"), bool):
         fail("error.colab.result_version", version=data.get("version"))
     timing = data.get("timing")
-    if timing not in TIMINGS:
+    if not (isinstance(timing, str) and _TIMING.fullmatch(timing)):
         fail("error.colab.result_timing", timing=timing)
     raw = data.get("words")
     if not isinstance(raw, list):
@@ -226,8 +253,11 @@ def read_words_json(path: Path | str) -> dict:
         words.append({"w": text.strip(), "s": s, "e": max(s + 1, round(end * FLICKS)),
                       "spk": ""})
     language = data.get("language")
+    rejected = data.get("rejected")
     return {"words": words, "timing": timing,
-            "language": language if isinstance(language, str) else ""}
+            "language": language if isinstance(language, str) else "",
+            "rejected": rejected if isinstance(rejected, int)
+            and not isinstance(rejected, bool) and rejected >= 0 else 0}
 
 
 # -- running -----------------------------------------------------------------------------

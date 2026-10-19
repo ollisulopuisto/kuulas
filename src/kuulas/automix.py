@@ -259,7 +259,8 @@ def _tool_env() -> dict[str, str]:
 
 
 def run_process(cmd: list[str], cwd: str | None, on_line: Callable[[str], None],
-                cancel: threading.Event) -> int:
+                cancel: threading.Event,
+                stop: Callable[[subprocess.Popen], int] | None = None) -> int:
     """Run ``cmd`` without a shell, feeding each output line (stdout and stderr
     together) to ``on_line``. When ``cancel`` is set the whole process group is
     terminated (``uv run`` starts a child that a plain terminate would orphan).
@@ -284,11 +285,11 @@ def run_process(cmd: list[str], cwd: str | None, on_line: Callable[[str], None],
                 break
             except subprocess.TimeoutExpired:
                 if cancel.is_set():
-                    code = _stop(proc)
+                    code = (stop or _stop)(proc)
                     break
     finally:
         if proc.poll() is None:  # an exception in this thread: never leave it running
-            _stop(proc)
+            (stop or _stop)(proc)
     reader.join(timeout=5)
     return code
 

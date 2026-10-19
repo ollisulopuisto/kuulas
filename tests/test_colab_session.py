@@ -160,7 +160,7 @@ def test_model_and_language_go_to_the_tool(session, client, tool, tmp_path):
     argv = json.loads((tmp_path / "call.json").read_text())["argv"]
     assert argv[argv.index("--model") + 1] == "small"
     assert argv[argv.index("--language") + 1] == "fi"
-    assert "--no-drive" in argv
+    assert "--no-drive" not in argv  # the plain-audio mode never uses Drive: not asked
 
 
 def test_ctc_timing_is_stored(session, client, tool, monkeypatch):
@@ -278,14 +278,14 @@ def test_settings_endpoints(client, tmp_path, monkeypatch):
     got = client.get("/api/settings/colab").json()
     assert got["settings"] == {}
     assert got["resolved"]["command"][0] == "uvx"
-    assert got["resolved"]["no_drive"] is True
+    assert got["resolved"]["no_drive"] is False
     put = client.put("/api/settings/colab", json={
         "command": ["colab-transcribe"], "cwd": "/x", "extra_args": ["--a"],
-        "no_drive": False})
+        "no_drive": True})
     assert put.status_code == 200
     again = client.get("/api/settings/colab").json()
     assert again["settings"]["cwd"] == "/x"
-    assert again["resolved"]["no_drive"] is False
+    assert again["resolved"]["no_drive"] is True
     bad = client.put("/api/settings/colab", json={"command": "uvx"})
     assert bad.status_code == 400
     assert bad.json()["error"]["key"] == "error.colab.bad_settings"
