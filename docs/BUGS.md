@@ -9,6 +9,8 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 
 | # | Raised | Issue | Notes |
 |---|---|---|---|
+| 93 | 19.10 | Automixer options dialog needs a redesign (all fields in one long list, empty fields, no grouping or explanations) | open, in progress |
+| 92 | 19.10 | Export: it always exports the whole session; no way in the dialog to export only the in/out range or chosen tracks; MP3 export does not ask for settings (bitrate); the dialog does not say that muted or not-soloed tracks come out as silence (the backend supports a range, track export and bitrates) | open, in progress |
 | 91 | 19.10 | Dragging a clip from track 2 to track 3 while it is in sync with a clip on track 1 also moves the partner from track 1 to track 2 (track 2 ends up empty). Probably the same cause as 83 (clips could not be moved) | in progress: a vertical drag with group editing on moves only the grabbed clip to the new track; sync partners follow in time only (M1 step 7) |
 | 84 | 19.10 | Moving a synced clip out and back (R) leaves a hole: what the clip covered is not revealed | open, needs the owner's choice: extend the neighbours automatically (when source-contiguous) or a "fill the gap" command |
 | 83 | 19.10 | Clips could not be moved after some session work (could not reproduce) | open, needs the exact symptom from the owner |
