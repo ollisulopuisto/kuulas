@@ -623,9 +623,6 @@ button.chip {
   mask: var(--role-icon) center / contain no-repeat;
   --role-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round'%3E%3Crect x='6' y='2' width='4' height='7.5' rx='2'/%3E%3Cpath d='M3.8 7.5a4.2 4.2 0 0 0 8.4 0M8 11.7v2.3'/%3E%3C/svg%3E");
 }
-.tag.kind-speech-mix {
-  --role-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round'%3E%3Crect x='3' y='2.5' width='3.4' height='6' rx='1.7'/%3E%3Crect x='9.6' y='2.5' width='3.4' height='6' rx='1.7'/%3E%3Cpath d='M4.7 8.5v4M11.3 8.5v4M3 12.5h10'/%3E%3C/svg%3E");
-}
 .tag.kind-music {
   --role-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M6 12V3.5l7-1.5V10'/%3E%3Ccircle cx='4.3' cy='12' r='1.8'/%3E%3Ccircle cx='11.3' cy='10.3' r='1.8'/%3E%3C/svg%3E");
 }
@@ -1083,6 +1080,85 @@ input[type="text"] {
   font-weight: var(--weight-medium);
   font-variant-numeric: tabular-nums;
 }
+/* The live level meter (level-meter.js): two thin bars, left over right, 0 to -60 dBFS across
+   140 px. Marks at -18 and -6 dBFS (70% and 90% of the scale; the same numbers as TICKS_DB). */
+.level-meter {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.level-meter[hidden],
+.lm-bars[hidden],
+.lm-clip[hidden] {
+  display: none;
+}
+.lm-bars {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 140px;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--surface-sunken);
+}
+.lm-row {
+  position: relative;
+  flex: 1;
+}
+.lm-fill,
+.lm-hold {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 0;
+}
+.lm-fill[data-zone="ok"] {
+  background: var(--ok);
+}
+.lm-fill[data-zone="warn"] {
+  background: var(--warn);
+}
+.lm-fill[data-zone="hot"] {
+  background: var(--danger);
+}
+.lm-hold {
+  width: 2px;
+  background: var(--text);
+}
+.lm-hold[data-zone="hot"] {
+  background: var(--danger-text);
+}
+.lm-hold[hidden] {
+  display: none;
+}
+.lm-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border-strong);
+  opacity: 0.8;
+}
+.lm-tick[data-db="-18"] {
+  left: 70%;
+}
+.lm-tick[data-db="-6"] {
+  left: 90%;
+}
+/* The clip light: red until clicked, so a peak that happened while you looked away is seen. */
+.lm-clip {
+  width: 10px;
+  height: 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: var(--danger);
+  cursor: pointer;
+}
 .divider {
   flex: none;
   width: 1px;
@@ -1393,6 +1469,72 @@ input[type="text"] {
   color: var(--text);
   font: inherit;
 }
+.clip-views {
+  display: flex;
+  gap: 0;
+  margin: var(--row-gap) 0;
+}
+.clip-view {
+  flex: 1 1 0;
+  border-radius: 0;
+}
+.clip-view:first-child {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+.clip-view:last-child {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.clip-view[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+  color: var(--text);
+  font-weight: var(--weight-strong);
+}
+.clip-star[aria-pressed="true"] {
+  color: var(--accent);
+}
+.clip-clear,
+.clip-open {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--row-gap) 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+.clip-keep {
+  width: 5em;
+}
+.clip-path {
+  flex: 1 1 12em;
+  min-width: 0;
+}
+.clip-projects {
+  display: flex;
+  flex-direction: column;
+  gap: var(--row-gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.clip-project {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.clip-project[aria-expanded="true"] {
+  border-color: var(--accent);
+}
 .clip-list {
   display: flex;
   flex-direction: column;
@@ -1400,6 +1542,9 @@ input[type="text"] {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+.clip-project-item > .clip-list {
+  margin: var(--row-gap) 0 0 var(--space-4);
 }
 .clip-entry {
   display: flex;
@@ -2403,6 +2548,39 @@ input[type="text"] {
 .channel-tag[hidden] {
   display: none;
 }
+/* Integrated loudness against the target (WP49), tinted by loudness-tint.js's three states.
+   While a newer measure runs the old value stays, dimmed. A header too short for text (compact)
+   keeps only a tinted dot; the tooltip has the numbers. */
+.loudness-readout {
+  flex: none;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.loudness-readout[hidden] {
+  display: none;
+}
+.loudness-readout[data-state="ok"] {
+  color: var(--ok-text);
+}
+.loudness-readout[data-state="notice"] {
+  color: var(--warn-text);
+}
+.loudness-readout[data-state="warn"] {
+  color: var(--danger-text);
+}
+.loudness-readout.stale {
+  opacity: 0.55;
+}
+.track-header.compact .loudness-readout {
+  width: 8px;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: currentColor;
+  font-size: 0;
+}
 .import-mono {
   margin: 0;
 }
@@ -2430,4 +2608,30 @@ input[type="text"] {
 .context-menu {
   max-height: calc(100vh - 16px);
   overflow-y: auto;
+}
+
+/* Mix with the automixer (WP68) */
+.automix-dialog form {
+  display: grid;
+  gap: var(--space-3);
+}
+.automix-field {
+  display: grid;
+  gap: var(--space-1);
+}
+.automix-field input {
+  height: var(--control-h);
+}
+.automix-dialog fieldset {
+  display: grid;
+  gap: var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.automix-note {
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+.automix-error {
+  color: var(--danger-text);
 }

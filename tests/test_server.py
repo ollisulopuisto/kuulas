@@ -64,6 +64,13 @@ class FakeEngine:
         if at is not None:
             self.position = at
 
+    def meter(self):
+        # dBFS, as Engine.meter(): the floor while stopped, else what the callback saw
+        if not self.playing:
+            return dict.fromkeys(("l", "r", "rms_l", "rms_r", "hold_l", "hold_r"), -90.0)
+        return {"l": -12.0, "r": -14.0, "hold_l": -6.0, "hold_r": -9.0,
+                "rms_l": -30.0, "rms_r": -30.0}
+
     def set_rate(self, rate):
         self.calls.append(("set_rate", rate))
         return self.playing
@@ -607,9 +614,68 @@ def test_live_pushes_the_heard_position_while_playing(session, engine, tmp_path)
         assert msg == {"type": "position", "position": 4800, "playing": True}
         engine.playing, engine.position = False, 5000
         # a last position when playback stops, so the playhead lands exactly
-        while msg["playing"]:
+        while msg.get("playing", True):  # the meter's frames carry no "playing"
             msg = ws.receive_json()
         assert msg["position"] == 5000
+
+
+METER_FLOOR = {"l": -90.0, "r": -90.0, "hold_l": -90.0, "hold_r": -90.0}
+
+
+def test_live_pushes_the_level_meter_while_playing(session, engine, tmp_path):
+    app = create_app(session, engine, language="en", ui_dir=tmp_path, tick=0.01,
+                     meter_every=0.0)
+    with TestClient(app) as c, c.websocket_connect("/api/live") as ws:
+        ws.receive_json()
+        ws.receive_json()
+        engine.playing, engine.position = True, 4800
+        msg = ws.receive_json()
+        while msg["type"] != "meter":
+            msg = ws.receive_json()
+        # four numbers, dBFS: the rms is the engine's, not sent
+        assert msg == {"type": "meter", "meter": {"l": -12.0, "r": -14.0,
+                                                  "hold_l": -6.0, "hold_r": -9.0}}
+
+
+def test_live_sends_one_zero_meter_frame_when_playback_stops_then_none(
+        session, engine, tmp_path):
+    app = create_app(session, engine, language="en", ui_dir=tmp_path, tick=0.01,
+                     meter_every=0.0)
+    with TestClient(app) as c, c.websocket_connect("/api/live") as ws:
+        ws.receive_json()
+        ws.receive_json()
+        engine.playing = True
+        msg = ws.receive_json()
+        while msg["type"] != "meter":
+            msg = ws.receive_json()
+        engine.playing = False
+        while True:
+            msg = ws.receive_json()
+            if msg["type"] == "meter" and msg["meter"] == METER_FLOOR:
+                break
+        # nothing more about the meter while stopped: the next message is the notice
+        engine.notices.append({"id": 1, "key": "k", "params": {}, "text": "t"})
+        while msg["type"] != "notice":
+            msg = ws.receive_json()
+            assert msg["type"] != "meter" or msg["meter"] != METER_FLOOR
+
+
+def test_live_meter_waits_for_its_period_between_frames(session, engine, tmp_path):
+    # a period far longer than the test: only the first frame can go out, however many
+    # ticks there are (no timing in the assertion)
+    app = create_app(session, engine, language="en", ui_dir=tmp_path, tick=0.005,
+                     meter_every=1000.0)
+    with TestClient(app) as c, c.websocket_connect("/api/live") as ws:
+        ws.receive_json()
+        ws.receive_json()
+        engine.playing = True
+        seen, positions = 0, 0
+        while positions < 20:
+            engine.position += 100  # every tick moves, so every tick sends a position
+            msg = ws.receive_json()
+            seen += msg["type"] == "meter"
+            positions += msg["type"] == "position"
+        assert seen == 1
 
 
 def test_live_pushes_engine_notices_once(session, engine, tmp_path):

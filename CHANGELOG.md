@@ -1,3 +1,40 @@
+## [v26.10.19.3] - 2026-10-19
+
+- **Selecting words in the transcript also marks them on the timeline:** the selected words become the in and out
+  marks, so you see where the edit would land in the waveform and can drag the marks to fine-tune it before you
+  cut. (The transcript pop-up still acts on the words; to cut your fine-tuned range press X on the timeline.)
+  Not tried on screen yet.
+- Behind the scenes, small tested building blocks for coming features (series templates, chapter lists, filler
+  words, safe file names, loudness number formats): nothing to see yet.
+
+## [v26.10.19.2] - 2026-10-19
+
+- **Levels before you export:** each track header shows the track's integrated loudness against the target
+  (-19 LUFS for speech, -23 for music), the status bar has a live level meter (left and right, peak hold, marks at
+  -18 and -6 dB) with a red clip light that stays on until you click it, and Track menu > "Reset track and bus
+  gains to 0 dB" puts every fader back to unity in one undoable step. Not tried on real playback yet.
+- **Clipboards belong to the project:** every project keeps its own clipboard history (`clipboard.json` inside the
+  project, nothing is pruned any more; "Clear old entries" in the Edit menu keeps the newest 100). Mark an entry
+  with the star to share it with all your projects. The Clipboard tab has three views: This project, Shared and
+  Other projects (recent projects, or open any project folder, read-only), where you can paste an entry straight
+  into the project you are editing. Entries you already had in the old per-user history move into the project they
+  came from. The Pin button is gone. Not seen on screen yet.
+- **The speech-mix track kind is gone** (separating a mixed-down file is outside kuulas). Tracks are speech or
+  music; a project that had a speech-mix track opens it as speech. Alt+Mod+K now toggles speech and music.
+
+## [v26.10.19.1] - 2026-10-19
+
+- **Mix with the automixer from inside kuulas:** File > "Mix with the automixer…" (also in the command palette)
+  writes the stems to a temporary folder, runs your automixer on them and saves the mix beside the project
+  (`<edit> automixer <time>.wav`). Set the target loudness and an optional ad spot in the dialog; the command and
+  its folder are remembered (default `uv run automixer` in `~/Documents/koodi/podcast`). It runs in the
+  background with Cancel and a real progress bar (the automixer's `--progress` lines). The automixer gets the stems
+  folder, so it reads them from disk and a full episode does not need to fit in memory. Only speech and music
+  tracks are mixed: buses are left out of this job (normal exports are unchanged), music is
+  exported as stereo, and a project that is not 48000 Hz is refused before anything runs. A missing program, a
+  failed run or a run that writes no file each give a clear message. Not tried against the real automixer yet,
+  only a fake one.
+
 ## [v26.10.18.70] - 2026-10-18
 
 - **The clip you drag shows its waveform:** the ghost of a moved clip now draws its real waveform (with the clip and

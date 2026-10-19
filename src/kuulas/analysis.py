@@ -164,14 +164,14 @@ def _from_audio(p: Project, store: Store, clips) -> tuple[np.ndarray, np.ndarray
 
 
 def speech_lanes(p: Project, store: Store) -> Lanes:
-    """One lane per speaker across speech and speech-mix tracks.
+    """One lane per speaker across speech tracks.
 
     Tracks with the same speaker are grouped into one lane. Tracks are
     measured one per core: each measurement is independent, numpy releases
     the GIL in the heavy parts, and the decision below is per lane, so the
     result is the same as serial.
     """
-    tracks = [t for t in p.tracks if t.kind in ("speech", "speech-mix")
+    tracks = [t for t in p.tracks if t.kind == "speech"
               and not t.mute and t.clips]
     if not tracks:
         return Lanes(speakers=[])
@@ -302,7 +302,7 @@ def automix(p: Project, store: Store, depth_db: float = masks.DUCK_DB) -> Projec
 def anyone_talking_intervals(p: Project, store: Store) -> list[tuple[float, float]]:
     """Timeline intervals [(start_s, end_s), ...] where anyone is talking.
 
-    Built from speech and speech-mix lanes with pauses under GAP_CLOSE_S
+    Built from speech lanes with pauses under GAP_CLOSE_S
     bridged and blips under MIN_RUN_S dropped.
     """
     lanes = speech_lanes(p, store)

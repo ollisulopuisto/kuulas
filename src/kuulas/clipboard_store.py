@@ -1,8 +1,11 @@
-"""The clipboard history on disk (WP46 wiring): one JSON file per user.
+"""The clipboard on disk (WP46 wiring, WP65): one JSON file per project, and one per user.
 
-Every kuulas process of this user reads and writes the same file, which is
-what lets an entry copied in one project be pasted in another. The file holds
-references only (``clipboard``), so it stays small. Writes are atomic (a
+Since WP65 each project keeps its own clipboard in ``<project>.kuulas/clipboard.json``
+(``project_path``), written only by the instance that holds the project's lock.
+The per-user file (``default_path``) is the *shared* store: the entries the user
+marked as worth sharing, and the old history that has not yet moved to the
+project it came from. The files hold references only, so they stay small.
+Writes are atomic (a
 temporary file renamed over the old one), so a crash leaves the old history.
 A missing or damaged file is an empty history: the clipboard is a convenience
 and must never stop an edit or the editor from starting.
@@ -29,8 +32,9 @@ from .messages import t
 
 log = logging.getLogger("kuulas.clipboard")
 
-#: How many entries the history keeps; pinned ones are never dropped.
-MAX_ENTRIES = 50
+#: A project's clipboard file inside the ``.kuulas`` folder. Not project state
+#: (docs/FORMAT.md): it must sync with Dropbox, so syncmark never marks it.
+PROJECT_FILE = "clipboard.json"
 
 _T = TypeVar("_T")
 #: One writer at a time inside this process (other processes: last write wins
@@ -50,28 +54,52 @@ def default_path() -> Path:
     return config_dir() / "clipboard.json"
 
 
+def project_path(folder: str | Path) -> Path:
+    """The clipboard file of the project at ``folder``. Only this exact name is
+    ever read: a "conflicted copy" is another file."""
+    return Path(folder) / PROJECT_FILE
+
+
 def entry_dict(entry: Entry) -> dict:
     """An entry as plain JSON data for the API."""
     return json.loads(clipboard.to_json(entry))
 
 
 class ClipboardStore:
-    """The history file at ``path`` (``default_path()`` when not given)."""
+    """The clipboard file at ``path`` (``default_path()`` when not given).
 
-    def __init__(self, path: str | Path | None = None) -> None:
+    ``writable=False`` (a read-only project) never touches the disk: the
+    entries live in memory for this window, so copy and paste still work.
+    ``soft=True`` (a project's own file) turns a failed write into a logged
+    warning and ``write_error`` instead of an exception: the clipboard is a
+    convenience and must not stop an edit.
+    """
+
+    def __init__(self, path: str | Path | None = None, *, writable: bool = True,
+                 soft: bool = False) -> None:
         self.path = Path(path) if path is not None else default_path()
+        self.writable = writable
+        self.soft = soft
+        #: The last failed write's message, None after a good one (soft stores).
+        self.write_error: str | None = None
+        self._memory: ClipboardHistory | None = None
 
     def load(self) -> ClipboardHistory:
         """The history in the file; empty when it is missing or damaged."""
+        if self._memory is not None:
+            return ClipboardHistory.from_json(self._memory.to_json())
+        return self._read()
+
+    def _read(self) -> ClipboardHistory:
         try:
             text = self.path.read_text(encoding="utf-8")
         except FileNotFoundError:
-            return ClipboardHistory(MAX_ENTRIES)
+            return ClipboardHistory()
         except (OSError, UnicodeDecodeError) as e:
             log.warning(t("log.clipboard.unreadable", path=str(self.path), error=str(e)))
-            return ClipboardHistory(MAX_ENTRIES)
+            return ClipboardHistory()
         if not text.strip():
-            return ClipboardHistory(MAX_ENTRIES)
+            return ClipboardHistory()
         try:
             history = ClipboardHistory.from_json(text)
             # Parsing is lazy about shapes (a string where a list belongs); a
@@ -79,10 +107,10 @@ class ClipboardStore:
             history.to_json()
         except (ValueError, TypeError, KeyError, AttributeError, IndexError) as e:
             log.warning(t("log.clipboard.damaged", path=str(self.path), error=str(e)))
-            return ClipboardHistory(MAX_ENTRIES)
-        # The limit is ours, not the file's: a hand-edited or newer file
-        # cannot make the history grow without bound.
-        history.max_entries = MAX_ENTRIES
+            return ClipboardHistory()
+        # No limit is ours to impose and none is the file's: nothing is
+        # dropped unless the user clears old entries.
+        history.max_entries = None
         return history
 
     def stamp(self) -> tuple[int, int] | None:
@@ -96,15 +124,32 @@ class ClipboardStore:
             return None
         return info.st_mtime_ns, info.st_size
 
-    def update(self, change: Callable[[ClipboardHistory], _T]) -> _T:
+    def update(self, change: Callable[[ClipboardHistory], _T]) -> _T | None:
         """Load, apply ``change`` to the history, write it back; return what
-        ``change`` returned. Raises ``OSError`` when the file cannot be written
-        (the old file is then untouched)."""
+        ``change`` returned. A hard store raises ``OSError`` when the file cannot
+        be written (the old file is then untouched); a soft one logs it, sets
+        ``write_error`` and returns None. A store that may not write keeps the
+        change in memory only."""
         with _LOCK:
-            history = self.load()
+            history = self._memory if self._memory is not None else self._read()
             result = change(history)
-            history.max_entries = MAX_ENTRIES
-            self._write(history.to_json())
+            history.max_entries = None
+            if not self.writable:
+                self._memory = history
+                return result
+            try:
+                self._write(history.to_json())
+            except OSError as e:
+                if not self.soft:
+                    raise
+                self.write_error = str(e)
+                # Keep it for this window rather than lose the copy.
+                self._memory = history
+                log.warning(t("log.clipboard.write_failed", path=str(self.path),
+                              error=str(e)))
+                return None
+            self.write_error = None
+            self._memory = None
             return result
 
     def _write(self, text: str) -> None:

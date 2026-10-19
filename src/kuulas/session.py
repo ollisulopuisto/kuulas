@@ -40,6 +40,7 @@ from nhsx.read import time_to_seconds as nhsx_time_to_seconds
 from . import (
     analysis,
     candidates,
+    clipboard_browse,
     clipboard_link,
     collateral,
     edit_points,
@@ -56,15 +57,25 @@ from . import (
     transcript,
     transcript_text,
 )
+from . import automix as automix_module
 from . import chapters as chapters_module
 from . import db as dbm
 from . import export as export_module
 from . import loudness_curve as loudness_curve_module
 from . import markers as markers_module
 from . import music_report as music_report_module
-from .clipboard import ClipRef, Entry, entry_from_refs, make_entry, make_entry_range
+from .clipboard import (
+    ClipRef,
+    Entry,
+    adopted_copy,
+    entry_from_refs,
+    entry_from_view,
+    make_entry,
+    make_entry_range,
+)
 from .clipboard_preview import preview_project
-from .clipboard_store import ClipboardStore, entry_dict
+from .clipboard_store import ClipboardStore, entry_dict, project_path
+from .clipboard_text import entry_text
 from .clock import FLICKS, frames_to_flicks
 from .history import History, UndoInfo
 from .jobs import JobCancelledError, Jobs
@@ -237,11 +248,9 @@ class Session:
     exist. ``rate`` applies to a new project only: an existing one keeps its own."""
 
     def __init__(self, folder: str | Path, rate: int = 48000,
-                 clipboard: ClipboardStore | None = None):
+                 clipboard: ClipboardStore | None = None,
+                 shared_clipboard: ClipboardStore | None = None):
         folder = Path(folder)
-        #: The per-user clipboard history (WP46), shared by every project and
-        #: every kuulas window of this user.
-        self.clipboard = clipboard or ClipboardStore()
         self.lock = threading.RLock()
         if (folder / "manifest.json").exists() or (folder / "project.sqlite").exists():
             self.package = package.open_package(folder)
@@ -250,6 +259,18 @@ class Session:
             self.package = package.create(folder, rate)
             is_new = True
         self.package.start()
+        #: This project's clipboard (WP65): ``clipboard.json`` in the project
+        #: folder. Not project state (no history step); only the instance that
+        #: holds the lock writes it, a read-only open keeps it in memory, and a
+        #: failed write is a warning, never an error.
+        self.clipboard = clipboard or ClipboardStore(
+            project_path(self.package.path), writable=not self.read_only, soft=True)
+        #: The shared store (WP65): the per-user file. It holds what the user
+        #: marked as worth sharing, and the old history of projects that have
+        #: not opened since it was moved into projects.
+        self.shared_clipboard = shared_clipboard or ClipboardStore()
+        self._move_shared_history()
+        self._reconcile_shared_flags()
         self.jobs = Jobs()
         #: Folder of the last "Export all tracks" this run made, for Show in Finder.
         self.last_export_folder: str | None = None
@@ -455,7 +476,71 @@ class Session:
                 "clips": len(entry.refs),
                 "slots": len({ref.track_slot for ref in entry.refs}),
                 "missing_here": len(wanted - have),
-                "source_name": Path(entry.source_project).stem}
+                "source_name": entry.source_name or Path(entry.source_project).stem}
+
+    def _move_shared_history(self) -> None:
+        """Once per entry (WP65 step 3): the old per-user history becomes the
+        shared store, and the entries this project made move into its own
+        clipboard. Entries marked shared stay (they are the shared copies), as
+        do those of other or unknown projects, until their project opens.
+
+        Copy first, remove second: if the project's file cannot be written
+        nothing leaves the shared one, and a shared file that cannot be written
+        back only leaves duplicates that the next open clears. Idempotent. A
+        read-only open moves nothing (it may not write the project). Never
+        raises: the clipboard must not stop a project opening."""
+        if self.read_only:
+            return
+        try:
+            mine = [e for e in self.shared_clipboard.load().entries()
+                    if not e.shared and clipboard_link.same_folder(
+                        e.source_project, self.package.path)]
+            if not mine:
+                return
+            self.clipboard.update(lambda h: h.merge(mine))
+            if self.clipboard.write_error:
+                return
+            moved = [e.id for e in mine]
+            self.shared_clipboard.update(lambda h: h.remove(moved))
+        except OSError as e:
+            log.warning(t("log.clipboard.move_failed", error=str(e)))
+
+    def _reconcile_shared_flags(self) -> None:
+        """The shared store is what says whether an entry is shared: an own
+        entry flagged shared that the shared store no longer has (unshared from
+        another project's Shared view, or the file was lost) loses its flag.
+        Same rules as ``_move_shared_history``: not read-only, never raises."""
+        if self.read_only:
+            return
+        try:
+            flagged = [e.id for e in self.clipboard.load().entries() if e.shared]
+            if not flagged:
+                return
+            have = {e.id for e in self.shared_clipboard.load().entries()}
+            stale = [i for i in flagged if i not in have]
+            if stale:
+                def clear(history):
+                    for entry_id in stale:
+                        history.set_shared(entry_id, False)
+
+                self.clipboard.update(clear)
+        except OSError as e:
+            log.warning(t("log.clipboard.move_failed", error=str(e)))
+
+    def _describe(self, entry: Entry) -> Entry:
+        """``entry`` with what only the session knows (WP65): this project's
+        folder, name and manifest id, and the transcript words inside the
+        copied stretch. Reads the transcripts, so a project without any gives
+        an empty text."""
+        try:
+            text = entry_text(self.state, entry, self.transcripts())
+        except (KeyError, ValueError, TypeError) as e:
+            # The text is a convenience for searching; it never stops a copy.
+            log.warning(t("log.clipboard.text_failed", error=str(e)))
+            text = ""
+        return replace(entry, source_project=str(self.package.path),
+                       source_name=Path(self.package.path).stem,
+                       source_id=str(self.package.manifest.get("id", "")), text=text)
 
     def _entry(self, entry_id: str) -> Entry:
         entry = self.clipboard.load().get(entry_id)
@@ -469,6 +554,70 @@ class Session:
         project lacks."""
         project = self.state
         return [self._entry_view(e, project) for e in self.clipboard.load().entries()]
+
+    def clipboard_shared(self) -> list[dict]:
+        """The shared store, newest first, in the same view as ``clipboard_list``
+        (the missing-here count is against this project)."""
+        project = self.state
+        return [self._entry_view(e, project)
+                for e in self.shared_clipboard.load().entries()]
+
+    def clipboard_share(self, entry_id: str, shared: bool = True) -> None:
+        """Mark one of this project's entries as worth sharing, or take it back.
+
+        Marking puts a copy (same id, ``shared`` true) into the shared store and
+        flags the own entry; unmarking removes the shared copy and clears the
+        flag. The id may also be one that only the shared store has (another
+        project's): unmarking then removes it from the shared store, and that
+        project's own flag is cleaned up when it opens. The shared store is
+        written first, so a failure leaves the flag unset rather than set for
+        nothing. Not project state: no undo step."""
+        own = self.clipboard.load().get(entry_id)
+        try:
+            if shared:
+                if own is None:
+                    raise NoSuchEntryError("error.clipboard.no_entry", entry_id=entry_id)
+                copy = replace(own, shared=True)
+                self.shared_clipboard.update(lambda h: h.put(copy))
+            else:
+                known = self.shared_clipboard.update(
+                    lambda h: h.remove([entry_id]) > 0)
+                if own is None and not known:
+                    raise NoSuchEntryError("error.clipboard.no_entry", entry_id=entry_id)
+        except OSError as e:
+            raise ops.EditError("error.clipboard.write_failed", error=str(e)) from None
+        if own is not None:
+            self._change_history(entry_id, lambda h: h.set_shared(entry_id, shared))
+
+    def clipboard_projects(self) -> list[dict]:
+        """The recent projects other than this one, with how many clipboard
+        entries each has (read now, read-only): the desktop's recents list, so
+        headless, or with none remembered, it is empty."""
+        from . import desktop  # noqa: PLC0415  (heavy, and only the desktop has recents)
+
+        recents = desktop.load_recents(desktop.recents_file())
+        return clipboard_browse.recent_projects(recents, self.package.path)
+
+    def clipboard_project(self, path: str) -> dict:
+        """Another project's clipboard, read-only: ``{project: {name, path},
+        entries: [view...]}``. ``path`` must be a kuulas project folder
+        (``clipboard_browse.project_folder``); a missing or damaged
+        ``clipboard.json`` is an empty list."""
+        folder = clipboard_browse.project_folder(path)
+        project = self.state
+        return {"project": {"name": folder.stem, "path": str(folder)},
+                "entries": [self._entry_view(e, project)
+                            for e in clipboard_browse.read_entries(folder)]}
+
+    def clipboard_adopt(self, entry: object, from_project: str = "") -> dict:
+        """Copy an entry from the shared store or another project into THIS
+        project's clipboard (new id, ``adopted_from`` set) and return its view;
+        the normal paste then works on it. ``entry`` is the view the API listed.
+        The original is untouched."""
+        parsed = entry_from_view(entry)
+        mine = adopted_copy(parsed, from_project=str(from_project or ""))
+        self.clipboard.update(lambda h: h.add(mine))
+        return self._entry_view(mine, self.state)
 
     def clipboard_preview(self, entry_id: str):
         """``(temporary project or None, missing media count)`` for playing an
@@ -492,7 +641,7 @@ class Session:
                                                     int(start), int(end),
                                                     bool(group_editing))
             entry = make_entry_range(project, int(start), int(end), track_ids, name=name)
-        entry = replace(entry, source_project=str(self.package.path))
+        entry = self._describe(entry)
         self.clipboard.update(lambda h: h.add(entry))
         return {"entry": self._entry_view(entry, project)}
 
@@ -529,8 +678,8 @@ class Session:
                                             bool(group_editing))
             entry, problem = None, None
             try:
-                entry = replace(make_entry_range(project, start, end, scope, name=name),
-                                source_project=str(self.package.path))
+                entry = self._describe(
+                    make_entry_range(project, start, end, scope, name=name))
             except KuulasError as e:
                 problem = t(e.key, **e.params)
             new = remove(project, start, end, track_ids, bool(group_editing))
@@ -545,6 +694,8 @@ class Session:
                 self.clipboard.update(lambda h, e=entry: h.add(e))
             except OSError as e:
                 problem = t("error.clipboard.write_failed", error=str(e))
+        if problem is None and self.clipboard.write_error:
+            problem = t("error.clipboard.write_failed", error=self.clipboard.write_error)
         if problem is not None:
             log.warning(t("log.clipboard.copy_failed", error=problem))
             return {"clipboard": {"ok": False, "entry": None, "error": problem}}
@@ -630,16 +781,35 @@ class Session:
 
         self.clipboard.update(run)
 
+    def clipboard_clear_old(self, keep: int = 100) -> int:
+        """"Clear old entries": drop this project's oldest entries beyond the
+        newest ``keep`` (default 100, at least one; pinned ones stay); return
+        how many went. The only way entries ever leave the clipboard except
+        deleting one by hand."""
+        return self.clipboard.update(lambda h: h.prune(int(keep))) or 0
+
     def clipboard_pin(self, entry_id: str, pinned: bool = True) -> None:
         self._change_history(entry_id, lambda h: h.pin(entry_id) if pinned
                              else h.unpin(entry_id))
 
+    def _follow_shared(self, entry_id: str, change: Callable) -> None:
+        """Apply ``change`` to the shared copy of an entry, if there is one. The
+        shared copy is a convenience: a failure here is a warning, and the
+        project's own entry (already changed) is what counts."""
+        try:
+            self.shared_clipboard.update(
+                lambda h: change(h) if h.get(entry_id) is not None else None)
+        except OSError as e:
+            log.warning(t("log.clipboard.copy_failed", error=str(e)))
+
     def clipboard_rename(self, entry_id: str, name: str) -> None:
         clean = str(name).strip()[:200]
         self._change_history(entry_id, lambda h: h.rename(entry_id, clean))
+        self._follow_shared(entry_id, lambda h: h.rename(entry_id, clean))
 
     def clipboard_delete(self, entry_id: str) -> None:
         self._change_history(entry_id, lambda h: h.delete(entry_id))
+        self._follow_shared(entry_id, lambda h: h.delete(entry_id))
 
     # -- history -----------------------------------------------------------
 
@@ -755,6 +925,31 @@ class Session:
     def export_mix(self, args: dict | None = None) -> list[str]:
         """Queue ONE job that exports the mix as one file (see ``mix_export_args``)."""
         return self._export_job(self.mix_export_args(args), t("job.export_mix"))
+
+    def automix(self, params: dict | None = None) -> list[str]:
+        """Queue ONE job that mixes the edit with the automixer (WP68): stems to a
+        temporary folder, the tool, the mix beside the project. ``params``:
+        ``target_lufs``, ``ad_spot``, ``ad_duration``, ``extra_args``. Bad
+        numbers and a read-only project fail now. The job's ``result`` is
+        ``{"path", "name", "log", "command"}``; ``last_export_folder`` becomes its
+        folder."""
+        params = dict(params or {})
+        automix_module.validate_params(params)
+        automix_module.check_rate(self)
+        with self.lock:
+            self.history._check_writable()
+        settings = automix_module.load_settings()
+
+        def run(progress):
+            result = automix_module.run(
+                self, params, settings,
+                lambda fraction, message="", indeterminate=False: progress(
+                    fraction, message, indeterminate),
+                progress.cancelled_event)
+            self.last_export_folder = str(Path(result["path"]).parent)
+            return result
+
+        return [self.jobs.submit("automix", t("job.automix"), run, keep_result=True)]
 
     def export_folder_hint(self) -> dict:
         """Where an export goes when the caller names no folder: the folder the
@@ -1180,6 +1375,9 @@ class Session:
                 p = ops.add_clip(p, track_id, m.id, start=pl.start_frame, clip_id=clip_id)
                 clip_ids.append(clip_id)
 
+            if onto_track is not None:
+                # No layers: what the new clips land on is trimmed back, as for a move.
+                p = ops._overwrite_under(self.history.state, p)
             refs = [m.time_ref_flicks for m in media]
             if effective_mode == "side_by_side" and len({m.id for m in media}) > 1:
                 # Exact clocks when every file has one (or none does); mixed,
@@ -1187,9 +1385,18 @@ class Session:
                 # on the timeline is what the group has to say.
                 basis = "files" if len({r is None for r in refs}) == 1 else "timeline"
                 p = ops.mark_in_sync(p, clip_ids, main=clip_ids[0], basis=basis)
-            self.last_import_stereo = [
-                {"id": track_ids_by_key[pl.track_key], "name": pl.track_name}
-                for pl in import_plan.stereo_speech(placements)]
+            if onto_track is not None:
+                # The target track decides: stereo on a music track stays stereo (no
+                # "turn into mono?" question); on a speech track it is still offered.
+                target = next(t for t in p.tracks if t.id == onto_track)
+                stereo_in = any(pl.item.channels >= 2 for pl in placements)
+                self.last_import_stereo = (
+                    [{"id": target.id, "name": target.name}]
+                    if stereo_in and target.kind == "speech" else [])
+            else:
+                self.last_import_stereo = [
+                    {"id": track_ids_by_key[pl.track_key], "name": pl.track_name}
+                    for pl in import_plan.stereo_speech(placements)]
             label = t("history.import", count=len(media))
             distinct_media = len({m.id for m in media}) > 1
             made_group = (

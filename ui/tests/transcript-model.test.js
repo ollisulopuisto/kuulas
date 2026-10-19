@@ -25,6 +25,7 @@ import {
   placeCursor,
   selectedIndices,
   selectionBounds,
+  selectionFrames,
   selectWord,
   shouldLoadWords,
   speakerName,
@@ -447,5 +448,38 @@ describe("when the words are fetched again (muted flags come from the server)", 
     assert.equal(shouldLoadWords({ ...idle, head: null, key: "K1" }), false);
     assert.equal(shouldLoadWords({ ...idle, force: true }), true);
     assert.equal(shouldLoadWords({ ...idle, force: true, fetching: true }), false);
+  });
+});
+
+describe("the selection as in and out marks", () => {
+  const words = [
+    { s: 100, e: 200 },
+    { s: 210, e: 300 },
+    { s: 310, e: 400 },
+    { s: 250, e: 520 }, // another speaker, overlapping
+  ];
+  test("a selected run gives its first start and last end", () => {
+    assert.deepEqual(selectionFrames(words, { anchor: 1, cursor: 2 }), {
+      inPoint: 210,
+      outPoint: 400,
+    });
+  });
+  test("the direction does not matter, and overlaps widen the span", () => {
+    assert.deepEqual(selectionFrames(words, { anchor: 3, cursor: 1 }), {
+      inPoint: 210,
+      outPoint: 520,
+    });
+  });
+  test("one double-clicked word is a range too", () => {
+    assert.deepEqual(selectionFrames(words, { anchor: 0, cursor: 0 }), {
+      inPoint: 100,
+      outPoint: 200,
+    });
+  });
+  test("a bare cursor, no selection or stale indices give nothing", () => {
+    assert.equal(selectionFrames(words, { anchor: null, cursor: 1 }), null);
+    assert.equal(selectionFrames(words, null), null);
+    assert.equal(selectionFrames(words, { anchor: 2, cursor: 9 }), null);
+    assert.equal(selectionFrames([], { anchor: 0, cursor: 0 }), null);
   });
 });

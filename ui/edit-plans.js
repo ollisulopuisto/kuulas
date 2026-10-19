@@ -135,6 +135,20 @@ export function deleteEmptyTracksPlan(state) {
 }
 
 /**
+ * Every track and bus fader to 0 dB (owner, 2026-10-19: unity gain before export). The master,
+ * clip gains and pan stay. Null when all are at 0, so the menu dims it.
+ */
+export function resetGainsPlan(state) {
+  const project = state?.project;
+  if (!project) return null;
+  const count = [...project.tracks, ...(project.buses ?? [])].filter(
+    (x) => (x.gain_db ?? 0) !== 0,
+  ).length;
+  if (count === 0) return null;
+  return plan("reset_gains", {}, "reset_gains", { count });
+}
+
+/**
  * Cmd+Backspace: really delete the selected clips and leave every other clip where it was
  * (owner, 2026-10-18); the gap stays. Backspace only mutes.
  */

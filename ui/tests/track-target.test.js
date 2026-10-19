@@ -19,7 +19,7 @@ const project = {
     { id: "t1", kind: "speech", bus: "b1", clips: [{ id: "c1" }] },
     { id: "t2", kind: "speech", bus: "b1", clips: [] },
     { id: "t3", kind: "music", bus: "b2", clips: [{ id: "c3" }] },
-    { id: "t4", kind: "speech-mix", bus: null, clips: [] },
+    { id: "t4", kind: "speech", bus: null, clips: [] },
   ],
 };
 const state = (extra) => ({ project, selection: new Set(), focusTrack: null, ...extra });
@@ -95,14 +95,14 @@ describe("bus options and members", () => {
   });
 
   test("roles map to the existing kind labels", () => {
-    assert.equal(roleKey("speech-mix"), "ui.track.kind.speech-mix");
+    assert.equal(roleKey("speech"), "ui.track.kind.speech");
     assert.equal(roleKey("music"), "ui.track.kind.music");
   });
 });
 
 describe("role choices", () => {
   test("the select offers exactly the kinds set_track accepts", () => {
-    assert.deepEqual(TRACK_KINDS, ["speech", "speech-mix", "music"]);
+    assert.deepEqual(TRACK_KINDS, ["speech", "music"]);
     for (const kind of TRACK_KINDS) assert.equal(roleKey(kind), `ui.track.kind.${kind}`);
   });
 

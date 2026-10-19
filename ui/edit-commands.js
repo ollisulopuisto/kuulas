@@ -2,7 +2,7 @@
 // Each one is a plan (edit-plans.js) sent through the editor; `can()` asks the same
 // plan whether there is anything to do. Keys live in keymap-default.js, never here.
 import { expandGroups, groupClipsPlan, mergeClipsPlan, ungroupClipsPlan } from "./clip-groups.js";
-import { pasteChoice } from "./clipboard.js";
+import { CLIPBOARD_VIEWS, keepCount, pasteChoice } from "./clipboard.js";
 import {
   addTrackPlan,
   busMutePlan,
@@ -25,6 +25,7 @@ import {
   removeClipsPlan,
   removeFromBusPlan,
   removePlan,
+  resetGainsPlan,
   soloPlan,
   splitPlan,
   trackMutePlan,
@@ -123,6 +124,7 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
   planned("edit.remove_clips", removeClipsPlan);
   planned("track.add", (s) => addTrackPlan(s, "speech", { t }));
   planned("track.delete_empty", deleteEmptyTracksPlan);
+  planned("track.reset_gains", resetGainsPlan);
   planned("track.add_music", (s) => addTrackPlan(s, "music", { t }));
   planned("edit.remove", (s) => removePlan(s));
   planned("edit.remove_track", (s) => removePlan(s, { thisTrackOnly: true }));
@@ -161,6 +163,36 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
       });
     },
     (s) => hasProject(s) && pasteEntry(s) !== null,
+  );
+  // The only way entries leave the clipboard besides deleting one by hand (WP65): keep the
+  // newest N of this project's, N from the Clipboard tab's field (100 by default).
+  def(
+    "edit.clear_old_clipboard",
+    () => void app.clearOldClipboard(keepCount(app.getState())),
+    (s) => hasProject(s) && (s.clipboard?.length ?? 0) > 0,
+  );
+  // The Share star of the picked (else newest) entry: marked entries show in the Shared view
+  // of every project (WP65). Not an edit: the clipboard is not project state.
+  def(
+    "edit.share_clipboard",
+    () => {
+      const entry = pasteEntry(app.getState());
+      if (entry) void app.shareClipboard(entry.id, !entry.shared);
+    },
+    (s) => hasProject(s) && pasteEntry(s) !== null,
+  );
+  // The tab's three views and the picker for any project's clipboard.
+  for (const view of CLIPBOARD_VIEWS) {
+    def(
+      `clipboard.view_${view}`,
+      () => app.showClipboard(view),
+      (s) => hasProject(s),
+    );
+  }
+  def(
+    "clipboard.open_project",
+    () => app.openClipboardProject(),
+    (s) => hasProject(s),
   );
   planned("edit.paste", (s) => pastePlan(s, { mode: "insert", target: pasteChoice(s).target }));
   planned("edit.paste_overwrite", (s) =>

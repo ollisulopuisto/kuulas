@@ -8,7 +8,7 @@ import pytest
 
 from kuulas import clipboard_store
 from kuulas.clipboard import ClipboardHistory, ClipRef, Entry
-from kuulas.clipboard_store import MAX_ENTRIES, ClipboardStore
+from kuulas.clipboard_store import ClipboardStore
 from kuulas.desktop import config_dir
 
 
@@ -48,27 +48,28 @@ def test_a_damaged_file_is_replaced_by_the_next_write(tmp_path):
     assert [e.id for e in store.load().entries()] == ["e1"]
 
 
-def test_the_limit_is_fifty_whatever_the_file_says(tmp_path):
+def test_there_is_no_limit_whatever_the_file_says(tmp_path):
+    # WP65: the 50-entry cap is gone. A file written with the old limit does not
+    # bring it back, and nothing is dropped on the next write.
     path = tmp_path / "clipboard.json"
     big = ClipboardHistory(10_000)
     for n in range(80):
         big.add(entry(n))
     path.write_text(big.to_json(), encoding="utf-8")
     store = ClipboardStore(path)
-    loaded = store.load()
-    assert loaded.max_entries == MAX_ENTRIES == 50
+    assert store.load().max_entries is None
     store.update(lambda h: h.add(entry(999)))
-    assert len(store.load().entries()) == 50
+    assert len(store.load().entries()) == 81
 
 
-def test_pinned_entries_do_not_count_toward_the_fifty(tmp_path):
+def test_pinned_entries_are_kept_like_all_the_others(tmp_path):
     store = ClipboardStore(tmp_path / "clipboard.json")
     store.update(lambda h: h.add(entry(0)))
     store.update(lambda h: h.pin("e0"))
     for n in range(1, 60):
         store.update(lambda h, n=n: h.add(entry(n)))
     ids = [e.id for e in store.load().entries()]
-    assert len(ids) == 51
+    assert len(ids) == 60
     assert "e0" in ids
 
 

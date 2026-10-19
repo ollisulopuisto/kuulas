@@ -8,7 +8,7 @@
 //   dash        reality: dashed = not real audio yet (placeholder, pending)
 //   scope       edit scope: what the next time-shifting edit takes along
 //   pattern     absent or maybe absent: muted hatch, cut candidate, damaged, removed
-//   strip       role: speech, speech mix, music (top edge; off on the timeline)
+//   strip       role: speech, music (top edge; off on the timeline)
 //   badge       facts: sync group, drift, free, file mark, takes, label
 //   cap         level: clipping
 //   seam        joins: clean split (hairline) or jump cut (notch)
@@ -267,8 +267,8 @@ export const SIGNALS = [
     atRest: false,
     whenNotAtRest: "only in the clip bin and on cards",
     always: false,
-    tokens: ["--role-speech", "--role-speech-mix", "--role-music"],
-    twin: "strip pattern: solid speech, dashed speech mix, dotted music; role icon in the header",
+    tokens: ["--role-speech", "--role-music"],
+    twin: "strip pattern: solid speech, dotted music; role icon in the header",
     when: "off on the timeline (the header says it); on in the clip bin and cards",
     key: "",
     status: "prototype",
@@ -591,7 +591,6 @@ export const SEMANTIC_TOKENS = [
   "--signal-collateral-fill",
   "--signal-preview",
   "--role-speech",
-  "--role-speech-mix",
   "--role-music",
   ...TRACK_PARTS.flatMap((part) => trackTokens(part)),
   ...busTokens(),

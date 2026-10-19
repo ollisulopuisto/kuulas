@@ -111,6 +111,14 @@ describe("live messages", () => {
     assert.deepEqual(out.notice, { id: 3, text: "Device lost" });
   });
 
+  test("a meter frame is handed on for the status bar and changes no state", () => {
+    const meter = { l: -12, r: -14, hold_l: -6, hold_r: -9 };
+    const out = reduceLive(state, { type: "meter", meter });
+    assert.deepEqual(out.meter, meter);
+    assert.deepEqual(out.patch, {});
+    assert.equal(out.refresh, false);
+  });
+
   test("jobs and unknown messages change nothing", () => {
     assert.deepEqual(reduceLive(state, { type: "jobs", jobs: [] }).patch, {});
     assert.deepEqual(reduceLive(state, { type: "whatever" }).patch, {});

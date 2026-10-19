@@ -22,6 +22,7 @@ import asyncio
 import contextlib
 import html
 import logging
+import math
 import os
 import shutil
 import time
@@ -35,7 +36,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from starlette.websockets import WebSocketDisconnect
 
-from . import export, export_formats, messages, music_report, transcribe
+from . import automix, export, export_formats, messages, music_report, transcribe
 from .build_info import build_label
 from .candidates import UnknownCandidateError
 from .history import HistoryError
@@ -63,6 +64,9 @@ UI_DIR = Path(__file__).resolve().parents[2] / "ui"
 LIVE_TICK_S = 1 / 30
 #: ...and while stopped, only to hear of engine notices (the engine's own period).
 LIVE_IDLE_S = 0.25
+#: ...and the level meter goes out about 15 times a second while playing (it is a
+#: display, and a frame is a few bytes): every other tick at the display rate.
+LIVE_METER_S = 1 / 15
 #: Peak tiles never change (their ETag is the content's key), so the browser
 #: may keep them for a year and never ask again.
 TILE_CACHE = "public, max-age=31536000, immutable"
@@ -132,6 +136,19 @@ class PinBody(BaseModel):
 
 class RenameBody(BaseModel):
     name: str
+
+
+class AdoptBody(BaseModel):
+    entry: dict[str, Any]
+    from_project: str = ""
+
+
+class ShareBody(BaseModel):
+    shared: bool
+
+
+class ClearOldBody(BaseModel):
+    keep: int = Field(100, ge=1)
 
 
 class ViewMemoryBody(BaseModel):
@@ -211,11 +228,20 @@ class Hub:
                 self.remove(queue)
 
 
+def meter_message(levels: dict) -> dict:
+    """The live channel's meter frame: peak and peak-hold per channel, dBFS. (The engine
+    also measures RMS; the display has no use for it yet, so it is not sent.)"""
+    return {"type": "meter",
+            "meter": {key: round(float(levels[key]), 1)
+                      for key in ("l", "r", "hold_l", "hold_r")}}
+
+
 # -- the app -------------------------------------------------------------------
 
 
 def create_app(session, engine, *, language: str | None = None,
-               ui_dir: str | Path = UI_DIR, tick: float = LIVE_TICK_S) -> FastAPI:
+               ui_dir: str | Path = UI_DIR, tick: float = LIVE_TICK_S,
+               meter_every: float = LIVE_METER_S) -> FastAPI:
     """``session`` and ``engine`` are borrowed: the caller closes them."""
     default_language = language or messages.default_language()
     ui = Path(ui_dir)
@@ -287,6 +313,10 @@ def create_app(session, engine, *, language: str | None = None,
     @app.exception_handler(music_report.MusicReportError)
     async def _music_report_error(_request: Request, e: music_report.MusicReportError):
         return answer(e, 400)
+
+    @app.exception_handler(automix.AutomixError)
+    async def _automix_error(_request: Request, e: automix.AutomixError):
+        return answer(e, 400 if e.key.startswith("error.automix.bad_") else 500)
 
     @app.exception_handler(KuulasError)
     async def _other_error(_request: Request, e: KuulasError):
@@ -395,6 +425,30 @@ def create_app(session, engine, *, language: str | None = None,
     def get_clipboard():
         return JSONResponse({"entries": session.clipboard_list()})
 
+    @app.get("/api/clipboard/shared")
+    def get_clipboard_shared():
+        return JSONResponse({"entries": session.clipboard_shared()})
+
+    @app.get("/api/clipboard/projects")
+    def get_clipboard_projects():
+        return JSONResponse({"projects": session.clipboard_projects()})
+
+    @app.get("/api/clipboard/project")
+    def get_clipboard_project(path: str = ""):
+        # Read-only: the other project's clipboard.json and nothing else.
+        return JSONResponse(session.clipboard_project(path))
+
+    @app.post("/api/clipboard/adopt")
+    def post_clipboard_adopt(body: AdoptBody):
+        entry = session.clipboard_adopt(body.entry, body.from_project)
+        return JSONResponse({"entry": entry, "entries": session.clipboard_list()})
+
+    @app.post("/api/clipboard/{entry_id}/share")
+    def post_clipboard_share(entry_id: str, body: ShareBody):
+        session.clipboard_share(entry_id, body.shared)
+        return JSONResponse({"entries": session.clipboard_list(),
+                             "shared": session.clipboard_shared()})
+
     @app.post("/api/clipboard/copy")
     def post_clipboard_copy(body: CopyBody):
         out = session.clipboard_copy(clip_ids=body.clip_ids, start=body.start,
@@ -402,6 +456,11 @@ def create_app(session, engine, *, language: str | None = None,
                                      group_editing=body.group_editing,
                                      name=body.name)
         return JSONResponse({**out, "entries": session.clipboard_list()})
+
+    @app.post("/api/clipboard/clear-old")
+    def post_clipboard_clear_old(body: ClearOldBody):
+        removed = session.clipboard_clear_old(body.keep)
+        return JSONResponse({"removed": removed, "entries": session.clipboard_list()})
 
     @app.post("/api/clipboard/{entry_id}/pin")
     def post_clipboard_pin(entry_id: str, body: PinBody):
@@ -457,6 +516,20 @@ def create_app(session, engine, *, language: str | None = None,
     @app.post("/api/export-mix", status_code=202)
     def post_export_mix(body: Annotated[dict[str, Any], Body()]):
         return JSONResponse({"jobs": session.export_mix(body)}, status_code=202)
+
+    @app.post("/api/automix", status_code=202)
+    def post_automix(body: Annotated[dict[str, Any], Body()]):
+        return JSONResponse({"jobs": session.automix(body)}, status_code=202)
+
+    @app.get("/api/settings/automixer")
+    def get_automixer_settings():
+        stored = automix.load_settings()
+        return {"settings": stored, "resolved": automix.resolve_settings(stored)}
+
+    @app.put("/api/settings/automixer")
+    def put_automixer_settings(body: Annotated[dict[str, Any], Body()]):
+        stored = automix.save_settings(body)
+        return {"settings": stored, "resolved": automix.resolve_settings(stored)}
 
     @app.get("/api/export-folder")
     def get_export_folder():
@@ -802,6 +875,9 @@ def create_app(session, engine, *, language: str | None = None,
             while True:
                 await ws.receive_text()
 
+        def clipboard_stamp() -> tuple:
+            return session.clipboard.stamp(), session.shared_clipboard.stamp()
+
         async def push() -> None:
             await ws.send_json({"type": "hello", "head": session.history.head})
             initial_jobs = session.jobs.list()
@@ -809,9 +885,11 @@ def create_app(session, engine, *, language: str | None = None,
             last_jobs = tuple((job["id"], job["progress"], job["state"], job["error"])
                               for job in initial_jobs)
             last_notice, playing, last_position = 0, False, None
-            # The history file is shared by every window of this user: when its
-            # stamp changes (our own writes too, which only costs a re-read), say so.
-            last_stamp = session.clipboard.stamp()
+            last_meter, meter_on = -math.inf, False
+            # The project's clipboard and the shared one are files other windows
+            # write too: when a stamp changes (our own writes too, which only
+            # costs a re-read), say so.
+            last_stamp = clipboard_stamp()
             next_poll = time.monotonic()
             while True:
                 wait = max(0.0, next_poll - time.monotonic())
@@ -825,7 +903,7 @@ def create_app(session, engine, *, language: str | None = None,
                 if signature != last_jobs:
                     await ws.send_json({"type": "jobs", "jobs": current_jobs})
                     last_jobs = signature
-                stamp = session.clipboard.stamp()
+                stamp = clipboard_stamp()
                 if stamp != last_stamp:
                     last_stamp = stamp
                     await ws.send_json({"type": "clipboard_changed"})
@@ -843,6 +921,15 @@ def create_app(session, engine, *, language: str | None = None,
                     await ws.send_json({"type": "position", "position": position,
                                         "playing": status["playing"]})
                 playing, last_position = status["playing"], position
+                # The level meter: what plays now, only while playing, and one floor
+                # frame when it stops so the bar and the hold tick drop.
+                now = time.monotonic()
+                if status["playing"] and now - last_meter >= meter_every:
+                    last_meter, meter_on = now, True
+                    await ws.send_json(meter_message(engine.meter()))
+                elif meter_on and not status["playing"]:
+                    meter_on = False
+                    await ws.send_json(meter_message(engine.meter()))
                 for n in status["notices"]:
                     if n["id"] > last_notice:
                         last_notice = n["id"]

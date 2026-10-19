@@ -77,7 +77,7 @@ def add_media(p: Project, media: Media) -> Project:
     return replace(p, media=(*p.media, media))
 
 
-TRACK_KINDS = {"speech", "speech-mix", "music"}
+TRACK_KINDS = {"speech", "music"}
 
 
 def add_track(p: Project, track_id: str | None = None, name: str = "Track",
@@ -226,6 +226,18 @@ def solo(p: Project, track_id: str, exclusive: bool = True) -> Project:
     return replace(p, tracks=tuple(
         replace(t, solo=t.id in target) if (t.id in target) != t.solo else t
         for t in p.tracks))
+
+
+def reset_gains(p: Project) -> Project:
+    """Set every track's and every bus's ``gain_db`` to 0 (unity), in one step, so the
+    levels can be judged before export. The master, clip gains and pan stay. Nothing to
+    reset is an error, so the menu can say so."""
+    if all(x.gain_db == 0 for x in (*p.tracks, *p.buses)):
+        raise EditError("error.edit.no_gains_to_reset")
+    return replace(
+        p,
+        tracks=tuple(replace(t, gain_db=0.0) if t.gain_db != 0 else t for t in p.tracks),
+        buses=tuple(replace(b, gain_db=0.0) if b.gain_db != 0 else b for b in p.buses))
 
 
 def set_master(p: Project, gain_db: float) -> Project:
@@ -1175,7 +1187,7 @@ OPS = {
     for f in (
         add_track, delete_track, delete_empty_tracks, set_track, solo, move_track,
         set_track_automation,
-        add_bus, set_bus, delete_bus, set_master,
+        add_bus, set_bus, delete_bus, set_master, reset_gains,
         add_clip, delete_clip, move_clip, trim_clip, split_clip, set_clip,
         set_fade_at, set_clip_envelope, ripple_delete, mute_ranges,
         set_gate, add_gate_range, remove_gate_range,

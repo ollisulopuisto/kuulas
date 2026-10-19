@@ -104,6 +104,9 @@ export const initialState = () => ({
   lastEditPoint: null,
   fitted: false,
   live: "connecting",
+  // Integrated loudness per track from the analysis (loudness-readout.js): { head, status,
+  // tracks }, null until the first answer. Read-only for the headers; never an edit.
+  loudness: null,
 });
 
 let state = initialState();
@@ -168,6 +171,9 @@ export function reduceLive(state, message) {
       break;
     case "clipboard_changed":
       out.clipboard = true; // the history file changed (another window): read it again
+      break;
+    case "meter":
+      out.meter = message.meter; // drawn by the status bar's meter (level-meter.js), not state
       break;
     case "notice":
       out.notice = { id: message.id, text: message.text };

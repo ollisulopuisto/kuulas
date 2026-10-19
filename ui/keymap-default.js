@@ -410,6 +410,42 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.edit.preview_clipboard",
   },
   {
+    id: "edit.clear_old_clipboard",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.edit.clear_old_clipboard",
+  },
+  {
+    id: "edit.share_clipboard",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.edit.share_clipboard",
+  },
+  {
+    id: "clipboard.view_project",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.clipboard.view_project",
+  },
+  {
+    id: "clipboard.view_shared",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.clipboard.view_shared",
+  },
+  {
+    id: "clipboard.view_others",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.clipboard.view_others",
+  },
+  {
+    id: "clipboard.open_project",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.clipboard.open_project",
+  },
+  {
     id: "edit.split",
     keys: { mac: ["B", "Mod+B"], other: ["B", "Mod+B"] },
     context: "timeline",
@@ -692,6 +728,12 @@ export const DEFAULT_KEYMAP = [
     keys: { mac: null, other: null },
     context: "global",
     labelKey: "cmd.track.delete_empty",
+  },
+  {
+    id: "track.reset_gains",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.track.reset_gains",
   },
   {
     id: "track.cycle_kind",
@@ -1017,6 +1059,12 @@ export const DEFAULT_KEYMAP = [
       labelKey: `cmd.export.${what}_${format}`,
     })),
   ),
+  {
+    id: "export.automix",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.export.automix",
+  },
   {
     id: "export.regions",
     keys: { mac: null, other: null },

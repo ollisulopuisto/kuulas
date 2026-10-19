@@ -35,6 +35,9 @@ export const putViewMemory = (view, { now = false } = {}) =>
     keepalive: true,
   });
 export const getWords = () => json("/api/words");
+/** Short-term loudness per track and for the mix, with each track's integrated LUFS and target
+ * (WP49). Takes seconds on a long programme: always asked in the background; `signal` cancels. */
+export const getLoudnessCurve = (signal) => json("/api/loudness-curve", { signal });
 /** The frames Tab stops at in one mode (edges, transients, words): { points: [frame] }. */
 export const getEditPoints = (mode, track = null) =>
   json(`/api/edit-points?mode=${mode}${track ? `&track=${encodeURIComponent(track)}` : ""}`);
@@ -61,6 +64,13 @@ export const exportRegions = (options = {}) => post("/api/export-regions", optio
  * { jobs: [job id] }. */
 export const exportTracks = (options = {}) => post("/api/export-tracks", options);
 /** Queue the export of the mix as one file (`options.format`); answers { jobs: [job id] }. */
+/** Queue the mix with the automixer (WP68): { target_lufs, ad_spot?, ad_duration? }; answers
+ * { jobs: [job id] }. */
+export const automix = (options = {}) => post("/api/automix", options);
+/** The automixer command: { settings (as stored), resolved (defaults filled in) }. */
+export const automixerSettings = () => json("/api/settings/automixer");
+export const saveAutomixerSettings = (settings) =>
+  json("/api/settings/automixer", { method: "PUT", body: JSON.stringify(settings) });
 export const exportFolder = () => json("/api/export-folder");
 export const exportMix = (options = {}) => post("/api/export-mix", options);
 /** The formats the server can write: [{ id, label, ext, lossless }], WAV first. */
@@ -85,6 +95,19 @@ export const renameClipboardEntry = (id, name) =>
   post(`/api/clipboard/${encodeURIComponent(id)}/rename`, { name });
 export const deleteClipboardEntry = (id) =>
   json(`/api/clipboard/${encodeURIComponent(id)}`, { method: "DELETE" });
+/** The shared store: { entries }. Marking is post(.../share): { entries, shared }. */
+export const getClipboardShared = () => json("/api/clipboard/shared");
+export const shareClipboardEntry = (id, shared) =>
+  post(`/api/clipboard/${encodeURIComponent(id)}/share`, { shared });
+/** The recent projects ({ projects }) and one project's clipboard, read-only ({ project, entries }). */
+export const getClipboardProjects = () => json("/api/clipboard/projects");
+export const getClipboardProject = (path) =>
+  json(`/api/clipboard/project?path=${encodeURIComponent(path)}`);
+/** Copy an entry of the shared store or another project into this project: { entry, entries }. */
+export const adoptClipboardEntry = (entry, fromProject = "") =>
+  post("/api/clipboard/adopt", { entry, from_project: fromProject });
+/** Drop this project's oldest entries, keeping the newest `keep`: { removed, entries }. */
+export const clearOldClipboard = (keep) => post("/api/clipboard/clear-old", { keep });
 /** A page of steps, newest first: { nodes, head, more, can_undo, can_redo }. */
 export const getHistory = ({ limit = 100, before = null } = {}) =>
   json(`/api/history?limit=${limit}${before ? `&before=${encodeURIComponent(before)}` : ""}`);

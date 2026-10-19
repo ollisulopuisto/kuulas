@@ -3,12 +3,15 @@
 // (view.js, lanes.js, keys.js, ...); this file only applies their answers.
 
 import * as api from "./api.js";
+import { createAutomixDialog } from "./automix-dialog.js";
+import { automixNotice } from "./automix-model.js";
 import { memberClipsAt, toggleChange } from "./bus-collapse.js";
 import { listedRows, scrollToShow, stepTarget } from "./candidates-model.js";
 import { createCandidatesPanel } from "./candidates-panel.js";
 import { previewRequest } from "./candidates-preview.js";
 import { clipDragChange } from "./clip-drag.js";
 import { expandGroups, toggleGroupSelection } from "./clip-groups.js";
+import { entryTitle } from "./clipboard.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
 import { openContextMenu } from "./context-menu.js";
 import { contextMenuItems } from "./context-menu-model.js";
@@ -64,8 +67,10 @@ import {
 } from "./lane-sizing.js";
 import { clampLaneHeight, layoutFor, pointerIntent, projectEnd, RULER_HEIGHT } from "./lanes.js";
 import { leftOffHere, leftOffOf, leftOffText } from "./left-off.js";
+import { createLevelMeter } from "./level-meter.js";
 import { connectLive } from "./live.js";
 import { activeLoop } from "./loop-range.js";
+import { createLoudnessLoader } from "./loudness-readout.js";
 import { regionCount } from "./markers-model.js";
 import { createMarkersPanel } from "./markers-panel.js";
 import { createMarksCorner } from "./marks-corner.js";
@@ -591,6 +596,10 @@ const keyboard = setupKeyboard({
     toast: (text, options) => showNotice(text, "ok", options),
     copy: (body) => copyToClipboard(body),
     refreshClipboard: () => void refreshClipboard(),
+    clearOldClipboard: (keep) => clearOldClipboard(keep),
+    shareClipboard: (id, on) => shareClipboardEntry(id, on),
+    showClipboard: (view) => showClipboard(view),
+    openClipboardProject: () => void openClipboardProject(),
     rememberRange: () => {
       const { head, inPoint, outPoint, rangeTracks } = getState();
       rangeMemory = rememberRange(head, { inPoint, outPoint, rangeTracks });
@@ -649,6 +658,7 @@ const keyboard = setupKeyboard({
     promptText: (request) => placeholderEditor.prompt(request),
     takeFor: (id) => void takeForPlaceholder(id),
     exportRegions: () => exportRegions(),
+    automix: () => void openAutomix(),
     exportTracks: (format, options) => exportTracks(format, options),
     exportMix: (format, options) => exportMix(format, options),
     exportFormats: () => exportFormatIds,
@@ -1312,7 +1322,7 @@ async function followExportJob(id, what) {
       return;
     }
     if (!job) break;
-    const notice = exportNotice(job, t, what);
+    const notice = what === "automix" ? automixNotice(job, t) : exportNotice(job, t, what);
     let action = null;
     if (notice.cancel) {
       action = { label: t("ui.export.cancel"), run: () => void cancelExportJob() };
@@ -1364,6 +1374,31 @@ async function startExport(what, format, { ask = true } = {}) {
     showError(error);
   }
 }
+// "Mix with the automixer…" (WP68): the dialog asks, the server stems and mixes; the notice
+// follows the job like an export (no percent after the stems, the tool's last line instead).
+let automixDialog = null;
+async function openAutomix() {
+  if (exportJob) return;
+  automixDialog ??= createAutomixDialog({
+    api,
+    t,
+    onStart: async (body) => {
+      try {
+        const { jobs } = await api.automix(body);
+        exportJob = jobs[0];
+        showNotice(t("ui.automix.preparing", { percent: 0 }), "ok", {
+          sticky: true,
+          action: { label: t("ui.export.cancel"), run: () => void cancelExportJob() },
+        });
+        void followExportJob(exportJob, "automix");
+      } catch (error) {
+        showError(error);
+      }
+    },
+  });
+  await automixDialog.open();
+}
+
 const exportTracks = (format, options) => startExport("tracks", format, options);
 const exportMix = (format, options) => startExport("mix", format, options);
 
@@ -1406,7 +1441,143 @@ async function refreshClipboard() {
   } catch (error) {
     showError(error);
   }
+  void loadSharedClipboard();
 }
+
+// -- clipboard sharing and other projects (WP65) --------------------------------------------------
+
+async function loadSharedClipboard() {
+  try {
+    setState({ clipboardShared: (await api.getClipboardShared()).entries });
+  } catch (error) {
+    showError(error);
+  }
+}
+
+// The recent projects, with the ones picked by hand in front. The counts are read by the
+// server each time, so they are not stale.
+async function loadClipboardProjects() {
+  try {
+    const recent = (await api.getClipboardProjects()).projects;
+    const opened = getState().clipboardOpened ?? [];
+    const known = new Set(opened.map((project) => project.path));
+    setState({ clipboardProjects: [...opened, ...recent.filter((p) => !known.has(p.path))] });
+  } catch (error) {
+    showError(error);
+  }
+}
+
+function setForeign(path, value) {
+  setState({ clipboardForeign: { ...(getState().clipboardForeign ?? {}), [path]: value } });
+}
+
+async function loadForeignClipboard(path) {
+  setForeign(path, { status: "loading", entries: [] });
+  try {
+    const answer = await api.getClipboardProject(path);
+    setForeign(path, { status: "ok", entries: answer.entries });
+    return answer;
+  } catch (error) {
+    setForeign(path, { status: "error", entries: [] });
+    showError(error);
+    return null;
+  }
+}
+
+function setClipboardView(view) {
+  setState({ clipboardView: view });
+  if (view === "shared") void loadSharedClipboard();
+  if (view === "others") void loadClipboardProjects();
+}
+
+function showClipboard(view) {
+  focusPanel("clipboard");
+  setClipboardView(view);
+}
+
+function toggleClipboardProject(path) {
+  const open = getState().clipboardExpanded ?? [];
+  if (open.includes(path)) {
+    setState({ clipboardExpanded: open.filter((item) => item !== path) });
+    return;
+  }
+  setState({ clipboardExpanded: [...open, path] });
+  void loadForeignClipboard(path);
+}
+
+// Any project's clipboard, read-only: the desktop picks the folder natively; a browser types it.
+const clipboardPicker = () =>
+  typeof globalThis.pywebview?.api?.pick_project_folder === "function"
+    ? globalThis.pywebview.api
+    : null;
+
+async function openClipboardProjectAt(path) {
+  const answer = await loadForeignClipboard(path);
+  if (!answer) return;
+  const project = {
+    name: answer.project.name,
+    path: answer.project.path,
+    last_opened: "",
+    entries: answer.entries.length,
+  };
+  const opened = [
+    project,
+    ...(getState().clipboardOpened ?? []).filter((p) => p.path !== project.path),
+  ];
+  const expanded = getState().clipboardExpanded ?? [];
+  // The server resolved the path (links, trailing slash): list and expand it under that name.
+  if (project.path !== path) setForeign(project.path, { status: "ok", entries: answer.entries });
+  setState({
+    clipboardOpened: opened,
+    clipboardExpanded: expanded.includes(project.path) ? expanded : [...expanded, project.path],
+  });
+  void loadClipboardProjects();
+}
+
+async function openClipboardProject() {
+  showClipboard("others");
+  const picker = clipboardPicker();
+  if (!picker) {
+    queueMicrotask(() => $("panel-clipboard").querySelector(".clip-path")?.focus());
+    return;
+  }
+  try {
+    const path = await picker.pick_project_folder();
+    if (path) await openClipboardProjectAt(path);
+  } catch (error) {
+    showError(error);
+  }
+}
+
+async function shareClipboardEntry(id, on) {
+  try {
+    const answer = await api.shareClipboardEntry(id, on);
+    setState({ clipboard: answer.entries, clipboardShared: answer.shared });
+    showNotice(t(on ? "ui.clipboard.shared" : "ui.clipboard.unshared"), "ok", { undo: false });
+  } catch (error) {
+    showError(error);
+  }
+}
+
+// Copy an entry of the shared store or another project into this project's clipboard. It becomes
+// the newest entry and is picked, so the paste keys paste it. Returns whether it worked.
+async function adoptClipboardEntry(entry, from, { quiet = false } = {}) {
+  try {
+    const answer = await api.adoptClipboardEntry(entry, from);
+    setState({ clipboard: answer.entries, clipboardSelected: answer.entry.id });
+    if (!quiet) {
+      showNotice(t("ui.clipboard.adopted", { name: entryTitle(answer.entry, rateOf(), t) }), "ok", {
+        undo: false,
+      });
+    }
+    return true;
+  } catch (error) {
+    showError(error);
+    return false;
+  }
+}
+
+const rateOf = () => getState().project?.rate ?? 48000;
 
 // Copy changes no project: it has its own route. A new copy becomes the newest entry, so
 // the tab's pick is dropped and Mod+V pastes what was just copied. Returns whether it worked.
@@ -1418,6 +1589,25 @@ async function copyToClipboard(body) {
   } catch (error) {
     showError(error);
     return false;
+  }
+}
+
+// "Clear old entries": keep the newest `keep` of this project's, say how many went.
+async function clearOldClipboard(keep) {
+  try {
+    const answer = await api.clearOldClipboard(keep);
+    setState({ clipboard: answer.entries, clipboardSelected: null });
+    showNotice(
+      answer.removed > 0
+        ? t("ui.clipboard.cleared", { count: answer.removed })
+        : t("ui.clipboard.cleared_none"),
+      "ok",
+      { undo: false },
+    );
+    return answer.removed;
+  } catch (error) {
+    showError(error);
+    return 0;
   }
 }
 
@@ -1438,7 +1628,6 @@ const clipboardPanel = createClipboardPanel({
   root: $("panel-clipboard"),
   actions: {
     select: (id) => setState({ clipboardSelected: id }),
-    pin: (id, pinned) => void clipboardAction(() => api.pinClipboardEntry(id, pinned))(),
     rename: (id, name) => void clipboardAction(() => api.renameClipboardEntry(id, name))(),
     remove: (id) => {
       if (getState().clipboardSelected === id) setState({ clipboardSelected: null });
@@ -1446,6 +1635,21 @@ const clipboardPanel = createClipboardPanel({
     },
     choose: (patch) => setState(patch),
     filter: (text) => setState({ clipboardFilter: text }),
+    share: (id, on) => void shareClipboardEntry(id, on),
+    view: (name) => setClipboardView(name),
+    toggleProject: (path) => toggleClipboardProject(path),
+    openProject: () => keyboard.registry.run("clipboard.open_project", null, getState()),
+    openPath: (path) => void openClipboardProjectAt(path),
+    hasPicker: () => clipboardPicker() !== null,
+    now: () => Date.now() / 1000,
+    adopt: (entry, from) => void adoptClipboardEntry(entry, from),
+    async pasteHere(entry, from) {
+      if (await adoptClipboardEntry(entry, from, { quiet: true })) {
+        keyboard.registry.run(pasteCommand(getState()), null, getState());
+      }
+    },
+    keep: (value) => setState({ clipboardKeep: Number(value) }),
+    clearOld: () => keyboard.registry.run("edit.clear_old_clipboard", null, getState()),
     preview(id) {
       setState({ clipboardSelected: id });
       keyboard.registry.run("edit.preview_clipboard", null, getState());
@@ -1795,6 +1999,7 @@ function render(state, patch) {
   if (touched("project", "inPoint", "outPoint")) marksCorner.render(state);
   if (touched("project", "words")) updateTabScope();
   if (touched("playing")) {
+    levelMeter.playing(state.playing);
     $("play-icon").textContent = state.playing ? "■" : "▶";
     $("play-label").textContent = t(state.playing ? "ui.transport.stop" : "ui.transport.play");
   }
@@ -1880,6 +2085,7 @@ function render(state, patch) {
       "collapsedBuses",
       "busHeight",
       "groupGap",
+      "loudness",
     )
   )
     trackHeaders.update(state);
@@ -1904,6 +2110,12 @@ function render(state, patch) {
       "clipboard",
       "clipboardSelected",
       "clipboardFilter",
+      "clipboardKeep",
+      "clipboardView",
+      "clipboardShared",
+      "clipboardProjects",
+      "clipboardForeign",
+      "clipboardExpanded",
       "pasteMode",
       "pasteTarget",
       "project",
@@ -1980,7 +2192,22 @@ function follow(state, moved = false) {
   }
 }
 
+// The live level meter in the status bar: drawn from the live channel's frames, outside the
+// store (about 15 frames a second must not re-render the editor).
+const levelMeter = createLevelMeter({
+  root: $("level-meter"),
+  bars: $("level-bars"),
+  clipButton: $("level-clip"),
+});
 subscribe(render);
+
+// The loudness readout in the track headers: asked in the background once the project has
+// settled (loudness-readout.js), never blocking an edit.
+const loudnessLoader = createLoudnessLoader({
+  fetchCurve: (signal) => api.getLoudnessCurve(signal),
+  onChange: (patch) => setState(patch),
+});
+subscribe(() => loudnessLoader.settle(getState().project ? getState().head : null));
 onLanguageChange(() => {
   importPanel.refresh();
   translate();
@@ -2110,6 +2337,7 @@ connectLive({
     if (Object.keys(result.patch).length > 0) setState(result.patch);
     // An answer to our own edit arrives as a state_changed too; while edits are
     // still going out, the editor shows the newest value and applies the last answer.
+    if (result.meter) levelMeter.frame(result.meter);
     if (result.clipboard) void refreshClipboard();
     if (result.refresh && !editor.busy) void refresh().catch(showError);
     if (result.notice && result.notice.id > handledNotice) {

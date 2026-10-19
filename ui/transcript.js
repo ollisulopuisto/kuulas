@@ -32,6 +32,7 @@ import {
   pauseSecondsOf,
   placeCursor,
   selectedIndices,
+  selectionFrames,
   selectWord,
   shouldLoadWords,
   summaryParts,
@@ -910,6 +911,9 @@ export function createTranscript({ root, getState, setState, api, actions }) {
         followPlayback();
       }
       if (touched("transcriptSelection")) {
+        // Selecting words also marks them on the timeline, where the edges can be fine-tuned.
+        const marks = selectionFrames(words, selection());
+        if (marks) setState(marks);
         markSelection();
         renderPop();
         schedulePreview();

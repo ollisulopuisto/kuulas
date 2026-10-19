@@ -446,7 +446,6 @@
   --signal-sync: var(--p-gray-44);
   --signal-tether: var(--p-gray-44);
   --role-speech: var(--p-gray-44); /* strip pattern: solid */
-  --role-speech-mix: var(--p-gray-44); /* strip pattern: dashed */
   --role-music: var(--p-sand-55); /* strip pattern: dotted */
   --track-0-wave: var(--p-blue-46);
   --track-1-wave: var(--p-amber-60);
@@ -589,7 +588,6 @@
     --signal-sync: var(--p-gray-76);
     --signal-tether: var(--p-gray-76);
     --role-speech: var(--p-gray-76);
-    --role-speech-mix: var(--p-gray-76);
     --role-music: var(--p-sand-62);
     --track-0-wave: var(--p-blue-68);
     --track-1-wave: var(--p-amber-85);
@@ -732,7 +730,6 @@
   --signal-sync: var(--p-gray-76);
   --signal-tether: var(--p-gray-76);
   --role-speech: var(--p-gray-76);
-  --role-speech-mix: var(--p-gray-76);
   --role-music: var(--p-sand-62);
   --track-0-wave: var(--p-blue-68);
   --track-1-wave: var(--p-amber-85);
