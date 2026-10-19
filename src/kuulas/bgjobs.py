@@ -178,6 +178,7 @@ def describe(folder: Path | str, job_id: str) -> dict | None:
     return {"id": job_id, "kind": "transcribe", "title": str(t(key, names=names,
                                                                name=names)),
             "backend": job.get("backend"), "state": state,
+            "media": [i["id"] for i in job.get("items", []) if "id" in i],
             "progress": float(progress) if isinstance(progress, int | float) else 0.0,
             "message": str(status.get("message") or ""),
             "indeterminate": bool(status.get("indeterminate")),

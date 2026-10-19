@@ -2230,12 +2230,42 @@ input[type="text"] {
   gap: var(--space-4);
   padding: var(--space-6) 0;
   color: var(--text-secondary);
+  /* Starts at the timeline's x, like the text (.tx-para): right of the numbers column. */
+  margin-left: calc(var(--heads-col) + 1px - var(--pad-panel));
+  min-width: 0;
 }
 .tx-empty strong {
   color: var(--text);
 }
-.tx-empty progress {
-  width: 240px;
+.tx-missing {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+  max-width: 100%;
+}
+.tx-miss-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-5);
+}
+.tx-miss-name {
+  color: var(--text);
+  min-width: 12ch;
+  overflow-wrap: anywhere;
+}
+.tx-miss-status {
+  min-width: 10ch;
+}
+.tx-miss-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.tx-miss-row progress {
+  width: 160px;
 }
 .tx-error {
   color: var(--danger-text, var(--text));
@@ -3190,11 +3220,16 @@ input[type="text"] {
   .tx-numbers .rcol {
     margin-left: var(--space-3);
   }
-  .tx-para {
+  .tx-para,
+  .tx-empty {
     margin-left: 0;
   }
   #panel-transcript h2 {
     padding-left: var(--pad-panel);
+  }
+  /* Room under the content for the numbers row, so scrolling can always clear it. */
+  #panel-transcript {
+    padding-bottom: calc(var(--pad-panel) + 56px);
   }
 }
 

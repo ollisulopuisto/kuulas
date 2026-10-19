@@ -1691,6 +1691,7 @@ async function transcribeOnColab(ids) {
     const { jobs } = await api.transcribe(ids, { backend: "colab" });
     exportJob = jobs[0];
     colabNames = names;
+    void transcript.refreshJobs();
     showNotice(t("ui.colab.preparing"), "ok", {
       sticky: true,
       action: { label: t("ui.export.cancel"), run: () => void cancelExportJob() },
