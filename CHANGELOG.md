@@ -16,6 +16,17 @@
   editing or drift (before, same-track clips were never partners).
 - Not seen on screen yet. Sync points 1 and 2 (Alt+Mod+1/2) are still not wired.
 
+## [v26.10.19.17] - 2026-10-19
+
+- **The big clock is a control:** a single click copies the shown time to the system clipboard ("Copied 0:08,938");
+  a double click (or Enter on the focused clock, or Spot on Cmd+J) turns it into a field: type a time and press
+  Enter to jump, Esc to cancel. A number with a plus or minus is relative to where you are, like in Final Cut:
+  `+100` jumps 100 seconds forward, `-30` thirty back, `+1:30` ninety forward; `ms` works as a suffix. The plus
+  and minus you type do not zoom. The same typing sets the in and out marks in the Alku / Loppu / Pituus rows
+  (a relative value moves the mark); in those rows a click still jumps to the mark and Alt+click copies the time.
+  "Copy the time" is also in the Edit menu. **Spot (Cmd+J) had no handler before and now works.** Not seen on
+  screen yet. Not done: the `f` (frames) suffix, since the project is audio at 48000 Hz.
+
 ## [v26.10.19.16] - 2026-10-19
 
 - **Help search:** the first item of the Help menu is a text field (also on Cmd+/): type what you want to do and
