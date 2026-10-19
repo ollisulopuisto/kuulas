@@ -3848,3 +3848,25 @@ the work and keeps going when the editor is gone; the editor only submits, watch
 **Tests:** the worker with a fake engine (success, failure, SIGTERM cancel, killed worker leaves an "interrupted" job),
 ingest with a transcript changed meanwhile, a job finished while the project was closed, two hosts, the status file
 never half-written (atomic replace).
+
+---
+
+### WP80 — Versions of this part (owner, 2026-10-19: "this is a good idea")
+
+Status: proposed, the principle approved by the owner: **choosing an older version of a part is an ordinary new edit
+step ("put this version here"), never an undo; nothing made after it is rolled back.** Not only for recording: any
+range on any track.
+- Select a range (or a clip), command "Versions of this part…" (Edit or the context menu): a small panel lists the
+  distinct audio contents that were ever in that range on that track, newest first, built from the existing complete
+  history (no new data kept): each row a waveform thumbnail, the recording or file it came from, when it was there,
+  how long, and a play button; short list with "More…"; duplicates (the same media and offsets) merged; the current
+  one marked.
+- "Put this version here" writes that content into the range as one history step with a clear label (undoable like
+  any edit), using the ordinary overwrite rule (clips under it are shortened or split; nothing ripples; no layers).
+- Needs: a pure function over history states that, for a track and a frame range, returns the distinct contents
+  (media id + source offsets of the clips covering the range) with the first and last step they appear in (cheap on
+  the stored states; WP31 changes view and its recording-range diff are the nearest existing code), thumbnails from
+  the peak pyramids (WP36). Tests first on fixture histories (a re-recorded part three times, a covered take, a range
+  crossing two clips, the same content restored twice).
+- Related: the take folder of WP19e (deliberate loop-recorded takes) stays separate; recording over audio (WP12)
+  needs nothing from this to work and gets it for free.
