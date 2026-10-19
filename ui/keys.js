@@ -89,6 +89,8 @@ for (const [alias, name] of Object.entries({
 }
 const PHYSICAL = { "[": "BracketLeft", "]": "BracketRight", "`": "Backquote", "\\": "Backslash" };
 const CHARS = new Set(["=", "+", "-", "?", ".", ",", "/", ";", "'"]);
+// With Alt held, a char key is matched by position: Option+. types "≥" on a Mac.
+const CHAR_CODES = { ".": "Period", ",": "Comma" };
 const MOD_ORDER = ["ctrl", "alt", "shift", "mod"];
 
 /**
@@ -163,7 +165,7 @@ export function matchesCombo(event, p, platform = detectPlatform()) {
   const typedSymbol =
     symbolic &&
     event.key === p.char &&
-    event.code !== p.code &&
+    event.code !== (CHAR_CODES[p.char] ?? p.code) &&
     (altGr || (mac && Boolean(event.altKey)));
   if (altGr && !typedSymbol) return false;
   if (typedSymbol) alt = false;
@@ -175,6 +177,7 @@ export function matchesCombo(event, p, platform = detectPlatform()) {
   if (p.kind !== "char" && p.shift !== Boolean(event.shiftKey)) return false;
   if (typedSymbol) return true;
   if (p.kind === "char") {
+    if (p.alt && CHAR_CODES[p.char]) return event.code === CHAR_CODES[p.char];
     // US Shift+= types "+", but the key is still the Equal key: lane height, not zoom.
     if (p.char === "+" && event.code === "Equal") return false;
     return event.key === p.char;

@@ -99,19 +99,61 @@ export const DEFAULT_KEYMAP = [
   {
     // Fast listening's speed is stepless, 1.0x to 2.0x in 0.05x steps (owner, 2026-10-18).
     // Shift+. and Shift+, cannot be told from . and , (shift is part of the character), so
-    // the nudges are Shift+J or , (slower) and Shift+L (faster; "/" is Shift+7 on a Finnish keyboard, so no default); Alt+0 puts it back to 1.0x.
+    // the nudges are , (slower) and Alt+. (faster, matched by key position: Option+. types
+    // another character on a Mac); Alt+0 puts it back to 1.0x. Shift+J / Shift+L are slow
+    // hold-to-play listening now (owner, 2026-10-19).
     id: "transport.speed_down",
-    keys: { mac: ["Shift+J", ","], other: ["Shift+J", ","] },
+    keys: { mac: ",", other: "," },
     context: "global",
     labelKey: "cmd.transport.speed_down",
     repeat: true,
   },
   {
     id: "transport.speed_up",
-    keys: { mac: "Shift+L", other: "Shift+L" },
+    keys: { mac: "Alt+.", other: "Alt+." },
     context: "global",
     labelKey: "cmd.transport.speed_up",
     repeat: true,
+  },
+  {
+    // Slow listening (WP26): plays slowed down only while the key is held; release stops. The
+    // key is handled on keydown and keyup (app.js), so auto-repeat is ignored. Shift+K is unused.
+    id: "transport.slow_back",
+    keys: { mac: "Shift+J", other: "Shift+J" },
+    context: "global",
+    labelKey: "cmd.transport.slow_back",
+  },
+  {
+    id: "transport.slow_forward",
+    keys: { mac: "Shift+L", other: "Shift+L" },
+    context: "global",
+    labelKey: "cmd.transport.slow_forward",
+  },
+  {
+    // The slow speed is a remembered preference; no keys (Finnish layout), menu and palette.
+    id: "transport.slow_speed_025",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.transport.slow_speed_025",
+  },
+  {
+    id: "transport.slow_speed_050",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.transport.slow_speed_050",
+  },
+  {
+    id: "transport.slow_speed_075",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.transport.slow_speed_075",
+  },
+  {
+    // Menu hint: says how slow listening works (it is a held key, so a menu cannot hold it).
+    id: "transport.slow_info",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.transport.slow_info",
   },
   {
     id: "transport.speed_reset",

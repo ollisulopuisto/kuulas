@@ -183,6 +183,25 @@ describe("the core keys", () => {
     ]);
   });
 
+  test("Alt+. speeds fast listening up by code (Option+. types another character), Shift+J/L are slow listening", () => {
+    const { keymap, calls } = setup({ platform: "mac" });
+    keymap.handle(press({ key: "≥", code: "Period", altKey: true })); // Mac Option+.
+    keymap.handle(press({ key: ".", code: "Period", altKey: true })); // Windows/Linux
+    keymap.handle(press({ key: ".", code: "Period" })); // plain: the toggle
+    keymap.handle(press({ key: ",", code: "Comma" }));
+    keymap.handle(press({ key: "J", code: "KeyJ", shiftKey: true }));
+    keymap.handle(press({ key: "L", code: "KeyL", shiftKey: true }));
+    keymap.handle(press({ key: "K", code: "KeyK", shiftKey: true }));
+    assert.deepEqual(calls, [
+      ["transport.speed_up"],
+      ["transport.speed_up"],
+      ["transport.speed"],
+      ["transport.speed_down"],
+      ["transport.slow_back"],
+      ["transport.slow_forward"],
+    ]);
+  });
+
   test("= and - zoom, on a US layout and on a Finnish one, and a held key repeats", () => {
     const { keymap, calls } = setup();
     keymap.handle(press({ key: "=", code: "Equal" }));

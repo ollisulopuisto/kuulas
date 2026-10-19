@@ -15,6 +15,25 @@ STEP_MS = 10
 """Tap-step length for held scrubbing."""
 
 
+SLOW_SPEEDS = (0.25, 0.5, 0.75)
+"""Speeds for slow hold-to-play listening (Shift+J / Shift+L), a preference."""
+
+DEFAULT_SLOW = 0.5
+
+
+def slow_hold_speed(direction: str, setting: float | None = DEFAULT_SLOW) -> float:
+    """Signed tape speed while Shift+L (``"l"``) or Shift+J (``"j"``) is held.
+
+    ``setting`` outside ``SLOW_SPEEDS`` falls back to ``DEFAULT_SLOW``.
+    """
+    speed = setting if setting in SLOW_SPEEDS else DEFAULT_SLOW
+    if direction == "l":
+        return speed
+    if direction == "j":
+        return -speed
+    raise _unknown_key(direction)
+
+
 def _unknown_key(key: str) -> KuulasError:
     return KuulasError("error.shuttle.unknown_key", key=key)
 
