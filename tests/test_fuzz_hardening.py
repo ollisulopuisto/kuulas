@@ -151,3 +151,46 @@ def test_transport_and_peak_fuzzing(tmp_path: Path):
 
     res = client.get("/api/candidates/non_existent_candidate/preview")
     assert res.status_code == 404
+
+
+def test_take_plan_parsing_hardening(tmp_path: Path):
+    import json
+    from kuulas.record_take import read_plan, write_plan, TakePlan
+
+    # Normal plan
+    plan = TakePlan(take="Take 1", at=100, track_id="t1", track_name="Host", channel=1)
+    write_plan(tmp_path, plan)
+    assert read_plan(tmp_path, "Take 1").take == "Take 1"
+
+    # Excessively long strings
+    long_str = "A" * 5000
+    with open(tmp_path / "LongTake.editor.json", "w") as f:
+        json.dump({"take": long_str, "at": 100, "track_id": long_str, "track_name": long_str, "channel": 1}, f)
+
+    got = read_plan(tmp_path, "LongTake")
+    assert got is not None
+    assert len(got.take) == 1024
+    assert len(got.track_id) == 1024
+    assert len(got.track_name) == 1024
+
+    # Large file
+    with open(tmp_path / "HugeTake.editor.json", "w") as f:
+        f.write("{" + '"take": "1", ' + ', '.join(f'"{i}": "{long_str}"' for i in range(100)) + "}")
+
+    assert read_plan(tmp_path, "HugeTake") is None
+
+
+def test_desktop_bridge_hardening():
+    from kuulas.desktop import Bridge, reveal_command
+
+    b = Bridge(None, Path('/tmp'))
+
+    # Test copy text logic length limits
+    assert b.copy_text("valid text") == False  # copier will fail since it's stubbed, but it shouldn't raise exception
+    assert b.copy_text(123) == False
+    assert b.copy_text("A" * 201) == False
+
+    # Test reveal_command sanitizes hyphen and prevents shell injection flags
+    assert reveal_command("-rf /")[-1] == "./-rf /"
+    assert reveal_command("--some-flag")[-1] == "./--some-flag"
+    assert reveal_command("normal_path")[-1] == "normal_path"
