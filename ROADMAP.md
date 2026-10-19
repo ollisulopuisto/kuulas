@@ -447,7 +447,9 @@ WP27, WP38, WP42, WP47, WP53.
 - Terminology pass (WP62, owner 2026-10-18): consistent editing verbs and marks vocabulary in en and fi; draft in `docs/GLOSSARY.md`, owner decides the open rows.
 - Requested (owner 2026-10-18): WP63 real waveform in the drag ghost, plus smart guide lines and snapping between speakers' activity edges while moving a clip. Plan in `docs/PLAN.md`.
 - Parked (owner 2026-10-19, "not now"): WP64 naming a saved version: an in-window name field on Shift+Mod+S, rename in the History panel, named versions standing out. Plan in `docs/PLAN.md`.
-- Requested (owner 2026-10-19): WP65 clipboard per project, persistent without pinning, with sharing (mark entries as shared) and browsing other projects' clipboards. Plan in `docs/PLAN.md`; three details to decide with the owner.
+- Built in v26.10.19.2 (owner 2026-10-19): WP65 clipboard per project, persistent without pinning, with sharing (star) and browsing other projects' clipboards. **Not seen on screen yet**: click through the three views (This project, Shared, Other projects). Plan in `docs/PLAN.md`.
+- Built in v26.10.19.2: loudness readout in track headers, live level meter with clip light, Track > Reset gains to 0 dB. Not tried with real playback.
+- Removed in v26.10.19.2 (owner 2026-10-19): the `speech-mix` track kind; old projects open it as speech.
 - Requested (owner 2026-10-19): WP66 series templates: save tracks, buses and chosen standing clips (anchored to start, end or a marker) and start new episodes from them. Plan in `docs/PLAN.md`.
 - WP68 mixing with the automixer from inside kuulas (owner 2026-10-19). Step 1 built in v26.10.19.1 (File > "Mix with the automixer…", palette `export.automix`, dialog, Help topic, background job with Cancel): **not yet run against the real automixer**, only a fake script; the CLI flags in `automix.py` come from its README. Open: run it once for real; a "range only" option; resampling for projects that are not 48000 Hz (refused for now). Step 2 (in-process call without WAV files) is open and needs an importable mixing entry point in the podcast repo. Plan in `docs/PLAN.md`.
 
