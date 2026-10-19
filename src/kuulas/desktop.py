@@ -14,14 +14,13 @@ the tests, never need it.
 
 from __future__ import annotations
 
-import base64
-import html
 import json
 import logging
 import os
 import subprocess
 import sys
 import threading
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +30,13 @@ from .cli import HOST, bind_local, uvicorn_config
 from .messages import KuulasError, t
 from .new_project import SUFFIX, folder_name
 from .openfiles import project_paths
+from .recent_projects import (
+    folder_size,
+    make_record,
+    merge_record,
+    normalize_record,
+    update_record,
+)
 
 log = logging.getLogger("kuulas.desktop")
 
@@ -93,36 +99,84 @@ def recents_file() -> Path:
     return Path(override) if override else config_dir() / "recent.json"
 
 
-def load_recents(file: Path) -> list[str]:
-    """The recent project folders that still exist, most recent first. A missing
-    or damaged file is an empty list: the list is a convenience, never an error."""
+_RECENTS_LOCK = threading.Lock()
+
+
+def _now_utc() -> str:
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _read_records(file: Path) -> list[dict]:
+    """Every record in the file, folders that are gone included. A missing or
+    damaged file is an empty list."""
     try:
         data = json.loads(file.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return []
     if not isinstance(data, list):
         return []
-    seen: list[str] = []
+    seen: set[str] = set()
+    records: list[dict] = []
     for item in data:
-        if isinstance(item, str) and item not in seen and Path(item).is_dir():
-            seen.append(item)
-    return seen[:MAX_RECENT]
+        record = normalize_record(item)
+        if record is not None and record["path"] not in seen:
+            seen.add(record["path"])
+            records.append(record)
+    return records[:MAX_RECENT]
 
 
-def add_recent(file: Path, folder: str) -> None:
-    """Put ``folder`` first. Written through a temp file and renamed, so a crash
-    leaves the old list rather than half of a new one. A failure to write is
-    swallowed: not remembering a project must not stop opening it."""
-    folder = str(Path(folder).resolve())
-    current = [p for p in load_recents(file) if p != folder]
+def _write_records(file: Path, records: list[dict]) -> None:
+    """Written through a temp file and renamed, so a crash leaves the old list
+    rather than half of a new one. A failure to write is swallowed: not
+    remembering a project must not stop opening it."""
     try:
         file.parent.mkdir(parents=True, exist_ok=True)
         partial = file.with_name(file.name + ".tmp")
-        partial.write_text(json.dumps([folder, *current][:MAX_RECENT], indent=1),
-                           encoding="utf-8")
+        partial.write_text(json.dumps(records[:MAX_RECENT], indent=1), encoding="utf-8")
         partial.replace(file)
     except OSError:
         return
+
+
+def load_recent_records(file: Path) -> list[dict]:
+    """The recent projects for the start page, most recent first: each record has
+    ``exists`` (False when the folder is gone or unreachable, so the page can grey
+    it out) and whatever was remembered of it. One stat per project; no project is
+    opened or read."""
+    return [{**r, "exists": Path(r["path"]).is_dir()} for r in _read_records(file)]
+
+
+def load_recents(file: Path) -> list[str]:
+    """The recent project folders that still exist, most recent first. A missing
+    or damaged file is an empty list: the list is a convenience, never an error."""
+    return [r["path"] for r in load_recent_records(file) if r["exists"]]
+
+
+def add_recent(file: Path, folder: str, now: str | None = None) -> None:
+    """Put ``folder`` first, stamped with the time it was opened (``now``, UTC ISO;
+    the clock when None). What was remembered of the project stays. Folders that
+    are gone stay in the list too, until they fall off the end, so the start page
+    can show them as missing."""
+    folder = str(Path(folder).resolve())
+    record = make_record(folder, now or _now_utc())
+    with _RECENTS_LOCK:
+        _write_records(file, merge_record(_read_records(file), record, MAX_RECENT))
+
+
+def set_recent_metadata(file: Path, folder: str, *, tracks: int | None = None,
+                        duration_s: float | None = None, size: bool = True) -> None:
+    """Remember what is known of ``folder`` for the start page: track count,
+    length and (``size``) the size of the project folder, which is the ``.kuulas``
+    folder only, linked media not counted, and left out when the tree is too big
+    to walk. Order and opened time stay. Reads the project's folder, never
+    writes in it; best effort."""
+    folder = str(Path(folder).resolve())
+    size_bytes = folder_size(folder) if size else None
+    with _RECENTS_LOCK:
+        records = _read_records(file)
+        _write_records(file, update_record(
+            records, folder, tracks=tracks, duration_s=duration_s,
+            size_bytes=size_bytes))
 
 
 # -- window title and menu ------------------------------------------
@@ -161,6 +215,9 @@ class RunningProject:
         from .session import Session  # noqa: PLC0415
 
         self.folder = folder
+        #: Called with ``summary()`` once the project is closed (the Bridge's hook to
+        #: refresh the recents record); never allowed to stop the close.
+        self.on_stopped = None
         self._session = Session(folder)
         self._engine = Engine(self._session)
         # Only a viewer of the recorder (WP12a): closing the window never stops a take.
@@ -176,7 +233,17 @@ class RunningProject:
         while not self._server.started and self._thread.is_alive():
             threading.Event().wait(0.02)
 
+    def summary(self) -> dict:
+        """Track count and length (seconds) of the project as it is now. Never raises."""
+        try:
+            state = self._session.history.state
+            return {"tracks": len(state.tracks), "duration_s": state.length / state.rate}
+        except Exception as e:  # noqa: BLE001 - a number on the start page is optional
+            log.debug("project summary: %s", e)
+            return {}
+
     def stop(self) -> None:
+        summary = self.summary()
         # The page may be gone already (pywebview does not always fire pagehide, and
         # a playing cursor is saved only every 5 s): write the engine's playhead.
         try:
@@ -191,6 +258,11 @@ class RunningProject:
         self._recorder.close()
         self._engine.close()
         self._session.close()
+        if self.on_stopped is not None:
+            try:
+                self.on_stopped(summary)
+            except Exception as e:  # noqa: BLE001 - recents are a convenience
+                log.debug("recents refresh: %s", e)
 
 
 # -- the window -----------------------------------------------------
@@ -339,6 +411,9 @@ class Bridge:
     def recent(self) -> list[str]:
         return load_recents(self._recents)
 
+    def recent_records(self) -> list[dict]:
+        return load_recent_records(self._recents)
+
     def choose_project(self) -> bool:
         got = self._dialog(self._webview.FileDialog.FOLDER)
         return bool(got) and self.open_project(got[0])
@@ -388,6 +463,12 @@ class Bridge:
                 self._window.evaluate_js(f"alert({json.dumps(str(e))})")
             return False
         add_recent(self._recents, folder)
+        running.on_stopped = lambda summary: set_recent_metadata(
+            self._recents, folder, **summary)
+        # The size walk can take a while on a slow disk: not on the opening path.
+        threading.Thread(
+            target=set_recent_metadata, args=(self._recents, folder),
+            kwargs=running.summary(), name="kuulas-recents", daemon=True).start()
         previous, self._project = self._project, running
         self._window.set_title(window_title(folder))
         self._window.load_url(running.url)
@@ -397,7 +478,7 @@ class Bridge:
 
     def show_launcher(self) -> None:
         self._window.set_title(window_title(None))
-        self._window.load_html(launcher_html(self.recent()))
+        self._window.load_html(launcher_html(self.recent_records()))
         previous, self._project = self._project, None
         if previous is not None:
             previous.stop()
@@ -408,37 +489,12 @@ class Bridge:
             self._project = None
 
 
-def launcher_html(recent: list[str]) -> str:
-    """The start page: recent projects and Open / New. Plain, no scripts but
-    the calls into the bridge, and every string through ``t``."""
-    rows = "".join(
-        f'<li><button data-path="{html.escape(p, quote=True)}">'
-        f"{html.escape(Path(p).name.removesuffix('.kuulas'))}</button>"
-        f"<small>{html.escape(p)}</small></li>" for p in recent)
-    empty = "" if recent else f"<p>{html.escape(t('desktop.launcher.none'))}</p>"
-    mark = base64.b64encode((ICON_DIR / "kuulas-icon.svg").read_bytes()).decode()
-    return f"""<!doctype html><html lang="{html.escape(t('desktop.launcher.lang'))}">
-<head><meta charset="utf-8"><title>kuulas</title>
-<meta name="color-scheme" content="light dark">
-<style>
-body{{font:15px system-ui,sans-serif;max-width:40rem;margin:3rem auto;padding:0 1rem}}
-ul{{list-style:none;padding:0}} li{{margin:.6rem 0}} small{{display:block;opacity:.6}}
-h1{{display:flex;align-items:center;gap:.6rem}} .mark{{border-radius:22%}}
-button{{font:inherit;padding:.35rem .8rem}} li button{{border:0;background:none;
-color:LinkText;cursor:pointer;padding:0;font-size:1.05rem}}
-</style></head><body>
-<h1><img class="mark" alt="" width="40" height="40"
-src="data:image/svg+xml;base64,{mark}"> kuulas</h1>
-<p><button id="open">{html.escape(t('desktop.launcher.open'))}</button>
-<button id="new">{html.escape(t('desktop.launcher.new'))}</button></p>
-<h2>{html.escape(t('desktop.launcher.recent'))}</h2>{empty}<ul>{rows}</ul>
-<script>
-const api = () => window.pywebview.api;
-document.getElementById("open").onclick = () => api().choose_project();
-document.getElementById("new").onclick = () => api().new_project();
-for (const b of document.querySelectorAll("li button"))
-  b.onclick = () => api().open_project(b.dataset.path);
-</script></body></html>"""
+def launcher_html(recent: list) -> str:
+    """The start page: recent projects (records or bare paths) and Open / New.
+    See :mod:`kuulas.launcher_page`."""
+    from .launcher_page import launcher_html as page  # noqa: PLC0415
+
+    return page(recent)
 
 
 # -- several windows, and documents opened from Finder ---------------
@@ -512,7 +568,8 @@ class WindowApp:
         """A window on the launcher page."""
         bridge = Bridge(self._webview, self._recents)
         window = self._webview.create_window(
-            window_title(None), html=launcher_html(bridge.recent()), js_api=bridge,
+            window_title(None), html=launcher_html(bridge.recent_records()),
+            js_api=bridge,
             width=1400, height=900, min_size=(900, 600))
         bridge._window = window
         bridge._opener = self._open_one

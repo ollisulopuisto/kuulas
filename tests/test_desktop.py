@@ -83,8 +83,9 @@ def test_recents_survive_a_damaged_file(tmp_path, content):
 def test_recents_file_is_written_atomically_and_creates_its_folder(tmp_path):
     file = tmp_path / "deep" / "er" / "recent.json"
     (a,) = folders(tmp_path, 1)
-    desktop.add_recent(file, a)
-    assert json.loads(file.read_text(encoding="utf-8")) == [a]
+    desktop.add_recent(file, a, now="2026-10-19T10:00:00Z")
+    assert json.loads(file.read_text(encoding="utf-8")) == [
+        {"path": a, "opened_utc": "2026-10-19T10:00:00Z"}]
     assert not list(file.parent.glob("*.tmp"))
 
 
@@ -179,7 +180,7 @@ def test_no_arguments_opens_the_launcher(monkeypatch):
 def test_launcher_page_escapes_and_lists_recents():
     page = desktop.launcher_html(['/x/<b>Show</b>.kuulas'])
     assert "<b>Show" not in page
-    assert "&lt;b&gt;Show" in page
+    assert "\\u003cb\\u003eShow" in page  # in the JSON the page script reads
 
 
 def test_launcher_page_shows_the_mark():

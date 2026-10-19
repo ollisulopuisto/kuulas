@@ -104,6 +104,9 @@ class FakeRunning:
         self.folder = folder
         self.url = f"http://127.0.0.1/{Path(folder).name}"
 
+    def summary(self):
+        return {"tracks": 2, "duration_s": 30.0}
+
     def stop(self):
         FakeRunning.stopped.append(self.folder)
 
