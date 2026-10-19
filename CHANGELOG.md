@@ -16,6 +16,16 @@
   editing or drift (before, same-track clips were never partners).
 - Not seen on screen yet. Sync points 1 and 2 (Alt+Mod+1/2) are still not wired.
 
+## [v26.10.19.16] - 2026-10-19
+
+- **Help search:** the first item of the Help menu is a text field (also on Cmd+/): type what you want to do and
+  it lists the matching commands with where they are in the menus, their key and a line of explanation, then
+  matching help topics. Up and Down choose, Enter runs the command, Alt+Enter opens its menu and highlights the
+  item so you learn where it lives, Esc closes. It finds commands by their English or Finnish name, by what they
+  do and by synonyms ("remove" finds Delete, "volume" finds Gain), and shows why a command is greyed out. The
+  command palette now uses the same search. In the desktop window the native Help menu has "Search commands…",
+  which opens the same search over the window. Seen working in a browser; not in the real desktop window yet.
+
 ## [v26.10.19.14] - 2026-10-19
 
 - **Fixed: File > New project said "A project name cannot be empty" for any name.** On the Mac the save dialog
