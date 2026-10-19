@@ -344,6 +344,7 @@ export const SYNONYMS = {
   "view.fit_tracks": ["fit height", "lane height", "sovita korkeus"],
   "view.toggle": ["zoom", "wide", "close", "lähi", "laaja"],
   "view.clip_words": ["captions in clips", "text in clips", "sanat", "teksti"],
+  "view.clipboard_limit": ["preview level", "quieter preview", "esikuuntelun taso", "hiljennä"],
   "palette.open": ["commands", "search commands", "find a command", "komento", "haku"],
   "help.keys": [
     "keys",

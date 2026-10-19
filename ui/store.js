@@ -105,6 +105,10 @@ export const initialState = () => ({
   showGates: true,
   // The transcript words along the top of each clip when zoomed in (WP69); a per-user view option.
   showClipWords: true,
+  // The clipboard preview is limited to the project's level (WP82); a per-user preference.
+  clipboardLimit: true,
+  // How far the latest clipboard preview was turned down: { id, db }, db 0 or less.
+  clipboardLevel: null,
   followMode: "page",
   followPaused: false,
   // Where the last edit happened, for the zoom anchor; null until an edit sets it.

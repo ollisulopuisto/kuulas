@@ -226,3 +226,43 @@ def project_curves(p: Project, store: mixer.Store,
     return {"tracks": [{"track_id": tr.id, **results[tr.id],
                         "target_lufs": track_target_lufs(tr)} for tr in tracks],
             "mix": results[""]}
+
+
+def speech_levels(
+    p: Project, store: mixer.Store, cache_root: str | Path | None = None,
+) -> tuple[list[float | None], float | None]:
+    """``(integrated LUFS of each speech or narration track with clips, the
+    loudest true peak among them)``, for the clipboard preview's reference
+    (WP82). Same per-track cache as ``project_curves``; nothing is measured
+    for the other tracks. Takes a snapshot ``Project``."""
+    levels: list[float | None] = []
+    peaks: list[float] = []
+    for track in p.tracks:
+        if not track.clips or track.kind not in ("speech", "narration"):
+            continue
+        where, _ = _where(cache_root, lambda tr=track: _track_key(p, tr), track.id)
+        hit = _load(where)
+        if hit is None:
+            channels = 1 if track.mono else max(
+                1, min(2, max(p.media_item(c.media).channels for c in track.clips)))
+            acc = Accumulator(p.rate)
+            step = CHUNK_SEC * p.rate
+            for first in range(0, p.length, step):
+                acc.add(mixer.track_stem(track, store, first, min(step, p.length - first),
+                                         channels, as_heard=True, rate=p.rate))
+            hit = acc.result().to_dict()
+            _save(where, hit)
+        levels.append(hit.get("integrated"))
+        if hit.get("true_peak_db") is not None:
+            peaks.append(hit["true_peak_db"])
+    return levels, (max(peaks) if peaks else None)
+
+
+def speech_key(p: Project) -> tuple[str, ...] | None:
+    """What ``speech_levels`` depends on, as content keys; None when a key
+    cannot be made (fail closed: the caller does not remember the answer)."""
+    try:
+        return tuple(_track_key(p, tr) for tr in p.tracks
+                     if tr.clips and tr.kind in ("speech", "narration"))
+    except caches.CacheKeyError:
+        return None

@@ -66,6 +66,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.view.clip_words",
   },
   {
+    id: "view.clipboard_limit",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.view.clipboard_limit",
+  },
+  {
     id: "view.wheel_mode",
     keys: { mac: null, other: null },
     context: "global",

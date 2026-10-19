@@ -42,6 +42,7 @@ from . import (
     bgjobs,
     candidates,
     clipboard_browse,
+    clipboard_level,
     clipboard_link,
     collateral,
     edit_points,
@@ -52,6 +53,7 @@ from . import (
     onsets,
     ops,
     package,
+    preview_level,
     project_stats,
     source_map,
     subtitles,
@@ -283,6 +285,10 @@ class Session:
         #: folder. Not project state (no history step); only the instance that
         #: holds the lock writes it, a read-only open keeps it in memory, and a
         #: failed write is a warning, never an error.
+        #: Clipboard preview level (WP82): entry loudness by entry, the project
+        #: reference by its speech tracks' content keys.
+        self._entry_levels: dict[tuple, tuple[float | None, float | None]] = {}
+        self._reference_cache: dict[tuple, tuple[float, float | None]] = {}
         self.clipboard = clipboard or ClipboardStore(
             project_path(self.package.path), writable=not self.read_only, soft=True)
         #: The shared store (WP65): the per-user file. It holds what the user
@@ -829,11 +835,43 @@ class Session:
         self.clipboard.update(lambda h: h.add(mine))
         return self._entry_view(mine, self.state)
 
-    def clipboard_preview(self, entry_id: str):
-        """``(temporary project or None, missing media count)`` for playing an
-        entry without changing this project (``clipboard_preview``)."""
-        project, missing = preview_project(self.state, self._entry(entry_id))
-        return project, len(missing)
+    def clipboard_preview(self, entry_id: str, limit: bool = True):
+        """``(temporary project or None, missing media count, gain dB)`` for
+        playing an entry without changing this project (``clipboard_preview``).
+
+        With ``limit`` the temporary project carries an attenuation (its master
+        gain, 0 or less) that brings the entry down to the project's own level
+        (WP82, ``preview_level``); nothing is ever boosted, and neither the
+        pasted audio nor the project's mix changes. The measuring reads only the
+        entry's and the speech tracks' own audio, from a snapshot, off the lock.
+        """
+        snapshot = self.state
+        entry = self._entry(entry_id)
+        project, missing = preview_project(snapshot, entry)
+        if project is None or not limit:
+            return project, len(missing), 0.0
+        cache_root = getattr(self.store, "cache_root", None)
+        reference, project_peak = self._preview_reference(snapshot, cache_root)
+        key = (entry.id, project.rate,
+               tuple((t.gain_db, t.pan, t.mono) for t in project.tracks))
+        if key not in self._entry_levels:
+            self._entry_levels[key] = clipboard_level.entry_level(project, self.store)
+        lufs, entry_peak = self._entry_levels[key]
+        gain = round(preview_level.preview_gain_db(
+            reference, lufs, entry_peak_db=entry_peak, project_peak_db=project_peak), 2)
+        return replace(project, master_gain_db=gain), len(missing), gain
+
+    def _preview_reference(self, snapshot: Project,
+                           cache_root) -> tuple[float, float | None]:
+        """The project's reference level, remembered while its speech tracks'
+        audio is the same (their content keys, which fail closed)."""
+        key = loudness_curve_module.speech_key(snapshot)
+        if key is not None and key in self._reference_cache:
+            return self._reference_cache[key]
+        got = clipboard_level.project_reference(snapshot, self.store, cache_root)
+        if key is not None:
+            self._reference_cache = {key: got}
+        return got
 
     def clipboard_copy(self, *, clip_ids=None, start=None, end=None, track_ids=None,
                        group_editing: bool = False, name: str = "") -> dict:

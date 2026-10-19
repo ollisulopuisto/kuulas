@@ -22,7 +22,7 @@ import pytest
 import sounddevice as sd
 import soundfile as sf
 
-from kuulas import messages, mixer, ops
+from kuulas import messages, mixer, ops, preview_level
 from kuulas.engine import Engine, EngineError
 from kuulas.media import CHUNK_SEC, MediaStore
 from kuulas.model import Media, Project
@@ -382,6 +382,16 @@ def test_preview_plays_the_temporary_project_not_the_real_one(rig, clock):
     np.testing.assert_array_equal(out, mixer.mix(temp, store, 0, 1024).T)
     assert engine.status()["preview"] is True
     assert session.state.tracks[0].gain_db == 0.0
+
+
+def test_only_a_limited_preview_is_held_under_the_ceiling(rig, clock):
+    engine, session, _ = make(rig, clock)
+    loud = ops.set_track(session.state, "t-m", gain_db=24.0)
+    engine.play_preview(loud, limit=True)
+    out = engine._render(1024)
+    assert np.abs(out).max() <= 10 ** (preview_level.CEILING_DB / 20) + 1e-6
+    engine.play_preview(loud)
+    assert np.abs(engine._render(1024)).max() > 1.0
 
 
 def test_an_edit_during_preview_is_remembered_not_played(rig, clock):

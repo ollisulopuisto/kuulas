@@ -333,7 +333,7 @@ class _Engine:
     def __init__(self):
         self.previews = []
 
-    def play_preview(self, project, until=None):
+    def play_preview(self, project, until=None, limit=False):
         self.previews.append(project)
 
     def status(self):
@@ -363,7 +363,9 @@ def test_api_preview_plays_a_temp_project_and_changes_nothing(client, session, e
     head, before = history_len(session), clips(session.state)
     r = client.post(f"/api/clipboard/{entry['id']}/preview")
     assert r.status_code == 200
-    assert r.json() == {"started": True, "missing": 0}
+    assert r.json()["started"] is True
+    assert r.json()["missing"] == 0
+    assert r.json()["attenuation_db"] <= 0.0
     (temp,) = engine.previews
     shape = [(t.id, [c.start for c in t.clips]) for t in temp.tracks]
     assert shape == [(a.id, [0]), (ids(session.state)[1].id, [])]

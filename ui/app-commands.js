@@ -67,6 +67,8 @@ export function registerAppCommands(registry, { actions, app }) {
   def("view.wheel_mode", () => actions.toggleWheelMode());
   // The transcript words along the top of each clip when zoomed in (WP69, clip-words.js).
   def("view.clip_words", () => actions.toggleClipWords());
+  // Whether the clipboard preview is turned down to the project's level (WP82).
+  def("view.clipboard_limit", () => actions.toggleClipboardLimit());
   def(
     "transport.play_before",
     () => actions.playFrom(prerollStart(app.getState().playhead ?? 0, rate())),

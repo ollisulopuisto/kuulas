@@ -164,6 +164,11 @@ class RenameBody(BaseModel):
     name: str
 
 
+class ClipboardPreviewBody(BaseModel):
+    #: Limit the preview to the project's level (WP82); the user's preference.
+    limit: bool = True
+
+
 class AdoptBody(BaseModel):
     entry: dict[str, Any]
     from_project: str = ""
@@ -589,13 +594,17 @@ def create_app(session, engine, *, language: str | None = None,
         return JSONResponse({"entries": session.clipboard_list()})
 
     @app.post("/api/clipboard/{entry_id}/preview")
-    def post_clipboard_preview(entry_id: str):
+    def post_clipboard_preview(entry_id: str, body: ClipboardPreviewBody | None = None):
         # Plays a temporary project made from the entry; the real one is not
-        # touched, nothing is committed. Playing again or Stop ends it.
-        project, missing = session.clipboard_preview(entry_id)
+        # touched, nothing is committed. Playing again or Stop ends it. Unless
+        # switched off it is turned down to the project's level and limited
+        # (WP82); `attenuation_db` says by how much (0 or less).
+        limit = True if body is None else body.limit
+        project, missing, gain = session.clipboard_preview(entry_id, limit)
         if project is not None:
-            engine.play_preview(project)
-        return JSONResponse({"started": project is not None, "missing": missing})
+            engine.play_preview(project, limit=limit)
+        return JSONResponse({"started": project is not None, "missing": missing,
+                             "attenuation_db": gain})
 
     @app.delete("/api/clipboard/{entry_id}")
     def delete_clipboard_entry(entry_id: str):
