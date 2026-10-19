@@ -1,3 +1,20 @@
+## [v26.10.19.21] - 2026-10-19
+
+- **Fixes from your testing:** a file dragged in from Finder now lands where you dropped it, not at the play cursor
+  (desktop window); Alt+X (lift-cut) now really deletes the stretch, leaving the gap, instead of muting it (the
+  copy still goes to the clipboard; Undo brings it back); Mod+Up and Mod+Down now move the selected clips to the
+  track above or below (they did nothing before); pressing Alt+arrow very many times no longer makes the cursor
+  jerk backwards (answers to older moves could arrive late and pull it back).
+- **Light theme is a mid grey with more contrast:** panels and lanes are soft grey instead of white, text, borders,
+  ruler, playhead, selection and waveforms read more clearly; the numbers are pinned by a test. Dark theme
+  unchanged. Not seen in every state (transcript highlight, muted and clipping) yet.
+- **No default key on the bracket keys or `/`** (your Finnish keyboard): previous and next view are only
+  Alt+Cmd+Shift+arrows; next and previous cut candidate are Alt+Down and Alt+Up; next and previous drifting clip
+  (Markers tab) are N and Shift+N; Help search is Shift+Cmd+K (Cmd+K is the palette); faster and slower playback
+  are Shift+L and Shift+J (the comma stays for slower). Your own key overrides still work.
+- **Colab transcription asks for the word-start correction** (`--align`, a setting, on by default); the result
+  says whether it ran. The command now works from the podcast repo's main branch without naming a branch.
+
 ## [v26.10.19.20] - 2026-10-19
 
 - **The recorder (part one of recording, no screen yet):** `kuulas-recorder` is a separate small program that
