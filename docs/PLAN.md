@@ -3513,3 +3513,44 @@ account, only if the app goes to other people); requires `speechmix` as a packag
 inside the project (`Name.kuulas.json`) that opens its folder. Not in this WP.
 **Open:** whether double-clicking a project that is locked by another computer (Dropbox) should say so before
 opening; whether the Dock icon menu should list recent projects.
+
+---
+
+### WP73 — Tester build: an unsigned .dmg for macOS (owner, 2026-10-19)
+
+Status: open. Owner decisions 2026-10-19: **unsigned** `.dmg` first; **Mac only** (no Windows testers). The goal is
+that a tester downloads one file, drags Kuulas to Applications, opens it (the first time with right-click, Open,
+because it is unsigned), and double-clicks `.kuulas` projects. No Python, `uv`, repo or podcast checkout needed.
+Prior art searched 2026-10-19: [Briefcase](https://briefcase.beeware.org) (BeeWare) builds the macOS `.app` and
+a `.dmg`, supports document types including package types (`macOS.UTTypeConformsTo` containing
+`com.apple.package`), and can later sign and notarise; PyInstaller and py2app are the other options. Choose by
+trying: Briefcase first; fall back to PyInstaller (a `BUNDLE` with a custom `info_plist`) if Briefcase cannot carry
+a pywebview app with a FastAPI thread.
+
+**Parts, in order** (each its own commit):
+1. **Dependencies without the podcast checkout.** `speechmix` and `nhsx` are path dependencies on
+   `../podcast/packages/`. Build their wheels from that checkout (`uv build`, never editing the podcast repo) into
+   a build folder and install them into the bundle as normal dependencies; a script does it (`scripts/build_wheels.sh`).
+   Note the weight: numpy, scipy, numba, pedalboard make the bundle large (expect several hundred MB); report the
+   size. **ffmpeg:** kuulas needs it to decode some formats; bundle a static build, or check which formats the
+   bundled libraries (soundfile/libsndfile) already read and say which need ffmpeg; keep licence notes in `docs/`.
+2. **The app bundle.** Entry point opens the desktop window (`kuulas desktop`), the UI files (`ui/`) packaged as
+   package data and found at run time (today `UI_DIR` is the repo's `ui/` folder, which does not exist inside an
+   installed package: make the lookup work from the bundle and from the repo), the app icon, bundle id
+   `fi.sulopuisto.kuulas`, the version from `pyproject.toml` (CalVer; a build label like the one in the status bar).
+3. **The file type.** Info.plist declares the document type with the exported UTI conforming to
+   `com.apple.package` (reuse the definitions from WP72's `macapp` module once it is on main). **Open events:** a
+   double-clicked project reaches the app as an Apple event, not as `argv`; pywebview runs the Cocoa loop, so
+   handle `application:openFiles:` (PyObjC, already available with pywebview on macOS) or the Apple event, and open
+   the project in a window; opened while the app is already running, open another window or reuse as WP72 does;
+   opened at launch, open that project. This is the part to prove early.
+4. **The .dmg.** A window with the app and a link to Applications (`create-dmg` or Briefcase's own `package`),
+   named `Kuulas <version>.dmg`; a script `scripts/build_dmg.sh` that does steps 1 to 4 from a clean checkout and
+   prints the file and its size. Unsigned: document the right-click Open step for testers in `docs/TESTERS.md`
+   (what to do, how to report a problem with the build label, where the logs are), and a macOS quarantine note
+   (`xattr -dr com.apple.quarantine`).
+5. **Smoke test.** A scripted check that launches the built app with a tiny project and a `--selftest` flag
+   (starts the server, answers `/api/state`, exits) and reports; run by the build script. Do not need a screen.
+
+**Later:** signing and notarisation if an Apple Developer account is bought; Windows; auto-update.
+**Open:** the bundle size; whether the first-run needs the user's ffmpeg; where logs go; crash reports.
