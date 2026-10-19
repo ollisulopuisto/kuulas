@@ -1,0 +1,56 @@
+name: dmg
+
+# Builds the unsigned tester .dmg of Kuulas (WP73) on a GitHub-hosted Apple-silicon Mac.
+#   - by hand: Actions > dmg > Run workflow (the .dmg is a downloadable artifact, 30 days);
+#   - on a version tag (v26.10.19.23 ...): the same build, attached to a GitHub Release
+#     (the repository is private: only people with access to it can download the release).
+# Not signed or notarised (needs an Apple Developer account); testers open it with
+# right-click > Open the first time (docs/TESTERS.md).
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write   # the release step needs it; nothing else is written
+
+jobs:
+  dmg:
+    name: build the .dmg (macOS, Apple silicon)
+    runs-on: macos-14
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: kuulas
+      # speechmix and nhsx come from the podcast repo (public): its wheels are built from a
+      # clean checkout of main (build_wheels.sh reads PODCAST_SRC, never edits it).
+      - uses: actions/checkout@v4
+        with:
+          repository: ollisulopuisto/podcast
+          path: podcast
+      - uses: astral-sh/setup-uv@v6
+      - name: Build the .dmg
+        working-directory: kuulas
+        env:
+          PODCAST_SRC: ${{ github.workspace }}/podcast
+        run: scripts/build_dmg.sh --out "$RUNNER_TEMP/dist"
+      - name: What was built
+        run: |
+          ls -la "$RUNNER_TEMP/dist"
+          shasum -a 256 "$RUNNER_TEMP/dist"/*.dmg | tee "$RUNNER_TEMP/dist/SHA256.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Kuulas-dmg
+          path: ${{ runner.temp }}/dist/*
+          retention-days: 30
+      - name: Attach to the GitHub Release (version tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" \
+            --title "Kuulas ${GITHUB_REF_NAME}" \
+            --notes "Unsigned test build for Apple-silicon Macs. First open: right-click, Open. See docs/TESTERS.md. Checksums in SHA256.txt." \
+            "$RUNNER_TEMP"/dist/*.dmg "$RUNNER_TEMP"/dist/SHA256.txt

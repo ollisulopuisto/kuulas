@@ -8,8 +8,9 @@ on:
 # kuulas imports speechmix and nhsx from the podcast repo as path dependencies
 # (../podcast/packages/...), so both repos are checked out side by side:
 #   $GITHUB_WORKSPACE/kuulas and $GITHUB_WORKSPACE/podcast.
-# The podcast repo is private: the repository secret PODCAST_READ_TOKEN must be
-# a token with read access to ollisulopuisto/podcast (the owner adds it).
+# The podcast repo is public (checked 2026-10-19), so no token is needed to read it. If it
+# becomes private, add `token: ${{ secrets.PODCAST_READ_TOKEN }}` to its checkout steps and
+# set that repository secret to a token with read access (the owner adds it).
 
 jobs:
   test:
@@ -30,7 +31,6 @@ jobs:
         with:
           repository: ollisulopuisto/podcast
           path: podcast
-          token: ${{ secrets.PODCAST_READ_TOKEN }}
       - uses: astral-sh/setup-uv@v6
       - uses: actions/setup-node@v4
         with:
@@ -69,7 +69,6 @@ jobs:
         with:
           repository: ollisulopuisto/podcast
           path: podcast
-          token: ${{ secrets.PODCAST_READ_TOKEN }}
       - uses: astral-sh/setup-uv@v6
       # Linux: pywebview's GTK backend. Chosen over Qt because it is a few small
       # distro packages (python3-gi, WebKit2GTK 4.1), where Qt is ~200 MB of
