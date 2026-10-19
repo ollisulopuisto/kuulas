@@ -3420,7 +3420,7 @@ Tests: the temporary-folder run with a fake automixer command; cancellation; a m
 
 ### WP69 — Words in the clips on the timeline (owner, 2026-10-19)
 
-Status: open, accepted by the owner ("kyllä"). Hindenburg writes the transcript inside the clip, along its top,
+Status: built in v26.10.19.4, not yet seen on screen. Accepted by the owner ("kyllä"). Hindenburg writes the transcript inside the clip, along its top,
 so you see which word is where in the waveform while you edit. Kuulas shows the transcript in the bottom panel
 and only the first words in a clip's label.
 

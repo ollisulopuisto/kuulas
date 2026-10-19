@@ -1,3 +1,11 @@
+## [v26.10.19.4] - 2026-10-19
+
+- **Words inside the clips on the timeline** (as in Hindenburg): zoom in until a word is wide enough to read and
+  each speech clip shows its words in a thin row under its label, each at its own place. The word under the
+  play cursor is brighter and words you selected in the transcript are marked. Turn it off in View > "Words in
+  clips" (the View menu now shows a check mark for switches like this). Not seen on screen yet: look at the row
+  height, the contrast of the text over the clip and the zoom level where it appears (about 28 px per word).
+
 ## [v26.10.19.3] - 2026-10-19
 
 - **Selecting words in the transcript also marks them on the timeline:** the selected words become the in and out
