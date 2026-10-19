@@ -1003,6 +1003,10 @@ def create_app(session, engine, *, language: str | None = None,
         action = body.action
         if action in ("seek", "scrub") and body.at is None:
             raise BadRequestError("error.server.missing_field", field="at")
+        recording = recorder is not None and recorder.recording_now()
+        if action in ("play", "scrub") and recording:
+            # No listening while recording (owner, 2026-10-19): the interface monitors.
+            raise RecordError("error.record.no_playback", status=409)
         if action == "play":
             # Checked here too, so a bad list is a 400 whatever the engine.
             skip = check_skip(body.skip)

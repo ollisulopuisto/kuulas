@@ -99,7 +99,8 @@ class RecordSession:
                  spawn: Callable[[], None] = default_spawn, retry_s: float = RETRY_S,
                  hold_ms: int = HOLD_MS, watch: bool = True) -> None:
         self.session = session
-        self.folder = Path(session.package.path) / rt.RECORDINGS
+        # Absolute: the recorder refuses a relative folder (`kuulas open Show.kuulas`).
+        self.folder = (Path(session.package.path) / rt.RECORDINGS).resolve()
         self.publish = publish if publish is not None else (lambda _m: None)
         self._connect = connect
         self._spawn = spawn
@@ -188,6 +189,13 @@ class RecordSession:
 
     def _recording(self, status: dict) -> bool:
         return status.get("state", "idle") not in ("idle", None)
+
+    def recording_now(self) -> bool:
+        """Is a take recording, as last heard (no question to the recorder: playback asks
+        this on every play)? Any take counts: a speaker playing into a live microphone
+        is what the owner's "no listening while recording" rule keeps out."""
+        with self._lock:
+            return self._recording(self._status)
 
     def _disk(self, status: dict) -> dict:
         """Recording time left: the recorder's estimate while a take runs, else ours."""

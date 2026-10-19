@@ -213,6 +213,20 @@ def test_a_crashed_take_imports_as_it_is_when_no_recorder_can_repair_it(session)
 # -- failures with no recorder ---------------------------------------------------------
 
 
+def test_a_project_opened_by_a_relative_path_records_into_an_absolute_folder(
+        tmp_path, monkeypatch):
+    # Found in the browser: `kuulas open Try.kuulas` sent "recordings" relative, and the
+    # recorder refused it ("start needs an absolute folder path").
+    monkeypatch.chdir(tmp_path)
+    s = Session("Rel.kuulas")
+    try:
+        rs = offline(s)
+        assert rs.folder.is_absolute()
+        assert rs.folder == (tmp_path / "Rel.kuulas" / "recordings").resolve()
+    finally:
+        s.close()
+
+
 def test_no_recorder_is_a_clear_error_key(session):
     rs = offline(session)
     with pytest.raises(RecordError) as e:
@@ -487,6 +501,20 @@ def test_api_refuses_a_stop_without_a_gesture(session, tmp_path):
         assert r.json()["error"]["key"] == "error.record.stop_gesture"
         r = c.post("/api/record/stop", json={"mode": "hold", "held_ms": 1999})
         assert r.json()["error"]["key"] == "error.record.hold_required"
+
+
+def test_api_plays_nothing_while_a_take_records(session, tmp_path):
+    # Owner, 2026-10-19: no listening while recording in this version.
+    rs = offline(session)
+    rs._status = {"state": "recording", "take": "Take 1",
+                  "folder": str(recordings(session))}
+    with api(session, tmp_path, rs) as c:
+        r = c.post("/api/transport", json={"action": "play", "at": 0})
+        assert r.status_code == 409
+        assert r.json()["error"]["key"] == "error.record.no_playback"
+        rs._status = {"state": "idle"}
+        r = c.post("/api/transport", json={"action": "stop"})
+        assert r.status_code == 200
 
 
 def test_api_imports_an_offered_take_on_one_click(session, tmp_path):

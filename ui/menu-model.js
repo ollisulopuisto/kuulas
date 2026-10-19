@@ -254,6 +254,9 @@ export const MENU = [
       item("transport.play_selection"),
       item("transport.rehearse"),
       SEP,
+      item("transport.record"),
+      item("record.stop_mode"),
+      SEP,
       item("transport.loop"),
       submenu("menu.fast_playback", [
         item("transport.speed"),

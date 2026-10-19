@@ -88,10 +88,12 @@ import { createProjectDialog } from "./project-dialog.js";
 import { patchClip } from "./provisional.js";
 import { rangeLine } from "./range-info.js";
 import { rememberRange, stepRangeMemory } from "./range-memory.js";
+import { createRecordView } from "./record-view.js";
 import { forwardFromClip } from "./selection-ops.js";
 import { setupKeyboard } from "./shell-keys.js";
 import { chipSpeed } from "./shuttle.js";
 import { createStatsDialog } from "./stats-dialog.js";
+import { nextStopMode } from "./stop-mode.js";
 import { getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
 import { driftingAmong, missingPartners } from "./sync-state.js";
 import {
@@ -764,6 +766,8 @@ const keyboard = setupKeyboard({
     exportRegions: () => exportRegions(),
     automix: () => void openAutomix(),
     openStatistics: () => void openStatistics(),
+    openRecord: () => void recordView.open(),
+    cycleStopMode: () => cycleStopMode(),
     autoSilence: () => void autoSilence(),
     duckMicrophones: () => void duckMicrophones(),
     transcribeTrack: (backend) => void transcribeTrack(backend),
@@ -1601,6 +1605,22 @@ async function transcribeOnColab(ids) {
   } catch (error) {
     showError(error);
   }
+}
+
+// Transport > Record… (WP12a): the record view; the server owns the take, the page only shows it.
+const recordView = createRecordView({
+  api,
+  t,
+  prefs,
+  getState,
+  apply,
+  notify: showNotice,
+  chip: $("rec-chip"),
+});
+function cycleStopMode() {
+  const mode = nextStopMode(recordView.stopMode);
+  recordView.setStopMode(mode);
+  showNotice(t("ui.record.stop_mode.now", { mode: t(`ui.record.stop_mode.${mode}`) }), "ok");
 }
 
 async function openStatistics() {
@@ -2616,6 +2636,9 @@ try {
 } catch (error) {
   showError(error);
 }
+// A take running for this project shows the record view again; takes a crash left behind
+// are offered with one click (never imported by themselves).
+void recordView.start();
 
 let handledNotice = 0;
 let wasDown = false;
@@ -2626,6 +2649,7 @@ connectLive({
     if (status === "open" && wasDown) {
       // Whatever happened while the connection was gone: fetch it again.
       void refresh().catch(showError);
+      void recordView.refresh();
       void api
         .getTransport()
         .then((s) => setState({ playing: s.playing, playhead: s.position }))
@@ -2634,6 +2658,10 @@ connectLive({
     wasDown = status === "reconnecting";
   },
   onMessage(message) {
+    if (message.type === "record") {
+      recordView.live(message);
+      return;
+    }
     const result = reduceLive(getState(), message);
     if (Object.keys(result.patch).length > 0) setState(result.patch);
     // An answer to our own edit arrives as a state_changed too; while edits are

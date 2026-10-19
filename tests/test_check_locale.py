@@ -119,8 +119,8 @@ def test_main_cli_fails_on_missing_referenced_key(tmp_path: Path, monkeypatch, c
 
 
 def test_the_recorder_package_is_not_scanned(tmp_path: Path):
-    # kuulas_recorder has no catalog: its error keys are protocol keys (docs/RECORDER.md)
-    # that the editor maps to error.record.*, so ProtocolError("busy", ...) is no reference.
+    # kuulas_recorder has no catalog: its error keys are protocol keys (RECORDER.md)
+    # the editor maps to error.record.*, so ProtocolError("busy", ...) is no reference.
     from scripts.check_locale import scan_sources  # noqa: PLC0415
 
     src = tmp_path / "src"

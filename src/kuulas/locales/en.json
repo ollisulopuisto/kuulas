@@ -1815,5 +1815,6 @@
   "ui.record.stop_mode.one_click": "One click",
   "ui.record.stop_mode.hold": "Hold 2 s",
   "ui.record.stop_mode.now": "Stopping a recording: {mode}",
-  "ui.record.unload_warning": "A take is recording. It goes on if you close this page."
+  "ui.record.unload_warning": "A take is recording. It goes on if you close this page.",
+  "error.record.no_playback": "Nothing plays while a take records: listen through your audio interface."
 }

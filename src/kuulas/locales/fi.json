@@ -1904,12 +1904,13 @@
   "ui.record.imported": {"one": "{take} on aikajanalla ({count} leike).", "other": "{take} on aikajanalla ({count} leikettä)."},
   "ui.record.imported_interrupted": "{take} keskeytyi; kaikki äänitetty on aikajanalla.",
   "ui.record.imported_gaps": {"one": "{take} on aikajanalla; siinä on {count} aukko, jolloin mitään ei voitu äänittää.", "other": "{take} on aikajanalla; siinä on {count} aukkoa, jolloin mitään ei voitu äänittää."},
-  "ui.record.pending": {"one": "{count} äänitettyä ottoa ei viety aikajanalle (editori tai äänitin pysähtyi kesken).", "other": "{count} äänitettyä ottoa ei viety aikajanalle (editori tai äänitin pysähtyi kesken)."},
+  "ui.record.pending": {"one": "Yhtä äänitettyä ottoa ei viety aikajanalle (editori tai äänitin pysähtyi kesken).", "other": "{count} äänitettyä ottoa ei viety aikajanalle (editori tai äänitin pysähtyi kesken)."},
   "ui.record.import_pending": "Tuo",
   "ui.record.stop_mode": "Äänityksen pysäyttäminen",
   "ui.record.stop_mode.two_step": "Kaksi painallusta",
   "ui.record.stop_mode.one_click": "Yksi painallus",
   "ui.record.stop_mode.hold": "Pidä 2 s",
   "ui.record.stop_mode.now": "Äänityksen pysäytys: {mode}",
-  "ui.record.unload_warning": "Ottoa äänitetään. Äänitys jatkuu, vaikka suljet sivun."
+  "ui.record.unload_warning": "Ottoa äänitetään. Äänitys jatkuu, vaikka suljet sivun.",
+  "error.record.no_playback": "Mitään ei soiteta oton äänityksen aikana: kuuntele äänikortin kautta."
 }

@@ -2842,3 +2842,206 @@ input[type="text"] {
 .timecode .clock-edit[aria-invalid="true"] {
   border-bottom-color: var(--danger);
 }
+
+/* -- the record view (record-view.js, WP12a) ------------------------------------------------ */
+.record-view {
+  width: min(560px, 94vw);
+}
+.record-body {
+  display: grid;
+  gap: var(--space-5);
+  margin: var(--space-5) 0;
+}
+.record-setup {
+  display: grid;
+  gap: var(--space-4);
+}
+.record-field {
+  display: grid;
+  grid-template-columns: 9rem 1fr;
+  align-items: center;
+  gap: var(--space-4);
+}
+.record-field select,
+.record-field input,
+.record-mode select {
+  height: var(--control-h);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: inherit;
+  padding: 0 var(--space-4);
+}
+.record-at,
+.record-disk,
+.record-message,
+.record-stop-help,
+.record-monitoring {
+  margin: 0;
+  color: var(--text-secondary);
+}
+.record-disk[data-state="warn"] {
+  color: var(--warn-text);
+}
+.record-disk[data-state="critical"],
+.record-disk[data-state="full"] {
+  color: var(--danger-text);
+  font-weight: var(--weight-strong);
+}
+.record-monitoring {
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+}
+.record-button {
+  justify-self: start;
+  min-width: 10rem;
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--text-on-accent);
+  font-weight: var(--weight-strong);
+}
+.record-button:hover:not(:disabled) {
+  background: var(--danger-text);
+}
+.record-live {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-5);
+  text-align: center;
+}
+.record-take {
+  margin: 0;
+  color: var(--danger-text);
+  font-weight: var(--weight-strong);
+}
+.record-take::before {
+  content: "● ";
+}
+.record-elapsed {
+  font-family: var(--font-mono);
+  font-size: 56px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.record-meter-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+}
+.record-meter {
+  position: relative;
+  flex: 1;
+  height: 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+.record-meter-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  background: var(--ok);
+}
+.record-meter-fill[data-zone="warn"] {
+  background: var(--warn);
+}
+.record-meter-fill[data-zone="hot"] {
+  background: var(--danger);
+}
+.record-meter-hold {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--text);
+}
+.record-clip {
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--danger);
+  color: var(--text-on-accent);
+  font-weight: var(--weight-strong);
+  padding: var(--space-2) var(--space-4);
+}
+.record-notices {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-2);
+  text-align: left;
+}
+.record-notice {
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-md);
+  background: var(--warn-subtle);
+  color: var(--warn-text);
+}
+.record-notice.alarm {
+  background: var(--danger-subtle);
+  color: var(--danger-text);
+  font-weight: var(--weight-strong);
+}
+.record-notice.info {
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+}
+.record-stop {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+.record-stop svg {
+  width: 120px;
+  height: 120px;
+}
+.record-ring-track {
+  fill: none;
+  stroke: var(--surface-active);
+  stroke-width: 8;
+}
+.record-ring {
+  fill: none;
+  stroke: var(--danger);
+  stroke-width: 8;
+  transform: rotate(-90deg);
+  transform-origin: 60px 60px;
+}
+.record-stop-square {
+  fill: var(--text);
+}
+.record-stop[data-state="confirming"] .record-stop-square,
+.record-stop[data-state="holding"] .record-stop-square {
+  fill: var(--danger);
+}
+.record-stop-text {
+  font-size: 18px;
+  font-weight: var(--weight-strong);
+}
+.record-stop[data-state="confirming"] .record-stop-text {
+  color: var(--danger-text);
+}
+.record-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+}
+.record-mode {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--text-secondary);
+}
+.rec-chip {
+  font-variant-numeric: tabular-nums;
+}

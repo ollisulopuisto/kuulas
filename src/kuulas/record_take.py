@@ -180,7 +180,7 @@ RECORDER_ERRORS = (
     "device_open_failed", "device_no_audio", "file_exists", "worker_failed",
     "take_not_found", "internal", "timeout", "disconnected", "spawn_failed",
     "other", "unavailable", "hold_required", "another_project", "no_device",
-    "bad_channel", "stop_gesture",
+    "bad_channel", "stop_gesture", "no_playback",
 )
 
 
