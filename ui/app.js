@@ -107,7 +107,6 @@ import { createProjectDialog } from "./project-dialog.js";
 import { patchClip } from "./provisional.js";
 import { rangeLine } from "./range-info.js";
 import { rememberRange, stepRangeMemory } from "./range-memory.js";
-import { recentMenuItems } from "./recent-menu-model.js";
 import {
   clearTrackSelection,
   resolveScope,
@@ -115,6 +114,7 @@ import {
   selectTrack as selectTrackPatch,
   toggleScopeMode,
 } from "./range-scope.js";
+import { recentMenuItems } from "./recent-menu-model.js";
 import { createRecordView } from "./record-view.js";
 import { forwardFromClip } from "./selection-ops.js";
 import { createSendCopyDialog } from "./send-copy-dialog.js";
