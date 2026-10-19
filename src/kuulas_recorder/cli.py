@@ -44,7 +44,8 @@ def _serve(args) -> int:
     if sys.stderr is not None and sys.stderr.isatty():
         root.addHandler(logging.StreamHandler())
     sup = Supervisor(sock, state, flush_seconds=args.flush_seconds,
-                     max_data_bytes=args.max_data_bytes)
+                     max_data_bytes=args.max_data_bytes,
+                     idle_exit=args.idle_exit)
 
     def on_signal(signum, _frame):
         root.info("signal %d: stopping the take cleanly and exiting", signum)
@@ -143,6 +144,8 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--state-dir", help="folder for the log and lock files")
     s.add_argument("--flush-seconds", type=float, default=1.0,
                    help="audio between flushes (default 1 s)")
+    s.add_argument("--idle-exit", type=float, default=60.0,
+                   help="exit after this many seconds idle with no client (0: never)")
     s.add_argument("--max-data-bytes", type=int, default=None, help=argparse.SUPPRESS)
     s.set_defaults(fn=_serve)
     d = sub.add_parser("devices", help="list input devices")

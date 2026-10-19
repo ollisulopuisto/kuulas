@@ -121,7 +121,8 @@ def test_summary_names_what_went_wrong():
                            dropouts=[{"at_frame": 3, "frames": 2}], overflows=2,
                            worker_restarts=1))
     assert s == {"interrupted": True, "gaps": 1, "gap_frames": 4800, "dropouts": 1,
-                 "overflows": 2, "worker_restarts": 1, "frames": 96000}
+                 "overflows": 2, "worker_restarts": 1, "failed_channels": [],
+                 "frames": 96000}
 
 
 # -- the editor's plan file ---------------------------------------------------------

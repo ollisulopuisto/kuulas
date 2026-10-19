@@ -2944,6 +2944,46 @@ input[type="text"] {
   color: inherit;
   padding: 0 var(--space-4);
 }
+.record-channels {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.record-channel {
+  display: grid;
+  grid-template-columns: 7rem 1fr 1fr;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+}
+.record-channel select,
+.record-channel input[type="text"] {
+  height: var(--control-h);
+  min-width: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: inherit;
+  padding: 0 var(--space-4);
+}
+.record-channel-use {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.record-meters {
+  display: grid;
+  gap: var(--space-3);
+  width: 100%;
+}
+.record-meter-label {
+  flex: 0 0 8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .record-at,
 .record-disk,
 .record-message,
@@ -3022,6 +3062,9 @@ input[type="text"] {
   align-items: center;
   gap: var(--space-4);
   width: 100%;
+}
+.record-channel .record-meter-row {
+  grid-column: 1 / -1;
 }
 .record-meter {
   position: relative;

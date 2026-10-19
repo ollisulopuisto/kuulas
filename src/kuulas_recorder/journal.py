@@ -88,6 +88,8 @@ class TakeRecord:
             "frames": 0,
             "gaps": [],
             "dropouts": [],
+            # Channels whose file failed mid-take (WP12b); the others went on.
+            "failed_channels": [],
             "overflows": 0,
             "overflow_at": [],
             "markers": [],
