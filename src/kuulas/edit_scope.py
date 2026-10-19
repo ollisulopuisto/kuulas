@@ -7,6 +7,8 @@ Determines what an edit touches:
   - A clip edit expands to each clip's partners (clips of the same sync group on
     other tracks playing the same stretch of recording).
 - Any other edit touches exactly what was selected.
+- A clip declared free from sync (``Clip.free``) is no one's partner: moving it
+  takes nobody along, and nobody's move takes it along.
 """
 
 from __future__ import annotations
@@ -59,7 +61,7 @@ def partners(project: Project, material: Any, clip_id: str) -> list[Clip]:
         return []
 
     group = p.sync_group(clip.media)
-    if group is None:
+    if group is None or clip.free:
         return []
 
     c_rec = _recorded_range(p, clip)
@@ -72,7 +74,7 @@ def partners(project: Project, material: Any, clip_id: str) -> list[Clip]:
         if other_track.id == track.id:
             continue
         for other_clip in other_track.clips:
-            if p.sync_group(other_clip.media) != group:
+            if other_clip.free or p.sync_group(other_clip.media) != group:
                 continue
             o_rec = _recorded_range(p, other_clip)
             if o_rec is None:
@@ -157,4 +159,33 @@ def expand_clips(
                 seen.add(partner.id)
                 out.append(partner.id)
 
+    return out
+
+
+#: The kinds of edit that shift time (WP19a). Everything else (gain, pan, mute,
+#: fades, FX, delete leaving a gap, trim without ripple) uses its target exactly.
+TIME_SHIFTING = frozenset({
+    "cut", "close_gap", "ripple_delete", "insert", "move", "nudge", "ripple_trim",
+    "cut_words",
+})
+
+
+def edit_target(project: Project, material: Any, kind: str, target: dict,
+                group_editing: bool) -> dict:
+    """The one answer to "what does this edit touch?".
+
+    ``target`` is a range ``{"track_ids", "start", "end"}`` or a clip set
+    ``{"clip_ids"}``; the answer has the same keys with ``track_ids`` or
+    ``clip_ids`` widened when ``kind`` shifts time and ``group_editing`` is on,
+    and is a copy of ``target`` otherwise. Other keys pass through.
+    """
+    out = dict(target)
+    if kind not in TIME_SHIFTING or not group_editing:
+        return out
+    if target.get("clip_ids") is not None:
+        out["clip_ids"] = expand_clips(project, material, target["clip_ids"], True)
+    elif target.get("track_ids") is not None:
+        out["track_ids"] = expand_range(
+            project, material, list(target["track_ids"]), int(target["start"]),
+            int(target["end"]), True)
     return out

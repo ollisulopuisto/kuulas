@@ -34,6 +34,7 @@ import { loadRecent, recordRecent, saveRecent } from "./recent-commands.js";
 import { registerSaveCommands } from "./save-commands.js";
 import { registerSelectCommands } from "./select-commands.js";
 import { subscribe } from "./store.js";
+import { registerSyncCommands } from "./sync-commands.js";
 import { registerTranscriptCommands } from "./transcript-commands.js";
 
 // Which keymap context a keyboard panel gives (keymap-default.js). The help panel
@@ -45,7 +46,7 @@ export const CONTEXT_OF_PANEL = {
   inspector: "side",
   candidates: "candidates",
   clipboard: "side",
-  markers: "side",
+  markers: "markers",
   history: "side",
   help: "side",
 };
@@ -125,6 +126,7 @@ export function setupKeyboard({ actions, app, t, notify, onLanguageChange, onRef
   registerExportCommands(registry, { app, t });
   registerSaveCommands(registry, { app, t });
   registerMarkerCommands(registry, { app, t });
+  registerSyncCommands(registry, { app, t });
   registerPlaceholderCommands(registry, { app, t });
   registerCandidateCommands(registry, { app, t });
   // The rest of the sheet is listed everywhere and does nothing until its WP lands.

@@ -31,6 +31,9 @@ describe("range mode: dragging paints a range (the default)", () => {
     assert.equal(dragIntent({ mode, ...press({ shift: true }) }), "range");
     assert.equal(dragIntent({ mode, ...press({ alt: true }) }), "range");
   });
+  test("Alt with Cmd (Ctrl) moves the clip alone, out of its sync group", () => {
+    assert.equal(dragIntent({ mode, ...press({ mod: true, alt: true }) }), "move");
+  });
   test("empty lane space paints a range", () => {
     assert.equal(dragIntent({ mode, ...press({ hit: onLane }) }), "range");
   });

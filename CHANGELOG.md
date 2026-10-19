@@ -1,3 +1,33 @@
+## [v26.10.19.11] - 2026-10-19
+
+- **Edit groups and sync states on the screen (WP19a, R51):** Mod+G switches group editing off and on (the
+  "Group editing off" chip stays visible while it is off). Select a clip and its partners, the clips of its sync
+  group that play the same stretch of the recording, get a dashed outline: that is what a move will take along.
+  Alt+Cmd (Alt+Ctrl) drag moves a clip alone; when it ends up out of sync, a message asks "Keep this clip free from
+  sync?" with "Free it" (nothing changes unless you answer). **U** frees the selected clips from sync, or links them
+  again: a free clip wears a grey unlinked icon and its offset ("+300 ms · free"), and is nobody's partner. A clip
+  that drifted out of sync wears a red badge with its offset. The Markers tab lists the drifting clips, with the
+  cause when you rest the pointer on one (read from the history, for example "since: cut, group editing off");
+  `]` and `[` step through the list while that tab has the keyboard (the candidates keep `]` and `[` everywhere else),
+  and "Resync all" and "Free all" are buttons there and in the Sync menu and the command palette. R, Alt+Mod+R and
+  Shift+Alt+Mod+R (resync from the play cursor on) now work and say "Resynced 14 clips · skipped 2 free".
+  Alt+Mod+X closes a gap on every track of the sync group. Not tried on screen yet: how the badges and the dashed
+  outline look and fit in narrow clips, the message after an Alt+Cmd drag, and the Markers tab list.
+
+## [v26.10.19.10] - 2026-10-19
+
+- **Edits that move time keep the sync group together (engine; the screen comes next):** one rule now decides what
+  an edit touches. Cutting and closing a gap, ripple delete, ripple trim, nudging and moving clips, and deleting
+  words from the transcript take the whole sync group along (every track of it, or each clip's partners from the
+  same stretch of the recording). Gain, pan, mute and Backspace-delete use exactly what you selected. With group
+  editing off, only the focused track is edited. Music and other tracks outside the group are left alone when the
+  edit started on a grouped track.
+- **Free or drifting, never guessed:** a clip can be declared free from sync (pieces you split from it stay free; it
+  is nobody's partner). A clip that sits away from where its sync group puts it, and was not declared free, is
+  "drifting", with its offset and the edit that caused it read from the history. Nothing resyncs by itself. Resync
+  from the playhead skips free clips and says "Resynced 14 clips · skipped 2 free". New: a list of drifting clips.
+  The buttons, keys (Mod+G, U, `]` `[`) and badges follow in the next version; not tried on screen yet.
+
 ## [v26.10.19.9] - 2026-10-19
 
 - **A downloadable Mac app for testers (unsigned):** `scripts/build_dmg.sh` builds `Kuulas <version>.dmg`
@@ -60,7 +90,6 @@
 - The automixer run now leaves nothing behind in the export folder (its empty "flags" file is removed; a flags
   file with notes in it is kept beside the mix) and no longer prints a confusing virtual-environment warning.
   First checked against the real automixer (a short test project, mix, progress bar and Cancel all worked).
-
 ## [v26.10.19.4] - 2026-10-19
 
 - **Words inside the clips on the timeline** (as in Hindenburg): zoom in until a word is wide enough to read and

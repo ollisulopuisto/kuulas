@@ -753,32 +753,59 @@ def _recorded(p: Project, clip: Clip) -> int:
     return clip.offset + origin
 
 
+def synced_start(p: Project, clip: Clip) -> int | None:
+    """Where ``clip`` belongs on the timeline to be in sync with its group, or
+    None when it has no reference (no group, or it is the main media's own piece).
+
+    The reference is the main media's piece that plays the same stretch of the
+    recording, so cuts made in the main clip are followed. Both ``resync`` and
+    the drift display (``sync_state``) read it, so they cannot disagree.
+    """
+    group = p.sync_group(clip.media)
+    if group is None or clip.media == group.main:
+        return None
+    refs = [r for t in p.tracks for r in t.clips if r.media == group.main]
+    if not refs:
+        return None
+    rec = _recorded(p, clip)
+
+    def score(r: Clip) -> tuple[int, int]:
+        r_rec = _recorded(p, r)
+        overlap = min(r_rec + r.length, rec + clip.length) - max(r_rec, rec)
+        return (overlap if overlap > 0 else overlap * 2, -abs(r.start - clip.start))
+
+    ref = max(refs, key=score)
+    return max(0, ref.start + (rec - _recorded(p, ref)))
+
+
 def resync(p: Project, clip_ids) -> Project:
     """Move each clip back into sync with the main clip's piece it belongs with.
 
-    The reference is the main media's piece that plays the same stretch of
-    the recording, so cuts made in the main clip are followed. Clips without
-    a group, and the main media's own pieces, stay where they are.
+    Clips without a group, and the main media's own pieces, stay where they are,
+    and so do clips declared free from sync (``set_free``): resync never undoes
+    something the user said was deliberate.
     """
     for clip_id in clip_ids:
         c, _ = _find_clip(p, clip_id)
-        group = p.sync_group(c.media)
-        if group is None or c.media == group.main:
+        if c.free:
             continue
-        refs = [r for t in p.tracks for r in t.clips if r.media == group.main]
-        if not refs:
-            continue
-        rec = _recorded(p, c)
+        start = synced_start(p, c)
+        if start is not None:
+            p = _replace_clip(p, replace(c, start=start))
+    return p
 
-        def score(r: Clip, rec: int = rec, c: Clip = c,
-                  p: Project = p) -> tuple[int, int]:
-            r_rec = _recorded(p, r)
-            overlap = min(r_rec + r.length, rec + c.length) - max(r_rec, rec)
-            return (overlap if overlap > 0 else overlap * 2, -abs(r.start - c.start))
 
-        ref = max(refs, key=score)
-        start = ref.start + (rec - _recorded(p, ref))
-        p = _replace_clip(p, replace(c, start=max(0, start)))
+def set_free(p: Project, clip_ids, free: bool | None = None) -> Project:
+    """Declare clips free from sync (or link them again). ``free=None`` toggles
+    the selection: if any clip is linked they all become free, else all link."""
+    ids = list(clip_ids)
+    if not ids:
+        raise EditError("error.edit.no_selection")
+    clips = [_find_clip(p, cid)[0] for cid in ids]
+    want = (not all(c.free for c in clips)) if free is None else bool(free)
+    for c in clips:
+        if c.free != want:
+            p = _replace_clip(p, replace(c, free=want))
     return p
 
 
@@ -937,7 +964,8 @@ def roll_trim(p: Project, clip_id: str, edge: str, frame: int) -> Project:
 
 
 def ripple_trim(p: Project, clip_id: str, edge: str, frame: int,
-                extend_partners: bool = False) -> Project:
+                extend_partners: bool = False,
+                track_ids: list[str] | None = None) -> Project:
     """Drag one edge of a clip to ``frame``; everything after the clip, on every
     track, moves by the change in its length, so the tracks stay in sync.
 
@@ -947,6 +975,10 @@ def ripple_trim(p: Project, clip_id: str, edge: str, frame: int,
     ripple delete does (the stretch it lost goes from every track); a longer
     one opens a gap of the same length on every track, with markers,
     automation and gates following.
+
+    ``track_ids``: the tracks that shift (None: all, as above). The Session
+    passes the clip's sync group (``edit_target``) so that, with group editing
+    off, only the clip's own track closes or opens.
 
     ``extend_partners`` (a longer end edge): the clips on the other tracks that end
     at the same splice (within 50 ms) grow by the same amount instead of leaving a
@@ -968,9 +1000,12 @@ def ripple_trim(p: Project, clip_id: str, edge: str, frame: int,
         return p
     if delta > 0:
         from .paste_apply import _open_gap  # noqa: PLC0415 - paste_apply imports ops
+        scope = {t.id for t in p.tracks} if track_ids is None else set(track_ids)
         for track in p.tracks:
-            p = _open_gap(p, track.id, clip.end, delta)
-        p = replace(p, markers=markersm.open_gap(p.markers, clip.end, delta))
+            if track.id in scope:
+                p = _open_gap(p, track.id, clip.end, delta)
+        if scope >= {t.id for t in p.tracks}:  # markers move only when every track does
+            p = replace(p, markers=markersm.open_gap(p.markers, clip.end, delta))
     length = new_end - clip.start
     changed = replace(
         clip, offset=clip.offset + take, length=length,
@@ -979,7 +1014,7 @@ def ripple_trim(p: Project, clip_id: str, edge: str, frame: int,
         xfade_out=clip.xfade_out if delta == 0 else 0)
     p = _replace_clip(p, changed)
     if delta < 0:
-        p = ripple_delete(p, new_end, clip.end)
+        p = ripple_delete(p, new_end, clip.end, track_ids)
     elif extend_partners and edge == "end":
         near = p.rate // 20
         for track in p.tracks:
@@ -1195,7 +1230,7 @@ OPS = {
         set_marker_kind,
         add_placeholder, edit_placeholder_text, set_placeholder_length,
         move_placeholder, delete_placeholder, replace_placeholder,
-        shift_clips, set_clips, delete_clips, mark_in_sync, resync,
+        shift_clips, set_clips, delete_clips, mark_in_sync, resync, set_free,
         split_clips, mute_range, cut_range, nudge_clips, move_clips_to_track,
         trim_clips, adjust_clip_gain,
         restore_cuts, roll_trim, ripple_trim, group_clips, ungroup_clips, merge_clips,

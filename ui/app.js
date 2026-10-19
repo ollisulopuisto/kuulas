@@ -88,6 +88,7 @@ import { setupKeyboard } from "./shell-keys.js";
 import { chipSpeed } from "./shuttle.js";
 import { createStatsDialog } from "./stats-dialog.js";
 import { getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
+import { driftingAmong, missingPartners } from "./sync-state.js";
 import {
   cycleScope,
   headerFocusPatch,
@@ -193,6 +194,68 @@ function apply(response) {
 
 async function refresh() {
   apply(await api.getState());
+}
+
+// -- sync states (R51, WP19a) -----------------------------------------------------
+// The server decides which clips are drifting or free; the page asks after every edit (the answer
+// is memoized there) and again for the partners of a new selection. Nothing resyncs by itself.
+
+async function refreshSync() {
+  try {
+    setState({ syncClips: (await api.getSync()).clips });
+  } catch {
+    // The badges are a help: a failed look leaves the last ones, the next edit looks again.
+  }
+}
+
+async function refreshPartners() {
+  const { selection, partners } = getState();
+  const missing = missingPartners(partners, selection);
+  if (missing.length === 0) return;
+  try {
+    const answer = await api.getPartners(missing);
+    setState({ partners: { ...getState().partners, ...answer.partners } });
+  } catch {
+    // No outline this time.
+  }
+}
+
+/** A server command that resyncs: apply the answer and say how many clips moved and how many were free. */
+async function syncCommand(name, args) {
+  try {
+    const response = await api.command(name, args);
+    apply(response);
+    if (response.resync?.message) showNotice(response.resync.message, "ok", { undo: true });
+    return response;
+  } catch (error) {
+    showError(error);
+    return null;
+  }
+}
+
+/**
+ * After a clip was moved alone (Alt held) the clips that now drift get one question, nothing more:
+ * "Keep this clip free from sync?" with Free it; closing the message says No. Nothing changes
+ * unless it is answered.
+ */
+async function askToFree(ids) {
+  await refreshSync();
+  const drifting = driftingAmong(getState().syncClips, ids);
+  if (drifting.length === 0) return;
+  showNotice(t("ui.sync.prompt"), "ok", {
+    sticky: true,
+    action: {
+      label: t("ui.sync.prompt_yes"),
+      run: () => {
+        $("notice").hidden = true;
+        editor.change({
+          op: "set_free",
+          args: { clip_ids: drifting, free: true },
+          label: t("ui.sync.history.free"),
+        });
+      },
+    },
+  });
 }
 
 const editor = createEditor({
@@ -638,7 +701,7 @@ const keyboard = setupKeyboard({
     // The transcript's X: cut the words' stretch on every track.
     cutWords: (indices) =>
       api
-        .command("cut_words", { indices })
+        .command("cut_words", { indices, group_editing: getState().groupEditing !== false })
         .then((response) => {
           apply(response);
           return true;
@@ -671,6 +734,7 @@ const keyboard = setupKeyboard({
         showError(error);
         return null;
       }),
+    syncCommand: (name, args) => syncCommand(name, args),
     clock: () => new Date(),
     // A save is also where the user left off: the flag moves here and resume.json is
     // written at once (flushView sends the record marked "now").
@@ -1733,6 +1797,11 @@ const markersPanel = createMarkersPanel({
       setState({ markerSelected: id });
       keyboard.registry.run("marker.delete", null, getState());
     },
+    jumpClip(clipId, start) {
+      setState({ selection: new Set([clipId]) });
+      void transport.seek(start);
+    },
+    syncCause: (clipId) => api.getSyncCause(clipId).then((answer) => answer.cause),
     can: (id, state) => keyboard.registry.can(id, state),
     run: (id) => keyboard.registry.run(id, null, getState()),
   },
@@ -1922,11 +1991,18 @@ const timeline = createTimeline({
     seek: (frame) => void transport.seek(frame),
     contextMenu: (hit, event) => showTimelineMenu(hit, event),
     rangeDragged: onRangeDragged,
-    clipDrag({ ids, move }) {
-      const change = clipDragChange(ids, move, getState().groupEditing !== false);
+    clipDrag({ ids, move, alone = false }) {
+      // Alt held: this clip moves alone, whatever group editing says, and then asks whether it
+      // should stay free from sync (owner, 2026-10-16).
+      const change = clipDragChange(ids, move, getState().groupEditing !== false && !alone);
       if (!change) return;
       setState({ selection: new Set(ids) }); // the press selected one clip; a move keeps all
-      editor.change({ op: change.op, args: change.args, label: t(change.labelKey) });
+      editor.change({
+        op: change.op,
+        args: change.args,
+        label: t(change.labelKey),
+        done: alone ? () => void askToFree(ids) : undefined,
+      });
     },
     clipGain({ clipId, gain }) {
       const { op, args, coalesce, labelKey } = gainChange(clipId, gain);
@@ -2178,9 +2254,15 @@ function render(state, patch) {
     )
   )
     clipboardPanel.update(state);
-  if (touched("project", "markerSelected", "playhead", "inPoint", "outPoint"))
+  if (touched("project", "markerSelected", "playhead", "inPoint", "outPoint", "syncClips"))
     markersPanel.update(state);
   if (state.head && touched("head")) void refreshCandidates();
+  if (state.head && touched("head")) void refreshSync();
+  // Partners are asked for after an edit lands (head), not at every provisional step of a drag.
+  if (touched("head") && Object.keys(state.partners).length > 0) setState({ partners: {} });
+  if (touched("selection", "partners", "head") && state.project?.sync_groups?.length > 0)
+    void refreshPartners();
+  if (touched("groupEditing")) void api.setGroupEditing(state.groupEditing).catch(() => {});
   if (touched("head") && rangeMemory) {
     const step = stepRangeMemory(rangeMemory, state.head, state);
     rangeMemory = step.memory;
