@@ -1,0 +1,398 @@
+"""Transcribe on Colab (WP78): the runner, with a fake ``colab-transcribe``.
+
+The fake is a small Python script with the contract's command line: it writes
+``<audio stem>.words.json`` into the ``--json`` folder and prints PROGRESS lines.
+No network, no Colab."""
+
+import json
+import sys
+import textwrap
+import threading
+import time
+from pathlib import Path
+
+import pytest
+
+from kuulas import colab_transcribe as ct
+from kuulas import messages
+from kuulas.clock import FLICKS
+from kuulas.jobs import JobCancelledError
+
+FAKE = textwrap.dedent('''
+    import json, os, sys, time
+    argv = sys.argv[1:]
+    mode = argv[argv.index("--mode") + 1] if "--mode" in argv else "ok"
+    audio = [argv[i + 1] for i, a in enumerate(argv) if a == "--audio"]
+    folder = argv[argv.index("--json") + 1]
+    with open(os.environ["FAKE_LOG"], "w") as f:
+        json.dump({"argv": argv, "cwd": os.getcwd(), "audio": audio,
+                   "folder_exists": os.path.isdir(folder)}, f)
+    if mode == "fail":
+        print("Colab quota exceeded", flush=True)
+        sys.exit(4)
+    if mode == "hang":
+        print("PROGRESS 5 connecting", flush=True)
+        time.sleep(60)
+    body = os.environ.get("FAKE_BODY")
+    for n, path in enumerate(audio):
+        stem = os.path.splitext(os.path.basename(path))[0]
+        print(f"PROGRESS {int(100 * n / len(audio))} transcribing {stem}", flush=True)
+        time.sleep(0.3)  # a real run takes minutes; the reader must see this line first
+        if mode == "nothing":
+            continue
+        doc = json.loads(body) if body else {
+            "version": 1, "timing": "whisper", "language": "fi",
+            "words": [{"w": "hei", "s": 0.5, "e": 0.75},
+                      {"w": "maailma", "s": 1.0, "e": 1.5}]}
+        with open(os.path.join(folder, stem + ".words.json"), "w") as f:
+            json.dump(doc, f)
+    print("PROGRESS 100 done", flush=True)
+''')
+
+
+@pytest.fixture(autouse=True)
+def english():
+    messages.set_language("en")
+    yield
+    messages.set_language("en")
+
+
+@pytest.fixture
+def fake(tmp_path, monkeypatch):
+    script = tmp_path / "fake_colab.py"
+    script.write_text(FAKE, encoding="utf-8")
+    monkeypatch.setenv("FAKE_LOG", str(tmp_path / "call.json"))
+    return {"command": [sys.executable, str(script)], "cwd": str(tmp_path),
+            "extra_args": []}
+
+
+@pytest.fixture
+def temp_root(tmp_path, monkeypatch):
+    root = tmp_path / "tmp"
+    root.mkdir()
+    monkeypatch.setattr(ct.tempfile, "tempdir", str(root))
+    return root
+
+
+class Reports:
+    def __init__(self):
+        self.items = []
+
+    def __call__(self, fraction, message="", *, indeterminate=False):
+        self.items.append((fraction, message, indeterminate))
+
+
+def files(tmp_path, *names):
+    out = []
+    for n in names:
+        p = tmp_path / "audio" / n
+        p.parent.mkdir(exist_ok=True)
+        p.write_bytes(b"x")
+        out.append({"id": n.split(".")[0].lower(), "name": n, "path": p})
+    return out
+
+
+def run(items, fake, **kw):
+    reports = kw.pop("reports", None) or Reports()
+    cancel = kw.pop("cancel", None) or threading.Event()
+    params = kw.pop("params", {})
+    return ct.run(items, params, fake, reports, cancel, **kw), reports
+
+
+def call(tmp_path) -> dict:
+    return json.loads((tmp_path / "call.json").read_text())
+
+
+# -- settings and the command line -------------------------------------------------------
+
+
+def test_defaults():
+    s = ct.resolve_settings({})
+    assert s["command"] == [
+        "uvx", "--from",
+        "git+https://github.com/ollisulopuisto/podcast#subdirectory=colab-transcribe",
+        "colab-transcribe"]
+    assert s["cwd"] is None
+    assert s["extra_args"] == []
+    assert s["no_drive"] is True
+    assert s["model"] == "turbo"
+    assert s["language"] is None
+
+
+def test_stored_values_win_and_junk_falls_back():
+    s = ct.resolve_settings({"command": ["uv", "run", "colab-transcribe"], "cwd": "/p",
+                             "extra_args": ["--x"], "no_drive": False, "model": "small",
+                             "language": "fi"})
+    assert s["command"] == ["uv", "run", "colab-transcribe"]
+    assert (s["cwd"], s["extra_args"], s["no_drive"]) == ("/p", ["--x"], False)
+    assert (s["model"], s["language"]) == ("small", "fi")
+    s = ct.resolve_settings({"command": [], "extra_args": "x", "no_drive": "yes",
+                             "model": 3, "cwd": " "})
+    assert s["command"][0] == "uvx"
+    assert s["extra_args"] == []
+    assert s["no_drive"] is True
+    assert s["model"] == "turbo"
+    assert s["cwd"] is None
+
+
+def test_settings_file_round_trip(tmp_path, monkeypatch):
+    monkeypatch.setenv("KUULAS_COLAB_FILE", str(tmp_path / "cfg" / "colab.json"))
+    assert ct.load_settings() == {}
+    stored = ct.save_settings({"command": ["colab-transcribe"], "cwd": "/p",
+                               "extra_args": ["--a"], "no_drive": False, "junk": 1})
+    assert stored == {"command": ["colab-transcribe"], "cwd": "/p",
+                      "extra_args": ["--a"], "no_drive": False}
+    assert ct.load_settings() == stored
+    (tmp_path / "cfg" / "colab.json").write_text("{broken")
+    assert ct.load_settings() == {}
+
+
+@pytest.mark.parametrize("bad", [{"command": "uvx"}, {"command": []}, {"cwd": 3},
+                                 {"extra_args": [1]}, {"no_drive": "no"}, {"model": 1}])
+def test_bad_settings_are_refused(tmp_path, monkeypatch, bad):
+    monkeypatch.setenv("KUULAS_COLAB_FILE", str(tmp_path / "colab.json"))
+    with pytest.raises(ct.ColabError) as e:
+        ct.save_settings(bad)
+    assert e.value.key == "error.colab.bad_settings"
+
+
+def test_command_line_is_an_argument_list():
+    settings = {"command": ["uvx", "colab-transcribe"], "extra_args": ["--gpu", "L4"],
+                "no_drive": True}
+    cmd = ct.build_command(settings, [Path("/a/One.wav"), Path("/b/Two.flac")],
+                           Path("/t/out"), model="turbo", language="fi")
+    assert cmd == ["uvx", "colab-transcribe", "--audio", "/a/One.wav", "--audio",
+                   "/b/Two.flac", "--json", "/t/out", "--progress", "--model", "turbo",
+                   "--language", "fi", "--no-drive", "--gpu", "L4"]
+    cmd = ct.build_command({"command": ["c"], "extra_args": [], "no_drive": False},
+                           [Path("/a/One.wav")], Path("/t"), model="small", language=None)
+    assert cmd == ["c", "--audio", "/a/One.wav", "--json", "/t", "--progress",
+                   "--model", "small"]
+
+
+# -- the strict reader -------------------------------------------------------------------
+
+
+def doc(**over):
+    base = {"version": 1, "timing": "whisper", "language": "fi",
+            "words": [{"w": "hei", "s": 0.5, "e": 0.75},
+                      {"w": "maailma", "s": 1.0, "e": 1.5}]}
+    base.update(over)
+    return base
+
+
+def without(key):
+    return {k: v for k, v in doc().items() if k != key}
+
+
+def write(tmp_path, data):
+    p = tmp_path / "x.words.json"
+    p.write_text(data if isinstance(data, str) else json.dumps(data), encoding="utf-8")
+    return p
+
+
+def test_reader_converts_seconds_to_flicks(tmp_path):
+    result = ct.read_words_json(write(tmp_path, doc()))
+    assert result["timing"] == "whisper"
+    assert result["language"] == "fi"
+    assert result["words"] == [
+        {"w": "hei", "s": round(0.5 * FLICKS), "e": round(0.75 * FLICKS), "spk": ""},
+        {"w": "maailma", "s": FLICKS, "e": round(1.5 * FLICKS), "spk": ""}]
+
+
+def test_reader_accepts_ctc_timing_and_an_empty_word_list(tmp_path):
+    assert ct.read_words_json(write(tmp_path, doc(timing="ctc-v1")))["timing"] == "ctc-v1"
+    assert ct.read_words_json(write(tmp_path, doc(words=[])))["words"] == []
+
+
+def test_a_zero_length_word_gets_one_flick(tmp_path):
+    r = ct.read_words_json(write(tmp_path, doc(words=[{"w": "a", "s": 1, "e": 1}])))
+    assert r["words"][0]["e"] == r["words"][0]["s"] + 1
+
+
+def bad_words(*items):
+    return doc(words=list(items))
+
+
+@pytest.mark.parametrize(("data", "key"), [
+    ("{not json", "error.colab.result_unreadable"),
+    ("[1, 2]", "error.colab.result_unreadable"),
+    (doc(version=2), "error.colab.result_version"),
+    (without("version"), "error.colab.result_version"),
+    (doc(timing="magic"), "error.colab.result_timing"),
+    (without("timing"), "error.colab.result_timing"),
+    (without("words"), "error.colab.result_words"),
+    (doc(words="hei"), "error.colab.result_words"),
+    (bad_words({"s": 0, "e": 1}), "error.colab.result_word"),
+    (bad_words({"w": "a", "e": 1}), "error.colab.result_word"),
+    (bad_words({"w": "a", "s": 0}), "error.colab.result_word"),
+    (bad_words({"w": "a", "s": "0", "e": 1}), "error.colab.result_word"),
+    (bad_words({"w": "a", "s": True, "e": 1}), "error.colab.result_word"),
+    (bad_words({"w": "", "s": 0, "e": 1}), "error.colab.result_word"),
+    (bad_words(7), "error.colab.result_word"),
+    ('{"version":1,"timing":"whisper","words":[{"w":"a","s":NaN,"e":1}]}',
+     "error.colab.result_word"),
+    (bad_words({"w": "a", "s": -0.5, "e": 1}), "error.colab.result_negative"),
+    (bad_words({"w": "a", "s": 2, "e": 1}), "error.colab.result_end_before_start"),
+    (bad_words({"w": "a", "s": 2, "e": 3}, {"w": "b", "s": 1, "e": 4}),
+     "error.colab.result_order"),
+])
+def test_reader_rejects_each_fault_with_its_own_key(tmp_path, data, key):
+    with pytest.raises(ct.ColabError) as e:
+        ct.read_words_json(write(tmp_path, data))
+    assert e.value.key == key
+    # every key has an English text
+    assert str(messages.t(e.value.key, **e.value.params)) != e.value.key
+
+
+def test_reader_names_the_word_in_the_error(tmp_path):
+    with pytest.raises(ct.ColabError) as e:
+        ct.read_words_json(write(tmp_path, bad_words(
+            {"w": "a", "s": 0, "e": 1}, {"w": "b", "s": 0.5, "e": 0.2})))
+    assert e.value.params["index"] == 1
+
+
+def test_missing_file_is_unreadable(tmp_path):
+    with pytest.raises(ct.ColabError) as e:
+        ct.read_words_json(tmp_path / "nope.words.json")
+    assert e.value.key == "error.colab.result_unreadable"
+
+
+# -- running -----------------------------------------------------------------------------
+
+
+def test_success_one_call_for_all_files_and_cleans_up(tmp_path, fake, temp_root):
+    items = files(tmp_path, "Olli.wav", "Maija.flac")
+    result, reports = run(items, fake, params={"language": "fi", "model": "small"})
+    assert set(result["results"]) == {"olli", "maija"}
+    assert result["results"]["olli"]["timing"] == "whisper"
+    assert result["results"]["olli"]["words"][0]["w"] == "hei"
+    seen = call(tmp_path)
+    assert seen["cwd"] == str(tmp_path)
+    assert seen["audio"] == [str(i["path"]) for i in items]  # in place, no copies
+    assert seen["folder_exists"]
+    assert "--progress" in seen["argv"]
+    assert seen["argv"][seen["argv"].index("--model") + 1] == "small"
+    assert seen["argv"][seen["argv"].index("--language") + 1] == "fi"
+    assert "--no-drive" in seen["argv"]
+    assert list(temp_root.iterdir()) == []
+    fractions = [r[0] for r in reports.items]
+    assert fractions == sorted(fractions)
+    assert fractions[-1] == 1.0
+    assert result["log"][-1] == "PROGRESS 100 done"
+
+
+def test_progress_says_which_file_it_is_on(tmp_path, fake, temp_root):
+    items = files(tmp_path, "Olli.wav", "Maija.flac")
+    _result, reports = run(items, fake)
+    shown = [m for _f, m, _i in reports.items]
+    assert any(m.startswith("[1/2] ") and "Olli" in m for m in shown)
+    assert any(m.startswith("[2/2] ") and "Maija" in m for m in shown)
+    # the percent the tool prints is the bar, and it never goes back
+    fractions = [f for f, _m, _i in reports.items]
+    assert fractions == sorted(fractions)
+
+
+def test_a_failed_run_gives_the_last_lines(tmp_path, fake, temp_root):
+    fake["extra_args"] = ["--mode", "fail"]
+    with pytest.raises(ct.ColabError) as e:
+        run(files(tmp_path, "Olli.wav"), fake)
+    assert e.value.key == "error.colab.failed"
+    assert e.value.params["code"] == 4
+    assert "Colab quota exceeded" in str(messages.t(e.value.key, **e.value.params))
+    assert list(temp_root.iterdir()) == []
+
+
+def test_missing_tool_is_one_clear_error(tmp_path, fake, temp_root):
+    fake["command"] = ["definitely-not-colab-transcribe-xyz"]
+    with pytest.raises(ct.ColabError) as e:
+        run(files(tmp_path, "Olli.wav"), fake)
+    assert e.value.key == "error.colab.not_found"
+    assert "definitely-not-colab-transcribe-xyz" in str(
+        messages.t(e.value.key, **e.value.params))
+    assert list(temp_root.iterdir()) == []
+
+
+def test_missing_folder_is_reported(tmp_path, fake):
+    fake["cwd"] = str(tmp_path / "nope")
+    with pytest.raises(ct.ColabError) as e:
+        run(files(tmp_path, "Olli.wav"), fake)
+    assert e.value.key == "error.colab.bad_cwd"
+
+
+def test_a_missing_result_names_the_file(tmp_path, fake, temp_root):
+    fake["extra_args"] = ["--mode", "nothing"]
+    with pytest.raises(ct.ColabError) as e:
+        run(files(tmp_path, "Olli.wav"), fake)
+    assert e.value.key == "error.colab.no_result"
+    assert e.value.params["name"] == "Olli.wav"
+    assert list(temp_root.iterdir()) == []
+
+
+def test_a_malformed_result_names_the_file_and_leaves_no_temp(
+        tmp_path, fake, temp_root, monkeypatch):
+    monkeypatch.setenv("FAKE_BODY", json.dumps(doc(version=9)))
+    with pytest.raises(ct.ColabError) as e:
+        run(files(tmp_path, "Olli.wav"), fake)
+    assert e.value.key == "error.colab.result_version"
+    assert e.value.params["name"] == "Olli.wav"
+    assert list(temp_root.iterdir()) == []
+
+
+def test_two_files_with_one_stem_are_refused_before_anything_runs(tmp_path, fake):
+    a = tmp_path / "a" / "Olli.wav"
+    b = tmp_path / "b" / "Olli.flac"
+    for p in (a, b):
+        p.parent.mkdir()
+        p.write_bytes(b"x")
+    items = [{"id": "1", "name": "Olli.wav", "path": a},
+             {"id": "2", "name": "Olli.flac", "path": b}]
+    with pytest.raises(ct.ColabError) as e:
+        run(items, fake)
+    assert e.value.key == "error.colab.duplicate_names"
+    assert not (tmp_path / "call.json").exists()
+
+
+def test_cancel_stops_the_process_and_removes_the_folder(tmp_path, fake, temp_root):
+    fake["extra_args"] = ["--mode", "hang"]
+    cancel, reports = threading.Event(), Reports()
+
+    def watch():
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            if any("connecting" in m for _f, m, _i in reports.items):
+                cancel.set()
+                return
+            time.sleep(0.02)
+
+    threading.Thread(target=watch, daemon=True).start()
+    started = time.monotonic()
+    with pytest.raises(JobCancelledError):
+        run(files(tmp_path, "Olli.wav"), fake, reports=reports, cancel=cancel)
+    assert time.monotonic() - started < 20
+    assert list(temp_root.iterdir()) == []
+
+
+def test_the_temp_folder_is_private(tmp_path, fake, temp_root):
+    seen = {}
+
+    def runner(cmd, _cwd, _on_line, _cancel):
+        folder = Path(cmd[cmd.index("--json") + 1])
+        seen["mode"] = folder.stat().st_mode & 0o777
+        seen["parent"] = folder.parent
+        return 1
+
+    with pytest.raises(ct.ColabError):
+        run(files(tmp_path, "Olli.wav"), fake, run_process=runner)
+    assert seen["mode"] == 0o700
+    assert seen["parent"] == temp_root
+    assert list(temp_root.iterdir()) == []
+
+
+def test_every_error_key_has_english_and_finnish_text():
+    folder = Path(messages.__file__).with_name("locales")
+    en = json.loads((folder / "en.json").read_text(encoding="utf-8"))
+    fi = json.loads((folder / "fi.json").read_text(encoding="utf-8"))
+    keys = [k for k in en if k.startswith("error.colab.")]
+    assert len(keys) >= 12
+    assert all(k in fi for k in keys)
