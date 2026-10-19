@@ -76,6 +76,8 @@ describe("the commands the app registers", () => {
       restoreStep: () => calls.push(["restoreStep"]),
       openHistory: () => calls.push(["openHistory"]),
       openStatistics: () => calls.push(["openStatistics"]),
+      newProject: () => calls.push(["newProject"]),
+      openProject: () => calls.push(["openProject"]),
     };
     registerAppCommands(registry, { actions, app });
     return { registry, calls };
@@ -85,6 +87,18 @@ describe("the commands the app registers", () => {
     const { registry } = setup();
     const ids = new Set(DEFAULT_KEYMAP.map((e) => e.id));
     for (const id of registry.ids()) assert.ok(ids.has(id), id);
+  });
+
+  test("File > New project… and Open project… need no project and ask the app", () => {
+    const { registry, calls } = setup();
+    for (const id of ["app.new", "app.open"]) {
+      assert.equal(registry.status(id), "ready", id);
+      assert.equal(registry.hintKey(id), `cmd.${id}.hint`, id);
+      assert.equal(registry.can(id, {}), true, id);
+    }
+    registry.run("app.new", null, {});
+    registry.run("app.open", null, {});
+    assert.deepEqual(calls, [["newProject"], ["openProject"]]);
   });
 
   test("undo and redo can only apply when there is something to undo or redo", () => {

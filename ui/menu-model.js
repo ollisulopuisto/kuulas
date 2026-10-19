@@ -3,15 +3,34 @@
 // the registry and the keymap the user has, so a remapped key shows at once.
 // Holding Alt or Shift swaps an item for its alternate (modifiers.js).
 
-import { ALWAYS_AVAILABLE, EXPORT_FORMAT_IDS } from "./export-commands.js";
+import { EXPORT_FORMAT_IDS } from "./export-commands.js";
 import { formatCombo } from "./keymap-config.js";
 import { modifierLayers, pickLayer } from "./modifiers.js";
 
 const item = (id) => ({ kind: "item", id });
 const SEP = { kind: "separator" };
-// A submenu whose items are one command per export format the server offers:
-// `formatPrefix` + the format id (resolveMenu's `formats` lists the ids).
-const formatMenu = (labelKey, formatPrefix) => ({ kind: "submenu", labelKey, formatPrefix });
+const submenu = (labelKey, items) => ({ kind: "submenu", labelKey, items });
+
+/**
+ * Commands that the menu shows through another command (owner, WP74): the same action under
+ * another key context, listed once. The menu-coverage test accepts a command that is a key here
+ * when its value is in a menu; both commands keep working from keys and the palette.
+ * Previous / Next stop: `nav.*` (the timeline's Tab) and `transcript.*` (the transcript's Tab).
+ */
+export const MENU_ALIASES = {
+  "transcript.prev_stop": "nav.prev_stop",
+  "transcript.next_stop": "nav.next_stop",
+};
+
+/**
+ * The commands one per export format, which the menu does not list on purpose (owner, WP74):
+ * "Export mix (options)…" and "Export all tracks (options)…" choose any format, so the menu
+ * holds no format items. They stay in the command palette.
+ */
+export const PALETTE_ONLY = EXPORT_FORMAT_IDS.flatMap((format) => [
+  `export.mix_${format}`,
+  `export.tracks_${format}`,
+]);
 
 /**
  * Menu items that are switches: base command id -> whether it is on in a state. The menu
@@ -26,27 +45,32 @@ export const MENU = [
     id: "file",
     labelKey: "menu.file",
     items: [
+      item("app.new"),
+      item("app.open"),
       item("app.import"),
-      item("app.export"),
-      formatMenu("menu.export_mix", "export.mix_"),
-      item("export.tracks"),
-      item("export.tracks_quick"),
-      item("export.automix"),
-      formatMenu("menu.export_tracks_as", "export.tracks_"),
-      SEP,
-      item("export.subtitles_srt"),
-      item("export.subtitles_vtt"),
-      item("export.transcript_txt"),
-      item("export.transcript_md"),
-      SEP,
-      item("export.chapters_text"),
-      item("export.chapters_json"),
-      item("export.regions"),
-      item("export.narration_script_txt"),
-      item("export.narration_script_md"),
       SEP,
       item("app.save"),
       item("app.save_named"),
+      SEP,
+      item("app.export"),
+      item("export.mix_options"),
+      item("export.automix"),
+      item("export.tracks_quick"),
+      item("export.tracks"),
+      submenu("menu.export_transcripts", [
+        item("export.subtitles_srt"),
+        item("export.subtitles_vtt"),
+        SEP,
+        item("export.transcript_txt"),
+        item("export.transcript_md"),
+        SEP,
+        item("export.chapters_text"),
+        item("export.chapters_json"),
+        item("export.regions"),
+        SEP,
+        item("export.narration_script_txt"),
+        item("export.narration_script_md"),
+      ]),
       SEP,
       item("app.statistics"),
     ],
@@ -58,85 +82,73 @@ export const MENU = [
       item("edit.undo"),
       item("edit.redo"),
       SEP,
-      item("edit.remove_clips"),
-      item("edit.remove"),
-      item("edit.remove_track"),
       item("edit.cut"),
-      item("edit.cut_track"),
-      item("edit.lift_cut"),
-      item("edit.close_gap_all"),
       item("edit.copy"),
       item("edit.paste"),
-      item("edit.paste_overwrite"),
-      item("edit.paste_track"),
-      item("edit.paste_same"),
-      item("edit.paste_overwrite_track"),
-      item("edit.preview_clipboard"),
-      item("edit.clear_old_clipboard"),
-      {
-        kind: "submenu",
-        labelKey: "menu.clipboard",
-        items: [
-          item("edit.share_clipboard"),
-          SEP,
-          item("clipboard.view_project"),
-          item("clipboard.view_shared"),
-          item("clipboard.view_others"),
-          item("clipboard.open_project"),
-        ],
-      },
-      item("edit.delete"),
-      item("rename"),
-      SEP,
-      {
-        kind: "submenu",
-        labelKey: "menu.trim_nudge",
-        items: [
-          item("edit.trim_start"),
-          item("edit.trim_end"),
-          SEP,
-          item("edit.nudge_left"),
-          item("edit.nudge_right"),
-          SEP,
-          item("edit.move_up"),
-          item("edit.move_down"),
-        ],
-      },
-      SEP,
-      item("edit.split"),
-      item("edit.split_all"),
-      item("edit.merge"),
-      SEP,
-      item("edit.group"),
-      item("edit.ungroup"),
       SEP,
       item("edit.select_all"),
-      item("edit.select_all_track"),
-      {
-        kind: "submenu",
-        labelKey: "menu.select",
-        items: [
-          item("select.range_all_tracks"),
-          item("select.clips_in_range"),
-          item("select.range_from_clips"),
-          SEP,
-          item("select.forward"),
-          item("select.forward_from_clips"),
-          item("select.forward_all_tracks_from_clips"),
-          SEP,
-          SEP,
-          item("select.to_start"),
-          item("select.to_end"),
-          item("select.to_start_all"),
-          item("select.to_end_all"),
-          SEP,
-          item("select.invert"),
-          item("select.none"),
-        ],
-      },
-      SEP,
       item("transcript.find"),
       item("spot"),
+      item("rename"),
+      SEP,
+      submenu("menu.delete_cut", [
+        item("edit.delete"),
+        item("edit.remove_clips"),
+        item("edit.remove"),
+        item("edit.remove_track"),
+        SEP,
+        item("edit.cut_track"),
+        item("edit.lift_cut"),
+        item("edit.close_gap_all"),
+      ]),
+      submenu("menu.paste_variants", [
+        item("edit.paste_overwrite"),
+        item("edit.paste_track"),
+        item("edit.paste_same"),
+        item("edit.paste_overwrite_track"),
+      ]),
+      submenu("menu.clipboard", [
+        item("edit.preview_clipboard"),
+        item("edit.clear_old_clipboard"),
+        SEP,
+        item("edit.share_clipboard"),
+        SEP,
+        item("clipboard.view_project"),
+        item("clipboard.view_shared"),
+        item("clipboard.view_others"),
+        item("clipboard.open_project"),
+      ]),
+      submenu("menu.trim_nudge", [
+        item("edit.trim_start"),
+        item("edit.trim_end"),
+        SEP,
+        item("edit.nudge_left"),
+        item("edit.nudge_right"),
+        SEP,
+        item("edit.move_up"),
+        item("edit.move_down"),
+      ]),
+      submenu("menu.split_merge", [item("edit.split"), item("edit.split_all"), item("edit.merge")]),
+      submenu("menu.groups", [item("edit.group"), item("edit.ungroup")]),
+      submenu("menu.select", [
+        item("edit.select_all_track"),
+        SEP,
+        item("select.range_all_tracks"),
+        item("select.clips_in_range"),
+        item("select.range_from_clips"),
+        SEP,
+        item("select.forward"),
+        item("select.forward_from_clips"),
+        item("select.forward_all_tracks_from_clips"),
+        SEP,
+        item("select.to_start"),
+        item("select.to_end"),
+        item("select.to_start_all"),
+        item("select.to_end_all"),
+        SEP,
+        item("select.invert"),
+        item("select.none"),
+      ]),
     ],
   },
   {
@@ -190,9 +202,11 @@ export const MENU = [
         ],
       },
       SEP,
-      item("app.automix"),
-      item("app.auto_silence"),
-      item("gate.open_stretch"),
+      submenu("menu.auto", [
+        item("app.automix"),
+        item("app.auto_silence"),
+        item("gate.open_stretch"),
+      ]),
       item("app.transcribe"),
     ],
   },
@@ -224,10 +238,12 @@ export const MENU = [
       item("transport.rehearse"),
       SEP,
       item("transport.loop"),
-      item("transport.speed"),
-      item("transport.speed_down"),
-      item("transport.speed_up"),
-      item("transport.speed_reset"),
+      submenu("menu.fast_playback", [
+        item("transport.speed"),
+        item("transport.speed_down"),
+        item("transport.speed_up"),
+        item("transport.speed_reset"),
+      ]),
       {
         kind: "submenu",
         labelKey: "menu.shuttle",
@@ -266,8 +282,6 @@ export const MENU = [
       },
       item("nav.prev_stop"),
       item("nav.next_stop"),
-      item("transcript.prev_stop"),
-      item("transcript.next_stop"),
       item("nav.tab_target_cycle"),
       SEP,
       item("track.prev"),
@@ -322,33 +336,28 @@ export const MENU = [
     id: "view",
     labelKey: "menu.view",
     items: [
-      item("view.zoom_in"),
-      item("view.zoom_out"),
-      item("view.drag_mode"),
-      item("view.wheel_mode"),
+      submenu("menu.zoom_fit", [
+        item("view.zoom_in"),
+        item("view.zoom_out"),
+        item("view.toggle"),
+        item("view.fit"),
+        item("view.fit_selection"),
+        item("view.fit_tracks"),
+        item("view.auto_fit_tracks"),
+        item("view.back"),
+        item("view.forward"),
+      ]),
+      submenu("menu.buses", [item("view.collapse_all_buses"), item("view.expand_all_buses")]),
+      submenu("menu.mouse", [item("view.drag_mode"), item("view.wheel_mode")]),
       item("view.clip_words"),
-      item("view.toggle"),
-      item("view.fit"),
-      item("view.fit_selection"),
-      item("view.fit_tracks"),
-      item("view.auto_fit_tracks"),
-      item("view.collapse_all_buses"),
-      item("view.expand_all_buses"),
-      item("view.back"),
-      item("view.forward"),
       item("view.reset_remembered"),
       SEP,
-      {
-        kind: "submenu",
-        labelKey: "menu.pause_break",
-        items: [
-          item("view.pause_1_5"),
-          item("view.pause_3"),
-          item("view.pause_6"),
-          item("view.pause_never"),
-        ],
-      },
-      item("transport.loop"),
+      submenu("menu.pause_break", [
+        item("view.pause_1_5"),
+        item("view.pause_3"),
+        item("view.pause_6"),
+        item("view.pause_never"),
+      ]),
       SEP,
       item("palette.open"),
     ],
@@ -374,9 +383,7 @@ export function menuTargets(menu) {
   const walk = (items) => {
     for (const entry of items) {
       if (entry.kind === "item") ids.push(entry.id);
-      else if (entry.formatPrefix) {
-        for (const format of EXPORT_FORMAT_IDS) ids.push(entry.formatPrefix + format);
-      } else if (entry.kind === "submenu") walk(entry.items);
+      else if (entry.kind === "submenu") walk(entry.items);
     }
   };
   for (const top of menu) walk(top.items);
@@ -387,10 +394,8 @@ export function menuTargets(menu) {
  * -> [{ id, label, items: [{ kind: "item", id, baseId, label, keys, enabled, planned,
  *    alternate, hint, tooltip } | { kind: "separator" } | { kind: "submenu", label, items }] }]
  * `keys` is the first key of the command ("" when it has none), `held` the modifiers down.
- * `formats`: the export format ids the server offers, in its order (the always-available
- * ones while that is not known yet), for the submenus that list one command per format.
  */
-export function resolveMenu({ menu, entries, registry, state, label, platform, held, formats }) {
+export function resolveMenu({ menu, entries, registry, state, label, platform, held }) {
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
   const layers = modifierLayers(entries, platform);
   const none = { alt: false, shift: false, mod: false };
@@ -422,14 +427,6 @@ export function resolveMenu({ menu, entries, registry, state, label, platform, h
   function resolveItems(items) {
     return items.map((entry) => {
       if (entry.kind === "separator") return entry;
-      if (entry.formatPrefix) {
-        const ids = (formats ?? ALWAYS_AVAILABLE).filter((id) => EXPORT_FORMAT_IDS.includes(id));
-        return {
-          kind: "submenu",
-          label: label(entry.labelKey),
-          items: ids.map((id) => resolveItem(entry.formatPrefix + id)),
-        };
-      }
       if (entry.kind === "submenu") {
         return { kind: "submenu", label: label(entry.labelKey), items: resolveItems(entry.items) };
       }

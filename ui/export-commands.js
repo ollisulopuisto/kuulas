@@ -95,6 +95,7 @@ export async function exportRequest({ format, ask, bridge, hint, onAsk }) {
  * exportTracks(format?, { ask }) -> Promise (asks for a folder when `ask`, then starts the track export, WAV unless a format id is given,
  * and follows its job), exportMix(format, { ask }) -> Promise (the same for the mix),
  * exportFormats() -> the ids of the formats the server offers (null until fetched),
+ * openExportDialog("mix" | "tracks") -> opens the "(options)…" dialog (export-dialog.js),
  * exportRegions() -> Promise (queues the one region job; the jobs list shows its progress),
  * automix() -> opens the "Mix with the automixer" dialog (WP68).
  */
@@ -119,9 +120,18 @@ export function registerExportCommands(registry, { app, t }) {
       { can: hasChapters, hintKey: `cmd.${id}.hint` },
     );
   }
-  // The ordinary export commands ask where to save (desktop window); the quick one uses the
-  // remembered folder, or `<project> exports` beside the project, without asking.
-  registry.register("export.tracks", () => void app.exportTracks(undefined, { ask: true }), {
+  // File menu (WP74): the plain commands export at once, into the remembered folder or
+  // `<project> exports` beside the project, without asking; the "(options)…" ones open the dialog
+  // (format, and whether to choose the folder first, in the desktop window).
+  registry.register("app.export", () => void app.exportMix(undefined, { ask: false }), {
+    can: hasTracks,
+    hintKey: "cmd.app.export.hint",
+  });
+  registry.register("export.mix_options", () => app.openExportDialog("mix"), {
+    can: hasTracks,
+    hintKey: "cmd.export.mix_options.hint",
+  });
+  registry.register("export.tracks", () => app.openExportDialog("tracks"), {
     can: hasTracks,
     hintKey: "cmd.export.tracks.hint",
   });

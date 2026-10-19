@@ -158,6 +158,9 @@ export function registerAppCommands(registry, { actions, app }) {
   );
   def("history.open", () => app.openHistory());
   def("app.import", () => app.chooseMedia());
+  // File > New project… / Open project… (WP74): a window of its own; no project needed.
+  def("app.new", () => app.newProject());
+  def("app.open", () => app.openProject());
   // File > Statistics… (WP70): runtime, counts, talk, work and sizes of this session.
   def("app.statistics", () => app.openStatistics(), hasProject);
   def("gate.open_stretch", () => app.openGateStretch(), hasProject);

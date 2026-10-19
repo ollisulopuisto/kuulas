@@ -20,6 +20,7 @@ import { edgeChange } from "./edge-drag.js";
 import { createEditor } from "./edits.js";
 import { escapeAction } from "./escape.js";
 import { exportNotice, exportRequest, filenameFromDisposition } from "./export-commands.js";
+import { createExportDialog } from "./export-dialog.js";
 import {
   chipFast,
   dragSpeed,
@@ -80,6 +81,7 @@ import { motionMode } from "./motion.js";
 import { createOverview } from "./overview.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
 import { createPrefs } from "./prefs.js";
+import { createProjectDialog } from "./project-dialog.js";
 import { patchClip } from "./provisional.js";
 import { rangeLine } from "./range-info.js";
 import { rememberRange, stepRangeMemory } from "./range-memory.js";
@@ -171,6 +173,7 @@ let history = View.createViewHistory();
 let settleTimer = null;
 let wheelAnchor = 0;
 let exportFormatIds = null; // the export formats the server offers; null until fetched
+let exportFormatList = null; // the same as [{ id, label, ... }], for the export dialog
 
 const rate = () => getState().project?.rate ?? RATE;
 const totalFrames = () => projectEnd(getState().project);
@@ -687,6 +690,9 @@ const keyboard = setupKeyboard({
     exportTracks: (format, options) => exportTracks(format, options),
     exportMix: (format, options) => exportMix(format, options),
     exportFormats: () => exportFormatIds,
+    openExportDialog: (what) => openExportDialog(what),
+    newProject: () => void newProject(),
+    openProject: () => void openProject(),
     focusName: () => inspector.focusName(),
     openGateStretch: () => openGateStretch(),
     selectCandidate: (row) => selectCandidate(row),
@@ -1449,11 +1455,57 @@ async function openStatistics() {
 const exportTracks = (format, options) => startExport("tracks", format, options);
 const exportMix = (format, options) => startExport("mix", format, options);
 
+// File > Export mix (options)… / Export all tracks (options)… (WP74): format, and whether to
+// choose the folder first (only the desktop window has a folder chooser).
+let exportDialog = null;
+function openExportDialog(what) {
+  exportDialog ??= createExportDialog({
+    t,
+    formats: () => exportFormatList,
+    canChooseFolder: () => typeof globalThis.pywebview?.api?.choose_export_folder === "function",
+    onStart: ({ what: kind, format, ask }) =>
+      kind === "mix" ? exportMix(format, { ask }) : exportTracks(format, { ask }),
+  });
+  exportDialog.open(what);
+}
+
+// File > New project… / Open project… (WP74). The desktop window uses its native dialogs and
+// opens the project in a window of its own; a plain browser asks for a path in a small dialog
+// and the server opens the project in a new tab.
+let projectDialog = null;
+function askProjectPath(kind) {
+  projectDialog ??= createProjectDialog({
+    api,
+    t,
+    onDone: (path) => showNotice(t("ui.project.opened", { path }), "ok", { undo: false }),
+  });
+  projectDialog.open(kind);
+}
+async function newProject() {
+  const bridge = globalThis.pywebview?.api;
+  if (typeof bridge?.new_project_in_window !== "function") return askProjectPath("new");
+  try {
+    await bridge.new_project_in_window();
+  } catch (error) {
+    showError(error);
+  }
+}
+async function openProject() {
+  const bridge = globalThis.pywebview?.api;
+  if (typeof bridge?.open_project_in_window !== "function") return askProjectPath("open");
+  try {
+    await bridge.open_project_in_window();
+  } catch (error) {
+    showError(error);
+  }
+}
+
 // The formats the server can write (ids, in its order); asked for once, at start.
 api
   .exportFormats()
   .then((formats) => {
     exportFormatIds = formats.map((format) => format.id);
+    exportFormatList = formats;
   })
   .catch(() => {});
 

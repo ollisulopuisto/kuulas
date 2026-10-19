@@ -4,7 +4,7 @@ import { registerAppCommands } from "../app-commands.js";
 import { createRegistry } from "../commands.js";
 import { DEFAULT_KEYMAP } from "../keymap-default.js";
 import { autoFitKey, fitHeight } from "../lane-sizing.js";
-import { MENU } from "../menu-model.js";
+import { MENU, menuTargets } from "../menu-model.js";
 
 const project = {
   rate: 48000,
@@ -66,7 +66,7 @@ describe("bus.collapse and bus.expand", () => {
   });
   test("both are in the View menu", () => {
     const view = MENU.find((menu) => menu.id === "view");
-    const ids = view.items.map((item) => item.id);
+    const ids = menuTargets([view]);
     assert.ok(ids.includes("view.collapse_all_buses"));
     assert.ok(ids.includes("view.expand_all_buses"));
   });
