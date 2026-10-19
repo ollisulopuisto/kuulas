@@ -1764,6 +1764,7 @@
   "toast.sync.ungrouped": "Valinta ei ole tahdistusryhmässä",
   "toast.sync.anchor_only": "Valinnassa on ankkuri, ei mitään siirrettävää",
   "toast.sync.nothing": "Ei tehtävää, jo synkassa",
+  "toast.sync.nothing_home": "Ei tehtävää, valitut leikkeet ovat jo omilla väylillään",
   "error.edit.no_sync_group": "Tämä leike ei ole tahdistusryhmässä.",
   "cmd.sync.set_anchor": "Tee tästä synkan ankkuri",
   "cmd.sync.set_anchor.hint": "Tekee valitun leikkeen äänityksestä tahdistusryhmän ankkurin, johon synkkaa verrataan. Mikään ei siirry nyt; mikä on synkassa, pysyy synkassa. Sen jälkeen Synkkaa uudelleen asettaa leikkeet uuteen ankkuriin nähden.",

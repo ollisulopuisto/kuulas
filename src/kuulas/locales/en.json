@@ -1668,6 +1668,7 @@
   "toast.sync.ungrouped": "The selection is not in a sync group",
   "toast.sync.anchor_only": "Selection contains the anchor, nothing to move",
   "toast.sync.nothing": "Nothing to do, already in sync",
+  "toast.sync.nothing_home": "Nothing to do, every selected clip is on its own track",
   "error.edit.no_sync_group": "That clip is not in a sync group.",
   "cmd.sync.set_anchor": "Make this the sync anchor",
   "cmd.sync.set_anchor.hint": "Makes the selected clip's recording the anchor of its sync group: the one that sync is measured against. Nothing moves now; what is in sync stays in sync. Afterwards Resync puts clips relative to the new anchor.",
