@@ -194,6 +194,7 @@ describe("top-level bar (owner, 2026-10-19)", () => {
       "app.transcribe",
       "app.transcribe_colab",
       "app.transcribe_restart",
+      "app.colab_signin",
       "app.colab_settings",
     ]);
     assert.ok(!sub("track", "menu.transcribe"));
