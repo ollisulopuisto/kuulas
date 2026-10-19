@@ -3694,3 +3694,35 @@ to flicks, and (4) marks the media `timing: "ctc-v1"` (new optional field, writt
 `docs/FORMAT.md`) so a corrected transcript can be told from an old one. One undo step. Tests with a fake aligner
 script. **Open:** where the aligner ultimately lives (podcast transcribe post-step, a `speechmix` module, the Colab
 copy), whether to refine automatically after transcription, measuring word ends, a second speaker.
+
+---
+
+### WP78 — Transcribe on Colab straight from kuulas, no .nhsx (owner, 2026-10-19)
+
+Status: open; the kuulas side can be built against a fake tool, the podcast side (a plain-audio mode in
+`colab-transcribe`) is requested from the podcast session. Owner: the goal is that kuulas calls
+`colab-transcribe` directly, with nhsx not involved at all. This is the "colab backend" the WP9 text left as an open
+question (`/api/transcribe` with `backend: "colab"` answers `error.transcribe.colab_unavailable` today).
+
+**The contract kuulas asks of colab-transcribe** (a plain-audio mode; proposed, not yet agreed with the podcast
+session):
+`colab-transcribe --audio <file> [--audio <file> ...] --json <folder> [--model turbo] [--language fi] [--progress]`
+- one output file per audio, `<folder>/<audio stem>.words.json`:
+  `{"version": 1, "timing": "whisper" | "ctc-v1", "language": "fi", "words": [{"w": "text", "s": 12.34, "e": 12.80}]}`,
+  seconds from the audio file's start (kuulas converts to flicks), words in time order; `timing` says whether the
+  podcast-side correction of the word starts has run (WP77), so kuulas can store the marker;
+- `--progress` prints `PROGRESS <0-100> <message>` lines, exit 0 on success, non-zero with the reason on stderr;
+- SIGTERM cancels (and stops or releases the Colab session as the tool already does);
+- no Auto-Silence, no `.nhsx`, no Hindenburg session folder.
+**kuulas side:** `backend: "colab"` runs the tool as a background job like the automixer (WP68): the command and
+folder are settings (default `uvx --from "git+https://github.com/ollisulopuisto/podcast#subdirectory=colab-transcribe"
+colab-transcribe` or the checkout's `uv run colab-transcribe`), the media files are passed in place (linked files
+as they are; a working FLAC when the source is not a plain audio file), progress and Cancel in the notice area, the
+JSON files are read with a new strict parser (not `transcribe.parse`, which is tolerant) and stored with
+`session.set_transcript(media_id, words, ...)` and the `timing` marker (new optional field on the media, written only
+when set, in `docs/FORMAT.md`). A missing tool, a failed run and a malformed result each give one clear message.
+**Privacy:** the audio leaves the computer (Google Colab, and Drive unless the tool's `--no-drive` path is used):
+the first use shows a notice saying so and the remembered choice is a setting; kuulas never uploads without the user
+starting the job. Tests with a fake `colab-transcribe` script (success, failure, cancel, malformed JSON, missing
+tool, per-file progress). **Open:** model and language choices in the UI (the Transcribe command today uses the
+local defaults), several recordings in one Colab session, and what to do with speaker labels.
