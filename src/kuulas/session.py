@@ -1094,17 +1094,13 @@ class Session:
         (the folder is ``<project> exports`` beside the project) and any
         ``format``, ``bit_depth`` or ``folder`` the caller chose. Each run gets
         its own folder (the template carries the time), so nothing is overwritten."""
-        chosen = {k: v for k, v in (args or {}).items()
-                  if k in {"format", "bit_depth", "kbps", "folder"} and v is not None}
-        return {**export_module.ALL_TRACKS, **chosen}
+        return export_module.options("tracks", export_module.ALL_TRACKS, args or {})
 
     def mix_export_args(self, args: dict | None = None) -> dict:
         """The export arguments of the one-button mix export: ``export.MIX_FILE``
         (a file in ``<project> exports`` named by edit, time and version) and any
         ``format``, ``bit_depth``, ``kbps`` or ``folder`` the caller chose."""
-        chosen = {k: v for k, v in (args or {}).items()
-                  if k in {"format", "bit_depth", "kbps", "folder"} and v is not None}
-        return {**export_module.MIX_FILE, **chosen}
+        return export_module.options("mix", export_module.MIX_FILE, args or {})
 
     def _export_job(self, export_args: dict, title: str) -> list[str]:
         """Queue ONE export as a background job. Bad settings and a read-only
@@ -1172,6 +1168,19 @@ class Session:
             return {"folder": str(saved), "remembered": True}
         default = self.package.path.parent / f"{self.package.path.stem} exports"
         return {"folder": str(default), "remembered": False}
+
+    def export_settings(self) -> dict:
+        """What the export dialog starts from: the remembered settings of the mix and
+        of the track export (``None`` before the first), the folder used last (or the
+        default), and the name of the open edit."""
+        with self.lock:
+            h = self.history
+            saved = h.meta_json("export", {})
+            edit = next((e["name"] for e in h.edits() if e["id"] == h.edit), h.edit)
+        return {"mix": saved.get("settings", {}).get("mix"),
+                "tracks": saved.get("settings", {}).get("tracks"),
+                **self.export_folder_hint(), "edit": edit,
+                "project": str(self.package.path)}
 
     def last_export_settings(self, kind: str) -> dict | None:
         """Return the project's remembered settings for an export kind."""

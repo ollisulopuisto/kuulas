@@ -163,6 +163,7 @@ export const MENU = [
       SEP,
       item("app.export"),
       item("export.mix_options"),
+      item("export.range"),
       item("export.automix"),
       item("export.tracks_quick"),
       item("export.tracks"),

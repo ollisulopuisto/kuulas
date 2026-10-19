@@ -3,6 +3,7 @@
 // dialog (pick_save) but no way to write a file, so both the browser and the desktop window
 // use the browser download.
 
+import { hasRange } from "./export-dialog-model.js";
 import { chapterCount, regionCount } from "./markers-model.js";
 
 export const EXPORTS = [
@@ -30,6 +31,7 @@ const hasChapters = (state) => Boolean(state?.project) && chapterCount(state.pro
 const hasRegions = (state) => Boolean(state?.project) && regionCount(state.project.markers) > 0;
 
 const hasTracks = (state) => (state?.project?.tracks?.length ?? 0) > 0;
+const hasMarkedRange = (state) => hasTracks(state) && hasRange(state);
 
 // The formats the server can write (GET /api/export-formats), in the registry's order:
 // src/kuulas/export_formats.py (tests/test_export_formats.py checks the two agree). Each
@@ -47,12 +49,18 @@ export const ALWAYS_AVAILABLE = ["wav", "flac"];
  */
 export function exportNotice(job, t, what = "tracks") {
   if (job.state === "completed") {
-    const { path, track_count: count, silent = [] } = job.result ?? {};
+    const { path, track_count: count, silent = [], settings } = job.result ?? {};
+    const range = settings?.range ? "_range" : "";
     let text;
-    if (what === "mix") text = t("ui.export.mix_done", { path });
-    else if (silent.length > 0) {
+    if (what === "mix") {
+      // Says what was exported: the whole mix or the in/out range, and which tracks are silent.
+      text =
+        silent.length > 0
+          ? t(`ui.export.mix_done${range}_silent`, { path, silent: silent.join(", ") })
+          : t(`ui.export.mix_done${range}`, { path });
+    } else if (silent.length > 0) {
       text = t("ui.export.tracks_done_silent", { count, path, silent: silent.join(", ") });
-    } else text = t("ui.export.tracks_done", { count, path });
+    } else text = t(`ui.export.tracks_done${range}`, { count, path });
     return { kind: "ok", text, sticky: true, cancel: false, reveal: true };
   }
   if (job.state === "failed") {
@@ -94,6 +102,8 @@ export async function exportRequest({ format, ask, bridge, hint, onAsk }) {
  * `app`: getState, toast(text, { undo }), download(path, fallbackName) -> Promise<name | null>,
  * exportTracks(format?, { ask }) -> Promise (asks for a folder when `ask`, then starts the track export, WAV unless a format id is given,
  * and follows its job), exportMix(format, { ask }) -> Promise (the same for the mix),
+ * exportQuick(force?) -> Promise (the quick mix export with the project's last scope and
+ * settings; `force` "range" exports the marked range whatever was remembered),
  * exportFormats() -> the ids of the formats the server offers (null until fetched),
  * openExportDialog("mix" | "tracks") -> opens the "(options)…" dialog (export-dialog.js),
  * exportRegions() -> Promise (queues the one region job; the jobs list shows its progress),
@@ -123,9 +133,15 @@ export function registerExportCommands(registry, { app, t }) {
   // File menu (WP74): the plain commands export at once, into the remembered folder or
   // `<project> exports` beside the project, without asking; the "(options)…" ones open the dialog
   // (format, and whether to choose the folder first, in the desktop window).
-  registry.register("app.export", () => void app.exportMix(undefined, { ask: false }), {
+  // Mod+E exports at once with what this project exported last: the same scope (whole mix,
+  // in/out range or chosen tracks) and the same settings; the notice says what it exported.
+  registry.register("app.export", () => void app.exportQuick(), {
     can: hasTracks,
     hintKey: "cmd.app.export.hint",
+  });
+  registry.register("export.range", () => void app.exportQuick("range"), {
+    can: hasMarkedRange,
+    hintKey: "cmd.export.range.hint",
   });
   registry.register("export.mix_options", () => app.openExportDialog("mix"), {
     can: hasTracks,

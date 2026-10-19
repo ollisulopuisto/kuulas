@@ -1011,6 +1011,14 @@ export const DEFAULT_KEYMAP = [
     context: "global",
     labelKey: "cmd.export.mix_options",
   },
+  // No key: every free chord is a layer of Mod+E or needs Shift or AltGr on a Finnish keyboard.
+  // The menu and the palette have it; Mod+E repeats the range once it is the remembered scope.
+  {
+    id: "export.range",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.export.range",
+  },
   {
     id: "marker.add",
     keys: { mac: "Mod+Enter", other: "Mod+Enter" },

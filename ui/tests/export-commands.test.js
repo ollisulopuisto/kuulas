@@ -185,6 +185,7 @@ describe("asking where to export", () => {
         exportFormats: () => EXPORT_FORMAT_IDS,
         exportTracks: (format, options) => started.push(["tracks", format, options]),
         exportMix: (format, options) => started.push(["mix", format, options]),
+        exportQuick: (force) => started.push(["quick", force]),
       },
     });
     return { registry, started };
@@ -196,12 +197,28 @@ describe("asking where to export", () => {
     registry.run("export.mix_mp3", null, withTracks);
     registry.run("export.tracks_quick", null, withTracks);
     registry.run("app.export", null, withTracks);
+    // Cmd+E goes through the quick export: the last scope and settings of this project.
     assert.deepEqual(started, [
       ["tracks", "flac", { ask: true }],
       ["mix", "mp3", { ask: true }],
       ["tracks", undefined, { ask: false }],
-      ["mix", undefined, { ask: false }],
+      ["quick", undefined],
     ]);
+  });
+
+  test("Export in/out range needs tracks and marks, and exports the marked range", () => {
+    const { registry, started } = setup();
+    const marked = { ...withTracks, inPoint: 100, outPoint: 900 };
+    assert.equal(registry.can("export.range", withTracks), false);
+    assert.equal(registry.can("export.range", { ...withTracks, inPoint: 100 }), false);
+    assert.equal(registry.can("export.range", marked), true);
+    assert.equal(
+      registry.can("export.range", { project: { tracks: [] }, inPoint: 1, outPoint: 2 }),
+      false,
+    );
+    registry.run("export.range", null, marked);
+    assert.deepEqual(started, [["quick", "range"]]);
+    assert.equal(registry.hintKey("export.range"), "cmd.export.range.hint");
   });
 
   test("Export mix (options)… and Export all tracks (options)… open the dialog", () => {
@@ -327,5 +344,35 @@ describe("export formats", () => {
     const done = exportNotice({ state: "completed", result: { path: "/x/Main.flac" } }, t, "mix");
     assert.equal(done.text, 'ui.export.mix_done{"path":"/x/Main.flac"}');
     assert.equal(done.reveal, true);
+  });
+
+  test("the done notice says what was exported: whole mix, range, silent tracks", () => {
+    const text = (result) =>
+      exportNotice({ state: "completed", result: { path: "/x/a.mp3", ...result } }, t, "mix").text;
+    assert.equal(text({ settings: {} }), 'ui.export.mix_done{"path":"/x/a.mp3"}');
+    assert.equal(
+      text({ settings: { range: [1, 2] } }),
+      'ui.export.mix_done_range{"path":"/x/a.mp3"}',
+    );
+    assert.equal(
+      text({ settings: {}, silent: ["Ville", "Maija"] }),
+      'ui.export.mix_done_silent{"path":"/x/a.mp3","silent":"Ville, Maija"}',
+    );
+    assert.equal(
+      text({ settings: { range: [1, 2] }, silent: ["Ville"] }),
+      'ui.export.mix_done_range_silent{"path":"/x/a.mp3","silent":"Ville"}',
+    );
+  });
+
+  test("a stem export of a range says so", () => {
+    const done = exportNotice(
+      {
+        state: "completed",
+        result: { path: "/x/d", track_count: 2, settings: { range: [1, 2] }, silent: [] },
+      },
+      t,
+      "tracks",
+    );
+    assert.equal(done.text, 'ui.export.tracks_done_range{"count":2,"path":"/x/d"}');
   });
 });
