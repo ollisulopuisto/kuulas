@@ -19,7 +19,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
+        # macOS only for now (owner 2026-10-19: no Windows or Linux testers). Windows needs the
+        # tzdata package and Linux fails a few path and encoder tests: add them back when wanted.
+        os: [macos-latest]
     defaults:
       run:
         working-directory: kuulas
@@ -57,7 +59,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
+        # macOS only for now (owner 2026-10-19: no Windows or Linux testers). Windows needs the
+        # tzdata package and Linux fails a few path and encoder tests: add them back when wanted.
+        os: [macos-latest]
     defaults:
       run:
         working-directory: kuulas

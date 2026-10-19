@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import shutil
 import socket
 import sqlite3
@@ -69,7 +70,9 @@ def test_new_package_has_manifest_lock_db_media_caches(tmp_path):
     lock = json.loads(mine.read_text())
     assert lock["host"] == socket.gethostname()
     assert lock["pid"] == os.getpid()
-    assert mine.name.startswith(f"{socket.gethostname()}-")
+    # The file name carries the host as the lock writer cleans it (characters, 40 long).
+    host = re.sub(r"[^A-Za-z0-9._-]+", "_", socket.gethostname())[:40].strip("._-") or "host"
+    assert mine.name.startswith(f"{host}-")
     assert not pkg.read_only
     # The database knows which project it belongs to, even on its own.
     db = sqlite3.connect(root / "project.sqlite")

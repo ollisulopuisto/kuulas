@@ -163,7 +163,9 @@ def test_music_automation_follows_nhsx_musicbed_curve():
         start=2.0,
         end=20.0,
         speech=intervals,
-        cold_open=False,
+        # The music starts before the first speech, so analysis.duck_music asks for the
+        # cold-open rise (newer nhsx shapes the rise differently for it).
+        cold_open=True,
     )
     assert expected_curve is not None
     expected_points = [(round((2.0 + s) * RATE), db) for s, db in expected_curve]
