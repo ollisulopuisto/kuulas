@@ -2149,7 +2149,6 @@ input[type="text"] {
   flex-direction: column;
   gap: 2px;
   padding: 4px 0 0 var(--space-4);
-  border-left: 3px solid var(--track-colour, var(--border-strong));
   min-width: 0;
 }
 .tx-speaker b {
@@ -2166,6 +2165,9 @@ input[type="text"] {
 }
 .tx-text {
   margin: 0;
+  /* the speaker's colour bar sits at the timeline's left edge, left of the words */
+  padding-left: var(--space-4);
+  border-left: 3px solid var(--track-colour, var(--border-strong));
   font-size: var(--text-lg);
   line-height: var(--leading-read);
   user-select: none;
