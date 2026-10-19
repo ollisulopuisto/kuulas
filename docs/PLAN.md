@@ -3415,3 +3415,30 @@ Two steps:
    not a package: coordinate with the podcast repo, as for `mix_blend`).
 Tests: the temporary-folder run with a fake automixer command; cancellation; a missing tool; the cleanup.
 
+
+---
+
+### WP69 — Words in the clips on the timeline (owner, 2026-10-19)
+
+Status: open, accepted by the owner ("kyllä"). Hindenburg writes the transcript inside the clip, along its top,
+so you see which word is where in the waveform while you edit. Kuulas shows the transcript in the bottom panel
+and only the first words in a clip's label.
+
+**Rule.** When the timeline is zoomed in far enough that a word is wide enough to read, each speech clip draws
+its words in a thin text row just under the label strip, each word at its own start time and cut off at its own
+end (so two words never overlap; a word too narrow for its text is shortened with an ellipsis, and when even an
+ellipsis does not fit, skipped). At wider zoom levels nothing is drawn (the threshold is the average word width,
+about 28 px; tune on a real session). The text is muted, the word under the play cursor is brighter, and words
+selected in the transcript are drawn selected, so the transcript selection (v26.10.19.3 marks it as in/out)
+reads on the waveform. Only the visible words of the visible clips are looked up (binary search on the sorted
+`state.words`); no work when zoomed out. Words come from the transcript the editor already loads, matched to the
+clip by track and source time, so a trimmed or moved clip shows only the words inside it. Muted clips draw them
+dimmer. A View menu item "Words in clips" (checked by default) and a palette command switch it off (every command
+is in a menu).
+
+**Parts.** A pure module `ui/clip-words.js` (which words fall in a clip, which are wide enough to draw, fitting a
+word into its width with a text-measure callback, the ellipsis rule) with node tests; then the drawing in
+`ui/timeline.js` next to the existing label drawing; the View item and command; en and fi strings; a Help line.
+Tests first. No backend change.
+**Open:** whether to also show the speaker change as a small mark in the row; whether the row replaces the "first
+words" in the label at close zoom.
