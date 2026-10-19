@@ -26,9 +26,17 @@ def test_interval_maths():
     assert wc.subtract([(0, 5)], []) == [(0, 5)]
     c = wc.compare_track([(0, 6)], [(3, 9)], [(0, 12)], 12)
     assert wc.total(c["both"]) == 3
-    assert c["only_pm"] == [(0, 3)]
+    assert c["only_ct"] == [(0, 3)]
     assert c["only_k"] == [(6, 9)]
     assert c["union"] == 9
+
+
+def test_score():
+    sc = wc.score([(0, 6)], [(4, 10)])
+    assert sc["hit"] == 2
+    assert sc["beyond"] == 4
+    assert sc["precision"] == pytest.approx(1 / 3)
+    assert sc["recall"] == pytest.approx(1 / 3)
 
 
 def speech(rng, seconds):
@@ -90,10 +98,19 @@ def test_compare_end_to_end_and_originals_untouched(episode, tmp_path):
     assert 0.0 < anna["jaccard"] <= 1.0
     assert anna["hand_s"] == pytest.approx(1.0, abs=0.01)
     assert res["tracks"]["Ville"]["both"] > 3.0
+    # ground truth: Anna's hand mute 4.5-5.5 s (window ends 5.5 s). colab closes her
+    # from 5.0 s: half of the truth, nothing beyond it.
+    colab = anna["vs_hand"]["colab-transcribe"]
+    assert colab["truth"] == pytest.approx(1.0 * RATE, abs=2)
+    assert colab["recall"] == pytest.approx(0.5, abs=0.02)
+    assert colab["precision"] == pytest.approx(1.0, abs=0.02)
+    assert colab["beyond"] == 0
+    assert res["hand_window_s"] == pytest.approx(5.5, abs=0.01)
+    assert set(res["hand_total"]) == {"colab-transcribe", "kuulas"}
     assert "TOTAL" in "\n".join(lines)
     with (work / "disagreements.csv").open(encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
-    assert {r["direction"] for r in rows} <= {"only-podcast-magic", "only-kuulas"}
+    assert {r["direction"] for r in rows} <= {"only-colab", "only-kuulas"}
     assert all(float(r["length_s"]) > 0 for r in rows)
     saved = json.loads((work / "compare.json").read_text(encoding="utf-8"))
     assert saved["tracks"].keys() == {"Anna", "Ville"}
