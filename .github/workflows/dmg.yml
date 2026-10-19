@@ -3,7 +3,7 @@ name: dmg
 # Builds the unsigned tester .dmg of Kuulas (WP73) on a GitHub-hosted Apple-silicon Mac.
 #   - by hand: Actions > dmg > Run workflow (the .dmg is a downloadable artifact, 30 days);
 #   - on a version tag (v26.10.19.23 ...): the same build, attached to a GitHub Release
-#     (the repository is private: only people with access to it can download the release).
+#     (the repository is public: anyone can download the release).
 # Not signed or notarised (needs an Apple Developer account); testers open it with
 # right-click > Open the first time (docs/TESTERS.md).
 

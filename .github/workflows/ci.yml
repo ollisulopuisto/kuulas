@@ -50,7 +50,7 @@ jobs:
       - run: uv sync
       - run: uv run ruff check .
       - run: uv run pytest -q
-      - run: node --test ui/tests/
+      - run: node --test ui/tests/*.test.js
       - run: npx --yes @biomejs/biome@2.2.4 check ui/
 
   desktop-smoke:
