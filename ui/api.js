@@ -82,6 +82,13 @@ export const transcribe = (mediaIds, { backend = "local", model, language } = {}
 export const colabSettings = () => json("/api/settings/colab");
 export const saveColabSettings = (settings) =>
   json("/api/settings/colab", { method: "PUT", body: JSON.stringify(settings) });
+/** Is Colab signed in to Google, and how is a sign-in going: { signed_in, state, url, lines, error }. */
+export const colabSignin = () => json("/api/colab/signin");
+/** Start the Google sign-in (opens the browser; answers the same status). */
+export const startColabSignin = () => post("/api/colab/signin", {});
+/** Give the code Google shows to the waiting sign-in. The code is not kept. */
+export const sendColabCode = (code) => post("/api/colab/signin/code", { code });
+export const cancelColabSignin = () => json("/api/colab/signin", { method: "DELETE" });
 export const getJobs = () => json("/api/jobs");
 /** What the background transcription jobs did since the last call, told once:
  * { notices: [{ kind: "ok" | "error", text, job }] } (WP79). */

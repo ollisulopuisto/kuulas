@@ -141,9 +141,62 @@ def check_recorder() -> str:
     return f"{take['take']}: {take['frames']} frames, {take['stop_reason']}"
 
 
+def check_worker() -> str:
+    """The transcription worker (WP79) starts from this installation, as the editor starts
+    it, and runs a job with the ``selftest`` backend (no engine, no audio, no network) to
+    ``completed``. In the app ``sys.executable`` is the bundle's launcher, not a Python:
+    this is the check that a background transcription can run at all (it did not, once:
+    every job showed as interrupted)."""
+    import time  # noqa: PLC0415
+
+    from . import bgjobs, colab_transcribe  # noqa: PLC0415
+
+    with tempfile.TemporaryDirectory(prefix="kuulas-selftest-") as tmp:
+        folder = Path(tmp) / "Selftest.kuulas"
+        job_id = bgjobs.create_job(
+            folder, backend="selftest",
+            items=[{"id": "m0", "name": "selftest", "path": "selftest.wav"}],
+            previous={}, names=["selftest"], model=None, language=None, settings=None)
+        bgjobs.start_worker_process(bgjobs.job_file(folder, job_id))
+        deadline = time.monotonic() + 3 * TIMEOUT
+        status: dict = {}
+        while time.monotonic() < deadline:
+            status = bgjobs.read_json(bgjobs.status_file(folder, job_id)) or {}
+            if status.get("state") in bgjobs.FINISHED:
+                break
+            time.sleep(0.1)
+        if status.get("state") != "completed":
+            problem = (f"the worker did not complete the job (state "
+                       f"{status.get('state')}, pid {status.get('pid')}, "
+                       f"error {status.get('error')})")
+            raise SelftestError(problem)
+        words = colab_transcribe.read_words_json(
+            bgjobs.result_file(folder, job_id, "m0"))["words"]
+    return f"completed, {len(words)} word(s) in the result file"
+
+
+def check_tools() -> str:
+    """Where the programs Colab transcription needs are found with the PATH an app
+    started from Finder has. Information only: a missing one is reported when a job
+    needs it, with the command and the folder (``error.colab.not_found``)."""
+    import os  # noqa: PLC0415
+
+    from . import colab_signin, colab_transcribe, toolpath  # noqa: PLC0415
+
+    program = colab_transcribe.DEFAULT_COMMAND[0]
+    found = toolpath.resolve(program)
+    parts = [f"{program}: {found or 'not found'}",
+             f"colab: {toolpath.resolve('colab') or 'not found'}",
+             f"google sign-in: {'yes' if colab_signin.signed_in() else 'no'}",
+             f"PATH has {len(toolpath.search_path(os.environ).split(os.pathsep))}"
+             " folders"]
+    return "; ".join(parts)
+
+
 #: In the order they run; each is the function ``check_<name>`` in this module, looked
 #: up when it runs (so a test can replace one).
-CHECKS = ("build", "libraries", "ffmpeg", "ui", "server", "meter", "recorder")
+CHECKS = ("build", "libraries", "ffmpeg", "ui", "server", "meter", "recorder", "worker",
+          "tools")
 
 
 def run() -> int:

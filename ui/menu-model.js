@@ -230,6 +230,7 @@ export const MENU = [
         item("app.transcribe_colab"),
         item("app.transcribe_restart"),
         SEP,
+        item("app.colab_signin"),
         item("app.colab_settings"),
       ]),
     ],

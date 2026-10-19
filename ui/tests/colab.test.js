@@ -12,6 +12,8 @@ import {
   rememberConsent,
   rememberedConsent,
   resumableJob,
+  signinPolls,
+  signinView,
 } from "../colab-model.js";
 import { createPrefs } from "../prefs.js";
 
@@ -157,6 +159,66 @@ describe("background transcription (WP79)", () => {
   });
 });
 
+describe("signing in to Google for Colab", () => {
+  const status = (fields) => ({
+    signed_in: false,
+    state: "idle",
+    url: null,
+    lines: [],
+    error: null,
+    ...fields,
+  });
+
+  test("not signed in offers the sign-in and nothing else", () => {
+    const view = signinView(status({}), t);
+    assert.deepEqual(
+      [view.phase, view.showStart, view.showCode, view.showCancel, view.ok],
+      ["idle", true, false, false, false],
+    );
+    assert.equal(view.message, "ui.colab.signin_state_no{}");
+  });
+
+  test("a started sign-in waits for the address, then asks for the code", () => {
+    const starting = signinView(status({ state: "running" }), t);
+    assert.deepEqual(
+      [starting.phase, starting.showStart, starting.showCode, starting.showCancel],
+      ["starting", false, false, true],
+    );
+    const url = "https://accounts.google.com/o/oauth2/auth?x=1";
+    const waiting = signinView(status({ state: "running", url }), t);
+    assert.deepEqual(
+      [waiting.phase, waiting.showCode, waiting.showCancel, waiting.url],
+      ["waiting", true, true, url],
+    );
+  });
+
+  test("done is ok and lets the transcription go on", () => {
+    const view = signinView(status({ state: "done", signed_in: true }), t);
+    assert.deepEqual([view.phase, view.ok, view.showStart], ["ok", true, false]);
+    assert.equal(signinView(status({ signed_in: true }), t).ok, true);
+  });
+
+  test("a failure shows the tool's words and offers to try again", () => {
+    const view = signinView(status({ state: "failed", error: { text: "bad code" } }), t);
+    assert.deepEqual(
+      [view.phase, view.error, view.showStart, view.ok],
+      ["failed", "bad code", true, false],
+    );
+  });
+
+  test("a cancelled sign-in is a fresh start", () => {
+    const view = signinView(status({ state: "cancelled" }), t);
+    assert.deepEqual([view.phase, view.showStart], ["idle", true]);
+  });
+
+  test("only a running sign-in is polled", () => {
+    assert.equal(signinPolls(status({ state: "running" })), true);
+    for (const state of ["idle", "done", "failed", "cancelled"]) {
+      assert.equal(signinPolls(status({ state })), false);
+    }
+  });
+});
+
 describe("commands and menus", () => {
   const read = (path) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), "utf8");
 
@@ -168,6 +230,7 @@ describe("commands and menus", () => {
       "app.transcribe",
       "app.transcribe_colab",
       "app.colab_settings",
+      "app.colab_signin",
       "app.transcribe_restart",
     ]) {
       assert.ok(
@@ -182,6 +245,7 @@ describe("commands and menus", () => {
     const source = read("../app-commands.js");
     assert.match(source, /"app\.transcribe_colab"/);
     assert.match(source, /"app\.colab_settings"/);
+    assert.match(source, /"app\.colab_signin"/);
     assert.match(source, /"app\.transcribe_restart"/);
   });
 
@@ -193,6 +257,10 @@ describe("commands and menus", () => {
       "cmd.app.transcribe_colab.hint",
       "cmd.app.colab_settings",
       "cmd.app.colab_settings.hint",
+      "cmd.app.colab_signin",
+      "cmd.app.colab_signin.hint",
+      "ui.colab.signin_title",
+      "ui.colab.signin_text",
       "menu.transcribe",
       "cmd.app.transcribe_restart",
       "cmd.app.transcribe_restart.hint",
@@ -202,6 +270,17 @@ describe("commands and menus", () => {
     ]) {
       assert.ok(en[key], `en ${key}`);
       assert.ok(fi[key], `fi ${key}`);
+    }
+  });
+
+  test("the interrupted texts name the command, not a menu path", () => {
+    const en = JSON.parse(read("../../src/kuulas/locales/en.json"));
+    const fi = JSON.parse(read("../../src/kuulas/locales/fi.json"));
+    for (const key of ["ui.colab.interrupted", "error.transcribe.interrupted"]) {
+      assert.match(en[key], /command "Restart interrupted transcriptions" in the menus/);
+      assert.match(fi[key], /"Käynnistä keskeytyneet litteroinnit uudelleen"/);
+      assert.doesNotMatch(en[key], /Transcribe >/);
+      assert.doesNotMatch(fi[key], /Litteroi >/);
     }
   });
 

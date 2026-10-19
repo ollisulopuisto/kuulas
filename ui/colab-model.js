@@ -88,3 +88,41 @@ export const resumableJob = (jobs) =>
       job.kind === "transcribe" &&
       (job.state === "queued" || job.state === "running"),
   );
+
+/**
+ * What the Google sign-in dialog shows for the status GET /api/colab/signin answers
+ * ({ signed_in, state, url, lines, error }): the phase, a line of text, which controls are
+ * offered and the address to open by hand. `ok` means the transcription may go on.
+ */
+export function signinView(status, t) {
+  const base = {
+    message: "",
+    url: status.url ?? null,
+    lines: status.lines ?? [],
+    error: status.error?.text ?? "",
+    showStart: false,
+    showCode: false,
+    showCancel: false,
+    ok: false,
+  };
+  if (status.state === "running") {
+    return status.url
+      ? {
+          ...base,
+          phase: "waiting",
+          message: t("ui.colab.signin_waiting"),
+          showCode: true,
+          showCancel: true,
+        }
+      : { ...base, phase: "starting", message: t("ui.colab.signin_starting"), showCancel: true };
+  }
+  if (status.signed_in || status.state === "done") {
+    return { ...base, phase: "ok", message: t("ui.colab.signin_ok"), ok: true };
+  }
+  const message = t("ui.colab.signin_state_no");
+  if (status.state === "failed") return { ...base, phase: "failed", message, showStart: true };
+  return { ...base, phase: "idle", message, showStart: true };
+}
+
+/** Only a running sign-in changes by itself, so only then is the status asked for again. */
+export const signinPolls = (status) => status.state === "running";

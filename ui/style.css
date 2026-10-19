@@ -2779,6 +2779,16 @@ input[type="text"] {
 .automix-error {
   color: var(--danger-text);
 }
+.automix-log {
+  margin: 0;
+  max-height: 10rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
 
 /* Locate media (WP39) and Send a copy (WP32) */
 .media-dialog {

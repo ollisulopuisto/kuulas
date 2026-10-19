@@ -23,7 +23,6 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
-import os
 import re
 import secrets
 import subprocess
@@ -32,6 +31,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from . import toolpath
 from .clock import FLICKS
 from .messages import KuulasError, t
 from .package import _hostname, _pid_alive, write_json_atomic
@@ -209,14 +209,28 @@ def remove_files(folder: Path | str, job_id: str) -> None:
             path.unlink()
 
 
-def launch_worker(path: Path | str) -> None:
-    """Start ``kuulas.transcribe_worker`` on the job file, detached in its own
-    session, so it keeps going when the editor window, the app or the project is
-    closed. Tests replace this function; nothing waits for the process."""
+def worker_argv(path: Path | str) -> list[str]:
+    """The command that runs the worker on a job file: ``<sys.executable> -m
+    kuulas.transcribe_worker run <file>``. In the Briefcase app ``sys.executable`` is the
+    bundle's launcher, which always runs ``python -m kuulas`` with the arguments it is
+    given, so ``bundle.main`` hands these on to the worker (as it does for the recorder);
+    from a checkout it is the interpreter and ``-m`` is plain Python."""
+    return [sys.executable, "-m", "kuulas.transcribe_worker", "run", str(path)]
+
+
+def start_worker_process(path: Path | str) -> None:
+    """Start the worker on the job file, detached in its own session, so it keeps going
+    when the editor window, the app or the project is closed. Nothing waits for it."""
     subprocess.Popen(  # noqa: S603 - our own module, fixed argv
-        [sys.executable, "-m", "kuulas.transcribe_worker", "run", str(path)],
-        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-        start_new_session=True, close_fds=True, env=os.environ.copy())
+        worker_argv(path), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL, start_new_session=True, close_fds=True,
+        env=toolpath.tool_env())
+
+
+def launch_worker(path: Path | str) -> None:
+    """What the editor calls to run a job. Tests replace this function (so no test
+    starts a process by accident); ``start_worker_process`` is the real one."""
+    start_worker_process(path)
 
 
 def words_to_file(words: list[dict], *, timing: str, language: str,
