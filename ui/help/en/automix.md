@@ -12,7 +12,7 @@ The automixer mixes the finished edit for you: speech levelled and polished, mus
 - It runs in the background. The notice shows the automixer's latest message; Cancel stops it.
 - The mix is saved beside the project, named after the edit and the time. Show in Finder opens the folder.
 
-Only speech and music tracks are mixed. Speech-mix tracks and buses are for your own monitoring balance and for burn-in exports to another app; the automixer does not use them, so they are left out of this job (the normal exports are unchanged). The project must be 48000 Hz.
+Only speech and music tracks are mixed. Buses are for your own monitoring balance and for burn-in exports to another app; the automixer does not use them, so they are left out of this job (the normal exports are unchanged). Track faders and pan are not applied either: the automixer levels the tracks and spreads the speakers itself. Clip gain and your edits are. Your recordings can be in any format and sample rate, since kuulas renders them for the automixer; the project itself must be 48000 Hz. The mix is a 16-bit WAV.
 
 The first time, check the command under "The automixer" in the dialog. It is the program kuulas runs, normally `uv run automixer` in your podcast folder. A missing program gives a message that names it.
 

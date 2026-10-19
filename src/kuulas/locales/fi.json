@@ -1437,7 +1437,7 @@
   "ui.automix.cancelled": "Miksaus peruutettiin.",
   "error.automix.bad_rate": "Automixer tarvitsee 48000 Hz:n projektin, ja tämä on {rate} Hz. Mitään ei viety eikä ajettu.",
   "error.automix.bad_stems": "Raidat eivät vastaa sitä, mitä automixer lukee: {detail}",
-  "ui.automix.scope_note": "Kaikki puhe- ja musiikkiraidat miksataan; väylät jätetään pois.",
+  "ui.automix.scope_note": "Kaikki puhe- ja musiikkiraidat miksataan; väylät jätetään pois. Raitojen liukusäätimiä ja panorointia ei käytetä (automixer tasaa raidat itse).",
   "ui.automix.running_percent": "Automixer miksaa… {percent} %: {line}",
   "cli.stats.help": "Näytä istunnon tilastot: kesto, määrät, kuka puhui, tehty työ ja koot.",
   "cli.stats.json": "Tulosta luvut tekstin sijaan JSON-muodossa.",
