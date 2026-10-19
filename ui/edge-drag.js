@@ -37,7 +37,7 @@ function sourceSpan(project, clip) {
  * neighbour it also stops at the next clip on the track instead of overlapping it.
  * Ripple only needs the clip's own media and one frame (its start stays put).
  */
-export function edgeLimits(project, track, clip, edge, { ripple }) {
+export function edgeLimits(project, track, clip, edge, { ripple, overwrite = false }) {
   const own = sourceSpan(project, clip);
   const end = endOf(clip);
   if (ripple) {
@@ -46,6 +46,23 @@ export function edgeLimits(project, track, clip, edge, { ripple }) {
       : { low: own.low, high: end - 1, neighbour: null };
   }
   const neighbour = touchingNeighbour(track, clip, edge);
+  if (overwrite) {
+    // An edge dragged outwards covers the neighbours (they are trimmed or removed), so only
+    // the clip's own media bounds it that way; shrinking it still rolls the touching
+    // neighbour, which keeps a frame and its own media.
+    const theirs = neighbour ? sourceSpan(project, neighbour) : null;
+    if (edge === "end")
+      return {
+        low: Math.max(clip.start + 1, theirs ? Math.max(theirs.low, 0) : 0),
+        high: own.high,
+        neighbour,
+      };
+    return {
+      low: Math.max(own.low, 0),
+      high: Math.min(end - 1, theirs ? theirs.high : end - 1),
+      neighbour,
+    };
+  }
   let low = Math.max(own.low, 0);
   let high = own.high;
   if (edge === "end") low = clip.start + 1;
@@ -70,10 +87,34 @@ export function edgeLimits(project, track, clip, edge, { ripple }) {
 }
 
 /** The edge's new frame (whole, clamped) and the neighbour it moves, if any. */
-export function resolveEdge(project, track, clip, edge, frame, { ripple }) {
-  const { low, high, neighbour } = edgeLimits(project, track, clip, edge, { ripple });
+export function resolveEdge(project, track, clip, edge, frame, { ripple, overwrite = false }) {
+  const { low, high, neighbour } = edgeLimits(project, track, clip, edge, { ripple, overwrite });
   const clamped = Math.max(low, Math.min(Math.max(low, high), Math.round(frame)));
-  return { frame: clamped, neighbour };
+  // Outwards with overwrite on, the neighbour is covered, not rolled.
+  const outwards = edge === "end" ? clamped > endOf(clip) : clamped < clip.start;
+  return { frame: clamped, neighbour: overwrite && outwards ? null : neighbour, outwards };
+}
+
+/**
+ * The other clips on the track that the stretch an edge drag covers lies on: `kept` is what
+ * stays of each (its edge trimmed), null when it is covered whole and goes. Mirrors
+ * ops._overwrite_under, which does the real edit.
+ */
+export function coveredClips(track, clip, edge, frame) {
+  const region =
+    edge === "end" ? { start: endOf(clip), end: frame } : { start: frame, end: clip.start };
+  const out = [];
+  for (const other of track.clips) {
+    if (other.id === clip.id) continue;
+    const start = other.start;
+    const end = endOf(other);
+    if (end <= region.start || start >= region.end) continue;
+    let kept = null;
+    if (start < region.start) kept = { start, end: region.start };
+    else if (end > region.end) kept = { start: region.end, end };
+    out.push({ id: other.id, start, end, kept });
+  }
+  return out.sort((a, b) => a.start - b.start);
 }
 
 /**
@@ -81,8 +122,8 @@ export function resolveEdge(project, track, clip, edge, frame, { ripple }) {
  * clip's new span and `neighbour` the touching clip's new span (roll only).
  * Ripple keeps the clip's start; dragging its start edge shortens it from the head.
  */
-export function edgeGhost(project, track, clip, edge, frame, { ripple }) {
-  const resolved = resolveEdge(project, track, clip, edge, frame, { ripple });
+export function edgeGhost(project, track, clip, edge, frame, { ripple, overwrite = false }) {
+  const resolved = resolveEdge(project, track, clip, edge, frame, { ripple, overwrite });
   const f = resolved.frame;
   const end = endOf(clip);
   const nb = resolved.neighbour;
@@ -97,7 +138,18 @@ export function edgeGhost(project, track, clip, edge, frame, { ripple }) {
   if (nb) {
     neighbour = edge === "end" ? { start: f, end: endOf(nb) } : { start: nb.start, end: f };
   }
-  return { line: f, clip: span, neighbour, ripple: Boolean(ripple), edge };
+  const covering = Boolean(overwrite) && !ripple && resolved.outwards;
+  const region = edge === "end" ? { start: end, end: f } : { start: f, end: clip.start };
+  return {
+    line: f,
+    clip: span,
+    neighbour,
+    ripple: Boolean(ripple),
+    edge,
+    overwrite: covering,
+    region: covering ? region : null,
+    covered: covering ? coveredClips(track, clip, edge, f) : [],
+  };
 }
 
 /** The ghost in canvas pixels for the lane `row`: the line spans the lane, outlines match clips. */
@@ -116,11 +168,20 @@ export function ghostGeometry(ghost, { view, row }) {
     line: { x: frameToX(ghost.line, view.scroll, view.zoom), y: top, h: row.height },
     clip: box(ghost.clip),
     neighbour: ghost.neighbour ? box(ghost.neighbour) : null,
+    region: ghost.region ? box(ghost.region) : null,
+    covered: (ghost.covered ?? []).map((item) => ({
+      ...box(item),
+      removed: item.kept === null,
+      kept: item.kept ? box(item.kept) : null,
+    })),
   };
 }
 
-/** The edit to send on release: roll, or ripple while Shift is held. */
-export function edgeChange(clipId, edge, frame, ripple, groupEditing = false) {
+/**
+ * The edit to send on release: roll, or ripple while Shift is held. A roll overwrites its
+ * neighbours unless Alt was held (`overwrite` false: the edge stops at the neighbour).
+ */
+export function edgeChange(clipId, edge, frame, ripple, groupEditing = false, overwrite = true) {
   return {
     op: ripple ? "ripple_trim" : "roll_trim",
     // A ripple with group editing on also gives the material back on the tracks cut at the
@@ -130,6 +191,7 @@ export function edgeChange(clipId, edge, frame, ripple, groupEditing = false) {
       edge,
       frame,
       ...(ripple && groupEditing ? { extend_partners: true } : {}),
+      ...(!ripple && !overwrite ? { overwrite: false } : {}),
     },
     labelKey: ripple ? "ui.edge.ripple" : "ui.edge.roll",
   };

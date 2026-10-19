@@ -251,12 +251,14 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     if (!(row && clip)) return;
     const ghost = edgeGhost(state.project, track, clip, edgeSession.edge, edgeSession.frame, {
       ripple: edgeSession.ripple,
+      overwrite: edgeSession.overwrite,
     });
     const geometry = ghostGeometry(ghost, { view: state, row });
     overlay.save();
     overlay.beginPath();
     overlay.rect(0, RULER_HEIGHT, size.width, size.height - RULER_HEIGHT);
     overlay.clip();
+    drawEdgeCovered(geometry);
     overlay.strokeStyle = theme.accent;
     overlay.lineWidth = 1.5;
     overlay.setLineDash(ghost.ripple ? [5, 3] : []);
@@ -269,9 +271,53 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     overlay.font = `600 ${NAME_FONT_PX}px ${theme.font}`;
     overlay.textBaseline = "top";
     overlay.fillStyle = theme.ink;
-    const hint = t(ghost.ripple ? "ui.edge.hint_ripple" : "ui.edge.hint_roll");
+    const hint = t(
+      ghost.ripple
+        ? "ui.edge.hint_ripple"
+        : edgeSession.overwrite
+          ? "ui.edge.hint_roll"
+          : "ui.edge.hint_roll_alone",
+    );
     overlay.fillText(hint, Math.max(4, geometry.line.x + 6), geometry.line.y + 3);
     overlay.restore();
+  }
+
+  // What an overwriting edge drag will do to the clips under it: the stretch it covers is
+  // hatched, a clip covered whole is dimmed and struck through (it goes), a clip covered at
+  // its edge has just the lost part dimmed (it is trimmed).
+  function drawEdgeCovered(geometry) {
+    if (!geometry.region) return;
+    overlay.fillStyle = theme.ink;
+    overlay.globalAlpha = 0.35;
+    for (const item of geometry.covered) {
+      if (item.removed) {
+        overlay.fillRect(item.x, item.y, item.w, item.h);
+      } else {
+        const lostX = item.kept.x === item.x ? item.kept.x + item.kept.w : item.x;
+        const lostW = item.w - item.kept.w;
+        overlay.fillRect(lostX, item.y, lostW, item.h);
+      }
+    }
+    overlay.globalAlpha = 1;
+    drawHatchAt(
+      geometry.region.x,
+      geometry.region.y,
+      geometry.region.w,
+      geometry.region.h,
+      theme.accent,
+      0.4,
+    );
+    overlay.strokeStyle = theme.ink;
+    overlay.lineWidth = 1.5;
+    for (const item of geometry.covered) {
+      if (!item.removed) continue;
+      overlay.beginPath();
+      overlay.moveTo(item.x, item.y);
+      overlay.lineTo(item.x + item.w, item.y + item.h);
+      overlay.moveTo(item.x + item.w, item.y);
+      overlay.lineTo(item.x, item.y + item.h);
+      overlay.stroke();
+    }
   }
 
   // The tiles behind the ghosts' waveforms. The worker's own cache is out of reach, so the
@@ -1498,6 +1544,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       dragging: false,
       seekFrame: hit.frame,
       ripple: event.shiftKey,
+      overwrite: !event.altKey, // Alt held: the edge stops at the neighbour; read live
       raw: null,
       frame: hit.edge === "start" ? hit.clip.start : hit.clip.start + hit.clip.length,
     };
@@ -1512,6 +1559,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     if (!clip || edgeSession.raw === null) return;
     edgeSession.frame = resolveEdge(state.project, track, clip, edgeSession.edge, edgeSession.raw, {
       ripple: edgeSession.ripple,
+      overwrite: edgeSession.overwrite,
     }).frame;
   }
 
@@ -1519,6 +1567,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
     const session = edgeSession;
     const point = locate(event);
     session.ripple = event.shiftKey;
+    session.overwrite = !event.altKey;
     if (!session.dragging) {
       if (!isDrag(session.origin, point)) return;
       session.dragging = true;
@@ -1545,6 +1594,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
         edge: session.edge,
         frame: session.frame,
         ripple: session.ripple,
+        overwrite: session.overwrite,
       });
     }
   }
@@ -1557,6 +1607,10 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
       endEdge(false);
     } else if (event.key === "Shift") {
       edgeSession.ripple = event.type === "keydown";
+      clampEdge();
+      requestOverlay();
+    } else if (event.key === "Alt") {
+      edgeSession.overwrite = event.type !== "keydown";
       clampEdge();
       requestOverlay();
     }

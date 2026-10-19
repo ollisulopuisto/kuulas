@@ -2439,13 +2439,14 @@ const timeline = createTimeline({
         provisional: (p) => patchClip(p, clipId, { [`fade_${side}`]: frames }),
       });
     },
-    edgeDrag({ clipId, edge, frame, ripple }) {
+    edgeDrag({ clipId, edge, frame, ripple, overwrite }) {
       const { op, args, labelKey } = edgeChange(
         clipId,
         edge,
         frame,
         ripple,
         getState().groupEditing !== false,
+        overwrite !== false,
       );
       editor.change({ op, args, label: t(labelKey) });
     },
