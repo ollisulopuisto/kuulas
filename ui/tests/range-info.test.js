@@ -71,7 +71,7 @@ describe("rangeLine (the status bar text)", () => {
   const fmt = (frame, rate) => `T${frame / rate}`;
   const tr = (key, values = {}) => `${key}${values.count ?? ""}`;
   const line = (extra) => rangeLine({ ...none, ...extra }, 1000, fmt, tr);
-  const clipsText = "ui.range.clips_one · T0.1-T0.15 · T0.05";
+  const clipsText = "ui.range.clips_one · T0.1-T0.15 · ui.range.length T0.05";
 
   test("nothing set, nothing to say", () => {
     assert.equal(line({}), null);
@@ -83,7 +83,7 @@ describe("rangeLine (the status bar text)", () => {
   test("a selection reads as clips: count, start-end, length", () => {
     assert.equal(
       line({ selection: new Set(["a", "b"]) }),
-      "ui.range.clips_many2 · T0.1-T0.5 · T0.4",
+      "ui.range.clips_many2 · T0.1-T0.5 · ui.range.length T0.15",
     );
     assert.equal(line({ selection: new Set(["a"]) }), clipsText);
   });
