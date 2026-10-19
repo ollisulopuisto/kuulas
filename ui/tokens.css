@@ -816,9 +816,9 @@
   --ruler-bg: var(--surface-panel);
   --button-bg: var(--surface-panel);
   --button-text: var(--text);
-  --button-border: var(--border);
+  --button-border: var(--border-strong); /* secondary buttons are outlined */
   --button-hover-bg: var(--surface-hover);
-  --button-hover-border: var(--border-strong);
+  --button-hover-border: var(--text-secondary);
   --button-active-bg: var(--surface-active);
   --button-primary-bg: var(--accent); /* Play and the one primary action of a view */
   --button-primary-hover-bg: var(--accent-hover);

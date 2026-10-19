@@ -73,7 +73,7 @@ kbd {
   gap: var(--space-3);
   height: var(--control-h);
   padding: 0 var(--pad-inline);
-  border: 1px solid var(--button-border);
+  border: 1px solid var(--button-border); /* secondary = outlined; .primary is the accent fill */
   border-radius: var(--radius-sm);
   background: var(--button-bg);
   color: var(--button-text);
@@ -112,6 +112,10 @@ kbd {
 .button.primary:hover:not(:disabled) {
   background: var(--button-primary-hover-bg);
   border-color: var(--button-primary-hover-bg);
+}
+.btn-icon {
+  width: 1em;
+  text-align: center;
 }
 .button.icon {
   width: var(--control-h);
@@ -1423,19 +1427,16 @@ input[type="text"] {
   padding: var(--space-2) var(--pad-panel) 0;
   background: var(--surface-panel);
   border-bottom: 1px solid var(--border-subtle);
-  overflow-x: auto;
-  scrollbar-width: none;
+  flex-wrap: wrap;
 }
-/* Five tabs must fit the narrow sidebar: they shrink, and a label that still does not
-   fit is cut with an ellipsis (the row scrolls sideways as a last resort). */
+/* Five tabs must fit the narrow sidebar: smaller type and padding, and the row wraps to a
+   second line rather than cutting a label. Never an ellipsis (owner, 2026-10-19). */
 .side-tab {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
+  flex: 0 0 auto;
   white-space: nowrap;
-  text-overflow: ellipsis;
   height: var(--control-h);
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-2);
+  font-size: var(--text-sm);
   border: 0;
   border-bottom: 2px solid transparent;
   background: transparent;

@@ -63,8 +63,11 @@ export function createHistoryPanel({
   const title = el("h2");
   // Undo and Redo, above the list (owner, 2026-10-19; they left the header). The same two
   // commands are in the Edit menu with their keys.
-  const undo = el("button", { type: "button", class: "button ghost" });
-  const redo = el("button", { type: "button", class: "button ghost" });
+  const icon = (glyph) => el("span", { class: "btn-icon", "aria-hidden": "true" }, glyph);
+  const undoLabel = el("span", { class: "lbl" });
+  const redoLabel = el("span", { class: "lbl" });
+  const undo = el("button", { type: "button", class: "button" }, icon("\u21B6"), undoLabel);
+  const redo = el("button", { type: "button", class: "button" }, icon("\u21B7"), redoLabel);
   const stepper = el("div", { class: "hist-undo", role: "group" }, undo, redo);
   root.replaceChildren(title, stepper, status, scroller, older, bar);
 
@@ -216,8 +219,8 @@ export function createHistoryPanel({
     status.hidden = !(nodes.length === 0 || loading);
     status.textContent = loading ? t("ui.history.loading") : t("ui.history.empty");
     stepper.setAttribute("aria-label", t("ui.history.undo_group"));
-    undo.textContent = t("ui.transport.undo");
-    redo.textContent = t("ui.transport.redo");
+    undoLabel.textContent = t("ui.transport.undo");
+    redoLabel.textContent = t("ui.transport.redo");
     undo.disabled = !state.canUndo;
     redo.disabled = !state.canRedo;
     older.hidden = !more || loading;
