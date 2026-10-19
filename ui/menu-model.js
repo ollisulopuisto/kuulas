@@ -43,6 +43,9 @@ export const CHECKED = {
   "view.clip_words": (state) => state?.showClipWords !== false,
   "view.clipboard_limit": (state) => state?.clipboardLimit !== false,
   "sync.confirm": (state) => state?.confirmSync !== false,
+  "view.language_auto": (state) => (state?.languageChoice ?? "auto") === "auto",
+  "view.language_fi": (state) => state?.languageChoice === "fi",
+  "view.language_en": (state) => state?.languageChoice === "en",
 };
 
 // Submenus are defined once, so moving one to another menu is a one-line change. A submenu holds
@@ -378,6 +381,12 @@ export const MENU = [
         item("view.pause_3"),
         item("view.pause_6"),
         item("view.pause_never"),
+      ]),
+      SEP,
+      submenu("menu.language", [
+        item("view.language_auto"),
+        item("view.language_fi"),
+        item("view.language_en"),
       ]),
       SEP,
       item("palette.open"),

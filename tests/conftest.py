@@ -77,6 +77,13 @@ def _private_recents(tmp_path_factory, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _private_app_settings(tmp_path_factory, monkeypatch):
+    """The app settings (language) are a per-user file: no test may read the real one."""
+    folder = tmp_path_factory.mktemp("settings")
+    monkeypatch.setenv("KUULAS_SETTINGS_FILE", str(folder / "settings.json"))
+
+
+@pytest.fixture(autouse=True)
 def _private_view_memory(tmp_path_factory, monkeypatch):
     """The remembered views are a per-user file: no test may touch the real one."""
     folder = tmp_path_factory.mktemp("view-memory")

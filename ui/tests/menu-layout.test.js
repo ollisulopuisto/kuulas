@@ -201,6 +201,11 @@ describe("Track, Playback, View", () => {
       "view.expand_all_buses",
     ]);
     assert.deepEqual(subIds("view", "menu.mouse"), ["view.drag_mode", "view.wheel_mode"]);
+    assert.deepEqual(subIds("view", "menu.language"), [
+      "view.language_auto",
+      "view.language_fi",
+      "view.language_en",
+    ]);
     assert.ok(!menuTargets([top("view")]).includes("transport.loop"));
     assert.ok(menuTargets([top("playback")]).includes("transport.loop"));
   });

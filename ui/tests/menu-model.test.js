@@ -42,6 +42,7 @@ function make({ platform = "other", overrides = {}, state = {}, planned = [], he
   registry.register("edit.split", () => {});
   registry.register("edit.split_all", () => {});
   registry.register("view.clip_words", () => {});
+  for (const id of ["auto", "fi", "en"]) registry.register(`view.language_${id}`, () => {});
   registry.planned(...planned);
   const entries = resolveKeymap(DEFAULT_KEYMAP, overrides, platform);
   return resolveMenu({
@@ -87,6 +88,15 @@ describe("the menu data", () => {
     assert.equal(find2({ showClipWords: false }).checked, false);
     assert.equal(find2({}).checked, true);
     assert.equal(find(make(), "edit.undo").checked, undefined);
+  });
+
+  test("View > Language shows the stored choice checked, Automatic when none", () => {
+    const check = (state, id) => find(make({ state }), id).checked;
+    assert.equal(check({ languageChoice: "fi" }, "view.language_fi"), true);
+    assert.equal(check({ languageChoice: "fi" }, "view.language_en"), false);
+    assert.equal(check({ languageChoice: "fi" }, "view.language_auto"), false);
+    assert.equal(check({}, "view.language_auto"), true);
+    assert.equal(check({}, "view.language_fi"), false);
   });
 
   test("Help has Keyboard shortcuts", () => {

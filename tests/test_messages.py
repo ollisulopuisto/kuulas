@@ -306,6 +306,52 @@ def test_other_systems_never_run_defaults(monkeypatch):
     assert not calls
 
 
+def test_app_language_setting_defaults_to_automatic():
+    assert messages.language_setting() == "auto"
+
+
+def test_app_language_setting_is_stored_and_read_back():
+    messages.save_language_setting("fi")
+    assert messages.language_setting() == "fi"
+    messages.save_language_setting("auto")
+    assert messages.language_setting() == "auto"
+    with pytest.raises(ValueError, match="sv"):
+        messages.save_language_setting("sv")
+
+
+def test_a_damaged_settings_file_means_automatic():
+    path = Path(os.environ["KUULAS_SETTINGS_FILE"])
+    path.write_text("{not json", encoding="utf-8")
+    assert messages.language_setting() == "auto"
+    path.write_text('{"language": "xx"}', encoding="utf-8")
+    assert messages.language_setting() == "auto"
+
+
+def test_app_setting_outranks_the_macos_list_and_lang(mac):
+    _defaults(mac, APPLE_FINNISH)
+    mac.setenv("LANG", "fi_FI.UTF-8")
+    messages.save_language_setting("en")
+    assert messages.default_language() == "en"
+    messages.save_language_setting("fi")
+    _defaults(mac, '(\n    "en-US"\n)\n')
+    assert messages.default_language() == "fi"
+
+
+def test_lc_override_outranks_the_app_setting(mac):
+    messages.save_language_setting("fi")
+    mac.setenv("LC_MESSAGES", "en_GB.UTF-8")
+    assert messages.default_language() == "en"
+    mac.delenv("LC_MESSAGES")
+    mac.setenv("LC_ALL", "en_GB.UTF-8")
+    assert messages.default_language() == "en"
+
+
+def test_automatic_setting_falls_through_to_the_system(mac):
+    messages.save_language_setting("auto")
+    _defaults(mac, APPLE_FINNISH)
+    assert messages.default_language() == "fi"
+
+
 def test_catalog_for_the_ui_is_the_whole_catalog():
     assert messages.catalog("fi") == messages._CATALOGS["fi"]
     assert messages.catalog("xx") is None
