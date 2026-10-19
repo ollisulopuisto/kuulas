@@ -363,6 +363,19 @@ edits. Some are **unconditional** (just done) and some **conditional**
 
   Never the locks, backups or caches.
 
+  **As built (File > Send a copy…, `send_copy.py`).** The copy keeps the project `id`, gets a
+  new `copy` (the old one goes on `lineage`) and the sender's history gets a `sent` checkpoint
+  naming it. `media_paths` (the sender's file paths) is emptied. Media the project keeps in its
+  own folder cannot be found again by the receiver, so it travels whole in `none`. In `used` a
+  media keeps its id and its length, so no history step or transcript is rewritten: the
+  working FLAC is full length with digital silence outside the carried parts, and the row says
+  `extra.partial_copy = {ranges, source_size, handle_seconds}`. `source_size` is set only for
+  media that was linked on the sender's side; File > Locate media… swaps such a row back to a
+  linked one when it finds the whole file by SHA-256 and size, and empties the caches (they
+  were made from the partial file). `all` copies linked files into `media/linked/`.
+  What is used is read from the head of the edit being sent; earlier steps of the copied
+  history may reach into silence.
+
 ## People, interviews and bits (from the start)
 
 Transcripts must know *who* speaks and *which interview* a recording belongs

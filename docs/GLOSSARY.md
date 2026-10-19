@@ -57,6 +57,16 @@ used for putting tracks on a bus: they are moved there ("Siirrä valitut raidat 
 | Hearing the input | monitoring | (suora)monitorointi | "kuuntele äänikortin omasta suoramonitoroinnista" |
 | The stop preference | Stopping a recording: two steps / one click / hold 2 s | Äänityksen pysäyttäminen: kaksi painallusta / yksi painallus / pidä 2 s | |
 
+## Locating media and sending a copy (WP39 and WP32; used 2026-10-19, owner to confirm)
+
+| Meaning | English | Finnish | Note |
+|---|---|---|---|
+| The audio files a project plays | media, audio files | äänitiedostot | "media" alone is not used in Finnish text |
+| Finding missing files by content | Locate media… | Etsi äänitiedostot… | not "linkitä uudelleen" in the menu (it stays in the synonyms) |
+| A file that is gone from its place | missing | puuttuu | |
+| A project copy made to be sent | Send a copy… | Lähetä kopio… | |
+| Only the played stretches of a file | the used parts | käytetyt osat | handles: "molemmin puolin" |
+
 ## To do (WP62)
 
 1. Audit every label, hint, toast, menu title and help topic for these words; make a table of the

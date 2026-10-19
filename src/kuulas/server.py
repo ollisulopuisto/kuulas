@@ -387,7 +387,8 @@ def create_app(session, engine, *, language: str | None = None,
     @app.exception_handler(KuulasError)
     async def _other_error(_request: Request, e: KuulasError):
         if e.key.startswith(("error.paste.", "error.import_plan.", "error.chapters.",
-                             "error.regions.", "error.edit_points.")):
+                             "error.regions.", "error.edit_points.",
+                             "error.locate.", "error.send_copy.")):
             return answer(e, 400)
         log.error(str(e))
         return answer(e, 500)
@@ -664,6 +665,27 @@ def create_app(session, engine, *, language: str | None = None,
         folder = clipboard_browse.project_folder(body.get("path"))
         new_project.start_window(str(folder))
         return {"path": str(folder)}
+
+    @app.get("/api/media/status")
+    def get_media_status():
+        """File > Locate media… (WP39): what is missing, and what is only partly here."""
+        return JSONResponse(session.media_status())
+
+    @app.post("/api/media/locate")
+    def post_locate_media(body: Annotated[dict[str, Any], Body()]):
+        """Look under a folder for the missing media, by SHA-256; say what was found."""
+        return JSONResponse(session.locate_media(body.get("folder")))
+
+    @app.get("/api/send-copy/plan")
+    def get_send_copy_plan():
+        """File > Send a copy… (WP32): what each media choice would carry."""
+        return JSONResponse(session.send_copy_plan())
+
+    @app.post("/api/send-copy")
+    def post_send_copy(body: Annotated[dict[str, Any], Body()]):
+        """Write a copy of the project into a folder: no audio, the used parts or all."""
+        media = body.get("media", "used")
+        return JSONResponse(session.send_copy(body.get("folder"), media))
 
     @app.get("/api/export-folder")
     def get_export_folder():

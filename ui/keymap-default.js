@@ -1173,6 +1173,18 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.app.statistics",
   },
   {
+    id: "app.locate_media",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.app.locate_media",
+  },
+  {
+    id: "app.send_copy",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.app.send_copy",
+  },
+  {
     id: "export.regions",
     keys: { mac: null, other: null },
     context: "global",
