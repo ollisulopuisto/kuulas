@@ -10,7 +10,9 @@
 #      (build_wheels.sh) and fetches static ffmpeg and ffprobe (fetch_ffmpeg.sh),
 #   3. stages a Briefcase project (stage_bundle.py), creates and builds Kuulas.app,
 #   4. runs `Kuulas.app --selftest` (headless: libraries, ffmpeg, UI files, a project,
-#      the server, the loudness meter) and stops if it fails,
+#      the server, the loudness meter, the recorder, and the transcription worker started
+#      as the editor starts it, which must run a no-op job to "completed") and stops if
+#      it fails,
 #   5. packages "Kuulas <version>.dmg" (ad-hoc signed, NOT notarised: the first open
 #      needs right-click > Open, see docs/TESTERS.md), mounts it and runs --selftest
 #      again on the app inside, and prints the file, its size and its checksum.

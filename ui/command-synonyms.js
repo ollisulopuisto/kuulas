@@ -280,6 +280,7 @@ export const SYNONYMS = {
     "puheesta tekstiksi",
   ],
   "app.colab_settings": ["colab", "colab-transcribe", "uvx", "asetukset", "litterointi"],
+  "app.colab_signin": ["colab", "google", "login", "sign in", "kirjaudu", "tunnistaudu"],
 
   // -- finding, marking ------------------------------------------------------------------------
   "transcript.find": ["search", "find text", "hae", "etsi", "haku", "sanahaku"],

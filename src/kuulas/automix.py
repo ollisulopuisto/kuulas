@@ -39,7 +39,7 @@ from typing import Any, NoReturn
 
 import soundfile as sf
 
-from . import export
+from . import export, toolpath
 from .jobs import JobCancelledError
 from .messages import KuulasError
 
@@ -252,10 +252,11 @@ def build_command(settings: dict, folder: Path, output: Path, *,
 
 
 def _tool_env() -> dict[str, str]:
-    """The environment for the tool: ours without ``VIRTUAL_ENV``, which belongs to
-    kuulas's own environment and makes ``uv run`` in the automixer's checkout warn
-    that it will be ignored."""
-    return {k: v for k, v in os.environ.items() if k != "VIRTUAL_ENV"}
+    """The environment for the tool: ours without ``VIRTUAL_ENV`` (it belongs to kuulas's
+    own environment and makes ``uv run`` in the automixer's checkout warn that it will be
+    ignored) and with the usual install folders on ``PATH`` (an app started from Finder
+    has none of Homebrew's or ``~/.local/bin``)."""
+    return toolpath.tool_env()
 
 
 def run_process(cmd: list[str], cwd: str | None, on_line: Callable[[str], None],
@@ -265,6 +266,11 @@ def run_process(cmd: list[str], cwd: str | None, on_line: Callable[[str], None],
     together) to ``on_line``. When ``cancel`` is set the whole process group is
     terminated (``uv run`` starts a child that a plain terminate would orphan).
     Returns the exit code; ``FileNotFoundError`` if the program is missing."""
+    # Resolved to an absolute path first: the program is found even when the app's own
+    # PATH lacks its folder; a missing one stays a FileNotFoundError for the caller.
+    found = toolpath.resolve(cmd[0]) if cmd else None
+    if found:
+        cmd = [found, *cmd[1:]]
     proc = subprocess.Popen(  # noqa: S603 - an argument list from settings, no shell
         cmd, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT, text=True, errors="replace", bufsize=1,

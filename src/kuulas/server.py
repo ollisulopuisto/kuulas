@@ -46,6 +46,7 @@ from . import (
     automix,
     bgjobs,
     clipboard_browse,
+    colab_signin,
     colab_transcribe,
     export,
     export_formats,
@@ -378,7 +379,10 @@ def create_app(session, engine, *, language: str | None = None,
 
     @app.exception_handler(colab_transcribe.ColabError)
     async def _colab_error(_request: Request, e: colab_transcribe.ColabError):
-        return answer(e, 400 if e.key.startswith("error.colab.bad_") else 500)
+        if e.key == "error.colab.not_signed_in":
+            return answer(e, 409)
+        client_error = e.key.startswith(("error.colab.bad_", "error.colab.signin_"))
+        return answer(e, 400 if client_error else 500)
 
     @app.exception_handler(automix.AutomixError)
     async def _automix_error(_request: Request, e: automix.AutomixError):
@@ -639,6 +643,30 @@ def create_app(session, engine, *, language: str | None = None,
         stored = colab_transcribe.load_settings()
         return {"settings": stored, "resolved": colab_transcribe.resolve_settings(stored)}
 
+    # Signing in to Google for Colab (interactive, so never inside a detached job).
+    signin = colab_signin.SigninFlow()
+
+    @app.get("/api/colab/signin")
+    def get_colab_signin():
+        return signin.status()
+
+    @app.post("/api/colab/signin", status_code=202)
+    def post_colab_signin():
+        settings = colab_transcribe.resolve_settings(colab_transcribe.load_settings())
+        signin.start(settings["command"], settings["cwd"])
+        return JSONResponse(signin.status(), status_code=202)
+
+    @app.post("/api/colab/signin/code")
+    def post_colab_signin_code(body: Annotated[dict[str, Any], Body()]):
+        code = body.get("code")
+        signin.submit_code(code if isinstance(code, str) else "")
+        return signin.status()
+
+    @app.delete("/api/colab/signin")
+    def delete_colab_signin():
+        signin.cancel()
+        return signin.status()
+
     @app.put("/api/settings/colab")
     def put_colab_settings(body: Annotated[dict[str, Any], Body()]):
         stored = colab_transcribe.save_settings(body)
@@ -880,6 +908,9 @@ def create_app(session, engine, *, language: str | None = None,
             raise BadRequestError("error.server.bad_request", detail="media_ids")
         if body.backend not in {"local", "colab"}:
             raise BadRequestError("error.server.bad_request", detail="backend")
+        if body.backend == "colab" and not colab_signin.signed_in():
+            # The sign-in is interactive; a detached worker could only hang on it.
+            raise colab_transcribe.ColabError("error.colab.not_signed_in")
         if session.read_only:
             holder = session.package.locked_by or {}
             raise BadRequestError("error.history.read_only",
