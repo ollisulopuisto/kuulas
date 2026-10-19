@@ -232,6 +232,13 @@ class RecordStartBody(BaseModel):
     at: int = 0
 
 
+class RecordArmBody(BaseModel):
+    # Listen for pre-roll (WP12c): the same input and channel the take will use.
+    device: dict[str, Any] | None = None
+    channel: int = 1
+    preroll_s: float = 60.0
+
+
 class RecordStopBody(BaseModel):
     # The page's stop gesture (two_step, one_click, hold); without one nothing stops.
     mode: str | None = None
@@ -982,6 +989,17 @@ def create_app(session, engine, *, language: str | None = None,
         engine.stop()
         return rec.start(device=body.device, channel=body.channel, track_id=body.track_id,
                          name=body.name, at=body.at)
+
+    @app.post("/api/record/arm")
+    def record_arm(body: RecordArmBody):
+        # Also the keepalive: the page repeats it, and the recorder lets the microphone
+        # go by itself when it stops coming.
+        return need_recorder().arm(device=body.device, channel=body.channel,
+                                   preroll_s=body.preroll_s)
+
+    @app.post("/api/record/disarm")
+    def record_disarm():
+        return need_recorder().disarm()
 
     @app.post("/api/record/stop")
     def record_stop(body: RecordStopBody):

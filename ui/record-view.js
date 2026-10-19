@@ -10,6 +10,14 @@
 // Decisions live in record-model.js and stop-mode.js (pure, tested); this file draws and wires.
 import { createPeakHold } from "./peak-hold.js";
 import {
+  ARM_KEEPALIVE_MS,
+  armedNotice,
+  armRequest,
+  PREROLL_CHOICES,
+  prerollChoice,
+  prerollLabel,
+} from "./preroll.js";
+import {
   channelChoices,
   formatElapsed,
   importedMessage,
@@ -24,6 +32,7 @@ import { CONFIRM_MS, createStopGesture, STOP_MODES, stopModeChoice } from "./sto
 const STOP_MODE_KEY = "recordStopMode";
 const DEVICE_KEY = "recordDevice";
 const CHANNEL_KEY = "recordChannel";
+const PREROLL_KEY = "recordPreroll";
 const FLOOR_DB = -60;
 const RING = 2 * Math.PI * 52; // the stop ring's circumference (r = 52 in its 120 box)
 
@@ -61,6 +70,8 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
   let status = null;
   let devices = null;
   let deviceError = "";
+  let preroll = prerollChoice(prefs.get(PREROLL_KEY));
+  let armTimer = null;
   let stopMode = stopModeChoice(prefs.get(STOP_MODE_KEY));
   let gesture = createStopGesture({ mode: stopMode });
   let gestureView = gesture.tick(0);
@@ -92,6 +103,8 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
   const phase = () => (stopping ? "recording" : recordPhase(status));
   const recording = () => phase() === "recording";
   const rate = () => status?.rate ?? getState().project?.rate ?? 48000;
+  // The take's clock starts at the pre-roll; "Recorded" counts from where Record was pressed.
+  const shownPosition = () => Math.max(0, position - (status?.preroll_frames ?? 0));
 
   // Esc (the dialog's cancel) and Hide only hide the view: the take goes on, the chip shows it.
   dialog.addEventListener("cancel", (event) => {
@@ -117,19 +130,34 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
     setup.name = row(t("ui.record.name"), el("input"));
     setup.name.type = "text";
     setup.name.autocomplete = "off";
+    setup.preroll = row(t("ui.record.preroll"), el("select"));
+    setup.armed = el("p", "record-armed");
+    setup.armed.setAttribute("role", "status");
+    const armedMeter = el("div", "record-meter");
+    armedMeter.setAttribute("role", "img");
+    armedMeter.setAttribute("aria-label", t("ui.record.level"));
+    setup.fill = el("i", "record-meter-fill");
+    setup.hold = el("i", "record-meter-hold");
+    armedMeter.append(setup.fill, setup.hold);
+    setup.meter = armedMeter;
     setup.at = el("p", "record-at");
     setup.disk = el("p", "record-disk");
     setup.message = el("p", "record-message");
     setup.message.setAttribute("role", "status");
     setup.record = el("button", "button record-button", t("ui.record.record"));
     setup.record.type = "button";
-    box.append(setup.at, setup.disk, setup.message, setup.record);
+    box.append(setup.armed, setup.meter, setup.at, setup.disk, setup.message, setup.record);
     setup.device.addEventListener("change", () => {
       const device = devices?.[Number(setup.device.value)];
       if (device) prefs.setJson(DEVICE_KEY, { index: device.index, name: device.name });
       fillChannels();
+      void syncArm();
     });
-    setup.channel.addEventListener("change", () => prefs.set(CHANNEL_KEY, setup.channel.value));
+    setup.channel.addEventListener("change", () => {
+      prefs.set(CHANNEL_KEY, setup.channel.value);
+      void syncArm();
+    });
+    setup.preroll.addEventListener("change", () => setPreroll(setup.preroll.value));
     setup.track.addEventListener("change", () => {
       setup.name.disabled = setup.track.value !== "new";
     });
@@ -169,6 +197,13 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
     );
     setup.track.value = tracks.some((track) => track.id === before) ? before : "new";
     setup.name.disabled = setup.track.value !== "new";
+    setup.preroll.replaceChildren(
+      ...PREROLL_CHOICES.map((s) => new Option(prerollLabel(s, t), String(s))),
+    );
+    setup.preroll.value = String(preroll);
+    setup.armed.textContent = armedNotice(status, preroll, t);
+    setup.armed.dataset.armed = preroll > 0 && status?.armed ? "on" : "off";
+    setup.meter.hidden = !(preroll > 0 && status?.armed);
     setup.at.textContent = t("ui.record.at", {
       time: formatElapsed(state.playhead ?? 0, rate()),
     });
@@ -201,10 +236,56 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
     if (phase() === "setup") fillSetup();
   }
 
+  // -- pre-roll: listening while this view is open (WP12c) ---------------------------------
+  // The recorder keeps the last N seconds in memory while armed and writes nothing. The view
+  // arms it when it is open in setup with pre-roll on, repeats that as a keepalive (the recorder
+  // lets go by itself after two minutes without), and disarms when it closes or pre-roll is off.
+  let arming = false;
+  async function syncArm() {
+    if (!dialog.open || phase() !== "setup" || stopping || arming) return;
+    const device = devices?.[Number(setup.device.value)] ?? null;
+    try {
+      arming = true;
+      if (preroll === 0 || !device) {
+        if (status?.armed) setStatus(await api.disarmRecording());
+        return;
+      }
+      setStatus(
+        await api.armRecording(
+          armRequest({ device, channel: setup.channel.value, seconds: preroll }),
+        ),
+      );
+    } catch (error) {
+      setup.message.textContent = error.message;
+    } finally {
+      arming = false;
+    }
+    // Closed while the recorder was opening the input: let it go again.
+    if (!dialog.open) void releaseArm();
+  }
+
+  function startKeepalive() {
+    if (armTimer === null) armTimer = setInterval(() => void syncArm(), ARM_KEEPALIVE_MS);
+  }
+
+  async function releaseArm() {
+    if (armTimer !== null) clearInterval(armTimer);
+    armTimer = null;
+    if (recording() || stopping || !status?.armed) return;
+    try {
+      setStatus(await api.disarmRecording());
+    } catch {
+      // The recorder lets go by itself after two minutes.
+    }
+  }
+  dialog.addEventListener("close", () => void releaseArm());
+
   async function start() {
     const device = devices?.[Number(setup.device.value)] ?? null;
     setup.record.disabled = true;
     try {
+      // Armed for these very settings, or the take would have no pre-roll.
+      if (preroll > 0) await syncArm();
       const answer = await api.startRecording(
         startRequest({
           device,
@@ -249,6 +330,7 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
     const meterRow = el("div", "record-meter-row");
     meterRow.append(meterBox, rec.clip);
     rec.disk = el("p", "record-disk");
+    rec.preroll = el("p", "record-preroll-note");
     rec.notices = el("ul", "record-notices");
     rec.notices.setAttribute("aria-live", "assertive");
     rec.stop = el("button", "record-stop");
@@ -266,17 +348,27 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
     for (const type of ["pointerup", "pointercancel"])
       rec.stop.addEventListener(type, () => release());
     rec.stop.addEventListener("lostpointercapture", () => release());
-    box.append(rec.take, rec.elapsed, meterRow, rec.disk, rec.notices, rec.stop, rec.stopHelp);
+    box.append(
+      rec.take,
+      rec.elapsed,
+      rec.preroll,
+      meterRow,
+      rec.disk,
+      rec.notices,
+      rec.stop,
+      rec.stopHelp,
+    );
     return box;
   }
 
-  function renderMeter() {
-    if (!rec.fill) return;
+  // `parts`: the recording view's meter (`rec`, the default) or the armed setup's (`setup`).
+  function renderMeter(parts = rec) {
+    if (!parts.fill) return;
     const pct = (db) => `${Math.max(0, Math.min(100, ((db - FLOOR_DB) / -FLOOR_DB) * 100))}%`;
-    rec.fill.style.width = pct(meterView.bar);
-    rec.hold.style.left = pct(meterView.peak);
-    rec.fill.dataset.zone = meterView.bar > -6 ? "hot" : meterView.bar > -18 ? "warn" : "ok";
-    rec.clip.hidden = !meterView.clipped;
+    parts.fill.style.width = pct(meterView.bar);
+    parts.hold.style.left = pct(meterView.peak);
+    parts.fill.dataset.zone = meterView.bar > -6 ? "hot" : meterView.bar > -18 ? "warn" : "ok";
+    if (parts.clip) parts.clip.hidden = !meterView.clipped;
   }
 
   function renderStop() {
@@ -306,7 +398,11 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
 
   function renderRecording() {
     rec.take.textContent = t("ui.record.recording", { take: status?.take ?? "" });
-    rec.elapsed.textContent = formatElapsed(position, rate());
+    rec.elapsed.textContent = formatElapsed(shownPosition(), rate());
+    const included = Math.round((status?.preroll_frames ?? 0) / rate());
+    rec.preroll.textContent =
+      included > 0 ? t("ui.record.preroll_included", { seconds: included }) : "";
+    rec.preroll.hidden = included <= 0;
     renderDisk(rec.disk);
     renderMeter();
     renderStop();
@@ -450,7 +546,7 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
   function renderChip() {
     if (!chip) return;
     chip.hidden = !recording();
-    chip.textContent = t("ui.record.indicator", { time: formatElapsed(position, rate()) });
+    chip.textContent = t("ui.record.indicator", { time: formatElapsed(shownPosition(), rate()) });
     chip.title = t("ui.record.indicator_title");
   }
   chip?.addEventListener("click", () => show());
@@ -497,6 +593,13 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
     renderChip();
   }
 
+  function setPreroll(seconds) {
+    preroll = prerollChoice(seconds);
+    prefs.set(PREROLL_KEY, preroll);
+    render();
+    void syncArm();
+  }
+
   function setStopMode(mode) {
     stopMode = stopModeChoice(mode);
     prefs.set(STOP_MODE_KEY, stopMode);
@@ -529,8 +632,12 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
     get stopMode() {
       return stopMode;
     },
+    get preroll() {
+      return preroll;
+    },
     isRecording: recording,
     setStopMode,
+    setPreroll,
     /** Ask the server again (after the live channel was down). */
     refresh: refreshStatus,
     /** Transport > Record…: the view, set up for a new take or showing the running one. */
@@ -539,6 +646,10 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
       await refreshStatus();
       if (phase() === "setup") await loadDevices();
       show();
+      if (phase() === "setup") {
+        startKeepalive();
+        void syncArm();
+      }
     },
     /** At page load: a take of ours running shows the view again; left-over takes are offered. */
     async start() {
@@ -554,11 +665,18 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
     /** A `{type: "record"}` frame from the live channel. */
     live(message) {
       if (message.kind === "level") {
-        if (!recording()) return;
+        if (!recording()) {
+          // Armed: the meter shows the input before Record.
+          if (status?.armed && setup.fill) {
+            meterView = meter.update(message.peak_dbfs?.[0] ?? FLOOR_DB, now());
+            renderMeter(setup);
+          }
+          return;
+        }
         position = message.position_frames ?? position;
         meterView = meter.update(message.peak_dbfs?.[0] ?? FLOOR_DB, now());
         if (message.clipped?.[0]) meterView = { ...meterView, clipped: true };
-        if (rec.elapsed) rec.elapsed.textContent = formatElapsed(position, rate());
+        if (rec.elapsed) rec.elapsed.textContent = formatElapsed(shownPosition(), rate());
         renderMeter();
         renderChip();
       } else if (message.kind === "status") {

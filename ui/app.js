@@ -89,6 +89,7 @@ import { motionMode } from "./motion.js";
 import { createOverview } from "./overview.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
 import { createPrefs } from "./prefs.js";
+import { nextPreroll, prerollLabel } from "./preroll.js";
 import { createProjectDialog } from "./project-dialog.js";
 import { patchClip } from "./provisional.js";
 import { rangeLine } from "./range-info.js";
@@ -773,6 +774,7 @@ const keyboard = setupKeyboard({
     openStatistics: () => void openStatistics(),
     openRecord: () => void recordView.open(),
     cycleStopMode: () => cycleStopMode(),
+    cyclePreroll: () => cyclePreroll(),
     autoSilence: () => void autoSilence(),
     duckMicrophones: () => void duckMicrophones(),
     transcribeTrack: (backend) => void transcribeTrack(backend),
@@ -1632,6 +1634,13 @@ function cycleStopMode() {
   const mode = nextStopMode(recordView.stopMode);
   recordView.setStopMode(mode);
   showNotice(t("ui.record.stop_mode.now", { mode: t(`ui.record.stop_mode.${mode}`) }), "ok");
+}
+
+// Transport > Pre-roll (WP12c): seconds before Record that the take includes; 0 is off.
+function cyclePreroll() {
+  const seconds = nextPreroll(recordView.preroll);
+  recordView.setPreroll(seconds);
+  showNotice(t("ui.record.preroll.now", { value: prerollLabel(seconds, t) }), "ok");
 }
 
 async function openStatistics() {

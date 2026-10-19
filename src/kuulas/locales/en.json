@@ -1820,5 +1820,17 @@
   "ui.record.stop_mode.hold": "Hold 2 s",
   "ui.record.stop_mode.now": "Stopping a recording: {mode}",
   "ui.record.unload_warning": "A take is recording. It goes on if you close this page.",
-  "error.record.no_playback": "Nothing plays while a take records: listen through your audio interface."
+  "error.record.no_playback": "Nothing plays while a take records: listen through your audio interface.",
+  "error.record.armed_mismatch": "The recorder is listening to another input or channel. Choose the input and channel again, then press Record.",
+  "record.event.disarmed": "The input stopped, so the recorder stopped listening for the pre-roll. Nothing was recorded; check the input.",
+  "cmd.record.preroll": "Pre-roll before recording: off / 10 s / 30 s / 60 s / 2 min",
+  "cmd.record.preroll.hint": "Switches how many seconds before you press Record are included in the take. While the record view is open the input is listened to and the last seconds are kept in memory only; nothing is written until you press Record.",
+  "ui.record.preroll": "Pre-roll",
+  "ui.record.preroll.off": "Off",
+  "ui.record.preroll.seconds": "{seconds} s",
+  "ui.record.preroll.now": "Pre-roll: {value}",
+  "ui.record.armed": "Armed: listening, not recording. The last {seconds} s are kept in memory only; nothing is written until you press Record.",
+  "ui.record.armed_starting": "Opening the input to listen…",
+  "ui.record.armed_off": "Pre-roll is off: the take starts when you press Record.",
+  "ui.record.preroll_included": "Includes {seconds} s from before you pressed Record."
 }

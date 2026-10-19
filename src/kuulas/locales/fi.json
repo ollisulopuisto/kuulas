@@ -1916,5 +1916,17 @@
   "ui.record.stop_mode.hold": "Pidä 2 s",
   "ui.record.stop_mode.now": "Äänityksen pysäytys: {mode}",
   "ui.record.unload_warning": "Ottoa äänitetään. Äänitys jatkuu, vaikka suljet sivun.",
-  "error.record.no_playback": "Mitään ei soiteta oton äänityksen aikana: kuuntele äänikortin kautta."
+  "error.record.no_playback": "Mitään ei soiteta oton äänityksen aikana: kuuntele äänikortin kautta.",
+  "error.record.armed_mismatch": "Äänitin kuuntelee toista tuloa tai kanavaa. Valitse tulo ja kanava uudelleen ja paina sitten Äänitä.",
+  "record.event.disarmed": "Tulo katkesi, joten äänitin lakkasi kuuntelemasta ennakkoa. Mitään ei äänitetty; tarkista tulo.",
+  "cmd.record.preroll": "Ennakko ennen äänitystä: pois / 10 s / 30 s / 60 s / 2 min",
+  "cmd.record.preroll.hint": "Vaihtaa, montako sekuntia ennen Äänitä-painallusta otetaan mukaan ottoon. Kun äänitysnäkymä on auki, tuloa kuunnellaan ja viimeiset sekunnit pidetään vain muistissa; mitään ei kirjoiteta levylle ennen kuin painat Äänitä.",
+  "ui.record.preroll": "Ennakko",
+  "ui.record.preroll.off": "Pois",
+  "ui.record.preroll.seconds": "{seconds} s",
+  "ui.record.preroll.now": "Ennakko: {value}",
+  "ui.record.armed": "Valmiina: kuunnellaan, ei äänitetä. Viimeiset {seconds} s pidetään vain muistissa; mitään ei kirjoiteta levylle ennen kuin painat Äänitä.",
+  "ui.record.armed_starting": "Avataan tuloa kuuntelua varten…",
+  "ui.record.armed_off": "Ennakko on pois: otto alkaa, kun painat Äänitä.",
+  "ui.record.preroll_included": "Mukana {seconds} s ajalta ennen Äänitä-painallusta."
 }

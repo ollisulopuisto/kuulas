@@ -1571,13 +1571,15 @@ class Session:
                                   "interview": self.last_import_interview},
                                  material=root), report)
 
-    def import_take(self, files: list[tuple[Path, int]], *, track_id: str | None,
-                    track_name: str, clip_name: str,
+    def import_take(self, files: list[tuple[Path, int] | tuple[Path, int, int]], *,
+                    track_id: str | None, track_name: str, clip_name: str,
                     take: str) -> tuple[Project, list[str]]:
         """A recorded take onto the timeline (WP12a), as ONE undo step.
 
         ``files`` are the take's WAVs in ``recordings/`` with the timeline frame each
-        starts at (one per segment). They are linked in place, never copied. The clips
+        starts at (one per segment), and optionally how many frames to cut from the
+        file's head (pre-roll that would fall before the timeline's start, WP12c; the
+        file itself is never changed). They are linked in place, never copied. The clips
         go on ``track_id`` (what they land on is trimmed back, as for an import onto a
         track) or, when that is None or gone, on a new mono speech track named
         ``track_name``. Several segments are one sync group: the gaps between them are
@@ -1586,10 +1588,10 @@ class Session:
         """
         with self.lock:
             _check_writable(self)
-            report = self.store.import_batch([str(f) for f, _ in files], copy=False)
+            report = self.store.import_batch([str(f[0]) for f in files], copy=False)
             self.last_import_report = report
-            ok = [(r.media, start) for r, (_, start) in zip(report, files, strict=True)
-                  if r.ok]
+            ok = [(r.media, f[1], f[2] if len(f) > 2 else 0)
+                  for r, f in zip(report, files, strict=True) if r.ok]
             if not ok:
                 raise report[0].error
             before = p = self.history.state
@@ -1598,9 +1600,12 @@ class Session:
                 p = ops.add_track(p, track_id, track_name, "speech")
                 p = ops.set_track(p, track_id, mono=True)
             clip_ids = []
-            for media, start in ok:
+            for media, start, cut in ok:
+                if cut >= media.frames:
+                    continue  # all of it lies before the start of the timeline
                 clip_id = ops.new_id("c")
-                p = ops.add_clip(p, track_id, media.id, start=start, clip_id=clip_id)
+                p = ops.add_clip(p, track_id, media.id, start=start, offset=cut,
+                                 clip_id=clip_id)
                 p = ops.set_clip(p, clip_id, name=clip_name)
                 clip_ids.append(clip_id)
             p = ops._overwrite_under(before, p)
@@ -1608,7 +1613,7 @@ class Session:
                 p = ops.mark_in_sync(p, clip_ids, main=clip_ids[0], basis="timeline")
             project = self._commit(t("history.record_take", name=clip_name), p,
                                    "import_take",
-                                   {"take": take, "files": [str(f) for f, _ in files],
+                                   {"take": take, "files": [str(f[0]) for f in files],
                                     "track_id": track_id})
             return project, clip_ids
 

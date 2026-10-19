@@ -1152,6 +1152,14 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.record.stop_mode",
   },
   {
+    // No key: a setting, reached from the Transport menu and the palette (Finnish layout:
+    // nothing that needs AltGr or Shift+digit).
+    id: "record.preroll",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.record.preroll",
+  },
+  {
     id: "app.statistics",
     keys: { mac: null, other: null },
     context: "global",

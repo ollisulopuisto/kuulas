@@ -63,7 +63,8 @@ def offline(session, **kw):
                          watch=False, **kw)
 
 
-def write_take(folder, take="Take 1", state="stopped", segments=((0, RATE),), plan=None):
+def write_take(folder, take="Take 1", state="stopped", segments=((0, RATE),), plan=None,
+               preroll=0):
     """A take as the recorder leaves it: WAVs (24-bit mono) and the snapshot."""
     folder.mkdir(parents=True, exist_ok=True)
     segs = []
@@ -76,7 +77,7 @@ def write_take(folder, take="Take 1", state="stopped", segments=((0, RATE),), pl
     data = {"format": 1, "take": take, "state": state, "rate": RATE,
             "channels": [{"channel": 1, "name": "Olli"}], "segments": segs,
             "frames": sum(f for _, f in segments), "gaps": [], "dropouts": [],
-            "overflows": 0, "worker_restarts": 0}
+            "overflows": 0, "worker_restarts": 0, "preroll_frames": preroll}
     (folder / f"{take}.take.json").write_text(json.dumps(data))
     if plan is not None:
         rt.write_plan(folder, plan)
@@ -553,5 +554,133 @@ def test_api_records_end_to_end_and_stops_playback_first(session, tmp_path, reco
             tracks = r.json()["project"]["tracks"]
             assert tracks[0]["name"] == "Guest"
             assert tracks[0]["clips"]
+    finally:
+        rs.close()
+
+
+# -- pre-roll (WP12c) -------------------------------------------------------------------
+
+
+def test_a_take_with_preroll_starts_before_where_record_was_pressed(session):
+    folder = recordings(session)
+    write_take(folder, segments=((0, RATE),), preroll=RATE // 2,
+               plan=rt.TakePlan("Take 1", at=96000, track_id=None, track_name="Olli",
+                                channel=1))
+    offline(session).import_take("Take 1")
+    clip = session.state.tracks[0].clips[0]
+    assert (clip.start, clip.offset, clip.length) == (96000 - RATE // 2, 0, RATE)
+
+
+def test_preroll_before_the_timeline_start_is_trimmed_and_undoable(session):
+    folder = recordings(session)
+    write_take(folder, segments=((0, RATE),), preroll=RATE // 2,
+               plan=rt.TakePlan("Take 1", at=RATE // 10, track_id=None,
+                                track_name="Olli", channel=1))
+    head = session.history.head
+    offline(session).import_take("Take 1")
+    clip = session.state.tracks[0].clips[0]
+    assert clip.start == 0
+    assert clip.offset == RATE // 2 - RATE // 10
+    assert clip.length == RATE - clip.offset
+    session.undo()
+    assert session.history.head == head
+
+
+def test_arming_listens_without_recording_and_a_take_includes_the_preroll(
+        session, recorder):
+    published = Published()
+    rs = live(session, recorder, published)
+    try:
+        view = rs.arm(device={"index": 0, "name": "Fake Mic"}, channel=1, preroll_s=1.0)
+        assert view["armed"]
+        assert view["preroll_s"] == 1.0
+        assert not view["recording"]
+        assert not rs.recording_now()  # listening does not block playback
+        wait_until(lambda: published.kinds("level"), timeout=10)  # meters while armed
+        assert not recordings(session).exists() or not list(recordings(session).iterdir())
+        time.sleep(1.3)
+        rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1, track_id=None,
+                 name="Olli", at=3 * RATE)
+        time.sleep(0.4)
+        result = rs.stop("two_step")
+        assert result["imported"]["clips"] == 1
+        clip = session.state.tracks[0].clips[0]
+        assert clip.start == 3 * RATE - RATE  # one second before Record
+        assert clip.length > RATE + RATE // 8
+    finally:
+        rs.close()
+
+
+def test_a_take_started_near_the_timeline_start_is_trimmed(session, recorder):
+    rs = live(session, recorder)
+    try:
+        rs.arm(device=None, channel=1, preroll_s=1.0)
+        time.sleep(1.3)
+        rs.start(device=None, channel=1, track_id=None, name="Olli", at=RATE // 4)
+        time.sleep(0.3)
+        rs.stop("one_click")
+        clip = session.state.tracks[0].clips[0]
+        assert (clip.start, clip.offset) == (0, RATE - RATE // 4)
+    finally:
+        rs.close()
+
+
+def test_disarm_lets_the_microphone_go(session, recorder):
+    rs = live(session, recorder)
+    try:
+        rs.arm(device=None, channel=1, preroll_s=1.0)
+        assert rs.disarm()["armed"] is False
+        with RecorderClient.connect(recorder.socket_path) as c:
+            assert c.request("status")["state"] == "idle"
+    finally:
+        rs.close()
+
+
+def test_closing_the_editor_while_armed_disarms(session, recorder):
+    rs = live(session, recorder)
+    rs.arm(device=None, channel=1, preroll_s=1.0)
+    rs.close()
+    with RecorderClient.connect(recorder.socket_path) as c:
+        assert c.request("status")["state"] == "idle"
+
+
+def test_closing_the_editor_does_not_disarm_what_it_never_armed(session, recorder):
+    with RecorderClient.connect(recorder.socket_path) as c:
+        c.request("arm", preroll_s=1.0, channels=[1])
+        rs = live(session, recorder)
+        rs.close()
+        assert c.request("status")["state"] == "armed"
+
+
+def test_arming_without_a_recorder_is_a_key(session):
+    with pytest.raises(RecordError) as e:
+        offline(session).arm(device=None, channel=1, preroll_s=1.0)
+    assert e.value.key == "error.record.unavailable"
+
+
+def test_arming_with_nonsense_is_refused_before_asking_the_recorder(session):
+    rs = offline(session)
+    for bad in (0, -5, 100000):
+        with pytest.raises(RecordError) as e:
+            rs.arm(device=None, channel=1, preroll_s=bad)
+        assert e.value.key == "error.record.bad_request"
+    with pytest.raises(RecordError) as e:
+        rs.arm(device=None, channel=0, preroll_s=10)
+    assert e.value.key == "error.record.bad_channel"
+
+
+def test_api_arms_and_disarms(session, tmp_path, recorder):
+    rs = live(session, recorder)
+    try:
+        with api(session, tmp_path, rs) as c:
+            r = c.post("/api/record/arm", json={
+                "device": {"index": 0, "name": "Fake Mic"}, "channel": 1,
+                "preroll_s": 30})
+            assert r.status_code == 200, r.text
+            assert r.json()["armed"] is True
+            assert c.get("/api/record/status").json()["armed"] is True
+            r = c.post("/api/record/disarm", json={})
+            assert r.status_code == 200
+            assert r.json()["armed"] is False
     finally:
         rs.close()
