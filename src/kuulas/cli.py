@@ -169,15 +169,19 @@ def open_project(folder: str, port: int = 0, browser: bool = True) -> int:
     """Open (or create) the project and serve it until interrupted."""
     # Imported here: the engine pulls in the audio libraries, which `info` does not need.
     from .engine import Engine  # noqa: PLC0415
+    from .record_session import RecordSession  # noqa: PLC0415
     from .server import create_app  # noqa: PLC0415
     from .session import Session  # noqa: PLC0415
 
     session = Session(folder)
     engine = Engine(session)
+    # Only a viewer of the recorder: closing it below never stops a take.
+    recorder = RecordSession(session)
     sock = bind_local(port)
     try:
         url = f"http://{HOST}:{sock.getsockname()[1]}/"
-        server = uvicorn.Server(uvicorn_config(create_app(session, engine), sock))
+        server = uvicorn.Server(uvicorn_config(
+            create_app(session, engine, recorder=recorder), sock))
         print(t("cli.open.serving", path=folder, url=url))
         if browser:
             # Once the server accepts connections, not before: the first
@@ -191,6 +195,7 @@ def open_project(folder: str, port: int = 0, browser: bool = True) -> int:
         server.run(sockets=[sock])
     finally:
         sock.close()
+        recorder.close()
         engine.close()
         session.close()
     return 0

@@ -47,9 +47,9 @@ def scan_sources(src_dir: Path, ui_dir: Path) -> set[str]:
 
     if src_dir.is_dir():
         for py_file in src_dir.rglob("*.py"):
-            # The recorder is a standalone program with its own error keys; the editor
-            # translates them under error.recorder.* (not catalog keys of this file).
-            if "kuulas_recorder" in py_file.parts:
+            # The recorder has no catalog: its error keys are protocol keys (English
+            # for logs, docs/RECORDER.md) that the editor maps to error.record.*.
+            if "kuulas_recorder" in py_file.relative_to(src_dir).parts:
                 continue
             try:
                 referenced.update(referenced_keys(py_file.read_text(encoding="utf-8")))

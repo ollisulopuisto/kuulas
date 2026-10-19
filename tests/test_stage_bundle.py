@@ -57,7 +57,8 @@ def test_the_config_is_valid_toml_with_the_bundle_identity(tmp_path):
     assert briefcase["bundle"] == "fi.sulopuisto"
     assert briefcase["version"] == "26.10.19.6"
     assert app["formal_name"] == "Kuulas"
-    assert app["sources"] == ["src/kuulas", "src/ui"]
+    # the recorder (WP12a) is its own package: the app starts it as its own process
+    assert app["sources"] == ["src/kuulas", "src/kuulas_recorder", "src/ui"]
     assert app["requires"] == ["numpy"]
 
 
@@ -94,6 +95,8 @@ def test_stage_lays_out_a_self_contained_project(tmp_path):
     assert (out / "src/kuulas/__main__.py").is_file()
     assert (out / "src/kuulas/build_label.txt").read_text().strip() == "v1+abc"
     assert (out / "src/ui/index.html").is_file()
+    assert (out / "src/kuulas_recorder/__main__.py").is_file()
+    assert (out / "src/kuulas_recorder/client.py").is_file()
     assert (out / "icons/kuulas.icns").is_file()
     assert (out / "LICENSE").is_file()
     assert not (out / "src/ui/tests").exists()

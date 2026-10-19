@@ -1139,6 +1139,19 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.export.automix",
   },
   {
+    // No key yet (WP12a): Hindenburg's Mod+Space waits until the record view has been tried.
+    id: "transport.record",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.transport.record",
+  },
+  {
+    id: "record.stop_mode",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.record.stop_mode",
+  },
+  {
     id: "app.statistics",
     keys: { mac: null, other: null },
     context: "global",

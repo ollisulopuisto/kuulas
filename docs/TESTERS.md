@@ -33,7 +33,17 @@ Kuulas icon (after the app has been opened once from Applications), and **double
 it opens it in Kuulas**. Open several and each gets its own window. A project already
 open is brought to the front, not opened twice. File > New project… and Open project… in the editor each open a project in a window of its own.
 
-The first time you record, macOS asks for microphone access.
+The first time you record, macOS asks for microphone access. Say yes: without it the input
+is silent rather than an error (the record view's meter stays at the bottom). To change
+your answer later: System Settings > Privacy & Security > Microphone. When Kuulas runs from
+a terminal (a development run, `uv run kuulas`), it is the terminal app that needs the
+permission.
+
+Recording (Transport > Record…): the takes are WAV files in the project's `recordings`
+folder. Nothing plays while a take records; listen through your audio interface. Stopping
+takes two presses of Stop (or Space) by default; Transport > "Stopping a recording" chooses
+one click or a 2-second hold instead. Closing the window does not stop a take: open the
+project again and the record view comes back. Please report anything that lost audio.
 
 ## Which build is this
 
@@ -60,7 +70,8 @@ does not touch them.
 ```
 
 Prints one line per check (libraries, ffmpeg, interface files, a project and the server,
-the loudness meter) and ends with `selftest passed`. No window opens.
+the loudness meter, the recorder recording one second from a built-in test signal) and
+ends with `selftest passed`. No window opens and no microphone is used.
 
 ## What is inside
 

@@ -59,6 +59,31 @@ def test_finder_launch_arguments_are_dropped():
         "open", "a.kuulas"]
 
 
+def test_the_recorder_is_started_through_the_bundles_executable():
+    # spawn_supervisor and the supervisor run ``<sys.executable> -m kuulas_recorder ...``;
+    # in the app that executable is the bundle's own, which starts ``python -m kuulas``.
+    assert bundle.recorder_args(["-m", "kuulas_recorder", "serve", "--socket", "s"]) == [
+        "serve", "--socket", "s"]
+    assert bundle.recorder_args(["-m", "kuulas_recorder"]) == []
+    assert bundle.recorder_args(["open", "a.kuulas"]) is None
+    assert bundle.recorder_args(["-m", "kuulas"]) is None
+
+
+def test_bundle_main_runs_the_recorder_without_opening_the_log(monkeypatch, tmp_path):
+    ran = []
+    monkeypatch.setattr(bundle, "_run_recorder", lambda args: ran.append(args) or 0)
+    monkeypatch.setattr(bundle, "_open_log", lambda _home: ran.append("log"))
+    monkeypatch.setattr("sys.argv", ["Kuulas", "-m", "kuulas_recorder", "worker"])
+    assert bundle.main() == 0
+    assert ran == [["worker"]]  # the worker's stdout is its event pipe: never the log
+
+
+def test_selftest_records_a_second_with_the_fake_source():
+    detail = selftest.check_recorder()
+    assert "Take" in detail
+    assert "frames" in detail
+
+
 def test_selftest_and_help_print_to_the_terminal_not_the_log():
     assert not bundle.wants_log(["--selftest"])
     assert not bundle.wants_log(["--help"])
@@ -80,7 +105,7 @@ def test_no_baked_label_in_a_checkout(tmp_path):
 def test_selftest_passes_headless_and_reports_each_check(capsys):
     assert cli.main(["--selftest"]) == 0
     out = capsys.readouterr().out
-    for name in ("build", "libraries", "ffmpeg", "ui", "server", "meter"):
+    for name in ("build", "libraries", "ffmpeg", "ui", "server", "meter", "recorder"):
         assert f"ok   {name}" in out, out
     assert "selftest passed" in out
 

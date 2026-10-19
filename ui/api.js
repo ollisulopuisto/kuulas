@@ -35,6 +35,17 @@ export const putViewMemory = (view, { now = false } = {}) =>
     keepalive: true,
   });
 export const getWords = () => json("/api/words");
+// Recording (WP12a): the recorder is its own program; the server is its viewer and remote.
+/** { available, recording, ours, take, position_frames, disk, notices, pending, ... } */
+export const getRecordStatus = () => json("/api/record/status");
+/** { devices: [{ index, name, channels, default }] } (starts the recorder if need be). */
+export const getRecordDevices = () => json("/api/record/devices");
+/** { device: {index, name} | null, channel, track_id (null: new track), name, at } */
+export const startRecording = (body) => post("/api/record/start", body);
+/** { mode: "two_step" | "one_click" | "hold", held_ms }: the server refuses a stop without one. */
+export const stopRecording = (body) => post("/api/record/stop", body);
+/** Put takes left by a crash on the timeline: the state, plus { imported, pending }. */
+export const importTakes = (takes) => post("/api/record/import", { takes });
 /** The session's statistics (WP70): { stats, groups: [{ title, rows: [[label, value]] }], text }. */
 export const getStats = () => json("/api/stats");
 /** Short-term loudness per track and for the mix, with each track's integrated LUFS and target

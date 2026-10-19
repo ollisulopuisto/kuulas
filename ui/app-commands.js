@@ -163,6 +163,9 @@ export function registerAppCommands(registry, { actions, app }) {
   def("app.open", () => app.openProject());
   // File > Statistics… (WP70): runtime, counts, talk, work and sizes of this session.
   def("app.statistics", () => app.openStatistics(), hasProject);
+  // Transport > Record… (WP12a) and how a take is stopped (a preference: two steps by default).
+  def("transport.record", () => app.openRecord(), hasProject);
+  def("record.stop_mode", () => app.cycleStopMode());
   def("gate.open_stretch", () => app.openGateStretch(), hasProject);
   // Track > Auto: these three had a menu item and a key but no handler (greyed out).
   def("app.auto_silence", () => app.autoSilence(), hasProject);

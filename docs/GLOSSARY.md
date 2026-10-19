@@ -47,6 +47,16 @@ used for putting tracks on a bus: they are moved there ("Siirrä valitut raidat 
 | Narration to be recorded | Narration | **Juonto** (decided 18 Oct) | – | |
 | A clip on a track | Clip | **leike** (decided 19 Oct; "klippi" and "pätkä" are gone) | (region) | done |
 
+## Recording (WP12a; used 2026-10-19, owner to confirm)
+
+| Meaning | English | Finnish | Note |
+|---|---|---|---|
+| The act / the view | Record, the record view | Äänitä, Äänitys | as in "Äänitä otto juontopaikkaan" |
+| One recording pass | take | otto (oton, ottoa) | already used by placeholders |
+| The audio interface input | input | tulo | |
+| Hearing the input | monitoring | (suora)monitorointi | "kuuntele äänikortin omasta suoramonitoroinnista" |
+| The stop preference | Stopping a recording: two steps / one click / hold 2 s | Äänityksen pysäyttäminen: kaksi painallusta / yksi painallus / pidä 2 s | |
+
 ## To do (WP62)
 
 1. Audit every label, hint, toast, menu title and help topic for these words; make a table of the

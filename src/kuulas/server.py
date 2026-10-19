@@ -63,6 +63,7 @@ from .ops import EditError
 from .paths import find_ui_dir
 from .peaks import PeakError
 from .playplan import PlaybackRequestError, check_loop, check_skip
+from .record_session import RecordError
 from .resume import merge_view, now_iso, read_resume
 from .session import (
     CLIPBOARD_EDITS,
@@ -223,6 +224,24 @@ class TranscribeBody(BaseModel):
     backend: str = "local"
 
 
+class RecordStartBody(BaseModel):
+    device: dict[str, Any] | None = None
+    channel: int = 1
+    track_id: str | None = None  # None or "new": a new speech track named ``name``
+    name: str = ""
+    at: int = 0
+
+
+class RecordStopBody(BaseModel):
+    # The page's stop gesture (two_step, one_click, hold); without one nothing stops.
+    mode: str | None = None
+    held_ms: int = 0
+
+
+class RecordImportBody(BaseModel):
+    takes: list[str]
+
+
 # -- the live channel's fan-out ------------------------------------------------
 
 
@@ -264,8 +283,9 @@ def meter_message(levels: dict) -> dict:
 
 def create_app(session, engine, *, language: str | None = None,
                ui_dir: str | Path = UI_DIR, tick: float = LIVE_TICK_S,
-               meter_every: float = LIVE_METER_S) -> FastAPI:
-    """``session`` and ``engine`` are borrowed: the caller closes them."""
+               meter_every: float = LIVE_METER_S, recorder=None) -> FastAPI:
+    """``session``, ``engine`` and ``recorder`` (a ``RecordSession``, or None: recording
+    answers "unavailable") are borrowed: the caller closes them."""
     default_language = language or messages.default_language()
     ui = Path(ui_dir)
     app = FastAPI(title="kuulas", docs_url=None, redoc_url=None, openapi_url=None)
@@ -274,6 +294,9 @@ def create_app(session, engine, *, language: str | None = None,
 
     session.subscribe(lambda _state: hub.publish(
         {"type": "state_changed", "head": session.history.head}))
+    if recorder is not None:
+        # Levels, notices and the take's state go out on the live channel (no polling).
+        recorder.set_publish(hub.publish)
 
     # -- plumbing ----------------------------------------------------------
 
@@ -344,6 +367,10 @@ def create_app(session, engine, *, language: str | None = None,
     @app.exception_handler(automix.AutomixError)
     async def _automix_error(_request: Request, e: automix.AutomixError):
         return answer(e, 400 if e.key.startswith("error.automix.bad_") else 500)
+
+    @app.exception_handler(RecordError)
+    async def _record_error(_request: Request, e: RecordError):
+        return answer(e, e.status)
 
     @app.exception_handler(KuulasError)
     async def _other_error(_request: Request, e: KuulasError):
@@ -930,6 +957,43 @@ def create_app(session, engine, *, language: str | None = None,
 
     # -- transport -----------------------------------------------------------
 
+    # -- recording (WP12a): the recorder is its own program; see record_session ------
+
+    def need_recorder():
+        if recorder is None:
+            raise RecordError("error.record.unavailable", status=503)
+        return recorder
+
+    @app.get("/api/record/status")
+    def record_status():
+        if recorder is None:
+            return {"available": False, "recording": False, "state": "idle",
+                    "ours": False, "pending": [], "notices": []}
+        return recorder.status()
+
+    @app.get("/api/record/devices")
+    def record_devices():
+        return {"devices": need_recorder().devices()}
+
+    @app.post("/api/record/start")
+    def record_start(body: RecordStartBody):
+        rec = need_recorder()
+        # No listening while recording (owner, 2026-10-19): monitoring is the interface's.
+        engine.stop()
+        return rec.start(device=body.device, channel=body.channel, track_id=body.track_id,
+                         name=body.name, at=body.at)
+
+    @app.post("/api/record/stop")
+    def record_stop(body: RecordStopBody):
+        result = need_recorder().stop(body.mode, body.held_ms)
+        return state_response({"record": result})
+
+    @app.post("/api/record/import")
+    def record_import(body: RecordImportBody):
+        rec = need_recorder()
+        imported = [r for r in (rec.import_take(take) for take in body.takes) if r]
+        return state_response({"imported": imported, "pending": rec.pending()})
+
     @app.get("/api/transport")
     def get_transport():
         return JSONResponse(engine.status())
@@ -939,6 +1003,10 @@ def create_app(session, engine, *, language: str | None = None,
         action = body.action
         if action in ("seek", "scrub") and body.at is None:
             raise BadRequestError("error.server.missing_field", field="at")
+        recording = recorder is not None and recorder.recording_now()
+        if action in ("play", "scrub") and recording:
+            # No listening while recording (owner, 2026-10-19): the interface monitors.
+            raise RecordError("error.record.no_playback", status=409)
         if action == "play":
             # Checked here too, so a bad list is a 400 whatever the engine.
             skip = check_skip(body.skip)

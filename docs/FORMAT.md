@@ -68,6 +68,16 @@ Name.kuulas/
   recordings/          WP12 takes (WAV), linked in place like any media
 ```
 
+`recordings/` (WP12a) is written by the recorder, a separate program (docs/RECORDER.md
+"Files"): per take `<take>-<channel>.wav` (and `~<n>.wav` for later segments),
+`<take>.take.json` and `<take>.journal.jsonl`. The editor adds one file per take,
+`<take>.editor.json` (`take`, `at`, `track_id`, `track_name`, `channel`, `device`):
+where the take was asked to go, written before recording starts so a take interrupted by
+a crash is still placed right. A take adds no project fields: once imported it is
+linked media plus clips (named after the take, "(interrupted)" when a crash cut it)
+in one undo step. A take is "imported" when the project has media linked to its files;
+one that is not is offered on open, never imported unasked.
+
 ## manifest.json
 
 ```json

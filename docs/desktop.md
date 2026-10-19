@@ -101,6 +101,12 @@ Things the spike found that shape the build:
 - **UI files.** `kuulas.paths.find_ui_dir` looks in `kuulas/ui` (wheel), `ui` beside the
   package (the bundle: Briefcase copies each source folder into `Resources/app`) and the
   repo's `ui` (checkout), and takes the first that has an `index.html`.
+- **The recorder (WP12a).** `src/kuulas_recorder` is a third Briefcase source folder. It runs
+  as its own processes, started as `<the app's executable> -m kuulas_recorder ...`;
+  `kuulas.bundle.main` passes those arguments to the recorder before it opens the log.
+  `--selftest` records one second from the recorder's fake source. Not yet tried in a built
+  app (whether Briefcase's launcher passes `-m` through as arguments is untested; both
+  cases are handled).
 
 ## Tester build: the app, the file type, the dmg (WP73 parts c to e)
 

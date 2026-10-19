@@ -119,6 +119,24 @@ def test_main_cli_fails_on_missing_referenced_key(tmp_path: Path, monkeypatch, c
     assert "missing.key" in captured.out
 
 
+def test_the_recorder_package_is_not_scanned(tmp_path: Path):
+    # kuulas_recorder has no catalog: its error keys are protocol keys (RECORDER.md)
+    # the editor maps to error.record.*, so ProtocolError("busy", ...) is no reference.
+    from scripts.check_locale import scan_sources  # noqa: PLC0415
+
+    src = tmp_path / "src"
+    (src / "kuulas_recorder").mkdir(parents=True)
+    (src / "kuulas_recorder" / "supervisor.py").write_text(
+        'ProtocolError("busy", "x")', encoding="utf-8")
+    (src / "kuulas").mkdir()
+    (src / "kuulas" / "m.py").write_text('t("a.key")', encoding="utf-8")
+    assert scan_sources(src, tmp_path / "ui") == {"a.key"}
+
+
+def test_the_real_tree_passes():
+    assert main([]) == 0
+
+
 def test_main_cli_succeeds_on_clean_locales(tmp_path: Path, capsys):
     en_file = tmp_path / "en.json"
     fi_file = tmp_path / "fi.json"

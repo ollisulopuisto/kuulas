@@ -1571,6 +1571,60 @@ class Session:
                                   "interview": self.last_import_interview},
                                  material=root), report)
 
+    def import_take(self, files: list[tuple[Path, int]], *, track_id: str | None,
+                    track_name: str, clip_name: str,
+                    take: str) -> tuple[Project, list[str]]:
+        """A recorded take onto the timeline (WP12a), as ONE undo step.
+
+        ``files`` are the take's WAVs in ``recordings/`` with the timeline frame each
+        starts at (one per segment). They are linked in place, never copied. The clips
+        go on ``track_id`` (what they land on is trimmed back, as for an import onto a
+        track) or, when that is None or gone, on a new mono speech track named
+        ``track_name``. Several segments are one sync group: the gaps between them are
+        real time. Returns the project and the new clips' ids. A file that cannot be
+        imported is left out; when none can, nothing changes and its error is raised.
+        """
+        with self.lock:
+            _check_writable(self)
+            report = self.store.import_batch([str(f) for f, _ in files], copy=False)
+            self.last_import_report = report
+            ok = [(r.media, start) for r, (_, start) in zip(report, files, strict=True)
+                  if r.ok]
+            if not ok:
+                raise report[0].error
+            before = p = self.history.state
+            if track_id is None or not any(tr.id == track_id for tr in p.tracks):
+                track_id = ops.new_id("t")
+                p = ops.add_track(p, track_id, track_name, "speech")
+                p = ops.set_track(p, track_id, mono=True)
+            clip_ids = []
+            for media, start in ok:
+                clip_id = ops.new_id("c")
+                p = ops.add_clip(p, track_id, media.id, start=start, clip_id=clip_id)
+                p = ops.set_clip(p, clip_id, name=clip_name)
+                clip_ids.append(clip_id)
+            p = ops._overwrite_under(before, p)
+            if len(clip_ids) > 1:
+                p = ops.mark_in_sync(p, clip_ids, main=clip_ids[0], basis="timeline")
+            project = self._commit(t("history.record_take", name=clip_name), p,
+                                   "import_take",
+                                   {"take": take, "files": [str(f) for f, _ in files],
+                                    "track_id": track_id})
+            return project, clip_ids
+
+    def linked_files(self) -> set[Path]:
+        """Where the project's linked media live (resolved): a take whose files are
+        among them is already imported."""
+        with self.lock:
+            ids = [m.id for m in self.history.state.media]
+        out = set()
+        for media_id in ids:
+            with contextlib.suppress(KeyError, OSError):
+                where = self.store.meta(media_id).get("linked_path")
+                if where:
+                    out.add(Path(where).resolve())
+        return out
+
     def rebuild_media(self, media_id: str, path: str | Path | None = None) -> str:
         """Re-encode a damaged working file from its original file."""
         # The re-encode of a long file takes a while and the store has its own

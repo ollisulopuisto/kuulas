@@ -18,6 +18,7 @@ numpy, sounddevice and the standard library (tested:
 Contents: [architecture](#architecture), [running it](#running-it),
 [the protocol](#the-protocol), [files](#files), [failures](#failures-what-happens-and-what-is-guaranteed),
 [measurements](#measurements), [for the editor (part B)](#for-the-editor-part-b),
+[how the editor uses it](#how-the-editor-uses-it-part-b-built-2026-10-19),
 [open problems](#open-problems).
 
 ## Architecture
@@ -456,10 +457,59 @@ On the owner's Mac Studio (M1 Max), 2026-10-19:
   the sidecar is `<take>.take.json`, not `<take>.json`; a device loss
   continues the same take as a new segment with a gap (the editor can still
   show segments as clips in one sync group).
-- The app bundle (`scripts/stage_bundle.py`, Briefcase `sources`) does not
-  yet include `src/kuulas_recorder`; add it with part B (and its test in
-  `tests/test_stage_bundle.py`).
 - Event texts are English for logs; translate by `event` and `key`.
+
+## How the editor uses it (part B, built 2026-10-19)
+
+`src/kuulas/record_session.py` (`RecordSession`, one per open project) and
+`src/kuulas/record_take.py` (pure decisions). The editor imports only
+`kuulas_recorder.client` (tested: `test_the_editor_uses_only_the_recorders_client`).
+
+- **Connections.** Each command (`devices`, `start`, `stop`, `status`, `repair`) opens
+  a short connection of its own. A watcher thread keeps one connection with
+  `hello {subscribe, levels}` and pushes what it hears to the page on the live
+  channel (`WS /api/live`, frames `{"type": "record", "kind": status | level | notice
+  | imported | pending | available}`); the page never polls. With nobody answering it
+  retries every 2 s; it never starts a recorder just to look.
+- **Starting the recorder.** Only `devices` and `start` call `spawn_supervisor()` when
+  nobody answers. When that fails too the answer is `error.record.unavailable` (503) and
+  the editor works on.
+- **Endpoints.** `GET /api/record/status`, `GET /api/record/devices`,
+  `POST /api/record/start` `{device {index,name}, channel, track_id (null: new track),
+  name, at}`, `POST /api/record/stop` `{mode, held_ms}`, `POST /api/record/import`
+  `{takes}`. Recorder error keys become `error.record.<key>` (`record_take.error_key`);
+  events become `record.event.*` notices (`record_take.event_notice`).
+- **Stopping** is the page's gesture, a user preference (owner, 2026-10-19): `two_step`
+  (default: the first press asks, a second within 4 s stops, otherwise nothing happens),
+  `one_click`, or `hold` (2 s). The server refuses a stop without a `mode`, or a hold
+  under 2 s, so stray code cannot stop a take (`ui/stop-mode.js`, `record_session.stop`).
+- **No listening while recording** (owner, 2026-10-19): starting a take stops playback,
+  and play and scrub are refused (`error.record.no_playback`) while any take records.
+- **Where a take goes.** Before `start` the editor writes `<take>.editor.json` beside the
+  take (the timeline frame, the track or a new track's name). On `stopped` (the event or
+  the `stop` answer, whichever comes first; the import is idempotent) each segment of the
+  channel becomes one clip at `at + start_frame`, linked in place, on the chosen track or a
+  new mono speech track, all in one undo step (`Session.import_take`); several segments are
+  one sync group. Take names: `take_names.take_name` over the files in `recordings/`;
+  channel names are the track name cut to what the recorder accepts.
+- **Crashes.** The editor closing never stops a take; the next editor finds it with
+  `hello` and shows the record view again. The recorder dying mid-take (connection lost
+  and no answer) is an alarm notice; the editor spawns a new recorder, which repairs the
+  take at its start (`recovered`), and the take is offered. On project open any take in
+  `recordings/` that no media of the project links to is offered in a notice with one
+  Import button, never imported by itself; a sidecar still saying `recording` with no
+  recorder writing it is sent to `repair` first (or used as it is when no recorder can
+  run: each WAV is valid up to its last flush). The clips of a crashed take are named
+  "<take> (interrupted)".
+- **The app bundle** carries `src/kuulas_recorder` as a Briefcase source. The recorder
+  starts itself and its workers as `<sys.executable> -m kuulas_recorder`; in the app that
+  executable is the launcher running `python -m kuulas`, so `kuulas.bundle.main` hands
+  `-m kuulas_recorder ...` arguments to the recorder before it opens its log (the
+  worker's stdout is its event pipe). `kuulas --selftest` records one second from the fake
+  source. Not yet run in a built app.
+- **Not in part B:** a level meter before the take starts (the recorder reports levels
+  only while recording), the take log (`mark`, WP12's log panel), several channels
+  (WP12b), pre-roll (WP12c, needs a recorder change).
 
 ## Open problems
 

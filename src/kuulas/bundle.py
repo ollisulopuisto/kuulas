@@ -62,6 +62,30 @@ def wants_log(args: list[str]) -> bool:
     return not any(a in ("--selftest", "--help", "-h") for a in args)
 
 
+def recorder_args(args: list[str]) -> list[str] | None:
+    """The recorder's arguments when the bundle was started as ``-m kuulas_recorder ...``,
+    else None. The recorder (WP12a) starts itself and its workers with
+    ``<sys.executable> -m kuulas_recorder``; in the app ``sys.executable`` is the bundle's
+    launcher, which always runs ``python -m kuulas`` with the arguments it was given, so
+    this module hands them on."""
+    if args[:2] == ["-m", "kuulas_recorder"]:
+        return args[2:]
+    return None
+
+
+def _run_recorder(args: list[str]) -> int:
+    """Run ``kuulas_recorder`` as its own ``__main__`` would (by name: the editor imports
+    nothing of the recorder but its client)."""
+    import runpy  # noqa: PLC0415
+
+    sys.argv = ["kuulas_recorder", *args]
+    try:
+        runpy.run_module("kuulas_recorder", run_name="__main__", alter_sys=True)
+    except SystemExit as e:
+        return e.code if isinstance(e.code, int) else (0 if e.code is None else 1)
+    return 0
+
+
 def _open_log(home: Path):
     """The log file, rotated (1 MB, 3 kept), also taking stdout, stderr and fatal
     crashes: a bundle has no terminal, so this file is all a tester can send."""
@@ -85,6 +109,13 @@ def main() -> int:
     home = Path.home()
     resources = resources_dir(__file__)
     args = clean_argv(sys.argv)
+    recorder = recorder_args(args)
+    if recorder is not None:
+        # Before the log is opened: the recorder's worker talks to its supervisor on
+        # stdout, and the recorder keeps its own log (docs/RECORDER.md).
+        if resources is not None:
+            os.environ.update(environment(resources, dict(os.environ), home))
+        return _run_recorder(recorder)
     if resources is not None:
         os.environ.update(environment(resources, dict(os.environ), home))
         if wants_log(args):

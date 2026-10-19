@@ -104,9 +104,46 @@ def check_meter() -> str:
     return f"{value:.1f} LUFS for a 440 Hz sine at 0.1"
 
 
+def check_recorder() -> str:
+    """The recorder (WP12a) starts from this installation as its own process and records
+    one second from its fake source (no microphone, no permission prompt): proof that the
+    bundle can start ``python -m kuulas_recorder`` and its worker."""
+    import os  # noqa: PLC0415
+    import time  # noqa: PLC0415
+
+    from kuulas_recorder.client import RecorderClient, spawn_supervisor  # noqa: PLC0415
+
+    # A short folder: a socket path must stay under 104 bytes on macOS.
+    with tempfile.TemporaryDirectory(prefix="kr", dir="/tmp") as tmp:
+        root = Path(tmp)
+        spec = root / "fake.json"
+        spec.write_text(json.dumps({
+            "devices": [{"index": 0, "name": "Selftest", "channels": 1,
+                         "default_rate": 48000.0, "hostapi": "fake", "default": True}],
+            "epoch_ns": time.monotonic_ns()}), encoding="utf-8")
+        env = {**os.environ, "KUULAS_RECORDER_FAKE": str(spec)}
+        sock = root / "s.sock"
+        proc = spawn_supervisor(sock, state_dir=root / "state", env=env)
+        try:
+            with RecorderClient.connect(sock, timeout=TIMEOUT) as rec:
+                rec.request("start", folder=str(root), take="Take 1", channels=[1],
+                            names=["Selftest"])
+                time.sleep(1.0)
+                take = rec.request("stop")["take"]
+                rec.request("quit")
+            proc.wait(timeout=TIMEOUT)
+        finally:
+            if proc.poll() is None:
+                proc.kill()
+        if take["frames"] < 48000 // 2:
+            problem = f"only {take['frames']} frames recorded in a second"
+            raise SelftestError(problem)
+    return f"{take['take']}: {take['frames']} frames, {take['stop_reason']}"
+
+
 #: In the order they run; each is the function ``check_<name>`` in this module, looked
 #: up when it runs (so a test can replace one).
-CHECKS = ("build", "libraries", "ffmpeg", "ui", "server", "meter")
+CHECKS = ("build", "libraries", "ffmpeg", "ui", "server", "meter", "recorder")
 
 
 def run() -> int:
