@@ -6,6 +6,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+import pytest
+
 from kuulas import build_info, bundle, cli, selftest
 
 
@@ -84,6 +86,21 @@ def test_selftest_records_a_second_with_the_fake_source():
     assert "frames" in detail
 
 
+def test_selftest_runs_a_job_through_the_real_worker_process():
+    # conftest runs jobs in a thread; the selftest must use the real process.
+    detail = selftest.check_worker()
+    assert detail.startswith("completed")
+
+
+def test_selftest_fails_when_the_worker_never_starts(monkeypatch):
+    from kuulas import bgjobs  # noqa: PLC0415
+
+    monkeypatch.setattr(bgjobs, "start_worker_process", lambda _path: None)
+    monkeypatch.setattr(selftest, "TIMEOUT", 0.1)
+    with pytest.raises(selftest.SelftestError, match="did not complete"):
+        selftest.check_worker()
+
+
 def test_selftest_and_help_print_to_the_terminal_not_the_log():
     assert not bundle.wants_log(["--selftest"])
     assert not bundle.wants_log(["--help"])
@@ -105,7 +122,8 @@ def test_no_baked_label_in_a_checkout(tmp_path):
 def test_selftest_passes_headless_and_reports_each_check(capsys):
     assert cli.main(["--selftest"]) == 0
     out = capsys.readouterr().out
-    for name in ("build", "libraries", "ffmpeg", "ui", "server", "meter", "recorder"):
+    for name in ("build", "libraries", "ffmpeg", "ui", "server", "meter", "recorder",
+                 "worker", "tools"):
         assert f"ok   {name}" in out, out
     assert "selftest passed" in out
 

@@ -33,15 +33,77 @@ export function channelChoices(device) {
   return Array.from({ length: n }, (_, i) => i + 1);
 }
 
-/** The body of POST /api/record/start. `target` is a track id or "new". */
-export function startRequest({ device, channel, target, name, at }) {
-  return {
+/**
+ * The body of POST /api/record/start. Several channels (WP12b): `lanes`, from selectedLanes;
+ * the one-channel form (`channel`, `target` a track id or "new", `name`) still works.
+ */
+export function startRequest({ device, lanes, channel, target, name, at }) {
+  const body = {
     device: device ? { index: device.index, name: device.name } : null,
+    at: Math.max(0, Math.round(Number(at) || 0)),
+  };
+  if (lanes) return { ...body, channels: lanes };
+  return {
+    ...body,
     channel: Number(channel) || 1,
     track_id: target === "new" ? null : target,
     name: (name ?? "").trim(),
-    at: Math.max(0, Math.round(Number(at) || 0)),
   };
+}
+
+// -- several channels of one device (WP12b) -------------------------------------------------
+// A row is one device channel: whether to record it and onto which track ("new" or a track id,
+// with the name a new track gets). The rows that are on are the take's lanes, in channel order:
+// the order the recorder lists them, meters them and compares them to an armed listener.
+
+/** The channels of `device` as rows; `remembered` (channel numbers) are on, else channel 1. */
+export function initialRows(device, remembered) {
+  const channels = channelChoices(device);
+  const wanted = (remembered ?? []).filter((n) => channels.includes(n));
+  const on = wanted.length > 0 ? wanted : [1];
+  return channels.map((channel) => ({
+    channel,
+    on: on.includes(channel),
+    target: "new",
+    name: "",
+  }));
+}
+
+/** The rows that are on as the request's lanes, in channel order. */
+export function selectedLanes(rows) {
+  return rows
+    .filter((r) => r.on)
+    .sort((a, b) => a.channel - b.channel)
+    .map((r) => ({
+      channel: r.channel,
+      track_id: r.target === "new" ? null : r.target,
+      name: (r.name ?? "").trim(),
+    }));
+}
+
+/** What stops Record before it is asked of the server: a catalog key, or null. */
+export function startProblem(rows) {
+  const lanes = selectedLanes(rows);
+  if (lanes.length === 0) return "ui.record.no_channel";
+  const tracks = lanes.map((l) => l.track_id).filter((id) => id !== null);
+  if (new Set(tracks).size !== tracks.length) return "error.record.same_track";
+  return null;
+}
+
+/** One level meter's label per lane (`plan.lanes` of the server's status). */
+export function meterLabels(lanes, t) {
+  return (lanes ?? []).map((lane) => ({
+    channel: lane.channel,
+    text: t("ui.record.level_of", { name: lane.track_name }),
+  }));
+}
+
+/** A level frame as `count` readings; a channel the frame lacks reads as silence. */
+export function channelPeaks(frame, count) {
+  return Array.from({ length: count }, (_, i) => ({
+    db: frame?.peak_dbfs?.[i] ?? -120,
+    clipped: Boolean(frame?.clipped?.[i]),
+  }));
 }
 
 /** What the stop button says for the gesture's state (stop-mode.js). */
@@ -73,6 +135,11 @@ export function recordKeyAction(event, { visible }) {
 
 /** The notice after a take is on the timeline. */
 export function importedMessage(result, t) {
+  if (result.failed_channels?.length > 0)
+    return t("ui.record.imported_failed", {
+      take: result.take,
+      names: result.failed_channels.join(", "),
+    });
   if (result.interrupted) return t("ui.record.imported_interrupted", { take: result.take });
   if (result.gaps > 0)
     return t("ui.record.imported_gaps", { take: result.take, count: result.gaps });

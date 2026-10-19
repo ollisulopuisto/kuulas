@@ -61,6 +61,7 @@ import {
   onLanguageChange,
   t,
 } from "./i18n.js";
+import { installIcons } from "./icons.js";
 import {
   collectDroppedFiles,
   createDropMemory,
@@ -135,6 +136,7 @@ import { changeKey, createSaver, recordOf, restoreFrom } from "./view-memory.js"
 import { nextWheelMode, wheelModeChoice } from "./wheel.js";
 
 const $ = (id) => document.getElementById(id);
+installIcons();
 const prefs = createPrefs();
 const WAVEFORM_GAIN = { min: 1 / 8, max: 32, snap: 0.04 };
 const LANE_STEP = 8;
@@ -821,6 +823,7 @@ const keyboard = setupKeyboard({
     transcribeTrack: (backend) => void transcribeTrack(backend),
     restartTranscriptions: () => void restartTranscriptions(),
     openColabSettings: () => void colabDialogsFor().openSettings(),
+    openColabSignin: () => void colabDialogsFor().signIn(),
     exportTracks: (format, options) => exportTracks(format, options),
     exportMix: (format, options) => exportMix(format, options),
     exportFormats: () => exportFormatIds,
@@ -1668,9 +1671,21 @@ const colabDialogsFor = () => {
     api,
     t,
     onSettingsSaved: () => showNotice(t("ui.colab.saved"), "ok"),
+    onSignedIn: () => showNotice(t("ui.colab.signin_ok"), "ok"),
   });
   return colabDialogs;
 };
+
+/** Is Colab signed in to Google? When not, the sign-in dialog opens; resolves whether it is now. */
+async function ensureColabSignedIn() {
+  try {
+    if ((await api.colabSignin()).signed_in) return true;
+  } catch (error) {
+    showError(error);
+    return false;
+  }
+  return colabDialogsFor().signIn();
+}
 
 async function transcribeOnColab(ids) {
   const project = getState().project;
@@ -1679,6 +1694,9 @@ async function transcribeOnColab(ids) {
     .filter((item) => ids.includes(item.id))
     .map((item) => item.name)
     .join(", ");
+  // The Google sign-in is interactive, so it happens here, before any job exists (a detached
+  // worker has no terminal to ask in). Nothing is uploaded and no job is made until it is done.
+  if (!(await ensureColabSignedIn())) return;
   if (consentNeeded({ remembered: rememberedConsent(prefs), session: colabSessionOk })) {
     const answer = await colabDialogsFor().askConsent(names);
     if (!answer.ok) return;
@@ -1689,6 +1707,7 @@ async function transcribeOnColab(ids) {
     const { jobs } = await api.transcribe(ids, { backend: "colab" });
     exportJob = jobs[0];
     colabNames = names;
+    void transcript.refreshJobs();
     showNotice(t("ui.colab.preparing"), "ok", {
       sticky: true,
       action: { label: t("ui.export.cancel"), run: () => void cancelExportJob() },

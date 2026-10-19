@@ -97,8 +97,14 @@ export function createImportPanel({ root, t, actions, storage, schedule = setTim
     node.append(...children);
     return node;
   };
-  const button = (key, onClick, className = "button") =>
-    el("button", { type: "button", className, textContent: t(key), onclick: onClick });
+  const button = (key, onClick, className = "button", icon = undefined) =>
+    el("button", {
+      type: "button",
+      className,
+      textContent: t(key),
+      onclick: onClick,
+      ...(icon ? { "data-icon": icon } : {}),
+    });
 
   function choice(labelKey, kind, values, current, onChange) {
     const select = el("select", { className: "select" });
@@ -147,7 +153,7 @@ export function createImportPanel({ root, t, actions, storage, schedule = setTim
     const row = el("div", { className: "import-actions" });
     if (model.canSequence) row.append(button("ui.import.sequence", () => actions.sequence()));
     if (model.canUndo)
-      row.append(button("ui.transport.undo", () => actions.undo(), "button ghost"));
+      row.append(button("ui.transport.undo", () => actions.undo(), "button ghost", "undo"));
     if (row.children.length > 0) root.append(row);
     if (model.failures.length > 0 || model.warnings.length > 0) {
       const list = el("ul");

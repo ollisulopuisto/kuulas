@@ -31,7 +31,8 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
-from . import bgjobs, colab_transcribe, transcribe
+from . import bgjobs, colab_signin, colab_transcribe, transcribe
+from .clock import FLICKS
 from .jobs import JobCancelledError
 from .messages import KuulasError, t
 from .package import write_json_atomic
@@ -156,7 +157,19 @@ def _run_engines(job: dict, folder: Path, status: _Status, cancel: threading.Eve
     """Run the chosen engine over the job's media and write the result files."""
     job_id, items = str(job["id"]), job["items"]
     language = job.get("language") or ""
+    if job["backend"] == "selftest":
+        # ``kuulas --selftest``: proves the worker starts and finishes in this
+        # installation; no engine, no audio, no network.
+        for item in items:
+            _write_result(folder, job_id, item["id"], {"words": [
+                {"w": "selftest", "s": 0, "e": FLICKS // 2, "spk": ""}],
+                "timing": "whisper"}, language)
+        return
     if job["backend"] == "colab":
+        if colab is None and not colab_signin.signed_in():
+            # The sign-in is interactive and this process has no terminal: the editor
+            # does it before the job (Colab dialog); say so, do not hang on a prompt.
+            raise colab_transcribe.ColabError("error.colab.not_signed_in")
         engine = colab or colab_transcribe.run
 
         def report(fraction, message="", indeterminate=False):

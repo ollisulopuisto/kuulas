@@ -22,6 +22,8 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from kuulas_recorder.client import segment_file  # the one place file names are built
+
 from .take_names import take_name, unique_file_names
 
 #: The folder inside the project package that holds the takes (owner, 2026-10-19).
@@ -55,15 +57,33 @@ def takes_in(file_names: list[str]) -> list[str]:
                   if n.endswith(SIDECAR_SUFFIX))
 
 
-def next_take(file_names: list[str], channel: str, when: datetime) -> str:
+def unique_channel_names(names: list[str]) -> list[str]:
+    """The channel names of one take made distinct (case-insensitively: the files are
+    ``<take>-<channel>.wav``, and macOS disks do not tell ``Host`` from ``host``).
+    The second ``Host`` becomes ``Host 2``."""
+    seen: set[str] = set()
+    out = []
+    for name in names:
+        candidate, n = name, 1
+        while candidate.lower() in seen:
+            n += 1
+            candidate = f"{name} {n}"
+        seen.add(candidate.lower())
+        out.append(candidate)
+    return out
+
+
+def next_take(file_names: list[str], channels: str | list[str], when: datetime) -> str:
     """``"Take N"`` one above every take number among the folder's files, and never a
-    name whose files would collide with one there (case-insensitive: macOS disks)."""
+    name whose files would collide with one there (case-insensitive: macOS disks).
+    ``channels``: the channel names of the take (one name, or a list)."""
+    names = [channels] if isinstance(channels, str) else list(channels)
     used = list(file_names)
+    taken = {n.lower() for n in file_names}
     while True:
         take = take_name(used, when)
-        wav = f"{take}-{channel}"
-        free = unique_file_names([wav], file_names) == [wav + ".wav"]
-        taken = {n.lower() for n in file_names}
+        wavs = [segment_file(take, name, 1)[:-4] for name in names]
+        free = all(unique_file_names([wav], file_names) == [wav + ".wav"] for wav in wavs)
         if free and (take + SIDECAR_SUFFIX).lower() not in taken:
             return take
         used.append(take)
@@ -89,15 +109,22 @@ class ClipPlan:
     offset: int = 0  # frames cut from the head of the file (pre-roll before the timeline)
 
 
-def _channel(sidecar: dict) -> str | None:
+def _channel(sidecar: dict, channel: int | None = None) -> str | None:
+    """The recorder's name for device channel ``channel`` (the take's first channel when
+    None); None when the take has no such channel."""
     channels = sidecar.get("channels") or []
-    return channels[0].get("name") if channels else None
+    if channel is None:
+        return channels[0].get("name") if channels else None
+    return next((c.get("name") for c in channels if c.get("channel") == channel), None)
 
 
-def clip_plan(sidecar: dict, at: int, on_disk: set[str] | None = None) -> list[ClipPlan]:
-    """One clip per segment of the take's (first) channel, at ``at`` plus the segment's
-    place on the take's clock. A file with no frames (the snapshot's count, or absent
-    from ``on_disk`` when given) and a segment with no known start make no clip.
+def clip_plan(sidecar: dict, at: int, on_disk: set[str] | None = None,
+              channel: int | None = None) -> list[ClipPlan]:
+    """One clip per segment of one channel of the take (``channel``: the device channel
+    number; the take's first channel when None), at ``at`` plus the segment's place on
+    the take's clock. A file with no frames (the snapshot's count, or absent from
+    ``on_disk`` when given) and a segment with no known start make no clip. Every
+    channel of a take shares the clock, so the clips of different channels line up.
 
     Pre-roll (WP12c): the take's clock starts ``preroll_frames`` before Record was
     pressed, so the take is placed that much earlier and the pre-roll ends at ``at``.
@@ -106,7 +133,7 @@ def clip_plan(sidecar: dict, at: int, on_disk: set[str] | None = None) -> list[C
     if at < 0:
         msg = f"at must not be negative, got {at}"
         raise ValueError(msg)
-    name = _channel(sidecar)
+    name = _channel(sidecar, channel)
     preroll = max(0, int(sidecar.get("preroll_frames") or 0))
     plans: list[ClipPlan] = []
     for seg in sorted(sidecar.get("segments") or [], key=lambda s: s.get("segment", 0)):
@@ -133,10 +160,22 @@ def summary(sidecar: dict) -> dict:
             "dropouts": len(sidecar.get("dropouts") or []),
             "overflows": int(sidecar.get("overflows") or 0),
             "worker_restarts": int(sidecar.get("worker_restarts") or 0),
+            "failed_channels": [str(c.get("name", ""))
+                                for c in sidecar.get("failed_channels") or []],
             "frames": int(sidecar.get("frames") or 0)}
 
 
 # -- the plan file -----------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Lane:
+    """One recorded channel and where it goes (WP12b)."""
+
+    channel: int  # the device's channel, 1-based
+    name: str  # the recorder's name for it (part of the file name)
+    track_id: str | None  # None: a new speech track named track_name
+    track_name: str
 
 
 @dataclass(frozen=True)
@@ -147,6 +186,14 @@ class TakePlan:
     track_name: str
     channel: int
     device: dict = field(default_factory=dict)
+    #: Every channel of the take; empty for a plan written before WP12b, which is one
+    #: lane made of the fields above (``all_lanes``). Those fields stay the first lane's.
+    lanes: tuple[Lane, ...] = ()
+
+    @property
+    def all_lanes(self) -> tuple[Lane, ...]:
+        return self.lanes or (Lane(self.channel, channel_name(self.track_name),
+                                   self.track_id, self.track_name),)
 
 
 def plan_path(folder: Path, take: str) -> Path:
@@ -170,7 +217,12 @@ def read_plan(folder: Path, take: str) -> TakePlan | None:
         return TakePlan(take=raw["take"], at=int(raw["at"]), track_id=raw.get("track_id"),
                         track_name=str(raw.get("track_name") or take),
                         channel=int(raw.get("channel", 1)),
-                        device=dict(raw.get("device") or {}))
+                        device=dict(raw.get("device") or {}),
+                        lanes=tuple(
+                            Lane(channel=int(lane["channel"]), name=str(lane["name"]),
+                                 track_id=lane.get("track_id"),
+                                 track_name=str(lane["track_name"]))
+                            for lane in raw.get("lanes") or []))
     except (OSError, ValueError, KeyError, TypeError):
         return None
 
@@ -191,7 +243,8 @@ RECORDER_ERRORS = (
     "device_open_failed", "device_no_audio", "file_exists", "worker_failed",
     "take_not_found", "internal", "timeout", "disconnected", "spawn_failed",
     "other", "unavailable", "hold_required", "another_project", "no_device",
-    "bad_channel", "stop_gesture", "no_playback", "armed_mismatch",
+    "bad_channel", "stop_gesture", "no_playback", "armed_mismatch", "same_track",
+    "old_recorder",
 )
 
 
@@ -204,6 +257,7 @@ EVENT_KEYS = (
     "record.event.disk_low", "record.event.input_overflow", "record.event.dropout",
     "record.event.device_lost", "record.event.device_back", "record.event.gap",
     "record.event.worker_restarted", "record.event.disk_full",
+    "record.event.channel_failed",
     "record.event.worker_keeps_failing", "record.event.error", "record.event.disarmed",
 )
 
@@ -224,6 +278,9 @@ _NOTICES = {
     ("warning", "dropout"): (
         "record.event.dropout", "warning",
         lambda e, r: {"seconds": _seconds(int(e.get("frames", 0)), r)}),
+    # One channel's file failed; the others go on (WP12b).
+    ("warning", "channel_failed"): ("record.event.channel_failed", "alarm",
+                                    lambda e, _r: {"name": str(e.get("name", ""))}),
     ("device_lost", None): ("record.event.device_lost", "alarm",
                             lambda e, _r: {"device": _device(e)}),
     ("device_back", None): ("record.event.device_back", "info",

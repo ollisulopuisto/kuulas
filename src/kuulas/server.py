@@ -46,6 +46,7 @@ from . import (
     automix,
     bgjobs,
     clipboard_browse,
+    colab_signin,
     colab_transcribe,
     export,
     export_formats,
@@ -227,6 +228,9 @@ class TranscribeBody(BaseModel):
 
 class RecordStartBody(BaseModel):
     device: dict[str, Any] | None = None
+    # Several channels (WP12b): [{channel, track_id, name}], each onto its own track.
+    # Without it, the one-channel form below.
+    channels: list[dict[str, Any]] | None = None
     channel: int = 1
     track_id: str | None = None  # None or "new": a new speech track named ``name``
     name: str = ""
@@ -236,6 +240,7 @@ class RecordStartBody(BaseModel):
 class RecordArmBody(BaseModel):
     # Listen for pre-roll (WP12c): the same input and channel the take will use.
     device: dict[str, Any] | None = None
+    channels: list[int] | None = None  # the device channels the take will record
     channel: int = 1
     preroll_s: float = 60.0
 
@@ -374,7 +379,10 @@ def create_app(session, engine, *, language: str | None = None,
 
     @app.exception_handler(colab_transcribe.ColabError)
     async def _colab_error(_request: Request, e: colab_transcribe.ColabError):
-        return answer(e, 400 if e.key.startswith("error.colab.bad_") else 500)
+        if e.key == "error.colab.not_signed_in":
+            return answer(e, 409)
+        client_error = e.key.startswith(("error.colab.bad_", "error.colab.signin_"))
+        return answer(e, 400 if client_error else 500)
 
     @app.exception_handler(automix.AutomixError)
     async def _automix_error(_request: Request, e: automix.AutomixError):
@@ -635,6 +643,30 @@ def create_app(session, engine, *, language: str | None = None,
         stored = colab_transcribe.load_settings()
         return {"settings": stored, "resolved": colab_transcribe.resolve_settings(stored)}
 
+    # Signing in to Google for Colab (interactive, so never inside a detached job).
+    signin = colab_signin.SigninFlow()
+
+    @app.get("/api/colab/signin")
+    def get_colab_signin():
+        return signin.status()
+
+    @app.post("/api/colab/signin", status_code=202)
+    def post_colab_signin():
+        settings = colab_transcribe.resolve_settings(colab_transcribe.load_settings())
+        signin.start(settings["command"], settings["cwd"])
+        return JSONResponse(signin.status(), status_code=202)
+
+    @app.post("/api/colab/signin/code")
+    def post_colab_signin_code(body: Annotated[dict[str, Any], Body()]):
+        code = body.get("code")
+        signin.submit_code(code if isinstance(code, str) else "")
+        return signin.status()
+
+    @app.delete("/api/colab/signin")
+    def delete_colab_signin():
+        signin.cancel()
+        return signin.status()
+
     @app.put("/api/settings/colab")
     def put_colab_settings(body: Annotated[dict[str, Any], Body()]):
         stored = colab_transcribe.save_settings(body)
@@ -876,6 +908,9 @@ def create_app(session, engine, *, language: str | None = None,
             raise BadRequestError("error.server.bad_request", detail="media_ids")
         if body.backend not in {"local", "colab"}:
             raise BadRequestError("error.server.bad_request", detail="backend")
+        if body.backend == "colab" and not colab_signin.signed_in():
+            # The sign-in is interactive; a detached worker could only hang on it.
+            raise colab_transcribe.ColabError("error.colab.not_signed_in")
         if session.read_only:
             holder = session.package.locked_by or {}
             raise BadRequestError("error.history.read_only",
@@ -1026,11 +1061,11 @@ def create_app(session, engine, *, language: str | None = None,
         return recorder
 
     @app.get("/api/record/status")
-    def record_status():
+    def record_status(channels: int = 1):
         if recorder is None:
             return {"available": False, "recording": False, "state": "idle",
                     "ours": False, "pending": [], "notices": []}
-        return recorder.status()
+        return recorder.status(channels)
 
     @app.get("/api/record/devices")
     def record_devices():
@@ -1041,15 +1076,15 @@ def create_app(session, engine, *, language: str | None = None,
         rec = need_recorder()
         # No listening while recording (owner, 2026-10-19): monitoring is the interface's.
         engine.stop()
-        return rec.start(device=body.device, channel=body.channel, track_id=body.track_id,
-                         name=body.name, at=body.at)
+        return rec.start(device=body.device, channels=body.channels, channel=body.channel,
+                         track_id=body.track_id, name=body.name, at=body.at)
 
     @app.post("/api/record/arm")
     def record_arm(body: RecordArmBody):
         # Also the keepalive: the page repeats it, and the recorder lets the microphone
         # go by itself when it stops coming.
-        return need_recorder().arm(device=body.device, channel=body.channel,
-                                   preroll_s=body.preroll_s)
+        return need_recorder().arm(device=body.device, channels=body.channels,
+                                   channel=body.channel, preroll_s=body.preroll_s)
 
     @app.post("/api/record/disarm")
     def record_disarm():

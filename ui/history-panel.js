@@ -56,15 +56,20 @@ export function createHistoryPanel({
   });
   const scroller = el("div", { class: "hist-scroll" }, list);
   const status = el("p", { class: "hint", hidden: true });
-  const older = el("button", { type: "button", class: "button ghost", hidden: true });
-  const restore = el("button", { type: "button", class: "button primary" });
+  const older = el("button", {
+    type: "button",
+    class: "button ghost",
+    "data-icon": "older",
+    hidden: true,
+  });
+  const restore = el("button", { type: "button", class: "button primary", "data-icon": "restore" });
   const hint = el("span", { class: "hint" });
   const bar = el("div", { class: "actionbar" }, restore, hint);
   const title = el("h2");
   // Undo and Redo, above the list (owner, 2026-10-19; they left the header). The same two
   // commands are in the Edit menu with their keys.
-  const undo = el("button", { type: "button", class: "button ghost" });
-  const redo = el("button", { type: "button", class: "button ghost" });
+  const undo = el("button", { type: "button", class: "button", "data-icon": "undo" });
+  const redo = el("button", { type: "button", class: "button", "data-icon": "redo" });
   const stepper = el("div", { class: "hist-undo", role: "group" }, undo, redo);
   root.replaceChildren(title, stepper, status, scroller, older, bar);
 

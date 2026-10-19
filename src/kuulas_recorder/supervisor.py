@@ -60,6 +60,10 @@ RESTART_LIMIT = 5
 # disarms itself unless a client keeps arming it (the editor does every 20 s):
 # an editor that crashed or was closed must not leave the microphone listening.
 ARM_TTL_S = 120.0
+# Idle (no take, not listening) with no client connected for this long: the recorder
+# exits by itself instead of running for ever. An open editor keeps a connection, so
+# this only ends a recorder nobody uses any more.
+IDLE_EXIT_S = 60.0
 MAX_PREROLL_S = 600.0  # a ten-minute buffer is ~85 MB per channel as float32
 ARMED_STATES = ("arming", "armed", "disarming")
 
@@ -219,7 +223,8 @@ class Supervisor:
                  max_data_bytes: int | None = None, start_timeout: float = 10.0,
                  stop_timeout: float = 15.0, tick: float = 0.25,
                  device_poll: float = 1.0, stuck_after: float | None = None,
-                 restart_backoff: float = 0.2, arm_ttl: float = ARM_TTL_S):
+                 restart_backoff: float = 0.2, arm_ttl: float = ARM_TTL_S,
+                 idle_exit: float | None = IDLE_EXIT_S):
         self.socket_path = Path(socket_path)
         self.state_dir = Path(state_dir) if state_dir else self.socket_path.parent
         self.transport = transport or UnixTransport()
@@ -237,6 +242,8 @@ class Supervisor:
         self.device_poll = device_poll
         self.restart_backoff = restart_backoff
         self.arm_ttl = arm_ttl
+        self.idle_exit = idle_exit
+        self._idle_since: float | None = None
         self.armed: dict | None = None  # what the armed worker listens to
         self.armed_device: dict | None = None  # the device's full description
         self.armed_until = 0.0
@@ -499,6 +506,7 @@ class Supervisor:
                     "preroll_frames": d.get("preroll_frames", 0),
                     "frames_flushed": take.last_end(), "segments": d["segments"],
                     "gaps": d["gaps"], "dropouts": len(d["dropouts"]),
+                    "failed_channels": d.get("failed_channels", []),
                     "overflows": d["overflows"], "worker_restarts": d["worker_restarts"],
                     "markers": len(d["markers"]),
                     "disk": {"free_bytes": self.disk_free_bytes,
@@ -842,6 +850,8 @@ class Supervisor:
                 self.warn("dropout", "The disk fell behind; a stretch of silence was "
                           "written to keep the take in time.", at_frame=at,
                           frames=ev["frames"])
+            elif kind == "channel_failed":
+                self._on_channel_failed(ev)
             elif kind == "device_lost":
                 w.lost_reason = ev.get("reason") or "lost"
             elif kind == "error":
@@ -850,6 +860,20 @@ class Supervisor:
             elif kind in ("hello", "started", "stopped"):
                 return
             self.changed.notify_all()
+
+    def _on_channel_failed(self, ev: dict) -> None:
+        """One channel's file failed (lock held, WP12b): the take goes on with the other
+        channels; the sidecar and journal say which channel stopped, and where."""
+        take = self.take
+        at = self._abs_frame(ev)
+        name = str(ev.get("name", ""))
+        take.data.setdefault("failed_channels", []).append(
+            {"name": name, "at_frame": at, "text": str(ev.get("text", ""))})
+        take.journal("channel_failed", name=name, at_frame=at, text=ev.get("text", ""))
+        take.save()
+        self.warn("channel_failed",
+                  f"Channel {name} stopped recording; the others go on.",
+                  name=name, at_frame=at)
 
     def _on_armed_event(self, w: Worker, ev: dict) -> None:
         """What a listening worker says (lock held): it hears audio, meters, trouble."""
@@ -1149,6 +1173,24 @@ class Supervisor:
             except Exception:
                 log.exception("monitor")
 
+    def _idle_check(self, now: float) -> None:
+        """Exit by itself when nothing needs the recorder: idle (no take, not listening)
+        and no client connected for ``idle_exit`` seconds. A take, a listener or a
+        connected editor resets the clock, so it can never exit under a recording."""
+        if not self.idle_exit:
+            return
+        with self.lock:
+            idle = (self.state == "idle" and self.take is None and self.armed is None
+                    and not self.clients)
+            if not idle:
+                self._idle_since = None
+                return
+            if self._idle_since is None:
+                self._idle_since = now
+            elif now - self._idle_since >= self.idle_exit:
+                log.info("idle with no editor for %.0f s: exiting", self.idle_exit)
+                self.shutdown_requested.set()
+
     def _monitor_once(self) -> None:
         now = time.monotonic()
         with self.lock:
@@ -1157,6 +1199,7 @@ class Supervisor:
             expired = state == "armed" and now > self.armed_until
         if expired:
             self.disarm("expired")  # nobody kept it armed: the microphone is let go
+        self._idle_check(now)
         if state in ("recording", "restarting", "device_lost"):
             self._disk_tick()
         with self.lock:

@@ -84,6 +84,15 @@ def _private_view_memory(tmp_path_factory, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _signed_in_to_colab(tmp_path_factory, monkeypatch):
+    """Colab sign-in is a file in the user's config; a test never reads the real one.
+    Signed in by default (tests of the sign-in point ``KUULAS_COLAB_TOKEN`` elsewhere)."""
+    token = tmp_path_factory.mktemp("colab-token") / "token.json"
+    token.write_text('{"refresh_token": "test"}', encoding="utf-8")
+    monkeypatch.setenv("KUULAS_COLAB_TOKEN", str(token))
+
+
+@pytest.fixture(autouse=True)
 def _inline_transcription_worker(monkeypatch):
     """A background transcription job (WP79) runs in a thread of the test process,
     so no test starts a detached process by accident and a test can patch the

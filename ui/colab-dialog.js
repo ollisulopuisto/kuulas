@@ -3,7 +3,7 @@
 //  - askConsent(names): "The audio is uploaded to Google", with Cancel and "Do not ask again".
 //  - openSettings(): the command kuulas runs, its folder, extra arguments, model, language.
 
-import { colabForm, colabSettingsBody } from "./colab-model.js";
+import { colabForm, colabSettingsBody, signinPolls, signinView } from "./colab-model.js";
 
 const make = (tag, className, text) => {
   const node = document.createElement(tag);
@@ -16,7 +16,7 @@ const make = (tag, className, text) => {
  * `api`: { colabSettings, saveColabSettings }; `t` translates; `onSettingsSaved()` says so.
  * Returns { askConsent(names) -> Promise<{ ok, remember }>, openSettings() }.
  */
-export function createColabDialogs({ api, t, onSettingsSaved = () => {} }) {
+export function createColabDialogs({ api, t, onSettingsSaved = () => {}, onSignedIn = () => {} }) {
   // -- the upload notice ------------------------------------------------------------------------
   const consent = make("dialog", "cheatsheet automix-dialog");
   consent.setAttribute("aria-labelledby", "colab-consent-title");
@@ -32,8 +32,10 @@ export function createColabDialogs({ api, t, onSettingsSaved = () => {} }) {
   const consentButtons = make("div", "cheatsheet-footer");
   const consentCancel = make("button", "button", t("ui.colab.consent_cancel"));
   consentCancel.type = "button";
+  consentCancel.dataset.icon = "close";
   const consentOk = make("button", "button primary", t("ui.colab.consent_ok"));
   consentOk.type = "submit";
+  consentOk.dataset.icon = "check";
   consentButtons.append(consentCancel, consentOk);
   consentForm.append(rememberLabel, consentButtons);
   consent.append(consentTitle, consentText, consentForm);
@@ -89,9 +91,11 @@ export function createColabDialogs({ api, t, onSettingsSaved = () => {} }) {
   const buttons = make("div", "cheatsheet-footer");
   const close = make("button", "button", t("ui.colab.close"));
   close.type = "button";
+  close.dataset.icon = "close";
   close.addEventListener("click", () => dialog.close());
   const save = make("button", "button primary", t("ui.colab.save"));
   save.type = "submit";
+  save.dataset.icon = "save";
   buttons.append(close, save);
   form.append(
     field("command", "ui.colab.command", "ui.colab.command_hint"),
@@ -127,7 +131,168 @@ export function createColabDialogs({ api, t, onSettingsSaved = () => {} }) {
     }
   });
 
+  // -- the Google sign-in ---------------------------------------------------------------------
+  // Colab's sign-in is interactive (a browser page and a code to paste back), so it runs here,
+  // before any job exists. The server runs the tool's login; this dialog shows its output and
+  // the address, takes the code and asks again until it works.
+  const signin = make("dialog", "cheatsheet automix-dialog");
+  signin.setAttribute("aria-labelledby", "colab-signin-title");
+  const signinTitle = make("h2", "", t("ui.colab.signin_title"));
+  signinTitle.id = "colab-signin-title";
+  const signinText = make("p", "automix-note", t("ui.colab.signin_text"));
+  const signinState = make("p", "automix-note");
+  signinState.setAttribute("role", "status");
+  const signinLink = make("p", "automix-note");
+  const signinOutputLabel = make("p", "automix-note", t("ui.colab.signin_output"));
+  const signinOutput = make("pre", "automix-log");
+  signinOutput.setAttribute("aria-live", "polite");
+  const signinError = make("p", "automix-error");
+  signinError.setAttribute("role", "alert");
+  const codeLabel = make("label", "automix-field");
+  const codeInput = make("input");
+  codeInput.type = "text";
+  codeInput.autocomplete = "off";
+  codeInput.spellcheck = false;
+  codeLabel.append(make("span", "", t("ui.colab.signin_code")), codeInput);
+  const signinForm = make("form");
+  signinForm.method = "dialog";
+  const signinButtons = make("div", "cheatsheet-footer");
+  const startButton = make("button", "button primary", t("ui.colab.signin_start"));
+  startButton.type = "button";
+  const sendButton = make("button", "button primary", t("ui.colab.signin_send"));
+  sendButton.type = "submit";
+  const stopButton = make("button", "button", t("ui.colab.signin_cancel"));
+  stopButton.type = "button";
+  const signinClose = make("button", "button", t("ui.colab.close"));
+  signinClose.type = "button";
+  signinClose.dataset.icon = "close";
+  startButton.dataset.icon = "check";
+  sendButton.dataset.icon = "check";
+  stopButton.dataset.icon = "close";
+  signinButtons.append(startButton, sendButton, stopButton, signinClose);
+  signinForm.append(codeLabel, signinError, signinButtons);
+  signin.append(
+    signinTitle,
+    signinText,
+    signinState,
+    signinLink,
+    signinOutputLabel,
+    signinOutput,
+    signinForm,
+  );
+  document.body.append(signin);
+
+  let signinSettle = null;
+  let signinTimer = null;
+  const signinShow = (message) => {
+    signinError.textContent = message;
+    signinError.hidden = message === "";
+  };
+  const signinFinish = (ok) => {
+    clearTimeout(signinTimer);
+    signinTimer = null;
+    const done = signinSettle;
+    signinSettle = null;
+    if (signin.open) signin.close();
+    done?.(ok);
+  };
+  const signinRender = (status) => {
+    const view = signinView(status, t);
+    signinState.textContent = view.message;
+    signinLink.replaceChildren();
+    if (view.url) signinLink.append(document.createTextNode(`${view.url}`));
+    signinLink.hidden = !view.url || !view.showCode;
+    signinOutput.textContent = view.lines.join("\n");
+    signinOutputLabel.hidden = signinOutput.hidden = view.lines.length === 0;
+    codeLabel.hidden = sendButton.hidden = !view.showCode;
+    startButton.hidden = !view.showStart;
+    stopButton.hidden = !view.showCancel;
+    signinShow(view.error);
+    return view;
+  };
+  const signinLook = async () => {
+    try {
+      const status = await api.colabSignin();
+      const view = signinRender(status);
+      if (view.ok) {
+        onSignedIn();
+        signinFinish(true);
+      } else if (signinPolls(status)) {
+        signinTimer = setTimeout(signinLook, 1000);
+      }
+    } catch (e) {
+      signinShow(e.message);
+    }
+  };
+  startButton.addEventListener("click", async () => {
+    signinShow("");
+    signinState.textContent = t("ui.colab.signin_starting");
+    startButton.hidden = true;
+    try {
+      await api.startColabSignin();
+    } catch (e) {
+      signinShow(e.message);
+    }
+    void signinLook();
+  });
+  signinForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const code = codeInput.value.trim();
+    if (!code) return;
+    codeInput.value = ""; // the code is used once and not kept on the page
+    signinShow("");
+    signinState.textContent = t("ui.colab.signin_checking");
+    try {
+      await api.sendColabCode(code);
+    } catch (e) {
+      signinShow(e.message);
+    }
+    clearTimeout(signinTimer);
+    void signinLook();
+  });
+  const signinAbort = async () => {
+    try {
+      await api.cancelColabSignin();
+    } catch {
+      // Nothing running: closing is enough.
+    }
+    signinFinish(false);
+  };
+  stopButton.addEventListener("click", () => void signinAbort());
+  signinClose.addEventListener("click", () => void signinAbort());
+  signin.addEventListener("cancel", (event) => {
+    event.preventDefault(); // Esc closes and stops a running sign-in
+    void signinAbort();
+  });
+
   return {
+    /**
+     * The Google sign-in dialog. Resolves true once Colab is signed in, false when it is closed
+     * before; an already signed-in Colab resolves true at once.
+     */
+    async signIn() {
+      if (signinSettle) return false;
+      codeInput.value = "";
+      signinShow("");
+      let status;
+      try {
+        status = await api.colabSignin();
+      } catch (e) {
+        signinShow(e.message);
+        return false;
+      }
+      if (signinView(status, t).ok) {
+        onSignedIn();
+        return true;
+      }
+      const done = new Promise((resolve) => {
+        signinSettle = resolve;
+      });
+      signinRender(status);
+      signin.showModal();
+      if (signinPolls(status)) void signinLook();
+      return done;
+    },
     /** Ask before audio leaves the computer. Resolves { ok, remember }; Esc and Cancel are not ok. */
     askConsent(names) {
       if (settle) return Promise.resolve({ ok: false, remember: false });

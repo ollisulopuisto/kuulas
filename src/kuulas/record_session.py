@@ -33,12 +33,19 @@ import logging
 import os
 import shutil
 import threading
+import time
 from collections import deque
 from collections.abc import Callable
+from dataclasses import asdict, replace
 from datetime import UTC, datetime
 from pathlib import Path
 
-from kuulas_recorder.client import RecorderClient, RecorderError, spawn_supervisor
+from kuulas_recorder.client import (
+    PROTOCOL,
+    RecorderClient,
+    RecorderError,
+    spawn_supervisor,
+)
 
 from . import disk_budget, ops
 from . import record_take as rt
@@ -63,6 +70,19 @@ STOP_TIMEOUT_S = 60.0
 ARMED_STATES = ("arming", "armed", "disarming")
 #: The longest pre-roll the recorder accepts (``kuulas_recorder.supervisor``).
 MAX_PREROLL_S = 600
+#: Most channels one take records (a big interface; the recorder has no limit of its own).
+MAX_CHANNELS = 64
+
+
+def _channel_numbers(asked: object) -> list[int]:
+    """Device channel numbers from the page: whole numbers from 1, distinct, at most
+    ``MAX_CHANNELS``; anything else is ``error.record.bad_channel``. Sorted: the order
+    the recorder lists, meters and compares them in."""
+    if (not isinstance(asked, list) or not asked or len(asked) > MAX_CHANNELS
+            or any(not isinstance(c, int) or isinstance(c, bool) or c < 1 for c in asked)
+            or len(set(asked)) != len(asked)):
+        raise RecordError("error.record.bad_channel", channel=asked)
+    return sorted(asked)
 
 
 class RecordError(KuulasError):
@@ -119,6 +139,7 @@ class RecordSession:
         #: Takes this editor imported (or found empty) -> what the import reported.
         self._imported: dict[str, dict | None] = {}
         self._we_armed = False  # this editor armed the recorder (pre-roll)
+        self._channels_hint = 1  # channels the next take would record (disk estimate)
         self._closed = threading.Event()
         self._wake = threading.Event()
         self._thread = None
@@ -210,23 +231,29 @@ class RecordSession:
         with self._lock:
             return self._recording(self._status)
 
-    def _disk(self, status: dict) -> dict:
-        """Recording time left: the recorder's estimate while a take runs, else ours."""
+    def _disk(self, status: dict, channels: int = 1) -> dict:
+        """Recording time left: the recorder's estimate while a take runs, else ours
+        (for ``channels`` channels: each is a file of its own)."""
         left = (status.get("disk") or {}).get("seconds_left")
         if left is None:
             try:
                 where = self.folder if self.folder.exists() else self.folder.parent
                 free = shutil.disk_usage(where).free
-                left = disk_budget.seconds_left(free, self.rate, 1, BYTES_PER_SAMPLE)
+                left = disk_budget.seconds_left(free, self.rate, max(1, channels),
+                                         BYTES_PER_SAMPLE)
             except (OSError, ValueError):
                 return {"seconds_left": None, "state": "ok", "text": ""}
         left = max(0, int(left))
         return {"seconds_left": left, "state": disk_budget.disk_state(left),
                 "text": disk_budget.format_hm(left)}
 
-    def status(self) -> dict:
+    def status(self, channels: int | None = None) -> dict:
         """Everything the record view shows, asked of the recorder afresh (never
-        started for this: looking must not launch anything)."""
+        started for this: looking must not launch anything). ``channels``: how many the
+        next take would record, for the disk estimate before a take runs (remembered
+        for the status frames the watcher publishes)."""
+        if channels is not None:
+            self._channels_hint = max(1, int(channels))
         try:
             status = self._command("status", timeout=5.0)
             available = True
@@ -251,6 +278,11 @@ class RecordSession:
             # Listening into the pre-roll buffer, nothing written (the page says so).
             "armed": armed,
             "preroll_s": (status.get("armed") or {}).get("preroll_s") if armed else None,
+            # The channels being listened to, in the order the level frames list them.
+            "armed_channels": list((status.get("armed") or {}).get("channels") or [])
+            if armed else [],
+            # The channels of the take that records now: {channel, name}.
+            "channels": list(status.get("channels") or []) if recording else [],
             "preroll_frames": int(status.get("preroll_frames") or 0) if recording else 0,
             "ours": ours,
             "elsewhere": recording and not ours,
@@ -259,10 +291,11 @@ class RecordSession:
             "rate": self.rate,
             "start_utc": status.get("start_utc") if recording else None,
             "device": status.get("device") if recording else None,
-            "plan": None if plan is None else {"track_id": plan.track_id,
-                                               "track_name": plan.track_name,
-                                               "at": plan.at, "channel": plan.channel},
-            "disk": self._disk(status if recording else {}),
+            "plan": None if plan is None else {
+                "track_id": plan.track_id, "track_name": plan.track_name,
+                "at": plan.at, "channel": plan.channel,
+                "lanes": [asdict(lane) for lane in plan.all_lanes]},
+            "disk": self._disk(status if recording else {}, self._channels_hint),
             "gaps": len(status.get("gaps") or []) if isinstance(status.get("gaps"), list)
             else int(status.get("gaps") or 0),
             "notices": list(self._notices) if (recording and ours) else [],
@@ -270,25 +303,57 @@ class RecordSession:
             "hold_ms": self.hold_ms,
         }
 
-    def arm(self, *, device: dict | None, channel: int, preroll_s: float) -> dict:
+    def arm(self, *, device: dict | None, preroll_s: float, channel: int | None = None,
+            channels: list[int] | None = None) -> dict:
         """Listen for pre-roll (WP12c): the recorder opens the input and keeps the last
-        ``preroll_s`` seconds in memory, writing nothing, so a take started next begins
-        that long before Record was pressed. Arming again with the same settings only
-        keeps it armed (the recorder lets go by itself when nobody does)."""
+        ``preroll_s`` seconds of every channel in memory, writing nothing, so a take
+        started next begins that long before Record was pressed. Arming again with the
+        same settings only keeps it armed (the recorder lets go by itself when nobody
+        does). ``channels`` (device channel numbers; ``channel`` is the one-channel
+        form) must be the ones the take will record."""
         if self.session.read_only:
             holder = self.session.package.locked_by or {}
             raise ops.EditError("error.history.read_only", host=holder.get("host", "?"))
-        if not isinstance(channel, int) or channel < 1:
-            raise RecordError("error.record.bad_channel", channel=channel)
+        if channels is None:
+            channels = [channel if channel is not None else 1]
+        wanted = _channel_numbers(channels)
         if (not isinstance(preroll_s, (int, float)) or isinstance(preroll_s, bool)
                 or not 0 < preroll_s <= MAX_PREROLL_S):
             raise RecordError("error.record.bad_request", detail="preroll_s")
-        args = {"channels": [channel], "rate": self.rate, "preroll_s": float(preroll_s)}
+        args = {"channels": wanted, "rate": self.rate, "preroll_s": float(preroll_s)}
         if device:
             args["device"] = {"index": device.get("index"), "name": device.get("name")}
+        self._ensure_current_recorder()
         answer = self._command("arm", spawn=True, **args)
         self._we_armed = True
         return self._publish_answer(answer)
+
+    def _ensure_current_recorder(self) -> None:
+        """A recorder outlives the editor, so a new editor may meet an older one that
+        lacks a command it needs (``arm``). Idle (or only listening, which writes
+        nothing), it is asked to exit and the caller's next command starts a fresh one.
+        Recording, it is never touched (rule 17): the take goes on and the caller is
+        told, so pre-roll waits for a recorder that is new."""
+        try:
+            hello = self._command("hello", timeout=5.0)
+        except RecordError:
+            return  # nobody there: the next command starts a current one
+        if int(hello.get("protocol") or 0) >= PROTOCOL:
+            return
+        state = (hello.get("status") or {}).get("state", "idle")
+        if state not in ("idle", *ARMED_STATES):
+            raise RecordError("error.record.old_recorder", status=409)
+        try:
+            self._command("quit", timeout=5.0)
+        except RecordError as e:  # a take began in between: leave it alone
+            raise RecordError("error.record.old_recorder", status=409) from e
+        deadline = time.monotonic() + 10.0
+        while time.monotonic() < deadline:
+            try:
+                self._connect().close()
+            except (OSError, RecorderError):
+                return  # gone
+            time.sleep(0.05)
 
     def disarm(self) -> dict:
         """Stop listening and drop the buffer. Harmless when not armed."""
@@ -303,36 +368,67 @@ class RecordSession:
         self.publish({"type": "record", "kind": "status", "status": view})
         return view
 
-    def start(self, *, device: dict | None, channel: int, track_id: str | None,
-              name: str, at: int) -> dict:
-        """Record a take into this project's ``recordings/``. ``track_id`` None (or
-        ``"new"``): onto a new speech track named ``name``."""
+    def _lanes(self, channels: list[dict] | None, channel: int | None,
+               track_id: str | None, name: str) -> list[rt.Lane]:
+        """What the page asked as lanes, in device-channel order (the order the recorder
+        lists and meters them, and the order an armed recorder compares). A new track
+        left unnamed is "Channel N" when several channels are recorded; a single one
+        stays unnamed here and is named after the take once it has a number."""
+        asked = channels if channels is not None else [
+            {"channel": channel if channel is not None else 1, "track_id": track_id,
+             "name": name}]
+        raw = [c.get("channel") if isinstance(c, dict) else None for c in asked]
+        _channel_numbers(raw)  # refuses nonsense with a key before anything else
+        lanes = []
+        used_tracks: set[str] = set()
+        for number, c in sorted(zip(raw, asked, strict=True), key=lambda x: x[0]):
+            tid = c.get("track_id")
+            if tid == "new":
+                tid = None
+            if tid is not None:
+                if tid in used_tracks:
+                    raise RecordError("error.record.same_track")
+                used_tracks.add(tid)
+                track_name = ops._find_track(self.session.state, tid).name
+            else:
+                track_name = (c.get("name") or "").strip()
+                if not track_name and len(asked) > 1:
+                    track_name = t("record.channel_track", n=number)
+            lanes.append(rt.Lane(channel=number, name="", track_id=tid,
+                                 track_name=track_name))
+        labels = rt.unique_channel_names([rt.channel_name(lane.track_name)
+                                          for lane in lanes])
+        return [replace(lane, name=label)
+                for lane, label in zip(lanes, labels, strict=True)]
+
+    def start(self, *, device: dict | None, at: int, channels: list[dict] | None = None,
+              channel: int | None = None, track_id: str | None = None,
+              name: str = "") -> dict:
+        """Record a take into this project's ``recordings/``. ``channels``: one
+        ``{channel, track_id, name}`` per device channel to record (WP12b), each onto
+        its own track (``track_id`` None or ``"new"``: a new speech track named
+        ``name``). ``channel``/``track_id``/``name`` are the one-channel form."""
         if self.session.read_only:
             holder = self.session.package.locked_by or {}
             raise ops.EditError("error.history.read_only", host=holder.get("host", "?"))
-        if not isinstance(channel, int) or channel < 1:
-            raise RecordError("error.record.bad_channel", channel=channel)
+        lanes = self._lanes(channels, channel, track_id, name)
         if at < 0:
             raise RecordError("error.record.bad_request", detail="at")
-        if track_id == "new":
-            track_id = None
-        if track_id is not None:
-            track_name = ops._find_track(self.session.state, track_id).name
-        else:
-            track_name = (name or "").strip()
         self.folder.mkdir(parents=True, exist_ok=True)
-        channel_label = rt.channel_name(track_name)
         for _attempt in range(3):  # another take may appear in between: next number
-            take = rt.next_take(os.listdir(self.folder), channel_label, datetime.now(UTC))
-            if not track_name:
-                track_name = take
-            plan = rt.TakePlan(take=take, at=int(at), track_id=track_id,
-                               track_name=track_name, channel=channel,
-                               device=dict(device or {}))
+            take = rt.next_take(os.listdir(self.folder), [lane.name for lane in lanes],
+                                datetime.now(UTC))
+            plan_lanes = tuple(replace(lane, track_name=lane.track_name or take)
+                               for lane in lanes)
+            first = plan_lanes[0]
+            plan = rt.TakePlan(take=take, at=int(at), track_id=first.track_id,
+                               track_name=first.track_name, channel=first.channel,
+                               device=dict(device or {}), lanes=plan_lanes)
             # Before the recorder starts: a crash a moment later still knows the place.
             rt.write_plan(self.folder, plan)
-            args = {"folder": str(self.folder), "take": take, "channels": [channel],
-                    "names": [channel_label], "rate": self.rate}
+            args = {"folder": str(self.folder), "take": take,
+                    "channels": [lane.channel for lane in plan_lanes],
+                    "names": [lane.name for lane in plan_lanes], "rate": self.rate}
             if device:
                 args["device"] = {"index": device.get("index"),
                                   "name": device.get("name")}
@@ -443,20 +539,27 @@ class RecordSession:
             on_disk = {n for n in os.listdir(self.folder)
                        if (self.folder / n).is_file()
                        and (self.folder / n).stat().st_size > 44}
-            clips = rt.clip_plan(sidecar, plan.at, on_disk)
+            # A plan from before WP12b names no channel: it is the take's first.
+            lanes = []
+            for lane in plan.all_lanes:
+                clips = rt.clip_plan(sidecar, plan.at, on_disk,
+                                     channel=lane.channel if plan.lanes else None)
+                if clips:
+                    lanes.append((clips, lane))
             summary = rt.summary(sidecar)
             interrupted = sidecar.get("state") != "stopped"
-            if not clips:
+            if not lanes:
                 self._imported[take] = None
                 return None
             clip_name = t("record.take_interrupted", name=take) if interrupted else take
-            _, clip_ids = self.session.import_take(
-                [(self.folder / c.file, c.start, c.offset) for c in clips],
-                track_id=plan.track_id, track_name=plan.track_name,
+            _, clip_ids = self.session.import_take_lanes(
+                [([(self.folder / c.file, c.start, c.offset) for c in clips],
+                  lane.track_id, lane.track_name) for clips, lane in lanes],
                 clip_name=clip_name, take=take)
             result = {**summary, "take": take, "clips": len(clip_ids),
-                      "clip_ids": clip_ids, "start": clips[0].start,
-                      "interrupted": interrupted}
+                      "clip_ids": clip_ids,
+                      "start": min(c.start for cl, _ in lanes for c in cl),
+                      "tracks": len(lanes), "interrupted": interrupted}
             self._imported[take] = result
             self.publish({"type": "record", "kind": "imported", **result})
             return result

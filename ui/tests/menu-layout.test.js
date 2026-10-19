@@ -83,6 +83,9 @@ describe("Edit", () => {
       "menu.split_merge",
       "menu.groups",
       "menu.select",
+      "menu.transcribe",
+      "menu.transcript_narration",
+      "menu.candidates",
     ]);
     assert.ok(direct("edit").length <= 16);
   });
@@ -114,7 +117,7 @@ describe("Edit", () => {
   });
 });
 
-describe("Track, Transport, View, Go", () => {
+describe("Track, Playback, View", () => {
   test("Auto holds the ducking, Auto-Silence and Open this stretch", () => {
     assert.deepEqual(subIds("track", "menu.auto"), [
       "app.automix",
@@ -123,8 +126,8 @@ describe("Track, Transport, View, Go", () => {
     ]);
   });
   test("Fast playback is a submenu of four", () => {
-    assert.equal(subIds("transport", "menu.fast_playback").length, 4);
-    assert.ok(!direct("transport").some((id) => id.startsWith("transport.speed")));
+    assert.equal(subIds("playback", "menu.fast_playback").length, 4);
+    assert.ok(!direct("playback").some((id) => id.startsWith("transport.speed")));
   });
   test("View is grouped and has no loop toggle", () => {
     assert.equal(subIds("view", "menu.zoom_fit").length, 9);
@@ -134,16 +137,67 @@ describe("Track, Transport, View, Go", () => {
     ]);
     assert.deepEqual(subIds("view", "menu.mouse"), ["view.drag_mode", "view.wheel_mode"]);
     assert.ok(!menuTargets([top("view")]).includes("transport.loop"));
-    assert.ok(menuTargets([top("transport")]).includes("transport.loop"));
+    assert.ok(menuTargets([top("playback")]).includes("transport.loop"));
   });
   test("Go shows each stop command once; the Transcript twin is an alias", () => {
-    const go = menuTargets([top("go")]);
+    const go = subIds("playback", "menu.go");
     assert.ok(go.includes("nav.prev_stop") && go.includes("nav.next_stop"));
     assert.ok(!go.includes("transcript.prev_stop") && !go.includes("transcript.next_stop"));
     assert.deepEqual(MENU_ALIASES, {
       "transcript.prev_stop": "nav.prev_stop",
       "transcript.next_stop": "nav.next_stop",
     });
+  });
+});
+
+describe("top-level bar (owner, 2026-10-19)", () => {
+  test("is File, Edit, Track, Playback, View, Help", () => {
+    assert.deepEqual(
+      MENU.map((m) => m.id),
+      ["file", "edit", "track", "playback", "view", "help"],
+    );
+  });
+  test("Playback holds transport, record, Go to and Markers as submenus", () => {
+    const names = top("playback")
+      .items.filter((e) => e.kind === "submenu")
+      .map((e) => e.labelKey);
+    assert.deepEqual(names, [
+      "menu.record_settings",
+      "menu.fast_playback",
+      "menu.shuttle",
+      "menu.go",
+      "menu.markers",
+    ]);
+    for (const id of ["transport.play", "transport.record", "transport.loop"]) {
+      assert.ok(direct("playback").includes(id), id);
+    }
+    assert.ok(subIds("playback", "menu.markers").includes("marker.add"));
+    assert.ok(subIds("playback", "menu.go").includes("nav.home"));
+  });
+  test("Edit holds Transcript and narration, and Cut candidates, as submenus", () => {
+    assert.deepEqual(subIds("edit", "menu.transcript_narration"), [
+      "transcript.delete_words",
+      "transcript.remove_words",
+      "transcript.cut_words",
+      "transcript.correct",
+      "transcript.mark_candidate",
+      "placeholder.add",
+      "placeholder.edit",
+      "placeholder.take",
+      "placeholder.delete",
+    ]);
+    assert.ok(subIds("edit", "menu.candidates").includes("candidate.find"));
+    assert.equal(subIds("edit", "menu.candidates").length, 10);
+  });
+  test("the transcribing commands are Edit > Transcribe (Litteroi), no longer under Track", () => {
+    assert.deepEqual(subIds("edit", "menu.transcribe"), [
+      "app.transcribe",
+      "app.transcribe_colab",
+      "app.transcribe_restart",
+      "app.colab_signin",
+      "app.colab_settings",
+    ]);
+    assert.ok(!sub("track", "menu.transcribe"));
   });
 });
 

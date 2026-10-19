@@ -47,8 +47,8 @@ def environment(resources: Path, env: dict[str, str], home: Path) -> dict[str, s
     return out
 
 
-def log_file(home: Path) -> Path:
-    return home / "Library" / "Logs" / "Kuulas" / "kuulas.log"
+def log_file(home: Path, name: str = "kuulas.log") -> Path:
+    return home / "Library" / "Logs" / "Kuulas" / name
 
 
 def clean_argv(argv: list[str]) -> list[str]:
@@ -73,6 +73,25 @@ def recorder_args(args: list[str]) -> list[str] | None:
     return None
 
 
+def worker_args(args: list[str]) -> list[str] | None:
+    """The transcription worker's arguments when the bundle was started as ``-m
+    kuulas.transcribe_worker ...``, else None. ``bgjobs.start_worker_process`` runs
+    ``<sys.executable> -m kuulas.transcribe_worker run <job file>``; in the app that
+    executable is the launcher (see :func:`recorder_args`), so this module hands the
+    arguments on. Without this the worker never started in the app and every background
+    transcription showed as "interrupted"."""
+    if args[:2] == ["-m", "kuulas.transcribe_worker"]:
+        return args[2:]
+    return None
+
+
+def _run_worker(args: list[str]) -> int:
+    """Run the worker's ``main`` (it never imports the editor session)."""
+    from . import transcribe_worker  # noqa: PLC0415
+
+    return transcribe_worker.main(args)
+
+
 def _run_recorder(args: list[str]) -> int:
     """Run ``kuulas_recorder`` as its own ``__main__`` would (by name: the editor imports
     nothing of the recorder but its client)."""
@@ -86,10 +105,11 @@ def _run_recorder(args: list[str]) -> int:
     return 0
 
 
-def _open_log(home: Path):
+def _open_log(home: Path, name: str = "kuulas.log"):
     """The log file, rotated (1 MB, 3 kept), also taking stdout, stderr and fatal
-    crashes: a bundle has no terminal, so this file is all a tester can send."""
-    file = log_file(home)
+    crashes: a bundle has no terminal, so this file is all a tester can send. The
+    transcription worker is its own process with its own file (``kuulas-worker.log``)."""
+    file = log_file(home, name)
     file.parent.mkdir(parents=True, exist_ok=True)
     handler = logging.handlers.RotatingFileHandler(
         file, maxBytes=1_000_000, backupCount=3, encoding="utf-8")
@@ -116,6 +136,12 @@ def main() -> int:
         if resources is not None:
             os.environ.update(environment(resources, dict(os.environ), home))
         return _run_recorder(recorder)
+    worker = worker_args(args)
+    if worker is not None:
+        if resources is not None:
+            os.environ.update(environment(resources, dict(os.environ), home))
+            _open_log(home, "kuulas-worker.log")
+        return _run_worker(worker)
     if resources is not None:
         os.environ.update(environment(resources, dict(os.environ), home))
         if wants_log(args):

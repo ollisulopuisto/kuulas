@@ -172,6 +172,8 @@ class Capture:
         self.segment_frames = 0  # frames in the current segment's files
         self.total_frames = 0  # frames written in all segments of this worker
         self.dropouts = 0
+        self.dead: set[int] = set()  # files of this segment that failed (WP12b)
+        self.disk_full = False
         self.error: tuple[str, str] | None = None
         self.started_ns = 0
         self.first_block_seen = False
@@ -208,17 +210,18 @@ class Capture:
                     f.path.unlink()  # empty: created a moment ago, no audio in it
             raise
         self.files = files
+        self.dead = set()
         self.segment_frames = 0
         self.report({"ev": "opened", "segment": self.segment, "continues": continues,
                      "files": {n: f.path.name for n, f in zip(self.names, files,
                                                                strict=True)}})
 
     def _close_segment(self) -> None:
-        for f in self.files:
+        for i, f in enumerate(self.files):
             try:
                 f.close()
             except OSError as e:
-                self._fail(e)
+                self._channel_error(i, e)
                 f.abandon()
         self.report({"ev": "closed", "segment": self.segment,
                      "frames": self._file_frames()})
@@ -228,8 +231,18 @@ class Capture:
         return {n: f.flushed_frames for n, f in zip(self.names, self.files, strict=True)}
 
     def _flush(self) -> None:
-        for f in self.files:
-            f.flush()
+        for i, f in enumerate(self.files):
+            if i in self.dead:
+                # Its header already covers what it holds; a late flush may still work.
+                with contextlib.suppress(OSError):
+                    f.flush()
+                continue
+            try:
+                f.flush()
+            except OSError as e:
+                self._channel_error(i, e)
+                if self.disk_full:
+                    raise
         self._since_flush = 0
         self._flushed_at = time.monotonic()
         self.report({"ev": "flushed", "segment": self.segment,
@@ -241,7 +254,8 @@ class Capture:
         """Write ``block`` (frames x armed channels), rolling to the next file set
         at the size limit so no frame is lost or split between channels."""
         while len(block):
-            room = self.files[0].room_frames()
+            alive = [i for i in range(len(self.files)) if i not in self.dead]
+            room = self.files[alive[0]].room_frames()
             if room == 0:
                 self._flush()
                 self._close_segment()
@@ -249,12 +263,36 @@ class Capture:
                 self._open_segment(continues=True)
                 continue
             part, block = block[:room], block[room:]
-            for i, f in enumerate(self.files):
-                f.write(float_to_pcm24(part[:, i]))
+            last: OSError | None = None
+            for i in alive:
+                try:
+                    self.files[i].write(float_to_pcm24(part[:, i]))
+                except OSError as e:
+                    last = e
+                    self._channel_error(i, e)
+                    if self.disk_full:
+                        raise
+            if len(self.dead) == len(self.files) and last is not None:
+                raise last  # nothing is being recorded any more
             n = len(part)
             self.segment_frames += n
             self.total_frames += n
             self._since_flush += n
+
+    def _channel_error(self, i: int, e: OSError) -> None:
+        """One file failed. A full disk is everyone's problem; anything else costs only
+        this channel the rest of its take (WP12b): the others go on, and this file keeps
+        every whole frame it had (``ProgressiveWav.write`` cuts a partial one off)."""
+        if e.errno in (errno.ENOSPC, errno.EDQUOT):
+            self._fail(e)
+            self.disk_full = True
+            return
+        if i in self.dead:
+            return
+        self.dead.add(i)
+        self.report({"ev": "channel_failed", "segment": self.segment,
+                     "name": self.names[i], "at": self.files[i].frames,
+                     "text": f"{self.names[i]}: {e.strerror or e}"})
 
     def _fail(self, e: OSError) -> None:
         if self.error is None:

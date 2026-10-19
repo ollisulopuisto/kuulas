@@ -37,13 +37,14 @@ export const putViewMemory = (view, { now = false } = {}) =>
 export const getWords = () => json("/api/words");
 // Recording (WP12a): the recorder is its own program; the server is its viewer and remote.
 /** { available, recording, ours, take, position_frames, disk, notices, pending, ... } */
-export const getRecordStatus = () => json("/api/record/status");
+export const getRecordStatus = (channels = 1) =>
+  json(`/api/record/status?channels=${Math.max(1, Math.round(Number(channels)) || 1)}`);
 /** { devices: [{ index, name, channels, default }] } (starts the recorder if need be). */
 export const getRecordDevices = () => json("/api/record/devices");
-/** { device: {index, name} | null, channel, track_id (null: new track), name, at } */
+/** { device: {index, name} | null, channels: [{channel, track_id (null: new track), name}], at } */
 export const startRecording = (body) => post("/api/record/start", body);
 /** Pre-roll (WP12c): listen to the input, keeping the last seconds in memory only, nothing on
- * disk. { device, channel, preroll_s }. Repeated, it keeps the recorder armed. */
+ * disk. { device, channels: [numbers], preroll_s }. Repeated, it keeps the recorder armed. */
 export const armRecording = (body) => post("/api/record/arm", body);
 /** Stop listening and drop the buffer. */
 export const disarmRecording = () => post("/api/record/disarm", {});
@@ -82,6 +83,13 @@ export const transcribe = (mediaIds, { backend = "local", model, language } = {}
 export const colabSettings = () => json("/api/settings/colab");
 export const saveColabSettings = (settings) =>
   json("/api/settings/colab", { method: "PUT", body: JSON.stringify(settings) });
+/** Is Colab signed in to Google, and how is a sign-in going: { signed_in, state, url, lines, error }. */
+export const colabSignin = () => json("/api/colab/signin");
+/** Start the Google sign-in (opens the browser; answers the same status). */
+export const startColabSignin = () => post("/api/colab/signin", {});
+/** Give the code Google shows to the waiting sign-in. The code is not kept. */
+export const sendColabCode = (code) => post("/api/colab/signin/code", { code });
+export const cancelColabSignin = () => json("/api/colab/signin", { method: "DELETE" });
 export const getJobs = () => json("/api/jobs");
 /** What the background transcription jobs did since the last call, told once:
  * { notices: [{ kind: "ok" | "error", text, job }] } (WP79). */

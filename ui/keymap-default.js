@@ -1231,6 +1231,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.app.colab_settings",
   },
   {
+    id: "app.colab_signin",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.app.colab_signin",
+  },
+  {
     id: "app.automix",
     keys: { mac: "Mod+L", other: "Mod+L" },
     context: "global",

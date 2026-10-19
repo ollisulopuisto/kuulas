@@ -181,6 +181,7 @@ export function registerAppCommands(registry, { actions, app }) {
   def("app.transcribe_colab", () => app.transcribeTrack("colab"), hasProject);
   def("app.transcribe_restart", () => app.restartTranscriptions(), hasProject);
   def("app.colab_settings", () => app.openColabSettings());
+  def("app.colab_signin", () => app.openColabSignin());
   def(
     "rename",
     () => app.focusName(),

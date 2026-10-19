@@ -9,8 +9,10 @@ lost.
 from importlib import metadata
 
 # The control protocol's version (docs/RECORDER.md). Bump it when a command or
-# event changes in a way an older client would misread.
-PROTOCOL = 1
+# event changes in a way an older client would misread. 2: pre-roll and several
+# channels are in (``arm``, ``channel_failed``); an editor that needs them replaces
+# an idle recorder that reports 1 (never one that is recording).
+PROTOCOL = 2
 
 # The take sidecar's format version (``<take>.take.json``).
 TAKE_FORMAT = 1

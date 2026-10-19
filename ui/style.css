@@ -73,7 +73,7 @@ kbd {
   gap: var(--space-3);
   height: var(--control-h);
   padding: 0 var(--pad-inline);
-  border: 1px solid var(--button-border);
+  border: 1px solid var(--button-border); /* secondary = outlined; .primary is the accent fill */
   border-radius: var(--radius-sm);
   background: var(--button-bg);
   color: var(--button-text);
@@ -954,7 +954,9 @@ input.has-ab {
 }
 .inspector-field {
   display: grid;
-  grid-template-columns: minmax(70px, 1fr) auto;
+  /* Two columns for every inspector row: the label, then one control column whose left edge
+     and width are the same for text, select, number, read-only value and checkbox. */
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
   align-items: center;
   gap: var(--space-4);
   min-height: var(--control-h);
@@ -973,10 +975,12 @@ input[type="text"] {
   font-variant-numeric: tabular-nums;
 }
 .inspector-field input[type="number"] {
-  width: 92px;
+  width: 100%;
+  min-width: 0;
   text-align: right;
 }
 .inspector-field input[type="checkbox"] {
+  justify-self: start;
   width: 16px;
   height: 16px;
   margin: 0;
@@ -988,7 +992,6 @@ input[type="text"] {
 .inspector-field .inspector-select {
   width: 100%;
   min-width: 0;
-  max-width: 160px;
   height: var(--control-h);
   padding: 0 var(--space-3);
   background: var(--input-bg);
@@ -997,16 +1000,13 @@ input[type="text"] {
   color: var(--text);
   text-overflow: ellipsis;
 }
-.inspector-field {
-  grid-template-columns: minmax(0, 1fr) auto;
-}
 .inspector-field > span {
   overflow-wrap: anywhere;
 }
 .inspector-readonly {
-  max-width: 160px;
+  min-width: 0;
   color: var(--text);
-  text-align: right;
+  text-align: left;
   overflow-wrap: anywhere;
 }
 
@@ -1423,19 +1423,16 @@ input[type="text"] {
   padding: var(--space-2) var(--pad-panel) 0;
   background: var(--surface-panel);
   border-bottom: 1px solid var(--border-subtle);
-  overflow-x: auto;
-  scrollbar-width: none;
+  flex-wrap: wrap;
 }
-/* Five tabs must fit the narrow sidebar: they shrink, and a label that still does not
-   fit is cut with an ellipsis (the row scrolls sideways as a last resort). */
+/* Five tabs must fit the narrow sidebar: smaller type and padding, and the row wraps to a
+   second line rather than cutting a label. Never an ellipsis (owner, 2026-10-19). */
 .side-tab {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow: hidden;
+  flex: 0 0 auto;
   white-space: nowrap;
-  text-overflow: ellipsis;
   height: var(--control-h);
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-2);
+  font-size: var(--text-sm);
   border: 0;
   border-bottom: 2px solid transparent;
   background: transparent;
@@ -2233,12 +2230,42 @@ input[type="text"] {
   gap: var(--space-4);
   padding: var(--space-6) 0;
   color: var(--text-secondary);
+  /* Starts at the timeline's x, like the text (.tx-para): right of the numbers column. */
+  margin-left: calc(var(--heads-col) + 1px - var(--pad-panel));
+  min-width: 0;
 }
 .tx-empty strong {
   color: var(--text);
 }
-.tx-empty progress {
-  width: 240px;
+.tx-missing {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+  max-width: 100%;
+}
+.tx-miss-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-5);
+}
+.tx-miss-name {
+  color: var(--text);
+  min-width: 12ch;
+  overflow-wrap: anywhere;
+}
+.tx-miss-status {
+  min-width: 10ch;
+}
+.tx-miss-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.tx-miss-row progress {
+  width: 160px;
 }
 .tx-error {
   color: var(--danger-text, var(--text));
@@ -2782,6 +2809,16 @@ input[type="text"] {
 .automix-error {
   color: var(--danger-text);
 }
+.automix-log {
+  margin: 0;
+  max-height: 10rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
 
 /* Locate media (WP39) and Send a copy (WP32) */
 .media-dialog {
@@ -2947,6 +2984,46 @@ input[type="text"] {
   color: inherit;
   padding: 0 var(--space-4);
 }
+.record-channels {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.record-channel {
+  display: grid;
+  grid-template-columns: 7rem 1fr 1fr;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+}
+.record-channel select,
+.record-channel input[type="text"] {
+  height: var(--control-h);
+  min-width: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: inherit;
+  padding: 0 var(--space-4);
+}
+.record-channel-use {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.record-meters {
+  display: grid;
+  gap: var(--space-3);
+  width: 100%;
+}
+.record-meter-label {
+  flex: 0 0 8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .record-at,
 .record-disk,
 .record-message,
@@ -3025,6 +3102,9 @@ input[type="text"] {
   align-items: center;
   gap: var(--space-4);
   width: 100%;
+}
+.record-channel .record-meter-row {
+  grid-column: 1 / -1;
 }
 .record-meter {
   position: relative;
@@ -3193,11 +3273,16 @@ input[type="text"] {
   .tx-numbers .rcol {
     margin-left: var(--space-3);
   }
-  .tx-para {
+  .tx-para,
+  .tx-empty {
     margin-left: 0;
   }
   #panel-transcript h2 {
     padding-left: var(--pad-panel);
+  }
+  /* Room under the content for the numbers row, so scrolling can always clear it. */
+  #panel-transcript {
+    padding-bottom: calc(var(--pad-panel) + 56px);
   }
 }
 
