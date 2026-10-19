@@ -16,18 +16,40 @@ function pixels(event) {
   return { dx: event.deltaX * unit, dy: event.deltaY * unit };
 }
 
+// What a two-finger trackpad scroll does (owner, 2026-10-19): a PREFERENCE with two modes.
+//   "zoom" (default): vertical movement zooms time around the pointer, horizontal scrolls time,
+//     Shift + vertical scrolls the lanes.
+//   "scroll": vertical scrolls the lanes, horizontal scrolls time.
+// A notched mouse wheel ignores the preference.
+export const WHEEL_MODES = ["zoom", "scroll"];
+export const DEFAULT_WHEEL_MODE = "zoom";
+export const wheelModeChoice = (stored) =>
+  WHEEL_MODES.includes(stored) ? stored : DEFAULT_WHEEL_MODE;
+export const nextWheelMode = (mode) => (mode === "zoom" ? "scroll" : "zoom");
+
 /**
  * What a wheel event means:
  *   { kind: "zoom", factor }      Mod + wheel or pinch; factor < 1 zooms in
  *   { kind: "waveform", factor }  Alt + wheel; factor > 1 makes waveforms taller
  *   { kind: "scroll", dx, dy }    pixels to scroll time (dx) and lanes (dy)
  */
-export function wheelIntent(event, { lanesFit }) {
+export function wheelIntent(event, { lanesFit, mode = DEFAULT_WHEEL_MODE }) {
   const { dx, dy } = pixels(event);
   if (event.ctrlKey || event.metaKey) return { kind: "zoom", factor: Math.exp(dy * 0.01) };
   if (event.altKey) return { kind: "waveform", factor: Math.exp(-(dy || dx) * 0.002) };
-  if (event.shiftKey) return { kind: "scroll", dx: dx || dy, dy: 0 };
-  if (classifyWheel(event) === "trackpad") return { kind: "scroll", dx, dy };
+  const trackpad = classifyWheel(event) === "trackpad";
+  if (event.shiftKey) {
+    // Zoom mode: Shift + vertical is how a trackpad reaches the lanes.
+    if (trackpad && mode === "zoom" && Math.abs(dy) >= Math.abs(dx))
+      return { kind: "scroll", dx: 0, dy };
+    return { kind: "scroll", dx: dx || dy, dy: 0 };
+  }
+  if (trackpad && mode === "zoom") {
+    return Math.abs(dy) > Math.abs(dx)
+      ? { kind: "zoom", factor: Math.exp(dy * 0.01) }
+      : { kind: "scroll", dx, dy: 0 };
+  }
+  if (trackpad) return { kind: "scroll", dx, dy };
   return lanesFit ? { kind: "scroll", dx: dx || dy, dy: 0 } : { kind: "scroll", dx: 0, dy };
 }
 
