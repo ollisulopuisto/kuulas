@@ -3638,3 +3638,27 @@ searches commands; this is the same search where a person looks for help: in the
 **Tests first:** ranking (exact name beats hint match), several words, accents, the menu path of nested items,
 synonyms, commands without a key, greyed commands with a reason, an empty query shows nothing (or the recent
 commands). No DOM in the matching tests.
+
+---
+
+### WP76 — The timestamp: copy, edit, jump, and typed offsets (owner, 2026-10-19)
+
+Status: open. Owner: "double click on timestamp to edit it and jump to that point; single click to copy
+timestamp to system clipboard? kb shortcuts for moving forwards and backwards a certain time like in FCP, e.g.
++100 = forwards 100 seconds, and yes I know + is taken as a key but the functionality".
+- **The clock** (the big play-cursor time in the transport corner, `0:08,938`, and the Alku / Loppu / Pituus
+  readouts): single click copies the shown time to the system clipboard (a short "Copied" notice; the same text
+  as shown, with the dot or comma as the language uses); double click turns it into an edit field (all selected),
+  Enter jumps to that time and Esc cancels. Reuse the editable-readout pattern already used for gain and pan
+  (`ui/value-edit.js`, `editableReadout` in `ui/tracks.js`) and `parseTime` (`ui/time-parse.js`).
+- **Typed offsets, FCP style:** in that edit field, and in the Spot command (Cmd+J: jump to a typed time; see
+  `spot.py` and its UI), a number with a leading `+` or `-` is relative to the play cursor: `+100` jumps 100
+  seconds forward, `-30` 30 seconds back, `+1:30` 90 seconds forward (`parseOffset` already parses the sign).
+  The unit is seconds (a unit suffix `f` for frames or `ms` can be allowed if cheap). Clamp at 0 and at the end.
+  Typing `+` or `-` into the clock/Spot field must not trigger the zoom keys (`=` and `-` are zoom keys): while a
+  text field has focus keys type.
+- Same for the in and out readouts (Alku / Loppu): typed time sets the mark; a relative value moves the mark.
+- Strings in en and fi, a Help line, the menu/palette entry for "Copy the time" if a command is added (every
+  command in a menu), tests first for the parsing and the clamping (pure functions), no DOM in those tests.
+**Open:** whether the click-to-copy should be a separate small copy button instead of a single click (a single
+click also seems natural to start a drag of the readout nowhere, so it is safe here).
