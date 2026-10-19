@@ -302,7 +302,7 @@ def test_an_entry_remembers_its_source_track_names_by_slot():
     )
     got = make_entry(p, ["b1", "a1"], now=1000.0)  # not tc
     # Slot order is the project's track order; track() names a track by its id.
-    assert got.extra["tracks"] == ["ta", "tb"]
-    assert from_json(to_json(got)).extra["tracks"] == ["ta", "tb"]
+    assert got.tracks == ("ta", "tb")
+    assert from_json(to_json(got)).tracks == ("ta", "tb")
     ranged = make_entry_range(p, 0, 50, ["tc"], now=1000.0)
-    assert ranged.extra["tracks"] == ["tc"]
+    assert ranged.tracks == ("tc",)

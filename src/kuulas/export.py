@@ -290,11 +290,8 @@ def _settings(kind: str, remembered: dict | None, args: dict) -> dict[str, Any]:
 
 
 def _exported(project: Project, settings: dict) -> list[Track]:
-    """The tracks a track export writes. The stems for the automixer (WP68) leave
-    out ``speech-mix`` tracks: that kind is kuulas's own monitoring balance and
-    burn-in bus, which the automixer refuses. Every other export writes all."""
-    if settings.get("for_automixer"):
-        return [t for t in project.tracks if t.kind != "speech-mix"]
+    """The tracks a track export writes: all of them (buses are never stems)."""
+    del settings
     return list(project.tracks)
 
 

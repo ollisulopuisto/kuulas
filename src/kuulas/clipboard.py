@@ -59,6 +59,10 @@ class ClipRef:
     envelope: tuple[Point, ...] = ()
     rel_start: int = 0
     track_slot: int = 0
+    # The recording's file name when it was copied: for people reading the
+    # entry (panel, search), never an identity (that is ``media_sha256``), so
+    # it takes no part in comparing two references.
+    media_name: str = field(default="", compare=False)
     # Unknown keys a newer kuulas wrote (docs/FORMAT.md, "Unknown keys").
     extra: dict = field(default_factory=dict, hash=False)
 
@@ -73,6 +77,15 @@ class Entry:
     range when a range copy's edges were silent. ``source_project`` is the
     source project's folder (WP20's clipboard format), empty until the
     session wiring fills it in: the ``Project`` dataclass carries no path.
+
+    The rest is what later sorting and searching read (WP65), kept in the
+    entry so it still means something when its project is gone or far away:
+    ``source_name`` and ``source_id`` (the project's name and manifest id),
+    ``tracks`` and ``track_kinds`` (the source tracks' names and kinds by
+    slot), ``text`` (the transcript words inside the copied stretch, one line
+    per track), ``shared`` (marked as worth sharing across projects) and
+    ``adopted_from`` (the folder of the project an adopted copy came from).
+    Every one defaults, so an entry from before loads.
     """
 
     id: str
@@ -82,6 +95,13 @@ class Entry:
     span: tuple[int, int] = (0, 0)
     source_project: str = ""
     pinned: bool = False
+    source_name: str = ""
+    source_id: str = ""
+    tracks: tuple[str, ...] = ()
+    track_kinds: tuple[str, ...] = ()
+    text: str = ""
+    shared: bool = False
+    adopted_from: str = ""
     # Unknown keys a newer kuulas wrote (docs/FORMAT.md, "Unknown keys").
     extra: dict = field(default_factory=dict, hash=False)
 
@@ -105,6 +125,14 @@ def _sha256_of(project: Project, clip: Clip) -> str:
         return project.media_item(clip.media).sha256
     except KeyError:
         raise EditError("error.edit.no_media", media_id=clip.media) from None
+
+
+def _media_name(project: Project, clip: Clip) -> str:
+    """The file name of the recording behind a clip ("" when it has none)."""
+    try:
+        return project.media_item(clip.media).name
+    except KeyError:
+        return ""
 
 
 def _chosen_tracks(project: Project,
@@ -138,15 +166,17 @@ def _entry(project: Project, parts: list[_Part], name: str,
                  gain_db=part.clip.gain_db, pan=part.clip.pan,
                  fade_in=part.fade_in, fade_out=part.fade_out,
                  muted=part.clip.muted, envelope=part.clip.envelope,
-                 rel_start=part.start - base, track_slot=slots[part.track_id])
+                 rel_start=part.start - base, track_slot=slots[part.track_id],
+                 media_name=_media_name(project, part.clip))
          for part in parts),
         key=lambda ref: (ref.rel_start, ref.track_slot, ref.offset)))
     end = max(part.start + part.length for part in parts)
-    # The source tracks' names by slot, so the panel can say where a copy came
-    # from without the source project (an unknown key to older readers).
-    names = [track.name for track in project.tracks if track.id in touched]
+    # The source tracks' names and kinds by slot, so the panel can say where a
+    # copy came from without the source project.
+    source = [track for track in project.tracks if track.id in touched]
     return Entry(_new_id(moment), name, moment, refs=refs, span=(base, end),
-                 extra={"tracks": names})
+                 tracks=tuple(track.name for track in source),
+                 track_kinds=tuple(track.kind for track in source))
 
 
 def make_entry(project: Project, clip_ids: Iterable[str], *, name: str = "",
@@ -218,9 +248,10 @@ def make_entry_range(project: Project, start: int, end: int,
 # -- JSON --------------------------------------------------------------------
 
 _REF_KEYS = ("media_sha256", "offset", "length", "gain_db", "pan", "fade_in",
-             "fade_out", "muted", "envelope", "rel_start", "track_slot")
+             "fade_out", "muted", "envelope", "rel_start", "track_slot", "media_name")
 _ENTRY_KEYS = ("id", "name", "created_utc", "refs", "span", "source_project",
-               "pinned")
+               "pinned", "source_name", "source_id", "tracks", "track_kinds", "text",
+               "shared", "adopted_from")
 
 
 def _ref_out(ref: ClipRef) -> dict:
@@ -229,7 +260,8 @@ def _ref_out(ref: ClipRef) -> dict:
          "fade_in": ref.fade_in, "fade_out": ref.fade_out,
          "muted": ref.muted,
          "envelope": [[frame, db] for frame, db in ref.envelope],
-         "rel_start": ref.rel_start, "track_slot": ref.track_slot}
+         "rel_start": ref.rel_start, "track_slot": ref.track_slot,
+         "media_name": ref.media_name}
     # A known key always wins over an extra of the same name.
     return {**ref.extra, **d}
 
@@ -247,7 +279,11 @@ def _entry_out(entry: Entry) -> dict:
          "created_utc": entry.created_utc,
          "refs": [_ref_out(ref) for ref in entry.refs],
          "span": [entry.span[0], entry.span[1]],
-         "source_project": entry.source_project, "pinned": entry.pinned}
+         "source_project": entry.source_project, "pinned": entry.pinned,
+         "source_name": entry.source_name, "source_id": entry.source_id,
+         "tracks": list(entry.tracks), "track_kinds": list(entry.track_kinds),
+         "text": entry.text, "shared": entry.shared,
+         "adopted_from": entry.adopted_from}
     # A known key always wins over an extra of the same name.
     return {**entry.extra, **d}
 
@@ -257,8 +293,64 @@ def _entry_in(d: dict) -> Entry:
     known["refs"] = tuple(_ref_in(ref) for ref in known.get("refs", ()))
     if "span" in known:
         known["span"] = (int(known["span"][0]), int(known["span"][1]))
+    for key in ("tracks", "track_kinds"):
+        if key in known:
+            known[key] = tuple(str(item) for item in known[key])
     extra = {key: value for key, value in d.items() if key not in _ENTRY_KEYS}
     return Entry(**known, extra=extra)
+
+
+def entry_from_view(d: object) -> Entry:
+    """An entry from the dict the panel got from the API and sends back to adopt it.
+
+    The API view carries computed keys (``length``, ``clips``, ``missing_here``
+    ...) beside the data; only the keys an entry has are taken, the rest are
+    dropped, so a view never leaks into a file. Raises ``EditError``
+    (``error.clipboard.bad_entry``) when what is left is not a usable entry: no
+    references, or a reference without a SHA-256 recording, a non-negative offset
+    and a positive length."""
+    if not isinstance(d, dict):
+        raise EditError("error.clipboard.bad_entry")
+    refs = d.get("refs")
+    if not isinstance(refs, list) or not refs:
+        raise EditError("error.clipboard.bad_entry")
+    clean = []
+    for ref in refs:
+        if not isinstance(ref, dict):
+            raise EditError("error.clipboard.bad_entry")
+        digest = ref.get("media_sha256")
+        offset, length = ref.get("offset"), ref.get("length")
+        ints = all(isinstance(n, int) and not isinstance(n, bool)
+                   for n in (offset, length))
+        valid = isinstance(digest, str) and len(digest) == 64
+        ok = valid and ints and offset >= 0 < length
+        if not ok:
+            raise EditError("error.clipboard.bad_entry")
+        clean.append({key: ref[key] for key in _REF_KEYS if key in ref})
+    kept = {key: d[key] for key in _ENTRY_KEYS if key in d}
+    kept["refs"] = clean
+    if "id" not in kept:
+        kept["id"] = _new_id(time.time())
+    kept.setdefault("name", "")
+    kept.setdefault("created_utc", 0.0)
+    try:
+        return _entry_in(kept)
+    except (TypeError, KeyError, IndexError, AttributeError, ValueError):
+        raise EditError("error.clipboard.bad_entry") from None
+
+
+def adopted_copy(entry: Entry, *, from_project: str = "",
+                 now: float | None = None) -> Entry:
+    """``entry`` as this project's own copy: a new id, made now (so it is the
+    newest), not shared (the copy here is this project's own), and
+    ``adopted_from`` the project it came from. Its media are still looked for
+    where the original's were (``source_project``, or ``from_project`` when the
+    original did not say). The original's time is kept as ``adopted_created_utc``."""
+    moment = time.time() if now is None else float(now)
+    return replace(entry, id=_new_id(moment), created_utc=moment, shared=False,
+                   adopted_from=from_project or entry.source_project,
+                   source_project=entry.source_project or from_project,
+                   pinned=False, extra={"adopted_created_utc": entry.created_utc})
 
 
 def to_json(entry: Entry) -> str:
@@ -291,13 +383,15 @@ def prune_entries(entries: Iterable[Entry], max_unpinned: int) -> list[Entry]:
 class ClipboardHistory:
     """The clipboard's entries, newest first, kept as references.
 
-    ``max_entries`` limits the *unpinned* entries (``prune_entries``): adding
-    beyond it drops the oldest unpinned ones, a pinned entry is never
-    dropped, and pinned entries do not count toward the limit.
+    ``max_entries`` ``None`` (the default, and what the stores use) means no
+    limit: nothing is ever dropped silently (WP65). With a number, it limits
+    the *unpinned* entries (``prune_entries``): adding beyond it drops the
+    oldest unpinned ones, a pinned entry is never dropped. The only prune in
+    the app is the explicit "Clear old entries" (``prune``).
     """
 
-    def __init__(self, max_entries: int = 50) -> None:
-        self.max_entries = int(max_entries)
+    def __init__(self, max_entries: int | None = None) -> None:
+        self.max_entries = None if max_entries is None else int(max_entries)
         self._entries: list[Entry] = []
         # Unknown keys a newer kuulas wrote (docs/FORMAT.md, "Unknown keys").
         self.extra: dict = {}
@@ -305,7 +399,44 @@ class ClipboardHistory:
     def add(self, entry: Entry) -> None:
         """Add ``entry`` at the front, then prune the oldest unpinned."""
         self._entries.insert(0, entry)
-        self._entries = prune_entries(self._entries, self.max_entries)
+        if self.max_entries is not None:
+            self._entries = prune_entries(self._entries, self.max_entries)
+
+    def put(self, entry: Entry) -> None:
+        """Replace the entry with ``entry``'s id in place, or add it at the front."""
+        if any(item.id == entry.id for item in self._entries):
+            self._entries = [entry if item.id == entry.id else item
+                             for item in self._entries]
+        else:
+            self.add(entry)
+
+    def set_shared(self, entry_id: str, shared: bool) -> None:
+        """Mark an entry as shared (or not); the flag only, nothing moves."""
+        self._replace(entry_id, shared=bool(shared))
+
+    def merge(self, entries: Iterable[Entry]) -> int:
+        """Add the entries whose id is not here yet; return how many came in.
+        The list stays newest first (by ``created_utc``, ties keep their place)."""
+        have = {item.id for item in self._entries}
+        fresh = [item for item in entries if item.id not in have]
+        if fresh:
+            self._entries = sorted([*self._entries, *fresh],
+                                   key=lambda item: -item.created_utc)
+        return len(fresh)
+
+    def remove(self, entry_ids: Iterable[str]) -> int:
+        """Take the entries with these ids out; return how many were here."""
+        gone = set(entry_ids)
+        before = len(self._entries)
+        self._entries = [item for item in self._entries if item.id not in gone]
+        return before - len(self._entries)
+
+    def prune(self, keep: int) -> int:
+        """Drop the oldest unpinned entries beyond the newest ``keep`` (at
+        least one); return how many went. The explicit "Clear old entries"."""
+        before = len(self._entries)
+        self._entries = prune_entries(self._entries, keep)
+        return before - len(self._entries)
 
     def _find(self, entry_id: str) -> Entry:
         for item in self._entries:
@@ -326,7 +457,8 @@ class ClipboardHistory:
     def unpin(self, entry_id: str) -> None:
         """Let an entry be pruned again (and prune now if it is over the limit)."""
         self._replace(entry_id, pinned=False)
-        self._entries = prune_entries(self._entries, self.max_entries)
+        if self.max_entries is not None:
+            self._entries = prune_entries(self._entries, self.max_entries)
 
     def rename(self, entry_id: str, name: str) -> None:
         """Give an entry a new name."""
@@ -348,15 +480,17 @@ class ClipboardHistory:
 
     def to_json(self) -> str:
         """The whole history as clipboard JSON, entries newest first."""
-        d = {"max_entries": self.max_entries,
-             "entries": [_entry_out(entry) for entry in self._entries]}
+        d: dict = {"entries": [_entry_out(entry) for entry in self._entries]}
+        if self.max_entries is not None:
+            d["max_entries"] = self.max_entries
         return json.dumps({**self.extra, **d}, separators=(",", ":"))
 
     @classmethod
     def from_json(cls, text: str) -> ClipboardHistory:
         """The history in ``text``; unknown keys are kept and re-emitted."""
         d = json.loads(text)
-        history = cls(int(d.get("max_entries", 50)))
+        limit = d.get("max_entries")
+        history = cls(None if limit is None else int(limit))
         history._entries = [_entry_in(entry) for entry in d.get("entries", [])]
         history.extra = {key: value for key, value in d.items()
                          if key not in ("max_entries", "entries")}

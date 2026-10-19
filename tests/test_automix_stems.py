@@ -41,7 +41,7 @@ def session(tmp_path):
     s = build(tmp_path)
     tracks = s.state.tracks
     s.edit("set_track", {"track_id": tracks[2].id, "kind": "music", "name": "Theme"})
-    s.edit("set_track", {"track_id": tracks[3].id, "kind": "speech-mix", "name": "Room"})
+    s.edit("set_track", {"track_id": tracks[3].id, "name": "Room"})
     yield s
     s.close()
 
@@ -72,10 +72,10 @@ def test_manifest_satisfies_the_folder_routes_rules(session, tmp_path):
     assert automix.check_stems(folder) is None
 
 
-def test_speech_mix_tracks_are_not_exported_but_speech_and_music_are(session, tmp_path):
+def test_speech_and_music_tracks_are_exported(session, tmp_path):
     _folder, listing = stems(session, tmp_path)
     assert {t["kind"] for t in listing["tracks"]} == {"speech", "music"}
-    assert [t["name"] for t in listing["tracks"]] == ["Olli", "Maija", "Theme"]
+    assert [t["name"] for t in listing["tracks"]] == ["Olli", "Maija", "Theme", "Room"]
 
 
 def test_a_mono_music_file_is_exported_as_stereo(session, tmp_path):
@@ -88,7 +88,7 @@ def test_the_normal_tracks_export_still_has_every_track(session, tmp_path):
     args = session.tracks_export_args({"folder": str(tmp_path / "n")})
     result = export.run(session, args)
     listing = json.loads((Path(result["path"]) / "tracks.json").read_text("utf-8"))
-    assert {t["kind"] for t in listing["tracks"]} == {"speech", "speech-mix", "music"}
+    assert {t["kind"] for t in listing["tracks"]} == {"speech", "music"}
     assert len(listing["tracks"]) == 4
 
 
@@ -111,12 +111,8 @@ def test_check_stems_refuses_what_the_automixer_refuses(session, tmp_path, field
     assert field in e.value.params["detail"]
 
 
-def test_check_stems_refuses_speech_mix_and_mono_music(session, tmp_path):
+def test_check_stems_refuses_mono_music(session, tmp_path):
     folder, listing = stems(session, tmp_path)
-    listing["tracks"][0]["kind"] = "speech-mix"
-    (folder / "tracks.json").write_text(json.dumps(listing), encoding="utf-8")
-    with pytest.raises(automix.AutomixError):
-        automix.check_stems(folder)
     listing["tracks"][0]["kind"] = "music"  # a mono file claimed to be music
     (folder / "tracks.json").write_text(json.dumps(listing), encoding="utf-8")
     with pytest.raises(automix.AutomixError):

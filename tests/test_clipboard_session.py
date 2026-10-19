@@ -10,7 +10,7 @@ import soundfile as sf
 from fastapi.testclient import TestClient
 
 from kuulas import messages, transcript
-from kuulas.clipboard_store import ClipboardStore, default_path
+from kuulas.clipboard_store import ClipboardStore
 from kuulas.ops import EditError
 from kuulas.server import create_app
 from kuulas.session import Session
@@ -51,12 +51,20 @@ def ids(project):
     return a, b
 
 
+def hand_over(source, target, entry_id):
+    """Put one of ``source``'s entries on ``target``'s own clipboard, as adopting it
+    does (the clipboard is per project since WP65)."""
+    found = source.clipboard.load().get(entry_id)
+    target.clipboard.update(lambda h: h.add(found))
+
+
 def history_len(s):
     return len(s.history.nodes())
 
 
-def entries(s=None):
-    return ClipboardStore(default_path()).load().entries()
+def entries(s):
+    """The entries of the project's own clipboard (WP65)."""
+    return s.clipboard.load().entries()
 
 
 def test_copy_then_paste_on_the_same_tracks_reproduces_the_clips(session):
@@ -165,6 +173,7 @@ def test_media_the_project_lacks_are_reported_not_raised(tmp_path, files, sessio
         other.import_media([str(tmp_path / "same-as-a.wav"),
                             str(wav(tmp_path / "c.wav", 3))])
         before = clips(other.state)
+        hand_over(session, other, entry["id"])
         result = other.clipboard_paste(entry["id"], at=200_000, mode="overwrite")
         assert result["missing"] == [sha_b]
         assert result["placed"] == 1
@@ -184,6 +193,7 @@ def test_nothing_placeable_commits_nothing(tmp_path, session, files):
     try:
         other.import_media([str(wav(tmp_path / "c.wav", 3))])
         nodes = history_len(other)
+        hand_over(session, other, entry["id"])
         result = other.clipboard_paste(entry["id"], at=0, mode="insert")
         assert result == {"placed": 0, "missing": [sha], "entry": entry["id"]}
         assert history_len(other) == nodes
@@ -203,7 +213,7 @@ def test_unknown_entry_and_mode_are_errors(session):
 def test_copy_with_nothing_selected_is_an_error(session):
     with pytest.raises(EditError):
         session.clipboard_copy(clip_ids=[])
-    assert entries() == ()
+    assert entries(session) == ()
 
 
 def test_cut_copies_then_removes_with_ripple_in_one_step(session):
@@ -214,7 +224,7 @@ def test_cut_copies_then_removes_with_ripple_in_one_step(session):
     assert history_len(session) == nodes + 1
     assert [c[2:] for c in clips(session.state) if c[0] == "a"] == [
         (0, 0, 10_000), (10_000, 30_000, 66_000)]
-    [kept] = entries()
+    [kept] = entries(session)
     assert kept.id == out["clipboard"]["entry"]
     assert len(kept.refs) == 2
     assert kept.span == (10_000, 30_000)
@@ -242,35 +252,32 @@ def test_cut_of_nothing_copyable_still_cuts_and_says_so(session):
     out = session.clipboard_cut(start=500_000, end=600_000, track_ids=[a.id])
     assert out["clipboard"]["ok"] is False
     assert out["clipboard"]["error"]
-    assert entries() == ()
+    assert entries(session) == ()
 
 
 def test_backspace_never_touches_the_clipboard(session):
     a, _ = ids(session.state)
     session.clipboard_copy(clip_ids=[a.clips[0].id])
-    before = ClipboardStore(default_path()).path.read_text(encoding="utf-8")
+    before = session.clipboard.path.read_text(encoding="utf-8")
     session.edit("mute_range", {"start": 0, "end": 1000, "track_ids": [a.id]})
     session.edit("set_clips", {"clip_ids": [a.clips[0].id], "muted": True})
-    assert ClipboardStore(default_path()).path.read_text(encoding="utf-8") == before
+    assert session.clipboard.path.read_text(encoding="utf-8") == before
 
 
 def test_a_damaged_clipboard_file_lists_empty_and_copy_repairs_it(session):
-    default_path().write_text("{oops", encoding="utf-8")
+    session.clipboard.path.write_text("{oops", encoding="utf-8")
     assert session.clipboard_list() == []
     a, _ = ids(session.state)
     session.clipboard_copy(clip_ids=[a.clips[0].id])
     assert len(session.clipboard_list()) == 1
 
 
-def test_the_history_is_shared_between_sessions_and_restarts(tmp_path, session):
+def test_each_project_has_its_own_history(tmp_path, session):
     a, _ = ids(session.state)
-    entry = session.clipboard_copy(clip_ids=[a.clips[0].id], name="Anna")["entry"]
+    session.clipboard_copy(clip_ids=[a.clips[0].id], name="Anna")
     other = Session(tmp_path / "Two.kuulas")
     try:
-        [seen] = other.clipboard_list()
-        assert seen["id"] == entry["id"]
-        assert seen["name"] == "Anna"
-        assert seen["missing_here"] == 1  # Two has none of that audio yet
+        assert other.clipboard_list() == []  # WP65: not shared unless marked
     finally:
         other.close()
 
@@ -523,6 +530,7 @@ def test_nothing_ripples_when_everything_is_missing(tmp_path, session, files):
         other.import_media([str(wav(tmp_path / "d.wav", 4)),
                             str(wav(tmp_path / "e.wav", 5))])
         before = other.state
+        hand_over(session, other, entry["id"])
         other.clipboard_paste(entry["id"], at=100, mode="insert", group_editing=True)
         assert other.state == before
     finally:
@@ -540,11 +548,11 @@ def test_copying_a_words_stretch_then_cut_words_is_one_entry_and_one_undo_step(s
     index = next(i for i, w in enumerate(words) if w["w"] == "two")
     start, end = transcript.cut_range(words, [index])
     tracks = [t.id for t in session.state.tracks]
-    before_entries, before_steps = len(entries()), history_len(session)
+    before_entries, before_steps = len(entries(session)), history_len(session)
     session.clipboard_copy(start=start, end=end, track_ids=tracks, group_editing=False)
     assert history_len(session) == before_steps
     session.command("cut_words", {"indices": [index]})
-    assert len(entries()) == before_entries + 1
+    assert len(entries(session)) == before_entries + 1
     assert history_len(session) == before_steps + 1
 
 
@@ -573,7 +581,7 @@ def test_lift_cut_copies_and_mutes_in_place_in_one_step(session):
     after = session.state
     assert [(c.start, c.length, c.muted) for c in after.tracks[0].clips] == [
         (0, 10_000, False), (10_000, 20_000, True), (30_000, 66_000, False)]
-    [kept] = entries()
+    [kept] = entries(session)
     assert kept.id == out["clipboard"]["entry"]
     assert kept.span == (10_000, 30_000)
     label = session.history.nodes()[-1]["label"]
@@ -602,7 +610,7 @@ def test_api_lift_cut_goes_through_edit(client, session):
                  "group_editing": False}})
     assert out.status_code == 200
     assert out.json()["clipboard"]["ok"] is True
-    assert len(entries()) == 1
+    assert len(entries(session)) == 1
 
 
 # -- pasting into another project: the media are linked on paste ----------------
@@ -624,6 +632,7 @@ def test_pasting_into_another_project_links_the_recording_from_where_it_lives(
     assert sha not in {m.sha256 for m in other.state.media}
     media_before = len(other.state.media)
     head = history_len(other)
+    hand_over(session, other, entry["id"])
     result = other.clipboard_paste(entry["id"], at=0, mode="overwrite")
     assert result["placed"] == 1
     assert result["missing"] == []
@@ -643,6 +652,7 @@ def test_a_recording_that_has_gone_is_reported_missing_not_an_error(
     entry = session.clipboard_copy(clip_ids=[a.clips[0].id])["entry"]
     files[0].unlink()
     before = other.state
+    hand_over(session, other, entry["id"])
     result = other.clipboard_paste(entry["id"], at=0, mode="insert")
     assert result["placed"] == 0
     assert len(result["missing"]) == 1
@@ -653,6 +663,7 @@ def test_a_file_changed_since_is_not_linked(session, other, files):
     a, _ = ids(session.state)
     entry = session.clipboard_copy(clip_ids=[a.clips[0].id])["entry"]
     wav(files[0], 99)  # same name, different bytes
+    hand_over(session, other, entry["id"])
     result = other.clipboard_paste(entry["id"], at=0, mode="insert")
     assert result["placed"] == 0
     assert len(result["missing"]) == 1
