@@ -1,3 +1,8 @@
+## [v26.10.20.6] - 2026-10-20
+
+- **Automixer log kept:** every automix run now writes `<mix> log.txt` beside the mix (version, time, project, the full command and the automixer's output, so lines like "beds: loudest -xx LUFS, speech -yy -> beds +z dB" can be read afterwards); a failed run writes `... FAILED log.txt`. The finished notice has a "Show log" button and shows the beds/mastered lines.
+- **A crashed analysis process no longer runs inside the app.** When the separate analysis process died (for instance killed by macOS for memory), the whole analysis was run in the app itself with no memory limit, which could bring back the memory blow-up. Now a crash is an error with back-off (exit code and signal named, a memory kill is flagged in the log); the in-app run is only used when the process cannot be started at all, one at a time, and refused when the app already uses more than 3 GB.
+
 ## [v26.10.20.5] - 2026-10-20
 
 - **Memory stays small on long projects.** A 5-track, 90-minute project now needs about 1.1 GB in the editor and under 0.6 GB in the analysis process, however long it is (measured with synthetic projects; before, a long project could take 2-3 GB per process and swap the Mac to death). Playback, peaks, loudness, Auto-Silence and export read the audio in blocks and no longer keep a copy; analysis stops cleanly above a memory ceiling; canvases are size-capped. A mastered export is refused before it starts when it would need more than half the memory (about 55 minutes of stereo on a 24 GB Mac); the automixer itself still loads whole stems (its own code, see ROADMAP).
