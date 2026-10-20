@@ -173,8 +173,7 @@ Not released yet (branches above): track highlight follows the click; Alt+1 to A
   badge next to those options. Needs from the podcast repo: `--bed-under-speech-db` (requested in PODCAST-MAGIC.md) and a
   'keep the stem level for beds' switch. DSP (debleed, de-smack, EQ, compressors) stays in the automixer.
 - **Smaller project folders** (owner data 2026-10-20: 1.1 GB = backups 862 MB, caches 139 MB, history 112 MB): compressed
-  and size-capped backups plus a size breakdown in Statistics (building); later: option to keep backups outside synced
-  folders; history compaction up to a saved version, with unreferenced recorded takes archived, never deleted silently
+  and size-capped backups plus a size breakdown in Statistics (building); later: history compaction up to a saved version, with unreferenced recorded takes archived, never deleted silently
   (rule 17); decisions pending: archive vs delete default, trigger (offer when a version is marked complete + manual
   command + warning above 2 GB).
 - **Quick mute for lip smacks** (owner request 2026-10-20, QoL, not started): two forms, both one key. (1) "Mute
