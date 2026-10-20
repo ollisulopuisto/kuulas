@@ -10,7 +10,12 @@ import { effective } from "./fast-speed.js";
 import { activeLoop } from "./loop-range.js";
 import { press } from "./shuttle.js";
 
-export function createTransport({ post, getState, setState, onError }) {
+/**
+ * `freeze()` (optional): the playhead clock stops now and gives the frame it shows, so a
+ * stop shows at once (the engine's answer then lands it on the heard frame); `settle(status)`
+ * hands every stopped answer to the clock; `jump(frame)` moves it for a seek while playing.
+ */
+export function createTransport({ post, getState, setState, onError, freeze, settle, jump }) {
   // Quick J/K/L presses arrive before the engine has answered the last one: the ladder
   // climbs from the speed asked for (`intended`), and the requests go out in order.
   let intended = null;
@@ -27,6 +32,7 @@ export function createTransport({ post, getState, setState, onError }) {
         ? post(action, at, until, skip, options)
         : post(action, at, until, skip));
       if (mine !== null && mine !== seekSeq) return; // a newer seek is on its way
+      if (!status.playing) settle?.(status);
       setState({
         playing: status.playing,
         playhead: status.position,
@@ -38,6 +44,11 @@ export function createTransport({ post, getState, setState, onError }) {
   }
   // Normal play carries the loop while it is on and has a range (WP50), and the fast
   // listening speed while that is on (WP26: the engine keeps the pitch).
+  /** Stop: the cursor stops at once where it is drawn, before the engine answers. */
+  const stopNow = () => {
+    if (freeze && getState().playing) setState({ playhead: freeze(), playing: false, speed: 1 });
+    return run("stop");
+  };
   const playOptions = () => {
     const state = getState();
     const loop = activeLoop(state);
@@ -48,7 +59,7 @@ export function createTransport({ post, getState, setState, onError }) {
   return {
     toggle() {
       const { playing, playhead } = getState();
-      return playing ? run("stop") : run("play", playhead, null, null, playOptions());
+      return playing ? stopNow() : run("play", playhead, null, null, playOptions());
     },
     play: (at) => run("play", at, null, null, playOptions()),
     /**
@@ -62,7 +73,7 @@ export function createTransport({ post, getState, setState, onError }) {
       if (!playing || speed !== (state.fast ? effective(state.fast) : 1)) return Promise.resolve();
       return run("play", playhead, null, null, playOptions());
     },
-    stop: () => run("stop"),
+    stop: () => stopNow(),
     /**
      * Fast listening was switched on or off, or its speed nudged. Playing: a switch restarts
      * from the playhead at the new speed; a nudge while fast is on changes the speed of the
@@ -90,7 +101,7 @@ export function createTransport({ post, getState, setState, onError }) {
      * 0 stops. The pitch follows the speed: the engine does not keep it yet.
      */
     shuttle(speed) {
-      if (speed === 0) return run("stop");
+      if (speed === 0) return stopNow();
       const { playhead } = getState();
       return run("play", playhead, null, null, { speed, preserve_pitch: false });
     },
@@ -105,7 +116,7 @@ export function createTransport({ post, getState, setState, onError }) {
     },
     /** The key was let go: stop where the audio is (the answer sets the playhead). */
     slowStop() {
-      const next = queue.then(() => run("stop"));
+      const next = queue.then(() => stopNow());
       queue = next.catch(() => {});
       return next;
     },
@@ -127,6 +138,7 @@ export function createTransport({ post, getState, setState, onError }) {
     seek(frame) {
       const at = Math.max(0, Math.round(frame));
       seekSeq += 1;
+      if (getState().playing) jump?.(at); // the drawn cursor moves now, playing on from there
       setState({ playhead: at });
       return run("seek", at, null, null, null, seekSeq);
     },

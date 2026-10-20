@@ -11,13 +11,14 @@ export function reconnectDelay(attempt) {
 }
 
 /**
- * Connect and keep connected. The environment is injectable for tests.
+ * Connect and keep connected. `onOpen(send)` gets a sender for each new connection. The environment is injectable for tests.
  * Returns a function that closes the channel for good.
  */
 export function connectLive({
   url,
   onMessage,
   onStatus,
+  onOpen = () => {},
   WebSocketImpl = globalThis.WebSocket,
   setTimer = (fn, ms) => setTimeout(fn, ms),
   clearTimer = (id) => clearTimeout(id),
@@ -33,6 +34,12 @@ export function connectLive({
     socket.addEventListener("open", () => {
       attempt = 0;
       onStatus("open");
+      const open = socket;
+      // A sender for this connection (pings for the playhead clock's offset).
+      onOpen((message) => {
+        if (open.readyState === undefined || open.readyState === 1)
+          open.send(JSON.stringify(message));
+      });
     });
     socket.addEventListener("message", (event) => {
       let message;

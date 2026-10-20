@@ -20,7 +20,17 @@ Decoding ahead is done by the helper thread (prefetch), not the callback.
 **Display follows the ear.** ``status()["position"]`` is the frame being
 *heard*: what was rendered, minus what is still queued in the resampler and
 in the device (``stream.latency``). The playhead, transcript highlight and
-meters use it, so they do not run 20-45 ms ahead of the sound.
+meters use it, so they do not run 20-45 ms ahead of the sound. It comes
+with ``t``, the monotonic time it is heard at (the callback that produced it,
+or later when the run's first frames are still in the device), and ``seq``,
+which changes with every transport change: the browser extrapolates the
+playhead from that anchor every animation frame (``ui/playhead-clock.js``).
+
+**Stop means silence now.** Stopping, or jumping elsewhere while playing,
+aborts the stream so what the device has queued (a block plus the device's
+own lead, about 36 ms) is never heard, and starts it again for the next play
+(``_park``/``_wake``; starting a parked stream costs 4-10 ms, opening one far
+more). ``docs/PLAYBACK-LATENCY.md`` has the measurements.
 
 **Fail soft** (ground rule 13). The callback catches everything: a failing
 block plays silence and is counted. A media chunk that cannot be decoded
@@ -63,7 +73,7 @@ import numpy as np
 import sounddevice as sd
 import soxr
 
-from . import diag, meter, preview_level
+from . import diag, latency, meter, preview_level
 from .media import CHUNK_SEC
 from .messages import KuulasError, t
 from .model import Project
@@ -85,6 +95,18 @@ BLOCKSIZE = 1024
 #: The buffer late blocks raise it to (about 43 ms). WP23a will also use it
 #: when the CPU meter shows sustained load over 60 %.
 SAFE_BLOCKSIZE = 2048
+#: The PortAudio latency asked for, and what late blocks raise it to (with
+#: ``SAFE_BLOCKSIZE``). On Core Audio the block size sets the buffer and the two
+#: give the same figures (measured 2026-10-20: 34.8 ms at 1024 frames, 56.7 ms
+#: at 2048, either way); other host APIs size their buffers by it.
+LATENCY = "low"
+SAFE_LATENCY = "high"
+#: A play or seek while playing that lands further than this from the heard
+#: frame drops the queued audio (the stream is aborted and started again).
+#: Nearer (a nudge, a J/K/L speed change in place) it plays on: the abort
+#: blocks for about 100 ms in PortAudio's Core Audio code, and a gap that long
+#: is worse than 36 ms of audio from nearly the same place.
+JUMP_FLUSH_S = 0.05
 #: The helper thread's period: prefetch, watchdog, device checks, notices.
 TICK_S = 0.25
 #: How far ahead the helper thread decodes media.
@@ -379,6 +401,16 @@ class Engine:
         self._late = 0
         self._late_times: deque = deque(maxlen=64)
         self._last_callback = clock()
+        #: The latency numbers (latency.py): when the recent callbacks ran, and
+        #: how far ahead of each its first frame reached the converter.
+        self._cb_times: deque = deque(maxlen=128)
+        self._dac_leads: deque = deque(maxlen=128)
+        #: The transport's version: changes with every play, seek, stop, speed
+        #: change and run that ends by itself (the browser drops older anchors).
+        self._seq = 0
+        #: When the frames counted in ``_out`` were last brought up to date (the
+        #: callback that rendered them, or the start of the run).
+        self._out_at = clock()
 
         # Control side (API threads and the helper thread), under _ctl.
         self._ctl = threading.RLock()
@@ -386,6 +418,12 @@ class Engine:
         self._device_name = ""
         self._dev_rate = self.rate
         self._latency_frames = 0
+        self._latency_setting = LATENCY
+        self._stream_latency = 0.0
+        #: Stopped by ``_park`` (aborted on purpose, kept for the next play), and
+        #: how many finished callbacks our aborts still owe.
+        self._parked = False
+        self._aborts_pending = 0
         self._expect_finish = False
         self._died = False
         self._last_active = clock()
@@ -481,6 +519,7 @@ class Engine:
         skip_list = normalise_skip(skip, 0, _FAR)
         loop_range = self._check_loop(loop, skip_list, speed)
         with self._ctl:
+            self._wake()  # stopped by us: start again (cheap), or closed if it will not
             if self._stream is not None and (self._died or not self._stream.active):
                 self._close_stream()  # died since the last tick: open afresh
             if self._stream is None:
@@ -489,10 +528,12 @@ class Engine:
             with self._tlock:
                 gen, run = self._gen, self._run
                 continuing = at is None and self._playing
+                heard = self._heard() if self._playing else None
                 if continuing:
                     start = self._heard()
                 else:
                     start = self._anchor if at is None else max(0, int(at))
+                jump = heard is not None and abs(start - heard) > JUMP_FLUSH_S * self.rate
                 # Same speed (forward) and skip list, only a new end: the
                 # run goes on with nothing re-queued, as before skips.
                 same = (continuing and run is not None and speed > 0
@@ -521,13 +562,21 @@ class Engine:
                 self._gc_frozen = True
             if not keep:  # the first blocks must find their audio cached
                 self._read_ahead(new, 0, WARM_S, evict=False)
+            flush = jump and not keep
+            if flush:  # what the device queued from the old place must not be heard
+                self._park()
             with self._tlock:
                 if keep and self._gen == gen and self._playing:
                     self._run = new
+                    self._seq += 1
                 else:
                     self._start_run(start, new)
                 self._until = until
                 self._playing = True
+            if flush:
+                self._wake()
+                if self._stream is None:
+                    self._open_or_pause()
             self._last_active = self._clock()
             self._last_callback = self._clock()
             self._start_thread()
@@ -543,17 +592,24 @@ class Engine:
             if not (self._playing and run is not None and run.stretch):
                 return False
             self._stretch_rate = speed
+            self._seq += 1
         return True
 
     def stop(self) -> None:
         """Stop where the sound was: the playhead stays at the heard frame
-        (after a preview: where it was before it)."""
-        self._end_preview()
-        with self._ctl, self._tlock:
-            if self._playing:
-                self._start_run(self._heard())
-                self._playing = False
-            self._last_active = self._clock()
+        (after a preview: where it was before it), and nothing the device
+        still had queued is heard (``_park``)."""
+        with self._ctl:
+            with self._tlock:
+                was = self._playing
+            self._end_preview()
+            with self._tlock:
+                if self._playing:
+                    self._start_run(self._heard())
+                    self._playing = False
+                self._last_active = self._clock()
+            if was:
+                self._park()
 
     def seek(self, frame: int) -> None:
         """Move the playhead; playback, if on, continues from there at the
@@ -567,8 +623,18 @@ class Engine:
             run.skip, run.loop, run.stretch)
         if new is not None:
             self._read_ahead(new, 0, WARM_S, evict=False)
-        with self._tlock:
-            self._start_run(frame, new)
+        with self._ctl:
+            with self._tlock:
+                far = JUMP_FLUSH_S * self.rate
+                jump = self._playing and abs(frame - self._heard()) > far
+            if jump:  # the old place's queued audio must not be heard
+                self._park()
+            with self._tlock:
+                self._start_run(frame, new)
+            if jump:
+                self._wake()
+                if self._stream is None:
+                    self._open_or_pause()
 
     def scrub(self, frame: int) -> None:
         """Let the user hear where ``frame`` is: while playing, a seek; when
@@ -601,7 +667,12 @@ class Engine:
         with self._tlock:
             playing, until, run = self._playing, self._until, self._run
             position = self._heard() if playing else self._anchor
+            heard_at = self._heard_at() if playing else self._clock()
+            seq, length = self._seq, self._project.length
         live = run if playing and run is not None else None
+        end = None
+        if live is not None and live.loop is None:
+            end = until if until is not None else (length if live.speed > 0 else 0)
         with self._ctl:
             debug = self._debug_numbers((0, 0, 0, 0))[0] if self._probe else None
             notices = [{"id": n["id"], "key": n["key"], "params": n["params"],
@@ -610,6 +681,9 @@ class Engine:
                 "playing": playing,
                 "preview": self._preview,
                 "position": int(position),
+                "t": heard_at,
+                "seq": seq,
+                "end": end,
                 "until": until,
                 "speed": ((self._stretch_rate if live.stretch else live.speed)
                           if live else 1.0),
@@ -624,8 +698,14 @@ class Engine:
                 "late_blocks": self._late,
                 "damaged": sorted(self._store.damaged),
                 "notices": notices,
+                "latency": latency.report(
+                    setting=self._latency_setting, stream_latency_s=self._stream_latency,
+                    blocksize=self._blocksize, device_rate=self._dev_rate,
+                    callback_times=list(self._cb_times),
+                    dac_leads=list(self._dac_leads)),
             }
             if debug is not None:
+                debug["latency"] = out["latency"]
                 out["debug"] = debug
             return out
 
@@ -662,18 +742,33 @@ class Engine:
         self._fed = self._out = 0
         self._acc = 0.0
         self._gen += 1
+        self._seq += 1
+        self._out_at = self._clock()
 
-    def _played(self) -> int:
-        """Frames of the run's played timeline that have reached the ear:
-        device frames since the anchor, at |speed| x the project rate, minus
-        the device's output latency (which holds that much more)."""
+    def _played_raw(self) -> tuple[float, float]:
+        """Frames of the run's played timeline that have reached the ear (below
+        zero: still on their way) and the played frames per second: device frames
+        since the anchor, at |speed| x the project rate, minus the device's output
+        latency (which holds that much more)."""
         run = self._run
         if run is not None and run.stretch:
             live = self._stretch_rate
-            return max(0, round(self._acc - self._latency_frames * live))
+            return self._acc - self._latency_frames * live, live * self.rate
         speed = abs(run.speed) if run is not None else 1.0
         played = self._out * speed * self.rate / self._dev_rate
-        return max(0, round(played - self._latency_frames * speed))
+        return played - self._latency_frames * speed, speed * self.rate
+
+    def _played(self) -> int:
+        return max(0, round(self._played_raw()[0]))
+
+    def _heard_at(self) -> float:
+        """When the heard frame was the one ``_heard`` says: the last update of
+        the counters, or later if the run's first frame has not reached the ear
+        yet (the browser then holds the playhead until it has)."""
+        played, per_second = self._played_raw()
+        if played >= 0 or per_second <= 0:
+            return self._out_at
+        return self._out_at - played / per_second
 
     def _heard(self) -> int:
         """The programme frame at the listener's ear: the played frame mapped
@@ -762,12 +857,16 @@ class Engine:
 
     # -- the audio thread ------------------------------------------------------
 
-    def _callback(self, outdata, frames, _time, status) -> None:
+    def _callback(self, outdata, frames, time_info, status) -> None:
         """PortAudio's callback. Never raises: a failing block is silence."""
         now = self._clock()
         self._last_callback = now
+        self._cb_times.append(now)
         probe = self._probe
         try:
+            lead = latency.dac_lead(time_info)
+            if lead is not None:
+                self._dac_leads.append(lead)
             if status.output_underflow:
                 self._late += 1
                 self._late_times.append(now)
@@ -775,7 +874,7 @@ class Engine:
             cpu = time.thread_time() if probe is not None else 0.0
             if probe is not None:
                 probe.acc = 0.0
-            block = self._render(frames)
+            block = self._render(frames, now)
             rendered = time.perf_counter()
             outdata[:] = block
             self._measure(block)
@@ -824,8 +923,9 @@ class Engine:
                 "hold_l": self._hold_l.update(left, now),
                 "hold_r": self._hold_r.update(right, now)}
 
-    def _render(self, frames: int) -> np.ndarray:
-        """``(frames, 2)`` float32 at the device rate: the next block to play."""
+    def _render(self, frames: int, now: float | None = None) -> np.ndarray:
+        """``(frames, 2)`` float32 at the device rate: the next block to play.
+        ``now``: when the callback asking for it ran (the heard frame's time)."""
         out = np.zeros((frames, 2), dtype=np.float32)
         with self._tlock:
             playing, gen, fed, run = self._playing, self._gen, self._fed, self._run
@@ -902,10 +1002,12 @@ class Engine:
             if gen == self._gen:  # no seek or stop meanwhile
                 self._fed = fed
                 self._out += take
+                self._out_at = self._clock() if now is None else now
                 if run.stretch:  # programme frames heard, at the live speed
                     self._acc += take * self._stretch_rate * self.rate / self._dev_rate
                 if done:
                     self._playing = False
+                    self._seq += 1
                     self._anchor = (plan.final(project.length) if run.speed > 0
                                     else plan.lo)
                     self._fed = self._out = 0
@@ -934,8 +1036,57 @@ class Engine:
     def _finished(self) -> None:
         """PortAudio's finished callback: the stream stopped. Unless we
         stopped it, the device went away."""
+        if self._aborts_pending > 0:  # ``_park``'s abort (it may report late)
+            self._aborts_pending -= 1
+            return
         if not self._expect_finish:
             self._died = True
+
+    def _park(self) -> None:
+        """Abort the stream so nothing it has queued is heard; ``_wake`` starts
+        it again. Caller holds ``_ctl`` and not ``_tlock`` (the abort waits for a
+        running callback, which takes ``_tlock``). Measured on Core Audio
+        (2026-10-20): the abort returns after about 105 ms (PortAudio polls the
+        unit in 100 ms sleeps after stopping it; the sound ends at the stop),
+        a start takes 4-10 ms."""
+        stream = self._stream
+        if stream is None or self._parked or not stream.active:
+            return
+        self._aborts_pending += 1
+        try:
+            stream.abort()
+        except sd.PortAudioError as exc:
+            self._aborts_pending -= 1
+            log.warning(t("log.engine.abort_failed", error=str(exc)))
+            return
+        self._parked = True
+
+    def _wake(self) -> None:
+        """Start a parked stream again. One that will not start is closed, and
+        the caller opens a new one."""
+        stream = self._stream
+        if stream is None or not self._parked:
+            return
+        self._parked = False
+        self._died = False
+        self._last_callback = self._clock()
+        try:
+            stream.start()
+        except sd.PortAudioError as exc:
+            log.warning(t("log.engine.start_failed", error=str(exc)))
+            self._close_stream()
+
+    def _open_or_pause(self) -> None:
+        """Open a stream for a run already playing; with no device, pause and
+        say so (the request that jumped has nothing to raise to)."""
+        try:
+            self._open(refresh=True)
+        except EngineError as exc:
+            with self._tlock:
+                self._playing = False
+                self._seq += 1
+            self._notify(exc.key, **exc.params)
+            log.warning(str(exc))
 
     # -- the stream (caller holds _ctl) ------------------------------------------
 
@@ -961,7 +1112,8 @@ class Engine:
         name = str(info.get("name", ""))
         own_rate = round(float(info.get("default_samplerate") or self.rate))
         kwargs = {"channels": 2, "dtype": "float32", "blocksize": self._blocksize,
-                  "latency": "high", "device": device, "callback": self._callback,
+                  "latency": self._latency_setting, "device": device,
+                  "callback": self._callback,
                   "finished_callback": self._finished}
         try:
             stream = sd.OutputStream(samplerate=self.rate, **kwargs)
@@ -990,6 +1142,10 @@ class Engine:
         self._fifo_gen = -1  # the new stream starts with an empty queue
         self._device_name = name
         self._latency_frames = round(float(stream.latency) * self.rate)
+        self._stream_latency = float(stream.latency)
+        self._cb_times.clear()
+        self._dac_leads.clear()
+        self._parked = False
         self._expect_finish = False
         self._died = False
         self._last_callback = self._clock()
@@ -1007,6 +1163,7 @@ class Engine:
 
     def _close_stream(self) -> None:
         stream, self._stream = self._stream, None
+        self._parked = False
         if stream is None:
             return
         if self._saved_switch is not None:
@@ -1112,7 +1269,7 @@ class Engine:
                 playing = self._playing
             stream = self._stream
             if stream is not None:
-                if self._died or not stream.active:
+                if self._died or (not stream.active and not self._parked):
                     self._reopen(resume=False, key="notice.engine.device_changed")
                 elif playing and now - self._last_callback > WATCHDOG_S:
                     self._reopen(resume=True, key="notice.engine.restarted")
@@ -1135,13 +1292,14 @@ class Engine:
         heaviest real-time layer comes with WP23a; there are none yet."""
         self._last_escalation = now
         self._late_times.clear()
-        if self._blocksize < SAFE_BLOCKSIZE:
+        if self._blocksize < SAFE_BLOCKSIZE or self._latency_setting != SAFE_LATENCY:
             if self._probe is not None:
                 numbers = self._debug_numbers((0, 0, 0, 0), self._blocksize)[0]
                 diag.emit(diag.format_raise(
                     self._blocksize, SAFE_BLOCKSIZE, self._late,
                     numbers["cb_max_ms"], numbers["block_ms"]))
-            self._blocksize = SAFE_BLOCKSIZE
+            self._blocksize = max(self._blocksize, SAFE_BLOCKSIZE)
+            self._latency_setting = SAFE_LATENCY
             self._reopen(resume=True, key="notice.engine.struggling")
         else:
             self._notify("notice.engine.struggling", device=self._device_name,

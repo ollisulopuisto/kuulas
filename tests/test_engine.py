@@ -230,7 +230,9 @@ def test_stream_opens_stereo_float_with_a_1024_frame_buffer_at_the_project_rate(
     engine.play(0)
     kw = rig.stream.kwargs
     assert (kw["samplerate"], kw["channels"], kw["dtype"]) == (RATE, 2, "float32")
-    assert (kw["blocksize"], kw["latency"]) == (1024, "high")
+    # "low" first (precise cursor, 2026-10-20); late blocks raise it to "high"
+    # (test_engine_anchor.py)
+    assert (kw["blocksize"], kw["latency"]) == (1024, "low")
     assert rig.stream.active
     assert engine.status()["blocksize"] == 1024
 

@@ -173,10 +173,10 @@ export function serverPatch(response, state = null) {
 export function reduceLive(state, message) {
   const out = { patch: {}, refresh: false };
   switch (message.type) {
-    case "position":
-      out.patch = { playhead: message.position, playing: message.playing };
-      // Playback ended (reverse reached the start, or a stop from elsewhere): 1x again.
-      if (!message.playing) out.patch.speed = 1;
+    case "anchor":
+      // The playhead clock (playhead-clock.js) decides whether it is current; the app
+      // then applies anchorPatch.
+      out.anchor = message;
       break;
     case "state_changed":
     case "hello":
@@ -194,4 +194,15 @@ export function reduceLive(state, message) {
     default:
   }
   return out;
+}
+
+/**
+ * What an accepted playhead anchor does to the state. While playing the playhead in the
+ * state follows the clock's extrapolation (app.js), not the anchor; stopped, the anchor's
+ * frame is where the engine stopped. Playback ended (reverse reached the start, or a stop
+ * from elsewhere): 1x again.
+ */
+export function anchorPatch(message) {
+  if (message.playing) return { playing: true };
+  return { playhead: message.position, playing: false, speed: 1 };
 }

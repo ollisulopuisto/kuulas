@@ -100,6 +100,7 @@ import { monoDecision, monoEdits } from "./mono-ask.js";
 import { motionMode } from "./motion.js";
 import { createOverview } from "./overview.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
+import { createPlayheadClock } from "./playhead-clock.js";
 import { createPreferencesDialog } from "./preferences-dialog.js";
 import { createPrefs } from "./prefs.js";
 import { nextPreroll, prerollLabel } from "./preroll.js";
@@ -125,7 +126,7 @@ import { normaliseSilence } from "./silence-model.js";
 import { createSlowHold, normaliseSlow, slowSpeed } from "./slow-hold.js";
 import { createStatsDialog } from "./stats-dialog.js";
 import { nextStopMode } from "./stop-mode.js";
-import { getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
+import { anchorPatch, getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
 import { createSyncConfirm } from "./sync-confirm.js";
 import { driftingAmong } from "./sync-state.js";
 import {
@@ -326,12 +327,49 @@ const editor = createEditor({
   },
 });
 
+// The playhead between the engine's anchors (playhead-clock.js): drawn every animation
+// frame while playing, so the cursor moves with the screen and with the sound.
+const playheadClock = createPlayheadClock();
+/** The playhead to draw now: extrapolated while playing, the state's when stopped. */
+const playheadNow = (state = getState()) =>
+  state.playing && playheadClock.playing()
+    ? playheadClock.frameAt(performance.now())
+    : state.playhead;
+
 const transport = createTransport({
   post: api.transport,
   getState,
   setState,
   onError: showError,
+  freeze: () => playheadClock.stop(performance.now()),
+  settle: (status) => playheadClock.settle(status.position),
+  jump: (frame) => playheadClock.jump(frame, performance.now()),
 });
+
+// While playing: every animation frame the timeline's cursor is drawn from the clock, and
+// the state's playhead (clock, transcript, follow) follows at most ~30 times a second.
+const PLAYHEAD_STATE_MS = 33;
+let ticking = false;
+let lastPlayheadPush = 0;
+function tickPlayhead(now) {
+  const state = getState();
+  if (!state.playing || !playheadClock.playing()) {
+    ticking = false;
+    return;
+  }
+  timeline.redraw();
+  const frame = playheadClock.frameAt(now);
+  if (frame !== state.playhead && now - lastPlayheadPush >= PLAYHEAD_STATE_MS) {
+    lastPlayheadPush = now;
+    setState({ playhead: frame });
+  }
+  requestAnimationFrame(tickPlayhead);
+}
+function startPlayheadTicker() {
+  if (ticking) return;
+  ticking = true;
+  requestAnimationFrame(tickPlayhead);
+}
 
 // -- the view: zoom, scroll, Z, history ---------------------------------------
 
@@ -2600,6 +2638,7 @@ const timeline = createTimeline({
   waveCanvas: $("wave"),
   overlayCanvas: $("timeline"),
   getState,
+  playheadAt: playheadNow,
   actions: {
     pointerDown: onPointerDown,
     seek: (frame) => void transport.seek(frame),
@@ -2775,6 +2814,7 @@ function render(state, patch) {
   if (touched("project", "inPoint", "outPoint")) marksCorner.render(state);
   if (touched("project", "words")) updateTabScope();
   if (touched("playing")) {
+    if (state.playing) startPlayheadTicker();
     levelMeter.playing(state.playing);
     $("play-icon").textContent = state.playing ? "■" : "▶";
     $("play-label").textContent = t(state.playing ? "ui.transport.stop" : "ui.transport.play");
@@ -3107,6 +3147,7 @@ void recordView.start();
 
 let handledNotice = 0;
 let wasDown = false;
+let pingTimer = null;
 connectLive({
   url: api.liveUrl(),
   onStatus(status) {
@@ -3122,12 +3163,28 @@ connectLive({
     }
     wasDown = status === "reconnecting";
   },
+  onOpen(send) {
+    // The playhead clock's offset: a few pings now (the quickest round trip wins), then
+    // one now and then.
+    for (let i = 0; i < 5; i += 1)
+      setTimeout(() => send({ type: "ping", c: performance.now() }), i * 100);
+    clearInterval(pingTimer);
+    pingTimer = setInterval(() => send({ type: "ping", c: performance.now() }), 10_000);
+  },
   onMessage(message) {
     if (message.type === "record") {
       recordView.live(message);
       return;
     }
+    if (message.type === "pong") {
+      playheadClock.pong(message.c, message.s, performance.now());
+      return;
+    }
     const result = reduceLive(getState(), message);
+    if (result.anchor && playheadClock.accept(result.anchor, performance.now())) {
+      setState(anchorPatch(result.anchor));
+      if (result.anchor.playing) startPlayheadTicker();
+    }
     if (Object.keys(result.patch).length > 0) setState(result.patch);
     // An answer to our own edit arrives as a state_changed too; while edits are
     // still going out, the editor shows the newest value and applies the last answer.

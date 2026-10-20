@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { initialState, reduceLive, serverPatch } from "../store.js";
+import { anchorPatch, initialState, reduceLive, serverPatch } from "../store.js";
 
 describe("a clipboard change from another window", () => {
   test("asks for the clipboard to be read again, and nothing else", () => {
@@ -80,23 +80,23 @@ describe("the placeholder selection (WP43)", () => {
 describe("live messages", () => {
   const state = { ...initialState(), head: "h1" };
 
-  test("a position that says playback ended puts the shuttle back to 1x", () => {
-    const out = reduceLive(state, { type: "position", position: 0, playing: false });
-    assert.deepEqual(out.patch, { playhead: 0, playing: false, speed: 1 });
-  });
-
-  test("position moves the playhead and the playing flag", () => {
-    const out = reduceLive(state, { type: "position", position: 4800, playing: true });
-    assert.deepEqual(out.patch, { playhead: 4800, playing: true });
+  test("an anchor is handed on for the playhead clock, not applied here", () => {
+    const anchor = { type: "anchor", position: 4800, playing: true, seq: 3 };
+    const out = reduceLive(state, anchor);
+    assert.deepEqual(out.anchor, anchor);
+    assert.deepEqual(out.patch, {});
     assert.equal(out.refresh, false);
   });
 
-  test("a stopped message leaves the playhead where the engine stopped", () => {
-    const out = reduceLive(
-      { ...state, playing: true },
-      { type: "position", position: 9, playing: false },
-    );
-    assert.deepEqual(out.patch, { playhead: 9, playing: false, speed: 1 });
+  test("the patch an accepted anchor makes: stopped lands the playhead, 1x again", () => {
+    assert.deepEqual(anchorPatch({ position: 9, playing: false }), {
+      playhead: 9,
+      playing: false,
+      speed: 1,
+    });
+    assert.deepEqual(anchorPatch({ position: 4800, playing: true, speed: 1.5 }), {
+      playing: true,
+    });
   });
 
   test("a changed head, from state_changed or hello, asks for a refresh", () => {

@@ -51,6 +51,32 @@ describe("transport", () => {
     assert.equal(h.state().playhead, 777);
   });
 
+  test("Space while playing stops the cursor at once, then lands on the engine's frame", async () => {
+    let state = { playhead: 0, playing: true };
+    const seen = [];
+    let answer;
+    const transport = createTransport({
+      post: () =>
+        new Promise((resolve) => {
+          answer = resolve;
+        }),
+      getState: () => state,
+      setState: (patch) => {
+        state = { ...state, ...patch };
+        seen.push(patch);
+      },
+      onError: () => {},
+      freeze: () => 5000, // the playhead clock's frame this instant
+      settle: (status) => seen.push({ settled: status.position }),
+    });
+    const pending = transport.toggle();
+    assert.deepEqual(state, { playhead: 5000, playing: false, speed: 1 }); // before any answer
+    answer({ playing: false, position: 4990 });
+    await pending;
+    assert.equal(state.playhead, 4990);
+    assert.ok(seen.some((x) => x.settled === 4990));
+  });
+
   test("seeking moves the playhead on screen before the engine answers", async () => {
     const h = harness();
     const pending = h.transport.seek(2400);
