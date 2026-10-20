@@ -108,12 +108,33 @@ sizes: `docs/PLAN.md`, section "Triage".
 - Analysis: Auto-Silence and automix ducking through speechmix.
 - Transcript mapping and word-cut ranges.
 
-## In flight
+## In flight (2026-10-20 15.59 Helsinki)
 
-- Media store: linked vs working FLAC, ffmpeg for everything else, relink,
-  consolidate.
-- Browser UI shell and timeline (WP4 baseline, v26.10.17.7; keymap is WP5; the design is being redone). (HTTP API: done in WP3, v26.10.16.11.
-  Playback engine: done in WP2, not yet run on real hardware.)
+Agents running now:
+- **Bounded memory** (owner priority): a 5-track, 1.5-hour session must open, play and analyse without running out of memory. Audit of every whole-file read, block-wise analysis (working set under about 200 MB whatever the length), memory ceilings for the editor and the analysis worker, a synthetic 90-minute test as a CI gate, canvas/GPU sizing check (WindowServer growth). docs/MEMORY.md.
+- **Paste overwrites by default** (instead of moving later clips); with In/Out marked the paste starts at In and is trimmed at Out; an explicit Insert variant stays.
+- **Clipboard chips**: playing a clipboard entry (check that it works), the Play button turns into a Stop button, a progress meter along the chip's bottom edge, buttons in the square block style.
+
+Built and green, not yet released (branches): **track highlight / selection** now follows the clicked track (fix-track-highlight); **Alt+1 to Alt+5** switch the side-panel tabs (panel-tab-keys).
+
+Older, still open: media store (linked vs working FLAC, relink, consolidate); browser UI shell (keymap WP5, design redone).
+
+## Needs testing and confirming (built, never used by the owner)
+
+Released in v26.10.20.4 (dmg), in order of importance:
+1. **No process pile-up**: after starting, `ps -axo pid,ppid,stat,etime,rss,command | grep analysis_worker | grep -v grep` shows at most one, small (RSS under 300 MB); old orphans gone; Auto-Silence or edits while playing give no dropouts and the job says "Paused while playing".
+2. **Stop and cursor**: Space mid-word stops the sound at once and the cursor does not jump back, also sped up (1.5x to 2x, pitch kept); the cursor crosses a clap as it sounds; clicking far away while playing leaves about 0.1 s of silence and no old audio; Space, Space continues the word.
+3. **Memory on a long project**: open the 47-minute project and watch Activity Monitor (Kuulas under 2 GB in total); if slow, Help > Record a performance report and send it.
+4. **Settings are remembered**: fast speed 1.75, theme, drag mode survive a restart.
+5. **Cmd+V** pastes on the selected track (also after the selection fix below); **music tracks** are not offered for transcription (Airhorn.wav on a music track; check it is not also on a speech track).
+6. **Quick mute H**: mutes 0.5 s around the cursor, playing and stopped, one undo step, length in Preferences.
+7. **Automix dialog** options (Processing section): the logged command has only the changed flags; the real automixer has not been run with them.
+8. **Cmd+1 to Cmd+9** on the start screen open the recent projects; the chips show the keys.
+9. **Square buttons** (Undo, Redo, Restore): all the same square size.
+10. Bus assignment and rename (right-click the bus header > Rename) after the restart.
+
+Not released yet (branches above): track highlight follows the click; Alt+1 to Alt+5 (check typing in a text field does not trigger them, on the Finnish layout).
+
 
 ## Next
 
