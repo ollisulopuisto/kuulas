@@ -164,3 +164,19 @@ def test_every_track_gain_is_in_its_stem(session, tmp_path):
     untouched = files[tracks[1].name]
     assert _peak(folder_after / untouched) == pytest.approx(
         _peak(folder / untouched), rel=0.001)
+
+
+def test_the_bus_gain_is_in_the_stems_of_its_tracks(session, tmp_path):
+    """The owner balances by ear with track and bus together; both reach the automixer."""
+    tracks = session.state.tracks
+    folder, before = stems(session, tmp_path)
+    session.edit("add_bus", {"bus_id": "b1", "name": "Mics"})
+    session.edit("set_bus", {"bus_id": "b1", "gain_db": -6.0})
+    session.edit("set_track", {"track_id": tracks[0].id, "bus": "b1", "gain_db": -6.0})
+    folder_after, _after = stems(session, tmp_path / "again")
+    files = {t["name"]: t["file"] for t in before["tracks"]}
+    name = files[tracks[0].name]
+    assert _peak(folder_after / name) == pytest.approx(
+        _peak(folder / name) * 10 ** (-12 / 20), rel=0.02)
+    other = files[tracks[1].name]
+    assert _peak(folder_after / other) == pytest.approx(_peak(folder / other), rel=0.001)

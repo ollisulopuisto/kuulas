@@ -1,3 +1,7 @@
+## [v26.10.20.15] - 2026-10-21
+
+- **The bus gain reaches the automixer too.** The stems now carry the gain of the track's bus as well as the track's own gain and the clip gains, so the balance you set by ear with tracks and buses together is what the automixer starts from. Pan, mute and ducking are still left out.
+
 ## [v26.10.20.14] - 2026-10-20
 
 - **The automixer starts from the balance you set.** The track gain of every track (speech tracks as well as music) is now in the stems the automixer gets, together with the clip gains that were already there. The automixer does not equalise the speakers against each other, so a microphone you pulled down by hand in Kuulas stays pulled down in the automix. Bus gain, pan and ducking are still left out. (For an even starting point use Match loudness on the speech tracks first.)

@@ -231,13 +231,15 @@ def mix(project: Project, store: Store, first: int, count: int) -> np.ndarray:
 
 
 def track_stem(track: Track, store: Store, first: int, count: int, channels: int,
-               *, as_heard: bool, rate: int, track_gain: bool = False) -> np.ndarray:
+               *, as_heard: bool, rate: int, track_gain: bool = False,
+               bus_db: float = 0.0) -> np.ndarray:
     """One track on its own, for stem export: ``(channels, count)`` float32.
 
     The edit is applied (cuts, crossfades, clip gain, envelopes, fades; muted
     clips are silence, and so is the track's gate, with its edge ramps).
     ``as_heard`` adds the track's own gain and automation (the ducking);
-    ``track_gain`` adds only the gain (the automixer's music stems). Pan
+    ``track_gain`` adds only the gain, plus ``bus_db`` (the gain of the track's bus; the
+    automixer's stems). Pan
     is left out either way: the stem keeps its channels, a mono track stays
     mono, and placing it is the mixing console's job. Buses and the master are
     never applied. Solo and mute are the caller's business.
@@ -264,5 +266,5 @@ def track_stem(track: Track, store: Store, first: int, count: int, channels: int
         g = curves.gain(track.gain_db)
         buf *= g if auto is None else g * curves.gain(auto)
     elif track_gain:
-        buf *= curves.gain(track.gain_db)
+        buf *= curves.gain(track.gain_db + bus_db)
     return buf.astype(np.float32)

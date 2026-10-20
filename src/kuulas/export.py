@@ -845,6 +845,14 @@ def _single(job: _Job, target: Path, n: int, workers: int,
                     tick=lambda f: say(0.95 * f), scratch=scratch)
 
 
+def _bus_db(p, track) -> float:
+    """The gain of the track's bus, dB (0 without a bus)."""
+    try:
+        return p.bus(track.bus).gain_db if track.bus else 0.0
+    except KeyError:
+        return 0.0
+
+
 def _tracks(job: _Job, target: Path, n: int, workers: int,
             cancel: threading.Event | None, say: Progress,
             scratch: list[Path]) -> list[Path]:
@@ -872,14 +880,15 @@ def _tracks(job: _Job, target: Path, n: int, workers: int,
             base += " (2)"
         used.add(base)
         audible = _audible(p, track)
+        bus_db = _bus_db(p, track)
 
         def render(first: int, count: int, track=track, channels=channels,
-                   audible=audible) -> np.ndarray:
+                   audible=audible, bus_db=bus_db) -> np.ndarray:
             if not audible:
                 return np.zeros((channels, count), dtype=np.float32)
             return mixer.track_stem(track, job.store, job.first + first, count,
                                     channels, as_heard=as_heard, rate=job.rate,
-                                    track_gain=track_gain)
+                                    track_gain=track_gain, bus_db=bus_db)
 
         done = work / f"{base}.{ext}"
         _produce(job, done, channels, render, tags=_provenance(job, n),
