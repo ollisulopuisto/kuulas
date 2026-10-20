@@ -6,6 +6,8 @@ import {
   formatSize,
   nextRow,
   relativeTime,
+  rowForKey,
+  rowKeyChips,
   rowModel,
 } from "../launcher-model.js";
 
@@ -175,5 +177,41 @@ describe("nextRow", () => {
   test("other keys and an empty list give null", () => {
     assert.equal(nextRow(1, "a", 3), null);
     assert.equal(nextRow(0, "ArrowDown", 0), null);
+  });
+});
+
+describe("start page keys", () => {
+  const press = (code, extra = {}) => ({ code, ...extra });
+
+  test("chips: first nine rows only, per platform", () => {
+    assert.deepEqual(rowKeyChips(3, "mac"), ["⌘1", "⌘2", "⌘3"]);
+    assert.deepEqual(rowKeyChips(2, "other"), ["Ctrl+1", "Ctrl+2"]);
+    const many = rowKeyChips(11, "mac");
+    assert.equal(many[8], "⌘9");
+    assert.deepEqual(many.slice(9), [null, null]);
+    assert.deepEqual(rowKeyChips(0, "mac"), []);
+  });
+
+  test("Mac chips match formatCombo", async () => {
+    const { formatCombo } = await import("../keymap-config.js");
+    assert.equal(rowKeyChips(1, "mac")[0], formatCombo("Mod+1", "mac"));
+  });
+
+  test("Cmd+digit on a Mac, Ctrl+digit elsewhere", () => {
+    assert.equal(rowForKey(press("Digit1", { metaKey: true }), "mac", 3), 0);
+    assert.equal(rowForKey(press("Digit3", { metaKey: true }), "mac", 3), 2);
+    assert.equal(rowForKey(press("Digit1", { ctrlKey: true }), "mac", 3), null);
+    assert.equal(rowForKey(press("Digit2", { ctrlKey: true }), "other", 3), 1);
+    assert.equal(rowForKey(press("Digit2", { metaKey: true }), "other", 3), null);
+  });
+
+  test("no row, other modifiers, repeat, zero and non-digits do nothing", () => {
+    assert.equal(rowForKey(press("Digit4", { metaKey: true }), "mac", 3), null);
+    assert.equal(rowForKey(press("Digit1", { metaKey: true, altKey: true }), "mac", 3), null);
+    assert.equal(rowForKey(press("Digit1", { metaKey: true, shiftKey: true }), "mac", 3), null);
+    assert.equal(rowForKey(press("Digit1", { metaKey: true, repeat: true }), "mac", 3), null);
+    assert.equal(rowForKey(press("Digit0", { metaKey: true }), "mac", 3), null);
+    assert.equal(rowForKey(press("KeyA", { metaKey: true }), "mac", 3), null);
+    assert.equal(rowForKey(press("Digit1"), "mac", 3), null);
   });
 });

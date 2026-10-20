@@ -1,3 +1,10 @@
+## [v26.10.20.3] - 2026-10-20
+
+- **Your settings are remembered.** Preferences such as the fast-listening speed (1.75 stays 1.75), theme, drag mode and the panel choices were forgotten at every start; they are now saved in the config folder (`ui-prefs.json`). A few dialogs and the keymap overrides still use the old per-window storage.
+- **Quick mute: press H** to mute a short stretch centred on the cursor (default 0.5 s, 0.25 s each side; Preferences > Quick mute length). Works while playing, honours the track scope, one undo step. Clip > Quick mute.
+- **Automixer: every setting in the dialog.** Track > Auto > Automix now has a Processing section: Minimal, Speech, De-bleed and rider, Microphone ducking, Music, Plug-ins and per-track settings, with the tool's defaults shown. Only changed values are sent. "Other arguments" stays for anything else.
+- **Start screen: Cmd+1 … Cmd+9 open the 1st … 9th recent project**, and the cards show the key.
+
 ## [v26.10.20.2] - 2026-10-20
 
 - **Playback stutter fixes.** Background work no longer competes with playback: while audio plays, analysis, imports, waveform and loudness-curve work and exports pause ("Paused while playing" in the job list) and continue when you stop. Auto-Silence, automix and loudness analysis now run in a separate low-priority process, so they cannot take the audio thread's turn.

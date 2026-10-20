@@ -183,6 +183,15 @@ def test_launcher_page_escapes_and_lists_recents():
     assert "\\u003cb\\u003eShow" in page  # in the JSON the page script reads
 
 
+def test_launcher_page_wires_recent_project_keys():
+    page = desktop.launcher_html(['/x/A.kuulas'])
+    # the model is inlined and used
+    assert "rowKeyChips(" in page
+    assert "rowForKey(" in page
+    assert "keychip" in page
+    assert 'addEventListener("keydown"' in page
+
+
 def test_launcher_page_shows_the_mark():
     page = desktop.launcher_html([])
     assert "data:image/svg+xml;base64," in page
@@ -219,3 +228,15 @@ def test_dock_icon_is_set_only_on_macos_and_never_raises(tmp_path):
     assert desktop.set_dock_icon(platform="darwin", appkit=appkit) is True
     assert calls[0][0] == "image"
     assert desktop.set_dock_icon(platform="darwin", appkit=None) is False
+
+
+def test_webview_start_options_persist_and_only_what_is_accepted(tmp_path, monkeypatch):
+    monkeypatch.setattr(desktop, "config_dir", lambda: tmp_path)
+
+    def new(func=None, private_mode=True, storage_path=None, icon=None): ...
+
+    def old(func=None, icon=None): ...
+
+    assert desktop.webview_start_options(new) == {
+        "private_mode": False, "storage_path": str(tmp_path / "webview")}
+    assert desktop.webview_start_options(old) == {}

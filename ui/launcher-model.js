@@ -101,3 +101,33 @@ export function nextRow(current, key, count) {
   if (key === "ArrowUp") return current < 0 ? count - 1 : Math.max(current - 1, 0);
   return null;
 }
+
+/** The most recent projects that get a Cmd/Ctrl+digit key (one digit each). */
+export const MAX_KEYED = 9;
+
+/**
+ * The key chip of each row: "⌘1" on a Mac, "Ctrl+1" elsewhere (the text keymap-config.js
+ * formatCombo gives "Mod+1"; this file is inlined into the start page, which cannot import).
+ * Rows past the ninth get null. `platform`: "mac" or "other".
+ */
+export function rowKeyChips(count, platform) {
+  const mod = platform === "mac" ? "⌘" : "Ctrl+";
+  return Array.from({ length: Math.max(0, count) }, (_, i) =>
+    i < MAX_KEYED ? `${mod}${i + 1}` : null,
+  );
+}
+
+/**
+ * The row index (0-based) a key press opens, or null. Cmd+digit on a Mac, Ctrl+digit
+ * elsewhere, no other modifier; the digit is read by position (`code`), the same on a Finnish
+ * board. A digit past the last row opens nothing.
+ */
+export function rowForKey(event, platform, count) {
+  const wanted =
+    platform === "mac" ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
+  if (!wanted || event.altKey || event.shiftKey || event.repeat) return null;
+  const match = /^(?:Digit|Numpad)([1-9])$/.exec(event.code ?? "");
+  if (match === null) return null;
+  const index = Number(match[1]) - 1;
+  return index < count ? index : null;
+}
