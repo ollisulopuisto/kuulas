@@ -87,10 +87,10 @@ export const correctWord = (media, index, w) =>
   json("/api/word", { method: "PUT", body: JSON.stringify({ media, index, w }) });
 /**
  * Queue transcription of these media; answers { jobs: [job id] }. `backend` "local" (one job per
- * recording) or "colab" (ONE job, the audio is uploaded to Google: ask first, see app.js).
+ * recording; `force`: also music-only recordings, which the server refuses) or "colab" (ONE job, the audio is uploaded to Google: ask first, see app.js).
  */
-export const transcribe = (mediaIds, { backend = "local", model, language } = {}) =>
-  post("/api/transcribe", { media_ids: mediaIds, backend, model, language });
+export const transcribe = (mediaIds, { backend = "local", model, language, force = false } = {}) =>
+  post("/api/transcribe", { media_ids: mediaIds, backend, model, language, force });
 /** The Colab transcription command: { settings (as stored), resolved (defaults filled in) }. */
 export const colabSettings = () => json("/api/settings/colab");
 export const saveColabSettings = (settings) =>

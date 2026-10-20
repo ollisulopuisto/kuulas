@@ -258,6 +258,7 @@ class TranscribeBody(BaseModel):
     model: str | None = None
     language: str | None = None
     backend: str = "local"
+    force: bool = False  # transcribe even recordings used only on music tracks
 
 
 class RecordStartBody(BaseModel):
@@ -1097,7 +1098,7 @@ def create_app(session, engine, *, language: str | None = None,
             require_media(media_id)
         try:
             job_ids = session.transcribe(body.media_ids, body.model, body.language,
-                                         body.backend)
+                                         body.backend, force=body.force)
         except MediaError as exc:
             return answer(exc, 400)
         return JSONResponse({"jobs": job_ids}, status_code=202)
