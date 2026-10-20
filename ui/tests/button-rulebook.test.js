@@ -29,6 +29,7 @@ export const SPECIAL = {
   mrow: "Alku / Loppu / Pituus rows in the marks corner: a label and a time on one line",
   "lm-clip": "the level meter's clip indicator",
   "clip-main": "a list entry's body (clipboard, markers): the row itself is the button",
+  "automix-group-head": "a disclosure header (chevron, title, badge): the whole row toggles the group",
   "clip-project": "a project heading in the clipboard list: a disclosure row",
   "source-row": "a source row in the inspector: the row itself is the button",
   "tx-pause": "a pause marker inline in the transcript text, not a tab stop",

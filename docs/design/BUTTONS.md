@@ -88,6 +88,7 @@ here and in `SPECIAL` in `ui/tests/button-rulebook.test.js`.
 | `.mrow` | Alku / Loppu / Pituus in the marks corner | a label and a time on one line |
 | `.lm-clip` | level meter clip light | an indicator |
 | `.clip-main` | a list entry's body (clipboard, markers) | the row is the button |
+| `.automix-group-head` | a disclosure header in the automix dialog | the whole row toggles the group; chevron, title, badge |
 | `.clip-project` | a project heading in the clipboard list | a disclosure row |
 | `.source-row` | a source row in the inspector | the row is the button |
 | `.tx-pause` | a pause marker in the transcript | inline in text, not a tab stop |
