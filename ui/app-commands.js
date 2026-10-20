@@ -287,6 +287,12 @@ export function registerAppCommands(registry, { actions, app }) {
   def("help.keys", () => app.openKeys());
   def("help.open", () => app.openHelp());
   def("help.search", () => app.openSearch());
+  // Help > Record a performance report… and Help > Log level (no project needed: they are
+  // about the app, and a slow app is exactly when someone needs them).
+  def("help.performance_report", () => app.openPerformanceReport());
+  for (const level of ["debug", "info", "warning"]) {
+    def(`help.log_${level}`, () => actions.setLogLevel(level.toUpperCase()));
+  }
   def("keymap.import", () => app.importKeys());
   def("keymap.export", () => app.exportKeys());
   def("keymap.reset", () => app.resetKeys());

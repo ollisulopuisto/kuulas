@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import socket
 import sys
 import threading
@@ -15,7 +16,7 @@ from pathlib import Path
 
 import uvicorn
 
-from . import diag, export_formats, package
+from . import diag, export_formats, logsetup, package, profiler
 from .build_info import build_label
 from .messages import KuulasError, t
 
@@ -191,7 +192,8 @@ def open_project(folder: str, port: int = 0, browser: bool = True) -> int:
                     threading.Event().wait(0.05)
                 if server.started:
                     webbrowser.open(url)
-            threading.Thread(target=later, daemon=True).start()
+            threading.Thread(target=later, daemon=True,
+                             name="kuulas-open-browser").start()
         server.run(sockets=[sock])
     finally:
         sock.close()
@@ -245,6 +247,12 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911
     if getattr(args, "debug", False):
         diag.enable()
         diag.emit(f"kuulas debug: build {build_label()}")
+    if args.command in (None, "desktop", "open"):
+        # The windows and the server: the log level (KUULAS_LOG_LEVEL, else the saved
+        # setting) and a recording from start-up (KUULAS_PROFILE=<seconds>).
+        logsetup.apply(logsetup.resolve(os.environ, logsetup.level_setting()),
+                       console=True)
+        profiler.start_from_environment(os.environ)
     try:
         if args.command in (None, "desktop"):
             from . import desktop  # noqa: PLC0415

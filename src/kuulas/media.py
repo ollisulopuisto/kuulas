@@ -51,7 +51,6 @@ import subprocess
 import threading
 import time
 from collections.abc import Iterator
-from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path, PurePath
@@ -60,7 +59,7 @@ import numpy as np
 import soundfile as sf
 from speechmix.binaries import get_binary_path
 
-from . import caches, levels, onsets
+from . import caches, levels, onsets, priority
 from . import db as dbm
 from . import peaks as peak_pyramid
 from .clock import RateError, check_rate, frames_to_flicks
@@ -115,6 +114,7 @@ def _sha256(path: Path) -> str:
     h = hashlib.sha256()
     with path.open("rb") as f:
         for block in iter(lambda: f.read(1 << 20), b""):
+            priority.checkpoint()  # background hashing waits while audio plays
             h.update(block)
     return h.hexdigest()
 
@@ -401,7 +401,10 @@ class MediaStore:
                  budget: MemoryBudget | None = None,
                  package_root: str | Path | None = None,
                  series_root: str | Path | None = None,
-                 preferences: str | Path | None = None):
+                 preferences: str | Path | None = None, resolve: bool = True):
+        """``resolve=False`` (the analysis worker, ``offload``): no check of the
+        linked files and no search for missing ones; the caller hands over what
+        the editor already knows (``_resolved_paths``, ``_linked_ok``)."""
         self.budget = BUDGET if budget is None else budget
         self.folder = Path(folder)
         self.package_root = Path(package_root) if package_root else self.folder.parent
@@ -419,8 +422,8 @@ class MediaStore:
         self.rate = rate
         self.cache_root = (Path(cache_root) if cache_root
                            else self.folder.parent / "caches")
-        self.db = dbm.connect(Path(db) if db else self.folder.parent / "project.sqlite",
-                              read_only=read_only)
+        self.db_path = Path(db) if db else self.folder.parent / "project.sqlite"
+        self.db = dbm.connect(self.db_path, read_only=read_only)
         if not read_only:
             dbm.ensure_schema(self.db, rate)
         self._lock = threading.Lock()
@@ -435,9 +438,13 @@ class MediaStore:
         #: if the mtime moved, a re-hash) here, in ``missing`` and in
         #: ``relink``, never in ``read``: that runs on the audio thread.
         self._linked_ok: dict[str, bool] = {}
+        if not resolve:
+            self._resolution_done.set()
+            return
         self.missing()
-        self._resolution_thread = threading.Thread(
-            target=self._resolve_missing, name="kuulas-media-resolver", daemon=True)
+        # Hashes candidate files: background work, paused while audio plays.
+        self._resolution_thread = priority.thread(self._resolve_missing,
+                                                  "kuulas-media-resolver")
         self._resolution_thread.start()
 
     def close(self) -> None:
@@ -563,8 +570,12 @@ class MediaStore:
         paths = [Path(p) for p in paths]
         if not paths:
             return []
-        with ThreadPoolExecutor(max_workers=min(len(paths), workers())) as pool:
-            return list(pool.map(lambda path: self._attempt(path, copy), paths))
+        def attempt(path: Path) -> ImportResult:
+            priority.checkpoint()  # a background import starts no file while playing
+            return self._attempt(path, copy)
+
+        with priority.executor(min(len(paths), workers()), "kuulas-import") as pool:
+            return list(pool.map(attempt, paths))
 
     def import_files(self, paths, copy: bool = False) -> list[Media]:
         """``import_batch`` for callers that want all or an error: every file is
@@ -1297,6 +1308,7 @@ class MediaStore:
             count = min(step, frames - pos)
             if count <= 0:
                 return np.zeros((0, meta["channels"]), np.float32)
+            priority.checkpoint()
             block = self.read(media_id, pos, count).T
             pos += count
             return block
@@ -1372,9 +1384,11 @@ class MediaStore:
 
         def measure() -> np.ndarray:
             log.info(t("log.cache.recompute", kind="levels", media_id=media_id))
-            return levels.block_energy(
-                lambda first, count: self.read(media_id, first, count),
-                meta["source_frames"], block)
+            def read(first: int, count: int) -> np.ndarray:
+                priority.checkpoint()
+                return self.read(media_id, first, count)
+
+            return levels.block_energy(read, meta["source_frames"], block)
 
         spill = caches.path(self.cache_root, "analysis", key, "npy")
         return self.budget.fetch("levels", key, measure, spill=spill)
@@ -1452,8 +1466,10 @@ class _ffmpeg_pcm:  # noqa: N801 - used as a context manager, reads like a funct
             stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         # stderr is drained as it comes: a file full of damage makes ffmpeg
         # write more than a pipe holds, and it would block on us.
-        self._drain = threading.Thread(target=self._drain_stderr, daemon=True)
-        self._watch = threading.Thread(target=self._watchdog, daemon=True)
+        self._drain = threading.Thread(target=self._drain_stderr, daemon=True,
+                                       name="kuulas-ffmpeg-stderr")
+        self._watch = threading.Thread(target=self._watchdog, daemon=True,
+                                       name="kuulas-ffmpeg-watchdog")
         self._drain.start()
         self._watch.start()
 

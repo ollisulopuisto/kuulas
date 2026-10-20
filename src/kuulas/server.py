@@ -21,11 +21,13 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import html
+import json
 import logging
 import math
 import os
 import shutil
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -50,11 +52,16 @@ from . import (
     colab_transcribe,
     export,
     export_formats,
+    logsetup,
     messages,
     music_report,
     new_project,
+    priority,
     project_stats,
     transcribe,
+)
+from . import (
+    profiler as profiler_module,
 )
 from .build_info import build_label
 from .candidates import UnknownCandidateError
@@ -81,9 +88,15 @@ log = logging.getLogger("kuulas.server")
 #: The ``ui/`` folder (repo, wheel or app bundle: ``paths.find_ui_dir``); served at
 #: ``/`` when it has an index.html.
 UI_DIR = find_ui_dir(__file__)
-#: How often the live channel looks at the engine while playing: the display
-#: rate, so the playhead moves as often as the screen can show it.
+#: How often the live channel looks at the engine while playing: often enough
+#: to notice a run ending by itself or a skip run restarting within a frame or
+#: two. What it sends is far less: anchors (below).
 LIVE_TICK_S = 1 / 30
+#: While playing, a correction anchor goes out this often. The browser draws the
+#: playhead from the last anchor every animation frame (ui/playhead-clock.js), so
+#: the cursor moves with the screen, not with this period, and a reading that came
+#: late (the GIL, a busy thread) costs nothing but a slightly older anchor.
+LIVE_CORRECT_S = 0.2
 #: ...and while stopped, only to hear of engine notices (the engine's own period).
 LIVE_IDLE_S = 0.25
 #: ...and the level meter goes out about 15 times a second while playing (it is a
@@ -217,6 +230,16 @@ class WordBody(BaseModel):
     w: str
 
 
+class ProfileBody(BaseModel):
+    action: str
+    seconds: float = 30.0
+    interval: float | None = None
+
+
+class LogLevelBody(BaseModel):
+    level: str
+
+
 class TransportBody(BaseModel):
     action: str
     at: int | None = None
@@ -294,6 +317,29 @@ class Hub:
                 self.remove(queue)
 
 
+def anchor_message(status: dict, now: float) -> dict:
+    """The live channel's playhead anchor from ``engine.status()``: the heard
+    ``position``, ``t`` the server's monotonic time it was heard at, ``now`` when
+    this went out (both seconds; the browser maps them to its own clock with the
+    ping offset, or by ``now - t`` when it has none), ``speed`` (signed, the live
+    one for fast listening), ``seq`` (the engine's transport version: the browser
+    and this channel drop anything older), ``end``, ``skip`` and ``loop`` (for
+    extrapolating across them). A clipboard preview plays another project: its
+    frames are not the timeline's, so it never says playing."""
+    playing = bool(status["playing"]) and not status.get("preview")
+    return {"type": "anchor", "position": int(status["position"]), "playing": playing,
+            "speed": float(status.get("speed", 1.0)),
+            "t": float(status.get("t", now)), "now": now, "seq": status.get("seq"),
+            "end": status.get("end"), "skip": status.get("skip", []),
+            "loop": status.get("loop"), "rate": status.get("rate")}
+
+
+def newer_seq(seq, last) -> bool:
+    """Is a reading with transport version ``seq`` as new as ``last`` (None: an
+    engine without versions, always)?"""
+    return seq is None or last is None or seq >= last
+
+
 def meter_message(levels: dict) -> dict:
     """The live channel's meter frame: peak and peak-hold per channel, dBFS. (The engine
     also measures RMS; the display has no use for it yet, so it is not sent.)"""
@@ -320,7 +366,9 @@ def _local_origin(origin: str) -> bool:
 
 def create_app(session, engine, *, language: str | None = None,
                ui_dir: str | Path = UI_DIR, tick: float = LIVE_TICK_S,
-               meter_every: float = LIVE_METER_S, recorder=None) -> FastAPI:
+               meter_every: float = LIVE_METER_S, recorder=None,
+               profiler: profiler_module.Profiler | None = None,
+               correct_every: float = LIVE_CORRECT_S) -> FastAPI:
     """``session``, ``engine`` and ``recorder`` (a ``RecordSession``, or None: recording
     answers "unavailable") are borrowed: the caller closes them."""
     default_language = language or messages.default_language()
@@ -328,6 +376,18 @@ def create_app(session, engine, *, language: str | None = None,
     app = FastAPI(title="kuulas", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.last_input = time.monotonic()
     hub = Hub()
+    # The performance report (Help > Record a performance report): the process-wide
+    # profiler unless a test passes its own. It reads the project and engine on its own
+    # thread and never takes the session lock.
+    perf_profiler = profiler or profiler_module.PROFILER
+    perf_profiler.set_facts(lambda: profiler_module.session_facts(session, engine))
+    # The live channels read the engine on a thread of their own, not the event
+    # loop's default executor (asyncio.to_thread): a pile of other work queued
+    # there must not hold the playhead up. One thread: a reading is quick.
+    live_reader = ThreadPoolExecutor(max_workers=1, thread_name_prefix="kuulas-live")
+    # Background work yields to playback (docs/PLAYBACK-PRIORITY.md): the gate
+    # reads the engine's lock-free flag; a fake engine without one never plays.
+    priority.GATE.watch(lambda: bool(getattr(engine, "is_playing", False)))
 
     session.subscribe(lambda _state: hub.publish(
         {"type": "state_changed", "head": session.history.head}))
@@ -360,6 +420,7 @@ def create_app(session, engine, *, language: str | None = None,
                                                default_language))
         if request.url.path != "/api/jobs" and request.method != "GET":
             app.state.last_input = time.monotonic()
+            priority.GATE.note_input()
         try:
             return await call_next(request)
         except Exception as e:
@@ -417,6 +478,14 @@ def create_app(session, engine, *, language: str | None = None,
     @app.exception_handler(bgjobs.BackgroundJobError)
     async def _background_job_error(_request: Request, e: bgjobs.BackgroundJobError):
         return answer(e, 400)
+
+    @app.exception_handler(profiler_module.ProfileRequestError)
+    async def _profile_request(_request: Request, e: profiler_module.ProfileRequestError):
+        return answer(e, 400)
+
+    @app.exception_handler(profiler_module.ProfileBusyError)
+    async def _profile_busy(_request: Request, e: profiler_module.ProfileBusyError):
+        return answer(e, 409)
 
     @app.exception_handler(colab_transcribe.ColabError)
     async def _colab_error(_request: Request, e: colab_transcribe.ColabError):
@@ -539,6 +608,50 @@ def create_app(session, engine, *, language: str | None = None,
     def get_build():
         """Which version and commit this is, for bug reports (build_info.py)."""
         return JSONResponse({"build": build_label()})
+
+    @app.get("/api/profile")
+    def get_profile():
+        """The performance report recording: idle, running, done or failed."""
+        return JSONResponse(perf_profiler.status())
+
+    @app.post("/api/profile")
+    def post_profile(body: ProfileBody):
+        if body.action == "stop":
+            perf_profiler.stop()
+            perf_profiler.join(2.0)
+            return JSONResponse(perf_profiler.status())
+        if body.action != "start":
+            raise BadRequestError("error.server.bad_request",
+                                  detail=f"unknown action {body.action!r}")
+        if body.interval is None:
+            perf_profiler.start(body.seconds)
+        else:
+            perf_profiler.start(body.seconds, body.interval)
+        return JSONResponse(perf_profiler.status(), status_code=202)
+
+    def log_level_body() -> dict:
+        return {"level": logsetup.current(), "setting": logsetup.level_setting(),
+                "levels": list(logsetup.LEVELS),
+                "from_environment": logsetup.parse(os.environ.get(logsetup.ENV, ""))}
+
+    @app.get("/api/log-level")
+    def get_log_level():
+        """Help > Log level: the level in force, the saved choice and the options."""
+        return JSONResponse(log_level_body())
+
+    @app.post("/api/log-level")
+    def post_log_level(body: LogLevelBody):
+        level = logsetup.parse(body.level)
+        if level is None:
+            raise BadRequestError(
+                "error.server.bad_request",
+                detail=f"level must be one of {', '.join(logsetup.LEVELS)}")
+        try:
+            logsetup.save_level_setting(level)
+        except OSError:
+            log.warning(t("log.server.log_level_not_saved"))
+        logsetup.apply(level)
+        return JSONResponse(log_level_body())
 
     @app.get("/api/language")
     def get_language():
@@ -1195,10 +1308,14 @@ def create_app(session, engine, *, language: str | None = None,
         elif action == "seek":
             engine.seek(body.at)
         elif action == "scrub":
+            priority.GATE.note_input(scrub=True)
             engine.scrub(body.at)
         else:
             raise BadRequestError("error.server.bad_transport", action=action)
-        return JSONResponse(engine.status())
+        status = engine.status()
+        # The playhead's new anchor goes out now, not at the next reading.
+        hub.publish(anchor_message(status, time.monotonic()))
+        return JSONResponse(status)
 
     # -- push ------------------------------------------------------------------
 
@@ -1212,9 +1329,14 @@ def create_app(session, engine, *, language: str | None = None,
 
         async def hear_disconnect() -> None:
             # Without reading, a client that went away is never noticed while
-            # nothing is being sent.
+            # nothing is being sent. A ping is answered with a pong (its server
+            # time is stamped as it goes out): the page's clock offset.
             while True:
-                await ws.receive_text()
+                text = await ws.receive_text()
+                with contextlib.suppress(ValueError, TypeError, AttributeError):
+                    asked = json.loads(text)
+                    if asked.get("type") == "ping":
+                        queue.put_nowait({"type": "pong", "c": asked.get("c")})
 
         def clipboard_stamp() -> tuple:
             return session.clipboard.stamp(), session.shared_clipboard.stamp()
@@ -1225,8 +1347,23 @@ def create_app(session, engine, *, language: str | None = None,
             await ws.send_json({"type": "jobs", "jobs": initial_jobs})
             last_jobs = tuple((job["id"], job["progress"], job["state"], job["error"])
                               for job in initial_jobs)
-            last_notice, playing, last_position = 0, False, None
+            last_notice = 0
             last_meter, meter_on = -math.inf, False
+            # The newest transport version sent (from a reading or a request),
+            # what the last anchor said, and when it went out.
+            last_seq, last_shape, last_anchor = None, None, -math.inf
+
+            async def send(message: dict) -> None:
+                nonlocal last_seq
+                if message.get("type") == "pong":
+                    message = {**message, "s": time.monotonic()}
+                elif message.get("type") == "anchor":
+                    if not newer_seq(message["seq"], last_seq):
+                        return  # read before a change already sent: stale
+                    if message["seq"] is not None:
+                        last_seq = message["seq"]
+                await ws.send_json(message)
+
             # The project's clipboard and the shared one are files other windows
             # write too: when a stamp changes (our own writes too, which only
             # costs a re-read), say so.
@@ -1235,7 +1372,7 @@ def create_app(session, engine, *, language: str | None = None,
             while True:
                 wait = max(0.0, next_poll - time.monotonic())
                 with contextlib.suppress(TimeoutError):  # nothing to send yet
-                    await ws.send_json(await asyncio.wait_for(queue.get(), wait))
+                    await send(await asyncio.wait_for(queue.get(), wait))
                 if time.monotonic() < next_poll:
                     continue
                 current_jobs = session.jobs.list()
@@ -1248,20 +1385,25 @@ def create_app(session, engine, *, language: str | None = None,
                 if stamp != last_stamp:
                     last_stamp = stamp
                     await ws.send_json({"type": "clipboard_changed"})
-                status = await asyncio.to_thread(engine.status)
+                status = await asyncio.get_running_loop().run_in_executor(
+                    live_reader, engine.status)
                 session.jobs.set_interactive(
                     status["playing"] or time.monotonic() - app.state.last_input < 2)
                 next_poll = time.monotonic() + (tick if status["playing"]
                                                 else max(tick, LIVE_IDLE_S))
-                position = status["position"]
-                # A clipboard preview plays a temporary project: its frames are not
-                # the timeline's, so the playhead must not follow them.
-                moved = (status["playing"] and not status.get("preview")
-                         and position != last_position)
-                if moved or (playing and not status["playing"]):
-                    await ws.send_json({"type": "position", "position": position,
-                                        "playing": status["playing"]})
-                playing, last_position = status["playing"], position
+                # An anchor at once when the transport changed (or the first time),
+                # else a correction every ``correct_every`` while playing. A
+                # clipboard preview's frames are not the timeline's: nothing then.
+                now = time.monotonic()
+                anchor = anchor_message(status, now)
+                shape = (anchor["playing"], anchor["seq"], anchor["speed"],
+                         anchor["end"], str(anchor["loop"]), str(anchor["skip"]))
+                due = anchor["playing"] and now - last_anchor >= correct_every
+                if last_shape is None and not anchor["playing"]:
+                    last_shape = shape  # stopped at connect: the page asks /api/transport
+                if not status.get("preview") and (shape != last_shape or due):
+                    last_shape, last_anchor = shape, now
+                    await send(anchor)
                 # The level meter: what plays now, only while playing, and one floor
                 # frame when it stops so the bar and the hold tick drop.
                 now = time.monotonic()

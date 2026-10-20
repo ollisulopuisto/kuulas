@@ -23,6 +23,8 @@ import os
 import sys
 from pathlib import Path
 
+from . import logsetup
+
 
 def resources_dir(module_file: str | Path) -> Path | None:
     """``Contents/Resources`` when ``module_file`` is inside an app bundle
@@ -73,23 +75,45 @@ def recorder_args(args: list[str]) -> list[str] | None:
     return None
 
 
+#: Worker processes the editor starts as ``<sys.executable> -m <module> ...``, and
+#: the log file each keeps (a bundle has no terminal).
+WORKERS = {"kuulas.transcribe_worker": "kuulas-worker.log",
+           "kuulas.analysis_worker": "kuulas-analysis.log"}
+
+
+def worker_module(args: list[str]) -> str | None:
+    """Which worker the bundle was started as (``-m <module> ...``), else None."""
+    if len(args) >= 2 and args[0] == "-m" and args[1] in WORKERS:
+        return args[1]
+    return None
+
+
 def worker_args(args: list[str]) -> list[str] | None:
-    """The transcription worker's arguments when the bundle was started as ``-m
-    kuulas.transcribe_worker ...``, else None. ``bgjobs.start_worker_process`` runs
-    ``<sys.executable> -m kuulas.transcribe_worker run <job file>``; in the app that
-    executable is the launcher (see :func:`recorder_args`), so this module hands the
-    arguments on. Without this the worker never started in the app and every background
-    transcription showed as "interrupted"."""
-    if args[:2] == ["-m", "kuulas.transcribe_worker"]:
+    """A worker's arguments when the bundle was started as ``-m
+    kuulas.transcribe_worker ...`` or ``-m kuulas.analysis_worker ...``, else None.
+    ``bgjobs.start_worker_process`` runs ``<sys.executable> -m kuulas.transcribe_worker
+    run <job file>`` and ``offload`` runs ``<sys.executable> -m kuulas.analysis_worker
+    <task> <result>``; in the app that executable is the launcher (see
+    :func:`recorder_args`), so this module hands the arguments on. Without this the
+    worker never started in the app and every background transcription showed as
+    "interrupted"."""
+    if worker_module(args) is not None:
         return args[2:]
     return None
 
 
 def _run_worker(args: list[str]) -> int:
-    """Run the worker's ``main`` (it never imports the editor session)."""
+    """Run the transcription worker's ``main`` (it never imports the editor session)."""
     from . import transcribe_worker  # noqa: PLC0415
 
     return transcribe_worker.main(args)
+
+
+def _run_analysis_worker(args: list[str]) -> int:
+    """Run the analysis worker's ``main`` (``offload``; no session either)."""
+    from . import analysis_worker  # noqa: PLC0415
+
+    return analysis_worker.main(args)
 
 
 def _run_recorder(args: list[str]) -> int:
@@ -117,7 +141,8 @@ def _open_log(home: Path, name: str = "kuulas.log"):
         logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s"))
     root = logging.getLogger()
     root.addHandler(handler)
-    root.setLevel(logging.INFO)
+    root.setLevel(getattr(
+        logging, logsetup.resolve(os.environ, logsetup.level_setting())))
     stream = open(file, "a", buffering=1, encoding="utf-8")  # noqa: SIM115 - open for the life of the process
     sys.stdout = sys.stderr = stream
     faulthandler.enable(stream)
@@ -138,9 +163,12 @@ def main() -> int:
         return _run_recorder(recorder)
     worker = worker_args(args)
     if worker is not None:
+        module = worker_module(args) or "kuulas.transcribe_worker"
         if resources is not None:
             os.environ.update(environment(resources, dict(os.environ), home))
-            _open_log(home, "kuulas-worker.log")
+            _open_log(home, WORKERS[module])
+        if module == "kuulas.analysis_worker":
+            return _run_analysis_worker(worker)
         return _run_worker(worker)
     if resources is not None:
         os.environ.update(environment(resources, dict(os.environ), home))

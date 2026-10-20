@@ -63,6 +63,19 @@ def _english_messages():
 
 
 @pytest.fixture(autouse=True)
+def _playback_gate(monkeypatch):
+    """Every test starts with a fresh playback gate (no engine watched, no input),
+    and heavy analysis runs inline: no test starts the analysis worker process by
+    accident (``tests/test_analysis_worker.py`` starts it on purpose)."""
+    from kuulas import offload, priority  # noqa: PLC0415 - after NUMBA_CACHE_DIR
+
+    monkeypatch.setattr(offload, "MODE", "inline")
+    priority.GATE.reset()
+    yield
+    priority.GATE.reset()
+
+
+@pytest.fixture(autouse=True)
 def _private_clipboard(tmp_path_factory, monkeypatch):
     """The clipboard history is a per-user file: no test may touch the real one."""
     folder = tmp_path_factory.mktemp("clipboard")

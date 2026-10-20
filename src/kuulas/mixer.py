@@ -22,7 +22,7 @@ from typing import Protocol
 import numpy as np
 from speechmix.stems import pan_gains
 
-from . import curves
+from . import curves, perf
 from .model import Clip, Project, Track
 
 #: Ramp at each edge of a gated range, derived here and never stored. The
@@ -184,8 +184,12 @@ def _track(track: Track, store: Store, first: int, count: int,
            rate: int) -> np.ndarray | None:
     clips = [c for c in track.clips
              if not c.muted and c.start < first + count and c.end > first]
+    # Counted for the performance report: this scan visits every clip of the track in
+    # every block, so it grows with the length of the project.
+    perf.COUNTERS.note("mixer.clips_scanned", len(track.clips))
     if not clips:
         return None
+    perf.COUNTERS.note("mixer.clips_mixed", len(clips))
     buf = np.zeros((2, count), dtype=np.float64)
     ramps = _mute_ramps(track, rate)
     for clip in clips:

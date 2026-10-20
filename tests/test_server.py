@@ -631,10 +631,13 @@ def test_live_pushes_the_heard_position_while_playing(session, engine, tmp_path)
         ws.receive_json()
         engine.playing, engine.position = True, 4800
         msg = ws.receive_json()
-        assert msg == {"type": "position", "position": 4800, "playing": True}
+        while msg["type"] != "anchor":
+            msg = ws.receive_json()
+        # an anchor replaced the 30 Hz "position" stream (precise cursor, 2026-10-20)
+        assert (msg["position"], msg["playing"]) == (4800, True)
         engine.playing, engine.position = False, 5000
-        # a last position when playback stops, so the playhead lands exactly
-        while msg.get("playing", True):  # the meter's frames carry no "playing"
+        # a last anchor when playback stops, so the playhead lands exactly
+        while msg["type"] != "anchor" or msg["playing"]:
             msg = ws.receive_json()
         assert msg["position"] == 5000
 
@@ -684,17 +687,17 @@ def test_live_meter_waits_for_its_period_between_frames(session, engine, tmp_pat
     # a period far longer than the test: only the first frame can go out, however many
     # ticks there are (no timing in the assertion)
     app = create_app(session, engine, language="en", ui_dir=tmp_path, tick=0.005,
-                     meter_every=1000.0)
+                     meter_every=1000.0, correct_every=0.0)
     with TestClient(app) as c, c.websocket_connect("/api/live") as ws:
         ws.receive_json()
         ws.receive_json()
         engine.playing = True
         seen, positions = 0, 0
         while positions < 20:
-            engine.position += 100  # every tick moves, so every tick sends a position
+            engine.position += 100  # corrections every tick: every tick sends an anchor
             msg = ws.receive_json()
             seen += msg["type"] == "meter"
-            positions += msg["type"] == "position"
+            positions += msg["type"] == "anchor"
         assert seen == 1
 
 
