@@ -2405,7 +2405,6 @@
   "ui.music_level.apply": "Ota käyttöön",
   "ui.music_level.done": "Musiikki asetettu: {now} (oli {was}).",
   "ui.music_level.clamped": "Osa musiikkiraidoista osui vahvistuksen rajaan, joten musiikki ei ole aivan pyydetyllä tasolla.",
-<<<<<<< HEAD
   "ui.prefs.music_under_speech": "Musiikki puheen alla (dB)",
   "ui.role.speech": "Puhe",
   "ui.role.music": "Musiikki",
@@ -2438,9 +2437,7 @@
   "ui.track.role_field": "Rooli",
   "ui.track.role_match": "Sovita väylän rooliin",
   "ui.track.role_match_with": "Sovita väylän rooliin ({role})",
-  "ui.track.role_match_none": "Sovita väylän rooliin (raidalla ei ole väylää, jolla on rooli)"
-}
-=======
+  "ui.track.role_match_none": "Sovita väylän rooliin (raidalla ei ole väylää, jolla on rooli)",
   "error.block_level.no_speech": "Tasattavaa puhetta ei ole: yhdelläkään mykistämättömällä puheraidalla ei ole leikkeitä.",
   "error.block_level.stale": "Muokkaus muuttui mittauksen jälkeen. Mittaa uudelleen ja ota sitten käyttöön.",
   "job.block_level": "Mitataan puhelohkoja",
@@ -2466,6 +2463,5 @@
   "ui.block_level.left_out": "Pois jättämiäsi lohkoja ei merkitä tehdyiksi: automixer tasaa ne vielä.",
   "ui.automix.done_text_block": "Tasasit puhelohkot Kuulaassa, joten automixerille kerrotaan, että se ohittaa oman lohkotasauksensa. Palauta, niin automixer tekee sen.",
   "ui.automix.done_stale_block": "Puhelohkot tasattiin aiemmin Kuulaassa, mutta leikkeet ovat muuttuneet sen jälkeen.",
-  "ui.automix.done_again_block": "Tasaa lohkot uudelleen",
-  "ui.prefs.music_under_speech": "Musiikki puheen alla (dB)"}
->>>>>>> level-blocks
+  "ui.automix.done_again_block": "Tasaa lohkot uudelleen"
+}

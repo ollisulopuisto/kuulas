@@ -2300,7 +2300,6 @@
   "ui.music_level.apply": "Apply",
   "ui.music_level.done": "Music set to {now} (was {was}).",
   "ui.music_level.clamped": "Some music tracks reached the gain limit, so the music is not quite where asked.",
-<<<<<<< HEAD
   "ui.prefs.music_under_speech": "Music under speech (dB)",
   "ui.role.speech": "Speech",
   "ui.role.music": "Music",
@@ -2333,9 +2332,7 @@
   "ui.track.role_field": "Role",
   "ui.track.role_match": "Match bus role",
   "ui.track.role_match_with": "Match bus role ({role})",
-  "ui.track.role_match_none": "Match bus role (the track has no bus with a role)"
-}
-=======
+  "ui.track.role_match_none": "Match bus role (the track has no bus with a role)",
   "error.block_level.no_speech": "There is no speech to level: no unmuted speech track has clips.",
   "error.block_level.stale": "The edit changed after the measurement. Measure again, then apply.",
   "job.block_level": "Measuring the speech blocks",
@@ -2361,6 +2358,5 @@
   "ui.block_level.left_out": "Blocks you left out are not marked as done: the automixer will still level them.",
   "ui.automix.done_text_block": "You levelled the speech blocks in Kuulas, so the automixer is told to skip its own block levelling. Reset to let the automixer do it.",
   "ui.automix.done_stale_block": "The speech blocks were levelled earlier in Kuulas, but the clips have changed since.",
-  "ui.automix.done_again_block": "Level blocks again",
-  "ui.prefs.music_under_speech": "Music under speech (dB)"}
->>>>>>> level-blocks
+  "ui.automix.done_again_block": "Level blocks again"
+}

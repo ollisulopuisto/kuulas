@@ -1,3 +1,8 @@
+## [v26.10.20.13] - 2026-10-20
+
+- **Level blocks:** Track > Auto > "Level blocks..." measures the speech of each microphone the way the automixer does (stretches whose level is off, with the gain each would get), lists them per speaker with ticks, and applies them as clip gains in one undo step: the clips are split in the pauses between blocks and the gain is added to the pieces (20 ms fades at the new cuts), so you can see and change what the automixer would do. Loud spots stay as they are (optional markers). Running it again after applying changes nothing. The project remembers it, and the automix dialog then shows "Done in Kuulas" on the Block levelling option and the export sends `--no-block-level`. Not tried on real speech yet.
+- **Cmd+drag (Ctrl on Windows/Linux) on a clip edge trims only that clip:** shortening leaves a gap and the neighbour is untouched; lengthening stops at the neighbour. The hint line and the ghost show it; Cmd+press on an edge no longer changes the selection.
+
 ## [v26.10.20.12] - 2026-10-20
 
 - **Roles for buses.** A bus can be Speech or Music (right-click the bus header > Role, or Track > Bus); setting it gives every track on the bus that role in one undo step, and a track moved onto the bus follows it. A track's role is now a dropdown whose top choice is "Match bus role"; choosing Speech or Music is an override. A track that differs from its bus shows a "!" badge (click to match), and the bus shows "Music *" with a Reapply button when its tracks do not all match. Nothing changes in old projects; the export reads the tracks' roles as before.
