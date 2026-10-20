@@ -12,9 +12,12 @@ import {
   validateAutomix,
 } from "./automix-model.js";
 import {
+  changedItems,
   groupSpecs,
+  initialOpen,
   optionEnabled,
   optionsToForm,
+  summaryText,
   validateOptions,
 } from "./automix-options-model.js";
 
@@ -47,9 +50,10 @@ const el = (tag, className, text) => {
  * `api`: { automixerSettings, saveAutomixerSettings }; `t` translates;
  * `onStart(body)` -> Promise queues the job; `pickFolder()` -> Promise<string|null> is the
  * desktop window's folder chooser (null in a plain browser: the folder is typed).
+ * `prefs` (ui/prefs.js) remembers which option groups the user opened or closed.
  * Returns { element, open() }.
  */
-export function createAutomixDialog({ api, t, onStart, pickFolder = null }) {
+export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs = null }) {
   const dialog = el("dialog", "cheatsheet automix-dialog");
   dialog.setAttribute("aria-labelledby", "automix-title");
   const heading = el("h2", "", t("ui.automix.title"));
@@ -187,9 +191,56 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null }) {
     optionControls[spec.key] = { input, wrap };
     return wrap;
   };
+  // Each group is a disclosure: one full-width header button (chevron, title, a badge with
+  // the number of changed settings, and while folded the names of the changed ones) over a
+  // body that animates its height. Open/closed is remembered (prefs) and wins over the
+  // automatic "open when something is changed".
+  const GROUPS_KEY = "automixGroups";
+  const groups = new Map(); // id -> { node, head, body, badge, names, open }
+  const remembered = () => prefs?.getJson(GROUPS_KEY, {}) ?? {};
+  const MAX_NAMES = 40;
+  const setGroupOpen = (group, open, { remember = false } = {}) => {
+    group.open = open;
+    group.head.setAttribute("aria-expanded", String(open));
+    group.body.inert = !open;
+    group.node.classList.toggle("is-open", open);
+    if (remember) prefs?.setJson(GROUPS_KEY, { ...remembered(), [group.id]: open });
+    updateGroupSummaries();
+  };
+  const optionWords = {
+    label: (spec) => t(`ui.automix.opt.${spec.key}`),
+    on: t("ui.automix.state_on"),
+    off: t("ui.automix.state_off"),
+  };
+  function updateGroupSummaries() {
+    const changed = changedItems(optionSpecs, optionValues(), optionWords);
+    for (const group of groups.values()) {
+      const items = changed[group.id] ?? [];
+      group.badge.hidden = items.length === 0;
+      group.badge.textContent = t("ui.automix.changed_count", { n: items.length });
+      group.node.classList.toggle("has-changes", items.length > 0);
+      group.names.textContent = summaryText(items, !group.open, MAX_NAMES);
+      group.names.title = items.join(", ");
+    }
+  }
+  const allGroups = (open) => {
+    for (const group of groups.values()) setGroupOpen(group, open, { remember: true });
+  };
+  const toggles = el("div", "automix-group-tools");
+  for (const [key, open] of [
+    ["ui.automix.expand_all", true],
+    ["ui.automix.collapse_all", false],
+  ]) {
+    const button = el("button", "button ghost", t(key));
+    button.type = "button";
+    button.addEventListener("click", () => allGroups(open));
+    toggles.append(button);
+  }
   function buildOptions(specs) {
     optionSpecs = specs;
+    groups.clear();
     processing.replaceChildren(processing.firstChild);
+    const cards = [];
     for (const { id, specs: members } of groupSpecs(specs)) {
       const controls = members.map((spec) =>
         spec.kind === "bool" ? boolControl(spec) : fieldControl(spec),
@@ -198,11 +249,32 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null }) {
         processing.append(...controls);
         continue;
       }
-      const group = el("details", "automix-group");
-      group.dataset.group = id;
-      group.append(el("summary", "", t(`ui.automix.group.${id}`)), ...controls);
-      processing.append(group);
+      const node = el("div", "automix-group");
+      node.dataset.group = id;
+      const heading = el("h4", "automix-group-heading");
+      const head = el("button", "automix-group-head");
+      head.type = "button";
+      const chevron = el("span", "automix-chevron", "\u25B8");
+      chevron.setAttribute("aria-hidden", "true");
+      const names = el("span", "automix-group-names");
+      const badge = el("span", "automix-badge");
+      badge.hidden = true;
+      head.append(chevron, el("span", "automix-group-title", t(`ui.automix.group.${id}`)));
+      head.append(badge, names);
+      heading.append(head);
+      const body = el("div", "automix-group-body");
+      body.id = `automix-group-${id}`;
+      head.setAttribute("aria-controls", body.id);
+      const inner = el("div", "automix-group-inner");
+      inner.append(...controls);
+      body.append(inner);
+      node.append(heading, body);
+      const group = { id, node, head, body, badge, names, open: false };
+      head.addEventListener("click", () => setGroupOpen(group, !group.open, { remember: true }));
+      groups.set(id, group);
+      cards.push(node);
     }
+    if (cards.length > 0) processing.append(toggles, ...cards);
     processing.hidden = specs.length === 0;
   }
   const optionValues = () => {
@@ -220,10 +292,14 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null }) {
       if (spec.kind === "bool") input.checked = values[spec.key];
       else input.value = values[spec.key];
     }
-    // Open a group that holds a changed value, so nothing set is hidden.
-    for (const group of processing.querySelectorAll("details")) {
-      const keys = optionSpecs.filter((s) => s.group === group.dataset.group).map((s) => s.key);
-      group.open = keys.some((key) => options && key in options);
+    // Open a group that holds a changed value, so nothing set is hidden, unless the user
+    // opened or closed it themselves.
+    const kept = remembered();
+    for (const group of groups.values()) {
+      const hasChanged = optionSpecs.some(
+        (s) => s.group === group.id && options && s.key in options,
+      );
+      setGroupOpen(group, initialOpen(hasChanged, kept[group.id]));
     }
   };
 
@@ -304,6 +380,7 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null }) {
       }
       if (spec.kind !== "bool") input.setAttribute("aria-invalid", key ? "true" : "false");
     }
+    updateGroupSummaries();
     const ok = mixOk && checked.ok;
     for (const name of ["targetLufs", "adSpot", "adDuration"]) {
       const key = errors[name];

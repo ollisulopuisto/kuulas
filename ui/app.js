@@ -1773,6 +1773,7 @@ async function openAutomix() {
     api,
     t,
     pickFolder: folderChooser(),
+    prefs,
     onStart: async (body) => {
       try {
         const { jobs } = await api.automix(body);

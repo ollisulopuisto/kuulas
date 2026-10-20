@@ -3057,19 +3057,116 @@ input[type="text"] {
   font-weight: var(--weight-strong);
   color: var(--text-secondary);
 }
-/* The automixer's switches: one collapsible group each */
-.automix-group {
-  border-top: 1px solid var(--panel-divider);
-  padding-top: var(--space-1);
+/* The automixer's switches: one card per group, a disclosure with a full-width header. */
+.automix-group-tools {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
 }
-.automix-group > summary {
-  min-height: var(--control-h);
+.automix-group {
+  background: var(--surface-raised);
+  border: 1px solid var(--panel-divider);
+  border-radius: var(--radius-sm);
+  margin-top: var(--space-2);
+}
+.automix-group.has-changes {
+  border-color: var(--border-strong);
+}
+.automix-group-heading {
+  margin: 0;
+  font: inherit;
+}
+.automix-group-head {
   display: flex;
   align-items: center;
-  cursor: pointer;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: var(--control-h);
+  padding: 0 var(--pad-inline);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font: inherit;
   font-size: var(--text-sm);
-  font-weight: var(--weight-strong);
+  text-align: start;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-standard);
+}
+.automix-group-head:hover {
+  background: var(--surface-hover);
+}
+.automix-group-head:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+.automix-chevron {
+  flex: none;
+  width: 1em;
+  text-align: center;
   color: var(--text-secondary);
+  transition: transform var(--dur-base) var(--ease-standard);
+}
+.automix-group.is-open .automix-chevron {
+  transform: rotate(90deg);
+}
+.automix-group-title {
+  flex: none;
+  font-weight: var(--weight-strong);
+}
+.automix-badge {
+  flex: none;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-xs);
+  background: var(--surface-hover);
+  color: var(--accent-text);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+.automix-badge[hidden] {
+  display: none;
+}
+.automix-group-names {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: end;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+}
+/* Height animates through the grid track (0fr to 1fr): no measured heights, no jump. */
+.automix-group-body {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition:
+    grid-template-rows var(--dur-base) var(--ease-standard),
+    visibility 0s linear var(--dur-base);
+}
+.automix-group.is-open > .automix-group-body {
+  grid-template-rows: 1fr;
+  visibility: visible;
+  transition-delay: 0s;
+}
+.automix-group-inner {
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 var(--pad-inline);
+}
+.automix-group.is-open .automix-group-inner {
+  padding-bottom: var(--space-2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .automix-chevron,
+  .automix-group-body {
+    transition: none;
+  }
+}
+:root[data-motion="off"] .automix-chevron,
+:root[data-motion="off"] .automix-group-body {
+  transition: none;
 }
 .automix-optcheck {
   display: grid;
