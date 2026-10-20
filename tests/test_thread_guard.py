@@ -21,11 +21,11 @@ EXEMPT_FILES = {"engine.py", "priority.py"}
 #: thread may run while audio plays.
 ALLOWED = {
     ("profiler.py", "Profiler.start"):
-        "the performance report's sampler: it exists to watch a slow moment, sleeps between "
-        "samples and must not be paused by the gate it measures",
+        "the performance report's sampler: it exists to watch a slow moment, sleeps "
+        "between samples and is not paused by the gate it measures",
     ("server.py", "create_app"):
-        "the live channel's one-thread reader of the engine status: the playhead must never "
-        "wait for playback priority",
+        "the live channel's one-thread reader of the engine status: the playhead "
+        "never waits for playback priority",
     ("cli.py", "open_project"):
         "waits for the server to accept connections, then opens the browser; no work",
     ("package.py", "Package.start"):
