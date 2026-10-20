@@ -103,7 +103,8 @@ def test_api_txt(session, tmp_path):
     r = client(session, tmp_path).get("/api/transcript-text?format=txt")
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/plain")
-    assert r.headers["content-disposition"] == 'attachment; filename="transcript.txt"'
+    assert r.headers["content-disposition"] .startswith(
+        'attachment; filename="Text transcript.txt"')
     assert "hello world" in r.text
 
 
@@ -111,7 +112,8 @@ def test_api_md(session, tmp_path):
     r = client(session, tmp_path).get("/api/transcript-text?format=md")
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/markdown")
-    assert r.headers["content-disposition"] == 'attachment; filename="transcript.md"'
+    assert r.headers["content-disposition"] .startswith(
+        'attachment; filename="Text transcript.md"')
 
 
 @pytest.mark.parametrize(("lang", "needle"), [

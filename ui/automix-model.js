@@ -112,12 +112,13 @@ export function advancedBody(fields) {
   };
 }
 
-/** The name the mix gets (automix.py: "<edit> automixer YYYY-MM-DD HHMMSS.wav", local time). */
-export function fileNamePreview(edit, when = new Date()) {
+/** The name the mix gets (automix.py: "<project> automixer YYYY-MM-DD HH-MM-SS.wav", local
+ * time; "<project> - <edit>" when the edit is not the main one). */
+export function fileNamePreview(title, when = new Date()) {
   const pad = (n) => String(n).padStart(2, "0");
   const day = `${when.getFullYear()}-${pad(when.getMonth() + 1)}-${pad(when.getDate())}`;
-  const time = `${pad(when.getHours())}${pad(when.getMinutes())}${pad(when.getSeconds())}`;
-  return `${edit} automixer ${day} ${time}.wav`;
+  const time = `${pad(when.getHours())}-${pad(when.getMinutes())}-${pad(when.getSeconds())}`;
+  return `${title} automixer ${day} ${time}.wav`;
 }
 
 /** "uv run "my tool" --x" -> ["uv", "run", "my tool", "--x"]; quotes keep a word together. */

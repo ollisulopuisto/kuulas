@@ -39,7 +39,7 @@ from typing import Any, NoReturn
 
 import soundfile as sf
 
-from . import export, toolpath
+from . import export, export_names, toolpath
 from .jobs import JobCancelledError
 from .messages import KuulasError
 
@@ -569,8 +569,10 @@ def run(session, params: dict, settings: dict, report: Report,
         except OSError as e:
             raise AutomixError("error.export.cannot_write", path=str(folder),
                                error=str(e)) from e
-        stamp = datetime.now(UTC).astimezone().strftime("%Y-%m-%d %H%M%S")
-        final = _unique(folder, export._safe(f"{listing['edit']} automixer {stamp}.wav"))
+        stamp = export_names.stamp(datetime.now(UTC).astimezone())
+        # Project first, the edit only when it is not the main one (export_names).
+        title = listing.get("title") or listing["edit"]
+        final = _unique(folder, export._safe(f"{title} automixer {stamp}.wav"))
         partial = final.with_name(f"{final.stem}.partial{final.suffix}")
         cmd = build_command(settings, stems, partial, target_lufs=lufs,
                             ad_spot=ad_spot, ad_duration=ad_duration)
