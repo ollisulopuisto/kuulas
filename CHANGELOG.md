@@ -1,3 +1,7 @@
+## [v26.10.20.12] - 2026-10-20
+
+- **Roles for buses.** A bus can be Speech or Music (right-click the bus header > Role, or Track > Bus); setting it gives every track on the bus that role in one undo step, and a track moved onto the bus follows it. A track's role is now a dropdown whose top choice is "Match bus role"; choosing Speech or Music is an override. A track that differs from its bus shows a "!" badge (click to match), and the bus shows "Music *" with a Reapply button when its tracks do not all match. Nothing changes in old projects; the export reads the tracks' roles as before.
+
 ## [v26.10.20.11] - 2026-10-20
 
 - **The automix progress line says which step it is at**, for example "3/4 track 2/3 Kari: debleed (2/9)": 1 stems (Kuulas), 2 analysis, 3 the tracks (track i of n and the stage of nine), 4 mastering. The tool does not number its steps; Kuulas does, from the stage words it prints.
