@@ -899,6 +899,8 @@ def create_app(session, engine, *, language: str | None = None,
         return {"settings": stored, "resolved": resolved,
                 "default_output_dir": str(session.package.path.parent),
                 "option_specs": automix.option_specs(),
+                # What Kuulas already did that the automixer would otherwise redo.
+                "done_in_kuulas": automix.done_in_kuulas(session.state),
                 # What the installed tool accepts (its --help, cached; never an error).
                 "capabilities": automix.capabilities(
                     resolved["command"], resolved["cwd"])}

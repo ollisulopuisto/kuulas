@@ -635,7 +635,21 @@ without their gain; algorithm `music-level@1`). The record is only trusted while
 holds (`music_level.bed_level_current`: same key, music gains as set), so a later edit of the
 music or the speech makes it stale, never wrong; phase 3 (the export telling the automixer
 "beds levelled") must read it through that check. Absent while empty, so a project that
-never used it keeps its bytes and its state hash.
+never used it keeps its bytes and its state hash. The entry also carries `set_at` (ISO time
+with zone, when it was set; optional, absent in older projects).
+
+*Done in Kuulas (the automixer dialog).* The stems Kuulas exports are dry, so the automixer
+measures the original music and applies `speech + offset - bed`; telling it
+`--bed-under-speech-db <offset_db>` reproduces Set music level. `GET /api/settings/automixer`
+returns `done_in_kuulas: {<mix_done name>: {option, offset_db, speech_lufs, bed_lufs, mode,
+set_at, current}}` (`automix.done_in_kuulas`); `current` is `bed_level_current`'s verdict. The
+dialog pre-fills the option only while `current` and the saved value is the tool default
+(a different saved value is kept and Kuulas's is offered), shows "Done in Kuulas" while the
+value equals it, and sends it with the run without saving it as the user's own setting.
+`automix.DONE_IN_KUULAS` (server) and `DONE_IN_KUULAS` (`ui/automix-options-model.js`) map an
+option key to its `mix_done` entry and value field: block level (`--no-block-level`) and the
+music duck join by being listed in both and in `_STILL_HOLDS`. The run's `log.txt` header
+gets `Done in Kuulas: music level -10 dB (set at <time>)` when the sent value is Kuulas's.
 
 *Version and `min_reader`.* Neither changes. The record changes no sound (the gains it
 describes are ordinary track gains). A reader that does not know it keeps the key in
