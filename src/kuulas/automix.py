@@ -22,15 +22,18 @@ message.
 from __future__ import annotations
 
 import contextlib
+import importlib.metadata
 import json
 import logging
 import os
 import re
+import shlex
 import shutil
 import signal
 import subprocess
 import tempfile
 import threading
+import time
 from collections import deque
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -530,6 +533,53 @@ def _keep_flags(partial: Path, final: Path) -> str | None:
     return None
 
 
+#: The lines worth showing without opening the log: how far the music was raised, the
+#: mastering result and the number of places to listen to.
+_KEY_LINE = re.compile(r"\b(beds:|mastered:)|places to listen", re.IGNORECASE)
+
+
+def key_lines(lines) -> list[str]:
+    """The automixer's output lines that say what it did to the mix."""
+    return [line.strip() for line in lines if _KEY_LINE.search(line)]
+
+
+def _kuulas_version() -> str:
+    try:
+        return importlib.metadata.version("kuulas")
+    except importlib.metadata.PackageNotFoundError:
+        return "unknown"
+
+
+def _write_log(target: Path, *, project: str, cmd: list[str], cwd: str | None,
+               lines, code: int | None, started: datetime, took: dict[str, float],
+               outcome: str) -> str | None:
+    """Write the automixer's whole output beside the mix, under a header that says what
+    was run, and a summary. Never overwrites a file; ``target`` is only the name wanted.
+    Returns the path, or None when it could not be written (the mix matters more than
+    its log, so this only warns). The home folder is NOT shortened here: the file is the
+    record, the screen is where paths are tidied."""
+    kept = _unique(target.parent, target.name)
+    header = [
+        f"kuulas {_kuulas_version()}",
+        f"date: {started.isoformat(timespec='seconds')}",
+        f"project: {project}",
+        f"folder: {cwd or ''}",
+        f"command: {shlex.join(str(c) for c in cmd)}",
+    ]
+    footer = [
+        f"exit code: {'none' if code is None else code}",
+        f"result: {outcome}",
+        *(f"{name}: {seconds:.1f} s" for name, seconds in took.items()),
+    ]
+    text = "\n\n".join(["\n".join(header), "\n".join(lines), "\n".join(footer)]) + "\n"
+    try:
+        kept.write_text(text, encoding="utf-8")
+    except OSError:
+        log.warning("could not write the automixer's log %s", kept)
+        return None
+    return str(kept)
+
+
 def _unique(folder: Path, name: str) -> Path:
     target = folder / name
     n = 2
@@ -568,6 +618,7 @@ def run(session, params: dict, settings: dict, report: Report,
     except OSError as e:
         raise AutomixError("error.automix.bad_temp_dir", path=temp_dir or "") from e
     partial: Path | None = None
+    began = time.monotonic()
     try:
         report(0.0, "")
         try:
@@ -603,6 +654,9 @@ def run(session, params: dict, settings: dict, report: Report,
         cmd = build_command(settings, stems, partial, target_lufs=lufs,
                             ad_spot=ad_spot, ad_duration=ad_duration)
         report(STEMS_SHARE, "", indeterminate=True)
+        started = datetime.now(UTC).astimezone()
+        stems_took = time.monotonic() - began
+        project_name = str(title)
 
         reached = [STEMS_SHARE]  # the bar never goes back, whatever the tool prints
 
@@ -621,26 +675,46 @@ def run(session, params: dict, settings: dict, report: Report,
                 report(reached[0], line, indeterminate=reached[0] == STEMS_SHARE)
 
         log.info("Running %s", cmd)
+        ran = time.monotonic()
+        code: int | None = None
+
+        def fail(error: AutomixError) -> NoReturn:
+            # Kept beside where the mix would have been, so a failure can be diagnosed.
+            kept = _write_log(
+                final.with_name(f"{final.stem} FAILED log.txt"), project=project_name,
+                cmd=cmd, cwd=settings["cwd"], lines=lines, code=code, started=started,
+                took={"stems": stems_took, "automixer": time.monotonic() - ran},
+                outcome=f"failed: {error.key}")
+            error.params["log_file"] = kept or ""
+            raise error
+
         try:
             code = run_process(cmd, settings["cwd"], on_line, cancel)
         except FileNotFoundError as e:
-            raise AutomixError("error.automix.not_found",
-                               command=" ".join(settings["command"]),
-                               cwd=settings["cwd"] or "") from e
+            lines.append(f"not found: {e}")
+            fail(AutomixError("error.automix.not_found",
+                              command=" ".join(settings["command"]),
+                              cwd=settings["cwd"] or ""))
         if cancel.is_set():
             raise JobCancelledError
         if code != 0:
-            raise AutomixError("error.automix.failed", code=code,
-                               tail="\n".join(list(lines)[-TAIL_LINES:]))
+            fail(AutomixError("error.automix.failed", code=code,
+                              tail="\n".join(list(lines)[-TAIL_LINES:])))
         if not partial.is_file():
-            raise AutomixError("error.automix.no_output",
-                               tail="\n".join(list(lines)[-TAIL_LINES:]))
+            fail(AutomixError("error.automix.no_output",
+                              tail="\n".join(list(lines)[-TAIL_LINES:])))
         flags = _keep_flags(partial, final)
         os.replace(partial, final)
         partial = None
+        kept_log = _write_log(
+            final.with_name(f"{final.stem} log.txt"), project=project_name, cmd=cmd,
+            cwd=settings["cwd"], lines=lines, code=code, started=started,
+            took={"stems": stems_took, "automixer": time.monotonic() - ran},
+            outcome=f"mixed: {final.name}")
         report(1.0, "")
         return {"path": str(final), "name": final.name, "log": list(lines),
-                "command": cmd, "flags": flags}
+                "command": cmd, "flags": flags, "log_file": kept_log,
+                "summary": key_lines(lines)}
     finally:
         if partial is not None:
             with contextlib.suppress(OSError):

@@ -410,6 +410,19 @@ class Bridge:
             return False
         return True
 
+    def reveal_automix_log(self) -> bool:
+        """Show the newest automixer log file in Finder / Explorer. Takes no argument,
+        like ``reveal_export``: the page asks for "the log", never names a path."""
+        kept = getattr(getattr(self._project, "_session", None),
+                       "last_automix_log", None)
+        if not kept or not Path(kept).is_file():
+            return False
+        try:
+            self._runner(reveal_command(kept))
+        except OSError:
+            return False
+        return True
+
     def reveal_export(self) -> bool:
         """Show the folder of the last "Export all tracks" in Finder / Explorer.
         Takes no argument: the page cannot name a path, only ask for the one the

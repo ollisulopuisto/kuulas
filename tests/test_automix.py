@@ -4,6 +4,7 @@ The fake is a tiny Python script that takes the automixer's command line, writes
 a wav to ``-o`` and prints progress. No real automixer, no audio playback."""
 
 import json
+import shlex
 import sys
 import textwrap
 import threading
@@ -62,6 +63,7 @@ FAKE = textwrap.dedent('''
                      (75, "Engine: master")):
         print(f"PROGRESS {pct} {msg}", flush=True)
     print("some other line", flush=True)
+    print("beds: loudest -20.1 LUFS, speech -18.0 -> beds +2.1 dB", flush=True)
     sf.write(out, np.zeros(4800, dtype="float32"), 48000)
     print("PROGRESS 100 done", flush=True)
 ''')
@@ -217,7 +219,9 @@ def test_failure_gives_a_translated_error_with_the_last_lines(
     assert "boom: no plug-in" in e.value.params["tail"]
     assert "boom: no plug-in" in str(messages.t(e.value.key, **e.value.params))
     assert list(temp_root.iterdir()) == []
-    assert not list(tmp_path.glob("* automixer *"))
+    assert [p.name for p in tmp_path.glob("* automixer *")] == [
+        Path(e.value.params["log_file"]).name]
+    assert " FAILED log" in e.value.params["log_file"]
 
 
 def test_the_tail_is_at_most_fifteen_lines(session, fake):
@@ -302,7 +306,7 @@ def test_the_project_is_not_changed_and_the_export_folder_not_remembered(session
 def test_an_empty_flags_file_is_not_left_behind(session, fake, tmp_path, temp_root):
     result = automix.run(session, {}, fake, Reports(), threading.Event())
     folder = Path(result["path"]).parent
-    mixes = sorted(p.name for p in folder.glob("* automixer *"))
+    mixes = sorted(p.name for p in folder.glob("* automixer *.wav"))
     assert mixes == [Path(result["path"]).name]
     assert not list(folder.glob("*flags*"))
 
@@ -322,8 +326,9 @@ def test_a_failed_run_leaves_no_flags_file(session, fake, tmp_path, temp_root):
     fake["extra_args"] = ["--mode", "fail"]
     with pytest.raises(automix.AutomixError):
         automix.run(session, {}, fake, Reports(), threading.Event())
-    assert not list(tmp_path.glob("* automixer *"))
+    assert not list(tmp_path.glob("* automixer *.wav"))
     assert not list(tmp_path.glob("*flags*"))
+    assert not list(tmp_path.glob("*partial*"))
 
 
 def test_the_tool_does_not_inherit_the_callers_virtual_env(tmp_path, monkeypatch):
@@ -418,3 +423,88 @@ def test_the_output_folder_is_a_setting(tmp_path, monkeypatch):
         "output_dir": "/Volumes/Mixes"}
     with pytest.raises(automix.AutomixError):
         automix.save_settings({"output_dir": 3})
+
+
+def test_the_log_is_kept_beside_the_mix(session, fake, tmp_path, temp_root):
+    result = automix.run(session, {}, fake, Reports(), threading.Event())
+    out = Path(result["path"])
+    kept = out.with_name(f"{out.stem} log.txt")
+    assert result["log_file"] == str(kept)
+    text = kept.read_text(encoding="utf-8")
+    head, _, rest = text.partition("\n\n")
+    assert "kuulas " in head
+    assert "Episode" in head
+    assert shlex.join(result["command"]) in head
+    assert "loading 2 tracks" in rest
+    assert "beds: loudest -20.1 LUFS, speech -18.0 -> beds +2.1 dB" in rest
+    assert "\x1b" not in text
+    assert "exit code: 0" in rest.lower()
+    assert str(Path.home()) in text or str(tmp_path) in text  # not redacted in the file
+    assert result["summary"] == ["beds: loudest -20.1 LUFS, speech -18.0 -> beds +2.1 dB"]
+
+
+def test_a_failed_run_keeps_a_log_to_diagnose(session, fake, tmp_path, temp_root):
+    fake["extra_args"] = ["--mode", "fail"]
+    with pytest.raises(automix.AutomixError) as e:
+        automix.run(session, {}, fake, Reports(), threading.Event())
+    kept = Path(e.value.params["log_file"])
+    assert kept.parent == tmp_path
+    assert kept.name.endswith(" FAILED log.txt")
+    text = kept.read_text(encoding="utf-8")
+    assert "boom: no plug-in" in text
+    assert "exit code: 3" in text.lower()
+    assert list(temp_root.iterdir()) == []
+
+
+def test_a_log_never_overwrites_another(session, fake, tmp_path, temp_root, monkeypatch):
+    when = "2026-01-01 10-00-00"
+    monkeypatch.setattr(automix.export_names, "stamp", lambda _when: when)
+    old = tmp_path / f"Episode automixer {when} log.txt"
+    old.write_text("earlier", encoding="utf-8")
+    result = automix.run(session, {}, fake, Reports(), threading.Event())
+    assert old.read_text(encoding="utf-8") == "earlier"
+    assert Path(result["log_file"]).name == f"Episode automixer {when} log (2).txt"
+    assert Path(result["log_file"]).is_file()
+
+
+def test_cancel_leaves_no_partial_log(session, fake, tmp_path, temp_root):
+    fake["extra_args"] = ["--mode", "hang"]
+    cancel = threading.Event()
+    reports = Reports()
+
+    def watch():
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            if any(m == "working" for _f, m, _i in reports.items):
+                cancel.set()
+                return
+            time.sleep(0.02)
+
+    threading.Thread(target=watch, daemon=True).start()
+    with pytest.raises(JobCancelledError):
+        automix.run(session, {}, fake, reports, cancel)
+    assert not list(tmp_path.glob("*log*"))
+    assert not list(tmp_path.glob("* automixer *"))
+
+
+def test_a_missing_tool_keeps_a_failed_log_too(session, fake, tmp_path, temp_root):
+    fake["command"] = ["definitely-not-an-automixer-xyz"]
+    with pytest.raises(automix.AutomixError) as e:
+        automix.run(session, {}, fake, Reports(), threading.Event())
+    kept = Path(e.value.params["log_file"])
+    assert "definitely-not-an-automixer-xyz" in kept.read_text(encoding="utf-8")
+
+
+def test_the_job_remembers_the_log_for_reveal(
+        session, fake, tmp_path, temp_root, monkeypatch):
+    monkeypatch.setattr(automix, "load_settings", lambda: fake)
+    job = session.automix({})[0]
+    def item():
+        return next(j for j in session.jobs.list() if j["id"] == job)
+
+    deadline = time.monotonic() + 30
+    while item()["state"] not in ("completed", "failed"):
+        assert time.monotonic() < deadline
+        time.sleep(0.05)
+    assert session.last_automix_log
+    assert session.last_automix_log == item()["result"]["log_file"]
