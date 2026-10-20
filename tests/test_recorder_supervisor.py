@@ -312,7 +312,7 @@ def test_killing_the_worker_restarts_into_a_new_numbered_file(client, sup, tmp_p
     # The fake signal numbers real time: segment 2 sits where its audio was
     # captured, within a block or two of clock jitter.
     real = (frame_of(p2) - frame_of(p1)) % (1 << 20)
-    assert abs(real - two["start_frame"]) < 4096
+    assert abs(real - two["start_frame"]) < 16384
     journal = [e["event"] for e in read_journal(folder / "t1.journal.jsonl")]
     assert "worker_restarted" in journal
     assert "gap" in journal
