@@ -12,6 +12,7 @@
 //
 // Zoom keys (owner, 2026-10-18): Z toggles close and wide, 0 shows the whole edit, F fits the
 // selection or in-out; no view command lives on a modified Z (Cmd+Z and Cmd+Shift+Z are undo and redo).
+// Alt+1 to Alt+5 show the side-panel tabs in their row order (owner, 2026-10-20); by key position.
 // Owner decisions (18.10.2026) kept here: Backspace is Delete (soft cut, gap kept),
 // X is Cut (ripple, to the clipboard), Mod+C copies; Spot is Mod+J, find is Mod+F,
 // fade is G, import is Mod+I (Mod+T in the desktop wrapper), K keeps a candidate (in the Candidates tab),
@@ -324,6 +325,36 @@ export const DEFAULT_KEYMAP = [
     keys: { mac: "Shift+F6", other: "Shift+F6" },
     context: "text-field",
     labelKey: "cmd.panel.previous",
+  },
+  {
+    id: "panel.show_inspector",
+    keys: { mac: "Alt+1", other: "Alt+1" },
+    context: "global",
+    labelKey: "cmd.panel.show_inspector",
+  },
+  {
+    id: "panel.show_candidates",
+    keys: { mac: "Alt+2", other: "Alt+2" },
+    context: "global",
+    labelKey: "cmd.panel.show_candidates",
+  },
+  {
+    id: "panel.show_clipboard",
+    keys: { mac: "Alt+3", other: "Alt+3" },
+    context: "global",
+    labelKey: "cmd.panel.show_clipboard",
+  },
+  {
+    id: "panel.show_markers",
+    keys: { mac: "Alt+4", other: "Alt+4" },
+    context: "global",
+    labelKey: "cmd.panel.show_markers",
+  },
+  {
+    id: "panel.show_history",
+    keys: { mac: "Alt+5", other: "Alt+5" },
+    context: "global",
+    labelKey: "cmd.panel.show_history",
   },
   {
     id: "mark.in",

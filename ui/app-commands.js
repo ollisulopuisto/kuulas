@@ -8,6 +8,18 @@ import { setInPoint, setOutPoint } from "./marks.js";
 import { playSelectionRequest, rehearseRequest } from "./rehearse.js";
 import { PAUSE_CHOICES } from "./transcript-model.js";
 
+/** Alt+1 to Alt+5: command id -> side-panel tab, in the tab row's order. */
+export const SIDE_TAB_COMMANDS = {
+  "panel.show_inspector": "inspector",
+  "panel.show_candidates": "candidates",
+  "panel.show_clipboard": "clipboard",
+  "panel.show_markers": "markers",
+  "panel.show_history": "history",
+};
+
+/** The tab a panel.show_* command shows; null for any other id. */
+export const sideTabFor = (id) => SIDE_TAB_COMMANDS[id] ?? null;
+
 /** The next or previous track's id; stops at the ends; null without a project. */
 export function stepTrack(project, current, direction) {
   const tracks = project?.tracks ?? [];
@@ -106,6 +118,8 @@ export function registerAppCommands(registry, { actions, app }) {
   def("transport.slow_info", () => actions.slowInfo());
   def("transport.speed_reset", () => actions.fastReset(), hasProject);
   def("nav.home", () => actions.goHome());
+  for (const [id, tab] of Object.entries(SIDE_TAB_COMMANDS))
+    def(id, () => actions.showSideTab(tab));
   def("panel.next", () => actions.cyclePanel(1));
   def("panel.previous", () => actions.cyclePanel(-1));
   def("view.toggle", () => actions.toggleView(), hasProject);

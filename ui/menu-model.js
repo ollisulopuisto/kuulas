@@ -402,6 +402,13 @@ export const MENU = [
         item("view.back"),
         item("view.forward"),
       ]),
+      submenu("menu.side_panels", [
+        item("panel.show_inspector"),
+        item("panel.show_candidates"),
+        item("panel.show_clipboard"),
+        item("panel.show_markers"),
+        item("panel.show_history"),
+      ]),
       submenu("menu.buses", [item("view.collapse_all_buses"), item("view.expand_all_buses")]),
       submenu("menu.mouse", [item("view.drag_mode"), item("view.wheel_mode")]),
       item("view.clip_words"),
