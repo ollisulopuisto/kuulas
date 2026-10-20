@@ -117,10 +117,15 @@ kbd {
   flex-direction: column;
   justify-content: center;
   gap: 2px;
-  min-width: 56px;
-  min-height: 56px;
-  height: auto;
-  padding: var(--space-3) var(--space-4);
+  /* Square, like Play and Record (owner, 2026-10-20): one size for every block button, the
+     label wraps inside it instead of widening it. */
+  width: 76px;
+  height: 76px;
+  min-width: 0;
+  min-height: 0;
+  flex: none;
+  aspect-ratio: 1;
+  padding: var(--space-2);
   border-radius: var(--radius-sm); /* the same corner as .play and Record */
   font-size: var(--text-xs);
   line-height: 1.15;
