@@ -300,6 +300,8 @@ class Session:
         self.jobs = Jobs()
         #: Folder of the last "Export all tracks" this run made, for Show in Finder.
         self.last_export_folder: str | None = None
+        #: The newest automixer log (kept or failed), for "Show log" in the notice.
+        self.last_automix_log: str | None = None
         self.history: History = self.package.history
         self.store: MediaStore = self.package.store
         self._subscribers: list[Callable[[Project], None]] = []
@@ -1125,7 +1127,8 @@ class Session:
         temporary folder, the tool, the mix beside the project. ``params``:
         ``target_lufs``, ``ad_spot``, ``ad_duration``, ``extra_args``. Bad
         numbers and a read-only project fail now. The job's ``result`` is
-        ``{"path", "name", "log", "command"}``; ``last_export_folder`` becomes its
+        ``{"path", "name", "log", "command", "log_file", "summary"}``;
+        ``last_export_folder`` becomes its
         folder."""
         params = dict(params or {})
         automix_module.validate_params(params)
@@ -1135,11 +1138,16 @@ class Session:
         settings = automix_module.load_settings()
 
         def run(progress):
-            result = automix_module.run(
-                self, params, settings,
-                lambda fraction, message="", indeterminate=False: progress(
-                    fraction, message, indeterminate),
-                progress.cancelled_event)
+            try:
+                result = automix_module.run(
+                    self, params, settings,
+                    lambda fraction, message="", indeterminate=False: progress(
+                        fraction, message, indeterminate),
+                    progress.cancelled_event)
+            except automix_module.AutomixError as e:
+                self.last_automix_log = e.params.get("log_file") or self.last_automix_log
+                raise
+            self.last_automix_log = result.get("log_file") or self.last_automix_log
             self.last_export_folder = str(Path(result["path"]).parent)
             return result
 

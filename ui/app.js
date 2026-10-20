@@ -184,15 +184,23 @@ function translate() {
 let noticeTimer = null;
 // `undo`: the message offers an Undo button (the edit keys' toast).
 // `sticky`: it stays until replaced or closed (a running export). `action`: { label, run }
-// shows one more button (Cancel, Show in Finder).
+// shows one more button (Cancel, Show in Finder); `action2` a second one (Show log).
 let noticeAction = null;
-function showNotice(text, kind = "error", { undo = false, sticky = false, action = null } = {}) {
+let noticeAction2 = null;
+function showNotice(
+  text,
+  kind = "error",
+  { undo = false, sticky = false, action = null, action2 = null } = {},
+) {
   const notice = $("notice");
   $("notice-text").textContent = text;
   $("notice-undo").hidden = !undo;
   noticeAction = action;
   $("notice-action").hidden = !action;
   if (action) $("notice-action").textContent = action.label;
+  noticeAction2 = action2;
+  $("notice-action2").hidden = !action2;
+  if (action2) $("notice-action2").textContent = action2.label;
   notice.dataset.kind = kind;
   notice.hidden = false;
   clearTimeout(noticeTimer);
@@ -202,6 +210,7 @@ function showNotice(text, kind = "error", { undo = false, sticky = false, action
   }, NOTICE_MS[kind]);
 }
 $("notice-action").addEventListener("click", () => noticeAction?.run());
+$("notice-action2").addEventListener("click", () => noticeAction2?.run());
 const showError = (error) => showNotice(error?.message || t("ui.error.title"));
 $("notice-close").addEventListener("click", () => {
   $("notice").hidden = true;
@@ -1722,8 +1731,17 @@ async function followExportJob(id, what) {
     } else if (notice.reveal && typeof bridge?.reveal_export === "function") {
       action = { label: t("ui.export.show_in_finder"), run: () => void bridge.reveal_export() };
     }
+    let action2 = null;
+    if (notice.log && typeof bridge?.reveal_automix_log === "function") {
+      action2 = {
+        label: t("ui.automix.show_log"),
+        run: () => void bridge.reveal_automix_log(),
+      };
+      action ??= action2;
+      if (action === action2) action2 = null;
+    }
     // Done stays up (the owner reads the folder); failures and cancels time out as usual.
-    showNotice(notice.text, notice.kind, { sticky: notice.sticky, action });
+    showNotice(notice.text, notice.kind, { sticky: notice.sticky, action, action2 });
     if (job.state === "completed" || job.state === "failed" || job.state === "cancelled") {
       exportJob = null;
       return;

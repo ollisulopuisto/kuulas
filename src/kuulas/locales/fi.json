@@ -1710,6 +1710,7 @@
   "ui.automix.running": "Automixer miksaa…",
   "ui.automix.running_line": "Automixer miksaa: {line}",
   "ui.automix.done": "Miksattu automixerilla: {path}",
+  "ui.automix.show_log": "Näytä loki",
   "ui.automix.cancelled": "Miksaus peruutettiin.",
   "error.automix.bad_rate": "Automixer tarvitsee 48000 Hz:n projektin, ja tämä on {rate} Hz. Mitään ei viety eikä ajettu.",
   "error.automix.bad_stems": "Raidat eivät vastaa sitä, mitä automixer lukee: {detail}",

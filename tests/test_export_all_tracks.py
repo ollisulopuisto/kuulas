@@ -327,3 +327,22 @@ def test_tracks_json_lists_hand_made_mutes_and_gate_apart_on_the_stem_clock(sess
     assert not v["audible"]
     assert "muted_frames" not in v
     assert "gate_frames" not in v
+
+
+def test_bridge_reveals_only_the_last_automixer_log(session, tmp_path):
+    ran = []
+    bridge = desktop.Bridge(object(), tmp_path / "recents")
+    bridge._runner = ran.append
+
+    class Running:
+        _session = session
+
+    bridge._project = Running()
+    assert bridge.reveal_automix_log() is False  # no automixer run yet
+    kept = tmp_path / "Mix log.txt"
+    kept.write_text("x", encoding="utf-8")
+    session.last_automix_log = str(kept)
+    assert bridge.reveal_automix_log() is True
+    assert ran[0][-1] == str(kept)
+    session.last_automix_log = str(tmp_path / "gone.txt")
+    assert bridge.reveal_automix_log() is False

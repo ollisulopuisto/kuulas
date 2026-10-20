@@ -1615,6 +1615,7 @@
   "ui.automix.running": "The automixer is mixing…",
   "ui.automix.running_line": "The automixer is mixing: {line}",
   "ui.automix.done": "Mixed with the automixer: {path}",
+  "ui.automix.show_log": "Show log",
   "ui.automix.cancelled": "Mixing cancelled.",
   "error.automix.bad_rate": "The automixer needs a 48000 Hz project, and this one is {rate} Hz. Nothing was exported or run.",
   "error.automix.bad_stems": "The stems do not match what the automixer reads: {detail}",

@@ -136,21 +136,31 @@ export const formatWords = (words) =>
 
 /**
  * What the notice says about an automix job (as /api/jobs lists it):
- * { kind, text, sticky, cancel, reveal }. While the tool runs there is no number, only its
+ * { kind, text, sticky, cancel, reveal, log }. `log`: the log file is there to show (the
+ * job kept one, also when it failed). While the tool runs there is no number, only its
  * last line (job.message).
  */
 export function automixNotice(job, t) {
   if (job.state === "completed") {
+    const summary = (job.result?.summary ?? []).join(" \u00b7 ");
+    const done = t("ui.automix.done", { path: job.result?.path ?? "" });
     return {
       kind: "ok",
-      text: t("ui.automix.done", { path: job.result?.path ?? "" }),
+      text: summary ? `${done} \u2014 ${summary}` : done,
       sticky: true,
       cancel: false,
       reveal: true,
+      log: Boolean(job.result?.log_file),
     };
   }
   if (job.state === "failed") {
-    return { kind: "error", text: job.error?.text ?? "", sticky: false, cancel: false };
+    return {
+      kind: "error",
+      text: job.error?.text ?? "",
+      sticky: Boolean(job.error?.params?.log_file),
+      cancel: false,
+      log: Boolean(job.error?.params?.log_file),
+    };
   }
   if (job.state === "cancelled") {
     return { kind: "ok", text: t("ui.automix.cancelled"), sticky: false, cancel: false };
