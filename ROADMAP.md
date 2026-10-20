@@ -110,7 +110,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 
 ## In flight (20.10.2026 Helsinki, after v26.10.20.7)
 
-Nothing running. Released in v26.10.20.7: Set music level, automix music-level field, compressed size-capped backups with a size breakdown, and the automix dialog reacting to "Done in Kuulas" (phase 2 of auto-mix in Kuulas; block level and music duck join by one entry in `DONE_IN_KUULAS`, see docs/FORMAT.md).
+Running: **Level blocks** (auto-mix phase 2, owner request 20.10.2026): Track > Auto > Level blocks measures speech blocks with speechmix and writes them as clip gains in one undo step, remembered as 'Done in Kuulas' so the export passes --no-block-level. Built on main, not yet released: automix progress marks switched-off stages as skipped (v26.10.20.9). Earlier: released in v26.10.20.7: Set music level, automix music-level field, compressed size-capped backups with a size breakdown, and the automix dialog reacting to "Done in Kuulas" (phase 2 of auto-mix in Kuulas; block level and music duck join by one entry in `DONE_IN_KUULAS`, see docs/FORMAT.md).
 
 Waiting on the owner: merge podcast PR #64 (`--bed-under-speech-db`, implemented by the podcast session) and install it; until then the Music field does nothing. The automixer's real default is +1 dB against speech (v26.10.20.8 corrected Kuulas, which assumed -1). Open design question: music peak slightly above speech and a much quieter ducked level (owner, 20.10.2026), versus Set music level's -10 on the peak.
 
