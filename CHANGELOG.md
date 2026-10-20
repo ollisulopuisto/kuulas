@@ -1,3 +1,12 @@
+## [v26.10.20.1] - 2026-10-20
+
+- **Auto-Silence is adjustable:** Track > Auto > "Auto-Silence options…". Sensitivity (3 to 20 dB above the noise floor, default 12; lower is gentler), the dominance between mics, shortest pause to close, how long it stays open before and after speech, and a method choice: "Threshold over the noise" (as before) or "Compensated for bleed" (for mics that all hear everyone: it learns how much each mic normally leaks from the others from the stretches you muted by hand at the start, so it needs some hand mutes). **Preview** shows per track how many seconds would close; Apply is one undo step; the options are remembered per project and Alt+Mod+P uses them. The defaults give exactly the old result.
+- **Track > Auto > "Open all gates on this track"** clears Auto-Silence's closed stretches on the focused track (one undo step).
+- Auto-Silence stretches are drawn with the same hatching as muted clips; the "Mic closed" text is gone (hover explains it).
+- The language is looked up lazily (no macOS subprocess at start-up). Hardening: take-plan files are size-limited, project paths from the app bridge are validated, a path starting with a hyphen cannot become a command option.
+- Tools for the owner (not in the app): `scripts/spikes/wp85_sweep.py` finds the best Auto-Silence settings against your own hand mutes, `wp85_compare.py` compares Auto-Silence with colab-transcribe's mutes, `wp85_learn_silence.py` measures silencelearn; all read-only.
+- Stems export writes `muted_frames` and `gate_frames` per track into `tracks.json` (optional, for the automixer work).
+
 ## [v26.10.19.29] - 2026-10-19
 
 - **Fixes the app not starting (v26.10.19.28):** a crash at start-up ("cannot import name HOST") when the app is opened from Finder, caused by the new language setting being read too early. The build's self-test now runs without locale variables, like Finder does, so this is caught before a release.
