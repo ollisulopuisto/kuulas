@@ -81,6 +81,10 @@ The repo is **public** (since 2026-10-19), and unsigned `.dmg` releases are publ
   every delete path to it is open, see below).
 - External commands run without a shell; tool paths resolved (`toolpath.py`); output cleaned of escape codes.
 - Colab sign-in keeps the code out of logs and storage; the token file is only checked for existence/shape.
+- `ui-prefs.json` (config folder, `ui_prefs.py`, `/api/prefs`) holds UI preferences only (theme, speeds, panel
+  states, recent command ids), never secrets: keys `kuulas.*` or short names, string values capped at 16 KB,
+  file capped at 256 KB, atomic write, behind the same Host/Origin checks. Do not store tokens or paths of
+  private material there.
 - Content-hash caches, atomic writes, per-host locks, crash-safe progressive WAV with sidecars.
 
 ## 7. Open items, in the order to do them (a review checklist)

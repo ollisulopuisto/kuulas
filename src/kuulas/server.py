@@ -59,6 +59,7 @@ from . import (
     priority,
     project_stats,
     transcribe,
+    ui_prefs,
 )
 from . import (
     profiler as profiler_module,
@@ -696,6 +697,21 @@ def create_app(session, engine, *, language: str | None = None,
             saved = False
         session.resume.remember(view, now=now)  # never raises
         return JSONResponse({"saved": saved})
+
+    # -- the UI's remembered settings (user config folder, shared by all windows)
+
+    @app.get("/api/prefs")
+    def get_prefs():
+        return {"prefs": ui_prefs.load()}
+
+    @app.put("/api/prefs")
+    def put_prefs(body: Annotated[dict[str, Any], Body()]):
+        try:
+            return {"prefs": ui_prefs.update(body.get("set"), body.get("remove"))}
+        except ui_prefs.PrefsError as e:
+            raise BadRequestError(e.key, **e.params) from None
+        except OSError as e:
+            raise BadRequestError("error.server.bad_request", detail=str(e)) from None
 
     # -- the clipboard (WP46) ------------------------------------------------
     # Cut and paste are edits and go through /api/edit (one undo step each);
