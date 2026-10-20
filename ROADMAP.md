@@ -112,7 +112,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 
 Nothing running. Released in v26.10.20.7: Set music level, automix music-level field, compressed size-capped backups with a size breakdown, and the automix dialog reacting to "Done in Kuulas" (phase 2 of auto-mix in Kuulas; block level and music duck join by one entry in `DONE_IN_KUULAS`, see docs/FORMAT.md).
 
-Waiting on the owner: relay `--bed-under-speech-db` to the podcast session (text in docs/PODCAST-MAGIC.md); until the automixer has it the Music field does nothing.
+Waiting on the owner: merge podcast PR #64 (`--bed-under-speech-db`, implemented by the podcast session) and install it; until then the Music field does nothing. The automixer's real default is +1 dB against speech (v26.10.20.8 corrected Kuulas, which assumed -1). Open design question: music peak slightly above speech and a much quieter ducked level (owner, 20.10.2026), versus Set music level's -10 on the peak.
 
 Waiting on the podcast repo: that flag in the folder route, a 'keep the stem level for beds' switch, and automixer/mastering memory (loads whole stems).
 
