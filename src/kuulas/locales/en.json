@@ -2300,6 +2300,7 @@
   "ui.music_level.apply": "Apply",
   "ui.music_level.done": "Music set to {now} (was {was}).",
   "ui.music_level.clamped": "Some music tracks reached the gain limit, so the music is not quite where asked.",
+<<<<<<< HEAD
   "ui.prefs.music_under_speech": "Music under speech (dB)",
   "ui.role.speech": "Speech",
   "ui.role.music": "Music",
@@ -2334,3 +2335,32 @@
   "ui.track.role_match_with": "Match bus role ({role})",
   "ui.track.role_match_none": "Match bus role (the track has no bus with a role)"
 }
+=======
+  "error.block_level.no_speech": "There is no speech to level: no unmuted speech track has clips.",
+  "error.block_level.stale": "The edit changed after the measurement. Measure again, then apply.",
+  "job.block_level": "Measuring the speech blocks",
+  "block_level.loud_marker": "Loud spot {excess} dB ({speaker})",
+  "cmd.app.block_level": "Level blocks…",
+  "cmd.app.block_level.hint": "Finds the blocks of each speaker's speech (between pauses) whose level is off, and lists them with the gain that would bring them back. Apply splits the clips in the pauses and adds the gain to the clips, so you can still adjust it. Very loud short spots are listed, not changed. One undo step; running it again changes nothing.",
+  "ui.block_level.title": "Level blocks",
+  "ui.block_level.measuring": "Measuring the speech blocks…",
+  "ui.block_level.rule": "Blocks more than {threshold} dB off the speaker's own level are levelled: cuts up to {cut} dB, boosts up to {boost} dB.",
+  "ui.block_level.blocks": "Blocks to level",
+  "ui.block_level.row": "{start}–{end}: {deviation} dB off its level, gain {gain} dB",
+  "ui.block_level.speaker": "{name}",
+  "ui.block_level.none": "No block needs levelling.",
+  "ui.block_level.left": "{count} other blocks are within {threshold} dB and are left alone.",
+  "ui.block_level.loud": "Loud spots (not changed)",
+  "ui.block_level.loud_row": "{start}–{end}: {excess} dB over its block",
+  "ui.block_level.markers": "Add markers for loud spots",
+  "ui.block_level.failed": "Measuring failed.",
+  "ui.block_level.cancel": "Cancel",
+  "ui.block_level.apply": "Apply",
+  "ui.block_level.done": "Level blocks: {blocks} changed on {tracks} tracks.",
+  "ui.block_level.clamped": "Some clips reached the gain limit, so a block is not quite at its level.",
+  "ui.block_level.left_out": "Blocks you left out are not marked as done: the automixer will still level them.",
+  "ui.automix.done_text_block": "You levelled the speech blocks in Kuulas, so the automixer is told to skip its own block levelling. Reset to let the automixer do it.",
+  "ui.automix.done_stale_block": "The speech blocks were levelled earlier in Kuulas, but the clips have changed since.",
+  "ui.automix.done_again_block": "Level blocks again",
+  "ui.prefs.music_under_speech": "Music under speech (dB)"}
+>>>>>>> level-blocks

@@ -2405,6 +2405,7 @@
   "ui.music_level.apply": "Ota käyttöön",
   "ui.music_level.done": "Musiikki asetettu: {now} (oli {was}).",
   "ui.music_level.clamped": "Osa musiikkiraidoista osui vahvistuksen rajaan, joten musiikki ei ole aivan pyydetyllä tasolla.",
+<<<<<<< HEAD
   "ui.prefs.music_under_speech": "Musiikki puheen alla (dB)",
   "ui.role.speech": "Puhe",
   "ui.role.music": "Musiikki",
@@ -2439,3 +2440,32 @@
   "ui.track.role_match_with": "Sovita väylän rooliin ({role})",
   "ui.track.role_match_none": "Sovita väylän rooliin (raidalla ei ole väylää, jolla on rooli)"
 }
+=======
+  "error.block_level.no_speech": "Tasattavaa puhetta ei ole: yhdelläkään mykistämättömällä puheraidalla ei ole leikkeitä.",
+  "error.block_level.stale": "Muokkaus muuttui mittauksen jälkeen. Mittaa uudelleen ja ota sitten käyttöön.",
+  "job.block_level": "Mitataan puhelohkoja",
+  "block_level.loud_marker": "Kova kohta {excess} dB ({speaker})",
+  "cmd.app.block_level": "Tasaa lohkot…",
+  "cmd.app.block_level.hint": "Etsii kunkin puhujan puheen lohkot (taukojen välit), joiden taso on pielessä, ja listaa ne vahvistuksella, joka palauttaisi ne. Käyttöönotto jakaa leikkeet tauoissa ja lisää vahvistuksen leikkeisiin, joten voit säätää sitä vielä. Hyvin kovat lyhyet kohdat listataan, niitä ei muuteta. Yksi kumoamisaskel; uusi ajo ei muuta mitään.",
+  "ui.block_level.title": "Tasaa lohkot",
+  "ui.block_level.measuring": "Mitataan puhelohkoja…",
+  "ui.block_level.rule": "Lohkot, jotka poikkeavat puhujan omasta tasosta yli {threshold} dB, tasataan: laskua enintään {cut} dB ja nostoa enintään {boost} dB.",
+  "ui.block_level.blocks": "Tasattavat lohkot",
+  "ui.block_level.row": "{start}–{end}: {deviation} dB tasostaan, vahvistus {gain} dB",
+  "ui.block_level.speaker": "{name}",
+  "ui.block_level.none": "Yhtään lohkoa ei tarvitse tasata.",
+  "ui.block_level.left": "{count} muuta lohkoa on {threshold} dB:n sisällä, ja ne jätetään ennalleen.",
+  "ui.block_level.loud": "Kovat kohdat (ei muuteta)",
+  "ui.block_level.loud_row": "{start}–{end}: {excess} dB lohkonsa yläpuolella",
+  "ui.block_level.markers": "Lisää kovista kohdista merkit",
+  "ui.block_level.failed": "Mittaus epäonnistui.",
+  "ui.block_level.cancel": "Peruuta",
+  "ui.block_level.apply": "Ota käyttöön",
+  "ui.block_level.done": "Tasaa lohkot: {blocks} muutettu, {tracks} raitaa.",
+  "ui.block_level.clamped": "Osa leikkeistä osui vahvistuksen rajaan, joten lohko ei ole aivan tasollaan.",
+  "ui.block_level.left_out": "Pois jättämiäsi lohkoja ei merkitä tehdyiksi: automixer tasaa ne vielä.",
+  "ui.automix.done_text_block": "Tasasit puhelohkot Kuulaassa, joten automixerille kerrotaan, että se ohittaa oman lohkotasauksensa. Palauta, niin automixer tekee sen.",
+  "ui.automix.done_stale_block": "Puhelohkot tasattiin aiemmin Kuulaassa, mutta leikkeet ovat muuttuneet sen jälkeen.",
+  "ui.automix.done_again_block": "Tasaa lohkot uudelleen",
+  "ui.prefs.music_under_speech": "Musiikki puheen alla (dB)"}
+>>>>>>> level-blocks

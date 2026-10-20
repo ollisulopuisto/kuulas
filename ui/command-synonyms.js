@@ -112,6 +112,18 @@ export const SYNONYMS = {
     "musiikkipohja",
     "äänekkyys",
   ],
+  "app.block_level": [
+    "level speech",
+    "even out",
+    "normalize speech",
+    "volume",
+    "loudness",
+    "hot take",
+    "tasaa puhe",
+    "tasaa äänenvoimakkuus",
+    "puheen taso",
+    "äänekkyys",
+  ],
   "export.automix": [
     "automixer",
     "master",

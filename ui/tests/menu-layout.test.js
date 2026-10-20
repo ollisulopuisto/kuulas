@@ -189,12 +189,13 @@ describe("Track, Playback, View", () => {
     const ids = top("playback").items.map((e) => (e.kind === "submenu" ? e.labelKey : e.id));
     assert.equal(ids[ids.indexOf("menu.go") + 1], "spot");
   });
-  test("Auto holds the ducking, Auto-Silence, Set music level and Open this stretch", () => {
+  test("Auto holds the ducking, Auto-Silence, Set music level, Level blocks and Open this stretch", () => {
     assert.deepEqual(subIds("track", "menu.auto"), [
       "app.automix",
       "app.auto_silence",
       "app.auto_silence_options",
       "app.music_level",
+      "app.block_level",
       "gate.open_stretch",
       "gate.open_all",
     ]);

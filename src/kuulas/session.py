@@ -40,6 +40,7 @@ from nhsx.read import time_to_seconds as nhsx_time_to_seconds
 from . import (
     analysis,
     bgjobs,
+    block_level,
     caches,
     candidates,
     clipboard_browse,
@@ -307,6 +308,7 @@ class Session:
         self.last_automix_log: str | None = None
         #: The numbers of the latest Set music level, for the UI's notice.
         self.last_music_level: dict | None = None
+        self.last_block_level: dict | None = None
         self.history: History = self.package.history
         self.store: MediaStore = self.package.store
         self._subscribers: list[Callable[[Project], None]] = []
@@ -1252,6 +1254,67 @@ class Session:
                         "bed_lufs": measured["bed_lufs"], "was_db": was,
                         "gains": dict(plan.gains)}
             return self._commit(label, new, "set_music_level", recorded)
+
+    def block_level_measure(self, args: dict | None = None) -> list[str]:
+        """Queue ONE job that measures what Level blocks needs (each speaker's
+        blocks, their gains and the loud spots) and changes nothing. The lock is
+        held only for the snapshot; the measuring runs in the analysis worker
+        (ground rule 14), cancellable. The job's ``result`` is
+        ``block_level.measure``'s answer. ``args`` is the route's body (none
+        are read yet)."""
+        del args
+        with self.lock:
+            snapshot = self.history.state
+
+        def run(progress):
+            progress(0.0, "", True)
+            measured = offload.call("block_level", snapshot, self.store,
+                                    cancel=progress.cancelled_event)
+            if progress.cancelled:
+                raise JobCancelledError
+            return measured
+
+        return [self.jobs.submit("block_level", t("job.block_level"), run,
+                                 keep_result=True)]
+
+    def level_blocks(self, args: dict) -> Project:
+        """Level blocks as ONE undo step: the clips of each speaker's tracks are
+        split in the pauses and the blocks' gains added to their ``gain_db``
+        (``block_level.apply``), plus ``mix_done["block_level"]`` while nothing
+        changed was left out. ``measured`` (the job's result) is used when it
+        still describes the edit (same content key), else refused as stale;
+        without it the edit is measured here, off the lock. ``skip``: block ids
+        to leave alone; ``markers``: a marker at each loud spot."""
+        measured = args.get("measured")
+        skip = args.get("skip") or []
+        if not isinstance(skip, list):
+            raise ops.EditError("error.edit.bad_arguments", name="level_blocks",
+                                detail="skip")
+        if measured is None:
+            with self.lock:
+                snapshot = self.history.state
+            measured = offload.call("block_level", snapshot, self.store)
+        block_level.check(measured)
+        with self.lock:
+            state = self.history.state
+            try:
+                current = block_level.key(state)
+            except caches.CacheKeyError:
+                current = None
+            if current is None or current != measured.get("key"):
+                raise ops.EditError("error.block_level.stale")
+            new, report = block_level.apply(state, measured, skip,
+                                            bool(args.get("markers")))
+            at = datetime.now(UTC).astimezone().isoformat(timespec="seconds")
+            new = block_level.with_record(new, report, at)
+            text = block_level.summary(report)
+            self.last_block_level = {
+                "blocks": report.blocks, "left_out": report.left_out,
+                "tracks": report.tracks, "clamped": report.clamped,
+                "markers": report.markers, "text": text}
+            recorded = {"blocks": report.blocks, "tracks": report.tracks,
+                        "markers": report.markers, "skip": [str(x) for x in skip]}
+            return self._commit(text, new, "level_blocks", recorded)
 
     def export_folder_hint(self) -> dict:
         """Where an export goes when the caller names no folder: the folder the
@@ -2998,6 +3061,10 @@ def _set_music_level(s: Session, args: dict) -> Project:
     return s.set_music_level(args)
 
 
+def _level_blocks(s: Session, args: dict) -> Project:
+    return s.level_blocks(args)
+
+
 def _match_loudness(s: Session, args: dict) -> Project:
     clip_ids = args.get("clip_ids", [])
     target = args.get("target_lufs")
@@ -3086,6 +3153,7 @@ COMMANDS: dict[str, Callable[[Session, dict], Project]] = {
     "candidate_mark": _candidate_mark,
     "match_loudness": _match_loudness,
     "set_music_level": _set_music_level,
+    "level_blocks": _level_blocks,
     "placeholder_take": _placeholder_take,
     "save_backup": _save_backup,
     "save_checkpoint": _save_checkpoint,
@@ -3095,4 +3163,4 @@ COMMANDS: dict[str, Callable[[Session, dict], Project]] = {
 #: snapshot and their commit: their work is slow and must not stall playback
 #: or edits (ground rule 14).
 LOCK_FREE_COMMANDS = frozenset({"candidates_detect", "match_loudness", "save_backup",
-                                "set_music_level"})
+                                "set_music_level", "level_blocks"})

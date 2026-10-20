@@ -85,3 +85,58 @@ describe("done in Kuulas", () => {
     assert.deepEqual(savedOptions(sp, form, status), { [KEY]: -7 });
   });
 });
+
+// A stage switch (Level blocks): Kuulas did the work, so the checkbox goes off. The entry's
+// `value` is false; the number options keep `offset_db`.
+describe("done in Kuulas: a stage switch", () => {
+  const KEY = "block_level";
+  const sp = [{ key: KEY, kind: "bool", default: true, group: "debleed" }];
+  const entry = (over = {}) => ({
+    block_level: { option: KEY, value: false, offset_db: null, current: true, ...over },
+  });
+
+  test("the registry lists block level beside the music level", () => {
+    assert.equal(DONE_IN_KUULAS.block_level, "block_level");
+    assert.equal(DONE_IN_KUULAS.bed_under_speech_db, "bed_level");
+  });
+
+  test("a stored default (on) is replaced by off; the form shows it unchecked", () => {
+    const got = prefillOptions(sp, entry(), {});
+    assert.equal(got.options[KEY], false);
+    assert.deepEqual(got.offered, []);
+    assert.equal(optionsToForm(sp, got.options)[KEY], false);
+  });
+
+  test("a stale or absent record changes nothing", () => {
+    assert.deepEqual(prefillOptions(sp, entry({ current: false }), {}).options, {});
+    assert.deepEqual(prefillOptions(sp, {}, {}).options, {});
+  });
+
+  test("the badge shows while the box is off and goes when it is ticked again", () => {
+    assert.equal(doneStatus(sp, entry(), { [KEY]: false }, [], {})[KEY].state, "done");
+    assert.equal(doneStatus(sp, entry(), { [KEY]: true }, [], {})[KEY], undefined);
+  });
+
+  test("a stale record gives a hint while the box is on", () => {
+    const s = doneStatus(sp, entry({ current: false }), { [KEY]: true }, [], {})[KEY];
+    assert.equal(s.state, "stale");
+  });
+
+  test("done with an automixer that lacks the switch says so", () => {
+    const s = doneStatus(sp, entry(), { [KEY]: false }, [], { [KEY]: false })[KEY];
+    assert.equal(s.unsupported, true);
+  });
+
+  test("the off switch is sent with the run but not saved as the user's setting", () => {
+    const form = { [KEY]: false };
+    const status = doneStatus(sp, entry(), form, [], {});
+    assert.deepEqual(requestOptions(sp, form, status), { [KEY]: false });
+    assert.deepEqual(savedOptions(sp, form, status), {});
+  });
+
+  test("ticked again, it is saved as usual (the default) and nothing extra is sent", () => {
+    const form = { [KEY]: true };
+    const status = doneStatus(sp, entry(), form, [], {});
+    assert.equal(requestOptions(sp, form, status), undefined);
+  });
+});

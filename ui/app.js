@@ -6,6 +6,7 @@ import * as api from "./api.js";
 import { SIDE_TAB_COMMANDS } from "./app-commands.js";
 import { createAutomixDialog } from "./automix-dialog.js";
 import { automixNotice } from "./automix-model.js";
+import { createBlockLevelDialog } from "./block-level-dialog.js";
 import { memberClipsAt, toggleChange } from "./bus-collapse.js";
 import { trackRoleChoice } from "./bus-role.js";
 import { listedRows, scrollToShow, stepTarget } from "./candidates-model.js";
@@ -1057,6 +1058,7 @@ const keyboard = setupKeyboard({
     autoSilence: () => void autoSilence(),
     openSilenceOptions: () => openSilenceOptions(),
     openMusicLevel: () => openMusicLevel(),
+    openBlockLevel: () => openBlockLevel(),
     openAllGates: () => void openAllGates(),
     duckMicrophones: () => void duckMicrophones(),
     transcribeTrack: (backend) => void transcribeTrack(backend),
@@ -1842,6 +1844,7 @@ async function openAutomix() {
     pickFolder: folderChooser(),
     prefs,
     onSetMusicLevel: () => openMusicLevel(),
+    onLevelBlocks: () => openBlockLevel(),
     onStart: async (body) => {
       try {
         const { jobs } = await api.automix(body);
@@ -1918,6 +1921,37 @@ async function setMusicLevel(args) {
       ? `${report.text} ${t("ui.music_level.clamped")}`
       : report?.text;
     showNotice(text ?? t("history.set_music_level"), "ok", { undo: true });
+  } catch (error) {
+    showError(error);
+  }
+}
+
+/**
+ * Track > Auto > Level blocks…: the dialog measures (a job) and lists the blocks that are off;
+ * Apply splits the clips in the pauses and adds the gains, as one undo step.
+ */
+let blockLevelDialog = null;
+function openBlockLevel() {
+  blockLevelDialog ??= createBlockLevelDialog({
+    api,
+    t,
+    fmt: (value) => formatNumber(value, { digits: 1 }),
+    clock: (seconds) => formatClock(seconds),
+    onApply: (args) => void levelBlocks(args),
+  });
+  blockLevelDialog.open();
+}
+
+async function levelBlocks(args) {
+  try {
+    const response = await api.command("level_blocks", args);
+    apply(response);
+    const report = response.block_level;
+    const more = [];
+    if (report?.clamped) more.push(t("ui.block_level.clamped"));
+    if (report?.left_out) more.push(t("ui.block_level.left_out"));
+    const text = [report?.text, ...more].filter(Boolean).join(" ");
+    showNotice(text || t("ui.block_level.title"), "ok", { undo: true });
   } catch (error) {
     showError(error);
   }

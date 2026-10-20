@@ -129,6 +129,8 @@ export const exportTracks = (options = {}) => post("/api/export-tracks", options
 export const autoSilencePreview = (options = {}) => post("/api/auto-silence/preview", options);
 /** Set music level: a job that measures the speech and the music beds; changes nothing. */
 export const musicLevelMeasure = (options = {}) => post("/api/music-level/measure", options);
+/** Level blocks: a job that measures each speaker's blocks and loud spots; changes nothing. */
+export const blockLevelMeasure = (options = {}) => post("/api/block-level/measure", options);
 export const automix = (options = {}) => post("/api/automix", options);
 /** The automixer command: { settings (as stored), resolved (defaults filled in) }. */
 export const automixerSettings = () => json("/api/settings/automixer");
