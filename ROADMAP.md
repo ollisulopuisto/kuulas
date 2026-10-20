@@ -251,7 +251,7 @@ Grouped from the build order in `docs/PLAN.md` (Triage) and updated by the owner
 
 ✓ WP0, ✓ WP24.1, ✓ WP33a, ✓ WP29, ✓ WP30, ✓ WP1, ✓ WP34, ✓ WP36, ✓ WP2, ✓ WP3, ✓ WP33b, ◐ WP4, ◐ WP5, ◐ WP19a, ✓ WP35, ✓ WP11, ✓ WP15, ◐ WP46, ✓ WP19i, ◐ WP6, ✓ WP54, ✓ WP72, ✓ WP73, ✓ WP74, ✓ WP75, ✓ WP76, ✓ WP81, ✓ WP71.
 
-**M2 · A usable editor** (7 of 21 done, 12 partly): Transcript, mouse editing, history panel, fast listening, FX layers.
+**M2 · A usable editor** (7 of 21 done, 12 partly): Transcript, mouse editing, history panel, fast listening, FX layers. What to try: `docs/M2-VERIFY.md` (M1: `docs/M1-VERIFY.md`).
 
 ✓ WP41, ◐ WP8, ◐ WP22, ◐ WP26, ✓ WP9, ◐ WP7, WP23a, ◐ WP44, ◐ WP48, ◐ WP49, ✓ WP50, ◐ WP52, ◐ WP55, ✓ WP57, ◐ WP63, WP62, ✓ WP69, ✓ WP70, ◐ WP77, ◐ WP78, ✓ WP79.
 
