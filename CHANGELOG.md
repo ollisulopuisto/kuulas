@@ -1,3 +1,7 @@
+## [v26.10.20.10] - 2026-10-20
+
+- **Music track gain now reaches the automixer.** The stems for the automixer used to leave out the track gain, so a contrast set by hand between an effects track and a music track (track gain) was lost in the export. The music tracks' gain is now in their stems; the automixer keeps the balance between music tracks, so the contrast stays. Speech tracks are unchanged (the automixer levels speech itself), and so are bus gain and ducking.
+
 ## [v26.10.20.9] - 2026-10-20
 
 - **Progress shows when a stage is switched off.** The automixer reports "Olli: debleed" and "Olli: duck" for every track even when de-bleed or microphone ducking is switched off (nothing is done then). The progress line now says "(skipped: switched off)" for those, so it no longer looks like the stage ran.

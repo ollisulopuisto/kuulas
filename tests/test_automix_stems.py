@@ -139,3 +139,24 @@ def test_a_project_not_at_48k_is_refused_before_anything_runs(tmp_path):
         assert ran == []
     finally:
         s.close()
+
+
+def _peak(path) -> float:
+    return float(np.abs(sf.read(path)[0]).max())
+
+
+def test_the_music_track_gain_is_in_the_stem_but_not_the_speech_gain(session, tmp_path):
+    """The owner sets the contrast between an effects track and a music track with
+    track gain; the automixer keeps the balance of the music tracks, so the stem
+    carries that gain. Speech is left alone: the automixer levels it itself."""
+    tracks = session.state.tracks
+    folder, before = stems(session, tmp_path)
+    session.edit("set_track", {"track_id": tracks[2].id, "gain_db": -12.0})
+    session.edit("set_track", {"track_id": tracks[0].id, "gain_db": -12.0})
+    folder_after, _after = stems(session, tmp_path / "again")
+    files = {t["name"]: t["file"] for t in before["tracks"]}
+    music_before = _peak(folder / files["Theme"])
+    music_after = _peak(folder_after / files["Theme"])
+    assert music_after == pytest.approx(music_before * 10 ** (-12 / 20), rel=0.02)
+    speech = files[tracks[0].name]
+    assert _peak(folder_after / speech) == pytest.approx(_peak(folder / speech), rel=0.001)

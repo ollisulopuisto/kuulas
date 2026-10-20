@@ -853,6 +853,9 @@ def _tracks(job: _Job, target: Path, n: int, workers: int,
     work.mkdir()
     p, s = job.project, job.settings
     as_heard = s["processing"] == "as_heard"
+    # The automixer keeps the balance between the music tracks, so the contrast the
+    # user set with track gain (effects against music) goes into their stems.
+    music_gain = bool(s.get("for_automixer"))
     listing, paths, used = [], [], set()
     ext = _format(job).ext
     tracks = _exported(p, s)
@@ -874,7 +877,8 @@ def _tracks(job: _Job, target: Path, n: int, workers: int,
             if not audible:
                 return np.zeros((channels, count), dtype=np.float32)
             return mixer.track_stem(track, job.store, job.first + first, count,
-                                    channels, as_heard=as_heard, rate=job.rate)
+                                    channels, as_heard=as_heard, rate=job.rate,
+                                    track_gain=music_gain and track.kind == "music")
 
         done = work / f"{base}.{ext}"
         _produce(job, done, channels, render, tags=_provenance(job, n),
