@@ -1050,7 +1050,9 @@
     "other": "{count} päivää sitten"
   },
   "ui.clipboard.preview": "Soita",
-  "ui.clipboard.preview_nothing": "Ei soitettavaa: tämän kohteen äänitteet eivät ole tässä projektissa",
+  "ui.clipboard.preview_stop": "Pysäytä",
+  "ui.clipboard.preview_progress": "Leikepöydän esikuuntelun eteneminen",
+  "ui.clipboard.preview_nothing":"Ei soitettavaa: tämän kohteen äänitteet eivät ole tässä projektissa",
   "ui.focus.clipboard": "Leikepöytä",
   "ui.tabs.label": "Sivupaneelit",
   "ui.tabs.inspector": "Tarkastin",

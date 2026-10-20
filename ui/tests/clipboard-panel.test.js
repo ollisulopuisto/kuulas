@@ -19,6 +19,7 @@ class FakeNode {
     this.type = "";
     this.placeholder = "";
     this.id = "";
+    this.style = {};
   }
 
   append(...nodes) {
@@ -105,6 +106,7 @@ beforeEach(() => {
     actions: {
       select: record("select"),
       preview: record("preview"),
+      stopPreview: record("stopPreview"),
       filter: record("filter"),
       rename: record("rename"),
       remove: record("remove"),
@@ -148,6 +150,79 @@ describe("the segmented control", () => {
     );
     views[2].click();
     assert.deepEqual(calls, [["view", "others"]]);
+  });
+});
+
+describe("the preview on a chip", () => {
+  const playing = (id) => state({ clipboardPlaying: { id, seq: 1 } });
+
+  test("idle: every chip shows Play, no progress meter", () => {
+    panel.update(state());
+    const buttons = byAction("preview");
+    assert.deepEqual(
+      buttons.map((node) => [
+        node.textContent,
+        node.attrs["data-icon"],
+        node.attrs["aria-pressed"],
+      ]),
+      [
+        ["ui.clipboard.preview", "play", "false"],
+        ["ui.clipboard.preview", "play", "false"],
+      ],
+    );
+    assert.equal(byAction("preview-progress").length, 0);
+    buttons[0].click();
+    assert.deepEqual(calls, [["preview", "a"]]);
+  });
+
+  test("only the playing chip shows Stop, and a click on it stops the preview", () => {
+    panel.update(playing("b"));
+    const [a, b] = byAction("preview");
+    assert.equal(a.textContent, "ui.clipboard.preview");
+    assert.equal(b.textContent, "ui.clipboard.preview_stop");
+    assert.equal(b.attrs["data-icon"], "stop");
+    assert.equal(b.attrs["aria-pressed"], "true");
+    assert.equal(b.attrs["aria-label"], "ui.clipboard.preview_stop");
+    b.click();
+    a.click();
+    assert.deepEqual(calls, [
+      ["stopPreview", "b"],
+      ["preview", "a"],
+    ]);
+  });
+
+  test("the playing chip's bottom edge is a progress meter that follows the preview", () => {
+    panel.update(playing("a"));
+    const [meter] = byAction("preview-progress");
+    assert.equal(meter.attrs.role, "progressbar");
+    assert.equal(meter.attrs["aria-valuemin"], "0");
+    assert.equal(meter.attrs["aria-valuemax"], "100");
+    assert.equal(meter.dataset.id, "a");
+    panel.progress(0.25);
+    assert.equal(meter.attrs["aria-valuenow"], "25");
+    assert.equal(meter.children[0].style.transform, "scaleX(0.25)");
+    panel.progress(2);
+    assert.equal(meter.attrs["aria-valuenow"], "100");
+    // stopped: the meter goes with the redraw
+    panel.update(state());
+    assert.equal(byAction("preview-progress").length, 0);
+    panel.progress(0.5); // nothing to fill: no error
+  });
+
+  test("the chip's buttons are square blocks with an icon over the label", () => {
+    panel.update(state());
+    for (const action of ["share", "preview", "paste", "rename", "delete"]) {
+      for (const node of byAction(action)) {
+        assert.match(node.className, /\bbutton block\b/, action);
+        if (action !== "share") assert.ok(node.attrs["data-icon"], action);
+      }
+    }
+    panel.update(state({ clipboardView: "shared", clipboardShared: [entry("s1")] }));
+    for (const action of ["paste-here", "copy-here", "unshare"]) {
+      const [node] = byAction(action);
+      assert.match(node.className, /\bbutton block\b/, action);
+      assert.ok(node.attrs["data-icon"], action);
+    }
   });
 });
 

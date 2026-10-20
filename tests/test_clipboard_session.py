@@ -335,7 +335,9 @@ class _Engine:
         self.previews.append(project)
 
     def status(self):
-        return {"playing": False, "position": 0, "until": None, "notices": []}
+        return {"playing": bool(self.previews), "position": 0, "until": None,
+                "notices": [], "seq": 3 + len(self.previews),
+                "preview": bool(self.previews)}
 
     def close(self):
         pass
@@ -364,6 +366,8 @@ def test_api_preview_plays_a_temp_project_and_changes_nothing(client, session, e
     assert r.json()["started"] is True
     assert r.json()["missing"] == 0
     assert r.json()["attenuation_db"] <= 0.0
+    # The engine's transport version once it plays: the page drops an older "ended".
+    assert r.json()["seq"] == 4
     (temp,) = engine.previews
     shape = [(t.id, [c.start for c in t.clips]) for t in temp.tracks]
     assert shape == [(a.id, [0]), (ids(session.state)[1].id, [])]

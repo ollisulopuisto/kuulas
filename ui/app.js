@@ -14,6 +14,7 @@ import { clipDragChange } from "./clip-drag.js";
 import { expandGroups, toggleGroupSelection } from "./clip-groups.js";
 import { entryTitle } from "./clipboard.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
+import { previewFraction, previewPlaying } from "./clipboard-preview.js";
 import { createClock } from "./clock.js";
 import { createColabDialogs } from "./colab-dialog.js";
 import {
@@ -373,6 +374,59 @@ function startPlayheadTicker() {
   if (ticking) return;
   ticking = true;
   requestAnimationFrame(tickPlayhead);
+}
+
+// The clipboard preview (WP46) has a clock of its own: its anchors ("preview" on the live
+// channel) fill the playing chip's progress meter and never move the timeline's playhead.
+// With animation off the meter steps four times a second instead of every frame.
+let previewClock = createPlayheadClock();
+let previewEnd = null;
+let previewEndedSeq = null; // the newest "no preview plays" heard
+let previewTicking = false;
+let previewDrawn = 0;
+const PREVIEW_STEP_MS = 250;
+function startClipboardPreview(id, seq) {
+  previewClock = createPlayheadClock();
+  previewClock.setOffset(playheadClock.offset());
+  previewEnd = null;
+  let next = previewPlaying(getState().clipboardPlaying, { type: "start", id, seq });
+  // A short excerpt can end before the answer that started it arrives.
+  if (previewEndedSeq !== null && seq !== null) {
+    next = previewPlaying(next, { type: "ended", seq: previewEndedSeq });
+  }
+  setState({ clipboardPlaying: next });
+  if (next) startPreviewTicker();
+}
+function previewAnchor(message) {
+  const current = getState().clipboardPlaying;
+  if (!message.playing) {
+    if (message.seq !== null && message.seq !== undefined) previewEndedSeq = message.seq;
+    const next = previewPlaying(current, { type: "ended", seq: message.seq ?? null });
+    if (next !== current) setState({ clipboardPlaying: next });
+    return;
+  }
+  // An anchor from before this chip's preview started is the previous one's.
+  if (!current || (current.seq !== null && (message.seq ?? 0) < current.seq)) return;
+  if (previewClock.accept(message, performance.now())) previewEnd = message.end ?? null;
+  startPreviewTicker();
+}
+function tickPreview(now) {
+  if (!getState().clipboardPlaying) {
+    previewTicking = false;
+    return;
+  }
+  const stepped = document.documentElement.dataset.motion === "off";
+  if (!stepped || now - previewDrawn >= PREVIEW_STEP_MS) {
+    previewDrawn = now;
+    const frame = previewClock.playing() ? previewClock.frameAt(now) : 0;
+    clipboardPanel.progress(previewFraction(frame, previewEnd));
+  }
+  requestAnimationFrame(tickPreview);
+}
+function startPreviewTicker() {
+  if (previewTicking) return;
+  previewTicking = true;
+  requestAnimationFrame(tickPreview);
 }
 
 // -- the view: zoom, scroll, Z, history ---------------------------------------
@@ -888,6 +942,7 @@ const keyboard = setupKeyboard({
         .then((answer) => {
           // How far the preview was turned down, for the hint beside the entry.
           setState({ clipboardLevel: { id, db: answer?.attenuation_db ?? 0 } });
+          if (answer?.started) startClipboardPreview(id, answer.seq ?? null);
           return answer;
         })
         .catch((error) => {
@@ -2469,6 +2524,8 @@ const clipboardPanel = createClipboardPanel({
       setState({ clipboardSelected: id });
       keyboard.registry.run("edit.preview_clipboard", null, getState());
     },
+    // The playing chip's Stop: the transport's stop ends a preview (the playhead stays).
+    stopPreview: () => void transport.stop(),
     canPasteAgain: (state) => keyboard.registry.can(pasteCommand(state), state),
     pasteAgain(id) {
       setState({ clipboardSelected: id });
@@ -2861,8 +2918,12 @@ function render(state, patch) {
   if (touched("playing")) {
     if (state.playing) startPlayheadTicker();
     levelMeter.playing(state.playing);
-    $("play-icon").textContent = state.playing ? "■" : "▶";
-    $("play-label").textContent = t(state.playing ? "ui.transport.stop" : "ui.transport.play");
+  }
+  if (touched("playing", "clipboardPlaying")) {
+    // A clipboard preview playing: the Play button stops it (transport.toggle).
+    const sounding = state.playing || Boolean(state.clipboardPlaying);
+    $("play-icon").textContent = sounding ? "■" : "▶";
+    $("play-label").textContent = t(sounding ? "ui.transport.stop" : "ui.transport.play");
   }
   if (touched("loop", "project", "inPoint", "outPoint", "selection")) {
     const button = $("loop");
@@ -3235,6 +3296,7 @@ connectLive({
       setState(anchorPatch(result.anchor));
       if (result.anchor.playing) startPlayheadTicker();
     }
+    if (result.preview) previewAnchor(result.preview);
     if (Object.keys(result.patch).length > 0) setState(result.patch);
     // An answer to our own edit arrives as a state_changed too; while edits are
     // still going out, the editor shows the newest value and applies the last answer.

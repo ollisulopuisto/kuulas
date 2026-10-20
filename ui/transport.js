@@ -47,6 +47,8 @@ export function createTransport({ post, getState, setState, onError, freeze, set
   /** Stop: the cursor stops at once where it is drawn, before the engine answers. */
   const stopNow = () => {
     if (freeze && getState().playing) setState({ playhead: freeze(), playing: false, speed: 1 });
+    // A clipboard preview (WP46) ends with the stop: its chip shows Play again at once.
+    if (getState().clipboardPlaying) setState({ clipboardPlaying: null });
     return run("stop");
   };
   const playOptions = () => {
@@ -58,8 +60,11 @@ export function createTransport({ post, getState, setState, onError, freeze, set
   };
   return {
     toggle() {
-      const { playing, playhead } = getState();
-      return playing ? stopNow() : run("play", playhead, null, null, playOptions());
+      const { playing, playhead, clipboardPlaying } = getState();
+      // A clipboard preview playing: Space stops it, it does not start the timeline.
+      return playing || clipboardPlaying
+        ? stopNow()
+        : run("play", playhead, null, null, playOptions());
     },
     play: (at) => run("play", at, null, null, playOptions()),
     /**

@@ -11,6 +11,10 @@ export const ICONS = {
   restore: s("M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"),
   search: s("m21 21-4.3-4.3M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z"),
   play: s("M7 4.5v15l12-7.5Z"),
+  stop: s("M6 6h12v12H6Z"),
+  paste: s("M9 3h6v4H9ZM9 5H5v16h14V5h-4"),
+  copy: s("M9 9h11v11H9ZM15 9V4H4v11h5"),
+  rename: s("M4 20h4L19 9l-4-4L4 16ZM13 7l4 4"),
   trash: s("M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"),
   cut: s(
     "M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM8.1 7.9 20 20M8.1 16.1 20 4",

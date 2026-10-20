@@ -337,6 +337,16 @@ def anchor_message(status: dict, now: float) -> dict:
             "loop": status.get("loop"), "rate": status.get("rate")}
 
 
+def preview_message(status: dict, now: float) -> dict:
+    """The live channel's clipboard-preview anchor: the fields of
+    ``anchor_message`` for the preview's own frames (0 at the excerpt's start,
+    ``end`` its length), so the Clipboard chip can draw its progress. Never the
+    timeline's playhead."""
+    message = anchor_message({**status, "preview": False}, now)
+    message["type"] = "preview"
+    return message
+
+
 def newer_seq(seq, last) -> bool:
     """Is a reading with transport version ``seq`` as new as ``last`` (None: an
     engine without versions, always)?"""
@@ -778,10 +788,13 @@ def create_app(session, engine, *, language: str | None = None,
         # (WP82); `attenuation_db` says by how much (0 or less).
         limit = True if body is None else body.limit
         project, missing, gain = session.clipboard_preview(entry_id, limit)
+        seq = None
         if project is not None:
             engine.play_preview(project, limit=limit)
+            # The transport version it started at: the page drops an older "ended".
+            seq = engine.status().get("seq")
         return JSONResponse({"started": project is not None, "missing": missing,
-                             "attenuation_db": gain})
+                             "attenuation_db": gain, "seq": seq})
 
     @app.delete("/api/clipboard/{entry_id}")
     def delete_clipboard_entry(entry_id: str):
@@ -1376,6 +1389,7 @@ def create_app(session, engine, *, language: str | None = None,
             # The newest transport version sent (from a reading or a request),
             # what the last anchor said, and when it went out.
             last_seq, last_shape, last_anchor = None, None, -math.inf
+            last_preview, last_preview_at = None, -math.inf
 
             async def send(message: dict) -> None:
                 nonlocal last_seq
@@ -1428,6 +1442,18 @@ def create_app(session, engine, *, language: str | None = None,
                 if not status.get("preview") and (shape != last_shape or due):
                     last_shape, last_anchor = shape, now
                     await send(anchor)
+                # The clipboard preview's own anchors (the chip's progress), and one
+                # "stopped" when it ends, with the transport version it ended at.
+                if status.get("preview"):
+                    preview = preview_message(status, now)
+                    pshape = (preview["playing"], preview["seq"], preview["end"])
+                    correct = now - last_preview_at >= correct_every
+                    if pshape != last_preview or (preview["playing"] and correct):
+                        last_preview, last_preview_at = pshape, now
+                        await ws.send_json(preview)
+                elif last_preview is not None:
+                    last_preview = None
+                    await ws.send_json({**preview_message(status, now), "playing": False})
                 # The level meter: what plays now, only while playing, and one floor
                 # frame when it stops so the bar and the hold tick drop.
                 now = time.monotonic()

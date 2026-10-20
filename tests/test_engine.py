@@ -386,6 +386,36 @@ def test_preview_plays_the_temporary_project_not_the_real_one(rig, clock):
     assert session.state.tracks[0].gain_db == 0.0
 
 
+def test_a_status_poll_while_a_preview_warms_up_does_not_end_it(rig, clock):
+    # The live channel polls status() from its own thread. One that lands after
+    # play_preview set the preview flag but before the run is playing (the warm-up
+    # read) saw "previewing, not playing", took that for a preview that ran out
+    # and ended it as soon as play_preview let go: the clip never played.
+    engine, session, store = make(rig, clock)
+    temp = preview_of(session)
+    polled = threading.Event()
+    poller: list[threading.Thread] = []
+    warm = engine._read_ahead
+
+    def read_ahead(*args, **kwargs):
+        if not poller:
+            thread = threading.Thread(target=lambda: (polled.set(), engine.status()))
+            poller.append(thread)
+            thread.start()
+            polled.wait(1.0)
+            time.sleep(0.05)  # the poll is now waiting for the control lock
+        return warm(*args, **kwargs)
+
+    engine._read_ahead = read_ahead
+    engine.play_preview(temp)
+    poller[0].join(2.0)
+    status = engine.status()
+    assert status["playing"] is True
+    assert status["preview"] is True
+    out = engine._render(1024)
+    np.testing.assert_array_equal(out, mixer.mix(temp, store, 0, 1024).T)
+
+
 def test_only_a_limited_preview_is_held_under_the_ceiling(rig, clock):
     engine, session, _ = make(rig, clock)
     loud = ops.set_track(session.state, "t-m", gain_db=24.0)

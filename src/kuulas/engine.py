@@ -509,6 +509,16 @@ class Engine:
                 self._preview = False
                 self._start_run(self._preview_anchor)
 
+    def _end_ran_out_preview(self) -> None:
+        """End a preview that ran out by itself. Checked again under ``_ctl``: a
+        status poll that read "previewing, not playing" while ``play_preview``
+        was still warming up must not end the preview it then started."""
+        with self._ctl:
+            with self._tlock:
+                ran_out = self._preview and not self._playing
+            if ran_out:
+                self._end_preview()
+
     def play(self, at: int | None = None, until: int | None = None, *,
              rate: float = 1.0, preserve_pitch: bool = True,
              skip=None, loop=None) -> None:
@@ -696,7 +706,7 @@ class Engine:
         with self._tlock:
             previewing, playing = self._preview, self._playing
         if previewing and not playing:
-            self._end_preview()  # it ran out by itself
+            self._end_ran_out_preview()
         with self._tlock:
             playing, until, run = self._playing, self._until, self._run
             position = self._heard() if playing else self._anchor
