@@ -1029,8 +1029,13 @@ def _touching(track: Track, clip: Clip, edge: str) -> Clip | None:
 
 
 def roll_trim(p: Project, clip_id: str, edge: str, frame: int,
-              overwrite: bool = True) -> Project:
+              overwrite: bool = True, alone: bool = False) -> Project:
     """Drag one edge of a clip to ``frame``; nothing else on the timeline moves.
+
+    ``alone`` (Cmd/Ctrl+drag): trim only this clip. A touching neighbour is not
+    rolled (shortening leaves a gap) and nothing is overwritten (lengthening
+    stops at the nearest clip on the track; a touching one leaves no room).
+    The clip's media and one frame still bound it. ``overwrite`` is ignored.
 
     ``overwrite`` (the default, as a clip move does): an edge dragged outwards
     covers its neighbours like a moved clip does (no layers): what it covers is
@@ -1046,7 +1051,7 @@ def roll_trim(p: Project, clip_id: str, edge: str, frame: int,
     """
     edge = _edge(edge)
     clip, track = _find_clip(p, clip_id)
-    if overwrite:
+    if overwrite and not alone:
         own_low, own_high = _source_span(p, clip)
         if edge == "end":
             target = max(clip.start + 1, min(own_high, int(frame)))
@@ -1058,7 +1063,7 @@ def roll_trim(p: Project, clip_id: str, edge: str, frame: int,
             if target < clip.start:
                 p = trim_clip(p, clip_id, start=target)
                 return _overwrite_under(p, p, {clip_id})
-    other = _touching(track, clip, edge)
+    other = None if alone else _touching(track, clip, edge)
     low, high = _source_span(p, clip)
     if edge == "end":
         low = clip.start + 1

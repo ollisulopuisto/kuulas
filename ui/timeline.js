@@ -42,7 +42,7 @@ import {
   windowCovers,
 } from "./ghost-wave.js";
 import { busHues, fileMark, needsFileMark, ribbonLayout, seamKind } from "./grammar.js";
-import { formatNumber, t } from "./i18n.js";
+import { detectPlatform, formatNumber, t } from "./i18n.js";
 import { dropGhosts, dropLabel, resolveDropTarget } from "./import-drop.js";
 import { clipLabel, labelFacts, siblingsOf } from "./labels.js";
 import {
@@ -60,6 +60,7 @@ import { leftOffFlag } from "./left-off.js";
 import { activeLoop } from "./loop-range.js";
 import { flagLayout, NOTCH_PX as MARKER_NOTCH_PX } from "./markers-model.js";
 import { lengthPill, markDrawing } from "./marks.js";
+import { heldFromEvent } from "./modifiers.js";
 import { advanceDelta, movedSpans, moveTargets, snapMove } from "./move-snap.js";
 import {
   baseGainDb,
@@ -273,6 +274,7 @@ export function createTimeline({
     const ghost = edgeGhost(state.project, track, clip, edgeSession.edge, edgeSession.frame, {
       ripple: edgeSession.ripple,
       overwrite: edgeSession.overwrite,
+      alone: edgeSession.alone,
     });
     const geometry = ghostGeometry(ghost, { view: state, row });
     overlay.save();
@@ -280,6 +282,11 @@ export function createTimeline({
     overlay.rect(0, RULER_HEIGHT, size.width, size.height - RULER_HEIGHT);
     overlay.clip();
     drawEdgeCovered(geometry);
+    if (geometry.gap) {
+      // Trim-only-this-clip: the stretch the clip gives up stays empty, hatched.
+      const { x, y, w, h } = geometry.gap;
+      drawHatchAt(x, y, w, h, theme.accent, 0.4);
+    }
     overlay.strokeStyle = theme.accent;
     overlay.lineWidth = 1.5;
     overlay.setLineDash(ghost.ripple ? [5, 3] : []);
@@ -295,9 +302,11 @@ export function createTimeline({
     const hint = t(
       ghost.ripple
         ? "ui.edge.hint_ripple"
-        : edgeSession.overwrite
-          ? "ui.edge.hint_roll"
-          : "ui.edge.hint_roll_alone",
+        : ghost.alone
+          ? "ui.edge.hint_alone"
+          : edgeSession.overwrite
+            ? "ui.edge.hint_roll"
+            : "ui.edge.hint_roll_alone",
     );
     overlay.fillText(hint, Math.max(4, geometry.line.x + 6), geometry.line.y + 3);
     overlay.restore();
@@ -1456,6 +1465,8 @@ export function createTimeline({
       requestOverlay();
     }
     let cursor = hit.clip && hit.edge && hit.row?.kind === "track" ? "ew-resize" : "";
+    // Cmd/Ctrl over an edge: it trims only this clip, shown by a different cursor.
+    if (cursor && edgeMod(event) && !event.altKey) cursor = "col-resize";
     const zone = tweakZone(hit, event, state.selection);
     if (!cursor && zone) cursor = zone.kind === "gain" ? "ns-resize" : "ew-resize";
     if (!cursor && canStartClipDrag(hit)) {
@@ -1508,6 +1519,9 @@ export function createTimeline({
     return { state, track, clip };
   }
 
+  // Cmd on a Mac, Ctrl elsewhere (the same `mod` as everywhere else).
+  const edgeMod = (event) => heldFromEvent(event, detectPlatform()).mod;
+
   function startEdge(hit, event) {
     edgeSession = {
       clipId: hit.clip.id,
@@ -1519,6 +1533,8 @@ export function createTimeline({
       seekFrame: hit.frame,
       ripple: event.shiftKey,
       overwrite: !event.altKey, // Alt held: the edge stops at the neighbour; read live
+      mod: edgeMod(event), // Cmd/Ctrl held: trim only this clip (unless Alt); read live
+      alone: edgeMod(event) && !event.altKey,
       raw: null,
       frame: hit.edge === "start" ? hit.clip.start : hit.clip.start + hit.clip.length,
     };
@@ -1534,6 +1550,7 @@ export function createTimeline({
     edgeSession.frame = resolveEdge(state.project, track, clip, edgeSession.edge, edgeSession.raw, {
       ripple: edgeSession.ripple,
       overwrite: edgeSession.overwrite,
+      alone: edgeSession.alone,
     }).frame;
   }
 
@@ -1542,11 +1559,13 @@ export function createTimeline({
     const point = locate(event);
     session.ripple = event.shiftKey;
     session.overwrite = !event.altKey;
+    session.mod = edgeMod(event);
+    session.alone = session.mod && session.overwrite; // Cmd+Alt is not "alone": Alt wins
     if (!session.dragging) {
       if (!isDrag(session.origin, point)) return;
       session.dragging = true;
-      overlayCanvas.style.cursor = "ew-resize";
     }
+    overlayCanvas.style.cursor = session.alone && !session.ripple ? "col-resize" : "ew-resize";
     const state = getState();
     session.raw = xToFrame(point.x, state.scroll, state.zoom);
     clampEdge();
@@ -1569,6 +1588,7 @@ export function createTimeline({
         frame: session.frame,
         ripple: session.ripple,
         overwrite: session.overwrite,
+        alone: session.alone,
       });
     }
   }
@@ -1585,6 +1605,12 @@ export function createTimeline({
       requestOverlay();
     } else if (event.key === "Alt") {
       edgeSession.overwrite = event.type !== "keydown";
+      edgeSession.alone = edgeSession.mod && edgeSession.overwrite;
+      clampEdge();
+      requestOverlay();
+    } else if (event.key === (detectPlatform() === "mac" ? "Meta" : "Control")) {
+      edgeSession.mod = event.type === "keydown";
+      edgeSession.alone = edgeSession.mod && edgeSession.overwrite;
       clampEdge();
       requestOverlay();
     }

@@ -37,13 +37,35 @@ function sourceSpan(project, clip) {
  * neighbour it also stops at the next clip on the track instead of overlapping it.
  * Ripple only needs the clip's own media and one frame (its start stays put).
  */
-export function edgeLimits(project, track, clip, edge, { ripple, overwrite = false }) {
+export function edgeLimits(
+  project,
+  track,
+  clip,
+  edge,
+  { ripple, overwrite = false, alone = false },
+) {
   const own = sourceSpan(project, clip);
   const end = endOf(clip);
   if (ripple) {
     return edge === "end"
       ? { low: clip.start + 1, high: own.high, neighbour: null }
       : { low: own.low, high: end - 1, neighbour: null };
+  }
+  if (alone) {
+    // Cmd/Ctrl: only this clip. Never rolls a neighbour, never covers one: outwards the edge
+    // stops at the nearest clip on the track (a touching one leaves no room).
+    let low = Math.max(own.low, 0);
+    let high = own.high;
+    if (edge === "end") {
+      low = clip.start + 1;
+      for (const other of track.clips)
+        if (other.id !== clip.id && other.start >= end) high = Math.min(high, other.start);
+    } else {
+      high = end - 1;
+      for (const other of track.clips)
+        if (other.id !== clip.id && endOf(other) <= clip.start) low = Math.max(low, endOf(other));
+    }
+    return { low, high, neighbour: null };
   }
   const neighbour = touchingNeighbour(track, clip, edge);
   if (overwrite) {
@@ -87,8 +109,19 @@ export function edgeLimits(project, track, clip, edge, { ripple, overwrite = fal
 }
 
 /** The edge's new frame (whole, clamped) and the neighbour it moves, if any. */
-export function resolveEdge(project, track, clip, edge, frame, { ripple, overwrite = false }) {
-  const { low, high, neighbour } = edgeLimits(project, track, clip, edge, { ripple, overwrite });
+export function resolveEdge(
+  project,
+  track,
+  clip,
+  edge,
+  frame,
+  { ripple, overwrite = false, alone = false },
+) {
+  const { low, high, neighbour } = edgeLimits(project, track, clip, edge, {
+    ripple,
+    overwrite,
+    alone,
+  });
   const clamped = Math.max(low, Math.min(Math.max(low, high), Math.round(frame)));
   // Outwards with overwrite on, the neighbour is covered, not rolled.
   const outwards = edge === "end" ? clamped > endOf(clip) : clamped < clip.start;
@@ -122,8 +155,16 @@ export function coveredClips(track, clip, edge, frame) {
  * clip's new span and `neighbour` the touching clip's new span (roll only).
  * Ripple keeps the clip's start; dragging its start edge shortens it from the head.
  */
-export function edgeGhost(project, track, clip, edge, frame, { ripple, overwrite = false }) {
-  const resolved = resolveEdge(project, track, clip, edge, frame, { ripple, overwrite });
+export function edgeGhost(
+  project,
+  track,
+  clip,
+  edge,
+  frame,
+  { ripple, overwrite = false, alone = false },
+) {
+  const resolved = resolveEdge(project, track, clip, edge, frame, { ripple, overwrite, alone });
+  const aloneMode = Boolean(alone) && !ripple;
   const f = resolved.frame;
   const end = endOf(clip);
   const nb = resolved.neighbour;
@@ -138,9 +179,14 @@ export function edgeGhost(project, track, clip, edge, frame, { ripple, overwrite
   if (nb) {
     neighbour = edge === "end" ? { start: f, end: endOf(nb) } : { start: nb.start, end: f };
   }
-  const covering = Boolean(overwrite) && !ripple && resolved.outwards;
+  const covering = Boolean(overwrite) && !ripple && !aloneMode && resolved.outwards;
   const region = edge === "end" ? { start: end, end: f } : { start: f, end: clip.start };
+  // Alone: the stretch the clip gives up stays empty; the neighbour is not touched.
+  const vacated = edge === "end" ? { start: f, end } : { start: clip.start, end: f };
+  const gap = aloneMode && vacated.end > vacated.start ? vacated : null;
   return {
+    alone: aloneMode,
+    gap,
     line: f,
     clip: span,
     neighbour,
@@ -169,6 +215,7 @@ export function ghostGeometry(ghost, { view, row }) {
     clip: box(ghost.clip),
     neighbour: ghost.neighbour ? box(ghost.neighbour) : null,
     region: ghost.region ? box(ghost.region) : null,
+    gap: ghost.gap ? box(ghost.gap) : null,
     covered: (ghost.covered ?? []).map((item) => ({
       ...box(item),
       removed: item.kept === null,
@@ -181,7 +228,15 @@ export function ghostGeometry(ghost, { view, row }) {
  * The edit to send on release: roll, or ripple while Shift is held. A roll overwrites its
  * neighbours unless Alt was held (`overwrite` false: the edge stops at the neighbour).
  */
-export function edgeChange(clipId, edge, frame, ripple, overwrite = true) {
+export function edgeChange(clipId, edge, frame, ripple, overwrite = true, alone = false) {
+  // Priority: ripple, else alone (Cmd/Ctrl: only this clip), else roll.
+  if (!ripple && alone) {
+    return {
+      op: "roll_trim",
+      args: { clip_id: clipId, edge, frame, alone: true },
+      labelKey: "ui.edge.trim_alone",
+    };
+  }
   return {
     op: ripple ? "ripple_trim" : "roll_trim",
     // A ripple also gives the material back on the tracks cut at the same splice (the server
@@ -195,4 +250,14 @@ export function edgeChange(clipId, edge, frame, ripple, overwrite = true) {
     },
     labelKey: ripple ? "ui.edge.ripple" : "ui.edge.roll",
   };
+}
+
+/**
+ * Whether a press on a clip edge leaves the selection as it is. Cmd/Ctrl on an edge means
+ * "trim only this clip", not "add it to the selection", so it must not toggle anything (the
+ * selection stays, the play cursor stays). Cmd+Alt keeps its meaning elsewhere (select this
+ * clip and all after it), so that press is not an edge gesture.
+ */
+export function edgePressKeepsSelection({ mod, alt }) {
+  return Boolean(mod) && !alt;
 }

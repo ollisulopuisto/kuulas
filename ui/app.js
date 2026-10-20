@@ -29,7 +29,7 @@ import { openContextMenu } from "./context-menu.js";
 import { contextMenuItems } from "./context-menu-model.js";
 import { installDialogKeys } from "./dialog-keys.js";
 import { dragModeChoice, nextDragMode } from "./drag-mode.js";
-import { edgeChange } from "./edge-drag.js";
+import { edgeChange, edgePressKeepsSelection } from "./edge-drag.js";
 import { createEditor } from "./edits.js";
 import { escapeAction } from "./escape.js";
 import { exportNotice, exportRequest, filenameFromDisposition } from "./export-commands.js";
@@ -796,6 +796,18 @@ function onPointerDown(hit, event, { noSeek = false } = {}) {
   const intent = pointerIntent(hit, { shift: event.shiftKey, mod });
   if (!intent) return;
   const state = getState();
+  // Cmd/Ctrl on a clip edge starts "trim only this clip", not an additive pick: the press
+  // leaves the selection and the play cursor as they are (the least surprising: nothing
+  // changes until the drag does). Cmd+Alt on an edge keeps its "select from here" meaning.
+  if (
+    hit.clip &&
+    hit.edge &&
+    hit.row?.kind === "track" &&
+    edgePressKeepsSelection({ mod, alt: event.altKey })
+  ) {
+    setState({ panel: "timeline" });
+    return;
+  }
   const patch = { panel: "timeline", rangeTracks: new Set() };
   if (hit.row?.kind === "track" && !additive) {
     // Current track and header selection move together (range-scope.js focusTrack).
@@ -2868,8 +2880,15 @@ const timeline = createTimeline({
         provisional: (p) => patchClip(p, clipId, { [`fade_${side}`]: frames }),
       });
     },
-    edgeDrag({ clipId, edge, frame, ripple, overwrite }) {
-      const { op, args, labelKey } = edgeChange(clipId, edge, frame, ripple, overwrite !== false);
+    edgeDrag({ clipId, edge, frame, ripple, overwrite, alone }) {
+      const { op, args, labelKey } = edgeChange(
+        clipId,
+        edge,
+        frame,
+        ripple,
+        overwrite !== false,
+        Boolean(alone),
+      );
       editor.change({ op, args, label: t(labelKey) });
     },
     openGate: openGateStretch,
