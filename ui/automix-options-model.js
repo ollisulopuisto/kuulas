@@ -81,6 +81,97 @@ export function changedItems(specs, form, words) {
   return byGroup;
 }
 
+/**
+ * The keys of changed options the installed automixer is known not to accept
+ * (`capabilities[key] === false`, from GET /api/settings/automixer). An unknown capability
+ * is not a warning: the server decides again when the run starts.
+ */
+export function unsupportedChanged(specs, form, capabilities) {
+  if (!capabilities || typeof capabilities !== "object") return [];
+  const { options } = validateOptions(specs, form);
+  return specs.filter((s) => s.key in options && capabilities[s.key] === false).map((s) => s.key);
+}
+
+/**
+ * What Kuulas can already have done in the edit, by automixer option: the option key -> the
+ * name of the project's `mix_done` entry (server: automix.DONE_IN_KUULAS). Block level and
+ * the music duck join by being listed here and on the server (docs/FORMAT.md).
+ */
+export const DONE_IN_KUULAS = { bed_under_speech_db: "bed_level" };
+
+/** `done` (GET /api/settings/automixer `done_in_kuulas`) by option key: [{ key, entry }]. */
+function doneEntries(specs, done) {
+  if (!done || typeof done !== "object") return [];
+  const found = [];
+  for (const spec of specs) {
+    const name = DONE_IN_KUULAS[spec.key];
+    const entry = name ? done[name] : undefined;
+    if (entry && typeof entry.offset_db === "number") found.push({ spec, entry });
+  }
+  return found;
+}
+
+/**
+ * The stored options with what Kuulas did filled in: `{ options, offered }`. Only a stored
+ * value at the tool's default (absent) is replaced; a different stored value is the user's
+ * and stays, and its key is `offered` (the dialog offers Kuulas's value). A stale record
+ * (`current` false) changes nothing.
+ */
+export function prefillOptions(specs, done, stored) {
+  const options = { ...(stored && typeof stored === "object" ? stored : {}) };
+  const offered = [];
+  for (const { spec, entry } of doneEntries(specs, done)) {
+    if (!entry.current) continue;
+    const have = options[spec.key];
+    if (typeof have !== "number" || have === spec.default) options[spec.key] = entry.offset_db;
+    else if (have !== entry.offset_db) offered.push(spec.key);
+  }
+  return { options, offered };
+}
+
+/**
+ * Per option, what the dialog says about Kuulas's work, from the live form:
+ * { key: { state: "done" | "offer" | "stale", offset, unsupported } }. "done": the value is
+ * Kuulas's (badge); "offer": the user's saved value differs and `offered` has the key; "stale":
+ * the music level was set earlier but the project changed since. An edited-away value has none.
+ */
+export function doneStatus(specs, done, form, offered, capabilities) {
+  const status = {};
+  for (const { spec, entry } of doneEntries(specs, done)) {
+    const offset = entry.offset_db;
+    const shown = toNumber(form[spec.key]);
+    let state = null;
+    if (!entry.current) state = "stale";
+    else if (shown === offset) state = "done";
+    else if ((offered ?? []).includes(spec.key)) state = "offer";
+    if (state) {
+      status[spec.key] = {
+        state,
+        offset,
+        unsupported: state === "done" && capabilities?.[spec.key] === false,
+      };
+    }
+  }
+  return status;
+}
+
+const doneKeys = (status) => Object.keys(status).filter((k) => status[k].state === "done");
+
+/** The options to remember as the user's settings: the form's, without a value that is only
+ * Kuulas's (it is not their choice, and the next project may not have it). */
+export function savedOptions(specs, form, status) {
+  const { options } = validateOptions(specs, form);
+  for (const key of doneKeys(status)) delete options[key];
+  return options;
+}
+
+/** The options to send with this run when some are Kuulas's (they replace the saved ones);
+ * undefined when none is, so the saved options apply as before. */
+export function requestOptions(specs, form, status) {
+  if (doneKeys(status).length === 0) return undefined;
+  return validateOptions(specs, form).options;
+}
+
 /** The names of the changed items for a collapsed group's header; open groups show none
  * (the controls are right there). Cut to `max` characters with an ellipsis. */
 export function summaryText(items, collapsed, max) {

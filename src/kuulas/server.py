@@ -582,9 +582,11 @@ def create_app(session, engine, *, language: str | None = None,
                 "matched": [{"clip_id": c, "measured": m, "gain_db": g}
                             for c, m, g in report.matched],
                 "skipped": list(report.skipped)}})
-        if body.name in ("resync", "resync_from"):
-            return state_response({"resync": session.last_resync})
-        return state_response()
+        # What the UI's notice needs beside the state, by command.
+        extra = {"set_music_level": lambda: {"music_level": session.last_music_level},
+                 "resync": lambda: {"resync": session.last_resync},
+                 "resync_from": lambda: {"resync": session.last_resync}}.get(body.name)
+        return state_response(extra() if extra else None)
 
     # -- sync states (WP19a, R51; sync is knowledge only, WP83) ---------------------
 
@@ -878,6 +880,11 @@ def create_app(session, engine, *, language: str | None = None,
         # What Auto-Silence with these options would close; changes nothing.
         return JSONResponse({"jobs": session.auto_silence_preview(body)}, status_code=202)
 
+    @app.post("/api/music-level/measure", status_code=202)
+    def post_music_level_measure(body: Annotated[dict[str, Any], Body()]):
+        # Set music level: measure the speech and the beds; changes nothing.
+        return JSONResponse({"jobs": session.music_level_measure(body)}, status_code=202)
+
     @app.get("/api/plugins")
     def get_plugins(refresh: bool = False):
         # The installed audio plug-ins (names only, never loaded) for the automixer
@@ -888,9 +895,15 @@ def create_app(session, engine, *, language: str | None = None,
     def get_automixer_settings():
         stored = automix.load_settings()
         # default_output_dir is for display only (run() works out the same folder itself).
-        return {"settings": stored, "resolved": automix.resolve_settings(stored),
+        resolved = automix.resolve_settings(stored)
+        return {"settings": stored, "resolved": resolved,
                 "default_output_dir": str(session.package.path.parent),
-                "option_specs": automix.option_specs()}
+                "option_specs": automix.option_specs(),
+                # What Kuulas already did that the automixer would otherwise redo.
+                "done_in_kuulas": automix.done_in_kuulas(session.state),
+                # What the installed tool accepts (its --help, cached; never an error).
+                "capabilities": automix.capabilities(
+                    resolved["command"], resolved["cwd"])}
 
     @app.put("/api/settings/automixer")
     def put_automixer_settings(body: Annotated[dict[str, Any], Body()]):

@@ -8,8 +8,48 @@ import {
   optionEnabled,
   optionsToForm,
   summaryText,
+  unsupportedChanged,
   validateOptions,
 } from "../automix-options-model.js";
+
+describe("capability gating", () => {
+  const sp = [
+    { key: "bed_under_speech_db", kind: "number", default: -1, min: -30, max: 6, group: "music" },
+    { key: "n", kind: "number", default: 0.5, min: 0, max: 1, group: "music" },
+  ];
+
+  test("a changed option the tool lacks is reported", () => {
+    const form = optionsToForm(sp, { bed_under_speech_db: -10 });
+    assert.deepEqual(unsupportedChanged(sp, form, { bed_under_speech_db: false }), [
+      "bed_under_speech_db",
+    ]);
+  });
+
+  test("supported, unknown capability, or value at the default: nothing to warn about", () => {
+    const form = optionsToForm(sp, { bed_under_speech_db: -10 });
+    assert.deepEqual(unsupportedChanged(sp, form, { bed_under_speech_db: true }), []);
+    assert.deepEqual(unsupportedChanged(sp, form, {}), []);
+    assert.deepEqual(unsupportedChanged(sp, form, undefined), []);
+    assert.deepEqual(
+      unsupportedChanged(sp, optionsToForm(sp, {}), { bed_under_speech_db: false }),
+      [],
+    );
+  });
+
+  test("the bed level shows -1 by default, accepts the range edges and refuses outside", () => {
+    assert.equal(optionsToForm(sp, {}).bed_under_speech_db, "-1");
+    assert.deepEqual(validateOptions(sp, { bed_under_speech_db: "-30", n: "" }).options, {
+      bed_under_speech_db: -30,
+    });
+    assert.deepEqual(validateOptions(sp, { bed_under_speech_db: "6", n: "" }).options, {
+      bed_under_speech_db: 6,
+    });
+    for (const bad of ["-31", "6.5", "abc", "Infinity"]) {
+      assert.equal(validateOptions(sp, { bed_under_speech_db: bad, n: "" }).ok, false, bad);
+    }
+    assert.deepEqual(validateOptions(sp, { bed_under_speech_db: "-1", n: "" }).options, {});
+  });
+});
 
 describe("group summaries", () => {
   const sp = [

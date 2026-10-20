@@ -42,9 +42,9 @@ from typing import Any, NoReturn
 
 import soundfile as sf
 
-from . import export, export_names, plugins, toolpath
+from . import export, export_names, music_level, plugins, toolpath
 from .jobs import JobCancelledError
-from .messages import KuulasError
+from .messages import KuulasError, t
 
 log = logging.getLogger("kuulas.automix")
 
@@ -244,18 +244,20 @@ def _shown(number: float) -> str:
 
 def build_command(settings: dict, folder: Path, output: Path, *,
                   target_lufs: float, ad_spot: float | None,
-                  ad_duration: float | None) -> list[str]:
+                  ad_duration: float | None,
+                  supported: dict[str, bool] | None = None) -> list[str]:
     """The argument list (never a shell string): the command, the stems FOLDER (the
     one with ``tracks.json``; a list of files would take the automixer's in-memory
     route), ``-o``, the options of this run, ``--progress``, the switches that differ from
-    the tool's defaults (``settings["options"]``), then the user's extra arguments."""
+    the tool's defaults (``settings["options"]``), then the user's extra arguments.
+    ``supported`` (``capabilities``) leaves out gated options the tool does not know."""
     cmd = [*settings["command"], str(folder), "-o", str(output),
            "--target-lufs", _shown(target_lufs), "--progress"]
     if ad_spot is not None:
         cmd += ["--ad-spot", _shown(ad_spot)]
         if ad_duration is not None:
             cmd += ["--ad-duration", _shown(ad_duration)]
-    cmd += option_flags(settings.get("options") or {})
+    cmd += option_flags(settings.get("options") or {}, supported)
     return [*cmd, *settings["extra_args"]]
 
 
@@ -283,6 +285,11 @@ _RAW_OPTIONS: tuple[tuple[str, str, str, Any, str, dict[str, Any]], ...] = (
     # No default in the tool's parser: it uses the measured -9 dB when this is not given.
     ("mic_duck_db", "--mic-duck-db", "number", None, "micduck",
      {"min": -60.0, "max": 0.0, "parent": "speech_mic_duck"}),
+    # The tool's BED_UNDER_SPEECH_DB: the loudest 3 s of a bed sits this far under the
+    # speech. -1 is nearly as loud as the speech (the owner found it "SUPER LOUD"). Only
+    # newer automixers have the flag, so it is gated (``GATED``).
+    ("bed_under_speech_db", "--bed-under-speech-db", "number", -1.0, "music",
+     {"min": -30.0, "max": 6.0}),
     ("music_carve", "--no-music-carve", "bool", True, "music", {"minimal": True}),
     ("music_carve_strength", "--music-carve-strength", "number", 0.5, "music",
      {"min": 0.0, "max": 1.0, "parent": "music_carve"}),
@@ -407,10 +414,15 @@ def _tolerant_options(options: Any) -> dict[str, Any]:
     return clean
 
 
-def option_flags(options: dict[str, Any]) -> list[str]:
+def option_flags(options: dict[str, Any],
+                 supported: dict[str, bool] | None = None) -> list[str]:
     """The command-line words for the options that differ from the tool's defaults
-    (checked again here: ``build_command`` takes any dict)."""
+    (checked again here: ``build_command`` takes any dict). With ``supported``, a gated
+    option the tool is said not to know is left out; without it everything is sent."""
     options = _tolerant_options(options)
+    if supported is not None:
+        options = {k: v for k, v in options.items()
+                   if k not in GATED or supported.get(k, False)}
     minimal = options.get("minimal") is True
 
     def active(key: str) -> bool:
@@ -435,6 +447,124 @@ def option_flags(options: dict[str, Any]) -> list[str]:
         else:
             words += [spec["flag"], value]
     return words
+
+
+#: Options only newer automixers accept: kuulas looks in ``--help`` before sending them.
+GATED = ("bed_under_speech_db",)
+#: Seconds the ``--help`` probe may take (``uv run`` can need a moment to start).
+PROBE_SECONDS = 10.0
+#: Automixer options whose work Kuulas can already have done in the edit: option
+#: key -> (the ``Project.mix_done`` entry, its field holding the option's value).
+#: Later phases (block level, music duck) list themselves here.
+DONE_IN_KUULAS: dict[str, tuple[str, str]] = {
+    "bed_under_speech_db": ("bed_level", "offset_db"),
+}
+
+#: How each entry is checked as still holding (``bed_level_current`` for the beds).
+_STILL_HOLDS: dict[str, Callable[[Any], Any]] = {
+    "bed_level": music_level.bed_level_current,
+}
+
+
+def done_in_kuulas(p) -> dict[str, dict[str, Any]]:
+    """``{mix_done name: {option, offset_db, ..., current}}`` for what the edit
+    records as done. ``current`` is False when the project changed since (the
+    record no longer holds); the dialog then only hints."""
+    out: dict[str, dict[str, Any]] = {}
+    for option, (name, field) in DONE_IN_KUULAS.items():
+        entry = (p.mix_done or {}).get(name)
+        if not isinstance(entry, dict) or not isinstance(entry.get(field), int | float):
+            continue
+        out[name] = {"option": option, "offset_db": entry[field],
+                     "speech_lufs": entry.get("speech_lufs"),
+                     "bed_lufs": entry.get("bed_lufs"), "mode": entry.get("mode"),
+                     "set_at": entry.get("set_at"),
+                     "current": _STILL_HOLDS[name](p) is not None}
+    return out
+
+
+def done_lines(p, options: dict[str, Any]) -> list[str]:
+    """The log header lines for options sent with the value Kuulas set, while
+    the record still holds."""
+    lines = []
+    for info in done_in_kuulas(p).values():
+        sent = options.get(info["option"])
+        if (info["current"] and isinstance(sent, int | float)
+                and sent == info["offset_db"]):
+            when = f" (set at {info['set_at']})" if info["set_at"] else ""
+            lines.append(f"Done in Kuulas: music level {_shown(sent)} dB{when}")
+    return lines
+
+
+_capability_cache: dict[tuple, dict[str, bool]] = {}
+_capability_lock = threading.Lock()
+
+
+def clear_capability_cache() -> None:
+    with _capability_lock:
+        _capability_cache.clear()
+
+
+def _mtime(path: Path) -> float | None:
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return None
+
+
+def _probe_key(command: list[str], cwd: str | None) -> tuple:
+    """Command, folder and the age of what could change its answer: the program and, in
+    the owner's checkout, the tool's own parser file (``uv run`` hides it)."""
+    program = toolpath.resolve(command[0]) if command else None
+    cli = (Path(cwd) / "apps" / "automixer" / "src" / "automixer" / "cli_mix.py"
+           if cwd else None)
+    return (tuple(command), cwd or "", _mtime(Path(program)) if program else None,
+            _mtime(cli) if cli else None)
+
+
+def capabilities(command: list[str], cwd: str | None, *,
+                 run_process: RunProcess | None = None,
+                 timeout: float = PROBE_SECONDS) -> dict[str, bool]:
+    """Which gated options the installed automixer accepts, from its ``--help`` text.
+    Never raises: a tool that cannot be run, fails or hangs (``timeout``) gives False for
+    all (the option is then not sent, and the run itself reports a missing tool). Cached
+    for the session per command, folder and program age."""
+    key = _probe_key(command, cwd)
+    with _capability_lock:
+        if key in _capability_cache:
+            return dict(_capability_cache[key])
+    runner = run_process or globals()["run_process"]
+    text: list[str] = []
+    cancel = threading.Event()
+    timer = threading.Timer(timeout, cancel.set)
+    timer.daemon = True
+    timer.start()
+    code: int | None = None
+    try:
+        code = runner([*command, "--help"], cwd, text.append, cancel)
+    except Exception:  # noqa: BLE001 - never fatal: the probe only gates a flag
+        log.info("automixer --help probe failed", exc_info=True)
+    finally:
+        timer.cancel()
+    help_text = "\n".join(text) if code == 0 and not cancel.is_set() else ""
+    found = {k: OPTIONS[k]["flag"] in help_text for k in GATED}
+    with _capability_lock:
+        _capability_cache[key] = found
+    return dict(found)
+
+
+def gate_options(options: dict[str, Any], command: list[str], cwd: str | None, *,
+                 run_process: RunProcess | None = None,
+                 ) -> tuple[dict[str, Any], list[str]]:
+    """``options`` without the gated ones the installed automixer does not accept, and a
+    translated warning for each one dropped. Probes only when a gated option is set."""
+    wanted = [k for k in GATED if k in options]
+    if not wanted:
+        return options, []
+    found = capabilities(command, cwd, run_process=run_process)
+    dropped = [k for k in wanted if not found.get(k)]
+    kept = {k: v for k, v in options.items() if k not in dropped}
+    return kept, [t("warn.automix.option_unsupported") for _ in dropped]
 
 
 def _tool_env() -> dict[str, str]:
@@ -552,7 +682,7 @@ def _kuulas_version() -> str:
 
 def _write_log(target: Path, *, project: str, cmd: list[str], cwd: str | None,
                lines, code: int | None, started: datetime, took: dict[str, float],
-               outcome: str) -> str | None:
+               outcome: str, done: list[str] | None = None) -> str | None:
     """Write the automixer's whole output beside the mix, under a header that says what
     was run, and a summary. Never overwrites a file; ``target`` is only the name wanted.
     Returns the path, or None when it could not be written (the mix matters more than
@@ -565,6 +695,7 @@ def _write_log(target: Path, *, project: str, cmd: list[str], cwd: str | None,
         f"project: {project}",
         f"folder: {cwd or ''}",
         f"command: {shlex.join(str(c) for c in cmd)}",
+        *(done or []),
     ]
     footer = [
         f"exit code: {'none' if code is None else code}",
@@ -651,6 +782,11 @@ def run(session, params: dict, settings: dict, report: Report,
         title = listing.get("title") or listing["edit"]
         final = _unique(folder, export._safe(f"{title} automixer {stamp}.wav"))
         partial = final.with_name(f"{final.stem}.partial{final.suffix}")
+        kept, warnings = gate_options(settings.get("options") or {}, settings["command"],
+                                      settings["cwd"], run_process=run_process)
+        settings = {**settings, "options": kept}
+        done = done_lines(session.state, kept)
+        lines.extend(f"kuulas: {w}" for w in warnings)
         cmd = build_command(settings, stems, partial, target_lufs=lufs,
                             ad_spot=ad_spot, ad_duration=ad_duration)
         report(STEMS_SHARE, "", indeterminate=True)
@@ -684,7 +820,7 @@ def run(session, params: dict, settings: dict, report: Report,
                 final.with_name(f"{final.stem} FAILED log.txt"), project=project_name,
                 cmd=cmd, cwd=settings["cwd"], lines=lines, code=code, started=started,
                 took={"stems": stems_took, "automixer": time.monotonic() - ran},
-                outcome=f"failed: {error.key}")
+                outcome=f"failed: {error.key}", done=done)
             error.params["log_file"] = kept or ""
             raise error
 
@@ -710,11 +846,11 @@ def run(session, params: dict, settings: dict, report: Report,
             final.with_name(f"{final.stem} log.txt"), project=project_name, cmd=cmd,
             cwd=settings["cwd"], lines=lines, code=code, started=started,
             took={"stems": stems_took, "automixer": time.monotonic() - ran},
-            outcome=f"mixed: {final.name}")
+            outcome=f"mixed: {final.name}", done=done)
         report(1.0, "")
         return {"path": str(final), "name": final.name, "log": list(lines),
                 "command": cmd, "flags": flags, "log_file": kept_log,
-                "summary": key_lines(lines)}
+                "warnings": warnings, "summary": [*warnings, *key_lines(lines)]}
     finally:
         if partial is not None:
             with contextlib.suppress(OSError):

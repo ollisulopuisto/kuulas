@@ -14,11 +14,17 @@ import {
 } from "./automix-model.js";
 import {
   changedItems,
+  DONE_IN_KUULAS,
+  doneStatus,
   groupSpecs,
   initialOpen,
   optionEnabled,
   optionsToForm,
+  prefillOptions,
+  requestOptions,
+  savedOptions,
   summaryText,
+  unsupportedChanged,
   validateOptions,
 } from "./automix-options-model.js";
 import { enhanceDialog } from "./dialog-keys.js";
@@ -62,7 +68,14 @@ const el = (tag, className, text) => {
  * `prefs` (ui/prefs.js) remembers which option groups the user opened or closed.
  * Returns { element, open() }.
  */
-export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs = null }) {
+export function createAutomixDialog({
+  api,
+  t,
+  onStart,
+  pickFolder = null,
+  prefs = null,
+  onSetMusicLevel = null,
+}) {
   const dialog = el("dialog", "cheatsheet automix-dialog");
   dialog.setAttribute("aria-labelledby", "automix-title");
   const heading = el("h2", "", t("ui.automix.title"));
@@ -176,6 +189,10 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
   const optionControls = {};
   let installedPlugins = [];
   let optionSpecs = [];
+  let capabilities = {}; // what the installed automixer accepts (server probe)
+  let doneData = {}; // what Kuulas already did (server: done_in_kuulas)
+  let offered = []; // option keys where a saved value differs from Kuulas's
+  let doneNow = {}; // doneStatus of the live form
 
   const boolControl = (spec) => {
     const wrap = el("div", "automix-optcheck check-row");
@@ -217,9 +234,74 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
       input,
       `ui.automix.opt.${spec.key}.hint`,
     );
-    optionControls[spec.key] = { input, wrap };
+    // A warning (not an error: Mix still works) when the installed tool lacks this switch.
+    const note = el("p", "automix-msg form-msg", t("ui.automix.capability_missing"));
+    note.hidden = true;
+    wrap.lastChild.append(note);
+    optionControls[spec.key] = { input, wrap, note };
+    if (spec.key in DONE_IN_KUULAS) {
+      const done = doneBlock(spec, input);
+      wrap.lastChild.append(done.node);
+      optionControls[spec.key].done = done;
+    }
     return wrap;
   };
+  // What Kuulas already did for this option (docs/FORMAT.md, mix_done): a badge, a line that
+  // says why, Reset; or an offer when a saved value differs; or a hint that it went stale.
+  const smallButton = (label, onClick) => {
+    const button = el("button", "button small", label);
+    button.type = "button";
+    button.addEventListener("click", onClick);
+    return button;
+  };
+  const doneBlock = (spec, input) => {
+    const node = el("div", "automix-done form-help");
+    node.hidden = true;
+    const badge = el("span", "automix-badge", t("ui.automix.done_badge"));
+    const text = el(
+      "span",
+      "automix-done-text",
+      t("ui.automix.done_text", { default: spec.default }),
+    );
+    const reset = smallButton(t("ui.automix.done_reset"), () => {
+      input.value = String(spec.default);
+      refresh();
+    });
+    const offer = el("span", "automix-done-text");
+    const use = smallButton("", () => {
+      input.value = String(offerValue.offset);
+      refresh();
+    });
+    const stale = el("span", "automix-done-text", t("ui.automix.done_stale"));
+    const again = smallButton(t("ui.automix.done_again"), () => {
+      dialog.close();
+      onSetMusicLevel?.();
+    });
+    const lacking = el("span", "automix-done-text", t("ui.automix.done_unsupported"));
+    const offerValue = { offset: 0 };
+    const parts = { badge, text, reset, offer, use, stale, again, lacking };
+    node.append(badge, text, reset, offer, use, stale, again, lacking);
+    return { node, parts, offerValue };
+  };
+  function showDone(status) {
+    for (const spec of optionSpecs) {
+      const done = optionControls[spec.key].done;
+      if (!done) continue;
+      const s = status[spec.key];
+      const { badge, text, reset, offer, use, stale, again, lacking } = done.parts;
+      done.node.hidden = !s;
+      const is = (state) => s?.state === state;
+      for (const part of [badge, text, reset]) part.hidden = !is("done");
+      lacking.hidden = !(is("done") && s.unsupported);
+      for (const part of [offer, use]) part.hidden = !is("offer");
+      for (const part of [stale, again]) part.hidden = !is("stale");
+      if (is("offer")) {
+        done.offerValue.offset = s.offset;
+        offer.textContent = t("ui.automix.done_offer", { value: s.offset });
+        use.textContent = t("ui.automix.done_use", { value: s.offset });
+      }
+    }
+  }
   // Each group is a disclosure: one full-width header button (chevron, title, a badge with
   // the number of changed settings, and while folded the names of the changed ones) over a
   // body that animates its height. Open/closed is remembered (prefs) and wins over the
@@ -435,6 +517,13 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
       }
       if (spec.kind !== "bool") input.setAttribute("aria-invalid", key ? "true" : "false");
     }
+    const lacking = unsupportedChanged(optionSpecs, optionForm, capabilities);
+    for (const spec of optionSpecs) {
+      const { note } = optionControls[spec.key];
+      if (note) note.hidden = !lacking.includes(spec.key);
+    }
+    doneNow = doneStatus(optionSpecs, doneData, optionForm, offered, capabilities);
+    showDone(doneNow);
     updateGroupSummaries();
     const ok = mixOk && checked.ok && pluginsOk;
     for (const name of ["targetLufs", "adSpot", "adDuration"]) {
@@ -478,13 +567,15 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
           extra: inputs.extra.value,
         }),
         // Without the list (the settings did not load) nothing is sent: stored options stay.
+        // A value that is only Kuulas's is sent with this run, not saved as the user's own.
         ...(optionSpecs.length > 0
-          ? { options: validateOptions(optionSpecs, optionValues()).options }
+          ? { options: savedOptions(optionSpecs, optionValues(), doneNow) }
           : {}),
       });
       saveForm(values());
       dialog.close();
-      await onStart(request.body);
+      const sent = requestOptions(optionSpecs, optionValues(), doneNow);
+      await onStart(sent ? { ...request.body, options: sent } : request.body);
     } catch (e) {
       advanced.open = true;
       showError(e.message);
@@ -507,12 +598,16 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
         const resolved = answer.resolved ?? {};
         defaults.dir = answer.default_output_dir ?? "";
         const specs = answer.option_specs ?? [];
+        capabilities = answer.capabilities ?? {};
         installedPlugins = await installed();
         for (const { field } of Object.values(optionControls)) {
           field?.setInstalled(installedPlugins);
         }
         if (specs.length !== optionSpecs.length) buildOptions(specs);
-        setOptionValues(resolved.options ?? stored.options ?? {});
+        doneData = answer.done_in_kuulas ?? {};
+        const filled = prefillOptions(specs, doneData, resolved.options ?? stored.options ?? {});
+        offered = filled.offered;
+        setOptionValues(filled.options);
         inputs.command.value = formatWords(stored.command);
         inputs.command.placeholder = formatWords(resolved.command);
         cwd.value = stored.cwd ?? "";

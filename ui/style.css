@@ -3353,6 +3353,17 @@ legend.form-heading {
 .automix-badge[hidden] {
   display: none;
 }
+/* What Kuulas already did for an option: badge, why, and a small action, on one wrapping line. */
+.automix-done {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.automix-done[hidden],
+.automix-done > [hidden] {
+  display: none;
+}
 .automix-group-names {
   flex: 1 1 auto;
   min-width: 0;
@@ -3474,6 +3485,11 @@ legend.form-heading {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--space-1) var(--space-4);
   margin: 0;
+}
+.stats-hint {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
 }
 .stats-group dd {
   margin: 0;
@@ -3869,4 +3885,19 @@ legend.form-heading {
 .silence-line {
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+/* Set music level: the same form; the measured numbers under the field, as a note */
+.music-level-dialog {
+  width: min(640px, 94vw);
+}
+.music-level-result {
+  display: grid;
+  gap: var(--space-1);
+  min-height: var(--control-h);
+}
+.music-level-line {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
 }

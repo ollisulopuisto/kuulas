@@ -101,6 +101,8 @@ import { missingNotice } from "./media-copy-model.js";
 import { heldFromEvent } from "./modifiers.js";
 import { monoDecision, monoEdits } from "./mono-ask.js";
 import { motionMode } from "./motion.js";
+import { createMusicLevelDialog } from "./music-level-dialog.js";
+import { MUSIC_UNDER_KEY, normaliseMusicUnder } from "./music-level-model.js";
 import { createOverview } from "./overview.js";
 import { createPerfDialog } from "./perf-dialog.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
@@ -516,6 +518,14 @@ function setQuickMuteLength(seconds) {
   const value = normaliseQuickMute(seconds);
   setState({ quickMuteS: value });
   prefs.set(QUICK_MUTE_KEY, value);
+}
+
+// Set music level: how far under the speech the music's loudest moment goes (dB, Preferences).
+setState({ musicUnderDb: normaliseMusicUnder(prefs.get(MUSIC_UNDER_KEY)) });
+function setMusicUnder(db) {
+  const value = normaliseMusicUnder(db);
+  setState({ musicUnderDb: value });
+  prefs.set(MUSIC_UNDER_KEY, value);
 }
 
 const FAST_KEY = "fast";
@@ -1033,6 +1043,7 @@ const keyboard = setupKeyboard({
     cyclePreroll: () => cyclePreroll(),
     autoSilence: () => void autoSilence(),
     openSilenceOptions: () => openSilenceOptions(),
+    openMusicLevel: () => openMusicLevel(),
     openAllGates: () => void openAllGates(),
     duckMicrophones: () => void duckMicrophones(),
     transcribeTrack: (backend) => void transcribeTrack(backend),
@@ -1796,6 +1807,7 @@ async function openAutomix() {
     t,
     pickFolder: folderChooser(),
     prefs,
+    onSetMusicLevel: () => openMusicLevel(),
     onStart: async (body) => {
       try {
         const { jobs } = await api.automix(body);
@@ -1844,6 +1856,37 @@ function openSilenceOptions() {
     onApply: (options) => void autoSilence(options),
   });
   silenceDialog.open();
+}
+
+/**
+ * Track > Auto > Set music level…: the dialog measures (a job), Apply sets the music tracks'
+ * gain as one undo step and the notice says where the music now sits against the speech.
+ */
+let musicLevelDialog = null;
+function openMusicLevel() {
+  musicLevelDialog ??= createMusicLevelDialog({
+    api,
+    t,
+    fmt: (value) => formatNumber(value, { digits: 1 }),
+    getOffset: () => getState().musicUnderDb,
+    onRemember: setMusicUnder,
+    onApply: (args) => void setMusicLevel(args),
+  });
+  musicLevelDialog.open();
+}
+
+async function setMusicLevel(args) {
+  try {
+    const response = await api.command("set_music_level", args);
+    apply(response);
+    const report = response.music_level;
+    const text = report?.clamped?.length
+      ? `${report.text} ${t("ui.music_level.clamped")}`
+      : report?.text;
+    showNotice(text ?? t("history.set_music_level"), "ok", { undo: true });
+  } catch (error) {
+    showError(error);
+  }
 }
 
 /** Track > Auto > Open all gates on this track: one undo step. */
@@ -2291,6 +2334,7 @@ function openPreferences() {
       },
       fast: (speed) => changeFast((fast) => setFast(fast, speed)),
       quickMute: (seconds) => setQuickMuteLength(seconds),
+      musicUnder: (db) => setMusicUnder(db),
     },
     run: (command) => keyboard.registry.run(command, null, getState()),
     canRun: (command) => keyboard.registry.can(command, getState()),

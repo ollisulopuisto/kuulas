@@ -80,6 +80,7 @@ TASKS: dict[str, str] = {
     "speech_lanes": "kuulas.analysis:speech_lanes",
     "anyone_talking_intervals": "kuulas.analysis:anyone_talking_intervals",
     "project_curves": "kuulas.loudness_curve:project_curves",
+    "music_level": "kuulas.music_level:measure",
 }
 
 #: Tasks where only the newest call per project matters: a newer one ends the

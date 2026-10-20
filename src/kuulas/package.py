@@ -14,7 +14,9 @@ A folder holding ``manifest.json`` (what format this is), ``project.sqlite``
   service never sees two machines change one file (no "conflicted copy").
 * **Migrations** run after a backup, then the manifest is rewritten.
 * **Backups** every 10 minutes while there are changes, by SQLite's online
-  backup API, never by touching the live file.
+  backup API, never by touching the live file; then xz-compressed in the
+  background and kept by count and by a size budget (docs/FORMAT.md "Backups",
+  docs/DISK.md).
 
 The manifest is written once at create and on upgrade only (temp file,
 fsync, rename), and last on create, so a half-made package is never taken
@@ -24,11 +26,14 @@ for a finished one.
 from __future__ import annotations
 
 import getpass
+import hashlib
 import json
 import logging
+import lzma
 import os
 import re
 import secrets
+import shutil
 import socket
 import sqlite3
 import threading
@@ -38,11 +43,11 @@ from pathlib import Path
 from typing import Any
 
 from . import db as dbm
-from . import migrations, syncmark
+from . import migrations, priority, syncmark
 from .clock import RateError, check_rate
 from .history import History
 from .media import MediaStore
-from .messages import KuulasError, t
+from .messages import KuulasError, settings_file, t
 from .model import Project
 
 log = logging.getLogger("kuulas.package")
@@ -81,12 +86,31 @@ BACKUP_EVERY_S = 600
 KEEP_RECENT = 12
 #: ...plus the newest of each of the last 14 days.
 KEEP_DAYS = 14
+#: Automatic backups are stored xz-compressed (lzma preset 3). The history's
+#: states are already zlib blobs, so gzip gains nothing (1.02x), while lzma's
+#: 4 MiB window finds the neighbouring, nearly identical states: a synthetic
+#: 106 MB project.sqlite went to 11.0 MB (9.7x) in 5.0 s and back in 0.6 s;
+#: preset 6 gave 10.5x in 7.7 s, preset 1 6.1x in 3.4 s (M1 Max, 2026-10-20).
+XZ = ".xz"
+XZ_PRESET = 3
+#: Compression reads this much between two playback checkpoints.
+CHUNK = 1 << 20
+#: The total size automatic backups may take, unless ``backup_budget_mb`` in
+#: settings.json says otherwise (0: no limit). The count rules apply first.
+BUDGET_MB = 300
+#: Kept whatever the budget: the newest 2 backups...
+BUDGET_KEEP_RECENT = 2
+#: ...and the newest of each of the last 3 days.
+BUDGET_KEEP_DAYS = 3
+#: No backup while the disk has less free than this many times the database:
+#: the copy itself takes one database's worth.
+FREE_FACTOR = 2
 
 DIRS = ("media", "media/excerpts", "media/originals", "caches/peaks", "caches/onsets",
         "caches/analysis", "caches/render", "backups", "recordings", LOCKS_DIR)
 
 _STAMP = "%Y%m%dT%H%M%SZ"
-_AUTO = re.compile(r"^auto-(\d{8}T\d{6}Z)\.sqlite$")
+_AUTO = re.compile(r"^auto-(\d{8}T\d{6}Z)\.sqlite(\.xz)?$")
 
 
 class PackageError(KuulasError, RuntimeError):
@@ -264,35 +288,281 @@ def _lock_holder(folder: Path, now: datetime, instance: str = "") -> dict | None
 # -- backups ---------------------------------------------------------------------
 
 
+def _file_size(path: Path) -> int:
+    try:
+        return path.stat().st_size
+    except OSError:
+        return 0  # gone while we looked (pruned or compressed meanwhile)
+
+
+def auto_backups(folder: str | Path) -> list[tuple[datetime, list[Path]]]:
+    """The automatic backups in ``folder``, newest first: one entry per stamp
+    with its files (``.sqlite``, ``.sqlite.xz``, or both while it is being
+    compressed). Nothing else in the folder is ever listed."""
+    found: dict[datetime, list[Path]] = {}
+    try:
+        paths = sorted(Path(folder).iterdir())
+    except OSError:
+        return []
+    for path in paths:
+        m = _AUTO.match(path.name)
+        if m:
+            when = datetime.strptime(m[1], _STAMP).replace(tzinfo=UTC)
+            found.setdefault(when, []).append(path)
+    return sorted(found.items(), reverse=True)
+
+
+def _best(paths: list[Path]) -> Path:
+    """The file that stands for a backup: the compressed one when there is one."""
+    return next((p for p in paths if p.name.endswith(XZ)), paths[0])
+
+
+def _kept(stamps: list[datetime], recent: int, days: int, now: datetime,
+          tz: tzinfo) -> set[datetime]:
+    """The newest ``recent`` of ``stamps`` (newest first) and the newest of
+    each of the last ``days`` days, today included, in ``tz``."""
+    keep = set(stamps[:recent])
+    today = now.astimezone(tz).date()
+    wanted = {today - timedelta(days=d) for d in range(days)}
+    for when in stamps:  # newest first: the first seen of a day is its last
+        day = when.astimezone(tz).date()
+        if day in wanted:
+            keep.add(when)
+            wanted.discard(day)
+    return keep
+
+
+def backup_budget_bytes() -> int:
+    """``backup_budget_mb`` in settings.json, in bytes (0: no limit), else
+    ``BUDGET_MB``. A damaged file or a value that is not a number >= 0 means
+    the default, never an error."""
+    try:
+        data = json.loads(settings_file().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        data = {}
+    value = data.get("backup_budget_mb") if isinstance(data, dict) else None
+    if isinstance(value, bool) or not isinstance(value, int | float) or value < 0:
+        value = BUDGET_MB
+    return int(value * 1_000_000)
+
+
+def _mb(size: int) -> str:
+    return f"{size / 1e6:.1f}"
+
+
 def prune_backups(folder: str | Path, now: datetime | None = None,
-                  tz: tzinfo | None = None) -> list[Path]:
-    """Delete automatic backups the retention rule does not keep; returns them.
+                  tz: tzinfo | None = None, budget: int | None = None) -> list[Path]:
+    """Delete automatic backups the retention rules do not keep; returns them.
 
     Kept: the newest ``KEEP_RECENT``, and the newest of each of the last
     ``KEEP_DAYS`` days (today included). Days are in ``tz``, by default
-    this computer's own time zone, so "a day" is the owner's day. Other
-    files (pre-migration copies) are never touched.
+    this computer's own time zone, so "a day" is the owner's day. Then, with a
+    ``budget`` (bytes; None or 0: none), the oldest kept ones go until the
+    rest fit, except the newest ``BUDGET_KEEP_RECENT`` and the newest of each
+    of the last ``BUDGET_KEEP_DAYS`` days, which stay even over the budget.
+    Every deletion is logged with its size. Other files (pre-migration and
+    pre-restore copies) are never touched.
     """
     now = now or datetime.now(UTC)
     tz = tz or datetime.now().astimezone().tzinfo
-    found = []
-    for path in Path(folder).iterdir():
-        m = _AUTO.match(path.name)
-        if m:
-            found.append((datetime.strptime(m[1], _STAMP).replace(tzinfo=UTC), path))
-    found.sort(reverse=True)
-    keep = {p for _, p in found[:KEEP_RECENT]}
-    today = now.astimezone(tz).date()
-    days = {today - timedelta(days=d) for d in range(KEEP_DAYS)}
-    for when, path in found:  # newest first: the first seen of a day is its last
-        day = when.astimezone(tz).date()
-        if day in days:
-            keep.add(path)
-            days.discard(day)
-    removed = [p for _, p in found if p not in keep]
-    for path in removed:
-        path.unlink(missing_ok=True)
+    found = auto_backups(folder)
+    stamps = [when for when, _ in found]
+    keep = _kept(stamps, KEEP_RECENT, KEEP_DAYS, now, tz)
+    if budget:
+        sizes = {when: sum(_file_size(p) for p in paths) for when, paths in found}
+        protected = _kept(stamps, BUDGET_KEEP_RECENT, BUDGET_KEEP_DAYS, now, tz)
+        total = sum(sizes[w] for w in keep)
+        for when in reversed(stamps):  # oldest first
+            if total <= budget:
+                break
+            if when in keep and when not in protected:
+                keep.discard(when)
+                total -= sizes[when]
+        if total > budget:
+            log.info(t("log.package.backup_over_budget", total_mb=_mb(total),
+                       budget_mb=_mb(budget)))
+    removed = []
+    for when, paths in found:
+        if when in keep:
+            continue
+        for path in paths:
+            size = _file_size(path)
+            path.unlink(missing_ok=True)
+            removed.append(path)
+            log.info(t("log.package.backup_pruned", name=path.name, size_mb=_mb(size)))
     return removed
+
+
+def _fsync_dir(folder: Path) -> None:
+    if hasattr(os, "O_DIRECTORY"):  # POSIX: make a rename itself durable
+        fd = os.open(folder, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+
+
+def _xz_digest(path: Path, cancel: threading.Event | None = None) -> str:
+    """SHA-256 of what the xz file ``path`` decompresses to."""
+    digest = hashlib.sha256()
+    unpack = lzma.LZMADecompressor()
+    with path.open("rb") as f:
+        while chunk := f.read(CHUNK):
+            priority.checkpoint(cancel)
+            digest.update(unpack.decompress(chunk))
+    if not unpack.eof:
+        raise lzma.LZMAError(path.name)
+    return digest.hexdigest()
+
+
+class _MismatchError(Exception):
+    """The compressed copy does not decompress to the original."""
+
+
+def _compress_verified(src: Path, partial: Path, cancel: threading.Event | None) -> None:
+    """Write ``src`` xz-compressed to ``partial``, fsync it, and read it back:
+    ``_MismatchError`` unless it decompresses to exactly ``src``."""
+    digest = hashlib.sha256()
+    with src.open("rb") as f, partial.open("wb") as out:
+        pack = lzma.LZMACompressor(preset=XZ_PRESET)
+        while chunk := f.read(CHUNK):
+            priority.checkpoint(cancel)
+            digest.update(chunk)
+            out.write(pack.compress(chunk))
+        out.write(pack.flush())
+        out.flush()
+        os.fsync(out.fileno())
+    if _xz_digest(partial, cancel) != digest.hexdigest():
+        raise _MismatchError(src.name)
+
+
+def compress_backup(src: Path, cancel: threading.Event | None = None) -> Path | None:
+    """``auto-X.sqlite`` -> ``auto-X.sqlite.xz``: written under a temp name,
+    fsynced, decompressed again and compared with the original, renamed, and
+    only then is the original deleted. Waits while audio plays (on a background
+    thread). Raises on failure, after removing its own temp file; the original
+    is then still there. None when the original went away meanwhile (pruned)."""
+    target = src.with_name(src.name + XZ)
+    partial = target.with_name(f"{target.name}.{secrets.token_hex(4)}.partial")
+    try:
+        _compress_verified(src, partial, cancel)
+        if not src.exists():
+            partial.unlink(missing_ok=True)
+            return None
+        os.replace(partial, target)
+        _fsync_dir(target.parent)
+    except BaseException:
+        partial.unlink(missing_ok=True)
+        raise
+    src.unlink(missing_ok=True)
+    _fsync_dir(target.parent)
+    return target
+
+
+def compress_pending(folder: str | Path,
+                     cancel: threading.Event | None = None) -> list[Path]:
+    """Compress every uncompressed automatic backup in ``folder``, newest
+    first, one at a time. A failure keeps that original (logged) and moves on;
+    ``priority.CancelledError`` stops the round."""
+    done = []
+    for _when, paths in auto_backups(folder):
+        for src in paths:
+            if src.name.endswith(XZ):
+                continue
+            try:
+                made = compress_backup(src, cancel)
+            except (OSError, lzma.LZMAError, _MismatchError) as e:
+                log.warning(t("log.package.backup_compress_failed", name=src.name,
+                              error=str(e) or type(e).__name__))
+                continue
+            if made is not None:
+                log.info(t("log.package.backup_compressed", name=made.name,
+                           size_mb=_mb(_file_size(made))))
+                done.append(made)
+    return done
+
+
+def _unpack(src: Path, out_path: Path) -> None:
+    """``src`` as a plain file at ``out_path`` (decompressed when it is xz), fsynced."""
+    with src.open("rb") as f, out_path.open("wb") as out:
+        unpack = lzma.LZMADecompressor() if src.name.endswith(XZ) else None
+        while chunk := f.read(CHUNK):
+            out.write(unpack.decompress(chunk) if unpack else chunk)
+        if unpack is not None and not unpack.eof:
+            raise lzma.LZMAError(src.name)
+        out.flush()
+        os.fsync(out.fileno())
+
+
+def read_backup(src: Path, dest: Path) -> Path:
+    """Copy the backup ``src`` (``.sqlite`` or ``.sqlite.xz``) to ``dest`` as a
+    plain database: through a temp file, checked with ``integrity_check``, and
+    only then renamed. ``PackageError`` for a damaged backup (``dest`` untouched)."""
+    tmp = dest.with_name(f"{dest.name}.{secrets.token_hex(4)}.partial")
+    try:
+        _unpack(src, tmp)
+        _check_database(tmp)
+        os.replace(tmp, dest)
+    except (OSError, lzma.LZMAError, EOFError, sqlite3.Error) as e:
+        tmp.unlink(missing_ok=True)
+        raise PackageError("error.package.backup_damaged", name=src.name,
+                           error=str(e) or type(e).__name__) from None
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+    return dest
+
+
+def _check_database(path: Path) -> None:
+    """Raise ``sqlite3.Error`` unless ``path`` is an intact kuulas history."""
+    db = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    try:
+        (result,) = db.execute("pragma integrity_check").fetchone()
+        if result != "ok":
+            raise sqlite3.DatabaseError(result)
+        db.execute("select count(*) from nodes").fetchone()
+    finally:
+        db.close()
+
+
+def restore_backup(folder: str | Path, backup: str | Path,
+                   now: datetime | None = None) -> Path:
+    """Make ``backup`` (a file name in ``backups/``, or a path; plain or xz)
+    the project's database again. Only while nobody has the project open. The
+    backup is decompressed and checked before anything changes; the current
+    database is first copied to ``backups/pre-restore-<UTC>.sqlite`` (never
+    pruned), which is returned. Media and recordings are never touched."""
+    folder = Path(folder)
+    now = now or datetime.now(UTC)
+    src = Path(backup)
+    if not src.is_absolute():
+        src = folder / "backups" / src
+    if not src.is_file():
+        raise PackageError("error.package.not_found", path=str(src))
+    for _path, lock in _all_locks(folder):
+        age = (now - _parse_iso(lock["heartbeat_utc"])).total_seconds()
+        if age < STALE_FOREIGN_S:
+            raise PackageError("error.package.restore_open", host=lock.get("host", "?"))
+    live = folder / "project.sqlite"
+    staged = read_backup(src, folder / f"project.sqlite.restore-{secrets.token_hex(4)}")
+    try:
+        db = sqlite3.connect(live)
+        try:
+            db.execute("pragma wal_checkpoint(TRUNCATE)")
+        finally:
+            db.close()
+        safety = backup_to(live, folder / "backups" /
+                           f"pre-restore-{now.astimezone(UTC).strftime(_STAMP)}.sqlite")
+        _check_database(safety)
+        for suffix in ("-wal", "-shm"):
+            live.with_name(live.name + suffix).unlink(missing_ok=True)
+        os.replace(staged, live)
+        _fsync_dir(folder)
+    except BaseException:
+        staged.unlink(missing_ok=True)
+        raise
+    log.info(t("log.package.restored", name=src.name, safety=safety.name))
+    return safety
 
 
 def backup_to(db_path: Path, target: Path) -> Path:
@@ -306,7 +576,10 @@ def backup_to(db_path: Path, target: Path) -> Path:
     finally:
         copy.close()
         source.close()
+    with partial.open("rb") as f:
+        os.fsync(f.fileno())
     partial.replace(target)
+    _fsync_dir(target.parent)
     return target
 
 
@@ -338,6 +611,13 @@ class Package:
         self.history.on_gate = self._need_gate_reader
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
+        # One background compressor at a time; a backup made while it runs
+        # asks it for one more round instead of starting a second.
+        self._compress_lock = threading.Lock()
+        self._compressor: threading.Thread | None = None
+        self._compress_again = False
+        #: The backup this session made last (its plain name).
+        self._made: Path | None = None
         if not self.read_only:
             syncmark.mark_package(folder)
         size = self.db_path.stat().st_size
@@ -380,16 +660,88 @@ class Package:
                 return
         self._checkpointed = self._changes()
 
-    def backup(self, now: datetime | None = None) -> Path:
+    def backup(self, now: datetime | None = None) -> Path | None:
+        """An automatic backup now: the online backup API to
+        ``backups/auto-<UTC>.sqlite``, the count rules, then the background
+        compressor (xz, then the size budget). Returns this session's last
+        backup instead when nothing was written since it, and None (logged,
+        not an error) when the disk has too little room for a copy."""
         now = now or datetime.now(UTC)
         changes = self._changes()
+        folder = self.path / "backups"
+        folder.mkdir(exist_ok=True)
+        if changes == self._backed_up and (same := self._made_copy()) is not None:
+            # Keyed on this session's own copy and its change counter: a backup
+            # left by an earlier session may predate edits of a crash.
+            self._last_backup = now
+            prune_backups(folder, now)
+            return same
+        size = _file_size(self.db_path) + _file_size(
+            self.db_path.with_name(self.db_path.name + "-wal"))
+        free = shutil.disk_usage(folder).free
+        if free < FREE_FACTOR * size:
+            log.warning(t("log.package.backup_low_disk", free_mb=_mb(free),
+                          size_mb=_mb(size)))
+            self._last_backup = now  # try again at the next interval, not every tick
+            return None
         stamp = now.astimezone(UTC).strftime(_STAMP)
-        target = self.path / "backups" / f"auto-{stamp}.sqlite"
-        target.parent.mkdir(exist_ok=True)
+        target = folder / f"auto-{stamp}.sqlite"
         backup_to(self.db_path, target)
-        self._last_backup, self._backed_up = now, changes
-        prune_backups(target.parent, now)
+        self._last_backup, self._backed_up, self._made = now, changes, target
+        # The budget waits for the compressor: counted uncompressed, backups
+        # that fit once compressed would be dropped.
+        prune_backups(folder, now)
+        self._kick_compressor()
         return target
+
+    def _made_copy(self) -> Path | None:
+        """This session's newest backup, compressed or not, if it is still there."""
+        if self._made is None:
+            return None
+        for path in (self._made.with_name(self._made.name + XZ), self._made):
+            if path.exists():
+                return path
+        return None
+
+    def _kick_compressor(self) -> None:
+        if self.read_only or self._stop.is_set():
+            return
+        with self._compress_lock:
+            if self._compressor is not None:
+                self._compress_again = True
+                return
+            self._compressor = priority.thread(self._compress_loop,
+                                               "kuulas-backup-compress")
+            self._compressor.start()
+
+    def _compress_loop(self) -> None:
+        """Compress the uncompressed automatic backups (new ones and those of
+        older kuulas versions), then apply the budget; again while asked."""
+        folder = self.path / "backups"
+        while True:
+            try:
+                compress_pending(folder, self._stop)
+                prune_backups(folder, budget=backup_budget_bytes())
+            except priority.CancelledError:
+                pass  # closing: an unfinished one stays uncompressed, for next time
+            except (OSError, sqlite3.Error) as e:
+                log.warning(t("log.package.tick_failed", error=str(e)))
+            with self._compress_lock:
+                if not self._compress_again or self._stop.is_set():
+                    self._compressor = None
+                    return
+                self._compress_again = False
+
+    def wait_compressed(self, timeout: float | None = None) -> None:
+        """Wait for the background compressor to finish (tests, ``close``)."""
+        while True:
+            with self._compress_lock:
+                worker = self._compressor
+            if worker is None:
+                return
+            worker.join(timeout)
+            if timeout is not None:
+                return
 
     def tick(self, now: datetime | None = None) -> Path | None:
         """Heartbeat when due; back up when due and there are changes.
@@ -423,11 +775,15 @@ class Package:
                     log.warning(t("log.package.tick_failed", error=str(e)))
         self._thread = threading.Thread(target=loop, name="kuulas-package", daemon=True)
         self._thread.start()
+        # Backups an older kuulas left uncompressed are compressed now, in the
+        # background, one at a time.
+        self._kick_compressor()
 
     def close(self) -> None:
         self._stop.set()
         if self._thread is not None:
             self._thread.join()
+        self.wait_compressed()
         self.checkpoint()
         self.history.close()
         self.store.close()
@@ -555,7 +911,7 @@ def info(path: str | Path) -> dict[str, Any]:
         raise PackageError("error.package.not_a_project", path=str(folder))
     db_path = folder / "project.sqlite"
     sizes = {name: _size(folder / name) if (folder / name).exists() else 0
-             for name in ("project.sqlite", "media", "caches", "backups")}
+             for name in ("project.sqlite", "media", "caches", "backups", "recordings")}
     db = dbm.connect(db_path, read_only=True)
     rate = int(dbm.meta(db, "project_rate") or Project().rate)
     db.close()
@@ -571,5 +927,5 @@ def info(path: str | Path) -> dict[str, Any]:
                 counts[storage] = counts.get(storage, 0) + 1
     finally:
         store.close()
-    backups = len(list((folder / "backups").glob("auto-*.sqlite")))
+    backups = len(auto_backups(folder / "backups"))
     return {"manifest": manifest, "sizes": sizes, "media": counts, "backups": backups}

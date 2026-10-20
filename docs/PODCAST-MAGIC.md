@@ -63,6 +63,99 @@ Anything that rewrites the project (kuulas owns the project file; external tools
 specifics, Google Drive routes for private audio (audio goes straight to the VM, never via Drive), and anything that needs
 importing the Python workspace.
 
+## Music bed level (request to the podcast session, 2026-10-20)
+
+**Problem (owner, measured by ear):** after an automix export from kuulas the music was "SUPER LOUD" next to the
+speech. Cause: `stems_mix.py` sets the loudest 3 s short-term moment of every music bed to
+`BED_UNDER_SPEECH_DB = -1.0` below the processed speech level (`change = round(spoken_level + BED_UNDER_SPEECH_DB -
+bed_level, 2)`, the `beds:` log line), so beds end up almost as loud as speech. The per-track music gain that kuulas
+exports (`gain_db` in `tracks.json`, -27.5 dB in the owner's project) plays no part. There is no CLI switch for the rule.
+
+**Request:** a CLI flag `--bed-under-speech-db FLOAT`, default `-1.0` (= today's behaviour, nothing changes for anyone
+who does not pass it), accepted range `-30..+6`. `cli_mix.py` passes it to `stems_mix.mix(bed_under_speech_db=...)`; the
+formula uses the parameter instead of the constant; the offset appears in the `beds:` log line so the log shows what
+was asked for. Kuulas only shows `beds:` lines it finds, so keep the prefix `beds:`.
+
+Minimal patch, written from reading `apps/automixer/src/automixer/stems_mix.py` and `cli_mix.py` as of 2026-10-20
+(hunk line numbers are approximate; kuulas did not apply or test it, the podcast session applies it). Caveat: the
+`.nhsx` route (`_mix_session` -> `stems_mix.mix`) is the one with the `beds:` rule in that checkout; I did not find the
+`tracks.json` folder route that kuulas calls (`automixer DIR -o OUT --progress`) in that checkout's `cli_mix.py`, so
+apply the same change wherever the folder route computes `beds:`, if it is a different place.
+
+```diff
+--- a/apps/automixer/src/automixer/stems_mix.py
++++ b/apps/automixer/src/automixer/stems_mix.py
+@@ -222,6 +222,7 @@ def mix(
+     mic_duck: bool = False,
+     mic_duck_db: float | None = None,
+     block_level: bool = True,
++    bed_under_speech_db: float = BED_UNDER_SPEECH_DB,
+ ) -> stems.StemResult:
+     """Miksaa istunnon ``output``iin. Palauttaa ohjelman tason tulokset."""
+@@ -385,10 +386,11 @@ def mix(
+             spoken_level, _ = _loudness(speech_jobs, stems.anyone_speaking(grid, 0.0))
+             _, bed_level = _loudness(music_jobs)
+             if spoken_level is not None and bed_level is not None:
+-                change = round(spoken_level + BED_UNDER_SPEECH_DB - bed_level, 2)
++                change = round(spoken_level + bed_under_speech_db - bed_level, 2)
+                 for job in music_jobs:
+                     extra[job["key"]] = extra.get(job["key"], 0.0) + change
+                 _log(f"beds: loudest {bed_level:.1f} LUFS, speech {spoken_level:.1f} "
+-                     f"→ beds {change:+.1f} dB")
++                     f"→ beds {change:+.1f} dB "
++                     f"(loudest moment {bed_under_speech_db:+.1f} dB under speech)")
+--- a/apps/automixer/src/automixer/cli_mix.py
++++ b/apps/automixer/src/automixer/cli_mix.py
+@@ -684,6 +684,17 @@ def main():
+         help="How far a closed microphone drops, dB (default: the measured -9)",
+     )
++    parser.add_argument(
++        "--bed-under-speech-db",
++        type=_bed_db,
++        default=None,
++        metavar="FLOAT",
++        help="How far the loudest 3 s of the music beds sits below the processed "
++        "speech, dB, -30..+6 (default: -1, almost as loud as the speech)",
++    )
+@@ -900,6 +911,9 @@ def _mix_session(args, path: str) -> None:
+         mic_duck_db=args.mic_duck_db,
+         block_level=args.block_level,
++        **({} if args.bed_under_speech_db is None
++           else {"bed_under_speech_db": args.bed_under_speech_db}),
+     )
++
++
++def _bed_db(text: str) -> float:
++    """argparse type for ``--bed-under-speech-db``: a finite number in -30..+6."""
++    value = float(text)
++    if not (-30.0 <= value <= 6.0):  # NaN fails too
++        raise argparse.ArgumentTypeError(f"{text}: must be between -30 and 6")
++    return value
+```
+
+(`default=None` keeps the default in one place, `BED_UNDER_SPEECH_DB`. `_bed_db` is read when `main()` runs, so it may
+sit anywhere at module level; `cli_mix.py` must import `argparse` if it does not already.)
+
+**Test idea** (`apps/automixer/tests`): run the `beds:` step with fixed levels, e.g. speech -20 LUFS, loudest bed
+-10 LUFS: default gives `change == -11.0` (`-20 + -1 - -10`), `bed_under_speech_db=-9` gives `-19.0`; i.e. always
+`change == round(speech + offset - bed, 2)`. Also: the flag is rejected outside -30..+6 and for `nan`; without the
+flag the output is bit-identical to today.
+
+**Kuulas side (built in the same change as this text):**
+
+- Option `bed_under_speech_db` in the Mix dialog, group Music ("Music level under speech (dB)", -30..+6, step 0.5,
+  shown default -1). It is stored with the other options and sent only when it differs from -1.
+- Before sending, kuulas runs `<automixer command> --help` (timeout 10 s, cached per command, folder and program
+  mtime for the session, never fatal) and looks for the text `--bed-under-speech-db`. **So the flag must appear in
+  `--help`**, which argparse does by itself.
+- Not supported: the flag is not passed, the dialog and the run log/notice warn ("The installed automixer does not
+  support this yet; the music stays at its default level"), and the run goes on. `GET /api/settings/automixer` returns
+  `capabilities: {bed_under_speech_db: bool}`.
+
+**Later, optional (second step):** `tracks.json` already has `gain_db` per track. The automixer could add the music
+track's `gain_db` (relative to a reference, e.g. 0 dB) as an extra offset for that bed, so the fader the user set in
+kuulas counts. That changes the meaning of the level and needs the owner's decision; not part of this request.
+
 ## Open questions for Olli
 
 1. Frames or seconds for the new manifest fields; the names `muted_frames` / `gate_frames`?
