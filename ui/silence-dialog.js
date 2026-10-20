@@ -4,6 +4,7 @@
 // `onApply` (one undo step, made by the caller) and they are remembered per project by the
 // caller through `onRemember`.
 
+import { enhanceDialog } from "./dialog-keys.js";
 import {
   methodAvailable,
   normaliseSilence,
@@ -130,6 +131,8 @@ export function createSilenceDialog({ api, t, getProject, getOptions, onApply, o
   const apply = el("button", "button block primary", t("ui.silence.apply"));
   apply.type = "submit";
   apply.dataset.icon = "check";
+  cancel.dataset.dialogCancel = "";
+  apply.dataset.dialogPrimary = "";
   buttons.append(reset, cancel, preview, apply);
 
   const form = el("form");
@@ -138,6 +141,7 @@ export function createSilenceDialog({ api, t, getProject, getOptions, onApply, o
   form.append(sensitivity, timing, result, error, buttons);
   dialog.append(heading, form);
   document.body.append(dialog);
+  enhanceDialog(dialog, { t });
 
   // -- state ------------------------------------------------------------------------------
   let watching = 0; // which preview is being waited for; a newer one or a close ends the old

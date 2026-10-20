@@ -2,6 +2,7 @@
 // progress, say where the report went. The server samples the app's own threads and writes a
 // plain-text file next to the log (and shows it in Finder); this file only drives that.
 
+import { enhanceDialog } from "./dialog-keys.js";
 import { DEFAULT_SECONDS, DURATIONS, isRunning, progressOf, reportFolder } from "./perf-model.js";
 
 const POLL_MS = 500;
@@ -58,9 +59,12 @@ export function createPerfDialog({ api, t, notify }) {
   const start = button("ui.perf.start", () => void begin(), "primary");
   const stop = button("ui.perf.stop", () => void end());
   const close = button("ui.perf.close", () => dialog.close());
+  close.dataset.dialogCancel = "";
+  start.dataset.dialogPrimary = "";
   buttons.append(start, stop, close);
   dialog.append(heading, intro, choice, progress, message, buttons);
   document.body.append(dialog);
+  enhanceDialog(dialog, { t });
 
   let timer = null;
   // True from Start until the toast for that recording: opening the dialog on an old result

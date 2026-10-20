@@ -3,6 +3,7 @@
 // original menu command (preferences-model.js applyField), so the same setting stays in its own
 // menu and the two always agree. The dialog redraws from the live values every time it opens.
 
+import { enhanceDialog } from "./dialog-keys.js";
 import {
   applyField,
   currentValues,
@@ -36,6 +37,8 @@ export function createPreferencesDialog({ t, read, setters, run, canRun }) {
   close.type = "button";
   close.dataset.icon = "check";
   close.addEventListener("click", () => dialog.close());
+  close.dataset.dialogCancel = "";
+  close.dataset.dialogPrimary = "";
   footer.append(close);
   form.append(grid, more, footer);
   dialog.append(title, form);
@@ -44,6 +47,7 @@ export function createPreferencesDialog({ t, read, setters, run, canRun }) {
     dialog.close();
   });
   document.body.append(dialog);
+  enhanceDialog(dialog, { t });
 
   const controls = new Map();
   const linkButtons = [];

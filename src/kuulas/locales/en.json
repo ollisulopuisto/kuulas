@@ -1948,6 +1948,7 @@
   "ui.colab.consent_text": "Transcribing on Colab uploads the audio of {names} to a Google Colab machine, sent directly and not through Google Drive. The audio leaves this computer. Nothing is uploaded until you press the button.",
   "ui.colab.consent_remember": "Do not ask again",
   "ui.colab.consent_ok": "Upload and transcribe",
+  "ui.dialog.safe_hint": "Enter cancels here. Click the button to confirm.",
   "ui.colab.consent_cancel": "Cancel",
   "ui.colab.settings_title": "Colab transcription settings",
   "ui.colab.command": "Command",

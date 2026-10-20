@@ -24,6 +24,7 @@ import {
 } from "./colab-model.js";
 import { openContextMenu } from "./context-menu.js";
 import { contextMenuItems } from "./context-menu-model.js";
+import { installDialogKeys } from "./dialog-keys.js";
 import { dragModeChoice, nextDragMode } from "./drag-mode.js";
 import { edgeChange } from "./edge-drag.js";
 import { createEditor } from "./edits.js";
@@ -834,6 +835,9 @@ const transcript = createTranscript({
 });
 
 // The whole keyboard layer: keymap, palette, cheat sheet, menu bar, hints (shell-keys.js).
+// Esc and Enter in modal dialogs (dialog-keys.js): before the keymap sees the key.
+installDialogKeys(window);
+
 const keyboard = setupKeyboard({
   actions,
   prefs,

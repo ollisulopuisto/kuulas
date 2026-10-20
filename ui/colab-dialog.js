@@ -4,6 +4,7 @@
 //  - openSettings(): the command kuulas runs, its folder, extra arguments, model, language.
 
 import { colabForm, colabSettingsBody, signinPolls, signinView } from "./colab-model.js";
+import { enhanceDialog } from "./dialog-keys.js";
 
 const make = (tag, className, text) => {
   const node = document.createElement(tag);
@@ -36,10 +37,13 @@ export function createColabDialogs({ api, t, onSettingsSaved = () => {}, onSigne
   const consentOk = make("button", "button block primary", t("ui.colab.consent_ok"));
   consentOk.type = "submit";
   consentOk.dataset.icon = "check";
+  consentCancel.dataset.dialogCancel = "";
+  consentOk.dataset.dialogPrimary = "";
   consentButtons.append(consentCancel, consentOk);
   consentForm.append(rememberLabel, consentButtons);
   consent.append(consentTitle, consentText, consentForm);
   document.body.append(consent);
+  enhanceDialog(consent, { t, safe: true }); // uploads private audio: Enter is Cancel
 
   let settle = null;
   const finish = (ok) => {
@@ -96,6 +100,8 @@ export function createColabDialogs({ api, t, onSettingsSaved = () => {}, onSigne
   const save = make("button", "button block primary", t("ui.colab.save"));
   save.type = "submit";
   save.dataset.icon = "save";
+  close.dataset.dialogCancel = "";
+  save.dataset.dialogPrimary = "";
   buttons.append(close, save);
   form.append(
     field("command", "ui.colab.command", "ui.colab.command_hint"),
@@ -110,6 +116,7 @@ export function createColabDialogs({ api, t, onSettingsSaved = () => {}, onSigne
   );
   dialog.append(title, form);
   document.body.append(dialog);
+  enhanceDialog(dialog, { t });
 
   const showError = (message) => {
     error.textContent = message;
@@ -169,6 +176,9 @@ export function createColabDialogs({ api, t, onSettingsSaved = () => {}, onSigne
   startButton.dataset.icon = "check";
   sendButton.dataset.icon = "check";
   stopButton.dataset.icon = "close";
+  signinClose.dataset.dialogCancel = "";
+  startButton.dataset.dialogPrimary = "";
+  sendButton.dataset.dialogPrimary = "";
   signinButtons.append(startButton, sendButton, stopButton, signinClose);
   signinForm.append(codeLabel, signinError, signinButtons);
   signin.append(
@@ -181,6 +191,7 @@ export function createColabDialogs({ api, t, onSettingsSaved = () => {}, onSigne
     signinForm,
   );
   document.body.append(signin);
+  enhanceDialog(signin, { t });
 
   let signinSettle = null;
   let signinTimer = null;

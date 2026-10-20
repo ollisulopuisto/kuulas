@@ -4,6 +4,8 @@
 // it in a small dialog with Confirm (Enter) and Cancel (Esc). Free / unsync moves nothing and
 // never asks. The wording and the list are pure (describeMoves); the dialog is thin DOM.
 
+import { enhanceDialog } from "./dialog-keys.js";
+
 /** Clips named in the dialog before "and N more". */
 export const SHOWN = 4;
 
@@ -63,13 +65,11 @@ export function createSyncConfirm({ t, format }) {
   footer.append(cancel, confirm);
   dialog.append(heading, list, more, footer);
   document.body.append(dialog);
-  // Enter confirms from anywhere in the dialog (a focused Cancel keeps its own Enter).
-  dialog.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" && event.target !== cancel) {
-      event.preventDefault();
-      dialog.close("confirm");
-    }
-  });
+  // Enter confirms and Esc cancels from anywhere in the dialog (dialog-keys.js; a focused Cancel keeps
+  // its own Enter).
+  cancel.dataset.dialogCancel = "";
+  confirm.dataset.dialogPrimary = "";
+  enhanceDialog(dialog, { t });
 
   return {
     element: dialog,

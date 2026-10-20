@@ -5,6 +5,7 @@
 // The choices and rules are pure data (export-dialog-model.js); this file is the DOM, in the
 // inspector's two-column form grid. Export closes the dialog and hands the request to `onStart`.
 
+import { enhanceDialog } from "./dialog-keys.js";
 import {
   bitrateChoices,
   defaultBitrate,
@@ -149,6 +150,8 @@ export function createExportDialog({ t, formats, canChooseFolder, context, saveM
     textContent: t("ui.exportdialog.start"),
   });
   start.dataset.icon = "check";
+  cancel.dataset.dialogCancel = "";
+  start.dataset.dialogPrimary = "";
   buttons.append(cancel, start);
 
   form.append(
@@ -170,6 +173,7 @@ export function createExportDialog({ t, formats, canChooseFolder, context, saveM
   );
   dialog.append(heading, note, form);
   document.body.append(dialog);
+  enhanceDialog(dialog, { t });
 
   // The state of the form while the dialog is open.
   let kind = "mix";
