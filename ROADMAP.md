@@ -127,6 +127,11 @@ sizes: `docs/PLAN.md`, section "Triage".
   line (or the envelope) adds a control point at that frame; double-click on an existing point removes it; drag moves it
   (as now). Replaces the Alt+click spec in docs/PLAN.md (Alt+click can stay as an alias). Only near the line, so other
   double-clicks (rename, open) are unaffected. One undo step each, `set_clip_envelope` with coalescing for drags.
+- **Drag clips from the Clipboard panel onto the timeline** (owner request 2026-10-20, not started): drag a clipboard
+  entry (or a single clip of it) from the Clipboard tab into the timeline; while dragging show the clip outline(s) as a
+  ghost at the drop position and track (snap as for moving clips, Alt stops at neighbours, overwrite rules as paste),
+  highlight the target track, Esc cancels; drop = the same paste op as Cmd+V at that frame and track (one undo step).
+  Multi-clip entries keep their relative layout. Builds on the paste target-track fix (branch paste-target-track).
 - **Quick mute for lip smacks** (owner request 2026-10-20, QoL, not started): two forms, both one key. (1) "Mute
   from mark to cursor": set a mark, play on, press the key, and the stretch mark..cursor is muted (a soft cut, hatched).
   (2) "Mute around cursor": one key mutes a fixed short stretch centred on the cursor (default 0.5 s, so 0.25 s before and
