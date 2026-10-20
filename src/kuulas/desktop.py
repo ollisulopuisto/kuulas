@@ -294,6 +294,10 @@ def reveal_command(folder: str | Path, platform: str | None = None) -> list[str]
     Explorer (selected) or the default file manager. A list, never a shell line."""
     platform = platform or sys.platform
     path = str(folder)
+
+    if path.startswith("-"):
+        path = "./" + path
+
     if platform == "darwin":
         return ["open", "-R", path]
     if platform.startswith("win"):
@@ -465,9 +469,13 @@ class Bridge:
         return bool(got) and self._open_in_window(got[0])
 
     def open_project(self, folder: str) -> bool:
+        if not isinstance(folder, str) or not folder.strip() or "\0" in folder:
+            return False
+
         try:
-            running = RunningProject(folder)
-        except KuulasError as e:
+            folder_path = Path(folder).expanduser().resolve()
+            running = RunningProject(str(folder_path))
+        except (KuulasError, OSError, RuntimeError) as e:
             if self._window is not None:
                 self._window.evaluate_js(f"alert({json.dumps(str(e))})")
             return False
