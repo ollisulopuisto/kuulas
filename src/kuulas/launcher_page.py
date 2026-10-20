@@ -39,7 +39,7 @@ h2{margin:var(--space-7) 0 var(--space-4);font-size:var(--text-sm);
 .actions{display:flex;gap:var(--space-4);flex-wrap:wrap}
 .button{font:inherit;font-size:var(--text-sm)}
 #recent-list{list-style:none;margin:0;padding:0;display:grid;gap:var(--space-3)}
-.row{display:block;width:100%;box-sizing:border-box;text-align:left;font:inherit;
+.row{position:relative;display:block;width:100%;box-sizing:border-box;text-align:left;font:inherit;
  color:var(--text);cursor:pointer;padding:var(--space-4) var(--space-5);
  background:var(--surface-raised);border:1px solid var(--border-subtle);
  border-radius:var(--radius-md);
@@ -63,6 +63,13 @@ h2{margin:var(--space-7) 0 var(--space-4);font-size:var(--text-sm);
 .row.missing{cursor:not-allowed;background:transparent;border-style:dashed}
 .row.missing .name,.row.missing .path,.row.missing .meta{opacity:.6}
 .row.missing:hover{background:transparent;border-color:var(--border-subtle)}
+.row.keyed{padding-right:calc(var(--space-5) + 4.5rem)}
+.keychip{position:absolute;right:var(--space-5);top:50%;transform:translateY(-50%);
+ min-width:18px;height:18px;padding:0 var(--space-2);box-sizing:border-box;
+ font:var(--weight-medium) var(--text-xs)/16px var(--font-ui);
+ font-variant-numeric:tabular-nums;text-align:center;white-space:nowrap;
+ color:var(--kbd-text);background:var(--kbd-bg);border:1px solid var(--kbd-border);
+ border-bottom-width:2px;border-radius:var(--radius-xs)}
 .empty{color:var(--text-secondary);margin:0}
 """
 
@@ -112,7 +119,22 @@ wire("new", "follow", "new_project");
 
 const list = document.getElementById("recent-list");
 const now = Date.now();
-for (const record of data.rows) {
+const hostOs = navigator.userAgentData?.platform ?? navigator.platform ?? "";
+const platform = /mac/i.test(hostOs) ? "mac" : "other";
+const chips = rowKeyChips(data.rows.length, platform);
+// One way in for the click and the key, so a missing folder behaves the same and a second
+// press while the window is switching cannot open the project twice.
+let opening = false;
+const openRow = (model) => {
+  if (model.missing || opening) return;
+  opening = true;
+  setTimeout(() => {
+    opening = false;
+  }, 1000);
+  api()?.open_project(model.path);
+};
+const models = [];
+for (const [at, record] of data.rows.entries()) {
   const model = rowModel(record, now, data.lang, data.labels);
   const row = el("button", model.missing ? "row missing" : "row");
   row.type = "button";
@@ -134,13 +156,25 @@ for (const record of data.rows) {
     row.setAttribute("aria-disabled", "true");
     row.append(el("span", "note", model.note));
   }
-  row.addEventListener("click", () => {
-    if (!model.missing) api()?.open_project(model.path);
-  });
+  models.push(model);
+  if (chips[at]) {
+    const chip = el("kbd", "keychip", chips[at]);
+    row.classList.add("keyed");
+    const modKey = platform === "mac" ? "Meta" : "Control";
+    row.setAttribute("aria-keyshortcuts", `${modKey}+${at + 1}`);
+    row.append(chip);
+  }
+  row.addEventListener("click", () => openRow(model));
   const item = document.createElement("li");
   item.append(row);
   list.append(item);
 }
+document.addEventListener("keydown", (event) => {
+  const at = rowForKey(event, platform, models.length);
+  if (at === null) return;
+  event.preventDefault();
+  openRow(models[at]);
+});
 const rows = [...list.querySelectorAll(".row")];
 if (rows.length > 0) rows[0].tabIndex = 0;
 list.addEventListener("keydown", (event) => {
