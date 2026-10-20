@@ -15,13 +15,17 @@
 //    it when focused (rulebook: destructive buttons are never the default).
 // Buttons are marked data-dialog-primary / data-dialog-cancel, never guessed by their text.
 
-/** Which kind of control has the focus: "text", "textarea", "select", "button" or "none". */
+/** Which kind of control has the focus: "text", "textarea", "select", "button", "popup" (a
+ * combobox with its list open) or "none". */
 export function fieldKind(target) {
   const tag = (target?.tagName ?? "").toLowerCase();
   if (tag === "textarea" || target?.isContentEditable) return "textarea";
   if (tag === "select") return "select";
   if (tag === "button" || tag === "a" || tag === "summary") return "button";
   if (tag === "input") {
+    // A combobox with its list open (aria-expanded) owns Esc and Enter: the list closes or
+    // accepts first, the dialog hears them only once it is closed again.
+    if (target.getAttribute?.("aria-expanded") === "true") return "popup";
     const type = (target.type ?? "text").toLowerCase();
     if (["button", "submit", "reset", "image", "file"].includes(type)) return "button";
     // A checkbox or radio has no Enter of its own: it just submits the form.
@@ -40,6 +44,7 @@ export function fieldKind(target) {
 export function dialogKeyAction(event, ctx) {
   if (event.isComposing || event.keyCode === 229 || event.defaultPrevented) return "none";
   const mod = Boolean(event.metaKey || event.ctrlKey);
+  if (ctx.field === "popup" && !mod) return "none";
   if (event.key === "Escape") {
     if (mod || event.shiftKey || event.altKey) return "none";
     if ((ctx.field === "text" || ctx.field === "textarea") && ctx.dirty) return "blur";
