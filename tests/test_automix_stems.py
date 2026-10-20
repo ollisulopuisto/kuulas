@@ -145,19 +145,22 @@ def _peak(path) -> float:
     return float(np.abs(sf.read(path)[0]).max())
 
 
-def test_the_music_track_gain_is_in_the_stem_but_not_the_speech_gain(session, tmp_path):
-    """The owner sets the contrast between an effects track and a music track with
-    track gain; the automixer keeps the balance of the music tracks, so the stem
-    carries that gain. Speech is left alone: the automixer levels it itself."""
+def test_every_track_gain_is_in_its_stem(session, tmp_path):
+    """What the owner hears balanced in Kuulas is what the automixer starts from: the
+    track gain of the music tracks (the automixer keeps their balance) and of the
+    speech tracks (it does not equalise the speakers against each other)."""
     tracks = session.state.tracks
     folder, before = stems(session, tmp_path)
     session.edit("set_track", {"track_id": tracks[2].id, "gain_db": -12.0})
-    session.edit("set_track", {"track_id": tracks[0].id, "gain_db": -12.0})
+    session.edit("set_track", {"track_id": tracks[0].id, "gain_db": -6.0})
     folder_after, _after = stems(session, tmp_path / "again")
     files = {t["name"]: t["file"] for t in before["tracks"]}
-    music_before = _peak(folder / files["Theme"])
-    music_after = _peak(folder_after / files["Theme"])
-    assert music_after == pytest.approx(music_before * 10 ** (-12 / 20), rel=0.02)
+    music = files["Theme"]
+    assert _peak(folder_after / music) == pytest.approx(
+        _peak(folder / music) * 10 ** (-12 / 20), rel=0.02)
     speech = files[tracks[0].name]
     assert _peak(folder_after / speech) == pytest.approx(
-        _peak(folder / speech), rel=0.001)
+        _peak(folder / speech) * 10 ** (-6 / 20), rel=0.02)
+    untouched = files[tracks[1].name]
+    assert _peak(folder_after / untouched) == pytest.approx(
+        _peak(folder / untouched), rel=0.001)

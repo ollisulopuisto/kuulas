@@ -1,3 +1,7 @@
+## [v26.10.20.14] - 2026-10-20
+
+- **The automixer starts from the balance you set.** The track gain of every track (speech tracks as well as music) is now in the stems the automixer gets, together with the clip gains that were already there. The automixer does not equalise the speakers against each other, so a microphone you pulled down by hand in Kuulas stays pulled down in the automix. Bus gain, pan and ducking are still left out. (For an even starting point use Match loudness on the speech tracks first.)
+
 ## [v26.10.20.13] - 2026-10-20
 
 - **Level blocks:** Track > Auto > "Level blocks..." measures the speech of each microphone the way the automixer does (stretches whose level is off, with the gain each would get), lists them per speaker with ticks, and applies them as clip gains in one undo step: the clips are split in the pauses between blocks and the gain is added to the pieces (20 ms fades at the new cuts), so you can see and change what the automixer would do. Loud spots stay as they are (optional markers). Running it again after applying changes nothing. The project remembers it, and the automix dialog then shows "Done in Kuulas" on the Block levelling option and the export sends `--no-block-level`. Not tried on real speech yet.

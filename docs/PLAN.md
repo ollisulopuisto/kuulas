@@ -1126,7 +1126,7 @@ or on a selection:
 - The edit is applied: cuts, crossfades, clip gain, fades, muted pieces as
   silence.
 - **Processing, chosen per export (remembered):**
-  - **dry** (the default for "mix elsewhere"): no track or bus effects,
+  - **dry** (the default for "mix elsewhere"): no track or bus effects (for the automixer, `for_automixer`, the track gain is applied: v26.10.20.14),
     no track automation, no ducking, no master;
   - **as heard**: each track through its own layers, gain and automation,
     without buses or master;
