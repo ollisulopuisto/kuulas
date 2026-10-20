@@ -1,3 +1,8 @@
+## [v26.10.20.7] - 2026-10-20
+
+- **Set the music level by measurement:** Track > Auto > "Set music level...". Kuulas measures the speech (where someone speaks) and the loudest 3 seconds of the music, and sets the music tracks' level a chosen distance under the speech (default -10 dB; the numbers are shown before you apply, one undo step, repeatable). The music tracks keep their balance to each other. The project remembers that the music level was set, for a later export.
+- **Automix dialog: music level under speech (dB)** in the Music group (default -1, the automixer's own rule). It is sent only when you change it and only when the installed automixer supports `--bed-under-speech-db`; otherwise the dialog says so and the music stays at its default level. The request to add the flag to the automixer is in docs/PODCAST-MAGIC.md.
+
 ## [v26.10.20.6] - 2026-10-20
 
 - **Automixer log kept:** every automix run now writes `<mix> log.txt` beside the mix (version, time, project, the full command and the automixer's output, so lines like "beds: loudest -xx LUFS, speech -yy -> beds +z dB" can be read afterwards); a failed run writes `... FAILED log.txt`. The finished notice has a "Show log" button and shows the beds/mastered lines.
