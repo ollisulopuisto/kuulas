@@ -60,6 +60,41 @@ export function optionEnabled(specs, form, key) {
   return true;
 }
 
+/**
+ * The settings that differ from the tool's defaults, as short readable texts per group:
+ * { groupId: ["Debleed off", "Ducking depth -12"] }. `words`: { label(spec), on, off }.
+ * A value that does not validate is not listed (it is not sent either).
+ */
+export function changedItems(specs, form, words) {
+  const { options } = validateOptions(specs, form);
+  const byGroup = {};
+  for (const spec of specs) {
+    if (!(spec.key in options)) continue;
+    const value = options[spec.key];
+    let shown = value;
+    if (typeof value === "boolean") shown = value ? words.on : words.off;
+    else if (Array.isArray(value)) shown = value.join(", ");
+    const list = byGroup[spec.group] ?? [];
+    list.push(`${words.label(spec)} ${shown}`);
+    byGroup[spec.group] = list;
+  }
+  return byGroup;
+}
+
+/** The names of the changed items for a collapsed group's header; open groups show none
+ * (the controls are right there). Cut to `max` characters with an ellipsis. */
+export function summaryText(items, collapsed, max) {
+  if (!collapsed || items.length === 0) return "";
+  const joined = items.join(", ");
+  return joined.length <= max ? joined : `${joined.slice(0, max - 1)}…`;
+}
+
+/** Whether a group starts open: what the user last chose wins, else open when it holds a
+ * changed value (so nothing set is hidden). */
+export function initialOpen(hasChanged, remembered) {
+  return typeof remembered === "boolean" ? remembered : hasChanged;
+}
+
 const looksLikeSwitch = (text) => text.startsWith("-");
 const hasControl = (text) => [...text].some((c) => c < " " || c === "\x7f");
 
