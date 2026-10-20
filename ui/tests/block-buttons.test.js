@@ -12,11 +12,12 @@ const rule = (selector) => {
   return css.slice(start, css.indexOf("}", start));
 };
 
-test(".button.block is a column block with the Play radius and a 56 px minimum", () => {
+test(".button.block is a column block with the Play radius, square (76 px)", () => {
   const block = rule(".button.block");
   assert.match(block, /flex-direction:\s*column/);
-  assert.match(block, /min-width:\s*56px/);
-  assert.match(block, /min-height:\s*56px/);
+  assert.match(block, /width:\s*76px/);
+  assert.match(block, /height:\s*76px/);
+  assert.match(block, /aspect-ratio:\s*1/);
   assert.match(block, /border-radius:\s*var\(--radius-sm\)/);
 });
 

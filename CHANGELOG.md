@@ -1,3 +1,11 @@
+## [v26.10.20.2] - 2026-10-20
+
+- **Playback stutter fixes.** Background work no longer competes with playback: while audio plays, analysis, imports, waveform and loudness-curve work and exports pause ("Paused while playing" in the job list) and continue when you stop. Auto-Silence, automix and loudness analysis now run in a separate low-priority process, so they cannot take the audio thread's turn.
+- **Cursor and sound stay together.** The cursor is now drawn smoothly from the sound's own timing instead of being polled, so it no longer trails. **Space stops the sound at once** (nothing already queued is heard) and the cursor rests where the sound stopped. Clicking far away while playing no longer plays the old place for a moment (about 0.1 s of silence instead).
+- Smaller audio buffer (about 35 ms on the internal speakers); it grows by itself if the machine cannot keep up.
+- **Help > Record a performance report…** samples the app for 10, 30 or 60 s and saves a text report (no project or file names) to ~/Library/Logs/Kuulas; Help > Log level sets how much the log says. Send the report if playback is slow.
+- Block buttons (Undo, Redo, Restore and so on) are square.
+
 ## [v26.10.20.1] - 2026-10-20
 
 - **Auto-Silence is adjustable:** Track > Auto > "Auto-Silence options…". Sensitivity (3 to 20 dB above the noise floor, default 12; lower is gentler), the dominance between mics, shortest pause to close, how long it stays open before and after speech, and a method choice: "Threshold over the noise" (as before) or "Compensated for bleed" (for mics that all hear everyone: it learns how much each mic normally leaks from the others from the stretches you muted by hand at the start, so it needs some hand mutes). **Preview** shows per track how many seconds would close; Apply is one undo step; the options are remembered per project and Alt+Mod+P uses them. The defaults give exactly the old result.
