@@ -225,3 +225,49 @@ def test_automixer_file_leads_with_the_project_not_the_main_edit(
     assert re.fullmatch(pattern, name), name
     assert "Main" not in name
     assert ":" not in name
+
+
+def _fake_with_help(tmp_path, monkeypatch, knows_flag):
+    """The fake automixer, answering ``--help`` like an old or a new tool."""
+    script = tmp_path / "fake_help_automixer.py"
+    answer = "usage\\n  --bed-under-speech-db FLOAT\\n" if knows_flag else "usage\\n"
+    script.write_text(
+        f"import sys\nif '--help' in sys.argv:\n    print('{answer}', end='')\n"
+        "    sys.exit(0)\n" + FAKE, encoding="utf-8")
+    monkeypatch.setenv("FAKE_LOG", str(tmp_path / "call.json"))
+    return {"command": [sys.executable, str(script)], "cwd": str(tmp_path),
+            "extra_args": [], "options": {"bed_under_speech_db": -10}}
+
+
+def test_unsupported_bed_level_is_omitted_warned_and_does_not_fail(
+        session, settings_file, tmp_path, monkeypatch):
+    automix.clear_capability_cache()
+    automix.save_settings(_fake_with_help(tmp_path, monkeypatch, False))
+    [job_id] = session.automix({})
+    job = wait_job(session, job_id)
+    argv = json.loads((tmp_path / "call.json").read_text())["argv"]
+    assert "--bed-under-speech-db" not in argv
+    assert "does not support" in job["result"]["summary"][0]
+    assert any("does not support" in line for line in job["result"]["log"])
+
+
+def test_supported_bed_level_reaches_the_tool(
+        session, settings_file, tmp_path, monkeypatch):
+    automix.clear_capability_cache()
+    automix.save_settings(_fake_with_help(tmp_path, monkeypatch, True))
+    [job_id] = session.automix({})
+    job = wait_job(session, job_id)
+    argv = json.loads((tmp_path / "call.json").read_text())["argv"]
+    assert argv[argv.index("--bed-under-speech-db") + 1] == "-10"
+    assert job["result"]["warnings"] == []
+
+
+def test_settings_api_reports_the_capabilities(session, tmp_path, monkeypatch):
+    automix.clear_capability_cache()
+    monkeypatch.setenv("KUULAS_AUTOMIXER_FILE", str(tmp_path / "automixer.json"))
+    automix.save_settings(_fake_with_help(tmp_path, monkeypatch, True))
+    ui = tmp_path / "ui"
+    ui.mkdir()
+    with TestClient(create_app(session, IdleEngine(), language="en", ui_dir=ui)) as c:
+        got = c.get("/api/settings/automixer").json()
+    assert got["capabilities"] == {"bed_under_speech_db": True}

@@ -19,6 +19,7 @@ import {
   optionEnabled,
   optionsToForm,
   summaryText,
+  unsupportedChanged,
   validateOptions,
 } from "./automix-options-model.js";
 import { enhanceDialog } from "./dialog-keys.js";
@@ -176,6 +177,7 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
   const optionControls = {};
   let installedPlugins = [];
   let optionSpecs = [];
+  let capabilities = {}; // what the installed automixer accepts (server probe)
 
   const boolControl = (spec) => {
     const wrap = el("div", "automix-optcheck check-row");
@@ -217,7 +219,11 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
       input,
       `ui.automix.opt.${spec.key}.hint`,
     );
-    optionControls[spec.key] = { input, wrap };
+    // A warning (not an error: Mix still works) when the installed tool lacks this switch.
+    const note = el("p", "automix-msg form-msg", t("ui.automix.capability_missing"));
+    note.hidden = true;
+    wrap.lastChild.append(note);
+    optionControls[spec.key] = { input, wrap, note };
     return wrap;
   };
   // Each group is a disclosure: one full-width header button (chevron, title, a badge with
@@ -435,6 +441,11 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
       }
       if (spec.kind !== "bool") input.setAttribute("aria-invalid", key ? "true" : "false");
     }
+    const lacking = unsupportedChanged(optionSpecs, optionForm, capabilities);
+    for (const spec of optionSpecs) {
+      const { note } = optionControls[spec.key];
+      if (note) note.hidden = !lacking.includes(spec.key);
+    }
     updateGroupSummaries();
     const ok = mixOk && checked.ok && pluginsOk;
     for (const name of ["targetLufs", "adSpot", "adDuration"]) {
@@ -507,6 +518,7 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
         const resolved = answer.resolved ?? {};
         defaults.dir = answer.default_output_dir ?? "";
         const specs = answer.option_specs ?? [];
+        capabilities = answer.capabilities ?? {};
         installedPlugins = await installed();
         for (const { field } of Object.values(optionControls)) {
           field?.setInstalled(installedPlugins);
