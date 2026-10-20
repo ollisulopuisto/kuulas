@@ -23,6 +23,14 @@ export const SILENCE_RANGES = Object.freeze({
 
 export const SILENCE_METHODS = ["threshold", "compensated"];
 
+/**
+ * Show the "Method" selector in the Auto-Silence dialog? Off: the compensated
+ * method scored F1 0.05 to 0.17 on a real 4-mic episode on 2026-10-20 (it
+ * almost never closes) and is experimental. The code path and the server
+ * option stay; flip this to bring the selector back.
+ */
+export const SHOW_METHOD_SELECTOR = false;
+
 /** A number from what was typed ("0,4" and "0.4" both work), or null. */
 export function parseNumber(text) {
   if (typeof text === "number") return Number.isFinite(text) ? text : null;

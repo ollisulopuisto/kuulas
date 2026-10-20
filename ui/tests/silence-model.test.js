@@ -6,7 +6,9 @@ import {
   normaliseSilence,
   parseNumber,
   previewLines,
+  SHOW_METHOD_SELECTOR,
   SILENCE_DEFAULTS,
+  SILENCE_METHODS,
   validateSilence,
 } from "../silence-model.js";
 import { recordOf, restoreFrom } from "../view-memory.js";
@@ -89,5 +91,12 @@ describe("remembered per project (view memory)", () => {
   });
   test("a project that never chose any has none in the record", () => {
     assert.equal("autoSilence" in recordOf({}), false);
+  });
+});
+
+describe("the method selector", () => {
+  test("is hidden: the compensated method is experimental", () => {
+    assert.equal(SHOW_METHOD_SELECTOR, false);
+    assert.deepEqual(SILENCE_METHODS, ["threshold", "compensated"]);
   });
 });
