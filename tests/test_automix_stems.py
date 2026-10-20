@@ -159,4 +159,5 @@ def test_the_music_track_gain_is_in_the_stem_but_not_the_speech_gain(session, tm
     music_after = _peak(folder_after / files["Theme"])
     assert music_after == pytest.approx(music_before * 10 ** (-12 / 20), rel=0.02)
     speech = files[tracks[0].name]
-    assert _peak(folder_after / speech) == pytest.approx(_peak(folder / speech), rel=0.001)
+    assert _peak(folder_after / speech) == pytest.approx(
+        _peak(folder / speech), rel=0.001)
