@@ -123,6 +123,10 @@ sizes: `docs/PLAN.md`, section "Triage".
   If the user jumps before the splice and sets only an IN marker, the OUT marker is placed at the splice (extend
   backwards). A marker is a guess only while its partner is unset; setting both explicitly overrides the guess; clear
   marks (Shift+Alt+I) forgets the ghost; a new cut moves it. Undo/redo restore it. Pure logic first (state + tests).
+- **Volume envelope points by double-click** (owner request 2026-10-20, QoL, not started): double-click on a clip's gain
+  line (or the envelope) adds a control point at that frame; double-click on an existing point removes it; drag moves it
+  (as now). Replaces the Alt+click spec in docs/PLAN.md (Alt+click can stay as an alias). Only near the line, so other
+  double-clicks (rename, open) are unaffected. One undo step each, `set_clip_envelope` with coalescing for drags.
 - **Quick mute for lip smacks** (owner request 2026-10-20, QoL, not started): two forms, both one key. (1) "Mute
   from mark to cursor": set a mark, play on, press the key, and the stretch mark..cursor is muted (a soft cut, hatched).
   (2) "Mute around cursor": one key mutes a fixed short stretch centred on the cursor (default 0.5 s, so 0.25 s before and
