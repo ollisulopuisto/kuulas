@@ -153,6 +153,8 @@
   "log.engine.media_damaged": "Media {media_id} ({name}): decoding chunk {chunk} failed: {error}",
   "log.engine.tick_failed": "The playback helper hit an error and carries on.",
   "log.engine.close_failed": "Closing the audio stream failed: {error}",
+  "log.engine.abort_failed": "Silencing the audio stream at once failed; what it had queued plays out: {error}",
+  "log.engine.start_failed": "Starting the audio stream again failed; opening it afresh: {error}",
   "log.engine.refresh_failed": "Reading the list of audio devices again failed: {error}",
   "cli.description": "kuulas, a multitrack editor for spoken word.",
   "cli.info.help": "Show a project's format, sizes, media and backups.",

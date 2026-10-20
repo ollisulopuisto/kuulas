@@ -23,6 +23,9 @@ class FakeSocket extends EventTarget {
   drop() {
     this.dispatchEvent(new Event("close"));
   }
+  send(text) {
+    this.sent = [...(this.sent ?? []), JSON.parse(text)];
+  }
 }
 
 function harness() {
@@ -45,13 +48,31 @@ function harness() {
 }
 
 describe("the live channel", () => {
+  test("on open it hands over a sender (the playhead clock's pings)", () => {
+    FakeSocket.all = [];
+    let send = null;
+    connectLive({
+      url: "ws://x/api/live",
+      onMessage: () => {},
+      onStatus: () => {},
+      onOpen: (s) => {
+        send = s;
+      },
+      WebSocketImpl: FakeSocket,
+    });
+    const socket = FakeSocket.all.at(-1);
+    socket.open();
+    send({ type: "ping", c: 1.5 });
+    assert.deepEqual(socket.sent, [{ type: "ping", c: 1.5 }]);
+  });
+
   test("says connecting, then open, and passes messages on", () => {
     const h = harness();
     assert.deepEqual(h.statuses, ["connecting"]);
     h.socket().open();
-    h.socket().say({ type: "position", position: 5, playing: true });
+    h.socket().say({ type: "anchor", position: 5, playing: true });
     assert.deepEqual(h.statuses, ["connecting", "open"]);
-    assert.deepEqual(h.messages, [{ type: "position", position: 5, playing: true }]);
+    assert.deepEqual(h.messages, [{ type: "anchor", position: 5, playing: true }]);
   });
 
   test("a dropped connection shows 'reconnecting' and tries again", () => {

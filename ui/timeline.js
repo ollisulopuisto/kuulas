@@ -121,7 +121,16 @@ const FLAG_EDGE_CURRENT_PX = 4;
 /** Ghost waveform columns built beyond the screen each side, so small moves need no rebuild. */
 const GHOST_MARGIN_PX = 256;
 
-export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, actions }) {
+// `playheadAt(state)` (optional): the frame to draw the playhead at now (app.js extrapolates
+// it from the engine's anchors while playing); default the state's playhead.
+export function createTimeline({
+  stack,
+  waveCanvas,
+  overlayCanvas,
+  getState,
+  actions,
+  playheadAt = (state) => state.playhead,
+}) {
   const overlay = overlayCanvas.getContext("2d");
   // Clips whose waveform clips after gain (WP57): clip id -> dB above full scale, as the
   // painter judged the visible columns. Drives the tooltip and the red gain line.
@@ -1344,7 +1353,7 @@ export function createTimeline({ stack, waveCanvas, overlayCanvas, getState, act
   }
 
   function drawPlayhead(state, height) {
-    const x = Math.round(frameToX(state.playhead, state.scroll, state.zoom)) + 0.5;
+    const x = Math.round(frameToX(playheadAt(state), state.scroll, state.zoom)) + 0.5;
     if (x < -6 || x > size.width + 6) return;
     overlay.strokeStyle = theme.playhead;
     overlay.fillStyle = theme.playhead;

@@ -149,6 +149,8 @@
   "log.engine.media_damaged": "Media {media_id} ({name}): lohkon {chunk} purku epäonnistui: {error}",
   "log.engine.tick_failed": "Toiston taustasäikeessä tapahtui virhe; toisto jatkuu.",
   "log.engine.close_failed": "Äänivirran sulkeminen epäonnistui: {error}",
+  "log.engine.abort_failed": "Äänivirran hiljentäminen heti epäonnistui; jonossa oleva ääni soi loppuun: {error}",
+  "log.engine.start_failed": "Äänivirran käynnistäminen uudelleen epäonnistui; se avataan alusta: {error}",
   "log.engine.refresh_failed": "Äänilaitteiden luettelon lukeminen uudelleen epäonnistui: {error}",
   "cli.description": "kuulas, puheen moniraitaeditori.",
   "cli.info.help": "Näytä projektin tallennusmuoto, koot, media ja varmuuskopiot.",
