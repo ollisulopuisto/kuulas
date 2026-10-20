@@ -64,7 +64,8 @@ Name.kuulas/
     originals/         kept originals (copy=True of lossy/resampled sources)
   caches/              rebuildable at any time; safe to delete; never archived
     peaks/  onsets/  analysis/  render/
-  backups/             automatic snapshots of project.sqlite
+  backups/             automatic snapshots of project.sqlite (xz), pre-migration
+                       and pre-restore copies (see "Backups")
   recordings/          WP12 takes (WAV), linked in place like any media
 ```
 
@@ -685,13 +686,46 @@ at any time.
 
 ## Backups
 
-While the project is open and has unsaved-to-backup changes, every 10
-minutes kuulas writes `backups/auto-YYYYMMDDTHHMMSSZ.sqlite` (UTC in the
-name) with the online backup API. It never touches the live file.
+While the project is open and has changes since the last backup, every 10
+minutes (and on Mod+S) kuulas writes `backups/auto-YYYYMMDDTHHMMSSZ.sqlite`
+(UTC in the name) with the online backup API, through
+`auto-….sqlite.partial`, fsync and rename. It never touches the live file.
+Media is not backed up: it is immutable and content-addressed, and its
+originals live where they were (docs/DISK.md has what takes the space).
 
-Kept: the last 12, plus the last one of each day for 14 days. Media is not
-backed up: it is immutable and content-addressed, and its originals live
-where they were.
+- **Skipped** when nothing was written since the last one (the session's
+  change counter; Mod+S then answers with the newest backup), and when the
+  disk has less free than twice the database (`project.sqlite` plus its
+  WAL). A skip is logged, never an error for the timer; Mod+S says
+  "No backup was made: the disk is nearly full".
+- **Compressed** right after, on one background thread at utility priority
+  that pauses while audio plays (`priority.checkpoint`, docs/PLAYBACK-PRIORITY.md):
+  xz (`lzma` preset 3, standard library) to `auto-….sqlite.xz.<token>.partial`,
+  fsync, decompressed again and compared by SHA-256 with the plain copy,
+  renamed to `auto-YYYYMMDDTHHMMSSZ.sqlite.xz`, and only then is the plain
+  `.sqlite` deleted. On any failure the plain one stays (logged) and the
+  next round tries again. The same thread compresses plain `auto-*.sqlite`
+  left by older versions, one at a time, when a project is opened for
+  writing. A read-only open compresses nothing. The states inside are
+  already zlib blobs, so gzip gains ~2 %; xz finds the neighbouring, nearly
+  identical states: a synthetic 106 MB history went to 11 MB (9.7x) in 5 s.
+- **Names:** both `auto-<stamp>.sqlite` and `auto-<stamp>.sqlite.xz` are an
+  automatic backup; while one is being compressed both exist and count as
+  one. `pre-migration-v<N>-<stamp>.sqlite` (see "Migrations") and
+  `pre-restore-<stamp>.sqlite` are never compressed, pruned or touched.
+- **Kept (count):** the newest 12, plus the newest of each of the last 14
+  days (the computer's own days).
+- **Kept (size):** after compression, while the automatic backups together
+  exceed the budget, the oldest go first; the newest 2 and the newest of
+  each of the last 3 days always stay, even over the budget (logged). The
+  budget is `backup_budget_mb` in the per-user `settings.json` (default
+  300; 0 = no limit). Every deletion is logged in kuulas.log with its size.
+- **Restore:** `kuulas restore-backup <folder> <backup name>` (the project
+  closed everywhere: a fresh lock refuses). It decompresses the backup to a
+  temp file next to the database, runs `pragma integrity_check`, copies the
+  current database to `backups/pre-restore-<stamp>.sqlite` (and checks that
+  too), and only then swaps the restored file in by rename. A damaged
+  backup is refused and nothing changes.
 
 ## Export file names
 

@@ -2951,7 +2951,11 @@ def _save_backup(s: Session, _args: dict) -> Project:
     through its own connection, so no session lock: a slow disk must not
     stall playback."""
     _check_writable(s)
-    s.last_backup = s.package.backup()
+    made = s.package.backup()
+    if made is None:
+        # The timer only logs this; a backup asked for by hand is told it was not made.
+        raise ops.EditError("error.package.backup_low_disk")
+    s.last_backup = made
     return s.state
 
 

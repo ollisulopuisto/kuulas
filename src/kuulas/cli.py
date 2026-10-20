@@ -1,5 +1,5 @@
 """The ``kuulas`` command: ``info <folder>`` (WP29), ``stats <folder>`` (WP70),
-``open <folder>`` (WP3),
+``open <folder>`` (WP3), ``restore-backup <folder> <backup>``,
 ``import-nhsx <file> <folder>`` (WP13) and, without arguments, the desktop window
 (WP15)."""
 
@@ -39,6 +39,13 @@ def info(folder: str) -> int:
         print(t("cli.info.size", name=name, size_mb=_mb(size)))
     print(t("cli.info.media", **data["media"]))
     print(t("cli.info.backups", count=data["backups"]))
+    return 0
+
+
+def restore_backup(folder: str, backup: str) -> int:
+    """Make an automatic backup the history again; the current one is kept."""
+    safety = package.restore_backup(Path(folder).expanduser(), backup)
+    print(t("cli.restore_backup.done", backup=backup, safety=safety.name))
     return 0
 
 
@@ -216,6 +223,9 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911
     counted = commands.add_parser("stats", help=t("cli.stats.help"))
     counted.add_argument("folder", help=t("cli.info.folder"))
     counted.add_argument("--json", action="store_true", help=t("cli.stats.json"))
+    restored = commands.add_parser("restore-backup", help=t("cli.restore_backup.help"))
+    restored.add_argument("folder", help=t("cli.info.folder"))
+    restored.add_argument("backup", help=t("cli.restore_backup.backup"))
     imported = commands.add_parser("import-nhsx", help=t("cli.import_nhsx.help"))
     imported.add_argument("nhsx", help=t("cli.import_nhsx.nhsx"))
     imported.add_argument("folder", nargs="?", help=t("cli.import_nhsx.folder"))
@@ -265,6 +275,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: PLR0911
             return info(args.folder)
         if args.command == "stats":
             return stats(args.folder, args.json)
+        if args.command == "restore-backup":
+            return restore_backup(args.folder, args.backup)
         if args.command == "import-nhsx":
             return import_nhsx(args.nhsx, args.folder)
         if args.command == "export-tracks" and args.list_formats:

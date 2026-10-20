@@ -467,10 +467,14 @@ def test_backup_never_writes_the_live_file(tmp_path, monkeypatch):
     assert made is not None
     assert pkg.tick(now=start + timedelta(minutes=30)) is None
     assert snapshot() == before
-    backups = list((pkg.path / "backups").glob("auto-*.sqlite"))
+    pkg.wait_compressed()
+    assert snapshot() == before
+    # Stored xz-compressed since v26.10.20 (test_backup_size.py).
+    backups = list((pkg.path / "backups").glob("auto-*.sqlite.xz"))
     assert len(backups) == 1
     assert not list((pkg.path / "backups").glob("*.partial"))
-    copy = sqlite3.connect(backups[0])
+    plain = package.read_backup(backups[0], tmp_path / "plain.sqlite")
+    copy = sqlite3.connect(plain)
     assert copy.execute("select count(*) from nodes").fetchone()[0] == 2
     copy.close()
     pkg.close()
