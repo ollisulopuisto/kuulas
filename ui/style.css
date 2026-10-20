@@ -1630,6 +1630,8 @@ input[type="text"] {
   margin: var(--row-gap) 0 0 var(--space-4);
 }
 .clip-entry {
+  position: relative; /* the preview's progress meter sits on the bottom edge */
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border-subtle);
@@ -1665,6 +1667,28 @@ input[type="text"] {
   flex-wrap: wrap;
   gap: var(--space-1);
   padding: 0 var(--space-2) var(--space-2);
+}
+/* The chip's actions are the app's block buttons, a compact wrapping row of 56 px squares
+   (a narrow chip does not fit 76 px ones; owner, 2026-10-20). */
+.clip-actions .button.block {
+  width: 56px;
+  height: 56px;
+  padding: var(--space-1);
+}
+/* While its preview plays, the chip's bottom edge is a thin meter filled left to right. It is
+   set every animation frame from the preview's anchors (no transition), so it follows the
+   sound and needs no reduced-motion case. */
+.clip-progress {
+  position: absolute;
+  inset: auto 0 0;
+  height: 3px;
+  background: var(--border-subtle);
+}
+.clip-progress-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transform-origin: left center;
 }
 .clip-entry .button[aria-pressed="true"] {
   color: var(--accent-text);

@@ -57,6 +57,20 @@ test("every panel action is a block button", () => {
   assert.match(panels.candidates, /class: "button block primary",\s*"data-icon": "trash"/);
   assert.match(panels.markers, /class: "button block"/);
   assert.match(panels.clipboard, /className = "button block"/);
+  // the chips' actions too: Play/Stop, Paste again, Rename, Delete, Paste here, Copy here, Unshare
+  assert.match(panels.clipboard, /class: "button block", "data-icon": icon/);
+  assert.match(panels.clipboard, /class: "button block clip-star"/);
+  for (const action of ["preview", "paste", "rename", "delete", "paste-here", "copy-here"]) {
+    assert.match(panels.clipboard, new RegExp(`block\\(\\s*(entry\\.)?id,\\s*"${action}"`), action);
+  }
+  assert.doesNotMatch(panels.clipboard, /button\((entry\.)?id, "(preview|paste|delete|rename)"/);
+});
+
+test("the clipboard chips' blocks stay square, 56 px, in a wrapping row", () => {
+  const chip = rule(".clip-actions .button.block");
+  assert.match(chip, /width:\s*56px/);
+  assert.match(chip, /height:\s*56px/);
+  assert.match(rule(".clip-actions"), /flex-wrap:\s*wrap/);
 });
 
 test("the action bar comes first in History, Candidates and Markers", () => {
