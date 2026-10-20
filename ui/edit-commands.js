@@ -23,6 +23,7 @@ import {
   nudgePlan,
   pasteEntry,
   pastePlan,
+  quickMutePlan,
   removeClipsPlan,
   removeFromBusPlan,
   removePlan,
@@ -213,6 +214,7 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
     pastePlan(s, { mode: "overwrite", target: "current" }),
   );
   planned("clip.mute", mutePlan);
+  planned("clip.quick_mute", quickMutePlan);
   planned("clip.fade", fadePlan);
   planned("edit.trim_start", (s) => trimPlan(s, "start"));
   planned("edit.trim_end", (s) => trimPlan(s, "end"));

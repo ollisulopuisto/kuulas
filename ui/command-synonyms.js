@@ -68,6 +68,7 @@ export const SYNONYMS = {
     "normalisoi",
   ],
   "clip.mute": ["silence", "quiet", "hiljennä", "mykistä", "vaienna"],
+  "clip.quick_mute": ["lip smack", "smack", "click", "mouth noise", "maiskaus", "maiskahdus"],
   "clip.fade": ["fade in", "fade out", "crossfade", "häivytys", "vaimene"],
   "clip.pan_left": ["balance", "stereo", "panorama", "vasen"],
   "clip.pan_right": ["balance", "stereo", "panorama", "oikea"],

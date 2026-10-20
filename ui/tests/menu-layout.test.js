@@ -125,6 +125,7 @@ describe("Clip", () => {
       "edit.ungroup",
       "-",
       "clip.mute",
+      "clip.quick_mute",
       "clip.fade",
       "clip.match_loudness",
       ">menu.level_pan",

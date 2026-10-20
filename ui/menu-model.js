@@ -283,6 +283,7 @@ export const MENU = [
       item("edit.ungroup"),
       SEP,
       item("clip.mute"),
+      item("clip.quick_mute"),
       item("clip.fade"),
       item("clip.match_loudness"),
       LEVEL_PAN,
