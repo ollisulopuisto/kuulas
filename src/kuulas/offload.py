@@ -19,21 +19,44 @@ Fail soft: a store the worker cannot reopen (a test's in-memory store) or a
 worker that does not answer (cannot start, crashed) is measured in the editor,
 under the gate (``priority.gated_map``, ``checkpoint``), with a log line.
 ``MODE = "inline"`` (tests, ``KUULAS_ANALYSIS=inline``) never starts a process.
+
+At most one worker process lives at a time (``WorkerManager``, ``MANAGER``).
+v26.10.20.2 started one per call: the UI asks for loudness curves after every
+edit (and aborts the older request, which the server never notices), each
+worker was stopped while audio played, and ~35 stopped workers took the Mac's
+memory (owner's btop, 2026-10-20). Now:
+
+- calls queue for the one slot (a cap on the queue); a newer call for the same
+  thing (``SUPERSEDE``: the loudness curves of one project) ends the older,
+  waiting or running;
+- background work does not start a worker while audio plays (it waits in the
+  queue); one already running is stopped and always continued or killed;
+- every worker is killed and reaped on cancel, error, timeout (``WALL_S`` of
+  running time), project close (``cancel_owner``) and exit (``atexit``); a
+  watchdog kills a worker whose waiting thread stopped looking at it;
+- the worker is in its own process group, so if the editor dies while it is
+  stopped the kernel continues and hangs it up; a running worker also exits
+  when its parent is gone (``analysis_worker``); ``sweep_orphans`` at start
+  kills what an earlier crash left anyway.
 """
 
 from __future__ import annotations
 
+import atexit
 import contextlib
 import importlib
+import itertools
 import logging
 import os
 import pickle
+import re
 import signal
 import subprocess
 import sys
 import tempfile
 import threading
-from collections.abc import Callable
+import time
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -56,12 +79,40 @@ TASKS: dict[str, str] = {
     "project_curves": "kuulas.loudness_curve:project_curves",
 }
 
+#: Tasks where only the newest call per project matters: a newer one ends the
+#: older (the UI has already given up on it).
+SUPERSEDE = frozenset({"project_curves"})
+
 #: How often the waiting editor thread looks at cancel and the gate.
 POLL_S = 0.05
+#: Calls that may wait for the one worker; more is an error, not a pile.
+MAX_QUEUED = 16
+#: Running time (stopped time not counted) after which a worker is killed.
+WALL_S = 600.0
+#: After a failure or timeout, the same key waits this long before its next
+#: worker, doubling with each failure in a row up to ``BACKOFF_MAX_S``.
+BACKOFF_S = 5.0
+BACKOFF_MAX_S = 300.0
+#: The worker's nice level. Not 19 with the Darwin background band: on a
+#: loaded Mac that starved it and it never finished (owner's ps, 2026-10-20).
+WORKER_NICE = 10
+#: Set in the worker's environment when its stdin is a pipe from the editor:
+#: the worker exits when that pipe closes.
+PIPE_ENV = "KUULAS_PARENT_PIPE"
+#: A worker whose waiting thread has not looked at it this long is killed.
+ABANDON_S = 30.0
+#: A worker still stopped this long after playback ended is continued.
+STOP_GRACE_S = 5.0
+#: How often the watchdog looks.
+WATCH_S = 1.0
 
 
 class WorkerFailedError(Exception):
     """The worker gave no answer (not an error of the analysis itself)."""
+
+
+class SupersededError(priority.CancelledError):
+    """A newer call for the same thing replaced this one."""
 
 
 def resolve(task: str) -> Callable:
@@ -105,8 +156,9 @@ def call(task: str, project, store, *args: Any, cancel: threading.Event | None =
         return fn(project, store, *args, **kwargs)
     payload = {"task": task, "project": project, "store": spec, "args": args,
                "kwargs": kwargs}
+    key = (task, spec["folder"]) if task in SUPERSEDE else None
     try:
-        reply = _run(payload, cancel, pause)
+        reply = _run(payload, cancel, pause, key=key, owner=spec["folder"])
     except WorkerFailedError as e:
         log.warning(t("log.offload.fallback", error=str(e)))
         return fn(project, store, *args, **kwargs)
@@ -151,7 +203,341 @@ def _signal(proc: subprocess.Popen, name: str) -> None:
             os.kill(proc.pid, sig)
 
 
-def _run(payload: dict, cancel: threading.Event | None, pause: bool | None) -> dict:
+def _kill(proc: subprocess.Popen) -> None:
+    """Continue (a stopped process takes SIGKILL too, but say it) and kill."""
+    _signal(proc, "SIGCONT")
+    if proc.poll() is None:
+        with contextlib.suppress(OSError):
+            proc.kill()
+
+
+def spawn_options() -> dict:
+    """How a worker is started: no inherited files, and (POSIX) a process group
+    of its own in the editor's session. When the editor dies, that group is
+    orphaned, and the kernel sends SIGHUP and SIGCONT to a stopped member, so a
+    worker stopped for playback does not outlive the editor."""
+    options: dict = {"stdin": subprocess.PIPE, "stdout": subprocess.DEVNULL,
+                     "close_fds": True}
+    if os.name == "posix":
+        options["process_group"] = 0
+    return options
+
+
+class _Request:
+    """One call waiting for, or using, the worker slot."""
+
+    def __init__(self, seq: int, key: object, owner: str | None, pause: bool,
+                 cancel: threading.Event | None):
+        self.seq, self.key, self.owner = seq, key, owner
+        self.pause, self.cancel = pause, cancel
+        self.proc: subprocess.Popen | None = None
+        self.stopped = False
+        self.quiet_since: float | None = None  # stopped, but the gate is quiet
+        self.last_poll = time.monotonic()
+        #: Why it ends early: superseded, preempted, cancelled, closed, abandoned.
+        self.ended: str | None = None
+
+    def error(self) -> BaseException:
+        if self.ended == "superseded":
+            return SupersededError()
+        return priority.CancelledError()
+
+
+class WorkerManager:
+    """At most one analysis worker process at a time (see the module doc)."""
+
+    def __init__(self, *, max_queued: int = MAX_QUEUED, wall_s: float = WALL_S,
+                 abandon_s: float = ABANDON_S, stop_grace_s: float = STOP_GRACE_S,
+                 watch_s: float = WATCH_S, poll_s: float = POLL_S,
+                 popen: Callable[..., subprocess.Popen] = subprocess.Popen,
+                 clock: Callable[[], float] = time.monotonic):
+        self.max_queued, self.wall_s, self.abandon_s = max_queued, wall_s, abandon_s
+        self.stop_grace_s, self.watch_s, self.poll_s = stop_grace_s, watch_s, poll_s
+        self._popen = popen
+        self._clock = clock
+        #: key -> (failures in a row, no new worker before this clock time)
+        self._failures: dict[object, tuple[int, float]] = {}
+        self._cond = threading.Condition()
+        self._waiting: list[_Request] = []
+        self._running: _Request | None = None
+        self._seq = itertools.count()
+        self._closed = False
+        self._watchdog: threading.Thread | None = None
+
+    # -- what the editor calls ------------------------------------------------
+
+    def run(self, argv: list[str], *, key: object = None, owner: str | None = None,
+            cancel: threading.Event | None = None, pause: bool = False,
+            on_pause: Callable[[], None] | None = None,
+            on_resume: Callable[[], None] | None = None,
+            stderr: Any = None, env: dict | None = None) -> int:
+        """Run ``argv`` as the worker when its turn comes; its exit code.
+
+        ``key``: a newer call with the same key ends this one
+        (``SupersededError``). ``owner``: ``cancel_owner`` ends it. ``pause``:
+        background work, which does not start while audio plays and is stopped
+        while it plays. Raises ``CancelledError`` on cancel or shutdown, and
+        ``KuulasError`` when the queue is full, the worker runs too long, or
+        ``key`` failed lately (``backoff_left``; no worker is started then)."""
+        req = _Request(next(self._seq), key, owner, pause, cancel)
+        with self._cond:
+            if self._closed:
+                raise priority.CancelledError
+            left = self._backoff_left(key)
+            if left > 0:
+                raise KuulasError("error.offload.backoff", seconds=round(left))
+            if key is not None:
+                for other in [*self._waiting, self._running]:
+                    if other is not None and other.key == key and other.ended is None:
+                        self._end(other, "superseded")
+            if len(self._waiting) >= self.max_queued:
+                raise KuulasError("error.offload.busy")
+            self._waiting.append(req)
+            self._cond.notify_all()
+        self._ensure_watchdog()
+        while True:
+            self._take_slot(req)
+            try:
+                code = self._attend(req, argv, on_pause, on_resume, stderr, env)
+            except (KuulasError, WorkerFailedError):
+                self._failed(key)
+                raise
+            finally:
+                self._release(req)
+            if code is not None:
+                if code == 0:
+                    self._succeeded(key)
+                else:
+                    self._failed(key)
+            if code is None:  # preempted by a foreground call: wait again
+                with self._cond:
+                    req.ended = None
+                    self._waiting.insert(0, req)
+                    self._cond.notify_all()
+                continue
+            return code
+
+    def cancel_owner(self, owner: str) -> None:
+        """End every call of ``owner`` (a project being closed)."""
+        with self._cond:
+            for req in [*self._waiting, self._running]:
+                if req is not None and req.owner == owner and req.ended is None:
+                    self._end(req, "cancelled")
+
+    def shutdown(self, timeout: float = 2.0) -> None:
+        """End every call and kill the worker (interpreter exit); later calls
+        raise ``CancelledError``."""
+        with self._cond:
+            self._closed = True
+            for req in [*self._waiting, self._running]:
+                if req is not None and req.ended is None:
+                    self._end(req, "closed")
+            proc = self._running.proc if self._running is not None else None
+        if proc is not None:
+            with contextlib.suppress(subprocess.TimeoutExpired, OSError):
+                proc.wait(timeout)
+
+    def backoff_left(self, key: object) -> float:
+        """Seconds before ``key`` may start a worker again (0: now)."""
+        with self._cond:
+            return self._backoff_left(key)
+
+    def _backoff_left(self, key: object) -> float:
+        if key is None or key not in self._failures:
+            return 0.0
+        return max(0.0, self._failures[key][1] - self._clock())
+
+    def _failed(self, key: object) -> None:
+        if key is None:
+            return
+        with self._cond:
+            count = self._failures.get(key, (0, 0.0))[0] + 1
+            wait = min(BACKOFF_S * 2 ** (count - 1), BACKOFF_MAX_S)
+            self._failures[key] = (count, self._clock() + wait)
+
+    def _succeeded(self, key: object) -> None:
+        with self._cond:
+            self._failures.pop(key, None)
+
+    def alive(self) -> list[int]:
+        """The pid of the worker process, when one runs."""
+        with self._cond:
+            r = self._running
+            return [r.proc.pid] if r is not None and r.proc is not None \
+                and r.proc.poll() is None else []
+
+    # -- inside ---------------------------------------------------------------
+
+    def _end(self, req: _Request, why: str) -> None:
+        """Under the lock: ``req`` ends; a waiting one leaves the queue, a running
+        one's worker is killed (its own thread reaps it)."""
+        req.ended = why
+        if req in self._waiting:
+            self._waiting.remove(req)
+        if req.proc is not None:
+            _kill(req.proc)
+        self._cond.notify_all()
+
+    def _next(self) -> _Request | None:
+        """Whose turn it is: foreground calls first, then the oldest; background
+        work does not start while audio plays."""
+        playing = priority.GATE.is_playing()
+        ready = [r for r in self._waiting if not (r.pause and playing)]
+        return min(ready, key=lambda r: (r.pause, r.seq)) if ready else None
+
+    def _take_slot(self, req: _Request) -> None:
+        with self._cond:
+            while True:
+                if req.ended is not None:
+                    raise req.error()
+                if self._closed:
+                    self._end(req, "closed")
+                    raise req.error()
+                if req.cancel is not None and req.cancel.is_set():
+                    self._end(req, "cancelled")
+                    raise req.error()
+                if self._running is None and self._next() is req:
+                    self._waiting.remove(req)
+                    self._running = req
+                    req.last_poll = time.monotonic()
+                    return
+                running = self._running
+                if (running is not None and not req.pause and running.pause
+                        and running.stopped and running.ended is None):
+                    # A user's command does not wait for playback to end behind
+                    # stopped background work: that work starts again later.
+                    self._end(running, "preempted")
+                self._cond.wait(self.poll_s)
+
+    def _release(self, req: _Request) -> None:
+        with self._cond:
+            if self._running is req:
+                self._running = None
+            req.proc = None
+            self._cond.notify_all()
+
+    def _attend(self, req: _Request, argv: list[str], on_pause, on_resume, stderr,
+                env) -> int | None:
+        """Start the worker and wait for it; None when it was preempted."""
+        options = spawn_options()
+        if stderr is not None:
+            options["stderr"] = stderr
+        env = {**(os.environ if env is None else env), PIPE_ENV: "1"}
+        try:
+            proc = self._popen(argv, env=env, **options)
+        except OSError as e:
+            raise WorkerFailedError(str(e)) from e
+        try:
+            with self._cond:
+                req.proc = proc
+                if req.ended is not None:
+                    _kill(proc)
+            ran, last = 0.0, time.monotonic()
+            while True:
+                try:
+                    code = proc.wait(timeout=self.poll_s)
+                    break
+                except subprocess.TimeoutExpired:
+                    pass
+                now = time.monotonic()
+                req.last_poll = now
+                if not req.stopped:
+                    ran += now - last
+                last = now
+                if req.ended is not None:
+                    break
+                if req.cancel is not None and req.cancel.is_set():
+                    raise priority.CancelledError
+                if ran > self.wall_s:
+                    raise KuulasError("error.offload.timeout", seconds=round(self.wall_s))
+                # Background work: frozen while the editor plays.
+                want = req.pause and priority.GATE.is_playing()
+                if want != req.stopped:
+                    _signal(proc, "SIGSTOP" if want else "SIGCONT")
+                    req.stopped = want
+                    hook = on_pause if want else on_resume
+                    if hook is not None:
+                        hook()
+            if req.ended == "preempted":
+                return None
+            if req.ended is not None:
+                raise req.error()
+            return code
+        finally:
+            was_stopped, req.stopped = req.stopped, False
+            _kill(proc)
+            with contextlib.suppress(OSError):
+                proc.wait()
+            if proc.stdin is not None:
+                with contextlib.suppress(OSError):
+                    proc.stdin.close()
+            if was_stopped and on_resume is not None:
+                on_resume()
+
+    # -- the watchdog -----------------------------------------------------------
+
+    def _ensure_watchdog(self) -> None:
+        with self._cond:
+            if self._watchdog is not None and self._watchdog.is_alive():
+                return
+            self._watchdog = priority.thread(self._watch, "kuulas-offload-watchdog")
+            self._watchdog.start()
+
+    def _watch(self) -> None:
+        while True:
+            with self._cond:
+                if self._closed and self._running is None:
+                    return
+                self._watch_once(time.monotonic())
+            time.sleep(self.watch_s)
+
+    def _watch_once(self, now: float) -> None:
+        """Under the lock: kill a worker its thread no longer looks after, and
+        continue one still stopped well after playback ended."""
+        req = self._running
+        proc = req.proc if req is not None else None
+        if req is None or proc is None or proc.poll() is not None:
+            return
+        if now - req.last_poll > self.abandon_s:
+            log.warning(t("log.offload.watchdog", pid=proc.pid,
+                          why=f"not looked after for {now - req.last_poll:.0f} s"))
+            req.ended = "abandoned"
+            _kill(proc)
+            with contextlib.suppress(subprocess.TimeoutExpired, OSError):
+                proc.wait(1.0)
+            # The slot is free: the stuck thread finds its worker gone.
+            self._running = None
+            self._cond.notify_all()
+            return
+        if req.stopped and not priority.GATE.is_playing():
+            req.quiet_since = req.quiet_since if req.quiet_since is not None else now
+            if now - req.quiet_since > self.stop_grace_s:
+                log.warning(t("log.offload.watchdog", pid=proc.pid,
+                              why="still stopped after playback"))
+                _signal(proc, "SIGCONT")
+                req.stopped = False
+        else:
+            req.quiet_since = None
+
+
+#: The editor's one manager; ``atexit`` kills its worker.
+MANAGER = WorkerManager()
+
+
+@atexit.register
+def _shutdown() -> None:
+    MANAGER.shutdown()
+    if _CENSUS_AT_EXIT:
+        with contextlib.suppress(Exception):
+            log_children("exit")
+
+
+#: The editor (``start_sweep``) asks for a census at exit too; tests do not.
+_CENSUS_AT_EXIT = False
+
+
+def _run(payload: dict, cancel: threading.Event | None, pause: bool | None, *,
+         key: object = None, owner: str | None = None) -> dict:
     cancel = cancel if cancel is not None else priority._cancel()
     pause = priority.is_background() if pause is None else pause
     on_pause, on_resume = priority._listener() or (None, None)
@@ -160,39 +546,9 @@ def _run(payload: dict, cancel: threading.Event | None, pause: bool | None) -> d
                                                          "stderr.txt"))
         task.write_bytes(pickle.dumps(payload, protocol=pickle.HIGHEST_PROTOCOL))
         with errors.open("wb") as err:
-            try:
-                proc = subprocess.Popen(  # noqa: S603 - our own module, fixed argv
-                    worker_argv(task, result), stdin=subprocess.DEVNULL,
-                    stdout=subprocess.DEVNULL, stderr=err, close_fds=True,
-                    env=toolpath.tool_env())
-            except OSError as e:
-                raise WorkerFailedError(str(e)) from e
-            stopped = False
-            try:
-                while True:
-                    try:
-                        code = proc.wait(timeout=POLL_S)
-                        break
-                    except subprocess.TimeoutExpired:
-                        pass
-                    if cancel is not None and cancel.is_set():
-                        raise priority.CancelledError
-                    # Background work: frozen while the editor plays.
-                    want = pause and priority.GATE.is_playing()
-                    if want != stopped:
-                        _signal(proc, "SIGSTOP" if want else "SIGCONT")
-                        stopped = want
-                        hook = on_pause if want else on_resume
-                        if hook is not None:
-                            hook()
-            finally:
-                if stopped:
-                    _signal(proc, "SIGCONT")
-                    if on_resume is not None:
-                        on_resume()
-                if proc.poll() is None:
-                    proc.kill()
-                    proc.wait()
+            code = MANAGER.run(worker_argv(task, result), key=key, owner=owner,
+                               cancel=cancel, pause=pause, on_pause=on_pause,
+                               on_resume=on_resume, stderr=err, env=toolpath.tool_env())
         if code != 0 or not result.exists():
             tail = errors.read_bytes()[-400:].decode("utf-8", "replace").strip()
             detail = f"exit {code}: {tail}" if tail else f"exit {code}"
@@ -201,3 +557,129 @@ def _run(payload: dict, cancel: threading.Event | None, pause: bool | None) -> d
             return pickle.loads(result.read_bytes())  # noqa: S301 - our own child wrote it
         except (OSError, pickle.UnpicklingError, EOFError, AttributeError) as e:
             raise WorkerFailedError(str(e)) from e
+
+
+# -- workers an earlier run left behind ------------------------------------------
+
+#: ``-m kuulas.analysis_worker`` as its own words in a command line (the bundle's
+#: launcher and ``python`` alike). Never the transcription worker, which is
+#: detached on purpose.
+_WORKER_COMMAND = re.compile(r"(?:^|\s)-m\s+kuulas\.analysis_worker(?:\s|$)")
+
+
+def _pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except OSError:
+        return True  # someone else's: it exists
+    return True
+
+
+def sweep_orphans(*, listing: str | None = None,
+                  kill: Callable[[int, int], None] = os.kill,
+                  alive: Callable[[int], bool] = _pid_alive) -> list[int]:
+    """Kill this user's analysis workers whose editor is gone (parent pid 1 or
+    no longer there): what a crash of an earlier run left, stopped or not.
+    Nothing else is touched. The pids killed; never raises."""
+    if os.name != "posix":
+        return []
+    listing = _ps() if listing is None else listing
+    me, uid = os.getpid(), os.getuid()
+    killed = []
+    for pid, ppid, owner, command in _rows(listing):
+        if owner != uid or pid == me or not _WORKER_COMMAND.search(command):
+            continue
+        if ppid != 1 and alive(ppid):
+            continue
+        for sig in (signal.SIGCONT, signal.SIGKILL):
+            with contextlib.suppress(OSError):
+                kill(pid, sig)
+        killed.append(pid)
+    if killed:
+        log.warning(t("log.offload.swept", count=len(killed)))
+    return killed
+
+
+def _ps() -> str:
+    """``pid ppid uid command`` of every process; empty when ps fails."""
+    try:
+        return subprocess.run(["ps", "-ax", "-o", "pid=,ppid=,uid=,command="],  # noqa: S607 - the system's ps
+                              capture_output=True, text=True, check=True,
+                              timeout=10).stdout
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def _rows(listing: str) -> Iterator[tuple[int, int, int, str]]:
+    for line in listing.splitlines():
+        parts = line.split(None, 3)
+        if len(parts) < 4:
+            continue
+        try:
+            yield int(parts[0]), int(parts[1]), int(parts[2]), parts[3]
+        except ValueError:
+            continue
+
+
+_MODULE = re.compile(r"(?:^|\s)-m\s+(\S+)")
+
+
+def module_of(command: str) -> str:
+    """``kuulas.analysis_worker`` for ``.../Kuulas -m kuulas.analysis_worker ...``,
+    else the program's name (``ffmpeg``): what btop's truncated line hides."""
+    found = _MODULE.search(command)
+    if found:
+        return found.group(1)
+    return Path(command.split(None, 1)[0]).name if command.strip() else "?"
+
+
+def child_modules(listing: str | None = None, parent: int | None = None) -> dict:
+    """``{module or program: count}`` of the live children of ``parent``
+    (default: this process)."""
+    listing = _ps() if listing is None else listing
+    parent = os.getpid() if parent is None else parent
+    out: dict[str, int] = {}
+    for _pid, ppid, _uid, command in _rows(listing):
+        if ppid == parent:
+            name = module_of(command)
+            out[name] = out.get(name, 0) + 1
+    return out
+
+
+def orphan_modules(listing: str | None = None, uid: int | None = None) -> dict:
+    """``{module: count}`` of this user's ``-m kuulas...`` processes whose parent
+    is gone (parent pid 1): what a crash or a leak left behind."""
+    listing = _ps() if listing is None else listing
+    uid = os.getuid() if uid is None else uid
+    out: dict[str, int] = {}
+    for _pid, ppid, owner, command in _rows(listing):
+        name = module_of(command)
+        if owner == uid and ppid == 1 and name.startswith("kuulas"):
+            out[name] = out.get(name, 0) + 1
+    return out
+
+
+def log_children(when: str) -> None:
+    """One log line: this editor's child processes and the left-behind kuulas
+    processes, by module, so a future leak can be named from kuulas.log."""
+    if os.name != "posix":
+        return
+    listing = _ps()
+    log.info("processes at %s: children %s, left behind %s, analysis worker %s",
+             when, child_modules(listing) or "none", orphan_modules(listing) or "none",
+             MANAGER.alive() or "none")
+
+
+def start_sweep() -> None:
+    """At the editor's start, on a background thread: log what is there, then
+    ``sweep_orphans``."""
+    global _CENSUS_AT_EXIT  # noqa: PLW0603 - set once at the editor's start
+    _CENSUS_AT_EXIT = True
+
+    def run() -> None:
+        log_children("start")
+        sweep_orphans()
+
+    priority.thread(run, "kuulas-offload-sweep").start()

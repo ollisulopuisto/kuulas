@@ -85,6 +85,7 @@ from .playplan import (
     check_loop,
     normalise_skip,
 )
+from .stretch import HOP_S as STRETCH_HOP_S
 from .stretch import MAX_RATE as MAX_STRETCH
 from .stretch import MIN_RATE as MIN_STRETCH
 from .stretch import Stretcher
@@ -466,7 +467,8 @@ class Engine:
             self._end_preview()
             self._preview_limit = limit
             with self._tlock:
-                self._preview_anchor = self._heard() if self._playing else self._anchor
+                self._preview_anchor = (self._heard_now() if self._playing
+                                        else self._anchor)
             self._base = self._project
             self._project = project
             self._preview = True
@@ -532,9 +534,9 @@ class Engine:
             with self._tlock:
                 gen, run = self._gen, self._run
                 continuing = at is None and self._playing
-                heard = self._heard() if self._playing else None
+                heard = self._heard_now() if self._playing else None
                 if continuing:
-                    start = self._heard()
+                    start = self._heard_now()
                 else:
                     start = self._anchor if at is None else max(0, int(at))
                 jump = heard is not None and abs(start - heard) > JUMP_FLUSH_S * self.rate
@@ -616,7 +618,7 @@ class Engine:
             self._end_preview()
             with self._tlock:
                 if self._playing:
-                    self._start_run(self._heard())
+                    self._start_run(self._heard_now())
                     self._playing = False
                 self._last_active = self._clock()
             if was:
@@ -637,7 +639,7 @@ class Engine:
         with self._ctl:
             with self._tlock:
                 far = JUMP_FLUSH_S * self.rate
-                jump = self._playing and abs(frame - self._heard()) > far
+                jump = self._playing and abs(frame - self._heard_now()) > far
             if jump:  # the old place's queued audio must not be heard
                 self._park()
             with self._tlock:
@@ -756,21 +758,46 @@ class Engine:
         self._seq += 1
         self._out_at = self._clock()
 
-    def _played_raw(self) -> tuple[float, float]:
+    def _played_raw(self, now: float | None = None) -> tuple[float, float]:
         """Frames of the run's played timeline that have reached the ear (below
         zero: still on their way) and the played frames per second: device frames
         since the anchor, at |speed| x the project rate, minus the device's output
-        latency (which holds that much more)."""
+        latency (which holds that much more).
+
+        Without ``now``: as of the last callback (``_out_at``), the anchor the
+        browser extrapolates from. With ``now``: moved on to that moment, as the
+        browser's cursor is; at most by the output latency, all the device can
+        play without another callback. ``stop`` and the jumps use this: dated to the
+        last callback, a stop landed up to a block (21 ms x the speed) behind the
+        sound and the cursor, and the cursor jumped back (owner, 2026-10-20)."""
         run = self._run
         if run is not None and run.stretch:
             live = self._stretch_rate
-            return self._acc - self._latency_frames * live, live * self.rate
-        speed = abs(run.speed) if run is not None else 1.0
-        played = self._out * speed * self.rate / self._dev_rate
-        return played - self._latency_frames * speed, speed * self.rate
+            played = (self._acc - self._latency_frames * live
+                      - self._stretch_lag(live))
+            per_second = live * self.rate
+        else:
+            speed = abs(run.speed) if run is not None else 1.0
+            played = self._out * speed * self.rate / self._dev_rate
+            played -= self._latency_frames * speed
+            per_second = speed * self.rate
+        if now is not None:
+            ahead = min(max(0.0, now - self._out_at), self._latency_frames / self.rate)
+            played += ahead * per_second
+        return played, per_second
 
-    def _played(self) -> int:
-        return max(0, round(self._played_raw()[0]))
+    def _stretch_lag(self, speed: float) -> float:
+        """Programme frames the stretcher's sound is behind ``_acc`` at ``speed``.
+        A WSOLA output hop is the falling half of the grain taken one hop of
+        programme earlier plus the rising half of the new one, so what is heard
+        is, window-weighted, one hop of output behind the nominal place: hop x
+        (speed - 1) programme frames (10 ms at 1.5x, 15 ms at 1.75x; ahead below
+        1x). Measured with a ramp in tests/test_playhead_sync.py."""
+        hop = self._hop_frames or round(STRETCH_HOP_S * self.rate)
+        return hop * (speed - 1.0)
+
+    def _played(self, now: float | None = None) -> int:
+        return max(0, round(self._played_raw(now)[0]))
 
     def _heard_at(self) -> float:
         """When the heard frame was the one ``_heard`` says: the last update of
@@ -781,17 +808,22 @@ class Engine:
             return self._out_at
         return self._out_at - played / per_second
 
-    def _heard(self) -> int:
-        """The programme frame at the listener's ear: the played frame mapped
-        through the run's plan (it jumps over skips, runs backwards for a
-        negative speed)."""
+    def _heard(self, now: float | None = None) -> int:
+        """The programme frame at the listener's ear (as of the last callback, or
+        at ``now``; see ``_played_raw``): the played frame mapped through the
+        run's plan (it jumps over skips, runs backwards for a negative speed)."""
         run = self._run
         if run is None:
             return self._anchor
         length = self._project.length
+        played = self._played(now)
         if run.speed > 0:
-            return run.plan.position(self._played(), length)
-        return run.plan.position(max(0, run.plan.length(length) - self._played()), length)
+            return run.plan.position(played, length)
+        return run.plan.position(max(0, run.plan.length(length) - played), length)
+
+    def _heard_now(self) -> int:
+        """The frame at the ear this moment: where a stop or a jump takes over."""
+        return self._heard(self._clock())
 
     def _check_loop(self, loop: object, skip: tuple[tuple[int, int], ...],
                     speed: float) -> tuple[int, int] | None:
@@ -1195,7 +1227,7 @@ class Engine:
         otherwise playback pauses there."""
         with self._tlock:
             playing, run, until = self._playing, self._run, self._until
-            heard = self._heard() if playing else self._anchor
+            heard = self._heard_now() if playing else self._anchor
         new = (None if not playing or run is None else
                _Run(self._plan(heard, until, run.speed, run.skip, run.loop), run.speed,
                     run.skip, run.loop, run.stretch))

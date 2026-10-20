@@ -5,6 +5,9 @@
 import { loudnessState } from "./loudness-tint.js";
 
 const CACHE_HEADS = 8;
+// After a failed measure: the first retry waits this long, each next one twice as long.
+const BACKOFF_MS = 5000;
+const BACKOFF_MAX_MS = 300000;
 
 /**
  * What a header shows for one track. `loudness` is `{ head, status, tracks }` (store.js):
@@ -57,6 +60,8 @@ export function createLoudnessLoader({
   let timer = null;
   let controller = null;
   let lastTracks = {}; // shown (stale) while a newer measure runs
+  let failures = 0; // in a row
+  let backoff = null; // the one retry after a failure
 
   const cancel = () => {
     if (timer !== null) clearTimer(timer);
@@ -80,14 +85,24 @@ export function createLoudnessLoader({
     try {
       const tracks = tracksOf(await fetchCurve(mine.signal));
       if (mine.signal.aborted) return; // a newer head took over
+      failures = 0;
       cache.set(head, tracks);
       if (cache.size > CACHE_HEADS) cache.delete(cache.keys().next().value);
       lastTracks = tracks;
       onChange({ loudness: { head, status: "ready", tracks } });
     } catch {
       if (mine.signal.aborted) return;
-      current = null; // not cached: the next settle asks again
+      // Not cached, and not asked again at the next settle (every store change
+      // settles; each ask used to start an analysis process, owner's ps
+      // 2026-10-20): one retry, for whatever head is current then, after a
+      // back-off that doubles with every failure in a row.
+      failures += 1;
       onChange({ loudness: { head, status: "failed", tracks: {} } });
+      const wait = Math.min(BACKOFF_MS * 2 ** (failures - 1), BACKOFF_MAX_MS);
+      backoff = setTimer(() => {
+        backoff = null;
+        if (current !== null && !cache.has(current)) void run(current);
+      }, wait);
     } finally {
       if (controller === mine) controller = null;
     }
@@ -104,7 +119,8 @@ export function createLoudnessLoader({
         return;
       }
       onChange({ loudness: { head, status: "pending", tracks: lastTracks } });
-      timer = setTimer(() => void run(head), delayMs);
+      // After a failure the back-off's retry asks, for the head current then.
+      if (backoff === null) timer = setTimer(() => void run(head), delayMs);
     },
   };
 }

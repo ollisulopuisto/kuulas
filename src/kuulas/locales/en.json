@@ -2129,4 +2129,9 @@
   "ui.silence.error_range": "Between {low} and {high}.",
   "job.paused_playing": "Paused while playing",
   "log.offload.fallback": "The analysis worker did not answer ({error}); measuring in the editor instead.",
-  "error.offload.failed": "The analysis failed: {error}"}
+  "error.offload.failed": "The analysis failed: {error}",
+  "error.offload.backoff": "The analysis failed a moment ago; it is tried again in {seconds} s.",
+  "error.offload.busy":"Too much analysis is waiting; try again in a moment.",
+  "error.offload.timeout": "The analysis took longer than {seconds} s and was stopped.",
+  "log.offload.watchdog": "Analysis worker {pid}: {why}; stopping it.",
+  "log.offload.swept": "Stopped {count} analysis workers left behind by an earlier run."}

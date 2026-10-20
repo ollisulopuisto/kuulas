@@ -19,6 +19,15 @@ How the cursor follows the sound, what was measured, and how to check by ear.
   PortAudio stream so nothing already queued is heard, and the stop's answer lands the
   cursor on the engine's heard frame. A seek or play that jumps more than 50 ms while
   playing does the same, then restarts the stream.
+- **Stop lands on the cursor.** The stop (and a jump or a speed change in place) takes
+  the heard frame *now*, moved on from the last callback by the time since (at most
+  the output latency), as the browser's cursor is. Before (fixed 2026-10-20, owner:
+  "at 1.75x the cursor jumps back on Space") it took the frame as of the last
+  callback: up to a block (21 ms) x the speed behind the cursor.
+- **Fast listening (WSOLA) lags its nominal place** by one hop of output: hop x
+  (speed - 1) of programme (10 ms at 1.5x, 15 ms at 1.75x, 20 ms at 2x). The engine
+  subtracts it (`Engine._stretch_lag`). Before, the cursor led the sound by that much.
+  `tests/test_playhead_sync.py` measures both with a ramp signal on a fake device.
 - **Buffer.** The stream asks for `latency="low"`; two late blocks within 5 s raise it
   to `"high"` and 2048 frames.
 

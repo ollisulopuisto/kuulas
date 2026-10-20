@@ -493,6 +493,10 @@ class Session:
     def close(self) -> None:
         self._watch_stop.set()
         self._watcher.join(5)
+        # This project's analysis worker, running or waiting, ends now.
+        folder = getattr(self.store, "folder", None)
+        if folder is not None:
+            offload.MANAGER.cancel_owner(str(folder))
         self.jobs.close()
         self.resume.close()  # while the lock is still ours
         with self.lock:

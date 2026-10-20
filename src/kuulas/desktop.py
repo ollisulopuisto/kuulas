@@ -26,6 +26,7 @@ from typing import Any
 
 import uvicorn
 
+from . import offload
 from .cli import HOST, bind_local, uvicorn_config
 from .messages import KuulasError, t
 from .new_project import SUFFIX, folder_name
@@ -685,6 +686,8 @@ def run_window(folder: str | None = None) -> int:
     if webview is None:
         print(t("desktop.missing_extra"), file=sys.stderr)
         return 1
+    # Analysis workers an earlier run left behind (a crash) go first.
+    offload.start_sweep()
     app = WindowApp(webview, recents_file())
     bridge = app.new_window()
     install_open_files_hook(app.open_paths)

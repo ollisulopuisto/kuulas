@@ -2231,4 +2231,9 @@
   "ui.silence.error_range": "Väliltä {low}–{high}.",
   "job.paused_playing": "Tauolla toiston ajan",
   "log.offload.fallback": "Analyysiprosessi ei vastannut ({error}); mitataan editorissa.",
-  "error.offload.failed": "Analyysi epäonnistui: {error}"}
+  "error.offload.failed": "Analyysi epäonnistui: {error}",
+  "error.offload.backoff": "Analyysi epäonnistui hetki sitten; sitä yritetään uudelleen {seconds} s kuluttua.",
+  "error.offload.busy":"Analyysejä odottaa liian monta; yritä hetken päästä uudelleen.",
+  "error.offload.timeout": "Analyysi kesti yli {seconds} s ja keskeytettiin.",
+  "log.offload.watchdog": "Analyysiprosessi {pid}: {why}; se lopetetaan.",
+  "log.offload.swept": "Lopetettiin {count} edellisen käynnistyksen jälkeen jäänyttä analyysiprosessia."}
