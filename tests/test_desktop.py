@@ -183,6 +183,15 @@ def test_launcher_page_escapes_and_lists_recents():
     assert "\\u003cb\\u003eShow" in page  # in the JSON the page script reads
 
 
+def test_launcher_page_wires_recent_project_keys():
+    page = desktop.launcher_html(['/x/A.kuulas'])
+    # the model is inlined and used
+    assert "rowKeyChips(" in page
+    assert "rowForKey(" in page
+    assert "keychip" in page
+    assert 'addEventListener("keydown"' in page
+
+
 def test_launcher_page_shows_the_mark():
     page = desktop.launcher_html([])
     assert "data:image/svg+xml;base64," in page
