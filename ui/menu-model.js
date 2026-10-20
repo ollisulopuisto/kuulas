@@ -317,7 +317,9 @@ export const MENU = [
       submenu("menu.auto", [
         item("app.automix"),
         item("app.auto_silence"),
+        item("app.auto_silence_options"),
         item("gate.open_stretch"),
+        item("gate.open_all"),
       ]),
     ],
   },

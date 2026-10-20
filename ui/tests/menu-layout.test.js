@@ -192,7 +192,9 @@ describe("Track, Playback, View", () => {
     assert.deepEqual(subIds("track", "menu.auto"), [
       "app.automix",
       "app.auto_silence",
+      "app.auto_silence_options",
       "gate.open_stretch",
+      "gate.open_all",
     ]);
   });
   test("Fast playback is a submenu of four", () => {

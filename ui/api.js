@@ -116,6 +116,9 @@ export const exportTracks = (options = {}) => post("/api/export-tracks", options
 /** Queue the export of the mix as one file (`options.format`); answers { jobs: [job id] }. */
 /** Queue the mix with the automixer (WP68): { target_lufs, ad_spot?, ad_duration? }; answers
  * { jobs: [job id] }. */
+/** What Auto-Silence with these options would close, per track; changes nothing. Answers
+ * { jobs: [job id] }; the finished job's `result` is { tracks: [{ name, close_s, stretches, now_s }] }. */
+export const autoSilencePreview = (options = {}) => post("/api/auto-silence/preview", options);
 export const automix = (options = {}) => post("/api/automix", options);
 /** The automixer command: { settings (as stored), resolved (defaults filled in) }. */
 export const automixerSettings = () => json("/api/settings/automixer");

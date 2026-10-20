@@ -120,6 +120,8 @@ import { forwardFromClip } from "./selection-ops.js";
 import { createSendCopyDialog } from "./send-copy-dialog.js";
 import { setupKeyboard } from "./shell-keys.js";
 import { chipSpeed } from "./shuttle.js";
+import { createSilenceDialog } from "./silence-dialog.js";
+import { normaliseSilence } from "./silence-model.js";
 import { createSlowHold, normaliseSlow, slowSpeed } from "./slow-hold.js";
 import { createStatsDialog } from "./stats-dialog.js";
 import { nextStopMode } from "./stop-mode.js";
@@ -895,6 +897,8 @@ const keyboard = setupKeyboard({
     cycleStopMode: () => cycleStopMode(),
     cyclePreroll: () => cyclePreroll(),
     autoSilence: () => void autoSilence(),
+    openSilenceOptions: () => openSilenceOptions(),
+    openAllGates: () => void openAllGates(),
     duckMicrophones: () => void duckMicrophones(),
     transcribeTrack: (backend) => void transcribeTrack(backend),
     restartTranscriptions: () => void restartTranscriptions(),
@@ -1670,11 +1674,47 @@ async function openAutomix() {
 
 // File > Statistics… (WP70): the server counts and words it; the dialog shows, copies, saves.
 let statsDialog = null;
-/** Track > Auto > Auto-Silence: close each speech mic where its owner is not talking (one undo step). */
-async function autoSilence() {
+/** The Auto-Silence options remembered for this project (view memory), else the defaults. */
+const silenceOptions = () => normaliseSilence(getState().autoSilence);
+
+/**
+ * Track > Auto > Auto-Silence (Alt+Mod+P): close each speech mic where its owner is not
+ * talking, with the options remembered for this project; one undo step. `options` is the
+ * dialog's choice.
+ */
+async function autoSilence(options = silenceOptions()) {
   try {
-    apply(await api.command("auto_silence", {}));
+    apply(await api.command("auto_silence", options));
     showNotice(t("ui.auto_silence.done"), "ok", { undo: true });
+  } catch (error) {
+    showError(error);
+  }
+}
+
+/** Track > Auto > Auto-Silence options…: the dialog; Apply runs it, Preview changes nothing. */
+let silenceDialog = null;
+function openSilenceOptions() {
+  silenceDialog ??= createSilenceDialog({
+    api,
+    t,
+    getProject: () => getState().project,
+    getOptions: silenceOptions,
+    onRemember: (options) => setState({ autoSilence: options }),
+    onApply: (options) => void autoSilence(options),
+  });
+  silenceDialog.open();
+}
+
+/** Track > Auto > Open all gates on this track: one undo step. */
+async function openAllGates() {
+  const track = getState().focusTrack;
+  if (!track) {
+    showNotice(t("ui.gate.no_track"), "error");
+    return;
+  }
+  try {
+    apply(await api.command("open_gates", { track_ids: [track] }));
+    showNotice(t("ui.gate.all_open"), "ok", { undo: true });
   } catch (error) {
     showError(error);
   }

@@ -77,6 +77,17 @@ used for putting tracks on a bus: they are moved there ("Siirrä valitut raidat 
 | Empty that list | Clear menu | Tyhjennä valikko | the projects are not touched |
 | Put the window in the Dock | Minimise (Cmd+M) | Pienennä | |
 
+## Auto-Silence options (used 2026-10-20, owner to confirm)
+
+| Meaning | English | Finnish |
+|---|---|---|
+| A track's closed stretches, one merged list | gate | portti (avaa portti, kaikki portit) |
+| dB above the track's own noise at which it counts as talking | sensitivity | herkkyys |
+| How far below the loudest mic another may be and still talk | closeness to the loudest mic | etäisyys voimakkaimpaan mikkiin |
+| Other people's voices heard in a mic | bleed | vuoto |
+| Decide by comparing mics, learned from the hand mutes | compensated for bleed | vuoto huomioiden |
+| What it would close, without doing it | preview | esikatselu |
+
 ## To do (WP62)
 
 1. Audit every label, hint, toast, menu title and help topic for these words; make a table of the

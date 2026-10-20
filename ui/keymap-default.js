@@ -1347,6 +1347,18 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.app.auto_silence",
   },
   {
+    id: "app.auto_silence_options",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.app.auto_silence_options",
+  },
+  {
+    id: "gate.open_all",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.gate.open_all",
+  },
+  {
     id: "palette.open",
     keys: { mac: "Mod+K", other: "Mod+K" },
     context: "text-field",

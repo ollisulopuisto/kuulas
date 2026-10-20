@@ -202,6 +202,8 @@ export function registerAppCommands(registry, { actions, app }) {
   def("gate.open_stretch", () => app.openGateStretch(), hasProject);
   // Track > Auto: these three had a menu item and a key but no handler (greyed out).
   def("app.auto_silence", () => app.autoSilence(), hasProject);
+  def("app.auto_silence_options", () => app.openSilenceOptions(), hasProject);
+  def("gate.open_all", () => app.openAllGates(), hasProject);
   def("app.automix", () => app.duckMicrophones(), hasProject);
   def("app.transcribe", () => app.transcribeTrack("local"), hasProject);
   // Transcribe on Colab (WP78): after a notice that the audio is uploaded to Google.

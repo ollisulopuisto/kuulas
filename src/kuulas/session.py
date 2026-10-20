@@ -55,6 +55,7 @@ from . import (
     package,
     preview_level,
     project_stats,
+    silence_options,
     source_map,
     subtitles,
     sync_state,
@@ -1137,6 +1138,29 @@ class Session:
             return result
 
         return [self.jobs.submit("automix", t("job.automix"), run, keep_result=True)]
+
+    def auto_silence_preview(self, args: dict | None = None) -> list[str]:
+        """Queue ONE job that says what Auto-Silence with these options WOULD
+        close, per speech track, without changing anything (no history step).
+        The session lock is held only to take the snapshot; the analysis runs
+        on the snapshot in the job (ground rule 14). The job's ``result`` is
+        ``{"tracks": [{track_id, name, close_s, stretches, now_s}], "options"}``.
+        Bad options fail now."""
+        args = dict(args or {})
+        options = silence_options.parse(args)
+        track_ids = args.get("track_ids")
+        with self.lock:
+            snapshot = self.history.state
+
+        def run(progress):
+            progress(0.0, "", True)
+            rows = analysis.preview_silence(snapshot, self.store, options, track_ids)
+            if progress.cancelled:
+                raise JobCancelledError
+            return {"tracks": rows, "options": options.as_dict()}
+
+        return [self.jobs.submit("auto_silence_preview",
+                                 t("job.auto_silence_preview"), run, keep_result=True)]
 
     def export_folder_hint(self) -> dict:
         """Where an export goes when the caller names no folder: the folder the
@@ -2582,8 +2606,21 @@ class Session:
 
 
 def _auto_silence(s: Session, args: dict) -> Project:
-    new = analysis.auto_silence(s.history.state, s.store, args.get("track_ids"))
+    options = silence_options.parse(args)
+    new = analysis.auto_silence(s.history.state, s.store, args.get("track_ids"), options)
     return s._commit(t("history.auto_silence"), new, "auto_silence", args)
+
+
+def _open_gates(s: Session, args: dict) -> Project:
+    """Clear the gate of the given tracks (every track with a gate when none
+    are named) as ONE undo step."""
+    state = s.history.state
+    ids = args.get("track_ids")
+    ids = [tr.id for tr in state.tracks if tr.gate] if ids is None else list(ids)
+    new = state
+    for track_id in ids:
+        new = ops.set_gate(new, track_id, ())
+    return s._commit(t("history.open_gates"), new, "open_gates", args)
 
 
 def _automix(s: Session, args: dict) -> Project:
@@ -2880,6 +2917,7 @@ def _save_checkpoint(s: Session, args: dict) -> Project:
 #: commands (WP41) each commit one material-only step.
 COMMANDS: dict[str, Callable[[Session, dict], Project]] = {
     "auto_silence": _auto_silence,
+    "open_gates": _open_gates,
     "automix": _automix,
     "duck_music": _duck_music,
     "cut_words": _cut_words,
