@@ -392,7 +392,8 @@ describe("the clipboard commands (WP46)", () => {
     h.registry.run("edit.paste_same", null, state);
     h.registry.run("edit.paste_overwrite_track", null, state);
     assert.equal(h.sent[0].args.mode, "insert");
-    assert.equal(h.sent[0].args.target_tracks, null);
+    // the source track by name, else track 1 (slots are dense, so the slot number is no track)
+    assert.deepEqual(h.sent[0].args.target_tracks, { 0: "A" });
     assert.equal(h.sent[1].args.mode, "overwrite");
     assert.deepEqual(h.sent[1].args.target_tracks, { 0: "A" });
     assert.equal(
