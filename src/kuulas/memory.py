@@ -97,7 +97,7 @@ class MemoryBudget:
                 return entry.value
         if spill is not None:
             try:
-                value = np.load(spill, mmap_mode="r")
+                value = np.load(spill)
             except (OSError, ValueError, EOFError):
                 value = None  # never written, deleted, or damaged: recompute
             if value is not None:

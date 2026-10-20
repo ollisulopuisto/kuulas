@@ -1284,7 +1284,7 @@ class MediaStore:
         meta = self.meta(media_id)
         where = self._peaks_path(meta["sha256"])
         try:
-            return np.load(where, mmap_mode="r")
+            return np.load(where)
         except (OSError, ValueError, EOFError):
             pass  # deleted, or never written: compute again below
         log.info(t("log.cache.recompute", kind="peaks", media_id=media_id))
