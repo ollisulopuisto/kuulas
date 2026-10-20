@@ -9,6 +9,7 @@ import {
   formatWords,
   LUFS_PRESETS,
   migrateForm,
+  parseWords,
   validateAutomix,
 } from "./automix-model.js";
 import {
@@ -21,8 +22,15 @@ import {
   validateOptions,
 } from "./automix-options-model.js";
 import { enhanceDialog } from "./dialog-keys.js";
+import { createPluginField } from "./plugin-field.js";
 
 const KEY = "kuulas.automix";
+// The two options whose items are plug-ins: a field with suggestions and chips. Their hint
+// is a placeholder only (never a value), so an empty field still means the tool's default.
+const PLUGIN_FIELDS = {
+  speech_plugins: "ui.automix.plugin_placeholder_speech",
+  music_plugins: "ui.automix.plugin_placeholder_music",
+};
 
 function loadForm(storage = globalThis.localStorage) {
   try {
@@ -164,6 +172,7 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
   const processing = section("ui.automix.section_options");
   processing.hidden = true;
   const optionControls = {};
+  let installedPlugins = [];
   let optionSpecs = [];
 
   const boolControl = (spec) => {
@@ -178,7 +187,24 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
     optionControls[spec.key] = { input: box, wrap };
     return wrap;
   };
+  const pluginControl = (spec) => {
+    const field = createPluginField({
+      t,
+      placeholder: t(PLUGIN_FIELDS[spec.key]),
+      onChange: () => refresh(),
+    });
+    field.setInstalled(installedPlugins);
+    const wrap = row(
+      spec.key,
+      `ui.automix.opt.${spec.key}`,
+      field.element,
+      `ui.automix.opt.${spec.key}.hint`,
+    );
+    optionControls[spec.key] = { input: field.input, wrap, field };
+    return wrap;
+  };
   const fieldControl = (spec) => {
+    if (spec.key in PLUGIN_FIELDS) return pluginControl(spec);
     const input = text(spec.key, spec.kind === "number" ? "decimal" : "text");
     if (spec.kind === "number") input.classList.add("automix-short");
     input.placeholder =
@@ -281,16 +307,18 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
   const optionValues = () => {
     const values = {};
     for (const spec of optionSpecs) {
-      const { input } = optionControls[spec.key];
-      values[spec.key] = spec.kind === "bool" ? input.checked : input.value;
+      const { input, field } = optionControls[spec.key];
+      if (field) values[spec.key] = formatWords(field.items());
+      else values[spec.key] = spec.kind === "bool" ? input.checked : input.value;
     }
     return values;
   };
   const setOptionValues = (options) => {
     const values = optionsToForm(optionSpecs, options);
     for (const spec of optionSpecs) {
-      const { input } = optionControls[spec.key];
-      if (spec.kind === "bool") input.checked = values[spec.key];
+      const { input, field } = optionControls[spec.key];
+      if (field) field.setItems(parseWords(values[spec.key]));
+      else if (spec.kind === "bool") input.checked = values[spec.key];
       else input.value = values[spec.key];
     }
     // Open a group that holds a changed value, so nothing set is hidden, unless the user
@@ -366,17 +394,34 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
     adDuration: inputs.adDuration.value,
   });
 
+  /** The installed plug-ins for the suggestions; none (a plain text field) when the scan
+   * fails or finds nothing. */
+  async function installed() {
+    try {
+      const answer = await api.plugins?.();
+      return Array.isArray(answer?.plugins) ? answer.plugins : [];
+    } catch {
+      return [];
+    }
+  }
+
   /** Check the form, show each problem next to its field, enable or disable Mix. */
   function refresh() {
     const form_ = values();
     const { ok: mixOk, errors } = validateAutomix(form_);
     const optionForm = optionValues();
     const checked = validateOptions(optionSpecs, optionForm);
+    let pluginsOk = true;
     for (const spec of optionSpecs) {
-      const { input, wrap } = optionControls[spec.key];
-      input.disabled = !optionEnabled(optionSpecs, optionForm, spec.key);
-      wrap.classList.toggle("automix-off", input.disabled);
-      const key = checked.errors[spec.key];
+      const { input, wrap, field } = optionControls[spec.key];
+      const off = !optionEnabled(optionSpecs, optionForm, spec.key);
+      if (field) field.setDisabled(off);
+      else input.disabled = off;
+      wrap.classList.toggle("automix-off", off);
+      // A typed name no installed plug-in matches is a warning, and Mix waits for it.
+      const unmatched = field && !off && field.unmatched();
+      if (unmatched) pluginsOk = false;
+      const key = checked.errors[spec.key] ?? (unmatched ? "ui.automix.plugin_unmatched" : null);
       const message = messages[spec.key];
       if (message) {
         message.textContent = key ? t(key, { min: spec.min, max: spec.max }) : "";
@@ -385,7 +430,7 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
       if (spec.kind !== "bool") input.setAttribute("aria-invalid", key ? "true" : "false");
     }
     updateGroupSummaries();
-    const ok = mixOk && checked.ok;
+    const ok = mixOk && checked.ok && pluginsOk;
     for (const name of ["targetLufs", "adSpot", "adDuration"]) {
       const key = errors[name];
       messages[name].textContent = key ? t(key) : "";
@@ -456,6 +501,10 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
         const resolved = answer.resolved ?? {};
         defaults.dir = answer.default_output_dir ?? "";
         const specs = answer.option_specs ?? [];
+        installedPlugins = await installed();
+        for (const { field } of Object.values(optionControls)) {
+          field?.setInstalled(installedPlugins);
+        }
         if (specs.length !== optionSpecs.length) buildOptions(specs);
         setOptionValues(resolved.options ?? stored.options ?? {});
         inputs.command.value = formatWords(stored.command);

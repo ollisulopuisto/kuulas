@@ -70,6 +70,25 @@ describe("dialogKeyAction", () => {
   test("other keys are not ours", () => assert.equal(dialogKeyAction(key("a"), ctx()), "none"));
 });
 
+describe("an open suggestion list", () => {
+  const open = {
+    tagName: "INPUT",
+    type: "text",
+    getAttribute: (n) => (n === "aria-expanded" ? "true" : null),
+  };
+  const closed = { ...open, getAttribute: () => "false" };
+  test("an expanded combobox owns Esc and Enter (the list handles them)", () => {
+    assert.equal(fieldKind(open), "popup");
+    assert.equal(fieldKind(closed), "text");
+    assert.equal(dialogKeyAction(key("Escape"), ctx({ field: "popup", dirty: true })), "none");
+    assert.equal(dialogKeyAction(key("Enter"), ctx({ field: "popup" })), "none");
+    assert.equal(
+      dialogKeyAction(key("Enter", { metaKey: true }), ctx({ field: "popup" })),
+      "accept",
+    );
+  });
+});
+
 describe("fieldKind", () => {
   test("classifies the focused control", () => {
     assert.equal(fieldKind({ tagName: "TEXTAREA" }), "textarea");

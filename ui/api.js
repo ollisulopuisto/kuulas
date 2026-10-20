@@ -130,6 +130,9 @@ export const autoSilencePreview = (options = {}) => post("/api/auto-silence/prev
 export const automix = (options = {}) => post("/api/automix", options);
 /** The automixer command: { settings (as stored), resolved (defaults filled in) }. */
 export const automixerSettings = () => json("/api/settings/automixer");
+/** The installed audio plug-ins: { plugins: [{ name, format, path }] } (scanned once;
+ * `refresh` scans again). */
+export const plugins = (refresh = false) => json(`/api/plugins${refresh ? "?refresh=1" : ""}`);
 export const saveAutomixerSettings = (settings) =>
   json("/api/settings/automixer", { method: "PUT", body: JSON.stringify(settings) });
 /** What the export dialog starts from: { mix, tracks (the last settings or null), folder,

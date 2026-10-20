@@ -58,6 +58,7 @@ from . import (
     music_report,
     new_project,
     offload,
+    plugins,
     priority,
     project_stats,
     transcribe,
@@ -876,6 +877,12 @@ def create_app(session, engine, *, language: str | None = None,
     def post_auto_silence_preview(body: Annotated[dict[str, Any], Body()]):
         # What Auto-Silence with these options would close; changes nothing.
         return JSONResponse({"jobs": session.auto_silence_preview(body)}, status_code=202)
+
+    @app.get("/api/plugins")
+    def get_plugins(refresh: bool = False):
+        # The installed audio plug-ins (names only, never loaded) for the automixer
+        # dialog's suggestions; the scan is cached, ?refresh=1 scans again.
+        return {"plugins": plugins.list_plugins(refresh=refresh)}
 
     @app.get("/api/settings/automixer")
     def get_automixer_settings():

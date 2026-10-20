@@ -12,7 +12,7 @@ import uvicorn
 from fastapi.testclient import TestClient
 from test_history import heavy_hour, register
 
-from kuulas import cli, messages
+from kuulas import cli, messages, plugins
 from kuulas import edit_points as ep
 from kuulas.clipboard import ClipRef, Entry
 from kuulas.clipboard_store import ClipboardStore
@@ -1067,3 +1067,13 @@ def test_view_memory_junk_is_a_translated_400(client, body):
     r = client.put("/api/view-memory", json=body)
     assert r.status_code == 400
     assert r.json()["error"]["text"]
+
+
+def test_plugins_endpoint_lists_the_scan(client, monkeypatch):
+    seen = []
+    items = [{"name": "Accentize dxRevive", "format": "VST3", "path": "/p/a.vst3"}]
+    monkeypatch.setattr(plugins, "list_plugins",
+                        lambda refresh=False: seen.append(refresh) or items)
+    assert client.get("/api/plugins").json() == {"plugins": items}
+    client.get("/api/plugins?refresh=1")
+    assert seen == [False, True]
