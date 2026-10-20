@@ -1539,6 +1539,7 @@
   "ui.automix.group.music": "Music",
   "ui.automix.opt.bed_under_speech_db": "Music level against the speech (dB), negative is quieter",
   "ui.automix.opt.bed_under_speech_db.hint": "Where the loudest moment of the music sits against the speech. +1 is the automixer's default (music slightly louder than the speech); try -8 to -12 for a quieter bed.",
+  "ui.automix.stage_skipped": "{message} (skipped: switched off)",
   "ui.automix.done_badge": "Done in Kuulas",
   "ui.automix.done_text": "You set the music level in Kuulas, so the automixer is told to use the same distance. Reset to use the automixer's own rule ({default}).",
   "ui.automix.done_reset": "Reset",

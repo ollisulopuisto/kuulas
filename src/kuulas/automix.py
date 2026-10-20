@@ -58,6 +58,10 @@ LOG_LINES = 200
 TAIL_LINES = 15
 LUFS_RANGE = (-40.0, 0.0)
 _PROGRESS = re.compile(r"PROGRESS\s+(\d{1,3})(?:\s+(.*))?$")
+#: The tool reports these stages per track even when the stage is switched off
+#: ("Olli: debleed" with ``--no-debleed``): stage word -> the option that runs it.
+_STAGE_OPTION = {"debleed": "speech_debleed", "duck": "speech_mic_duck"}
+_STAGE_LINE = re.compile(r"(?:^|:\s*)(debleed|duck)\s*$")
 #: How long a terminated automixer gets to exit before it is killed.
 GRACE_SECONDS = 5
 
@@ -721,6 +725,20 @@ def _unique(folder: Path, name: str) -> Path:
     return target
 
 
+def mark_skipped(message: str, options: dict) -> str:
+    """``message`` as the progress line says it, marked "skipped" when it names a
+    stage whose option is off (the tool still reports the stage then)."""
+    found = _STAGE_LINE.search(message)
+    if not found:
+        return message
+    key = _STAGE_OPTION[found.group(1)]
+    spec = OPTIONS[key]
+    on = options.get(key, spec["default"])
+    if options.get("minimal") and spec.get("minimal"):
+        on = False
+    return message if on else t("ui.automix.stage_skipped", message=message)
+
+
 def run(session, params: dict, settings: dict, report: Report,
         cancel: threading.Event, run_process: RunProcess = run_process) -> dict:
     """Export the stems, run the automixer, return ``{"path", "name", "log",
@@ -807,7 +825,8 @@ def run(session, params: dict, settings: dict, report: Report,
                 reached[0] = max(
                     reached[0], STEMS_SHARE + (1 - STEMS_SHARE) * 0.99 * share
                 )
-                report(reached[0], (found.group(2) or "").strip() or line)
+                report(reached[0], mark_skipped(
+                    (found.group(2) or "").strip() or line, kept))
             else:  # any other line is only the message
                 report(reached[0], line, indeterminate=reached[0] == STEMS_SHARE)
 

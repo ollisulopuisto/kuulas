@@ -1634,6 +1634,7 @@
   "ui.automix.group.music": "Musiikki",
   "ui.automix.opt.bed_under_speech_db": "Musiikin taso puheeseen nähden (dB), miinus on hiljaisempi",
   "ui.automix.opt.bed_under_speech_db.hint": "Missä musiikin kovin kohta on puheeseen nähden. +1 on automixerin oletus (musiikki hieman puhetta kovempaa); kokeile −8…−12 hiljaisempaa taustaa varten.",
+  "ui.automix.stage_skipped": "{message} (ohitettu: pois päältä)",
   "ui.automix.done_badge": "Tehty Kuulaksessa",
   "ui.automix.done_text": "Asetit musiikin tason Kuulaksessa, joten automixerille kerrotaan sama etäisyys. Palauta, niin automixer käyttää omaa sääntöään ({default}).",
   "ui.automix.done_reset": "Palauta",

@@ -404,7 +404,7 @@ wheels = [
 
 [[package]]
 name = "kuulas"
-version = "26.10.20.8"
+version = "26.10.20.9"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
