@@ -113,9 +113,9 @@ import { rangeLine } from "./range-info.js";
 import { rememberRange, stepRangeMemory } from "./range-memory.js";
 import {
   clearTrackSelection,
+  focusTrack as focusTrackPatch,
   resolveScope,
   scopeChip,
-  selectTrack as selectTrackPatch,
   toggleScopeMode,
 } from "./range-scope.js";
 import { recentMenuItems } from "./recent-menu-model.js";
@@ -723,8 +723,8 @@ function onPointerDown(hit, event, { noSeek = false } = {}) {
   const state = getState();
   const patch = { panel: "timeline", rangeTracks: new Set() };
   if (hit.row?.kind === "track" && !additive) {
-    patch.focusTrack = hit.row.id;
-    patch.focusBus = null;
+    // Current track and header selection move together (range-scope.js focusTrack).
+    Object.assign(patch, focusTrackPatch(state, hit.row.id, { mode: "select" }));
     // The range's tracks (Select > Range on all tracks) end with a click elsewhere.
     patch.rangeTracks = new Set();
   } else if (hit.row?.kind === "bus" && !additive) patch.focusBus = hit.row.id;
@@ -1510,19 +1510,15 @@ const trackHeaders = createTrackHeaders({
   editor,
   onBusCreated: nameNewBus,
   actions: {
-    // Click / Cmd+click on a track header (WP83): the track joins the selection that range
-    // operations act on, and the scope becomes "selected tracks only".
-    selectTrack: (id, options) => setState(selectTrackPatch(getState(), id, options)),
-    currentTrack: (id) => {
+    // A track header becomes current (range-scope.js focusTrack: the one rule that keeps the
+    // header selection in step). mode: "select" (click), "add" (Cmd+click), "follow" (focus).
+    currentTrack: (id, options) => {
       // A header is the timeline's keyboard context (Tab, arrows); the panel was left as it was.
-      const patch = headerFocusPatch(getState());
-      if (getState().focusTrack !== id || getState().focusBus || patch) {
-        setState({ focusTrack: id, focusBus: null, ...patch });
-      }
+      setState({ ...focusTrackPatch(getState(), id, options), ...headerFocusPatch(getState()) });
     },
     // The kind tag in a track header: focus the track, then the same command as Alt+Mod+K.
     cycleKind: (id) => {
-      setState({ focusTrack: id, focusBus: null });
+      setState(focusTrackPatch(getState(), id));
       keyboard.registry.run("track.cycle_kind", null, getState());
     },
     currentBus: (id) => {
@@ -1545,7 +1541,7 @@ const trackHeaders = createTrackHeaders({
 // Right-click on a track or bus header: focus it, then offer its commands.
 function showHeaderMenu(kind, id, event) {
   event.preventDefault();
-  if (kind === "track") setState({ focusTrack: id, focusBus: null, selection: new Set() });
+  if (kind === "track") setState({ ...focusTrackPatch(getState(), id), selection: new Set() });
   else setState({ focusBus: id, focusTrack: null });
   const state = getState();
   const target = kind === "bus" ? { kind, collapsed: state.collapsedBuses.has(id) } : { kind };
@@ -1574,13 +1570,9 @@ function showTimelineMenu(hit, event) {
   const patch = { panel: "timeline" };
   if (plan.selection) {
     patch.selection = plan.selection;
-    patch.focusTrack = hit.row.id;
-    patch.focusBus = null;
+    Object.assign(patch, focusTrackPatch(getState(), hit.row.id));
   }
-  if (plan.focusTrack) {
-    patch.focusTrack = plan.focusTrack;
-    patch.focusBus = null;
-  }
+  if (plan.focusTrack) Object.assign(patch, focusTrackPatch(getState(), plan.focusTrack));
   setState(patch);
   if (plan.seek !== null) void transport.seek(plan.seek);
   const sections = timelineMenuItems(getState(), { kind: plan.kind }, (id, state) =>
@@ -1605,7 +1597,11 @@ const inspector = createInspector({
   onBusCreated: nameNewBus,
   // A row of the Source list: select that clip and move the play cursor to it.
   jump: (clip, track, frame) => {
-    setState({ selection: new Set([clip]), focusTrack: track, focusBus: null, panel: "timeline" });
+    setState({
+      ...focusTrackPatch(getState(), track),
+      selection: new Set([clip]),
+      panel: "timeline",
+    });
     void transport.seek(frame);
   },
 });
