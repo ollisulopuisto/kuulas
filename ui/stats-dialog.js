@@ -19,7 +19,7 @@ export function createStatsDialog({ api, t, copyText, saveJson }) {
   body.className = "stats-body";
   body.setAttribute("aria-live", "polite");
   const note = document.createElement("p");
-  note.className = "stats-note";
+  note.className = "stats-note form-note";
   note.textContent = `${t("ui.stats.muted_note")} ${t("ui.stats.no_undo")}`;
 
   const buttons = document.createElement("div");
@@ -42,6 +42,9 @@ export function createStatsDialog({ api, t, copyText, saveJson }) {
   save.disabled = true;
   close.dataset.dialogCancel = "";
   close.dataset.dialogPrimary = "";
+  // Copy and Save keep the dialog open: the left edge; Close (the primary) last.
+  copy.classList.add("footer-start");
+  save.classList.add("footer-start");
   buttons.append(copy, save, close);
   dialog.append(heading, body, note, buttons);
   document.body.append(dialog);

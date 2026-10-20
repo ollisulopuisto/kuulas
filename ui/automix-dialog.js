@@ -66,21 +66,21 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
 
   /** A label cell + control cell row; `control` is any node. Its message sits below. */
   const row = (name, labelKey, control, hintKey) => {
-    const wrap = el("div", "automix-row");
-    const label = el("label", "automix-label", t(labelKey));
-    const cell = el("div", "automix-cell");
+    const wrap = el("div", "automix-row form-row");
+    const label = el("label", "automix-label form-label", t(labelKey));
+    const cell = el("div", "automix-cell form-field");
     const input = control.matches?.("input") ? control : control.querySelector("input");
     input.id = `automix-${name}`;
     input.name = name;
     input.autocomplete = "off";
     input.spellcheck = false;
     label.htmlFor = input.id;
-    const message = el("p", "automix-msg");
+    const message = el("p", "automix-msg form-msg");
     message.id = `automix-${name}-msg`;
     message.hidden = true;
     input.setAttribute("aria-describedby", message.id);
     cell.append(control, message);
-    if (hintKey) cell.append(el("p", "automix-hint", t(hintKey)));
+    if (hintKey) cell.append(el("p", "automix-hint form-help", t(hintKey)));
     wrap.append(label, cell);
     inputs[name] = input;
     messages[name] = message;
@@ -94,7 +94,7 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
     return input;
   };
   const withButton = (input, button) => {
-    const group = el("div", "automix-inline");
+    const group = el("div", "automix-inline form-inline");
     group.append(input, ...(button ? [button] : []));
     return group;
   };
@@ -113,16 +113,16 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
     return button;
   };
   const section = (titleKey) => {
-    const wrap = el("section", "automix-section");
-    wrap.append(el("h3", "automix-heading", t(titleKey)));
+    const wrap = el("section", "automix-section form-section");
+    wrap.append(el("h3", "automix-heading form-heading", t(titleKey)));
     return wrap;
   };
 
   // -- Mix ---------------------------------------------------------------------------------
-  const summary = el("p", "automix-summary", t("ui.automix.summary"));
+  const summary = el("p", "automix-summary form-note", t("ui.automix.summary"));
   const mix = section("ui.automix.section_mix");
   const lufs = text("targetLufs", "decimal");
-  lufs.classList.add("automix-short");
+  lufs.classList.add("automix-short", "form-num");
   const presets = el("div", "automix-presets");
   presets.setAttribute("role", "group");
   presets.setAttribute("aria-label", t("ui.automix.presets"));
@@ -145,20 +145,22 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
   adBox.name = "adBreak";
   adBox.id = "automix-adBreak";
   inputs.adBreak = adBox;
-  const adLabel = el("label", "automix-check");
+  const adLabel = el("label");
   adLabel.append(adBox, el("span", "", t("ui.automix.ad_break")));
-  const adGroup = el("div", "automix-ad");
+  // The check row: the box on the field column, its description under its text (FORMS.md).
+  const adRow = el("div", "check-row");
+  adRow.append(adLabel, el("p", "automix-hint form-help", t("ui.automix.ad_hint")));
+  const adGroup = el("div", "automix-ad form-sub");
   const spot = text("adSpot", "text");
   spot.placeholder = t("ui.automix.ad_spot_placeholder");
   const duration = text("adDuration", "decimal");
   duration.placeholder = t("ui.automix.ad_duration_placeholder");
-  duration.classList.add("automix-short");
+  duration.classList.add("automix-short", "form-num");
   adGroup.append(
-    el("p", "automix-hint", t("ui.automix.ad_hint")),
     row("adSpot", "ui.automix.ad_spot", spot, "ui.automix.ad_spot_hint"),
     row("adDuration", "ui.automix.ad_duration", duration, "ui.automix.ad_duration_hint"),
   );
-  mix.append(lufsRow, adLabel, adGroup, summary);
+  mix.append(lufsRow, adRow, adGroup, summary);
 
   // -- Processing: the automixer's switches, drawn from the server's list (open()) ---------
   const processing = section("ui.automix.section_options");
@@ -167,20 +169,20 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
   let optionSpecs = [];
 
   const boolControl = (spec) => {
-    const wrap = el("div", "automix-optcheck");
-    const label = el("label", "automix-check");
+    const wrap = el("div", "automix-optcheck check-row");
+    const label = el("label");
     const box = el("input");
     box.type = "checkbox";
     box.name = spec.key;
     box.id = `automix-${spec.key}`;
     label.append(box, el("span", "", t(`ui.automix.opt.${spec.key}`)));
-    wrap.append(label, el("p", "automix-hint", t(`ui.automix.opt.${spec.key}.hint`)));
+    wrap.append(label, el("p", "automix-hint form-help", t(`ui.automix.opt.${spec.key}.hint`)));
     optionControls[spec.key] = { input: box, wrap };
     return wrap;
   };
   const fieldControl = (spec) => {
     const input = text(spec.key, spec.kind === "number" ? "decimal" : "text");
-    if (spec.kind === "number") input.classList.add("automix-short");
+    if (spec.kind === "number") input.classList.add("automix-short", "form-num");
     input.placeholder =
       spec.default === null ? t("ui.automix.opt_tool_default") : String(spec.default);
     const wrap = row(
@@ -250,7 +252,7 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
         processing.append(...controls);
         continue;
       }
-      const node = el("div", "automix-group");
+      const node = el("div", "automix-group form-card");
       node.dataset.group = id;
       const heading = el("h4", "automix-group-heading");
       const head = el("button", "automix-group-head");
@@ -266,7 +268,7 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
       const body = el("div", "automix-group-body");
       body.id = `automix-group-${id}`;
       head.setAttribute("aria-controls", body.id);
-      const inner = el("div", "automix-group-inner");
+      const inner = el("div", "automix-group-inner form-section");
       inner.append(...controls);
       body.append(inner);
       node.append(heading, body);
@@ -312,17 +314,21 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
     "ui.automix.output_dir",
     withButton(outputDir, chooseButton(outputDir)),
   );
-  const preview = el("p", "automix-preview");
-  const formatNote = el("p", "automix-hint", t("ui.automix.format_note"));
-  out.append(outRow, preview, formatNote);
+  const preview = el("p", "automix-preview form-help");
+  const formatNote = el("p", "automix-hint form-help", t("ui.automix.format_note"));
+  // Both say where the file goes: under the folder field, at its left edge.
+  outRow.lastChild.append(preview, formatNote);
+  out.append(outRow);
 
   // -- Advanced ----------------------------------------------------------------------------
   const advanced = el("details", "automix-advanced");
   advanced.append(el("summary", "", t("ui.automix.section_advanced")));
   const tempDir = text("tempDir");
   const cwd = text("cwd");
-  advanced.append(
-    el("p", "automix-hint", t("ui.automix.advanced_note")),
+  const advancedRows = el("div", "form-section");
+  advanced.append(advancedRows);
+  advancedRows.append(
+    el("p", "form-note", t("ui.automix.advanced_note")),
     row("command", "ui.automix.command", text("command"), "ui.automix.command_hint"),
     row("cwd", "ui.automix.cwd", withButton(cwd, chooseButton(cwd)), "ui.automix.cwd_hint"),
     row(
@@ -335,7 +341,7 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
   );
 
   // -- buttons -----------------------------------------------------------------------------
-  const error = el("p", "automix-msg automix-error");
+  const error = el("p", "automix-msg automix-error form-msg");
   error.setAttribute("role", "alert");
   error.hidden = true;
   const buttons = el("div", "cheatsheet-footer");
@@ -350,7 +356,7 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
   start.dataset.dialogPrimary = "";
   buttons.append(cancel, start);
 
-  const form = el("form");
+  const form = el("form", "form-grid");
   form.method = "dialog";
   form.noValidate = true;
   form.append(mix, processing, out, advanced, error, buttons);

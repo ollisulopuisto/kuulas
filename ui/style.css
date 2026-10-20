@@ -1062,19 +1062,11 @@ input.has-ab {
   line-height: var(--leading-tight);
   overflow-wrap: anywhere;
 }
+/* Inspector rows are form rows (.form-row, FORMS.md) on the panel's label column; this only
+   spaces them inside a section. */
 .inspector-field {
-  display: grid;
-  /* Two columns for every inspector row: the label, then one control column whose left edge
-     and width are the same for text, select, number, read-only value and checkbox. */
-  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
-  align-items: center;
-  gap: var(--space-4);
-  min-height: var(--control-h);
   margin: var(--row-gap) 0;
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
 }
-.inspector-field input[type="number"],
 input[type="text"] {
   height: var(--control-h);
   padding: 0 var(--space-3);
@@ -1084,36 +1076,10 @@ input[type="text"] {
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
-.inspector-field input[type="number"] {
-  width: 100%;
-  min-width: 0;
-  text-align: right;
-}
-.inspector-field input[type="checkbox"] {
-  justify-self: start;
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  accent-color: var(--accent);
-}
-
-/* Track and Bus sections: text, select and read-only values share the field grid. */
-.inspector-field input.inspector-name,
-.inspector-field .inspector-select {
-  width: 100%;
-  min-width: 0;
-  height: var(--control-h);
-  padding: 0 var(--space-3);
-  background: var(--input-bg);
-  border: 1px solid var(--input-border);
-  border-radius: var(--radius-sm);
-  color: var(--text);
-  text-overflow: ellipsis;
-}
-.inspector-field > span {
-  overflow-wrap: anywhere;
-}
 .inspector-readonly {
+  display: flex;
+  align-items: center;
+  min-height: var(--control-h);
   min-width: 0;
   color: var(--text);
   text-align: left;
@@ -1427,16 +1393,10 @@ input[type="text"] {
   margin: 0;
   font-size: var(--text-md);
 }
-.import-actions,
-.import-options {
+.import-actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
-  align-items: center;
-}
-.import-choice {
-  display: flex;
-  gap: var(--space-2);
   align-items: center;
 }
 .import-panel ul {
@@ -1451,19 +1411,8 @@ input[type="text"] {
   margin: 0;
   font-size: var(--text-md);
 }
-.placeholder-field {
-  display: grid;
-  gap: var(--space-2);
-}
 .placeholder-field textarea {
-  width: 100%;
-  font: inherit;
   font-style: italic;
-  resize: vertical;
-}
-.placeholder-estimate {
-  margin: 0;
-  color: var(--text-secondary);
 }
 .drop {
   position: fixed;
@@ -1558,17 +1507,7 @@ input[type="text"] {
   display: none;
 }
 .clip-choice {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-4);
   margin: var(--row-gap) 0 var(--space-4);
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
-}
-.clip-choice label {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
 }
 .clip-filter {
   width: 100%;
@@ -1586,9 +1525,19 @@ input[type="text"] {
   gap: 0;
   margin: var(--row-gap) 0;
 }
+/* Three equal segments that fit the panel: a long label wraps inside its segment instead of
+   pushing the last one past the panel's edge. */
 .clip-view {
   flex: 1 1 0;
+  min-width: 0;
+  height: auto;
+  min-height: var(--control-h);
+  padding: var(--space-1) var(--space-3);
+  justify-content: center;
   border-radius: 0;
+  white-space: normal;
+  line-height: var(--leading-tight);
+  text-align: center;
 }
 .clip-view:first-child {
   border-radius: var(--radius-sm) 0 0 var(--radius-sm);
@@ -2226,12 +2175,6 @@ input[type="text"] {
 .cheatsheet tr.layer[data-held] {
   background: var(--accent-subtle);
 }
-.cheatsheet-footer {
-  display: flex;
-  gap: var(--space-4);
-  justify-content: flex-end;
-  margin-top: var(--space-5);
-}
 
 /* -- the transcript dock (WP7) ------------------------------------------------------ */
 .dock {
@@ -2608,12 +2551,6 @@ input[type="text"] {
   align-items: center;
   padding: var(--space-3) 0;
 }
-.cand-filter {
-  display: inline-flex;
-  gap: var(--space-2);
-  align-items: center;
-  font-size: var(--text-sm);
-}
 .cand-summary {
   display: flex;
   flex-wrap: wrap;
@@ -2905,69 +2842,328 @@ input[type="text"] {
   overflow-y: auto;
 }
 
+/* -- forms (docs/design/FORMS.md) ------------------------------------------------------------
+   One grid for every dialog and panel form (owner, 2026-10-20: "not all scattershot"). A row is
+   a fixed label column (--form-label-w; panels --form-label-w-panel) and one field column;
+   help and messages sit under the field, at its left edge; a check row's box sits on the field
+   column too. A card (.form-card) or a dependent block (.form-sub) inside the form indents its
+   content and gives the indent back to the label column, so every field in the dialog starts
+   on the same x. ui/tests/form-layout.test.js pins these rules. */
+:is(.panel, .import-panel) {
+  --form-label-w: var(--form-label-w-panel);
+}
+.form-grid,
+.form-section {
+  display: grid;
+  gap: var(--row-gap);
+  min-width: 0;
+}
+.form-grid > .form-section:not(:first-child) {
+  margin-top: calc(var(--section-gap) - var(--row-gap));
+}
+.form-heading {
+  margin: 0;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--panel-divider);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  color: var(--text-secondary);
+}
+/* The label is as tall as a control and centred on it, so one line of label shares the
+   control's text line; a long label wraps (two lines at most, by its wording) inside its column
+   and never pushes the field. */
+.form-label {
+  display: flex;
+  align-items: center;
+  min-height: var(--control-h);
+  margin: 0;
+  line-height: var(--leading-tight);
+  overflow-wrap: break-word;
+  hyphens: auto;
+  color: var(--text-secondary);
+}
+:is(.form-row, .check-row) {
+  --form-label-col: max(
+    0px,
+    calc(var(--form-label-w) - var(--form-card-indent, 0px) - var(--form-sub-indent, 0px))
+  );
+  font-size: var(--text-sm);
+  min-width: 0;
+}
+.form-row {
+  display: grid;
+  grid-template-columns: var(--form-label-col) minmax(0, 1fr);
+  column-gap: var(--form-col-gap);
+  row-gap: var(--form-help-gap);
+  align-items: start;
+  color: var(--text-secondary);
+}
+.form-row > * {
+  grid-column: 2;
+  min-width: 0;
+}
+.form-row > .form-label {
+  grid-column: 1;
+}
+.form-field {
+  display: grid;
+  gap: var(--form-help-gap);
+  min-width: 0;
+}
+.form-inline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  min-height: var(--control-h);
+}
+.form-inline > :is(input[type="text"], input[type="search"], input[type="range"], select) {
+  flex: 1;
+  min-width: 0;
+}
+/* Controls in a row: one height, the field column's width; numbers are short and right-aligned,
+   their unit in the label ("Fade in (ms)"). */
+:is(.form-row, .form-inline)
+  :is(input[type="text"], input[type="search"], input[type="number"], select) {
+  height: var(--control-h);
+  padding: 0 var(--space-3);
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: var(--text-sm);
+}
+.form-row :is(input[type="text"], input[type="search"], select, textarea) {
+  width: 100%;
+  min-width: 0;
+  text-overflow: ellipsis;
+}
+.form-row :is(input[type="number"], input.form-num),
+.form-inline > :is(input[type="number"], input.form-num) {
+  flex: none;
+  width: var(--form-num-w);
+  max-width: 100%;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.form-row :is(input, select, textarea)::placeholder {
+  color: var(--text-tertiary);
+}
+.form-row :is(input, select, textarea)[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+.form-row textarea {
+  padding: var(--space-2) var(--space-3);
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font: inherit;
+  resize: vertical;
+}
+.form-row > input[type="range"],
+.form-inline > input[type="range"] {
+  height: var(--control-h);
+  accent-color: var(--accent);
+}
+.form-readout {
+  min-width: 5ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.form-unit {
+  flex: none;
+  color: var(--text-secondary);
+}
+/* A switch row (label left, box on the field column) and every box and radio in a form. */
+:is(.form-row, .check-row, .form-choice) :is(input[type="checkbox"], input[type="radio"]) {
+  width: var(--check-size);
+  height: var(--check-size);
+  margin: 0;
+  accent-color: var(--accent);
+}
+.form-row > input[type="checkbox"],
+.form-field > input[type="checkbox"] {
+  justify-self: start;
+  margin-block: calc((var(--control-h) - var(--check-size)) / 2);
+}
+.form-readonly {
+  display: flex;
+  align-items: center;
+  min-height: var(--control-h);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.form-help,
+.form-msg {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: var(--leading-tight);
+  overflow-wrap: anywhere;
+}
+.form-help {
+  color: var(--text-tertiary);
+}
+.form-msg {
+  color: var(--danger-text);
+}
+/* A fieldset on the grid: a floated legend is laid out as an ordinary child, so it takes the
+   label column like any .form-label. */
+.form-fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+legend.form-heading {
+  width: 100%;
+  padding-inline: 0;
+}
+.form-fieldset > legend {
+  float: left;
+  padding: 0;
+}
+/* An empty message takes no row. */
+.form-msg:empty {
+  display: none;
+}
+/* A row of buttons inside a form (links to other dialogs): wraps, starts at the left edge. */
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+/* A note about the whole form or section: full width, from the form's left edge. */
+.form-note {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+/* A check row: the box on the field column's left edge, its text after it, its description
+   under the text. Either <label class="check-row"><input><span>, or a .check-row holding the
+   label (display: contents puts its box and text on this grid) and a .form-help. */
+.check-row {
+  display: grid;
+  grid-template-columns: var(--check-size) minmax(0, 1fr);
+  column-gap: var(--check-gap);
+  row-gap: var(--form-help-gap);
+  align-items: center;
+  padding-inline-start: calc(var(--form-label-col) + var(--form-col-gap));
+  color: var(--text);
+}
+.check-row > label {
+  display: contents;
+}
+.check-row > label > span,
+.check-row > span {
+  display: flex;
+  align-items: center;
+  min-height: var(--control-h);
+  line-height: var(--leading-tight);
+}
+.check-row > :is(.form-help, .form-msg) {
+  grid-column: 2;
+}
+/* Full width (no label column): a check that stands alone in a panel or a short dialog. */
+.check-row.form-wide {
+  padding-inline-start: 0;
+}
+/* One of n, stacked in the field column; the first line centred on the label's line. */
+.form-choices {
+  display: grid;
+  gap: var(--space-2);
+  padding-block: calc((var(--control-h) - var(--control-h-sm)) / 2);
+}
+/* A choice with a description: the box stays on the first line, the lines below line up with
+   the first line's text. */
+.form-choice {
+  display: grid;
+  grid-template-columns: var(--check-size) minmax(0, 1fr);
+  column-gap: var(--check-gap);
+  align-items: start;
+  color: var(--text);
+}
+.form-choice > input:is([type="checkbox"], [type="radio"]) {
+  margin-block: calc((var(--control-h-sm) - var(--check-size)) / 2) 0;
+}
+.form-choice > span {
+  display: grid;
+  align-content: center;
+  min-height: var(--control-h-sm);
+  line-height: var(--leading-tight);
+}
+.form-choice input:disabled + span {
+  color: var(--text-tertiary);
+}
+/* A card in the form (a disclosure group): its padding is given back to the label column. */
+.form-card {
+  --form-card-indent: calc(var(--pad-inline) + 1px);
+  padding-inline: var(--pad-inline);
+  background: var(--surface-raised);
+  border: 1px solid var(--panel-divider);
+  border-radius: var(--radius-sm);
+}
+/* Fields that depend on a check above them: indented with a rule, the indent given back. */
+.form-sub {
+  --form-sub-indent: calc(var(--space-5) + 2px);
+  display: grid;
+  gap: var(--row-gap);
+  padding-inline-start: var(--space-5);
+  border-inline-start: 2px solid var(--panel-divider);
+}
+:is(.form-grid, .form-section, .form-sub) [hidden],
+:is(.form-row, .check-row, .form-section, .form-sub)[hidden] {
+  display: none;
+}
+/* Dialogs: a title, an optional intro note, the form, the footer. The footer's buttons are
+   right-aligned with the primary last; actions that keep the dialog open (Reset, Preview,
+   Copy, Choose folder) carry .footer-start and sit at the left edge. */
+.cheatsheet > h2 {
+  margin: 0 0 var(--space-5);
+  font-size: var(--text-lg);
+  line-height: var(--leading-tight);
+}
+.cheatsheet > h2 + .form-note {
+  margin-bottom: var(--space-5);
+}
+.cheatsheet-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-4);
+  justify-content: flex-end;
+  margin-top: var(--space-5);
+}
+.cheatsheet-footer > .footer-start + :not(.footer-start) {
+  margin-inline-start: auto;
+}
+@media (max-width: 520px) {
+  .form-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .form-row > *,
+  .form-row > .form-label {
+    grid-column: 1;
+  }
+  .form-label {
+    min-height: 0;
+  }
+  .check-row {
+    padding-inline-start: 0;
+  }
+}
+
 /* Mix with the automixer (WP68) */
 .automix-dialog {
   width: min(640px, 94vw);
 }
-.automix-dialog form {
-  display: grid;
-  gap: var(--space-4);
-}
-.automix-section {
-  display: grid;
-  gap: var(--space-2);
-}
-.automix-heading {
-  margin: 0;
-  font-size: var(--text-sm);
-  font-weight: var(--weight-strong);
-  color: var(--text-secondary);
-  border-bottom: 1px solid var(--panel-divider);
-  padding-bottom: var(--space-2);
-}
-/* The inspector's two columns: the label, then one control column. */
-.automix-row {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
-  align-items: start;
-  gap: var(--space-4);
-  margin: var(--row-gap) 0;
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-}
-.automix-label {
-  min-height: var(--control-h);
-  display: flex;
-  align-items: center;
-}
-.automix-cell,
 .automix-stack {
   display: grid;
   gap: var(--space-1);
   min-width: 0;
-}
-.automix-inline {
-  display: flex;
-  gap: var(--space-3);
-  align-items: center;
-}
-.automix-inline input {
-  flex: 1;
-  min-width: 0;
-}
-.automix-dialog input[type="text"] {
-  width: 100%;
-  min-width: 0;
-}
-.automix-dialog input.automix-short {
-  max-width: 8rem;
-  text-align: right;
-}
-.automix-dialog input::placeholder {
-  color: var(--text-tertiary);
-}
-.automix-dialog input[aria-invalid="true"] {
-  border-color: var(--danger);
 }
 .automix-presets {
   display: flex;
@@ -2978,19 +3174,6 @@ input[type="text"] {
   border-color: var(--accent);
   background: var(--accent-subtle);
 }
-.automix-check {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  min-height: var(--control-h);
-  font-size: var(--text-sm);
-}
-.automix-ad {
-  display: grid;
-  gap: var(--space-1);
-  padding-left: var(--space-5);
-  border-left: 2px solid var(--panel-divider);
-}
 .automix-summary,
 .automix-preview {
   margin: var(--space-2) 0 0;
@@ -3000,47 +3183,8 @@ input[type="text"] {
 .automix-preview {
   color: var(--text-secondary);
 }
-.automix-hint {
-  margin: 0;
-  color: var(--text-tertiary);
-  font-size: var(--text-xs);
-  overflow-wrap: anywhere;
-}
-.automix-msg {
-  margin: 0;
-  color: var(--danger-text);
-  font-size: var(--text-xs);
-}
 
-/* Export options: the inspector's two-column rows inside the dialog */
-.export-dialog form {
-  gap: var(--space-2);
-}
-.export-dialog .export-row[hidden],
-.export-dialog [hidden] {
-  display: none;
-}
-.export-dialog .inspector-field {
-  margin: 0;
-}
-.export-choices,
-.export-tracks {
-  display: grid;
-  gap: var(--space-2);
-}
-.export-choice {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  color: var(--text);
-}
-.export-choice input {
-  margin: 0;
-  accent-color: var(--accent);
-}
-.export-choice input:disabled + span {
-  color: var(--text-tertiary);
-}
+/* Export options (the form grid; FORMS.md) */
 .export-tracks-box {
   display: grid;
   gap: var(--space-2);
@@ -3053,6 +3197,8 @@ input[type="text"] {
   gap: var(--space-2);
 }
 .export-tracks {
+  display: grid;
+  gap: var(--space-2);
   max-height: 10rem;
   overflow-y: auto;
 }
@@ -3062,13 +3208,6 @@ input[type="text"] {
   border-left: 3px solid var(--border-strong);
   color: var(--text-secondary);
   font-size: var(--text-sm);
-}
-.export-dialog .automix-error:empty {
-  display: none;
-}
-.automix-error {
-  color: var(--danger-text);
-  font-size: var(--text-xs);
 }
 .automix-advanced {
   border-top: 1px solid var(--panel-divider);
@@ -3087,11 +3226,10 @@ input[type="text"] {
   gap: var(--space-2);
   justify-content: flex-end;
 }
+/* A .form-card; its header spans the card edge to edge, so the card's own padding moves to the
+   body (.automix-group-inner), which keeps the same indent. */
 .automix-group {
-  background: var(--surface-raised);
-  border: 1px solid var(--panel-divider);
-  border-radius: var(--radius-sm);
-  margin-top: var(--space-2);
+  padding-inline: 0;
 }
 .automix-group.has-changes {
   border-color: var(--border-strong);
@@ -3180,7 +3318,10 @@ input[type="text"] {
   padding: 0 var(--pad-inline);
 }
 .automix-group.is-open .automix-group-inner {
-  padding-bottom: var(--space-2);
+  padding-bottom: var(--row-gap);
+}
+.automix-advanced > .form-section {
+  padding-top: var(--row-gap);
 }
 @media (prefers-reduced-motion: reduce) {
   .automix-chevron,
@@ -3192,22 +3333,8 @@ input[type="text"] {
 :root[data-motion="off"] .automix-group-body {
   transition: none;
 }
-.automix-optcheck {
-  display: grid;
-  gap: var(--space-1);
-  margin-bottom: var(--space-2);
-}
-.automix-optcheck .automix-hint {
-  padding-left: calc(var(--space-3) + 1rem);
-}
 .automix-off {
   opacity: 0.55;
-}
-@media (max-width: 520px) {
-  .automix-row {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-1);
-  }
 }
 .automix-log {
   margin: 0;
@@ -3226,10 +3353,6 @@ input[type="text"] {
   gap: var(--space-3);
   max-width: 40rem;
 }
-.media-dialog form {
-  display: grid;
-  gap: var(--space-3);
-}
 .media-body {
   display: grid;
   gap: var(--space-3);
@@ -3246,34 +3369,8 @@ input[type="text"] {
   padding-left: var(--space-4);
   overflow-wrap: anywhere;
 }
-.media-field {
-  display: grid;
-  gap: var(--space-1);
-}
-.media-field input {
-  height: var(--control-h);
-}
-.media-choice {
-  display: flex;
-  gap: var(--space-2);
-  align-items: flex-start;
-  padding: var(--space-1) 0;
-}
-.media-choice > span {
-  display: grid;
-  gap: var(--space-1);
-}
 .media-size {
   color: var(--text-secondary);
-}
-.media-note {
-  color: var(--text-tertiary);
-  font-size: var(--text-xs);
-  margin: 0;
-}
-.media-error {
-  color: var(--danger-text);
-  margin: 0;
 }
 
 /* Help > Record a performance report… */
@@ -3281,11 +3378,6 @@ input[type="text"] {
   display: grid;
   gap: var(--space-3);
   max-width: 32rem;
-}
-.perf-choice {
-  display: flex;
-  gap: var(--space-3);
-  align-items: center;
 }
 .perf-dialog progress {
   width: 100%;
@@ -3388,14 +3480,6 @@ input[type="text"] {
   display: grid;
   gap: var(--space-4);
 }
-.record-field {
-  display: grid;
-  grid-template-columns: 9rem 1fr;
-  align-items: center;
-  gap: var(--space-4);
-}
-.record-field select,
-.record-field input,
 .record-mode select {
   height: var(--control-h);
   border: 1px solid var(--border-strong);
@@ -3710,74 +3794,6 @@ input[type="text"] {
 .silence-dialog {
   width: min(640px, 94vw);
 }
-.silence-dialog form {
-  display: grid;
-  gap: var(--space-4);
-}
-.silence-section {
-  display: grid;
-  gap: var(--space-2);
-}
-.silence-heading {
-  margin: 0;
-  font-size: var(--text-sm);
-  font-weight: var(--weight-strong);
-  color: var(--text-secondary);
-  border-bottom: 1px solid var(--panel-divider);
-  padding-bottom: var(--space-2);
-}
-.silence-row {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
-  align-items: start;
-  gap: var(--space-4);
-  margin: var(--row-gap) 0;
-  font-size: var(--text-sm);
-  color: var(--text-secondary);
-}
-.silence-label {
-  min-height: var(--control-h);
-  display: flex;
-  align-items: center;
-}
-.silence-cell {
-  display: grid;
-  gap: var(--space-1);
-  min-width: 0;
-}
-.silence-inline {
-  display: flex;
-  gap: var(--space-3);
-  align-items: center;
-}
-.silence-inline input[type="range"] {
-  flex: 1;
-  min-width: 0;
-  accent-color: var(--accent);
-}
-.silence-readout {
-  min-width: 4ch;
-  text-align: right;
-  color: var(--text-primary);
-}
-.silence-dialog input.silence-short {
-  max-width: 8rem;
-  text-align: right;
-}
-.silence-dialog input[aria-invalid="true"] {
-  border-color: var(--danger);
-}
-.silence-hint {
-  margin: 0;
-  color: var(--text-tertiary);
-  font-size: var(--text-xs);
-  overflow-wrap: anywhere;
-}
-.silence-msg {
-  margin: 0;
-  color: var(--danger-text);
-  font-size: var(--text-xs);
-}
 .silence-preview {
   display: grid;
   gap: var(--space-1);
@@ -3788,10 +3804,4 @@ input[type="text"] {
 .silence-line {
   margin: 0;
   overflow-wrap: anywhere;
-}
-@media (max-width: 520px) {
-  .silence-row {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-1);
-  }
 }

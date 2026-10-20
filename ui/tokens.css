@@ -336,6 +336,15 @@
   --pad-inline: 16px; /* left/right padding of headers and rows */
   --row-gap: 10px; /* between rows of fields and list items */
   --section-gap: 16px; /* between inspector sections */
+  /* Forms (docs/design/FORMS.md): one grid for every dialog and panel. Fixed widths, so
+     every row, section and nested card lines its fields up on the same x. */
+  --form-label-w: 200px; /* the label column of a dialog; a long Finnish label wraps to 2 lines */
+  --form-label-w-panel: 128px; /* the label column in side panels and floating panels */
+  --form-col-gap: var(--space-5); /* between the label column and the field column */
+  --form-help-gap: var(--space-1); /* between a field and its help or message line */
+  --form-num-w: 8rem; /* a number field: short, right-aligned, unit in the label */
+  --check-size: 16px; /* checkbox and radio */
+  --check-gap: var(--space-3); /* between a box and its text */
   /* Numbers the canvases read with the colours (semantic, overridable). */
   --signal-muted-opacity: 0.35; /* muted clips (with the hatch) */
   --signal-unheard-opacity: 0.45; /* tracks not heard because of solo or mute */
@@ -375,6 +384,9 @@
   --pad-inline: 12px;
   --row-gap: 4px;
   --section-gap: 10px;
+  --form-label-w: 168px;
+  --form-label-w-panel: 112px;
+  --form-col-gap: var(--space-4);
   --indent-member: 10px;
 }
 

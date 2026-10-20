@@ -20,11 +20,13 @@ export function createPerfDialog({ api, t, notify }) {
   heading.id = "perf-title";
   heading.textContent = t("ui.perf.title");
   const intro = document.createElement("p");
+  intro.className = "form-note";
   intro.textContent = t("ui.perf.intro");
 
   const choice = document.createElement("label");
-  choice.className = "perf-choice";
+  choice.className = "perf-choice form-row";
   const choiceText = document.createElement("span");
+  choiceText.className = "form-label";
   choiceText.textContent = t("ui.perf.length");
   const select = document.createElement("select");
   for (const seconds of DURATIONS) {
@@ -63,7 +65,9 @@ export function createPerfDialog({ api, t, notify }) {
   close.dataset.icon = "close";
   close.dataset.dialogCancel = "";
   start.dataset.dialogPrimary = "";
-  buttons.append(start, stop, close);
+  // Stop keeps the dialog open (the left edge); Close, then Start last (FORMS.md).
+  stop.classList.add("footer-start");
+  buttons.append(stop, close, start);
   dialog.append(heading, intro, choice, progress, message, buttons);
   document.body.append(dialog);
   enhanceDialog(dialog, { t });

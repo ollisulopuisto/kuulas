@@ -31,10 +31,10 @@ function element(tag, props = {}, ...children) {
   return node;
 }
 
-/** A form row: the label, then the control column (the inspector's grid). */
-function row(label, control, className = "") {
-  const field = element("div", { className: `inspector-field export-row ${className}`.trim() });
-  field.append(element("span", { textContent: label }), control);
+/** A form row (FORMS.md): the label, then the field column with its help lines under it. */
+function row(label, control, ...help) {
+  const field = element("div", { className: "form-row export-row" });
+  field.append(element("span", { className: "form-label", textContent: label }), control, ...help);
   return field;
 }
 
@@ -50,12 +50,12 @@ export function createExportDialog({ t, formats, canChooseFolder, context, saveM
   const dialog = element("dialog", { className: "cheatsheet automix-dialog export-dialog" });
   dialog.setAttribute("aria-labelledby", "export-dialog-title");
   const heading = element("h2", { id: "export-dialog-title" });
-  const note = element("p", { className: "automix-note" });
+  const note = element("p", { className: "form-note" });
 
-  const form = element("form", { method: "dialog" });
+  const form = element("form", { method: "dialog", className: "form-grid" });
 
   // What
-  const scopeBox = element("div", { className: "export-choices", role: "radiogroup" });
+  const scopeBox = element("div", { className: "form-choices", role: "radiogroup" });
   scopeBox.setAttribute("aria-label", t("ui.exportdialog.what"));
   const scopeInputs = {};
   const scopeLabels = {};
@@ -64,9 +64,8 @@ export function createExportDialog({ t, formats, canChooseFolder, context, saveM
     const text = element("span");
     scopeInputs[id] = input;
     scopeLabels[id] = text;
-    scopeBox.append(element("label", { className: "export-choice" }, input, text));
+    scopeBox.append(element("label", { className: "form-choice" }, input, text));
   }
-  const whatRow = row(t("ui.exportdialog.what"), scopeBox);
   const trackList = element("div", { className: "export-tracks" });
   const allButton = element("button", {
     type: "button",
@@ -80,7 +79,7 @@ export function createExportDialog({ t, formats, canChooseFolder, context, saveM
   });
   const trackTools = element("div", { className: "export-tracks-tools" }, allButton, noneButton);
   const tracksHint = element("p", {
-    className: "automix-note",
+    className: "form-help",
     textContent: t("ui.exportdialog.what_tracks_hint"),
   });
   const tracksBox = element(
@@ -90,13 +89,15 @@ export function createExportDialog({ t, formats, canChooseFolder, context, saveM
     trackTools,
     trackList,
   );
+  // The track list belongs to "What": it opens in the field column, under the choices.
+  const whatRow = row(t("ui.exportdialog.what"), scopeBox, tracksBox);
 
   // Format and quality
   const formatSelect = element("select", { name: "format", className: "inspector-select" });
   const depthSelect = element("select", { name: "depth", className: "inspector-select" });
   const bitrateSelect = element("select", { name: "bitrate", className: "inspector-select" });
-  const sizeNote = element("p", { className: "automix-note" });
-  const formatRow = row(t("ui.exportdialog.format"), formatSelect);
+  const sizeNote = element("p", { className: "form-help" });
+  const formatRow = row(t("ui.exportdialog.format"), formatSelect, sizeNote);
   const depthRow = row(t("ui.exportdialog.depth"), depthSelect);
   const bitrateRow = row(t("ui.exportdialog.bitrate"), bitrateSelect);
 
@@ -110,12 +111,12 @@ export function createExportDialog({ t, formats, canChooseFolder, context, saveM
   const lufsInput = element("input", { type: "number", name: "lufs_value", step: "0.5" });
   lufsInput.min = "-70";
   lufsInput.max = "0";
-  const lufsRow = row(t("ui.exportdialog.lufs"), lufsSelect);
-  const lufsValueRow = row(t("ui.exportdialog.lufs_value"), lufsInput);
   const lufsNote = element("p", {
-    className: "automix-note",
+    className: "form-help",
     textContent: t("ui.exportdialog.lufs_note"),
   });
+  const lufsRow = row(t("ui.exportdialog.lufs"), lufsSelect, lufsNote);
+  const lufsValueRow = row(t("ui.exportdialog.lufs_value"), lufsInput);
 
   // Name and folder
   const nameInput = element("input", {
@@ -124,17 +125,17 @@ export function createExportDialog({ t, formats, canChooseFolder, context, saveM
     className: "inspector-name",
     autocomplete: "off",
   });
-  const nameRow = row(t("ui.exportdialog.name"), nameInput);
   const nameNote = element("p", {
-    className: "automix-note",
+    className: "form-help",
     textContent: t("ui.exportdialog.name_note"),
   });
+  const nameRow = row(t("ui.exportdialog.name"), nameInput, nameNote);
   const ask = element("input", { type: "checkbox", name: "ask" });
   const askRow = row(t("ui.exportdialog.ask"), ask);
 
   // Mute and solo: always said.
   const silence = element("p", { className: "export-silence", role: "note" });
-  const problem = element("p", { className: "automix-error", role: "alert" });
+  const problem = element("p", { className: "form-msg", role: "alert" });
 
   const buttons = element("div", { className: "cheatsheet-footer" });
   const cancel = element("button", {
@@ -156,16 +157,12 @@ export function createExportDialog({ t, formats, canChooseFolder, context, saveM
 
   form.append(
     whatRow,
-    tracksBox,
     formatRow,
     depthRow,
     bitrateRow,
-    sizeNote,
     lufsRow,
     lufsValueRow,
-    lufsNote,
     nameRow,
-    nameNote,
     askRow,
     silence,
     problem,
@@ -262,7 +259,7 @@ export function createExportDialog({ t, formats, canChooseFolder, context, saveM
         });
         return element(
           "label",
-          { className: "export-choice" },
+          { className: "form-choice" },
           box,
           element("span", { textContent: track.name }),
         );
