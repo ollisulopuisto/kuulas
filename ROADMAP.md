@@ -132,6 +132,15 @@ sizes: `docs/PLAN.md`, section "Triage".
   ghost at the drop position and track (snap as for moving clips, Alt stops at neighbours, overwrite rules as paste),
   highlight the target track, Esc cancels; drop = the same paste op as Cmd+V at that frame and track (one undo step).
   Multi-clip entries keep their relative layout. Builds on the paste target-track fix (branch paste-target-track).
+- **Looping clips (music beds)** (owner request 2026-10-20, like GarageBand, not started; M3+): two steps. (1) **Loop the
+  whole clip:** a clip gets a loop switch and can be dragged/extended past its source end, repeating the source
+  seamlessly (sample-accurate wrap, optional short crossfade at the seam; the source is never modified, the clip stays a
+  window on media; fades and gain apply to the whole looped clip). (2) **Loop a section (the clever version):** in/out
+  points INSIDE the clip's source mark the loop region: intro (unlooped) + loop region repeated N times (or until the clip's
+  end is dragged out) + outro (unlooped, the rest of the source after the loop region); the outro always plays last, so
+  the bed can be stretched to any length. UI: loop handles on the clip, clip shows repeat ticks; ops `set_clip_loop`
+  (region + count/length), engine reads wrap around the region; export/stems render it identically; undo as one step.
+  Open question: how it interacts with sync/groups, ripple trims and the fade-out (suggest: fades at the clip ends only).
 - **Quick mute for lip smacks** (owner request 2026-10-20, QoL, not started): two forms, both one key. (1) "Mute
   from mark to cursor": set a mark, play on, press the key, and the stretch mark..cursor is muted (a soft cut, hatched).
   (2) "Mute around cursor": one key mutes a fixed short stretch centred on the cursor (default 0.5 s, so 0.25 s before and
