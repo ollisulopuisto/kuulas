@@ -3352,6 +3352,8 @@ clip bin) and WP42 (bits as index cards). Until then the pinned clipboard entrie
 
 ### WP59 — Hardening: fuzzing and a security review (owner, 2026-10-18)
 
+**Design reference: `docs/SECURITY.md`** (goals, threat model, practices, what is built and the ordered open list). Hand that file to the reviewing agent.
+
 Status: open, after the first edits are done (not during the episode work). The owner suggested asking the
 strongest model (Fable) to fuzz the inputs and do basic hardening. Scope:
 - **Untrusted files:** WAV/FLAC/MP3 decoding and ffmpeg arguments, `.nhsx` import, a damaged `.kuulas`
