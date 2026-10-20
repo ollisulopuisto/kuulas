@@ -185,6 +185,12 @@ kbd {
   background: var(--surface-active);
   border-color: var(--border-strong);
 }
+/* The transport toggles (loop): on is obvious at a glance, an accent fill and outline. */
+.t-row .button.ghost[aria-pressed="true"] {
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
 /* Destructive: a secondary at rest (undo brings it back), danger only on hover. */
 .button.danger:hover:not(:disabled) {
   color: var(--danger-text);

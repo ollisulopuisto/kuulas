@@ -1,3 +1,7 @@
+## [v26.10.20.16] - 2026-10-21
+
+- **The Loop button shows clearly when it is on:** accent fill and outline instead of the faint grey every toggle had.
+
 ## [v26.10.20.15] - 2026-10-21
 
 - **The bus gain reaches the automixer too.** The stems now carry the gain of the track's bus as well as the track's own gain and the clip gains, so the balance you set by ear with tracks and buses together is what the automixer starts from. Pan, mute and ducking are still left out.
