@@ -208,6 +208,7 @@ def test_automixer_options_api(session, tmp_path, monkeypatch):
         r = c.put("/api/settings/automixer", json={"options": {"speech_debleed": False}})
         assert r.status_code == 200
         assert r.json()["resolved"]["options"] == {"speech_debleed": False}
-        r = c.put("/api/settings/automixer", json={"options": {"music_carve_strength": 7}})
+        bad = {"options": {"music_carve_strength": 7}}
+        r = c.put("/api/settings/automixer", json=bad)
         assert r.status_code == 400
         assert r.json()["error"]["key"] == "error.automix.bad_option"
