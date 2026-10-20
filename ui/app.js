@@ -99,6 +99,7 @@ import { heldFromEvent } from "./modifiers.js";
 import { monoDecision, monoEdits } from "./mono-ask.js";
 import { motionMode } from "./motion.js";
 import { createOverview } from "./overview.js";
+import { createPerfDialog } from "./perf-dialog.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
 import { createPreferencesDialog } from "./preferences-dialog.js";
 import { createPrefs } from "./prefs.js";
@@ -536,6 +537,16 @@ const actions = {
       showError(error);
     }
   },
+  /** Help > Log level: kept on the server (applies at once, and next start). */
+  async setLogLevel(level) {
+    try {
+      const answer = await api.putLogLevel(level);
+      setState({ logLevel: answer.level });
+      showNotice(t("ui.loglevel.now", { level: answer.level }), "ok");
+    } catch (error) {
+      showError(error);
+    }
+  },
   setPauseBreak(choice) {
     const id = pauseChoiceId(choice);
     prefs.set(PAUSE_BREAK_KEY, id);
@@ -891,6 +902,7 @@ const keyboard = setupKeyboard({
     exportRegions: () => exportRegions(),
     automix: () => void openAutomix(),
     openStatistics: () => void openStatistics(),
+    openPerformanceReport: () => void openPerformanceReport(),
     openLocateMedia: () => void openLocateMedia(),
     openSendCopy: () => void openSendCopy(),
     openRecord: () => void recordView.open(),
@@ -1866,6 +1878,19 @@ function cyclePreroll() {
   const seconds = nextPreroll(recordView.preroll);
   recordView.setPreroll(seconds);
   showNotice(t("ui.record.preroll.now", { value: prerollLabel(seconds, t) }), "ok");
+}
+
+let perfDialog = null;
+
+// Help > Record a performance report… : the app samples its own threads for a while and writes
+// a text file next to the log (src/kuulas/profiler.py). Works without a project.
+async function openPerformanceReport() {
+  perfDialog ??= createPerfDialog({
+    api,
+    t,
+    notify: (text, kind) => showNotice(text, kind),
+  });
+  await perfDialog.open();
 }
 
 async function openStatistics() {
@@ -3067,6 +3092,11 @@ try {
   // No answer: follow the browser, as before.
 }
 setState({ languageChoice });
+try {
+  setState({ logLevel: (await api.getLogLevel()).level });
+} catch {
+  // No answer: the menu shows INFO checked, the default.
+}
 try {
   await initI18n({
     document,

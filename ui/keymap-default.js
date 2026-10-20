@@ -1463,6 +1463,30 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.view.language_en",
   },
   {
+    id: "help.performance_report",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.help.performance_report",
+  },
+  {
+    id: "help.log_debug",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.help.log_debug",
+  },
+  {
+    id: "help.log_info",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.help.log_info",
+  },
+  {
+    id: "help.log_warning",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.help.log_warning",
+  },
+  {
     id: "keymap.reset",
     keys: { mac: null, other: null },
     context: "global",

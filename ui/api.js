@@ -30,6 +30,14 @@ export const getBuild = () => json("/api/build");
 export const getLanguage = () => json("/api/language");
 export const putLanguage = (setting) =>
   json("/api/language", { method: "PUT", body: JSON.stringify({ setting }) });
+/** Help > Log level: { level, setting, levels, from_environment }. */
+export const getLogLevel = () => json("/api/log-level");
+export const putLogLevel = (level) => post("/api/log-level", { level });
+/** Help > Record a performance report: { state: idle | running | done | failed, seconds,
+ * elapsed, samples, report (the file, relative to home), error }. */
+export const getProfile = () => json("/api/profile");
+export const startProfile = (seconds) => post("/api/profile", { action: "start", seconds });
+export const stopProfile = () => post("/api/profile", { action: "stop" });
 export const getViewMemory = () => json("/api/view-memory");
 /** `keepalive` lets the write finish while the page is being left. */
 export const putViewMemory = (view, { now = false } = {}) =>

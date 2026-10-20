@@ -58,7 +58,22 @@ Send:
 2. what you did and what you expected,
 3. the log file: `~/Library/Logs/Kuulas/kuulas.log` (Finder: Go > Go to Folder, paste the
    path). It rotates at 1 MB and keeps `kuulas.log.1` to `.3`; send the newest two,
-4. for a crash, the report in Console.app under Crash Reports (look for "Kuulas").
+4. for a crash, the report in Console.app under Crash Reports (look for "Kuulas"),
+5. if it is slow: see below.
+
+### If it is slow
+
+Do this **while it is slow** (for example while a long project plays): Help > **Record a
+performance report…**, choose 30 seconds (10 or 60 also work), Start, and keep doing the
+slow thing. When it finishes, Finder shows `~/Library/Logs/Kuulas/performance-<time>.txt`.
+Send that `.txt`. It lists the program's threads, the busiest functions, process CPU,
+memory and the length of a playback block; it has no project names, file names or
+recording text. It needs no password or developer tools.
+
+For a more detailed log: Help > **Log level** > Detailed (debug), repeat the problem,
+then send `kuulas.log`. Set it back to Normal afterwards (the log grows fast). From a
+terminal, `KUULAS_LOG_LEVEL=DEBUG` and `KUULAS_PROFILE=30` (seconds, from start-up) do
+the same.
 
 Your recordings and edits are in the project folder, not in the app; removing the app
 does not touch them.

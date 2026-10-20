@@ -563,7 +563,8 @@ class MediaStore:
         paths = [Path(p) for p in paths]
         if not paths:
             return []
-        with ThreadPoolExecutor(max_workers=min(len(paths), workers())) as pool:
+        with ThreadPoolExecutor(max_workers=min(len(paths), workers()),
+                               thread_name_prefix="kuulas-import") as pool:
             return list(pool.map(lambda path: self._attempt(path, copy), paths))
 
     def import_files(self, paths, copy: bool = False) -> list[Media]:
@@ -1452,8 +1453,10 @@ class _ffmpeg_pcm:  # noqa: N801 - used as a context manager, reads like a funct
             stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         # stderr is drained as it comes: a file full of damage makes ffmpeg
         # write more than a pipe holds, and it would block on us.
-        self._drain = threading.Thread(target=self._drain_stderr, daemon=True)
-        self._watch = threading.Thread(target=self._watchdog, daemon=True)
+        self._drain = threading.Thread(target=self._drain_stderr, daemon=True,
+                                       name="kuulas-ffmpeg-stderr")
+        self._watch = threading.Thread(target=self._watchdog, daemon=True,
+                                       name="kuulas-ffmpeg-watchdog")
         self._drain.start()
         self._watch.start()
 
