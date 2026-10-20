@@ -1807,6 +1807,7 @@ async function openAutomix() {
     t,
     pickFolder: folderChooser(),
     prefs,
+    onSetMusicLevel: () => openMusicLevel(),
     onStart: async (body) => {
       try {
         const { jobs } = await api.automix(body);

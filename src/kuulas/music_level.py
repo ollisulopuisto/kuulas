@@ -317,14 +317,15 @@ def check(measured: dict) -> None:
                         detail="measured")
 
 
-def record(measured: dict, offset_db: float, plan: Plan) -> dict:
+def record(measured: dict, offset_db: float, plan: Plan, at: str | None = None) -> dict:
     """The ``Project.mix_done["bed_level"]`` entry (phase 3: an export can tell
     the automixer the beds are levelled already). ``gains`` and ``key`` make it
     checkable: ``bed_level_current``."""
     return {"offset_db": offset_db, "speech_lufs": measured["speech_lufs"],
             "bed_lufs": measured["bed_lufs"], "mode": measured.get("mode", "common"),
             "change_db": plan.change_db, "gains": dict(plan.gains),
-            "key": measured.get("key"), "algorithm": ALGORITHM}
+            "key": measured.get("key"), "algorithm": ALGORITHM,
+            **({"set_at": at} if at else {})}
 
 
 def bed_level_current(p: Project) -> dict | None:

@@ -21,6 +21,7 @@ import sqlite3
 import threading
 from collections.abc import Callable
 from dataclasses import asdict, replace
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -1235,7 +1236,9 @@ class Session:
             new = state
             for track_id, gain in plan.gains.items():
                 new = ops.set_track(new, track_id, gain_db=gain)
-            entry = music_level.record(measured, offset, plan)
+            entry = music_level.record(
+                measured, offset, plan,
+                at=datetime.now(UTC).astimezone().isoformat(timespec="seconds"))
             new = replace(new, mix_done={**new.mix_done, "bed_level": entry})
             self.last_music_level = {
                 "offset_db": offset, "was_db": was,

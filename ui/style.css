@@ -3353,6 +3353,17 @@ legend.form-heading {
 .automix-badge[hidden] {
   display: none;
 }
+/* What Kuulas already did for an option: badge, why, and a small action, on one wrapping line. */
+.automix-done {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.automix-done[hidden],
+.automix-done > [hidden] {
+  display: none;
+}
 .automix-group-names {
   flex: 1 1 auto;
   min-width: 0;

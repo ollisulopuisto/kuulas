@@ -42,7 +42,7 @@ from typing import Any, NoReturn
 
 import soundfile as sf
 
-from . import export, export_names, plugins, toolpath
+from . import export, export_names, music_level, plugins, toolpath
 from .jobs import JobCancelledError
 from .messages import KuulasError, t
 
@@ -453,6 +453,49 @@ def option_flags(options: dict[str, Any],
 GATED = ("bed_under_speech_db",)
 #: Seconds the ``--help`` probe may take (``uv run`` can need a moment to start).
 PROBE_SECONDS = 10.0
+#: Automixer options whose work Kuulas can already have done in the edit: option
+#: key -> (the ``Project.mix_done`` entry, its field holding the option's value).
+#: Later phases (block level, music duck) list themselves here.
+DONE_IN_KUULAS: dict[str, tuple[str, str]] = {
+    "bed_under_speech_db": ("bed_level", "offset_db"),
+}
+
+#: How each entry is checked as still holding (``bed_level_current`` for the beds).
+_STILL_HOLDS: dict[str, Callable[[Any], Any]] = {
+    "bed_level": music_level.bed_level_current,
+}
+
+
+def done_in_kuulas(p) -> dict[str, dict[str, Any]]:
+    """``{mix_done name: {option, offset_db, ..., current}}`` for what the edit
+    records as done. ``current`` is False when the project changed since (the
+    record no longer holds); the dialog then only hints."""
+    out: dict[str, dict[str, Any]] = {}
+    for option, (name, field) in DONE_IN_KUULAS.items():
+        entry = (p.mix_done or {}).get(name)
+        if not isinstance(entry, dict) or not isinstance(entry.get(field), int | float):
+            continue
+        out[name] = {"option": option, "offset_db": entry[field],
+                     "speech_lufs": entry.get("speech_lufs"),
+                     "bed_lufs": entry.get("bed_lufs"), "mode": entry.get("mode"),
+                     "set_at": entry.get("set_at"),
+                     "current": _STILL_HOLDS[name](p) is not None}
+    return out
+
+
+def done_lines(p, options: dict[str, Any]) -> list[str]:
+    """The log header lines for options sent with the value Kuulas set, while
+    the record still holds."""
+    lines = []
+    for info in done_in_kuulas(p).values():
+        sent = options.get(info["option"])
+        if (info["current"] and isinstance(sent, int | float)
+                and sent == info["offset_db"]):
+            when = f" (set at {info['set_at']})" if info["set_at"] else ""
+            lines.append(f"Done in Kuulas: music level {_shown(sent)} dB{when}")
+    return lines
+
+
 _capability_cache: dict[tuple, dict[str, bool]] = {}
 _capability_lock = threading.Lock()
 
@@ -639,7 +682,7 @@ def _kuulas_version() -> str:
 
 def _write_log(target: Path, *, project: str, cmd: list[str], cwd: str | None,
                lines, code: int | None, started: datetime, took: dict[str, float],
-               outcome: str) -> str | None:
+               outcome: str, done: list[str] | None = None) -> str | None:
     """Write the automixer's whole output beside the mix, under a header that says what
     was run, and a summary. Never overwrites a file; ``target`` is only the name wanted.
     Returns the path, or None when it could not be written (the mix matters more than
@@ -652,6 +695,7 @@ def _write_log(target: Path, *, project: str, cmd: list[str], cwd: str | None,
         f"project: {project}",
         f"folder: {cwd or ''}",
         f"command: {shlex.join(str(c) for c in cmd)}",
+        *(done or []),
     ]
     footer = [
         f"exit code: {'none' if code is None else code}",
@@ -741,6 +785,7 @@ def run(session, params: dict, settings: dict, report: Report,
         kept, warnings = gate_options(settings.get("options") or {}, settings["command"],
                                       settings["cwd"], run_process=run_process)
         settings = {**settings, "options": kept}
+        done = done_lines(session.state, kept)
         lines.extend(f"kuulas: {w}" for w in warnings)
         cmd = build_command(settings, stems, partial, target_lufs=lufs,
                             ad_spot=ad_spot, ad_duration=ad_duration)
@@ -775,7 +820,7 @@ def run(session, params: dict, settings: dict, report: Report,
                 final.with_name(f"{final.stem} FAILED log.txt"), project=project_name,
                 cmd=cmd, cwd=settings["cwd"], lines=lines, code=code, started=started,
                 took={"stems": stems_took, "automixer": time.monotonic() - ran},
-                outcome=f"failed: {error.key}")
+                outcome=f"failed: {error.key}", done=done)
             error.params["log_file"] = kept or ""
             raise error
 
@@ -801,7 +846,7 @@ def run(session, params: dict, settings: dict, report: Report,
             final.with_name(f"{final.stem} log.txt"), project=project_name, cmd=cmd,
             cwd=settings["cwd"], lines=lines, code=code, started=started,
             took={"stems": stems_took, "automixer": time.monotonic() - ran},
-            outcome=f"mixed: {final.name}")
+            outcome=f"mixed: {final.name}", done=done)
         report(1.0, "")
         return {"path": str(final), "name": final.name, "log": list(lines),
                 "command": cmd, "flags": flags, "log_file": kept_log,
