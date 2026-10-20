@@ -146,14 +146,14 @@ export function createImportPanel({ root, t, actions, storage, schedule = setTim
           "div",
           { className: "import-actions" },
           button("ui.import.mono_yes", () => answerMono(true)),
-          button("ui.import.mono_no", () => answerMono(false), "button ghost"),
+          button("ui.import.mono_no", () => answerMono(false)),
         ),
       );
     }
     const row = el("div", { className: "import-actions" });
     if (model.canSequence) row.append(button("ui.import.sequence", () => actions.sequence()));
     if (model.canUndo)
-      row.append(button("ui.transport.undo", () => actions.undo(), "button ghost", "undo"));
+      row.append(button("ui.transport.undo", () => actions.undo(), "button", "undo"));
     if (row.children.length > 0) root.append(row);
     if (model.failures.length > 0 || model.warnings.length > 0) {
       const list = el("ul");

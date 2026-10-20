@@ -53,13 +53,15 @@ export function createSyncConfirm({ t, format }) {
   const button = (label, extra, onClick) => {
     const b = document.createElement("button");
     b.type = "button";
-    b.className = `button ${extra}`.trim();
+    b.className = `button block ${extra}`.trim();
     b.textContent = label;
     b.addEventListener("click", onClick);
     return b;
   };
   const cancel = button(t("ui.sync.confirm.cancel"), "", () => dialog.close("cancel"));
   const confirm = button(t("ui.sync.confirm.confirm"), "primary", () => dialog.close("confirm"));
+  cancel.dataset.icon = "close";
+  confirm.dataset.icon = "check";
   footer.append(cancel, confirm);
   dialog.append(heading, list, more, footer);
   document.body.append(dialog);

@@ -26,7 +26,7 @@ export function createStatsDialog({ api, t, copyText, saveJson }) {
   const button = (labelKey, onClick, extra = "") => {
     const b = document.createElement("button");
     b.type = "button";
-    b.className = `button ${extra}`.trim();
+    b.className = `button block ${extra}`.trim();
     b.textContent = t(labelKey);
     b.addEventListener("click", onClick);
     return b;
@@ -35,6 +35,8 @@ export function createStatsDialog({ api, t, copyText, saveJson }) {
   const copy = button("ui.stats.copy", () => void copyText(text));
   const save = button("ui.stats.save", () => void saveJson());
   const close = button("ui.stats.close", () => dialog.close(), "primary");
+  save.dataset.icon = "save";
+  close.dataset.icon = "close";
   copy.disabled = true;
   save.disabled = true;
   buttons.append(copy, save, close);
