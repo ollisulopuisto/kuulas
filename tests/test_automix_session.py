@@ -195,3 +195,19 @@ def test_automixer_settings_api(session, tmp_path, monkeypatch):
         r = c.post("/api/automix", json={"target_lufs": "loud"})
         assert r.status_code == 400
         assert r.json()["error"]["key"] == "error.automix.bad_target_lufs"
+
+
+def test_automixer_options_api(session, tmp_path, monkeypatch):
+    monkeypatch.setenv("KUULAS_AUTOMIXER_FILE", str(tmp_path / "automixer.json"))
+    ui = tmp_path / "ui"
+    ui.mkdir()
+    with TestClient(create_app(session, IdleEngine(), language="en", ui_dir=ui)) as c:
+        got = c.get("/api/settings/automixer").json()
+        specs = {s["key"]: s for s in got["option_specs"]}
+        assert specs["speech_debleed"]["default"] is True
+        r = c.put("/api/settings/automixer", json={"options": {"speech_debleed": False}})
+        assert r.status_code == 200
+        assert r.json()["resolved"]["options"] == {"speech_debleed": False}
+        r = c.put("/api/settings/automixer", json={"options": {"music_carve_strength": 7}})
+        assert r.status_code == 400
+        assert r.json()["error"]["key"] == "error.automix.bad_option"
