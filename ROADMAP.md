@@ -176,6 +176,14 @@ Released in v26.10.20.5 to v26.10.20.7, in order of importance:
   ducking in docs/design/DUCKING.md): `Track.duck` (default: music ducks), one command Track > Auto > "Duck music"
   writes it as editable track automation, export passes `--no-music-duck` (Done in Kuulas). Not started; after Level
   blocks and bus roles are merged (same files). Open: should the automixer stems carry track gain (today dry).
+- **Bounded speaker balance** (owner decision 20.10.2026, values are a starting guess to tune by ear): the automixer
+  measures each speaker after the user's own gains and corrects at most `--balance-speakers-max-db` (requested from
+  the podcast session, docs/PODCAST-MAGIC.md "Speaker balance"). Kuulas sends 6 dB when nothing was adjusted by hand
+  and 2-3 dB when something was; "Keep my levels" sends 0. "Adjusted by hand" = any speech track gain or clip gain
+  (or envelope) that is not zero; v1 does not tell Match loudness or Level blocks results apart from hand edits (they
+  count as hand edits too; refine later with provenance). Dialog: one choice "How much may the automixer adjust
+  levels" (Automatic / Fine-tune / Keep my levels), default by that rule. Waiting on the podcast flag; then build,
+  gated like `--bed-under-speech-db`.
 - **Smaller project folders** (owner data 2026-10-20: 1.1 GB = backups 862 MB, caches 139 MB, history 112 MB, media 7 MB,
   recordings 0): compressed and size-capped backups plus a size breakdown in Statistics (building).
 - **History compaction: PARKED, findings recorded** (owner 2026-10-20: nothing to do yet). What we know: the history
