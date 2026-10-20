@@ -3493,3 +3493,93 @@ input[type="text"] {
     padding-bottom: calc(var(--pad-panel) + 56px);
   }
 }
+
+/* Auto-Silence options: the automixer dialog's two-column form */
+.silence-dialog {
+  width: min(640px, 94vw);
+}
+.silence-dialog form {
+  display: grid;
+  gap: var(--space-4);
+}
+.silence-section {
+  display: grid;
+  gap: var(--space-2);
+}
+.silence-heading {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--panel-divider);
+  padding-bottom: var(--space-2);
+}
+.silence-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  align-items: start;
+  gap: var(--space-4);
+  margin: var(--row-gap) 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.silence-label {
+  min-height: var(--control-h);
+  display: flex;
+  align-items: center;
+}
+.silence-cell {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.silence-inline {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+.silence-inline input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--accent);
+}
+.silence-readout {
+  min-width: 4ch;
+  text-align: right;
+  color: var(--text-primary);
+}
+.silence-dialog input.silence-short {
+  max-width: 8rem;
+  text-align: right;
+}
+.silence-dialog input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+.silence-hint {
+  margin: 0;
+  color: var(--text-tertiary);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+.silence-msg {
+  margin: 0;
+  color: var(--danger-text);
+  font-size: var(--text-xs);
+}
+.silence-preview {
+  display: grid;
+  gap: var(--space-1);
+  min-height: var(--control-h);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+.silence-line {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 520px) {
+  .silence-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-1);
+  }
+}

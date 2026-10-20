@@ -442,7 +442,7 @@ def test_unknown_command_raises_edit_error(session):
 
 def test_the_command_table_is_the_plans(session):
     assert set(COMMANDS) == {
-        "auto_silence", "automix", "duck_music", "cut_words", "relink",
+        "auto_silence", "open_gates", "automix", "duck_music", "cut_words", "relink",
         "consolidate", "create_person", "edit_person",
         "delete_person", "create_interview",
         "edit_interview", "delete_interview",

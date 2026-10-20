@@ -30,11 +30,17 @@ from speechmix import envelopes, grid, masks
 from speechmix.dsp import FLOOR_DB
 from speechmix.stems import Lanes
 
-from . import gate, levels, ops
+from . import bleed_relative, gate, levels, ops
 from .media import workers
 from .messages import t
 from .mixer import Store
 from .model import Project, Track
+from .silence_options import (
+    DEFAULT_MIN_CLOSED_S,
+    DEFAULT_MIN_OPEN_S,
+    SilenceOptionError,
+    SilenceOptions,
+)
 
 #: Speech tail and onset kept open around the detected talk, in seconds.
 #: speechmix's own ducking values (lookahead before, hold after), so a
@@ -57,8 +63,8 @@ OPEN_AFTER_S = masks.DUCK_HOLD
 #: ones. MIN_OPEN_S is above a breath between two words, so a mic never
 #: flutters open for it; MIN_CLOSED_S is ten times the 30 ms edge ramp, so a
 #: closed range is never mostly ramp.
-MIN_OPEN_S = 0.4
-MIN_CLOSED_S = 0.3
+MIN_OPEN_S = DEFAULT_MIN_OPEN_S
+MIN_CLOSED_S = DEFAULT_MIN_CLOSED_S
 
 CHUNK_SEC = 60
 
@@ -163,7 +169,8 @@ def _from_audio(p: Project, store: Store, clips) -> tuple[np.ndarray, np.ndarray
     return mean_sq, valid
 
 
-def speech_lanes(p: Project, store: Store) -> Lanes:
+def speech_lanes(p: Project, store: Store,
+                 margin_db: float = grid.FLOOR_MARGIN_DB) -> Lanes:
     """One lane per speaker across speech tracks.
 
     Tracks with the same speaker are grouped into one lane. Tracks are
@@ -183,7 +190,7 @@ def speech_lanes(p: Project, store: Store) -> Lanes:
     for track, (db, valid) in zip(tracks, measured, strict=True):
         speaker = track.speaker or track.name
         floor = grid.noise_floor(grid.smooth(db), valid)
-        part = (db, valid, floor, grid.FLOOR_MARGIN_DB, 0.0)
+        part = (db, valid, floor, margin_db, 0.0)
         if speaker not in speaker_parts:
             speaker_order.append(speaker)
             speaker_parts[speaker] = []
@@ -193,7 +200,8 @@ def speech_lanes(p: Project, store: Store) -> Lanes:
     return Lanes(speakers=lanes)
 
 
-def duck_settings(depth_db: float = masks.DUCK_DB) -> SimpleNamespace:
+def duck_settings(depth_db: float = masks.DUCK_DB,
+                  dominance_db: float = masks.DUCK_DOMINANCE_DB) -> SimpleNamespace:
     """The settings object the masks read, at speechmix's defaults.
 
     Same construction as automixer's ``stems_mix``: every ``DUCK_*``
@@ -206,6 +214,7 @@ def duck_settings(depth_db: float = masks.DUCK_DB) -> SimpleNamespace:
         setattr(s, name, value)
         setattr(s, f"duck_{name}", value)
     s.db = s.duck_db = float(depth_db)
+    s.dominance_db = s.duck_dominance_db = float(dominance_db)
     return s
 
 
@@ -226,7 +235,8 @@ def _ungated(p: Project) -> Project:
     return replace(p, tracks=tuple(replace(t, gate=()) for t in p.tracks))
 
 
-def raw_silence_ranges(p: Project, store: Store) -> dict[str, gate.Gate]:
+def raw_silence_ranges(p: Project, store: Store,
+                       options: SilenceOptions | None = None) -> dict[str, gate.Gate]:
     """Per speech track, the closed ranges exactly as the measurement gives
     them, one per toggle, before ``silence_ranges`` merges them.
 
@@ -234,17 +244,22 @@ def raw_silence_ranges(p: Project, store: Store) -> dict[str, gate.Gate]:
     this replaces must not hide the audio it is being decided from, or a
     second run could never reopen a stretch the first one closed.
 
-    Closed where the owner is not talking (own floor + margin, pauses under
-    ``GAP_CLOSE_S`` bridged, blips under ``MIN_RUN_S`` dropped, padded by
-    the duck lookahead and hold) or where another mic dominates it
-    (``masks.duck_masks``: the louder mic wins, so bleed does not hold a
-    mic open).
+    Closed where the owner is not talking (own floor + ``margin_db``, pauses
+    under ``GAP_CLOSE_S`` bridged, blips under ``MIN_RUN_S`` dropped, padded
+    by ``open_before_s`` and ``open_after_s``) or where another mic dominates
+    it (``masks.duck_masks``: the louder mic wins, so bleed does not hold a
+    mic open; a mic within ``dominance_db`` of the loudest stays open). With
+    ``method == "compensated"`` the talk is decided by ``bleed_relative``
+    instead, calibrated on the hand mutes, and there is no ducking mask.
     """
-    lanes = speech_lanes(_ungated(p), store)
+    opts = options or SilenceOptions()
+    if opts.method == "compensated":
+        return _compensated_ranges(p, store, opts)
+    lanes = speech_lanes(_ungated(p), store, opts.margin_db)
     if not lanes.speakers:
         return {}
     hop = hop_frames(p.rate)
-    ducked = masks.duck_masks(lanes, duck_settings())
+    ducked = masks.duck_masks(lanes, duck_settings(dominance_db=opts.dominance_db))
     lane_by_name = {lane.name: lane for lane in lanes.speakers}
     out = {}
     for track in speech_tracks(p):
@@ -252,35 +267,107 @@ def raw_silence_ranges(p: Project, store: Store) -> dict[str, gate.Gate]:
         lane = lane_by_name.get(speaker)
         if lane is None:
             continue
-        talk = masks.close_gaps(np.asarray(lane.on, dtype=bool), GAP_CLOSE_S)
-        talk = masks.drop_short(talk, MIN_RUN_S)
-        talk = _dilate(talk, masks.hops(OPEN_BEFORE_S), masks.hops(OPEN_AFTER_S))
-        closed = ~talk
+        closed = _closed_from_talk(np.asarray(lane.on, dtype=bool), opts)
         if lane.name in ducked:
             closed |= np.asarray(ducked[lane.name], dtype=bool)[: closed.size]
         out[track.id] = gate.ranges_from_mask(closed, hop)
     return out
 
 
-def silence_ranges(p: Project, store: Store) -> dict[str, gate.Gate]:
+def _closed_from_talk(on: np.ndarray, opts: SilenceOptions) -> np.ndarray:
+    talk = masks.close_gaps(on, GAP_CLOSE_S)
+    talk = masks.drop_short(talk, MIN_RUN_S)
+    talk = _dilate(talk, masks.hops(opts.open_before_s), masks.hops(opts.open_after_s))
+    return ~talk
+
+
+def hand_mutes(track: Track) -> gate.Gate:
+    """The runs of muted clips on ``track``: what the owner muted by hand."""
+    return gate.normalise((c.start, c.end) for c in track.clips if c.muted)
+
+
+def calibration_end(p: Project) -> int:
+    """The last frame any speech track's hand mute reaches: the end of the
+    stretch the compensated method learns from (0 when there are none)."""
+    return max((r[-1][1] for t in speech_tracks(p) if (r := hand_mutes(t))), default=0)
+
+
+def _unmuted(p: Project) -> Project:
+    return replace(p, tracks=tuple(
+        replace(t, gate=(), clips=tuple(replace(c, muted=False) for c in t.clips))
+        for t in p.tracks))
+
+
+def _compensated_ranges(p: Project, store: Store,
+                        opts: SilenceOptions) -> dict[str, gate.Gate]:
+    """The ``bleed_relative`` decision (see there). Calibrated on the hand
+    mutes from the start to the last one; without any it cannot run."""
+    end = calibration_end(p)
+    if end <= 0:
+        raise SilenceOptionError("error.silence.no_hand_mutes")
+    tracks = [tr for tr in speech_tracks(p) if not tr.mute]
+    if len(tracks) < 2:
+        return {}
+    hop = hop_frames(p.rate)
+    q = _unmuted(p)
+    with ThreadPoolExecutor(max_workers=max(1, min(len(tracks), workers()))) as pool:
+        measured = list(pool.map(lambda tr: track_levels(q, store, tr), tracks))
+    db = np.stack([m[0] for m in measured]).astype(np.float64)
+    valid = np.stack([m[1] for m in measured])
+    muted = np.zeros(db.shape, dtype=bool)
+    for i, tr in enumerate(tracks):
+        for a, b in hand_mutes(tr):
+            muted[i, -(-a // hop):b // hop] = True
+    window = np.arange(db.shape[1]) < -(-end // hop)
+    offsets = bleed_relative.estimate_offsets(db, valid, muted, window)
+    on = bleed_relative.speaking(db, valid, offsets, presence_db=opts.margin_db)
+    return {tr.id: gate.ranges_from_mask(_closed_from_talk(on[i], opts), hop)
+            for i, tr in enumerate(tracks)}
+
+
+def silence_ranges(p: Project, store: Store,
+                   options: SilenceOptions | None = None) -> dict[str, gate.Gate]:
     """Per speech track, the merged timeline ranges where its mic should be
     closed (WP44): ``raw_silence_ranges`` with every open stretch under
-    ``MIN_OPEN_S`` closed and every closed stretch under ``MIN_CLOSED_S``
+    ``min_open_s`` closed and every closed stretch under ``min_closed_s``
     dropped (``gate.merge_ranges``)."""
-    min_open = round(MIN_OPEN_S * p.rate)
-    min_closed = round(MIN_CLOSED_S * p.rate)
+    opts = options or SilenceOptions()
+    min_open = round(opts.min_open_s * p.rate)
+    min_closed = round(opts.min_closed_s * p.rate)
     return {track_id: gate.merge_ranges(ranges, min_open, min_closed)
-            for track_id, ranges in raw_silence_ranges(p, store).items()}
+            for track_id, ranges in raw_silence_ranges(p, store, opts).items()}
+
+
+def preview_silence(p: Project, store: Store, options: SilenceOptions | None = None,
+                    track_ids: Iterable[str] | None = None) -> list[dict]:
+    """What Auto-Silence with ``options`` WOULD close, committing nothing: per
+    speech track ``{track_id, name, close_s, stretches, now_s}`` (``now_s``:
+    what the track's gate closes today). Pure on the snapshot ``p``, so the
+    caller can run it without any lock."""
+    only = None if track_ids is None else set(track_ids)
+    ranges = silence_ranges(p, store, options)
+    rows = []
+    for track in speech_tracks(p):
+        if track.id not in ranges or (only is not None and track.id not in only):
+            continue
+        closed = ranges[track.id]
+        rows.append({
+            "track_id": track.id, "name": track.name,
+            "close_s": sum(b - a for a, b in closed) / p.rate,
+            "stretches": len(closed),
+            "now_s": sum(b - a for a, b in track.gate) / p.rate})
+    return rows
 
 
 def auto_silence(p: Project, store: Store,
-                 track_ids: Iterable[str] | None = None) -> Project:
+                 track_ids: Iterable[str] | None = None,
+                 options: SilenceOptions | None = None) -> Project:
     """Close each speech mic where it should be closed, as a merged gate on
     the track (WP44). Clips are never split. ``track_ids`` limits
     which tracks are changed; every mic is still measured, because whether
     one is closed depends on the others (bleed)."""
     only = None if track_ids is None else set(track_ids)
-    for track_id, ranges in silence_ranges(p, store).items():
+    for track_id, ranges in silence_ranges(p, store, options).items():
         if only is None or track_id in only:
             # Replaces the track's gate: a second run does not pile up, and a
             # track that now needs no closing is opened again.

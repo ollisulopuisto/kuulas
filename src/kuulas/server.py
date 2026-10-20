@@ -726,6 +726,11 @@ def create_app(session, engine, *, language: str | None = None,
         stored = colab_transcribe.save_settings(body)
         return {"settings": stored, "resolved": colab_transcribe.resolve_settings(stored)}
 
+    @app.post("/api/auto-silence/preview", status_code=202)
+    def post_auto_silence_preview(body: Annotated[dict[str, Any], Body()]):
+        # What Auto-Silence with these options would close; changes nothing.
+        return JSONResponse({"jobs": session.auto_silence_preview(body)}, status_code=202)
+
     @app.get("/api/settings/automixer")
     def get_automixer_settings():
         stored = automix.load_settings()

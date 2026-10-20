@@ -6,6 +6,7 @@
 // part, with timers injected so tests need no clock.
 import { pruneLaneHeights } from "./lane-sizing.js";
 import { clampLaneHeight } from "./lanes.js";
+import { normaliseSilence } from "./silence-model.js";
 import { SAMPLE_ZOOM } from "./view.js";
 
 export const SIDEBAR_TABS = ["inspector", "candidates", "clipboard", "markers", "history"];
@@ -34,6 +35,8 @@ export function recordOf(state, { whole = false } = {}) {
     outPoint: state.outPoint,
     loop: state.loop === true,
     collapsedBuses: [...(state.collapsedBuses ?? [])].sort(),
+    // Auto-Silence options, once chosen: remembered per project, like the view.
+    ...(state.autoSilence ? { autoSilence: normaliseSilence(state.autoSilence) } : {}),
   };
 }
 
@@ -81,6 +84,9 @@ export function restoreFrom(record, { project, width, totalFrames }) {
     patch.focusTrack = record.focusTrack;
   }
   if (typeof record.loop === "boolean") patch.loop = record.loop;
+  if (record.autoSilence && typeof record.autoSilence === "object") {
+    patch.autoSilence = normaliseSilence(record.autoSilence);
+  }
   // Collapsed buses: only ids of buses this project has (a stale id would be dead weight).
   if (Array.isArray(record.collapsedBuses)) {
     const known = new Set((project?.buses ?? []).map((bus) => bus.id));
