@@ -81,6 +81,17 @@ export function changedItems(specs, form, words) {
   return byGroup;
 }
 
+/**
+ * The keys of changed options the installed automixer is known not to accept
+ * (`capabilities[key] === false`, from GET /api/settings/automixer). An unknown capability
+ * is not a warning: the server decides again when the run starts.
+ */
+export function unsupportedChanged(specs, form, capabilities) {
+  if (!capabilities || typeof capabilities !== "object") return [];
+  const { options } = validateOptions(specs, form);
+  return specs.filter((s) => s.key in options && capabilities[s.key] === false).map((s) => s.key);
+}
+
 /** The names of the changed items for a collapsed group's header; open groups show none
  * (the controls are right there). Cut to `max` characters with an ellipsis. */
 export function summaryText(items, collapsed, max) {
