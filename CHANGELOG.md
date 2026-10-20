@@ -1,3 +1,16 @@
+## [v26.10.20.5] - 2026-10-20
+
+- **Memory stays small on long projects.** A 5-track, 90-minute project now needs about 1.1 GB in the editor and under 0.6 GB in the analysis process, however long it is (measured with synthetic projects; before, a long project could take 2-3 GB per process and swap the Mac to death). Playback, peaks, loudness, Auto-Silence and export read the audio in blocks and no longer keep a copy; analysis stops cleanly above a memory ceiling; canvases are size-capped. A mastered export is refused before it starts when it would need more than half the memory (about 55 minutes of stereo on a 24 GB Mac); the automixer itself still loads whole stems (its own code, see ROADMAP).
+- **Paste overwrites by default** (Cmd+V): the pasted clip replaces what is under it and nothing downstream moves; Alt+Cmd+V inserts (moves later material along). With In and Out marked, the paste starts at In and is trimmed at Out.
+- **Clipboard:** the Play button on a clip turns into a Stop button and a thin progress bar runs along the chip while it plays; the chip buttons are square; fixes a bug where a clip sometimes did not start playing.
+- **Track highlight and selection follow the click** (clicking a clip or a track header selects that track; nothing is dimmed when nothing is selected).
+- **Alt+1 to Alt+5** switch the side-panel tabs (Inspector, Candidates, Clipboard, Markers, History); View > Side panel.
+- **Esc closes the topmost dialog and Enter accepts it** (Cmd+Enter from anywhere in it; in confirmations Enter is the safe choice). Esc/Enter chips show on the buttons.
+- **Exports are named after the project**, not "Pääeditio": `05 diet woke litteroitu automixer 2026-10-20 15-33-43.wav`; the edit name is added only when it is not the main edit. Your own saved name templates are left as they are.
+- **Automix dialog:** the option groups are clear collapsible cards (chevron, "N changed" badge, Expand all / Collapse all); the plug-in fields suggest installed plug-ins by fuzzy name (type "dxrev"; placeholder "Accentize dxRevive"); the block-levelling hint no longer says it is for Hindenburg only.
+- **Dragging a group** outlines every member and the group as a whole.
+- **One button style everywhere** (rulebook in docs/design/BUTTONS.md; a test stops new odd buttons) and **one form layout** (labels, fields, help text and footers line up in every dialog and panel; docs/design/FORMS.md).
+
 ## [v26.10.20.4] - 2026-10-20
 
 - **Fixes the pile-up of background processes (v26.10.20.2):** the separate analysis processes were started for every loudness request, never finished under load and survived a restart, so dozens piled up and the Mac ran out of memory. Now at most one runs at a time, a newer request replaces the older one, each has a time limit, they exit by themselves when the app is gone, and the leftovers of the previous version are cleaned up when this one starts. The log lists child processes at start and exit.
