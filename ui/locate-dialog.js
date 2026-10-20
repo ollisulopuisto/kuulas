@@ -2,6 +2,7 @@
 // by SHA-256 and says what it found and what is still missing. The matching is done by the
 // server (MediaStore.relink); the pure parts are in media-copy-model.js.
 
+import { enhanceDialog } from "./dialog-keys.js";
 import { folderOf, locateSummary } from "./media-copy-model.js";
 
 const KEY = "kuulas.locate.folder";
@@ -78,10 +79,13 @@ export function createLocateDialog({ api, t, pickFolder = null, onChanged = () =
   const close = button("ui.locate.close", () => dialog.close());
   const buttons = document.createElement("div");
   buttons.className = "cheatsheet-footer";
+  close.dataset.dialogCancel = "";
+  find.dataset.dialogPrimary = "";
   buttons.append(...(choose ? [choose] : []), find, close);
 
   dialog.append(heading, intro, body, folderLabel, error, buttons);
   document.body.append(dialog);
+  enhanceDialog(dialog, { t });
 
   const section = (titleKey, rows, note = null) => {
     const wrap = document.createElement("section");

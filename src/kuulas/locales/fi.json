@@ -2072,6 +2072,7 @@
   "ui.colab.consent_text": "Colab-litterointi lähettää tiedostojen {names} äänen Google Colab -koneelle, suoraan eikä Google Driven kautta. Ääni poistuu tästä tietokoneesta. Mitään ei lähetetä ennen kuin painat painiketta.",
   "ui.colab.consent_remember": "Älä kysy uudelleen",
   "ui.colab.consent_ok": "Lähetä ja litteroi",
+  "ui.dialog.safe_hint": "Enter peruuttaa tässä. Vahvista napsauttamalla painiketta.",
   "ui.colab.consent_cancel": "Peruuta",
   "ui.colab.settings_title": "Colab-litteroinnin asetukset",
   "ui.colab.command": "Komento",

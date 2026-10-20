@@ -139,6 +139,30 @@ kbd {
   width: 18px;
   height: 18px;
 }
+/* The keys a dialog's buttons answer to (dialog-keys.js sets data-key-hint): a small kbd-style chip
+   in the corner, the text from the attribute so a relabel of the button keeps it. */
+.button[data-key-hint] {
+  position: relative;
+}
+.button[data-key-hint]::after {
+  content: attr(data-key-hint);
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  padding: 0 var(--space-2);
+  font: var(--weight-medium) 10px / 14px var(--font-ui);
+  white-space: nowrap;
+  color: var(--kbd-text);
+  background: var(--kbd-bg);
+  border: 1px solid var(--kbd-border);
+  border-radius: var(--radius-xs);
+  pointer-events: none;
+}
+.dialog-hint {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
 /* Secondary blocks: Record's raised dark body; .primary keeps the accent fill. */
 .button.block:not(.primary) {
   background: var(--surface-raised);

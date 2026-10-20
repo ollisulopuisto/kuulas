@@ -2,6 +2,7 @@
 // field. (The desktop window uses its native dialogs instead; see app.js.) The checks are pure
 // (project-name.js); the server makes the project and opens it in a new tab.
 
+import { enhanceDialog } from "./dialog-keys.js";
 import { newProjectRequest, openProjectRequest } from "./project-name.js";
 
 /**
@@ -51,6 +52,8 @@ export function createProjectDialog({ api, t, onDone }) {
   const go = document.createElement("button");
   go.type = "submit";
   go.className = "button block primary";
+  cancel.dataset.dialogCancel = "";
+  go.dataset.dialogPrimary = "";
   buttons.append(cancel, go);
   form.append(
     field("name", "ui.project.name"),
@@ -61,6 +64,7 @@ export function createProjectDialog({ api, t, onDone }) {
   );
   dialog.append(heading, note, form);
   document.body.append(dialog);
+  enhanceDialog(dialog, { t });
 
   let kind = "new";
   const fail = (message, name) => {

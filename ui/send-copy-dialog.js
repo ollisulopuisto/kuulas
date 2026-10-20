@@ -2,6 +2,7 @@
 // none, the parts that are used (2 s either side, the default), or all of it. The server
 // writes it (src/kuulas/send_copy.py); the pure parts are in media-copy-model.js.
 
+import { enhanceDialog } from "./dialog-keys.js";
 import {
   choiceRows,
   DEFAULT_MEDIA_CHOICE,
@@ -115,11 +116,14 @@ export function createSendCopyDialog({ api, t, pickFolder = null, onDone = () =>
   const close = button("ui.send_copy.close", () => dialog.close());
   const buttons = document.createElement("div");
   buttons.className = "cheatsheet-footer";
+  close.dataset.dialogCancel = "";
+  start.dataset.dialogPrimary = "";
   buttons.append(...(choose ? [choose] : []), close, start);
 
   form.append(choices, folderLabel, status, error, buttons);
   dialog.append(heading, intro, form);
   document.body.append(dialog);
+  enhanceDialog(dialog, { t });
 
   const chosen = () => MEDIA_CHOICES.find((id) => radios[id].checked) ?? DEFAULT_MEDIA_CHOICE;
   const showError = (message) => {

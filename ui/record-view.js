@@ -8,6 +8,7 @@
 // gesture. No listening while recording: the view says monitoring is the interface's job.
 //
 // Decisions live in record-model.js and stop-mode.js (pure, tested); this file draws and wires.
+import { enhanceDialog } from "./dialog-keys.js";
 import { createPeakHold } from "./peak-hold.js";
 import {
   ARM_KEEPALIVE_MS,
@@ -154,9 +155,11 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
   modeLabel.append(modeText, modeSelect);
   const hideButton = el("button", "button block");
   hideButton.type = "button";
+  hideButton.dataset.dialogCancel = "";
   footer.append(modeLabel, hideButton);
   dialog.append(heading, body, monitoring, footer);
   document.body.append(dialog);
+  enhanceDialog(dialog, { t });
 
   const phase = () => (stopping ? "recording" : recordPhase(status));
   const recording = () => phase() === "recording";

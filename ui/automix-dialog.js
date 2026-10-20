@@ -20,6 +20,7 @@ import {
   summaryText,
   validateOptions,
 } from "./automix-options-model.js";
+import { enhanceDialog } from "./dialog-keys.js";
 
 const KEY = "kuulas.automix";
 
@@ -345,6 +346,8 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
   const start = el("button", "button block primary", t("ui.automix.start"));
   start.type = "submit";
   start.dataset.icon = "check";
+  cancel.dataset.dialogCancel = "";
+  start.dataset.dialogPrimary = "";
   buttons.append(cancel, start);
 
   const form = el("form");
@@ -353,6 +356,7 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null, prefs 
   form.append(mix, processing, out, advanced, error, buttons);
   dialog.append(heading, form);
   document.body.append(dialog);
+  enhanceDialog(dialog, { t });
 
   // -- state -------------------------------------------------------------------------------
   const values = () => ({

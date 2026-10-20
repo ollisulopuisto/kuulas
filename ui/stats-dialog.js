@@ -1,3 +1,4 @@
+import { enhanceDialog } from "./dialog-keys.js";
 // File > Statistics… (WP70): a read-only dialog. The server counts and words everything
 // (src/kuulas/project_stats.py), in the UI language and with Helsinki times, so this file
 // only lays the groups out. "Copy as text" and "Save as JSON" hand over to app.js.
@@ -39,9 +40,12 @@ export function createStatsDialog({ api, t, copyText, saveJson }) {
   close.dataset.icon = "close";
   copy.disabled = true;
   save.disabled = true;
+  close.dataset.dialogCancel = "";
+  close.dataset.dialogPrimary = "";
   buttons.append(copy, save, close);
   dialog.append(heading, body, note, buttons);
   document.body.append(dialog);
+  enhanceDialog(dialog, { t });
 
   function listOf(rows) {
     const list = document.createElement("dl");
