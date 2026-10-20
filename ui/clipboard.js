@@ -149,10 +149,10 @@ export function keepCount(state) {
   return Number.isInteger(n) && n >= 1 ? n : DEFAULT_KEEP;
 }
 
-/** The remembered paste choice, with defaults: insert, on the selected track. */
+/** The remembered paste choice, with defaults: overwrite, on the selected track. */
 export function pasteChoice(state) {
   return {
-    mode: PASTE_MODES.includes(state?.pasteMode) ? state.pasteMode : "insert",
+    mode: PASTE_MODES.includes(state?.pasteMode) ? state.pasteMode : "overwrite",
     target: PASTE_TARGETS.includes(state?.pasteTarget) ? state.pasteTarget : "auto",
   };
 }

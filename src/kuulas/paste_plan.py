@@ -85,9 +85,28 @@ def _targets(project: Project, entry: Entry,
     return resolved
 
 
+def placed_refs(entry: Entry, digests: set[str], at: int, out: int | None):
+    """The refs a paste puts on the timeline, with their (possibly limited) length.
+
+    A ref whose media the project lacks is left out; so is one that would start at or
+    after ``out`` (the marked Out point). One that runs past ``out`` is cut there as a
+    window on its media: only its length changes. Yields ``(ref, length)``.
+    """
+    for ref in entry.refs:
+        if ref.media_sha256 not in digests:
+            continue
+        length = ref.length
+        if out is not None:
+            length = min(length, out - (at + ref.rel_start))
+            if length <= 0:
+                continue
+        yield ref, length
+
+
 def plan_paste(project: Project, entry: Entry, at: int,
                mode: str = _INSERT,
-               target_tracks: Mapping[int, str] | None = None) -> PastePlan:
+               target_tracks: Mapping[int, str] | None = None,
+               out: int | None = None) -> PastePlan:
     """What pasting ``entry`` at frame ``at`` in ``mode`` would do.
 
     ``mode`` is ``"insert"`` (ripple: later material moves right by the
@@ -98,21 +117,29 @@ def plan_paste(project: Project, entry: Entry, at: int,
     of its media the project lacks. A media found by its SHA-256 that
     the project does not have is not an error: it is reported in
     ``PastePlan.missing`` and its clips are left out.
+
+    ``out`` is the marked Out point (``at`` is then the In point): every
+    pasted clip is cut to end there, a shorter paste keeps its own length
+    and the occupied stretch is limited the same way.
     """
     if mode not in (_INSERT, _OVERWRITE):
         raise KuulasError("error.paste.unknown_mode", mode=mode)
     targets = _targets(project, entry, target_tracks)
     digests = {item.sha256 for item in project.media}
-    placements = tuple(
-        (targets[ref.track_slot], ref.media_sha256, at + ref.rel_start,
-         ref.offset, ref.length, ref.gain_db, ref.pan, ref.fade_in,
-         ref.fade_out, ref.muted)
-        for ref in entry.refs if ref.media_sha256 in digests)
+    placements = []
+    for ref, length in placed_refs(entry, digests, at, out):
+        trimmed = length < ref.length
+        placements.append(
+            (targets[ref.track_slot], ref.media_sha256, at + ref.rel_start,
+             ref.offset, length, ref.gain_db, ref.pan, min(ref.fade_in, length),
+             0 if trimmed else ref.fade_out, ref.muted))
     missing = tuple(sorted({ref.media_sha256 for ref in entry.refs
                             if ref.media_sha256 not in digests}))
     length = entry.span[1] - entry.span[0]
+    if out is not None:
+        length = max(0, min(length, out - at))
     if mode == _INSERT:
-        return PastePlan(placements, length, (), missing)
+        return PastePlan(tuple(placements), length, (), missing)
     end = at + length
     landed = set(targets.values())
     # A clip is under the paste when it overlaps it by at least one
@@ -120,7 +147,7 @@ def plan_paste(project: Project, entry: Entry, at: int,
     removed = tuple(
         (track.id, at, end)
         for track in project.tracks
-        if track.id in landed
+        if end > at and track.id in landed
         and any(not (clip.end <= at or end <= clip.start)
                 for clip in track.clips))
-    return PastePlan(placements, 0, removed, missing)
+    return PastePlan(tuple(placements), 0, removed, missing)

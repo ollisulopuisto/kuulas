@@ -467,10 +467,10 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.edit.paste",
   },
   {
-    id: "edit.paste_overwrite",
+    id: "edit.paste_insert",
     keys: { mac: "Alt+Mod+V", other: "Alt+Mod+V" },
     context: "global",
-    labelKey: "cmd.edit.paste_overwrite",
+    labelKey: "cmd.edit.paste_insert",
   },
   {
     id: "edit.paste_track",
@@ -478,7 +478,7 @@ export const DEFAULT_KEYMAP = [
     context: "global",
     labelKey: "cmd.edit.paste_track",
   },
-  // Fixed forms of the other two paste choices: unbound, in the Edit menu and the palette.
+  // Fixed forms of the other paste choices: unbound, in the Edit menu and the palette.
   {
     id: "edit.paste_same",
     keys: { mac: null, other: null },
@@ -486,10 +486,16 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.edit.paste_same",
   },
   {
-    id: "edit.paste_overwrite_track",
+    id: "edit.paste_insert_track",
     keys: { mac: null, other: null },
     context: "global",
-    labelKey: "cmd.edit.paste_overwrite_track",
+    labelKey: "cmd.edit.paste_insert_track",
+  },
+  {
+    id: "edit.paste_insert_same",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.edit.paste_insert_same",
   },
   {
     id: "edit.preview_clipboard",

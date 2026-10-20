@@ -64,7 +64,7 @@ describe("the sections per target", () => {
       "edit.cut",
       "edit.copy",
       "edit.paste",
-      "edit.paste_overwrite",
+      "edit.paste_insert",
       "edit.paste_track",
       "edit.paste_same",
       "edit.delete",
@@ -100,7 +100,7 @@ describe("the sections per target", () => {
   test("lane: paste forms, marker, placeholder, in/out, select forward", () => {
     has("lane", [
       "edit.paste",
-      "edit.paste_overwrite",
+      "edit.paste_insert",
       "edit.paste_track",
       "edit.paste_same",
       "marker.add",

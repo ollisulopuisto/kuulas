@@ -40,7 +40,7 @@ export const initialState = () => ({
   clipboard: [],
   clipboardSelected: null,
   clipboardFilter: "",
-  pasteMode: "insert",
+  pasteMode: "overwrite",
   pasteTarget: "auto",
   // Cut candidates (WP18; GET /api/candidates): the rows with their timeline frames, the
   // counts, the one picked in the tab (its id), "Open only", the start of a stretch begun

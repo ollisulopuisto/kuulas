@@ -2,7 +2,7 @@
 id: clip
 title: A clip
 applies-to: [clip]
-commands: [edit.split, edit.delete, edit.cut, edit.lift_cut, edit.close_gap_all, edit.paste, clip.mute, clip.quick_mute, clip.fade, edit.undo]
+commands: [edit.split, edit.delete, edit.cut, edit.lift_cut, edit.close_gap_all, edit.paste, edit.paste_insert, clip.mute, clip.quick_mute, clip.fade, edit.undo]
 related: [timeline, track, transcript]
 ---
 A clip is a stretch of one recording placed on a track. Several clips can come from the same recording; selecting one marks its siblings with a bracket.
@@ -20,10 +20,12 @@ A clip is a stretch of one recording placed on a track. Several clips can come f
 Every edit is one step back with {key:edit.undo}.
 
 ## Paste
-- Paste: {key:edit.paste}. Pastes at the play cursor, on the track you have selected.
+- Paste: {key:edit.paste}. Pastes at the play cursor, on the track you have selected, over what is there: clips under the pasted ones are trimmed, split or removed, and nothing later moves. One undo step; recordings are never touched.
+- Paste and insert: {key:edit.paste_insert}. Pushes later material along instead of overwriting.
+- With In and Out marked, the paste starts at In and is cut at Out if it is longer; a shorter clip keeps its own length. A copy of several clips keeps its layout and every clip is cut at Out.
 - The target track is the one whose header is selected (with several selected, the topmost), else the focused track. A copy of several tracks keeps its layout: its first track goes on that track, the others below it.
 - With no track selected or focused, the paste goes back to the track it was copied from if it still exists, else to track 1.
-- Every paste form (insert, over, on the current track, on the same tracks) follows this rule; only "same tracks" always uses the source tracks. A speech clip can be pasted on a music track.
+- Every paste form (overwrite, insert, on the current track, on the same tracks) follows this rule; only "same tracks" always uses the source tracks. A speech clip can be pasted on a music track.
 
 ## Look closer
 The inspector shows the clip's level, sync and source. {show:inspector}

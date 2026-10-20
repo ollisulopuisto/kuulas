@@ -237,10 +237,11 @@ export const MENU = [
       item("edit.copy"),
       item("edit.paste"),
       submenu("menu.paste_variants", [
-        item("edit.paste_overwrite"),
+        item("edit.paste_insert"),
         item("edit.paste_track"),
         item("edit.paste_same"),
-        item("edit.paste_overwrite_track"),
+        item("edit.paste_insert_track"),
+        item("edit.paste_insert_same"),
       ]),
       submenu("menu.delete_cut", [
         item("edit.delete"),

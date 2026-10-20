@@ -204,17 +204,17 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
     () => app.openClipboardProject(),
     (s) => hasProject(s),
   );
-  planned("edit.paste", (s) => pastePlan(s, { mode: "insert", target: pasteChoice(s).target }));
-  planned("edit.paste_overwrite", (s) =>
-    pastePlan(s, { mode: "overwrite", target: pasteChoice(s).target }),
+  // Paste overwrites by default (owner, 2026-10-20): what is under the pasted clips is
+  // trimmed, split or removed and nothing later moves. The insert forms move later material.
+  planned("edit.paste", (s) => pastePlan(s, { mode: "overwrite", target: pasteChoice(s).target }));
+  planned("edit.paste_insert", (s) =>
+    pastePlan(s, { mode: "insert", target: pasteChoice(s).target }),
   );
-  planned("edit.paste_track", (s) => pastePlan(s, { mode: "insert", target: "current" }));
-  // The other two of the four paste forms, fixed whatever the panel's choice says: insert on
-  // the entry's own tracks, overwrite on the current track. Menu and palette, no keys.
-  planned("edit.paste_same", (s) => pastePlan(s, { mode: "insert", target: "same" }));
-  planned("edit.paste_overwrite_track", (s) =>
-    pastePlan(s, { mode: "overwrite", target: "current" }),
-  );
+  planned("edit.paste_track", (s) => pastePlan(s, { mode: "overwrite", target: "current" }));
+  // The other forms, fixed whatever the panel's choice says. Menu and palette, no keys.
+  planned("edit.paste_same", (s) => pastePlan(s, { mode: "overwrite", target: "same" }));
+  planned("edit.paste_insert_track", (s) => pastePlan(s, { mode: "insert", target: "current" }));
+  planned("edit.paste_insert_same", (s) => pastePlan(s, { mode: "insert", target: "same" }));
   planned("clip.mute", mutePlan);
   planned("clip.quick_mute", quickMutePlan);
   planned("clip.fade", fadePlan);

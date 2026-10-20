@@ -934,9 +934,12 @@ class Session:
                     break
 
     def clipboard_paste(self, entry_id: str, *, at: int, mode: str = "insert",
-                        target_tracks=None, label: str | None = None) -> dict:
+                        target_tracks=None, out: int | None = None,
+                        label: str | None = None) -> dict:
         """Paste an entry at frame ``at`` as one undo step; ``mode`` is
-        ``insert`` (ripple) or ``overwrite``. ``target_tracks`` maps the
+        ``insert`` (ripple) or ``overwrite`` (the default of the UI). ``out``: the
+        marked Out point, ``at`` then being the In point: the paste is cut to end there.
+        ``target_tracks`` maps the
         entry's track slots to track ids (``None``: the same tracks). Media
         the project lacks are reported in ``missing`` and their clips left
         out; a paste that places nothing commits nothing. An insert is a
@@ -947,20 +950,21 @@ class Session:
         mapping = (None if target_tracks is None
                    else {int(slot): track for slot, track in target_tracks.items()})
         at = int(at)
+        out = None if out is None else int(out)
         with self.lock:
             project = self.history.state
-            plan = plan_paste(project, entry, at, mode, mapping)
+            plan = plan_paste(project, entry, at, mode, mapping, out=out)
             report = {"placed": len(plan.placements), "missing": list(plan.missing),
                       "entry": entry.id}
             if not plan.placements:
                 return report
             landed = set(_targets(project, entry, mapping).values())
-            new = apply_paste(project, entry, plan, at, landed, mode)
+            new = apply_paste(project, entry, plan, at, landed, mode, out=out)
             self.history.commit(
                 label or t("history.clipboard_paste"), new,
                 op={"name": "clipboard_paste",
                     "args": {"entry_id": entry.id, "at": at, "mode": mode,
-                             "target_tracks": target_tracks}})
+                             "target_tracks": target_tracks, "out": out}})
             self._changed()
         return report
 

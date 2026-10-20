@@ -2626,8 +2626,7 @@ const clipboardAction = (call) => async () => {
 };
 
 // "Paste again" follows the tab's mode choice; the tab's target choice is read by the command.
-const pasteCommand = (state) =>
-  state.pasteMode === "overwrite" ? "edit.paste_overwrite" : "edit.paste";
+const pasteCommand = (state) => (state.pasteMode === "insert" ? "edit.paste_insert" : "edit.paste");
 
 const clipboardPanel = createClipboardPanel({
   root: $("panel-clipboard"),

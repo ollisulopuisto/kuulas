@@ -139,22 +139,48 @@ describe("copy", () => {
 });
 
 describe("paste", () => {
-  test("Mod+V: the newest entry, inserted at the play cursor on the current track", () => {
+  test("Mod+V: the newest entry, overwriting at the play cursor on the current track", () => {
     const plan = pastePlan(state());
     assert.equal(plan.op, "clipboard_paste");
     assert.deepEqual(plan.args, {
       entry_id: "e1",
       at: 4 * S,
-      mode: "insert",
+      mode: "overwrite",
       target_tracks: { 0: "A", 1: "V" },
     });
     assert.match(plan.label.key, /paste$/);
   });
-  test("overwrite is its own mode, label and toast", () => {
-    const plan = pastePlan(state(), { mode: "overwrite" });
-    assert.equal(plan.args.mode, "overwrite");
-    assert.match(plan.label.key, /paste_overwrite$/);
-    assert.match(plan.toast.key, /paste_overwrite$/);
+  test("insert is its own mode, label and toast", () => {
+    const plan = pastePlan(state(), { mode: "insert" });
+    assert.equal(plan.args.mode, "insert");
+    assert.match(plan.label.key, /paste_insert$/);
+    assert.match(plan.toast.key, /paste_insert$/);
+  });
+  test("overwrite (the default) has the plain paste label and toast", () => {
+    const plan = pastePlan(state());
+    assert.match(plan.label.key, /paste$/);
+    assert.match(plan.toast.key, /paste$/);
+  });
+  test("with In and Out marked the paste starts at In and is limited to Out", () => {
+    const plan = pastePlan(state({ inPoint: 2 * S, outPoint: 3 * S }));
+    assert.equal(plan.args.at, 2 * S);
+    assert.equal(plan.args.out, 3 * S);
+    assert.equal(
+      pastePlan(state({ inPoint: 2 * S, outPoint: 3 * S }), { mode: "insert" }).args.out,
+      3 * S,
+    );
+  });
+  test("only one mark, or an empty range: the playhead and the full length", () => {
+    for (const marks of [
+      { inPoint: 2 * S, outPoint: null },
+      { inPoint: null, outPoint: 3 * S },
+      { inPoint: 3 * S, outPoint: 3 * S },
+      { inPoint: 4 * S, outPoint: 3 * S },
+    ]) {
+      const plan = pastePlan(state(marks));
+      assert.equal(plan.args.at, 4 * S);
+      assert.equal("out" in plan.args, false);
+    }
   });
   test("the entry picked in the panel wins over the newest", () => {
     const s = state({ clipboard: [entry(), entry({ id: "e0" })], clipboardSelected: "e0" });
@@ -229,8 +255,8 @@ describe("paste", () => {
 });
 
 describe("the mode and target choice", () => {
-  test("defaults: insert on the selected track", () => {
-    assert.deepEqual(pasteChoice({}), { mode: "insert", target: "auto" });
+  test("defaults: overwrite on the selected track", () => {
+    assert.deepEqual(pasteChoice({}), { mode: "overwrite", target: "auto" });
   });
   test("remembers valid values and ignores nonsense", () => {
     assert.deepEqual(pasteChoice({ pasteMode: "overwrite", pasteTarget: "current" }), {
@@ -238,7 +264,7 @@ describe("the mode and target choice", () => {
       target: "current",
     });
     assert.deepEqual(pasteChoice({ pasteMode: "sideways", pasteTarget: 7 }), {
-      mode: "insert",
+      mode: "overwrite",
       target: "auto",
     });
   });

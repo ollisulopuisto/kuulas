@@ -5,7 +5,7 @@
 // menu teaches what exists; inside a section the enabled ones come first. Pure.
 import { expandGroups } from "./clip-groups.js";
 
-const PASTE = ["edit.paste", "edit.paste_overwrite", "edit.paste_track", "edit.paste_same"];
+const PASTE = ["edit.paste", "edit.paste_insert", "edit.paste_track", "edit.paste_same"];
 
 // Section title keys are `ui.ctx.<name>`; the ids are what the menu bar names too.
 const SECTIONS = {

@@ -19,7 +19,7 @@ from . import markers as markersm
 from . import placeholders as placeholdersm
 from .clipboard import Entry
 from .model import Project, Track
-from .paste_plan import PastePlan
+from .paste_plan import PastePlan, placed_refs
 
 
 def _split_at(p: Project, track_id: str, frame: int) -> Project:
@@ -67,10 +67,11 @@ def _clear(p: Project, track_id: str, start: int, end: int) -> Project:
 
 
 def apply_paste(project: Project, entry: Entry, plan: PastePlan, at: int,
-                rippled: set[str], mode: str) -> Project:
+                rippled: set[str], mode: str, out: int | None = None) -> Project:
     """``project`` with ``plan`` done at frame ``at``. ``rippled``: the tracks an insert
     ripples (the targets only: a sync group is not a scope, WP83). Refs
-    whose media the project lacks are not placed.
+    whose media the project lacks are not placed. ``out``: the Out point the plan
+    was limited to (the same one, so the refs pair with the placements).
     """
     p = project
     if mode == "insert":
@@ -86,7 +87,7 @@ def apply_paste(project: Project, entry: Entry, plan: PastePlan, at: int,
     media = {}
     for item in project.media:
         media.setdefault(item.sha256, item.id)
-    present = [ref for ref in entry.refs if ref.media_sha256 in media]
+    present = [ref for ref, _ in placed_refs(entry, set(media), at, out)]
     for ref, placed in zip(present, plan.placements, strict=True):
         track_id, sha, start, offset, length, gain, pan, fade_in, fade_out, muted = placed
         clip_id = ops.new_id("c")

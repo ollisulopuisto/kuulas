@@ -127,10 +127,11 @@ const WORKING = [
   "clip.gain_down",
   "edit.copy",
   "edit.paste",
-  "edit.paste_overwrite",
+  "edit.paste_insert",
   "edit.paste_track",
   "edit.paste_same",
-  "edit.paste_overwrite_track",
+  "edit.paste_insert_track",
+  "edit.paste_insert_same",
   "edit.preview_clipboard",
   "edit.clear_old_clipboard",
   "edit.share_clipboard",
@@ -379,7 +380,7 @@ describe("the clipboard commands (WP46)", () => {
     assert.equal(registry.can("edit.copy", base()), false);
     assert.equal(registry.can("edit.copy", base({ selection: new Set(["a1"]) })), true);
     assert.equal(registry.can("edit.copy", base({ inPoint: 0, outPoint: S })), true);
-    for (const id of ["edit.paste", "edit.paste_overwrite", "edit.paste_track"]) {
+    for (const id of ["edit.paste", "edit.paste_insert", "edit.paste_track"]) {
       assert.equal(registry.can(id, base()), false, id);
       assert.equal(registry.can(id, base({ clipboard: [] })), false, id);
       assert.equal(registry.can(id, withClip()), true, id);
@@ -389,17 +390,17 @@ describe("the clipboard commands (WP46)", () => {
   test("the four paste forms are fixed commands whatever the panel's choice says", () => {
     const state = withClip({ pasteTarget: "current", pasteMode: "overwrite" });
     const h = setup(state);
+    h.registry.run("edit.paste_insert_same", null, state);
+    h.registry.run("edit.paste_insert_track", null, state);
     h.registry.run("edit.paste_same", null, state);
-    h.registry.run("edit.paste_overwrite_track", null, state);
     assert.equal(h.sent[0].args.mode, "insert");
     // the source track by name, else track 1 (slots are dense, so the slot number is no track)
     assert.deepEqual(h.sent[0].args.target_tracks, { 0: "A" });
-    assert.equal(h.sent[1].args.mode, "overwrite");
+    assert.equal(h.sent[1].args.mode, "insert");
     assert.deepEqual(h.sent[1].args.target_tracks, { 0: "A" });
-    assert.equal(
-      h.registry.can("edit.paste_overwrite_track", withClip({ focusTrack: null })),
-      false,
-    );
+    assert.equal(h.sent[2].args.mode, "overwrite");
+    assert.deepEqual(h.sent[2].args.target_tracks, { 0: "A" });
+    assert.equal(h.registry.can("edit.paste_insert_track", withClip({ focusTrack: null })), false);
     assert.equal(h.registry.can("edit.paste_same", withClip({ focusTrack: null })), true);
   });
 
@@ -516,21 +517,32 @@ describe("the clipboard commands (WP46)", () => {
     assert.equal(h.copied.length, 0);
   });
 
-  test("Mod+V inserts at the play cursor, Alt+Mod+V overwrites, on the panel's target", () => {
+  test("Mod+V overwrites at the play cursor, Alt+Mod+V inserts, on the panel's target", () => {
     const state = withClip({ pasteTarget: "current" });
     const h = setup(state);
     h.registry.run("edit.paste", null, state);
-    h.registry.run("edit.paste_overwrite", null, state);
+    h.registry.run("edit.paste_insert", null, state);
     h.registry.run("edit.paste_track", null, withClip({ pasteTarget: "same" }));
     assert.deepEqual(h.sent[0].args, {
       entry_id: "e1",
       at: 4 * S,
-      mode: "insert",
+      mode: "overwrite",
       target_tracks: { 0: "A" },
     });
-    assert.equal(h.sent[1].args.mode, "overwrite");
+    assert.equal(h.sent[1].args.mode, "insert");
     assert.deepEqual(h.sent[2].args.target_tracks, { 0: "A" });
-    assert.equal(h.sent[2].args.mode, "insert");
+    assert.equal(h.sent[2].args.mode, "overwrite");
+  });
+
+  test("with In and Out marked every paste form starts at In and stops at Out", () => {
+    const state = withClip({ inPoint: S, outPoint: 2 * S });
+    const h = setup(state);
+    h.registry.run("edit.paste", null, state);
+    h.registry.run("edit.paste_insert", null, state);
+    for (const sent of h.sent) {
+      assert.equal(sent.args.at, S);
+      assert.equal(sent.args.out, 2 * S);
+    }
   });
 
   test("a paste that lacked recordings says so, and one that placed nothing offers no Undo", () => {

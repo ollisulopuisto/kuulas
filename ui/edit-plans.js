@@ -331,7 +331,9 @@ export function pasteAnchor(state) {
 }
 
 /**
- * Mod+V (insert), Alt+Mod+V (overwrite): paste an entry at the play cursor. `target`:
+ * Mod+V (overwrite), Alt+Mod+V (insert): paste an entry at the play cursor. With In and Out
+ * marked (In before Out) the paste starts at In instead and is cut at Out (`out`); a shorter
+ * paste keeps its own length. `target`:
  * "auto" (default: the anchor track, else the source tracks), "current" (the anchor track
  * and the ones below it; null without one) or "same" (the source tracks). The entry's slots
  * keep their layout from the anchor downwards; extra slots fold onto the last track.
@@ -357,14 +359,17 @@ export function pastePlan(state, { mode, target } = {}) {
     );
   }
   if (targetTracks === null || ids.length === 0) return null;
-  const key = choice.mode === "overwrite" ? "paste_overwrite" : "paste";
+  const key = choice.mode === "insert" ? "paste_insert" : "paste";
+  const { inPoint, outPoint } = state;
+  const marked = Number.isFinite(inPoint) && Number.isFinite(outPoint) && inPoint < outPoint;
   return plan(
     "clipboard_paste",
     {
       entry_id: entry.id,
-      at: state.playhead,
+      at: marked ? inPoint : state.playhead,
       mode: choice.mode,
       target_tracks: targetTracks,
+      ...(marked ? { out: outPoint } : {}),
     },
     key,
     { count: entry.clips },

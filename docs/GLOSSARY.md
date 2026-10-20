@@ -14,7 +14,7 @@ because the owner knows them.
 | Silence a stretch in place, the gap stays | **Mute selection** (today "Delete (keep the gap)") | Backspace | Mykistä valinta | (Delete leaves gap) | soft; can be undone by muting back |
 | Mute or unmute whole selected clips | **Mute clips** (toggle) | N | Mykistä leike | – | |
 | Copy to the clipboard, change nothing | **Copy** | Cmd+C | Kopioi | Kopioi | |
-| Put clipboard content in | **Paste** (insert) / **Paste over** | Cmd+V | Sijoita / Sijoita päälle | Sijoita, Lisää | |
+| Put clipboard content in | **Paste** (overwrite) / **Paste and insert** | Cmd+V | Sijoita / Sijoita päälle | Sijoita, Lisää | |
 | Split a clip at the cursor | **Split** | B | Jaa | Jaa | |
 | Copy, then mute in place | **Lift-cut** | Alt+X | (to name) | – | rarely used |
 
