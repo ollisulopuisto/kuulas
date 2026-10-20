@@ -102,12 +102,12 @@ Asserted:
 
 | Length | Editor peak | Worker peak | Chunk cache at end |
 |---|---|---|---|
-| 10 min | 1.19 GiB | 0.37 GiB | 0 |
-| 30 min | 1.29 GiB | 0.42 GiB | 0 |
-| 90 min | 1.23 GiB | 0.58 GiB | 0 |
+| 10 min | 1.21 GiB | 0.37 GiB | 0 |
+| 30 min | 1.36 GiB | 0.40 GiB | 0 |
+| 90 min | 1.07 GiB | 0.42 GiB | 0 |
 
-That run was before the worker's 2-tracks-at-once cap and its 64 MB budget.
-A re-run with both was still going at hand-back.
+Before the worker measured at most 2 tracks at once with a 64 MB budget,
+its peak at 90 min was 0.58 GiB.
 
 Before the engine fix below, the same run reached 1.68 GiB at 10 min and
 2.77 GiB at 30 min in the read-ahead stage alone.
