@@ -162,6 +162,21 @@ Not released yet (branches above): track highlight follows the click; Alt+1 to A
   the bed can be stretched to any length. UI: loop handles on the clip, clip shows repeat ticks; ops `set_clip_loop`
   (region + count/length), engine reads wrap around the region; export/stems render it identically; undo as one step.
   Open question: how it interacts with sync/groups, ripple trims and the fade-out (suggest: fades at the clip ends only).
+- **Auto-mix inside Kuulas** (owner request 2026-10-20; the mixing becomes editable clips/levels/automation in the GUI,
+  and the export tells the automixer what is already done). Phase 1 (building): **Set music level**, a Track > Auto
+  command that measures the speech and the music beds (same rule as the automixer: the loudest 3 s moment of the music
+  vs the speech level while someone speaks) and sets the music track/clip gain to a chosen distance under the speech
+  (default -10 dB, editable; the automixer's own fixed rule is -1 dB), one undo step. Phase 2: **Level blocks**
+  (speechmix block gains written as clip gains, splitting clips where needed). Phase 3: **'Done in Kuulas' manifest** in
+  tracks.json (applied: block_level, bed_level_db, music_duck, mic_gates) so the export adds `--no-block-level`,
+  `--no-music-duck` and tells the automixer to keep the stem level for beds; the automix dialog shows a 'Done in Kuulas'
+  badge next to those options. Needs from the podcast repo: `--bed-under-speech-db` (requested in PODCAST-MAGIC.md) and a
+  'keep the stem level for beds' switch. DSP (debleed, de-smack, EQ, compressors) stays in the automixer.
+- **Smaller project folders** (owner data 2026-10-20: 1.1 GB = backups 862 MB, caches 139 MB, history 112 MB): compressed
+  and size-capped backups plus a size breakdown in Statistics (building); later: option to keep backups outside synced
+  folders; history compaction up to a saved version, with unreferenced recorded takes archived, never deleted silently
+  (rule 17); decisions pending: archive vs delete default, trigger (offer when a version is marked complete + manual
+  command + warning above 2 GB).
 - **Quick mute for lip smacks** (owner request 2026-10-20, QoL, not started): two forms, both one key. (1) "Mute
   from mark to cursor": set a mark, play on, press the key, and the stretch mark..cursor is muted (a soft cut, hatched).
   (2) "Mute around cursor": one key mutes a fixed short stretch centred on the cursor (default 0.5 s, so 0.25 s before and
