@@ -76,7 +76,8 @@ def resolve_settings(stored: dict | None, *, home: Path | None = None) -> dict[s
     mix is written; None means beside the project's ``.kuulas`` folder) and ``temp_dir``
     (where the temporary stems go; None means the system's temporary folder, as the
     OS or ``$TMPDIR`` sets it). The default folder is the podcast checkout when it
-    exists."""
+    exists. ``options`` are the automixer's switches as settings (see ``OPTIONS``): only
+    values that differ from the tool's own defaults, and only valid ones."""
     stored = stored or {}
     command = stored.get("command")
     if not (isinstance(command, list) and command
@@ -94,7 +95,8 @@ def resolve_settings(stored: dict | None, *, home: Path | None = None) -> dict[s
     out_dir = stored.get("output_dir")
     out_dir = out_dir.strip() if isinstance(out_dir, str) and out_dir.strip() else None
     return {"command": list(command), "cwd": cwd, "extra_args": list(extra),
-            "temp_dir": temp, "output_dir": out_dir}
+            "temp_dir": temp, "output_dir": out_dir,
+            "options": _tolerant_options(stored.get("options"))}
 
 
 def settings_path() -> Path:
@@ -134,6 +136,8 @@ def save_settings(settings: dict) -> dict:
         raise AutomixError("error.automix.bad_settings")
     keys = ("command", "cwd", "extra_args", "temp_dir", "output_dir")
     clean = {k: settings[k] for k in keys if settings.get(k) is not None}
+    if settings.get("options") is not None:
+        clean["options"] = normalize_options(settings["options"])
     path = settings_path()
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -240,15 +244,168 @@ def build_command(settings: dict, folder: Path, output: Path, *,
                   ad_duration: float | None) -> list[str]:
     """The argument list (never a shell string): the command, the stems FOLDER (the
     one with ``tracks.json``; a list of files would take the automixer's in-memory
-    route), ``-o``, the options of this run, ``--progress``, then the user's extra
-    arguments."""
+    route), ``-o``, the options of this run, ``--progress``, the switches that differ from
+    the tool's defaults (``settings["options"]``), then the user's extra arguments."""
     cmd = [*settings["command"], str(folder), "-o", str(output),
            "--target-lufs", _shown(target_lufs), "--progress"]
     if ad_spot is not None:
         cmd += ["--ad-spot", _shown(ad_spot)]
         if ad_duration is not None:
             cmd += ["--ad-duration", _shown(ad_duration)]
+    cmd += option_flags(settings.get("options") or {})
     return [*cmd, *settings["extra_args"]]
+
+
+# -- the tool's switches as settings -----------------------------------------------------
+#
+# Read from ``podcast/apps/automixer/src/automixer/cli_mix.py`` (argparse defaults) and
+# PIPELINE.md. ``kind``: ``bool`` (a stage; when the tool default is on, the flag is the
+# ``--no-<x>`` one), ``number`` (``min``/``max``), ``text`` (one argument), ``list``
+# (``nargs="+"`` paths). ``parent``: the number only means something while that stage is
+# on. ``minimal``: ``--minimal`` switches this stage off, so it is not sent beside it.
+#: ``(key, flag, kind, default, group, extras)``
+_RAW_OPTIONS: tuple[tuple[str, str, str, Any, str, dict[str, Any]], ...] = (
+    ("minimal", "--minimal", "bool", False, "minimal", {}),
+    ("speech_hp", "--no-speech-hp", "bool", True, "speech", {"minimal": True}),
+    ("speech_peak", "--no-speech-peak", "bool", True, "speech", {"minimal": True}),
+    ("speech_lev", "--no-speech-lev", "bool", True, "speech", {"minimal": True}),
+    ("speech_multiband", "--speech-multiband", "bool", False, "speech", {}),
+    ("speech_desmack", "--no-speech-desmack", "bool", True, "speech", {"minimal": True}),
+    ("speech_desmack_sensitivity", "--speech-desmack-sensitivity", "number", 0.5,
+     "speech", {"min": 0.0, "max": 1.0, "parent": "speech_desmack"}),
+    ("speech_debleed", "--no-debleed", "bool", True, "debleed", {"minimal": True}),
+    ("speech_rider", "--no-rider", "bool", True, "debleed", {"minimal": True}),
+    ("block_level", "--no-block-level", "bool", True, "debleed", {"minimal": True}),
+    ("speech_mic_duck", "--mic-duck", "bool", False, "micduck", {"minimal": True}),
+    # No default in the tool's parser: it uses the measured -9 dB when this is not given.
+    ("mic_duck_db", "--mic-duck-db", "number", None, "micduck",
+     {"min": -60.0, "max": 0.0, "parent": "speech_mic_duck"}),
+    ("music_carve", "--no-music-carve", "bool", True, "music", {"minimal": True}),
+    ("music_carve_strength", "--music-carve-strength", "number", 0.5, "music",
+     {"min": 0.0, "max": 1.0, "parent": "music_carve"}),
+    ("music_duck", "--no-music-duck", "bool", True, "music", {"minimal": True}),
+    ("music_duck_threshold", "--music-duck-threshold", "number", -30.0, "music",
+     {"min": -80.0, "max": 0.0, "parent": "music_duck"}),
+    ("speech_plugins", "--speech-plugins", "list", None, "plugins", {}),
+    ("music_plugins", "--music-plugins", "list", None, "plugins", {}),
+    ("plugin_params", "--plugin-params", "text", None, "plugins", {}),
+    ("track_params", "--track-params", "text", None, "plugins", {}),
+    ("plugin_state", "--plugin-state", "text", None, "plugins", {}),
+)
+OPTIONS: dict[str, dict[str, Any]] = {
+    key: {"key": key, "flag": flag, "kind": kind, "default": default, "group": group,
+          **extras}
+    for key, flag, kind, default, group, extras in _RAW_OPTIONS}
+#: Longest text or list the UI may send (a plug-in state can be long base64).
+MAX_TEXT = 20000
+MAX_ITEMS = 50
+
+
+def option_specs() -> list[dict[str, Any]]:
+    """The switches in dialog order, for the UI (it draws its controls from these)."""
+    return [dict(spec) for spec in OPTIONS.values()]
+
+
+def _bad_option(key: str, value: Any) -> NoReturn:
+    raise AutomixError("error.automix.bad_option", option=key, value=str(value)[:80])
+
+
+def _text(key: str, value: Any) -> str:
+    """A text argument: no control characters, not shaped like a flag (it is a separate
+    argument, so no shell, but the tool's parser would take ``--x`` for a switch)."""
+    if not isinstance(value, str):
+        _bad_option(key, value)
+    value = value.strip()
+    if (len(value) > MAX_TEXT or value.startswith("-")
+            or any(ord(c) < 32 or ord(c) == 127 for c in value)):
+        _bad_option(key, value)
+    return value
+
+
+def _option_value(spec: dict[str, Any], value: Any) -> Any:
+    """The checked value of one option, or None for 'the default' (empty); else raises."""
+    key, kind = spec["key"], spec["kind"]
+    if kind == "bool":
+        if not isinstance(value, bool):
+            _bad_option(key, value)
+        return value
+    if kind == "number":
+        if value is None or value == "":
+            return None
+        if isinstance(value, bool) or not isinstance(value, int | float | str):
+            _bad_option(key, value)
+        try:
+            number = float(value.replace(",", ".") if isinstance(value, str) else value)
+        except ValueError:
+            _bad_option(key, value)
+        if not (spec["min"] <= number <= spec["max"]):  # NaN fails too
+            _bad_option(key, value)
+        return number
+    if kind == "list":
+        if not isinstance(value, list) or len(value) > MAX_ITEMS:
+            _bad_option(key, value)
+        items = [_text(key, item) for item in value]
+        return [item for item in items if item] or None
+    return _text(key, value) or None
+
+
+def normalize_options(options: Any) -> dict[str, Any]:
+    """The options as stored: checked, and only those that differ from the tool's
+    defaults. Raises ``AutomixError`` (``bad_option``) for an unknown name or a wrong
+    type, an out-of-range or non-finite number, or a text that looks like a switch."""
+    if not isinstance(options, dict):
+        _bad_option("options", options)
+    clean: dict[str, Any] = {}
+    for key, value in options.items():
+        spec = OPTIONS.get(key)
+        if spec is None:
+            _bad_option(str(key), value)
+        checked = _option_value(spec, value)
+        if checked is not None and checked != spec["default"]:
+            clean[key] = checked
+    return clean
+
+
+def _tolerant_options(options: Any) -> dict[str, Any]:
+    """``normalize_options`` for what was stored earlier: a damaged entry is dropped
+    so one bad value never stops the dialog from opening."""
+    if not isinstance(options, dict):
+        return {}
+    clean: dict[str, Any] = {}
+    for key, value in options.items():
+        with contextlib.suppress(AutomixError):
+            clean.update(normalize_options({key: value}))
+    return clean
+
+
+def option_flags(options: dict[str, Any]) -> list[str]:
+    """The command-line words for the options that differ from the tool's defaults
+    (checked again here: ``build_command`` takes any dict)."""
+    options = _tolerant_options(options)
+    minimal = options.get("minimal") is True
+
+    def active(key: str) -> bool:
+        spec = OPTIONS[key]
+        if minimal and spec.get("minimal"):
+            return False
+        return bool(options.get(key, spec["default"]))
+
+    words: list[str] = []
+    for key, spec in OPTIONS.items():
+        if key not in options:
+            continue
+        value = options[key]
+        if spec["kind"] == "bool":
+            if not (minimal and spec.get("minimal")):
+                words.append(spec["flag"])
+        elif spec["kind"] == "number":
+            if spec.get("parent") is None or active(spec["parent"]):
+                words += [spec["flag"], _shown(value)]
+        elif spec["kind"] == "list":
+            words += [spec["flag"], *value]
+        else:
+            words += [spec["flag"], value]
+    return words
 
 
 def _tool_env() -> dict[str, str]:
@@ -369,6 +526,8 @@ def run(session, params: dict, settings: dict, report: Report,
     settings = resolve_settings(settings)
     if isinstance(params.get("extra_args"), list):
         settings["extra_args"] = [str(x) for x in params["extra_args"]]
+    if isinstance(params.get("options"), dict):
+        settings["options"] = normalize_options(params["options"])
     if settings["cwd"] and not Path(settings["cwd"]).is_dir():
         raise AutomixError("error.automix.bad_cwd", cwd=settings["cwd"])
 

@@ -43,6 +43,22 @@ our old Window menu; the yellow window button still minimises.
   (PyInstaller), are separate later chores.
 - Dropped-file paths exist only through pywebview's own DOM event API.
 
+## Remembered UI settings (`ui-prefs.json`)
+
+Theme, density, fast-listening speed, drag mode, panel states and the like are kept
+in `ui-prefs.json` in the config folder (beside `settings.json`), not in browser
+storage: every window is served on a fresh random port, so its localStorage is a
+new, empty origin, and pywebview 5+ runs private by default. `ui/prefs.js` loads the
+file once at startup (`GET /api/prefs`, `ui_prefs.py`) and writes changes back
+(`PUT /api/prefs {"set":{...},"remove":[...]}`, debounced 300 ms and on page hide).
+Windows of all projects share the file; last write wins per key. A damaged or
+missing file means defaults. If the server read fails the UI falls back to
+localStorage. First run after the change imports existing `kuulas.*` localStorage
+keys if the file is empty. `webview.start` also gets `private_mode=False` and
+`storage_path=<config>/webview` where pywebview accepts them. Other modules that
+read localStorage directly (keymap overrides, import and dialog forms, inspector
+sections) are not yet moved and still reset per launch.
+
 ## Verified and not
 
 Verified (automated, `tests/test_desktop.py`, `ui/tests/native.test.js`): config

@@ -16,6 +16,7 @@ import {
 } from "./clipboard.js";
 import { clipEnd } from "./lanes.js";
 import { splitClipsProvisional } from "./provisional.js";
+import { quickMuteStretch } from "./quick-mute.js";
 import { resolveScope } from "./range-scope.js";
 import { clipsAround, currentTrack, markedRange, selectedClips } from "./selection.js";
 
@@ -120,6 +121,33 @@ export function deletePlan(state) {
   return plan("set_clips", { clip_ids: live.map((e) => e.clip.id), muted: true }, "delete_clips", {
     count: live.length,
   });
+}
+
+/**
+ * Quick mute: a short stretch centred on the play cursor (the setting `quickMuteS`, seconds) is
+ * muted on the range scope's tracks (WP83), whatever range is marked. It is a soft cut
+ * (`mute_range`: the clips are split at the two edges, the middle piece is muted, one undo step);
+ * `ops.mute_ranges` splits only inside clips, so nothing outside a clip is touched. Null when no
+ * clip lies under the stretch; a notice (refusal) when what lies there is muted already.
+ */
+export function quickMutePlan(state) {
+  if (!state?.project || !Number.isFinite(state.playhead)) return null;
+  const scope = resolveScope(state);
+  if (scope.none) return scopeRefusal();
+  const { start, end } = quickMuteStretch(state.playhead, rateOf(state), state.quickMuteS);
+  const under = state.project.tracks
+    .filter((track) => scope.tracks.includes(track.id))
+    .flatMap((track) => track.clips)
+    .filter((clip) => clip.start < end && clipEnd(clip) > start);
+  if (under.length === 0) return null;
+  if (under.every((clip) => clip.muted)) return { refuse: { key: "ui.quick_mute.already" } };
+  return plan(
+    "mute_range",
+    { start, end, track_ids: scope.tracks },
+    "quick_mute",
+    { seconds: secondsOf(state, end - start) },
+    { tracks: true },
+  );
 }
 
 /**

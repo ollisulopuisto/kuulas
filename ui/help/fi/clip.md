@@ -2,7 +2,7 @@
 id: clip
 title: Leike
 applies-to: [clip]
-commands: [edit.split, edit.delete, edit.cut, edit.lift_cut, edit.close_gap_all, edit.paste, clip.mute, clip.fade, edit.undo]
+commands: [edit.split, edit.delete, edit.cut, edit.lift_cut, edit.close_gap_all, edit.paste, clip.mute, clip.quick_mute, clip.fade, edit.undo]
 related: [timeline, track, transcript]
 ---
 Leike on pala yhdestä äänityksestä raidalla. Samasta äänityksestä voi olla monta leikettä; kun valitset yhden, sen sisarleikkeet merkitään hakasella.
@@ -14,6 +14,7 @@ Leike on pala yhdestä äänityksestä raidalla. Samasta äänityksestä voi oll
 - Nosta: {key:edit.lift_cut}. Kopioi leikepöydälle ja poistaa pehmeästi paikallaan: väli jää ja sen voi palauttaa.
 - Sulje aukko kaikilta raidoilta: {key:edit.close_gap_all}. Poistaa valinnan tai merkityn välin jokaiselta raidalta ja sulkee aukon; leikepöytä ei muutu.
 - Mykistä leike: {key:clip.mute}. Mykistetty leike on haalea ja viivoitettu.
+- Pikamykistys (maiskahdukset): {key:clip.quick_mute}. Mykistää lyhyen jakson toistokohdan ympäriltä (oletus 0,5 s, asetus Asetuksissa) kaikilta raidoilta tai valituilta; toimii myös toiston aikana. Yksi kumoamisaskel; mitään ei poisteta.
 - Häivytys sisään ja ulos: {key:clip.fade}
 
 Jokaisen muokkauksen voi perua askel kerrallaan: {key:edit.undo}.

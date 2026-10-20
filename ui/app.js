@@ -103,10 +103,11 @@ import { createPerfDialog } from "./perf-dialog.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
 import { createPlayheadClock } from "./playhead-clock.js";
 import { createPreferencesDialog } from "./preferences-dialog.js";
-import { createPrefs } from "./prefs.js";
+import { loadPrefs } from "./prefs.js";
 import { nextPreroll, prerollLabel } from "./preroll.js";
 import { createProjectDialog } from "./project-dialog.js";
 import { patchClip } from "./provisional.js";
+import { normaliseQuickMute, QUICK_MUTE_KEY } from "./quick-mute.js";
 import { rangeLine } from "./range-info.js";
 import { rememberRange, stepRangeMemory } from "./range-memory.js";
 import {
@@ -155,7 +156,7 @@ import { nextWheelMode, wheelModeChoice } from "./wheel.js";
 
 const $ = (id) => document.getElementById(id);
 installIcons();
-const prefs = createPrefs();
+const prefs = await loadPrefs(); // server-side store, read once before the first prefs.get
 const WAVEFORM_GAIN = { min: 1 / 8, max: 32, snap: 0.04 };
 const LANE_STEP = 8;
 const SETTLE_MS = 160;
@@ -442,6 +443,14 @@ function toggleClipboardLimit() {
   setState({ clipboardLimit: on });
   prefs.set(CLIPBOARD_LIMIT_KEY, on ? "on" : "off");
   showNotice(t(on ? "ui.clipboard.limit.on" : "ui.clipboard.limit.off"), "ok");
+}
+
+// Quick mute length (seconds, Preferences); read by quickMutePlan from the state.
+setState({ quickMuteS: normaliseQuickMute(prefs.get(QUICK_MUTE_KEY)) });
+function setQuickMuteLength(seconds) {
+  const value = normaliseQuickMute(seconds);
+  setState({ quickMuteS: value });
+  prefs.set(QUICK_MUTE_KEY, value);
 }
 
 const FAST_KEY = "fast";
@@ -2200,6 +2209,7 @@ function openPreferences() {
         if (on !== (getState().clipboardLimit !== false)) toggleClipboardLimit();
       },
       fast: (speed) => changeFast((fast) => setFast(fast, speed)),
+      quickMute: (seconds) => setQuickMuteLength(seconds),
     },
     run: (command) => keyboard.registry.run(command, null, getState()),
     canRun: (command) => keyboard.registry.can(command, getState()),

@@ -1,9 +1,16 @@
-## [v26.10.20.3] - 2026-10-20
+## [v26.10.20.4] - 2026-10-20
 
 - **Fixes the pile-up of background processes (v26.10.20.2):** the separate analysis processes were started for every loudness request, never finished under load and survived a restart, so dozens piled up and the Mac ran out of memory. Now at most one runs at a time, a newer request replaces the older one, each has a time limit, they exit by themselves when the app is gone, and the leftovers of the previous version are cleaned up when this one starts. The log lists child processes at start and exit.
 - **The cursor no longer jumps back when you stop** (most noticeable when listening sped up), and while playing sped up with the pitch kept the cursor no longer runs 10-20 ms ahead of the sound.
 - **Cmd+V pastes onto the selected track** (the topmost selected track, else the focused one; a multi-track copy keeps its layout below it). The paste target selector has a new default, "Selected track (else source)".
 - **Music tracks are not transcribed:** recordings used only on music tracks are skipped by every transcribe command and the transcript panel says so ("Transcribe anyway" is there, local only). Nothing already transcribed is touched, and no music audio goes to Colab.
+
+## [v26.10.20.3] - 2026-10-20
+
+- **Your settings are remembered.** Preferences such as the fast-listening speed (1.75 stays 1.75), theme, drag mode and the panel choices were forgotten at every start; they are now saved in the config folder (`ui-prefs.json`). A few dialogs and the keymap overrides still use the old per-window storage.
+- **Quick mute: press H** to mute a short stretch centred on the cursor (default 0.5 s, 0.25 s each side; Preferences > Quick mute length). Works while playing, honours the track scope, one undo step. Clip > Quick mute.
+- **Automixer: every setting in the dialog.** Track > Auto > Automix now has a Processing section: Minimal, Speech, De-bleed and rider, Microphone ducking, Music, Plug-ins and per-track settings, with the tool's defaults shown. Only changed values are sent. "Other arguments" stays for anything else.
+- **Start screen: Cmd+1 … Cmd+9 open the 1st … 9th recent project**, and the cards show the key.
 
 ## [v26.10.20.2] - 2026-10-20
 

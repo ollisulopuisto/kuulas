@@ -78,6 +78,8 @@ export const initialState = () => ({
   syncClips: [],
   syncAnchors: [],
   nudgeMs: 10,
+  // Quick mute length in seconds (Preferences, ui/quick-mute.js); app.js loads the remembered one.
+  quickMuteS: 0.5,
   zoom: 48_000 / 20,
   scroll: 0,
   scrollY: 0,
