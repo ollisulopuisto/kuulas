@@ -483,7 +483,7 @@ class Bridge:
             return False
 
         try:
-            folder_path = Path(folder).expanduser().resolve()
+            folder_path = Path(folder).expanduser()
             running = RunningProject(str(folder_path))
         except (KuulasError, OSError, RuntimeError) as e:
             if self._window is not None:
