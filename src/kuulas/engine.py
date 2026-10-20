@@ -67,6 +67,7 @@ from . import diag, meter, preview_level
 from .media import CHUNK_SEC
 from .messages import KuulasError, t
 from .model import Project
+from .perf import COUNTERS
 from .playplan import (
     XFADE_S,
     PlaybackRequestError,
@@ -79,6 +80,9 @@ from .stretch import MIN_RATE as MIN_STRETCH
 from .stretch import Stretcher
 
 log = logging.getLogger("kuulas.engine")
+
+#: Block timings for the performance report (perf.py): a dict lookup, no lock.
+_note = COUNTERS.note
 
 #: Frames per block: about 21 ms at 48 kHz, the plan's default.
 BLOCKSIZE = 1024
@@ -780,6 +784,7 @@ class Engine:
             outdata[:] = block
             self._measure(block)
             ended = time.perf_counter()
+            _note("engine.callback_ms", (ended - began) * 1000.0)
             if probe is not None:
                 total = ended - began
                 probe.callback(total, probe.acc, rendered - began - probe.acc,
@@ -875,10 +880,12 @@ class Engine:
             # surplus waits in the queue for the next block.
             n = min(max(1, math.ceil(frames * ratio)), max(0, end - fed))
             if n > 0:
+                mix_began = time.perf_counter()
                 if run.speed > 0:
                     block = plan.read(project, self._store, fed, n)
                 else:  # backward: the played timeline from its end
                     block = plan.read(project, self._store, end - fed - n, n)[:, ::-1]
+                _note("engine.mix_ms", (time.perf_counter() - mix_began) * 1000.0)
                 self._recent.append((run, fed, n, float(np.abs(block[0]).max()),
                                      float(np.abs(block[1]).max())))
                 fed += n

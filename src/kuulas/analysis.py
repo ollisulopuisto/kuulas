@@ -182,7 +182,8 @@ def speech_lanes(p: Project, store: Store,
               and not t.mute and t.clips]
     if not tracks:
         return Lanes(speakers=[])
-    with ThreadPoolExecutor(max_workers=max(1, min(len(tracks), workers()))) as pool:
+    with ThreadPoolExecutor(max_workers=max(1, min(len(tracks), workers())),
+                           thread_name_prefix="kuulas-analysis") as pool:
         measured = list(pool.map(lambda track: track_levels(p, store, track), tracks))
 
     speaker_order: list[str] = []
@@ -310,7 +311,8 @@ def _compensated_ranges(p: Project, store: Store,
         return {}
     hop = hop_frames(p.rate)
     q = _unmuted(p)
-    with ThreadPoolExecutor(max_workers=max(1, min(len(tracks), workers()))) as pool:
+    with ThreadPoolExecutor(max_workers=max(1, min(len(tracks), workers())),
+                           thread_name_prefix="kuulas-analysis") as pool:
         measured = list(pool.map(lambda tr: track_levels(q, store, tr), tracks))
     db = np.stack([m[0] for m in measured]).astype(np.float64)
     valid = np.stack([m[1] for m in measured])

@@ -586,7 +586,8 @@ class Session:
             val = measure_clip(self.store, clip, state.rate, mono=mono[clip.id])
             return clip.id, val
 
-        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        with ThreadPoolExecutor(max_workers=max_workers,
+                               thread_name_prefix="kuulas-session") as executor:
             measured_results = list(executor.map(_measure, clips_to_measure))
 
         matched: list[tuple[str, float, float]] = []

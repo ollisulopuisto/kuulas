@@ -50,11 +50,15 @@ from . import (
     colab_transcribe,
     export,
     export_formats,
+    logsetup,
     messages,
     music_report,
     new_project,
     project_stats,
     transcribe,
+)
+from . import (
+    profiler as profiler_module,
 )
 from .build_info import build_label
 from .candidates import UnknownCandidateError
@@ -217,6 +221,16 @@ class WordBody(BaseModel):
     w: str
 
 
+class ProfileBody(BaseModel):
+    action: str
+    seconds: float = 30.0
+    interval: float | None = None
+
+
+class LogLevelBody(BaseModel):
+    level: str
+
+
 class TransportBody(BaseModel):
     action: str
     at: int | None = None
@@ -320,7 +334,8 @@ def _local_origin(origin: str) -> bool:
 
 def create_app(session, engine, *, language: str | None = None,
                ui_dir: str | Path = UI_DIR, tick: float = LIVE_TICK_S,
-               meter_every: float = LIVE_METER_S, recorder=None) -> FastAPI:
+               meter_every: float = LIVE_METER_S, recorder=None,
+               profiler: profiler_module.Profiler | None = None) -> FastAPI:
     """``session``, ``engine`` and ``recorder`` (a ``RecordSession``, or None: recording
     answers "unavailable") are borrowed: the caller closes them."""
     default_language = language or messages.default_language()
@@ -328,6 +343,11 @@ def create_app(session, engine, *, language: str | None = None,
     app = FastAPI(title="kuulas", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.last_input = time.monotonic()
     hub = Hub()
+    # The performance report (Help > Record a performance report): the process-wide
+    # profiler unless a test passes its own. It reads the project and engine on its own
+    # thread and never takes the session lock.
+    perf_profiler = profiler or profiler_module.PROFILER
+    perf_profiler.set_facts(lambda: profiler_module.session_facts(session, engine))
 
     session.subscribe(lambda _state: hub.publish(
         {"type": "state_changed", "head": session.history.head}))
@@ -417,6 +437,14 @@ def create_app(session, engine, *, language: str | None = None,
     @app.exception_handler(bgjobs.BackgroundJobError)
     async def _background_job_error(_request: Request, e: bgjobs.BackgroundJobError):
         return answer(e, 400)
+
+    @app.exception_handler(profiler_module.ProfileRequestError)
+    async def _profile_request(_request: Request, e: profiler_module.ProfileRequestError):
+        return answer(e, 400)
+
+    @app.exception_handler(profiler_module.ProfileBusyError)
+    async def _profile_busy(_request: Request, e: profiler_module.ProfileBusyError):
+        return answer(e, 409)
 
     @app.exception_handler(colab_transcribe.ColabError)
     async def _colab_error(_request: Request, e: colab_transcribe.ColabError):
@@ -539,6 +567,50 @@ def create_app(session, engine, *, language: str | None = None,
     def get_build():
         """Which version and commit this is, for bug reports (build_info.py)."""
         return JSONResponse({"build": build_label()})
+
+    @app.get("/api/profile")
+    def get_profile():
+        """The performance report recording: idle, running, done or failed."""
+        return JSONResponse(perf_profiler.status())
+
+    @app.post("/api/profile")
+    def post_profile(body: ProfileBody):
+        if body.action == "stop":
+            perf_profiler.stop()
+            perf_profiler.join(2.0)
+            return JSONResponse(perf_profiler.status())
+        if body.action != "start":
+            raise BadRequestError("error.server.bad_request",
+                                  detail=f"unknown action {body.action!r}")
+        if body.interval is None:
+            perf_profiler.start(body.seconds)
+        else:
+            perf_profiler.start(body.seconds, body.interval)
+        return JSONResponse(perf_profiler.status(), status_code=202)
+
+    def log_level_body() -> dict:
+        return {"level": logsetup.current(), "setting": logsetup.level_setting(),
+                "levels": list(logsetup.LEVELS),
+                "from_environment": logsetup.parse(os.environ.get(logsetup.ENV, ""))}
+
+    @app.get("/api/log-level")
+    def get_log_level():
+        """Help > Log level: the level in force, the saved choice and the options."""
+        return JSONResponse(log_level_body())
+
+    @app.post("/api/log-level")
+    def post_log_level(body: LogLevelBody):
+        level = logsetup.parse(body.level)
+        if level is None:
+            raise BadRequestError(
+                "error.server.bad_request",
+                detail=f"level must be one of {', '.join(logsetup.LEVELS)}")
+        try:
+            logsetup.save_level_setting(level)
+        except OSError:
+            log.warning(t("log.server.log_level_not_saved"))
+        logsetup.apply(level)
+        return JSONResponse(log_level_body())
 
     @app.get("/api/language")
     def get_language():

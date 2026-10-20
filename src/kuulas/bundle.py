@@ -23,6 +23,8 @@ import os
 import sys
 from pathlib import Path
 
+from . import logsetup
+
 
 def resources_dir(module_file: str | Path) -> Path | None:
     """``Contents/Resources`` when ``module_file`` is inside an app bundle
@@ -117,7 +119,8 @@ def _open_log(home: Path, name: str = "kuulas.log"):
         logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s"))
     root = logging.getLogger()
     root.addHandler(handler)
-    root.setLevel(logging.INFO)
+    root.setLevel(getattr(
+        logging, logsetup.resolve(os.environ, logsetup.level_setting())))
     stream = open(file, "a", buffering=1, encoding="utf-8")  # noqa: SIM115 - open for the life of the process
     sys.stdout = sys.stderr = stream
     faulthandler.enable(stream)

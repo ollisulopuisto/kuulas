@@ -50,6 +50,9 @@ export const CHECKED = {
   "view.language_auto": (state) => (state?.languageChoice ?? "auto") === "auto",
   "view.language_fi": (state) => state?.languageChoice === "fi",
   "view.language_en": (state) => state?.languageChoice === "en",
+  "help.log_debug": (state) => state?.logLevel === "DEBUG",
+  "help.log_info": (state) => (state?.logLevel ?? "INFO") === "INFO",
+  "help.log_warning": (state) => state?.logLevel === "WARNING",
 };
 
 // Submenus are defined once, so moving one to another menu is a one-line change. A submenu holds
@@ -436,6 +439,13 @@ export const MENU = [
         labelKey: "menu.keymap",
         items: [item("keymap.import"), item("keymap.export"), item("keymap.reset")],
       },
+      SEP,
+      item("help.performance_report"),
+      submenu("menu.log_level", [
+        item("help.log_debug"),
+        item("help.log_info"),
+        item("help.log_warning"),
+      ]),
     ],
   },
 ];
