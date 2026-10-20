@@ -15,9 +15,12 @@ seeded with the linked paths the editor resolved. It writes the same
 content-keyed caches the editor reads (``caches/analysis``), so its work is
 never done twice. Only the functions in ``TASKS`` can be run.
 
-Fail soft: a store the worker cannot reopen (a test's in-memory store) or a
-worker that does not answer (cannot start, crashed) is measured in the editor,
-under the gate (``priority.gated_map``, ``checkpoint``), with a log line.
+Fail soft, but never into the editor's memory: a store the worker cannot
+reopen (a test's in-memory store) or a worker that cannot be STARTED is
+measured in the editor, one analysis at a time, under the gate, and not when
+the editor is already past its memory warning. A worker that started and then
+died (exit code, signal, no result) is an error (``error.offload.crashed``)
+with the manager's back-off, never an inline run (docs/MEMORY.md).
 ``MODE = "inline"`` (tests, ``KUULAS_ANALYSIS=inline``) never starts a process.
 
 At most one worker process lives at a time (``WorkerManager``, ``MANAGER``).
@@ -60,7 +63,7 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
-from . import priority, toolpath
+from . import priority, rss, toolpath
 from .messages import KuulasError, t
 
 log = logging.getLogger("kuulas.offload")
@@ -109,6 +112,21 @@ WATCH_S = 1.0
 
 class WorkerFailedError(Exception):
     """The worker gave no answer (not an error of the analysis itself)."""
+
+
+class WorkerStartError(WorkerFailedError):
+    """The worker process could not be started (spawn ``OSError``, no python or
+    bundle executable). The only failure that may be measured in the editor."""
+
+
+class WorkerCrashedError(WorkerFailedError):
+    """The worker started but gave no answer: it exited non-zero (a signal is
+    a negative code), wrote no result, or the result could not be read. Never
+    measured in the editor: that is the memory the worker kept out of it."""
+
+    def __init__(self, detail: str, code: int | None = None):
+        super().__init__(detail)
+        self.code = code
 
 
 class SupersededError(priority.CancelledError):
@@ -164,11 +182,19 @@ def call(task: str, project, store, *args: Any, cancel: threading.Event | None =
     left = MANAGER.backoff_left(memory_key)
     if left > 0:
         raise KuulasError("error.offload.backoff", seconds=round(left))
+    crash_key = ("crash", task, spec["folder"])
+    left = MANAGER.backoff_left(crash_key)
+    if left > 0:
+        raise KuulasError("error.offload.backoff", seconds=round(left))
     try:
         reply = _run(payload, cancel, pause, key=key, owner=spec["folder"])
-    except WorkerFailedError as e:
+    except WorkerStartError as e:
         log.warning(t("log.offload.fallback", error=str(e)))
-        return fn(project, store, *args, **kwargs)
+        return _run_inline(fn, task, cancel, project, store, args, kwargs)
+    except WorkerCrashedError as e:
+        MANAGER.note_failure(crash_key)
+        raise KuulasError("error.offload.crashed", exit=describe_exit(e.code),
+                          detail=str(e)) from e
     note_worker_peak(task, reply.get("peak_rss"))
     error = reply.get("error")
     if error is not None:
@@ -177,6 +203,53 @@ def call(task: str, project, store, *args: Any, cancel: threading.Event | None =
         raise _rebuild(error)
     MANAGER.note_success(memory_key)
     return reply["value"]
+
+
+def describe_exit(code: int | None) -> str:
+    """``exit 1``, or ``exit -9 (SIGKILL)`` for a death by signal."""
+    if code is None:
+        return "no result"
+    if code < 0:
+        try:
+            return f"exit {code} ({signal.Signals(-code).name})"
+        except ValueError:
+            return f"exit {code}"
+    return f"exit {code}"
+
+
+def memory_kill_suspect(code: int | None) -> bool:
+    """Killed by SIGKILL (-9, or 137/9 through a shell or launcher): what macOS
+    does to a process when memory runs out (Jetsam), or the ceiling's last resort."""
+    return code in (-9, 137, 9)
+
+
+#: One inline analysis at a time, process-wide, and what the performance report
+#: shows of it.
+_INLINE_LOCK = threading.Lock()
+INLINE: dict[str, Any] = {"runs": 0, "running": False}
+
+
+def _run_inline(fn: Callable, task: str, cancel: threading.Event | None, project,
+                store, args: tuple, kwargs: dict) -> Any:
+    """The fallback for a worker that could not be started: one at a time, under
+    the playback gate, and not when the editor is already big (docs/MEMORY.md)."""
+    from .memory import RSS_WARN_BYTES  # noqa: PLC0415 - memory imports caches
+
+    while not _INLINE_LOCK.acquire(timeout=POLL_S):
+        priority.checkpoint(cancel)
+    try:
+        now = rss.current()
+        if now is not None and now > RSS_WARN_BYTES:
+            raise KuulasError("error.offload.memory", mb=round(now / 1024**2),
+                              limit_mb=round(RSS_WARN_BYTES / 1024**2))
+        INLINE["runs"] += 1
+        INLINE["running"] = True
+        log.warning(t("log.offload.inline", task=task))
+        priority.checkpoint(cancel)
+        return fn(project, store, *args, **kwargs)
+    finally:
+        INLINE["running"] = False
+        _INLINE_LOCK.release()
 
 
 #: The analysis workers' peak resident bytes: the last one's and the most any
@@ -459,7 +532,7 @@ class WorkerManager:
         try:
             proc = self._popen(argv, env=env, **options)
         except OSError as e:
-            raise WorkerFailedError(str(e)) from e
+            raise WorkerStartError(str(e)) from e
         try:
             with self._cond:
                 req.proc = proc
@@ -585,11 +658,13 @@ def _run(payload: dict, cancel: threading.Event | None, pause: bool | None, *,
         if code != 0 or not result.exists():
             tail = errors.read_bytes()[-400:].decode("utf-8", "replace").strip()
             detail = f"exit {code}: {tail}" if tail else f"exit {code}"
-            raise WorkerFailedError(detail)
+            if memory_kill_suspect(code):
+                log.warning(t("log.offload.killed", code=describe_exit(code)))
+            raise WorkerCrashedError(detail, code)
         try:
             return pickle.loads(result.read_bytes())  # noqa: S301 - our own child wrote it
         except (OSError, pickle.UnpicklingError, EOFError, AttributeError) as e:
-            raise WorkerFailedError(str(e)) from e
+            raise WorkerCrashedError(str(e), code) from e
 
 
 # -- workers an earlier run left behind ------------------------------------------

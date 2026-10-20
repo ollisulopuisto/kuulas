@@ -153,6 +153,17 @@ audio itself is 64 000 B/s at the test's 16 kHz.
   backs off like a failed worker (5 s, 10 s … 300 s), so there is no retry
   storm. `setrlimit(RLIMIT_AS)` is not used: macOS does not enforce it, and it
   counts address space, not memory.
+- **A dead worker is never answered in the editor.** If the worker starts and
+  then exits non-zero, is killed by a signal (-9, or 137/9: Jetsam or the
+  ceiling, logged as a memory-kill suspect), writes no result or an unreadable
+  one, `offload.call` raises `error.offload.crashed` and the task backs off
+  (5 s, 10 s … 300 s). Running the analysis inline then would put the heavy
+  work, with no ceiling and no separate GIL, into the editor exactly when
+  memory is short. Only a worker that cannot be *started* (spawn `OSError`,
+  missing executable) falls back inline, and then one analysis at a time
+  process-wide, under the playback gate, refused with `error.offload.memory`
+  when the editor is already above 3 GB. The performance report counts inline
+  runs ("analysis running in the editor process (worker unavailable)").
 - **The worker reports its peak RSS** (`peak_rss` in every answer). The
   editor logs it and keeps the last and largest (`offload.WORKER_PEAKS`). The
   performance report shows them.

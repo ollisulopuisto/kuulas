@@ -197,14 +197,21 @@ def test_closing_the_project_ends_its_worker(tmp_path, monkeypatch):
 
 def test_a_worker_that_cannot_start_falls_back_inline(session, process_mode, monkeypatch,
                                                       caplog):
-    monkeypatch.setattr(offload, "worker_argv", lambda *_a: [sys.executable, "-c",
-                                                             "raise SystemExit(3)"])
+    monkeypatch.setattr(offload, "worker_argv", lambda *_a: ["/nonexistent/python"])
     state = session.state
     with caplog.at_level(logging.WARNING, logger="kuulas.offload"):
         got = offload.call("silence_ranges", state, session.store)
     assert got == analysis.silence_ranges(state, session.store)
-    assert any("inline" in r.getMessage() or "worker" in r.getMessage()
-               for r in caplog.records)
+    assert any("editor process" in r.getMessage() for r in caplog.records)
+
+
+def test_a_worker_that_crashes_is_an_error_not_an_inline_run(session, process_mode,
+                                                             monkeypatch):
+    monkeypatch.setattr(offload, "worker_argv", lambda *_a: [sys.executable, "-c",
+                                                             "raise SystemExit(3)"])
+    with pytest.raises(offload.KuulasError) as e:
+        offload.call("silence_ranges", session.state, session.store)
+    assert e.value.key == "error.offload.crashed"
 
 
 def test_a_store_the_worker_cannot_reopen_is_measured_inline(process_mode):

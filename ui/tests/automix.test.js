@@ -105,6 +105,39 @@ describe("automixNotice", () => {
   });
 });
 
+describe("automix log", () => {
+  test("done with a kept log offers Show log and the key lines", () => {
+    const done = automixNotice(
+      {
+        state: "completed",
+        result: {
+          path: "/p/mix.wav",
+          log_file: "/p/mix log.txt",
+          summary: ["beds: loudest -20 LUFS -> beds +2 dB", "mastered: -16 LUFS"],
+        },
+      },
+      t,
+    );
+    assert.equal(done.log, true);
+    assert.match(done.text, /beds: loudest -20 LUFS -> beds \+2 dB/);
+    assert.match(done.text, /mastered: -16 LUFS/);
+  });
+
+  test("done without a log file offers no Show log", () => {
+    const done = automixNotice({ state: "completed", result: { path: "/p/mix.wav" } }, t);
+    assert.equal(done.log, false);
+  });
+
+  test("a failure with a log keeps the notice up and offers Show log", () => {
+    const failed = automixNotice(
+      { state: "failed", error: { text: "boom", params: { log_file: "/p/x FAILED log.txt" } } },
+      t,
+    );
+    assert.deepEqual([failed.log, failed.sticky], [true, true]);
+    assert.equal(automixNotice({ state: "failed", error: { text: "boom" } }, t).log, false);
+  });
+});
+
 describe("export.automix command", () => {
   const withTracks = { project: { tracks: [{ id: "a" }], markers: [] } };
   const setup = () => {

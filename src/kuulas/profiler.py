@@ -230,6 +230,9 @@ def build_report(*, result: SampleResult, interval: float, wall: float, started:
         last = _gib(memory.get("worker_last", 0))
         out.append(f"  analysis worker peak RSS: last {last}, "
                    f"largest this run {_gib(memory['worker_max'])}")
+    if memory.get("inline_runs"):
+        out.append(f"  analysis running in the editor process (worker unavailable): "
+                   f"{memory['inline_runs']} run(s) this session")
     for ns, used in sorted(memory.get("namespaces", {}).items()):
         out.append(f"  cache {ns}: {_gib(used)} held")
     for kind, s in sorted(memory.get("caches", {}).items()):
@@ -309,7 +312,8 @@ def memory_facts() -> dict[str, Any]:
             "caches": memory.BUDGET.stats(),
             "namespaces": memory.BUDGET.namespace_usage(),
             "worker_last": offload.WORKER_PEAKS["last"],
-            "worker_max": offload.WORKER_PEAKS["max"]}
+            "worker_max": offload.WORKER_PEAKS["max"],
+            "inline_runs": offload.INLINE["runs"]}
 
 
 def session_facts(session: Any, engine: Any) -> list[tuple[str, str]]:
