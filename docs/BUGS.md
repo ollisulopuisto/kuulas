@@ -25,6 +25,10 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 
 | # | Raised | Issue | Fixed in |
 |---|---|---|---|
+| 99 | 20.10 | The automix of the Aame/diet woke project left Aame too hot, though balanced in Kuulas | track gain (also on speech tracks) reaches the automixer from v26.10.20.14; re-export and listen; further balancing = bounded speaker balance (ROADMAP) |
+| 98 | 20.10 | Automix progress showed "Olli: debleed" with de-bleed switched off, and no sense of which step | stages marked "skipped" (v26.10.20.9) and numbered steps (v26.10.20.11); the tool prints stage names for every track whether or not the stage runs |
+| 97 | 20.10 | No way to trim only one clip at a touching edge (roll always moves the neighbour) | Cmd/Ctrl+drag on the edge (v26.10.20.13); not tried |
+| 96 | 20.10 | Roles had to be set on every track by hand | bus roles with 'Match bus role' (v26.10.20.12); not tried |
 | 94 | 20.10 | Music came out far too loud after automix; no automix log, only a flags file | Set music level, `--bed-under-speech-db` option, log.txt with Show log: v26.10.20.6-.7; the automixer flag is still to be added in the podcast repo |
 | 90 | 19.10 | The transcript's speaker colour bar should sit at the timeline's left edge, left of the words | built in v26.10.19.25; not seen on screen | 19.10, owner |
 | 89 | 19.10 | Side panel tab names truncated ("Tarka…"); buttons not in one design language; inspector fields misaligned | built in v26.10.19.25 (tabs wrap, shared outlined buttons with icons, a two-column inspector grid); not seen on screen | 19.10, owner |

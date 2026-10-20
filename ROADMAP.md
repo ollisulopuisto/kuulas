@@ -108,21 +108,24 @@ sizes: `docs/PLAN.md`, section "Triage".
 - Analysis: Auto-Silence and automix ducking through speechmix.
 - Transcript mapping and word-cut ranges.
 
-## In flight (20.10.2026 Helsinki, after v26.10.20.7)
+## In flight (21.10.2026 01.40 Helsinki, after v26.10.20.14)
 
-Released in v26.10.20.13 (all untried in a window): **Level blocks**, **bus roles** (Match bus role, badge, Reapply), **Cmd+drag trims only one clip**, step numbers in the automix progress line, 'skipped' marks, music track gain in the automixer stems, music level default +1. Open: speech track gain in the stems (owner's Aame mix; asked 20.10.2026 21.xx Helsinki), Duck under speech (design in docs/design/DUCKING.md). Earlier: released in v26.10.20.7: Set music level, automix music-level field, compressed size-capped backups with a size breakdown, and the automix dialog reacting to "Done in Kuulas" (phase 2 of auto-mix in Kuulas; block level and music duck join by one entry in `DONE_IN_KUULAS`, see docs/FORMAT.md).
+Nothing running. Released in v26.10.20.14 (all untried in a window): **Level blocks**, **bus roles** (Match bus role, badge, Reapply), **Cmd+drag trims only one clip**, step numbers and 'skipped' marks in the automix progress line, every track's gain in the automixer stems, music level default +1.
 
-Waiting on the owner: merge podcast PR #64 (`--bed-under-speech-db`, implemented by the podcast session) and install it; until then the Music field does nothing. The automixer's real default is +1 dB against speech (v26.10.20.8 corrected Kuulas, which assumed -1). Open design question: music peak slightly above speech and a much quieter ducked level (owner, 20.10.2026), versus Set music level's -10 on the peak.
+Next to build (Kuulas side): **bounded speaker balance**. The podcast side is merged (PR #66, `--balance-speakers-max-db`; #64 `--bed-under-speech-db` too); Kuulas needs the dialog choice Automatic / Fine-tune / Keep my levels with the 6 dB / 2-3 dB / 0 rule (see Next), gated by the capability probe. Then **Duck under speech** as a track property (docs/design/DUCKING.md).
 
-Waiting on the podcast repo: that flag in the folder route, a 'keep the stem level for beds' switch, and automixer/mastering memory (loads whole stems).
+Open question: should bus gain also reach the automixer stems (like track gain since v26.10.20.14)?
+
+Waiting on the podcast repo: a 'keep the stem level for beds' switch and automixer/mastering memory (loads whole stems).
 
 Parked with findings recorded: history compaction (see Next).
 
-Older, still open: media store (linked vs working FLAC, relink, consolidate); browser UI shell (keymap WP5, design redone).
+Older, still open: media store (linked vs working FLAC, relink, consolidate); browser UI shell (keymap WP5, design redone). Old branches `t48-stop-list` and `t49-stop-levels` (unused Tab helper modules) wait for a keep/discard decision; the other agent branches were cleaned up 21.10.2026.
 
 ## Needs testing and confirming (built, never used by the owner)
 
-Released in v26.10.20.5 to v26.10.20.7, in order of importance:
+Released in v26.10.20.5 to v26.10.20.14, in order of importance:
+00. **v26.10.20.8-.14 (new, nothing tried yet):** (a) the Aame mix: export again, Aame's track gain now reaches the automixer (v.14), check the balance against Kuulas; (b) Track > Auto > Level blocks (listen for clicks at the new cuts, real speech untested); (c) bus roles: bus header right-click > Role, '!' badge on a track, asterisk and Reapply on a bus, Inspector dropdown 'Match bus role'; (d) Cmd (Ctrl) + drag on a clip edge trims only that clip; (e) automix progress shows '3/4 track 2/3 Kari: debleed (2/9)' and 'skipped' for switched-off stages; (f) Music level field default +1.
 0. **v26.10.20.7 (new, nothing tried yet):** Track > Auto > Set music level (numbers shown, one undo); backups compressed and Statistics > Size; automix Music field + 'Done in Kuulas' badge/Reset/offer (layout and the 'Set music level again' link only unit-tested, never seen in a window); `Done in Kuulas` line in log.txt. The local dmg build into ~/Desktop/kuulas-dmg came out empty; cause not found (needs the script's last output); the GitHub dmg is fine.
 1. **Automix log (v26.10.20.6):** after an automix export a `log.txt` sits beside the wav; the notice has 'Show log' and the 'beds: ... mastered: ...' lines. Send the beds line: it tells how much the music was raised (music came out far too loud; the automixer forces the beds to 1 dB under the speech).
 2. **Memory on the 47-minute project:** Kuulas under about 2 GB in Activity Monitor; at most one small `analysis_worker` process (`ps -axo pid,ppid,stat,etime,rss,command | grep analysis_worker | grep -v grep`); a killed worker is now an error, not an in-app run.
