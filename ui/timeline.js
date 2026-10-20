@@ -12,6 +12,7 @@ import { backingSize } from "./canvas-size.js";
 import {
   canStartClipDrag,
   clipDragIds,
+  groupBounds,
   moveBoxes,
   moveGhosts,
   resolveMove,
@@ -465,6 +466,13 @@ export function createTimeline({
     overlay.setLineDash([5, 3]);
     for (const box of boxes) {
       overlay.strokeRect(box.x + 0.5, box.y + 0.5, box.w - 1, box.h - 1);
+    }
+    // Several clips (a group): one outline round the whole of them.
+    const bounds = groupBounds(boxes);
+    if (bounds) {
+      overlay.setLineDash([]);
+      overlay.lineWidth = 1;
+      overlay.strokeRect(bounds.x - 1.5, bounds.y - 1.5, bounds.w + 3, bounds.h + 3);
     }
     overlay.restore();
   }
@@ -1735,7 +1743,7 @@ export function createTimeline({
   function startClip(hit, event, before) {
     clipSession = {
       pressedId: hit.clip.id,
-      ids: clipDragIds(hit.clip.id, before),
+      ids: clipDragIds(hit.clip.id, before, getState().project),
       fromIndex: hit.row.index,
       origin: locate(event),
       pointerId: event.pointerId,
@@ -1746,8 +1754,12 @@ export function createTimeline({
       // Snapping and fine movement (move-snap.js): where the pointer's travel stands, the clips'
       // spans before the move, and the frames worth snapping to (fixed for the whole drag).
       pos: { delta: 0, lastX: locate(event).x },
-      spans: movedSpans(getState().project, clipDragIds(hit.clip.id, before)),
-      targets: moveTargets(getState().project, clipDragIds(hit.clip.id, before), getState()),
+      spans: movedSpans(getState().project, clipDragIds(hit.clip.id, before, getState().project)),
+      targets: moveTargets(
+        getState().project,
+        clipDragIds(hit.clip.id, before, getState().project),
+        getState(),
+      ),
       snapAt: null,
     };
     overlayCanvas.setPointerCapture?.(event.pointerId);

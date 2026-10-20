@@ -2,6 +2,7 @@
 // which track is under the pointer, how far the clips may go, the ghosts and the edit. Moving
 // is `move_clips_to_track` (ops.py), a nudge plus a track change; sync partners and the group
 // setting follow the server's nudge rule, so nothing about groups is decided here.
+import { expandGroups } from "./clip-groups.js";
 import { frameToX } from "./format.js";
 import { RULER_HEIGHT } from "./lanes.js";
 
@@ -25,9 +26,27 @@ export function canStartClipDrag(hit) {
   return hit.edge == null && hit.point == null;
 }
 
-/** The clips a drag of `pressedId` moves: the selection if it holds that clip, else the clip. */
-export function clipDragIds(pressedId, selection) {
-  return selection?.has(pressedId) ? [...selection] : [pressedId];
+/**
+ * The clips a drag of `pressedId` moves: the selection if it holds that clip, else the clip,
+ * plus every member of an explicit group among them (as the server's `expand_clips`, WP83),
+ * so the ghosts show the whole group whichever member was grabbed.
+ */
+export function clipDragIds(pressedId, selection, project = null) {
+  const base = selection?.has(pressedId) ? [...selection] : [pressedId];
+  return project ? [...expandGroups(project, base)] : base;
+}
+
+/** The outline round all ghost boxes (canvas pixels), or null for fewer than two boxes. */
+export function groupBounds(boxes) {
+  if (boxes.length < 2) return null;
+  const x = Math.min(...boxes.map((box) => box.x));
+  const y = Math.min(...boxes.map((box) => box.y));
+  return {
+    x,
+    y,
+    w: Math.max(...boxes.map((box) => box.x + box.w)) - x,
+    h: Math.max(...boxes.map((box) => box.y + box.h)) - y,
+  };
 }
 
 function distanceToRow(row, contentY) {

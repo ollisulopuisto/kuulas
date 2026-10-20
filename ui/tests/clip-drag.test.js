@@ -4,6 +4,7 @@ import {
   canStartClipDrag,
   clipDragChange,
   clipDragIds,
+  groupBounds,
   inMoveZone,
   MOVE_STRIP_PX,
   moveBoxes,
@@ -128,5 +129,65 @@ describe("clipDragChange", () => {
   });
   test("nothing to send when nothing moved", () => {
     assert.equal(clipDragChange(["a"], { delta: 0, direction: 0 }), null);
+  });
+});
+
+describe("group drag ghosts", () => {
+  const grouped = {
+    rate: S,
+    tracks: [
+      {
+        id: "A",
+        clips: [
+          { id: "a1", start: S, length: S, group: "g" },
+          { id: "x", start: 9 * S, length: S },
+        ],
+      },
+      { id: "B", clips: [{ id: "b1", start: 2 * S, length: S, group: "g", muted: true }] },
+      { id: "C", clips: [{ id: "c1", start: 3 * S, length: S, group: "g" }] },
+    ],
+  };
+  const idsFor = (id) => clipDragIds(id, new Set([id]), grouped);
+
+  test("grabbing any member drags the whole group", () => {
+    assert.deepEqual([...idsFor("a1")].sort(), ["a1", "b1", "c1"]);
+    assert.deepEqual([...idsFor("c1")].sort(), ["a1", "b1", "c1"]);
+    assert.deepEqual(idsFor("x"), ["x"]);
+  });
+  test("first and last member give the same ghost set, across tracks", () => {
+    const move = { delta: S / 2, direction: 0 };
+    const key = (id) =>
+      moveGhosts(grouped, idsFor(id), move)
+        .map((g) => `${g.clipId}:${g.trackId}:${g.start}-${g.end}`)
+        .sort();
+    assert.deepEqual(key("a1"), key("c1"));
+    assert.equal(key("a1").length, 3);
+    assert.ok(key("a1").includes(`b1:B:${2.5 * S}-${3.5 * S}`));
+  });
+  test("a clamp at the project start keeps the offsets", () => {
+    const move = resolveMove(grouped, idsFor("c1"), {
+      deltaFrames: -5 * S,
+      fromIndex: 2,
+      toIndex: 2,
+    });
+    assert.equal(move.delta, -S);
+    const starts = moveGhosts(grouped, idsFor("c1"), move)
+      .map((g) => g.start)
+      .sort();
+    assert.deepEqual(starts, [0, S, 2 * S]);
+  });
+  test("a track change is cut back so every member stays on a track", () => {
+    const move = resolveMove(grouped, idsFor("a1"), { deltaFrames: 0, fromIndex: 0, toIndex: 1 });
+    assert.equal(move.direction, 0);
+  });
+  test("one outline round the group; none for a single clip", () => {
+    assert.equal(groupBounds([{ x: 1, y: 1, w: 2, h: 2 }]), null);
+    assert.deepEqual(
+      groupBounds([
+        { x: 10, y: 5, w: 20, h: 10 },
+        { x: 0, y: 30, w: 5, h: 10 },
+      ]),
+      { x: 0, y: 5, w: 30, h: 35 },
+    );
   });
 });
