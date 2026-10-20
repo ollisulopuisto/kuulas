@@ -117,6 +117,12 @@ sizes: `docs/PLAN.md`, section "Triage".
 
 ## Next
 
+- **Quick mute for lip smacks** (owner request 2026-10-20, QoL, not started): two forms, both one key. (1) "Mute
+  from mark to cursor": set a mark, play on, press the key, and the stretch mark..cursor is muted (a soft cut, hatched).
+  (2) "Mute around cursor": one key mutes a fixed short stretch centred on the cursor (default 0.5 s, so 0.25 s before and
+  after; length a setting). Both split the clip(s) at the edges and set `muted`, as one undo step; scope follows the
+  track/range rules (WP83). Key: not on AltGr or Shift+digit, N stays free; menu entry in Clip (menu-coverage test).
+
 - **A packaged app** (WP55, owner request 2026-10-18, milestone M2): CI builds a macOS app on tags, then
   Windows and Linux, then signing; needs speechmix and nhsx published as packages first.
 - **Selection that serves double duty** (WP54, owner request 2026-10-18): convert between clip selection, range and
