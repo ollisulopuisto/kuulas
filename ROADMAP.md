@@ -120,7 +120,7 @@ Waiting on the podcast repo: a 'keep the stem level for beds' switch and automix
 
 Parked with findings recorded: history compaction (see Next).
 
-Older, still open: media store (linked vs working FLAC, relink, consolidate); browser UI shell (keymap WP5, design redone). Old branches `t48-stop-list` and `t49-stop-levels` (unused Tab helper modules) wait for a keep/discard decision; the other agent branches were cleaned up 21.10.2026.
+Older, still open: media store (linked vs working FLAC, relink, consolidate); browser UI shell (keymap WP5, design redone). Old agent branches were cleaned up 21.10.2026 (the unused Tab helper branches t48/t49 discarded on the owner's word).
 
 ## Needs testing and confirming (built, never used by the owner)
 
