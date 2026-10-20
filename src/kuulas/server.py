@@ -56,6 +56,7 @@ from . import (
     messages,
     music_report,
     new_project,
+    offload,
     priority,
     project_stats,
     transcribe,
@@ -259,6 +260,7 @@ class TranscribeBody(BaseModel):
     model: str | None = None
     language: str | None = None
     backend: str = "local"
+    force: bool = False  # transcribe even recordings used only on music tracks
 
 
 class RecordStartBody(BaseModel):
@@ -941,7 +943,11 @@ def create_app(session, engine, *, language: str | None = None,
     @app.get("/api/loudness-curve")
     def get_loudness_curve():
         # Measured outside the session lock (Session.loudness_curve); cached by content.
-        return JSONResponse(session.loudness_curve())
+        try:
+            return JSONResponse(session.loudness_curve())
+        except offload.SupersededError:
+            # A newer request replaced it (the UI aborted this one already).
+            return JSONResponse({"superseded": True}, status_code=409)
 
     @app.get("/api/stats")
     def get_stats(format: str = "json"):
@@ -1114,7 +1120,7 @@ def create_app(session, engine, *, language: str | None = None,
             require_media(media_id)
         try:
             job_ids = session.transcribe(body.media_ids, body.model, body.language,
-                                         body.backend)
+                                         body.backend, force=body.force)
         except MediaError as exc:
             return answer(exc, 400)
         return JSONResponse({"jobs": job_ids}, status_code=202)

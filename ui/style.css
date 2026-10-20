@@ -2342,6 +2342,12 @@ input[type="text"] {
   flex-wrap: wrap;
   gap: var(--space-3);
 }
+.tx-music-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-5);
+}
 .tx-miss-row progress {
   width: 160px;
 }

@@ -36,12 +36,12 @@ export const initialState = () => ({
   // The step that is the current state (the head, or the step under a session marker).
   historyCurrent: null,
   // The clipboard history, newest first (GET /api/clipboard); the entry picked in the tab
-  // (null: the newest) and how a paste lands: "insert" | "overwrite", "same" | "current".
+  // (null: the newest) and how a paste lands: "insert" | "overwrite", "auto" | "same" | "current".
   clipboard: [],
   clipboardSelected: null,
   clipboardFilter: "",
   pasteMode: "insert",
-  pasteTarget: "same",
+  pasteTarget: "auto",
   // Cut candidates (WP18; GET /api/candidates): the rows with their timeline frames, the
   // counts, the one picked in the tab (its id), "Open only", the start of a stretch begun
   // with D, a search in progress and its result { added, dropped }, and the preview data

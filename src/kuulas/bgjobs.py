@@ -99,7 +99,7 @@ def read_json(path: Path) -> dict | None:
 def create_job(folder: Path | str, *, backend: str, items: list[dict],
                previous: dict, names: list[str], model: str | None,
                language: str | None, settings: dict | None,
-               cpu_threads: int | None = None) -> str:
+               cpu_threads: int | None = None, forced: bool = False) -> str:
     """Write the job file and an initial ``queued`` status; returns the id. Nothing
     runs yet: ``launch_worker`` does that."""
     job_id = secrets.token_hex(8)
@@ -110,7 +110,8 @@ def create_job(folder: Path | str, *, backend: str, items: list[dict],
                   for i in items],
         "names": names, "model": model, "language": language,
         "settings": settings, "cpu_threads": cpu_threads,
-        "previous": previous, "host": _hostname(), "created": now_iso()})
+        "previous": previous, "forced": forced, "host": _hostname(),
+        "created": now_iso()})
     write_json_atomic(status_file(folder, job_id), {
         "state": "queued", "progress": 0.0, "message": "", "indeterminate": True,
         "log": [], "pid": None, "host": _hostname(), "finished": None})

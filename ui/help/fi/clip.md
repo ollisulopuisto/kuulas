@@ -2,7 +2,7 @@
 id: clip
 title: Leike
 applies-to: [clip]
-commands: [edit.split, edit.delete, edit.cut, edit.lift_cut, edit.close_gap_all, clip.mute, clip.quick_mute, clip.fade, edit.undo]
+commands: [edit.split, edit.delete, edit.cut, edit.lift_cut, edit.close_gap_all, edit.paste, clip.mute, clip.quick_mute, clip.fade, edit.undo]
 related: [timeline, track, transcript]
 ---
 Leike on pala yhdestä äänityksestä raidalla. Samasta äänityksestä voi olla monta leikettä; kun valitset yhden, sen sisarleikkeet merkitään hakasella.
@@ -18,6 +18,12 @@ Leike on pala yhdestä äänityksestä raidalla. Samasta äänityksestä voi oll
 - Häivytys sisään ja ulos: {key:clip.fade}
 
 Jokaisen muokkauksen voi perua askel kerrallaan: {key:edit.undo}.
+
+## Liitä
+- Liitä: {key:edit.paste}. Liittää toistokohtaan valitsemallesi raidalle.
+- Kohderaita on se, jonka otsikko on valittu (useasta valitusta ylin), muuten kohdistettu raita. Usean raidan kopio säilyttää asettelunsa: sen ensimmäinen raita menee tälle raidalle, muut sen alapuolelle.
+- Jos raitaa ei ole valittu eikä kohdistettu, liitos menee raidalle, jolta se kopioitiin, jos se on vielä olemassa, muuten raidalle 1.
+- Kaikki liitostavat (lisää, päälle, nykyiselle raidalle, samoille raidoille) noudattavat tätä sääntöä; vain "samat raidat" käyttää aina lähderaitoja. Puheleikkeen voi liittää musiikkiraidalle.
 
 ## Katso tarkemmin
 Tarkastimessa näkyvät leikkeen taso, tahdistus ja lähde. {show:inspector}

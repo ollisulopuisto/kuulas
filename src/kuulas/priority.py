@@ -23,8 +23,8 @@ many cores are idle. So:
 * Marked threads ask the OS for a lower QoS class (``lower_this_thread``).
   Utility, not background: a thread at background QoS that holds the GIL on an
   efficiency core would make the audio thread wait longer, not shorter. The
-  analysis worker *process* (``offload``) has its own GIL and goes all the way
-  down (``lower_this_process``: nice 19, Darwin background).
+  analysis worker *process* (``offload``) has its own GIL and runs at nice 10
+  (``lower_this_process``; nice 19 with the Darwin background band starved it).
 """
 
 from __future__ import annotations
@@ -350,16 +350,18 @@ def lower_this_thread() -> bool:
     return False
 
 
-def lower_this_process(*, darwin_background: bool = True) -> dict:
-    """The analysis worker's priority: nice 19 (and IDLE on Windows), then with
-    ``darwin_background`` on macOS the Darwin background band (efficiency cores,
-    throttled IO) for every thread it has or will start. The worker takes nice 19
-    first and the band after its imports: in the band, importing numpy, scipy and
-    speechmix took 4.7 s instead of 0.7 s (measured 2026-10-20, load average 12),
-    mostly waiting on throttled reads. What took effect, for the selftest."""
+def lower_this_process(*, darwin_background: bool = True, nice: int = 19) -> dict:
+    """A process's lowered priority: ``nice`` (never raised back up; IDLE on
+    Windows), then with ``darwin_background`` on macOS the Darwin background band
+    (efficiency cores, throttled IO) for every thread it has or will start. The
+    analysis worker takes nice 10 and no band (``offload.WORKER_NICE``): in the
+    band, importing numpy, scipy and speechmix took 4.7 s instead of 0.7 s
+    (measured 2026-10-20, load average 12), and on a loaded Mac nice 19 with the
+    band never finished at all (owner's ps: ~5% CPU for 11 minutes). What took
+    effect, for the selftest."""
     out = {"nice": None, "darwin_background": False}
     with contextlib.suppress(OSError, AttributeError):
-        os.nice(19 - os.getpriority(os.PRIO_PROCESS, 0))
+        os.nice(max(0, nice - os.getpriority(os.PRIO_PROCESS, 0)))
     with contextlib.suppress(OSError, AttributeError):
         out["nice"] = os.getpriority(os.PRIO_PROCESS, 0)
     if sys.platform == "darwin" and darwin_background:

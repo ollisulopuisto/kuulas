@@ -60,6 +60,7 @@ from . import (
     source_map,
     subtitles,
     sync_state,
+    transcribable,
     transcript,
     transcript_text,
 )
@@ -493,6 +494,10 @@ class Session:
     def close(self) -> None:
         self._watch_stop.set()
         self._watcher.join(5)
+        # This project's analysis worker, running or waiting, ends now.
+        folder = getattr(self.store, "folder", None)
+        if folder is not None:
+            offload.MANAGER.cancel_owner(str(folder))
         self.jobs.close()
         self.resume.close()  # while the lock is still ours
         with self.lock:
@@ -2300,18 +2305,29 @@ class Session:
     BACKGROUND_POLL_S = 1.0
 
     def transcribe(self, media_ids: list[str], model: str | None = None,
-                   language: str | None = None, backend: str = "local") -> list[str]:
+                   language: str | None = None, backend: str = "local",
+                   force: bool = False) -> list[str]:
         """Start ONE background job for the chosen recordings (``local``:
         faster-whisper here; ``colab``: the WP78 tool). The job is a file in the
         project and a separate worker process (``kuulas.transcribe_worker``) that
         goes on when the window or the app is closed; the finished words are
         added by ``poll_background`` (here, or at the next open) as one undo step
         per media, and only where the transcript did not change meanwhile.
+        Recordings used only on music tracks are refused (``error.transcribe.music_only``)
+        unless ``force``: music is not transcribed nor uploaded to Colab by default.
         Returns the job id in a list."""
         ids = list(dict.fromkeys(media_ids))
         items, previous, names = [], {}, []
         with self.lock:
             self.history._check_writable()
+            if not force:
+                music = transcribable.music_only_ids(self.history.state)
+                skipped = [i for i in ids if i in music]
+                if skipped:
+                    raise ops.EditError(
+                        "error.transcribe.music_only",
+                        names=", ".join(self.history.state.media_item(i).name
+                                        for i in skipped if i))
             for media_id in ids:
                 try:
                     item = self.history.state.media_item(media_id)
@@ -2328,7 +2344,7 @@ class Session:
             previous=previous, names=names, model=model if colab else (model or "small"),
             language=language, cpu_threads=max(1, os.cpu_count() or 1),
             settings=colab_module.resolve_settings(colab_module.load_settings())
-            if colab else None)
+            if colab else None, forced=force)
         self._launch_background(job_id)
         return [job_id]
 
@@ -2494,7 +2510,11 @@ class Session:
         with self.lock:
             self.history._check_writable()
             previous = {}
+            music = (set() if job.get("forced")
+                     else transcribable.music_only_ids(self.history.state))
             for item in job["items"]:
+                if item["id"] in music:  # a track became music since the job was made
+                    raise ops.EditError("error.transcribe.music_only", names=item["name"])
                 try:
                     self.history.state.media_item(item["id"])
                 except KeyError:

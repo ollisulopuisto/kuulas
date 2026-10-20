@@ -146,6 +146,7 @@ import { densityAttribute, nextTheme, themeAttribute } from "./theme.js";
 import { createTimeline } from "./timeline.js";
 import { contextPress, menuFromSections, timelineMenuItems } from "./timeline-menu.js";
 import { createTrackHeaders } from "./tracks.js";
+import { withoutMusic } from "./transcribable.js";
 import { createTranscript } from "./transcript.js";
 import { mutedInputsKey, pauseChoiceId } from "./transcript-model.js";
 import { createTransport } from "./transport.js";
@@ -1796,7 +1797,13 @@ async function duckMicrophones() {
 async function transcribeTrack(backend = "local") {
   const state = getState();
   const track = state.project?.tracks.find((item) => item.id === state.focusTrack);
-  const ids = track ? [...new Set(track.clips.map((clip) => clip.media))] : undefined;
+  const asked = track ? [...new Set(track.clips.map((clip) => clip.media))] : undefined;
+  // Music is not transcribed (nor uploaded): a music-only track gives a notice, not a job.
+  const ids = asked && withoutMusic(state.project, asked);
+  if (asked && ids.length === 0) {
+    showNotice(t("ui.transcript.music_skipped"), "error");
+    return;
+  }
   if (backend === "colab") await transcribeOnColab(ids ?? transcript.targetIds());
   else await transcript.transcribe(ids);
 }

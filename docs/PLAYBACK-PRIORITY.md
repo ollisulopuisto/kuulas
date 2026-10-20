@@ -40,16 +40,46 @@ UI asks for on its own after edits. The rest is the speech-level analysis in
   efficiency core would make the callback wait longer.
 - **Analysis worker process** (`offload.py`, `analysis_worker.py`): heavy
   analysis runs in `python -m kuulas.analysis_worker`, which has its own GIL:
-  - It takes nice 19 first. After its imports it enters the Darwin background
-    band. Imports in the band took 4.7 s instead of 0.7 s under load.
-  - When the caller is background work, the editor stops the worker with
-    SIGSTOP while audio plays and continues it afterwards. Cancel kills it.
+  - It takes nice 10 (`offload.WORKER_NICE`), no Darwin background band.
+    v26.10.20.2 used nice 19 and the band: imports took 4.7 s instead of
+    0.7 s under load, and on the owner's loaded Mac workers ran at ~5% CPU
+    for 11+ minutes and never finished. Measured 2026-10-20 at nice 10, load
+    average ~10: the curve worker's imports take ~0.6 s and ~100 MB RSS; a
+    probe starts and exits in ~0.65 s.
+  - When the caller is background work, it does not start while audio plays,
+    and a running one is stopped with SIGSTOP while audio plays and continued
+    afterwards. Cancel kills it.
+  - It exits by itself when the editor is gone: its parent pid changes (or
+    is 1), or the pipe on its stdin from the editor closes.
+  - A failed or timed-out key backs off: no new worker for it for 5 s, then
+    10, 20 ... up to 300 s; a success resets it. The UI's loudness loader
+    backs off the same way after a failed request instead of asking again at
+    every store change.
+  - The editor logs its child processes by module at start and exit, and
+    the `-m kuulas...` processes left behind (parent pid 1), so a leak can be
+    named from `kuulas.log`.
   - It writes the same content-keyed caches the editor reads.
+  - At most one worker process lives at a time (`offload.WorkerManager`).
+    v26.10.20.2 started one per call and stopped each while playing: loudness
+    refreshes after edits left ~35 stopped workers and the Mac ran out of
+    memory. Now calls queue (capped at `MAX_QUEUED`). A newer loudness request
+    for the same project ends the older one (HTTP 409). Background work does
+    not start a worker while audio plays. A user's command preempts a stopped
+    background worker, which starts again later.
+  - Every worker is killed and reaped on cancel, error, timeout (`WALL_S` of
+    running time), project close and exit (`atexit`). A watchdog kills a
+    worker its waiting thread no longer looks after and continues one left
+    stopped after playback.
+  - If the editor dies, a stopped worker's process group is orphaned and the
+    kernel continues and hangs it up; a running worker sees its parent gone
+    and exits. At start, `sweep_orphans` kills this user's
+    `-m kuulas.analysis_worker` processes whose parent is gone (never the
+    transcription worker).
   - Fail soft: a store it cannot reopen, or a worker that does not answer, is
     measured in the editor under the gate, with a log line.
   - The bundle runs it via `bundle.worker_module` / `_run_analysis_worker`.
     Its log is `kuulas-analysis.log`.
-  - `--selftest` checks that it starts at nice 19.
+  - `--selftest` checks that it starts at nice 10.
 - **Guard.** `tests/test_thread_guard.py` fails on any new raw `Thread` or
   `ThreadPoolExecutor` under `src/kuulas` (the engine is not scanned). The fix
   is to route it through `priority` or to list it with a reason.
@@ -89,7 +119,7 @@ middle.
 
 - Request threads: the UI waits on them, and they may hold the session lock.
   User-started commands such as Auto-Silence run their heavy part in the
-  worker process at nice 19, so they do not take the editor's GIL.
+  worker process at nice 10, so they do not take the editor's GIL.
 - The recorder and its take import: the recorder outranks playback, and the
   import holds the session lock.
 - IO-only helper threads: listed in `tests/test_thread_guard.py`.
