@@ -8,6 +8,7 @@
 import { frameToTime } from "./format.js";
 import { formatNumber, getLanguage, t } from "./i18n.js";
 import { setIcon } from "./icons.js";
+import { musicNote } from "./transcribable.js";
 import {
   currentPosition,
   findMatches,
@@ -207,9 +208,17 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       jobs: allJobs,
     });
     lastRows = rows;
-    empty.hidden = !getState().project || (has && rows.length === 0);
+    // A selected clip of a music recording: a plain note, never the transcribe offer.
+    const note = musicNote({
+      project: getState().project,
+      selection: getState().selection,
+      transcribed: words.map((word) => word.media),
+    });
+    empty.hidden = !getState().project || (has && rows.length === 0 && !note);
     empty.replaceChildren();
     if (empty.hidden) return;
+    if (note) empty.append(musicNoteBlock(note));
+    if (note && rows.length === 0) return;
     if (rows.length === 0) {
       empty.append(el("strong", "", t("ui.transcript.empty")));
       return;
@@ -220,6 +229,22 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     if (all) table.append(offerRow({ all }));
     empty.append(table, el("span", "tx-hint", t("ui.transcript.background")));
     scheduleWindow();
+  }
+
+  /** "Music track: not transcribed" with the one explicit way round it (local only: no upload). */
+  function musicNoteBlock(note) {
+    const block = el("div", "tx-music-note");
+    block.append(el("strong", "", t("ui.transcript.music_skipped")));
+    const button = offerButton(
+      "transcribe-anyway",
+      [note.id],
+      t("ui.transcript.transcribe_anyway"),
+      "play",
+      false,
+    );
+    button.title = t("ui.transcript.transcribe_anyway_title", { name: note.name });
+    block.append(button);
+    return block;
   }
 
   function offerButton(act, ids, text, icon, primary) {
@@ -267,11 +292,11 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     return item;
   }
 
-  async function transcribe(onlyIds) {
+  async function transcribe(onlyIds, { force = false } = {}) {
     const ids = onlyIds ?? transcribeTargets().map((item) => item.id);
     if (ids.length === 0) return;
     try {
-      await api.transcribe(ids);
+      await api.transcribe(ids, { force });
       await refreshJobs();
     } catch (error) {
       actions.showError(error);
@@ -625,6 +650,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     if (!button) return;
     const ids = (button.dataset.ids ?? "").split(",").filter(Boolean);
     if (button.dataset.act === "transcribe") void transcribe(ids);
+    else if (button.dataset.act === "transcribe-anyway") void transcribe(ids, { force: true });
     else if (button.dataset.act === "transcribe-colab") actions.transcribeColab?.(ids);
   });
 
