@@ -172,10 +172,24 @@ Not released yet (branches above): track highlight follows the click; Alt+1 to A
   `--no-music-duck` and tells the automixer to keep the stem level for beds; the automix dialog shows a 'Done in Kuulas'
   badge next to those options. Needs from the podcast repo: `--bed-under-speech-db` (requested in PODCAST-MAGIC.md) and a
   'keep the stem level for beds' switch. DSP (debleed, de-smack, EQ, compressors) stays in the automixer.
-- **Smaller project folders** (owner data 2026-10-20: 1.1 GB = backups 862 MB, caches 139 MB, history 112 MB): compressed
-  and size-capped backups plus a size breakdown in Statistics (building); later: history compaction up to a saved version, with unreferenced recorded takes archived, never deleted silently
-  (rule 17); decisions pending: archive vs delete default, trigger (offer when a version is marked complete + manual
-  command + warning above 2 GB).
+- **Smaller project folders** (owner data 2026-10-20: 1.1 GB = backups 862 MB, caches 139 MB, history 112 MB, media 7 MB,
+  recordings 0): compressed and size-capped backups plus a size breakdown in Statistics (building).
+- **History compaction: PARKED, findings recorded** (owner 2026-10-20: nothing to do yet). What we know: the history
+  database stores the whole state per node (112 MB after about two days of work on a 47-minute, 5-track project), and every
+  automatic backup is a full copy of it, so history size multiplies through the backups (fixed separately by compressing and
+  capping backups). Compaction would mean: drop history nodes older than a named/complete version, keep named versions and
+  the current state, then garbage-collect media that no kept node references. Order matters: prune the history FIRST
+  (so no kept node points at removed media), then look at media. Rules to keep when it is built: (1) recorded takes inside
+  the package are the only copies (rule 17): archive them (move to an archive folder or zip next to the project) and delete
+  only after an explicit 'delete permanently (X GB)' confirmation; the Recordings list (WP12e) is the way back; (2) media
+  that is only LINKED from outside the package (imports by link, Dropbox folders) is not ours to delete or garbage-collect,
+  and Kuulas cannot know when someone else deletes, moves or renames it: such files can vanish without Kuulas noticing, so
+  the open path must keep detecting missing/changed linked media (hash check, relink dialog, clear 'missing' state on clips)
+  and compaction must never assume a linked original still exists when deciding that something is safe to drop; (3) make a
+  backup copy of the database before compacting; (4) the trigger is an offer when a version is marked complete (WP64),
+  a manual command, and a warning above a size threshold (e.g. 2 GB), never silent. Open decisions: archive vs delete default
+  for unreferenced recorded takes, and whether to store state diffs instead of whole states (would shrink the database
+  itself, larger change to the history model, see WP40 'long history stays fast').
 - **Quick mute for lip smacks** (owner request 2026-10-20, QoL, not started): two forms, both one key. (1) "Mute
   from mark to cursor": set a mark, play on, press the key, and the stretch mark..cursor is muted (a soft cut, hatched).
   (2) "Mute around cursor": one key mutes a fixed short stretch centred on the cursor (default 0.5 s, so 0.25 s before and
