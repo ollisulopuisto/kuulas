@@ -8,6 +8,7 @@ import {
   methodAvailable,
   normaliseSilence,
   previewLines,
+  SHOW_METHOD_SELECTOR,
   SILENCE_DEFAULTS,
   SILENCE_RANGES,
   validateSilence,
@@ -98,8 +99,7 @@ export function createSilenceDialog({ api, t, getProject, getOptions, onApply, o
     "ui.silence.section_detect",
     marginRow,
     row("dominance_db", "ui.silence.dominance", dominance, "ui.silence.dominance_hint"),
-    row("method", "ui.silence.method", method),
-    methodNote,
+    ...(SHOW_METHOD_SELECTOR ? [row("method", "ui.silence.method", method), methodNote] : []),
   );
   const timing = section(
     "ui.silence.section_timing",
@@ -145,7 +145,7 @@ export function createSilenceDialog({ api, t, getProject, getOptions, onApply, o
   const values = () => ({
     ...Object.fromEntries(Object.keys(SILENCE_RANGES).map((name) => [name, inputs[name].value])),
     margin_db: slider.value,
-    method: method.value,
+    method: SHOW_METHOD_SELECTOR ? method.value : "threshold",
   });
 
   function refresh() {
