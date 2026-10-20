@@ -4,6 +4,7 @@
 //   { type: "draw", job }      whenever the view changes (see paint.js)
 // and this fetches the peak tiles it is missing, then paints the newest job again.
 import { peakTile } from "./api.js";
+import { backingSize } from "./canvas-size.js";
 import { paintWaveforms } from "./paint.js";
 import { createTileStore } from "./tiles.js";
 
@@ -25,8 +26,7 @@ function paint() {
   scheduled = false;
   if (!context || !latest) return;
   const job = latest;
-  const width = Math.round(job.width * job.ratio);
-  const height = Math.round(job.height * job.ratio);
+  const { width, height } = backingSize(job.width, job.height, job.ratio);
   if (canvas.width !== width || canvas.height !== height) {
     canvas.width = width;
     canvas.height = height;

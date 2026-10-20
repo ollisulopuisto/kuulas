@@ -26,7 +26,7 @@ from typing import Any
 
 import uvicorn
 
-from . import offload
+from . import memory, offload
 from .cli import HOST, bind_local, uvicorn_config
 from .messages import KuulasError, t
 from .new_project import SUFFIX, folder_name
@@ -701,6 +701,7 @@ def run_window(folder: str | None = None) -> int:
         return 1
     # Analysis workers an earlier run left behind (a crash) go first.
     offload.start_sweep()
+    memory.start_rss_watch()
     app = WindowApp(webview, recents_file())
     bridge = app.new_window()
     install_open_files_hook(app.open_paths)

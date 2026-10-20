@@ -16,7 +16,7 @@ from pathlib import Path
 
 import uvicorn
 
-from . import diag, export_formats, logsetup, offload, package, profiler
+from . import diag, export_formats, logsetup, memory, offload, package, profiler
 from .build_info import build_label
 from .messages import KuulasError, t
 
@@ -176,6 +176,7 @@ def open_project(folder: str, port: int = 0, browser: bool = True) -> int:
 
     # Analysis workers an earlier run left behind (a crash) go first.
     offload.start_sweep()
+    memory.start_rss_watch()
     session = Session(folder)
     engine = Engine(session)
     # Only a viewer of the recorder: closing it below never stops a take.

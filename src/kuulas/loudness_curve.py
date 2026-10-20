@@ -40,6 +40,7 @@ from speechmix.meter import IntegratedMeter
 
 from . import caches, mixer, priority
 from .loudness import track_target_lufs
+from .media import streaming
 from .messages import t
 
 if TYPE_CHECKING:
@@ -54,7 +55,13 @@ ALGORITHM = "loudness-curve@1"
 
 WINDOW_SEC = 3.0
 HOP_SEC = 1.0
-CHUNK_SEC = 60
+#: Seconds of the timeline read per step. Each step holds every pending
+#: curve's stem as float64 stereo (the meter's copy, its power and flags) and
+#: the mix of all tracks: at 60 s the analysis worker's heap peaked at 340 MB
+#: on a 47-minute, 5-track project (docs/MEMORY.md, 2026-10-20). The meter
+#: carries its state across steps, so the step changes no number (golden test
+#: in tests/test_memory_ceiling.py).
+CHUNK_SEC = 15
 FLOOR_LUFS = -70.0
 
 
@@ -212,12 +219,15 @@ def project_curves(p: Project, store: mixer.Store,
         priority.checkpoint()
         count = min(step, p.length - first)
         for ident, (acc, _) in pending.items():
-            if ident:
-                chunk = mixer.track_stem(by_id[ident], store, first, count,
-                                         channels[ident], as_heard=True, rate=p.rate)
-            else:
-                chunk = mixer.mix(p, store, first, count)
+            # A scan from start to end: its audio is not kept (docs/MEMORY.md).
+            with streaming():
+                if ident:
+                    chunk = mixer.track_stem(by_id[ident], store, first, count,
+                                             channels[ident], as_heard=True, rate=p.rate)
+                else:
+                    chunk = mixer.mix(p, store, first, count)
             acc.add(chunk)
+            del chunk
     for ident, (acc, where) in pending.items():
         results[ident] = acc.result().to_dict()
         _save(where, results[ident])
@@ -251,8 +261,11 @@ def speech_levels(
             step = CHUNK_SEC * p.rate
             for first in range(0, p.length, step):
                 priority.checkpoint()
-                acc.add(mixer.track_stem(track, store, first, min(step, p.length - first),
-                                         channels, as_heard=True, rate=p.rate))
+                with streaming():
+                    chunk = mixer.track_stem(track, store, first,
+                                             min(step, p.length - first), channels,
+                                             as_heard=True, rate=p.rate)
+                acc.add(chunk)
             hit = acc.result().to_dict()
             _save(where, hit)
         levels.append(hit.get("integrated"))

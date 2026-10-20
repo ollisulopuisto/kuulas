@@ -403,6 +403,7 @@
   "error.export.no_ffmpeg": "Tämä vientimuoto tarvitsee ffmpegin asennettuna.",
   "error.export.too_big": "Vienti ylittää WAV-tiedoston kokorajan; valitse FLAC tai lyhyempi alue.",
   "error.export.too_long_to_master": "Masterointi on muistin säästämiseksi rajattu {hours} tuntiin.",
+  "error.export.master_memory": "Tämän ohjelman masterointi veisi enemmän muistia kuin tällä tietokoneella on varaa (enintään noin {minutes} minuuttia mahtuu). Vie ilman masterointia tai masteroi lyhyempi valinta.",
   "export.done": "{what} vietiin kohteeseen {path}.",
   "export.unchanged": "Ei muutoksia version v{n} jälkeen: {path}",
   "export.what.selection": "Valinta · {what}",
@@ -2305,4 +2306,6 @@
   "error.offload.busy":"Analyysejä odottaa liian monta; yritä hetken päästä uudelleen.",
   "error.offload.timeout": "Analyysi kesti yli {seconds} s ja keskeytettiin.",
   "log.offload.watchdog": "Analyysiprosessi {pid}: {why}; se lopetetaan.",
-  "log.offload.swept": "Lopetettiin {count} edellisen käynnistyksen jälkeen jäänyttä analyysiprosessia."}
+  "log.offload.swept": "Lopetettiin {count} edellisen käynnistyksen jälkeen jäänyttä analyysiprosessia.",
+  "error.offload.memory": "Analyysi tarvitsi {mb} Mt muistia, yli rajansa {limit_mb} Mt, ja se keskeytettiin, ettei tietokone hidastu. Ilmoita tästä ja liitä mukaan loki.",
+  "log.memory.high": "Editori käyttää {mb} Mt muistia (varoitusraja {limit_mb} Mt); välimuistibudjetti {cache_mb} Mt, suurin analyysiprosessi {worker_mb} Mt."}

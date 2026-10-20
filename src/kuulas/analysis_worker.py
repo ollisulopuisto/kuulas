@@ -72,7 +72,7 @@ def run_task(payload: dict, lower: bool = False) -> dict:
     try:
         if payload["task"] == "_probe":
             lowered = _lower() if lower else None
-            return {"value": _probe(payload["probe"], lowered)}
+            return {"value": _probe(payload["probe"], lowered), "peak_rss": _peak()}
         from . import offload  # noqa: PLC0415
 
         fn = offload.resolve(payload["task"])
@@ -84,11 +84,46 @@ def run_task(payload: dict, lower: bool = False) -> dict:
             store.close()
     except KuulasError as e:
         return {"error": {"key": e.key, "params": e.params, "text": str(e),
-                          "module": type(e).__module__, "cls": type(e).__qualname__}}
+                          "module": type(e).__module__, "cls": type(e).__qualname__},
+                "peak_rss": _peak()}
     except Exception as e:  # noqa: BLE001 - every failure goes back to the editor
         traceback.print_exc(file=sys.stderr)
-        return {"error": {"text": f"{type(e).__name__}: {e}"}}
-    return {"value": value}
+        return {"error": {"text": f"{type(e).__name__}: {e}"}, "peak_rss": _peak()}
+    return {"value": value, "peak_rss": _peak()}
+
+
+def _peak() -> int:
+    """The worker's peak resident bytes so far, for the editor's log and the
+    performance report (docs/MEMORY.md)."""
+    from . import rss  # noqa: PLC0415
+
+    return rss.peak() or 0
+
+
+#: The worker's hard memory ceiling (bytes): above it the analysis stops with
+#: ``error.offload.memory`` at its next chunk. A windowed analysis of a
+#: 47-minute, 5-track project peaks at ~0.3 GB (docs/MEMORY.md), so this only
+#: trips on a path that holds whole files, which must fail cleanly rather
+#: than swap the Mac (the incident of 2026-10-20).
+CEILING_BYTES = int(float(os.environ.get("KUULAS_WORKER_MAX_MB", "1536")) * 1024**2)
+#: The worker's cache budget: it keeps nothing between tasks, every read of
+#: its one scan streams (``media.STREAM_ALL``), and what it computes is
+#: written to ``caches/`` at once. Small, so a measured envelope does not stay
+#: in memory after its track is done.
+WORKER_BUDGET_BYTES = 64 * 1024**2
+#: Tracks measured at once in the worker (``analysis.MAX_TRACKS_AT_ONCE``).
+WORKER_TRACKS_AT_ONCE = 2
+TRACKS_ENV = "KUULAS_TRACKS_AT_ONCE"
+
+
+def _bound_memory() -> None:
+    # Read by ``analysis`` when (and only if) a task imports it.
+    os.environ[TRACKS_ENV] = str(WORKER_TRACKS_AT_ONCE)
+    from . import media, memory, rss  # noqa: PLC0415 - after nice (see the module doc)
+
+    media.STREAM_ALL = True
+    memory.configure(WORKER_BUDGET_BYTES)
+    priority.set_memory_guard(rss.Ceiling(CEILING_BYTES).check)
 
 
 #: How often the worker checks that the editor still runs.
@@ -136,6 +171,7 @@ def watch_pipe() -> None:
 
 def main(argv: list[str] | None = None) -> int:
     _lower()
+    _bound_memory()
     watch_parent()
     watch_pipe()
     args = sys.argv[1:] if argv is None else argv

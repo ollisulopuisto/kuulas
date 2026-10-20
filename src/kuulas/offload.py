@@ -157,15 +157,39 @@ def call(task: str, project, store, *args: Any, cancel: threading.Event | None =
     payload = {"task": task, "project": project, "store": spec, "args": args,
                "kwargs": kwargs}
     key = (task, spec["folder"]) if task in SUPERSEDE else None
+    # A task that hit the memory ceiling backs off like a failed worker, even
+    # when it is not superseding: no retry storm of workers that each grow to
+    # the ceiling (docs/MEMORY.md).
+    memory_key = ("memory", task, spec["folder"])
+    left = MANAGER.backoff_left(memory_key)
+    if left > 0:
+        raise KuulasError("error.offload.backoff", seconds=round(left))
     try:
         reply = _run(payload, cancel, pause, key=key, owner=spec["folder"])
     except WorkerFailedError as e:
         log.warning(t("log.offload.fallback", error=str(e)))
         return fn(project, store, *args, **kwargs)
+    note_worker_peak(task, reply.get("peak_rss"))
     error = reply.get("error")
     if error is not None:
+        if error.get("key") == "error.offload.memory":
+            MANAGER.note_failure(memory_key)
         raise _rebuild(error)
+    MANAGER.note_success(memory_key)
     return reply["value"]
+
+
+#: The analysis workers' peak resident bytes: the last one's and the most any
+#: reached in this run (the performance report, docs/MEMORY.md).
+WORKER_PEAKS: dict[str, int] = {"last": 0, "max": 0}
+
+
+def note_worker_peak(task: str, peak: object) -> None:
+    if not isinstance(peak, int) or peak <= 0:
+        return
+    WORKER_PEAKS["last"] = peak
+    WORKER_PEAKS["max"] = max(WORKER_PEAKS["max"], peak)
+    log.info("analysis worker %s: peak RSS %d MB", task, round(peak / 1024**2))
 
 
 def probe(what: dict, cancel: threading.Event | None = None,
@@ -346,6 +370,15 @@ class WorkerManager:
         if key is None or key not in self._failures:
             return 0.0
         return max(0.0, self._failures[key][1] - self._clock())
+
+    def note_failure(self, key: object) -> None:
+        """A failure of ``key`` the worker reported in its answer (the memory
+        ceiling): back off as after a crash."""
+        self._failed(key)
+
+    def note_success(self, key: object) -> None:
+        if key in self._failures:
+            self._succeeded(key)
 
     def _failed(self, key: object) -> None:
         if key is None:

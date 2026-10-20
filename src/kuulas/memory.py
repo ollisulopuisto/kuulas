@@ -31,6 +31,14 @@ log = logging.getLogger("kuulas.memory")
 DEFAULT_LIMIT = 2 * 1024**3
 #: Log the hit rates after this many lookups, so a long session reports itself.
 LOG_EVERY = 5000
+#: Caps of single namespaces inside the budget. ``chunks`` is decoded audio
+#: (``MediaStore._chunk``, 10 s each): without its own cap every scan of a
+#: long project filled the whole 2 GB with audio, in the editor and in each
+#: analysis worker (47 min x 5 tracks: 2.4 to 3.4 GB peak RSS per process,
+#: docs/MEMORY.md). Playback reads ahead through the engine's own window
+#: (``engine.PREFETCH_S``), so this cache only spares repeated short reads:
+#: 192 MB is ~17 minutes of mono audio at 48 kHz.
+NAMESPACE_LIMITS = {"chunks": 192 * 1024**2}
 
 
 def _sizeof(value: Any) -> int:
@@ -58,6 +66,35 @@ class MemoryBudget:
         self._computing: dict[tuple[str, str], threading.Lock] = {}
         self._counts: dict[str, dict[str, int]] = {}
         self._lookups = 0
+        self._ns_limits: dict[str, int] = dict(NAMESPACE_LIMITS)
+        self._ns_used: dict[str, int] = {}
+
+    # -- namespaces ---------------------------------------------------------
+
+    def set_namespace_limit(self, ns: str, limit_bytes: int | None) -> None:
+        """Cap ``ns`` on its own (None: only the total applies)."""
+        with self._lock:
+            if limit_bytes is None:
+                self._ns_limits.pop(ns, None)
+            else:
+                self._ns_limits[ns] = int(limit_bytes)
+            self._evict()
+
+    def namespace_limit(self, ns: str) -> int | None:
+        return self._ns_limits.get(ns)
+
+    def namespace_bytes(self, ns: str) -> int:
+        with self._lock:
+            return self._ns_used.get(ns, 0)
+
+    def namespace_usage(self) -> dict[str, int]:
+        """``{namespace: bytes held}`` (the performance report)."""
+        with self._lock:
+            return {ns: n for ns, n in self._ns_used.items() if n}
+
+    def _add(self, ns: str, nbytes: int) -> None:
+        self.used += nbytes
+        self._ns_used[ns] = self._ns_used.get(ns, 0) + nbytes
 
     # -- counting -----------------------------------------------------------
 
@@ -117,19 +154,19 @@ class MemoryBudget:
         with self._lock:
             old = self._entries.pop((ns, key), None)
             if old is not None:
-                self.used -= old.nbytes
-            if size > self.limit:
+                self._add(ns, -old.nbytes)
+            if size > min(self.limit, self._ns_limits.get(ns, self.limit)):
                 self._spill(_Entry(value, size, spill))
                 return
             self._entries[ns, key] = _Entry(value, size, spill)
-            self.used += size
+            self._add(ns, size)
             self._evict()
 
     def discard(self, ns: str, key: str) -> None:
         with self._lock:
             entry = self._entries.pop((ns, key), None)
             if entry is not None:
-                self.used -= entry.nbytes
+                self._add(ns, -entry.nbytes)
 
     def discard_prefix(self, ns: str, prefix: str) -> None:
         """Discard all entries in ``ns`` whose key starts with ``prefix``."""
@@ -139,7 +176,7 @@ class MemoryBudget:
             for k in to_remove:
                 entry = self._entries.pop(k, None)
                 if entry is not None:
-                    self.used -= entry.nbytes
+                    self._add(ns, -entry.nbytes)
 
     def set_limit(self, limit_bytes: int) -> None:
         with self._lock:
@@ -148,9 +185,18 @@ class MemoryBudget:
 
     def _evict(self) -> None:
         while self.used > self.limit and self._entries:
-            _, entry = self._entries.popitem(last=False)
-            self.used -= entry.nbytes
+            (ns, _), entry = self._entries.popitem(last=False)
+            self._add(ns, -entry.nbytes)
             self._spill(entry)
+        for ns, cap in self._ns_limits.items():
+            if self._ns_used.get(ns, 0) <= cap:
+                continue
+            for k in [k for k in self._entries if k[0] == ns]:  # oldest first
+                if self._ns_used.get(ns, 0) <= cap:
+                    break
+                entry = self._entries.pop(k)
+                self._add(ns, -entry.nbytes)
+                self._spill(entry)
 
     @staticmethod
     def _spill(entry: _Entry) -> None:
@@ -199,3 +245,52 @@ BUDGET = MemoryBudget()
 def configure(limit_bytes: int) -> None:
     """Set the budget for the whole process (a setting, WP35)."""
     BUDGET.set_limit(limit_bytes)
+
+
+# -- the editor's own size ---------------------------------------------------------
+
+#: The editor's resident size above which it logs a warning. Before the fix of
+#: 2026-10-20 it reached 3 GB on a 47-minute project (owner's MacBook); after
+#: it, the heaviest path measured ~1 GB (docs/MEMORY.md).
+RSS_WARN_BYTES = 3 * 1024**3
+#: How often the watcher looks, and how much more it must grow before a
+#: second warning (so a big project does not log every 30 s).
+RSS_WATCH_S = 30.0
+RSS_WARN_STEP = 512 * 1024**2
+
+
+class RssWatch:
+    """Logs ``log.memory.high`` when ``read()`` passes ``limit``, and again
+    each time it grows by ``step`` more."""
+
+    def __init__(self, read: Callable[[], int | None], limit: int = RSS_WARN_BYTES,
+                 step: int = RSS_WARN_STEP, worker_peak: Callable[[], int] = lambda: 0):
+        self._read, self.limit, self.step = read, int(limit), int(step)
+        self._worker_peak = worker_peak
+        self._next = self.limit
+
+    def check(self) -> bool:
+        """True when it warned."""
+        now = self._read()
+        if now is None or now <= self._next:
+            return False
+        self._next = now + self.step
+        log.warning(t("log.memory.high", mb=round(now / 1024**2),
+                      limit_mb=round(self.limit / 1024**2),
+                      cache_mb=round(BUDGET.used / 1024**2),
+                      worker_mb=round(self._worker_peak() / 1024**2)))
+        return True
+
+
+def start_rss_watch() -> None:
+    """At the editor's start: a daemon thread that runs ``RssWatch``."""
+    from . import offload, priority, rss  # noqa: PLC0415 - they import this module
+
+    watch = RssWatch(rss.current, worker_peak=lambda: offload.WORKER_PEAKS["max"])
+
+    def run() -> None:
+        while True:
+            watch.check()
+            threading.Event().wait(RSS_WATCH_S)
+
+    priority.thread(run, "kuulas-rss-watch").start()

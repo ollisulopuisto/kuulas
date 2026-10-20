@@ -8,6 +8,7 @@
 
 import { peakTile } from "./api.js";
 import { candidateBands, flagFits, flagText } from "./candidates-model.js";
+import { backingSize } from "./canvas-size.js";
 import {
   canStartClipDrag,
   clipDragIds,
@@ -168,13 +169,16 @@ export function createTimeline({
 
   function measure() {
     const rect = stack.getBoundingClientRect();
+    // The viewport's size, with the pixel count capped (canvas-size.js): the
+    // waveform worker sizes its canvas from the same ratio.
+    const backing = backingSize(rect.width, rect.height, devicePixelRatio || 1);
     size = {
       width: Math.round(rect.width),
       height: Math.round(rect.height),
-      ratio: devicePixelRatio || 1,
+      ratio: backing.ratio,
     };
-    overlayCanvas.width = Math.round(size.width * size.ratio);
-    overlayCanvas.height = Math.round(size.height * size.ratio);
+    if (overlayCanvas.width !== backing.width) overlayCanvas.width = backing.width;
+    if (overlayCanvas.height !== backing.height) overlayCanvas.height = backing.height;
     lastWaveKey = "";
     actions.resized(size);
     requestWaveforms();
