@@ -101,6 +101,17 @@ export const SYNONYMS = {
     "vaimenna",
     "automaatio",
   ],
+  "app.music_level": [
+    "music volume",
+    "bed level",
+    "music bed",
+    "background music",
+    "loudness",
+    "musiikin voimakkuus",
+    "taustamusiikki",
+    "musiikkipohja",
+    "äänekkyys",
+  ],
   "export.automix": [
     "automixer",
     "master",

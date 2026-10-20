@@ -342,6 +342,11 @@ class Project:
     markers: tuple[Marker, ...] = ()
     # Edit state (WP43), sorted by start; absent from the JSON when empty.
     placeholders: tuple[Placeholder, ...] = ()
+    # Edit state (Auto-mix in Kuulas): what of the automixer's work is done in
+    # the edit already, by name, e.g. ``{"bed_level": {...}}`` from Set music
+    # level (``music_level.record``). Undo takes it back with the gains it
+    # describes. Absent from the JSON when empty.
+    mix_done: dict = field(default_factory=dict, hash=False)
     extra: dict = field(default_factory=dict, hash=False)
 
     # -- lookups ----------------------------------------------------------
@@ -417,6 +422,8 @@ class Project:
             del d["markers"]
         if not self.placeholders:
             del d["placeholders"]
+        if not self.mix_done:
+            del d["mix_done"]
         return d
 
     def to_json(self) -> str:
@@ -433,6 +440,7 @@ class Project:
         known["markers"] = tuple(Marker.from_dict(m) for m in known.get("markers", ()))
         known["placeholders"] = tuple(Placeholder.from_dict(h)
                                       for h in known.get("placeholders", ()))
+        known["mix_done"] = dict(known.get("mix_done") or {})
         return cls(**known, extra=extra)
 
     @classmethod

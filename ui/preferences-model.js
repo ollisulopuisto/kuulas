@@ -4,6 +4,12 @@
 // Pure, no DOM.
 
 import { DEFAULT_FAST, MAX_FAST, MIN_FAST, STEP } from "./fast-speed.js";
+import {
+  DEFAULT_MUSIC_UNDER_DB,
+  MAX_MUSIC_UNDER_DB,
+  MIN_MUSIC_UNDER_DB,
+  MUSIC_UNDER_STEP_DB,
+} from "./music-level-model.js";
 import { PREROLL_CHOICES } from "./preroll.js";
 import {
   DEFAULT_QUICK_MUTE_S,
@@ -58,6 +64,16 @@ export const PREFERENCE_FIELDS = [
     step: QUICK_MUTE_STEP_S,
     unit: "s",
   },
+  {
+    // Track > Auto > Set music level…: where the music's loudest moment sits under the speech.
+    id: "musicUnder",
+    kind: "range",
+    labelKey: "ui.prefs.music_under_speech",
+    min: MIN_MUSIC_UNDER_DB,
+    max: MAX_MUSIC_UNDER_DB,
+    step: MUSIC_UNDER_STEP_DB,
+    unit: "dB",
+  },
 ];
 
 /** Buttons that open the settings dialogs that already exist: the command each one runs. */
@@ -66,6 +82,13 @@ export const PREFERENCE_LINKS = [
   { command: "export.automix", labelKey: "cmd.export.automix" },
   { command: "help.keys", labelKey: "cmd.help.keys" },
 ];
+
+/** A slider's value as its readout shows it: "0.5 s", "-10 dB", "1.35×" (a speed). */
+export function readoutText(field, value) {
+  if (field.unit === "s") return `${value} s`;
+  if (field.unit === "dB") return `${value} dB`;
+  return `${value}×`;
+}
 
 /**
  * The value of each field now: `state` is app.js's state (language, confirm, clipboard, fast
@@ -80,6 +103,7 @@ export function currentValues(state, record) {
     clipboardLimit: state?.clipboardLimit !== false,
     fast: state?.fast?.fast ?? DEFAULT_FAST,
     quickMute: state?.quickMuteS ?? DEFAULT_QUICK_MUTE_S,
+    musicUnder: state?.musicUnderDb ?? DEFAULT_MUSIC_UNDER_DB,
   };
 }
 
@@ -97,7 +121,7 @@ export function applyField(id, value, current, setters) {
   if (id === "language" || id === "stopMode" || id === "preroll") {
     if (!optionValues(id).includes(String(value))) return false;
     typed = id === "preroll" ? Number(value) : String(value);
-  } else if (id === "fast" || id === "quickMute") {
+  } else if (id === "fast" || id === "quickMute" || id === "musicUnder") {
     const { min, max } = PREFERENCE_FIELDS.find((field) => field.id === id);
     typed = Number(value);
     if (!Number.isFinite(typed) || typed < min || typed > max) return false;

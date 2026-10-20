@@ -9,6 +9,7 @@ import {
   currentValues,
   PREFERENCE_FIELDS,
   PREFERENCE_LINKS,
+  readoutText,
 } from "../preferences-model.js";
 
 const catalog = (lang) =>
@@ -37,7 +38,16 @@ describe("the fields", () => {
   test("gather the owner's list, once each", () => {
     assert.deepEqual(
       PREFERENCE_FIELDS.map((field) => field.id),
-      ["language", "stopMode", "preroll", "confirmSync", "clipboardLimit", "fast", "quickMute"],
+      [
+        "language",
+        "stopMode",
+        "preroll",
+        "confirmSync",
+        "clipboardLimit",
+        "fast",
+        "quickMute",
+        "musicUnder",
+      ],
     );
   });
 
@@ -82,6 +92,7 @@ describe("currentValues", () => {
       clipboardLimit: true,
       fast: 1.35,
       quickMute: 0.5,
+      musicUnder: -10,
     });
   });
 
@@ -104,6 +115,26 @@ describe("currentValues", () => {
     assert.equal(applyField("quickMute", "2.5", current, setters), false);
     assert.equal(applyField("quickMute", "0.05", current, setters), false);
     assert.deepEqual(calls, [["quickMute", 0.8]]);
+  });
+
+  test("music under speech: a -30..0 dB field, -10 by default, sent within bounds only", () => {
+    const field = PREFERENCE_FIELDS.find((f) => f.id === "musicUnder");
+    assert.equal(field.kind, "range");
+    assert.deepEqual([field.min, field.max, field.unit], [-30, 0, "dB"]);
+    assert.equal(currentValues({ musicUnderDb: -14 }, {}).musicUnder, -14);
+    const { calls, setters } = recorder();
+    const current = currentValues({}, {});
+    assert.equal(applyField("musicUnder", "-12", current, setters), true);
+    assert.equal(applyField("musicUnder", "3", current, setters), false);
+    assert.equal(applyField("musicUnder", "-10", current, setters), false);
+    assert.deepEqual(calls, [["musicUnder", -12]]);
+  });
+
+  test("a slider's value reads with its unit", () => {
+    const field = (id) => PREFERENCE_FIELDS.find((f) => f.id === id);
+    assert.equal(readoutText(field("quickMute"), "0.5"), "0.5 s");
+    assert.equal(readoutText(field("musicUnder"), "-10"), "-10 dB");
+    assert.equal(readoutText(field("fast"), "1.35"), "1.35×");
   });
 
   test("defaults when nothing is set", () => {
