@@ -219,3 +219,15 @@ def test_dock_icon_is_set_only_on_macos_and_never_raises(tmp_path):
     assert desktop.set_dock_icon(platform="darwin", appkit=appkit) is True
     assert calls[0][0] == "image"
     assert desktop.set_dock_icon(platform="darwin", appkit=None) is False
+
+
+def test_webview_start_options_persist_and_only_what_is_accepted(tmp_path, monkeypatch):
+    monkeypatch.setattr(desktop, "config_dir", lambda: tmp_path)
+
+    def new(func=None, private_mode=True, storage_path=None, icon=None): ...
+
+    def old(func=None, icon=None): ...
+
+    assert desktop.webview_start_options(new) == {
+        "private_mode": False, "storage_path": str(tmp_path / "webview")}
+    assert desktop.webview_start_options(old) == {}

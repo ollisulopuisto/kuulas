@@ -89,6 +89,19 @@ def recents_file() -> Path:
     return Path(override) if override else config_dir() / "recent.json"
 
 
+def webview_start_options(start_fn) -> dict:
+    """Keyword arguments for ``webview.start``: a persistent web-storage folder instead
+    of pywebview 5's private mode (belt and braces; the UI's settings themselves live
+    in ``ui-prefs.json``, see ``ui_prefs``). Only what this pywebview accepts."""
+    import inspect  # noqa: PLC0415
+    wanted = {"private_mode": False, "storage_path": str(config_dir() / "webview")}
+    try:
+        accepted = inspect.signature(start_fn).parameters
+    except (TypeError, ValueError):
+        return {}
+    return {k: v for k, v in wanted.items() if k in accepted}
+
+
 _RECENTS_LOCK = threading.Lock()
 
 
@@ -695,7 +708,8 @@ def run_window(folder: str | None = None) -> int:
             bridge.open_project(folder)
         app.ready()
 
-    webview.start(start, icon=str(icon_path("window")))
+    webview.start(start, icon=str(icon_path("window")),
+                  **webview_start_options(webview.start))
     bridge.close()
     return 0
 

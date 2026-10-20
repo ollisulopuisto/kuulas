@@ -101,7 +101,7 @@ import { motionMode } from "./motion.js";
 import { createOverview } from "./overview.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
 import { createPreferencesDialog } from "./preferences-dialog.js";
-import { createPrefs } from "./prefs.js";
+import { loadPrefs } from "./prefs.js";
 import { nextPreroll, prerollLabel } from "./preroll.js";
 import { createProjectDialog } from "./project-dialog.js";
 import { patchClip } from "./provisional.js";
@@ -152,7 +152,7 @@ import { nextWheelMode, wheelModeChoice } from "./wheel.js";
 
 const $ = (id) => document.getElementById(id);
 installIcons();
-const prefs = createPrefs();
+const prefs = await loadPrefs(); // server-side store, read once before the first prefs.get
 const WAVEFORM_GAIN = { min: 1 / 8, max: 32, snap: 0.04 };
 const LANE_STEP = 8;
 const SETTLE_MS = 160;
