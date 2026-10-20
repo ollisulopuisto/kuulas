@@ -190,3 +190,13 @@ Kuulas", same registry as the music level and block levels), so the automixer do
 when the user has touched nothing, the automixer balances. Needs from the podcast side: the
 flag, its log line (for log.txt, like `beds:`), and a word on whether stage 2 already exists in
 some form I missed.
+
+**Refinement (owner, 2026-10-20): hand-set levels are approximate, so do not switch the
+balancing off; let it measure what the user did and make SMALL corrections.** Replace the on/off
+switch with a bounded one: `--balance-speakers-max-db FLOAT` = the most the automixer may move a
+speaker's overall level (0 = leave the user's levels alone, large = full automation; suggested
+default 6). Optionally `--balance-speakers-tolerance-db` (a dead band: speakers already within
+this many dB of each other are left as they are, so a good hand balance is not fiddled with).
+Kuulas picks the value: nothing touched = the default (full), levels adjusted by hand = a small
+cap (about 2-3 dB), "keep my levels" = 0. The log line should say each speaker's measured level
+and the correction applied.
