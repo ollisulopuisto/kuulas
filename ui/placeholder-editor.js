@@ -23,17 +23,22 @@ export function createPlaceholderEditor({ root, t }) {
     const title = document.createElement("h3");
     title.id = "placeholder-editor-title";
     title.textContent = t("ui.placeholders.editor.title");
-    const label = document.createElement("label");
-    label.className = "placeholder-field";
-    const caption = document.createElement("span");
+    // One form row (FORMS.md): the label, then the text with its estimate under it. The estimate
+    // sits outside the <label>, so it is not read as part of the field's name.
+    const row = document.createElement("div");
+    row.className = "placeholder-field form-row";
+    const caption = document.createElement("label");
+    caption.className = "form-label";
+    caption.htmlFor = "placeholder-editor-text";
     caption.textContent = t("ui.placeholders.editor.label");
     const area = document.createElement("textarea");
+    area.id = "placeholder-editor-text";
     area.rows = 4;
     area.value = text;
-    label.append(caption, area);
     const readout = document.createElement("p");
-    readout.className = "placeholder-estimate";
+    readout.className = "placeholder-estimate form-help";
     readout.setAttribute("aria-live", "polite");
+    row.append(caption, area, readout);
     const save = document.createElement("button");
     save.type = "button";
     save.className = "button primary";
@@ -68,7 +73,7 @@ export function createPlaceholderEditor({ root, t }) {
     });
     save.addEventListener("click", () => close(area.value));
     cancel.addEventListener("click", () => close(null));
-    root.append(title, label, readout, actions);
+    root.append(title, row, actions);
     refresh();
     root.hidden = false;
     area.focus();

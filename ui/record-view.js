@@ -149,7 +149,7 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
   const body = el("div", "record-body");
   const monitoring = el("p", "record-monitoring");
   const footer = el("div", "cheatsheet-footer record-footer");
-  const modeLabel = el("label", "record-mode");
+  const modeLabel = el("label", "record-mode footer-start");
   const modeText = el("span");
   const modeSelect = el("select");
   modeLabel.append(modeText, modeSelect);
@@ -180,15 +180,15 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
   function buildSetup() {
     const box = el("div", "record-setup");
     const row = (labelText, control) => {
-      const label = el("label", "record-field");
-      label.append(el("span", "record-label", labelText), control);
+      const label = el("label", "record-field form-row");
+      label.append(el("span", "record-label form-label", labelText), control);
       box.append(label);
       return control;
     };
     setup.device = row(t("ui.record.device"), el("select"));
     // Every channel of the input: whether to record it and onto which track (WP12b).
     setup.channels = el("fieldset", "record-channels");
-    setup.channels.append(el("legend", "record-label", t("ui.record.channels")));
+    setup.channels.append(el("legend", "form-heading", t("ui.record.channels")));
     box.append(setup.channels);
     setup.preroll = row(t("ui.record.preroll"), el("select"));
     setup.armed = el("p", "record-armed");

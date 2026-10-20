@@ -28,10 +28,11 @@ export function createPreferencesDialog({ t, read, setters, run, canRun }) {
   dialog.setAttribute("aria-labelledby", "prefs-title");
   const title = make("h2", "", t("ui.prefs.title"));
   title.id = "prefs-title";
-  const form = make("form");
+  const form = make("form", "form-grid");
   form.method = "dialog";
-  const grid = make("div", "automix-section");
-  const more = make("div", "automix-section");
+  const grid = make("div", "automix-section form-section");
+  const more = make("div", "automix-section form-section");
+  const links = make("div", "form-actions");
   const footer = make("div", "cheatsheet-footer");
   const close = make("button", "button block primary", t("ui.prefs.close"));
   close.type = "button";
@@ -59,9 +60,9 @@ export function createPreferencesDialog({ t, read, setters, run, canRun }) {
     linkButtons.length = 0;
     grid.replaceChildren();
     for (const field of PREFERENCE_FIELDS) {
-      const row = make("label", "automix-row");
-      row.append(make("span", "automix-label", t(field.labelKey)));
-      const cell = make("span", "automix-cell");
+      const row = make("label", "automix-row form-row");
+      row.append(make("span", "automix-label form-label", t(field.labelKey)));
+      const cell = make("span", "automix-cell form-field");
       let control;
       if (field.kind === "choice") {
         control = make("select");
@@ -79,7 +80,7 @@ export function createPreferencesDialog({ t, read, setters, run, canRun }) {
         control.step = String(field.step);
       }
       control.name = field.id;
-      const readout = field.kind === "range" ? make("output", "automix-note") : null;
+      const readout = field.kind === "range" ? make("output", "form-readout") : null;
       control.addEventListener("change", () => {
         const value = field.kind === "switch" ? control.checked : control.value;
         const { state, record } = read();
@@ -91,13 +92,18 @@ export function createPreferencesDialog({ t, read, setters, run, canRun }) {
           readout.textContent = `${control.value}${field.unit === "s" ? " s" : "×"}`;
         });
       }
-      cell.append(control);
-      if (readout) cell.append(readout);
+      if (readout) {
+        // A slider and its value on one line, the value right-aligned at the field's end.
+        const line = make("span", "form-inline");
+        line.append(control, readout);
+        cell.append(line);
+      } else cell.append(control);
       row.append(cell);
       grid.append(row);
       controls.set(field.id, { field, control, readout });
     }
-    more.replaceChildren(make("h3", "automix-heading", t("ui.prefs.more")));
+    more.replaceChildren(make("h3", "automix-heading form-heading", t("ui.prefs.more")), links);
+    links.replaceChildren();
     for (const link of PREFERENCE_LINKS) {
       const button = make("button", "button block", t(link.labelKey));
       button.type = "button";
@@ -106,7 +112,7 @@ export function createPreferencesDialog({ t, read, setters, run, canRun }) {
         run(link.command);
       });
       linkButtons.push({ button, command: link.command });
-      more.append(button);
+      links.append(button);
     }
   }
 

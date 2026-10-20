@@ -27,14 +27,20 @@ test("tabs keep their roles and the selected underline", () => {
   assert.match(rule('.side-tab[aria-selected="true"]'), /border-bottom-color:\s*var\(--accent\)/);
 });
 
-test("inspector rows are a two-column grid with full-width controls", () => {
-  assert.match(
-    rule(".inspector-field"),
-    /grid-template-columns:\s*minmax\(0, 2fr\) minmax\(0, 3fr\)/,
-  );
+// The inspector's rows are the shared form rows since 2026-10-20 (owner: "not all
+// scattershot"; docs/design/FORMS.md): the panel's fixed label column instead of a 2fr/3fr
+// split per section. ui/tests/form-layout.test.js pins the grid itself.
+test("inspector rows are form rows on the panel's label column", () => {
+  const track = read("../inspector-track.js");
+  assert.match(track, /label\.className = "form-row inspector-field"/);
+  assert.match(track, /name\.className = "form-label"/);
+  assert.match(rule(":is(.panel, .import-panel)"), /--form-label-w:\s*var\(--form-label-w-panel\)/);
   assert.doesNotMatch(css, /\.inspector-field[^{]*\{[^}]*max-width:\s*160px/);
   assert.doesNotMatch(css, /\.inspector-field input\[type="number"\] \{[^}]*width:\s*92px/);
-  assert.match(rule('.inspector-field input[type="checkbox"]'), /justify-self:\s*start/);
+  assert.match(
+    rule('.form-row > input[type="checkbox"],\n.form-field > input[type="checkbox"]'),
+    /justify-self:\s*start/,
+  );
   assert.match(rule(".inspector-readonly"), /text-align:\s*left/);
 });
 

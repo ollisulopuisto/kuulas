@@ -35,7 +35,11 @@ export function createCandidatesPanel({ root, getState, actions }) {
     id: "cand-find",
   });
   const filter = el("input", { type: "checkbox", id: "cand-open-only" });
-  const filterLabel = el("label", { class: "cand-filter", htmlFor: "cand-open-only" }, filter);
+  const filterLabel = el(
+    "label",
+    { class: "cand-filter check-row form-wide", htmlFor: "cand-open-only" },
+    filter,
+  );
   const filterText = el("span");
   filterLabel.append(filterText);
   const chips = el("div", { class: "cand-summary", role: "status" });

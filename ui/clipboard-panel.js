@@ -328,7 +328,7 @@ export function createClipboardPanel({ root, actions }) {
       clear,
       el(
         "label",
-        { class: "clip-keep-field" },
+        { class: "clip-keep-field form-inline" },
         el("span", { textContent: t("ui.clipboard.keep_label") }),
         field,
       ),
@@ -523,19 +523,20 @@ export function createClipboardPanel({ root, actions }) {
       el("h2", { textContent: t("ui.clipboard.title") }),
       ...bar,
       viewSwitch(view),
+      // The two paste choices: form rows on the panel's label column (FORMS.md).
       el(
         "div",
-        { class: "clip-choice" },
+        { class: "clip-choice form-grid" },
         el(
           "label",
-          {},
-          el("span", { textContent: t("ui.clipboard.mode") }),
+          { class: "form-row" },
+          el("span", { class: "form-label", textContent: t("ui.clipboard.mode") }),
           select("mode", PASTE_MODES, choice.mode, (value) => actions.choose({ pasteMode: value })),
         ),
         el(
           "label",
-          {},
-          el("span", { textContent: t("ui.clipboard.target") }),
+          { class: "form-row" },
+          el("span", { class: "form-label", textContent: t("ui.clipboard.target") }),
           select("target", PASTE_TARGETS, choice.target, (value) =>
             actions.choose({ pasteTarget: value }),
           ),

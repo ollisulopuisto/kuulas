@@ -33,11 +33,12 @@ export function addBusForTrack(editor, trackId, onCreated = () => {}) {
   });
 }
 
-/** A label wrapping its control, one grid row of the inspector. */
+/** A label wrapping its control: one form row (FORMS.md) on the panel's label column. */
 export function field(labelText, control) {
   const label = document.createElement("label");
-  label.className = "inspector-field";
+  label.className = "form-row inspector-field";
   const name = document.createElement("span");
+  name.className = "form-label";
   name.textContent = labelText;
   label.append(name, control);
   return label;

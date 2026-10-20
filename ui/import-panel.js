@@ -116,8 +116,8 @@ export function createImportPanel({ root, t, actions, storage, schedule = setTim
     select.addEventListener("change", () => onChange(select.value));
     return el(
       "label",
-      { className: "import-choice" },
-      el("span", { textContent: t(labelKey) }),
+      { className: "import-choice form-row" },
+      el("span", { className: "form-label", textContent: t(labelKey) }),
       select,
     );
   }
@@ -166,8 +166,8 @@ export function createImportPanel({ root, t, actions, storage, schedule = setTim
     root.append(
       el(
         "div",
-        { className: "import-options" },
-        el("span", { className: "hint", textContent: t("ui.import.next") }),
+        { className: "import-options form-grid" },
+        el("p", { className: "form-note", textContent: t("ui.import.next") }),
         choice("ui.import.order", "order", ORDERS, prefs.order, (value) =>
           remember({ order: value }),
         ),
