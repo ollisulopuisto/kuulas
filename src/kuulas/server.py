@@ -849,7 +849,8 @@ def create_app(session, engine, *, language: str | None = None,
         stored = automix.load_settings()
         # default_output_dir is for display only (run() works out the same folder itself).
         return {"settings": stored, "resolved": automix.resolve_settings(stored),
-                "default_output_dir": str(session.package.path.parent)}
+                "default_output_dir": str(session.package.path.parent),
+                "option_specs": automix.option_specs()}
 
     @app.put("/api/settings/automixer")
     def put_automixer_settings(body: Annotated[dict[str, Any], Body()]):

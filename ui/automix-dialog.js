@@ -11,6 +11,12 @@ import {
   migrateForm,
   validateAutomix,
 } from "./automix-model.js";
+import {
+  groupSpecs,
+  optionEnabled,
+  optionsToForm,
+  validateOptions,
+} from "./automix-options-model.js";
 
 const KEY = "kuulas.automix";
 
@@ -149,6 +155,78 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null }) {
   );
   mix.append(lufsRow, adLabel, adGroup, summary);
 
+  // -- Processing: the automixer's switches, drawn from the server's list (open()) ---------
+  const processing = section("ui.automix.section_options");
+  processing.hidden = true;
+  const optionControls = {};
+  let optionSpecs = [];
+
+  const boolControl = (spec) => {
+    const wrap = el("div", "automix-optcheck");
+    const label = el("label", "automix-check");
+    const box = el("input");
+    box.type = "checkbox";
+    box.name = spec.key;
+    box.id = `automix-${spec.key}`;
+    label.append(box, el("span", "", t(`ui.automix.opt.${spec.key}`)));
+    wrap.append(label, el("p", "automix-hint", t(`ui.automix.opt.${spec.key}.hint`)));
+    optionControls[spec.key] = { input: box, wrap };
+    return wrap;
+  };
+  const fieldControl = (spec) => {
+    const input = text(spec.key, spec.kind === "number" ? "decimal" : "text");
+    if (spec.kind === "number") input.classList.add("automix-short");
+    input.placeholder =
+      spec.default === null ? t("ui.automix.opt_tool_default") : String(spec.default);
+    const wrap = row(
+      spec.key,
+      `ui.automix.opt.${spec.key}`,
+      input,
+      `ui.automix.opt.${spec.key}.hint`,
+    );
+    optionControls[spec.key] = { input, wrap };
+    return wrap;
+  };
+  function buildOptions(specs) {
+    optionSpecs = specs;
+    processing.replaceChildren(processing.firstChild);
+    for (const { id, specs: members } of groupSpecs(specs)) {
+      const controls = members.map((spec) =>
+        spec.kind === "bool" ? boolControl(spec) : fieldControl(spec),
+      );
+      if (id === "minimal") {
+        processing.append(...controls);
+        continue;
+      }
+      const group = el("details", "automix-group");
+      group.dataset.group = id;
+      group.append(el("summary", "", t(`ui.automix.group.${id}`)), ...controls);
+      processing.append(group);
+    }
+    processing.hidden = specs.length === 0;
+  }
+  const optionValues = () => {
+    const values = {};
+    for (const spec of optionSpecs) {
+      const { input } = optionControls[spec.key];
+      values[spec.key] = spec.kind === "bool" ? input.checked : input.value;
+    }
+    return values;
+  };
+  const setOptionValues = (options) => {
+    const values = optionsToForm(optionSpecs, options);
+    for (const spec of optionSpecs) {
+      const { input } = optionControls[spec.key];
+      if (spec.kind === "bool") input.checked = values[spec.key];
+      else input.value = values[spec.key];
+    }
+    // Open a group that holds a changed value, so nothing set is hidden.
+    for (const group of processing.querySelectorAll("details")) {
+      const keys = optionSpecs.filter((s) => s.group === group.dataset.group).map((s) => s.key);
+      group.open = keys.some((key) => options && key in options);
+    }
+  };
+
   // -- Output ------------------------------------------------------------------------------
   const out = section("ui.automix.section_output");
   const outputDir = text("outputDir");
@@ -196,7 +274,7 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null }) {
   const form = el("form");
   form.method = "dialog";
   form.noValidate = true;
-  form.append(mix, out, advanced, error, buttons);
+  form.append(mix, processing, out, advanced, error, buttons);
   dialog.append(heading, form);
   document.body.append(dialog);
 
@@ -211,7 +289,22 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null }) {
   /** Check the form, show each problem next to its field, enable or disable Mix. */
   function refresh() {
     const form_ = values();
-    const { ok, errors } = validateAutomix(form_);
+    const { ok: mixOk, errors } = validateAutomix(form_);
+    const optionForm = optionValues();
+    const checked = validateOptions(optionSpecs, optionForm);
+    for (const spec of optionSpecs) {
+      const { input, wrap } = optionControls[spec.key];
+      input.disabled = !optionEnabled(optionSpecs, optionForm, spec.key);
+      wrap.classList.toggle("automix-off", input.disabled);
+      const key = checked.errors[spec.key];
+      const message = messages[spec.key];
+      if (message) {
+        message.textContent = key ? t(key, { min: spec.min, max: spec.max }) : "";
+        message.hidden = !key;
+      }
+      if (spec.kind !== "bool") input.setAttribute("aria-invalid", key ? "true" : "false");
+    }
+    const ok = mixOk && checked.ok;
     for (const name of ["targetLufs", "adSpot", "adDuration"]) {
       const key = errors[name];
       messages[name].textContent = key ? t(key) : "";
@@ -244,15 +337,19 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null }) {
     if (!refresh()) return;
     const request = validateAutomix(values());
     try {
-      await api.saveAutomixerSettings(
-        advancedBody({
+      await api.saveAutomixerSettings({
+        ...advancedBody({
           command: inputs.command.value,
           cwd: cwd.value,
           tempDir: tempDir.value,
           outputDir: outputDir.value,
           extra: inputs.extra.value,
         }),
-      );
+        // Without the list (the settings did not load) nothing is sent: stored options stay.
+        ...(optionSpecs.length > 0
+          ? { options: validateOptions(optionSpecs, optionValues()).options }
+          : {}),
+      });
       saveForm(values());
       dialog.close();
       await onStart(request.body);
@@ -277,6 +374,9 @@ export function createAutomixDialog({ api, t, onStart, pickFolder = null }) {
         const stored = answer.settings ?? {};
         const resolved = answer.resolved ?? {};
         defaults.dir = answer.default_output_dir ?? "";
+        const specs = answer.option_specs ?? [];
+        if (specs.length !== optionSpecs.length) buildOptions(specs);
+        setOptionValues(resolved.options ?? stored.options ?? {});
         inputs.command.value = formatWords(stored.command);
         inputs.command.placeholder = formatWords(resolved.command);
         cwd.value = stored.cwd ?? "";

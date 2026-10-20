@@ -3016,6 +3016,31 @@ input[type="text"] {
   font-weight: var(--weight-strong);
   color: var(--text-secondary);
 }
+/* The automixer's switches: one collapsible group each */
+.automix-group {
+  border-top: 1px solid var(--panel-divider);
+  padding-top: var(--space-1);
+}
+.automix-group > summary {
+  min-height: var(--control-h);
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  color: var(--text-secondary);
+}
+.automix-optcheck {
+  display: grid;
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+.automix-optcheck .automix-hint {
+  padding-left: calc(var(--space-3) + 1rem);
+}
+.automix-off {
+  opacity: 0.55;
+}
 @media (max-width: 520px) {
   .automix-row {
     grid-template-columns: minmax(0, 1fr);
