@@ -108,32 +108,33 @@ sizes: `docs/PLAN.md`, section "Triage".
 - Analysis: Auto-Silence and automix ducking through speechmix.
 - Transcript mapping and word-cut ranges.
 
-## In flight (2026-10-20 15.59 Helsinki)
+## In flight (20.10.2026 18.47 Helsinki)
 
 Agents running now:
-- **Bounded memory** (owner priority): a 5-track, 1.5-hour session must open, play and analyse without running out of memory. Audit of every whole-file read, block-wise analysis (working set under about 200 MB whatever the length), memory ceilings for the editor and the analysis worker, a synthetic 90-minute test as a CI gate, canvas/GPU sizing check (WindowServer growth). docs/MEMORY.md.
-- **Paste overwrites by default** (instead of moving later clips); with In/Out marked the paste starts at In and is trimmed at Out; an explicit Insert variant stays.
-- **Clipboard chips**: playing a clipboard entry (check that it works), the Play button turns into a Stop button, a progress meter along the chip's bottom edge, buttons in the square block style.
+- **Set music level** (Track > Auto, phase 1 of auto-mix in Kuulas): measures speech and the loudest 3 s of the music beds and sets the music track gain a chosen distance under the speech (default -10 dB), one undo step.
+- **Smaller backups**: compressed, size-capped automatic backups (862 MB of backups in a 1.1 GB project) and a size breakdown in Statistics.
 
-Built and green, not yet released (branches): **track highlight / selection** now follows the clicked track (fix-track-highlight); **Alt+1 to Alt+5** switch the side-panel tabs (panel-tab-keys).
+Built and green, not yet released (branch `bed-level-option`): the automix dialog field 'Music level under speech (dB)' (flag `--bed-under-speech-db`, sent only if the installed automixer supports it; the request to the podcast repo is in docs/PODCAST-MAGIC.md). Merge planned together with the two above as v26.10.20.7.
+
+Waiting on the podcast repo: `--bed-under-speech-db` in the automixer's folder route (so music is no longer forced to 1 dB under speech) and later a 'keep the stem level for beds' switch.
+
+Parked with findings recorded: history compaction (see Next).
 
 Older, still open: media store (linked vs working FLAC, relink, consolidate); browser UI shell (keymap WP5, design redone).
 
 ## Needs testing and confirming (built, never used by the owner)
 
-Released in v26.10.20.4 (dmg), in order of importance:
-1. **No process pile-up**: after starting, `ps -axo pid,ppid,stat,etime,rss,command | grep analysis_worker | grep -v grep` shows at most one, small (RSS under 300 MB); old orphans gone; Auto-Silence or edits while playing give no dropouts and the job says "Paused while playing".
-2. **Stop and cursor**: Space mid-word stops the sound at once and the cursor does not jump back, also sped up (1.5x to 2x, pitch kept); the cursor crosses a clap as it sounds; clicking far away while playing leaves about 0.1 s of silence and no old audio; Space, Space continues the word.
-3. **Memory on a long project**: open the 47-minute project and watch Activity Monitor (Kuulas under 2 GB in total); if slow, Help > Record a performance report and send it.
-4. **Settings are remembered**: fast speed 1.75, theme, drag mode survive a restart.
-5. **Cmd+V** pastes on the selected track (also after the selection fix below); **music tracks** are not offered for transcription (Airhorn.wav on a music track; check it is not also on a speech track).
-6. **Quick mute H**: mutes 0.5 s around the cursor, playing and stopped, one undo step, length in Preferences.
-7. **Automix dialog** options (Processing section): the logged command has only the changed flags; the real automixer has not been run with them.
-8. **Cmd+1 to Cmd+9** on the start screen open the recent projects; the chips show the keys.
-9. **Square buttons** (Undo, Redo, Restore): all the same square size.
-10. Bus assignment and rename (right-click the bus header > Rename) after the restart.
-
-Not released yet (branches above): track highlight follows the click; Alt+1 to Alt+5 (check typing in a text field does not trigger them, on the Finnish layout).
+Released in v26.10.20.5 and v26.10.20.6, in order of importance:
+1. **Automix log (v26.10.20.6):** after an automix export a `log.txt` sits beside the wav; the notice has 'Show log' and the 'beds: ... mastered: ...' lines. Send the beds line: it tells how much the music was raised (music came out far too loud; the automixer forces the beds to 1 dB under the speech).
+2. **Memory on the 47-minute project:** Kuulas under about 2 GB in Activity Monitor; at most one small `analysis_worker` process (`ps -axo pid,ppid,stat,etime,rss,command | grep analysis_worker | grep -v grep`); a killed worker is now an error, not an in-app run.
+3. **Paste:** Cmd+V overwrites on the selected track; Alt+Cmd+V inserts; with In/Out marked it fits the range.
+4. **Clipboard:** play a clip, button turns to Stop, progress bar, square buttons.
+5. **Click and selection:** clicking a clip highlights and selects its track; dragging a group outlines every member.
+6. **Keys:** Alt+1..5 side-panel tabs (not while typing in a text field); Esc closes the top dialog, Enter accepts (safe default in confirmations).
+7. **Automix dialog:** collapsible groups with chevrons and badges; fuzzy plug-in field (type 'dxrev'); the block-level hint.
+8. **Export names** start with the project name (not 'Pääeditio').
+9. **Looks:** buttons all one style, dialogs and panels aligned in one form grid (headless-Chrome screenshots only so far).
+10. From v26.10.20.4: stop and cursor at 1.5x to 2x, settings remembered (fast speed 1.75), Cmd+V on the selected track, quick mute H, Cmd+1..9 on the start screen, music tracks not transcribed.
 
 
 ## Next
