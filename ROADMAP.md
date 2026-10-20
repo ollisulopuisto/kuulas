@@ -172,6 +172,10 @@ Released in v26.10.20.5 to v26.10.20.7, in order of importance:
   `--no-music-duck` and tells the automixer to keep the stem level for beds; the automix dialog shows a 'Done in Kuulas'
   badge next to those options. Needs from the podcast repo: `--bed-under-speech-db` (requested in PODCAST-MAGIC.md) and a
   'keep the stem level for beds' switch. DSP (debleed, de-smack, EQ, compressors) stays in the automixer.
+- **Duck under speech as a track property** (owner decision 20.10.2026; design and the migration path to clip-level
+  ducking in docs/design/DUCKING.md): `Track.duck` (default: music ducks), one command Track > Auto > "Duck music"
+  writes it as editable track automation, export passes `--no-music-duck` (Done in Kuulas). Not started; after Level
+  blocks and bus roles are merged (same files). Open: should the automixer stems carry track gain (today dry).
 - **Smaller project folders** (owner data 2026-10-20: 1.1 GB = backups 862 MB, caches 139 MB, history 112 MB, media 7 MB,
   recordings 0): compressed and size-capped backups plus a size breakdown in Statistics (building).
 - **History compaction: PARKED, findings recorded** (owner 2026-10-20: nothing to do yet). What we know: the history
