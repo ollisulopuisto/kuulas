@@ -226,6 +226,12 @@ def build_report(*, result: SampleResult, interval: float, wall: float, started:
     parts.append(f"cache budget {_gib(memory.get('used', 0))} of "
                  f"{_gib(memory.get('limit', 0))}")
     out.append("Memory:    " + ", ".join(parts))
+    if memory.get("worker_max"):
+        last = _gib(memory.get("worker_last", 0))
+        out.append(f"  analysis worker peak RSS: last {last}, "
+                   f"largest this run {_gib(memory['worker_max'])}")
+    for ns, used in sorted(memory.get("namespaces", {}).items()):
+        out.append(f"  cache {ns}: {_gib(used)} held")
     for kind, s in sorted(memory.get("caches", {}).items()):
         out.append(f"  cache {kind}: {100 * s['hit_rate']:.0f}% hits ({s['hits']} in "
                    f"memory, {s['disk_hits']} from disk, {s['misses']} computed)")
@@ -297,8 +303,13 @@ def process_rss() -> tuple[float | None, float | None]:
 
 
 def memory_facts() -> dict[str, Any]:
+    from . import offload  # noqa: PLC0415 - offload imports much of the editor
+
     return {"used": memory.BUDGET.used, "limit": memory.BUDGET.limit,
-            "caches": memory.BUDGET.stats()}
+            "caches": memory.BUDGET.stats(),
+            "namespaces": memory.BUDGET.namespace_usage(),
+            "worker_last": offload.WORKER_PEAKS["last"],
+            "worker_max": offload.WORKER_PEAKS["max"]}
 
 
 def session_facts(session: Any, engine: Any) -> list[tuple[str, str]]:

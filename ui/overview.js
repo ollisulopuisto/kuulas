@@ -1,6 +1,7 @@
 // The overview strip above the timeline: the whole edit in miniature, with a
 // box for the visible part. Click or drag to move the box.
 
+import { backingSize } from "./canvas-size.js";
 import { siblingsOf } from "./labels.js";
 import { projectEnd } from "./lanes.js";
 import { trackHues } from "./paint.js";
@@ -19,10 +20,10 @@ export function createOverview({ canvas, getState, getTimelineWidth, actions }) 
   let dragging = false;
 
   const observer = new ResizeObserver(() => {
-    const ratio = devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
-    canvas.width = Math.round(rect.width * ratio);
-    canvas.height = Math.round(rect.height * ratio);
+    const backing = backingSize(rect.width, rect.height, devicePixelRatio || 1);
+    canvas.width = backing.width;
+    canvas.height = backing.height;
     theme = readTheme();
     redraw();
   });

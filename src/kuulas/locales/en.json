@@ -401,6 +401,7 @@
   "error.export.no_ffmpeg": "This export format needs ffmpeg installed.",
   "error.export.too_big": "This export exceeds the WAV size limit; choose FLAC or a shorter range.",
   "error.export.too_long_to_master": "Mastering is limited to {hours} hours per export to fit memory.",
+  "error.export.master_memory": "Mastering this programme would need more memory than this computer can spare (it fits up to about {minutes} minutes). Export without mastering, or master a shorter selection.",
   "export.done": "{what} exported to {path}.",
   "export.unchanged": "Unchanged since v{n}: {path}",
   "export.what.selection": "Selection · {what}",
@@ -2200,4 +2201,6 @@
   "error.offload.busy":"Too much analysis is waiting; try again in a moment.",
   "error.offload.timeout": "The analysis took longer than {seconds} s and was stopped.",
   "log.offload.watchdog": "Analysis worker {pid}: {why}; stopping it.",
-  "log.offload.swept": "Stopped {count} analysis workers left behind by an earlier run."}
+  "log.offload.swept": "Stopped {count} analysis workers left behind by an earlier run.",
+  "error.offload.memory": "The analysis needed {mb} MB of memory, more than its limit of {limit_mb} MB, and was stopped so the computer does not slow down. Please report this with the log.",
+  "log.memory.high": "The editor holds {mb} MB of memory (warning above {limit_mb} MB); cache budget {cache_mb} MB, largest analysis worker {worker_mb} MB."}

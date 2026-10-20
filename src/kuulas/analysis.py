@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import itertools
 import logging
+import os
 from collections.abc import Iterable
 from dataclasses import replace
 from types import SimpleNamespace
@@ -36,7 +37,7 @@ from speechmix.dsp import FLOOR_DB
 from speechmix.stems import Lanes
 
 from . import bleed_relative, gate, levels, ops, priority
-from .media import workers
+from .media import streaming, workers
 from .messages import t
 from .mixer import Store
 from .model import Project, Track
@@ -73,6 +74,19 @@ MIN_CLOSED_S = DEFAULT_MIN_CLOSED_S
 
 CHUNK_SEC = 60
 
+#: At most this many tracks measured at once (None: one per core). Each
+#: measurement holds its file's level envelope (one float64 per 60 frames,
+#: 35 MB per 90 minutes) and a cumulative sum of it, so all five at once
+#: took the analysis worker to 0.58 GiB on a 90-minute project
+#: (docs/MEMORY.md). The worker sets 2 through ``KUULAS_TRACKS_AT_ONCE``
+#: (``analysis_worker._bound_memory``).
+MAX_TRACKS_AT_ONCE: int | None = int(os.environ.get("KUULAS_TRACKS_AT_ONCE", "0")) or None
+
+
+def _at_once(tracks: int) -> int:
+    cap = MAX_TRACKS_AT_ONCE or workers()
+    return max(1, min(tracks, workers(), cap))
+
 log = logging.getLogger("kuulas.analysis")
 
 
@@ -98,7 +112,9 @@ def track_levels(p: Project, store: Store, track: Track) -> tuple[np.ndarray, np
     clips = [c for c in track.clips if not c.muted]
     composed = _from_envelopes(p, store, clips, track.id)
     if composed is None:
-        composed = _from_audio(p, store, clips)
+        # A scan from start to end: its audio is not kept (docs/MEMORY.md).
+        with streaming():
+            composed = _from_audio(p, store, clips)
     mean_sq, valid = composed
     if track.gate:
         # A gated hop is inaudible, as one under a muted clip is: no level,
@@ -190,7 +206,7 @@ def speech_lanes(p: Project, store: Store,
     if not tracks:
         return Lanes(speakers=[])
     measured = priority.gated_map(lambda track: track_levels(p, store, track), tracks,
-                                  max(1, min(len(tracks), workers())))
+                                  _at_once(len(tracks)))
 
     speaker_order: list[str] = []
     speaker_parts: dict[str, list] = {}
@@ -318,7 +334,7 @@ def _compensated_ranges(p: Project, store: Store,
     hop = hop_frames(p.rate)
     q = _unmuted(p)
     measured = priority.gated_map(lambda tr: track_levels(q, store, tr), tracks,
-                                  max(1, min(len(tracks), workers())))
+                                  _at_once(len(tracks)))
     db = np.stack([m[0] for m in measured]).astype(np.float64)
     valid = np.stack([m[1] for m in measured])
     muted = np.zeros(db.shape, dtype=bool)

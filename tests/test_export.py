@@ -306,6 +306,26 @@ def test_mastering_refuses_programmes_too_long_for_memory(session, out, monkeypa
     assert list(out.rglob("*")) == []
 
 
+def test_mastering_refuses_what_would_not_fit_in_memory(session, out, monkeypatch):
+    # speechmix masters the whole programme in RAM (~80 B per sample): a
+    # master that would take the Mac into swap is refused, not started.
+    monkeypatch.setattr(export, "physical_memory", lambda: 1024)
+    with pytest.raises(export.ExportError) as e:
+        run(session, out, master_lufs=-16.0)
+    assert e.value.key == "error.export.master_memory"
+    assert list(out.rglob("*")) == []
+
+
+def test_how_much_mastering_fits():
+    gb = 1024**3
+    rate = 48000
+    # 24 GB Mac: 0.5 x 24 GiB / (2 x 40 B x 48 kHz) = 55 minutes of stereo.
+    assert export.master_minutes_that_fit(2, rate, physical=24 * gb) == 55
+    assert export.master_fits(47 * 60 * rate, 2, physical=24 * gb)
+    assert not export.master_fits(90 * 60 * rate, 2, physical=24 * gb)
+    assert export.master_fits(10**12, 2, physical=0)  # unknown: allowed
+
+
 @pytest.mark.parametrize("args", [
     {"format": "ogg"}, {"bit_depth": 20}, {"format": "mp3", "mp3_kbps": 500},
     {"kind": "reel"}, {"kind": "selection"}, {"kind": "selection", "range": [5, 5]},

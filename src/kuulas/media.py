@@ -208,6 +208,39 @@ def workers() -> int:
     return max(1, (os.cpu_count() or 2) - 1)
 
 
+#: Reads on this thread (``streaming``) skip the chunk cache.
+_STREAM = threading.local()
+#: Every read of the process skips it: the analysis worker, whose every read
+#: is part of one scan (``analysis_worker.main``).
+STREAM_ALL = False
+
+
+def is_streaming() -> bool:
+    return STREAM_ALL or getattr(_STREAM, "on", False)
+
+
+@contextmanager
+def streaming() -> Iterator[None]:
+    """Reads on this thread inside the block come from the file and are not
+    cached: for scans over a whole project, which would otherwise fill the
+    cache budget with audio read once (docs/MEMORY.md). Thread-local: a pool
+    that reads for the scan enters it in each item (``streamed``)."""
+    before = getattr(_STREAM, "on", False)
+    _STREAM.on = True
+    try:
+        yield
+    finally:
+        _STREAM.on = before
+
+
+def streamed(fn):
+    """``fn`` run inside ``streaming()``, on whichever thread calls it."""
+    def run(*args, **kwargs):
+        with streaming():
+            return fn(*args, **kwargs)
+    return run
+
+
 #: Columns an import or a consolidation sets; the rest of a row (name, time
 #: reference, tags, extra, unknown columns) is never touched by them.
 _FILE_COLUMNS = ("storage", "channels", "source_rate", "source_frames", "subtype",
@@ -1260,11 +1293,34 @@ class MediaStore:
         self.budget.put("chunks", key, data)
         return data
 
+    def _read_direct(self, media_id: str, lo: int, hi: int, out: np.ndarray,
+                     at: int) -> None:
+        """Frames ``[lo, hi)`` straight from the file into ``out[:, at:]``,
+        past the chunk cache (``streaming``)."""
+        if self._unreadable(media_id):
+            return
+        handle = self._handle(media_id)
+        if handle is None:
+            return
+        lock, f = handle
+        with lock:
+            f.seek(lo)
+            data = f.read(hi - lo, dtype="float32", always_2d=True)
+        out[:, at:at + data.shape[0]] = data.T
+
     def read(self, media_id: str, first: int, count: int) -> np.ndarray:
-        """``(channels, count)`` float32 from source frame ``first``, zero-padded."""
+        """``(channels, count)`` float32 from source frame ``first``, zero-padded.
+
+        Inside ``streaming()`` (a scan from start to end: analysis, peaks,
+        export) the samples come straight from the file and are not kept: a
+        scan of a long project must not fill the cache budget with audio it
+        never reads again (docs/MEMORY.md)."""
         meta = self.meta(media_id)
         out = np.zeros((meta["channels"], count), dtype=np.float32)
         lo, hi = max(0, first), min(meta["source_frames"], first + count)
+        if hi > lo and is_streaming():
+            self._read_direct(media_id, lo, hi, out, lo - first)
+            return out
         step = CHUNK_SEC * self.rate
         pos = lo
         while pos < hi:
@@ -1309,7 +1365,8 @@ class MediaStore:
             if count <= 0:
                 return np.zeros((0, meta["channels"]), np.float32)
             priority.checkpoint()
-            block = self.read(media_id, pos, count).T
+            with streaming():
+                block = self.read(media_id, pos, count).T
             pos += count
             return block
         peaks, _ = _pump(read)
@@ -1386,7 +1443,8 @@ class MediaStore:
             log.info(t("log.cache.recompute", kind="levels", media_id=media_id))
             def read(first: int, count: int) -> np.ndarray:
                 priority.checkpoint()
-                return self.read(media_id, first, count)
+                with streaming():
+                    return self.read(media_id, first, count)
 
             return levels.block_energy(read, meta["source_frames"], block)
 

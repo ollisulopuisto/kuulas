@@ -471,6 +471,7 @@ def create_app(session, engine, *, language: str | None = None,
     async def _export_error(_request: Request, e: export.ExportError):
         client_error = e.key.startswith("error.export.bad_") or e.key in {
             "error.export.empty", "error.export.too_long_to_master",
+            "error.export.master_memory",
         }
         return answer(e, 400 if client_error else 500)
 

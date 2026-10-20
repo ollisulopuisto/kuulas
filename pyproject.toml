@@ -62,6 +62,7 @@ testpaths = ["tests"]
 # setting replaces.
 norecursedirs = ["hardware", "manual", "*.egg", ".*", "_darcs", "build", "CVS", "dist",
                  "node_modules", "venv", "{arch}"]
+markers = ["slow: minutes of CPU and GB of disk; lives in tests/manual, run by hand"]
 
 [tool.ruff]
 line-length = 90

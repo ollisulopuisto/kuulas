@@ -43,6 +43,7 @@ from speechmix import programme
 
 from . import export_formats, mixer, priority, stem_ranges, transcript
 from . import placeholders as placeholders_module
+from .media import streaming
 from .messages import KuulasError, t
 from .model import Project, Track
 from .package import kuulas_version
@@ -51,10 +52,48 @@ from .region_names import region_filenames
 log = logging.getLogger("kuulas.export")
 
 #: Blocks of this many seconds are rendered, in parallel, and written in order.
-BLOCK_SECONDS = 30
-#: Mastering holds the whole programme in memory (float64 inside speechmix):
-#: three hours of stereo is about 8 GB, so longer is refused with a message.
+#: Each render of a block holds every track's clips as float64 stereo, and up
+#: to 2 x workers blocks are in flight: at 30 s a 47-minute, 5-track mix
+#: export peaked at 1.2 GB (docs/MEMORY.md, 2026-10-20), at 10 s ~0.5 GB.
+BLOCK_SECONDS = 10
+#: Mastering holds the whole programme in memory (float64 inside speechmix),
+#: so longer than this is refused with a message (and see master_fits).
 MAX_MASTER_SECONDS = 3 * 3600
+#: What speechmix's ``programme.master`` holds per sample of the programme
+#: (per channel): the float64 copy, the lifted signal, the peak stage's and
+#: the limiter's per-sample curves and the round before. Measured 2026-10-20
+#: (docs/MEMORY.md): a stereo master peaked 2.8 GB at 10 minutes and 5.0 GB
+#: at 20, i.e. 38 B per sample per channel over a ~0.6 GB render, so a
+#: 47-minute one needs ~11 GB and a 90-minute one ~21 GB: a 24 GB Mac swaps.
+MASTER_BYTES_PER_SAMPLE = 40
+#: The share of the computer's memory a master may take; longer is refused
+#: with a message (export unmastered) instead of swapping the Mac to a halt.
+#: On 24 GB that is ~55 minutes of stereo.
+MASTER_MEMORY_SHARE = 0.5
+
+
+def physical_memory() -> int:
+    """Bytes of RAM in this computer (0 when the system does not say)."""
+    try:
+        return os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+    except (ValueError, OSError, AttributeError):
+        return 0
+
+
+def master_fits(frames: int, channels: int, physical: int | None = None) -> bool:
+    """Whether mastering ``frames`` x ``channels`` stays inside
+    ``MASTER_MEMORY_SHARE`` of the memory (unknown memory: allowed)."""
+    physical = physical_memory() if physical is None else physical
+    if physical <= 0:
+        return True
+    return frames * channels * MASTER_BYTES_PER_SAMPLE <= MASTER_MEMORY_SHARE * physical
+
+
+def master_minutes_that_fit(channels: int, rate: int,
+                            physical: int | None = None) -> int:
+    physical = physical_memory() if physical is None else physical
+    return int(MASTER_MEMORY_SHARE * physical
+               / (channels * MASTER_BYTES_PER_SAMPLE * rate * 60))
 #: A selection fades in and out over this long so its ends do not click. 30 ms
 #: is the owner's choice (WP11): long enough to be click-free, too short to hear.
 FADE_SECONDS = 0.030
@@ -501,13 +540,14 @@ def _pump(total: int, rate: int, render: Callable[[int, int], np.ndarray],
 
     def gated_render(start: int, count: int) -> np.ndarray:
         check()
-        return render(start, count)
+        # A scan from start to end: its audio is not kept (docs/MEMORY.md).
+        with streaming():
+            return render(start, count)
 
     if workers <= 1:
         for start in starts:
-            check()
             count = min(step, total - start)
-            write(render(start, count))
+            write(gated_render(start, count))
             done += count
             tick(done / total)
         return
@@ -782,6 +822,9 @@ def _single(job: _Job, target: Path, n: int, workers: int,
     if lufs is not None and job.frames / job.rate > MAX_MASTER_SECONDS:
         raise _fail("error.export.too_long_to_master",
                     hours=MAX_MASTER_SECONDS // 3600)
+    if lufs is not None and not master_fits(job.frames, 2):
+        raise _fail("error.export.master_memory",
+                    minutes=master_minutes_that_fit(2, job.rate))
 
     def render(first: int, count: int) -> np.ndarray:
         return mixer.mix(job.project, job.store, job.first + first, count)

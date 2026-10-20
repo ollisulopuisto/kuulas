@@ -70,12 +70,13 @@ def test_shorter_than_one_window_gives_no_curve():
     assert m.curve == []
 
 
-def test_reads_in_chunks_of_at_most_sixty_seconds_and_matches_one_shot():
+def test_reads_in_chunks_of_chunk_sec_and_matches_one_shot():
+    # CHUNK_SEC went from 60 to 15 s (docs/MEMORY.md): the reads follow it.
     audio = tone_lufs(150, -25.0) * np.linspace(0.5, 1.0, 150 * RATE, dtype=np.float32)
     calls: list[int] = []
     m = loudness_curve.measure(reader(audio, calls), audio.shape[1], RATE)
-    assert max(calls) <= 60 * RATE
-    assert len(calls) == 3
+    assert max(calls) <= loudness_curve.CHUNK_SEC * RATE
+    assert len(calls) == -(-150 // loudness_curve.CHUNK_SEC)
     whole = IntegratedMeter(RATE)
     whole.add(audio)
     assert m.integrated == pytest.approx(whole.value(), abs=0.01)
