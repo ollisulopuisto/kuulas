@@ -9,6 +9,7 @@ import {
   currentValues,
   PREFERENCE_FIELDS,
   PREFERENCE_LINKS,
+  readoutText,
 } from "./preferences-model.js";
 
 const make = (tag, className, text) => {
@@ -89,7 +90,7 @@ export function createPreferencesDialog({ t, read, setters, run, canRun }) {
       });
       if (readout) {
         control.addEventListener("input", () => {
-          readout.textContent = `${control.value}${field.unit === "s" ? " s" : "×"}`;
+          readout.textContent = readoutText(field, control.value);
         });
       }
       if (readout) {
@@ -123,7 +124,7 @@ export function createPreferencesDialog({ t, read, setters, run, canRun }) {
       const value = values[field.id];
       if (field.kind === "switch") control.checked = Boolean(value);
       else control.value = String(value);
-      if (readout) readout.textContent = `${control.value}${field.unit === "s" ? " s" : "×"}`;
+      if (readout) readout.textContent = readoutText(field, control.value);
     }
     for (const { button, command } of linkButtons) button.disabled = !canRun(command);
   }

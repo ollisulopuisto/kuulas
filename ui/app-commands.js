@@ -220,6 +220,8 @@ export function registerAppCommands(registry, { actions, app }) {
   def("app.auto_silence_options", () => app.openSilenceOptions(), hasProject);
   def("gate.open_all", () => app.openAllGates(), hasProject);
   def("app.automix", () => app.duckMicrophones(), hasProject);
+  // Set music level…: measure the speech and the beds, set the music tracks' gain (one step).
+  def("app.music_level", () => app.openMusicLevel(), hasProject);
   def("app.transcribe", () => app.transcribeTrack("local"), hasProject);
   // Transcribe on Colab (WP78): after a notice that the audio is uploaded to Google.
   def("app.transcribe_colab", () => app.transcribeTrack("colab"), hasProject);

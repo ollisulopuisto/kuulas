@@ -39,6 +39,7 @@ from nhsx.read import time_to_seconds as nhsx_time_to_seconds
 from . import (
     analysis,
     bgjobs,
+    caches,
     candidates,
     clipboard_browse,
     clipboard_level,
@@ -48,6 +49,7 @@ from . import (
     edit_scope,
     export_names,
     import_plan,
+    music_level,
     narration,
     narration_script,
     offload,
@@ -302,6 +304,8 @@ class Session:
         self.last_export_folder: str | None = None
         #: The newest automixer log (kept or failed), for "Show log" in the notice.
         self.last_automix_log: str | None = None
+        #: The numbers of the latest Set music level, for the UI's notice.
+        self.last_music_level: dict | None = None
         self.history: History = self.package.history
         self.store: MediaStore = self.package.store
         self._subscribers: list[Callable[[Project], None]] = []
@@ -1177,6 +1181,74 @@ class Session:
 
         return [self.jobs.submit("auto_silence_preview",
                                  t("job.auto_silence_preview"), run, keep_result=True)]
+
+    def music_level_measure(self, args: dict | None = None) -> list[str]:
+        """Queue ONE job that measures what Set music level needs (the speech
+        while anyone speaks, the beds' loudest 3 s) and changes nothing. The
+        lock is held only for the snapshot; the measuring runs in the analysis
+        worker (ground rule 14). The job's ``result`` is ``music_level.measure``'s
+        answer plus ``was_db`` (where the beds sit against the speech now); a
+        project without music or speech completes with its ``reason``."""
+        mode = music_level.parse_mode((args or {}).get("mode"))
+        with self.lock:
+            snapshot = self.history.state
+
+        def run(progress):
+            progress(0.0, "", True)
+            measured = offload.call("music_level", snapshot, self.store, mode,
+                                    cancel=progress.cancelled_event)
+            if progress.cancelled:
+                raise JobCancelledError
+            return {**measured, "was_db": music_level.distance(snapshot, measured)}
+
+        return [self.jobs.submit("music_level", t("job.music_level"), run,
+                                 keep_result=True)]
+
+    def set_music_level(self, args: dict) -> Project:
+        """Set music level as ONE undo step: each music track's ``gain_db`` so the
+        beds' loudest moment sits ``offset_db`` against the speech, and
+        ``mix_done["bed_level"]`` saying so. ``measured`` (the job's result) is
+        used when it still describes the edit (same content key), else refused
+        as stale; without it the edit is measured here, off the lock."""
+        offset = music_level.parse_offset(args.get("offset_db"))
+        measured = args.get("measured")
+        if measured is not None and not isinstance(measured, dict):
+            raise ops.EditError("error.edit.bad_arguments", name="set_music_level",
+                                detail="measured")
+        if measured is None:
+            mode = music_level.parse_mode(args.get("mode"))
+            with self.lock:
+                snapshot = self.history.state
+            measured = offload.call("music_level", snapshot, self.store, mode)
+        music_level.check(measured)
+        with self.lock:
+            state = self.history.state
+            mode = music_level.parse_mode(measured.get("mode"))
+            try:
+                current = music_level.key(state, mode)
+            except caches.CacheKeyError:
+                current = None
+            if current is None or current != measured.get("key"):
+                raise ops.EditError("error.music_level.stale")
+            plan = music_level.solve(measured, offset)
+            was = music_level.distance(state, measured)
+            new = state
+            for track_id, gain in plan.gains.items():
+                new = ops.set_track(new, track_id, gain_db=gain)
+            entry = music_level.record(measured, offset, plan)
+            new = replace(new, mix_done={**new.mix_done, "bed_level": entry})
+            self.last_music_level = {
+                "offset_db": offset, "was_db": was,
+                "speech_lufs": measured["speech_lufs"],
+                "bed_lufs": measured["bed_lufs"], "change_db": plan.change_db,
+                "gains": dict(plan.gains), "clamped": list(plan.clamped),
+                "text": t("ui.music_level.done", now=_against(offset), was=_against(was))}
+            label = t("history.set_music_level", now=_against(offset), was=_against(was))
+            recorded = {"offset_db": offset, "mode": mode,
+                        "speech_lufs": measured["speech_lufs"],
+                        "bed_lufs": measured["bed_lufs"], "was_db": was,
+                        "gains": dict(plan.gains)}
+            return self._commit(label, new, "set_music_level", recorded)
 
     def export_folder_hint(self) -> dict:
         """Where an export goes when the caller names no folder: the folder the
@@ -2910,6 +2982,19 @@ def _candidate_mark(s: Session, args: dict) -> Project:
     return s.history.state
 
 
+def _against(value: float | None) -> str:
+    """Where the beds sit against the speech, in words: "10.0 dB under the speech"."""
+    if value is None:
+        return t("music_level.unknown")
+    if value <= 0:
+        return t("music_level.under", db=f"{-value:.1f}")
+    return t("music_level.above", db=f"{value:.1f}")
+
+
+def _set_music_level(s: Session, args: dict) -> Project:
+    return s.set_music_level(args)
+
+
 def _match_loudness(s: Session, args: dict) -> Project:
     clip_ids = args.get("clip_ids", [])
     target = args.get("target_lufs")
@@ -2993,6 +3078,7 @@ COMMANDS: dict[str, Callable[[Session, dict], Project]] = {
     "candidate_apply": _candidate_apply,
     "candidate_mark": _candidate_mark,
     "match_loudness": _match_loudness,
+    "set_music_level": _set_music_level,
     "placeholder_take": _placeholder_take,
     "save_backup": _save_backup,
     "save_checkpoint": _save_checkpoint,
@@ -3001,4 +3087,5 @@ COMMANDS: dict[str, Callable[[Session, dict], Project]] = {
 #: Commands that run without the session lock and take it only for their
 #: snapshot and their commit: their work is slow and must not stall playback
 #: or edits (ground rule 14).
-LOCK_FREE_COMMANDS = frozenset({"candidates_detect", "match_loudness", "save_backup"})
+LOCK_FREE_COMMANDS = frozenset({"candidates_detect", "match_loudness", "save_backup",
+                                "set_music_level"})

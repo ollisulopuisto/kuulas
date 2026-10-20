@@ -3870,3 +3870,18 @@ legend.form-heading {
   margin: 0;
   overflow-wrap: anywhere;
 }
+
+/* Set music level: the same form; the measured numbers under the field, as a note */
+.music-level-dialog {
+  width: min(640px, 94vw);
+}
+.music-level-result {
+  display: grid;
+  gap: var(--space-1);
+  min-height: var(--control-h);
+}
+.music-level-line {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}

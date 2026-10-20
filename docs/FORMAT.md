@@ -624,6 +624,22 @@ composed state shows it, like `person`, and `Media.to_dict` leaves it out when e
 reader that does not know it keeps the root key (roots are updated key by key) and shows no
 marker.
 
+**As built (Auto-mix in Kuulas, phase 1: Set music level).** The edit state gains an optional
+`mix_done` (an object): what of the automixer's work is already done in the edit, by name.
+Set music level writes `mix_done.bed_level = {offset_db, speech_lufs, bed_lufs, mode,
+change_db, gains: {track id: dB}, key, algorithm}` in the same undo step as the music tracks'
+`gain_db` it sets, so Undo takes both back. `key` is the content key of what was measured
+(`music_level.key`: the media hashes, the speech tracks as they sound, the music tracks
+without their gain; algorithm `music-level@1`). The record is only trusted while it still
+holds (`music_level.bed_level_current`: same key, music gains as set), so a later edit of the
+music or the speech makes it stale, never wrong; phase 3 (the export telling the automixer
+"beds levelled") must read it through that check. Absent while empty, so a project that
+never used it keeps its bytes and its state hash.
+
+*Version and `min_reader`.* Neither changes. The record changes no sound (the gains it
+describes are ordinary track gains). A reader that does not know it keeps the key in
+`Project.extra` and writes it back; it only cannot tell an export that the beds are done.
+
 Loudness curves (`GET /api/loudness-curve`) are a cache, not project data:
 `caches/analysis/<key>.json`, keyed on the media hashes and every field that
 changes the sound (a rename or a new target changes no key). Algorithm

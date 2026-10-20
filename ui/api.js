@@ -127,6 +127,8 @@ export const exportTracks = (options = {}) => post("/api/export-tracks", options
 /** What Auto-Silence with these options would close, per track; changes nothing. Answers
  * { jobs: [job id] }; the finished job's `result` is { tracks: [{ name, close_s, stretches, now_s }] }. */
 export const autoSilencePreview = (options = {}) => post("/api/auto-silence/preview", options);
+/** Set music level: a job that measures the speech and the music beds; changes nothing. */
+export const musicLevelMeasure = (options = {}) => post("/api/music-level/measure", options);
 export const automix = (options = {}) => post("/api/automix", options);
 /** The automixer command: { settings (as stored), resolved (defaults filled in) }. */
 export const automixerSettings = () => json("/api/settings/automixer");
