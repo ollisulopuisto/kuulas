@@ -3,6 +3,7 @@
 // (view.js, lanes.js, keys.js, ...); this file only applies their answers.
 
 import * as api from "./api.js";
+import { SIDE_TAB_COMMANDS } from "./app-commands.js";
 import { createAutomixDialog } from "./automix-dialog.js";
 import { automixNotice } from "./automix-model.js";
 import { memberClipsAt, toggleChange } from "./bus-collapse.js";
@@ -531,6 +532,7 @@ const actions = {
       setState({ selection: new Set(), rangeTracks: new Set(), inPoint: null, outPoint: null });
     } else focusPanel("timeline");
   },
+  showSideTab: (name) => focusPanel(name),
   cyclePanel: (direction) => focusPanel(nextPanel(getState().panel, direction)),
   zoomStep(direction) {
     const state = getState();
@@ -854,6 +856,11 @@ const keyboard = setupKeyboard({
     const aria = (combo) => combo.replace(/\bMod\b/, platform === "mac" ? "Meta" : "Control");
     button.setAttribute("aria-keyshortcuts", keys.map(aria).join(" "));
     button.title = keys.map((combo) => formatCombo(combo, platform)).join(" ");
+    // Each side tab shows its Alt+digit (or the user's own key) as a tooltip.
+    for (const [id, tab] of Object.entries(SIDE_TAB_COMMANDS)) {
+      const combos = shortcutsFor(id, entries).map((combo) => formatCombo(combo, platform));
+      $(`tab-${tab}`).title = combos.join(" ");
+    }
   },
   app: {
     getState,
