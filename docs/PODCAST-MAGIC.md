@@ -168,3 +168,25 @@ kuulas counts. That changes the meaning of the level and needs the owner's decis
 2. Should learned thresholds feed kuulas Auto-Silence, the automixer, or both?
 3. How many minutes at the start count as the calibration window, and who defines them (a marker, a region)?
 4. Which other podcast-magic features does Olli want in kuulas (item 4d)?
+
+## Speaker balance (owner request 2026-10-20, for the podcast session)
+
+The owner wants the automixer's folder route to do three things, in this order:
+
+1. **Within each speech track:** even out the dynamics (leveler, block levelling). Exists.
+2. **Across the speech tracks:** make every speaker the same loudness as the others, measured on
+   the speech (while that person speaks), so they are balanced against each other. **Does not
+   seem to exist:** from reading `stems_mix.py` / `speechmix` the speakers keep their recorded
+   levels (block levelling pulls a block toward that track's own median; `program_trim` only
+   trims the SUM to the target). Please confirm, and if so add it (suggested flag
+   `--balance-speakers`, with the speaker target derived from the programme target; a
+   `--no-balance-speakers` switch so Kuulas can turn it off).
+3. **Speech bus against the music bus:** `--bed-under-speech-db` (done, PR #64).
+
+How this meets Kuulas: since v26.10.20.14 the stems carry every track's gain and clip gains, so a
+speaker the user pulled down by hand arrives pulled down. When the user has set the balance by
+hand (or with Kuulas' Match loudness), Kuulas will send `--no-balance-speakers` ("Done in
+Kuulas", same registry as the music level and block levels), so the automixer does not undo it;
+when the user has touched nothing, the automixer balances. Needs from the podcast side: the
+flag, its log line (for log.txt, like `beds:`), and a word on whether stage 2 already exists in
+some form I missed.
