@@ -144,10 +144,10 @@ def test_job_shows_the_last_log_line_and_is_indeterminate(session, fake, setting
     job = {}
     while time.monotonic() < deadline:
         job = next(j for j in session.jobs.list() if j["id"] == job_id)
-        if job.get("message") == "working":
+        if str(job.get("message")).endswith("working"):
             break
         time.sleep(0.02)
-    assert job["message"] == "working"
+    assert job["message"].endswith("working")
     assert job["indeterminate"] is True
     session.jobs.cancel(job_id)
     wait_job(session, job_id, "cancelled")

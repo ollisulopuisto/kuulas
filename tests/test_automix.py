@@ -185,16 +185,17 @@ def test_success_runs_the_command_on_the_stems_and_cleans_up(
     assert (Path(seen["positional"][0]) / "tracks.json").name == "tracks.json"
     assert "--progress" in seen["argv"]
     # PROGRESS <0-100> <message> lines are the bar; the message is what follows
-    mix = [(f, m, i) for f, m, i in reports.items if m.startswith("Engine")]
-    assert [m for _f, m, _i in mix] == [
+    mix = [(f, m, i) for f, m, i in reports.items if "Engine" in m]
+    # each line starts with the step numbers ("2/4 ")
+    assert [m.split(" ", 1)[1] for _f, m, _i in mix] == [
         "Engine: speech", "Engine: music", "Engine: master"]
     assert all(not i for _f, _m, i in mix)
     assert mix[0][0] == pytest.approx(0.4 + 0.6 * 0.99 * 0.25)
     # a lower percentage after a higher one never moves the bar back
-    late = [f for f, m, _i in reports.items if m == "late old line"]
+    late = [f for f, m, _i in reports.items if m.endswith("late old line")]
     assert late == [mix[0][0]]
     # other lines are the message, and the bar stays where it was
-    other = [r for r in reports.items if r[1] == "some other line"]
+    other = [r for r in reports.items if r[1].endswith("some other line")]
     assert other
     assert other[0][0] == mix[-1][0]
     assert result["log"][-1] == "PROGRESS 100 done"
@@ -274,7 +275,7 @@ def test_cancel_stops_the_process_and_removes_everything(
     def watch():
         deadline = time.monotonic() + 30
         while time.monotonic() < deadline:
-            if any(m == "working" for _f, m, _i in reports.items):
+            if any(m.endswith("working") for _f, m, _i in reports.items):
                 cancel.set()
                 return
             time.sleep(0.02)
@@ -475,7 +476,7 @@ def test_cancel_leaves_no_partial_log(session, fake, tmp_path, temp_root):
     def watch():
         deadline = time.monotonic() + 30
         while time.monotonic() < deadline:
-            if any(m == "working" for _f, m, _i in reports.items):
+            if any(m.endswith("working") for _f, m, _i in reports.items):
                 cancel.set()
                 return
             time.sleep(0.02)

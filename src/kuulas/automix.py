@@ -725,6 +725,48 @@ def _unique(folder: Path, name: str) -> Path:
     return target
 
 
+#: The stages the tool prints per track, in the order they run (speechmix chain and
+#: stems; ``plugin`` and ``dynamics`` only when they apply, they still keep their place).
+TRACK_STAGES = ("read", "debleed", "plugin", "cleanup", "measure", "dynamics", "lag",
+                "duck", "write")
+PHASES = 4  # stems, analysis, tracks, mastering
+_TRACK_LINE = re.compile(
+    r"(?:^|\s)(?P<name>[^:\[\]]+?):\s+(?P<stage>" + "|".join(TRACK_STAGES) + r")\s*$")
+
+
+class StepTracker:
+    """Numbers the automixer's steps for the progress line. The tool does not: it
+    prints stage words per track ("Olli: debleed") and the mastering. Phases are 1
+    stems (Kuulas), 2 analysis, 3 tracks (track i of n, stage j of 9), 4 mastering;
+    a line that names no stage keeps the phase it is in."""
+
+    def __init__(self, track_names: list[str]):
+        self.names = list(track_names)
+        self.phase = 2
+
+    def stems(self, message: str = "") -> str:
+        return t("ui.automix.step", phase=1, phases=PHASES,
+                 what=message or t("ui.automix.step_stems"))
+
+    def label(self, message: str) -> str:
+        found = _TRACK_LINE.search(message)
+        if found:
+            self.phase = 3
+            name = found.group("name").strip()
+            if name not in self.names:
+                self.names.append(name)
+            what = t("ui.automix.step_track", index=self.names.index(name) + 1,
+                     total=len(self.names), name=name,
+                     stage=found.group("stage"),
+                     n=TRACK_STAGES.index(found.group("stage")) + 1,
+                     of=len(TRACK_STAGES))
+        else:
+            if "mastering" in message.lower():
+                self.phase = 4
+            what = message
+        return t("ui.automix.step", phase=self.phase, phases=PHASES, what=what)
+
+
 def mark_skipped(message: str, options: dict) -> str:
     """``message`` as the progress line says it, marked "skipped" when it names a
     stage whose option is off (the tool still reports the stage then)."""
@@ -769,12 +811,14 @@ def run(session, params: dict, settings: dict, report: Report,
         raise AutomixError("error.automix.bad_temp_dir", path=temp_dir or "") from e
     partial: Path | None = None
     began = time.monotonic()
+    steps = StepTracker([])
     try:
-        report(0.0, "")
+        report(0.0, steps.stems())
         try:
             done = export_stems(
                 session, scratch,
-                lambda fraction, message="": report(STEMS_SHARE * fraction, message),
+                lambda fraction, message="": report(
+                    STEMS_SHARE * fraction, steps.stems(message)),
                 cancel)
         except export.ExportError:
             if cancel.is_set():
@@ -782,6 +826,8 @@ def run(session, params: dict, settings: dict, report: Report,
             raise
         listing = json.loads((Path(done["path"]) / "tracks.json").read_text("utf-8"))
         stems = Path(done["path"])
+        steps.names = [x["name"] for x in listing["tracks"]
+                       if x["audible"] and x["kind"] != "music"]
         if not any(t["audible"] for t in listing["tracks"]):
             raise AutomixError("error.automix.no_audible")
         check_stems(stems)
@@ -815,6 +861,11 @@ def run(session, params: dict, settings: dict, report: Report,
 
         reached = [STEMS_SHARE]  # the bar never goes back, whatever the tool prints
 
+        def shown(raw: str) -> str:
+            """The progress line: step numbers first, "skipped" last."""
+            marked = mark_skipped(raw, kept)
+            return steps.label(raw) + marked[len(raw):]
+
         def on_line(line: str) -> None:
             if not line.strip():
                 return
@@ -825,10 +876,9 @@ def run(session, params: dict, settings: dict, report: Report,
                 reached[0] = max(
                     reached[0], STEMS_SHARE + (1 - STEMS_SHARE) * 0.99 * share
                 )
-                report(reached[0], mark_skipped(
-                    (found.group(2) or "").strip() or line, kept))
+                report(reached[0], shown((found.group(2) or "").strip() or line))
             else:  # any other line is only the message
-                report(reached[0], line, indeterminate=reached[0] == STEMS_SHARE)
+                report(reached[0], shown(line), indeterminate=reached[0] == STEMS_SHARE)
 
         log.info("Running %s", cmd)
         ran = time.monotonic()

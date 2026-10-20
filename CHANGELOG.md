@@ -1,3 +1,7 @@
+## [v26.10.20.11] - 2026-10-20
+
+- **The automix progress line says which step it is at**, for example "3/4 track 2/3 Kari: debleed (2/9)": 1 stems (Kuulas), 2 analysis, 3 the tracks (track i of n and the stage of nine), 4 mastering. The tool does not number its steps; Kuulas does, from the stage words it prints.
+
 ## [v26.10.20.10] - 2026-10-20
 
 - **Music track gain now reaches the automixer.** The stems for the automixer used to leave out the track gain, so a contrast set by hand between an effects track and a music track (track gain) was lost in the export. The music tracks' gain is now in their stems; the automixer keeps the balance between music tracks, so the contrast stays. Speech tracks are unchanged (the automixer levels speech itself), and so are bus gain and ducking.
