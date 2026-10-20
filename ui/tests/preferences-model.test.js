@@ -37,7 +37,7 @@ describe("the fields", () => {
   test("gather the owner's list, once each", () => {
     assert.deepEqual(
       PREFERENCE_FIELDS.map((field) => field.id),
-      ["language", "stopMode", "preroll", "confirmSync", "clipboardLimit", "fast"],
+      ["language", "stopMode", "preroll", "confirmSync", "clipboardLimit", "fast", "quickMute"],
     );
   });
 
@@ -81,7 +81,29 @@ describe("currentValues", () => {
       confirmSync: false,
       clipboardLimit: true,
       fast: 1.35,
+      quickMute: 0.5,
     });
+  });
+
+  test("quick mute length: 0.5 s by default, else the state's", () => {
+    assert.equal(currentValues({}, {}).quickMute, 0.5);
+    assert.equal(currentValues({ quickMuteS: 1.2 }, {}).quickMute, 1.2);
+  });
+
+  test("quick mute is a 0.1-2.0 s field with a unit", () => {
+    const field = PREFERENCE_FIELDS.find((f) => f.id === "quickMute");
+    assert.equal(field.kind, "range");
+    assert.deepEqual([field.min, field.max], [0.1, 2]);
+    assert.equal(field.unit, "s");
+  });
+
+  test("applyField sends quick mute within bounds only", () => {
+    const { calls, setters } = recorder();
+    const current = currentValues({}, {});
+    assert.equal(applyField("quickMute", "0.8", current, setters), true);
+    assert.equal(applyField("quickMute", "2.5", current, setters), false);
+    assert.equal(applyField("quickMute", "0.05", current, setters), false);
+    assert.deepEqual(calls, [["quickMute", 0.8]]);
   });
 
   test("defaults when nothing is set", () => {

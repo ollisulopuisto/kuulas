@@ -738,6 +738,16 @@ export const DEFAULT_KEYMAP = [
     context: "timeline",
     labelKey: "cmd.clip.mute",
   },
+  // Quick mute (owner, 2026-10-20): H ("hush") mutes a short stretch around the cursor, for lip
+  // smacks while listening. Every M combination (M, Shift+, Alt+, Shift+Alt+, Mod+, Alt+Mod+) is
+  // taken, and a letter you press mid-playback should be one unmodified key; H is free, is not
+  // AltGr or Shift+digit on a Finnish keyboard, and N stays free.
+  {
+    id: "clip.quick_mute",
+    keys: { mac: "H", other: "H" },
+    context: "timeline",
+    labelKey: "cmd.clip.quick_mute",
+  },
   {
     id: "clip.fade",
     keys: { mac: "G", other: "G" },

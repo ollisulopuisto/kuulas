@@ -161,3 +161,20 @@ def test_an_op_is_one_undo_step_through_the_edit_endpoint(tmp_path):
         assert not any(c.muted for t in session.state.tracks for c in t.clips)
     finally:
         session.close()
+
+
+def test_quick_mute_stretch_splits_at_both_edges():
+    """Quick mute (ui/quick-mute.js) sends mute_range, 0.25 s each side of the cursor."""
+    p = ops.mute_range(project(), 5 * S - S // 4, 5 * S + S // 4, ["A"])
+    assert spans(p, "A") == [
+        (0, 5 * S - S // 4, False),
+        (5 * S - S // 4, 5 * S + S // 4, True),
+        (5 * S + S // 4, 10 * S, False),
+    ]
+
+
+def test_quick_mute_at_a_clip_edge_is_clamped_to_the_clip():
+    p = ops.mute_range(project(), -S // 4, S // 4, ["A"])
+    assert spans(p, "A") == [(0, S // 4, True), (S // 4, 10 * S, False)]
+    p = ops.mute_range(project(), 10 * S - S // 4, 10 * S + S // 4, ["A"])
+    assert spans(p, "A")[-1] == (10 * S - S // 4, 10 * S, True)

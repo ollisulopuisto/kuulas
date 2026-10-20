@@ -5,6 +5,12 @@
 
 import { DEFAULT_FAST, MAX_FAST, MIN_FAST, STEP } from "./fast-speed.js";
 import { PREROLL_CHOICES } from "./preroll.js";
+import {
+  DEFAULT_QUICK_MUTE_S,
+  MAX_QUICK_MUTE_S,
+  MIN_QUICK_MUTE_S,
+  QUICK_MUTE_STEP_S,
+} from "./quick-mute.js";
 import { STOP_MODES } from "./stop-mode.js";
 
 const LANGUAGES = ["auto", "fi", "en"];
@@ -43,6 +49,15 @@ export const PREFERENCE_FIELDS = [
     max: MAX_FAST,
     step: STEP,
   },
+  {
+    id: "quickMute",
+    kind: "range",
+    labelKey: "ui.prefs.quick_mute",
+    min: MIN_QUICK_MUTE_S,
+    max: MAX_QUICK_MUTE_S,
+    step: QUICK_MUTE_STEP_S,
+    unit: "s",
+  },
 ];
 
 /** Buttons that open the settings dialogs that already exist: the command each one runs. */
@@ -64,6 +79,7 @@ export function currentValues(state, record) {
     confirmSync: state?.confirmSync !== false,
     clipboardLimit: state?.clipboardLimit !== false,
     fast: state?.fast?.fast ?? DEFAULT_FAST,
+    quickMute: state?.quickMuteS ?? DEFAULT_QUICK_MUTE_S,
   };
 }
 
@@ -81,9 +97,10 @@ export function applyField(id, value, current, setters) {
   if (id === "language" || id === "stopMode" || id === "preroll") {
     if (!optionValues(id).includes(String(value))) return false;
     typed = id === "preroll" ? Number(value) : String(value);
-  } else if (id === "fast") {
+  } else if (id === "fast" || id === "quickMute") {
+    const { min, max } = PREFERENCE_FIELDS.find((field) => field.id === id);
     typed = Number(value);
-    if (!Number.isFinite(typed) || typed < MIN_FAST || typed > MAX_FAST) return false;
+    if (!Number.isFinite(typed) || typed < min || typed > max) return false;
   } else {
     typed = Boolean(value);
   }

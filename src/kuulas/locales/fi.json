@@ -555,6 +555,7 @@
   "cmd.clip.pan_right": "Panoroi leike oikealle",
   "cmd.clip.mute": "Mykistä leikkeet",
   "cmd.clip.fade": "Häivytä toistokohdasta",
+  "cmd.clip.quick_mute": "Pikamykistys kohdistimen ympäriltä",
   "cmd.track.mute": "Mykistä raita",
   "cmd.track.solo": "Soolota raita",
   "cmd.track.solo_add": "Lisää raita soolojoukkoon",
@@ -897,6 +898,14 @@
   "cmd.track.mute.hint": "Hiljentää valitun raidan tai väylän.",
   "cmd.track.solo.hint": "Toistaa vain valitun raidan tai väylän.",
   "cmd.clip.fade.hint": "Häivyttää leikkeen alun tai lopun toistokohtaan asti, sen mukaan kumpi pää on lähempänä.",
+  "cmd.clip.quick_mute.hint": "Mykistää lyhyen jakson toistokohdan ympäriltä (puoli ennen, puoli jälkeen; oletus 0,5 s, asetus Asetuksissa) kaikilta raidoilta tai valituilta, yhtenä kumoamisaskeleena. Maiskahduksiin: paina kuunnellessa. Mitään ei poisteta; minkä tahansa palan voi palauttaa.",
+  "ui.edit.label.quick_mute": "Pikamykistys",
+  "ui.edit.toast.quick_mute": {
+    "one": "Mykistetty {seconds} s kohdistimen ympäriltä {count} raidalta",
+    "other": "Mykistetty {seconds} s kohdistimen ympäriltä {count} raidalta"
+  },
+  "ui.quick_mute.already": "Tämä kohta on jo mykistetty.",
+  "ui.prefs.quick_mute": "Pikamykistyksen pituus (s)",
   "cmd.bus.collapse.hint": "Näyttää väylän yhtenä rivinä.",
   "cmd.bus.expand.hint": "Näyttää väylän raidat taas.",
   "cmd.help.open.hint": "Avaa ohjeen siihen, minkä parissa työskentelet.",

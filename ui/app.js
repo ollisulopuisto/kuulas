@@ -107,6 +107,7 @@ import { createPrefs } from "./prefs.js";
 import { nextPreroll, prerollLabel } from "./preroll.js";
 import { createProjectDialog } from "./project-dialog.js";
 import { patchClip } from "./provisional.js";
+import { normaliseQuickMute, QUICK_MUTE_KEY } from "./quick-mute.js";
 import { rangeLine } from "./range-info.js";
 import { rememberRange, stepRangeMemory } from "./range-memory.js";
 import {
@@ -441,6 +442,14 @@ function toggleClipboardLimit() {
   setState({ clipboardLimit: on });
   prefs.set(CLIPBOARD_LIMIT_KEY, on ? "on" : "off");
   showNotice(t(on ? "ui.clipboard.limit.on" : "ui.clipboard.limit.off"), "ok");
+}
+
+// Quick mute length (seconds, Preferences); read by quickMutePlan from the state.
+setState({ quickMuteS: normaliseQuickMute(prefs.get(QUICK_MUTE_KEY)) });
+function setQuickMuteLength(seconds) {
+  const value = normaliseQuickMute(seconds);
+  setState({ quickMuteS: value });
+  prefs.set(QUICK_MUTE_KEY, value);
 }
 
 const FAST_KEY = "fast";
@@ -2193,6 +2202,7 @@ function openPreferences() {
         if (on !== (getState().clipboardLimit !== false)) toggleClipboardLimit();
       },
       fast: (speed) => changeFast((fast) => setFast(fast, speed)),
+      quickMute: (seconds) => setQuickMuteLength(seconds),
     },
     run: (command) => keyboard.registry.run(command, null, getState()),
     canRun: (command) => keyboard.registry.can(command, getState()),
