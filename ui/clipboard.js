@@ -3,7 +3,9 @@
 // paste plans from these, clipboard-panel.js draws the entries.
 
 export const PASTE_MODES = ["insert", "overwrite"];
-export const PASTE_TARGETS = ["same", "current"];
+// "auto" (default): the selected track, else the source tracks; "current": the selected track
+// only (refuses without one); "same": the tracks the entry was copied from.
+export const PASTE_TARGETS = ["auto", "same", "current"];
 
 /** m:ss, or h:mm:ss from an hour on. Whole seconds: a clipboard name is a hint, not a timecode. */
 export function shortDuration(seconds) {
@@ -147,11 +149,11 @@ export function keepCount(state) {
   return Number.isInteger(n) && n >= 1 ? n : DEFAULT_KEEP;
 }
 
-/** The remembered paste choice, with defaults: insert, on the same tracks. */
+/** The remembered paste choice, with defaults: insert, on the selected track. */
 export function pasteChoice(state) {
   return {
     mode: PASTE_MODES.includes(state?.pasteMode) ? state.pasteMode : "insert",
-    target: PASTE_TARGETS.includes(state?.pasteTarget) ? state.pasteTarget : "same",
+    target: PASTE_TARGETS.includes(state?.pasteTarget) ? state.pasteTarget : "auto",
   };
 }
 
@@ -166,6 +168,25 @@ export function pasteTargets(slots, trackIds, currentId) {
   const mapping = {};
   for (let slot = 0; slot < slots; slot += 1) {
     mapping[slot] = trackIds[Math.min(trackIds.length - 1, at + slot)];
+  }
+  return mapping;
+}
+
+/**
+ * The slot -> track id mapping that puts each slot back on the track it was copied from: the
+ * project track with the entry's source track name (each used once), else track 1 for the first
+ * slot and the tracks below it for the rest. Slots are dense (a clip copied from track 5 is
+ * slot 0), so the slot number alone says nothing about the source track.
+ */
+export function sourceTargets(slots, trackIds, trackNames, sourceNames) {
+  const taken = new Set();
+  const mapping = {};
+  for (let slot = 0; slot < slots; slot += 1) {
+    const name = sourceNames?.[slot];
+    const found = name ? trackIds.find((id, i) => trackNames[i] === name && !taken.has(id)) : null;
+    const id = found ?? trackIds[Math.min(trackIds.length - 1, slot)];
+    if (found) taken.add(found);
+    mapping[slot] = id;
   }
   return mapping;
 }

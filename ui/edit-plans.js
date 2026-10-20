@@ -6,7 +6,14 @@
 // track_ids. Sync never widens it, and an explicit clip group is expanded by the server.
 
 import { busOfFocus } from "./bus-collapse.js";
-import { autoName, clipsInRange, describeClips, pasteChoice, pasteTargets } from "./clipboard.js";
+import {
+  autoName,
+  clipsInRange,
+  describeClips,
+  pasteChoice,
+  pasteTargets,
+  sourceTargets,
+} from "./clipboard.js";
 import { clipEnd } from "./lanes.js";
 import { splitClipsProvisional } from "./provisional.js";
 import { resolveScope } from "./range-scope.js";
@@ -285,20 +292,43 @@ export function pasteEntry(state) {
 }
 
 /**
- * Mod+V (insert), Alt+Mod+V (overwrite): paste an entry at the play cursor. `target` is
- * "same" (the source tracks) or "current" (the current track and the ones below it).
- * Defaults come from the panel's remembered choice only when the caller passes it in.
+ * The track a paste anchors on: the topmost header-selected track (WP83), else the current
+ * track (focus, or the one track of the selected clips): the notion split and mute use.
+ */
+export function pasteAnchor(state) {
+  const picked = state?.trackSelection;
+  const ids = (state?.project?.tracks ?? []).map((track) => track.id);
+  const chosen = picked ? ids.find((id) => picked.has(id)) : undefined;
+  return chosen ?? currentTrack(state);
+}
+
+/**
+ * Mod+V (insert), Alt+Mod+V (overwrite): paste an entry at the play cursor. `target`:
+ * "auto" (default: the anchor track, else the source tracks), "current" (the anchor track
+ * and the ones below it; null without one) or "same" (the source tracks). The entry's slots
+ * keep their layout from the anchor downwards; extra slots fold onto the last track.
  */
 export function pastePlan(state, { mode, target } = {}) {
   const choice = pasteChoice({ pasteMode: mode, pasteTarget: target });
   const entry = pasteEntry(state);
   if (!state?.project || !entry || !Number.isFinite(state.playhead)) return null;
-  let targetTracks = null;
-  if (choice.target === "current") {
-    const ids = state.project.tracks.map((track) => track.id);
-    targetTracks = pasteTargets(entry.slots, ids, currentTrack(state));
-    if (targetTracks === null) return null;
+  const tracks = state.project.tracks;
+  const ids = tracks.map((track) => track.id);
+  const anchor = choice.target === "same" ? null : pasteAnchor(state);
+  let targetTracks;
+  if (anchor !== null) {
+    targetTracks = pasteTargets(entry.slots, ids, anchor);
+  } else if (choice.target === "current") {
+    return null;
+  } else {
+    targetTracks = sourceTargets(
+      entry.slots,
+      ids,
+      tracks.map((track) => track.name),
+      entry.tracks,
+    );
   }
+  if (targetTracks === null || ids.length === 0) return null;
   const key = choice.mode === "overwrite" ? "paste_overwrite" : "paste";
   return plan(
     "clipboard_paste",

@@ -139,14 +139,14 @@ describe("copy", () => {
 });
 
 describe("paste", () => {
-  test("Mod+V: the newest entry, inserted at the play cursor on the same tracks", () => {
+  test("Mod+V: the newest entry, inserted at the play cursor on the current track", () => {
     const plan = pastePlan(state());
     assert.equal(plan.op, "clipboard_paste");
     assert.deepEqual(plan.args, {
       entry_id: "e1",
       at: 4 * S,
       mode: "insert",
-      target_tracks: null,
+      target_tracks: { 0: "A", 1: "V" },
     });
     assert.match(plan.label.key, /paste$/);
   });
@@ -175,6 +175,41 @@ describe("paste", () => {
     assert.equal(pastePlan(state({ focusTrack: null }), { target: "current" }), null);
     assert.notEqual(pastePlan(state({ focusTrack: null })), null);
   });
+  // Owner bug: Cmd+V always pasted on track 1 although track 5 was selected. The slots are
+  // dense (a clip copied from track 5 is slot 0), so the old default "same" sent it to track 1.
+  test("Mod+V lands on the focused track, not on track 1", () => {
+    const plan = pastePlan(state({ focusTrack: "V", clipboard: [entry({ slots: 1 })] }));
+    assert.deepEqual(plan.args.target_tracks, { 0: "V" });
+  });
+  test("a header selection wins over the focus; several: the topmost is the anchor", () => {
+    const s = state({
+      focusTrack: "A",
+      trackSelection: new Set(["M", "V"]),
+      clipboard: [entry({ slots: 2 })],
+    });
+    assert.deepEqual(pastePlan(s).args.target_tracks, { 0: "V", 1: "M" });
+    assert.deepEqual(pastePlan(s, { target: "current" }).args.target_tracks, { 0: "V", 1: "M" });
+  });
+  test("every form follows the selected track: over, insert, auto", () => {
+    const s = state({ focusTrack: "M", clipboard: [entry({ slots: 1 })] });
+    for (const mode of ["insert", "overwrite"]) {
+      assert.deepEqual(pastePlan(s, { mode }).args.target_tracks, { 0: "M" });
+      assert.deepEqual(pastePlan(s, { mode, target: "current" }).args.target_tracks, { 0: "M" });
+    }
+  });
+  test("nothing selected: the source track if it still exists, else track 1", () => {
+    const none = { focusTrack: null };
+    const known = state({ ...none, clipboard: [entry({ slots: 1, tracks: ["Ville"] })] });
+    assert.deepEqual(pastePlan(known).args.target_tracks, { 0: "V" });
+    const gone = state({ ...none, clipboard: [entry({ slots: 1, tracks: ["Deleted"] })] });
+    assert.deepEqual(pastePlan(gone).args.target_tracks, { 0: "A" });
+    const layout = state({ ...none, clipboard: [entry({ slots: 2, tracks: ["Ville", "Anna"] })] });
+    assert.deepEqual(pastePlan(layout).args.target_tracks, { 0: "V", 1: "A" });
+  });
+  test("target same keeps the source tracks by name", () => {
+    const s = state({ focusTrack: "A", clipboard: [entry({ slots: 1, tracks: ["Ville"] })] });
+    assert.deepEqual(pastePlan(s, { target: "same" }).args.target_tracks, { 0: "V" });
+  });
   test("an empty clipboard, no project or no play cursor: nothing to paste", () => {
     assert.equal(pastePlan(state({ clipboard: [] })), null);
     assert.equal(pastePlan(state({ clipboard: undefined })), null);
@@ -194,8 +229,8 @@ describe("paste", () => {
 });
 
 describe("the mode and target choice", () => {
-  test("defaults: insert on the same tracks", () => {
-    assert.deepEqual(pasteChoice({}), { mode: "insert", target: "same" });
+  test("defaults: insert on the selected track", () => {
+    assert.deepEqual(pasteChoice({}), { mode: "insert", target: "auto" });
   });
   test("remembers valid values and ignores nonsense", () => {
     assert.deepEqual(pasteChoice({ pasteMode: "overwrite", pasteTarget: "current" }), {
@@ -204,12 +239,12 @@ describe("the mode and target choice", () => {
     });
     assert.deepEqual(pasteChoice({ pasteMode: "sideways", pasteTarget: 7 }), {
       mode: "insert",
-      target: "same",
+      target: "auto",
     });
   });
   test("the four forms are the modes times the targets", () => {
     assert.deepEqual(PASTE_MODES, ["insert", "overwrite"]);
-    assert.deepEqual(PASTE_TARGETS, ["same", "current"]);
+    assert.deepEqual(PASTE_TARGETS, ["auto", "same", "current"]);
   });
   test("pasteTargets maps slots onto consecutive tracks and clamps", () => {
     const ids = ["A", "V", "M"];
