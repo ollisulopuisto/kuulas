@@ -293,3 +293,100 @@ def test_one_undo_restores_everything(tmp_path):
         assert s.history.state == before
     finally:
         s.close()
+
+
+# -- trim only this clip (Cmd/Ctrl+drag) -------------------------------------------
+
+
+def test_alone_shrinking_leaves_the_neighbour_and_a_gap():
+    p = ops.roll_trim(three(), "c3", "start", 7 * S, alone=True)
+    assert span(p, "c3") == (7 * S, 9 * S, 7 * S)
+    assert span(p, "c2") == (4 * S, 5 * S, 4 * S)  # no roll: neighbour untouched
+    assert span(p, "c1") == (2 * S, 4 * S, 2 * S)
+
+
+def test_alone_shrinking_the_end_leaves_a_gap_before_the_next_clip():
+    p = ops.roll_trim(project(), "a", "end", 4 * S, alone=True)
+    assert span(p, "a") == (2 * S, 4 * S, 2 * S)
+    assert span(p, "b") == span(project(), "b")
+
+
+def test_alone_outwards_stops_at_the_touching_neighbour():
+    p = ops.roll_trim(three(), "c3", "start", 3 * S, alone=True)
+    assert span(p, "c3") == span(three(), "c3")  # no room
+    assert ids_on(p) == ["c1", "c2", "c3"]
+    p = ops.roll_trim(project(), "a", "end", 99 * S, alone=True)
+    assert span(p, "a") == span(project(), "a")
+
+
+def test_alone_outwards_stops_at_the_nearest_clip_across_a_gap():
+    q = ops.trim_clip(three(), "c2", end=45 * S // 10)  # a gap 4.5-5 s before c3
+    p = ops.roll_trim(q, "c3", "start", 0, alone=True)
+    assert span(p, "c3")[0] == 45 * S // 10  # to c2's end, nothing overwritten
+    assert span(p, "c2") == span(q, "c2")
+    assert ids_on(p) == ["c1", "c2", "c3"]
+
+
+def test_alone_respects_media_limits_and_one_frame():
+    p = ops.roll_trim(project(), "d", "start", -5 * S, alone=True)
+    assert p.clip("d").start == 7 * S  # its source starts there
+    p = ops.roll_trim(project(), "c", "end", 0, alone=True)
+    assert p.clip("c").length == 1
+    p = ops.roll_trim(project(), "c", "end", 99 * S, alone=True)
+    assert p.clip("c").end == 7 * S  # d starts at 7 s
+    p = ops.roll_trim(project(), "b", "end", 99 * S, alone=True)
+    assert p.clip("b").end == 10 * S  # the media ends
+
+
+def test_alone_never_overwrites_even_with_overwrite_on():
+    q = ops.trim_clip(three(), "c2", end=45 * S // 10)
+    p = ops.roll_trim(q, "c1", "end", 8 * S, overwrite=True, alone=True)
+    assert ids_on(p) == ["c1", "c2", "c3"]
+    assert span(p, "c1")[1] == 4 * S  # c2 touches it
+    assert span(p, "c2") == span(q, "c2")
+
+
+def test_alone_changes_only_that_clip():
+    before = project()
+    p = ops.roll_trim(before, "a", "end", 3 * S, alone=True)
+    for cid in ("b", "c", "d"):
+        assert p.clip(cid) == before.clip(cid)
+    assert p.markers == before.markers
+
+
+def test_alone_dispatches_by_name_with_the_flag():
+    args = {"clip_id": "c3", "edge": "start", "frame": 7 * S, "alone": True}
+    p = ops.apply(three(), "roll_trim", args)
+    assert span(p, "c2") == (4 * S, 5 * S, 4 * S)
+    assert span(p, "c3")[0] == 7 * S
+
+
+def test_alone_leaves_sync_partners_alone():
+    p = three()
+    p = ops.add_track(p, track_id="U", name="U")
+    p = ops.add_clip(p, "U", "m", start=5 * S, offset=5 * S, length=4 * S, clip_id="u1")
+    p = ops.mark_in_sync(p, ["c3", "u1"], "c3")
+    q = ops.roll_trim(p, "c3", "start", 7 * S, alone=True)
+    assert q.clip("u1") == p.clip("u1")
+
+
+def test_alone_is_one_undo_step(tmp_path):
+    import numpy as np  # noqa: PLC0415
+    import soundfile as sf  # noqa: PLC0415
+
+    from kuulas.session import Session  # noqa: PLC0415
+
+    wav = tmp_path / "a.wav"
+    sf.write(wav, np.zeros(10 * RATE, dtype=np.float32), RATE, subtype="PCM_16")
+    s = Session(tmp_path / "One.kuulas")
+    try:
+        s.import_media([str(wav)])
+        first = s.state.tracks[0].clips[0].id
+        before = s.history.state
+        args = {"clip_id": first, "edge": "end", "frame": 4 * S, "alone": True}
+        s.edit("roll_trim", args)
+        assert s.state.tracks[0].clips[0].end == 4 * S
+        s.undo()
+        assert s.history.state == before
+    finally:
+        s.close()

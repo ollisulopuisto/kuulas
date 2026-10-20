@@ -884,6 +884,10 @@ All on the canvas, hit-testing in `timeline.js` (pure function, tested):
   **With Shift = ripple:** only that clip changes length and everything after it (all tracks,
   like X) shifts by the same amount, so everything stays in sync. A ghost shows the new edge
   while dragging, Esc cancels, one undo step. Needs `roll_trim` and `ripple_trim` ops.
+  **With Cmd (Mac) / Ctrl = trim only this clip** (`roll_trim alone=true`): a shorter clip
+  leaves a gap and the touching neighbour is not rolled; a longer one stops at the nearest
+  clip on the track, never overwrites. Its media and one frame still bound it. Shift wins
+  over it; Alt+Cmd keeps its own meanings. The press does not change the selection.
 - Drag the clip gain line vertically: `set_clip gain_db` with coalesce key
   `clip-gain-<id>`, live while dragging.
 - Alt+click on the gain line: add envelope point at that source frame
