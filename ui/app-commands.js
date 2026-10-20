@@ -5,6 +5,7 @@ import { busOfFocus, collapseAllChange, collapseChange } from "./bus-collapse.js
 import { canRestore } from "./history-model.js";
 import { rangeAvailable } from "./loop-range.js";
 import { setInPoint, setOutPoint } from "./marks.js";
+import { focusTrack } from "./range-scope.js";
 import { playSelectionRequest, rehearseRequest } from "./rehearse.js";
 import { PAUSE_CHOICES } from "./transcript-model.js";
 
@@ -246,7 +247,7 @@ export function registerAppCommands(registry, { actions, app }) {
   const stepFocus = (direction) => () => {
     const state = app.getState();
     const id = stepTrack(state.project, state.focusTrack, direction);
-    if (id) app.patch({ focusTrack: id, focusBus: null, rangeTracks: new Set() });
+    if (id) app.patch({ ...focusTrack(state, id), rangeTracks: new Set() });
   };
   def("track.prev", stepFocus(-1), hasProject);
   def("track.next", stepFocus(1), hasProject);
