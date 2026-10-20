@@ -308,7 +308,9 @@ export function createExportDialog({ t, formats, canChooseFolder, context, saveM
     lufsInput.value = options.lufs === null ? "" : String(options.lufs);
     ask.checked = options.ask;
     askRow.hidden = !canChooseFolder();
-    nameInput.placeholder = t("ui.exportdialog.name_placeholder", { edit: ctx.server?.edit ?? "" });
+    nameInput.placeholder = t("ui.exportdialog.name_placeholder", {
+      project: ctx.server?.title ?? "",
+    });
     paintQuality();
     paintSilence();
     paintErrors();

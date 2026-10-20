@@ -312,10 +312,10 @@ def test_export_mix_job_runs_in_the_background(session, tmp_path):
     assert session.last_export_folder == str(tmp_path / "o")
 
 
-def test_export_mix_default_name_carries_edit_and_time(session):
+def test_export_mix_default_name_carries_project_and_time(session):
     args = session.mix_export_args({})
     assert args["kind"] == "mix"
-    assert args["template"] == "{edit} {stamp} v{n}.{ext}"
+    assert args["template"] == "{title} {stamp} v{n}.{ext}"
     assert "format" not in args  # the remembered or default (WAV) format applies
 
 

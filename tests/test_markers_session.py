@@ -99,9 +99,11 @@ def test_get_chapters_text_and_json_are_attachments(client, session):
     r = client.get("/api/chapters", params={"style": "text"})
     assert r.status_code == 200
     assert r.text == "00:00:00 Äiti\n"
-    assert r.headers["content-disposition"] == 'attachment; filename="chapters.txt"'
+    assert r.headers["content-disposition"] .startswith(
+        'attachment; filename="Talk chapters.txt"')
     r = client.get("/api/chapters", params={"style": "json"})
-    assert r.headers["content-disposition"] == 'attachment; filename="chapters.json"'
+    assert r.headers["content-disposition"] .startswith(
+        'attachment; filename="Talk chapters.json"')
     assert r.json()["chapters"][0]["title"] == "Äiti"
 
 
@@ -134,9 +136,9 @@ def test_each_region_is_its_own_file_of_the_right_length(session, tmp_path):
     job = wait(session, job_id)
     assert job["state"] == "completed", job
     files = sorted(p.name for p in out.iterdir())
-    assert files == ["01 Intro.wav", "02 Main part2.wav"]
-    assert frames(out / "01 Intro.wav") == RATE + 24000
-    assert frames(out / "02 Main part2.wav") == 2 * RATE
+    assert files == ["Talk - 01 Intro.wav", "Talk - 02 Main part2.wav"]
+    assert frames(out / "Talk - 01 Intro.wav") == RATE + 24000
+    assert frames(out / "Talk - 02 Main part2.wav") == 2 * RATE
 
 
 def test_a_second_run_never_overwrites(session, tmp_path):
@@ -145,7 +147,8 @@ def test_a_second_run_never_overwrites(session, tmp_path):
     for _ in range(2):
         [job_id] = session.export_regions({"folder": str(out), "format": "wav"})
         assert wait(session, job_id)["state"] == "completed"
-    assert sorted(p.name for p in out.iterdir()) == ["01 Intro 2.wav", "01 Intro.wav"]
+    assert sorted(p.name for p in out.iterdir()) == [
+        "Talk - 01 Intro 2.wav", "Talk - 01 Intro.wav"]
 
 
 def test_name_template_and_region_past_the_end_is_clamped(session, tmp_path):

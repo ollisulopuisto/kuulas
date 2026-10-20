@@ -79,7 +79,7 @@ def test_the_default_is_dry_24_bit_wav_in_a_new_folder_beside_the_project(sessio
     result = wait(session, session.export_tracks()[0])["result"]
     folder = Path(result["path"])
     assert folder.parent == session.package.path.parent / "Episode exports"
-    assert folder.name.startswith("Main ")
+    assert folder.name.startswith("Episode ")
     assert {sf.info(p).subtype for p in result["paths"]} == {"PCM_24"}
     assert result["settings"]["processing"] == "dry"
     session.edit("set_track", {"track_id": session.state.tracks[0].id, "gain_db": -3.0})
@@ -117,7 +117,7 @@ def test_tracks_json_lists_every_track_with_name_kind_and_speaker(session):
     assert [t["name"] for t in listing["tracks"]] == ["Olli", "Maija", "Ville"]
     assert {t["kind"] for t in listing["tracks"]} == {"speech"}
     assert listing["tracks"][0]["speaker"] == "Olli S"
-    assert listing["tracks"][0]["file"] == f"Main {DASH} Olli.wav"
+    assert listing["tracks"][0]["file"] == f"Episode {DASH} Olli.wav"
     assert listing["frames"] == session.state.length
     assert listing["start_frame"] == 0
     assert all(t["audible"] for t in listing["tracks"])
@@ -127,7 +127,7 @@ def test_a_music_track_is_named_so_the_automixer_finds_it_as_music(session):
     track = session.state.tracks[2]
     session.edit("set_track", {"track_id": track.id, "kind": "music", "name": "Intro"})
     result = wait(session, session.export_tracks()[0])["result"]
-    assert f"Main {DASH} Intro MUSIC.wav" in {Path(p).name for p in result["paths"]}
+    assert f"Episode {DASH} Intro MUSIC.wav" in {Path(p).name for p in result["paths"]}
 
 
 def test_a_failure_is_a_failed_job_with_the_translated_text(tmp_path):

@@ -52,6 +52,7 @@ from . import (
     colab_transcribe,
     export,
     export_formats,
+    export_names,
     logsetup,
     messages,
     music_report,
@@ -948,11 +949,11 @@ def create_app(session, engine, *, language: str | None = None,
         content = session.chapters(style)
         if style == "json":
             return Response(content=content, media_type="application/json",
-                            headers={"Content-Disposition":
-                                     'attachment; filename="chapters.json"'})
+                            headers={"Content-Disposition": export_names.disposition(
+                                session.download_name("chapters.json"))})
         return Response(content=content, media_type="text/plain; charset=utf-8",
-                        headers={"Content-Disposition":
-                                 'attachment; filename="chapters.txt"'})
+                        headers={"Content-Disposition": export_names.disposition(
+                            session.download_name("chapters.txt"))})
 
     @app.get("/api/loudness-curve")
     def get_loudness_curve():
@@ -998,10 +999,10 @@ def create_app(session, engine, *, language: str | None = None,
         content = session.subtitles(format)
         if format == "srt":
             media_type = "application/x-subrip"
-            disposition = 'attachment; filename="subtitles.srt"'
+            disposition = export_names.disposition(session.download_name("subtitles.srt"))
         else:
             media_type = "text/vtt"
-            disposition = 'attachment; filename="subtitles.vtt"'
+            disposition = export_names.disposition(session.download_name("subtitles.vtt"))
         return Response(content=content, media_type=media_type,
                         headers={"Content-Disposition": disposition})
 
@@ -1012,10 +1013,11 @@ def create_app(session, engine, *, language: str | None = None,
         content = session.transcript_text(format)
         if format == "txt":
             media_type = "text/plain; charset=utf-8"
-            disposition = 'attachment; filename="transcript.txt"'
+            disposition = export_names.disposition(
+                session.download_name("transcript.txt"))
         else:
             media_type = "text/markdown; charset=utf-8"
-            disposition = 'attachment; filename="transcript.md"'
+            disposition = export_names.disposition(session.download_name("transcript.md"))
         return Response(content=content, media_type=media_type,
                         headers={"Content-Disposition": disposition})
 

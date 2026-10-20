@@ -21,6 +21,15 @@ export const CHAPTER_EXPORTS = [
 
 /** The file name in a Content-Disposition header, else the fallback. */
 export function filenameFromDisposition(header, fallback) {
+  // filename* (RFC 5987) holds the real UTF-8 name; filename="" is its ASCII fallback.
+  const star = /filename\*=UTF-8''([^;]+)/i.exec(header ?? "");
+  if (star) {
+    try {
+      return decodeURIComponent(star[1]);
+    } catch {
+      // fall through to the plain name
+    }
+  }
   const match = /filename="([^"]+)"/.exec(header ?? "");
   return match ? match[1] : fallback;
 }

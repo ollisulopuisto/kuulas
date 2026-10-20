@@ -117,7 +117,7 @@ def bext(path: Path) -> dict:
 
 def test_float_wav_export_equals_the_mixer_bit_exact(session, out):
     r = run(session, out)
-    assert Path(r["path"]).name == "Main v1.wav"
+    assert Path(r["path"]).name == "Talk v1.wav"
     assert np.array_equal(float_wav(r["path"]), whole_mix(session))
 
 
@@ -177,7 +177,7 @@ def test_a_crash_mid_render_leaves_nothing_at_the_target(session, out, monkeypat
     assert session.history.checkpoints() == []
     # ...and the failed attempt used no version number.
     monkeypatch.setattr(mixer, "mix", real)
-    assert Path(run(session, out)["path"]).name == "Main v1.wav"
+    assert Path(run(session, out)["path"]).name == "Talk v1.wav"
 
 
 def test_a_full_disk_costs_the_export_not_the_session(session, out, monkeypatch):
@@ -228,7 +228,7 @@ def test_bit_depths_and_flac(session, out):
         r = run(session, out / str(depth), bit_depth=depth)
         np.testing.assert_allclose(float_wav(r["path"]), mix, atol=tolerance)
     r = run(session, out, format="flac", bit_depth=24)
-    assert Path(r["path"]).name == "Main v1.flac"
+    assert Path(r["path"]).name == "Talk v1.flac"
     np.testing.assert_allclose(float_wav(r["path"]), mix, atol=2 ** -22)
 
 
@@ -257,7 +257,7 @@ def test_mp3_decodes_with_the_same_length_and_loudness(tmp_path, out):
     try:
         wav = run(session, out / "w")
         mp3 = run(session, out / "m", format="mp3", mp3_kbps=128)
-        assert Path(mp3["path"]).name == "Main v1.mp3"
+        assert Path(mp3["path"]).name == "Dialogue v1.mp3"
         reference, decoded = float_wav(wav["path"]), ffmpeg_decode(Path(mp3["path"]))
         assert abs(decoded.shape[1] - reference.shape[1]) <= 1152
         assert abs(lufs(decoded) - lufs(reference)) < 0.5
@@ -358,7 +358,7 @@ def test_unchanged_edit_is_not_rendered_again(session, out):
     assert again["unchanged_since"] == 1
     assert again["path"] == first["path"]
     assert "Unchanged since v1" in again["message"]
-    assert sorted(p.name for p in out.iterdir()) == ["Main v1.wav"]
+    assert sorted(p.name for p in out.iterdir()) == ["Talk v1.wav"]
 
 
 def test_a_changed_edit_or_setting_counts_up(session, out):
@@ -366,35 +366,35 @@ def test_a_changed_edit_or_setting_counts_up(session, out):
     track = session.state.tracks[0].id
     session.edit("set_track", {"track_id": track, "gain_db": -3.0})
     second = run(session, out)
-    assert Path(second["path"]).name == "Main v2.wav"
+    assert Path(second["path"]).name == "Talk v2.wav"
     assert not second["skipped"]
     third = run(session, out, bit_depth=24)
-    assert Path(third["path"]).name == "Main v3.wav"
+    assert Path(third["path"]).name == "Talk v3.wav"
     # Undo returns to a state exported before, but the last export was another.
     session.undo()
     fourth = run(session, out)
-    assert Path(fourth["path"]).name == "Main v4.wav"
+    assert Path(fourth["path"]).name == "Talk v4.wav"
 
 
 def test_a_deleted_export_is_made_again_under_its_own_number(session, out):
     first = run(session, out)
     Path(first["path"]).unlink()
     again = run(session, out)
-    assert Path(again["path"]).name == "Main v1.wav"
+    assert Path(again["path"]).name == "Talk v1.wav"
     assert not again["skipped"]
 
 
 def test_existing_files_are_never_overwritten(session, out):
     out.mkdir()
-    (out / "Main v1.wav").write_bytes(b"precious")
+    (out / "Talk v1.wav").write_bytes(b"precious")
     r = run(session, out)
-    assert Path(r["path"]).name == "Main v2.wav"
-    assert (out / "Main v1.wav").read_bytes() == b"precious"
+    assert Path(r["path"]).name == "Talk v2.wav"
+    assert (out / "Talk v1.wav").read_bytes() == b"precious"
 
 
 def test_latest_copy_follows_the_newest_version(session, out):
     r = run(session, out, latest=True)
-    latest = out / "Main latest.wav"
+    latest = out / "Talk latest.wav"
     assert latest.read_bytes() == Path(r["path"]).read_bytes()
     session.edit("set_track", {"track_id": session.state.tracks[0].id, "gain_db": -3.0})
     r2 = run(session, out, latest=True)
@@ -406,7 +406,7 @@ def test_latest_copy_can_be_enabled_without_rerendering(session, out):
 
     second = run(session, out, latest=True)
 
-    latest = out / "Main latest.wav"
+    latest = out / "Talk latest.wav"
     assert second["skipped"] is True
     assert latest.read_bytes() == Path(first["path"]).read_bytes()
     assert session.last_export_settings("mix")["latest"] is True
@@ -447,7 +447,7 @@ def test_last_settings_are_remembered_per_kind_for_quick_export(session, out):
     assert session.last_export_settings("tracks") is None
     session.edit("set_track", {"track_id": session.state.tracks[0].id, "gain_db": -3.0})
     quick = session.export({"kind": "mix"})  # nothing but the kind: the remembered ones
-    assert Path(quick["path"]).name == "Main v2.mp3"
+    assert Path(quick["path"]).name == "Talk v2.mp3"
     assert Path(quick["path"]).parent == out
 
 
@@ -484,7 +484,7 @@ def test_selection_is_that_range_of_the_mix_with_edge_fades(session, out):
     expected = whole_mix(session)[:, a:b] * edge_gains(b - a, fade)
     np.testing.assert_allclose(got, expected, atol=1e-6)
     assert got[:, 0].tolist() == [0.0, 0.0]
-    assert Path(r["path"]).name == "Main 0m01s\N{EN DASH}0m03s v1.wav"
+    assert Path(r["path"]).name == "Talk 0m01s\N{EN DASH}0m03s v1.wav"
     assert bext(Path(r["path"]))["time_reference"] == a
 
 
@@ -510,12 +510,12 @@ def tracks_out(r) -> dict[str, Path]:
 def test_tracks_are_aligned_equal_length_and_keep_their_channels(session, out):
     r = run(session, out, kind="tracks")
     folder = Path(r["path"])
-    assert folder.name == "Main tracks v1"
+    assert folder.name == "Talk tracks v1"
     files = tracks_out(r)
     assert set(files) == {"a", "b", "m"}
     assert {p.name for p in files.values()} == {
-        "Main \N{EN DASH} a.wav", "Main \N{EN DASH} b.wav",
-        "Main \N{EN DASH} m.wav"}
+        "Talk \N{EN DASH} a.wav", "Talk \N{EN DASH} b.wav",
+        "Talk \N{EN DASH} m.wav"}
     length = session.state.length
     assert {sf.info(p).frames for p in files.values()} == {length}
     assert [sf.info(files[n]).channels for n in ("a", "b", "m")] == [1, 1, 2]
@@ -593,7 +593,7 @@ def test_a_muted_track_is_silence_in_dry_and_as_heard_stems(session, out):
 def test_tracks_of_a_selection_start_together_at_the_selection(session, out):
     a, b = RATE, 2 * RATE
     r = run(session, out, kind="tracks", range=[a, b])
-    assert Path(r["path"]).name == "Main 0m01s\N{EN DASH}0m02s tracks v1"
+    assert Path(r["path"]).name == "Talk 0m01s\N{EN DASH}0m02s tracks v1"
     for p in map(Path, r["paths"]):
         assert sf.info(p).frames == RATE
         assert bext(p)["time_reference"] == a
@@ -621,14 +621,14 @@ def test_tracks_skip_when_unchanged_and_never_overwrite(session, out):
     assert again["skipped"]
     assert again["path"] == first["path"]
     run(session, out, kind="tracks", processing="as_heard")
-    assert sorted(p.name for p in out.iterdir()) == ["Main tracks v1", "Main tracks v2"]
+    assert sorted(p.name for p in out.iterdir()) == ["Talk tracks v1", "Talk tracks v2"]
 
 
 def test_tracks_list_file_lets_the_session_be_rebuilt(session, out):
     r = run(session, out, kind="tracks", list_file=True)
     listing = json.loads((Path(r["path"]) / "tracks.json").read_text("utf-8"))
     assert [t["name"] for t in listing["tracks"]] == ["a", "b", "m"]
-    assert listing["tracks"][0]["file"] == "Main \N{EN DASH} a.wav"
+    assert listing["tracks"][0]["file"] == "Talk \N{EN DASH} a.wav"
     assert listing["start_frame"] == 0
     assert listing["rate"] == RATE
     assert listing["processing"] == "dry"
@@ -655,8 +655,8 @@ def test_post_export_renders_and_answers_with_the_result(client, session, out):
                                          "format": "wav", "bit_depth": 16})
     assert r.status_code == 200, r.text
     body = r.json()
-    assert Path(body["export"]["path"]).name == "Main v1.wav"
-    assert (out / "Main v1.wav").is_file()
+    assert Path(body["export"]["path"]).name == "Talk v1.wav"
+    assert (out / "Talk v1.wav").is_file()
     assert body["export"]["skipped"] is False
     assert body["head"] == session.history.head
     again = client.post("/api/export", json={"kind": "mix", "folder": str(out),

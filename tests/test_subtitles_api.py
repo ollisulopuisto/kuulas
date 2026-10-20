@@ -167,7 +167,8 @@ def test_api_get_subtitles_srt(two_track_session: Session, tmp_path: Path):
     resp = client.get("/api/subtitles?format=srt")
     assert resp.status_code == 200
     assert resp.headers["content-type"].startswith("application/x-subrip")
-    assert resp.headers["content-disposition"] == 'attachment; filename="subtitles.srt"'
+    assert resp.headers["content-disposition"] .startswith(
+        'attachment; filename="Subtitles subtitles.srt"')
     assert "00:00:00,100 -->" in resp.text
     assert "hello" in resp.text
 
@@ -183,7 +184,8 @@ def test_api_get_subtitles_vtt(two_track_session: Session, tmp_path: Path):
     resp = client.get("/api/subtitles?format=vtt")
     assert resp.status_code == 200
     assert resp.headers["content-type"].startswith("text/vtt")
-    assert resp.headers["content-disposition"] == 'attachment; filename="subtitles.vtt"'
+    assert resp.headers["content-disposition"] .startswith(
+        'attachment; filename="Subtitles subtitles.vtt"')
     assert resp.text.startswith("WEBVTT\n")
     assert "<v A>" in resp.text
 
