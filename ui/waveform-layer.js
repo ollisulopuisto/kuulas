@@ -1,6 +1,7 @@
 // The waveform canvas, drawn in a Web Worker when the browser can
 // (OffscreenCanvas), else on the main thread with the same painter.
 import { peakTile } from "./api.js";
+import { backingSize } from "./canvas-size.js";
 import { paintWaveforms } from "./paint.js";
 import { createTileStore } from "./tiles.js";
 
@@ -33,8 +34,7 @@ export function createWaveformLayer(canvas, { onOvers } = {}) {
     requestAnimationFrame(() => {
       scheduled = false;
       if (!latest) return;
-      const width = Math.round(latest.width * latest.ratio);
-      const height = Math.round(latest.height * latest.ratio);
+      const { width, height } = backingSize(latest.width, latest.height, latest.ratio);
       if (canvas.width !== width || canvas.height !== height) {
         canvas.width = width;
         canvas.height = height;

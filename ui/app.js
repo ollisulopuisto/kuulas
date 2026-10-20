@@ -3,6 +3,7 @@
 // (view.js, lanes.js, keys.js, ...); this file only applies their answers.
 
 import * as api from "./api.js";
+import { SIDE_TAB_COMMANDS } from "./app-commands.js";
 import { createAutomixDialog } from "./automix-dialog.js";
 import { automixNotice } from "./automix-model.js";
 import { memberClipsAt, toggleChange } from "./bus-collapse.js";
@@ -13,6 +14,7 @@ import { clipDragChange } from "./clip-drag.js";
 import { expandGroups, toggleGroupSelection } from "./clip-groups.js";
 import { entryTitle } from "./clipboard.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
+import { previewFraction, previewPlaying } from "./clipboard-preview.js";
 import { createClock } from "./clock.js";
 import { createColabDialogs } from "./colab-dialog.js";
 import {
@@ -24,6 +26,7 @@ import {
 } from "./colab-model.js";
 import { openContextMenu } from "./context-menu.js";
 import { contextMenuItems } from "./context-menu-model.js";
+import { installDialogKeys } from "./dialog-keys.js";
 import { dragModeChoice, nextDragMode } from "./drag-mode.js";
 import { edgeChange } from "./edge-drag.js";
 import { createEditor } from "./edits.js";
@@ -112,9 +115,9 @@ import { rangeLine } from "./range-info.js";
 import { rememberRange, stepRangeMemory } from "./range-memory.js";
 import {
   clearTrackSelection,
+  focusTrack as focusTrackPatch,
   resolveScope,
   scopeChip,
-  selectTrack as selectTrackPatch,
   toggleScopeMode,
 } from "./range-scope.js";
 import { recentMenuItems } from "./recent-menu-model.js";
@@ -374,6 +377,59 @@ function startPlayheadTicker() {
   requestAnimationFrame(tickPlayhead);
 }
 
+// The clipboard preview (WP46) has a clock of its own: its anchors ("preview" on the live
+// channel) fill the playing chip's progress meter and never move the timeline's playhead.
+// With animation off the meter steps four times a second instead of every frame.
+let previewClock = createPlayheadClock();
+let previewEnd = null;
+let previewEndedSeq = null; // the newest "no preview plays" heard
+let previewTicking = false;
+let previewDrawn = 0;
+const PREVIEW_STEP_MS = 250;
+function startClipboardPreview(id, seq) {
+  previewClock = createPlayheadClock();
+  previewClock.setOffset(playheadClock.offset());
+  previewEnd = null;
+  let next = previewPlaying(getState().clipboardPlaying, { type: "start", id, seq });
+  // A short excerpt can end before the answer that started it arrives.
+  if (previewEndedSeq !== null && seq !== null) {
+    next = previewPlaying(next, { type: "ended", seq: previewEndedSeq });
+  }
+  setState({ clipboardPlaying: next });
+  if (next) startPreviewTicker();
+}
+function previewAnchor(message) {
+  const current = getState().clipboardPlaying;
+  if (!message.playing) {
+    if (message.seq !== null && message.seq !== undefined) previewEndedSeq = message.seq;
+    const next = previewPlaying(current, { type: "ended", seq: message.seq ?? null });
+    if (next !== current) setState({ clipboardPlaying: next });
+    return;
+  }
+  // An anchor from before this chip's preview started is the previous one's.
+  if (!current || (current.seq !== null && (message.seq ?? 0) < current.seq)) return;
+  if (previewClock.accept(message, performance.now())) previewEnd = message.end ?? null;
+  startPreviewTicker();
+}
+function tickPreview(now) {
+  if (!getState().clipboardPlaying) {
+    previewTicking = false;
+    return;
+  }
+  const stepped = document.documentElement.dataset.motion === "off";
+  if (!stepped || now - previewDrawn >= PREVIEW_STEP_MS) {
+    previewDrawn = now;
+    const frame = previewClock.playing() ? previewClock.frameAt(now) : 0;
+    clipboardPanel.progress(previewFraction(frame, previewEnd));
+  }
+  requestAnimationFrame(tickPreview);
+}
+function startPreviewTicker() {
+  if (previewTicking) return;
+  previewTicking = true;
+  requestAnimationFrame(tickPreview);
+}
+
 // -- the view: zoom, scroll, Z, history ---------------------------------------
 
 function setView({ zoom, scroll }, { record = true, whole = false } = {}) {
@@ -531,6 +587,7 @@ const actions = {
       setState({ selection: new Set(), rangeTracks: new Set(), inPoint: null, outPoint: null });
     } else focusPanel("timeline");
   },
+  showSideTab: (name) => focusPanel(name),
   cyclePanel: (direction) => focusPanel(nextPanel(getState().panel, direction)),
   zoomStep(direction) {
     const state = getState();
@@ -721,8 +778,8 @@ function onPointerDown(hit, event, { noSeek = false } = {}) {
   const state = getState();
   const patch = { panel: "timeline", rangeTracks: new Set() };
   if (hit.row?.kind === "track" && !additive) {
-    patch.focusTrack = hit.row.id;
-    patch.focusBus = null;
+    // Current track and header selection move together (range-scope.js focusTrack).
+    Object.assign(patch, focusTrackPatch(state, hit.row.id, { mode: "select" }));
     // The range's tracks (Select > Range on all tracks) end with a click elsewhere.
     patch.rangeTracks = new Set();
   } else if (hit.row?.kind === "bus" && !additive) patch.focusBus = hit.row.id;
@@ -834,6 +891,9 @@ const transcript = createTranscript({
 });
 
 // The whole keyboard layer: keymap, palette, cheat sheet, menu bar, hints (shell-keys.js).
+// Esc and Enter in modal dialogs (dialog-keys.js): before the keymap sees the key.
+installDialogKeys(window);
+
 const keyboard = setupKeyboard({
   actions,
   prefs,
@@ -854,6 +914,11 @@ const keyboard = setupKeyboard({
     const aria = (combo) => combo.replace(/\bMod\b/, platform === "mac" ? "Meta" : "Control");
     button.setAttribute("aria-keyshortcuts", keys.map(aria).join(" "));
     button.title = keys.map((combo) => formatCombo(combo, platform)).join(" ");
+    // Each side tab shows its Alt+digit (or the user's own key) as a tooltip.
+    for (const [id, tab] of Object.entries(SIDE_TAB_COMMANDS)) {
+      const combos = shortcutsFor(id, entries).map((combo) => formatCombo(combo, platform));
+      $(`tab-${tab}`).title = combos.join(" ");
+    }
   },
   app: {
     getState,
@@ -881,6 +946,7 @@ const keyboard = setupKeyboard({
         .then((answer) => {
           // How far the preview was turned down, for the hint beside the entry.
           setState({ clipboardLevel: { id, db: answer?.attenuation_db ?? 0 } });
+          if (answer?.started) startClipboardPreview(id, answer.seq ?? null);
           return answer;
         })
         .catch((error) => {
@@ -1503,19 +1569,15 @@ const trackHeaders = createTrackHeaders({
   editor,
   onBusCreated: nameNewBus,
   actions: {
-    // Click / Cmd+click on a track header (WP83): the track joins the selection that range
-    // operations act on, and the scope becomes "selected tracks only".
-    selectTrack: (id, options) => setState(selectTrackPatch(getState(), id, options)),
-    currentTrack: (id) => {
+    // A track header becomes current (range-scope.js focusTrack: the one rule that keeps the
+    // header selection in step). mode: "select" (click), "add" (Cmd+click), "follow" (focus).
+    currentTrack: (id, options) => {
       // A header is the timeline's keyboard context (Tab, arrows); the panel was left as it was.
-      const patch = headerFocusPatch(getState());
-      if (getState().focusTrack !== id || getState().focusBus || patch) {
-        setState({ focusTrack: id, focusBus: null, ...patch });
-      }
+      setState({ ...focusTrackPatch(getState(), id, options), ...headerFocusPatch(getState()) });
     },
     // The kind tag in a track header: focus the track, then the same command as Alt+Mod+K.
     cycleKind: (id) => {
-      setState({ focusTrack: id, focusBus: null });
+      setState(focusTrackPatch(getState(), id));
       keyboard.registry.run("track.cycle_kind", null, getState());
     },
     currentBus: (id) => {
@@ -1538,7 +1600,7 @@ const trackHeaders = createTrackHeaders({
 // Right-click on a track or bus header: focus it, then offer its commands.
 function showHeaderMenu(kind, id, event) {
   event.preventDefault();
-  if (kind === "track") setState({ focusTrack: id, focusBus: null, selection: new Set() });
+  if (kind === "track") setState({ ...focusTrackPatch(getState(), id), selection: new Set() });
   else setState({ focusBus: id, focusTrack: null });
   const state = getState();
   const target = kind === "bus" ? { kind, collapsed: state.collapsedBuses.has(id) } : { kind };
@@ -1567,13 +1629,9 @@ function showTimelineMenu(hit, event) {
   const patch = { panel: "timeline" };
   if (plan.selection) {
     patch.selection = plan.selection;
-    patch.focusTrack = hit.row.id;
-    patch.focusBus = null;
+    Object.assign(patch, focusTrackPatch(getState(), hit.row.id));
   }
-  if (plan.focusTrack) {
-    patch.focusTrack = plan.focusTrack;
-    patch.focusBus = null;
-  }
+  if (plan.focusTrack) Object.assign(patch, focusTrackPatch(getState(), plan.focusTrack));
   setState(patch);
   if (plan.seek !== null) void transport.seek(plan.seek);
   const sections = timelineMenuItems(getState(), { kind: plan.kind }, (id, state) =>
@@ -1598,7 +1656,11 @@ const inspector = createInspector({
   onBusCreated: nameNewBus,
   // A row of the Source list: select that clip and move the play cursor to it.
   jump: (clip, track, frame) => {
-    setState({ selection: new Set([clip]), focusTrack: track, focusBus: null, panel: "timeline" });
+    setState({
+      ...focusTrackPatch(getState(), track),
+      selection: new Set([clip]),
+      panel: "timeline",
+    });
     void transport.seek(frame);
   },
 });
@@ -1715,6 +1777,7 @@ async function openAutomix() {
     api,
     t,
     pickFolder: folderChooser(),
+    prefs,
     onStart: async (body) => {
       try {
         const { jobs } = await api.automix(body);
@@ -2466,6 +2529,8 @@ const clipboardPanel = createClipboardPanel({
       setState({ clipboardSelected: id });
       keyboard.registry.run("edit.preview_clipboard", null, getState());
     },
+    // The playing chip's Stop: the transport's stop ends a preview (the playhead stays).
+    stopPreview: () => void transport.stop(),
     canPasteAgain: (state) => keyboard.registry.can(pasteCommand(state), state),
     pasteAgain(id) {
       setState({ clipboardSelected: id });
@@ -2858,8 +2923,12 @@ function render(state, patch) {
   if (touched("playing")) {
     if (state.playing) startPlayheadTicker();
     levelMeter.playing(state.playing);
-    $("play-icon").textContent = state.playing ? "■" : "▶";
-    $("play-label").textContent = t(state.playing ? "ui.transport.stop" : "ui.transport.play");
+  }
+  if (touched("playing", "clipboardPlaying")) {
+    // A clipboard preview playing: the Play button stops it (transport.toggle).
+    const sounding = state.playing || Boolean(state.clipboardPlaying);
+    $("play-icon").textContent = sounding ? "■" : "▶";
+    $("play-label").textContent = t(sounding ? "ui.transport.stop" : "ui.transport.play");
   }
   if (touched("loop", "project", "inPoint", "outPoint", "selection")) {
     const button = $("loop");
@@ -3232,6 +3301,7 @@ connectLive({
       setState(anchorPatch(result.anchor));
       if (result.anchor.playing) startPlayheadTicker();
     }
+    if (result.preview) previewAnchor(result.preview);
     if (Object.keys(result.patch).length > 0) setState(result.patch);
     // An answer to our own edit arrives as a state_changed too; while edits are
     // still going out, the editor shows the newest value and applies the last answer.

@@ -52,11 +52,13 @@ from . import (
     colab_transcribe,
     export,
     export_formats,
+    export_names,
     logsetup,
     messages,
     music_report,
     new_project,
     offload,
+    plugins,
     priority,
     project_stats,
     transcribe,
@@ -337,6 +339,16 @@ def anchor_message(status: dict, now: float) -> dict:
             "loop": status.get("loop"), "rate": status.get("rate")}
 
 
+def preview_message(status: dict, now: float) -> dict:
+    """The live channel's clipboard-preview anchor: the fields of
+    ``anchor_message`` for the preview's own frames (0 at the excerpt's start,
+    ``end`` its length), so the Clipboard chip can draw its progress. Never the
+    timeline's playhead."""
+    message = anchor_message({**status, "preview": False}, now)
+    message["type"] = "preview"
+    return message
+
+
 def newer_seq(seq, last) -> bool:
     """Is a reading with transport version ``seq`` as new as ``last`` (None: an
     engine without versions, always)?"""
@@ -471,6 +483,7 @@ def create_app(session, engine, *, language: str | None = None,
     async def _export_error(_request: Request, e: export.ExportError):
         client_error = e.key.startswith("error.export.bad_") or e.key in {
             "error.export.empty", "error.export.too_long_to_master",
+            "error.export.master_memory",
         }
         return answer(e, 400 if client_error else 500)
 
@@ -777,10 +790,13 @@ def create_app(session, engine, *, language: str | None = None,
         # (WP82); `attenuation_db` says by how much (0 or less).
         limit = True if body is None else body.limit
         project, missing, gain = session.clipboard_preview(entry_id, limit)
+        seq = None
         if project is not None:
             engine.play_preview(project, limit=limit)
+            # The transport version it started at: the page drops an older "ended".
+            seq = engine.status().get("seq")
         return JSONResponse({"started": project is not None, "missing": missing,
-                             "attenuation_db": gain})
+                             "attenuation_db": gain, "seq": seq})
 
     @app.delete("/api/clipboard/{entry_id}")
     def delete_clipboard_entry(entry_id: str):
@@ -862,6 +878,12 @@ def create_app(session, engine, *, language: str | None = None,
         # What Auto-Silence with these options would close; changes nothing.
         return JSONResponse({"jobs": session.auto_silence_preview(body)}, status_code=202)
 
+    @app.get("/api/plugins")
+    def get_plugins(refresh: bool = False):
+        # The installed audio plug-ins (names only, never loaded) for the automixer
+        # dialog's suggestions; the scan is cached, ?refresh=1 scans again.
+        return {"plugins": plugins.list_plugins(refresh=refresh)}
+
     @app.get("/api/settings/automixer")
     def get_automixer_settings():
         stored = automix.load_settings()
@@ -934,11 +956,11 @@ def create_app(session, engine, *, language: str | None = None,
         content = session.chapters(style)
         if style == "json":
             return Response(content=content, media_type="application/json",
-                            headers={"Content-Disposition":
-                                     'attachment; filename="chapters.json"'})
+                            headers={"Content-Disposition": export_names.disposition(
+                                session.download_name("chapters.json"))})
         return Response(content=content, media_type="text/plain; charset=utf-8",
-                        headers={"Content-Disposition":
-                                 'attachment; filename="chapters.txt"'})
+                        headers={"Content-Disposition": export_names.disposition(
+                            session.download_name("chapters.txt"))})
 
     @app.get("/api/loudness-curve")
     def get_loudness_curve():
@@ -984,10 +1006,10 @@ def create_app(session, engine, *, language: str | None = None,
         content = session.subtitles(format)
         if format == "srt":
             media_type = "application/x-subrip"
-            disposition = 'attachment; filename="subtitles.srt"'
+            disposition = export_names.disposition(session.download_name("subtitles.srt"))
         else:
             media_type = "text/vtt"
-            disposition = 'attachment; filename="subtitles.vtt"'
+            disposition = export_names.disposition(session.download_name("subtitles.vtt"))
         return Response(content=content, media_type=media_type,
                         headers={"Content-Disposition": disposition})
 
@@ -998,10 +1020,11 @@ def create_app(session, engine, *, language: str | None = None,
         content = session.transcript_text(format)
         if format == "txt":
             media_type = "text/plain; charset=utf-8"
-            disposition = 'attachment; filename="transcript.txt"'
+            disposition = export_names.disposition(
+                session.download_name("transcript.txt"))
         else:
             media_type = "text/markdown; charset=utf-8"
-            disposition = 'attachment; filename="transcript.md"'
+            disposition = export_names.disposition(session.download_name("transcript.md"))
         return Response(content=content, media_type=media_type,
                         headers={"Content-Disposition": disposition})
 
@@ -1375,6 +1398,7 @@ def create_app(session, engine, *, language: str | None = None,
             # The newest transport version sent (from a reading or a request),
             # what the last anchor said, and when it went out.
             last_seq, last_shape, last_anchor = None, None, -math.inf
+            last_preview, last_preview_at = None, -math.inf
 
             async def send(message: dict) -> None:
                 nonlocal last_seq
@@ -1427,6 +1451,18 @@ def create_app(session, engine, *, language: str | None = None,
                 if not status.get("preview") and (shape != last_shape or due):
                     last_shape, last_anchor = shape, now
                     await send(anchor)
+                # The clipboard preview's own anchors (the chip's progress), and one
+                # "stopped" when it ends, with the transport version it ended at.
+                if status.get("preview"):
+                    preview = preview_message(status, now)
+                    pshape = (preview["playing"], preview["seq"], preview["end"])
+                    correct = now - last_preview_at >= correct_every
+                    if pshape != last_preview or (preview["playing"] and correct):
+                        last_preview, last_preview_at = pshape, now
+                        await ws.send_json(preview)
+                elif last_preview is not None:
+                    last_preview = None
+                    await ws.send_json({**preview_message(status, now), "playing": False})
                 # The level meter: what plays now, only while playing, and one floor
                 # frame when it stops so the bar and the hold tick drop.
                 now = time.monotonic()

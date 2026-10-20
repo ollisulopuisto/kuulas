@@ -41,6 +41,22 @@ describe("transport", () => {
     assert.equal(h.state().playing, true);
   });
 
+  test("Space while a clipboard preview plays stops it, the timeline does not start", async () => {
+    const h = harness({ playhead: 4800, clipboardPlaying: { id: "a", seq: 3 } });
+    await h.transport.toggle();
+    assert.deepEqual(h.engine.calls, [["stop", null]]);
+    assert.equal(h.state().clipboardPlaying, null);
+    assert.equal(h.state().playing, false);
+    assert.equal(h.state().playhead, 0); // the engine's answer: the timeline's own frame
+  });
+
+  test("Stop while a clipboard preview plays stops it", async () => {
+    const h = harness({ clipboardPlaying: { id: "a", seq: 3 } });
+    await h.transport.stop();
+    assert.deepEqual(h.engine.calls, [["stop", null]]);
+    assert.equal(h.state().clipboardPlaying, null);
+  });
+
   test("Space again stops, and the playhead stays where the engine stopped", async () => {
     const h = harness({ playhead: 100 });
     await h.transport.toggle();

@@ -180,6 +180,10 @@ export function reduceLive(state, message) {
       // then applies anchorPatch.
       out.anchor = message;
       break;
+    case "preview":
+      // A clipboard preview's own anchor (its chip's progress meter): never the playhead.
+      out.preview = message;
+      break;
     case "state_changed":
     case "hello":
       out.refresh = message.head !== undefined && message.head !== state.head;

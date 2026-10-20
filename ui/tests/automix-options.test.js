@@ -2,11 +2,52 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
+  changedItems,
   groupSpecs,
+  initialOpen,
   optionEnabled,
   optionsToForm,
+  summaryText,
   validateOptions,
 } from "../automix-options-model.js";
+
+describe("group summaries", () => {
+  const sp = [
+    { key: "a", kind: "bool", default: true, group: "g1" },
+    { key: "b", kind: "bool", default: false, group: "g1" },
+    { key: "n", kind: "number", default: 0.5, min: 0, max: 1, group: "g2" },
+    { key: "w", kind: "list", default: null, group: "g2" },
+  ];
+  const words = { label: (s) => s.key.toUpperCase(), on: "on", off: "off" };
+
+  test("changed items per group: only differences, with a readable value", () => {
+    const form = { a: false, b: false, n: "0.7", w: "x y" };
+    const changed = changedItems(sp, form, words);
+    assert.deepEqual(changed.g1, ["A off"]);
+    assert.deepEqual(changed.g2, ["N 0.7", "W x, y"]);
+  });
+
+  test("nothing changed gives no entries", () => {
+    assert.deepEqual(changedItems(sp, optionsToForm(sp, {}), words), {});
+  });
+
+  test("summary text: the names only while collapsed, truncated", () => {
+    assert.equal(summaryText([], true, 30), "");
+    assert.equal(summaryText(["A off"], true, 30), "A off");
+    assert.equal(summaryText(["A off"], false, 30), "");
+    assert.equal(
+      summaryText(["Debleed off", "Rider off", "More"], true, 20),
+      "Debleed off, Rider …",
+    );
+  });
+
+  test("a group opens by itself when it holds a changed value; remembered state wins", () => {
+    assert.equal(initialOpen(true, undefined), true);
+    assert.equal(initialOpen(false, undefined), false);
+    assert.equal(initialOpen(false, true), true);
+    assert.equal(initialOpen(true, false), false);
+  });
+});
 
 const specs = [
   { key: "minimal", kind: "bool", default: false, group: "minimal" },

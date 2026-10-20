@@ -2,6 +2,7 @@
 // none, the parts that are used (2 s either side, the default), or all of it. The server
 // writes it (src/kuulas/send_copy.py); the pure parts are in media-copy-model.js.
 
+import { enhanceDialog } from "./dialog-keys.js";
 import {
   choiceRows,
   DEFAULT_MEDIA_CHOICE,
@@ -45,20 +46,26 @@ export function createSendCopyDialog({ api, t, pickFolder = null, onDone = () =>
   heading.id = "send-copy-title";
   heading.textContent = t("ui.send_copy.title");
   const intro = document.createElement("p");
-  intro.className = "media-note";
+  intro.className = "media-note form-note";
   intro.textContent = t("ui.send_copy.intro");
 
   const form = document.createElement("form");
+  form.className = "form-grid";
   form.method = "dialog";
+  // A fieldset on the form grid: the legend is the label column, the choices the field column.
   const choices = document.createElement("fieldset");
+  choices.className = "form-row form-fieldset";
   const legend = document.createElement("legend");
+  legend.className = "form-label";
   legend.textContent = t("ui.send_copy.media");
-  choices.append(legend);
+  const choiceList = document.createElement("div");
+  choiceList.className = "form-choices";
+  choices.append(legend, choiceList);
   const radios = {};
   const sizes = {};
   for (const id of MEDIA_CHOICES) {
     const label = document.createElement("label");
-    label.className = "media-choice";
+    label.className = "media-choice form-choice";
     const radio = document.createElement("input");
     radio.type = "radio";
     radio.name = "media";
@@ -71,16 +78,17 @@ export function createSendCopyDialog({ api, t, pickFolder = null, onDone = () =>
     size.className = "media-size";
     sizes[id] = size;
     const hint = document.createElement("span");
-    hint.className = "media-note";
+    hint.className = "media-note form-help";
     hint.textContent = t(`ui.send_copy.${id}_hint`);
     text.append(name, size, hint);
     label.append(radio, text);
-    choices.append(label);
+    choiceList.append(label);
   }
 
   const folderLabel = document.createElement("label");
-  folderLabel.className = "media-field";
+  folderLabel.className = "media-field form-row";
   const folderText = document.createElement("span");
+  folderText.className = "form-label";
   folderText.textContent = t("ui.send_copy.folder");
   const folderInput = document.createElement("input");
   folderInput.type = "text";
@@ -90,10 +98,10 @@ export function createSendCopyDialog({ api, t, pickFolder = null, onDone = () =>
   folderLabel.append(folderText, folderInput);
 
   const status = document.createElement("p");
-  status.className = "media-note";
+  status.className = "media-note form-note";
   status.setAttribute("aria-live", "polite");
   const error = document.createElement("p");
-  error.className = "media-error";
+  error.className = "media-error form-msg";
   error.setAttribute("role", "alert");
   error.hidden = true;
 
@@ -115,11 +123,15 @@ export function createSendCopyDialog({ api, t, pickFolder = null, onDone = () =>
   const close = button("ui.send_copy.close", () => dialog.close());
   const buttons = document.createElement("div");
   buttons.className = "cheatsheet-footer";
+  close.dataset.dialogCancel = "";
+  start.dataset.dialogPrimary = "";
+  choose?.classList.add("footer-start");
   buttons.append(...(choose ? [choose] : []), close, start);
 
   form.append(choices, folderLabel, status, error, buttons);
   dialog.append(heading, intro, form);
   document.body.append(dialog);
+  enhanceDialog(dialog, { t });
 
   const chosen = () => MEDIA_CHOICES.find((id) => radios[id].checked) ?? DEFAULT_MEDIA_CHOICE;
   const showError = (message) => {

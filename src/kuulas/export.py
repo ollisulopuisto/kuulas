@@ -41,8 +41,9 @@ import numpy as np
 import soundfile as sf
 from speechmix import programme
 
-from . import export_formats, mixer, priority, stem_ranges, transcript
+from . import export_formats, export_names, mixer, priority, stem_ranges, transcript
 from . import placeholders as placeholders_module
+from .media import streaming
 from .messages import KuulasError, t
 from .model import Project, Track
 from .package import kuulas_version
@@ -51,10 +52,48 @@ from .region_names import region_filenames
 log = logging.getLogger("kuulas.export")
 
 #: Blocks of this many seconds are rendered, in parallel, and written in order.
-BLOCK_SECONDS = 30
-#: Mastering holds the whole programme in memory (float64 inside speechmix):
-#: three hours of stereo is about 8 GB, so longer is refused with a message.
+#: Each render of a block holds every track's clips as float64 stereo, and up
+#: to 2 x workers blocks are in flight: at 30 s a 47-minute, 5-track mix
+#: export peaked at 1.2 GB (docs/MEMORY.md, 2026-10-20), at 10 s ~0.5 GB.
+BLOCK_SECONDS = 10
+#: Mastering holds the whole programme in memory (float64 inside speechmix),
+#: so longer than this is refused with a message (and see master_fits).
 MAX_MASTER_SECONDS = 3 * 3600
+#: What speechmix's ``programme.master`` holds per sample of the programme
+#: (per channel): the float64 copy, the lifted signal, the peak stage's and
+#: the limiter's per-sample curves and the round before. Measured 2026-10-20
+#: (docs/MEMORY.md): a stereo master peaked 2.8 GB at 10 minutes and 5.0 GB
+#: at 20, i.e. 38 B per sample per channel over a ~0.6 GB render, so a
+#: 47-minute one needs ~11 GB and a 90-minute one ~21 GB: a 24 GB Mac swaps.
+MASTER_BYTES_PER_SAMPLE = 40
+#: The share of the computer's memory a master may take; longer is refused
+#: with a message (export unmastered) instead of swapping the Mac to a halt.
+#: On 24 GB that is ~55 minutes of stereo.
+MASTER_MEMORY_SHARE = 0.5
+
+
+def physical_memory() -> int:
+    """Bytes of RAM in this computer (0 when the system does not say)."""
+    try:
+        return os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")
+    except (ValueError, OSError, AttributeError):
+        return 0
+
+
+def master_fits(frames: int, channels: int, physical: int | None = None) -> bool:
+    """Whether mastering ``frames`` x ``channels`` stays inside
+    ``MASTER_MEMORY_SHARE`` of the memory (unknown memory: allowed)."""
+    physical = physical_memory() if physical is None else physical
+    if physical <= 0:
+        return True
+    return frames * channels * MASTER_BYTES_PER_SAMPLE <= MASTER_MEMORY_SHARE * physical
+
+
+def master_minutes_that_fit(channels: int, rate: int,
+                            physical: int | None = None) -> int:
+    physical = physical_memory() if physical is None else physical
+    return int(MASTER_MEMORY_SHARE * physical
+               / (channels * MASTER_BYTES_PER_SAMPLE * rate * 60))
 #: A selection fades in and out over this long so its ends do not click. 30 ms
 #: is the owner's choice (WP11): long enough to be click-free, too short to hear.
 FADE_SECONDS = 0.030
@@ -81,25 +120,25 @@ PROCESSING = ("dry", "as_heard")
 #: replace these, per kind and per project (ground rule 16).
 DEFAULTS: dict[str, dict[str, Any]] = {
     "mix": {"format": "wav", "bit_depth": 24, "mp3_kbps": None, "master_lufs": None,
-            "template": "{edit} v{n}.{ext}", "latest": False},
+            "template": "{title} v{n}.{ext}", "latest": False},
     "selection": {"format": "mp3", "bit_depth": 24, "mp3_kbps": None,
                   "master_lufs": None,
-                  "template": "{edit} {from}\N{EN DASH}{to} v{n}.{ext}",
+                  "template": "{title} {from}\N{EN DASH}{to} v{n}.{ext}",
                   "latest": False},
     "tracks": {"format": "wav", "bit_depth": 24, "mp3_kbps": None,
-               "template": "{edit}{span} tracks v{n}", "processing": "dry",
+               "template": "{title}{span} tracks v{n}", "processing": "dry",
                "list_file": False, "for_automixer": False},
 }
 #: What the one-button "Export all tracks" starts from. Dry stems with the edit
 #: applied (cuts, clip gain, fades, mutes) and no bus or master: what a mixer
 #: such as the automixer wants, which does its own processing. One folder per
-#: run, named by edit and local time, so nothing is overwritten.
+#: run, named by project and local time, so nothing is overwritten.
 ALL_TRACKS: dict[str, Any] = {
     "kind": "tracks", "format": "wav", "bit_depth": 24, "processing": "dry",
-    "list_file": True, "template": "{edit} {stamp} v{n}"}
+    "list_file": True, "template": "{title} {stamp} v{n}"}
 #: What the one-button mix export starts from: the programme as heard, one file
-#: in the exports folder, named by edit and local time so no run overwrites another.
-MIX_FILE: dict[str, Any] = {"kind": "mix", "template": "{edit} {stamp} v{n}.{ext}"}
+#: in the exports folder, named by project and local time so no run overwrites another.
+MIX_FILE: dict[str, Any] = {"kind": "mix", "template": "{title} {stamp} v{n}.{ext}"}
 #: Settings that are not remembered: they are about this one export.
 NOT_REMEMBERED = ("range", "for_automixer", "track_ids")
 #: Settings that do not change the rendered audio, so they stay out of the hash.
@@ -224,11 +263,13 @@ class _Job:
     #: Narration placeholders inside the exported range, which play as silence
     #: (WP43): reported, never a reason to refuse.
     placeholders: int = 0
-    #: Local clock at the start, for names ("2026-10-18 143012"): the one-button
+    #: Local clock at the start, for names ("2026-10-18 14-30-12"): the one-button
     #: track export puts it in the folder name so no run overwrites another.
     stamp: str = ""
     #: Names of the tracks that come out as silence (muted, or not soloed).
     silent: tuple[str, ...] = ()
+    #: The edit's id, to tell the main edit (named by the project alone) from another.
+    edit_id: str = ""
 
 
 # -- settings ------------------------------------------------------------------
@@ -252,6 +293,8 @@ def _settings(kind: str, remembered: dict | None, args: dict) -> dict[str, Any]:
         remembered.pop("master_lufs", None)  # said "off": forget the remembered target
     if args.get("format") not in (None, remembered.get("format")):
         remembered.pop("mp3_kbps", None)  # a bitrate means little for another codec
+    if isinstance(remembered.get("template"), str):  # an older built-in default
+        remembered["template"] = export_names.migrate_template(remembered["template"])
     merged = {**DEFAULTS[kind], **{k: v for k, v in remembered.items() if k in allowed},
               **{k: v for k, v in args.items() if k in allowed and v is not None}}
     fmt = export_formats.get(merged["format"])
@@ -332,7 +375,8 @@ def options(kind: str, base: dict, args: dict) -> dict:
         literal = str(args["name"]).replace("{", "{{").replace("}", "}}")
         out["template"] = f"{literal}{{span}} v{{n}}{ext}"
     elif chosen.get("range") is not None:
-        out["template"] = base["template"].replace("{edit}", "{edit}{span}", 1)
+        out["template"] = base["template"].replace(
+            "{title}", "{title}{span}", 1).replace("{edit}", "{edit}{span}", 1)
     return out
 
 
@@ -369,7 +413,7 @@ def _snapshot(session, kind: str, args: dict) -> _Job:
                        if not _audible(project, tr))
         return _Job(kind, settings, project, session.store, rate, first, frames, ranged,
                     edit, session.package.path.stem, h.head, digest, unrecorded,
-                    datetime.now(UTC).astimezone().strftime("%Y-%m-%d %H%M%S"), silent)
+                    export_names.stamp(datetime.now(UTC).astimezone()), silent, h.edit)
 
 
 def _audible(project: Project, track: Track) -> bool:
@@ -413,7 +457,8 @@ def _name(job: _Job, n: int | str) -> str:
     if job.ranged:
         a, b = s["range"]
         span = f" {_stamp(a, job.rate)}\N{EN DASH}{_stamp(b, job.rate)}"
-    fields = {"edit": _safe(job.edit), "n": n, "ext": _format(job).ext, "span": span,
+    fields = {"edit": _safe(job.edit), "title": _safe(_title(job)), "n": n,
+              "ext": _format(job).ext, "span": span,
               "project": _safe(job.project_name),
               "stamp": job.stamp}
     fields["from"] = _stamp(s["range"][0], job.rate) if job.ranged else "0m00s"
@@ -423,6 +468,11 @@ def _name(job: _Job, n: int | str) -> str:
         return _safe(s["template"].format(**fields))
     except (KeyError, IndexError, ValueError):
         raise _fail("error.export.bad_template", template=s["template"]) from None
+
+
+def _title(job: _Job) -> str:
+    """The project, then the edit unless it is the main one (``export_names``)."""
+    return export_names.title(job.project_name, job.edit_id, job.edit)
 
 
 def _describe(job: _Job) -> str:
@@ -501,13 +551,14 @@ def _pump(total: int, rate: int, render: Callable[[int, int], np.ndarray],
 
     def gated_render(start: int, count: int) -> np.ndarray:
         check()
-        return render(start, count)
+        # A scan from start to end: its audio is not kept (docs/MEMORY.md).
+        with streaming():
+            return render(start, count)
 
     if workers <= 1:
         for start in starts:
-            check()
             count = min(step, total - start)
-            write(render(start, count))
+            write(gated_render(start, count))
             done += count
             tick(done / total)
         return
@@ -782,6 +833,9 @@ def _single(job: _Job, target: Path, n: int, workers: int,
     if lufs is not None and job.frames / job.rate > MAX_MASTER_SECONDS:
         raise _fail("error.export.too_long_to_master",
                     hours=MAX_MASTER_SECONDS // 3600)
+    if lufs is not None and not master_fits(job.frames, 2):
+        raise _fail("error.export.master_memory",
+                    minutes=master_minutes_that_fit(2, job.rate))
 
     def render(first: int, count: int) -> np.ndarray:
         return mixer.mix(job.project, job.store, job.first + first, count)
@@ -809,7 +863,7 @@ def _tracks(job: _Job, target: Path, n: int, workers: int,
         stem = _safe(track.name)
         if track.kind == "music" and not any(w in stem.upper() for w in MUSIC_WORDS):
             stem += " MUSIC"  # the automixer reads the role from the file name
-        base = _safe(f"{job.edit} \N{EN DASH} {stem}")
+        base = _safe(f"{_title(job)} \N{EN DASH} {stem}")
         while base in used:
             base += " (2)"
         used.add(base)
@@ -839,7 +893,7 @@ def _tracks(job: _Job, target: Path, n: int, workers: int,
                     listing[-1][key] = found
     if s.get("list_file"):
         (work / "tracks.json").write_text(json.dumps({
-            "edit": job.edit, "project": job.project_name,
+            "edit": job.edit, "project": job.project_name, "title": _title(job),
             # the automixer's folder route reads "version" as the manifest version (1)
             "version": 1 if s.get("for_automixer") else n,
             **({"export_version": n} if s.get("for_automixer") else {}), "rate": job.rate,
@@ -852,9 +906,9 @@ def _tracks(job: _Job, target: Path, n: int, workers: int,
 
 
 def _latest(job: _Job, folder: Path, target: Path) -> None:
-    """Keep ``{edit} latest.{ext}`` equal to the newest version, for a fixed
+    """Keep ``{title} latest.{ext}`` equal to the newest version, for a fixed
     upload path. Copied through a ``.partial`` and renamed, so it is never half."""
-    name = f"{_safe(job.edit)} latest.{job.settings['format']}"
+    name = f"{_safe(_title(job))} latest.{job.settings['format']}"
     if name == target.name:
         return
     keep = folder / name
@@ -907,7 +961,8 @@ def last_settings(session, kind: str) -> dict | None:
 
 # -- regions (WP19h) -----------------------------------------------------------
 
-REGION_TEMPLATE = "{n:02d} {name}"
+# Leads with the project (and the edit, unless it is the main one): owner, 2026-10-20.
+REGION_TEMPLATE = "{title} - {n:02d} {name}"
 
 
 def plan_regions(session, args: dict) -> tuple[list[tuple[int, int, str]], dict]:
@@ -927,6 +982,11 @@ def plan_regions(session, args: dict) -> tuple[list[tuple[int, int, str]], dict]
                   or str(session.package.path.parent
                          / f"{session.package.path.stem} exports"))
         regions = [m for m in project.markers if m.kind == "region"]
+        edit_name = next((e["name"] for e in session.history.edits()
+                          if e["id"] == session.history.edit), session.history.edit)
+        names_for = {"project": _safe(session.package.path.stem),
+                     "title": _safe(export_names.title(
+                         session.package.path.stem, session.history.edit, edit_name))}
         total = project.length
         rate = project.rate
     spans = [(m, m.start, min(m.end, total)) for m in regions if m.start < total]
@@ -941,7 +1001,7 @@ def plan_regions(session, args: dict) -> tuple[list[tuple[int, int, str]], dict]
         raise _fail("error.export.bad_format", format=fmt,
                     available=", ".join(f.id for f in export_formats.available_formats()))
     names = region_filenames([(m.name, m.start / rate) for m, _a, _b in spans],
-                             template, chosen.ext, existing)
+                             template, chosen.ext, existing, names_for)
     settings = {"folder": str(folder), "format": fmt}
     for key in ("bit_depth", "mp3_kbps", "master_lufs"):
         if args.get(key) is not None:

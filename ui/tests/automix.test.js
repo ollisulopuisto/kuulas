@@ -244,8 +244,11 @@ describe("advancedBody", () => {
 });
 
 describe("fileNamePreview", () => {
-  test("edit name, automixer, local stamp, .wav", () => {
+  test("project name, automixer, local stamp, .wav", () => {
     const when = new Date(2026, 9, 19, 14, 30, 5);
-    assert.equal(fileNamePreview("Episode 12", when), "Episode 12 automixer 2026-10-19 143005.wav");
+    assert.equal(
+      fileNamePreview("Episode 12", when),
+      "Episode 12 automixer 2026-10-19 14-30-05.wav",
+    );
   });
 });

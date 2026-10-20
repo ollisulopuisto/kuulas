@@ -2,6 +2,7 @@
 // progress, say where the report went. The server samples the app's own threads and writes a
 // plain-text file next to the log (and shows it in Finder); this file only drives that.
 
+import { enhanceDialog } from "./dialog-keys.js";
 import { DEFAULT_SECONDS, DURATIONS, isRunning, progressOf, reportFolder } from "./perf-model.js";
 
 const POLL_MS = 500;
@@ -19,11 +20,13 @@ export function createPerfDialog({ api, t, notify }) {
   heading.id = "perf-title";
   heading.textContent = t("ui.perf.title");
   const intro = document.createElement("p");
+  intro.className = "form-note";
   intro.textContent = t("ui.perf.intro");
 
   const choice = document.createElement("label");
-  choice.className = "perf-choice";
+  choice.className = "perf-choice form-row";
   const choiceText = document.createElement("span");
+  choiceText.className = "form-label";
   choiceText.textContent = t("ui.perf.length");
   const select = document.createElement("select");
   for (const seconds of DURATIONS) {
@@ -50,7 +53,7 @@ export function createPerfDialog({ api, t, notify }) {
   const button = (labelKey, onClick, extra = "") => {
     const b = document.createElement("button");
     b.type = "button";
-    b.className = `button ${extra}`.trim();
+    b.className = `button block ${extra}`.trim();
     b.textContent = t(labelKey);
     b.addEventListener("click", onClick);
     return b;
@@ -58,9 +61,16 @@ export function createPerfDialog({ api, t, notify }) {
   const start = button("ui.perf.start", () => void begin(), "primary");
   const stop = button("ui.perf.stop", () => void end());
   const close = button("ui.perf.close", () => dialog.close());
-  buttons.append(start, stop, close);
+  start.dataset.icon = "play";
+  close.dataset.icon = "close";
+  close.dataset.dialogCancel = "";
+  start.dataset.dialogPrimary = "";
+  // Stop keeps the dialog open (the left edge); Close, then Start last (FORMS.md).
+  stop.classList.add("footer-start");
+  buttons.append(stop, close, start);
   dialog.append(heading, intro, choice, progress, message, buttons);
   document.body.append(dialog);
+  enhanceDialog(dialog, { t });
 
   let timer = null;
   // True from Start until the toast for that recording: opening the dialog on an old result

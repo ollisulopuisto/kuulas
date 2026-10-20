@@ -50,6 +50,24 @@ export function selectTrack(state, id, { add = false } = {}) {
   return { trackSelection: next, rangeMode: next.size > 0 ? MODE_SELECTED : MODE_ALL };
 }
 
+/**
+ * THE rule tying the current track (`focusTrack`: inspector, split, mute, paste) to the
+ * header selection (`trackSelection`: scope, dimming, chip). Every way of making a track
+ * current goes through here, so the two cannot disagree:
+ *   - "select" (a click on a header or in a lane): current and the single selection.
+ *   - "add" (Cmd+click on a header): current, and toggled in the selection.
+ *   - "follow" (keyboard navigation, focus): current; an existing selection moves along
+ *     with it, and with no selection nothing is selected (all tracks, nothing dimmed).
+ * Returns the state patch.
+ */
+export function focusTrack(state, id, { mode = "follow" } = {}) {
+  const base = { focusTrack: id, focusBus: null };
+  if (mode === "add") return { ...base, ...selectTrack(state, id, { add: true }) };
+  if (mode === "select" || asSet(state?.trackSelection).size > 0)
+    return { ...base, ...selectTrack(state, id) };
+  return base;
+}
+
 /** Esc (the track selection first): nothing selected, all tracks. */
 export function clearTrackSelection() {
   return { trackSelection: new Set(), rangeMode: MODE_ALL };

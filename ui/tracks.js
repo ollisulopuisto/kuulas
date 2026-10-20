@@ -326,14 +326,16 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         provisional: (p) => patchTrack(p, id, patch ?? { [field]: value }),
       });
 
-    node.addEventListener("pointerdown", () => actions.currentTrack(id));
-    // A click on the header itself (not on its buttons, sliders or name field) selects the track:
-    // range operations then act on the selected tracks only; Cmd+click adds (WP83).
-    node.addEventListener("click", (event) => {
-      if (event.target.closest?.("button, input, select, textarea, .lane-grip")) return;
-      actions.selectTrack(id, { add: event.metaKey || event.ctrlKey });
+    // Pressing the header itself (not its buttons, sliders or name field) makes the track
+    // current AND selects it: range operations then act on it alone; Cmd+click adds (WP83).
+    // One handler, on press: the header re-lays out once it is current, so a later "click"
+    // could be lost and leave the selection on the previous track.
+    node.addEventListener("pointerdown", (event) => {
+      const inside = event.target.closest?.("button, input, select, textarea, .lane-grip");
+      const add = event.metaKey || event.ctrlKey;
+      actions.currentTrack(id, { mode: inside ? "follow" : add ? "add" : "select" });
     });
-    node.addEventListener("focusin", () => actions.currentTrack(id));
+    node.addEventListener("focusin", () => actions.currentTrack(id, { mode: "follow" }));
     node.addEventListener("contextmenu", (event) => actions.contextMenu("track", id, event));
     name.addEventListener("dblclick", () => rename(name, id));
     tag.addEventListener("click", () => actions.cycleKind(id));

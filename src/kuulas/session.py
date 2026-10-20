@@ -46,6 +46,7 @@ from . import (
     collateral,
     edit_points,
     edit_scope,
+    export_names,
     import_plan,
     narration,
     narration_script,
@@ -1192,7 +1193,19 @@ class Session:
         return {"mix": saved.get("settings", {}).get("mix"),
                 "tracks": saved.get("settings", {}).get("tracks"),
                 **self.export_folder_hint(), "edit": edit,
-                "project": str(self.package.path)}
+                "project": str(self.package.path), "title": self.export_title()}
+
+    def export_title(self) -> str:
+        """What exported files are called: the project, then the edit unless it
+        is the main one (``export_names.title``)."""
+        with self.lock:
+            h = self.history
+            edit = next((e["name"] for e in h.edits() if e["id"] == h.edit), h.edit)
+            return export_names.title(self.package.path.stem, h.edit, edit)
+
+    def download_name(self, what: str) -> str:
+        """The file name of a download ("chapters.txt"): ``<title> chapters.txt``."""
+        return f"{self.export_title()} {what}"
 
     def last_export_settings(self, kind: str) -> dict | None:
         """Return the project's remembered settings for an export kind."""

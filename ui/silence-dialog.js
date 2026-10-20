@@ -4,6 +4,7 @@
 // `onApply` (one undo step, made by the caller) and they are remembered per project by the
 // caller through `onRemember`.
 
+import { enhanceDialog } from "./dialog-keys.js";
 import {
   methodAvailable,
   normaliseSilence,
@@ -38,19 +39,19 @@ export function createSilenceDialog({ api, t, getProject, getOptions, onApply, o
   const messages = {};
 
   const row = (name, labelKey, control, hintKey) => {
-    const wrap = el("div", "silence-row");
-    const label = el("label", "silence-label", t(labelKey));
-    const cell = el("div", "silence-cell");
+    const wrap = el("div", "silence-row form-row");
+    const label = el("label", "silence-label form-label", t(labelKey));
+    const cell = el("div", "silence-cell form-field");
     const input = control.matches?.("input,select") ? control : control.querySelector("input");
     input.id = `silence-${name}`;
     input.name = name;
     label.htmlFor = input.id;
-    const message = el("p", "silence-msg");
+    const message = el("p", "silence-msg form-msg");
     message.id = `silence-${name}-msg`;
     message.hidden = true;
     input.setAttribute("aria-describedby", message.id);
     cell.append(control, message);
-    if (hintKey) cell.append(el("p", "silence-hint", t(hintKey)));
+    if (hintKey) cell.append(el("p", "silence-hint form-help", t(hintKey)));
     wrap.append(label, cell);
     inputs[name] = input;
     messages[name] = message;
@@ -62,7 +63,7 @@ export function createSilenceDialog({ api, t, getProject, getOptions, onApply, o
     input.inputMode = "decimal";
     input.autocomplete = "off";
     input.spellcheck = false;
-    input.className = "silence-short";
+    input.className = "silence-short form-num";
     return input;
   };
 
@@ -73,8 +74,8 @@ export function createSilenceDialog({ api, t, getProject, getOptions, onApply, o
   slider.min = String(lowMargin);
   slider.max = String(highMargin);
   slider.step = "1";
-  const readout = el("output", "silence-readout");
-  const sliderBox = el("div", "silence-inline");
+  const readout = el("output", "silence-readout form-readout");
+  const sliderBox = el("div", "silence-inline form-inline");
   sliderBox.append(slider, readout);
   const marginRow = row("margin_db", "ui.silence.margin", sliderBox, "ui.silence.margin_hint");
   slider.addEventListener("input", () => {
@@ -88,18 +89,25 @@ export function createSilenceDialog({ api, t, getProject, getOptions, onApply, o
     option.value = value;
     method.append(option);
   }
-  const methodNote = el("p", "silence-hint");
+  const methodNote = el("p", "silence-hint form-help");
 
+  const withNote = (wrap, note) => {
+    wrap.lastChild.append(note);
+    return wrap;
+  };
   const section = (titleKey, ...rows) => {
-    const wrap = el("section", "silence-section");
-    wrap.append(el("h3", "silence-heading", t(titleKey)), ...rows);
+    const wrap = el("section", "silence-section form-section");
+    wrap.append(el("h3", "silence-heading form-heading", t(titleKey)), ...rows);
     return wrap;
   };
   const sensitivity = section(
     "ui.silence.section_detect",
     marginRow,
     row("dominance_db", "ui.silence.dominance", dominance, "ui.silence.dominance_hint"),
-    ...(SHOW_METHOD_SELECTOR ? [row("method", "ui.silence.method", method), methodNote] : []),
+    // The method's note sits under its field (FORMS.md), not at the form's edge.
+    ...(SHOW_METHOD_SELECTOR
+      ? [withNote(row("method", "ui.silence.method", method), methodNote)]
+      : []),
   );
   const timing = section(
     "ui.silence.section_timing",
@@ -113,7 +121,7 @@ export function createSilenceDialog({ api, t, getProject, getOptions, onApply, o
   const result = el("div", "silence-preview");
   result.setAttribute("role", "status");
   result.setAttribute("aria-live", "polite");
-  const error = el("p", "silence-msg silence-error");
+  const error = el("p", "silence-msg silence-error form-msg");
   error.setAttribute("role", "alert");
   error.hidden = true;
 
@@ -130,14 +138,20 @@ export function createSilenceDialog({ api, t, getProject, getOptions, onApply, o
   const apply = el("button", "button block primary", t("ui.silence.apply"));
   apply.type = "submit";
   apply.dataset.icon = "check";
-  buttons.append(reset, cancel, preview, apply);
+  cancel.dataset.dialogCancel = "";
+  apply.dataset.dialogPrimary = "";
+  // Reset and Preview keep the dialog open: the left edge. Cancel, then Apply, at the right.
+  reset.classList.add("footer-start");
+  preview.classList.add("footer-start");
+  buttons.append(reset, preview, cancel, apply);
 
-  const form = el("form");
+  const form = el("form", "form-grid");
   form.method = "dialog";
   form.noValidate = true;
   form.append(sensitivity, timing, result, error, buttons);
   dialog.append(heading, form);
   document.body.append(dialog);
+  enhanceDialog(dialog, { t });
 
   // -- state ------------------------------------------------------------------------------
   let watching = 0; // which preview is being waited for; a newer one or a close ends the old

@@ -1,6 +1,7 @@
 // The keyboard sheet ("?"). Data first (pure, tested), then the dialog.
 // Generated from the keymap the user actually has, grouped by context.
 
+import { enhanceDialog } from "./dialog-keys.js";
 import { fuzzyMatch } from "./fuzzy.js";
 import { CONTEXTS } from "./keymap-default.js";
 import { modifierLayers } from "./modifiers.js";
@@ -73,9 +74,11 @@ export function createCheatSheet({ getData, t, actions, getHeld }) {
   close.className = "button block primary";
   close.dataset.icon = "close";
   close.addEventListener("click", () => dialog.close());
+  close.dataset.dialogCancel = "";
   footer.append(...buttons, close);
   dialog.append(heading, search, body, footer);
   document.body.append(dialog);
+  enhanceDialog(dialog, { t });
 
   function render() {
     heading.textContent = t("ui.keys.title");

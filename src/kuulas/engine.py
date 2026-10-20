@@ -74,7 +74,7 @@ import sounddevice as sd
 import soxr
 
 from . import diag, latency, meter, preview_level
-from .media import CHUNK_SEC
+from .media import CHUNK_SEC, streaming
 from .messages import KuulasError, t
 from .model import Project
 from .perf import COUNTERS
@@ -126,6 +126,12 @@ SWITCH_S = 0.0005
 #: A read-ahead chunk nobody wants any more is dropped after this long (a seek
 #: warms new chunks just before the helper's next tick counts them as wanted).
 KEEP_S = 3.0
+#: Unwanted chunks kept within ``KEEP_S`` at most; the oldest beyond go at
+#: once. Without it a playhead moving faster than real time (shuttle, a
+#: seek storm) kept every chunk decoded in the last 3 s: a run through a
+#: 30-minute, 5-track project grew the editor to 2.8 GB (docs/MEMORY.md).
+#: 64 chunks of 10 s stereo float32 are ~250 MB.
+MAX_SPARE_CHUNKS = 64
 #: A callback that has not run for this long while playing is a dead stream.
 WATCHDOG_S = 1.0
 #: This many late blocks within ``LATE_WINDOW_S`` count as struggling. One
@@ -280,15 +286,28 @@ class _SafeStore:
         self.cache[key] = (data, now)
 
     def evict(self, wanted: set[tuple[str, int]], now: float) -> None:
-        """Drop chunks that are not wanted and have not been for ``KEEP_S``."""
+        """Drop chunks that are not wanted and have not been for ``KEEP_S``,
+        and beyond ``MAX_SPARE_CHUNKS`` unwanted ones the oldest at once."""
+        spare = []
         for key, (_, stamp) in list(self.cache.items()):
-            if key not in wanted and now - stamp > KEEP_S:
+            if key in wanted:
+                continue
+            if now - stamp > KEEP_S:
+                self.cache.pop(key, None)
+            else:
+                spare.append((stamp, key))
+        if len(spare) > MAX_SPARE_CHUNKS:
+            spare.sort()
+            for _, key in spare[:len(spare) - MAX_SPARE_CHUNKS]:
                 self.cache.pop(key, None)
 
     def _read(self, media_id: str, first: int, count: int) -> np.ndarray:
         if not self.damaged.get(media_id):
             try:
-                return self.store.read(media_id, first, count)
+                # The read-ahead is this cache; the store's chunk cache would
+                # only hold a second copy (docs/MEMORY.md).
+                with streaming():
+                    return self.store.read(media_id, first, count)
             except Exception:  # noqa: BLE001 - any decode error costs that chunk only
                 log.debug("read of %s failed; retrying chunk by chunk", media_id)
         return self._piecewise(media_id, first, count)
@@ -302,7 +321,8 @@ class _SafeStore:
             data = None
             if index not in self.damaged.get(media_id, ()):
                 try:
-                    data = self.store.read(media_id, pos, n)
+                    with streaming():
+                        data = self.store.read(media_id, pos, n)
                 except Exception as exc:  # noqa: BLE001 - see the class docstring
                     self.damaged.setdefault(media_id, set()).add(index)
                     self.events.append(("damaged", media_id, index, repr(exc)))
@@ -488,6 +508,16 @@ class Engine:
                 self._project = self._base
                 self._preview = False
                 self._start_run(self._preview_anchor)
+
+    def _end_ran_out_preview(self) -> None:
+        """End a preview that ran out by itself. Checked again under ``_ctl``: a
+        status poll that read "previewing, not playing" while ``play_preview``
+        was still warming up must not end the preview it then started."""
+        with self._ctl:
+            with self._tlock:
+                ran_out = self._preview and not self._playing
+            if ran_out:
+                self._end_preview()
 
     def play(self, at: int | None = None, until: int | None = None, *,
              rate: float = 1.0, preserve_pitch: bool = True,
@@ -676,7 +706,7 @@ class Engine:
         with self._tlock:
             previewing, playing = self._preview, self._playing
         if previewing and not playing:
-            self._end_preview()  # it ran out by itself
+            self._end_ran_out_preview()
         with self._tlock:
             playing, until, run = self._playing, self._until, self._run
             position = self._heard() if playing else self._anchor

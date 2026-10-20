@@ -88,6 +88,14 @@ describe("live messages", () => {
     assert.equal(out.refresh, false);
   });
 
+  test("a clipboard preview's anchor is for the chip's meter, never the playhead", () => {
+    const preview = { type: "preview", position: 480, playing: true, seq: 4, end: 9600 };
+    const out = reduceLive(state, preview);
+    assert.deepEqual(out.preview, preview);
+    assert.equal(out.anchor, undefined);
+    assert.deepEqual(out.patch, {});
+  });
+
   test("the patch an accepted anchor makes: stopped lands the playhead, 1x again", () => {
     assert.deepEqual(anchorPatch({ position: 9, playing: false }), {
       playhead: 9,

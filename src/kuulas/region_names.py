@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 
 from .messages import KuulasError
 
@@ -61,12 +61,14 @@ def _safe(stem: str) -> str:
 def region_filenames(regions: Iterable[tuple[str, float]],
                      template: str = "{n:02d} {name}",
                      extension: str = "wav",
-                     existing: Iterable[str] = ()) -> list[str]:
+                     existing: Iterable[str] = (),
+                     fields: Mapping[str, str] | None = None) -> list[str]:
     """One safe file name per region, in order.
 
     ``regions`` holds ``(name, start_seconds)`` pairs. The template may
     use ``{n}`` (the 1-based position, honouring its format spec),
-    ``{name}`` and ``{start}`` (the start as ``hh-mm-ss``); the rendered
+    ``{name}`` and ``{start}`` (the start as ``hh-mm-ss``), plus any ``fields``
+    the caller gives (``{project}``, ``{title}``); the rendered
     stem is then made safe as a whole, so a bad character in the
     template is caught too. A region's name is a value, never re-scanned
     for tokens, so a name that itself holds braces comes out as it is.
@@ -84,7 +86,7 @@ def region_filenames(regions: Iterable[tuple[str, float]],
     for n, (name, start_seconds) in enumerate(regions, start=1):
         try:
             rendered = template.format(
-                n=n, name=name, start=_stamp(start_seconds))
+                n=n, name=name, start=_stamp(start_seconds), **(fields or {}))
         except (KeyError, IndexError, ValueError):
             raise KuulasError("error.regions.bad_template",
                               template=template) from None

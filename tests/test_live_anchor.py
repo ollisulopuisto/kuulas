@@ -43,11 +43,12 @@ class AnchoredEngine(FakeEngine):
         self.t = None
         self.speed = 1.0
         self.preview = False
+        self.end = None
 
     def status(self):
         out = super().status()
         out.update(seq=self.seq, t=time.monotonic() if self.t is None else self.t,
-                   speed=self.speed, end=None, skip=[], loop=None, rate=48000,
+                   speed=self.speed, end=self.end, skip=[], loop=None, rate=48000,
                    preview=self.preview)
         return out
 
@@ -186,6 +187,39 @@ def test_a_clipboard_preview_never_moves_the_playhead(session, engine, tmp_path)
         for _ in range(20):
             msg = ws.receive_json()
             assert not (msg["type"] == "anchor" and msg["playing"])
+
+
+def next_of(ws, kind, limit=500):
+    for _ in range(limit):
+        msg = ws.receive_json()
+        if msg["type"] == kind:
+            return msg
+    raise AssertionError(f"no {kind}")
+
+
+def test_a_clipboard_preview_has_its_own_progress_messages(session, engine, tmp_path):
+    # The Clipboard chip draws the preview's progress: "preview" messages carry the
+    # preview's heard frame, its end (the excerpt's length) and the anchor timing;
+    # when the preview ends one says it stopped, with the engine's transport version.
+    app = create_app(session, engine, language="en", ui_dir=tmp_path, tick=0.005,
+                     correct_every=0.0, meter_every=1000.0)
+    with TestClient(app) as c, c.websocket_connect("/api/live") as ws:
+        opened(ws)
+        engine.preview, engine.playing, engine.position = True, True, 480
+        engine.end = 9600
+        engine.seq += 1
+        msg = next_of(ws, "preview")
+        assert msg["playing"] is True
+        assert msg["position"] == 480
+        assert msg["end"] == 9600
+        assert msg["seq"] == engine.seq
+        assert isinstance(msg["t"], float)
+        engine.preview, engine.playing = False, False
+        engine.seq += 1
+        msg = next_of(ws, "preview")
+        while msg["playing"]:
+            msg = next_of(ws, "preview")
+        assert msg["seq"] == engine.seq
 
 
 def test_the_engine_is_never_read_on_the_default_executor(

@@ -21,6 +21,7 @@ import {
   pasteChoice,
   projectLabel,
 } from "./clipboard.js";
+import { previewButton } from "./clipboard-preview.js";
 import { formatAbsoluteTime, getLanguage, t } from "./i18n.js";
 
 const el = (tag, props = {}, ...children) => {
@@ -36,7 +37,7 @@ const el = (tag, props = {}, ...children) => {
 };
 
 /**
- * `actions`: select(id), preview(id), filter(text), rename(id, name), remove(id), pasteAgain(id),
+ * `actions`: select(id), preview(id), stopPreview(id), filter(text), rename(id, name), remove(id), pasteAgain(id),
  * share(id, on), view(name), choose({ pasteMode } | { pasteTarget }), keep(n), clearOld(),
  * toggleProject(path), openProject(), openPath(path), hasPicker() -> boolean,
  * adopt(entry, from), pasteHere(entry, from), now() -> UTC epoch seconds,
@@ -44,6 +45,7 @@ const el = (tag, props = {}, ...children) => {
  */
 export function createClipboardPanel({ root, actions }) {
   let signature = "";
+  let meter = null; // the playing chip's progress meter (filled every frame by progress())
   let editing = null; // the id being renamed
   let pathDraft = ""; // the typed path of a project (a browser has no folder picker)
 
@@ -68,6 +70,10 @@ export function createClipboardPanel({ root, actions }) {
     node.addEventListener("click", onClick);
     return node;
   };
+
+  /** A chip's action: a square block button, the icon over the label (the app's block style). */
+  const block = (id, action, label, icon, onClick, extra = {}) =>
+    button(id, action, label, onClick, { class: "button block", "data-icon": icon, ...extra });
 
   /** The name and the metadata lines, shared by every kind of row. */
   const labels = (entry, rate) => {
@@ -130,7 +136,7 @@ export function createClipboardPanel({ root, actions }) {
     // The star: marked entries are listed under Shared by every project.
     const star = el("button", {
       type: "button",
-      class: "button ghost clip-star",
+      class: "button block clip-star",
       textContent: entry.shared ? "★" : "☆",
       title: t(entry.shared ? "ui.clipboard.share_on" : "ui.clipboard.share_off"),
       "aria-label": t("ui.clipboard.share"),
@@ -138,32 +144,79 @@ export function createClipboardPanel({ root, actions }) {
       dataset: { id: entry.id, action: "share" },
     });
     star.addEventListener("click", () => actions.share(entry.id, !entry.shared));
+    // Play, or Stop while this entry's preview plays (only the playing chip shows Stop).
+    const play = previewButton(state.clipboardPlaying, entry.id);
     const buttons = el(
       "span",
       { class: "clip-actions" },
       star,
-      button(entry.id, "preview", t("ui.clipboard.preview"), () => actions.preview(entry.id)),
-      button(entry.id, "paste", t("ui.clipboard.paste_again"), () => actions.pasteAgain(entry.id), {
-        disabled: !canPaste,
-      }),
-      button(entry.id, "rename", t("ui.clipboard.rename"), () => {
+      block(
+        entry.id,
+        "preview",
+        t(play.labelKey),
+        play.icon,
+        () => (play.playing ? actions.stopPreview(entry.id) : actions.preview(entry.id)),
+        { "aria-pressed": String(play.playing), "aria-label": t(play.labelKey) },
+      ),
+      block(
+        entry.id,
+        "paste",
+        t("ui.clipboard.paste_again"),
+        "paste",
+        () => actions.pasteAgain(entry.id),
+        { disabled: !canPaste },
+      ),
+      block(entry.id, "rename", t("ui.clipboard.rename"), "rename", () => {
         editing = entry.id;
         signature = "";
         update(state);
         root.querySelector(".clip-rename")?.focus();
       }),
-      button(entry.id, "delete", t("ui.clipboard.delete"), () => actions.remove(entry.id)),
+      block(entry.id, "delete", t("ui.clipboard.delete"), "trash", () => actions.remove(entry.id)),
     );
     const hint = levelHint(state.clipboardLevel, entry.id, t);
+    // While it plays, the chip's bottom edge fills left to right with the preview (progress()).
+    const progressBar = play.playing ? [progressMeter(entry.id)] : [];
     return el(
       "li",
-      { class: "clip-entry", dataset: { id: entry.id, selected: String(selected) } },
+      {
+        class: "clip-entry",
+        dataset: { id: entry.id, selected: String(selected), playing: String(play.playing) },
+      },
       name,
       ...(hint
         ? [el("span", { class: "clip-meta clip-level", role: "status", textContent: hint })]
         : []),
       buttons,
+      ...progressBar,
     );
+  }
+
+  function progressMeter(id) {
+    const fill = el("span", { class: "clip-progress-fill" });
+    fill.style.transform = "scaleX(0)";
+    meter = el(
+      "span",
+      {
+        class: "clip-progress",
+        role: "progressbar",
+        "aria-label": t("ui.clipboard.preview_progress"),
+        "aria-valuemin": "0",
+        "aria-valuemax": "100",
+        "aria-valuenow": "0",
+        dataset: { id, action: "preview-progress" },
+      },
+      fill,
+    );
+    return meter;
+  }
+
+  /** The playing chip's meter at `fraction` (0..1) of the preview; nothing when none plays. */
+  function progress(fraction) {
+    if (!meter) return;
+    const f = Math.min(1, Math.max(0, Number(fraction) || 0));
+    meter.children[0].style.transform = `scaleX(${f})`;
+    meter.setAttribute("aria-valuenow", String(Math.round(f * 100)));
   }
 
   /**
@@ -177,16 +230,28 @@ export function createClipboardPanel({ root, actions }) {
     const buttons = el(
       "span",
       { class: "clip-actions" },
-      button(id, "paste-here", t("ui.clipboard.paste_here"), () => actions.pasteHere(entry, from), {
-        disabled: !canPaste,
-      }),
-      button(id, "copy-here", t("ui.clipboard.copy_here"), () => actions.adopt(entry, from), {
-        disabled: !canPaste,
-      }),
+      block(
+        id,
+        "paste-here",
+        t("ui.clipboard.paste_here"),
+        "paste",
+        () => actions.pasteHere(entry, from),
+        { disabled: !canPaste },
+      ),
+      block(
+        id,
+        "copy-here",
+        t("ui.clipboard.copy_here"),
+        "copy",
+        () => actions.adopt(entry, from),
+        { disabled: !canPaste },
+      ),
     );
     if (unshare) {
       buttons.append(
-        button(id, "unshare", t("ui.clipboard.unshare"), () => actions.share(entry.id, false)),
+        block(id, "unshare", t("ui.clipboard.unshare"), "close", () =>
+          actions.share(entry.id, false),
+        ),
       );
     }
     return el(
@@ -263,7 +328,7 @@ export function createClipboardPanel({ root, actions }) {
       clear,
       el(
         "label",
-        { class: "clip-keep-field" },
+        { class: "clip-keep-field form-inline" },
         el("span", { textContent: t("ui.clipboard.keep_label") }),
         field,
       ),
@@ -435,6 +500,7 @@ export function createClipboardPanel({ root, actions }) {
       state.clipboardFilter ?? "",
       state.clipboardKeep,
       state.clipboardLevel,
+      state.clipboardPlaying?.id ?? null,
       // "5 minutes ago" moves on by the minute, not with the cursor.
       Math.floor(actions.now() / 60),
     ]);
@@ -450,25 +516,27 @@ export function createClipboardPanel({ root, actions }) {
           }
         : null;
     const query = state.clipboardFilter ?? "";
+    meter = null; // drawn again below if a chip plays
     // The one action bar, at the top: only the project view with entries has actions here.
     const bar = view === "project" && (state.clipboard ?? []).length > 0 ? [clearRow(state)] : [];
     root.replaceChildren(
       el("h2", { textContent: t("ui.clipboard.title") }),
       ...bar,
       viewSwitch(view),
+      // The two paste choices: form rows on the panel's label column (FORMS.md).
       el(
         "div",
-        { class: "clip-choice" },
+        { class: "clip-choice form-grid" },
         el(
           "label",
-          {},
-          el("span", { textContent: t("ui.clipboard.mode") }),
+          { class: "form-row" },
+          el("span", { class: "form-label", textContent: t("ui.clipboard.mode") }),
           select("mode", PASTE_MODES, choice.mode, (value) => actions.choose({ pasteMode: value })),
         ),
         el(
           "label",
-          {},
-          el("span", { textContent: t("ui.clipboard.target") }),
+          { class: "form-row" },
+          el("span", { class: "form-label", textContent: t("ui.clipboard.target") }),
           select("target", PASTE_TARGETS, choice.target, (value) =>
             actions.choose({ pasteTarget: value }),
           ),
@@ -491,5 +559,5 @@ export function createClipboardPanel({ root, actions }) {
     }
   }
 
-  return { update };
+  return { update, progress };
 }

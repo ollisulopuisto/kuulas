@@ -4,6 +4,7 @@
 //  - openSettings(): the command kuulas runs, its folder, extra arguments, model, language.
 
 import { colabForm, colabSettingsBody, signinPolls, signinView } from "./colab-model.js";
+import { enhanceDialog } from "./dialog-keys.js";
 
 const make = (tag, className, text) => {
   const node = document.createElement(tag);
@@ -22,12 +23,12 @@ export function createColabDialogs({ api, t, onSettingsSaved = () => {}, onSigne
   consent.setAttribute("aria-labelledby", "colab-consent-title");
   const consentTitle = make("h2", "", t("ui.colab.consent_title"));
   consentTitle.id = "colab-consent-title";
-  const consentText = make("p", "automix-note");
+  const consentText = make("p", "form-note");
   const remember = make("input");
   remember.type = "checkbox";
-  const rememberLabel = make("label", "automix-field");
+  const rememberLabel = make("label", "check-row form-wide");
   rememberLabel.append(remember, make("span", "", t("ui.colab.consent_remember")));
-  const consentForm = make("form");
+  const consentForm = make("form", "form-grid");
   consentForm.method = "dialog";
   const consentButtons = make("div", "cheatsheet-footer");
   const consentCancel = make("button", "button block", t("ui.colab.consent_cancel"));
@@ -36,10 +37,13 @@ export function createColabDialogs({ api, t, onSettingsSaved = () => {}, onSigne
   const consentOk = make("button", "button block primary", t("ui.colab.consent_ok"));
   consentOk.type = "submit";
   consentOk.dataset.icon = "check";
+  consentCancel.dataset.dialogCancel = "";
+  consentOk.dataset.dialogPrimary = "";
   consentButtons.append(consentCancel, consentOk);
   consentForm.append(rememberLabel, consentButtons);
   consent.append(consentTitle, consentText, consentForm);
   document.body.append(consent);
+  enhanceDialog(consent, { t, safe: true }); // uploads private audio: Enter is Cancel
 
   let settle = null;
   const finish = (ok) => {
@@ -64,29 +68,29 @@ export function createColabDialogs({ api, t, onSettingsSaved = () => {}, onSigne
   dialog.setAttribute("aria-labelledby", "colab-settings-title");
   const title = make("h2", "", t("ui.colab.settings_title"));
   title.id = "colab-settings-title";
-  const error = make("p", "automix-error");
+  const error = make("p", "form-msg");
   error.setAttribute("role", "alert");
   error.hidden = true;
   const fields = {};
   const field = (name, labelKey, hintKey) => {
-    const label = make("label", "automix-field");
+    const label = make("label", "form-row");
     const input = make("input");
     input.type = "text";
     input.name = name;
     if (hintKey) input.title = t(hintKey);
-    label.append(make("span", "", t(labelKey)), input);
+    label.append(make("span", "form-label", t(labelKey)), input);
     fields[name] = input;
     return label;
   };
   const noDrive = make("input");
   noDrive.type = "checkbox";
-  const noDriveLabel = make("label", "automix-field");
+  const noDriveLabel = make("label", "check-row");
   noDriveLabel.append(noDrive, make("span", "", t("ui.colab.no_drive")));
   const align = make("input");
   align.type = "checkbox";
-  const alignLabel = make("label", "automix-field");
+  const alignLabel = make("label", "check-row");
   alignLabel.append(align, make("span", "", t("ui.colab.align")));
-  const form = make("form");
+  const form = make("form", "form-grid");
   form.method = "dialog";
   const buttons = make("div", "cheatsheet-footer");
   const close = make("button", "button block", t("ui.colab.close"));
@@ -96,6 +100,8 @@ export function createColabDialogs({ api, t, onSettingsSaved = () => {}, onSigne
   const save = make("button", "button block primary", t("ui.colab.save"));
   save.type = "submit";
   save.dataset.icon = "save";
+  close.dataset.dialogCancel = "";
+  save.dataset.dialogPrimary = "";
   buttons.append(close, save);
   form.append(
     field("command", "ui.colab.command", "ui.colab.command_hint"),
@@ -110,6 +116,7 @@ export function createColabDialogs({ api, t, onSettingsSaved = () => {}, onSigne
   );
   dialog.append(title, form);
   document.body.append(dialog);
+  enhanceDialog(dialog, { t });
 
   const showError = (message) => {
     error.textContent = message;
@@ -139,22 +146,22 @@ export function createColabDialogs({ api, t, onSettingsSaved = () => {}, onSigne
   signin.setAttribute("aria-labelledby", "colab-signin-title");
   const signinTitle = make("h2", "", t("ui.colab.signin_title"));
   signinTitle.id = "colab-signin-title";
-  const signinText = make("p", "automix-note", t("ui.colab.signin_text"));
-  const signinState = make("p", "automix-note");
+  const signinText = make("p", "form-note", t("ui.colab.signin_text"));
+  const signinState = make("p", "form-note");
   signinState.setAttribute("role", "status");
-  const signinLink = make("p", "automix-note");
-  const signinOutputLabel = make("p", "automix-note", t("ui.colab.signin_output"));
+  const signinLink = make("p", "form-note");
+  const signinOutputLabel = make("p", "form-note", t("ui.colab.signin_output"));
   const signinOutput = make("pre", "automix-log");
   signinOutput.setAttribute("aria-live", "polite");
-  const signinError = make("p", "automix-error");
+  const signinError = make("p", "form-msg");
   signinError.setAttribute("role", "alert");
-  const codeLabel = make("label", "automix-field");
+  const codeLabel = make("label", "form-row");
   const codeInput = make("input");
   codeInput.type = "text";
   codeInput.autocomplete = "off";
   codeInput.spellcheck = false;
-  codeLabel.append(make("span", "", t("ui.colab.signin_code")), codeInput);
-  const signinForm = make("form");
+  codeLabel.append(make("span", "form-label", t("ui.colab.signin_code")), codeInput);
+  const signinForm = make("form", "form-grid");
   signinForm.method = "dialog";
   const signinButtons = make("div", "cheatsheet-footer");
   const startButton = make("button", "button block primary", t("ui.colab.signin_start"));
@@ -163,13 +170,17 @@ export function createColabDialogs({ api, t, onSettingsSaved = () => {}, onSigne
   sendButton.type = "submit";
   const stopButton = make("button", "button block", t("ui.colab.signin_cancel"));
   stopButton.type = "button";
+  stopButton.classList.add("footer-start");
   const signinClose = make("button", "button block", t("ui.colab.close"));
   signinClose.type = "button";
   signinClose.dataset.icon = "close";
   startButton.dataset.icon = "check";
   sendButton.dataset.icon = "check";
   stopButton.dataset.icon = "close";
-  signinButtons.append(startButton, sendButton, stopButton, signinClose);
+  signinClose.dataset.dialogCancel = "";
+  startButton.dataset.dialogPrimary = "";
+  sendButton.dataset.dialogPrimary = "";
+  signinButtons.append(stopButton, signinClose, startButton, sendButton);
   signinForm.append(codeLabel, signinError, signinButtons);
   signin.append(
     signinTitle,
@@ -181,6 +192,7 @@ export function createColabDialogs({ api, t, onSettingsSaved = () => {}, onSigne
     signinForm,
   );
   document.body.append(signin);
+  enhanceDialog(signin, { t });
 
   let signinSettle = null;
   let signinTimer = null;

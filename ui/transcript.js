@@ -87,15 +87,16 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   findInput.spellcheck = false;
   const findCount = el("span", "tx-find-count");
   findCount.setAttribute("aria-live", "polite");
-  const findButton = (act, text) => {
-    const button = el("button", "button", text);
+  // The arrows are icon buttons, the close a ghost icon button like the toast's.
+  const findButton = (act, text, kind = "button icon") => {
+    const button = el("button", kind, text);
     button.type = "button";
     button.dataset.act = act;
     return button;
   };
   const findPrev = findButton("prev", "↑");
   const findNext = findButton("next", "↓");
-  const findClose = findButton("close", "×");
+  const findClose = findButton("close", "×", "button ghost icon");
   findBar.append(findInput, findCount, findPrev, findNext, findClose);
   root.append(findBar, follow, empty, list, pop);
   list.setAttribute("role", "document");

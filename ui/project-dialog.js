@@ -2,6 +2,7 @@
 // field. (The desktop window uses its native dialogs instead; see app.js.) The checks are pure
 // (project-name.js); the server makes the project and opens it in a new tab.
 
+import { enhanceDialog } from "./dialog-keys.js";
 import { newProjectRequest, openProjectRequest } from "./project-name.js";
 
 /**
@@ -17,18 +18,19 @@ export function createProjectDialog({ api, t, onDone }) {
   const heading = document.createElement("h2");
   heading.id = "project-dialog-title";
   const note = document.createElement("p");
-  note.className = "automix-note";
+  note.className = "form-note";
   note.textContent = t("ui.project.note");
   const error = document.createElement("p");
-  error.className = "automix-error";
+  error.className = "form-msg";
   error.setAttribute("role", "alert");
   error.hidden = true;
 
   const fields = {};
   const field = (name, labelKey) => {
     const label = document.createElement("label");
-    label.className = "automix-field";
+    label.className = "form-row";
     const text = document.createElement("span");
+    text.className = "form-label";
     text.textContent = t(labelKey);
     const input = document.createElement("input");
     input.type = "text";
@@ -40,6 +42,7 @@ export function createProjectDialog({ api, t, onDone }) {
     return label;
   };
   const form = document.createElement("form");
+  form.className = "form-grid";
   form.method = "dialog";
   const buttons = document.createElement("div");
   buttons.className = "cheatsheet-footer";
@@ -47,10 +50,13 @@ export function createProjectDialog({ api, t, onDone }) {
   cancel.type = "button";
   cancel.className = "button block";
   cancel.textContent = t("ui.project.cancel");
+  cancel.dataset.icon = "close";
   cancel.addEventListener("click", () => dialog.close());
   const go = document.createElement("button");
   go.type = "submit";
   go.className = "button block primary";
+  cancel.dataset.dialogCancel = "";
+  go.dataset.dialogPrimary = "";
   buttons.append(cancel, go);
   form.append(
     field("name", "ui.project.name"),
@@ -61,6 +67,7 @@ export function createProjectDialog({ api, t, onDone }) {
   );
   dialog.append(heading, note, form);
   document.body.append(dialog);
+  enhanceDialog(dialog, { t });
 
   let kind = "new";
   const fail = (message, name) => {

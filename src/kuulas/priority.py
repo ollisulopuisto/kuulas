@@ -204,11 +204,25 @@ def _adopt(state: tuple) -> None:
         lower_this_thread()
 
 
+#: Called at every checkpoint when set: the analysis worker's memory ceiling
+#: (``rss.Ceiling.check``, docs/MEMORY.md), which raises above it.
+_memory_guard: Callable[[], None] | None = None
+
+
+def set_memory_guard(guard: Callable[[], None] | None) -> None:
+    """Have every ``checkpoint`` of this process call ``guard`` (None: none)."""
+    global _memory_guard  # noqa: PLW0603 - one per process, set by the worker
+    _memory_guard = guard
+
+
 def checkpoint(cancel: threading.Event | None = None, *,
                gate: PlaybackGate | None = None) -> None:
     """Between chunks of heavy work: on a background thread, wait while audio
     plays. Raises ``CancelledError`` when the work's cancel event is set. On a
-    foreground thread (a request the UI waits on) it only checks cancel."""
+    foreground thread (a request the UI waits on) it only checks cancel. With
+    a memory guard (the analysis worker) it also checks the ceiling."""
+    if _memory_guard is not None:
+        _memory_guard()
     cancel = cancel if cancel is not None else _cancel()
     if is_background():
         listener = _listener() or (None, None)

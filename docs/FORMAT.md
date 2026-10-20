@@ -693,6 +693,28 @@ Kept: the last 12, plus the last one of each day for 14 days. Media is not
 backed up: it is immutable and content-addressed, and its originals live
 where they were.
 
+## Export file names
+
+Every file kuulas exports leads with the project name (`src/kuulas/export_names.py`).
+The edit's name follows (`<project> - <edit>`) only when the edit is not the main
+one: its id is `main`, or its name is the default main-edit name in either
+language ("Main", "Pääeditio").
+
+- Template fields: `{title}` (the above), `{project}`, `{edit}`, `{n}`, `{ext}`,
+  `{span}`, `{from}`, `{to}`, `{stamp}`. Region templates: `{title}`, `{project}`,
+  `{n}`, `{name}`, `{start}`.
+- Built-in defaults: `{title} v{n}.{ext}` (mix), `{title} {from}–{to} v{n}.{ext}`
+  (selection), `{title}{span} tracks v{n}` (tracks), `{title} {stamp} v{n}[.{ext}]`
+  (one-button exports), `{title} - {n:02d} {name}` (regions). Stems are
+  `<title> – <track>.wav`; the automixer's mix is `<title> automixer <stamp>.wav`;
+  downloads are `<title> chapters.txt`, `<title> subtitles.srt`, `<title> transcript.md`.
+- `{stamp}` is local time with hyphens, like take names: `2026-10-20 15-33-43`.
+- A template the user wrote is used as written. Only a remembered template that
+  is exactly an older built-in default (`{edit} v{n}.{ext}` and so on) is replaced
+  by the new default.
+- `tracks.json` has a `title` field beside `edit` and `project`.
+- Send a copy is `<project> copy.kuulas` and does not name an edit.
+
 ## Hindenburg round trip
 
 Importing `.nhsx` (WP13) stores the source session XML in project

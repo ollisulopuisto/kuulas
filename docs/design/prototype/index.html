@@ -364,6 +364,15 @@
   --pad-inline: 16px; /* left/right padding of headers and rows */
   --row-gap: 10px; /* between rows of fields and list items */
   --section-gap: 16px; /* between inspector sections */
+  /* Forms (docs/design/FORMS.md): one grid for every dialog and panel. Fixed widths, so
+     every row, section and nested card lines its fields up on the same x. */
+  --form-label-w: 200px; /* the label column of a dialog; a long Finnish label wraps to 2 lines */
+  --form-label-w-panel: 128px; /* the label column in side panels and floating panels */
+  --form-col-gap: var(--space-5); /* between the label column and the field column */
+  --form-help-gap: var(--space-1); /* between a field and its help or message line */
+  --form-num-w: 8rem; /* a number field: short, right-aligned, unit in the label */
+  --check-size: 16px; /* checkbox and radio */
+  --check-gap: var(--space-3); /* between a box and its text */
   /* Numbers the canvases read with the colours (semantic, overridable). */
   --signal-muted-opacity: 0.35; /* muted clips (with the hatch) */
   --signal-unheard-opacity: 0.45; /* tracks not heard because of solo or mute */
@@ -403,6 +412,9 @@
   --pad-inline: 12px;
   --row-gap: 4px;
   --section-gap: 10px;
+  --form-label-w: 168px;
+  --form-label-w-panel: 112px;
+  --form-col-gap: var(--space-4);
   --indent-member: 10px;
 }
 
@@ -926,7 +938,8 @@ kbd {
 .button.primary { background: var(--button-primary-bg); border-color: var(--button-primary-bg); color: var(--button-primary-text); font-weight: var(--weight-strong); }
 .button.primary:hover:not(:disabled) { background: var(--button-primary-hover-bg); border-color: var(--button-primary-hover-bg); }
 .button.ghost { border-color: transparent; background: transparent; }
-.button.ghost:hover:not(:disabled) { background: var(--surface-hover); border-color: transparent; }
+.button.ghost:hover:not(:disabled) { background: var(--button-hover-bg); border-color: var(--button-hover-border); }
+.button.danger:hover:not(:disabled) { color: var(--danger-text); border-color: var(--danger); background: var(--danger-subtle); }
 .button.small { height: var(--control-h-sm); padding: 0 var(--space-4); font-size: var(--text-sm); }
 .icon-button { width: var(--control-h); padding: 0; justify-content: center; }
 .chip {
@@ -3418,6 +3431,16 @@ const HELP_FILES = {
   "cmd.app.export.hint": "Exports at once, in the background, what this project exported last: the whole mix, the in/out range or the chosen tracks, with the same format and settings. The notice says what was exported. The first time (or when the remembered range or tracks are gone) the options open. Hold Shift for the options.",
   "cmd.export.mix_options": "Export mix (options)…",
   "cmd.export.mix_options.hint": "Opens the export dialog for the mix: what to export (the whole mix, the in/out range or some tracks), format and quality, loudness target, file name and folder.",
+  "cmd.panel.show_inspector": "Show Inspector",
+  "cmd.panel.show_candidates": "Show Candidates",
+  "cmd.panel.show_clipboard": "Show Clipboard",
+  "cmd.panel.show_markers": "Show Markers",
+  "cmd.panel.show_history": "Show History",
+  "cmd.panel.show_inspector.hint": "Shows the Inspector tab in the side panel.",
+  "cmd.panel.show_candidates.hint": "Shows the Candidates tab in the side panel.",
+  "cmd.panel.show_clipboard.hint": "Shows the Clipboard tab in the side panel.",
+  "cmd.panel.show_markers.hint": "Shows the Markers tab in the side panel.",
+  "cmd.panel.show_history.hint": "Shows the History tab in the side panel.",
   "cmd.app.automix.hint": "Writes each speech track's ducking into its volume automation: a track dips while another speaker talks. You can drag the points afterwards. Not the same as File > Export mix (automixer), which renders a finished mix file.",
   "cmd.export.range": "Export in/out range",
   "cmd.export.range.hint": "Exports only the part between the in and out marks, as one file, with the format and settings used last. Needs both marks. No key: use Export mix (options)… to change what is exported.",
@@ -3919,6 +3942,16 @@ const HELP_FILES = {
   "cmd.app.export.hint": "Vie heti taustalla sen, mitä tämä projekti vei viimeksi: koko miksauksen, alku–loppuvälin tai valitut raidat, samalla muodolla ja samoilla asetuksilla. Ilmoitus kertoo, mitä vietiin. Ensimmäisellä kerralla (tai kun muistettu väli tai raidat ovat poissa) asetukset avautuvat. Pidä Vaihto pohjassa, niin saat asetukset.",
   "cmd.export.mix_options": "Vie miksaus (asetukset)…",
   "cmd.export.mix_options.hint": "Avaa miksauksen vienti-ikkunan: mitä viedään (koko miksaus, alku–loppuväli tai valitut raidat), muoto ja laatu, tavoiteäänekkyys, tiedostonimi ja kansio.",
+  "cmd.panel.show_inspector": "Näytä: Tarkastin",
+  "cmd.panel.show_candidates": "Näytä: Ehdokkaat",
+  "cmd.panel.show_clipboard": "Näytä: Leikepöytä",
+  "cmd.panel.show_markers": "Näytä: Merkit",
+  "cmd.panel.show_history": "Näytä: Historia",
+  "cmd.panel.show_inspector.hint": "Näyttää sivupaneelin välilehden Tarkastin.",
+  "cmd.panel.show_candidates.hint": "Näyttää sivupaneelin välilehden Ehdokkaat.",
+  "cmd.panel.show_clipboard.hint": "Näyttää sivupaneelin välilehden Leikepöytä.",
+  "cmd.panel.show_markers.hint": "Näyttää sivupaneelin välilehden Merkit.",
+  "cmd.panel.show_history.hint": "Näyttää sivupaneelin välilehden Historia.",
   "cmd.app.automix.hint": "Kirjoittaa jokaisen puheraidan vaimennuksen sen voimakkuusautomaatioon: raita painuu alas, kun toinen puhuu. Pisteitä voi vetää jälkeenpäin. Ei sama kuin Tiedosto > Vie miksaus (automixer), joka tekee valmiin miksaustiedoston.",
   "cmd.export.range": "Vie alku–loppuväli",
   "cmd.export.range.hint": "Vie vain alku- ja loppupisteen välisen osan yhtenä tiedostona, viimeksi käytetyllä muodolla ja asetuksilla. Vaatii molemmat pisteet. Ei näppäintä: muuta viennin kohdetta komennolla Vie miksaus (asetukset)….",

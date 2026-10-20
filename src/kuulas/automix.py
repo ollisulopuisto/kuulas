@@ -39,7 +39,7 @@ from typing import Any, NoReturn
 
 import soundfile as sf
 
-from . import export, toolpath
+from . import export, export_names, plugins, toolpath
 from .jobs import JobCancelledError
 from .messages import KuulasError
 
@@ -322,7 +322,29 @@ def _text(key: str, value: Any) -> str:
     return value
 
 
-def _option_value(spec: dict[str, Any], value: Any) -> Any:
+#: The options whose items are plug-ins: typed names become the installed plug-ins' paths.
+PLUGIN_KEYS = ("speech_plugins", "music_plugins")
+
+
+def _plugin_path(key: str, item: str) -> str:
+    """The path the tool is given for one typed plug-in: a path (has a separator) must
+    exist; a name is matched to an installed plug-in (``plugins.match``). With nothing
+    installed (or no scan on this platform) a name is passed on as typed, as before."""
+    if plugins.looks_like_path(item):
+        path = Path(item).expanduser()
+        if not path.exists():
+            _bad_option(key, item)
+        return str(path.absolute())
+    installed = plugins.list_plugins()
+    if not installed:
+        return item
+    found = plugins.resolve(item, installed)
+    if found is None:
+        _bad_option(key, item)
+    return found
+
+
+def _option_value(spec: dict[str, Any], value: Any, resolve: bool = True) -> Any:
     """The checked value of one option, or None for 'the default' (empty); else raises."""
     key, kind = spec["key"], spec["kind"]
     if kind == "bool":
@@ -344,12 +366,14 @@ def _option_value(spec: dict[str, Any], value: Any) -> Any:
     if kind == "list":
         if not isinstance(value, list) or len(value) > MAX_ITEMS:
             _bad_option(key, value)
-        items = [_text(key, item) for item in value]
-        return [item for item in items if item] or None
+        items = [item for item in (_text(key, item) for item in value) if item]
+        if resolve and key in PLUGIN_KEYS:
+            items = [_plugin_path(key, item) for item in items]
+        return items or None
     return _text(key, value) or None
 
 
-def normalize_options(options: Any) -> dict[str, Any]:
+def normalize_options(options: Any, *, resolve: bool = True) -> dict[str, Any]:
     """The options as stored: checked, and only those that differ from the tool's
     defaults. Raises ``AutomixError`` (``bad_option``) for an unknown name or a wrong
     type, an out-of-range or non-finite number, or a text that looks like a switch."""
@@ -360,7 +384,7 @@ def normalize_options(options: Any) -> dict[str, Any]:
         spec = OPTIONS.get(key)
         if spec is None:
             _bad_option(str(key), value)
-        checked = _option_value(spec, value)
+        checked = _option_value(spec, value, resolve)
         if checked is not None and checked != spec["default"]:
             clean[key] = checked
     return clean
@@ -368,13 +392,15 @@ def normalize_options(options: Any) -> dict[str, Any]:
 
 def _tolerant_options(options: Any) -> dict[str, Any]:
     """``normalize_options`` for what was stored earlier: a damaged entry is dropped
-    so one bad value never stops the dialog from opening."""
+    so one bad value never stops the dialog from opening. Plug-ins are not looked up
+    again (they were resolved when stored): a plug-in that has since moved must reach the
+    tool as the path it was saved with, not vanish from the command."""
     if not isinstance(options, dict):
         return {}
     clean: dict[str, Any] = {}
     for key, value in options.items():
         with contextlib.suppress(AutomixError):
-            clean.update(normalize_options({key: value}))
+            clean.update(normalize_options({key: value}, resolve=False))
     return clean
 
 
@@ -569,8 +595,10 @@ def run(session, params: dict, settings: dict, report: Report,
         except OSError as e:
             raise AutomixError("error.export.cannot_write", path=str(folder),
                                error=str(e)) from e
-        stamp = datetime.now(UTC).astimezone().strftime("%Y-%m-%d %H%M%S")
-        final = _unique(folder, export._safe(f"{listing['edit']} automixer {stamp}.wav"))
+        stamp = export_names.stamp(datetime.now(UTC).astimezone())
+        # Project first, the edit only when it is not the main one (export_names).
+        title = listing.get("title") or listing["edit"]
+        final = _unique(folder, export._safe(f"{title} automixer {stamp}.wav"))
         partial = final.with_name(f"{final.stem}.partial{final.suffix}")
         cmd = build_command(settings, stems, partial, target_lufs=lufs,
                             ad_spot=ad_spot, ad_duration=ad_duration)

@@ -346,8 +346,18 @@ def test_a_damaged_chunk_after_the_skip_plays_silence_and_marks_the_media(
         return real_chunk(self, mid, index)
 
     monkeypatch.setattr(MediaStore, "_chunk", chunk)
-    engine = Engine(session, background=False, clock=clock)
     boundary = CHUNK_SEC * RATE
+    # Playback reads past the chunk cache (media.streaming): the same decode
+    # error there.
+    real_direct = MediaStore._read_direct
+
+    def direct(self, mid, lo, hi, out, at):
+        if lo < 2 * boundary and hi > boundary:
+            raise sf.LibsndfileError(0, "FLAC decode error")
+        return real_direct(self, mid, lo, hi, out, at)
+
+    monkeypatch.setattr(MediaStore, "_read_direct", direct)
+    engine = Engine(session, background=False, clock=clock)
     engine.play(boundary - 30000, skip=[(boundary - 25000, boundary + 5000)])
     out = np.concatenate([engine._render(1024) for _ in range(20)])
     assert np.std(out[:4000]) > 0.01  # before the skip: chunk 0 plays

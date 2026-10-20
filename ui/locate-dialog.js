@@ -2,6 +2,7 @@
 // by SHA-256 and says what it found and what is still missing. The matching is done by the
 // server (MediaStore.relink); the pure parts are in media-copy-model.js.
 
+import { enhanceDialog } from "./dialog-keys.js";
 import { folderOf, locateSummary } from "./media-copy-model.js";
 
 const KEY = "kuulas.locate.folder";
@@ -37,7 +38,7 @@ export function createLocateDialog({ api, t, pickFolder = null, onChanged = () =
   heading.id = "locate-title";
   heading.textContent = t("ui.locate.title");
   const intro = document.createElement("p");
-  intro.className = "media-note";
+  intro.className = "media-note form-note";
   intro.textContent = t("ui.locate.intro");
 
   const body = document.createElement("div");
@@ -45,8 +46,9 @@ export function createLocateDialog({ api, t, pickFolder = null, onChanged = () =
   body.setAttribute("aria-live", "polite");
 
   const folderLabel = document.createElement("label");
-  folderLabel.className = "media-field";
+  folderLabel.className = "media-field form-row";
   const folderText = document.createElement("span");
+  folderText.className = "form-label";
   folderText.textContent = t("ui.locate.folder");
   const folderInput = document.createElement("input");
   folderInput.type = "text";
@@ -56,7 +58,7 @@ export function createLocateDialog({ api, t, pickFolder = null, onChanged = () =
   folderLabel.append(folderText, folderInput);
 
   const error = document.createElement("p");
-  error.className = "media-error";
+  error.className = "media-error form-msg";
   error.setAttribute("role", "alert");
   error.hidden = true;
 
@@ -78,10 +80,15 @@ export function createLocateDialog({ api, t, pickFolder = null, onChanged = () =
   const close = button("ui.locate.close", () => dialog.close());
   const buttons = document.createElement("div");
   buttons.className = "cheatsheet-footer";
-  buttons.append(...(choose ? [choose] : []), find, close);
+  close.dataset.dialogCancel = "";
+  find.dataset.dialogPrimary = "";
+  // Choose keeps the dialog open (the left edge); Close, then Search last (FORMS.md).
+  choose?.classList.add("footer-start");
+  buttons.append(...(choose ? [choose] : []), close, find);
 
   dialog.append(heading, intro, body, folderLabel, error, buttons);
   document.body.append(dialog);
+  enhanceDialog(dialog, { t });
 
   const section = (titleKey, rows, note = null) => {
     const wrap = document.createElement("section");
@@ -100,7 +107,7 @@ export function createLocateDialog({ api, t, pickFolder = null, onChanged = () =
     wrap.append(title);
     if (note) {
       const p = document.createElement("p");
-      p.className = "media-note";
+      p.className = "media-note form-note";
       p.textContent = note;
       wrap.append(p);
     }

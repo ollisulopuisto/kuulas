@@ -563,6 +563,8 @@ group, doubled on the header row.
 - Spacing on a 4 px grid: 2, 4, 6, 8, 12, 16, 24, 32 (`--space-1…8`). Component
   padding comes from the density tokens `--pad-panel`, `--pad-inline`,
   `--row-gap`, `--section-gap` (section 16).
+- Forms: a fixed label column (`--form-label-w` in dialogs, `--form-label-w-panel` in
+  panels) and one field column; the rules are in `FORMS.md`.
 - Radii: 2 (badges, key chips) · 4 (controls) · 6 (popovers, cards, toasts) ·
   10 (dialogs) · pill (chips). **Clips are square**: crisp edges read as edit points.
 - Elevation: flat docks; `--shadow-raised` for popovers, toasts, the command
@@ -1089,7 +1091,10 @@ Use semantic or component tokens only; if a value repeats in two components,
 add a component token (layer 3) referencing a semantic one. Reuse the
 prototype's class names (`.button`, `.chip`, `.track-header`, `.panel-head`,
 `.field`, `.toast`) so the prototype stays the side-by-side reference. Add the
-row to section 11.
+row to section 11. Buttons follow `BUTTONS.md` (kinds, sizes, states, order; a
+test fails on a button without one of its classes). Labels, fields, help text, check
+rows and dialog footers follow `FORMS.md` (one fixed label column, help under the
+field, primary last; `ui/tests/form-layout.test.js` fails on a row built the old way).
 
 ## 13. Accessibility checklist
 

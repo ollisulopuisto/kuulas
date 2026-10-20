@@ -2,6 +2,7 @@
 The automixer is a fake script; see test_automix.py."""
 
 import json
+import re
 import sys
 import textwrap
 import time
@@ -212,3 +213,15 @@ def test_automixer_options_api(session, tmp_path, monkeypatch):
         r = c.put("/api/settings/automixer", json=bad)
         assert r.status_code == 400
         assert r.json()["error"]["key"] == "error.automix.bad_option"
+
+
+def test_automixer_file_leads_with_the_project_not_the_main_edit(
+        session, fake, settings_file):
+    # Owner, 2026-10-20: the file was called "Pääeditio automixer ..." in every project.
+    automix.save_settings(fake)
+    [job_id] = session.automix({})
+    name = Path(wait_job(session, job_id)["result"]["path"]).name
+    pattern = r"Episode automixer \d{4}-\d\d-\d\d \d\d-\d\d-\d\d\.wav"
+    assert re.fullmatch(pattern, name), name
+    assert "Main" not in name
+    assert ":" not in name

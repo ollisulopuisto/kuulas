@@ -1,3 +1,4 @@
+import { enhanceDialog } from "./dialog-keys.js";
 // File > Statistics… (WP70): a read-only dialog. The server counts and words everything
 // (src/kuulas/project_stats.py), in the UI language and with Helsinki times, so this file
 // only lays the groups out. "Copy as text" and "Save as JSON" hand over to app.js.
@@ -18,7 +19,7 @@ export function createStatsDialog({ api, t, copyText, saveJson }) {
   body.className = "stats-body";
   body.setAttribute("aria-live", "polite");
   const note = document.createElement("p");
-  note.className = "stats-note";
+  note.className = "stats-note form-note";
   note.textContent = `${t("ui.stats.muted_note")} ${t("ui.stats.no_undo")}`;
 
   const buttons = document.createElement("div");
@@ -26,7 +27,7 @@ export function createStatsDialog({ api, t, copyText, saveJson }) {
   const button = (labelKey, onClick, extra = "") => {
     const b = document.createElement("button");
     b.type = "button";
-    b.className = `button ${extra}`.trim();
+    b.className = `button block ${extra}`.trim();
     b.textContent = t(labelKey);
     b.addEventListener("click", onClick);
     return b;
@@ -35,11 +36,19 @@ export function createStatsDialog({ api, t, copyText, saveJson }) {
   const copy = button("ui.stats.copy", () => void copyText(text));
   const save = button("ui.stats.save", () => void saveJson());
   const close = button("ui.stats.close", () => dialog.close(), "primary");
+  save.dataset.icon = "save";
+  close.dataset.icon = "close";
   copy.disabled = true;
   save.disabled = true;
+  close.dataset.dialogCancel = "";
+  close.dataset.dialogPrimary = "";
+  // Copy and Save keep the dialog open: the left edge; Close (the primary) last.
+  copy.classList.add("footer-start");
+  save.classList.add("footer-start");
   buttons.append(copy, save, close);
   dialog.append(heading, body, note, buttons);
   document.body.append(dialog);
+  enhanceDialog(dialog, { t });
 
   function listOf(rows) {
     const list = document.createElement("dl");

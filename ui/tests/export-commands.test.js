@@ -76,6 +76,13 @@ describe("filenameFromDisposition", () => {
       filenameFromDisposition('attachment; filename="subtitles.srt"', "x"),
       "subtitles.srt",
     );
+    assert.equal(
+      filenameFromDisposition(
+        "attachment; filename=\"P__ editio chapters.txt\"; filename*=UTF-8''P%C3%A4%C3%A4%20chapters.txt",
+        "x",
+      ),
+      "Pää chapters.txt",
+    );
     assert.equal(filenameFromDisposition(null, "x.txt"), "x.txt");
     assert.equal(filenameFromDisposition("inline", "x.txt"), "x.txt");
   });
