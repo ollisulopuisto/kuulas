@@ -596,7 +596,7 @@ def create_app(session, engine, *, language: str | None = None,
         try:
             return {"prefs": ui_prefs.update(body.get("set"), body.get("remove"))}
         except ui_prefs.PrefsError as e:
-            raise BadRequestError("error.server.bad_request", detail=str(e)) from None
+            raise BadRequestError(e.key, **e.params) from None
         except OSError as e:
             raise BadRequestError("error.server.bad_request", detail=str(e)) from None
 

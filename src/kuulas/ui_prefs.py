@@ -19,7 +19,7 @@ import tempfile
 import threading
 from pathlib import Path
 
-from .messages import config_dir
+from .messages import KuulasError, config_dir
 
 MAX_BYTES = 256 * 1024
 MAX_KEY = 120
@@ -28,7 +28,7 @@ _KEY = re.compile(r"^(kuulas\.[A-Za-z0-9_.:-]+|[A-Za-z0-9_-]{1,32})$")
 _LOCK = threading.Lock()
 
 
-class PrefsError(ValueError):
+class PrefsError(KuulasError, ValueError):
     """The request is not an acceptable change to the stored preferences."""
 
 
@@ -64,12 +64,13 @@ def update(set_: object = None, remove: object = None) -> dict[str, str]:
     set_ = {} if set_ is None else set_
     remove = [] if remove is None else remove
     if not isinstance(set_, dict) or not isinstance(remove, list):
-        raise PrefsError("set must be an object and remove a list")
+        raise PrefsError("error.prefs.bad_shape")
     for key, value in set_.items():
         if not _key_ok(key) or not isinstance(value, str) or len(value) > MAX_VALUE:
-            raise PrefsError(f"bad preference {str(key)[:40]!r}")
-    if not all(_key_ok(k) for k in remove):
-        raise PrefsError("bad key in remove")
+            raise PrefsError("error.prefs.bad_entry", key=str(key)[:40])
+    for key in remove:
+        if not _key_ok(key):
+            raise PrefsError("error.prefs.bad_entry", key=str(key)[:40])
     with _LOCK:
         data = _read()
         data.update(set_)
@@ -77,7 +78,7 @@ def update(set_: object = None, remove: object = None) -> dict[str, str]:
             data.pop(key, None)
         text = json.dumps(data, indent=1, sort_keys=True)
         if len(text.encode("utf-8")) > MAX_BYTES:
-            raise PrefsError("preferences file would be too large")
+            raise PrefsError("error.prefs.too_large")
         path = prefs_path()
         path.parent.mkdir(parents=True, exist_ok=True)
         fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".ui-prefs-", suffix=".tmp")
