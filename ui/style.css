@@ -95,13 +95,15 @@ kbd {
   color: var(--text-disabled);
   cursor: default;
 }
+/* Tertiary (docs/design/BUTTONS.md): no fill or border at rest, for toolbars, the status bar
+   and a close ×; hover shows the whole hit area, the same fill and border as a secondary. */
 .button.ghost {
   background: transparent;
   border-color: transparent;
 }
 .button.ghost:hover:not(:disabled) {
-  background: var(--surface-hover);
-  border-color: transparent;
+  background: var(--button-hover-bg);
+  border-color: var(--button-hover-border);
 }
 .button.primary {
   background: var(--button-primary-bg);
@@ -158,6 +160,18 @@ kbd {
 .button[aria-pressed="true"] {
   background: var(--surface-active);
   border-color: var(--border-strong);
+}
+/* Destructive: a secondary at rest (undo brings it back), danger only on hover. */
+.button.danger:hover:not(:disabled) {
+  color: var(--danger-text);
+  border-color: var(--danger);
+  background: var(--danger-subtle);
+}
+/* Actions inside reading text (help: Run, Show me): the header-toggle height. */
+.button.small {
+  height: var(--control-h-sm);
+  padding: 0 var(--space-4);
+  font-size: var(--text-sm);
 }
 .chip {
   display: inline-flex;
@@ -1129,18 +1143,15 @@ input[type="text"] {
   color: var(--text-secondary);
   white-space: nowrap;
 }
+/* Status-bar buttons are ghosts (.button.ghost in the markup), only smaller and quieter. */
 .statusbar .button {
   height: calc(var(--statusbar-h) - 8px);
   padding: 0 var(--space-3);
   font-size: var(--text-xs);
   color: var(--text-secondary);
-  background: transparent;
-  border-color: transparent;
 }
 .statusbar .button:hover:not(:disabled) {
   color: var(--text);
-  background: var(--surface-hover);
-  border-color: transparent;
 }
 .statusbar .button.icon {
   width: 22px;

@@ -152,7 +152,7 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
   const modeText = el("span");
   const modeSelect = el("select");
   modeLabel.append(modeText, modeSelect);
-  const hideButton = el("button", "button");
+  const hideButton = el("button", "button block");
   hideButton.type = "button";
   footer.append(modeLabel, hideButton);
   dialog.append(heading, body, monitoring, footer);

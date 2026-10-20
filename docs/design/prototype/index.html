@@ -926,7 +926,8 @@ kbd {
 .button.primary { background: var(--button-primary-bg); border-color: var(--button-primary-bg); color: var(--button-primary-text); font-weight: var(--weight-strong); }
 .button.primary:hover:not(:disabled) { background: var(--button-primary-hover-bg); border-color: var(--button-primary-hover-bg); }
 .button.ghost { border-color: transparent; background: transparent; }
-.button.ghost:hover:not(:disabled) { background: var(--surface-hover); border-color: transparent; }
+.button.ghost:hover:not(:disabled) { background: var(--button-hover-bg); border-color: var(--button-hover-border); }
+.button.danger:hover:not(:disabled) { color: var(--danger-text); border-color: var(--danger); background: var(--danger-subtle); }
 .button.small { height: var(--control-h-sm); padding: 0 var(--space-4); font-size: var(--text-sm); }
 .icon-button { width: var(--control-h); padding: 0; justify-content: center; }
 .chip {

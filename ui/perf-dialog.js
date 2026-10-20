@@ -50,7 +50,7 @@ export function createPerfDialog({ api, t, notify }) {
   const button = (labelKey, onClick, extra = "") => {
     const b = document.createElement("button");
     b.type = "button";
-    b.className = `button ${extra}`.trim();
+    b.className = `button block ${extra}`.trim();
     b.textContent = t(labelKey);
     b.addEventListener("click", onClick);
     return b;
@@ -58,6 +58,8 @@ export function createPerfDialog({ api, t, notify }) {
   const start = button("ui.perf.start", () => void begin(), "primary");
   const stop = button("ui.perf.stop", () => void end());
   const close = button("ui.perf.close", () => dialog.close());
+  start.dataset.icon = "play";
+  close.dataset.icon = "close";
   buttons.append(start, stop, close);
   dialog.append(heading, intro, choice, progress, message, buttons);
   document.body.append(dialog);

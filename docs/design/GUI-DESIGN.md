@@ -1089,7 +1089,8 @@ Use semantic or component tokens only; if a value repeats in two components,
 add a component token (layer 3) referencing a semantic one. Reuse the
 prototype's class names (`.button`, `.chip`, `.track-header`, `.panel-head`,
 `.field`, `.toast`) so the prototype stays the side-by-side reference. Add the
-row to section 11.
+row to section 11. Buttons follow `BUTTONS.md` (kinds, sizes, states, order; a
+test fails on a button without one of its classes).
 
 ## 13. Accessibility checklist
 

@@ -36,13 +36,15 @@ export function createPlaceholderEditor({ root, t }) {
     readout.setAttribute("aria-live", "polite");
     const save = document.createElement("button");
     save.type = "button";
+    save.className = "button primary";
     save.textContent = t("ui.placeholders.editor.save");
     const cancel = document.createElement("button");
     cancel.type = "button";
+    cancel.className = "button";
     cancel.textContent = t("ui.placeholders.editor.cancel");
     const actions = document.createElement("div");
     actions.className = "import-actions";
-    actions.append(save, cancel);
+    actions.append(cancel, save); // the primary action last, as in every dialog
 
     const refresh = () => {
       const { words, seconds } = estimatePreview(area.value, rate);

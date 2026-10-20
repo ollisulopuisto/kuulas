@@ -108,7 +108,12 @@ export function createMarkersPanel({ root, actions }) {
         ),
       );
     }
-    buttons.append(button("delete", t("ui.markers.delete"), () => actions.remove(item.id)));
+    // Destructive: danger colour on hover only (docs/design/BUTTONS.md); undo brings it back.
+    buttons.append(
+      button("delete", t("ui.markers.delete"), () => actions.remove(item.id), {
+        class: "button ghost danger",
+      }),
+    );
     return el(
       "li",
       { class: "clip-entry", dataset: { id: item.id, selected: String(selected) } },
