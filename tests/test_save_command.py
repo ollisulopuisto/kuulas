@@ -29,7 +29,9 @@ def _client(session: Session) -> TestClient:
 
 
 def _autos(session: Session) -> list:
-    return sorted((session.package.path / "backups").glob("auto-*.sqlite"))
+    """One file per automatic backup, plain or xz (compressed in the background)."""
+    return sorted(paths[0] for _when, paths
+                  in package.auto_backups(session.package.path / "backups"))
 
 
 def test_save_backup_writes_a_backup_file_now(tmp_path):
@@ -40,7 +42,7 @@ def test_save_backup_writes_a_backup_file_now(tmp_path):
         assert r.status_code == 200
         files = _autos(s)
         assert len(files) == 1
-        assert r.json()["backup"] == files[0].name
+        assert files[0].name.startswith(r.json()["backup"])
     finally:
         s.close()
 
@@ -56,6 +58,21 @@ def test_save_backup_keeps_to_the_retention_rule(tmp_path):
             (folder / f"auto-{stamp}.sqlite").write_bytes(b"x")
         _client(s).post("/api/command", json={"name": "save_backup", "args": {}})
         assert len(_autos(s)) <= package.KEEP_RECENT
+    finally:
+        s.close()
+
+
+def test_save_backup_on_a_nearly_full_disk_says_none_was_made(tmp_path, monkeypatch):
+    s = Session(tmp_path / "One.kuulas")
+    try:
+        class Usage:
+            total = used = free = 0
+
+        monkeypatch.setattr(package.shutil, "disk_usage", lambda _p: Usage)
+        r = _client(s).post("/api/command", json={"name": "save_backup", "args": {}})
+        assert r.status_code == 400
+        assert r.json()["error"]["key"] == "error.package.backup_low_disk"
+        assert _autos(s) == []
     finally:
         s.close()
 

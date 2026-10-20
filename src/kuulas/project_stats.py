@@ -23,8 +23,8 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from . import package, transcript
 from . import talk_share as talk_sharem
-from . import transcript
 from .clip_gaps import clip_gaps
 from .gate import split_by_gate
 from .messages import t
@@ -35,6 +35,10 @@ from .usage import UsageError, extract
 #: Two steps further apart than this are not one stretch of work: a night
 #: away must not count as editing time (the owner's rule, WP70).
 ACTIVE_GAP_SECONDS = 10 * 60
+
+#: The parts of the project folder the Size group shows, and what is linked in place.
+SIZE_KEYS = ("project_bytes", "media_bytes", "recordings_folder_bytes", "history_bytes",
+             "backups_bytes", "backups_count", "caches_bytes", "recordings_bytes")
 
 #: Steps that remove a stretch of the timeline and say which, by op name. The
 #: range is ``args["start"]``..``args["end"]`` in frames.
@@ -306,9 +310,7 @@ def compute(project: Project, *, words: list[dict] | None = None,
         out["talk"] = talk
     out["work"] = _work(steps, list(checkpoints), now)
     size = sizes or {}
-    out["size"] = {"project_bytes": int(size.get("project_bytes", 0)),
-                   "recordings_bytes": int(size.get("recordings_bytes", 0)),
-                   "caches_bytes": int(size.get("caches_bytes", 0))}
+    out["size"] = {key: int(size.get(key, 0)) for key in SIZE_KEYS}
     return out
 
 
@@ -324,6 +326,13 @@ def _folder_bytes(folder: Path) -> int:
             except OSError:
                 continue  # gone while we looked
     return total
+
+
+def _file_bytes(path: Path) -> int:
+    try:
+        return path.stat().st_size
+    except OSError:
+        return 0
 
 
 def gather(history, folder: str | Path | None = None, *,
@@ -349,8 +358,13 @@ def gather(history, folder: str | Path | None = None, *,
     if folder is not None:
         folder = Path(folder)
         sizes["project_bytes"] = _folder_bytes(folder)
-        sizes["caches_bytes"] = (_folder_bytes(folder / "caches")
-                                 if (folder / "caches").is_dir() else 0)
+        for key, name in (("caches_bytes", "caches"), ("media_bytes", "media"),
+                          ("recordings_folder_bytes", "recordings"),
+                          ("backups_bytes", "backups")):
+            sizes[key] = _folder_bytes(folder / name) if (folder / name).is_dir() else 0
+        sizes["history_bytes"] = sum(_file_bytes(folder / f"project.sqlite{suffix}")
+                                     for suffix in ("", "-wal"))
+        sizes["backups_count"] = len(package.auto_backups(folder / "backups"))
         sizes["recordings_bytes"] = sum(int(r.get("linked_size") or 0)
                                         for r in media_rows if r["storage"] == "linked")
     return compute(state, words=words, steps=steps, checkpoints=checkpoints,
@@ -482,10 +496,24 @@ def groups(stats: dict) -> list[dict]:
                      duration(work["since_export_seconds"])])
     out.append({"title": t("stats.group.work"), "rows": rows})
 
+    # [label, value, hint]: the dialog shows the hint, the text leaves it out.
     out.append({"title": t("stats.group.size"), "rows": [
-        [t("stats.size.project"), size_text(size["project_bytes"])],
-        [t("stats.size.recordings"), size_text(size["recordings_bytes"])],
-        [t("stats.size.caches"), size_text(size["caches_bytes"])],
+        [t("stats.size.project"), size_text(size["project_bytes"]),
+         t("stats.size.project_hint")],
+        [t("stats.size.media"), size_text(size["media_bytes"]),
+         t("stats.size.media_hint")],
+        [t("stats.size.recordings_folder"), size_text(size["recordings_folder_bytes"]),
+         t("stats.size.recordings_folder_hint")],
+        [t("stats.size.history"), size_text(size["history_bytes"]),
+         t("stats.size.history_hint")],
+        [t("stats.size.backups"), t("stats.size.backups_value",
+                                    count=size["backups_count"],
+                                    size=size_text(size["backups_bytes"])),
+         t("stats.size.backups_hint")],
+        [t("stats.size.caches"), size_text(size["caches_bytes"]),
+         t("stats.size.caches_hint")],
+        [t("stats.size.recordings"), size_text(size["recordings_bytes"]),
+         t("stats.size.recordings_hint")],
     ]})
     return out
 
@@ -497,7 +525,7 @@ def to_text(stats: dict, title: str | None = None) -> str:
         if lines:
             lines.append("")
         lines.append(group["title"])
-        lines.extend(f"  {label}: {value}" for label, value in group["rows"])
+        lines.extend(f"  {row[0]}: {row[1]}" for row in group["rows"])
         table = group.get("table")
         if table:
             for row in table["rows"]:

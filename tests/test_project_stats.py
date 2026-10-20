@@ -86,7 +86,9 @@ def test_runtime_counts_and_sizes():
     assert c["groups"] == 1
     # Gaps between clips: t1 10-12 s, t2 6-10 s (2 gaps, 6 s).
     assert (c["gaps"], c["gap_seconds"]) == (2, 6.0)
-    assert s["size"] == {"project_bytes": 10, "recordings_bytes": 20, "caches_bytes": 3}
+    # The parts not given are 0 (the folder breakdown: test_backup_size.py).
+    assert s["size"] == {**dict.fromkeys(project_stats.SIZE_KEYS, 0),
+                         "project_bytes": 10, "recordings_bytes": 20, "caches_bytes": 3}
 
 
 def test_a_muted_track_is_not_audible_in_the_runtime():
@@ -347,7 +349,9 @@ def test_stats_endpoint(tmp_path):
             body = c.get("/api/stats").json()
             assert body["stats"]["counts"]["clips"] == clip_count(s)
             assert body["groups"][0]["title"] == "Runtime"
-            assert all(len(row) == 2 for g in body["groups"] for row in g["rows"])
+            # [label, value], and the Size rows add a hint: [label, value, hint].
+            assert all(len(row) == (3 if g["title"] == "Size" else 2)
+                       for g in body["groups"] for row in g["rows"])
             assert "Runtime" in body["text"]
             assert c.get("/api/stats?format=text").text == body["text"]
     finally:

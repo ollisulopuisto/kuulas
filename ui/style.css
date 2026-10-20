@@ -3475,6 +3475,11 @@ legend.form-heading {
   gap: var(--space-1) var(--space-4);
   margin: 0;
 }
+.stats-hint {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
 .stats-group dd {
   margin: 0;
   text-align: right;

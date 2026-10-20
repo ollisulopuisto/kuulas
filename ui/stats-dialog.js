@@ -50,11 +50,19 @@ export function createStatsDialog({ api, t, copyText, saveJson }) {
   document.body.append(dialog);
   enhanceDialog(dialog, { t });
 
+  // A row is [label, value] or [label, value, hint]; the hint (the Size group: what each
+  // part of the project folder is) is a quiet line under the label.
   function listOf(rows) {
     const list = document.createElement("dl");
-    for (const [label, value] of rows) {
+    for (const [label, value, hint] of rows) {
       const dt = document.createElement("dt");
       dt.textContent = label;
+      if (hint) {
+        const small = document.createElement("span");
+        small.className = "stats-hint form-note";
+        small.textContent = hint;
+        dt.append(small);
+      }
       const dd = document.createElement("dd");
       dd.textContent = value;
       list.append(dt, dd);

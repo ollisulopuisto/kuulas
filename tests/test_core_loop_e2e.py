@@ -22,7 +22,7 @@ import pytest
 import soundfile as sf
 from fastapi.testclient import TestClient
 
-from kuulas import transcript
+from kuulas import package, transcript
 from kuulas.clipboard_store import ClipboardStore, default_path
 from kuulas.messages import KuulasError
 from kuulas.server import create_app
@@ -508,11 +508,14 @@ def test_save_close_reopen_is_identical_and_undo_still_works(env, make):
 def test_the_backup_restores_to_the_same_project(env, tmp_path, make):
     busy(env)
     state = env.snapshot()
-    backup = env.session.package.backup()
+    made = env.session.package.backup()
+    # Stored xz-compressed in the background (docs/FORMAT.md "Backups").
+    env.session.package.wait_compressed()
+    (backup,) = (env.folder / "backups").glob(made.name + ".xz")
     restored = tmp_path / "Restored.kuulas"
     shutil.copytree(env.folder, restored, ignore=shutil.ignore_patterns(
         "project.sqlite*", "lock.json", "locks", "backups"))
-    shutil.copy(backup, restored / "project.sqlite")
+    package.read_backup(backup, restored / "project.sqlite")
     again = make(restored)
     assert not again.session.read_only
     assert again.snapshot() == state
