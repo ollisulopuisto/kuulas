@@ -38,7 +38,7 @@ import numpy as np
 from speechmix.chain import true_peak
 from speechmix.meter import IntegratedMeter
 
-from . import caches, mixer
+from . import caches, mixer, priority
 from .loudness import track_target_lufs
 from .messages import t
 
@@ -108,6 +108,7 @@ def measure(read: Callable[[int, int], np.ndarray], frames: int, rate: int) -> M
     acc = Accumulator(rate)
     step = CHUNK_SEC * rate
     for first in range(0, frames, step):
+        priority.checkpoint()
         acc.add(read(first, min(step, frames - first)))
     return acc.result()
 
@@ -208,6 +209,7 @@ def project_curves(p: Project, store: mixer.Store,
                 max(1, min(2, max(p.media_item(c.media).channels for c in tr.clips)))
                 for tr in tracks}
     for first in range(0, p.length if pending else 0, step):
+        priority.checkpoint()
         count = min(step, p.length - first)
         for ident, (acc, _) in pending.items():
             if ident:
@@ -248,6 +250,7 @@ def speech_levels(
             acc = Accumulator(p.rate)
             step = CHUNK_SEC * p.rate
             for first in range(0, p.length, step):
+                priority.checkpoint()
                 acc.add(mixer.track_stem(track, store, first, min(step, p.length - first),
                                          channels, as_heard=True, rate=p.rate))
             hit = acc.result().to_dict()

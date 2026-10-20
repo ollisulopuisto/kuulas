@@ -1,4 +1,10 @@
-"""Cooperative background work with progress, cancellation and isolated errors."""
+"""Cooperative background work with progress, cancellation and isolated errors.
+
+Jobs yield to playback (docs/PLAYBACK-PRIORITY.md): a job does not start while
+the engine plays, and pauses at its next progress call or ``priority.checkpoint``
+once playback starts. It stays listed as running, with ``paused`` set and the
+message "Paused while playing", resumes where it was, and can be cancelled while
+paused."""
 
 from __future__ import annotations
 
@@ -7,18 +13,21 @@ import threading
 import time
 import uuid
 from collections.abc import Callable
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import Future
 from dataclasses import dataclass, field
 from typing import Any
 
-from . import media
+from . import media, priority
 from .messages import KuulasError, t
 
 log = logging.getLogger("kuulas.jobs")
 
+#: Raised by a job after it observes cooperative cancellation. The same class as
+#: ``priority.CancelledError``, so a chunk loop's ``checkpoint`` cancels a job.
+JobCancelledError = priority.CancelledError
 
-class JobCancelledError(Exception):
-    """Raised by a job after it observes cooperative cancellation."""
+#: Fields of a job's entry that ``list`` does not show.
+_PRIVATE = frozenset({"created", "started", "paused_s", "paused_at", "own_message"})
 
 
 def _cancelled() -> None:
@@ -39,7 +48,8 @@ class _Progress:
                  indeterminate: bool = False) -> None:
         """``value`` 0..1. ``message`` (a line to show beside the bar) and
         ``indeterminate`` (the bar cannot say how far it is) are for work whose
-        progress is not a number, e.g. a child process that prints lines."""
+        progress is not a number, e.g. a child process that prints lines.
+        While audio plays, this is where the job waits."""
         self.jobs._checkpoint(self.job_id, value, self.cancelled_event,
                               message, indeterminate)
 
@@ -56,10 +66,13 @@ class _Work:
 class Jobs:
     """Run independent tasks on a bounded worker pool and retain their status."""
 
-    def __init__(self, max_workers: int | None = None):
+    def __init__(self, max_workers: int | None = None,
+                 gate: priority.PlaybackGate | None = None):
         self.max_workers = max_workers or media.workers()
-        self._pool = ThreadPoolExecutor(max_workers=self.max_workers,
-                                         thread_name_prefix="kuulas-job")
+        #: None: the process-wide ``priority.GATE``, looked up at each use (a test
+        #: that replaces it is followed).
+        self._playback = gate
+        self._pool = priority.executor(self.max_workers, "kuulas-job")
         self._lock = threading.RLock()
         self._gate = threading.Condition(self._lock)
         self._active = 0
@@ -83,7 +96,8 @@ class Jobs:
                                    "progress": 0.0, "state": "queued", "error": None,
                                    "message": "", "indeterminate": False,
                                    "remaining_seconds": None, "created": time.monotonic(),
-                                   "started": None}
+                                   "started": None, "paused": False, "paused_s": 0.0,
+                                   "paused_at": None, "own_message": ""}
             self._work[job_id] = work
             work.future = self._pool.submit(self._run, job_id, work)
         return job_id
@@ -95,13 +109,17 @@ class Jobs:
                 item["state"] = "cancelled"
                 return
             item["state"], item["started"] = "running", time.monotonic()
+        priority.lower_this_thread()  # a job thread is background work, always
         progress = _Progress(self, job_id, work.cancel)
         entered = False
         try:
-            entered = self._enter(work.cancel)
-            if not entered:
-                _cancelled()
-            value = work.fn(progress)
+            # Background: every ``priority.checkpoint`` under this job (analysis
+            # chunks, export blocks) pauses it while audio plays, and says so.
+            with priority.background(work.cancel), priority.listening(
+                    lambda: self._pause(job_id), lambda: self._resume(job_id)):
+                self._enter(work.cancel)
+                entered = True
+                value = work.fn(progress)
             if work.cancel.is_set():
                 _cancelled()
             if work.on_done is not None:
@@ -109,12 +127,13 @@ class Jobs:
             with self._lock:
                 item = self._items[job_id]
                 item.update(state="completed", progress=1.0, remaining_seconds=0,
-                            indeterminate=False)
+                            indeterminate=False, paused=False)
                 if work.keep_result:
                     item["result"] = value
         except JobCancelledError:
             with self._lock:
-                self._items[job_id].update(state="cancelled", remaining_seconds=None)
+                self._items[job_id].update(state="cancelled", remaining_seconds=None,
+                                           paused=False)
         except Exception as exc:
             if isinstance(exc, KuulasError):
                 log.exception("Background job %s failed: %s", job_id, exc.key)
@@ -127,24 +146,52 @@ class Jobs:
                          "text": str(t("error.job.failed", **params))}
             with self._lock:
                 self._items[job_id].update(state="failed", error=error,
-                                           remaining_seconds=None)
+                                           remaining_seconds=None, paused=False)
         finally:
             if entered:
                 self._leave()
 
-    def _enter(self, cancelled: threading.Event) -> bool:
-        with self._gate:
-            while self._interactive and self._active >= 1 and not cancelled.is_set():
+    def _playback_gate(self) -> priority.PlaybackGate:
+        return self._playback or priority.GATE
+
+    def _busy(self) -> bool:
+        """One job at a time runs a chunk: while the live loop says the user is
+        busy (``set_interactive``), or the gate does (playing, recent input)."""
+        return self._interactive or self._playback_gate().interactive()
+
+    def _enter(self, cancelled: threading.Event) -> None:
+        """Wait until playback stops and it is this job's turn; then hold one of
+        the turns. Raises ``JobCancelledError`` when cancelled meanwhile."""
+        while True:
+            priority.checkpoint(cancelled, gate=self._playback_gate())
+            with self._gate:
+                if not (self._busy() and self._active >= 1):
+                    self._active += 1
+                    return
                 self._gate.wait(0.1)
-            if cancelled.is_set():
-                return False
-            self._active += 1
-            return True
 
     def _leave(self) -> None:
         with self._gate:
             self._active = max(0, self._active - 1)
             self._gate.notify_all()
+
+    def _pause(self, job_id: str) -> None:
+        with self._lock:
+            item = self._items.get(job_id)
+            if item is None or item["paused"]:
+                return
+            item.update(paused=True, paused_at=time.monotonic(),
+                        own_message=item["message"],
+                        message=str(t("job.paused_playing")))
+
+    def _resume(self, job_id: str) -> None:
+        with self._lock:
+            item = self._items.get(job_id)
+            if item is None or not item["paused"]:
+                return
+            since = item["paused_at"]
+            item["paused_s"] += time.monotonic() - since if since is not None else 0.0
+            item.update(paused=False, paused_at=None, message=item["own_message"])
 
     def _checkpoint(self, job_id: str, value: float, cancelled: threading.Event,
                     message: str | None = None, indeterminate: bool = False) -> None:
@@ -154,14 +201,22 @@ class Jobs:
                 item["progress"] = max(item["progress"], min(1.0, max(0.0, value)))
                 item["indeterminate"] = bool(indeterminate)
                 if message is not None:
-                    item["message"] = message
-            if not self._interactive:
+                    if item["paused"]:
+                        item["own_message"] = message  # shown again on resume
+                    else:
+                        item["message"] = message
+            if not self._busy():
                 return
+            # Give the turn up while the user is busy; ``_enter`` waits for
+            # playback to stop and for a turn, and takes it back.
             self._active = max(0, self._active - 1)
             self._gate.notify_all()
-            while self._interactive and self._active >= 1 and not cancelled.is_set():
-                self._gate.wait(0.1)
-            self._active += 1
+        try:
+            self._enter(cancelled)
+        except JobCancelledError:
+            with self._gate:
+                self._active += 1  # ``_run`` gives it back in ``_leave``
+            raise
 
     def set_interactive(self, active: bool) -> None:
         with self._gate:
@@ -173,10 +228,11 @@ class Jobs:
         with self._lock:
             result = []
             for item in self._items.values():
-                copy = {key: value for key, value in item.items()
-                        if key not in {"created", "started"}}
-                if item["state"] == "running" and item["started"] is not None:
-                    elapsed = now - item["started"]
+                copy = {key: value for key, value in item.items() if key not in _PRIVATE}
+                if item["paused"]:
+                    copy["remaining_seconds"] = None  # no estimate while it waits
+                elif item["state"] == "running" and item["started"] is not None:
+                    elapsed = now - item["started"] - item["paused_s"]
                     progress = item["progress"]
                     copy["remaining_seconds"] = (
                         round(elapsed * (1 - progress) / progress)

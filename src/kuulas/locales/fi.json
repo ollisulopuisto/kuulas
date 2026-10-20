@@ -2201,4 +2201,7 @@
   "ui.silence.preview_failed": "Esikatselu epäonnistui.",
   "ui.silence.preview_row": "{name}: sulkisi {close} s {stretches} kohdassa (nyt: {now} s)",
   "ui.silence.error_number": "Kirjoita luku.",
-  "ui.silence.error_range": "Väliltä {low}–{high}."}
+  "ui.silence.error_range": "Väliltä {low}–{high}.",
+  "job.paused_playing": "Tauolla toiston ajan",
+  "log.offload.fallback": "Analyysiprosessi ei vastannut ({error}); mitataan editorissa.",
+  "error.offload.failed": "Analyysi epäonnistui: {error}"}
