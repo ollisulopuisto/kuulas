@@ -79,7 +79,7 @@ def test_default_mix_file_template_uses_title_and_a_hyphen_stamp(session):
     name = Path(r["path"]).name
     assert name.startswith("05 diet woke litteroitu 20")
     assert ":" not in name
-    assert export_names.stamp(datetime.now(UTC)).split(" ")[0] in name
+    assert export_names.stamp(datetime.now().astimezone()).split(" ")[0] in name
 
 
 def test_a_custom_saved_template_is_untouched(session, tmp_path):
