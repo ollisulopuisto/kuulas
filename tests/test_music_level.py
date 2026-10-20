@@ -38,9 +38,9 @@ def test_the_change_puts_the_loudest_moment_offset_under_the_speech():
     assert plan.clamped == ()
 
 
-def test_the_automixer_rule_is_the_same_formula_at_minus_one():
+def test_the_automixer_rule_is_the_same_formula_at_plus_one():
     plan = music_level.solve(measured(), music_level.AUTOMIXER_OFFSET_DB)
-    assert plan.change_db == -6.0
+    assert plan.change_db == -4.0
 
 
 def test_per_track_levels_each_track_on_its_own():

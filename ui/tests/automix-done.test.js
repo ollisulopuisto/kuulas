@@ -12,7 +12,7 @@ import {
 
 describe("done in Kuulas", () => {
   const KEY = "bed_under_speech_db";
-  const sp = [{ key: KEY, kind: "number", default: -1, min: -30, max: 6, group: "music" }];
+  const sp = [{ key: KEY, kind: "number", default: 1, min: -30, max: 6, group: "music" }];
   const entry = (over = {}) => ({
     bed_level: { option: KEY, offset_db: -10, current: true, ...over },
   });
@@ -50,7 +50,7 @@ describe("done in Kuulas", () => {
     const done = entry();
     assert.equal(doneStatus(sp, done, { [KEY]: "-10" }, [], {})[KEY].state, "done");
     assert.equal(doneStatus(sp, done, { [KEY]: "-10,0" }, [], {})[KEY].state, "done");
-    assert.equal(doneStatus(sp, done, { [KEY]: "-1" }, [], {})[KEY], undefined);
+    assert.equal(doneStatus(sp, done, { [KEY]: "1" }, [], {})[KEY], undefined);
     assert.equal(doneStatus(sp, done, { [KEY]: "-7" }, [], {})[KEY], undefined);
   });
 
@@ -61,7 +61,7 @@ describe("done in Kuulas", () => {
   });
 
   test("a stale record gives a hint", () => {
-    const s = doneStatus(sp, entry({ current: false }), { [KEY]: "-1" }, [], {})[KEY];
+    const s = doneStatus(sp, entry({ current: false }), { [KEY]: "1" }, [], {})[KEY];
     assert.equal(s.state, "stale");
   });
 

@@ -1,3 +1,7 @@
+## [v26.10.20.8] - 2026-10-20
+
+- **Music level default corrected to +1 dB.** The automixer's real rule puts the loudest 3 seconds of the music 1 dB *above* the speech (not 1 dB below, as Kuulas assumed). The automix dialog now shows +1 as the default for "Music level against the speech (dB), negative is quieter" and sends `--bed-under-speech-db` only when you change it. The podcast repo has the flag in PR #64 (not merged yet): until it is merged and installed, the field has no effect, and the dialog says so.
+
 ## [v26.10.20.7] - 2026-10-20
 
 - **Project folders stay small:** automatic backups are now compressed (about 10x smaller; a 112 MB history backs up as roughly 11 MB) and capped at 300 MB in total (the newest 2 and the newest of each of the last 3 days always stay; setting `backup_budget_mb` in the user settings file, 0 = no cap); old uncompressed backups are compressed when a project is opened for writing, each one checked before the plain copy is removed. A backup is skipped when nothing changed or the disk is nearly full. Statistics > Size shows media, history, backups, caches and recordings separately. New `kuulas restore-backup <folder> <backup>` restores from a backup (plain or compressed) after checking it, with a safety copy of the current file.
