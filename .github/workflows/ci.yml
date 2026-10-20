@@ -19,9 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # macOS only for now (owner 2026-10-19: no Windows or Linux testers). Windows needs the
-        # tzdata package and Linux fails a few path and encoder tests: add them back when wanted.
-        os: [macos-latest]
+        os: [macos-latest, windows-latest, ubuntu-latest]
     defaults:
       run:
         working-directory: kuulas
@@ -44,9 +42,11 @@ jobs:
       - name: ffmpeg and audio libraries (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y ffmpeg libportaudio2 libsndfile1
-      - name: ffmpeg (Windows)
+      - name: ffmpeg and tzdata (Windows)
         if: runner.os == 'Windows'
-        run: choco install ffmpeg -y --no-progress
+        run: |
+          choco install ffmpeg -y --no-progress
+          python -m pip install tzdata
       - run: uv sync
       - run: uv run ruff check .
       - run: uv run pytest -q
@@ -59,9 +59,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # macOS only for now (owner 2026-10-19: no Windows or Linux testers). Windows needs the
-        # tzdata package and Linux fails a few path and encoder tests: add them back when wanted.
-        os: [macos-latest]
+        os: [macos-latest, windows-latest, ubuntu-latest]
     defaults:
       run:
         working-directory: kuulas
