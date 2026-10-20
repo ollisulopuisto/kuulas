@@ -1,5 +1,5 @@
 """Heavy analysis runs in its own low-priority process (docs/PLAYBACK-PRIORITY.md):
-own GIL, nice 19 and background QoS, stopped outright while the editor plays when
+own GIL, nice 10, stopped outright while the editor plays when
 the caller is background work. These tests start the real worker process."""
 
 import logging
@@ -79,11 +79,24 @@ def test_errors_come_back_with_their_key(session, process_mode):
     assert err.value.key == "error.silence.no_hand_mutes"
 
 
-def test_the_worker_runs_at_the_lowest_priority(process_mode):
+def test_the_worker_runs_at_a_moderate_priority(process_mode):
+    # Not nice 19 and the Darwin background band: on a loaded Mac that starved
+    # the worker, which never finished (owner's ps, 2026-10-20: RN, ~5% CPU,
+    # 11 minutes). It yields to playback by being stopped while audio plays.
     info = offload.probe({"what": "priority"})
-    assert info["nice"] == 19
-    if sys.platform == "darwin":
-        assert info["darwin_background"] is True
+    assert info["nice"] == offload.WORKER_NICE == 10
+    assert info["darwin_background"] is False
+
+
+def test_the_worker_makes_progress_at_its_priority(process_mode):
+    # Imports and 0.3 s of CPU: a few seconds of wall time at most on a free
+    # machine (measured 2026-10-20: ~0.8 s for the curve worker's imports).
+    started = time.monotonic()
+    got = offload.probe({"what": "spin", "seconds": 0.3}, pause=False)
+    wall = time.monotonic() - started
+    assert got["spun"] >= 0.3
+    assert got["wall"] < 3.0  # the spin itself was not starved
+    assert wall < 15.0
 
 
 def test_cancel_kills_the_worker(process_mode):
@@ -131,6 +144,55 @@ def test_background_work_stops_the_worker_while_playing(process_mode, monkeypatc
     worker.join(30)
     assert events == ["pause", "resume"]
     assert result["value"]["spun"] >= 1.0  # and it finished its work after
+
+
+def test_curve_refreshes_while_playing_wait_and_only_the_newest_runs(
+        session, process_mode, monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient  # noqa: PLC0415
+
+    from kuulas.engine import Engine  # noqa: PLC0415
+    from kuulas.server import create_app  # noqa: PLC0415
+
+    state = {"playing": True}
+    gate = priority.PlaybackGate(hold_s=0.0, poll_s=0.01)
+    gate.watch(lambda: state["playing"])
+    manager = offload.WorkerManager(poll_s=0.01)
+    monkeypatch.setattr(offload, "MANAGER", manager)
+    ui = tmp_path / "ui"
+    ui.mkdir()
+    client = TestClient(create_app(session, Engine(session), language="en", ui_dir=ui))
+    monkeypatch.setattr(priority, "GATE", gate)  # create_app made GATE watch its engine
+    got = {}
+
+    def ask(name):
+        got[name] = client.get("/api/loudness-curve")
+
+    first = threading.Thread(target=ask, args=("first",))
+    first.start()
+    time.sleep(0.5)
+    assert manager.alive() == []  # deferred, not started and stopped
+    second = threading.Thread(target=ask, args=("second",))
+    second.start()
+    first.join(10)
+    assert got["first"].status_code == 409  # the UI had given up on it already
+    assert manager.alive() == []
+    state["playing"] = False
+    second.join(60)
+    assert got["second"].status_code == 200
+    assert len(got["second"].json()["tracks"]) == 2
+    manager.shutdown()
+
+
+def test_closing_the_project_ends_its_worker(tmp_path, monkeypatch):
+    manager = offload.WorkerManager(poll_s=0.01)
+    monkeypatch.setattr(offload, "MANAGER", manager)
+    calls = []
+    monkeypatch.setattr(manager, "cancel_owner", calls.append)
+    session = Session(tmp_path / "Other.kuulas")
+    folder = str(session.store.folder)
+    session.close()
+    assert calls == [folder]
+    manager.shutdown()
 
 
 def test_a_worker_that_cannot_start_falls_back_inline(session, process_mode, monkeypatch,

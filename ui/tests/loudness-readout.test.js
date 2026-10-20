@@ -91,6 +91,7 @@ function clock() {
       for (const timer of all) timer.fn();
     },
     pending: () => timers.size,
+    delays: () => [...timers.values()].map((t) => t.ms),
   };
 }
 
@@ -189,19 +190,60 @@ describe("createLoudnessLoader", () => {
     assert.equal(last(patches).loudness.status, "ready");
   });
 
-  test("a failure shows nothing and is not cached", async () => {
+  test("a failure shows nothing, is not cached and is asked again only after a back-off", async () => {
     let calls = 0;
     const { c, patches, loader } = make(() => {
+      calls += 1;
+      return Promise.reject(new Error("boom"));
+    });
+    const flush = () => new Promise((r) => setImmediate(r));
+    loader.settle("h1");
+    c.fire();
+    await flush();
+    assert.equal(last(patches).loudness.status, "failed");
+    // Every store change settles again: none of them may ask at once (each ask
+    // used to start an analysis process; owner's ps, 2026-10-20).
+    for (let i = 0; i < 20; i += 1) loader.settle("h1");
+    assert.equal(calls, 1);
+    const waits = [];
+    for (let i = 0; i < 4; i += 1) {
+      waits.push(c.delays()[0]);
+      c.fire();
+      await flush();
+    }
+    assert.equal(calls, 5);
+    assert.deepEqual(waits, [5000, 10000, 20000, 40000]);
+  });
+
+  test("an edit after a failure waits out the back-off too", async () => {
+    let calls = 0;
+    const { c, loader } = make(() => {
       calls += 1;
       return Promise.reject(new Error("boom"));
     });
     loader.settle("h1");
     c.fire();
     await new Promise((r) => setImmediate(r));
-    assert.equal(last(patches).loudness.status, "failed");
-    loader.settle("h1");
+    loader.settle("h2");
+    assert.deepEqual(c.delays(), [5000]); // the back-off's retry, no new ask
     c.fire();
     assert.equal(calls, 2);
+  });
+
+  test("a success resets the back-off", async () => {
+    let fail = true;
+    const { c, loader } = make(() =>
+      fail ? Promise.reject(new Error("boom")) : Promise.resolve(body("t1", -20)),
+    );
+    const flush = () => new Promise((r) => setImmediate(r));
+    loader.settle("h1");
+    c.fire();
+    await flush();
+    fail = false;
+    c.fire(); // the retry succeeds
+    await flush();
+    loader.settle("h2");
+    assert.deepEqual(c.delays(), [700]);
   });
 
   test("settling on the head already shown or being asked changes nothing", async () => {

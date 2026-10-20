@@ -1,10 +1,11 @@
 """The analysis worker: ``python -m kuulas.analysis_worker <task> <result>``.
 
 Started by ``offload.call`` for one task and gone when it is done. Its first act
-is nice 19; once its imports are done (before any audio is read or any numpy
-thread pool starts work) it enters the Darwin background band
-(``priority.lower_this_process``), so nothing it does competes with the
-editor's playback; the editor may also stop it (SIGSTOP) while audio plays.
+is nice ``offload.WORKER_NICE`` (10). Not nice 19 and the Darwin background
+band any more: on a loaded Mac that starved it and it never finished (owner's
+ps, 2026-10-20). It yields to playback by being stopped (SIGSTOP) while audio
+plays when its caller is background work, and it has its own GIL. It exits
+when the editor is gone (its parent changes, or the pipe on its stdin closes).
 It reopens the project's media read-only and never opens the project's history:
 it reads a pickled snapshot and writes a pickled answer
 (``{"value": ...}`` or ``{"error": {...}}``), atomically.
@@ -20,6 +21,11 @@ import traceback
 from pathlib import Path
 
 from . import priority
+from .offload import PIPE_ENV, WORKER_NICE
+
+
+def _lower() -> dict:
+    return priority.lower_this_process(darwin_background=False, nice=WORKER_NICE)
 
 
 def _probe(what: dict, lowered: dict | None) -> dict:
@@ -60,20 +66,16 @@ def open_store(spec: dict):
 
 def run_task(payload: dict, lower: bool = False) -> dict:
     """One task to its reply. Never raises: the editor gets the error.
-    ``lower``: enter the background band once the imports are done."""
+    ``lower``: take the worker's priority (the probe reports what took effect)."""
     from .messages import KuulasError  # noqa: PLC0415
 
     try:
         if payload["task"] == "_probe":
-            lowered = priority.lower_this_process() if lower else None
+            lowered = _lower() if lower else None
             return {"value": _probe(payload["probe"], lowered)}
         from . import offload  # noqa: PLC0415
 
         fn = offload.resolve(payload["task"])
-        from . import media  # noqa: F401, PLC0415 - imported before the band, see above
-
-        if lower:
-            priority.lower_this_process()
         store = open_store(payload["store"])
         try:
             value = fn(payload["project"], store, *payload.get("args", ()),
@@ -89,8 +91,53 @@ def run_task(payload: dict, lower: bool = False) -> dict:
     return {"value": value}
 
 
+#: How often the worker checks that the editor still runs.
+PARENT_CHECK_S = float(os.environ.get("KUULAS_PARENT_CHECK_S", "1.0"))
+
+
+def watch_parent(parent: int | None = None, check_s: float | None = None) -> None:
+    """Exit at once when the editor that started this worker is gone: nobody
+    would read the answer, and an orphan only holds memory (owner's btop,
+    2026-10-20). A stopped worker cannot look; ``offload.spawn_options`` and
+    ``offload.sweep_orphans`` cover that case."""
+    parent = os.getppid() if parent is None else parent
+    check_s = PARENT_CHECK_S if check_s is None else check_s
+
+    def watch() -> None:
+        while True:
+            # Parent 1 (launchd, init): the editor was gone before we looked.
+            now = os.getppid()
+            if now != parent or now == 1:
+                os._exit(4)
+            time.sleep(check_s)
+
+    priority.thread(watch, "kuulas-worker-parent").start()
+
+
+def watch_pipe() -> None:
+    """Exit when the editor's end of the pipe on stdin closes (the editor
+    exited or crashed): only when the editor said it holds one (``PIPE_ENV``);
+    a worker started by hand has no such pipe."""
+    if os.environ.get(PIPE_ENV) != "1":
+        return
+
+    def watch() -> None:
+        # The raw descriptor, not sys.stdin: a daemon thread blocked in a
+        # buffered read holds its lock, and interpreter shutdown aborts on it.
+        try:
+            while os.read(0, 4096):
+                pass
+        except OSError:
+            pass
+        os._exit(5)
+
+    priority.thread(watch, "kuulas-worker-pipe").start()
+
+
 def main(argv: list[str] | None = None) -> int:
-    priority.lower_this_process(darwin_background=False)
+    _lower()
+    watch_parent()
+    watch_pipe()
     args = sys.argv[1:] if argv is None else argv
     if len(args) != 2:
         print("usage: python -m kuulas.analysis_worker <task file> <result file>",

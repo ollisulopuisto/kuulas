@@ -201,15 +201,15 @@ CHECKS = ("build", "libraries", "ffmpeg", "ui", "server", "meter", "recorder", "
 
 def check_analysis_worker() -> str:
     """The analysis worker (``offload``, docs/PLAYBACK-PRIORITY.md) starts from this
-    installation as the editor starts it, and runs at the lowest priority. Without it
-    Auto-Silence and the loudness curves fall back to the editor process, where they
-    compete with playback."""
+    installation as the editor starts it, and runs at its lowered priority
+    (``offload.WORKER_NICE``). Without it Auto-Silence and the loudness curves fall
+    back to the editor process, where they compete with playback."""
     from . import offload  # noqa: PLC0415
 
     info = offload.probe({"what": "priority"}, pause=False)
     nice = info.get("nice")
-    if nice != 19:
-        problem = f"the analysis worker runs at nice {nice}, not 19"
+    if nice != offload.WORKER_NICE:
+        problem = f"the analysis worker runs at nice {nice}, not {offload.WORKER_NICE}"
         raise SelftestError(problem)
     return f"nice {info['nice']}, darwin background {info.get('darwin_background')}"
 

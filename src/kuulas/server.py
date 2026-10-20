@@ -56,6 +56,7 @@ from . import (
     messages,
     music_report,
     new_project,
+    offload,
     priority,
     project_stats,
     transcribe,
@@ -924,7 +925,11 @@ def create_app(session, engine, *, language: str | None = None,
     @app.get("/api/loudness-curve")
     def get_loudness_curve():
         # Measured outside the session lock (Session.loudness_curve); cached by content.
-        return JSONResponse(session.loudness_curve())
+        try:
+            return JSONResponse(session.loudness_curve())
+        except offload.SupersededError:
+            # A newer request replaced it (the UI aborted this one already).
+            return JSONResponse({"superseded": True}, status_code=409)
 
     @app.get("/api/stats")
     def get_stats(format: str = "json"):
