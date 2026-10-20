@@ -285,10 +285,11 @@ _RAW_OPTIONS: tuple[tuple[str, str, str, Any, str, dict[str, Any]], ...] = (
     # No default in the tool's parser: it uses the measured -9 dB when this is not given.
     ("mic_duck_db", "--mic-duck-db", "number", None, "micduck",
      {"min": -60.0, "max": 0.0, "parent": "speech_mic_duck"}),
-    # The tool's BED_UNDER_SPEECH_DB: the loudest 3 s of a bed sits this far under the
-    # speech. -1 is nearly as loud as the speech (the owner found it "SUPER LOUD"). Only
-    # newer automixers have the flag, so it is gated (``GATED``).
-    ("bed_under_speech_db", "--bed-under-speech-db", "number", -1.0, "music",
+    # The tool's BED_UNDER_SPEECH_DB: where the loudest 3 s of a bed sits against the
+    # speech (negative = quieter). +1 is the automixer's own value, louder than the
+    # speech (the owner found it "SUPER LOUD"). Only newer automixers have the flag, so
+    # it is gated (``GATED``).
+    ("bed_under_speech_db", "--bed-under-speech-db", "number", 1.0, "music",
      {"min": -30.0, "max": 6.0}),
     ("music_carve", "--no-music-carve", "bool", True, "music", {"minimal": True}),
     ("music_carve_strength", "--music-carve-strength", "number", 0.5, "music",

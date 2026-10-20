@@ -14,7 +14,7 @@ import {
 
 describe("capability gating", () => {
   const sp = [
-    { key: "bed_under_speech_db", kind: "number", default: -1, min: -30, max: 6, group: "music" },
+    { key: "bed_under_speech_db", kind: "number", default: 1, min: -30, max: 6, group: "music" },
     { key: "n", kind: "number", default: 0.5, min: 0, max: 1, group: "music" },
   ];
 
@@ -36,8 +36,8 @@ describe("capability gating", () => {
     );
   });
 
-  test("the bed level shows -1 by default, accepts the range edges and refuses outside", () => {
-    assert.equal(optionsToForm(sp, {}).bed_under_speech_db, "-1");
+  test("the bed level shows 1 by default, accepts the range edges and refuses outside", () => {
+    assert.equal(optionsToForm(sp, {}).bed_under_speech_db, "1");
     assert.deepEqual(validateOptions(sp, { bed_under_speech_db: "-30", n: "" }).options, {
       bed_under_speech_db: -30,
     });
@@ -47,7 +47,7 @@ describe("capability gating", () => {
     for (const bad of ["-31", "6.5", "abc", "Infinity"]) {
       assert.equal(validateOptions(sp, { bed_under_speech_db: bad, n: "" }).ok, false, bad);
     }
-    assert.deepEqual(validateOptions(sp, { bed_under_speech_db: "-1", n: "" }).options, {});
+    assert.deepEqual(validateOptions(sp, { bed_under_speech_db: "1", n: "" }).options, {});
   });
 });
 

@@ -57,7 +57,7 @@ ALGORITHM = "music-level@1"
 DEFAULT_OFFSET_DB = -10.0
 OFFSET_RANGE = (-30.0, 0.0)
 #: The automixer's fixed rule, for reference (``stems_mix.BED_UNDER_SPEECH_DB``).
-AUTOMIXER_OFFSET_DB = -1.0
+AUTOMIXER_OFFSET_DB = 1.0
 
 MODES = ("common", "per_track")
 SPEECH_KINDS = ("speech", "narration")

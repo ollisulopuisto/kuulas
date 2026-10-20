@@ -63,6 +63,12 @@ Anything that rewrites the project (kuulas owns the project file; external tools
 specifics, Google Drive routes for private audio (audio goes straight to the VM, never via Drive), and anything that needs
 importing the Python workspace.
 
+> **Correction (20.10.2026, from the podcast session):** the automixer's real default is
+> `BED_UNDER_SPEECH_DB = +1.0` (the loudest 3 s of the bed 1 dB ABOVE the speech; the
+> owner's own setting of 2026-10-09), not -1 as written below. The flag is implemented
+> (podcast PR #64): `--bed-under-speech-db FLOAT`, -30..+6. Kuulas shows +1 as the default
+> and sends the flag only when the value differs from +1.
+
 ## Music bed level (request to the podcast session, 2026-10-20)
 
 **Problem (owner, measured by ear):** after an automix export from kuulas the music was "SUPER LOUD" next to the

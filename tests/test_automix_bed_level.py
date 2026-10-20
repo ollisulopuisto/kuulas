@@ -49,7 +49,7 @@ def command(options, supported=None):
 def test_spec_is_a_music_number_with_the_tool_default():
     spec = automix.OPTIONS["bed_under_speech_db"]
     assert (spec["flag"], spec["kind"], spec["default"], spec["group"]) == (
-        "--bed-under-speech-db", "number", -1.0, "music")
+        "--bed-under-speech-db", "number", 1.0, "music")
     assert (spec["min"], spec["max"]) == (-30.0, 6.0)
 
 
@@ -66,8 +66,8 @@ def test_bed_level_in_range_is_kept(ok):
 
 
 def test_the_default_is_not_stored_or_sent():
-    assert automix.normalize_options({"bed_under_speech_db": -1}) == {}
-    assert command({"bed_under_speech_db": -1}, supported=YES) == BASE
+    assert automix.normalize_options({"bed_under_speech_db": 1}) == {}
+    assert command({"bed_under_speech_db": 1}, supported=YES) == BASE
 
 
 def test_a_changed_level_is_sent_when_supported():
