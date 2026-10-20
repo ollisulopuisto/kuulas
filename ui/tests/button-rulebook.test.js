@@ -26,6 +26,9 @@ export const SPECIAL = {
   "track-name": "the track name in its header: a label that renames on double-click",
   tag: "the speech / music kind tag in the track header",
   "bus-chevron": "the bus disclosure chevron",
+  "role-badge": "the '!' flag on a track header whose kind differs from its bus's role",
+  "bus-reapply":
+    "the Reapply text button in a bus header, shown while a track differs from the role",
   mrow: "Alku / Loppu / Pituus rows in the marks corner: a label and a time on one line",
   "lm-clip": "the level meter's clip indicator",
   "clip-main": "a list entry's body (clipboard, markers): the row itself is the button",

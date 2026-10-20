@@ -5,6 +5,7 @@
 // whole drag is one undo step.
 
 import { bindToggle } from "./ab-value.js";
+import { busRoleStatus, roleDiffers } from "./bus-role.js";
 import { busHues, busLetter } from "./grammar.js";
 import { formatDb, formatNumber, t } from "./i18n.js";
 import { addBusForTrack, NEW_BUS } from "./inspector-track.js";
@@ -259,6 +260,11 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     // The kind tag is a button: a click cycles speech / music (Alt+Mod+K).
     const tag = el("button", `tag kind-${track.kind}`, { type: "button", tabindex: "-1" });
     paintTag(tag, track.kind);
+    // Flag beside the kind tag when the track's kind differs from its bus's role; a click
+    // gives it the role (bus-role.js). Shown by update().
+    const roleBadge = el("button", "role-badge", { type: "button", tabindex: "-1" });
+    roleBadge.textContent = "!";
+    roleBadge.hidden = true;
     const channelTag = el("span", "channel-tag");
     // Integrated loudness against the target (WP49); filled in by update() from the analysis.
     const loudness = el("span", "loudness-readout");
@@ -284,7 +290,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     newBus.value = NEW_BUS;
     newBus.textContent = t("ui.bus.option_new");
     bus.append(newBus);
-    top.append(name, tag, channelTag, loudness, bus, buttons);
+    top.append(name, tag, roleBadge, channelTag, loudness, bus, buttons);
     const controls = el("div", "th-controls");
     const gain = slider(t("ui.track.gain"), GAIN);
     const pan = slider(t("ui.track.pan"), PAN);
@@ -339,6 +345,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     node.addEventListener("contextmenu", (event) => actions.contextMenu("track", id, event));
     name.addEventListener("dblclick", () => rename(name, id));
     tag.addEventListener("click", () => actions.cycleKind(id));
+    roleBadge.addEventListener("click", () => actions.matchRole(id));
     mute.addEventListener("click", () => {
       const now = !lookup(id).mute;
       send("mute", now);
@@ -397,7 +404,20 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       format: panText,
       scale: 100,
     });
-    return { node, name, tag, channelTag, loudness, mute, solo, bus, gain, pan, kind: "track" };
+    return {
+      node,
+      name,
+      tag,
+      roleBadge,
+      channelTag,
+      loudness,
+      mute,
+      solo,
+      bus,
+      gain,
+      pan,
+      kind: "track",
+    };
   }
 
   function buildBus(bus, index) {
@@ -422,12 +442,19 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     const faderLabel = el("span", "fader-label", { "aria-hidden": "true" });
     faderLabel.textContent = t("ui.bus.fader");
     controls.append(faderLabel, gain.wrap, pan.wrap);
-    top.append(chevron, badge, name, buttons);
+    // The bus's role; with an asterisk and a Reapply button while some track differs.
+    const roleLabel = el("span", "bus-role");
+    roleLabel.hidden = true;
+    const reapply = el("button", "bus-reapply", { type: "button", tabindex: "-1" });
+    reapply.textContent = t("ui.bus.reapply");
+    reapply.hidden = true;
+    top.append(chevron, badge, name, roleLabel, reapply, buttons);
     node.append(top, controls);
     const id = bus.id;
     node.addEventListener("pointerdown", () => actions.currentBus(id));
     node.addEventListener("focusin", () => actions.currentBus(id));
     chevron.addEventListener("click", () => actions.toggleBus(id));
+    reapply.addEventListener("click", () => actions.reapplyRole(id));
     // Double-click the header itself, not its buttons, sliders or the name being edited.
     node.addEventListener("dblclick", (event) => {
       if (!event.target.closest("button, input, select, label, output")) actions.toggleBus(id);
@@ -481,7 +508,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       format: panText,
       scale: 100,
     });
-    return { node, name, mute, gain, pan, chevron, kind: "bus" };
+    return { node, name, roleLabel, reapply, mute, gain, pan, chevron, kind: "bus" };
   }
 
   // The latest project, for handlers that need a value that may have changed.
@@ -574,6 +601,14 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         );
         if (parts.name.isConnected) fitName(parts.name, track.name);
         if (!parts.tag.classList.contains(`kind-${track.kind}`)) paintTag(parts.tag, track.kind);
+        const differs = roleDiffers(state.project, track);
+        parts.roleBadge.hidden = !differs;
+        if (differs) {
+          const role = kindLabel(state.project.buses.find((item) => item.id === track.bus).kind);
+          const text = t("ui.track.role_differs", { role });
+          parts.roleBadge.title = text;
+          parts.roleBadge.setAttribute("aria-label", text);
+        }
         const channels = monoTag(track, state.project);
         parts.channelTag.hidden = channels === null;
         parts.channelTag.textContent = channels ? t(`ui.track.tag.${channels}`) : "";
@@ -601,6 +636,17 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         parts.chevron.setAttribute("aria-label", verb);
         parts.chevron.title = verb;
         parts.chevron.textContent = row.collapsed ? "\u25B8" : "\u25BE";
+        const status = busRoleStatus(state.project, bus.id);
+        parts.roleLabel.hidden = status.role === null;
+        parts.reapply.hidden = status.differ === 0;
+        if (status.role !== null) {
+          const mark = status.differ > 0 ? " *" : "";
+          parts.roleLabel.textContent = `${kindLabel(status.role)}${mark}`;
+          parts.roleLabel.title =
+            status.differ > 0
+              ? t("ui.bus.role_partial", { differ: status.differ, total: status.total })
+              : t("ui.bus.role", { role: kindLabel(status.role) });
+        }
         parts.mute.setAttribute("aria-pressed", String(bus.mute));
         setSlider(parts.gain, bus.gain_db, formatDb(bus.gain_db));
         setSlider(parts.pan, Math.round(bus.pan * 100), panText(bus.pan));

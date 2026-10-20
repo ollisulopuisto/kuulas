@@ -7,6 +7,7 @@ import { SIDE_TAB_COMMANDS } from "./app-commands.js";
 import { createAutomixDialog } from "./automix-dialog.js";
 import { automixNotice } from "./automix-model.js";
 import { memberClipsAt, toggleChange } from "./bus-collapse.js";
+import { trackRoleChoice } from "./bus-role.js";
 import { listedRows, scrollToShow, stepTarget } from "./candidates-model.js";
 import { createCandidatesPanel } from "./candidates-panel.js";
 import { previewRequest } from "./candidates-preview.js";
@@ -1600,6 +1601,15 @@ const trackHeaders = createTrackHeaders({
       setState(focusTrackPatch(getState(), id));
       keyboard.registry.run("track.cycle_kind", null, getState());
     },
+    // The role badge on a track header, and the "Reapply" button on a bus header.
+    matchRole: (id) => {
+      setState(focusTrackPatch(getState(), id));
+      keyboard.registry.run("track.match_role", null, getState());
+    },
+    reapplyRole: (id) => {
+      setState({ focusBus: id, focusTrack: null });
+      keyboard.registry.run("bus.reapply_role", null, getState());
+    },
     currentBus: (id) => {
       const patch = headerFocusPatch(getState());
       if (getState().focusBus !== id || patch) setState({ focusBus: id, ...patch });
@@ -1623,7 +1633,19 @@ function showHeaderMenu(kind, id, event) {
   if (kind === "track") setState({ ...focusTrackPatch(getState(), id), selection: new Set() });
   else setState({ focusBus: id, focusTrack: null });
   const state = getState();
-  const target = kind === "bus" ? { kind, collapsed: state.collapsedBuses.has(id) } : { kind };
+  const track = state.project.tracks.find((item) => item.id === id);
+  const target =
+    kind === "bus"
+      ? {
+          kind,
+          collapsed: state.collapsedBuses.has(id),
+          role: state.project.buses.find((bus) => bus.id === id)?.kind ?? null,
+        }
+      : {
+          kind,
+          choice: trackRoleChoice(state.project, track),
+          busRole: state.project.buses.find((bus) => bus.id === track?.bus)?.kind ?? null,
+        };
   const items = contextMenuItems(target, (command) => keyboard.registry.can(command, state));
   // From the keyboard (the menu key) the event has no pointer position: use the header.
   const box = event.currentTarget.getBoundingClientRect();

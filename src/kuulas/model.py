@@ -186,6 +186,10 @@ class Track:
     # stems, loudness). False (the default) keeps the source's channels; an
     # old reader ignores the field and plays stereo.
     mono: bool = False
+    # True: the track's kind is its bus's role, kept equal by the ops (set_bus,
+    # set_track, add_track), so readers of ``kind`` need no lookup. Optional in the
+    # file: an old project (or reader) has False and is untouched.
+    follow_bus_role: bool = False
     extra: dict = field(default_factory=dict, hash=False)
 
     def to_dict(self) -> dict:
@@ -200,6 +204,8 @@ class Track:
             del d["target_lufs"]  # same reason: unset tracks keep their bytes
         if not self.mono:
             del d["mono"]  # and stereo tracks keep theirs
+        if not self.follow_bus_role:
+            del d["follow_bus_role"]
         return d
 
     @classmethod
@@ -222,6 +228,9 @@ class Bus:
     gain_db: float = 0.0
     pan: float = 0.0
     mute: bool = False
+    # Role the tracks on this bus take ("speech" | "music"); None: no role.
+    # Optional in the file; older readers keep it as an unknown field.
+    kind: str | None = None
     extra: dict = field(default_factory=dict, hash=False)
 
     def to_dict(self) -> dict:

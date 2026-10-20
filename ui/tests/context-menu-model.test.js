@@ -15,11 +15,20 @@ describe("bus header menu", () => {
   });
   test("collapse, rename, mute, ungroup; labels are the command labels", () => {
     const items = contextMenuItems({ kind: "bus", collapsed: false }, can([]));
-    assert.deepEqual(ids(items), ["bus.collapse", "rename", "bus.mute", "-", "bus.ungroup"]);
-    assert.deepEqual(
-      items.filter((i) => i.id).map((i) => i.labelKey),
-      ["cmd.bus.collapse", "cmd.rename", "cmd.bus.mute", "cmd.bus.ungroup"],
-    );
+    assert.deepEqual(ids(items), [
+      "bus.collapse",
+      "rename",
+      "bus.mute",
+      "-",
+      "bus.role_speech",
+      "bus.role_music",
+      "bus.role_none",
+      "bus.reapply_role",
+      "-",
+      "bus.ungroup",
+    ]);
+    assert.equal(items[0].labelKey, "cmd.bus.collapse");
+    assert.equal(items[9].labelKey, "cmd.bus.ungroup");
   });
   test("enabled comes from the predicate", () => {
     const items = contextMenuItems({ kind: "bus", collapsed: false }, can(["rename"]));
@@ -28,6 +37,10 @@ describe("bus header menu", () => {
       "bus.collapse": false,
       rename: true,
       "bus.mute": false,
+      "bus.role_speech": false,
+      "bus.role_music": false,
+      "bus.role_none": false,
+      "bus.reapply_role": false,
       "bus.ungroup": false,
     });
   });
@@ -41,11 +54,35 @@ describe("track header menu", () => {
       "track.mute",
       "track.solo",
       "-",
+      "track.match_role",
+      "track.role_speech",
+      "track.role_music",
+      "-",
       "track.group_into_bus",
       "track.remove_from_bus",
     ]);
     assert.equal(items[1].enabled, true);
     assert.equal(items[2].enabled, false);
+  });
+});
+
+describe("role items are radio-style", () => {
+  const marked = (items) => items.filter((i) => i.checked).map((i) => i.id);
+  test("the bus's current role is marked; no role marks No role", () => {
+    const bus = (role) => contextMenuItems({ kind: "bus", role }, can([]));
+    assert.deepEqual(marked(bus("music")), ["bus.role_music"]);
+    assert.deepEqual(marked(bus(null)), ["bus.role_none"]);
+  });
+  test("the track's choice is marked; Match shows the bus's role in brackets", () => {
+    const track = (choice, busRole) =>
+      contextMenuItems({ kind: "track", choice, busRole }, can(["track.match_role"]));
+    assert.deepEqual(marked(track("match", "music")), ["track.match_role"]);
+    assert.deepEqual(marked(track("speech", "music")), ["track.role_speech"]);
+    const match = track("match", "music").find((i) => i.id === "track.match_role");
+    assert.equal(match.labelKey, "cmd.track.match_role.with");
+    assert.deepEqual(match.values, { role: { key: "ui.role.music" } });
+    const plain = track("music", null).find((i) => i.id === "track.match_role");
+    assert.equal(plain.labelKey, "cmd.track.match_role");
   });
 });
 

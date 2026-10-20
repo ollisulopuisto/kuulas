@@ -81,15 +81,18 @@ TRACK_KINDS = {"speech", "music"}
 
 
 def add_track(p: Project, track_id: str | None = None, name: str = "Track",
-              kind: str = "speech", speaker: str = "") -> Project:
+              kind: str = "speech", speaker: str = "",
+              bus: str | None = None) -> Project:
     if kind not in TRACK_KINDS:
         raise EditError("error.edit.bad_track_kind", kind=kind)
     track_id = track_id or new_id("t")
     if any(t.id == track_id for t in p.tracks):
         raise EditError("error.edit.track_exists", track_id=track_id)
-    return replace(p, tracks=(*p.tracks, Track(
+    p = replace(p, tracks=(*p.tracks, Track(
         id=track_id, name=name, kind=kind, speaker=speaker,
     )))
+    # On a bus with a role the new track follows it (set_track's rule for a move).
+    return p if bus is None else set_track(p, track_id, bus=bus)
 
 
 def delete_empty_tracks(p: Project) -> Project:
@@ -110,7 +113,7 @@ def delete_track(p: Project, track_id: str) -> Project:
 
 
 TRACK_FIELDS = {"name", "kind", "speaker", "bus", "gain_db", "pan", "mute", "solo",
-                "target_lufs", "mono"}
+                "target_lufs", "mono", "follow_bus_role"}
 
 
 def set_track(p: Project, track_id: str, **fields) -> Project:
@@ -121,6 +124,25 @@ def set_track(p: Project, track_id: str, **fields) -> Project:
         raise EditError("error.edit.bad_track_kind", kind=fields["kind"])
     if fields.get("bus") is not None and not any(b.id == fields["bus"] for b in p.buses):
         raise EditError("error.edit.no_bus", bus_id=fields["bus"])
+    # Bus roles. Invariant: follow_bus_role implies kind == the bus's role.
+    track = _find_track(p, track_id)
+    bus_after = fields.get("bus", track.bus)
+    role = next((b.kind for b in p.buses if b.id == bus_after), None)
+    if "follow_bus_role" in fields:
+        fields["follow_bus_role"] = bool(fields["follow_bus_role"])
+        if fields["follow_bus_role"]:
+            if role is None:
+                raise EditError("error.edit.no_bus_role")
+            fields["kind"] = role
+    elif "bus" in fields:
+        # A move onto a bus with a role follows it (an explicit kind is an override);
+        # onto a bus without one, or off a bus, the track follows nothing.
+        follow = role is not None and "kind" not in fields
+        fields["follow_bus_role"] = follow
+        if follow:
+            fields["kind"] = role
+    elif "kind" in fields:
+        fields["follow_bus_role"] = False  # set by hand: an override
     if "pan" in fields:
         fields["pan"] = max(-1.0, min(1.0, float(fields["pan"])))
     if "mono" in fields:
@@ -189,7 +211,7 @@ def add_bus(p: Project, bus_id: str | None = None, name: str = "Bus",
     return p
 
 
-BUS_FIELDS = {"name", "gain_db", "pan", "mute"}
+BUS_FIELDS = {"name", "gain_db", "pan", "mute", "kind"}
 
 
 def set_bus(p: Project, bus_id: str, **fields) -> Project:
@@ -200,13 +222,27 @@ def set_bus(p: Project, bus_id: str, **fields) -> Project:
         bus = p.bus(bus_id)
     except KeyError:
         raise EditError("error.edit.no_bus", bus_id=bus_id) from None
-    return replace(p, buses=tuple(replace(bus, **fields) if b.id == bus_id else b
-                                  for b in p.buses))
+    if fields.get("kind") is not None and fields["kind"] not in TRACK_KINDS:
+        raise EditError("error.edit.bad_track_kind", kind=fields["kind"])
+    p = replace(p, buses=tuple(replace(bus, **fields) if b.id == bus_id else b
+                               for b in p.buses))
+    if "kind" in fields:
+        # The role goes to every track on the bus through set_track, the one path
+        # that changes a track's kind (also when the role is unchanged: that is how
+        # an override is put right). A cleared role leaves the kinds, ends following.
+        for track in p.tracks:
+            if track.bus == bus_id:
+                if fields["kind"] is None:
+                    p = _replace_track(p, replace(track, follow_bus_role=False))
+                else:
+                    p = set_track(p, track.id, follow_bus_role=True)
+    return p
 
 
 def delete_bus(p: Project, bus_id: str) -> Project:
     p = set_bus(p, bus_id)  # existence check
-    tracks = tuple(replace(t, bus=None) if t.bus == bus_id else t for t in p.tracks)
+    tracks = tuple(replace(t, bus=None, follow_bus_role=False) if t.bus == bus_id else t
+                   for t in p.tracks)
     return replace(p, buses=tuple(b for b in p.buses if b.id != bus_id), tracks=tracks)
 
 

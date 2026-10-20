@@ -5,6 +5,7 @@
 // in track-target.js.
 
 import { bindToggle } from "./ab-value.js";
+import { trackRoleChoice } from "./bus-role.js";
 import { t } from "./i18n.js";
 import { coalesceKey, patchBus, patchSolo, patchTrack } from "./provisional.js";
 import { laneMates, speakerArgs } from "./track-kind.js";
@@ -13,6 +14,9 @@ import { busMembers, busOptions, roleOptionKey, TRACK_KINDS } from "./track-targ
 // The Bus select's last option: not a bus id, it asks for a new bus.
 /** The value of the "+ New bus…" choice, in the inspector and in the track header. */
 export const NEW_BUS = "__new__";
+/** The role of the bus a track is on, or null (no bus, or a bus without a role). */
+const busKindOf = (project, track) =>
+  project.buses.find((bus) => bus.id === track.bus)?.kind ?? null;
 const GAIN = { min: -60, max: 12, step: 0.1 };
 const PAN = { min: -100, max: 100, step: 1 };
 
@@ -172,6 +176,11 @@ export function buildTrackSections({ target, editor, place, latest, onBusCreated
     const role = document.createElement("select");
     role.className = "inspector-select";
     role.setAttribute("aria-label", t("ui.track.role"));
+    // First (the default): follow the bus's role, shown in brackets; off when the track has
+    // no bus, or the bus has no role. Then the two roles, set by hand.
+    const matchOption = document.createElement("option");
+    matchOption.value = "match";
+    role.append(matchOption);
     for (const kind of TRACK_KINDS) {
       const option = document.createElement("option");
       option.value = kind;
@@ -179,7 +188,24 @@ export function buildTrackSections({ target, editor, place, latest, onBusCreated
       role.append(option);
     }
     role.title = t("ui.track.role.hint");
-    role.addEventListener("change", () => send("kind", role.value));
+    role.addEventListener("change", () => {
+      if (role.value !== "match") {
+        editor.change({
+          op: "set_track",
+          args: { track_id: id, kind: role.value },
+          coalesce: null,
+          provisional: (p) => patchTrack(p, id, { kind: role.value, follow_bus_role: false }),
+        });
+        return;
+      }
+      const busKind = busKindOf(latest().project, lookup());
+      editor.change({
+        op: "set_track",
+        args: { track_id: id, follow_bus_role: true },
+        coalesce: null,
+        provisional: (p) => patchTrack(p, id, { follow_bus_role: true, kind: busKind }),
+      });
+    });
     into.append(field(t("ui.track.role"), role));
     // Speaker: blank means the track name; same speaker = one microphone in the analysis.
     const speaker = document.createElement("input");
@@ -250,7 +276,12 @@ export function buildTrackSections({ target, editor, place, latest, onBusCreated
       const current = state.project.tracks.find((item) => item.id === id);
       if (!current) return;
       setIfIdle(name, current.name);
-      if (document.activeElement !== role) role.value = current.kind;
+      const busKind = busKindOf(state.project, current);
+      matchOption.disabled = !busKind;
+      matchOption.textContent = busKind
+        ? t("ui.track.role_match_with", { role: t(`ui.role.${busKind}`) })
+        : t("ui.track.role_match_none");
+      if (document.activeElement !== role) role.value = trackRoleChoice(state.project, current);
       speaker.placeholder = current.name;
       setIfIdle(speaker, current.speaker ?? "");
       const sharing = laneMates(state.project, id);
@@ -307,6 +338,9 @@ export function buildTrackSections({ target, editor, place, latest, onBusCreated
     into.append(field(t("ui.bus.parent"), readonly(t("ui.bus.parent.none"))));
     const members = readonly("");
     into.append(field(t("ui.bus.members"), members));
+    // Set from the bus header's menu (Role), which gives every track on it the role.
+    const busRole = readonly("");
+    into.append(field(t("ui.bus.role_field"), busRole));
     parts.push((state) => {
       const current = state.project.buses.find((item) => item.id === id);
       if (!current) return;
@@ -315,6 +349,7 @@ export function buildTrackSections({ target, editor, place, latest, onBusCreated
       setIfIdle(pan, Math.round(current.pan * 100));
       mute.checked = Boolean(current.mute);
       members.textContent = String(busMembers(state.project, id));
+      busRole.textContent = current.kind ? t(`ui.role.${current.kind}`) : t("ui.bus.role_none");
     });
   }
 

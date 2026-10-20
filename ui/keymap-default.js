@@ -882,6 +882,48 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.bus.ungroup",
   },
   {
+    id: "bus.role_speech",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.bus.role_speech",
+  },
+  {
+    id: "bus.role_music",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.bus.role_music",
+  },
+  {
+    id: "bus.role_none",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.bus.role_none",
+  },
+  {
+    id: "bus.reapply_role",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.bus.reapply_role",
+  },
+  {
+    id: "track.match_role",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.track.match_role",
+  },
+  {
+    id: "track.role_speech",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.track.role_speech",
+  },
+  {
+    id: "track.role_music",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.track.role_music",
+  },
+  {
     id: "track.remove_from_bus",
     keys: { mac: null, other: null },
     context: "timeline",

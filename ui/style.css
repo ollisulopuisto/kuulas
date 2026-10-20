@@ -1914,6 +1914,42 @@ input[type="text"] {
 .bus-chevron[hidden] {
   display: none;
 }
+/* Role differs from the bus's: a small amber flag on the track, "Music *" and Reapply on the bus. */
+.role-badge {
+  flex: none;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
+  padding: 0;
+  display: grid;
+  place-items: center;
+  font: var(--weight-strong) var(--text-xs) / 1 var(--font-ui);
+  color: var(--warn-text);
+  background: var(--warn-subtle);
+  border: 1px solid var(--warn);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+}
+.role-badge[hidden],
+.bus-role[hidden],
+.bus-reapply[hidden] {
+  display: none;
+}
+.bus-role {
+  flex: none;
+  color: var(--bus-text, var(--text-secondary));
+  font-size: var(--text-xs);
+}
+.bus-reapply {
+  flex: none;
+  height: var(--control-h-sm);
+  padding: 0 var(--space-2);
+  font: var(--weight-strong) var(--text-xs) / 1 var(--font-ui);
+  color: var(--warn-text);
+  background: var(--warn-subtle);
+  border: 1px solid var(--warn);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+}
 .menu-item[data-alternate] {
   color: var(--accent-text);
 }

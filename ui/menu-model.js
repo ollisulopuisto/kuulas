@@ -3,6 +3,8 @@
 // the registry and the keymap the user has, so a remapped key shows at once.
 // Holding Alt or Shift swaps an item for its alternate (modifiers.js).
 
+import { busOfFocus } from "./bus-collapse.js";
+import { trackRoleChoice } from "./bus-role.js";
 import { EXPORT_FORMAT_IDS } from "./export-commands.js";
 import { formatCombo } from "./keymap-config.js";
 import { modifierLayers, pickLayer } from "./modifiers.js";
@@ -39,7 +41,21 @@ export const PALETTE_ONLY = EXPORT_FORMAT_IDS.flatMap((format) => [
  * Menu items that are switches: base command id -> whether it is on in a state. The menu
  * shows them checked (aria-checked); other items carry no `checked` at all.
  */
+const focusedTrackChoice = (state) => {
+  const track = state?.project?.tracks?.find((item) => item.id === state.focusTrack);
+  return track ? trackRoleChoice(state.project, track) : null;
+};
+
+const focusedBusRole = (state) =>
+  state?.project?.buses?.find((bus) => bus.id === busOfFocus(state))?.kind ?? null;
+
 export const CHECKED = {
+  "track.match_role": (state) => focusedTrackChoice(state) === "match",
+  "track.role_speech": (state) => focusedTrackChoice(state) === "speech",
+  "track.role_music": (state) => focusedTrackChoice(state) === "music",
+  "bus.role_speech": (state) => focusedBusRole(state) === "speech",
+  "bus.role_music": (state) => focusedBusRole(state) === "music",
+  "bus.role_none": (state) => focusedBusRole(state) === null,
   "view.clip_words": (state) => state?.showClipWords !== false,
   "view.clipboard_limit": (state) => state?.clipboardLimit !== false,
   "sync.confirm": (state) => state?.confirmSync !== false,
@@ -308,6 +324,9 @@ export const MENU = [
       item("track.solo"),
       item("track.solo_add"),
       item("track.cycle_kind"),
+      item("track.match_role"),
+      item("track.role_speech"),
+      item("track.role_music"),
       SEP,
       item("track.group_into_bus"),
       item("track.new_bus"),
@@ -315,7 +334,17 @@ export const MENU = [
       {
         kind: "submenu",
         labelKey: "menu.bus",
-        items: [item("bus.collapse"), item("bus.expand"), item("bus.mute"), item("bus.ungroup")],
+        items: [
+          item("bus.collapse"),
+          item("bus.expand"),
+          item("bus.mute"),
+          item("bus.ungroup"),
+          SEP,
+          item("bus.role_speech"),
+          item("bus.role_music"),
+          item("bus.role_none"),
+          item("bus.reapply_role"),
+        ],
       },
       SEP,
       submenu("menu.auto", [

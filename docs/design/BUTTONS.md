@@ -87,6 +87,8 @@ here and in `SPECIAL` in `ui/tests/button-rulebook.test.js`.
 | `.track-name` | the track name | a label; double-click renames |
 | `.tag` | speech / music kind tag | a tag in the header |
 | `.bus-chevron` | the bus disclosure chevron | disclosure |
+| `.role-badge` | the "!" flag on a track whose kind differs from its bus's role | a status flag in the header; click matches the role |
+| `.bus-reapply` | "Reapply" in a bus header while a track differs from the bus role | a header-sized text button, only shown when needed |
 | `.mrow` | Alku / Loppu / Pituus in the marks corner | a label and a time on one line |
 | `.lm-clip` | level meter clip light | an indicator |
 | `.clip-main` | a list entry's body (clipboard, markers) | the row is the button |

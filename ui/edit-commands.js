@@ -1,6 +1,8 @@
 // The editing commands: B, X, Backspace and the rest of the sheet's edit keys.
 // Each one is a plan (edit-plans.js) sent through the editor; `can()` asks the same
 // plan whether there is anything to do. Keys live in keymap-default.js, never here.
+
+import { busRolePlan, matchRolePlan, reapplyRolePlan, trackRolePlan } from "./bus-role.js";
 import { expandGroups, groupClipsPlan, mergeClipsPlan, ungroupClipsPlan } from "./clip-groups.js";
 import { CLIPBOARD_VIEWS, keepCount, pasteChoice } from "./clipboard.js";
 import {
@@ -228,6 +230,13 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
   planned("track.cycle_kind", cycleKindPlan);
   planned("bus.mute", busMutePlan);
   planned("bus.ungroup", ungroupPlan);
+  planned("bus.role_speech", (s) => busRolePlan(s, "speech"));
+  planned("bus.role_music", (s) => busRolePlan(s, "music"));
+  planned("bus.role_none", (s) => busRolePlan(s, null));
+  planned("bus.reapply_role", reapplyRolePlan);
+  planned("track.match_role", matchRolePlan);
+  planned("track.role_speech", (s) => trackRolePlan(s, "speech"));
+  planned("track.role_music", (s) => trackRolePlan(s, "music"));
   planned("track.remove_from_bus", removeFromBusPlan);
 
   // Creating a bus: once the server has answered, the new one (always the last) gets the
