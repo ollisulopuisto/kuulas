@@ -599,6 +599,13 @@ class Engine:
             self._seq += 1
         return True
 
+    @property
+    def is_playing(self) -> bool:
+        """Whether audio plays, for the playback gate (``priority.GATE``): one
+        attribute read, no ``_tlock``, so background threads that poll it never
+        contend with the audio callback."""
+        return self._playing
+
     def stop(self) -> None:
         """Stop where the sound was: the playhead stays at the heard frame
         (after a preview: where it was before it), and nothing the device

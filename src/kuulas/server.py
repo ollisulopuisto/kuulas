@@ -56,6 +56,7 @@ from . import (
     messages,
     music_report,
     new_project,
+    priority,
     project_stats,
     transcribe,
 )
@@ -384,6 +385,9 @@ def create_app(session, engine, *, language: str | None = None,
     # loop's default executor (asyncio.to_thread): a pile of other work queued
     # there must not hold the playhead up. One thread: a reading is quick.
     live_reader = ThreadPoolExecutor(max_workers=1, thread_name_prefix="kuulas-live")
+    # Background work yields to playback (docs/PLAYBACK-PRIORITY.md): the gate
+    # reads the engine's lock-free flag; a fake engine without one never plays.
+    priority.GATE.watch(lambda: bool(getattr(engine, "is_playing", False)))
 
     session.subscribe(lambda _state: hub.publish(
         {"type": "state_changed", "head": session.history.head}))
@@ -416,6 +420,7 @@ def create_app(session, engine, *, language: str | None = None,
                                                default_language))
         if request.url.path != "/api/jobs" and request.method != "GET":
             app.state.last_input = time.monotonic()
+            priority.GATE.note_input()
         try:
             return await call_next(request)
         except Exception as e:
@@ -1303,6 +1308,7 @@ def create_app(session, engine, *, language: str | None = None,
         elif action == "seek":
             engine.seek(body.at)
         elif action == "scrub":
+            priority.GATE.note_input(scrub=True)
             engine.scrub(body.at)
         else:
             raise BadRequestError("error.server.bad_transport", action=action)

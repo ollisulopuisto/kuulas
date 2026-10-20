@@ -2126,4 +2126,7 @@
   "ui.silence.preview_failed": "The preview failed.",
   "ui.silence.preview_row": "{name}: would close {close} s in {stretches} stretches (now: {now} s)",
   "ui.silence.error_number": "Type a number.",
-  "ui.silence.error_range": "Between {low} and {high}."}
+  "ui.silence.error_range": "Between {low} and {high}.",
+  "job.paused_playing": "Paused while playing",
+  "log.offload.fallback": "The analysis worker did not answer ({error}); measuring in the editor instead.",
+  "error.offload.failed": "The analysis failed: {error}"}

@@ -20,7 +20,6 @@ import os
 import sqlite3
 import threading
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any
@@ -50,10 +49,12 @@ from . import (
     import_plan,
     narration,
     narration_script,
+    offload,
     onsets,
     ops,
     package,
     preview_level,
+    priority,
     project_stats,
     silence_options,
     source_map,
@@ -586,9 +587,7 @@ class Session:
             val = measure_clip(self.store, clip, state.rate, mono=mono[clip.id])
             return clip.id, val
 
-        with ThreadPoolExecutor(max_workers=max_workers,
-                               thread_name_prefix="kuulas-session") as executor:
-            measured_results = list(executor.map(_measure, clips_to_measure))
+        measured_results = priority.gated_map(_measure, clips_to_measure, max_workers)
 
         matched: list[tuple[str, float, float]] = []
         skipped: list[str] = []
@@ -1155,7 +1154,9 @@ class Session:
 
         def run(progress):
             progress(0.0, "", True)
-            rows = analysis.preview_silence(snapshot, self.store, options, track_ids)
+            # In the analysis worker (offload): its own GIL, stopped while playing.
+            rows = offload.call("preview_silence", snapshot, self.store, options,
+                                track_ids, cancel=progress.cancelled_event)
             if progress.cancelled:
                 raise JobCancelledError
             return {"tracks": rows, "options": options.as_dict()}
@@ -1200,8 +1201,11 @@ class Session:
         changed."""
         with self.lock:
             state = self.history.state
-        return loudness_curve_module.project_curves(
-            state, self.store, getattr(self.store, "cache_root", None))
+        # The UI asks for this by itself after edits: background work, so the
+        # analysis worker is stopped while audio plays (docs/PLAYBACK-PRIORITY.md).
+        with priority.background():
+            return offload.call("project_curves", state, self.store,
+                                getattr(self.store, "cache_root", None))
 
     def send_copy_plan(self) -> dict:
         """What each audio choice of File > Send a copy… would carry."""
@@ -1453,7 +1457,7 @@ class Session:
         plays (nothing of it is heard there). Reads audio, so never under the
         lock. A failure costs the level data, never the detection."""
         try:
-            closed = analysis.raw_silence_ranges(project, self.store)
+            closed = offload.call("raw_silence_ranges", project, self.store)
         except (KuulasError, OSError, ValueError) as e:
             log.warning(t("log.candidates.levels_failed", error=str(e)))
             return None
@@ -2608,7 +2612,9 @@ class Session:
 
 def _auto_silence(s: Session, args: dict) -> Project:
     options = silence_options.parse(args)
-    new = analysis.auto_silence(s.history.state, s.store, args.get("track_ids"), options)
+    state = s.history.state
+    ranges = offload.call("silence_ranges", state, s.store, options)
+    new = analysis.apply_silence(state, ranges, args.get("track_ids"))
     return s._commit(t("history.auto_silence"), new, "auto_silence", args)
 
 
@@ -2626,12 +2632,16 @@ def _open_gates(s: Session, args: dict) -> Project:
 
 def _automix(s: Session, args: dict) -> Project:
     kwargs = {} if "depth_db" not in args else {"depth_db": float(args["depth_db"])}
-    new = analysis.automix(s.history.state, s.store, **kwargs)
+    state = s.history.state
+    lanes = offload.call("speech_lanes", state, s.store)
+    new = analysis.automix(state, s.store, lanes=lanes, **kwargs)
     return s._commit(t("history.automix"), new, "automix", args)
 
 
 def _duck_music(s: Session, args: dict) -> Project:
-    new = analysis.duck_music(s.history.state, s.store)
+    state = s.history.state
+    intervals = offload.call("anyone_talking_intervals", state, s.store)
+    new = analysis.duck_music(state, s.store, intervals=intervals)
     return s._commit(t("history.duck_music"), new, "duck_music", args)
 
 

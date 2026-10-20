@@ -12,6 +12,12 @@ project's own timeline. Two consumers:
 Only ``kind == "speech"`` tracks are measured. They are read as mono (a
 stereo source is averaged, as ``speechmix.rms`` does), so stereo music
 cannot register as a talker.
+
+Playback first (docs/PLAYBACK-PRIORITY.md): the editor runs these through
+``offload``, in a separate low-priority process with its own GIL. When they do
+run here (a store the worker cannot reopen, a worker that failed, tests), the
+per-track pool is ``priority.gated_map`` and every audio chunk passes
+``priority.checkpoint``: background callers pause while audio plays.
 """
 
 from __future__ import annotations
@@ -19,7 +25,6 @@ from __future__ import annotations
 import itertools
 import logging
 from collections.abc import Iterable
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from types import SimpleNamespace
 
@@ -30,7 +35,7 @@ from speechmix import envelopes, grid, masks
 from speechmix.dsp import FLOOR_DB
 from speechmix.stems import Lanes
 
-from . import bleed_relative, gate, levels, ops
+from . import bleed_relative, gate, levels, ops, priority
 from .media import workers
 from .messages import t
 from .mixer import Store
@@ -152,6 +157,7 @@ def _from_audio(p: Project, store: Store, clips) -> tuple[np.ndarray, np.ndarray
     valid = np.zeros(n, dtype=bool)
     step = (CHUNK_SEC * p.rate // hop) * hop
     for first in range(0, n * hop, step):
+        priority.checkpoint()
         count = min(step, n * hop - first)
         buf = np.zeros(count, dtype=np.float64)
         cover = np.zeros(count, dtype=bool)
@@ -176,15 +182,15 @@ def speech_lanes(p: Project, store: Store,
     Tracks with the same speaker are grouped into one lane. Tracks are
     measured one per core: each measurement is independent, numpy releases
     the GIL in the heavy parts, and the decision below is per lane, so the
-    result is the same as serial.
+    result is the same as serial. Under the playback gate: one track at a
+    time while the user is busy, none started while audio plays.
     """
     tracks = [t for t in p.tracks if t.kind == "speech"
               and not t.mute and t.clips]
     if not tracks:
         return Lanes(speakers=[])
-    with ThreadPoolExecutor(max_workers=max(1, min(len(tracks), workers())),
-                           thread_name_prefix="kuulas-analysis") as pool:
-        measured = list(pool.map(lambda track: track_levels(p, store, track), tracks))
+    measured = priority.gated_map(lambda track: track_levels(p, store, track), tracks,
+                                  max(1, min(len(tracks), workers())))
 
     speaker_order: list[str] = []
     speaker_parts: dict[str, list] = {}
@@ -311,9 +317,8 @@ def _compensated_ranges(p: Project, store: Store,
         return {}
     hop = hop_frames(p.rate)
     q = _unmuted(p)
-    with ThreadPoolExecutor(max_workers=max(1, min(len(tracks), workers())),
-                           thread_name_prefix="kuulas-analysis") as pool:
-        measured = list(pool.map(lambda tr: track_levels(q, store, tr), tracks))
+    measured = priority.gated_map(lambda tr: track_levels(q, store, tr), tracks,
+                                  max(1, min(len(tracks), workers())))
     db = np.stack([m[0] for m in measured]).astype(np.float64)
     valid = np.stack([m[1] for m in measured])
     muted = np.zeros(db.shape, dtype=bool)
@@ -368,8 +373,15 @@ def auto_silence(p: Project, store: Store,
     the track (WP44). Clips are never split. ``track_ids`` limits
     which tracks are changed; every mic is still measured, because whether
     one is closed depends on the others (bleed)."""
+    return apply_silence(p, silence_ranges(p, store, options), track_ids)
+
+
+def apply_silence(p: Project, ranges_by_track: dict[str, gate.Gate],
+                  track_ids: Iterable[str] | None = None) -> Project:
+    """``auto_silence`` with the ranges already measured (``silence_ranges``,
+    perhaps by the analysis worker): set them as the tracks' gates."""
     only = None if track_ids is None else set(track_ids)
-    for track_id, ranges in silence_ranges(p, store, options).items():
+    for track_id, ranges in ranges_by_track.items():
         if only is None or track_id in only:
             # Replaces the track's gate: a second run does not pile up, and a
             # track that now needs no closing is opened again.
@@ -377,9 +389,11 @@ def auto_silence(p: Project, store: Store,
     return p
 
 
-def automix(p: Project, store: Store, depth_db: float = masks.DUCK_DB) -> Project:
-    """Write speechmix's ducking into each speech track's automation."""
-    lanes = speech_lanes(p, store)
+def automix(p: Project, store: Store, depth_db: float = masks.DUCK_DB,
+            lanes: Lanes | None = None) -> Project:
+    """Write speechmix's ducking into each speech track's automation.
+    ``lanes``: ``speech_lanes(p, store)`` already measured (the worker's)."""
+    lanes = speech_lanes(p, store) if lanes is None else lanes
     ducks = envelopes.duck_envelopes(lanes, duck_settings(depth_db), 0.0)
     for track in speech_tracks(p):
         speaker = track.speaker or track.name
@@ -413,9 +427,12 @@ def anyone_talking_intervals(p: Project, store: Store) -> list[tuple[float, floa
     ]
 
 
-def duck_music(p: Project, store: Store) -> Project:
-    """Write nhsx.musicbed.curve as track automation on every music track."""
-    intervals = anyone_talking_intervals(p, store)
+def duck_music(p: Project, store: Store,
+               intervals: list[tuple[float, float]] | None = None) -> Project:
+    """Write nhsx.musicbed.curve as track automation on every music track.
+    ``intervals``: ``anyone_talking_intervals`` already measured (the worker's)."""
+    if intervals is None:
+        intervals = anyone_talking_intervals(p, store)
     first_speech_s = intervals[0][0] if intervals else float("inf")
     music_tracks = [t for t in p.tracks if t.kind == "music"]
     for track in music_tracks:

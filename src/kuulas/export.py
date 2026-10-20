@@ -31,7 +31,7 @@ import threading
 import time
 from collections import deque
 from collections.abc import Callable
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import Future
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -41,7 +41,7 @@ import numpy as np
 import soundfile as sf
 from speechmix import programme
 
-from . import export_formats, mixer, stem_ranges, transcript
+from . import export_formats, mixer, priority, stem_ranges, transcript
 from . import placeholders as placeholders_module
 from .messages import KuulasError, t
 from .model import Project, Track
@@ -481,14 +481,27 @@ def _pump(total: int, rate: int, render: Callable[[int, int], np.ndarray],
 
     At most ``2 * workers`` blocks are in flight, so memory is bounded however
     long the programme is. ``tick(fraction)`` is called after each write.
+
+    Playback first (docs/PLAYBACK-PRIORITY.md): an export runs in the editor's
+    process, so it pauses while audio plays. Every block, here and on the
+    render threads, passes ``priority.checkpoint``: started as a job (the UI's
+    exports are) it waits there; called by a request thread it does not.
     """
     step = max(1, round(BLOCK_SECONDS * rate))
     starts = iter(range(0, total, step))
     done = 0
 
     def check() -> None:
+        try:
+            priority.checkpoint(cancel)
+        except priority.CancelledError:
+            raise _Cancel from None
         if cancel is not None and cancel.is_set():
             raise _Cancel
+
+    def gated_render(start: int, count: int) -> np.ndarray:
+        check()
+        return render(start, count)
 
     if workers <= 1:
         for start in starts:
@@ -499,11 +512,11 @@ def _pump(total: int, rate: int, render: Callable[[int, int], np.ndarray],
             tick(done / total)
         return
     pending: deque[Future] = deque()
-    with ThreadPoolExecutor(workers, thread_name_prefix="kuulas-export") as pool:
+    with priority.executor(workers, "kuulas-export") as pool:
 
         def feed() -> None:
             if (start := next(starts, None)) is not None:
-                pending.append(pool.submit(render, start, min(step, total - start)))
+                pending.append(pool.submit(gated_render, start, min(step, total - start)))
 
         try:
             for _ in range(2 * workers):
@@ -542,8 +555,10 @@ def _mastered(job: _Job, sink, channels: int, render, target_lufs: float, worker
     del audio
     step = max(1, round(BLOCK_SECONDS * rate))
     for start in range(0, total, step):
-        if cancel is not None and cancel.is_set():
-            raise _Cancel
+        try:
+            priority.checkpoint(cancel)
+        except priority.CancelledError:
+            raise _Cancel from None
         sink.write(mastered[:, start:start + step].astype(np.float32))
         tick(0.6 + 0.4 * min(1.0, (start + step) / total))
     keep.unlink(missing_ok=True)
