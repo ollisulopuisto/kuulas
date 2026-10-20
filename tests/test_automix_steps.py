@@ -47,3 +47,29 @@ def test_a_line_between_keeps_the_phase_it_is_in():
 def test_an_unknown_track_still_counts_without_a_total_overrun():
     t = automix.StepTracker([])
     assert "1/1" in t.label("Solo: read")
+
+
+def test_a_reported_stage_is_one_that_has_finished_and_the_next_one_is_named():
+    """The tool prints a stage word when the stage is DONE: the toast must not look as
+    if debleed were still running while the slow plug-in stage works."""
+    t = automix.StepTracker(TRACKS, {"speech_plugins": ["x.vst3"]})
+    line = t.label("[automixer]   Olli: debleed")
+    assert "done" in line
+    assert "now plugin" in line
+
+
+def test_a_stage_that_is_off_is_skipped_and_the_next_running_one_is_named():
+    t = automix.StepTracker(TRACKS, {"speech_debleed": False, "speech_plugins": ["x"]})
+    line = t.label("[automixer]   Olli: debleed")
+    assert "skipped" in line
+    assert "now plugin" in line
+
+
+def test_the_plugin_stage_is_skipped_when_no_plugin_is_chosen():
+    t = automix.StepTracker(TRACKS, {})
+    assert "now cleanup" in t.label("[automixer]   Olli: debleed")
+
+
+def test_the_last_stage_of_a_track_says_the_track_is_finished():
+    t = automix.StepTracker(TRACKS, {})
+    assert "finished" in t.label("[automixer]   Olli: write")

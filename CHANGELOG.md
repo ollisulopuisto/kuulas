@@ -1,3 +1,8 @@
+## [v26.10.20.17] - 2026-10-21
+
+- **Paste overwrites by default again.** Cmd+V pasted by inserting and pushed the later clips back; the change that made paste overwrite (Alt+Cmd+V inserts; with In/Out marked the paste is fitted to the range) had been left out of the release that announced it. Now in.
+- **The automix progress says what is working now.** The automixer prints a stage name when the stage has finished, so "debleed" stayed on screen for minutes while the slow plug-in stage was running. The line now reads, for example, "track 1/4 Olli: debleed skipped (2/9), now plugin", and a stage that is switched off says "skipped".
+
 ## [v26.10.20.16] - 2026-10-21
 
 - **The Loop button shows clearly when it is on:** accent fill and outline instead of the faint grey every toggle had.

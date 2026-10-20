@@ -759,17 +759,36 @@ _TRACK_LINE = re.compile(
 
 class StepTracker:
     """Numbers the automixer's steps for the progress line. The tool does not: it
-    prints stage words per track ("Olli: debleed") and the mastering. Phases are 1
-    stems (Kuulas), 2 analysis, 3 tracks (track i of n, stage j of 9), 4 mastering;
-    a line that names no stage keeps the phase it is in."""
+    prints a stage word per track when the stage is DONE ("Olli: debleed") and the
+    mastering. So the line says what has finished and which stage works now (the slow
+    plug-in stage would otherwise sit under "debleed" for minutes). Phases are 1 stems
+    (Kuulas), 2 analysis, 3 tracks (track i of n, stage j of 9), 4 mastering; a line that
+    names no stage keeps the phase it is in. ``options`` are the run's options: stages
+    that are off are reported as skipped and not named as what works now."""
 
-    def __init__(self, track_names: list[str]):
+    def __init__(self, track_names: list[str], options: dict | None = None):
         self.names = list(track_names)
+        self.options = options or {}
         self.phase = 2
 
     def stems(self, message: str = "") -> str:
         return t("ui.automix.step", phase=1, phases=PHASES,
                  what=message or t("ui.automix.step_stems"))
+
+    def _on(self, stage: str) -> bool:
+        if stage == "plugin":
+            return bool(self.options.get("speech_plugins"))
+        key = _STAGE_OPTION.get(stage)
+        if key is None:
+            return True
+        on = self.options.get(key, OPTIONS[key]["default"])
+        return on and not (self.options.get("minimal") and OPTIONS[key].get("minimal"))
+
+    def _next(self, stage: str) -> str | None:
+        for later in TRACK_STAGES[TRACK_STAGES.index(stage) + 1:]:
+            if self._on(later):
+                return later
+        return None
 
     def label(self, message: str) -> str:
         found = _TRACK_LINE.search(message)
@@ -778,11 +797,18 @@ class StepTracker:
             name = found.group("name").strip()
             if name not in self.names:
                 self.names.append(name)
-            what = t("ui.automix.step_track", index=self.names.index(name) + 1,
-                     total=len(self.names), name=name,
-                     stage=found.group("stage"),
-                     n=TRACK_STAGES.index(found.group("stage")) + 1,
-                     of=len(TRACK_STAGES))
+            stage = found.group("stage")
+            following = self._next(stage)
+            common = {"index": self.names.index(name) + 1, "total": len(self.names),
+                      "name": name, "stage": stage,
+                      "n": TRACK_STAGES.index(stage) + 1, "of": len(TRACK_STAGES),
+                      "next": following}
+            if following is None:
+                what = t("ui.automix.step_track_last", **common)
+            elif self._on(stage):
+                what = t("ui.automix.step_track_done", **common)
+            else:
+                what = t("ui.automix.step_track_skipped", **common)
         else:
             if "mastering" in message.lower():
                 self.phase = 4
@@ -873,6 +899,7 @@ def run(session, params: dict, settings: dict, report: Report,
         kept, warnings = gate_options(settings.get("options") or {}, settings["command"],
                                       settings["cwd"], run_process=run_process)
         settings = {**settings, "options": kept}
+        steps.options = kept
         done = done_lines(session.state, kept)
         lines.extend(f"kuulas: {w}" for w in warnings)
         cmd = build_command(settings, stems, partial, target_lufs=lufs,
@@ -885,9 +912,8 @@ def run(session, params: dict, settings: dict, report: Report,
         reached = [STEMS_SHARE]  # the bar never goes back, whatever the tool prints
 
         def shown(raw: str) -> str:
-            """The progress line: step numbers first, "skipped" last."""
-            marked = mark_skipped(raw, kept)
-            return steps.label(raw) + marked[len(raw):]
+            """The progress line: step numbers, what is done and what works now."""
+            return steps.label(raw)
 
         def on_line(line: str) -> None:
             if not line.strip():
