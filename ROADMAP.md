@@ -117,6 +117,12 @@ sizes: `docs/PLAN.md`, section "Triage".
 
 ## Next
 
+- **Implicit marker at the last cut** (owner request 2026-10-20, QoL, not started): after a cut, the splice point is
+  remembered as a hidden "ghost" marker (not drawn, no visible in/out). If the user then sets only an OUT marker later
+  in time, the IN marker is placed at the splice, so the range extends from the cut just made (extend a cut forward).
+  If the user jumps before the splice and sets only an IN marker, the OUT marker is placed at the splice (extend
+  backwards). A marker is a guess only while its partner is unset; setting both explicitly overrides the guess; clear
+  marks (Shift+Alt+I) forgets the ghost; a new cut moves it. Undo/redo restore it. Pure logic first (state + tests).
 - **Quick mute for lip smacks** (owner request 2026-10-20, QoL, not started): two forms, both one key. (1) "Mute
   from mark to cursor": set a mark, play on, press the key, and the stretch mark..cursor is muted (a soft cut, hatched).
   (2) "Mute around cursor": one key mutes a fixed short stretch centred on the cursor (default 0.5 s, so 0.25 s before and
