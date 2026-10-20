@@ -9,6 +9,7 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 
 | # | Raised | Issue | Notes |
 |---|---|---|---|
+| 95 | 20.10 | Local dmg build (`scripts/build_dmg.sh --out ~/Desktop/kuulas-dmg`) leaves the folder empty | open: needs the script's last output; the GitHub-built dmg works |
 | 93 | 19.10 | Automixer options dialog needs a redesign (all fields in one long list, empty fields, no grouping or explanations) | open, in progress |
 | 92 | 19.10 | Export: it always exports the whole session; no way in the dialog to export only the in/out range or chosen tracks; MP3 export does not ask for settings (bitrate); the dialog does not say that muted or not-soloed tracks come out as silence (the backend supports a range, track export and bitrates) | open, in progress |
 | 91 | 19.10 | (superseded by WP83: sync never moves partners) Dragging a clip from track 2 to track 3 while it is in sync with a clip on track 1 also moves the partner from track 1 to track 2 (track 2 ends up empty). Probably the same cause as 83 (clips could not be moved) | in progress: a vertical drag with group editing on moves only the grabbed clip to the new track; sync partners follow in time only (M1 step 7) |
@@ -24,6 +25,7 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 
 | # | Raised | Issue | Fixed in |
 |---|---|---|---|
+| 94 | 20.10 | Music came out far too loud after automix; no automix log, only a flags file | Set music level, `--bed-under-speech-db` option, log.txt with Show log: v26.10.20.6-.7; the automixer flag is still to be added in the podcast repo |
 | 90 | 19.10 | The transcript's speaker colour bar should sit at the timeline's left edge, left of the words | built in v26.10.19.25; not seen on screen | 19.10, owner |
 | 89 | 19.10 | Side panel tab names truncated ("Tarka…"); buttons not in one design language; inspector fields misaligned | built in v26.10.19.25 (tabs wrap, shared outlined buttons with icons, a two-column inspector grid); not seen on screen | 19.10, owner |
 | 88 | 19.10 | Menus should open on hover; fewer, better grouped menus | hover built in v26.10.19.25; bar is now File, Edit, Track, Playback, View, Help; the Edit menu is still far too long, an advisor proposal is in progress | 19.10, owner |

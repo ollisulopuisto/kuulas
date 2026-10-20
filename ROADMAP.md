@@ -108,15 +108,13 @@ sizes: `docs/PLAN.md`, section "Triage".
 - Analysis: Auto-Silence and automix ducking through speechmix.
 - Transcript mapping and word-cut ranges.
 
-## In flight (20.10.2026 18.47 Helsinki)
+## In flight (20.10.2026 Helsinki, after v26.10.20.7)
 
-Agents running now:
-- **Set music level** (Track > Auto, phase 1 of auto-mix in Kuulas): measures speech and the loudest 3 s of the music beds and sets the music track gain a chosen distance under the speech (default -10 dB), one undo step.
-- **Smaller backups**: compressed, size-capped automatic backups (862 MB of backups in a 1.1 GB project) and a size breakdown in Statistics.
+Nothing running. Released in v26.10.20.7: Set music level, automix music-level field, compressed size-capped backups with a size breakdown, and the automix dialog reacting to "Done in Kuulas" (phase 2 of auto-mix in Kuulas; block level and music duck join by one entry in `DONE_IN_KUULAS`, see docs/FORMAT.md).
 
-Built and green, not yet released (branch `bed-level-option`): the automix dialog field 'Music level under speech (dB)' (flag `--bed-under-speech-db`, sent only if the installed automixer supports it; the request to the podcast repo is in docs/PODCAST-MAGIC.md). Merge planned together with the two above as v26.10.20.7.
+Waiting on the owner: relay `--bed-under-speech-db` to the podcast session (text in docs/PODCAST-MAGIC.md); until the automixer has it the Music field does nothing.
 
-Waiting on the podcast repo: `--bed-under-speech-db` in the automixer's folder route (so music is no longer forced to 1 dB under speech) and later a 'keep the stem level for beds' switch.
+Waiting on the podcast repo: that flag in the folder route, a 'keep the stem level for beds' switch, and automixer/mastering memory (loads whole stems).
 
 Parked with findings recorded: history compaction (see Next).
 
@@ -124,7 +122,8 @@ Older, still open: media store (linked vs working FLAC, relink, consolidate); br
 
 ## Needs testing and confirming (built, never used by the owner)
 
-Released in v26.10.20.5 and v26.10.20.6, in order of importance:
+Released in v26.10.20.5 to v26.10.20.7, in order of importance:
+0. **v26.10.20.7 (new, nothing tried yet):** Track > Auto > Set music level (numbers shown, one undo); backups compressed and Statistics > Size; automix Music field + 'Done in Kuulas' badge/Reset/offer (layout and the 'Set music level again' link only unit-tested, never seen in a window); `Done in Kuulas` line in log.txt. The local dmg build into ~/Desktop/kuulas-dmg came out empty; cause not found (needs the script's last output); the GitHub dmg is fine.
 1. **Automix log (v26.10.20.6):** after an automix export a `log.txt` sits beside the wav; the notice has 'Show log' and the 'beds: ... mastered: ...' lines. Send the beds line: it tells how much the music was raised (music came out far too loud; the automixer forces the beds to 1 dB under the speech).
 2. **Memory on the 47-minute project:** Kuulas under about 2 GB in Activity Monitor; at most one small `analysis_worker` process (`ps -axo pid,ppid,stat,etime,rss,command | grep analysis_worker | grep -v grep`); a killed worker is now an error, not an in-app run.
 3. **Paste:** Cmd+V overwrites on the selected track; Alt+Cmd+V inserts; with In/Out marked it fits the range.
