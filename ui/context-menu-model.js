@@ -13,6 +13,13 @@ export function contextMenuItems(target, can) {
       item("rename"),
       item("bus.mute"),
       SEPARATOR,
+      // Radio-style: the bus's current role is marked.
+      ...["speech", "music", "none"].map((role) => ({
+        ...item(`bus.role_${role}`),
+        checked: (target.role ?? "none") === role,
+      })),
+      item("bus.reapply_role"),
+      SEPARATOR,
       item("bus.ungroup"),
     ];
   }
@@ -20,6 +27,16 @@ export function contextMenuItems(target, can) {
     item("rename"),
     item("track.mute"),
     item("track.solo"),
+    SEPARATOR,
+    // Radio-style Role: the first follows the bus, shown with the bus's current role.
+    {
+      ...item("track.match_role"),
+      checked: target.choice === "match",
+      ...(target.busRole ? { values: { role: { key: `ui.role.${target.busRole}` } } } : {}),
+      ...(target.busRole ? { labelKey: "cmd.track.match_role.with" } : {}),
+    },
+    { ...item("track.role_speech"), checked: target.choice === "speech" },
+    { ...item("track.role_music"), checked: target.choice === "music" },
     SEPARATOR,
     item("track.group_into_bus"),
     item("track.remove_from_bus"),

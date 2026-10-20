@@ -28,11 +28,16 @@ export function openContextMenu({ x, y, items, onPick, onClose = () => {}, onHin
     const button = document.createElement("button");
     button.type = "button";
     button.className = "menu-item";
-    button.setAttribute("role", "menuitem");
+    button.setAttribute("role", item.checked === undefined ? "menuitem" : "menuitemradio");
+    if (item.checked !== undefined) button.setAttribute("aria-checked", String(item.checked));
     // Header menus name a label key; the timeline menus bring the resolved label, the
     // key combo and the tooltip the menu bar shows.
     const name = document.createElement("span");
-    name.textContent = item.label ?? t(item.labelKey);
+    // `values` may name message keys ({ key }) to translate, such as a role's name.
+    const values = Object.fromEntries(
+      Object.entries(item.values ?? {}).map(([k, v]) => [k, v?.key ? t(v.key) : v]),
+    );
+    name.textContent = `${item.checked ? "\u2713 " : ""}${item.label ?? t(item.labelKey, values)}`;
     button.append(name);
     if (item.keys) {
       const kbd = document.createElement("kbd");

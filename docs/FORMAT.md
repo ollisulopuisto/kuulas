@@ -483,6 +483,19 @@ than this one editing a project that has markers, and the cost is a wrong
 position, not lost data, so refusing to open (as a gate does, where the cost
 is audible) is not worth it.
 
+**As built (bus roles).** A bus gains an optional `kind` (`"speech"` | `"music"`;
+absent or null: no role) and a track an optional `follow_bus_role` (bool; absent:
+false). Stored data stays consistent, there is no live resolver: setting a bus
+role (`set_bus`) writes the role to the bus and, in the same edit, `kind` and
+`follow_bus_role: true` to every track on it; a track moved onto a bus with a
+role follows it, onto a bus without one or off a bus it stops following;
+choosing a kind by hand on a track is an override (`follow_bus_role` false);
+clearing the bus role leaves the tracks' kinds and ends following. While
+`follow_bus_role` is true the track's `kind` equals its bus's `kind`. Readers of
+`Track.kind` (export, automixer, loudness) are unchanged. `version` and
+`min_reader` do not change: an older reader keeps both keys as unknown fields
+and an older build that edits the bus roles itself does not keep them in step.
+
 **As built (WP43 narration placeholders).** The edit state gains an optional
 `Project.placeholders`: a list of `{"id", "track", "start", "length", "text",
 "estimated", "language"?}` sorted by `start`, in project frames. A placeholder
