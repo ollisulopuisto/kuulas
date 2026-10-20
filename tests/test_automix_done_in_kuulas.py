@@ -138,3 +138,77 @@ def test_set_music_level_stamps_when_it_was_set():
         {"speech_lufs": -20.0, "bed_lufs": -15.0, "key": "k"}, -10.0, plan,
         at="2026-10-20T19:45:00+03:00")
     assert entry["set_at"] == "2026-10-20T19:45:00+03:00"
+
+
+# -- Level blocks: a stage Kuulas did (the switch goes off), not a number ---------
+
+
+def level_blocks_done(session):
+    session.command("level_blocks", {})
+
+
+def test_block_level_is_a_stage_whose_value_is_off(session):
+    level_blocks_done(session)
+    got = automix.done_in_kuulas(session.state)["block_level"]
+    assert got["option"] == "block_level"
+    assert got["value"] is False
+    assert got["current"] is True
+    assert got["set_at"]
+    # The number option keeps its shape and gains the same generic field.
+    mark_done(session)
+    bed = automix.done_in_kuulas(session.state)["bed_level"]
+    assert (bed["value"], bed["offset_db"]) == (-10.0, -10.0)
+
+
+def test_block_level_goes_stale_when_a_clip_changes(session):
+    level_blocks_done(session)
+    clip = session.state.tracks[0].clips[0]
+    session.edit("set_clip", {"clip_id": clip.id, "gain_db": -2.0})
+    assert automix.done_in_kuulas(session.state)["block_level"]["current"] is False
+
+
+def test_the_registry_shape_for_a_stage():
+    assert automix.DONE_IN_KUULAS["block_level"] == ("block_level", None)
+    assert automix.DONE_IN_KUULAS["bed_under_speech_db"] == ("bed_level", "offset_db")
+
+
+def test_the_api_carries_block_level(session, tmp_path, settings):
+    level_blocks_done(session)
+    ui = tmp_path / "ui"
+    ui.mkdir()
+    with TestClient(create_app(session, IdleEngine(), language="en", ui_dir=ui)) as c:
+        got = c.get("/api/settings/automixer").json()["done_in_kuulas"]["block_level"]
+    assert (got["option"], got["value"], got["current"]) == ("block_level", False, True)
+
+
+def run_options(session, settings, options):
+    return automix.run(session, {"options": options}, settings, Reports(),
+                       threading.Event())
+
+
+def test_the_run_sends_no_block_level_and_logs_it(session, settings, tmp_path):
+    level_blocks_done(session)
+    result = run_options(session, settings, {"block_level": False})
+    argv = json.loads((tmp_path / "call.json").read_text())["argv"]
+    assert "--no-block-level" in argv
+    head = Path(result["log_file"]).read_text(encoding="utf-8").partition("\n\n")[0]
+    assert "Done in Kuulas: block level (set at " in head
+
+
+def test_block_level_left_on_or_stale_is_not_logged_as_done(session, settings):
+    level_blocks_done(session)
+    on = run_options(session, settings, {})
+    assert "Done in Kuulas" not in Path(on["log_file"]).read_text(encoding="utf-8")
+    clip = session.state.tracks[0].clips[0]
+    session.edit("set_clip", {"clip_id": clip.id, "gain_db": -2.0})
+    stale = run_options(session, settings, {"block_level": False})
+    assert "Done in Kuulas" not in Path(stale["log_file"]).read_text(encoding="utf-8")
+
+
+def test_a_number_never_matches_a_stage_value(session, settings):
+    # False == 0 in Python: a music level of 0 dB must not read as "block level off".
+    mark_done(session, offset=0.0)
+    result = run_with(session, settings, 0)
+    text = Path(result["log_file"]).read_text(encoding="utf-8")
+    assert "Done in Kuulas: music level 0 dB" in text
+    assert "block level" not in text

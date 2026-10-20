@@ -1401,6 +1401,13 @@ export const DEFAULT_KEYMAP = [
     context: "global",
     labelKey: "cmd.app.music_level",
   },
+  // Level blocks… (Auto-mix in Kuulas, phase 2): no default key either; Track > Auto and the palette.
+  {
+    id: "app.block_level",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.app.block_level",
+  },
   {
     id: "gate.open_all",
     keys: { mac: null, other: null },

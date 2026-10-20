@@ -94,10 +94,15 @@ export function unsupportedChanged(specs, form, capabilities) {
 
 /**
  * What Kuulas can already have done in the edit, by automixer option: the option key -> the
- * name of the project's `mix_done` entry (server: automix.DONE_IN_KUULAS). Block level and
- * the music duck join by being listed here and on the server (docs/FORMAT.md).
+ * name of the project's `mix_done` entry (server: automix.DONE_IN_KUULAS). The music duck
+ * joins by being listed here and on the server (docs/FORMAT.md). An entry's `value` is what the
+ * option is sent as: the offset for a number, `false` for a stage switch (block level), which
+ * Kuulas did, so the automixer's own stage is switched off.
  */
-export const DONE_IN_KUULAS = { bed_under_speech_db: "bed_level" };
+export const DONE_IN_KUULAS = { bed_under_speech_db: "bed_level", block_level: "block_level" };
+
+/** What the option is set to when Kuulas did the work: `value`, else the older `offset_db`. */
+const doneValue = (entry) => entry.value ?? entry.offset_db;
 
 /** `done` (GET /api/settings/automixer `done_in_kuulas`) by option key: [{ key, entry }]. */
 function doneEntries(specs, done) {
@@ -106,7 +111,8 @@ function doneEntries(specs, done) {
   for (const spec of specs) {
     const name = DONE_IN_KUULAS[spec.key];
     const entry = name ? done[name] : undefined;
-    if (entry && typeof entry.offset_db === "number") found.push({ spec, entry });
+    const value = entry ? doneValue(entry) : undefined;
+    if (typeof value === "number" || typeof value === "boolean") found.push({ spec, entry });
   }
   return found;
 }
@@ -122,9 +128,10 @@ export function prefillOptions(specs, done, stored) {
   const offered = [];
   for (const { spec, entry } of doneEntries(specs, done)) {
     if (!entry.current) continue;
+    const value = doneValue(entry);
     const have = options[spec.key];
-    if (typeof have !== "number" || have === spec.default) options[spec.key] = entry.offset_db;
-    else if (have !== entry.offset_db) offered.push(spec.key);
+    if (typeof have !== typeof value || have === spec.default) options[spec.key] = value;
+    else if (have !== value) offered.push(spec.key);
   }
   return { options, offered };
 }
@@ -138,8 +145,8 @@ export function prefillOptions(specs, done, stored) {
 export function doneStatus(specs, done, form, offered, capabilities) {
   const status = {};
   for (const { spec, entry } of doneEntries(specs, done)) {
-    const offset = entry.offset_db;
-    const shown = toNumber(form[spec.key]);
+    const offset = doneValue(entry);
+    const shown = spec.kind === "bool" ? form[spec.key] : toNumber(form[spec.key]);
     let state = null;
     if (!entry.current) state = "stale";
     else if (shown === offset) state = "done";

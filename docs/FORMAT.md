@@ -641,19 +641,45 @@ with zone, when it was set; optional, absent in older projects).
 *Done in Kuulas (the automixer dialog).* The stems Kuulas exports are dry, so the automixer
 measures the original music and applies `speech + offset - bed`; telling it
 `--bed-under-speech-db <offset_db>` reproduces Set music level. `GET /api/settings/automixer`
-returns `done_in_kuulas: {<mix_done name>: {option, offset_db, speech_lufs, bed_lufs, mode,
-set_at, current}}` (`automix.done_in_kuulas`); `current` is `bed_level_current`'s verdict. The
-dialog pre-fills the option only while `current` and the saved value is the tool default
-(a different saved value is kept and Kuulas's is offered), shows "Done in Kuulas" while the
-value equals it, and sends it with the run without saving it as the user's own setting.
-`automix.DONE_IN_KUULAS` (server) and `DONE_IN_KUULAS` (`ui/automix-options-model.js`) map an
-option key to its `mix_done` entry and value field: block level (`--no-block-level`) and the
-music duck join by being listed in both and in `_STILL_HOLDS`. The run's `log.txt` header
-gets `Done in Kuulas: music level -10 dB (set at <time>)` when the sent value is Kuulas's.
+returns `done_in_kuulas: {<mix_done name>: {option, value, offset_db, speech_lufs, bed_lufs,
+mode, blocks, set_at, current}}` (`automix.done_in_kuulas`); `current` is the entry's check
+(`_STILL_HOLDS`: `bed_level_current`, `block_level_current`). `value` is what the option is
+sent as: the offset for a number option, `false` for a stage switch (`offset_db` is null
+then). The dialog pre-fills the option only while `current` and the saved value is the tool
+default (a different saved value is kept and Kuulas's is offered), shows "Done in Kuulas"
+while the value equals it, and sends it with the run without saving it as the user's own
+setting. `automix.DONE_IN_KUULAS` (server) and `DONE_IN_KUULAS` (`ui/automix-options-model.js`)
+map an option key to its `mix_done` entry: `(entry, value field)` for a number, `(entry, None)`
+for a stage switch. The music duck joins by being listed in both and in `_STILL_HOLDS`. The
+run's `log.txt` header gets `Done in Kuulas: music level -10 dB (set at <time>)` or
+`Done in Kuulas: block level (set at <time>)` when the sent value is Kuulas's.
 
 *Version and `min_reader`.* Neither changes. The record changes no sound (the gains it
 describes are ordinary track gains). A reader that does not know it keeps the key in
 `Project.extra` and writes it back; it only cannot tell an export that the beds are done.
+
+**As built (Auto-mix in Kuulas, phase 2: Level blocks).** Track > Auto > Level blocks…
+measures, per speaker, the automixer's speech blocks (`speechmix.blocks`: `block_gains`,
+`loud_spans`; `block_level.measure`, a background job in the analysis worker) and writes the
+result as clip gain, as one undo step (`level_blocks`). Nothing new in the project except the
+record: `mix_done.block_level = {applied: true, blocks, tracks: {track id: signature},
+algorithm: "block-level@1", set_at}`. `signature` is a hash of the track's clips (media, start,
+offset, length, `gain_db`, `muted`), so the record only holds (`block_level_current`) while the
+audible speech tracks are exactly the ones levelled and their clips are untouched since: any
+later edit of a clip, a new or unmuted speech track makes it stale, never wrong. It is written
+only when no changed block was left out (a block the user unticked is one the automixer must
+still level). Absent while empty.
+
+The edit it makes is ordinary: each affected track's clips are split (`split_clip`, no gap, no
+media change) in the middle of the pause between two blocks and the block's gain is ADDED to
+the pieces' `gain_db` (within -60..+12 dB). The two pieces at a new cut get a 20 ms
+`fade_out` / `fade_in`, so the gain step in the pause cannot click; soft cuts (`muted` clips)
+are split and gain like any piece. The levels are measured as they play now (clip gain
+included, `analysis.track_levels(heard=True)`), so a second run reads about 0 and changes
+nothing. Loud spots are only listed, or become markers when asked.
+
+*Version and `min_reader`.* Neither changes. The record changes no sound. A reader that does
+not know it keeps the key in `Project.extra`; the pieces and gains are plain clips.
 
 Loudness curves (`GET /api/loudness-curve`) are a cache, not project data:
 `caches/analysis/<key>.json`, keyed on the media hashes and every field that

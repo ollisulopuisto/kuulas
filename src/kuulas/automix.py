@@ -42,7 +42,7 @@ from typing import Any, NoReturn
 
 import soundfile as sf
 
-from . import export, export_names, music_level, plugins, toolpath
+from . import block_level, export, export_names, music_level, plugins, toolpath
 from .jobs import JobCancelledError
 from .messages import KuulasError, t
 
@@ -456,44 +456,67 @@ GATED = ("bed_under_speech_db",)
 PROBE_SECONDS = 10.0
 #: Automixer options whose work Kuulas can already have done in the edit: option
 #: key -> (the ``Project.mix_done`` entry, its field holding the option's value).
-#: Later phases (block level, music duck) list themselves here.
-DONE_IN_KUULAS: dict[str, tuple[str, str]] = {
+#: A number option (the beds' level) names the field. A stage switch (block
+#: levelling) names ``None``: the entry says ``applied`` and the value to send is
+#: ``False``, the stage off, because Kuulas did it. The music duck joins the same way.
+DONE_IN_KUULAS: dict[str, tuple[str, str | None]] = {
     "bed_under_speech_db": ("bed_level", "offset_db"),
+    "block_level": ("block_level", None),
 }
 
 #: How each entry is checked as still holding (``bed_level_current`` for the beds).
 _STILL_HOLDS: dict[str, Callable[[Any], Any]] = {
     "bed_level": music_level.bed_level_current,
+    "block_level": block_level.block_level_current,
 }
 
 
 def done_in_kuulas(p) -> dict[str, dict[str, Any]]:
-    """``{mix_done name: {option, offset_db, ..., current}}`` for what the edit
-    records as done. ``current`` is False when the project changed since (the
-    record no longer holds); the dialog then only hints."""
+    """``{mix_done name: {option, value, offset_db, ..., current}}`` for what the
+    edit records as done. ``value`` is what the option is sent as (the offset for a
+    number, ``False`` for a stage). ``current`` is False when the project changed
+    since (the record no longer holds); the dialog then only hints."""
     out: dict[str, dict[str, Any]] = {}
     for option, (name, field) in DONE_IN_KUULAS.items():
         entry = (p.mix_done or {}).get(name)
-        if not isinstance(entry, dict) or not isinstance(entry.get(field), int | float):
+        if not isinstance(entry, dict):
             continue
-        out[name] = {"option": option, "offset_db": entry[field],
+        if field is None:
+            if entry.get("applied") is not True:
+                continue
+            value: Any = False
+        elif (isinstance(entry.get(field), int | float)
+              and not isinstance(entry[field], bool)):
+            value = entry[field]
+        else:
+            continue
+        out[name] = {"option": option, "value": value,
+                     "offset_db": value if field else None,
                      "speech_lufs": entry.get("speech_lufs"),
                      "bed_lufs": entry.get("bed_lufs"), "mode": entry.get("mode"),
-                     "set_at": entry.get("set_at"),
+                     "blocks": entry.get("blocks"), "set_at": entry.get("set_at"),
                      "current": _STILL_HOLDS[name](p) is not None}
     return out
+
+
+def _done_text(name: str, sent: Any) -> str:
+    if name == "block_level":
+        return "block level"
+    return f"music level {_shown(sent)} dB"
 
 
 def done_lines(p, options: dict[str, Any]) -> list[str]:
     """The log header lines for options sent with the value Kuulas set, while
     the record still holds."""
     lines = []
-    for info in done_in_kuulas(p).values():
+    for name, info in done_in_kuulas(p).items():
         sent = options.get(info["option"])
-        if (info["current"] and isinstance(sent, int | float)
-                and sent == info["offset_db"]):
+        # ``False == 0``: a stage's value only matches a boolean, a number a number.
+        same = (isinstance(sent, bool) == isinstance(info["value"], bool)
+                and isinstance(sent, bool | int | float) and sent == info["value"])
+        if info["current"] and same:
             when = f" (set at {info['set_at']})" if info["set_at"] else ""
-            lines.append(f"Done in Kuulas: music level {_shown(sent)} dB{when}")
+            lines.append(f"Done in Kuulas: {_done_text(name, sent)}{when}")
     return lines
 
 

@@ -323,6 +323,7 @@ export const MENU = [
         item("app.auto_silence"),
         item("app.auto_silence_options"),
         item("app.music_level"),
+        item("app.block_level"),
         item("gate.open_stretch"),
         item("gate.open_all"),
       ]),

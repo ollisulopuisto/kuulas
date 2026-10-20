@@ -75,6 +75,7 @@ export function createAutomixDialog({
   pickFolder = null,
   prefs = null,
   onSetMusicLevel = null,
+  onLevelBlocks = null,
 }) {
   const dialog = el("dialog", "cheatsheet automix-dialog");
   dialog.setAttribute("aria-labelledby", "automix-title");
@@ -204,6 +205,12 @@ export function createAutomixDialog({
     label.append(box, el("span", "", t(`ui.automix.opt.${spec.key}`)));
     wrap.append(label, el("p", "automix-hint form-help", t(`ui.automix.opt.${spec.key}.hint`)));
     optionControls[spec.key] = { input: box, wrap };
+    // A stage Kuulas can have done (Level blocks): the same badge, a line that says why, Reset.
+    if (spec.key in DONE_IN_KUULAS) {
+      const done = doneBlock(spec, box);
+      wrap.append(done.node);
+      optionControls[spec.key].done = done;
+    }
     return wrap;
   };
   const pluginControl = (spec) => {
@@ -258,25 +265,36 @@ export function createAutomixDialog({
     const node = el("div", "automix-done form-help");
     node.hidden = true;
     const badge = el("span", "automix-badge", t("ui.automix.done_badge"));
+    // A number option (the music level) is a field; a stage (block levelling) is a checkbox
+    // that Kuulas leaves unticked. Each has its own words and its own "do it again".
+    const stage = spec.kind === "bool";
+    const set = (value) => {
+      if (stage) input.checked = value;
+      else input.value = String(value);
+      refresh();
+    };
     const text = el(
       "span",
       "automix-done-text",
-      t("ui.automix.done_text", { default: spec.default }),
+      stage
+        ? t("ui.automix.done_text_block")
+        : t("ui.automix.done_text", { default: spec.default }),
     );
-    const reset = smallButton(t("ui.automix.done_reset"), () => {
-      input.value = String(spec.default);
-      refresh();
-    });
+    const reset = smallButton(t("ui.automix.done_reset"), () => set(spec.default));
     const offer = el("span", "automix-done-text");
-    const use = smallButton("", () => {
-      input.value = String(offerValue.offset);
-      refresh();
-    });
-    const stale = el("span", "automix-done-text", t("ui.automix.done_stale"));
-    const again = smallButton(t("ui.automix.done_again"), () => {
-      dialog.close();
-      onSetMusicLevel?.();
-    });
+    const use = smallButton("", () => set(offerValue.offset));
+    const stale = el(
+      "span",
+      "automix-done-text",
+      t(stage ? "ui.automix.done_stale_block" : "ui.automix.done_stale"),
+    );
+    const again = smallButton(
+      t(stage ? "ui.automix.done_again_block" : "ui.automix.done_again"),
+      () => {
+        dialog.close();
+        (stage ? onLevelBlocks : onSetMusicLevel)?.();
+      },
+    );
     const lacking = el("span", "automix-done-text", t("ui.automix.done_unsupported"));
     const offerValue = { offset: 0 };
     const parts = { badge, text, reset, offer, use, stale, again, lacking };

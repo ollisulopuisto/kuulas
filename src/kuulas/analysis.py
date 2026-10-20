@@ -37,6 +37,7 @@ from speechmix.dsp import FLOOR_DB
 from speechmix.stems import Lanes
 
 from . import bleed_relative, gate, levels, ops, priority
+from .curves import gain as db_gain
 from .media import streaming, workers
 from .messages import t
 from .mixer import Store
@@ -98,23 +99,35 @@ def hop_frames(rate: int) -> int:
     return round(rate * grid.HOP_SEC)
 
 
-def track_levels(p: Project, store: Store, track: Track) -> tuple[np.ndarray, np.ndarray]:
+def map_tracks(fn, tracks):
+    """``fn(track)`` for each track, bounded and under the playback gate (the
+    same pool ``speech_lanes`` measures with), results in order."""
+    return priority.gated_map(fn, tracks, _at_once(len(tracks)))
+
+
+def track_levels(p: Project, store: Store, track: Track,
+                 heard: bool = False) -> tuple[np.ndarray, np.ndarray]:
     """``(dB per hop, valid)`` over the timeline, from the raw sources.
 
     Raw: no clip or track gain, because the decision's margin is over the
     track's own floor and gain must not move it (``grid.lane``). The track's
     gate is not a gain but a mute, and is left out like a muted clip.
 
+    With ``heard`` each clip's own ``gain_db`` is in the level (what plays,
+    for the block levelling, which must read ~0 again after it set clip
+    gains); fades and clip envelopes are left out, they are ramps of
+    milliseconds. The track's gain and automation never are.
+
     Composed from the store's cached per-media envelopes when it has them
     (``MediaStore.envelope``), so an edit reads no audio (WP36); measured
     from the audio otherwise, which gives the same numbers.
     """
     clips = [c for c in track.clips if not c.muted]
-    composed = _from_envelopes(p, store, clips, track.id)
+    composed = _from_envelopes(p, store, clips, track.id, heard)
     if composed is None:
         # A scan from start to end: its audio is not kept (docs/MEMORY.md).
         with streaming():
-            composed = _from_audio(p, store, clips)
+            composed = _from_audio(p, store, clips, heard)
     mean_sq, valid = composed
     if track.gate:
         # A gated hop is inaudible, as one under a muted clip is: no level,
@@ -131,8 +144,8 @@ def _hops(p: Project) -> int:
     return int(np.ceil(p.length / hop_frames(p.rate))) if p.length else 0
 
 
-def _from_envelopes(p: Project, store: Store, clips,
-                    track_id: str) -> tuple[np.ndarray, np.ndarray] | None:
+def _from_envelopes(p: Project, store: Store, clips, track_id: str,
+                    heard: bool = False) -> tuple[np.ndarray, np.ndarray] | None:
     """Mean square per hop from envelopes, or None when they cannot give the
     audio path's answer: no envelope provider, a media without one, or clips
     that overlap (their waveforms add before they are squared)."""
@@ -161,12 +174,14 @@ def _from_envelopes(p: Project, store: Store, clips,
         lo, hi = max(c.start, 0), min(c.end, end)
         edges = np.concatenate(([lo], np.arange((lo // hop + 1) * hop, hi, hop), [hi]))
         upto = levels.energy_upto(blocks, block, frames, edges + (c.offset - c.start))
-        np.add.at(energy, edges[:-1] // hop, np.diff(upto))
+        scale = db_gain(c.gain_db) ** 2 if heard else 1.0
+        np.add.at(energy, edges[:-1] // hop, np.diff(upto) * scale)
         valid[lo // hop:(hi - 1) // hop + 1] = True
     return energy / hop, valid
 
 
-def _from_audio(p: Project, store: Store, clips) -> tuple[np.ndarray, np.ndarray]:
+def _from_audio(p: Project, store: Store, clips,
+                heard: bool = False) -> tuple[np.ndarray, np.ndarray]:
     hop = hop_frames(p.rate)
     n = _hops(p)
     mean_sq = np.zeros(n, dtype=np.float64)
@@ -182,7 +197,8 @@ def _from_audio(p: Project, store: Store, clips) -> tuple[np.ndarray, np.ndarray
             if hi <= lo:
                 continue
             audio = store.read(c.media, c.offset + lo - c.start, hi - lo)
-            buf[lo - first:hi - first] += audio.mean(axis=0)
+            mixed = audio.mean(axis=0)
+            buf[lo - first:hi - first] += mixed * db_gain(c.gain_db) if heard else mixed
             cover[lo - first:hi - first] = True
         h0 = first // hop
         h = count // hop

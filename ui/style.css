@@ -3887,6 +3887,26 @@ legend.form-heading {
   overflow-wrap: anywhere;
 }
 
+/* Level blocks: the same form; one fieldset of ticks per speaker */
+.block-level-dialog {
+  width: min(640px, 94vw);
+}
+.block-level-status {
+  min-height: var(--control-h);
+}
+.block-level-lists {
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.block-level-line {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.block-level-dialog .form-choice > span {
+  font-variant-numeric: tabular-nums;
+}
+
 /* Set music level: the same form; the measured numbers under the field, as a note */
 .music-level-dialog {
   width: min(640px, 94vw);

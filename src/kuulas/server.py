@@ -584,6 +584,7 @@ def create_app(session, engine, *, language: str | None = None,
                 "skipped": list(report.skipped)}})
         # What the UI's notice needs beside the state, by command.
         extra = {"set_music_level": lambda: {"music_level": session.last_music_level},
+                 "level_blocks": lambda: {"block_level": session.last_block_level},
                  "resync": lambda: {"resync": session.last_resync},
                  "resync_from": lambda: {"resync": session.last_resync}}.get(body.name)
         return state_response(extra() if extra else None)
@@ -884,6 +885,11 @@ def create_app(session, engine, *, language: str | None = None,
     def post_music_level_measure(body: Annotated[dict[str, Any], Body()]):
         # Set music level: measure the speech and the beds; changes nothing.
         return JSONResponse({"jobs": session.music_level_measure(body)}, status_code=202)
+
+    @app.post("/api/block-level/measure", status_code=202)
+    def post_block_level_measure(body: Annotated[dict[str, Any], Body()]):
+        # Level blocks: measure each speaker's blocks and loud spots; changes nothing.
+        return JSONResponse({"jobs": session.block_level_measure(body)}, status_code=202)
 
     @app.get("/api/plugins")
     def get_plugins(refresh: bool = False):
