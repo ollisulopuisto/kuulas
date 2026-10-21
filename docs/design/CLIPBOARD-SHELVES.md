@@ -74,8 +74,16 @@ filters; the view switch is one click and the filter box works the same in each.
   **Place on timeline** (the existing "Place series music" command).
 - Paste choices (insert/overwrite, target tracks) apply to every view: paste forms work from
   any shelf because every paste goes through the project shelf.
-- Dragging from the panel (ROADMAP, not built) will work the same from every view: adopt, then
-  drop.
+- **Drag onto the timeline** (`ui/clipboard-drag.js`), from every view. While dragging: the
+  target track's band tinted, a dashed outline per clip where it will land (the entry's layout
+  kept, slots on the track and the ones below, as "paste on the current track"), the drop line
+  (solid when snapped). The start or end snaps as when moving clips (clip edges, playhead, marks,
+  8 px); Alt turns snapping off and a start inside a clip of the track stops at that clip's end.
+  Esc (the browser ends the drag) or a drop off a lane pastes nothing. The drop is the same
+  `clipboard_paste` as Mod+V at that frame and track, in the panel's paste mode (overwrite or
+  insert), one undo step; In/Out play no part. An entry of another shelf is adopted first
+  (series: linked from the series' paths), so missing recordings are linked in place and
+  hash-checked as for every paste. Dragging a single clip of an entry: not yet.
 
 ## Commands (every one in a menu; no default keys)
 
@@ -90,5 +98,5 @@ unusable. These commands are rare, so they get no default key; menu and palette 
 ## Not in this round
 
 - Reordering a shelf; renaming a series entry (rename it in the project, remove, add again).
-- Dragging from the panel (its own ROADMAP item).
+- Dragging one clip out of a multi-clip entry (the panel lists entries, not their clips).
 - Anchoring an outro to the programme's end (SERIES.md follow-up).

@@ -126,6 +126,8 @@ beforeEach(() => {
       seriesRemove: record("seriesRemove"),
       seriesPlace: record("seriesPlace"),
       openSeries: record("openSeries"),
+      dragStart: record("dragStart"),
+      dragEnd: record("dragEnd"),
       now: () => 1000 + 300,
       canPasteAgain: () => true,
     },
@@ -423,5 +425,66 @@ describe("other projects", () => {
   test("no recent projects says how to look into one", () => {
     panel.update(state({ clipboardView: "others", clipboardProjects: [] }));
     assert.ok(root.all().some((node) => node.textContent === "ui.clipboard.others_empty"));
+  });
+});
+
+describe("dragging an entry onto the timeline", () => {
+  const rows = () => root.all().filter((node) => node.tagName === "li" && node.dataset.id);
+  const drag = (row) => {
+    const data = {};
+    const event = {
+      dataTransfer: {
+        setData: (type, value) => {
+          data[type] = value;
+        },
+        effectAllowed: "",
+      },
+    };
+    for (const fn of row.listeners.dragstart ?? []) fn(event);
+    for (const fn of row.listeners.dragend ?? []) fn({});
+    return { data, event };
+  };
+
+  test("this project's rows are draggable and say which entry and shelf", () => {
+    panel.update(state());
+    const [first] = rows();
+    assert.equal(first.attrs.draggable, "true");
+    const { data, event } = drag(first);
+    assert.deepEqual(data, { "application/x-kuulas-clipboard": "a" });
+    assert.equal(event.dataTransfer.effectAllowed, "copy");
+    assert.deepEqual(calls, [
+      ["dragStart", state().clipboard[0], { shelf: "project", from: "" }],
+      ["dragEnd"],
+    ]);
+  });
+
+  test("series, shared and other projects' rows drag with their shelf", () => {
+    const one = entry("m1");
+    panel.update(
+      state({
+        clipboardView: "series",
+        clipboardSeries: { link: { id: "s", name: "Show" }, found: true, entries: [one] },
+      }),
+    );
+    drag(rows()[0]);
+    panel.update(state({ clipboardView: "shared", clipboardShared: [one] }));
+    drag(rows()[0]);
+    panel.update(
+      state({
+        clipboardView: "others",
+        clipboardProjects: [{ name: "One", path: "/p/One.kuulas", entries: 1 }],
+        clipboardExpanded: ["/p/One.kuulas"],
+        clipboardForeign: { "/p/One.kuulas": { status: "ok", entries: [one] } },
+      }),
+    );
+    drag(rows().find((node) => node.dataset.foreign === "true"));
+    assert.deepEqual(
+      calls.filter((call) => call[0] === "dragStart").map((call) => call[2]),
+      [
+        { shelf: "series", from: "" },
+        { shelf: "shared", from: "" },
+        { shelf: "other", from: "/p/One.kuulas" },
+      ],
+    );
   });
 });

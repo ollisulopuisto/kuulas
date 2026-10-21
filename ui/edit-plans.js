@@ -373,18 +373,39 @@ export function pastePlan(state, { mode, target } = {}) {
     },
     key,
     { count: entry.clips },
+    { variant: pasteVariant },
+  );
+}
+
+/** A paste's toast once the answer is in: nothing placed, or recordings that were missing. */
+function pasteVariant(response) {
+  const done = response?.clipboard;
+  if (!done) return null;
+  if (done.placed === 0) {
+    return { key: "ui.edit.toast.paste_nothing", values: {}, undo: false };
+  }
+  return done.missing.length > 0
+    ? { key: "ui.edit.toast.paste_missing", values: { count: done.missing.length } }
+    : null;
+}
+
+/**
+ * A clipboard entry dropped on the timeline (clipboard-drag.js): the same paste as Mod+V, at the
+ * drop's frame and tracks, in `mode` (the panel's paste choice). In/Out play no part in a drop.
+ */
+export function dropPastePlan(entry, target, mode) {
+  const insert = mode === "insert";
+  return plan(
+    "clipboard_paste",
     {
-      variant: (response) => {
-        const done = response?.clipboard;
-        if (!done) return null;
-        if (done.placed === 0) {
-          return { key: "ui.edit.toast.paste_nothing", values: {}, undo: false };
-        }
-        return done.missing.length > 0
-          ? { key: "ui.edit.toast.paste_missing", values: { count: done.missing.length } }
-          : null;
-      },
+      entry_id: entry.id,
+      at: target.at,
+      mode: insert ? "insert" : "overwrite",
+      target_tracks: target.targetTracks,
     },
+    insert ? "paste_insert" : "paste",
+    { count: entry.clips },
+    { variant: pasteVariant },
   );
 }
 

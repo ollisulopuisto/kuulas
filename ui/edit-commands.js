@@ -317,4 +317,7 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
 
   // E, the Edit menu item and the status chip: all tracks <-> selected tracks only (WP83).
   def("range.scope_toggle", () => app.patch(toggleScopeMode(app.getState())), hasProject);
+
+  // A plan built outside a command (a clipboard entry dropped on the timeline) goes the same way.
+  return { send };
 }
