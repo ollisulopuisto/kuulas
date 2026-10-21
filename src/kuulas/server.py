@@ -1052,12 +1052,18 @@ def create_app(session, engine, *, language: str | None = None,
     def _automix_capabilities(resolved: dict[str, Any]) -> dict[str, bool]:
         remote = resolved["remote"]
         if not remote["enabled"]:
-            return automix.capabilities(resolved["command"], resolved["cwd"])
+            return {**automix.capabilities(resolved["command"], resolved["cwd"]),
+                    "keep_music_level": automix.supports_keep_music_level(
+                        resolved["command"], resolved["cwd"])}
         try:  # the tool that will render is the one on the other Mac
             automix_remote.check(remote)
         except automix_remote.RemoteError:
             return {}
-        return automix.remote_capabilities(remote)
+        wrapped = automix_remote.runner(remote, automix.run_process)
+        return {**automix.remote_capabilities(remote),
+                "keep_music_level": automix.supports_keep_music_level(
+                    remote["command"], remote["cwd"], run_process=wrapped,
+                    scope=remote["host"])}
 
     @app.post("/api/settings/automixer/remote-test")
     def post_automixer_remote_test(body: Annotated[dict[str, Any], Body()]):

@@ -275,7 +275,8 @@ def test_settings_api_reports_the_capabilities(session, tmp_path, monkeypatch):
     with TestClient(create_app(session, IdleEngine(), language="en", ui_dir=ui)) as c:
         got = c.get("/api/settings/automixer").json()
     assert got["capabilities"] == {
-        "bed_under_speech_db": True, "balance_speakers_max_db": False}
+        "bed_under_speech_db": True, "balance_speakers_max_db": False,
+        "keep_music_level": False}  # the server adds the keep-level probe
 
 
 def app_client(session, tmp_path):
