@@ -51,3 +51,15 @@ def test_format_remaining_long_job():
     assert format_remaining(3600) == "about 60 min"
     assert format_remaining(7500) == "about 2 h 5 min"
     assert format_remaining(5401) == "about 1 h 30 min"
+
+
+def test_samples_further_apart_than_the_windows_still_give_an_estimate():
+    """The automixer's bar moves in jumps minutes apart: the 30 s and 60 s windows
+    then hold only the newest sample, and that must not mean 'stuck' or 'done'."""
+    samples = [(0.0, 0.0), (120.0, 0.25), (240.0, 0.5)]
+    assert remaining_seconds(samples) == 240
+
+
+def test_a_bar_that_has_not_moved_for_a_while_is_stuck_even_with_sparse_samples():
+    samples = [(0.0, 0.0), (120.0, 0.5), (240.0, 0.5)]
+    assert remaining_seconds(samples) is None

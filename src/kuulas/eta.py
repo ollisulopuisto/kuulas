@@ -19,24 +19,23 @@ def remaining_seconds(samples):
         newest_t, newest_f = kept[-1]
 
         if 0.05 <= newest_f < 1.0:
-            window_start = newest_t - 30.0
-            stuck = False
+            # Stuck: no growth since a sample at least 30 s older than the newest (the
+            # bar moves in jumps, so the window may hold only the newest sample).
+            reference = None
             for t, f in kept:
-                if t >= window_start:
-                    stuck = f == newest_f
-                    break
-            if not stuck:
-                span_start = newest_t - 60.0
+                if t <= newest_t - 30.0:
+                    reference = f
+            if reference is None or reference != newest_f:
+                # Speed over the last 60 s: from the newest sample at least 60 s old,
+                # else from the first sample.
                 base_t, base_f = kept[0]
                 for t, f in kept:
-                    if t >= span_start:
+                    if t <= newest_t - 60.0:
                         base_t, base_f = t, f
-                        break
                 dt = newest_t - base_t
                 speed = (newest_f - base_f) / dt if dt > 0 else 0.0
-                result = (
-                    max(0, round((1.0 - newest_f) / speed)) if speed > 0 else 0
-                )
+                if speed > 0:
+                    result = max(0, round((1.0 - newest_f) / speed))
         elif newest_f >= 1.0:
             result = 0
     return result
