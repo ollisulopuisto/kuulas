@@ -329,6 +329,19 @@ WP27, WP38, WP42, WP47, WP53, WP58, WP61, WP66, WP56.
 
 ## Later (v2)
 
+- **Bluetooth (output latency) compensation** (owner idea 2026-10-21, late in the roadmap): Bluetooth headphones
+  delay the sound by 150-300 ms or more and often report it wrongly, so the playhead cursor, the marks placed while
+  listening and the word highlight run ahead of what is heard. Plan: a "Calibrate output delay" dialog per output
+  device: Kuulas plays a short series of test clicks at a steady tempo and the user taps Space in time with them (tapping
+  in time with a steady beat removes most of the human reaction delay; several rounds, median, outliers dropped); the
+  offset is the tap-to-click difference minus a small fixed anticipation bias, shown with a live "now play" check.
+  Stored per device (name/UID, in the user settings) and applied automatically when that device is the output. First
+  try what Core Audio already reports (`kAudioDevicePropertyLatency` + stream latency; the engine's `_heard_now` uses
+  PortAudio's number today) and only offer the manual calibration when the reported value is suspicious or the user
+  wants to correct it. Applies to the VISUALS (cursor position, marks set during playback, transcript follow), never
+  to the audio or the edit data. Prior art to read first: Ableton's "Driver Error Compensation / manual output latency",
+  Reaper's audio latency offset, Logic's I/O buffer test; a microphone loopback does not help with in-ear Bluetooth.
+  Not started.
 - **Hindenburg round trip** (export back to a Hindenburg session, `.nhsx`): punted by the owner on
   2026-10-18 ("it can happen way later"). The import stays; the fallback for now is "Export all tracks"
   (per-track WAVs, same length and start) which Hindenburg can import at time zero.
