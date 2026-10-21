@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """scripts/fetch_ffmpeg.sh keeps a cache copy of the binaries and falls back to it when
 the download host is down (it returned 521 for hours on 2026-10-21 and failed the dmg
 build). curl is replaced by a shim on PATH; no network."""
@@ -56,8 +57,9 @@ def run(tmp_path, *, cache=None, works=True, tag="net", extra_env=None):
         env["KUULAS_FFMPEG_CACHE"] = str(cache)
     env.update(extra_env or {})
     dest = tmp_path / "dest"
-    return subprocess.run(["bash", str(SCRIPT), str(dest)], env=env, capture_output=True,
-                          text=True, check=False), dest
+    return subprocess.run(  # noqa: S603
+        ["bash", str(SCRIPT), str(dest)],  # noqa: S607
+        env=env, capture_output=True, text=True, check=False), dest
 
 
 def test_a_fresh_download_fills_the_cache_and_marks_it(tmp_path):
@@ -124,8 +126,9 @@ def test_with_no_cache_the_release_asset_is_the_last_resort(tmp_path):
     env.pop("KUULAS_FFMPEG_DIR", None)
     env.pop("KUULAS_FFMPEG_CACHE", None)
     dest = tmp_path / "dest"
-    result = subprocess.run(["bash", str(SCRIPT), str(dest)], env=env, capture_output=True,
-                            text=True, check=False)
+    result = subprocess.run(  # noqa: S603
+        ["bash", str(SCRIPT), str(dest)],  # noqa: S607
+        env=env, capture_output=True, text=True, check=False)
     assert result.returncode == 0, result.stderr
     assert "fake-fallback" in (dest / "ffmpeg").read_text()
     assert "fake-fallback" in (dest / "ffprobe").read_text()
