@@ -171,6 +171,9 @@ def stage(src: Path, out: Path, wheels: Path, label: str) -> Path:
     shutil.copy(src / "src" / "kuulas" / "assets" / "icons" / "kuulas.icns",
                 out / "icons" / "kuulas.icns")
     (out / "LICENSE").write_text(LICENSE_TEXT, encoding="utf-8")
+    # Briefcase reads LICENSE as metadata and copies it nowhere; this copy is the notice
+    # (GPL parts, where their sources are) inside the app: Resources/app/kuulas.
+    (package / "LICENSE.txt").write_text(LICENSE_TEXT, encoding="utf-8")
     (out / "pyproject.toml").write_text(
         render_config(version, bundle_requires(deps, wheel_files), wheels.resolve()),
         encoding="utf-8")

@@ -199,3 +199,11 @@ def test_trim_is_a_no_op_once_the_podcast_makes_them_extras(capsys):
     assert tomllib.loads(trim_deps.trim(text, ("mlx",)))["project"]["dependencies"] == [
         "numpy"]
     assert "mlx" in capsys.readouterr().err  # said, so the trim can be retired
+
+
+def test_the_licence_notice_ships_inside_the_app(tmp_path):
+    """Briefcase uses ``LICENSE`` as metadata only: the 2026-10-21 build had it nowhere in
+    Kuulas.app or the .dmg. A copy in the package lands in Resources/app/kuulas."""
+    out = stage_bundle.stage(REPO, tmp_path / "stage", wheels(tmp_path), "v1+abc")
+    notice = (out / "src/kuulas/LICENSE.txt").read_text(encoding="utf-8")
+    assert notice == stage_bundle.LICENSE_TEXT

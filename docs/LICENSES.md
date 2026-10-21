@@ -26,11 +26,13 @@ licence declared, see below). Its mlx and textual requirements are dropped for t
 ## What the GPL asks of the .dmg, and what it carries
 
 - **Licence texts:** each package's own licence files stay in
-  `Contents/Resources/app_packages/<package>.dist-info/licenses/` (pedalboard ships
-  `LICENSE`, the GPL-3 text, and `NOTICE`). The bundle's `LICENSE`
-  (`scripts/stage_bundle.py`, `LICENSE_TEXT`) names pedalboard and ffmpeg as GPL-3 and
-  says where their licence texts and sources are. Not yet seen in a built bundle that
-  Briefcase keeps the `licenses/` folders (unverified until the next dmg build).
+  `Contents/Resources/app_packages/<package>.dist-info/licenses/` (seen in the local build
+  of 2026-10-21: pedalboard's `LICENSE`, the GPL-3 text, and `NOTICE` are there).
+- **The notice:** `LICENSE_TEXT` in `scripts/stage_bundle.py` names pedalboard and ffmpeg
+  as GPL-3 and says where their licence texts and sources are. Briefcase uses the stage's
+  `LICENSE` as metadata only; that build had the text nowhere in the app or the .dmg. It
+  now also ships as `Contents/Resources/app/kuulas/LICENSE.txt` (tested at the stage
+  step; not yet seen in a built app).
 - **Source offer:** GPL-3 section 6(d) allows offering the source from a network
   server next to the binary. The bundle's `LICENSE` points at the public repositories:
   pedalboard (github.com/spotify/pedalboard), Kuulas (github.com/ollisulopuisto/kuulas),
