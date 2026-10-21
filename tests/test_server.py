@@ -1145,3 +1145,21 @@ def test_rename_checkpoint_changes_only_the_name(client, loaded):
     page = client.get("/api/history", params={"limit": 1}).json()
     assert page["nodes"][0]["checkpoint"]["name"] == "Final cut"
     assert page["nodes"][0]["checkpoint"]["kind"] == "manual"
+
+
+def test_history_page_says_what_a_restore_rolled_back(client, loaded):
+    _edit(client, loaded, "one", -1.0)
+    _edit(client, loaded, "two", -2.0)
+    _edit(client, loaded, "three", -3.0)
+    page = client.get("/api/history", params={"limit": 10}).json()
+    target = {n["label"]: n for n in page["nodes"]}["one"]["id"]
+    assert client.post("/api/restore", json={"node": target}).status_code == 200
+    page = client.get("/api/history", params={"limit": 10}).json()
+    head = page["nodes"][0]
+    assert head["restore_target"] == target
+    assert head["rolled_back_by"] is None
+    by_label = {n["label"]: n for n in page["nodes"]}
+    assert by_label["two"]["side"] == by_label["three"]["side"] == "rolled_back"
+    assert by_label["two"]["rolled_back_by"] == head["id"]
+    assert by_label["one"]["side"] == "past"
+    assert by_label["one"]["restore_target"] is None

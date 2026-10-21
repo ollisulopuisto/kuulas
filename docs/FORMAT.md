@@ -303,6 +303,17 @@ server filters so a sparse hit never runs the page dry. `save_checkpoint` writes
 `rename_checkpoint {node, name}` changes only `name`. Plain Save (`save_backup`) writes no
 checkpoint: it is not in the list.
 
+**Where a step stands, in the History answer (paged shape).** A restore step (`op.name ==
+"restore"`, `op.args.node` = its target) is a child of the head like any step, but the state it
+makes is its target's. So the current state's *lineage* follows effective parents: a restore's
+is its target, every other step's its parent. Each step carries `side`: `head`, `past` (in the
+lineage), `rolled_back` (an ancestor of the head that a restore skipped), `redo` (Redo walks
+it; the panel calls it "undone") or `branch` (left behind by an edit after an undo); and
+`rolled_back_by` (the restore that skipped it, else `null`) and `restore_target` (on a
+restore step, the step it restored, else `null`). Restoring onto a left-behind step makes that
+branch `past`; undoing a restore makes what it skipped `past` again. Nothing is stored for
+this: it is read from `nodes` in one query.
+
 **Why UUIDs, not integers, for steps:** two copies of a project grow their
 histories apart, and integer ids would collide when B's steps come back to
 A. UUIDv7 ids are unique everywhere and still sort by time. This must be in

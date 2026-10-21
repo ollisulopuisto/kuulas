@@ -1364,13 +1364,13 @@ def create_app(session, engine, *, language: str | None = None,
             rows = h.nodes_page(limit + 1, before, saved=bool(saved))
             marks = h.checkpoint_map()
             more = len(rows) > limit
-            side = h.sides()
+            lineage = h.lineage()
             nodes = [{"id": r["id"], "parent": r["parent"], "label": r["label"],
                       "created": r["created"], "author": r["author"],
                       "op": r["op"].get("name"), "is_marker": h.is_marker(r),
                       "marker": (r["op"].get("args") or {}).get("kind")
                       if h.is_marker(r) else None,
-                      "is_head": r["id"] == h.head, "side": side[r["id"]],
+                      "is_head": r["id"] == h.head, **lineage[r["id"]],
                       "checkpoint": marks.get(r["id"])}
                      for r in rows[:limit]]
             return JSONResponse({"nodes": nodes, "head": h.head, "more": more,
