@@ -157,6 +157,7 @@ import { seriesChip } from "./series-model.js";
 import { adoptRequest, createSeriesShelf } from "./series-shelf.js";
 import { setupKeyboard } from "./shell-keys.js";
 import { chipSpeed } from "./shuttle.js";
+import { keyHint, tabMode, tabTitle } from "./side-tabs-model.js";
 import { SIDEBAR_KEY, sidebarPref, sidebarShown, toggleSidebar } from "./sidebar-model.js";
 import { normaliseSilence } from "./silence-model.js";
 import { createSilencePanel } from "./silence-panel.js";
@@ -204,6 +205,46 @@ const GAIN_DIGITS = (value) => (Number.isInteger(value) ? 0 : 1);
 
 // -- text -------------------------------------------------------------------
 
+// Each side tab: tooltip "Name (Alt+n)", aria-keyshortcuts, the digit for the compact strip, and
+// the step (full / tight / compact) that keeps the strip on one row.
+let tabKeyEntries = null;
+function applyTabs() {
+  const platform = detectPlatform();
+  for (const [id, tab] of Object.entries(SIDE_TAB_COMMANDS)) {
+    const button = $(`tab-${tab}`);
+    const name = t(`ui.tabs.${tab}`);
+    const combos = tabKeyEntries ? shortcutsFor(id, tabKeyEntries) : [];
+    const shown = combos.map((combo) => formatCombo(combo, platform));
+    button.title = tabTitle(name, shown);
+    button.setAttribute("aria-label", name);
+    button.setAttribute(
+      "aria-keyshortcuts",
+      combos.map((c) => c.replace(/\bMod\b/, platform === "mac" ? "Meta" : "Control")).join(" "),
+    );
+    const key = button.querySelector(".tab-key");
+    key.dataset.full = shown[0] ?? "";
+    key.dataset.short = keyHint(shown[0]);
+  }
+  layoutTabs();
+}
+
+/** Pick the strip's step from what each step needs (measured) and the room it has. */
+function layoutTabs() {
+  const strip = document.querySelector(".side-tabs");
+  if (!strip || strip.clientWidth === 0) return;
+  const style = getComputedStyle(strip);
+  const gap = Number.parseFloat(style.columnGap) || 0;
+  const pad = Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight);
+  const kids = [...strip.children];
+  const measure = (mode) => {
+    strip.dataset.tabs = mode;
+    return kids.reduce((sum, kid) => sum + kid.offsetWidth, 0) + gap * (kids.length - 1) + pad;
+  };
+  const needed = { full: measure("full"), tight: measure("tight") };
+  strip.dataset.tabs = tabMode(needed, strip.clientWidth);
+}
+new ResizeObserver(layoutTabs).observe(document.querySelector(".side-tabs"));
+
 function translate() {
   for (const node of document.querySelectorAll("[data-i18n]"))
     node.textContent = t(node.dataset.i18n);
@@ -215,6 +256,7 @@ function translate() {
   for (const node of document.querySelectorAll("[data-shortcut]"))
     node.textContent = formatShortcut(node.dataset.shortcut);
   document.title = t("ui.app.title");
+  applyTabs();
 }
 
 let noticeTimer = null;
@@ -1194,11 +1236,8 @@ const keyboard = setupKeyboard({
     const aria = (combo) => combo.replace(/\bMod\b/, platform === "mac" ? "Meta" : "Control");
     button.setAttribute("aria-keyshortcuts", keys.map(aria).join(" "));
     button.title = keys.map((combo) => formatCombo(combo, platform)).join(" ");
-    // Each side tab shows its Alt+digit (or the user's own key) as a tooltip.
-    for (const [id, tab] of Object.entries(SIDE_TAB_COMMANDS)) {
-      const combos = shortcutsFor(id, entries).map((combo) => formatCombo(combo, platform));
-      $(`tab-${tab}`).title = combos.join(" ");
-    }
+    tabKeyEntries = entries;
+    applyTabs();
   },
   app: {
     getState,
@@ -3830,6 +3869,7 @@ function render(state, patch) {
     const open = state.candidateSummary?.open ?? 0;
     $("cand-count").hidden = open === 0;
     $("cand-count").textContent = String(open);
+    layoutTabs();
   }
   if (touched("sidebarShown")) {
     document.querySelector(".editor").dataset.sidebar =
