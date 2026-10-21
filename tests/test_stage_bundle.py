@@ -7,6 +7,8 @@ import sys
 import tomllib
 from pathlib import Path
 
+import pytest
+
 scripts_dir = Path(__file__).parent.parent / "scripts"
 if str(scripts_dir) not in sys.path:
     sys.path.insert(0, str(scripts_dir))
@@ -22,6 +24,7 @@ def wheels(tmp_path: Path) -> Path:
     folder = tmp_path / "wheels"
     folder.mkdir()
     for name in ("speechmix-1-py3-none-any.whl", "nhsx-1-py3-none-any.whl",
+                 "silencelearn-1-py3-none-any.whl", "automixer-1-py3-none-any.whl",
                  "proxy_tools-0.1.0-py3-none-any.whl"):
         (folder / name).write_text("", encoding="utf-8")
     return folder
@@ -124,3 +127,37 @@ def test_every_podcast_path_dependency_is_shipped_as_a_wheel():
         assert name in stage_bundle.LOCAL, name
         assert f" {name}" in loop, name
         assert name in selftest.LIBRARIES, name
+
+
+def test_the_automixer_app_is_built_staged_and_selftested():
+    """The automixer is no dependency of Kuulas (the editor never imports it) but the
+    bundle ships it: build_wheels.sh builds it from ``apps/``, its wheel joins the
+    requirements by path, and the selftest runs its ``--help`` from the bundle."""
+    from kuulas import selftest  # noqa: PLC0415
+
+    assert stage_bundle.APPS == ("automixer",)
+    built = (REPO / "scripts" / "build_wheels.sh").read_text(encoding="utf-8")
+    loop = next(line for line in built.splitlines() if line.startswith("for app in "))
+    for name in stage_bundle.APPS:
+        assert f" {name}" in loop, name
+        assert name in selftest.CHECKS, name
+    assert '"$src/apps/$app"' in built
+
+
+def test_the_automixer_wheel_is_a_requirement_by_path(tmp_path):
+    got = stage_bundle.bundle_requires(["numpy"], sorted(wheels(tmp_path).glob("*.whl")))
+    assert sum(r.endswith("automixer-1-py3-none-any.whl") for r in got) == 1
+
+
+def test_stage_refuses_a_wheels_folder_without_a_podcast_wheel(tmp_path):
+    folder = wheels(tmp_path)
+    (folder / "automixer-1-py3-none-any.whl").unlink()
+    with pytest.raises(SystemExit, match="automixer"):
+        stage_bundle.stage(REPO, tmp_path / "stage", folder, "v1+abc")
+
+
+def test_the_bundle_licence_names_the_gpl_parts():
+    text = stage_bundle.LICENSE_TEXT
+    assert "pedalboard" in text
+    assert "GPL" in text
+    assert "automixer" in text

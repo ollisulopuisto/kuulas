@@ -1,7 +1,8 @@
 #!/bin/bash
 # Build the wheels the tester bundle installs instead of the ../podcast path
-# dependencies (WP73): speechmix, nhsx, silencelearn, and proxy_tools (pywebview needs it and
-# publishes no wheel; Briefcase installs wheels only).
+# dependencies (WP73): speechmix, nhsx, silencelearn, the automixer app (shipped so a
+# new user can mix without a podcast checkout; Kuulas runs it as its own process), and
+# proxy_tools (pywebview needs it and publishes no wheel; Briefcase installs wheels only).
 #
 #   scripts/build_wheels.sh <out-folder>
 #
@@ -35,6 +36,11 @@ echo "podcast commit: $(git -C "$src" rev-parse --short HEAD)"
 
 for pkg in speechmix nhsx silencelearn; do
   uv build --wheel --out-dir "$out" "$src/packages/$pkg" >/dev/null
+done
+# Apps, not libraries: no dependency of Kuulas, but the bundle ships them
+# (stage_bundle.APPS; the selftest runs `automixer --help` from the bundle).
+for app in automixer; do
+  uv build --wheel --out-dir "$out" "$src/apps/$app" >/dev/null
 done
 
 # proxy_tools is a one-file pure-Python package; build its wheel from the sdist.

@@ -102,6 +102,35 @@ def worker_args(args: list[str]) -> list[str] | None:
     return None
 
 
+def automixer_args(args: list[str]) -> list[str] | None:
+    """The automixer's arguments when the bundle was started as ``-m automixer ...``,
+    else None. ``automix.bundled_command`` runs ``<sys.executable> -m automixer``; in the
+    app that executable is the launcher (see :func:`recorder_args`)."""
+    if args[:2] == ["-m", "automixer"]:
+        return args[2:]
+    return None
+
+
+def _run_automixer(args: list[str]) -> int:
+    """Run the bundled automixer's ``automixer`` console script (``cli_mix:main``; the
+    podcast package has no ``__main__``), with ``sys.argv`` as the script would see it.
+    A missing package prints the line a failed import prints, which Kuulas turns into
+    ``error.automix.cannot_start``."""
+    import importlib.metadata  # noqa: PLC0415
+
+    found = importlib.metadata.entry_points(group="console_scripts", name="automixer")
+    if not found:
+        print("ModuleNotFoundError: No module named 'automixer'", file=sys.stderr,
+              flush=True)
+        return 1
+    sys.argv = ["automixer", *args]
+    try:
+        code = next(iter(found)).load()()
+    except SystemExit as e:
+        return e.code if isinstance(e.code, int) else (0 if e.code is None else 1)
+    return code if isinstance(code, int) else 0
+
+
 def _run_worker(args: list[str]) -> int:
     """Run the transcription worker's ``main`` (it never imports the editor session)."""
     from . import transcribe_worker  # noqa: PLC0415
@@ -161,6 +190,12 @@ def main() -> int:
         if resources is not None:
             os.environ.update(environment(resources, dict(os.environ), home))
         return _run_recorder(recorder)
+    automixer = automixer_args(args)
+    if automixer is not None:
+        # No log either: Kuulas reads the automixer's progress from its stdout.
+        if resources is not None:
+            os.environ.update(environment(resources, dict(os.environ), home))
+        return _run_automixer(automixer)
     worker = worker_args(args)
     if worker is not None:
         module = worker_module(args) or "kuulas.transcribe_worker"

@@ -1667,6 +1667,8 @@
   "error.automix.bad_ad_duration": "Mainoksen kesto {value} ei ole sekuntimäärä, joka on suurempi kuin 0.",
   "error.automix.bad_cwd": "Automixerin kansiota {cwd} ei ole. Muuta se automixer-miksauksen asetuksissa.",
   "error.automix.not_found": "Automixeria ei voitu käynnistää: komentoa \"{command}\" ei löytynyt (kansio: {cwd}). Tarkista komento ja kansio automixer-miksauksen asetuksista.",
+  "error.automix.cannot_start": "Automixeria ei voitu käynnistää: osa siitä puuttuu tai on rikki ({detail}). Jos olet antanut oman komennon automixer-miksauksen asetuksissa, tarkista se asennus; muuten asenna Kuulas uudelleen. Koko tuloste on lokitiedostossa projektin vieressä.",
+  "error.automix.plugin_missing": "Liitännäistä \"{plugin}\" ei ole asennettu tähän Maciin. Liitännäiset eivät kuulu Kuulakseen: asenna se tai poista se automixerin puheen tai musiikin liitännäisistä. Kuulas etsii liitännäisiä kansioista: {folders}",
   "error.automix.failed": "Automixer pysähtyi virhekoodiin {code}.\n{tail}",
   "error.automix.no_output": "Automixer päättyi mutta ei kirjoittanut miksausta.\n{tail}",
   "error.automix.bad_settings": "Automixerin asetukset eivät kelpaa: komento on sanalista, kansio teksti ja lisäargumentit sanalista.",

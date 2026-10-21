@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import contextlib
 import importlib.metadata
+import importlib.util
 import json
 import logging
 import os
@@ -31,6 +32,7 @@ import shlex
 import shutil
 import signal
 import subprocess
+import sys
 import tempfile
 import threading
 import time
@@ -45,6 +47,7 @@ import soundfile as sf
 from . import (
     automix_remote,
     block_level,
+    bundle,
     export,
     export_names,
     hand_adjusted,
@@ -61,7 +64,8 @@ from .messages import KuulasError, t
 
 log = logging.getLogger("kuulas.automix")
 
-#: What "uv run automixer" means for the owner: run in the podcast checkout.
+#: What "uv run automixer" means for the owner: run in the podcast checkout. Used when
+#: Kuulas runs from source; the app runs its own automixer (``bundled_command``).
 DEFAULT_COMMAND = ["uv", "run", "automixer"]
 DEFAULT_CWD = Path("Documents") / "koodi" / "podcast"
 #: Writing the stems is this much of the bar; the automixer's own run is the rest.
@@ -99,6 +103,19 @@ class AutomixError(KuulasError, RuntimeError):
     """A failed automixer run (a message key, so the job shows it translated)."""
 
 
+def bundled_command(module_file: str | Path = __file__,
+                    find_spec: Callable[[str], Any] = importlib.util.find_spec,
+                    ) -> list[str] | None:
+    """The command of the automixer shipped inside Kuulas.app, or None (running from
+    source, or a bundle without it). It is the app's own executable with ``-m
+    automixer``: in the app that is the launcher, which hands the arguments to
+    ``bundle.main`` (it runs the package's ``automixer`` console script), so the
+    automixer runs on the bundle's Python and libraries, with no checkout, uv or ssh."""
+    if bundle.resources_dir(module_file) is None or find_spec("automixer") is None:
+        return None
+    return [sys.executable, "-m", "automixer"]
+
+
 def resolve_settings(stored: dict | None, *, home: Path | None = None) -> dict[str, Any]:
     """The automixer settings with their defaults filled in: ``remote`` (run on another
     Mac, see ``automix_remote``; off by default), ``command`` (list),
@@ -106,20 +123,25 @@ def resolve_settings(stored: dict | None, *, home: Path | None = None) -> dict[s
     mix is written; None means beside the project's ``.kuulas`` folder) and ``temp_dir``
     (where the temporary stems go; None means the system's temporary folder, as the
     OS or ``$TMPDIR`` sets it). The default folder is the podcast checkout when it
-    exists. ``options`` are the automixer's switches as settings (see ``OPTIONS``): only
-    values that differ from the tool's own defaults, and only valid ones."""
+    exists. In the app, with no command set, the command is the bundled automixer
+    (``bundled_command``) and there is no default folder; a command or folder set in the
+    settings always wins. ``options`` are the automixer's switches as settings (see
+    ``OPTIONS``): only values that differ from the tool's own defaults, and only valid
+    ones."""
     stored = stored or {}
     command = stored.get("command")
+    bundled = None
     if not (isinstance(command, list) and command
             and all(isinstance(x, str) and x for x in command)):
-        command = list(DEFAULT_COMMAND)
+        bundled = bundled_command()
+        command = bundled or list(DEFAULT_COMMAND)
     extra = stored.get("extra_args")
     if not (isinstance(extra, list) and all(isinstance(x, str) for x in extra)):
         extra = []
     cwd = stored.get("cwd")
     if not (isinstance(cwd, str) and cwd.strip()):
         default = (Path.home() if home is None else home) / DEFAULT_CWD
-        cwd = str(default) if default.is_dir() else None
+        cwd = str(default) if default.is_dir() and bundled is None else None
     temp = stored.get("temp_dir")
     temp = temp.strip() if isinstance(temp, str) and temp.strip() else None
     out_dir = stored.get("output_dir")
@@ -445,22 +467,39 @@ def _text(key: str, value: Any) -> str:
 PLUGIN_KEYS = ("speech_plugins", "music_plugins")
 
 
-def _plugin_path(key: str, item: str) -> str:
+def _plugin_path(item: str) -> str:
     """The path the tool is given for one typed plug-in: a path (has a separator) must
     exist; a name is matched to an installed plug-in (``plugins.match``). With nothing
     installed (or no scan on this platform) a name is passed on as typed, as before."""
     if plugins.looks_like_path(item):
         path = Path(item).expanduser()
         if not path.exists():
-            _bad_option(key, item)
+            plugin_missing(item)
         return str(path.absolute())
     installed = plugins.list_plugins()
     if not installed:
         return item
     found = plugins.resolve(item, installed)
     if found is None:
-        _bad_option(key, item)
+        plugin_missing(item)
     return found
+
+
+def plugin_missing(item: str) -> NoReturn:
+    """``error.automix.plugin_missing``: which plug-in, and the folders searched on this
+    Mac. Plug-ins (VST3, AU) are not part of Kuulas: each user installs their own."""
+    folders = ", ".join(str(r) for r in plugins.roots()) or "-"
+    raise AutomixError("error.automix.plugin_missing", plugin=item, folders=folders)
+
+
+def check_plugins(options: dict[str, Any]) -> None:
+    """Before a local run: every plug-in the automixer is given must exist here (it
+    loads plug-ins by path; a bare name, passed on when no scan found anything, never
+    loads). Raises ``plugin_missing`` for the first that does not."""
+    for key in PLUGIN_KEYS:
+        for item in options.get(key) or []:
+            if not Path(item).expanduser().exists():
+                plugin_missing(item)
 
 
 def _option_value(spec: dict[str, Any], value: Any, resolve: bool = True) -> Any:
@@ -489,7 +528,7 @@ def _option_value(spec: dict[str, Any], value: Any, resolve: bool = True) -> Any
             _bad_option(key, value)
         items = [item for item in (_text(key, item) for item in value) if item]
         if resolve and key in PLUGIN_KEYS:
-            items = [_plugin_path(key, item) for item in items]
+            items = [_plugin_path(item) for item in items]
         return items or None
     return _text(key, value) or None
 
@@ -936,6 +975,20 @@ def run_process(cmd: list[str], cwd: str | None, on_line: Callable[[str], None],
     return code
 
 
+_IMPORT_FAILED = re.compile(r"^(?:ModuleNotFoundError|ImportError): (.+)$")
+
+
+def startup_error(lines: list[str]) -> AutomixError | None:
+    """``error.automix.cannot_start`` when the output ends in a failed import (a part of
+    the automixer or of a library it loads is missing or broken), else None. The message
+    carries the import's own last line, never the traceback (that stays in log.txt)."""
+    for line in reversed(lines[-TAIL_LINES:]):
+        found = _IMPORT_FAILED.match(line.strip())
+        if found:
+            return AutomixError("error.automix.cannot_start", detail=found.group(1))
+    return None
+
+
 def _signal(proc: subprocess.Popen, sig: int) -> None:
     with contextlib.suppress(ProcessLookupError, PermissionError):
         os.killpg(proc.pid, sig)
@@ -1253,6 +1306,9 @@ def run(session, params: dict, settings: dict, report: Report,
                     "cwd": remote["cwd"] or None}
     elif settings["cwd"] and not Path(settings["cwd"]).is_dir():
         raise AutomixError("error.automix.bad_cwd", cwd=settings["cwd"])
+    if not remote:
+        # Before anything is exported: plug-ins are looked up on the Mac that renders.
+        check_plugins(settings.get("options") or {})
     stems_share = REMOTE_STEMS_SHARE if remote else STEMS_SHARE
     run_from = REMOTE_RUN_FROM if remote else STEMS_SHARE
     run_span = (REMOTE_RUN_TO if remote else 1.0) - run_from
@@ -1523,8 +1579,9 @@ def run(session, params: dict, settings: dict, report: Report,
             fail(AutomixError("error.automix.remote_lost", host=host,
                               tail="\n".join(list(lines)[-TAIL_LINES:])))
         if code != 0:
-            fail(AutomixError("error.automix.failed", code=code,
-                              tail="\n".join(list(lines)[-TAIL_LINES:])))
+            fail(startup_error(list(lines)) or AutomixError(
+                "error.automix.failed", code=code,
+                tail="\n".join(list(lines)[-TAIL_LINES:])))
         if remote and run_dir:
             began_download = time.monotonic()
             incoming = scratch / "download"
