@@ -18,6 +18,9 @@ Leike on pala yhdestä äänityksestä raidalla. Samasta äänityksestä voi oll
 - Muokkasitko äänityksen toisessa ohjelmassa (vaikkapa poistit kohinan)? Leikkeen valikon **Etsi / vaihda äänitiedosto…** vaihtaa äänityksen kaikkiin leikkeisiin valitsemasi tiedoston näytettyään molemmat pituudet; yksi kumoamisaskel, eikä kumpaakaan tiedostoa muuteta. Leike, jonka tiedosto puuttuu, näyttää punaisen varoitusmerkin; kaksoisnapsauta sitä etsiäksesi tiedoston.
 - Häivytys sisään ja ulos: {key:clip.fade}
 
+## Alue vai leikkeet: viimeisin valinta voittaa
+Kun sinulla on sekä In-Out-alue että valittuja leikkeitä, Poista, Leikkaa, Nosta, Sulje aukko ja Kopioi koskevat sitä, mihin koskit viimeksi. Valitse leikkeitä, kun In ja Out on jo asetettu, niin seuraava muokkaus koskee niitä leikkeitä (tilarivi kertoo sen: "koskevat 3 valittua leikettä"), ja merkit jäävät paikalleen himmennettyinä. Aseta tai siirrä Iniä tai Outia tai vedä uusi alue, niin alue on taas kohteena ("alue 0:12-0:18 kaikilla 4 raidalla"). Valinnan tai merkkien tyhjennys jättää toisen kohteeksi. Silmukka, valinnan toisto ja vienti käyttävät edelleen ensin merkkejä. Kumoa ja Tee uudelleen eivät muuta valintaa.
+
 Jokaisen muokkauksen voi perua askel kerrallaan: {key:edit.undo}.
 
 ## Liitä
