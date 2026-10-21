@@ -6,7 +6,8 @@ import * as api from "./api.js";
 import { SIDE_TAB_COMMANDS } from "./app-commands.js";
 import { createAutomixDialog } from "./automix-dialog.js";
 import { createAutomixLiveDialog } from "./automix-live-dialog.js";
-import { automixNotice } from "./automix-model.js";
+import { createAutomixToast } from "./automix-toast.js";
+import { automixToast } from "./automix-toast-model.js";
 import { createBlockLevelDialog } from "./block-level-dialog.js";
 import { memberClipsAt, toggleChange } from "./bus-collapse.js";
 import { trackRoleChoice } from "./bus-role.js";
@@ -198,13 +199,18 @@ let noticeTimer = null;
 // shows one more button (Cancel, Show in Finder); `action2` a second one (Show log).
 let noticeAction = null;
 let noticeAction2 = null;
+// `rich`: the running automixer's structured view (automix-toast-model.js); `text` stays
+// the plain line under it.
+const richToast = createAutomixToast();
 function showNotice(
   text,
   kind = "error",
-  { undo = false, sticky = false, action = null, action2 = null } = {},
+  { undo = false, sticky = false, action = null, action2 = null, rich = null } = {},
 ) {
   const notice = $("notice");
   $("notice-text").textContent = text;
+  if (rich) richToast.show(rich);
+  else richToast.reset();
   $("notice-undo").hidden = !undo;
   noticeAction = action;
   $("notice-action").hidden = !action;
@@ -1779,8 +1785,12 @@ async function followExportJob(id, what) {
     }
     if (!job) break;
     let notice;
-    if (what === "automix") notice = automixNotice(job, t);
-    else if (what === "colab") notice = colabNotice(job, t, colabNames);
+    let rich = null;
+    if (what === "automix") {
+      const view = automixToast(job, t);
+      notice = view.notice;
+      if (view.rich) rich = view;
+    } else if (what === "colab") notice = colabNotice(job, t, colabNames);
     else notice = exportNotice(job, t, what);
     let action = null;
     if (notice.cancel) {
@@ -1802,7 +1812,7 @@ async function followExportJob(id, what) {
       if (action === action2) action2 = null;
     }
     // Done stays up (the owner reads the folder); failures and cancels time out as usual.
-    showNotice(notice.text, notice.kind, { sticky: notice.sticky, action, action2 });
+    showNotice(notice.text, notice.kind, { sticky: notice.sticky, action, action2, rich });
     if (job.state === "completed" || job.state === "failed" || job.state === "cancelled") {
       exportJob = null;
       return;
