@@ -232,7 +232,7 @@ export const SIGNALS = [
     tokens: ["--signal-partner"],
     twin: "dashed 1 px outline inset 2 px, neutral",
     when: "a clip is selected: its sync partners that a move takes along (WP19a)",
-    key: "E toggles group editing",
+    key: "A toggles all tracks / selected tracks",
     status: "prototype",
   },
   {
