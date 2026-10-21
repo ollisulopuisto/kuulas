@@ -1,5 +1,6 @@
 ## [v26.10.20.37] - 2026-10-21
 
+- **Silenced stretches are easier to see.** The body of a closed (Auto-Silence) stretch is clearly darker, and each stretch has its own thin dashed amber start and end lines (not draggable, unlike real clip borders). Clips in a group (Edit > Group) get one outline around the whole group.
 - **Export defaults to FLAC.** The mix export (the dialog, Cmd+E and the remembered settings of a project that never chose) starts as FLAC 24-bit instead of WAV: lossless, about half the size, and every tool and Slack-style chat accepts it. A format you chose before is still remembered. Track stems (and the stems the automixer reads) stay WAV 24-bit.
 
 ## [v26.10.20.36] - 2026-10-21
