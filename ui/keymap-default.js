@@ -356,6 +356,20 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.history.rename_version",
   },
   {
+    // G only in the side panels, and only while the pick is a restore step (the command is
+    // disabled otherwise, so the key does nothing there). Not AltGr, not Shift+digit.
+    id: "history.goto_restore_point",
+    keys: { mac: "G", other: "G" },
+    context: "side",
+    labelKey: "cmd.history.goto_restore_point",
+  },
+  {
+    id: "history.expand_all",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.history.expand_all",
+  },
+  {
     id: "history.saved_only",
     keys: { mac: null, other: null },
     context: "global",

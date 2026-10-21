@@ -1272,6 +1272,34 @@
   "ui.history.restore": "Restore",
   "ui.history.restore_hint": "Adds a new step; nothing is lost.",
   "ui.history.restored": "Restored. The state you left is one Undo away.",
+  "ui.history.dim.undone": "Undone",
+  "ui.history.dim.rolled_back": "Rolled back",
+  "ui.history.dim.left_behind": "Left behind",
+  "ui.history.stands.current": "In the current state",
+  "ui.history.stands.undone": "Undone",
+  "ui.history.stands.rolled_back": "Rolled back",
+  "ui.history.stands.left_behind": "Left behind",
+  "ui.history.group.undone": {
+    "one": "Undone · {count} step (Redo brings it back)",
+    "other": "Undone · {count} steps (Redo brings them back)"
+  },
+  "ui.history.group.rolled_back": {
+    "one": "Rolled back {count} step",
+    "other": "Rolled back {count} steps"
+  },
+  "ui.history.group.left_behind": {
+    "one": "Left behind · {count} step",
+    "other": "Left behind · {count} steps"
+  },
+  "ui.history.group.title": "{text}. Right arrow opens, Left arrow closes; every step stays restorable.",
+  "ui.history.restore_point": "restore point",
+  "ui.history.restore_point_title": "The step a Restore went back to. G on the restore row jumps here.",
+  "ui.history.run_title": "{count} steps in a row on the same thing. Right arrow shows each.",
+  "ui.history.goto_none": "Pick a restore step in History to go to the step it restored.",
+  "cmd.history.goto_restore_point": "Go to the restore point in History",
+  "cmd.history.goto_restore_point.hint": "From a Restored to step in History, jump to the step it went back to.",
+  "cmd.history.expand_all": "Expand all groups in History",
+  "cmd.history.expand_all.hint": "Open every Undone, Rolled back and Left behind group and every run of repeated steps; again closes them.",
   "ui.history.kind.manual": "Saved",
   "ui.history.kind.sent": "Sent",
   "ui.history.kind.received": "Received",

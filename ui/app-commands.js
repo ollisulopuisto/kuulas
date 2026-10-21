@@ -4,7 +4,7 @@
 import { busOfFocus, collapseAllChange, collapseChange } from "./bus-collapse.js";
 import { stepFocusMode } from "./focus-layout.js";
 import { clearGhost } from "./ghost-marker.js";
-import { canRestore } from "./history-model.js";
+import { canGoToRestorePoint, canRestore } from "./history-model.js";
 import { rangeAvailable } from "./loop-range.js";
 import { placeMark } from "./marks.js";
 import { focusTrack } from "./range-scope.js";
@@ -222,6 +222,12 @@ export function registerAppCommands(registry, { actions, app }) {
   def("history.open", () => app.openHistory());
   def("history.rename_version", () => app.renameVersion(), hasProject);
   def("history.saved_only", () => app.toggleSavedVersions(), hasProject);
+  def(
+    "history.goto_restore_point",
+    () => void app.goToRestorePoint(),
+    (state) => canGoToRestorePoint(state),
+  );
+  def("history.expand_all", () => app.expandHistoryGroups(), hasProject);
   def("app.import", () => app.chooseMedia());
   // File > New project… / Open project… (WP74): a window of its own; no project needed.
   def("app.new", () => app.newProject());

@@ -1302,6 +1302,14 @@ const keyboard = setupKeyboard({
       focusPanel("history");
       historyPanel.toggleSavedOnly();
     },
+    async goToRestorePoint() {
+      focusPanel("history");
+      if (!(await historyPanel.goToRestorePoint())) showNotice(t("ui.history.goto_none"), "ok");
+    },
+    expandHistoryGroups() {
+      focusPanel("history");
+      historyPanel.expandAll();
+    },
     openHistory: () => focusPanel("history"),
     edit: (change) => editor.change(change),
     toast: (text, options) => showNotice(text, "ok", options),
@@ -2092,7 +2100,8 @@ const inspector = createInspector({
 
 // Restore adds a step equal to an older one; the step left behind stays one Undo away.
 async function restoreStep(node) {
-  if (!node || node === getState().historyCurrent) return;
+  // A group or run row ("g:…", "r:…") is not a step: nothing to restore.
+  if (!node || node === getState().historyCurrent || /^[gr]:/.test(node)) return;
   try {
     const response = await api.restore(node);
     apply(response);

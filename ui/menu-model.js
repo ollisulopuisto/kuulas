@@ -108,6 +108,8 @@ const GO = submenu("menu.go", [
   SEP,
   item("history.open"),
   item("history.restore"),
+  item("history.goto_restore_point"),
+  item("history.expand_all"),
   item("history.saved_only"),
   item("history.rename_version"),
 ]);

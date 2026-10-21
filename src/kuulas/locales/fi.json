@@ -1337,6 +1337,34 @@
   "ui.history.restore": "Palauta",
   "ui.history.restore_hint": "Lisää uuden vaiheen; mitään ei katoa.",
   "ui.history.restored": "Palautettu. Jättämäsi tila on yhden Kumoa-komennon päässä.",
+  "ui.history.dim.undone": "Kumottu",
+  "ui.history.dim.rolled_back": "Palautuksen ohittama",
+  "ui.history.dim.left_behind": "Jäänyt sivupolulle",
+  "ui.history.stands.current": "Nykyisessä tilassa",
+  "ui.history.stands.undone": "Kumottu",
+  "ui.history.stands.rolled_back": "Palautuksen ohittama",
+  "ui.history.stands.left_behind": "Jäänyt sivupolulle",
+  "ui.history.group.undone": {
+    "one": "Kumottu · {count} vaihe (Tee uudelleen tuo sen takaisin)",
+    "other": "Kumottu · {count} vaihetta (Tee uudelleen tuo ne takaisin)"
+  },
+  "ui.history.group.rolled_back": {
+    "one": "Palautus ohitti {count} vaiheen",
+    "other": "Palautus ohitti {count} vaihetta"
+  },
+  "ui.history.group.left_behind": {
+    "one": "Sivupolulle jäänyt · {count} vaihe",
+    "other": "Sivupolulle jääneet · {count} vaihetta"
+  },
+  "ui.history.group.title": "{text}. Oikea nuoli avaa, vasen sulkee; jokaisen vaiheen voi yhä palauttaa.",
+  "ui.history.restore_point": "palautuskohta",
+  "ui.history.restore_point_title": "Vaihe, johon palautus palasi. G palautusrivillä hyppää tänne.",
+  "ui.history.run_title": "{count} peräkkäistä vaihetta samaan kohteeseen. Oikea nuoli näyttää jokaisen.",
+  "ui.history.goto_none": "Valitse Historiasta palautusvaihe, niin pääset vaiheeseen, jonka se palautti.",
+  "cmd.history.goto_restore_point": "Siirry Historiassa palautuskohtaan",
+  "cmd.history.goto_restore_point.hint": "Hyppää Historian Palautettu-vaiheesta vaiheeseen, johon se palasi.",
+  "cmd.history.expand_all": "Avaa Historian kaikki ryhmät",
+  "cmd.history.expand_all.hint": "Avaa jokaisen Kumottu-, Palautuksen ohittama- ja Sivupolulle jäänyt -ryhmän sekä toistuvien vaiheiden jonot; uudelleen sulkee ne.",
   "ui.history.kind.manual": "Tallennettu",
   "ui.history.kind.sent": "Lähetetty",
   "ui.history.kind.received": "Vastaanotettu",

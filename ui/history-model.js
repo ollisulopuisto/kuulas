@@ -1,8 +1,10 @@
 // The History panel's logic, pure: grouping steps by session marker, relative times in
 // Helsinki time, paging, selection and the undo notice. history-panel.js only draws.
 // Steps come from GET /api/history?limit=&before= (newest first), each with
-// { id, label, created (UTC), is_marker, marker ("opened"|"closed"), is_head,
-//   side ("head"|"past"|"redo"|"branch") }.
+// { id, label (as stored), name / name_base / name_detail (readable, made by the server),
+//   run (key shared by repeated steps on one object), created (UTC), is_marker, marker
+//   ("opened"|"closed"), is_head, side ("head"|"past"|"rolled_back"|"redo"|"branch"),
+//   rolled_back_by, restore_target, checkpoint }.
 
 import { filterSteps } from "./history-filter.js";
 
@@ -98,9 +100,10 @@ export function visibleNodes(nodes, { query = "", savedOnly = false } = {}) {
   let steps = nodes.filter((node) => !node.is_marker);
   if (savedOnly) steps = steps.filter((node) => node.checkpoint);
   if (!text) return steps;
+  // The readable name (what the row shows), the stored label and the version's name.
   const named = steps.map((node) => ({
     node,
-    label: node.checkpoint ? `${node.label} ${node.checkpoint.name}` : node.label,
+    label: [node.name, node.label, node.checkpoint?.name].filter(Boolean).join(" "),
   }));
   const kept = new Set(filterSteps(named, query).map((item) => item.node));
   return steps.filter((node) => kept.has(node));
@@ -141,6 +144,201 @@ export function groupRows(nodes, now, t) {
       indent: node.side === "branch",
     };
   });
+}
+
+// -- the list as drawn: restores, groups and runs -----------------------------------------
+//
+// Three kinds of step are not part of the current state, each with its own icon and word
+// (never colour alone): undone (Redo walks them), rolled back (a Restore skipped them) and
+// left behind (an edit after an undo). A run of one kind is one group row: undone opens by
+// default (one key away), the others are closed. Consecutive steps that change one setting
+// of one object (the server's `run` key) show as one row, for display only.
+
+/** A step's place relative to the current state, as the group kinds name it. */
+const DIM = { redo: "undone", rolled_back: "rolled_back", branch: "left_behind" };
+const OPEN_BY_DEFAULT = { undone: true, rolled_back: false, left_behind: false, run: false };
+
+const dimOf = (node) => DIM[node.side] ?? null;
+const isGroupId = (id) => typeof id === "string" && /^[gr]:/.test(id);
+
+/** The words each kind carries: on the row (title, aria-description) and as a status. */
+const dimText = (dim, t) => (dim ? t(`ui.history.dim.${dim}`) : "");
+const standsText = (node, t) => t(`ui.history.stands.${dimOf(node) ?? "current"}`);
+
+/** Steps a restore in the current state points at (its target is the restore point). */
+function restorePoints(nodes) {
+  const points = new Set();
+  for (const node of nodes) {
+    if (node.restore_target && (node.side === "head" || node.side === "past")) {
+      points.add(node.restore_target);
+    }
+  }
+  return points;
+}
+
+/** The step a restore row restored, for "Go to restore point"; null for other rows. */
+export function restorePointOf(nodes, id) {
+  return nodes.find((node) => node.id === id)?.restore_target ?? null;
+}
+
+export const canGoToRestorePoint = (state) =>
+  state?.panel === "history" && Boolean(state.historyRestoreTarget);
+
+/** A run of steps as one row: "Track settings: Olli ×4 · gain −3.0 dB → gain −9.0 dB". */
+function runLabel(members) {
+  const newest = members[0];
+  const oldest = members[members.length - 1];
+  const base = newest.name_base || newest.name || newest.label;
+  const to = newest.name_detail || "";
+  const from = oldest.name_detail || "";
+  const detail = from && to && from !== to ? `${from} → ${to}` : to;
+  return `${base} ×${members.length}${detail ? ` · ${detail}` : ""}`;
+}
+
+/**
+ * Split a list of steps into runs: consecutive steps with one `run` key. The head, a
+ * restore point, a saved version and markers never join one, so they stay rows of their own.
+ */
+function runsOf(nodes, points) {
+  const out = [];
+  const anchor = (node) =>
+    node.is_marker || !node.run || node.side === "head" || points.has(node.id) || node.checkpoint;
+  for (const node of nodes) {
+    const last = out[out.length - 1];
+    if (!anchor(node) && last && !anchor(last[0]) && last[0].run === node.run) last.push(node);
+    else out.push([node]);
+  }
+  return out;
+}
+
+/**
+ * The rows the History panel draws, newest first. `expanded`: the user's open/closed
+ * choice by group id ("g:<kind>:<newest step id>") or run id ("r:<newest step id>"),
+ * over the defaults. `savedOnly` or a text `query`: a flat list where every row says
+ * where it stands instead (a filter shows hits, not structure).
+ *
+ * Rows: markers as groupRows makes them; { kind: "group", id, group, count, expanded,
+ * text, time, by } for a group; steps with label (the readable name), dim and dimText
+ * (null/"" in the current state), parent (the group or run they are inside), restoreTarget,
+ * restorePoint, run ({ key, count, expanded } on a run's first row), members (the ids a
+ * group or run holds, for "Go to restore point") and stands (filters).
+ */
+export function historyRows(nodes, now, t, { expanded = {}, savedOnly = false, query = "" } = {}) {
+  const flat = groupRows(nodes, now, t);
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  const points = restorePoints(nodes);
+  const filtered = savedOnly || (typeof query === "string" && query.trim() !== "");
+  const stepRow = (row, extra = {}) => {
+    const node = byId.get(row.id);
+    const dim = dimOf(node);
+    return {
+      ...row,
+      label: node.name || node.label,
+      stored: node.label,
+      dim,
+      dimText: dimText(dim, t),
+      parent: null,
+      restoreTarget: node.side === "head" || node.side === "past" ? node.restore_target : null,
+      restorePoint: points.has(node.id),
+      run: null,
+      stands: filtered ? standsText(node, t) : "",
+      ...extra,
+    };
+  };
+  const rowOf = new Map(flat.map((row) => [row.id, row]));
+  if (filtered) return flat.map((row) => (row.kind === "step" ? stepRow(row) : row));
+
+  const open = (id, kind) => expanded[id] ?? OPEN_BY_DEFAULT[kind] ?? true;
+  /** Rows for a stretch of steps of one kind: runs collapsed unless opened. */
+  const emit = (members, parent) => {
+    const out = [];
+    for (const run of runsOf(members, points)) {
+      const first = run[0];
+      if (first.is_marker) {
+        out.push({ ...rowOf.get(first.id), parent });
+        continue;
+      }
+      if (run.length === 1) {
+        out.push(stepRow(rowOf.get(first.id), { parent }));
+        continue;
+      }
+      const key = `r:${first.id}`;
+      const isOpen = open(key, "run");
+      const head = { key, count: run.length, expanded: isOpen };
+      const members = run.slice(1).map((node) => node.id);
+      if (!isOpen) {
+        out.push(
+          stepRow(rowOf.get(first.id), { parent, run: head, members, label: runLabel(run) }),
+        );
+        continue;
+      }
+      out.push(stepRow(rowOf.get(first.id), { parent, run: head, members }));
+      for (const node of run.slice(1)) out.push(stepRow(rowOf.get(node.id), { parent: key }));
+    }
+    return out;
+  };
+
+  // Stretches of one kind: consecutive nodes with the same dim (and, rolled back, the same
+  // restore). Markers inside a stretch belong to it.
+  const stretches = [];
+  for (const node of nodes) {
+    const dim = dimOf(node);
+    const key = dim ? `${dim}:${dim === "rolled_back" ? node.rolled_back_by : ""}` : null;
+    const last = stretches[stretches.length - 1];
+    if (last && last.key === key) last.nodes.push(node);
+    else stretches.push({ key, dim, nodes: [node] });
+  }
+  const rows = [];
+  for (const { dim, nodes: members } of stretches) {
+    const steps = members.filter((node) => !node.is_marker);
+    if (!dim || steps.length === 0) {
+      rows.push(...emit(members, null));
+      continue;
+    }
+    const id = `g:${dim}:${members[0].id}`;
+    const isOpen = open(id, dim);
+    const newest = rowOf.get(steps[0].id).time;
+    const oldest = rowOf.get(steps[steps.length - 1].id).time;
+    rows.push({
+      kind: "group",
+      id,
+      group: dim,
+      count: steps.length,
+      expanded: isOpen,
+      text: t(`ui.history.group.${dim}`, { count: steps.length }),
+      dimText: dimText(dim, t),
+      time: newest === oldest ? newest : `${oldest}–${newest}`,
+      by: dim === "rolled_back" ? (steps[0].rolled_back_by ?? null) : null,
+      members: members.map((node) => node.id),
+    });
+    if (isOpen) rows.push(...emit(members, id));
+  }
+  return rows;
+}
+
+/** The ids of every group and run in the list, open; or {} (the defaults) when all are. */
+export function expandAllMap(nodes, now, t, expanded = {}) {
+  const all = {};
+  let closed = false;
+  // Open everything, then read what exists (runs inside closed groups appear once open).
+  for (let pass = 0; pass < 3; pass++) {
+    for (const row of historyRows(nodes, now, t, { expanded: { ...expanded, ...all } })) {
+      const id = row.kind === "group" ? row.id : row.run?.key;
+      if (!id) continue;
+      if (!(row.kind === "group" ? row.expanded : row.run.expanded) && !all[id]) closed = true;
+      all[id] = true;
+    }
+  }
+  return closed ? all : {};
+}
+
+/** The next drawn row in `direction` (1 older, -1 newer), markers skipped; stays at the ends. */
+export function moveRow(rows, selected, direction) {
+  const picks = rows.filter((row) => row.kind !== "marker");
+  if (picks.length === 0) return null;
+  const at = picks.findIndex((row) => row.id === selected);
+  if (at < 0) return picks[0].id;
+  return picks[Math.min(picks.length - 1, Math.max(0, at + direction))].id;
 }
 
 /** The steps Redo would walk, newest first. */
@@ -187,6 +385,7 @@ export function moveSelection(nodes, selected, direction) {
 export const canRestore = (state) =>
   state?.panel === "history" &&
   Boolean(state.historySelected) &&
+  !isGroupId(state.historySelected) &&
   state.historySelected !== (state.historyCurrent ?? state.head);
 
 /**
