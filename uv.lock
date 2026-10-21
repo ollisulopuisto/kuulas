@@ -404,13 +404,14 @@ wheels = [
 
 [[package]]
 name = "kuulas"
-version = "26.10.20.37"
+version = "26.10.20.38"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "nhsx" },
     { name = "numpy" },
     { name = "python-multipart" },
+    { name = "silencelearn" },
     { name = "sounddevice" },
     { name = "soundfile" },
     { name = "soxr" },
@@ -444,6 +445,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=2.4.2" },
     { name = "python-multipart", specifier = ">=0.0.20" },
     { name = "pywebview", marker = "extra == 'desktop'", specifier = ">=5" },
+    { name = "silencelearn", editable = "../podcast/packages/silencelearn" },
     { name = "sounddevice", specifier = ">=0.5.2" },
     { name = "soundfile", specifier = ">=0.14.0" },
     { name = "soxr", specifier = ">=1.1.0" },
@@ -584,7 +586,7 @@ wheels = [
 
 [[package]]
 name = "nhsx"
-version = "2026.10.5.3"
+version = "2026.10.9.2"
 source = { editable = "../podcast/packages/nhsx" }
 dependencies = [
     { name = "lxml" },
@@ -1247,6 +1249,11 @@ wheels = [
 ]
 
 [[package]]
+name = "silencelearn"
+version = "2026.10.12.1"
+source = { editable = "../podcast/packages/silencelearn" }
+
+[[package]]
 name = "sounddevice"
 version = "0.5.6"
 source = { registry = "https://pypi.org/simple" }
@@ -1306,7 +1313,7 @@ wheels = [
 
 [[package]]
 name = "speechmix"
-version = "2026.10.8.6"
+version = "2026.10.9.1"
 source = { editable = "../podcast/packages/speechmix" }
 dependencies = [
     { name = "numba" },
@@ -1321,7 +1328,7 @@ dependencies = [
 requires-dist = [
     { name = "numba", specifier = ">=0.67.0" },
     { name = "numpy", specifier = ">=2.4.2" },
-    { name = "pedalboard", specifier = ">=0.9.24" },
+    { name = "pedalboard", specifier = ">=0.9.26" },
     { name = "psutil", specifier = ">=7.2.2" },
     { name = "pyloudnorm", specifier = ">=0.2.0" },
     { name = "scipy", specifier = ">=1.17.1" },
