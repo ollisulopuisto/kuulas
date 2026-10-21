@@ -53,6 +53,11 @@ class _Progress:
         self.jobs._checkpoint(self.job_id, value, self.cancelled_event,
                               message, indeterminate)
 
+    def set_eta(self, parts: list | None) -> None:
+        """The time left as ``["minutes", 12]`` (``eta.remaining_parts``, JSON-friendly)
+        or None; listed as the job's ``eta``."""
+        self.jobs._set_eta(self.job_id, parts)
+
 
 @dataclass
 class _Work:
@@ -95,7 +100,8 @@ class Jobs:
             self._items[job_id] = {"id": job_id, "kind": kind, "title": title,
                                    "progress": 0.0, "state": "queued", "error": None,
                                    "message": "", "indeterminate": False,
-                                   "remaining_seconds": None, "created": time.monotonic(),
+                                   "remaining_seconds": None, "eta": None,
+                                   "created": time.monotonic(),
                                    "started": None, "paused": False, "paused_s": 0.0,
                                    "paused_at": None, "own_message": ""}
             self._work[job_id] = work
@@ -127,13 +133,13 @@ class Jobs:
             with self._lock:
                 item = self._items[job_id]
                 item.update(state="completed", progress=1.0, remaining_seconds=0,
-                            indeterminate=False, paused=False)
+                            eta=None, indeterminate=False, paused=False)
                 if work.keep_result:
                     item["result"] = value
         except JobCancelledError:
             with self._lock:
                 self._items[job_id].update(state="cancelled", remaining_seconds=None,
-                                           paused=False)
+                                           eta=None, paused=False)
         except Exception as exc:
             if isinstance(exc, KuulasError):
                 log.exception("Background job %s failed: %s", job_id, exc.key)
@@ -146,7 +152,8 @@ class Jobs:
                          "text": str(t("error.job.failed", **params))}
             with self._lock:
                 self._items[job_id].update(state="failed", error=error,
-                                           remaining_seconds=None, paused=False)
+                                           remaining_seconds=None, eta=None,
+                                           paused=False)
         finally:
             if entered:
                 self._leave()
@@ -192,6 +199,12 @@ class Jobs:
             since = item["paused_at"]
             item["paused_s"] += time.monotonic() - since if since is not None else 0.0
             item.update(paused=False, paused_at=None, message=item["own_message"])
+
+    def _set_eta(self, job_id: str, parts: list | None) -> None:
+        with self._lock:
+            item = self._items.get(job_id)
+            if item is not None:
+                item["eta"] = parts
 
     def _checkpoint(self, job_id: str, value: float, cancelled: threading.Event,
                     message: str | None = None, indeterminate: bool = False) -> None:
