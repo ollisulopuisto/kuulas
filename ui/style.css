@@ -3320,6 +3320,20 @@ legend.form-heading {
   border-top: 1px solid var(--panel-divider);
   padding-top: var(--space-2);
 }
+/* "Run on another Mac": the connection test's result, one line per check. */
+.automix-remote-result {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+.automix-remote-result .automix-remote-failed {
+  color: var(--danger-text);
+}
+.automix-remote-result .automix-remote-warn strong {
+  color: var(--text);
+}
 .automix-advanced > summary {
   min-height: var(--control-h);
   cursor: pointer;

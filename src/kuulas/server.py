@@ -46,6 +46,7 @@ from starlette.websockets import WebSocketDisconnect
 
 from . import (
     automix,
+    automix_remote,
     bgjobs,
     clipboard_browse,
     colab_signin,
@@ -895,6 +896,16 @@ def create_app(session, engine, *, language: str | None = None,
     def get_plugins(refresh: bool = False):
         # The installed audio plug-ins (names only, never loaded) for the automixer
         # dialog's suggestions; the scan is cached, ?refresh=1 scans again.
+        remote = automix.resolve_settings(automix.load_settings())["remote"]
+        if remote["enabled"]:
+            # The Mac that renders has its own plug-ins; ask it (None: ssh failed, the
+            # dialog then shows a plain text field with a hint).
+            try:
+                found = automix_remote.list_plugins(remote)
+            except automix_remote.RemoteError:
+                found = None
+            return {"plugins": found or [], "remote": remote["host"],
+                    "remote_failed": found is None}
         return {"plugins": plugins.list_plugins(refresh=refresh)}
 
     @app.get("/api/settings/automixer")
@@ -908,8 +919,28 @@ def create_app(session, engine, *, language: str | None = None,
                 # What Kuulas already did that the automixer would otherwise redo.
                 "done_in_kuulas": automix.done_in_kuulas(session.state),
                 # What the installed tool accepts (its --help, cached; never an error).
-                "capabilities": automix.capabilities(
-                    resolved["command"], resolved["cwd"])}
+                "capabilities": _automix_capabilities(resolved)}
+
+    def _automix_capabilities(resolved: dict[str, Any]) -> dict[str, bool]:
+        remote = resolved["remote"]
+        if not remote["enabled"]:
+            return automix.capabilities(resolved["command"], resolved["cwd"])
+        try:  # the tool that will render is the one on the other Mac
+            automix_remote.check(remote)
+        except automix_remote.RemoteError:
+            return {}
+        return automix.remote_capabilities(remote)
+
+    @app.post("/api/settings/automixer/remote-test")
+    def post_automixer_remote_test(body: Annotated[dict[str, Any], Body()]):
+        # Test connection: the fields of the dialog (saved or not) are checked one by
+        # one; every check says ok or why not. Never hangs, never asks for a password.
+        given = body.get("remote")
+        stored = automix.load_settings().get("remote")
+        merged = {**(stored if isinstance(stored, dict) else {}),
+                  **(given if isinstance(given, dict) else {})}
+        gated = {key: automix.OPTIONS[key]["flag"] for key in automix.GATED}
+        return automix_remote.connection_test({**merged, "enabled": True}, gated)
 
     @app.put("/api/settings/automixer")
     def put_automixer_settings(body: Annotated[dict[str, Any], Body()]):

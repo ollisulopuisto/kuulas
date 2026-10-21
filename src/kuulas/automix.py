@@ -42,7 +42,15 @@ from typing import Any, NoReturn
 
 import soundfile as sf
 
-from . import block_level, export, export_names, music_level, plugins, toolpath
+from . import (
+    automix_remote,
+    block_level,
+    export,
+    export_names,
+    music_level,
+    plugins,
+    toolpath,
+)
 from .jobs import JobCancelledError
 from .messages import KuulasError, t
 
@@ -53,6 +61,13 @@ DEFAULT_COMMAND = ["uv", "run", "automixer"]
 DEFAULT_CWD = Path("Documents") / "koodi" / "podcast"
 #: Writing the stems is this much of the bar; the automixer's own run is the rest.
 STEMS_SHARE = 0.4
+#: On another Mac the bar is: stems, upload, the automixer's run, download.
+REMOTE_STEMS_SHARE = 0.15
+REMOTE_RUN_FROM = 0.25
+REMOTE_RUN_TO = 0.95
+#: Lines rsync -v prints that are not a file name.
+_RSYNC_CHATTER = re.compile(
+    r"(sending|receiving|building|created|sent |total size|rsync[:(]|\./?$|$)")
 #: The log kept for the UI, and the part of it an error carries.
 LOG_LINES = 200
 TAIL_LINES = 15
@@ -62,6 +77,8 @@ _PROGRESS = re.compile(r"PROGRESS\s+(\d{1,3})(?:\s+(.*))?$")
 #: ("Olli: debleed" with ``--no-debleed``): stage word -> the option that runs it.
 _STAGE_OPTION = {"debleed": "speech_debleed", "duck": "speech_mic_duck"}
 _STAGE_LINE = re.compile(r"(?:^|:\s*)(debleed|duck)\s*$")
+#: What ssh exits with when the connection fails or breaks.
+SSH_LOST = 255
 #: How long a terminated automixer gets to exit before it is killed.
 GRACE_SECONDS = 5
 
@@ -78,7 +95,8 @@ class AutomixError(KuulasError, RuntimeError):
 
 
 def resolve_settings(stored: dict | None, *, home: Path | None = None) -> dict[str, Any]:
-    """The automixer settings with their defaults filled in: ``command`` (list),
+    """The automixer settings with their defaults filled in: ``remote`` (run on another
+    Mac, see ``automix_remote``; off by default), ``command`` (list),
     ``cwd`` (folder or None), ``extra_args`` (list of strings), ``output_dir`` (where the
     mix is written; None means beside the project's ``.kuulas`` folder) and ``temp_dir``
     (where the temporary stems go; None means the system's temporary folder, as the
@@ -103,7 +121,8 @@ def resolve_settings(stored: dict | None, *, home: Path | None = None) -> dict[s
     out_dir = out_dir.strip() if isinstance(out_dir, str) and out_dir.strip() else None
     return {"command": list(command), "cwd": cwd, "extra_args": list(extra),
             "temp_dir": temp, "output_dir": out_dir,
-            "options": _tolerant_options(stored.get("options"))}
+            "options": _tolerant_options(stored.get("options")),
+            "remote": automix_remote.resolve(stored.get("remote"))}
 
 
 def settings_path() -> Path:
@@ -143,8 +162,17 @@ def save_settings(settings: dict) -> dict:
         raise AutomixError("error.automix.bad_settings")
     keys = ("command", "cwd", "extra_args", "temp_dir", "output_dir")
     clean = {k: settings[k] for k in keys if settings.get(k) is not None}
+    remote_on = False
+    if settings.get("remote") is not None:
+        try:
+            clean["remote"] = automix_remote.clean(
+                settings["remote"], (load_settings().get("remote")))
+        except automix_remote.RemoteError as e:
+            raise AutomixError(e.key, **e.params) from e
+        remote_on = clean["remote"]["enabled"]
     if settings.get("options") is not None:
-        clean["options"] = normalize_options(settings["options"])
+        # Plug-in names are looked up on this Mac, which is not the one that renders.
+        clean["options"] = normalize_options(settings["options"], resolve=not remote_on)
     path = settings_path()
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -552,12 +580,15 @@ def _probe_key(command: list[str], cwd: str | None) -> tuple:
 
 def capabilities(command: list[str], cwd: str | None, *,
                  run_process: RunProcess | None = None,
-                 timeout: float = PROBE_SECONDS) -> dict[str, bool]:
+                 timeout: float = PROBE_SECONDS, scope: str = "") -> dict[str, bool]:
     """Which gated options the installed automixer accepts, from its ``--help`` text.
     Never raises: a tool that cannot be run, fails or hangs (``timeout``) gives False for
     all (the option is then not sent, and the run itself reports a missing tool). Cached
-    for the session per command, folder and program age."""
-    key = _probe_key(command, cwd)
+    for the session per command, folder and program age. A non-empty ``scope`` (the host
+    of a remote run, with ``run_process`` the ssh wrapper) replaces the local program age
+    in the cache key, and a failed probe is not remembered: the other Mac may sleep."""
+    key = (("remote", scope, tuple(command), cwd or "") if scope
+           else _probe_key(command, cwd))
     with _capability_lock:
         if key in _capability_cache:
             return dict(_capability_cache[key])
@@ -576,20 +607,31 @@ def capabilities(command: list[str], cwd: str | None, *,
         timer.cancel()
     help_text = "\n".join(text) if code == 0 and not cancel.is_set() else ""
     found = {k: OPTIONS[k]["flag"] in help_text for k in GATED}
+    if scope and not help_text:
+        return found
     with _capability_lock:
         _capability_cache[key] = found
     return dict(found)
 
 
+def remote_capabilities(remote: dict[str, Any], *, run_process: RunProcess | None = None,
+                        ) -> dict[str, bool]:
+    """``capabilities`` of the automixer on the remote Mac (its own ``--help`` over ssh,
+    cached per host, folder and command)."""
+    wrapped = automix_remote.runner(remote, run_process or globals()["run_process"])
+    return capabilities(remote["command"], remote["cwd"], run_process=wrapped,
+                        scope=remote["host"])
+
+
 def gate_options(options: dict[str, Any], command: list[str], cwd: str | None, *,
-                 run_process: RunProcess | None = None,
+                 run_process: RunProcess | None = None, scope: str = "",
                  ) -> tuple[dict[str, Any], list[str]]:
     """``options`` without the gated ones the installed automixer does not accept, and a
     translated warning for each one dropped. Probes only when a gated option is set."""
     wanted = [k for k in GATED if k in options]
     if not wanted:
         return options, []
-    found = capabilities(command, cwd, run_process=run_process)
+    found = capabilities(command, cwd, run_process=run_process, scope=scope)
     dropped = [k for k in wanted if not found.get(k)]
     kept = {k: v for k, v in options.items() if k not in dropped}
     return kept, [t("warn.automix.option_unsupported") for _ in dropped]
@@ -710,7 +752,8 @@ def _kuulas_version() -> str:
 
 def _write_log(target: Path, *, project: str, cmd: list[str], cwd: str | None,
                lines, code: int | None, started: datetime, took: dict[str, float],
-               outcome: str, done: list[str] | None = None) -> str | None:
+               outcome: str, done: list[str] | None = None,
+               ran_on: str | None = None) -> str | None:
     """Write the automixer's whole output beside the mix, under a header that says what
     was run, and a summary. Never overwrites a file; ``target`` is only the name wanted.
     Returns the path, or None when it could not be written (the mix matters more than
@@ -721,6 +764,7 @@ def _write_log(target: Path, *, project: str, cmd: list[str], cwd: str | None,
         f"kuulas {_kuulas_version()}",
         f"date: {started.isoformat(timespec='seconds')}",
         f"project: {project}",
+        *([f"ran on: {ran_on}"] if ran_on else []),
         f"folder: {cwd or ''}",
         f"command: {shlex.join(str(c) for c in cmd)}",
         *(done or []),
@@ -753,6 +797,11 @@ def _unique(folder: Path, name: str) -> Path:
 TRACK_STAGES = ("read", "debleed", "plugin", "cleanup", "measure", "dynamics", "lag",
                 "duck", "write")
 PHASES = 4  # stems, analysis, tracks, mastering
+#: Run on another Mac: the same, with the upload before and the download after.
+PHASES_REMOTE = 6
+_PHASE_NUMBER = {"stems": 1, "analysis": 2, "tracks": 3, "mastering": 4}
+_PHASE_NUMBER_REMOTE = {"stems": 1, "upload": 2, "analysis": 3, "tracks": 4,
+                        "mastering": 5, "download": 6}
 _TRACK_LINE = re.compile(
     r"(?:^|\s)(?P<name>[^:\[\]]+?):\s+(?P<stage>" + "|".join(TRACK_STAGES) + r")\s*$")
 
@@ -763,18 +812,33 @@ class StepTracker:
     stems (Kuulas), 2 analysis, 3 tracks (track i of n, stage j of 9), 4 mastering;
     a line that names no stage keeps the phase it is in."""
 
-    def __init__(self, track_names: list[str]):
+    def __init__(self, track_names: list[str], *, remote: bool = False):
         self.names = list(track_names)
-        self.phase = 2
+        self._numbers = _PHASE_NUMBER_REMOTE if remote else _PHASE_NUMBER
+        self.phases = PHASES_REMOTE if remote else PHASES
+        self.stage = "analysis"
+
+    @property
+    def phase(self) -> int:
+        return self._numbers[self.stage]
+
+    def _step(self, stage: str, what: str) -> str:
+        return t("ui.automix.step", phase=self._numbers[stage], phases=self.phases,
+                 what=what)
 
     def stems(self, message: str = "") -> str:
-        return t("ui.automix.step", phase=1, phases=PHASES,
-                 what=message or t("ui.automix.step_stems"))
+        return self._step("stems", message or t("ui.automix.step_stems"))
+
+    def upload(self, message: str = "") -> str:
+        return self._step("upload", message or t("ui.automix.step_upload"))
+
+    def download(self, message: str = "") -> str:
+        return self._step("download", message or t("ui.automix.step_download"))
 
     def label(self, message: str) -> str:
         found = _TRACK_LINE.search(message)
         if found:
-            self.phase = 3
+            self.stage = "tracks"
             name = found.group("name").strip()
             if name not in self.names:
                 self.names.append(name)
@@ -785,9 +849,9 @@ class StepTracker:
                      of=len(TRACK_STAGES))
         else:
             if "mastering" in message.lower():
-                self.phase = 4
+                self.stage = "mastering"
             what = message
-        return t("ui.automix.step", phase=self.phase, phases=PHASES, what=what)
+        return self._step(self.stage, what)
 
 
 def mark_skipped(message: str, options: dict) -> str:
@@ -817,10 +881,23 @@ def run(session, params: dict, settings: dict, report: Report,
     settings = resolve_settings(settings)
     if isinstance(params.get("extra_args"), list):
         settings["extra_args"] = [str(x) for x in params["extra_args"]]
+    remote = settings["remote"] if settings["remote"]["enabled"] else None
     if isinstance(params.get("options"), dict):
-        settings["options"] = normalize_options(params["options"])
-    if settings["cwd"] and not Path(settings["cwd"]).is_dir():
+        # Plug-in names are matched on the Mac that renders (the dialog did it there).
+        settings["options"] = normalize_options(params["options"], resolve=remote is None)
+    if remote:
+        try:
+            automix_remote.check(remote)
+        except automix_remote.RemoteError as e:
+            raise AutomixError(e.key, **e.params) from e
+        # The local automixer folder and command are not used: the remote ones are.
+        settings = {**settings, "command": remote["command"],
+                    "cwd": remote["cwd"] or None}
+    elif settings["cwd"] and not Path(settings["cwd"]).is_dir():
         raise AutomixError("error.automix.bad_cwd", cwd=settings["cwd"])
+    stems_share = REMOTE_STEMS_SHARE if remote else STEMS_SHARE
+    run_from = REMOTE_RUN_FROM if remote else STEMS_SHARE
+    run_span = (REMOTE_RUN_TO if remote else 1.0) - run_from
 
     lines: deque[str] = deque(maxlen=LOG_LINES)
     temp_dir = settings.get("temp_dir")
@@ -834,14 +911,16 @@ def run(session, params: dict, settings: dict, report: Report,
         raise AutomixError("error.automix.bad_temp_dir", path=temp_dir or "") from e
     partial: Path | None = None
     began = time.monotonic()
-    steps = StepTracker([])
+    steps = StepTracker([], remote=remote is not None)
+    run_dir: str | None = None  # the folder on the other Mac, once we have made one
+    remote_running = False
     try:
         report(0.0, steps.stems())
         try:
             done = export_stems(
                 session, scratch,
                 lambda fraction, message="": report(
-                    STEMS_SHARE * fraction, steps.stems(message)),
+                    stems_share * fraction, steps.stems(message)),
                 cancel)
         except export.ExportError:
             if cancel.is_set():
@@ -870,19 +949,27 @@ def run(session, params: dict, settings: dict, report: Report,
         title = listing.get("title") or listing["edit"]
         final = _unique(folder, export._safe(f"{title} automixer {stamp}.wav"))
         partial = final.with_name(f"{final.stem}.partial{final.suffix}")
-        kept, warnings = gate_options(settings.get("options") or {}, settings["command"],
-                                      settings["cwd"], run_process=run_process)
+        probe = automix_remote.runner(remote, run_process) if remote else run_process
+        kept, warnings = gate_options(
+            settings.get("options") or {}, settings["command"], settings["cwd"],
+            run_process=probe, scope=remote["host"] if remote else "")
         settings = {**settings, "options": kept}
         done = done_lines(session.state, kept)
         lines.extend(f"kuulas: {w}" for w in warnings)
-        cmd = build_command(settings, stems, partial, target_lufs=lufs,
-                            ad_spot=ad_spot, ad_duration=ad_duration)
-        report(STEMS_SHARE, "", indeterminate=True)
+        if remote:
+            run_dir = automix_remote.new_run_dir(remote)
+            cmd = build_command(settings, Path(f"{run_dir}/stems"),
+                                Path(f"{run_dir}/out.wav"), target_lufs=lufs,
+                                ad_spot=ad_spot, ad_duration=ad_duration)
+        else:
+            cmd = build_command(settings, stems, partial, target_lufs=lufs,
+                                ad_spot=ad_spot, ad_duration=ad_duration)
+        report(stems_share, "", indeterminate=True)
         started = datetime.now(UTC).astimezone()
         stems_took = time.monotonic() - began
         project_name = str(title)
 
-        reached = [STEMS_SHARE]  # the bar never goes back, whatever the tool prints
+        reached = [stems_share]  # the bar never goes back, whatever the tool prints
 
         def shown(raw: str) -> str:
             """The progress line: step numbers first, "skipped" last."""
@@ -896,39 +983,126 @@ def run(session, params: dict, settings: dict, report: Report,
             found = _PROGRESS.match(line)
             if found:  # "PROGRESS 40 message"; the last is "PROGRESS 100 done"
                 share = min(100, int(found.group(1))) / 100
-                reached[0] = max(
-                    reached[0], STEMS_SHARE + (1 - STEMS_SHARE) * 0.99 * share
-                )
+                reached[0] = max(reached[0], run_from + run_span * 0.99 * share)
                 report(reached[0], shown((found.group(2) or "").strip() or line))
             else:  # any other line is only the message
-                report(reached[0], shown(line), indeterminate=reached[0] == STEMS_SHARE)
+                report(reached[0], shown(line), indeterminate=reached[0] <= run_from)
 
         log.info("Running %s", cmd)
-        ran = time.monotonic()
+        ran = [time.monotonic(), None]  # when the tool started and ended
+        spent = {"upload": 0.0, "download": 0.0}
         code: int | None = None
+        host = remote["host"] if remote else None
+        where = f"{host}:{settings['cwd'] or ''}" if remote else settings["cwd"]
+
+        def took() -> dict[str, float]:
+            out = {"stems": stems_took}
+            if remote:
+                out["upload"] = spent["upload"]
+            out["automixer"] = (ran[1] or time.monotonic()) - ran[0]
+            if remote:
+                out["download"] = spent["download"]
+            return out
 
         def fail(error: AutomixError) -> NoReturn:
             # Kept beside where the mix would have been, so a failure can be diagnosed.
             kept = _write_log(
                 final.with_name(f"{final.stem} FAILED log.txt"), project=project_name,
-                cmd=cmd, cwd=settings["cwd"], lines=lines, code=code, started=started,
-                took={"stems": stems_took, "automixer": time.monotonic() - ran},
-                outcome=f"failed: {error.key}", done=done)
+                cmd=cmd, cwd=where, lines=lines, code=code, started=started,
+                took=took(), outcome=f"failed: {error.key}", done=done, ran_on=host)
             error.params["log_file"] = kept or ""
             raise error
 
+        def transfer(argv: list[str], first: int, last: int, expected: int,
+                     label: Callable[[str], str]) -> int:
+            """One rsync, its file lines moving the bar from ``first`` to ``last``."""
+            seen = [0]
+
+            def on_file(line: str) -> None:
+                if not line.strip():
+                    return
+                lines.append(f"rsync: {line}")
+                if not _RSYNC_CHATTER.match(line):
+                    seen[0] += 1
+                reached[0] = max(
+                    reached[0], first + (last - first) * min(1.0, seen[0] / expected))
+                report(reached[0], label(line))
+
+            report(max(reached[0], first), label(""))
+            try:
+                return run_process(argv, None, on_file, cancel)
+            except FileNotFoundError as e:
+                lines.append(f"not found: {e}")
+                fail(AutomixError("error.automix.not_found", command=argv[0],
+                                  cwd=""))
+
+        def transfer_failed(code_: int) -> NoReturn:
+            e = automix_remote.transfer_error(host or "", code_, lines)
+            fail(AutomixError(e.key, **e.params))
+
+        if remote and run_dir:
+            began_upload = time.monotonic()
+            code_, out = automix_remote.quick(
+                remote, f"mkdir -p {automix_remote.word(run_dir)}")
+            if code_ != 0:
+                lines.append(f"ssh: {out}")
+                transfer_failed(255 if code_ is None else code_)
+            up = transfer(
+                automix_remote.rsync_argv(
+                    remote, f"{stems}/",
+                    automix_remote.at(remote, f"{run_dir}/stems/")),
+                stems_share, run_from, len(listing["tracks"]) + 1, steps.upload)
+            spent["upload"] = time.monotonic() - began_upload
+            if cancel.is_set():
+                raise JobCancelledError
+            if up != 0:
+                transfer_failed(up)
+            reached[0] = max(reached[0], run_from)
+            ran[0] = time.monotonic()
+            report(reached[0], steps.label(""), indeterminate=True)
+
+        remote_running = remote is not None
         try:
-            code = run_process(cmd, settings["cwd"], on_line, cancel)
+            code = (automix_remote.runner(remote, run_process) if remote
+                    else run_process)(cmd, settings["cwd"], on_line, cancel)
         except FileNotFoundError as e:
             lines.append(f"not found: {e}")
             fail(AutomixError("error.automix.not_found",
-                              command=" ".join(settings["command"]),
+                              command=" ".join(settings["command"]) if not remote
+                              else remote["ssh_command"][0],
                               cwd=settings["cwd"] or ""))
+        ran[1] = time.monotonic()
+        # ssh answers 255 when the link broke; the tool may still be running over there
+        lost = remote is not None and code == SSH_LOST and not cancel.is_set()
+        remote_running = remote is not None and (cancel.is_set() or lost)
         if cancel.is_set():
             raise JobCancelledError
+        if lost:
+            fail(AutomixError("error.automix.remote_lost", host=host,
+                              tail="\n".join(list(lines)[-TAIL_LINES:])))
         if code != 0:
             fail(AutomixError("error.automix.failed", code=code,
                               tail="\n".join(list(lines)[-TAIL_LINES:])))
+        if remote and run_dir:
+            began_download = time.monotonic()
+            incoming = scratch / "download"
+            incoming.mkdir()
+            down = transfer(
+                automix_remote.rsync_argv(
+                    remote, automix_remote.at(remote, f"{run_dir}/"), f"{incoming}/",
+                    ["--exclude=/stems/"]),
+                REMOTE_RUN_TO, 1.0, 2, steps.download)
+            spent["download"] = time.monotonic() - began_download
+            if cancel.is_set():
+                raise JobCancelledError
+            if down != 0:
+                transfer_failed(down)
+            # Only into the partial names: nothing final exists until the mix is whole.
+            for source, target in ((incoming / "out.wav", partial),
+                                   (_flags_file(incoming / "out.wav"),
+                                    _flags_file(partial))):
+                if source.is_file():
+                    shutil.move(source, target)
         if not partial.is_file():
             fail(AutomixError("error.automix.no_output",
                               tail="\n".join(list(lines)[-TAIL_LINES:])))
@@ -937,17 +1111,22 @@ def run(session, params: dict, settings: dict, report: Report,
         partial = None
         kept_log = _write_log(
             final.with_name(f"{final.stem} log.txt"), project=project_name, cmd=cmd,
-            cwd=settings["cwd"], lines=lines, code=code, started=started,
-            took={"stems": stems_took, "automixer": time.monotonic() - ran},
-            outcome=f"mixed: {final.name}", done=done)
+            cwd=where, lines=lines, code=code, started=started, took=took(),
+            outcome=f"mixed: {final.name}", done=done, ran_on=host)
         report(1.0, "")
         return {"path": str(final), "name": final.name, "log": list(lines),
                 "command": cmd, "flags": flags, "log_file": kept_log,
-                "warnings": warnings, "summary": [*warnings, *key_lines(lines)]}
+                "warnings": warnings, "summary": [*warnings, *key_lines(lines)],
+                "ran_on": host}
     finally:
         if partial is not None:
             with contextlib.suppress(OSError):
                 partial.unlink(missing_ok=True)
             with contextlib.suppress(OSError):
                 _flags_file(partial).unlink(missing_ok=True)
+        if remote and run_dir:
+            # Best effort, and only this run's own folder (remove_remote refuses others).
+            if remote_running:
+                automix_remote.kill_remote(remote, run_dir)
+            automix_remote.remove_remote(remote, run_dir)
         shutil.rmtree(scratch, ignore_errors=True)

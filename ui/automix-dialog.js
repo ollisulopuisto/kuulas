@@ -10,6 +10,9 @@ import {
   LUFS_PRESETS,
   migrateForm,
   parseWords,
+  remoteBody,
+  remoteNote,
+  remoteRows,
   validateAutomix,
 } from "./automix-model.js";
 import {
@@ -182,11 +185,17 @@ export function createAutomixDialog({
     row("adSpot", "ui.automix.ad_spot", spot, "ui.automix.ad_spot_hint"),
     row("adDuration", "ui.automix.ad_duration", duration, "ui.automix.ad_duration_hint"),
   );
-  mix.append(lufsRow, adRow, adGroup, summary);
+  // One line when the render runs on another Mac (the "Run on another Mac" group below).
+  const remoteLine = el("p", "automix-remote-note form-note");
+  remoteLine.hidden = true;
+  mix.append(lufsRow, adRow, adGroup, remoteLine, summary);
 
   // -- Processing: the automixer's switches, drawn from the server's list (open()) ---------
   const processing = section("ui.automix.section_options");
   processing.hidden = true;
+  // The other Mac's plug-ins could not be listed: the fields stay plain text.
+  const pluginNote = el("p", "form-note", t("ui.automix.remote_plugins_failed"));
+  pluginNote.hidden = true;
   const optionControls = {};
   let installedPlugins = [];
   let optionSpecs = [];
@@ -368,7 +377,7 @@ export function createAutomixDialog({
   function buildOptions(specs) {
     optionSpecs = specs;
     groups.clear();
-    processing.replaceChildren(processing.firstChild);
+    processing.replaceChildren(processing.firstChild, pluginNote);
     const cards = [];
     for (const { id, specs: members } of groupSpecs(specs)) {
       const controls = members.map((spec) =>
@@ -448,6 +457,69 @@ export function createAutomixDialog({
   outRow.lastChild.append(preview, formatNote);
   out.append(outRow);
 
+  // -- Run on another Mac ------------------------------------------------------------------
+  const remote = el("details", "automix-advanced automix-remote");
+  remote.append(el("summary", "", t("ui.automix.remote_section")));
+  const remoteBox = el("input");
+  remoteBox.type = "checkbox";
+  remoteBox.name = "remoteEnabled";
+  remoteBox.id = "automix-remoteEnabled";
+  const remoteCheck = el("div", "check-row");
+  const remoteLabel = el("label");
+  remoteLabel.append(remoteBox, el("span", "", t("ui.automix.remote_enabled")));
+  remoteCheck.append(
+    remoteLabel,
+    el("p", "automix-hint form-help", t("ui.automix.remote_enabled_hint")),
+  );
+  const remoteTest = el("button", "button", t("ui.automix.remote_test"));
+  remoteTest.type = "button";
+  remoteTest.dataset.icon = "check";
+  const remoteResult = el("ul", "automix-remote-result form-help");
+  remoteResult.setAttribute("aria-live", "polite");
+  remoteResult.hidden = true;
+  const remoteRowsEl = el("div", "form-section");
+  remote.append(remoteRowsEl);
+  remoteRowsEl.append(
+    remoteCheck,
+    row("remoteHost", "ui.automix.remote_host", text("remoteHost"), "ui.automix.remote_host_hint"),
+    row("remoteCwd", "ui.automix.remote_cwd", text("remoteCwd"), "ui.automix.remote_cwd_hint"),
+    row(
+      "remoteWorkDir",
+      "ui.automix.remote_work_dir",
+      text("remoteWorkDir"),
+      "ui.automix.remote_work_dir_hint",
+    ),
+  );
+  const remoteActions = el("div", "form-actions");
+  remoteActions.append(remoteTest);
+  remoteRowsEl.append(remoteActions, remoteResult);
+  const remoteFields = () => ({
+    enabled: remoteBox.checked,
+    host: inputs.remoteHost.value,
+    cwd: inputs.remoteCwd.value,
+    workDir: inputs.remoteWorkDir.value,
+  });
+  remoteTest.addEventListener("click", async () => {
+    remoteTest.disabled = true;
+    remoteTest.textContent = t("ui.automix.remote_testing");
+    remoteResult.replaceChildren();
+    try {
+      const { enabled: _enabled, ...fields } = remoteBody(remoteFields());
+      const rows = remoteRows(await api.testAutomixerRemote(fields), t);
+      for (const { label, status, statusText, detail } of rows) {
+        const item = el("li", `automix-remote-${status}`);
+        item.append(el("strong", "", `${statusText}: `), label);
+        if (detail) item.append(el("span", "", ` — ${detail}`));
+        remoteResult.append(item);
+      }
+    } catch (e) {
+      remoteResult.append(el("li", "automix-remote-failed", e.message));
+    }
+    remoteResult.hidden = false;
+    remoteTest.textContent = t("ui.automix.remote_test");
+    remoteTest.disabled = false;
+  });
+
   // -- Advanced ----------------------------------------------------------------------------
   const advanced = el("details", "automix-advanced");
   advanced.append(el("summary", "", t("ui.automix.section_advanced")));
@@ -487,7 +559,7 @@ export function createAutomixDialog({
   const form = el("form", "form-grid");
   form.method = "dialog";
   form.noValidate = true;
-  form.append(mix, processing, out, advanced, error, buttons);
+  form.append(mix, processing, out, remote, advanced, error, buttons);
   dialog.append(heading, form);
   document.body.append(dialog);
   enhanceDialog(dialog, { t });
@@ -505,6 +577,7 @@ export function createAutomixDialog({
   async function installed() {
     try {
       const answer = await api.plugins?.();
+      pluginNote.hidden = !answer?.remote_failed;
       return Array.isArray(answer?.plugins) ? answer.plugins : [];
     } catch {
       return [];
@@ -559,6 +632,11 @@ export function createAutomixDialog({
       name: fileNamePreview(`<${t("ui.automix.edit_name")}>`),
       folder: outputDir.value.trim() || defaults.dir,
     });
+    remoteLine.textContent = remoteNote(
+      { enabled: remoteBox.checked, host: inputs.remoteHost.value.trim() },
+      t,
+    );
+    remoteLine.hidden = remoteLine.textContent === "";
     start.disabled = !ok;
     return ok;
   }
@@ -583,6 +661,7 @@ export function createAutomixDialog({
           tempDir: tempDir.value,
           outputDir: outputDir.value,
           extra: inputs.extra.value,
+          remote: remoteFields(),
         }),
         // Without the list (the settings did not load) nothing is sent: stored options stay.
         // A value that is only Kuulas's is sent with this run, not saved as the user's own.
@@ -633,6 +712,14 @@ export function createAutomixDialog({
         tempDir.value = stored.temp_dir ?? "";
         tempDir.placeholder = t("ui.automix.temp_placeholder");
         outputDir.value = stored.output_dir ?? "";
+        const savedRemote = stored.remote ?? {};
+        remoteBox.checked = savedRemote.enabled === true;
+        inputs.remoteHost.value = savedRemote.host ?? "";
+        inputs.remoteCwd.value = savedRemote.cwd ?? "";
+        inputs.remoteWorkDir.value = savedRemote.work_dir ?? "";
+        inputs.remoteWorkDir.placeholder = resolved.remote?.work_dir ?? "";
+        remoteResult.hidden = true;
+        remote.open = remoteBox.checked;
         inputs.extra.value = formatWords(stored.extra_args);
         inputs.extra.placeholder = t("ui.automix.extra_args_placeholder");
       } catch (e) {
