@@ -141,6 +141,12 @@ Released in v26.10.20.5 to v26.10.20.14, in order of importance:
 
 ## Next
 
+- **Clipboard scopes** (owner idea 2026-10-21, not started, builds on Series): the clipboard gets three shelves: *this
+  project* (today), *shared within the series* (intro/outro/jingles/ads used by every episode of the series) and
+  *shared with all* (every project, e.g. a station ident). Entries stay references to media (rule 17: no copies lost,
+  hash-checked). Copy/Cut go to the project shelf; "Move to series shelf" / "Move to shared shelf" promote an entry;
+  the Clipboard panel shows the shelves as sections, paste forms work from any. This replaces the "place series music"
+  command's own storage in the first Series version (series music = the series shelf). Needs a design note after Series lands.
 - **Series: shared settings across episodes** (owner request 2026-10-21, QoL, not started, needs a design note first):
   a series is recorded in the same place, so the de-bleed values and Auto-Silence values found for one episode
   should carry to the next. Not a global preference (other series sound different) and not per episode only: a
