@@ -1,6 +1,77 @@
 """Estimate the time left of a long job."""
 
-from kuulas.eta import format_remaining, remaining_seconds
+from kuulas.eta import EtaSampler, format_remaining, remaining_parts, remaining_seconds
+
+
+def test_sampler_keeps_only_growing_fractions():
+    s = EtaSampler()
+    s.add(0, 0.1)
+    s.add(30, 0.4)
+    s.add(60, 0.4)  # stands still -> ignored
+    s.add(90, 0.3)  # goes down -> ignored
+    assert s.samples() == [(0, 0.1), (30, 0.4)]
+
+
+def test_sampler_ignores_fractions_outside_zero_to_one():
+    s = EtaSampler()
+    s.add(0, -0.1)
+    s.add(10, 1.5)
+    s.add(20, 0.5)
+    assert s.samples() == [(20, 0.5)]
+
+
+def test_sampler_ignores_backwards_times():
+    s = EtaSampler()
+    s.add(30, 0.4)
+    s.add(0, 0.1)  # time goes backwards -> ignored
+    assert s.samples() == [(30, 0.4)]
+
+
+def test_sampler_caps_at_200_samples():
+    s = EtaSampler()
+    for i in range(250):
+        s.add(float(i), i / 250.0)
+    kept = s.samples()
+    assert len(kept) == 200
+    assert kept[0] == (50.0, 0.2)
+    assert kept[-1] == (249.0, 0.996)
+
+
+def test_sampler_estimate_matches_remaining_seconds():
+    s = EtaSampler()
+    for t, f in [(0, 0.1), (30, 0.4), (60, 0.7)]:
+        s.add(t, f)
+    assert s.estimate() == remaining_seconds(s.samples())
+
+
+def test_sampler_samples_returns_a_copy():
+    s = EtaSampler()
+    s.add(0, 0.1)
+    s.add(30, 0.4)
+    out = s.samples()
+    out.append((999, 9.9))
+    assert s.samples() == [(0, 0.1), (30, 0.4)]
+
+
+def test_remaining_parts_none():
+    assert remaining_parts(None) is None
+
+
+def test_remaining_parts_under_a_minute():
+    assert remaining_parts(0) == ("under_minute", 0)
+    assert remaining_parts(59) == ("under_minute", 0)
+
+
+def test_remaining_parts_minutes():
+    assert remaining_parts(60) == ("minutes", 1)
+    assert remaining_parts(119) == ("minutes", 2)
+    assert remaining_parts(5400) == ("minutes", 90)
+
+
+def test_remaining_parts_hours_minutes():
+    assert remaining_parts(3600) == ("minutes", 60)
+    assert remaining_parts(5401) == ("hours_minutes", (1, 30))
+    assert remaining_parts(7500) == ("hours_minutes", (2, 5))
 
 
 def test_steady_progress():

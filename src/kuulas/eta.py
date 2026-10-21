@@ -41,6 +41,50 @@ def remaining_seconds(samples):
     return result
 
 
+class EtaSampler:
+    """Collect progress samples, keeping only those where the bar grew."""
+
+    def __init__(self):
+        self._samples = []
+
+    def add(self, seconds_since_start, fraction):
+        """Keep the sample only if the fraction grew and the clock moved on."""
+        if not 0.0 <= fraction <= 1.0:
+            return
+        if self._samples and seconds_since_start < self._samples[-1][0]:
+            return
+        if self._samples and fraction <= self._samples[-1][1]:
+            return
+        self._samples.append((seconds_since_start, fraction))
+        if len(self._samples) > 200:
+            self._samples.pop(0)
+
+    def samples(self):
+        """Return a copy of the kept ``(t, f)`` samples."""
+        return list(self._samples)
+
+    def estimate(self):
+        """Return ``remaining_seconds`` over the kept samples."""
+        return remaining_seconds(self.samples())
+
+
+def remaining_parts(seconds):
+    """Split a remaining-seconds estimate into a unit and a number.
+
+    Returns ``None`` for ``None``, ``("under_minute", 0)`` below 60 s,
+    ``("minutes", n)`` up to 90 minutes, else ``("hours_minutes", (h, m))``.
+    """
+    if seconds is None:
+        return None
+    if seconds < 60:
+        return ("under_minute", 0)
+    if seconds <= 90 * 60:
+        return ("minutes", round(seconds / 60))
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    return ("hours_minutes", (hours, minutes))
+
+
 def format_remaining(seconds):
     """Return a plain English estimate string for ``seconds`` or ``""`` for None."""
     if seconds is None:
