@@ -1,3 +1,7 @@
+## [v26.10.20.31] - 2026-10-21
+
+- **The automix toast has a new layout.** Four fixed rows that do not jump in height: a title row (what is running, time left, percent), a full-width progress bar, a phase line ("Processing tracks - Step 3 of 4") and a track line ("Track 1 of 4 Olli - plug-in 3/9" with nine small stage marks, skipped stages shown as skipped). Cancel and Show log stay at the bottom right. It is built from structured progress the server now sends with the job, and falls back to the old single line when that is missing. Design notes and a mock: docs/design/TOAST.md and toast-mock.html. Not seen in the real window yet; narrow widths hide the stage marks.
+
 ## [v26.10.20.30] - 2026-10-21
 
 - **A clip can opt out of Auto-Silence.** Select one clip or several and use Track > Auto > "Keep the mic open under the selected clips" (also in the right-click menu of a clip or a marked range): it is a clip property, so the mic stays open under the clip wherever you trim or move it (no more half-silenced clip when you drag the border) and a new Auto-Silence run does not close it. Used again on clips that are already open it lets them be silenced again. One undo step. A right-click on a hatched (closed) stretch also offers "Open this stretch" right there.
