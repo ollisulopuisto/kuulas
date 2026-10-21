@@ -550,6 +550,18 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.clipboard.view_project",
   },
   {
+    id: "edit.series_shelf_clipboard",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.edit.series_shelf_clipboard",
+  },
+  {
+    id: "clipboard.view_series",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.clipboard.view_series",
+  },
+  {
     id: "clipboard.view_shared",
     keys: { mac: null, other: null },
     context: "global",

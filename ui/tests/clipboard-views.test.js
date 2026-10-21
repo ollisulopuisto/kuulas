@@ -23,9 +23,10 @@ const entry = (extra = {}) => ({
   ...extra,
 });
 
-describe("the three views", () => {
-  test("this project, shared, other projects; this project unless told otherwise", () => {
-    assert.deepEqual(CLIPBOARD_VIEWS, ["project", "shared", "others"]);
+describe("the views", () => {
+  test("this project, series, shared, other projects; this project unless told otherwise", () => {
+    assert.deepEqual(CLIPBOARD_VIEWS, ["project", "series", "shared", "others"]);
+    assert.equal(clipboardView({ clipboardView: "series" }), "series");
     assert.equal(clipboardView({}), "project");
     assert.equal(clipboardView(undefined), "project");
     assert.equal(clipboardView({ clipboardView: "shared" }), "shared");

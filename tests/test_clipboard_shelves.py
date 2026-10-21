@@ -90,7 +90,7 @@ def test_add_copies_the_entry_with_its_id_and_where_its_recording_is(session, tm
 
 
 def test_series_music_commands_work_on_the_shelf(session, tmp_path):
-    path, entry_id = _copied(session, tmp_path)
+    _path, entry_id = _copied(session, tmp_path)
     series_actions.save_defaults(session, name="Show")
     series_actions.shelf_add(session, entry_id)
     assert series_actions.status(session)["music"] == 1

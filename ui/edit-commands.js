@@ -43,7 +43,8 @@ import { cycleKindPlan } from "./track-kind.js";
 
 /**
  * `app`: getState, patch(statePatch), edit(change) (the editor's change), toast(text,
- * { undo }), now(), copy(body) (-> Promise: the clipboard copy), refreshClipboard().
+ * { undo }), now(), copy(body) (-> Promise: the clipboard copy), refreshClipboard(),
+ * seriesShelf(id, on) (the series shelf, docs/design/CLIPBOARD-SHELVES.md).
  * `t` translates, `formatSeconds(seconds)` writes a number of seconds.
  */
 export function registerEditCommands(registry, { app, t, formatSeconds }) {
@@ -201,7 +202,20 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
     },
     (s) => hasProject(s) && pasteEntry(s) !== null,
   );
-  // The tab's three views and the picker for any project's clipboard.
+  // The picked (else newest) entry onto the series shelf, or off it when it is there
+  // (docs/design/CLIPBOARD-SHELVES.md). Only in a series. Not an edit.
+  def(
+    "edit.series_shelf_clipboard",
+    () => {
+      const state = app.getState();
+      const entry = pasteEntry(state);
+      if (!entry) return;
+      const on = (state.clipboardSeries?.entries ?? []).some((item) => item.id === entry.id);
+      void app.seriesShelf(entry.id, !on);
+    },
+    (s) => hasProject(s) && Boolean(s.project?.series?.id) && pasteEntry(s) !== null,
+  );
+  // The tab's views and the picker for any project's clipboard.
   for (const view of CLIPBOARD_VIEWS) {
     def(
       `clipboard.view_${view}`,

@@ -61,8 +61,11 @@ export function entryDetails(entry, rate, t = (key) => key) {
   });
 }
 
-/** The three views of the Clipboard tab (WP65): this project's, the shared store, other projects'. */
-export const CLIPBOARD_VIEWS = ["project", "shared", "others"];
+/**
+ * The views of the Clipboard tab (WP65, docs/design/CLIPBOARD-SHELVES.md): this project's
+ * shelf, the series shelf (the series music), the shared shelf, other projects' clipboards.
+ */
+export const CLIPBOARD_VIEWS = ["project", "series", "shared", "others"];
 
 export function clipboardView(state) {
   return CLIPBOARD_VIEWS.includes(state?.clipboardView) ? state.clipboardView : "project";

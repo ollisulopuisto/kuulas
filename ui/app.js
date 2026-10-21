@@ -1041,6 +1041,7 @@ const keyboard = setupKeyboard({
     refreshClipboard: () => void refreshClipboard(),
     clearOldClipboard: (keep) => clearOldClipboard(keep),
     shareClipboard: (id, on) => shareClipboardEntry(id, on),
+    seriesShelf: (id, on) => seriesShelfEntry(id, on),
     showClipboard: (view) => showClipboard(view),
     openClipboardProject: () => void openClipboardProject(),
     rememberRange: () => {
@@ -2461,6 +2462,7 @@ function seriesChanged(response) {
     setState({ autoSilence: normaliseSilence(response.settings.auto_silence) });
   }
   if (response.series) setState({ series: response.series });
+  void loadSeriesShelf();
 }
 function updateSeriesChip(state) {
   const chip = seriesChip(state, t);
@@ -2512,6 +2514,7 @@ async function seriesMusicAdd() {
   try {
     const answer = await api.seriesMusicAdd(clips);
     setState({ series: answer });
+    void loadSeriesShelf();
     showNotice(t("ui.series.music_added", { count: answer.music }), "ok");
   } catch (error) {
     showError(error);
@@ -2801,6 +2804,30 @@ async function refreshClipboard() {
     showError(error);
   }
   void loadSharedClipboard();
+  void loadSeriesShelf();
+}
+
+// -- the series shelf (docs/design/CLIPBOARD-SHELVES.md) ------------------------------------------
+
+async function loadSeriesShelf() {
+  try {
+    setState({ clipboardSeries: await api.getSeriesShelf() });
+  } catch (error) {
+    showError(error);
+  }
+}
+
+// The Series toggle of a project entry: a copy on the series shelf (same id), or off it again.
+async function seriesShelfEntry(id, on) {
+  try {
+    const shelf = await (on ? api.seriesShelfAdd(id) : api.seriesShelfRemove(id));
+    setState({ clipboardSeries: shelf });
+    showNotice(t(on ? "ui.clipboard.series_added" : "ui.clipboard.series_removed"), "ok", {
+      undo: false,
+    });
+  } catch (error) {
+    showError(error);
+  }
 }
 
 // -- clipboard sharing and other projects (WP65) --------------------------------------------------
@@ -2845,6 +2872,7 @@ async function loadForeignClipboard(path) {
 
 function setClipboardView(view) {
   setState({ clipboardView: view });
+  if (view === "series") void loadSeriesShelf();
   if (view === "shared") void loadSharedClipboard();
   if (view === "others") void loadClipboardProjects();
 }
@@ -2920,9 +2948,13 @@ async function shareClipboardEntry(id, on) {
 
 // Copy an entry of the shared store or another project into this project's clipboard. It becomes
 // the newest entry and is picked, so the paste keys paste it. Returns whether it worked.
-async function adoptClipboardEntry(entry, from, { quiet = false } = {}) {
+async function adoptClipboardEntry(entry, from, { quiet = false, shelf = "" } = {}) {
   try {
-    const answer = await api.adoptClipboardEntry(entry, from);
+    // A series entry is adopted by the series: it links the recordings from the series' paths.
+    const answer =
+      shelf === "series"
+        ? await api.seriesShelfAdopt(entry.id)
+        : await api.adoptClipboardEntry(entry, from);
     setState({ clipboard: answer.entries, clipboardSelected: answer.entry.id });
     if (!quiet) {
       showNotice(t("ui.clipboard.adopted", { name: entryTitle(answer.entry, rateOf(), t) }), "ok", {
@@ -3000,9 +3032,9 @@ const clipboardPanel = createClipboardPanel({
     openPath: (path) => void openClipboardProjectAt(path),
     hasPicker: () => clipboardPicker() !== null,
     now: () => Date.now() / 1000,
-    adopt: (entry, from) => void adoptClipboardEntry(entry, from),
-    async pasteHere(entry, from) {
-      if (await adoptClipboardEntry(entry, from, { quiet: true })) {
+    adopt: (entry, from, shelf = "") => void adoptClipboardEntry(entry, from, { shelf }),
+    async pasteHere(entry, from, shelf = "") {
+      if (await adoptClipboardEntry(entry, from, { quiet: true, shelf })) {
         keyboard.registry.run(pasteCommand(getState()), null, getState());
       }
     },
@@ -3023,6 +3055,10 @@ const clipboardPanel = createClipboardPanel({
       }
     },
     canPasteAgain: (state) => keyboard.registry.can(pasteCommand(state), state),
+    seriesShelf: (id, on) => void seriesShelfEntry(id, on),
+    seriesRemove: (id) => void seriesShelfEntry(id, false),
+    seriesPlace: () => keyboard.registry.run("series.music_place", null, getState()),
+    openSeries: () => keyboard.registry.run("series.dialog", null, getState()),
     pasteAgain(id) {
       setState({ clipboardSelected: id });
       keyboard.registry.run(pasteCommand(getState()), null, getState());
@@ -3563,6 +3599,7 @@ function render(state, patch) {
       "clipboardKeep",
       "clipboardView",
       "clipboardShared",
+      "clipboardSeries",
       "clipboardProjects",
       "clipboardForeign",
       "clipboardExpanded",
