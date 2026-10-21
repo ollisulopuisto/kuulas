@@ -291,10 +291,17 @@ nodes(id TEXT PRIMARY KEY,           -- UUIDv7: unique across copies, time-order
       created_utc TEXT NOT NULL)
 checkpoints(node TEXT PRIMARY KEY REFERENCES nodes(id),
             name TEXT NOT NULL,          -- "v1 sent to Ville for review"
-            kind TEXT NOT NULL,          -- 'manual' | 'sent' | 'received'
+            kind TEXT NOT NULL,          -- 'manual' | 'sent' | 'received' | 'export'
             copy TEXT,                   -- the hand-off copy id, for sent/received
             created_utc TEXT NOT NULL)
 ```
+
+**Saved versions in the History answer.** `GET /api/history` puts each step's checkpoint on the
+step as `checkpoint: {name, kind, copy, created}` (`null` for an ordinary step), in the paged
+and the whole-list shape alike. `saved=1` (paged shape) pages only the steps that have one; the
+server filters so a sparse hit never runs the page dry. `save_checkpoint` writes one;
+`rename_checkpoint {node, name}` changes only `name`. Plain Save (`save_backup`) writes no
+checkpoint: it is not in the list.
 
 **Why UUIDs, not integers, for steps:** two copies of a project grow their
 histories apart, and integer ids would collide when B's steps come back to

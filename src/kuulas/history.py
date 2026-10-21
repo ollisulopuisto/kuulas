@@ -649,25 +649,28 @@ class History:
             r["context"] = _parse_context(r.get("context"))
         return rows
 
-    def nodes_page(self, limit: int, before: str | None = None) -> list[dict]:
+    def nodes_page(self, limit: int, before: str | None = None,
+                   saved: bool = False) -> list[dict]:
         """A page of steps in this edit, newest first (for the history panel).
 
         ``limit``: maximum number of steps to return.
         ``before``: step id to page backwards from (steps older than ``before``).
+        ``saved``: only the steps that carry a checkpoint (the "Saved versions" filter);
+        done here, not in the UI, so paging does not run dry between sparse hits.
         """
         limit = max(0, int(limit))
-        if before is None:
-            rows = _rows(self.db.execute(
-                "select id, parent, label, author, machine, op, created_utc as created,"
-                " material_from, material_to, context from nodes where edit=?"
-                " order by id desc limit ?",
-                (self.edit, limit)))
-        else:
-            rows = _rows(self.db.execute(
-                "select id, parent, label, author, machine, op, created_utc as created,"
-                " material_from, material_to, context from nodes where edit=? and id < ?"
-                " order by id desc limit ?",
-                (self.edit, before, limit)))
+        where = "edit=?"
+        args: list = [self.edit]
+        if before is not None:
+            where += " and id < ?"
+            args.append(before)
+        if saved:
+            where += " and id in (select node from checkpoints)"
+        rows = _rows(self.db.execute(
+            "select id, parent, label, author, machine, op, created_utc as created,"  # noqa: S608
+            " material_from, material_to, context from nodes where "
+            + where  # fixed fragments chosen above, never user text
+            + " order by id desc limit ?", (*args, limit)))
         for r in rows:
             r["op"] = json.loads(r["op"])
             r["context"] = _parse_context(r.get("context"))
@@ -783,6 +786,19 @@ class History:
                 " values (?,?,?,?,?)",
                 (node or self.head, name, kind, copy, dbm.utc_now()))
         self._written()
+
+    def rename_checkpoint(self, node: str, name: str) -> None:
+        """Change the name of a saved version; its step, kind and time stay."""
+        self._check_writable()
+        with dbm.tx(self.db):
+            self.db.execute("update checkpoints set name=? where node=?", (name, node))
+        self._written()
+
+    def checkpoint_map(self) -> dict[str, dict]:
+        """The saved versions of this edit by step id, as the History panel shows them:
+        ``{"name", "kind", "copy", "created"}``."""
+        return {c["node"]: {"name": c["name"], "kind": c["kind"], "copy": c["copy"],
+                            "created": c["created_utc"]} for c in self.checkpoints()}
 
     def checkpoints(self) -> list[dict]:
         return _rows(self.db.execute(

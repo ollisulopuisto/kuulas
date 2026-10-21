@@ -6,13 +6,46 @@
 
 import {
   currentStep,
+  emptyKey,
   groupRows,
   mergePage,
   moveSelection,
   needsMore,
   selectionAfterLoad,
+  visibleNodes,
 } from "./history-model.js";
 import { formatAbsoluteTime, getLanguage, t } from "./i18n.js";
+import { ICONS } from "./icons.js";
+
+const SAVED_KEY = "kuulas.history.savedOnly";
+
+// The "Saved versions" choice is the user's, not the project's: remembered in this browser.
+function readSavedOnly() {
+  try {
+    return globalThis.localStorage?.getItem(SAVED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+function writeSavedOnly(on) {
+  try {
+    globalThis.localStorage?.setItem(SAVED_KEY, on ? "1" : "0");
+  } catch {
+    // blocked storage: the choice lasts for this session only
+  }
+}
+
+const bookmark = () => {
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("class", "pin");
+  svg.setAttribute("aria-hidden", "true");
+  const path = document.createElementNS(ns, "path");
+  path.setAttribute("d", ICONS.bookmark);
+  svg.append(path);
+  return svg;
+};
 
 const PAGE = 100;
 const PAGE_MAX = 500; // the server's limit per request
@@ -30,8 +63,9 @@ const el = (tag, props = {}, ...children) => {
 };
 
 /**
- * `api.getHistory({ limit, before })` answers { nodes, more }; `actions.restore(id)`,
- * `actions.undo()`, `actions.redo()`, `actions.showError(error)`. `now()` is the clock (tests and the page differ).
+ * `api.getHistory({ limit, before, saved })` answers { nodes, more }; `actions.restore(id)`,
+ * `actions.undo()`, `actions.redo()`, `actions.renameVersion(id, name)` (a promise),
+ * `actions.showError(error)`. `now()` is the clock (tests and the page differ).
  */
 export function createHistoryPanel({
   root,
@@ -48,6 +82,9 @@ export function createHistoryPanel({
   let requestedHead; // the head a fetch was started for
   let token = 0;
   let signature = "";
+  let savedOnly = readSavedOnly();
+  let query = "";
+  let renaming = null; // the id of the saved version being renamed
 
   const list = el("ul", {
     class: "hist",
@@ -74,10 +111,48 @@ export function createHistoryPanel({
   const redo = el("button", { type: "button", class: "button block", "data-icon": "redo" });
   const bar = el("div", { class: "actionbar", role: "group" }, undo, redo, restore, hint);
   const title = el("h2");
-  root.replaceChildren(title, bar, status, scroller, older);
+  const showAll = el("button", {
+    type: "button",
+    class: "button hist-seg",
+    dataset: { filter: "all" },
+  });
+  const showSaved = el("button", {
+    type: "button",
+    class: "button hist-seg",
+    dataset: { filter: "saved" },
+  });
+  const filterGroup = el("div", { class: "hist-filter", role: "group" }, showAll, showSaved);
+  const search = el("input", { type: "search", class: "hist-search" });
+  root.replaceChildren(title, bar, filterGroup, search, status, scroller, older);
+
+  function setSavedOnly(on) {
+    if (on === savedOnly) return;
+    savedOnly = on;
+    writeSavedOnly(on);
+    // The server pages the saved versions alone, so the list is fetched again.
+    nodes = [];
+    more = false;
+    loadedHead = undefined;
+    requestedHead = undefined;
+    signature = "";
+    const head = getState().head;
+    if (head) {
+      requestedHead = head;
+      void reload(head);
+    }
+    draw();
+  }
+  showAll.addEventListener("click", () => setSavedOnly(false));
+  showSaved.addEventListener("click", () => setSavedOnly(true));
+  search.addEventListener("input", () => {
+    query = search.value;
+    signature = "";
+    draw();
+  });
+  search.addEventListener("keydown", (event) => event.stopPropagation());
 
   async function fetchPage(before, limit) {
-    const page = await api.getHistory({ limit, before });
+    const page = await api.getHistory({ limit, before, saved: savedOnly });
     return { nodes: page.nodes ?? [], more: Boolean(page.more) };
   }
 
@@ -161,8 +236,43 @@ export function createHistoryPanel({
 
   const rowOf = (id) => list.querySelector(`[data-id="${CSS.escape(id)}"]`);
 
+  function nameInput(row) {
+    const input = el("input", {
+      type: "text",
+      class: "hist-rename",
+      value: row.saved.name,
+      "aria-label": t("ui.history.rename_label"),
+    });
+    let done = false;
+    const finish = (commit) => {
+      if (done) return;
+      done = true;
+      renaming = null;
+      signature = "";
+      const name = input.value.trim();
+      if (commit && name && name !== row.saved.name) {
+        void actions.renameVersion(row.id, name).then(() => reload(getState().head));
+      } else {
+        draw();
+      }
+    };
+    input.addEventListener("keydown", (event) => {
+      event.stopPropagation();
+      if (event.key === "Enter") finish(true);
+      else if (event.key === "Escape") finish(false);
+    });
+    input.addEventListener("blur", () => finish(true));
+    input.addEventListener("click", (event) => event.stopPropagation());
+    queueMicrotask(() => {
+      input.focus();
+      input.select();
+    });
+    return input;
+  }
+
   function stepRow(row, selected) {
     const classes = ["hist-step"];
+    if (row.saved) classes.push("saved");
     if (row.head) classes.push("head");
     if (row.dimmed) classes.push("future");
     if (row.redo) classes.push("redo");
@@ -174,7 +284,24 @@ export function createHistoryPanel({
         : row.indent
           ? t("ui.history.branch_title")
           : "";
-    const tip = [formatAbsoluteTime(row.created), stateText].filter(Boolean).join(" · ");
+    const savedText = row.saved
+      ? t("ui.history.saved_title", { kind: row.saved.kindLabel, name: row.saved.name })
+      : "";
+    const tip = [savedText, formatAbsoluteTime(row.created), stateText].filter(Boolean).join(" · ");
+    const label = row.saved
+      ? el(
+          "span",
+          { class: "lab" },
+          bookmark(),
+          renaming === row.id
+            ? nameInput(row)
+            : el("span", { class: "vname", textContent: row.saved.name }),
+          row.saved.kind === "manual"
+            ? ""
+            : el("span", { class: "kind", textContent: row.saved.kindLabel }),
+          el("span", { class: "sub", textContent: row.label }),
+        )
+      : el("span", { class: "lab", textContent: row.label });
     const node = el(
       "li",
       {
@@ -186,7 +313,7 @@ export function createHistoryPanel({
         "aria-selected": String(selected),
         dataset: { id: row.id },
       },
-      el("span", { class: "lab", textContent: row.label }),
+      label,
       el("span", { class: "t", textContent: row.head ? t("ui.history.now") : row.time }),
     );
     if (row.head) node.setAttribute("aria-current", "true");
@@ -213,6 +340,9 @@ export function createHistoryPanel({
       state.historyCurrent,
       state.canUndo,
       state.canRedo,
+      savedOnly,
+      query,
+      renaming,
     ]);
     if (next === signature) return;
     signature = next;
@@ -221,8 +351,16 @@ export function createHistoryPanel({
       : null;
     title.textContent = t("ui.history.title");
     list.setAttribute("aria-label", t("ui.history.list_label"));
-    status.hidden = !(nodes.length === 0 || loading);
-    status.textContent = loading ? t("ui.history.loading") : t("ui.history.empty");
+    const shown = visibleNodes(nodes, { query, savedOnly });
+    status.hidden = !(shown.length === 0 || loading);
+    status.textContent = loading ? t("ui.history.loading") : t(emptyKey({ savedOnly, query }));
+    filterGroup.setAttribute("aria-label", t("ui.history.filter_label"));
+    showAll.textContent = t("ui.history.filter_all");
+    showSaved.textContent = t("ui.history.filter_saved");
+    showAll.setAttribute("aria-pressed", String(!savedOnly));
+    showSaved.setAttribute("aria-pressed", String(savedOnly));
+    search.setAttribute("aria-label", t("ui.history.search_label"));
+    search.placeholder = t("ui.history.search_placeholder");
     bar.setAttribute("aria-label", t("ui.history.undo_group"));
     undo.textContent = t("ui.transport.undo");
     redo.textContent = t("ui.transport.redo");
@@ -234,7 +372,7 @@ export function createHistoryPanel({
     restore.disabled = !selected || selected === state.historyCurrent;
     hint.textContent = t("ui.history.restore_hint");
     list.replaceChildren(
-      ...groupRows(nodes, now(), t).map((row) =>
+      ...groupRows(shown, now(), t).map((row) =>
         row.kind === "marker"
           ? el("li", { class: "hist-marker", role: "separator", textContent: row.text })
           : stepRow(row, row.id === selected),
@@ -253,9 +391,13 @@ export function createHistoryPanel({
   root.addEventListener("keydown", (event) => {
     const direction = { ArrowDown: 1, ArrowUp: -1 }[event.key];
     if (!direction || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-    if (event.target.closest?.(".actionbar")) return;
+    if (event.target.closest?.(".actionbar, .hist-filter, .hist-search, .hist-rename")) return;
     event.preventDefault();
-    const next = moveSelection(nodes, getState().historySelected, direction);
+    const next = moveSelection(
+      visibleNodes(nodes, { query, savedOnly }),
+      getState().historySelected,
+      direction,
+    );
     if (!next) return;
     pick(next);
     draw();
@@ -281,5 +423,15 @@ export function createHistoryPanel({
     queueMicrotask(fillIfShort);
   }
 
-  return { update };
+  /** Rename the picked saved version in place; false when the pick is not one. */
+  function startRename() {
+    const picked = nodes.find((node) => node.id === getState().historySelected);
+    if (!picked?.checkpoint) return false;
+    renaming = picked.id;
+    signature = "";
+    draw();
+    return true;
+  }
+
+  return { update, startRename, toggleSavedOnly: () => setSavedOnly(!savedOnly) };
 }

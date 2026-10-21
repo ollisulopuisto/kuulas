@@ -8,6 +8,7 @@ const s = (d) => d;
 export const ICONS = {
   undo: s("M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11"),
   redo: s("m15 14 5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13"),
+  bookmark: s("M6 3h12v18l-6-4.5L6 21Z"),
   restore: s("M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"),
   search: s("m21 21-4.3-4.3M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z"),
   play: s("M7 4.5v15l12-7.5Z"),

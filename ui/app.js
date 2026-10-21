@@ -1294,6 +1294,14 @@ const keyboard = setupKeyboard({
     undo: () => undo(),
     redo: () => redo(),
     restoreStep: () => restoreStep(getState().historySelected),
+    renameVersion() {
+      focusPanel("history");
+      if (!historyPanel.startRename()) showNotice(t("ui.history.rename_none"), "ok");
+    },
+    toggleSavedVersions() {
+      focusPanel("history");
+      historyPanel.toggleSavedOnly();
+    },
     openHistory: () => focusPanel("history"),
     edit: (change) => editor.change(change),
     toast: (text, options) => showNotice(text, "ok", options),
@@ -2104,6 +2112,10 @@ const historyPanel = createHistoryPanel({
     restore: (node) => void restoreStep(node),
     undo: () => undo(),
     redo: () => redo(),
+    // Rename a saved version; the panel fetches the list again when this resolves.
+    renameVersion: async (node, name) => {
+      await api.command("rename_checkpoint", { node, name }).catch(showError);
+    },
     showError,
   },
 });

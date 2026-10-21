@@ -3540,6 +3540,17 @@ def _save_checkpoint(s: Session, args: dict) -> Project:
     return s.state
 
 
+def _rename_checkpoint(s: Session, args: dict) -> Project:
+    """Rename a saved version (History > context menu). Changes no edit state."""
+    _check_writable(s)
+    name = str(args.get("name") or "").strip()
+    node = str(args.get("node") or "")
+    if not name or node not in s.history.checkpoint_map():
+        raise ops.EditError("error.server.bad_request", detail="name")
+    s.history.rename_checkpoint(node, name)
+    return s.state
+
+
 #: Name -> function(session, args) -> Project. The session lock is held,
 #: except for ``LOCK_FREE_COMMANDS``.
 #: ``auto_silence``, ``automix`` and ``cut_words`` commit one step each;
@@ -3576,6 +3587,7 @@ COMMANDS: dict[str, Callable[[Session, dict], Project]] = {
     "placeholder_take": _placeholder_take,
     "save_backup": _save_backup,
     "save_checkpoint": _save_checkpoint,
+    "rename_checkpoint": _rename_checkpoint,
 }
 
 #: Commands that run without the session lock and take it only for their

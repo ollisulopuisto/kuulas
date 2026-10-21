@@ -108,6 +108,8 @@ const GO = submenu("menu.go", [
   SEP,
   item("history.open"),
   item("history.restore"),
+  item("history.saved_only"),
+  item("history.rename_version"),
 ]);
 const MARKERS = submenu("menu.markers", [
   item("marker.add"),
