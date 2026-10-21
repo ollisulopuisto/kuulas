@@ -125,6 +125,7 @@ import { monoDecision, monoEdits } from "./mono-ask.js";
 import { motionMode } from "./motion.js";
 import { createMusicLevelDialog } from "./music-level-dialog.js";
 import { MUSIC_UNDER_KEY, normaliseMusicUnder } from "./music-level-model.js";
+import { createMusicReportDialog } from "./music-report-dialog.js";
 import { createOverview } from "./overview.js";
 import { createPerfDialog } from "./perf-dialog.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
@@ -1299,6 +1300,7 @@ const keyboard = setupKeyboard({
     automix: () => void openAutomix(),
     automixLog: () => void openAutomixLog(),
     openStatistics: () => void openStatistics(),
+    openMusicReport: () => void openMusicReport(),
     openPerformanceReport: () => void openPerformanceReport(),
     openLocateMedia: () => void openLocateMedia(),
     relinkClipMedia: () => void relinkClipMedia(),
@@ -2523,6 +2525,31 @@ async function openPerformanceReport() {
     notify: (text, kind) => showNotice(text, kind),
   });
   await perfDialog.open();
+}
+
+// File > Export > Music report… (WP25): the preview, and the report as CSV / HTML (named after the
+// project by the server) or as a tab-separated table on the clipboard.
+let musicReportDialog = null;
+async function openMusicReport() {
+  musicReportDialog ??= createMusicReportDialog({
+    api,
+    t,
+    getProject: () => getState().project,
+    copyText: async (text) => {
+      try {
+        await navigator.clipboard.writeText(text);
+        showNotice(t("ui.music_report.copied"), "ok");
+      } catch (error) {
+        showError(error);
+      }
+    },
+    saveFile: async (format) => {
+      const query = format === "html" ? "format=html&download=1" : "format=csv";
+      const name = await downloadFile(`/api/music-report?${query}`, `music-report.${format}`);
+      if (name) showNotice(t("ui.music_report.saved", { name }), "ok");
+    },
+  });
+  await musicReportDialog.open();
 }
 
 async function openStatistics() {

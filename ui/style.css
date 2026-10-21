@@ -3820,6 +3820,65 @@ legend.form-heading {
   border-radius: var(--radius-sm);
 }
 
+/* Music report (WP25): a preview table that scrolls, never the dialog */
+.music-report-dialog {
+  display: grid;
+  gap: var(--space-3);
+  width: min(960px, 94vw);
+}
+.music-report-summary {
+  margin: 0;
+  font-weight: 600;
+}
+.music-report-scroll {
+  overflow: auto;
+  max-height: 50vh;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.music-report-scroll > .form-note {
+  margin: var(--space-3);
+}
+.music-report-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.music-report-table th,
+.music-report-table td {
+  padding: var(--space-1) var(--space-2);
+  text-align: left;
+  vertical-align: top;
+}
+.music-report-table th.num,
+.music-report-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.music-report-table thead th {
+  position: sticky;
+  top: 0;
+  color: var(--text-secondary);
+  font-weight: 600;
+  background: var(--surface);
+}
+.music-report-table tr.missing td {
+  background: var(--warn-subtle);
+}
+.music-report-warnings {
+  color: var(--warn-text);
+}
+.music-report-warn-head {
+  margin: 0 0 var(--space-1);
+  font-weight: 600;
+}
+.music-report-warn-list {
+  margin: 0;
+  padding-left: var(--space-5, 1.5em);
+  max-height: 10em;
+  overflow: auto;
+}
+
 /* Statistics (WP70) */
 .stats-dialog {
   display: grid;

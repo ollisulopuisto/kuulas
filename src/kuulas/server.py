@@ -1257,18 +1257,23 @@ def create_app(session, engine, *, language: str | None = None,
         return JSONResponse(described)
 
     @app.get("/api/music-report")
-    def get_music_report(format: str = "json"):
+    def get_music_report(format: str = "json", download: bool = False):
         if format not in ("json", "csv", "html"):
             raise music_report.MusicReportError("error.music_report.bad_format",
                                                 format=format)
         if format == "csv":
             content = session.music_report(format="csv")
-            disposition = 'attachment; filename="music-report.csv"'
+            disposition = export_names.disposition(
+                session.download_name("music-report.csv"))
             return Response(content=content, media_type="text/csv; charset=utf-8",
                             headers={"Content-Disposition": disposition})
         if format == "html":
             content = session.music_report(format="html")
-            return HTMLResponse(content=content)
+            if not download:
+                return HTMLResponse(content=content)
+            return HTMLResponse(content=content, headers={
+                "Content-Disposition": export_names.disposition(
+                    session.download_name("music-report.html"))})
         rows = session.music_report(format="json")
         return JSONResponse({"rows": rows})
 

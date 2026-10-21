@@ -383,3 +383,21 @@ describe("export formats", () => {
     assert.equal(done.text, 'ui.export.tracks_done_range{"count":2,"path":"/x/d"}');
   });
 });
+
+describe("Music report (WP25)", () => {
+  const state = { project: { tracks: [{ id: "m", kind: "music" }], markers: [] } };
+
+  test("Music report… needs a project, opens the dialog and has a hint", () => {
+    const registry = createRegistry();
+    const opened = [];
+    registerExportCommands(registry, {
+      t: (key) => key,
+      app: { getState: () => state, toast: () => {}, openMusicReport: () => opened.push(1) },
+    });
+    assert.equal(registry.can("export.music_report", { project: null }), false);
+    assert.equal(registry.can("export.music_report", state), true);
+    assert.equal(registry.run("export.music_report", null, state), true);
+    assert.deepEqual(opened, [1]);
+    assert.equal(registry.hintKey("export.music_report"), "cmd.export.music_report.hint");
+  });
+});

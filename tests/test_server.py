@@ -869,6 +869,19 @@ def test_get_music_report_html(client):
     assert "<table" in r.text
 
 
+def test_music_report_downloads_are_named_after_the_project(client, session):
+    """The GUI saves the report as a download: the name starts with the project."""
+    title = session.export_title()
+    csv_disposition = client.get("/api/music-report?format=csv").headers[
+        "content-disposition"]
+    assert f'filename="{title} music-report.csv"' in csv_disposition
+    html = client.get("/api/music-report?format=html&download=1")
+    assert f'filename="{title} music-report.html"' in html.headers["content-disposition"]
+    # Without download=1 the page opens inline, as before.
+    inline = client.get("/api/music-report?format=html")
+    assert "content-disposition" not in inline.headers
+
+
 def test_get_music_report_bad_format_returns_400(client):
     r = client.get("/api/music-report?format=unsupported")
     assert r.status_code == 400

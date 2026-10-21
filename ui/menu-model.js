@@ -214,6 +214,7 @@ export const MENU = [
       item("export.automix_log"),
       item("export.tracks_quick"),
       item("export.tracks"),
+      item("export.music_report"),
       submenu("menu.export_transcripts", [
         item("export.subtitles_srt"),
         item("export.subtitles_vtt"),
