@@ -345,10 +345,27 @@ def preview_message(status: dict, now: float) -> dict:
     """The live channel's clipboard-preview anchor: the fields of
     ``anchor_message`` for the preview's own frames (0 at the excerpt's start,
     ``end`` its length), so the Clipboard chip can draw its progress. Never the
-    timeline's playhead."""
-    message = anchor_message({**status, "preview": False}, now)
+    timeline's playhead. A preview mixed into the playing timeline
+    (``status["mix_preview"]``) reports in its own frames and version while the
+    timeline's anchors go on unchanged. The version is the newest of the two
+    counters, so an "ended" is always newer than the "start" the page holds."""
+    mix = status.get("mix_preview")
+    if mix:
+        message = anchor_message({
+            "playing": True, "position": mix["position"], "t": mix["t"],
+            "seq": mix["seq"], "end": mix["end"], "speed": 1.0, "skip": [],
+            "loop": None, "rate": status.get("rate")}, now)
+    else:
+        message = anchor_message({**status, "preview": False}, now)
     message["type"] = "preview"
+    message["seq"] = newest_seq(message["seq"], status.get("preview_seq"))
     return message
+
+
+def newest_seq(*seqs):
+    """The largest of the transport versions given (None: unknown)."""
+    known = [s for s in seqs if s is not None]
+    return max(known) if known else None
 
 
 def newer_seq(seq, last) -> bool:
@@ -799,9 +816,17 @@ def create_app(session, engine, *, language: str | None = None,
         if project is not None:
             engine.play_preview(project, limit=limit)
             # The transport version it started at: the page drops an older "ended".
-            seq = engine.status().get("seq")
+            status = engine.status()
+            seq = newest_seq(status.get("seq"), status.get("preview_seq"))
         return JSONResponse({"started": project is not None, "missing": missing,
                              "attenuation_db": gain, "seq": seq})
+
+    @app.post("/api/clipboard/preview/stop")
+    def post_clipboard_preview_stop():
+        # The chip's Stop: ends the preview only. Mixed into the timeline it is a
+        # voice that goes away and the timeline plays on.
+        engine.stop_preview()
+        return JSONResponse({"stopped": True})
 
     @app.delete("/api/clipboard/{entry_id}")
     def delete_clipboard_entry(entry_id: str):
@@ -1517,7 +1542,7 @@ def create_app(session, engine, *, language: str | None = None,
                     await send(anchor)
                 # The clipboard preview's own anchors (the chip's progress), and one
                 # "stopped" when it ends, with the transport version it ended at.
-                if status.get("preview"):
+                if status.get("preview") or status.get("mix_preview"):
                     preview = preview_message(status, now)
                     pshape = (preview["playing"], preview["seq"], preview["end"])
                     correct = now - last_preview_at >= correct_every

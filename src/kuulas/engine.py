@@ -85,6 +85,7 @@ from .playplan import (
     check_loop,
     normalise_skip,
 )
+from .preview_voice import PreviewVoice
 from .stretch import HOP_S as STRETCH_HOP_S
 from .stretch import MAX_RATE as MAX_STRETCH
 from .stretch import MIN_RATE as MIN_STRETCH
@@ -358,6 +359,11 @@ class Engine:
         self._preview_limit = False  # the safety limiter, on a preview only (WP82)
         self._base: Project = session.state
         self._preview_anchor = 0
+        #: A clipboard preview mixed into the playing timeline (``play_preview`` while
+        #: playing): swapped in and out by one attribute assignment, the audio
+        #: thread only reads it. ``_vseq`` is its transport version (control side).
+        self._voice: PreviewVoice | None = None
+        self._vseq = 0
         self.rate = self._project.rate
         self._blocksize = int(blocksize)
         self._device = device
@@ -429,6 +435,10 @@ class Engine:
         #: The latency numbers (latency.py): when the recent callbacks ran, and
         #: how far ahead of each its first frame reached the converter.
         self._cb_times: deque = deque(maxlen=128)
+        #: ``now - currentTime`` of the recent callbacks, and the last callback's
+        #: ``(currentTime, frames)`` (``_due_time``)
+        self._cb_offsets: deque = deque(maxlen=64)
+        self._cb_stream: tuple[float, int] | None = None
         self._dac_leads: deque = deque(maxlen=128)
         #: The transport's version: changes with every play, seek, stop, speed
         #: change and run that ends by itself (the browser drops older anchors).
@@ -479,16 +489,26 @@ class Engine:
     def play_preview(self, project: Project, until: int | None = None,
                      limit: bool = False) -> None:
         """Play a temporary ``project`` from its start (a clipboard entry,
-        WP46) without touching the real one. The playhead is put back where it
-        was when the preview ends: by ``stop``, ``seek``, ``play`` or running
-        out. Edits made meanwhile are kept for then. ``limit`` puts the safety
-        limiter on this preview's output only (WP82)."""
+        WP46) without touching the real one. ``limit`` puts the safety limiter
+        on this preview's output only (WP82).
+
+        While the timeline plays the preview is one more voice in its mix: the
+        timeline's run, position and version do not change, nothing restarts, and
+        the voice goes away by itself, by ``stop_preview`` or by ``stop``.
+        Otherwise the preview plays alone: the playhead is put back where it was
+        when it ends (``stop``, ``seek``, ``play`` or running out) and edits made
+        meanwhile are kept for then."""
+        if (self._playing and not self._preview
+                and self._start_voice(project, until, limit)):
+            return
         with self._ctl:
             self._end_preview()
+            self._drop_voice()
             self._preview_limit = limit
             with self._tlock:
                 self._preview_anchor = (self._heard_now() if self._playing
                                         else self._anchor)
+                self._seq = max(self._seq, self._vseq)  # versions only go up
             self._base = self._project
             self._project = project
             self._preview = True
@@ -497,6 +517,52 @@ class Engine:
             except BaseException:
                 self._end_preview()
                 raise
+
+    def _start_voice(self, project: Project, until: int | None, limit: bool) -> bool:
+        """Mix ``project`` into the playing timeline. False when the timeline is
+        not playing after all (the caller plays the preview alone). The slow part,
+        reading the first seconds from disk, happens before any lock is taken;
+        under ``_ctl`` there is one attribute assignment."""
+        voice = PreviewVoice(project, self._store, self._dev_rate, limit=limit,
+                             until=until, clock_now=self._clock())
+        self._fill_voice(voice, WARM_S)
+        with self._ctl:
+            with self._tlock:
+                playing = self._playing and not self._preview
+            if not playing or voice.device_rate != self._dev_rate:
+                return False
+            self._drop_voice()
+            self._vseq = max(self._vseq, self._seq) + 1
+            self._voice = voice
+        return True
+
+    def _drop_voice(self) -> None:
+        """Take the voice out of the mix (caller holds ``_ctl``)."""
+        if self._voice is not None:
+            self._voice = None
+            self._vseq += 1
+
+    def _reap_voice(self) -> None:
+        """Forget a voice that ran out, or whose timeline has stopped."""
+        voice = self._voice
+        if voice is not None and (voice.done or not self._playing):
+            with self._ctl:
+                if self._voice is voice:
+                    self._drop_voice()
+
+    def stop_preview(self) -> None:
+        """End the clipboard preview and nothing else: its voice leaves the
+        mix and the timeline plays on; a preview playing alone is stopped as
+        ``stop`` does (the playhead goes back)."""
+        with self._ctl:
+            self._drop_voice()
+            if self._preview:
+                self.stop()
+
+    def _fill_voice(self, voice: PreviewVoice, seconds: float) -> None:
+        first, last = voice.windows(seconds)
+        if last > first:
+            self._fill_windows([(first, last)], project=voice.project)
 
     def _end_preview(self) -> None:
         """Back to the real project and the playhead as it was; silent."""
@@ -643,6 +709,7 @@ class Engine:
         (after a preview: where it was before it), and nothing the device
         still had queued is heard (``_park``)."""
         with self._ctl:
+            self._drop_voice()
             with self._tlock:
                 was = self._playing
             self._end_preview()
@@ -703,6 +770,7 @@ class Engine:
         or None when the worst callback fit in a block), and the status
         fields ``late_blocks``, ``failed_blocks``, ``device``,
         ``device_rate``, ``resampling``."""
+        self._reap_voice()
         with self._tlock:
             previewing, playing = self._preview, self._playing
         if previewing and not playing:
@@ -723,6 +791,8 @@ class Engine:
             out = {
                 "playing": playing,
                 "preview": self._preview,
+                "mix_preview": self._mix_preview(),
+                "preview_seq": self._vseq,
                 "position": int(position),
                 "t": heard_at,
                 "seq": seq,
@@ -752,6 +822,17 @@ class Engine:
                 out["debug"] = debug
             return out
 
+    def _mix_preview(self) -> dict[str, Any] | None:
+        """The clipboard voice mixed into the timeline, for the chip's progress:
+        its own frames (0 at the excerpt's start), the clock time they were heard
+        at, and its version. None when there is none."""
+        voice = self._voice
+        if voice is None:
+            return None
+        position, at = voice.heard
+        return {"playing": True, "position": int(position), "t": at,
+                "end": voice.end, "seq": self._vseq}
+
     def levels(self) -> dict[str, Any]:
         """Peak level per channel (linear, 1.0 = full scale) of the block
         being heard now, for the meters."""
@@ -768,6 +849,7 @@ class Engine:
     def close(self) -> None:
         with self._ctl:
             self._closed = True
+            self._voice = None
             self._halt.set()
             with self._tlock:
                 self._playing = False
@@ -947,7 +1029,7 @@ class Engine:
             cpu = time.thread_time() if probe is not None else 0.0
             if probe is not None:
                 probe.acc = 0.0
-            block = self._render(frames, now)
+            block = self._render(frames, self._due_time(now, frames, time_info))
             rendered = time.perf_counter()
             outdata[:] = block
             self._measure(block)
@@ -964,6 +1046,34 @@ class Engine:
             outdata.fill(0)
             self._failed += 1
             self._events.append(("failed", repr(exc)))
+
+    def _due_time(self, now: float, frames: int, time_info) -> float:
+        """When this callback was due, on the engine's clock: ``now`` less the time
+        Python waited (for the GIL) before it got to run. The anchor's ``t`` is this
+        (owner, 2026-10-21: the cursor "jumps a few pixels back"): dated by the late
+        read, a block's position claimed to be heard later than it was and the
+        browser's cursor landed behind by the wait.
+
+        PortAudio's ``currentTime`` is taken in the host thread, before Python runs;
+        ``now - currentTime`` is a constant offset plus the wait, so its smallest
+        recent value is the offset and ``currentTime + offset`` the due time. Used
+        only while ``currentTime`` advances by the block each callback; otherwise
+        (none given, it stands still, an underrun) the window starts over and ``now``
+        stands. Not measured on a real device: this host API field is trusted from
+        PortAudio's documentation."""
+        try:
+            cur = float(time_info.currentTime)
+        except (AttributeError, TypeError, ValueError):
+            return now
+        previous, self._cb_stream = self._cb_stream, (cur, frames)
+        block_s = frames / self._dev_rate
+        gap = None
+        if previous is not None:
+            gap = cur - previous[0] - previous[1] / self._dev_rate
+        if cur <= 0 or gap is None or abs(gap) > 0.25 * block_s:
+            self._cb_offsets.clear()
+        self._cb_offsets.append(now - cur)
+        return min(now, cur + min(self._cb_offsets))
 
     def _measure(self, block: np.ndarray) -> None:
         """Peak and mean square of the block just handed to the device (the meter).
@@ -1090,7 +1200,28 @@ class Engine:
                     self._acc = 0.0
         if self._preview and self._preview_limit:
             out = preview_level.soft_limit(out)
+        voice = self._voice
+        if voice is not None and not voice.done:
+            out = self._mix_voice(out, voice, frames, now)
         return out
+
+    def _mix_voice(self, out: np.ndarray, voice: PreviewVoice, frames: int,
+                   now: float | None) -> np.ndarray:
+        """Sum the clipboard voice into the timeline's block. A failing voice
+        costs the voice, never the timeline's block."""
+        try:
+            heard = voice.render(frames, self._clock() if now is None else now)
+            if voice.limit:  # a loud clip must not clip the sum (WP82)
+                heard = preview_level.soft_limit(heard)
+            summed = out + heard
+        except Exception as exc:  # noqa: BLE001 - the audio callback never raises
+            voice.done = True
+            self._failed += 1
+            self._events.append(("failed", f"preview voice: {exc!r}"))
+            return out
+        if float(np.abs(summed).max()) > 1.0:
+            summed = preview_level.soft_limit(summed, 0.0)
+        return summed
 
     def _stretcher_for(self, gen: int, end: int) -> Stretcher:
         """The WSOLA stretcher of this run (audio thread): made at the run's
@@ -1205,6 +1336,7 @@ class Engine:
                                   error=str(again)) from None
             dev_rate = own_rate
         self._dev_rate = dev_rate
+        self._drop_voice()  # its resampler was made for the old device rate
         # Every speed's resampler ends at the device rate: make them afresh.
         self._resamplers = {}
         self._resampler_for(1.0)
@@ -1221,6 +1353,8 @@ class Engine:
         self._stream_latency = float(stream.latency)
         self._cb_times.clear()
         self._dac_leads.clear()
+        self._cb_offsets.clear()  # a new stream has a clock of its own
+        self._cb_stream = None
         self._parked = False
         self._expect_finish = False
         self._died = False
@@ -1419,13 +1553,32 @@ class Engine:
         read-ahead cache, so the audio thread finds it there."""
         with self._tlock:
             run, fed = self._run, self._fed
+        voice = self._voice
+        also = self._voice_chunks(voice) if voice is not None and not voice.done else None
         if run is not None:
-            self._read_ahead(run, fed, PREFETCH_S, evict=True)
+            self._read_ahead(run, fed, PREFETCH_S, evict=True, also=also)
+        if also:
+            self._fill_voice(voice, PREFETCH_S)
+
+    def _voice_chunks(self, voice: PreviewVoice) -> set[tuple[str, int]]:
+        """The cache chunks the voice needs in the next ``PREFETCH_S`` seconds."""
+        first, last = voice.windows(PREFETCH_S)
+        step, wanted = self._store.step, set()
+        for track in voice.project.tracks:
+            for clip in track.clips:
+                lo, hi = max(first, clip.heard_start), min(last, clip.heard_end)
+                if hi > lo:
+                    src = max(0, clip.offset + (lo - clip.start))
+                    src_end = clip.offset + (hi - clip.start)
+                    wanted.update((clip.media, i)
+                                  for i in range(src // step, (src_end - 1) // step + 1))
+        return wanted
 
     def _ahead(self, seconds: float, speed: float) -> int:
         return round(seconds * self.rate * max(1.0, abs(speed)))
 
-    def _read_ahead(self, run: _Run, fed: int, seconds: float, *, evict: bool) -> None:
+    def _read_ahead(self, run: _Run, fed: int, seconds: float, *, evict: bool,
+                    also: set[tuple[str, int]] | None = None) -> None:
         """Fill the cache for ``seconds`` of ``run`` from its played frame
         ``fed`` (and, in a loop, from the loop's start). ``evict`` also drops
         chunks no longer wanted: only the helper does that."""
@@ -1440,13 +1593,16 @@ class Engine:
         windows = [(first, last)]
         if run.loop is not None:  # the wrap goes back to the loop's start
             windows.append((run.loop[0], run.loop[0] + ahead))
-        self._fill_windows(windows, evict=evict)
+        self._fill_windows(windows, evict=evict, also=also)
 
     def _fill_windows(self, windows: list[tuple[int, int]], *,
-                      evict: bool = False) -> None:
+                      evict: bool = False, project: Project | None = None,
+                      also: set[tuple[str, int]] | None = None) -> None:
         """Read the chunks every clip needs for the programme-frame
-        ``windows``. Never holds a lock the audio thread takes."""
-        project, store = self._project, self._store
+        ``windows`` (of ``project``, default the playing one). ``also``: chunks
+        another reader (the clipboard voice) wants kept when evicting. Never
+        holds a lock the audio thread takes."""
+        project, store = project or self._project, self._store
         step, now = store.step, time.monotonic()
         wanted: set[tuple[str, int]] = set()
         for first, last in windows:
@@ -1462,4 +1618,4 @@ class Engine:
         for media_id, index in sorted(wanted):
             store.fill(media_id, index, now)
         if evict:
-            store.evict(wanted, now)
+            store.evict(wanted | (also or set()), now)

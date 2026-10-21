@@ -330,6 +330,10 @@ def test_the_clipboard_file_is_not_read_or_written_under_the_session_lock(
 class _Engine:
     def __init__(self):
         self.previews = []
+        self.stopped_previews = 0
+
+    def stop_preview(self):
+        self.stopped_previews += 1
 
     def play_preview(self, project, until=None, limit=False):
         self.previews.append(project)
@@ -373,6 +377,12 @@ def test_api_preview_plays_a_temp_project_and_changes_nothing(client, session, e
     assert shape == [(a.id, [0]), (ids(session.state)[1].id, [])]
     assert history_len(session) == head
     assert clips(session.state) == before
+
+
+def test_api_stop_preview_ends_only_the_preview(client, engine):
+    r = client.post("/api/clipboard/preview/stop")
+    assert r.status_code == 200
+    assert engine.stopped_previews == 1
 
 
 def test_api_preview_of_an_unknown_entry_is_a_404(client, engine):

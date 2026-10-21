@@ -17,7 +17,7 @@ import { clipDragChange } from "./clip-drag.js";
 import { expandGroups, toggleGroupSelection } from "./clip-groups.js";
 import { entryTitle } from "./clipboard.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
-import { previewFraction, previewPlaying } from "./clipboard-preview.js";
+import { previewFraction, previewPlaying, previewStop } from "./clipboard-preview.js";
 import { createClock } from "./clock.js";
 import { createColabDialogs } from "./colab-dialog.js";
 import {
@@ -2731,8 +2731,16 @@ const clipboardPanel = createClipboardPanel({
       setState({ clipboardSelected: id });
       keyboard.registry.run("edit.preview_clipboard", null, getState());
     },
-    // The playing chip's Stop: the transport's stop ends a preview (the playhead stays).
-    stopPreview: () => void transport.stop(),
+    // The playing chip's Stop. Mixed into a playing timeline only its voice goes away and the
+    // timeline plays on; played alone, the transport's stop ends it (the playhead goes back).
+    stopPreview() {
+      if (previewStop(getState()) === "preview") {
+        setState({ clipboardPlaying: null });
+        void api.stopClipboardPreview().catch(showError);
+      } else {
+        void transport.stop();
+      }
+    },
     canPasteAgain: (state) => keyboard.registry.can(pasteCommand(state), state),
     pasteAgain(id) {
       setState({ clipboardSelected: id });

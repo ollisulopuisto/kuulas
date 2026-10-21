@@ -43,13 +43,16 @@ class AnchoredEngine(FakeEngine):
         self.t = None
         self.speed = 1.0
         self.preview = False
+        self.mix_preview = None
+        self.preview_seq = 0
         self.end = None
 
     def status(self):
         out = super().status()
         out.update(seq=self.seq, t=time.monotonic() if self.t is None else self.t,
                    speed=self.speed, end=self.end, skip=[], loop=None, rate=48000,
-                   preview=self.preview)
+                   preview=self.preview, mix_preview=self.mix_preview,
+                   preview_seq=self.preview_seq)
         return out
 
     def play(self, *args, **kwargs):
@@ -245,3 +248,33 @@ def test_the_engine_is_never_read_on_the_default_executor(
             assert next_anchor(ws)["playing"]
             engine.position += 480
     assert not [job for job in handed if engine.status in job]
+
+
+def test_a_preview_mixed_into_playback_keeps_the_timeline_anchors_and_adds_its_own(
+        session, engine, tmp_path):
+    # The preview is one more voice: the timeline still says playing, with its own
+    # position and version, and the chip's progress comes as "preview" messages in
+    # the voice's own frames and version.
+    app = create_app(session, engine, language="en", ui_dir=tmp_path, tick=0.005,
+                     correct_every=0.0, meter_every=1000.0)
+    with TestClient(app) as c, c.websocket_connect("/api/live") as ws:
+        opened(ws)
+        engine.playing, engine.position, engine.seq = True, 96_000, 5
+        assert next_anchor(ws)["playing"] is True
+        engine.mix_preview = {"playing": True, "position": 480, "t": time.monotonic(),
+                              "end": 9600, "seq": 8}
+        engine.preview_seq = 8
+        msg = next_of(ws, "preview")
+        assert msg["playing"] is True
+        assert msg["position"] == 480
+        assert msg["end"] == 9600
+        assert msg["seq"] == 8
+        anchor = next_anchor(ws)
+        assert anchor["playing"] is True
+        assert anchor["position"] == 96_000
+        assert anchor["seq"] == 5
+        engine.mix_preview, engine.preview_seq = None, 9
+        msg = next_of(ws, "preview")
+        while msg["playing"]:
+            msg = next_of(ws, "preview")
+        assert msg["seq"] == 9

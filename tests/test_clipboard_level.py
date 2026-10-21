@@ -1,5 +1,7 @@
 """The clipboard preview never plays louder than the project (WP82)."""
 
+import threading
+import time
 from dataclasses import replace
 from pathlib import Path
 
@@ -8,6 +10,7 @@ import pytest
 import soundfile as sf
 
 from kuulas import clipboard_level, mixer
+from kuulas import session as session_module
 from kuulas.model import Project
 from kuulas.session import Session
 
@@ -109,3 +112,39 @@ def test_the_entry_is_measured_once(session, monkeypatch):
 def test_an_empty_project_uses_the_default_reference():
     got = clipboard_level.project_reference(Project(rate=RATE), None, None)
     assert got == (-23.0, None)
+
+
+def test_a_long_projects_reference_is_not_measured_while_the_click_waits(
+        session, monkeypatch):
+    # Owner, 2026-10-21: a clipboard preview sounded "VERY MUCH LATER". The request
+    # measured every speech track of the project (the whole recording) before it
+    # started the sound whenever that analysis was not cached yet, which it is not
+    # while playback holds the background jobs back. Past a short project the
+    # request uses the default reference and the measuring runs in the background.
+    monkeypatch.setattr(session_module, "INLINE_REFERENCE_S", 0.1)
+    entry = loud_entry_then_quiet_project(session)
+    release = threading.Event()
+    seen = []
+    real = clipboard_level.project_reference
+
+    def slow(*args):
+        seen.append(threading.current_thread())
+        release.wait(10)
+        return real(*args)
+
+    monkeypatch.setattr(clipboard_level, "project_reference", slow)
+    began = time.perf_counter()
+    project, _, gain = session.clipboard_preview(entry)
+    assert time.perf_counter() - began < 1.0
+    assert project is not None
+    assert gain <= 0.0
+    release.set()
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        if session.clipboard_preview(entry)[2] == pytest.approx(-20.0, abs=1.5):
+            break
+        time.sleep(0.05)
+    else:
+        pytest.fail("the background measuring never reached the preview level")
+    assert seen
+    assert all(t is not threading.main_thread() for t in seen)

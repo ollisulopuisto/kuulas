@@ -12,8 +12,24 @@ How the cursor follows the sound, what was measured, and how to check by ear.
   200 ms while playing (`LIVE_CORRECT_S`). It reads the engine on its own thread, not
   the default executor, and never sends an anchor older than one already sent.
 - **The browser extrapolates** (`ui/playhead-clock.js`) every animation frame from the
-  latest anchor: speed, reverse, skips, loop wrap, run end. Small backward corrections
-  (under 50 ms) are absorbed, bigger ones snap. Clock offset: five pings at connect
+  latest anchor: speed, reverse, skips, loop wrap, run end. During a steady run a
+  correction under 150 ms either way is slewed in over 250 ms (the cursor slows or speeds
+  by at most 40% for a moment, never steps back or freezes; owner 2026-10-21: "stutter in
+  playback cursor's location again"); 150 ms or more, a new `seq` or a speed change snaps,
+  and a reading older than the one in use is dropped. Before, up to 50 ms was held (a
+  freeze) and more snapped back.
+- **An anchor's `t` is when the callback was due, not when Python ran it.** A callback that
+  waited for the GIL read the clock late, so its position looked heard late and the
+  cursor landed behind by the wait. `Engine._due_time` dates it with PortAudio's
+  `currentTime` (taken before Python runs), mapped onto the clock by the least delayed
+  recent callback. Tested with a fake `time_info`; not measured on a real device.
+- **A clipboard preview played while the timeline plays is a voice in its mix**
+  (`preview_voice.PreviewVoice`), not a replacement: the timeline's run, position and
+  `seq` do not change, and `status()["mix_preview"]` carries the voice's progress. Played
+  with the timeline stopped it plays alone and the playhead is put back as before. Its
+  first 2 s are read into the cache before it is swapped in (no lock held), and the
+  helper keeps its chunks from being evicted. The level reference of a long project is
+  no longer measured while the click waits (`session.INLINE_REFERENCE_S`). Clock offset: five pings at connect
   and one every 10 s; the quickest round trip gives offset = server time - midpoint.
 - **Stop is instant.** Space freezes the cursor at once; the engine aborts the
   PortAudio stream so nothing already queued is heard, and the stop's answer lands the
