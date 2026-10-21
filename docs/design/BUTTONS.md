@@ -109,6 +109,8 @@ C = conforms, F = fixed in this change, D = deferred (reason given), S = special
 |---|---|---|---|
 | Transport corner | Play, Record | `.play` | S |
 | Transport corner | Loop | ghost icon toggle | C |
+| Transport corner | Edit / Rendered mix (only with a render) | `.button.render-seg` one-of-two toggles in a `role="group"`, `aria-pressed`; a stale render's side is `aria-disabled` (not `disabled`, so its title says why) | C |
+| Render banner | Back to the edit | `.button.small` | C |
 | Marks corner | Alku / Loppu / Pituus | `.mrow` | S |
 | Top bar | record, speed, waveform-gain chips | `.chip` | S |
 | Menu bar, context menus | titles, items | `.menu-title`, `.menu-item` | S |

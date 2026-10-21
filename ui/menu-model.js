@@ -63,6 +63,7 @@ export const CHECKED = {
   "transport.slow_speed_050": (state) => (state?.slowSpeed ?? 0.5) === 0.5,
   "transport.slow_speed_075": (state) => (state?.slowSpeed ?? 0.5) === 0.75,
   "range.scope_toggle": (state) => state?.rangeMode === "selected",
+  "transport.render_listen": (state) => state?.render?.listening === true,
   "view.language_auto": (state) => (state?.languageChoice ?? "auto") === "auto",
   "view.language_fi": (state) => state?.languageChoice === "fi",
   "view.language_en": (state) => state?.languageChoice === "en",
@@ -393,6 +394,7 @@ export const MENU = [
       submenu("menu.record_settings", [item("record.stop_mode"), item("record.preroll")]),
       SEP,
       item("transport.loop"),
+      item("transport.render_listen"),
       submenu("menu.fast_playback", [
         item("transport.speed"),
         item("transport.speed_down"),

@@ -42,7 +42,7 @@ from fastapi.responses import (
     Response,
 )
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StrictBool
 from starlette.websockets import WebSocketDisconnect
 
 from . import (
@@ -63,6 +63,7 @@ from . import (
     plugins,
     priority,
     project_stats,
+    render_listen,
     transcribe,
     ui_prefs,
 )
@@ -247,6 +248,11 @@ class ProfileBody(BaseModel):
 
 class LogLevelBody(BaseModel):
     level: str
+
+
+class RenderListenBody(BaseModel):
+    #: true: play the rendered mix in place of the edit; false: back to the edit.
+    on: StrictBool
 
 
 class TransportBody(BaseModel):
@@ -548,6 +554,10 @@ def create_app(session, engine, *, language: str | None = None,
     async def _record_error(_request: Request, e: RecordError):
         return answer(e, e.status)
 
+    @app.exception_handler(render_listen.RenderListenError)
+    async def _render_listen_error(_request: Request, e: render_listen.RenderListenError):
+        return answer(e, 409)
+
     @app.exception_handler(KuulasError)
     async def _other_error(_request: Request, e: KuulasError):
         if e.key.startswith(("error.paste.", "error.import_plan.", "error.chapters.",
@@ -567,9 +577,18 @@ def create_app(session, engine, *, language: str | None = None,
     def state() -> dict:
         with session.lock:
             h = session.history
-            return {"project": session.state.to_dict(), "head": h.head,
+            project = session.state
+            return {"project": project.to_dict(), "head": h.head,
                     "can_undo": h.can_undo, "can_redo": h.can_redo,
-                    "missing": session.store.missing()}
+                    "missing": session.store.missing(),
+                    # The rendered mix the edit can be compared with (render_listen).
+                    "render": {**render_listen.status(project),
+                               "listening": engine_listening()}}
+
+    def engine_listening() -> bool:
+        # Only an engine that has the switch says so (test engines may have none, and
+        # some refuse every attribute they do not define).
+        return "listening" in dir(type(engine)) and bool(engine.listening)
 
     def state_response(extra: dict | None = None) -> JSONResponse:
         return JSONResponse({**state(), **(extra or {})})
@@ -838,6 +857,17 @@ def create_app(session, engine, *, language: str | None = None,
         # voice that goes away and the timeline plays on.
         engine.stop_preview()
         return JSONResponse({"stopped": True})
+
+    @app.post("/api/render-listen")
+    def post_render_listen(body: RenderListenBody):
+        # The A/B switch: the last automixer render plays in place of the edit, at its
+        # place on the timeline, while the edit still sounds as it did then (409 and a
+        # translated reason otherwise). The project is never touched.
+        if body.on:
+            render_listen.start(session, engine)
+        else:
+            render_listen.stop(engine)
+        return state_response()
 
     @app.delete("/api/clipboard/{entry_id}")
     def delete_clipboard_entry(entry_id: str):

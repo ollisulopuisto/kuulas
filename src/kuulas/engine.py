@@ -59,6 +59,7 @@ heard. It costs about what a block of plain playback costs (see
 
 from __future__ import annotations
 
+import contextlib
 import gc
 import logging
 import math
@@ -242,6 +243,13 @@ class _SafeStore:
         self.channels: dict[str, int] = {}
         #: reads that found nothing cached (audio thread writes)
         self.misses = 0
+        #: media id -> a reader of the same shape as the store (``read(media_id, first,
+        #: count)``) for media that is not in the store: the rendered mix being listened
+        #: to (``Engine.set_listen_source``). Replaced whole, never changed in place.
+        self.sources: dict[str, Any] = {}
+
+    def _source(self, media_id: str):
+        return self.sources.get(media_id, self.store)
 
     def read(self, media_id: str, first: int, count: int) -> np.ndarray:
         """The audio thread's read: copies from the read-ahead cache and never
@@ -320,7 +328,7 @@ class _SafeStore:
                 # The read-ahead is this cache; the store's chunk cache would
                 # only hold a second copy (docs/MEMORY.md).
                 with streaming():
-                    return self.store.read(media_id, first, count)
+                    return self._source(media_id).read(media_id, first, count)
             except Exception:  # noqa: BLE001 - any decode error costs that chunk only
                 log.debug("read of %s failed; retrying chunk by chunk", media_id)
         return self._piecewise(media_id, first, count)
@@ -335,7 +343,7 @@ class _SafeStore:
             if index not in self.damaged.get(media_id, ()):
                 try:
                     with streaming():
-                        data = self.store.read(media_id, pos, n)
+                        data = self._source(media_id).read(media_id, pos, n)
                 except Exception as exc:  # noqa: BLE001 - see the class docstring
                     self.damaged.setdefault(media_id, set()).add(index)
                     self.events.append(("damaged", media_id, index, repr(exc)))
@@ -386,6 +394,12 @@ class Engine:
         #: thread only reads it. ``_vseq`` is its transport version (control side).
         self._voice: PreviewVoice | None = None
         self._vseq = 0
+        #: Listening to another source in place of the edit (``set_listen_source``): the
+        #: stand-in project, the check that ends it, and the session's latest project
+        #: (what plays again when it ends).
+        self._listen: Project | None = None
+        self._listen_keep: Callable[[Project], bool] | None = None
+        self._real: Project = session.state
         self.rate = self._project.rate
         self._blocksize = int(blocksize)
         self._device = device
@@ -502,14 +516,28 @@ class Engine:
         """The project to play from the next block on. Called by the session
         after every change; one attribute assignment, so the audio thread
         never sees half a project. During a preview the real project is only
-        remembered, and comes back when the preview ends. A listening overlay
-        (``set_silence_overlay``) is put on top of every new project."""
+        remembered, and comes back when the preview ends. While another source is
+        listened to (``set_listen_source``) the project is only remembered too, and
+        the listening ends by itself when its ``keep`` check says no. A listening
+        overlay (``set_silence_overlay``) is put on top of every new project."""
         with self._olock:
             self._real = project
-            self._hand_over(_overlaid(project, self._overlay))
+            listen = self._listen
+            if listen is not None and not self._keeps(project):
+                # Under the session's lock (an edit): no disk reads here, the helper
+                # thread fetches the edit's audio at its next tick.
+                self.clear_listen_source(warm=False)
+                return
+            self._show(listen or self._edit_view())
+            if self._listen is not listen:  # switched meanwhile (no lock here, by design)
+                self._show(self._listen or self._edit_view())
 
-    def _hand_over(self, project: Project) -> None:
-        """What plays from the next block on (caller holds ``_olock``)."""
+    def _edit_view(self) -> Project:
+        """The edit as it plays: the real project under the Auto-Silence overlay."""
+        return _overlaid(self._real, self._overlay)
+
+    def _show(self, project: Project) -> None:
+        """Make ``project`` the timeline that plays (behind a preview, if one plays)."""
         if self._preview:
             self._base = project
         else:
@@ -530,7 +558,70 @@ class Engine:
             for track_id, ranges in ranges_by_track.items()}
         with self._olock:
             self._overlay = overlay
-            self._hand_over(_overlaid(self._real, overlay))
+            if self._listen is None:
+                self._show(_overlaid(self._real, overlay))
+
+    def _keeps(self, project: Project) -> bool:
+        keep = self._listen_keep
+        if keep is None:
+            return True
+        try:
+            return bool(keep(project))
+        except Exception:  # a broken check ends listening, never an edit
+            log.exception("the listen source's check failed; back to the edit")
+            return False
+
+    @property
+    def listening(self) -> bool:
+        """Whether another source plays in place of the edit."""
+        return self._listen is not None
+
+    def set_listen_source(self, project: Project, sources: dict[str, Any],
+                          keep: Callable[[Project], bool] | None = None) -> None:
+        """Play ``project`` in place of the edit until ``clear_listen_source``: a
+        stand-in on the same timeline (the rendered mix as one clip at its place,
+        ``render_listen``), played by the same machinery, so the playhead, seek, loop,
+        speed and Space behave as for the edit; playing goes on where it is. ``sources``
+        reads its media that is not in the store (``read(media_id, first, count)``).
+        ``keep(project)`` is asked after every change of the real project: False ends
+        the listening (the edit plays again). The real project is never touched; edits
+        made meanwhile are kept for then. The first seconds are read before the switch,
+        outside every lock the audio thread takes."""
+        self._store.sources = {**self._store.sources, **sources}
+        with self._tlock:
+            heard = self._heard_now() if self._playing else self._anchor
+        self._fill_windows([(heard, heard + self._ahead(WARM_S, 1.0))], project=project)
+        with self._ctl:
+            self._listen = project
+            self._listen_keep = keep
+            self._show(project)
+
+    def clear_listen_source(self, *, warm: bool = True) -> None:
+        """Back to the edit at once (from the next block), where playing is. ``warm``
+        reads the edit's first seconds at the playhead before the switch, so it is not
+        a gap."""
+        with self._ctl:
+            if self._listen is None:
+                return
+            old = self._listen
+            with self._tlock:
+                heard = self._heard_now() if self._playing else self._anchor
+        if warm:
+            self._fill_windows([(heard, heard + self._ahead(WARM_S, 1.0))],
+                               project=self._real)
+        with self._ctl:
+            if self._listen is not old:
+                return  # another source was set meanwhile
+            self._listen = None
+            self._listen_keep = None
+            self._show(self._edit_view())
+            ids = {m.id for m in old.media}
+            gone = [s for k, s in self._store.sources.items() if k in ids]
+            self._store.sources = {k: s for k, s in self._store.sources.items()
+                                   if k not in ids}
+        for source in gone:
+            with contextlib.suppress(Exception):
+                source.close()
 
     def play_preview(self, project: Project, until: int | None = None,
                      limit: bool = False) -> None:
@@ -838,6 +929,7 @@ class Engine:
                 "playing": playing,
                 "preview": self._preview,
                 "silence_overlay": self._overlay is not None,
+                "listen": self._listen is not None,
                 "mix_preview": self._mix_preview(),
                 "preview_seq": self._vseq,
                 "position": int(position),

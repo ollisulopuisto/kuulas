@@ -433,6 +433,79 @@ button.chip {
 .t-row:has(#speed-chip:not([hidden])) #fast-speed {
   display: none;
 }
+/* Edit | Rendered mix (render-listen-view.js): a second row under loop and speed while the
+   project remembers a render; Play and Record span both rows. */
+.corner:has(#render-ab:not([hidden])) {
+  grid-template-rows: auto auto;
+  row-gap: var(--space-1);
+  align-content: center;
+}
+.corner:has(#render-ab:not([hidden])) .play {
+  grid-row: 1 / span 2;
+}
+.render-ab {
+  grid-row: 2;
+  gap: 0;
+}
+.render-seg {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 24px;
+  padding: 0 var(--space-2);
+  justify-content: center;
+  border-radius: 0;
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.render-seg:first-child {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+.render-seg:last-child {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.render-seg[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+  color: var(--text);
+  font-weight: var(--weight-strong);
+}
+.render-seg[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+/* The rendered mix plays: a clear band over the top of the lanes, and the track controls
+   that do not affect the file dimmed (their container's title says why). */
+.render-banner {
+  position: absolute;
+  top: var(--ruler-h);
+  left: 0;
+  right: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-1) var(--space-3);
+  background: var(--warn-subtle);
+  border-bottom: 1px solid var(--warn);
+  color: var(--text);
+  font-size: var(--text-sm);
+}
+.render-banner[hidden] {
+  display: none;
+}
+.render-banner-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#track-headers.render-listening :is(.ms, .th-controls, .bus-select) {
+  opacity: 0.4;
+  pointer-events: none;
+}
 @container (max-width: 300px) {
   .corner {
     column-gap: 8px;

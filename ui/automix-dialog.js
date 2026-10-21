@@ -34,6 +34,7 @@ import {
 } from "./automix-options-model.js";
 import { enhanceDialog } from "./dialog-keys.js";
 import { createPluginField } from "./plugin-field.js";
+import { spanText, withRange } from "./render-listen-model.js";
 
 const KEY = "kuulas.automix";
 // The two options whose items are plug-ins: a field with suggestions and chips. Their hint
@@ -190,10 +191,28 @@ export function createAutomixDialog({
     row("adSpot", "ui.automix.ad_spot", spot, "ui.automix.ad_spot_hint"),
     row("adDuration", "ui.automix.ad_duration", duration, "ui.automix.ad_duration_hint"),
   );
+  // "Only the In/Out range (a quick preview)": enabled while the marks make a range
+  // (render-listen-model.js rangeChoice, given to open()); its hint names the range and says
+  // the levels are measured on the excerpt.
+  const rangeBox = el("input");
+  rangeBox.type = "checkbox";
+  rangeBox.name = "onlyRange";
+  rangeBox.id = "automix-onlyRange";
+  inputs.onlyRange = rangeBox;
+  const rangeLabel = el("label");
+  rangeLabel.append(rangeBox, el("span", "", t("ui.automix.only_range")));
+  const rangeHint = el("p", "automix-hint form-help");
+  rangeHint.id = "automix-onlyRange-hint";
+  rangeBox.setAttribute("aria-describedby", rangeHint.id);
+  const rangeRow = el("div", "check-row");
+  rangeRow.append(rangeLabel, rangeHint);
+  let range = { enabled: false, range: null };
+  let rangeRate = 48000;
+  let rememberedRange = "";
   // One line when the render runs on another Mac (the "Run on another Mac" group below).
   const remoteLine = el("p", "automix-remote-note form-note");
   remoteLine.hidden = true;
-  mix.append(lufsRow, adRow, adGroup, remoteLine, summary);
+  mix.append(lufsRow, adRow, adGroup, rangeRow, remoteLine, summary);
 
   // -- Processing: the automixer's switches, drawn from the server's list (open()) ---------
   const processing = section("ui.automix.section_options");
@@ -616,6 +635,9 @@ export function createAutomixDialog({
     adBreak: adBox.checked ? "1" : "",
     adSpot: inputs.adSpot.value,
     adDuration: inputs.adDuration.value,
+    // While the marks make no range the box is off and disabled: the remembered choice
+    // is kept for the next time they do (withRange sends nothing then).
+    onlyRange: range.enabled ? (rangeBox.checked ? "1" : "") : rememberedRange,
   });
 
   /** The installed plug-ins for the suggestions; none (a plain text field) when the scan
@@ -670,6 +692,11 @@ export function createAutomixDialog({
       inputs[name].setAttribute("aria-invalid", key ? "true" : "false");
     }
     adGroup.hidden = !form_.adBreak;
+    rangeBox.disabled = !range.enabled;
+    rangeRow.classList.toggle("automix-off", !range.enabled);
+    rangeHint.textContent = range.enabled
+      ? t("ui.automix.only_range_hint", { span: spanText(range.range, rangeRate) })
+      : t("ui.automix.only_range_off");
     for (const [preset, button] of presetButtons) {
       button.setAttribute("aria-pressed", String(inputs.targetLufs.value.trim() === preset.lufs));
     }
@@ -718,7 +745,8 @@ export function createAutomixDialog({
       saveForm(values());
       dialog.close();
       const sent = requestOptions(optionSpecs, optionValues(), doneNow);
-      await onStart(sent ? { ...request.body, options: sent } : request.body);
+      const body = withRange(request.body, values().onlyRange, range);
+      await onStart(sent ? { ...body, options: sent } : body);
     } catch (e) {
       advanced.open = true;
       showError(e.message);
@@ -727,10 +755,17 @@ export function createAutomixDialog({
 
   return {
     element: dialog,
-    async open() {
+    /** `context.range`: rangeChoice of the marks now; `context.rate`: the project's. */
+    async open(context = {}) {
+      range = context.range ?? { enabled: false, range: null };
+      rangeRate = context.rate ?? 48000;
       const remembered = loadForm();
+      rememberedRange = remembered.onlyRange;
       for (const key of Object.keys(DEFAULT_AUTOMIX)) {
         if (key === "adBreak") adBox.checked = remembered.adBreak !== "";
+        // Remembered ticked, but the marks no longer make a range: unticked this time.
+        else if (key === "onlyRange")
+          rangeBox.checked = remembered.onlyRange !== "" && range.enabled;
         else inputs[key].value = remembered[key];
       }
       error.hidden = true;

@@ -63,6 +63,7 @@ from . import (
     preview_level,
     priority,
     project_stats,
+    render_listen,
     silence_options,
     source_map,
     subtitles,
@@ -1276,6 +1277,7 @@ class Session:
         folder."""
         params = dict(params or {})
         automix_module.validate_params(params)
+        automix_module.validate_range(params)
         automix_module.check_rate(self)
         with self.lock:
             self.history._check_writable()
@@ -1296,10 +1298,33 @@ class Session:
                 self._automix_live_state(False)
             self.last_automix_log = result.get("log_file") or self.last_automix_log
             self.last_export_folder = str(Path(result["path"]).parent)
+            self.note_render(result)
             return result
 
         self._automix_live_state(True, fresh=True)
         return [self.jobs.submit("automix", t("job.automix"), run, keep_result=True)]
+
+    def note_render(self, result: dict) -> None:
+        """Remember an automix run's mix (whole or a range) as ``mix_done.render``, ONE
+        undo step that changes no sound (``render_listen.entry``; docs/FORMAT.md), so it
+        can be listened to while the edit still sounds as it did. A newer render replaces
+        the record, never a file. Never raises: the mix is on disk either way, and a
+        read-only or vanished project only loses the record (logged)."""
+        at = datetime.now(UTC).astimezone().isoformat(timespec="seconds")
+        found = render_listen.entry(result, at)
+        if found is None:
+            log.warning("automix result without what listening needs: %s",
+                        result.get("path"))
+            return
+        try:
+            with self.lock:
+                state = self.history.state
+                new = replace(state, mix_done={**state.mix_done, "render": found})
+                self._commit(t("history.note_render", name=found["name"]), new,
+                             "note_render", {"name": found["name"],
+                                             "range": found["range"]})
+        except Exception:  # the mix exists; only the record is lost
+            log.exception("could not remember the render %s", found["path"])
 
     def auto_silence_preview(self, args: dict | None = None) -> list[str]:
         """Queue ONE job that says what Auto-Silence with these options WOULD

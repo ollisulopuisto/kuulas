@@ -703,6 +703,30 @@ and bus gain. A current record causes `--no-music-duck` and a Done in Kuulas
 line in `log.txt`. Without a written curve, no record is made and the
 automixer keeps its own ducking.
 
+**Rendered mix record (listening to the render).** After an automix run completes (the whole
+edit, or only the In/Out range: "Only the In/Out range (a quick preview)"), one undo step
+labelled "Rendered mix: <name>" writes `mix_done.render = {path, name, range, edit_key,
+set_at, frames, rate, size}` (`render_listen.entry`): `path` the absolute path of the mix
+file, `name` its file name, `range` null for a whole render or `[start, end]` (timeline
+frames) for a range render, `edit_key` the audio-state key (`export.audio_key`) of the
+snapshot the stems were exported from, `set_at` ISO time with zone, `frames` and `rate` the
+file's own (any rate; read by libsndfile and resampled for listening), `size` its byte size
+then. A newer run replaces the record (never a file). The render can be listened to
+(`POST /api/render-listen {on}`, the Edit | Rendered mix switch) only while it is current
+(`render_listen.render_current`): the edit's `audio_key` is still `edit_key` and the file
+exists with `size` bytes. `audio_key` changes with anything that changes the sound (clips,
+offsets, gains, fades, envelopes, mutes, gates, automation, track and bus gain, pan, mute,
+solo and roles, the master gain, the media's identities, the rate) and not with the
+playhead, markers, the selection, view settings, names or other `mix_done` records. A stale
+record is kept (the UI says there is an older render), and the file is never deleted. A range
+render's stems are range-relative and their `tracks.json` says `start_frame` 0 (the
+automixer's folder route requires it): the range's real start is only in this record and in
+the run's result. Its file is named like a whole render plus ` preview <mm.ss-mm.ss>`, and
+its `log.txt` header says `Range preview mm:ss-mm:ss: levels measured on the excerpt only`.
+
+*Version and `min_reader`.* Neither changes: the record changes no sound, and a reader that
+does not know it keeps it in `mix_done` and writes it back.
+
 The command offers **Fade in the gaps** (the original `nhsx.musicbed.curve`)
 and **Duck under speech** (the continuous sidechain law). The latter measures
 the summed, processed speech on 10 ms timeline hops, matches its gated LUFS to

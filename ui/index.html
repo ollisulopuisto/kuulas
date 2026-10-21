@@ -47,6 +47,12 @@
             <input id="fast-speed" class="fast-speed" type="range" min="1" max="2" step="0.05" value="1.5" data-i18n-aria-label="ui.speed.slider" data-i18n-title="ui.speed.slider" />
             <button id="speed-chip" type="button" class="chip warn" hidden></button>
           </div>
+          <!-- Edit | Rendered mix (render-listen-view.js): only while the project remembers an
+               automixer render; a segmented one-of-two toggle (BUTTONS.md). -->
+          <div id="render-ab" class="t-row render-ab" role="group" data-i18n-aria-label="ui.render.group" hidden>
+            <button id="render-edit" type="button" class="button render-seg" aria-pressed="true" data-i18n="ui.render.edit"></button>
+            <button id="render-mix" type="button" class="button render-seg" aria-pressed="false" data-i18n="ui.render.mix"></button>
+          </div>
         </div>
         <div id="track-headers" data-help-id="track-headers" class="heads-scroll" data-i18n-aria-label="ui.focus.tracks"></div>
       </aside>
@@ -57,6 +63,11 @@
           <canvas id="timeline" class="layer" tabindex="0" role="application" data-i18n-aria-label="ui.timeline.label"></canvas>
           <div id="lanes-scroll" class="lanes-scroll" aria-hidden="true" hidden><div class="lanes-thumb"></div></div>
           <p id="empty" class="empty" hidden></p>
+          <!-- While the rendered mix plays instead of the edit (render-listen-view.js). -->
+          <div id="render-banner" class="render-banner" role="status" hidden>
+            <span id="render-banner-text" class="render-banner-text"></span>
+            <button id="render-back" type="button" class="button small" data-i18n="ui.render.back"></button>
+          </div>
         </div>
       </section>
       <section id="panel-transcript" class="panel dock" data-panel="transcript" tabindex="0" data-i18n-aria-label="ui.focus.transcript">

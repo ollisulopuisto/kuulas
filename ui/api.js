@@ -24,6 +24,8 @@ const json = async (path, options) => (await request(path, options)).json();
 const post = (path, body) => json(path, { method: "POST", body: JSON.stringify(body) });
 
 export const getState = () => json("/api/state");
+/** The Edit | Rendered mix switch: the state, with render.listening (409 when stale). */
+export const renderListen = (on) => post("/api/render-listen", { on });
 /** This project's remembered view (kept outside the project): { view: object | null }. */
 export const getBuild = () => json("/api/build");
 /** View > Language: { setting: "auto" | "en" | "fi", language } (the server's own view). */
