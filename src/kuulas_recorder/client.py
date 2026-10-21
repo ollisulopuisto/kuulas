@@ -131,9 +131,10 @@ class RecorderClient:
 
 def spawn_supervisor(socket_path: Path | str | None = None, *,
                      state_dir: Path | str | None = None, extra: list[str] = (),
-                     env: dict | None = None, wait: float = 10.0) -> subprocess.Popen:
+                     env: dict | None = None, wait: float = 30.0) -> subprocess.Popen:
     """Start ``kuulas-recorder serve`` detached from the caller, and wait until it
-    answers. It keeps running after the caller exits."""
+    answers (a first start from a freshly mounted dmg can be slow). It keeps running after
+    the caller exits."""
     path = Path(socket_path) if socket_path else default_socket_path()
     argv = [sys.executable, "-m", "kuulas_recorder", "serve", "--socket", str(path)]
     if state_dir:
