@@ -31,4 +31,6 @@ Jokaisen muokkauksen voi perua askel kerrallaan: {key:edit.undo}.
 ## Katso tarkemmin
 Tarkastimessa näkyvät leikkeen taso, tahdistus ja lähde. {show:inspector}
 
+Leike, joka pitää mikin auki, näyttää Taso-osiossa rivin "Mikki pidetään auki"; sen painike antaa Auto-Silencen hiljentää leikkeen taas (sama kuin Pidä mikki auki valittujen leikkeiden alla, Leike-valikossa).
+
 Katso myös [[track]] ja [[transcript]].

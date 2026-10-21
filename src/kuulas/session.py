@@ -580,9 +580,17 @@ class Session:
         with self.lock:
             applied, recorded = self._scoped(name, args)
             new = ops.apply(self.history.state, name, applied)
+            material = None
+            if name == "replace_clip_media":
+                # Transcripts are keyed by media id: the edited copy takes the old
+                # media's words, in the same undo step. Files are not touched.
+                material = self.history.carry_transcript(
+                    applied["media_id"], applied["new_media_id"],
+                    new.media_item(applied["new_media_id"]).frames)
             self.history.commit(label or name, new,
                                 coalesce or _coalesce_key(name, args),
-                                op={"name": name, "args": recorded})
+                                op={"name": name, "args": recorded},
+                                material=material)
             return self._changed()
 
     def command(self, name: str, args: dict | None = None) -> Project:
@@ -1687,7 +1695,11 @@ class Session:
             partial.append({
                 "id": media_id, "name": self.store.meta(media_id)["name"],
                 "can_complete": bool(info.get("source_size"))})
-        return {"missing": [self._media_line(m) for m in self.store.missing()],
+        # A missing media no clip uses any more (relinked to an edited copy) is not
+        # asked for; undo brings the clips, and so the entry, back.
+        used = {c.media for tr in self.history.state.tracks for c in tr.clips}
+        return {"missing": [self._media_line(m) for m in self.store.missing()
+                            if m in used],
                 "partial": partial}
 
     def locate_media(self, folder: str) -> dict:

@@ -300,6 +300,13 @@ moves the material head back, but only if the material head is still
 and offers the history panel. Edit state no longer holds a transcript
 pointer (`Project.transcripts` moves out).
 
+No format change for Relink media: the `replace_clip_media` step also sets the new
+media's pointer in the root's `transcripts` (and `media_timing`, `media_person`)
+to the old media's revision, so it is one node with `material_from`/`material_to`
+and undoes as one. When the new media is shorter, a trimmed copy of the words
+(`transcript_revs` row, `parent` = the old revision) is used instead. Words the new
+media already had are kept. No media file is touched.
+
 ## What is stored where
 
 | Thing | Where | Unit |

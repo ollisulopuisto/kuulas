@@ -31,4 +31,6 @@ Every edit is one step back with {key:edit.undo}.
 ## Look closer
 The inspector shows the clip's level, sync and source. {show:inspector}
 
+A clip that keeps the mic open shows a "Mic kept open" row under Level; its button lets Auto-Silence gate the clip again (the same as Keep the mic open under the selected clips, in the Clip menu).
+
 See also [[track]] and [[transcript]].

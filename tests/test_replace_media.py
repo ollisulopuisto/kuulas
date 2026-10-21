@@ -15,6 +15,7 @@ import soundfile as sf
 from fastapi.testclient import TestClient
 
 from kuulas import messages, ops
+from kuulas.clock import frames_to_flicks
 from kuulas.media import MediaError
 from kuulas.server import create_app
 from kuulas.session import Session
@@ -146,3 +147,62 @@ def test_check_route(client, session):
         "media_id": session.media_id, "new_media_id": body["new_media_id"]}})
     assert r.status_code == 200
     assert {c.media for c in session.state.tracks[0].clips} == {body["new_media_id"]}
+
+
+def _words():
+    """Four 2-second words, one every 3 s over the 10 s recording (flicks)."""
+    return [{"w": f"w{i}", "s": frames_to_flicks(i * 3 * RATE, RATE),
+             "e": frames_to_flicks((i * 3 + 2) * RATE, RATE)} for i in range(4)]
+
+
+def _replace(session, seconds, seed):
+    session.history.add_transcript(session.media_id, _words())
+    new = wav(session.src / f"n{seconds}.wav", seconds, seed=seed)
+    report = session.check_replace_media(session.media_id, str(new))
+    nodes = len(session.history.nodes())
+    session.edit("replace_clip_media", {"media_id": session.media_id,
+                                        "new_media_id": report["new_media_id"]})
+    return report["new_media_id"], nodes
+
+
+def test_replace_carries_the_words_in_the_same_undo_step(session):
+    new_id, nodes = _replace(session, 10, 2)
+    assert len(session.history.nodes()) == nodes + 1
+    words = session.transcripts()
+    assert [w["w"] for w in words[new_id]] == ["w0", "w1", "w2", "w3"]
+    assert [w["w"] for w in words[session.media_id]] == ["w0", "w1", "w2", "w3"]
+    session.undo()
+    assert new_id not in session.transcripts()
+    assert session.media_id in session.transcripts()
+
+
+def test_a_shorter_new_media_keeps_only_the_words_inside_it(session):
+    new_id, _ = _replace(session, 7, 5)
+    got = session.transcripts()[new_id]
+    assert [w["w"] for w in got] == ["w0", "w1", "w2"]
+    assert all(w["e"] <= frames_to_flicks(7 * RATE, RATE) for w in got)
+    # The old media keeps all its words.
+    assert len(session.transcripts()[session.media_id]) == 4
+
+
+def test_a_new_media_that_has_words_keeps_them(session):
+    new = wav(session.src / "n.wav", 10, seed=9)
+    report = session.check_replace_media(session.media_id, str(new))
+    mine = [{"w": "mine", "s": 0, "e": 1}]
+    session.history.add_transcript(report["new_media_id"], mine)
+    session.history.add_transcript(session.media_id, _words())
+    session.edit("replace_clip_media", {"media_id": session.media_id,
+                                        "new_media_id": report["new_media_id"]})
+    assert session.transcripts()[report["new_media_id"]] == mine
+
+
+def test_locate_media_no_longer_lists_a_replaced_missing_media(session):
+    (session.src / "a.wav").unlink()
+    assert [m["id"] for m in session.media_status()["missing"]] == [session.media_id]
+    new = wav(session.src / "n.wav", 10, seed=2)
+    report = session.check_replace_media(session.media_id, str(new))
+    session.edit("replace_clip_media", {"media_id": session.media_id,
+                                        "new_media_id": report["new_media_id"]})
+    assert session.media_status()["missing"] == []
+    session.undo()
+    assert [m["id"] for m in session.media_status()["missing"]] == [session.media_id]

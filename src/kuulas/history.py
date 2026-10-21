@@ -836,6 +836,35 @@ class History:
             raise KeyError(rev)
         return dbm.get_blob(self.db, row[0])
 
+    def carry_transcript(self, old_id: str, new_id: str, new_frames: int,
+                         root: dict | None = None) -> dict:
+        """The material root with ``old_id``'s words also used by ``new_id`` (Relink
+        media: the same recording edited elsewhere). Nothing is committed; the caller
+        commits it in the same step as the clip edit. ``new_id`` keeps words it already
+        has. Words that start past the new media's end are left out and one that ends
+        past it is cut there; when nothing is cut the new media shares the old
+        revision, so no words are copied. The old media keeps everything."""
+        root = dict(self.material if root is None else root)
+        rev = root["transcripts"].get(old_id)
+        if rev is None or new_id in root["transcripts"]:
+            return root
+        limit = frames_to_flicks(int(new_frames), self.rate)
+        words = self.transcript(int(rev))
+        kept = [{**w, "e": min(w["e"], limit)} for w in words if w["s"] < limit]
+        if kept != words:
+            with dbm.tx(self.db):
+                digest = dbm.put_blob(self.db, "words", kept)
+                cur = self.db.execute(
+                    "insert into transcript_revs(media, parent, words, engine,"
+                    " created_utc) values (?,?,?,?,?)",
+                    (new_id, int(rev), digest, json.dumps({}), dbm.utc_now()))
+            rev = int(cur.lastrowid)
+        root["transcripts"] = {**root["transcripts"], new_id: int(rev)}
+        for key in ("media_timing", "media_person"):
+            if old_id in root.get(key, {}) and new_id not in root[key]:
+                root[key] = {**root[key], new_id: root[key][old_id]}
+        return root
+
     def transcript_rev(self, media_id: str) -> int | None:
         rev = self.material["transcripts"].get(media_id)
         return None if rev is None else int(rev)
