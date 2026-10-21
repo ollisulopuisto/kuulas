@@ -196,6 +196,13 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.transport.speed_reset",
   },
   {
+    // Hindenburg's Shift+Space plays the range once; Alt+Space is ours: loop it (owner 2026-10-21).
+    id: "transport.loop_selection",
+    keys: { mac: "Alt+Space", other: "Alt+Space" },
+    context: "timeline",
+    labelKey: "cmd.transport.loop_selection",
+  },
+  {
     // Mod+L is Automix; Alt or Shift variants of a taken key would show up as menu alternates.
     id: "transport.loop",
     keys: { mac: "Mod+U", other: "Mod+U" },

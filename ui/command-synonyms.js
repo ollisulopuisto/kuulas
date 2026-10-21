@@ -378,6 +378,12 @@ export const SYNONYMS = {
     "kokeile",
   ],
   "transport.loop": ["repeat", "cycle", "toisto", "silmukka"],
+  "transport.loop_selection": [
+    "loop selection",
+    "repeat selection",
+    "silmukka",
+    "soita silmukkana",
+  ],
   "transport.render_listen": [
     "a/b",
     "compare",

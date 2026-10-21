@@ -115,7 +115,7 @@ import { leftOffHere, leftOffOf, leftOffText } from "./left-off.js";
 import { createLevelMeter } from "./level-meter.js";
 import { connectLive } from "./live.js";
 import { createLocateDialog } from "./locate-dialog.js";
-import { activeLoop } from "./loop-range.js";
+import { activeLoop, rangeAvailable } from "./loop-range.js";
 import { createLoudnessLoader } from "./loudness-readout.js";
 import { regionCount } from "./markers-model.js";
 import { createMarkersPanel } from "./markers-panel.js";
@@ -865,6 +865,15 @@ const actions = {
   },
   shuttle: (key) => void transport.press(key),
   toggleLoop: () => setState({ loop: !getState().loop }),
+  // Alt+Space: loop the marked range (else the selected clips) from its start; again stops.
+  loopSelection: () => {
+    const state = getState();
+    if (state.playing) return void transport.toggle();
+    const range = rangeAvailable(state);
+    if (!range) return;
+    setState({ loop: true });
+    void transport.play(range.start);
+  },
   toggleRenderListen: () => void setRenderListen(getState().render?.listening !== true),
   toggleDragMode: () => toggleDragMode(),
   toggleWheelMode: () => toggleWheelMode(),

@@ -509,6 +509,8 @@
   "cmd.transport.shuttle_back": "Shuttle backward",
   "cmd.transport.shuttle_forward": "Shuttle forward",
   "cmd.transport.shuttle_stop": "Stop shuttle",
+  "cmd.transport.loop_selection": "Loop the selection",
+  "cmd.transport.loop_selection.hint": "Plays the marked range (or the selected clips) over and over from its start; press it again to stop. Shift+Space plays the range once.",
   "cmd.transport.loop": "Loop on / off",
   "cmd.transport.render_listen": "Listen to the rendered mix",
   "cmd.nav.home": "Back to the timeline",

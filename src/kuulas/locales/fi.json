@@ -511,6 +511,8 @@
   "cmd.transport.shuttle_back": "Kelaa taaksepäin",
   "cmd.transport.shuttle_forward": "Kelaa eteenpäin",
   "cmd.transport.shuttle_stop": "Pysäytä kelaus",
+  "cmd.transport.loop_selection": "Soita valinta silmukkana",
+  "cmd.transport.loop_selection.hint": "Soittaa merkityn alueen (tai valitut leikkeet) toistuvasti alusta; uusi painallus pysäyttää. Shift+Space soittaa alueen kerran.",
   "cmd.transport.loop": "Silmukka päälle / pois",
   "cmd.transport.render_listen": "Kuuntele miksausta",
   "cmd.nav.home": "Takaisin aikajanalle",

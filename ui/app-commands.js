@@ -121,6 +121,13 @@ export function registerAppCommands(registry, { actions, app }) {
     () => actions.playRequest(rehearseRequest(app.getState(), rate())),
     (state) => hasProject(state) && rehearseRequest(state, 48000) !== null,
   );
+  // Alt+Space: play the marked range (or the selected clips) in a loop; pressing it again stops.
+  def(
+    "transport.loop_selection",
+    () => actions.loopSelection(),
+    (state) =>
+      Boolean(state?.project) && (state.playing === true || rangeAvailable(state) !== null),
+  );
   // On needs a range to loop; off is always possible.
   def(
     "transport.loop",
