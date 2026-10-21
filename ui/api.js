@@ -282,3 +282,22 @@ export const getSyncCause = (clipId) => json(`/api/sync-cause/${encodeURICompone
 /** Where a recording is used in the edit (the inspector's Source section); `signal` cancels. */
 export const getSourceMap = (sha256, signal) =>
   json(`/api/source-map?media=${encodeURIComponent(sha256)}`, { signal });
+
+// -- series: settings shared by the episodes of a show (docs/design/SERIES.md) ----------
+/** { list, link, found, differs, music, project }; `autoSilence`: the page's options now. */
+export const seriesStatus = (autoSilence) =>
+  post("/api/series/status", { auto_silence: autoSilence ?? null });
+/** Save as series defaults: { project, ..., series: status }. */
+export const seriesSave = (body) => post("/api/series/save", body);
+/** Apply series settings (one undo step): { project, ..., series, settings }. */
+export const seriesApply = () => post("/api/series/apply", {});
+export const seriesAttach = (seriesId) => post("/api/series/attach", { series_id: seriesId });
+export const seriesDetach = () => post("/api/series/detach", {});
+export const seriesRename = (name) => post("/api/series/rename", { name });
+/** A new project from a series: { path }; `open` starts a browser tab on it. */
+export const seriesNewEpisode = (body) => post("/api/series/new-episode", body);
+export const seriesMusicAdd = (clipIds, name = "") =>
+  post("/api/series/music/add", { clip_ids: clipIds, name });
+export const seriesMusicClipboard = () => post("/api/series/music/clipboard", {});
+/** { project, ..., placed: { placed, missing, skipped } } */
+export const seriesMusicPlace = () => post("/api/series/music/place", {});

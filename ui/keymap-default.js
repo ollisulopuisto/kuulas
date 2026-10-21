@@ -1388,6 +1388,50 @@ export const DEFAULT_KEYMAP = [
     context: "global",
     labelKey: "cmd.app.send_copy",
   },
+  // File > Series (docs/design/SERIES.md): no default keys (the Finnish layout leaves no free
+  // one without AltGr or Shift+digit); all are in the File > Series menu and the palette.
+  {
+    id: "series.dialog",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.series.dialog",
+  },
+  {
+    id: "series.save",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.series.save",
+  },
+  {
+    id: "series.apply",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.series.apply",
+  },
+  {
+    id: "series.new_episode",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.series.new_episode",
+  },
+  {
+    id: "series.music_add",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.series.music_add",
+  },
+  {
+    id: "series.music_place",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.series.music_place",
+  },
+  {
+    id: "series.music_clipboard",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.series.music_clipboard",
+  },
   {
     id: "export.regions",
     keys: { mac: null, other: null },

@@ -316,6 +316,8 @@ pointer (`Project.transcripts` moves out).
 | music metadata | media row `tags` | — |
 | onsets, peaks, analysis | `caches/` | onsets in flicks; peaks per 256 working frames |
 | project rate, settings | `meta` | — |
+| the series this episode belongs to and its own copy of the series settings: `Project.series` | edit state | — |
+| a series (settings, series music, where its recordings were found) | per-user `series/<id>.json`, not in the project | — |
 
 **Sync per media, not per clip.** Marking clips in sync already makes the
 whole file join (ops.mark_in_sync), so membership belongs to the media:
@@ -745,6 +747,23 @@ nothing. Loud spots are only listed, or become markers when asked.
 
 *Version and `min_reader`.* Neither changes. The record changes no sound. A reader that does
 not know it keeps the key in `Project.extra`; the pieces and gains are plain clips.
+
+**As built (Series, owner 2026-10-21; docs/design/SERIES.md).** The edit state gains an
+optional `series` object: `{id, name, settings}`, the series this episode belongs to (a UUIDv7
+naming `<per-user config>/series/<id>.json`) and the project's **own copy** of the settings it
+last got from it or gave to it (`layout`, `auto_silence`, `automix`; each optional, read
+tolerantly by `series_settings.normalise_settings`). Written only by the series commands (Save as
+series defaults, Apply series settings, join, leave, rename, New episode from series), each one
+undo step; absent from the JSON when empty, so a project never in a series keeps its bytes and
+state hash. The series file itself is not project state (no undo, like `clipboard.json`):
+`{"format": "kuulas-series", "version": 1, id, name, updated_utc, settings, music: {entries:
+[clipboard entries]}, media: {sha256: {name, paths}}}`, atomic writes, unknown keys kept, only
+`<id>.json` read (a sync tool's conflicted copy is ignored). The music entries are
+`clipboard.json` entries (references by SHA-256, never audio), so the Clipboard's later series
+shelf reads the same list.
+
+*Version and `min_reader`.* Neither changes. The copy changes no sound; a reader that does not
+know `series` keeps it in `Project.extra` and writes it back.
 
 Loudness curves (`GET /api/loudness-curve`) are a cache, not project data:
 `caches/analysis/<key>.json`, keyed on the media hashes and every field that

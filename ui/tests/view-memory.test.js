@@ -292,3 +292,15 @@ describe("createSaver", () => {
     await new Promise((resolve) => setImmediate(resolve));
   });
 });
+
+// Series (docs/design/SERIES.md): a new episode made from a series carries the project's copy of
+// the Auto-Silence options; a view that remembers its own options keeps them.
+test("without remembered options, the series copy in the project gives Auto-Silence's", () => {
+  const series = { id: "s", name: "Show", settings: { auto_silence: { margin_db: 9 } } };
+  const linked = { ...context, project: { ...project, series } };
+  assert.equal(restoreFrom({}, linked).patch.autoSilence.margin_db, 9);
+  assert.equal(restoreFrom(null, linked).patch.autoSilence.margin_db, 9);
+  const own = restoreFrom({ autoSilence: { margin_db: 5 } }, linked).patch.autoSilence;
+  assert.equal(own.margin_db, 5);
+  assert.equal(restoreFrom({}, context).patch.autoSilence, undefined);
+});

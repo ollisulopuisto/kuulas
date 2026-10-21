@@ -232,6 +232,20 @@ export function registerAppCommands(registry, { actions, app }) {
   // leaves no free one that is not AltGr or Shift+digit); both are in the File menu.
   def("app.locate_media", () => app.openLocateMedia(), hasProject);
   def("app.send_copy", () => app.openSendCopy(), hasProject);
+  // File > Series (docs/design/SERIES.md): settings shared by the episodes of a show. Applied
+  // only by these commands, never on open.
+  const inSeries = (state) => Boolean(state?.project?.series?.id);
+  def("series.dialog", () => app.openSeries(), hasProject);
+  def("series.save", () => app.seriesSave(), hasProject);
+  def("series.apply", () => app.seriesApply(), inSeries);
+  def("series.new_episode", () => app.newEpisode(), hasProject);
+  def(
+    "series.music_add",
+    () => app.seriesMusicAdd(),
+    (state) => inSeries(state) && (state?.selection?.size ?? 0) > 0,
+  );
+  def("series.music_place", () => app.seriesMusicPlace(), inSeries);
+  def("series.music_clipboard", () => app.seriesMusicClipboard(), inSeries);
   // Transport > Record… (WP12a) and how a take is stopped (a preference: two steps by default).
   def("transport.record", () => app.openRecord(), hasProject);
   def("record.stop_mode", () => app.cycleStopMode());

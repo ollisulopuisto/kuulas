@@ -368,6 +368,12 @@ class Project:
     # level (``music_level.record``). Undo takes it back with the gains it
     # describes. Absent from the JSON when empty.
     mix_done: dict = field(default_factory=dict, hash=False)
+    # The series this episode belongs to and the project's OWN copy of the settings it
+    # got from it or gave to it (``series_settings.link``): ``{"id", "name",
+    # "settings"}``. Edit state, so applying a series is one undo step with the tracks
+    # it adds, and the project keeps working when the series file is missing. Absent
+    # from the JSON when empty (docs/design/SERIES.md).
+    series: dict = field(default_factory=dict, hash=False)
     extra: dict = field(default_factory=dict, hash=False)
 
     # -- lookups ----------------------------------------------------------
@@ -445,6 +451,8 @@ class Project:
             del d["placeholders"]
         if not self.mix_done:
             del d["mix_done"]
+        if not self.series:
+            del d["series"]
         return d
 
     def to_json(self) -> str:
@@ -462,6 +470,8 @@ class Project:
         known["placeholders"] = tuple(Placeholder.from_dict(h)
                                       for h in known.get("placeholders", ()))
         known["mix_done"] = dict(known.get("mix_done") or {})
+        series = known.get("series")
+        known["series"] = dict(series) if isinstance(series, dict) else {}
         return cls(**known, extra=extra)
 
     @classmethod

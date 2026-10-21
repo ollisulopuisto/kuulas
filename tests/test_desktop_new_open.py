@@ -95,3 +95,22 @@ def test_a_save_dialog_that_answers_with_one_string_is_one_path(tmp_path):
     assert bridge.new_project_in_window() is True
     assert opened == [str(tmp_path / "synctest2.kuulas")]
     assert bridge.pick_save("x.wav") == str(tmp_path / "synctest2")
+
+
+def test_a_new_episode_opens_in_a_window_of_its_own(tmp_path):
+    # Series > New episode from series… makes the project on the server; the page then
+    # asks the window to open that folder (docs/design/SERIES.md).
+    episode = tmp_path / "Ep 2.kuulas"
+    episode.mkdir()
+    (episode / "manifest.json").write_text("{}")
+    bridge, opened = _bridge(tmp_path, None)
+    assert bridge.open_path_in_window(str(episode)) is True
+    assert opened == [str(episode)]
+
+
+def test_open_path_refuses_what_is_not_a_project(tmp_path):
+    bridge, opened = _bridge(tmp_path, None)
+    missing = str(tmp_path / "missing.kuulas")
+    for bad in ("", "relative.kuulas", missing, 5, str(tmp_path)):
+        assert bridge.open_path_in_window(bad) is False
+    assert opened == []
