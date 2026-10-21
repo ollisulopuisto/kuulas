@@ -35,7 +35,7 @@ from .silence_options import parse as parse_silence
 #: bleed) and on the show's sound (where the music bed sits). The speaker balance cap
 #: is the project's own (``hand_adjusted``); plug-ins are per machine.
 AUTOMIX_KEYS = ("speech_debleed", "speech_rider", "block_level", "speech_mic_duck",
-                "mic_duck_db", "bed_under_speech_db")
+                "mic_duck_db", "bed_under_speech_db", "keep_music_level")
 SECTIONS = ("layout", "auto_silence", "automix")
 _KINDS = ("speech", "music")
 

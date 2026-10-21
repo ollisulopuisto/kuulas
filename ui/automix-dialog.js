@@ -23,6 +23,7 @@ import {
   doneStatus,
   groupSpecs,
   initialOpen,
+  keepFromOptions,
   optionEnabled,
   optionsToForm,
   prefillOptions,
@@ -39,6 +40,7 @@ import { spanText, withRange } from "./render-listen-model.js";
 const KEY = "kuulas.automix";
 // The two options whose items are plug-ins: a field with suggestions and chips. Their hint
 // is a placeholder only (never a value), so an empty field still means the tool's default.
+const KEEP_KEY = "keep_music_level";
 const PLUGIN_FIELDS = {
   speech_plugins: "ui.automix.plugin_placeholder_speech",
   music_plugins: "ui.automix.plugin_placeholder_music",
@@ -262,8 +264,30 @@ export function createAutomixDialog({
     optionControls[spec.key] = { input: field.input, wrap, field };
     return wrap;
   };
+  // Music level: keep my levels (the music is shifted with the speech) or fit to the speech
+  // (the bed level below). Choosing keep greys the bed level, with the reason beside it.
+  const musicLevelControl = (spec) => {
+    const select = el("select", "automix-keep-choice");
+    for (const choice of ["keep", "fit"]) {
+      const option = el("option", "", t(`ui.automix.keep_choice.${choice}`));
+      option.value = choice;
+      select.append(option);
+    }
+    const wrap = row(
+      spec.key,
+      `ui.automix.opt.${spec.key}`,
+      select,
+      `ui.automix.opt.${spec.key}.hint`,
+    );
+    const note = el("p", "automix-msg form-msg", t("ui.automix.keep_capability_missing"));
+    note.hidden = true;
+    wrap.lastChild.append(note);
+    optionControls[spec.key] = { input: select, wrap, note };
+    return wrap;
+  };
   const fieldControl = (spec) => {
     if (spec.key in PLUGIN_FIELDS) return pluginControl(spec);
+    if (spec.key === KEEP_KEY) return musicLevelControl(spec);
     if (spec.key === "balance_speakers_max_db") {
       const select = el("select", "automix-balance-choice");
       for (const choice of ["automatic", "fine_tune", "keep"]) {
@@ -303,6 +327,13 @@ export function createAutomixDialog({
     note.hidden = true;
     wrap.lastChild.append(note);
     optionControls[spec.key] = { input, wrap, note };
+    if (spec.key === "bed_under_speech_db") {
+      // Why the field is greyed while the user's music levels are kept.
+      const why = el("p", "automix-msg form-msg", t("ui.automix.bed_keep_off"));
+      why.hidden = true;
+      wrap.lastChild.append(why);
+      optionControls[spec.key].why = why;
+    }
     if (spec.key in DONE_IN_KUULAS) {
       const done = doneBlock(spec, input);
       wrap.lastChild.append(done.node);
@@ -380,7 +411,10 @@ export function createAutomixDialog({
       done.node.hidden = !s;
       const is = (state) => s?.state === state;
       for (const part of [badge, text, reset]) part.hidden = !is("done");
-      lacking.hidden = !(is("done") && s.unsupported);
+      lacking.hidden = !((is("done") && s.unsupported) || is("unused"));
+      lacking.textContent = t(
+        is("unused") ? "ui.automix.done_keep_unused" : "ui.automix.done_unsupported",
+      );
       for (const part of [offer, use]) part.hidden = !is("offer");
       for (const part of [stale, again]) part.hidden = !is("stale");
       if (is("offer")) {
@@ -409,6 +443,8 @@ export function createAutomixDialog({
   const optionWords = {
     label: (spec) => t(`ui.automix.opt.${spec.key}`),
     on: t("ui.automix.state_on"),
+    value: (spec, value) =>
+      spec.key === KEEP_KEY ? t(`ui.automix.keep_choice.${value ? "keep" : "fit"}`) : null,
     off: t("ui.automix.state_off"),
   };
   function updateGroupSummaries() {
@@ -442,7 +478,7 @@ export function createAutomixDialog({
     const cards = [];
     for (const { id, specs: members } of groupSpecs(specs)) {
       const controls = members.map((spec) =>
-        spec.kind === "bool" ? boolControl(spec) : fieldControl(spec),
+        spec.kind === "bool" && spec.key !== KEEP_KEY ? boolControl(spec) : fieldControl(spec),
       );
       if (id === "minimal") {
         processing.append(...controls);
@@ -483,16 +519,19 @@ export function createAutomixDialog({
       if (field) values[spec.key] = formatWords(field.items());
       else if (spec.key === "balance_speakers_max_db") {
         values[spec.key] = String(balanceValue(input.value));
-      } else values[spec.key] = spec.kind === "bool" ? input.checked : input.value;
+      } else if (spec.key === KEEP_KEY) values[spec.key] = input.value === "keep";
+      else values[spec.key] = spec.kind === "bool" ? input.checked : input.value;
     }
     return values;
   };
-  const setOptionValues = (options) => {
+  const setOptionValues = (options, saved = options) => {
     const values = optionsToForm(optionSpecs, options);
     for (const spec of optionSpecs) {
       const { input, field } = optionControls[spec.key];
       if (field) field.setItems(parseWords(values[spec.key]));
-      else if (spec.kind === "bool") input.checked = values[spec.key];
+      else if (spec.key === KEEP_KEY) {
+        input.value = keepFromOptions(saved, capabilities) ? "keep" : "fit";
+      } else if (spec.kind === "bool") input.checked = values[spec.key];
       else if (spec.key === "balance_speakers_max_db") {
         input.value = balanceChoice(values[spec.key]);
       } else input.value = values[spec.key];
@@ -676,6 +715,8 @@ export function createAutomixDialog({
       }
       if (spec.kind !== "bool") input.setAttribute("aria-invalid", key ? "true" : "false");
     }
+    const bedControl = optionControls.bed_under_speech_db;
+    if (bedControl?.why) bedControl.why.hidden = optionForm[KEEP_KEY] !== true;
     const lacking = unsupportedChanged(optionSpecs, optionForm, capabilities);
     for (const spec of optionSpecs) {
       const { note } = optionControls[spec.key];
@@ -739,7 +780,7 @@ export function createAutomixDialog({
         // Without the list (the settings did not load) nothing is sent: stored options stay.
         // A value that is only Kuulas's is sent with this run, not saved as the user's own.
         ...(optionSpecs.length > 0
-          ? { options: savedOptions(optionSpecs, optionValues(), doneNow) }
+          ? { options: savedOptions(optionSpecs, optionValues(), doneNow, capabilities) }
           : {}),
       });
       saveForm(values());
@@ -791,7 +832,7 @@ export function createAutomixDialog({
         };
         const filled = prefillOptions(specs, doneData, withBalanceDefault);
         offered = filled.offered;
-        setOptionValues(filled.options);
+        setOptionValues(filled.options, savedOptions);
         const balance = optionControls.balance_speakers_max_db;
         if (balance?.hint) {
           balance.hint.hidden = answer.balance_hand_adjusted !== true;

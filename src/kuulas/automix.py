@@ -210,6 +210,8 @@ def merge_options(values: dict[str, Any]) -> dict:
             options.pop(key, None)
         else:
             options[key] = value
+    if options.get("keep_music_level") is True:
+        options.pop("bed_under_speech_db", None)  # never both: the tool fails at once
     stored = {**stored, "options": options}
     _write_settings(stored)
     return stored
@@ -391,6 +393,12 @@ _RAW_OPTIONS: tuple[tuple[str, str, str, Any, str, dict[str, Any]], ...] = (
     # it is gated (``GATED``).
     ("bed_under_speech_db", "--bed-under-speech-db", "number", 1.0, "music",
      {"min": -30.0, "max": 6.0}),
+    # "Music level": keep my levels (the music gets the same change as the speech, so the
+    # by-ear balance survives) against fit to speech (the rule above). The two exclude
+    # each other in the tool. The default is None = unset: Kuulas then keeps when the tool
+    # has the flag (``resolve_music_level``), so both True and False are stored choices.
+    # Newer automixers only: probed by ``supports_keep_music_level`` (not in ``GATED``).
+    ("keep_music_level", "--keep-music-level", "bool", None, "music", {}),
     ("music_carve", "--no-music-carve", "bool", True, "music", {"minimal": True}),
     ("music_carve_strength", "--music-carve-strength", "number", 0.5, "music",
      {"min": 0.0, "max": 1.0, "parent": "music_carve"}),
@@ -459,6 +467,8 @@ def _option_value(spec: dict[str, Any], value: Any, resolve: bool = True) -> Any
     """The checked value of one option, or None for 'the default' (empty); else raises."""
     key, kind = spec["key"], spec["kind"]
     if kind == "bool":
+        if value is None and spec["default"] is None:
+            return None  # an unset choice (keep_music_level)
         if not isinstance(value, bool):
             _bad_option(key, value)
         return value
@@ -524,6 +534,8 @@ def option_flags(options: dict[str, Any],
     if supported is not None:
         options = {k: v for k, v in options.items()
                    if k not in GATED or supported.get(k, False)}
+    if options.get("keep_music_level") is True:
+        options.pop("bed_under_speech_db", None)  # exclusive in the tool
     minimal = options.get("minimal") is True
 
     def active(key: str) -> bool:
@@ -538,6 +550,8 @@ def option_flags(options: dict[str, Any],
             continue
         value = options[key]
         if spec["kind"] == "bool":
+            if spec["default"] is None and value is not True:
+                continue  # "fit" is the absence of the flag
             if not (minimal and spec.get("minimal")):
                 words.append(spec["flag"])
         elif spec["kind"] == "number":
@@ -625,6 +639,17 @@ def done_lines(p, options: dict[str, Any]) -> list[str]:
     return lines
 
 
+def keep_lines(options: dict[str, Any], bed_ignored: bool, p) -> list[str]:
+    """The log header lines of keep mode: it is on, and a music level set in Kuulas or in
+    the options is not applied (the tool shifts the music with the speech instead)."""
+    if options.get("keep_music_level") is not True:
+        return []
+    lines = [t("automix.keep.line")]
+    if bed_ignored or music_level.bed_level_current(p) is not None:
+        lines.append(t("automix.keep.bed_not_applied"))
+    return lines
+
+
 def with_project_balance(options: dict[str, Any], tracks: list) -> dict[str, Any]:
     """``options`` with the project's own speaker balance cap when none was chosen for
     the run (6 dB untouched, 2.5 dB when levels were adjusted by hand)."""
@@ -651,6 +676,7 @@ def balance_cap_line(cap: float) -> str:
 _capability_cache: dict[tuple, dict[str, bool]] = {}
 _capability_lock = threading.Lock()
 _EVENTS_FLAG = re.compile(r"(?<![\w-])--events(?![\w-])")
+_KEEP_FLAG = re.compile(r"(?<![\w-])--keep-music-level(?![\w-])")
 
 
 def clear_capability_cache() -> None:
@@ -692,6 +718,38 @@ def supports_events(command: list[str], cwd: str | None, *,
                   scope=scope)["events"]
 
 
+def supports_keep_music_level(command: list[str], cwd: str | None, *,
+                              run_process: RunProcess | None = None,
+                              timeout: float = PROBE_SECONDS, scope: str = "") -> bool:
+    """Whether the installed automixer lists ``--keep-music-level`` in its ``--help``
+    (the same cached probe; never raises, False when unknown)."""
+    return _probe(command, cwd, run_process=run_process, timeout=timeout,
+                  scope=scope)["keep_music_level"]
+
+
+def resolve_music_level(options: dict[str, Any], keep_supported: bool,
+                        ) -> tuple[dict[str, Any], str | None, bool]:
+    """``(options, warning, bed_ignored)`` with the Music level choice settled. Unset
+    means keep when the tool can (else today's fit rule, silently) unless a bed level is
+    set, which means fit; an explicit keep the
+    tool cannot do warns and falls back to fit. In keep mode the bed level is removed
+    (the tool refuses both) and ``bed_ignored`` says one had been set. In fit mode the
+    ``keep_music_level`` key is removed."""
+    choice = options.get("keep_music_level")
+    if choice is None:
+        # A bed level that was set means fit (the tool refuses both flags together).
+        keep = keep_supported and "bed_under_speech_db" not in options
+    else:
+        keep = choice and keep_supported
+    warning = (t("warn.automix.keep_unsupported")
+               if choice is True and not keep_supported else None)
+    out = {k: v for k, v in options.items() if k != "keep_music_level"}
+    if not keep:
+        return out, warning, False
+    ignored = out.pop("bed_under_speech_db", None) is not None
+    return {**out, "keep_music_level": True}, warning, ignored
+
+
 def _probe(command: list[str], cwd: str | None, *,
            run_process: RunProcess | None = None,
            timeout: float = PROBE_SECONDS, scope: str = "") -> dict[str, bool]:
@@ -722,6 +780,7 @@ def _probe(command: list[str], cwd: str | None, *,
     help_text = "\n".join(text) if code == 0 and not cancel.is_set() else ""
     found = {k: OPTIONS[k]["flag"] in help_text for k in GATED}
     found["events"] = _EVENTS_FLAG.search(help_text) is not None
+    found["keep_music_level"] = _KEEP_FLAG.search(help_text) is not None
     if scope and not help_text:
         return found
     with _capability_lock:
@@ -796,11 +855,27 @@ def _num(value: Any, unit: str = "", *, sign: bool = False) -> str:
     return f"{value:+.1f}{unit}" if sign else f"{value:.1f}{unit}"
 
 
+def _shift(event: dict[str, Any]) -> str:
+    """How far the music was shifted in keep mode, as ``+3.5``: ``change_db``, else
+    ``offset_db``, else the processed speech level minus the raw one; ``?`` if none."""
+    offset = event.get("change_db")
+    if not isinstance(offset, int | float) or isinstance(offset, bool):
+        offset = event.get("offset_db")
+    if not isinstance(offset, int | float) or isinstance(offset, bool):
+        after, before = event.get("speech_lufs"), event.get("speech_raw_lufs")
+        if all(isinstance(x, int | float) and not isinstance(x, bool)
+               for x in (after, before)):
+            offset = after - before
+    return _num(offset, sign=True)
+
+
 def event_log_line(event: dict[str, Any]) -> str:
     """One compact line for log.txt from a ``bed``, ``balance`` or ``mastered`` event.
     Missing fields read as ``?``. The wording avoids the colon after ``mastered`` and
     ``beds`` that ``key_lines`` looks for: the tool's own text lines say those."""
     kind = event.get("event")
+    if kind == "bed" and event.get("mode") == "keep":
+        return t("automix.bed.kept", shift=_shift(event))
     if kind == "bed":
         return (f"bed: loudest {_num(event.get('loudest_lufs'))} LUFS, speech "
                 f"{_num(event.get('speech_lufs'))}, offset "
@@ -1242,9 +1317,15 @@ def run(session, params: dict, settings: dict, report: Report,
         probe = automix_remote.runner(remote, run_process) if remote else run_process
         requested_options = with_project_balance(
             settings.get("options") or {}, session.state.to_dict()["tracks"])
+        host_scope = remote["host"] if remote else ""
+        music_options, keep_warning, bed_ignored = resolve_music_level(
+            requested_options,
+            supports_keep_music_level(settings["command"], settings["cwd"],
+                                      run_process=probe, scope=host_scope))
         kept, warnings = gate_options(
-            requested_options, settings["command"], settings["cwd"],
-            run_process=probe, scope=remote["host"] if remote else "")
+            music_options, settings["command"], settings["cwd"],
+            run_process=probe, scope=host_scope)
+        warnings = [*([keep_warning] if keep_warning else []), *warnings]
         settings = {**settings, "options": kept}
         steps.options = kept
         events_on = supports_events(
@@ -1252,7 +1333,8 @@ def run(session, params: dict, settings: dict, report: Report,
             scope=remote["host"] if remote else "")
         requested_cap = requested_options.get(
             "balance_speakers_max_db", OPTIONS["balance_speakers_max_db"]["default"])
-        done = [balance_cap_line(requested_cap), *done_lines(session.state, kept)]
+        done = [balance_cap_line(requested_cap), *done_lines(session.state, kept),
+                *keep_lines(kept, bed_ignored, session.state)]
         if rendered_range:
             done.insert(0, t("automix.range_line",
                              span=_span(*rendered_range, MANIFEST_RATE, ":")))
@@ -1317,7 +1399,10 @@ def run(session, params: dict, settings: dict, report: Report,
                     event_warnings.append(message.strip())
             elif kind in ("bed", "mastered"):
                 kept_events[kind] = event
-                lines.append(event_log_line(event))
+                text = event_log_line(event)
+                lines.append(text)
+                if kind == "bed" and event.get("mode") == "keep":
+                    emit(f"kuulas: {text}")  # live: what the music was told
             elif kind == "balance":
                 speakers = kept_events.setdefault("balance", {})
                 speakers[str(event.get("track", len(speakers) + 1))] = event

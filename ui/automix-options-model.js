@@ -21,6 +21,25 @@ export function balanceValue(choice) {
   return 6;
 }
 
+const KEEP_KEY = "keep_music_level";
+const FIT_KEY = "bed_under_speech_db";
+
+/** Whether "Music level" reads as keep: the stored choice, else what the installed
+ * automixer can do (server: `capabilities.keep_music_level`; unknown counts as cannot). */
+export function keepFromOptions(options, capabilities) {
+  const stored = options?.[KEEP_KEY];
+  if (typeof stored === "boolean") return stored;
+  // A bed level the user saved means fit (the tool refuses both together).
+  if (options && FIT_KEY in options) return false;
+  return capabilities?.[KEEP_KEY] === true;
+}
+
+/** What to store for the select's choice: null (unset) when it is the default anyway, so
+ * the saved settings do not pin a choice the user never made. */
+export function keepChoiceValue(keep, capabilities) {
+  return keep === (capabilities?.[KEEP_KEY] === true) ? null : keep;
+}
+
 /** A number field's text as a number; null when empty, NaN when it is not a finite number. */
 function toNumber(text) {
   const trimmed = String(text ?? "")
@@ -69,6 +88,8 @@ export function optionsToForm(specs, options) {
 export function optionEnabled(specs, form, key) {
   const spec = specs.find((s) => s.key === key);
   if (!spec) return false;
+  // Keeping the user's music levels excludes the bed level (the tool refuses both).
+  if (key === FIT_KEY && form[KEEP_KEY] === true) return false;
   if (spec.minimal && form.minimal === true) return false;
   if (spec.parent) return optionEnabled(specs, form, spec.parent) && form[spec.parent] === true;
   return true;
@@ -76,7 +97,8 @@ export function optionEnabled(specs, form, key) {
 
 /**
  * The settings that differ from the tool's defaults, as short readable texts per group:
- * { groupId: ["Debleed off", "Ducking depth -12"] }. `words`: { label(spec), on, off }.
+ * { groupId: ["Debleed off", "Ducking depth -12"] }. `words`: { label(spec), on, off,
+ * value?(spec, value) }, `value` giving a choice its own word (null: use on/off/number).
  * A value that does not validate is not listed (it is not sent either).
  */
 export function changedItems(specs, form, words) {
@@ -86,7 +108,8 @@ export function changedItems(specs, form, words) {
     if (!(spec.key in options)) continue;
     const value = options[spec.key];
     let shown = value;
-    if (typeof value === "boolean") shown = value ? words.on : words.off;
+    if (words.value) shown = words.value(spec, value) ?? shown;
+    else if (typeof value === "boolean") shown = value ? words.on : words.off;
     else if (Array.isArray(value)) shown = value.join(", ");
     const list = byGroup[spec.group] ?? [];
     list.push(`${words.label(spec)} ${shown}`);
@@ -156,7 +179,7 @@ export function prefillOptions(specs, done, stored) {
 
 /**
  * Per option, what the dialog says about Kuulas's work, from the live form:
- * { key: { state: "done" | "offer" | "stale", offset, unsupported } }. "done": the value is
+ * { key: { state: "done" | "offer" | "stale" | "unused", offset, unsupported } }. "done": the value is
  * Kuulas's (badge); "offer": the user's saved value differs and `offered` has the key; "stale":
  * the music level was set earlier but the project changed since. An edited-away value has none.
  */
@@ -164,6 +187,11 @@ export function doneStatus(specs, done, form, offered, capabilities) {
   const status = {};
   for (const { spec, entry } of doneEntries(specs, done)) {
     const offset = doneValue(entry);
+    if (spec.key === FIT_KEY && form[KEEP_KEY] === true) {
+      // Kuulas's music level is not sent while the user's levels are kept.
+      status[spec.key] = { state: "unused", offset, unsupported: false };
+      continue;
+    }
     const shown = spec.kind === "bool" ? form[spec.key] : toNumber(form[spec.key]);
     let state = null;
     if (!entry.current) state = "stale";
@@ -184,9 +212,13 @@ const doneKeys = (status) => Object.keys(status).filter((k) => status[k].state =
 
 /** The options to remember as the user's settings: the form's, without a value that is only
  * Kuulas's (it is not their choice, and the next project may not have it). */
-export function savedOptions(specs, form, status) {
+export function savedOptions(specs, form, status, capabilities) {
   const { options } = validateOptions(specs, form);
   for (const key of doneKeys(status)) delete options[key];
+  // The Music level choice that is the default anyway is not pinned.
+  if (typeof options[KEEP_KEY] === "boolean" && capabilities) {
+    if (keepChoiceValue(options[KEEP_KEY], capabilities) === null) delete options[KEEP_KEY];
+  }
   // The speaker balance cap belongs to the project and the run, not to the saved settings.
   delete options.balance_speakers_max_db;
   return options;

@@ -72,6 +72,18 @@ importing the Python workspace.
 
 ## Music bed level (request to the podcast session, 2026-10-20)
 
+> **Update (21.10.2026): keep-level is done on both sides.** `--keep-music-level` (podcast
+> PR 74) gives the music the same level change as the speech, so the owner's by-ear ratio
+> survives; Kuulas's stems already carry every track and clip gain. It excludes the flag
+> below (argparse fails at once if both are given; Kuulas never sends both). Answer to the
+> podcast session's question about faders: the stems are dry for pan, buses and master, but
+> `export.py` bakes each track's gain and clip gain into the stems when `for_automixer` is
+> set, so the automixer's raw-vs-processed speech difference already carries the owner's
+> ratio and no fader handling is needed. The keep-mode `bed` event (`mode`, `speech_lufs`,
+> `speech_raw_lufs`, `change_db`) is shown as "Music: kept your level, +12.5 dB like the
+> speech". Kuulas's "Music level" option chooses between the two (default keep when the flag
+> exists). The rest of this section describes the fit rule.
+
 **Problem (owner, measured by ear):** after an automix export from kuulas the music was "SUPER LOUD" next to the
 speech. Cause: `stems_mix.py` sets the loudest 3 s short-term moment of every music bed to
 `BED_UNDER_SPEECH_DB = -1.0` below the processed speech level (`change = round(spoken_level + BED_UNDER_SPEECH_DB -
@@ -238,7 +250,7 @@ ssh (the lines come through ssh live), so no second channel is needed. Protocol:
 Owner said yes to asking the podcast side for all of these; Kuulas-side switches follow when they exist:
 - **Progress events inside a track** (extend `--events`): `progress` lines during one track's slow stages, so the toast bar moves within a track and the ETA is steadier.
 - **`--balance-speakers-max-db`** (bounded balance, section "Speaker balance") is wanted as specified there.
-- **Keep my level (Δ)** for non-speech tracks: shift music/effects by the same Δ the speech gets (processed minus raw speech), so the owner's by-ear relative levels survive ("Music bed level" section).
+- **Keep my level (Δ)** for non-speech tracks: shift music/effects by the same Δ the speech gets (processed minus raw speech), so the owner's by-ear relative levels survive ("Music bed level" section). **Done on both sides:** podcast PR 74 added `--keep-music-level` (exclusive with `--bed-under-speech-db`; the live `bed` event carries `mode` "keep"|"fit" and, in keep mode, `speech_raw_lufs`). Kuulas side: automix option "Music level" (Keep my levels / Fit to speech), default keep when `--help` lists the flag, never sent beside the bed level; the keep-mode bed event is shown live and logged ("Music: kept your level (shifted by X dB)"); the series settings carry the choice. Untried against the real automixer (tests use fake ones).
 - **Carve (spectral) and ducking in the folder (stems) route**, which today only the in-memory `cli_mix` route does.
 - Parked (not asked): vectorising speechmix `duck_masks` / `close_gaps` (decide step ~80-100 ms; small gain, risk to bit-exact output).
 

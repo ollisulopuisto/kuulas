@@ -694,6 +694,17 @@ for a stage switch. The music duck joins by being listed in both and in `_STILL_
 run's `log.txt` header gets `Done in Kuulas: music level -10 dB (set at <time>)` or
 `Done in Kuulas: block level (set at <time>)` when the sent value is Kuulas's.
 
+*Music level: keep or fit (automixer option `keep_music_level`).* The per-user
+`automixer.json` `options` (and the series' `automix` section, `series_settings.AUTOMIX_KEYS`)
+gain `keep_music_level`: `true` = keep my levels (`--keep-music-level`: the music gets the
+same change as the speech), `false` = fit to speech (`--bed-under-speech-db`), absent = unset,
+which means keep when the installed automixer lists the flag in `--help` and no `bed_under_speech_db` is set, fit otherwise (a set bed level means fit)
+(`automix.resolve_music_level`). The two flags exclude each other in the tool, so in keep mode
+`bed_under_speech_db` and the "Done in Kuulas" music level are not sent; the run's `log.txt`
+header says so (`Music level: kept your levels ...` and, when a level had been set, that it was
+not applied). A series stores `null` for unset. `GET /api/settings/automixer` `capabilities`
+gains `keep_music_level`. Apply series settings never writes both keys (keep wins). Nothing in the project file changes.
+
 *Version and `min_reader`.* Neither changes. The record changes no sound (the gains it
 describes are ordinary track gains). A reader that does not know it keeps the key in
 `Project.extra` and writes it back; it only cannot tell an export that the beds are done.
