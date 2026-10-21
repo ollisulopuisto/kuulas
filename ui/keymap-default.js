@@ -650,7 +650,7 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "edit.merge",
-    keys: { mac: "Alt+Mod+J", other: "Alt+Mod+J" },
+    keys: { mac: "Shift+Mod+M", other: "Shift+Mod+M" },
     context: "timeline",
     labelKey: "cmd.edit.merge",
   },
