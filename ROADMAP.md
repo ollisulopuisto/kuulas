@@ -141,6 +141,16 @@ Released in v26.10.20.5 to v26.10.20.14, in order of importance:
 
 ## Next
 
+- **Series: shared settings across episodes** (owner request 2026-10-21, QoL, not started, needs a design note first):
+  a series is recorded in the same place, so the de-bleed values and Auto-Silence values found for one episode
+  should carry to the next. Not a global preference (other series sound different) and not per episode only: a
+  new level, the **series**, between the two. Idea: a `Series` record (name, id, settings: de-bleed, Auto-Silence
+  options, bed level, speaker balance cap, perhaps track names/roles/bus layout and export presets) stored once
+  outside the project (a series folder or a library file), and a project points to it by id. New episode from a
+  series starts with its settings; "Save as series defaults" copies the current values up; a project can override
+  and shows that it differs. Open: where a series lives (next to the projects, or `~/Library`), how it travels with a
+  shared project, what happens when the series file is missing (project keeps its own copy), versioning of the
+  settings. Search prior art first (DAW templates, Hindenburg/Reaper project templates).
 - **Implicit marker at the last cut** (owner request 2026-10-20, QoL, not started): after a cut, the splice point is
   remembered as a hidden "ghost" marker (not drawn, no visible in/out). If the user then sets only an OUT marker later
   in time, the IN marker is placed at the splice, so the range extends from the cut just made (extend a cut forward).
