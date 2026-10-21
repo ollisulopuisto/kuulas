@@ -1138,6 +1138,24 @@ def create_app(session, engine, *, language: str | None = None,
     def post_series_music_clipboard():
         return series_actions.music_to_clipboard(session)
 
+    # The Clipboard's series shelf (docs/design/CLIPBOARD-SHELVES.md): the series music.
+    @app.get("/api/series/shelf")
+    def get_series_shelf():
+        return series_actions.shelf_list(session)
+
+    @app.post("/api/series/shelf/add")
+    def post_series_shelf_add(body: Annotated[dict[str, Any], Body()]):
+        return series_actions.shelf_add(session, body.get("entry_id"))
+
+    @app.post("/api/series/shelf/remove")
+    def post_series_shelf_remove(body: Annotated[dict[str, Any], Body()]):
+        return series_actions.shelf_remove(session, body.get("entry_id"))
+
+    @app.post("/api/series/shelf/adopt")
+    def post_series_shelf_adopt(body: Annotated[dict[str, Any], Body()]):
+        entry = series_actions.shelf_adopt(session, body.get("entry_id"))
+        return {"entry": entry, "entries": session.clipboard_list()}
+
     @app.post("/api/series/music/place")
     def post_series_music_place():
         return state_response({"placed": series_actions.music_place(session)})

@@ -969,6 +969,7 @@
   "history.clipboard_cut": "Cut to the clipboard",
   "history.clipboard_paste": "Paste from the clipboard",
   "error.clipboard.no_entry": "The clipboard has no entry {entry_id}.",
+  "error.clipboard.already_on_shelf": "That entry is already on that shelf.",
   "error.clipboard.write_failed": "The clipboard file could not be written ({error}).",
   "error.clipboard.bad_project": "{path} is not a kuulas project folder (an absolute path to a *.kuulas folder is needed).",
   "error.clipboard.bad_entry": "That is not a usable clipboard entry.",

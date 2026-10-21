@@ -223,6 +223,15 @@ The per-user file `clipboard.json` in the config folder (or
 `$KUULAS_CLIPBOARD_FILE`) has the same format and is the **shared** store: the
 entries the user marked as worth sharing across projects (WP65).
 
+**Shelves (docs/design/CLIPBOARD-SHELVES.md).** The Clipboard has three shelves on
+three files in this one entry format: *this project* (the project's `clipboard.json`),
+*series* (the series file's `music.entries`, below under Series) and *shared* (the
+per-user `clipboard.json`). Putting an entry on the series or shared shelf writes a
+copy with the **same id**; the project's entry stays. A shelf refuses an entry it
+already has: the same `id`, or equal `refs` covering the same length. Taking one
+off a shelf removes only that reference (on the series shelf, also the `media`
+paths of a recording no other entry there uses); no recorded file is touched.
+
 ## Database schema (`project.sqlite`, WAL, `synchronous=FULL`)
 
 ```sql
@@ -759,8 +768,10 @@ state hash. The series file itself is not project state (no undo, like `clipboar
 `{"format": "kuulas-series", "version": 1, id, name, updated_utc, settings, music: {entries:
 [clipboard entries]}, media: {sha256: {name, paths}}}`, atomic writes, unknown keys kept, only
 `<id>.json` read (a sync tool's conflicted copy is ignored). The music entries are
-`clipboard.json` entries (references by SHA-256, never audio), so the Clipboard's later series
-shelf reads the same list.
+`clipboard.json` entries (references by SHA-256, never audio): this list **is** the Clipboard's
+series shelf. An entry added from a project's clipboard keeps its id; `media[sha256].paths`
+gains every path the adding project saw the recording at, and loses a recording's item when
+the last entry using it is removed.
 
 *Version and `min_reader`.* Neither changes. The copy changes no sound; a reader that does not
 know `series` keeps it in `Project.extra` and writes it back.

@@ -353,6 +353,16 @@ def adopted_copy(entry: Entry, *, from_project: str = "",
                    pinned=False, extra={"adopted_created_utc": entry.created_utc})
 
 
+def same_content(a: Entry, b: Entry) -> bool:
+    """Whether ``b`` is already ``a`` on a shelf (docs/design/CLIPBOARD-SHELVES.md):
+    the same id, or the same references (recordings by hash, windows, layout; names
+    take no part) covering the same length. Where it was copied does not matter."""
+    if a.id == b.id:
+        return True
+    return (a.refs == b.refs
+            and a.span[1] - a.span[0] == b.span[1] - b.span[0])
+
+
 def to_json(entry: Entry) -> str:
     """The entry as clipboard JSON (WP20's text clipboard format)."""
     return json.dumps(_entry_out(entry), separators=(",", ":"))

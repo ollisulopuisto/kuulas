@@ -89,6 +89,7 @@ from .clipboard import (
     entry_from_view,
     make_entry,
     make_entry_range,
+    same_content,
 )
 from .clipboard_preview import preview_project
 from .clipboard_store import ClipboardStore, entry_dict, project_path
@@ -850,6 +851,10 @@ class Session:
                 if own is None:
                     raise NoSuchEntryError("error.clipboard.no_entry", entry_id=entry_id)
                 copy = replace(own, shared=True)
+                # The same content under another id is already shared: one is enough.
+                if any(e.id != own.id and same_content(own, e)
+                       for e in self.shared_clipboard.load().entries()):
+                    raise ops.EditError("error.clipboard.already_on_shelf")
                 self.shared_clipboard.update(lambda h: h.put(copy))
             else:
                 known = self.shared_clipboard.update(

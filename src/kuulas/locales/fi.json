@@ -998,6 +998,7 @@
   "history.clipboard_cut": "Leikkaus leikepöydälle",
   "history.clipboard_paste": "Liitä leikepöydältä",
   "error.clipboard.no_entry": "Leikepöydällä ei ole kohdetta {entry_id}.",
+  "error.clipboard.already_on_shelf": "Kohde on jo siinä hyllyssä.",
   "error.clipboard.write_failed": "Leikepöytätiedostoa ei voitu kirjoittaa ({error}).",
   "error.clipboard.bad_project": "{path} ei ole kuulas-projektin kansio (tarvitaan *.kuulas-kansion absoluuttinen polku).",
   "error.clipboard.bad_entry": "Tämä ei ole käyttökelpoinen leikepöydän kohde.",

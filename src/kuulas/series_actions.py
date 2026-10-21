@@ -28,10 +28,11 @@ from pathlib import Path
 from typing import Any
 
 from . import automix, clipboard_link, new_project, series_settings
+from .clipboard import Entry, make_entry, same_content
 from .clipboard import from_json as entry_from_json
-from .clipboard import make_entry
 from .clipboard_store import entry_dict
 from .messages import t
+from .ops import EditError
 from .paste_apply import apply_paste
 from .paste_plan import plan_paste
 from .series_library import SeriesLibrary, SeriesLibraryError, entries_of, media_paths
@@ -192,39 +193,122 @@ def new_episode(parent: Any, name: Any, series_id: Any) -> Path:
 # -- series music -----------------------------------------------------------------------
 
 
-def music_add(session, clip_ids: Any, name: Any = "") -> dict:
-    """Add the chosen clips to the series music as one entry (references only)."""
+def _record(session) -> tuple[dict, dict]:
+    """``(link, record)`` of this project's series; an error when it has none or
+    its file is not on this computer."""
     link = _link(session)
-    library = _library()
-    record = library.load(link["id"])
+    record = _library().load(link["id"])
     if record is None:
         raise SeriesLibraryError("error.series.missing", series_id=link["id"])
-    ids = [str(c) for c in clip_ids] if isinstance(clip_ids, list) else []
-    entry = session._describe(make_entry(
-        session.state, ids, name=str(name or "")))
+    return link, record
+
+
+def _parsed(raw_entries: list) -> list[Entry]:
+    out = []
+    for raw in raw_entries:
+        try:
+            out.append(entry_from_json(json.dumps(raw)))
+        except (TypeError, KeyError, IndexError, AttributeError, ValueError):
+            log.warning(t("log.series.bad_entry", series_id=""))
+    return out
+
+
+def _put(session, link: dict, record: dict, entry: Entry) -> int:
+    """Put ``entry`` on the series shelf with where its recordings were seen; refuse
+    one that is already there (same id, or the same references and length). Returns
+    how many entries the shelf has now."""
+    if any(same_content(entry, have) for have in _parsed(entries_of(record))):
+        raise EditError("error.clipboard.already_on_shelf")
     media = dict(record.get("media") or {})
     for digest in sorted({ref.media_sha256 for ref in entry.refs}):
         known = media_paths(record, digest)
         seen = [p for p in session.store.seen_paths(digest) if p not in known]
         item = next((m for m in session.state.media if m.sha256 == digest), None)
-        media[digest] = {"name": item.name if item else "", "paths": [*known, *seen]}
+        old = media.get(digest) if isinstance(media.get(digest), dict) else {}
+        media[digest] = {**old, "name": item.name if item else old.get("name", ""),
+                         "paths": [*known, *seen]}
     entries = [*entries_of(record), entry_dict(entry)]
-    library.update(link["id"], music={"entries": entries}, media=media)
-    return {**status(session), "music": len(entries)}
+    _library().update(link["id"], music={"entries": entries}, media=media)
+    return len(entries)
+
+
+def music_add(session, clip_ids: Any, name: Any = "") -> dict:
+    """Add the chosen clips to the series music as one entry (references only)."""
+    link, record = _record(session)
+    ids = [str(c) for c in clip_ids] if isinstance(clip_ids, list) else []
+    entry = session._describe(make_entry(
+        session.state, ids, name=str(name or "")))
+    count = _put(session, link, record, entry)
+    return {**status(session), "music": count}
+
+
+# -- the clipboard's series shelf (docs/design/CLIPBOARD-SHELVES.md) --------------------
+
+
+def _no_entry(entry_id: str) -> Exception:
+    from .session import NoSuchEntryError  # noqa: PLC0415 - the session pulls in audio
+
+    return NoSuchEntryError("error.clipboard.no_entry", entry_id=str(entry_id)[:80])
+
+
+def shelf_list(session) -> dict:
+    """The series shelf for the Clipboard panel: ``{link: {id, name} | None, found,
+    entries: [view...]}``, each entry in the same view as the project's clipboard (its
+    missing-here count is against this project). No series is an empty shelf."""
+    link = session.state.series or {}
+    if not link.get("id"):
+        return {"link": None, "found": False, "entries": []}
+    record = _library().load(link["id"])
+    project = session.state
+    entries = _parsed(entries_of(record)) if record is not None else []
+    return {"link": {"id": link["id"], "name": link.get("name", "")},
+            "found": record is not None,
+            "entries": [session._entry_view(e, project) for e in entries]}
+
+
+def shelf_add(session, entry_id: Any) -> dict:
+    """"Add to series shelf": a copy of one of this project's clipboard entries (same
+    id) goes on the series shelf; the project's entry stays."""
+    link, record = _record(session)
+    entry = session.clipboard.load().get(str(entry_id))
+    if entry is None:
+        raise _no_entry(entry_id)
+    _put(session, link, record, entry)
+    return shelf_list(session)
+
+
+def shelf_remove(session, entry_id: Any) -> dict:
+    """Take an entry off the series shelf, and the paths of a recording no other entry
+    there uses. Never a recording, never a project's clipboard."""
+    link, record = _record(session)
+    raw = entries_of(record)
+    kept = [e for e in raw if e.get("id") != entry_id]
+    if len(kept) == len(raw):
+        raise _no_entry(entry_id)
+    used = {ref.get("media_sha256") for e in kept for ref in e.get("refs") or []
+            if isinstance(ref, dict)}
+    media = {k: v for k, v in (record.get("media") or {}).items() if k in used}
+    _library().update(link["id"], music={"entries": kept}, media=media)
+    return shelf_list(session)
+
+
+def shelf_adopt(session, entry_id: Any) -> dict:
+    """"Copy to this project" from the series shelf: link the recordings the episode
+    lacks from where the series saw them (hash-checked, in place), then adopt a copy
+    into the project's clipboard. Returns its view; Paste here pastes it next."""
+    _, record = _record(session)
+    entry = next((e for e in _parsed(entries_of(record)) if e.id == entry_id), None)
+    if entry is None:
+        raise _no_entry(entry_id)
+    have = {m.sha256 for m in session.state.media}
+    for digest in sorted({r.media_sha256 for r in entry.refs} - have):
+        _link_from_series(session, record, digest)
+    return session.clipboard_adopt(entry_dict(entry), from_project=entry.source_project)
 
 
 def _entries(session) -> tuple[dict, list]:
-    link = _link(session)
-    record = _library().load(link["id"])
-    if record is None:
-        raise SeriesLibraryError("error.series.missing", series_id=link["id"])
-    entries = []
-    for raw in entries_of(record):
-        try:
-            entries.append(entry_from_json(json.dumps(raw)))
-        except (TypeError, KeyError, IndexError, AttributeError, ValueError):
-            log.warning(t("log.series.bad_entry", series_id=link["id"]))
-    return record, entries
+    _, record = _record(session)
+    return record, _parsed(entries_of(record))
 
 
 def _link_from_series(session, record: dict, digest: str) -> None:
