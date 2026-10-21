@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Silent states mock</title>
+<!-- Static mock of docs/design/SILENCE-VISUALS.md. Offline: it reads the real tokens from
+     ../../ui/tokens.css and draws each state twice, once with the light tokens and once with
+     the dark ones. Open the file from the repository (file://). -->
+<link rel="stylesheet" href="../../ui/tokens.css">
+<style>
+  body { margin: 0; padding: 16px; font: 13px/1.4 var(--font-ui); background: var(--surface-app); color: var(--text); }
+  h1 { font-size: 17px; font-weight: 600; margin: 0 0 4px; }
+  p { margin: 0 0 12px; color: var(--text-secondary); max-width: 70ch; }
+  .themes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 560px), 1fr)); gap: 16px; }
+  figure { margin: 0; }
+  figcaption { font-weight: 600; margin-bottom: 6px; }
+  canvas { width: 100%; height: auto; display: block; border-radius: 6px; }
+</style>
+</head>
+<body>
+<h1>Silent states</h1>
+<p>Filled = sounds. Outline only = silent. Lock = closed by Auto-Silence; open lock = mic kept
+open. Teal outline with dashed edges = Auto-Silence preview. Grey/dim lane = not part of the
+operation. Red sign, no waveform = file missing. Clip borders are drawn on top in every row.</p>
+<div class="themes">
+  <figure><figcaption>Light</figcaption><canvas id="light" width="1120" height="760"></canvas></figure>
+  <figure><figcaption>Dark</figcaption><canvas id="dark" width="1120" height="760"></canvas></figure>
+</div>
+<script>
+// Icon paths: the same as ui/icons.js (lock, unlock, alert).
+const ICON = {
+  lock: "M6 11h12v9H6ZM8.5 11V8a3.5 3.5 0 0 1 7 0v3",
+  unlock: "M6 11h12v9H6ZM8.5 11V8a3.5 3.5 0 0 1 6.8-1.2",
+  alert: "M12 3.5 2.5 20h19ZM12 10v4.5M12 17.5h.01",
+};
+const W = 560, LANE = 52, LABEL_W = 170;
+const ROWS = [
+  { name: "Normal clip", clips: [[20, 360]] },
+  { name: "Muted clip", clips: [[20, 360, { muted: true }]] },
+  { name: "Clip half inside a gate", clips: [[20, 360]], gate: [[200, 420]] },
+  { name: "Gate across two clips", clips: [[20, 200], [200, 380]], gate: [[140, 300]] },
+  { name: "Muted and gated", clips: [[20, 360, { muted: true }]], gate: [[200, 300]] },
+  { name: "Keeps the mic open", clips: [[20, 360, { ungated: true }]] },
+  { name: "Auto-Silence preview", clips: [[20, 360]], preview: [[120, 260]] },
+  { name: "Inactive: grey + dim", clips: [[20, 360]], gate: [[200, 300]], inactive: "both" },
+  { name: "Inactive: grey only", clips: [[20, 360]], inactive: "desaturate" },
+  { name: "Inactive: dim only", clips: [[20, 360]], inactive: "dim" },
+  { name: "File missing", clips: [[20, 360, { missing: true }]] },
+  { name: "Selected clip in a gate", clips: [[60, 300, { selected: true }]], gate: [[0, 400]] },
+];
+
+function tokens(theme) {
+  document.documentElement.dataset.theme = theme;
+  const s = getComputedStyle(document.documentElement);
+  const v = (n) => s.getPropertyValue(n).trim();
+  const out = {
+    lane: v("--surface-lane"), panel: v("--surface-panel"), text: v("--text"),
+    muted: v("--text-secondary"), rule: v("--border-subtle"), sel: v("--signal-selected"),
+    body: v("--track-0-body"), wave: v("--track-0-wave"), edge: v("--track-0-edge"),
+    label: v("--track-0-label"), tone: v("--signal-silent-body"), lock: v("--signal-gate-lock"),
+    open: v("--signal-gate-open"), preview: v("--signal-preview"), damaged: v("--signal-damaged"),
+    damagedFill: v("--signal-damaged-fill"), font: v("--font-ui"),
+  };
+  delete document.documentElement.dataset.theme;
+  return out;
+}
+
+// Same luminance grey (silence-visuals.js desaturateColour) for the inactive lanes.
+function grey(hex) {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return hex;
+  const lin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const gam = (c) => (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055);
+  const [r, g, b] = [0, 2, 4].map((i) => lin(parseInt(m[1].slice(i, i + 2), 16) / 255));
+  const y = Math.round(gam(0.2126 * r + 0.7152 * g + 0.0722 * b) * 255).toString(16).padStart(2, "0");
+  return `#${y}${y}${y}`;
+}
+
+// A deterministic speech-like envelope: bursts with pauses.
+function peak(x) {
+  const word = Math.abs(Math.sin(x * 0.11)) * Math.abs(Math.sin(x * 0.023 + 1));
+  const jitter = 0.6 + 0.4 * Math.abs(Math.sin(x * 1.7));
+  return Math.min(1, word * jitter * 1.1);
+}
+
+function inside(x, runs) {
+  return (runs ?? []).some(([a, b]) => x >= a && x < b);
+}
+
+function draw(canvas, theme) {
+  const c = tokens(theme);
+  const ctx = canvas.getContext("2d");
+  const ratio = canvas.width / (W + LABEL_W);
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.fillStyle = c.lane;
+  ctx.fillRect(0, 0, W + LABEL_W, ROWS.length * LANE + 8);
+  ROWS.forEach((row, i) => {
+    const top = 4 + i * LANE;
+    ctx.fillStyle = c.panel;
+    ctx.fillRect(0, top, LABEL_W - 6, LANE - 1);
+    ctx.fillStyle = c.text;
+    ctx.font = `12px ${c.font}`;
+    ctx.textBaseline = "middle";
+    ctx.fillText(row.name, 8, top + LANE / 2);
+    const desat = row.inactive === "both" || row.inactive === "desaturate";
+    const col = desat ? { body: grey(c.body), wave: grey(c.wave), edge: grey(c.edge), label: grey(c.label) } : c;
+    ctx.save();
+    ctx.translate(LABEL_W, top);
+    const y = 2, h = LANE - 5;
+    for (const [a, b, o = {}] of row.clips) {
+      ctx.fillStyle = o.missing ? c.damagedFill : col.body;
+      ctx.fillRect(a, y, b - a, h);
+      if (o.missing) continue;
+      // Waveform layer: tone + outline for silent columns, fill elsewhere.
+      const silent = (x) => o.muted || (!o.ungated && inside(x, row.gate));
+      const prev = (x) => !silent(x) && inside(x, row.preview);
+      ctx.fillStyle = c.tone;
+      for (let x = a; x < b; x += 1) if (silent(x)) ctx.fillRect(x, y, 1, h);
+      ctx.fillStyle = col.wave;
+      for (let x = a; x < b; x += 1) {
+        if (silent(x) || prev(x)) continue;
+        const bar = Math.max(1, peak(x) * (h - 2));
+        ctx.fillRect(x, y + h - bar, 1, bar);
+      }
+      for (const [test, colour] of [[silent, col.wave], [prev, c.preview]]) {
+        ctx.strokeStyle = colour;
+        ctx.lineWidth = 1;
+        let run = null;
+        const flush = (end) => {
+          if (run === null) return;
+          ctx.beginPath();
+          ctx.moveTo(run, y + h - 0.5);
+          for (let x = run; x < end; x += 1) ctx.lineTo(x + 0.5, Math.max(y + 0.5, y + h - Math.max(1, peak(x) * (h - 2))));
+          ctx.lineTo(end, y + h - 0.5);
+          ctx.closePath();
+          ctx.stroke();
+          run = null;
+        };
+        for (let x = a; x < b; x += 1) {
+          if (test(x)) run ??= x;
+          else flush(x);
+        }
+        flush(b);
+      }
+    }
+    // Overlay: preview edges, locks, then the clip chrome on top.
+    for (const [a, b] of row.preview ?? []) {
+      ctx.strokeStyle = c.preview;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.moveTo(a, y + 2.5); ctx.lineTo(b, y + 2.5);
+      ctx.moveTo(a, y + h - 2.5); ctx.lineTo(b, y + h - 2.5);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    const icon = (name, x, iy, px, colour, chip = true) => {
+      if (chip) {
+        ctx.fillStyle = c.panel;
+        ctx.beginPath();
+        ctx.roundRect(x - 1, iy - 1, px + 2, px + 2, 3);
+        ctx.fill();
+      }
+      ctx.save();
+      ctx.translate(x, iy);
+      ctx.scale(px / 24, px / 24);
+      ctx.strokeStyle = colour;
+      ctx.lineWidth = chip ? 2.4 : 2;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.stroke(new Path2D(ICON[name]));
+      ctx.restore();
+    };
+    for (const [a, b] of row.gate ?? []) {
+      let x = a + 3;
+      for (const [ca, cb] of row.clips) for (const e of [ca, cb]) if (x + 12 >= e - 6 && x <= e + 6) x = e + 7;
+      if (x + 15 <= b) icon("lock", x, y + 3, 12, c.lock);
+    }
+    for (const [a, b, o = {}] of row.clips) {
+      ctx.strokeStyle = col.edge;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(a + 0.5, y + 0.5, b - a - 1, h - 1);
+      ctx.font = `600 11px ${c.font}`;
+      ctx.textBaseline = "top";
+      const name = o.missing ? "interview.wav" : "Anna, take 2";
+      ctx.fillStyle = col.body;
+      ctx.globalAlpha = 0.85;
+      const tw = ctx.measureText(name).width;
+      ctx.fillRect(a + 2, y + 2, tw + 6, 14);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = col.label;
+      ctx.fillText(name, a + 5, y + 3);
+      if (o.ungated) icon("unlock", a + 5 + tw + 7, y + 3, 12, c.open);
+      if (o.missing) {
+        ctx.strokeStyle = c.damaged;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(a + 1, y + 1, b - a - 2, h - 2);
+        icon("alert", (a + b) / 2 - 14, y + (h - 28) / 2 + 4, 28, c.damaged, false);
+        ctx.fillStyle = c.damaged;
+        ctx.textBaseline = "middle";
+        ctx.fillText("File missing", (a + b) / 2 + 20, y + h / 2 + 4);
+      }
+      if (o.selected) {
+        ctx.strokeStyle = c.sel;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(a + 1, y + 1, b - a - 2, h - 2);
+        ctx.fillStyle = c.sel;
+        for (const hx of [a + 10, b - 10]) { ctx.beginPath(); ctx.arc(hx, y + 5, 3.5, 0, 7); ctx.fill(); }
+      }
+    }
+    if (row.preview) {
+      ctx.font = `11px ${c.font}`;
+      ctx.textBaseline = "bottom";
+      ctx.fillStyle = c.panel;
+      ctx.fillRect(0, y + h - 15, 52, 15);
+      ctx.fillStyle = c.preview;
+      ctx.fillText("preview", 4, y + h - 2);
+    }
+    if (row.inactive === "both" || row.inactive === "dim") {
+      ctx.globalAlpha = row.inactive === "dim" ? 0.72 : 0.3;
+      ctx.fillStyle = c.panel;
+      ctx.fillRect(0, 0, W, LANE - 1);
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+    ctx.strokeStyle = c.rule;
+    ctx.beginPath();
+    ctx.moveTo(LABEL_W, top + LANE - 0.5);
+    ctx.lineTo(W + LABEL_W, top + LANE - 0.5);
+    ctx.stroke();
+  });
+}
+
+const sizeOf = (canvas) => {
+  canvas.width = (W + LABEL_W) * 2;
+  canvas.height = (ROWS.length * LANE + 8) * 2;
+};
+for (const theme of ["light", "dark"]) {
+  const canvas = document.getElementById(theme);
+  sizeOf(canvas);
+  draw(canvas, theme);
+}
+</script>
+</body>
+</html>
