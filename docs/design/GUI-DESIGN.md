@@ -237,10 +237,24 @@ bar. Error: the job's message and Retry.
 
 ### 3.6 Sidebar
 
-Tabs: Inspector · History · Candidates (count pill) · Clip bin. Below 420 px
-only the selected tab shows its label; the others show icons (tooltip and
-accessible name keep the label). **The app today stacks Inspector over
-History** (no tab logic yet); switch to tabs when WP8, WP17 or WP18 lands.
+Tabs: Inspector · Candidates (count pill) · Clipboard · Markers · History,
+then the hide-panel x. **One row at every width, labels never wrap or get an
+ellipsis** (owner, 2026-10-21). `ui/side-tabs-model.js` picks a step from the
+measured width the strip needs and the room it has (`data-tabs` on
+`.side-tabs`):
+
+| Step | When | Looks like |
+|---|---|---|
+| full | all names plus whole keys fit | "Inspector Alt+1" (mac "⌥1"), dimmed key |
+| tight | full does not fit | same names, key as a digit, 6 px padding |
+| compact | tight does not fit (the 260-280 px minimum, Finnish names) | only the selected tab keeps its name; the others show only their key digit |
+
+The key hint is on every tab at every step.
+The selected tab is marked by colour and underline only (no bold), so it never
+changes width. Every tab has the tooltip "Name (Alt+n)", an accessible name
+(the label, also in compact) and `aria-keyshortcuts`; the key is the user's if
+rebound. Alt+1..Alt+5 need no AltGr or Shift+digit. In compact the Candidates
+count pill shows only on the selected tab.
 
 **Inspector** (selected clip): the title block (4 px hue bar, the clip's label
 at 17 px, then "Anna.wav · Part 3 of 3 · Anna", the bus line with badge and the

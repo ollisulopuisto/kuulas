@@ -14,12 +14,12 @@ const rule = (selector) => {
   return css.slice(start, css.indexOf("}", start));
 };
 
-test("tab labels are not ellipsis-truncated and the row wraps", () => {
+test("tab labels are not ellipsis-truncated and the row never wraps", () => {
   const tab = rule(".side-tab");
   assert.doesNotMatch(tab, /text-overflow/);
   assert.doesNotMatch(tab, /overflow:\s*hidden/);
   assert.match(tab, /flex:\s*0 0 auto/);
-  assert.match(rule(".side-tabs"), /flex-wrap:\s*wrap/);
+  assert.match(rule(".side-tabs"), /flex-wrap:\s*nowrap/);
 });
 
 test("tabs keep their roles and the selected underline", () => {
