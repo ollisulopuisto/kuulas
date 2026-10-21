@@ -140,6 +140,7 @@ import { setupKeyboard } from "./shell-keys.js";
 import { chipSpeed } from "./shuttle.js";
 import { normaliseSilence } from "./silence-model.js";
 import { createSilencePanel } from "./silence-panel.js";
+import { inactiveStyleChoice } from "./silence-visuals.js";
 import { createSlowHold, normaliseSlow, slowSpeed } from "./slow-hold.js";
 import { createStatsDialog } from "./stats-dialog.js";
 import { nextStopMode } from "./stop-mode.js";
@@ -519,6 +520,17 @@ function toggleClipWords() {
   showNotice(t(on ? "ui.clip_words.on" : "ui.clip_words.off"), "ok");
 }
 
+// How lanes outside the current operation look (silence-visuals.js): dim, desaturate or both;
+// remembered per user. <html data-inactive> lets the track headers follow (style.css).
+const INACTIVE_KEY = "inactiveStyle";
+function setInactiveStyle(style) {
+  const choice = inactiveStyleChoice(style);
+  setState({ inactiveStyle: choice });
+  document.documentElement.dataset.inactive = choice;
+  prefs.set(INACTIVE_KEY, choice);
+}
+setInactiveStyle(prefs.get(INACTIVE_KEY));
+
 // The clipboard preview is turned down to the project's level (WP82): on by default, remembered
 // per user. The server does the measuring; this is only the switch.
 const CLIPBOARD_LIMIT_KEY = "clipboardLimit";
@@ -600,6 +612,7 @@ const actions = {
   toggleDragMode: () => toggleDragMode(),
   toggleWheelMode: () => toggleWheelMode(),
   toggleClipWords: () => toggleClipWords(),
+  setInactiveStyle: (style) => setInactiveStyle(style),
   toggleClipboardLimit: () => toggleClipboardLimit(),
   fastListening: () => changeFast(toggleFast),
   fastNudge: (direction) => changeFast(direction > 0 ? fastUp : fastDown),
@@ -3078,6 +3091,7 @@ const timeline = createTimeline({
       editor.change({ op, args, label: t(labelKey) });
     },
     openGate: openGateStretch,
+    locateMedia: () => void openLocateMedia(),
     editPlaceholder(placeholder) {
       setState({ placeholderSelected: placeholder.id });
       keyboard.registry.run("placeholder.edit", null, getState());
@@ -3195,6 +3209,13 @@ function render(state, patch) {
       "focusBus",
       "busHeight",
       "groupGap",
+      // The silent states and inactive lanes drawn by the waveform layer (SILENCE-VISUALS.md).
+      "silencePreview",
+      "missingMedia",
+      "inactiveStyle",
+      "rangeMode",
+      "trackSelection",
+      "rangeTracks",
     )
   ) {
     timeline.redrawWaveforms();

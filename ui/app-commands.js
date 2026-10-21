@@ -163,6 +163,10 @@ export function registerAppCommands(registry, { actions, app }) {
   for (const choice of PAUSE_CHOICES) {
     def(`view.pause_${choice.id}`, () => actions.setPauseBreak(choice.id));
   }
+  // View > Inactive lanes: dim, desaturate or both (a per-user preference, no project needed).
+  for (const style of ["both", "desaturate", "dim"]) {
+    def(`view.inactive_${style}`, () => actions.setInactiveStyle(style));
+  }
   // View > Language: a user preference (no project needed), kept on the server.
   for (const choice of ["auto", "fi", "en"]) {
     def(`view.language_${choice}`, () => actions.setLanguageChoice(choice));

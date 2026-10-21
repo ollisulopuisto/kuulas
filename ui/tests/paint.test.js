@@ -182,18 +182,80 @@ describe("painting waveforms (what the worker runs)", () => {
     assert.equal("laneCurrent" in made, false);
   });
 
-  test("columns under a gate band are drawn flat at a 1 px floor", () => {
-    const { ctx, calls } = fakeContext();
-    const gated = job();
+  // The silent-state language (docs/design/SILENCE-VISUALS.md): filled = sounds, outline only
+  // (no fill) = silent. The body under a silent stretch is toned down a little; no hatch.
+  test("columns under a gate lose their fill: an outline of the wave instead", () => {
+    const { ctx, calls, sets } = fakeContext();
+    const gated = job({ silentBody: "rgb(0 0 0 / 0.08)" });
     gated.rows[0].gate = [20, 60];
     paintWaveforms(ctx, gated, () => loud());
-    const columns = calls.filter((c) => c[0] === "rect" && c[3] === 1);
-    assert.equal(columns.length, 100, "every column still has a bar");
-    const heightOf = (x) => columns.find((c) => c[1] === x)[4];
-    assert.equal(heightOf(19), 22, "loud outside the gate");
-    assert.equal(heightOf(20), 1);
-    assert.equal(heightOf(59), 1);
-    assert.equal(heightOf(60), 22);
+    const columns = calls.filter((c) => c[0] === "rect" && c[3] === 1).map((c) => c[1]);
+    assert.equal(columns.length, 60, "only the 60 sounding columns are filled");
+    assert.ok(columns.includes(19) && columns.includes(60));
+    assert.ok(!columns.some((x) => x >= 20 && x < 60), "no filled bar under the gate");
+    assert.equal(count(calls, "stroke"), 1, "one stroked outline for the one silent run");
+    const moves = calls.filter((c) => c[0] === "moveTo");
+    assert.equal(moves[0][1], 20, "the outline starts at the run's left edge");
+    // The body tone over the silent run only, in the silent-body colour.
+    assert.ok(calls.some((c) => c[0] === "fillRect" && c[1] === 20 && c[3] === 40));
+    assert.ok(sets.some((s) => s[0] === "fillStyle" && s[1] === "rgb(0 0 0 / 0.08)"));
+  });
+
+  test("a muted clip is outline only, at full opacity (dimming is not a silence signal)", () => {
+    const { ctx, calls, sets } = fakeContext();
+    const muted = job();
+    muted.rows[0].clips[0].muted = true;
+    paintWaveforms(ctx, muted, () => loud());
+    assert.equal(bars(calls), 0, "no filled bar");
+    assert.equal(count(calls, "stroke"), 1);
+    const alphas = sets.filter((s) => s[0] === "globalAlpha").map((s) => s[1]);
+    assert.ok(
+      alphas.every((a) => a === 1),
+      `alphas ${alphas}`,
+    );
+  });
+
+  test("a clip that keeps the mic open is filled under the gate", () => {
+    const { ctx, calls } = fakeContext();
+    const open = job();
+    open.rows[0].gate = [0, 100];
+    open.rows[0].clips[0].ungated = true;
+    paintWaveforms(ctx, open, () => loud());
+    assert.equal(bars(calls), 100);
+    assert.equal(count(calls, "stroke"), 0);
+  });
+
+  test("the Auto-Silence preview: what would close is outlined in the preview colour", () => {
+    const { ctx, calls, sets } = fakeContext();
+    const shown = job({ previewColour: "#0aa" });
+    shown.rows[0].preview = [50, 100];
+    paintWaveforms(ctx, shown, () => loud());
+    assert.equal(bars(calls), 50, "the first half sounds and stays filled");
+    assert.equal(count(calls, "stroke"), 1);
+    assert.ok(sets.some((s) => s[0] === "strokeStyle" && s[1] === "#0aa"));
+  });
+
+  test("an inactive row (outside the range scope) draws with the desaturated palette", () => {
+    const { ctx, sets } = fakeContext();
+    const grey = job({ paletteInactive: [{ fill: "#eeeeee", ink: "#555555", wave: "#666666" }] });
+    grey.rows[0].inactive = true;
+    paintWaveforms(ctx, grey, () => loud());
+    const styles = sets.filter((s) => s[0] === "fillStyle").map((s) => s[1]);
+    assert.ok(styles.includes("#eeeeee") && styles.includes("#666666"));
+    assert.ok(!styles.includes("#123") && !styles.includes("#456"));
+  });
+
+  test("a clip whose media is missing draws no waveform and asks for no tile", () => {
+    const { ctx, calls, sets } = fakeContext();
+    const lost = job({ missingFill: "#fee" });
+    lost.rows[0].clips[0].missing = true;
+    const out = paintWaveforms(ctx, lost, () => {
+      throw new Error("asked for a tile of missing media");
+    });
+    assert.deepEqual(out.missing, []);
+    assert.equal(bars(calls), 0);
+    assert.equal(count(calls, "stroke"), 0, "not an outline either: missing is not silent");
+    assert.ok(sets.some((s) => s[0] === "fillStyle" && s[1] === "#fee"));
   });
 
   test("a gated column gets no clipping cap", () => {
@@ -299,21 +361,62 @@ describe("painting waveforms (what the worker runs)", () => {
     assert.ok(height("db") > height("linear") * 2);
   });
 
-  test("a muted clip is drawn faint, then the alpha is put back", () => {
-    const { ctx, sets } = fakeContext();
-    const muted = job();
-    muted.rows[0].clips[0].muted = true;
-    paintWaveforms(ctx, muted, () => loud());
-    const alphas = sets.filter((s) => s[0] === "globalAlpha").map((s) => s[1]);
-    assert.ok(alphas.includes(0.35));
-    assert.equal(alphas.at(-1), 1);
-  });
-
   test("the canvas is scaled for the device and cleared first", () => {
     const { ctx, calls } = fakeContext();
     paintWaveforms(ctx, job(), () => loud());
     assert.deepEqual(calls[0], ["setTransform", 2, 0, 0, 2, 0, 0]);
     assert.equal(calls[1][0], "clearRect");
+  });
+
+  test("makeWaveformJob carries the silent states: ungated, missing, preview, inactive", () => {
+    const project = {
+      rate: 48_000,
+      media: [],
+      buses: [],
+      tracks: [
+        {
+          id: "t1",
+          kind: "speech",
+          clips: [
+            { id: "a", media: "m1", start: 0, offset: 0, length: 2560, ungated: true },
+            { id: "b", media: "gone", start: 2560, offset: 0, length: 2560 },
+          ],
+        },
+        { id: "t2", kind: "speech", clips: [] },
+      ],
+    };
+    const state = {
+      project,
+      scroll: 0,
+      zoom: 256,
+      scrollY: 0,
+      laneHeight: 48,
+      waveformMode: "half",
+      waveformScale: "linear",
+      missingMedia: new Set(["gone"]),
+      silencePreview: new Map([["t1", [[0, 2560]]]]),
+    };
+    const made = makeWaveformJob(state, { width: 100, height: 300, ratio: 1, id: 1 }, palette, {
+      silentBody: "rgb(0 0 0 / 0.06)",
+      preview: "#0aa",
+      missingFill: "#fee",
+      inactive: new Set(["t2"]),
+      paletteInactive: [{ fill: "#eee", ink: "#555", wave: "#666" }],
+    });
+    const [a, b] = made.rows[0].clips;
+    assert.equal(a.ungated, true);
+    assert.equal("missing" in a, false);
+    assert.equal(b.missing, true);
+    assert.equal("ungated" in b, false);
+    assert.deepEqual(made.rows[0].preview, [0, 10]);
+    assert.equal("preview" in made.rows[1], false);
+    assert.equal("inactive" in made.rows[0], false);
+    assert.equal(made.rows[1].inactive, true);
+    assert.equal(made.silentBody, "rgb(0 0 0 / 0.06)");
+    assert.equal(made.previewColour, "#0aa");
+    assert.equal(made.missingFill, "#fee");
+    assert.equal(made.paletteInactive.length, 1);
+    assert.doesNotThrow(() => structuredClone(made));
   });
 
   test("makeWaveformJob keeps only what is on screen, as plain data", () => {

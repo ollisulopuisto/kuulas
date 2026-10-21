@@ -43,6 +43,8 @@ function make({ platform = "other", overrides = {}, state = {}, planned = [], he
   registry.register("edit.split_all", () => {});
   registry.register("view.clip_words", () => {});
   for (const id of ["auto", "fi", "en"]) registry.register(`view.language_${id}`, () => {});
+  for (const id of ["both", "desaturate", "dim"])
+    registry.register(`view.inactive_${id}`, () => {});
   registry.planned(...planned);
   const entries = resolveKeymap(DEFAULT_KEYMAP, overrides, platform);
   return resolveMenu({
@@ -97,6 +99,15 @@ describe("the menu data", () => {
     assert.equal(check({ languageChoice: "fi" }, "view.language_auto"), false);
     assert.equal(check({}, "view.language_auto"), true);
     assert.equal(check({}, "view.language_fi"), false);
+  });
+
+  test("View > Inactive lanes shows the stored style checked, desaturate + dim when none", () => {
+    const check = (state, id) => find(make({ state }), id).checked;
+    assert.equal(check({}, "view.inactive_both"), true);
+    assert.equal(check({}, "view.inactive_dim"), false);
+    assert.equal(check({ inactiveStyle: "dim" }, "view.inactive_dim"), true);
+    assert.equal(check({ inactiveStyle: "dim" }, "view.inactive_both"), false);
+    assert.equal(check({ inactiveStyle: "desaturate" }, "view.inactive_desaturate"), true);
   });
 
   test("Help has Keyboard shortcuts", () => {

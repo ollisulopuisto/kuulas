@@ -2595,5 +2595,22 @@
   "ui.automix.toast.stage_done": "{stage} valmis",
   "ui.automix.toast.stage_skipped": "{stage} ohitettu",
   "ui.automix.toast.bar": "Automixerin eteneminen",
-  "ui.automix.toast.announce": "{phase}, {step}"
+  "ui.automix.toast.announce": "{phase}, {step}",
+  "menu.inactive": "Toiminnon ulkopuoliset raidat",
+  "cmd.view.inactive_both": "Passiiviset raidat: harmaa ja himmennetty",
+  "cmd.view.inactive_both.hint": "Raidat, joihin seuraava toiminto ei koske, menettävät värinsä ja himmenevät hieman (oletus); muistetaan sinulle",
+  "cmd.view.inactive_desaturate": "Passiiviset raidat: harmaa",
+  "cmd.view.inactive_desaturate.hint": "Raidat, joihin seuraava toiminto ei koske, menettävät vain värinsä; aaltomuoto pysyy yhtä luettavana; muistetaan sinulle",
+  "cmd.view.inactive_dim": "Passiiviset raidat: himmennetty",
+  "cmd.view.inactive_dim.hint": "Raidat, joihin seuraava toiminto ei koske, himmennetään vahvalla verholla; muistetaan sinulle",
+  "ui.gate.open_hover": "Tämä leike pitää mikin auki: Auto-Silence ei koskaan sulje sitä.",
+  "ui.media.missing_clip": "Tiedosto puuttuu",
+  "ui.media.missing_hover": "Tämän leikkeen äänitiedosto puuttuu. Kaksoisnapsauta etsiäksesi sen.",
+  "ui.silence.legend_title": "Näin aikajana näyttää hiljaisuuden",
+  "ui.silence.legend.filled": "Täytetty aaltomuoto: kuuluu.",
+  "ui.silence.legend.outline": "Pelkkä ääriviiva: hiljaa (mykistetty tai Auto-Silencen sulkema).",
+  "ui.silence.legend.lock": "Lukko: Auto-Silencen sulkema. Mykistetyssä leikkeessä ei ole lukkoa.",
+  "ui.silence.legend.open": "Avoin lukko: leike pitää mikin auki.",
+  "ui.silence.legend.preview": "Turkoosi ääriviiva ja katkoviivareunat: mitä tämä esikatselu sulkisi.",
+  "ui.silence.legend.inactive": "Harmaa tai himmeä raita: ei kuulu seuraavaan toimintoon."
 }

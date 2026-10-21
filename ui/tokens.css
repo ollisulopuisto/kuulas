@@ -44,11 +44,13 @@
   --p-blue-92: #d4e5fb;
   --p-blue-96: #ecf4ff;
 
+  --p-black-a20: rgb(0 0 0 / 0.2);
   --p-black-a45: rgb(0 0 0 / 0.45);
   --p-black-a60: rgb(0 0 0 / 0.6);
   --p-gray-22-a14: rgb(16 24 28 / 0.14);
   --p-gray-22-a22: rgb(16 24 28 / 0.22);
   --p-gray-22-a8: rgb(16 24 28 / 0.08);
+  --p-gray-22-a6: rgb(16 24 28 / 0.06);
 
   --p-gray-0-a50: rgb(0 0 0 / 0.5);
   --p-gray-17: #1a0c0b;
@@ -445,6 +447,11 @@
   --signal-preview: var(--p-teal-49); /* a preview is playing or shown (not committed) */
   --signal-preview-fill: var(--p-teal-49-a22); /* the Auto-Silence preview's veil */
   --signal-gate: var(--p-gray-89); /* the veil over a closed gate (lane colour) */
+  /* Silent states (docs/design/SILENCE-VISUALS.md): the body under an outline-only wave is
+     toned down a little; the padlocks say "closed by Auto-Silence" / "mic kept open". */
+  --signal-silent-body: var(--p-gray-22-a6);
+  --signal-gate-lock: var(--p-amber-40);
+  --signal-gate-open: var(--p-green-34);
   --signal-damaged: var(--p-red-52);
   --signal-damaged-fill: var(--p-red-87);
   --signal-removed: var(--p-red-52);
@@ -588,6 +595,9 @@
     --signal-preview: var(--p-teal-76);
     --signal-preview-fill: var(--p-teal-76-a16);
     --signal-gate: var(--p-gray-20);
+    --signal-silent-body: var(--p-black-a20);
+    --signal-gate-lock: var(--p-amber-84);
+    --signal-gate-open: var(--p-green-76);
     --signal-damaged: var(--p-red-73);
     --signal-damaged-fill: var(--p-red-28);
     --signal-removed: var(--p-red-73);
@@ -731,6 +741,9 @@
   --signal-preview: var(--p-teal-76);
   --signal-preview-fill: var(--p-teal-76-a16);
   --signal-gate: var(--p-gray-20);
+  --signal-silent-body: var(--p-black-a20);
+  --signal-gate-lock: var(--p-amber-84);
+  --signal-gate-open: var(--p-green-76);
   --signal-damaged: var(--p-red-73);
   --signal-damaged-fill: var(--p-red-28);
   --signal-removed: var(--p-red-73);

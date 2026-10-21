@@ -652,6 +652,16 @@ button.chip {
 .track-header.scope-dim {
   opacity: 0.35;
 }
+/* The inactive style (View > Lanes outside the operation; SILENCE-VISUALS.md): the headers follow
+   the lanes. A static filter on a few DOM nodes, never a per-frame canvas filter. */
+:root[data-inactive="desaturate"] .track-header.scope-dim {
+  opacity: 1;
+  filter: grayscale(1);
+}
+:root[data-inactive="both"] .track-header.scope-dim {
+  opacity: 0.7;
+  filter: grayscale(1);
+}
 .track-header.compact {
   grid-template-rows: var(--control-h-sm);
   align-content: center;

@@ -117,6 +117,10 @@ export const initialState = () => ({
   // The Auto-Silence live preview's closed ranges (silence-panel.js): Map trackId -> ranges,
   // only while the panel is open; null otherwise. Never an edit.
   silencePreview: null,
+  // Media ids whose file is missing (every server answer carries them): drawn as an error.
+  missingMedia: new Set(),
+  // How lanes outside the current operation look (silence-visuals.js INACTIVE_STYLES).
+  inactiveStyle: "both",
   // The transcript words along the top of each clip when zoomed in (WP69); a per-user view option.
   showClipWords: true,
   // The clipboard preview is limited to the project's level (WP82); a per-user preference.
@@ -164,6 +168,8 @@ export function serverPatch(response, state = null) {
   if ("head" in response) patch.head = response.head;
   if ("can_undo" in response) patch.canUndo = response.can_undo;
   if ("can_redo" in response) patch.canRedo = response.can_redo;
+  // Media ids whose file is gone: those clips draw an error sign, no waveform.
+  if (Array.isArray(response.missing)) patch.missingMedia = new Set(response.missing);
   if (state && response.project) {
     const ids = new Set(
       response.project.tracks.flatMap((track) => track.clips.map((clip) => clip.id)),

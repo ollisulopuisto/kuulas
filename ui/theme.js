@@ -4,6 +4,7 @@
 // it again (timeline.refreshTheme) when the theme or the OS preference
 // changes; never per frame. Spec: docs/design/GUI-DESIGN.md, "Themes".
 import { resolvePalette } from "./grammar.js";
+import { desaturatePalette } from "./silence-visuals.js";
 
 /** The user's theme choice. "system" follows the OS (prefers-color-scheme). */
 export const THEMES = ["system", "light", "dark"];
@@ -39,15 +40,19 @@ export function readTheme(
 ) {
   const style = computed(element);
   const p = resolvePalette((name) => style.getPropertyValue(name));
+  const palette = p.tracks.map((t) => ({
+    fill: t.body,
+    fillAlt: t.bodyAlt,
+    wave: t.wave,
+    ink: t.edge,
+    label: t.label,
+  }));
   return {
     resolved: p,
-    palette: p.tracks.map((t) => ({
-      fill: t.body,
-      fillAlt: t.bodyAlt,
-      wave: t.wave,
-      ink: t.edge,
-      label: t.label,
-    })),
+    palette,
+    // The grey twin of the palette for lanes outside the current operation (the inactive
+    // style "desaturate" or "both"): computed here, once per theme, never per frame.
+    paletteInactive: desaturatePalette(palette),
     busBands: p.buses.map((b) => b.band),
     busSpines: p.buses.map((b) => b.spine),
     ink: p.surfaces.text,
@@ -65,7 +70,11 @@ export function readTheme(
     rulerText: p.marks.rulerText,
     rulerTick: p.marks.rulerTick,
     selection: p.signals.selected,
-    hatch: p.signals.mutedHatch,
+    silentBody: p.signals.silentBody,
+    gateLock: p.signals.gateLock,
+    gateOpen: p.signals.gateOpen,
+    damaged: p.signals.damaged,
+    damagedFill: p.signals.damagedFill,
     clipping: p.signals.clipping,
     seam: p.signals.seam,
     sibling: p.signals.sibling,

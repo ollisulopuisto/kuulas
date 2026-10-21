@@ -44,11 +44,13 @@ import {
 } from "./ghost-wave.js";
 import { busHues, fileMark, needsFileMark, ribbonLayout, seamKind } from "./grammar.js";
 import { detectPlatform, formatNumber, t } from "./i18n.js";
+import { ICONS } from "./icons.js";
 import { dropGhosts, dropLabel, resolveDropTarget } from "./import-drop.js";
 import { clipLabel, labelFacts, siblingsOf } from "./labels.js";
 import {
   clipEnd,
   dbToY,
+  EDGE_PX,
   envelopeFrame,
   hitTest,
   layoutFor,
@@ -65,9 +67,8 @@ import { heldFromEvent } from "./modifiers.js";
 import { advanceDelta, movedSpans, moveTargets, snapMove } from "./move-snap.js";
 import {
   baseGainDb,
-  drawGateHatch,
+  drawDiagonalHatch,
   drawPreviewBands,
-  drawSilenceHatch,
   makeWaveformJob,
   scaleFor,
   trackHues,
@@ -76,6 +77,7 @@ import { aboutSeconds, placeholderLabel } from "./placeholders-model.js";
 import { dragRange, isDrag, touchedResult, trackRowsTouched } from "./range-drag.js";
 import { dimmedTracks, scopeSpans } from "./range-scope.js";
 import { rulerTicks } from "./ruler.js";
+import { inactiveLook, lockSpots, openLockSpot, TRACK_LAYERS } from "./silence-visuals.js";
 import {
   anchorIds,
   anchorNameFor,
@@ -91,9 +93,8 @@ import { pickLevel, waveformColumns } from "./waveform.js";
 import { createWaveformLayer } from "./waveform-layer.js";
 import { wheelIntent } from "./wheel.js";
 
-// Drawing rules: docs/design/GUI-DESIGN.md, "Waveforms and the timeline".
-// How strongly a track the next range operation will not touch is veiled (WP83).
-const DIM_ALPHA = 0.72;
+// Drawing rules: docs/design/GUI-DESIGN.md, "Waveforms and the timeline"; the silent states
+// (outline = silent, padlocks, inactive lanes): docs/design/SILENCE-VISUALS.md.
 const NAME_FONT_PX = 11;
 const LABEL_H = 14;
 const LABEL_BACKING_ALPHA = 0.85;
@@ -117,7 +118,14 @@ const SEAM_ALPHA = 0.7;
 const NOTCH_PX = 4;
 const MARK_FONT_PX = 10;
 const BRACKET_PX = 10;
-const GATE_TICK_PX = 7;
+// The padlocks of the silent states: drawn 12 px on a panel-coloured chip (silence-tokens.test.js
+// checks them at 3:1 on the chip, the lane and every body), 3 px in from a stretch's left.
+const ICON_PX = 12;
+const ICON_PAD = 3;
+const ICON_CHIP_PAD = 1;
+// Missing media: the warning sign, as large as the lane allows (owner: ugly is fine, clarity first).
+const MISSING_SIGN_MAX = 28;
+const MISSING_EDGE_PX = 2;
 const CANDIDATE_STRIPE_ALPHA = 0.35;
 const CANDIDATE_EDGE_PX = 1;
 const CANDIDATE_EDGE_CURRENT_PX = 2;
@@ -205,7 +213,11 @@ export function createTimeline({
       const job = makeWaveformJob(state, { ...size, id: 0 }, theme.palette, {
         busBands: theme.busBands,
         clipping: theme.clipping,
-        mutedOpacity: theme.mutedOpacity,
+        silentBody: theme.silentBody,
+        preview: theme.preview,
+        missingFill: theme.damagedFill,
+        paletteInactive: theme.paletteInactive,
+        inactive: inactiveLook(state.inactiveStyle).desaturate ? dimmedTracks(state) : null,
       });
       const key = JSON.stringify(job);
       if (key === lastWaveKey) return;
@@ -249,6 +261,7 @@ export function createTimeline({
     });
     drawRange(state, height, spans);
     const dimmed = dimmedTracks(state);
+    const look = inactiveLook(state.inactiveStyle);
     for (const row of visibleRows(layout, state.scrollY, height - RULER_HEIGHT)) {
       const top = RULER_HEIGHT + row.top - state.scrollY;
       if (row.kind === "gap") continue; // plain lane between groups: nothing drawn
@@ -258,11 +271,14 @@ export function createTimeline({
       overlay.moveTo(0, top + row.height - 0.5);
       overlay.lineTo(width, top + row.height - 0.5);
       overlay.stroke();
-      if (row.kind === "track") drawTrack(state, state.project.tracks[row.index], row, top, hues);
-      // The tracks the next range operation will not touch are dimmed (lane, waveform and
-      // clips under one veil), the affected ones keep full brightness (WP83).
-      if (row.kind === "track" && dimmed.has(row.id)) drawVeil(row, top, width);
-      else drawBusRow(state, row, top, groups, hues);
+      const inactive = row.kind === "track" && dimmed.has(row.id);
+      if (row.kind === "track")
+        drawTrack(state, state.project.tracks[row.index], row, top, hues, inactive && look);
+      // The tracks the next range operation will not touch are inactive (WP83): veiled, drawn
+      // in the grey palette, or both (the view preference, silence-visuals.js inactiveLook).
+      if (inactive) {
+        if (look.veil > 0) drawVeil(row, top, width, look.veil);
+      } else drawBusRow(state, row, top, groups, hues);
     }
     drawRuler(state, rate);
     drawInOut(state, height, rate, spans);
@@ -474,7 +490,6 @@ export function createTimeline({
       const dest = state.project.tracks.find((track) => track.id === ghost.trackId);
       if (!(clip && dest)) continue;
       const entry = ghostWave(state, clip, dest, box);
-      if (clip.muted) drawHatch(box.x, box.y, box.w, box.h, theme.hatch);
       if (!entry) continue;
       const colours = theme.palette[(hues.get(dest.id) ?? 0) % theme.palette.length];
       drawGhostWave(state, entry, box, dest, colours, clip.muted);
@@ -526,10 +541,10 @@ export function createTimeline({
   // The active channel (owner, 2026-10-18: hard to tell which one is active; then: the tint made
   // empty spots hard to see, then: the top and bottom lines too). Just a wide solid bar at its left
   // edge, and the other lanes are veiled more strongly so the active one stands out.
-  function drawVeil(row, top, width) {
+  function drawVeil(row, top, width, alpha) {
     overlay.save();
     overlay.fillStyle = theme.panel;
-    overlay.globalAlpha = DIM_ALPHA;
+    overlay.globalAlpha = alpha;
     overlay.fillRect(0, top, width, row.height);
     overlay.restore();
   }
@@ -667,18 +682,47 @@ export function createTimeline({
     }
   }
 
-  function drawTrack(state, track, row, top, hues) {
+  // One lane, layer by layer in the order silence-visuals.js TRACK_LAYERS gives: the silent-state
+  // overlays (preview edges, padlocks) first, then every clip's chrome (border, name, gain line,
+  // fade handles, selection) above them, so an edge inside a closed stretch is always visible
+  // and grabbable. The waveform layer (outline-only silent stretches, the body tone) is a
+  // canvas under this whole overlay.
+  function drawTrack(state, track, row, top, hues, inactive) {
     const { width } = size;
-    const colours = theme.palette[(hues.get(track.id) ?? 0) % theme.palette.length];
-    const marked = needsFileMark(track);
-    const siblings = siblingsOf(state.project, state.selection);
-    const wordsView = clipWordsView(state);
+    const palette = inactive?.desaturate ? theme.paletteInactive : theme.palette;
+    const colours = palette[(hues.get(track.id) ?? 0) % palette.length];
     // Rows under the ruler must not paint over it.
     overlay.save();
     overlay.beginPath();
     overlay.rect(0, RULER_HEIGHT, width, size.height - RULER_HEIGHT);
     overlay.clip();
-    drawGateBands(state, track, top, row.height);
+    const painters = {
+      preview: () => drawSilencePreview(state, track, top, row.height),
+      locks: () => {
+        if (state.showGates !== false) drawGateLocks(state, track, row, top);
+      },
+      clips: () => drawClips(state, track, row, top, colours),
+      placeholders: () => drawPlaceholders(state, track, row, top),
+      collateral: () => {
+        if (state.collateral?.tracks.includes(track.id)) drawCollateral(state, track, row, top);
+      },
+      candidates: () => drawCandidates(track.id, top, row.height),
+      seams: () => drawSeams(state, track, top, row.height),
+      automation: () => drawAutomation(state, track, top, row.height),
+      previewLabel: () => drawPreviewLabel(state, track, top, row.height),
+    };
+    for (const layer of TRACK_LAYERS) painters[layer]();
+    overlay.restore();
+  }
+
+  // Each clip's chrome: border, crossfades, name (with the open padlock), words, gain line, fade
+  // handles, sibling marks, the selection outline; for missing media the error sign. No hatch:
+  // a muted clip shows as an outline-only waveform (the waveform layer).
+  function drawClips(state, track, row, top, colours) {
+    const { width } = size;
+    const marked = needsFileMark(track);
+    const siblings = siblingsOf(state.project, state.selection);
+    const wordsView = clipWordsView(state);
     for (const clip of paintOrder(track.clips)) {
       const left = frameToX(clip.start, state.scroll, state.zoom);
       const right = frameToX(clipEnd(clip), state.scroll, state.zoom);
@@ -687,10 +731,11 @@ export function createTimeline({
       const h = row.height - 4;
       const w = Math.max(1, right - left);
       const selected = state.selection.has(clip.id) || !!rangeBand?.touched?.has(clip.id);
+      const missing = state.missingMedia?.has(clip.media);
       overlay.strokeStyle = colours.ink;
       overlay.lineWidth = 1;
       overlay.strokeRect(left + 0.5, y + 0.5, w - 1, h - 1);
-      if (clip.muted) drawHatch(left, y, w, h, theme.hatch);
+      if (missing) drawMissingMedia(left, y, w, h);
       if (clip.xfade_in) drawCrossfade(left, y, h, clip.xfade_in / state.zoom, colours.ink);
       if (clip.xfade_out) drawCrossfade(right, y, h, clip.xfade_out / state.zoom, colours.ink);
       if (row.height >= 36) drawName(state, clip, left, y, w, colours, marked);
@@ -708,14 +753,75 @@ export function createTimeline({
         overlay.strokeRect(left + 1, y + 1, w - 2, h - 2);
       }
     }
-    drawPlaceholders(state, track, row, top);
-    if (state.collateral?.tracks.includes(track.id)) drawCollateral(state, track, row, top);
-    if (state.showGates !== false) drawGate(state, track, top, row.height);
-    drawSilencePreview(state, track, top, row.height);
-    drawCandidates(track.id, top, row.height);
-    drawSeams(state, track, top, row.height);
-    drawAutomation(state, track, top, row.height);
+  }
+
+  // Missing media (owner, 2026-10-21): no waveform (the waveform layer fills the body with
+  // --signal-damaged-fill and draws nothing else), a 2 px outline and a big warning sign in
+  // --signal-damaged, and the words "File missing" when they fit. Unlike a silent clip (an
+  // outline-only waveform in the track colour) it has no waveform at all.
+  function drawMissingMedia(left, y, w, h) {
+    overlay.save();
+    overlay.beginPath();
+    overlay.rect(left, y, w, h);
+    overlay.clip();
+    overlay.strokeStyle = theme.damaged;
+    overlay.lineWidth = MISSING_EDGE_PX;
+    overlay.strokeRect(left + 1, y + 1, w - 2, h - 2);
+    const sign = Math.min(MISSING_SIGN_MAX, h - 8, w - 8);
+    if (sign >= 10) {
+      const visibleLeft = Math.max(left, 0);
+      const visibleRight = Math.min(left + w, size.width);
+      const x = Math.max(visibleLeft + 4, (visibleLeft + visibleRight) / 2 - sign / 2);
+      const signY = y + (h - sign) / 2;
+      drawIcon("alert", x, signY, sign, theme.damaged, 2);
+      const label = t("ui.media.missing_clip");
+      overlay.font = `600 ${NAME_FONT_PX}px ${theme.font}`;
+      overlay.textBaseline = "middle";
+      const textX = x + sign + 6;
+      if (textX + overlay.measureText(label).width < visibleRight - 4) {
+        overlay.fillStyle = theme.damaged;
+        overlay.fillText(label, textX, y + h / 2);
+      }
+    }
     overlay.restore();
+  }
+
+  // An icon of icons.js (24 px grid, stroke paths) drawn at `px` on the canvas: the same shapes
+  // as the buttons', so the timeline and the panels speak one icon language.
+  const iconPaths = new Map();
+  function drawIcon(name, x, y, px, colour, stroke = 2.4) {
+    let path = iconPaths.get(name);
+    if (!path) {
+      path = new Path2D(ICONS[name]);
+      iconPaths.set(name, path);
+    }
+    overlay.save();
+    overlay.translate(x, y);
+    overlay.scale(px / 24, px / 24);
+    overlay.strokeStyle = colour;
+    overlay.lineWidth = stroke;
+    overlay.lineCap = "round";
+    overlay.lineJoin = "round";
+    overlay.stroke(path);
+    overlay.restore();
+  }
+
+  // A padlock on a small chip of the panel colour, so it reads on a filled or an outline-only
+  // waveform alike.
+  function drawPadlock(name, x, y, colour) {
+    overlay.save();
+    overlay.fillStyle = theme.panel;
+    overlay.beginPath();
+    overlay.roundRect(
+      x - ICON_CHIP_PAD,
+      y - ICON_CHIP_PAD,
+      ICON_PX + 2 * ICON_CHIP_PAD,
+      ICON_PX + 2 * ICON_CHIP_PAD,
+      3,
+    );
+    overlay.fill();
+    overlay.restore();
+    drawIcon(name, x, y, ICON_PX, colour);
   }
 
   // Narration placeholders (WP43): the `placeholder` signal of grammar.js: a dashed 1 px
@@ -802,38 +908,51 @@ export function createTimeline({
     overlay.restore();
   }
 
-  // The gate (WP44): each closed stretch is hatched like a muted clip (drawGateBands) and gets
-  // a small tick at each edge, the one difference, since a band has no outline of its own.
-  // The waveform under it is drawn flat by the waveform layer. Runs are merged
-  // pixels (gate.js), so thousands of ranges cost a few rectangles.
+  // The gate (WP44): each closed stretch's waveform is outline only (the waveform layer) and
+  // carries a padlock at the left of its visible part, in the label strip, never over a clip
+  // border, a fade handle or a clip name (silence-visuals.js lockSpots). A stretch too narrow
+  // for the icon gets none: the outline alone says silent. Runs are merged pixels (gate.js), so
+  // thousands of ranges cost a few icons at most.
   const gateRuns = [];
-  function drawGate(state, track, top, rowHeight) {
-    if (!track.gate?.length) return;
+  function drawGateLocks(state, track, row, top) {
+    if (!track.gate?.length || row.height < 24) return;
     const runs = gatePixelRuns(track.gate, state.scroll, state.zoom, size.width, gateRuns);
     if (runs.length === 0) return;
-    const y = top + 2;
-    const h = rowHeight - 4;
-    const tick = Math.min(GATE_TICK_PX, Math.floor(h / 3));
-    overlay.fillStyle = theme.muted;
-    for (let i = 0; i < runs.length; i += 2) {
-      if (runs[i] > 0) overlay.fillRect(runs[i], y + h - tick, 1, tick);
-      if (runs[i + 1] < size.width) overlay.fillRect(runs[i + 1] - 1, y + h - tick, 1, tick);
+    const blocked = [];
+    overlay.font = `600 ${NAME_FONT_PX}px ${theme.font}`;
+    for (const clip of track.clips) {
+      const left = frameToX(clip.start, state.scroll, state.zoom);
+      const right = frameToX(clipEnd(clip), state.scroll, state.zoom);
+      if (right < -EDGE_PX || left > size.width + EDGE_PX) continue;
+      blocked.push([left - EDGE_PX, left + EDGE_PX], [right - EDGE_PX, right + EDGE_PX]);
+      const handles = fadeHandles(clip, { left, right, zoom: state.zoom });
+      for (const side of ["in", "out"])
+        blocked.push([handles[side].x - POINT_RADIUS - 2, handles[side].x + POINT_RADIUS + 2]);
+      // The clip's name strip starts at its visible left; keep the lock clear of the name.
+      if (row.height >= 36) blocked.push([Math.max(left, 0), Math.max(left, 0) + 5 + 120]);
     }
+    const y = top + 2 + 3;
+    for (const x of lockSpots(runs, { iconPx: ICON_PX, pad: ICON_PAD, blocked }))
+      drawPadlock("lock", x, y, theme.gateLock);
   }
 
   // The Auto-Silence live preview (silence-panel.js): what the options WOULD close, only
-  // while the panel is open. Its own look (paint.js drawPreviewBands: a light veil, a hatch
-  // the other way, dashed edges) and the word "preview" at the lane's left edge, so it is
-  // never read as a committed gate; the committed gate keeps its look under it. Shown even
-  // when the user hides gates: the panel is open to look at exactly this.
+  // while the panel is open. The waveform layer outlines those stretches in the preview teal;
+  // here the dashed edges (paint.js drawPreviewBands) and, last of the lane, the word
+  // "preview" at its left edge, so it is never read as a committed gate (outline in the track
+  // colour plus a padlock). Shown even when the user hides gates: the panel is open for this.
   const previewRuns = [];
   function drawSilencePreview(state, track, top, rowHeight) {
     const ranges = state.silencePreview?.get(track.id);
     if (!ranges) return;
+    const runs = gatePixelRuns(ranges, state.scroll, state.zoom, size.width, previewRuns);
+    drawPreviewBands(overlay, runs, top + 2, rowHeight - 4, { edge: theme.preview });
+  }
+
+  function drawPreviewLabel(state, track, top, rowHeight) {
+    if (!state.silencePreview?.get(track.id)) return;
     const y = top + 2;
     const h = rowHeight - 4;
-    const runs = gatePixelRuns(ranges, state.scroll, state.zoom, size.width, previewRuns);
-    drawPreviewBands(overlay, runs, y, h, { fill: theme.previewFill, edge: theme.preview });
     if (h < NAME_FONT_PX + 4) return;
     overlay.save();
     overlay.font = `${NAME_FONT_PX}px ${theme.font}`;
@@ -845,14 +964,6 @@ export function createTimeline({
     overlay.fillStyle = theme.preview;
     overlay.fillText(label, 4, y + h - 2);
     overlay.restore();
-  }
-
-  // The hatch of the gate: the same drawing as a muted clip's, drawn before the clips so it
-  // sits on the same layer (under names, gain lines and the selection outline).
-  function drawGateBands(state, track, top, rowHeight) {
-    if (state.showGates === false || !track.gate?.length) return;
-    const runs = gatePixelRuns(track.gate, state.scroll, state.zoom, size.width, gateRuns);
-    drawGateHatch(overlay, runs, top + 2, rowHeight - 4, theme.hatch);
   }
 
   // Open cut candidates (WP18): a faint fill with 1 px edges on every lane the cut would
@@ -907,7 +1018,7 @@ export function createTimeline({
   }
 
   function drawHatch(x, y, w, h, colour) {
-    drawSilenceHatch(overlay, x, y, w, h, colour);
+    drawDiagonalHatch(overlay, x, y, w, h, colour);
   }
 
   // A crossfade is a darker triangle pair centred on the edge: one falling, one rising.
@@ -1133,6 +1244,18 @@ export function createTimeline({
     overlay.fillStyle = colours.label;
     overlay.fillText(text, x, y + 3);
     overlay.restore();
+    // A clip that keeps the mic open: the open padlock after its name (the pair of the gate's
+    // closed one), clear of the right edge zone and the badges there.
+    if (clip.ungated) {
+      const badges = clip.group || syncRowsOf(state).has(clip.id) ? 40 : 0;
+      const spot = openLockSpot({
+        after: x + textWidth + 3,
+        limit: Math.min(left + w, size.width) - EDGE_PX - badges,
+        iconPx: ICON_PX,
+        gap: 4,
+      });
+      if (spot !== null) drawPadlock("unlock", spot, y + 3, theme.gateOpen);
+    }
   }
 
   // Words in the clips (WP69, clip-words.js). Nothing is looked up when the option is off, there
@@ -1177,7 +1300,7 @@ export function createTimeline({
     overlay.beginPath();
     overlay.rect(left + 1, rowY, w - 2, WORDS_ROW_H);
     overlay.clip();
-    const base = clip.muted ? theme.mutedOpacity : 1;
+    const base = 1; // a muted clip is outline-only, never dimmed (SILENCE-VISUALS.md)
     overlay.textBaseline = "top";
     overlay.fillStyle = colours.fill;
     overlay.globalAlpha = base * WORDS_BACKING_ALPHA;
@@ -1512,8 +1635,11 @@ export function createTimeline({
   function hoverGate(event) {
     const hit = hitAt(event);
     let text = "";
+    const lost = hit.clip && getState().missingMedia?.has(hit.clip.media);
     if (hit.placeholder && !hit.clip) text = t("ui.placeholders.hover");
+    else if (lost) text = t("ui.media.missing_hover");
     else if (hit.gate) text = t("ui.gate.hover");
+    else if (hit.clip?.ungated) text = t("ui.gate.open_hover");
     else if (hit.clip && Object.hasOwn(clipOvers, hit.clip.id))
       text = overLabel(clipOvers[hit.clip.id], t, (value) => formatNumber(value, { digits: 1 }));
     else if (hit.clip) text = syncTooltip(getState(), hit.clip);
@@ -1577,6 +1703,11 @@ export function createTimeline({
     if (event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return;
     const hit = hitAt(event);
     const { gate, placeholder, clip } = hit;
+    // A clip whose file is missing: straight to File > Locate media… (owner, 2026-10-21).
+    if (clip && hit.row?.kind === "track" && getState().missingMedia?.has(clip.media)) {
+      actions.locateMedia?.();
+      return;
+    }
     // Near a clip's gain line (or on one of its points): add or remove an envelope point.
     // Anywhere else the double-click keeps its other meanings below.
     if (clip && hit.row?.kind === "track" && !hit.edge) {

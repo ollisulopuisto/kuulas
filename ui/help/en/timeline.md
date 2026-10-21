@@ -23,6 +23,13 @@ Two-finger scrolling on a trackpad zooms the time axis around the pointer by def
 
 Zoomed in far enough to read them, each speech clip writes its words under its name, so you see which word is where in the waveform. The word under the play cursor is brighter, and words you select in the transcript stand out. {run:view.clip_words}
 
+## How silence looks
+- Filled waveform: it sounds. Outline only: it is silent, muted or closed by Auto-Silence; the clip body is a little darker there.
+- A padlock marks a stretch closed by Auto-Silence; a muted clip has none. An open padlock after a clip's name means the clip keeps the mic open.
+- Clip edges stay visible and draggable inside a silent stretch.
+- Grey or dimmed lanes are not part of the next operation (View > Lanes outside the operation).
+- A clip whose audio file is missing shows a red warning sign and no waveform. Double-click it to locate the file.
+
 ## Jump to a time
 - Click the big time in the corner to copy it to the clipboard; double-click it, or press {key:spot}, to type a time and jump there. Confirming the field jumps; leaving it cancels.
 - Type 1:23.5 (or 83,2) for that time, or start with + or - to move from the play cursor: +100 is 100 seconds on, -30 is 30 back, +1:30 is 90 on, +500ms is half a second. The result stays inside the edit.

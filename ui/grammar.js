@@ -3,11 +3,13 @@
 // carries ONE meaning, so a glance reads the same way everywhere:
 //
 //   hue, tone   identity: who speaks (track hue), which file (tone step)
-//   opacity     audibility: muted, not heard because of solo, unused
+//   opacity     audibility: not heard because of solo, unused
+//   fill        silence: a FILLED waveform sounds, an OUTLINE-only one is silent (muted clip,
+//               stretch closed by Auto-Silence); never hatched (docs/design/SILENCE-VISUALS.md)
 //   weight      selection: the 2 px neutral outline
 //   dash        reality: dashed = not real audio yet (placeholder, pending)
 //   scope       edit scope: what the next time-shifting edit takes along
-//   pattern     absent or maybe absent: muted hatch, cut candidate, damaged, removed
+//   pattern     absent or maybe absent: cut candidate, damaged, removed
 //   strip       role: speech, music (top edge; off on the timeline)
 //   badge       facts: sync group, drift, free, file mark, takes, label
 //   cap         level: clipping
@@ -28,6 +30,7 @@ export const CHANNELS = [
   "hue",
   "tone",
   "opacity",
+  "fill",
   "weight",
   "dash",
   "scope",
@@ -114,13 +117,13 @@ export const SIGNALS = [
   },
   {
     id: "muted",
-    channel: "opacity",
-    meaning: "audibility",
+    channel: "fill",
+    meaning: "silence",
     priority: 1,
     atRest: true,
     always: true,
-    tokens: ["--signal-muted-hatch", "--signal-muted-opacity"],
-    twin: "diagonal hatch over the clip; M pressed in the header for a muted track",
+    tokens: ["--signal-silent-body"],
+    twin: "the waveform loses its fill and shows only its outline, the body toned down a little; no lock (that is the one difference from a gated stretch); the context menu says 'Unmute'",
     when: "the clip is muted",
     key: "N",
     status: "built",
@@ -140,16 +143,28 @@ export const SIGNALS = [
   },
   {
     id: "gate",
-    channel: "opacity",
-    meaning: "audibility",
+    channel: "fill",
+    meaning: "silence",
     priority: 1,
     atRest: true,
     always: true,
-    tokens: ["--signal-muted-hatch", "--signal-gate", "--signal-gate-opacity"],
-    twin: "the same diagonal hatch as a muted clip (--signal-muted-hatch), the waveform under the band drawn flat (a 1 px floor line) and a small gate tick at each edge; hover says 'Mic closed by Auto-Silence' and offers 'Open this stretch'",
+    tokens: ["--signal-silent-body", "--signal-gate-lock"],
+    twin: "the waveform under the stretch is outline only (like a muted clip) and a padlock sits at the left of its visible part (the shape is the cue, the amber colour the twin); no hatch, so clip borders stay visible; hover says 'Mic closed by Auto-Silence' and offers 'Open this stretch'",
     when: "Auto-Silence: one merged gate per track closes the mic (WP44); a per-lane toggle shows or hides it",
     key: "Alt+Mod+P runs Auto-Silence",
     status: "prototype",
+  },
+  {
+    id: "ungated",
+    channel: "badge",
+    meaning: "facts",
+    priority: 2,
+    atRest: true,
+    tokens: ["--signal-gate-open"],
+    twin: "an open padlock after the clip name (the pair of the gate's closed padlock); its waveform is simply filled; the context menu says 'Let Auto-Silence gate the clips again'",
+    when: "the clip keeps the mic open (Clip.ungated): Auto-Silence never closes under it",
+    key: "context menu: Keep the mic open under clips",
+    status: "built",
   },
   {
     id: "unused",
@@ -507,7 +522,7 @@ export const SIGNALS = [
     whenNotAtRest: "only while the Compare bar or the Auto-Silence options panel is open",
     always: true,
     tokens: ["--signal-preview", "--signal-preview-fill"],
-    twin: "Compare: a dashed top band over the compared range with the slot letter ('A', 'B') in it, and the Compare bar itself. Auto-Silence options: each stretch that would close gets a light veil, a hatch running the other way from a committed gate's and dashed top and bottom edges, the lane says 'preview' at its left edge, and the panel lists the numbers",
+    twin: "Compare: a dashed top band over the compared range with the slot letter ('A', 'B') in it, and the Compare bar itself. Auto-Silence options: the waveform of each stretch that would close is outlined in the preview teal with dashed top and bottom edges (no veil, no hatch), the lane says 'preview' at its left edge, and the panel lists the numbers",
     when: "a Compare preview is playing, or the Auto-Silence options panel shows what it would close: nothing is committed until 'Keep this one' or Accept",
     key: "` flips, 1–4 pick a slot, Enter keeps, Esc discards",
     status: "prototype",
@@ -570,6 +585,9 @@ export const SEMANTIC_TOKENS = [
   "--signal-soft-cut-fill",
   "--signal-gate",
   "--signal-gate-opacity",
+  "--signal-silent-body",
+  "--signal-gate-lock",
+  "--signal-gate-open",
   "--signal-damaged",
   "--signal-damaged-fill",
   "--signal-removed",

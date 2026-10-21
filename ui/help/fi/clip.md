@@ -13,7 +13,7 @@ Leike on pala yhdestä äänityksestä raidalla. Samasta äänityksestä voi oll
 - Leikkaa: {key:edit.cut}. Kopioi leikepöydälle ja sulkee välin tahdistusryhmän jokaiselta raidalta.
 - Nosta: {key:edit.lift_cut}. Kopioi leikepöydälle ja poistaa pehmeästi paikallaan: väli jää ja sen voi palauttaa.
 - Sulje aukko kaikilta raidoilta: {key:edit.close_gap_all}. Poistaa valinnan tai merkityn välin jokaiselta raidalta ja sulkee aukon; leikepöytä ei muutu.
-- Mykistä leike: {key:clip.mute}. Mykistetty leike on haalea ja viivoitettu.
+- Mykistä leike: {key:clip.mute}. Mykistetty leike säilyttää värinsä, mutta sen aaltomuodosta jää vain ääriviiva, joten näet yhä, mikä on hiljennetty.
 - Pikamykistys (maiskahdukset): {key:clip.quick_mute}. Mykistää lyhyen jakson toistokohdan ympäriltä (oletus 0,5 s, asetus Asetuksissa) kaikilta raidoilta tai valituilta; toimii myös toiston aikana. Yksi kumoamisaskel; mitään ei poisteta.
 - Häivytys sisään ja ulos: {key:clip.fade}
 
