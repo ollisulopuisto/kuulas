@@ -1237,7 +1237,8 @@ class Session:
                     self, params, settings,
                     lambda fraction, message="", indeterminate=False: progress(
                         fraction, message, indeterminate),
-                    progress.cancelled_event, live=self.automix_live_add)
+                    progress.cancelled_event, live=self.automix_live_add,
+                    eta=progress.set_eta)
             except automix_module.AutomixError as e:
                 self.last_automix_log = e.params.get("log_file") or self.last_automix_log
                 raise

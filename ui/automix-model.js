@@ -1,3 +1,5 @@
+import { etaLabel, etaVisible } from "./eta-label.js";
+
 // Mix with the automixer (WP68): pure parts of the dialog and its notice. The dialog itself
 // is automix-dialog.js; the job runs on the server (src/kuulas/automix.py).
 
@@ -228,6 +230,11 @@ export function automixNotice(job, t) {
       percent: Math.round(progress * 100),
       line: job.message ?? "",
     });
+  }
+  if (!job.indeterminate) {
+    const percent = Math.round(progress * 100);
+    const label = etaVisible(percent) ? etaLabel(job.eta) : null;
+    if (label) text += ` \u00b7 ${t(label.key, label.params)}`;
   }
   return { kind: "ok", text, sticky: true, cancel: true, reveal: false };
 }

@@ -53,6 +53,9 @@ from . import (
     plugins,
     toolpath,
 )
+from . import (
+    eta as eta_module,
+)
 from .jobs import JobCancelledError
 from .messages import KuulasError, t
 
@@ -1031,16 +1034,30 @@ def mark_skipped(message: str, options: dict) -> str:
     return message if on else t("ui.automix.stage_skipped", message=message)
 
 
+def _eta_json(seconds: int | None) -> list | None:
+    """``remaining_parts`` with tuples as lists (as listed); None: no estimate."""
+    parts = eta_module.remaining_parts(seconds)
+    if parts is None:
+        return None
+    kind, value = parts
+    return [kind, list(value) if isinstance(value, tuple) else value]
+
+
 def run(session, params: dict, settings: dict, report: Report,
         cancel: threading.Event, run_process: RunProcess = run_process,
-        live: Callable[[str], None] | None = None) -> dict:
+        live: Callable[[str], None] | None = None,
+        eta: Callable[[list | None], None] | None = None,
+        clock: Callable[[], float] = time.monotonic) -> dict:
     """Export the stems, run the automixer, return ``{"path", "name", "log",
     "command"}``. ``params``: ``target_lufs`` (default -16), ``ad_spot``,
     ``ad_duration`` (seconds), ``extra_args`` (replaces the setting for this
     run). ``report(fraction, message="", indeterminate=False)`` says how far
     it is. Raises ``AutomixError``, or ``JobCancelledError`` after cancel; the
     temporary folder and any partial output are removed in every case. ``live``,
-    when given, also hears every log line as it is printed (the live log viewer)."""
+    when given, also hears every log line as it is printed (the live log viewer).
+    ``eta``, when given, hears the time left (``eta.remaining_parts`` as a JSON-friendly
+    list, or None before there is an estimate) at every update of the automixer's own
+    progress; ``clock`` is the time source for that."""
     emit = live or (lambda _line: None)
     lufs, ad_spot, ad_duration = validate_params(params)
     check_rate(session)
@@ -1148,6 +1165,7 @@ def run(session, params: dict, settings: dict, report: Report,
         project_name = str(title)
 
         reached = [stems_share]  # the bar never goes back, whatever the tool prints
+        sampler = eta_module.EtaSampler()
 
         def shown(raw: str) -> str:
             """The progress line: step numbers, what is done and what works now."""
@@ -1163,6 +1181,9 @@ def run(session, params: dict, settings: dict, report: Report,
             share = min(100.0, max(0.0, float(percent))) / 100
             reached[0] = max(reached[0], run_from + run_span * 0.99 * share)
             report(reached[0], shown(message))
+            if eta is not None:  # only the automixer phase gives samples
+                sampler.add(clock() - ran[0], (reached[0] - run_from) / run_span)
+                eta(_eta_json(sampler.estimate()))
 
         def on_event(event: dict[str, Any]) -> None:
             kind = event.get("event")
@@ -1212,7 +1233,7 @@ def run(session, params: dict, settings: dict, report: Report,
                 report(reached[0], shown(line), indeterminate=reached[0] <= run_from)
 
         log.info("Running %s", cmd)
-        ran = [time.monotonic(), None]  # when the tool started and ended
+        ran = [clock(), None]  # when the tool started and ended
         spent = {"upload": 0.0, "download": 0.0}
         code: int | None = None
         host = remote["host"] if remote else None
@@ -1222,7 +1243,7 @@ def run(session, params: dict, settings: dict, report: Report,
             out = {"stems": stems_took}
             if remote:
                 out["upload"] = spent["upload"]
-            out["automixer"] = (ran[1] or time.monotonic()) - ran[0]
+            out["automixer"] = (ran[1] or clock()) - ran[0]
             if remote:
                 out["download"] = spent["download"]
             return out
@@ -1281,7 +1302,7 @@ def run(session, params: dict, settings: dict, report: Report,
             if up != 0:
                 transfer_failed(up)
             reached[0] = max(reached[0], run_from)
-            ran[0] = time.monotonic()
+            ran[0] = clock()
             report(reached[0], steps.label(""), indeterminate=True)
 
         remote_running = remote is not None
@@ -1295,7 +1316,7 @@ def run(session, params: dict, settings: dict, report: Report,
                               command=" ".join(settings["command"]) if not remote
                               else remote["ssh_command"][0],
                               cwd=settings["cwd"] or ""))
-        ran[1] = time.monotonic()
+        ran[1] = clock()
         # ssh answers 255 when the link broke; the tool may still be running over there
         lost = remote is not None and code == SSH_LOST and not cancel.is_set()
         remote_running = remote is not None and (cancel.is_set() or lost)
