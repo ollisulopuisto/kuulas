@@ -1689,7 +1689,7 @@ input[type="text"] {
 
 /* -- help (WP48; GUI-DESIGN.md "Contextual help") -------------------------------------------- */
 /* Docked over the sidebar's other panels while open: not a modal, the timeline stays live. */
-.sidebar[data-help-open] > .panel:not(.help-panel) {
+.sidebar[data-help-open] > .panel:not(.help-panel, .silence-panel) {
   display: none;
 }
 .help-panel[hidden] {
@@ -3947,16 +3947,66 @@ legend.form-heading {
   }
 }
 
-/* Auto-Silence options: the automixer dialog's two-column form */
-.silence-dialog {
-  width: min(640px, 94vw);
+/* Auto-Silence options: the live preview panel (silence-panel.js), docked over the sidebar's
+   panels like Help: not a modal, the lanes stay visible and clickable. With Help open as well
+   the two share the sidebar's height. */
+.sidebar[data-silence-open] > .side-tabs {
+  display: none;
 }
-.silence-preview {
+.sidebar[data-silence-open] > .panel:not(.silence-panel, .help-panel) {
+  display: none;
+}
+.silence-panel[hidden] {
+  display: none;
+}
+.silence-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--row-gap);
+  overflow-y: auto;
+}
+.silence-head {
+  display: flex;
+  align-items: center;
+  min-height: calc(var(--control-h) + var(--space-4));
+  margin: 0 calc(-1 * var(--pad-panel));
+  padding: 0 var(--pad-panel);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.sidebar .silence-panel .silence-head h2 {
+  position: static;
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+  clip-path: none;
+  border: 0;
+  font-size: var(--text-lg);
+}
+.silence-measuring[hidden] {
+  display: none;
+}
+.silence-progress {
+  flex: 1;
+  min-width: 0;
+}
+.silence-slider input[type="range"] {
+  flex: 1;
+  min-width: 0;
+}
+.silence-more > summary {
+  cursor: pointer;
+}
+.silence-more[open] > summary {
+  margin-bottom: var(--row-gap);
+}
+.silence-summary {
   display: grid;
   gap: var(--space-1);
-  min-height: var(--control-h);
   font-size: var(--text-sm);
   color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
 }
 .silence-line {
   margin: 0;

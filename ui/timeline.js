@@ -66,6 +66,7 @@ import { advanceDelta, movedSpans, moveTargets, snapMove } from "./move-snap.js"
 import {
   baseGainDb,
   drawGateHatch,
+  drawPreviewBands,
   drawSilenceHatch,
   makeWaveformJob,
   scaleFor,
@@ -710,6 +711,7 @@ export function createTimeline({
     drawPlaceholders(state, track, row, top);
     if (state.collateral?.tracks.includes(track.id)) drawCollateral(state, track, row, top);
     if (state.showGates !== false) drawGate(state, track, top, row.height);
+    drawSilencePreview(state, track, top, row.height);
     drawCandidates(track.id, top, row.height);
     drawSeams(state, track, top, row.height);
     drawAutomation(state, track, top, row.height);
@@ -817,6 +819,32 @@ export function createTimeline({
       if (runs[i] > 0) overlay.fillRect(runs[i], y + h - tick, 1, tick);
       if (runs[i + 1] < size.width) overlay.fillRect(runs[i + 1] - 1, y + h - tick, 1, tick);
     }
+  }
+
+  // The Auto-Silence live preview (silence-panel.js): what the options WOULD close, only
+  // while the panel is open. Its own look (paint.js drawPreviewBands: a light veil, a hatch
+  // the other way, dashed edges) and the word "preview" at the lane's left edge, so it is
+  // never read as a committed gate; the committed gate keeps its look under it. Shown even
+  // when the user hides gates: the panel is open to look at exactly this.
+  const previewRuns = [];
+  function drawSilencePreview(state, track, top, rowHeight) {
+    const ranges = state.silencePreview?.get(track.id);
+    if (!ranges) return;
+    const y = top + 2;
+    const h = rowHeight - 4;
+    const runs = gatePixelRuns(ranges, state.scroll, state.zoom, size.width, previewRuns);
+    drawPreviewBands(overlay, runs, y, h, { fill: theme.previewFill, edge: theme.preview });
+    if (h < NAME_FONT_PX + 4) return;
+    overlay.save();
+    overlay.font = `${NAME_FONT_PX}px ${theme.font}`;
+    overlay.textBaseline = "bottom";
+    const label = t("ui.silence.lane_label");
+    const w = overlay.measureText(label).width + 8;
+    overlay.fillStyle = theme.panel;
+    overlay.fillRect(0, y + h - NAME_FONT_PX - 4, w, NAME_FONT_PX + 4);
+    overlay.fillStyle = theme.preview;
+    overlay.fillText(label, 4, y + h - 2);
+    overlay.restore();
   }
 
   // The hatch of the gate: the same drawing as a muted clip's, drawn before the clips so it

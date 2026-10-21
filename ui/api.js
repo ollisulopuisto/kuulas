@@ -127,6 +127,16 @@ export const exportTracks = (options = {}) => post("/api/export-tracks", options
 /** What Auto-Silence with these options would close, per track; changes nothing. Answers
  * { jobs: [job id] }; the finished job's `result` is { tracks: [{ name, close_s, stretches, now_s }] }. */
 export const autoSilencePreview = (options = {}) => post("/api/auto-silence/preview", options);
+// The Auto-Silence live preview panel (silence-panel.js). Measure once: { ready, jobs, key }.
+export const silenceMeasure = () => post("/api/silence/measure", {});
+/** The closed ranges these options give, and the engine plays them (409: measure first):
+ * { tracks: [{ track_id, name, ranges, close_s, stretches, total_s, now_s }], key }. */
+export const silenceRanges = (options, seq) => post("/api/silence/ranges", { ...options, seq });
+/** Commit what the preview shows (one undo step); answers the state. */
+export const silenceAccept = (options, key, seq) =>
+  post("/api/silence/accept", { ...options, key, seq });
+/** Close the panel: the engine plays the project again, nothing is committed. */
+export const silenceClose = (seq) => post("/api/silence/close", { seq });
 /** Set music level: a job that measures the speech and the music beds; changes nothing. */
 export const musicLevelMeasure = (options = {}) => post("/api/music-level/measure", options);
 /** Duck music: a cancellable speech analysis job; the result is passed to the one-step command. */

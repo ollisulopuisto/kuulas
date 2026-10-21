@@ -294,3 +294,48 @@ export function drawGateHatch(ctx, runs, y, h, colour) {
   for (let i = 0; i < runs.length; i += 2)
     drawSilenceHatch(ctx, runs[i], y, runs[i + 1] - runs[i], h, colour);
 }
+
+/** The dash of the preview's band edges: the "preview" signal is a dash (grammar.js). */
+export const PREVIEW_DASH = [4, 3];
+
+/**
+ * The Auto-Silence live preview's closed stretches (pixel runs as gatePixelRuns gives them):
+ * a light veil (`colours.fill`), a hatch running the other way from a committed gate's, and
+ * dashed top and bottom edges (`colours.edge`). Three differences besides the colour, so the
+ * preview never reads as a committed gate. The waveform under it is left as it is: what would
+ * be closed stays visible.
+ */
+export function drawPreviewBands(ctx, runs, y, h, colours) {
+  if (runs.length === 0) return;
+  ctx.save();
+  ctx.fillStyle = colours.fill;
+  for (let i = 0; i < runs.length; i += 2) ctx.fillRect(runs[i], y, runs[i + 1] - runs[i], h);
+  ctx.strokeStyle = colours.edge;
+  ctx.lineWidth = 1;
+  for (let i = 0; i < runs.length; i += 2) {
+    const x = runs[i];
+    const w = runs[i + 1] - x;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.clip();
+    ctx.beginPath();
+    for (let offset = -h; offset < w; offset += HATCH_STEP * 2) {
+      ctx.moveTo(x + offset, y);
+      ctx.lineTo(x + offset + h, y + h);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.setLineDash(PREVIEW_DASH);
+  ctx.beginPath();
+  for (let i = 0; i < runs.length; i += 2) {
+    ctx.moveTo(runs[i], y + 0.5);
+    ctx.lineTo(runs[i + 1], y + 0.5);
+    ctx.moveTo(runs[i], y + h - 0.5);
+    ctx.lineTo(runs[i + 1], y + h - 0.5);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}

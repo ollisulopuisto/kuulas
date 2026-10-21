@@ -87,7 +87,7 @@ element as a hook, but only next to their shared class; the test lists them (`LE
 ## Dialogs
 
 - `dialog.cheatsheet`: padding `--space-6`, radius `--radius-lg`; width 640 px for a form
-  (`.automix-dialog`, `.silence-dialog`), 560 px for the record view.
+  (`.automix-dialog`), 560 px for the record view.
 - Order: the title (`h2`, `--text-lg`, `--space-5` under it), an optional intro `.form-note`,
   the form (`.form-grid`), the footer.
 - **Footers** (`.cheatsheet-footer`): right-aligned block buttons; Cancel / Close, then the
@@ -112,8 +112,8 @@ The label goes above its field (one column) and check rows lose their indent.
 
 ## Where it is used (2026-10-20)
 
-Automix, Export (mix and tracks), Preferences, Send a copy, Locate media, Auto-Silence
-options, Colab settings / upload notice / sign-in, New and Open project, Statistics (footer,
+Automix, Export (mix and tracks), Preferences, Send a copy, Locate media, the Auto-Silence
+options panel, Colab settings / upload notice / sign-in, New and Open project, Statistics (footer,
 note), Performance report, Record view (setup rows, footer), Sync confirm (footer), the
 placeholder editor, the inspector (track, bus and clip sections), the clipboard panel (paste
 choices, keep-count field, view switch), the candidates filter, the import panel. The cheat
