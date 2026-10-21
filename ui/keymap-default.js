@@ -1259,7 +1259,7 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "export.mix_options",
-    keys: { mac: "Shift+Mod+E", other: "Shift+Mod+E" },
+    keys: { mac: "Alt+Mod+E", other: "Alt+Mod+E" },
     context: "global",
     labelKey: "cmd.export.mix_options",
   },
@@ -1379,14 +1379,14 @@ export const DEFAULT_KEYMAP = [
   // The plan's Tracks key (WP11); now the options version of the all-tracks export.
   {
     id: "export.tracks",
-    keys: { mac: "Shift+Alt+Mod+E", other: "Shift+Alt+Mod+E" },
+    keys: { mac: null, other: null },
     context: "global",
     labelKey: "cmd.export.tracks",
   },
   // The same export without the folder question: the default one, on Alt+Mod+E.
   {
     id: "export.tracks_quick",
-    keys: { mac: "Alt+Mod+E", other: "Alt+Mod+E" },
+    keys: { mac: null, other: null },
     context: "global",
     labelKey: "cmd.export.tracks_quick",
   },
@@ -1401,7 +1401,7 @@ export const DEFAULT_KEYMAP = [
   ),
   {
     id: "export.automix",
-    keys: { mac: null, other: null },
+    keys: { mac: "Shift+Mod+E", other: "Shift+Mod+E" },
     context: "global",
     labelKey: "cmd.export.automix",
   },
