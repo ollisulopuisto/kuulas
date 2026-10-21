@@ -72,6 +72,9 @@ export const getStats = () => json("/api/stats");
 export const getMediaStatus = () => json("/api/media/status");
 /** Look under a folder by SHA-256: { found: [{ id, name, path }], still_missing, partial }. */
 export const locateMedia = (folder) => post("/api/media/locate", { folder });
+/** Clip > Locate / Relink media…: import `path` and say what replacing `media_id` by it means. */
+export const replaceCheck = (mediaId, path) =>
+  post("/api/media/replace-check", { media_id: mediaId, path });
 /** File > Send a copy… (WP32): what each choice would carry: { none, used, all: { bytes, ... }, offline }. */
 export const getSendCopyPlan = () => json("/api/send-copy/plan");
 /** Write the copy: { path, copy, media, carried, relink, unavailable, bytes }. */

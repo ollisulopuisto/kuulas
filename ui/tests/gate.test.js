@@ -1,13 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import {
-  flatBar,
-  GATE_OPEN_COMMAND,
-  gateAt,
-  gatePixelRuns,
-  openStretchEdit,
-  stretchAt,
-} from "../gate.js";
+import { GATE_OPEN_COMMAND, gateAt, gatePixelRuns, openStretchEdit, stretchAt } from "../gate.js";
 
 describe("gatePixelRuns", () => {
   test("clips to the visible frames and returns pixel pairs", () => {
@@ -80,13 +73,6 @@ describe("gateAt", () => {
     assert.equal(gateAt(ranges, 3005, 10), 1);
     assert.equal(gateAt(ranges, 3020, 10), 1);
     assert.equal(gateAt(ranges, 3100, 10), -1);
-  });
-});
-
-describe("flatBar", () => {
-  test("a 1 px floor line: at the bottom for half, on the centre for full", () => {
-    assert.deepEqual(flatBar("half", 40), [39, 40]);
-    assert.deepEqual(flatBar("full", 40), [19.5, 20.5]);
   });
 });
 

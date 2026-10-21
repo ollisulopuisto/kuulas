@@ -71,12 +71,6 @@ export function gateAt(ranges, frame, zoom) {
   return -1;
 }
 
-/** [top, bottom] of the flat 1 px floor line the waveform shows under a gate. */
-export function flatBar(mode, height) {
-  if (mode === "full") return [height / 2 - 0.5, height / 2 + 0.5];
-  return [height - 1, height];
-}
-
 /** The one edit "Open this stretch" makes: the whole range, one undo step. */
 export function openStretchEdit(trackId, [start, end]) {
   return { op: "remove_gate_range", args: { track_id: trackId, start, end } };

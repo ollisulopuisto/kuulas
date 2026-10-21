@@ -69,6 +69,28 @@ test("readTheme resolves the registry once: hues, bus colours and signals", () =
   assert.equal(new Set(asked).size, asked.length, "every token is read once");
 });
 
+test("readTheme carries the silent-state colours and the grey palette, made once", () => {
+  const values = {
+    "--track-0-body": "#eef6ea",
+    "--track-0-wave": "#1157a4",
+    "--signal-silent-body": "rgb(16 24 28 / 0.06)",
+    "--signal-gate-lock": "#693c00",
+    "--signal-gate-open": "#1f4106",
+    "--signal-damaged": "#b82c1a",
+    "--signal-damaged-fill": "#efc9c2",
+  };
+  const style = { getPropertyValue: (name) => ` ${values[name] ?? ""}` };
+  const theme = readTheme(null, () => style);
+  assert.equal(theme.silentBody, "rgb(16 24 28 / 0.06)");
+  assert.equal(theme.gateLock, "#693c00");
+  assert.equal(theme.gateOpen, "#1f4106");
+  assert.equal(theme.damaged, "#b82c1a");
+  assert.equal(theme.damagedFill, "#efc9c2");
+  assert.equal(theme.paletteInactive.length, theme.palette.length);
+  assert.match(theme.paletteInactive[0].wave, /^#([0-9a-f]{2})\1\1$/);
+  assert.equal("hatch" in theme, false, "silence is never hatched");
+});
+
 test("two densities: comfortable is the default and sets no attribute", () => {
   assert.deepEqual(DENSITIES, ["comfortable", "compact"]);
   assert.equal(densityAttribute("comfortable"), null);

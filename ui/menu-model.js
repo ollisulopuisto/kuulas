@@ -65,6 +65,9 @@ export const CHECKED = {
   "transport.slow_speed_075": (state) => (state?.slowSpeed ?? 0.5) === 0.75,
   "range.scope_toggle": (state) => state?.rangeMode === "selected",
   "transport.render_listen": (state) => state?.render?.listening === true,
+  "view.inactive_both": (state) => (state?.inactiveStyle ?? "both") === "both",
+  "view.inactive_desaturate": (state) => state?.inactiveStyle === "desaturate",
+  "view.inactive_dim": (state) => state?.inactiveStyle === "dim",
   "view.language_auto": (state) => (state?.languageChoice ?? "auto") === "auto",
   "view.language_fi": (state) => state?.languageChoice === "fi",
   "view.language_en": (state) => state?.languageChoice === "en",
@@ -312,6 +315,8 @@ export const MENU = [
       LEVEL_PAN,
       SEP,
       SYNC,
+      SEP,
+      item("clip.relink_media"),
     ],
   },
   {
@@ -451,6 +456,12 @@ export const MENU = [
       submenu("menu.buses", [item("view.collapse_all_buses"), item("view.expand_all_buses")]),
       submenu("menu.mouse", [item("view.drag_mode"), item("view.wheel_mode")]),
       item("view.clip_words"),
+      // How lanes outside the current operation look (docs/design/SILENCE-VISUALS.md).
+      submenu("menu.inactive", [
+        item("view.inactive_both"),
+        item("view.inactive_desaturate"),
+        item("view.inactive_dim"),
+      ]),
       item("view.clipboard_limit"),
       item("sync.confirm"),
       item("view.reset_remembered"),

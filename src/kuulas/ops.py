@@ -202,6 +202,30 @@ def remove_gate_range(p: Project, track_id: str, start: int, end: int) -> Projec
         track, gate=gatem.remove_range(track.gate, int(start), int(end))))
 
 
+def replace_clip_media(p: Project, media_id: str, new_media_id: str) -> Project:
+    """Point every clip of ``media_id`` at ``new_media_id`` (Locate / Relink media
+    on a clip, owner 2026-10-21): the user edited the recording elsewhere, so the
+    file's content, and so its id, changed. Starts, offsets and lengths stay; the
+    old media stays in the project, its file untouched (PLAN rule 17). The session
+    checks the lengths first and the page confirms; a shorter new file plays
+    silence past its end, as a missing part would."""
+    known = {m.id for m in p.media}
+    for wanted in (media_id, new_media_id):
+        if wanted not in known:
+            raise EditError("error.edit.no_media", media_id=wanted)
+    if media_id == new_media_id:
+        raise EditError("error.edit.same_media", media_id=media_id)
+    if not any(c.media == media_id for t in p.tracks for c in t.clips):
+        raise EditError("error.edit.media_unused", media_id=media_id)
+    tracks = tuple(
+        replace(t, clips=tuple(
+            replace(c, media=new_media_id) if c.media == media_id else c
+            for c in t.clips))
+        if any(c.media == media_id for c in t.clips) else t
+        for t in p.tracks)
+    return replace(p, tracks=tracks)
+
+
 def set_clips_ungated(p: Project, clip_ids, value: bool = True) -> Project:
     """Keep the mic open under the given clips (``Clip.ungated``): the gate under them is
     opened now and stays open however they are trimmed or moved (``normalize_ungated``);
@@ -1382,6 +1406,7 @@ OPS = {
         add_clip, delete_clip, move_clip, trim_clip, split_clip, set_clip,
         set_fade_at, set_clip_envelope, ripple_delete, mute_ranges,
         set_gate, add_gate_range, remove_gate_range, set_clips_ungated,
+        replace_clip_media,
         add_marker, rename_marker, move_marker, set_region_end, delete_marker,
         set_marker_kind,
         add_placeholder, edit_placeholder_text, set_placeholder_length,

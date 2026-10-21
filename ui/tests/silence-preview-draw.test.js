@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { drawGateHatch, drawPreviewBands } from "../paint.js";
+import { drawPreviewBands } from "../paint.js";
 
 function recorder() {
   const ops = [];
@@ -20,37 +20,34 @@ function recorder() {
   return { ctx, ops };
 }
 
-const COLOURS = { fill: "rgb(0 0 1 / 0.2)", edge: "#0a0" };
+const COLOURS = { edge: "#0a0" };
 
-describe("Auto-Silence preview bands: unlike a committed gate, not by colour alone", () => {
-  test("a veil, a hatch the other way and dashed edges for each run", () => {
+// docs/design/SILENCE-VISUALS.md: the preview is the teal outline of the would-close wave
+// (drawn by the waveform layer) plus these dashed edges. No veil, no hatch: nothing is hatched.
+describe("Auto-Silence preview bands: dashed edges only", () => {
+  test("dashed top and bottom edges per run, inside the body, in the preview colour", () => {
     const { ctx, ops } = recorder();
     drawPreviewBands(ctx, [10, 60, 100, 130], 20, 40, COLOURS);
-    const fills = ops.filter((op) => op[0] === "fillRect");
-    assert.deepEqual(fills, [
-      ["fillRect", 10, 20, 50, 40],
-      ["fillRect", 100, 20, 30, 40],
-    ]);
     assert.ok(ops.some((op) => op[0] === "setLineDash" && op[1].length > 0));
-    assert.ok(ops.some((op) => op[0] === "set" && op[1] === "fillStyle" && op[2] === COLOURS.fill));
-    assert.ok(
-      ops.some((op) => op[0] === "set" && op[1] === "strokeStyle" && op[2] === COLOURS.edge),
+    assert.ok(ops.some((op) => op[0] === "set" && op[1] === "strokeStyle" && op[2] === "#0a0"));
+    const moves = ops.filter((op) => op[0] === "moveTo");
+    assert.deepEqual(
+      moves.map((op) => op.slice(1)),
+      [
+        [10, 22.5],
+        [10, 57.5],
+        [100, 22.5],
+        [100, 57.5],
+      ],
+      "2 px inside the body: the clip border, drawn above, does not hide them",
     );
-    // The hatch runs from top-left to bottom-right: a committed gate's runs the other way.
-    const moves = ops.filter((op) => op[0] === "moveTo" || op[0] === "lineTo");
-    const firstLine = moves.findIndex((op) => op[0] === "moveTo" && op[2] === 20);
-    assert.ok(firstLine >= 0);
-    assert.equal(moves[firstLine + 1][0], "lineTo");
-    assert.equal(moves[firstLine + 1][2], 60);
-    assert.ok(moves[firstLine + 1][1] > moves[firstLine][1]);
   });
 
-  test("it does not draw what a committed gate draws", () => {
-    const preview = recorder();
-    drawPreviewBands(preview.ctx, [10, 60], 20, 40, COLOURS);
-    const gate = recorder();
-    drawGateHatch(gate.ctx, [10, 60], 20, 40, COLOURS.edge);
-    assert.notDeepEqual(preview.ops, gate.ops);
+  test("no veil and no hatch", () => {
+    const { ctx, ops } = recorder();
+    drawPreviewBands(ctx, [10, 60], 20, 40, COLOURS);
+    assert.equal(ops.filter((op) => op[0] === "fillRect").length, 0);
+    assert.equal(ops.filter((op) => op[0] === "lineTo").length, 2, "two edges, no hatch lines");
   });
 
   test("no runs, nothing drawn", () => {

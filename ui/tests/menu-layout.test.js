@@ -132,6 +132,8 @@ describe("Clip", () => {
       ">menu.level_pan",
       "-",
       ">menu.sync",
+      "-",
+      "clip.relink_media",
     ]);
   });
   test("Level and pan holds gain and pan", () => {
@@ -214,6 +216,11 @@ describe("Track, Playback, View", () => {
       "view.expand_all_buses",
     ]);
     assert.deepEqual(subIds("view", "menu.mouse"), ["view.drag_mode", "view.wheel_mode"]);
+    assert.deepEqual(subIds("view", "menu.inactive"), [
+      "view.inactive_both",
+      "view.inactive_desaturate",
+      "view.inactive_dim",
+    ]);
     assert.deepEqual(subIds("view", "menu.language"), [
       "view.language_auto",
       "view.language_fi",

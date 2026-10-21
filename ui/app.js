@@ -135,6 +135,7 @@ import {
 } from "./range-scope.js";
 import { recentMenuItems } from "./recent-menu-model.js";
 import { createRecordView } from "./record-view.js";
+import { createRelinkConfirm, relinkPlan } from "./relink-media.js";
 import { rangeChoice, renderWhen } from "./render-listen-model.js";
 import { createRenderListenView } from "./render-listen-view.js";
 import { forwardFromClip } from "./selection-ops.js";
@@ -144,6 +145,7 @@ import { chipSpeed } from "./shuttle.js";
 import { SIDEBAR_KEY, sidebarPref, sidebarShown, toggleSidebar } from "./sidebar-model.js";
 import { normaliseSilence } from "./silence-model.js";
 import { createSilencePanel } from "./silence-panel.js";
+import { inactiveStyleChoice } from "./silence-visuals.js";
 import { createSlowHold, normaliseSlow, slowSpeed } from "./slow-hold.js";
 import { createStatsDialog } from "./stats-dialog.js";
 import { nextStopMode } from "./stop-mode.js";
@@ -535,6 +537,16 @@ function setSidebar(shown) {
   prefs.set(SIDEBAR_KEY, sidebarPref(shown));
 }
 setState({ sidebarShown: sidebarShown(prefs.get(SIDEBAR_KEY)) });
+// How lanes outside the current operation look (silence-visuals.js): dim, desaturate or both;
+// remembered per user. <html data-inactive> lets the track headers follow (style.css).
+const INACTIVE_KEY = "inactiveStyle";
+function setInactiveStyle(style) {
+  const choice = inactiveStyleChoice(style);
+  setState({ inactiveStyle: choice });
+  document.documentElement.dataset.inactive = choice;
+  prefs.set(INACTIVE_KEY, choice);
+}
+setInactiveStyle(prefs.get(INACTIVE_KEY));
 
 // The clipboard preview is turned down to the project's level (WP82): on by default, remembered
 // per user. The server does the measuring; this is only the switch.
@@ -623,6 +635,7 @@ const actions = {
     setSidebar(shown);
     showNotice(t(shown ? "ui.sidebar.on" : "ui.sidebar.off"), "ok");
   },
+  setInactiveStyle: (style) => setInactiveStyle(style),
   toggleClipboardLimit: () => toggleClipboardLimit(),
   fastListening: () => changeFast(toggleFast),
   fastNudge: (direction) => changeFast(direction > 0 ? fastUp : fastDown),
@@ -1110,6 +1123,7 @@ const keyboard = setupKeyboard({
     openStatistics: () => void openStatistics(),
     openPerformanceReport: () => void openPerformanceReport(),
     openLocateMedia: () => void openLocateMedia(),
+    relinkClipMedia: () => void relinkClipMedia(),
     openSendCopy: () => void openSendCopy(),
     openRecord: () => void recordView.open(),
     cycleStopMode: () => cycleStopMode(),
@@ -2350,6 +2364,38 @@ const folderChooser = () =>
     ? () => globalThis.pywebview.api.pick_project_folder()
     : null;
 let locateDialog = null;
+// Clip > Locate / Relink media… (relink-media.js): pick a file for the selected clip's
+// recording; the server imports it in place and reports; confirm; one replace_clip_media edit.
+let relinkConfirm = null;
+async function relinkClipMedia() {
+  const state = getState();
+  const [clipId] = [...state.selection];
+  const clip = state.project?.tracks.flatMap((track) => track.clips).find((c) => c.id === clipId);
+  if (!clip) return;
+  try {
+    const bridge = nativeBridge();
+    const path = bridge
+      ? (await bridge.pick_media())?.[0]
+      : globalThis.prompt?.(t("ui.relink.path_prompt"));
+    if (!path) return;
+    const report = await api.replaceCheck(clip.media, path);
+    const rate = state.project.rate;
+    const seconds = (frames) => `${formatNumber(frames / rate, { digits: 1 })} s`;
+    const plan = relinkPlan(report, { t, seconds, mediaId: clip.media });
+    if (!plan.confirm) {
+      await refresh();
+      showNotice(plan.notice, "ok");
+      return;
+    }
+    relinkConfirm ??= createRelinkConfirm({ t });
+    if (!(await relinkConfirm.ask(plan))) return;
+    apply(await api.edit({ ...plan.edit, label: t("ui.relink.history") }));
+    showNotice(t("ui.relink.done"), "ok", { undo: true });
+  } catch (error) {
+    showError(error);
+  }
+}
+
 async function openLocateMedia() {
   locateDialog ??= createLocateDialog({
     api,
@@ -3127,6 +3173,7 @@ const timeline = createTimeline({
       editor.change({ op, args, label: t(labelKey) });
     },
     openGate: openGateStretch,
+    locateMedia: () => void openLocateMedia(),
     editPlaceholder(placeholder) {
       setState({ placeholderSelected: placeholder.id });
       keyboard.registry.run("placeholder.edit", null, getState());
@@ -3253,6 +3300,13 @@ function render(state, patch) {
       "focusBus",
       "busHeight",
       "groupGap",
+      // The silent states and inactive lanes drawn by the waveform layer (SILENCE-VISUALS.md).
+      "silencePreview",
+      "missingMedia",
+      "inactiveStyle",
+      "rangeMode",
+      "trackSelection",
+      "rangeTracks",
     )
   ) {
     timeline.redrawWaveforms();

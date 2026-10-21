@@ -42,7 +42,21 @@ describe("client state", () => {
       can_redo: false,
       missing: [],
     });
-    assert.deepEqual(patch, { project: { tracks: [] }, head: "h1", canUndo: true, canRedo: false });
+    assert.deepEqual(patch, {
+      project: { tracks: [] },
+      head: "h1",
+      canUndo: true,
+      canRedo: false,
+      missingMedia: new Set(),
+    });
+  });
+
+  test("the media whose file is missing become a Set the timeline draws them from", () => {
+    const patch = serverPatch({ missing: ["m1", "m2"] });
+    assert.deepEqual([...patch.missingMedia], ["m1", "m2"]);
+    assert.equal("missingMedia" in serverPatch({ head: "h" }), false, "absent: unchanged");
+    assert.equal(initialState().missingMedia.size, 0);
+    assert.equal(initialState().inactiveStyle, "both");
   });
 
   test("a selection of clips that no longer exist is dropped", () => {

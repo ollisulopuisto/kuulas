@@ -36,6 +36,12 @@ export const ICONS = {
   folder: s("M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"),
   plus: s("M12 5v14M5 12h14"),
   layers: s("m12 3 9 5-9 5-9-5ZM3 13l9 5 9-5"),
+  // The silent-state pair (docs/design/SILENCE-VISUALS.md): closed by Auto-Silence / mic kept
+  // open. Also drawn on the timeline canvas (timeline.js drawIcon) from these same paths.
+  lock: s("M6 11h12v9H6ZM8.5 11V8a3.5 3.5 0 0 1 7 0v3"),
+  unlock: s("M6 11h12v9H6ZM8.5 11V8a3.5 3.5 0 0 1 6.8-1.2"),
+  // Missing media: a plain warning triangle.
+  alert: s("M12 3.5 2.5 20h19ZM12 10v4.5M12 17.5h.01"),
 };
 
 /** The stylesheet text: one `[data-icon]` rule per icon, inside the shared `.button` rule. */

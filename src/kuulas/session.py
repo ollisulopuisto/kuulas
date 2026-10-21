@@ -97,7 +97,7 @@ from .clock import FLICKS, frames_to_flicks
 from .history import History, UndoInfo
 from .jobs import JobCancelledError, Jobs
 from .loudness import gain_to_target, measure_clip, track_target_lufs
-from .media import ImportResult, MediaError, MediaStore
+from .media import ImportResult, MediaError, MediaStore, file_sha256
 from .messages import KuulasError, t
 from .model import Project, SyncGroup
 from .paste_apply import apply_paste
@@ -1721,6 +1721,45 @@ class Session:
         return {"found": [{"id": m, "name": self.store.meta(m)["name"], "path": path}
                           for m, path in sorted(found.items())],
                 "still_missing": after["missing"], "partial": after["partial"]}
+
+    def check_replace_media(self, media_id: str, path: str) -> dict:
+        """Locate / Relink media on a clip (owner, 2026-10-21), step one: bring
+        ``path`` in and say what replacing ``media_id`` by it would mean, for the page
+        to confirm.
+
+        The same content (same SHA-256) is a plain relink of the moved file: no edit,
+        and ``same_file`` is True. Other content (the recording edited elsewhere) is
+        imported as new media, linked where it lies, so neither file is written or
+        deleted (PLAN rule 17); nothing on the timeline changes until the page sends
+        ``replace_clip_media``. Returns ``{same_file, new_media_id, name, old_frames,
+        new_frames, same_length, clips}``."""
+        if self.read_only:
+            raise MediaError("error.media.read_only")
+        bad = not isinstance(path, str) or not path.strip() or "\0" in path
+        if bad or len(path) > 4096:
+            raise MediaError("error.media.not_a_file", name=str(path or "")[:200])
+        chosen = Path(path).expanduser()
+        if not chosen.is_file():
+            raise MediaError("error.media.not_a_file", name=str(chosen)[:200])
+        with self.lock:
+            project = self.history.state
+        try:
+            old = project.media_item(media_id)
+        except KeyError:
+            raise ops.EditError("error.edit.no_media", media_id=media_id) from None
+        clips = sum(1 for t in project.tracks for c in t.clips if c.media == media_id)
+        if file_sha256(chosen) == old.sha256:
+            self.store.relink_one(media_id, chosen)
+            new = old
+        else:
+            result = self.store.import_batch([str(chosen)], False)[0]
+            self.last_import_report = [result]
+            if not result.ok:
+                raise result.error
+            new = result.media
+        return {"same_file": new.id == media_id, "new_media_id": new.id,
+                "name": chosen.name, "old_frames": old.frames, "new_frames": new.frames,
+                "same_length": old.frames == new.frames, "clips": clips}
 
     def stats(self) -> dict:
         """The session's statistics (WP70, ``project_stats``). Only the snapshot is

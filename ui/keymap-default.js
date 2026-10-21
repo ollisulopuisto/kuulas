@@ -66,6 +66,18 @@ export const DEFAULT_KEYMAP = [
     context: "global",
     labelKey: "cmd.view.clip_words",
   },
+  ...["both", "desaturate", "dim"].map((style) => ({
+    id: `view.inactive_${style}`,
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: `cmd.view.inactive_${style}`,
+  })),
+  {
+    id: "clip.relink_media",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.clip.relink_media",
+  },
   {
     id: "view.clipboard_limit",
     keys: { mac: null, other: null },

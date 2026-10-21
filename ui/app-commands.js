@@ -185,6 +185,10 @@ export function registerAppCommands(registry, { actions, app }) {
   for (const choice of PAUSE_CHOICES) {
     def(`view.pause_${choice.id}`, () => actions.setPauseBreak(choice.id));
   }
+  // View > Inactive lanes: dim, desaturate or both (a per-user preference, no project needed).
+  for (const style of ["both", "desaturate", "dim"]) {
+    def(`view.inactive_${style}`, () => actions.setInactiveStyle(style));
+  }
   // View > Language: a user preference (no project needed), kept on the server.
   for (const choice of ["auto", "fi", "en"]) {
     def(`view.language_${choice}`, () => actions.setLanguageChoice(choice));
@@ -231,6 +235,12 @@ export function registerAppCommands(registry, { actions, app }) {
   // File > Locate media… (WP39) and Send a copy… (WP32): no default key (the Finnish layout
   // leaves no free one that is not AltGr or Shift+digit); both are in the File menu.
   def("app.locate_media", () => app.openLocateMedia(), hasProject);
+  // One clip selected (the right press selects it): relink its recording to another file.
+  def(
+    "clip.relink_media",
+    () => app.relinkClipMedia(),
+    (state) => state?.selection?.size === 1,
+  );
   def("app.send_copy", () => app.openSendCopy(), hasProject);
   // Transport > Record… (WP12a) and how a take is stopped (a preference: two steps by default).
   def("transport.record", () => app.openRecord(), hasProject);

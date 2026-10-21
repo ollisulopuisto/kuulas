@@ -59,6 +59,11 @@ describe("the sections per target", () => {
     const ids = flat(timelineMenuItems(base, { kind }, all));
     for (const id of wanted) assert.ok(ids.includes(id), `${kind}: ${id}`);
   };
+  test("clip: Locate / Relink media is always there, missing or not (owner, 2026-10-21)", () => {
+    has("clip", ["clip.relink_media"]);
+    const sections = timelineMenuItems(base, { kind: "clip" }, all);
+    assert.ok(sections.some((s) => s.titleKey === "ui.ctx.media"));
+  });
   test("clip: clipboard, paste forms, edit, select, adjust", () => {
     has("clip", [
       "edit.cut",

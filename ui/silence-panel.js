@@ -30,6 +30,7 @@ import {
   panelControls,
   summaryLines,
 } from "./silence-panel-model.js";
+import { SILENCE_LEGEND, SILENCE_LEGEND_TITLE } from "./silence-visuals.js";
 
 const POLL_MS = 300;
 
@@ -233,7 +234,14 @@ export function createSilencePanel({
   error.setAttribute("role", "alert");
   error.hidden = true;
 
-  root.replaceChildren(head, bar, measuring, form, summary, error);
+  // -- the legend: how the timeline shows silence (docs/design/SILENCE-VISUALS.md) ---------
+  const legend = el("details", "silence-legend");
+  legend.append(
+    el("summary", "", t(SILENCE_LEGEND_TITLE)),
+    ...SILENCE_LEGEND.map((line) => el("p", "form-help", t(line.key))),
+  );
+
+  root.replaceChildren(head, bar, measuring, form, summary, error, legend);
 
   // -- state --------------------------------------------------------------------------------
   let open = false;

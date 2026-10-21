@@ -25,6 +25,13 @@ Kun lähennys on tarpeeksi suuri sanojen lukemiseen, jokainen puheleike kirjoitt
 
 Jos haluat aikajanalle enemmän leveyttä, piilota koko sivupaneeli (välilehtirivin x tai tästä). Ohjeen, Auto-Silencen asetusten tai sivuvälilehden avaaminen näyttää sen taas. {run:view.toggle_sidebar}
 
+## Näin hiljaisuus näkyy
+- Täytetty aaltomuoto: kuuluu. Pelkkä ääriviiva: hiljaa, mykistetty tai Auto-Silencen sulkema; leikkeen pohja on siinä hieman tummempi.
+- Lukko merkitsee Auto-Silencen sulkemaa kohtaa; mykistetyssä leikkeessä ei ole lukkoa. Avoin lukko leikkeen nimen perässä tarkoittaa, että leike pitää mikin auki.
+- Leikkeen reunat näkyvät ja niitä voi vetää myös hiljaisen kohdan sisällä.
+- Harmaat tai himmeät raidat eivät kuulu seuraavaan toimintoon (Näytä > Toiminnon ulkopuoliset raidat).
+- Leike, jonka äänitiedosto puuttuu, näyttää punaisen varoitusmerkin eikä aaltomuotoa. Kaksoisnapsauta sitä etsiäksesi tiedoston.
+
 ## Hyppää aikaan
 - Napsauta nurkan isoa aikaa kopioidaksesi sen leikepöydälle; kaksoisnapsauta sitä tai paina {key:spot}, niin voit kirjoittaa ajan ja hypätä siihen. Vahvistus hyppää; kentästä poistuminen peruu.
 - Kirjoita 1:23,5 (tai 83,2) tietylle ajalle, tai aloita merkillä + tai - siirtyäksesi toistokohdasta: +100 on 100 sekuntia eteenpäin, -30 on 30 taaksepäin, +1:30 on 90 eteenpäin, +500ms on puoli sekuntia. Tulos pysyy muokkauksen sisällä.
