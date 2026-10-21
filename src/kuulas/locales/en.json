@@ -2696,5 +2696,33 @@
   "ui.series.music_skipped": "No track of the same name for: {names}.",
   "ui.series.music_clipboard_done": "Series music on the clipboard: {count} entries.",
   "ui.silence.legend.edges": "Dashed amber lines: where a closed stretch starts and ends. They are not clip edges and cannot be dragged.",
-  "ui.silence.legend.group": "Thin rounded outline round several clips: one group, moved and edited as one."
+  "ui.silence.legend.group": "Thin rounded outline round several clips: one group, moved and edited as one.",
+  "cmd.export.music_report": "Music report…",
+  "cmd.export.music_report.hint": "Lists every piece of music this edit plays, with its tags, programme time and duration in whole seconds, rounded up, and whether it plays under speech. Save it as CSV or HTML for Teosto or Gramex, or copy it as a table.",
+  "ui.music_report.title": "Music report",
+  "ui.music_report.scope": "This edit. Times are programme times, in whole seconds; a part of a second counts as a whole one.",
+  "ui.music_report.loading": "Building the report…",
+  "ui.music_report.summary": {
+    "one": "{count} piece of music, {time} in total",
+    "other": "{count} pieces of music, {time} in total"
+  },
+  "ui.music_report.table_label": "Music heard in this edit",
+  "ui.music_report.empty": "No music in this edit",
+  "ui.music_report.empty_no_tracks": "There is no music track.",
+  "ui.music_report.empty_muted": "The music tracks are muted.",
+  "ui.music_report.empty_no_clips": "The music tracks have no clips, or every clip on them is muted.",
+  "ui.music_report.empty_silent": "The music is silenced (by a gate or by the track's automation), so it is not heard.",
+  "ui.music_report.warnings_head": {
+    "one": "{count} piece has no title or no artist. Fill in the tags before you send the report.",
+    "other": "{count} pieces have no title or no artist. Fill in the tags before you send the report."
+  },
+  "ui.music_report.warn_title": "{order}. {label}: no title",
+  "ui.music_report.warn_artist": "{order}. {label}: no artist",
+  "ui.music_report.warn_both": "{order}. {label}: no title and no artist",
+  "ui.music_report.save_csv": "Save CSV…",
+  "ui.music_report.save_html": "Save HTML…",
+  "ui.music_report.copy": "Copy as table",
+  "ui.music_report.close": "Close",
+  "ui.music_report.saved": "Saved {name}",
+  "ui.music_report.copied": "Music report copied as a table."
 }

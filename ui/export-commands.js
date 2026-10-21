@@ -117,7 +117,8 @@ export async function exportRequest({ format, ask, bridge, hint, onAsk }) {
  * openExportDialog("mix" | "tracks") -> opens the "(options)…" dialog (export-dialog.js),
  * exportRegions() -> Promise (queues the one region job; the jobs list shows its progress),
  * automix() -> opens the "Mix with the automixer" dialog (WP68),
- * automixLog() -> opens the live "Automixer log" viewer.
+ * automixLog() -> opens the live "Automixer log" viewer,
+ * openMusicReport() -> opens the "Music report…" dialog (music-report-dialog.js).
  */
 export function registerExportCommands(registry, { app, t }) {
   for (const { id, path, file } of EXPORTS) {
@@ -187,6 +188,12 @@ export function registerExportCommands(registry, { app, t }) {
   });
   registry.register("export.automix_log", () => void app.automixLog(), {
     hintKey: "cmd.export.automix_log.hint",
+  });
+  // WP25: the dialog asks the server for the report. It needs a project, not tracks: an edit
+  // with no music shows "No music in this edit" and says why.
+  registry.register("export.music_report", () => void app.openMusicReport(), {
+    can: (state) => Boolean(state?.project),
+    hintKey: "cmd.export.music_report.hint",
   });
   registry.register("export.regions", () => void app.exportRegions(), {
     can: hasRegions,

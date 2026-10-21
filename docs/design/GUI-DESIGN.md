@@ -336,10 +336,25 @@ clickable, playback continues, and the playhead can be moved while it is open.
   the music-report and placeholder warnings as inline notices with "Show
   them". Enter exports with the shown settings; the plain key (Mod+E) skips
   the dialog when settings are remembered (WP35).
-- **Music report (WP25):** a sheet over the sidebar width (480 px): the table
-  (order, title, artist, in, out, duration, background/featured), rows with
-  missing metadata marked with a warning icon and "missing artist"; actions
-  Export CSV, Print.
+- **Music report (WP25):** File > Export > Music report… (no default key; the
+  Finnish layout leaves none free). A modal dialog on the shared form and
+  button rules (`FORMS.md`, `BUTTONS.md`), 960 px wide, for the open edit.
+  Top to bottom: a one-line scope note (times are programme times in whole
+  seconds, part-seconds rounded up), the summary line (pieces and total music
+  time), the warnings (one line per piece missing a title or an artist, saying
+  which; the rows are also tinted), the preview table (order, title, artist,
+  composer, publisher, programme start, duration, background/featured; the
+  title falls back to the file name) in a focusable scroller with a sticky
+  header, so a long report scrolls and the dialog does not. Footer: Copy as
+  table (tab separated, ISRC, file name and out time included), Save CSV…,
+  Save HTML… (all `.footer-start`: they keep the dialog open), Close
+  (primary, last). The files are downloads named `<project> music-report.csv`
+  / `.html` by the server; the browser (or the desktop window's download)
+  chooses the folder and never overwrites. An edit with no music shows "No
+  music in this edit" and the reason (no music track, muted, no clips, or
+  silenced). The server builds the report from a snapshot of the edit, so
+  the preview does not hold the session lock; the dialog shows "Building the
+  report…" meanwhile.
 - **Settings (Mod+,, WP27):** a dialog with a left list (Project, Audio,
   Appearance, Keys) and a form; every change is an undoable edit for project
   settings; Appearance holds theme, density, waveform scale and the gate and

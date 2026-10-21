@@ -2801,5 +2801,33 @@
   "ui.series.music_skipped": "Samannimistä raitaa ei ole: {names}.",
   "ui.series.music_clipboard_done": "Sarjan musiikki leikepöydällä: {count} kohtaa.",
   "ui.silence.legend.edges": "Katkoviivat (meripihka): mistä suljettu kohta alkaa ja mihin se päättyy. Ne eivät ole leikkeen reunoja eikä niitä voi vetää.",
-  "ui.silence.legend.group": "Ohut pyöreäkulmainen ääriviiva useiden leikkeiden ympärillä: yksi ryhmä, jota siirretään ja muokataan yhtenä."
+  "ui.silence.legend.group": "Ohut pyöreäkulmainen ääriviiva useiden leikkeiden ympärillä: yksi ryhmä, jota siirretään ja muokataan yhtenä.",
+  "cmd.export.music_report": "Musiikkiraportti…",
+  "cmd.export.music_report.hint": "Listaa kaiken musiikin, jonka tämä leikkaus soittaa: tiedot, ohjelma-ajan ja keston täysinä sekunteina ylöspäin pyöristettynä sekä sen, soiko musiikki puheen alla. Tallenna CSV- tai HTML-tiedostona Teostoa tai Gramexia varten tai kopioi taulukkona.",
+  "ui.music_report.title": "Musiikkiraportti",
+  "ui.music_report.scope": "Tämä leikkaus. Ajat ovat ohjelma-aikaa täysinä sekunteina; osa sekunnista lasketaan kokonaiseksi.",
+  "ui.music_report.loading": "Muodostetaan raporttia…",
+  "ui.music_report.summary": {
+    "one": "{count} musiikkikappale, yhteensä {time}",
+    "other": "{count} musiikkikappaletta, yhteensä {time}"
+  },
+  "ui.music_report.table_label": "Tässä leikkauksessa kuultu musiikki",
+  "ui.music_report.empty": "Tässä leikkauksessa ei ole musiikkia",
+  "ui.music_report.empty_no_tracks": "Musiikkiraitaa ei ole.",
+  "ui.music_report.empty_muted": "Musiikkiraidat on mykistetty.",
+  "ui.music_report.empty_no_clips": "Musiikkiraidoilla ei ole leikkeitä tai kaikki niiden leikkeet on mykistetty.",
+  "ui.music_report.empty_silent": "Musiikki on hiljennetty (portilla tai raidan automaatiolla), joten sitä ei kuulu.",
+  "ui.music_report.warnings_head": {
+    "one": "{count} kappaleelta puuttuu nimi tai esittäjä. Täydennä tiedot ennen kuin lähetät raportin.",
+    "other": "{count} kappaleelta puuttuu nimi tai esittäjä. Täydennä tiedot ennen kuin lähetät raportin."
+  },
+  "ui.music_report.warn_title": "{order}. {label}: nimi puuttuu",
+  "ui.music_report.warn_artist": "{order}. {label}: esittäjä puuttuu",
+  "ui.music_report.warn_both": "{order}. {label}: nimi ja esittäjä puuttuvat",
+  "ui.music_report.save_csv": "Tallenna CSV…",
+  "ui.music_report.save_html": "Tallenna HTML…",
+  "ui.music_report.copy": "Kopioi taulukkona",
+  "ui.music_report.close": "Sulje",
+  "ui.music_report.saved": "Tallennettu {name}",
+  "ui.music_report.copied": "Musiikkiraportti kopioitu taulukkona."
 }

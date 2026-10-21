@@ -1496,6 +1496,13 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.series.music_clipboard",
   },
   {
+    // No default key: the Finnish layout leaves none free (docs/KEYS.md); it is in the File menu.
+    id: "export.music_report",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.export.music_report",
+  },
+  {
     id: "export.regions",
     keys: { mac: null, other: null },
     context: "global",

@@ -35,6 +35,7 @@ describe("File", () => {
       "export.automix_log",
       "export.tracks_quick",
       "export.tracks",
+      "export.music_report",
       "submenu",
       "separator",
       "submenu",
