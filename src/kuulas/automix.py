@@ -281,14 +281,19 @@ def _shown(number: float) -> str:
 def build_command(settings: dict, folder: Path, output: Path, *,
                   target_lufs: float, ad_spot: float | None,
                   ad_duration: float | None,
-                  supported: dict[str, bool] | None = None) -> list[str]:
+                  supported: dict[str, bool] | None = None,
+                  events: bool = False) -> list[str]:
     """The argument list (never a shell string): the command, the stems FOLDER (the
     one with ``tracks.json``; a list of files would take the automixer's in-memory
     route), ``-o``, the options of this run, ``--progress``, the switches that differ from
     the tool's defaults (``settings["options"]``), then the user's extra arguments.
-    ``supported`` (``capabilities``) leaves out gated options the tool does not know."""
+    ``supported`` (``capabilities``) leaves out gated options the tool does not know.
+    ``events`` (``supports_events``) adds ``--events``: the tool also prints structured
+    ``@@kuulas`` lines (``parse_event``). It is not a user option."""
     cmd = [*settings["command"], str(folder), "-o", str(output),
            "--target-lufs", _shown(target_lufs), "--progress"]
+    if events:
+        cmd.append("--events")
     if ad_spot is not None:
         cmd += ["--ad-spot", _shown(ad_spot)]
         if ad_duration is not None:
@@ -588,6 +593,7 @@ def balance_cap_line(cap: float) -> str:
 
 _capability_cache: dict[tuple, dict[str, bool]] = {}
 _capability_lock = threading.Lock()
+_EVENTS_FLAG = re.compile(r"(?<![\w-])--events(?![\w-])")
 
 
 def clear_capability_cache() -> None:
@@ -615,6 +621,23 @@ def _probe_key(command: list[str], cwd: str | None) -> tuple:
 def capabilities(command: list[str], cwd: str | None, *,
                  run_process: RunProcess | None = None,
                  timeout: float = PROBE_SECONDS, scope: str = "") -> dict[str, bool]:
+    """Which gated options the installed automixer accepts (see ``_probe``)."""
+    found = _probe(command, cwd, run_process=run_process, timeout=timeout, scope=scope)
+    return {k: found[k] for k in GATED}
+
+
+def supports_events(command: list[str], cwd: str | None, *,
+                    run_process: RunProcess | None = None,
+                    timeout: float = PROBE_SECONDS, scope: str = "") -> bool:
+    """Whether the installed automixer lists ``--events`` in its ``--help`` (the same
+    cached probe as ``capabilities``; never raises, False when unknown)."""
+    return _probe(command, cwd, run_process=run_process, timeout=timeout,
+                  scope=scope)["events"]
+
+
+def _probe(command: list[str], cwd: str | None, *,
+           run_process: RunProcess | None = None,
+           timeout: float = PROBE_SECONDS, scope: str = "") -> dict[str, bool]:
     """Which gated options the installed automixer accepts, from its ``--help`` text.
     Never raises: a tool that cannot be run, fails or hangs (``timeout``) gives False for
     all (the option is then not sent, and the run itself reports a missing tool). Cached
@@ -641,6 +664,7 @@ def capabilities(command: list[str], cwd: str | None, *,
         timer.cancel()
     help_text = "\n".join(text) if code == 0 and not cancel.is_set() else ""
     found = {k: OPTIONS[k]["flag"] in help_text for k in GATED}
+    found["events"] = _EVENTS_FLAG.search(help_text) is not None
     if scope and not help_text:
         return found
     with _capability_lock:
@@ -682,6 +706,55 @@ def _tool_env() -> dict[str, str]:
 
 
 _ANSI = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?|\x1b")
+
+
+EVENT_PREFIX = "@@kuulas "
+
+
+def is_event_line(line: str) -> bool:
+    """A line the automixer printed for Kuulas (``--events``), parseable or not: it is
+    never shown as text."""
+    return line.startswith(EVENT_PREFIX)
+
+
+def parse_event(line: str) -> dict[str, Any] | None:
+    """The event of an ``@@kuulas {json}`` line, or None for any other line, invalid
+    JSON, a non-object or an object without a text ``event``. Never raises. Fields
+    (``schema`` included) are not checked: unknown ones are ignored by the callers."""
+    if not isinstance(line, str) or not is_event_line(line):
+        return None
+    try:
+        found = json.loads(line[len(EVENT_PREFIX):])
+    except ValueError:
+        return None
+    if not isinstance(found, dict):
+        return None
+    kind = found.get("event")
+    return found if isinstance(kind, str) and kind else None
+
+
+def _num(value: Any, unit: str = "", *, sign: bool = False) -> str:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return "?"
+    return f"{value:+.1f}{unit}" if sign else f"{value:.1f}{unit}"
+
+
+def event_log_line(event: dict[str, Any]) -> str:
+    """One compact line for log.txt from a ``bed``, ``balance`` or ``mastered`` event.
+    Missing fields read as ``?``. The wording avoids the colon after ``mastered`` and
+    ``beds`` that ``key_lines`` looks for: the tool's own text lines say those."""
+    kind = event.get("event")
+    if kind == "bed":
+        return (f"bed: loudest {_num(event.get('loudest_lufs'))} LUFS, speech "
+                f"{_num(event.get('speech_lufs'))}, offset "
+                f"{_num(event.get('offset_db'))} dB")
+    if kind == "balance":
+        return (f"balance: {event.get('track', '?')} {_num(event.get('lufs'))} LUFS, "
+                f"applied {_num(event.get('applied_db'), sign=True)} dB, limit "
+                f"{_num(event.get('limit_db'))} dB")
+    return (f"mastered final {_num(event.get('lufs'))} LUFS, lift "
+            f"{_num(event.get('lift_db'))} dB, limiting "
+            f"{_num(event.get('limiting_lu'))} LU")
 
 
 def clean_output_line(line: str) -> str:
@@ -891,30 +964,57 @@ class StepTracker:
                 return later
         return None
 
+    def _track_text(self, name: str, stage: str, key: str) -> str:
+        """The step line of ``key`` for ``stage`` of the track ``name``."""
+        self.stage = "tracks"
+        if name not in self.names:
+            self.names.append(name)
+        following = self._next(stage)
+        common = {"index": self.names.index(name) + 1, "total": len(self.names),
+                  "name": name, "stage": stage,
+                  "n": TRACK_STAGES.index(stage) + 1, "of": len(TRACK_STAGES),
+                  "next": following}
+        if key == "done" and following is None:
+            key = "last"
+        return self._step("tracks", t(f"ui.automix.step_track_{key}", **common))
+
     def label(self, message: str) -> str:
         found = _TRACK_LINE.search(message)
         if found:
+            stage = found.group("stage")
+            key = "done" if self._on(stage) else "skipped"
+            return self._track_text(found.group("name").strip(), stage, key)
+        if "mastering" in message.lower():
+            self.stage = "mastering"
+        return self._step(self.stage, message)
+
+    def _name(self, track: Any) -> str | None:
+        """A track given by name, or by its 1-based number, as a name."""
+        if isinstance(track, str) and track.strip():
+            return track.strip()
+        if isinstance(track, int) and not isinstance(track, bool):
+            return self.names[track - 1] if 1 <= track <= len(self.names) else None
+        return None
+
+    def event(self, event: dict[str, Any]) -> str | None:
+        """Take a ``track`` or ``stage`` event (``--events``). Returns the step line
+        when the event changes what works now, else None. A stage START is the point:
+        the text lines only say a stage is done. Missing or odd fields never raise."""
+        kind = event.get("event")
+        if kind == "track":
+            name = self._name(event.get("name"))
+            if name is None:
+                return None
             self.stage = "tracks"
-            name = found.group("name").strip()
             if name not in self.names:
                 self.names.append(name)
-            stage = found.group("stage")
-            following = self._next(stage)
-            common = {"index": self.names.index(name) + 1, "total": len(self.names),
-                      "name": name, "stage": stage,
-                      "n": TRACK_STAGES.index(stage) + 1, "of": len(TRACK_STAGES),
-                      "next": following}
-            if following is None:
-                what = t("ui.automix.step_track_last", **common)
-            elif self._on(stage):
-                what = t("ui.automix.step_track_done", **common)
-            else:
-                what = t("ui.automix.step_track_skipped", **common)
-        else:
-            if "mastering" in message.lower():
-                self.stage = "mastering"
-            what = message
-        return self._step(self.stage, what)
+            return None
+        name, stage = self._name(event.get("track")), event.get("stage")
+        key = {"start": "working", "done": "done", "skipped": "skipped"}.get(
+            event.get("state") if isinstance(event.get("state"), str) else "")
+        if kind != "stage" or name is None or stage not in TRACK_STAGES or key is None:
+            return None
+        return self._track_text(name, stage, key)
 
 
 def mark_skipped(message: str, options: dict) -> str:
@@ -1023,6 +1123,9 @@ def run(session, params: dict, settings: dict, report: Report,
             run_process=probe, scope=remote["host"] if remote else "")
         settings = {**settings, "options": kept}
         steps.options = kept
+        events_on = supports_events(
+            settings["command"], settings["cwd"], run_process=probe,
+            scope=remote["host"] if remote else "")
         requested_cap = requested_options.get(
             "balance_speakers_max_db", OPTIONS["balance_speakers_max_db"]["default"])
         done = [balance_cap_line(requested_cap), *done_lines(session.state, kept)]
@@ -1033,10 +1136,12 @@ def run(session, params: dict, settings: dict, report: Report,
             run_dir = automix_remote.new_run_dir(remote)
             cmd = build_command(settings, Path(f"{run_dir}/stems"),
                                 Path(f"{run_dir}/out.wav"), target_lufs=lufs,
-                                ad_spot=ad_spot, ad_duration=ad_duration)
+                                ad_spot=ad_spot, ad_duration=ad_duration,
+                                events=events_on)
         else:
             cmd = build_command(settings, stems, partial, target_lufs=lufs,
-                                ad_spot=ad_spot, ad_duration=ad_duration)
+                                ad_spot=ad_spot, ad_duration=ad_duration,
+                                events=events_on)
         report(stems_share, "", indeterminate=True)
         started = datetime.now(UTC).astimezone()
         stems_took = time.monotonic() - began
@@ -1048,16 +1153,61 @@ def run(session, params: dict, settings: dict, report: Report,
             """The progress line: step numbers, what is done and what works now."""
             return steps.label(raw)
 
+        seen = {"progress": False, "stage": False}  # which event kinds arrived
+        kept_events: dict[str, Any] = {}
+        event_warnings: list[str] = []
+
+        def advance(percent: Any, message: str) -> None:
+            if isinstance(percent, bool) or not isinstance(percent, int | float):
+                return
+            share = min(100.0, max(0.0, float(percent))) / 100
+            reached[0] = max(reached[0], run_from + run_span * 0.99 * share)
+            report(reached[0], shown(message))
+
+        def on_event(event: dict[str, Any]) -> None:
+            kind = event.get("event")
+            if kind == "progress":
+                seen["progress"] = True
+                message = event.get("message")
+                percent = event.get("percent")
+                advance(percent, message.strip() if isinstance(message, str)
+                        and message.strip() else f"{percent}%")
+            elif kind in ("track", "stage"):
+                seen["stage"] = True
+                label = steps.event(event)
+                if label:
+                    report(reached[0], label, indeterminate=reached[0] <= run_from)
+            elif kind == "warning":
+                message = event.get("message")
+                if isinstance(message, str) and message.strip():
+                    text = f"kuulas: {message.strip()}"
+                    lines.append(text)
+                    emit(text)
+                    event_warnings.append(message.strip())
+            elif kind in ("bed", "mastered"):
+                kept_events[kind] = event
+                lines.append(event_log_line(event))
+            elif kind == "balance":
+                speakers = kept_events.setdefault("balance", {})
+                speakers[str(event.get("track", len(speakers) + 1))] = event
+                lines.append(event_log_line(event))
+
         def on_line(line: str) -> None:
+            if is_event_line(line):  # for Kuulas only: never shown, never logged as text
+                event = parse_event(line)
+                if event is not None:
+                    on_event(event)
+                return
             if not line.strip():
                 return
             lines.append(line)
             emit(line)
             found = _PROGRESS.match(line)
             if found:  # "PROGRESS 40 message"; the last is "PROGRESS 100 done"
-                share = min(100, int(found.group(1))) / 100
-                reached[0] = max(reached[0], run_from + run_span * 0.99 * share)
-                report(reached[0], shown((found.group(2) or "").strip() or line))
+                if not seen["progress"]:  # else the progress event said it already
+                    advance(int(found.group(1)), (found.group(2) or "").strip() or line)
+            elif seen["stage"] and _TRACK_LINE.search(line):
+                pass  # a stage that is DONE: the stage events say what works now
             else:  # any other line is only the message
                 report(reached[0], shown(line), indeterminate=reached[0] <= run_from)
 
@@ -1190,8 +1340,9 @@ def run(session, params: dict, settings: dict, report: Report,
         report(1.0, "")
         return {"path": str(final), "name": final.name, "log": list(lines),
                 "command": cmd, "flags": flags, "log_file": kept_log,
-                "warnings": warnings, "summary": [*warnings, *key_lines(lines)],
-                "ran_on": host}
+                "warnings": [*warnings, *event_warnings],
+                "summary": [*warnings, *event_warnings, *key_lines(lines)],
+                "ran_on": host, "events": kept_events}
     finally:
         if partial is not None:
             with contextlib.suppress(OSError):
