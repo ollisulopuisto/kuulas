@@ -1,3 +1,16 @@
+## [v26.10.20.35] - 2026-10-21
+
+- **Silent, closed and missing clips look different.** A filled waveform sounds; an outline-only waveform is silent (muted, or closed by Auto-Silence). A padlock marks a stretch Auto-Silence closed, an open padlock after the name marks a clip that keeps the mic open. The hatching is gone, so clip borders are always visible and draggable inside a closed stretch. The Auto-Silence preview is a teal dashed outline. Lanes outside the current operation are greyed and lightly dimmed (View > Lanes outside the operation: dim, grey or both). A clip whose file is missing draws no waveform, a red outline and a warning sign.
+- **Locate / Relink media.** Double-click a missing clip to locate its file; Clip > "Locate / Relink media..." is always in the clip menu, also for a file you edited elsewhere (different checksum). You confirm first with both lengths shown (a warning when they differ); neither file is changed or deleted; one undo step. The new file has no transcript yet.
+
+## [v26.10.20.34] - 2026-10-21
+
+- **Auto-Silence panel is easier to use.** Sensitivity and Closeness have a small number field and a full-width slider on its own line; buttons are normal height. The whole side panel can be hidden (View > Show side panel, or the x on its tab strip) so the timeline gets the width; it comes back by itself when you open Help, Auto-Silence options or a side tab. Remembered.
+
+## [v26.10.20.33] - 2026-10-21
+
+- **Automix only a part, and listen to the result in Kuulas.** The Automix dialog can run on the In/Out range only (result named "... preview mm.ss-mm.ss.wav"). After a render, Playback > "Listen to the rendered mix" (or the Edit | Rendered mix switch) plays the file on the timeline; a banner says which render and range, and you are put back on the edit automatically when you change the edit. Not matched in loudness. Untested with the real automixer on a range: check the render lines up with the timeline (an ad spot makes it longer).
+
 ## [v26.10.20.32] - 2026-10-21
 
 - **Auto-Silence has a live preview.** Track > Auto > "Auto-Silence options..." opens a panel (docked over the sidebar, never covering the lanes) instead of a modal dialog: Sensitivity and Dominance have sliders, the other settings are under "More settings". The speech levels are measured once in the background (progress per track, Cancel), after that every change of a setting recalculates the silences in about 0.1 s and the timeline shows them as a preview (teal veil, hatch the other way, dashed edges, "preview" at the lane's edge; committed gates look as before). "Listen" plays the timeline with the previewed silences applied (same 30 ms edges as the real thing), "Accept" commits them as one undo step, Esc or Close discards everything. A per-track summary says how much would be silenced ("Aame: 12:34 of 45:10, 28 %, 41 stretches"). Clips that keep their mic open are left open in the preview too. An edit that touches the speech audio makes it measure again. Not seen in a window yet; known: the recalculation takes about 80-100 ms on a 45-minute, 4-mic project (the rest is inside speechmix).
