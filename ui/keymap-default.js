@@ -938,7 +938,7 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "range.scope_toggle",
-    keys: { mac: "E", other: "E" },
+    keys: { mac: "A", other: "A" },
     context: "timeline",
     labelKey: "cmd.range.scope_toggle",
   },
