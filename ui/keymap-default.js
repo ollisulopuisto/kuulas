@@ -72,6 +72,14 @@ export const DEFAULT_KEYMAP = [
     context: "global",
     labelKey: "cmd.view.clipboard_limit",
   },
+  // Hide or show the whole side panel (owner, 2026-10-21). No default key: the Finnish layout
+  // leaves no free one that is not AltGr or Shift+digit; View menu, the x buttons, the palette.
+  {
+    id: "view.toggle_sidebar",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.view.toggle_sidebar",
+  },
   {
     id: "view.wheel_mode",
     keys: { mac: null, other: null },

@@ -141,6 +141,7 @@ import { forwardFromClip } from "./selection-ops.js";
 import { createSendCopyDialog } from "./send-copy-dialog.js";
 import { setupKeyboard } from "./shell-keys.js";
 import { chipSpeed } from "./shuttle.js";
+import { SIDEBAR_KEY, sidebarPref, sidebarShown, toggleSidebar } from "./sidebar-model.js";
 import { normaliseSilence } from "./silence-model.js";
 import { createSilencePanel } from "./silence-panel.js";
 import { createSlowHold, normaliseSlow, slowSpeed } from "./slow-hold.js";
@@ -522,6 +523,19 @@ function toggleClipWords() {
   showNotice(t(on ? "ui.clip_words.on" : "ui.clip_words.off"), "ok");
 }
 
+// The side panel can be hidden so the timeline gets the width (sidebar-model.js): remembered per
+// user, applied to the editor's data-sidebar in render(). Hiding it while the focus is inside
+// sends the focus to the timeline; the commands that need it show it again (app-commands.js).
+function setSidebar(shown) {
+  if (shown === (getState().sidebarShown !== false)) return;
+  if (!shown && document.querySelector(".sidebar")?.contains(document.activeElement)) {
+    focusPanel("timeline");
+  }
+  setState({ sidebarShown: shown });
+  prefs.set(SIDEBAR_KEY, sidebarPref(shown));
+}
+setState({ sidebarShown: sidebarShown(prefs.get(SIDEBAR_KEY)) });
+
 // The clipboard preview is turned down to the project's level (WP82): on by default, remembered
 // per user. The server does the measuring; this is only the switch.
 const CLIPBOARD_LIMIT_KEY = "clipboardLimit";
@@ -604,6 +618,11 @@ const actions = {
   toggleDragMode: () => toggleDragMode(),
   toggleWheelMode: () => toggleWheelMode(),
   toggleClipWords: () => toggleClipWords(),
+  toggleSidebar() {
+    const shown = toggleSidebar(getState().sidebarShown !== false);
+    setSidebar(shown);
+    showNotice(t(shown ? "ui.sidebar.on" : "ui.sidebar.off"), "ok");
+  },
   toggleClipboardLimit: () => toggleClipboardLimit(),
   fastListening: () => changeFast(toggleFast),
   fastNudge: (direction) => changeFast(direction > 0 ? fastUp : fastDown),
@@ -900,7 +919,10 @@ const SIDEBAR_TABS = ["inspector", "candidates", "clipboard", "markers", "histor
 
 function focusPanel(name) {
   // A sidebar tab that is not showing must show before it can take the focus.
-  if (SIDEBAR_TABS.includes(name)) setState({ sidebarTab: name });
+  if (SIDEBAR_TABS.includes(name)) {
+    setSidebar(true);
+    setState({ sidebarTab: name });
+  }
   panelElements[name].focus();
   setState({ panel: name });
 }
@@ -910,6 +932,7 @@ document.addEventListener("focusin", (event) => {
   if (panel && panel !== getState().panel) setState({ panel });
 });
 
+$("side-close").addEventListener("click", () => actions.toggleSidebar());
 for (const tab of document.querySelectorAll(".side-tab")) {
   tab.addEventListener("click", () => focusPanel(tab.dataset.tab));
   tab.addEventListener("keydown", (event) => {
@@ -991,6 +1014,7 @@ const keyboard = setupKeyboard({
     getState,
     patch: setState,
     openHelp: () => void help.open(),
+    revealSidebar: () => setSidebar(true),
     undo: () => undo(),
     redo: () => redo(),
     restoreStep: () => restoreStep(getState().historySelected),
@@ -2050,6 +2074,7 @@ function openSilenceOptions() {
     setPreview: (ranges) => setState({ silencePreview: ranges }),
     isPlaying: () => Boolean(getState().playing),
     togglePlay: () => actions.togglePlay(),
+    hideSidebar: () => actions.toggleSidebar(),
   });
   silencePanel.open();
 }
@@ -3396,6 +3421,10 @@ function render(state, patch) {
     const open = state.candidateSummary?.open ?? 0;
     $("cand-count").hidden = open === 0;
     $("cand-count").textContent = String(open);
+  }
+  if (touched("sidebarShown")) {
+    document.querySelector(".editor").dataset.sidebar =
+      state.sidebarShown === false ? "hidden" : "shown";
   }
   if (touched("sidebarTab")) {
     for (const name of SIDEBAR_TABS) {

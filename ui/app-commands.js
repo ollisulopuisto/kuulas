@@ -8,6 +8,7 @@ import { rangeAvailable } from "./loop-range.js";
 import { placeMark } from "./marks.js";
 import { focusTrack } from "./range-scope.js";
 import { playSelectionRequest, rehearseRequest } from "./rehearse.js";
+import { opensSidebar } from "./sidebar-model.js";
 import { PAUSE_CHOICES } from "./transcript-model.js";
 
 /** Alt+1 to Alt+5: command id -> side-panel tab, in the tab row's order. */
@@ -66,7 +67,18 @@ const hint = (id) => ({ hintKey: `cmd.${id}.hint` });
  * getState(), openPalette(), openKeys(), openHelp(), importKeys(), exportKeys(), resetKeys().
  */
 export function registerAppCommands(registry, { actions, app }) {
-  const def = (id, run, can = null) => registry.register(id, run, { can, ...hint(id) });
+  // A command that needs the side panel shows it first, if it was hidden (sidebar-model.js).
+  const def = (id, run, can = null) =>
+    registry.register(
+      id,
+      opensSidebar(id)
+        ? (...args) => {
+            app.revealSidebar?.();
+            return run(...args);
+          }
+        : run,
+      { can, ...hint(id) },
+    );
   const rate = () => app.getState().project?.rate ?? 48000;
   const moveBy = (frames) => () => {
     const { playhead = 0 } = app.getState();
@@ -80,6 +92,8 @@ export function registerAppCommands(registry, { actions, app }) {
   // What a two-finger trackpad scroll does: zoom, or scroll (a preference, wheel.js).
   def("view.wheel_mode", () => actions.toggleWheelMode());
   // The transcript words along the top of each clip when zoomed in (WP69, clip-words.js).
+  // Hide or show the side panel so the timeline gets the width.
+  def("view.toggle_sidebar", () => actions.toggleSidebar());
   def("view.clip_words", () => actions.toggleClipWords());
   // Whether the clipboard preview is turned down to the project's level (WP82).
   def("view.clipboard_limit", () => actions.toggleClipboardLimit());

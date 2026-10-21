@@ -43,6 +43,7 @@ Every form row has two columns:
 | `.form-note` | a note about the whole form or section | `--text-sm`, secondary, full width from the form's left edge |
 | `.form-inline` | several controls on one line (field + Choose…, slider + value) | flex, `--space-3` |
 | `.form-num` / `input[type=number]` | a number | `--form-num-w` wide, right-aligned, tabular figures |
+| `.silence-slider-row` | a `.form-row` with a slider (Auto-Silence panel) | label and a small number (7ch) on one line; the slider on its own line, full width (`grid-column: 1 / -1`, 28 px tall); help under it in the field column |
 | `.form-readout` | a value shown next to a slider | right-aligned, tabular, `--text` |
 | `.form-readonly` | a value that is not edited | as tall as a control, left-aligned |
 | `.check-row` | a checkbox with its text (and description) | box on the field column's left edge; see below |
