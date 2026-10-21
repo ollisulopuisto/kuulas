@@ -1,3 +1,7 @@
+## [v26.10.20.27] - 2026-10-21
+
+- **The automix toast shows the time left**, for example "... about 12 min left", once the bar is past 5 %. It is estimated from the automixer's own progress only (not the stems export, not the ssh upload or download) and appears after the first few progress updates. The estimate is rough: the automixer's bar moves in jumps.
+
 ## [v26.10.20.26] - 2026-10-21
 
 - **Music ducking, second style: "Duck under speech".** The command Track > Auto > "Duck music under speech" now asks for a Style: "Fade in the gaps" (as before) or "Duck under speech" (continuous music that dips while someone speaks). The new style follows the automixer's sidechain law (speech loudness measured over 0.1 s, music lowered by the overshoot over a threshold, default -30 dB at ratio 8) with a short attack and release so it does not pump, measured in the background from the speech as heard on the timeline (gains and gates included, matched to the -19 LUFS speech target), and written as the same editable volume automation on every music track that ducks, in one undo step. Depth, Threshold, Attack and Release are fields in the dialog; the last style used is remembered. The automixer export and "Done in Kuulas" work as for the first style. Built by Codex and finished by Claude; never heard on real speech, so treat the defaults as a first guess and tell me how it sounds.
