@@ -409,6 +409,8 @@ export const SYNONYMS = {
   "help.open": ["manual", "documentation", "docs", "guide", "ohje", "käyttöohje"],
   "history.open": ["undo list", "past steps", "versions", "historia", "vaiheet"],
   "history.restore": ["go back to", "revert to", "palauta"],
+  "history.rename_version": ["rename version", "rename save", "nimeä versio"],
+  "history.saved_only": ["saved versions", "named versions", "tallennetut versiot"],
   "help.performance_report": [
     "slow",
     "lag",

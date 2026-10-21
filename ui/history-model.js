@@ -4,6 +4,8 @@
 // { id, label, created (UTC), is_marker, marker ("opened"|"closed"), is_head,
 //   side ("head"|"past"|"redo"|"branch") }.
 
+import { filterSteps } from "./history-filter.js";
+
 const ZONE = "Europe/Helsinki";
 const MINUTE = 60_000;
 const NEAR_BOTTOM = 160; // px from the end of the list at which the next page is fetched
@@ -71,6 +73,45 @@ export function currentStep(nodes, head) {
   return nodes.slice(at).find((node) => !node.is_marker)?.id ?? null;
 }
 
+const KINDS = new Set(["manual", "sent", "received", "export", "backup"]);
+
+/** A step's saved version as the row shows it: { name, kind, kindLabel }, or null. */
+function savedOf(checkpoint, t) {
+  if (!checkpoint) return null;
+  const known = KINDS.has(checkpoint.kind) ? checkpoint.kind : "manual";
+  return {
+    name: checkpoint.name,
+    kind: checkpoint.kind,
+    kindLabel: t(`ui.history.kind.${known}`),
+  };
+}
+
+/**
+ * The nodes to show under the panel's two filters, which combine: the text matches the
+ * step's label or its version's name; "saved only" keeps steps that carry a checkpoint
+ * (the server already pages only those; this keeps the list right while it catches up).
+ * Session markers belong to the whole list, so they go while a filter is on.
+ */
+export function visibleNodes(nodes, { query = "", savedOnly = false } = {}) {
+  const text = typeof query === "string" && query.trim() !== "";
+  if (!text && !savedOnly) return nodes;
+  let steps = nodes.filter((node) => !node.is_marker);
+  if (savedOnly) steps = steps.filter((node) => node.checkpoint);
+  if (!text) return steps;
+  const named = steps.map((node) => ({
+    node,
+    label: node.checkpoint ? `${node.label} ${node.checkpoint.name}` : node.label,
+  }));
+  const kept = new Set(filterSteps(named, query).map((item) => item.node));
+  return steps.filter((node) => kept.has(node));
+}
+
+/** The message key for an empty list: nothing yet, no saved versions yet, or nothing matches. */
+export function emptyKey({ savedOnly = false, query = "" } = {}) {
+  if (typeof query === "string" && query.trim() !== "") return "ui.history.empty_match";
+  return savedOnly ? "ui.history.empty_saved" : "ui.history.empty";
+}
+
 /**
  * The rows to draw, in the order given (newest first). A marker step becomes a thin
  * divider ("Opened today 19.30"); a step is dimmed on the redo side and in an abandoned
@@ -90,6 +131,7 @@ export function groupRows(nodes, now, t) {
     return {
       kind: "step",
       id: node.id,
+      saved: savedOf(node.checkpoint, t),
       label: node.label,
       time: relativeTime(node.created, now, t),
       created: node.created,

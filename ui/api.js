@@ -213,9 +213,12 @@ export const adoptClipboardEntry = (entry, fromProject = "") =>
   post("/api/clipboard/adopt", { entry, from_project: fromProject });
 /** Drop this project's oldest entries, keeping the newest `keep`: { removed, entries }. */
 export const clearOldClipboard = (keep) => post("/api/clipboard/clear-old", { keep });
-/** A page of steps, newest first: { nodes, head, more, can_undo, can_redo }. */
-export const getHistory = ({ limit = 100, before = null } = {}) =>
-  json(`/api/history?limit=${limit}${before ? `&before=${encodeURIComponent(before)}` : ""}`);
+/** A page of steps, newest first: { nodes, head, more, can_undo, can_redo }; each node has
+ * `checkpoint` ({ name, kind, copy, created } or null); `saved` lists only the saved versions. */
+export const getHistory = ({ limit = 100, before = null, saved = false } = {}) =>
+  json(
+    `/api/history?limit=${limit}${before ? `&before=${encodeURIComponent(before)}` : ""}${saved ? "&saved=1" : ""}`,
+  );
 /** Add a step equal to an older one (nothing is lost); answers like undo, plus `context`. */
 export const restore = (node) => post("/api/restore", { node });
 export const undo = () => json("/api/undo", { method: "POST" });

@@ -2835,6 +2835,60 @@ input[type="text"] {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
+/* Saved versions: a bookmark and the version's name lead the row; the step's own label is
+   the small second line. The bookmark is the shape twin of the accent, so it holds without colour. */
+.hist-filter {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--pad-panel) 0;
+}
+.hist-filter .hist-seg {
+  flex: 1 1 0;
+}
+.hist-search {
+  margin: var(--space-3) var(--pad-panel) 0;
+  font: inherit;
+  font-size: var(--text-sm);
+}
+.hist-step.saved .lab {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-3);
+  white-space: normal;
+}
+.hist-step .pin {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  fill: var(--accent);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.hist-step .vname {
+  font-weight: var(--weight-strong);
+}
+.hist-step .kind {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  padding: 0 var(--space-2);
+}
+.hist-step .sub {
+  flex-basis: 100%;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hist-rename {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: inherit;
+}
 .hist-marker {
   display: flex;
   gap: var(--space-4);

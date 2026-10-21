@@ -1077,3 +1077,58 @@ def test_plugins_endpoint_lists_the_scan(client, monkeypatch):
     assert client.get("/api/plugins").json() == {"plugins": items}
     client.get("/api/plugins?refresh=1")
     assert seen == [False, True]
+
+
+# -- saved versions (checkpoints) in the history answer ---------------------------
+
+
+def _edit(client, loaded, label, gain):
+    track = loaded["project"]["tracks"][0]["id"]
+    client.post("/api/edit", json={"op": "set_track", "label": label,
+                                   "args": {"track_id": track, "gain_db": gain}})
+
+
+def _save(client, name):
+    client.post("/api/command", json={"name": "save_checkpoint", "args": {"name": name}})
+
+
+def test_history_page_carries_the_saved_versions(client, loaded):
+    _edit(client, loaded, "one", -1.0)
+    _save(client, "Draft A")
+    _edit(client, loaded, "two", -2.0)
+    page = client.get("/api/history", params={"limit": 10}).json()
+    by_label = {n["label"]: n for n in page["nodes"]}
+    saved = by_label["one"]["checkpoint"]
+    assert saved["name"] == "Draft A"
+    assert saved["kind"] == "manual"
+    assert saved["created"]
+    assert by_label["two"]["checkpoint"] is None
+    full = client.get("/api/history").json()
+    names = [n["checkpoint"]["name"] for n in full["nodes"] if n["checkpoint"]]
+    assert names == ["Draft A"]
+
+
+def test_history_page_can_list_only_the_saved_versions(client, session, loaded):
+    _edit(client, loaded, "one", -1.0)
+    _save(client, "Draft A")
+    _edit(client, loaded, "two", -2.0)
+    session.checkpoint("Sent to Ville", "sent")
+    _edit(client, loaded, "three", -3.0)
+    page = client.get("/api/history", params={"limit": 10, "saved": 1}).json()
+    assert [n["label"] for n in page["nodes"]] == ["two", "one"]
+    assert [n["checkpoint"]["kind"] for n in page["nodes"]] == ["sent", "manual"]
+    assert page["more"] is False
+    first = client.get("/api/history", params={"limit": 1, "saved": 1}).json()
+    assert first["more"] is True
+
+
+def test_rename_checkpoint_changes_only_the_name(client, loaded):
+    _edit(client, loaded, "one", -1.0)
+    _save(client, "Draft A")
+    node = client.get("/api/history", params={"limit": 1}).json()["nodes"][0]["id"]
+    r = client.post("/api/command", json={
+        "name": "rename_checkpoint", "args": {"node": node, "name": "  Final cut "}})
+    assert r.status_code == 200
+    page = client.get("/api/history", params={"limit": 1}).json()
+    assert page["nodes"][0]["checkpoint"]["name"] == "Final cut"
+    assert page["nodes"][0]["checkpoint"]["kind"] == "manual"

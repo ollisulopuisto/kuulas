@@ -6,6 +6,7 @@ import {
   canRestore,
   currentStep,
   dayDistance,
+  emptyKey,
   groupRows,
   mergePage,
   moveSelection,
@@ -14,6 +15,7 @@ import {
   relativeTime,
   selectionAfterLoad,
   undoNotice,
+  visibleNodes,
 } from "../history-model.js";
 import * as i18n from "../i18n.js";
 
@@ -252,5 +254,66 @@ describe("the undo and redo notice", () => {
     assert.equal(undoNotice(moved({ crossed_marker: false }), NOW, t), null);
     assert.equal(undoNotice(null, NOW, t), null);
     assert.equal(undoNotice(undefined, NOW, t), null);
+  });
+});
+
+describe("saved versions", () => {
+  const saved = (id, name, kind = "manual") =>
+    node(id, "2026-10-18T16:00:00Z", {
+      checkpoint: { name, kind, created: "2026-10-18T16:00:00Z" },
+    });
+
+  test("a step with a checkpoint becomes a saved row with its name and kind label", () => {
+    const rows = groupRows([saved("a", "Draft A"), node("b", "2026-10-18T16:00:00Z")], NOW, t);
+    assert.deepEqual(rows[0].saved, { name: "Draft A", kind: "manual", kindLabel: "Saved" });
+    assert.equal(rows[1].saved, null);
+  });
+
+  test("kinds other than manual say which they are", () => {
+    const rows = groupRows([saved("a", "To Ville", "sent"), saved("b", "x", "export")], NOW, t);
+    assert.equal(rows[0].saved.kindLabel, "Sent");
+    assert.equal(rows[1].saved.kindLabel, "Exported");
+  });
+
+  test("an unknown kind falls back to the plain label", () => {
+    const rows = groupRows([saved("a", "x", "mystery")], NOW, t);
+    assert.equal(rows[0].saved.kindLabel, "Saved");
+  });
+
+  test("visibleNodes: the text filter matches the version's name as well as the step", () => {
+    const nodes = [saved("a", "Draft A"), node("b", "2026-10-18T16:00:00Z")];
+    assert.deepEqual(
+      visibleNodes(nodes, { query: "draft" }).map((n) => n.id),
+      ["a"],
+    );
+    assert.deepEqual(
+      visibleNodes(nodes, { query: "" }).map((n) => n.id),
+      ["a", "b"],
+    );
+  });
+
+  test("visibleNodes: saved-only keeps checkpointed steps and combines with the text", () => {
+    const nodes = [saved("a", "Draft A"), saved("b", "Final"), node("c", "2026-10-18T16:00:00Z")];
+    assert.deepEqual(
+      visibleNodes(nodes, { savedOnly: true }).map((n) => n.id),
+      ["a", "b"],
+    );
+    assert.deepEqual(
+      visibleNodes(nodes, { savedOnly: true, query: "fin" }).map((n) => n.id),
+      ["b"],
+    );
+  });
+
+  test("visibleNodes: markers are dropped while filtering, kept otherwise", () => {
+    const marker = { id: "m", is_marker: true, marker: "opened", created: "2026-10-18T16:00:00Z" };
+    assert.equal(visibleNodes([marker], {}).length, 1);
+    assert.equal(visibleNodes([marker], { query: "x" }).length, 0);
+  });
+
+  test("emptyKey says which empty text to show", () => {
+    assert.equal(emptyKey({ savedOnly: true, query: "" }), "ui.history.empty_saved");
+    assert.equal(emptyKey({ savedOnly: false, query: "x" }), "ui.history.empty_match");
+    assert.equal(emptyKey({ savedOnly: true, query: "x" }), "ui.history.empty_match");
+    assert.equal(emptyKey({}), "ui.history.empty");
   });
 });

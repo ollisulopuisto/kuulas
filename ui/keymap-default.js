@@ -337,6 +337,18 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.history.restore",
   },
   {
+    id: "history.rename_version",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.history.rename_version",
+  },
+  {
+    id: "history.saved_only",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.history.saved_only",
+  },
+  {
     id: "history.open",
     keys: { mac: null, other: null },
     context: "global",

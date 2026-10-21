@@ -1342,18 +1342,22 @@ def create_app(session, engine, *, language: str | None = None,
         return state_response({"context": None})
 
     @app.get("/api/history")
-    def get_history(limit: int | None = None, before: str | None = None):
+    def get_history(limit: int | None = None, before: str | None = None,
+                    saved: int = 0):
         """Without ``limit`` or ``before``: every step, oldest first (the old shape).
         With them: a page, newest first, for the History panel."""
         with session.lock:
             h = session.history
             if limit is None and before is None:
-                return JSONResponse({"nodes": h.nodes(), "head": h.head})
+                marks = h.checkpoint_map()
+                nodes = [{**n, "checkpoint": marks.get(n["id"])} for n in h.nodes()]
+                return JSONResponse({"nodes": nodes, "head": h.head})
             limit = HISTORY_PAGE if limit is None else limit
             if not 1 <= limit <= HISTORY_PAGE_MAX:
                 raise BadRequestError("error.server.bad_request",
                                       detail=f"limit: 1..{HISTORY_PAGE_MAX}")
-            rows = h.nodes_page(limit + 1, before)
+            rows = h.nodes_page(limit + 1, before, saved=bool(saved))
+            marks = h.checkpoint_map()
             more = len(rows) > limit
             side = h.sides()
             nodes = [{"id": r["id"], "parent": r["parent"], "label": r["label"],
@@ -1361,7 +1365,8 @@ def create_app(session, engine, *, language: str | None = None,
                       "op": r["op"].get("name"), "is_marker": h.is_marker(r),
                       "marker": (r["op"].get("args") or {}).get("kind")
                       if h.is_marker(r) else None,
-                      "is_head": r["id"] == h.head, "side": side[r["id"]]}
+                      "is_head": r["id"] == h.head, "side": side[r["id"]],
+                      "checkpoint": marks.get(r["id"])}
                      for r in rows[:limit]]
             return JSONResponse({"nodes": nodes, "head": h.head, "more": more,
                                  "can_undo": h.can_undo, "can_redo": h.can_redo})
