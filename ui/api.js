@@ -304,3 +304,10 @@ export const seriesMusicAdd = (clipIds, name = "") =>
 export const seriesMusicClipboard = () => post("/api/series/music/clipboard", {});
 /** { project, ..., placed: { placed, missing, skipped } } */
 export const seriesMusicPlace = () => post("/api/series/music/place", {});
+// The Clipboard's series shelf (docs/design/CLIPBOARD-SHELVES.md): { link, found, entries }.
+export const getSeriesShelf = () => json("/api/series/shelf");
+export const seriesShelfAdd = (entryId) => post("/api/series/shelf/add", { entry_id: entryId });
+export const seriesShelfRemove = (entryId) =>
+  post("/api/series/shelf/remove", { entry_id: entryId });
+/** Copy a series entry into this project's clipboard: { entry, entries }. */
+export const seriesShelfAdopt = (entryId) => post("/api/series/shelf/adopt", { entry_id: entryId });

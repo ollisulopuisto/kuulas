@@ -1,7 +1,8 @@
-// The Clipboard tab (WP46, WP65): three views behind a segmented control. *This project* is
+// The Clipboard tab (WP46, WP65): four views behind a segmented control. *This project* is
 // the project's own clipboard, newest first, with each entry's name, metadata line, Share star,
-// play, "Paste again", rename and delete. *Shared* lists the entries marked as worth sharing,
-// from every project. *Other projects* lists the recent projects (click one to read its
+// Series toggle (in a series), play, "Paste again", rename and delete. *Series* is the series
+// shelf, the series music (docs/design/CLIPBOARD-SHELVES.md). *Shared* lists the entries marked
+// as worth sharing, from every project. *Other projects* lists the recent projects (click one to read its
 // clipboard, read-only) and a button that picks any project. Entries that are not this
 // project's own have "Paste here" and "Copy to this project", both of which adopt the entry
 // first. Two choices say how a paste lands (insert or overwrite, on the same tracks or the
@@ -40,8 +41,9 @@ const el = (tag, props = {}, ...children) => {
  * `actions`: select(id), preview(id), stopPreview(id), filter(text), rename(id, name), remove(id), pasteAgain(id),
  * share(id, on), view(name), choose({ pasteMode } | { pasteTarget }), keep(n), clearOld(),
  * toggleProject(path), openProject(), openPath(path), hasPicker() -> boolean,
- * adopt(entry, from), pasteHere(entry, from), now() -> UTC epoch seconds,
- * canPasteAgain(state) -> boolean.
+ * adopt(entry, from[, shelf]), pasteHere(entry, from[, shelf]), now() -> UTC epoch seconds,
+ * canPasteAgain(state) -> boolean, seriesShelf(id, on), seriesRemove(id), seriesPlace(),
+ * openSeries(). `shelf` is "series" for an entry of the series shelf.
  */
 export function createClipboardPanel({ root, actions }) {
   let signature = "";
@@ -144,12 +146,32 @@ export function createClipboardPanel({ root, actions }) {
       dataset: { id: entry.id, action: "share" },
     });
     star.addEventListener("click", () => actions.share(entry.id, !entry.shared));
+    // The Series toggle, only in a series: pressed when the entry is on the series shelf.
+    const series = state.clipboardSeries;
+    const extra = [];
+    if (series?.link) {
+      const on = (series.entries ?? []).some((item) => item.id === entry.id);
+      extra.push(
+        block(
+          entry.id,
+          "series-shelf",
+          t("ui.clipboard.series_toggle"),
+          "layers",
+          () => actions.seriesShelf(entry.id, !on),
+          {
+            "aria-pressed": String(on),
+            title: t(on ? "ui.clipboard.series_on" : "ui.clipboard.series_off"),
+          },
+        ),
+      );
+    }
     // Play, or Stop while this entry's preview plays (only the playing chip shows Stop).
     const play = previewButton(state.clipboardPlaying, entry.id);
     const buttons = el(
       "span",
       { class: "clip-actions" },
       star,
+      ...extra,
       block(
         entry.id,
         "preview",
@@ -224,9 +246,11 @@ export function createClipboardPanel({ root, actions }) {
    * so no play button (it plays once it is copied here), but it can be adopted. `from` is the
    * folder of the project it was read from ("" for the shared list); `scope` keeps ids unique.
    */
-  function foreignRow(entry, state, rate, { from, scope, unshare }) {
+  function foreignRow(entry, state, rate, { from, scope, unshare, shelf }) {
     const id = `${scope}:${entry.id}`;
     const canPaste = Boolean(state.project);
+    // The series shelf's entries are adopted through the series (its recordings' paths).
+    const via = shelf ? [shelf] : [];
     const buttons = el(
       "span",
       { class: "clip-actions" },
@@ -235,7 +259,7 @@ export function createClipboardPanel({ root, actions }) {
         "paste-here",
         t("ui.clipboard.paste_here"),
         "paste",
-        () => actions.pasteHere(entry, from),
+        () => actions.pasteHere(entry, from, ...via),
         { disabled: !canPaste },
       ),
       block(
@@ -243,10 +267,17 @@ export function createClipboardPanel({ root, actions }) {
         "copy-here",
         t("ui.clipboard.copy_here"),
         "copy",
-        () => actions.adopt(entry, from),
+        () => actions.adopt(entry, from, ...via),
         { disabled: !canPaste },
       ),
     );
+    if (shelf === "series") {
+      buttons.append(
+        block(id, "series-remove", t("ui.clipboard.series_remove"), "close", () =>
+          actions.seriesRemove(entry.id),
+        ),
+      );
+    }
     if (unshare) {
       buttons.append(
         block(id, "unshare", t("ui.clipboard.unshare"), "close", () =>
@@ -370,6 +401,54 @@ export function createClipboardPanel({ root, actions }) {
     ];
   }
 
+  function seriesView(state, rate, query) {
+    const shelf = state.clipboardSeries ?? { link: null, found: false, entries: [] };
+    if (!shelf.link) {
+      const open = button("open-series", "open-series", t("cmd.series.dialog"), () =>
+        actions.openSeries(),
+      );
+      return [hint("ui.clipboard.series_none"), el("div", { class: "clip-open" }, open)];
+    }
+    const name = el("p", {
+      class: "hint",
+      textContent: t("ui.clipboard.series_name", { name: shelf.link.name }),
+    });
+    if (!shelf.found) return [name, hint("ui.clipboard.series_missing")];
+    const entries = shelf.entries ?? [];
+    if (entries.length === 0) return [name, hint("ui.clipboard.series_empty")];
+    const place = block(
+      "series-place",
+      "series-place",
+      t("ui.clipboard.series_place"),
+      "import",
+      () => actions.seriesPlace(),
+      { disabled: !state.project },
+    );
+    const shown = filterEntries(entries, query, rate, t);
+    return [
+      name,
+      el(
+        "div",
+        { class: "actionbar", role: "group", "aria-label": t("ui.clipboard.view.series") },
+        place,
+      ),
+      filterBox(query),
+      shown.length === 0
+        ? hint("ui.clipboard.no_matches")
+        : list(
+            t("ui.clipboard.series_list_label"),
+            shown.map((entry) =>
+              foreignRow(entry, state, rate, {
+                from: "",
+                scope: "series",
+                unshare: false,
+                shelf: "series",
+              }),
+            ),
+          ),
+    ];
+  }
+
   function projectItem(project, state, rate, query) {
     const open = (state.clipboardExpanded ?? []).includes(project.path);
     const info = foreignState(state, project.path);
@@ -487,6 +566,7 @@ export function createClipboardPanel({ root, actions }) {
       view,
       own,
       state.clipboardShared,
+      state.clipboardSeries,
       state.clipboardProjects,
       state.clipboardForeign,
       state.clipboardExpanded,
@@ -543,12 +623,12 @@ export function createClipboardPanel({ root, actions }) {
         ),
       ),
     );
-    const body =
-      view === "shared"
-        ? sharedView(state, rate, query)
-        : view === "others"
-          ? othersView(state, rate, query)
-          : projectView(state, rate, canPaste, query);
+    const views = {
+      series: () => seriesView(state, rate, query),
+      shared: () => sharedView(state, rate, query),
+      others: () => othersView(state, rate, query),
+    };
+    const body = (views[view] ?? (() => projectView(state, rate, canPaste, query)))();
     root.append(...body);
     if (keep) {
       const again = [...root.querySelectorAll("[data-id]")].find(

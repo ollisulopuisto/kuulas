@@ -1,3 +1,7 @@
+## [v26.10.20.38] - 2026-10-21
+
+- **The Clipboard has a series shelf.** The panel has four views: This project, Series, Shared (all projects) and Other projects. The Series view is the series music list: Paste here, Copy to this project, Take off shelf, Place on timeline; a project entry gets a Series toggle when the project belongs to a series. Moving an entry to a shelf copies it (the project's stays); a shelf refuses duplicates. Pasting a series entry first links any recording the episode lacks from where the series saw it (after a checksum check); no recording is copied, changed or deleted. New commands in Edit > Clipboard: "Clipboard: series shelf", "Add clipboard entry to series shelf" (no default keys). Not seen on screen yet; dragging from the panel is still not built.
+
 ## [v26.10.20.37] - 2026-10-21
 
 - **Relinked clips keep their words.** After Locate / Relink media the new file inherits the old recording's transcript (trimmed if the new file is shorter), in the same undo step, and a missing recording nobody uses any more no longer shows up in File > Locate media. The Inspector shows "Mic kept open" for a clip that Auto-Silence never closes, with a button to let it be gated again.

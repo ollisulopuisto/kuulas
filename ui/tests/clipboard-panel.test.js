@@ -122,6 +122,10 @@ beforeEach(() => {
       hasPicker: () => picker,
       adopt: record("adopt"),
       pasteHere: record("pasteHere"),
+      seriesShelf: record("seriesShelf"),
+      seriesRemove: record("seriesRemove"),
+      seriesPlace: record("seriesPlace"),
+      openSeries: record("openSeries"),
       now: () => 1000 + 300,
       canPasteAgain: () => true,
     },
@@ -137,18 +141,23 @@ const state = (extra = {}) => ({
 const byAction = (action) => root.all().filter((node) => node.dataset.action === action);
 
 describe("the segmented control", () => {
-  test("three views, the current one pressed, a click reports the view", () => {
+  test("four views, the current one pressed, a click reports the view", () => {
     panel.update(state());
     const views = byAction("view");
     assert.deepEqual(
       views.map((node) => node.textContent),
-      ["ui.clipboard.view.project", "ui.clipboard.view.shared", "ui.clipboard.view.others"],
+      [
+        "ui.clipboard.view.project",
+        "ui.clipboard.view.series",
+        "ui.clipboard.view.shared",
+        "ui.clipboard.view.others",
+      ],
     );
     assert.deepEqual(
       views.map((node) => node.attrs["aria-pressed"]),
-      ["true", "false", "false"],
+      ["true", "false", "false", "false"],
     );
-    views[2].click();
+    views[3].click();
     assert.deepEqual(calls, [["view", "others"]]);
   });
 });
@@ -274,6 +283,68 @@ describe("shared", () => {
   test("an empty shared store says how to fill it", () => {
     panel.update(state({ clipboardView: "shared" }));
     assert.ok(root.all().some((node) => node.textContent === "ui.clipboard.shared_empty"));
+  });
+});
+
+describe("the series shelf", () => {
+  const link = { id: "s", name: "Show" };
+  const music = [entry("m1", { source_name: "Ep 1" })];
+  const inSeries = (extra = {}) =>
+    state({ clipboardSeries: { link, found: true, entries: [entry("a")] }, ...extra });
+
+  test("this project's rows get a Series toggle, pressed when on the shelf", () => {
+    panel.update(inSeries());
+    const toggles = byAction("series-shelf");
+    assert.deepEqual(
+      toggles.map((node) => node.attrs["aria-pressed"]),
+      ["true", "false"],
+    );
+    toggles[0].click();
+    toggles[1].click();
+    assert.deepEqual(calls, [
+      ["seriesShelf", "a", false],
+      ["seriesShelf", "b", true],
+    ]);
+  });
+
+  test("no Series toggle when the project is in no series", () => {
+    panel.update(state());
+    assert.equal(byAction("series-shelf").length, 0);
+  });
+
+  test("each entry can be pasted here, copied here or taken off; Place puts them all", () => {
+    panel.update(
+      inSeries({ clipboardView: "series", clipboardSeries: { link, found: true, entries: music } }),
+    );
+    assert.ok(root.all().some((node) => node.textContent.includes("Show")));
+    byAction("paste-here")[0].click();
+    byAction("copy-here")[0].click();
+    byAction("series-remove")[0].click();
+    byAction("series-place")[0].click();
+    assert.deepEqual(calls, [
+      ["pasteHere", music[0], "", "series"],
+      ["adopt", music[0], "", "series"],
+      ["seriesRemove", "m1"],
+      ["seriesPlace"],
+    ]);
+  });
+
+  test("no series says so and offers the Series dialog", () => {
+    panel.update(state({ clipboardView: "series" }));
+    assert.ok(root.all().some((node) => node.textContent === "ui.clipboard.series_none"));
+    byAction("open-series")[0].click();
+    assert.deepEqual(calls, [["openSeries"]]);
+  });
+
+  test("a missing series file and an empty shelf say so", () => {
+    panel.update(
+      state({ clipboardView: "series", clipboardSeries: { link, found: false, entries: [] } }),
+    );
+    assert.ok(root.all().some((node) => node.textContent === "ui.clipboard.series_missing"));
+    panel.update(
+      state({ clipboardView: "series", clipboardSeries: { link, found: true, entries: [] } }),
+    );
+    assert.ok(root.all().some((node) => node.textContent === "ui.clipboard.series_empty"));
   });
 });
 
