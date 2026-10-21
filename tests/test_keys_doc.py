@@ -100,11 +100,14 @@ def test_every_doc_key_is_in_keymap() -> None:
     assert not extra, f"doc keys not in DEFAULT_KEYMAP: {extra}"
 
 
-def test_export_all_tracks_and_lift_cut_are_present() -> None:
+def test_export_keys_and_lift_cut_are_present() -> None:
     doc = COMMITTED_DOC.read_text()
-    # export.tracks is Shift+Alt+Mod+E in the keymap.
-    assert "⇧+⌥+⌘+E" in doc
-    assert "Shift+Alt+Ctrl+E" in doc
+    # Owner 2026-10-21: Shift+Mod+E is the automixer export, Alt+Mod+E the mix options;
+    # the all-tracks exports have no key.
+    assert "⇧+⌘+E" in doc
+    assert "Shift+Ctrl+E" in doc
+    assert "⌥+⌘+E" in doc
+    assert "⇧+⌥+⌘+E" not in doc
     # edit.lift_cut is Alt+X in the keymap.
     assert "Alt+X" in doc
     assert "⌥+X" in doc
