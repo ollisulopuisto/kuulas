@@ -145,6 +145,9 @@ class MatchReport(dict):
 
 #: The edit names ``/api/edit`` hands to ``Session.clipboard_edit``: they are
 #: edits with a clipboard side, which ``ops`` (pure, project-only) cannot be.
+#: A project up to this long is measured for the clipboard preview's reference level
+#: while the click waits (a few hundred ms); a longer one is measured in the background.
+INLINE_REFERENCE_S = 120.0
 CLIPBOARD_EDITS = ("clipboard_cut", "clipboard_lift_cut", "clipboard_paste")
 
 
@@ -297,6 +300,7 @@ class Session:
         #: reference by its speech tracks' content keys.
         self._entry_levels: dict[tuple, tuple[float | None, float | None]] = {}
         self._reference_cache: dict[tuple, tuple[float, float | None]] = {}
+        self._reference_measuring: set[tuple] = set()
         self.clipboard = clipboard or ClipboardStore(
             project_path(self.package.path), writable=not self.read_only, soft=True)
         #: The shared store (WP65): the per-user file. It holds what the user
@@ -869,10 +873,37 @@ class Session:
         key = loudness_curve_module.speech_key(snapshot)
         if key is not None and key in self._reference_cache:
             return self._reference_cache[key]
+        if snapshot.length > INLINE_REFERENCE_S * snapshot.rate:
+            # A long recording takes seconds to minutes to measure, and while it
+            # plays the background analysis is held back, so it is never cached
+            # yet when the user clicks Play on a chip (owner, 2026-10-21: the
+            # preview came "VERY MUCH LATER"). Start now with the conservative
+            # default and measure in the background for the next click.
+            self._measure_reference_later(snapshot, cache_root, key)
+            return preview_level.reference_lufs([], None), None
         got = clipboard_level.project_reference(snapshot, self.store, cache_root)
         if key is not None:
             self._reference_cache = {key: got}
         return got
+
+    def _measure_reference_later(self, snapshot: Project, cache_root,
+                                 key: tuple | None) -> None:
+        """Measure the project's reference level on a background thread (once at a
+        time), remembering it under ``key`` for the next preview."""
+        if key is None or key in self._reference_measuring:
+            return
+        self._reference_measuring.add(key)
+
+        def measure() -> None:
+            try:
+                got = clipboard_level.project_reference(snapshot, self.store, cache_root)
+                self._reference_cache = {key: got}
+            except Exception:
+                log.exception("clipboard preview reference")
+            finally:
+                self._reference_measuring.discard(key)
+
+        priority.thread(measure, "kuulas-preview-reference").start()
 
     def clipboard_copy(self, *, clip_ids=None, start=None, end=None, track_ids=None,
                        name: str = "") -> dict:

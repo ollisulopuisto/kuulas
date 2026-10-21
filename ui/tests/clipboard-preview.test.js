@@ -2,7 +2,18 @@
 // progress meter's fill.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { previewButton, previewFraction, previewPlaying } from "../clipboard-preview.js";
+import {
+  previewButton,
+  previewFraction,
+  previewPlaying,
+  previewStop,
+} from "../clipboard-preview.js";
+
+test("the chip's Stop ends only the preview while the timeline plays (it is mixed in)", () => {
+  assert.equal(previewStop({ playing: true, clipboardPlaying: { id: "a", seq: 5 } }), "preview");
+  // alone (the timeline is not playing): the transport's stop puts the playhead back
+  assert.equal(previewStop({ playing: false, clipboardPlaying: { id: "a", seq: 5 } }), "transport");
+});
 
 test("the fraction is the heard frame over the excerpt's length, held in 0..1", () => {
   assert.equal(previewFraction(0, 48000), 0);

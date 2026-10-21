@@ -15,12 +15,22 @@
 // clocks are monotonic on one machine and do not drift apart. Until there is an
 // offset, an anchor is dated by its age when it arrived: `received - (now - t)`.
 //
-// Smoothing: playing forward the cursor never steps back for a correction smaller
-// than SNAP_S (it holds until the extrapolation catches up); a bigger one, a new
-// `seq` (seek, new run) or a stop snaps. Backward playing mirrors that.
+// Smoothing (owner, 2026-10-21: "stutter in playback cursor's location again! jumps a
+// few pixels back and then keeps continuing"): during a steady run (the same `seq`, the
+// same speed) the drawn position is the extrapolation plus a correction that fades to
+// nothing over SLEW_MS. A new anchor that disagrees with what is on screen (jitter in
+// the device latency, a late callback, a poll answered with an older reading) therefore
+// slows or speeds the cursor for a moment, 40% at the worst, instead of stepping it
+// back or freezing it, so the cursor never goes against the playing direction. A
+// disagreement of JUMP_S or more, a new `seq` (seek, new run), a speed change or a
+// stop is taken at once. A reading older than the one in use (out of order) is dropped.
 
-/** A backward correction up to this many seconds is absorbed, not drawn. */
+/** Legacy: backward corrections up to this many seconds used to be held (see JUMP_S). */
 export const SNAP_S = 0.05;
+/** A correction of this many seconds or more, either way, is a jump and is taken at once. */
+export const JUMP_S = 0.15;
+/** A smaller correction is slewed in over this many milliseconds. */
+export const SLEW_MS = 250;
 /** Without a fresh anchor the playhead stops this far past the last one. */
 export const MAX_AHEAD_MS = 750;
 
@@ -106,8 +116,24 @@ export function createPlayheadClock() {
   let samples = [];
   let newest = null; // the newest seq accepted
   let stopSeq = null; // a local stop: playing anchors must be newer than this
-  let shown = null; // the last frame handed out while playing (smoothing)
-  let snapNext = true;
+  let slew = null; // { frames, at }: the correction on screen, fading out from `at`
+  let snapNext = false; // the next playing anchor is taken at once (a local jump)
+
+  /** The correction (frames) still to fade out at page time `now`. */
+  const correction = (now) => {
+    if (!slew) return 0;
+    const left = 1 - (now - slew.at) / SLEW_MS;
+    return left > 0 ? slew.frames * left : 0;
+  };
+  /** The drawn frame at `now` (not rounded). */
+  const display = (now) => {
+    const target = project(anchor, now);
+    if (!anchor.playing) return target;
+    let pos = Math.max(0, target + correction(now));
+    if (anchor.end !== null)
+      pos = anchor.speed > 0 ? Math.min(pos, anchor.end) : Math.max(pos, anchor.end);
+    return pos;
+  };
 
   return {
     setOffset(value) {
@@ -127,31 +153,34 @@ export function createPlayheadClock() {
       if (seq !== null && newest !== null && seq < newest) return false;
       if (message.playing && stopSeq !== null && seq !== null && seq <= stopSeq) return false;
       const next = anchorFrom(message, { offset, receivedAt });
-      if (!next.playing || seq !== newest || !anchor?.playing || next.speed !== anchor.speed)
-        snapNext = true;
+      const steady =
+        next.playing &&
+        anchor?.playing &&
+        seq === newest &&
+        next.speed === anchor.speed &&
+        !snapNext;
+      // The same run, but a reading from before the one in use (out of order): the
+      // newer one is the better line, keep it.
+      if (steady && next.at < anchor.at) return false;
+      if (steady) {
+        const shown = display(receivedAt);
+        anchor = next;
+        const diff = shown - project(next, receivedAt);
+        const jump = JUMP_S * next.rate * Math.abs(next.speed);
+        slew = Math.abs(diff) >= jump ? null : { frames: diff, at: receivedAt };
+      } else {
+        anchor = next;
+        slew = null;
+      }
+      if (next.playing) snapNext = false;
       if (seq !== null) newest = seq;
       if (!next.playing) stopSeq = null;
-      anchor = next;
       return true;
     },
     /** The frame to draw at page time `now`. */
     frameAt(now) {
       if (!anchor) return 0;
-      const target = project(anchor, now);
-      if (!anchor.playing) {
-        shown = null;
-        return Math.round(target);
-      }
-      const forward = anchor.speed > 0;
-      const snap = SNAP_S * anchor.rate * Math.abs(anchor.speed);
-      if (snapNext || shown === null) {
-        snapNext = false;
-        shown = target;
-      } else {
-        const behind = forward ? shown - target : target - shown;
-        if (behind <= 0 || behind > snap) shown = target;
-      }
-      return Math.round(shown);
+      return Math.round(display(now));
     },
     playing: () => Boolean(anchor?.playing),
     /** Space/Stop: freeze where the cursor is now, before the engine answers. */
@@ -163,19 +192,20 @@ export function createPlayheadClock() {
         frame,
         playing: false,
       };
-      shown = null;
+      slew = null;
       return frame;
     },
     /** A seek: the cursor goes to `frame` now (playing on from there if playing). */
     jump(frame, now) {
       if (!anchor) return;
       anchor = { ...anchor, frame, at: now };
+      slew = null;
       snapNext = true;
     },
     /** The engine's answer to a stop (or any stopped state): the heard frame. */
     settle(frame) {
       if (anchor) anchor = { ...anchor, frame, playing: false };
-      shown = null;
+      slew = null;
     },
   };
 }

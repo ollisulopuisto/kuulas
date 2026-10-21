@@ -31,6 +31,15 @@ export function previewPlaying(current, event) {
   }
 }
 
+/**
+ * Which stop the playing chip's Stop button sends. A preview played while the timeline
+ * plays is mixed into it (owner, 2026-10-21): only its voice goes away, the timeline plays
+ * on ("preview"). Played alone it is the transport's stop, which puts the playhead back.
+ */
+export function previewStop(state) {
+  return state.playing && state.clipboardPlaying ? "preview" : "transport";
+}
+
 /** What an entry's Play button shows: Stop while that entry plays, else Play. */
 export function previewButton(playing, entryId) {
   const on = playing?.id === entryId;

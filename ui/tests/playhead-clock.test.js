@@ -87,8 +87,11 @@ describe("createPlayheadClock", () => {
     c.accept(msg(0, 1), 1000);
     assert.equal(c.frameAt(1200), 9600);
     c.accept(msg(9600 - 480, 1.2), 1200); // 10 ms behind what was shown
-    assert.equal(c.frameAt(1201), 9600); // held
-    assert.ok(c.frameAt(1250) > 9600); // and moves on once caught up
+    // Changed 2026-10-21 (stutter fix): it used to be held, which froze the cursor for
+    // the length of the correction; now it slows for a moment and never steps back.
+    assert.ok(c.frameAt(1201) >= 9600);
+    assert.ok(c.frameAt(1201) < 9600 + 48); // slower than the sound
+    assert.ok(c.frameAt(1250) > 9600); // and moves on
   });
 
   it("snaps when a correction is far off", () => {

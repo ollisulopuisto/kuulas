@@ -173,6 +173,8 @@ export const getClipboard = () => json("/api/clipboard");
 export const copyToClipboard = (body) => post("/api/clipboard/copy", body);
 export const previewClipboardEntry = (id, limit = true) =>
   post(`/api/clipboard/${encodeURIComponent(id)}/preview`, { limit });
+// The chip's Stop while the timeline plays: only the mixed-in preview ends.
+export const stopClipboardPreview = () => post("/api/clipboard/preview/stop", {});
 export const pinClipboardEntry = (id, pinned) =>
   post(`/api/clipboard/${encodeURIComponent(id)}/pin`, { pinned });
 export const renameClipboardEntry = (id, name) =>
