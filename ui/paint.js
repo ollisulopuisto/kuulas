@@ -292,7 +292,8 @@ function paintClipWave(ctx, job, row, clip, view) {
     if (barBottom > barTop) ctx.rect(from + column, y + barTop, 1, barBottom - barTop);
   }
   ctx.fill();
-  strokeOutlines(ctx, bars, silentRuns, { from, y, h, colour: colours.wave });
+  // In the label colour: the wave colour is too close to the toned-down body to read on it.
+  strokeOutlines(ctx, bars, silentRuns, { from, y, h, colour: colours.label || colours.wave });
   if (preview) {
     strokeOutlines(ctx, bars, columnRuns(preview), {
       from,

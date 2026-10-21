@@ -73,6 +73,7 @@ export function readTheme(
     silentBody: p.signals.silentBody,
     gateLock: p.signals.gateLock,
     gateOpen: p.signals.gateOpen,
+    group: p.signals.group,
     damaged: p.signals.damaged,
     damagedFill: p.signals.damagedFill,
     clipping: p.signals.clipping,

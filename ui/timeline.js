@@ -43,6 +43,7 @@ import {
   windowCovers,
 } from "./ghost-wave.js";
 import { busHues, fileMark, needsFileMark, ribbonLayout, seamKind } from "./grammar.js";
+import { groupOutlines } from "./group-outline.js";
 import { detectPlatform, formatNumber, t } from "./i18n.js";
 import { ICONS } from "./icons.js";
 import { dropGhosts, dropLabel, resolveDropTarget } from "./import-drop.js";
@@ -77,7 +78,14 @@ import { aboutSeconds, placeholderLabel } from "./placeholders-model.js";
 import { dragRange, isDrag, touchedResult, trackRowsTouched } from "./range-drag.js";
 import { dimmedTracks, scopeSpans } from "./range-scope.js";
 import { rulerTicks } from "./ruler.js";
-import { inactiveLook, lockSpots, openLockSpot, TRACK_LAYERS } from "./silence-visuals.js";
+import {
+  inactiveLook,
+  lockSpots,
+  openLockSpot,
+  STRETCH_EDGE_DASH,
+  stretchEdges,
+  TRACK_LAYERS,
+} from "./silence-visuals.js";
 import {
   anchorIds,
   anchorNameFor,
@@ -280,6 +288,7 @@ export function createTimeline({
         if (look.veil > 0) drawVeil(row, top, width, look.veil);
       } else drawBusRow(state, row, top, groups, hues);
     }
+    drawGroupOutlines(state, layout);
     drawRuler(state, rate);
     drawInOut(state, height, rate, spans);
     drawRangeBand(state, layout);
@@ -698,6 +707,9 @@ export function createTimeline({
     overlay.clip();
     const painters = {
       preview: () => drawSilencePreview(state, track, top, row.height),
+      stretchEdges: () => {
+        if (state.showGates !== false) drawStretchEdges(state, track, top, row.height);
+      },
       locks: () => {
         if (state.showGates !== false) drawGateLocks(state, track, row, top);
       },
@@ -913,6 +925,55 @@ export function createTimeline({
   // border, a fade handle or a clip name (silence-visuals.js lockSpots). A stretch too narrow
   // for the icon gets none: the outline alone says silent. Runs are merged pixels (gate.js), so
   // thousands of ranges cost a few icons at most.
+  // The pseudo-borders of each closed stretch (owner, 2026-10-21): it reads as its own piece,
+  // but never as a clip: 1 px dashed lines in the lock colour, no handles, not draggable, and
+  // left out where a real clip border is (drawn above, unchanged). silence-visuals.js
+  // stretchEdges has the rules.
+  function drawStretchEdges(state, track, top, rowHeight) {
+    if (!track.gate?.length) return;
+    const runs = gatePixelRuns(track.gate, state.scroll, state.zoom, size.width, gateRuns);
+    const clipEdges = track.clips.flatMap((clip) => [
+      frameToX(clip.start, state.scroll, state.zoom),
+      frameToX(clipEnd(clip), state.scroll, state.zoom),
+    ]);
+    const xs = stretchEdges(runs, { width: size.width, clipEdges });
+    if (xs.length === 0) return;
+    overlay.save();
+    overlay.strokeStyle = theme.gateLock;
+    overlay.lineWidth = 1;
+    overlay.setLineDash(STRETCH_EDGE_DASH);
+    overlay.beginPath();
+    for (const x of xs) {
+      overlay.moveTo(x + 0.5, top + 2);
+      overlay.lineTo(x + 0.5, top + rowHeight - 2);
+    }
+    overlay.stroke();
+    overlay.restore();
+  }
+
+  // A clip group reads as one object (owner, 2026-10-21): one 1 px rounded outline just outside
+  // all its members, across tracks (group-outline.js). Drawn after every lane, so it is not cut
+  // by the next lane's drawing; under the ruler.
+  function drawGroupOutlines(state, layout) {
+    const boxes = groupOutlines(state.project, layout.rows, {
+      scroll: state.scroll,
+      zoom: state.zoom,
+      scrollY: state.scrollY,
+      rulerHeight: RULER_HEIGHT,
+    });
+    if (boxes.length === 0) return;
+    overlay.save();
+    overlay.beginPath();
+    overlay.rect(0, RULER_HEIGHT, size.width, size.height - RULER_HEIGHT);
+    overlay.clip();
+    overlay.strokeStyle = theme.group;
+    overlay.lineWidth = 1;
+    overlay.beginPath();
+    for (const box of boxes) overlay.roundRect(box.x, box.y, box.w, box.h, 4);
+    overlay.stroke();
+    overlay.restore();
+  }
+
   const gateRuns = [];
   function drawGateLocks(state, track, row, top) {
     if (!track.gate?.length || row.height < 24) return;

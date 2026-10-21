@@ -20,9 +20,11 @@
 </head>
 <body>
 <h1>Silent states</h1>
-<p>Filled = sounds. Outline only = silent. Lock = closed by Auto-Silence; open lock = mic kept
+<p>Filled = sounds. Outline only, on a darker body = silent. Lock = closed by Auto-Silence; its
+dashed amber lines mark where the stretch starts and ends (not clip edges). Open lock = mic kept
 open. Teal outline with dashed edges = Auto-Silence preview. Grey/dim lane = not part of the
-operation. Red sign, no waveform = file missing. Clip borders are drawn on top in every row.</p>
+operation. Red sign, no waveform = file missing. Thin rounded outline = one group. Clip borders
+are drawn on top in every row.</p>
 <div class="themes">
   <figure><figcaption>Light</figcaption><canvas id="light" width="1120" height="760"></canvas></figure>
   <figure><figcaption>Dark</figcaption><canvas id="dark" width="1120" height="760"></canvas></figure>
@@ -48,6 +50,7 @@ const ROWS = [
   { name: "Inactive: dim only", clips: [[20, 360]], inactive: "dim" },
   { name: "File missing", clips: [[20, 360, { missing: true }]] },
   { name: "Selected clip in a gate", clips: [[60, 300, { selected: true }]], gate: [[0, 400]] },
+  { name: "A group (two clips)", clips: [[20, 180, { group: true }], [240, 420, { group: true }]] },
 ];
 
 function tokens(theme) {
@@ -60,7 +63,7 @@ function tokens(theme) {
     body: v("--track-0-body"), wave: v("--track-0-wave"), edge: v("--track-0-edge"),
     label: v("--track-0-label"), tone: v("--signal-silent-body"), lock: v("--signal-gate-lock"),
     open: v("--signal-gate-open"), preview: v("--signal-preview"), damaged: v("--signal-damaged"),
-    damagedFill: v("--signal-damaged-fill"), font: v("--font-ui"),
+    damagedFill: v("--signal-damaged-fill"), font: v("--font-ui"), group: v("--signal-group"),
   };
   delete document.documentElement.dataset.theme;
   return out;
@@ -123,7 +126,7 @@ function draw(canvas, theme) {
         const bar = Math.max(1, peak(x) * (h - 2));
         ctx.fillRect(x, y + h - bar, 1, bar);
       }
-      for (const [test, colour] of [[silent, col.wave], [prev, c.preview]]) {
+      for (const [test, colour] of [[silent, col.label], [prev, c.preview]]) {
         ctx.strokeStyle = colour;
         ctx.lineWidth = 1;
         let run = null;
@@ -171,6 +174,20 @@ function draw(canvas, theme) {
       ctx.stroke(new Path2D(ICON[name]));
       ctx.restore();
     };
+    // Stretch edges: dashed, lock colour, not on a real clip border.
+    ctx.strokeStyle = c.lock;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    for (const [a, b] of row.gate ?? []) {
+      for (const x of [a, b - 1]) {
+        if (x <= 0 || x >= W - 1) continue;
+        if (row.clips.some(([ca, cb]) => Math.abs(ca - x) <= 2 || Math.abs(cb - x) <= 2)) continue;
+        ctx.moveTo(x + 0.5, y);
+        ctx.lineTo(x + 0.5, y + h);
+      }
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
     for (const [a, b] of row.gate ?? []) {
       let x = a + 3;
       for (const [ca, cb] of row.clips) for (const e of [ca, cb]) if (x + 12 >= e - 6 && x <= e + 6) x = e + 7;
@@ -207,6 +224,16 @@ function draw(canvas, theme) {
         ctx.fillStyle = c.sel;
         for (const hx of [a + 10, b - 10]) { ctx.beginPath(); ctx.arc(hx, y + 5, 3.5, 0, 7); ctx.fill(); }
       }
+    }
+    const grouped = row.clips.filter(([, , o = {}]) => o.group);
+    if (grouped.length > 1) {
+      const a = Math.min(...grouped.map((g) => g[0]));
+      const b = Math.max(...grouped.map((g) => g[1]));
+      ctx.strokeStyle = c.group;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(a - 1.5, y - 1.5, b - a + 3, h + 3, 4);
+      ctx.stroke();
     }
     if (row.preview) {
       ctx.font = `11px ${c.font}`;

@@ -20,6 +20,7 @@
 //   notch       annotation: a note or marker on the clip
 //   bracket     relation: corner brackets on clips of the same recording
 //   ribbon      activity: who sounds when, inside a collapsed bus
+//   enclosure   unity: one outline round the members of a clip group
 //
 // Colours are never written here: each signal names its semantic tokens
 // (tokens.css), and resolvePalette reads them once per theme change for the
@@ -46,6 +47,7 @@ export const CHANNELS = [
   "notch",
   "bracket",
   "ribbon",
+  "enclosure",
 ];
 
 export const SPEAKER_HUE_COUNT = 6;
@@ -153,6 +155,18 @@ export const SIGNALS = [
     when: "Auto-Silence: one merged gate per track closes the mic (WP44); a per-lane toggle shows or hides it",
     key: "Alt+Mod+P runs Auto-Silence",
     status: "prototype",
+  },
+  {
+    id: "clip_group",
+    channel: "enclosure",
+    meaning: "unity",
+    priority: 2,
+    atRest: true,
+    tokens: ["--signal-group"],
+    twin: "one 1 px rounded outline just outside all the members (across tracks), plus the group badge on each clip; unlike the selection (2 px on the clip's own border) and a closed stretch's dashed amber edges",
+    when: "clips grouped with Edit > Group (Clip.group)",
+    key: "Mod+G groups, Shift+Mod+G ungroups",
+    status: "built",
   },
   {
     id: "ungated",
@@ -588,6 +602,7 @@ export const SEMANTIC_TOKENS = [
   "--signal-silent-body",
   "--signal-gate-lock",
   "--signal-gate-open",
+  "--signal-group",
   "--signal-damaged",
   "--signal-damaged-fill",
   "--signal-removed",

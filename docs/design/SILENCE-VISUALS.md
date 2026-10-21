@@ -20,20 +20,26 @@ Independent channels, each with one meaning, so they combine without confusion:
 -------------------------------+-----------------+---------------+-------------------+------------------
  sounds                        | FILLED          | normal        | -                 | normal
  muted clip (you)              | OUTLINE only    | toned down    | -                 | normal
- closed by Auto-Silence        | OUTLINE only    | toned down    | LOCK (amber)      | normal
- muted AND gated               | OUTLINE only    | toned down    | LOCK              | normal
+ closed by Auto-Silence        | OUTLINE only    | toned down    | LOCK (amber)      | dashed amber ends
+ muted AND gated               | OUTLINE only    | toned down    | LOCK              | dashed amber ends
  keeps the mic open (ungated)  | FILLED          | normal        | OPEN LOCK (green) | normal
  Auto-Silence preview          | OUTLINE in teal | normal        | "preview" label   | dashed teal edges
  not part of the operation     | (as above)      | (as above)    | (as above)        | GREY and/or DIM
  media file missing            | NONE            | red fill      | WARNING sign      | red 2 px edge
+ clips in one group            | (as above)      | (as above)    | group badge       | one rounded outline
 ```
 
 Legend:
 
-- **Filled** waveform = it sounds. **Outline only** (the min/max envelope stroked, no fill) =
-  silent. The ghost of the audio stays, so you can still judge what is cut.
-- **Lock** = closed by Auto-Silence. **Open lock** = released from it: the clip keeps the
-  mic open (`Clip.ungated`). A muted clip and a gated stretch differ only by the lock.
+- **Filled** waveform = it sounds. **Outline only** (the min/max envelope stroked in the
+  track's label colour, no fill) on a clearly darker body = silent. The ghost of the audio
+  stays, so you can still judge what is cut.
+- **Lock** = closed by Auto-Silence; **dashed amber lines** mark where the closed stretch
+  starts and ends, so it reads as its own piece. They are not clip edges: thinner, dashed,
+  amber, no handles, not draggable. **Open lock** = released from it: the clip keeps the
+  mic open (`Clip.ungated`). A muted clip and a gated stretch differ only by the lock (and
+  its dashed ends).
+- **Thin rounded outline** round several clips = one group (`Clip.group`, Edit > Group).
 - **Dim / grey** = not part of what you are doing now (range scope; listening to a rendered
   mix). Never used for silence.
 - **Teal outline with dashed edges** = what the Auto-Silence preview would close.
@@ -56,8 +62,22 @@ the lock at the left of the visible part of the closed stretch.
   Double-click to open this stretch."
 - **The open lock** follows the clip name, before the right edge zone and badges
   (`openLockSpot`). Hover: "This clip keeps the mic open: Auto-Silence never closes it."
-- **Toned body**: `--signal-silent-body`, a light darkening, much weaker than the dim veil.
-  It keeps "no fill" reading as silent when zoomed out, where the outline thins to a line.
+- **Toned body**: `--signal-silent-body`. First a light darkening (6 % light, 20 % dark);
+  the owner found it too close to the open body (v26.10.20.35), so it is now 22 % (light) and
+  60 % (dark), a step of at least 1.5:1 (light) and 1.2:1 (dark; WCAG ratios compress dark
+  colours, the change is plainly visible). The silent outline moved from the wave colour to the
+  track's label colour, which keeps over 4.4:1 on the darker body. It keeps "no fill" reading
+  as silent when zoomed out, where the outline thins to a line.
+- **Stretch ends** (`stretchEdges`, tested): a 1 px line dashed 3/3 in `--signal-gate-lock` on
+  the first and last pixel of each closed stretch, drawn under the clip chrome. An end the view
+  cuts off is not drawn (the stretch goes on); an end within 2 px of a real clip edge is left to
+  the real border; a stretch under 4 px wide gets none. Not hit-tested: a drag there paints a
+  range or moves the clip as anywhere else.
+- **Groups** (`groupOutlines`, tested): one 1 px rounded outline in `--signal-group`, 1.5 px
+  outside the bodies of all members (across tracks), drawn after all lanes. Different from the
+  selection (2 px, on the clip's own border, near-black/white) and from the dashed amber
+  stretch ends. Members on a collapsed track do not count. Sync partners (recordings in sync,
+  not an explicit group) keep their corner brackets on selection; they get no outline.
 - **Missing media** is not silence: no waveform at all (not even an outline), the
   `--signal-damaged-fill` body, a 2 px `--signal-damaged` edge, a large warning triangle and
   "File missing". Double-click opens File > Locate media. Clip > Locate / Relink media…
@@ -90,18 +110,21 @@ for graphics; `ui/tests/silence-tokens.test.js` checks every pair in both themes
 
 | Pair | Light | Dark |
 |---|---|---|
-| outline-only wave on toned body (worst hue) | 3.09 | 4.67 |
-| body vs toned body (the step; 1.05..1.30) | >= 1.12 | >= 1.08 |
-| lock on its chip (`--surface-panel`) | 6.26 | 10.42 |
-| lock on any body / toned body (worst) | 7.16 / 6.37 | 7.65 / 8.82 |
+| silent outline (label colour) on toned body (worst hue) | 4.46 | 12.09 |
+| body vs toned body (the step) | >= 1.58 | >= 1.21 |
+| lock / stretch ends on its chip (`--surface-panel`) | 6.26 | 10.42 |
+| lock / stretch ends on any body / toned body (worst) | 7.16 / 4.54 | 7.65 / 11.06 |
 | open lock on its chip | 7.74 | 8.35 |
-| open lock on any body / toned body (worst) | 8.85 / 7.87 | 6.13 / 7.06 |
+| open lock on any body / toned body (worst) | 8.85 / 5.61 | 6.13 / 8.86 |
+| group outline on the lane / any body (worst) | 9.77 / 10.32 | 8.53 / 6.02 |
 | preview teal on the lane | 4.36 | 8.76 |
 | missing sign on its fill | >= 3 (tested) | >= 3 (tested) |
 
 On a *filled* waveform the icons would fall to about 1:1 against some hues (amber lock on
 amber wave), which is why they always sit on the panel chip. Tokens: light lock
-`--p-amber-40`, open `--p-green-34`; dark lock `--p-amber-84`, open `--p-green-76`. The lock is
+`--p-amber-40`, open `--p-green-34`, group `--p-gray-30-b`, silent body `--p-gray-22-a22`;
+dark lock `--p-amber-84`, open `--p-green-76`, group `--p-gray-76`, silent body
+`--p-black-a60`. The lock is
 warm ("the machine did something here"), the open lock green ("you released it"), the
 preview teal; three different colours, tested, and three different shapes.
 

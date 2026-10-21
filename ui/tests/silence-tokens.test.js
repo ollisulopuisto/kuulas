@@ -52,7 +52,10 @@ function ratio(a, b) {
 }
 const TRACKS = ["0", "1", "2", "3", "4", "5", "music"];
 const BODIES = TRACKS.flatMap((n) => [`--track-${n}-body`, `--track-${n}-body-alt`]);
-const NEW = ["--signal-silent-body", "--signal-gate-lock", "--signal-gate-open"];
+const NEW = ["--signal-silent-body", "--signal-gate-lock", "--signal-gate-open", "--signal-group"];
+// Owner, 2026-10-21 (after v26.10.20.35): the toned body was too close to the open body. The
+// step must be clearly visible; WCAG's ratio compresses dark colours, so dark asks less.
+const MIN_STEP = { light: 1.5, dark: 1.2 };
 
 test("the new tokens are registered and defined in both themes", () => {
   for (const name of NEW) {
@@ -67,17 +70,17 @@ test("the new tokens are registered and defined in both themes", () => {
 });
 
 for (const theme of Object.keys(THEMES)) {
-  test(`${theme}: the outline-only wave reads on the toned body, and the tone is a visible step`, () => {
+  test(`${theme}: the silent outline (label colour) reads on the toned body; the step is clear`, () => {
     const failures = [];
     for (const n of TRACKS) {
       for (const part of ["body", "body-alt"]) {
         const body = rgb(theme, `--track-${n}-${part}`);
         const toned = over(theme, "--signal-silent-body", body);
-        const wave = ratio(rgb(theme, `--track-${n}-wave`), toned);
-        if (wave < 3) failures.push(`wave ${n} on toned ${part}: ${wave.toFixed(2)}`);
+        const line = ratio(rgb(theme, `--track-${n}-label`), toned);
+        if (line < 3) failures.push(`outline ${n} on toned ${part}: ${line.toFixed(2)}`);
         const step = ratio(body, toned);
-        if (step < 1.05) failures.push(`tone step on ${n} ${part}: ${step.toFixed(3)}`);
-        if (step > 1.3) failures.push(`tone too strong on ${n} ${part}: ${step.toFixed(3)}`);
+        if (step < MIN_STEP[theme]) failures.push(`tone step on ${n} ${part}: ${step.toFixed(3)}`);
+        if (step > 2) failures.push(`tone too strong on ${n} ${part}: ${step.toFixed(3)}`);
       }
     }
     assert.deepEqual(failures, []);
@@ -106,6 +109,19 @@ for (const theme of Object.keys(THEMES)) {
     const open = value(theme, "--signal-gate-open");
     const preview = value(theme, "--signal-preview");
     assert.equal(new Set([lock, open, preview]).size, 3);
+  });
+
+  test(`${theme}: the group outline and the stretch edges read on the lane and the bodies`, () => {
+    const failures = [];
+    for (const fg of ["--signal-group", "--signal-gate-lock"]) {
+      for (const bg of ["--surface-lane", ...BODIES]) {
+        const r = ratio(rgb(theme, fg), rgb(theme, bg));
+        if (r < 3) failures.push(`${fg} on ${bg}: ${r.toFixed(2)}`);
+      }
+    }
+    assert.notEqual(value(theme, "--signal-group"), value(theme, "--signal-selected"));
+    assert.notEqual(value(theme, "--signal-group"), value(theme, "--signal-gate-lock"));
+    assert.deepEqual(failures, []);
   });
 
   test(`${theme}: missing media's sign reads on its fill`, () => {
