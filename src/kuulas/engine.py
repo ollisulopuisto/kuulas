@@ -67,13 +67,14 @@ import threading
 import time
 from collections import deque
 from collections.abc import Callable
+from dataclasses import replace
 from typing import Any
 
 import numpy as np
 import sounddevice as sd
 import soxr
 
-from . import diag, latency, meter, preview_level
+from . import diag, gate, latency, meter, preview_level
 from .media import CHUNK_SEC, streaming
 from .messages import KuulasError, t
 from .model import Project
@@ -202,6 +203,17 @@ def _check_speed(rate: object, preserve_pitch: bool) -> float:
 def _clock_text(frame: int, rate: int) -> str:
     seconds = max(0, frame) // rate
     return f"{seconds // 60}:{seconds % 60:02d}"
+
+
+def _overlaid(project: Project, overlay: dict | None) -> Project:
+    """``project`` with the overlay's ranges as those tracks' gates: what
+    ``analysis.apply_silence`` would commit, made here without a history step.
+    A frozen copy of the track list; the clips are shared, not copied."""
+    if not overlay:
+        return project
+    return replace(project, tracks=tuple(
+        replace(t, gate=overlay[t.id]) if t.id in overlay else t
+        for t in project.tracks))
 
 
 class _SafeStore:
@@ -359,6 +371,16 @@ class Engine:
         self._preview_limit = False  # the safety limiter, on a preview only (WP82)
         self._base: Project = session.state
         self._preview_anchor = 0
+        #: The Auto-Silence live preview's listening overlay
+        #: (``set_silence_overlay``): track id -> closed ranges played as that
+        #: track's gate, never committed. ``_real`` is the session's latest
+        #: project without it; what plays is ``_real`` with the overlay on top,
+        #: made on the control side and handed over by one assignment.
+        #: ``_olock`` orders the session's ``set_project`` against the panel's
+        #: overlay changes; the audio thread never touches it.
+        self._real: Project = session.state
+        self._overlay: dict[str, tuple[tuple[int, int], ...]] | None = None
+        self._olock = threading.Lock()
         #: A clipboard preview mixed into the playing timeline (``play_preview`` while
         #: playing): swapped in and out by one attribute assignment, the audio
         #: thread only reads it. ``_vseq`` is its transport version (control side).
@@ -480,11 +502,35 @@ class Engine:
         """The project to play from the next block on. Called by the session
         after every change; one attribute assignment, so the audio thread
         never sees half a project. During a preview the real project is only
-        remembered, and comes back when the preview ends."""
+        remembered, and comes back when the preview ends. A listening overlay
+        (``set_silence_overlay``) is put on top of every new project."""
+        with self._olock:
+            self._real = project
+            self._hand_over(_overlaid(project, self._overlay))
+
+    def _hand_over(self, project: Project) -> None:
+        """What plays from the next block on (caller holds ``_olock``)."""
         if self._preview:
             self._base = project
         else:
             self._project = project
+
+    def set_silence_overlay(self, ranges_by_track: dict | None) -> None:
+        """Play the project as if each named track's gate were these closed
+        ranges (``{track_id: [(start, end), ...]}``, timeline frames): the
+        Auto-Silence live preview's Listen, never committed. The mixer's own
+        gate code applies them (the same 30 ms edge ramps), so it sounds
+        exactly like Accept would. Tracks not named keep their gate; unknown
+        ids are ignored. Set while playing it is heard from the next block,
+        with no restart; None clears it at once. Edits that arrive meanwhile
+        keep the overlay on top. A clipboard preview playing alone is not
+        overlaid (it is another project); the overlay is back when it ends."""
+        overlay = None if ranges_by_track is None else {
+            str(track_id): gate.normalise((int(a), int(b)) for a, b in ranges)
+            for track_id, ranges in ranges_by_track.items()}
+        with self._olock:
+            self._overlay = overlay
+            self._hand_over(_overlaid(self._real, overlay))
 
     def play_preview(self, project: Project, until: int | None = None,
                      limit: bool = False) -> None:
@@ -791,6 +837,7 @@ class Engine:
             out = {
                 "playing": playing,
                 "preview": self._preview,
+                "silence_overlay": self._overlay is not None,
                 "mix_preview": self._mix_preview(),
                 "preview_seq": self._vseq,
                 "position": int(position),
