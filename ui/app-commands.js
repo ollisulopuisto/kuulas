@@ -236,6 +236,12 @@ export function registerAppCommands(registry, { actions, app }) {
     () => app.clearRecent(),
     (state) => (state?.recentProjects?.length ?? 0) > 0,
   );
+  // Only the list changes; asks once (a notice with a button). Needs an entry whose folder is gone.
+  def(
+    "app.remove_missing_recents",
+    () => app.removeMissingRecents(),
+    (state) => (state?.recentProjects ?? []).some((p) => p.missing),
+  );
   // File > Statistics… (WP70): runtime, counts, talk, work and sizes of this session.
   def("app.statistics", () => app.openStatistics(), hasProject);
   // File > Locate media… (WP39) and Send a copy… (WP32): no default key (the Finnish layout

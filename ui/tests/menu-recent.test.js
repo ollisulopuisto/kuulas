@@ -17,6 +17,9 @@ function resolve(state) {
   const hasRecent = (s) => (s?.recentProjects?.length ?? 0) > 0;
   registry.register("app.open", () => {});
   registry.register("app.clear_recent", () => {}, { can: hasRecent });
+  registry.register("app.remove_missing_recents", () => {}, {
+    can: (s) => (s?.recentProjects ?? []).some((p) => p.missing),
+  });
   return resolveMenu({
     menu: MENU,
     entries: resolveKeymap(DEFAULT_KEYMAP, {}, "mac"),
@@ -49,9 +52,9 @@ describe("File > Open Recent", () => {
     const sub = openRecent(resolve({ recentProjects: recent }));
     assert.deepEqual(
       sub.items.map((item) => item.kind),
-      ["item", "item", "separator", "item"],
+      ["item", "item", "separator", "item", "item"],
     );
-    const [a, b, , clear] = sub.items;
+    const [a, b, , , clear] = sub.items;
     assert.deepEqual([a.id, a.arg, a.label, a.enabled], ["app.open", "/p/A.kuulas", "A", true]);
     assert.match(a.tooltip, /\/p\/A\.kuulas/);
     assert.match(a.tooltip, /1 hour ago/);
@@ -71,6 +74,18 @@ describe("File > Open Recent", () => {
 
   test("the menu-coverage targets still name Clear menu", () => {
     assert.ok(menuTargets(MENU).includes("app.clear_recent"));
+  });
+
+  test("Remove missing projects from the list is in the submenu, enabled only when one is missing", () => {
+    const withGone = openRecent(resolve({ recentProjects: recent }));
+    const remove = withGone.items.find((item) => item.id === "app.remove_missing_recents");
+    assert.equal(remove?.enabled, true);
+    const allThere = openRecent(resolve({ recentProjects: [recent[0]] }));
+    assert.equal(
+      allThere.items.find((item) => item.id === "app.remove_missing_recents")?.enabled,
+      false,
+    );
+    assert.ok(menuTargets(MENU).includes("app.remove_missing_recents"));
   });
 });
 

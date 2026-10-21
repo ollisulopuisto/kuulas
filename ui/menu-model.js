@@ -188,7 +188,7 @@ const OPEN_RECENT = {
   kind: "submenu",
   labelKey: "menu.open_recent",
   source: "recent",
-  items: [item("app.clear_recent")],
+  items: [item("app.remove_missing_recents"), item("app.clear_recent")],
 };
 
 export const MENU = [

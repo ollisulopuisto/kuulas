@@ -131,3 +131,70 @@ export function rowForKey(event, platform, count) {
   const index = Number(match[1]) - 1;
   return index < count ? index : null;
 }
+
+// -- removing entries: only the list changes, never a project folder (ground rule 17) -------
+
+/** The list without `path`, what went and where (`index` -1 when it was not there). */
+export function removeEntry(rows, path) {
+  const index = rows.findIndex((row) => row.path === path);
+  if (index < 0) return { rows: [...rows], removed: null, index: -1 };
+  return { rows: rows.filter((_, at) => at !== index), removed: rows[index], index };
+}
+
+/** Undo of `removeEntry`: the entry back at `index` (clamped); once, whatever the number of calls. */
+export function restoreEntry(rows, removed, index) {
+  if (!removed || rows.some((row) => row.path === removed.path)) return [...rows];
+  const at = Math.max(0, Math.min(index, rows.length));
+  return [...rows.slice(0, at), removed, ...rows.slice(at)];
+}
+
+/** The paths of the entries whose folder is gone (`exists === false`). */
+export function missingPaths(rows) {
+  return rows.filter((row) => row.exists === false).map((row) => row.path);
+}
+
+/** The buttons a row carries, in order: a missing project can be located, any can be removed. */
+export function rowActions(model) {
+  return model.missing ? ["locate", "remove"] : ["remove"];
+}
+
+// -- the highlight before a key opens a project ---------------------------------------------
+
+/** How long the chosen row shows before it opens (a subtle pulse): long enough to be seen,
+ * short enough not to feel like a wait. */
+export const PULSE_MS = 180;
+/** With reduced motion there is no animation, only the static highlight, for a shorter moment. */
+export const PULSE_REDUCED_MS = 120;
+
+/**
+ * The one way in for the click and the key. `request(model, index, via)`: a missing project is
+ * explained, never opened; a key press highlights row `index` and opens after the pulse; a click
+ * opens at once. While a key's pulse is pending, further requests are ignored (no double open).
+ * The timer and the DOM are injected, so this is tested without either.
+ */
+export function createOpener({ schedule, highlight, unhighlight, open, explain, reducedMotion }) {
+  let pending = false;
+  return {
+    request(model, index, via) {
+      if (model.missing) {
+        explain(model);
+        return;
+      }
+      if (pending) return;
+      if (via !== "key") {
+        open(model);
+        return;
+      }
+      pending = true;
+      highlight(index);
+      schedule(
+        () => {
+          pending = false;
+          unhighlight(index);
+          open(model);
+        },
+        reducedMotion ? PULSE_REDUCED_MS : PULSE_MS,
+      );
+    },
+  };
+}
