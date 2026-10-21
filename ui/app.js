@@ -53,7 +53,7 @@ import {
 import { nextPanel } from "./focus.js";
 import { followScroll } from "./follow.js";
 import { frameToTime, RATE, xToFrame } from "./format.js";
-import { fadeChange, gainChange } from "./gain-drag.js";
+import { envelopeChange, fadeChange, gainChange } from "./gain-drag.js";
 import { GATE_OPEN_COMMAND, openStretchEdit, stretchAt } from "./gate.js";
 import { HELP_COMMAND, shortcutsFor } from "./help.js";
 import { createHelpPanel } from "./help-panel.js";
@@ -2982,6 +2982,16 @@ const timeline = createTimeline({
         coalesce,
         label: t(labelKey),
         provisional: (p) => patchClip(p, clipId, { gain_db: gain }),
+      });
+    },
+    // Double-click on the gain line: the envelope's new points, one undo step.
+    clipEnvelope({ clipId, points }) {
+      const { op, args, labelKey } = envelopeChange(clipId, points);
+      editor.change({
+        op,
+        args,
+        label: t(labelKey),
+        provisional: (p) => patchClip(p, clipId, { envelope: points }),
       });
     },
     clipFade({ clipId, side, frames }) {

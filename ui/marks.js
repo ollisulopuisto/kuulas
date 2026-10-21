@@ -1,5 +1,6 @@
 // The in and out marks (I and O): pure rules, so the order can never reverse, and what
 // to draw for them (a lone mark is drawn too).
+import { resolveMark } from "./ghost-marker.js";
 
 /** Set the in mark. An in mark at or after the out mark replaces the out mark. */
 export function setInPoint({ outPoint }, frame) {
@@ -13,15 +14,58 @@ export function setOutPoint({ inPoint }, frame) {
   return { inPoint: keepIn ? inPoint : null, outPoint: frame };
 }
 
-/** The frames to draw: each mark that exists, and the range tint when they make one. */
-export function markDrawing({ inPoint, outPoint }) {
+/**
+ * Place the in or out mark at `frame` (I and O), using the ghost of the last cut for the
+ * partner that is not set (ghost-marker.js resolveMark): the order rule of setInPoint and
+ * setOutPoint first, then the guess. `state` holds inPoint, outPoint, ghost ({ frame } or
+ * null) and guessedMarks ({ in, out }: the frame a mark was guessed at, else null).
+ *
+ * A mark counts as guessed only while it still sits on the frame it was guessed at, so a
+ * range dragged, typed or set by hand later is explicit without anyone having to reset the
+ * record. Returns the patch { inPoint, outPoint, guessedMarks }.
+ */
+export function placeMark(state, kind, frame) {
+  const base = (kind === "in" ? setInPoint : setOutPoint)(state, frame);
+  const was = markDrawing(state).guessed;
+  const resolved = resolveMark(
+    state.ghost,
+    {
+      in: base.inPoint,
+      out: base.outPoint,
+      guessed: {
+        in: was.in && base.inPoint === state.inPoint,
+        out: was.out && base.outPoint === state.outPoint,
+      },
+    },
+    kind,
+    frame,
+  );
+  return {
+    inPoint: resolved.in,
+    outPoint: resolved.out,
+    guessedMarks: {
+      in: resolved.guessed.in ? resolved.in : null,
+      out: resolved.guessed.out ? resolved.out : null,
+    },
+  };
+}
+
+/**
+ * The frames to draw: each mark that exists, the range tint when they make one, and which
+ * marks are guesses (drawn lighter and dashed, so a guess reads differently from a chosen mark).
+ */
+export function markDrawing({ inPoint, outPoint, guessedMarks }) {
   const inFrame = typeof inPoint === "number" ? inPoint : null;
   const outFrame = typeof outPoint === "number" ? outPoint : null;
   const range =
     inFrame !== null && outFrame !== null && outFrame > inFrame
       ? { start: inFrame, end: outFrame }
       : null;
-  return { inFrame, outFrame, range };
+  const guessed = {
+    in: inFrame !== null && guessedMarks?.in === inFrame,
+    out: outFrame !== null && guessedMarks?.out === outFrame,
+  };
+  return { inFrame, outFrame, range, guessed };
 }
 
 // Room kept free either side of the length label: the in and out flags are 8 px wide.

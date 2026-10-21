@@ -2,9 +2,10 @@
 // Everything else in the keymap is "planned" until its work package lands.
 
 import { busOfFocus, collapseAllChange, collapseChange } from "./bus-collapse.js";
+import { clearGhost } from "./ghost-marker.js";
 import { canRestore } from "./history-model.js";
 import { rangeAvailable } from "./loop-range.js";
-import { setInPoint, setOutPoint } from "./marks.js";
+import { placeMark } from "./marks.js";
 import { focusTrack } from "./range-scope.js";
 import { playSelectionRequest, rehearseRequest } from "./rehearse.js";
 import { PAUSE_CHOICES } from "./transcript-model.js";
@@ -284,7 +285,7 @@ export function registerAppCommands(registry, { actions, app }) {
     "mark.in",
     () => {
       const state = app.getState();
-      app.patch({ ...setInPoint(state, state.playhead), rangeTracks: new Set() });
+      app.patch({ ...placeMark(state, "in", state.playhead), rangeTracks: new Set() });
     },
     hasProject,
   );
@@ -292,7 +293,7 @@ export function registerAppCommands(registry, { actions, app }) {
     "mark.out",
     () => {
       const state = app.getState();
-      app.patch({ ...setOutPoint(state, state.playhead), rangeTracks: new Set() });
+      app.patch({ ...placeMark(state, "out", state.playhead), rangeTracks: new Set() });
     },
     hasProject,
   );
@@ -300,7 +301,15 @@ export function registerAppCommands(registry, { actions, app }) {
   def("mark.clear_out", () => app.patch({ outPoint: null, rangeTracks: new Set() }), hasProject);
   def(
     "mark.clear",
-    () => app.patch({ inPoint: null, outPoint: null, rangeTracks: new Set() }),
+    // Clearing the marks also forgets the ghost of the last cut (Shift+Alt+I).
+    () =>
+      app.patch({
+        inPoint: null,
+        outPoint: null,
+        ghost: clearGhost(),
+        guessedMarks: { in: null, out: null },
+        rangeTracks: new Set(),
+      }),
     hasProject,
   );
   def("palette.open", () => app.openPalette());

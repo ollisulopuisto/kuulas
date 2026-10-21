@@ -781,6 +781,7 @@
   "ui.range.hint_alt": "Alt: the clips the range touches. Release Alt: exact range. Esc: cancel",
   "ui.clipdrag.move": "Move clips",
   "ui.clipdrag.gain": "Set clip gain",
+  "ui.clipdrag.envelope": "Edit volume envelope point",
   "ui.clipdrag.fade_in": "Set fade in",
   "ui.clipdrag.fade_out": "Set fade out",
   "ui.gate.open_stretch": "Open this stretch",

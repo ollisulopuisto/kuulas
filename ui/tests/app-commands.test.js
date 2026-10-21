@@ -221,7 +221,16 @@ describe("the commands the app registers", () => {
     assert.deepEqual(calls, [
       ["patch", { inPoint: null, rangeTracks: new Set() }],
       ["patch", { outPoint: null, rangeTracks: new Set() }],
-      ["patch", { inPoint: null, outPoint: null, rangeTracks: new Set() }],
+      [
+        "patch",
+        {
+          inPoint: null,
+          outPoint: null,
+          ghost: null,
+          guessedMarks: { in: null, out: null },
+          rangeTracks: new Set(),
+        },
+      ],
     ]);
     assert.equal(registry.can("mark.clear", {}), false);
   });
@@ -352,8 +361,24 @@ describe("the commands the app registers", () => {
     registry.run("mark.out");
     // The marks never reverse, so each command also says what happens to the other one.
     assert.deepEqual(calls, [
-      ["patch", { inPoint: 5, outPoint: null, rangeTracks: new Set() }],
-      ["patch", { inPoint: null, outPoint: 5, rangeTracks: new Set() }],
+      [
+        "patch",
+        {
+          inPoint: 5,
+          outPoint: null,
+          guessedMarks: { in: null, out: null },
+          rangeTracks: new Set(),
+        },
+      ],
+      [
+        "patch",
+        {
+          inPoint: null,
+          outPoint: 5,
+          guessedMarks: { in: null, out: null },
+          rangeTracks: new Set(),
+        },
+      ],
     ]);
   });
 
@@ -387,7 +412,17 @@ describe("the commands the app registers", () => {
   test("an out mark before the in mark replaces the in mark", () => {
     const { registry, calls } = setup({ project, playhead: 2, inPoint: 9, outPoint: null });
     registry.run("mark.out");
-    assert.deepEqual(calls, [["patch", { inPoint: null, outPoint: 2, rangeTracks: new Set() }]]);
+    assert.deepEqual(calls, [
+      [
+        "patch",
+        {
+          inPoint: null,
+          outPoint: 2,
+          guessedMarks: { in: null, out: null },
+          rangeTracks: new Set(),
+        },
+      ],
+    ]);
   });
 
   test("rename needs a focused track or bus", () => {

@@ -783,6 +783,7 @@
   "ui.range.hint_alt": "Alt: alueen koskettamat leikkeet. Vapauta Alt: tarkka alue. Esc: peru",
   "ui.clipdrag.move": "Siirrä leikkeitä",
   "ui.clipdrag.gain": "Säädä leikkeen voimakkuutta",
+  "ui.clipdrag.envelope": "Muokkaa voimakkuuskäyrän pistettä",
   "ui.clipdrag.fade_in": "Säädä sisäänliukua",
   "ui.clipdrag.fade_out": "Säädä ulosliukua",
   "ui.gate.open_stretch": "Avaa tämä kohta",

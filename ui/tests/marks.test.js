@@ -49,6 +49,7 @@ describe("what to draw for the marks", () => {
       inFrame: null,
       outFrame: null,
       range: null,
+      guessed: { in: false, out: false },
     });
   });
   test("a lone out mark is drawn, with no range tint", () => {
@@ -56,6 +57,7 @@ describe("what to draw for the marks", () => {
       inFrame: null,
       outFrame: 500,
       range: null,
+      guessed: { in: false, out: false },
     });
   });
   test("both marks give the range tint", () => {
@@ -63,6 +65,7 @@ describe("what to draw for the marks", () => {
       inFrame: 100,
       outFrame: 500,
       range: { start: 100, end: 500 },
+      guessed: { in: false, out: false },
     });
   });
   test("reversed marks (an old saved state) draw no range tint", () => {
