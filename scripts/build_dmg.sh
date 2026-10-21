@@ -6,12 +6,14 @@
 # What it does, in order:
 #   1. exports HEAD with `git archive` into a work folder (an uncommitted change is not
 #      in the build; the script says so),
-#   2. builds the wheels of speechmix, nhsx and silencelearn from the podcast repo's origin/main
+#   2. builds the wheels of speechmix, nhsx, silencelearn and the automixer app from the
+#      podcast repo's origin/main
 #      (build_wheels.sh) and fetches static ffmpeg and ffprobe (fetch_ffmpeg.sh),
 #   3. stages a Briefcase project (stage_bundle.py), creates and builds Kuulas.app,
 #   4. runs `Kuulas.app --selftest` (headless: libraries, ffmpeg, UI files, a project,
 #      the server, the loudness meter, the recorder, and the transcription worker started
-#      as the editor starts it, which must run a no-op job to "completed") and stops if
+#      as the editor starts it, which must run a no-op job to "completed", and the bundled
+#      automixer answering `--help`) and stops if
 #      it fails,
 #   5. packages "Kuulas <version>.dmg" (ad-hoc signed, NOT notarised: the first open
 #      needs right-click > Open, see docs/TESTERS.md), mounts it and runs --selftest

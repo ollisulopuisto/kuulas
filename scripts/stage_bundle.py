@@ -35,6 +35,10 @@ MIN_MACOS = "12.0"
 
 #: Dependencies of the root project that the bundle gets as local wheels instead.
 LOCAL = ("speechmix", "nhsx", "silencelearn")
+#: Podcast apps the bundle ships as wheels although Kuulas does not depend on them: the
+#: automixer runs as its own process (``automix.bundled_command``). Every wheel in the
+#: wheels folder joins the requirements, so building it is what ships it.
+APPS = ("automixer",)
 
 #: Inside ``ui/``: development files that do not belong in the app.
 UI_SKIP = ("tests", "biome.json", "node_modules", "package.json", "package-lock.json")
@@ -45,6 +49,13 @@ do not redistribute.
 
 Bundled third-party software keeps its own licences; each package's licence file is in
 Contents/Resources/app_packages/<package>.dist-info.
+
+pedalboard (https://github.com/spotify/pedalboard) is licensed GPL version 3. Kuulas
+loads it in its own process (through speechmix) and the bundled automixer (podcast
+repository, apps/automixer) runs on it. Its licence text is in its dist-info folder and
+its source is at the address above. The source of Kuulas and of the podcast packages
+(speechmix, nhsx, silencelearn, automixer) is public:
+https://github.com/ollisulopuisto/kuulas and https://github.com/ollisulopuisto/podcast.
 
 ffmpeg and ffprobe (Contents/Resources/bin) are static builds from
 https://ffmpeg.martin-riedl.de, licensed GPL version 3 (built with --enable-gpl
@@ -130,8 +141,22 @@ def project_version(src: Path) -> tuple[str, list[str]]:
     return str(data["project"]["version"]), list(data["project"]["dependencies"])
 
 
+def missing_wheels(wheel_files: list[Path]) -> list[str]:
+    """The podcast packages (``LOCAL``) and apps (``APPS``) with no wheel in the folder.
+    Without one the build would ask PyPI for the name (an unrelated package, or none)
+    or ship no automixer at all."""
+    have = {w.name.split("-", 1)[0].lower().replace("_", "-") for w in wheel_files}
+    return [name for name in (*LOCAL, *APPS) if name not in have]
+
+
 def stage(src: Path, out: Path, wheels: Path, label: str) -> Path:
     version, deps = project_version(src)
+    wheel_files = sorted(wheels.resolve().glob("*.whl"))
+    missing = missing_wheels(wheel_files)
+    if missing:
+        problem = (f"no wheel in {wheels} for: {', '.join(missing)} "
+                   "(scripts/build_wheels.sh builds them)")
+        raise SystemExit(problem)
     if out.exists():
         shutil.rmtree(out)
     package = out / "src" / "kuulas"
@@ -146,7 +171,9 @@ def stage(src: Path, out: Path, wheels: Path, label: str) -> Path:
     shutil.copy(src / "src" / "kuulas" / "assets" / "icons" / "kuulas.icns",
                 out / "icons" / "kuulas.icns")
     (out / "LICENSE").write_text(LICENSE_TEXT, encoding="utf-8")
-    wheel_files = sorted(wheels.resolve().glob("*.whl"))
+    # Briefcase reads LICENSE as metadata and copies it nowhere; this copy is the notice
+    # (GPL parts, where their sources are) inside the app: Resources/app/kuulas.
+    (package / "LICENSE.txt").write_text(LICENSE_TEXT, encoding="utf-8")
     (out / "pyproject.toml").write_text(
         render_config(version, bundle_requires(deps, wheel_files), wheels.resolve()),
         encoding="utf-8")
