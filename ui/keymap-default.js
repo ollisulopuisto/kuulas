@@ -453,15 +453,15 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "view.fit_selection",
-    keys: { mac: "F", other: "F" },
+    keys: { mac: "Shift+F", other: "Shift+F" },
     context: "global",
     labelKey: "cmd.view.fit_selection",
   },
-  // Focus mode (WP28): what you SEE. F is Fit selection (owner, 2026-10-18), so focus is Shift+F;
+  // Focus mode (WP28): what you SEE. F is Focus (owner, 2026-10-21), Fit selection moved to Shift+F;
   // focus and solo (WP28's Shift+F) moves to Alt+Shift+F. Alt+F hides other speakers' words.
   {
     id: "view.focus",
-    keys: { mac: "Shift+F", other: "Shift+F" },
+    keys: { mac: "F", other: "F" },
     context: "global",
     labelKey: "cmd.view.focus",
   },

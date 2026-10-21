@@ -630,7 +630,7 @@ function setInactiveStyle(style) {
 setInactiveStyle(prefs.get(INACTIVE_KEY));
 
 // -- focus mode (WP28, docs/design/FOCUS-MODE.md) ------------------------------------------------
-// Shift+F: the current speaker's lanes take the room, the others become 16 px strips drawn
+// F: the current speaker's lanes take the room, the others become 16 px strips drawn
 // inactive (focus-layout.js). `focusHeights` is a view layer over the lane heights (lanes.js
 // layoutFor), never laneHeights, history or the project. The two switches are remembered per user.
 const FOCUS_SHRINK_KEY = "focusShrink";

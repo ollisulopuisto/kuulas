@@ -160,11 +160,11 @@ describe("the core keys", () => {
     assert.deepEqual(calls, []);
   });
 
-  test("Z toggles, 0 shows all, and F fits the selection", () => {
+  test("Z toggles, 0 shows all, and Shift+F fits the selection", () => {
     const { keymap, calls } = setup({ platform: "mac" });
     keymap.handle(press({ key: "z", code: "KeyZ" }));
     keymap.handle(press({ key: "0", code: "Digit0" }));
-    keymap.handle(press({ key: "f", code: "KeyF" }));
+    keymap.handle(press({ key: "F", code: "KeyF", shiftKey: true }));
     assert.deepEqual(calls, [["view.toggle"], ["view.fit"], ["view.fit_selection"]]);
   });
 
