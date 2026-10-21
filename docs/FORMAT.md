@@ -314,6 +314,13 @@ restore step, the step it restored, else `null`). Restoring onto a left-behind s
 branch `past`; undoing a restore makes what it skipped `past` again. Nothing is stored for
 this: it is read from `nodes` in one query.
 
+**Step names are made when the list is read** (`step_names.py`), in the request's language,
+from `op` + `args` and today's track names: `name` (`Track settings: Olli · gain −3.0 dB`),
+`name_base` and `name_detail` (its two halves) and `run` (op and object, the key consecutive
+steps share when the panel shows them as one row; `null` when they never merge). A restore is
+named after the step whose state it holds. `label` stays as stored, and is the name of an op
+with no describer. Nothing in the file is rewritten.
+
 **Why UUIDs, not integers, for steps:** two copies of a project grow their
 histories apart, and integer ids would collide when B's steps come back to
 A. UUIDv7 ids are unique everywhere and still sort by time. This must be in

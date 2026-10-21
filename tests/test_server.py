@@ -1163,3 +1163,21 @@ def test_history_page_says_what_a_restore_rolled_back(client, loaded):
     assert by_label["two"]["rolled_back_by"] == head["id"]
     assert by_label["one"]["side"] == "past"
     assert by_label["one"]["restore_target"] is None
+
+
+def test_history_page_names_steps_from_their_op_and_the_current_tracks(client, loaded):
+    track = loaded["project"]["tracks"][0]
+    client.post("/api/edit", json={"op": "set_track",
+                                   "args": {"track_id": track["id"], "gain_db": -3.0}})
+    page = client.get("/api/history", params={"limit": 5}).json()
+    step = page["nodes"][0]
+    assert step["label"] == "set_track"  # what was stored stays as it was
+    assert step["name"] == f"Track settings: {track['name']} · gain \u22123.0 dB"
+    assert step["name_base"] == f"Track settings: {track['name']}"
+    assert step["name_detail"] == "gain \u22123.0 dB"
+    assert step["run"] == f"set_track:{track['id']}"
+    client.post("/api/restore", json={"node": page["nodes"][1]["id"]})
+    client.post("/api/restore", json={"node": step["id"]})
+    head = client.get("/api/history", params={"limit": 1}).json()["nodes"][0]
+    assert head["name"] == f"Restored to: {step['name']}"
+    assert head["run"] is None

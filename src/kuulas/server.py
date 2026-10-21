@@ -65,6 +65,7 @@ from . import (
     project_stats,
     render_listen,
     series_actions,
+    step_names,
     transcribe,
     ui_prefs,
 )
@@ -1365,12 +1366,24 @@ def create_app(session, engine, *, language: str | None = None,
             marks = h.checkpoint_map()
             more = len(rows) > limit
             lineage = h.lineage()
+            state = h.state
+
+            def name(r: dict) -> dict:
+                """Built now, in this request's language, from the op and today's
+                track names (step_names); the stored label is the fallback."""
+                target = lineage[r["id"]]["restore_target"]
+                out = step_names.describe(
+                    r["op"], state, label=r["label"],
+                    target=h.restored_step(target) if target else None)
+                return {"name": out["name"], "name_base": out["base"],
+                        "name_detail": out["detail"], "run": out["run"]}
+
             nodes = [{"id": r["id"], "parent": r["parent"], "label": r["label"],
                       "created": r["created"], "author": r["author"],
                       "op": r["op"].get("name"), "is_marker": h.is_marker(r),
                       "marker": (r["op"].get("args") or {}).get("kind")
                       if h.is_marker(r) else None,
-                      "is_head": r["id"] == h.head, **lineage[r["id"]],
+                      "is_head": r["id"] == h.head, **lineage[r["id"]], **name(r),
                       "checkpoint": marks.get(r["id"])}
                      for r in rows[:limit]]
             return JSONResponse({"nodes": nodes, "head": h.head, "more": more,

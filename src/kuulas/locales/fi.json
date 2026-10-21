@@ -200,6 +200,137 @@
   "error.transcript.unreadable": "Litteraattia ei voitu lukea: se ei ole sanakohtaisesti ajoitettua JSONia.",
   "history.restored": "palautettu kohtaan “{label}”",
   "history.correct_word": "korjattu “{old}” → “{new}”",
+  "history.op.a_track": "jokin raita",
+  "history.op.tracks": {
+    "one": "{count} raita",
+    "other": "{count} raitaa"
+  },
+  "history.op.a_bus": "jokin väylä",
+  "history.op.a_marker": "jokin merkki",
+  "history.op.a_step": "vaihe",
+  "history.op.seconds": "{value} s",
+  "history.op.db": "{value} dB",
+  "history.op.field.gain": "taso {db}",
+  "history.op.field.pan": "panorointi {value}",
+  "history.op.field.muted": "mykistetty",
+  "history.op.field.unmuted": "mykistys pois",
+  "history.op.field.solo_on": "soolo päällä",
+  "history.op.field.solo_off": "soolo pois",
+  "history.op.field.name": "nimi ”{name}”",
+  "history.op.field.on": "päälle",
+  "history.op.field.off": "pois",
+  "history.op.restore": "Palautettu: {target}",
+  "history.op.add_track": "Raidan lisäys: {name}",
+  "history.op.delete_track": "Raidan poisto: {track}",
+  "history.op.delete_empty_tracks": "Tyhjien raitojen poisto",
+  "history.op.set_track": "Raidan asetukset: {track}",
+  "history.op.solo": "Soolo: {track}",
+  "history.op.move_track": "Raidan siirto: {track}",
+  "history.op.set_track_automation": "Raidan voimakkuuskäyrä: {track}",
+  "history.op.add_bus": "Uusi väylä: {name}",
+  "history.op.set_bus": "Väylän asetukset: {bus}",
+  "history.op.delete_bus": "Väylän poisto: {bus}",
+  "history.op.set_master": "Päätaso",
+  "history.op.reset_gains": "Vahvistusten nollaus 0 dB:iin",
+  "history.op.add_clip": "Leikkeen lisäys: {track} kohtaan {at}",
+  "history.op.delete_clip": "Leikkeen poisto: {track}",
+  "history.op.move_clip": "Leikkeen siirto: {track} kohtaan {at}",
+  "history.op.trim_clip": "Leikkeen rajaus: {track}",
+  "history.op.split_clip": "Jako: {track} kohdassa {at}",
+  "history.op.set_clip": "Leikkeen asetukset: {track}",
+  "history.op.set_fade_at": "Häivytys: {track}",
+  "history.op.set_clip_envelope": "Leikkeen voimakkuuskäyrä: {track}",
+  "history.op.ripple_delete": "Poisto ja aukon sulkeminen: {length} kohdassa {at}",
+  "history.op.mute_ranges": {
+    "one": "{count} alueen mykistys: {track}",
+    "other": "{count} alueen mykistys: {track}"
+  },
+  "history.op.set_gate": "Portti: {track}",
+  "history.op.add_gate_range": "Porttialue lisätty: {track} kohdassa {at}",
+  "history.op.remove_gate_range": "Porttialue poistettu: {track} kohdassa {at}",
+  "history.op.set_clips_ungated": {
+    "one": "Mikki pidetään auki, {state}: {count} leike, {where}",
+    "other": "Mikki pidetään auki, {state}: {count} leikettä, {where}"
+  },
+  "history.op.replace_clip_media": "Median uudelleenlinkitys",
+  "history.op.add_marker": "Merkin lisäys: {name} kohtaan {at}",
+  "history.op.rename_marker": "Merkin nimeäminen: {name}",
+  "history.op.move_marker": "Merkin siirto: {marker} kohtaan {at}",
+  "history.op.set_region_end": "Alueen loppu: {marker}",
+  "history.op.delete_marker": "Merkin poisto: {marker}",
+  "history.op.set_marker_kind": "Merkin laji: {marker}",
+  "history.op.add_placeholder": "Juontopaikan lisäys: {text}",
+  "history.op.edit_placeholder_text": "Juontopaikan teksti: {text}",
+  "history.op.set_placeholder_length": "Juontopaikan pituus: {length}",
+  "history.op.move_placeholder": "Juontopaikan siirto kohtaan {at}",
+  "history.op.delete_placeholder": "Juontopaikan poisto",
+  "history.op.replace_placeholder": "Juontopaikka korvattu äänityksellä",
+  "history.op.shift_clips": {
+    "one": "{count} leikkeen siirto {delta}: {where}",
+    "other": "{count} leikkeen siirto {delta}: {where}"
+  },
+  "history.op.set_clips": {
+    "one": "Leikkeiden asetukset: {count} leike, {where}",
+    "other": "Leikkeiden asetukset: {count} leikettä, {where}"
+  },
+  "history.op.delete_clips": {
+    "one": "{count} leikkeen poisto: {where}",
+    "other": "{count} leikkeen poisto: {where}"
+  },
+  "history.op.mark_in_sync": {
+    "one": "{count} leike merkitty synkkaan",
+    "other": "{count} leikettä merkitty synkkaan"
+  },
+  "history.op.resync": {
+    "one": "{count} leikkeen uudelleensynkkaus",
+    "other": "{count} leikkeen uudelleensynkkaus"
+  },
+  "history.op.set_free": {
+    "one": "Vapautus synkasta tai liitos takaisin: {count} leike",
+    "other": "Vapautus synkasta tai liitos takaisin: {count} leikettä"
+  },
+  "history.op.send_home": {
+    "one": "{count} leike palautettu alkuperäiselle raidalle",
+    "other": "{count} leikettä palautettu alkuperäiselle raidalle"
+  },
+  "history.op.set_sync_anchor": "Synkan ankkuri: {track}",
+  "history.op.split_clips": "Jako: {where} kohdassa {at}",
+  "history.op.mute_range": "Mykistys {length} kohdassa {at}",
+  "history.op.cut_range": "Leikkaus {length} kohdassa {at}",
+  "history.op.nudge_clips": {
+    "one": "{count} leikkeen siirto {delta}: {where}",
+    "other": "{count} leikkeen siirto {delta}: {where}"
+  },
+  "history.op.move_clips_to_track": {
+    "one": "{count} leikkeen siirto toiselle raidalle",
+    "other": "{count} leikkeen siirto toiselle raidalle"
+  },
+  "history.op.trim_clips": {
+    "one": "{count} leikkeen rajaus: {where}",
+    "other": "{count} leikkeen rajaus: {where}"
+  },
+  "history.op.adjust_clip_gain": {
+    "one": "Leikkeen taso: {count} leike, {where}",
+    "other": "Leikkeiden taso: {count} leikettä, {where}"
+  },
+  "history.op.restore_cuts": {
+    "one": "Leikkausten palautus: {count} leike",
+    "other": "Leikkausten palautus: {count} leikettä"
+  },
+  "history.op.roll_trim": "Reunan siirto: {track}",
+  "history.op.ripple_trim": "Reunan siirto, loput mukana: {track}",
+  "history.op.group_clips": {
+    "one": "{count} leikkeen ryhmitys",
+    "other": "{count} leikkeen ryhmitys"
+  },
+  "history.op.ungroup_clips": {
+    "one": "{count} leikkeen ryhmän purku",
+    "other": "{count} leikkeen ryhmän purku"
+  },
+  "history.op.merge_clips": {
+    "one": "{count} leikkeen yhdistäminen",
+    "other": "{count} leikkeen yhdistäminen"
+  },
   "log.server.request_failed": "Pyyntö {method} {path} epäonnistui.",
   "log.server.log_level_not_saved": "Lokitaso vaihtui, mutta sitä ei voitu tallentaa settings.json-tiedostoon; se on voimassa kunnes kuulas suljetaan.",
   "error.profile.bad_seconds": "Tallennuksen pituuden on oltava sekuntimäärä, joka on yli 0 ja enintään {max}.",

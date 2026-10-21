@@ -649,6 +649,24 @@ class History:
             r["context"] = _parse_context(r.get("context"))
         return rows
 
+    def restored_step(self, node: str) -> dict | None:
+        """The step whose state ``node`` holds: ``node`` itself, or, while it is a
+        restore, its target. ``{"id", "op", "label"}``; None for an unknown id."""
+        seen: set[str] = set()
+        while node not in seen:
+            seen.add(node)
+            row = self.db.execute("select op, label from nodes where id=? and edit=?",
+                                  (node, self.edit)).fetchone()
+            if row is None:
+                return None
+            op = _parse_context(row[0]) or {}
+            restore = op.get("name") == "restore"
+            target = (op.get("args") or {}).get("node") if restore else None
+            if target is None:
+                return {"id": node, "op": op, "label": row[1]}
+            node = str(target)
+        return None
+
     def nodes_page(self, limit: int, before: str | None = None,
                    saved: bool = False) -> list[dict]:
         """A page of steps in this edit, newest first (for the history panel).
