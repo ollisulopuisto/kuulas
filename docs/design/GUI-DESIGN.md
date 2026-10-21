@@ -363,6 +363,19 @@ clickable, playback continues, and the playhead can be moved while it is open.
   regardless of theme: big elapsed time, per-input meters, "Hold to stop · 2 s"
   with a fill that runs for 2 s, the log list; every other key is ignored and
   says so in the hint line. Placeholder only; designed in detail with WP12.
+- **Start page, recent projects (owner, 21.10.2026):** each row opens its project (click, or
+  Cmd/Ctrl+1..9 for the first nine; the number shows as a key chip on the row). A key press first
+  pulses the row for 180 ms (outline, a 1.5 % scale and a brightness step; with
+  `prefers-reduced-motion` only the static outline for 120 ms) and opens after it, never later; a
+  second press during the pulse is ignored. Each row has a "Remove from list" button (and Delete
+  on a focused row), visible on hover and keyboard focus (Right arrow moves into it), tooltip
+  "Remove from list. Only the list changes: the project folder and its files are not touched."
+  A toast "Removed X from the list" offers Undo. A row whose folder is gone is dashed and muted,
+  says "Not found: moved or deleted", offers "Locate…" and Remove, and a click or key explains
+  instead of failing silently. File > Open Recent > "Remove missing projects from the list"
+  (and a button on the page when one is missing) asks once. Removing edits the list only, never a
+  project folder or media file (rule 17). The page cannot read the app's Animation setting (it is
+  another origin); it follows the system reduced-motion setting.
 - **Keyboard sheet (?):** a dialog listing every command with its keys,
   grouped as the palette, searchable.
 

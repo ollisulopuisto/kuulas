@@ -287,6 +287,7 @@ describe("the standard Mac keys (owner, 2026-10-19)", () => {
   });
   test("Open Recent has no key and Revert to saved does not exist", () => {
     assert.deepEqual(keysOf("app.clear_recent"), []);
+    assert.deepEqual(keysOf("app.remove_missing_recents"), []);
     assert.equal(
       DEFAULT_KEYMAP.some((entry) => /revert/i.test(entry.id)),
       false,

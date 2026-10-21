@@ -82,6 +82,7 @@ describe("the commands the app registers", () => {
       minimise: () => calls.push(["minimise"]),
       openRecent: (path) => calls.push(["openRecent", path]),
       clearRecent: () => calls.push(["clearRecent"]),
+      removeMissingRecents: () => calls.push(["removeMissingRecents"]),
       openStatistics: () => calls.push(["openStatistics"]),
       openLocateMedia: () => calls.push(["openLocateMedia"]),
       openSendCopy: () => calls.push(["openSendCopy"]),
@@ -161,6 +162,16 @@ describe("the commands the app registers", () => {
     registry.run("app.open", { type: "keydown" }, some); // the key: the dialog
     registry.run("app.clear_recent", null, some);
     assert.deepEqual(calls, [["openRecent", "/p/A.kuulas"], ["openProject"], ["clearRecent"]]);
+  });
+
+  test("Remove missing projects from the list needs a missing entry", () => {
+    const { registry, calls } = setup();
+    const fine = { recentProjects: [{ path: "/p/A.kuulas", missing: false }] };
+    const gone = { recentProjects: [{ path: "/p/B.kuulas", missing: true }] };
+    assert.equal(registry.can("app.remove_missing_recents", fine), false);
+    assert.equal(registry.can("app.remove_missing_recents", gone), true);
+    registry.run("app.remove_missing_recents", null, gone);
+    assert.deepEqual(calls, [["removeMissingRecents"]]);
   });
 
   test("undo and redo can only apply when there is something to undo or redo", () => {

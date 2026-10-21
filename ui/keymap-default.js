@@ -1263,6 +1263,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.app.minimise",
   },
   {
+    id: "app.remove_missing_recents",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.app.remove_missing_recents",
+  },
+  {
     id: "app.clear_recent",
     keys: { mac: null, other: null },
     context: "global",

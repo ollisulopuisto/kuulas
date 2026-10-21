@@ -1443,6 +1443,7 @@ const keyboard = setupKeyboard({
     minimise: () => void minimise(),
     openRecent: (path) => void openRecent(path),
     clearRecent: () => void clearRecent(),
+    removeMissingRecents: () => void removeMissingRecents(),
     focusName: () => inspector.focusName(),
     editTime: () => clock.open(),
     copyTime: () => void clock.copy(),
@@ -3047,6 +3048,34 @@ async function clearRecent() {
     showError(error);
   }
   void refreshRecent();
+}
+
+// File > Open Recent > Remove missing projects from the list: one confirmation (a notice with a
+// button), then the entries whose folder is gone leave the list. Nothing on disk is touched.
+async function removeMissingRecents() {
+  const bridge = globalThis.pywebview?.api;
+  if (typeof bridge?.remove_missing_recents !== "function") return;
+  showNotice(t("ui.project.remove_missing_confirm"), "ok", {
+    sticky: true,
+    action: {
+      label: t("cmd.app.remove_missing_recents"),
+      run: async () => {
+        try {
+          const count = await bridge.remove_missing_recents();
+          showNotice(
+            count > 0
+              ? t("ui.project.remove_missing_done", { count })
+              : t("ui.project.remove_missing_none"),
+            "ok",
+            { undo: false },
+          );
+        } catch (error) {
+          showError(error);
+        }
+        void refreshRecent();
+      },
+    },
+  });
 }
 
 // File > Preferences… (Cmd+,): every control calls the setter of the setting's own menu command.
