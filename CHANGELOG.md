@@ -1,3 +1,7 @@
+## [v26.10.20.21] - 2026-10-21
+
+- **Clicking a clip or a lane no longer narrows X, mute and delete to that one track.** The click makes the track current (inspector, split, paste) as before, but cut, copy, mute range and delete keep acting on all tracks; only a click on a track header (or Cmd+click) selects tracks for them, and Esc or E brings back all tracks. This had changed in v26.10.20.5.
+
 ## [v26.10.20.20] - 2026-10-21
 
 - **How much may the automixer adjust the levels:** a new choice in the automix dialog, Speech group: Automatic (up to 6 dB, the default when you have not touched the levels), Fine-tune (up to 2.5 dB, the default when you have adjusted speech track gains or clip gains by hand) and Keep my levels (0 dB). It is sent as `--balance-speakers-max-db` only when it differs from the automixer's own value and only if the installed automixer supports the flag (the dialog says so otherwise). The choice belongs to the project and the run, it is never saved as a global default; log.txt says which value was used and why. Built by Codex; the automixer side is podcast PR #66.

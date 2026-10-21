@@ -121,6 +121,7 @@ import { rememberRange, stepRangeMemory } from "./range-memory.js";
 import {
   clearTrackSelection,
   focusTrack as focusTrackPatch,
+  laneClickFocus,
   resolveScope,
   scopeChip,
   toggleScopeMode,
@@ -812,8 +813,9 @@ function onPointerDown(hit, event, { noSeek = false } = {}) {
   }
   const patch = { panel: "timeline", rangeTracks: new Set() };
   if (hit.row?.kind === "track" && !additive) {
-    // Current track and header selection move together (range-scope.js focusTrack).
-    Object.assign(patch, focusTrackPatch(state, hit.row.id, { mode: "select" }));
+    // A lane or clip click makes the track current but leaves the range scope on all tracks
+    // (range-scope.js laneClickFocus); only a header click narrows it.
+    Object.assign(patch, laneClickFocus(state, hit.row.id));
     // The range's tracks (Select > Range on all tracks) end with a click elsewhere.
     patch.rangeTracks = new Set();
   } else if (hit.row?.kind === "bus" && !additive) patch.focusBus = hit.row.id;

@@ -68,6 +68,16 @@ export function focusTrack(state, id, { mode = "follow" } = {}) {
   return base;
 }
 
+/**
+ * A click in a lane or on a clip: the track becomes current (inspector, split, paste), but the
+ * range scope is NOT narrowed: X, mute and delete keep acting on all tracks. Only a click on
+ * a track HEADER (or Cmd+click) selects tracks for the scope. If headers are already
+ * selected the selection moves along with the click (the "follow" rule of `focusTrack`).
+ */
+export function laneClickFocus(state, id) {
+  return focusTrack(state, id, { mode: "follow" });
+}
+
 /** Esc (the track selection first): nothing selected, all tracks. */
 export function clearTrackSelection() {
   return { trackSelection: new Set(), rangeMode: MODE_ALL };

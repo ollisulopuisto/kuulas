@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { dimmedTracks, focusTrack, scopeChip } from "../range-scope.js";
+import {
+  dimmedTracks,
+  focusTrack,
+  laneClickFocus,
+  resolveScope,
+  scopeChip,
+} from "../range-scope.js";
 import { initialState } from "../store.js";
 
 const project = {
@@ -24,12 +30,21 @@ describe("focusTrack: the current track and the selection are one rule", () => {
     assert.deepEqual(scopeChip(s).names, ["Aame"]);
   });
 
-  test("clicking a clip lane (track 3) selects that track too", () => {
+  test("clicking a clip lane (track 3) makes it current but does NOT narrow the scope", () => {
+    // X, mute and delete act on all tracks by default; only a track HEADER click narrows them.
     let s = base();
-    s = apply(s, focusTrack(s, "c", { mode: "select" }));
+    s = apply(s, laneClickFocus(s, "c"));
     assert.equal(s.focusTrack, "c");
+    assert.equal(s.trackSelection.size, 0);
+    assert.notEqual(s.rangeMode, "selected");
+    assert.equal(resolveScope(s).source, "all");
+    assert.equal(dimmedTracks(s).size, 0);
+  });
+
+  test("a lane click while headers are selected moves the selection along", () => {
+    let s = base({ focusTrack: "a", trackSelection: new Set(["a"]), rangeMode: "selected" });
+    s = apply(s, laneClickFocus(s, "c"));
     assert.deepEqual([...s.trackSelection], ["c"]);
-    assert.equal(s.rangeMode, "selected");
   });
 
   test("Cmd+click adds to the selection and moves current", () => {
