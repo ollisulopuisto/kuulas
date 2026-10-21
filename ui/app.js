@@ -1059,6 +1059,7 @@ const keyboard = setupKeyboard({
     openSilenceOptions: () => openSilenceOptions(),
     openMusicLevel: () => openMusicLevel(),
     openBlockLevel: () => openBlockLevel(),
+    duckMusic: () => void duckMusic(),
     openAllGates: () => void openAllGates(),
     duckMicrophones: () => void duckMicrophones(),
     transcribeTrack: (backend) => void transcribeTrack(backend),
@@ -1845,6 +1846,7 @@ async function openAutomix() {
     prefs,
     onSetMusicLevel: () => openMusicLevel(),
     onLevelBlocks: () => openBlockLevel(),
+    onDuckMusic: () => void duckMusic(),
     onStart: async (body) => {
       try {
         const { jobs } = await api.automix(body);
@@ -1878,6 +1880,51 @@ async function autoSilence(options = silenceOptions()) {
     showNotice(t("ui.auto_silence.done"), "ok", { undo: true });
   } catch (error) {
     showError(error);
+  }
+}
+
+let duckMusicJob = null;
+
+/** Track > Auto > Duck music: analyze in a cancellable job, then make one history edit. */
+async function duckMusic() {
+  if (duckMusicJob) return;
+  try {
+    const { jobs } = await api.duckMusicMeasure({});
+    const id = jobs[0];
+    duckMusicJob = id;
+    const cancel = async () => {
+      if (duckMusicJob !== id) return;
+      duckMusicJob = null;
+      try {
+        await api.cancelJob(id);
+      } catch (error) {
+        showError(error);
+      }
+    };
+    showNotice(t("ui.duck_music.measuring"), "ok", {
+      sticky: true,
+      action: { label: t("ui.export.cancel"), run: () => void cancel() },
+    });
+    while (duckMusicJob === id) {
+      const job = (await api.getJobs()).jobs.find((item) => item.id === id);
+      if (!job) break;
+      if (job.state === "completed") {
+        duckMusicJob = null;
+        apply(await api.command("duck_music", { measured: job.result }));
+        showNotice(t("ui.duck_music.done"), "ok", { undo: true });
+        return;
+      }
+      if (job.state === "failed" || job.state === "cancelled") {
+        duckMusicJob = null;
+        if (job.state === "failed") showError(job.error?.text || t("ui.duck_music.failed"));
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    }
+  } catch (error) {
+    showError(error);
+  } finally {
+    duckMusicJob = null;
   }
 }
 

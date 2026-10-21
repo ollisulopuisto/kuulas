@@ -190,6 +190,9 @@ class Track:
     # set_track, add_track), so readers of ``kind`` need no lookup. Optional in the
     # file: an old project (or reader) has False and is untouched.
     follow_bus_role: bool = False
+    # Optional override for the role's ducking behavior: music ducks by default;
+    # speech never participates. Older readers retain this unknown field in extra.
+    duck: bool | None = None
     extra: dict = field(default_factory=dict, hash=False)
 
     def to_dict(self) -> dict:
@@ -206,6 +209,8 @@ class Track:
             del d["mono"]  # and stereo tracks keep theirs
         if not self.follow_bus_role:
             del d["follow_bus_role"]
+        if self.duck is None:
+            del d["duck"]
         return d
 
     @classmethod

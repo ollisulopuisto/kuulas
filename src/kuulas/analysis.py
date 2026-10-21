@@ -22,7 +22,9 @@ per-track pool is ``priority.gated_map`` and every audio chunk passes
 
 from __future__ import annotations
 
+import hashlib
 import itertools
+import json
 import logging
 import os
 from collections.abc import Iterable
@@ -466,7 +468,7 @@ def duck_music(p: Project, store: Store,
     if intervals is None:
         intervals = anyone_talking_intervals(p, store)
     first_speech_s = intervals[0][0] if intervals else float("inf")
-    music_tracks = [t for t in p.tracks if t.kind == "music"]
+    music_tracks = [t for t in p.tracks if t.kind == "music" and t.duck is not False]
     for track in music_tracks:
         points: list[tuple[int, float]] = []
         audible_clips = [c for c in track.clips if not c.muted]
@@ -482,4 +484,14 @@ def duck_music(p: Project, store: Store,
         points.sort(key=lambda pt: pt[0])
         p = ops.set_track_automation(p, track.id, points)
     return p
+
+
+def duck_key(p: Project) -> str:
+    """Fingerprint the edit and source identities used by the ducking analysis."""
+    data = {"rate": p.rate,
+            "media": sorted((item.id, item.sha256) for item in p.media),
+            "tracks": [track.to_dict() for track in p.tracks]}
+    encoded = json.dumps(data, sort_keys=True, separators=(",", ":"),
+                         ensure_ascii=False).encode()
+    return hashlib.sha256(encoded).hexdigest()
 

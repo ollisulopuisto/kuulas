@@ -12,7 +12,8 @@ import pytest
 import soundfile as sf
 from fastapi.testclient import TestClient
 
-from kuulas import automix, music_level
+from kuulas import automix, music_duck, music_level, ops
+from kuulas.model import Clip, Project, Track
 from kuulas.server import create_app
 from kuulas.session import Session
 
@@ -74,6 +75,47 @@ def settings(tmp_path, monkeypatch):
 
 def test_nothing_done_gives_an_empty_answer(session):
     assert automix.done_in_kuulas(session.state) == {}
+
+
+def test_music_duck_is_a_current_stage_and_goes_stale_with_its_curve():
+    clip = Clip(id="c", media="m", start=0, offset=0, length=100)
+    track = Track(id="t", name="Theme", kind="music", duck=True,
+                  clips=(clip,), automation=((0, -12.0),))
+    p = Project(tracks=(track,))
+    entry = music_duck.record(p, "2026-10-20T19:45:00+03:00")
+    p = replace(p, mix_done={"music_duck": entry})
+
+    done = automix.done_in_kuulas(p)["music_duck"]
+    assert (done["option"], done["value"], done["current"]) == (
+        "music_duck", False, True)
+    assert automix.done_lines(p, {"music_duck": False}) == [
+        "Done in Kuulas: music ducking (set at 2026-10-20T19:45:00+03:00)"]
+
+    changed = ops.set_track_automation(p, "t", [(0, -18.0)])
+    assert automix.done_in_kuulas(changed)["music_duck"]["current"] is False
+
+
+def test_music_duck_without_a_curve_is_not_recorded():
+    p = Project(tracks=(Track(id="t", name="Theme", kind="music"),))
+    assert music_duck.record(p, "now") is None
+    assert "--no-music-duck" not in automix.option_flags({})
+
+
+def test_run_sends_no_music_duck_and_logs_the_current_record(session, settings, tmp_path):
+    track = session.state.tracks[0]
+    session.edit("set_track", {"track_id": track.id, "kind": "music"})
+    session.edit("set_track_automation", {
+        "track_id": track.id, "points": [[0, -12.0], [RATE * 2, -12.0]]})
+    state = session.state
+    session._commit("Duck music", music_duck.with_record(
+        state, "2026-10-20T19:45:00+03:00"), "duck_music", {})
+
+    result = run_options(session, settings, {"music_duck": False})
+
+    argv = json.loads((tmp_path / "call.json").read_text())["argv"]
+    assert "--no-music-duck" in argv
+    head = Path(result["log_file"]).read_text(encoding="utf-8").partition("\n\n")[0]
+    assert "Done in Kuulas: music ducking (set at " in head
 
 
 def test_a_current_record_is_reported_with_its_option(session):

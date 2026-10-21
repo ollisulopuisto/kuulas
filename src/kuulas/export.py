@@ -881,14 +881,18 @@ def _tracks(job: _Job, target: Path, n: int, workers: int,
         used.add(base)
         audible = _audible(p, track)
         bus_db = _bus_db(p, track)
+        track_automation = (bool(s.get("for_automixer")) and track.kind == "music"
+                            and track.duck is not False and bool(track.automation))
 
         def render(first: int, count: int, track=track, channels=channels,
-                   audible=audible, bus_db=bus_db) -> np.ndarray:
+                   audible=audible, bus_db=bus_db,
+                   track_automation=track_automation) -> np.ndarray:
             if not audible:
                 return np.zeros((channels, count), dtype=np.float32)
             return mixer.track_stem(track, job.store, job.first + first, count,
                                     channels, as_heard=as_heard, rate=job.rate,
-                                    track_gain=track_gain, bus_db=bus_db)
+                                    track_gain=track_gain, bus_db=bus_db,
+                                    track_automation=track_automation)
 
         done = work / f"{base}.{ext}"
         _produce(job, done, channels, render, tags=_provenance(job, n),

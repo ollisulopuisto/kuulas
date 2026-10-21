@@ -5,15 +5,29 @@
 - duck_music: ducking music beds under speech using nhsx.musicbed.curve
 """
 
+from threading import Event
+from time import monotonic, sleep
+
 import numpy as np
 import pytest
 import soundfile as sf
 from nhsx import musicbed
 
-from kuulas import analysis, ops
+from kuulas import analysis, automix, music_duck, offload, ops
 from kuulas.model import Media, Project, Track
 from kuulas.ops import EditError
 from kuulas.session import Session
+
+
+def wait_job(session, job_id):
+    end = monotonic() + 5
+    while monotonic() < end:
+        job = next(item for item in session.jobs.list() if item["id"] == job_id)
+        if job["state"] in {"completed", "failed", "cancelled"}:
+            return job
+        sleep(0.01)
+    raise AssertionError("duck measurement job did not finish")
+
 
 RATE = 8000
 SEC = 16
@@ -102,6 +116,26 @@ def test_old_project_state_without_speaker_loads():
     assert p.track("t1").speaker == ""
 
 
+def test_track_duck_is_optional_and_unknown_to_old_readers():
+    track = Track(id="m", name="Music", kind="music")
+    assert "duck" not in track.to_dict()
+    assert Track.from_dict({**track.to_dict(), "duck": False}).duck is False
+    assert Track.from_dict({**track.to_dict(), "duck": False}).extra == {}
+
+    old = Track.from_dict({**track.to_dict(), "future_duck": False})
+    assert old.extra["future_duck"] is False
+    assert old.to_dict()["future_duck"] is False
+
+
+def test_set_track_accepts_duck():
+    p = ops.add_track(Project(rate=RATE), track_id="m", name="Music", kind="music")
+    p = ops.set_track(p, "m", duck=False)
+    assert p.track("m").duck is False
+    with pytest.raises(EditError) as err:
+        ops.set_track(p, "m", duck="false")
+    assert err.value.key == "error.edit.bad_arguments"
+
+
 def test_tracks_with_the_same_speaker_are_one_lane():
     rng = np.random.default_rng(10)
     n = 10 * RATE
@@ -172,6 +206,41 @@ def test_music_automation_follows_nhsx_musicbed_curve():
     assert auto == tuple(expected_points)
 
 
+def test_music_track_with_duck_disabled_keeps_its_automation():
+    track = Track(id="m", name="Music", kind="music", duck=False,
+                  automation=((12, -9.0),))
+    p = Project(rate=RATE, tracks=(track,))
+
+    result = analysis.duck_music(p, MemoryStore({}), intervals=[])
+
+    assert result.track("m").automation == ((12, -9.0),)
+
+
+def test_music_duck_measurement_is_a_background_job_outside_the_session_lock(
+        tmp_path, monkeypatch):
+    session = Session(tmp_path / "DuckJob.kuulas", rate=RATE)
+    started, release = Event(), Event()
+
+    def slow_measure(*_args, **_kwargs):
+        started.set()
+        release.wait(2)
+        return []
+
+    monkeypatch.setattr(offload, "call", slow_measure)
+    try:
+        [job_id] = session.duck_music_measure({})
+        assert started.wait(2)
+        assert session.lock.acquire(timeout=1)
+        session.lock.release()
+        release.set()
+        job = wait_job(session, job_id)
+        assert job["state"] == "completed"
+        assert job["result"]["key"] == analysis.duck_key(session.state)
+    finally:
+        release.set()
+        session.close()
+
+
 def test_cold_open_bed_sits_under_the_first_words():
     rng = np.random.default_rng(50)
     n = 20 * RATE
@@ -224,6 +293,11 @@ def test_session_duck_music_command(tmp_path):
 
     result = s.duck_music()
     assert result.track(music_track_id).automation
+    record = result.mix_done["music_duck"]
+    assert record["applied"] is True
+    assert record["tracks"] == {
+        music_track_id: music_duck.signature(result.track(music_track_id))}
+    assert automix.done_in_kuulas(result)["music_duck"]["current"] is True
     head_node = next(n for n in s.history.nodes() if n["id"] == s.history.head)
     assert head_node["label"] == "Duck music"
 
@@ -231,6 +305,7 @@ def test_session_duck_music_command(tmp_path):
     # Undo restores state
     assert s.undo()
     assert not s.state.track(music_track_id).automation
+    assert "music_duck" not in s.state.mix_done
 
 
 

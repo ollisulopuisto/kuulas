@@ -14,6 +14,8 @@ import soundfile as sf
 from kuulas import automix, export, messages
 from kuulas.session import Session
 
+RATE = 48000
+
 
 class Reports:
     def __call__(self, *_args, **_kwargs):
@@ -180,3 +182,25 @@ def test_the_bus_gain_is_in_the_stems_of_its_tracks(session, tmp_path):
         _peak(folder / name) * 10 ** (-12 / 20), rel=0.02)
     other = files[tracks[1].name]
     assert _peak(folder_after / other) == pytest.approx(_peak(folder / other), rel=0.001)
+
+
+def test_ducking_automation_reaches_music_stem_without_affecting_speech(
+        session, tmp_path):
+    tracks = session.state.tracks
+    music_id = tracks[2].id
+    session.edit("set_track", {"track_id": music_id, "duck": False})
+    session.edit("set_track_automation", {"track_id": music_id,
+                                           "points": [[0, -18.0], [RATE * 2, -18.0]]})
+    before, listing = stems(session, tmp_path)
+    music = next(t for t in listing["tracks"] if t["id"] == music_id)
+    speech = next(t for t in listing["tracks"] if t["id"] == tracks[0].id)
+    music_audio = sf.read(before / music["file"])[0]
+    speech_audio = sf.read(before / speech["file"])[0]
+    assert np.max(np.abs(music_audio)) > 0
+
+    session.edit("set_track", {"track_id": music_id, "duck": True})
+    ducked, _ = stems(session, tmp_path / "ducked")
+    assert np.max(np.abs(sf.read(ducked / music["file"])[0])) == pytest.approx(
+        np.max(np.abs(music_audio)) * 10 ** (-18 / 20), rel=0.02)
+    assert np.max(np.abs(sf.read(ducked / speech["file"])[0])) == pytest.approx(
+        np.max(np.abs(speech_audio)), rel=0.001)

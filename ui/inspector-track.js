@@ -14,6 +14,7 @@ import { busMembers, busOptions, roleOptionKey, TRACK_KINDS } from "./track-targ
 // The Bus select's last option: not a bus id, it asks for a new bus.
 /** The value of the "+ New bus…" choice, in the inspector and in the track header. */
 export const NEW_BUS = "__new__";
+export const hasDuckControl = (track) => track?.kind === "music";
 /** The role of the bus a track is on, or null (no bus, or a bus without a role). */
 const busKindOf = (project, track) =>
   project.buses.find((bus) => bus.id === track.bus)?.kind ?? null;
@@ -207,6 +208,14 @@ export function buildTrackSections({ target, editor, place, latest, onBusCreated
       });
     });
     into.append(field(t("ui.track.role"), role));
+    let duck = null;
+    let duckField = null;
+    if (hasDuckControl(track)) {
+      duck = checkbox(t("ui.track.duck"), (value) => send("duck", value));
+      duck.title = t("ui.track.duck.hint");
+      duckField = field(t("ui.track.duck"), duck);
+      into.append(duckField);
+    }
     // Speaker: blank means the track name; same speaker = one microphone in the analysis.
     const speaker = document.createElement("input");
     speaker.type = "text";
@@ -282,6 +291,10 @@ export function buildTrackSections({ target, editor, place, latest, onBusCreated
         ? t("ui.track.role_match_with", { role: t(`ui.role.${busKind}`) })
         : t("ui.track.role_match_none");
       if (document.activeElement !== role) role.value = trackRoleChoice(state.project, current);
+      if (duck) {
+        duckField.hidden = current.kind !== "music";
+        if (document.activeElement !== duck) duck.checked = current.duck !== false;
+      }
       speaker.placeholder = current.name;
       setIfIdle(speaker, current.speaker ?? "");
       const sharing = laneMates(state.project, id);

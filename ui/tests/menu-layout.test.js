@@ -196,6 +196,7 @@ describe("Track, Playback, View", () => {
       "app.auto_silence_options",
       "app.music_level",
       "app.block_level",
+      "app.duck_music",
       "gate.open_stretch",
       "gate.open_all",
     ]);

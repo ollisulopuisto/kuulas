@@ -42,7 +42,15 @@ from typing import Any, NoReturn
 
 import soundfile as sf
 
-from . import block_level, export, export_names, music_level, plugins, toolpath
+from . import (
+    block_level,
+    export,
+    export_names,
+    music_duck,
+    music_level,
+    plugins,
+    toolpath,
+)
 from .jobs import JobCancelledError
 from .messages import KuulasError, t
 
@@ -466,12 +474,14 @@ PROBE_SECONDS = 10.0
 DONE_IN_KUULAS: dict[str, tuple[str, str | None]] = {
     "bed_under_speech_db": ("bed_level", "offset_db"),
     "block_level": ("block_level", None),
+    "music_duck": ("music_duck", None),
 }
 
 #: How each entry is checked as still holding (``bed_level_current`` for the beds).
 _STILL_HOLDS: dict[str, Callable[[Any], Any]] = {
     "bed_level": music_level.bed_level_current,
     "block_level": block_level.block_level_current,
+    "music_duck": music_duck.current,
 }
 
 
@@ -498,7 +508,8 @@ def done_in_kuulas(p) -> dict[str, dict[str, Any]]:
                      "offset_db": value if field else None,
                      "speech_lufs": entry.get("speech_lufs"),
                      "bed_lufs": entry.get("bed_lufs"), "mode": entry.get("mode"),
-                     "blocks": entry.get("blocks"), "set_at": entry.get("set_at"),
+                     "blocks": entry.get("blocks"), "tracks": entry.get("tracks"),
+                     "set_at": entry.get("set_at"),
                      "current": _STILL_HOLDS[name](p) is not None}
     return out
 
@@ -506,6 +517,8 @@ def done_in_kuulas(p) -> dict[str, dict[str, Any]]:
 def _done_text(name: str, sent: Any) -> str:
     if name == "block_level":
         return "block level"
+    if name == "music_duck":
+        return "music ducking"
     return f"music level {_shown(sent)} dB"
 
 

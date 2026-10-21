@@ -113,7 +113,7 @@ def delete_track(p: Project, track_id: str) -> Project:
 
 
 TRACK_FIELDS = {"name", "kind", "speaker", "bus", "gain_db", "pan", "mute", "solo",
-                "target_lufs", "mono", "follow_bus_role"}
+                "target_lufs", "mono", "follow_bus_role", "duck"}
 
 
 def set_track(p: Project, track_id: str, **fields) -> Project:
@@ -122,6 +122,9 @@ def set_track(p: Project, track_id: str, **fields) -> Project:
         raise EditError("error.edit.track_no_fields", fields=", ".join(sorted(unknown)))
     if "kind" in fields and fields["kind"] not in TRACK_KINDS:
         raise EditError("error.edit.bad_track_kind", kind=fields["kind"])
+    if ("duck" in fields and fields["duck"] is not None
+            and not isinstance(fields["duck"], bool)):
+        raise EditError("error.edit.bad_arguments", name="set_track", detail="duck")
     if fields.get("bus") is not None and not any(b.id == fields["bus"] for b in p.buses):
         raise EditError("error.edit.no_bus", bus_id=fields["bus"])
     # Bus roles. Invariant: follow_bus_role implies kind == the bus's role.

@@ -1456,6 +1456,13 @@ export const DEFAULT_KEYMAP = [
     context: "global",
     labelKey: "cmd.app.block_level",
   },
+  // Duck music under speech: no default key; Track > Auto and the palette.
+  {
+    id: "app.duck_music",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.app.duck_music",
+  },
   {
     id: "gate.open_all",
     keys: { mac: null, other: null },

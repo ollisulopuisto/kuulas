@@ -740,6 +740,8 @@
   "ui.inspector.bus": "Bus",
   "ui.track.role": "Role",
   "ui.track.role.hint": "Several people in one file, such as a Zoom recording; never ducked per microphone.",
+  "ui.track.duck": "Duck under speech",
+  "ui.track.duck.hint": "Music ducks under speech by default; turn this off for effects or other music that should stay level.",
   "ui.track.role.option.speech": "Speech",
   "ui.track.role.option.music": "Music",
   "ui.track.voice": "Voice preset",
@@ -1526,6 +1528,9 @@
   "ui.automix.temp_dir_hint": "The stems are written here and removed when the mix is done. They can take several GB, so pick a disk with room.",
   "ui.auto_silence.done": "Auto-Silence done: the microphones are closed where their owners are not talking.",
   "ui.duck.done": "The microphone ducking is written into the speech tracks' automation.",
+  "ui.duck_music.measuring": "Measuring speech to duck music",
+  "ui.duck_music.done": "Music ducking is written into the music tracks' editable automation.",
+  "ui.duck_music.failed": "Could not measure speech for music ducking.",
   "cmd.app.auto_silence.hint": "Closes each speech microphone where its owner is not talking (and where another microphone is louder), as one merged gate per track; the clips are not cut and the gate can be opened again with Open this stretch. One undo step.",
   "cmd.app.transcribe.hint": "Transcribes the focused track's recordings (every speech track when no track is focused) into words you can read, search and edit by text.",
   "cmd.edit.move_up.hint": "Moves the selected clips one track up, keeping their time. Anything they land on is replaced (no layers). One undo step.",
@@ -2362,5 +2367,12 @@
   "ui.block_level.left_out": "Blocks you left out are not marked as done: the automixer will still level them.",
   "ui.automix.done_text_block": "You levelled the speech blocks in Kuulas, so the automixer is told to skip its own block levelling. Reset to let the automixer do it.",
   "ui.automix.done_stale_block": "The speech blocks were levelled earlier in Kuulas, but the clips have changed since.",
-  "ui.automix.done_again_block": "Level blocks again"
+  "ui.automix.done_again_block": "Level blocks again",
+  "ui.automix.done_text_duck": "Music ducking is already written into the music tracks' automation, so the automixer skips its own ducking. Reset to let the automixer do it.",
+  "ui.automix.done_stale_duck": "Music ducking was written earlier in Kuulas, but a music curve or clip has changed since.",
+  "ui.automix.done_again_duck": "Duck music again",
+  "cmd.app.duck_music": "Duck music under speech",
+  "cmd.app.duck_music.hint": "Measures when anyone speaks and writes editable ducking automation on each enabled music track. One undo step.",
+  "job.duck_music": "Measuring speech for music ducking",
+  "error.music_duck.stale": "The edit changed after the measurement. Run Duck music under speech again."
 }
