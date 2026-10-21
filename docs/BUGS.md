@@ -9,6 +9,8 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 
 | # | Raised | Issue | Notes |
 |---|---|---|---|
+| 105 | 21.10 | Waveform layer looked ~9 % taller than the overlay in a headless-Chrome screenshot of the app (silence visuals) | open: unknown whether a headless artefact or a real bug; needs a look in the real window |
+| 104 | 21.10 | Focus mode key: F is taken by Fit selection, focus is on Shift+F | open: owner decides whether plain F should be focus |
 | 95 | 20.10 | Local dmg build (`scripts/build_dmg.sh --out ~/Desktop/kuulas-dmg`) leaves the folder empty | open: needs the script's last output; the GitHub-built dmg works |
 | 93 | 19.10 | Automixer options dialog needs a redesign (all fields in one long list, empty fields, no grouping or explanations) | open, in progress |
 | 92 | 19.10 | Export: it always exports the whole session; no way in the dialog to export only the in/out range or chosen tracks; MP3 export does not ask for settings (bitrate); the dialog does not say that muted or not-soloed tracks come out as silence (the backend supports a range, track export and bitrates) | open, in progress |
@@ -25,6 +27,10 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 
 | # | Raised | Issue | Fixed in |
 |---|---|---|---|
+| 103 | 21.10 | The dmg build failed for hours (ffmpeg download host answered 521) | cache + fallback release asset (v26.10.20.28); built and published since |
+| 102 | 21.10 | The automix toast showed raw "[automixer] block ..." lines | events consumer keeps the structured toast (v26.10.20.29, redesigned .31); owner updated to main |
+| 101 | 21.10 | One clip cannot be taken out of Auto-Silence (toggling mute does not help) | "Keep the mic open under the selected clips" (v26.10.20.30); Inspector row "Mic kept open" (v.37); not tried |
+| 100 | 21.10 | Cannot tell muted from auto-silenced clips, and clip borders of auto-silenced clips seemed undraggable | new visual language: outline waveform, padlocks, dashed stretch ends, no hatching (v26.10.20.35, contrast v.37); no input bug found, drag works; not seen by the owner |
 | 99 | 20.10 | The automix of the Aame/diet woke project left Aame too hot, though balanced in Kuulas | track gain (also on speech tracks) reaches the automixer from v26.10.20.14; re-export and listen; further balancing = bounded speaker balance (ROADMAP) |
 | 98 | 20.10 | Automix progress showed "Olli: debleed" with de-bleed switched off, and no sense of which step | stages marked "skipped" (v26.10.20.9) and numbered steps (v26.10.20.11); the tool prints stage names for every track whether or not the stage runs |
 | 97 | 20.10 | No way to trim only one clip at a touching edge (roll always moves the neighbour) | Cmd/Ctrl+drag on the edge (v26.10.20.13); not tried |
