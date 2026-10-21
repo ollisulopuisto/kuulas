@@ -200,3 +200,34 @@ this many dB of each other are left as they are, so a good hand balance is not f
 Kuulas picks the value: nothing touched = the default (full), levels adjusted by hand = a small
 cap (about 2-3 dB), "keep my levels" = 0. The log line should say each speaker's measured level
 and the correction applied.
+
+## Live events (owner request 2026-10-21, for the podcast session): `--events`
+
+The owner wants LIVE structured progress while the mix runs, not a JSON report at the end.
+Kuulas already reads the automixer's stdout line by line as it is printed, locally and over
+ssh (the lines come through ssh live), so no second channel is needed. Protocol:
+
+- New flag `--events` (listed in `--help`, so Kuulas can probe it like the other flags).
+  With it the automixer prints, IN ADDITION to every existing text line (unchanged), one
+  event per line on stdout: `@@kuulas ` followed by one JSON object on the same line, then a
+  newline; flushed at once. Without the flag nothing changes. Older Kuulas versions never pass
+  it. Lines that start with `@@kuulas ` are never meant for a human.
+- Every object has `"schema": 1` and `"event"`. Events (fields may be added, never renamed):
+  - `progress`: `percent` (0-100), `message` (what `PROGRESS` prints now).
+  - `track`: `index`, `total`, `name` (a speech track starts).
+  - `stage`: `track`, `stage` (read, debleed, plugin, cleanup, measure, dynamics, lag, duck,
+    write), `state` (`"start"` or `"done"`, and `"skipped"` when it is switched off). The START
+    event is the point: today only the end of a stage is printed, so a slow plug-in stage
+    looks like the previous one.
+  - `bed`: `loudest_lufs`, `speech_lufs`, `offset_db` (the `beds:` line).
+  - `balance`: `track`, `lufs`, `applied_db`, `limit_db` (the `balance:` line, one per speaker).
+  - `block`: `track`, `start_s`, `end_s`, `deviation_db`, `gain_db`; `loud`: same with
+    `excess_db` (the lines that go to flags.txt).
+  - `mastering`: `pass`, `lift_db`, `lufs`, `limiting_lu`; `mastered`: final `lufs`, `lift_db`,
+    `limiting_lu`.
+  - `warning`: `message`. `done`: `path`.
+- Locally and over ssh the same stream works. (A pipe or a file descriptor would not survive
+  ssh without extra plumbing; stdout does.)
+- Kuulas will parse the lines when present (stage starts drive "now working on", percent and
+  track events drive the step text and a time estimate, balance and bed events fill the
+  results panel) and keep parsing the old text as a fallback.
