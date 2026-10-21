@@ -14,6 +14,7 @@ import soundfile as sf
 from fastapi.testclient import TestClient
 
 from kuulas import automix, messages
+from kuulas.hand_adjusted import balance_cap, hand_adjusted
 from kuulas.server import create_app
 from kuulas.session import Session
 
@@ -206,6 +207,9 @@ def test_automixer_options_api(session, tmp_path, monkeypatch):
         got = c.get("/api/settings/automixer").json()
         specs = {s["key"]: s for s in got["option_specs"]}
         assert specs["speech_debleed"]["default"] is True
+        assert got["balance_cap"] == balance_cap(session.state.to_dict()["tracks"])
+        assert got["balance_hand_adjusted"] == hand_adjusted(
+            session.state.to_dict()["tracks"])
         r = c.put("/api/settings/automixer", json={"options": {"speech_debleed": False}})
         assert r.status_code == 200
         assert r.json()["resolved"]["options"] == {"speech_debleed": False}
@@ -270,7 +274,8 @@ def test_settings_api_reports_the_capabilities(session, tmp_path, monkeypatch):
     ui.mkdir()
     with TestClient(create_app(session, IdleEngine(), language="en", ui_dir=ui)) as c:
         got = c.get("/api/settings/automixer").json()
-    assert got["capabilities"] == {"bed_under_speech_db": True}
+    assert got["capabilities"] == {
+        "bed_under_speech_db": True, "balance_speakers_max_db": False}
 
 
 def app_client(session, tmp_path):

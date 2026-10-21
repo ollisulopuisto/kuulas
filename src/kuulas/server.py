@@ -70,6 +70,7 @@ from . import (
 )
 from .build_info import build_label
 from .candidates import UnknownCandidateError
+from .hand_adjusted import balance_cap, hand_adjusted
 from .history import HistoryError
 from .media import ImportResult, MediaError
 from .messages import KuulasError, error_body, t
@@ -923,11 +924,14 @@ def create_app(session, engine, *, language: str | None = None,
         stored = automix.load_settings()
         # default_output_dir is for display only (run() works out the same folder itself).
         resolved = automix.resolve_settings(stored)
+        tracks = session.state.to_dict()["tracks"]
         return {"settings": stored, "resolved": resolved,
                 "default_output_dir": str(session.package.path.parent),
                 "option_specs": automix.option_specs(),
                 # What Kuulas already did that the automixer would otherwise redo.
                 "done_in_kuulas": automix.done_in_kuulas(session.state),
+                "balance_cap": balance_cap(tracks),
+                "balance_hand_adjusted": hand_adjusted(tracks),
                 # What the installed tool accepts (its --help, cached; never an error).
                 "capabilities": _automix_capabilities(resolved)}
 

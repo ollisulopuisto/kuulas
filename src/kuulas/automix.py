@@ -308,6 +308,8 @@ _RAW_OPTIONS: tuple[tuple[str, str, str, Any, str, dict[str, Any]], ...] = (
     ("speech_peak", "--no-speech-peak", "bool", True, "speech", {"minimal": True}),
     ("speech_lev", "--no-speech-lev", "bool", True, "speech", {"minimal": True}),
     ("speech_multiband", "--speech-multiband", "bool", False, "speech", {}),
+    ("balance_speakers_max_db", "--balance-speakers-max-db", "number", 6.0, "speech",
+     {"min": 0.0, "max": 6.0}),
     ("speech_desmack", "--no-speech-desmack", "bool", True, "speech", {"minimal": True}),
     ("speech_desmack_sensitivity", "--speech-desmack-sensitivity", "number", 0.5,
      "speech", {"min": 0.0, "max": 1.0, "parent": "speech_desmack"}),
@@ -484,7 +486,7 @@ def option_flags(options: dict[str, Any],
 
 
 #: Options only newer automixers accept: kuulas looks in ``--help`` before sending them.
-GATED = ("bed_under_speech_db",)
+GATED = ("bed_under_speech_db", "balance_speakers_max_db")
 #: Seconds the ``--help`` probe may take (``uv run`` can need a moment to start).
 PROBE_SECONDS = 10.0
 #: Automixer options whose work Kuulas can already have done in the edit: option
@@ -556,6 +558,19 @@ def done_lines(p, options: dict[str, Any]) -> list[str]:
             when = f" (set at {info['set_at']})" if info["set_at"] else ""
             lines.append(f"Done in Kuulas: {_done_text(name, sent)}{when}")
     return lines
+
+
+def balance_cap_line(cap: float) -> str:
+    """The requested speaker balance cap and the choice it represents, for log.txt."""
+    if cap == 0:
+        reason = t("automix.balance_cap.keep")
+    elif cap == 2.5:
+        reason = t("automix.balance_cap.fine_tune")
+    elif cap == 6:
+        reason = t("automix.balance_cap.automatic")
+    else:
+        reason = t("automix.balance_cap.custom")
+    return t("automix.balance_cap.line", cap=_shown(cap), reason=reason)
 
 
 _capability_cache: dict[tuple, dict[str, bool]] = {}
@@ -640,7 +655,9 @@ def gate_options(options: dict[str, Any], command: list[str], cwd: str | None, *
     found = capabilities(command, cwd, run_process=run_process, scope=scope)
     dropped = [k for k in wanted if not found.get(k)]
     kept = {k: v for k, v in options.items() if k not in dropped}
-    return kept, [t("warn.automix.option_unsupported") for _ in dropped]
+    return kept, [t("warn.automix.balance_unsupported"
+                    if key == "balance_speakers_max_db"
+                    else "warn.automix.option_unsupported") for key in dropped]
 
 
 def _tool_env() -> dict[str, str]:
@@ -986,12 +1003,15 @@ def run(session, params: dict, settings: dict, report: Report,
         final = _unique(folder, export._safe(f"{title} automixer {stamp}.wav"))
         partial = final.with_name(f"{final.stem}.partial{final.suffix}")
         probe = automix_remote.runner(remote, run_process) if remote else run_process
+        requested_options = settings.get("options") or {}
         kept, warnings = gate_options(
-            settings.get("options") or {}, settings["command"], settings["cwd"],
+            requested_options, settings["command"], settings["cwd"],
             run_process=probe, scope=remote["host"] if remote else "")
         settings = {**settings, "options": kept}
         steps.options = kept
-        done = done_lines(session.state, kept)
+        requested_cap = requested_options.get(
+            "balance_speakers_max_db", OPTIONS["balance_speakers_max_db"]["default"])
+        done = [balance_cap_line(requested_cap), *done_lines(session.state, kept)]
         lines.extend(f"kuulas: {w}" for w in warnings)
         for w in warnings:
             emit(f"kuulas: {w}")
