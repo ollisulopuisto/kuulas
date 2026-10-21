@@ -122,7 +122,26 @@ Parked with findings recorded: history compaction (see Next).
 
 Older, still open: media store (linked vs working FLAC, relink, consolidate); browser UI shell (keymap WP5, design redone). Old agent branches were cleaned up 21.10.2026 (the unused Tab helper branches t48/t49 discarded on the owner's word).
 
-## Needs testing and confirming (built, never used by the owner)
+## Milestone 1: what is left to confirm (updated 21.10.2026)
+
+M1 is 23 of 28 done, 5 partly (WP4, WP5, WP19a, WP46, WP6). All are built; the "partly" marks are stale PLAN status lines plus owner confirmation still missing. From `docs/M1-VERIFY.md` (rows the owner has not reported or that changed since):
+
+- [ ] **3 Import:** WAV and MP3 through File > Import, a drop from Finder onto a lane, a bad file gives a clear message (only mp4 and an mp3 drag are confirmed).
+- [ ] **4 Loop:** the loop button shows clearly when on (built v26.10.20.16).
+- [ ] **6 Copy, cut, paste** and the Clipboard tab: never reported. Since then: paste modes (v.17), series/shared shelves and drag from the panel (v.38).
+- [ ] **7 Mouse editing:** drag a range, move a clip by its label strip, trim an edge, Cmd+click select. Retest dragging a synced clip to another track (partners no longer move, WP83; BUGS 91) and Cmd+drag trim of one clip (BUGS 97).
+- [ ] **8 Sync R:** edge cases; the "hole after moving a synced clip out and back" needs your decision (BUGS 84).
+- [ ] **11 Export:** the dialog now has range, tracks, name, format and loudness (BUGS 92); check MP3 settings, whether mute/solo count, and that the default is FLAC (v.37).
+- [ ] **12 Cheat sheet and Finnish keys:** Help > Pikanäppäimet; no key needs AltGr or Shift+digit; Shift+Cmd+K search.
+- [ ] **14 Clock digit entry** from the right (built) and **16 faster menu hover** (90 ms, built): retest.
+- Outside the list but blocking "confirmed": BUGS 83 (clips could not be moved: needs your exact symptom), BUGS 81 (dmg "damaged" until quarantine is cleared: needs Apple signing), BUGS 3 (Dropbox lock never tried on a real Dropbox), BUGS 80 (Cmd+M gone).
+- Housekeeping: update the PLAN status lines of WP4, WP5, WP6, WP19a, WP46 ("Status: open. Needs WP4" is stale for WP6) when you confirm them, so the milestone count can reach 28 of 28.
+
+## Newer things to try (v26.10.20.35 to .39)
+
+Silence visuals (outline, padlocks, dashed ends, group outline); missing media and Relink; Mic kept open row; Series dialogs and status chip; Focus mode (Shift+F); Automix range and Rendered mix; Auto-Silence panel and learning its Sensitivity from muted clips; Keep my music levels; Clipboard shelves and drag; side tabs on one row with Alt+1..5 hints; overview bar with gaps; History saved versions and filter; Follow playhead (the last three in flight).
+
+### Older list
 
 Released in v26.10.20.5 to v26.10.20.14, in order of importance:
 00. **v26.10.20.8-.14 (new, nothing tried yet):** (a) the Aame mix: export again, Aame's track gain now reaches the automixer (v.14), check the balance against Kuulas; (b) Track > Auto > Level blocks (listen for clicks at the new cuts, real speech untested); (c) bus roles: bus header right-click > Role, '!' badge on a track, asterisk and Reapply on a bus, Inspector dropdown 'Match bus role'; (d) Cmd (Ctrl) + drag on a clip edge trims only that clip; (e) automix progress shows '3/4 track 2/3 Kari: debleed (2/9)' and 'skipped' for switched-off stages; (f) Music level field default +1.
