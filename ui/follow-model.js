@@ -54,3 +54,42 @@ export function arrowOf({ follow, playhead, scroll, zoom, width }) {
 export function inView({ playhead, scroll, zoom, width }) {
   return playhead >= scroll && playhead < scroll + width * zoom;
 }
+
+/**
+ * Every place the playhead is moved to a time on the user's request, and what it is (owner,
+ * 2026-10-21). "jump": an explicit "take me there" (moves the playhead, turns Follow on, shows
+ * the target). "seek": a minor adjustment or a click in a visible spot (Follow and the view are
+ * left alone). docs/design/GUI-DESIGN.md section 8.x has the same table.
+ */
+export const JUMP_SOURCES = {
+  "nav.start": "jump",
+  "nav.end": "jump",
+  "nav.in": "jump",
+  "nav.out": "jump",
+  "nav.to_resume": "jump",
+  "marker.next": "jump",
+  "marker.previous": "jump",
+  "markers-panel.row": "jump",
+  "markers-panel.clip": "jump",
+  "go-to-time": "jump",
+  "transcript.word-click": "jump",
+  "transcript.pause-click": "jump",
+  "transcript.find-hit": "jump",
+  "tab-stop": "jump",
+  "sync.drift-step": "jump",
+  "candidate.select": "jump",
+  "inspector.source-row": "jump",
+  nudge: "seek",
+  "ruler-click": "seek",
+  "lane-click": "seek",
+  scrub: "seek",
+  "transcript.cursor-keys": "seek",
+  "edit.splice-cursor": "seek",
+  "context-menu-press": "seek",
+  "open-project": "seek",
+};
+
+/** The follow event for a source in JUMP_SOURCES; an unknown source is a plain seek. */
+export function sourceEvent(source, rest = {}) {
+  return { ...rest, type: JUMP_SOURCES[source] === "jump" ? "jump" : "seek" };
+}

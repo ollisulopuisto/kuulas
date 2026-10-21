@@ -87,7 +87,7 @@ describe("the sync commands", () => {
       ...initial,
     };
     const registry = createRegistry();
-    const calls = { edits: [], toasts: [], seeks: [], server: [], patches: [], asked: [] };
+    const calls = { edits: [], toasts: [], jumps: [], server: [], patches: [], asked: [] };
     registerSyncCommands(registry, {
       t: (key, values = {}) => `${key}${values.count === undefined ? "" : `:${values.count}`}`,
       app: {
@@ -101,7 +101,7 @@ describe("the sync commands", () => {
           change.done?.({});
         },
         toast: (text, options) => calls.toasts.push([text, options]),
-        seek: (frame) => calls.seeks.push(frame),
+        jump: (frame) => calls.jumps.push(frame),
         syncCommand: (name, args) => {
           calls.server.push([name, args]);
           return Promise.resolve();
@@ -166,10 +166,10 @@ describe("the sync commands", () => {
       syncClips: [row("a", 0, 5), row("c", 20, 1)],
     });
     registry.run("sync.drift_next", null, get());
-    assert.deepEqual(calls.seeks, [20]);
+    assert.deepEqual(calls.jumps, [20]);
     assert.deepEqual([...get().selection], ["c"]);
     registry.run("sync.drift_previous", null, get());
-    assert.deepEqual(calls.seeks, [20, 0]);
+    assert.deepEqual(calls.jumps, [20, 0]);
     assert.deepEqual([...get().selection], ["a"]);
   });
 });

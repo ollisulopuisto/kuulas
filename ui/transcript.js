@@ -61,7 +61,7 @@ const el = (tag, className, text) => {
 
 /**
  * `root`: the dock's <section>. `api`: { getWords, cutPreview, correctWord, transcribe,
- * getJobs }. `actions`: { seek(frame), showError(error), applyResponse(response) }.
+ * getJobs }. `actions`: { seek(frame), jump(frame) (a click or a search hit: Follow comes back), showError(error), applyResponse(response) }.
  */
 export function createTranscript({ root, getState, setState, api, actions }) {
   // -- the DOM: a list with spacers, an empty state, a follow chip, the pop-up ----------
@@ -631,14 +631,14 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     // A click: the cursor and the play cursor go to the word.
     setState({ transcriptSelection: placeCursor(from) });
     setPaused(false);
-    actions.seek(words[from].s);
+    actions.jump(words[from].s);
   });
   list.addEventListener("click", (event) => {
     const marker = event.target.closest?.(".tx-pause");
     if (!marker || !list.contains(marker)) return;
     // The app has no range selection of its own; the in/out marks are the range.
     setState({ inPoint: Number(marker.dataset.start), outPoint: Number(marker.dataset.end) });
-    actions.seek(Number(marker.dataset.start));
+    actions.jump(Number(marker.dataset.start));
   });
   list.addEventListener("dblclick", (event) => {
     const i = wordAt(event);
@@ -876,7 +876,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     if (!match) return;
     setState({ transcriptSelection: placeCursor(match[0]) });
     setPaused(false);
-    actions.seek(words[match[0]].s);
+    actions.jump(words[match[0]].s);
     reveal(match[0], { place: true });
   }
 

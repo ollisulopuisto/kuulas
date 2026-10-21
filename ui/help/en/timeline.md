@@ -17,7 +17,7 @@ Every track is a lane, and time runs left to right. A click anywhere in the lane
 - Fit the selection or in-out range: {key:view.fit_selection}
 - Back to the view before: {key:view.back}
 
-While playing, the view follows the play cursor (the Follow chip in the corner is lit). Scrolling, dragging the overview or zooming turns Follow off and the view stays where you put it; an arrow at the edge then shows where the play cursor is. Click the chip, the arrow or the cursor itself, or start, stop or jump (Home, End, a marker), to follow again. {run:view.follow} {run:view.show_playhead}
+While playing, the view follows the play cursor (the Follow chip in the corner is lit). Scrolling, dragging the overview or zooming turns Follow off and the view stays where you put it; an arrow at the edge then shows where the play cursor is. Click the chip, the arrow or the cursor itself, or start, stop or jump to a time (Home, End, a marker, a transcript word, Spot, Tab to the next stop), to follow again. Nudging the play cursor with the arrow keys or clicking a visible spot on the ruler does not. {run:view.follow} {run:view.show_playhead}
 
 Density, waveform and follow settings are in the View menu. {show:view-menu} So are Fit tracks to the window and Keep tracks fitted to the window. To size one lane, drag the bottom edge of its header; double-click the edge to reset it.
 

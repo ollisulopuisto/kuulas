@@ -569,6 +569,11 @@ function followEvent(event) {
   }
   if (Object.keys(patch).length > 0) setState(patch);
 }
+// An explicit jump to a time (follow-model.js JUMP_SOURCES): re-engages Follow, shows the target.
+function jumpTo(frame) {
+  followEvent({ type: "jump", frame });
+  void transport.seek(frame);
+}
 // A manual view operation (scroll, overview drag or click, zoom, fit) detaches Follow.
 function markPaused() {
   followEvent({ type: "view-op" });
@@ -1245,6 +1250,7 @@ const transcript = createTranscript({
   api,
   actions: {
     seek: (frame) => void transport.seek(frame),
+    jump: jumpTo,
     showError,
     applyResponse: apply,
     run: (id) => keyboard.registry.run(id, null, getState()),
@@ -1430,10 +1436,7 @@ const keyboard = setupKeyboard({
     previewCandidate: (row) => void previewCandidate(row),
     seek: (frame) => void transport.seek(frame),
     // A transport jump (Home, End, a marker, in/out): re-engages Follow and shows the target.
-    jump(frame) {
-      followEvent({ type: "jump", frame });
-      void transport.seek(frame);
-    },
+    jump: jumpTo,
     totalFrames,
   },
 });
@@ -1642,7 +1645,7 @@ async function tabStop(direction) {
     const from = getState().playhead ?? 0;
     const frame = direction > 0 ? nextStop(stops, from) : prevStop(stops, from);
     if (frame === null) showNotice(t("ui.tab_stop.none"), "ok");
-    else void transport.seek(frame);
+    else jumpTo(frame);
   } catch (error) {
     showError(error);
   }
@@ -2071,7 +2074,7 @@ const inspector = createInspector({
       selection: new Set([clip]),
       panel: "timeline",
     });
-    void transport.seek(frame);
+    jumpTo(frame);
   },
 });
 
@@ -3321,7 +3324,7 @@ const markersPanel = createMarkersPanel({
       const marker = getState().project?.markers?.find((item) => item.id === id);
       if (!marker) return;
       setState({ markerSelected: id });
-      void transport.seek(marker.start);
+      jumpTo(marker.start);
     },
     rename: (id, name) =>
       sendMarkerEdit("rename_marker", { marker_id: id, name }, "ui.markers.history.rename"),
@@ -3333,7 +3336,7 @@ const markersPanel = createMarkersPanel({
     },
     jumpClip(clipId, start) {
       setState({ selection: new Set([clipId]) });
-      void transport.seek(start);
+      jumpTo(start);
     },
     syncCause: (clipId) => api.getSyncCause(clipId).then((answer) => answer.cause),
     can: (id, state) => keyboard.registry.can(id, state),
@@ -3379,7 +3382,7 @@ function selectCandidate(row) {
   }
   setState(patch);
   if (row.start === null) return;
-  void transport.seek(row.start);
+  jumpTo(row.start);
   api
     .getCandidatePreview(row.id)
     .then((data) => {
@@ -3660,7 +3663,7 @@ const clock = createClock({
   rate,
   limit: totalFrames,
   format: frameToTime,
-  seek: (frame) => void transport.seek(frame),
+  jump: jumpTo,
   notify: showNotice,
   t,
 });
