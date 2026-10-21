@@ -31,6 +31,11 @@ import { openContextMenu } from "./context-menu.js";
 import { contextMenuItems } from "./context-menu-model.js";
 import { installDialogKeys } from "./dialog-keys.js";
 import { dragModeChoice, nextDragMode } from "./drag-mode.js";
+import { createDuckMusicDialog } from "./duck-music-dialog.js";
+import {
+  DEFAULTS as DUCK_MUSIC_DEFAULTS,
+  normaliseSettings as normaliseDuckMusic,
+} from "./duck-sidechain-model.js";
 import { edgeChange, edgePressKeepsSelection } from "./edge-drag.js";
 import { createEditor } from "./edits.js";
 import { escapeAction } from "./escape.js";
@@ -1910,12 +1915,13 @@ async function autoSilence(options = silenceOptions()) {
 }
 
 let duckMusicJob = null;
+const DUCK_MUSIC_PREF = "duckMusicStyle";
 
 /** Track > Auto > Duck music: analyze in a cancellable job, then make one history edit. */
-async function duckMusic() {
+async function runDuckMusic(options = { style: "gaps" }) {
   if (duckMusicJob) return;
   try {
-    const { jobs } = await api.duckMusicMeasure({});
+    const { jobs } = await api.duckMusicMeasure(options);
     const id = jobs[0];
     duckMusicJob = id;
     const cancel = async () => {
@@ -1936,7 +1942,7 @@ async function duckMusic() {
       if (!job) break;
       if (job.state === "completed") {
         duckMusicJob = null;
-        apply(await api.command("duck_music", { measured: job.result }));
+        apply(await api.command("duck_music", { measured: job.result, style: options.style }));
         showNotice(t("ui.duck_music.done"), "ok", { undo: true });
         return;
       }
@@ -1952,6 +1958,18 @@ async function duckMusic() {
   } finally {
     duckMusicJob = null;
   }
+}
+
+let duckMusicDialog = null;
+function duckMusic() {
+  duckMusicDialog ??= createDuckMusicDialog({
+    t,
+    fmt: (value) => String(Math.round(Math.abs(value) * 10) / 10),
+    getSettings: () => normaliseDuckMusic(prefs.getJson(DUCK_MUSIC_PREF, DUCK_MUSIC_DEFAULTS)),
+    onRemember: (value) => prefs.setJson(DUCK_MUSIC_PREF, value),
+    onApply: (options) => void runDuckMusic(options),
+  });
+  duckMusicDialog.open();
 }
 
 /** Track > Auto > Auto-Silence options…: the dialog; Apply runs it, Preview changes nothing. */

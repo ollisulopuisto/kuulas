@@ -216,6 +216,127 @@ def test_music_track_with_duck_disabled_keeps_its_automation():
     assert result.track("m").automation == ((12, -9.0),)
 
 
+def test_sidechain_measure_builds_automation_only_for_enabled_music_tracks():
+    rng = np.random.default_rng(62)
+    n = 8 * RATE
+    voice = np.zeros(n, dtype=np.float32)
+    voice[2 * RATE:6 * RATE] = speech(rng, 4)
+    store = MemoryStore({"voice": voice[None, :]})
+    p = Project(rate=RATE)
+    p = ops.add_media(p, Media(id="voice", name="voice.wav", channels=1, frames=n))
+    p = ops.add_track(p, track_id="S", name="Host", kind="speech")
+    p = ops.add_clip(p, track_id="S", media_id="voice", clip_id="cs")
+    p = ops.add_track(p, track_id="M", name="Music", kind="music")
+    p = ops.add_clip(p, track_id="M", media_id="voice", clip_id="cm")
+    p = ops.add_track(p, track_id="X", name="FX", kind="music")
+    p = ops.set_track(p, "X", duck=False)
+    p = ops.add_clip(p, track_id="X", media_id="voice", clip_id="cx")
+
+    measured = analysis.duck_sidechain_measure(p, store)
+
+    points = measured["curves"]["M"]
+    assert measured["speech_lufs"] is not None
+    assert points
+    assert min(value for _, value in points) < -3
+    assert "X" not in measured["curves"]
+
+
+def test_sidechain_measure_gain_matches_speech_to_the_reference_level():
+    def deepest(scale):
+        rng = np.random.default_rng(63)
+        n = 8 * RATE
+        voice = np.zeros(n, dtype=np.float32)
+        voice[2 * RATE:6 * RATE] = speech(rng, 4) * scale
+        store = MemoryStore({"voice": voice[None, :]})
+        p = Project(rate=RATE)
+        p = ops.add_media(p, Media(id="voice", name="voice.wav", channels=1, frames=n))
+        p = ops.add_track(p, track_id="S", name="Host", kind="speech")
+        p = ops.add_clip(p, track_id="S", media_id="voice", clip_id="cs")
+        p = ops.add_track(p, track_id="M", name="Music", kind="music")
+        p = ops.add_clip(p, track_id="M", media_id="voice", clip_id="cm")
+        measured = analysis.duck_sidechain_measure(p, store)
+        return min(value for _, value in measured["curves"]["M"])
+
+    assert deepest(1.0) == pytest.approx(deepest(0.25), abs=0.5)
+
+
+def test_sidechain_measure_skips_curves_when_there_is_no_speech():
+    n = 2 * RATE
+    store = MemoryStore({"voice": np.zeros((1, n), dtype=np.float32)})
+    p = Project(rate=RATE)
+    p = ops.add_media(p, Media(id="voice", name="voice.wav", channels=1, frames=n))
+    p = ops.add_track(p, track_id="S", name="Host", kind="speech")
+    p = ops.add_clip(p, track_id="S", media_id="voice", clip_id="cs")
+    p = ops.add_track(p, track_id="M", name="Music", kind="music")
+    p = ops.add_clip(p, track_id="M", media_id="voice", clip_id="cm")
+
+    measured = analysis.duck_sidechain_measure(p, store)
+
+    assert measured["speech_lufs"] is None
+    assert measured["curves"] == {}
+
+
+def test_sidechain_command_writes_one_undoable_track_curve_and_done_record(tmp_path):
+    session = Session(tmp_path / "Sidechain.kuulas", rate=RATE)
+    try:
+        p = ops.add_track(session.state, track_id="M", name="Music", kind="music")
+        p = ops.set_track(p, "M", duck=True)
+        session._commit("setup", p, "setup", {})
+        measured = {
+            "key": analysis.duck_key(p), "style": "sidechain",
+            "curves": {"M": [(0, 0.0), (RATE, -8.0), (2 * RATE, 0.0)]},
+        }
+        before = session.history.head
+
+        result = session.command("duck_music", {
+            "style": "sidechain", "measured": measured,
+        })
+
+        assert result.track("M").automation == tuple(measured["curves"]["M"])
+        assert result.mix_done["music_duck"]["tracks"]["M"] == music_duck.signature(
+            result.track("M"))
+        assert session.history.head != before
+        assert session.undo()
+        assert not session.state.track("M").automation
+        assert "music_duck" not in session.state.mix_done
+    finally:
+        session.close()
+
+
+def test_sidechain_stale_measurement_is_refused(tmp_path):
+    session = Session(tmp_path / "SidechainStale.kuulas", rate=RATE)
+    try:
+        p = ops.add_track(session.state, track_id="M", name="Music", kind="music")
+        session._commit("setup", p, "setup", {})
+        measured = {"key": analysis.duck_key(p), "style": "sidechain", "curves": {}}
+        session.edit("set_track", {"track_id": "M", "gain_db": -3})
+
+        with pytest.raises(EditError) as err:
+            session.command("duck_music", {"style": "sidechain", "measured": measured})
+
+        assert err.value.key == "error.music_duck.stale"
+    finally:
+        session.close()
+
+
+def test_sidechain_with_no_written_curve_leaves_automixer_ducking_available(tmp_path):
+    session = Session(tmp_path / "SidechainSilent.kuulas", rate=RATE)
+    try:
+        p = ops.add_track(session.state, track_id="M", name="Music", kind="music")
+        p = ops.set_track_automation(p, "M", [(0, -6.0)])
+        session._commit("setup", p, "setup", {})
+        measured = {"key": analysis.duck_key(p), "style": "sidechain", "curves": {}}
+
+        result = session.command("duck_music", {
+            "style": "sidechain", "measured": measured,
+        })
+
+        assert result.track("M").automation == ()
+        assert "music_duck" not in result.mix_done
+    finally:
+        session.close()
+
+
 def test_music_duck_measurement_is_a_background_job_outside_the_session_lock(
         tmp_path, monkeypatch):
     session = Session(tmp_path / "DuckJob.kuulas", rate=RATE)
@@ -238,6 +359,39 @@ def test_music_duck_measurement_is_a_background_job_outside_the_session_lock(
         assert job["result"]["key"] == analysis.duck_key(session.state)
     finally:
         release.set()
+        session.close()
+
+
+def test_sidechain_measurement_uses_the_offload_worker_and_remains_lock_free(
+        tmp_path, monkeypatch):
+    session = Session(tmp_path / "DuckSidechainJob.kuulas", rate=RATE)
+    calls = []
+
+    def measure(task, snapshot, store, **kwargs):
+        calls.append((task, kwargs))
+        return {"key": analysis.duck_key(snapshot), "speech_lufs": -19.0, "curves": {}}
+
+    monkeypatch.setattr(offload, "call", measure)
+    try:
+        [job_id] = session.duck_music_measure({"style": "sidechain", "ratio": 4})
+        job = wait_job(session, job_id)
+
+        assert job["state"] == "completed"
+        assert job["result"]["style"] == "sidechain"
+        assert calls[0][0] == "duck_sidechain"
+        assert calls[0][1]["ratio"] == 4.0
+    finally:
+        session.close()
+
+
+def test_sidechain_measurement_rejects_invalid_options(tmp_path):
+    session = Session(tmp_path / "DuckSidechainBadOptions.kuulas", rate=RATE)
+    try:
+        with pytest.raises(EditError):
+            session.duck_music_measure({"style": "sidechain", "ratio": 0})
+        with pytest.raises(EditError):
+            session.duck_music_measure({"style": "other"})
+    finally:
         session.close()
 
 

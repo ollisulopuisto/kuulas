@@ -36,9 +36,10 @@ from nhsx import musicbed
 from nhsx.activity import GAP_CLOSE_S, MIN_RUN_S
 from speechmix import envelopes, grid, masks
 from speechmix.dsp import FLOOR_DB
+from speechmix.meter import IntegratedMeter
 from speechmix.stems import Lanes
 
-from . import bleed_relative, gate, levels, ops, priority
+from . import bleed_relative, duck_sidechain, gate, levels, mixer, ops, priority
 from .curves import gain as db_gain
 from .media import streaming, workers
 from .messages import t
@@ -494,4 +495,76 @@ def duck_key(p: Project) -> str:
     encoded = json.dumps(data, sort_keys=True, separators=(",", ":"),
                          ensure_ascii=False).encode()
     return hashlib.sha256(encoded).hexdigest()
+
+
+def duck_sidechain_measure(p: Project, store: Store, *, threshold_db=-30.0,
+                           ratio=8.0, attack_s=0.05, release_s=0.3,
+                           floor_db=-24.0, reference_lufs=-19.0,
+                           cancel=None) -> dict:
+    """Measure speech as heard, then build compact music automation curves.
+
+    The timeline is streamed in 15-second blocks. RMS is retained at one
+    10-ms hop (at most 270,000 samples for 45 minutes), not at the media rate.
+    """
+    from . import (  # noqa: PLC0415 - music_level imports this module's shared helpers.
+        music_level,
+    )
+
+    hop = hop_frames(p.rate)
+    hop_rate = p.rate / hop
+    speaking = music_level._speaking(p, store)
+    speech = [track for track in p.tracks
+              if track.kind in {"speech", "narration"} and track.clips
+              and not track.mute]
+    meter = IntegratedMeter(p.rate)
+    trigger_parts = []
+    step = max(hop, (15 * p.rate // hop) * hop)
+    for first in range(0, p.length, step):
+        priority.checkpoint()
+        if cancel is not None and cancel.is_set():
+            raise priority.CancelledError
+        count = min(step, p.length - first)
+        with streaming():
+            bus = np.zeros((2, count), dtype=np.float64)
+            for track in speech:
+                music_level._into(
+                    bus,
+                    mixer.track_stem(track, store, first, count,
+                                     music_level._channels(p, track),
+                                     as_heard=True, rate=p.rate),
+                )
+            first_hop = first // hop
+            hop_count = int(np.ceil(count / hop))
+            flags = np.zeros(count, dtype=bool)
+            if speaking is not None:
+                selected = speaking[first_hop:first_hop + hop_count]
+                expanded = np.repeat(selected, hop)[:count]
+                flags[:expanded.size] = expanded
+            meter.add(bus, flags)
+            mono = np.sqrt(np.mean(bus * bus, axis=0))
+            padded = np.pad(mono * mono, (0, (-count) % hop))
+            rms = np.sqrt(padded.reshape(-1, hop).mean(axis=1))
+            trigger_parts.append(rms)
+    speech_lufs = meter.value(keep=meter.speech() > 0.5)
+    trigger = np.concatenate(trigger_parts) if trigger_parts else np.empty(0)
+    if speech_lufs is not None:
+        trigger *= 10 ** ((reference_lufs - speech_lufs) / 20.0)
+    else:
+        trigger[:] = 0.0
+    points = duck_sidechain.curve_points(
+        trigger, hop_rate, threshold_db=threshold_db, ratio=ratio,
+        window_s=0.1, attack_s=attack_s, release_s=release_s,
+        floor_db=floor_db,
+    )
+    if not any(gain < -0.01 for _, gain in points):
+        points = []
+    curves = ({
+        track.id: [(index * hop, gain) for index, gain in points]
+        for track in p.tracks
+        if track.kind == "music" and track.duck is not False and track.clips
+    } if points else {})
+    return {"speech_lufs": speech_lufs, "curves": curves,
+            "key": duck_key(p), "threshold_db": threshold_db, "ratio": ratio,
+            "attack_s": attack_s, "release_s": release_s,
+            "floor_db": floor_db, "reference_lufs": reference_lufs}
 

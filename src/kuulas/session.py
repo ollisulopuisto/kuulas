@@ -589,13 +589,43 @@ class Session:
         return self.command("duck_music", {"measured": measured})
 
     def duck_music_measure(self, args: dict | None = None) -> list[str]:
-        """Queue the cancellable speech analysis for Track > Auto > Duck music."""
-        del args
+        """Queue cancellable speech analysis for the selected music-duck style."""
+        args = args or {}
+        style = args.get("style", "gaps")
+        if style not in {"gaps", "sidechain"}:
+            raise ops.EditError("error.edit.bad_arguments", name="duck_music",
+                                detail="style")
+        sidechain = None
+        if style == "sidechain":
+            try:
+                sidechain = {
+                    "threshold_db": float(args.get("threshold_db", -30.0)),
+                    "ratio": float(args.get("ratio", 8.0)),
+                    "attack_s": float(args.get("attack_s", 0.05)),
+                    "release_s": float(args.get("release_s", 0.3)),
+                }
+            except (TypeError, ValueError):
+                raise ops.EditError("error.edit.bad_arguments", name="duck_music",
+                                    detail="sidechain options") from None
+            if not (-60 <= sidechain["threshold_db"] <= 0
+                    and 1 <= sidechain["ratio"] <= 20
+                    and 0.001 <= sidechain["attack_s"] <= 0.5
+                    and 0.01 <= sidechain["release_s"] <= 2.0):
+                raise ops.EditError("error.edit.bad_arguments", name="duck_music",
+                                    detail="sidechain options")
         with self.lock:
             snapshot = self.history.state
 
         def run(progress):
             progress(0.0, "", True)
+            if style == "sidechain":
+                measured = offload.call(
+                    "duck_sidechain", snapshot, self.store,
+                    **sidechain,
+                    cancel=progress.cancelled_event,
+                )
+                measured["style"] = "sidechain"
+                return measured
             intervals = offload.call("anyone_talking_intervals", snapshot, self.store,
                                      cancel=progress.cancelled_event)
             if progress.cancelled:
@@ -2909,19 +2939,42 @@ def _automix(s: Session, args: dict) -> Project:
 
 def _duck_music(s: Session, args: dict) -> Project:
     measured = args.get("measured")
+    style = args.get("style", measured.get("style", "gaps")
+                     if isinstance(measured, dict) else "gaps")
     if measured is None:
         with s.lock:
             snapshot = s.history.state
-        intervals = offload.call("anyone_talking_intervals", snapshot, s.store)
-        measured = {"key": analysis.duck_key(snapshot), "intervals": intervals}
-    if not isinstance(measured, dict) or not isinstance(measured.get("intervals"), list):
+        if style == "sidechain":
+            measured = offload.call("duck_sidechain", snapshot, s.store)
+            measured["style"] = style
+        else:
+            intervals = offload.call("anyone_talking_intervals", snapshot, s.store)
+            measured = {"key": analysis.duck_key(snapshot), "intervals": intervals}
+    valid_measurement = (isinstance(measured, dict) and
+                         (isinstance(measured.get("curves"), dict) if style == "sidechain"
+                          else isinstance(measured.get("intervals"), list)))
+    if not valid_measurement:
         raise ops.EditError("error.edit.bad_arguments", name="duck_music",
                             detail="measured")
     with s.lock:
         state = s.history.state
         if measured.get("key") != analysis.duck_key(state):
             raise ops.EditError("error.music_duck.stale")
-        new = analysis.duck_music(state, s.store, intervals=measured["intervals"])
+        if style == "sidechain":
+            curves = measured.get("curves")
+            if not isinstance(curves, dict):
+                raise ops.EditError("error.edit.bad_arguments", name="duck_music",
+                                    detail="curves")
+            new = state
+            for track in state.tracks:
+                if track.kind == "music" and track.duck is not False:
+                    new = ops.set_track_automation(new, track.id,
+                                                   curves.get(track.id, ()))
+        elif style == "gaps":
+            new = analysis.duck_music(state, s.store, intervals=measured["intervals"])
+        else:
+            raise ops.EditError("error.edit.bad_arguments", name="duck_music",
+                                detail="style")
         at = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
         new = music_duck.with_record(new, at)
         return s._commit(t("history.duck_music"), new, "duck_music", {})
