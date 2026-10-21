@@ -180,6 +180,11 @@ def save_settings(settings: dict) -> dict:
         clean["options"] = normalize_options(settings["options"], resolve=not remote_on)
         # The speaker balance cap belongs to the project and the run, not the settings.
         clean["options"].pop("balance_speakers_max_db", None)
+    _write_settings(clean)
+    return clean
+
+
+def _write_settings(clean: dict) -> None:
     path = settings_path()
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -189,7 +194,25 @@ def save_settings(settings: dict) -> dict:
     except OSError as e:
         raise AutomixError("error.export.cannot_write", path=str(path),
                            error=str(e)) from e
-    return clean
+
+
+def merge_options(values: dict[str, Any]) -> dict:
+    """Set some switches in the stored settings and keep everything else (the command,
+    the remote, the other switches, plug-ins as stored): "Apply series settings". A
+    value equal to the tool's default is removed, as ``normalize_options`` stores it.
+    Raises ``AutomixError`` for a bad value, before anything is written."""
+    checked = {key: normalize_options({key: value}, resolve=False).get(key)
+               for key, value in values.items()}
+    stored = load_settings()
+    options = dict(_tolerant_options(stored.get("options")))
+    for key, value in checked.items():
+        if value is None:
+            options.pop(key, None)
+        else:
+            options[key] = value
+    stored = {**stored, "options": options}
+    _write_settings(stored)
+    return stored
 
 
 def _number(params: dict, key: str, low: float | None, high: float | None,

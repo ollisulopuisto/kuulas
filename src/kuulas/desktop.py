@@ -495,6 +495,18 @@ class Bridge:
         got = self._dialog(self._webview.FileDialog.FOLDER)
         return bool(got) and self._open_in_window(got[0])
 
+    def open_path_in_window(self, folder: object) -> bool:
+        """A project the server has just made (Series > New episode from series…) opens
+        in a window of its own. Only an absolute path to a ``.kuulas`` folder with a
+        manifest: the page cannot point this at anything else."""
+        if not isinstance(folder, str) or not folder.strip() or "\0" in folder:
+            return False
+        path = Path(folder)
+        if (not path.is_absolute() or path.suffix.lower() != SUFFIX
+                or not (path / "manifest.json").is_file()):
+            return False
+        return self._open_in_window(str(path))
+
     def open_project(self, folder: str) -> bool:
         if not isinstance(folder, str) or not folder.strip() or "\0" in folder:
             return False

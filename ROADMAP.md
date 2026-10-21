@@ -141,6 +141,8 @@ Released in v26.10.20.5 to v26.10.20.14, in order of importance:
 
 ## Next
 
+- **Series follow-ups** (v26.10.20.36, from the builder): outros are placed where they sat, not anchored to the end of the new programme; series music can only be added to (no remove/reorder); bed level, speaker balance cap and export presets are not in the series yet; no version history of a series, no series folder that travels with a shared project (WP38); the status chip does not say which tracks differ and Apply cannot apply one section alone. UI never seen on screen.
+- **Relink follow-ups** (v26.10.20.35): the relinked file has no transcript (words are keyed by media), the old media still shows as missing in File > Locate media; waveform layer looked ~9 % stretched in a headless screenshot (unchecked), outline-mode performance on a 45-min view unmeasured.
 - **Clipboard scopes** (owner idea 2026-10-21, not started, builds on Series): the clipboard gets three shelves: *this
   project* (today), *shared within the series* (intro/outro/jingles/ads used by every episode of the series) and
   *shared with all* (every project, e.g. a station ident). Entries stay references to media (rule 17: no copies lost,

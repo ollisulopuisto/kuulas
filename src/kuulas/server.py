@@ -64,6 +64,7 @@ from . import (
     priority,
     project_stats,
     render_listen,
+    series_actions,
     transcribe,
     ui_prefs,
 )
@@ -1081,6 +1082,65 @@ def create_app(session, engine, *, language: str | None = None,
         folder = new_project.create(body.get("parent"), body.get("name"))
         new_project.start_window(str(folder))
         return {"path": str(folder)}
+
+    # -- series: settings shared across episodes (docs/design/SERIES.md) ----------
+
+    @app.get("/api/series")
+    def get_series():
+        return series_actions.status(session)
+
+    @app.post("/api/series/status")
+    def post_series_status(body: Annotated[dict[str, Any], Body()]):
+        """The status with the Auto-Silence options the page has now."""
+        return series_actions.status(session, body.get("auto_silence"))
+
+    @app.post("/api/series/save")
+    def post_series_save(body: Annotated[dict[str, Any], Body()]):
+        got = series_actions.save_defaults(session, name=body.get("name"),
+                                           auto_silence=body.get("auto_silence"),
+                                           series_id=body.get("series_id"))
+        return state_response({"series": got})
+
+    @app.post("/api/series/apply")
+    def post_series_apply():
+        got = series_actions.apply(session)
+        return state_response({"series": got, "settings": got["settings"]})
+
+    @app.post("/api/series/attach")
+    def post_series_attach(body: Annotated[dict[str, Any], Body()]):
+        return state_response({"series": series_actions.attach(session,
+                                                               body.get("series_id"))})
+
+    @app.post("/api/series/detach")
+    def post_series_detach():
+        return state_response({"series": series_actions.detach(session)})
+
+    @app.post("/api/series/rename")
+    def post_series_rename(body: Annotated[dict[str, Any], Body()]):
+        return state_response({"series": series_actions.rename(session,
+                                                               body.get("name"))})
+
+    @app.post("/api/series/new-episode")
+    def post_series_new_episode(body: Annotated[dict[str, Any], Body()]):
+        """A new project from the series. ``open`` (a plain browser): start a tab on
+        it; the desktop window opens it itself through its bridge."""
+        folder = series_actions.new_episode(body.get("parent"), body.get("name"),
+                                            body.get("series_id"))
+        if body.get("open") is True:
+            new_project.start_window(str(folder))
+        return {"path": str(folder)}
+
+    @app.post("/api/series/music/add")
+    def post_series_music_add(body: Annotated[dict[str, Any], Body()]):
+        return series_actions.music_add(session, body.get("clip_ids"), body.get("name"))
+
+    @app.post("/api/series/music/clipboard")
+    def post_series_music_clipboard():
+        return series_actions.music_to_clipboard(session)
+
+    @app.post("/api/series/music/place")
+    def post_series_music_place():
+        return state_response({"placed": series_actions.music_place(session)})
 
     @app.post("/api/project/open")
     def post_open_project(body: Annotated[dict[str, Any], Body()]):

@@ -47,6 +47,13 @@ export function recordOf(state, { whole = false } = {}) {
  */
 export function restoreFrom(record, { project, width, totalFrames }) {
   const patch = {};
+  // A project in a series carries its own copy of the series' Auto-Silence options
+  // (docs/design/SERIES.md): the start when this view remembers none of its own (a new
+  // episode made from the series, or the project opened on another Mac).
+  const seriesSilence = project?.series?.settings?.auto_silence;
+  if (seriesSilence && typeof seriesSilence === "object") {
+    patch.autoSilence = normaliseSilence(seriesSilence);
+  }
   if (!record || typeof record !== "object" || Array.isArray(record)) return { patch, whole: true };
   const rate = project?.rate ?? 48000;
   const span = totalFrames > 0 ? totalFrames : EMPTY_EDIT_SECONDS * rate;

@@ -39,6 +39,7 @@ import {
 } from "./duck-sidechain-model.js";
 import { edgeChange, edgePressKeepsSelection } from "./edge-drag.js";
 import { createEditor } from "./edits.js";
+import { createNewEpisodeDialog } from "./episode-dialog.js";
 import { escapeAction } from "./escape.js";
 import { exportNotice, exportRequest, filenameFromDisposition } from "./export-commands.js";
 import { createExportDialog } from "./export-dialog.js";
@@ -140,6 +141,8 @@ import { rangeChoice, renderWhen } from "./render-listen-model.js";
 import { createRenderListenView } from "./render-listen-view.js";
 import { forwardFromClip } from "./selection-ops.js";
 import { createSendCopyDialog } from "./send-copy-dialog.js";
+import { createSeriesDialog } from "./series-dialog.js";
+import { seriesChip } from "./series-model.js";
 import { setupKeyboard } from "./shell-keys.js";
 import { chipSpeed } from "./shuttle.js";
 import { SIDEBAR_KEY, sidebarPref, sidebarShown, toggleSidebar } from "./sidebar-model.js";
@@ -1125,6 +1128,13 @@ const keyboard = setupKeyboard({
     openLocateMedia: () => void openLocateMedia(),
     relinkClipMedia: () => void relinkClipMedia(),
     openSendCopy: () => void openSendCopy(),
+    openSeries: () => void openSeries(),
+    seriesSave: () => void seriesSave(),
+    seriesApply: () => void seriesApply(),
+    newEpisode: () => void openNewEpisode(),
+    seriesMusicAdd: () => void seriesMusicAdd(),
+    seriesMusicPlace: () => void seriesMusicPlace(),
+    seriesMusicClipboard: () => void seriesMusicClipboard(),
     openRecord: () => void recordView.open(),
     cycleStopMode: () => cycleStopMode(),
     cyclePreroll: () => cyclePreroll(),
@@ -1238,6 +1248,7 @@ fastSlider.max = String(MAX_FAST);
 fastSlider.step = String(FAST_STEP);
 fastSlider.addEventListener("input", () => actions.fastSet(Number(fastSlider.value)));
 $("scope-chip").addEventListener("click", () => setState(toggleScopeMode(getState())));
+$("series-chip").addEventListener("click", () => void openSeries());
 $("lane-taller").addEventListener("click", () => setLaneHeight(LANE_STEP));
 $("lane-shorter").addEventListener("click", () => setLaneHeight(-LANE_STEP));
 $("follow").addEventListener("click", () => {
@@ -2415,6 +2426,119 @@ async function openSendCopy() {
   });
   await sendCopyDialog.open();
 }
+// File > Series (docs/design/SERIES.md): settings shared by the episodes of a show. The server
+// holds the series and says what differs; the status-bar chip shows it. Nothing is applied
+// unless one of these commands is run.
+const pageSilence = () => {
+  const options = getState().autoSilence;
+  return options ? normaliseSilence(options) : null;
+};
+let seriesDialog = null;
+let episodeDialog = null;
+async function refreshSeries() {
+  if (!getState().project?.series?.id) {
+    if (getState().series) setState({ series: null });
+    return;
+  }
+  try {
+    setState({ series: await api.seriesStatus(pageSilence()) });
+  } catch {
+    // The chip is a help: a failed look keeps the last verdict; the next change looks again.
+  }
+}
+let seriesTimer = null;
+let seriesHead = null;
+function scheduleSeriesRefresh(state) {
+  if (state.head === seriesHead) return;
+  seriesHead = state.head;
+  clearTimeout(seriesTimer);
+  seriesTimer = setTimeout(() => void refreshSeries(), 1500);
+}
+/** An answer that changed the project (save, apply, attach, detach, rename, place). */
+function seriesChanged(response) {
+  apply(response);
+  if (response.settings?.auto_silence) {
+    setState({ autoSilence: normaliseSilence(response.settings.auto_silence) });
+  }
+  if (response.series) setState({ series: response.series });
+}
+function updateSeriesChip(state) {
+  const chip = seriesChip(state, t);
+  const el = $("series-chip");
+  el.hidden = chip === null;
+  if (chip === null) return;
+  el.textContent = chip.text;
+  el.title = chip.title;
+  el.classList.toggle("warn", chip.differs);
+}
+async function openSeries() {
+  seriesDialog ??= createSeriesDialog({
+    api,
+    t,
+    getAutoSilence: pageSilence,
+    onChanged: seriesChanged,
+    notify: (text) => showNotice(text, "ok"),
+  });
+  await seriesDialog.open();
+}
+// Saving changes what every later episode starts from and has no undo (the series file is not
+// project state), so it always goes through the dialog: the save button has the focus there.
+const seriesSave = () => openSeries();
+async function seriesApply() {
+  try {
+    seriesChanged(await api.seriesApply());
+    showNotice(t("ui.series.applied", { name: getState().project?.series?.name ?? "" }), "ok", {
+      undo: true,
+    });
+  } catch (error) {
+    showError(error);
+  }
+}
+async function openNewEpisode() {
+  const bridge = globalThis.pywebview?.api;
+  episodeDialog ??= createNewEpisodeDialog({
+    api,
+    t,
+    openFolder:
+      typeof bridge?.open_path_in_window === "function"
+        ? (path) => bridge.open_path_in_window(path)
+        : null,
+    notify: (text) => showNotice(text, "ok"),
+  });
+  await episodeDialog.open();
+}
+async function seriesMusicAdd() {
+  const clips = [...(getState().selection ?? [])];
+  try {
+    const answer = await api.seriesMusicAdd(clips);
+    setState({ series: answer });
+    showNotice(t("ui.series.music_added", { count: answer.music }), "ok");
+  } catch (error) {
+    showError(error);
+  }
+}
+async function seriesMusicPlace() {
+  try {
+    const response = await api.seriesMusicPlace();
+    apply(response);
+    const { placed, missing, skipped } = response.placed;
+    const parts = [t("ui.series.music_placed", { count: placed })];
+    if (missing.length) parts.push(t("ui.series.music_missing", { count: missing.length }));
+    if (skipped.length) parts.push(t("ui.series.music_skipped", { names: skipped.join(", ") }));
+    showNotice(parts.join(" "), "ok", { undo: placed > 0 });
+  } catch (error) {
+    showError(error);
+  }
+}
+async function seriesMusicClipboard() {
+  try {
+    const { added } = await api.seriesMusicClipboard();
+    await refreshClipboard();
+    showNotice(t("ui.series.music_clipboard_done", { count: added }), "ok");
+  } catch (error) {
+    showError(error);
+  }
+}
 /** A project that opens with audio files missing says so once, with one click to locate them. */
 function offerToLocate(missing) {
   const notice = missingNotice(missing);
@@ -3319,6 +3443,7 @@ function render(state, patch) {
     $("timecode").classList.toggle("hour", time.split(":").length > 2);
   }
   if (touched("project", "selection", "inPoint", "outPoint")) updateRangeInfo();
+  if (touched("project", "series")) updateSeriesChip(state);
   if (touched("project", "inPoint", "outPoint")) marksCorner.render(state);
   if (touched("render")) renderListenView.update(state);
   if (touched("project", "words")) updateTabScope();
@@ -3660,6 +3785,8 @@ try {
   setState({ words: words.words ?? [], wordsHead: getState().head });
   await restoreView();
   await refreshClipboard();
+  void refreshSeries();
+  subscribe(scheduleSeriesRefresh);
 } catch (error) {
   showError(error);
 }

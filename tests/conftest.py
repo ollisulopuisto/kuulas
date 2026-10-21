@@ -97,6 +97,12 @@ def _private_app_settings(tmp_path_factory, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _private_series(tmp_path_factory, monkeypatch):
+    """The series library is a per-user folder: no test may touch the real one."""
+    monkeypatch.setenv("KUULAS_SERIES_DIR", str(tmp_path_factory.mktemp("series")))
+
+
+@pytest.fixture(autouse=True)
 def _private_view_memory(tmp_path_factory, monkeypatch):
     """The remembered views are a per-user file: no test may touch the real one."""
     folder = tmp_path_factory.mktemp("view-memory")

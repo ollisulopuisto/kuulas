@@ -37,9 +37,22 @@ describe("File", () => {
       "export.tracks",
       "submenu",
       "separator",
+      "submenu",
       "app.statistics",
       "separator",
       "app.preferences",
+    ]);
+  });
+  // docs/design/SERIES.md (owner, 2026-10-21): every series command in one submenu.
+  test("Series holds the series commands", () => {
+    assert.deepEqual(subIds("file", "menu.series"), [
+      "series.dialog",
+      "series.save",
+      "series.apply",
+      "series.new_episode",
+      "series.music_add",
+      "series.music_place",
+      "series.music_clipboard",
     ]);
   });
   test("Export transcripts holds the text exports", () => {
