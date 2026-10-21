@@ -603,6 +603,20 @@ def silence_rows(m: SilenceMeasure, ranges: dict[str, gate.Gate],
     return rows
 
 
+def without_ungated(p: Project, ranges: dict) -> dict:
+    """``ranges`` (closed stretches per track) minus the span of every clip flagged
+    ``ungated`` (the mic stays open under it): what a commit would leave of them
+    (``ops.normalize_ungated``), so a preview does not show what Accept would open."""
+    out = dict(ranges)
+    for track in p.tracks:
+        if track.id not in out:
+            continue
+        for clip in track.clips:
+            if clip.ungated:
+                out[track.id] = gate.remove_range(out[track.id], clip.start, clip.end)
+    return out
+
+
 def preview_silence(p: Project, store: Store, options: SilenceOptions | None = None,
                     track_ids: Iterable[str] | None = None) -> list[dict]:
     """What Auto-Silence with ``options`` WOULD close, committing nothing: per

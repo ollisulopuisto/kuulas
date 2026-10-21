@@ -1396,7 +1396,8 @@ class Session:
         if measure is None:
             raise SilenceNotMeasuredError("error.silence.not_measured")
         gates = {tr.id: tr.gate for tr in state.tracks}
-        ranges = analysis.silence_ranges_from(measure, options, gates)
+        ranges = analysis.without_ungated(
+            state, analysis.silence_ranges_from(measure, options, gates))
         return state, key, options, measure, ranges, gates
 
     def silence_preview_ranges(self, args: dict | None = None) -> dict:
@@ -1431,8 +1432,8 @@ class Session:
                 measure = self._silence_valid(key)
                 if measure is None:
                     raise SilenceNotMeasuredError("error.silence.not_measured")
-                ranges = analysis.silence_ranges_from(
-                    measure, options, {tr.id: tr.gate for tr in state.tracks})
+                ranges = analysis.without_ungated(state, analysis.silence_ranges_from(
+                    measure, options, {tr.id: tr.gate for tr in state.tracks}))
             new = analysis.apply_silence(state, ranges, track_ids)
             recorded = {**options.as_dict(),
                         **({"track_ids": list(track_ids)} if track_ids else {})}

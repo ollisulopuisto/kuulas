@@ -254,3 +254,20 @@ def test_the_worker_task_is_the_per_track_measure():
     from kuulas import offload  # noqa: PLC0415 - only this test needs it
 
     assert offload.resolve("silence_track_levels") is analysis.measure_silence_track
+
+
+def test_the_preview_leaves_the_mic_open_under_an_opted_out_clip(session, tmp_path):
+    """A clip flagged 'keep the mic open' is never closed by Auto-Silence, so the preview
+    must not show it closed either (Accept would open it again anyway)."""
+    talkers(session, tmp_path)
+    measured(session)
+    track = session.state.tracks[0]
+    clip = track.clips[0]
+    before = session.silence_preview_ranges({})["tracks"]
+    row = next(r for r in before if r["track_id"] == track.id)
+    assert any(a < clip.end and clip.start < b for a, b in row["ranges"])  # it would close
+    session.edit("set_clips_ungated", {"clip_ids": [clip.id], "value": True})
+    measured(session)
+    after = session.silence_preview_ranges({})["tracks"]
+    row = next(r for r in after if r["track_id"] == track.id)
+    assert not any(a < clip.end and clip.start < b for a, b in row["ranges"])
