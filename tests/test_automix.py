@@ -437,6 +437,7 @@ def test_the_log_is_kept_beside_the_mix(session, fake, tmp_path, temp_root):
     assert "kuulas " in head
     assert "Episode" in head
     assert shlex.join(result["command"]) in head
+    assert "Speaker balance maximum: 6 dB (Automatic)" in head
     assert "loading 2 tracks" in rest
     assert "beds: loudest -20.1 LUFS, speech -18.0 -> beds +2.1 dB" in rest
     assert "\x1b" not in text

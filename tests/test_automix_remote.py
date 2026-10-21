@@ -347,8 +347,8 @@ def test_the_probe_is_cached_per_host_and_folder(remote):
     a = automix.remote_capabilities(one, run_process=fake)
     b = automix.remote_capabilities(two, run_process=fake)
     again = automix.remote_capabilities(one, run_process=fake)
-    assert a == {"bed_under_speech_db": True}
-    assert b == {"bed_under_speech_db": False}
+    assert a == {"bed_under_speech_db": True, "balance_speakers_max_db": False}
+    assert b == {"bed_under_speech_db": False, "balance_speakers_max_db": False}
     assert again == a
     assert len(calls) == 2
     automix.clear_capability_cache()

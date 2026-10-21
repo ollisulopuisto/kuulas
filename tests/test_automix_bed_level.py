@@ -15,8 +15,8 @@ from kuulas import automix
 BASE = ["automixer", "/s", "-o", "/o.wav", "--target-lufs", "-16", "--progress"]
 HELP_NEW = "usage: automixer\n  --bed-under-speech-db FLOAT  music level\n  --minimal\n"
 HELP_OLD = "usage: automixer\n  --minimal\n"
-YES = {"bed_under_speech_db": True}
-NO = {"bed_under_speech_db": False}
+YES = {"bed_under_speech_db": True, "balance_speakers_max_db": False}
+NO = {"bed_under_speech_db": False, "balance_speakers_max_db": False}
 
 
 def fake_help(text, calls=None, code=0):

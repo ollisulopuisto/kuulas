@@ -16,6 +16,8 @@ import {
   validateAutomix,
 } from "./automix-model.js";
 import {
+  balanceChoice,
+  balanceValue,
   changedItems,
   DONE_IN_KUULAS,
   doneStatus,
@@ -95,7 +97,9 @@ export function createAutomixDialog({
     const wrap = el("div", "automix-row form-row");
     const label = el("label", "automix-label form-label", t(labelKey));
     const cell = el("div", "automix-cell form-field");
-    const input = control.matches?.("input") ? control : control.querySelector("input");
+    const input = control.matches?.("input,select")
+      ? control
+      : control.querySelector("input,select");
     input.id = `automix-${name}`;
     input.name = name;
     input.autocomplete = "off";
@@ -241,6 +245,30 @@ export function createAutomixDialog({
   };
   const fieldControl = (spec) => {
     if (spec.key in PLUGIN_FIELDS) return pluginControl(spec);
+    if (spec.key === "balance_speakers_max_db") {
+      const select = el("select", "automix-balance-choice");
+      for (const choice of ["automatic", "fine_tune", "keep"]) {
+        const option = el("option", "", t(`ui.automix.balance_choice.${choice}`));
+        option.value = choice;
+        select.append(option);
+      }
+      const wrap = row(
+        spec.key,
+        `ui.automix.opt.${spec.key}`,
+        select,
+        `ui.automix.opt.${spec.key}.hint`,
+      );
+      const note = el("p", "automix-msg form-msg", t("ui.automix.balance_capability_missing"));
+      note.hidden = true;
+      wrap.lastChild.append(note);
+      optionControls[spec.key] = {
+        input: select,
+        wrap,
+        note,
+        hint: wrap.querySelector(".automix-hint"),
+      };
+      return wrap;
+    }
     const input = text(spec.key, spec.kind === "number" ? "decimal" : "text");
     if (spec.kind === "number") input.classList.add("automix-short", "form-num");
     input.placeholder =
@@ -434,7 +462,9 @@ export function createAutomixDialog({
     for (const spec of optionSpecs) {
       const { input, field } = optionControls[spec.key];
       if (field) values[spec.key] = formatWords(field.items());
-      else values[spec.key] = spec.kind === "bool" ? input.checked : input.value;
+      else if (spec.key === "balance_speakers_max_db") {
+        values[spec.key] = String(balanceValue(input.value));
+      } else values[spec.key] = spec.kind === "bool" ? input.checked : input.value;
     }
     return values;
   };
@@ -444,7 +474,9 @@ export function createAutomixDialog({
       const { input, field } = optionControls[spec.key];
       if (field) field.setItems(parseWords(values[spec.key]));
       else if (spec.kind === "bool") input.checked = values[spec.key];
-      else input.value = values[spec.key];
+      else if (spec.key === "balance_speakers_max_db") {
+        input.value = balanceChoice(values[spec.key]);
+      } else input.value = values[spec.key];
     }
     // Open a group that holds a changed value, so nothing set is hidden, unless the user
     // opened or closed it themselves.
@@ -716,9 +748,18 @@ export function createAutomixDialog({
         }
         if (specs.length !== optionSpecs.length) buildOptions(specs);
         doneData = answer.done_in_kuulas ?? {};
-        const filled = prefillOptions(specs, doneData, resolved.options ?? stored.options ?? {});
+        const savedOptions = resolved.options ?? stored.options ?? {};
+        const withBalanceDefault = { ...savedOptions };
+        if (!("balance_speakers_max_db" in withBalanceDefault)) {
+          withBalanceDefault.balance_speakers_max_db = answer.balance_cap ?? 6;
+        }
+        const filled = prefillOptions(specs, doneData, withBalanceDefault);
         offered = filled.offered;
         setOptionValues(filled.options);
+        const balance = optionControls.balance_speakers_max_db;
+        if (balance?.hint) {
+          balance.hint.hidden = answer.balance_hand_adjusted !== true;
+        }
         inputs.command.value = formatWords(stored.command);
         inputs.command.placeholder = formatWords(resolved.command);
         cwd.value = stored.cwd ?? "";

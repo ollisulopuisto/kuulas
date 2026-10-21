@@ -7,6 +7,20 @@ import { formatWords, parseWords } from "./automix-model.js";
 
 const MAX_TEXT = 20000;
 
+/** The project's recommended cap as the matching user-facing choice. */
+export function balanceChoice(cap) {
+  if (Number(cap) === 0) return "keep";
+  if (Number(cap) === 2.5) return "fine_tune";
+  return "automatic";
+}
+
+/** The value understood by the automixer for a balance choice. */
+export function balanceValue(choice) {
+  if (choice === "keep") return 0;
+  if (choice === "fine_tune") return 2.5;
+  return 6;
+}
+
 /** A number field's text as a number; null when empty, NaN when it is not a finite number. */
 function toNumber(text) {
   const trimmed = String(text ?? "")
