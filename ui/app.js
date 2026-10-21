@@ -3660,7 +3660,9 @@ function render(state, patch) {
   ) {
     timeline.redrawWaveforms();
   }
-  if (touched("project", "scroll", "zoom", "playhead", "selection")) overview.redraw();
+  if (touched("project", "scroll", "zoom", "playhead", "selection", "silencePreview")) {
+    overview.redraw();
+  }
   if (touched("playhead", "project")) {
     const time = frameToTime(state.playhead, rate());
     clock.render(time);
