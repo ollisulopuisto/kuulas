@@ -903,6 +903,23 @@ height; Shift+wheel always scrolls time.
   not import haastattelu-3.m4a: …".
 - Confirmation dialogs only for what undo cannot bring back (section 1.6).
 
+### 8.x Follow is a state, not an action (owner, 21.10.2026)
+
+While playing with Follow on, the view follows the playhead. Any manual view
+operation (scrolling, dragging or clicking the overview, a zoom or fit) turns
+Follow off; the view then stays where the user put it and the playhead may leave
+it. A "Follow" chip in the timeline's bottom-right corner shows the state (on =
+accent, off = dim) and toggles it; with Follow off and the playhead out of view,
+an arrow at the edge nearest the playhead shows its time. Chip, arrow and the
+View command "Show the playhead" scroll there and turn Follow on. Nothing else
+re-engages it implicitly: starting or stopping playback does, as do transport
+jumps (Home, End, markers, go to time) and a click on the playhead handle or line
+(about 6 px either side). Never a click near its time, a timer, or the playhead
+entering the view by the user's own scrolling. A seek to a spot outside the view
+scrolls once only while Follow is on. The rules are in `ui/follow-model.js`; the
+state is in the UI store and not saved. Commands: View > Follow playhead
+(checked) and Show the playhead; no default keys.
+
 ## 9. Keys: what the UI reserves and how it shows them (for WP5)
 
 This section does not define the keymap (WP5 does, from Hindenburg's list); it

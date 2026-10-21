@@ -64,6 +64,7 @@ describe("the commands the app registers", () => {
       chooseMedia: () => calls.push(["import"]),
       focusName: () => calls.push(["rename"]),
       seek: (frame) => calls.push(["seek", frame]),
+      jump: (frame) => calls.push(["seek", frame]),
       totalFrames: () => 480000,
       patch: (p) => calls.push(["patch", p]),
       getState: () => state,

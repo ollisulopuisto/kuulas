@@ -69,7 +69,8 @@ import {
   stopFocus,
   tweenHeights,
 } from "./focus-layout.js";
-import { followScroll } from "./follow.js";
+import { followScroll, scrollFor } from "./follow.js";
+import { arrowOf, followStep, onHandle, inView as playheadInView } from "./follow-model.js";
 import { frameToTime, RATE, xToFrame } from "./format.js";
 import { envelopeChange, fadeChange, gainChange } from "./gain-drag.js";
 import { GATE_OPEN_COMMAND, openStretchEdit, stretchAt, underClipsEdit } from "./gate.js";
@@ -504,8 +505,31 @@ function anchorFrame() {
   }).frame;
 }
 
+// Follow is a state (follow-model.js): `followPaused` is "Follow off". Every event goes through
+// the model; the view moves to the playhead (or to `frame`) when it says so.
+function followEvent(event) {
+  const state = getState();
+  const at = event.frame ?? playheadNow(state);
+  const view = { playhead: at, scroll: state.scroll, zoom: state.zoom, width: width() };
+  const out = followStep(
+    { follow: !state.followPaused },
+    { ...event, playing: state.playing, inView: playheadInView(view) },
+  );
+  const patch = {};
+  if (out.follow === state.followPaused) patch.followPaused = !out.follow;
+  if (out.shouldScroll) {
+    patch.scroll = View.clampScroll(
+      scrollFor(at, state.zoom, width()),
+      state.zoom,
+      width(),
+      totalFrames(),
+    );
+  }
+  if (Object.keys(patch).length > 0) setState(patch);
+}
+// A manual view operation (scroll, overview drag or click, zoom, fit) detaches Follow.
 function markPaused() {
-  if (getState().playing) setState({ followPaused: true });
+  followEvent({ type: "view-op" });
 }
 
 // Fast listening (WP26): a toggle plus a stepless chosen speed, remembered per user. The state
@@ -797,6 +821,8 @@ const actions = {
   toggleDragMode: () => toggleDragMode(),
   toggleWheelMode: () => toggleWheelMode(),
   toggleClipWords: () => toggleClipWords(),
+  toggleFollow: () => followEvent({ type: "toggle" }),
+  showPlayhead: () => followEvent({ type: "show" }),
   toggleFocus: (options) => toggleFocus(options),
   setFocus: (mode, current) => setFocus(mode, current),
   toggleFocusShrink() {
@@ -850,6 +876,7 @@ const actions = {
     const levels = viewLevels();
     const next = View.stepZoom(state.zoom, levels, direction);
     if (next === state.zoom) return;
+    markPaused();
     setView(View.zoomAt(state, anchorFrame(), next, bounds()), { whole: next === levels[0].zoom });
   },
   toggleView() {
@@ -866,10 +893,12 @@ const actions = {
       },
     );
     views = result.views;
+    markPaused();
     setView(result, { whole: result.views.current === "wide" && result.zoom === levels[0].zoom });
   },
   fitView() {
     if (!getState().project) return;
+    markPaused();
     fitWholeEdit();
     history = View.visitView(history, { zoom: getState().zoom, scroll: getState().scroll });
   },
@@ -878,6 +907,7 @@ const actions = {
     if (!state.project) return;
     const target = View.fitTarget(state);
     if (target.end <= target.start) return;
+    markPaused();
     if (target.start === 0 && target.end === totalFrames()) fitWholeEdit();
     else setView(View.fitRange({ ...target, width: width() }));
     history = View.visitView(history, { zoom: getState().zoom, scroll: getState().scroll });
@@ -953,6 +983,7 @@ function stepHistory(step) {
   const result = step(history);
   if (!result.view) return;
   history = result.history;
+  markPaused();
   setView(result.view, { record: false });
 }
 
@@ -989,6 +1020,7 @@ function onWheel(intent, x) {
     const levels = viewLevels();
     const next = Math.min(levels[0].zoom, Math.max(View.SAMPLE_ZOOM, state.zoom * intent.factor));
     wheelAnchor = xToFrame(x, state.scroll, state.zoom);
+    markPaused();
     setView(View.zoomAt(state, wheelAnchor, next, bounds()), { record: false });
     clearTimeout(settleTimer);
     settleTimer = setTimeout(settle, SETTLE_MS);
@@ -1076,6 +1108,14 @@ function onPointerDown(hit, event, { noSeek = false } = {}) {
   else if (intent.selection === "toggle")
     patch.selection = toggleGroupSelection(state.project, state.selection, intent.clip.id);
   setState(patch);
+  // A click on the playhead handle or line puts Follow back on; it is in view, so the view
+  // does not move. A click merely near its time does not (follow-model.js).
+  if (
+    state.followPaused &&
+    hit.frame != null &&
+    onHandle({ playhead: playheadNow(state), frame: hit.frame, zoom: state.zoom })
+  )
+    followEvent({ type: "handle" });
   if (intent.seek !== null && !noSeek) void transport.seek(intent.seek);
 }
 
@@ -1350,6 +1390,11 @@ const keyboard = setupKeyboard({
     markCandidate: (start, end, track) => void markCandidate(start, end, track),
     previewCandidate: (row) => void previewCandidate(row),
     seek: (frame) => void transport.seek(frame),
+    // A transport jump (Home, End, a marker, in/out): re-engages Follow and shows the target.
+    jump(frame) {
+      followEvent({ type: "jump", frame });
+      void transport.seek(frame);
+    },
     totalFrames,
   },
 });
@@ -1430,7 +1475,7 @@ $("lane-taller").addEventListener("click", () => setLaneHeight(LANE_STEP));
 $("lane-shorter").addEventListener("click", () => setLaneHeight(-LANE_STEP));
 $("follow").addEventListener("click", () => {
   const state = getState();
-  if (state.followPaused) setState({ followPaused: false });
+  if (state.followPaused) followEvent({ type: "show" });
   else setState({ followMode: state.followMode === "page" ? "continuous" : "page" });
 });
 // The theme: follow the OS unless the user picked light or dark. A per-viewer
@@ -3855,10 +3900,40 @@ function render(state, patch) {
       node.toggleAttribute("data-focused", node.dataset.panel === state.panel);
     }
   }
+  // Starting or stopping playback puts Follow back on (follow-model.js).
+  if (changed !== null && touched("playing") && state.followPaused)
+    followEvent({ type: state.playing ? "play-start" : "play-stop" });
   if (touched("playhead", "playing", "zoom", "scroll", "followMode", "followPaused"))
     follow(state, touched("playhead"));
+  if (touched("playhead", "playing", "zoom", "scroll", "followPaused", "project"))
+    updateFollowChip(state);
   transcript.update(state, patch);
 }
+
+// The Follow chip in the timeline corner (on = accent, off = dim) and, with Follow off and the
+// playhead out of the view, the edge arrow with its time. Both bring the playhead back.
+function updateFollowChip(state) {
+  const chip = $("follow-chip");
+  const arrow = $("follow-arrow");
+  chip.hidden = !state.project;
+  chip.dataset.on = String(!state.followPaused);
+  chip.setAttribute("aria-pressed", String(!state.followPaused));
+  const side = arrowOf({
+    follow: !state.followPaused,
+    playhead: playheadNow(state),
+    scroll: state.scroll,
+    zoom: state.zoom,
+    width: width(),
+  });
+  arrow.hidden = !state.project || side === null;
+  if (side === null) return;
+  arrow.dataset.side = side;
+  const time = frameToTime(playheadNow(state), state.project?.rate);
+  arrow.textContent = side === "left" ? `◀ ${time}` : `${time} ▶`;
+  arrow.title = t("ui.view.follow_arrow", { time });
+}
+$("follow-chip").addEventListener("click", () => followEvent({ type: "toggle" }));
+$("follow-arrow").addEventListener("click", () => followEvent({ type: "show" }));
 
 // While playing, keep the playhead in view (page or continuous) unless the user
 // scrolled away by hand.

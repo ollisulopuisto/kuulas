@@ -2,7 +2,7 @@
 id: timeline
 title: Aikajana
 applies-to: [timeline]
-commands: [transport.play, view.toggle, view.fit, view.fit_selection, view.zoom_in, view.zoom_out, view.back, view.wheel_mode, view.clip_words, view.toggle_sidebar, panel.next, nav.home, spot, time.copy, help.open, help.keys]
+commands: [transport.play, view.toggle, view.fit, view.fit_selection, view.zoom_in, view.zoom_out, view.back, view.wheel_mode, view.clip_words, view.follow, view.show_playhead, view.toggle_sidebar, panel.next, nav.home, spot, time.copy, help.open, help.keys]
 related: [clip, track, bus]
 ---
 Jokainen raita on oma kaistansa, ja aika kulkee vasemmalta oikealle. Napsautus missä tahansa kaistoilla siirtää toistokohdan siihen. Napsautus leikkeeseen myös valitsee sen; vaihto+napsautus lisää leikkeen valintaan tai poistaa sen. Vetämällä kaistoilla merkitset aikavälin. Vedon aikana kaistoilla näkyvä vihje kertoo, mikä näppäin muuttaa välin sen koskettamiksi leikkeiksi (ne valitaan ja sisään- ja ulosmerkit siirtyvät niiden ylle) ja mikä peruu vedon.
@@ -16,6 +16,8 @@ Jokainen raita on oma kaistansa, ja aika kulkee vasemmalta oikealle. Napsautus m
 - Näytä koko versio: {key:view.fit}
 - Sovita valintaan tai alku–loppuvälille: {key:view.fit_selection}
 - Takaisin edelliseen näkymään: {key:view.back}
+
+Toiston aikana näkymä seuraa toistokohtaa (Seuranta-merkki kulmassa palaa). Vieritys, yleiskuvan vetäminen tai zoomaus kytkee seurannan pois ja näkymä pysyy siinä mihin sen jätit; reunan nuoli näyttää silloin missä toistokohta on. Napsauta merkkiä, nuolta tai itse toistokohtaa, tai aloita, pysäytä tai hyppää (Home, End, merkki), niin seuranta palaa. {run:view.follow} {run:view.show_playhead}
 
 Tiheys, aaltomuoto ja seuranta ovat Näkymä-valikossa. {show:view-menu} Samoin Sovita raidat ikkunaan ja Pidä raidat sovitettuina ikkunaan. Yhden kaistan korkeutta säädät vetämällä sen otsikon alareunaa; kaksoisnapsautus palauttaa sen.
 

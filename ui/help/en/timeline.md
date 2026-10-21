@@ -2,7 +2,7 @@
 id: timeline
 title: The timeline
 applies-to: [timeline]
-commands: [transport.play, view.toggle, view.fit, view.fit_selection, view.zoom_in, view.zoom_out, view.back, view.wheel_mode, view.clip_words, view.toggle_sidebar, panel.next, nav.home, spot, time.copy, help.open, help.keys]
+commands: [transport.play, view.toggle, view.fit, view.fit_selection, view.zoom_in, view.zoom_out, view.back, view.wheel_mode, view.clip_words, view.follow, view.show_playhead, view.toggle_sidebar, panel.next, nav.home, spot, time.copy, help.open, help.keys]
 related: [clip, track, bus]
 ---
 Every track is a lane, and time runs left to right. A click anywhere in the lanes moves the play cursor there. A click on a clip also selects it; Shift+click adds or removes a clip. Drag across the lanes to mark a time range. While you drag, a hint on the lanes tells which key turns the range into the clips it touches (they are selected and the in and out marks go to their span) and which key cancels.
@@ -16,6 +16,8 @@ Every track is a lane, and time runs left to right. A click anywhere in the lane
 - Show the whole edit: {key:view.fit}
 - Fit the selection or in-out range: {key:view.fit_selection}
 - Back to the view before: {key:view.back}
+
+While playing, the view follows the play cursor (the Follow chip in the corner is lit). Scrolling, dragging the overview or zooming turns Follow off and the view stays where you put it; an arrow at the edge then shows where the play cursor is. Click the chip, the arrow or the cursor itself, or start, stop or jump (Home, End, a marker), to follow again. {run:view.follow} {run:view.show_playhead}
 
 Density, waveform and follow settings are in the View menu. {show:view-menu} So are Fit tracks to the window and Keep tracks fitted to the window. To size one lane, drag the bottom edge of its header; double-click the edge to reset it.
 
