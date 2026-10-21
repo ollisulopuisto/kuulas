@@ -44,11 +44,15 @@ describe("dialogFormats", () => {
 });
 
 describe("pickFormat", () => {
-  test("the remembered format when it is offered, else the first", () => {
+  test("the remembered format when it is offered, else FLAC", () => {
     assert.equal(pickFormat(ALL, "mp3"), "mp3");
-    assert.equal(pickFormat(ALL, "ogg"), "wav");
-    assert.equal(pickFormat(ALL, undefined), "wav");
-    assert.equal(pickFormat([], "mp3"), "wav");
+    assert.equal(pickFormat(ALL, "ogg"), "flac");
+    assert.equal(pickFormat(ALL, undefined), "flac");
+    assert.equal(pickFormat([], "mp3"), "flac");
+  });
+
+  test("without FLAC in the list, the first one", () => {
+    assert.equal(pickFormat([{ id: "mp3" }, { id: "wav" }], undefined), "mp3");
   });
 });
 
@@ -177,10 +181,10 @@ function start(extra = {}) {
 }
 
 describe("startOptions", () => {
-  test("nothing remembered: whole mix, WAV 24-bit, no loudness target, no name", () => {
+  test("nothing remembered: whole mix, FLAC 24-bit, no loudness target, no name", () => {
     const o = start();
     assert.equal(o.scope, "whole");
-    assert.equal(o.format, "wav");
+    assert.equal(o.format, "flac");
     assert.equal(o.bitDepth, 24);
     assert.equal(o.kbps, null);
     assert.equal(o.lufs, null);
@@ -196,8 +200,8 @@ describe("startOptions", () => {
     assert.equal(o.lufs, -16);
     assert.equal(o.bitDepth, 24);
   });
-  test("a remembered format the server no longer offers falls back to the first", () => {
-    assert.equal(start({ server: { mix: { format: "ogg" } } }).format, "wav");
+  test("a remembered format the server no longer offers falls back to FLAC", () => {
+    assert.equal(start({ server: { mix: { format: "ogg" } } }).format, "flac");
   });
   test("the remembered scope applies when it can", () => {
     const o = start({
@@ -250,7 +254,7 @@ describe("exportBody", () => {
     assert.deepEqual(exportBody(start(), MARKS), {
       what: "mix",
       ask: start().ask,
-      body: { format: "wav", bit_depth: 24, master_lufs: null },
+      body: { format: "flac", bit_depth: 24, master_lufs: null },
     });
   });
   test("the in/out range", () => {

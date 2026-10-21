@@ -60,7 +60,7 @@ def test_disposition_keeps_the_real_name():
 def test_mix_export_leads_with_the_project(session, tmp_path):
     out = tmp_path / "out"
     r = export.run(session, {"kind": "mix", "folder": str(out)})
-    assert Path(r["path"]).name == "05 diet woke litteroitu v1.wav"
+    assert Path(r["path"]).name == "05 diet woke litteroitu v1.flac"
 
 
 def test_mix_export_of_another_edit_names_the_edit(session, tmp_path):
@@ -69,7 +69,7 @@ def test_mix_export_of_another_edit_names_the_edit(session, tmp_path):
     row = h.edits()[-1]
     h.edit, h.head = row["id"], row["head"]
     r = export.run(session, {"kind": "mix", "folder": str(tmp_path / "o")})
-    assert Path(r["path"]).name == "05 diet woke litteroitu - Radio v1.wav"
+    assert Path(r["path"]).name == "05 diet woke litteroitu - Radio v1.flac"
 
 
 def test_default_mix_file_template_uses_title_and_a_hyphen_stamp(session):
@@ -87,7 +87,7 @@ def test_a_custom_saved_template_is_untouched(session, tmp_path):
     export.run(session, {"kind": "mix", "folder": str(out),
                          "template": "{edit}_{n}.{ext}"})
     r = export.run(session, {"kind": "mix", "folder": str(out), "bit_depth": 16})
-    assert Path(r["path"]).name == "Main_2.wav"
+    assert Path(r["path"]).name == "Main_2.flac"
     assert session.last_export_settings("mix")["template"] == "{edit}_{n}.{ext}"
 
 
@@ -95,13 +95,13 @@ def test_a_remembered_old_default_becomes_the_new_one(session, tmp_path):
     h = session.history
     h.set_meta_json("export", {"settings": {"mix": {"template": "{edit} v{n}.{ext}"}}})
     r = export.run(session, {"kind": "mix", "folder": str(tmp_path / "o")})
-    assert Path(r["path"]).name == "05 diet woke litteroitu v1.wav"
+    assert Path(r["path"]).name == "05 diet woke litteroitu v1.flac"
 
 
 def test_title_field_in_a_custom_template(session, tmp_path):
     r = export.run(session, {"kind": "mix", "folder": str(tmp_path / "o"),
                              "template": "{project}|{title}.{ext}"})
-    assert Path(r["path"]).name == "05 diet woke litteroitu_05 diet woke litteroitu.wav"
+    assert Path(r["path"]).name == "05 diet woke litteroitu_05 diet woke litteroitu.flac"
 
 
 def test_stems_folder_and_files_lead_with_the_project(session, tmp_path):

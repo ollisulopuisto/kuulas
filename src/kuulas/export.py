@@ -119,7 +119,7 @@ PROCESSING = ("dry", "as_heard")
 #: What each export starts from (owner, 2026-10-16); the last settings used
 #: replace these, per kind and per project (ground rule 16).
 DEFAULTS: dict[str, dict[str, Any]] = {
-    "mix": {"format": "wav", "bit_depth": 24, "mp3_kbps": None, "master_lufs": None,
+    "mix": {"format": "flac", "bit_depth": 24, "mp3_kbps": None, "master_lufs": None,
             "template": "{title} v{n}.{ext}", "latest": False},
     "selection": {"format": "mp3", "bit_depth": 24, "mp3_kbps": None,
                   "master_lufs": None,

@@ -79,18 +79,18 @@ def test_a_whole_mix_has_no_range_in_its_name(session, tmp_path):
 def test_a_chosen_name_never_overwrites_an_existing_file(session, tmp_path):
     args = {"folder": str(tmp_path / "o"), "name": "Cut for Maija"}
     first = done(session, session.export_mix(args)[0])
-    assert Path(first["path"]).name == "Cut for Maija v1.wav"
+    assert Path(first["path"]).name == "Cut for Maija v1.flac"
     before = Path(first["path"]).read_bytes()
     session.edit("set_track", {"track_id": session.state.tracks[0].id, "gain_db": -6.0})
     second = done(session, session.export_mix(args)[0])
-    assert Path(second["path"]).name == "Cut for Maija v2.wav"
+    assert Path(second["path"]).name == "Cut for Maija v2.flac"
     assert Path(first["path"]).read_bytes() == before
 
 
 def test_a_name_with_braces_is_taken_literally(session, tmp_path):
     result = done(session, session.export_mix(
         {"folder": str(tmp_path / "o"), "name": "a {b} c"})[0])
-    assert Path(result["path"]).name == "a {b} c v1.wav"
+    assert Path(result["path"]).name == "a {b} c v1.flac"
 
 
 def test_only_the_chosen_tracks_are_written(session, tmp_path):

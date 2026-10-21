@@ -17,10 +17,14 @@ export function dialogFormats(offered) {
   return ALWAYS_AVAILABLE.map((id) => ({ id, label: FALLBACK[id] ?? id }));
 }
 
-/** The format to preselect: the remembered one when it is listed, else the first (WAV). */
+/**
+ * The format to preselect: the remembered one when it is listed, else FLAC (lossless, about half
+ * the size of WAV, and every tool takes it), else the first listed.
+ */
 export function pickFormat(formats, remembered) {
   if (formats.some((format) => format.id === remembered)) return remembered;
-  return formats[0]?.id ?? "wav";
+  if (formats.some((format) => format.id === "flac")) return "flac";
+  return formats[0]?.id ?? "flac";
 }
 
 // -- marks and tracks ----------------------------------------------------------------------

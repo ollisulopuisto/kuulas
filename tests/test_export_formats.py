@@ -165,10 +165,10 @@ def test_no_ffmpeg_leaves_the_in_process_formats(monkeypatch):
 # -- settings -----------------------------------------------------------------------
 
 
-def test_defaults_are_wav_24_bit_for_tracks_and_mix():
-    for kind in ("mix", "tracks"):
+def test_defaults_are_flac_24_bit_for_the_mix_and_wav_24_bit_for_stems():
+    for kind, want in (("mix", "flac"), ("tracks", "wav")):
         s = export._settings(kind, None, {})
-        assert (s["format"], s["bit_depth"]) == ("wav", 24)
+        assert (s["format"], s["bit_depth"]) == (want, 24)
 
 
 def test_unknown_or_unavailable_format_is_bad_format(monkeypatch):

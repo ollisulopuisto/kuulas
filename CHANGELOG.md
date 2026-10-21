@@ -1,3 +1,7 @@
+## [v26.10.20.37] - 2026-10-21
+
+- **Export defaults to FLAC.** The mix export (the dialog, Cmd+E and the remembered settings of a project that never chose) starts as FLAC 24-bit instead of WAV: lossless, about half the size, and every tool and Slack-style chat accepts it. A format you chose before is still remembered. Track stems (and the stems the automixer reads) stay WAV 24-bit.
+
 ## [v26.10.20.36] - 2026-10-21
 
 - **Series: settings shared between episodes.** File > Series: "Save as series defaults..." stores the track layout (roles, speakers, buses, gains), the Auto-Silence options and the automixer's de-bleed values for a series; "New episode from series..." starts the next episode with them; "Apply series settings" pulls them into the open project as one undo step (it adds missing tracks, never removes a track or clip). Nothing is applied by itself. The status bar shows "Series: X - differs" when the episode departs from the series. Series music: "Add selected clips to series music", "Place series music on the timeline", "Put series music on the clipboard" (referenced by checksum, no recording is copied or changed). A series lives in ~/Library/Application Support/kuulas/series; each project keeps its own copy of the values, so it still opens when the series file is missing. Not seen on screen yet; apply writes the de-bleed values into the per-user automixer settings (all projects).
