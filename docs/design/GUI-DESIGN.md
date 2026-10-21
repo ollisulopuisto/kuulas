@@ -196,9 +196,12 @@ before the role icon, the spine, no bus row (section 6).
   hides the time labels under it rather than overlapping them.
 - The playhead's cap is a 11 px pentagon in `--playhead`; the start of the last
   play is a hollow triangle in `--play-start` (where Stop-and-return would go).
-- **Overview strip:** one thin row per track in the track's wave colour at 60 %
-  (25 % when muted), open candidates as 2 px ticks, the visible part as a box
-  (1.5 px accent outline, `--selection-range` fill), the playhead as a 1 px
+- **Overview strip:** one thin row per track in the track's wave colour at 60 %,
+  drawn only where that track sounds (`ui/overview-segments.js`): a gap wherever
+  it is silent, whether there is no clip, the clip or track is muted, Auto-Silence
+  closed the stretch, or the Auto-Silence preview would. No lock, outline or
+  hatching: bar = heard, gap = not. Sibling ticks, the visible part as a box
+  (1.5 px accent outline, `--selection-range` fill) and the playhead as a 1 px
   line. Click or drag moves the view.
 
 ### 3.4 Timeline lanes
