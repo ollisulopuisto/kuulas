@@ -344,6 +344,19 @@ describe("export formats", () => {
     assert.deepEqual(started, [["tracks", undefined]]);
   });
 
+  test("while a selection exports, the running notice says so first", () => {
+    const lead = "Exporting the selection only: 00.12-00.18";
+    const running = exportNotice({ state: "running", progress: 0.5 }, t, "mix", lead);
+    assert.equal(running.text, `${lead} ui.export.mix_running{"percent":50}`);
+    const done = exportNotice(
+      { state: "completed", result: { path: "/x/a.flac" } },
+      t,
+      "mix",
+      lead,
+    );
+    assert.equal(done.text.includes(lead), false);
+  });
+
   test("the mix has its own progress and done notices", () => {
     const running = exportNotice({ state: "running", progress: 0.5 }, t, "mix");
     assert.equal(running.text, 'ui.export.mix_running{"percent":50}');

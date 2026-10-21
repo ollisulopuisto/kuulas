@@ -1077,3 +1077,10 @@ def test_plugins_endpoint_lists_the_scan(client, monkeypatch):
     assert client.get("/api/plugins").json() == {"plugins": items}
     client.get("/api/plugins?refresh=1")
     assert seen == [False, True]
+
+
+def test_get_music_report_range(client):
+    assert client.get("/api/music-report?start=0&end=48000").json() == {"rows": []}
+    bad = client.get("/api/music-report?start=10&end=10")
+    assert bad.status_code == 400
+    assert bad.json()["error"]["key"] == "error.music_report.bad_range"

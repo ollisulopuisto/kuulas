@@ -9,7 +9,7 @@ import pytest
 import soundfile as sf
 from fastapi.testclient import TestClient
 
-from kuulas import messages
+from kuulas import export, messages
 from kuulas.server import create_app
 from kuulas.session import Session
 
@@ -161,3 +161,52 @@ def test_the_remembered_settings_route(session, tmp_path):
     assert got["edit"]
     assert got["project"] == str(session.package.path)
     assert got["folder"].endswith("o")
+
+
+def _audio(result):
+    data, _ = sf.read(result["path"], dtype="float32")
+    return data
+
+
+def test_a_mix_of_chosen_tracks_mixes_only_those(session, tmp_path):
+    olli, maija, ville = session.state.tracks
+    chosen = done(session, session.export_mix(
+        {"folder": str(tmp_path / "a"), "track_ids": [olli.id],
+         "range": [0, 2 * RATE]})[0])
+    session.edit("set_track", {"track_id": maija.id, "mute": True})
+    session.edit("set_track", {"track_id": ville.id, "mute": True})
+    reference = done(session, session.export_mix(
+        {"folder": str(tmp_path / "b"), "range": [0, 2 * RATE]})[0])
+    assert np.allclose(_audio(chosen), _audio(reference))
+    assert np.abs(_audio(chosen)).max() > 0
+
+
+def test_a_mix_of_chosen_tracks_keeps_solo(session, tmp_path):
+    olli, _maija, ville = session.state.tracks
+    session.edit("set_track", {"track_id": ville.id, "solo": True})
+    result = done(session, session.export_mix(
+        {"folder": str(tmp_path / "o"), "track_ids": [olli.id], "range": [0, RATE]})[0])
+    assert np.abs(_audio(result)).max() == 0  # Olli is not soloed: silent, as today
+
+
+def test_a_mix_of_unknown_tracks_is_refused(session, tmp_path):
+    with pytest.raises(messages.KuulasError) as e:
+        session.export_mix({"folder": str(tmp_path / "o"), "track_ids": ["nope"]})
+    assert e.value.key == "error.export.bad_tracks"
+
+
+def test_a_selection_mix_names_its_tracks_and_span_and_is_kept(session, tmp_path):
+    olli, maija, _ville = session.state.tracks
+    args = export_options_for(session, [olli.id, maija.id])
+    first = done(session, session.export_mix(args)[0])
+    name = Path(first["path"]).name
+    assert f"0m01s\N{EN DASH}0m03s ({olli.name}, {maija.name}) " in name
+    before = Path(first["path"]).read_bytes()
+    done(session, session.export_mix(args)[0])  # the same content: reused, not rewritten
+    assert Path(first["path"]).read_bytes() == before
+
+
+def export_options_for(session, ids):
+    return export.options("mix", export.MIX_FILE, {
+        "range": [RATE, 3 * RATE], "track_ids": ids,
+        "folder": str(session.package.path.parent / "sel")})

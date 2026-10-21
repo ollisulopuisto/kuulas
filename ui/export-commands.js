@@ -54,9 +54,9 @@ export const ALWAYS_AVAILABLE = ["wav", "flac"];
  * What the notice says about an export job (as /api/jobs lists it), `kind` "tracks" (the
  * default) or "mix": { kind, text, sticky, cancel, reveal }. `sticky` stays until replaced,
  * `cancel` offers Cancel, `reveal` offers Show in Finder (desktop window only; the caller
- * checks).
+ * checks). `selectionText` (selectionNotice) leads the running text of a selection export.
  */
-export function exportNotice(job, t, what = "tracks") {
+export function exportNotice(job, t, what = "tracks", selectionText = "") {
   if (job.state === "completed") {
     const { path, track_count: count, silent = [], settings } = job.result ?? {};
     const range = settings?.range ? "_range" : "";
@@ -79,9 +79,13 @@ export function exportNotice(job, t, what = "tracks") {
     return { kind: "ok", text: t("ui.export.cancelled"), sticky: false, cancel: false };
   }
   const percent = Math.round((job.progress ?? 0) * 100);
+  const running = t(what === "mix" ? "ui.export.mix_running" : "ui.export.tracks_running", {
+    percent,
+  });
   return {
     kind: "ok",
-    text: t(what === "mix" ? "ui.export.mix_running" : "ui.export.tracks_running", { percent }),
+    // A selection export says so first: what is exported, which tracks and span.
+    text: selectionText ? `${selectionText} ${running}` : running,
     sticky: true,
     cancel: true,
   };

@@ -736,7 +736,14 @@ export function createAutomixDialog({
     rangeBox.disabled = !range.enabled;
     rangeRow.classList.toggle("automix-off", !range.enabled);
     rangeHint.textContent = range.enabled
-      ? t("ui.automix.only_range_hint", { span: spanText(range.range, rangeRate) })
+      ? [
+          t("ui.automix.only_range_hint", { span: spanText(range.range, rangeRate) }),
+          range.trackIds
+            ? t("ui.automix.only_range_tracks", { tracks: range.names.join(", ") })
+            : "",
+        ]
+          .filter(Boolean)
+          .join(" ")
       : t("ui.automix.only_range_off");
     for (const [preset, button] of presetButtons) {
       button.setAttribute("aria-pressed", String(inputs.targetLufs.value.trim() === preset.lufs));
@@ -796,7 +803,7 @@ export function createAutomixDialog({
 
   return {
     element: dialog,
-    /** `context.range`: rangeChoice of the marks now; `context.rate`: the project's. */
+    /** `context.range`: selectionChoice of the selection now; `context.rate`: the project's. */
     async open(context = {}) {
       range = context.range ?? { enabled: false, range: null };
       rangeRate = context.rate ?? 48000;
@@ -804,9 +811,9 @@ export function createAutomixDialog({
       rememberedRange = remembered.onlyRange;
       for (const key of Object.keys(DEFAULT_AUTOMIX)) {
         if (key === "adBreak") adBox.checked = remembered.adBreak !== "";
-        // Remembered ticked, but the marks no longer make a range: unticked this time.
-        else if (key === "onlyRange")
-          rangeBox.checked = remembered.onlyRange !== "" && range.enabled;
+        // Ticked whenever there is a selection (owner, 2026-10-21), whatever was remembered;
+        // without one the box is off.
+        else if (key === "onlyRange") rangeBox.checked = range.enabled;
         else inputs[key].value = remembered[key];
       }
       error.hidden = true;

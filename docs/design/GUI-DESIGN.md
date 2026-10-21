@@ -1785,3 +1785,21 @@ help panel, topics-as-data and Show me.
 **Data:**
 - Tour steps and tips are Markdown with front matter, like topics, in `ui/help/tour/` and `ui/help/tips/`: `id`, `trigger` (event), `anchor` (data-help-id), `expect` (command id), and the text in en and fi.
 - What has been seen is stored in the user settings (WP35), on this computer only.
+
+## Exports honour the selection (owner, 2026-10-21)
+
+Every export exports only the selection, and says so. `ui/export-selection-model.js` resolves it
+(one pure function, node-tested): In/Out marks or a painted range give the time range on the tracks
+`range-scope.js` resolves; otherwise selected clips give the tracks that hold them over their
+combined span (everything on those tracks inside the span, no hidden muting of neighbours); with
+nothing selected the whole mix. A span that is the whole mix on all tracks counts as no selection.
+Cmd+E and the per-format commands use it directly; the export dialogs and the automixer dialog show
+a line and the box "Only export the selection", ticked whenever a selection exists, and unticking it
+exports everything. The remembered whole/range/tracks scope never overrides a selection; the explicit
+"Export in/out range" command still exports the marks. The running notice leads with "Exporting the
+selection only: tracks Anna, Ville, 12.00-18.30". The server names the file with the span and the
+track names (`{span}{subset}` in `export.options`) and never overwrites; a one-file mix of chosen
+tracks is `track_ids` on `/api/export-mix` (muted and not-soloed tracks stay silent as in the whole mix).
+`/api/music-report?start=&end=` reports only the music heard in a span; the app has no music report
+screen yet, so no toggle exists for it.
+

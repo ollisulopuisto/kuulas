@@ -32,7 +32,7 @@ import time
 from collections import deque
 from collections.abc import Callable
 from concurrent.futures import Future
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -283,9 +283,8 @@ def _settings(kind: str, remembered: dict | None, args: dict) -> dict[str, Any]:
     """Defaults, then the last settings of this kind, then ``args``; checked."""
     if kind not in KINDS:
         raise _fail("error.export.bad_kind", kind=kind)
-    allowed = set(DEFAULTS[kind]) | {"folder"}
-    if kind == "tracks":
-        allowed.add("track_ids")
+    # track_ids: the stems to write, or (mix) the only tracks that are mixed.
+    allowed = set(DEFAULTS[kind]) | {"folder", "track_ids"}
     remembered = dict(remembered or {})
     if args.get("kbps") is not None:  # the public name of ``mp3_kbps``
         args = {**args, "mp3_kbps": args["kbps"]}
@@ -350,6 +349,21 @@ def _exported(project: Project, settings: dict) -> list[Track]:
     return [tr for tr in project.tracks if tr.id in ids]
 
 
+def _mixed_project(project: Project, settings: dict) -> Project:
+    """What a mix of chosen ``track_ids`` renders: those tracks only. Mute and solo
+    still decide what sounds as for the whole mix: when something is soloed, a kept
+    track that is not soloed stays silent even if every soloed track was left out."""
+    ids = settings.get("track_ids")
+    if ids is None:
+        return project
+    soloing = any(tr.solo for tr in project.tracks)
+    kept = tuple(replace(tr, mute=True) if soloing and not tr.solo and not tr.mute else tr
+                 for tr in project.tracks if tr.id in ids)
+    if soloing and not any(tr.solo for tr in kept):
+        kept = tuple(replace(tr, mute=True) for tr in kept)
+    return replace(project, tracks=kept)
+
+
 def _check_tracks(project: Project, settings: dict) -> None:
     """Every chosen track must exist in this edit."""
     ids = settings.get("track_ids")
@@ -373,10 +387,11 @@ def options(kind: str, base: dict, args: dict) -> dict:
         ext = ""
     if args.get("name"):
         literal = str(args["name"]).replace("{", "{{").replace("}", "}}")
-        out["template"] = f"{literal}{{span}} v{{n}}{ext}"
-    elif chosen.get("range") is not None:
+        out["template"] = f"{literal}{{span}}{{subset}} v{{n}}{ext}"
+    elif chosen.get("range") is not None or chosen.get("track_ids") is not None:
         out["template"] = base["template"].replace(
-            "{title}", "{title}{span}", 1).replace("{edit}", "{edit}{span}", 1)
+            "{title}", "{title}{span}{subset}", 1).replace(
+                "{edit}", "{edit}{span}{subset}", 1)
     return out
 
 
@@ -411,6 +426,8 @@ def _snapshot(session, kind: str, args: dict) -> _Job:
             project.placeholders, first, first + frames))
         silent = tuple(tr.name for tr in _exported(project, settings)
                        if not _audible(project, tr))
+        if kind != "tracks":
+            project = _mixed_project(project, settings)
         return _Job(kind, settings, project, session.store, rate, first, frames, ranged,
                     edit, session.package.path.stem, h.head, digest, unrecorded,
                     export_names.stamp(datetime.now(UTC).astimezone()), silent, h.edit)
@@ -512,8 +529,11 @@ def _name(job: _Job, n: int | str) -> str:
     if job.ranged:
         a, b = s["range"]
         span = f" {_stamp(a, job.rate)}\N{EN DASH}{_stamp(b, job.rate)}"
+    # Only some tracks (a selection): their names are in the file name too.
+    subset = (f" ({', '.join(tr.name for tr in _exported(job.project, s))})"
+              if s.get("track_ids") else "")
     fields = {"edit": _safe(job.edit), "title": _safe(_title(job)), "n": n,
-              "ext": _format(job).ext, "span": span,
+              "ext": _format(job).ext, "span": span, "subset": subset,
               "project": _safe(job.project_name),
               "stamp": job.stamp}
     fields["from"] = _stamp(s["range"][0], job.rate) if job.ranged else "0m00s"
