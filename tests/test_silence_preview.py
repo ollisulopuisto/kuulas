@@ -265,7 +265,8 @@ def test_the_preview_leaves_the_mic_open_under_an_opted_out_clip(session, tmp_pa
     clip = track.clips[0]
     before = session.silence_preview_ranges({})["tracks"]
     row = next(r for r in before if r["track_id"] == track.id)
-    assert any(a < clip.end and clip.start < b for a, b in row["ranges"])  # it would close
+    # it would close:
+    assert any(a < clip.end and clip.start < b for a, b in row["ranges"])
     session.edit("set_clips_ungated", {"clip_ids": [clip.id], "value": True})
     measured(session)
     after = session.silence_preview_ranges({})["tracks"]
