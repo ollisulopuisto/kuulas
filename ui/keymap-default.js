@@ -60,16 +60,16 @@ export const DEFAULT_KEYMAP = [
     context: "timeline",
     labelKey: "cmd.transport.play_selection",
   },
-  // Follow playhead (follow-model.js). No default keys: the Finnish layout leaves few free ones.
+  // Follow playhead (follow-model.js): Shift+P toggles it, Alt+P shows the playhead (P: playhead).
   {
     id: "view.follow",
-    keys: { mac: null, other: null },
+    keys: { mac: "Shift+P", other: "Shift+P" },
     context: "global",
     labelKey: "cmd.view.follow",
   },
   {
     id: "view.show_playhead",
-    keys: { mac: null, other: null },
+    keys: { mac: "Alt+P", other: "Alt+P" },
     context: "global",
     labelKey: "cmd.view.show_playhead",
   },
