@@ -119,6 +119,11 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
+def file_sha256(path: str | Path) -> str:
+    """The SHA-256 (hex) a file would be identified by in the store (rule 9)."""
+    return _sha256(Path(path))
+
+
 def _walk_wav(f) -> Iterator[tuple[bytes, int, int]]:
     """``(chunk id, size, body position)`` for each chunk of a RIFF/RF64 WAV.
 

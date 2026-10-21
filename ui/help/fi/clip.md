@@ -2,7 +2,7 @@
 id: clip
 title: Leike
 applies-to: [clip]
-commands: [edit.split, edit.delete, edit.cut, edit.lift_cut, edit.close_gap_all, edit.paste, edit.paste_insert, clip.mute, clip.quick_mute, clip.fade, edit.undo]
+commands: [edit.split, edit.delete, edit.cut, edit.lift_cut, edit.close_gap_all, edit.paste, edit.paste_insert, clip.mute, clip.quick_mute, clip.fade, clip.relink_media, edit.undo]
 related: [timeline, track, transcript]
 ---
 Leike on pala yhdestä äänityksestä raidalla. Samasta äänityksestä voi olla monta leikettä; kun valitset yhden, sen sisarleikkeet merkitään hakasella.
@@ -15,6 +15,7 @@ Leike on pala yhdestä äänityksestä raidalla. Samasta äänityksestä voi oll
 - Sulje aukko kaikilta raidoilta: {key:edit.close_gap_all}. Poistaa valinnan tai merkityn välin jokaiselta raidalta ja sulkee aukon; leikepöytä ei muutu.
 - Mykistä leike: {key:clip.mute}. Mykistetty leike säilyttää värinsä, mutta sen aaltomuodosta jää vain ääriviiva, joten näet yhä, mikä on hiljennetty.
 - Pikamykistys (maiskahdukset): {key:clip.quick_mute}. Mykistää lyhyen jakson toistokohdan ympäriltä (oletus 0,5 s, asetus Asetuksissa) kaikilta raidoilta tai valituilta; toimii myös toiston aikana. Yksi kumoamisaskel; mitään ei poisteta.
+- Muokkasitko äänityksen toisessa ohjelmassa (vaikkapa poistit kohinan)? Leikkeen valikon **Etsi / vaihda äänitiedosto…** vaihtaa äänityksen kaikkiin leikkeisiin valitsemasi tiedoston näytettyään molemmat pituudet; yksi kumoamisaskel, eikä kumpaakaan tiedostoa muuteta. Leike, jonka tiedosto puuttuu, näyttää punaisen varoitusmerkin; kaksoisnapsauta sitä etsiäksesi tiedoston.
 - Häivytys sisään ja ulos: {key:clip.fade}
 
 Jokaisen muokkauksen voi perua askel kerrallaan: {key:edit.undo}.

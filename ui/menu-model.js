@@ -313,6 +313,8 @@ export const MENU = [
       LEVEL_PAN,
       SEP,
       SYNC,
+      SEP,
+      item("clip.relink_media"),
     ],
   },
   {

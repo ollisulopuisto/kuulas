@@ -2,7 +2,7 @@
 id: clip
 title: A clip
 applies-to: [clip]
-commands: [edit.split, edit.delete, edit.cut, edit.lift_cut, edit.close_gap_all, edit.paste, edit.paste_insert, clip.mute, clip.quick_mute, clip.fade, edit.undo]
+commands: [edit.split, edit.delete, edit.cut, edit.lift_cut, edit.close_gap_all, edit.paste, edit.paste_insert, clip.mute, clip.quick_mute, clip.fade, clip.relink_media, edit.undo]
 related: [timeline, track, transcript]
 ---
 A clip is a stretch of one recording placed on a track. Several clips can come from the same recording; selecting one marks its siblings with a bracket.
@@ -15,6 +15,7 @@ A clip is a stretch of one recording placed on a track. Several clips can come f
 - Close the gap on all tracks: {key:edit.close_gap_all}. Ripples the selection or in-out range out of every track; the clipboard is untouched.
 - Mute the clip: {key:clip.mute}. A muted clip keeps its colour but its waveform loses its fill: only the outline shows, so you still see what is silenced.
 - Quick mute (lip smacks): {key:clip.quick_mute}. Mutes a short stretch around the play cursor (0.5 s by default, set in Preferences) on all tracks or the selected ones; works while playing. One undo step; nothing is deleted.
+- Edited the recording in another program (say, removed noise)? **Locate / Relink media…** in the clip's menu points every clip of that recording at the file you choose, after showing both lengths; one undo step, and neither file is changed. A clip whose file is missing shows a red warning sign; double-click it to locate the file.
 - Fade in and out: {key:clip.fade}
 
 Every edit is one step back with {key:edit.undo}.

@@ -2612,5 +2612,21 @@
   "ui.silence.legend.lock": "Lukko: Auto-Silencen sulkema. Mykistetyssä leikkeessä ei ole lukkoa.",
   "ui.silence.legend.open": "Avoin lukko: leike pitää mikin auki.",
   "ui.silence.legend.preview": "Turkoosi ääriviiva ja katkoviivareunat: mitä tämä esikatselu sulkisi.",
-  "ui.silence.legend.inactive": "Harmaa tai himmeä raita: ei kuulu seuraavaan toimintoon."
+  "ui.silence.legend.inactive": "Harmaa tai himmeä raita: ei kuulu seuraavaan toimintoon.",
+  "error.media.not_a_file": "{name} ei ole luettava tiedosto.",
+  "error.edit.same_media": "Leike käyttää jo sitä tiedostoa.",
+  "error.edit.media_unused": "Mikään leike ei käytä mediaa {media_id}.",
+  "cmd.clip.relink_media": "Etsi / vaihda äänitiedosto…",
+  "cmd.clip.relink_media.hint": "Valitse tämän leikkeen äänityksen tiedosto: sama tiedosto toisessa paikassa tai kopio, jota muokkasit toisessa ohjelmassa (vaikkapa kohina poistettuna). Äänityksen kaikki leikkeet käyttävät uutta tiedostoa; yksi kumoamisaskel. Kumpaakaan tiedostoa ei muuteta eikä poisteta.",
+  "ui.ctx.media": "Äänitiedosto",
+  "ui.relink.title": "Käytetäänkö muokattua tiedostoa?",
+  "ui.relink.replace": "Tämän äänityksen kaikki leikkeet ({clips}) soittavat tästä lähtien tiedostoa {name}.",
+  "ui.relink.keeps_original": "Alkuperäinen tiedosto jää paikalleen muuttumattomana; Kumoa palauttaa sen.",
+  "ui.relink.length_differs": "Pituudet eroavat: leikkeen tiedosto on {old}, uusi {new}. Leikkeet voivat soittaa hiljaisuutta tai väärää kohtaa.",
+  "ui.relink.confirm": "Vaihda",
+  "ui.relink.cancel": "Peruuta",
+  "ui.relink.same_file": "Se on sama äänitys: linkitetty siihen.",
+  "ui.relink.done": "Leikkeet soittavat nyt uutta tiedostoa.",
+  "ui.relink.history": "Vaihda äänitiedosto",
+  "ui.relink.path_prompt": "Äänitiedoston polku:"
 }

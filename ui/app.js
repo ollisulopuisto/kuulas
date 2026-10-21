@@ -134,6 +134,7 @@ import {
 } from "./range-scope.js";
 import { recentMenuItems } from "./recent-menu-model.js";
 import { createRecordView } from "./record-view.js";
+import { createRelinkConfirm, relinkPlan } from "./relink-media.js";
 import { forwardFromClip } from "./selection-ops.js";
 import { createSendCopyDialog } from "./send-copy-dialog.js";
 import { setupKeyboard } from "./shell-keys.js";
@@ -1095,6 +1096,7 @@ const keyboard = setupKeyboard({
     openStatistics: () => void openStatistics(),
     openPerformanceReport: () => void openPerformanceReport(),
     openLocateMedia: () => void openLocateMedia(),
+    relinkClipMedia: () => void relinkClipMedia(),
     openSendCopy: () => void openSendCopy(),
     openRecord: () => void recordView.open(),
     cycleStopMode: () => cycleStopMode(),
@@ -2314,6 +2316,38 @@ const folderChooser = () =>
     ? () => globalThis.pywebview.api.pick_project_folder()
     : null;
 let locateDialog = null;
+// Clip > Locate / Relink media… (relink-media.js): pick a file for the selected clip's
+// recording; the server imports it in place and reports; confirm; one replace_clip_media edit.
+let relinkConfirm = null;
+async function relinkClipMedia() {
+  const state = getState();
+  const [clipId] = [...state.selection];
+  const clip = state.project?.tracks.flatMap((track) => track.clips).find((c) => c.id === clipId);
+  if (!clip) return;
+  try {
+    const bridge = nativeBridge();
+    const path = bridge
+      ? (await bridge.pick_media())?.[0]
+      : globalThis.prompt?.(t("ui.relink.path_prompt"));
+    if (!path) return;
+    const report = await api.replaceCheck(clip.media, path);
+    const rate = state.project.rate;
+    const seconds = (frames) => `${formatNumber(frames / rate, { digits: 1 })} s`;
+    const plan = relinkPlan(report, { t, seconds, mediaId: clip.media });
+    if (!plan.confirm) {
+      await refresh();
+      showNotice(plan.notice, "ok");
+      return;
+    }
+    relinkConfirm ??= createRelinkConfirm({ t });
+    if (!(await relinkConfirm.ask(plan))) return;
+    apply(await api.edit({ ...plan.edit, label: t("ui.relink.history") }));
+    showNotice(t("ui.relink.done"), "ok", { undo: true });
+  } catch (error) {
+    showError(error);
+  }
+}
+
 async function openLocateMedia() {
   locateDialog ??= createLocateDialog({
     api,

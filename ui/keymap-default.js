@@ -73,6 +73,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: `cmd.view.inactive_${style}`,
   })),
   {
+    id: "clip.relink_media",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.clip.relink_media",
+  },
+  {
     id: "view.clipboard_limit",
     keys: { mac: null, other: null },
     context: "global",

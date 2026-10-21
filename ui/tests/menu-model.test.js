@@ -110,6 +110,11 @@ describe("the menu data", () => {
     assert.equal(check({ inactiveStyle: "desaturate" }, "view.inactive_desaturate"), true);
   });
 
+  test("Clip has Locate / Relink media", () => {
+    const clip = MENU.find((top) => top.id === "clip");
+    assert.ok(menuTargets([clip]).includes("clip.relink_media"));
+  });
+
   test("Help has Keyboard shortcuts", () => {
     assert.ok(menuTargets(MENU).includes("help.keys"));
     assert.ok(menuTargets(MENU).includes("help.open"));

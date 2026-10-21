@@ -132,6 +132,8 @@ describe("Clip", () => {
       ">menu.level_pan",
       "-",
       ">menu.sync",
+      "-",
+      "clip.relink_media",
     ]);
   });
   test("Level and pan holds gain and pan", () => {

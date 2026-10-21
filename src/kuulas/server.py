@@ -1070,6 +1070,13 @@ def create_app(session, engine, *, language: str | None = None,
         """Look under a folder for the missing media, by SHA-256; say what was found."""
         return JSONResponse(session.locate_media(body.get("folder")))
 
+    @app.post("/api/media/replace-check")
+    def post_replace_check(body: Annotated[dict[str, Any], Body()]):
+        """Locate / Relink media on a clip, step one: import the chosen file and say
+        what replacing the clip's media by it means. The edit: ``replace_clip_media``."""
+        return JSONResponse(
+            session.check_replace_media(body.get("media_id"), body.get("path")))
+
     @app.get("/api/send-copy/plan")
     def get_send_copy_plan():
         """File > Send a copy… (WP32): what each media choice would carry."""

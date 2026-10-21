@@ -213,6 +213,12 @@ export function registerAppCommands(registry, { actions, app }) {
   // File > Locate media… (WP39) and Send a copy… (WP32): no default key (the Finnish layout
   // leaves no free one that is not AltGr or Shift+digit); both are in the File menu.
   def("app.locate_media", () => app.openLocateMedia(), hasProject);
+  // One clip selected (the right press selects it): relink its recording to another file.
+  def(
+    "clip.relink_media",
+    () => app.relinkClipMedia(),
+    (state) => state?.selection?.size === 1,
+  );
   def("app.send_copy", () => app.openSendCopy(), hasProject);
   // Transport > Record… (WP12a) and how a take is stopped (a preference: two steps by default).
   def("transport.record", () => app.openRecord(), hasProject);

@@ -26,6 +26,8 @@ const SECTIONS = {
         "clip.fade",
       ],
     ],
+    // Always offered, missing or not (owner, 2026-10-21): relink to an edited copy of the file.
+    ["media", ["clip.relink_media"]],
     [
       "select",
       [
