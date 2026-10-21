@@ -10,6 +10,9 @@ dependencies = [
     "speechmix",
     # Hindenburg sessions and the speech-activity rules built on speechmix.
     "nhsx",
+    # Auto-Silence values learned from the clips the user muted by hand (shared with
+    # podcast-magic and colab-transcribe: one rule, not a copy). Stdlib only.
+    "silencelearn",
     "numpy>=2.4.2",
     "fastapi>=0.118.0",
     "uvicorn>=0.37.0",
@@ -42,6 +45,7 @@ kuulas-worker = "kuulas.transcribe_worker:main"
 [tool.uv.sources]
 speechmix = { path = "../podcast/packages/speechmix", editable = true }
 nhsx = { path = "../podcast/packages/nhsx", editable = true }
+silencelearn = { path = "../podcast/packages/silencelearn", editable = true }
 
 [dependency-groups]
 dev = ["ruff==0.15.8", "pytest>=9.0.2", "httpx>=0.28.1"]

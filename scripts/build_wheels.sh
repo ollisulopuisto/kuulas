@@ -1,6 +1,6 @@
 #!/bin/bash
 # Build the wheels the tester bundle installs instead of the ../podcast path
-# dependencies (WP73): speechmix, nhsx, and proxy_tools (pywebview needs it and
+# dependencies (WP73): speechmix, nhsx, silencelearn, and proxy_tools (pywebview needs it and
 # publishes no wheel; Briefcase installs wheels only).
 #
 #   scripts/build_wheels.sh <out-folder>
@@ -33,7 +33,7 @@ else
 fi
 echo "podcast commit: $(git -C "$src" rev-parse --short HEAD)"
 
-for pkg in speechmix nhsx; do
+for pkg in speechmix nhsx silencelearn; do
   uv build --wheel --out-dir "$out" "$src/packages/$pkg" >/dev/null
 done
 
