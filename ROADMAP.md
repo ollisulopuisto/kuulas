@@ -141,6 +141,7 @@ Released in v26.10.20.5 to v26.10.20.14, in order of importance:
 
 ## Next
 
+- **Owner priorities 2026-10-21** (in order): relink transcript fix + "Mic kept open" Inspector row (in flight), focus mode F (in flight), clipboard shelves (project / series / all; after the Series merge, design note first). Podcast-side requests confirmed in docs/PODCAST-MAGIC.md.
 - **Series follow-ups** (v26.10.20.36, from the builder): outros are placed where they sat, not anchored to the end of the new programme; series music can only be added to (no remove/reorder); bed level, speaker balance cap and export presets are not in the series yet; no version history of a series, no series folder that travels with a shared project (WP38); the status chip does not say which tracks differ and Apply cannot apply one section alone. UI never seen on screen.
 - **Relink follow-ups** (v26.10.20.35): the relinked file has no transcript (words are keyed by media), the old media still shows as missing in File > Locate media; waveform layer looked ~9 % stretched in a headless screenshot (unchecked), outline-mode performance on a 45-min view unmeasured.
 - **Clipboard scopes** (owner idea 2026-10-21, not started, builds on Series): the clipboard gets three shelves: *this

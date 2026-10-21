@@ -232,3 +232,12 @@ ssh (the lines come through ssh live), so no second channel is needed. Protocol:
 - Kuulas will parse the lines when present (stage starts drive "now working on", percent and
   track events drive the step text and a time estimate, balance and bed events fill the
   results panel) and keep parsing the old text as a fallback.
+
+## Owner confirmed requests (2026-10-21), for the podcast session
+
+Owner said yes to asking the podcast side for all of these; Kuulas-side switches follow when they exist:
+- **Progress events inside a track** (extend `--events`): `progress` lines during one track's slow stages, so the toast bar moves within a track and the ETA is steadier.
+- **`--balance-speakers-max-db`** (bounded balance, section "Speaker balance") is wanted as specified there.
+- **Keep my level (Δ)** for non-speech tracks: shift music/effects by the same Δ the speech gets (processed minus raw speech), so the owner's by-ear relative levels survive ("Music bed level" section).
+- **Carve (spectral) and ducking in the folder (stems) route**, which today only the in-memory `cli_mix` route does.
+- Parked (not asked): vectorising speechmix `duck_masks` / `close_gaps` (decide step ~80-100 ms; small gain, risk to bit-exact output).
