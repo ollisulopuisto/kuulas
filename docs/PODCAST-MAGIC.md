@@ -23,7 +23,8 @@ Seconds are not stored. Flicks only appear for the recording clock of a media fi
 `mixer.track_stem` renders muted clips and gated ranges as **exact digital silence**, with a 30 ms ramp on the open
 neighbour (the ramp is inside the open stretch). A muted track, or a track not soloed while another is, becomes an
 all-zero stem and `"audible": false` in `tracks.json`. Pan, buses and master are not applied. `tracks.json` v1 has
-`rate`, `start_frame` (timeline frame of the first stem sample) and `frames`, plus per track `id, name, kind,
+`rate`, `start_frame` (timeline frame of the first stem sample; always 0 in the automixer's stems, whose folder
+route requires it, also for a range preview: Kuulas keeps the range's start in `mix_done.render`) and `frames`, plus per track `id, name, kind,
 speaker, channels, file, audible, gain_db, pan`. Muted ranges are listed by the two optional fields below.
 
 **Built (WP85 step 1, `stem_ranges.py`):** two optional per-track fields on the stem's own clock (frame 0 = the stem's first

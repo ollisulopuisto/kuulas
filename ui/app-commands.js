@@ -106,6 +106,14 @@ export function registerAppCommands(registry, { actions, app }) {
     () => actions.toggleLoop(),
     (state) => Boolean(state?.project) && (state.loop === true || rangeAvailable(state) !== null),
   );
+  // Edit | Rendered mix: on while the render still matches the edit; off is always possible.
+  def(
+    "transport.render_listen",
+    () => actions.toggleRenderListen(),
+    (state) =>
+      Boolean(state?.render?.available) &&
+      (state.render.listening === true || state.render.current === true),
+  );
   def("transport.shuttle_forward", () => actions.shuttle("l"), hasProject);
   def("transport.shuttle_back", () => actions.shuttle("j"), hasProject);
   def("transport.shuttle_stop", () => actions.shuttle("k"), hasProject);

@@ -423,6 +423,61 @@ def _audible(project: Project, track: Track) -> bool:
     return track.id not in transcript.silent_tracks(project)
 
 
+#: Fields that never change what any export sounds like: names (they only name files),
+#: and in a project the markers, the narration placeholders' texts (a placeholder
+#: plays as silence wherever it is) and ``mix_done`` (records about the edit, written
+#: by commands that also change gains, which the key sees).
+_AUDIO_SKIP = {"project": ("markers", "placeholders", "mix_done"),
+               "track": ("name",), "clip": ("name",), "bus": ("name",)}
+#: The last ``audio_key`` asked for, by the project object (frozen, so the same object
+#: always has the same key). The live project is asked for on every state answer.
+_audio_memo: tuple[Project, str] | None = None
+_audio_lock = threading.Lock()
+
+
+def audio_key(project: Project) -> str:
+    """The key of what the project sounds like: equal key, equal audio in every export
+    (the mix and every stem), so a render made from a snapshot with this key still
+    matches the edit (``render_listen``).
+
+    It changes with: clips (added, removed, moved, trimmed, split), their offsets, gains,
+    pans, fades, crossfades, envelopes and mutes; tracks' gain, pan, mute, solo, gate,
+    automation, kind (speech or music), speaker, bus, mono, ducking and role switches;
+    buses' gain, pan, mute and role (``kind``: it changes which tracks are music stems);
+    the master gain; the media's identities (content hash, frames, channels) and sync;
+    the project rate; anything in a dataclass's ``extra`` (unknown, so counted).
+
+    It does NOT change with: the playhead, the In/Out marks, the selection and every
+    view setting (none of them is in the project), markers and regions, narration
+    placeholders, the names of tracks, clips, buses and media, and ``mix_done``."""
+    global _audio_memo  # noqa: PLW0603 - a one-entry memo, guarded by the lock
+    with _audio_lock:
+        memo = _audio_memo
+        if memo is not None and memo[0] is project:
+            return memo[1]
+    d = project.to_dict()
+    for key in _AUDIO_SKIP["project"]:
+        d.pop(key, None)
+    d["media"] = sorted([m["id"], m.get("sha256", ""), m["frames"], m["channels"],
+                         m.get("excerpt_of"), m.get("excerpt_start_flicks", 0),
+                         m.get("time_ref_flicks")] for m in d["media"])
+    for track in d["tracks"]:
+        for key in _AUDIO_SKIP["track"]:
+            track.pop(key, None)
+        for clip in track["clips"]:
+            for key in _AUDIO_SKIP["clip"]:
+                clip.pop(key, None)
+    for bus in d["buses"]:
+        for key in _AUDIO_SKIP["bus"]:
+            bus.pop(key, None)
+    key = hashlib.sha256(json.dumps(
+        {"render": RENDER_VERSION, "audio": d}, sort_keys=True,
+        separators=(",", ":"), default=str).encode()).hexdigest()
+    with _audio_lock:
+        _audio_memo = (project, key)
+    return key
+
+
 def _digest(project: Project, kind: str, settings: dict, edit_hash: str) -> str:
     """What the rendered audio depends on: the edit state, the media it plays
     (by content) and the settings that change the sound. Not the folder or the
@@ -915,7 +970,10 @@ def _tracks(job: _Job, target: Path, n: int, workers: int,
             # the automixer's folder route reads "version" as the manifest version (1)
             "version": 1 if s.get("for_automixer") else n,
             **({"export_version": n} if s.get("for_automixer") else {}), "rate": job.rate,
-            "start_frame": job.first, "frames": job.frames, "processing": s["processing"],
+            # The automixer's folder route requires 0: its stems are range-relative.
+            # (Kuulas keeps a range's real start in its own result, never here.)
+            "start_frame": 0 if s.get("for_automixer") else job.first,
+            "frames": job.frames, "processing": s["processing"],
             "format": ext, "bit_depth": s["bit_depth"], "tracks": listing},
             indent=1, ensure_ascii=False), encoding="utf-8")
     os.replace(work, target)
@@ -968,7 +1026,11 @@ def _counts(job: _Job) -> dict:
     if job.kind != "tracks":
         return {"silent": list(job.silent)}
     return {"track_count": len(_exported(job.project, job.settings)),
-            "silent": list(job.silent)}
+            "silent": list(job.silent),
+            # What the stems were rendered from (``audio_key``): a render made of them
+            # matches the edit while the edit still has this key.
+            "audio_key": audio_key(job.project), "first": job.first,
+            "frames": job.frames}
 
 
 def last_settings(session, kind: str) -> dict | None:

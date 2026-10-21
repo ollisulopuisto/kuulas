@@ -10,6 +10,9 @@ export const initialState = () => ({
   head: null,
   canUndo: false,
   canRedo: false,
+  // The rendered mix the project remembers and whether it plays in place of the edit
+  // ({ available, current, missing, reason, listening, name, range, set_at }; null: none).
+  render: null,
   words: [],
   // The names of the people the words refer to (GET /api/words), and the head the words
   // were fetched at: a command on the words waits until it equals `head`.
@@ -161,6 +164,7 @@ export function serverPatch(response, state = null) {
   if ("head" in response) patch.head = response.head;
   if ("can_undo" in response) patch.canUndo = response.can_undo;
   if ("can_redo" in response) patch.canRedo = response.can_redo;
+  if ("render" in response) patch.render = response.render;
   if (state && response.project) {
     const ids = new Set(
       response.project.tracks.flatMap((track) => track.clips.map((clip) => clip.id)),

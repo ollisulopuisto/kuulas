@@ -17,6 +17,8 @@ export const DEFAULT_AUTOMIX = Object.freeze({
   adBreak: "",
   adSpot: "",
   adDuration: "",
+  // "1": mix only the In/Out range (a quick preview), while the marks allow it.
+  onlyRange: "",
 });
 
 const number = (text) => {

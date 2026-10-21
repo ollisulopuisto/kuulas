@@ -170,6 +170,14 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.transport.loop",
   },
   {
+    // Edit | Rendered mix (the A/B switch in the transport corner). No default key: none
+    // free that the Finnish layout reaches without AltGr (docs/KEYS.md); menu and palette.
+    id: "transport.render_listen",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.transport.render_listen",
+  },
+  {
     id: "transport.shuttle_back",
     keys: { mac: "J", other: "J" },
     context: "global",

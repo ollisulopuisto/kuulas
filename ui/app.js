@@ -66,6 +66,7 @@ import { undoNotice } from "./history-model.js";
 import { createHistoryPanel } from "./history-panel.js";
 import {
   detectLanguage,
+  formatAbsoluteTime,
   formatClock,
   formatNumber,
   formatShortcut,
@@ -133,6 +134,8 @@ import {
 } from "./range-scope.js";
 import { recentMenuItems } from "./recent-menu-model.js";
 import { createRecordView } from "./record-view.js";
+import { rangeChoice, renderWhen } from "./render-listen-model.js";
+import { createRenderListenView } from "./render-listen-view.js";
 import { forwardFromClip } from "./selection-ops.js";
 import { createSendCopyDialog } from "./send-copy-dialog.js";
 import { setupKeyboard } from "./shell-keys.js";
@@ -588,6 +591,7 @@ const actions = {
   },
   shuttle: (key) => void transport.press(key),
   toggleLoop: () => setState({ loop: !getState().loop }),
+  toggleRenderListen: () => void setRenderListen(getState().render?.listening !== true),
   toggleDragMode: () => toggleDragMode(),
   toggleWheelMode: () => toggleWheelMode(),
   toggleClipWords: () => toggleClipWords(),
@@ -1892,7 +1896,27 @@ async function openAutomix() {
       }
     },
   });
-  await automixDialog.open();
+  const state = getState();
+  // "Only the In/Out range (a quick preview)": offered while both marks make a range.
+  await automixDialog.open({
+    range: rangeChoice({
+      inPoint: state.inPoint,
+      outPoint: state.outPoint,
+      length: totalFrames(),
+      rate: rate(),
+    }),
+    rate: rate(),
+  });
+}
+
+// Edit | Rendered mix: the server swaps what the engine plays; the answer is the state.
+async function setRenderListen(on) {
+  try {
+    apply(await api.renderListen(on));
+  } catch (error) {
+    showError(error);
+    void refresh(); // a refusal (stale, missing) also redraws the switch as it now is
+  }
 }
 
 // "Show automixer log…": everything the automixer printed so far, live while it runs.
@@ -3078,6 +3102,15 @@ overview = createOverview({
   },
 });
 
+// Edit | Rendered mix, its banner and the dimmed track controls (render-listen-view.js).
+const renderListenView = createRenderListenView({
+  t,
+  listen: (on) => setRenderListen(on),
+  formatWhen: (iso) => renderWhen(iso, formatAbsoluteTime(iso)),
+  rate,
+  notice: (text) => showNotice(text, "ok"),
+});
+
 // The Alku / Loppu / Pituus readout in the transport corner.
 const marksCorner = createMarksCorner({
   root: document.querySelector(".rcol"),
@@ -3182,6 +3215,7 @@ function render(state, patch) {
   }
   if (touched("project", "selection", "inPoint", "outPoint")) updateRangeInfo();
   if (touched("project", "inPoint", "outPoint")) marksCorner.render(state);
+  if (touched("render")) renderListenView.update(state);
   if (touched("project", "words")) updateTabScope();
   if (touched("playing")) {
     if (state.playing) startPlayheadTicker();

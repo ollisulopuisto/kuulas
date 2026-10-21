@@ -219,6 +219,30 @@ def validate_params(params: dict) -> tuple[float, float | None, float | None]:
             _number(params, "ad_duration", None, None, default=None, above=0))
 
 
+def validate_range(params: dict) -> tuple[int, int] | None:
+    """The run's ``range`` (``[start_frame, end_frame]``, timeline frames): only that part
+    of the edit is mixed (a quick preview). None: the whole edit. A range past the end
+    is cut there by the export. Anything but two whole frames, start below end and not
+    negative, is ``AutomixError`` (``error.automix.bad_range``)."""
+    rng = params.get("range")
+    if rng is None:
+        return None
+    whole = (isinstance(rng, list | tuple) and len(rng) == 2
+             and all(isinstance(x, int) and not isinstance(x, bool) for x in rng))
+    if not whole or rng[0] < 0 or rng[1] <= rng[0]:
+        raise AutomixError("error.automix.bad_range", range=str(rng)[:40])
+    return int(rng[0]), int(rng[1])
+
+
+def _span(first: int, end: int, rate: int, sep: str) -> str:
+    """``mm<sep>ss-mm<sep>ss`` of a range (whole seconds, minutes not wrapped at 60)."""
+    def one(frame: int) -> str:
+        seconds = frame // rate
+        return f"{seconds // 60:02d}{sep}{seconds % 60:02d}"
+
+    return f"{one(first)}-{one(end)}"
+
+
 #: What the automixer's folder route accepts (podcast repo, docs/KUULAS-INTEGRATION.md).
 MANIFEST_RATE = 48000
 
@@ -269,11 +293,18 @@ def check_stems(folder: Path) -> None:
 
 
 def export_stems(session, folder: Path | str, report=None,
-                 cancel: threading.Event | None = None) -> dict:
+                 cancel: threading.Event | None = None,
+                 span: tuple[int, int] | None = None) -> dict:
     """Write the stems for the automixer into ``folder``: the "Export all tracks"
     files (dry, equal length, 48 kHz), music as
-    stereo and ``tracks.json`` as version 1. Returns the export result."""
-    args = {**session.tracks_export_args({"folder": str(folder)}), "for_automixer": True}
+    stereo and ``tracks.json`` as version 1. With ``span`` (timeline frames) only that
+    range: the stems start at its first frame and ``tracks.json`` says ``start_frame``
+    0 (the folder route requires it). Returns the export result (its ``first`` and
+    ``frames`` are the range as cut at the end, ``audio_key`` what it was made from)."""
+    chosen: dict[str, Any] = {"folder": str(folder)}
+    if span is not None:
+        chosen["range"] = list(span)
+    args = {**session.tracks_export_args(chosen), "for_automixer": True}
     return export.run(session, args, report, cancel, file_name="stems")
 
 
@@ -1051,8 +1082,14 @@ def run(session, params: dict, settings: dict, report: Report,
     """Export the stems, run the automixer, return ``{"path", "name", "log",
     "command"}``. ``params``: ``target_lufs`` (default -16), ``ad_spot``,
     ``ad_duration`` (seconds), ``extra_args`` (replaces the setting for this
-    run). ``report(fraction, message="", indeterminate=False)`` says how far
-    it is. Raises ``AutomixError``, or ``JobCancelledError`` after cancel; the
+    run), ``range`` (``[start, end]`` timeline frames: only that part is mixed, a quick
+    preview; ``validate_range``). A range run's stems start at the range (``tracks.json``
+    says ``start_frame`` 0), its file is named ``... preview mm.ss-mm.ss.wav`` and its
+    log header says the levels were measured on the excerpt. The result also has
+    ``range`` (as cut at the end, or None), ``edit_key`` (``export.audio_key`` of the
+    snapshot), and the file's ``frames`` and ``rate``, for listening to it
+    (``render_listen``). ``report(fraction, message="", indeterminate=False)`` says how
+    far it is. Raises ``AutomixError``, or ``JobCancelledError`` after cancel; the
     temporary folder and any partial output are removed in every case. ``live``,
     when given, also hears every log line as it is printed (the live log viewer).
     ``eta``, when given, hears the time left (``eta.remaining_parts`` as a JSON-friendly
@@ -1060,6 +1097,7 @@ def run(session, params: dict, settings: dict, report: Report,
     progress; ``clock`` is the time source for that."""
     emit = live or (lambda _line: None)
     lufs, ad_spot, ad_duration = validate_params(params)
+    span = validate_range(params)
     check_rate(session)
     settings = resolve_settings(settings)
     if isinstance(params.get("extra_args"), list):
@@ -1100,17 +1138,20 @@ def run(session, params: dict, settings: dict, report: Report,
     try:
         report(0.0, steps.stems())
         try:
-            done = export_stems(
+            exported = export_stems(
                 session, scratch,
                 lambda fraction, message="": report(
                     stems_share * fraction, steps.stems(message)),
-                cancel)
+                cancel, span)
         except export.ExportError:
             if cancel.is_set():
                 raise JobCancelledError from None
             raise
-        listing = json.loads((Path(done["path"]) / "tracks.json").read_text("utf-8"))
-        stems = Path(done["path"])
+        listing = json.loads((Path(exported["path"]) / "tracks.json").read_text("utf-8"))
+        stems = Path(exported["path"])
+        # The range as exported (cut at the edit's end); the stems themselves start at 0.
+        rendered_range = ([exported["first"], exported["first"] + exported["frames"]]
+                          if span is not None else None)
         steps.names = [x["name"] for x in listing["tracks"]
                        if x["audible"] and x["kind"] != "music"]
         if not any(t["audible"] for t in listing["tracks"]):
@@ -1130,7 +1171,10 @@ def run(session, params: dict, settings: dict, report: Report,
         stamp = export_names.stamp(datetime.now(UTC).astimezone())
         # Project first, the edit only when it is not the main one (export_names).
         title = listing.get("title") or listing["edit"]
-        final = _unique(folder, export._safe(f"{title} automixer {stamp}.wav"))
+        # A range render is its own file beside the full ones, never in place of one.
+        preview = (f" preview {_span(*rendered_range, MANIFEST_RATE, '.')}"
+                   if rendered_range else "")
+        final = _unique(folder, export._safe(f"{title} automixer {stamp}{preview}.wav"))
         partial = final.with_name(f"{final.stem}.partial{final.suffix}")
         probe = automix_remote.runner(remote, run_process) if remote else run_process
         requested_options = with_project_balance(
@@ -1146,6 +1190,9 @@ def run(session, params: dict, settings: dict, report: Report,
         requested_cap = requested_options.get(
             "balance_speakers_max_db", OPTIONS["balance_speakers_max_db"]["default"])
         done = [balance_cap_line(requested_cap), *done_lines(session.state, kept)]
+        if rendered_range:
+            done.insert(0, t("automix.range_line",
+                             span=_span(*rendered_range, MANIFEST_RATE, ":")))
         lines.extend(f"kuulas: {w}" for w in warnings)
         for w in warnings:
             emit(f"kuulas: {w}")
@@ -1361,11 +1408,19 @@ def run(session, params: dict, settings: dict, report: Report,
             cwd=where, lines=lines, code=code, started=started, took=took(),
             outcome=f"mixed: {final.name}", done=done, ran_on=host)
         report(1.0, "")
+        try:
+            info = sf.info(str(final))
+            frames, rate = int(info.frames), int(info.samplerate)
+        except (OSError, RuntimeError):
+            frames = rate = None  # the mix is there; listening to it will say why not
         return {"path": str(final), "name": final.name, "log": list(lines),
                 "command": cmd, "flags": flags, "log_file": kept_log,
                 "warnings": [*warnings, *event_warnings],
                 "summary": [*warnings, *event_warnings, *key_lines(lines)],
-                "ran_on": host, "events": kept_events}
+                "ran_on": host, "events": kept_events,
+                # What it was rendered from, for listening to it (render_listen).
+                "range": rendered_range, "edit_key": exported["audio_key"],
+                "frames": frames, "rate": rate}
     finally:
         if partial is not None:
             with contextlib.suppress(OSError):
