@@ -22,6 +22,7 @@ import { overLabel } from "./clip-overs.js";
 import { averageWordFrames, layoutClipWords, wordsWideEnough } from "./clip-words.js";
 import { DEFAULT_DRAG_MODE, dragIntent } from "./drag-mode.js";
 import { edgeGhost, ghostGeometry, resolveEdge } from "./edge-drag.js";
+import { inactiveTracks } from "./focus-layout.js";
 import { frameToTime, frameToX, xToFrame } from "./format.js";
 import {
   envelopeToggle,
@@ -76,7 +77,7 @@ import {
 } from "./paint.js";
 import { aboutSeconds, placeholderLabel } from "./placeholders-model.js";
 import { dragRange, isDrag, touchedResult, trackRowsTouched } from "./range-drag.js";
-import { dimmedTracks, scopeSpans } from "./range-scope.js";
+import { scopeSpans } from "./range-scope.js";
 import { rulerTicks } from "./ruler.js";
 import {
   inactiveLook,
@@ -225,7 +226,7 @@ export function createTimeline({
         preview: theme.preview,
         missingFill: theme.damagedFill,
         paletteInactive: theme.paletteInactive,
-        inactive: inactiveLook(state.inactiveStyle).desaturate ? dimmedTracks(state) : null,
+        inactive: inactiveLook(state.inactiveStyle).desaturate ? inactiveTracks(state) : null,
       });
       const key = JSON.stringify(job);
       if (key === lastWaveKey) return;
@@ -268,7 +269,7 @@ export function createTimeline({
       scrollY: state.scrollY,
     });
     drawRange(state, height, spans);
-    const dimmed = dimmedTracks(state);
+    const dimmed = inactiveTracks(state);
     const look = inactiveLook(state.inactiveStyle);
     for (const row of visibleRows(layout, state.scrollY, height - RULER_HEIGHT)) {
       const top = RULER_HEIGHT + row.top - state.scrollY;

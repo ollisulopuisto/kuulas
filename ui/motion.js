@@ -72,6 +72,13 @@ export const CUES = {
     moves: false,
     still: "the restored stretch carries the undo flash outline",
   },
+  "focus-resize": {
+    duration: "--dur-layout",
+    easing: "--ease-standard",
+    ms: 120,
+    moves: true,
+    still: "the lanes take their focus heights at once; the inactive look marks the others",
+  },
   "playhead-ease": {
     duration: "--dur-slow",
     easing: "--ease-standard",

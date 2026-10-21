@@ -772,6 +772,21 @@ button.chip {
   background: none;
   font-weight: var(--weight-strong);
 }
+/* Focus mode (WP28): a lane out of focus is a 16 px strip; its header keeps the name only. */
+.track-header.strip {
+  grid-template-rows: 1fr;
+  align-content: center;
+  padding-block: 0;
+  overflow: hidden;
+}
+.track-header.strip > :not(.th-top),
+.track-header.strip .th-top > :not(.track-name) {
+  display: none;
+}
+.track-header.strip .track-name {
+  font-size: var(--text-xs);
+  line-height: 1;
+}
 .track-rename {
   flex: 1;
   min-width: 0;
@@ -2497,6 +2512,13 @@ input[type="text"] {
   grid-template-columns: var(--tx-speaker-w) minmax(0, var(--reading-max));
   gap: var(--space-7);
   margin-bottom: calc(var(--row-gap) * 1.6);
+}
+/* Focus mode (WP28): other speakers' words stay readable but step back; Alt+F hides them. */
+.tx-para.focus-dim {
+  opacity: 0.45;
+}
+.tx-para.focus-hidden {
+  display: none;
 }
 .tx-pause {
   grid-column: 1 / -1;

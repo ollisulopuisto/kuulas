@@ -1,6 +1,14 @@
 /**
- * Pure logic and state management for focus mode lane layout.
+ * Pure logic and state management for focus mode lane layout (WP28, docs/design/FOCUS-MODE.md).
+ * Focus changes what you see; solo changes what you hear. The heights here are a view layer:
+ * never written to laneHeights, never in history or the project file.
  */
+import { layoutRows, MAX_LANE, MIN_LANE } from "./lanes.js";
+import { cueFor } from "./motion.js";
+import { dimmedTracks } from "./range-scope.js";
+
+/** A lane out of focus: its name, half a waveform and its clip edges, so sync stays visible. */
+export const FOCUS_STRIP = 16;
 
 export function focusSet(tracks, trackId) {
   if (!tracks || !trackId) return [];
@@ -103,4 +111,128 @@ export function leaveFocus(state) {
     state: { focus: null, soloBefore: null },
     restoreSolo: state?.soloBefore ?? null,
   };
+}
+
+/**
+ * The view-layer heights of the lanes in focus mode, { trackId: px } for every track that has a
+ * row, or null when there is nothing to do (no project, no measured room, or no focused track
+ * with a row: a focused track folded into a collapsed bus is not unfolded). Bus rows and group
+ * gaps keep their height and come off first; the other lanes become strips; the focused lanes
+ * share the rest within the lane limits (MIN_LANE..MAX_LANE, so a tall window can leave room
+ * below the last lane).
+ */
+export function focusHeights({
+  project,
+  focusIds,
+  available,
+  busHeight,
+  groupGap,
+  collapsed,
+  strip = FOCUS_STRIP,
+}) {
+  if (!project || !(available > 0) || !focusIds?.length) return null;
+  const layout = layoutRows(project, MIN_LANE, {
+    busHeight,
+    groupGap,
+    mergeSingle: true,
+    collapsed,
+  });
+  const lanes = layout.rows.filter((row) => row.kind === "track");
+  const wanted = new Set(focusIds);
+  if (!lanes.some((row) => wanted.has(row.id))) return null;
+  const fixed = layout.rows
+    .filter((row) => row.kind !== "track")
+    .reduce((total, row) => total + row.height, 0);
+  return focusLayout(
+    lanes.map((row) => ({ id: row.id })),
+    focusIds,
+    { available: available - fixed, strip, min: MIN_LANE, max: MAX_LANE },
+  ).heights;
+}
+
+/**
+ * Heights part way from `from` to `to` (t in 0..1, eased out like --ease-standard), in whole
+ * pixels; at t >= 1 exactly `to`. A lane missing from `from` starts at its target.
+ */
+export function tweenHeights(from, to, t) {
+  const done = !(t < 1);
+  const eased = done ? 1 : 1 - (1 - Math.max(0, t)) ** 3;
+  const out = {};
+  for (const [id, end] of Object.entries(to ?? {})) {
+    const start = Number.isFinite(from?.[id]) ? from[id] : end;
+    out[id] = done ? end : Math.round(start + (end - start) * eased);
+  }
+  return out;
+}
+
+/**
+ * How long the lanes take to reach their focus heights, in ms; 0 jumps. The motion setting
+ * decides (motion.js "focus-resize": 120 ms, shorter at subtle, none when off or under reduced
+ * motion), and nothing animates while playing (GUI-DESIGN.md section 20).
+ */
+export function focusResizeMs(mode, { playing = false } = {}) {
+  const cue = cueFor("focus-resize", mode, { playing });
+  return cue.animate ? cue.ms : 0;
+}
+
+/** The tracks drawn as inactive in focus mode: every track not in focus. */
+export function outOfFocus(project, focusIds) {
+  if (!focusIds?.length) return new Set();
+  const wanted = new Set(focusIds);
+  return new Set((project?.tracks ?? []).map((track) => track.id).filter((id) => !wanted.has(id)));
+}
+
+/**
+ * Every lane drawn with the inactive look (silence-visuals.js inactiveLook): the tracks the
+ * next range operation will not touch (range-scope.js) and, in focus mode, the tracks out of
+ * focus. One set, so the waveform layer, the overlay and the headers agree.
+ */
+export function inactiveTracks(state) {
+  const out = dimmedTracks(state);
+  for (const id of outOfFocus(state?.project, state?.focusMode?.ids)) out.add(id);
+  return out;
+}
+
+/**
+ * Enter focus mode on the current track: { ids, soloBefore }, or null with no current track.
+ * With `solo` (focus and solo) the solo set as it is now is remembered for leaving.
+ */
+export function startFocus(tracks, current, { solo = false } = {}) {
+  const ids = focusSet(tracks, current);
+  if (ids.length === 0) return null;
+  const soloed = solo
+    ? (tracks ?? []).filter((track) => track.solo).map((track) => track.id)
+    : null;
+  const entered = enterFocus(null, current, tracks, soloed);
+  return { ids: entered.focus, soloBefore: entered.soloBefore };
+}
+
+/** Leave focus mode: the solo set to restore, or null when focus did not touch solo. */
+export function stopFocus(mode) {
+  return { restoreSolo: leaveFocus(mode).restoreSolo };
+}
+
+/** Up/Down while focused: the next or previous speaker's tracks; the same mode at the ends. */
+export function stepFocusMode(tracks, mode, direction) {
+  const ids = walkFocus(tracks, mode.ids, direction);
+  if (ids === mode.ids || ids.join() === mode.ids.join()) return mode;
+  return { ...mode, ids };
+}
+
+/** The focus after another track became current (a click on a strip): that track's speaker. */
+export function followCurrent(tracks, focusIds, current) {
+  if (!current || focusIds.includes(current)) return focusIds;
+  const ids = focusSet(tracks, current);
+  return ids.length > 0 ? ids : focusIds;
+}
+
+/**
+ * The additive solo toggles (ops.solo, exclusive false) that turn the tracks' solo set into
+ * `target`, in track order. The server merges solo clicks into one undo step.
+ */
+export function soloSteps(tracks, target) {
+  const wanted = new Set(target ?? []);
+  return (tracks ?? [])
+    .filter((track) => Boolean(track.solo) !== wanted.has(track.id))
+    .map((track) => track.id);
 }

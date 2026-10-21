@@ -2,6 +2,7 @@
 // Everything else in the keymap is "planned" until its work package lands.
 
 import { busOfFocus, collapseAllChange, collapseChange } from "./bus-collapse.js";
+import { stepFocusMode } from "./focus-layout.js";
 import { clearGhost } from "./ghost-marker.js";
 import { canRestore } from "./history-model.js";
 import { rangeAvailable } from "./loop-range.js";
@@ -95,6 +96,11 @@ export function registerAppCommands(registry, { actions, app }) {
   // Hide or show the side panel so the timeline gets the width.
   def("view.toggle_sidebar", () => actions.toggleSidebar());
   def("view.clip_words", () => actions.toggleClipWords());
+  // Focus mode (WP28): what you see; Alt+Shift+F also solos. The two switches are preferences.
+  def("view.focus", () => actions.toggleFocus({ solo: false }), hasProject);
+  def("view.focus_solo", () => actions.toggleFocus({ solo: true }), hasProject);
+  def("view.focus_shrink", () => actions.toggleFocusShrink());
+  def("view.focus_hide_others", () => actions.toggleFocusHideOthers());
   // Whether the clipboard preview is turned down to the project's level (WP82).
   def("view.clipboard_limit", () => actions.toggleClipboardLimit());
   def(
@@ -318,6 +324,12 @@ export function registerAppCommands(registry, { actions, app }) {
   def("nav.tab_target_cycle", () => actions.cycleTabScope(), hasProject);
   const stepFocus = (direction) => () => {
     const state = app.getState();
+    // In focus mode (WP28) Up/Down walk the focus by speaker; the first focused track is current.
+    if (state.focusMode) {
+      const next = stepFocusMode(state.project?.tracks ?? [], state.focusMode, direction);
+      if (next !== state.focusMode) actions.setFocus(next, next.ids[0]);
+      return;
+    }
     const id = stepTrack(state.project, state.focusTrack, direction);
     if (id) app.patch({ ...focusTrack(state, id), rangeTracks: new Set() });
   };

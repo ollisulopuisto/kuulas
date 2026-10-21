@@ -1,6 +1,8 @@
 # The range scope as lane size (owner's "E focus" idea)
 
-Design review, 21.10.2026. Status: **proposal, not built**. Mock:
+Design review, 21.10.2026. Status: the E resize is **not built and not wanted** (owner, 21.10:
+E does not resize; the band and bars go on scoped lanes only, done v26.10.20.22). F, the deep
+focus of section 7.3, is **built**: see section 8. Mock:
 [`focus-mode-mock.html`](focus-mode-mock.html) (open it in a browser, click headers, press E).
 
 Owner's idea: "When you press E, the other channels take up slightly less space and the
@@ -150,3 +152,47 @@ BEFORE (all tracks)                      AFTER (E / header click on Ville)
 3. **E vs F (WP28)**: keep both, with F the strip-mode deep focus? *Default yes; F reuses
    the same layout function with `ratio → strip 16 px`; E never goes below 56 px.*
 4. **Veil 0.5 / header 0.6** instead of 0.72 / 0.35? *Default yes, verify on real bleed.*
+
+## 8. Focus mode (F, WP28) as built, 21.10.2026
+
+What was missing against WP28 and this note, and is now built:
+
+- **Commands**, all in View > Focus mode, en + fi, help topic `focus`:
+  `view.focus` (Shift+F), `view.focus_solo` (Alt+Shift+F), `view.focus_hide_others` (Alt+F, a
+  switch), `view.focus_shrink` (a switch, no key).
+- **Layout**: `focus-layout.js focusHeights` gives every lane with a row a height: the focused
+  speaker's lanes share the lane area, the others are 16 px strips, bus rows and gaps keep their
+  height. It is a view layer (`state.focusHeights`, read by `lanes.js layoutFor` as
+  `viewHeights`, not clamped up to MIN_LANE): never `laneHeights`, history or the project.
+- **Motion**: the `focus-resize` cue (motion.js): 120 ms ease-out, shorter at "subtle", instant
+  with Animation off, reduced motion or while playing. A change while a pointer is held waits
+  for the release, so nothing moves under a drag.
+- **Inactive look**: lanes out of focus get the same look as lanes outside a range operation
+  (`inactiveTracks` = range scope's set plus focus's), canvas and headers alike. With the
+  shrink switch off this is all focus mode does to the lanes.
+- **Strip headers**: below 24 px a header keeps only its name, small (`.track-header.strip`).
+- **Walking**: Up/Down (track.prev/next) walk the focus by speaker (`walkFocus`); a click that
+  makes another track current moves the focus to that track's speaker (`followCurrent`).
+- **Solo**: Alt+Shift+F remembers the solo set, solos the focus (and follows it while
+  walking), and leaving puts the old set back, as additive solo edits the server merges into
+  one undo step (`soloSteps`).
+- **Transcript**: other speakers' paragraphs are dimmed; with the switch, hidden (height 0 in
+  the virtual list, so scrolling stays right).
+- **Esc**: leaves focus after the marks are cleared (`escape.js` "leave_focus").
+
+Choices made where the design was open (simplest, change if wrong):
+
+1. **Key.** WP28 says F, but F is Fit selection (owner, 2026-10-18). Focus is Shift+F, focus
+   and solo Alt+Shift+F (WP28 had Shift+F). Nothing needs AltGr or Shift+digit.
+2. **Esc order.** Esc first clears the track selection, then the clips and the marks, and only
+   then leaves focus, so a focused edit session survives the usual Esc presses.
+3. **Lane cap.** The focused lanes are capped at MAX_LANE (360 px); in a tall window the room
+   below the last lane stays empty rather than drawing an 800 px waveform.
+4. **Collapsed bus.** A focused track folded in a collapsed bus is not unfolded: no resize then,
+   only the inactive look and the transcript. Unfold the bus to see it.
+5. **Shift+F while focused** leaves focus whichever variant is pressed.
+6. **Waveform redraw during the tween**: the waveform layer redraws at each step (no stretched
+   tiles yet). If the long-task monitor shows jank, draw stretched tiles during the 120 ms.
+
+Not built (parked): the focused track's automation band drawn tall under its waveform (WP28
+bullet "editable band"), and v2's focus history and focus that follows the talker.

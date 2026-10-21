@@ -57,6 +57,9 @@ export const CHECKED = {
   "bus.role_music": (state) => focusedBusRole(state) === "music",
   "bus.role_none": (state) => focusedBusRole(state) === null,
   "view.clip_words": (state) => state?.showClipWords !== false,
+  "view.focus": (state) => Boolean(state?.focusMode),
+  "view.focus_shrink": (state) => state?.focusShrink !== false,
+  "view.focus_hide_others": (state) => state?.focusHideOthers === true,
   "view.clipboard_limit": (state) => state?.clipboardLimit !== false,
   "view.toggle_sidebar": (state) => state?.sidebarShown !== false,
   "sync.confirm": (state) => state?.confirmSync !== false,
@@ -463,6 +466,13 @@ export const MENU = [
         item("panel.show_history"),
       ]),
       item("view.toggle_sidebar"),
+      // Focus mode (WP28, docs/design/FOCUS-MODE.md).
+      submenu("menu.focus", [
+        item("view.focus"),
+        item("view.focus_solo"),
+        item("view.focus_shrink"),
+        item("view.focus_hide_others"),
+      ]),
       submenu("menu.buses", [item("view.collapse_all_buses"), item("view.expand_all_buses")]),
       submenu("menu.mouse", [item("view.drag_mode"), item("view.wheel_mode")]),
       item("view.clip_words"),

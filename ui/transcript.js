@@ -5,6 +5,7 @@
 // An hour has about 9,000 words, so only the paragraphs in view plus a margin are in
 // the DOM (spacers stand for the rest), words have no listeners of their own (the list
 // listens, once), and following the playback moves two classes, never re-renders.
+import { wordState } from "./focus-words.js";
 import { frameToTime } from "./format.js";
 import { formatNumber, getLanguage, t } from "./i18n.js";
 import { setIcon } from "./icons.js";
@@ -113,6 +114,11 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   let fetchedKey = null; // the muted inputs the last fetch was started for
   let fetching = false;
   let lastKey = "";
+  // Focus mode (WP28): other speakers' paragraphs are dimmed, or hidden with Alt+F.
+  let focusIds = null;
+  let hideOthers = false;
+  let focusKey = "";
+  const paraState = (p) => wordState({ track: p.track }, focusIds, hideOthers);
 
   // -- what is drawn ---------------------------------------------------------------------------
   const nodes = new Map(); // paragraph index -> element
@@ -158,7 +164,9 @@ export function createTranscript({ root, getState, setState, api, actions }) {
 
   function layout() {
     const size = sizes();
-    heights = paragraphs.map((p) => measured.get(p.id) ?? estimateHeight(p, size));
+    heights = paragraphs.map((p) =>
+      paraState(p) === "hidden" ? 0 : (measured.get(p.id) ?? estimateHeight(p, size)),
+    );
     offsets = offsetsOf(heights);
   }
 
@@ -379,6 +387,8 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     const p = paragraphs[index];
     const node = el("div", "tx-para");
     node.dataset.p = String(index);
+    const focus = paraState(p);
+    if (focus !== "normal") node.classList.add(`focus-${focus}`);
     const hue = trackHue(p.track);
     node.style.setProperty("--track-colour", `var(--track-${hue}-edge)`);
     const pause = pauses.get(index);
@@ -443,6 +453,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     // would shift the text under the reader's eyes, so scroll by that much.
     let changed = false;
     for (const [index, node] of nodes) {
+      if (paraState(paragraphs[index]) === "hidden") continue;
       const real = node.offsetHeight + paragraphGap();
       if (Math.abs(real - heights[index]) > 1) {
         measured.set(paragraphs[index].id, real);
@@ -457,6 +468,22 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       if (shift !== 0) scrollTo(root.scrollTop + shift);
     }
     placePop();
+  }
+
+  /** Focus mode changed: redraw the paragraphs near the viewport with their new focus state. */
+  function refocus(state) {
+    const ids = state.focusMode?.ids ?? null;
+    const hide = state.focusHideOthers === true;
+    const key = JSON.stringify([ids, hide && ids !== null]);
+    if (key === focusKey) return;
+    focusKey = key;
+    focusIds = ids;
+    hideOthers = hide;
+    layout();
+    for (const node of nodes.values()) node.remove();
+    nodes.clear();
+    wordNodes.clear();
+    renderWindow();
   }
 
   let gapCache = 0;
@@ -960,6 +987,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       const changed = patch ? new Set(Object.keys(patch)) : null;
       const touched = (...names) => changed === null || names.some((name) => changed.has(name));
       if (touched("head", "serverMutedKey")) void loadWords();
+      if (touched("focusMode", "focusHideOthers")) refocus(state);
       const key = `${state.wordsHead}|${state.words?.length}|${state.project?.rate}|${state.project?.tracks?.map((x) => x.id + x.speaker + x.name).join()}|${JSON.stringify(state.people ?? {})}|${state.pauseBreak}`;
       if (state.words !== words || key !== lastKey) {
         lastKey = key;

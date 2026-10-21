@@ -58,6 +58,15 @@ import {
   toggle as toggleFast,
 } from "./fast-speed.js";
 import { nextPanel } from "./focus.js";
+import {
+  focusHeights,
+  focusResizeMs,
+  followCurrent,
+  soloSteps,
+  startFocus,
+  stopFocus,
+  tweenHeights,
+} from "./focus-layout.js";
 import { followScroll } from "./follow.js";
 import { frameToTime, RATE, xToFrame } from "./format.js";
 import { envelopeChange, fadeChange, gainChange } from "./gain-drag.js";
@@ -551,6 +560,158 @@ function setInactiveStyle(style) {
 }
 setInactiveStyle(prefs.get(INACTIVE_KEY));
 
+// -- focus mode (WP28, docs/design/FOCUS-MODE.md) ------------------------------------------------
+// Shift+F: the current speaker's lanes take the room, the others become 16 px strips drawn
+// inactive (focus-layout.js). `focusHeights` is a view layer over the lane heights (lanes.js
+// layoutFor), never laneHeights, history or the project. The two switches are remembered per user.
+const FOCUS_SHRINK_KEY = "focusShrink";
+const FOCUS_HIDE_KEY = "focusHideOthers";
+setState({
+  focusMode: null,
+  focusHeights: null,
+  focusShrink: prefs.get(FOCUS_SHRINK_KEY) !== "off",
+  focusHideOthers: prefs.get(FOCUS_HIDE_KEY) === "on",
+});
+let focusFrame = 0;
+// A lane must not move under a drag (FOCUS-MODE.md "Drags in progress"): heights wait for release.
+let pointerHeld = false;
+let focusWaiting = null;
+document.addEventListener(
+  "pointerdown",
+  () => {
+    pointerHeld = true;
+  },
+  true,
+);
+for (const type of ["pointerup", "pointercancel"]) {
+  document.addEventListener(
+    type,
+    () => {
+      pointerHeld = false;
+      // After the drag's own pointerup has dropped, so the drop sees the lanes it was over.
+      if (focusWaiting) setTimeout(() => focusWaiting && resizeFocus(focusWaiting), 0);
+    },
+    true,
+  );
+}
+const trackRowHeights = (state) =>
+  Object.fromEntries(
+    layoutFor(state)
+      .rows.filter((row) => row.kind === "track")
+      .map((row) => [row.id, row.height]),
+  );
+function focusTarget(state) {
+  if (!state.focusMode || state.focusShrink === false) return null;
+  return focusHeights({
+    project: state.project,
+    focusIds: state.focusMode.ids,
+    available: laneArea(),
+    busHeight: state.busHeight,
+    groupGap: state.groupGap,
+    collapsed: state.collapsedBuses,
+  });
+}
+// Ease the lanes to their focus heights (or back): 120 ms, instant while playing or with
+// Animation off or reduced motion (focusResizeMs). One rAF loop, so headers and canvas agree.
+function resizeFocus({ animate = true } = {}) {
+  if (pointerHeld) {
+    focusWaiting = { animate };
+    return;
+  }
+  focusWaiting = null;
+  cancelAnimationFrame(focusFrame);
+  const state = getState();
+  const target = focusTarget(state);
+  if (JSON.stringify(target) === JSON.stringify(state.focusHeights ?? null)) return;
+  const mode = motionMode(motionChoice, reducedMotion.matches);
+  const ms = animate ? focusResizeMs(mode, { playing: state.playing }) : 0;
+  if (ms === 0) {
+    setState({ focusHeights: target });
+    return;
+  }
+  const from = trackRowHeights(state);
+  const to = target ?? trackRowHeights({ ...state, focusHeights: null });
+  const began = performance.now();
+  const step = (now) => {
+    const at = (now - began) / ms;
+    setState({ focusHeights: at >= 1 ? target : tweenHeights(from, to, at) });
+    if (at < 1) focusFrame = requestAnimationFrame(step);
+  };
+  focusFrame = requestAnimationFrame(step);
+}
+// Solo follows a focus entered with Alt+Shift+F; leaving puts the old solo set back. Additive
+// solo toggles, which the server merges into one undo step.
+function soloTo(target) {
+  for (const id of soloSteps(getState().project?.tracks ?? [], target)) {
+    editor.change({
+      op: "solo",
+      args: { track_id: id, exclusive: false },
+      label: t("ui.edit.label.solo"),
+    });
+  }
+}
+function focusNames(state, ids) {
+  const wanted = new Set(ids);
+  return (state.project?.tracks ?? [])
+    .filter((track) => wanted.has(track.id))
+    .map((track) => track.name)
+    .join(", ");
+}
+function setFocus(mode, current = null) {
+  const state = getState();
+  setState({
+    focusMode: mode,
+    ...(current ? { ...focusTrackPatch(state, current), rangeTracks: new Set() } : {}),
+  });
+  if (mode.soloBefore !== null) soloTo(mode.ids);
+  resizeFocus();
+}
+function leaveFocus() {
+  const { restoreSolo } = stopFocus(getState().focusMode);
+  setState({ focusMode: null });
+  if (restoreSolo !== null) soloTo(restoreSolo);
+  resizeFocus();
+  showNotice(t("ui.focus.off"), "ok");
+}
+function toggleFocus({ solo = false } = {}) {
+  const state = getState();
+  if (state.focusMode) {
+    leaveFocus();
+    return;
+  }
+  const mode = startFocus(state.project?.tracks ?? [], state.focusTrack, { solo });
+  if (!mode) {
+    showNotice(t("ui.focus.no_track"), "warn");
+    return;
+  }
+  setFocus(mode);
+  showNotice(t("ui.focus.on", { names: focusNames(state, mode.ids) }), "ok");
+}
+// Called from render: the focus follows a track made current elsewhere (a click on a strip),
+// and the heights follow the project, the window and the switches. Deferred, so the other
+// listeners of this change see the same state.
+function focusChanged(state, touched) {
+  if (!state.focusMode) {
+    if (state.focusHeights && touched("project")) queueMicrotask(() => resizeFocus());
+    return;
+  }
+  const tracks = state.project?.tracks ?? [];
+  if (!tracks.some((track) => state.focusMode.ids.includes(track.id))) {
+    queueMicrotask(leaveFocus);
+    return;
+  }
+  if (touched("focusTrack")) {
+    const ids = followCurrent(tracks, state.focusMode.ids, state.focusTrack);
+    if (ids !== state.focusMode.ids) {
+      queueMicrotask(() => setFocus({ ...getState().focusMode, ids }));
+      return;
+    }
+  }
+  if (touched("project", "collapsedBuses", "busHeight", "groupGap"))
+    queueMicrotask(() => resizeFocus({ animate: false }));
+  if (touched("focusShrink")) queueMicrotask(() => resizeFocus());
+}
+
 // The clipboard preview is turned down to the project's level (WP82): on by default, remembered
 // per user. The server does the measuring; this is only the switch.
 const CLIPBOARD_LIMIT_KEY = "clipboardLimit";
@@ -633,6 +794,20 @@ const actions = {
   toggleDragMode: () => toggleDragMode(),
   toggleWheelMode: () => toggleWheelMode(),
   toggleClipWords: () => toggleClipWords(),
+  toggleFocus: (options) => toggleFocus(options),
+  setFocus: (mode, current) => setFocus(mode, current),
+  toggleFocusShrink() {
+    const on = getState().focusShrink === false;
+    setState({ focusShrink: on });
+    prefs.set(FOCUS_SHRINK_KEY, on ? "on" : "off");
+    showNotice(t(on ? "ui.focus.shrink_on" : "ui.focus.shrink_off"), "ok");
+  },
+  toggleFocusHideOthers() {
+    const on = getState().focusHideOthers !== true;
+    setState({ focusHideOthers: on });
+    prefs.set(FOCUS_HIDE_KEY, on ? "on" : "off");
+    showNotice(t(on ? "ui.focus.hide_on" : "ui.focus.hide_off"), "ok");
+  },
   toggleSidebar() {
     const shown = toggleSidebar(getState().sidebarShown !== false);
     setSidebar(shown);
@@ -655,8 +830,10 @@ const actions = {
       outPoint: state.outPoint,
       trackSelection: state.trackSelection,
       rangeMode: state.rangeMode,
+      focusMode: state.focusMode,
     });
     if (what === "blur") active.blur();
+    if (what === "leave_focus") leaveFocus();
     if (what === "clear_tracks") setState(clearTrackSelection());
     // Clear the clip selection, the range and the in and out marks (owner, 2026-10-18).
     if (what === "clear") {
@@ -3219,6 +3396,7 @@ const help = createHelpPanel({
       selection: state.selection.size,
       focusTrack: state.focusTrack,
       focusBus: state.focusBus,
+      focusMode: Boolean(state.focusMode),
       // F1 on a menu item: the command it runs.
       command: active?.closest?.("#menubar [data-command]")?.dataset.command ?? null,
     };
@@ -3306,6 +3484,7 @@ const timeline = createTimeline({
     resized() {
       if (fitWhole && getState().project) fitWholeEdit();
       autoFit(getState());
+      if (getState().focusMode) resizeFocus({ animate: false });
       updateLanesScroll(getState());
       overview?.redraw();
     },
@@ -3416,6 +3595,8 @@ function render(state, patch) {
       "scrollY",
       "laneHeight",
       "laneHeights",
+      "focusHeights",
+      "focusMode",
       "collapsedBuses",
       "waveformMode",
       "waveformScale",
@@ -3532,6 +3713,8 @@ function render(state, patch) {
       "focusBus",
       "laneHeight",
       "laneHeights",
+      "focusHeights",
+      "focusMode",
       "collapsedBuses",
       "busHeight",
       "groupGap",
@@ -3539,6 +3722,7 @@ function render(state, patch) {
     )
   )
     trackHeaders.update(state);
+  focusChanged(state, touched);
   if (touched("project", "autoFitTracks", "laneHeights", "collapsedBuses", "busHeight", "groupGap"))
     autoFit(state);
   if (
@@ -3547,6 +3731,7 @@ function render(state, patch) {
       "scrollY",
       "laneHeight",
       "laneHeights",
+      "focusHeights",
       "collapsedBuses",
       "busHeight",
       "groupGap",
@@ -3554,7 +3739,7 @@ function render(state, patch) {
   )
     updateLanesScroll(state);
   if (touched("project", "selection", "focusTrack", "focusBus")) inspector.update(state);
-  if (touched("selection", "focusTrack", "focusBus", "panel")) help.update();
+  if (touched("selection", "focusTrack", "focusBus", "focusMode", "panel")) help.update();
   if (
     touched(
       "clipboard",

@@ -384,6 +384,17 @@ export const SYNONYMS = {
   "view.fit_tracks": ["fit height", "lane height", "sovita korkeus"],
   "view.toggle": ["zoom", "wide", "close", "lähi", "laaja"],
   "view.clip_words": ["captions in clips", "text in clips", "sanat", "teksti"],
+  "view.focus": [
+    "focus mode",
+    "enlarge track",
+    "one track",
+    "isolate",
+    "keskity",
+    "suurenna raita",
+  ],
+  "view.focus_solo": ["focus and listen", "isolate and solo", "keskity ja kuuntele"],
+  "view.focus_shrink": ["strips", "collapse others", "kaistaleet", "kutista"],
+  "view.focus_hide_others": ["hide other speakers", "only this speaker", "piilota muut puhujat"],
   "view.clipboard_limit": ["preview level", "quieter preview", "esikuuntelun taso", "hiljennä"],
   "palette.open": ["commands", "search commands", "find a command", "komento", "haku"],
   "help.keys": [
