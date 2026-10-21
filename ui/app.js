@@ -788,6 +788,16 @@ function openGateStretch(gate) {
     label: t("ui.gate.open_stretch"),
   });
 }
+// "Open the muted stretches under the selected clips": one open_gate_under_clips edit.
+function openGateUnderClips() {
+  const state = getState();
+  if (state.selection.size === 0) return;
+  editor.change({
+    op: "open_gate_under_clips",
+    args: { clip_ids: [...state.selection] },
+    label: t("ui.gate.under_clips"),
+  });
+}
 // Command registry for the keyboard layer: id -> function.
 export const commands = { [GATE_OPEN_COMMAND]: () => openGateStretch() };
 
@@ -1070,6 +1080,7 @@ const keyboard = setupKeyboard({
     openBlockLevel: () => openBlockLevel(),
     duckMusic: () => void duckMusic(),
     openAllGates: () => void openAllGates(),
+    openGateUnderClips: () => openGateUnderClips(),
     duckMicrophones: () => void duckMicrophones(),
     transcribeTrack: (backend) => void transcribeTrack(backend),
     restartTranscriptions: () => void restartTranscriptions(),
@@ -1700,8 +1711,10 @@ function showTimelineMenu(hit, event) {
   if (plan.focusTrack) Object.assign(patch, focusTrackPatch(getState(), plan.focusTrack));
   setState(patch);
   if (plan.seek !== null) void transport.seek(plan.seek);
-  const sections = timelineMenuItems(getState(), { kind: plan.kind }, (id, state) =>
-    keyboard.registry.can(id, state),
+  const sections = timelineMenuItems(
+    getState(),
+    { kind: plan.kind, gate: Boolean(plan.gate) },
+    (id, state) => keyboard.registry.can(id, state),
   );
   const ids = sections.flatMap((section) => section.items.map((item) => item.id));
   const items = menuFromSections(sections, keyboard.describe(ids), t);
@@ -1712,7 +1725,12 @@ function showTimelineMenu(hit, event) {
     x: keyboardOpened ? box.left + 24 : event.clientX,
     y: keyboardOpened ? box.top + 24 : event.clientY,
     items,
-    onPick: (command) => keyboard.registry.run(command, null, getState()),
+    onPick: (command) => {
+      // The stretch under the pointer is opened directly (the command's usual target is
+      // the one under the play cursor).
+      if (command === "gate.open_stretch" && plan.gate) openGateStretch(plan.gate);
+      else keyboard.registry.run(command, null, getState());
+    },
   });
 }
 const inspector = createInspector({

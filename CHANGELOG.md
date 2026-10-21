@@ -1,3 +1,7 @@
+## [v26.10.20.30] - 2026-10-21
+
+- **Auto-Silence can be undone for single clips.** New command Track > Auto > "Open the muted stretches under the selected clips": select one clip or several and the closed (Auto-Silence) stretches under them open again, while the rest of the track's gate stays; one undo step. It is also in the right-click menu of a clip and of a marked range, and a right-click on a hatched (closed) stretch offers "Open this stretch" right there. Before, only the stretch under the play cursor or the whole track could be opened, and mute does not touch the gate.
+
 ## [v26.10.20.29] - 2026-10-21
 
 - **With the automixer's live events the toast stays on the event stream.** The plain text lines the tool still prints (block, loud, beds, ...) used to overwrite the toast message while the analysis ran ("2/4 [automixer] block Aame 43:05.4: +4.6 dB off ..."). Once events are flowing they go to the log only, and the toast shows the step, stage and percent from the events. Without events (an automixer that does not have `--events` yet) nothing changes.

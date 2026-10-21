@@ -202,6 +202,18 @@ def remove_gate_range(p: Project, track_id: str, start: int, end: int) -> Projec
         track, gate=gatem.remove_range(track.gate, int(start), int(end))))
 
 
+def open_gate_under_clips(p: Project, clip_ids) -> Project:
+    """Open the gate under the given clips (the span of each clip on its own track), and
+    nothing else: a stretch that reaches beyond a clip falls into two. Unknown ids are
+    ignored. One step for any number of clips."""
+    wanted = set(clip_ids)
+    spans = [(track.id, clip.start, clip.end) for track in p.tracks if track.gate
+             for clip in track.clips if clip.id in wanted]
+    for track_id, start, end in spans:
+        p = remove_gate_range(p, track_id, start, end)
+    return p
+
+
 def add_bus(p: Project, bus_id: str | None = None, name: str = "Bus",
             track_ids=()) -> Project:
     """Add a bus, and route ``track_ids`` to it in the same edit (one undo step)."""
@@ -1352,7 +1364,7 @@ OPS = {
         add_bus, set_bus, delete_bus, set_master, reset_gains,
         add_clip, delete_clip, move_clip, trim_clip, split_clip, set_clip,
         set_fade_at, set_clip_envelope, ripple_delete, mute_ranges,
-        set_gate, add_gate_range, remove_gate_range,
+        set_gate, add_gate_range, remove_gate_range, open_gate_under_clips,
         add_marker, rename_marker, move_marker, set_region_end, delete_marker,
         set_marker_kind,
         add_placeholder, edit_placeholder_text, set_placeholder_length,

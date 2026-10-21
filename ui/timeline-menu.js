@@ -10,6 +10,7 @@ const PASTE = ["edit.paste", "edit.paste_insert", "edit.paste_track", "edit.past
 // Section title keys are `ui.ctx.<name>`; the ids are what the menu bar names too.
 const SECTIONS = {
   clip: [
+    ["gate", ["gate.open_under_clips"]],
     ["clipboard", ["edit.remove", "edit.cut", "edit.copy"]],
     ["paste", PASTE],
     [
@@ -49,6 +50,7 @@ const SECTIONS = {
     ],
   ],
   range: [
+    ["gate", ["gate.open_under_clips"]],
     ["clipboard", ["edit.remove", "edit.cut", "edit.copy", "edit.delete", "edit.close_gap_all"]],
     ["play", ["transport.play_selection", "transport.rehearse", "transport.loop"]],
     ["select", ["select.clips_in_range", "select.range_all_tracks"]],
@@ -83,9 +85,11 @@ export function timelineTarget(hit, state) {
   if (hit.area === "ruler") return { kind: "ruler", frame, trackId: null };
   const trackId = hit.row?.kind === "track" ? hit.row.id : null;
   const range = markedRange(state);
-  if (range && frame >= range.start && frame < range.end) return { kind: "range", frame, trackId };
-  if (hit.clip) return { kind: "clip", frame, trackId };
-  return { kind: "lane", frame, trackId };
+  const gate = Boolean(hit.gate); // the pointer is on a closed (Auto-Silence) stretch
+  if (range && frame >= range.start && frame < range.end)
+    return { kind: "range", frame, trackId, gate };
+  if (hit.clip) return { kind: "clip", frame, trackId, gate };
+  return { kind: "lane", frame, trackId, gate };
 }
 
 /**
@@ -95,7 +99,11 @@ export function timelineTarget(hit, state) {
  * lists every command, dimmed when it cannot apply.
  */
 export function timelineMenuItems(state, target, can) {
-  return (SECTIONS[target.kind] ?? [])
+  // A closed stretch under the pointer can be opened right there (owner, 21.10.2026).
+  const sections = target.gate
+    ? [["gate", ["gate.open_stretch", "gate.open_under_clips"]], ...(SECTIONS[target.kind] ?? [])]
+    : (SECTIONS[target.kind] ?? []);
+  return sections
     .map(([name, ids]) => ({
       titleKey: `ui.ctx.${name}`,
       items: ids.filter((id) => can(id, state)).map((id) => ({ id, enabled: true })),
@@ -140,14 +148,15 @@ export function menuFromSections(sections, resolved, title) {
  */
 export function contextPress(hit, state) {
   const target = timelineTarget(hit, state);
-  if (target.kind === "range") return { kind: "range", seek: null };
+  const gate = hit.gate ? { gate: hit.gate } : {}; // the closed stretch under the pointer
+  if (target.kind === "range") return { kind: "range", seek: null, ...gate };
   if (target.kind === "clip") {
-    const plan = { kind: "clip", seek: null };
+    const plan = { kind: "clip", seek: null, ...gate };
     if (!state.selection?.has(hit.clip.id))
       plan.selection = expandGroups(state.project, [hit.clip.id]);
     return plan;
   }
-  const plan = { kind: target.kind, seek: hit.frame };
+  const plan = { kind: target.kind, seek: hit.frame, ...gate };
   if (target.kind === "lane" && target.trackId) plan.focusTrack = target.trackId;
   return plan;
 }

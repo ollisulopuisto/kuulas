@@ -2,6 +2,7 @@
 // Everything else in the keymap is "planned" until its work package lands.
 
 import { busOfFocus, collapseAllChange, collapseChange } from "./bus-collapse.js";
+import { gateUnderClips } from "./gate.js";
 import { clearGhost } from "./ghost-marker.js";
 import { canRestore } from "./history-model.js";
 import { rangeAvailable } from "./loop-range.js";
@@ -216,6 +217,12 @@ export function registerAppCommands(registry, { actions, app }) {
   // Pre-roll before Record (WP12c): off / 10 / 30 / 60 (default) / 120 s.
   def("record.preroll", () => app.cyclePreroll());
   def("gate.open_stretch", () => app.openGateStretch(), hasProject);
+  // Open the closed stretches under the selected clips (one clip or several), one undo step.
+  def(
+    "gate.open_under_clips",
+    () => app.openGateUnderClips(),
+    (state) => gateUnderClips(state?.project, state?.selection),
+  );
   // Track > Auto: these three had a menu item and a key but no handler (greyed out).
   def("app.auto_silence", () => app.autoSilence(), hasProject);
   def("app.auto_silence_options", () => app.openSilenceOptions(), hasProject);

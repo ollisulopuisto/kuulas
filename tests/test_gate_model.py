@@ -108,3 +108,24 @@ def test_ripple_applies_to_every_track_in_scope_only():
 def test_ripple_through_a_wholly_gated_stretch_removes_it():
     p = ops.set_gate(base(), "t", [(1000, 2000)])
     assert ops.ripple_delete(p, 900, 2100).track("t").gate == ()
+
+
+def test_open_gate_under_clips_opens_only_the_clips_span():
+    """The owner: a gate is a track property, but it must be possible to unset it for any
+    single clip or a number of clips (the stretch under them), nothing more."""
+    p = ops.set_gate(base(), "t", [(0, 70 * RATE)])  # the clip covers 0 .. 60 s
+    q = ops.open_gate_under_clips(p, ["c"])
+    assert q.track("t").gate == ((60 * RATE, 70 * RATE),)
+
+
+def test_open_gate_under_clips_takes_several_clips_and_ignores_unknown_ids():
+    p = ops.set_gate(base(), "t", [(0, 60 * RATE)])
+    q = ops.open_gate_under_clips(p, ["c", "nope"])
+    assert q.track("t").gate == ()
+    assert ops.open_gate_under_clips(p, []) == p
+
+
+def test_open_gate_under_clips_is_in_the_edit_vocabulary():
+    p = ops.set_gate(base(), "t", [(0, 60 * RATE)])
+    q = ops.apply(p, "open_gate_under_clips", {"clip_ids": ["c"]})
+    assert q.track("t").gate == ()

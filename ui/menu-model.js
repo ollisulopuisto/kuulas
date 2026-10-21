@@ -357,6 +357,7 @@ export const MENU = [
         item("app.block_level"),
         item("app.duck_music"),
         item("gate.open_stretch"),
+        item("gate.open_under_clips"),
         item("gate.open_all"),
       ]),
     ],

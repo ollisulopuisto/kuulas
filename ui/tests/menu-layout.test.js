@@ -199,6 +199,7 @@ describe("Track, Playback, View", () => {
       "app.block_level",
       "app.duck_music",
       "gate.open_stretch",
+      "gate.open_under_clips",
       "gate.open_all",
     ]);
   });

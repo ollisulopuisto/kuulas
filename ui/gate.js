@@ -88,3 +88,22 @@ export function stretchAt(project, trackId, frame, zoom = 1) {
   const index = gateAt(track?.gate, frame, zoom);
   return index < 0 ? null : { trackId, index, range: track.gate[index] };
 }
+
+/**
+ * Whether any of the selected clips lies over a closed stretch of its track's gate: the
+ * condition for "Open the muted stretches under the selected clips". `selection` is a Set
+ * (or array) of clip ids.
+ */
+export function gateUnderClips(project, selection) {
+  const wanted = selection instanceof Set ? selection : new Set(selection ?? []);
+  if (wanted.size === 0) return false;
+  for (const track of project?.tracks ?? []) {
+    if (!track.gate?.length) continue;
+    for (const clip of track.clips ?? []) {
+      if (!wanted.has(clip.id)) continue;
+      const end = clip.start + clip.length;
+      if (track.gate.some(([a, b]) => a < end && clip.start < b)) return true;
+    }
+  }
+  return false;
+}

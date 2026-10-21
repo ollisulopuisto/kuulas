@@ -1437,6 +1437,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.gate.open_stretch",
   },
   {
+    id: "gate.open_under_clips",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.gate.open_under_clips",
+  },
+  {
     id: "app.auto_silence",
     keys: { mac: "Alt+Mod+P", other: "Alt+Mod+P" },
     context: "global",
