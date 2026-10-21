@@ -1,3 +1,9 @@
+## [v26.10.20.39] - 2026-10-21
+
+- **Follow playhead is a state.** While playing, the view follows the playhead until you steer the view yourself (scroll, zoom, drag or click the overview, fit, view back/forward); then it stays where you put it and a small "Follow" chip (bottom right of the timeline) goes dim, with an arrow at the edge showing where the playhead is and its time. Follow comes back only when you stop or start playback, jump (Home, End, in/out, marker prev/next, left-off), click the playhead itself, click the chip or arrow, or use View > "Show the playhead". Nothing re-engages it by itself. New in the View menu: "Follow playhead" and "Show the playhead" (no default keys). Not seen on screen yet.
+- **Side tabs stay on one row** with their Alt+1 to Alt+5 shortcuts visible on every tab; on a narrow panel the labels shrink (the shortcut stays in the tooltip).
+- **The overview bar shows gaps where a track is silent** (no clip, muted clip or track, closed by Auto-Silence, or the Auto-Silence preview's would-close ranges): you see when somebody talks.
+
 ## [v26.10.20.38] - 2026-10-21
 
 - **Automix keeps your music levels.** The Automix dialog has a "Music level" choice: **Keep my levels** (the automixer's `--keep-music-level`: music and effects get the same level change as the speech, so the balance you set by ear survives) or **Fit to speech** (the old bed rule, `--bed-under-speech-db`). Keep is the default when the automixer supports the flag and you have not set a bed level; the bed-level field is greyed while levels are kept. The two are never sent together. The toast and log say "Music: kept your level, +12.5 dB like the speech". The series stores the choice. Needs the podcast repo with PR 74 (git pull there); untried with the real automixer.
