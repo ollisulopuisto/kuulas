@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scope Lanes Mock</title>
+<!-- Static design mock for docs/design/FOCUS-MODE.md. No libraries, works offline.
+     Colours are the dark values of ui/tokens.css; numbers follow the doc's layout rule. -->
+<style>
+:root {
+  color-scheme: dark;
+  --surface-app: #0f1214;      /* --p-gray-18 */
+  --surface-lane: #13171a;     /* --p-gray-20 */
+  --surface-panel: #171b1e;    /* --p-gray-22 */
+  --surface-raised: #1e2327;   /* --p-gray-25 */
+  --border-subtle: #22282c;    /* --p-gray-27-b */
+  --border: #2d3539;           /* --p-gray-32 */
+  --text: #e7ecee;             /* --p-gray-94-b */
+  --text-secondary: #aab4b9;   /* --p-gray-76 */
+  --text-tertiary: #8f9aa0;    /* --p-gray-68 */
+  --accent: #3dc9b3;           /* --p-teal-76 */
+  --warn: #f0b54a;             /* --p-amber-81 */
+  --playhead: #ff6b57;         /* --p-red-71 */
+  --bus-band: #192431;         /* --p-blue-26 */
+  --dur-layout: 120ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --veil: 0.5;                 /* proposed (today 0.72) */
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+}
+:root[data-motion="off"] { --dur-layout: 0ms; }
+@media (prefers-reduced-motion: reduce) { :root:not([data-motion="full"]) { --dur-layout: 0ms; } }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 16px; background: var(--surface-app); color: var(--text); font: 13px/1.4 var(--font-ui); }
+h1 { font-size: 15px; margin: 0 0 4px; }
+p.lead { margin: 0 0 12px; color: var(--text-secondary); max-width: 70ch; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+button, label.opt { font: inherit; color: var(--text); background: var(--surface-raised); border: 1px solid var(--border); border-radius: 4px; padding: 5px 10px; cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+kbd { font: 600 11px var(--font-ui); border: 1px solid var(--border); border-radius: 3px; padding: 0 4px; margin-left: 4px; color: var(--text-secondary); }
+.app { display: grid; grid-template-columns: minmax(120px, 190px) 1fr; border: 1px solid var(--border); max-width: 1100px; background: var(--surface-lane); overflow: hidden; }
+.headers { background: var(--surface-panel); border-right: 1px solid var(--border-subtle); }
+.lanes { position: relative; overflow: hidden; }
+.ruler { height: 24px; border-bottom: 1px solid var(--border-subtle); color: var(--text-tertiary); font-size: 11px; padding: 5px 8px; background: var(--surface-panel); }
+.row { position: relative; height: var(--h); transition: height var(--dur-layout) var(--ease-standard); border-bottom: 1px solid var(--border-subtle); overflow: hidden; }
+.bus { --h: 28px; background: var(--bus-band); color: var(--text-secondary); font-size: 12px; padding: 5px 8px; }
+.lanes .bus { background: color-mix(in srgb, var(--bus-band) 60%, var(--surface-lane)); }
+.th { padding: 6px 8px 0 14px; cursor: pointer; user-select: none; }
+.th .name { font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.th .name::before { content: ""; width: 3px; height: 14px; border-radius: 2px; background: var(--c); }
+.th .ms { margin-top: 4px; display: flex; gap: 4px; }
+.th .ms span { border: 1px solid var(--border); border-radius: 3px; padding: 0 5px; font-size: 11px; color: var(--text-secondary); }
+.th .tag { display: none; font-size: 11px; color: var(--accent); margin-left: auto; font-weight: 600; }
+/* In scope: a 4 px accent edge on header AND lane (shape, not just colour), a "range" tag. */
+.row.in::after { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--accent); }
+.th.in .tag { display: inline; }
+.th.out { opacity: 0.6; }
+.lane svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.lane .veil { position: absolute; inset: 0; background: var(--surface-panel); opacity: 0; transition: opacity var(--dur-layout) var(--ease-standard); pointer-events: none; }
+.lane.out .veil { opacity: var(--veil); }
+.lane .lbl { position: absolute; left: 10px; top: 3px; font: 600 11px var(--font-ui); color: var(--text); background: rgb(19 23 26 / 0.85); padding: 0 4px; }
+.playhead { position: absolute; top: 0; bottom: 0; left: 38%; width: 1px; background: var(--playhead); }
+.status { display: flex; gap: 8px; align-items: center; margin-top: 8px; color: var(--text-secondary); max-width: 1100px; }
+.chip { border: 1px solid var(--border); border-radius: 10px; padding: 1px 10px; background: var(--surface-raised); cursor: pointer; }
+.chip.warn { border-color: var(--warn); color: var(--warn); }
+.chip[hidden] { display: none; }
+.note { color: var(--text-tertiary); font-size: 12px; margin-top: 10px; max-width: 70ch; }
+.mono { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<h1>Range scope as lane size: mock</h1>
+<p class="lead">Click a track header to narrow range operations to it, Cmd/Ctrl+click to add one, press <kbd>E</kbd> to flip all / selected, <kbd>Esc</kbd> to clear. In-scope lanes grow, the others shrink to 75 % (never under 56 px), the total height stays the same.</p>
+<div class="bar">
+  <button id="btn-e" type="button">Toggle scope<kbd>E</kbd></button>
+  <button id="btn-esc" type="button">Clear<kbd>Esc</kbd></button>
+  <label class="opt"><input id="opt-motion" type="checkbox" checked> Animation</label>
+  <label class="opt"><input id="opt-resize" type="checkbox" checked> Resize (off = edge bar and veil only)</label>
+</div>
+<div class="app" id="app">
+  <div class="headers" id="headers"><div class="ruler">6 tracks</div></div>
+  <div class="lanes" id="lanes"><div class="ruler">12:20 · 12:25 · 12:30 · 12:35 · 12:40</div><div class="playhead"></div></div>
+</div>
+<div class="status">
+  <span class="chip" id="chip" role="status" aria-live="polite" title="Which tracks the next range operation touches. Click or E to switch."></span>
+  <span class="mono" id="sizes"></span>
+</div>
+<p class="note">The waveforms show each speaker's own speech loud and the other speakers' bleed faint: that faint layer is why the shrunk lanes must stay readable. During the 120 ms change the waveform bitmap is only stretched (as the app would do), then redrawn.</p>
+<script>
+const TRACKS = [
+  { id: "anna", name: "Anna", c: "#60b0ff", bus: "voices", seed: 1 },
+  { id: "ville", name: "Ville", c: "#ea9344", bus: "voices", seed: 2 },
+  { id: "pekka", name: "Pekka", c: "#bf93f1", bus: "voices", seed: 3 },
+  { id: "theme", name: "Theme tune", c: "#8e8572", bus: null, seed: 4 },
+];
+const BASE = 115, MIN_CTX = 56, RATIO = 0.75, CAP = 2, MIN_BASE = 64;
+const state = { mode: "all", selection: new Set(), resize: true };
+
+// The layout rule from FOCUS-MODE.md: total height constant, context lanes 75 % (>= 56 px),
+// scope lanes share what is freed (<= 2x base), any rest goes back to the context lanes.
+function heights() {
+  const scope = state.mode === "selected" ? TRACKS.filter((t) => state.selection.has(t.id)) : [];
+  const h = Object.fromEntries(TRACKS.map((t) => [t.id, BASE]));
+  if (!state.resize || scope.length === 0 || scope.length === TRACKS.length || BASE < MIN_BASE) return h;
+  const ctx = TRACKS.filter((t) => !state.selection.has(t.id));
+  let freed = 0;
+  for (const t of ctx) { h[t.id] = Math.max(MIN_CTX, Math.round(BASE * RATIO)); freed += BASE - h[t.id]; }
+  let rest = 0;
+  for (const t of scope) {
+    const want = BASE + freed / scope.length;
+    h[t.id] = Math.min(CAP * BASE, Math.round(want));
+    rest += want - h[t.id];
+  }
+  for (const t of ctx) h[t.id] += Math.round(rest / ctx.length);
+  return h;
+}
+
+function wave(seed, own) {
+  // Deterministic speech bursts: loud where this speaker talks, faint bleed where others do.
+  let s = seed * 9301;
+  const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
+  const bars = [];
+  for (let x = 0; x < 400; x += 2) {
+    const turn = Math.floor(x / 50) % 4; // whose turn: 0..2 speakers, 3 = music bed
+    const mine = own === "music" ? 0.22 + 0.06 * Math.sin(x / 7) : turn === seed - 1 ? 0.35 + 0.6 * rnd() : 0.04 + 0.1 * rnd();
+    const a = Math.max(0.02, mine);
+    bars.push(`<rect x="${x}" y="${50 - a * 48}" width="1.4" height="${a * 96}"/>`);
+  }
+  return bars.join("");
+}
+
+function build() {
+  const H = document.getElementById("headers"), L = document.getElementById("lanes");
+  let lastBus;
+  for (const t of TRACKS) {
+    if (t.bus && t.bus !== lastBus) {
+      H.insertAdjacentHTML("beforeend", `<div class="row bus">▾ Voices · bus</div>`);
+      L.insertAdjacentHTML("beforeend", `<div class="row bus"></div>`);
+    }
+    lastBus = t.bus;
+    H.insertAdjacentHTML("beforeend",
+      `<div class="row th" data-id="${t.id}" style="--c:${t.c}" tabindex="0" role="option" aria-selected="false">
+         <div class="name">${t.name}<span class="tag">● range</span></div><div class="ms"><span>M</span><span>S</span></div></div>`);
+    L.insertAdjacentHTML("beforeend",
+      `<div class="row lane" data-id="${t.id}"><svg viewBox="0 0 400 100" preserveAspectRatio="none" fill="${t.c}">${wave(t.seed, t.bus ? "speech" : "music")}</svg>
+         <span class="lbl">${t.name}</span><div class="veil"></div></div>`);
+  }
+  H.setAttribute("role", "listbox");
+  H.setAttribute("aria-multiselectable", "true");
+  H.setAttribute("aria-label", "Tracks: selected ones are the range scope");
+  L.appendChild(L.querySelector(".playhead"));
+}
+
+function render() {
+  const h = heights();
+  const scoped = state.mode === "selected" && state.selection.size > 0;
+  for (const el of document.querySelectorAll(".th, .lane")) {
+    const id = el.dataset.id, inScope = scoped && state.selection.has(id);
+    el.style.setProperty("--h", h[id] + "px");
+    el.classList.toggle("in", inScope);
+    el.classList.toggle("out", scoped && !inScope);
+    if (el.classList.contains("th")) el.setAttribute("aria-selected", String(state.selection.has(id)));
+  }
+  const chip = document.getElementById("chip");
+  const names = TRACKS.filter((t) => state.selection.has(t.id)).map((t) => t.name);
+  chip.classList.toggle("warn", state.mode === "selected" && names.length === 0);
+  chip.textContent = state.mode === "all"
+    ? `range operations on all ${TRACKS.length} tracks` + (names.length ? " · E: only " + names.join(", ") : "")
+    : names.length === 0 ? "no tracks selected: nothing will be touched" : `range operations on ${names.join(", ")} · E: all tracks`;
+  document.getElementById("sizes").textContent = "heights: " + TRACKS.map((t) => `${t.name} ${h[t.id]}`).join(" · ") +
+    ` · sum ${Object.values(h).reduce((a, b) => a + b, 0)} px`;
+}
+
+function clickHeader(id, add) {
+  const next = add ? new Set(state.selection) : new Set([id]);
+  if (add) { if (state.selection.has(id)) next.delete(id); else next.add(id); }
+  state.selection = next;
+  state.mode = next.size > 0 ? "selected" : "all";
+  render();
+}
+const toggleE = () => { state.mode = state.mode === "selected" ? "all" : "selected"; render(); };
+const clearEsc = () => { state.selection = new Set(); state.mode = "all"; render(); };
+
+build();
+document.getElementById("headers").addEventListener("click", (ev) => {
+  const th = ev.target.closest(".th"); if (th) clickHeader(th.dataset.id, ev.metaKey || ev.ctrlKey);
+});
+document.getElementById("btn-e").addEventListener("click", toggleE);
+document.getElementById("chip").addEventListener("click", toggleE);
+document.getElementById("btn-esc").addEventListener("click", clearEsc);
+document.getElementById("opt-motion").addEventListener("change", (ev) => {
+  document.documentElement.dataset.motion = ev.target.checked ? "full" : "off";
+});
+document.documentElement.dataset.motion = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "off" : "full";
+document.getElementById("opt-motion").checked = document.documentElement.dataset.motion === "full";
+document.getElementById("opt-resize").addEventListener("change", (ev) => { state.resize = ev.target.checked; render(); });
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "e" || ev.key === "E") { if (!ev.metaKey && !ev.ctrlKey && !ev.altKey) { ev.preventDefault(); toggleE(); } }
+  else if (ev.key === "Escape") clearEsc();
+  else if ((ev.key === "Enter" || ev.key === " ") && ev.target.closest?.(".th")) { ev.preventDefault(); clickHeader(ev.target.dataset.id, ev.metaKey || ev.ctrlKey); }
+});
+render();
+</script>
+</body>
+</html>
