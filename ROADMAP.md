@@ -187,6 +187,7 @@ Released in v26.10.20.5 to v26.10.20.14, in order of importance:
   count as hand edits too; refine later with provenance). Dialog: one choice "How much may the automixer adjust
   levels" (Automatic / Fine-tune / Keep my levels), default by that rule. Waiting on the podcast flag; then build,
   gated like `--bed-under-speech-db`.
+- **Focus mode and lane sizes** (owner decision 21.10.2026, design review in docs/design/FOCUS-MODE.md): E does NOT resize lanes; with the scope narrowed the in/out band and bars are drawn only on the lanes in scope (done, v26.10.20.22). F (WP28, `ui/focus-layout.js`, written but not wired) gets the whole show: the focused lane grows, the others shrink or become strips, animated (120 ms, not while playing, respects reduced motion). Not started.
 - **Smaller project folders** (owner data 2026-10-20: 1.1 GB = backups 862 MB, caches 139 MB, history 112 MB, media 7 MB,
   recordings 0): compressed and size-capped backups plus a size breakdown in Statistics (building).
 - **History compaction: PARKED, findings recorded** (owner 2026-10-20: nothing to do yet). What we know: the history

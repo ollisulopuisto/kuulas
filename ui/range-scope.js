@@ -88,6 +88,20 @@ export function toggleScopeMode(state) {
   return { rangeMode: state?.rangeMode === MODE_SELECTED ? MODE_ALL : MODE_SELECTED };
 }
 
+/**
+ * Where the in/out band and its bars are drawn: null when the scope is all tracks (the band
+ * runs the full height), else the lanes the next range operation will touch, as
+ * `{ top, height }` in canvas coordinates (bus rows and untouched lanes carry no band).
+ */
+export function scopeSpans(state, rows, { rulerHeight, scrollY }) {
+  const scope = resolveScope(state);
+  if (scope.source === "all") return null;
+  const touched = new Set(scope.tracks);
+  return rows
+    .filter((row) => row.kind === "track" && touched.has(row.id))
+    .map((row) => ({ top: rulerHeight + row.top - scrollY, height: row.height }));
+}
+
 /** Ids of the tracks the next range operation will NOT touch: drawn dimmed (lane, header, waveform). */
 export function dimmedTracks(state) {
   const scope = resolveScope(state);

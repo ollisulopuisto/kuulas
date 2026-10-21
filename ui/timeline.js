@@ -72,7 +72,7 @@ import {
 } from "./paint.js";
 import { aboutSeconds, placeholderLabel } from "./placeholders-model.js";
 import { dragRange, isDrag, touchedResult, trackRowsTouched } from "./range-drag.js";
-import { dimmedTracks } from "./range-scope.js";
+import { dimmedTracks, scopeSpans } from "./range-scope.js";
 import { rulerTicks } from "./ruler.js";
 import {
   anchorIds,
@@ -238,7 +238,12 @@ export function createTimeline({
       width,
       currentId: state.candidateCurrent,
     });
-    drawRange(state, height);
+    // With the scope narrowed the band and the in/out bars belong to the touched lanes only.
+    const spans = scopeSpans(state, layout.rows, {
+      rulerHeight: RULER_HEIGHT,
+      scrollY: state.scrollY,
+    });
+    drawRange(state, height, spans);
     const dimmed = dimmedTracks(state);
     for (const row of visibleRows(layout, state.scrollY, height - RULER_HEIGHT)) {
       const top = RULER_HEIGHT + row.top - state.scrollY;
@@ -256,7 +261,7 @@ export function createTimeline({
       else drawBusRow(state, row, top, groups, hues);
     }
     drawRuler(state, rate);
-    drawInOut(state, height, rate);
+    drawInOut(state, height, rate, spans);
     drawRangeBand(state, layout);
     if (dropPreview) drawDropPreview(state, layout);
     if (edgeSession?.dragging) drawEdgeGhost(state, layout);
@@ -525,13 +530,14 @@ export function createTimeline({
     overlay.restore();
   }
 
-  function drawRange(state, height) {
+  function drawRange(state, height, spans) {
     const { range } = markDrawing(state);
     if (range === null) return;
     const x1 = frameToX(range.start, state.scroll, state.zoom);
     const x2 = frameToX(range.end, state.scroll, state.zoom);
     overlay.fillStyle = theme.range;
-    overlay.fillRect(x1, RULER_HEIGHT, x2 - x1, height - RULER_HEIGHT);
+    if (spans === null) overlay.fillRect(x1, RULER_HEIGHT, x2 - x1, height - RULER_HEIGHT);
+    else for (const span of spans) overlay.fillRect(x1, span.top, x2 - x1, span.height);
   }
 
   // The band in the ruler too (drawn after the ruler, under the flags), and the length as a
@@ -594,21 +600,27 @@ export function createTimeline({
 
   // In and out: 1 px accent edges with a flag in the ruler, pointing inwards.
   // A lone mark is drawn too, so pressing O or I shows something at once.
-  function drawInOut(state, height, rate) {
+  // One 1 px bar at x: the whole height, or only on the lanes in scope (the ruler flag stays).
+  function drawBar(x, spans, height) {
+    if (spans === null) overlay.fillRect(x, 0, 1, height);
+    else for (const span of spans) overlay.fillRect(x, span.top, 1, span.height);
+  }
+
+  function drawInOut(state, height, rate, spans) {
     const { inFrame, outFrame } = markDrawing(state);
     drawRangeInRuler(state, rate);
     overlay.fillStyle = theme.accent;
     overlay.beginPath();
     if (inFrame !== null) {
       const x1 = frameToX(inFrame, state.scroll, state.zoom);
-      overlay.fillRect(Math.round(x1), 0, 1, height);
+      drawBar(Math.round(x1), spans, height);
       overlay.moveTo(x1, 0);
       overlay.lineTo(x1 + 8, 0);
       overlay.lineTo(x1, 8);
     }
     if (outFrame !== null) {
       const x2 = frameToX(outFrame, state.scroll, state.zoom);
-      overlay.fillRect(Math.round(x2) - 1, 0, 1, height);
+      drawBar(Math.round(x2) - 1, spans, height);
       overlay.moveTo(x2, 0);
       overlay.lineTo(x2 - 8, 0);
       overlay.lineTo(x2, 8);

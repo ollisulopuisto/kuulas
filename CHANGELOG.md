@@ -1,3 +1,7 @@
+## [v26.10.20.22] - 2026-10-21
+
+- **The in/out band and bars are drawn only on the lanes the next cut will touch.** With all tracks in scope nothing changes (the band runs through every lane); after you pick one or more track headers (or press E) the band and the I/O lines appear only on those lanes, so it is clear at a glance what X, mute and delete will act on. The flags in the ruler stay.
+
 ## [v26.10.20.21] - 2026-10-21
 
 - **Clicking a clip or a lane no longer narrows X, mute and delete to that one track.** The click makes the track current (inspector, split, paste) as before, but cut, copy, mute range and delete keep acting on all tracks; only a click on a track header (or Cmd+click) selects tracks for them, and Esc or E brings back all tracks. This had changed in v26.10.20.5.
