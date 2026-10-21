@@ -1,3 +1,8 @@
+## [v26.10.20.24] - 2026-10-21
+
+- **Ready for the automixer's live events.** When the installed automixer supports `--events` (the podcast side is being built), Kuulas asks for it and reads the structured progress it prints: the toast then says which stage is working NOW ("track 2/4 Kari: plugin"), the bar follows the tool's own percentages, and the levels it reports (music bed, speaker balance, mastering) go into log.txt. Event lines never show up as text. With an automixer that does not have the flag nothing changes.
+- **Recorder start waits up to 30 s** (it failed the dmg's own check at 10 s on a first start from a freshly mounted image).
+
 ## [v26.10.20.23] - 2026-10-21
 
 - **A clipboard clip now mixes INTO the playback instead of taking it over.** While the timeline plays, Play on a clipboard entry adds it as an extra voice: the timeline keeps playing, the cursor does not move, and the entry ends by itself or with its chip's Stop (Space still stops everything). When the timeline is stopped it plays alone as before. It also starts much sooner: in a long project (over 2 minutes) the first preview no longer waits for the level of the whole project to be measured (it uses the default level once, and measures in the background for the next click).
