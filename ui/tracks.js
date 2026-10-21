@@ -6,6 +6,7 @@
 
 import { bindToggle } from "./ab-value.js";
 import { busRoleStatus, roleDiffers } from "./bus-role.js";
+import { inactiveTracks } from "./focus-layout.js";
 import { busHues, busLetter } from "./grammar.js";
 import { formatDb, formatNumber, t } from "./i18n.js";
 import { addBusForTrack, NEW_BUS } from "./inspector-track.js";
@@ -16,12 +17,14 @@ import { readoutText, trackReadout } from "./loudness-readout.js";
 import { monoTag } from "./mono-ask.js";
 import { MUSIC_HUE, trackHues } from "./paint.js";
 import { coalesceKey, patchBus, patchSolo, patchTrack } from "./provisional.js";
-import { dimmedTracks } from "./range-scope.js";
 import { parseDbText, parsePanText } from "./value-edit.js";
 
 const GAIN = { min: -60, max: 12, step: 0.1 };
 const PAN = { min: -100, max: 100, step: 1 };
 const COMPACT_BELOW_PX = 40;
+/** Below the smallest lane a user can size (lanes.js MIN_LANE) a header is a focus-mode strip
+ *  (WP28): the name only, small. */
+const STRIP_BELOW_PX = 24;
 
 /** "L 30", "R 30" or "C" for a pan in -1..1. */
 export function panText(pan) {
@@ -574,7 +577,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     const layout = layoutFor(state);
     const hues = trackHues(state.project);
     const busHue = busHues(state.project);
-    const dimmed = dimmedTracks(state);
+    const dimmed = inactiveTracks(state);
     for (const row of layout.rows) {
       const parts = rows.get(row.id);
       if (!parts) continue;
@@ -590,6 +593,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         parts.node.style.setProperty("--bus-text", `var(--bus-${group}-text)`);
       }
       parts.node.classList.toggle("compact", row.height < COMPACT_BELOW_PX && row.kind === "track");
+      parts.node.classList.toggle("strip", row.height < STRIP_BELOW_PX && row.kind === "track");
       if (parts.kind === "track") {
         const track = state.project.tracks[row.index];
         parts.node.classList.toggle("current", state.focusTrack === track.id);

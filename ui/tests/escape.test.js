@@ -39,4 +39,11 @@ describe("what Esc does", () => {
     assert.equal(escapeAction({ inTextField: false, selection: new Set() }), "home");
     assert.equal(escapeAction({ inTextField: false }), "home");
   });
+  test("focus mode (WP28) is left when nothing else is marked, before going home", () => {
+    const focusMode = { ids: ["t"], soloBefore: null };
+    assert.equal(escapeAction({ inTextField: false, focusMode }), "leave_focus");
+    assert.equal(escapeAction({ inTextField: false, focusMode, inPoint: 3 }), "clear");
+    assert.equal(escapeAction({ inTextField: true, focusMode }), "blur");
+    assert.equal(escapeAction({ inTextField: false, focusMode: null }), "home");
+  });
 });

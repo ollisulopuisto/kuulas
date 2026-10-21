@@ -55,6 +55,8 @@ export function projectEnd(project) {
  * its own: the member is marked `merged` and carries the bus identity.
  * `options.laneHeights` ({ trackId: px }) gives single tracks their own height
  * (clamped); a track without an entry uses `laneHeight`.
+ * `options.viewHeights` ({ trackId: px }, focus mode's view layer, focus-layout.js) wins over
+ * both and is not clamped up to MIN_LANE, so a lane can be a 16 px strip.
  * `options.collapsed` (a Set of bus ids) folds a bus: its row stays (marked
  * `collapsed`, with `memberIndexes` into project.tracks for the summary strip)
  * and its member tracks get no rows. A merged one-track bus has no row to fold.
@@ -65,7 +67,11 @@ export function layoutRows(project, laneHeight, options = {}) {
   const groupGap = options.groupGap ?? GROUP_GAP;
   const own = options.laneHeights ?? {};
   const collapsed = options.collapsed ?? new Set();
-  const heightOf = (id) => (Number.isFinite(own[id]) ? clampLaneHeight(own[id]) : height);
+  const view = options.viewHeights ?? {};
+  const heightOf = (id) => {
+    if (Number.isFinite(view[id])) return Math.max(1, Math.round(view[id]));
+    return Number.isFinite(own[id]) ? clampLaneHeight(own[id]) : height;
+  };
   const tracks = project?.tracks ?? [];
   const buses = project?.buses ?? [];
   const busIndex = new Map(buses.map((bus, i) => [bus.id, i]));
@@ -158,6 +164,8 @@ export function layoutFor(state) {
     // A bus with one track merges into the track header (owner, 2026-10-18).
     mergeSingle: true,
     laneHeights: state.laneHeights,
+    // Focus mode (WP28): the focused lanes grown, the others strips; a view layer only.
+    viewHeights: state.focusHeights ?? undefined,
     collapsed: state.collapsedBuses,
   });
 }

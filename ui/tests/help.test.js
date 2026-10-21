@@ -105,6 +105,15 @@ describe("helpChain: what help is about", () => {
     assert.deepEqual(helpChain({ panel: "timeline", focusTrack: "t1" }), ["timeline", "index"]);
   });
 
+  test("in focus mode (WP28) the timeline asks for focus mode first", () => {
+    assert.deepEqual(helpChain({ panel: "timeline", focusMode: true }), [
+      "focus",
+      "timeline",
+      "index",
+    ]);
+    assert.equal(helpChain({ panel: "timeline", focusMode: true, selection: 1 })[0], "clip");
+  });
+
   test("a track header: the track; a bus row in the headers: the bus", () => {
     assert.equal(helpChain({ inHeaders: true, focusTrack: "t1" })[0], "track");
     assert.equal(helpChain({ inHeaders: true, focusBus: "b1" })[0], "bus");
@@ -288,6 +297,11 @@ describe("the topic files", () => {
         assert.ok(existsSync(topicFile(lang, id)), `${lang}/${id}.md`);
         assert.equal(TOPICS[lang].find((t) => t.id === id)?.id, id);
       }
+  });
+
+  test("focus mode (WP28) has its own topic in both languages", () => {
+    for (const lang of ["en", "fi"])
+      assert.equal(topicFor(["focus"], TOPICS[lang])?.id, "focus", lang);
   });
 
   test("the six sample topics cover their targets", () => {

@@ -16,6 +16,7 @@ export const HELP_COMMAND = "help.open";
 /** What help can be about. A topic's `applies-to` names one or more of these. */
 export const HELP_TARGETS = [
   "timeline",
+  "focus",
   "clip",
   "track",
   "bus",
@@ -68,7 +69,7 @@ export function parseTopic(text) {
 /**
  * What the user is looking at, most specific first, ending in "timeline" and
  * "index" so there is always an answer. `context`: { control, palette, error,
- * empty, panel, inHeaders, selection (count), focusBus, focusTrack }.
+ * empty, panel, inHeaders, selection (count), focusBus, focusTrack, focusMode }.
  */
 export function helpChain(context = {}) {
   const chain = [];
@@ -87,6 +88,7 @@ export function helpChain(context = {}) {
   else if (panel === "timeline") {
     if (context.selection > 0) chain.push("clip");
     else if (context.focusBus) chain.push("bus");
+    else if (context.focusMode) chain.push("focus");
   } else if (panel === "inspector") chain.push("inspector", object());
   else chain.push(panel);
   chain.push("timeline", "index");
