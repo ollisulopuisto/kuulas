@@ -1,3 +1,8 @@
+## [v26.10.20.23] - 2026-10-21
+
+- **A clipboard clip now mixes INTO the playback instead of taking it over.** While the timeline plays, Play on a clipboard entry adds it as an extra voice: the timeline keeps playing, the cursor does not move, and the entry ends by itself or with its chip's Stop (Space still stops everything). When the timeline is stopped it plays alone as before. It also starts much sooner: in a long project (over 2 minutes) the first preview no longer waits for the level of the whole project to be measured (it uses the default level once, and measures in the background for the next click).
+- **The playback cursor no longer jumps back a few pixels.** Two causes: the cursor snapped back when a corrected position arrived slightly behind, and the engine dated the position reports with the time Python happened to run the audio callback. Now a correction slows the cursor briefly (never back, never frozen), and reports use the audio device's own time. Please check by ear and by eye.
+
 ## [v26.10.20.22] - 2026-10-21
 
 - **The in/out band and bars are drawn only on the lanes the next cut will touch.** With all tracks in scope nothing changes (the band runs through every lane); after you pick one or more track headers (or press E) the band and the I/O lines appear only on those lanes, so it is clear at a glance what X, mute and delete will act on. The flags in the ruler stay.
