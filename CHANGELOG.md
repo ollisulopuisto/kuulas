@@ -1,3 +1,8 @@
+## [v26.10.20.25] - 2026-10-21
+
+- **The last cut is remembered as a hidden marker.** After a cut, lift-cut or ripple delete, the splice point is remembered. If you then set only OUT (later in time) the IN marker is placed at the splice, and if you set only IN (earlier) the OUT is placed there, so the range extends from the cut you just made. A guessed mark is drawn dashed and lighter; setting both marks yourself overrides it, and Shift+Alt+I (clear marks) forgets it. Undo does not restore it.
+- **Double-click on a clip's volume line adds a point** at that spot (on the line's current value); double-click on a point removes it. One undo step. Double-click elsewhere (rename, gate, placeholders) is unchanged. Not seen in a window yet.
+
 ## [v26.10.20.24] - 2026-10-21
 
 - **Ready for the automixer's live events.** When the installed automixer supports `--events` (the podcast side is being built), Kuulas asks for it and reads the structured progress it prints: the toast then says which stage is working NOW ("track 2/4 Kari: plugin"), the bar follows the tool's own percentages, and the levels it reports (music bed, speaker balance, mastering) go into log.txt. Event lines never show up as text. With an automixer that does not have the flag nothing changes.
