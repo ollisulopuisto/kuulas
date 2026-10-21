@@ -17,10 +17,10 @@ const decimal = () => (getLanguage() === "fi" ? "," : ".");
 
 /**
  * `el` is the #timecode element. `getState()`, `rate()`, `limit()` (end of the edit, frames),
- * `format(frame, rate)`, `seek(frame)`, `notify(text, kind)`, `t(key, values)`.
+ * `format(frame, rate)`, `jump(frame)` (an explicit jump: Follow comes back), `notify(text, kind)`, `t(key, values)`.
  * `routes()` gives the clipboard routes (tests pass fakes).
  */
-export function createClock({ el, getState, rate, limit, format, seek, notify, t, routes }) {
+export function createClock({ el, getState, rate, limit, format, jump, notify, t, routes }) {
   let field = null; // the open <input>
   let entry = null; // time-entry.js's state of what it holds
   el.tabIndex = 0;
@@ -88,7 +88,7 @@ export function createClock({ el, getState, rate, limit, format, seek, notify, t
           notify(t("ui.clock.invalid"), "error");
           return;
         }
-        seek(frame);
+        jump(frame);
         close(true);
       } else if (event.key === "Escape") {
         event.preventDefault();

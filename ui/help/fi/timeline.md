@@ -17,7 +17,7 @@ Jokainen raita on oma kaistansa, ja aika kulkee vasemmalta oikealle. Napsautus m
 - Sovita valintaan tai alku–loppuvälille: {key:view.fit_selection}
 - Takaisin edelliseen näkymään: {key:view.back}
 
-Toiston aikana näkymä seuraa toistokohtaa (Seuranta-merkki kulmassa palaa). Vieritys, yleiskuvan vetäminen tai zoomaus kytkee seurannan pois ja näkymä pysyy siinä mihin sen jätit; reunan nuoli näyttää silloin missä toistokohta on. Napsauta merkkiä, nuolta tai itse toistokohtaa, tai aloita, pysäytä tai hyppää (Home, End, merkki), niin seuranta palaa. {run:view.follow} {run:view.show_playhead}
+Toiston aikana näkymä seuraa toistokohtaa (Seuranta-merkki kulmassa palaa). Vieritys, yleiskuvan vetäminen tai zoomaus kytkee seurannan pois ja näkymä pysyy siinä mihin sen jätit; reunan nuoli näyttää silloin missä toistokohta on. Napsauta merkkiä, nuolta tai itse toistokohtaa, tai aloita, pysäytä tai hyppää johonkin aikaan (Home, End, merkki, transkription sana, Hyppää aikaan (Spot), Tab seuraavaan pysäkkiin), niin seuranta palaa. Toistokohdan siirtely nuolinäppäimillä tai napsautus näkyvään kohtaan viivaimella ei palauta sitä. {run:view.follow} {run:view.show_playhead}
 
 Tiheys, aaltomuoto ja seuranta ovat Näkymä-valikossa. {show:view-menu} Samoin Sovita raidat ikkunaan ja Pidä raidat sovitettuina ikkunaan. Yhden kaistan korkeutta säädät vetämällä sen otsikon alareunaa; kaksoisnapsautus palauttaa sen.
 

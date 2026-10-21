@@ -17,7 +17,16 @@ const anchors = [{ clip_id: "cz", track_id: "t3", name: "Zoom", group: "g" }];
 
 function setup(selection) {
   const registry = createRegistry();
-  const calls = { edits: [], syncs: [], toasts: [], previews: [], asked: [], notices: [] };
+  const calls = {
+    seeks: [],
+    jumps: [],
+    edits: [],
+    syncs: [],
+    toasts: [],
+    previews: [],
+    asked: [],
+    notices: [],
+  };
   const config = { preview: { kind: "move", count: 1, moves: [{}] }, answer: true, confirm: true };
   const state = { project, selection: new Set(selection), syncClips: [], playhead: 0 };
   registerSyncCommands(registry, {
@@ -25,7 +34,8 @@ function setup(selection) {
     app: {
       getState: () => state,
       patch: () => {},
-      seek: () => {},
+      seek: (frame) => calls.seeks.push(frame),
+      jump: (frame) => calls.jumps.push(frame),
       edit: (change) => {
         calls.edits.push(change);
         change.done?.();
@@ -193,5 +203,15 @@ describe("sync asks first (owner, 2026-10-19)", () => {
     await flush();
     assert.deepEqual([calls.previews, calls.asked], [[], []]);
     assert.equal(calls.edits.length, 2);
+  });
+});
+
+describe("stepping through the drifting clips", () => {
+  test("is an explicit jump: it re-engages Follow, never a plain seek", () => {
+    const { registry, calls, state } = setup([]);
+    state.syncClips = [{ clip_id: "ca", start: 900, state: "drift" }];
+    registry.run("sync.drift_next", null, state);
+    assert.deepEqual(calls.jumps, [900]);
+    assert.deepEqual(calls.seeks, []);
   });
 });

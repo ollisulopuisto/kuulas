@@ -944,13 +944,40 @@ it. A "Follow" chip in the timeline's bottom-right corner shows the state (on =
 accent, off = dim) and toggles it; with Follow off and the playhead out of view,
 an arrow at the edge nearest the playhead shows its time. Chip, arrow and the
 View command "Show the playhead" scroll there and turn Follow on. Nothing else
-re-engages it implicitly: starting or stopping playback does, as do transport
-jumps (Home, End, markers, go to time) and a click on the playhead handle or line
-(about 6 px either side). Never a click near its time, a timer, or the playhead
+re-engages it implicitly: starting or stopping playback does, as do explicit
+jumps (below) and a click on the playhead handle or line (about 6 px either side). Never a click near its time, a timer, or the playhead
 entering the view by the user's own scrolling. A seek to a spot outside the view
 scrolls once only while Follow is on. The rules are in `ui/follow-model.js`; the
 state is in the UI store and not saved. Commands: View > Follow playhead
 (checked) and Show the playhead; no default keys.
+
+**Every explicit jump re-engages Follow (owner, 21.10.2026).** An explicit jump to
+a time X means "take me there": the playhead moves to X, Follow turns on and the
+view shows X (scrolling only if X is out of view). Follow is switched off only by
+minor adjustments, steering the view while something else happens; a user who
+wants to look ahead steers the view. Classification (the table is
+`JUMP_SOURCES` in `ui/follow-model.js`, tested in `ui/tests/follow-model.test.js`):
+
+| Action | Class |
+|---|---|
+| Home, End, In, Out, Back where you left off | jump |
+| Next / previous marker | jump |
+| Markers panel: a marker row, a drifting clip row, Next / previous drift (F7) | jump |
+| Go to time (Spot, double-click on the clock) | jump |
+| Transcript: click on a word or a pause marker, a search hit | jump |
+| Tab / Shift+Tab to the next stop (word, edge, sound) | jump |
+| Candidates panel: selecting a row | jump |
+| Inspector Source list: a row | jump |
+| Arrow-key nudges of the playhead | seek |
+| Click on the ruler or a lane, scrubbing, dragging the playhead | seek |
+| Transcript cursor keys (arrows between words) | seek |
+| Cursor placed at the splice after a cut | seek |
+| Right-click on the timeline (cursor under the pointer) | seek |
+| Playhead restored when a project opens | seek |
+
+A seek never changes Follow: a click in a visible spot must not move the view.
+History restore and recording jump-to have no time-jump of their own yet; when
+they get one it is a jump and goes in this table.
 
 ## 9. Keys: what the UI reserves and how it shows them (for WP5)
 
