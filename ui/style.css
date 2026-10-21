@@ -4388,3 +4388,40 @@ legend.form-heading {
   gap: var(--space-3);
   margin-top: var(--space-4);
 }
+
+/* Follow (follow-model.js): the state chip in the timeline's bottom-right corner (on = accent,
+   off = dim) and the arrow at the view edge toward a playhead that left the view. */
+.follow-chip,
+.follow-arrow {
+  position: absolute;
+  z-index: 2;
+  font: inherit;
+  font-size: var(--text-xs);
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--button-border);
+  background: var(--surface-panel);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.follow-chip {
+  right: 16px;
+  bottom: 8px;
+}
+.follow-chip[data-on="true"] {
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+  color: var(--text);
+}
+.follow-arrow {
+  top: calc(var(--ruler-h) + 8px);
+  border-color: var(--accent);
+  color: var(--text);
+}
+.follow-arrow[data-side="left"] {
+  left: 8px;
+}
+.follow-arrow[data-side="right"] {
+  right: 16px;
+}

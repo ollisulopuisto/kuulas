@@ -29,11 +29,18 @@ describe("following the playhead", () => {
     assert.equal(out.scroll, 0);
   });
 
-  test("scrolling by hand pauses following until the playhead is back in view", () => {
+  test("scrolling by hand pauses following; the playhead coming back into view does not resume it", () => {
     const away = followScroll({ ...base, paused: true, scroll: 20_000, playhead: 5000 });
     assert.deepEqual(away, { scroll: 20_000, paused: true });
     const back = followScroll({ ...base, paused: true, scroll: 0, playhead: 5000 });
-    assert.equal(back.paused, false);
+    assert.deepEqual(back, { scroll: 0, paused: true });
+  });
+
+  test("a paused view does not scroll for a seek outside it, playing or stopped", () => {
+    for (const playing of [true, false]) {
+      const out = followScroll({ ...base, playing, paused: true, moved: true, playhead: 50_000 });
+      assert.deepEqual(out, { scroll: 0, paused: true });
+    }
   });
 
   test("a jump while stopped brings the playhead into view (Home, End, Tab)", () => {

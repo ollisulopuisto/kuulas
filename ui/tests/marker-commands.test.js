@@ -24,6 +24,7 @@ function setup(initial) {
       },
       toast: (text, options) => calls.toasts.push([text, options]),
       seek: (frame) => calls.seeks.push(frame),
+      jump: (frame) => calls.seeks.push(frame),
     },
   });
   return { registry, calls, get: () => state };

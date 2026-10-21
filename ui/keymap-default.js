@@ -60,6 +60,19 @@ export const DEFAULT_KEYMAP = [
     context: "timeline",
     labelKey: "cmd.transport.play_selection",
   },
+  // Follow playhead (follow-model.js). No default keys: the Finnish layout leaves few free ones.
+  {
+    id: "view.follow",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.view.follow",
+  },
+  {
+    id: "view.show_playhead",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.view.show_playhead",
+  },
   {
     id: "view.clip_words",
     keys: { mac: null, other: null },

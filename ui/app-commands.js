@@ -64,7 +64,7 @@ const hint = (id) => ({ hintKey: `cmd.${id}.hint` });
 
 /**
  * `actions` is app.js's action table; `app` the few things the keymap needs from it:
- * undo, redo, chooseMedia, focusName, seek(frame), totalFrames(), patch(statePatch),
+ * undo, redo, chooseMedia, focusName, seek(frame), jump(frame), totalFrames(), patch(statePatch),
  * getState(), openPalette(), openKeys(), openHelp(), importKeys(), exportKeys(), resetKeys().
  */
 export function registerAppCommands(registry, { actions, app }) {
@@ -96,6 +96,8 @@ export function registerAppCommands(registry, { actions, app }) {
   // Hide or show the side panel so the timeline gets the width.
   def("view.toggle_sidebar", () => actions.toggleSidebar());
   def("view.clip_words", () => actions.toggleClipWords());
+  def("view.follow", () => actions.toggleFollow(), hasProject);
+  def("view.show_playhead", () => actions.showPlayhead(), hasProject);
   // Focus mode (WP28): what you see; Alt+Shift+F also solos. The two switches are preferences.
   def("view.focus", () => actions.toggleFocus({ solo: false }), hasProject);
   def("view.focus_solo", () => actions.toggleFocus({ solo: true }), hasProject);
@@ -304,14 +306,14 @@ export function registerAppCommands(registry, { actions, app }) {
   // Spot (Cmd+J) types a time into the clock; "+100" / "-30" are relative to the play cursor (WP76).
   def("spot", () => app.editTime(), hasProject);
   def("time.copy", () => app.copyTime(), hasProject);
-  def("nav.start", () => app.seek(0), hasProject);
-  def("nav.end", () => app.seek(app.totalFrames()), hasProject);
+  def("nav.start", () => app.jump(0), hasProject);
+  def("nav.end", () => app.jump(app.totalFrames()), hasProject);
   // The automatic "left off" marker (left-off.js): where the project was last saved or closed.
   def(
     "nav.to_resume",
     () => {
       const { leftOff } = app.getState();
-      if (leftOff) app.seek(leftOff.frame);
+      if (leftOff) app.jump(leftOff.frame);
     },
     (state) => hasProject(state) && Boolean(state.leftOff),
   );
@@ -343,12 +345,12 @@ export function registerAppCommands(registry, { actions, app }) {
   def("track.next", stepFocus(1), hasProject);
   def(
     "nav.to_in",
-    () => app.seek(app.getState().inPoint),
+    () => app.jump(app.getState().inPoint),
     (state) => hasProject(state) && (state.inPoint ?? null) !== null,
   );
   def(
     "nav.to_out",
-    () => app.seek(app.getState().outPoint),
+    () => app.jump(app.getState().outPoint),
     (state) => hasProject(state) && (state.outPoint ?? null) !== null,
   );
   def(

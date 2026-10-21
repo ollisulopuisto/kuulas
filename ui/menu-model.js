@@ -57,6 +57,7 @@ export const CHECKED = {
   "bus.role_music": (state) => focusedBusRole(state) === "music",
   "bus.role_none": (state) => focusedBusRole(state) === null,
   "view.clip_words": (state) => state?.showClipWords !== false,
+  "view.follow": (state) => state?.followPaused !== true,
   "view.focus": (state) => Boolean(state?.focusMode),
   "view.focus_shrink": (state) => state?.focusShrink !== false,
   "view.focus_hide_others": (state) => state?.focusHideOthers === true,
@@ -479,6 +480,8 @@ export const MENU = [
       submenu("menu.buses", [item("view.collapse_all_buses"), item("view.expand_all_buses")]),
       submenu("menu.mouse", [item("view.drag_mode"), item("view.wheel_mode")]),
       item("view.clip_words"),
+      item("view.follow"),
+      item("view.show_playhead"),
       // How lanes outside the current operation look (docs/design/SILENCE-VISUALS.md).
       submenu("menu.inactive", [
         item("view.inactive_both"),
