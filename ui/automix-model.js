@@ -109,7 +109,55 @@ export function advancedBody(fields) {
     temp_dir: fields.tempDir.trim() || undefined,
     output_dir: fields.outputDir.trim() || undefined,
     extra_args: parseWords(fields.extra),
+    ...(fields.remote ? { remote: remoteBody(fields.remote) } : {}),
   };
+}
+
+/** The "Run on another Mac" settings (`remote` in PUT /api/settings/automixer): empty fields
+ * are left out so the server's defaults apply. */
+export function remoteBody(fields) {
+  const body = { enabled: fields.enabled === true };
+  for (const [key, value] of [
+    ["host", fields.host],
+    ["cwd", fields.cwd],
+    ["work_dir", fields.workDir],
+  ]) {
+    const text = String(value ?? "").trim();
+    if (text) body[key] = text;
+  }
+  return body;
+}
+
+/** The one line the Mix dialog shows when the render runs elsewhere; empty when it does not. */
+export function remoteNote(remote, t) {
+  return remote?.enabled && remote.host
+    ? t("ui.automix.remote_runs_on", { host: remote.host })
+    : "";
+}
+
+/**
+ * The rows of a connection test (POST /api/settings/automixer/remote-test): one per check,
+ * `{ id, label, status: "ok" | "warn" | "failed", statusText, detail }`.
+ */
+export function remoteRows(result, t) {
+  if (!Array.isArray(result?.checks)) return [];
+  return result.checks.map((check) => {
+    const status = !check.ok ? "failed" : check.warn ? "warn" : "ok";
+    let detail = check.detail ?? "";
+    if (check.id === "disk" && status === "warn") {
+      detail = t("ui.automix.remote_low_disk", { free: detail });
+    }
+    if (check.id === "flags" && Array.isArray(check.missing) && check.missing.length > 0) {
+      detail = t("ui.automix.remote_missing", { flags: check.missing.join(", ") });
+    }
+    return {
+      id: check.id,
+      label: t(`ui.automix.remote_check.${check.id}`),
+      status,
+      statusText: t(`ui.automix.remote_${status}`),
+      detail,
+    };
+  });
 }
 
 /** The name the mix gets (automix.py: "<project> automixer YYYY-MM-DD HH-MM-SS.wav", local

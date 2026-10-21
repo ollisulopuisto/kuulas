@@ -137,6 +137,10 @@ export const automixerSettings = () => json("/api/settings/automixer");
 /** The installed audio plug-ins: { plugins: [{ name, format, path }] } (scanned once;
  * `refresh` scans again). */
 export const plugins = (refresh = false) => json(`/api/plugins${refresh ? "?refresh=1" : ""}`);
+/** "Test connection" for Run on another Mac: `remote` is the dialog's fields (saved or not);
+ * answers { ok, checks: [{ id, ok, warn, detail, missing? }] }. */
+export const testAutomixerRemote = (remote) =>
+  post("/api/settings/automixer/remote-test", { remote });
 export const saveAutomixerSettings = (settings) =>
   json("/api/settings/automixer", { method: "PUT", body: JSON.stringify(settings) });
 /** What the export dialog starts from: { mix, tracks (the last settings or null), folder,
