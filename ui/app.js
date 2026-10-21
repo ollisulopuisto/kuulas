@@ -1315,6 +1315,8 @@ const keyboard = setupKeyboard({
     cyclePreroll: () => cyclePreroll(),
     autoSilence: () => void autoSilence(),
     openSilenceOptions: () => openSilenceOptions(),
+    // Calculate Auto-Silence values from the selection: the panel, learning first.
+    learnSilence: () => openSilenceOptions({ clipIds: [...getState().selection] }),
     openMusicLevel: () => openMusicLevel(),
     openBlockLevel: () => openBlockLevel(),
     duckMusic: () => void duckMusic(),
@@ -2259,7 +2261,7 @@ function duckMusic() {
  * timeline shows and the engine plays what the options would close; Accept commits it as one
  * undo step, Close discards it.
  */
-function openSilenceOptions() {
+function openSilenceOptions(learnFrom = null) {
   silencePanel ??= createSilencePanel({
     root: $("panel-silence"),
     api,
@@ -2276,7 +2278,7 @@ function openSilenceOptions() {
     togglePlay: () => actions.togglePlay(),
     hideSidebar: () => actions.toggleSidebar(),
   });
-  silencePanel.open();
+  silencePanel.open(learnFrom);
 }
 
 /**

@@ -6,7 +6,7 @@
 # What it does, in order:
 #   1. exports HEAD with `git archive` into a work folder (an uncommitted change is not
 #      in the build; the script says so),
-#   2. builds the wheels of speechmix and nhsx from the podcast repo's origin/main
+#   2. builds the wheels of speechmix, nhsx and silencelearn from the podcast repo's origin/main
 #      (build_wheels.sh) and fetches static ffmpeg and ffprobe (fetch_ffmpeg.sh),
 #   3. stages a Briefcase project (stage_bundle.py), creates and builds Kuulas.app,
 #   4. runs `Kuulas.app --selftest` (headless: libraries, ffmpeg, UI files, a project,

@@ -104,6 +104,62 @@ export function overlayFrom(rows) {
   return new Map((rows ?? []).map((row) => [row.track_id, row.ranges]));
 }
 
+const oneDecimal = (value) => (Math.round(Number(value) * 10) / 10).toFixed(1);
+const decibels = (value) => String(Math.round(Number(value) * 10) / 10);
+
+/**
+ * Track > Auto > "Calculate Auto-Silence values from the selection": the server's answer
+ * (src/kuulas/silence_learn.py `suggestion`) as lines for the panel, in the user's language.
+ * Per track what was learned, or why not (`refused`: a code the server set, never silent),
+ * then what the panel now holds. The numbers are silencelearn's taste values; the text says
+ * what they were measured from.
+ */
+export function learnLines(result, t) {
+  const lines = [];
+  for (const row of result?.tracks ?? []) {
+    if (row.code === "learned") {
+      lines.push({
+        refused: false,
+        text: t("ui.silence.learn_learned", {
+          name: row.name,
+          muted: oneDecimal(row.muted_seconds),
+          threshold: oneDecimal(row.threshold),
+          margin: oneDecimal(row.margin_db),
+        }),
+      });
+      lines.push({
+        refused: false,
+        text:
+          row.kept_share === null || row.kept_share === undefined
+            ? t("ui.silence.learn_no_open", { name: row.name })
+            : t("ui.silence.learn_kept", { kept: Math.round(100 * row.kept_share) }),
+      });
+    } else {
+      lines.push({
+        refused: true,
+        text: t(`ui.silence.learn_${row.code}`, { name: row.name, ...(row.args ?? {}) }),
+      });
+    }
+  }
+  if (!result?.learned) {
+    lines.push({ refused: false, text: t("ui.silence.learn_none") });
+    return lines;
+  }
+  const margin = decibels(result.options.margin_db);
+  lines.push({
+    refused: false,
+    text: result.clamped
+      ? t("ui.silence.learn_clamped", { learned: decibels(result.learned_margin_db), margin })
+      : t("ui.silence.learn_applied", { margin }),
+  });
+  return lines;
+}
+
+/** The options the panel opens with: the learned ones when anything was learned. */
+export function learnedOptions(result, current) {
+  return result?.learned ? { ...current, ...result.options } : current;
+}
+
 /** The measuring job as the progress bar reads it; a job that is gone counts as failed. */
 export function jobProgress(job) {
   return {

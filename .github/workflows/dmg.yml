@@ -24,7 +24,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           path: kuulas
-      # speechmix and nhsx come from the podcast repo (public): its wheels are built from a
+      # speechmix, nhsx and silencelearn come from the podcast repo (public): its wheels are built from a
       # clean checkout of main (build_wheels.sh reads PODCAST_SRC, never edits it).
       - uses: actions/checkout@v4
         with:

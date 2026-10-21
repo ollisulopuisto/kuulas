@@ -105,3 +105,22 @@ def test_stage_lays_out_a_self_contained_project(tmp_path):
     parsed = tomllib.loads((out / "pyproject.toml").read_text())
     version = tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["version"]
     assert parsed["tool"]["briefcase"]["version"] == version
+
+
+def test_every_podcast_path_dependency_is_shipped_as_a_wheel():
+    """A podcast package added to pyproject (a ``../podcast`` path source) must also be
+    built by build_wheels.sh, swapped for its wheel by stage_bundle and imported by the
+    in-app selftest, or the .dmg starts without it (silencelearn, 2026-10-21)."""
+    from kuulas import selftest  # noqa: PLC0415
+
+    project = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))
+    sources = project["tool"]["uv"]["sources"]
+    podcast = sorted(name for name, spec in sources.items()
+                     if str(spec.get("path", "")).startswith("../podcast/"))
+    assert "silencelearn" in podcast
+    built = (REPO / "scripts" / "build_wheels.sh").read_text(encoding="utf-8")
+    loop = next(line for line in built.splitlines() if line.startswith("for pkg in "))
+    for name in podcast:
+        assert name in stage_bundle.LOCAL, name
+        assert f" {name}" in loop, name
+        assert name in selftest.LIBRARIES, name

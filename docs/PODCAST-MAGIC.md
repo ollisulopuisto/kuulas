@@ -241,3 +241,30 @@ Owner said yes to asking the podcast side for all of these; Kuulas-side switches
 - **Keep my level (Δ)** for non-speech tracks: shift music/effects by the same Δ the speech gets (processed minus raw speech), so the owner's by-ear relative levels survive ("Music bed level" section).
 - **Carve (spectral) and ducking in the folder (stems) route**, which today only the in-memory `cli_mix` route does.
 - Parked (not asked): vectorising speechmix `duck_masks` / `close_gaps` (decide step ~80-100 ms; small gain, risk to bit-exact output).
+
+## silencelearn in Kuulas (2026-10-21), for the podcast session
+
+Kuulas now depends on `packages/silencelearn` (`calibrate_clips`, PR 75) for "Calculate
+Auto-Silence values from the selection" (docs/design/SILENCE-LEARN.md). Built against podcast
+main `c233fb1` (pyproject: `silencelearn = { path = "../podcast/packages/silencelearn",
+editable = true }`).
+
+**Nothing is needed from the podcast side to ship it.** `scripts/build_wheels.sh` is in the
+Kuulas repo and now builds `speechmix nhsx silencelearn` from the podcast main (or
+`PODCAST_SRC`); the package builds a wheel as it is (stdlib only). Checked 2026-10-21 on a
+clean clone of main `c233fb1`: `uv build --wheel packages/silencelearn` gives
+`silencelearn-2026.10.12.1-py3-none-any.whl` holding `silencelearn.py`, and it imports in a
+fresh environment. The full .dmg build (CI) has not run with it yet.
+
+Wishes, none blocking (Kuulas works around each today):
+- **A machine-readable reason** next to the Finnish `Calibration.reason` (for example
+  `code: "too_little" | "no_muted" | "no_audio" | "speech_guard"`). Kuulas derives it from the
+  numbers (`silence_learn._code`), which breaks quietly if the rules change.
+- **The refused threshold on a speech-guard refusal** (`threshold` is None then), so the
+  caller can show "muted level X vs speech Y".
+- **Leak / dominance from clips.** `calibrate_clips` takes one track's clips and learns no
+  `dominance`. A multi-track variant without words (clips placed on a shared clock, levels
+  only: muted clip on B while A is open = leak, both open = simultaneous speech) would let
+  Kuulas fill Closeness (`dominance_db`) too.
+- **Version.** The package's `pyproject` still says `2026.10.12.1` after PRs 65 and 75; a bump
+  would let Kuulas' logs and the .dmg's selftest say which rule a build carries.

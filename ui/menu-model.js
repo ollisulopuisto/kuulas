@@ -375,6 +375,7 @@ export const MENU = [
         item("app.automix"),
         item("app.auto_silence"),
         item("app.auto_silence_options"),
+        item("app.silence_learn"),
         item("app.music_level"),
         item("app.block_level"),
         item("app.duck_music"),

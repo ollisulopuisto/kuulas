@@ -20,7 +20,7 @@ from pathlib import Path
 
 #: Imported to prove the compiled libraries and their bundled dylibs load.
 LIBRARIES = ("numpy", "scipy", "numba", "pedalboard", "soundfile", "soxr", "lxml",
-             "sounddevice", "speechmix", "nhsx", "fastapi", "uvicorn")
+             "sounddevice", "speechmix", "nhsx", "silencelearn", "fastapi", "uvicorn")
 
 TIMEOUT = 20
 

@@ -11,6 +11,11 @@
 // (debounced, older answers dropped). The server decides them in milliseconds and the engine
 // plays them as a listening overlay; the timeline draws them as the preview. Nothing is
 // committed until Accept (one undo step). Close, Cancel or Esc discards it.
+//
+// Opened by "Calculate Auto-Silence values from the selection" (`open({ clipIds })`), it first
+// runs the learning job (the shared silencelearn package on the selected clips: muted = closed,
+// unmuted = open; docs/design/SILENCE-LEARN.md), fills in what was learned and says what and
+// why, refusals included, then previews as usual. Still nothing is committed until Accept.
 
 import {
   methodAvailable,
@@ -26,6 +31,8 @@ import {
   createSeq,
   DEBOUNCE_MS,
   jobProgress,
+  learnedOptions,
+  learnLines,
   overlayFrom,
   panelControls,
   summaryLines,
@@ -52,7 +59,7 @@ const actionButton = (labelKey, icon, t, primary = false) => {
 
 /**
  * `root`: the sidebar section to fill. `api`: { silenceMeasure, silenceRanges, silenceAccept,
- * silenceClose, getJobs, cancelJob }. `setPreview(map | null)` hands the ranges to the
+ * silenceClose, silenceLearn, getJobs, cancelJob }. `setPreview(map | null)` hands the ranges to the
  * timeline. `isPlaying()` / `togglePlay()` are the transport's (Listen is Play from the
  * playhead, with the overlay on). `onAccepted(response, options)` applies the state the server
  * answered. Returns { open, close, isOpen, projectChanged, playingChanged }.
@@ -230,6 +237,10 @@ export function createSilencePanel({
   const summary = el("div", "silence-summary");
   summary.setAttribute("role", "status");
   summary.setAttribute("aria-live", "polite");
+  // What "Calculate Auto-Silence values from the selection" learned, or why it did not.
+  const learnBox = el("section", "silence-learned form-section");
+  learnBox.setAttribute("role", "status");
+  learnBox.hidden = true;
   const error = el("p", "form-msg silence-error");
   error.setAttribute("role", "alert");
   error.hidden = true;
@@ -241,7 +252,7 @@ export function createSilencePanel({
     ...SILENCE_LEGEND.map((line) => el("p", "form-help", t(line.key))),
   );
 
-  root.replaceChildren(head, bar, measuring, form, summary, error, legend);
+  root.replaceChildren(head, bar, measuring, learnBox, form, summary, error, legend);
 
   // -- state --------------------------------------------------------------------------------
   let open = false;
@@ -304,6 +315,16 @@ export function createSilencePanel({
   function showError(message) {
     error.textContent = message;
     error.hidden = !message;
+  }
+
+  /** The learning's answer (or `message` when it failed) above the form; null hides it. */
+  function showLearned(result, message = "") {
+    const lines = message ? [{ refused: true, text: message }] : learnLines(result, t);
+    learnBox.replaceChildren(
+      el("h3", "form-heading", t("ui.silence.learn_title")),
+      ...lines.map((line) => el("p", line.refused ? "form-msg" : "form-help", line.text)),
+    );
+    learnBox.hidden = !result && !message;
   }
 
   function showRows(rows) {
@@ -370,7 +391,7 @@ export function createSilencePanel({
       if (!open) return;
       if (!answer.ready) {
         jobId = answer.jobs[0];
-        const finished = await waitFor(jobId);
+        const finished = await waitFor(jobId, "ui.silence.preview_failed");
         jobId = null;
         if (!open || !finished) return;
       }
@@ -389,24 +410,52 @@ export function createSilencePanel({
     }
   }
 
-  /** Poll the measuring job; true when it completed. Failure shows its text. */
-  async function waitFor(id) {
+  /**
+   * Learn from the selected clips (a job), fill in what was learned, then measure and preview
+   * as usual. A refusal (the server's 400, or a track the package refused) is shown in the
+   * learn box and stays while the sliders move.
+   */
+  async function learn(clipIds) {
+    phase = "measuring";
+    progressLabel.textContent = t("ui.silence.learning");
+    progress.value = 0;
+    progressText.textContent = "";
+    sync();
+    try {
+      const answer = await api.silenceLearn(clipIds, validate().options);
+      if (!open) return;
+      jobId = answer.jobs[0];
+      const job = await waitFor(jobId, "ui.silence.learn_failed");
+      jobId = null;
+      if (!open || !job) return;
+      fill(normaliseSilence(learnedOptions(job.result, validate().options)));
+      showLearned(job.result);
+    } catch (e) {
+      if (!open) return;
+      showLearned(null, e.message);
+    }
+    progressLabel.textContent = t("ui.silence.measuring");
+    await measure();
+  }
+
+  /** Poll a job; the job when it completed, else null. Failure shows its text. */
+  async function waitFor(id, failedKey) {
     while (open && jobId === id) {
       const job = (await api.getJobs()).jobs.find((item) => item.id === id);
       const state = jobProgress(job);
       progress.value = state.fraction;
       progressText.textContent = state.message;
-      if (state.done) return true;
-      if (state.cancelled) return false;
+      if (state.done) return job;
+      if (state.cancelled) return null;
       if (state.failed) {
         phase = "error";
-        showError(job?.error?.text || t("ui.silence.preview_failed"));
+        showError(job?.error?.text || t(failedKey));
         sync();
-        return false;
+        return null;
       }
       await new Promise((resolve) => setTimeout(resolve, POLL_MS));
     }
-    return false;
+    return null;
   }
 
   cancelMeasure.addEventListener("click", () => {
@@ -484,9 +533,11 @@ export function createSilencePanel({
   return {
     element: root,
     isOpen: () => open,
-    open() {
+    /** `learnFrom`: { clipIds } to learn the values from those clips first. */
+    open(learnFrom = null) {
       if (open) {
-        sliders.margin_db.focus();
+        if (learnFrom && phase !== "measuring") void learn(learnFrom.clipIds);
+        else sliders.margin_db.focus();
         return;
       }
       returnFocus = document.activeElement;
@@ -494,10 +545,11 @@ export function createSilencePanel({
       fill(normaliseSilence(getOptions()));
       showError("");
       summary.replaceChildren();
+      showLearned(null);
       more.open = false;
       root.hidden = false;
       root.closest(".sidebar")?.toggleAttribute("data-silence-open", true);
-      void measure();
+      void (learnFrom ? learn(learnFrom.clipIds) : measure());
       // Measuring disables the controls: Cancel has the focus until they are ready.
       (sliders.margin_db.disabled ? cancelMeasure : sliders.margin_db).focus();
     },

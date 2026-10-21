@@ -7,6 +7,8 @@ import {
   createSeq,
   DEBOUNCE_MS,
   jobProgress,
+  learnedOptions,
+  learnLines,
   overlayFrom,
   panelControls,
   summaryLines,
@@ -193,5 +195,92 @@ describe("Auto-Silence panel: what can be pressed", () => {
     assert.equal(got.controls, true);
     assert.equal(got.accept, false);
     assert.equal(got.progress, false);
+  });
+});
+
+describe("learned from the selection", () => {
+  const row = (extra) => ({
+    track_id: "a",
+    name: "Anna",
+    code: "learned",
+    args: {},
+    threshold: -58.86,
+    floor: -64.1,
+    margin_db: 5.24,
+    muted_seconds: 12.04,
+    kept_share: 0.734,
+    unmuted_frames: 40,
+    ...extra,
+  });
+  const answer = (extra) => ({
+    learned: true,
+    clamped: false,
+    learned_margin_db: 5.24,
+    options: { margin_db: 5.2 },
+    tracks: [row()],
+    ...extra,
+  });
+
+  test("a learned track says how much was muted, the level and the share kept", () => {
+    const lines = learnLines(answer(), t);
+    assert.deepEqual(
+      lines.map((line) => line.text),
+      [
+        t("ui.silence.learn_learned", {
+          name: "Anna",
+          muted: "12.0",
+          threshold: "-58.9",
+          margin: "5.2",
+        }),
+        t("ui.silence.learn_kept", { kept: 73 }),
+        t("ui.silence.learn_applied", { margin: "5.2" }),
+      ],
+    );
+    assert.ok(lines.every((line) => !line.refused));
+  });
+
+  test("no kept clip selected: the speech check did not run, and it is said", () => {
+    const lines = learnLines(answer({ tracks: [row({ kept_share: null, unmuted_frames: 0 })] }), t);
+    assert.equal(lines[1].text, t("ui.silence.learn_no_open", { name: "Anna" }));
+  });
+
+  test("every refusal is explained with its numbers, never silent", () => {
+    const none = { threshold: null, margin_db: null };
+    const refused = [
+      row({ code: "too_little", args: { seconds: 2, min: 3 }, ...none }),
+      row({ code: "speech_guard", args: { speech: -21.5 }, ...none }),
+      row({ code: "no_muted", ...none }),
+      row({ code: "no_audio", ...none }),
+      row({ code: "not_measured", margin_db: null }),
+    ];
+    const lines = learnLines({ learned: false, options: {}, tracks: refused }, t);
+    assert.deepEqual(
+      lines.map((line) => line.text),
+      [
+        t("ui.silence.learn_too_little", { name: "Anna", seconds: 2, min: 3 }),
+        t("ui.silence.learn_speech_guard", { name: "Anna", speech: -21.5 }),
+        t("ui.silence.learn_no_muted", { name: "Anna" }),
+        t("ui.silence.learn_no_audio", { name: "Anna" }),
+        t("ui.silence.learn_not_measured", { name: "Anna" }),
+        t("ui.silence.learn_none"),
+      ],
+    );
+    assert.ok(lines.slice(0, 5).every((line) => line.refused));
+  });
+
+  test("a clamped value says what was learned and what was set", () => {
+    const lines = learnLines(
+      answer({ clamped: true, learned_margin_db: 1.21, options: { margin_db: 3 } }),
+      t,
+    );
+    assert.equal(lines.at(-1).text, t("ui.silence.learn_clamped", { learned: "1.2", margin: "3" }));
+  });
+
+  test("the panel takes the learned options only when something was learned", () => {
+    const current = { margin_db: 12, dominance_db: 9 };
+    const learned = { learned: true, options: { margin_db: 5.2, dominance_db: 9 } };
+    assert.deepEqual(learnedOptions(learned, current), { margin_db: 5.2, dominance_db: 9 });
+    assert.equal(learnedOptions({ learned: false, options: { margin_db: 3 } }, current), current);
+    assert.equal(learnedOptions(null, current), current);
   });
 });

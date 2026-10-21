@@ -1564,6 +1564,13 @@ export const DEFAULT_KEYMAP = [
     context: "global",
     labelKey: "cmd.app.auto_silence_options",
   },
+  // No default key: the Finnish layout leaves none free without AltGr or Shift+digit.
+  {
+    id: "app.silence_learn",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.app.silence_learn",
+  },
   // Set music level… (Auto-mix in Kuulas, phase 1): no default key, the Finnish layout leaves
   // no free one that is not AltGr or Shift+digit; Track > Auto and the palette.
   {

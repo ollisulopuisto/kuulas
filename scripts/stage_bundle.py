@@ -34,7 +34,7 @@ EXTENSION = "kuulas"
 MIN_MACOS = "12.0"
 
 #: Dependencies of the root project that the bundle gets as local wheels instead.
-LOCAL = ("speechmix", "nhsx")
+LOCAL = ("speechmix", "nhsx", "silencelearn")
 
 #: Inside ``ui/``: development files that do not belong in the app.
 UI_SKIP = ("tests", "biome.json", "node_modules", "package.json", "package-lock.json")
@@ -66,8 +66,8 @@ def requirement_name(spec: str) -> str:
 
 
 def bundle_requires(project_deps: list[str], wheels: list[Path]) -> list[str]:
-    """The root project's dependencies, with ``speechmix`` and ``nhsx`` replaced by the
-    paths of their wheels (by path, not by name: a name could be answered by an
+    """The root project's dependencies, with the podcast packages (``LOCAL``) replaced
+    by the paths of their wheels (by path, not by name: a name could be answered by an
     unrelated PyPI package), plus pywebview and the wheel-less ``proxy_tools``."""
     out = [d for d in project_deps if requirement_name(d) not in LOCAL]
     out.append("pywebview>=5")

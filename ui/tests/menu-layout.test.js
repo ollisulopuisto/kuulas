@@ -210,6 +210,7 @@ describe("Track, Playback, View", () => {
       "app.automix",
       "app.auto_silence",
       "app.auto_silence_options",
+      "app.silence_learn",
       "app.music_level",
       "app.block_level",
       "app.duck_music",
