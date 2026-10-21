@@ -40,8 +40,10 @@ const el = (tag, className, text) => {
   return node;
 };
 
-const blockButton = (labelKey, icon, t, primary = false) => {
-  const button = el("button", primary ? "button block primary" : "button block", t(labelKey));
+// The panel's actions are normal-height buttons, not the 76 px blocks of the other panels: four
+// squares wrapped to two rows in the narrow sidebar (owner, 2026-10-21).
+const actionButton = (labelKey, icon, t, primary = false) => {
+  const button = el("button", primary ? "button primary" : "button", t(labelKey));
   button.type = "button";
   button.dataset.icon = icon;
   return button;
@@ -65,6 +67,7 @@ export function createSilencePanel({
   setPreview,
   isPlaying,
   togglePlay,
+  hideSidebar,
 }) {
   root.classList.add("panel", "silence-panel");
   root.setAttribute("role", "region");
@@ -75,13 +78,19 @@ export function createSilencePanel({
   const head = el("div", "silence-head");
   const title = el("h2", "", t("ui.silence.title"));
   title.id = "silence-panel-title";
-  head.append(title);
+  // Hides the whole side panel too (the timeline gets the width); the preview is discarded.
+  const hidePanel = el("button", "button ghost icon silence-close");
+  hidePanel.type = "button";
+  hidePanel.dataset.icon = "close";
+  hidePanel.setAttribute("aria-label", t("ui.sidebar.close"));
+  hidePanel.title = t("ui.sidebar.close");
+  head.append(title, hidePanel);
 
-  const listen = blockButton("ui.silence.listen", "play", t);
+  const listen = actionButton("ui.silence.listen", "play", t);
   listen.title = t("ui.silence.listen_hint");
-  const reset = blockButton("ui.silence.reset", "undo", t);
-  const close = blockButton("ui.silence.close", "close", t);
-  const accept = blockButton("ui.silence.accept", "check", t, true);
+  const reset = actionButton("ui.silence.reset", "undo", t);
+  const close = actionButton("ui.silence.close", "close", t);
+  const accept = actionButton("ui.silence.accept", "check", t, true);
   accept.title = t("ui.silence.accept_hint");
   const bar = el("div", "actionbar");
   bar.setAttribute("role", "group");
@@ -136,8 +145,12 @@ export function createSilencePanel({
     input.spellcheck = false;
     return input;
   };
-  /** A slider and its number field, kept equal: the slider to drag, the field to type. */
-  const sliderWithNumber = (name, step) => {
+  /**
+   * A slider and its number field, kept equal: the slider to drag, the field to type. Label and
+   * a small number on one line, the slider on its own line at the panel's full width, then the
+   * help (owner, 2026-10-21: "input field smaller, slider bigger, maybe on different lines").
+   */
+  const sliderRow = (name, labelKey, step, hintKey) => {
     const [low, high] = SILENCE_RANGES[name];
     const slider = el("input");
     slider.type = "range";
@@ -146,8 +159,21 @@ export function createSilencePanel({
     slider.step = String(step);
     slider.setAttribute("aria-label", t(`ui.silence.${name}_slider`));
     const field = number();
-    const line = el("div", "form-inline silence-slider");
-    line.append(slider, field);
+    field.id = `silence-panel-${name}`;
+    field.name = name;
+    const wrap = el("div", "form-row silence-slider-row");
+    const label = el("label", "form-label", t(labelKey));
+    label.htmlFor = field.id;
+    const message = el("p", "form-msg");
+    message.id = `silence-panel-${name}-msg`;
+    message.hidden = true;
+    field.setAttribute("aria-describedby", message.id);
+    const cell = el("div", "form-field");
+    cell.append(field, message);
+    const help = el("p", "form-help", t(hintKey));
+    wrap.append(label, cell, slider, help);
+    inputs[name] = field;
+    messages[name] = message;
     sliders[name] = slider;
     // The form's own input listener asks again (both events bubble to it).
     slider.addEventListener("input", () => {
@@ -157,7 +183,7 @@ export function createSilencePanel({
       const { options, errors } = validateSilence({ ...values(), [name]: field.value });
       if (!errors[name]) slider.value = String(options[name]);
     });
-    return line;
+    return wrap;
   };
 
   const method = el("select");
@@ -175,18 +201,8 @@ export function createSilencePanel({
   };
   const detect = section(
     "ui.silence.section_detect",
-    row(
-      "margin_db",
-      "ui.silence.margin",
-      sliderWithNumber("margin_db", 0.5),
-      "ui.silence.margin_hint",
-    ),
-    row(
-      "dominance_db",
-      "ui.silence.dominance",
-      sliderWithNumber("dominance_db", 0.5),
-      "ui.silence.dominance_panel_hint",
-    ),
+    sliderRow("margin_db", "ui.silence.margin", 0.5, "ui.silence.margin_hint"),
+    sliderRow("dominance_db", "ui.silence.dominance", 0.5, "ui.silence.dominance_panel_hint"),
   );
   if (SHOW_METHOD_SELECTOR) {
     const methodRow = row("method", "ui.silence.method", method);
@@ -398,6 +414,10 @@ export function createSilencePanel({
     changed();
   });
   close.addEventListener("click", () => hide());
+  hidePanel.addEventListener("click", () => {
+    hide();
+    hideSidebar?.();
+  });
   accept.addEventListener("click", () => void commit());
 
   async function commit() {

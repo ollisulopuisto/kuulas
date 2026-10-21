@@ -60,7 +60,11 @@ Every button is `.button` plus at most one kind, and optionally `.icon`, `.small
   `.block.primary` and last; Cancel / Close is a secondary block with the `close` icon.
   Actions that keep the dialog open (Reset, Preview, Copy, Choose folder) carry
   `.footer-start` and sit at the left edge (`FORMS.md`, "Footers").
-- **Side panels**: one action bar (`.actionbar`) at the top of block buttons.
+- **Side panels**: one action bar (`.actionbar`) at the top of block buttons. Exception: the
+  Auto-Silence panel's bar (Listen, Defaults, Close, Accept) is normal-height `.button`s that
+  wrap only when the panel is really narrow (owner, 2026-10-21: four squares took two rows);
+  the primary stays last. Its header and the sidebar's tab strip carry a `.button.ghost.icon`
+  × (`.silence-close`, `.side-close`) that hides the whole side panel (View > Show side panel).
 - **Toasts and floating panels** (notice, import panel, placeholder editor): secondary
   buttons at `--control-h`, a primary only for a real decision (Save); the close is a
   `.button.ghost.icon` ×.
