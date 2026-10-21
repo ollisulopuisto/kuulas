@@ -27,3 +27,24 @@ describe("speaker balance choice", () => {
     );
   });
 });
+
+import { requestOptions, savedOptions } from "../automix-options-model.js";
+
+describe("the cap belongs to the run, not to the saved settings", () => {
+  const specs = [
+    { key: "balance_speakers_max_db", kind: "number", default: 6, min: 0, max: 6 },
+    { key: "speech_multiband", kind: "bool", default: false },
+  ];
+  const form = { balance_speakers_max_db: "2.5", speech_multiband: true };
+
+  test("it is never saved", () => {
+    assert.deepEqual(savedOptions(specs, form, {}), { speech_multiband: true });
+  });
+
+  test("it is always sent with the run, with the saved options", () => {
+    assert.deepEqual(requestOptions(specs, form, {}), {
+      balance_speakers_max_db: 2.5,
+      speech_multiband: true,
+    });
+  });
+});

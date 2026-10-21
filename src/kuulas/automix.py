@@ -47,6 +47,7 @@ from . import (
     block_level,
     export,
     export_names,
+    hand_adjusted,
     music_duck,
     music_level,
     plugins,
@@ -174,6 +175,8 @@ def save_settings(settings: dict) -> dict:
     if settings.get("options") is not None:
         # Plug-in names are looked up on this Mac, which is not the one that renders.
         clean["options"] = normalize_options(settings["options"], resolve=not remote_on)
+        # The speaker balance cap belongs to the project and the run, not the settings.
+        clean["options"].pop("balance_speakers_max_db", None)
     path = settings_path()
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -558,6 +561,16 @@ def done_lines(p, options: dict[str, Any]) -> list[str]:
             when = f" (set at {info['set_at']})" if info["set_at"] else ""
             lines.append(f"Done in Kuulas: {_done_text(name, sent)}{when}")
     return lines
+
+
+def with_project_balance(options: dict[str, Any], tracks: list) -> dict[str, Any]:
+    """``options`` with the project's own speaker balance cap when none was chosen for
+    the run (6 dB untouched, 2.5 dB when levels were adjusted by hand)."""
+    cap = float(hand_adjusted.balance_cap(tracks))
+    if "balance_speakers_max_db" in options or cap == OPTIONS[
+            "balance_speakers_max_db"]["default"]:
+        return options  # the automixer's own value is never sent (nor probed for)
+    return {**options, "balance_speakers_max_db": cap}
 
 
 def balance_cap_line(cap: float) -> str:
@@ -1003,7 +1016,8 @@ def run(session, params: dict, settings: dict, report: Report,
         final = _unique(folder, export._safe(f"{title} automixer {stamp}.wav"))
         partial = final.with_name(f"{final.stem}.partial{final.suffix}")
         probe = automix_remote.runner(remote, run_process) if remote else run_process
-        requested_options = settings.get("options") or {}
+        requested_options = with_project_balance(
+            settings.get("options") or {}, session.state.to_dict()["tracks"])
         kept, warnings = gate_options(
             requested_options, settings["command"], settings["cwd"],
             run_process=probe, scope=remote["host"] if remote else "")

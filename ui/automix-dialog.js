@@ -749,10 +749,11 @@ export function createAutomixDialog({
         if (specs.length !== optionSpecs.length) buildOptions(specs);
         doneData = answer.done_in_kuulas ?? {};
         const savedOptions = resolved.options ?? stored.options ?? {};
-        const withBalanceDefault = { ...savedOptions };
-        if (!("balance_speakers_max_db" in withBalanceDefault)) {
-          withBalanceDefault.balance_speakers_max_db = answer.balance_cap ?? 6;
-        }
+        // The cap is the project's, whatever an older settings file says.
+        const withBalanceDefault = {
+          ...savedOptions,
+          balance_speakers_max_db: answer.balance_cap ?? 6,
+        };
         const filled = prefillOptions(specs, doneData, withBalanceDefault);
         offered = filled.offered;
         setOptionValues(filled.options);

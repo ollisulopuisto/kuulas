@@ -187,13 +187,16 @@ const doneKeys = (status) => Object.keys(status).filter((k) => status[k].state =
 export function savedOptions(specs, form, status) {
   const { options } = validateOptions(specs, form);
   for (const key of doneKeys(status)) delete options[key];
+  // The speaker balance cap belongs to the project and the run, not to the saved settings.
+  delete options.balance_speakers_max_db;
   return options;
 }
 
 /** The options to send with this run when some are Kuulas's (they replace the saved ones);
  * undefined when none is, so the saved options apply as before. */
 export function requestOptions(specs, form, status) {
-  if (doneKeys(status).length === 0) return undefined;
+  const hasBalance = specs.some((spec) => spec.key === "balance_speakers_max_db");
+  if (doneKeys(status).length === 0 && !hasBalance) return undefined;
   return validateOptions(specs, form).options;
 }
 

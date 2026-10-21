@@ -1,3 +1,7 @@
+## [v26.10.20.20] - 2026-10-21
+
+- **How much may the automixer adjust the levels:** a new choice in the automix dialog, Speech group: Automatic (up to 6 dB, the default when you have not touched the levels), Fine-tune (up to 2.5 dB, the default when you have adjusted speech track gains or clip gains by hand) and Keep my levels (0 dB). It is sent as `--balance-speakers-max-db` only when it differs from the automixer's own value and only if the installed automixer supports the flag (the dialog says so otherwise). The choice belongs to the project and the run, it is never saved as a global default; log.txt says which value was used and why. Built by Codex; the automixer side is podcast PR #66.
+
 ## [v26.10.20.19] - 2026-10-21
 
 - **Duck under speech (music).** Each music track has a "Duck under speech" choice (Inspector; on by default for music, never shown for speech tracks). Track > Auto > "Duck music under speech" measures when anyone speaks and writes the ducking as ordinary, editable volume automation on every music track that has it on (one undo step; drag the points afterwards). The automixer export carries that automation in the music stems and the automix dialog shows "Done in Kuulas" on the Music ducking option, so the export tells the automixer not to duck a second time (`--no-music-duck`); with no ducking written, the automixer keeps its own. Built by Codex; not tried in a window or on real speech. The design and the path to clip-level ducking later are in docs/design/DUCKING.md.

@@ -88,3 +88,22 @@ def test_log_line_includes_cap_and_reason():
         "Speaker balance maximum: 2.5 dB (You adjusted levels by hand)")
     assert automix.balance_cap_line(0.0) == (
         "Speaker balance maximum: 0 dB (Keep my levels)")
+
+
+def test_the_cap_is_per_project_and_never_stored_in_the_settings(tmp_path, monkeypatch):
+    """A cap chosen for one project must not become the default of the next one."""
+    monkeypatch.setenv("KUULAS_AUTOMIXER_FILE", str(tmp_path / "automixer.json"))
+    stored = automix.save_settings({"options": {"balance_speakers_max_db": 2.5,
+                                                "speech_multiband": True}})
+    assert "balance_speakers_max_db" not in stored.get("options", {})
+    assert stored["options"]["speech_multiband"] is True
+
+
+def test_a_run_without_an_explicit_cap_takes_the_projects_own():
+    adjusted = [{"kind": "speech", "gain_db": -6.0, "clips": []}]
+    untouched = [{"kind": "speech", "gain_db": 0.0, "clips": []}]
+    assert automix.with_project_balance({}, adjusted) == {"balance_speakers_max_db": 2.5}
+    assert automix.with_project_balance({}, untouched) == {}  # the tool default
+    # an explicit choice (the dialog's) is never replaced
+    assert automix.with_project_balance(
+        {"balance_speakers_max_db": 0.0}, adjusted) == {"balance_speakers_max_db": 0.0}
