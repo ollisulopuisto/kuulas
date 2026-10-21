@@ -118,6 +118,11 @@ class Clip:
     # Pieces split from it inherit it (a split is ``replace``). Not written when
     # False, like ``group``.
     free: bool = False
+    # The mic stays open under this clip (owner, 2026-10-21): Auto-Silence's gate is a
+    # track property, and this clip opts out of it. Whatever the gate closes under the
+    # clip is opened again by every commit (``ops.normalize_ungated``), also after a trim
+    # or a move, so a clip is never half silenced. Not written when False, like ``free``.
+    ungated: bool = False
     # The track this clip was dragged away from (``ops.move_clip``), so "Put back
     # on its original track" can undo it; None when it never left. Pieces split
     # from it inherit it. Not written when None.
@@ -134,6 +139,8 @@ class Clip:
             del d["group"]
         if not self.free:
             del d["free"]
+        if not self.ungated:
+            del d["ungated"]
         if self.home is None:
             del d["home"]
         return d

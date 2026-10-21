@@ -110,22 +110,55 @@ def test_ripple_through_a_wholly_gated_stretch_removes_it():
     assert ops.ripple_delete(p, 900, 2100).track("t").gate == ()
 
 
-def test_open_gate_under_clips_opens_only_the_clips_span():
-    """The owner: a gate is a track property, but it must be possible to unset it for any
-    single clip or a number of clips (the stretch under them), nothing more."""
+# -- Clip.ungated: "the mic stays open under this clip" (owner, 21.10.2026) -------------
+# A gate is a track property, but the owner must be able to unset it for any clip or
+# several, and the result must follow the clip: a clip that is half silenced and half not
+# after a trim is confusing.
+
+def test_a_clip_is_gated_by_default_and_the_flag_is_not_written_when_false():
+    p = base()
+    clip = p.track("t").clips[0]
+    assert clip.ungated is False
+    assert "ungated" not in clip.to_dict()
+
+
+def test_the_flag_round_trips():
+    p = ops.set_clips_ungated(base(), ["c"], True)
+    q = Project.from_json(p.to_json())
+    assert q.track("t").clips[0].ungated is True
+    assert q == p
+
+
+def test_setting_the_flag_opens_the_gate_under_the_clip():
     p = ops.set_gate(base(), "t", [(0, 70 * RATE)])  # the clip covers 0 .. 60 s
-    q = ops.open_gate_under_clips(p, ["c"])
+    q = ops.set_clips_ungated(p, ["c", "nope"], True)
     assert q.track("t").gate == ((60 * RATE, 70 * RATE),)
 
 
-def test_open_gate_under_clips_takes_several_clips_and_ignores_unknown_ids():
-    p = ops.set_gate(base(), "t", [(0, 60 * RATE)])
-    q = ops.open_gate_under_clips(p, ["c", "nope"])
-    assert q.track("t").gate == ()
-    assert ops.open_gate_under_clips(p, []) == p
+def test_clearing_the_flag_leaves_the_gate_as_it_is():
+    p = ops.set_clips_ungated(ops.set_gate(base(), "t", [(0, 70 * RATE)]), ["c"], True)
+    q = ops.set_clips_ungated(p, ["c"], False)
+    assert q.track("t").clips[0].ungated is False
+    assert q.track("t").gate == p.track("t").gate
 
 
-def test_open_gate_under_clips_is_in_the_edit_vocabulary():
-    p = ops.set_gate(base(), "t", [(0, 60 * RATE)])
-    q = ops.apply(p, "open_gate_under_clips", {"clip_ids": ["c"]})
-    assert q.track("t").gate == ()
+def test_normalize_is_the_identity_when_no_clip_is_flagged():
+    p = ops.set_gate(base(), "t", [(10, 20)])
+    assert ops.normalize_ungated(p) is p
+
+
+def test_normalize_opens_what_a_gate_closes_under_a_flagged_clip():
+    p = ops.set_clips_ungated(base(), ["c"], True)
+    closed = ops.set_gate(p, "t", [(5 * RATE, 9 * RATE), (70 * RATE, 80 * RATE)])
+    assert ops.normalize_ungated(closed).track("t").gate == ((70 * RATE, 80 * RATE),)
+
+
+def test_trimming_a_flagged_clip_outward_is_followed_by_the_open_gate():
+    """The screenshot case: un-silence a clip, then drag its left border outward: the new
+    part must not fall under the still-closed gate (the commit path normalises)."""
+    p = ops.set_gate(base(), "t", [(0, 30 * RATE)])
+    p = ops.trim_clip(p, "c", start=10 * RATE)  # the clip now starts at 10 s
+    p = ops.set_clips_ungated(p, ["c"], True)
+    assert p.track("t").gate == ((0, 10 * RATE),)
+    p = ops.trim_clip(p, "c", start=4 * RATE)  # border dragged outward
+    assert ops.normalize_ungated(p).track("t").gate == ((0, 4 * RATE),)

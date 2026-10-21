@@ -1,6 +1,6 @@
 ## [v26.10.20.30] - 2026-10-21
 
-- **Auto-Silence can be undone for single clips.** New command Track > Auto > "Open the muted stretches under the selected clips": select one clip or several and the closed (Auto-Silence) stretches under them open again, while the rest of the track's gate stays; one undo step. It is also in the right-click menu of a clip and of a marked range, and a right-click on a hatched (closed) stretch offers "Open this stretch" right there. Before, only the stretch under the play cursor or the whole track could be opened, and mute does not touch the gate.
+- **A clip can opt out of Auto-Silence.** Select one clip or several and use Track > Auto > "Keep the mic open under the selected clips" (also in the right-click menu of a clip or a marked range): it is a clip property, so the mic stays open under the clip wherever you trim or move it (no more half-silenced clip when you drag the border) and a new Auto-Silence run does not close it. Used again on clips that are already open it lets them be silenced again. One undo step. A right-click on a hatched (closed) stretch also offers "Open this stretch" right there.
 
 ## [v26.10.20.29] - 2026-10-21
 

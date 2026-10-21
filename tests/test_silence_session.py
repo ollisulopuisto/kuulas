@@ -156,3 +156,18 @@ def test_open_gates_without_names_opens_every_gated_track(session, tmp_path):
     session.command("auto_silence", {})
     session.command("open_gates", {})
     assert not any(t.gate for t in session.state.tracks)
+
+
+def test_a_flagged_clip_stays_open_through_auto_silence_and_a_trim(session, tmp_path):
+    """Un-silencing a clip is a clip property: Auto-Silence run again must not close the
+    mic under it again (a trim is covered by the model tests)."""
+    talkers(session, tmp_path)
+    a = session.state.tracks[0]
+    clip = a.clips[0]
+    session.command("auto_silence", {})
+    session.edit("set_clips_ungated", {"clip_ids": [clip.id], "value": True})
+    gate = session.state.track(a.id).gate
+    assert not any(x < clip.end and clip.start < y for x, y in gate)
+    session.command("auto_silence", {})  # re-run: replaces the gate, the flag still wins
+    gate = session.state.track(a.id).gate
+    assert not any(x < clip.end and clip.start < y for x, y in gate)

@@ -384,6 +384,9 @@ class History:
         are stored with the step.
         """
         self._check_writable()
+        # Clips that keep the mic open stay open after any edit (trim, move, a new gate).
+        from . import ops  # noqa: PLC0415 - ops does not import the history; kept lazy
+        state = ops.normalize_ungated(state)
         self._note_gate(state)
         if state.rate != self.rate:
             raise HistoryError("error.history.rate_change", rate=state.rate,

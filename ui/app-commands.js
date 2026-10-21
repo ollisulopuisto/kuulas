@@ -2,7 +2,6 @@
 // Everything else in the keymap is "planned" until its work package lands.
 
 import { busOfFocus, collapseAllChange, collapseChange } from "./bus-collapse.js";
-import { gateUnderClips } from "./gate.js";
 import { clearGhost } from "./ghost-marker.js";
 import { canRestore } from "./history-model.js";
 import { rangeAvailable } from "./loop-range.js";
@@ -221,7 +220,7 @@ export function registerAppCommands(registry, { actions, app }) {
   def(
     "gate.open_under_clips",
     () => app.openGateUnderClips(),
-    (state) => gateUnderClips(state?.project, state?.selection),
+    (state) => (state?.selection?.size ?? 0) > 0 && hasProject(state),
   );
   // Track > Auto: these three had a menu item and a key but no handler (greyed out).
   def("app.auto_silence", () => app.autoSilence(), hasProject);

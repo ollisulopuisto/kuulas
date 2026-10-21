@@ -59,7 +59,7 @@ import { nextPanel } from "./focus.js";
 import { followScroll } from "./follow.js";
 import { frameToTime, RATE, xToFrame } from "./format.js";
 import { envelopeChange, fadeChange, gainChange } from "./gain-drag.js";
-import { GATE_OPEN_COMMAND, openStretchEdit, stretchAt } from "./gate.js";
+import { GATE_OPEN_COMMAND, openStretchEdit, stretchAt, ungatedAll } from "./gate.js";
 import { HELP_COMMAND, shortcutsFor } from "./help.js";
 import { createHelpPanel } from "./help-panel.js";
 import { undoNotice } from "./history-model.js";
@@ -788,14 +788,17 @@ function openGateStretch(gate) {
     label: t("ui.gate.open_stretch"),
   });
 }
-// "Open the muted stretches under the selected clips": one open_gate_under_clips edit.
+// "Keep the mic open under the selected clips": a clip property (Clip.ungated), one edit. It
+// toggles: when every selected clip is already open it lets them be gated again.
 function openGateUnderClips() {
   const state = getState();
   if (state.selection.size === 0) return;
+  const ids = [...state.selection];
+  const all = ungatedAll(state.project, ids);
   editor.change({
-    op: "open_gate_under_clips",
-    args: { clip_ids: [...state.selection] },
-    label: t("ui.gate.under_clips"),
+    op: "set_clips_ungated",
+    args: { clip_ids: ids, value: !all },
+    label: t(all ? "ui.gate.under_clips_off" : "ui.gate.under_clips"),
   });
 }
 // Command registry for the keyboard layer: id -> function.

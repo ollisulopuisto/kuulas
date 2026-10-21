@@ -107,3 +107,16 @@ export function gateUnderClips(project, selection) {
   }
   return false;
 }
+
+/** Whether every one of the clips (ids) is flagged to keep the mic open (Clip.ungated). */
+export function ungatedAll(project, ids) {
+  const wanted = new Set(ids);
+  let seen = 0;
+  for (const track of project?.tracks ?? [])
+    for (const clip of track.clips ?? [])
+      if (wanted.has(clip.id)) {
+        seen += 1;
+        if (!clip.ungated) return false;
+      }
+  return seen > 0;
+}

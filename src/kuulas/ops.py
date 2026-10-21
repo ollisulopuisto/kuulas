@@ -202,16 +202,33 @@ def remove_gate_range(p: Project, track_id: str, start: int, end: int) -> Projec
         track, gate=gatem.remove_range(track.gate, int(start), int(end))))
 
 
-def open_gate_under_clips(p: Project, clip_ids) -> Project:
-    """Open the gate under the given clips (the span of each clip on its own track), and
-    nothing else: a stretch that reaches beyond a clip falls into two. Unknown ids are
+def set_clips_ungated(p: Project, clip_ids, value: bool = True) -> Project:
+    """Keep the mic open under the given clips (``Clip.ungated``): the gate under them is
+    opened now and stays open however they are trimmed or moved (``normalize_ungated``);
+    ``value`` False lets them be gated again (the gate is not touched). Unknown ids are
     ignored. One step for any number of clips."""
     wanted = set(clip_ids)
+    tracks = []
+    for track in p.tracks:
+        clips = tuple(replace(c, ungated=bool(value)) if c.id in wanted else c
+                      for c in track.clips)
+        tracks.append(replace(track, clips=clips) if clips != track.clips else track)
+    q = replace(p, tracks=tuple(tracks))
+    return normalize_ungated(q) if value else q
+
+
+def normalize_ungated(p: Project) -> Project:
+    """Open the gate under every clip flagged ``ungated``. The identity (the same object)
+    when no clip is flagged or nothing needs opening, so untouched states keep their
+    bytes. Called for every commit, so the rule holds after any edit."""
     spans = [(track.id, clip.start, clip.end) for track in p.tracks if track.gate
-             for clip in track.clips if clip.id in wanted]
+             for clip in track.clips if clip.ungated]
+    if not spans:
+        return p
+    q = p
     for track_id, start, end in spans:
-        p = remove_gate_range(p, track_id, start, end)
-    return p
+        q = remove_gate_range(q, track_id, start, end)
+    return p if q == p else q
 
 
 def add_bus(p: Project, bus_id: str | None = None, name: str = "Bus",
@@ -1364,7 +1381,7 @@ OPS = {
         add_bus, set_bus, delete_bus, set_master, reset_gains,
         add_clip, delete_clip, move_clip, trim_clip, split_clip, set_clip,
         set_fade_at, set_clip_envelope, ripple_delete, mute_ranges,
-        set_gate, add_gate_range, remove_gate_range, open_gate_under_clips,
+        set_gate, add_gate_range, remove_gate_range, set_clips_ungated,
         add_marker, rename_marker, move_marker, set_region_end, delete_marker,
         set_marker_kind,
         add_placeholder, edit_placeholder_text, set_placeholder_length,

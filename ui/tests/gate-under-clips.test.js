@@ -62,3 +62,26 @@ describe("the context menus offer it", () => {
     assert.ok(!ids({ kind: "lane", gate: false }, () => true).includes("gate.open_stretch"));
   });
 });
+
+import { ungatedAll } from "../gate.js";
+
+describe("ungatedAll: the toggle decides which way to go", () => {
+  const p = {
+    tracks: [
+      {
+        id: "a",
+        clips: [{ id: "x", ungated: true }, { id: "y" }],
+      },
+    ],
+  };
+  test("all selected clips already open", () => {
+    assert.equal(ungatedAll(p, ["x"]), true);
+  });
+  test("one of them is not", () => {
+    assert.equal(ungatedAll(p, ["x", "y"]), false);
+  });
+  test("nothing known selected", () => {
+    assert.equal(ungatedAll(p, ["nope"]), false);
+    assert.equal(ungatedAll(null, ["x"]), false);
+  });
+});
