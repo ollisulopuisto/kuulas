@@ -44,8 +44,13 @@ APPS = ("automixer",)
 UI_SKIP = ("tests", "biome.json", "node_modules", "package.json", "package-lock.json")
 
 LICENSE_TEXT = """\
-Kuulas test build. Copyright (c) Olli Sulopuisto. Provided to testers for evaluation;
-do not redistribute.
+Kuulas. Copyright (c) 2026 Olli Sulopuisto. Free software: you can redistribute it and/or
+modify it under the terms of the GNU General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any later
+version. It is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+See the GNU General Public License (the LICENSE file of the Kuulas repository, and
+https://www.gnu.org/licenses/gpl-3.0.html).
 
 Bundled third-party software keeps its own licences; each package's licence file is in
 Contents/Resources/app_packages/<package>.dist-info.

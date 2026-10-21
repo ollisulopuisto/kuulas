@@ -4,8 +4,9 @@ Checked 2026-10-21 against the packages a Kuulas.app build installs (podcast mai
 `automixer 2026.10.21.2`, Python 3.13, macOS arm64), read from each package's metadata.
 Not legal advice: this lists the facts and what follows from them plainly.
 
-Owner decision (2026-10-21): bundling GPL components (pedalboard, GPL-3) is fine. This
-page records what that means and what the bundle carries for it.
+Owner decision (2026-10-21): bundling GPL components (pedalboard, GPL-3) is fine, and
+Kuulas itself is released under GPL-3.0-or-later. This page records what that means and
+what the bundle carries for it.
 
 ## GPL and LGPL parts
 
@@ -43,12 +44,12 @@ licence declared, see below). Its mlx and textual requirements are dropped for t
 
 ## Open for the owner (not blockers)
 
-1. **The bundle's own terms say "do not redistribute".** Kuulas loads pedalboard in its
-   own process, so a conveyed Kuulas.app is a work combined with a GPL-3 library; GPL-3
-   expects the whole to be passed on under GPL-3 terms, which a "do not redistribute"
-   line contradicts. The repository has no `LICENSE` file at all. Choosing a GPL-3
-   compatible licence for Kuulas (GPL-3.0-or-later is the simple one) would make the
-   two agree; until then the text in `LICENSE_TEXT` is inconsistent with what it ships.
+1. **Kuulas itself is GPL-3.0-or-later (owner decision 2026-10-21).** The repository has a
+   `LICENSE` file (the GPL-3 text), `pyproject.toml` says `license = "GPL-3.0-or-later"`,
+   and the notice in the bundle (`LICENSE_TEXT` in `scripts/stage_bundle.py`, shipped as
+   `LICENSE.txt` in the app) says so. This replaces the earlier "test build, do not
+   redistribute" text, which contradicted GPL-3 for an app that loads pedalboard. The
+   Kuulas sources are public: https://github.com/ollisulopuisto/kuulas.
 2. **speechmix and automixer declare no licence** (no `License` in their metadata, no
    `LICENSE` file in the podcast repository); nhsx and silencelearn say MIT. Both import
    pedalboard, so the same choice applies to them. A request is in

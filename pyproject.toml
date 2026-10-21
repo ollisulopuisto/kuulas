@@ -3,6 +3,8 @@ name = "kuulas"
 version = "26.10.20.39"
 description = "Multitrack spoken-word DAW: transcript editing, buses, the speechmix pipeline"
 readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
 requires-python = ">=3.13"
 dependencies = [
     # The podcast repo's shared pipeline, imported rather than reimplemented.
