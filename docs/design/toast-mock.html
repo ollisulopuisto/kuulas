@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Automix Toast Mock</title>
+<!-- Static design mock for docs/design/TOAST.md. No libraries, works offline from the repo:
+     the colours are ui/tokens.css itself (both themes); the toast rules are copied from
+     ui/style.css ("The running automixer"), with ids turned into classes so the page can
+     show several toasts at once. Open it straight from the checkout. -->
+<link rel="stylesheet" href="../../ui/tokens.css">
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 16px;
+  background: var(--surface-app);
+  color: var(--text);
+  font: var(--text-md, 14px) / 1.4 var(--font-ui);
+}
+h1 { font-size: 16px; margin: 0 0 4px; }
+h2 { font-size: 13px; margin: 0 0 8px; color: var(--text-secondary); font-weight: 600; }
+p.lead { margin: 0 0 12px; color: var(--text-secondary); max-width: 72ch; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 500px), 1fr)); gap: 24px 16px; }
+.cell { min-width: 0; }
+.stage-area { padding: 16px; border-radius: 6px; background: var(--surface-lane); }
+
+/* --- copied from ui/style.css: buttons (subset) ------------------------------------- */
+.button {
+  display: inline-flex; align-items: center; gap: var(--space-3);
+  height: var(--control-h); padding: 0 var(--pad-inline);
+  border: 1px solid var(--button-border); border-radius: var(--radius-sm);
+  background: var(--button-bg); color: var(--button-text); white-space: nowrap;
+  font: inherit; font-size: var(--text-sm); cursor: pointer;
+}
+.button:hover { background: var(--button-hover-bg); border-color: var(--button-hover-border); }
+.button.ghost { background: transparent; border-color: transparent; }
+.button.icon { width: var(--control-h); padding: 0; justify-content: center; }
+.button[aria-pressed="true"] { background: var(--surface-active); border-color: var(--border-strong); }
+.button:focus-visible { outline: var(--focus-width, 2px) solid var(--focus-ring); outline-offset: 2px; }
+
+/* --- copied from ui/style.css: the notice and the rich automix toast ----------------- */
+.notice {
+  position: relative; display: flex; align-items: flex-start; gap: var(--space-4);
+  max-width: min(560px, calc(100vw - 32px));
+  padding: var(--space-4) var(--space-4) var(--space-4) var(--space-6);
+  background: var(--toast-bg); border-radius: var(--radius-md); box-shadow: var(--toast-shadow);
+}
+.notice::before {
+  content: ""; position: absolute; inset: var(--space-4) auto var(--space-4) 0;
+  width: 3px; border-radius: 2px; background: var(--danger);
+}
+.notice[data-kind="ok"]::before { background: var(--accent); }
+.n-text { flex: 1; padding-top: 3px; }
+.notice[data-layout="rich"] {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center;
+  gap: var(--space-4); width: min(480px, 100%);
+}
+.notice-rich { grid-column: 1 / 3; grid-row: 1; display: grid; gap: var(--space-3); min-width: 0; }
+.notice[data-layout="rich"] .n-close { grid-column: 3; grid-row: 1; align-self: start; }
+.notice[data-layout="rich"] .n-action { grid-column: 1; grid-row: 2; justify-self: end; }
+.notice[data-layout="rich"] .n-action2 { grid-column: 2; grid-row: 2; }
+.nr-head { display: flex; align-items: baseline; gap: var(--space-4); min-width: 0; white-space: nowrap; }
+.nr-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: var(--weight-strong); }
+.nr-eta { font-size: var(--text-sm); color: var(--text-secondary); }
+.nr-percent { min-width: 4ch; text-align: right; font-variant-numeric: tabular-nums; font-weight: var(--weight-strong); }
+.nr-bar { height: 4px; border-radius: 2px; overflow: hidden; background: var(--surface-active); }
+.nr-fill {
+  height: 100%; background: var(--accent); transform-origin: left;
+  transform: scaleX(var(--nr-fraction, 0)); transition: transform var(--dur-slow) var(--ease-standard);
+}
+.nr-bar[data-indeterminate] .nr-fill { animation: nr-shimmer 1.2s ease-in-out infinite alternate; }
+@keyframes nr-shimmer { to { opacity: 0.4; } }
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-motion="full"], [data-motion="subtle"]) .nr-fill { animation: none; transition: none; }
+}
+:root[data-motion="off"] .nr-fill { animation: none; transition: none; }
+.nr-line {
+  display: flex; align-items: center; gap: var(--space-3); height: 20px; min-width: 0;
+  white-space: nowrap; font-size: var(--text-sm); color: var(--text-secondary);
+}
+.nr-phase, .nr-track, .nr-stage { flex: none; color: var(--text); }
+.nr-phase { font-weight: var(--weight-medium); }
+.nr-name, .nr-note { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.nr-step { margin-left: auto; }
+.nr-step, .nr-count { flex: none; font-variant-numeric: tabular-nums; }
+.nr-pips { display: flex; flex: none; gap: 2px; }
+.nr-pip { width: 8px; height: 8px; box-sizing: border-box; border: 1px solid var(--border-strong); border-radius: 2px; }
+.nr-pip[data-state="done"], .nr-pip[data-state="working"] { background: var(--accent); border-color: var(--accent); }
+.nr-pip[data-state="working"] { transform: scaleY(1.6); }
+.nr-pip[data-state="skipped"] {
+  border-color: transparent;
+  background: linear-gradient(var(--text-tertiary), var(--text-tertiary)) center / 100% 2px no-repeat;
+}
+/* The app uses @media (max-width: 520px); the mock forces it on one frame with a class. */
+.notice.narrow { width: 360px; max-width: 100%; }
+.narrow .nr-pips { display: none; }
+</style>
+</head>
+<body>
+<h1>The running automix toast</h1>
+<p class="lead">Mock for <code>docs/design/TOAST.md</code>. A title row (what runs, time left, percent), one
+bar, then two reserved lines: the phase with its step, and the track with its stage. Cancel and
+Show log bottom right, × top right. Finished and failed toasts are unchanged.</p>
+<div class="controls" role="group" aria-label="Theme">
+  <button class="button" type="button" data-theme-choice="" aria-pressed="true">Auto</button>
+  <button class="button" type="button" data-theme-choice="light" aria-pressed="false">Light</button>
+  <button class="button" type="button" data-theme-choice="dark" aria-pressed="false">Dark</button>
+  <button class="button" type="button" id="play" aria-pressed="false">Animate the tracks phase</button>
+</div>
+
+<template id="rich">
+  <div class="notice" data-kind="ok" data-layout="rich" role="status" aria-live="off">
+    <div class="notice-rich">
+      <div class="nr-head">
+        <span class="nr-title">Mixing with the automixer</span>
+        <span class="nr-eta"></span>
+        <span class="nr-percent"></span>
+      </div>
+      <div class="nr-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-label="Automixer progress"><div class="nr-fill"></div></div>
+      <div class="nr-line"><span class="nr-phase"></span><span class="nr-step"></span></div>
+      <div class="nr-line">
+        <span class="nr-track"></span><span class="nr-name"></span><span class="nr-note"></span>
+        <span class="nr-stage"></span><span class="nr-count"></span><span class="nr-pips" aria-hidden="true"></span>
+      </div>
+    </div>
+    <button class="button n-action" type="button">Cancel</button>
+    <button class="button n-action2" type="button">Show log</button>
+    <button class="button ghost icon n-close" type="button" aria-label="Close" title="Close">×</button>
+  </div>
+</template>
+
+<div class="grid" id="grid"></div>
+
+<script>
+const STAGES = ["read", "de-bleed", "plug-in", "clean-up", "measure", "dynamics", "lag", "duck", "write"];
+const states = [
+  { h: "(a) Stems: step 1 of 4", v: { pct: 18, eta: "", phase: "Preparing stems", step: "Step 1 of 4", note: "Maija 2/4" } },
+  { h: "(a') Analysis before the first number: no percent, the bar shimmers where it got to",
+    v: { pct: null, frac: 0.4, eta: "", phase: "Analysing levels", step: "Step 2 of 4", note: "loading 4 tracks" } },
+  { h: "(b) Tracks: track 1 of 4, stage 3 of 9 working (duck switched off)",
+    v: { pct: 49, eta: "about 12 min left", phase: "Processing tracks", step: "Step 3 of 4", track: "Track 1 of 4", name: "Olli", stage: "plug-in", n: 3, state: "working", off: [8] } },
+  { h: "(b') Tracks: a stage that is done, a long name",
+    v: { pct: 61, eta: "about 7 min left", phase: "Processing tracks", step: "Step 3 of 4", track: "Track 3 of 4", name: "Maija-Liisa Rantanen-Kärkkäinen (room mic, left)", stage: "de-bleed done", n: 2, state: "done", off: [8] } },
+  { h: "(c) Mastering: step 4 of 4, no track line", v: { pct: 93, eta: "under a minute left", phase: "Mastering", step: "Step 4 of 4", note: "Engine: master" } },
+  { h: "(d) Remote: uploading, step 2 of 6", v: { pct: 19, eta: "", phase: "Uploading", step: "Step 2 of 6", note: "Olli.wav" } },
+  { h: "(d') Remote: downloading, step 6 of 6", v: { pct: 97, eta: "under a minute left", phase: "Downloading", step: "Step 6 of 6", note: "out.wav" } },
+  { h: "(e) Narrow (phone-width web view): the pips go, the stage text stays",
+    v: { pct: 49, eta: "about 12 min left", phase: "Processing tracks", step: "Step 3 of 4", track: "Track 1 of 4", name: "Olli", stage: "plug-in", n: 3, state: "working", off: [8] }, narrow: true },
+  { h: "Paused while playing: the paused line takes the time-left place",
+    v: { pct: 49, eta: "Paused while playing", phase: "Processing tracks", step: "Step 3 of 4", track: "Track 1 of 4", name: "Olli", stage: "plug-in", n: 3, state: "working", off: [8] } },
+];
+
+function pipStates(n, state, off) {
+  return STAGES.map((_, i) => {
+    if (i + 1 === n) return state;
+    if (off.includes(i + 1)) return "skipped";
+    return i + 1 < n ? "done" : "pending";
+  });
+}
+
+function fill(node, v) {
+  const q = (s) => node.querySelector(s);
+  const set = (s, text) => { q(s).textContent = text ?? ""; q(s).hidden = !text; };
+  set(".nr-eta", v.eta);
+  set(".nr-percent", v.pct == null ? "" : `${v.pct} %`);
+  const bar = q(".nr-bar");
+  if (v.pct == null) { bar.removeAttribute("aria-valuenow"); bar.dataset.indeterminate = ""; }
+  else { bar.setAttribute("aria-valuenow", v.pct); delete bar.dataset.indeterminate; }
+  q(".nr-fill").style.setProperty("--nr-fraction", v.frac ?? v.pct / 100);
+  set(".nr-phase", v.phase); set(".nr-step", v.step);
+  set(".nr-track", v.track); set(".nr-name", v.name); q(".nr-name").title = v.name ?? "";
+  set(".nr-note", v.track ? "" : v.note);
+  set(".nr-stage", v.stage); set(".nr-count", v.n ? `${v.n}/9` : "");
+  const pips = q(".nr-pips");
+  pips.replaceChildren();
+  if (v.n) for (const [i, s] of pipStates(v.n, v.state, v.off ?? []).entries()) {
+    const pip = document.createElement("span");
+    pip.className = "nr-pip"; pip.dataset.state = s; pip.title = STAGES[i];
+    pips.append(pip);
+  }
+}
+
+const grid = document.getElementById("grid");
+const tpl = document.getElementById("rich");
+const live = [];
+for (const s of states) {
+  const cell = document.createElement("section");
+  cell.className = "cell";
+  cell.innerHTML = `<h2></h2><div class="stage-area"></div>`;
+  cell.querySelector("h2").textContent = s.h;
+  const toast = tpl.content.firstElementChild.cloneNode(true);
+  if (s.narrow) toast.classList.add("narrow");
+  fill(toast, s.v);
+  cell.querySelector(".stage-area").append(toast);
+  grid.append(cell);
+  live.push({ toast, v: s.v });
+}
+
+// (f) finished and failed: unchanged plain toasts
+for (const [h, kind, text, buttons] of [
+  ["(f) Finished: unchanged", "ok", "Mixed: Episode automixer 2026-10-21 14-02-11.wav — beds: loudest -20.1 LUFS · mastered: -16.0 LUFS", ["Show in Finder", "Show log"]],
+  ["(f) Failed: unchanged", "error", "The automixer stopped (exit code 3). Its last lines: boom: no plug-in", ["Show log"]],
+]) {
+  const cell = document.createElement("section");
+  cell.className = "cell";
+  cell.innerHTML = `<h2></h2><div class="stage-area"><div class="notice" role="status"><span class="n-text"></span></div></div>`;
+  cell.querySelector("h2").textContent = h;
+  const n = cell.querySelector(".notice");
+  n.dataset.kind = kind;
+  n.querySelector(".n-text").textContent = text;
+  for (const b of buttons) {
+    const el = document.createElement("button");
+    el.className = "button"; el.type = "button"; el.textContent = b;
+    n.append(el);
+  }
+  const close = document.createElement("button");
+  close.className = "button ghost icon"; close.type = "button"; close.textContent = "×";
+  close.setAttribute("aria-label", "Close");
+  n.append(close);
+  grid.append(cell);
+}
+
+for (const b of document.querySelectorAll("[data-theme-choice]")) {
+  b.addEventListener("click", () => {
+    const v = b.dataset.themeChoice;
+    if (v) document.documentElement.dataset.theme = v; else delete document.documentElement.dataset.theme;
+    for (const o of document.querySelectorAll("[data-theme-choice]")) o.setAttribute("aria-pressed", String(o === b));
+  });
+}
+
+// ?theme=light or ?theme=dark picks one on load (for screenshots).
+const asked = new URLSearchParams(location.search).get("theme");
+document.querySelector(`[data-theme-choice="${asked === "light" || asked === "dark" ? asked : ""}"]`)?.click();
+
+// Walk track 1 of 4 through its nine stages, to see that nothing jumps.
+let timer = null;
+document.getElementById("play").addEventListener("click", (e) => {
+  const on = e.currentTarget.getAttribute("aria-pressed") !== "true";
+  e.currentTarget.setAttribute("aria-pressed", String(on));
+  clearInterval(timer);
+  if (!on) return;
+  const target = live[2];
+  let step = 0;
+  timer = setInterval(() => {
+    const n = (step % 9) + 1;
+    const working = step % 2 === 0;
+    const label = STAGES[n - 1];
+    const off = n === 8;
+    fill(target.toast, {
+      ...target.v,
+      pct: 40 + Math.round((step % 18) * 1.5),
+      n,
+      state: off ? "skipped" : working ? "working" : "done",
+      stage: off ? `${label} skipped` : working ? label : `${label} done`,
+    });
+    step += 1;
+  }, 700);
+});
+</script>
+</body>
+</html>

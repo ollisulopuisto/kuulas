@@ -58,6 +58,12 @@ class _Progress:
         or None; listed as the job's ``eta``."""
         self.jobs._set_eta(self.job_id, parts)
 
+    def set_detail(self, detail: dict | None) -> None:
+        """What the job is doing, as plain data for a structured toast (the automixer:
+        ``{"phase", "phases", "phase_name", "track", "stage"}``, docs/design/TOAST.md),
+        or None; listed as the job's ``detail``. ``message`` stays the text fallback."""
+        self.jobs._set_detail(self.job_id, detail)
+
 
 @dataclass
 class _Work:
@@ -101,6 +107,7 @@ class Jobs:
                                    "progress": 0.0, "state": "queued", "error": None,
                                    "message": "", "indeterminate": False,
                                    "remaining_seconds": None, "eta": None,
+                                   "detail": None,
                                    "created": time.monotonic(),
                                    "started": None, "paused": False, "paused_s": 0.0,
                                    "paused_at": None, "own_message": ""}
@@ -133,13 +140,13 @@ class Jobs:
             with self._lock:
                 item = self._items[job_id]
                 item.update(state="completed", progress=1.0, remaining_seconds=0,
-                            eta=None, indeterminate=False, paused=False)
+                            eta=None, detail=None, indeterminate=False, paused=False)
                 if work.keep_result:
                     item["result"] = value
         except JobCancelledError:
             with self._lock:
                 self._items[job_id].update(state="cancelled", remaining_seconds=None,
-                                           eta=None, paused=False)
+                                           eta=None, detail=None, paused=False)
         except Exception as exc:
             if isinstance(exc, KuulasError):
                 log.exception("Background job %s failed: %s", job_id, exc.key)
@@ -153,7 +160,7 @@ class Jobs:
             with self._lock:
                 self._items[job_id].update(state="failed", error=error,
                                            remaining_seconds=None, eta=None,
-                                           paused=False)
+                                           detail=None, paused=False)
         finally:
             if entered:
                 self._leave()
@@ -205,6 +212,12 @@ class Jobs:
             item = self._items.get(job_id)
             if item is not None:
                 item["eta"] = parts
+
+    def _set_detail(self, job_id: str, detail: dict | None) -> None:
+        with self._lock:
+            item = self._items.get(job_id)
+            if item is not None:
+                item["detail"] = detail
 
     def _checkpoint(self, job_id: str, value: float, cancelled: threading.Event,
                     message: str | None = None, indeterminate: bool = False) -> None:

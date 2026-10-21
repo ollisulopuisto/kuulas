@@ -934,12 +934,20 @@ class StepTracker:
         self._numbers = _PHASE_NUMBER_REMOTE if remote else _PHASE_NUMBER
         self.phases = PHASES_REMOTE if remote else PHASES
         self.stage = "analysis"
+        #: What the last step line was about, for ``detail``: the phase it named, and
+        #: in the tracks phase the track and stage (None outside it).
+        self._shown = "stems"
+        self._track: dict | None = None
+        self._stage: dict | None = None
 
     @property
     def phase(self) -> int:
         return self._numbers[self.stage]
 
     def _step(self, stage: str, what: str) -> str:
+        if stage != "tracks":
+            self._track = self._stage = None
+        self._shown = stage
         return t("ui.automix.step", phase=self._numbers[stage], phases=self.phases,
                  what=what)
 
@@ -977,6 +985,10 @@ class StepTracker:
                   "name": name, "stage": stage,
                   "n": TRACK_STAGES.index(stage) + 1, "of": len(TRACK_STAGES),
                   "next": following}
+        self._track = {"index": common["index"], "total": common["total"], "name": name}
+        self._stage = {"name": stage, "n": common["n"], "of": common["of"],
+                       "state": key,
+                       "off": [s for s in TRACK_STAGES if not self._on(s)]}
         if key == "done" and following is None:
             key = "last"
         return self._step("tracks", t(f"ui.automix.step_track_{key}", **common))
@@ -990,6 +1002,18 @@ class StepTracker:
         if "mastering" in message.lower():
             self.stage = "mastering"
         return self._step(self.stage, message)
+
+    def detail(self) -> dict:
+        """What the last step line said, as plain data for the structured toast
+        (docs/design/TOAST.md): ``{"phase", "phases", "phase_name", "track", "stage"}``;
+        ``track`` ``{"index", "total", "name"}`` and ``stage`` ``{"name", "n", "of",
+        "state": "working" | "done" | "skipped", "off": [stages switched off]}`` are None
+        outside the tracks phase. Copies: the job list may hand it on."""
+        return {"phase": self._numbers[self._shown], "phases": self.phases,
+                "phase_name": self._shown,
+                "track": dict(self._track) if self._track else None,
+                "stage": ({**self._stage, "off": list(self._stage["off"])}
+                          if self._stage else None)}
 
     def _name(self, track: Any) -> str | None:
         """A track given by name, or by its 1-based number, as a name."""
@@ -1043,11 +1067,25 @@ def _eta_json(seconds: int | None) -> list | None:
     return [kind, list(value) if isinstance(value, tuple) else value]
 
 
+def _with_detail(report: Report, steps: StepTracker,
+                 detail: Callable[[dict | None], None] | None) -> Report:
+    """``report`` that also hands ``steps.detail()`` on after every line: each step line
+    is built by ``steps`` before it is reported, so the two always agree."""
+    if detail is None:
+        return report
+
+    def both(fraction: float, message: str = "", indeterminate: bool = False) -> None:
+        report(fraction, message, indeterminate=indeterminate)
+        detail(steps.detail())
+    return both
+
+
 def run(session, params: dict, settings: dict, report: Report,
         cancel: threading.Event, run_process: RunProcess = run_process,
         live: Callable[[str], None] | None = None,
         eta: Callable[[list | None], None] | None = None,
-        clock: Callable[[], float] = time.monotonic) -> dict:
+        clock: Callable[[], float] = time.monotonic,
+        detail: Callable[[dict | None], None] | None = None) -> dict:
     """Export the stems, run the automixer, return ``{"path", "name", "log",
     "command"}``. ``params``: ``target_lufs`` (default -16), ``ad_spot``,
     ``ad_duration`` (seconds), ``extra_args`` (replaces the setting for this
@@ -1057,7 +1095,8 @@ def run(session, params: dict, settings: dict, report: Report,
     when given, also hears every log line as it is printed (the live log viewer).
     ``eta``, when given, hears the time left (``eta.remaining_parts`` as a JSON-friendly
     list, or None before there is an estimate) at every update of the automixer's own
-    progress; ``clock`` is the time source for that."""
+    progress; ``clock`` is the time source for that. ``detail``, when given, hears
+    ``StepTracker.detail()`` with every progress line (the structured toast)."""
     emit = live or (lambda _line: None)
     lufs, ad_spot, ad_duration = validate_params(params)
     check_rate(session)
@@ -1095,6 +1134,7 @@ def run(session, params: dict, settings: dict, report: Report,
     partial: Path | None = None
     began = time.monotonic()
     steps = StepTracker([], remote=remote is not None)
+    report = _with_detail(report, steps, detail)
     run_dir: str | None = None  # the folder on the other Mac, once we have made one
     remote_running = False
     try:
