@@ -1565,6 +1565,7 @@
   "ui.automix.step_track_done": "track {index}/{total} {name}: {stage} done ({n}/{of}), now {next}",
   "ui.automix.step_track_skipped": "track {index}/{total} {name}: {stage} skipped ({n}/{of}), now {next}",
   "ui.automix.step_track_last": "track {index}/{total} {name}: finished",
+  "ui.automix.step_track_working": "track {index}/{total} {name}: {stage} ({n}/{of}) ...",
   "ui.automix.stage_skipped": "{message} (skipped: switched off)",
   "ui.automix.done_badge": "Done in Kuulas",
   "ui.automix.done_text": "You set the music level in Kuulas, so the automixer is told to use the same distance. Reset to use the automixer's own rule ({default}).",

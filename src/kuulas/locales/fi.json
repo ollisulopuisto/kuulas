@@ -1660,6 +1660,7 @@
   "ui.automix.step_track_done": "raita {index}/{total} {name}: {stage} valmis ({n}/{of}), nyt {next}",
   "ui.automix.step_track_skipped": "raita {index}/{total} {name}: {stage} ohitettu ({n}/{of}), nyt {next}",
   "ui.automix.step_track_last": "raita {index}/{total} {name}: valmis",
+  "ui.automix.step_track_working": "raita {index}/{total} {name}: {stage} ({n}/{of}) ...",
   "ui.automix.stage_skipped": "{message} (ohitettu: pois päältä)",
   "ui.automix.done_badge": "Tehty Kuulaksessa",
   "ui.automix.done_text": "Asetit musiikin tason Kuulaksessa, joten automixerille kerrotaan sama etäisyys. Palauta, niin automixer käyttää omaa sääntöään ({default}).",
