@@ -974,6 +974,11 @@ def create_app(session, engine, *, language: str | None = None,
         # Ready at once when the speech audio is already measured; else the job.
         return JSONResponse(session.silence_measure())
 
+    @app.post("/api/silence/learn", status_code=202)
+    def post_silence_learn(body: Annotated[dict[str, Any], Body()]):
+        """Calculate Auto-Silence values from the selected clips: a job, no commit."""
+        return JSONResponse(session.silence_learn(body), status_code=202)
+
     @app.post("/api/silence/ranges")
     def post_silence_ranges(body: Annotated[dict[str, Any], Body()]):
         try:

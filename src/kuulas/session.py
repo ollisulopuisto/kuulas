@@ -64,6 +64,7 @@ from . import (
     priority,
     project_stats,
     render_listen,
+    silence_learn,
     silence_options,
     source_map,
     subtitles,
@@ -1392,28 +1393,75 @@ class Session:
             if running is not None and running[0] == key and self._job_live(running[1]):
                 return {"ready": False, "jobs": [running[1]], "key": key}
             ids = analysis.silence_measured_ids(state)
-            names = {tr.id: tr.name for tr in state.tracks}
 
             def run(progress):
-                levels = {}
-                for i, track_id in enumerate(ids):
-                    progress(i / len(ids), t("job.silence_measure_track",
-                                             name=names[track_id], n=i + 1,
-                                             total=len(ids)))
-                    levels[track_id] = offload.call(
-                        "silence_track_levels", state, self.store, track_id,
-                        cancel=progress.cancelled_event)
-                    if progress.cancelled:
-                        raise JobCancelledError
-                measure = analysis.assemble_measure(state, levels)
-                with self._silence_lock:
-                    self._silence_measure = measure
+                measure = self._silence_measure_now(state, progress)
                 return {"key": measure.key, "tracks": len(ids), "bytes": measure.nbytes}
 
             job_id = self.jobs.submit("silence_measure", t("job.silence_measure"), run,
                                       keep_result=True)
             self._silence_job = (key, job_id)
         return {"ready": False, "jobs": [job_id], "key": key}
+
+    def _silence_measure_now(self, state: Project, progress,
+                             share: float = 1.0) -> analysis.SilenceMeasure:
+        """Measure ``state``'s speech in the analysis worker, one track per call
+        (progress up to ``share``), and keep it as the live preview's measure."""
+        ids = analysis.silence_measured_ids(state)
+        names = {tr.id: tr.name for tr in state.tracks}
+        levels = {}
+        for i, track_id in enumerate(ids):
+            progress(share * i / len(ids), t("job.silence_measure_track",
+                                             name=names[track_id], n=i + 1,
+                                             total=len(ids)))
+            levels[track_id] = offload.call(
+                "silence_track_levels", state, self.store, track_id,
+                cancel=progress.cancelled_event)
+            if progress.cancelled:
+                raise JobCancelledError
+        measure = analysis.assemble_measure(state, levels)
+        with self._silence_lock:
+            self._silence_measure = measure
+        return measure
+
+    def silence_learn(self, args: dict | None = None) -> dict:
+        """Track > Auto > Calculate Auto-Silence values from the selection: queue
+        ONE job that learns the Auto-Silence Sensitivity from the selected clips
+        (muted ones are "closed", the others "open"; ``silence_learn``) and
+        commits nothing. ``args``: ``clip_ids`` and the panel's current options
+        (what cannot be learned stays as they have it). The speech is measured
+        first when no measure of it is kept, and the measure is kept, so the
+        panel opens on it at once. The job's ``result`` is
+        ``silence_learn.suggestion``'s plus ``key``. A selection with no clip of
+        a speech track is refused now."""
+        args = dict(args or {})
+        options = silence_options.parse(args)
+        clip_ids = [str(c) for c in args.get("clip_ids") or ()]
+        state, key = self._silence_now()
+        if not silence_learn.examples(state, clip_ids):
+            raise ops.EditError("error.silence.learn_no_selection")
+
+        def run(progress):
+            progress(0.0, "", True)
+            measure = self._silence_valid(key) or self._silence_measure_now(
+                state, progress, share=0.8)
+            progress(0.8, t("job.silence_learn"))
+            found = offload.call("silence_learn", state, self.store, clip_ids,
+                                 cancel=progress.cancelled_event)
+            if progress.cancelled:
+                raise JobCancelledError
+            floors = {tid: lv.floor for tid, lv in measure.levels.items()}
+            out = silence_learn.suggestion(state, found, floors, options)
+            for row in out["tracks"]:
+                # The numbers are silencelearn's taste values: the log is where a
+                # real session shows what each track got.
+                log.info(t("log.silence.learn", name=row["name"], code=row["code"],
+                           threshold=row["threshold"], floor=row["floor"],
+                           note=row["note"]))
+            return {**out, "key": key}
+
+        return {"jobs": [self.jobs.submit("silence_learn", t("job.silence_learn"), run,
+                                          keep_result=True)]}
 
     def _job_live(self, job_id: str) -> bool:
         return any(j["id"] == job_id and j["state"] in ("queued", "running")
