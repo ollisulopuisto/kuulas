@@ -26,9 +26,10 @@ Kun lähennys on tarpeeksi suuri sanojen lukemiseen, jokainen puheleike kirjoitt
 Jos haluat aikajanalle enemmän leveyttä, piilota koko sivupaneeli (välilehtirivin x tai tästä). Ohjeen, Auto-Silencen asetusten tai sivuvälilehden avaaminen näyttää sen taas. {run:view.toggle_sidebar}
 
 ## Näin hiljaisuus näkyy
-- Täytetty aaltomuoto: kuuluu. Pelkkä ääriviiva: hiljaa, mykistetty tai Auto-Silencen sulkema; leikkeen pohja on siinä hieman tummempi.
+- Täytetty aaltomuoto: kuuluu. Pelkkä ääriviiva: hiljaa, mykistetty tai Auto-Silencen sulkema; leikkeen pohja on siinä tummempi.
 - Lukko merkitsee Auto-Silencen sulkemaa kohtaa; mykistetyssä leikkeessä ei ole lukkoa. Avoin lukko leikkeen nimen perässä tarkoittaa, että leike pitää mikin auki.
-- Leikkeen reunat näkyvät ja niitä voi vetää myös hiljaisen kohdan sisällä.
+- Meripihkan väriset katkoviivat merkitsevät, mistä suljettu kohta alkaa ja mihin se päättyy; ne eivät ole leikkeen reunoja eikä niitä voi vetää. Leikkeen reunat pysyvät yhtenäisinä, näkyvät ja niitä voi vetää myös hiljaisen kohdan sisällä.
+- Ohut pyöreäkulmainen ääriviiva useiden leikkeiden ympärillä merkitsee yhtä ryhmää.
 - Harmaat tai himmeät raidat eivät kuulu seuraavaan toimintoon (Näytä > Toiminnon ulkopuoliset raidat).
 - Leike, jonka äänitiedosto puuttuu, näyttää punaisen varoitusmerkin eikä aaltomuotoa. Kaksoisnapsauta sitä etsiäksesi tiedoston.
 

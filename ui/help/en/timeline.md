@@ -26,9 +26,10 @@ Zoomed in far enough to read them, each speech clip writes its words under its n
 To give the timeline more width, hide the whole side panel (the x on its tab strip, or here). Opening Help, Auto-Silence options or a side tab shows it again. {run:view.toggle_sidebar}
 
 ## How silence looks
-- Filled waveform: it sounds. Outline only: it is silent, muted or closed by Auto-Silence; the clip body is a little darker there.
+- Filled waveform: it sounds. Outline only: it is silent, muted or closed by Auto-Silence; the clip body is darker there.
 - A padlock marks a stretch closed by Auto-Silence; a muted clip has none. An open padlock after a clip's name means the clip keeps the mic open.
-- Clip edges stay visible and draggable inside a silent stretch.
+- Dashed amber lines mark where a closed stretch starts and ends; they are not clip edges and cannot be dragged. Clip edges stay solid, visible and draggable inside a silent stretch.
+- A thin rounded outline round several clips marks one group.
 - Grey or dimmed lanes are not part of the next operation (View > Lanes outside the operation).
 - A clip whose audio file is missing shows a red warning sign and no waveform. Double-click it to locate the file.
 

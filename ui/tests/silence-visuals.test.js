@@ -19,6 +19,7 @@ import {
   SILENCE_LEGEND_TITLE,
   SILENT_OVERLAY_LAYERS,
   silentColumns,
+  stretchEdges,
   TRACK_LAYERS,
 } from "../silence-visuals.js";
 
@@ -132,6 +133,11 @@ describe("openLockSpot: the open padlock of a clip that keeps the mic open", () 
 });
 
 describe("draw order: clip chrome is drawn above every silent-state overlay", () => {
+  test("the stretch edges are a silent-state overlay, under the real clip borders", () => {
+    assert.ok(SILENT_OVERLAY_LAYERS.includes("stretchEdges"));
+    assert.ok(TRACK_LAYERS.indexOf("stretchEdges") < TRACK_LAYERS.indexOf("clips"));
+  });
+
   test("the preview and the locks come before the clip borders, handles and selection", () => {
     const at = (name) => TRACK_LAYERS.indexOf(name);
     assert.ok(at("clips") > 0, "clips is a layer");
@@ -207,11 +213,30 @@ describe("the legend (Auto-Silence panel)", () => {
     const [en, fi] = [read("en"), read("fi")];
     assert.deepEqual(
       SILENCE_LEGEND.map((line) => line.state),
-      ["filled", "outline", "lock", "open", "preview", "inactive"],
+      ["filled", "outline", "lock", "edges", "open", "preview", "inactive", "group"],
     );
     for (const key of [SILENCE_LEGEND_TITLE, ...SILENCE_LEGEND.map((line) => line.key)]) {
       assert.ok(en[key], `en ${key}`);
       assert.ok(fi[key], `fi ${key}`);
     }
+  });
+});
+
+describe("stretchEdges: the pseudo-borders of each closed stretch (owner, 2026-10-21)", () => {
+  test("one x at each end of every run, on the pixel inside the run", () => {
+    assert.deepEqual(stretchEdges([100, 200, 300, 340], { width: 800 }), [100, 199, 300, 339]);
+  });
+
+  test("an end cut off by the view is no edge (the stretch goes on)", () => {
+    assert.deepEqual(stretchEdges([0, 50, 700, 800], { width: 800 }), [49, 700]);
+  });
+
+  test("an edge on (or within 2 px of) a real clip border is left to the real border", () => {
+    assert.deepEqual(stretchEdges([100, 200], { width: 800, clipEdges: [101, 500] }), [199]);
+    assert.deepEqual(stretchEdges([100, 200], { width: 800, clipEdges: [201] }), [100]);
+  });
+
+  test("a run too narrow for two lines gets none", () => {
+    assert.deepEqual(stretchEdges([100, 103], { width: 800 }), []);
   });
 });

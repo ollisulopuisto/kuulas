@@ -103,9 +103,32 @@ export function openLockSpot({ after, limit, iconPx, gap }) {
   return x + iconPx <= limit ? x : null;
 }
 
+/**
+ * The pseudo-borders of the closed stretches (owner, 2026-10-21: a stretch should read as its
+ * own piece): the x of a 1 px dashed line at each end of every run, on the run's own first and
+ * last pixel. Not a clip border: dashed, in the lock colour, no handles, not draggable (hitTest
+ * knows nothing of them). An end the view cuts off is no edge; an end within 2 px of a real
+ * clip edge (`clipEdges`) is left to the real border, drawn above; a run under 4 px wide gets
+ * no lines (the outline alone says silent there).
+ */
+/** The dash of a stretch edge: short, so it never reads as a clip's solid border. */
+export const STRETCH_EDGE_DASH = [3, 3];
+
+export function stretchEdges(runs, { width, clipEdges = [] }) {
+  const nearClip = (x) => clipEdges.some((edge) => Math.abs(edge - x) <= 2);
+  const out = [];
+  for (let i = 0; i < runs.length; i += 2) {
+    const [x0, x1] = [runs[i], runs[i + 1]];
+    if (x1 - x0 < 4) continue;
+    if (x0 > 0 && !nearClip(x0)) out.push(x0);
+    if (x1 < width && !nearClip(x1)) out.push(x1 - 1);
+  }
+  return out;
+}
+
 /** The overlays that mark silence on the timeline's overlay canvas (the waveform layer's
  *  outline and body tone are under the whole overlay anyway). */
-export const SILENT_OVERLAY_LAYERS = ["preview", "locks"];
+export const SILENT_OVERLAY_LAYERS = ["preview", "stretchEdges", "locks"];
 
 /**
  * The order timeline.js draws a track's lane in. "clips" is each clip's chrome: border,
@@ -130,9 +153,11 @@ export const SILENCE_LEGEND = [
   { state: "filled", key: "ui.silence.legend.filled" },
   { state: "outline", key: "ui.silence.legend.outline" },
   { state: "lock", key: "ui.silence.legend.lock", icon: "lock" },
+  { state: "edges", key: "ui.silence.legend.edges" },
   { state: "open", key: "ui.silence.legend.open", icon: "unlock" },
   { state: "preview", key: "ui.silence.legend.preview" },
   { state: "inactive", key: "ui.silence.legend.inactive" },
+  { state: "group", key: "ui.silence.legend.group" },
 ];
 
 // -- the inactive style ------------------------------------------------------------------

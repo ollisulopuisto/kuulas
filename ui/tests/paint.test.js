@@ -23,7 +23,7 @@ function fakeContext() {
   };
 }
 
-const palette = [{ fill: "#123", ink: "#fff", wave: "#456" }];
+const palette = [{ fill: "#123", ink: "#fff", wave: "#456", label: "#abc" }];
 const job = (over = {}) => ({
   id: 1,
   width: 200,
@@ -194,6 +194,8 @@ describe("painting waveforms (what the worker runs)", () => {
     assert.ok(columns.includes(19) && columns.includes(60));
     assert.ok(!columns.some((x) => x >= 20 && x < 60), "no filled bar under the gate");
     assert.equal(count(calls, "stroke"), 1, "one stroked outline for the one silent run");
+    // The outline is drawn in the label colour: it reads on the toned-down body.
+    assert.ok(sets.some((s) => s[0] === "strokeStyle" && s[1] === "#abc"));
     const moves = calls.filter((c) => c[0] === "moveTo");
     assert.equal(moves[0][1], 20, "the outline starts at the run's left edge");
     // The body tone over the silent run only, in the silent-body colour.

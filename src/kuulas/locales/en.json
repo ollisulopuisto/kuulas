@@ -2620,5 +2620,7 @@
   "ui.series.music_placed": "Series music clips placed: {count}.",
   "ui.series.music_missing": "Recordings not found: {count}; their clips were left out.",
   "ui.series.music_skipped": "No track of the same name for: {names}.",
-  "ui.series.music_clipboard_done": "Series music on the clipboard: {count} entries."
+  "ui.series.music_clipboard_done": "Series music on the clipboard: {count} entries.",
+  "ui.silence.legend.edges": "Dashed amber lines: where a closed stretch starts and ends. They are not clip edges and cannot be dragged.",
+  "ui.silence.legend.group": "Thin rounded outline round several clips: one group, moved and edited as one."
 }

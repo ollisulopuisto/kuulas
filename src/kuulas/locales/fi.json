@@ -2725,5 +2725,7 @@
   "ui.series.music_placed": "Sarjan musiikin leikkeitä sijoitettu: {count}.",
   "ui.series.music_missing": "Äänitteitä ei löytynyt: {count}; niiden leikkeet jätettiin pois.",
   "ui.series.music_skipped": "Samannimistä raitaa ei ole: {names}.",
-  "ui.series.music_clipboard_done": "Sarjan musiikki leikepöydällä: {count} kohtaa."
+  "ui.series.music_clipboard_done": "Sarjan musiikki leikepöydällä: {count} kohtaa.",
+  "ui.silence.legend.edges": "Katkoviivat (meripihka): mistä suljettu kohta alkaa ja mihin se päättyy. Ne eivät ole leikkeen reunoja eikä niitä voi vetää.",
+  "ui.silence.legend.group": "Ohut pyöreäkulmainen ääriviiva useiden leikkeiden ympärillä: yksi ryhmä, jota siirretään ja muokataan yhtenä."
 }
