@@ -272,6 +272,7 @@ export function createInspector({
     const next = [
       found?.clip.id ?? "",
       target.track?.id ?? "",
+      target.track?.kind ?? "",
       target.bus?.bus.id ?? "",
       target.merged ? target.trackBus.bus.id : "",
       state.project?.buses.map((bus) => bus.id).join(",") ?? "",

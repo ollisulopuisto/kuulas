@@ -2,7 +2,7 @@
 id: track
 title: A track
 applies-to: [track]
-commands: [track.mute, track.solo, rename]
+commands: [track.mute, track.solo, rename, app.duck_music]
 related: [bus, clip, timeline]
 ---
 A track holds the clips of one voice or one kind of sound. Its header, on the left of the lane, names it and shows its colour; the controls appear when the track is current or under the pointer. {show:track-headers}
@@ -10,6 +10,7 @@ A track holds the clips of one voice or one kind of sound. Its header, on the le
 - Mute or solo: {key:track.mute} and {key:track.solo}, or the M and S buttons.
 - Rename: {key:rename}
 - Level and pan: the header's sliders, or the inspector.
+- Duck music under speech from Track > Auto; choose which music tracks take part in the inspector.
 - Move the current track with the arrow keys up and down.
 
 The coloured pill is the speaker; the rail on the far left, if there is one, is the track's [[bus|bus]].

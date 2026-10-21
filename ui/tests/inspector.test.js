@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { clipLengthText, openSections, selectedClip, syncGroupOf } from "../inspector.js";
-import { addBusForTrack } from "../inspector-track.js";
+import { addBusForTrack, hasDuckControl } from "../inspector-track.js";
 
 // The server sends sync-group members as { mediaId: origin } (SyncGroup.to_dict).
 const project = {
@@ -11,6 +11,11 @@ const project = {
 };
 
 describe("inspector lookups", () => {
+  test("the duck switch exists only for music tracks", () => {
+    assert.equal(hasDuckControl({ kind: "music" }), true);
+    assert.equal(hasDuckControl({ kind: "speech" }), false);
+    assert.equal(hasDuckControl(null), false);
+  });
   test("the sync group is found from the members object", () => {
     assert.equal(syncGroupOf(project, "m2").id, "g1");
     assert.equal(syncGroupOf(project, "zz"), null);

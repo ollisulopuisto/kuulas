@@ -887,6 +887,11 @@ def create_app(session, engine, *, language: str | None = None,
         # Set music level: measure the speech and the beds; changes nothing.
         return JSONResponse({"jobs": session.music_level_measure(body)}, status_code=202)
 
+    @app.post("/api/duck-music/measure", status_code=202)
+    def post_duck_music_measure(body: Annotated[dict[str, Any], Body()]):
+        # Duck music: find speech intervals in a cancellable background job.
+        return JSONResponse({"jobs": session.duck_music_measure(body)}, status_code=202)
+
     @app.post("/api/block-level/measure", status_code=202)
     def post_block_level_measure(body: Annotated[dict[str, Any], Body()]):
         # Level blocks: measure each speaker's blocks and loud spots; changes nothing.

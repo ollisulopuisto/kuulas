@@ -88,6 +88,7 @@ describe("the commands the app registers", () => {
       openProject: () => calls.push(["openProject"]),
       autoSilence: () => calls.push(["autoSilence"]),
       duckMicrophones: () => calls.push(["duckMicrophones"]),
+      duckMusic: () => calls.push(["duckMusic"]),
       transcribeTrack: () => calls.push(["transcribeTrack"]),
     };
     registerAppCommands(registry, { actions, app });
@@ -103,7 +104,7 @@ describe("the commands the app registers", () => {
   test("Track > Auto-Silence, Duck the microphones and Transcribe work with a project (they were inert)", () => {
     const { registry, calls } = setup();
     const withProject = { project: { tracks: [{ id: "a" }] } };
-    const ids = ["app.auto_silence", "app.automix", "app.transcribe"];
+    const ids = ["app.auto_silence", "app.automix", "app.duck_music", "app.transcribe"];
     for (const id of ids) {
       assert.equal(registry.status(id), "ready", id);
       assert.equal(registry.can(id, withProject), true, id);
@@ -112,8 +113,14 @@ describe("the commands the app registers", () => {
     for (const id of ids) registry.run(id, null, withProject);
     assert.deepEqual(
       calls.map((call) => call[0]),
-      ["autoSilence", "duckMicrophones", "transcribeTrack"],
+      ["autoSilence", "duckMicrophones", "duckMusic", "transcribeTrack"],
     );
+  });
+
+  test("music ducking has no default keyboard shortcut", () => {
+    const entry = DEFAULT_KEYMAP.find((item) => item.id === "app.duck_music");
+    assert.ok(entry);
+    assert.deepEqual(entry.keys, { mac: null, other: null });
   });
 
   test("File > New project… and Open project… need no project and ask the app", () => {

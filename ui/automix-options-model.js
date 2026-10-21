@@ -99,7 +99,11 @@ export function unsupportedChanged(specs, form, capabilities) {
  * option is sent as: the offset for a number, `false` for a stage switch (block level), which
  * Kuulas did, so the automixer's own stage is switched off.
  */
-export const DONE_IN_KUULAS = { bed_under_speech_db: "bed_level", block_level: "block_level" };
+export const DONE_IN_KUULAS = {
+  bed_under_speech_db: "bed_level",
+  block_level: "block_level",
+  music_duck: "music_duck",
+};
 
 /** What the option is set to when Kuulas did the work: `value`, else the older `offset_db`. */
 const doneValue = (entry) => entry.value ?? entry.offset_db;

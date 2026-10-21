@@ -79,6 +79,7 @@ export function createAutomixDialog({
   prefs = null,
   onSetMusicLevel = null,
   onLevelBlocks = null,
+  onDuckMusic = null,
 }) {
   const dialog = el("dialog", "cheatsheet automix-dialog");
   dialog.setAttribute("aria-labelledby", "automix-title");
@@ -277,6 +278,7 @@ export function createAutomixDialog({
     // A number option (the music level) is a field; a stage (block levelling) is a checkbox
     // that Kuulas leaves unticked. Each has its own words and its own "do it again".
     const stage = spec.kind === "bool";
+    const musicDuck = spec.key === "music_duck";
     const set = (value) => {
       if (stage) input.checked = value;
       else input.value = String(value);
@@ -286,7 +288,7 @@ export function createAutomixDialog({
       "span",
       "automix-done-text",
       stage
-        ? t("ui.automix.done_text_block")
+        ? t(musicDuck ? "ui.automix.done_text_duck" : "ui.automix.done_text_block")
         : t("ui.automix.done_text", { default: spec.default }),
     );
     const reset = smallButton(t("ui.automix.done_reset"), () => set(spec.default));
@@ -295,13 +297,25 @@ export function createAutomixDialog({
     const stale = el(
       "span",
       "automix-done-text",
-      t(stage ? "ui.automix.done_stale_block" : "ui.automix.done_stale"),
+      t(
+        musicDuck
+          ? "ui.automix.done_stale_duck"
+          : stage
+            ? "ui.automix.done_stale_block"
+            : "ui.automix.done_stale",
+      ),
     );
     const again = smallButton(
-      t(stage ? "ui.automix.done_again_block" : "ui.automix.done_again"),
+      t(
+        musicDuck
+          ? "ui.automix.done_again_duck"
+          : stage
+            ? "ui.automix.done_again_block"
+            : "ui.automix.done_again",
+      ),
       () => {
         dialog.close();
-        (stage ? onLevelBlocks : onSetMusicLevel)?.();
+        (musicDuck ? onDuckMusic : stage ? onLevelBlocks : onSetMusicLevel)?.();
       },
     );
     const lacking = el("span", "automix-done-text", t("ui.automix.done_unsupported"));

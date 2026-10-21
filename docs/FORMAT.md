@@ -597,6 +597,15 @@ bytes and its state hash. It is set with `set_track` (one undo step).
 `Track.extra` and plays the track in stereo, which is audibly different from
 the mono mix but loses nothing and writes the key back.
 
+**As built (music ducking).** `Track.duck` is an optional `true` / `false`
+override for ducking. It is omitted when `null`: music ducks under speech by
+default and speech tracks do not participate. `false` leaves a music track out
+of Kuulas ducking and its automixer stem; `true` opts it in. An older reader
+keeps this unknown field in `Track.extra` and writes it back, but plays the
+track without applying automation as ducking. Ducking itself is ordinary
+`Track.automation`, written by Track > Auto > Duck music under speech in one
+undo step and editable by hand.
+
 **As built (WP49 loudness targets).** The edit state gains an optional
 `Track.target_lufs` (float, LUFS, -70 to 0): where the track should sit. Absent
 means the role's default (speech and narration -19, music -23; the role is the
@@ -682,6 +691,17 @@ audible speech tracks are exactly the ones levelled and their clips are untouche
 later edit of a clip, a new or unmuted speech track makes it stale, never wrong. It is written
 only when no changed block was left out (a block the user unticked is one the automixer must
 still level). Absent while empty.
+
+**Music ducking record.** When Duck music under speech writes a non-empty curve,
+the same undo step writes `mix_done.music_duck = {applied: true, tracks: {track
+id: signature}, set_at}`. Each signature covers the track's automation and
+clips. It is recorded at command time, as with block levelling, because the
+command is the undoable operation that writes the automation; later edits to a
+curve or its clips make the record stale. For the automixer export, enabled
+music tracks with non-empty automation carry that automation along with track
+and bus gain. A current record causes `--no-music-duck` and a Done in Kuulas
+line in `log.txt`. Without a written curve, no record is made and the
+automixer keeps its own ducking.
 
 The edit it makes is ordinary: each affected track's clips are split (`split_clip`, no gap, no
 media change) in the middle of the pause between two blocks and the block's gain is ADDED to

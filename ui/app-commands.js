@@ -224,6 +224,7 @@ export function registerAppCommands(registry, { actions, app }) {
   def("app.music_level", () => app.openMusicLevel(), hasProject);
   // Level blocks…: measure each speaker's blocks, add the gains to the clips (one step).
   def("app.block_level", () => app.openBlockLevel(), hasProject);
+  def("app.duck_music", () => app.duckMusic(), hasProject);
   def("app.transcribe", () => app.transcribeTrack("local"), hasProject);
   // Transcribe on Colab (WP78): after a notice that the audio is uploaded to Google.
   def("app.transcribe_colab", () => app.transcribeTrack("colab"), hasProject);

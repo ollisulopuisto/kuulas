@@ -742,6 +742,8 @@
   "ui.inspector.bus": "Väylä",
   "ui.track.role": "Rooli",
   "ui.track.role.hint": "Useita puhujia yhdessä tiedostossa, esimerkiksi Zoom-tallenne; ei vaimenneta mikrofonikohtaisesti.",
+  "ui.track.duck": "Vaimenna puheen aikana",
+  "ui.track.duck.hint": "Musiikki vaimenee oletuksena puheen ajaksi. Poista valinta tehosteilta ja muulta musiikilta, jonka taso ei saa muuttua.",
   "ui.track.role.option.speech": "Puhe",
   "ui.track.role.option.music": "Musiikki",
   "ui.track.voice": "Äänen esiasetus",
@@ -1621,6 +1623,9 @@
   "ui.automix.temp_dir_hint": "Raidat kirjoitetaan tänne ja poistetaan, kun miksaus on valmis. Ne voivat viedä useita Gt, joten valitse levy, jossa on tilaa.",
   "ui.auto_silence.done": "Auto-Silence valmis: mikrofonit suljettiin kohdissa, joissa niiden omistajat eivät puhu.",
   "ui.duck.done": "Mikrofonien painaminen kirjoitettiin puheraitojen automaatioon.",
+  "ui.duck_music.measuring": "Mitataan puhe musiikin vaimentamista varten",
+  "ui.duck_music.done": "Musiikin vaimennus kirjoitettiin muokattavaksi automaatioksi musiikkiraidoille.",
+  "ui.duck_music.failed": "Puheen mittaaminen musiikin vaimentamista varten ei onnistunut.",
   "cmd.app.auto_silence.hint": "Sulkee jokaisen puhemikrofonin kohdissa, joissa sen omistaja ei puhu (ja joissa toinen mikrofoni on voimakkaampi), yhtenä yhdistettynä porttina raitaa kohti; leikkeitä ei jaeta, ja portin voi avata uudelleen komennolla Avaa tämä kohta. Yksi kumoamisaskel.",
   "cmd.app.transcribe.hint": "Litteroi kohdistetun raidan äänitteet (kaikki puheraidat, jos mitään raitaa ei ole kohdistettu) sanoiksi, joita voi lukea, hakea ja muokata tekstinä.",
   "cmd.edit.move_up.hint": "Siirtää valitut leikkeet yhden raidan ylöspäin ajan säilyessä. Mihin ne osuvat, korvautuu (ei kerroksia). Yksi kumoamisaskel.",
@@ -2509,5 +2514,12 @@
   "ui.automix.remote_check.flags": "Tuetut valinnat",
   "ui.automix.remote_missing": "puuttuu: {flags}",
   "ui.automix.remote_low_disk": "{free}, alle 20 GB",
-  "ui.automix.remote_plugins_failed": "Toisen Macin liitännäisiä ei voitu listata. Kirjoita liitännäisen koko polku sellaisena kuin se Macilla on."
+  "ui.automix.remote_plugins_failed": "Toisen Macin liitännäisiä ei voitu listata. Kirjoita liitännäisen koko polku sellaisena kuin se Macilla on.",
+  "ui.automix.done_text_duck": "Musiikin vaimennus on jo kirjoitettu musiikkiraitojen automaatioon, joten automixer ohittaa oman vaimennuksensa. Palauta, niin automixer tekee sen.",
+  "ui.automix.done_stale_duck": "Musiikin vaimennus kirjoitettiin aiemmin Kuulaassa, mutta musiikkikäyrä tai leike on muuttunut sen jälkeen.",
+  "ui.automix.done_again_duck": "Vaimenna musiikki uudelleen",
+  "cmd.app.duck_music": "Vaimenna musiikki puheen alla",
+  "cmd.app.duck_music.hint": "Analysoi puheen ja kirjoittaa muokattavan vaimennuksen jokaisen vaimennukseen valitun musiikkiraidan automaatioon. Yksi kumoamisaskel.",
+  "job.duck_music": "Mitataan puhetta musiikin vaimentamista varten",
+  "error.music_duck.stale": "Muokkaus muuttui mittauksen jälkeen. Suorita musiikin vaimennus uudelleen."
 }

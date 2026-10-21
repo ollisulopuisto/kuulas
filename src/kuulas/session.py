@@ -52,6 +52,7 @@ from . import (
     edit_scope,
     export_names,
     import_plan,
+    music_duck,
     music_level,
     narration,
     narration_script,
@@ -574,8 +575,31 @@ class Session:
         with self.lock:
             return run(self, args)
 
-    def duck_music(self) -> Project:
-        return self.command("duck_music")
+    def duck_music(self, measured: dict | None = None) -> Project:
+        """Measure outside the lock, then write the music duck curve in one step."""
+        if measured is None:
+            with self.lock:
+                snapshot = self.history.state
+            intervals = offload.call("anyone_talking_intervals", snapshot, self.store)
+            measured = {"key": analysis.duck_key(snapshot), "intervals": intervals}
+        return self.command("duck_music", {"measured": measured})
+
+    def duck_music_measure(self, args: dict | None = None) -> list[str]:
+        """Queue the cancellable speech analysis for Track > Auto > Duck music."""
+        del args
+        with self.lock:
+            snapshot = self.history.state
+
+        def run(progress):
+            progress(0.0, "", True)
+            intervals = offload.call("anyone_talking_intervals", snapshot, self.store,
+                                     cancel=progress.cancelled_event)
+            if progress.cancelled:
+                raise JobCancelledError
+            return {"key": analysis.duck_key(snapshot), "intervals": intervals}
+
+        return [self.jobs.submit("duck_music", t("job.duck_music"), run,
+                                 keep_result=True)]
 
     def match_loudness(self, clip_ids: list[str],
                        target_lufs: float | None = None) -> Project:
@@ -2853,10 +2877,23 @@ def _automix(s: Session, args: dict) -> Project:
 
 
 def _duck_music(s: Session, args: dict) -> Project:
-    state = s.history.state
-    intervals = offload.call("anyone_talking_intervals", state, s.store)
-    new = analysis.duck_music(state, s.store, intervals=intervals)
-    return s._commit(t("history.duck_music"), new, "duck_music", args)
+    measured = args.get("measured")
+    if measured is None:
+        with s.lock:
+            snapshot = s.history.state
+        intervals = offload.call("anyone_talking_intervals", snapshot, s.store)
+        measured = {"key": analysis.duck_key(snapshot), "intervals": intervals}
+    if not isinstance(measured, dict) or not isinstance(measured.get("intervals"), list):
+        raise ops.EditError("error.edit.bad_arguments", name="duck_music",
+                            detail="measured")
+    with s.lock:
+        state = s.history.state
+        if measured.get("key") != analysis.duck_key(state):
+            raise ops.EditError("error.music_duck.stale")
+        new = analysis.duck_music(state, s.store, intervals=measured["intervals"])
+        at = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+        new = music_duck.with_record(new, at)
+        return s._commit(t("history.duck_music"), new, "duck_music", {})
 
 
 def _cut_words(s: Session, args: dict) -> Project:
@@ -3198,4 +3235,4 @@ COMMANDS: dict[str, Callable[[Session, dict], Project]] = {
 #: snapshot and their commit: their work is slow and must not stall playback
 #: or edits (ground rule 14).
 LOCK_FREE_COMMANDS = frozenset({"candidates_detect", "match_loudness", "save_backup",
-                                "set_music_level", "level_blocks"})
+                                "set_music_level", "level_blocks", "duck_music"})

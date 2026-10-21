@@ -3,10 +3,13 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
   changedItems,
+  DONE_IN_KUULAS,
   groupSpecs,
   initialOpen,
   optionEnabled,
   optionsToForm,
+  prefillOptions,
+  requestOptions,
   summaryText,
   unsupportedChanged,
   validateOptions,
@@ -49,6 +52,15 @@ describe("capability gating", () => {
     }
     assert.deepEqual(validateOptions(sp, { bed_under_speech_db: "1", n: "" }).options, {});
   });
+});
+
+test("music ducking uses the Done in Kuulas stage switch", () => {
+  assert.equal(DONE_IN_KUULAS.music_duck, "music_duck");
+  const specs = [{ key: "music_duck", kind: "bool", default: true, group: "music" }];
+  const filled = prefillOptions(specs, { music_duck: { value: false, current: true } }, {});
+  assert.deepEqual(filled.options, { music_duck: false });
+  const status = { music_duck: { state: "done", offset: false } };
+  assert.deepEqual(requestOptions(specs, filled.options, status), { music_duck: false });
 });
 
 describe("group summaries", () => {
