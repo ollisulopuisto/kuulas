@@ -111,6 +111,7 @@ const GO = submenu("menu.go", [
   item("history.goto_restore_point"),
   item("history.expand_all"),
   item("history.saved_only"),
+  item("history.open_saved"),
   item("history.rename_version"),
 ]);
 const MARKERS = submenu("menu.markers", [

@@ -427,6 +427,7 @@ export const SYNONYMS = {
   "history.rename_version": ["rename version", "rename save", "nimeä versio"],
   "history.saved_only": ["saved versions", "named versions", "tallennetut versiot"],
   "history.goto_restore_point": ["restore point", "restored step", "palautuskohta"],
+  "history.open_saved": ["earlier version", "open version", "aiempi versio"],
   "history.expand_all": ["open groups", "rolled back", "left behind", "avaa ryhmät"],
   "help.performance_report": [
     "slow",

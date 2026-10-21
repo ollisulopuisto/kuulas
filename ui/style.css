@@ -2854,13 +2854,52 @@ input[type="text"] {
 }
 /* Saved versions: a bookmark and the version's name lead the row; the step's own label is
    the small second line. The bookmark is the shape twin of the accent, so it holds without colour. */
+/* All steps | Saved versions: one segmented switch (owner, 2026-10-21), two joined halves,
+   the active one filled with the accent and bold, so it never reads as a tick box. */
 .hist-filter {
   display: flex;
-  gap: var(--space-2);
+  gap: 0;
   padding: var(--space-3) var(--pad-panel) 0;
 }
 .hist-filter .hist-seg {
   flex: 1 1 0;
+  min-width: 0;
+  justify-content: center;
+  border-radius: 0;
+}
+.hist-filter .hist-seg:first-child {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+.hist-filter .hist-seg:last-child {
+  margin-left: -1px;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.hist-filter .hist-seg[aria-pressed="true"] {
+  position: relative;
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+  color: var(--text);
+  font-weight: var(--weight-strong);
+}
+.hist-saved-hint {
+  margin: var(--space-2) var(--pad-panel) 0;
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+}
+.hist-saved-hint[hidden] {
+  display: none;
+}
+.hist-saved-hint .hist-link {
+  display: inline;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  font-size: inherit;
+  text-decoration: underline;
+  cursor: pointer;
 }
 .hist-search {
   margin: var(--space-3) var(--pad-panel) 0;

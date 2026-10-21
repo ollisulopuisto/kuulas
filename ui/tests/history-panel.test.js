@@ -108,10 +108,16 @@ const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 async function open() {
   let state = { sidebarTab: "history", head: "R", panel: "history" };
+  const calls = [];
   const root = new FakeNode("section");
   const panel = createHistoryPanel({
     root,
-    api: { getHistory: async () => ({ nodes: NODES, more: false }) },
+    api: {
+      getHistory: async (query) => {
+        calls.push(query);
+        return { nodes: query.saved ? [] : NODES, more: false };
+      },
+    },
     getState: () => state,
     setState: (patch) => {
       state = { ...state, ...patch };
@@ -127,7 +133,7 @@ async function open() {
   // Keys reach the panel's own listener, as they bubble up from the focused row.
   const key = (k) =>
     root.fire("keydown", { key: k, preventDefault() {}, stopPropagation() {}, target: root });
-  return { panel, root, rowsOf, row, key, state: () => state };
+  return { panel, root, rowsOf, row, key, calls, state: () => state };
 }
 
 describe("the History tab after a Restore", () => {
@@ -178,6 +184,36 @@ describe("the History tab after a Restore", () => {
     assert.equal(state().historySelected, "A");
     assert.equal(state().historyRestoreTarget, null);
     assert.equal(await panel.goToRestorePoint(), false);
+  });
+
+  test("All steps | Saved versions is one two-state switch with the active one marked", async () => {
+    const { root } = await open();
+    const group = root.all().find((n) => n.className === "hist-filter");
+    assert.equal(group.attrs.role, "group");
+    const [all, saved] = group.children;
+    assert.equal(all.textContent, "All steps");
+    assert.equal(saved.textContent, "Saved versions");
+    assert.equal(all.attrs["aria-pressed"], "true");
+    assert.equal(saved.attrs["aria-pressed"], "false");
+  });
+
+  test("Saved versions shows a hint whose link switches back to All steps", async () => {
+    const { panel, root, calls } = await open();
+    const hint = () => root.all().find((n) => n.className === "hist-saved-hint");
+    assert.equal(hint().hidden, true);
+    panel.showSavedVersions();
+    await flush();
+    assert.equal(hint().hidden, false);
+    assert.match(hint().text(), /Showing saved versions only\. You can restore any step:/);
+    assert.equal(calls.at(-1).saved, true);
+    const link = hint()
+      .all()
+      .find((n) => n.tagName === "button");
+    assert.equal(link.textContent, "switch to All steps");
+    link.fire("click");
+    await flush();
+    assert.equal(hint().hidden, true);
+    assert.equal(calls.at(-1).saved, false);
   });
 
   test("Expand all opens the group", async () => {

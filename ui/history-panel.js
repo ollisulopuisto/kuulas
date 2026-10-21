@@ -137,9 +137,21 @@ export function createHistoryPanel({
     class: "button hist-seg",
     dataset: { filter: "saved" },
   });
+  // One two-state switch (owner, 2026-10-21): two joined segments, the active one filled.
   const filterGroup = el("div", { class: "hist-filter", role: "group" }, showAll, showSaved);
+  // While only saved versions show, say that any step can be restored (File > Open earlier
+  // version lands here with the filter on), with a way straight back to All steps.
+  const savedHintText = el("span");
+  const savedHintLink = el("button", { type: "button", class: "button ghost hist-link" });
+  const savedHint = el(
+    "p",
+    { class: "hist-saved-hint", hidden: true },
+    savedHintText,
+    " ",
+    savedHintLink,
+  );
   const search = el("input", { type: "search", class: "hist-search" });
-  root.replaceChildren(title, bar, filterGroup, search, status, scroller, older);
+  root.replaceChildren(title, bar, filterGroup, savedHint, search, status, scroller, older);
 
   function setSavedOnly(on) {
     if (on === savedOnly) return;
@@ -160,6 +172,10 @@ export function createHistoryPanel({
   }
   showAll.addEventListener("click", () => setSavedOnly(false));
   showSaved.addEventListener("click", () => setSavedOnly(true));
+  savedHintLink.addEventListener("click", () => {
+    setSavedOnly(false);
+    showAll.focus();
+  });
   search.addEventListener("input", () => {
     query = search.value;
     signature = "";
@@ -483,6 +499,9 @@ export function createHistoryPanel({
     showSaved.textContent = t("ui.history.filter_saved");
     showAll.setAttribute("aria-pressed", String(!savedOnly));
     showSaved.setAttribute("aria-pressed", String(savedOnly));
+    savedHint.hidden = !savedOnly;
+    savedHintText.textContent = t("ui.history.saved_hint");
+    savedHintLink.textContent = t("ui.history.saved_hint_link");
     search.setAttribute("aria-label", t("ui.history.search_label"));
     search.placeholder = t("ui.history.search_placeholder");
     bar.setAttribute("aria-label", t("ui.history.undo_group"));
@@ -646,5 +665,7 @@ export function createHistoryPanel({
     goToRestorePoint,
     expandAll,
     toggleSavedOnly: () => setSavedOnly(!savedOnly),
+    /** File > Open earlier version... and Go to > Open History at the saved versions. */
+    showSavedVersions: () => setSavedOnly(true),
   };
 }

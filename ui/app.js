@@ -1306,6 +1306,10 @@ const keyboard = setupKeyboard({
       focusPanel("history");
       if (!(await historyPanel.goToRestorePoint())) showNotice(t("ui.history.goto_none"), "ok");
     },
+    openHistorySaved() {
+      focusPanel("history");
+      historyPanel.showSavedVersions();
+    },
     expandHistoryGroups() {
       focusPanel("history");
       historyPanel.expandAll();

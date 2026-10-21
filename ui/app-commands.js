@@ -228,6 +228,7 @@ export function registerAppCommands(registry, { actions, app }) {
     (state) => canGoToRestorePoint(state),
   );
   def("history.expand_all", () => app.expandHistoryGroups(), hasProject);
+  def("history.open_saved", () => app.openHistorySaved(), hasProject);
   def("app.import", () => app.chooseMedia());
   // File > New project… / Open project… (WP74): a window of its own; no project needed.
   def("app.new", () => app.newProject());

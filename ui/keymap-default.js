@@ -364,6 +364,13 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.history.goto_restore_point",
   },
   {
+    // What File > Open earlier version... calls; no default key.
+    id: "history.open_saved",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.history.open_saved",
+  },
+  {
     id: "history.expand_all",
     keys: { mac: null, other: null },
     context: "global",
