@@ -36,6 +36,7 @@ import {
   trimPlan,
   ungroupPlan,
 } from "./edit-plans.js";
+import { rememberCut } from "./ghost-marker.js";
 import { toggleScopeMode } from "./range-scope.js";
 import { selectAllIds } from "./selection.js";
 import { cycleKindPlan } from "./track-kind.js";
@@ -96,6 +97,15 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
           app.seek?.(plan.args.start);
         }
         if (RANGE_SPENT_OPS.has(plan.op)) {
+          // The splice (the range's start) is remembered as the hidden ghost, so a lone O or
+          // I soon after extends from it (ghost-marker.js, marks.js placeMark). A new cut
+          // replaces the old ghost. Its own patch: the range-clearing one below stays last.
+          if (Number.isFinite(plan.args?.start)) {
+            app.patch({
+              ghost: rememberCut(plan.args.start),
+              guessedMarks: { in: null, out: null },
+            });
+          }
           app.patch({
             inPoint: null,
             outPoint: null,

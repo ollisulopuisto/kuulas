@@ -1,6 +1,7 @@
 // Dragging a clip's gain line and fade handles (WP6). Pure: what the pointer hits, the value
 // it gives and the edit to send. Both edits are `set_clip` with a coalesce key, so a whole
 // drag is one undo step; the keyboard (+/-, Mod+F) and the inspector set the same fields.
+import { lineValueAt, togglePoint } from "./envelope-edit.js";
 import { dbToY, yToDb } from "./lanes.js";
 
 /** How close (px) the pointer must be to the gain line. */
@@ -22,6 +23,40 @@ export function gainLineVisible(clip, selected) {
 export function gainLineHit(clip, rowHeight, rowY) {
   if (rowHeight < MIN_LANE_FOR_HANDLES) return false;
   return Math.abs(rowY - dbToY(clip.gain_db ?? 0, rowHeight)) <= GAIN_HIT_PX;
+}
+
+/**
+ * Double-click on a clip's gain line (the envelope, drawn at the clip gain plus the envelope's
+ * dB): add a point where the line is, or remove the point under the pointer.
+ *
+ * `at` = { timelineFrame, rowHeight, rowY, point }: the pointer's timeline frame, the lane's
+ * height, the pointer's y in the lane and hitTest's `point` (index of the envelope point under
+ * the pointer, or null). Envelope frames are SOURCE frames (lanes.js envelopeFrame is
+ * start + (frame - offset)), so the timeline frame is converted back here. A new point takes
+ * the line's current value, so adding one does not change the sound.
+ * Returns { points, action: "added" | "removed" } or null when the pointer is not near the
+ * line (the caller then leaves the double-click to whatever else it means).
+ */
+export function envelopeToggle(clip, { timelineFrame, rowHeight, rowY, point }) {
+  if (rowHeight < MIN_LANE_FOR_HANDLES) return null;
+  const envelope = clip.envelope ?? [];
+  if (point != null && envelope[point]) {
+    return togglePoint(envelope, envelope[point][0], 0, 0);
+  }
+  const sourceFrame = Math.round(clip.offset + (timelineFrame - clip.start));
+  const db = Math.round(lineValueAt(envelope, sourceFrame) * 10) / 10;
+  const lineY = dbToY((clip.gain_db ?? 0) + lineValueAt(envelope, sourceFrame), rowHeight);
+  if (Math.abs(rowY - lineY) > GAIN_HIT_PX) return null;
+  return togglePoint(envelope, sourceFrame, db, 0);
+}
+
+/** The edit for a double-click on the gain line: one set_clip_envelope, one undo step. */
+export function envelopeChange(clipId, points) {
+  return {
+    op: "set_clip_envelope",
+    args: { clip_id: clipId, points },
+    labelKey: "ui.clipdrag.envelope",
+  };
 }
 
 /** How far (px) below the line the press landed, so the line does not jump to the pointer. */

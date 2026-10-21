@@ -24,6 +24,7 @@ import { DEFAULT_DRAG_MODE, dragIntent } from "./drag-mode.js";
 import { edgeGhost, ghostGeometry, resolveEdge } from "./edge-drag.js";
 import { frameToTime, frameToX, xToFrame } from "./format.js";
 import {
+  envelopeToggle,
   fadeFromX,
   fadeHandleAt,
   fadeHandles,
@@ -108,6 +109,8 @@ const WORDS_LOOKBACK_S = 10;
 const POINT_RADIUS = 3;
 const XFADE_ALPHA = 0.3;
 const GAIN_ALPHA = 0.75;
+// Opacity of a guessed in/out mark (taken from the last cut), against 1 for a chosen one.
+const GUESSED_ALPHA = 0.55;
 const PLAYHEAD_CAP = 5.5;
 const SEAM_ALPHA = 0.7;
 const NOTCH_PX = 4;
@@ -601,31 +604,66 @@ export function createTimeline({
   // In and out: 1 px accent edges with a flag in the ruler, pointing inwards.
   // A lone mark is drawn too, so pressing O or I shows something at once.
   // One 1 px bar at x: the whole height, or only on the lanes in scope (the ruler flag stays).
-  function drawBar(x, spans, height) {
+  // A guessed mark (taken from the last cut, marks.js placeMark) is a dashed, lighter bar.
+  function drawBar(x, spans, height, guessed = false) {
+    if (guessed) {
+      overlay.save();
+      overlay.globalAlpha = GUESSED_ALPHA;
+      overlay.strokeStyle = theme.accent;
+      overlay.lineWidth = 1;
+      overlay.setLineDash([4, 3]);
+      overlay.beginPath();
+      if (spans === null) {
+        overlay.moveTo(x + 0.5, 0);
+        overlay.lineTo(x + 0.5, height);
+      } else {
+        for (const span of spans) {
+          overlay.moveTo(x + 0.5, span.top);
+          overlay.lineTo(x + 0.5, span.top + span.height);
+        }
+      }
+      overlay.stroke();
+      overlay.restore();
+      return;
+    }
     if (spans === null) overlay.fillRect(x, 0, 1, height);
     else for (const span of spans) overlay.fillRect(x, span.top, 1, span.height);
   }
 
+  function drawFlag(x, direction, guessed) {
+    overlay.save();
+    overlay.fillStyle = theme.accent;
+    overlay.globalAlpha = guessed ? GUESSED_ALPHA : 1;
+    overlay.beginPath();
+    overlay.moveTo(x, 0);
+    overlay.lineTo(x + 8 * direction, 0);
+    overlay.lineTo(x, 8);
+    overlay.fill();
+    if (guessed) {
+      // An outline instead of a solid flag: a guess reads differently from a chosen mark.
+      overlay.globalAlpha = 1;
+      overlay.strokeStyle = theme.accent;
+      overlay.lineWidth = 1;
+      overlay.setLineDash([2, 2]);
+      overlay.stroke();
+    }
+    overlay.restore();
+  }
+
   function drawInOut(state, height, rate, spans) {
-    const { inFrame, outFrame } = markDrawing(state);
+    const { inFrame, outFrame, guessed } = markDrawing(state);
     drawRangeInRuler(state, rate);
     overlay.fillStyle = theme.accent;
-    overlay.beginPath();
     if (inFrame !== null) {
       const x1 = frameToX(inFrame, state.scroll, state.zoom);
-      drawBar(Math.round(x1), spans, height);
-      overlay.moveTo(x1, 0);
-      overlay.lineTo(x1 + 8, 0);
-      overlay.lineTo(x1, 8);
+      drawBar(Math.round(x1), spans, height, guessed.in);
+      drawFlag(x1, 1, guessed.in);
     }
     if (outFrame !== null) {
       const x2 = frameToX(outFrame, state.scroll, state.zoom);
-      drawBar(Math.round(x2) - 1, spans, height);
-      overlay.moveTo(x2, 0);
-      overlay.lineTo(x2 - 8, 0);
-      overlay.lineTo(x2, 8);
+      drawBar(Math.round(x2) - 1, spans, height, guessed.out);
+      drawFlag(x2, -1, guessed.out);
     }
-    overlay.fill();
   }
 
   function drawTrack(state, track, row, top, hues) {
@@ -1509,7 +1547,23 @@ export function createTimeline({
   overlayCanvas.addEventListener("dblclick", (event) => {
     if (!getState().project || event.button !== 0) return;
     if (event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return;
-    const { gate, placeholder, clip } = hitAt(event);
+    const hit = hitAt(event);
+    const { gate, placeholder, clip } = hit;
+    // Near a clip's gain line (or on one of its points): add or remove an envelope point.
+    // Anywhere else the double-click keeps its other meanings below.
+    if (clip && hit.row?.kind === "track" && !hit.edge) {
+      const state = getState();
+      const change = envelopeToggle(clip, {
+        timelineFrame: hit.frame,
+        rowHeight: hit.row.height,
+        rowY: rowYOf(event, hit),
+        point: hit.point,
+      });
+      if (change && gainLineVisible(clip, state.selection.has(clip.id))) {
+        actions.clipEnvelope({ clipId: clip.id, points: change.points });
+        return;
+      }
+    }
     if (placeholder && !clip) actions.editPlaceholder(placeholder);
     else if (gate) actions.openGate(gate);
   });

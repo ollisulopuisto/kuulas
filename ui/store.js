@@ -64,6 +64,13 @@ export const initialState = () => ({
   playhead: 0,
   inPoint: null,
   outPoint: null,
+  // The hidden "ghost" of the last cut ({ frame } or null, ghost-marker.js) and the frames the
+  // in and out marks were guessed at from it ({ in, out }; null for a mark set by hand).
+  // UI state only. Not restored by Undo/Redo: after an undo the splice is gone but its frame
+  // is still the likeliest place the next range starts or ends, so the ghost stays until a
+  // new cut replaces it or the marks are cleared (mark.clear).
+  ghost: null,
+  guessedMarks: { in: null, out: null },
   // The lanes a dragged range covered (WP6, ids); empty after a click.
   rangeTracks: new Set(),
   // Loop playback (WP50): on or off; the range is the marks, else the selected clips.
