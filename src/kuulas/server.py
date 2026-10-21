@@ -26,6 +26,7 @@ import logging
 import math
 import os
 import shutil
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -84,6 +85,8 @@ from .session import (
     CLIPBOARD_EDITS,
     NarrationScriptError,
     NoSuchEntryError,
+    SilenceNotMeasuredError,
+    SilenceStaleError,
     SubtitlesError,
     TranscriptTextError,
 )
@@ -477,6 +480,14 @@ def create_app(session, engine, *, language: str | None = None,
     @app.exception_handler(PlaybackRequestError)
     async def _bad_playback(_request: Request, e: PlaybackRequestError):
         return answer(e, 400)
+
+    @app.exception_handler(SilenceNotMeasuredError)
+    async def _silence_not_measured(_request: Request, e: SilenceNotMeasuredError):
+        return answer(e, 409)
+
+    @app.exception_handler(SilenceStaleError)
+    async def _silence_stale(_request: Request, e: SilenceStaleError):
+        return answer(e, 409)
 
     @app.exception_handler(NoSuchEntryError)
     async def _no_entry(_request: Request, e: NoSuchEntryError):
@@ -907,6 +918,53 @@ def create_app(session, engine, *, language: str | None = None,
     def post_auto_silence_preview(body: Annotated[dict[str, Any], Body()]):
         # What Auto-Silence with these options would close; changes nothing.
         return JSONResponse({"jobs": session.auto_silence_preview(body)}, status_code=202)
+
+    # -- the Auto-Silence live preview (Track > Auto > Auto-Silence options…) ----
+    # The panel measures once (a job), asks for ranges on every control change
+    # (decided here in milliseconds) and plays them through the engine's
+    # listening overlay, never committed until Accept. ``seq`` (the panel's,
+    # rising) keeps an older answer that finishes late from replacing the
+    # overlay of a newer one, or from bringing it back after Close.
+    overlay_lock = threading.Lock()
+    overlay_seq = [-math.inf]
+
+    def silence_overlay(ranges: dict | None, seq: object, *, close: bool = False) -> None:
+        plain = isinstance(seq, int | float) and not isinstance(seq, bool)
+        number = seq if plain else None
+        with overlay_lock:
+            if number is not None:
+                if number < overlay_seq[0] or (number == overlay_seq[0] and not close):
+                    return
+                overlay_seq[0] = number
+            engine.set_silence_overlay(ranges)
+
+    @app.post("/api/silence/measure")
+    def post_silence_measure():
+        # Ready at once when the speech audio is already measured; else the job.
+        return JSONResponse(session.silence_measure())
+
+    @app.post("/api/silence/ranges")
+    def post_silence_ranges(body: Annotated[dict[str, Any], Body()]):
+        try:
+            out = session.silence_preview_ranges(body)
+        except SilenceNotMeasuredError:
+            silence_overlay(None, body.get("seq"))
+            raise
+        silence_overlay({row["track_id"]: row["ranges"] for row in out["tracks"]},
+                        body.get("seq"))
+        return JSONResponse(out)
+
+    @app.post("/api/silence/accept")
+    def post_silence_accept(body: Annotated[dict[str, Any], Body()]):
+        session.silence_accept(body)
+        silence_overlay(None, body.get("seq"), close=True)
+        return JSONResponse(state())
+
+    @app.post("/api/silence/close")
+    def post_silence_close(body: Annotated[dict[str, Any], Body()]):
+        # Cancel / Close / Esc: the overlay goes, nothing is committed.
+        silence_overlay(None, body.get("seq"), close=True)
+        return JSONResponse({"closed": True})
 
     @app.post("/api/music-level/measure", status_code=202)
     def post_music_level_measure(body: Annotated[dict[str, Any], Body()]):

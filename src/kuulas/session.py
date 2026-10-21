@@ -120,6 +120,16 @@ class SubtitlesError(ops.EditError):
     """Unknown subtitle format."""
 
 
+class SilenceNotMeasuredError(KuulasError):
+    """The Auto-Silence live preview has no measure of the project's speech
+    audio as it is now: measure first (the API answers 409)."""
+
+
+class SilenceStaleError(ops.EditError):
+    """Accept was asked for a preview of an older audio state (the API
+    answers 409): the speech audio changed after the preview was made."""
+
+
 class NarrationScriptError(ops.EditError):
     """The narration script was asked for in a format that does not exist."""
 
@@ -320,6 +330,16 @@ class Session:
         self._live_lines: deque[str] = deque(maxlen=AUTOMIX_LIVE_LINES)
         self._live_running = False
         self._live_started: str | None = None
+        #: The Auto-Silence live preview (``silence_measure``): the latest
+        #: measure of the speech audio, kept in memory (about 5 bytes per hop
+        #: per mic: 2.7 MB for 45 minutes x 4) and valid only while its key
+        #: (``analysis.silence_key``) is the project's. A stale one is dropped
+        #: the next time the preview asks, not on every edit: working the key
+        #: out after each edit would cost the edit budget for nothing.
+        #: ``_silence_job``: (key, job id) of the measure in progress.
+        self._silence_lock = threading.Lock()
+        self._silence_measure: analysis.SilenceMeasure | None = None
+        self._silence_job: tuple[str, str] | None = None
         #: The numbers of the latest Set music level, for the UI's notice.
         self.last_music_level: dict | None = None
         self.last_block_level: dict | None = None
@@ -1305,6 +1325,118 @@ class Session:
 
         return [self.jobs.submit("auto_silence_preview",
                                  t("job.auto_silence_preview"), run, keep_result=True)]
+
+    # -- the Auto-Silence live preview -----------------------------------------
+    #
+    # Two stages (analysis: measure once, decide per options). The measure is a
+    # background job in the analysis worker, one track per call so the job can
+    # say how far it is and memory stays at one track's audio; the decision runs
+    # here per slider move on the kept measure, without the session lock.
+
+    def _silence_now(self) -> tuple[Project, str]:
+        with self.lock:
+            state = self.history.state
+        return state, analysis.silence_key(state)
+
+    def _silence_valid(self, key: str) -> analysis.SilenceMeasure | None:
+        """The kept measure if it is of ``key``; a stale one is dropped."""
+        with self._silence_lock:
+            measure = self._silence_measure
+            if measure is not None and measure.key != key:
+                self._silence_measure = measure = None
+            return measure
+
+    def silence_measure(self) -> dict:
+        """Make sure there is a measure of the speech audio as it is now:
+        ``{"ready": True, "jobs": [], "key"}`` when one is kept, else the id of
+        the job that measures it (a running one for the same audio is reused,
+        not doubled). The job's ``result`` is ``{key, tracks, bytes}``."""
+        state, key = self._silence_now()
+        if self._silence_valid(key) is not None:
+            return {"ready": True, "jobs": [], "key": key}
+        with self._silence_lock:
+            running = self._silence_job
+            if running is not None and running[0] == key and self._job_live(running[1]):
+                return {"ready": False, "jobs": [running[1]], "key": key}
+            ids = analysis.silence_measured_ids(state)
+            names = {tr.id: tr.name for tr in state.tracks}
+
+            def run(progress):
+                levels = {}
+                for i, track_id in enumerate(ids):
+                    progress(i / len(ids), t("job.silence_measure_track",
+                                             name=names[track_id], n=i + 1,
+                                             total=len(ids)))
+                    levels[track_id] = offload.call(
+                        "silence_track_levels", state, self.store, track_id,
+                        cancel=progress.cancelled_event)
+                    if progress.cancelled:
+                        raise JobCancelledError
+                measure = analysis.assemble_measure(state, levels)
+                with self._silence_lock:
+                    self._silence_measure = measure
+                return {"key": measure.key, "tracks": len(ids), "bytes": measure.nbytes}
+
+            job_id = self.jobs.submit("silence_measure", t("job.silence_measure"), run,
+                                      keep_result=True)
+            self._silence_job = (key, job_id)
+        return {"ready": False, "jobs": [job_id], "key": key}
+
+    def _job_live(self, job_id: str) -> bool:
+        return any(j["id"] == job_id and j["state"] in ("queued", "running")
+                   for j in self.jobs.list())
+
+    def _silence_decide(self, args: dict | None) -> tuple:
+        """``(state, key, options, measure, ranges, gates)``: the decision on
+        the kept measure for the state now, outside the session lock."""
+        args = dict(args or {})
+        options = silence_options.parse(args)
+        state, key = self._silence_now()
+        measure = self._silence_valid(key)
+        if measure is None:
+            raise SilenceNotMeasuredError("error.silence.not_measured")
+        gates = {tr.id: tr.gate for tr in state.tracks}
+        ranges = analysis.silence_ranges_from(measure, options, gates)
+        return state, key, options, measure, ranges, gates
+
+    def silence_preview_ranges(self, args: dict | None = None) -> dict:
+        """What Auto-Silence with these options WOULD close, decided in this
+        process from the kept measure in tens of milliseconds, without the
+        session lock: ``{"tracks": [{track_id, name, ranges, close_s,
+        stretches, total_s, now_s}], "key", "options"}``. No history step.
+        ``SilenceNotMeasuredError`` when there is no valid measure."""
+        _state, key, options, measure, ranges, gates = self._silence_decide(args)
+        return {"tracks": analysis.silence_rows(measure, ranges, gates), "key": key,
+                "options": options.as_dict()}
+
+    def silence_accept(self, args: dict | None = None) -> Project:
+        """Commit what the preview with these options shows, as ONE undo step
+        (the Auto-Silence step). ``args["key"]`` (the preview's) must still be
+        the audio's; the decision runs again, here, so what is committed is
+        what these options give on the audio as it is now."""
+        args = dict(args or {})
+        want = args.get("key")
+        if want is not None and want != self._silence_now()[1]:
+            raise SilenceStaleError("error.silence.stale")
+        state, key, options, _measure, ranges, _gates = self._silence_decide(args)
+        if want is not None and want != key:
+            raise SilenceStaleError("error.silence.stale")
+        track_ids = args.get("track_ids")
+        with self.lock:
+            if self.history.state is not state:
+                # An edit came in meanwhile: decide again on what is there now.
+                if analysis.silence_key(self.history.state) != key:
+                    raise SilenceStaleError("error.silence.stale")
+                state = self.history.state
+                measure = self._silence_valid(key)
+                if measure is None:
+                    raise SilenceNotMeasuredError("error.silence.not_measured")
+                ranges = analysis.silence_ranges_from(
+                    measure, options, {tr.id: tr.gate for tr in state.tracks})
+            new = analysis.apply_silence(state, ranges, track_ids)
+            recorded = {**options.as_dict(),
+                        **({"track_ids": list(track_ids)} if track_ids else {})}
+            return self._commit(t("history.auto_silence"), new, "auto_silence", recorded)
 
     def music_level_measure(self, args: dict | None = None) -> list[str]:
         """Queue ONE job that measures what Set music level needs (the speech

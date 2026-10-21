@@ -1,5 +1,5 @@
-// Auto-Silence options: the values, their limits and the preview text, pure (the dialog is
-// silence-dialog.js). The defaults and ranges mirror src/kuulas/silence_options.py; the
+// Auto-Silence options: the values, their limits and the preview text, pure (the panel is
+// silence-panel.js). The defaults and ranges mirror src/kuulas/silence_options.py; the
 // server clamps again, this keeps the form honest before it asks.
 
 export const SILENCE_DEFAULTS = Object.freeze({

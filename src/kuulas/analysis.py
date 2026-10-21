@@ -28,7 +28,7 @@ import json
 import logging
 import os
 from collections.abc import Iterable
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from types import SimpleNamespace
 
 import numpy as np
@@ -261,13 +261,18 @@ def duck_settings(depth_db: float = masks.DUCK_DB,
 
 
 def _dilate(mask: np.ndarray, before: int, after: int) -> np.ndarray:
-    out = mask.copy()
-    idx = np.flatnonzero(mask)
-    for k in range(1, before + 1):
-        out[np.maximum(idx - k, 0)] = True
-    for k in range(1, after + 1):
-        out[np.minimum(idx + k, mask.size - 1)] = True
-    return out
+    """Each true hop also marks ``before`` hops before it and ``after`` after
+    it: hop i is true when any of ``mask[i - after : i + before + 1]`` is.
+    One cumulative sum (the live preview runs this per slider move; the loop
+    over ``k`` it replaces took 30 ms on 45 minutes x 4 mics)."""
+    if mask.size == 0:
+        return mask.copy()
+    n = mask.size
+    count = np.concatenate(([0], np.cumsum(mask, dtype=np.int64)))
+    i = np.arange(n)
+    hi = np.minimum(n, i + before + 1)
+    lo = np.maximum(0, i - after)
+    return (count[hi] - count[lo]) > 0
 
 
 def _ungated(p: Project) -> Project:
@@ -280,40 +285,18 @@ def _ungated(p: Project) -> Project:
 def raw_silence_ranges(p: Project, store: Store,
                        options: SilenceOptions | None = None) -> dict[str, gate.Gate]:
     """Per speech track, the closed ranges exactly as the measurement gives
-    them, one per toggle, before ``silence_ranges`` merges them.
+    them, one per toggle, before ``silence_ranges`` merges them:
+    ``measure_silence`` then ``raw_ranges_from`` (see there for the rule).
 
     The measurement is made on the raw sources, gate or no gate: the gate
     this replaces must not hide the audio it is being decided from, or a
     second run could never reopen a stretch the first one closed.
-
-    Closed where the owner is not talking (own floor + ``margin_db``, pauses
-    under ``GAP_CLOSE_S`` bridged, blips under ``MIN_RUN_S`` dropped, padded
-    by ``open_before_s`` and ``open_after_s``) or where another mic dominates
-    it (``masks.duck_masks``: the louder mic wins, so bleed does not hold a
-    mic open; a mic within ``dominance_db`` of the loudest stays open). With
-    ``method == "compensated"`` the talk is decided by ``bleed_relative``
-    instead, calibrated on the hand mutes, and there is no ducking mask.
     """
     opts = options or SilenceOptions()
-    if opts.method == "compensated":
-        return _compensated_ranges(p, store, opts)
-    lanes = speech_lanes(_ungated(p), store, opts.margin_db)
-    if not lanes.speakers:
-        return {}
-    hop = hop_frames(p.rate)
-    ducked = masks.duck_masks(lanes, duck_settings(dominance_db=opts.dominance_db))
-    lane_by_name = {lane.name: lane for lane in lanes.speakers}
-    out = {}
-    for track in speech_tracks(p):
-        speaker = track.speaker or track.name
-        lane = lane_by_name.get(speaker)
-        if lane is None:
-            continue
-        closed = _closed_from_talk(np.asarray(lane.on, dtype=bool), opts)
-        if lane.name in ducked:
-            closed |= np.asarray(ducked[lane.name], dtype=bool)[: closed.size]
-        out[track.id] = gate.ranges_from_mask(closed, hop)
-    return out
+    if opts.method == "compensated" and calibration_end(p) <= 0:
+        # Before the measuring: it cannot run, so it must not cost minutes first.
+        raise SilenceOptionError("error.silence.no_hand_mutes")
+    return raw_ranges_from(measure_silence(p, store), opts, _gates(p))
 
 
 def _closed_from_talk(on: np.ndarray, opts: SilenceOptions) -> np.ndarray:
@@ -334,37 +317,260 @@ def calibration_end(p: Project) -> int:
     return max((r[-1][1] for t in speech_tracks(p) if (r := hand_mutes(t))), default=0)
 
 
-def _unmuted(p: Project) -> Project:
-    return replace(p, tracks=tuple(
-        replace(t, gate=(), clips=tuple(replace(c, muted=False) for c in t.clips))
-        for t in p.tracks))
+# -- Auto-Silence in two stages: measure once, decide per options --------------------
+#
+# The live preview (Track > Auto > Auto-Silence options…) recomputes the closed
+# ranges on every slider move. Reading the audio is the slow part (about two
+# minutes on a 45-minute four-mic project in the worker); everything the options
+# change comes after it. So the level curves are measured once per audio state
+# (``measure_silence``, a ``SilenceMeasure`` of a few MB) and the decision runs
+# on them per options (``silence_ranges_from``). ``silence_ranges`` is the two in
+# a row and gives exactly the answers it gave before the split
+# (``tests/golden/silence_ranges.json``, recorded from the code before it).
+#
+# Cost of the decision, measured 2026-10-21 on the owner's Mac Studio (M1 Max,
+# load average 8 from other work) on a 45-minute four-mic measure made of real
+# per-hop flicker (``tests/test_silence_measure.py``): 80 to 100 ms per call, of
+# which about 62 ms is ``masks.duck_masks`` and 20 ms ``close_gaps`` and
+# ``drop_short`` (speechmix's per-run Python loops; ``_dilate`` here was 30 ms
+# more before it became one cumulative sum). Getting to a few tens of ms needs
+# those loops vectorised in speechmix (ground rule 7: not copied here). The
+# measure itself is 2.7 MB (5 bytes per hop per mic).
+
+#: Bump when the measure's content changes: every older key stops matching.
+MEASURE_ALGORITHM = "silence-measure@1"
 
 
-def _compensated_ranges(p: Project, store: Store,
-                        opts: SilenceOptions) -> dict[str, gate.Gate]:
+@dataclass(frozen=True, eq=False)
+class TrackLevels:
+    """One measured speech track: raw dB per hop (no gain, no gate, muted
+    clips left out, as ``track_levels``), where it has audio, and its own noise
+    floor (``grid.noise_floor`` of the smoothed curve: it depends on the levels
+    only, never on the options, so it is kept)."""
+
+    db: np.ndarray
+    valid: np.ndarray
+    floor: float
+
+
+@dataclass(frozen=True)
+class MeasuredTrack:
+    """A speech track with clips, as the decision needs it: who it is and
+    whether it is muted (a muted track is not measured, but takes its
+    speaker's lane like before)."""
+
+    id: str
+    name: str
+    speaker: str
+    mute: bool
+
+
+@dataclass(frozen=True, eq=False)
+class SilenceMeasure:
+    """Everything Auto-Silence needs from the audio for one audio state
+    (``key``: ``silence_key``). Picklable; about 5 bytes per hop per mic
+    (45 minutes x 4 mics: 2.7 MB). ``comp_hops``: the hop count the
+    compensated method has always measured over (the project with its hand
+    mutes unmuted, which can be longer)."""
+
+    key: str
+    rate: int
+    length: int
+    hops: int
+    comp_hops: int
+    tracks: tuple[MeasuredTrack, ...]
+    levels: dict[str, TrackLevels]
+    hand_mutes: dict[str, gate.Gate]
+    calibration_end: int
+
+    @property
+    def nbytes(self) -> int:
+        return sum(lv.db.nbytes + lv.valid.nbytes for lv in self.levels.values())
+
+
+def _gates(p: Project) -> dict[str, gate.Gate]:
+    return {t.id: t.gate for t in p.tracks}
+
+
+def silence_measured_ids(p: Project) -> list[str]:
+    """The tracks a measure reads: speech, with clips, not muted."""
+    return [t.id for t in speech_tracks(p) if not t.mute]
+
+
+def silence_key(p: Project) -> str:
+    """What the speech tracks' raw audio, and so the measure, depends on.
+
+    In: the rate, the project length (it sets the hop count) and the length
+    with every clip unmuted (the compensated method's), and per speech track
+    with clips, in order: its id, name, speaker and mute, and its clips' media
+    (by SHA-256), start, offset, length and muted flag. Out on purpose: gates
+    (the preview computes what they would be, and the measure never sees
+    them), every gain, pan, fade, envelope and automation (the measure is
+    raw), music tracks except through the length, and clip ids and names. A
+    media without a SHA-256 proves nothing: its key is unique to this call, so
+    it never matches and is measured again (fail closed)."""
+    sha = {m.id: m.sha256 for m in p.media}
+    tracks = []
+    for tr in speech_tracks(p):
+        clips = [[sha.get(c.media) or f"unproven:{os.urandom(8).hex()}", c.start,
+                  c.offset, c.length, c.muted] for c in tr.clips]
+        tracks.append([tr.id, tr.name, tr.speaker, tr.mute, clips])
+    raw = json.dumps({"algorithm": MEASURE_ALGORITHM, "rate": p.rate,
+                      "length": p.length, "unmuted": _unmuted_length(p),
+                      "tracks": tracks},
+                     sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
+def _unmuted_length(p: Project) -> int:
+    return max((c.end for tr in p.tracks for c in tr.clips), default=0)
+
+
+def measure_silence_track(p: Project, store: Store,
+                          track_id: str) -> tuple[np.ndarray, np.ndarray]:
+    """One track's raw ``(dB per hop, valid)``, its gate ignored: one part of
+    ``measure_silence``, for a caller that measures track by track (the
+    session's job, which reports progress per track)."""
+    q = _ungated(p)
+    return track_levels(q, store, q.track(track_id))
+
+
+def measure_silence(p: Project, store: Store) -> SilenceMeasure:
+    """Measure every speech track Auto-Silence reads (``silence_measured_ids``),
+    tracks in parallel under the playback gate as ``speech_lanes`` does."""
+    q = _ungated(p)
+    tracks = [q.track(tid) for tid in silence_measured_ids(p)]
+    measured = map_tracks(lambda track: track_levels(q, store, track), tracks)
+    return assemble_measure(p, {tr.id: m for tr, m in zip(tracks, measured, strict=True)})
+
+
+def assemble_measure(p: Project,
+                     levels: dict[str, tuple[np.ndarray, np.ndarray]]) -> SilenceMeasure:
+    """A ``SilenceMeasure`` of ``p`` from its tracks' measured levels."""
+    kept = {}
+    for tid, (db, valid) in levels.items():
+        db32 = np.asarray(db, dtype=np.float32)
+        ok = np.asarray(valid, dtype=bool)
+        kept[tid] = TrackLevels(db32, ok, grid.noise_floor(grid.smooth(db32), ok))
+    tracks = speech_tracks(p)
+    hop = hop_frames(p.rate)
+    return SilenceMeasure(
+        key=silence_key(p), rate=p.rate, length=p.length, hops=_hops(p),
+        comp_hops=-(-_unmuted_length(p) // hop),
+        tracks=tuple(MeasuredTrack(tr.id, tr.name, tr.speaker, tr.mute) for tr in tracks),
+        levels=kept, hand_mutes={tr.id: hand_mutes(tr) for tr in tracks},
+        calibration_end=calibration_end(p))
+
+
+def raw_ranges_from(m: SilenceMeasure, options: SilenceOptions | None = None,
+                    gates: dict[str, gate.Gate] | None = None) -> dict[str, gate.Gate]:
+    """The decision on a measure: per speech track, the closed ranges one per
+    toggle (``raw_silence_ranges``' answer).
+
+    Closed where the owner is not talking (own floor + ``margin_db``, pauses
+    under ``GAP_CLOSE_S`` bridged, blips under ``MIN_RUN_S`` dropped, padded
+    by ``open_before_s`` and ``open_after_s``) or where another mic dominates
+    it (``masks.duck_masks``: the louder mic wins, so bleed does not hold a
+    mic open; a mic within ``dominance_db`` of the loudest stays open). With
+    ``method == "compensated"`` the talk is decided by ``bleed_relative``
+    instead, calibrated on the hand mutes, and there is no ducking mask; its
+    levels see the tracks' current ``gates``, as they always have."""
+    opts = options or SilenceOptions()
+    if opts.method == "compensated":
+        return _compensated_from(m, opts, gates or {})
+    measured = [tr for tr in m.tracks if tr.id in m.levels]
+    if not measured:
+        return {}
+    speaker_order: list[str] = []
+    speaker_parts: dict[str, list] = {}
+    for track in measured:
+        speaker = track.speaker or track.name
+        lv = m.levels[track.id]
+        if speaker not in speaker_parts:
+            speaker_order.append(speaker)
+            speaker_parts[speaker] = []
+        speaker_parts[speaker].append((lv.db, lv.valid, lv.floor, opts.margin_db, 0.0))
+    lanes = Lanes(speakers=[grid.lane(s, speaker_parts[s]) for s in speaker_order])
+    hop = hop_frames(m.rate)
+    ducked = masks.duck_masks(lanes, duck_settings(dominance_db=opts.dominance_db))
+    lane_by_name = {lane.name: lane for lane in lanes.speakers}
+    out = {}
+    for track in m.tracks:
+        lane = lane_by_name.get(track.speaker or track.name)
+        if lane is None:
+            continue
+        closed = _closed_from_talk(np.asarray(lane.on, dtype=bool), opts)
+        if lane.name in ducked:
+            closed |= np.asarray(ducked[lane.name], dtype=bool)[: closed.size]
+        out[track.id] = gate.ranges_from_mask(closed, hop)
+    return out
+
+
+#: The level ``track_levels`` gives a hop with no audio (mean square 0): under
+#: a gate, or past the end of the audible clips.
+_SILENT_DB = np.maximum(10.0 * np.log10(np.maximum(np.zeros(1), 1e-12)),
+                        FLOOR_DB).astype(np.float32)[0]
+
+
+def _compensated_from(m: SilenceMeasure, opts: SilenceOptions,
+                      gates: dict[str, gate.Gate]) -> dict[str, gate.Gate]:
     """The ``bleed_relative`` decision (see there). Calibrated on the hand
     mutes from the start to the last one; without any it cannot run."""
-    end = calibration_end(p)
+    end = m.calibration_end
     if end <= 0:
         raise SilenceOptionError("error.silence.no_hand_mutes")
-    tracks = [tr for tr in speech_tracks(p) if not tr.mute]
+    tracks = [tr for tr in m.tracks if not tr.mute and tr.id in m.levels]
     if len(tracks) < 2:
         return {}
-    hop = hop_frames(p.rate)
-    q = _unmuted(p)
-    measured = priority.gated_map(lambda tr: track_levels(q, store, tr), tracks,
-                                  _at_once(len(tracks)))
-    db = np.stack([m[0] for m in measured]).astype(np.float64)
-    valid = np.stack([m[1] for m in measured])
+    hop = hop_frames(m.rate)
+    n = m.comp_hops
+    dbs, valids = [], []
+    for tr in tracks:
+        lv = m.levels[tr.id]
+        # Over the unmuted length, as it was measured before the split: the
+        # hops past the audible end have no audio (the muted clips there are
+        # left out of the levels either way).
+        db = np.full(n, _SILENT_DB, dtype=np.float32)
+        valid = np.zeros(n, dtype=bool)
+        db[: lv.db.size] = lv.db[:n]
+        valid[: lv.valid.size] = lv.valid[:n]
+        if gates.get(tr.id):
+            # The gate applied after the fact exactly as ``track_levels``
+            # applies it, hop by hop, so the same numbers come out.
+            shut = gate.full_hops(gates[tr.id], n, hop)
+            db = np.where(shut, _SILENT_DB, db)
+            valid = valid & ~shut
+        dbs.append(db)
+        valids.append(valid)
+    db = np.stack(dbs).astype(np.float64)
+    valid = np.stack(valids)
     muted = np.zeros(db.shape, dtype=bool)
     for i, tr in enumerate(tracks):
-        for a, b in hand_mutes(tr):
+        for a, b in m.hand_mutes.get(tr.id, ()):
             muted[i, -(-a // hop):b // hop] = True
     window = np.arange(db.shape[1]) < -(-end // hop)
     offsets = bleed_relative.estimate_offsets(db, valid, muted, window)
     on = bleed_relative.speaking(db, valid, offsets, presence_db=opts.margin_db)
     return {tr.id: gate.ranges_from_mask(_closed_from_talk(on[i], opts), hop)
             for i, tr in enumerate(tracks)}
+
+
+def _merged(raw: dict[str, gate.Gate], opts: SilenceOptions,
+            rate: int) -> dict[str, gate.Gate]:
+    min_open = round(opts.min_open_s * rate)
+    min_closed = round(opts.min_closed_s * rate)
+    return {track_id: gate.merge_ranges(ranges, min_open, min_closed)
+            for track_id, ranges in raw.items()}
+
+
+def silence_ranges_from(m: SilenceMeasure, options: SilenceOptions | None = None,
+                        gates: dict[str, gate.Gate] | None = None,
+                        ) -> dict[str, gate.Gate]:
+    """``silence_ranges`` on a measure: the merged closed ranges per speech
+    track. Pure NumPy on a few MB; ``gates`` (the tracks' gates now) matter
+    to the compensated method only."""
+    opts = options or SilenceOptions()
+    return _merged(raw_ranges_from(m, opts, gates), opts, m.rate)
 
 
 def silence_ranges(p: Project, store: Store,
@@ -374,10 +580,27 @@ def silence_ranges(p: Project, store: Store,
     ``min_open_s`` closed and every closed stretch under ``min_closed_s``
     dropped (``gate.merge_ranges``)."""
     opts = options or SilenceOptions()
-    min_open = round(opts.min_open_s * p.rate)
-    min_closed = round(opts.min_closed_s * p.rate)
-    return {track_id: gate.merge_ranges(ranges, min_open, min_closed)
-            for track_id, ranges in raw_silence_ranges(p, store, opts).items()}
+    return _merged(raw_silence_ranges(p, store, opts), opts, p.rate)
+
+
+def silence_rows(m: SilenceMeasure, ranges: dict[str, gate.Gate],
+                 gates: dict[str, gate.Gate] | None = None) -> list[dict]:
+    """The live preview's answer per speech track that has ranges, in track
+    order: ``{track_id, name, ranges: [[start, end], ...], close_s, stretches,
+    total_s, now_s}`` (``total_s``: the project's length; ``now_s``: what the
+    track's gate closes today)."""
+    gates = gates or {}
+    rows = []
+    for tr in m.tracks:
+        if tr.id not in ranges:
+            continue
+        closed = ranges[tr.id]
+        rows.append({
+            "track_id": tr.id, "name": tr.name, "ranges": [list(r) for r in closed],
+            "close_s": sum(b - a for a, b in closed) / m.rate,
+            "stretches": len(closed), "total_s": m.length / m.rate,
+            "now_s": sum(b - a for a, b in gates.get(tr.id, ())) / m.rate})
+    return rows
 
 
 def preview_silence(p: Project, store: Store, options: SilenceOptions | None = None,

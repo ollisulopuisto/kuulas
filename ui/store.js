@@ -114,6 +114,9 @@ export const initialState = () => ({
   waveformGain: 1,
   // Show the Auto-Silence gate bands on the lanes (WP44); a view option.
   showGates: true,
+  // The Auto-Silence live preview's closed ranges (silence-panel.js): Map trackId -> ranges,
+  // only while the panel is open; null otherwise. Never an edit.
+  silencePreview: null,
   // The transcript words along the top of each clip when zoomed in (WP69); a per-user view option.
   showClipWords: true,
   // The clipboard preview is limited to the project's level (WP82); a per-user preference.

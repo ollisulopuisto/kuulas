@@ -138,8 +138,8 @@ import { forwardFromClip } from "./selection-ops.js";
 import { createSendCopyDialog } from "./send-copy-dialog.js";
 import { setupKeyboard } from "./shell-keys.js";
 import { chipSpeed } from "./shuttle.js";
-import { createSilenceDialog } from "./silence-dialog.js";
 import { normaliseSilence } from "./silence-model.js";
+import { createSilencePanel } from "./silence-panel.js";
 import { createSlowHold, normaliseSlow, slowSpeed } from "./slow-hold.js";
 import { createStatsDialog } from "./stats-dialog.js";
 import { nextStopMode } from "./stop-mode.js";
@@ -171,6 +171,9 @@ import { nextWheelMode, wheelModeChoice } from "./wheel.js";
 
 const $ = (id) => document.getElementById(id);
 installIcons();
+// The Auto-Silence live preview panel (openSilenceOptions): made on first use; declared here
+// because render() asks it about every project change from the first render on.
+let silencePanel = null;
 const prefs = await loadPrefs(); // server-side store, read once before the first prefs.get
 const WAVEFORM_GAIN = { min: 1 / 8, max: 32, snap: 0.04 };
 const LANE_STEP = 8;
@@ -2003,18 +2006,28 @@ function duckMusic() {
   duckMusicDialog.open();
 }
 
-/** Track > Auto > Auto-Silence options…: the dialog; Apply runs it, Preview changes nothing. */
-let silenceDialog = null;
+/**
+ * Track > Auto > Auto-Silence options…: the live preview panel, docked over the sidebar. The
+ * timeline shows and the engine plays what the options would close; Accept commits it as one
+ * undo step, Close discards it.
+ */
 function openSilenceOptions() {
-  silenceDialog ??= createSilenceDialog({
+  silencePanel ??= createSilencePanel({
+    root: $("panel-silence"),
     api,
     t,
     getProject: () => getState().project,
     getOptions: silenceOptions,
     onRemember: (options) => setState({ autoSilence: options }),
-    onApply: (options) => void autoSilence(options),
+    onAccepted: (response) => {
+      apply(response);
+      showNotice(t("ui.auto_silence.done"), "ok", { undo: true });
+    },
+    setPreview: (ranges) => setState({ silencePreview: ranges }),
+    isPlaying: () => Boolean(getState().playing),
+    togglePlay: () => actions.togglePlay(),
   });
-  silenceDialog.open();
+  silencePanel.open();
 }
 
 /**
@@ -3199,7 +3212,9 @@ function render(state, patch) {
   if (touched("playing")) {
     if (state.playing) startPlayheadTicker();
     levelMeter.playing(state.playing);
+    silencePanel?.playingChanged();
   }
+  if (touched("project")) silencePanel?.projectChanged();
   if (touched("playing", "clipboardPlaying")) {
     // A clipboard preview playing: the Play button stops it (transport.toggle).
     const sounding = state.playing || Boolean(state.clipboardPlaying);

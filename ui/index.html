@@ -76,6 +76,9 @@
       <aside class="sidebar">
         <!-- Help (F1): docked over the sidebar's panels while open; help-panel.js fills it. -->
         <section id="panel-help" class="panel help-panel" data-panel="help" tabindex="-1" hidden></section>
+        <!-- Auto-Silence options (Track > Auto): docked over the sidebar's panels the same way while
+             open, so the lanes stay visible and clickable; silence-panel.js fills it. -->
+        <section id="panel-silence" class="panel silence-panel" data-panel="silence" hidden></section>
         <div class="side-tabs" role="tablist" data-i18n-aria-label="ui.tabs.label">
           <button id="tab-inspector" type="button" role="tab" class="side-tab" data-tab="inspector" aria-controls="panel-inspector" data-i18n="ui.tabs.inspector"></button>
           <button id="tab-candidates" type="button" role="tab" class="side-tab" data-tab="candidates" aria-controls="panel-candidates"><span data-i18n="ui.tabs.candidates"></span><span id="cand-count" class="count" hidden></span></button>

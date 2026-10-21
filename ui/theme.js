@@ -78,6 +78,8 @@ export function readTheme(
     candidate: p.signals.candidate,
     candidateFill: p.signals.candidateFill,
     gate: p.signals.gate,
+    preview: p.signals.preview,
+    previewFill: p.signals.previewFill,
     placeholder: p.signals.placeholder,
     gateOpacity: p.numbers.gateOpacity,
     font: p.font,

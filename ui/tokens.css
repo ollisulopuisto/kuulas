@@ -442,7 +442,8 @@
   --signal-sibling: var(--p-teal-49); /* corner brackets: same recording as the selection */
   --signal-collateral: var(--p-red-52); /* what a transcript cut also removes */
   --signal-collateral-fill: var(--p-red-52-a20);
-  --signal-preview: var(--p-teal-49); /* a Compare preview is playing (not committed) */
+  --signal-preview: var(--p-teal-49); /* a preview is playing or shown (not committed) */
+  --signal-preview-fill: var(--p-teal-49-a22); /* the Auto-Silence preview's veil */
   --signal-gate: var(--p-gray-89); /* the veil over a closed gate (lane colour) */
   --signal-damaged: var(--p-red-52);
   --signal-damaged-fill: var(--p-red-87);
@@ -585,6 +586,7 @@
     --signal-collateral: var(--p-red-73);
     --signal-collateral-fill: var(--p-red-73-a20);
     --signal-preview: var(--p-teal-76);
+    --signal-preview-fill: var(--p-teal-76-a16);
     --signal-gate: var(--p-gray-20);
     --signal-damaged: var(--p-red-73);
     --signal-damaged-fill: var(--p-red-28);
@@ -727,6 +729,7 @@
   --signal-collateral: var(--p-red-73);
   --signal-collateral-fill: var(--p-red-73-a20);
   --signal-preview: var(--p-teal-76);
+  --signal-preview-fill: var(--p-teal-76-a16);
   --signal-gate: var(--p-gray-20);
   --signal-damaged: var(--p-red-73);
   --signal-damaged-fill: var(--p-red-28);
