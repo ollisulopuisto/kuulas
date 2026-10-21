@@ -288,14 +288,22 @@ export function createAutomixDialog({
     const stale = el(
       "span",
       "automix-done-text",
-      t(musicDuck
-        ? "ui.automix.done_stale_duck"
-        : stage ? "ui.automix.done_stale_block" : "ui.automix.done_stale"),
+      t(
+        musicDuck
+          ? "ui.automix.done_stale_duck"
+          : stage
+            ? "ui.automix.done_stale_block"
+            : "ui.automix.done_stale",
+      ),
     );
     const again = smallButton(
-      t(musicDuck
-        ? "ui.automix.done_again_duck"
-        : stage ? "ui.automix.done_again_block" : "ui.automix.done_again"),
+      t(
+        musicDuck
+          ? "ui.automix.done_again_duck"
+          : stage
+            ? "ui.automix.done_again_block"
+            : "ui.automix.done_again",
+      ),
       () => {
         dialog.close();
         (musicDuck ? onDuckMusic : stage ? onLevelBlocks : onSetMusicLevel)?.();
