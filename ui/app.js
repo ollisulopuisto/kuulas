@@ -5,6 +5,7 @@
 import * as api from "./api.js";
 import { SIDE_TAB_COMMANDS } from "./app-commands.js";
 import { createAutomixDialog } from "./automix-dialog.js";
+import { createAutomixLiveDialog } from "./automix-live-dialog.js";
 import { automixNotice } from "./automix-model.js";
 import { createBlockLevelDialog } from "./block-level-dialog.js";
 import { memberClipsAt, toggleChange } from "./bus-collapse.js";
@@ -1048,6 +1049,7 @@ const keyboard = setupKeyboard({
     takeFor: (id) => void takeForPlaceholder(id),
     exportRegions: () => exportRegions(),
     automix: () => void openAutomix(),
+    automixLog: () => void openAutomixLog(),
     openStatistics: () => void openStatistics(),
     openPerformanceReport: () => void openPerformanceReport(),
     openLocateMedia: () => void openLocateMedia(),
@@ -1779,6 +1781,10 @@ async function followExportJob(id, what) {
       action = { label: t("ui.export.show_in_finder"), run: () => void bridge.reveal_export() };
     }
     let action2 = null;
+    // While the automixer runs, Show log opens the live viewer (Cancel keeps its place).
+    if (what === "automix" && notice.cancel) {
+      action2 = { label: t("ui.automix.show_log"), run: () => void openAutomixLog() };
+    }
     if (notice.log && typeof bridge?.reveal_automix_log === "function") {
       action2 = {
         label: t("ui.automix.show_log"),
@@ -1860,6 +1866,24 @@ async function openAutomix() {
     },
   });
   await automixDialog.open();
+}
+
+// "Show automixer log…": everything the automixer printed so far, live while it runs.
+let automixLiveDialog = null;
+async function openAutomixLog() {
+  automixLiveDialog ??= createAutomixLiveDialog({
+    api,
+    t,
+    copyText: async (text) => {
+      try {
+        await navigator.clipboard.writeText(text);
+        showNotice(t("ui.automix.live_copied"), "ok");
+      } catch (error) {
+        showError(error);
+      }
+    },
+  });
+  await automixLiveDialog.open();
 }
 
 // File > Statistics… (WP70): the server counts and words it; the dialog shows, copies, saves.

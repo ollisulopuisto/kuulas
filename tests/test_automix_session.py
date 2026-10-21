@@ -271,3 +271,61 @@ def test_settings_api_reports_the_capabilities(session, tmp_path, monkeypatch):
     with TestClient(create_app(session, IdleEngine(), language="en", ui_dir=ui)) as c:
         got = c.get("/api/settings/automixer").json()
     assert got["capabilities"] == {"bed_under_speech_db": True}
+
+
+def app_client(session, tmp_path):
+    ui = tmp_path / "ui"
+    ui.mkdir(exist_ok=True)
+    return TestClient(create_app(session, IdleEngine(), language="en", ui_dir=ui))
+
+
+def test_live_is_empty_before_any_run(session, tmp_path):
+    with app_client(session, tmp_path) as c:
+        r = c.get("/api/automix/live")
+        assert r.status_code == 200
+        assert r.json() == {"running": False, "lines": [], "started": None}
+
+
+def test_live_lines_follow_the_run_and_stay_after_it(
+        session, fake, settings_file, tmp_path):
+    automix.save_settings({**fake, "extra_args": ["--mode", "hang"]})
+    with app_client(session, tmp_path) as c:
+        [job_id] = session.automix({})
+        deadline = time.monotonic() + 30
+        body = {}
+        while time.monotonic() < deadline:
+            body = c.get("/api/automix/live").json()
+            if "working" in body["lines"]:
+                break
+            time.sleep(0.02)
+        assert body["running"] is True
+        assert body["lines"][:2] == ["loading", "working"]
+        assert re.match(r"\d{4}-\d\d-\d\dT", body["started"])
+        session.jobs.cancel(job_id)
+        wait_job(session, job_id, "cancelled")
+        after = c.get("/api/automix/live").json()
+        assert after["running"] is False
+        assert after["lines"] == body["lines"]
+        assert after["started"] == body["started"]
+
+
+def test_a_new_run_clears_the_live_lines(session, fake, settings_file, tmp_path):
+    automix.save_settings(fake)
+    with app_client(session, tmp_path) as c:
+        wait_job(session, session.automix({})[0])
+        first = c.get("/api/automix/live").json()
+        assert first["lines"] == ["loading", "done"]
+        automix.save_settings({**fake, "extra_args": ["--mode", "fail"]})
+        wait_job(session, session.automix({})[0], "failed")
+        second = c.get("/api/automix/live").json()
+        assert second["lines"] == ["loading", "boom"]
+        assert second["running"] is False
+
+
+def test_the_live_buffer_keeps_the_last_3000_lines(session):
+    for n in range(3200):
+        session.automix_live_add(f"line {n}")
+    lines = session.automix_live()["lines"]
+    assert len(lines) == 3000
+    assert lines[0] == "line 200"
+    assert lines[-1] == "line 3199"
