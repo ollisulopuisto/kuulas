@@ -204,6 +204,137 @@
   "error.transcript.unreadable": "The transcript could not be read: it is not word-timed JSON.",
   "history.restored": "restored to “{label}”",
   "history.correct_word": "corrected “{old}” to “{new}”",
+  "history.op.a_track": "a track",
+  "history.op.tracks": {
+    "one": "{count} track",
+    "other": "{count} tracks"
+  },
+  "history.op.a_bus": "a bus",
+  "history.op.a_marker": "a marker",
+  "history.op.a_step": "a step",
+  "history.op.seconds": "{value} s",
+  "history.op.db": "{value} dB",
+  "history.op.field.gain": "gain {db}",
+  "history.op.field.pan": "pan {value}",
+  "history.op.field.muted": "muted",
+  "history.op.field.unmuted": "unmuted",
+  "history.op.field.solo_on": "solo on",
+  "history.op.field.solo_off": "solo off",
+  "history.op.field.name": "name “{name}”",
+  "history.op.field.on": "on",
+  "history.op.field.off": "off",
+  "history.op.restore": "Restored to: {target}",
+  "history.op.add_track": "Add track: {name}",
+  "history.op.delete_track": "Delete track: {track}",
+  "history.op.delete_empty_tracks": "Delete empty tracks",
+  "history.op.set_track": "Track settings: {track}",
+  "history.op.solo": "Solo: {track}",
+  "history.op.move_track": "Move track: {track}",
+  "history.op.set_track_automation": "Track volume curve: {track}",
+  "history.op.add_bus": "New bus: {name}",
+  "history.op.set_bus": "Bus settings: {bus}",
+  "history.op.delete_bus": "Delete bus: {bus}",
+  "history.op.set_master": "Master level",
+  "history.op.reset_gains": "Reset gains to 0 dB",
+  "history.op.add_clip": "Add clip: {track} at {at}",
+  "history.op.delete_clip": "Delete clip: {track}",
+  "history.op.move_clip": "Move clip: {track} to {at}",
+  "history.op.trim_clip": "Trim clip: {track}",
+  "history.op.split_clip": "Split: {track} at {at}",
+  "history.op.set_clip": "Clip settings: {track}",
+  "history.op.set_fade_at": "Fade: {track}",
+  "history.op.set_clip_envelope": "Clip volume curve: {track}",
+  "history.op.ripple_delete": "Delete and close gap: {length} at {at}",
+  "history.op.mute_ranges": {
+    "one": "Mute {count} range: {track}",
+    "other": "Mute {count} ranges: {track}"
+  },
+  "history.op.set_gate": "Gate: {track}",
+  "history.op.add_gate_range": "Gate range added: {track} at {at}",
+  "history.op.remove_gate_range": "Gate range removed: {track} at {at}",
+  "history.op.set_clips_ungated": {
+    "one": "Keep mic open {state}: {count} clip, {where}",
+    "other": "Keep mic open {state}: {count} clips, {where}"
+  },
+  "history.op.replace_clip_media": "Relink media",
+  "history.op.add_marker": "Add marker: {name} at {at}",
+  "history.op.rename_marker": "Rename marker: {name}",
+  "history.op.move_marker": "Move marker: {marker} to {at}",
+  "history.op.set_region_end": "Region end: {marker}",
+  "history.op.delete_marker": "Delete marker: {marker}",
+  "history.op.set_marker_kind": "Marker kind: {marker}",
+  "history.op.add_placeholder": "Add narration placeholder: {text}",
+  "history.op.edit_placeholder_text": "Placeholder text: {text}",
+  "history.op.set_placeholder_length": "Placeholder length: {length}",
+  "history.op.move_placeholder": "Move placeholder to {at}",
+  "history.op.delete_placeholder": "Delete placeholder",
+  "history.op.replace_placeholder": "Replace placeholder with a recording",
+  "history.op.shift_clips": {
+    "one": "Move {count} clip by {delta}: {where}",
+    "other": "Move {count} clips by {delta}: {where}"
+  },
+  "history.op.set_clips": {
+    "one": "Clip settings: {count} clip, {where}",
+    "other": "Clip settings: {count} clips, {where}"
+  },
+  "history.op.delete_clips": {
+    "one": "Delete {count} clip: {where}",
+    "other": "Delete {count} clips: {where}"
+  },
+  "history.op.mark_in_sync": {
+    "one": "Mark {count} clip in sync",
+    "other": "Mark {count} clips in sync"
+  },
+  "history.op.resync": {
+    "one": "Resync {count} clip",
+    "other": "Resync {count} clips"
+  },
+  "history.op.set_free": {
+    "one": "Free from sync or tie back: {count} clip",
+    "other": "Free from sync or tie back: {count} clips"
+  },
+  "history.op.send_home": {
+    "one": "Send {count} clip home",
+    "other": "Send {count} clips home"
+  },
+  "history.op.set_sync_anchor": "Sync anchor: {track}",
+  "history.op.split_clips": "Split: {where} at {at}",
+  "history.op.mute_range": "Mute {length} at {at}",
+  "history.op.cut_range": "Cut {length} at {at}",
+  "history.op.nudge_clips": {
+    "one": "Nudge {count} clip by {delta}: {where}",
+    "other": "Nudge {count} clips by {delta}: {where}"
+  },
+  "history.op.move_clips_to_track": {
+    "one": "Move {count} clip to another track",
+    "other": "Move {count} clips to another track"
+  },
+  "history.op.trim_clips": {
+    "one": "Trim {count} clip: {where}",
+    "other": "Trim {count} clips: {where}"
+  },
+  "history.op.adjust_clip_gain": {
+    "one": "Clip gain: {count} clip, {where}",
+    "other": "Clip gain: {count} clips, {where}"
+  },
+  "history.op.restore_cuts": {
+    "one": "Restore cuts: {count} clip",
+    "other": "Restore cuts: {count} clips"
+  },
+  "history.op.roll_trim": "Roll edit: {track}",
+  "history.op.ripple_trim": "Ripple trim: {track}",
+  "history.op.group_clips": {
+    "one": "Group {count} clip",
+    "other": "Group {count} clips"
+  },
+  "history.op.ungroup_clips": {
+    "one": "Ungroup {count} clip",
+    "other": "Ungroup {count} clips"
+  },
+  "history.op.merge_clips": {
+    "one": "Merge {count} clip",
+    "other": "Merge {count} clips"
+  },
   "log.server.request_failed": "The request {method} {path} failed.",
   "log.server.log_level_not_saved": "The log level was changed but could not be saved in settings.json; it applies until kuulas is closed.",
   "error.profile.bad_seconds": "The recording length must be a number of seconds above 0 and at most {max}.",
@@ -1152,6 +1283,38 @@
   "ui.history.restore": "Restore",
   "ui.history.restore_hint": "Adds a new step; nothing is lost.",
   "ui.history.restored": "Restored. The state you left is one Undo away.",
+  "ui.history.saved_hint": "Showing saved versions only. You can restore any step:",
+  "ui.history.saved_hint_link": "switch to All steps",
+  "cmd.history.open_saved": "Open History at the saved versions",
+  "cmd.history.open_saved.hint": "Show the History tab with only the saved versions listed; switch to All steps there to restore any step.",
+  "ui.history.dim.undone": "Undone",
+  "ui.history.dim.rolled_back": "Rolled back",
+  "ui.history.dim.left_behind": "Left behind",
+  "ui.history.stands.current": "In the current state",
+  "ui.history.stands.undone": "Undone",
+  "ui.history.stands.rolled_back": "Rolled back",
+  "ui.history.stands.left_behind": "Left behind",
+  "ui.history.group.undone": {
+    "one": "Undone · {count} step (Redo brings it back)",
+    "other": "Undone · {count} steps (Redo brings them back)"
+  },
+  "ui.history.group.rolled_back": {
+    "one": "Rolled back {count} step",
+    "other": "Rolled back {count} steps"
+  },
+  "ui.history.group.left_behind": {
+    "one": "Left behind · {count} step",
+    "other": "Left behind · {count} steps"
+  },
+  "ui.history.group.title": "{text}. Right arrow opens, Left arrow closes; every step stays restorable.",
+  "ui.history.restore_point": "restore point",
+  "ui.history.restore_point_title": "The step a Restore went back to. G on the restore row jumps here.",
+  "ui.history.run_title": "{count} steps in a row on the same thing. Right arrow shows each.",
+  "ui.history.goto_none": "Pick a restore step in History to go to the step it restored.",
+  "cmd.history.goto_restore_point": "Go to the restore point in History",
+  "cmd.history.goto_restore_point.hint": "From a Restored to step in History, jump to the step it went back to.",
+  "cmd.history.expand_all": "Expand all groups in History",
+  "cmd.history.expand_all.hint": "Open every Undone, Rolled back and Left behind group and every run of repeated steps; again closes them.",
   "ui.history.kind.manual": "Saved",
   "ui.history.kind.sent": "Sent",
   "ui.history.kind.received": "Received",
