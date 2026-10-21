@@ -1,3 +1,7 @@
+## [v26.10.20.28] - 2026-10-21
+
+- **The dmg build no longer depends on one ffmpeg server.** It failed for hours on 2026-10-21 because the host we download ffmpeg from answered 521. Now the build keeps a cached copy of the last good download (GitHub Actions cache) and, if there is none, a fallback copy kept as an asset of this repository's `ffmpeg-cache` release. Nothing changes in the app.
+
 ## [v26.10.20.27] - 2026-10-21
 
 - **The automix toast shows the time left**, for example "... about 12 min left", once the bar is past 5 %. It is estimated from the automixer's own progress only (not the stems export, not the ssh upload or download) and appears after the first few progress updates. The estimate is rough: the automixer's bar moves in jumps.

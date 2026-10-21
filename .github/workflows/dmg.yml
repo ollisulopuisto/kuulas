@@ -31,11 +31,34 @@ jobs:
           repository: ollisulopuisto/podcast
           path: podcast
       - uses: astral-sh/setup-uv@v6
+      # ffmpeg comes from a third-party host that was down for hours on 2026-10-21 (521) and
+      # failed the build. fetch_ffmpeg.sh keeps a copy of the last good download in this
+      # cache folder and uses it when the download fails; a fresh download is saved below.
+      - name: Restore the cached ffmpeg
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/ffmpeg-cache
+          key: ffmpeg-macos-arm64-${{ github.run_id }}
+          restore-keys: ffmpeg-macos-arm64-
       - name: Build the .dmg
         working-directory: kuulas
         env:
           PODCAST_SRC: ${{ github.workspace }}/podcast
-        run: scripts/build_dmg.sh --out "$RUNNER_TEMP/dist"
+          KUULAS_FFMPEG_CACHE: ${{ runner.temp }}/ffmpeg-cache
+        run: |
+          rm -f "$KUULAS_FFMPEG_CACHE/.fresh"
+          scripts/build_dmg.sh --out "$RUNNER_TEMP/dist"
+      - name: Was ffmpeg freshly downloaded?
+        id: ffmpeg
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/ffmpeg-cache/.fresh" ]; then echo "fresh=true" >> "$GITHUB_OUTPUT"; fi
+      - name: Save the fresh ffmpeg for the next build
+        if: always() && steps.ffmpeg.outputs.fresh == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ runner.temp }}/ffmpeg-cache
+          key: ffmpeg-macos-arm64-${{ github.run_id }}
       - name: What was built
         run: |
           ls -la "$RUNNER_TEMP/dist"
