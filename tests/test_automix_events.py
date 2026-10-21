@@ -243,3 +243,15 @@ def test_remote_events_come_through_the_same_path(session, tool, temp_root, tmp_
     assert result["events"]["bed"]["offset_db"] == -10.0
     fractions = [f for f, _m, _i in reports.items]
     assert fractions == sorted(fractions)
+
+
+def test_with_events_the_toast_is_not_overwritten_by_plain_text_lines(
+        session, tool, temp_root):
+    """The text lines (block, loud, beds, ...) go to the log only once events are
+    flowing: the toast shows the event stream (step, stage, percent), not the last
+    line the tool happened to print."""
+    result, reports, live = mix(session, tool)
+    messages = [m for _f, m, _i in reports.items]
+    assert not [m for m in messages if "beds: loudest" in m]
+    assert any("beds: loudest" in x for x in live)  # still in the live log
+    assert any("beds: loudest" in x for x in result["log"])

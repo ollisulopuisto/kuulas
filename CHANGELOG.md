@@ -1,3 +1,7 @@
+## [v26.10.20.29] - 2026-10-21
+
+- **With the automixer's live events the toast stays on the event stream.** The plain text lines the tool still prints (block, loud, beds, ...) used to overwrite the toast message while the analysis ran ("2/4 [automixer] block Aame 43:05.4: +4.6 dB off ..."). Once events are flowing they go to the log only, and the toast shows the step, stage and percent from the events. Without events (an automixer that does not have `--events` yet) nothing changes.
+
 ## [v26.10.20.28] - 2026-10-21
 
 - **The dmg build no longer depends on one ffmpeg server.** It failed for hours on 2026-10-21 because the host we download ffmpeg from answered 521. Now the build keeps a cached copy of the last good download (GitHub Actions cache) and, if there is none, a fallback copy kept as an asset of this repository's `ffmpeg-cache` release. Nothing changes in the app.

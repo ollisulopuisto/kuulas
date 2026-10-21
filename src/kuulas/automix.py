@@ -1229,6 +1229,8 @@ def run(session, params: dict, settings: dict, report: Report,
                     advance(int(found.group(1)), (found.group(2) or "").strip() or line)
             elif seen["stage"] and _TRACK_LINE.search(line):
                 pass  # a stage that is DONE: the stage events say what works now
+            elif seen["progress"] or seen["stage"]:
+                pass  # events are flowing: plain lines go to the log, not the toast
             else:  # any other line is only the message
                 report(reached[0], shown(line), indeterminate=reached[0] <= run_from)
 
