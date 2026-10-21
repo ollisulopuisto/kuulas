@@ -17,6 +17,7 @@ import { previewRequest } from "./candidates-preview.js";
 import { clipDragChange } from "./clip-drag.js";
 import { expandGroups, toggleGroupSelection } from "./clip-groups.js";
 import { entryTitle } from "./clipboard.js";
+import { createClipboardDrag } from "./clipboard-drag.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
 import { previewFraction, previewPlaying, previewStop } from "./clipboard-preview.js";
 import { createClock } from "./clock.js";
@@ -38,6 +39,7 @@ import {
   normaliseSettings as normaliseDuckMusic,
 } from "./duck-sidechain-model.js";
 import { edgeChange, edgePressKeepsSelection } from "./edge-drag.js";
+import { dropPastePlan } from "./edit-plans.js";
 import { createEditor } from "./edits.js";
 import { createNewEpisodeDialog } from "./episode-dialog.js";
 import { escapeAction } from "./escape.js";
@@ -152,6 +154,7 @@ import { forwardFromClip } from "./selection-ops.js";
 import { createSendCopyDialog } from "./send-copy-dialog.js";
 import { createSeriesDialog } from "./series-dialog.js";
 import { seriesChip } from "./series-model.js";
+import { adoptRequest, createSeriesShelf } from "./series-shelf.js";
 import { setupKeyboard } from "./shell-keys.js";
 import { chipSpeed } from "./shuttle.js";
 import { SIDEBAR_KEY, sidebarPref, sidebarShown, toggleSidebar } from "./sidebar-model.js";
@@ -2980,26 +2983,16 @@ async function refreshClipboard() {
 
 // -- the series shelf (docs/design/CLIPBOARD-SHELVES.md) ------------------------------------------
 
-async function loadSeriesShelf() {
-  try {
-    setState({ clipboardSeries: await api.getSeriesShelf() });
-  } catch (error) {
-    showError(error);
-  }
-}
-
+const seriesShelf = createSeriesShelf({
+  api,
+  t,
+  setState,
+  notify: (text) => showNotice(text, "ok", { undo: false }),
+  showError: (error) => showError(error),
+});
+const loadSeriesShelf = () => seriesShelf.load();
 // The Series toggle of a project entry: a copy on the series shelf (same id), or off it again.
-async function seriesShelfEntry(id, on) {
-  try {
-    const shelf = await (on ? api.seriesShelfAdd(id) : api.seriesShelfRemove(id));
-    setState({ clipboardSeries: shelf });
-    showNotice(t(on ? "ui.clipboard.series_added" : "ui.clipboard.series_removed"), "ok", {
-      undo: false,
-    });
-  } catch (error) {
-    showError(error);
-  }
-}
+const seriesShelfEntry = (id, on) => seriesShelf.toggle(id, on);
 
 // -- clipboard sharing and other projects (WP65) --------------------------------------------------
 
@@ -3118,24 +3111,20 @@ async function shareClipboardEntry(id, on) {
 }
 
 // Copy an entry of the shared store or another project into this project's clipboard. It becomes
-// the newest entry and is picked, so the paste keys paste it. Returns whether it worked.
+// the newest entry and is picked, so the paste keys paste it. Returns the copy, or null.
 async function adoptClipboardEntry(entry, from, { quiet = false, shelf = "" } = {}) {
   try {
-    // A series entry is adopted by the series: it links the recordings from the series' paths.
-    const answer =
-      shelf === "series"
-        ? await api.seriesShelfAdopt(entry.id)
-        : await api.adoptClipboardEntry(entry, from);
+    const answer = await adoptRequest(api, entry, from, shelf);
     setState({ clipboard: answer.entries, clipboardSelected: answer.entry.id });
     if (!quiet) {
       showNotice(t("ui.clipboard.adopted", { name: entryTitle(answer.entry, rateOf(), t) }), "ok", {
         undo: false,
       });
     }
-    return true;
+    return answer.entry;
   } catch (error) {
     showError(error);
-    return false;
+    return null;
   }
 }
 
@@ -3230,6 +3219,8 @@ const clipboardPanel = createClipboardPanel({
     seriesRemove: (id) => void seriesShelfEntry(id, false),
     seriesPlace: () => keyboard.registry.run("series.music_place", null, getState()),
     openSeries: () => keyboard.registry.run("series.dialog", null, getState()),
+    dragStart: (entry, source) => clipboardDrag.start(entry, source),
+    dragEnd: () => clipboardDrag.end(),
     pasteAgain(id) {
       setState({ clipboardSelected: id });
       keyboard.registry.run(pasteCommand(getState()), null, getState());
@@ -3519,6 +3510,27 @@ const timeline = createTimeline({
       overview?.redraw();
     },
   },
+});
+// A clipboard entry dragged from the Clipboard tab onto the timeline (clipboard-drag.js): outlines
+// while dragging, and the drop is one paste (adopted into this project first when it comes from
+// another shelf). Esc ends a native drag with dragend, which pastes nothing.
+const clipboardDrag = createClipboardDrag({
+  getState,
+  timeline,
+  adopt: (entry, source) =>
+    adoptClipboardEntry(entry, source.from, { quiet: true, shelf: source.shelf }),
+  paste: (args, entry) =>
+    keyboard.sendPlan(
+      dropPastePlan(
+        { ...entry, id: args.entry_id },
+        { at: args.at, targetTracks: args.target_tracks },
+        args.mode,
+      ),
+    ),
+});
+window.addEventListener("dragover", (event) => void clipboardDrag.over(event));
+window.addEventListener("drop", (event) => {
+  if (clipboardDrag.active()) void clipboardDrag.drop(event);
 });
 overview = createOverview({
   canvas: $("overview"),

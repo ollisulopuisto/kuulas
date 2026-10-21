@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { createRegistry } from "../commands.js";
 import { registerEditCommands } from "../edit-commands.js";
+import { dropPastePlan } from "../edit-plans.js";
 import { DEFAULT_KEYMAP } from "../keymap-default.js";
 
 const S = 48000;
@@ -596,5 +597,40 @@ describe("buses (add_bus)", () => {
     h.sent[0].done({ project: { buses: [{ id: "b1" }, { id: "b9" }] } });
     assert.deepEqual(h.patches.at(-1), { focusBus: "b9", focusTrack: null });
     assert.equal(h.renamed(), 1);
+  });
+});
+
+describe("a drop from the Clipboard tab", () => {
+  test("registerEditCommands hands back send: the drop is one paste edit with the paste's toasts", () => {
+    const registry = createRegistry();
+    const sent = [];
+    const toasts = [];
+    let refreshed = 0;
+    const { send } = registerEditCommands(registry, {
+      t: (key, values = {}) => `${key}${JSON.stringify(values)}`,
+      formatSeconds: String,
+      app: {
+        getState: () => base(),
+        patch: () => {},
+        edit: (change) => sent.push(change),
+        toast: (text, options) => toasts.push([text, options]),
+        refreshClipboard: () => {
+          refreshed += 1;
+        },
+      },
+    });
+    send(dropPastePlan({ id: "e1", clips: 2 }, { at: 5 * S, targetTracks: { 0: "A" } }, "insert"));
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].op, "clipboard_paste");
+    assert.deepEqual(sent[0].args, {
+      entry_id: "e1",
+      at: 5 * S,
+      mode: "insert",
+      target_tracks: { 0: "A" },
+    });
+    assert.equal(sent[0].label, "ui.edit.label.paste_insert{}");
+    sent[0].done({ clipboard: { placed: 2, missing: ["x"] }, project });
+    assert.equal(toasts[0][0], 'ui.edit.toast.paste_missing{"count":1}');
+    assert.equal(refreshed, 1);
   });
 });

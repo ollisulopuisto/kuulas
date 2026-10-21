@@ -20,6 +20,7 @@ import {
 } from "./clip-drag.js";
 import { overLabel } from "./clip-overs.js";
 import { averageWordFrames, layoutClipWords, wordsWideEnough } from "./clip-words.js";
+import { dropTarget as clipboardDropTarget, dropOutlines } from "./clipboard-drag.js";
 import { DEFAULT_DRAG_MODE, dragIntent } from "./drag-mode.js";
 import { edgeGhost, ghostGeometry, resolveEdge } from "./edge-drag.js";
 import { inactiveTracks } from "./focus-layout.js";
@@ -174,6 +175,7 @@ export function createTimeline({
   let clipSession = null; // clips being moved by their label strip: see the pointer section
   let ghostTiles = null; // main-thread peak tiles for the move ghosts' waveforms, made on first use
   let dropPreview = null; // files being dragged over: { kind, startFrame, mode, count } or null
+  let clipDrop = null; // a clipboard entry dragged over: { target, entry } or null
   let rangeBand = null; // a range being dragged: { fromFrame, toFrame, tracks, alt, touched } or null
   let bands = []; // the open candidates in pixels (candidates-model.js), per redraw
   let overlayQueued = false;
@@ -294,6 +296,7 @@ export function createTimeline({
     drawInOut(state, height, rate, spans);
     drawRangeBand(state, layout);
     if (dropPreview) drawDropPreview(state, layout);
+    if (clipDrop) drawClipboardDrop(state, layout);
     if (edgeSession?.dragging) drawEdgeGhost(state, layout);
     if (clipSession?.dragging) drawMoveGhost(state, layout);
     drawPlayhead(state, height);
@@ -517,6 +520,32 @@ export function createTimeline({
       overlay.lineWidth = 1;
       overlay.strokeRect(bounds.x - 1.5, bounds.y - 1.5, bounds.w + 3, bounds.h + 3);
     }
+    overlay.restore();
+  }
+
+  // A clipboard entry dragged over the timeline (clipboard-drag.js): the target track's band
+  // tinted, an outline per clip where the drop puts it (dashed), and the drop line in the accent
+  // colour (solid when it snapped).
+  function drawClipboardDrop(state, layout) {
+    const { outlines, rows } = dropOutlines(clipDrop.entry, clipDrop.target, {
+      layout,
+      view: state,
+    });
+    overlay.save();
+    overlay.fillStyle = theme.accent;
+    overlay.globalAlpha = 0.08;
+    for (const row of rows) overlay.fillRect(0, row.y, size.width, row.h);
+    overlay.globalAlpha = 1;
+    overlay.setLineDash([5, 4]);
+    overlay.strokeStyle = theme.accent;
+    overlay.lineWidth = 1.5;
+    for (const box of outlines) overlay.strokeRect(box.x + 0.5, box.y + 2.5, box.w, box.h - 5);
+    overlay.setLineDash(clipDrop.target.snapAt === null ? [3, 3] : []);
+    const x = frameToX(clipDrop.target.at, state.scroll, state.zoom);
+    overlay.beginPath();
+    overlay.moveTo(x + 0.5, RULER_HEIGHT);
+    overlay.lineTo(x + 0.5, size.height);
+    overlay.stroke();
     overlay.restore();
   }
 
@@ -2264,6 +2293,30 @@ export function createTimeline({
     },
     setDropPreview(preview) {
       dropPreview = preview;
+      requestOverlay();
+    },
+    // A clipboard entry dragged over: where a drop at this pointer would paste it (null: not on
+    // a track lane), and its outlines (null clears them). clipboard-drag.js.
+    clipboardDropTarget(event, entry) {
+      const state = getState();
+      const rect = overlayCanvas.getBoundingClientRect();
+      const { x, y } = locate(event);
+      if (!state.project || x < 0 || y < 0 || x > rect.width || y > rect.height) return null;
+      const { playhead, inPoint, outPoint } = state;
+      return clipboardDropTarget(
+        { x, y, alt: event.altKey },
+        {
+          layout: layoutFor(state),
+          project: state.project,
+          view: state,
+          entry,
+          marks: { playhead, inPoint, outPoint },
+        },
+      );
+    },
+    setClipboardDropPreview(preview) {
+      if (preview === clipDrop) return;
+      clipDrop = preview;
       requestOverlay();
     },
     layerMode: layer.mode,

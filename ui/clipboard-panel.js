@@ -22,6 +22,7 @@ import {
   pasteChoice,
   projectLabel,
 } from "./clipboard.js";
+import { CLIP_DRAG_TYPE } from "./clipboard-drag.js";
 import { previewButton } from "./clipboard-preview.js";
 import { formatAbsoluteTime, getLanguage, t } from "./i18n.js";
 
@@ -43,7 +44,8 @@ const el = (tag, props = {}, ...children) => {
  * toggleProject(path), openProject(), openPath(path), hasPicker() -> boolean,
  * adopt(entry, from[, shelf]), pasteHere(entry, from[, shelf]), now() -> UTC epoch seconds,
  * canPasteAgain(state) -> boolean, seriesShelf(id, on), seriesRemove(id), seriesPlace(),
- * openSeries(). `shelf` is "series" for an entry of the series shelf.
+ * openSeries(), dragStart(entry, { shelf, from }), dragEnd(). `shelf` is "series" for an entry
+ * of the series shelf; a drag's shelf is "project", "series", "shared" or "other".
  */
 export function createClipboardPanel({ root, actions }) {
   let signature = "";
@@ -199,7 +201,7 @@ export function createClipboardPanel({ root, actions }) {
     const hint = levelHint(state.clipboardLevel, entry.id, t);
     // While it plays, the chip's bottom edge fills left to right with the preview (progress()).
     const progressBar = play.playing ? [progressMeter(entry.id)] : [];
-    return el(
+    const row = el(
       "li",
       {
         class: "clip-entry",
@@ -212,6 +214,7 @@ export function createClipboardPanel({ root, actions }) {
       buttons,
       ...progressBar,
     );
+    return draggable(row, entry, { shelf: "project", from: "" });
   }
 
   function progressMeter(id) {
@@ -285,12 +288,29 @@ export function createClipboardPanel({ root, actions }) {
         ),
       );
     }
-    return el(
+    const row = el(
       "li",
       { class: "clip-entry", dataset: { id, foreign: "true" } },
       el("span", { class: "clip-main" }, ...labels(entry, rate)),
       buttons,
     );
+    return draggable(row, entry, { shelf: shelf ?? (from ? "other" : "shared"), from });
+  }
+
+  /**
+   * A row dragged onto the timeline pastes its entry there (clipboard-drag.js). The drag carries
+   * the entry id; which entry and shelf it is goes to the app, as a drag's data cannot be read
+   * before the drop.
+   */
+  function draggable(row, entry, source) {
+    row.setAttribute("draggable", "true");
+    row.addEventListener("dragstart", (event) => {
+      event.dataTransfer?.setData(CLIP_DRAG_TYPE, entry.id);
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = "copy";
+      actions.dragStart(entry, source);
+    });
+    row.addEventListener("dragend", () => actions.dragEnd());
+    return row;
   }
 
   const list = (label, rows) => el("ul", { class: "clip-list", "aria-label": label }, ...rows);

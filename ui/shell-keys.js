@@ -137,7 +137,7 @@ export function setupKeyboard({
       },
     },
   });
-  registerEditCommands(registry, {
+  const edits = registerEditCommands(registry, {
     app,
     t,
     formatSeconds: (seconds) => formatNumber(seconds, { digits: 1 }),
@@ -399,6 +399,8 @@ export function setupKeyboard({
   }
   return {
     registry,
+    // A plan built outside a command (a clipboard entry dropped on the timeline): sent as one edit.
+    sendPlan: (plan) => edits.send(plan),
     keymap,
     palette,
     cheat,
