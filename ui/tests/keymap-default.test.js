@@ -240,7 +240,7 @@ describe("the owner's decisions", () => {
     assert.deepEqual(keysOf("panel.previous"), ["Shift+F6"]);
     assert.deepEqual(keysOf("view.toggle"), ["Z"]);
     assert.deepEqual(keysOf("view.fit"), ["0"]);
-    assert.deepEqual(keysOf("view.fit_selection"), ["Shift+F"]);
+    assert.deepEqual(keysOf("view.fit_selection"), ["F"]);
     assert.deepEqual(keysOf("view.back"), ["Alt+Mod+Shift+ArrowLeft"]);
     assert.deepEqual(keysOf("view.forward"), ["Alt+Mod+Shift+ArrowRight"]);
     assert.deepEqual(keysOf("mark.clear_in"), ["Shift+I"]);

@@ -182,7 +182,7 @@ What was missing against WP28 and this note, and is now built:
 
 Choices made where the design was open (simplest, change if wrong):
 
-1. **Key.** WP28 says F, but F is Fit selection (owner, 2026-10-18). Focus is Shift+F (changed 2026-10-21: owner chose plain F for focus; Fit selection moved to Shift+F), focus
+1. **Key.** WP28 says F, but F is Fit selection (owner, 2026-10-18). Focus is Shift+F (owner 2026-10-21: plain F stays Fit selection: it is used far more often than a mode toggle), focus
    and solo Alt+Shift+F (WP28 had Shift+F). Nothing needs AltGr or Shift+digit.
 2. **Esc order.** Esc first clears the track selection, then the clips and the marks, and only
    then leaves focus, so a focused edit session survives the usual Esc presses.

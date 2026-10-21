@@ -267,13 +267,13 @@ describe("the focus commands in the registry", () => {
 
 describe("the focus commands: keys, menu, switches", () => {
   const keysOf = (id) => DEFAULT_KEYMAP.find((entry) => entry.id === id)?.keys;
-  test("F focuses, Alt+Shift+F focuses and solos, Alt+F hides other speakers' words", () => {
+  test("Shift+F focuses, Alt+Shift+F focuses and solos, Alt+F hides other speakers' words", () => {
     // F stays Fit selection (owner, 2026-10-18); nothing needs AltGr or Shift+digit.
-    assert.deepEqual(keysOf("view.focus"), { mac: "F", other: "F" });
+    assert.deepEqual(keysOf("view.focus"), { mac: "Shift+F", other: "Shift+F" });
     assert.deepEqual(keysOf("view.focus_solo"), { mac: "Alt+Shift+F", other: "Alt+Shift+F" });
     assert.deepEqual(keysOf("view.focus_hide_others"), { mac: "Alt+F", other: "Alt+F" });
     assert.deepEqual(keysOf("view.focus_shrink"), { mac: null, other: null });
-    assert.deepEqual(keysOf("view.fit_selection"), { mac: "Shift+F", other: "Shift+F" });
+    assert.deepEqual(keysOf("view.fit_selection"), { mac: "F", other: "F" });
   });
   test("all four are in the View menu, and the switches show their state", () => {
     const view = MENU.find((top) => top.id === "view");
