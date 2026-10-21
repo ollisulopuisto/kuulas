@@ -11,6 +11,7 @@ Raidalla ovat yhden äänen tai yhdenlaisen äänen leikkeet. Kaistan vasemmalla
 - Nimeä uudelleen: {key:rename}
 - Taso ja panorointi: otsakkeen liukusäätimet tai tarkastin.
 - Vaimenna musiikki puheen alla valikosta Raita > Automaattiset; valitse tarkastimessa, mitkä musiikkiraidat vaimennetaan.
+- Valitse **Nosta tasoa tauoissa**, jos haluat nostaa musiikkia pidempien taukojen ajaksi, tai **Vaimenna puheen aikana**, jos haluat laskea tasoa jatkuvasti puheen ajaksi. Jälkimmäisessä tyylissä voit säätää suhdetta, kynnystä, alkua ja palautumista.
 - Valitse raita nuolinäppäimillä ylös ja alas.
 
 Värillinen tappi on puhuja; vasemman reunan kisko, jos sellainen on, on raidan [[bus|väylä]].

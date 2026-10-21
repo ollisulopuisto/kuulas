@@ -79,6 +79,7 @@ TASKS: dict[str, str] = {
     "preview_silence": "kuulas.analysis:preview_silence",
     "speech_lanes": "kuulas.analysis:speech_lanes",
     "anyone_talking_intervals": "kuulas.analysis:anyone_talking_intervals",
+    "duck_sidechain": "kuulas.analysis:duck_sidechain_measure",
     "project_curves": "kuulas.loudness_curve:project_curves",
     "music_level": "kuulas.music_level:measure",
     "block_level": "kuulas.block_level:measure",

@@ -11,6 +11,7 @@ A track holds the clips of one voice or one kind of sound. Its header, on the le
 - Rename: {key:rename}
 - Level and pan: the header's sliders, or the inspector.
 - Duck music under speech from Track > Auto; choose which music tracks take part in the inspector.
+- Choose **Fade in the gaps** to raise music during longer pauses, or **Duck under speech** to lower it continuously while people speak. The sidechain style lets you adjust depth, threshold, attack and release.
 - Move the current track with the arrow keys up and down.
 
 The coloured pill is the speaker; the rail on the far left, if there is one, is the track's [[bus|bus]].

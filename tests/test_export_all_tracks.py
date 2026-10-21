@@ -130,6 +130,70 @@ def test_a_music_track_is_named_so_the_automixer_finds_it_as_music(session):
     assert f"Episode {DASH} Intro MUSIC.wav" in {Path(p).name for p in result["paths"]}
 
 
+def test_sidechain_automation_is_applied_to_music_stems_for_automixer(session):
+    music = session.state.tracks[2]
+    session.edit("set_track", {"track_id": music.id, "kind": "music", "name": "Intro",
+                                "duck": True})
+    session.edit("set_track_automation", {
+        "track_id": music.id,
+        "points": [[0, 0.0], [2 * RATE, -12.0], [4 * RATE, -12.0]],
+    })
+
+    result = session.export({
+        "folder": str(session.package.path.parent / "sidechain-stems"),
+        "format": "wav", "bit_depth": 32, "kind": "tracks", "for_automixer": True,
+    })
+
+    stems = by_name(result)
+    audio = wav(stems["Intro MUSIC"])
+    early = float(np.sqrt(np.mean(audio[:, int(0.2 * RATE):int(0.7 * RATE)] ** 2)))
+    under_speech = float(np.sqrt(np.mean(audio[:, int(3.2 * RATE):int(3.7 * RATE)] ** 2)))
+    assert under_speech < early * 0.4
+
+
+def test_music_stem_follows_the_measured_sidechain_curve_under_speech(tmp_path):
+    from kuulas import analysis  # noqa: PLC0415
+
+    rng = np.random.default_rng(5)
+    src = tmp_path / "src"
+    src.mkdir()
+    seconds = 8
+    clock = np.arange(seconds * RATE) / RATE
+    talk = (0.3 * (0.6 + 0.4 * np.sin(2 * np.pi * 4 * clock))
+            * rng.standard_normal(clock.size)).astype(np.float32)
+    talk[: 2 * RATE] = 0
+    bed = (rng.standard_normal(clock.size) * 0.1).astype(np.float32)
+    sf.write(src / "Host.wav", talk, RATE, subtype="PCM_16")
+    sf.write(src / "Bed.wav", bed, RATE, subtype="PCM_16")
+    session = Session(tmp_path / "Law.kuulas")
+    try:
+        session.import_media([str(src / "Host.wav"), str(src / "Bed.wav")])
+        music = session.state.tracks[1]
+        session.edit("set_track", {"track_id": music.id, "kind": "music",
+                                   "name": "Intro", "duck": True})
+        measured = analysis.duck_sidechain_measure(session.state, session.store)
+        assert measured["speech_lufs"] is not None
+        session.command("duck_music", {"measured": measured, "style": "sidechain"})
+        points = session.state.track(music.id).automation
+        assert points
+        expected_db = float(np.interp(5 * RATE, [f for f, _ in points],
+                                      [v for _, v in points]))
+        assert expected_db < -3
+
+        result = session.export({
+            "folder": str(tmp_path / "law-stems"),
+            "format": "wav", "bit_depth": 32, "kind": "tracks", "for_automixer": True,
+        })
+
+        audio = wav(by_name(result)["Intro MUSIC"])
+        window = slice(int(4.8 * RATE), int(5.2 * RATE))
+        heard = float(np.sqrt(np.mean(audio[:, window] ** 2)))
+        plain = float(np.sqrt(np.mean(bed[window] ** 2)))
+        assert 20 * np.log10(heard / plain) == pytest.approx(expected_db, abs=1.0)
+    finally:
+        session.close()
+
+
 def test_a_failure_is_a_failed_job_with_the_translated_text(tmp_path):
     empty = Session(tmp_path / "Empty.kuulas")
     try:

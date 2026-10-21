@@ -703,6 +703,14 @@ and bus gain. A current record causes `--no-music-duck` and a Done in Kuulas
 line in `log.txt`. Without a written curve, no record is made and the
 automixer keeps its own ducking.
 
+The command offers **Fade in the gaps** (the original `nhsx.musicbed.curve`)
+and **Duck under speech** (the continuous sidechain law). The latter measures
+the summed, processed speech on 10 ms timeline hops, matches its gated LUFS to
+the app's -19 LUFS speech reference, then applies the automixer's threshold
+and ratio law with 50 ms attack, 300 ms release, and a -24 dB floor by default.
+Its points are editable track automation and are covered by the same record;
+the law's measurement assumption is documented in `duck_sidechain.py`.
+
 The edit it makes is ordinary: each affected track's clips are split (`split_clip`, no gap, no
 media change) in the middle of the pause between two blocks and the block's gain is ADDED to
 the pieces' `gain_db` (within -60..+12 dB). The two pieces at a new cut get a 20 ms
