@@ -142,6 +142,10 @@ export const silenceAccept = (options, key, seq) =>
   post("/api/silence/accept", { ...options, key, seq });
 /** Close the panel: the engine plays the project again, nothing is committed. */
 export const silenceClose = (seq) => post("/api/silence/close", { seq });
+/** Learn the options from the selected clips (muted = silence): { jobs: [job id] }; the job's
+ * `result` is { tracks, options, learned, clamped, learned_margin_db, key }. Commits nothing. */
+export const silenceLearn = (clipIds, options = {}) =>
+  post("/api/silence/learn", { ...options, clip_ids: clipIds });
 /** Set music level: a job that measures the speech and the music beds; changes nothing. */
 export const musicLevelMeasure = (options = {}) => post("/api/music-level/measure", options);
 /** Duck music: a cancellable speech analysis job; the result is passed to the one-step command. */

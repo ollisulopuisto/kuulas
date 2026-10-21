@@ -2334,6 +2334,7 @@
   "error.silence.stale": "The speech audio changed after this preview was made, so it was not applied. Look at the new preview and press Accept again.",
   "job.silence_measure": "Measuring speech for Auto-Silence",
   "cmd.app.silence_learn": "Calculate Auto-Silence values from the selection",
+  "cmd.app.silence_learn.hint": "Select clips you muted by hand (the silence) and clips you kept (the speech): the Auto-Silence panel opens with the Sensitivity learned from them, says what it learned or why not, and previews what it would close. Nothing changes until Accept.",
   "job.silence_learn": "Learning Auto-Silence values from the selected clips",
   "error.silence.learn_no_selection": "Select clips on speech tracks first: some you muted by hand (the silence) and some you kept (the speech).",
   "log.silence.learn": "Auto-Silence learned on {name}: {code}, threshold {threshold} dBFS over a floor of {floor} dBFS ({note})",

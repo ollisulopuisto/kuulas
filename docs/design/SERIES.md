@@ -80,6 +80,10 @@ when empty, so old projects keep their bytes): Save, Apply, Join, Leave and Rena
 undo step. A new episode or a project with no remembered Auto-Silence options starts with the
 copy's options (`ui/view-memory.js`).
 
+Values learned with "Calculate Auto-Silence values from the selection" (docs/design/SILENCE-LEARN.md)
+need nothing new here: Accept remembers them as the project's Auto-Silence options, so "Save as
+series defaults" carries them to the next episode like hand-set ones.
+
 **Differs** (`series_settings.differences`): a section differs when the episode's value is not the
 series'. For the layout every series track and bus must be in the episode with the same values;
 extra tracks in the episode (a guest) are not a difference. The status-bar chip shows

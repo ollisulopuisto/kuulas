@@ -2439,6 +2439,7 @@
   "error.silence.stale": "Puheen ääni muuttui esikatselun jälkeen, joten sitä ei otettu käyttöön. Katso uusi esikatselu ja paina Hyväksy uudelleen.",
   "job.silence_measure": "Mitataan puhetta Auto-Silencea varten",
   "cmd.app.silence_learn": "Laske Auto-Silencen arvot valinnasta",
+  "cmd.app.silence_learn.hint": "Valitse käsin mykistämiäsi leikkeitä (hiljaisuus) ja jättämiäsi leikkeitä (puhe): Auto-Silencen paneeli avautuu niistä opitulla herkkyydellä, kertoo mitä oppi tai miksi ei, ja esikatselee mitä se sulkisi. Mikään ei muutu ennen kuin painat Hyväksy.",
   "job.silence_learn": "Opitaan Auto-Silencen arvot valituista leikkeistä",
   "error.silence.learn_no_selection": "Valitse ensin leikkeitä puheraidoilta: joitakin käsin mykistämiäsi (hiljaisuus) ja joitakin jättämiäsi (puhe).",
   "log.silence.learn": "Auto-Silence opittu raidalla {name}: {code}, kynnys {threshold} dBFS, pohjakohina {floor} dBFS ({note})",

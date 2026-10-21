@@ -277,6 +277,12 @@ export function registerAppCommands(registry, { actions, app }) {
   // Track > Auto: these three had a menu item and a key but no handler (greyed out).
   def("app.auto_silence", () => app.autoSilence(), hasProject);
   def("app.auto_silence_options", () => app.openSilenceOptions(), hasProject);
+  // The selected clips (muted = silence, the rest = speech) teach the panel its values.
+  def(
+    "app.silence_learn",
+    () => app.learnSilence(),
+    (state) => (state?.selection?.size ?? 0) > 0 && hasProject(state),
+  );
   def("gate.open_all", () => app.openAllGates(), hasProject);
   def("app.automix", () => app.duckMicrophones(), hasProject);
   // Set music level…: measure the speech and the beds, set the music tracks' gain (one step).
