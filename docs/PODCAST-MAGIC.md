@@ -302,9 +302,12 @@ Checked on a clean clone of main `8127aa7` (`automixer 2026.10.21.2`):
 **Nothing is required from the podcast side.** Wishes, in order of value:
 1. **mlx and textual as extras** (for example `automixer[tui]` / `[mlx]`). They are only
    used by the TUI and the in-memory route, yet every install of the wheel pulls them in.
-   In the Kuulas bundle mlx + mlx-metal are 170 MB on disk and about 45 MB of the .dmg
-   (textual and its dependencies about 11 MB on disk, 2 MB compressed). With them as
-   extras the automixer would add about 2 MB to the .dmg instead of about 46 MB.
+   mlx publishes no wheel for macOS 12, the bundle's minimum, so the first local .dmg build
+   with the automixer failed on it ("No matching distribution found for mlx>=0.30.6"); it
+   would also have added about 45 MB to the .dmg (170 MB on disk). Kuulas works around it:
+   `scripts/trim_deps.py` drops the two requirements from a copy of
+   `apps/automixer/pyproject.toml` before building the bundle's wheel. With extras that
+   trim becomes a no-op (it says so in the build log) and can be removed.
 2. **A licence.** speechmix and automixer declare none and the repository has no
    `LICENSE`; both import pedalboard (GPL-3). A GPL-3-compatible licence (GPL-3.0-or-later)
    in `pyproject.toml` and a `LICENSE` file would settle what the .dmg passes on

@@ -39,8 +39,12 @@ for pkg in speechmix nhsx silencelearn; do
 done
 # Apps, not libraries: no dependency of Kuulas, but the bundle ships them
 # (stage_bundle.APPS; the selftest runs `automixer --help` from the bundle).
+# Built from a copy whose unused mlx and textual requirements are dropped (trim_deps.py
+# says why: no macOS 12 wheel of mlx); the podcast source is never edited.
 for app in automixer; do
-  uv build --wheel --out-dir "$out" "$src/apps/$app" >/dev/null
+  cp -R "$src/apps/$app" "$tmp/app-$app"
+  python3 "$here/scripts/trim_deps.py" "$tmp/app-$app/pyproject.toml"
+  uv build --wheel --no-sources --out-dir "$out" "$tmp/app-$app" >/dev/null
 done
 
 # proxy_tools is a one-file pure-Python package; build its wheel from the sdist.

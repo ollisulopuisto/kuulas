@@ -19,9 +19,9 @@ page records what that means and what the bundle carries for it.
 Everything else is permissive: MIT, BSD (2/3-clause), Apache-2.0, PSF-2.0, MIT-0, 0BSD,
 Zlib, CC0 (numpy, scipy, numba/llvmlite, fastapi, starlette, uvicorn, pydantic, lxml,
 psutil, pyloudnorm, sounddevice/PortAudio, pywebview, pyobjc, websockets, python-multipart,
-nhsx, silencelearn). New with the automixer: mlx and mlx-metal (MIT), textual, rich,
-markdown-it-py, mdit-py-plugins, mdurl, linkify-it-py, platformdirs (MIT), Pygments
-(BSD-2-Clause), PyYAML (MIT), automixer itself (no licence declared, see below).
+nhsx, silencelearn). New with the automixer: PyYAML (MIT) and automixer itself (no
+licence declared, see below). Its mlx and textual requirements are dropped for the bundle
+(scripts/trim_deps.py); both are MIT, as are textual's dependencies, should they return.
 
 ## What the GPL asks of the .dmg, and what it carries
 

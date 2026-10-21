@@ -161,3 +161,41 @@ def test_the_bundle_licence_names_the_gpl_parts():
     assert "pedalboard" in text
     assert "GPL" in text
     assert "automixer" in text
+
+
+AUTOMIXER_PYPROJECT = '''[project]
+name = "automixer"
+dependencies = [
+    "speechmix",
+    # Apple Silicon only: the TUI and the in-memory mixer use mlx.
+    "mlx>=0.30.6; sys_platform == 'darwin'",
+    "numpy>=2.4.2",
+    "textual>=8.0.0",
+]
+
+[tool.uv.sources]
+speechmix = { workspace = true }
+'''
+
+
+def test_the_bundled_automixer_drops_mlx_and_textual():
+    """mlx publishes no wheel for the bundle's macOS 12 target (the 2026-10-21 local
+    build failed on it) and only the TUI and the in-memory route use mlx and textual;
+    Kuulas runs the folder route. The trim edits a copy, never the podcast checkout."""
+    import trim_deps  # noqa: PLC0415
+
+    text = trim_deps.trim(AUTOMIXER_PYPROJECT, trim_deps.UNUSED)
+    deps = tomllib.loads(text)["project"]["dependencies"]
+    assert deps == ["speechmix", "numpy>=2.4.2"]
+    assert "uv" not in tomllib.loads(text).get("tool", {})  # no workspace outside it
+    built = (REPO / "scripts" / "build_wheels.sh").read_text(encoding="utf-8")
+    assert "trim_deps.py" in built
+
+
+def test_trim_is_a_no_op_once_the_podcast_makes_them_extras(capsys):
+    import trim_deps  # noqa: PLC0415
+
+    text = '[project]\nname = "x"\ndependencies = [\n    "numpy",\n]\n'
+    assert tomllib.loads(trim_deps.trim(text, ("mlx",)))["project"]["dependencies"] == [
+        "numpy"]
+    assert "mlx" in capsys.readouterr().err  # said, so the trim can be retired
