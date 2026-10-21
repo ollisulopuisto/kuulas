@@ -14,11 +14,12 @@ import {
   pasteTargets,
   sourceTargets,
 } from "./clipboard.js";
+import { editRange } from "./intent.js";
 import { clipEnd } from "./lanes.js";
 import { splitClipsProvisional } from "./provisional.js";
 import { quickMuteStretch } from "./quick-mute.js";
 import { resolveScope } from "./range-scope.js";
-import { clipsAround, currentTrack, markedRange, selectedClips } from "./selection.js";
+import { clipsAround, currentTrack, selectedClips } from "./selection.js";
 
 export const GAIN_STEP_DB = 0.5;
 export const GAIN_BURST_MS = 600;
@@ -81,9 +82,13 @@ export function rangeTracks(state) {
   return resolveScope(state).tracks;
 }
 
-/** The frames an edit covers and the tracks it starts from: the range, else the selected clips' span. */
+/**
+ * The frames an edit covers and the tracks it starts from: the range, else the selected
+ * clips' span. With both, the one touched last (intent.js `editRange`), so selecting clips
+ * after the marks were set makes the clips the target.
+ */
 function span(state) {
-  const range = markedRange(state);
+  const range = editRange(state);
   if (range) {
     const scope = resolveScope(state);
     if (scope.none) return { refused: true };
@@ -101,10 +106,10 @@ function span(state) {
 
 const secondsOf = (state, frames) => frames / rateOf(state);
 
-/** Backspace and Delete: mute in place (the range, else the selected clips); the gap stays. */
+/** Backspace and Delete: mute in place (the range, else the selected clips: the latest intent); the gap stays. */
 export function deletePlan(state) {
   if (!state?.project) return null;
-  const range = markedRange(state);
+  const range = editRange(state);
   if (range) {
     const scope = resolveScope(state);
     if (scope.none) return scopeRefusal();
@@ -290,7 +295,7 @@ function cutToClipboard(state, { op, key, thisTrackOnly = false, t }) {
 /** Mod+C: copy the range (as Cut would take it), else the selected clips. No edit, so no undo step. */
 export function copyPlan(state, t) {
   if (!state?.project) return null;
-  const range = markedRange(state);
+  const range = editRange(state);
   let body;
   let parts;
   if (range) {

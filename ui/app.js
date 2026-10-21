@@ -3764,6 +3764,11 @@ function updateScopeChip(state) {
   if (el.hidden) return;
   el.classList.toggle("warn", chip.kind === "none");
   el.title = t("ui.scope.chip_title");
+  if (chip.kind === "clips") {
+    // The clips were selected after the marks: they are what Backspace, X and copy touch.
+    el.textContent = t("ui.scope.chip_clips", { count: chip.count });
+    return;
+  }
   if (chip.kind === "none") {
     el.textContent = t("ui.scope.chip_none");
     return;
@@ -3910,7 +3915,18 @@ function render(state, patch) {
     $("follow").setAttribute("aria-pressed", String(state.followPaused));
   }
   if (touched("showGates")) $("show-gates").checked = state.showGates;
-  if (touched("project", "inPoint", "outPoint", "rangeMode", "trackSelection", "rangeTracks"))
+  if (
+    touched(
+      "project",
+      "inPoint",
+      "outPoint",
+      "rangeMode",
+      "trackSelection",
+      "rangeTracks",
+      "selection",
+      "intent",
+    )
+  )
     updateScopeChip(state);
   if (touched("waveformMode")) $("waveform-mode").value = state.waveformMode;
   if (

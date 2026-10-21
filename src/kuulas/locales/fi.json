@@ -886,6 +886,7 @@
   "ui.scope.where_all": {"one": "raidalla", "other": "kaikilla {count} raidalla"},
   "ui.scope.where_some": "raidoilla {names}",
   "ui.scope.chip_none": "ei valittuja raitoja: mitään ei muuteta",
+  "ui.scope.chip_clips": {"one": "Askelpalautin/X koskevat valittua leikettä (merkit himmennetty)", "other": "Askelpalautin/X koskevat {count} valittua leikettä (merkit himmennetty)"},
   "ui.scope.chip_title": "Mihin raitoihin seuraava alueen muokkaus (leikkaus, kopiointi, poisto, mykistys) koskee. Napsauta vaihtaaksesi kaikkien raitojen ja vain valittujen välillä (A).",
   "cmd.clip.match_loudness": "Sovita äänenvoimakkuus",
   "cmd.clip.match_loudness.hint": "Asettaa valittujen leikkeiden (tai nykyisen raidan) vahvistuksen niin, että ne ovat yhtä kovaäänisiä, raidan tavoitetasolle (puhe -19, musiikki -23 LUFS ellei toisin ole asetettu).",

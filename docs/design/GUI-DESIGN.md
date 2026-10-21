@@ -883,6 +883,16 @@ Waveforms come from peak tiles in a worker (`waveform.worker.js`); the overlay
   brackets (`sibling`, section 18).
 - **Range (in/out):** `--selection-range` fill on exactly the lanes the next
   time-shifting edit will touch, accent edges and inward flags in the ruler.
+  **The most recent intent wins** (owner, 2026-10-21): with both an in/out range
+  and selected clips, Backspace, X, Alt+X, Cmd+X, Alt+Mod+X and Copy act on
+  whichever was touched last (`ui/intent.js`, UI state `intent`, never saved).
+  Marks set or changed (I, O, a dragged or painted range) make the range the
+  target; clips selected afterwards (click, Cmd+click, Select commands) make the clips
+  the target, and the marks stay on screen at 35 % opacity. The status chip says
+  which: "range 12:00-18:30 on all tracks", or "Backspace/X touch the 3 selected
+  clips (the marks are dimmed)". Clearing either leaves the other; Esc clears
+  both as before; Undo and Redo never change the intent. Loop, Play selection
+  and Export keep "marks first".
 - **Snap feedback** (WP6): a 1 px accent guide while a drag snaps; Mod disables.
 - **Undo flash:** section 20.
 

@@ -18,6 +18,9 @@ A clip is a stretch of one recording placed on a track. Several clips can come f
 - Edited the recording in another program (say, removed noise)? **Locate / Relink media…** in the clip's menu points every clip of that recording at the file you choose, after showing both lengths; one undo step, and neither file is changed. A clip whose file is missing shows a red warning sign; double-click it to locate the file.
 - Fade in and out: {key:clip.fade}
 
+## Range or clips: the latest choice wins
+When you have both an In-Out range and selected clips, Delete, Cut, Lift-cut, Close the gap and Copy act on whichever you touched last. Select clips after you set In and Out, and the next edit touches those clips (the status bar says so: "touch the 3 selected clips") and the marks stay but fade. Set or move In or Out, or drag a new range, and the range is the target again ("range 0:12-0:18 on all 4 tracks"). Clearing the selection or the marks leaves the other one. Looping, playing the selection and Export still use the marks first. Undo and Redo do not change the choice.
+
 Every edit is one step back with {key:edit.undo}.
 
 ## Paste
