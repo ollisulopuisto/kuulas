@@ -2,7 +2,7 @@
 // a gate is a track property, but it must be possible to unset it per clip or for several).
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { gateUnderClips } from "../gate.js";
+import { gateUnderClips, underClipsEdit } from "../gate.js";
 import { timelineMenuItems, timelineTarget } from "../timeline-menu.js";
 
 const project = {
@@ -83,5 +83,24 @@ describe("ungatedAll: the toggle decides which way to go", () => {
   test("nothing known selected", () => {
     assert.equal(ungatedAll(p, ["nope"]), false);
     assert.equal(ungatedAll(null, ["x"]), false);
+  });
+});
+
+describe("Mic kept open: the toggle edit shared by the command and the inspector row", () => {
+  const key = (k) => k;
+  test("closing the flag on an open clip, opening it on a plain one", () => {
+    const p = {
+      tracks: [{ id: "a", clips: [{ id: "x", ungated: true }, { id: "y" }] }],
+    };
+    assert.deepEqual(underClipsEdit(p, ["x"], key), {
+      op: "set_clips_ungated",
+      args: { clip_ids: ["x"], value: false },
+      label: "ui.gate.under_clips_off",
+    });
+    assert.deepEqual(underClipsEdit(p, ["y"], key), {
+      op: "set_clips_ungated",
+      args: { clip_ids: ["y"], value: true },
+      label: "ui.gate.under_clips",
+    });
   });
 });

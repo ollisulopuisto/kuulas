@@ -3,6 +3,7 @@
 
 import { bindToggle } from "./ab-value.js";
 import { frameToTime } from "./format.js";
+import { underClipsEdit } from "./gate.js";
 import { formatDb, t } from "./i18n.js";
 import { createSourceSection } from "./inspector-source.js";
 import { buildTrackSections, field } from "./inspector-track.js";
@@ -247,6 +248,26 @@ export function createInspector({
     muted.addEventListener("change", () => send("muted", muted.checked));
     // Mute belongs with level, the first thing you reach for.
     levelSection.append(field(t("ui.clip.muted"), muted));
+    // "Mic kept open" (Clip.ungated): shown only for a clip that has it, with the same
+    // toggle as Clip > Keep the mic open under clips (gate.js underClipsEdit).
+    const micOpen = document.createElement("div");
+    micOpen.className = "form-row inspector-field inspector-mic-open";
+    micOpen.hidden = true;
+    const micName = document.createElement("span");
+    micName.className = "form-label";
+    micName.textContent = t("ui.inspector.mic_open");
+    const micState = document.createElement("output");
+    micState.className = "inspector-readonly";
+    micState.textContent = t("ui.inspector.mic_open.state");
+    const micOff = document.createElement("button");
+    micOff.type = "button";
+    micOff.className = "button small";
+    micOff.textContent = t("ui.inspector.mic_open.release");
+    micOff.addEventListener("click", () => {
+      if (latestState?.project) editor.change(underClipsEdit(latestState.project, [id], t));
+    });
+    micOpen.append(micName, micState, micOff);
+    levelSection.append(micOpen);
     const sync = document.createElement("p");
     sync.className = "hint";
     section("sync").append(sync);
@@ -254,7 +275,7 @@ export function createInspector({
     const readout = document.createElement("p");
     readout.className = "hint";
     section("details").append(readout);
-    parts = { heading, length, gain, pan, fadeIn, fadeOut, muted, sync, readout, rate };
+    parts = { heading, length, gain, pan, fadeIn, fadeOut, muted, micOpen, sync, readout, rate };
   }
 
   function setNumber(input, value) {
@@ -299,6 +320,7 @@ export function createInspector({
     setNumber(parts.fadeIn, Math.round((clip.fade_in * 1000) / parts.rate));
     setNumber(parts.fadeOut, Math.round((clip.fade_out * 1000) / parts.rate));
     parts.muted.checked = Boolean(clip.muted);
+    parts.micOpen.hidden = !clip.ungated;
     const where = group ? t("ui.clip.sync.group", { id: group.id }) : t("ui.clip.sync.none");
     const home = homeNameFor(state.project, clip, found.track.id);
     parts.sync.textContent =

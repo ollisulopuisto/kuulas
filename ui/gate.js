@@ -114,3 +114,16 @@ export function ungatedAll(project, ids) {
       }
   return seen > 0;
 }
+
+/**
+ * The edit behind "Keep the mic open under the selected clips" and the inspector's "Mic kept
+ * open" row: it toggles. When every clip is already open it lets them be gated again.
+ */
+export function underClipsEdit(project, ids, t) {
+  const all = ungatedAll(project, ids);
+  return {
+    op: "set_clips_ungated",
+    args: { clip_ids: [...ids], value: !all },
+    label: t(all ? "ui.gate.under_clips_off" : "ui.gate.under_clips"),
+  };
+}

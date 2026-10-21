@@ -70,7 +70,7 @@ import {
 import { followScroll } from "./follow.js";
 import { frameToTime, RATE, xToFrame } from "./format.js";
 import { envelopeChange, fadeChange, gainChange } from "./gain-drag.js";
-import { GATE_OPEN_COMMAND, openStretchEdit, stretchAt, ungatedAll } from "./gate.js";
+import { GATE_OPEN_COMMAND, openStretchEdit, stretchAt, underClipsEdit } from "./gate.js";
 import { HELP_COMMAND, shortcutsFor } from "./help.js";
 import { createHelpPanel } from "./help-panel.js";
 import { undoNotice } from "./history-model.js";
@@ -1018,13 +1018,7 @@ function openGateStretch(gate) {
 function openGateUnderClips() {
   const state = getState();
   if (state.selection.size === 0) return;
-  const ids = [...state.selection];
-  const all = ungatedAll(state.project, ids);
-  editor.change({
-    op: "set_clips_ungated",
-    args: { clip_ids: ids, value: !all },
-    label: t(all ? "ui.gate.under_clips_off" : "ui.gate.under_clips"),
-  });
+  editor.change(underClipsEdit(state.project, [...state.selection], t));
 }
 // Command registry for the keyboard layer: id -> function.
 export const commands = { [GATE_OPEN_COMMAND]: () => openGateStretch() };
