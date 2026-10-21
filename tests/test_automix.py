@@ -3,6 +3,7 @@
 The fake is a tiny Python script that takes the automixer's command line, writes
 a wav to ``-o`` and prints progress. No real automixer, no audio playback."""
 
+import contextlib
 import json
 import shlex
 import sys
@@ -509,3 +510,70 @@ def test_the_job_remembers_the_log_for_reveal(
         time.sleep(0.05)
     assert session.last_automix_log
     assert session.last_automix_log == item()["result"]["log_file"]
+
+
+# -- the live log (the viewer opened while the automixer runs) ------------------------
+
+
+def _quiet(fn):
+    with contextlib.suppress(JobCancelledError):
+        fn()
+
+
+def test_run_hands_every_line_to_the_live_callback_in_order(session, fake, temp_root):
+    live: list[str] = []
+    result = automix.run(
+        session, {}, fake, Reports(), threading.Event(), live=live.append)
+    assert live[0] == "loading 2 tracks"
+    assert live[-1] == "PROGRESS 100 done"
+    assert live == result["log"]
+
+
+def test_live_lines_arrive_while_the_tool_still_runs(session, fake, temp_root):
+    seen = threading.Event()
+    live: list[str] = []
+
+    def note(line):
+        live.append(line)
+        if line == "working":
+            seen.set()
+
+    fake["extra_args"] = ["--mode", "hang"]
+    cancel = threading.Event()
+    worker = threading.Thread(target=lambda: _quiet(
+        lambda: automix.run(session, {}, fake, Reports(), cancel, live=note)))
+    worker.start()
+    assert seen.wait(30)
+    assert live[-1] == "working"  # the tool is still hanging
+    cancel.set()
+    worker.join(30)
+
+
+def test_live_gets_the_kuulas_notes_too(session, fake, temp_root):
+    live: list[str] = []
+
+    def runner(cmd, cwd, on_line, cancel):
+        on_line("hello")
+        Path(cmd[cmd.index("-o") + 1]).write_bytes(b"x")
+        return 0
+
+    result = automix.run(session, {}, fake, Reports(), threading.Event(),
+                         run_process=runner, live=live.append)
+    assert live == result["log"]
+    assert "hello" in live
+
+
+def test_a_missing_tool_is_in_the_live_lines(session, fake, temp_root):
+    fake["command"] = ["definitely-not-an-automixer-xyz"]
+    live: list[str] = []
+    with pytest.raises(automix.AutomixError):
+        automix.run(session, {}, fake, Reports(), threading.Event(), live=live.append)
+    assert any(line.startswith("not found") for line in live)
+
+
+def test_without_live_nothing_changes(session, fake, temp_root):
+    result = automix.run(session, {}, fake, Reports(), threading.Event())
+    assert result["log"][0] == "loading 2 tracks"
+    text = Path(result["log_file"]).read_text(encoding="utf-8")
+    assert "loading 2 tracks" in text
+    assert "PROGRESS 100 done" in text

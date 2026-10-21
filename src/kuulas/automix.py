@@ -896,13 +896,16 @@ def mark_skipped(message: str, options: dict) -> str:
 
 
 def run(session, params: dict, settings: dict, report: Report,
-        cancel: threading.Event, run_process: RunProcess = run_process) -> dict:
+        cancel: threading.Event, run_process: RunProcess = run_process,
+        live: Callable[[str], None] | None = None) -> dict:
     """Export the stems, run the automixer, return ``{"path", "name", "log",
     "command"}``. ``params``: ``target_lufs`` (default -16), ``ad_spot``,
     ``ad_duration`` (seconds), ``extra_args`` (replaces the setting for this
     run). ``report(fraction, message="", indeterminate=False)`` says how far
     it is. Raises ``AutomixError``, or ``JobCancelledError`` after cancel; the
-    temporary folder and any partial output are removed in every case."""
+    temporary folder and any partial output are removed in every case. ``live``,
+    when given, also hears every log line as it is printed (the live log viewer)."""
+    emit = live or (lambda _line: None)
     lufs, ad_spot, ad_duration = validate_params(params)
     check_rate(session)
     settings = resolve_settings(settings)
@@ -984,6 +987,8 @@ def run(session, params: dict, settings: dict, report: Report,
         steps.options = kept
         done = done_lines(session.state, kept)
         lines.extend(f"kuulas: {w}" for w in warnings)
+        for w in warnings:
+            emit(f"kuulas: {w}")
         if remote:
             run_dir = automix_remote.new_run_dir(remote)
             cmd = build_command(settings, Path(f"{run_dir}/stems"),
@@ -1007,6 +1012,7 @@ def run(session, params: dict, settings: dict, report: Report,
             if not line.strip():
                 return
             lines.append(line)
+            emit(line)
             found = _PROGRESS.match(line)
             if found:  # "PROGRESS 40 message"; the last is "PROGRESS 100 done"
                 share = min(100, int(found.group(1))) / 100
@@ -1094,6 +1100,7 @@ def run(session, params: dict, settings: dict, report: Report,
                     else run_process)(cmd, settings["cwd"], on_line, cancel)
         except FileNotFoundError as e:
             lines.append(f"not found: {e}")
+            emit(f"not found: {e}")
             fail(AutomixError("error.automix.not_found",
                               command=" ".join(settings["command"]) if not remote
                               else remote["ssh_command"][0],

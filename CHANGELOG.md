@@ -1,6 +1,7 @@
 ## [v26.10.20.18] - 2026-10-21
 
 - **Run the automixer on another Mac.** Settings > Automixer > "Run on another Mac": the host (ssh alias or user@host), the automixer folder and a work folder on that Mac. Kuulas exports the stems, copies them over (rsync), runs the automixer there over ssh, shows its progress as usual (with upload and download steps) and copies the finished mix and flags file back; the remote work folder is removed afterwards, also when you cancel (Cancel stops the remote process too) or the connection drops. "Test connection" checks key login (never a password prompt), the folder, the automixer command, rsync, free disk space and which options that Mac's automixer supports. The plug-in list comes from that Mac. Needs an ssh key set up and the work folder name without spaces. Tried only against stand-ins, not against a real second Mac.
+- **Show log while the automixer runs.** The running toast has a "Show log" button (next to Cancel) that opens an "Automixer log" window with everything the tool has printed so far, live (updates every second, scrolls down unless you scroll up, Copy, Esc closes); File > "Show automixer log..." opens it too, also after the run until the next one starts.
 - **Tests that used the wrong clock fixed** (an export-name test failed between 00 and 03 Helsinki time).
 
 ## [v26.10.20.17] - 2026-10-21

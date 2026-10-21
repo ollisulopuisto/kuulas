@@ -116,7 +116,8 @@ export async function exportRequest({ format, ask, bridge, hint, onAsk }) {
  * exportFormats() -> the ids of the formats the server offers (null until fetched),
  * openExportDialog("mix" | "tracks") -> opens the "(options)…" dialog (export-dialog.js),
  * exportRegions() -> Promise (queues the one region job; the jobs list shows its progress),
- * automix() -> opens the "Mix with the automixer" dialog (WP68).
+ * automix() -> opens the "Mix with the automixer" dialog (WP68),
+ * automixLog() -> opens the live "Automixer log" viewer.
  */
 export function registerExportCommands(registry, { app, t }) {
   for (const { id, path, file } of EXPORTS) {
@@ -183,6 +184,9 @@ export function registerExportCommands(registry, { app, t }) {
   registry.register("export.automix", () => void app.automix(), {
     can: hasTracks,
     hintKey: "cmd.export.automix.hint",
+  });
+  registry.register("export.automix_log", () => void app.automixLog(), {
+    hintKey: "cmd.export.automix_log.hint",
   });
   registry.register("export.regions", () => void app.exportRegions(), {
     can: hasRegions,

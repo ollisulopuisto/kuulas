@@ -203,6 +203,7 @@ export const MENU = [
       item("export.mix_options"),
       item("export.range"),
       item("export.automix"),
+      item("export.automix_log"),
       item("export.tracks_quick"),
       item("export.tracks"),
       submenu("menu.export_transcripts", [

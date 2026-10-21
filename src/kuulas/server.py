@@ -908,6 +908,11 @@ def create_app(session, engine, *, language: str | None = None,
                     "remote_failed": found is None}
         return {"plugins": plugins.list_plugins(refresh=refresh)}
 
+    @app.get("/api/automix/live")
+    def get_automix_live():
+        # The lines the automixer has printed so far (the newest run's, kept after it).
+        return session.automix_live()
+
     @app.get("/api/settings/automixer")
     def get_automixer_settings():
         stored = automix.load_settings()

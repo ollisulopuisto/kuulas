@@ -1327,6 +1327,13 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.export.automix",
   },
   {
+    // No default key: the Finnish layout leaves none free (docs/KEYS.md); it is in the File menu.
+    id: "export.automix_log",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.export.automix_log",
+  },
+  {
     // No key yet (WP12a): Hindenburg's Mod+Space waits until the record view has been tried.
     id: "transport.record",
     keys: { mac: null, other: null },

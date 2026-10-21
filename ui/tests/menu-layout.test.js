@@ -32,6 +32,7 @@ describe("File", () => {
       "export.mix_options",
       "export.range",
       "export.automix",
+      "export.automix_log",
       "export.tracks_quick",
       "export.tracks",
       "submenu",

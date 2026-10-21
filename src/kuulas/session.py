@@ -19,6 +19,7 @@ import math
 import os
 import sqlite3
 import threading
+from collections import deque
 from collections.abc import Callable
 from dataclasses import asdict, replace
 from datetime import UTC, datetime
@@ -229,6 +230,8 @@ def _nhsx_words(file_info) -> list[dict]:
 
 #: Edit names whose clicks coalesce (WP24.1): one key for solo, so clicking
 #: through the tracks to listen to each is one undo step, not twenty...
+#: How many printed automixer lines the live log viewer can show.
+AUTOMIX_LIVE_LINES = 3000
 SOLO_KEY = "solo"
 #: ...and mute/unmute clicks on one track merge with each other, not with
 #: those on another track.
@@ -306,6 +309,12 @@ class Session:
         self.last_export_folder: str | None = None
         #: The newest automixer log (kept or failed), for "Show log" in the notice.
         self.last_automix_log: str | None = None
+        #: The newest automixer run's printed lines, for the live log viewer. Kept after
+        #: the run until the next one starts. Own lock: a poll never waits on the session.
+        self._live_lock = threading.Lock()
+        self._live_lines: deque[str] = deque(maxlen=AUTOMIX_LIVE_LINES)
+        self._live_running = False
+        self._live_started: str | None = None
         #: The numbers of the latest Set music level, for the UI's notice.
         self.last_music_level: dict | None = None
         self.last_block_level: dict | None = None
@@ -1133,6 +1142,25 @@ class Session:
         """Queue ONE job that exports the mix as one file (see ``mix_export_args``)."""
         return self._export_job(self.mix_export_args(args), t("job.export_mix"))
 
+    def automix_live_add(self, line: str) -> None:
+        """One more line the automixer printed (any thread)."""
+        with self._live_lock:
+            self._live_lines.append(line)
+
+    def automix_live(self) -> dict:
+        """``{"running", "lines", "started"}`` of the newest automixer run; empty before
+        any run, and the last run's lines stay until the next one starts."""
+        with self._live_lock:
+            return {"running": self._live_running, "lines": list(self._live_lines),
+                    "started": self._live_started}
+
+    def _automix_live_state(self, running: bool, *, fresh: bool = False) -> None:
+        with self._live_lock:
+            if fresh:
+                self._live_lines.clear()
+                self._live_started = datetime.now(UTC).isoformat(timespec="seconds")
+            self._live_running = running
+
     def automix(self, params: dict | None = None) -> list[str]:
         """Queue ONE job that mixes the edit with the automixer (WP68): stems to a
         temporary folder, the tool, the mix beside the project. ``params``:
@@ -1154,14 +1182,17 @@ class Session:
                     self, params, settings,
                     lambda fraction, message="", indeterminate=False: progress(
                         fraction, message, indeterminate),
-                    progress.cancelled_event)
+                    progress.cancelled_event, live=self.automix_live_add)
             except automix_module.AutomixError as e:
                 self.last_automix_log = e.params.get("log_file") or self.last_automix_log
                 raise
+            finally:
+                self._automix_live_state(False)
             self.last_automix_log = result.get("log_file") or self.last_automix_log
             self.last_export_folder = str(Path(result["path"]).parent)
             return result
 
+        self._automix_live_state(True, fresh=True)
         return [self.jobs.submit("automix", t("job.automix"), run, keep_result=True)]
 
     def auto_silence_preview(self, args: dict | None = None) -> list[str]:
