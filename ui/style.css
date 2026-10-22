@@ -2732,6 +2732,50 @@ input[type="text"] {
   border-radius: var(--radius-sm);
   padding: var(--space-2) var(--space-3);
 }
+.tx-removed {
+  position: sticky;
+  top: calc(var(--control-h) + var(--space-5));
+  z-index: 3;
+  background: var(--surface-panel);
+  border-bottom: 1px solid var(--border);
+}
+.tx-removed[hidden],
+.tx-removed-list[hidden] {
+  display: none;
+}
+.tx-removed-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 var(--space-3);
+  max-height: 40vh;
+  overflow: auto;
+}
+.tx-removed-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+  font-size: var(--text-sm);
+}
+.tx-removed-quote {
+  flex: 1 1 auto;
+  color: var(--text-secondary);
+}
+.tx-removed-quote strong {
+  color: var(--text);
+}
+.tx-removed-who {
+  min-width: 5em;
+  color: var(--text-secondary);
+}
+/* The reason is a word first; the colour only helps (CUT, MUTED, GATED, UNUSED). */
+.tx-tag {
+  min-width: 6.5em;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
 .tx-find-count {
   min-width: 5em;
   color: var(--text-secondary);

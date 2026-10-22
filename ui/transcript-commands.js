@@ -117,9 +117,10 @@ export function registerTranscriptCommands(registry, { app, t }) {
     },
   );
 
-  def(
-    "transcript.find",
-    () => app.openFind(),
-    (state) => (state?.words?.length ?? 0) > 0,
-  );
+  // Some recording has words, even when every one of them is muted right now.
+  const hasTranscript = (state) =>
+    (state?.words?.length ?? 0) > 0 || (state?.transcribed?.length ?? 0) > 0;
+
+  def("transcript.find", () => app.openFind(), hasTranscript);
+  def("transcript.find_removed", () => app.openFind({ removed: true }), hasTranscript);
 }

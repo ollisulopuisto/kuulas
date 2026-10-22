@@ -1242,6 +1242,14 @@ export const DEFAULT_KEYMAP = [
     context: "global",
     labelKey: "cmd.transcript.find",
   },
+  // Find words the edit does not play (cut, muted, gated, unused): the find bar with its
+  // "Not in this edit" list open.
+  {
+    id: "transcript.find_removed",
+    keys: { mac: "Shift+Mod+F", other: "Shift+Mod+F" },
+    context: "global",
+    labelKey: "cmd.transcript.find_removed",
+  },
   { id: "spot", keys: { mac: "Mod+J", other: "Mod+J" }, context: "global", labelKey: "cmd.spot" },
   // Copy the time shown in the corner (WP76); clicking the clock does the same. No key by default.
   {

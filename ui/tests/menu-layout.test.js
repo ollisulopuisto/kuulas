@@ -173,6 +173,7 @@ describe("Text", () => {
       "transcript.remove_words",
       "transcript.cut_words",
       "transcript.correct",
+      "transcript.find_removed",
       "transcript.mark_candidate",
       "placeholder.add",
       "placeholder.edit",

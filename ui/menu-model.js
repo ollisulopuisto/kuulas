@@ -403,6 +403,7 @@ export const MENU = [
       item("transcript.remove_words"),
       item("transcript.cut_words"),
       item("transcript.correct"),
+      item("transcript.find_removed"),
       item("transcript.mark_candidate"),
       item("placeholder.add"),
       item("placeholder.edit"),

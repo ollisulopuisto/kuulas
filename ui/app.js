@@ -1412,9 +1412,9 @@ const keyboard = setupKeyboard({
         });
     },
     correct: () => transcript.startCorrect(),
-    openFind: () => {
+    openFind: (options) => {
       focusPanel("transcript");
-      transcript.openFind();
+      transcript.openFind(options);
     },
     // Match loudness measures for seconds; the answer carries the report.
     matchLoudness: (clipIds, target) =>

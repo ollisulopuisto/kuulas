@@ -469,6 +469,19 @@ def test_material_search_finds_a_cut_word_with_its_reason(client, loaded, sessio
     assert search("hello") == {"hits": []}
 
 
+def test_a_muted_hit_says_where_it_is_on_the_timeline(client, loaded, session):
+    """Muted and gated words are still on the timeline, so the list can take you there."""
+    media = media_id(loaded)
+    client.post(f"/api/transcript/{media}", json=WORDS)
+    track = session.state.tracks[0]
+    mute = {"track_id": track.id, "ranges": [[round(0.45 * RATE), RATE]]}
+    session.edit("mute_ranges", mute)
+    [hit] = client.get("/api/material-search", params={"q": "there"}).json()["hits"]
+    assert hit["status"] == "muted"
+    assert hit["track"] == track.id
+    assert hit["at"] == round(0.5 * RATE)
+
+
 def test_material_search_needs_a_query(client, loaded):
     assert client.get("/api/material-search").json() == {"hits": []}
 

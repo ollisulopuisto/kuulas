@@ -49,6 +49,8 @@ export const putViewMemory = (view, { now = false } = {}) =>
     keepalive: true,
   });
 export const getWords = () => json("/api/words");
+/** Words matching `q` that the edit does not play: { hits: [{ media, first, last, start, end, status, partly, before, match, after, spk, at?, track? }] }. */
+export const searchMaterial = (q) => json(`/api/material-search?q=${encodeURIComponent(q)}`);
 // Recording (WP12a): the recorder is its own program; the server is its viewer and remote.
 /** { available, recording, ours, take, position_frames, disk, notices, pending, ... } */
 export const getRecordStatus = (channels = 1) =>

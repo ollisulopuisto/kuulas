@@ -3149,7 +3149,16 @@ class Session:
         with self.lock:
             state = self.history.state
             words_by_media = self.transcripts()
-        return material_search.search(state, words_by_media, query)
+        hits = material_search.search(state, words_by_media, query)
+        # Muted and gated words are still on the timeline: say where, so the list can
+        # take the playhead there. Cut and unused ones are not.
+        if any(h["status"] in ("muted", "gated") for h in hits):
+            on_timeline = {(w["media"], w["index"]): w for w in self.timeline_words()}
+            for hit in hits:
+                placed = on_timeline.get((hit["media"], hit["first"]))
+                if hit["status"] in ("muted", "gated") and placed:
+                    hit["at"], hit["track"] = placed["s"], placed["track"]
+        return hits
 
     def transcribed_media(self) -> list[str]:
         """The recordings that have words anywhere on the timeline, heard or not: a

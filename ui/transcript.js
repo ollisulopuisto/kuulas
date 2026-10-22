@@ -9,6 +9,7 @@ import { wordState } from "./focus-words.js";
 import { frameToTime } from "./format.js";
 import { formatNumber, getLanguage, t } from "./i18n.js";
 import { setIcon } from "./icons.js";
+import { canShow, removedSummary, statusKey } from "./material-hits.js";
 import { musicNote } from "./transcribable.js";
 import {
   currentPosition,
@@ -49,6 +50,7 @@ import { anyActive, offerRows } from "./transcript-offer.js";
 
 const MARGIN_PX = 600;
 const PREVIEW_DELAY_MS = 120;
+const REMOVED_DELAY_MS = 200;
 const JOB_POLL_MS = 1000;
 const LINE_HEIGHT_EM = 1.85;
 const CHAR_EM = 0.52;
@@ -101,7 +103,16 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   const findNext = findButton("next", "↓");
   const findClose = findButton("close", "×", "button ghost icon");
   findBar.append(findInput, findCount, findPrev, findNext, findClose);
-  root.append(findBar, follow, empty, list, pop);
+  // "Not in this edit": the words of the find query the edit does not play (cut, muted,
+  // gated, in a recording placed nowhere), from /api/material-search. A closed line until
+  // opened; the Transcript itself shows only what is heard.
+  const removed = el("div", "tx-removed");
+  removed.hidden = true;
+  const removedToggle = el("button", "button ghost tx-removed-toggle");
+  removedToggle.type = "button";
+  const removedList = el("ul", "tx-removed-list");
+  removed.append(removedToggle, removedList);
+  root.append(findBar, removed, follow, empty, list, pop);
   list.setAttribute("role", "document");
 
   // -- derived from the words (rebuilt only when they change) -----------------------------
@@ -869,6 +880,74 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     findPrev.disabled = findNext.disabled = m === 0;
   }
 
+  // -- not in this edit ------------------------------------------------------------------------------
+  let removedHits = [];
+  let removedOpen = false;
+  let removedAsk = 0; // the newest request: an older answer is dropped
+  let removedTimer = 0;
+
+  function paintRemoved() {
+    const summary = removedSummary(removedHits.length);
+    removed.hidden = findBar.hidden || summary === null;
+    if (removed.hidden) return;
+    removedToggle.textContent = `${removedOpen ? "▾" : "▸"} ${t(summary.key, summary.values)}`;
+    removedToggle.setAttribute("aria-expanded", String(removedOpen));
+    removedList.hidden = !removedOpen;
+    removedList.setAttribute("aria-label", t("ui.find.removed.label"));
+    removedList.replaceChildren();
+    if (!removedOpen) return;
+    removedHits.forEach((hit, i) => {
+      const row = el("li", "tx-removed-row");
+      const tag = el("span", `tx-tag ${hit.status}`, t(statusKey(hit.status)));
+      const who = el("span", "tx-removed-who", hit.spk || "");
+      const quote = el("span", "tx-removed-quote");
+      quote.append(`${hit.before} `.trimStart(), el("strong", "", hit.match), ` ${hit.after}`);
+      row.append(tag, who, quote);
+      if (canShow(hit)) {
+        const show = el("button", "button ghost", t("ui.find.removed.show"));
+        show.type = "button";
+        show.title = t("ui.find.removed.show_title");
+        show.dataset.hit = String(i);
+        row.append(show);
+      }
+      removedList.append(row);
+    });
+  }
+
+  /** Ask the server for the hits outside the edit, a moment after the last keystroke. */
+  function loadRemoved() {
+    clearTimeout(removedTimer);
+    const query = findQuery.trim();
+    const ask = ++removedAsk;
+    if (query === "" || findBar.hidden) {
+      removedHits = [];
+      paintRemoved();
+      return;
+    }
+    removedTimer = setTimeout(async () => {
+      let hits = [];
+      try {
+        hits = (await api.searchMaterial(query)).hits ?? [];
+      } catch (error) {
+        actions.showError(error);
+      }
+      if (ask !== removedAsk) return;
+      removedHits = hits;
+      paintRemoved();
+    }, REMOVED_DELAY_MS);
+  }
+
+  removed.addEventListener("click", (event) => {
+    if (event.target.closest(".tx-removed-toggle")) {
+      removedOpen = !removedOpen;
+      paintRemoved();
+      return;
+    }
+    const at = event.target.closest("[data-hit]")?.dataset.hit;
+    const hit = at === undefined ? null : removedHits[Number(at)];
+    if (hit && canShow(hit)) actions.jump(hit.at);
+  });
+
   function goToMatch(match) {
     const before = foundWords;
     found = match;
@@ -888,6 +967,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     found = firstFrom(matches, from);
     if (jump) goToMatch(found);
     else paintFind(before);
+    loadRemoved();
   }
 
   function stepFind(direction) {
@@ -896,7 +976,8 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     goToMatch(direction > 0 ? nextMatch(matches, from) : prevMatch(matches, from));
   }
 
-  function openFind() {
+  function openFind(options = {}) {
+    if (options.removed) removedOpen = true;
     findBar.hidden = false;
     findInput.focus();
     findInput.select();
@@ -911,6 +992,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     matches = [];
     found = null;
     paintFind(before);
+    loadRemoved();
     root.focus({ preventScroll: true });
   }
 
