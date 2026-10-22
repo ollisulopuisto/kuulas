@@ -68,8 +68,9 @@ export const stopRecording = (body) => post("/api/record/stop", body);
 export const importTakes = (takes) => post("/api/record/import", { takes });
 /** The session's statistics (WP70): { stats, groups: [{ title, rows: [[label, value]] }], text }. */
 export const getStats = () => json("/api/stats");
-/** The music report of the open edit (WP25): { rows: [...] }, built from a snapshot. */
-export const musicReport = () => json("/api/music-report");
+/** The music report of the open edit (WP25): { rows: [...] }, built from a snapshot.
+ * `query`: reportQuery() (music-report-model.js); with a span it is the selection's report. */
+export const musicReport = (query = "format=json") => json(`/api/music-report?${query}`);
 /** File > Locate media… (WP39): { missing: [{ id, name, size }], partial: [{ id, name, can_complete }] }. */
 export const getMediaStatus = () => json("/api/media/status");
 /** Look under a folder by SHA-256: { found: [{ id, name, path }], still_missing, partial }. */

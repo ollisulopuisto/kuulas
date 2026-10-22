@@ -10,6 +10,8 @@ import {
   emptyReasonKey,
   headerText,
   previewRows,
+  reportQuery,
+  selectionLine,
   summaryOf,
   toTsv,
   warningsOf,
@@ -23,9 +25,12 @@ const el = (tag, className, text) => {
 };
 
 /**
- * `api`: { musicReport }; `t` translates; `getProject()` the open edit (for the empty state's
- * reason); `copyText(text)` copies; `saveFile(format)` downloads the CSV or HTML ("csv" |
- * "html"). Returns { element, open() }; open() asks the server afresh every time.
+ * `api`: { musicReport(query) }; `t` translates; `getProject()` the open edit (for the empty
+ * state's reason); `copyText(text)` copies; `saveFile(format, range)` downloads the CSV or HTML
+ * ("csv" | "html") of the span `range` [start, end] frames, or of the whole edit (null).
+ * Returns { element, open({ selection, rate }) }; open() asks the server afresh every time.
+ * `selection` (export-selection-model.js, null = none) makes "Only the selection" appear, ticked:
+ * the preview, Copy and both saves then cover its span only (tracks are ignored: it is about time).
  */
 export function createMusicReportDialog({ api, t, getProject, copyText, saveFile }) {
   const dialog = el("dialog", "cheatsheet music-report-dialog");
@@ -33,6 +38,19 @@ export function createMusicReportDialog({ api, t, getProject, copyText, saveFile
   const heading = el("h2", "", t("ui.music_report.title"));
   heading.id = "music-report-title";
   const scope = el("p", "form-note", t("ui.music_report.scope"));
+  // "Only the selection" (as the export dialogs): a line with the span, and the box.
+  const onlyBox = el("input");
+  onlyBox.type = "checkbox";
+  onlyBox.checked = true;
+  const selectionHelp = el("p", "form-help");
+  selectionHelp.setAttribute("role", "note");
+  const selectionRow = el("div", "form-row");
+  selectionRow.append(
+    el("span", "form-label", t("ui.music_report.only_selection")),
+    onlyBox,
+    selectionHelp,
+  );
+  selectionRow.hidden = true;
   const status = el("p", "music-report-summary");
   status.setAttribute("role", "status");
   status.setAttribute("aria-live", "polite");
@@ -55,9 +73,13 @@ export function createMusicReportDialog({ api, t, getProject, copyText, saveFile
     return b;
   };
   let rows = [];
+  let selection = null;
+  let rate = 48000;
+  // The span the report covers: the selection's while the box is ticked, else the whole edit.
+  const span = () => (selection && onlyBox.checked ? [...selection.range] : null);
   const copy = button("ui.music_report.copy", () => void copyText(toTsv(rows, t)));
-  const saveCsv = button("ui.music_report.save_csv", () => void saveFile("csv"));
-  const saveHtml = button("ui.music_report.save_html", () => void saveFile("html"));
+  const saveCsv = button("ui.music_report.save_csv", () => void saveFile("csv", span()));
+  const saveHtml = button("ui.music_report.save_html", () => void saveFile("html", span()));
   const close = button("ui.music_report.close", () => dialog.close(), "primary");
   copy.dataset.icon = "copy";
   saveCsv.dataset.icon = "save";
@@ -68,7 +90,7 @@ export function createMusicReportDialog({ api, t, getProject, copyText, saveFile
   // Copy and Save keep the dialog open: the left edge; Close (the primary) last.
   for (const b of [copy, saveCsv, saveHtml]) b.classList.add("footer-start");
   buttons.append(copy, saveCsv, saveHtml, close);
-  dialog.append(heading, scope, status, warnings, error, scroller, buttons);
+  dialog.append(heading, scope, selectionRow, status, warnings, error, scroller, buttons);
   document.body.append(dialog);
   enhanceDialog(dialog, { t });
 
@@ -117,7 +139,7 @@ export function createMusicReportDialog({ api, t, getProject, copyText, saveFile
     error.hidden = true;
     if (rows.length === 0) {
       status.textContent = t("ui.music_report.empty");
-      const why = el("p", "form-note", t(emptyReasonKey(getProject())));
+      const why = el("p", "form-note", t(emptyReasonKey(getProject(), span() !== null)));
       scroller.replaceChildren(why);
       warningsView([]);
       setEnabled(false);
@@ -130,34 +152,45 @@ export function createMusicReportDialog({ api, t, getProject, copyText, saveFile
     setEnabled(true);
   }
 
-  // Bumped on every open and close: an answer that arrives after that is dropped.
+  // Bumped on every open, every change of the box and every close: an answer that arrives after
+  // that is dropped.
   let round = 0;
   dialog.addEventListener("close", () => {
     round += 1;
   });
 
+  async function load() {
+    round += 1;
+    const mine = round;
+    rows = [];
+    selectionRow.hidden = !selection;
+    selectionHelp.textContent = selectionLine(selection, onlyBox.checked, rate, t);
+    status.textContent = t("ui.music_report.loading");
+    scroller.replaceChildren();
+    warningsView([]);
+    error.hidden = true;
+    setEnabled(false);
+    try {
+      const answer = await api.musicReport(reportQuery("json", span()));
+      if (mine === round) render(answer);
+    } catch (e) {
+      if (mine !== round) return;
+      status.textContent = "";
+      error.textContent = e.message;
+      error.hidden = false;
+    }
+  }
+  onlyBox.addEventListener("change", () => void load());
+
   return {
     element: dialog,
-    async open() {
-      round += 1;
-      const mine = round;
-      rows = [];
-      status.textContent = t("ui.music_report.loading");
-      scroller.replaceChildren();
-      warningsView([]);
-      error.hidden = true;
-      setEnabled(false);
+    async open({ selection: chosen = null, rate: frameRate = 48000 } = {}) {
+      selection = chosen;
+      rate = frameRate;
+      onlyBox.checked = true;
       if (!dialog.open) dialog.showModal();
       close.focus();
-      try {
-        const answer = await api.musicReport();
-        if (mine === round) render(answer);
-      } catch (e) {
-        if (mine !== round) return;
-        status.textContent = "";
-        error.textContent = e.message;
-        error.hidden = false;
-      }
+      await load();
     },
   };
 }

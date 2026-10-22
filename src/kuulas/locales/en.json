@@ -2909,6 +2909,11 @@
   "cmd.export.music_report.hint": "Lists every piece of music this edit plays, with its tags, programme time and duration in whole seconds, rounded up, and whether it plays under speech. Save it as CSV or HTML for Teosto or Gramex, or copy it as a table.",
   "ui.music_report.title": "Music report",
   "ui.music_report.scope": "This edit. Times are programme times, in whole seconds; a part of a second counts as a whole one.",
+  "ui.music_report.only_selection": "Only the selection",
+  "ui.music_report.selection_only": "Report of the selection only: {span}",
+  "ui.music_report.selection_off": "Report of the whole edit, not the selection ({span}). Tick the box to report the selection only.",
+  "ui.music_report.tracks_ignored": "Tracks are ignored: the report lists the music heard in that time.",
+  "ui.music_report.empty_selection": "No music is heard in the selection. Untick “Only the selection” to report the whole edit.",
   "ui.music_report.loading": "Building the report…",
   "ui.music_report.summary": {
     "one": "{count} piece of music, {time} in total",
