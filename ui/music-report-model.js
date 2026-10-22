@@ -3,6 +3,8 @@
 // rows, the summary, the warnings, the tab-separated copy and the reason an empty report is
 // empty. The DOM is music-report-dialog.js.
 
+import { spanDots } from "./export-selection-model.js";
+
 /** The preview's columns, in order. `key` is the row field; `usage` is derived. */
 export const COLUMNS = [
   { key: "order", header: "order", numeric: true },
@@ -32,6 +34,32 @@ const COPY_FIELDS = [
 ];
 
 const usageKey = (row) => (row.background ? "music_report.background" : "music_report.featured");
+
+/**
+ * The query string of GET /api/music-report: the format, and the selection's span in timeline
+ * frames (`range` [start, end]) when only the selection is reported; none = the whole edit.
+ * The HTML is asked to come as a download, which names the file after the project.
+ */
+export function reportQuery(format, range = null) {
+  const parts = [`format=${format}`];
+  if (format === "html") parts.push("download=1");
+  if (range) parts.push(`start=${range[0]}`, `end=${range[1]}`);
+  return parts.join("&");
+}
+
+/**
+ * The line under the title when a selection exists ("" otherwise): the span it reports, or
+ * (unticked) the whole edit and how to get the span back. The music report is about time, so a
+ * selection that names tracks has them ignored, and the line says so.
+ */
+export function selectionLine(selection, only, rate, t) {
+  if (!selection) return "";
+  const span = spanDots(selection.range, rate);
+  const line = t(only ? "ui.music_report.selection_only" : "ui.music_report.selection_off", {
+    span,
+  });
+  return selection.trackIds ? `${line} ${t("ui.music_report.tracks_ignored")}` : line;
+}
 
 /** The header text of a column (the server's own words, so the CSV and the dialog agree). */
 export const headerText = (header, t) => t(`music_report.header.${header}`);
@@ -98,11 +126,14 @@ export function toTsv(rows, t) {
  * not muted, on music tracks that are not muted; "silent" is what is left (automation or a gate
  * that silences them, or another track's solo).
  */
-export function emptyReasonKey(project) {
+export function emptyReasonKey(project, onlySelection = false) {
   const music = (project?.tracks ?? []).filter((track) => track.kind === "music");
   if (music.length === 0) return "ui.music_report.empty_no_tracks";
   const live = (track) => (track.clips ?? []).some((clip) => !clip.muted);
-  if (music.some((track) => !track.mute && live(track))) return "ui.music_report.empty_silent";
+  // Live music that is not heard in the selection's span: the selection is why it is empty.
+  if (music.some((track) => !track.mute && live(track))) {
+    return onlySelection ? "ui.music_report.empty_selection" : "ui.music_report.empty_silent";
+  }
   if (music.some((track) => track.mute && live(track))) return "ui.music_report.empty_muted";
   return "ui.music_report.empty_no_clips";
 }

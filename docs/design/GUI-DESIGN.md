@@ -1899,6 +1899,9 @@ exports everything. The remembered whole/range/tracks scope never overrides a se
 selection only: tracks Anna, Ville, 12.00-18.30". The server names the file with the span and the
 track names (`{span}{subset}` in `export.options`) and never overwrites; a one-file mix of chosen
 tracks is `track_ids` on `/api/export-mix` (muted and not-soloed tracks stay silent as in the whole mix).
-`/api/music-report?start=&end=` reports only the music heard in a span; the app has no music report
-screen yet, so no toggle exists for it.
+`/api/music-report?start=&end=` reports only the music heard in a span. The Music report dialog
+shows the line "Report of the selection only: 12.00-18.30" and the box "Only the selection", ticked
+by default while a selection exists; the preview, Copy as table, Save CSV and Save HTML then cover
+that span, and unticking reports the whole edit. Tracks are ignored (the report is about time) and
+the line says so when the selection names tracks.
 

@@ -132,6 +132,7 @@ import { motionMode } from "./motion.js";
 import { createMusicLevelDialog } from "./music-level-dialog.js";
 import { MUSIC_UNDER_KEY, normaliseMusicUnder } from "./music-level-model.js";
 import { createMusicReportDialog } from "./music-report-dialog.js";
+import { reportQuery } from "./music-report-model.js";
 import { createOverview } from "./overview.js";
 import { createPerfDialog } from "./perf-dialog.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
@@ -2678,13 +2679,15 @@ async function openMusicReport() {
         showError(error);
       }
     },
-    saveFile: async (format) => {
-      const query = format === "html" ? "format=html&download=1" : "format=csv";
+    saveFile: async (format, range) => {
+      const query = reportQuery(format, range);
       const name = await downloadFile(`/api/music-report?${query}`, `music-report.${format}`);
       if (name) showNotice(t("ui.music_report.saved", { name }), "ok");
     },
   });
-  await musicReportDialog.open();
+  // Like every export: the In/Out range or the selected clips' span is the default (tracks are
+  // ignored, the report is about time); the dialog's box turns it off.
+  await musicReportDialog.open({ selection: exportSelection(), rate: rate() });
 }
 
 async function openStatistics() {

@@ -3014,6 +3014,11 @@
   "cmd.export.music_report.hint": "Listaa kaiken musiikin, jonka tämä leikkaus soittaa: tiedot, ohjelma-ajan ja keston täysinä sekunteina ylöspäin pyöristettynä sekä sen, soiko musiikki puheen alla. Tallenna CSV- tai HTML-tiedostona Teostoa tai Gramexia varten tai kopioi taulukkona.",
   "ui.music_report.title": "Musiikkiraportti",
   "ui.music_report.scope": "Tämä leikkaus. Ajat ovat ohjelma-aikaa täysinä sekunteina; osa sekunnista lasketaan kokonaiseksi.",
+  "ui.music_report.only_selection": "Vain valinta",
+  "ui.music_report.selection_only": "Raportti vain valinnasta: {span}",
+  "ui.music_report.selection_off": "Raportti koko leikkauksesta, ei valinnasta ({span}). Valitse ruutu, niin raportti tehdään vain valinnasta.",
+  "ui.music_report.tracks_ignored": "Raidoilla ei ole väliä: raportti listaa sen ajan kuluessa kuuluvan musiikin.",
+  "ui.music_report.empty_selection": "Valinnassa ei kuulu musiikkia. Poista valinta ruudusta ”Vain valinta”, niin raportti tehdään koko leikkauksesta.",
   "ui.music_report.loading": "Muodostetaan raporttia…",
   "ui.music_report.summary": {
     "one": "{count} musiikkikappale, yhteensä {time}",

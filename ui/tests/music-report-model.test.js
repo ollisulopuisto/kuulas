@@ -7,6 +7,8 @@ import {
   COLUMNS,
   emptyReasonKey,
   previewRows,
+  reportQuery,
+  selectionLine,
   summaryOf,
   toTsv,
   warningsOf,
@@ -150,4 +152,42 @@ test("an empty report says why: no music track, muted, no clips, or nothing hear
   );
   assert.equal(emptyReasonKey({ tracks: [track()] }), "ui.music_report.empty_silent");
   assert.equal(emptyReasonKey(null), "ui.music_report.empty_no_tracks");
+});
+
+test("the report's query carries the selection's span in frames, or nothing for the whole edit", () => {
+  assert.equal(reportQuery("json", null), "format=json");
+  assert.equal(reportQuery("json", [96000, 144000]), "format=json&start=96000&end=144000");
+  assert.equal(reportQuery("csv", [0, 48000]), "format=csv&start=0&end=48000");
+  assert.equal(reportQuery("csv"), "format=csv");
+  // The HTML is a download: the server names the file only when asked to.
+  assert.equal(reportQuery("html", [1, 2]), "format=html&download=1&start=1&end=2");
+  assert.equal(reportQuery("html", null), "format=html&download=1");
+});
+
+test("the selection line names the span, and says tracks do not count", () => {
+  const clips = { source: "clips", range: [48000 * 12, 48000 * 18 + 24000], trackIds: ["m"] };
+  assert.equal(selectionLine(null, true, 48000, t), "");
+  assert.equal(
+    selectionLine({ ...clips, trackIds: null }, true, 48000, t),
+    'ui.music_report.selection_only {"span":"00.12-00.18"}',
+  );
+  assert.equal(
+    selectionLine(clips, true, 48000, t),
+    'ui.music_report.selection_only {"span":"00.12-00.18"} ui.music_report.tracks_ignored',
+  );
+  assert.equal(
+    selectionLine({ ...clips, trackIds: null }, false, 48000, t),
+    'ui.music_report.selection_off {"span":"00.12-00.18"}',
+  );
+});
+
+test("an empty report of a selection says the selection has no music, not that it is silenced", () => {
+  assert.equal(emptyReasonKey({ tracks: [track()] }, true), "ui.music_report.empty_selection");
+  assert.equal(emptyReasonKey({ tracks: [track()] }, false), "ui.music_report.empty_silent");
+  // The edit's own reasons still come first.
+  assert.equal(
+    emptyReasonKey({ tracks: [track({ mute: true })] }, true),
+    "ui.music_report.empty_muted",
+  );
+  assert.equal(emptyReasonKey(null, true), "ui.music_report.empty_no_tracks");
 });
