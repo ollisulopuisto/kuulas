@@ -51,6 +51,20 @@ Jokainen vienti vie vain valitun ja kertoo sen alkaessa ("Viedään vain valinta
 
 Vientiasetukset ja automiksausikkuna näyttävät valinnan ja ruudun "Vie vain valinta", joka on valittuna, kun valinta on olemassa. Poista valinta, niin viedään kaikki. Tiedoston nimessä ovat väli ja raidat, eikä olemassa olevaa tiedostoa korvata. Mykistetyt raidat pysyvät mykkinä ja solo toimii kuten koko miksauksessa.
 
+## Askel taaksepäin
+{key:nav.home} peruu painallusta kohden yhden asian, uusimman ensin, ja vie sen jälkeen näppäimistön aikajanalle:
+- Auto-Silence-esikatselu (hylätään, mitään ei otettu käyttöön)
+- tekstikenttä, johon kirjoitat
+- valitut raitojen otsikot
+- valitut leikkeet, vedetty alue sekä sisään- ja ulos-merkit yhdessä
+- kohdistustila
+- sen jälkeen näppäimistö vain siirtyy tänne
+
+Tekstityksessä valittu sanaväli menee ensin; leikepöydän suodattimessa kirjoitettu teksti menee ensin. Käynnissä oleva veto, valikko tai ikkuna suljetaan ennen näitä. {key:nav.home} ei koskaan pysäytä toistoa (sen tekee {key:transport.play}) eikä peru vientiä tai automix-ajoa: käytä ilmoituksen Peruuta-painiketta.
+
+## Näppäimet, jotka eivät voi toimia
+Muokkausnäppäin (leikkaus, poisto, jako, mykistys, kopiointi ja muut), jolla ei ole kohdetta, kertoo syyn yhdellä rivillä eikä piippaa. Muokkausnäppäimet toimivat kaikissa paneeleissa paitsi kirjoittaessa tai ikkunan ollessa auki; kun sellainen toimii sivupaneelista, näppäimistö palaa aikajanalle.
+
 ## Ohje
 {key:help.open} avaa ohjeen siihen, mitä katsot; {key:help.keys} listaa kaikki näppäimet.
 

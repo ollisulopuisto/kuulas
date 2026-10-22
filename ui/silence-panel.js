@@ -502,12 +502,9 @@ export function createSilencePanel({
     }
   }
 
-  root.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape" || event.isComposing) return;
-    event.preventDefault();
-    event.stopPropagation();
-    hide();
-  });
+  // Esc has no listener here: while the panel is open the first Esc from anywhere (this panel
+  // included) discards the preview through the one escape order (escape.js, app.js goHome),
+  // which then puts the focus on the timeline.
 
   /** Close without committing: the engine plays the project again. */
   function hide() {

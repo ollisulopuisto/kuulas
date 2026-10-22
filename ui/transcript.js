@@ -39,6 +39,7 @@ import {
   selectWord,
   shouldLoadWords,
   summaryParts,
+  transcriptEscape,
   visibleRange,
   wordAtTime,
   wordRefs,
@@ -648,9 +649,8 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   // -- keyboard: the word cursor ---------------------------------------------------------------------
   root.addEventListener("keydown", (event) => {
     if (editing || event.target !== root) return;
-    if (event.key === "Escape" && selection().anchor !== null) {
-      event.preventDefault();
-      setState({ transcriptSelection: placeCursor(selection().cursor) });
+    // A word range collapses and Esc stops there; the next Esc is the normal escape order.
+    if (transcriptEscape(event, selection(), (next) => setState({ transcriptSelection: next }))) {
       return;
     }
     if (!NAVIGATION_KEYS.has(event.key) || event.metaKey || event.ctrlKey || event.altKey) return;
