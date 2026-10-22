@@ -35,7 +35,6 @@ from typing import Annotated, Any
 from fastapi import Body, FastAPI, File, Form, Request, UploadFile, WebSocket
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import (
-    FileResponse,
     HTMLResponse,
     JSONResponse,
     PlainTextResponse,
@@ -92,6 +91,7 @@ from .session import (
     SubtitlesError,
     TranscriptTextError,
 )
+from .ui_page import index_html
 from .view_memory import ViewMemory, ViewMemoryError
 
 log = logging.getLogger("kuulas.server")
@@ -116,6 +116,11 @@ LIVE_METER_S = 1 / 15
 #: Peak tiles never change (their ETag is the content's key), so the browser
 #: may keep them for a year and never ask again.
 TILE_CACHE = "public, max-age=31536000, immutable"
+#: The page and its modules: always ask, with the ETag (a 304 is a few bytes and
+#: ~1 ms). Without this, Chrome's heuristic (a tenth of the file's age) could keep
+#: a module from before an upgrade; and each launch opens a new port, i.e. a new
+#: origin with an empty cache, so a longer lifetime would gain nothing there.
+UI_CACHE = "no-cache"
 
 
 class UnknownIdError(KuulasError):
@@ -1775,16 +1780,29 @@ def create_app(session, engine, *, language: str | None = None,
 
     # -- the page ------------------------------------------------------------
 
+    # Read once: index.html with its module graph preloaded (ui_page.py), so the
+    # browser asks for all 195 modules at once instead of discovering them in four
+    # rounds. A restart picks up a changed page or graph, as for Python changes.
+    page = index_html(ui) if (ui / "index.html").is_file() else None
+
     @app.get("/", include_in_schema=False)
     def index():
-        page = ui / "index.html"
-        if page.is_file():
-            return FileResponse(page)
+        if page is not None:
+            return HTMLResponse(page, headers={"Cache-Control": UI_CACHE})
         return HTMLResponse(placeholder(session))
 
     if ui.is_dir():
-        app.mount("/", StaticFiles(directory=ui), name="ui")
+        app.mount("/", UIFiles(directory=ui), name="ui")
     return app
+
+
+class UIFiles(StaticFiles):
+    """The UI's files with ``UI_CACHE`` on every answer (200 and 304 alike)."""
+
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = UI_CACHE
+        return response
 
 
 def placeholder(session) -> str:
