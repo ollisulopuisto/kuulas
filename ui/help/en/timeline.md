@@ -43,6 +43,20 @@ To give the timeline more width, hide the whole side panel (the x on its tab str
 ## Panels
 {key:panel.next} moves the keyboard to the next panel; {key:nav.home} brings it back here.
 
+## Stepping back
+{key:nav.home} undoes one thing per press, the newest first, and then puts the keyboard on the timeline:
+- an Auto-Silence preview (dropped, nothing was applied)
+- the text field you are typing in
+- the selected track headers
+- the selected clips, the dragged range and the in and out marks, together
+- focus mode
+- then it only moves the keyboard here
+
+In the transcript a selected word range goes first; in the Clipboard filter the typed text goes first. A drag in progress, a menu or a dialog is closed before any of this. {key:nav.home} never stops playback ({key:transport.play} does) and never cancels an export or automix: use the Cancel button on its notice.
+
+## Keys that cannot act
+An editing key (cut, delete, split, mute, copy and the rest) that has nothing to work on says why in a one-line notice and never beeps. The editing keys work from every panel except while you type or a dialog is open; after one works from a side panel, the keyboard returns to the timeline.
+
 ## Help
 {key:help.open} opens help for what you are looking at; {key:help.keys} lists every key.
 

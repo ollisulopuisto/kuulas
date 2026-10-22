@@ -203,8 +203,25 @@ function legacyMatches(binding, event) {
 const EVERYWHERE = new Set(["global", "text-field"]);
 
 /**
+ * The "not-..." contexts: every panel's keys except these panels' own (a panel that gives the key a
+ * meaning of its own, like X and Backspace in the transcript). keymap-config.js reads the same table.
+ */
+export const EXCLUDING = {
+  "not-candidates": ["candidates"],
+  "not-transcript": ["transcript"],
+  "not-markers": ["markers"],
+  // Backspace: the transcript deletes words, the Candidates tab applies the candidate.
+  "not-transcript-candidates": ["transcript", "candidates"],
+};
+
+/**
  * options: platform; getContext() -> "timeline" | "transcript" | "side" (the focused panel);
  * registry (commands.js); getState() (for each command's `can`).
+ * An edit key (a command that explains itself, `registry.explains`) that cannot act is still
+ * handled: its default is prevented, so the browser never beeps, and `onIdle(reason, event)` shows
+ * why (not for a held key's repeats). Edit keys are left alone while `isModal()` (a modal dialog
+ * is open). `onEdited(id, context)` is called after an edit key ran from a panel other than the
+ * timeline, so the shell can hand the focus back to it.
  * setEntries(resolved) takes the output of resolveKeymap.
  */
 export function createKeymap({
@@ -212,6 +229,9 @@ export function createKeymap({
   getContext = () => "timeline",
   registry = null,
   getState = null,
+  onIdle = null,
+  onEdited = null,
+  isModal = () => false,
 } = {}) {
   const bindings = [];
   let entries = [];
@@ -239,14 +259,12 @@ export function createKeymap({
       }
       if (!registry) return false;
       const context = getContext();
+      let idle = null;
       for (const entry of entries) {
         if (typing && entry.context !== "text-field") continue;
-        if (entry.context === "not-candidates") {
-          if (context === "candidates") continue;
-        } else if (entry.context === "not-transcript") {
-          if (context === "transcript") continue;
-        } else if (entry.context === "not-markers") {
-          if (context === "markers") continue;
+        const excluded = EXCLUDING[entry.context];
+        if (excluded) {
+          if (excluded.includes(context)) continue;
         } else if (
           !EVERYWHERE.has(entry.context) &&
           entry.context !== context &&
@@ -257,11 +275,27 @@ export function createKeymap({
         if (!entry.parsed.some((p) => matchesCombo(event, p, platform))) continue;
         // A planned command is only listed; its key stays the browser's.
         if (registry.status(entry.id) === "planned") continue;
+        const edit = registry.explains?.(entry.id) ?? false;
+        // Behind a modal dialog the editing keys must not touch the project.
+        if (edit && isModal()) continue;
         const state = getState ? getState() : undefined;
-        if (state !== undefined && !registry.can(entry.id, state)) continue;
+        if (state !== undefined && !registry.can(entry.id, state)) {
+          // Another entry on this key may still take it; if none does, this one says why.
+          if (edit && idle === null) idle = { id: entry.id, state };
+          continue;
+        }
         event.preventDefault();
         if (event.repeat && !entry.repeat) return true;
         registry.run(entry.id, event);
+        if (edit && context !== "timeline" && context !== "transcript") {
+          onEdited?.(entry.id, context);
+        }
+        return true;
+      }
+      if (idle) {
+        // Handled anyway: an unhandled key is the browser's, which beeps.
+        event.preventDefault();
+        if (!event.repeat) onIdle?.(registry.why(idle.id, idle.state), event);
         return true;
       }
       return false;

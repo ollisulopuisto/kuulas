@@ -42,7 +42,7 @@ import { edgeChange, edgePressKeepsSelection } from "./edge-drag.js";
 import { dropPastePlan } from "./edit-plans.js";
 import { createEditor } from "./edits.js";
 import { createNewEpisodeDialog } from "./episode-dialog.js";
-import { escapeAction } from "./escape.js";
+import { runEscape } from "./escape.js";
 import { exportNotice, exportRequest, filenameFromDisposition } from "./export-commands.js";
 import { createExportDialog } from "./export-dialog.js";
 import { quickPlan } from "./export-dialog-model.js";
@@ -908,23 +908,31 @@ const actions = {
   goHome() {
     const active = document.activeElement;
     const state = getState();
-    const what = escapeAction({
-      inTextField: isTextField(active),
-      selection: state.selection,
-      rangeTracks: state.rangeTracks,
-      inPoint: state.inPoint,
-      outPoint: state.outPoint,
-      trackSelection: state.trackSelection,
-      rangeMode: state.rangeMode,
-      focusMode: state.focusMode,
-    });
-    if (what === "blur") active.blur();
-    if (what === "leave_focus") leaveFocus();
-    if (what === "clear_tracks") setState(clearTrackSelection());
-    // Clear the clip selection, the range and the in and out marks (owner, 2026-10-18).
-    if (what === "clear") {
-      setState({ selection: new Set(), rangeTracks: new Set(), inPoint: null, outPoint: null });
-    } else focusPanel("timeline");
+    // One layer per press (escape.js); the timeline has the focus afterwards, whatever the layer.
+    runEscape(
+      {
+        inTextField: isTextField(active),
+        selection: state.selection,
+        rangeTracks: state.rangeTracks,
+        inPoint: state.inPoint,
+        outPoint: state.outPoint,
+        trackSelection: state.trackSelection,
+        rangeMode: state.rangeMode,
+        focusMode: state.focusMode,
+        // The Auto-Silence preview goes first, from any panel (owner, 2026-10-22); no question asked.
+        silencePreview: Boolean(silencePanel?.isOpen()),
+      },
+      {
+        blur: () => active.blur(),
+        discardPreview: () => silencePanel.close(),
+        clearTracks: () => setState(clearTrackSelection()),
+        // Clear the clip selection, the range and the in and out marks (owner, 2026-10-18).
+        clearMarks: () =>
+          setState({ selection: new Set(), rangeTracks: new Set(), inPoint: null, outPoint: null }),
+        leaveFocus: () => leaveFocus(),
+        focusTimeline: () => focusPanel("timeline"),
+      },
+    );
   },
   showSideTab: (name) => focusPanel(name),
   cyclePanel: (direction) => focusPanel(nextPanel(getState().panel, direction)),
@@ -1326,6 +1334,7 @@ const keyboard = setupKeyboard({
     openHistory: () => focusPanel("history"),
     edit: (change) => editor.change(change),
     toast: (text, options) => showNotice(text, "ok", options),
+    focusTimeline: () => focusPanel("timeline"),
     copy: (body) => copyToClipboard(body),
     refreshClipboard: () => void refreshClipboard(),
     clearOldClipboard: (keep) => clearOldClipboard(keep),
@@ -3129,9 +3138,8 @@ api
   })
   .catch(() => {});
 
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && exportJob) void cancelExportJob();
-});
+// Esc does not cancel a running export or automix (owner, 2026-10-22): a lost render is not a
+// "clear the selection" press. The notice's Cancel button is the way.
 
 // One background job renders every region to its own file; the jobs list shows progress.
 async function exportRegions() {

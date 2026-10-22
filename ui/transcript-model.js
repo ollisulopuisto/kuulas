@@ -232,6 +232,19 @@ export function selectionFrames(words, sel) {
 /** A plain click or a plain arrow: the cursor goes to `to`, nothing is selected. */
 export const placeCursor = (to) => ({ cursor: to, anchor: null });
 
+/**
+ * Esc on the transcript with a word range selected: collapse it to the cursor and stop there
+ * (owner, 2026-10-22: one layer per press). The key is stopped so the escape order (goHome) does
+ * not also clear the clips and marks; the next Esc continues it. Returns whether it took the key.
+ */
+export function transcriptEscape(event, sel, setSelection) {
+  if (event.key !== "Escape" || sel.anchor === null) return false;
+  event.preventDefault();
+  event.stopPropagation();
+  setSelection(placeCursor(sel.cursor));
+  return true;
+}
+
 /** Shift+click, drag, Shift+arrow: extend from the anchor (the cursor's old place if none). */
 export function extendTo(sel, to) {
   const anchor = sel.anchor ?? (sel.cursor >= 0 ? sel.cursor : to);

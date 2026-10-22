@@ -121,6 +121,16 @@ export function projectLabel(project, t = (key) => key) {
 }
 
 /**
+ * Esc in the filter field (owner, 2026-10-22): with text it clears the text and stops there
+ * ("clear"); on an empty field it falls through to the escape order ("pass": the field is left and
+ * the timeline gets the focus). Any other key is typing: null.
+ */
+export function filterEscapeAction(key, value) {
+  if (key !== "Escape") return null;
+  return value ? "clear" : "pass";
+}
+
+/**
  * The entries a filter box leaves: every word of `query` must be found (any case) in the
  * entry's title, its track names, its source project's name or the transcript words it
  * holds (`text`). An empty query keeps all.

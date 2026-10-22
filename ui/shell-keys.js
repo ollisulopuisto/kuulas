@@ -10,6 +10,7 @@ import { commandRecords, searchAll } from "./command-search.js";
 import { createCommandSearch, createSearchPanel } from "./command-search-ui.js";
 import { synonymsFor } from "./command-synonyms.js";
 import { createRegistry } from "./commands.js";
+import { openDialogs } from "./dialog-keys.js";
 import { registerEditCommands } from "./edit-commands.js";
 import { registerExportCommands } from "./export-commands.js";
 import { resolveHints } from "./hints.js";
@@ -53,6 +54,19 @@ export const CONTEXT_OF_PANEL = {
   history: "side",
   help: "side",
 };
+
+/** The edit keys that change nothing in the project: the focus stays where it was. */
+const KEEPS_FOCUS = new Set(["edit.copy", "edit.select_all", "edit.select_all_track"]);
+
+/** Is a modal dialog open (one of ours, or any native one shown modally)? */
+function modalOpen() {
+  if (openDialogs().length > 0) return true;
+  try {
+    return Boolean(document.querySelector("dialog:modal"));
+  } catch {
+    return false;
+  }
+}
 
 /**
  * `onRefresh(entries)` is called whenever the keys or the language change (the Help button shows F1 from it).
@@ -102,6 +116,16 @@ export function setupKeyboard({
     registry,
     getState: app.getState,
     getContext: () => CONTEXT_OF_PANEL[app.getState().panel] ?? "timeline",
+    // An edit key that cannot act says why (edit-reasons.js) and never beeps (owner, 2026-10-22).
+    onIdle: (reason) =>
+      app.toast(t(reason?.key ?? "ui.edit.idle.generic", reason?.values), { undo: false }),
+    // After an edit key from a side panel the timeline has the focus again: the next key works
+    // there and the change is in view. Copy and selecting change nothing in the project.
+    onEdited: (id) => {
+      if (!KEEPS_FOCUS.has(id)) app.focusTimeline?.();
+    },
+    // Behind a modal dialog the editing keys stay off the project.
+    isModal: modalOpen,
   });
 
   function useOverrides(next, { persist = true } = {}) {

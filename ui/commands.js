@@ -12,12 +12,16 @@ export function createRegistry() {
     onRun(fn) {
       listeners.push(fn);
     },
-    register(id, run, { can = null, hintKey = null } = {}) {
-      commands.set(id, { run, can, hintKey, planned: false });
+    /**
+     * `why(state)` makes it an edit key: when `can` says no, it returns the reason ({ key, values })
+     * the key shows instead of failing silently (edit-reasons.js), and the key is handled, not beeped.
+     */
+    register(id, run, { can = null, hintKey = null, why = null } = {}) {
+      commands.set(id, { run, can, hintKey, why, planned: false });
     },
     planned(...ids) {
       for (const id of ids)
-        commands.set(id, { run: null, can: null, hintKey: null, planned: true });
+        commands.set(id, { run: null, can: null, hintKey: null, why: null, planned: true });
     },
     /** Mark every id that has no command as planned. */
     planMissing(ids) {
@@ -38,6 +42,21 @@ export function createRegistry() {
         return Boolean(command.can(state));
       } catch {
         return false;
+      }
+    },
+    /** Is it an edit key: one that tells the user why it did nothing? */
+    explains(id) {
+      const command = commands.get(id);
+      return Boolean(command && !command.planned && command.why);
+    },
+    /** Why it cannot apply to this state: { key, values? }, or null when it can (or does not say). */
+    why(id, state) {
+      const command = commands.get(id);
+      if (!command?.why || this.can(id, state)) return null;
+      try {
+        return command.why(state) ?? null;
+      } catch {
+        return null;
       }
     },
     /** Run it. With a state, a command that cannot apply is not run. Returns whether it ran. */

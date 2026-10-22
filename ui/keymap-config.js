@@ -7,30 +7,23 @@
 // silently: validateOverrides drops the entries that have a problem and says why.
 
 import { keyName } from "./i18n.js";
-import { canonicalCombo, parseCombo } from "./keys.js";
+import { canonicalCombo, EXCLUDING, parseCombo } from "./keys.js";
 
 export const STORAGE_KEY = "kuulas.keymap";
 
 const asList = (value) => (value === null || value === undefined ? [] : [value].flat());
 const EVERYWHERE = new Set(["global", "text-field"]);
-/** Every panel's keys except the Candidates tab's (K stops the shuttle, but keeps there). */
-const NOT_CANDIDATES = "not-candidates";
-/** Every panel's keys except the transcript's (X cuts the marked range there, but cuts words in the transcript). */
-const NOT_TRANSCRIPT = "not-transcript";
-
-/** Every panel's keys except the Markers tab's (N and Shift+N step the drift list there, Alt+Down/Up candidates elsewhere). */
-const NOT_MARKERS = "not-markers";
-
-/** Do two contexts ever have the same key available at once? */
+/**
+ * Do two contexts ever have the same key available at once? The "not-..." contexts (keys.js
+ * EXCLUDING) are every panel but the ones they name: not-candidates (K stops the shuttle, but
+ * keeps there), not-transcript (X cuts the marked range, but cuts words in the transcript),
+ * not-markers (N and Shift+N step the drift list there), not-transcript-candidates (Backspace).
+ */
 export function contextsOverlap(a, b) {
-  if (a === NOT_CANDIDATES) return b !== "candidates";
-  if (b === NOT_CANDIDATES) return a !== "candidates";
-  if (a === NOT_MARKERS) return b !== "markers";
-  if (b === NOT_MARKERS) return a !== "markers";
+  if (EXCLUDING[a]) return !EXCLUDING[a].includes(b);
+  if (EXCLUDING[b]) return !EXCLUDING[b].includes(a);
   // The Markers tab also has the side panels' keys.
   if ((a === "markers" && b === "side") || (a === "side" && b === "markers")) return true;
-  if (a === NOT_TRANSCRIPT) return b !== "transcript";
-  if (b === NOT_TRANSCRIPT) return a !== "transcript";
   return a === b || EVERYWHERE.has(a) || EVERYWHERE.has(b);
 }
 
