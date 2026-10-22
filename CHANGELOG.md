@@ -1,4 +1,6 @@
-## [v26.10.20.39] - 2026-10-21
+## [v26.10.22.1] - 2026-10-22
+
+- **Source (GPL):** Kuulas from this tag; the bundled speechmix, nhsx, silencelearn and automixer from github.com/ollisulopuisto/podcast at the main commit the dmg build checked out (8127aa7 when this release was made); pedalboard from github.com/spotify/pedalboard; ffmpeg from ffmpeg.org. Licences: docs/LICENSES.md.
 
 - **Music report in the app.** File > "Music report..." opens a dialog with a preview table (title, artist, composer, publisher, programme start, duration, background/featured), a summary, warnings for pieces missing a title or artist, and Copy as table, Save CSV and Save HTML (the file name starts with the project name). Nothing in the edit: it says why (no music track, muted, no clips, silenced). No default key. Not seen on screen yet; saving uses the browser download, not a native save dialog.
 - **Kuulas is released under the GPL (version 3 or later).** The repository now has a LICENSE file, the notice inside the app says so (the old "test build, do not redistribute" text is gone: it contradicted the GPL-3 library pedalboard that Kuulas loads), and the README says what Kuulas is in two sentences. docs/LICENSES.md lists the licences of everything the dmg ships.
