@@ -23,6 +23,7 @@ import {
   startOptions,
   validateOptions,
 } from "./export-dialog-model.js";
+import { selectionNotice, spanDots } from "./export-selection-model.js";
 import { sizeText } from "./media-copy-model.js";
 
 function element(tag, props = {}, ...children) {
@@ -53,6 +54,11 @@ export function createExportDialog({ t, formats, canChooseFolder, context, saveM
   const note = element("p", { className: "form-note" });
 
   const form = element("form", { method: "dialog", className: "form-grid" });
+
+  // Only export the selection (owner, 2026-10-21): ticked whenever a selection exists.
+  const onlyBox = element("input", { type: "checkbox", name: "onlySelection" });
+  const selectionLine = element("p", { className: "form-help", role: "note" });
+  const selectionRow = row(t("ui.exportdialog.only_selection"), onlyBox, selectionLine);
 
   // What
   const scopeBox = element("div", { className: "form-choices", role: "radiogroup" });
@@ -156,6 +162,7 @@ export function createExportDialog({ t, formats, canChooseFolder, context, saveM
   buttons.append(cancel, start);
 
   form.append(
+    selectionRow,
     whatRow,
     formatRow,
     depthRow,
@@ -179,6 +186,8 @@ export function createExportDialog({ t, formats, canChooseFolder, context, saveM
 
   const stems = () => options.scope === "tracks" || options.scope === "alltracks";
   const marks = () => ({ inPoint: ctx.state.inPoint, outPoint: ctx.state.outPoint });
+  const selection = () => ctx.selection ?? null;
+  const usingSelection = () => Boolean(selection()) && options.onlySelection;
 
   function fillSelect(select, items, current) {
     select.replaceChildren(
@@ -225,8 +234,10 @@ export function createExportDialog({ t, formats, canChooseFolder, context, saveM
         options.kbps,
       );
     }
-    const frames =
-      options.scope === "range" && hasRange(marks())
+    const picked = usingSelection() ? selection().range : null;
+    const frames = picked
+      ? picked[1] - picked[0]
+      : options.scope === "range" && hasRange(marks())
         ? ctx.state.outPoint - ctx.state.inPoint
         : ctx.frames;
     const rate = ctx.state.project?.rate ?? 48000;
@@ -278,7 +289,7 @@ export function createExportDialog({ t, formats, canChooseFolder, context, saveM
   }
 
   function paintErrors() {
-    const errors = validateOptions(options, { marks: marks() });
+    const errors = validateOptions(options, { marks: marks(), selection: selection() });
     problem.textContent = errors.map((key) => t(key)).join(" ");
     start.disabled = errors.length > 0;
   }
@@ -286,15 +297,28 @@ export function createExportDialog({ t, formats, canChooseFolder, context, saveM
   function paint() {
     const mix = kind === "mix";
     whatRow.hidden = !mix;
+    selectionRow.hidden = !selection();
+    onlyBox.checked = Boolean(options.onlySelection);
+    if (selection()) {
+      selectionLine.textContent = options.onlySelection
+        ? selectionNotice(selection(), ctx.state.project?.rate ?? 48000, t)
+        : t("ui.exportdialog.selection_off", {
+            span: spanDots(selection().range, ctx.state.project?.rate ?? 48000),
+          });
+    }
     tracksBox.hidden = !(mix && options.scope === "tracks");
     const rangeOk = hasRange(marks());
-    scopeInputs.range.disabled = !rangeOk;
     scopeLabels.whole.textContent = t("ui.exportdialog.what_whole");
     scopeLabels.range.textContent = t(
       rangeOk ? "ui.exportdialog.what_range" : "ui.exportdialog.what_range_none",
     );
     scopeLabels.tracks.textContent = t("ui.exportdialog.what_tracks");
-    for (const [id, input] of Object.entries(scopeInputs)) input.checked = options.scope === id;
+    for (const [id, input] of Object.entries(scopeInputs)) {
+      input.checked = options.scope === id;
+      // The selection decides the range and tracks while it is used.
+      input.disabled = usingSelection() || (id === "range" && !rangeOk);
+    }
+    for (const box of trackList.querySelectorAll("input")) box.disabled = usingSelection();
     const showLufs = !stems();
     lufsRow.hidden = !showLufs;
     lufsNote.hidden = !showLufs;
@@ -319,6 +343,11 @@ export function createExportDialog({ t, formats, canChooseFolder, context, saveM
       paint();
     });
   }
+  onlyBox.addEventListener("change", () => {
+    options.onlySelection = onlyBox.checked;
+    paintTracks();
+    paint();
+  });
   allButton.addEventListener("click", () => {
     options.trackIds = (ctx.state.project?.tracks ?? []).map((track) => track.id);
     paintTracks();
@@ -361,8 +390,9 @@ export function createExportDialog({ t, formats, canChooseFolder, context, saveM
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
-    if (validateOptions(options, { marks: marks() }).length > 0) return;
-    const request = exportBody(options, marks());
+    if (validateOptions(options, { marks: marks(), selection: selection() }).length > 0) return;
+    const request = exportBody(options, marks(), selection());
+    request.selection = usingSelection() ? selection() : null;
     saveMemory(mergeMemory(ctx.memory, options));
     dialog.close();
     void onStart(request);
@@ -380,6 +410,7 @@ export function createExportDialog({ t, formats, canChooseFolder, context, saveM
         memory: ctx.memory,
         marks: marks(),
         project: ctx.state.project,
+        selection: ctx.selection ?? null,
       });
       if (which === "tracks") options.scope = "alltracks";
       heading.textContent = t(`ui.exportdialog.${which}_title`);

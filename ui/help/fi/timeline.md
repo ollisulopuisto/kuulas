@@ -43,6 +43,14 @@ Jos haluat aikajanalle enemmän leveyttä, piilota koko sivupaneeli (välilehtir
 ## Paneelit
 {key:panel.next} siirtää näppäimistön seuraavaan paneeliin; {key:nav.home} tuo sen takaisin tänne.
 
+## Valinnan vienti
+Jokainen vienti vie vain valitun ja kertoo sen alkaessa ("Viedään vain valinta: raidat Anna, Ville, 12.00-18.30").
+- In- ja Out-merkeillä (tai raitojen yli vedetyllä välillä): se aikaväli, niillä raidoilla, joita aluekomento käyttäisi.
+- Kun leikkeitä on valittu eikä väliä ole: raidat, joilla valitut leikkeet ovat, ensimmäisen valitun alusta viimeisen loppuun. Mukana on kaikki näiden raitojen sisältö tuolla välillä, ei vain valitut leikkeet.
+- Kun mitään ei ole valittu: koko miksaus.
+
+Vientiasetukset ja automiksausikkuna näyttävät valinnan ja ruudun "Vie vain valinta", joka on valittuna, kun valinta on olemassa. Poista valinta, niin viedään kaikki. Tiedoston nimessä ovat väli ja raidat, eikä olemassa olevaa tiedostoa korvata. Mykistetyt raidat pysyvät mykkinä ja solo toimii kuten koko miksauksessa.
+
 ## Ohje
 {key:help.open} avaa ohjeen siihen, mitä katsot; {key:help.keys} listaa kaikki näppäimet.
 

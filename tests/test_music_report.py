@@ -389,7 +389,7 @@ def test_building_the_report_does_not_hold_the_session_lock(tmp_path, monkeypatc
     s = Session(tmp_path / "Proj.kuulas")
     free = []
 
-    def build_and_probe(project, store):
+    def build_and_probe(project, store, span=None):
         def try_lock():
             got = s.lock.acquire(timeout=1.0)
             if got:
@@ -407,3 +407,38 @@ def test_building_the_report_does_not_hold_the_session_lock(tmp_path, monkeypatc
     finally:
         s.close()
     assert free == [True]
+
+
+def _two_pieces() -> Project:
+    info = {"artist": "A"}
+    m1 = media("m1", "a" * 64, name="Bed one.wav", music_info={**info, "title": "One"})
+    m2 = media("m2", "b" * 64, name="Bed two.wav", music_info={**info, "title": "Two"})
+    return state(media_items=[m1, m2], tracks=[track("t1", "music", [
+        clip("c1", 0, 0, 2 * RATE, media_id="m1"),
+        clip("c2", 4 * RATE, 0, 2 * RATE, media_id="m2"),
+    ])])
+
+
+def test_report_of_a_range_lists_only_music_heard_in_it():
+    rows = build_report(_two_pieces(), MemoryStore({}), span=(3 * RATE, 7 * RATE))
+    assert [r.title for r in rows] == ["Two"]
+    assert [r.order for r in rows] == [1]
+
+
+def test_report_of_a_range_cuts_a_piece_at_the_range_edges():
+    rows = build_report(_two_pieces(), MemoryStore({}), span=(RATE, 5 * RATE))
+    assert [(r.title, r.in_time, r.out_time, r.duration) for r in rows] == [
+        ("One", "00:00:01", "00:00:02", "00:00:01"),
+        ("Two", "00:00:04", "00:00:05", "00:00:01"),
+    ]
+
+
+def test_session_music_report_takes_a_range(tmp_path):
+    s = Session(tmp_path / "Proj.kuulas")
+    try:
+        assert s.music_report(format="json", span=(0, RATE)) == []
+        with pytest.raises(MusicReportError) as exc_info:
+            s.music_report(span=(5, 5))
+        assert exc_info.value.key == "error.music_report.bad_range"
+    finally:
+        s.close()

@@ -47,6 +47,11 @@ import { exportNotice, exportRequest, filenameFromDisposition } from "./export-c
 import { createExportDialog } from "./export-dialog.js";
 import { quickPlan } from "./export-dialog-model.js";
 import {
+  resolveExportSelection,
+  selectionBody,
+  selectionNotice,
+} from "./export-selection-model.js";
+import {
   chipFast,
   dragSpeed,
   STEP as FAST_STEP,
@@ -150,7 +155,7 @@ import {
 import { recentMenuItems } from "./recent-menu-model.js";
 import { createRecordView } from "./record-view.js";
 import { createRelinkConfirm, relinkPlan } from "./relink-media.js";
-import { rangeChoice, renderWhen } from "./render-listen-model.js";
+import { renderWhen, selectionChoice } from "./render-listen-model.js";
 import { createRenderListenView } from "./render-listen-view.js";
 import { forwardFromClip } from "./selection-ops.js";
 import { createSendCopyDialog } from "./send-copy-dialog.js";
@@ -317,6 +322,9 @@ let exportFormatList = null; // the same as [{ id, label, ... }], for the export
 
 const rate = () => getState().project?.rate ?? RATE;
 const totalFrames = () => projectEnd(getState().project);
+// What every export honours (owner, 2026-10-21): the In/Out range or the selected clips'
+// tracks and span; null is the whole mix (export-selection-model.js).
+const exportSelection = () => resolveExportSelection(getState(), { length: totalFrames() });
 const width = () => Math.max(1, timeline?.size().width ?? 1);
 const viewLevels = () =>
   View.zoomLevels({ width: width(), rate: rate(), totalFrames: totalFrames() });
@@ -2148,6 +2156,8 @@ const historyPanel = createHistoryPanel({
 // "Export all tracks" (the toolbar button, File menu, palette): one background job; the
 // notice follows it (progress with Cancel, then the folder with Show in Finder). Esc cancels.
 let exportJob = null;
+// "Exporting the selection only: tracks Anna, Ville, 12.00-18.30" while such an export runs.
+let exportSelectionText = "";
 const EXPORT_POLL_MS = 500;
 
 async function followExportJob(id, what) {
@@ -2169,7 +2179,7 @@ async function followExportJob(id, what) {
       notice = view.notice;
       if (view.rich) rich = view;
     } else if (what === "colab") notice = colabNotice(job, t, colabNames);
-    else notice = exportNotice(job, t, what);
+    else notice = exportNotice(job, t, what, exportSelectionText);
     let action = null;
     if (notice.cancel) {
       action = { label: t("ui.export.cancel"), run: () => void cancelExportJob() };
@@ -2210,7 +2220,13 @@ async function cancelExportJob() {
 
 // `what` "tracks" or "mix"; `format` is a format id, or none for WAV (tracks) / the remembered
 // one (mix). One export at a time.
-async function startExport(what, format, { ask = true, extra = {} } = {}) {
+// `selection`: undefined takes the selection now on screen (so every export command honours it);
+// null exports everything (the dialog's toggle is off, or Export in/out range).
+async function startExport(
+  what,
+  format,
+  { ask = true, extra = {}, selection = exportSelection() } = {},
+) {
   if (exportJob) return;
   try {
     // Desktop window: the native folder chooser first; cancelling ends here, quietly.
@@ -2223,10 +2239,12 @@ async function startExport(what, format, { ask = true, extra = {} } = {}) {
       onAsk: () => what === "tracks" && showNotice(t("ui.export.choose_folder"), "ok"),
     });
     if (!options) return;
-    const body = { ...extra, ...options };
+    const body = { ...(selection ? selectionBody(selection) : {}), ...extra, ...options };
+    exportSelectionText = selectionNotice(selection, rate(), t);
     const { jobs } = await (what === "mix" ? api.exportMix(body) : api.exportTracks(body));
     exportJob = jobs[0];
-    showNotice(t(`ui.export.${what}_running`, { percent: 0 }), "ok", {
+    const running = t(`ui.export.${what}_running`, { percent: 0 });
+    showNotice(exportSelectionText ? `${exportSelectionText} ${running}` : running, "ok", {
       sticky: true,
       action: { label: t("ui.export.cancel"), run: () => void cancelExportJob() },
     });
@@ -2262,15 +2280,10 @@ async function openAutomix() {
       }
     },
   });
-  const state = getState();
-  // "Only the In/Out range (a quick preview)": offered while both marks make a range.
+  // "Only the selection (a quick preview)": the In/Out range or the selected clips' tracks
+  // and span (export-selection-model.js), ticked by default while there is one.
   await automixDialog.open({
-    range: rangeChoice({
-      inPoint: state.inPoint,
-      outPoint: state.outPoint,
-      length: totalFrames(),
-      rate: rate(),
-    }),
+    range: selectionChoice(exportSelection(), { length: totalFrames(), rate: rate() }),
     rate: rate(),
   });
 }
@@ -2909,13 +2922,18 @@ async function exportQuick(force) {
       marks: state,
       project: state.project,
       force,
+      selection: exportSelection(),
     });
     if (plan.dialog) {
       showNotice(t(plan.dialog), "ok");
       void openExportDialog("mix");
       return;
     }
-    await startExport(plan.what, undefined, { ask: false, extra: plan.body });
+    await startExport(plan.what, undefined, {
+      ask: false,
+      extra: plan.body,
+      selection: plan.selection ?? null,
+    });
   } catch (error) {
     showError(error);
   }
@@ -2937,10 +2955,12 @@ function openExportDialog(what) {
         memory: scopeMemory(server.project),
         state: getState(),
         frames: totalFrames(),
+        selection: exportSelection(),
       };
     },
     saveMemory: (memory) => prefs.setJson(scopeKey(exportProject), memory),
-    onStart: ({ what: kind, body, ask }) => startExport(kind, body.format, { ask, extra: body }),
+    onStart: ({ what: kind, body, ask, selection }) =>
+      startExport(kind, body.format, { ask, extra: body, selection: selection ?? null }),
   });
   void exportDialog.open(what).catch(showError);
 }

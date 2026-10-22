@@ -43,6 +43,14 @@ To give the timeline more width, hide the whole side panel (the x on its tab str
 ## Panels
 {key:panel.next} moves the keyboard to the next panel; {key:nav.home} brings it back here.
 
+## Exporting the selection
+Every export exports only what is selected, and says so when it starts ("Exporting the selection only: tracks Anna, Ville, 12.00-18.30").
+- With in and out marks (or a range dragged across the lanes): that time range, on the tracks a range command would use.
+- With clips selected and no range: the tracks that hold those clips, from the first selected clip's start to the last one's end. Everything on those tracks in that span is included, not only the selected clips.
+- With nothing selected: the whole mix.
+
+The export options and the automixer dialog show the selection and a box, "Only export the selection", ticked while there is a selection. Untick it to export everything. The file name carries the span and the tracks, and an existing file is never replaced. Muted tracks stay muted, and solo works as in the whole mix.
+
 ## Help
 {key:help.open} opens help for what you are looking at; {key:help.keys} lists every key.
 

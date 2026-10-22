@@ -5,6 +5,7 @@
 // DOM is export-dialog.js and the request goes through app.js.
 
 import { ALWAYS_AVAILABLE } from "./export-commands.js";
+import { selectionBody } from "./export-selection-model.js";
 
 const FALLBACK = { wav: "WAV", flac: "FLAC" };
 
@@ -120,9 +121,11 @@ const ids = (project) => (project?.tracks ?? []).map((track) => track.id);
  * `mix` holds the format, depth, bitrate and loudness target the last export used. `memory` is
  * the per-project scope memory (mergeMemory). `scope` is "whole" | "range" | "tracks"; a range
  * that cannot be had (no marks) is the whole mix. Nothing is chosen for the user that they did
- * not choose before: marks on screen alone do not select the range.
+ * not choose before: marks on screen alone do not select the range. The exception is the
+ * selection (export-selection-model.js): while one exists "Only export the selection" is
+ * ticked, whatever scope was remembered (owner, 2026-10-21).
  */
-export function startOptions({ formats, server, memory, marks, project }) {
+export function startOptions({ formats, server, memory, marks, project, selection = null }) {
   const last = server?.mix ?? {};
   const list = dialogFormats(formats);
   const format = pickFormat(list, last.format);
@@ -140,14 +143,19 @@ export function startOptions({ formats, server, memory, marks, project }) {
     lufs: typeof last.master_lufs === "number" ? last.master_lufs : null,
     name: "",
     ask: memory?.ask ?? true,
+    onlySelection: Boolean(selection),
   };
 }
 
 /** The translation keys of what is wrong with the form (empty when it can start). */
-export function validateOptions(options, { marks }) {
+export function validateOptions(options, { marks, selection = null }) {
   const errors = [];
-  if (options.scope === "range" && !hasRange(marks)) errors.push("ui.exportdialog.err_range");
-  if (options.scope === "tracks" && (options.trackIds ?? []).length === 0) {
+  // While the selection decides the range and tracks, the scope's own needs do not matter.
+  const decided = Boolean(selection) && options.onlySelection !== false;
+  if (!decided && options.scope === "range" && !hasRange(marks)) {
+    errors.push("ui.exportdialog.err_range");
+  }
+  if (!decided && options.scope === "tracks" && (options.trackIds ?? []).length === 0) {
     errors.push("ui.exportdialog.err_tracks");
   }
   if (options.scope !== "tracks" && options.scope !== "alltracks") {
@@ -164,7 +172,8 @@ export function validateOptions(options, { marks }) {
  * folder: the app asks for it (desktop window) or the server uses the remembered one.
  * "tracks" is the stems of the chosen tracks; "alltracks" (the old dialog) all of them.
  */
-export function exportBody(options, marks) {
+export function exportBody(options, marks, selection = null) {
+  const only = Boolean(selection) && options.onlySelection !== false;
   const stems = options.scope === "tracks" || options.scope === "alltracks";
   const body = { format: options.format };
   if (depthChoices(options.format).length > 0) body.bit_depth = options.bitDepth;
@@ -172,6 +181,13 @@ export function exportBody(options, marks) {
   if (!stems) body.master_lufs = options.lufs ?? null;
   if (options.scope === "range") body.range = [marks.inPoint, marks.outPoint];
   if (options.scope === "tracks") body.track_ids = [...options.trackIds];
+  // The selection replaces the scope's range and tracks (a track list ticked in the dialog
+  // included: the selection says which tracks).
+  if (only) {
+    delete body.range;
+    delete body.track_ids;
+    Object.assign(body, selectionBody(selection));
+  }
   const name = (options.name ?? "").trim();
   if (name) body.name = name;
   return { what: stems ? "tracks" : "mix", body, ask: Boolean(options.ask) };
@@ -201,9 +217,20 @@ export function mergeMemory(previous, options) {
  * What Cmd+E does: the last scope of this project with the settings the server remembers.
  * -> { what, body, scope } to export now, or { dialog: key } when the remembered scope cannot
  * be had (no marks, the tracks are gone): the dialog opens and the key says why. `force`
- * "range" is Export in/out range, whatever was remembered.
+ * "range" is Export in/out range, whatever was remembered. A `selection` (resolved by
+ * export-selection-model.js) wins over the remembered scope; only the explicit Export
+ * in/out range command ignores it. The plan then carries it for the notice.
  */
-export function quickPlan({ memory, marks, project, force }) {
+export function quickPlan({ memory, marks, project, force, selection = null }) {
+  if (selection && !force) {
+    const stems = memory?.scope === "tracks";
+    return {
+      what: stems ? "tracks" : "mix",
+      body: selectionBody(selection),
+      scope: stems ? "tracks" : "range",
+      selection,
+    };
+  }
   const scope = force ?? memory?.scope ?? "whole";
   if (scope === "range") {
     if (!hasRange(marks)) return { dialog: "ui.exportdialog.err_range" };

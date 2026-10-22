@@ -1292,6 +1292,7 @@ class Session:
         params = dict(params or {})
         automix_module.validate_params(params)
         automix_module.validate_range(params)
+        automix_module.validate_tracks(params, self.state)
         automix_module.check_rate(self)
         with self.lock:
             self.history._check_writable()
@@ -1833,8 +1834,9 @@ class Session:
         return project_stats.gather(self.history, self.package.path, lock=self.lock,
                                     transcripts=self.transcripts)
 
-    def music_report(self, *, format: str = "rows",
-                     title: str | None = None) -> tuple[Any, ...] | str | list[dict]:
+    def music_report(self, *, format: str = "rows", title: str | None = None,
+                     span: tuple[int, int] | None = None
+                     ) -> tuple[Any, ...] | str | list[dict]:
         """Royalty music report (WP25): every audible music use in this edit.
 
         ``format``:
@@ -1842,7 +1844,12 @@ class Session:
         - ``"json"``: list of row dicts.
         - ``"csv"``: semicolon-separated UTF-8 string with BOM.
         - ``"html"``: printable HTML document string.
+
+        ``span`` (timeline frames) reports only that part: the selection.
         """
+        if span is not None and not (span[0] >= 0 and span[1] > span[0]):
+            raise music_report_module.MusicReportError(
+                "error.music_report.bad_range", range=f"{span[0]}-{span[1]}")
         if format not in ("rows", "json", "csv", "html"):
             raise music_report_module.MusicReportError("error.music_report.bad_format",
                                                        format=format)
@@ -1850,7 +1857,7 @@ class Session:
         # behind the report can take seconds, and must not block edits.
         with self.lock:
             state = self.history.state
-        rows = music_report_module.build_report(state, self.store)
+        rows = music_report_module.build_report(state, self.store, span)
         if format == "rows":
             return rows
         if format == "json":

@@ -353,3 +353,95 @@ describe("quickPlan (Cmd+E)", () => {
     assert.deepEqual(plan, { dialog: "ui.exportdialog.err_range" });
   });
 });
+
+describe("the selection is the default source of truth", () => {
+  const SEL = { source: "clips", range: [48000, 96000], trackIds: ["a"], names: ["A"] };
+  const ALLSEL = { source: "marks", range: [48000, 96000], trackIds: null, names: [] };
+  test("Cmd+E with a selection exports it, whatever scope was remembered", () => {
+    for (const memory of [null, { scope: "whole" }, { scope: "range" }]) {
+      const plan = quickPlan({ memory, marks: NO_MARKS, project: PROJECT, selection: SEL });
+      assert.deepEqual(plan, {
+        what: "mix",
+        body: { range: [48000, 96000], track_ids: ["a"] },
+        scope: "range",
+        selection: SEL,
+      });
+    }
+  });
+  test("remembered stems with a selection: the stems of the selection", () => {
+    const plan = quickPlan({
+      memory: { scope: "tracks", track_ids: ["b"] },
+      marks: NO_MARKS,
+      project: PROJECT,
+      selection: SEL,
+    });
+    assert.deepEqual(plan, {
+      what: "tracks",
+      body: { range: [48000, 96000], track_ids: ["a"] },
+      scope: "tracks",
+      selection: SEL,
+    });
+  });
+  test("a selection on all tracks sends no track list", () => {
+    const plan = quickPlan({ memory: null, marks: NO_MARKS, project: PROJECT, selection: ALLSEL });
+    assert.deepEqual(plan.body, { range: [48000, 96000] });
+  });
+  test("Export in/out range stays the explicit marks command", () => {
+    const plan = quickPlan({
+      memory: null,
+      marks: MARKS,
+      project: PROJECT,
+      force: "range",
+      selection: SEL,
+    });
+    assert.deepEqual(plan.body, { range: [48000, 144000] });
+  });
+});
+
+describe("the dialog's 'Only export the selection'", () => {
+  test("the selection settles the scope's needs", () => {
+    const sel = { source: "clips", range: [1, 2], trackIds: null, names: [] };
+    const o = { ...start({ selection: sel }), scope: "range" };
+    assert.deepEqual(validateOptions(o, { marks: NO_MARKS, selection: sel }), []);
+    assert.deepEqual(
+      validateOptions({ ...o, onlySelection: false }, { marks: NO_MARKS, selection: sel }),
+      ["ui.exportdialog.err_range"],
+    );
+  });
+  const SEL = { source: "clips", range: [48000, 96000], trackIds: ["a", "b"], names: ["A", "B"] };
+  test("ON by default whenever a selection exists, off without one", () => {
+    assert.equal(start({ selection: SEL }).onlySelection, true);
+    assert.equal(start().onlySelection, false);
+  });
+  test("a remembered scope does not override the selection", () => {
+    const o = start({ selection: SEL, memory: { scope: "tracks", track_ids: ["c"] } });
+    assert.equal(o.onlySelection, true);
+    const body = exportBody(o, NO_MARKS, SEL);
+    assert.deepEqual(body.body.range, [48000, 96000]);
+    assert.deepEqual(body.body.track_ids, ["a", "b"]);
+  });
+  test("ticked: the whole-mix scope exports the selection", () => {
+    const o = { ...start({ selection: SEL }), scope: "whole" };
+    const { what, body } = exportBody(o, NO_MARKS, SEL);
+    assert.equal(what, "mix");
+    assert.deepEqual(body.range, [48000, 96000]);
+    assert.deepEqual(body.track_ids, ["a", "b"]);
+  });
+  test("ticked: all-tracks stems become the selection's tracks", () => {
+    const o = { ...start({ selection: SEL }), scope: "alltracks" };
+    const { what, body } = exportBody(o, NO_MARKS, SEL);
+    assert.equal(what, "tracks");
+    assert.deepEqual(body.track_ids, ["a", "b"]);
+    assert.deepEqual(body.range, [48000, 96000]);
+  });
+  test("switched off: everything, as the scope says", () => {
+    const o = { ...start({ selection: SEL }), scope: "whole", onlySelection: false };
+    const { body } = exportBody(o, NO_MARKS, SEL);
+    assert.equal(body.range, undefined);
+    assert.equal(body.track_ids, undefined);
+  });
+  test("no selection: the body is unchanged", () => {
+    const { body } = exportBody(start(), NO_MARKS, null);
+    assert.equal(body.range, undefined);
+  });
+});

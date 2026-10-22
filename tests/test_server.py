@@ -1181,3 +1181,10 @@ def test_history_page_names_steps_from_their_op_and_the_current_tracks(client, l
     head = client.get("/api/history", params={"limit": 1}).json()["nodes"][0]
     assert head["name"] == f"Restored to: {step['name']}"
     assert head["run"] is None
+
+
+def test_get_music_report_range(client):
+    assert client.get("/api/music-report?start=0&end=48000").json() == {"rows": []}
+    bad = client.get("/api/music-report?start=10&end=10")
+    assert bad.status_code == 400
+    assert bad.json()["error"]["key"] == "error.music_report.bad_range"

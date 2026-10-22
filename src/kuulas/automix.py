@@ -281,6 +281,20 @@ def validate_range(params: dict) -> tuple[int, int] | None:
     return int(rng[0]), int(rng[1])
 
 
+def validate_tracks(params: dict, project) -> list[str] | None:
+    """The run's ``track_ids``: only these tracks are mixed (a selection of some tracks).
+    None: all of them. A list that is empty, not of strings or names a track the edit does
+    not have is ``AutomixError`` (``error.automix.bad_tracks``)."""
+    ids = params.get("track_ids")
+    if ids is None:
+        return None
+    have = {tr.id for tr in project.tracks}
+    if (not isinstance(ids, list) or not ids
+            or not all(isinstance(i, str) and i in have for i in ids)):
+        raise AutomixError("error.automix.bad_tracks")
+    return list(ids)
+
+
 def _span(first: int, end: int, rate: int, sep: str) -> str:
     """``mm<sep>ss-mm<sep>ss`` of a range (whole seconds, minutes not wrapped at 60)."""
     def one(frame: int) -> str:
@@ -341,7 +355,8 @@ def check_stems(folder: Path) -> None:
 
 def export_stems(session, folder: Path | str, report=None,
                  cancel: threading.Event | None = None,
-                 span: tuple[int, int] | None = None) -> dict:
+                 span: tuple[int, int] | None = None,
+                 track_ids: list[str] | None = None) -> dict:
     """Write the stems for the automixer into ``folder``: the "Export all tracks"
     files (dry, equal length, 48 kHz), music as
     stereo and ``tracks.json`` as version 1. With ``span`` (timeline frames) only that
@@ -351,6 +366,8 @@ def export_stems(session, folder: Path | str, report=None,
     chosen: dict[str, Any] = {"folder": str(folder)}
     if span is not None:
         chosen["range"] = list(span)
+    if track_ids is not None:
+        chosen["track_ids"] = list(track_ids)
     args = {**session.tracks_export_args(chosen), "for_automixer": True}
     return export.run(session, args, report, cancel, file_name="stems")
 
@@ -1271,7 +1288,8 @@ def run(session, params: dict, settings: dict, report: Report,
     """Export the stems, run the automixer, return ``{"path", "name", "log",
     "command"}``. ``params``: ``target_lufs`` (default -16), ``ad_spot``,
     ``ad_duration`` (seconds), ``extra_args`` (replaces the setting for this
-    run), ``range`` (``[start, end]`` timeline frames: only that part is mixed, a quick
+    run), ``track_ids`` (only these tracks are mixed; ``validate_tracks``),
+    ``range`` (``[start, end]`` timeline frames: only that part is mixed, a quick
     preview; ``validate_range``). A range run's stems start at the range (``tracks.json``
     says ``start_frame`` 0), its file is named ``... preview mm.ss-mm.ss.wav`` and its
     log header says the levels were measured on the excerpt. The result also has
@@ -1288,6 +1306,7 @@ def run(session, params: dict, settings: dict, report: Report,
     emit = live or (lambda _line: None)
     lufs, ad_spot, ad_duration = validate_params(params)
     span = validate_range(params)
+    only = validate_tracks(params, session.state)
     check_rate(session)
     settings = resolve_settings(settings)
     if isinstance(params.get("extra_args"), list):
@@ -1336,7 +1355,7 @@ def run(session, params: dict, settings: dict, report: Report,
                 session, scratch,
                 lambda fraction, message="": report(
                     stems_share * fraction, steps.stems(message)),
-                cancel, span)
+                cancel, span, only)
         except export.ExportError:
             if cancel.is_set():
                 raise JobCancelledError from None
@@ -1368,6 +1387,9 @@ def run(session, params: dict, settings: dict, report: Report,
         # A range render is its own file beside the full ones, never in place of one.
         preview = (f" preview {_span(*rendered_range, MANIFEST_RATE, '.')}"
                    if rendered_range else "")
+        if only:
+            named = ", ".join(tr.name for tr in session.state.tracks if tr.id in only)
+            preview += f" ({named})"
         final = _unique(folder, export._safe(f"{title} automixer {stamp}{preview}.wav"))
         partial = final.with_name(f"{final.stem}.partial{final.suffix}")
         probe = automix_remote.runner(remote, run_process) if remote else run_process
