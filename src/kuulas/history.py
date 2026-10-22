@@ -212,6 +212,8 @@ class History:
         self._seen_version: int | None = None
         #: The head's ancestors, once ``sides`` has asked (``_ancestors``).
         self._past: set[str] | None = None
+        #: Whether this edit holds any restore step, once asked (``_has_restores``).
+        self._restores: bool | None = None
 
     def _create(self, initial: Project) -> None:
         now = dbm.utc_now()
@@ -624,6 +626,7 @@ class History:
                         sync_groups=now.sync_groups)
         self.commit(t("history.restored", label=target["label"]), state,
                     op={"name": "restore", "args": {"node": target["id"]}})
+        self._restores = True
         ctx = _parse_context(target.get("context"))
         return UndoInfo(ctx, step=target)
 
@@ -846,11 +849,27 @@ class History:
         grow with the history: the ancestors are kept (``_ancestors``) and the
         redo chain is as long as what was undone. Without ``ids``: every step, from
         the lineage computation."""
-        if ids is not None:
-            past, redo = self._ancestors(), self._redo_chain()
-            return {n: "head" if n == self.head else "past" if n in past
-                    else "redo" if n in redo else "branch" for n in ids}
-        return {node: v["side"] for node, v in self.lineage().items()}
+        if ids is None:
+            return {node: v["side"] for node, v in self.lineage().items()}
+        if self._has_restores():
+            # Only a restore can make a step ``rolled_back``, and that needs the
+            # effective-parent walk of the whole lineage. Correct, but O(n) per page
+            # for an edit that has ever been restored (see ROADMAP, History).
+            full = self.lineage()
+            return {n: full[n]["side"] if n in full else "branch" for n in ids}
+        past, redo = self._ancestors(), self._redo_chain()
+        return {n: "head" if n == self.head else "past" if n in past
+                else "redo" if n in redo else "branch" for n in ids}
+
+    def _has_restores(self) -> bool:
+        """Whether this edit holds a restore step. Asked once and kept: restore
+        steps are never removed, and this instance writes them itself (``restore``)."""
+        if self._restores is None:
+            self._restores = self.db.execute(
+                "select exists(select 1 from nodes where edit=?"
+                " and json_extract(op, '$.name') = 'restore')", (self.edit,)
+            ).fetchone()[0] == 1
+        return self._restores
 
     # -- several edits (WP21 builds on this) -------------------------------
 

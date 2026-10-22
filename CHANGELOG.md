@@ -1,5 +1,6 @@
 ## [Unreleased]
 
+- **The History panel's step sides are right after a Restore again.** A step that a Restore skipped is shown as rolled back, not as left behind, on the panel's page as well as the full list. An edit that has ever been restored takes the slower full computation for the panel, so a very long restored history may still feel a little slow on each edit.
 - **The side-panel tabs show icons and the full shortcut when names do not fit.** On a narrow panel the inactive tabs become an icon plus "⌥1" (Alt+1 elsewhere), never a bare digit; the active tab keeps its name (at the narrowest width, name only). Every tab has a tooltip "Name (⌥1)". Not seen on screen yet.
 
 ## [v26.10.22.1] - 2026-10-22
