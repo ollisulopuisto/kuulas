@@ -1567,6 +1567,20 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.app.save_named",
   },
   {
+    // File > Open earlier version…: History at the saved versions. No default key.
+    id: "app.open_earlier_version",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.app.open_earlier_version",
+  },
+  {
+    // File > Back up now: the backup copy Mod+S used to make. No default key.
+    id: "app.backup_now",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.app.backup_now",
+  },
+  {
     id: "app.transcribe",
     keys: { mac: "Shift+Mod+I", other: "Shift+Mod+I" },
     context: "global",

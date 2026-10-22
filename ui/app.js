@@ -133,6 +133,7 @@ import { createMusicLevelDialog } from "./music-level-dialog.js";
 import { MUSIC_UNDER_KEY, normaliseMusicUnder } from "./music-level-model.js";
 import { createMusicReportDialog } from "./music-report-dialog.js";
 import { reportQuery } from "./music-report-model.js";
+import { createNameDialog } from "./name-dialog.js";
 import { createOverview } from "./overview.js";
 import { createPerfDialog } from "./perf-dialog.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
@@ -1281,6 +1282,7 @@ const transcript = createTranscript({
 // Esc and Enter in modal dialogs (dialog-keys.js): before the keymap sees the key.
 installDialogKeys(window);
 
+let nameDialog = null;
 const keyboard = setupKeyboard({
   actions,
   prefs,
@@ -1410,6 +1412,19 @@ const keyboard = setupKeyboard({
     toggleConfirmSync: () => toggleConfirmSync(),
     notice: (text) => showNotice(text, "ok"),
     clock: () => new Date(),
+    // Shift+Mod+S: the dialog for a saved version's name; null when cancelled.
+    askName: (suggestion) => {
+      nameDialog ??= createNameDialog({ t });
+      return nameDialog.ask(suggestion);
+    },
+    // A version saved on the step on screen moves no head: the History list is fetched again.
+    refreshHistory: () => historyPanel.refresh(),
+    // The toast's Rename button: History shows the version with its name field open.
+    renameSaved(node) {
+      focusPanel("history");
+      historyPanel.startRename(node);
+    },
+    openEarlierVersion: () => actions.openHistorySaved(),
     // A save is also where the user left off: the flag moves here and resume.json is
     // written at once (flushView sends the record marked "now").
     markLeftOff() {

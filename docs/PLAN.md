@@ -793,9 +793,10 @@ collision test must accept:
   selected; group editing **E** (Mod+G)
 - mark in sync **Y** (Alt+Mod+S); resync **R** (Alt+Mod+R)
 - zoom close/wide **Z**, fit **Shift+Z**, view back/forward **Alt+Z** / **Shift+Alt+Z**
-- **Mod+S** saves a named version (a checkpoint named by time, plus an
-  immediate backup; the message offers Rename); **Shift+Mod+S** asks for the
-  name first. Autosave needs no key: every edit is on disk before it shows.
+- **Mod+S** saves a version (a checkpoint named by time, "Saved 14.32"; none if
+  the step already is one; the message offers Rename; no backup copy: File > Back
+  up now and the 10-minute timer make those); **Shift+Mod+S** asks for the
+  name first. File > Open earlier version… opens History at the saved versions. Autosave needs no key: every edit is on disk before it shows.
 
 | Keys | Command | Does (API call) |
 |---|---|---|

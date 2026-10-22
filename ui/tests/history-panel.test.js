@@ -66,6 +66,7 @@ class FakeNode {
     globalThis.document.activeElement = this;
   }
   scrollIntoView() {}
+  select() {}
 }
 
 globalThis.document = {
@@ -106,7 +107,7 @@ const NODES = [
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-async function open() {
+async function open(nodesOf = () => NODES) {
   let state = { sidebarTab: "history", head: "R", panel: "history" };
   const calls = [];
   const root = new FakeNode("section");
@@ -115,7 +116,7 @@ async function open() {
     api: {
       getHistory: async (query) => {
         calls.push(query);
-        return { nodes: query.saved ? [] : NODES, more: false };
+        return { nodes: query.saved ? [] : nodesOf(), more: false };
       },
     },
     getState: () => state,
@@ -214,6 +215,47 @@ describe("the History tab after a Restore", () => {
     await flush();
     assert.equal(hint().hidden, true);
     assert.equal(calls.at(-1).saved, false);
+  });
+
+  test("refresh fetches again at the same head, so a version just saved shows", async () => {
+    let list = NODES;
+    const { panel, row, calls } = await open(() => list);
+    assert.doesNotMatch(row("R").text(), /Saved 14\.32/);
+    const before = calls.length;
+    list = NODES.map((n) =>
+      n.id === "R"
+        ? {
+            ...n,
+            checkpoint: {
+              name: "Saved 14.32",
+              kind: "manual",
+              copy: null,
+              created: "2026-10-18T11:32:00Z",
+            },
+          }
+        : n,
+    );
+    await panel.refresh();
+    assert.ok(calls.length > before);
+    assert.match(row("R").text(), /Saved 14\.32/);
+  });
+
+  test("startRename(id) picks that version and opens its name field", async () => {
+    const saved = {
+      name: "Saved 14.32",
+      kind: "manual",
+      copy: null,
+      created: "2026-10-18T11:32:00Z",
+    };
+    const { panel, root, state } = await open(() =>
+      NODES.map((n) => (n.id === "A" ? { ...n, checkpoint: saved } : n)),
+    );
+    assert.equal(state().historySelected, "R");
+    assert.equal(panel.startRename("A"), true);
+    assert.equal(state().historySelected, "A");
+    const field = root.all().find((n) => n.className === "hist-rename");
+    assert.equal(field.value, "Saved 14.32");
+    assert.equal(panel.startRename("R"), false);
   });
 
   test("Expand all opens the group", async () => {
