@@ -1304,6 +1304,16 @@ const transcript = createTranscript({
     applyResponse: apply,
     run: (id) => keyboard.registry.run(id, null, getState()),
     transcribeColab: (ids) => void transcribeOnColab(ids),
+    // The tracks a range edit acts on (all, the painted lanes, or the selected ones); null
+    // with a notice when "selected tracks" is on and none is selected, as for X.
+    scopeTracks: () => {
+      const scope = resolveScope(getState());
+      if (scope.none) {
+        showNotice(t("ui.scope.none_selected"), "warn");
+        return null;
+      }
+      return scope.tracks;
+    },
   },
 });
 

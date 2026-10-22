@@ -50,6 +50,8 @@ export const putViewMemory = (view, { now = false } = {}) =>
   });
 export const getWords = () => json("/api/words");
 /** Words matching `q` that the edit does not play: { hits: [{ media, first, last, start, end, status, partly, before, match, after, spk, at?, track? }] }. */
+/** What putting a removed stretch back would do: { media, first, last | start, end, track_ids?, at? } -> the plan (src/kuulas/put_back.py). */
+export const putBackPlan = (body) => post("/api/put-back/plan", body);
 export const searchMaterial = (q) => json(`/api/material-search?q=${encodeURIComponent(q)}`);
 // Recording (WP12a): the recorder is its own program; the server is its viewer and remote.
 /** { available, recording, ours, take, position_frames, disk, notices, pending, ... } */

@@ -10,6 +10,7 @@ import { frameToTime } from "./format.js";
 import { formatNumber, getLanguage, t } from "./i18n.js";
 import { setIcon } from "./icons.js";
 import { canShow, removedSummary, statusKey } from "./material-hits.js";
+import { canPutBack, commandArgs, describePlan } from "./put-back-model.js";
 import { musicNote } from "./transcribable.js";
 import {
   currentPosition,
@@ -886,6 +887,87 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   let removedAsk = 0; // the newest request: an older answer is dropped
   let removedTimer = 0;
 
+  // The open "put back" preview: { index (into removedHits), plan, scope }.
+  let putBack = null;
+
+  /** The preview under a hit: what comes back, where, what moves, what each track gets. */
+  function putBackBlock() {
+    const view = describePlan(putBack.plan, { rate: rate(), nameOf: nameOfTrack });
+    const seconds = (value) => formatNumber(value, { digits: 1 });
+    const time = (frame) => frameToTime(frame, rate());
+    const box = el("div", "tx-putback");
+    box.append(
+      el("strong", "", t("ui.putback.what", { text: view.text, seconds: seconds(view.seconds) })),
+    );
+    const lines = el("ul", "tx-putback-lines");
+    const line = (text) => lines.append(el("li", "", text));
+    if (view.canConfirm) line(t(view.place.key, { time: time(view.place.frame) }));
+    else line(`${t(view.place.key)} ${view.candidates.map(time).join(" · ")}`.trim());
+    if (view.push) {
+      line(
+        t("ui.putback.pushes", {
+          time: time(view.push.frame),
+          seconds: seconds(view.push.seconds),
+          count: view.push.count,
+        }),
+      );
+    }
+    for (const track of view.tracks) line(`${track.name}: ${t(track.key)}`);
+    const buttons = el("div", "tx-putback-buttons");
+    const button = (act, text, kind = "button") => {
+      const node = el("button", kind, text);
+      node.type = "button";
+      node.dataset.act = act;
+      return node;
+    };
+    const confirm = button("putback-confirm", t("ui.putback.confirm"), "button primary");
+    confirm.disabled = !view.canConfirm;
+    buttons.append(
+      button("putback-cancel", t("ui.putback.cancel")),
+      button("putback-playhead", t("ui.putback.at_playhead")),
+      confirm,
+    );
+    box.append(lines, buttons);
+    return box;
+  }
+
+  async function openPutBack(index) {
+    const hit = removedHits[index];
+    const scope = actions.scopeTracks?.();
+    if (!hit || scope === null) return;
+    try {
+      const plan = await api.putBackPlan({
+        media: hit.media,
+        first: hit.first,
+        last: hit.last,
+        track_ids: scope,
+      });
+      putBack = { index, plan, scope };
+      paintRemoved();
+      removedList
+        .querySelector('[data-act="putback-confirm"]:not(:disabled), [data-act="putback-playhead"]')
+        ?.focus();
+    } catch (error) {
+      actions.showError(error);
+    }
+  }
+
+  /** Do it: at the seam the plan found, or at the playhead when that was chosen. */
+  async function confirmPutBack(atPlayhead) {
+    if (!putBack) return;
+    const { index, plan, scope } = putBack;
+    const hit = removedHits[index];
+    const at = atPlayhead ? Math.round(getState().playhead ?? 0) : null;
+    try {
+      const response = await api.command("put_back", commandArgs(hit.media, plan, scope, at));
+      putBack = null;
+      actions.applyResponse(response);
+      actions.jump(at ?? plan.at);
+    } catch (error) {
+      actions.showError(error);
+    }
+  }
+
   function paintRemoved() {
     const summary = removedSummary(removedHits.length);
     removed.hidden = findBar.hidden || summary === null;
@@ -910,6 +992,15 @@ export function createTranscript({ root, getState, setState, api, actions }) {
         show.dataset.hit = String(i);
         row.append(show);
       }
+      if (canPutBack(hit)) {
+        const back = el("button", "button ghost", t("ui.find.removed.put_back"));
+        back.type = "button";
+        back.title = t("ui.find.removed.put_back_title");
+        back.dataset.act = "putback-open";
+        back.dataset.hit = String(i);
+        row.append(back);
+      }
+      if (putBack?.index === i) row.append(putBackBlock());
       removedList.append(row);
     });
   }
@@ -933,6 +1024,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       }
       if (ask !== removedAsk) return;
       removedHits = hits;
+      putBack = null; // the hits changed under it
       paintRemoved();
     }, REMOVED_DELAY_MS);
   }
@@ -943,9 +1035,27 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       paintRemoved();
       return;
     }
+    const act = event.target.closest("[data-act]")?.dataset.act;
+    if (act === "putback-open")
+      void openPutBack(Number(event.target.closest("[data-hit]").dataset.hit));
+    else if (act === "putback-confirm") void confirmPutBack(false);
+    else if (act === "putback-playhead") void confirmPutBack(true);
+    else if (act === "putback-cancel") {
+      putBack = null;
+      paintRemoved();
+    }
+    if (act) return;
     const at = event.target.closest("[data-hit]")?.dataset.hit;
     const hit = at === undefined ? null : removedHits[Number(at)];
     if (hit && canShow(hit)) actions.jump(hit.at);
+  });
+  // Esc closes the preview first (a layer at a time), and does nothing else.
+  removed.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || !putBack) return;
+    event.preventDefault();
+    event.stopPropagation();
+    putBack = null;
+    paintRemoved();
   });
 
   function goToMatch(match) {
