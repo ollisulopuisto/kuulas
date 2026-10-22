@@ -110,6 +110,7 @@
     "other": "Resynced {count} clips · skipped {skipped} free"
   },
   "history.cut_words": "cut “{text}”",
+  "history.put_back": "put back “{text}” ({seconds} s)",
   "log.cache.recompute": "Recomputing the {kind} cache for {media_id}.",
   "error.peaks.damaged": "The peak file is damaged.",
   "log.analysis.overlap": "Clips overlap on track {track_id}, so its levels are measured from the audio.",

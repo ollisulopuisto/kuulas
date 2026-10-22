@@ -226,6 +226,16 @@ class CutPreviewBody(BaseModel):
     words: list[dict[str, Any]] = Field(default_factory=list)
 
 
+class PutBackPlanBody(BaseModel):
+    media: str
+    first: int | None = None
+    last: int | None = None
+    start: int | None = None
+    end: int | None = None
+    track_ids: list[str] | None = None
+    at: int | None = None
+
+
 class RestoreBody(BaseModel):
     node: str | int
 
@@ -1559,6 +1569,14 @@ def create_app(session, engine, *, language: str | None = None,
         if names:
             body["people"] = names
         return JSONResponse(body)
+
+    @app.post("/api/put-back/plan")
+    def post_put_back_plan(body: PutBackPlanBody):
+        """What putting a removed stretch back would do, for the preview under the find
+        bar: the place, how far later everything moves, what each track gets."""
+        return session.put_back_plan(
+            body.media, first=body.first, last=body.last, start=body.start,
+            end=body.end, track_ids=body.track_ids, at=body.at)
 
     @app.get("/api/material-search")
     def get_material_search(q: str = ""):

@@ -482,6 +482,56 @@ def test_a_muted_hit_says_where_it_is_on_the_timeline(client, loaded, session):
     assert hit["at"] == round(0.5 * RATE)
 
 
+def cut_there(client, loaded, session):
+    """Import "hello there" and cut "there" with the transcript's X."""
+    media = media_id(loaded)
+    client.post(f"/api/transcript/{media}", json=WORDS)
+    session.command("cut_words", {"indices": [1]})
+    return media
+
+
+def test_put_back_plan_names_the_seam_and_how_far_things_move(client, loaded, session):
+    media = cut_there(client, loaded, session)
+    r = client.post("/api/put-back/plan", json={"media": media, "first": 1, "last": 1})
+    assert r.status_code == 200
+    plan = r.json()
+    assert plan["blocked"] == ""
+    assert (plan["site"]["kind"], plan["mode"]) == ("seam", "insert")
+    assert plan["at"] == round(0.45 * RATE)
+    assert plan["shift"] == round(0.45 * RATE)
+    assert plan["text"] == "there"
+    assert [o["outcome"] for o in plan["outcomes"]] == ["restored"]
+
+
+def test_put_back_command_restores_the_words_in_one_step(client, loaded, session):
+    media = cut_there(client, loaded, session)
+    assert [w["w"] for w in session.heard_words()] == ["hello"]
+    before = session.history.head
+    plan = client.post("/api/put-back/plan", json={"media": media, "first": 1,
+                                                   "last": 1}).json()
+    r = client.post("/api/command", json={"name": "put_back", "args": {
+        "media": media, "start": plan["start"], "end": plan["end"]}})
+    assert r.status_code == 200, r.text
+    assert [w["w"] for w in session.heard_words()] == ["hello", "there"]
+    assert session.history.nodes_page(2)[1]["id"] == before  # exactly one new step
+    client.post("/api/undo")
+    assert [w["w"] for w in session.heard_words()] == ["hello"]
+
+
+def test_put_back_that_cannot_be_placed_says_so(client, loaded, session):
+    media = media_id(loaded)
+    client.post(f"/api/transcript/{media}", json=WORDS)
+    clips = [c.id for c in session.state.tracks[0].clips]
+    session.edit("delete_clips", {"clip_ids": clips})
+    plan = client.post("/api/put-back/plan", json={"media": media, "first": 1,
+                                                   "last": 1}).json()
+    assert plan["blocked"] == "none"
+    r = client.post("/api/command", json={"name": "put_back", "args": {
+        "media": media, "start": plan["start"], "end": plan["end"]}})
+    assert r.status_code == 400
+    assert r.json()["error"]["key"] == "error.put_back.blocked"
+
+
 def test_material_search_needs_a_query(client, loaded):
     assert client.get("/api/material-search").json() == {"hits": []}
 

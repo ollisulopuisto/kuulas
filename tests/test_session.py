@@ -454,6 +454,7 @@ def test_the_command_table_is_the_plans(session):
         "resync", "resync_from",  # WP19a: they report how many free clips they skipped
         "set_music_level",  # Auto-mix in Kuulas, phase 1
         "level_blocks",  # Auto-mix in Kuulas, phase 2
+        "put_back",  # Transcript: put removed words back (one ripple-insert step)
     }
 
 

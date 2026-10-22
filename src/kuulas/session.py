@@ -64,6 +64,7 @@ from . import (
     preview_level,
     priority,
     project_stats,
+    put_back,
     render_listen,
     silence_learn,
     silence_options,
@@ -3160,6 +3161,41 @@ class Session:
                     hit["at"], hit["track"] = placed["s"], placed["track"]
         return hits
 
+    def put_back_plan(self, media: str, *, first: int | None = None,
+                      last: int | None = None, start: int | None = None,
+                      end: int | None = None, track_ids=None,
+                      at: int | None = None) -> dict:
+        """What putting a removed stretch of ``media`` back would do (``put_back.plan``),
+        for the preview, without changing anything. The stretch is given as ``start`` and
+        ``end`` (flicks from the recording's start), or as the words ``first``..``last``
+        of the recording's transcript: then it is their sentence, kept inside what was
+        removed (``put_back.choose_range``). ``at``: a frame to put it at instead (the
+        playhead). ``track_ids``: the tracks that open a gap (default: every track)."""
+        with self.lock:
+            state = self.history.state
+            words = self.transcripts().get(media)
+        if media not in {m.id for m in state.media}:
+            raise ops.EditError("error.edit.no_media", media_id=media)
+        if start is None or end is None:
+            if not words or first is None:
+                raise ops.EditError("error.server.bad_request", detail="first")
+            last = first if last is None else last
+            if not 0 <= first <= last < len(words):
+                raise ops.EditError("error.edit.no_word", media_id=media, index=last,
+                                    count=len(words))
+            start, end = put_back.choose_range(state, media, words, first, last)
+        scope = self._range_scope(state, track_ids)
+        plan = put_back.plan(state, media, start, end, scope=scope, at=at)
+        site = plan.site
+        return {
+            "site": {"kind": site.kind, "frame": site.frame, "track": site.track,
+                     "candidates": list(site.candidates), "why": site.why},
+            "at": plan.at, "mode": plan.mode, "length": plan.length, "shift": plan.shift,
+            "scope": list(plan.scope), "blocked": plan.blocked,
+            "outcomes": [{"track": t_id, "outcome": o} for t_id, o in plan.outcomes],
+            "start": start, "end": end, "text": _span_text(words or [], start, end),
+        }
+
     def transcribed_media(self) -> list[str]:
         """The recordings that have words anywhere on the timeline, heard or not: a
         recording whose every word is muted is still transcribed, not to be offered
@@ -3307,6 +3343,37 @@ def _cut_words(s: Session, args: dict) -> Project:
     rest = {k: v for k, v in args.items() if k != "group_editing"}
     return s._commit(t("history.cut_words", text=quoted), new, "cut_words",
                      {**rest, "track_ids": scope, "start": start, "end": end})
+
+
+def _span_text(words: list[dict], start: int, end: int, limit: int = 12) -> str:
+    """The words whose middle lies in ``[start, end)`` (flicks), at most ``limit``."""
+    inside = [w["w"] for w in words if start <= (w["s"] + w["e"]) // 2 < end]
+    return " ".join(inside[:limit]) + ("…" if len(inside) > limit else "")
+
+
+def _put_back(s: Session, args: dict) -> Project:
+    """Put a removed stretch back (Enter in the find bar's "Not in this edit" list): a
+    ripple insert at the seam on the tracks in scope, one undo step. Only clips are added;
+    no recording is touched. Blocked (unclear place, nothing to restore) raises, and the
+    caller then gives ``at`` (the playhead)."""
+    media = str(args.get("media") or "")
+    try:
+        start, end = int(args["start"]), int(args["end"])
+    except (KeyError, TypeError, ValueError):
+        raise ops.EditError("error.server.bad_request", detail="start") from None
+    state = s.history.state
+    if media not in {m.id for m in state.media}:
+        raise ops.EditError("error.edit.no_media", media_id=media)
+    scope = s._range_scope(state, args.get("track_ids"))
+    at = args.get("at")
+    plan = put_back.plan(state, media, start, end, scope=scope,
+                         at=None if at is None else int(at))
+    new = put_back.apply(state, plan)
+    text = _span_text(s.transcripts().get(media, []), start, end, LABEL_WORDS)
+    seconds = f"{plan.length / state.rate:.1f}"
+    return s._commit(t("history.put_back", text=text, seconds=seconds), new, "put_back",
+                     {"media": media, "start": start, "end": end, "track_ids": scope,
+                      "at": plan.at})
 
 
 def _sync_outcome(before: Project, ids: list[str], new: Project) -> dict:
@@ -3625,6 +3692,7 @@ COMMANDS: dict[str, Callable[[Session, dict], Project]] = {
     "automix": _automix,
     "duck_music": _duck_music,
     "cut_words": _cut_words,
+    "put_back": _put_back,
     "resync": _resync,
     "resync_from": _resync_from,
     "relink": _relink,

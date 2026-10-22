@@ -101,3 +101,13 @@ def test_a_recording_placed_nowhere_never_comes_back_whole():
     start, end = choose(project(), words, 1)
     assert (start, end) != (0, flicks(600))
     assert start > 0
+
+
+def test_the_sentence_stops_at_a_word_the_edit_still_plays():
+    # "keski" (3.1-3.6 s) is played; the cut words on both sides are separate blocks.
+    words = [word("ennen", 2.4, 2.9), word("keski", 3.1, 3.55), word("jalkeen", 3.7, 4.2)]
+    p = project([Clip("c", "m", 3 * SECOND, 3 * SECOND, round(0.6 * SECOND))])
+    start, end = choose(p, words, 2)
+    assert start >= flicks(3.6)
+    start, end = choose(p, words, 0)
+    assert end <= flicks(3.0)

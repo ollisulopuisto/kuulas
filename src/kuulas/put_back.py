@@ -365,17 +365,18 @@ def choose_range(project: Project, media: str, words: list[dict], first: int,
     def heard(i: int) -> bool:
         return _inside(used, origin + (words[i]["s"] + words[i]["e"]) // 2)
 
-    def joins(a: int, b: int) -> bool:
-        """Do neighbouring words ``a`` then ``b`` belong to one sentence?"""
+    def joins(a: int, b: int, added: int) -> bool:
+        """Do neighbouring words ``a`` then ``b`` belong to one sentence, and is the
+        word being added (``added``, one of them) removed from the edit?"""
         before, after = words[a], words[b]
-        return (not heard(b) and after["s"] - before["e"] <= SENTENCE_GAP
+        return (not heard(added) and after["s"] - before["e"] <= SENTENCE_GAP
                 and before["w"][-1:] not in _STOPS
                 and before.get("spk", "") == after.get("spk", ""))
 
     i, j = first, last
-    while i > 0 and joins(i - 1, i):
+    while i > 0 and joins(i - 1, i, i - 1):
         i -= 1
-    while j < len(words) - 1 and joins(j, j + 1):
+    while j < len(words) - 1 and joins(j, j + 1, j + 1):
         j += 1
     start = words[i]["s"]
     if i > 0:

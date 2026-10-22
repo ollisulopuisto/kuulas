@@ -106,6 +106,7 @@
   "history.automix": "Mikkien vaimennus",
   "history.duck_music": "Vaimenna taustamusiikki",
   "history.cut_words": "leikkaus ”{text}”",
+  "history.put_back": "palautus ”{text}” ({seconds} s)",
   "log.cache.recompute": "Lasketaan {kind}-välimuisti uudelleen: {media_id}.",
   "error.peaks.damaged": "Huipputiedosto on vaurioitunut.",
   "log.analysis.overlap": "Raidan {track_id} leikkeet menevät päällekkäin, joten sen tasot mitataan äänestä.",
