@@ -211,6 +211,8 @@ export const MENU = [
       SEP,
       item("app.save"),
       item("app.save_named"),
+      item("app.open_earlier_version"),
+      item("app.backup_now"),
       item("app.send_copy"),
       SEP,
       item("app.export"),

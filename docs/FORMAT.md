@@ -299,9 +299,12 @@ checkpoints(node TEXT PRIMARY KEY REFERENCES nodes(id),
 **Saved versions in the History answer.** `GET /api/history` puts each step's checkpoint on the
 step as `checkpoint: {name, kind, copy, created}` (`null` for an ordinary step), in the paged
 and the whole-list shape alike. `saved=1` (paged shape) pages only the steps that have one; the
-server filters so a sparse hit never runs the page dry. `save_checkpoint` writes one;
-`rename_checkpoint {node, name}` changes only `name`. Plain Save (`save_backup`) writes no
-checkpoint: it is not in the list.
+server filters so a sparse hit never runs the page dry. `save_checkpoint {name, rename?}`
+(Mod+S, Shift+Mod+S) saves the head as a version unless the head already is one (a step is at
+most one saved version): the answer's `saved` is `{node, name, created, result}` with `result`
+`made`, `already` (the existing version is kept, whatever its kind) or `renamed` (only with
+`rename: true` and a different name); `rename_checkpoint {node, name}` changes only `name`.
+`save_backup` (File > Back up now) writes no checkpoint: it is not in the list.
 
 **Where a step stands, in the History answer (paged shape).** A restore step (`op.name ==
 "restore"`, `op.args.node` = its target) is a child of the head like any step, but the state it
@@ -881,16 +884,16 @@ at any time.
 ## Backups
 
 While the project is open and has changes since the last backup, every 10
-minutes (and on Mod+S) kuulas writes `backups/auto-YYYYMMDDTHHMMSSZ.sqlite`
+minutes (and on File > Back up now) kuulas writes `backups/auto-YYYYMMDDTHHMMSSZ.sqlite`
 (UTC in the name) with the online backup API, through
 `auto-….sqlite.partial`, fsync and rename. It never touches the live file.
 Media is not backed up: it is immutable and content-addressed, and its
 originals live where they were (docs/DISK.md has what takes the space).
 
 - **Skipped** when nothing was written since the last one (the session's
-  change counter; Mod+S then answers with the newest backup), and when the
+  change counter; Back up now then answers with the newest backup), and when the
   disk has less free than twice the database (`project.sqlite` plus its
-  WAL). A skip is logged, never an error for the timer; Mod+S says
+  WAL). A skip is logged, never an error for the timer; Back up now says
   "No backup was made: the disk is nearly full".
 - **Compressed** right after, on one background thread at utility priority
   that pauses while audio plays (`priority.checkpoint`, docs/PLAYBACK-PRIORITY.md):

@@ -26,6 +26,8 @@ describe("File", () => {
       "separator",
       "app.save",
       "app.save_named",
+      "app.open_earlier_version",
+      "app.backup_now",
       "app.send_copy",
       "separator",
       "app.export",

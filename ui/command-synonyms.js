@@ -177,6 +177,18 @@ export const SYNONYMS = {
 
   // -- saving, exporting ---------------------------------------------------------------------
   "app.save": ["write", "store", "keep", "tallenna", "talleta"],
+  "app.open_earlier_version": [
+    "earlier version",
+    "older version",
+    "previous version",
+    "restore saved",
+    "revert",
+    "avaa aiempi versio",
+    "aiempi versio",
+    "palauta tallennus",
+    "palauta tallennettu",
+  ],
+  "app.backup_now": ["backup", "back up", "copy", "varmuuskopio", "varmuuskopioi"],
   "app.save_named": [
     "snapshot",
     "version",
@@ -433,7 +445,7 @@ export const SYNONYMS = {
   "history.rename_version": ["rename version", "rename save", "nimeä versio"],
   "history.saved_only": ["saved versions", "named versions", "tallennetut versiot"],
   "history.goto_restore_point": ["restore point", "restored step", "palautuskohta"],
-  "history.open_saved": ["earlier version", "open version", "aiempi versio"],
+  "history.open_saved": ["open saved", "saved list", "avaa tallennetut"],
   "history.expand_all": ["open groups", "rolled back", "left behind", "avaa ryhmät"],
   "help.performance_report": [
     "slow",

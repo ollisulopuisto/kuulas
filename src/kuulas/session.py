@@ -361,7 +361,10 @@ class Session:
         #: UI asks whether to turn them into mono.
         self.last_import_stereo: list[dict] = []
         #: The report from the latest match_loudness command (WP19c).
-        self.last_backup: Path | None = None  # the newest save_backup (Mod+S)
+        self.last_backup: Path | None = None  # the newest save_backup (Back up now)
+        #: What the latest save_checkpoint did, for the UI's toast: {node, name, created,
+        #: result: made | already | renamed}.
+        self.last_saved: dict | None = None
         self.last_match_report: MatchReport = MatchReport({"matched": [], "skipped": []})
         #: resume.json in the project folder (not project state; docs/FORMAT.md).
         self.resume = ResumeWriter(self.package.path, enabled=not self.read_only)
@@ -3520,7 +3523,7 @@ def _check_writable(s: Session) -> None:
 
 
 def _save_backup(s: Session, _args: dict) -> Project:
-    """Mod+S: the 10-minute timer's backup, now (same retention). Edits are
+    """File > Back up now: the 10-minute timer's backup, now (same retention). Edits are
     already committed, so this only makes the copy. The online backup reads
     through its own connection, so no session lock: a slow disk must not
     stall playback."""
@@ -3534,9 +3537,30 @@ def _save_backup(s: Session, _args: dict) -> Project:
 
 
 def _save_checkpoint(s: Session, args: dict) -> Project:
-    """Shift+Mod+S: name the current step. Changes no edit state."""
+    """Mod+S and Shift+Mod+S: mark the current step as a saved version. Changes no
+    edit state.
+
+    A step is one saved version at most (the table is keyed by step), so a step that
+    already is one makes no second: ``result`` says ``already`` and the answer carries
+    the version it has, whatever its kind (a sent copy's version is never overwritten
+    by a Save). With ``rename`` (Shift+Mod+S, the user typed a name) a different name
+    renames that version instead. ``made`` otherwise."""
     _check_writable(s)
-    s.checkpoint(str(args.get("name") or "").strip() or t("history.checkpoint_default"))
+    name = str(args.get("name") or "").strip() or t("history.checkpoint_default")
+    head = s.history.head
+    held = s.history.checkpoint_map().get(head)
+    if held is None:
+        s.checkpoint(name)
+        result = "made"
+    elif args.get("rename") and name != held["name"]:
+        with s.lock:
+            s.history.rename_checkpoint(head, name)
+        result = "renamed"
+    else:
+        result = "already"
+    mark = s.history.checkpoint_map()[head]
+    s.last_saved = {"node": head, "name": mark["name"], "created": mark["created"],
+                    "result": result}
     return s.state
 
 

@@ -618,10 +618,12 @@ export function createHistoryPanel({
     }
   });
 
-  /** Rename the picked saved version in place; false when the pick is not one. */
-  function startRename() {
-    const picked = nodes.find((node) => node.id === getState().historySelected);
+  /** Rename a saved version in place (the picked one, or `id`: then it is picked first);
+   * false when that step is not one. */
+  function startRename(id = getState().historySelected) {
+    const picked = nodes.find((node) => node.id === id);
     if (!picked?.checkpoint) return false;
+    pick(picked.id);
     renaming = picked.id;
     signature = "";
     draw();
@@ -659,8 +661,22 @@ export function createHistoryPanel({
     draw();
   }
 
+  /** Fetch the list again at the same head: a version was saved on the step on screen, which
+   * moves no head, so update() would not look. Resolves when the list is drawn; before the
+   * tab is shown it only marks the list stale. */
+  async function refresh() {
+    loadedHead = undefined;
+    requestedHead = undefined;
+    const state = getState();
+    if (state.sidebarTab === "history" && !root.hidden && state.head) {
+      requestedHead = state.head;
+      await reload(state.head);
+    }
+  }
+
   return {
     update,
+    refresh,
     startRename,
     goToRestorePoint,
     expandAll,
