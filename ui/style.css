@@ -2625,17 +2625,9 @@ input[type="text"] {
   box-shadow: inset 0 -2px 0 var(--accent);
   border-radius: 0;
 }
-.tx-text .w.cut {
-  text-decoration: line-through;
-  text-decoration-thickness: 1px;
-  color: var(--text-tertiary);
-}
 .tx-text .w.low {
   text-decoration: underline dotted var(--text-tertiary);
   text-underline-offset: 4px;
-}
-.tx-text .w.cut.low {
-  text-decoration: line-through underline dotted var(--text-tertiary);
 }
 /* The word cursor: a thin outline while the panel has the keyboard. */
 [data-panel="transcript"]:focus-visible .w.cur {

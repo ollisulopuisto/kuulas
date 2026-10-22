@@ -455,3 +455,13 @@ export function shouldLoadWords({ head, key, fetchedHead, fetchedKey, fetching, 
   if (fetching || head === null) return false;
   return force || head !== fetchedHead || key !== fetchedKey;
 }
+
+/**
+ * The recordings that have a transcript: the server's list (words anywhere on the
+ * timeline, heard or not) plus the recordings of the words shown. The panel draws only
+ * heard words, so a recording whose every word is muted would otherwise look untranscribed
+ * and be offered for transcription again.
+ */
+export function transcribedMedia(state, words) {
+  return [...new Set([...(state?.transcribed ?? []), ...words.map((word) => word.media)])];
+}

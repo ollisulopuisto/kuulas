@@ -1701,7 +1701,12 @@ async function ensureWords() {
     const body = await wordsAsked.promise;
     // Only if the edit did not move on while it was in flight, else ask again.
     if (getState().head === head) {
-      setState({ words: body.words ?? [], people: body.people ?? {}, wordsHead: head });
+      setState({
+        words: body.words ?? [],
+        transcribed: body.transcribed ?? [],
+        people: body.people ?? {},
+        wordsHead: head,
+      });
     }
   }
 }
@@ -4301,7 +4306,11 @@ try {
   const [state, words] = await Promise.all([booting.state, booting.words]);
   apply(state);
   offerToLocate(state.missing);
-  setState({ words: words.words ?? [], wordsHead: getState().head });
+  setState({
+    words: words.words ?? [],
+    transcribed: words.transcribed ?? [],
+    wordsHead: getState().head,
+  });
   await restoreView(booting.view);
   await refreshClipboard(booting.clipboard);
   void refreshSeries();

@@ -15,6 +15,9 @@ export const initialState = () => ({
   // ({ available, current, missing, reason, listening, name, range, set_at }; null: none).
   render: null,
   words: [],
+  // The recordings that have words on the timeline, heard or not (GET /api/words): the
+  // transcript shows only heard words, so `words` alone cannot say what is transcribed.
+  transcribed: [],
   // The names of the people the words refer to (GET /api/words), and the head the words
   // were fetched at: a command on the words waits until it equals `head`.
   people: {},

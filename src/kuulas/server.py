@@ -1546,8 +1546,12 @@ def create_app(session, engine, *, language: str | None = None,
 
     @app.get("/api/words")
     def get_words():
-        words = session.timeline_words()
+        # Only what is heard: muted, soft-cut and gated words are not in the transcript.
+        words = session.heard_words()
         body: dict[str, Any] = {"words": words}
+        transcribed = session.transcribed_media()
+        if transcribed:
+            body["transcribed"] = transcribed
         # The names of the people the words refer to, so the transcript can head a
         # paragraph with "Anna" and not an id; absent when nobody is mapped.
         used = {w["person"] for w in words if w.get("person")}

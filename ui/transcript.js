@@ -39,6 +39,7 @@ import {
   selectWord,
   shouldLoadWords,
   summaryParts,
+  transcribedMedia,
   transcriptEscape,
   visibleRange,
   wordAtTime,
@@ -214,7 +215,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     const targets = transcribeTargets();
     const { rows, all } = offerRows({
       media: targets,
-      transcribed: words.map((word) => word.media),
+      transcribed: transcribedMedia(getState(), words),
       jobs: allJobs,
     });
     lastRows = rows;
@@ -222,7 +223,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     const note = musicNote({
       project: getState().project,
       selection: getState().selection,
-      transcribed: words.map((word) => word.media),
+      transcribed: transcribedMedia(getState(), words),
     });
     empty.hidden = !getState().project || (has && rows.length === 0 && !note);
     empty.replaceChildren();
@@ -355,7 +356,6 @@ export function createTranscript({ root, getState, setState, api, actions }) {
         ? null
         : [Math.min(sel.anchor, sel.cursor), Math.max(sel.anchor, sel.cursor)];
     let name = "w";
-    if (word.muted) name += " cut";
     if (word.conf !== undefined && word.conf < LOW_CONFIDENCE) name += " low";
     if (i === now) name += " now";
     if (bounds && i >= bounds[0] && i <= bounds[1]) name += " sel";
@@ -950,6 +950,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       const sel = selection();
       setState({
         words: body.words ?? [],
+        transcribed: body.transcribed ?? [],
         people: body.people ?? {},
         wordsHead: head,
         // The old indices mean other words now: keep the place, drop the selection.

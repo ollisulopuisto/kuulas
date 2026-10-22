@@ -419,6 +419,41 @@ def test_words_name_the_people_they_refer_to(client, loaded, session):
     assert body["people"] == {pid: "Anna Virtanen"}
 
 
+def test_words_show_only_what_is_heard(client, loaded, session):
+    """A soft-cut or muted stretch is not in the transcript at all (owner, 2026-10-21):
+    no strikethrough, no marker. The recording still counts as transcribed."""
+    media = media_id(loaded)
+    client.post(f"/api/transcript/{media}", json=WORDS)
+    track = session.state.tracks[0]
+    mute = {"track_id": track.id, "ranges": [[0, round(0.45 * RATE)]]}
+    session.edit("mute_ranges", mute)
+    body = client.get("/api/words").json()
+    assert [w["w"] for w in body["words"]] == ["there"]
+    assert body["transcribed"] == [media]
+
+
+def test_a_muted_track_leaves_no_words_but_stays_transcribed(client, loaded, session):
+    media = media_id(loaded)
+    client.post(f"/api/transcript/{media}", json=WORDS)
+    session.edit("set_track", {"track_id": session.state.tracks[0].id, "mute": True})
+    body = client.get("/api/words").json()
+    assert body["words"] == []
+    assert body["transcribed"] == [media]
+
+
+def test_cut_words_counts_positions_in_the_heard_words(client, loaded, session):
+    """The panel only shows heard words, so the index it sends is a position in them."""
+    media = media_id(loaded)
+    client.post(f"/api/transcript/{media}", json=WORDS)
+    track = session.state.tracks[0]
+    mute = {"track_id": track.id, "ranges": [[0, round(0.45 * RATE)]]}
+    session.edit("mute_ranges", mute)
+    session.command("cut_words", {"indices": [0]})  # "there", the only heard word
+    assert [w["w"] for w in session.timeline_words()] == ["hello"]
+    r = client.post("/api/command", json={"name": "cut_words", "args": {"indices": [1]}})
+    assert r.status_code == 400
+
+
 def test_transcript_import_accepts_the_whisper_shape(client, loaded):
     media = media_id(loaded)
     segments = {"segments": [{"words": WORDS}]}

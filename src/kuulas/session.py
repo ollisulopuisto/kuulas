@@ -3134,6 +3134,19 @@ class Session:
 
             return list(self._memo("timeline_words", key, compute, 300))
 
+    def heard_words(self) -> list[dict]:
+        """The words someone hears: ``timeline_words`` without the muted, soft-cut and
+        gated ones (owner, 2026-10-21: the transcript shows only what is heard). The
+        position in this list is a word's reference for ``cut_words``, and it is what
+        ``GET /api/words`` returns, so the panel and the command count the same words."""
+        return [w for w in self.timeline_words() if not w["muted"]]
+
+    def transcribed_media(self) -> list[str]:
+        """The recordings that have words anywhere on the timeline, heard or not: a
+        recording whose every word is muted is still transcribed, not to be offered
+        again for transcription."""
+        return sorted({w["media"] for w in self.timeline_words()})
+
     def edit_points(self, mode: str, track_id: str | None = None) -> list[int]:
         """The Tab stops of ``mode`` (WP19i), memoized on the edit state, so
         the same head asked twice costs nothing. Onset detection reads media
@@ -3256,7 +3269,7 @@ def _duck_music(s: Session, args: dict) -> Project:
 def _cut_words(s: Session, args: dict) -> Project:
     """Delete words from the audio: the stretch they cover is ripple-deleted
     on every track, so the speakers stay together."""
-    words = s.timeline_words()
+    words = s.heard_words()
     chosen = sorted({int(i) for i in args.get("indices", ())})
     if not chosen:
         raise ops.EditError("error.edit.no_selection")
