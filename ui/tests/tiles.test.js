@@ -76,4 +76,20 @@ describe("tile store (what the worker keeps)", () => {
     store.want([want(0)]);
     assert.equal(fetches.length, 2);
   });
+
+  test("failed tiles count toward the bound, and never push out the tile just fetched", async () => {
+    // A tile that keeps failing (past a file's end, a server error while reconnecting) used to
+    // stay in the map forever; past the bound, every fetched tile was evicted at once and the
+    // waveform refetched it in a loop.
+    const { store, fetches } = setup({ maxTiles: 3, maxInflight: 99 });
+    store.want(Array.from({ length: 50 }, (_, i) => want(i)));
+    for (const f of fetches) f.reject(new Error("500"));
+    await settle();
+    assert.ok(store.size() <= 3, `holds ${store.size()} entries`);
+    store.want([want(100)]);
+    fetches.at(-1).resolve(tile(7));
+    await settle();
+    assert.deepEqual(Array.from(store.lookup("m", 256, 100)), [7, 7]);
+    assert.ok(store.size() <= 3);
+  });
 });
