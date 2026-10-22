@@ -268,9 +268,17 @@ describe("the core keys", () => {
     const timeline = setup({ context: "timeline" });
     timeline.keymap.handle(press({ key: "b", code: "KeyB" }));
     assert.deepEqual(timeline.calls, [["edit.split"]]);
+    // B is an editing key: global since 2026-10-22, it also works from a side panel.
     const side = setup({ context: "side" });
-    assert.equal(side.keymap.handle(press({ key: "b", code: "KeyB" })), false);
-    assert.deepEqual(side.calls, []);
+    assert.equal(side.keymap.handle(press({ key: "b", code: "KeyB" })), true);
+    assert.deepEqual(side.calls, [["edit.split"]]);
+    // G fades in the timeline and goes to the restore point in the side panels.
+    const fade = setup({ context: "timeline" });
+    fade.keymap.handle(press({ key: "g", code: "KeyG" }));
+    assert.deepEqual(fade.calls, [["clip.fade"]]);
+    const goto = setup({ context: "side" });
+    goto.keymap.handle(press({ key: "g", code: "KeyG" }));
+    assert.deepEqual(goto.calls, [["history.goto_restore_point"]]);
     const transcript = setup({ context: "transcript" });
     transcript.keymap.handle(press({ key: "Backspace", code: "Backspace" }));
     assert.deepEqual(transcript.calls, [["transcript.delete_words"]]);

@@ -10,7 +10,8 @@
 //     only" a range operation acts on those tracks alone, from the keyboard as well.
 //   - `rangeMode` is "all" or "selected". Selecting a header sets "selected"; clearing the
 //     track selection returns to "all"; E flips it; project open resets it to "all".
-import { markedRange } from "./selection.js";
+import { editTarget, INTENT_CLIPS, rangeDimmed } from "./intent.js";
+import { markedRange, selectedClips } from "./selection.js";
 
 export const MODE_ALL = "all";
 export const MODE_SELECTED = "selected";
@@ -105,7 +106,8 @@ export function scopeSpans(state, rows, { rulerHeight, scrollY }) {
 /** Ids of the tracks the next range operation will NOT touch: drawn dimmed (lane, header, waveform). */
 export function dimmedTracks(state) {
   const scope = resolveScope(state);
-  if (scope.none) return new Set();
+  // The selected clips are the target (intent.js): the range's tracks decide nothing.
+  if (scope.none || rangeDimmed(state)) return new Set();
   const touched = new Set(scope.tracks);
   return new Set(
     tracksOf(state)
@@ -116,10 +118,13 @@ export function dimmedTracks(state) {
 
 /**
  * What the status-bar chip says, as data: null (nothing to say: all tracks and no range),
- * `{ kind: "none" }`, or `{ kind: "range" | "mode", all, count, names, start?, end? }`
- * (`names` only when not all tracks).
+ * `{ kind: "none" }`, `{ kind: "clips", count }` (a range is marked but the clips selected
+ * after it are what the next edit touches), or `{ kind: "range" | "mode", all, count, names,
+ * start?, end? }` (`names` only when not all tracks).
  */
 export function scopeChip(state) {
+  if (rangeDimmed(state) && editTarget(state) === INTENT_CLIPS)
+    return { kind: "clips", count: selectedClips(state).length };
   const scope = resolveScope(state);
   if (scope.none) return { kind: "none" };
   const range = markedRange(state);

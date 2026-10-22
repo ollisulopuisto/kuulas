@@ -54,9 +54,9 @@ export const ALWAYS_AVAILABLE = ["wav", "flac"];
  * What the notice says about an export job (as /api/jobs lists it), `kind` "tracks" (the
  * default) or "mix": { kind, text, sticky, cancel, reveal }. `sticky` stays until replaced,
  * `cancel` offers Cancel, `reveal` offers Show in Finder (desktop window only; the caller
- * checks).
+ * checks). `selectionText` (selectionNotice) leads the running text of a selection export.
  */
-export function exportNotice(job, t, what = "tracks") {
+export function exportNotice(job, t, what = "tracks", selectionText = "") {
   if (job.state === "completed") {
     const { path, track_count: count, silent = [], settings } = job.result ?? {};
     const range = settings?.range ? "_range" : "";
@@ -79,9 +79,13 @@ export function exportNotice(job, t, what = "tracks") {
     return { kind: "ok", text: t("ui.export.cancelled"), sticky: false, cancel: false };
   }
   const percent = Math.round((job.progress ?? 0) * 100);
+  const running = t(what === "mix" ? "ui.export.mix_running" : "ui.export.tracks_running", {
+    percent,
+  });
   return {
     kind: "ok",
-    text: t(what === "mix" ? "ui.export.mix_running" : "ui.export.tracks_running", { percent }),
+    // A selection export says so first: what is exported, which tracks and span.
+    text: selectionText ? `${selectionText} ${running}` : running,
     sticky: true,
     cancel: true,
   };
@@ -117,7 +121,8 @@ export async function exportRequest({ format, ask, bridge, hint, onAsk }) {
  * openExportDialog("mix" | "tracks") -> opens the "(options)…" dialog (export-dialog.js),
  * exportRegions() -> Promise (queues the one region job; the jobs list shows its progress),
  * automix() -> opens the "Mix with the automixer" dialog (WP68),
- * automixLog() -> opens the live "Automixer log" viewer.
+ * automixLog() -> opens the live "Automixer log" viewer,
+ * openMusicReport() -> opens the "Music report…" dialog (music-report-dialog.js).
  */
 export function registerExportCommands(registry, { app, t }) {
   for (const { id, path, file } of EXPORTS) {
@@ -187,6 +192,12 @@ export function registerExportCommands(registry, { app, t }) {
   });
   registry.register("export.automix_log", () => void app.automixLog(), {
     hintKey: "cmd.export.automix_log.hint",
+  });
+  // WP25: the dialog asks the server for the report. It needs a project, not tracks: an edit
+  // with no music shows "No music in this edit" and says why.
+  registry.register("export.music_report", () => void app.openMusicReport(), {
+    can: (state) => Boolean(state?.project),
+    hintKey: "cmd.export.music_report.hint",
   });
   registry.register("export.regions", () => void app.exportRegions(), {
     can: hasRegions,

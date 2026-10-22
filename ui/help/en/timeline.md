@@ -2,7 +2,7 @@
 id: timeline
 title: The timeline
 applies-to: [timeline]
-commands: [transport.play, view.toggle, view.fit, view.fit_selection, view.zoom_in, view.zoom_out, view.back, view.wheel_mode, view.clip_words, view.toggle_sidebar, panel.next, nav.home, spot, time.copy, help.open, help.keys]
+commands: [transport.play, view.toggle, view.fit, view.fit_selection, view.zoom_in, view.zoom_out, view.back, view.wheel_mode, view.clip_words, view.follow, view.show_playhead, view.toggle_sidebar, panel.next, nav.home, spot, time.copy, help.open, help.keys]
 related: [clip, track, bus]
 ---
 Every track is a lane, and time runs left to right. A click anywhere in the lanes moves the play cursor there. A click on a clip also selects it; Shift+click adds or removes a clip. Drag across the lanes to mark a time range. While you drag, a hint on the lanes tells which key turns the range into the clips it touches (they are selected and the in and out marks go to their span) and which key cancels.
@@ -16,6 +16,8 @@ Every track is a lane, and time runs left to right. A click anywhere in the lane
 - Show the whole edit: {key:view.fit}
 - Fit the selection or in-out range: {key:view.fit_selection}
 - Back to the view before: {key:view.back}
+
+While playing, the view follows the play cursor (the Follow chip in the corner is lit). Scrolling, dragging the overview or zooming turns Follow off and the view stays where you put it; an arrow at the edge then shows where the play cursor is. Click the chip, the arrow or the cursor itself, or start, stop or jump to a time (Home, End, a marker, a transcript word, Spot, Tab to the next stop), to follow again. Nudging the play cursor with the arrow keys or clicking a visible spot on the ruler does not. {run:view.follow} {run:view.show_playhead}
 
 Density, waveform and follow settings are in the View menu. {show:view-menu} So are Fit tracks to the window and Keep tracks fitted to the window. To size one lane, drag the bottom edge of its header; double-click the edge to reset it.
 
@@ -40,6 +42,28 @@ To give the timeline more width, hide the whole side panel (the x on its tab str
 
 ## Panels
 {key:panel.next} moves the keyboard to the next panel; {key:nav.home} brings it back here.
+
+## Exporting the selection
+Every export exports only what is selected, and says so when it starts ("Exporting the selection only: tracks Anna, Ville, 12.00-18.30").
+- With in and out marks (or a range dragged across the lanes): that time range, on the tracks a range command would use.
+- With clips selected and no range: the tracks that hold those clips, from the first selected clip's start to the last one's end. Everything on those tracks in that span is included, not only the selected clips.
+- With nothing selected: the whole mix.
+
+The export options and the automixer dialog show the selection and a box, "Only export the selection", ticked while there is a selection. Untick it to export everything. The file name carries the span and the tracks, and an existing file is never replaced. Muted tracks stay muted, and solo works as in the whole mix.
+
+## Stepping back
+{key:nav.home} undoes one thing per press, the newest first, and then puts the keyboard on the timeline:
+- an Auto-Silence preview (dropped, nothing was applied)
+- the text field you are typing in
+- the selected track headers
+- the selected clips, the dragged range and the in and out marks, together
+- focus mode
+- then it only moves the keyboard here
+
+In the transcript a selected word range goes first; in the Clipboard filter the typed text goes first. A drag in progress, a menu or a dialog is closed before any of this. {key:nav.home} never stops playback ({key:transport.play} does) and never cancels an export or automix: use the Cancel button on its notice.
+
+## Keys that cannot act
+An editing key (cut, delete, split, mute, copy and the rest) that has nothing to work on says why in a one-line notice and never beeps. The editing keys work from every panel except while you type or a dialog is open; after one works from a side panel, the keyboard returns to the timeline.
 
 ## Help
 {key:help.open} opens help for what you are looking at; {key:help.keys} lists every key.

@@ -57,6 +57,7 @@ export const CHECKED = {
   "bus.role_music": (state) => focusedBusRole(state) === "music",
   "bus.role_none": (state) => focusedBusRole(state) === null,
   "view.clip_words": (state) => state?.showClipWords !== false,
+  "view.follow": (state) => state?.followPaused !== true,
   "view.focus": (state) => Boolean(state?.focusMode),
   "view.focus_shrink": (state) => state?.focusShrink !== false,
   "view.focus_hide_others": (state) => state?.focusHideOthers === true,
@@ -107,6 +108,11 @@ const GO = submenu("menu.go", [
   SEP,
   item("history.open"),
   item("history.restore"),
+  item("history.goto_restore_point"),
+  item("history.expand_all"),
+  item("history.saved_only"),
+  item("history.open_saved"),
+  item("history.rename_version"),
 ]);
 const MARKERS = submenu("menu.markers", [
   item("marker.add"),
@@ -188,7 +194,7 @@ const OPEN_RECENT = {
   kind: "submenu",
   labelKey: "menu.open_recent",
   source: "recent",
-  items: [item("app.clear_recent")],
+  items: [item("app.remove_missing_recents"), item("app.clear_recent")],
 };
 
 export const MENU = [
@@ -205,6 +211,8 @@ export const MENU = [
       SEP,
       item("app.save"),
       item("app.save_named"),
+      item("app.open_earlier_version"),
+      item("app.backup_now"),
       item("app.send_copy"),
       SEP,
       item("app.export"),
@@ -214,6 +222,7 @@ export const MENU = [
       item("export.automix_log"),
       item("export.tracks_quick"),
       item("export.tracks"),
+      item("export.music_report"),
       submenu("menu.export_transcripts", [
         item("export.subtitles_srt"),
         item("export.subtitles_vtt"),
@@ -415,6 +424,7 @@ export const MENU = [
       item("transport.record"),
       submenu("menu.record_settings", [item("record.stop_mode"), item("record.preroll")]),
       SEP,
+      item("transport.loop_selection"),
       item("transport.loop"),
       item("transport.render_listen"),
       submenu("menu.fast_playback", [
@@ -479,6 +489,8 @@ export const MENU = [
       submenu("menu.buses", [item("view.collapse_all_buses"), item("view.expand_all_buses")]),
       submenu("menu.mouse", [item("view.drag_mode"), item("view.wheel_mode")]),
       item("view.clip_words"),
+      item("view.follow"),
+      item("view.show_playhead"),
       // How lanes outside the current operation look (docs/design/SILENCE-VISUALS.md).
       submenu("menu.inactive", [
         item("view.inactive_both"),

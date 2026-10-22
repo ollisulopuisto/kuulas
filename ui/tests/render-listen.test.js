@@ -9,6 +9,7 @@ import {
   renderBanner,
   renderSwitch,
   renderWhen,
+  selectionChoice,
   spanText,
   withRange,
 } from "../render-listen-model.js";
@@ -113,6 +114,33 @@ describe("leftStaleRender", () => {
   test("an undo that removed the record ends listening with the notice too", () => {
     const after = { available: false, current: false, listening: false };
     assert.equal(leftStaleRender(render({ listening: true }), after), true);
+  });
+});
+
+describe("selectionChoice (the automixer honours the selection)", () => {
+  const length = RATE * 60;
+  const sel = { source: "clips", range: [RATE * 10, RATE * 20], trackIds: ["a"], names: ["Anna"] };
+  test("a selection longer than a second is on offer, with its tracks", () => {
+    assert.deepEqual(selectionChoice(sel, { length, rate: RATE }), {
+      enabled: true,
+      range: [RATE * 10, RATE * 20],
+      trackIds: ["a"],
+      names: ["Anna"],
+    });
+  });
+  test("no selection, or one too short, is off", () => {
+    assert.equal(selectionChoice(null, { length, rate: RATE }).enabled, false);
+    const tiny = { ...sel, range: [0, RATE / 2] };
+    assert.equal(selectionChoice(tiny, { length, rate: RATE }).enabled, false);
+  });
+  test("withRange sends the range and the tracks of a ticked choice", () => {
+    const choice = selectionChoice(sel, { length, rate: RATE });
+    assert.deepEqual(withRange({ x: 1 }, "1", choice), {
+      x: 1,
+      range: [RATE * 10, RATE * 20],
+      track_ids: ["a"],
+    });
+    assert.deepEqual(withRange({ x: 1 }, "", choice), { x: 1 });
   });
 });
 

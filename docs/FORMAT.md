@@ -291,10 +291,38 @@ nodes(id TEXT PRIMARY KEY,           -- UUIDv7: unique across copies, time-order
       created_utc TEXT NOT NULL)
 checkpoints(node TEXT PRIMARY KEY REFERENCES nodes(id),
             name TEXT NOT NULL,          -- "v1 sent to Ville for review"
-            kind TEXT NOT NULL,          -- 'manual' | 'sent' | 'received'
+            kind TEXT NOT NULL,          -- 'manual' | 'sent' | 'received' | 'export'
             copy TEXT,                   -- the hand-off copy id, for sent/received
             created_utc TEXT NOT NULL)
 ```
+
+**Saved versions in the History answer.** `GET /api/history` puts each step's checkpoint on the
+step as `checkpoint: {name, kind, copy, created}` (`null` for an ordinary step), in the paged
+and the whole-list shape alike. `saved=1` (paged shape) pages only the steps that have one; the
+server filters so a sparse hit never runs the page dry. `save_checkpoint {name, rename?}`
+(Mod+S, Shift+Mod+S) saves the head as a version unless the head already is one (a step is at
+most one saved version): the answer's `saved` is `{node, name, created, result}` with `result`
+`made`, `already` (the existing version is kept, whatever its kind) or `renamed` (only with
+`rename: true` and a different name); `rename_checkpoint {node, name}` changes only `name`.
+`save_backup` (File > Back up now) writes no checkpoint: it is not in the list.
+
+**Where a step stands, in the History answer (paged shape).** A restore step (`op.name ==
+"restore"`, `op.args.node` = its target) is a child of the head like any step, but the state it
+makes is its target's. So the current state's *lineage* follows effective parents: a restore's
+is its target, every other step's its parent. Each step carries `side`: `head`, `past` (in the
+lineage), `rolled_back` (an ancestor of the head that a restore skipped), `redo` (Redo walks
+it; the panel calls it "undone") or `branch` (left behind by an edit after an undo); and
+`rolled_back_by` (the restore that skipped it, else `null`) and `restore_target` (on a
+restore step, the step it restored, else `null`). Restoring onto a left-behind step makes that
+branch `past`; undoing a restore makes what it skipped `past` again. Nothing is stored for
+this: it is read from `nodes` in one query.
+
+**Step names are made when the list is read** (`step_names.py`), in the request's language,
+from `op` + `args` and today's track names: `name` (`Track settings: Olli · gain −3.0 dB`),
+`name_base` and `name_detail` (its two halves) and `run` (op and object, the key consecutive
+steps share when the panel shows them as one row; `null` when they never merge). A restore is
+named after the step whose state it holds. `label` stays as stored, and is the name of an op
+with no describer. Nothing in the file is rewritten.
 
 **Why UUIDs, not integers, for steps:** two copies of a project grow their
 histories apart, and integer ids would collide when B's steps come back to
@@ -856,16 +884,16 @@ at any time.
 ## Backups
 
 While the project is open and has changes since the last backup, every 10
-minutes (and on Mod+S) kuulas writes `backups/auto-YYYYMMDDTHHMMSSZ.sqlite`
+minutes (and on File > Back up now) kuulas writes `backups/auto-YYYYMMDDTHHMMSSZ.sqlite`
 (UTC in the name) with the online backup API, through
 `auto-….sqlite.partial`, fsync and rename. It never touches the live file.
 Media is not backed up: it is immutable and content-addressed, and its
 originals live where they were (docs/DISK.md has what takes the space).
 
 - **Skipped** when nothing was written since the last one (the session's
-  change counter; Mod+S then answers with the newest backup), and when the
+  change counter; Back up now then answers with the newest backup), and when the
   disk has less free than twice the database (`project.sqlite` plus its
-  WAL). A skip is logged, never an error for the timer; Mod+S says
+  WAL). A skip is logged, never an error for the timer; Back up now says
   "No backup was made: the disk is nearly full".
 - **Compressed** right after, on one background thread at utility priority
   that pauses while audio plays (`priority.checkpoint`, docs/PLAYBACK-PRIORITY.md):

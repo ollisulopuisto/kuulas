@@ -14,6 +14,7 @@ import {
   entryMeta,
   entryTitle,
   filterEntries,
+  filterEscapeAction,
   foreignState,
   keepCount,
   levelHint,
@@ -346,8 +347,11 @@ export function createClipboardPanel({ root, actions }) {
     });
     filter.addEventListener("input", () => actions.filter(filter.value));
     filter.addEventListener("keydown", (event) => {
-      event.stopPropagation(); // typing a name is not a shortcut
-      if (event.key === "Escape" && filter.value) {
+      const onEsc = filterEscapeAction(event.key, filter.value);
+      // Esc on an empty field is the escape order's (blur, then the timeline); the rest is typing,
+      // which is not a shortcut.
+      if (onEsc !== "pass") event.stopPropagation();
+      if (onEsc === "clear") {
         event.preventDefault();
         actions.filter("");
       }

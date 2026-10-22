@@ -64,6 +64,7 @@ from . import (
     project_stats,
     render_listen,
     series_actions,
+    step_names,
     transcribe,
     ui_prefs,
 )
@@ -629,6 +630,8 @@ def create_app(session, engine, *, language: str | None = None,
             raise
         if body.name == "import_nhsx":
             return state_response({"report": report_of(session.last_import_report)})
+        if body.name == "save_checkpoint":
+            return state_response({"saved": session.last_saved})
         if body.name == "save_backup":
             return state_response({"backup": session.last_backup.name})
         if body.name == "match_loudness":
@@ -1262,19 +1265,27 @@ def create_app(session, engine, *, language: str | None = None,
         return JSONResponse(described)
 
     @app.get("/api/music-report")
-    def get_music_report(format: str = "json"):
+    def get_music_report(format: str = "json", download: bool = False,
+                         start: int | None = None, end: int | None = None):
+        # start and end (timeline frames): the report of the selection only.
+        span = (start, end) if start is not None and end is not None else None
         if format not in ("json", "csv", "html"):
             raise music_report.MusicReportError("error.music_report.bad_format",
                                                 format=format)
         if format == "csv":
-            content = session.music_report(format="csv")
-            disposition = 'attachment; filename="music-report.csv"'
+            content = session.music_report(format="csv", span=span)
+            disposition = export_names.disposition(
+                session.download_name("music-report.csv"))
             return Response(content=content, media_type="text/csv; charset=utf-8",
                             headers={"Content-Disposition": disposition})
         if format == "html":
-            content = session.music_report(format="html")
-            return HTMLResponse(content=content)
-        rows = session.music_report(format="json")
+            content = session.music_report(format="html", span=span)
+            if not download:
+                return HTMLResponse(content=content)
+            return HTMLResponse(content=content, headers={
+                "Content-Disposition": export_names.disposition(
+                    session.download_name("music-report.html"))})
+        rows = session.music_report(format="json", span=span)
         return JSONResponse({"rows": rows})
 
     @app.get("/api/subtitles")
@@ -1347,26 +1358,43 @@ def create_app(session, engine, *, language: str | None = None,
         return state_response({"context": None})
 
     @app.get("/api/history")
-    def get_history(limit: int | None = None, before: str | None = None):
+    def get_history(limit: int | None = None, before: str | None = None,
+                    saved: int = 0):
         """Without ``limit`` or ``before``: every step, oldest first (the old shape).
         With them: a page, newest first, for the History panel."""
         with session.lock:
             h = session.history
             if limit is None and before is None:
-                return JSONResponse({"nodes": h.nodes(), "head": h.head})
+                marks = h.checkpoint_map()
+                nodes = [{**n, "checkpoint": marks.get(n["id"])} for n in h.nodes()]
+                return JSONResponse({"nodes": nodes, "head": h.head})
             limit = HISTORY_PAGE if limit is None else limit
             if not 1 <= limit <= HISTORY_PAGE_MAX:
                 raise BadRequestError("error.server.bad_request",
                                       detail=f"limit: 1..{HISTORY_PAGE_MAX}")
-            rows = h.nodes_page(limit + 1, before)
+            rows = h.nodes_page(limit + 1, before, saved=bool(saved))
+            marks = h.checkpoint_map()
             more = len(rows) > limit
-            side = h.sides([r["id"] for r in rows[:limit]])
+            lineage = h.lineage()
+            state = h.state
+
+            def name(r: dict) -> dict:
+                """Built now, in this request's language, from the op and today's
+                track names (step_names); the stored label is the fallback."""
+                target = lineage[r["id"]]["restore_target"]
+                out = step_names.describe(
+                    r["op"], state, label=r["label"],
+                    target=h.restored_step(target) if target else None)
+                return {"name": out["name"], "name_base": out["base"],
+                        "name_detail": out["detail"], "run": out["run"]}
+
             nodes = [{"id": r["id"], "parent": r["parent"], "label": r["label"],
                       "created": r["created"], "author": r["author"],
                       "op": r["op"].get("name"), "is_marker": h.is_marker(r),
                       "marker": (r["op"].get("args") or {}).get("kind")
                       if h.is_marker(r) else None,
-                      "is_head": r["id"] == h.head, "side": side[r["id"]]}
+                      "is_head": r["id"] == h.head, **lineage[r["id"]], **name(r),
+                      "checkpoint": marks.get(r["id"])}
                      for r in rows[:limit]]
             return JSONResponse({"nodes": nodes, "head": h.head, "more": more,
                                  "can_undo": h.can_undo, "can_redo": h.can_redo})

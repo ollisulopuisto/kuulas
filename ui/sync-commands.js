@@ -201,7 +201,7 @@ export function registerSyncCommands(registry, { app, t }) {
     const state = app.getState();
     const row = stepDrift(drifting(state), state.playhead, direction);
     if (!row) return;
-    app.seek(row.start);
+    app.jump(row.start);
     app.patch({ selection: new Set([row.clip_id]) });
   };
   def("sync.drift_next", step(1), (state) => hasProject(state) && drifting(state).length > 0);

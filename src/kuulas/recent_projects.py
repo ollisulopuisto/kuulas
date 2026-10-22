@@ -167,6 +167,46 @@ def update_record(existing: list[dict], path: str, **meta: float | None) -> list
     return result
 
 
+def remove_record(existing: list[dict], path: str) -> list[dict]:
+    """A new list without the project at ``path`` (any spelling of it). Only the
+    list changes; a path that is not in it changes nothing."""
+    norm = os.path.normpath(path)
+    return [dict(r) for r in existing if os.path.normpath(r["path"]) != norm]
+
+
+def drop_missing(existing: list[dict], exists: Callable[[str], bool]) -> list[dict]:
+    """A new list of the records whose folder ``exists`` accepts."""
+    return [dict(r) for r in existing if exists(r["path"])]
+
+
+def insert_record(existing: list[dict], record: dict, index: int,
+                  limit: int = 20) -> list[dict]:
+    """A new list with ``record`` at ``index`` (clamped to the list), any earlier
+    copy of the project removed first. Undo of a removal."""
+    rest = remove_record(existing, record["path"])
+    at = max(0, min(index, len(rest)))
+    return [*rest[:at], dict(record), *rest[at:]][:limit]
+
+
+def replace_path(existing: list[dict], old: str, new: str) -> list[dict]:
+    """A new list where the project at ``old`` is at ``new`` instead: same place,
+    same remembered facts (the project was moved, not changed). If ``new`` is
+    already listed, that copy goes and this one stays in place."""
+    norm = os.path.normpath(old)
+    if not any(os.path.normpath(r["path"]) == norm for r in existing):
+        return [dict(r) for r in existing]
+    target = os.path.normpath(new)
+    result = []
+    for record in existing:
+        copy = dict(record)
+        if os.path.normpath(copy["path"]) == norm:
+            copy["path"] = new
+        elif os.path.normpath(copy["path"]) == target:
+            continue
+        result.append(copy)
+    return result
+
+
 def folder_size(path: str | os.PathLike[str],
                 max_entries: int = SIZE_MAX_ENTRIES) -> int | None:
     """The bytes of the files under ``path``, symbolic links not followed (a

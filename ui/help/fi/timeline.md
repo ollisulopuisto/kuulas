@@ -2,7 +2,7 @@
 id: timeline
 title: Aikajana
 applies-to: [timeline]
-commands: [transport.play, view.toggle, view.fit, view.fit_selection, view.zoom_in, view.zoom_out, view.back, view.wheel_mode, view.clip_words, view.toggle_sidebar, panel.next, nav.home, spot, time.copy, help.open, help.keys]
+commands: [transport.play, view.toggle, view.fit, view.fit_selection, view.zoom_in, view.zoom_out, view.back, view.wheel_mode, view.clip_words, view.follow, view.show_playhead, view.toggle_sidebar, panel.next, nav.home, spot, time.copy, help.open, help.keys]
 related: [clip, track, bus]
 ---
 Jokainen raita on oma kaistansa, ja aika kulkee vasemmalta oikealle. Napsautus missä tahansa kaistoilla siirtää toistokohdan siihen. Napsautus leikkeeseen myös valitsee sen; vaihto+napsautus lisää leikkeen valintaan tai poistaa sen. Vetämällä kaistoilla merkitset aikavälin. Vedon aikana kaistoilla näkyvä vihje kertoo, mikä näppäin muuttaa välin sen koskettamiksi leikkeiksi (ne valitaan ja sisään- ja ulosmerkit siirtyvät niiden ylle) ja mikä peruu vedon.
@@ -16,6 +16,8 @@ Jokainen raita on oma kaistansa, ja aika kulkee vasemmalta oikealle. Napsautus m
 - Näytä koko versio: {key:view.fit}
 - Sovita valintaan tai alku–loppuvälille: {key:view.fit_selection}
 - Takaisin edelliseen näkymään: {key:view.back}
+
+Toiston aikana näkymä seuraa toistokohtaa (Seuranta-merkki kulmassa palaa). Vieritys, yleiskuvan vetäminen tai zoomaus kytkee seurannan pois ja näkymä pysyy siinä mihin sen jätit; reunan nuoli näyttää silloin missä toistokohta on. Napsauta merkkiä, nuolta tai itse toistokohtaa, tai aloita, pysäytä tai hyppää johonkin aikaan (Home, End, merkki, transkription sana, Hyppää aikaan (Spot), Tab seuraavaan pysäkkiin), niin seuranta palaa. Toistokohdan siirtely nuolinäppäimillä tai napsautus näkyvään kohtaan viivaimella ei palauta sitä. {run:view.follow} {run:view.show_playhead}
 
 Tiheys, aaltomuoto ja seuranta ovat Näkymä-valikossa. {show:view-menu} Samoin Sovita raidat ikkunaan ja Pidä raidat sovitettuina ikkunaan. Yhden kaistan korkeutta säädät vetämällä sen otsikon alareunaa; kaksoisnapsautus palauttaa sen.
 
@@ -40,6 +42,28 @@ Jos haluat aikajanalle enemmän leveyttä, piilota koko sivupaneeli (välilehtir
 
 ## Paneelit
 {key:panel.next} siirtää näppäimistön seuraavaan paneeliin; {key:nav.home} tuo sen takaisin tänne.
+
+## Valinnan vienti
+Jokainen vienti vie vain valitun ja kertoo sen alkaessa ("Viedään vain valinta: raidat Anna, Ville, 12.00-18.30").
+- In- ja Out-merkeillä (tai raitojen yli vedetyllä välillä): se aikaväli, niillä raidoilla, joita aluekomento käyttäisi.
+- Kun leikkeitä on valittu eikä väliä ole: raidat, joilla valitut leikkeet ovat, ensimmäisen valitun alusta viimeisen loppuun. Mukana on kaikki näiden raitojen sisältö tuolla välillä, ei vain valitut leikkeet.
+- Kun mitään ei ole valittu: koko miksaus.
+
+Vientiasetukset ja automiksausikkuna näyttävät valinnan ja ruudun "Vie vain valinta", joka on valittuna, kun valinta on olemassa. Poista valinta, niin viedään kaikki. Tiedoston nimessä ovat väli ja raidat, eikä olemassa olevaa tiedostoa korvata. Mykistetyt raidat pysyvät mykkinä ja solo toimii kuten koko miksauksessa.
+
+## Askel taaksepäin
+{key:nav.home} peruu painallusta kohden yhden asian, uusimman ensin, ja vie sen jälkeen näppäimistön aikajanalle:
+- Auto-Silence-esikatselu (hylätään, mitään ei otettu käyttöön)
+- tekstikenttä, johon kirjoitat
+- valitut raitojen otsikot
+- valitut leikkeet, vedetty alue sekä sisään- ja ulos-merkit yhdessä
+- kohdistustila
+- sen jälkeen näppäimistö vain siirtyy tänne
+
+Tekstityksessä valittu sanaväli menee ensin; leikepöydän suodattimessa kirjoitettu teksti menee ensin. Käynnissä oleva veto, valikko tai ikkuna suljetaan ennen näitä. {key:nav.home} ei koskaan pysäytä toistoa (sen tekee {key:transport.play}) eikä peru vientiä tai automix-ajoa: käytä ilmoituksen Peruuta-painiketta.
+
+## Näppäimet, jotka eivät voi toimia
+Muokkausnäppäin (leikkaus, poisto, jako, mykistys, kopiointi ja muut), jolla ei ole kohdetta, kertoo syyn yhdellä rivillä eikä piippaa. Muokkausnäppäimet toimivat kaikissa paneeleissa paitsi kirjoittaessa tai ikkunan ollessa auki; kun sellainen toimii sivupaneelista, näppäimistö palaa aikajanalle.
 
 ## Ohje
 {key:help.open} avaa ohjeen siihen, mitä katsot; {key:help.keys} listaa kaikki näppäimet.

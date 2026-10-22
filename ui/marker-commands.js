@@ -63,7 +63,7 @@ export function registerMarkerCommands(registry, { app, t, makeId = newMarkerId 
     const state = app.getState();
     const target = adjacentMarker(markersOf(state), state.playhead, direction);
     if (target) {
-      app.seek(target.start);
+      app.jump(target.start);
       app.patch({ markerSelected: target.id });
     }
   };

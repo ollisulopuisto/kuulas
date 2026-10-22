@@ -177,6 +177,18 @@ export const SYNONYMS = {
 
   // -- saving, exporting ---------------------------------------------------------------------
   "app.save": ["write", "store", "keep", "tallenna", "talleta"],
+  "app.open_earlier_version": [
+    "earlier version",
+    "older version",
+    "previous version",
+    "restore saved",
+    "revert",
+    "avaa aiempi versio",
+    "aiempi versio",
+    "palauta tallennus",
+    "palauta tallennettu",
+  ],
+  "app.backup_now": ["backup", "back up", "copy", "varmuuskopio", "varmuuskopioi"],
   "app.save_named": [
     "snapshot",
     "version",
@@ -248,6 +260,19 @@ export const SYNONYMS = {
     "vie",
     "kappaleet",
     "luvut",
+  ],
+  "export.music_report": [
+    "royalty report",
+    "cue sheet",
+    "music list",
+    "used music",
+    "save as",
+    "vie",
+    "musiikkiraportti",
+    "teosto",
+    "gramex",
+    "esitysilmoitus",
+    "käytetty musiikki",
   ],
   "export.regions": ["save regions", "clips as files", "save as", "vie", "alueet"],
   "export.narration_script_txt": ["script", "voiceover", "save as", "vie", "käsikirjoitus"],
@@ -365,6 +390,12 @@ export const SYNONYMS = {
     "kokeile",
   ],
   "transport.loop": ["repeat", "cycle", "toisto", "silmukka"],
+  "transport.loop_selection": [
+    "loop selection",
+    "repeat selection",
+    "silmukka",
+    "soita silmukkana",
+  ],
   "transport.render_listen": [
     "a/b",
     "compare",
@@ -383,6 +414,8 @@ export const SYNONYMS = {
   "view.fit": ["whole project", "show all", "zoom to fit", "overview", "kaikki", "koko"],
   "view.fit_tracks": ["fit height", "lane height", "sovita korkeus"],
   "view.toggle": ["zoom", "wide", "close", "lähi", "laaja"],
+  "view.follow": ["follow", "autoscroll", "scroll with playback", "seuraa", "seuranta"],
+  "view.show_playhead": ["find playhead", "where am i", "back to cursor", "toistokohta", "kursori"],
   "view.clip_words": ["captions in clips", "text in clips", "sanat", "teksti"],
   "view.focus": [
     "focus mode",
@@ -409,6 +442,11 @@ export const SYNONYMS = {
   "help.open": ["manual", "documentation", "docs", "guide", "ohje", "käyttöohje"],
   "history.open": ["undo list", "past steps", "versions", "historia", "vaiheet"],
   "history.restore": ["go back to", "revert to", "palauta"],
+  "history.rename_version": ["rename version", "rename save", "nimeä versio"],
+  "history.saved_only": ["saved versions", "named versions", "tallennetut versiot"],
+  "history.goto_restore_point": ["restore point", "restored step", "palautuskohta"],
+  "history.open_saved": ["open saved", "saved list", "avaa tallennetut"],
+  "history.expand_all": ["open groups", "rolled back", "left behind", "avaa ryhmät"],
   "help.performance_report": [
     "slow",
     "lag",

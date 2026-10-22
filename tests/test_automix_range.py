@@ -107,6 +107,24 @@ def test_the_range_render_is_named_preview_with_its_span_and_says_so(session, tm
     assert sf.info(result["path"]).frames == B - A
 
 
+def test_a_selection_of_some_tracks_mixes_only_those_and_names_them(session, tmp_path):
+    olli = session.state.tracks[0]
+    fake = FakeAutomixer()
+    result = run(session, tmp_path, fake, range=[A, B], track_ids=[olli.id])
+    [called] = fake.calls
+    assert list(called["stems"]) == ["Olli"]
+    assert result["name"].endswith(" preview 00.01-00.02 (Olli).wav")
+
+
+def test_unknown_or_empty_track_ids_are_refused_before_a_write(session, tmp_path):
+    fake = FakeAutomixer()
+    for bad in (["nope"], [], "Olli", [3]):
+        with pytest.raises(automix.AutomixError) as e:
+            run(session, tmp_path, fake, track_ids=bad)
+        assert e.value.key == "error.automix.bad_tracks"
+    assert fake.calls == []
+
+
 def test_a_full_run_has_no_range(session, tmp_path):
     result = run(session, tmp_path, FakeAutomixer())
     assert result["range"] is None

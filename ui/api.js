@@ -68,6 +68,9 @@ export const stopRecording = (body) => post("/api/record/stop", body);
 export const importTakes = (takes) => post("/api/record/import", { takes });
 /** The session's statistics (WP70): { stats, groups: [{ title, rows: [[label, value]] }], text }. */
 export const getStats = () => json("/api/stats");
+/** The music report of the open edit (WP25): { rows: [...] }, built from a snapshot.
+ * `query`: reportQuery() (music-report-model.js); with a span it is the selection's report. */
+export const musicReport = (query = "format=json") => json(`/api/music-report?${query}`);
 /** File > Locate media… (WP39): { missing: [{ id, name, size }], partial: [{ id, name, can_complete }] }. */
 export const getMediaStatus = () => json("/api/media/status");
 /** Look under a folder by SHA-256: { found: [{ id, name, path }], still_missing, partial }. */
@@ -213,9 +216,12 @@ export const adoptClipboardEntry = (entry, fromProject = "") =>
   post("/api/clipboard/adopt", { entry, from_project: fromProject });
 /** Drop this project's oldest entries, keeping the newest `keep`: { removed, entries }. */
 export const clearOldClipboard = (keep) => post("/api/clipboard/clear-old", { keep });
-/** A page of steps, newest first: { nodes, head, more, can_undo, can_redo }. */
-export const getHistory = ({ limit = 100, before = null } = {}) =>
-  json(`/api/history?limit=${limit}${before ? `&before=${encodeURIComponent(before)}` : ""}`);
+/** A page of steps, newest first: { nodes, head, more, can_undo, can_redo }; each node has
+ * `checkpoint` ({ name, kind, copy, created } or null); `saved` lists only the saved versions. */
+export const getHistory = ({ limit = 100, before = null, saved = false } = {}) =>
+  json(
+    `/api/history?limit=${limit}${before ? `&before=${encodeURIComponent(before)}` : ""}${saved ? "&saved=1" : ""}`,
+  );
 /** Add a step equal to an older one (nothing is lost); answers like undo, plus `context`. */
 export const restore = (node) => post("/api/restore", { node });
 export const undo = () => json("/api/undo", { method: "POST" });

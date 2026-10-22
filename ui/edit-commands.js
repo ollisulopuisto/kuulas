@@ -36,6 +36,7 @@ import {
   trimPlan,
   ungroupPlan,
 } from "./edit-plans.js";
+import { idleReason } from "./edit-reasons.js";
 import { rememberCut } from "./ghost-marker.js";
 import { toggleScopeMode } from "./range-scope.js";
 import { selectAllIds } from "./selection.js";
@@ -49,7 +50,10 @@ import { cycleKindPlan } from "./track-kind.js";
  */
 export function registerEditCommands(registry, { app, t, formatSeconds }) {
   const burst = createBurst();
-  const def = (id, run, can) => registry.register(id, run, { can, hintKey: `cmd.${id}.hint` });
+  const def = (id, run, can, why = null) =>
+    registry.register(id, run, { can, hintKey: `cmd.${id}.hint`, why });
+  // An edit key says why it did nothing (edit-reasons.js) instead of failing silently.
+  const explain = (id) => (state) => idleReason(id, state);
   const hasProject = (state) => Boolean(state?.project);
 
   /** The edits that use up the marked range. */
@@ -133,6 +137,7 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
         else if (plan) send(plan);
       },
       (state) => build(state) !== null,
+      explain(id),
     );
 
   planned("edit.group", groupClipsPlan);
@@ -169,6 +174,7 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
       });
     },
     (s) => copyPlan(s, t) !== null,
+    explain("edit.copy"),
   );
   // Play-preview of the picked (else newest) entry: a temporary project on the server, so
   // no edit, no undo step and the real project is not touched.
@@ -284,6 +290,7 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
         });
       },
       (state) => build(state) !== null,
+      explain(id),
     );
   plannedBus("track.group_into_bus", groupBusPlan);
   plannedBus("track.new_bus", newBusPlan);
@@ -302,6 +309,7 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
       },
       // `can` must not start a burst: ask with a fixed key.
       (s) => gainPlan(s, direction, "can") !== null,
+      explain(id),
     );
   }
 
@@ -312,8 +320,13 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
     },
     can: (s) => selectAllIds(s, allTracks).length > 0,
   });
-  def("edit.select_all_track", selectAll(false).run, selectAll(false).can);
-  def("edit.select_all", selectAll(true).run, selectAll(true).can);
+  def(
+    "edit.select_all_track",
+    selectAll(false).run,
+    selectAll(false).can,
+    explain("edit.select_all_track"),
+  );
+  def("edit.select_all", selectAll(true).run, selectAll(true).can, explain("edit.select_all"));
 
   // E, the Edit menu item and the status chip: all tracks <-> selected tracks only (WP83).
   def("range.scope_toggle", () => app.patch(toggleScopeMode(app.getState())), hasProject);

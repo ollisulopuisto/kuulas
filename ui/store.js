@@ -1,5 +1,6 @@
 // Client state: one object, re-rendered on change. Selection, focus, in/out,
 // zoom and scroll are UI state: they are not edits and are not in history.
+import { intentPatch } from "./intent.js";
 import { BUS_HEIGHT, DEFAULT_LANE, GROUP_GAP } from "./lanes.js";
 
 const listeners = new Set();
@@ -23,6 +24,9 @@ export const initialState = () => ({
   serverMutedKey: null,
   // UI state.
   selection: new Set(),
+  // Which the next edit touches when both a range and clips are there: the one touched last
+  // ("range" | "clips", intent.js). Derived in setState; the marks first at the start.
+  intent: "range",
   // The transcript's word cursor and selection { cursor, anchor }, the crosstalk preview
   // of the selected words (POST /api/cut-preview) and the band it draws on the timeline.
   transcriptSelection: { cursor: -1, anchor: null },
@@ -147,7 +151,8 @@ let state = initialState();
 
 export const getState = () => state;
 
-export function setState(patch) {
+export function setState(given) {
+  const patch = { ...given, ...intentPatch(state, given) };
   state = { ...state, ...patch };
   for (const listener of listeners) listener(state, patch);
   return state;
@@ -181,7 +186,11 @@ export function serverPatch(response, state = null) {
       response.project.tracks.flatMap((track) => track.clips.map((clip) => clip.id)),
     );
     const kept = [...state.selection].filter((id) => ids.has(id));
-    if (kept.length !== state.selection.size) patch.selection = new Set(kept);
+    if (kept.length !== state.selection.size) {
+      patch.selection = new Set(kept);
+      // Clips that an undo or redo removed from the selection are not the user choosing again.
+      patch.intent = state.intent;
+    }
     const picked = state.placeholderSelected;
     if (picked && !(response.project.placeholders ?? []).some((h) => h.id === picked))
       patch.placeholderSelected = null;

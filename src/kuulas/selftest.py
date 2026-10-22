@@ -193,10 +193,41 @@ def check_tools() -> str:
     return "; ".join(parts)
 
 
+def _in_bundle() -> bool:
+    from . import bundle  # noqa: PLC0415
+
+    return bundle.resources_dir(__file__) is not None
+
+
+def check_automixer() -> str:
+    """The bundled automixer starts as Kuulas starts it (the launcher with ``-m
+    automixer``) and answers ``--help`` with its usage: its package and every library
+    its command line imports load from the bundle. From source there is no bundled one
+    (Kuulas then runs ``uv run automixer`` in the podcast checkout): information only."""
+    from . import automix  # noqa: PLC0415
+
+    command = automix.bundled_command()
+    if not _in_bundle():
+        return "not bundled (running from source: the settings or uv run in the checkout)"
+    if command is None:
+        problem = "the automixer package is not in the bundle"
+        raise SelftestError(problem)
+    done = subprocess.run(  # noqa: S603 - the bundle's own launcher, fixed arguments
+        [*command, "--help"], capture_output=True, text=True, timeout=3 * TIMEOUT,
+        check=False, stdin=subprocess.DEVNULL)
+    out = done.stdout + done.stderr
+    if done.returncode != 0 or "usage: automixer" not in out:
+        last = (out.strip().splitlines() or ["no output"])[-1]
+        problem = f"automixer --help exited {done.returncode}: {last}"
+        raise SelftestError(problem)
+    flags = [f for f in ("--keep-music-level", "--events", "--progress") if f in out]
+    return f"--help answered ({' '.join(flags) or 'no gated flags'})"
+
+
 #: In the order they run; each is the function ``check_<name>`` in this module, looked
 #: up when it runs (so a test can replace one).
 CHECKS = ("build", "libraries", "ffmpeg", "ui", "server", "meter", "recorder", "worker",
-          "analysis_worker", "tools")
+          "analysis_worker", "automixer", "tools")
 
 
 def check_analysis_worker() -> str:

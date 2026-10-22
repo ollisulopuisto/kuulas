@@ -49,6 +49,7 @@ import { groupOutlines } from "./group-outline.js";
 import { detectPlatform, formatNumber, t } from "./i18n.js";
 import { ICONS } from "./icons.js";
 import { dropGhosts, dropLabel, resolveDropTarget } from "./import-drop.js";
+import { rangeDimmed } from "./intent.js";
 import { clipLabel, labelFacts, siblingsOf } from "./labels.js";
 import {
   clipEnd,
@@ -123,6 +124,9 @@ const XFADE_ALPHA = 0.3;
 const GAIN_ALPHA = 0.75;
 // Opacity of a guessed in/out mark (taken from the last cut), against 1 for a chosen one.
 const GUESSED_ALPHA = 0.55;
+// The in/out marks are drawn at this opacity while selected clips, not the range, are what the
+// next edit touches (intent.js).
+const MARKS_VEILED_ALPHA = 0.35;
 const PLAYHEAD_CAP = 5.5;
 const SEAM_ALPHA = 0.7;
 const NOTCH_PX = 4;
@@ -270,7 +274,12 @@ export function createTimeline({
       rulerHeight: RULER_HEIGHT,
       scrollY: state.scrollY,
     });
+    // Clips selected after the marks are what the next edit touches: the marks stay, veiled.
+    const marksVeiled = rangeDimmed(state);
+    overlay.save();
+    if (marksVeiled) overlay.globalAlpha = MARKS_VEILED_ALPHA;
     drawRange(state, height, spans);
+    overlay.restore();
     const dimmed = inactiveTracks(state);
     const look = inactiveLook(state.inactiveStyle);
     for (const row of visibleRows(layout, state.scrollY, height - RULER_HEIGHT)) {
@@ -293,7 +302,10 @@ export function createTimeline({
     }
     drawGroupOutlines(state, layout);
     drawRuler(state, rate);
+    overlay.save();
+    if (marksVeiled) overlay.globalAlpha = MARKS_VEILED_ALPHA;
     drawInOut(state, height, rate, spans);
+    overlay.restore();
     drawRangeBand(state, layout);
     if (dropPreview) drawDropPreview(state, layout);
     if (clipDrop) drawClipboardDrop(state, layout);
