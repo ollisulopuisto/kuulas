@@ -95,3 +95,82 @@ def test_interactive_mode_yields_chunks_to_one_worker():
         assert maximum == 1
     finally:
         jobs.close()
+
+
+# -- a long session: finished jobs do not pile up --------------------------------------
+# Every Auto-Silence preview, level measure, export and automix is a job. Before, each
+# stayed listed for the life of the process, with its result and its closure (the
+# project snapshot it measured). ``list`` (the live channel calls it every 0.25 s, and
+# 30 times a second while playing) and every "jobs" message carried all of them.
+
+
+def wait_all_finished(jobs, ids):
+    deadline = time.monotonic() + 10
+    while time.monotonic() < deadline:
+        states = {item["id"]: item["state"] for item in jobs.list()}
+        if all(states.get(i, "gone") != "queued" and states.get(i, "gone") != "running"
+               for i in ids):
+            return
+        time.sleep(0.005)
+    raise AssertionError("jobs did not finish")
+
+
+def test_finished_jobs_are_kept_only_up_to_a_bound():
+    from kuulas import jobs as jobsm  # noqa: PLC0415 - the bound under test
+
+    jobs = Jobs(max_workers=2)
+    try:
+        ids = [jobs.submit("measure", "Measure", lambda _p, i=i: [i] * 1000,
+                           keep_result=True) for i in range(jobsm.FINISHED_KEPT * 4)]
+        wait_all_finished(jobs, ids)
+        listed = jobs.list()
+        assert len(listed) == jobsm.FINISHED_KEPT
+        # The newest are the ones kept: the UI polls the job it just started.
+        newest = next(j for j in listed if j["id"] == ids[-1])
+        assert newest["result"][0] == len(ids) - 1
+        assert ids[0] not in {j["id"] for j in listed}
+    finally:
+        jobs.close()
+
+
+def test_running_and_queued_jobs_are_never_dropped():
+    from kuulas import jobs as jobsm  # noqa: PLC0415 - the bound under test
+
+    release = threading.Event()
+    jobs = Jobs(max_workers=1)
+    try:
+        slow = jobs.submit("export", "Export", lambda _p: release.wait(5))
+        wait_state(jobs, slow, "running")
+        waiting = jobs.submit("export", "Queued", lambda _p: None)
+        quick = []
+        for _ in range(jobsm.FINISHED_KEPT + 5):
+            quick.append(jobs.submit("x", "x", lambda _p: None))
+            jobs.cancel(quick[-1])  # queued behind the slow one: cancelled at once
+        ids = {j["id"] for j in jobs.list()}
+        assert slow in ids
+        assert waiting in ids
+        release.set()
+        wait_state(jobs, waiting, "completed")
+    finally:
+        release.set()
+        jobs.close()
+
+
+def test_a_finished_job_lets_go_of_what_its_work_captured():
+    import gc  # noqa: PLC0415
+    import weakref  # noqa: PLC0415
+
+    class Snapshot:
+        pass
+
+    jobs = Jobs(max_workers=1)
+    try:
+        snap = Snapshot()
+        ref = weakref.ref(snap)
+        job_id = jobs.submit("measure", "Measure", lambda _p, s=snap: id(s))
+        del snap
+        wait_state(jobs, job_id, "completed")
+        gc.collect()
+        assert ref() is None, "the finished job still holds its closure"
+    finally:
+        jobs.close()
