@@ -89,18 +89,33 @@ export function setLanguageNow(lang) {
  */
 export async function setLanguage(lang) {
   const next = normalise(lang);
-  for (const needed of new Set([SOURCE, next])) {
-    if (!catalogs[needed]) catalogs[needed] = await loader(needed);
-  }
+  // Both at once: in turn, a Finnish start paid two round trips here (en, then fi).
+  await Promise.all([...new Set([SOURCE, next])].map(catalog));
   setLanguageNow(next);
+}
+
+// Catalogs on their way, by language: a second asker (the page warms the browser's
+// language up while the server's choice is still being read) shares the one request.
+const loading = {};
+
+/** The catalog of `lang` (normalised): what is loaded, else one fetch shared by all askers. */
+function catalog(lang) {
+  if (catalogs[lang]) return Promise.resolve(catalogs[lang]);
+  loading[lang] ??= loader(lang)
+    .then((found) => {
+      catalogs[lang] = found;
+      return found;
+    })
+    .finally(() => {
+      delete loading[lang]; // a failure is forgotten, so the next try asks again
+    });
+  return loading[lang];
 }
 
 /** Load a catalog without switching to it (once); a failure is swallowed, the language is absent. */
 export async function ensureCatalog(lang) {
-  const wanted = normalise(lang);
-  if (catalogs[wanted]) return;
   try {
-    catalogs[wanted] = await loader(wanted);
+    await catalog(normalise(lang));
   } catch {
     // Search then knows only the names in the current language: not worth an error.
   }

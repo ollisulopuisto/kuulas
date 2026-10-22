@@ -174,6 +174,54 @@ describe("the language", () => {
     assert.match(i18n.t("error.edit.no_clip", { clip_id: "x" }), /x/);
   });
 
+  test("setLanguage asks for the source and the target catalogs together, not in turn", async () => {
+    i18n.setCatalogs({});
+    const asked = [];
+    const release = [];
+    i18n.setCatalogLoader(
+      (lang) =>
+        new Promise((resolve) => {
+          asked.push(lang);
+          release.push(() => resolve(catalog(lang)));
+        }),
+    );
+    const switching = i18n.setLanguage("fi");
+    await Promise.resolve(); // both requests are out before either answer
+    assert.deepEqual(asked.sort(), ["en", "fi"]);
+    for (const go of release) go();
+    await switching;
+    assert.equal(i18n.getLanguage(), "fi");
+  });
+
+  test("a catalog already on its way is not fetched again", async () => {
+    i18n.setCatalogs({ en: catalog("en") });
+    const asked = [];
+    i18n.setCatalogLoader(async (lang) => {
+      asked.push(lang);
+      await Promise.resolve();
+      return catalog(lang);
+    });
+    const first = i18n.ensureCatalog("fi"); // e.g. the page warming the browser's language up
+    const second = i18n.setLanguage("fi");
+    await Promise.all([first, second]);
+    assert.deepEqual(asked, ["fi"]);
+    assert.equal(i18n.getLanguage(), "fi");
+  });
+
+  test("a failed load is forgotten so the next try asks again", async () => {
+    i18n.setCatalogs({ en: catalog("en") });
+    let calls = 0;
+    i18n.setCatalogLoader(async () => {
+      calls++;
+      if (calls === 1) throw new Error("offline");
+      return catalog("fi");
+    });
+    await assert.rejects(i18n.setLanguage("fi"), /offline/);
+    await i18n.setLanguage("fi");
+    assert.equal(calls, 2);
+    assert.equal(i18n.getLanguage(), "fi");
+  });
+
   test("a language that cannot be loaded changes nothing and says so", async () => {
     i18n.setCatalogs({ en: catalog("en") });
     i18n.setCatalogLoader(async () => {

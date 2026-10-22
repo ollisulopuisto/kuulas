@@ -79,6 +79,7 @@ import { undoNotice } from "./history-model.js";
 import { createHistoryPanel } from "./history-panel.js";
 import {
   detectLanguage,
+  ensureCatalog,
   formatAbsoluteTime,
   formatClock,
   formatNumber,
@@ -195,6 +196,28 @@ installIcons();
 // The Auto-Silence live preview panel (openSilenceOptions): made on first use; declared here
 // because render() asks it about every project change from the first render on.
 let silencePanel = null;
+// The server round trips the page needs before its first render, started together here,
+// before the first await, so the server answers them side by side. Awaited one after
+// another (prefs, language, log level, catalog, state, view, clipboard) they took 220 ms
+// after the last module arrived (median of 7 cold loads, headless Chrome, 2026-10-21).
+// Each is awaited where its answer is used, in the start section at the end of this file.
+const started = (promise) => {
+  promise.catch(() => {}); // awaited later: a refusal must not count as unhandled meanwhile
+  return promise;
+};
+const booting = {
+  language: api.getLanguage().catch(() => null),
+  logLevel: api.getLogLevel().catch(() => null),
+  state: started(api.getState()),
+  words: started(api.getWords()),
+  view: started(api.getViewMemory()),
+  clipboard: started(api.getClipboard()),
+};
+// The catalogs, before the server's language choice is known: English is always needed,
+// and the browser's language is the choice in all but the explicit case (View > Language),
+// where the extra catalog serves the Help search anyway (it looks up both names).
+void ensureCatalog("en");
+void ensureCatalog(detectLanguage());
 const prefs = await loadPrefs(); // server-side store, read once before the first prefs.get
 const WAVEFORM_GAIN = { min: 1 / 8, max: 32, snap: 0.04 };
 const LANE_STEP = 8;
@@ -2973,9 +2996,10 @@ function sendMarkerEdit(op, args, labelKey) {
 
 // -- clipboard (WP46) -----------------------------------------------------------------------------------
 
-async function refreshClipboard() {
+/** `pending`: the clipboard request, when it was started earlier (the boot). */
+async function refreshClipboard(pending = api.getClipboard()) {
   try {
-    setState({ clipboard: (await api.getClipboard()).entries });
+    setState({ clipboard: (await pending).entries });
   } catch (error) {
     showError(error);
   }
@@ -3926,9 +3950,10 @@ const leftOffWords = () => ({
   language: getLanguage(),
 });
 
-async function restoreView() {
+/** `pending`: the view-memory request, when it was started earlier (the boot). */
+async function restoreView(pending = api.getViewMemory()) {
   try {
-    const { view } = await api.getViewMemory();
+    const { view } = await pending;
     const { patch, whole } = restoreFrom(view, {
       project: getState().project,
       width: width(),
@@ -3974,18 +3999,12 @@ document.addEventListener("visibilitychange", () => {
 // -- start --------------------------------------------------------------------------------------------------
 
 // View > Language: an explicit choice (kept on the server) beats the browser's language.
-let languageChoice = "auto";
-try {
-  languageChoice = (await api.getLanguage()).setting;
-} catch {
-  // No answer: follow the browser, as before.
-}
+// No answer: follow the browser, as before.
+const languageChoice = (await booting.language)?.setting ?? "auto";
 setState({ languageChoice });
-try {
-  setState({ logLevel: (await api.getLogLevel()).level });
-} catch {
-  // No answer: the menu shows INFO checked, the default.
-}
+// No answer: the menu shows INFO checked, the default.
+const logLevelAnswer = await booting.logLevel;
+if (logLevelAnswer) setState({ logLevel: logLevelAnswer.level });
 try {
   await initI18n({
     document,
@@ -4009,12 +4028,12 @@ api
   .catch(() => {});
 
 try {
-  const [state, words] = await Promise.all([api.getState(), api.getWords()]);
+  const [state, words] = await Promise.all([booting.state, booting.words]);
   apply(state);
   offerToLocate(state.missing);
   setState({ words: words.words ?? [], wordsHead: getState().head });
-  await restoreView();
-  await refreshClipboard();
+  await restoreView(booting.view);
+  await refreshClipboard(booting.clipboard);
   void refreshSeries();
   subscribe(scheduleSeriesRefresh);
 } catch (error) {
