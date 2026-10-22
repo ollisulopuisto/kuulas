@@ -1058,6 +1058,7 @@
   "ui.speed.chip_title": "Shuttle speed. Click to play normally.",
   "ui.speed.fast_chip_title": "Fast listening. Drag left or right to change the speed; click to switch it off.",
   "ui.speed.slider": "Fast listening speed (1× to 2×, pitch kept)",
+  "error.put_back.blocked": "This cannot be put back as it is ({reason}): it is unclear where it goes, or there is nothing to restore here.",
   "error.paste.missing_slot": "The clipboard entry has material for source track {slot}, but the paste has no target track for it.",
   "error.paste.unknown_mode": "Unknown paste mode: {mode}. Expected insert or overwrite.",
   "cmd.nav.home.hint": "Undoes one thing per press, the newest first: an Auto-Silence preview, the text field, the track selection, the selected clips with the range and the in and out marks, focus mode. Then it moves the keyboard to the timeline. A transcript word range and the Clipboard filter's text go first. It never stops playback or cancels an export.",

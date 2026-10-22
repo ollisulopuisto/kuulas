@@ -1084,6 +1084,7 @@
   "ui.speed.chip_title": "Kelausnopeus. Napsauta, niin toisto palaa normaaliksi.",
   "ui.speed.fast_chip_title": "Nopea kuuntelu. Vedä vasemmalle tai oikealle muuttaaksesi nopeutta; napsauta, niin se kytkeytyy pois.",
   "ui.speed.slider": "Nopean kuuntelun nopeus (1×–2×, sävelkorkeus säilyy)",
+  "error.put_back.blocked": "Tätä ei voi palauttaa sellaisenaan ({reason}): ei ole selvää, mihin se kuuluu, tai tässä ei ole mitään palautettavaa.",
   "error.paste.missing_slot": "Leikepöydän merkinnässä on ainesta lähderaidalle {slot}, mutta liittämistä varten ei ole kohderaitaa.",
   "error.paste.unknown_mode": "Tuntematon liittotapa: {mode}. Pitää olla insert tai overwrite.",
   "cmd.nav.home.hint": "Peruu painallusta kohden yhden asian, uusimman ensin: Auto-Silence-esikatselun, tekstikentän, raitavalinnan, valitut leikkeet alueineen ja sisään- ja ulos-merkkeineen, kohdistustilan. Sen jälkeen se vie näppäimistön aikajanalle. Tekstityksen sanaväli ja leikepöydän suodattimen teksti menevät ensin. Se ei koskaan pysäytä toistoa eikä peru vientiä.",

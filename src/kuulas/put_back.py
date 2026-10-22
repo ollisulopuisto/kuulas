@@ -26,9 +26,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .clipboard import ClipRef, Entry, entry_from_refs
 from .clock import flicks_to_frames
 from .model import Clip, Project
-from .ops import _recorded
+from .ops import EditError, _recorded
+from .paste_apply import apply_paste
+from .paste_plan import plan_paste
 
 FILL, HOLE, SEAM, EDGE = "fill", "hole", "seam", "edge"
 AMBIGUOUS, NONE = "ambiguous", "none"
@@ -178,3 +181,149 @@ def _closed_up(project: Project, placed: list[_Placed], rx: int, ry: int) -> Sit
     if len(edges) == 1:
         return Site(EDGE, next(iter(edges)))
     return Site(AMBIGUOUS, candidates=tuple(sorted(edges)), why="edges")
+
+
+@dataclass(frozen=True)
+class Plan:
+    """What putting a stretch back would do, in one value for the preview and the edit.
+
+    ``mode``: ``"insert"`` (a ripple insert at ``at`` on the tracks in ``scope``),
+    ``"place"`` (into empty space, nothing moves) or ``""`` when ``blocked``.
+    ``length``: the frames of material; ``shift``: how far later everything after ``at``
+    moves (0 for ``place``). ``outcomes``: ``(track id, outcome)`` for every track the
+    edit touches or leaves alone on purpose: ``restored``, ``still_in_edit`` (a partner
+    still plays it), ``silence`` (that recording does not reach the stretch),
+    ``cut_differently`` (the track was cut elsewhere: it only gets the gap), ``split`` and
+    ``shifted`` (a track that is not the recording's: a clip across ``at`` is split and
+    opened, or later clips move). ``blocked``: ``ambiguous``, ``none``, ``no_track`` or
+    ``nothing`` when it cannot be done; the site's ``candidates`` are the choices."""
+
+    site: Site
+    at: int | None
+    mode: str
+    length: int
+    shift: int
+    scope: tuple[str, ...]
+    outcomes: tuple[tuple[str, str], ...]
+    entry: Entry | None
+    blocked: str = ""
+
+
+def _blocked(site: Site, length: int, scope: tuple[str, ...], reason: str) -> Plan:
+    return Plan(site, None, "", length, 0, scope, (), None, blocked=reason)
+
+
+def _own_clip(project: Project, media: str, rx: int) -> tuple[str, Clip] | None:
+    """The piece of ``media`` nearest the stretch on the recording clock: the track the
+    stretch goes on when the cut itself cannot say."""
+    best: tuple[int, str, Clip] | None = None
+    for track in project.tracks:
+        for c in track.clips:
+            if c.media != media or c.free:
+                continue
+            rec = _recorded(project, c)
+            distance = 0 if rec <= rx < rec + c.length else min(
+                abs(rec - rx), abs(rec + c.length - rx))
+            if best is None or distance < best[0]:
+                best = (distance, track.id, c)
+    return None if best is None else (best[1], best[2])
+
+
+def _ref(project: Project, media: str, rx: int, ry: int, slot: int,
+         neighbour: Clip) -> ClipRef | None:
+    """A reference to ``[rx, ry)`` (recording clock) of ``media``, levelled like the
+    piece beside it; None when that recording does not reach the stretch."""
+    item = project.media_item(media)
+    offset = rx - _origin(project, media)
+    if offset < 0 or offset + (ry - rx) > item.frames:
+        return None
+    return ClipRef(item.sha256, offset, ry - rx, gain_db=neighbour.gain_db,
+                   pan=neighbour.pan, track_slot=slot, media_name=item.name)
+
+
+def _other_track(track, at: int) -> str:
+    """What an insert does to a track that holds none of the group's recordings."""
+    if any(c.start < at < c.end for c in track.clips):
+        return "split"
+    return "shifted" if any(c.start >= at for c in track.clips) else "empty"
+
+
+def plan(project: Project, media: str, start_flicks: int, end_flicks: int, *,
+         scope: list[str] | tuple[str, ...] | None = None, at: int | None = None) -> Plan:
+    """The plan for putting ``[start_flicks, end_flicks)`` of ``media`` back.
+
+    ``scope``: the tracks that open a gap (default every track: the same rule as X).
+    ``at``: put it at this frame instead (the playhead): the only way out of an AMBIGUOUS
+    or NONE cut, and what Alt+Enter does. Nothing is guessed without it."""
+    x = flicks_to_frames(start_flicks, project.rate)
+    y = max(x + 1, flicks_to_frames(end_flicks, project.rate))
+    length = y - x
+    rx = x + _origin(project, media)
+    ry = rx + length
+    tracks = tuple(scope) if scope is not None else tuple(t.id for t in project.tracks)
+    site = locate(project, media, start_flicks, end_flicks)
+    if at is None and site.kind in (AMBIGUOUS, NONE):
+        return _blocked(site, length, tracks, site.kind)
+    group = _group(project, media)
+    slots = {t.id: i for i, t in enumerate(project.tracks)}
+    if at is None and site.kind in (FILL, HOLE):
+        return _place(project, media, site, x, length, slots, group)
+    frame = at if at is not None else site.frame
+    refs: list[ClipRef] = []
+    outcomes: list[tuple[str, str]] = []
+    own = _own_clip(project, media, rx) if site.kind in (AMBIGUOUS, NONE) or at else None
+    for track in project.tracks:
+        if track.id not in tracks:
+            continue
+        mine = [c for c in track.clips if c.media in group and not c.free]
+        if not mine:
+            outcomes.append((track.id, _other_track(track, frame)))
+            continue
+        if own is not None:
+            left = own[1] if track.id == own[0] else None
+            right = None
+        else:
+            left = next((c for c in mine if c.end == frame), None)
+            right = next((c for c in mine if c.start == frame), None)
+        neighbour = left or right
+        if neighbour is None:
+            outcomes.append((track.id, "cut_differently"))
+            continue
+        ref = _ref(project, neighbour.media, rx, ry, slots[track.id], neighbour)
+        if ref is None:
+            outcomes.append((track.id, "silence"))
+        else:
+            refs.append(ref)
+            outcomes.append((track.id, "restored"))
+    if not refs:
+        return _blocked(site, length, tracks,
+                        "no_track" if own is None and at else "nothing")
+    entry = entry_from_refs(refs, name="put back", span=(0, length))
+    return Plan(site, frame, "insert", length, length, tracks, tuple(outcomes), entry)
+
+
+def _place(project: Project, media: str, site: Site, x: int, length: int,
+           slots: dict[str, int], group: set[str]) -> Plan:
+    """FILL and HOLE: into empty space on the recording's own track, nothing moves."""
+    own = next(c for c in project.track(site.track).clips if c.media == media)
+    ref = _ref(project, media, x + _origin(project, media), x + _origin(project, media)
+               + length, slots[site.track], own)
+    outcomes = [(site.track, "restored")]
+    if site.kind == FILL:
+        outcomes += [(t.id, "still_in_edit") for t in project.tracks
+                     if t.id != site.track
+                     and any(c.media in group and not c.free for c in t.clips)]
+    if ref is None:
+        return _blocked(site, length, (), "nothing")
+    entry = entry_from_refs([ref], name="put back", span=(0, length))
+    return Plan(site, site.frame, "place", length, 0, (), tuple(outcomes), entry)
+
+
+def apply(project: Project, plan: Plan) -> Project:
+    """``project`` with ``plan`` done, as one pure step (the session commits it once).
+    Only clips are added; no recording is touched. A blocked plan raises."""
+    if plan.blocked or plan.entry is None or plan.at is None:
+        raise EditError("error.put_back.blocked", reason=plan.blocked or "nothing")
+    mode = "insert" if plan.mode == "insert" else "overwrite"
+    paste = plan_paste(project, plan.entry, plan.at, mode)
+    return apply_paste(project, plan.entry, paste, plan.at, set(plan.scope), mode)
