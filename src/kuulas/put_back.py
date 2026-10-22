@@ -26,12 +26,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from . import source_map
 from .clipboard import ClipRef, Entry, entry_from_refs
-from .clock import flicks_to_frames
+from .clock import FLICKS, flicks_to_frames, frames_to_flicks
 from .model import Clip, Project
 from .ops import EditError, _recorded
 from .paste_apply import apply_paste
 from .paste_plan import plan_paste
+from .source_map import _resolve_recording
 
 FILL, HOLE, SEAM, EDGE = "fill", "hole", "seam", "edge"
 AMBIGUOUS, NONE = "ambiguous", "none"
@@ -327,3 +329,67 @@ def apply(project: Project, plan: Plan) -> Project:
     mode = "insert" if plan.mode == "insert" else "overwrite"
     paste = plan_paste(project, plan.entry, plan.at, mode)
     return apply_paste(project, plan.entry, paste, plan.at, set(plan.scope), mode)
+
+
+#: A pause longer than this ends a sentence even without a full stop.
+SENTENCE_GAP = FLICKS
+#: A remainder of the removed block shorter than this is a sliver: the whole block
+#: returns.
+SLIVER = FLICKS
+#: A removed block longer than this (a recording placed nowhere) never returns
+#: whole.
+MAX_BLOCK = 120 * FLICKS
+#: A sentence that is more than this share of its block takes the whole block.
+WHOLE_SHARE = 2 / 3
+_STOPS = ".!?\u2026"
+
+
+def _inside(ranges: list[tuple[int, int]], point: int) -> bool:
+    return any(a <= point < b for a, b in ranges)
+
+
+def choose_range(project: Project, media: str, words: list[dict], first: int,
+                 last: int) -> tuple[int, int]:
+    """The default stretch to put back for a hit on ``words[first..last]`` of ``media``:
+    its sentence (to a full stop, a pause over a second, or a change of speaker), padded
+    to the middle of the pauses like a cut, and kept inside the removed block around it,
+    so nothing the edit still plays comes back twice. A sliver left over, or a sentence
+    that is most of the block, takes the whole block (never one over two minutes: a
+    recording placed nowhere). ``(start, end)`` in flicks from the recording's start."""
+    media_by = {m.id: m for m in project.media}
+    item = media_by[media]
+    resolved = _resolve_recording(item, media_by)
+    sha, origin = resolved if resolved is not None else (item.sha256, 0)
+    used, _cut, _unused = source_map.coverage(project, sha)
+
+    def heard(i: int) -> bool:
+        return _inside(used, origin + (words[i]["s"] + words[i]["e"]) // 2)
+
+    def joins(a: int, b: int) -> bool:
+        """Do neighbouring words ``a`` then ``b`` belong to one sentence?"""
+        before, after = words[a], words[b]
+        return (not heard(b) and after["s"] - before["e"] <= SENTENCE_GAP
+                and before["w"][-1:] not in _STOPS
+                and before.get("spk", "") == after.get("spk", ""))
+
+    i, j = first, last
+    while i > 0 and joins(i - 1, i):
+        i -= 1
+    while j < len(words) - 1 and joins(j, j + 1):
+        j += 1
+    start = words[i]["s"]
+    if i > 0:
+        start = (words[i - 1]["e"] + start) // 2
+    end = words[j]["e"]
+    if j < len(words) - 1:
+        end = (end + words[j + 1]["s"]) // 2
+    a, b = origin + words[first]["s"], origin + words[last]["e"]
+    lo = max((e for _s, e in used if e <= a), default=origin) - origin
+    hi = min((s for s, _e in used if s >= b),
+             default=origin + frames_to_flicks(item.frames, project.rate)) - origin
+    start, end = max(start, lo), min(end, hi)
+    block = hi - lo
+    slivers = 0 < start - lo < SLIVER or 0 < hi - end < SLIVER
+    if block <= MAX_BLOCK and (slivers or end - start > WHOLE_SHARE * block):
+        return lo, hi
+    return start, end
