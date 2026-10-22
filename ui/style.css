@@ -1762,13 +1762,14 @@ input[type="text"] {
 }
 /* Five tabs and the hide button are one row at every width (owner, 2026-10-21): never wrapped,
    never an ellipsis (2026-10-19). side-tabs-model.js measures and sets data-tabs: full, then
-   tight (less padding, key as a digit), then compact (only the selected tab keeps its label,
-   the others show their key digit). The key hint is on every tab at every step. GUI-DESIGN 3.6. */
+   tight (less padding), then compact (the selected tab keeps its label and key; the others show
+   an icon plus the key), then minimal (the selected tab loses its key too). The key is always
+   the whole combo, "Alt+1" / "⌥1", never a bare digit (owner, 2026-10-22). GUI-DESIGN 3.6. */
 .side-tab {
   flex: 0 0 auto;
   white-space: nowrap;
   height: var(--control-h);
-  padding: 0 var(--space-2);
+  padding: 0 var(--space-3);
   font-size: var(--text-sm);
   border: 0;
   border-bottom: 2px solid transparent;
@@ -1789,26 +1790,31 @@ input[type="text"] {
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
 }
-/* The key is always shown: the whole combo (Alt+1, ⌥1) in full, the digit when tight. */
-.side-tab .tab-key::after {
-  content: attr(data-short);
+/* The icon (drawn by icons.js, in the text colour) shows only on the unselected tabs of the two
+   narrow steps, where the name is gone and a key alone would mean nothing. */
+.side-tab .tab-icon {
+  display: none;
 }
-.side-tabs[data-tabs="full"] .side-tab .tab-key::after {
-  content: attr(data-full);
-}
-.side-tabs[data-tabs="tight"] .side-tab,
-.side-tabs[data-tabs="compact"] .side-tab {
-  padding: 0 var(--space-3);
+.side-tabs[data-tabs="tight"] .side-tab {
+  padding: 0 var(--space-2);
 }
 .side-tabs[data-tabs="tight"] .side-tab .tab-key {
   margin-left: var(--space-1);
 }
-.side-tabs[data-tabs="compact"] .side-tab:not([aria-selected="true"]) .tab-label {
+.side-tabs[data-tabs="compact"] .side-tab:not([aria-selected="true"]) .tab-icon,
+.side-tabs[data-tabs="minimal"] .side-tab:not([aria-selected="true"]) .tab-icon {
+  display: inline-block;
+}
+.side-tabs[data-tabs="compact"] .side-tab:not([aria-selected="true"]) .tab-label,
+.side-tabs[data-tabs="minimal"] .side-tab:not([aria-selected="true"]) .tab-label {
   display: none;
 }
-.side-tabs[data-tabs="compact"] .side-tab:not([aria-selected="true"]) .tab-key {
-  margin-left: 0;
-  font-size: var(--text-sm);
+.side-tabs[data-tabs="compact"] .side-tab:not([aria-selected="true"]) .tab-key,
+.side-tabs[data-tabs="minimal"] .side-tab:not([aria-selected="true"]) .tab-key {
+  margin-left: var(--space-1);
+}
+.side-tabs[data-tabs="minimal"] .side-tab[aria-selected="true"] .tab-key {
+  display: none;
 }
 .side-tabs .side-close {
   flex: none;
@@ -3065,7 +3071,8 @@ input[type="text"] {
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
 }
-.side-tabs[data-tabs="compact"] .side-tab:not([aria-selected="true"]) .count {
+.side-tabs[data-tabs="compact"] .side-tab:not([aria-selected="true"]) .count,
+.side-tabs[data-tabs="minimal"] .side-tab:not([aria-selected="true"]) .count {
   display: none;
 }
 .cand-tools {
