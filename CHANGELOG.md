@@ -1,3 +1,7 @@
+## [Unreleased]
+
+- **The side-panel tabs show icons and the full shortcut when names do not fit.** On a narrow panel the inactive tabs become an icon plus "⌥1" (Alt+1 elsewhere), never a bare digit; the active tab keeps its name (at the narrowest width, name only). Every tab has a tooltip "Name (⌥1)". Not seen on screen yet.
+
 ## [v26.10.22.1] - 2026-10-22
 
 - **Source (GPL):** Kuulas from this tag; the bundled speechmix, nhsx, silencelearn and automixer from github.com/ollisulopuisto/podcast at the main commit the dmg build checked out (8127aa7 when this release was made); pedalboard from github.com/spotify/pedalboard; ffmpeg from ffmpeg.org. Licences: docs/LICENSES.md.
