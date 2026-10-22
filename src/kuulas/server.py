@@ -1560,6 +1560,12 @@ def create_app(session, engine, *, language: str | None = None,
             body["people"] = names
         return JSONResponse(body)
 
+    @app.get("/api/material-search")
+    def get_material_search(q: str = ""):
+        """Words matching ``q`` that the edit does not play, with the reason
+        (cut, muted, gated, unused): the find bar's "Not in this edit" list."""
+        return JSONResponse({"hits": session.search_material(q)})
+
     @app.get("/api/edit-points")
     def get_edit_points(mode: str, track: str | None = None):
         """The frames Tab jumps between (WP19i): ``mode`` edges, transients or

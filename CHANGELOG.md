@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 - **The Transcript shows only what is heard.** Words in muted clips, on muted or silent tracks, soft-cut with Backspace, or closed by Auto-Silence are no longer drawn, struck through or marked: the Transcript is for cutting what is there. The Cut and Delete keys count the words you see. A recording whose words are all muted is still known as transcribed, so it is not offered for transcription again. Searching removed material and putting it back come next.
+- **Search finds words the edit does not play** (server side; the find bar list follows). `GET /api/material-search?q=` searches every transcript and returns the words that are cut, muted, gated or in a recording placed nowhere, each with its reason and the words around it.
 - **The History panel's step sides are right after a Restore again.** A step that a Restore skipped is shown as rolled back, not as left behind, on the panel's page as well as the full list. An edit that has ever been restored takes the slower full computation for the panel, so a very long restored history may still feel a little slow on each edit.
 - **The side-panel tabs show icons and the full shortcut when names do not fit.** On a narrow panel the inactive tabs become an icon plus "⌥1" (Alt+1 elsewhere), never a bare digit; the active tab keeps its name (at the narrowest width, name only). Every tab has a tooltip "Name (⌥1)". Not seen on screen yet.
 

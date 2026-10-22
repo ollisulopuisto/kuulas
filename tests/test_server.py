@@ -454,6 +454,25 @@ def test_cut_words_counts_positions_in_the_heard_words(client, loaded, session):
     assert r.status_code == 400
 
 
+def test_material_search_finds_a_cut_word_with_its_reason(client, loaded, session):
+    media = media_id(loaded)
+    client.post(f"/api/transcript/{media}", json=WORDS)
+    def search(q):
+        return client.get("/api/material-search", params={"q": q}).json()
+
+    assert search("there") == {"hits": []}
+    session.command("cut_words", {"indices": [1]})  # "there"
+    body = search("there")
+    [hit] = body["hits"]
+    assert (hit["media"], hit["status"], hit["match"]) == (media, "cut", "there")
+    assert hit["before"] == "hello"
+    assert search("hello") == {"hits": []}
+
+
+def test_material_search_needs_a_query(client, loaded):
+    assert client.get("/api/material-search").json() == {"hits": []}
+
+
 def test_transcript_import_accepts_the_whisper_shape(client, loaded):
     media = media_id(loaded)
     segments = {"segments": [{"words": WORDS}]}

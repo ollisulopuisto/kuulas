@@ -52,6 +52,7 @@ from . import (
     edit_scope,
     export_names,
     import_plan,
+    material_search,
     music_duck,
     music_level,
     narration,
@@ -3140,6 +3141,15 @@ class Session:
         position in this list is a word's reference for ``cut_words``, and it is what
         ``GET /api/words`` returns, so the panel and the command count the same words."""
         return [w for w in self.timeline_words() if not w["muted"]]
+
+    def search_material(self, query: str) -> list[dict]:
+        """The hits of ``query`` in every transcript that the edit does not play
+        (``material_search``): cut, muted, gated or never placed, each with its reason.
+        The snapshot is taken under the lock; the search runs outside it."""
+        with self.lock:
+            state = self.history.state
+            words_by_media = self.transcripts()
+        return material_search.search(state, words_by_media, query)
 
     def transcribed_media(self) -> list[str]:
         """The recordings that have words anywhere on the timeline, heard or not: a
