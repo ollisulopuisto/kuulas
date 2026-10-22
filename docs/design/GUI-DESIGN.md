@@ -248,16 +248,25 @@ measured width the strip needs and the room it has (`data-tabs` on
 
 | Step | When | Looks like |
 |---|---|---|
-| full | all names plus whole keys fit | "Inspector Alt+1" (mac "⌥1"), dimmed key |
-| tight | full does not fit | same names, key as a digit, 6 px padding |
-| compact | tight does not fit (the 260-280 px minimum, Finnish names) | only the selected tab keeps its name; the others show only their key digit |
+| full | all names plus whole keys fit | "Inspector Alt+1" (mac "⌥1"), dimmed key, 6 px padding |
+| tight | full does not fit | same names and keys, 4 px padding |
+| compact | tight does not fit (the 260-280 px minimum, Finnish names) | the selected tab keeps its name and key; the others show an icon plus the key: "[icon] ⌥2" |
+| minimal | compact does not fit | as compact, but the selected tab shows only its name (its key is in the tooltip) |
 
-The key hint is on every tab at every step.
+**The key is never a bare digit** (owner, 2026-10-22: "Tarkastin 1 2 3 4 5" meant
+nothing): at every step it is the user's shown key with its modifier, "⌥1" on
+mac and "Alt+1" elsewhere (`formatCombo` on the live keymap). Icons, from
+`ui/icons.js` and drawn in the text colour at 1.15 em: Inspector `inspector`
+(sliders), Candidates `candidates` (two ticked rows), Clipboard `paste`,
+Markers `bookmark`, History `restore`. They show only on the unselected tabs of
+compact and minimal; the selected tab never needs one, its name is there.
 The selected tab is marked by colour and underline only (no bold), so it never
 changes width. Every tab has the tooltip "Name (Alt+n)", an accessible name
-(the label, also in compact) and `aria-keyshortcuts`; the key is the user's if
-rebound. Alt+1..Alt+5 need no AltGr or Shift+digit. In compact the Candidates
-count pill shows only on the selected tab.
+(the label, also in compact; the icon is `aria-hidden`) and `aria-keyshortcuts`;
+the key is the user's if rebound. Alt+1..Alt+5 need no AltGr or Shift+digit. In
+compact and minimal the Candidates count pill shows only on the selected tab.
+Only the selected tab's label and key appear or disappear when the selection
+moves; the strip stays one row.
 
 **Inspector** (selected clip): the title block (4 px hue bar, the clip's label
 at 17 px, then "Anna.wav · Part 3 of 3 · Anna", the bus line with badge and the

@@ -166,7 +166,7 @@ import { seriesChip } from "./series-model.js";
 import { adoptRequest, createSeriesShelf } from "./series-shelf.js";
 import { setupKeyboard } from "./shell-keys.js";
 import { chipSpeed } from "./shuttle.js";
-import { keyHint, tabMode, tabTitle } from "./side-tabs-model.js";
+import { tabHint, tabMode, tabTitle } from "./side-tabs-model.js";
 import { SIDEBAR_KEY, sidebarPref, sidebarShown, toggleSidebar } from "./sidebar-model.js";
 import { normaliseSilence } from "./silence-model.js";
 import { createSilencePanel } from "./silence-panel.js";
@@ -214,8 +214,8 @@ const GAIN_DIGITS = (value) => (Number.isInteger(value) ? 0 : 1);
 
 // -- text -------------------------------------------------------------------
 
-// Each side tab: tooltip "Name (Alt+n)", aria-keyshortcuts, the digit for the compact strip, and
-// the step (full / tight / compact) that keeps the strip on one row.
+// Each side tab: tooltip "Name (Alt+n)", aria-keyshortcuts, the whole key ("⌥n") as its hint, and
+// the step (full / tight / compact / minimal) that keeps the strip on one row.
 let tabKeyEntries = null;
 function applyTabs() {
   const platform = detectPlatform();
@@ -230,9 +230,7 @@ function applyTabs() {
       "aria-keyshortcuts",
       combos.map((c) => c.replace(/\bMod\b/, platform === "mac" ? "Meta" : "Control")).join(" "),
     );
-    const key = button.querySelector(".tab-key");
-    key.dataset.full = shown[0] ?? "";
-    key.dataset.short = keyHint(shown[0]);
+    button.querySelector(".tab-key").textContent = tabHint(shown);
   }
   layoutTabs();
 }
@@ -249,7 +247,7 @@ function layoutTabs() {
     strip.dataset.tabs = mode;
     return kids.reduce((sum, kid) => sum + kid.offsetWidth, 0) + gap * (kids.length - 1) + pad;
   };
-  const needed = { full: measure("full"), tight: measure("tight") };
+  const needed = { full: measure("full"), tight: measure("tight"), compact: measure("compact") };
   strip.dataset.tabs = tabMode(needed, strip.clientWidth);
 }
 new ResizeObserver(layoutTabs).observe(document.querySelector(".side-tabs"));
