@@ -75,7 +75,16 @@ create table if not exists nodes(
     material_from integer, material_to integer,
     context text,
     created_utc text not null);
-create index if not exists nodes_by_parent on nodes(edit, parent);
+-- The history panel's page (newest first) and a coalesced drag's "is the old state
+-- still used?" were full scans: at 50 000 steps 35 ms and 4.6 ms per call, per edit
+-- (tests/test_history_growth.py). Added to existing files on their next open.
+-- Children are looked up by (edit, parent) in id order: with ``id`` in this index
+-- the planner never prefers nodes_by_edit (and its scan) to avoid a sort. It
+-- replaces nodes_by_parent(edit, parent).
+drop index if exists nodes_by_parent;
+create index if not exists nodes_by_parent_id on nodes(edit, parent, id);
+create index if not exists nodes_by_edit on nodes(edit, id);
+create index if not exists nodes_by_state on nodes(state);
 create table if not exists checkpoints(
     node text primary key references nodes(id),
     name text not null,

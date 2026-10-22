@@ -110,15 +110,25 @@ export function createPerfDialog({ api, t, notify }) {
     }
   }
 
+  // One polling chain at a time: each poll takes a new round, and a chain whose round is not
+  // the latest stops. Before, every reopen during a recording started another chain beside the
+  // running one (6 reopens: 12 requests a second instead of 2).
+  let round = 0;
+
   async function poll() {
+    const mine = ++round;
+    if (timer !== null) clearTimeout(timer);
+    timer = null;
     let status = null;
     try {
       status = await api.getProfile();
     } catch (error) {
+      if (mine !== round) return;
       message.textContent = error.message;
       timer = null;
       return;
     }
+    if (mine !== round) return;
     show(status);
     if (isRunning(status)) {
       timer = setTimeout(() => void poll(), POLL_MS);

@@ -21,10 +21,14 @@ export function createTileStore({
 
   const key = (media, level, tile) => `${media}/${level}/${tile}`;
 
+  // Oldest first, tiles and failures alike (a failure forgotten is only retried sooner). A
+  // failure used to stay for good, so tiles that keep failing grew the map without bound, and
+  // past the bound each fetched tile was evicted on arrival. Pending entries stay: their fetch
+  // is under way and will land.
   function evict() {
     for (const [name, value] of tiles) {
       if (tiles.size <= maxTiles) return;
-      if (value instanceof Float32Array) tiles.delete(name);
+      if (!value.pending) tiles.delete(name);
     }
   }
 
@@ -34,12 +38,17 @@ export function createTileStore({
       const name = key(media, level, tile);
       inflight += 1;
       fetchTile(media, level, tile)
+        // Delete first: Map.set on a key keeps its old place, and the pending entry was made
+        // when the tile was asked for, so the arrival would count as old.
         .then((data) => {
+          tiles.delete(name);
           tiles.set(name, data);
           evict();
         })
         .catch(() => {
+          tiles.delete(name);
           tiles.set(name, { failedAt: now() });
+          evict();
         })
         .finally(() => {
           inflight -= 1;
@@ -50,6 +59,8 @@ export function createTileStore({
   }
 
   return {
+    /** Entries held (tiles, pending fetches, remembered failures). */
+    size: () => tiles.size,
     lookup(media, level, tile) {
       const name = key(media, level, tile);
       const value = tiles.get(name);

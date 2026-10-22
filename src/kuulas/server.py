@@ -1360,7 +1360,7 @@ def create_app(session, engine, *, language: str | None = None,
                                       detail=f"limit: 1..{HISTORY_PAGE_MAX}")
             rows = h.nodes_page(limit + 1, before)
             more = len(rows) > limit
-            side = h.sides()
+            side = h.sides([r["id"] for r in rows[:limit]])
             nodes = [{"id": r["id"], "parent": r["parent"], "label": r["label"],
                       "created": r["created"], "author": r["author"],
                       "op": r["op"].get("name"), "is_marker": h.is_marker(r),

@@ -12,6 +12,7 @@ import logging
 import threading
 import time
 import uuid
+from collections import OrderedDict
 from collections.abc import Callable
 from concurrent.futures import Future
 from dataclasses import dataclass, field
@@ -25,6 +26,14 @@ log = logging.getLogger("kuulas.jobs")
 #: Raised by a job after it observes cooperative cancellation. The same class as
 #: ``priority.CancelledError``, so a chunk loop's ``checkpoint`` cancels a job.
 JobCancelledError = priority.CancelledError
+
+#: Finished jobs (completed, failed, cancelled) listed at most; the oldest go first.
+#: A dialog polls the job it started every 0.1-0.5 s until it ends, so it reads
+#: its result long before 64 newer jobs could finish. Before this bound every job
+#: of the session stayed, with its result and its closure (the project snapshot it
+#: worked on), and ``list`` (the live channel's, 4 times a second, 30 while playing)
+#: grew with them.
+FINISHED_KEPT = 64
 
 #: Fields of a job's entry that ``list`` does not show.
 _PRIVATE = frozenset({"created", "started", "paused_s", "paused_at", "own_message"})
@@ -90,6 +99,8 @@ class Jobs:
         self._interactive = False
         self._items: dict[str, dict] = {}
         self._work: dict[str, _Work] = {}
+        #: Finished job ids, oldest end first (``_finished``).
+        self._done: OrderedDict[str, None] = OrderedDict()
         self._closed = False
 
     def submit(self, kind: str, title: str,
@@ -120,6 +131,7 @@ class Jobs:
             item = self._items[job_id]
             if work.cancel.is_set():
                 item["state"] = "cancelled"
+                self._finished(job_id)
                 return
             item["state"], item["started"] = "running", time.monotonic()
         priority.lower_this_thread()  # a job thread is background work, always
@@ -162,8 +174,21 @@ class Jobs:
                                            remaining_seconds=None, eta=None,
                                            detail=None, paused=False)
         finally:
+            with self._lock:
+                self._finished(job_id)
             if entered:
                 self._leave()
+
+    def _finished(self, job_id: str) -> None:
+        """``job_id`` has ended (caller holds the lock): let go of its work (the
+        closure and what it captured) and drop the oldest finished beyond
+        ``FINISHED_KEPT``, in the order they ended: an export that ends after many
+        short previews is the newest. Queued and running jobs are never dropped."""
+        self._work.pop(job_id, None)
+        self._done[job_id] = None
+        while len(self._done) > FINISHED_KEPT:
+            old, _ = self._done.popitem(last=False)
+            self._items.pop(old, None)
 
     def _playback_gate(self) -> priority.PlaybackGate:
         return self._playback or priority.GATE
@@ -277,6 +302,7 @@ class Jobs:
             work.cancel.set()
             if work.future is not None and work.future.cancel():
                 item.update(state="cancelled", remaining_seconds=None)
+                self._finished(job_id)
 
     def close(self) -> None:
         with self._lock:
