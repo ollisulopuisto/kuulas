@@ -8,6 +8,7 @@ const s = (d) => d;
 export const ICONS = {
   undo: s("M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11"),
   redo: s("m15 14 5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13"),
+  bookmark: s("M6 3h12v18l-6-4.5L6 21Z"),
   restore: s("M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l3 2"),
   search: s("m21 21-4.3-4.3M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z"),
   play: s("M7 4.5v15l12-7.5Z"),
@@ -40,6 +41,10 @@ export const ICONS = {
   // open. Also drawn on the timeline canvas (timeline.js drawIcon) from these same paths.
   lock: s("M6 11h12v9H6ZM8.5 11V8a3.5 3.5 0 0 1 7 0v3"),
   unlock: s("M6 11h12v9H6ZM8.5 11V8a3.5 3.5 0 0 1 6.8-1.2"),
+  // The sidebar tabs (Clipboard uses paste, Markers bookmark, History restore): sliders for the
+  // Inspector's fields, two ticked rows for the Candidates to accept.
+  inspector: s("M4 7h9M17 7h3M4 17h3M11 17h9M15 4v6M9 14v6"),
+  candidates: s("m4 7 2 2 3.5-4M13 7h7M4 17l2 2 3.5-4M13 17h7"),
   // Missing media: a plain warning triangle.
   alert: s("M12 3.5 2.5 20h19ZM12 10v4.5M12 17.5h.01"),
 };
@@ -49,12 +54,15 @@ export function iconCss() {
   const rules = Object.entries(ICONS).map(([name, d]) => {
     const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='${d}'/></svg>`;
     const url = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
-    return `.button[data-icon="${name}"]::before{-webkit-mask-image:${url};mask-image:${url}}`;
+    return `.button[data-icon="${name}"]::before,.tab-icon[data-icon="${name}"]{-webkit-mask-image:${url};mask-image:${url}}`;
   });
   const base =
     '.button[data-icon]::before{content:"";flex:none;width:16px;height:16px;background:currentColor;-webkit-mask:center/contain no-repeat;mask:center/contain no-repeat}';
-  // the shorthand above resets the image, so the per-icon rules come after it
-  return [base, ...rules].join("\n");
+  // A sidebar tab draws its icon on a span of its own, sized to the tab text (1.15em).
+  const tab =
+    ".tab-icon{flex:none;width:1.15em;height:1.15em;vertical-align:-0.2em;background:currentColor;-webkit-mask:center/contain no-repeat;mask:center/contain no-repeat}";
+  // the shorthands above reset the image, so the per-icon rules come after them
+  return [base, tab, ...rules].join("\n");
 }
 
 export function installIcons(doc = document) {

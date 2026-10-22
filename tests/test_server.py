@@ -869,6 +869,19 @@ def test_get_music_report_html(client):
     assert "<table" in r.text
 
 
+def test_music_report_downloads_are_named_after_the_project(client, session):
+    """The GUI saves the report as a download: the name starts with the project."""
+    title = session.export_title()
+    csv_disposition = client.get("/api/music-report?format=csv").headers[
+        "content-disposition"]
+    assert f'filename="{title} music-report.csv"' in csv_disposition
+    html = client.get("/api/music-report?format=html&download=1")
+    assert f'filename="{title} music-report.html"' in html.headers["content-disposition"]
+    # Without download=1 the page opens inline, as before.
+    inline = client.get("/api/music-report?format=html")
+    assert "content-disposition" not in inline.headers
+
+
 def test_get_music_report_bad_format_returns_400(client):
     r = client.get("/api/music-report?format=unsupported")
     assert r.status_code == 400
@@ -1077,3 +1090,101 @@ def test_plugins_endpoint_lists_the_scan(client, monkeypatch):
     assert client.get("/api/plugins").json() == {"plugins": items}
     client.get("/api/plugins?refresh=1")
     assert seen == [False, True]
+
+
+# -- saved versions (checkpoints) in the history answer ---------------------------
+
+
+def _edit(client, loaded, label, gain):
+    track = loaded["project"]["tracks"][0]["id"]
+    client.post("/api/edit", json={"op": "set_track", "label": label,
+                                   "args": {"track_id": track, "gain_db": gain}})
+
+
+def _save(client, name):
+    client.post("/api/command", json={"name": "save_checkpoint", "args": {"name": name}})
+
+
+def test_history_page_carries_the_saved_versions(client, loaded):
+    _edit(client, loaded, "one", -1.0)
+    _save(client, "Draft A")
+    _edit(client, loaded, "two", -2.0)
+    page = client.get("/api/history", params={"limit": 10}).json()
+    by_label = {n["label"]: n for n in page["nodes"]}
+    saved = by_label["one"]["checkpoint"]
+    assert saved["name"] == "Draft A"
+    assert saved["kind"] == "manual"
+    assert saved["created"]
+    assert by_label["two"]["checkpoint"] is None
+    full = client.get("/api/history").json()
+    names = [n["checkpoint"]["name"] for n in full["nodes"] if n["checkpoint"]]
+    assert names == ["Draft A"]
+
+
+def test_history_page_can_list_only_the_saved_versions(client, session, loaded):
+    _edit(client, loaded, "one", -1.0)
+    _save(client, "Draft A")
+    _edit(client, loaded, "two", -2.0)
+    session.checkpoint("Sent to Ville", "sent")
+    _edit(client, loaded, "three", -3.0)
+    page = client.get("/api/history", params={"limit": 10, "saved": 1}).json()
+    assert [n["label"] for n in page["nodes"]] == ["two", "one"]
+    assert [n["checkpoint"]["kind"] for n in page["nodes"]] == ["sent", "manual"]
+    assert page["more"] is False
+    first = client.get("/api/history", params={"limit": 1, "saved": 1}).json()
+    assert first["more"] is True
+
+
+def test_rename_checkpoint_changes_only_the_name(client, loaded):
+    _edit(client, loaded, "one", -1.0)
+    _save(client, "Draft A")
+    node = client.get("/api/history", params={"limit": 1}).json()["nodes"][0]["id"]
+    r = client.post("/api/command", json={
+        "name": "rename_checkpoint", "args": {"node": node, "name": "  Final cut "}})
+    assert r.status_code == 200
+    page = client.get("/api/history", params={"limit": 1}).json()
+    assert page["nodes"][0]["checkpoint"]["name"] == "Final cut"
+    assert page["nodes"][0]["checkpoint"]["kind"] == "manual"
+
+
+def test_history_page_says_what_a_restore_rolled_back(client, loaded):
+    _edit(client, loaded, "one", -1.0)
+    _edit(client, loaded, "two", -2.0)
+    _edit(client, loaded, "three", -3.0)
+    page = client.get("/api/history", params={"limit": 10}).json()
+    target = {n["label"]: n for n in page["nodes"]}["one"]["id"]
+    assert client.post("/api/restore", json={"node": target}).status_code == 200
+    page = client.get("/api/history", params={"limit": 10}).json()
+    head = page["nodes"][0]
+    assert head["restore_target"] == target
+    assert head["rolled_back_by"] is None
+    by_label = {n["label"]: n for n in page["nodes"]}
+    assert by_label["two"]["side"] == by_label["three"]["side"] == "rolled_back"
+    assert by_label["two"]["rolled_back_by"] == head["id"]
+    assert by_label["one"]["side"] == "past"
+    assert by_label["one"]["restore_target"] is None
+
+
+def test_history_page_names_steps_from_their_op_and_the_current_tracks(client, loaded):
+    track = loaded["project"]["tracks"][0]
+    client.post("/api/edit", json={"op": "set_track",
+                                   "args": {"track_id": track["id"], "gain_db": -3.0}})
+    page = client.get("/api/history", params={"limit": 5}).json()
+    step = page["nodes"][0]
+    assert step["label"] == "set_track"  # what was stored stays as it was
+    assert step["name"] == f"Track settings: {track['name']} · gain \u22123.0 dB"
+    assert step["name_base"] == f"Track settings: {track['name']}"
+    assert step["name_detail"] == "gain \u22123.0 dB"
+    assert step["run"] == f"set_track:{track['id']}"
+    client.post("/api/restore", json={"node": page["nodes"][1]["id"]})
+    client.post("/api/restore", json={"node": step["id"]})
+    head = client.get("/api/history", params={"limit": 1}).json()["nodes"][0]
+    assert head["name"] == f"Restored to: {step['name']}"
+    assert head["run"] is None
+
+
+def test_get_music_report_range(client):
+    assert client.get("/api/music-report?start=0&end=48000").json() == {"rows": []}
+    bad = client.get("/api/music-report?start=10&end=10")
+    assert bad.status_code == 400
+    assert bad.json()["error"]["key"] == "error.music_report.bad_range"

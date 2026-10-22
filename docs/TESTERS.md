@@ -85,13 +85,19 @@ does not touch them.
 ```
 
 Prints one line per check (libraries, ffmpeg, interface files, a project and the server,
-the loudness meter, the recorder recording one second from a built-in test signal) and
+the loudness meter, the recorder recording one second from a built-in test signal, the
+automixer answering `--help`) and
 ends with `selftest passed`. No window opens and no microphone is used.
 
 ## What is inside
 
 Python and the libraries Kuulas uses, with their own licences (in
-`Kuulas.app/Contents/Resources/app_packages/`). `ffmpeg` and `ffprobe` are in
+`Kuulas.app/Contents/Resources/app_packages/`), and the automixer (File > Mix with the
+automixer runs it from inside the app; no other install is needed). pedalboard, which
+Kuulas and the automixer use for audio processing, is licensed GPL version 3 (see
+docs/LICENSES.md). Audio plug-ins (VST3, AU) such as dxRevive are not included: install
+your own; Kuulas looks for them in `/Library/Audio/Plug-Ins` and
+`~/Library/Audio/Plug-Ins`. `ffmpeg` and `ffprobe` are in
 `Kuulas.app/Contents/Resources/bin`: static builds from <https://ffmpeg.martin-riedl.de>,
 licensed GPL version 3; they run as separate programs, and their source is available from
 <https://ffmpeg.org>.

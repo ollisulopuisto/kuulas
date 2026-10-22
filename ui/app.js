@@ -42,10 +42,15 @@ import { edgeChange, edgePressKeepsSelection } from "./edge-drag.js";
 import { dropPastePlan } from "./edit-plans.js";
 import { createEditor } from "./edits.js";
 import { createNewEpisodeDialog } from "./episode-dialog.js";
-import { escapeAction } from "./escape.js";
+import { runEscape } from "./escape.js";
 import { exportNotice, exportRequest, filenameFromDisposition } from "./export-commands.js";
 import { createExportDialog } from "./export-dialog.js";
 import { quickPlan } from "./export-dialog-model.js";
+import {
+  resolveExportSelection,
+  selectionBody,
+  selectionNotice,
+} from "./export-selection-model.js";
 import {
   chipFast,
   dragSpeed,
@@ -69,7 +74,8 @@ import {
   stopFocus,
   tweenHeights,
 } from "./focus-layout.js";
-import { followScroll } from "./follow.js";
+import { followScroll, scrollFor } from "./follow.js";
+import { arrowOf, followStep, onHandle, inView as playheadInView } from "./follow-model.js";
 import { frameToTime, RATE, xToFrame } from "./format.js";
 import { envelopeChange, fadeChange, gainChange } from "./gain-drag.js";
 import { GATE_OPEN_COMMAND, openStretchEdit, stretchAt, underClipsEdit } from "./gate.js";
@@ -115,7 +121,7 @@ import { leftOffHere, leftOffOf, leftOffText } from "./left-off.js";
 import { createLevelMeter } from "./level-meter.js";
 import { connectLive } from "./live.js";
 import { createLocateDialog } from "./locate-dialog.js";
-import { activeLoop } from "./loop-range.js";
+import { activeLoop, rangeAvailable } from "./loop-range.js";
 import { createLoudnessLoader } from "./loudness-readout.js";
 import { regionCount } from "./markers-model.js";
 import { createMarkersPanel } from "./markers-panel.js";
@@ -126,6 +132,9 @@ import { monoDecision, monoEdits } from "./mono-ask.js";
 import { motionMode } from "./motion.js";
 import { createMusicLevelDialog } from "./music-level-dialog.js";
 import { MUSIC_UNDER_KEY, normaliseMusicUnder } from "./music-level-model.js";
+import { createMusicReportDialog } from "./music-report-dialog.js";
+import { reportQuery } from "./music-report-model.js";
+import { createNameDialog } from "./name-dialog.js";
 import { createOverview } from "./overview.js";
 import { createPerfDialog } from "./perf-dialog.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
@@ -149,7 +158,7 @@ import {
 import { recentMenuItems } from "./recent-menu-model.js";
 import { createRecordView } from "./record-view.js";
 import { createRelinkConfirm, relinkPlan } from "./relink-media.js";
-import { rangeChoice, renderWhen } from "./render-listen-model.js";
+import { renderWhen, selectionChoice } from "./render-listen-model.js";
 import { createRenderListenView } from "./render-listen-view.js";
 import { forwardFromClip } from "./selection-ops.js";
 import { createSendCopyDialog } from "./send-copy-dialog.js";
@@ -158,6 +167,7 @@ import { seriesChip } from "./series-model.js";
 import { adoptRequest, createSeriesShelf } from "./series-shelf.js";
 import { setupKeyboard } from "./shell-keys.js";
 import { chipSpeed } from "./shuttle.js";
+import { tabHint, tabMode, tabTitle } from "./side-tabs-model.js";
 import { SIDEBAR_KEY, sidebarPref, sidebarShown, toggleSidebar } from "./sidebar-model.js";
 import { normaliseSilence } from "./silence-model.js";
 import { createSilencePanel } from "./silence-panel.js";
@@ -227,6 +237,44 @@ const GAIN_DIGITS = (value) => (Number.isInteger(value) ? 0 : 1);
 
 // -- text -------------------------------------------------------------------
 
+// Each side tab: tooltip "Name (Alt+n)", aria-keyshortcuts, the whole key ("⌥n") as its hint, and
+// the step (full / tight / compact / minimal) that keeps the strip on one row.
+let tabKeyEntries = null;
+function applyTabs() {
+  const platform = detectPlatform();
+  for (const [id, tab] of Object.entries(SIDE_TAB_COMMANDS)) {
+    const button = $(`tab-${tab}`);
+    const name = t(`ui.tabs.${tab}`);
+    const combos = tabKeyEntries ? shortcutsFor(id, tabKeyEntries) : [];
+    const shown = combos.map((combo) => formatCombo(combo, platform));
+    button.title = tabTitle(name, shown);
+    button.setAttribute("aria-label", name);
+    button.setAttribute(
+      "aria-keyshortcuts",
+      combos.map((c) => c.replace(/\bMod\b/, platform === "mac" ? "Meta" : "Control")).join(" "),
+    );
+    button.querySelector(".tab-key").textContent = tabHint(shown);
+  }
+  layoutTabs();
+}
+
+/** Pick the strip's step from what each step needs (measured) and the room it has. */
+function layoutTabs() {
+  const strip = document.querySelector(".side-tabs");
+  if (!strip || strip.clientWidth === 0) return;
+  const style = getComputedStyle(strip);
+  const gap = Number.parseFloat(style.columnGap) || 0;
+  const pad = Number.parseFloat(style.paddingLeft) + Number.parseFloat(style.paddingRight);
+  const kids = [...strip.children];
+  const measure = (mode) => {
+    strip.dataset.tabs = mode;
+    return kids.reduce((sum, kid) => sum + kid.offsetWidth, 0) + gap * (kids.length - 1) + pad;
+  };
+  const needed = { full: measure("full"), tight: measure("tight"), compact: measure("compact") };
+  strip.dataset.tabs = tabMode(needed, strip.clientWidth);
+}
+new ResizeObserver(layoutTabs).observe(document.querySelector(".side-tabs"));
+
 function translate() {
   for (const node of document.querySelectorAll("[data-i18n]"))
     node.textContent = t(node.dataset.i18n);
@@ -238,6 +286,7 @@ function translate() {
   for (const node of document.querySelectorAll("[data-shortcut]"))
     node.textContent = formatShortcut(node.dataset.shortcut);
   document.title = t("ui.app.title");
+  applyTabs();
 }
 
 let noticeTimer = null;
@@ -296,6 +345,9 @@ let exportFormatList = null; // the same as [{ id, label, ... }], for the export
 
 const rate = () => getState().project?.rate ?? RATE;
 const totalFrames = () => projectEnd(getState().project);
+// What every export honours (owner, 2026-10-21): the In/Out range or the selected clips'
+// tracks and span; null is the whole mix (export-selection-model.js).
+const exportSelection = () => resolveExportSelection(getState(), { length: totalFrames() });
 const width = () => Math.max(1, timeline?.size().width ?? 1);
 const viewLevels = () =>
   View.zoomLevels({ width: width(), rate: rate(), totalFrames: totalFrames() });
@@ -527,8 +579,36 @@ function anchorFrame() {
   }).frame;
 }
 
+// Follow is a state (follow-model.js): `followPaused` is "Follow off". Every event goes through
+// the model; the view moves to the playhead (or to `frame`) when it says so.
+function followEvent(event) {
+  const state = getState();
+  const at = event.frame ?? playheadNow(state);
+  const view = { playhead: at, scroll: state.scroll, zoom: state.zoom, width: width() };
+  const out = followStep(
+    { follow: !state.followPaused },
+    { ...event, playing: state.playing, inView: playheadInView(view) },
+  );
+  const patch = {};
+  if (out.follow === state.followPaused) patch.followPaused = !out.follow;
+  if (out.shouldScroll) {
+    patch.scroll = View.clampScroll(
+      scrollFor(at, state.zoom, width()),
+      state.zoom,
+      width(),
+      totalFrames(),
+    );
+  }
+  if (Object.keys(patch).length > 0) setState(patch);
+}
+// An explicit jump to a time (follow-model.js JUMP_SOURCES): re-engages Follow, shows the target.
+function jumpTo(frame) {
+  followEvent({ type: "jump", frame });
+  void transport.seek(frame);
+}
+// A manual view operation (scroll, overview drag or click, zoom, fit) detaches Follow.
 function markPaused() {
-  if (getState().playing) setState({ followPaused: true });
+  followEvent({ type: "view-op" });
 }
 
 // Fast listening (WP26): a toggle plus a stepless chosen speed, remembered per user. The state
@@ -816,10 +896,21 @@ const actions = {
   },
   shuttle: (key) => void transport.press(key),
   toggleLoop: () => setState({ loop: !getState().loop }),
+  // Alt+Space: loop the marked range (else the selected clips) from its start; again stops.
+  loopSelection: () => {
+    const state = getState();
+    if (state.playing) return void transport.toggle();
+    const range = rangeAvailable(state);
+    if (!range) return;
+    setState({ loop: true });
+    void transport.play(range.start);
+  },
   toggleRenderListen: () => void setRenderListen(getState().render?.listening !== true),
   toggleDragMode: () => toggleDragMode(),
   toggleWheelMode: () => toggleWheelMode(),
   toggleClipWords: () => toggleClipWords(),
+  toggleFollow: () => followEvent({ type: "toggle" }),
+  showPlayhead: () => followEvent({ type: "show" }),
   toggleFocus: (options) => toggleFocus(options),
   setFocus: (mode, current) => setFocus(mode, current),
   toggleFocusShrink() {
@@ -848,23 +939,31 @@ const actions = {
   goHome() {
     const active = document.activeElement;
     const state = getState();
-    const what = escapeAction({
-      inTextField: isTextField(active),
-      selection: state.selection,
-      rangeTracks: state.rangeTracks,
-      inPoint: state.inPoint,
-      outPoint: state.outPoint,
-      trackSelection: state.trackSelection,
-      rangeMode: state.rangeMode,
-      focusMode: state.focusMode,
-    });
-    if (what === "blur") active.blur();
-    if (what === "leave_focus") leaveFocus();
-    if (what === "clear_tracks") setState(clearTrackSelection());
-    // Clear the clip selection, the range and the in and out marks (owner, 2026-10-18).
-    if (what === "clear") {
-      setState({ selection: new Set(), rangeTracks: new Set(), inPoint: null, outPoint: null });
-    } else focusPanel("timeline");
+    // One layer per press (escape.js); the timeline has the focus afterwards, whatever the layer.
+    runEscape(
+      {
+        inTextField: isTextField(active),
+        selection: state.selection,
+        rangeTracks: state.rangeTracks,
+        inPoint: state.inPoint,
+        outPoint: state.outPoint,
+        trackSelection: state.trackSelection,
+        rangeMode: state.rangeMode,
+        focusMode: state.focusMode,
+        // The Auto-Silence preview goes first, from any panel (owner, 2026-10-22); no question asked.
+        silencePreview: Boolean(silencePanel?.isOpen()),
+      },
+      {
+        blur: () => active.blur(),
+        discardPreview: () => silencePanel.close(),
+        clearTracks: () => setState(clearTrackSelection()),
+        // Clear the clip selection, the range and the in and out marks (owner, 2026-10-18).
+        clearMarks: () =>
+          setState({ selection: new Set(), rangeTracks: new Set(), inPoint: null, outPoint: null }),
+        leaveFocus: () => leaveFocus(),
+        focusTimeline: () => focusPanel("timeline"),
+      },
+    );
   },
   showSideTab: (name) => focusPanel(name),
   cyclePanel: (direction) => focusPanel(nextPanel(getState().panel, direction)),
@@ -873,6 +972,7 @@ const actions = {
     const levels = viewLevels();
     const next = View.stepZoom(state.zoom, levels, direction);
     if (next === state.zoom) return;
+    markPaused();
     setView(View.zoomAt(state, anchorFrame(), next, bounds()), { whole: next === levels[0].zoom });
   },
   toggleView() {
@@ -889,10 +989,12 @@ const actions = {
       },
     );
     views = result.views;
+    markPaused();
     setView(result, { whole: result.views.current === "wide" && result.zoom === levels[0].zoom });
   },
   fitView() {
     if (!getState().project) return;
+    markPaused();
     fitWholeEdit();
     history = View.visitView(history, { zoom: getState().zoom, scroll: getState().scroll });
   },
@@ -901,6 +1003,7 @@ const actions = {
     if (!state.project) return;
     const target = View.fitTarget(state);
     if (target.end <= target.start) return;
+    markPaused();
     if (target.start === 0 && target.end === totalFrames()) fitWholeEdit();
     else setView(View.fitRange({ ...target, width: width() }));
     history = View.visitView(history, { zoom: getState().zoom, scroll: getState().scroll });
@@ -976,6 +1079,7 @@ function stepHistory(step) {
   const result = step(history);
   if (!result.view) return;
   history = result.history;
+  markPaused();
   setView(result.view, { record: false });
 }
 
@@ -1012,6 +1116,7 @@ function onWheel(intent, x) {
     const levels = viewLevels();
     const next = Math.min(levels[0].zoom, Math.max(View.SAMPLE_ZOOM, state.zoom * intent.factor));
     wheelAnchor = xToFrame(x, state.scroll, state.zoom);
+    markPaused();
     setView(View.zoomAt(state, wheelAnchor, next, bounds()), { record: false });
     clearTimeout(settleTimer);
     settleTimer = setTimeout(settle, SETTLE_MS);
@@ -1099,6 +1204,14 @@ function onPointerDown(hit, event, { noSeek = false } = {}) {
   else if (intent.selection === "toggle")
     patch.selection = toggleGroupSelection(state.project, state.selection, intent.clip.id);
   setState(patch);
+  // A click on the playhead handle or line puts Follow back on; it is in view, so the view
+  // does not move. A click merely near its time does not (follow-model.js).
+  if (
+    state.followPaused &&
+    hit.frame != null &&
+    onHandle({ playhead: playheadNow(state), frame: hit.frame, zoom: state.zoom })
+  )
+    followEvent({ type: "handle" });
   if (intent.seek !== null && !noSeek) void transport.seek(intent.seek);
 }
 
@@ -1186,6 +1299,7 @@ const transcript = createTranscript({
   api,
   actions: {
     seek: (frame) => void transport.seek(frame),
+    jump: jumpTo,
     showError,
     applyResponse: apply,
     run: (id) => keyboard.registry.run(id, null, getState()),
@@ -1197,6 +1311,7 @@ const transcript = createTranscript({
 // Esc and Enter in modal dialogs (dialog-keys.js): before the keymap sees the key.
 installDialogKeys(window);
 
+let nameDialog = null;
 const keyboard = setupKeyboard({
   actions,
   prefs,
@@ -1217,11 +1332,8 @@ const keyboard = setupKeyboard({
     const aria = (combo) => combo.replace(/\bMod\b/, platform === "mac" ? "Meta" : "Control");
     button.setAttribute("aria-keyshortcuts", keys.map(aria).join(" "));
     button.title = keys.map((combo) => formatCombo(combo, platform)).join(" ");
-    // Each side tab shows its Alt+digit (or the user's own key) as a tooltip.
-    for (const [id, tab] of Object.entries(SIDE_TAB_COMMANDS)) {
-      const combos = shortcutsFor(id, entries).map((combo) => formatCombo(combo, platform));
-      $(`tab-${tab}`).title = combos.join(" ");
-    }
+    tabKeyEntries = entries;
+    applyTabs();
   },
   app: {
     getState,
@@ -1231,9 +1343,30 @@ const keyboard = setupKeyboard({
     undo: () => undo(),
     redo: () => redo(),
     restoreStep: () => restoreStep(getState().historySelected),
+    renameVersion() {
+      focusPanel("history");
+      if (!historyPanel.startRename()) showNotice(t("ui.history.rename_none"), "ok");
+    },
+    toggleSavedVersions() {
+      focusPanel("history");
+      historyPanel.toggleSavedOnly();
+    },
+    async goToRestorePoint() {
+      focusPanel("history");
+      if (!(await historyPanel.goToRestorePoint())) showNotice(t("ui.history.goto_none"), "ok");
+    },
+    openHistorySaved() {
+      focusPanel("history");
+      historyPanel.showSavedVersions();
+    },
+    expandHistoryGroups() {
+      focusPanel("history");
+      historyPanel.expandAll();
+    },
     openHistory: () => focusPanel("history"),
     edit: (change) => editor.change(change),
     toast: (text, options) => showNotice(text, "ok", options),
+    focusTimeline: () => focusPanel("timeline"),
     copy: (body) => copyToClipboard(body),
     refreshClipboard: () => void refreshClipboard(),
     clearOldClipboard: (keep) => clearOldClipboard(keep),
@@ -1309,6 +1442,19 @@ const keyboard = setupKeyboard({
     toggleConfirmSync: () => toggleConfirmSync(),
     notice: (text) => showNotice(text, "ok"),
     clock: () => new Date(),
+    // Shift+Mod+S: the dialog for a saved version's name; null when cancelled.
+    askName: (suggestion) => {
+      nameDialog ??= createNameDialog({ t });
+      return nameDialog.ask(suggestion);
+    },
+    // A version saved on the step on screen moves no head: the History list is fetched again.
+    refreshHistory: () => historyPanel.refresh(),
+    // The toast's Rename button: History shows the version with its name field open.
+    renameSaved(node) {
+      focusPanel("history");
+      historyPanel.startRename(node);
+    },
+    openEarlierVersion: () => actions.openHistorySaved(),
     // A save is also where the user left off: the flag moves here and resume.json is
     // written at once (flushView sends the record marked "now").
     markLeftOff() {
@@ -1322,6 +1468,7 @@ const keyboard = setupKeyboard({
     automix: () => void openAutomix(),
     automixLog: () => void openAutomixLog(),
     openStatistics: () => void openStatistics(),
+    openMusicReport: () => void openMusicReport(),
     openPerformanceReport: () => void openPerformanceReport(),
     openLocateMedia: () => void openLocateMedia(),
     relinkClipMedia: () => void relinkClipMedia(),
@@ -1362,6 +1509,7 @@ const keyboard = setupKeyboard({
     minimise: () => void minimise(),
     openRecent: (path) => void openRecent(path),
     clearRecent: () => void clearRecent(),
+    removeMissingRecents: () => void removeMissingRecents(),
     focusName: () => inspector.focusName(),
     editTime: () => clock.open(),
     copyTime: () => void clock.copy(),
@@ -1373,6 +1521,8 @@ const keyboard = setupKeyboard({
     markCandidate: (start, end, track) => void markCandidate(start, end, track),
     previewCandidate: (row) => void previewCandidate(row),
     seek: (frame) => void transport.seek(frame),
+    // A transport jump (Home, End, a marker, in/out): re-engages Follow and shows the target.
+    jump: jumpTo,
     totalFrames,
   },
 });
@@ -1453,7 +1603,7 @@ $("lane-taller").addEventListener("click", () => setLaneHeight(LANE_STEP));
 $("lane-shorter").addEventListener("click", () => setLaneHeight(-LANE_STEP));
 $("follow").addEventListener("click", () => {
   const state = getState();
-  if (state.followPaused) setState({ followPaused: false });
+  if (state.followPaused) followEvent({ type: "show" });
   else setState({ followMode: state.followMode === "page" ? "continuous" : "page" });
 });
 // The theme: follow the OS unless the user picked light or dark. A per-viewer
@@ -1581,7 +1731,7 @@ async function tabStop(direction) {
     const from = getState().playhead ?? 0;
     const frame = direction > 0 ? nextStop(stops, from) : prevStop(stops, from);
     if (frame === null) showNotice(t("ui.tab_stop.none"), "ok");
-    else void transport.seek(frame);
+    else jumpTo(frame);
   } catch (error) {
     showError(error);
   }
@@ -2010,7 +2160,7 @@ const inspector = createInspector({
       selection: new Set([clip]),
       panel: "timeline",
     });
-    void transport.seek(frame);
+    jumpTo(frame);
   },
 });
 
@@ -2018,7 +2168,8 @@ const inspector = createInspector({
 
 // Restore adds a step equal to an older one; the step left behind stays one Undo away.
 async function restoreStep(node) {
-  if (!node || node === getState().historyCurrent) return;
+  // A group or run row ("g:…", "r:…") is not a step: nothing to restore.
+  if (!node || node === getState().historyCurrent || /^[gr]:/.test(node)) return;
   try {
     const response = await api.restore(node);
     apply(response);
@@ -2038,6 +2189,10 @@ const historyPanel = createHistoryPanel({
     restore: (node) => void restoreStep(node),
     undo: () => undo(),
     redo: () => redo(),
+    // Rename a saved version; the panel fetches the list again when this resolves.
+    renameVersion: async (node, name) => {
+      await api.command("rename_checkpoint", { node, name }).catch(showError);
+    },
     showError,
   },
 });
@@ -2047,6 +2202,8 @@ const historyPanel = createHistoryPanel({
 // "Export all tracks" (the toolbar button, File menu, palette): one background job; the
 // notice follows it (progress with Cancel, then the folder with Show in Finder). Esc cancels.
 let exportJob = null;
+// "Exporting the selection only: tracks Anna, Ville, 12.00-18.30" while such an export runs.
+let exportSelectionText = "";
 const EXPORT_POLL_MS = 500;
 
 async function followExportJob(id, what) {
@@ -2068,7 +2225,7 @@ async function followExportJob(id, what) {
       notice = view.notice;
       if (view.rich) rich = view;
     } else if (what === "colab") notice = colabNotice(job, t, colabNames);
-    else notice = exportNotice(job, t, what);
+    else notice = exportNotice(job, t, what, exportSelectionText);
     let action = null;
     if (notice.cancel) {
       action = { label: t("ui.export.cancel"), run: () => void cancelExportJob() };
@@ -2109,7 +2266,13 @@ async function cancelExportJob() {
 
 // `what` "tracks" or "mix"; `format` is a format id, or none for WAV (tracks) / the remembered
 // one (mix). One export at a time.
-async function startExport(what, format, { ask = true, extra = {} } = {}) {
+// `selection`: undefined takes the selection now on screen (so every export command honours it);
+// null exports everything (the dialog's toggle is off, or Export in/out range).
+async function startExport(
+  what,
+  format,
+  { ask = true, extra = {}, selection = exportSelection() } = {},
+) {
   if (exportJob) return;
   try {
     // Desktop window: the native folder chooser first; cancelling ends here, quietly.
@@ -2122,10 +2285,12 @@ async function startExport(what, format, { ask = true, extra = {} } = {}) {
       onAsk: () => what === "tracks" && showNotice(t("ui.export.choose_folder"), "ok"),
     });
     if (!options) return;
-    const body = { ...extra, ...options };
+    const body = { ...(selection ? selectionBody(selection) : {}), ...extra, ...options };
+    exportSelectionText = selectionNotice(selection, rate(), t);
     const { jobs } = await (what === "mix" ? api.exportMix(body) : api.exportTracks(body));
     exportJob = jobs[0];
-    showNotice(t(`ui.export.${what}_running`, { percent: 0 }), "ok", {
+    const running = t(`ui.export.${what}_running`, { percent: 0 });
+    showNotice(exportSelectionText ? `${exportSelectionText} ${running}` : running, "ok", {
       sticky: true,
       action: { label: t("ui.export.cancel"), run: () => void cancelExportJob() },
     });
@@ -2161,15 +2326,10 @@ async function openAutomix() {
       }
     },
   });
-  const state = getState();
-  // "Only the In/Out range (a quick preview)": offered while both marks make a range.
+  // "Only the selection (a quick preview)": the In/Out range or the selected clips' tracks
+  // and span (export-selection-model.js), ticked by default while there is one.
   await automixDialog.open({
-    range: rangeChoice({
-      inPoint: state.inPoint,
-      outPoint: state.outPoint,
-      length: totalFrames(),
-      rate: rate(),
-    }),
+    range: selectionChoice(exportSelection(), { length: totalFrames(), rate: rate() }),
     rate: rate(),
   });
 }
@@ -2548,6 +2708,33 @@ async function openPerformanceReport() {
   await perfDialog.open();
 }
 
+// File > Export > Music report… (WP25): the preview, and the report as CSV / HTML (named after the
+// project by the server) or as a tab-separated table on the clipboard.
+let musicReportDialog = null;
+async function openMusicReport() {
+  musicReportDialog ??= createMusicReportDialog({
+    api,
+    t,
+    getProject: () => getState().project,
+    copyText: async (text) => {
+      try {
+        await navigator.clipboard.writeText(text);
+        showNotice(t("ui.music_report.copied"), "ok");
+      } catch (error) {
+        showError(error);
+      }
+    },
+    saveFile: async (format, range) => {
+      const query = reportQuery(format, range);
+      const name = await downloadFile(`/api/music-report?${query}`, `music-report.${format}`);
+      if (name) showNotice(t("ui.music_report.saved", { name }), "ok");
+    },
+  });
+  // Like every export: the In/Out range or the selected clips' span is the default (tracks are
+  // ignored, the report is about time); the dialog's box turns it off.
+  await musicReportDialog.open({ selection: exportSelection(), rate: rate() });
+}
+
 async function openStatistics() {
   statsDialog ??= createStatsDialog({
     api,
@@ -2783,13 +2970,18 @@ async function exportQuick(force) {
       marks: state,
       project: state.project,
       force,
+      selection: exportSelection(),
     });
     if (plan.dialog) {
       showNotice(t(plan.dialog), "ok");
       void openExportDialog("mix");
       return;
     }
-    await startExport(plan.what, undefined, { ask: false, extra: plan.body });
+    await startExport(plan.what, undefined, {
+      ask: false,
+      extra: plan.body,
+      selection: plan.selection ?? null,
+    });
   } catch (error) {
     showError(error);
   }
@@ -2811,10 +3003,12 @@ function openExportDialog(what) {
         memory: scopeMemory(server.project),
         state: getState(),
         frames: totalFrames(),
+        selection: exportSelection(),
       };
     },
     saveMemory: (memory) => prefs.setJson(scopeKey(exportProject), memory),
-    onStart: ({ what: kind, body, ask }) => startExport(kind, body.format, { ask, extra: body }),
+    onStart: ({ what: kind, body, ask, selection }) =>
+      startExport(kind, body.format, { ask, extra: body, selection: selection ?? null }),
   });
   void exportDialog.open(what).catch(showError);
 }
@@ -2937,6 +3131,34 @@ async function clearRecent() {
   void refreshRecent();
 }
 
+// File > Open Recent > Remove missing projects from the list: one confirmation (a notice with a
+// button), then the entries whose folder is gone leave the list. Nothing on disk is touched.
+async function removeMissingRecents() {
+  const bridge = globalThis.pywebview?.api;
+  if (typeof bridge?.remove_missing_recents !== "function") return;
+  showNotice(t("ui.project.remove_missing_confirm"), "ok", {
+    sticky: true,
+    action: {
+      label: t("cmd.app.remove_missing_recents"),
+      run: async () => {
+        try {
+          const count = await bridge.remove_missing_recents();
+          showNotice(
+            count > 0
+              ? t("ui.project.remove_missing_done", { count })
+              : t("ui.project.remove_missing_none"),
+            "ok",
+            { undo: false },
+          );
+        } catch (error) {
+          showError(error);
+        }
+        void refreshRecent();
+      },
+    },
+  });
+}
+
 // File > Preferences… (Cmd+,): every control calls the setter of the setting's own menu command.
 let preferencesDialog = null;
 function openPreferences() {
@@ -2975,9 +3197,8 @@ api
   })
   .catch(() => {});
 
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && exportJob) void cancelExportJob();
-});
+// Esc does not cancel a running export or automix (owner, 2026-10-22): a lost render is not a
+// "clear the selection" press. The notice's Cancel button is the way.
 
 // One background job renders every region to its own file; the jobs list shows progress.
 async function exportRegions() {
@@ -3261,7 +3482,7 @@ const markersPanel = createMarkersPanel({
       const marker = getState().project?.markers?.find((item) => item.id === id);
       if (!marker) return;
       setState({ markerSelected: id });
-      void transport.seek(marker.start);
+      jumpTo(marker.start);
     },
     rename: (id, name) =>
       sendMarkerEdit("rename_marker", { marker_id: id, name }, "ui.markers.history.rename"),
@@ -3273,7 +3494,7 @@ const markersPanel = createMarkersPanel({
     },
     jumpClip(clipId, start) {
       setState({ selection: new Set([clipId]) });
-      void transport.seek(start);
+      jumpTo(start);
     },
     syncCause: (clipId) => api.getSyncCause(clipId).then((answer) => answer.cause),
     can: (id, state) => keyboard.registry.can(id, state),
@@ -3319,7 +3540,7 @@ function selectCandidate(row) {
   }
   setState(patch);
   if (row.start === null) return;
-  void transport.seek(row.start);
+  jumpTo(row.start);
   api
     .getCandidatePreview(row.id)
     .then((data) => {
@@ -3600,7 +3821,7 @@ const clock = createClock({
   rate,
   limit: totalFrames,
   format: frameToTime,
-  seek: (frame) => void transport.seek(frame),
+  jump: jumpTo,
   notify: showNotice,
   t,
 });
@@ -3624,6 +3845,11 @@ function updateScopeChip(state) {
   if (el.hidden) return;
   el.classList.toggle("warn", chip.kind === "none");
   el.title = t("ui.scope.chip_title");
+  if (chip.kind === "clips") {
+    // The clips were selected after the marks: they are what Backspace, X and copy touch.
+    el.textContent = t("ui.scope.chip_clips", { count: chip.count });
+    return;
+  }
   if (chip.kind === "none") {
     el.textContent = t("ui.scope.chip_none");
     return;
@@ -3684,7 +3910,9 @@ function render(state, patch) {
   ) {
     timeline.redrawWaveforms();
   }
-  if (touched("project", "scroll", "zoom", "playhead", "selection")) overview.redraw();
+  if (touched("project", "scroll", "zoom", "playhead", "selection", "silencePreview")) {
+    overview.redraw();
+  }
   if (touched("playhead", "project")) {
     const time = frameToTime(state.playhead, rate());
     clock.render(time);
@@ -3768,7 +3996,18 @@ function render(state, patch) {
     $("follow").setAttribute("aria-pressed", String(state.followPaused));
   }
   if (touched("showGates")) $("show-gates").checked = state.showGates;
-  if (touched("project", "inPoint", "outPoint", "rangeMode", "trackSelection", "rangeTracks"))
+  if (
+    touched(
+      "project",
+      "inPoint",
+      "outPoint",
+      "rangeMode",
+      "trackSelection",
+      "rangeTracks",
+      "selection",
+      "intent",
+    )
+  )
     updateScopeChip(state);
   if (touched("waveformMode")) $("waveform-mode").value = state.waveformMode;
   if (
@@ -3854,6 +4093,7 @@ function render(state, patch) {
     const open = state.candidateSummary?.open ?? 0;
     $("cand-count").hidden = open === 0;
     $("cand-count").textContent = String(open);
+    layoutTabs();
   }
   if (touched("sidebarShown")) {
     document.querySelector(".editor").dataset.sidebar =
@@ -3879,10 +4119,40 @@ function render(state, patch) {
       node.toggleAttribute("data-focused", node.dataset.panel === state.panel);
     }
   }
+  // Starting or stopping playback puts Follow back on (follow-model.js).
+  if (changed !== null && touched("playing") && state.followPaused)
+    followEvent({ type: state.playing ? "play-start" : "play-stop" });
   if (touched("playhead", "playing", "zoom", "scroll", "followMode", "followPaused"))
     follow(state, touched("playhead"));
+  if (touched("playhead", "playing", "zoom", "scroll", "followPaused", "project"))
+    updateFollowChip(state);
   transcript.update(state, patch);
 }
+
+// The Follow chip in the timeline corner (on = accent, off = dim) and, with Follow off and the
+// playhead out of the view, the edge arrow with its time. Both bring the playhead back.
+function updateFollowChip(state) {
+  const chip = $("follow-chip");
+  const arrow = $("follow-arrow");
+  chip.hidden = !state.project;
+  chip.dataset.on = String(!state.followPaused);
+  chip.setAttribute("aria-pressed", String(!state.followPaused));
+  const side = arrowOf({
+    follow: !state.followPaused,
+    playhead: playheadNow(state),
+    scroll: state.scroll,
+    zoom: state.zoom,
+    width: width(),
+  });
+  arrow.hidden = !state.project || side === null;
+  if (side === null) return;
+  arrow.dataset.side = side;
+  const time = frameToTime(playheadNow(state), state.project?.rate);
+  arrow.textContent = side === "left" ? `◀ ${time}` : `${time} ▶`;
+  arrow.title = t("ui.view.follow_arrow", { time });
+}
+$("follow-chip").addEventListener("click", () => followEvent({ type: "toggle" }));
+$("follow-arrow").addEventListener("click", () => followEvent({ type: "show" }));
 
 // While playing, keep the playhead in view (page or continuous) unless the user
 // scrolled away by hand.

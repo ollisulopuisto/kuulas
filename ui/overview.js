@@ -4,14 +4,15 @@
 import { backingSize } from "./canvas-size.js";
 import { siblingsOf } from "./labels.js";
 import { projectEnd } from "./lanes.js";
+import { audibleSegments, overviewRuns } from "./overview-segments.js";
 import { trackHues } from "./paint.js";
 import { readTheme } from "./theme.js";
 import { overviewScroll, overviewWindow } from "./view.js";
 
 // The strip is a map, not a waveform: blocks at reduced strength so the
-// visible-part box (accent) is the strongest thing in it.
+// visible-part box (accent) is the strongest thing in it. A track's bar is drawn only
+// where that track sounds; every silent stretch is a gap, whatever the reason.
 const OVERVIEW_ALPHA = 0.6;
-const OVERVIEW_MUTED_ALPHA = 0.25;
 
 export function createOverview({ canvas, getState, getTimelineWidth, actions }) {
   const context = canvas.getContext("2d");
@@ -54,13 +55,17 @@ export function createOverview({ canvas, getState, getTimelineWidth, actions }) 
     tracks.forEach((track, index) => {
       const colours = theme.palette[(hues.get(track.id) ?? 0) % theme.palette.length];
       context.fillStyle = colours.wave;
-      context.globalAlpha = track.mute ? OVERVIEW_MUTED_ALPHA : OVERVIEW_ALPHA;
-      for (const clip of track.clips) {
-        const x = (clip.start / total) * width;
+      context.globalAlpha = OVERVIEW_ALPHA;
+      const runs = overviewRuns(
+        audibleSegments(track, state.silencePreview?.get?.(track.id)),
+        total,
+        width,
+      );
+      for (let i = 0; i < runs.length; i += 2) {
         context.fillRect(
-          x,
+          runs[i],
           2 + index * rowHeight,
-          Math.max(1, (clip.length / total) * width),
+          runs[i + 1] - runs[i],
           Math.max(1, rowHeight - 1),
         );
       }

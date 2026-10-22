@@ -10,7 +10,7 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 | # | Raised | Issue | Notes |
 |---|---|---|---|
 | 105 | 21.10 | Waveform layer looked ~9 % taller than the overlay in a headless-Chrome screenshot of the app (silence visuals) | open: unknown whether a headless artefact or a real bug; needs a look in the real window |
-| 104 | 21.10 | Focus mode key: F is taken by Fit selection, focus is on Shift+F | open: owner decides whether plain F should be focus |
+| 104 | 21.10 | Focus mode key: F was taken by Fit selection | answered 2026-10-21: F stays Fit selection (zoom is used far more than a mode toggle), focus is Shift+F; owner to close |
 | 95 | 20.10 | Local dmg build (`scripts/build_dmg.sh --out ~/Desktop/kuulas-dmg`) leaves the folder empty | open: needs the script's last output; the GitHub-built dmg works |
 | 93 | 19.10 | Automixer options dialog needs a redesign (all fields in one long list, empty fields, no grouping or explanations) | open, in progress |
 | 92 | 19.10 | Export: it always exports the whole session; no way in the dialog to export only the in/out range or chosen tracks; MP3 export does not ask for settings (bitrate); the dialog does not say that muted or not-soloed tracks come out as silence (the backend supports a range, track export and bitrates) | open, in progress |

@@ -2,6 +2,11 @@
 
 kuulas is a local multitrack audio editor for spoken word (podcasts, interviews, radio). It is modelled on Hindenburg PRO: keyboard-first, speech-aware, with the transcript and the audio treated as one thing. The engine runs locally on Python 3.13 and serves a browser UI over local HTTP/WebSocket; audio analysis and signal processing come from the podcast repo's `speechmix` and `nhsx` packages.
 
+**Kuulas is a free, open-source podcast editor. It can mix your episode for you, and it keeps every edit you ever made, so you can go back to any moment and never lose a thing.**
+
+Taglines (use either, not together): *"A podcast editor where nothing is ever lost."* or *"Every edit. Every version. One click back."*
+
+
 ## What works today
 
 - **Multitrack editor window**: Timeline with comfortable (80 px) and compact densities, waveform pyramid rendering, overview navigation strip, and live WebSocket playhead feed.
@@ -96,3 +101,9 @@ uv run pytest -q tests/manual/test_transcribe_smoke.py -s
 - `docs/desktop.md`: Desktop wrapper architecture, pywebview boundaries, and verification.
 
 agents work through `.agents/` and `scripts/agent_gate.py`.
+
+## License
+
+Kuulas is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License, version 3 or (at your option) any later version. See [LICENSE](LICENSE). Licences of what the .dmg bundles (pedalboard, ffmpeg and others): [docs/LICENSES.md](docs/LICENSES.md).
+
+Copyright (c) 2026 Olli Sulopuisto.

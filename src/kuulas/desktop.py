@@ -32,10 +32,14 @@ from .messages import KuulasError, t
 from .new_project import SUFFIX, folder_name
 from .openfiles import project_paths
 from .recent_projects import (
+    drop_missing,
     folder_size,
+    insert_record,
     make_record,
     merge_record,
     normalize_record,
+    remove_record,
+    replace_path,
     update_record,
 )
 
@@ -545,6 +549,63 @@ class Bridge:
         not touched."""
         with _RECENTS_LOCK:
             _write_records(self._recents, [])
+        return True
+
+    def remove_recent(self, folder: object) -> bool:
+        """Start page: drop one entry from the recent list. Only the list changes: the
+        project folder and its media are never touched. False when it was not listed
+        (so a second call is harmless)."""
+        if not isinstance(folder, str) or not folder:
+            return False
+        with _RECENTS_LOCK:
+            records = _read_records(self._recents)
+            kept = remove_record(records, folder)
+            if len(kept) == len(records):
+                return False
+            _write_records(self._recents, kept)
+        return True
+
+    def remove_missing_recents(self) -> int:
+        """Remove every entry whose folder is gone from the list; returns how many.
+        List entries only: nothing on disk is touched."""
+        with _RECENTS_LOCK:
+            records = _read_records(self._recents)
+            kept = drop_missing(records, lambda p: Path(p).is_dir())
+            if len(kept) != len(records):
+                _write_records(self._recents, kept)
+        return len(records) - len(kept)
+
+    def restore_recent(self, record: object, index: object = 0) -> bool:
+        """Undo of a removal: the record goes back where it was."""
+        clean = normalize_record(record)
+        if clean is None or not isinstance(record, dict):
+            return False
+        at = index if isinstance(index, int) and not isinstance(index, bool) else 0
+        with _RECENTS_LOCK:
+            _write_records(self._recents, insert_record(
+                _read_records(self._recents), clean, at, MAX_RECENT))
+        return True
+
+    def locate_recent(self, folder: object) -> bool:
+        """Start page, "Locate...": choose where a moved project is now. The entry
+        keeps its place and facts and points at the new folder; the start page is
+        redrawn. Only a folder with a manifest is accepted. False when cancelled or
+        refused. The project itself is not opened, read or changed."""
+        if not isinstance(folder, str) or not folder:
+            return False
+        got = self._dialog(self._webview.FileDialog.FOLDER)
+        if not got:
+            return False
+        chosen = Path(got[0])
+        if not (chosen / "manifest.json").is_file():
+            if self._window is not None:
+                self._window.evaluate_js(
+                    f"alert({json.dumps(t('desktop.launcher.locate_refused'))})")
+            return False
+        with _RECENTS_LOCK:
+            _write_records(self._recents, replace_path(
+                _read_records(self._recents), folder, str(chosen.resolve())))
+        self.show_launcher()
         return True
 
     def minimise(self) -> None:

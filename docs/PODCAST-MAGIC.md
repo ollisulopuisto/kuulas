@@ -280,3 +280,41 @@ Wishes, none blocking (Kuulas works around each today):
   Kuulas fill Closeness (`dominance_db`) too.
 - **Version.** The package's `pyproject` still says `2026.10.12.1` after PRs 65 and 75; a bump
   would let Kuulas' logs and the .dmg's selftest say which rule a build carries.
+
+## Automixer in the dmg (2026-10-21), for the podcast session
+
+Goal: a new user who downloads Kuulas.app can mix with the automixer without a podcast
+checkout, uv or ssh. Kuulas now ships `apps/automixer` in the .dmg: `scripts/build_wheels.sh`
+builds its wheel from podcast main (as for speechmix, nhsx, silencelearn), the bundle installs
+it with its dependencies, and with no command set the app runs `<Kuulas launcher> -m
+automixer`, which calls the `automixer` console script (`automixer.cli_mix:main`) on the
+app's own Python. The owner's settings (`command`, `cwd`, `remote`) still win, and Kuulas
+from source still runs `uv run automixer` in `~/Documents/koodi/podcast`.
+
+Checked on a clean clone of main `8127aa7` (`automixer 2026.10.21.2`):
+- `uv build --wheel apps/automixer` works as it is (82 kB, `automixer/` only, five console
+  scripts).
+- `python -m automixer` does **not** work: there is no `automixer/__main__.py`. Kuulas does
+  not need it (it calls the console script's entry point), so nothing is required.
+- `automixer --help` and the folder route's imports (`stems_mix`, `stem_folder`,
+  `session`, `domain.settings`) load neither mlx nor textual.
+
+**Nothing is required from the podcast side.** Wishes, in order of value:
+1. **mlx and textual as extras** (for example `automixer[tui]` / `[mlx]`). They are only
+   used by the TUI and the in-memory route, yet every install of the wheel pulls them in.
+   mlx publishes no wheel for macOS 12, the bundle's minimum, so the first local .dmg build
+   with the automixer failed on it ("No matching distribution found for mlx>=0.30.6"); it
+   would also have added about 45 MB to the .dmg (170 MB on disk). Kuulas works around it:
+   `scripts/trim_deps.py` drops the two requirements from a copy of
+   `apps/automixer/pyproject.toml` before building the bundle's wheel. With extras that
+   trim becomes a no-op (it says so in the build log) and can be removed.
+2. **A licence.** speechmix and automixer declare none and the repository has no
+   `LICENSE`; both import pedalboard (GPL-3). A GPL-3-compatible licence (GPL-3.0-or-later)
+   in `pyproject.toml` and a `LICENSE` file would settle what the .dmg passes on
+   (docs/LICENSES.md).
+3. Optional: `automixer/__main__.py` (`from .cli_mix import main; main()`), so `python -m
+   automixer` works in any environment; Kuulas would keep working either way.
+4. A failed import or a missing plug-in already ends the run with a traceback whose last
+   line Kuulas reads (`ModuleNotFoundError: ...`, `ImportError: ...`); keep those
+   exceptions unwrapped, or print the same last line, so Kuulas can name the cause.
+   Kuulas checks plug-in paths itself before a local run (`error.automix.plugin_missing`).

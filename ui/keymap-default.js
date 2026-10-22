@@ -4,6 +4,11 @@
 //   context  where it works: "global" (any panel, not while typing), "timeline",
 //            "transcript", "side" (inspector and history), or "text-field" (also
 //            while typing: Esc, F6, the palette).
+//            The editing keys (B, X, Backspace, H, M, Alt+X, Mod+C, Q, W ...) are "global": they work
+//            from every panel, not in text fields or behind a modal dialog (keys.js), and a key that
+//            cannot act says why (edit-reasons.js). Only a key a panel owns leaves that panel out:
+//            X and Mod+X ("not-transcript": words there), Backspace ("not-transcript-candidates":
+//            words, and the candidate's apply). G fades but is History's go-to-restore-point: timeline.
 //   labelKey the command's name in the catalogs (also what the palette searches).
 //   repeat   a held key fires again.
 // Users override single commands in localStorage (keymap-config.js); this file is
@@ -33,6 +38,7 @@ export const CONTEXTS = [
   "not-candidates",
   "not-transcript",
   "not-markers",
+  "not-transcript-candidates",
   "timeline",
   "transcript",
   "side",
@@ -59,6 +65,19 @@ export const DEFAULT_KEYMAP = [
     keys: { mac: "Shift+Space", other: "Shift+Space" },
     context: "timeline",
     labelKey: "cmd.transport.play_selection",
+  },
+  // Follow playhead (follow-model.js): Shift+P toggles it, Alt+P shows the playhead (P: playhead).
+  {
+    id: "view.follow",
+    keys: { mac: "Shift+P", other: "Shift+P" },
+    context: "global",
+    labelKey: "cmd.view.follow",
+  },
+  {
+    id: "view.show_playhead",
+    keys: { mac: "Alt+P", other: "Alt+P" },
+    context: "global",
+    labelKey: "cmd.view.show_playhead",
   },
   {
     id: "view.clip_words",
@@ -181,6 +200,13 @@ export const DEFAULT_KEYMAP = [
     keys: { mac: "Alt+0", other: "Alt+0" },
     context: "global",
     labelKey: "cmd.transport.speed_reset",
+  },
+  {
+    // Hindenburg's Shift+Space plays the range once; Alt+Space is ours: loop it (owner 2026-10-21).
+    id: "transport.loop_selection",
+    keys: { mac: "Alt+Space", other: "Alt+Space" },
+    context: "timeline",
+    labelKey: "cmd.transport.loop_selection",
   },
   {
     // Mod+L is Automix; Alt or Shift variants of a taken key would show up as menu alternates.
@@ -337,6 +363,39 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.history.restore",
   },
   {
+    id: "history.rename_version",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.history.rename_version",
+  },
+  {
+    // G only in the side panels, and only while the pick is a restore step (the command is
+    // disabled otherwise, so the key does nothing there). Not AltGr, not Shift+digit.
+    id: "history.goto_restore_point",
+    keys: { mac: "G", other: "G" },
+    context: "side",
+    labelKey: "cmd.history.goto_restore_point",
+  },
+  {
+    // What File > Open earlier version... calls; no default key.
+    id: "history.open_saved",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.history.open_saved",
+  },
+  {
+    id: "history.expand_all",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.history.expand_all",
+  },
+  {
+    id: "history.saved_only",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.history.saved_only",
+  },
+  {
     id: "history.open",
     keys: { mac: null, other: null },
     context: "global",
@@ -444,7 +503,7 @@ export const DEFAULT_KEYMAP = [
     context: "global",
     labelKey: "cmd.view.fit_selection",
   },
-  // Focus mode (WP28): what you SEE. F is Fit selection (owner, 2026-10-18), so focus is Shift+F;
+  // Focus mode (WP28): what you SEE. F is Fit selection (owner, 2026-10-18; confirmed 2026-10-21: zooming is used far more often than toggling a mode), so focus is Shift+F;
   // focus and solo (WP28's Shift+F) moves to Alt+Shift+F. Alt+F hides other speakers' words.
   {
     id: "view.focus",
@@ -608,37 +667,37 @@ export const DEFAULT_KEYMAP = [
   {
     id: "edit.split",
     keys: { mac: ["B", "Mod+B"], other: ["B", "Mod+B"] },
-    context: "timeline",
+    context: "global",
     labelKey: "cmd.edit.split",
   },
   {
     id: "edit.group",
     keys: { mac: ["Mod+G", "Alt+Mod+G"], other: ["Mod+G", "Alt+Mod+G"] },
-    context: "timeline",
+    context: "global",
     labelKey: "cmd.edit.group",
   },
   {
     id: "edit.ungroup",
     keys: { mac: ["Shift+Mod+G", "Shift+Alt+Mod+G"], other: ["Shift+Mod+G", "Shift+Alt+Mod+G"] },
-    context: "timeline",
+    context: "global",
     labelKey: "cmd.edit.ungroup",
   },
   {
     id: "edit.merge",
-    keys: { mac: "Alt+Mod+J", other: "Alt+Mod+J" },
-    context: "timeline",
+    keys: { mac: "Shift+Mod+M", other: "Shift+Mod+M" },
+    context: "global",
     labelKey: "cmd.edit.merge",
   },
   {
     id: "edit.split_all",
     keys: { mac: "Shift+B", other: "Shift+B" },
-    context: "timeline",
+    context: "global",
     labelKey: "cmd.edit.split_all",
   },
   {
     id: "edit.remove_clips",
     keys: { mac: "Mod+Backspace", other: "Mod+Backspace" },
-    context: "not-transcript",
+    context: "global",
     labelKey: "cmd.edit.remove_clips",
   },
   {
@@ -648,8 +707,9 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.edit.remove",
   },
   {
+    // No default key (owner, 2026-10-22: Shift+X stays free); the menu and the palette have it.
     id: "edit.remove_track",
-    keys: { mac: "Shift+X", other: "Shift+X" },
+    keys: { mac: null, other: null },
     context: "not-transcript",
     labelKey: "cmd.edit.remove_track",
   },
@@ -662,63 +722,63 @@ export const DEFAULT_KEYMAP = [
   {
     id: "edit.cut_track",
     keys: { mac: "Shift+Mod+X", other: "Shift+Mod+X" },
-    context: "not-transcript",
+    context: "global",
     labelKey: "cmd.edit.cut_track",
   },
   {
     id: "edit.lift_cut",
     keys: { mac: "Alt+X", other: "Alt+X" },
-    context: "not-transcript",
+    context: "global",
     labelKey: "cmd.edit.lift_cut",
   },
   {
     id: "edit.close_gap_all",
     keys: { mac: "Alt+Mod+X", other: "Alt+Mod+X" },
-    context: "not-transcript",
+    context: "global",
     labelKey: "cmd.edit.close_gap_all",
   },
   {
     id: "edit.delete",
     keys: { mac: ["Backspace", "Delete"], other: ["Backspace", "Delete"] },
-    context: "timeline",
+    context: "not-transcript-candidates",
     labelKey: "cmd.edit.delete",
   },
   {
     id: "edit.trim_start",
     keys: { mac: "Q", other: "Q" },
-    context: "timeline",
+    context: "global",
     labelKey: "cmd.edit.trim_start",
   },
   {
     id: "edit.trim_end",
     keys: { mac: "W", other: "W" },
-    context: "timeline",
+    context: "global",
     labelKey: "cmd.edit.trim_end",
   },
   {
     id: "edit.nudge_left",
     keys: { mac: "Mod+ArrowLeft", other: "Mod+ArrowLeft" },
-    context: "timeline",
+    context: "global",
     labelKey: "cmd.edit.nudge_left",
     repeat: true,
   },
   {
     id: "edit.nudge_right",
     keys: { mac: "Mod+ArrowRight", other: "Mod+ArrowRight" },
-    context: "timeline",
+    context: "global",
     labelKey: "cmd.edit.nudge_right",
     repeat: true,
   },
   {
     id: "edit.move_up",
     keys: { mac: "Mod+ArrowUp", other: "Mod+ArrowUp" },
-    context: "timeline",
+    context: "global",
     labelKey: "cmd.edit.move_up",
   },
   {
     id: "edit.move_down",
     keys: { mac: "Mod+ArrowDown", other: "Mod+ArrowDown" },
-    context: "timeline",
+    context: "global",
     labelKey: "cmd.edit.move_down",
   },
   {
@@ -810,14 +870,14 @@ export const DEFAULT_KEYMAP = [
   {
     id: "clip.gain_up",
     keys: { mac: "Shift+Mod+ArrowUp", other: "Shift+Mod+ArrowUp" },
-    context: "timeline",
+    context: "global",
     labelKey: "cmd.clip.gain_up",
     repeat: true,
   },
   {
     id: "clip.gain_down",
     keys: { mac: "Shift+Mod+ArrowDown", other: "Shift+Mod+ArrowDown" },
-    context: "timeline",
+    context: "global",
     labelKey: "cmd.clip.gain_down",
     repeat: true,
   },
@@ -838,7 +898,7 @@ export const DEFAULT_KEYMAP = [
   {
     id: "clip.mute",
     keys: { mac: ["M", "Alt+Mod+M"], other: ["M", "Alt+Mod+M"] },
-    context: "timeline",
+    context: "global",
     labelKey: "cmd.clip.mute",
   },
   // Quick mute (owner, 2026-10-20): H ("hush") mutes a short stretch around the cursor, for lip
@@ -848,7 +908,7 @@ export const DEFAULT_KEYMAP = [
   {
     id: "clip.quick_mute",
     keys: { mac: "H", other: "H" },
-    context: "timeline",
+    context: "global",
     labelKey: "cmd.clip.quick_mute",
   },
   {
@@ -866,19 +926,19 @@ export const DEFAULT_KEYMAP = [
   {
     id: "track.mute",
     keys: { mac: "Shift+M", other: "Shift+M" },
-    context: "timeline",
+    context: "global",
     labelKey: "cmd.track.mute",
   },
   {
     id: "track.solo",
     keys: { mac: "Shift+S", other: "Shift+S" },
-    context: "timeline",
+    context: "global",
     labelKey: "cmd.track.solo",
   },
   {
     id: "track.solo_add",
     keys: { mac: "Shift+Alt+S", other: "Shift+Alt+S" },
-    context: "timeline",
+    context: "global",
     labelKey: "cmd.track.solo_add",
   },
   {
@@ -925,7 +985,7 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "range.scope_toggle",
-    keys: { mac: "E", other: "E" },
+    keys: { mac: "A", other: "A" },
     context: "timeline",
     labelKey: "cmd.range.scope_toggle",
   },
@@ -1231,6 +1291,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.app.minimise",
   },
   {
+    id: "app.remove_missing_recents",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.app.remove_missing_recents",
+  },
+  {
     id: "app.clear_recent",
     keys: { mac: null, other: null },
     context: "global",
@@ -1246,7 +1312,7 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "export.mix_options",
-    keys: { mac: "Shift+Mod+E", other: "Shift+Mod+E" },
+    keys: { mac: "Alt+Mod+E", other: "Alt+Mod+E" },
     context: "global",
     labelKey: "cmd.export.mix_options",
   },
@@ -1366,14 +1432,14 @@ export const DEFAULT_KEYMAP = [
   // The plan's Tracks key (WP11); now the options version of the all-tracks export.
   {
     id: "export.tracks",
-    keys: { mac: "Shift+Alt+Mod+E", other: "Shift+Alt+Mod+E" },
+    keys: { mac: null, other: null },
     context: "global",
     labelKey: "cmd.export.tracks",
   },
   // The same export without the folder question: the default one, on Alt+Mod+E.
   {
     id: "export.tracks_quick",
-    keys: { mac: "Alt+Mod+E", other: "Alt+Mod+E" },
+    keys: { mac: null, other: null },
     context: "global",
     labelKey: "cmd.export.tracks_quick",
   },
@@ -1388,7 +1454,7 @@ export const DEFAULT_KEYMAP = [
   ),
   {
     id: "export.automix",
-    keys: { mac: null, other: null },
+    keys: { mac: "Shift+Mod+E", other: "Shift+Mod+E" },
     context: "global",
     labelKey: "cmd.export.automix",
   },
@@ -1483,6 +1549,13 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.series.music_clipboard",
   },
   {
+    // No default key: the Finnish layout leaves none free (docs/KEYS.md); it is in the File menu.
+    id: "export.music_report",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.export.music_report",
+  },
+  {
     id: "export.regions",
     keys: { mac: null, other: null },
     context: "global",
@@ -1499,6 +1572,20 @@ export const DEFAULT_KEYMAP = [
     keys: { mac: "Shift+Mod+S", other: "Shift+Mod+S" },
     context: "global",
     labelKey: "cmd.app.save_named",
+  },
+  {
+    // File > Open earlier version…: History at the saved versions. No default key.
+    id: "app.open_earlier_version",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.app.open_earlier_version",
+  },
+  {
+    // File > Back up now: the backup copy Mod+S used to make. No default key.
+    id: "app.backup_now",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.app.backup_now",
   },
   {
     id: "app.transcribe",

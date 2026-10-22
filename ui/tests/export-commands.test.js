@@ -344,6 +344,19 @@ describe("export formats", () => {
     assert.deepEqual(started, [["tracks", undefined]]);
   });
 
+  test("while a selection exports, the running notice says so first", () => {
+    const lead = "Exporting the selection only: 00.12-00.18";
+    const running = exportNotice({ state: "running", progress: 0.5 }, t, "mix", lead);
+    assert.equal(running.text, `${lead} ui.export.mix_running{"percent":50}`);
+    const done = exportNotice(
+      { state: "completed", result: { path: "/x/a.flac" } },
+      t,
+      "mix",
+      lead,
+    );
+    assert.equal(done.text.includes(lead), false);
+  });
+
   test("the mix has its own progress and done notices", () => {
     const running = exportNotice({ state: "running", progress: 0.5 }, t, "mix");
     assert.equal(running.text, 'ui.export.mix_running{"percent":50}');
@@ -381,5 +394,23 @@ describe("export formats", () => {
       "tracks",
     );
     assert.equal(done.text, 'ui.export.tracks_done_range{"count":2,"path":"/x/d"}');
+  });
+});
+
+describe("Music report (WP25)", () => {
+  const state = { project: { tracks: [{ id: "m", kind: "music" }], markers: [] } };
+
+  test("Music report… needs a project, opens the dialog and has a hint", () => {
+    const registry = createRegistry();
+    const opened = [];
+    registerExportCommands(registry, {
+      t: (key) => key,
+      app: { getState: () => state, toast: () => {}, openMusicReport: () => opened.push(1) },
+    });
+    assert.equal(registry.can("export.music_report", { project: null }), false);
+    assert.equal(registry.can("export.music_report", state), true);
+    assert.equal(registry.run("export.music_report", null, state), true);
+    assert.deepEqual(opened, [1]);
+    assert.equal(registry.hintKey("export.music_report"), "cmd.export.music_report.hint");
   });
 });

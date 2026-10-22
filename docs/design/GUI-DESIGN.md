@@ -196,9 +196,12 @@ before the role icon, the spine, no bus row (section 6).
   hides the time labels under it rather than overlapping them.
 - The playhead's cap is a 11 px pentagon in `--playhead`; the start of the last
   play is a hollow triangle in `--play-start` (where Stop-and-return would go).
-- **Overview strip:** one thin row per track in the track's wave colour at 60 %
-  (25 % when muted), open candidates as 2 px ticks, the visible part as a box
-  (1.5 px accent outline, `--selection-range` fill), the playhead as a 1 px
+- **Overview strip:** one thin row per track in the track's wave colour at 60 %,
+  drawn only where that track sounds (`ui/overview-segments.js`): a gap wherever
+  it is silent, whether there is no clip, the clip or track is muted, Auto-Silence
+  closed the stretch, or the Auto-Silence preview would. No lock, outline or
+  hatching: bar = heard, gap = not. Sibling ticks, the visible part as a box
+  (1.5 px accent outline, `--selection-range` fill) and the playhead as a 1 px
   line. Click or drag moves the view.
 
 ### 3.4 Timeline lanes
@@ -237,10 +240,33 @@ bar. Error: the job's message and Retry.
 
 ### 3.6 Sidebar
 
-Tabs: Inspector · History · Candidates (count pill) · Clip bin. Below 420 px
-only the selected tab shows its label; the others show icons (tooltip and
-accessible name keep the label). **The app today stacks Inspector over
-History** (no tab logic yet); switch to tabs when WP8, WP17 or WP18 lands.
+Tabs: Inspector · Candidates (count pill) · Clipboard · Markers · History,
+then the hide-panel x. **One row at every width, labels never wrap or get an
+ellipsis** (owner, 2026-10-21). `ui/side-tabs-model.js` picks a step from the
+measured width the strip needs and the room it has (`data-tabs` on
+`.side-tabs`):
+
+| Step | When | Looks like |
+|---|---|---|
+| full | all names plus whole keys fit | "Inspector Alt+1" (mac "⌥1"), dimmed key, 6 px padding |
+| tight | full does not fit | same names and keys, 4 px padding |
+| compact | tight does not fit (the 260-280 px minimum, Finnish names) | the selected tab keeps its name and key; the others show an icon plus the key: "[icon] ⌥2" |
+| minimal | compact does not fit | as compact, but the selected tab shows only its name (its key is in the tooltip) |
+
+**The key is never a bare digit** (owner, 2026-10-22: "Tarkastin 1 2 3 4 5" meant
+nothing): at every step it is the user's shown key with its modifier, "⌥1" on
+mac and "Alt+1" elsewhere (`formatCombo` on the live keymap). Icons, from
+`ui/icons.js` and drawn in the text colour at 1.15 em: Inspector `inspector`
+(sliders), Candidates `candidates` (two ticked rows), Clipboard `paste`,
+Markers `bookmark`, History `restore`. They show only on the unselected tabs of
+compact and minimal; the selected tab never needs one, its name is there.
+The selected tab is marked by colour and underline only (no bold), so it never
+changes width. Every tab has the tooltip "Name (Alt+n)", an accessible name
+(the label, also in compact; the icon is `aria-hidden`) and `aria-keyshortcuts`;
+the key is the user's if rebound. Alt+1..Alt+5 need no AltGr or Shift+digit. In
+compact and minimal the Candidates count pill shows only on the selected tab.
+Only the selected tab's label and key appear or disappear when the selection
+moves; the strip stays one row.
 
 **Inspector** (selected clip): the title block (4 px hue bar, the clip's label
 at 17 px, then "Anna.wav · Part 3 of 3 · Anna", the bus line with badge and the
@@ -319,10 +345,25 @@ clickable, playback continues, and the playhead can be moved while it is open.
   the music-report and placeholder warnings as inline notices with "Show
   them". Enter exports with the shown settings; the plain key (Mod+E) skips
   the dialog when settings are remembered (WP35).
-- **Music report (WP25):** a sheet over the sidebar width (480 px): the table
-  (order, title, artist, in, out, duration, background/featured), rows with
-  missing metadata marked with a warning icon and "missing artist"; actions
-  Export CSV, Print.
+- **Music report (WP25):** File > Export > Music report… (no default key; the
+  Finnish layout leaves none free). A modal dialog on the shared form and
+  button rules (`FORMS.md`, `BUTTONS.md`), 960 px wide, for the open edit.
+  Top to bottom: a one-line scope note (times are programme times in whole
+  seconds, part-seconds rounded up), the summary line (pieces and total music
+  time), the warnings (one line per piece missing a title or an artist, saying
+  which; the rows are also tinted), the preview table (order, title, artist,
+  composer, publisher, programme start, duration, background/featured; the
+  title falls back to the file name) in a focusable scroller with a sticky
+  header, so a long report scrolls and the dialog does not. Footer: Copy as
+  table (tab separated, ISRC, file name and out time included), Save CSV…,
+  Save HTML… (all `.footer-start`: they keep the dialog open), Close
+  (primary, last). The files are downloads named `<project> music-report.csv`
+  / `.html` by the server; the browser (or the desktop window's download)
+  chooses the folder and never overwrites. An edit with no music shows "No
+  music in this edit" and the reason (no music track, muted, no clips, or
+  silenced). The server builds the report from a snapshot of the edit, so
+  the preview does not hold the session lock; the dialog shows "Building the
+  report…" meanwhile.
 - **Settings (Mod+,, WP27):** a dialog with a left list (Project, Audio,
   Appearance, Keys) and a form; every change is an undoable edit for project
   settings; Appearance holds theme, density, waveform scale and the gate and
@@ -331,6 +372,19 @@ clickable, playback continues, and the playhead can be moved while it is open.
   regardless of theme: big elapsed time, per-input meters, "Hold to stop · 2 s"
   with a fill that runs for 2 s, the log list; every other key is ignored and
   says so in the hint line. Placeholder only; designed in detail with WP12.
+- **Start page, recent projects (owner, 21.10.2026):** each row opens its project (click, or
+  Cmd/Ctrl+1..9 for the first nine; the number shows as a key chip on the row). A key press first
+  pulses the row for 180 ms (outline, a 1.5 % scale and a brightness step; with
+  `prefers-reduced-motion` only the static outline for 120 ms) and opens after it, never later; a
+  second press during the pulse is ignored. Each row has a "Remove from list" button (and Delete
+  on a focused row), visible on hover and keyboard focus (Right arrow moves into it), tooltip
+  "Remove from list. Only the list changes: the project folder and its files are not touched."
+  A toast "Removed X from the list" offers Undo. A row whose folder is gone is dashed and muted,
+  says "Not found: moved or deleted", offers "Locate…" and Remove, and a click or key explains
+  instead of failing silently. File > Open Recent > "Remove missing projects from the list"
+  (and a button on the page when one is missing) asks once. Removing edits the list only, never a
+  project folder or media file (rule 17). The page cannot read the app's Animation setting (it is
+  another origin); it follows the system reduced-motion setting.
 - **Keyboard sheet (?):** a dialog listing every command with its keys,
   grouped as the palette, searchable.
 
@@ -838,6 +892,16 @@ Waveforms come from peak tiles in a worker (`waveform.worker.js`); the overlay
   brackets (`sibling`, section 18).
 - **Range (in/out):** `--selection-range` fill on exactly the lanes the next
   time-shifting edit will touch, accent edges and inward flags in the ruler.
+  **The most recent intent wins** (owner, 2026-10-21): with both an in/out range
+  and selected clips, Backspace, X, Alt+X, Cmd+X, Alt+Mod+X and Copy act on
+  whichever was touched last (`ui/intent.js`, UI state `intent`, never saved).
+  Marks set or changed (I, O, a dragged or painted range) make the range the
+  target; clips selected afterwards (click, Cmd+click, Select commands) make the clips
+  the target, and the marks stay on screen at 35 % opacity. The status chip says
+  which: "range 12:00-18:30 on all tracks", or "Backspace/X touch the 3 selected
+  clips (the marks are dimmed)". Clearing either leaves the other; Esc clears
+  both as before; Undo and Redo never change the intent. Loop, Play selection
+  and Export keep "marks first".
 - **Snap feedback** (WP6): a 1 px accent guide while a drag snaps; Mod disables.
 - **Undo flash:** section 20.
 
@@ -902,6 +966,50 @@ height; Shift+wheel always scrolls time.
   with the fix second. A bad file costs that file: "Imported 3 files. Could
   not import haastattelu-3.m4a: …".
 - Confirmation dialogs only for what undo cannot bring back (section 1.6).
+
+### 8.x Follow is a state, not an action (owner, 21.10.2026)
+
+While playing with Follow on, the view follows the playhead. Any manual view
+operation (scrolling, dragging or clicking the overview, a zoom or fit) turns
+Follow off; the view then stays where the user put it and the playhead may leave
+it. A "Follow" chip in the timeline's bottom-right corner shows the state (on =
+accent, off = dim) and toggles it; with Follow off and the playhead out of view,
+an arrow at the edge nearest the playhead shows its time. Chip, arrow and the
+View command "Show the playhead" scroll there and turn Follow on. Nothing else
+re-engages it implicitly: starting or stopping playback does, as do explicit
+jumps (below) and a click on the playhead handle or line (about 6 px either side). Never a click near its time, a timer, or the playhead
+entering the view by the user's own scrolling. A seek to a spot outside the view
+scrolls once only while Follow is on. The rules are in `ui/follow-model.js`; the
+state is in the UI store and not saved. Commands: View > Follow playhead
+(checked) and Show the playhead; no default keys.
+
+**Every explicit jump re-engages Follow (owner, 21.10.2026).** An explicit jump to
+a time X means "take me there": the playhead moves to X, Follow turns on and the
+view shows X (scrolling only if X is out of view). Follow is switched off only by
+minor adjustments, steering the view while something else happens; a user who
+wants to look ahead steers the view. Classification (the table is
+`JUMP_SOURCES` in `ui/follow-model.js`, tested in `ui/tests/follow-model.test.js`):
+
+| Action | Class |
+|---|---|
+| Home, End, In, Out, Back where you left off | jump |
+| Next / previous marker | jump |
+| Markers panel: a marker row, a drifting clip row, Next / previous drift (F7) | jump |
+| Go to time (Spot, double-click on the clock) | jump |
+| Transcript: click on a word or a pause marker, a search hit | jump |
+| Tab / Shift+Tab to the next stop (word, edge, sound) | jump |
+| Candidates panel: selecting a row | jump |
+| Inspector Source list: a row | jump |
+| Arrow-key nudges of the playhead | seek |
+| Click on the ruler or a lane, scrubbing, dragging the playhead | seek |
+| Transcript cursor keys (arrows between words) | seek |
+| Cursor placed at the splice after a cut | seek |
+| Right-click on the timeline (cursor under the pointer) | seek |
+| Playhead restored when a project opens | seek |
+
+A seek never changes Follow: a click in a visible spot must not move the view.
+History restore and recording jump-to have no time-jump of their own yet; when
+they get one it is a jump and goes in this table.
 
 ## 9. Keys: what the UI reserves and how it shows them (for WP5)
 
@@ -1785,3 +1893,24 @@ help panel, topics-as-data and Show me.
 **Data:**
 - Tour steps and tips are Markdown with front matter, like topics, in `ui/help/tour/` and `ui/help/tips/`: `id`, `trigger` (event), `anchor` (data-help-id), `expect` (command id), and the text in en and fi.
 - What has been seen is stored in the user settings (WP35), on this computer only.
+
+## Exports honour the selection (owner, 2026-10-21)
+
+Every export exports only the selection, and says so. `ui/export-selection-model.js` resolves it
+(one pure function, node-tested): In/Out marks or a painted range give the time range on the tracks
+`range-scope.js` resolves; otherwise selected clips give the tracks that hold them over their
+combined span (everything on those tracks inside the span, no hidden muting of neighbours); with
+nothing selected the whole mix. A span that is the whole mix on all tracks counts as no selection.
+Cmd+E and the per-format commands use it directly; the export dialogs and the automixer dialog show
+a line and the box "Only export the selection", ticked whenever a selection exists, and unticking it
+exports everything. The remembered whole/range/tracks scope never overrides a selection; the explicit
+"Export in/out range" command still exports the marks. The running notice leads with "Exporting the
+selection only: tracks Anna, Ville, 12.00-18.30". The server names the file with the span and the
+track names (`{span}{subset}` in `export.options`) and never overwrites; a one-file mix of chosen
+tracks is `track_ids` on `/api/export-mix` (muted and not-soloed tracks stay silent as in the whole mix).
+`/api/music-report?start=&end=` reports only the music heard in a span. The Music report dialog
+shows the line "Report of the selection only: 12.00-18.30" and the box "Only the selection", ticked
+by default while a selection exists; the preview, Copy as table, Save CSV and Save HTML then cover
+that span, and unticking reports the whole edit. Tracks are ignored (the report is about time) and
+the line says so when the selection names tracks.
+

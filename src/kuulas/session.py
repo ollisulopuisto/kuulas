@@ -361,7 +361,10 @@ class Session:
         #: UI asks whether to turn them into mono.
         self.last_import_stereo: list[dict] = []
         #: The report from the latest match_loudness command (WP19c).
-        self.last_backup: Path | None = None  # the newest save_backup (Mod+S)
+        self.last_backup: Path | None = None  # the newest save_backup (Back up now)
+        #: What the latest save_checkpoint did, for the UI's toast: {node, name, created,
+        #: result: made | already | renamed}.
+        self.last_saved: dict | None = None
         self.last_match_report: MatchReport = MatchReport({"matched": [], "skipped": []})
         #: resume.json in the project folder (not project state; docs/FORMAT.md).
         self.resume = ResumeWriter(self.package.path, enabled=not self.read_only)
@@ -1292,6 +1295,7 @@ class Session:
         params = dict(params or {})
         automix_module.validate_params(params)
         automix_module.validate_range(params)
+        automix_module.validate_tracks(params, self.state)
         automix_module.check_rate(self)
         with self.lock:
             self.history._check_writable()
@@ -1833,8 +1837,9 @@ class Session:
         return project_stats.gather(self.history, self.package.path, lock=self.lock,
                                     transcripts=self.transcripts)
 
-    def music_report(self, *, format: str = "rows",
-                     title: str | None = None) -> tuple[Any, ...] | str | list[dict]:
+    def music_report(self, *, format: str = "rows", title: str | None = None,
+                     span: tuple[int, int] | None = None
+                     ) -> tuple[Any, ...] | str | list[dict]:
         """Royalty music report (WP25): every audible music use in this edit.
 
         ``format``:
@@ -1842,7 +1847,12 @@ class Session:
         - ``"json"``: list of row dicts.
         - ``"csv"``: semicolon-separated UTF-8 string with BOM.
         - ``"html"``: printable HTML document string.
+
+        ``span`` (timeline frames) reports only that part: the selection.
         """
+        if span is not None and not (span[0] >= 0 and span[1] > span[0]):
+            raise music_report_module.MusicReportError(
+                "error.music_report.bad_range", range=f"{span[0]}-{span[1]}")
         if format not in ("rows", "json", "csv", "html"):
             raise music_report_module.MusicReportError("error.music_report.bad_format",
                                                        format=format)
@@ -1850,7 +1860,7 @@ class Session:
         # behind the report can take seconds, and must not block edits.
         with self.lock:
             state = self.history.state
-        rows = music_report_module.build_report(state, self.store)
+        rows = music_report_module.build_report(state, self.store, span)
         if format == "rows":
             return rows
         if format == "json":
@@ -3520,7 +3530,7 @@ def _check_writable(s: Session) -> None:
 
 
 def _save_backup(s: Session, _args: dict) -> Project:
-    """Mod+S: the 10-minute timer's backup, now (same retention). Edits are
+    """File > Back up now: the 10-minute timer's backup, now (same retention). Edits are
     already committed, so this only makes the copy. The online backup reads
     through its own connection, so no session lock: a slow disk must not
     stall playback."""
@@ -3534,9 +3544,41 @@ def _save_backup(s: Session, _args: dict) -> Project:
 
 
 def _save_checkpoint(s: Session, args: dict) -> Project:
-    """Shift+Mod+S: name the current step. Changes no edit state."""
+    """Mod+S and Shift+Mod+S: mark the current step as a saved version. Changes no
+    edit state.
+
+    A step is one saved version at most (the table is keyed by step), so a step that
+    already is one makes no second: ``result`` says ``already`` and the answer carries
+    the version it has, whatever its kind (a sent copy's version is never overwritten
+    by a Save). With ``rename`` (Shift+Mod+S, the user typed a name) a different name
+    renames that version instead. ``made`` otherwise."""
     _check_writable(s)
-    s.checkpoint(str(args.get("name") or "").strip() or t("history.checkpoint_default"))
+    name = str(args.get("name") or "").strip() or t("history.checkpoint_default")
+    head = s.history.head
+    held = s.history.checkpoint_map().get(head)
+    if held is None:
+        s.checkpoint(name)
+        result = "made"
+    elif args.get("rename") and name != held["name"]:
+        with s.lock:
+            s.history.rename_checkpoint(head, name)
+        result = "renamed"
+    else:
+        result = "already"
+    mark = s.history.checkpoint_map()[head]
+    s.last_saved = {"node": head, "name": mark["name"], "created": mark["created"],
+                    "result": result}
+    return s.state
+
+
+def _rename_checkpoint(s: Session, args: dict) -> Project:
+    """Rename a saved version (History > context menu). Changes no edit state."""
+    _check_writable(s)
+    name = str(args.get("name") or "").strip()
+    node = str(args.get("node") or "")
+    if not name or node not in s.history.checkpoint_map():
+        raise ops.EditError("error.server.bad_request", detail="name")
+    s.history.rename_checkpoint(node, name)
     return s.state
 
 
@@ -3576,6 +3618,7 @@ COMMANDS: dict[str, Callable[[Session, dict], Project]] = {
     "placeholder_take": _placeholder_take,
     "save_backup": _save_backup,
     "save_checkpoint": _save_checkpoint,
+    "rename_checkpoint": _rename_checkpoint,
 }
 
 #: Commands that run without the session lock and take it only for their

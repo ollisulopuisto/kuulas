@@ -26,6 +26,8 @@ describe("File", () => {
       "separator",
       "app.save",
       "app.save_named",
+      "app.open_earlier_version",
+      "app.backup_now",
       "app.send_copy",
       "separator",
       "app.export",
@@ -35,6 +37,7 @@ describe("File", () => {
       "export.automix_log",
       "export.tracks_quick",
       "export.tracks",
+      "export.music_report",
       "submenu",
       "separator",
       "submenu",
@@ -291,10 +294,11 @@ describe("keys", () => {
     assert.deepEqual(entry("candidate.next").keys.mac, "Alt+ArrowDown");
     assert.deepEqual(entry("candidate.previous").keys.mac, "Alt+ArrowUp");
   });
-  test("the export keys: Mod+E is the plain mix, Shift adds the options", () => {
+  test("the export keys (owner 2026-10-21): Mod+E mix, Shift+Mod+E automixer, Alt+Mod+E mix with options; the all-tracks exports have none", () => {
     assert.equal(entry("app.export").keys.mac, "Mod+E");
-    assert.equal(entry("export.mix_options").keys.mac, "Shift+Mod+E");
-    assert.equal(entry("export.tracks_quick").keys.mac, "Alt+Mod+E");
-    assert.equal(entry("export.tracks").keys.mac, "Shift+Alt+Mod+E");
+    assert.equal(entry("export.automix").keys.mac, "Shift+Mod+E");
+    assert.equal(entry("export.mix_options").keys.mac, "Alt+Mod+E");
+    assert.equal(entry("export.tracks_quick").keys.mac, null);
+    assert.equal(entry("export.tracks").keys.mac, null);
   });
 });

@@ -169,18 +169,59 @@ describe("the owner's decisions", () => {
     assert.deepEqual(keysOf("sync.resync_end"), ["Shift+Alt+Mod+R"]);
   });
 
-  test("X cuts the marked range from anywhere but a text field and the transcript", () => {
-    for (const id of [
-      "edit.remove",
-      "edit.remove_track",
-      "edit.cut",
-      "edit.cut_track",
-      "edit.lift_cut",
-      "edit.close_gap_all",
-    ]) {
+  test("X and Mod+X cut the marked range from anywhere but a text field and the transcript", () => {
+    for (const id of ["edit.remove", "edit.cut"]) {
       assert.equal(DEFAULT_KEYMAP.find((e) => e.id === id).context, "not-transcript", id);
     }
     assert.equal(DEFAULT_KEYMAP.find((e) => e.id === "transcript.cut_words").context, "transcript");
+    assert.equal(
+      DEFAULT_KEYMAP.find((e) => e.id === "transcript.remove_words").context,
+      "transcript",
+    );
+  });
+
+  test("the editing keys work in every panel; only the ones a panel owns are left out of it", () => {
+    const contextOf = (id) => DEFAULT_KEYMAP.find((entry) => entry.id === id).context;
+    // Backspace is the Candidates tab's apply and the transcript's delete words.
+    assert.equal(contextOf("edit.delete"), "not-transcript-candidates");
+    for (const id of [
+      "edit.cut_track",
+      "edit.lift_cut",
+      "edit.close_gap_all",
+      "edit.remove_clips",
+      "edit.split",
+      "edit.split_all",
+      "edit.group",
+      "edit.ungroup",
+      "edit.merge",
+      "edit.trim_start",
+      "edit.trim_end",
+      "edit.nudge_left",
+      "edit.nudge_right",
+      "edit.move_up",
+      "edit.move_down",
+      "clip.gain_up",
+      "clip.gain_down",
+      "clip.mute",
+      "clip.quick_mute",
+      "track.mute",
+      "track.solo",
+      "track.solo_add",
+    ]) {
+      assert.equal(contextOf(id), "global", id);
+    }
+    // G is also History's "go to the restore point": fade keeps the timeline.
+    assert.equal(contextOf("clip.fade"), "timeline");
+  });
+
+  test("Shift+X has no default key (owner, 2026-10-22)", () => {
+    for (const platform of ["mac", "other"]) {
+      for (const entry of DEFAULT_KEYMAP) {
+        assert.ok(!asList(entry.keys[platform]).includes("Shift+X"), `${entry.id} on ${platform}`);
+      }
+    }
+    assert.deepEqual(keysOf("edit.remove_track"), []);
+    assert.deepEqual(keysOf("edit.cut_track"), ["Shift+Mod+X"]);
   });
 
   test("1 and 2 go to the in and out marks; Mod+1 and Mod+2 set them, like Hindenburg", () => {
@@ -287,6 +328,7 @@ describe("the standard Mac keys (owner, 2026-10-19)", () => {
   });
   test("Open Recent has no key and Revert to saved does not exist", () => {
     assert.deepEqual(keysOf("app.clear_recent"), []);
+    assert.deepEqual(keysOf("app.remove_missing_recents"), []);
     assert.equal(
       DEFAULT_KEYMAP.some((entry) => /revert/i.test(entry.id)),
       false,

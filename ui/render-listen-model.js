@@ -106,8 +106,30 @@ export function rangeChoice({ inPoint, outPoint, length, rate }) {
   return { enabled: true, range: [start, end] };
 }
 
-/** The run body with `range` while the box is ticked ("1") and the range is allowed. */
+/**
+ * The automix dialog's "Only the selection" choice from a resolved export selection
+ * (export-selection-model.js): { enabled, range, trackIds, names }. Enabled when the span is
+ * longer than MIN_RANGE_SECONDS; a null `trackIds` is all tracks.
+ */
+export function selectionChoice(selection, { length, rate }) {
+  const off = { enabled: false, range: null };
+  if (!selection) return off;
+  const [start, end] = selection.range;
+  if (end - start <= MIN_RANGE_SECONDS * rate || end - start > length) return off;
+  return {
+    enabled: true,
+    range: [start, end],
+    trackIds: selection.trackIds,
+    names: selection.names,
+  };
+}
+
+/** The run body with `range` (and `track_ids` when only some tracks) while the box is ticked ("1") and the range is allowed. */
 export function withRange(body, onlyRange, choice) {
   if (!onlyRange || !choice?.enabled) return body;
-  return { ...body, range: choice.range };
+  return {
+    ...body,
+    range: choice.range,
+    ...(choice.trackIds ? { track_ids: choice.trackIds } : {}),
+  };
 }

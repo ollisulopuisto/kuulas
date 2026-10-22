@@ -212,6 +212,10 @@ class History:
         self._seen_version: int | None = None
         #: The head's ancestors, once ``sides`` has asked (``_ancestors``).
         self._past: set[str] | None = None
+        #: Whether any ``restore`` step has been committed in this edit. Once one
+        #: exists, ``sides(ids)`` must fall back to ``lineage()`` because the
+        #: incremental ancestor map cannot express ``rolled_back`` steps.
+        self._restored: bool = False
 
     def _create(self, initial: Project) -> None:
         now = dbm.utc_now()
@@ -622,6 +626,7 @@ class History:
         now = self.state
         state = replace(self._load(target["id"]), media=now.media,
                         sync_groups=now.sync_groups)
+        self._restored = True
         self.commit(t("history.restored", label=target["label"]), state,
                     op={"name": "restore", "args": {"node": target["id"]}})
         ctx = _parse_context(target.get("context"))
@@ -654,25 +659,46 @@ class History:
             r["context"] = _parse_context(r.get("context"))
         return rows
 
-    def nodes_page(self, limit: int, before: str | None = None) -> list[dict]:
+    def restored_step(self, node: str) -> dict | None:
+        """The step whose state ``node`` holds: ``node`` itself, or, while it is a
+        restore, its target. ``{"id", "op", "label"}``; None for an unknown id."""
+        seen: set[str] = set()
+        while node not in seen:
+            seen.add(node)
+            row = self.db.execute("select op, label from nodes where id=? and edit=?",
+                                  (node, self.edit)).fetchone()
+            if row is None:
+                return None
+            op = _parse_context(row[0]) or {}
+            restore = op.get("name") == "restore"
+            target = (op.get("args") or {}).get("node") if restore else None
+            if target is None:
+                return {"id": node, "op": op, "label": row[1]}
+            node = str(target)
+        return None
+
+    def nodes_page(self, limit: int, before: str | None = None,
+                   saved: bool = False) -> list[dict]:
         """A page of steps in this edit, newest first (for the history panel).
 
         ``limit``: maximum number of steps to return.
         ``before``: step id to page backwards from (steps older than ``before``).
+        ``saved``: only the steps that carry a checkpoint (the "Saved versions" filter);
+        done here, not in the UI, so paging does not run dry between sparse hits.
         """
         limit = max(0, int(limit))
-        if before is None:
-            rows = _rows(self.db.execute(
-                "select id, parent, label, author, machine, op, created_utc as created,"
-                " material_from, material_to, context from nodes where edit=?"
-                " order by id desc limit ?",
-                (self.edit, limit)))
-        else:
-            rows = _rows(self.db.execute(
-                "select id, parent, label, author, machine, op, created_utc as created,"
-                " material_from, material_to, context from nodes where edit=? and id < ?"
-                " order by id desc limit ?",
-                (self.edit, before, limit)))
+        where = "edit=?"
+        args: list = [self.edit]
+        if before is not None:
+            where += " and id < ?"
+            args.append(before)
+        if saved:
+            where += " and id in (select node from checkpoints)"
+        rows = _rows(self.db.execute(
+            "select id, parent, label, author, machine, op, created_utc as created,"  # noqa: S608
+            " material_from, material_to, context from nodes where "
+            + where  # fixed fragments chosen above, never user text
+            + " order by id desc limit ?", (*args, limit)))
         for r in rows:
             r["op"] = json.loads(r["op"])
             r["context"] = _parse_context(r.get("context"))
@@ -753,37 +779,86 @@ class History:
             node = row[0]
             out.add(node)
 
+    def lineage(self) -> dict[str, dict]:
+        """Where each step of this edit lies relative to the head, for the History panel.
+
+        ``side``: ``head``; ``past`` (part of the current state); ``rolled_back`` (an
+        ancestor of the head that a Restore skipped: the steps between its target and
+        the head it replaced); ``redo`` (the chain Redo would walk) or ``branch`` (left
+        behind by a later edit). ``rolled_back_by``: the restore step that skipped it.
+        ``restore_target``: on a restore step, the step it restored.
+
+        The current state's lineage follows each step's *effective* parent: a restore's
+        is its target, every other step's its parent. So restoring onto a left-behind
+        step makes that branch ``past``, and undoing a restore (the head moves below it)
+        makes what it skipped ``past`` again. One query, O(n), whatever the size."""
+        parent: dict[str, str | None] = {}
+        target: dict[str, str] = {}
+        children: dict[str, list[str]] = {}
+        for node, up, restored in self.db.execute(
+                "select id, parent, case when json_extract(op, '$.name') = 'restore'"
+                " then json_extract(op, '$.args.node') end"
+                " from nodes where edit=? order by id", (self.edit,)):
+            parent[node] = up
+            if restored is not None:
+                target[node] = str(restored)
+            if up is not None:
+                children.setdefault(up, []).append(node)
+        info = {node: {"side": "branch", "rolled_back_by": None,
+                       "restore_target": target.get(node)} for node in parent}
+        # The current state: walk effective parents from the head. A target is always
+        # older than its restore, but a damaged file must not loop.
+        current: set[str] = set()
+        node: str | None = self.head
+        while node is not None and node in parent and node not in current:
+            current.add(node)
+            restored = target.get(node)
+            node = restored if restored in parent else parent[node]
+        # Real ancestors: in the current state, or skipped by the nearest restore above.
+        skipper: str | None = None
+        node = self.head if self.head in parent else None
+        while node is not None:
+            if node in current:
+                info[node]["side"] = "past"
+                skipper = node if node in target else None
+            else:
+                info[node].update(side="rolled_back", rolled_back_by=skipper)
+            node = parent[node]
+        for node in current:  # a restored branch's steps belong to the state now
+            if info[node]["side"] == "branch":
+                info[node]["side"] = "past"
+        if self.head in info:
+            info[self.head]["side"] = "head"
+        node = self.head
+        while children.get(node):
+            node = children[node][-1]
+            info[node]["side"] = "redo"
+        return info
+
+    def checkpoint_map(self) -> dict[str, dict]:
+        """The saved versions of this edit by step id, as the History panel shows them:
+        ``{"name", "kind", "copy", "created"}``."""
+        return {c["node"]: {"name": c["name"], "kind": c["kind"], "copy": c["copy"],
+                            "created": c["created_utc"]} for c in self.checkpoints()}
+
     def sides(self, ids: list[str] | None = None) -> dict[str, str]:
         """Where each step of this edit lies relative to the head: ``head``, ``past``
         (an ancestor), ``redo`` (the chain Redo would walk) or ``branch`` (left behind
-        by a later edit; reachable only by restoring).
+        by a later edit; reachable only by restoring); ``rolled_back`` for steps a
+        Restore skipped between its target and the head it replaced.
 
         ``ids``: only these steps (the history panel's page). Their cost does not
         grow with the history: the ancestors are kept (``_ancestors``) and the
         redo chain is as long as what was undone. Without ``ids``: every step, from
-        one query of the whole tree."""
+        the lineage computation."""
         if ids is not None:
+            if self._restored:
+                full = self.lineage()
+                return {n: full[n]["side"] for n in ids if n in full}
             past, redo = self._ancestors(), self._redo_chain()
             return {n: "head" if n == self.head else "past" if n in past
                     else "redo" if n in redo else "branch" for n in ids}
-        parent: dict[str, str | None] = {}
-        children: dict[str, list[str]] = {}
-        for node, up in self.db.execute(
-                "select id, parent from nodes where edit=? order by id", (self.edit,)):
-            parent[node] = up
-            if up is not None:
-                children.setdefault(up, []).append(node)
-        side = dict.fromkeys(parent, "branch")
-        node = parent.get(self.head)
-        while node is not None:
-            side[node] = "past"
-            node = parent[node]
-        node = self.head
-        side[node] = "head"
-        while children.get(node):
-            node = children[node][-1]
-            side[node] = "redo"
-        return side
+        return {node: v["side"] for node, v in self.lineage().items()}
 
     # -- several edits (WP21 builds on this) -------------------------------
 
@@ -833,6 +908,13 @@ class History:
                 "insert or replace into checkpoints(node, name, kind, copy, created_utc)"
                 " values (?,?,?,?,?)",
                 (node or self.head, name, kind, copy, dbm.utc_now()))
+        self._written()
+
+    def rename_checkpoint(self, node: str, name: str) -> None:
+        """Change the name of a saved version; its step, kind and time stay."""
+        self._check_writable()
+        with dbm.tx(self.db):
+            self.db.execute("update checkpoints set name=? where node=?", (name, node))
         self._written()
 
     def checkpoints(self) -> list[dict]:

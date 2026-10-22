@@ -71,8 +71,13 @@ def _speech_activity(project: Project, store: Store) -> tuple[tuple[int, int], .
     return tuple(ranges)
 
 
-def build_report(project: Project, store: Store) -> tuple[ReportRow, ...]:
+def build_report(project: Project, store: Store,
+                 span: tuple[int, int] | None = None) -> tuple[ReportRow, ...]:
     """Every audible music-track use, in timeline order, with its metadata.
+
+    With ``span`` (timeline frames, start below end) only the music heard inside it
+    is listed, each piece cut at the span's edges, as the exported excerpt plays it;
+    times stay the programme's own (an export of the selection reports the selection).
 
     A piece is *background* when it overlaps detected speech activity on
     another track, otherwise *featured*. A row is missing its title or artist
@@ -87,20 +92,24 @@ def build_report(project: Project, store: Store) -> tuple[ReportRow, ...]:
     for u in uses:
         if u.role != "music" or not u.audible:
             continue
+        begin, end = u.timeline_from, u.timeline_to
+        if span is not None:
+            begin, end = max(begin, span[0]), min(end, span[1])
+            if end <= begin:
+                continue
         media: Media | None = media_by_sha.get(u.media_sha256)
         info = (media.extra.get("music_info") if media is not None else {})
         info = info or {}
         order += 1
         title = info.get("title", "")
         artist = info.get("artist", "")
-        background = any(u.timeline_from < end and u.timeline_to > start
-                         for start, end in speech)
+        background = any(begin < s_end and end > s_start for s_start, s_end in speech)
         # Reports use whole seconds, and partial seconds round up (owner's
         # decision, 2026-10-17): the start is floored, the duration rounded up
         # and at least one second, and the out time is start plus duration, so
         # the three columns always agree.
-        start = u.timeline_from // rate
-        length = max(1, -(-(u.timeline_to - u.timeline_from) // rate))
+        start = begin // rate
+        length = max(1, -(-(end - begin) // rate))
         rows.append(ReportRow(
             order=order,
             title=title,
