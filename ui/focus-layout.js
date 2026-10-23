@@ -9,6 +9,17 @@ import { dimmedTracks } from "./range-scope.js";
 
 /** A lane out of focus: its name, half a waveform and its clip edges, so sync stays visible. */
 export const FOCUS_STRIP = 16;
+/** The room the lanes out of focus share (owner, 2026-10-23: 16 px strips were "a BIT too
+ *  extreme", the other tracks must still be seen), and the most one of them takes. */
+export const FOCUS_SIDE_SHARE = 0.4;
+export const FOCUS_SIDE_MAX = 64;
+
+/** How tall each lane out of focus is when `others` of them share `room` px. */
+export function sideHeight(room, others) {
+  if (!(others > 0)) return FOCUS_STRIP;
+  const share = Math.floor((FOCUS_SIDE_SHARE * room) / others);
+  return Math.max(FOCUS_STRIP, Math.min(FOCUS_SIDE_MAX, share));
+}
 
 export function focusSet(tracks, trackId) {
   if (!tracks || !trackId) return [];
@@ -128,7 +139,7 @@ export function focusHeights({
   busHeight,
   groupGap,
   collapsed,
-  strip = FOCUS_STRIP,
+  strip = null,
 }) {
   if (!project || !(available > 0) || !focusIds?.length) return null;
   const layout = layoutRows(project, MIN_LANE, {
@@ -143,10 +154,12 @@ export function focusHeights({
   const fixed = layout.rows
     .filter((row) => row.kind !== "track")
     .reduce((total, row) => total + row.height, 0);
+  const room = available - fixed;
+  const others = lanes.filter((row) => !wanted.has(row.id)).length;
   return focusLayout(
     lanes.map((row) => ({ id: row.id })),
     focusIds,
-    { available: available - fixed, strip, min: MIN_LANE, max: MAX_LANE },
+    { available: room, strip: strip ?? sideHeight(room, others), min: MIN_LANE, max: MAX_LANE },
   ).heights;
 }
 

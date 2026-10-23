@@ -161,7 +161,8 @@ What was missing against WP28 and this note, and is now built:
   `view.focus` (Shift+F), `view.focus_solo` (Alt+Shift+F), `view.focus_hide_others` (Alt+F, a
   switch), `view.focus_shrink` (a switch, no key).
 - **Layout**: `focus-layout.js focusHeights` gives every lane with a row a height: the focused
-  speaker's lanes share the lane area, the others are 16 px strips, bus rows and gaps keep their
+  speaker's lanes share the lane area, the others share 40 % of it (`sideHeight`: 16 to 64 px
+  each; owner 2026-10-23, 16 px strips were "a BIT too extreme"), bus rows and gaps keep their
   height. It is a view layer (`state.focusHeights`, read by `lanes.js layoutFor` as
   `viewHeights`, not clamped up to MIN_LANE): never `laneHeights`, history or the project.
 - **Motion**: the `focus-resize` cue (motion.js): 120 ms ease-out, shorter at "subtle", instant
