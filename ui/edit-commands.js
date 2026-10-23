@@ -246,7 +246,10 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
       const entry = pasteEntry(app.getState());
       if (entry) await app.sendToWindow(entry);
     },
-    (s) => hasProject(s) && (copyPlan(s, t) !== null || pasteEntry(s) !== null),
+    // Greyed out (but in the menu) until another project window is open (app.js keeps
+    // `otherWindows` current: null in a browser, else how many).
+    (s) =>
+      hasProject(s) && s.otherWindows > 0 && (copyPlan(s, t) !== null || pasteEntry(s) !== null),
   );
   // Paste overwrites by default (owner, 2026-10-20): what is under the pasted clips is
   // trimmed, split or removed and nothing later moves. The insert forms move later material.

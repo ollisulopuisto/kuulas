@@ -1225,7 +1225,7 @@
   "cmd.clipboard.open_project": "Leikepöytä: avaa projekti…",
   "cmd.clipboard.open_project.hint": "Valitse mikä tahansa .kuulas-projekti ja listaa sen leikepöytä, vain luku",
   "cmd.clipboard.send_to_window": "Kopioi toiseen ikkunaan…",
-  "cmd.clipboard.send_to_window.hint": "Kopioi valinnan (tai lähettää valitun leikepöytämerkinnän) toisessa ikkunassa auki olevan projektin leikepöydälle; liitä se siellä Liitä-komennolla",
+  "cmd.clipboard.send_to_window.hint": "Kopioi valinnan (tai lähettää valitun leikepöytämerkinnän) toisessa ikkunassa auki olevan projektin leikepöydälle; liitä se siellä Liitä-komennolla. Harmaana, kunnes toinen projekti-ikkuna on auki",
   "ui.sendwindow.pick": "Mihin ikkunaan lähetetään?",
   "ui.sendwindow.none": "Muuta projekti-ikkunaa ei ole auki. Avaa toinen jakso ensin omaan ikkunaansa.",
   "ui.sendwindow.sent": "Lähetetty ikkunaan {name}. Liitä se siellä.",

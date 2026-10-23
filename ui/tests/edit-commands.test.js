@@ -38,6 +38,7 @@ function setup(state, previewAnswer = { started: true, missing: 0 }) {
   const shared = [];
   const shown = [];
   const opened = [];
+  const sentToWindow = [];
   const seeks = [];
   let refreshed = 0;
   let renamed = 0;
@@ -80,6 +81,10 @@ function setup(state, previewAnswer = { started: true, missing: 0 }) {
       openClipboardProject: () => {
         opened.push(true);
       },
+      sendToWindow: (entry) => {
+        sentToWindow.push(entry);
+        return Promise.resolve();
+      },
     },
   });
   return {
@@ -91,6 +96,7 @@ function setup(state, previewAnswer = { started: true, missing: 0 }) {
     shared,
     shown,
     opened,
+    sentToWindow,
     refreshed: () => refreshed,
     renamed: () => renamed,
     sent,
@@ -140,6 +146,7 @@ const WORKING = [
   "clipboard.view_shared",
   "clipboard.view_others",
   "clipboard.open_project",
+  "clipboard.send_to_window",
 ];
 
 describe("the editing commands", () => {
@@ -444,6 +451,35 @@ describe("the clipboard commands (WP46)", () => {
     on.registry.run("edit.share_clipboard", null, state);
     assert.deepEqual(on.shared, [["e1", false]]);
     assert.equal(h.sent.length, 0);
+  });
+
+  test("Copy to other window needs another window; it shows greyed out until there is one", () => {
+    const state = withClip();
+    const h = setup(state);
+    for (const otherWindows of [null, 0, undefined]) {
+      assert.equal(h.registry.can("clipboard.send_to_window", { ...state, otherWindows }), false);
+    }
+    assert.equal(h.registry.can("clipboard.send_to_window", { ...state, otherWindows: 1 }), true);
+    assert.equal(
+      h.registry.can("clipboard.send_to_window", { ...base(), otherWindows: 1, clipboard: [] }),
+      false,
+      "nothing to copy or send",
+    );
+    assert.equal(
+      h.registry.can("clipboard.send_to_window", { ...base({ project: null }), otherWindows: 1 }),
+      false,
+    );
+  });
+
+  test("Copy to other window sends the picked (else newest) entry when nothing is selected", async () => {
+    const state = { ...withClip(), otherWindows: 1 };
+    const h = setup(state);
+    await h.registry.run("clipboard.send_to_window", null, state);
+    assert.deepEqual(
+      h.sentToWindow.map((entry) => entry.id),
+      ["e1"],
+    );
+    assert.equal(h.sent.length, 0); // not an edit: no undo step
   });
 
   test("the clipboard views and Open a project are commands", () => {

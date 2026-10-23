@@ -11,6 +11,8 @@ export const initialState = () => ({
   head: null,
   canUndo: false,
   readOnly: null,
+  // Other project windows of this desktop app (null: not known, or a plain browser).
+  otherWindows: null,
   canRedo: false,
   // The rendered mix the project remembers and whether it plays in place of the edit
   // ({ available, current, missing, reason, listening, name, range, set_at }; null: none).

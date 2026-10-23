@@ -3408,6 +3408,21 @@ async function copyToClipboard(body) {
   }
 }
 
+// How many other project windows this desktop app has: the menu item is greyed out at zero.
+// Asked when this window gains focus (a window opened or closed elsewhere is noticed when
+// you come back here), when the desktop bridge is ready, and after a send.
+async function refreshOtherWindows() {
+  const bridge = globalThis.pywebview?.api;
+  if (typeof bridge?.other_windows !== "function") return;
+  try {
+    setState({ otherWindows: (await bridge.other_windows()).length });
+  } catch (error) {
+    console.debug("other windows:", error);
+  }
+}
+window.addEventListener("pywebviewready", () => void refreshOtherWindows());
+window.addEventListener("focus", () => void refreshOtherWindows());
+
 // Copy to other window (desktop only): the entry goes onto the clipboard of the project open
 // in another window of this app; with several, a small menu asks which. The window that gets
 // it says so (kuulasClipboardArrived below) and the paste is made there, as ever.
@@ -3419,6 +3434,7 @@ async function sendToOtherWindow(entry) {
   }
   try {
     const choice = windowChoice(await bridge.other_windows());
+    setState({ otherWindows: choice.kind === "none" ? 0 : (choice.items?.length ?? 1) });
     if (choice.kind === "none") {
       showNotice(t("ui.sendwindow.none"), "ok", { undo: false });
       return;

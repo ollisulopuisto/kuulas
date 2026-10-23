@@ -1196,7 +1196,7 @@
   "cmd.clipboard.open_project": "Clipboard: open a project…",
   "cmd.clipboard.open_project.hint": "Pick any .kuulas project and list its clipboard, read-only",
   "cmd.clipboard.send_to_window": "Copy to other window…",
-  "cmd.clipboard.send_to_window.hint": "Copies the selection (or sends the picked clipboard entry) onto the clipboard of the project open in another window; paste it there with Paste",
+  "cmd.clipboard.send_to_window.hint": "Copies the selection (or sends the picked clipboard entry) onto the clipboard of the project open in another window; paste it there with Paste. Greyed out until a second project window is open",
   "ui.sendwindow.pick": "Send to which window?",
   "ui.sendwindow.none": "No other project window is open. Open the other episode in its own window first.",
   "ui.sendwindow.sent": "Sent to {name}. Paste it there.",
