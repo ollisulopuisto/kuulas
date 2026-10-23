@@ -108,19 +108,22 @@ sizes: `docs/PLAN.md`, section "Triage".
 - Analysis: Auto-Silence and automix ducking through speechmix.
 - Transcript mapping and word-cut ranges.
 
-## In flight (21.10.2026 01.40 Helsinki, after v26.10.20.14)
+## In flight (24.10.2026 00.51 Helsinki, after v26.10.20.39)
 
-Nothing running. Released in v26.10.20.14 (all untried in a window): **Level blocks**, **bus roles** (Match bus role, badge, Reapply), **Cmd+drag trims only one clip**, step numbers and 'skipped' marks in the automix progress line, every track's gain in the automixer stems, music level default +1.
+Nothing running except the full test run and the dmg build. **Built since v26.10.20.39, none of it seen on screen yet** (everything below is committed on main; details and limits in each Next item and in docs/BUGS.md #106-#115):
 
-Next to build (Kuulas side): **bounded speaker balance**. The podcast side is merged (PR #66, `--balance-speakers-max-db`; #64 `--bed-under-speech-db` too); Kuulas needs the dialog choice Automatic / Fine-tune / Keep my levels with the 6 dB / 2-3 dB / 0 rule (see Next), gated by the capability probe. Then **Duck under speech** as a track property (docs/design/DUCKING.md).
+- **Transcript:** shows only what is heard; Find lists removed material ("Not in this edit"); Put back (ripple insert on all tracks at the seam).
+- **Recording:** the take is drawn on its lanes while it records (new tracks are made at Start; the view follows the head); editing is paused during a take (markers allowed); markers while recording (Cmd+Enter, Add marker button); the stop notice says how much audio the take replaced; **the cart** (seven numbered Clipboard slots, Alt+1..7 play, Shift+Alt+1..7 assign) and clips played during a take are logged on a chosen track; a lost Colab session retries once; Colab progress comes from the tool's `--events`.
+- **Editing and views:** M on an auto-silenced stretch opens just that stretch as a clip; hold Cmd/Ctrl while moving a clip to snap to ducking ramps and silenced-stretch edges; the Clipboard can be reordered by dragging; a stronger in/out band; focus mode keeps the other lanes readable; closing a toast keeps later ones in the status bar.
+- **Windows and files:** Copy to other window; a project open elsewhere is read-only with a banner naming who holds it, and opening it again brings its window forward; File > Export cut list (JSON); the Material tab (Cmd+6); side tabs on Cmd+1..6; Mac key glyphs in menus; Ctrl+click on a Mac is the context menu.
+
+Waiting on the podcast side: the shared `fcpxml` package (what Kuulas needs is at the end of docs/PODCAST-MAGIC.md), the six `--events` field requests, and the older wishes below.
 
 Open question: should bus gain also reach the automixer stems (like track gain since v26.10.20.14)?
 
-Waiting on the podcast repo: a 'keep the stem level for beds' switch and automixer/mastering memory (loads whole stems).
-
 Parked with findings recorded: history compaction (see Next).
 
-Older, still open: media store (linked vs working FLAC, relink, consolidate); browser UI shell (keymap WP5, design redone). Old agent branches were cleaned up 21.10.2026 (the unused Tab helper branches t48/t49 discarded on the owner's word).
+Older, still open: media store (linked vs working FLAC, relink, consolidate); browser UI shell (keymap WP5, design redone).
 
 ## Milestone 1: what is left to confirm (updated 21.10.2026)
 
@@ -137,7 +140,19 @@ M1 is 23 of 28 done, 5 partly (WP4, WP5, WP19a, WP46, WP6). All are built; the "
 - Outside the list but blocking "confirmed": BUGS 83 (clips could not be moved: needs your exact symptom), BUGS 81 (dmg "damaged" until quarantine is cleared: needs Apple signing), BUGS 3 (Dropbox lock never tried on a real Dropbox), BUGS 80 (Cmd+M gone).
 - Housekeeping: update the PLAN status lines of WP4, WP5, WP6, WP19a, WP46 ("Status: open. Needs WP4" is stale for WP6) when you confirm them, so the milestone count can reach 28 of 28.
 
-## Newer things to try (v26.10.20.35 to .39)
+## Newer things to try (since v26.10.20.39; the dmg of 24.10.2026)
+
+1. **Recording (needs a real microphone):** two channels onto existing tracks, then onto new ones; watch the live drawing and the view following; Cmd+Enter drops a marker; try an edit during the take (it should say editing is paused); stop and read the notice; record over audio and check "It replaced ..."; choose a cart track in the setup, play a clipboard clip with Alt+1 and see it land where it was played.
+2. **M on a silenced stretch:** click inside an Auto-Silence stretch and press M, then M again.
+3. **Cmd (Ctrl) while moving a clip** near a ducked music track: marks along the top, snapping to ramp ends.
+4. **Clipboard:** drag entries into a new order (Paste reads the first); the number chip and Alt+1..7; Shift+Alt+n assigns.
+5. **Material tab (Cmd+6)** and its Place on timeline.
+6. **Two windows:** two episodes, Copy to other window; the same project opened twice (read-only banner, bring-forward).
+7. **Toasts:** press X on a progress toast, look at the status-bar button. **Focus mode** (Shift+F) and the in/out band, light and dark.
+8. **Colab:** one transcription from the dmg (also with a stale session): steps in the toast.
+9. **Side tabs** Cmd+1..6, and that Cmd+1/2 no longer set marks (I and O do).
+
+### Earlier list (v26.10.20.35 to .39)
 
 Silence visuals (outline, padlocks, dashed ends, group outline); missing media and Relink; Mic kept open row; Series dialogs and status chip; Focus mode (Shift+F); Automix range and Rendered mix; Auto-Silence panel and learning its Sensitivity from muted clips; Keep my music levels; Clipboard shelves and drag; side tabs on one row with Alt+1..5 hints; overview bar with gaps; History saved versions and filter; Follow playhead (the last three in flight).
 
@@ -151,7 +166,7 @@ Released in v26.10.20.5 to v26.10.20.14, in order of importance:
 3. **Paste:** Cmd+V overwrites on the selected track; Alt+Cmd+V inserts; with In/Out marked it fits the range.
 4. **Clipboard:** play a clip, button turns to Stop, progress bar, square buttons.
 5. **Click and selection:** clicking a clip highlights and selects its track; dragging a group outlines every member.
-6. **Keys:** Cmd+1..5 (Ctrl+1..5 off the Mac; was Alt+1..5 until 2026-10-23) side-panel tabs (not while typing in a text field); Esc closes the top dialog, Enter accepts (safe default in confirmations).
+6. **Keys:** Cmd+1..6 (Ctrl+1..6 off the Mac; was Alt+1..5 until 2026-10-23) side-panel tabs (not while typing in a text field); Esc closes the top dialog, Enter accepts (safe default in confirmations).
 7. **Automix dialog:** collapsible groups with chevrons and badges; fuzzy plug-in field (type 'dxrev'); the block-level hint.
 8. **Export names** start with the project name (not 'Pääeditio').
 9. **Looks:** buttons all one style, dialogs and panels aligned in one form grid (headless-Chrome screenshots only so far).
