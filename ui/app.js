@@ -120,6 +120,7 @@ import { clampLaneHeight, layoutFor, pointerIntent, projectEnd, RULER_HEIGHT } f
 import { leftOffHere, leftOffOf, leftOffText } from "./left-off.js";
 import { createLevelMeter } from "./level-meter.js";
 import { connectLive } from "./live.js";
+import { headInView, liveFollowScroll } from "./live-follow.js";
 import { createLocateDialog } from "./locate-dialog.js";
 import { activeLoop, rangeAvailable } from "./loop-range.js";
 import { createLoudnessLoader } from "./loudness-readout.js";
@@ -2722,8 +2723,27 @@ const recordView = createRecordView({
   notify: showNotice,
   chip: $("rec-chip"),
   addMarker: () => keyboard.registry.run("marker.add", null, getState()),
-  onLive: () => timeline?.redraw(),
+  onLive: () => {
+    followLiveHead();
+    timeline?.redraw();
+  },
 });
+// The view follows the take's head while it records, until you steer away (live-follow.js).
+let liveHeadSeen = true;
+function followLiveHead() {
+  const head = recordView.liveFrame();
+  if (head === null) {
+    liveHeadSeen = true;
+    return;
+  }
+  const { scroll, zoom } = getState();
+  const next = liveFollowScroll({ head, scroll, zoom, width: width(), wasInView: liveHeadSeen });
+  if (next !== null) {
+    fitWhole = false;
+    setState({ scroll: next });
+  }
+  liveHeadSeen = headInView({ head, scroll: next ?? scroll, zoom, width: width() });
+}
 function cycleStopMode() {
   const mode = nextStopMode(recordView.stopMode);
   recordView.setStopMode(mode);

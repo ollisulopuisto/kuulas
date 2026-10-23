@@ -22,6 +22,7 @@ from recorder_helpers import (
 )
 
 from kuulas import record_take as rt
+from kuulas.ops import EditError
 from kuulas.record_session import RecordError, RecordSession
 from kuulas.session import Session
 from kuulas_recorder.client import RecorderClient, RecorderError
@@ -732,3 +733,124 @@ def test_api_records_several_channels_onto_several_tracks(session, tmp_path, rec
             assert r.status_code == 400
     finally:
         rs.close()
+
+
+# -- editing is paused while a take of this project records (owner, 2026-10-23) ---------
+
+
+def recording_status(rs, folder=None):
+    rs._status = {"state": "recording", "take": "Take 1",
+                  "folder": str(rs.folder if folder is None else folder)}
+
+
+def test_edits_are_paused_while_a_take_of_this_project_records(session):
+    session.edit("add_track", {"track_id": "t1", "name": "Host"})
+    rs = offline(session)
+    recording_status(rs)
+    with pytest.raises(EditError) as e:
+        session.edit("set_track", {"track_id": "t1", "gain_db": -3.0})
+    assert e.value.key == "error.edit.recording_paused"
+    with pytest.raises(EditError):
+        session.undo()
+    assert session.state.tracks[0].gain_db == 0.0
+
+
+def test_markers_may_still_be_added_and_moved_while_recording(session):
+    rs = offline(session)
+    recording_status(rs)
+    session.edit("add_marker", {"marker_id": "k1", "name": "Good answer", "start": 4800})
+    session.edit("move_marker", {"marker_id": "k1", "start": 9600})
+    assert [m.start for m in session.state.markers] == [9600]
+
+
+def test_a_take_still_lands_while_the_recorder_says_recording(session):
+    # The stop answer and the stopped event both import; the status may lag behind.
+    folder = recordings(session)
+    write_take(folder, plan=rt.TakePlan("Take 1", 0, None, "Olli", 1))
+    rs = offline(session)
+    recording_status(rs)
+    assert rs.import_take("Take 1")["clips"] == 1
+
+
+def test_edits_work_again_when_the_take_is_over(session):
+    session.edit("add_track", {"track_id": "t1", "name": "Host"})
+    rs = offline(session)
+    recording_status(rs)
+    rs._status = {"state": "idle"}
+    session.edit("set_track", {"track_id": "t1", "gain_db": -3.0})
+    assert session.state.tracks[0].gain_db == -3.0
+
+
+def test_a_take_of_another_project_does_not_pause_this_one(session, tmp_path):
+    session.edit("add_track", {"track_id": "t1", "name": "Host"})
+    rs = offline(session)
+    recording_status(rs, folder=tmp_path / "Other.kuulas" / "recordings")
+    session.edit("set_track", {"track_id": "t1", "gain_db": -3.0})
+    assert session.state.tracks[0].gain_db == -3.0
+
+
+def test_listening_for_pre_roll_does_not_pause_edits(session):
+    session.edit("add_track", {"track_id": "t1", "name": "Host"})
+    rs = offline(session)
+    rs._status = {"state": "armed", "folder": str(rs.folder)}
+    session.edit("set_track", {"track_id": "t1", "gain_db": -3.0})
+    assert session.state.tracks[0].gain_db == -3.0
+
+
+# -- a new track exists from the moment the take starts (so it can be drawn live) ------
+
+
+def started(rs, take_key="take"):
+    """A RecordSession whose recorder answers `start` as recording (no process)."""
+    def command(cmd, **kw):
+        return {"state": "recording", "take": kw.get("take", "Take 1"),
+                "folder": str(rs.folder), "position_frames": 0}
+    rs._command = command
+    return rs
+
+
+def test_a_new_track_is_made_when_the_take_starts_and_the_plan_names_it(session):
+    rs = started(offline(session))
+    rs.start(device=None, at=0, channels=[
+        {"channel": 1, "track_id": None, "name": "Olli"},
+        {"channel": 2, "track_id": None, "name": "Anna"}])
+    names = [tr.name for tr in session.state.tracks]
+    assert names == ["Olli", "Anna"]
+    assert all(tr.mono and tr.kind == "speech" for tr in session.state.tracks)
+    plans = [p for p in rs.folder.iterdir() if p.name.endswith(rt.PLAN_SUFFIX)]
+    plan = rt.read_plan(rs.folder, plans[0].name[:-len(rt.PLAN_SUFFIX)])
+    made = [tr.id for tr in session.state.tracks]
+    assert [lane.track_id for lane in plan.all_lanes] == made
+
+
+def test_the_tracks_of_a_take_are_one_undo_step(session):
+    rs = started(offline(session))
+    head = session.history.head
+    rs.start(device=None, at=0, channels=[
+        {"channel": 1, "track_id": None, "name": "Olli"}])
+    assert len(session.state.tracks) == 1
+    rs._status = {"state": "idle"}
+    session.undo()
+    assert session.history.head == head
+    assert not session.state.tracks
+
+
+def test_a_take_on_an_existing_track_makes_no_track(session):
+    session.edit("add_track", {"track_id": "t1", "name": "Host"})
+    rs = started(offline(session))
+    rs.start(device=None, at=0, channels=[{"channel": 1, "track_id": "t1", "name": ""}])
+    assert [tr.id for tr in session.state.tracks] == ["t1"]
+
+
+def test_the_take_lands_on_the_track_made_at_the_start(session):
+    rs = started(offline(session))
+    rs.start(device=None, at=96000, channels=[
+        {"channel": 1, "track_id": None, "name": "Olli"}])
+    made = session.state.tracks[0].id
+    plans = [p for p in rs.folder.iterdir() if p.name.endswith(rt.PLAN_SUFFIX)]
+    take = plans[0].name[:-len(rt.PLAN_SUFFIX)]
+    write_take(rs.folder, take, plan=rt.read_plan(rs.folder, take))
+    rs._status = {"state": "idle"}
+    rs.import_take(take)
+    assert [tr.id for tr in session.state.tracks] == [made]  # no second track
+    assert len(session.state.tracks[0].clips) == 1

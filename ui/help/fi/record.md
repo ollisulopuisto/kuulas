@@ -24,3 +24,5 @@ Kun äänite on käynnissä, Lisää merkki (tai {key:marker.add}) laittaa merki
 Jos haluat äänittää usealta laitteelta yhtä aikaa, yhdistä ne ensin macOS:ssä: Audio MIDI Setup > Create Aggregate Device, valitse laitteet (ja Drift Correction kaikille paitsi kellolaitteelle). Kuulas näkee silloin yhden laitteen, jolla on kaikki kanavat, ja jokaisen kanavan voi ohjata omalle raidalleen.
 
 Kun äänite on käynnissä, sen raidat piirtyvät aikajanalle sitä mukaa kuin ääni tulee: palkki jokaiselle pikselille kovimman näytteen mukaan ja punainen kärki siihen, missä äänite on nyt. Uusi raita (jota ei vielä ole) piirtyy vasta kun äänite pysähtyy. Leikkeet ottavat piirroksen paikan, kun pysäytät.
+
+Kun painat Äänitä, äänitysnäkymä väistyy ja aikajana on edessä, äänite piirtyy sen raidoille (uusi raita luodaan juuri silloin). Näkymä seuraa äänitettä niin kauan kuin katsot sitä ja jättää sen rauhaan, kun vierität pois. Työkalupalkin merkki tuo äänitysnäkymän ja Pysäytä-painikkeen takaisin. Äänitteen aikana muokkaus on tauolla (leikkaus tai siirto ennen äänitettä veisi sen väärään paikkaan); voit vierittää, zoomata, valita, lukea ja lisätä merkkejä.

@@ -123,6 +123,10 @@ class RecordSession:
                  spawn: Callable[[], None] = default_spawn, retry_s: float = RETRY_S,
                  hold_ms: int = HOLD_MS, watch: bool = True) -> None:
         self.session = session
+        # While a take of this project records, the session refuses edits (Session.
+        # _check_not_recording); the answer is read live from the last status heard.
+        if hasattr(session, "editing_paused"):
+            session.editing_paused = self.editing_paused
         # Absolute: the recorder refuses a relative folder (`kuulas open Show.kuulas`).
         self.folder = (Path(session.package.path) / rt.RECORDINGS).resolve()
         self.publish = publish if publish is not None else (lambda _m: None)
@@ -223,6 +227,12 @@ class RecordSession:
     def _recording(self, status: dict) -> bool:
         # Listening for pre-roll (armed) is not recording: nothing is written.
         return status.get("state", "idle") not in ("idle", None, *ARMED_STATES)
+
+    def editing_paused(self) -> bool:
+        """Does a take of THIS project record (as last heard)? Listening for pre-roll and
+        another project's take do not count."""
+        with self._lock:
+            return self._recording(self._status) and self._ours(self._status)
 
     def recording_now(self) -> bool:
         """Is a take recording, as last heard (no question to the recorder: playback asks
@@ -443,12 +453,33 @@ class RecordSession:
                 self._status, self._available = answer, True
                 self._position = int(answer.get("position_frames", 0))
                 self._notices.clear()
+            self._make_tracks(plan)
             view = self._view(answer, True)
             self.publish({"type": "record", "kind": "status", "status": view})
             if answer.get("warning"):
                 self._notice(answer["warning"] | {"event": "warning"})
             return view
         raise RecordError("error.record.take_exists", status=409, detail="")
+
+    def _make_tracks(self, plan: rt.TakePlan) -> None:
+        """Make the new tracks of a take that has started (a lane with no track yet), in
+        one undo step, and write their ids into the plan: the take is then drawn on them
+        live and lands on them. Never stops the take: when it fails the lanes stay "new"
+        and the tracks are made when the take lands, as before."""
+        new = [lane for lane in plan.all_lanes if lane.track_id is None]
+        if not new:
+            return
+        ids = {lane.channel: ops.new_id("t") for lane in new}
+        try:
+            self.session.add_take_tracks(
+                [(ids[lane.channel], lane.track_name) for lane in new])
+        except Exception as e:  # noqa: BLE001 - the take must go on whatever this says
+            log.warning("tracks for take %s were not made: %s", plan.take, e)
+            return
+        lanes = tuple(replace(lane, track_id=ids.get(lane.channel, lane.track_id))
+                      for lane in plan.all_lanes)
+        first = lanes[0]
+        rt.write_plan(self.folder, replace(plan, track_id=first.track_id, lanes=lanes))
 
     def stop(self, mode: str | None, held_ms: int = 0) -> dict:
         """Stop the take, then import it. ``mode`` is the user's stop gesture

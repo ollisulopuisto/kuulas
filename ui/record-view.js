@@ -429,6 +429,15 @@ export function createRecordView({
       liveMeters = [];
       liveKey = "";
       setStatus(answer);
+      // The new tracks of the take exist now (record_session.py _make_tracks): show them, and
+      // step aside so the timeline, where the take is drawn, is in front. The toolbar chip
+      // brings the dialog (and Stop) back.
+      try {
+        apply(await api.getState());
+      } catch (error) {
+        notify(error.message);
+      }
+      hide();
     } catch (error) {
       setup.message.textContent = error.message;
       setup.record.disabled = false;

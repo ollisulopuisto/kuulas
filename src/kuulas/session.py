@@ -292,6 +292,14 @@ GROUPED_OPS = frozenset({"nudge_clips", "move_clips_to_track", "shift_clips"})
 CAUSE_STEPS = 300
 
 
+#: The edits that stay possible while a take records: the take landing itself, and markers
+#: (they sit on the timeline's frames, so no clip or take moves).
+RECORDING_OK_EDITS = frozenset({
+    "import_take", "record_tracks", "add_marker", "rename_marker", "move_marker",
+    "set_region_end",
+    "delete_marker", "set_marker_kind"})
+
+
 def _replaced_by(before: Project, after: Project, track_ids: list[str],
                  new_ids: set[str]) -> list[dict]:
     """The audio a take replaced: per track it went on, the frames of clips there before
@@ -367,11 +375,15 @@ class Session:
         self.last_music_level: dict | None = None
         self.last_block_level: dict | None = None
         self.history: History = self.package.history
+        self.history.edit_guard = self._check_not_recording
         self.store: MediaStore = self.package.store
         self._subscribers: list[Callable[[Project], None]] = []
         #: What became of each file in the latest import (WP34), for the UI
         #: to show: the failures and why, and the warnings of those that came in.
         self.last_import_report: list[ImportResult] = []
+        #: Set by the recorder: True while a take of this project records, which pauses
+        #: edits (``_check_not_recording``). None when nothing records here.
+        self.editing_paused: Callable[[], bool] | None = None
         #: The audio the latest recorded take replaced, per track: [{track, frames}].
         self.last_take_replaced: list[dict] = []
         #: How many Hindenburg clipboard clips the last ``import_nhsx`` turned
@@ -758,6 +770,17 @@ class Session:
             return self._commit(
                 t("history.match_loudness"), new_state, "match_loudness", args
             )
+
+    def _check_not_recording(self, name: str = "") -> None:
+        """Editing is paused while a take of this project records (owner, 2026-10-23):
+        the take lands at a fixed frame when it stops, so a cut or move before that frame
+        would put it in the wrong place. Markers are safe, and the take's own landing is
+        the one edit that must go through."""
+        if name in RECORDING_OK_EDITS:
+            return
+        paused = getattr(self, "editing_paused", None)
+        if paused is not None and paused():
+            raise ops.EditError("error.edit.recording_paused")
 
     def _commit(self, label: str, new: Project, name: str, args: dict,
                 material: dict | None = None) -> Project:
@@ -2324,6 +2347,21 @@ class Session:
         with a single lane."""
         return self.import_take_lanes([(files, track_id, track_name)],
                                       clip_name=clip_name, take=take)
+
+    def add_take_tracks(self, specs: list[tuple[str, str]]) -> None:
+        """The new speech tracks of a take that has just started, as ONE undo step (so the
+        take can be drawn on them live and lands on them): ``specs`` is
+        [(track_id, name)].
+        Each is mono, as a track made when the take lands is. The name keeps the edit
+        possible while the take records (``RECORDING_OK_EDITS``)."""
+        with self.lock:
+            _check_writable(self)
+            p = self.history.state
+            for track_id, name in specs:
+                p = ops.add_track(p, track_id, name, "speech")
+                p = ops.set_track(p, track_id, mono=True)
+            self._commit(t("history.record_tracks"), p, "record_tracks",
+                         {"tracks": [track_id for track_id, _ in specs]})
 
     def import_take_lanes(
             self, lanes: list[tuple[list[tuple[Path, int] | tuple[Path, int, int]],

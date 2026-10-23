@@ -24,3 +24,5 @@ While a take records, Add marker (or {key:marker.add}) puts a marker where the t
 To record from several devices at once, combine them in macOS first: Audio MIDI Setup > Create Aggregate Device, tick the devices (and Drift Correction for all but the clock device). Kuulas then sees one device with all the channels, and each channel can go to its own track.
 
 While a take records, its tracks are drawn on the timeline as they come in: a bar per pixel with the loudest sample, and a red head where the take is now. A new track (one that does not exist yet) is drawn when the take stops. The clips take over from the drawing when you stop.
+
+When you press Record the record view steps aside and the timeline is in front, with the take drawn on its tracks (a new track is made at that moment). The view follows the take while you are watching it and leaves it alone once you scroll away. The chip in the toolbar brings the record view, and Stop, back. While a take records, editing is paused (a cut or move before the take would put it in the wrong place); you can scroll, zoom, select, read and add markers.

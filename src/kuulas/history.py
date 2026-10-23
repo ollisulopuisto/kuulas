@@ -214,6 +214,10 @@ class History:
         self._past: set[str] | None = None
         #: Whether this edit holds any restore step, once asked (``_has_restores``).
         self._restores: bool | None = None
+        #: Asked before a step is added or the head moves, with the op's name (empty for
+        #: undo, redo and restore); it raises to refuse. The session sets it, to pause
+        #: edits while a take records (owner, 2026-10-23). Material-only steps pass.
+        self.edit_guard: Callable[[str], None] | None = None
 
     def _create(self, initial: Project) -> None:
         now = dbm.utc_now()
@@ -388,6 +392,8 @@ class History:
         are stored with the step.
         """
         self._check_writable()
+        if self.edit_guard is not None:
+            self.edit_guard((op or {}).get("name", ""))
         # Clips that keep the mic open stay open after any edit (trim, move, a new gate).
         from . import ops  # noqa: PLC0415 - ops does not import the history; kept lazy
         state = ops.normalize_ungated(state)
@@ -551,6 +557,8 @@ class History:
     def undo(self) -> UndoInfo | None:
         if not self.can_undo:
             return None
+        if self.edit_guard is not None:
+            self.edit_guard("")
         curr = self.head
         crossed_marker = None
         target = None
@@ -580,6 +588,8 @@ class History:
     def redo(self) -> UndoInfo | None:
         if not self.can_redo:
             return None
+        if self.edit_guard is not None:
+            self.edit_guard("")
         curr = self.head
         crossed_marker = None
         target = None
@@ -614,6 +624,8 @@ class History:
         """Make the project equal to ``node``'s state by adding a step, not by
         moving the head (WP8): the state left behind stays one Undo away. The
         material (media, sync groups) is not rewound: it is what it is now."""
+        if self.edit_guard is not None:
+            self.edit_guard("")
         self._check_writable()
         try:
             target = self._node(str(node))
