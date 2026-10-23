@@ -14,6 +14,7 @@ import {
   inactiveLook,
   inactiveStyleChoice,
   lockSpots,
+  lockTop,
   openLockSpot,
   SILENCE_LEGEND,
   SILENCE_LEGEND_TITLE,
@@ -238,5 +239,25 @@ describe("stretchEdges: the pseudo-borders of each closed stretch (owner, 2026-1
 
   test("a run too narrow for two lines gets none", () => {
     assert.deepEqual(stretchEdges([100, 103], { width: 800 }), []);
+  });
+});
+
+describe("lockTop: the padlock sits below the clip's name, never under it", () => {
+  const sizes = { label: 14, words: 12, icon: 12 };
+
+  test("a lane too short for a name keeps the lock at the top", () => {
+    assert.equal(lockTop(30, { ...sizes, wordsShown: false }), 5);
+  });
+
+  test("a lane with a name strip puts it under the strip", () => {
+    assert.equal(lockTop(60, { ...sizes, wordsShown: false }), 23);
+  });
+
+  test("with the words row shown it goes under that too", () => {
+    assert.equal(lockTop(80, { ...sizes, wordsShown: true }), 37);
+  });
+
+  test("no room under the strip: no lock, the outline alone says silent", () => {
+    assert.equal(lockTop(36, { ...sizes, wordsShown: false }), null);
   });
 });

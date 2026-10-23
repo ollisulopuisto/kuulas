@@ -94,6 +94,18 @@ export function lockSpots(runs, { iconPx, pad, blocked = [] }) {
 }
 
 /**
+ * How far below the lane's top the closed-stretch padlock sits. A lane with a name strip
+ * (36 px and up) puts it under the strip, and under the words row when that is shown: the
+ * name is as wide as the clip allows, so a lock in the strip was painted over (owner,
+ * 2026-10-23). Null when it would not fit under them: the outline alone says silent.
+ */
+export function lockTop(rowHeight, { label, words, icon, wordsShown }) {
+  if (rowHeight < 36) return 5;
+  const top = 2 + label + 4 + (wordsShown ? words + 2 : 0) + 3;
+  return top + icon + 3 <= rowHeight - 2 ? top : null;
+}
+
+/**
  * The x of the open padlock of a clip that keeps the mic open: `gap` px after the clip name
  * (`after`, its right end), or null when it would reach `limit` (the clip's right edge zone,
  * or the badges there).

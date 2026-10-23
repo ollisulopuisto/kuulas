@@ -84,6 +84,7 @@ import { rulerTicks } from "./ruler.js";
 import {
   inactiveLook,
   lockSpots,
+  lockTop,
   openLockSpot,
   STRETCH_EDGE_DASH,
   stretchEdges,
@@ -963,7 +964,7 @@ export function createTimeline({
   }
 
   // The gate (WP44): each closed stretch's waveform is outline only (the waveform layer) and
-  // carries a padlock at the left of its visible part, in the label strip, never over a clip
+  // carries a padlock at the left of its visible part, under the name strip, never over a clip
   // border, a fade handle or a clip name (silence-visuals.js lockSpots). A stretch too narrow
   // for the icon gets none: the outline alone says silent. Runs are merged pixels (gate.js), so
   // thousands of ranges cost a few icons at most.
@@ -1022,7 +1023,6 @@ export function createTimeline({
     const runs = gatePixelRuns(track.gate, state.scroll, state.zoom, size.width, gateRuns);
     if (runs.length === 0) return;
     const blocked = [];
-    overlay.font = `600 ${NAME_FONT_PX}px ${theme.font}`;
     for (const clip of track.clips) {
       const left = frameToX(clip.start, state.scroll, state.zoom);
       const right = frameToX(clipEnd(clip), state.scroll, state.zoom);
@@ -1031,10 +1031,16 @@ export function createTimeline({
       const handles = fadeHandles(clip, { left, right, zoom: state.zoom });
       for (const side of ["in", "out"])
         blocked.push([handles[side].x - POINT_RADIUS - 2, handles[side].x + POINT_RADIUS + 2]);
-      // The clip's name strip starts at its visible left; keep the lock clear of the name.
-      if (row.height >= 36) blocked.push([Math.max(left, 0), Math.max(left, 0) + 5 + 120]);
     }
-    const y = top + 2 + 3;
+    // Under the name strip (and the words row), where no label can paint over it.
+    const offset = lockTop(row.height, {
+      label: LABEL_H,
+      words: WORDS_ROW_H,
+      icon: ICON_PX,
+      wordsShown: Boolean(clipWordsView(state)) && row.height >= WORDS_MIN_LANE,
+    });
+    if (offset === null) return;
+    const y = top + offset;
     for (const x of lockSpots(runs, { iconPx: ICON_PX, pad: ICON_PAD, blocked }))
       drawPadlock("lock", x, y, theme.gateLock);
   }
