@@ -693,3 +693,36 @@ def test_api_moves_a_clipboard_entry(client, session):
     assert [e["id"] for e in r.json()["entries"]] == [first, second]
     r = client.post(f"/api/clipboard/{first}/move", json={"before": None})
     assert [e["id"] for e in r.json()["entries"]] == [second, first]
+
+
+def test_the_cart_slots_are_given_and_the_view_shows_them(session):
+    a, _ = ids(session.state)
+    e1 = session.clipboard_copy(clip_ids=[a.clips[0].id])["entry"]["id"]
+    e2 = session.clipboard_copy(clip_ids=[a.clips[0].id])["entry"]["id"]
+    session.clipboard_cart(e1, 2)
+    session.clipboard_cart(e2, 2)  # moves the number
+    carts = {e["id"]: e["cart"] for e in session.clipboard_list()}
+    assert carts == {e1: None, e2: 2}
+    session.clipboard_cart(e2, None)
+    assert all(e["cart"] is None for e in session.clipboard_list())
+
+
+def test_a_bad_cart_slot_is_a_translated_error(session):
+    a, _ = ids(session.state)
+    e1 = session.clipboard_copy(clip_ids=[a.clips[0].id])["entry"]["id"]
+    with pytest.raises(EditError) as e:
+        session.clipboard_cart(e1, 12)
+    assert e.value.key == "error.clipboard.bad_slot"
+    with pytest.raises(EditError):
+        session.clipboard_cart("nope", 1)
+
+
+def test_api_sets_a_cart_slot(client, session):
+    a, _ = ids(session.state)
+    body = {"clip_ids": [a.clips[0].id]}
+    entry = client.post("/api/clipboard/copy", json=body).json()["entry"]
+    r = client.post(f"/api/clipboard/{entry['id']}/cart", json={"slot": 5})
+    assert r.status_code == 200
+    assert [e["cart"] for e in r.json()["entries"]] == [5]
+    r = client.post(f"/api/clipboard/{entry['id']}/cart", json={"slot": 11})
+    assert r.status_code == 400

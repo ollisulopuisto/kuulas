@@ -363,3 +363,5 @@ may still change for free until Kuulas reads them):
 
 What Kuulas will do with them (not built): the toast shows the last `progress`/`stage` message and the
 file name, an error shows `error.message`, and `session_lost` triggers the retry by code, not by text.
+
+Kuulas reads these events since 2026-10-24 (`src/kuulas/colab_transcribe.py`: `progress`, `stage` with `index`/`total`/`name` when present, `session`, `warning` code `session_lost`, `error.message`); an older tool that refuses `--events` is run again without it. Not run against a real Colab.

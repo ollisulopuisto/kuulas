@@ -802,7 +802,8 @@ class Session:
     def _entry_view(self, entry: Entry, project: Project) -> dict:
         have = {m.sha256 for m in project.media}
         wanted = {ref.media_sha256 for ref in entry.refs}
-        return {**entry_dict(entry), "length": entry.span[1] - entry.span[0],
+        return {**entry_dict(entry), "cart": entry.cart,
+                "length": entry.span[1] - entry.span[0],
                 "clips": len(entry.refs),
                 "slots": len({ref.track_slot for ref in entry.refs}),
                 "missing_here": len(wanted - have),
@@ -1194,6 +1195,17 @@ class Session:
         clean = str(name).strip()[:200]
         self._change_history(entry_id, lambda h: h.rename(entry_id, clean))
         self._follow_shared(entry_id, lambda h: h.rename(entry_id, clean))
+
+    def clipboard_cart(self, entry_id: str, slot: int | None) -> None:
+        """Give an entry the cart slot 1-9 (None: none) in this project's clipboard. A
+        number is held by one entry only, so it moves from the entry that had it."""
+        def change(h):
+            try:
+                h.set_cart(entry_id, slot)
+            except ValueError:
+                raise ops.EditError("error.clipboard.bad_slot") from None
+
+        self._change_history(entry_id, change)
 
     def clipboard_move(self, entry_id: str, before: str | None = None) -> None:
         """Put an entry before another one in this project's clipboard (None: last)."""

@@ -196,6 +196,10 @@ class PinBody(BaseModel):
     pinned: bool = True
 
 
+class CartBody(BaseModel):
+    slot: int | None = None
+
+
 class MoveBody(BaseModel):
     before: str | None = None
 
@@ -857,6 +861,11 @@ def create_app(session, engine, *, language: str | None = None,
     @app.post("/api/clipboard/{entry_id}/pin")
     def post_clipboard_pin(entry_id: str, body: PinBody):
         session.clipboard_pin(entry_id, body.pinned)
+        return JSONResponse({"entries": session.clipboard_list()})
+
+    @app.post("/api/clipboard/{entry_id}/cart")
+    def post_clipboard_cart(entry_id: str, body: CartBody):
+        session.clipboard_cart(entry_id, body.slot)
         return JSONResponse({"entries": session.clipboard_list()})
 
     @app.post("/api/clipboard/{entry_id}/move")
