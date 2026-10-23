@@ -854,3 +854,68 @@ def test_the_take_lands_on_the_track_made_at_the_start(session):
     rs.import_take(take)
     assert [tr.id for tr in session.state.tracks] == [made]  # no second track
     assert len(session.state.tracks[0].clips) == 1
+
+
+# -- the cart while recording: a played clip is put on the timeline where it was played --
+
+
+def test_a_clip_played_during_a_take_lands_on_the_cart_track_at_that_moment(session):
+    rs = started(offline(session))
+    session.edit("add_track", {"track_id": "tq", "name": "Questions"})
+    rs.start(device=None, at=48000, cart_track="tq",
+             channels=[{"channel": 1, "track_id": None, "name": "Olli"}])
+    path = recordings(session).parent / "q.wav"
+    sf.write(path, np.full(RATE * 2, 0.1, dtype=np.float32), RATE, subtype="PCM_16")
+    report = session.store.import_batch([str(path)], copy=False)
+    entry_id = session.material_copy(report[0].media.id)["entry"]["id"]
+    rs._position = 2 * RATE  # two seconds into the take
+    result = rs.cart_log(entry_id)
+    assert result["at"] == 48000 + 2 * RATE
+    track = next(tr for tr in session.state.tracks if tr.id == "tq")
+    assert [(c.start, c.length) for c in track.clips] == [(48000 + 2 * RATE, 2 * RATE)]
+
+
+def test_the_pre_roll_is_not_counted_in_where_the_clip_lands(session):
+    rs = started(offline(session))
+    session.edit("add_track", {"track_id": "tq", "name": "Questions"})
+    rs.start(device=None, at=0, cart_track="tq",
+             channels=[{"channel": 1, "track_id": None, "name": "Olli"}])
+    rs._status["preroll_frames"] = RATE  # the take's clock started one second early
+    path = recordings(session).parent / "q.wav"
+    sf.write(path, np.full(RATE, 0.1, dtype=np.float32), RATE, subtype="PCM_16")
+    entry_id = session.material_copy(session.store.import_batch(
+        [str(path)], copy=False)[0].media.id)["entry"]["id"]
+    rs._position = 3 * RATE
+    assert rs.cart_log(entry_id)["at"] == 2 * RATE
+
+
+def test_playing_without_a_cart_track_logs_nothing(session):
+    rs = started(offline(session))
+    rs.start(device=None, at=0,
+             channels=[{"channel": 1, "track_id": None, "name": "Olli"}])
+    with pytest.raises(RecordError) as e:
+        rs.cart_log("anything")
+    assert e.value.key == "error.record.no_cart_track"
+
+
+def test_the_cart_track_cannot_be_a_track_that_records(session):
+    rs = started(offline(session))
+    session.edit("add_track", {"track_id": "t1", "name": "Host"})
+    with pytest.raises(RecordError) as e:
+        rs.start(device=None, at=0, cart_track="t1",
+                 channels=[{"channel": 1, "track_id": "t1", "name": ""}])
+    assert e.value.key == "error.record.cart_track_records"
+
+
+def test_a_new_cart_track_is_made_with_the_take_tracks(session):
+    rs = started(offline(session))
+    rs.start(device=None, at=0, cart_track="new",
+             channels=[{"channel": 1, "track_id": None, "name": "Olli"}])
+    assert [tr.name for tr in session.state.tracks] == ["Olli", "Questions"]
+
+
+def test_a_clip_played_when_nothing_records_is_refused(session):
+    rs = offline(session)
+    with pytest.raises(RecordError) as e:
+        rs.cart_log("anything")
+    assert e.value.key == "error.record.not_recording"

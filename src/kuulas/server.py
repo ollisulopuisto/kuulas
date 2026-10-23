@@ -310,6 +310,13 @@ class RecordStartBody(BaseModel):
     track_id: str | None = None  # None or "new": a new speech track named ``name``
     name: str = ""
     at: int = 0
+    # The track clips played from the cart go on while the take records: None, "new" (a
+    # track called Questions) or a track that is not one of the take's.
+    cart_track: str | None = None
+
+
+class CartPlayBody(BaseModel):
+    entry_id: str
 
 
 class RecordArmBody(BaseModel):
@@ -1677,7 +1684,14 @@ def create_app(session, engine, *, language: str | None = None,
         # No listening while recording (owner, 2026-10-19): monitoring is the interface's.
         engine.stop()
         return rec.start(device=body.device, channels=body.channels, channel=body.channel,
-                         track_id=body.track_id, name=body.name, at=body.at)
+                         track_id=body.track_id, name=body.name, at=body.at,
+                         cart_track=body.cart_track)
+
+    @app.post("/api/record/cart")
+    def record_cart(body: CartPlayBody):
+        # A clip played from the cart during a take goes where it was played.
+        answer = need_recorder().cart_log(body.entry_id)
+        return state_response({"cart": answer})
 
     @app.post("/api/record/arm")
     def record_arm(body: RecordArmBody):

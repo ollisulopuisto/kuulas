@@ -1421,6 +1421,8 @@ const keyboard = setupKeyboard({
       api
         .previewClipboardEntry(id, getState().clipboardLimit !== false)
         .then((answer) => {
+          // Played during a take: it is put on the timeline where it was played (cart track).
+          if (answer?.started && recordView.isRecording()) logCartPlay(id);
           // How far the preview was turned down, for the hint beside the entry.
           setState({ clipboardLevel: { id, db: answer?.attenuation_db ?? 0 } });
           if (answer?.started) startClipboardPreview(id, answer.seq ?? null);
@@ -2747,6 +2749,10 @@ function followLiveHead() {
     setState({ scroll: next });
   }
   liveHeadSeen = headInView({ head, scroll: next ?? scroll, zoom, width: width() });
+}
+// A clip played while a take records goes on the cart track at the take's place now.
+function logCartPlay(entryId) {
+  api.recordCartLog(entryId).then(apply).catch(showError);
 }
 function cycleStopMode() {
   const mode = nextStopMode(recordView.stopMode);

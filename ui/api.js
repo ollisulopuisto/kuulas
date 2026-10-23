@@ -196,6 +196,7 @@ export const getCandidatePreview = (id, mode = "soft") =>
 // The clipboard (WP46). Cut and paste are edits (edit() with clipboard_cut / clipboard_paste);
 // copying changes no project, so it has its own route. Each answer carries `entries`.
 export const getClipboard = () => json("/api/clipboard");
+export const recordCartLog = (entryId) => post("/api/record/cart", { entry_id: entryId });
 export const getMaterial = () => json("/api/material");
 export const copyMaterial = (id) => post(`/api/material/${encodeURIComponent(id)}/copy`, {});
 export const setClipboardCart = (id, slot) =>

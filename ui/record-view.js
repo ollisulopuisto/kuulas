@@ -20,6 +20,8 @@ import {
   prerollLabel,
 } from "./preroll.js";
 import {
+  cartTrackChoices,
+  cartTrackWarning,
   channelPeaks,
   formatElapsed,
   importedMessage,
@@ -97,6 +99,9 @@ export function createRecordView({
   let stopping = false;
   let frame = null;
   let position = 0;
+  // Where clips played from the cart go while the take records ("" none, "new", a track id).
+  const CART_KEY = "kuulas.record.cart";
+  let cartTrack = String(prefs.get(CART_KEY) ?? "");
   // The take drawn on the timeline lanes while it records (owner, 2026-10-23).
   const liveTake = createLiveTake();
   const notices = [];
@@ -212,6 +217,11 @@ export function createRecordView({
     setup.channels.append(el("legend", "form-heading", t("ui.record.channels")));
     box.append(setup.channels);
     setup.preroll = row(t("ui.record.preroll"), el("select"));
+    // The track clips played from the cart go on while the take records (cart-model.js).
+    setup.cart = row(t("ui.record.cart_track"), el("select"));
+    setup.cartWarn = el("p", "record-message record-cart-warning");
+    setup.cartWarn.setAttribute("role", "status");
+    box.append(setup.cartWarn);
     setup.armed = el("p", "record-armed");
     setup.armed.setAttribute("role", "status");
     setup.at = el("p", "record-at");
@@ -228,6 +238,11 @@ export function createRecordView({
       void syncArm();
     });
     setup.preroll.addEventListener("change", () => setPreroll(setup.preroll.value));
+    setup.cart.addEventListener("change", () => {
+      cartTrack = setup.cart.value;
+      prefs.set(CART_KEY, cartTrack);
+      fillSetup();
+    });
     setup.record.addEventListener("click", () => void start());
     return box;
   }
@@ -314,6 +329,29 @@ export function createRecordView({
     syncRows();
   }
 
+  /** The cart's track choice: the remembered one while it is still a choice, and the warning. */
+  function fillCart(state) {
+    const choices = cartTrackChoices(state.project, rows);
+    setup.cart.replaceChildren(
+      ...choices.map(
+        (c) =>
+          new Option(
+            c.value === ""
+              ? t("ui.record.cart_none")
+              : c.value === "new"
+                ? t("ui.record.cart_new")
+                : c.name,
+            c.value,
+          ),
+      ),
+    );
+    if (!choices.some((c) => c.value === cartTrack)) cartTrack = "";
+    setup.cart.value = cartTrack;
+    const warn = cartTrackWarning(state.project, cartTrack, state.playhead ?? 0);
+    setup.cartWarn.textContent = warn ? t("ui.record.cart_warning") : "";
+    setup.cartWarn.hidden = !warn;
+  }
+
   function fillSetup() {
     const state = getState();
     const list = devices ?? [];
@@ -329,6 +367,7 @@ export function createRecordView({
     );
     if (chosen) setup.device.value = String(list.indexOf(chosen));
     fillRows();
+    fillCart(state);
     setup.preroll.replaceChildren(
       ...PREROLL_CHOICES.map((s) => new Option(prerollLabel(s, t), String(s))),
     );
@@ -422,7 +461,12 @@ export function createRecordView({
       // Armed for these very settings, or the take would have no pre-roll.
       if (preroll > 0) await syncArm();
       const answer = await api.startRecording(
-        startRequest({ device, lanes: selectedLanes(rows), at: getState().playhead ?? 0 }),
+        startRequest({
+          device,
+          lanes: selectedLanes(rows),
+          at: getState().playhead ?? 0,
+          cartTrack,
+        }),
       );
       notices.length = 0;
       position = 0;

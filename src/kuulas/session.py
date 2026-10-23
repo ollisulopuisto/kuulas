@@ -296,8 +296,8 @@ CAUSE_STEPS = 300
 #: The edits that stay possible while a take records: the take landing itself, and markers
 #: (they sit on the timeline's frames, so no clip or take moves).
 RECORDING_OK_EDITS = frozenset({
-    "import_take", "record_tracks", "add_marker", "rename_marker", "move_marker",
-    "set_region_end",
+    "import_take", "record_tracks", "cart_log", "add_marker", "rename_marker",
+    "move_marker", "set_region_end",
     "delete_marker", "set_marker_kind"})
 
 
@@ -1115,6 +1115,22 @@ class Session:
     def clipboard_paste(self, entry_id: str, *, at: int, mode: str = "insert",
                         target_tracks=None, out: int | None = None,
                         label: str | None = None) -> dict:
+        return self._paste(entry_id, at=at, mode=mode, target_tracks=target_tracks,
+                           out=out, label=label, op_name="clipboard_paste")
+
+    def cart_log(self, entry_id: str, *, at: int, track_id: str) -> dict:
+        """A clip played from the cart while a take records, put on ``track_id`` at ``at``
+        (overwrite, one undo step). The one paste that stays possible during a take: it
+        only writes its own track after the take's start, so the take's landing is not
+        moved."""
+        entry = self._entry(entry_id)
+        slots = {ref.track_slot for ref in entry.refs}
+        return self._paste(entry_id, at=at, mode="overwrite",
+                           target_tracks=dict.fromkeys(slots, track_id),
+                           out=None, label=t("history.cart_log"), op_name="cart_log")
+
+    def _paste(self, entry_id: str, *, at: int, mode: str, target_tracks, out: int | None,
+               label: str | None, op_name: str) -> dict:
         """Paste an entry at frame ``at`` as one undo step; ``mode`` is
         ``insert`` (ripple) or ``overwrite`` (the default of the UI). ``out``: the
         marked Out point, ``at`` then being the In point: the paste is cut to end there.
@@ -1141,7 +1157,7 @@ class Session:
             new = apply_paste(project, entry, plan, at, landed, mode, out=out)
             self.history.commit(
                 label or t("history.clipboard_paste"), new,
-                op={"name": "clipboard_paste",
+                op={"name": op_name,
                     "args": {"entry_id": entry.id, "at": at, "mode": mode,
                              "target_tracks": target_tracks, "out": out}})
             self._changed()
@@ -2392,20 +2408,20 @@ class Session:
         return self.import_take_lanes([(files, track_id, track_name)],
                                       clip_name=clip_name, take=take)
 
-    def add_take_tracks(self, specs: list[tuple[str, str]]) -> None:
+    def add_take_tracks(self, specs: list[tuple]) -> None:
         """The new speech tracks of a take that has just started, as ONE undo step (so the
-        take can be drawn on them live and lands on them): ``specs`` is
-        [(track_id, name)].
-        Each is mono, as a track made when the take lands is. The name keeps the edit
-        possible while the take records (``RECORDING_OK_EDITS``)."""
+        take can be drawn on them live and lands on them): ``specs`` is [(track_id, name)]
+        or [(track_id, name, mono)]; mono by default, like a track made when the take
+        lands (the cart's track is not). The name keeps the edit possible while the take
+        records (``RECORDING_OK_EDITS``)."""
         with self.lock:
             _check_writable(self)
             p = self.history.state
-            for track_id, name in specs:
+            for track_id, name, *rest in specs:
                 p = ops.add_track(p, track_id, name, "speech")
-                p = ops.set_track(p, track_id, mono=True)
+                p = ops.set_track(p, track_id, mono=rest[0] if rest else True)
             self._commit(t("history.record_tracks"), p, "record_tracks",
-                         {"tracks": [track_id for track_id, _ in specs]})
+                         {"tracks": [spec[0] for spec in specs]})
 
     def import_take_lanes(
             self, lanes: list[tuple[list[tuple[Path, int] | tuple[Path, int, int]],

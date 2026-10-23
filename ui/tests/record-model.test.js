@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
+  cartTrackChoices,
+  cartTrackWarning,
   channelChoices,
   channelPeaks,
   formatElapsed,
@@ -77,6 +79,7 @@ describe("the start request", () => {
         track_id: null,
         name: "Guest",
         at: 4800,
+        cart_track: null,
       },
     );
   });
@@ -259,5 +262,46 @@ describe("replacedMessage: what a take replaced (owner, 2026-10-23)", () => {
       t,
     );
     assert.equal(text, 'ui.record.replaced{"what":"Olli 1.0 s, Anna 3.0 s"}');
+  });
+});
+
+describe("the cart's track while recording (owner, 2026-10-23)", () => {
+  const project = {
+    tracks: [
+      { id: "t1", name: "Host", kind: "speech", clips: [{ start: 0, length: 1000 }] },
+      { id: "t2", name: "Guest", kind: "speech", clips: [] },
+      { id: "t3", name: "Music", kind: "music", clips: [{ start: 5000, length: 2000 }] },
+    ],
+  };
+  const rows = [
+    { channel: 1, on: true, target: "t1" },
+    { channel: 2, on: false, target: "t2" },
+  ];
+
+  test("the choices: none, a new track, and every track that is not recorded onto", () => {
+    assert.deepEqual(
+      cartTrackChoices(project, rows).map((c) => c.value),
+      ["", "new", "t2", "t3"],
+    );
+  });
+
+  test("a track a channel that is switched off points at is still a choice", () => {
+    assert.ok(cartTrackChoices(project, rows).some((c) => c.value === "t2"));
+  });
+
+  test("the warning: audio on the track from where the take starts on", () => {
+    assert.equal(cartTrackWarning(project, "t3", 0), true);
+    assert.equal(cartTrackWarning(project, "t3", 6000), true); // inside the clip
+    assert.equal(cartTrackWarning(project, "t3", 7000), false); // after its end
+    assert.equal(cartTrackWarning(project, "t2", 0), false); // empty track
+    assert.equal(cartTrackWarning(project, "new", 0), false);
+    assert.equal(cartTrackWarning(project, "", 0), false);
+  });
+
+  test("the start request carries the choice, empty meaning none", () => {
+    const body = startRequest({ device: null, lanes: [], at: 10, cartTrack: "t3" });
+    assert.equal(body.cart_track, "t3");
+    assert.equal(startRequest({ device: null, lanes: [], at: 10 }).cart_track, null);
+    assert.equal(startRequest({ device: null, lanes: [], at: 10, cartTrack: "" }).cart_track, null);
   });
 });

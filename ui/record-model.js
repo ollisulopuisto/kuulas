@@ -30,6 +30,28 @@ export function replacedMessage(result, rate, t) {
   return parts.length === 0 ? null : t("ui.record.replaced", { what: parts.join(", ") });
 }
 
+/**
+ * The tracks clips played from the cart may go on: none, a new track, and every track that no
+ * switched-on channel records onto (a track the take records onto cannot be it).
+ */
+export function cartTrackChoices(project, rows) {
+  const recorded = new Set(rows.filter((r) => r.on && r.target !== "new").map((r) => r.target));
+  return [
+    { value: "", name: null },
+    { value: "new", name: null },
+    ...(project?.tracks ?? [])
+      .filter((track) => !recorded.has(track.id))
+      .map((track) => ({ value: track.id, name: track.name })),
+  ];
+}
+
+/** Does the chosen cart track already hold audio from `at` on (the clips played would overwrite it)? */
+export function cartTrackWarning(project, trackId, at) {
+  if (!trackId || trackId === "new") return false;
+  const track = project?.tracks?.find((item) => item.id === trackId);
+  return (track?.clips ?? []).some((clip) => clip.start + clip.length > at);
+}
+
 /** The device to offer first: the remembered one by name (indexes change after a replug), else
  * the system default, else the first; null when there is none. */
 export function pickDevice(devices, remembered) {
@@ -48,10 +70,12 @@ export function channelChoices(device) {
  * The body of POST /api/record/start. Several channels (WP12b): `lanes`, from selectedLanes;
  * the one-channel form (`channel`, `target` a track id or "new", `name`) still works.
  */
-export function startRequest({ device, lanes, channel, target, name, at }) {
+export function startRequest({ device, lanes, channel, target, name, at, cartTrack }) {
   const body = {
     device: device ? { index: device.index, name: device.name } : null,
     at: Math.max(0, Math.round(Number(at) || 0)),
+    // Where clips played from the cart go while the take records: a track, "new", or none.
+    cart_track: cartTrack || null,
   };
   if (lanes) return { ...body, channels: lanes };
   return {
