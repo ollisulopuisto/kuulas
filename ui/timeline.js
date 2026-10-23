@@ -67,7 +67,7 @@ import { leftOffFlag } from "./left-off.js";
 import { activeLoop } from "./loop-range.js";
 import { flagLayout, NOTCH_PX as MARKER_NOTCH_PX } from "./markers-model.js";
 import { lengthPill, markDrawing } from "./marks.js";
-import { heldFromEvent } from "./modifiers.js";
+import { heldFromEvent, modClick } from "./modifiers.js";
 import { advanceDelta, movedSpans, moveTargets, snapMove } from "./move-snap.js";
 import {
   baseGainDb,
@@ -1792,7 +1792,7 @@ export function createTimeline({
           rowY: rowYOf(event, hit),
           shift: event.shiftKey,
           alt: event.altKey,
-          mod: event.metaKey || event.ctrlKey,
+          mod: modClick(event, detectPlatform()),
           inSelection: Boolean(hit.clip && state.selection.has(hit.clip.id)),
           selectionSize: state.selection.size,
         }) === "move";
@@ -1983,7 +1983,7 @@ export function createTimeline({
       rowY: hit.row ? rowYOf(event, hit) : -1,
       shift: event.shiftKey,
       alt: event.altKey,
-      mod: event.metaKey || event.ctrlKey,
+      mod: modClick(event, detectPlatform()),
       inSelection: Boolean(hit.clip && before.has(hit.clip.id)),
       selectionSize: before.size,
     });

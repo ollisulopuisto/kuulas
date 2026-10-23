@@ -8,12 +8,13 @@ import { bindToggle } from "./ab-value.js";
 import { busRoleStatus, roleDiffers } from "./bus-role.js";
 import { inactiveTracks } from "./focus-layout.js";
 import { busHues, busLetter } from "./grammar.js";
-import { formatDb, formatNumber, t } from "./i18n.js";
+import { detectPlatform, formatDb, formatNumber, t } from "./i18n.js";
 import { addBusForTrack, NEW_BUS } from "./inspector-track.js";
 import { truncateMiddle } from "./labels.js";
 import { dragLaneHeight, dragStarted } from "./lane-sizing.js";
 import { layoutFor } from "./lanes.js";
 import { readoutText, trackReadout } from "./loudness-readout.js";
+import { modClick } from "./modifiers.js";
 import { monoTag } from "./mono-ask.js";
 import { MUSIC_HUE, trackHues } from "./paint.js";
 import { coalesceKey, patchBus, patchSolo, patchTrack } from "./provisional.js";
@@ -341,7 +342,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     // could be lost and leave the selection on the previous track.
     node.addEventListener("pointerdown", (event) => {
       const inside = event.target.closest?.("button, input, select, textarea, .lane-grip");
-      const add = event.metaKey || event.ctrlKey;
+      const add = modClick(event, detectPlatform());
       actions.currentTrack(id, { mode: inside ? "follow" : add ? "add" : "select" });
     });
     node.addEventListener("focusin", () => actions.currentTrack(id, { mode: "follow" }));
