@@ -294,6 +294,8 @@ export const MENU = [
         item("clipboard.view_shared"),
         item("clipboard.view_others"),
         item("clipboard.open_project"),
+        SEP,
+        item("clipboard.send_to_window"),
       ]),
       item("time.copy"),
       SEP,

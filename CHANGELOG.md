@@ -1,5 +1,6 @@
 ## [Unreleased]
 
+- **Edit > Clipboard > Copy to other window… (desktop app).** With two episodes open in two windows, it copies what is selected (or sends the picked clipboard entry) onto the other project's clipboard; that window says what arrived and you Paste there as usual (two actions instead of five). With more than two windows a small menu asks which. No key yet. Nothing is written to the other project except its clipboard; the recordings are checked by hash when you paste, as ever. Not seen on screen yet.
 - **Menus and tooltips name Mac keys by their glyphs.** On a Mac, Backspace shows as ⌫ (the Mac's Delete key), Delete as ⌦, Enter as ↩, Tab as ⇥ and Esc as ⎋, like the system's own menus; Windows and Linux keep the words. Not seen on screen yet.
 - **On a Mac, Ctrl+click is the context menu and never "add to selection".** Adding a clip or track to the selection and trimming one clip use Cmd+click on a Mac and Ctrl+click on Windows and Linux. Not seen on screen yet.
 - **The side-panel tabs switch with Cmd+1 to Cmd+5 (Ctrl+1 to Ctrl+5 on Windows and Linux)**, like tabs in a browser; they were Alt+1 to Alt+5. Cmd+1 and Cmd+2 no longer also set the in and out marks: use I and O. Tab hints and tooltips show the new keys. Not seen on screen yet.

@@ -162,6 +162,7 @@ import { renderWhen, selectionChoice } from "./render-listen-model.js";
 import { createRenderListenView } from "./render-listen-view.js";
 import { forwardFromClip } from "./selection-ops.js";
 import { createSendCopyDialog } from "./send-copy-dialog.js";
+import { arrivedValues, windowChoice } from "./send-window-model.js";
 import { createSeriesDialog } from "./series-dialog.js";
 import { seriesChip } from "./series-model.js";
 import { adoptRequest, createSeriesShelf } from "./series-shelf.js";
@@ -1378,6 +1379,7 @@ const keyboard = setupKeyboard({
     toast: (text, options) => showNotice(text, "ok", options),
     focusTimeline: () => focusPanel("timeline"),
     copy: (body) => copyToClipboard(body),
+    sendToWindow: (entry) => sendToOtherWindow(entry),
     refreshClipboard: () => void refreshClipboard(),
     clearOldClipboard: (keep) => clearOldClipboard(keep),
     shareClipboard: (id, on) => shareClipboardEntry(id, on),
@@ -3404,6 +3406,66 @@ async function copyToClipboard(body) {
     return false;
   }
 }
+
+// Copy to other window (desktop only): the entry goes onto the clipboard of the project open
+// in another window of this app; with several, a small menu asks which. The window that gets
+// it says so (kuulasClipboardArrived below) and the paste is made there, as ever.
+async function sendToOtherWindow(entry) {
+  const bridge = globalThis.pywebview?.api;
+  if (typeof bridge?.other_windows !== "function") {
+    showNotice(t("ui.sendwindow.desktop_only"), "ok", { undo: false });
+    return;
+  }
+  try {
+    const choice = windowChoice(await bridge.other_windows());
+    if (choice.kind === "none") {
+      showNotice(t("ui.sendwindow.none"), "ok", { undo: false });
+      return;
+    }
+    const folder = choice.kind === "one" ? choice.target.folder : await pickWindow(choice.items);
+    if (!folder) return;
+    const answer = await bridge.send_to_window(folder, entry);
+    showNotice(
+      answer.ok ? t("ui.sendwindow.sent", { name: answer.name }) : t("ui.sendwindow.gone"),
+      "ok",
+      { undo: false },
+    );
+  } catch (error) {
+    showError(error);
+  }
+}
+
+// A small menu in the middle of the window: which window? Resolves to the folder, or null.
+function pickWindow(items) {
+  return new Promise((resolve) => {
+    let picked = null;
+    openContextMenu({
+      x: Math.round(window.innerWidth / 2) - 80,
+      y: Math.round(window.innerHeight / 3),
+      items: [{ separator: true, caption: t("ui.sendwindow.pick") }, ...items],
+      onPick: (id) => {
+        picked = id;
+      },
+      // The menu closes before it reports the pick: answer one tick later.
+      onClose: () => setTimeout(() => resolve(picked), 0),
+    });
+  });
+}
+
+// Called by the desktop bridge (Bridge.send_to_window) in the window that received an entry.
+globalThis.kuulasClipboardArrived = (note) => {
+  void refreshClipboard();
+  setState({ clipboardSelected: null });
+  const values = arrivedValues(note);
+  const keys = formatShortcut("Mod+V");
+  showNotice(
+    values.name
+      ? t("ui.sendwindow.arrived", { ...values, keys })
+      : t("ui.sendwindow.arrived_unnamed", { from: values.from, keys }),
+    "ok",
+    { undo: false },
+  );
+};
 
 // "Clear old entries": keep the newest `keep` of this project's, say how many went.
 async function clearOldClipboard(keep) {

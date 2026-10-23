@@ -234,6 +234,20 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
     () => app.openClipboardProject(),
     (s) => hasProject(s),
   );
+  // Copy to other window (owner, 2026-10-23): what is selected is copied first, as Mod+C
+  // does; with nothing to copy, the picked (else newest) entry goes. Either way the entry
+  // lands on the clipboard of a project open in another window. The paste is made there.
+  def(
+    "clipboard.send_to_window",
+    async () => {
+      const plan = copyPlan(app.getState(), t);
+      if (plan?.refuse) return refuse(plan);
+      if (plan && !(await app.copy(plan.body))) return;
+      const entry = pasteEntry(app.getState());
+      if (entry) await app.sendToWindow(entry);
+    },
+    (s) => hasProject(s) && (copyPlan(s, t) !== null || pasteEntry(s) !== null),
+  );
   // Paste overwrites by default (owner, 2026-10-20): what is under the pasted clips is
   // trimmed, split or removed and nothing later moves. The insert forms move later material.
   planned("edit.paste", (s) => pastePlan(s, { mode: "overwrite", target: pasteChoice(s).target }));

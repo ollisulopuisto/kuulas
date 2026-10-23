@@ -660,6 +660,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.clipboard.view_others",
   },
   {
+    id: "clipboard.send_to_window",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.clipboard.send_to_window",
+  },
+  {
     id: "clipboard.open_project",
     keys: { mac: null, other: null },
     context: "global",
