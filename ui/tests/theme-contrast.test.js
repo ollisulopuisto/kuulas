@@ -164,7 +164,7 @@ test("light: selection, transcript highlight, muted and gate states stay visible
   // The in/out band tints the lane clearly, and its edge colour (accent) reads on the band.
   const band = over("--selection-range", "--surface-lane");
   const bandRatio = ratio(band, rgbOf("--surface-lane"));
-  if (bandRatio < 1.2) failures.push(`selection band vs lane ${bandRatio.toFixed(2)} < 1.2`);
+  if (bandRatio < 1.3) failures.push(`selection band vs lane ${bandRatio.toFixed(2)} < 1.3`);
   if (ratio(rgbOf("--accent"), band) < 3) failures.push("accent on the selection band < 3");
   // Selected rows and the word highlight: text reads at 7:1, the highlight shows on the panel.
   check(["--text"], ["--accent-subtle"], 7, failures);

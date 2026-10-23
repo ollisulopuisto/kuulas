@@ -607,8 +607,15 @@ export function createTimeline({
     const x1 = frameToX(range.start, state.scroll, state.zoom);
     const x2 = frameToX(range.end, state.scroll, state.zoom);
     overlay.fillStyle = theme.range;
-    if (spans === null) overlay.fillRect(x1, RULER_HEIGHT, x2 - x1, height - RULER_HEIGHT);
-    else for (const span of spans) overlay.fillRect(x1, span.top, x2 - x1, span.height);
+    const bands = spans ?? [{ top: RULER_HEIGHT, height: height - RULER_HEIGHT }];
+    for (const span of bands) overlay.fillRect(x1, span.top, x2 - x1, span.height);
+    // A solid edge at each end, so what is inside the range and what is outside read at
+    // a glance, also over a loud waveform (owner, 2026-10-23: more contrast).
+    overlay.fillStyle = theme.accent;
+    for (const span of bands) {
+      overlay.fillRect(Math.round(x1) - 1, span.top, 2, span.height);
+      overlay.fillRect(Math.round(x2) - 1, span.top, 2, span.height);
+    }
   }
 
   // The band in the ruler too (drawn after the ruler, under the flags), and the length as a
