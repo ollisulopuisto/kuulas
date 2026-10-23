@@ -241,6 +241,32 @@ def set_clips_ungated(p: Project, clip_ids, value: bool = True) -> Project:
     return normalize_ungated(q) if value else q
 
 
+def open_gated_region(p: Project, track_id: str, at: int) -> Project:
+    """Open the stretch Auto-Silence closed at ``at`` as a clip of its own (owner,
+    2026-10-23: M on a closed stretch must not touch the whole parent clip). The clips of
+    the track are split at the stretch's two ends, and the pieces inside are unmuted and
+    flagged ``ungated`` (so the gate under them is opened and stays open); what is outside
+    the stretch is untouched. Pressing M on the new clip then mutes just it."""
+    track = _find_track(p, track_id)
+    at = int(at)
+    region = next(((a, b) for a, b in track.gate if a <= at < b), None)
+    if region is None:
+        raise EditError("error.edit.no_gate_here")
+    start, end = region
+    for edge in (start, end):
+        for clip in list(_find_track(p, track_id).clips):
+            if clip.start < edge < clip.end:
+                p = split_clip(p, clip.id, edge)
+    track = _find_track(p, track_id)
+    inside = {c.id for c in track.clips
+              if c.start >= start and c.end <= end and c.length > 0}
+    if not inside:
+        raise EditError("error.edit.no_gate_here")
+    clips = tuple(replace(c, ungated=True, muted=False) if c.id in inside else c
+                  for c in track.clips)
+    return normalize_ungated(_replace_track(p, replace(track, clips=_sorted(clips))))
+
+
 def normalize_ungated(p: Project) -> Project:
     """Open the gate under every clip flagged ``ungated``. The identity (the same object)
     when no clip is flagged or nothing needs opening, so untouched states keep their
@@ -1405,7 +1431,7 @@ OPS = {
         add_bus, set_bus, delete_bus, set_master, reset_gains,
         add_clip, delete_clip, move_clip, trim_clip, split_clip, set_clip,
         set_fade_at, set_clip_envelope, ripple_delete, mute_ranges,
-        set_gate, add_gate_range, remove_gate_range, set_clips_ungated,
+        set_gate, add_gate_range, remove_gate_range, set_clips_ungated, open_gated_region,
         replace_clip_media,
         add_marker, rename_marker, move_marker, set_region_end, delete_marker,
         set_marker_kind,

@@ -418,6 +418,10 @@ export function dropPastePlan(entry, target, mode) {
 export function mutePlan(state) {
   const chosen = selectedClips(state);
   if (chosen.length === 0) return null;
+  // One clip, the play cursor inside a stretch Auto-Silence closed: M opens only that stretch,
+  // as a clip of its own (owner, 2026-10-23); M on the new clip then mutes just it.
+  const region = chosen.length === 1 ? gatedRegionPlan(state, chosen[0]) : null;
+  if (region) return region;
   const muted = !chosen.every((entry) => entry.clip.muted);
   return plan(
     "set_clips",
@@ -427,6 +431,15 @@ export function mutePlan(state) {
       count: chosen.length,
     },
   );
+}
+
+function gatedRegionPlan(state, { clip, trackId }) {
+  const at = state.playhead;
+  if (!Number.isFinite(at) || clip.muted || clip.ungated) return null;
+  if (!(clip.start <= at && at < clipEnd(clip))) return null;
+  const gate = state.project?.tracks?.find((x) => x.id === trackId)?.gate ?? [];
+  if (!gate.some(([start, end]) => start <= at && at < end)) return null;
+  return plan("open_gated_region", { track_id: trackId, at }, "unmute_region");
 }
 
 /**

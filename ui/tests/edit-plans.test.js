@@ -202,6 +202,53 @@ describe("mute clips (N)", () => {
   });
 });
 
+describe("mute on a closed stretch (BUGS #109)", () => {
+  const gated = (gate, clipExtra = {}) => ({
+    ...project,
+    tracks: [{ id: "A", gate, clips: [clip("a1", 0, 10, clipExtra)] }],
+  });
+  const closed = [[3 * S, 5 * S]];
+
+  test("M on a clip with the play cursor in a closed stretch opens just that stretch", () => {
+    const plan = mutePlan(
+      state({ project: gated(closed), selection: new Set(["a1"]), playhead: 4 * S }),
+    );
+    assert.equal(plan.op, "open_gated_region");
+    assert.deepEqual(plan.args, { track_id: "A", at: 4 * S });
+    assert.equal(plan.label.key, "ui.edit.label.unmute_region");
+  });
+
+  test("the cursor outside the stretch: the whole clip, as before", () => {
+    const plan = mutePlan(
+      state({ project: gated(closed), selection: new Set(["a1"]), playhead: 7 * S }),
+    );
+    assert.equal(plan.op, "set_clips");
+  });
+
+  test("a clip that keeps the mic open or is muted already is toggled whole", () => {
+    for (const extra of [{ ungated: true }, { muted: true }]) {
+      const plan = mutePlan(
+        state({ project: gated(closed, extra), selection: new Set(["a1"]), playhead: 4 * S }),
+      );
+      assert.equal(plan.op, "set_clips");
+    }
+  });
+
+  test("more than one clip selected: the whole clips, as before", () => {
+    const two = {
+      ...project,
+      tracks: [
+        { id: "A", gate: closed, clips: [clip("a1", 0, 10)] },
+        { id: "B", gate: closed, clips: [clip("b1", 0, 10)] },
+      ],
+    };
+    const plan = mutePlan(
+      state({ project: two, selection: new Set(["a1", "b1"]), playhead: 4 * S }),
+    );
+    assert.equal(plan.op, "set_clips");
+  });
+});
+
 describe("trim (Q, W)", () => {
   test("Q trims the start of the clip under the playhead on the current track", () => {
     const plan = trimPlan(state(), "start");
