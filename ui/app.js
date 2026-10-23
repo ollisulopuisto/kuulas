@@ -2721,6 +2721,7 @@ const recordView = createRecordView({
   notify: showNotice,
   chip: $("rec-chip"),
   addMarker: () => keyboard.registry.run("marker.add", null, getState()),
+  onLive: () => timeline?.redraw(),
 });
 function cycleStopMode() {
   const mode = nextStopMode(recordView.stopMode);
@@ -3794,6 +3795,7 @@ const help = createHelpPanel({
 $("help-button").addEventListener("click", () => void help.open());
 
 const timeline = createTimeline({
+  liveTake: recordView.liveTake,
   stack: $("timeline-stack"),
   waveCanvas: $("wave"),
   overlayCanvas: $("timeline"),

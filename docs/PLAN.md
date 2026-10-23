@@ -1350,7 +1350,7 @@ Hardware test `tests/hardware/test_record.py` for Mac, then Windows.
 **Sub-packages named 2026-10-19 (owner requests):**
 - **WP12d** voiceover take notes (marks and notes while recording, per-take notes, notes anchored to words).
 - **WP12e** Recordings list: every take of the project is listed (File menu), used or not, and can be put back at any time; Restore: to a new track at its original position (default, never replaces anything), to the playhead, to the original position, or to the clipboard. Needs the take's timeline position and track in its `.take.json` (`take_position.py`, built), the list model (`take_list.py`, built) and the placement plan (`take_restore.py`, built). Ground rule 17.
-- **WP12f** Self-describing take file names (`take_filename.py` built: `YYYY-MM-DD HH-MM-SS <project> - <track> - <take>`, only for new takes, never renaming existing files) and live waveforms while recording (`ui/live-wave.js` built; the drawing is open).
+- **WP12f** Self-describing take file names (`take_filename.py` built: `YYYY-MM-DD HH-MM-SS <project> - <track> - <take>`, only for new takes, never renaming existing files) and live waveforms while recording (`ui/live-wave.js` built; the drawing on the timeline lanes built 2026-10-23, `ui/live-take.js` + `drawLiveTake` in `ui/timeline.js`: peaks from the recorder's level events, not seen on screen).
 
 ### WP13 — Hindenburg session import
 

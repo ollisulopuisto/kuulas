@@ -22,3 +22,5 @@ Katso myös [[track]].
 Kun äänite on käynnissä, Lisää merkki (tai {key:marker.add}) laittaa merkin kohtaan, jossa äänite on nyt, ei toistokursorin kohtaan, joten voit merkitä hyvän vastauksen tai virheen heti. Merkit pysyvät paikoillaan, kun äänitteen leikkeet tulevat aikajanalle.
 
 Jos haluat äänittää usealta laitteelta yhtä aikaa, yhdistä ne ensin macOS:ssä: Audio MIDI Setup > Create Aggregate Device, valitse laitteet (ja Drift Correction kaikille paitsi kellolaitteelle). Kuulas näkee silloin yhden laitteen, jolla on kaikki kanavat, ja jokaisen kanavan voi ohjata omalle raidalleen.
+
+Kun äänite on käynnissä, sen raidat piirtyvät aikajanalle sitä mukaa kuin ääni tulee: palkki jokaiselle pikselille kovimman näytteen mukaan ja punainen kärki siihen, missä äänite on nyt. Uusi raita (jota ei vielä ole) piirtyy vasta kun äänite pysähtyy. Leikkeet ottavat piirroksen paikan, kun pysäytät.

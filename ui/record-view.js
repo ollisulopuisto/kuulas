@@ -9,6 +9,7 @@
 //
 // Decisions live in record-model.js and stop-mode.js (pure, tested); this file draws and wires.
 import { enhanceDialog } from "./dialog-keys.js";
+import { createLiveTake } from "./live-take.js";
 import { createPeakHold } from "./peak-hold.js";
 import {
   ARM_KEEPALIVE_MS,
@@ -70,7 +71,8 @@ function stopIcon() {
  * `api`: getRecordStatus, getRecordDevices, startRecording, stopRecording, importTakes.
  * `getState()` -> the app state (project, playhead); `apply(response)` takes a server state
  * answer; `notify(text, kind, options)` is the app's notice; `chip` the toolbar's indicator;
- * `addMarker()` adds a marker at the take's place now (the Marker button; BUGS #106).
+ * `addMarker()` adds a marker at the take's place now (the Marker button; BUGS #106);
+ * `onLive()` is called when the take drawn on the timeline (live-take.js) has changed.
  */
 export function createRecordView({
   api,
@@ -81,6 +83,7 @@ export function createRecordView({
   notify,
   chip,
   addMarker = () => {},
+  onLive = () => {},
 }) {
   let status = null;
   let devices = null;
@@ -93,6 +96,8 @@ export function createRecordView({
   let stopping = false;
   let frame = null;
   let position = 0;
+  // The take drawn on the timeline lanes while it records (owner, 2026-10-23).
+  const liveTake = createLiveTake();
   const notices = [];
   // One level meter per channel (WP12b): the setup's while armed (by channel number) and the
   // take's while recording (in the recorder's order, which is channel order).
@@ -666,12 +671,23 @@ export function createRecordView({
     status = next;
     if (next?.recording && next.ours) {
       position = Math.max(position, next.position_frames ?? 0);
+      if (!liveTake.active) {
+        liveTake.begin({
+          at: next.plan?.at ?? 0,
+          preroll: next.preroll_frames ?? 0,
+          lanes: (next.plan?.lanes ?? []).map((lane) => ({ trackId: lane.track_id })),
+        });
+      }
       if (!wasRecording) {
         notices.splice(0, notices.length, ...(next.notices ?? []));
         newGesture();
       }
     } else if (!stopping) {
       position = 0;
+      if (liveTake.active) {
+        liveTake.reset();
+        onLive();
+      }
       if (wasRecording) {
         // Over without us (another window, a full disk): the view has nothing left to show.
         newGesture();
@@ -746,6 +762,8 @@ export function createRecordView({
       return preroll;
     },
     isRecording: recording,
+    /** The take so far, as peaks per lane (live-take.js), for the timeline to draw. */
+    liveTake,
     /** Where the take is on the timeline now (its start plus what was recorded, pre-roll
      *  not counted: where the take's clips will put this moment), or null when not recording. */
     liveFrame: () => (recording() ? (status?.plan?.at ?? 0) + shownPosition() : null),
@@ -792,6 +810,11 @@ export function createRecordView({
           return;
         }
         position = message.position_frames ?? position;
+        liveTake.push(
+          message.position_frames,
+          Array.from({ length: message.peak_dbfs?.length ?? 0 }, (_, i) => message.peak_dbfs[i]),
+        );
+        onLive();
         const readings = channelPeaks(message, liveMeters.length);
         liveMeters.forEach((meter, i) => {
           feedMeter(meter, readings[i]);

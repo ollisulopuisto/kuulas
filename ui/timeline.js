@@ -160,6 +160,7 @@ export function createTimeline({
   getState,
   actions,
   playheadAt = (state) => state.playhead,
+  liveTake = null,
 }) {
   const overlay = overlayCanvas.getContext("2d");
   // Clips whose waveform clips after gain (WP57): clip id -> dB above full scale, as the
@@ -763,7 +764,10 @@ export function createTimeline({
       locks: () => {
         if (state.showGates !== false) drawGateLocks(state, track, row, top);
       },
-      clips: () => drawClips(state, track, row, top, colours),
+      clips: () => {
+        drawClips(state, track, row, top, colours);
+        drawLiveTake(state, track, row, top, colours);
+      },
       placeholders: () => drawPlaceholders(state, track, row, top),
       collateral: () => {
         if (state.collateral?.tracks.includes(track.id)) drawCollateral(state, track, row, top);
@@ -774,6 +778,43 @@ export function createTimeline({
       previewLabel: () => drawPreviewLabel(state, track, top, row.height),
     };
     for (const layer of TRACK_LAYERS) painters[layer]();
+    overlay.restore();
+  }
+
+  // The take that records now, drawn on the lane it goes to as it comes in (live-take.js): a
+  // mirrored bar per pixel in the track's wave colour, and a red head where it is now. The
+  // take's clips land here when it stops; this is only the picture until then.
+  function drawLiveTake(state, track, row, top, colours) {
+    if (!liveTake?.active) return;
+    const lane = liveTake.lanes().find((entry) => entry.trackId === track.id);
+    if (!lane) return;
+    const cols = liveTake.columns(lane.index, {
+      scroll: state.scroll,
+      zoom: state.zoom,
+      width: size.width,
+    });
+    const y = top + 2;
+    const h = row.height - 4;
+    const mid = y + h / 2;
+    overlay.save();
+    overlay.beginPath();
+    overlay.rect(0, y, size.width, h);
+    overlay.clip();
+    overlay.fillStyle = colours.wave;
+    overlay.globalAlpha = 0.9;
+    let head = -1;
+    for (let x = 0; x < cols.length; x += 1) {
+      if (cols[x] <= 0) continue;
+      head = x;
+      // A gentle curve so a quiet voice is still seen; full scale is the lane's height.
+      const bar = Math.max(1, cols[x] ** 0.6 * h);
+      overlay.fillRect(x, mid - bar / 2, 1, bar);
+    }
+    if (head >= 0) {
+      overlay.globalAlpha = 1;
+      overlay.fillStyle = theme.clipping;
+      overlay.fillRect(head, y, 2, h);
+    }
     overlay.restore();
   }
 
