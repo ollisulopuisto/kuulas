@@ -1,5 +1,6 @@
 ## [Unreleased]
 
+- **A project open in another window opens read-only, and a banner says who has it.** Inside the desktop app a second window on the same episode used to get a second writer, which could fork the history. Now it is read-only, and a band over the timeline says who holds it and since when ("Read-only: olli has this project open on Studio-Mac since 14.05 GMT+3"). Not seen on screen yet.
 - **Edit > Clipboard > Copy to other window… (desktop app).** With two episodes open in two windows, it copies what is selected (or sends the picked clipboard entry) onto the other project's clipboard; that window says what arrived and you Paste there as usual (two actions instead of five). With more than two windows a small menu asks which. No key yet. Nothing is written to the other project except its clipboard; the recordings are checked by hash when you paste, as ever. Not seen on screen yet.
 - **Menus and tooltips name Mac keys by their glyphs.** On a Mac, Backspace shows as ⌫ (the Mac's Delete key), Delete as ⌦, Enter as ↩, Tab as ⇥ and Esc as ⎋, like the system's own menus; Windows and Linux keep the words. Not seen on screen yet.
 - **On a Mac, Ctrl+click is the context menu and never "add to selection".** Adding a clip or track to the selection and trimming one clip use Cmd+click on a Mac and Ctrl+click on Windows and Linux. Not seen on screen yet.

@@ -267,7 +267,7 @@ def _lock_holder(folder: Path, now: datetime, instance: str = "") -> dict | None
     """
     holder, holder_age = None, 0.0
     for path, lock in _all_locks(folder):
-        if lock.get("instance") == instance or _is_mine(lock):
+        if lock.get("instance") == instance:
             continue
         age = (now - _parse_iso(lock["heartbeat_utc"])).total_seconds()
         here = lock.get("host") == _hostname()

@@ -496,6 +496,10 @@ button.chip {
 .render-banner[hidden] {
   display: none;
 }
+/* A project another window or machine holds: the same band, in the warning colour. */
+.readonly-banner {
+  top: 0;
+}
 .render-banner-text {
   min-width: 0;
   overflow: hidden;

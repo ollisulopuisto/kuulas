@@ -155,6 +155,7 @@ import {
   scopeChip,
   toggleScopeMode,
 } from "./range-scope.js";
+import { readOnlyBanner } from "./read-only-model.js";
 import { recentMenuItems } from "./recent-menu-model.js";
 import { createRecordView } from "./record-view.js";
 import { createRelinkConfirm, relinkPlan } from "./relink-media.js";
@@ -4190,6 +4191,11 @@ function render(state, patch) {
     const hasClips = state.project?.tracks.some((track) => track.clips.length > 0);
     empty.hidden = !state.project || hasClips;
     empty.textContent = t("ui.project.empty");
+  }
+  if (touched("readOnly")) {
+    const banner = readOnlyBanner(state.readOnly, { locale: getLanguage() });
+    $("readonly-banner").hidden = banner === null;
+    $("readonly-banner-text").textContent = banner ? t(banner.key, banner.values) : "";
   }
   if (touched("panel")) {
     for (const node of document.querySelectorAll("[data-panel]")) {

@@ -230,6 +230,32 @@ def test_lock_of_a_live_process_on_this_machine_still_opens_read_only(tmp_path):
     pkg.close()
 
 
+def test_a_second_open_in_the_same_process_is_read_only(tmp_path):
+    # The desktop app keeps every window in one process: a second window on a project that
+    # is already open must not get a second writer (its history would fork).
+    first = package.create(tmp_path / "A.kuulas")
+    second = package.open_package(first.path)
+    assert not first.read_only
+    assert second.read_only
+    assert second.locked_by["pid"] == os.getpid()
+    second.close()
+    first.close()
+
+
+def test_closing_the_read_only_second_open_keeps_the_first_ones_lock(tmp_path):
+    first = package.create(tmp_path / "A.kuulas")
+    second = package.open_package(first.path)
+    second.close()
+    assert len(lock_files(first.path)) == 1
+    third = package.open_package(first.path)
+    assert third.read_only
+    third.close()
+    first.close()
+    fourth = package.open_package(first.path)
+    assert not fourth.read_only
+    fourth.close()
+
+
 def test_stale_lock_is_taken_over(tmp_path, caplog):
     pkg = package.create(tmp_path / "A.kuulas")
     pkg.close()

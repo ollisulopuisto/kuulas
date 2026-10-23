@@ -1233,6 +1233,9 @@
   "ui.sendwindow.desktop_only": "Kopioi toiseen ikkunaan toimii vain työpöytäsovelluksessa.",
   "ui.sendwindow.arrived": "{from} lähetti “{name}”. Liitä se tähän ({keys}).",
   "ui.sendwindow.arrived_unnamed": "{from} lähetti leikkeen. Liitä se tähän ({keys}).",
+  "ui.readonly.banner": "Vain luku: {user} on avannut tämän projektin koneella {host} kello {since}.",
+  "ui.readonly.banner_no_user": "Vain luku: tämä projekti on auki koneella {host} kello {since}.",
+  "ui.readonly.banner_no_time": "Vain luku: tämä projekti on auki koneella {host}.",
   "ui.clipboard.keep_label": "Säilytä uusimmat",
   "ui.clipboard.clear_old": "Tyhjennä vanhat kohteet",
   "ui.clipboard.cleared": {

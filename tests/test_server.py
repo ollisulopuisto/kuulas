@@ -1305,3 +1305,22 @@ def test_get_music_report_range(client):
     bad = client.get("/api/music-report?start=10&end=10")
     assert bad.status_code == 400
     assert bad.json()["error"]["key"] == "error.music_report.bad_range"
+
+
+def test_state_has_no_read_only_note_for_a_project_you_can_edit(client):
+    assert "read_only" not in client.get("/api/state").json()
+
+
+def test_state_names_who_holds_a_read_only_project(session, engine, tmp_path):
+    # A second open of one folder (a second window) is read-only and says who holds it.
+    second = Session(tmp_path / "Talk.kuulas")
+    try:
+        ui = tmp_path / "ui"
+        ui.mkdir()
+        with TestClient(create_app(second, engine, language="en", ui_dir=ui)) as other:
+            note = other.get("/api/state").json()["read_only"]
+        assert note["host"]
+        assert note["user"] is not None
+        assert note["opened_utc"]
+    finally:
+        second.close()

@@ -66,6 +66,10 @@
           <!-- Follow: the state chip, and the arrow to a playhead that left the view (follow-model.js). -->
           <button id="follow-chip" type="button" class="button small follow-chip" data-on="true" aria-pressed="true" hidden data-i18n="ui.view.follow_chip" data-i18n-title="ui.view.follow_chip_title"></button>
           <button id="follow-arrow" type="button" class="button small follow-arrow" hidden></button>
+          <!-- A project another window or machine holds: read-only, and who has it (read-only-model.js). -->
+          <div id="readonly-banner" class="render-banner readonly-banner" role="status" hidden>
+            <span id="readonly-banner-text" class="render-banner-text"></span>
+          </div>
           <!-- While the rendered mix plays instead of the edit (render-listen-view.js). -->
           <div id="render-banner" class="render-banner" role="status" hidden>
             <span id="render-banner-text" class="render-banner-text"></span>

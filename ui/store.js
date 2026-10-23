@@ -10,6 +10,7 @@ export const initialState = () => ({
   project: null,
   head: null,
   canUndo: false,
+  readOnly: null,
   canRedo: false,
   // The rendered mix the project remembers and whether it plays in place of the edit
   // ({ available, current, missing, reason, listening, name, range, set_at }; null: none).
@@ -182,6 +183,8 @@ export function serverPatch(response, state = null) {
   if ("can_undo" in response) patch.canUndo = response.can_undo;
   if ("can_redo" in response) patch.canRedo = response.can_redo;
   if ("render" in response) patch.render = response.render;
+  // Who holds the project when it is open read-only; the key is absent when you can edit.
+  if ("project" in response) patch.readOnly = response.read_only ?? null;
   // Media ids whose file is gone: those clips draw an error sign, no waveform.
   if (Array.isArray(response.missing)) patch.missingMedia = new Set(response.missing);
   if (state && response.project) {

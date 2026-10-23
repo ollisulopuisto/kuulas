@@ -595,12 +595,19 @@ def create_app(session, engine, *, language: str | None = None,
         with session.lock:
             h = session.history
             project = session.state
-            return {"project": project.to_dict(), "head": h.head,
-                    "can_undo": h.can_undo, "can_redo": h.can_redo,
-                    "missing": session.store.missing(),
-                    # The rendered mix the edit can be compared with (render_listen).
-                    "render": {**render_listen.status(project),
-                               "listening": engine_listening()}}
+            out = {"project": project.to_dict(), "head": h.head,
+                   "can_undo": h.can_undo, "can_redo": h.can_redo,
+                   "missing": session.store.missing(),
+                   # The rendered mix the edit can be compared with (render_listen).
+                   "render": {**render_listen.status(project),
+                              "listening": engine_listening()}}
+            if session.read_only:
+                # Who holds the project, for the page's banner (read-only only).
+                holder = session.package.locked_by or {}
+                out["read_only"] = {"host": holder.get("host", ""),
+                                    "user": holder.get("user", ""),
+                                    "opened_utc": holder.get("opened_utc", "")}
+            return out
 
     def engine_listening() -> bool:
         # Only an engine that has the switch says so (test engines may have none, and
