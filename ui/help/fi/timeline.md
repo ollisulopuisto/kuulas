@@ -69,3 +69,5 @@ Muokkausnäppäin (leikkaus, poisto, jako, mykistys, kopiointi ja muut), jolla e
 {key:help.open} avaa ohjeen siihen, mitä katsot; {key:help.keys} listaa kaikki näppäimet.
 
 Katso myös [[clip]] ja [[track]].
+
+Kun siirrät leikettä, pidä Cmd (Ctrl Windowsissa ja Linuxissa) pohjassa, niin leikkeen reunat tarttuvat myös äänenvoimakkuuden automaatioon: ducking-liukuman päihin (vähintään 3 dB:n muutos), muiden leikkeiden verhokäyrien tasonmuutoksiin ja Auto-Silencen sulkemien jaksojen reunoihin. Pienet merkit lanejen yläreunassa näyttävät paikat; päästä irti näppäimestä ja ne katoavat. Alt kytkee tarttumisen edelleen pois, Shift siirtää edelleen hienoin askelin.

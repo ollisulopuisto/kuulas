@@ -7,6 +7,7 @@
 // waveform layer only when something it shows changed.
 
 import { peakTile } from "./api.js";
+import { automationTargets } from "./automation-snap.js";
 import { candidateBands, flagFits, flagText } from "./candidates-model.js";
 import { backingSize } from "./canvas-size.js";
 import {
@@ -492,6 +493,19 @@ export function createTimeline({
   // each clip's own waveform inside (WP63) so waveforms can be lined up by eye.
   function drawMoveGhost(state, layout) {
     const ghosts = moveGhosts(state.project, clipSession.ids, clipSession.move);
+    if (clipSession.autoOn) {
+      // The automation snap's marks: a short tick where each level change or closed stretch
+      // starts or ends, along the top of the lanes, so you see what you can land on.
+      overlay.save();
+      overlay.fillStyle = theme.accent;
+      overlay.globalAlpha = 0.7;
+      for (const frame of clipSession.auto) {
+        const x = frameToX(frame, state.scroll, state.zoom);
+        if (x < 0 || x > size.width) continue;
+        overlay.fillRect(Math.round(x), RULER_HEIGHT, 1, 10);
+      }
+      overlay.restore();
+    }
     if (clipSession.snapAt !== null) {
       // The snap line: a thin accent line where the moved edge landed.
       const x = frameToX(clipSession.snapAt, state.scroll, state.zoom);
@@ -2169,9 +2183,18 @@ export function createTimeline({
         getState(),
       ),
       snapAt: null,
+      // Cmd (Ctrl off the Mac) held during the drag adds the volume automation (automation-snap.js):
+      // the level changes and the closed stretches' edges. Read live; the frames are fixed here.
+      auto: automationTargets(
+        getState().project,
+        clipDragIds(hit.clip.id, before, getState().project),
+      ),
+      withAuto: null,
+      autoOn: false,
     };
     overlayCanvas.setPointerCapture?.(event.pointerId);
     window.addEventListener("keydown", clipKey, true);
+    window.addEventListener("keyup", clipKey, true);
   }
 
   function updateClip(event) {
@@ -2190,11 +2213,15 @@ export function createTimeline({
     session.pos = advanceDelta(session.pos, point.x, { fine: event.shiftKey, zoom: state.zoom });
     let deltaFrames = session.pos.delta;
     session.snapAt = null;
+    session.autoOn = modClick(event, detectPlatform());
+    if (session.autoOn && session.withAuto === null) {
+      session.withAuto = [...new Set([...session.targets, ...session.auto])].sort((a, b) => a - b);
+    }
     if (!event.altKey) {
       const snapped = snapMove({
         moved: session.spans,
         delta: deltaFrames,
-        targets: session.targets,
+        targets: session.autoOn ? session.withAuto : session.targets,
         zoom: state.zoom,
       });
       deltaFrames = snapped.delta;
@@ -2213,6 +2240,7 @@ export function createTimeline({
     clipSession = null;
     overlayCanvas.style.cursor = "";
     window.removeEventListener("keydown", clipKey, true);
+    window.removeEventListener("keyup", clipKey, true);
     overlayCanvas.releasePointerCapture?.(session.pointerId);
     requestOverlay();
     if (commit && !session.dragging) actions.seek?.(session.seekFrame);
@@ -2227,7 +2255,15 @@ export function createTimeline({
   }
 
   function clipKey(event) {
-    if (event.key !== "Escape") return;
+    // The modifier of the automation snap going down or up shows or hides its marks at once.
+    if (event.key === (detectPlatform() === "mac" ? "Meta" : "Control")) {
+      if (clipSession?.dragging) {
+        clipSession.autoOn = event.type === "keydown";
+        requestOverlay();
+      }
+      return;
+    }
+    if (event.type !== "keydown" || event.key !== "Escape") return;
     event.preventDefault();
     event.stopPropagation();
     endClip(false);
