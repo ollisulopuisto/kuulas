@@ -55,9 +55,10 @@ the lock at the left of the visible part of the closed stretch.
   drawn after every silent-state overlay (`TRACK_LAYERS`, tested). The outline and the body
   tone are on the waveform canvas under the whole overlay. The preview's dashed edges stand
   2 px inside the body, so a border never hides them.
-- **The lock** sits 3 px in from the left of the *visible* part of each closed stretch, in the
-  label strip, on a small chip of `--surface-panel`. It slides right past clip edge zones
-  (6 px), fade handles and clip names; a stretch with no room left gets no lock and the
+- **The lock** sits 3 px in from the left of the *visible* part of each closed stretch, just
+  under the name strip (and the words row when shown, `lockTop`; owner 2026-10-23: a long clip
+  name had covered it), on a small chip of `--surface-panel`. It slides right past clip edge
+  zones (6 px) and fade handles; a stretch with no room left gets no lock and the
   outline alone says silent (`lockSpots`, tested). Hover: "Mic closed by Auto-Silence.
   Double-click to open this stretch."
 - **The open lock** follows the clip name, before the right edge zone and badges
