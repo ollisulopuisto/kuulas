@@ -667,3 +667,29 @@ def test_the_list_shows_the_source_track_names_and_project(session):
     (view,) = session.clipboard_list()
     assert view["tracks"] == [a.name, b.name]
     assert view["source_name"] == "One"
+
+
+def test_the_clipboard_can_be_put_in_another_order(session):
+    a, _ = ids(session.state)
+    e1 = session.clipboard_copy(clip_ids=[a.clips[0].id])["entry"]["id"]
+    e2 = session.clipboard_copy(clip_ids=[a.clips[0].id])["entry"]["id"]
+    e3 = session.clipboard_copy(clip_ids=[a.clips[0].id])["entry"]["id"]
+    assert [e["id"] for e in session.clipboard_list()] == [e3, e2, e1]
+    session.clipboard_move(e1, before=e3)
+    assert [e["id"] for e in session.clipboard_list()] == [e1, e3, e2]
+    session.clipboard_move(e1, before=None)
+    assert [e["id"] for e in session.clipboard_list()] == [e3, e2, e1]
+    with pytest.raises(Exception, match="no|entry"):
+        session.clipboard_move("nope", before=e3)
+
+
+def test_api_moves_a_clipboard_entry(client, session):
+    a, _ = ids(session.state)
+    body = {"clip_ids": [a.clips[0].id]}
+    first = client.post("/api/clipboard/copy", json=body).json()["entry"]["id"]
+    second = client.post("/api/clipboard/copy", json=body).json()["entry"]["id"]
+    r = client.post(f"/api/clipboard/{first}/move", json={"before": second})
+    assert r.status_code == 200
+    assert [e["id"] for e in r.json()["entries"]] == [first, second]
+    r = client.post(f"/api/clipboard/{first}/move", json={"before": None})
+    assert [e["id"] for e in r.json()["entries"]] == [second, first]

@@ -306,3 +306,52 @@ def test_an_entry_remembers_its_source_track_names_by_slot():
     assert from_json(to_json(got)).tracks == ("ta", "tb")
     ranged = make_entry_range(p, 0, 50, ["tc"], now=1000.0)
     assert ranged.tracks == ("tc",)
+
+
+def history_of(*ids):
+    h = ClipboardHistory()
+    for n, entry_id in enumerate(reversed(ids)):  # the last added is the first listed
+        h.add(entry(id=entry_id, created_utc=1000.0 + n))
+    return h
+
+
+def listed(h):
+    return [e.id for e in h.entries()]
+
+
+def test_move_puts_an_entry_before_another():
+    h = history_of("a", "b", "c", "d")
+    h.move("d", before="b")
+    assert listed(h) == ["a", "d", "b", "c"]
+
+
+def test_move_to_the_front_and_to_the_end():
+    h = history_of("a", "b", "c")
+    h.move("c", before="a")
+    assert listed(h) == ["c", "a", "b"]
+    h.move("c", before=None)
+    assert listed(h) == ["a", "b", "c"]
+
+
+def test_moving_before_itself_or_to_where_it_is_changes_nothing():
+    h = history_of("a", "b", "c")
+    h.move("b", before="b")
+    h.move("b", before="c")
+    assert listed(h) == ["a", "b", "c"]
+
+
+def test_move_names_an_unknown_entry():
+    h = history_of("a", "b")
+    with pytest.raises(KeyError):
+        h.move("zzz", before="a")
+    with pytest.raises(KeyError):
+        h.move("a", before="zzz")
+
+
+def test_the_order_survives_a_save_and_a_load_and_a_new_copy_still_goes_first():
+    h = history_of("a", "b", "c")
+    h.move("c", before="a")
+    again = ClipboardHistory.from_json(h.to_json())
+    assert listed(again) == ["c", "a", "b"]
+    again.add(entry(id="new", created_utc=5000.0))
+    assert listed(again) == ["new", "c", "a", "b"]

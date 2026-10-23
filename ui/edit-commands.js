@@ -221,6 +221,34 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
     },
     (s) => hasProject(s) && Boolean(s.project?.series?.id) && pasteEntry(s) !== null,
   );
+  // Put the picked (else first) entry one place up or down the list: the keyboard and menu
+  // twin of dragging it (BUGS #115). The first entry is what Paste reads when none is picked.
+  for (const [id, step] of [
+    ["clipboard.move_up", -1],
+    ["clipboard.move_down", 1],
+  ]) {
+    def(
+      id,
+      () => {
+        const state = app.getState();
+        const list = state.clipboard ?? [];
+        const entry = pasteEntry(state);
+        if (!entry) return;
+        const at = list.findIndex((item) => item.id === entry.id);
+        const to = at + step;
+        if (to < 0 || to >= list.length) return;
+        // Moving down puts it before the entry after the next one, or last.
+        const before = step < 0 ? list[to].id : (list[to + 1]?.id ?? null);
+        void app.moveClipboard(entry.id, before);
+      },
+      (s) => {
+        const list = s.clipboard ?? [];
+        const entry = hasProject(s) ? pasteEntry(s) : null;
+        const at = entry ? list.findIndex((item) => item.id === entry.id) : -1;
+        return at >= 0 && at + step >= 0 && at + step < list.length;
+      },
+    );
+  }
   // The tab's views and the picker for any project's clipboard.
   for (const view of CLIPBOARD_VIEWS) {
     def(

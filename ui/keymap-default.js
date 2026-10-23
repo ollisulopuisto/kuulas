@@ -666,6 +666,18 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.clipboard.send_to_window",
   },
   {
+    id: "clipboard.move_up",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.clipboard.move_up",
+  },
+  {
+    id: "clipboard.move_down",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.clipboard.move_down",
+  },
+  {
     id: "clipboard.open_project",
     keys: { mac: null, other: null },
     context: "global",

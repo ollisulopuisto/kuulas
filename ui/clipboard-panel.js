@@ -24,6 +24,7 @@ import {
   projectLabel,
 } from "./clipboard.js";
 import { CLIP_DRAG_TYPE } from "./clipboard-drag.js";
+import { reorderTarget } from "./clipboard-order.js";
 import { previewButton } from "./clipboard-preview.js";
 import { formatAbsoluteTime, getLanguage, t } from "./i18n.js";
 
@@ -215,7 +216,49 @@ export function createClipboardPanel({ root, actions }) {
       buttons,
       ...progressBar,
     );
-    return draggable(row, entry, { shelf: "project", from: "" });
+    reorderable(row, entry, state);
+    return draggable(row, entry, { shelf: "project", from: "" }, "copyMove");
+  }
+
+  /**
+   * Dropping another entry of this list on a row puts it before or after that row (the list is
+   * the order shown and the order Paste reads; clipboard-order.js). Off while the list is
+   * filtered: the rows shown are not the whole list.
+   */
+  function reorderable(row, entry, state) {
+    if ((state.clipboardFilter ?? "").trim() !== "") return;
+    const ids = state.clipboard.map((item) => item.id);
+    const mark = (value) => {
+      if (value) row.dataset.drop = value;
+      else delete row.dataset.drop;
+    };
+    const target = (event) => {
+      const box = row.getBoundingClientRect();
+      return reorderTarget({
+        draggedId: dragged,
+        rowId: entry.id,
+        offsetY: event.clientY - box.top,
+        rowHeight: box.height,
+        ids,
+      });
+    };
+    row.addEventListener("dragover", (event) => {
+      if (![...(event.dataTransfer?.types ?? [])].includes(CLIP_DRAG_TYPE) || !dragged) return;
+      const where = target(event);
+      if (!where) return mark("");
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+      const box = row.getBoundingClientRect();
+      mark(event.clientY - box.top < box.height / 2 ? "before" : "after");
+    });
+    row.addEventListener("dragleave", () => mark(""));
+    row.addEventListener("drop", (event) => {
+      mark("");
+      const where = dragged ? target(event) : null;
+      if (!where) return;
+      event.preventDefault();
+      actions.move(dragged, where.before);
+    });
   }
 
   function progressMeter(id) {
@@ -303,16 +346,22 @@ export function createClipboardPanel({ root, actions }) {
    * the entry id; which entry and shelf it is goes to the app, as a drag's data cannot be read
    * before the drop.
    */
-  function draggable(row, entry, source) {
+  function draggable(row, entry, source, allowed = "copy") {
     row.setAttribute("draggable", "true");
     row.addEventListener("dragstart", (event) => {
       event.dataTransfer?.setData(CLIP_DRAG_TYPE, entry.id);
-      if (event.dataTransfer) event.dataTransfer.effectAllowed = "copy";
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = allowed;
+      dragged = source.shelf === "project" ? entry.id : null;
       actions.dragStart(entry, source);
     });
-    row.addEventListener("dragend", () => actions.dragEnd());
+    row.addEventListener("dragend", () => {
+      dragged = null;
+      actions.dragEnd();
+    });
     return row;
   }
+  // The entry of THIS list being dragged (the data of a drag cannot be read before the drop).
+  let dragged = null;
 
   const list = (label, rows) => el("ul", { class: "clip-list", "aria-label": label }, ...rows);
 

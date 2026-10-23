@@ -38,6 +38,10 @@ class FakeNode {
     this.listeners[type] = [...(this.listeners[type] ?? []), fn];
   }
 
+  getBoundingClientRect() {
+    return { top: 0, height: 40 };
+  }
+
   click() {
     if (this.disabled) return;
     for (const fn of this.listeners.click ?? []) fn({});
@@ -128,6 +132,7 @@ beforeEach(() => {
       openSeries: record("openSeries"),
       dragStart: record("dragStart"),
       dragEnd: record("dragEnd"),
+      move: record("move"),
       now: () => 1000 + 300,
       canPasteAgain: () => true,
     },
@@ -451,11 +456,62 @@ describe("dragging an entry onto the timeline", () => {
     assert.equal(first.attrs.draggable, "true");
     const { data, event } = drag(first);
     assert.deepEqual(data, { "application/x-kuulas-clipboard": "a" });
-    assert.equal(event.dataTransfer.effectAllowed, "copy");
+    assert.equal(event.dataTransfer.effectAllowed, "copyMove");
     assert.deepEqual(calls, [
       ["dragStart", state().clipboard[0], { shelf: "project", from: "" }],
       ["dragEnd"],
     ]);
+  });
+
+  describe("reordering by dropping on another row", () => {
+    const TYPE = "application/x-kuulas-clipboard";
+    const types = [TYPE];
+    const startDrag = (row) => {
+      for (const fn of row.listeners.dragstart ?? [])
+        fn({ dataTransfer: { setData() {}, effectAllowed: "", types } });
+    };
+    const dropOn = (row, clientY, id) => {
+      const event = {
+        clientY,
+        dataTransfer: { types, getData: () => id, dropEffect: "" },
+        preventDefault() {
+          event.prevented = true;
+        },
+      };
+      for (const fn of row.listeners.dragover ?? []) fn(event);
+      for (const fn of row.listeners.drop ?? []) fn(event);
+      return event;
+    };
+
+    test("dropping the first entry on the lower half of the second moves it after it", () => {
+      panel.update(state());
+      const [first, second] = rows();
+      calls.length = 0;
+      startDrag(first);
+      const event = dropOn(second, 35, "a");
+      assert.equal(event.prevented, true);
+      const moves = calls.filter((call) => call[0] === "move");
+      assert.equal(moves.length, 1);
+      assert.equal(moves[0][1], "a");
+    });
+
+    test("dropping it where it already is does nothing", () => {
+      panel.update(state());
+      const [first] = rows();
+      calls.length = 0;
+      startDrag(first);
+      dropOn(first, 5, "a");
+      assert.deepEqual(
+        calls.filter((call) => call[0] === "move"),
+        [],
+      );
+    });
+
+    test("a filtered list cannot be reordered", () => {
+      panel.update(state({ clipboardFilter: "name" }));
+      const [first] = rows();
+      assert.equal((first.listeners.drop ?? []).length, 0);
+    });
   });
 
   test("series, shared and other projects' rows drag with their shelf", () => {

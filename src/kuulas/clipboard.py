@@ -479,6 +479,22 @@ class ClipboardHistory:
         entry = self._find(entry_id)
         self._entries = [item for item in self._entries if item.id != entry.id]
 
+    def move(self, entry_id: str, before: str | None) -> None:
+        """Put an entry just before ``before`` (None: at the end), the owner's drag
+        in the Clipboard tab. The list is the order shown, and so the order Paste reads
+        (the first is pasted); a new copy still goes to the front. ``KeyError`` for an
+        unknown id."""
+        entry = self._find(entry_id)
+        if before == entry_id:
+            return
+        if before is not None:
+            self._find(before)
+        rest = [item for item in self._entries if item.id != entry_id]
+        at = len(rest) if before is None else next(
+            i for i, item in enumerate(rest) if item.id == before)
+        rest.insert(at, entry)
+        self._entries = rest
+
     def get(self, entry_id: str) -> Entry | None:
         """The entry with ``entry_id``, or None if the history has none."""
         return next(

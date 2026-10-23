@@ -196,6 +196,10 @@ class PinBody(BaseModel):
     pinned: bool = True
 
 
+class MoveBody(BaseModel):
+    before: str | None = None
+
+
 class RenameBody(BaseModel):
     name: str
 
@@ -853,6 +857,11 @@ def create_app(session, engine, *, language: str | None = None,
     @app.post("/api/clipboard/{entry_id}/pin")
     def post_clipboard_pin(entry_id: str, body: PinBody):
         session.clipboard_pin(entry_id, body.pinned)
+        return JSONResponse({"entries": session.clipboard_list()})
+
+    @app.post("/api/clipboard/{entry_id}/move")
+    def post_clipboard_move(entry_id: str, body: MoveBody):
+        session.clipboard_move(entry_id, body.before)
         return JSONResponse({"entries": session.clipboard_list()})
 
     @app.post("/api/clipboard/{entry_id}/rename")

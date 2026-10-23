@@ -289,6 +289,8 @@ export const MENU = [
         SEP,
         item("edit.share_clipboard"),
         item("edit.series_shelf_clipboard"),
+        item("clipboard.move_up"),
+        item("clipboard.move_down"),
         SEP,
         item("clipboard.view_project"),
         item("clipboard.view_series"),

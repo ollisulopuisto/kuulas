@@ -1404,6 +1404,7 @@ const keyboard = setupKeyboard({
     refreshClipboard: () => void refreshClipboard(),
     clearOldClipboard: (keep) => clearOldClipboard(keep),
     shareClipboard: (id, on) => shareClipboardEntry(id, on),
+    moveClipboard: (id, before) => clipboardAction(() => api.moveClipboardEntry(id, before))(),
     seriesShelf: (id, on) => seriesShelfEntry(id, on),
     showClipboard: (view) => showClipboard(view),
     openClipboardProject: () => void openClipboardProject(),
@@ -3543,6 +3544,7 @@ const clipboardPanel = createClipboardPanel({
   actions: {
     select: (id) => setState({ clipboardSelected: id }),
     rename: (id, name) => void clipboardAction(() => api.renameClipboardEntry(id, name))(),
+    move: (id, before) => void clipboardAction(() => api.moveClipboardEntry(id, before))(),
     remove: (id) => {
       if (getState().clipboardSelected === id) setState({ clipboardSelected: null });
       void clipboardAction(() => api.deleteClipboardEntry(id))();

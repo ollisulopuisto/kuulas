@@ -1172,6 +1172,12 @@ class Session:
         self._change_history(entry_id, lambda h: h.rename(entry_id, clean))
         self._follow_shared(entry_id, lambda h: h.rename(entry_id, clean))
 
+    def clipboard_move(self, entry_id: str, before: str | None = None) -> None:
+        """Put an entry before another one in this project's clipboard (None: last)."""
+        if before is not None and self.clipboard.load().get(before) is None:
+            raise NoSuchEntryError("error.clipboard.no_entry", entry_id=before)
+        self._change_history(entry_id, lambda h: h.move(entry_id, before))
+
     def clipboard_delete(self, entry_id: str) -> None:
         self._change_history(entry_id, lambda h: h.delete(entry_id))
         self._follow_shared(entry_id, lambda h: h.delete(entry_id))

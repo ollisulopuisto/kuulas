@@ -1959,6 +1959,13 @@ input[type="text"] {
   border-radius: var(--radius-sm);
   background: var(--surface-raised);
 }
+/* A dragged entry over this one: the line shows where it would land (clipboard-order.js). */
+.clip-entry[data-drop="before"] {
+  box-shadow: 0 -2px 0 0 var(--accent);
+}
+.clip-entry[data-drop="after"] {
+  box-shadow: 0 2px 0 0 var(--accent);
+}
 .clip-entry[data-selected="true"] {
   border-color: var(--accent);
   background: var(--accent-subtle);
