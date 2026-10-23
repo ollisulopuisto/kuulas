@@ -318,3 +318,25 @@ Checked on a clean clone of main `8127aa7` (`automixer 2026.10.21.2`):
    line Kuulas reads (`ModuleNotFoundError: ...`, `ImportError: ...`); keep those
    exceptions unwrapped, or print the same last line, so Kuulas can name the cause.
    Kuulas checks plug-in paths itself before a local run (`error.automix.plugin_missing`).
+
+## colab-transcribe: `--events` like the automixer (owner request 2026-10-23, BUGS #107)
+
+Same protocol as "Live events" above, for `colab-transcribe` (the owner says the podcast side
+is building it now; this is what Kuulas will read). With `--events` the tool prints, in
+addition to its text lines, one `@@kuulas {json}` line per event on stdout, flushed at once;
+every object has `"schema": 1` and `"event"`; fields may be added, never renamed.
+
+- `progress`: `percent` (0-100), `message`.
+- `file`: `index`, `total`, `name` (the audio file it is on now); `file_done`: `name`, `words`.
+- `stage`: `stage` (`session` | `upload` | `install` | `model` | `transcribe` | `align` |
+  `download`), `state` (`start` | `done` | `skipped`); `upload` says `via` (`drive` | `direct`).
+- `session`: `state` (`reused` | `created` | `lost` | `reset` | `stopped`), `name`. `lost` is the
+  "Session 'whisper' appears to be lost (404/401)" case; the tool should recover itself
+  (reset and retry once) and say so, instead of exiting 1.
+- `warning`: `message` (the Colab CLI's update notice belongs here, or nowhere, never in
+  `progress`). `error`: `code`, `message` (a short reason a person can read, not the log).
+  `done`: `files` (how many).
+
+Kuulas then shows `message` of the last `progress`/`stage` event as the toast text, the short
+`error.message` when it fails, and drops its own text filters (`_NOISE`, `_SESSION_LOST` in
+`colab_transcribe.py`, which stay as the fallback for older tools).
