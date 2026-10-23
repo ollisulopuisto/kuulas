@@ -230,6 +230,23 @@ button.chip {
   border-color: var(--danger);
   color: var(--danger-text);
 }
+/* Messages held back after a toast was closed (notice-hold.js): the latest, on one line. */
+.notice-chip {
+  max-width: 28rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.notice-chip[hidden] {
+  display: none;
+}
+.notice-chip[data-kind="error"] {
+  background: var(--danger-subtle);
+  border-color: var(--danger);
+  color: var(--danger-text);
+}
 
 /* -- the window: top bar, heads | timeline | sidebar, dock, status bar --------- */
 .editor {

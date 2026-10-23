@@ -135,6 +135,7 @@ import { MUSIC_UNDER_KEY, normaliseMusicUnder } from "./music-level-model.js";
 import { createMusicReportDialog } from "./music-report-dialog.js";
 import { reportQuery } from "./music-report-model.js";
 import { createNameDialog } from "./name-dialog.js";
+import { chipText, createNoticeHold } from "./notice-hold.js";
 import { createOverview } from "./overview.js";
 import { createPerfDialog } from "./perf-dialog.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
@@ -297,14 +298,27 @@ let noticeTimer = null;
 // shows one more button (Cancel, Show in Finder); `action2` a second one (Show log).
 let noticeAction = null;
 let noticeAction2 = null;
+const noticeHold = createNoticeHold();
+// The status bar's button for held messages: a dot and the latest text; hidden when none.
+function paintNoticeChip() {
+  const chip = $("notice-chip");
+  const latest = noticeHold.pending() ? noticeHold.latest() : null;
+  chip.hidden = latest === null;
+  if (latest === null) return;
+  chip.dataset.kind = latest.kind;
+  chip.textContent = `● ${chipText(latest.text)}`;
+}
 // `rich`: the running automixer's structured view (automix-toast-model.js); `text` stays
 // the plain line under it.
 const richToast = createAutomixToast();
-function showNotice(
-  text,
-  kind = "error",
-  { undo = false, sticky = false, action = null, action2 = null, rich = null } = {},
-) {
+function showNotice(text, kind = "error", options = {}) {
+  // After the user closed a toast with its X, new messages wait on the status bar's button.
+  if (!noticeHold.offer({ text, kind, options })) {
+    paintNoticeChip();
+    return;
+  }
+  paintNoticeChip();
+  const { undo = false, sticky = false, action = null, action2 = null, rich = null } = options;
   const notice = $("notice");
   $("notice-text").textContent = text;
   if (rich) richToast.show(rich);
@@ -329,6 +343,12 @@ $("notice-action2").addEventListener("click", () => noticeAction2?.run());
 const showError = (error) => showNotice(error?.message || t("ui.error.title"));
 $("notice-close").addEventListener("click", () => {
   $("notice").hidden = true;
+  noticeHold.hold();
+});
+$("notice-chip").addEventListener("click", () => {
+  const latest = noticeHold.release();
+  paintNoticeChip();
+  if (latest) showNotice(latest.text, latest.kind, latest.options);
 });
 $("notice-undo").addEventListener("click", () => {
   $("notice").hidden = true;

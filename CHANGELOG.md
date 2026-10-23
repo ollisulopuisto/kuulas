@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 - **A project open in another window opens read-only, and a banner says who has it.** Inside the desktop app a second window on the same episode used to get a second writer, which could fork the history. Now it is read-only, and a band over the timeline says who holds it and since when ("Read-only: olli has this project open on Studio-Mac since 14.05 GMT+3"). Not seen on screen yet.
+- **Closing a toast keeps the next ones quiet.** After you press X on a message (a Colab transcription sends a new one every few seconds), new messages no longer pop the toast up again. A button on the status bar shows a dot and the latest text, so you can read the progress at a glance; click it to see the latest message as a toast again. Not seen on screen yet.
 - **Focus mode keeps the other tracks readable.** The tracks outside the focus used to shrink to 16 px strips; they now share about 40 % of the room, between 16 and 64 px each, so their waveforms and clip edges can still be read. Not seen on screen yet.
 - **Opening a project that is already open brings its window forward, whatever path you reach it by.** A symlink, a Dropbox link or another window's start page used to open it a second time (read-only since the lock fix); now the first window comes to the front. Not seen on screen yet.
 - **The in/out selection is easier to see.** The band over the lanes is stronger (about a third more) and has a solid accent edge at both ends, also over a loud waveform. Not seen on screen yet.

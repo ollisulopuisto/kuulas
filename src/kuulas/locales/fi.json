@@ -1233,6 +1233,7 @@
   "ui.sendwindow.desktop_only": "Kopioi toiseen ikkunaan toimii vain työpöytäsovelluksessa.",
   "ui.sendwindow.arrived": "{from} lähetti “{name}”. Liitä se tähän ({keys}).",
   "ui.sendwindow.arrived_unnamed": "{from} lähetti leikkeen. Liitä se tähän ({keys}).",
+  "ui.notice.chip_title": "Uudet viestit odottavat täällä, koska suljit edellisen. Napsauta näyttääksesi uusimman.",
   "ui.colab.retry_fresh": "Colab-istunto katkesi. Aloitetaan uusi…",
   "ui.readonly.banner": "Vain luku: {user} on avannut tämän projektin koneella {host} kello {since}.",
   "ui.readonly.banner_no_user": "Vain luku: tämä projekti on auki koneella {host} kello {since}.",
