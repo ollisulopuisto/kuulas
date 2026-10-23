@@ -128,6 +128,7 @@ import { createLoudnessLoader } from "./loudness-readout.js";
 import { regionCount } from "./markers-model.js";
 import { createMarkersPanel } from "./markers-panel.js";
 import { createMarksCorner } from "./marks-corner.js";
+import { createMaterialPanel } from "./material-panel.js";
 import { missingNotice } from "./media-copy-model.js";
 import { heldFromEvent } from "./modifiers.js";
 import { monoDecision, monoEdits } from "./mono-ask.js";
@@ -1264,8 +1265,9 @@ const panelElements = {
   clipboard: $("panel-clipboard"),
   markers: $("panel-markers"),
   history: $("panel-history"),
+  material: $("panel-material"),
 };
-const SIDEBAR_TABS = ["inspector", "candidates", "clipboard", "markers", "history"];
+const SIDEBAR_TABS = ["inspector", "candidates", "clipboard", "markers", "history", "material"];
 
 function focusPanel(name) {
   // A sidebar tab that is not showing must show before it can take the focus.
@@ -3587,6 +3589,44 @@ const clipboardAction = (call) => async () => {
 // "Paste again" follows the tab's mode choice; the tab's target choice is read by the command.
 const pasteCommand = (state) => (state.pasteMode === "insert" ? "edit.paste_insert" : "edit.paste");
 
+// The Material tab (docs/design/MATERIAL.md): every recording and how much of it is played.
+let materialTimer = null;
+function loadMaterial() {
+  clearTimeout(materialTimer);
+  materialTimer = setTimeout(async () => {
+    try {
+      setState({ material: await api.getMaterial() });
+    } catch (error) {
+      showError(error);
+    }
+  }, 150);
+}
+async function copyMaterialRecording(id) {
+  try {
+    const answer = await api.copyMaterial(id);
+    setState({ clipboard: answer.entries, clipboardSelected: null });
+    const name = answer.entries[0]?.name ?? "";
+    showNotice(t("ui.material.copied", { name }), "ok", { undo: false });
+    return true;
+  } catch (error) {
+    showError(error);
+    return false;
+  }
+}
+const materialPanel = createMaterialPanel({
+  root: $("panel-material"),
+  actions: {
+    filter: (name) => setState({ materialFilter: name }),
+    text: (value) => setState({ materialText: value }),
+    copy: (id) => void copyMaterialRecording(id),
+    async place(id) {
+      if (await copyMaterialRecording(id)) {
+        keyboard.registry.run("edit.paste", null, getState());
+      }
+    },
+  },
+});
+
 const clipboardPanel = createClipboardPanel({
   root: $("panel-clipboard"),
   actions: {
@@ -4238,6 +4278,9 @@ function render(state, patch) {
     clipboardPanel.update(state);
   if (touched("project", "markerSelected", "playhead", "inPoint", "outPoint", "syncClips"))
     markersPanel.update(state);
+  if (state.sidebarTab === "material" && touched("project", "sidebarTab")) loadMaterial();
+  if (touched("material", "materialFilter", "materialText", "sidebarTab"))
+    materialPanel.update(state);
   if (state.head && touched("head")) void refreshCandidates();
   if (state.head && touched("head")) void refreshSync();
   if (touched("head") && rangeMemory) {

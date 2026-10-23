@@ -11,6 +11,10 @@ export const initialState = () => ({
   head: null,
   canUndo: false,
   readOnly: null,
+  // The Material tab: the server's rows ({ rows } or null until asked), the filter and text.
+  material: null,
+  materialFilter: "all",
+  materialText: "",
   // Other project windows of this desktop app (null: not known, or a plain browser).
   otherWindows: null,
   canRedo: false,

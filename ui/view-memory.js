@@ -9,7 +9,14 @@ import { clampLaneHeight } from "./lanes.js";
 import { normaliseSilence } from "./silence-model.js";
 import { SAMPLE_ZOOM } from "./view.js";
 
-export const SIDEBAR_TABS = ["inspector", "candidates", "clipboard", "markers", "history"];
+export const SIDEBAR_TABS = [
+  "inspector",
+  "candidates",
+  "clipboard",
+  "markers",
+  "history",
+  "material",
+];
 const WAVEFORM_MODES = ["half", "full"];
 const FOLLOW_MODES = ["page", "continuous"];
 const EMPTY_EDIT_SECONDS = 30;

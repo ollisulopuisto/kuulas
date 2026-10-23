@@ -726,3 +726,26 @@ def test_api_sets_a_cart_slot(client, session):
     assert [e["cart"] for e in r.json()["entries"]] == [5]
     r = client.post(f"/api/clipboard/{entry['id']}/cart", json={"slot": 11})
     assert r.status_code == 400
+
+
+def test_a_whole_recording_can_be_copied_to_the_clipboard(session):
+    a, _ = ids(session.state)
+    media_id = a.clips[0].media
+    result = session.material_copy(media_id)
+    entry = result["entry"]
+    assert entry["clips"] == 1
+    assert entry["length"] == session.state.media_item(media_id).frames
+    assert [e["id"] for e in session.clipboard_list()] == [entry["id"]]
+    with pytest.raises(EditError):
+        session.material_copy("no-such-media")
+
+
+def test_api_material_lists_the_recordings_and_copies_one(client, session):
+    a, _ = ids(session.state)
+    media_id = a.clips[0].media
+    rows = client.get("/api/material").json()["rows"]
+    assert media_id in {r["id"] for r in rows}
+    r = client.post(f"/api/material/{media_id}/copy")
+    assert r.status_code == 200
+    assert len(r.json()["entries"]) == 1
+    assert client.post("/api/material/nope/copy").status_code == 400

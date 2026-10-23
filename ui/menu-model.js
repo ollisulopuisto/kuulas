@@ -489,6 +489,7 @@ export const MENU = [
         item("panel.show_clipboard"),
         item("panel.show_markers"),
         item("panel.show_history"),
+        item("panel.show_material"),
       ]),
       item("view.toggle_sidebar"),
       // Focus mode (WP28, docs/design/FOCUS-MODE.md).

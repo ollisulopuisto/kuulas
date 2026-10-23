@@ -863,6 +863,15 @@ def create_app(session, engine, *, language: str | None = None,
         session.clipboard_pin(entry_id, body.pinned)
         return JSONResponse({"entries": session.clipboard_list()})
 
+    @app.get("/api/material")
+    def get_material():
+        return JSONResponse({"rows": session.material_list()})
+
+    @app.post("/api/material/{media_id}/copy")
+    def post_material_copy(media_id: str):
+        session.material_copy(media_id)
+        return JSONResponse({"entries": session.clipboard_list()})
+
     @app.post("/api/clipboard/{entry_id}/cart")
     def post_clipboard_cart(entry_id: str, body: CartBody):
         session.clipboard_cart(entry_id, body.slot)

@@ -58,22 +58,22 @@ test("tabHint is the whole shown key, modifier included, never a bare digit", ()
 
 test("each tab has an icon in the set, and the app no longer shortens the hint", () => {
   const html = read("../index.html");
-  for (const tab of ["inspector", "candidates", "clipboard", "markers", "history"]) {
+  for (const tab of ["inspector", "candidates", "clipboard", "markers", "history", "material"]) {
     const m = html.match(new RegExp(`id="tab-${tab}"[^>]*>.*?data-icon="([a-z]+)"`));
     assert.ok(m, tab);
     assert.ok(m[1] in ICONS, m[1]);
   }
-  assert.equal((html.match(/class="tab-icon"/g) ?? []).length, 5);
+  assert.equal((html.match(/class="tab-icon"/g) ?? []).length, 6);
   const app = read("../app.js");
   assert.doesNotMatch(app, /keyHint|dataset\.short\b/);
   assert.doesNotMatch(read("../style.css"), /attr\(data-short\)/);
 });
 
-test("Mod+1..Mod+5 are the tab keys, none needing AltGr or Shift+digit", () => {
+test("Mod+1..Mod+6 are the tab keys, none needing AltGr or Shift+digit", () => {
   const keys = DEFAULT_KEYMAP.filter((e) => e.id.startsWith("panel.show_")).map(
     (e) => e.keys.other,
   );
-  assert.deepEqual(keys, ["Mod+1", "Mod+2", "Mod+3", "Mod+4", "Mod+5"]);
+  assert.deepEqual(keys, ["Mod+1", "Mod+2", "Mod+3", "Mod+4", "Mod+5", "Mod+6"]);
 });
 
 test("the strip is one row at every step", () => {
@@ -104,7 +104,7 @@ test("the strip is one row at every step", () => {
 
 test("every tab has a label and a key-hint span", () => {
   const html = read("../index.html");
-  assert.equal((html.match(/class="tab-label"/g) ?? []).length, 5);
-  assert.equal((html.match(/class="tab-key"/g) ?? []).length, 5);
-  assert.equal((html.match(/class="tab-icon"[^>]*aria-hidden="true"/g) ?? []).length, 5);
+  assert.equal((html.match(/class="tab-label"/g) ?? []).length, 6);
+  assert.equal((html.match(/class="tab-key"/g) ?? []).length, 6);
+  assert.equal((html.match(/class="tab-icon"[^>]*aria-hidden="true"/g) ?? []).length, 6);
 });

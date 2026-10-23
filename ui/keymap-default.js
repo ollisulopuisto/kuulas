@@ -445,6 +445,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.panel.show_history",
   },
   {
+    id: "panel.show_material",
+    keys: { mac: "Mod+6", other: "Mod+6" },
+    context: "global",
+    labelKey: "cmd.panel.show_material",
+  },
+  {
     id: "mark.in",
     keys: { mac: "I", other: "I" },
     context: "timeline",

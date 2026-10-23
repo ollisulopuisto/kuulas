@@ -4753,3 +4753,78 @@ legend.form-heading {
   min-width: 2.2em;
   font-variant-numeric: tabular-nums;
 }
+
+/* The Material tab (material-panel.js): filters, a search field and one row per recording with
+   a bar of what the edit plays (used), only mutes (cut) and leaves out (unused). */
+#panel-material {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  overflow-y: auto;
+}
+#panel-material[hidden] {
+  display: none;
+}
+.mat-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.mat-filter[aria-pressed="true"] {
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.mat-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.mat-row {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+}
+.mat-row[data-state="missing"] {
+  border-color: var(--danger);
+}
+.mat-name {
+  font-weight: var(--weight-medium);
+  overflow-wrap: anywhere;
+}
+.mat-meta,
+.mat-note {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+.mat-bar {
+  display: flex;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--border-subtle);
+}
+.mat-part {
+  flex-basis: 0;
+}
+.mat-part.used {
+  background: var(--accent);
+}
+.mat-part.cut {
+  background: var(--warn);
+}
+.mat-part.unused {
+  background: transparent;
+}
+.mat-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

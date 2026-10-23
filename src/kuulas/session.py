@@ -52,6 +52,7 @@ from . import (
     edit_scope,
     export_names,
     import_plan,
+    material,
     material_search,
     music_duck,
     music_level,
@@ -1195,6 +1196,37 @@ class Session:
         clean = str(name).strip()[:200]
         self._change_history(entry_id, lambda h: h.rename(entry_id, clean))
         self._follow_shared(entry_id, lambda h: h.rename(entry_id, clean))
+
+    def material_list(self) -> list[dict]:
+        """Every recording of the project, and how much the edit plays (material.py)."""
+        with self.lock:
+            project = self.history.state
+        missing = set(self.store.missing())
+        recorded = set()
+        for media in project.media:
+            try:
+                rel = self.store.meta(media.id).get("linked_package_rel") or ""
+            except KeyError:
+                continue
+            if rel.startswith("recordings/"):
+                recorded.add(media.id)
+        return material.rows(project, missing=missing, recorded=recorded)
+
+    def material_copy(self, media_id: str) -> dict:
+        """The whole recording as a clipboard entry, so it can be played, placed or pasted
+        like anything copied. The project and the recording are not changed."""
+        project = self.state
+        try:
+            media = project.media_item(media_id)
+        except KeyError:
+            raise ops.EditError("error.edit.no_media", media_id=media_id) from None
+        ref = ClipRef(media_sha256=media.sha256, offset=0, length=media.frames,
+                      media_name=media.name)
+        entry = entry_from_refs([ref], name=media.name, span=(0, media.frames),
+                                source_project=str(self.package.path))
+        entry = self._describe(entry)
+        self.clipboard.update(lambda h: h.add(entry))
+        return {"entry": self._entry_view(entry, project)}
 
     def clipboard_cart(self, entry_id: str, slot: int | None) -> None:
         """Give an entry the cart slot 1-9 (None: none) in this project's clipboard. A

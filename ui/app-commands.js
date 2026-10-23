@@ -19,6 +19,7 @@ export const SIDE_TAB_COMMANDS = {
   "panel.show_clipboard": "clipboard",
   "panel.show_markers": "markers",
   "panel.show_history": "history",
+  "panel.show_material": "material",
 };
 
 /** The tab a panel.show_* command shows; null for any other id. */
