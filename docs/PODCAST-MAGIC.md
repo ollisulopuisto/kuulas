@@ -365,3 +365,37 @@ What Kuulas will do with them (not built): the toast shows the last `progress`/`
 file name, an error shows `error.message`, and `session_lost` triggers the retry by code, not by text.
 
 Kuulas reads these events since 2026-10-24 (`src/kuulas/colab_transcribe.py`: `progress`, `stage` with `index`/`total`/`name` when present, `session`, `warning` code `session_lost`, `error.message`); an older tool that refuses `--events` is run again without it. Not run against a real Colab.
+
+## A shared `fcpxml` package (owner plan 2026-10-23, for the podcast session)
+
+Kuulas will import a Final Cut Pro timeline and export an edited one (ROADMAP "Final Cut XML in
+and out"). The planning agent's finding: autoraffkat's `fcpxml/read.py` (984 lines, MIT) is the
+reader to reuse, but it is tied to autoraffkat (`i18n.t`, `model.MediaItem`, `probe`, `relink`).
+Wished: extract the reader core as `packages/fcpxml` (stdlib only, MIT), the way `speechmix`,
+`nhsx` and `silencelearn` are shared, so autoraffkat and Kuulas read one way. Kuulas does not
+copy the reader (the owner's "no duplicated code" rule); until the package exists, nothing of
+the import is built in Kuulas except the cut list (`docs/design/CUT-LIST.md`).
+
+What Kuulas needs from the package (neutral types, `Fraction` seconds, no UI strings):
+
+- `read_fcpxml(path) -> Timeline`: `path` may be a `.fcpxml` or a `.fcpxmld` bundle; errors are
+  `ReadError` with a stable `code` (not text), so Kuulas can translate them.
+- `Timeline`: `frame_duration`, `kind` ("project" | "sync-clip" | "multicam"), `name`,
+  `tc_start`, `media` (a list of `MediaItem`), `tracks`, `multicams`, `format` (width, height,
+  rate) and `fcpxml_version` (so an export can write the source's own version).
+- `MediaItem`: `key`, `name`, `path` (decoded file path, "" if missing), `src` (the original
+  `file://` URL), `asset_start`, `asset_duration`, `has_video`, `has_audio`, `audio_channels`,
+  `audio_rate`, and its `placements`: `Placement(offset, start, duration, lane, role, muted)`
+  (`role` the audio role as FCP names it, `muted` true for an inactive clip).
+- Per clip: markers (`marker`, `chapter-marker`) with their time and name; audio transitions
+  (cross dissolves of audio) with their duration; `timeMap` and `conform-rate` clips flagged
+  `unsupported` rather than silently misread.
+- Not needed: titles, generators, captions, video effects (counted in the report, nothing more).
+- Exact rational times are kept as `Fraction`; Kuulas converts to flicks and rounds once.
+- A `conform(source_timeline_or_path, pieces) -> bytes` writer (the second package task): a new
+  project spine made of pieces `(program_start, program_end, container_id, source_time)` of the
+  original containers, resources copied verbatim, cuts snapped to frames by the writer, the
+  source's FCPXML version kept. Kuulas gives it the cut list (`docs/design/CUT-LIST.md`).
+- Tests the package should carry: the 1001/30000, 100/2500 and /5644800 rational times
+  (`vertical2.fcpxmld`), a two-hour synthetic timeline, `%20`/`ä`/Windows `file:` URLs, a bundle
+  without `Info.fcpxml`, garbage XML, and the fixtures of autoraffkat's `tests/make_fixture.py`.
