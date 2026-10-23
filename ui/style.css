@@ -1764,7 +1764,7 @@ input[type="text"] {
    never an ellipsis (2026-10-19). side-tabs-model.js measures and sets data-tabs: full, then
    tight (less padding), then compact (the selected tab keeps its label and key; the others show
    an icon plus the key), then minimal (the selected tab loses its key too). The key is always
-   the whole combo, "Alt+1" / "⌥1", never a bare digit (owner, 2026-10-22). GUI-DESIGN 3.6. */
+   the whole combo, "Ctrl+1" / "⌘1", never a bare digit (owner, 2026-10-22). GUI-DESIGN 3.6. */
 .side-tab {
   flex: 0 0 auto;
   white-space: nowrap;

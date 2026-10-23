@@ -151,7 +151,7 @@ Released in v26.10.20.5 to v26.10.20.14, in order of importance:
 3. **Paste:** Cmd+V overwrites on the selected track; Alt+Cmd+V inserts; with In/Out marked it fits the range.
 4. **Clipboard:** play a clip, button turns to Stop, progress bar, square buttons.
 5. **Click and selection:** clicking a clip highlights and selects its track; dragging a group outlines every member.
-6. **Keys:** Alt+1..5 side-panel tabs (not while typing in a text field); Esc closes the top dialog, Enter accepts (safe default in confirmations).
+6. **Keys:** Cmd+1..5 (Ctrl+1..5 off the Mac; was Alt+1..5 until 2026-10-23) side-panel tabs (not while typing in a text field); Esc closes the top dialog, Enter accepts (safe default in confirmations).
 7. **Automix dialog:** collapsible groups with chevrons and badges; fuzzy plug-in field (type 'dxrev'); the block-level hint.
 8. **Export names** start with the project name (not 'Pääeditio').
 9. **Looks:** buttons all one style, dialogs and panels aligned in one form grid (headless-Chrome screenshots only so far).

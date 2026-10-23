@@ -237,7 +237,7 @@ const GAIN_DIGITS = (value) => (Number.isInteger(value) ? 0 : 1);
 
 // -- text -------------------------------------------------------------------
 
-// Each side tab: tooltip "Name (Alt+n)", aria-keyshortcuts, the whole key ("⌥n") as its hint, and
+// Each side tab: tooltip "Name (Mod+n)", aria-keyshortcuts, the whole key ("⌘n") as its hint, and
 // the step (full / tight / compact / minimal) that keeps the strip on one row.
 let tabKeyEntries = null;
 function applyTabs() {

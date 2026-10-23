@@ -1,5 +1,6 @@
 ## [Unreleased]
 
+- **The side-panel tabs switch with Cmd+1 to Cmd+5 (Ctrl+1 to Ctrl+5 on Windows and Linux)**, like tabs in a browser; they were Alt+1 to Alt+5. Cmd+1 and Cmd+2 no longer also set the in and out marks: use I and O. Tab hints and tooltips show the new keys. Not seen on screen yet.
 - **The padlock on a closed stretch is no longer hidden by the clip name.** It now sits just under the name strip (and the words row), so it shows on every closed stretch that has room; lanes too short for it show the outline alone. Not seen on screen yet.
 
 - **The outline of an Auto-Silence-closed stretch is dimmer than a muted clip's.** Muted clips keep the full outline; stretches the gate closed are drawn at 60 %. Not seen on screen yet.

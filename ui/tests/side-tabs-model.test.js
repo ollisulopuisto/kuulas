@@ -44,15 +44,15 @@ test("tabTitle is the name with its keys", () => {
 });
 
 test("tabHint is the whole shown key, modifier included, never a bare digit", () => {
-  assert.equal(tabHint(["⌥3"]), "⌥3");
-  assert.equal(tabHint(["Alt+3", "F6"]), "Alt+3");
+  assert.equal(tabHint(["⌘3"]), "⌘3");
+  assert.equal(tabHint(["Ctrl+3", "F6"]), "Ctrl+3");
   assert.equal(tabHint([]), "");
   const keys = DEFAULT_KEYMAP.filter((e) => e.id.startsWith("panel.show_")).map(
     (e) => e.keys.other,
   );
   for (const key of keys) {
-    assert.match(tabHint([formatCombo(key, "mac")]), /^⌥\d$/);
-    assert.match(tabHint([formatCombo(key, "other")]), /^Alt\+\d$/);
+    assert.match(tabHint([formatCombo(key, "mac")]), /^⌘\d$/);
+    assert.match(tabHint([formatCombo(key, "other")]), /^Ctrl\+\d$/);
   }
 });
 
@@ -69,11 +69,11 @@ test("each tab has an icon in the set, and the app no longer shortens the hint",
   assert.doesNotMatch(read("../style.css"), /attr\(data-short\)/);
 });
 
-test("Alt+1..Alt+5 are the tab keys, none needing AltGr or Shift+digit", () => {
+test("Mod+1..Mod+5 are the tab keys, none needing AltGr or Shift+digit", () => {
   const keys = DEFAULT_KEYMAP.filter((e) => e.id.startsWith("panel.show_")).map(
     (e) => e.keys.other,
   );
-  assert.deepEqual(keys, ["Alt+1", "Alt+2", "Alt+3", "Alt+4", "Alt+5"]);
+  assert.deepEqual(keys, ["Mod+1", "Mod+2", "Mod+3", "Mod+4", "Mod+5"]);
 });
 
 test("the strip is one row at every step", () => {
