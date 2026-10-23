@@ -259,6 +259,8 @@ export function detectPlatform(nav = globalThis.navigator ?? {}) {
 
 const MAC_MODIFIERS = { Mod: "⌘", Ctrl: "⌃", Alt: "⌥", Shift: "⇧" };
 // Apple's order: control, option, shift, command.
+// The Mac names these keys by their glyphs, as its own menus do: Backspace is its Delete key.
+const MAC_KEYS = { Backspace: "⌫", Delete: "⌦", Enter: "↩", Tab: "⇥", Escape: "⎋" };
 const MAC_ORDER = ["Ctrl", "Alt", "Shift", "Mod"];
 const NAMED = {
   Space: "key.space",
@@ -283,6 +285,7 @@ const ARROWS = {
 /** One key's label: "⌘" on a Mac for Mod, "Ctrl" elsewhere, "Välilyönti" for Space in fi. */
 export function keyName(key, platform = detectPlatform()) {
   if (platform === "mac" && key in MAC_MODIFIERS) return MAC_MODIFIERS[key];
+  if (platform === "mac" && key in MAC_KEYS) return MAC_KEYS[key];
   if (key in ARROWS) return ARROWS[key];
   if (key in NAMED) return t(NAMED[key]);
   return key.length === 1 ? key.toUpperCase() : key;

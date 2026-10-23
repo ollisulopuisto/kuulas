@@ -121,6 +121,11 @@ describe("key names", () => {
     assert.equal(i18n.formatShortcut("Alt+W", "mac"), "⌥W");
   });
 
+  test("off the Mac the named keys keep their words", () => {
+    assert.equal(i18n.formatShortcut("Mod+Backspace", "other"), "Ctrl+Backspace");
+    assert.equal(i18n.formatShortcut("Delete", "other"), "Delete");
+  });
+
   test("named keys follow the language", () => {
     assert.equal(i18n.formatShortcut("Space", "other"), "Space");
     i18n.setLanguageNow("fi");
@@ -128,6 +133,16 @@ describe("key names", () => {
     assert.equal(i18n.formatShortcut("Mod+Shift+Space", "other"), "Ctrl+Vaihto+Välilyönti");
     assert.equal(i18n.formatShortcut("Mod+Space", "mac"), "⌘Välilyönti");
     assert.equal(i18n.keyName("ArrowLeft", "other"), "←");
+    // A Mac names these keys by their glyphs (Backspace is the Mac's Delete key, ⌫).
+    for (const [key, glyph] of [
+      ["Backspace", "⌫"],
+      ["Delete", "⌦"],
+      ["Enter", "↩"],
+      ["Tab", "⇥"],
+      ["Escape", "⎋"],
+    ])
+      assert.equal(i18n.keyName(key, "mac"), glyph);
+    assert.equal(i18n.formatShortcut("Mod+Backspace", "mac"), "⌘⌫");
   });
 
   test("detectPlatform reads the browser's own words", () => {
