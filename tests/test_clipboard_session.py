@@ -679,7 +679,7 @@ def test_the_clipboard_can_be_put_in_another_order(session):
     assert [e["id"] for e in session.clipboard_list()] == [e1, e3, e2]
     session.clipboard_move(e1, before=None)
     assert [e["id"] for e in session.clipboard_list()] == [e3, e2, e1]
-    with pytest.raises(Exception, match="no|entry"):
+    with pytest.raises(Exception, match=r"no|entry"):
         session.clipboard_move("nope", before=e3)
 
 
