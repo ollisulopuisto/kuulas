@@ -9,6 +9,13 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 
 | # | Raised | Issue | Notes |
 |---|---|---|---|
+| 112 | 23.10 | Packaged app: transcription fails. "colab-transcribe stopped with code 1 ... Session 'whisper' appears to be lost (404/401). Cleaning up." (the Colab session died; the Colab CLI also prints an update notice and a "set enable_update_check" hint into the toast) | open: diagnose; the app should start a fresh session when the old one is lost, and the toast should show a short reason, not the whole log |
+| 111 | 23.10 | In/out selection on the timeline needs more contrast: hard to see what is selected and what is not | open |
+| 110 | 23.10 | Toasts: after pressing X on a progress toast, a new message must not pop it up again; show new messages in the status button (a count, and the LATEST message so progress can be read at a glance) | open |
+| 109 | 23.10 | Auto-silenced regions should act as clips for mute/unmute: click the region at 21:09.618 and press M, and only THAT region mutes or unmutes, not the whole parent clip (muting or unmuting a silenced region turns that implicit region into an explicit clip) | open, needs a design note (a gated stretch is `Track.gate`, not a clip) |
+| 108 | 23.10 | Focus mode (Shift+F) is a bit too extreme: the other tracks shrink to thin strips; the owner wants to still SEE them | open: make the other lanes a readable height (screenshot 2026-10-23) |
+| 107 | 23.10 | colab-transcribe should give structured output the same way podcast-magic does | open: a change in the podcast repo (separate); listed as a wish in docs/PODCAST-MAGIC.md |
+| 106 | 23.10 | Recording: add markers while recording | open |
 | 105 | 21.10 | Waveform layer looked ~9 % taller than the overlay in a headless-Chrome screenshot of the app (silence visuals) | open: unknown whether a headless artefact or a real bug; needs a look in the real window |
 | 104 | 21.10 | Focus mode key: F was taken by Fit selection | answered 2026-10-21: F stays Fit selection (zoom is used far more than a mode toggle), focus is Shift+F; owner to close |
 | 95 | 20.10 | Local dmg build (`scripts/build_dmg.sh --out ~/Desktop/kuulas-dmg`) leaves the folder empty | open: needs the script's last output; the GitHub-built dmg works |
