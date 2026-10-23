@@ -2524,6 +2524,7 @@
   "ui.record.no_devices": "No input found. Connect an interface or a microphone.",
   "ui.record.loading": "Asking the recorder for the inputs…",
   "ui.record.imported": {"one": "{take} is on the timeline ({count} clip).", "other": "{take} is on the timeline ({count} clips)."},
+  "ui.record.replaced": "It replaced {what}. The earlier audio is kept in the project's files; Undo brings it back but removes this take too.",
   "ui.record.imported_interrupted": "{take} was interrupted; everything recorded is on the timeline.",
   "ui.record.imported_gaps": {"one": "{take} is on the timeline with {count} gap where nothing could be recorded.", "other": "{take} is on the timeline with {count} gaps where nothing could be recorded."},
   "ui.record.pending": {"one": "{count} recorded take was never put on the timeline (the editor or the recorder stopped mid-take).", "other": "{count} recorded takes were never put on the timeline (the editor or the recorder stopped mid-take)."},

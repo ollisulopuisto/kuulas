@@ -2629,6 +2629,7 @@
   "ui.record.no_devices": "Tuloja ei löytynyt. Kytke äänikortti tai mikrofoni.",
   "ui.record.loading": "Kysytään äänittimeltä tuloja…",
   "ui.record.imported": {"one": "{take} on aikajanalla ({count} leike).", "other": "{take} on aikajanalla ({count} leikettä)."},
+  "ui.record.replaced": "Se korvasi {what}. Aiempi ääni säilyy projektin tiedostoissa; Kumoa palauttaa sen mutta poistaa myös tämän äänitteen.",
   "ui.record.imported_interrupted": "{take} keskeytyi; kaikki äänitetty on aikajanalla.",
   "ui.record.imported_gaps": {"one": "{take} on aikajanalla; siinä on {count} aukko, jolloin mitään ei voitu äänittää.", "other": "{take} on aikajanalla; siinä on {count} aukkoa, jolloin mitään ei voitu äänittää."},
   "ui.record.pending": {"one": "{count} äänitetty otto jäi viemättä aikajanalle (editori tai äänitin pysähtyi kesken).", "other": "{count} äänitettyä ottoa ei viety aikajanalle (editori tai äänitin pysähtyi kesken)."},

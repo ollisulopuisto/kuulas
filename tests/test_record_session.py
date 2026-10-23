@@ -132,6 +132,29 @@ def test_onto_an_existing_track_trims_what_lies_under(session):
     assert len(session.state.tracks[0].clips) == 1
 
 
+def test_a_take_says_how_much_existing_audio_it_replaced(session):
+    folder = recordings(session)
+    session.edit("add_track", {"track_id": "t1", "name": "Host"})
+    write_take(folder, "Old", plan=rt.TakePlan("Old", 0, "t1", "Host", 1))
+    rs = offline(session)
+    assert rs.import_take("Old")["replaced"] == []  # nothing was under it
+    # A second take, half a second later, covers the last half of the first.
+    write_take(folder, "New", plan=rt.TakePlan("New", RATE // 2, "t1", "Host", 1))
+    result = rs.import_take("New")
+    assert result["replaced"] == [{"track": "Host", "frames": RATE // 2}]
+
+
+def test_a_take_over_a_whole_older_clip_replaces_all_of_it(session):
+    folder = recordings(session)
+    session.edit("add_track", {"track_id": "t1", "name": "Host"})
+    write_take(folder, "Old", plan=rt.TakePlan("Old", RATE, "t1", "Host", 1))
+    rs = offline(session)
+    rs.import_take("Old")
+    write_take(folder, "New", plan=rt.TakePlan("New", 0, "t1", "Host", 1),
+               segments=((0, 3 * RATE),))
+    assert rs.import_take("New")["replaced"] == [{"track": "Host", "frames": RATE}]
+
+
 def test_a_take_is_imported_once(session):
     folder = recordings(session)
     write_take(folder, plan=rt.TakePlan("Take 1", 0, None, "Olli", 1))

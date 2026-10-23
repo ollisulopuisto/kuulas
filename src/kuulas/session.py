@@ -292,6 +292,23 @@ GROUPED_OPS = frozenset({"nudge_clips", "move_clips_to_track", "shift_clips"})
 CAUSE_STEPS = 300
 
 
+def _replaced_by(before: Project, after: Project, track_ids: list[str],
+                 new_ids: set[str]) -> list[dict]:
+    """The audio a take replaced: per track it went on, the frames of clips there before
+    that are gone now (trimmed back or removed). ``new_ids``: the take's clips."""
+    out = []
+    for tid in dict.fromkeys(track_ids):
+        old = next((t for t in before.tracks if t.id == tid), None)
+        now = next((t for t in after.tracks if t.id == tid), None)
+        if old is None or now is None:
+            continue
+        gone = (sum(c.length for c in old.clips)
+                - sum(c.length for c in now.clips if c.id not in new_ids))
+        if gone > 0:
+            out.append({"track": now.name, "frames": gone})
+    return out
+
+
 class Session:
     """``folder`` is the ``Name.kuulas`` package; it is created if it does not
     exist. ``rate`` applies to a new project only: an existing one keeps its own."""
@@ -355,6 +372,8 @@ class Session:
         #: What became of each file in the latest import (WP34), for the UI
         #: to show: the failures and why, and the warnings of those that came in.
         self.last_import_report: list[ImportResult] = []
+        #: The audio the latest recorded take replaced, per track: [{track, frames}].
+        self.last_take_replaced: list[dict] = []
         #: How many Hindenburg clipboard clips the last ``import_nhsx`` turned
         #: into clipboard entries.
         self.last_import_clipboard = 0
@@ -2349,6 +2368,7 @@ class Session:
                     p = ops.set_clip(p, clip_id, name=clip_name)
                     clip_ids.append(clip_id)
             p = ops._overwrite_under(before, p)
+            self.last_take_replaced = _replaced_by(before, p, lane_tracks, set(clip_ids))
             if len(clip_ids) > 1:
                 p = ops.mark_in_sync(p, clip_ids, main=clip_ids[0], basis="timeline")
             project = self._commit(t("history.record_take", name=clip_name), p,

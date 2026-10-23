@@ -28,6 +28,7 @@ import {
   pickDevice,
   recordKeyAction,
   recordPhase,
+  replacedMessage,
   selectedLanes,
   startProblem,
   startRequest,
@@ -179,6 +180,11 @@ export function createRecordView({
   const phase = () => (stopping ? "recording" : recordPhase(status));
   const recording = () => phase() === "recording";
   const rate = () => status?.rate ?? getState().project?.rate ?? 48000;
+  /** The stop notice, with what the take replaced when it went over existing audio. */
+  const withReplaced = (text, result) => {
+    const extra = replacedMessage(result, rate(), t);
+    return extra ? `${text} ${extra}` : text;
+  };
   // The take's clock starts at the pre-roll; "Recorded" counts from where Record was pressed.
   const shownPosition = () => Math.max(0, position - (status?.preroll_frames ?? 0));
 
@@ -571,7 +577,8 @@ export function createRecordView({
       apply(response);
       stopping = false;
       const imported = response.record?.imported;
-      if (imported) notify(importedMessage(imported, t), "ok", { undo: true });
+      if (imported)
+        notify(withReplaced(importedMessage(imported, t), imported), "ok", { undo: true });
       newGesture();
       setStatus(await api.getRecordStatus());
       if (dialog.open) dialog.close();
@@ -744,7 +751,7 @@ export function createRecordView({
             const response = await api.importTakes(pending.map((p) => p.take));
             apply(response);
             for (const result of response.imported ?? [])
-              notify(importedMessage(result, t), "ok", { undo: true });
+              notify(withReplaced(importedMessage(result, t), result), "ok", { undo: true });
           } catch (error) {
             notify(error.message);
           }
@@ -830,7 +837,7 @@ export function createRecordView({
       } else if (message.kind === "imported") {
         // A take that ended by itself (disk full) or was stopped from another window.
         if (!stopping) {
-          notify(importedMessage(message, t), "ok", { undo: true });
+          notify(withReplaced(importedMessage(message, t), message), "ok", { undo: true });
           if (dialog.open && !recording()) dialog.close();
         }
       } else if (message.kind === "pending") {

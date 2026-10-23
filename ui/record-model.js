@@ -19,6 +19,17 @@ export function formatElapsed(frames, rate) {
   return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${s}` : `${m}:${s}`;
 }
 
+/**
+ * What a take replaced on the tracks it went on ("Olli 12.0 s"), or null when nothing: the
+ * stop notice says it, so a punch-in is never a surprise. Slivers under 0.1 s are left out.
+ */
+export function replacedMessage(result, rate, t) {
+  const parts = (result?.replaced ?? [])
+    .filter((entry) => rate > 0 && entry.frames / rate >= 0.1)
+    .map((entry) => `${entry.track} ${(entry.frames / rate).toFixed(1)} s`);
+  return parts.length === 0 ? null : t("ui.record.replaced", { what: parts.join(", ") });
+}
+
 /** The device to offer first: the remembered one by name (indexes change after a replug), else
  * the system default, else the first; null when there is none. */
 export function pickDevice(devices, remembered) {

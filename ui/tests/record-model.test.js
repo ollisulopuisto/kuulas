@@ -10,6 +10,7 @@ import {
   pickDevice,
   recordKeyAction,
   recordPhase,
+  replacedMessage,
   selectedLanes,
   startProblem,
   startRequest,
@@ -227,5 +228,36 @@ describe("several channels (WP12b)", () => {
       ),
       'ui.record.imported_failed{"take":"Take 2","names":"Guest"}',
     );
+  });
+});
+
+describe("replacedMessage: what a take replaced (owner, 2026-10-23)", () => {
+  const t = (key, values = {}) => `${key}${JSON.stringify(values)}`;
+
+  test("nothing replaced: nothing to say", () => {
+    assert.equal(replacedMessage({ replaced: [] }, 48000, t), null);
+    assert.equal(replacedMessage({}, 48000, t), null);
+  });
+
+  test("names the track and the seconds, one decimal", () => {
+    assert.equal(
+      replacedMessage({ replaced: [{ track: "Olli", frames: 12 * 48000 }] }, 48000, t),
+      'ui.record.replaced{"what":"Olli 12.0 s"}',
+    );
+  });
+
+  test("several tracks are joined, a sliver under a tenth of a second is left out", () => {
+    const text = replacedMessage(
+      {
+        replaced: [
+          { track: "Olli", frames: 48000 },
+          { track: "Anna", frames: 3 * 48000 },
+          { track: "Tiny", frames: 100 },
+        ],
+      },
+      48000,
+      t,
+    );
+    assert.equal(text, 'ui.record.replaced{"what":"Olli 1.0 s, Anna 3.0 s"}');
   });
 });

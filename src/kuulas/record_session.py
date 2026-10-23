@@ -557,6 +557,7 @@ class RecordSession:
                   lane.track_id, lane.track_name) for clips, lane in lanes],
                 clip_name=clip_name, take=take)
             result = {**summary, "take": take, "clips": len(clip_ids),
+                      "replaced": list(self.session.last_take_replaced),
                       "clip_ids": clip_ids,
                       "start": min(c.start for cl, _ in lanes for c in cl),
                       "tracks": len(lanes), "interrupted": interrupted}
