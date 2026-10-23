@@ -250,6 +250,7 @@
   "history.op.set_gate": "Portti: {track}",
   "history.op.add_gate_range": "Porttialue lisätty: {track} kohdassa {at}",
   "history.op.remove_gate_range": "Porttialue poistettu: {track} kohdassa {at}",
+  "history.op.open_gated_region": "Suljettu jakso avattu: {track} kohdassa {at}",
   "history.op.set_clips_ungated": {
     "one": "Mikki pidetään auki, {state}: {count} leike, {where}",
     "other": "Mikki pidetään auki, {state}: {count} leikettä, {where}"

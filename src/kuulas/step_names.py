@@ -253,6 +253,8 @@ DESCRIBERS: dict[str, Describer] = {
     "remove_gate_range": lambda a, c: ({"track": c.track(a.get("track_id")),
                                         "at": c.at(a.get("start"))}, "", None),
     "set_clips_ungated": _ungated,
+    "open_gated_region": lambda a, c: ({"track": c.track(a.get("track_id")),
+                                        "at": c.at(a.get("at"))}, "", None),
     "replace_clip_media": _plain,
     "add_marker": _add_marker,
     "rename_marker": _marker,

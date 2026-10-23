@@ -254,6 +254,7 @@
   "history.op.set_gate": "Gate: {track}",
   "history.op.add_gate_range": "Gate range added: {track} at {at}",
   "history.op.remove_gate_range": "Gate range removed: {track} at {at}",
+  "history.op.open_gated_region": "Closed stretch opened: {track} at {at}",
   "history.op.set_clips_ungated": {
     "one": "Keep mic open {state}: {count} clip, {where}",
     "other": "Keep mic open {state}: {count} clips, {where}"
