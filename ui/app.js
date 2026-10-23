@@ -14,6 +14,7 @@ import { trackRoleChoice } from "./bus-role.js";
 import { listedRows, scrollToShow, stepTarget } from "./candidates-model.js";
 import { createCandidatesPanel } from "./candidates-panel.js";
 import { previewRequest } from "./candidates-preview.js";
+import { cartSlots } from "./cart-model.js";
 import { clipDragChange } from "./clip-drag.js";
 import { expandGroups, toggleGroupSelection } from "./clip-groups.js";
 import { entryTitle } from "./clipboard.js";
@@ -1405,6 +1406,7 @@ const keyboard = setupKeyboard({
     refreshClipboard: () => void refreshClipboard(),
     clearOldClipboard: (keep) => clearOldClipboard(keep),
     shareClipboard: (id, on) => shareClipboardEntry(id, on),
+    setCartSlot: (id, slot) => clipboardAction(() => api.setClipboardCart(id, slot))(),
     moveClipboard: (id, before) => clipboardAction(() => api.moveClipboardEntry(id, before))(),
     seriesShelf: (id, on) => seriesShelfEntry(id, on),
     showClipboard: (view) => showClipboard(view),
@@ -3467,6 +3469,32 @@ async function refreshOtherWindows() {
 window.addEventListener("pywebviewready", () => void refreshOtherWindows());
 window.addEventListener("focus", () => void refreshOtherWindows());
 
+// The number chip of a Clipboard row: a small menu of the cart slots (cart-model.js), the
+// entry's own checked, and "None". Picking a number another entry holds moves it here.
+function pickCartSlot(entryId, event) {
+  const entry = (getState().clipboard ?? []).find((item) => item.id === entryId);
+  const box = event.currentTarget?.getBoundingClientRect?.();
+  const items = [
+    ...cartSlots(getState()).map(({ slot, entry: holder }) => ({
+      id: String(slot),
+      label:
+        holder && holder.id !== entryId ? `${slot} · ${holder.name || holder.id}` : String(slot),
+      enabled: true,
+      checked: entry?.cart === slot,
+    })),
+    { id: "none", label: t("ui.clipboard.cart_none"), enabled: entry?.cart != null },
+  ];
+  openContextMenu({
+    x: box?.left ?? event.clientX,
+    y: (box?.bottom ?? event.clientY) + 2,
+    items,
+    onPick: (id) =>
+      void clipboardAction(() =>
+        api.setClipboardCart(entryId, id === "none" ? null : Number(id)),
+      )(),
+  });
+}
+
 // Copy to other window (desktop only): the entry goes onto the clipboard of the project open
 // in another window of this app; with several, a small menu asks which. The window that gets
 // it says so (kuulasClipboardArrived below) and the paste is made there, as ever.
@@ -3565,6 +3593,7 @@ const clipboardPanel = createClipboardPanel({
     select: (id) => setState({ clipboardSelected: id }),
     rename: (id, name) => void clipboardAction(() => api.renameClipboardEntry(id, name))(),
     move: (id, before) => void clipboardAction(() => api.moveClipboardEntry(id, before))(),
+    pickCart: (id, event) => pickCartSlot(id, event),
     remove: (id) => {
       if (getState().clipboardSelected === id) setState({ clipboardSelected: null });
       void clipboardAction(() => api.deleteClipboardEntry(id))();

@@ -102,8 +102,8 @@ class Entry:
     text: str = ""
     shared: bool = False
     adopted_from: str = ""
-    #: The cart slot, 1-9 (owner, 2026-10-23): the number Alt+n plays it by, held by
-    #: one entry only; None when it has none. Not written when None (a file keeps its bytes).
+    #: The cart slot, 1-9 (owner, 2026-10-23): the number Alt+n plays it by, held by one
+    #: entry only; None when it has none. Not written when None (a file keeps its bytes).
     cart: int | None = None
     # Unknown keys a newer kuulas wrote (docs/FORMAT.md, "Unknown keys").
     extra: dict = field(default_factory=dict, hash=False)
@@ -396,8 +396,9 @@ def prune_entries(entries: Iterable[Entry], max_unpinned: int) -> list[Entry]:
     return kept
 
 
-#: The cart has nine slots, the keys Alt+1 to Alt+9.
-CART_SLOTS = 9
+#: The cart has seven slots, the keys Alt+1 to Alt+7 (Alt+8 and Alt+9 are brackets on a
+#: Finnish Mac keyboard).
+CART_SLOTS = 7
 
 
 class ClipboardHistory:

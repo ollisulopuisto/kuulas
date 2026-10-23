@@ -4747,3 +4747,9 @@ legend.form-heading {
 .follow-arrow[data-side="right"] {
   right: 16px;
 }
+
+/* The cart number chip of a Clipboard row (cart-model.js): a number 1-7 or a dash. */
+.clip-cart {
+  min-width: 2.2em;
+  font-variant-numeric: tabular-nums;
+}

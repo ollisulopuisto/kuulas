@@ -299,6 +299,12 @@ export const MENU = [
         item("clipboard.open_project"),
         SEP,
         item("clipboard.send_to_window"),
+        SEP,
+        submenu("menu.cart", [
+          ...[1, 2, 3, 4, 5, 6, 7].map((n) => item(`clipboard.cart_play_${n}`)),
+          SEP,
+          ...[1, 2, 3, 4, 5, 6, 7].map((n) => item(`clipboard.cart_assign_${n}`)),
+        ]),
       ]),
       item("time.copy"),
       SEP,

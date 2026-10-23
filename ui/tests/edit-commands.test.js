@@ -39,6 +39,7 @@ function setup(state, previewAnswer = { started: true, missing: 0 }) {
   const shown = [];
   const opened = [];
   const sentToWindow = [];
+  const carted = [];
   const seeks = [];
   let refreshed = 0;
   let renamed = 0;
@@ -81,6 +82,10 @@ function setup(state, previewAnswer = { started: true, missing: 0 }) {
       openClipboardProject: () => {
         opened.push(true);
       },
+      setCartSlot: (id, slot) => {
+        carted.push([id, slot]);
+        return Promise.resolve();
+      },
       sendToWindow: (entry) => {
         sentToWindow.push(entry);
         return Promise.resolve();
@@ -97,6 +102,7 @@ function setup(state, previewAnswer = { started: true, missing: 0 }) {
     shown,
     opened,
     sentToWindow,
+    carted,
     refreshed: () => refreshed,
     renamed: () => renamed,
     sent,
@@ -147,6 +153,10 @@ const WORKING = [
   "clipboard.view_others",
   "clipboard.open_project",
   "clipboard.send_to_window",
+  ...[1, 2, 3, 4, 5, 6, 7].flatMap((n) => [
+    `clipboard.cart_play_${n}`,
+    `clipboard.cart_assign_${n}`,
+  ]),
 ];
 
 describe("the editing commands", () => {
@@ -480,6 +490,40 @@ describe("the clipboard commands (WP46)", () => {
       ["e1"],
     );
     assert.equal(h.sent.length, 0); // not an edit: no undo step
+  });
+
+  test("Alt+n plays the entry that holds cart slot n; an empty slot says so", () => {
+    const state = withClip({
+      clipboard: [
+        { ...entry, id: "q1", cart: 2 },
+        { ...entry, id: "q2" },
+      ],
+    });
+    const h = setup(state);
+    h.registry.run("clipboard.cart_play_2", null, state);
+    assert.deepEqual(h.previewed, ["q1"]);
+    assert.equal(h.sent.length, 0); // not an edit
+    h.registry.run("clipboard.cart_play_5", null, state);
+    assert.deepEqual(h.previewed, ["q1"]);
+    assert.match(h.toasts.at(-1)[0], /ui\.cart\.empty/);
+  });
+
+  test("Shift+Alt+n gives the picked (else first) entry cart slot n", () => {
+    const state = withClip({
+      clipboard: [
+        { ...entry, id: "q1" },
+        { ...entry, id: "q2" },
+      ],
+    });
+    const h = setup(state);
+    h.registry.run("clipboard.cart_assign_4", null, state);
+    assert.deepEqual(h.carted, [["q1", 4]]);
+    const picked = { ...state, clipboardSelected: "q2" };
+    const second = setup(picked);
+    second.registry.run("clipboard.cart_assign_1", null, picked);
+    assert.deepEqual(second.carted, [["q2", 1]]);
+    assert.equal(h.registry.can("clipboard.cart_assign_1", base()), false, "nothing to give");
+    assert.equal(h.registry.can("clipboard.cart_play_1", base({ project: null })), false);
   });
 
   test("the clipboard views and Open a project are commands", () => {

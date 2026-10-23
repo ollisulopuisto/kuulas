@@ -3,6 +3,7 @@
 // plan whether there is anything to do. Keys live in keymap-default.js, never here.
 
 import { busRolePlan, matchRolePlan, reapplyRolePlan, trackRolePlan } from "./bus-role.js";
+import { assignTarget, CART_SLOTS, cartEntry } from "./cart-model.js";
 import { expandGroups, groupClipsPlan, mergeClipsPlan, ungroupClipsPlan } from "./clip-groups.js";
 import { CLIPBOARD_VIEWS, keepCount, pasteChoice } from "./clipboard.js";
 import {
@@ -247,6 +248,28 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
         const at = entry ? list.findIndex((item) => item.id === entry.id) : -1;
         return at >= 0 && at + step >= 0 && at + step < list.length;
       },
+    );
+  }
+  // The cart (owner, 2026-10-23): Alt+n plays the entry that holds slot n, in every situation
+  // (while recording it will also be put on the timeline), and Shift+Alt+n gives the picked
+  // entry number n. Neither is an edit.
+  for (let n = 1; n <= CART_SLOTS; n += 1) {
+    def(
+      `clipboard.cart_play_${n}`,
+      () => {
+        const entry = cartEntry(app.getState(), n);
+        if (!entry) app.toast(t("ui.cart.empty", { slot: n }), { undo: false });
+        else void app.previewClipboard(entry.id);
+      },
+      (s) => hasProject(s),
+    );
+    def(
+      `clipboard.cart_assign_${n}`,
+      () => {
+        const entry = assignTarget(app.getState());
+        if (entry) void app.setCartSlot(entry.id, n);
+      },
+      (s) => hasProject(s) && assignTarget(s) !== null,
     );
   }
   // The tab's views and the picker for any project's clipboard.

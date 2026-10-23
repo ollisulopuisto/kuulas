@@ -665,6 +665,23 @@ export const DEFAULT_KEYMAP = [
     context: "global",
     labelKey: "cmd.clipboard.send_to_window",
   },
+  // The cart: Alt+1..7 play slot n, Shift+Alt+1..7 give the picked entry number n. Matched by
+  // key position (Digit1..7), so the Finnish layout needs no Shift or AltGr character; 8 and 9
+  // are the bracket keys there (Option+8 is "["), so there are seven slots.
+  ...[1, 2, 3, 4, 5, 6, 7].flatMap((n) => [
+    {
+      id: `clipboard.cart_play_${n}`,
+      keys: { mac: `Alt+${n}`, other: `Alt+${n}` },
+      context: "global",
+      labelKey: `cmd.clipboard.cart_play_${n}`,
+    },
+    {
+      id: `clipboard.cart_assign_${n}`,
+      keys: { mac: `Shift+Alt+${n}`, other: `Shift+Alt+${n}` },
+      context: "global",
+      labelKey: `cmd.clipboard.cart_assign_${n}`,
+    },
+  ]),
   {
     id: "clipboard.move_up",
     keys: { mac: null, other: null },

@@ -375,10 +375,10 @@ def test_a_slot_is_given_and_a_number_is_held_by_one_entry_only():
 
 def test_a_slot_can_be_cleared_and_only_one_to_nine_exist():
     h = history_of("a")
-    h.set_cart("a", 9)
+    h.set_cart("a", 7)
     h.set_cart("a", None)
     assert h.get("a").cart is None
-    for bad in (0, 10, -1, 2.5, "3"):
+    for bad in (0, 8, 10, -1, 2.5, "3"):
         with pytest.raises(ValueError, match="slot"):
             h.set_cart("a", bad)
     with pytest.raises(KeyError):

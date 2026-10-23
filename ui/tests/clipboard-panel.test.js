@@ -132,6 +132,7 @@ beforeEach(() => {
       openSeries: record("openSeries"),
       dragStart: record("dragStart"),
       dragEnd: record("dragEnd"),
+      pickCart: record("pickCart"),
       move: record("move"),
       now: () => 1000 + 300,
       canPasteAgain: () => true,
@@ -461,6 +462,26 @@ describe("dragging an entry onto the timeline", () => {
       ["dragStart", state().clipboard[0], { shelf: "project", from: "" }],
       ["dragEnd"],
     ]);
+  });
+
+  describe("the cart number on a row", () => {
+    test("a row shows its cart number, or a dash, and a click asks for the picker", () => {
+      panel.update(
+        state({
+          clipboard: [
+            { ...entry("a"), cart: 3 },
+            { ...entry("b"), cart: null },
+          ],
+        }),
+      );
+      const [first, second] = byAction("cart");
+      assert.equal(first.textContent, "3");
+      assert.equal(second.textContent, "–");
+      assert.equal(first.attrs["aria-label"], "ui.clipboard.cart");
+      calls.length = 0;
+      first.click();
+      assert.deepEqual(calls.at(-1).slice(0, 2), ["pickCart", "a"]);
+    });
   });
 
   describe("reordering by dropping on another row", () => {

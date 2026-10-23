@@ -711,7 +711,7 @@ def test_a_bad_cart_slot_is_a_translated_error(session):
     a, _ = ids(session.state)
     e1 = session.clipboard_copy(clip_ids=[a.clips[0].id])["entry"]["id"]
     with pytest.raises(EditError) as e:
-        session.clipboard_cart(e1, 12)
+        session.clipboard_cart(e1, 8)
     assert e.value.key == "error.clipboard.bad_slot"
     with pytest.raises(EditError):
         session.clipboard_cart("nope", 1)

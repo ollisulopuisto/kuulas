@@ -139,6 +139,16 @@ export function createClipboardPanel({ root, actions }) {
       );
       name.addEventListener("click", () => actions.select(entry.id));
     }
+    // The cart number: Alt+n plays this entry when it holds n (cart-model.js); a click picks it.
+    const cart = el("button", {
+      type: "button",
+      class: "button block clip-cart",
+      textContent: entry.cart ? String(entry.cart) : "–",
+      title: t("ui.clipboard.cart_title"),
+      "aria-label": t("ui.clipboard.cart"),
+      dataset: { id: entry.id, action: "cart" },
+    });
+    cart.addEventListener("click", (event) => actions.pickCart(entry.id, event));
     // The star: marked entries are listed under Shared by every project.
     const star = el("button", {
       type: "button",
@@ -174,6 +184,7 @@ export function createClipboardPanel({ root, actions }) {
     const buttons = el(
       "span",
       { class: "clip-actions" },
+      cart,
       star,
       ...extra,
       block(
