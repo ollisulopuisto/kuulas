@@ -69,9 +69,19 @@ function stopIcon() {
 /**
  * `api`: getRecordStatus, getRecordDevices, startRecording, stopRecording, importTakes.
  * `getState()` -> the app state (project, playhead); `apply(response)` takes a server state
- * answer; `notify(text, kind, options)` is the app's notice; `chip` the toolbar's indicator.
+ * answer; `notify(text, kind, options)` is the app's notice; `chip` the toolbar's indicator;
+ * `addMarker()` adds a marker at the take's place now (the Marker button; BUGS #106).
  */
-export function createRecordView({ api, t, prefs, getState, apply, notify, chip }) {
+export function createRecordView({
+  api,
+  t,
+  prefs,
+  getState,
+  apply,
+  notify,
+  chip,
+  addMarker = () => {},
+}) {
   let status = null;
   let devices = null;
   let deviceError = "";
@@ -426,6 +436,10 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
     rec.preroll = el("p", "record-preroll-note");
     rec.notices = el("ul", "record-notices");
     rec.notices.setAttribute("aria-live", "assertive");
+    rec.marker = el("button", "button record-marker", t("ui.record.add_marker"));
+    rec.marker.type = "button";
+    rec.marker.title = t("ui.record.add_marker_title");
+    rec.marker.addEventListener("click", () => addMarker());
     rec.stop = el("button", "record-stop");
     rec.stop.type = "button";
     rec.stop.append(stopIcon());
@@ -448,6 +462,7 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
       rec.meters,
       rec.disk,
       rec.notices,
+      rec.marker,
       rec.stop,
       rec.stopHelp,
     );
@@ -731,6 +746,9 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
       return preroll;
     },
     isRecording: recording,
+    /** Where the take is on the timeline now (its start plus what was recorded, pre-roll
+     *  not counted: where the take's clips will put this moment), or null when not recording. */
+    liveFrame: () => (recording() ? (status?.plan?.at ?? 0) + shownPosition() : null),
     setStopMode,
     setPreroll,
     /** Ask the server again (after the live channel was down). */

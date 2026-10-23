@@ -2506,6 +2506,8 @@
   "ui.record.disk_unknown": "Free disk space unknown",
   "ui.record.recording": "Recording {take}",
   "ui.record.stop": "Stop",
+  "ui.record.add_marker": "Add marker",
+  "ui.record.add_marker_title": "Adds a marker where the take is now (Cmd/Ctrl+Enter also does it while you record)",
   "ui.record.stop_confirm": "Stop recording? Press again to stop ({seconds} s)",
   "ui.record.stop_hold": "Hold 2 s to stop",
   "ui.record.stop_keys": "Space or the button. Esc only hides this view; the take goes on.",

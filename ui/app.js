@@ -1514,6 +1514,7 @@ const keyboard = setupKeyboard({
     seriesMusicPlace: () => void seriesMusicPlace(),
     seriesMusicClipboard: () => void seriesMusicClipboard(),
     openRecord: () => void recordView.open(),
+    recordingFrame: () => recordView.liveFrame(),
     cycleStopMode: () => cycleStopMode(),
     cyclePreroll: () => cyclePreroll(),
     autoSilence: () => void autoSilence(),
@@ -2719,6 +2720,7 @@ const recordView = createRecordView({
   apply,
   notify: showNotice,
   chip: $("rec-chip"),
+  addMarker: () => keyboard.registry.run("marker.add", null, getState()),
 });
 function cycleStopMode() {
   const mode = nextStopMode(recordView.stopMode);

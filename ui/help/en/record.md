@@ -2,7 +2,7 @@
 id: record
 title: Recording a take
 applies-to: [index]
-commands: [transport.record, record.stop_mode, record.preroll]
+commands: [transport.record, record.stop_mode, record.preroll, marker.add]
 related: [track, timeline]
 ---
 Record one input channel onto a track: {key:transport.record} opens the record view. Choose the input, the channel and the track (or a new one), then press Record. The take starts where the playhead is and appears as a clip there when you stop.
@@ -18,3 +18,5 @@ Record one input channel onto a track: {key:transport.record} opens the record v
 On a Mac the first recording asks for permission to use the microphone. When kuulas runs from a terminal, it is the terminal that needs the permission (System Settings, Privacy & Security, Microphone). Without it the input is silent: watch the level meter.
 
 See also [[track]].
+
+While a take records, Add marker (or {key:marker.add}) puts a marker where the take is now, not at the play cursor, so you can flag a good answer or a mistake as it happens. The markers stay where they are when the take's clips land.

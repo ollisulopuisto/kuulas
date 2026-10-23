@@ -20,10 +20,14 @@ export function deleteTarget(state) {
 }
 
 /**
- * `app`: getState, patch(statePatch), edit(change), toast(text, { undo }), seek(frame).
+ * `app`: getState, patch(statePatch), edit(change), toast(text, { undo }), seek(frame),
+ * recordingFrame() (the take's place on the timeline while recording, else null).
  * `t` translates.
  */
 export function registerMarkerCommands(registry, { app, t, makeId = newMarkerId }) {
+  // While a take records, "now" is where the take is on the timeline, not the playhead
+  // (app.recordingFrame, from the record view; null when nothing records).
+  const nowFrame = (state) => app.recordingFrame?.() ?? state.playhead;
   const def = (id, run, can) => registry.register(id, run, { can, hintKey: `cmd.${id}.hint` });
 
   function add(kind, start, end, label) {
@@ -45,8 +49,8 @@ export function registerMarkerCommands(registry, { app, t, makeId = newMarkerId 
 
   def(
     "marker.add",
-    () => add("marker", app.getState().playhead, null, "ui.markers.history.add"),
-    (state) => hasProject(state) && markerAt(markersOf(state), state.playhead) === null,
+    () => add("marker", nowFrame(app.getState()), null, "ui.markers.history.add"),
+    (state) => hasProject(state) && markerAt(markersOf(state), nowFrame(state)) === null,
   );
 
   def(

@@ -2611,6 +2611,8 @@
   "ui.record.disk_unknown": "Vapaa levytila ei tiedossa",
   "ui.record.recording": "Äänitetään: {take}",
   "ui.record.stop": "Pysäytä",
+  "ui.record.add_marker": "Lisää merkki",
+  "ui.record.add_marker_title": "Lisää merkin kohtaan, jossa äänite on nyt (myös Cmd/Ctrl+Enter äänittäessä)",
   "ui.record.stop_confirm": "Pysäytetäänkö äänitys? Paina uudelleen ({seconds} s)",
   "ui.record.stop_hold": "Pysäytä pitämällä 2 s",
   "ui.record.stop_keys": "Välilyönti tai painike. Esc vain piilottaa näkymän; äänitys jatkuu.",

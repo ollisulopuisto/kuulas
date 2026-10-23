@@ -2,7 +2,7 @@
 id: record
 title: Oton äänittäminen
 applies-to: [index]
-commands: [transport.record, record.stop_mode, record.preroll]
+commands: [transport.record, record.stop_mode, record.preroll, marker.add]
 related: [track, timeline]
 ---
 Äänitä yksi tulon kanava raidalle: {key:transport.record} avaa äänitysnäkymän. Valitse tulo, kanava ja raita (tai uusi raita) ja paina Äänitä. Otto alkaa toistokohdasta ja ilmestyy siihen leikkeenä, kun pysäytät.
@@ -18,3 +18,5 @@ related: [track, timeline]
 Macissa ensimmäinen äänitys kysyy lupaa käyttää mikrofonia. Kun kuulas ajetaan päätteestä, lupa tarvitaan päätteelle (Järjestelmäasetukset, Tietosuoja ja suojaus, Mikrofoni). Ilman lupaa tulo on hiljainen: seuraa tasomittaria.
 
 Katso myös [[track]].
+
+Kun äänite on käynnissä, Lisää merkki (tai {key:marker.add}) laittaa merkin kohtaan, jossa äänite on nyt, ei toistokursorin kohtaan, joten voit merkitä hyvän vastauksen tai virheen heti. Merkit pysyvät paikoillaan, kun äänitteen leikkeet tulevat aikajanalle.
