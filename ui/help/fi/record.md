@@ -20,3 +20,5 @@ Macissa ensimmäinen äänitys kysyy lupaa käyttää mikrofonia. Kun kuulas aje
 Katso myös [[track]].
 
 Kun äänite on käynnissä, Lisää merkki (tai {key:marker.add}) laittaa merkin kohtaan, jossa äänite on nyt, ei toistokursorin kohtaan, joten voit merkitä hyvän vastauksen tai virheen heti. Merkit pysyvät paikoillaan, kun äänitteen leikkeet tulevat aikajanalle.
+
+Jos haluat äänittää usealta laitteelta yhtä aikaa, yhdistä ne ensin macOS:ssä: Audio MIDI Setup > Create Aggregate Device, valitse laitteet (ja Drift Correction kaikille paitsi kellolaitteelle). Kuulas näkee silloin yhden laitteen, jolla on kaikki kanavat, ja jokaisen kanavan voi ohjata omalle raidalleen.

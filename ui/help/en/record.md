@@ -20,3 +20,5 @@ On a Mac the first recording asks for permission to use the microphone. When kuu
 See also [[track]].
 
 While a take records, Add marker (or {key:marker.add}) puts a marker where the take is now, not at the play cursor, so you can flag a good answer or a mistake as it happens. The markers stay where they are when the take's clips land.
+
+To record from several devices at once, combine them in macOS first: Audio MIDI Setup > Create Aggregate Device, tick the devices (and Drift Correction for all but the clock device). Kuulas then sees one device with all the channels, and each channel can go to its own track.
