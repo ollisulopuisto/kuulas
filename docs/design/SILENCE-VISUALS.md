@@ -51,6 +51,9 @@ the lock at the left of the visible part of the closed stretch.
 
 ## Rules
 
+- **Gated outline is dimmer** (owner, 2026-10-23): a muted clip's outline is full strength, a
+  gate-closed stretch's is 60 % (`silentOutlineAlpha`). Contrast at 60 % is not measured.
+
 - **Borders on top.** Clip borders, handles, the selection outline, fade and gain handles are
   drawn after every silent-state overlay (`TRACK_LAYERS`, tested). The outline and the body
   tone are on the waveform canvas under the whole overlay. The preview's dashed edges stand

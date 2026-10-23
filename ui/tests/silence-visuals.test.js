@@ -20,6 +20,7 @@ import {
   SILENCE_LEGEND_TITLE,
   SILENT_OVERLAY_LAYERS,
   silentColumns,
+  silentOutlineAlpha,
   stretchEdges,
   TRACK_LAYERS,
 } from "../silence-visuals.js";
@@ -259,5 +260,16 @@ describe("lockTop: the padlock sits below the clip's name, never under it", () =
 
   test("no room under the strip: no lock, the outline alone says silent", () => {
     assert.equal(lockTop(36, { ...sizes, wordsShown: false }), null);
+  });
+});
+
+describe("silentOutlineAlpha: a closed stretch is quieter than a muted clip", () => {
+  test("a muted clip keeps the full outline", () => {
+    assert.equal(silentOutlineAlpha({ muted: true }), 1);
+  });
+
+  test("an Auto-Silence stretch is dimmed", () => {
+    const alpha = silentOutlineAlpha({ muted: false });
+    assert.ok(alpha > 0.3 && alpha < 1);
   });
 });

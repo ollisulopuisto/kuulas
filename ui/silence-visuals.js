@@ -94,6 +94,17 @@ export function lockSpots(runs, { iconPx, pad, blocked = [] }) {
 }
 
 /**
+ * The strength of the outline-only waveform of a silent stretch: full for a muted clip (your
+ * decision), dimmed for a stretch Auto-Silence closed (the machine's, owner 2026-10-23), so
+ * the two read apart and a closed stretch does not shout. Contrast at this strength is not
+ * measured (silence-tokens.test.js checks the full outline).
+ */
+export function silentOutlineAlpha({ muted }) {
+  return muted ? 1 : GATED_OUTLINE_ALPHA;
+}
+const GATED_OUTLINE_ALPHA = 0.6;
+
+/**
  * How far below the lane's top the closed-stretch padlock sits. A lane with a name strip
  * (36 px and up) puts it under the strip, and under the words row when that is shown: the
  * name is as wide as the clip allows, so a lock in the strip was painted over (owner,

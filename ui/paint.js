@@ -8,7 +8,12 @@ import { columnGainsDb, waveformScale } from "./gain-scale.js";
 import { gatePixelRuns } from "./gate.js";
 import { busHues, SPEAKER_HUE_COUNT, zebraSteps } from "./grammar.js";
 import { layoutFor, RULER_HEIGHT, visibleRows } from "./lanes.js";
-import { columnRuns, envelopeOutline, silentColumns } from "./silence-visuals.js";
+import {
+  columnRuns,
+  envelopeOutline,
+  silentColumns,
+  silentOutlineAlpha,
+} from "./silence-visuals.js";
 import { columnsFromTiles, pickLevel, waveformColumns } from "./waveform.js";
 
 /** Below this a gain is silence: JSON cannot carry -Infinity, so the job clamps to it. */
@@ -293,7 +298,9 @@ function paintClipWave(ctx, job, row, clip, view) {
   }
   ctx.fill();
   // In the label colour: the wave colour is too close to the toned-down body to read on it.
+  ctx.globalAlpha = WAVE_ALPHA * silentOutlineAlpha({ muted: Boolean(clip.muted) });
   strokeOutlines(ctx, bars, silentRuns, { from, y, h, colour: colours.label || colours.wave });
+  ctx.globalAlpha = WAVE_ALPHA;
   if (preview) {
     strokeOutlines(ctx, bars, columnRuns(preview), {
       from,
