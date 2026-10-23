@@ -223,6 +223,7 @@ export const MENU = [
       item("export.tracks_quick"),
       item("export.tracks"),
       item("export.music_report"),
+      item("export.cut_list"),
       submenu("menu.export_transcripts", [
         item("export.subtitles_srt"),
         item("export.subtitles_vtt"),

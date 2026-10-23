@@ -1516,6 +1516,8 @@
   "cmd.export.chapters_text.hint": "Saves the chapters as a text file, one hh:mm:ss title per line.",
   "cmd.export.chapters_json": "Export chapters (JSON)",
   "cmd.export.chapters_json.hint": "Saves the chapters as a Podcasting 2.0 chapters JSON file.",
+  "cmd.export.cut_list": "Export cut list (JSON)",
+  "cmd.export.cut_list.hint": "Saves where the audio edit jumps, per speaker and on the recording clock, as a JSON file for a video rough cut to hide the jump cuts",
   "cmd.export.regions": "Export regions as files…",
   "cmd.export.regions.hint": "Renders every region to its own audio file, in one background job.",
   "ui.tabs.markers": "Markers",

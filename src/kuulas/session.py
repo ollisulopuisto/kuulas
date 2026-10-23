@@ -78,6 +78,7 @@ from . import (
 from . import automix as automix_module
 from . import chapters as chapters_module
 from . import colab_transcribe as colab_module
+from . import cut_list as cut_list_module
 from . import db as dbm
 from . import export as export_module
 from . import loudness_curve as loudness_curve_module
@@ -1694,6 +1695,11 @@ class Session:
             h = self.history
             edit = next((e["name"] for e in h.edits() if e["id"] == h.edit), h.edit)
             return export_names.title(self.package.path.stem, h.edit, edit)
+
+    def cut_list(self) -> dict:
+        """Where the audio edit jumps, per speech track and as seams on the timeline
+        (``cut_list.cut_list``): for a video rough cut that must not show jump cuts."""
+        return cut_list_module.cut_list(self.state)
 
     def download_name(self, what: str) -> str:
         """The file name of a download ("chapters.txt"): ``<title> chapters.txt``."""

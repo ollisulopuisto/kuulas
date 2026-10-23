@@ -38,6 +38,7 @@ describe("File", () => {
       "export.tracks_quick",
       "export.tracks",
       "export.music_report",
+      "export.cut_list",
       "submenu",
       "separator",
       "submenu",

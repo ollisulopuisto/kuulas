@@ -1324,3 +1324,23 @@ def test_state_names_who_holds_a_read_only_project(session, engine, tmp_path):
         assert note["opened_utc"]
     finally:
         second.close()
+
+
+def test_cut_list_download_is_json_with_a_file_name(client, loaded):
+    r = client.get("/api/cut-list")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("application/json")
+    assert "cut-list.json" in r.headers["content-disposition"]
+    body = r.json()
+    assert body["format"] == "kuulas-cut-list"
+    assert [t["cuts"] for t in body["tracks"]] == [[]]
+
+
+def test_cut_list_lists_a_ripple_cut_of_the_edit(client, loaded):
+    r = client.post("/api/edit", json={"op": "ripple_delete",
+                                       "args": {"start": 12_000, "end": 24_000}})
+    assert r.status_code == 200, r.text
+    body = client.get("/api/cut-list").json()
+    [cut] = body["tracks"][0]["cuts"]
+    assert (cut["at"], cut["removed"]) == (12_000, 12_000)
+    assert [(s["at"], s["removed"]) for s in body["seams"]] == [(12_000, 12_000)]

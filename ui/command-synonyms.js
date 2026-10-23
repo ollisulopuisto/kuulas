@@ -252,6 +252,16 @@ export const SYNONYMS = {
   "export.subtitles_vtt": ["captions", "subtitles", "web captions", "save as", "vie", "tekstitys"],
   "export.transcript_txt": ["text file", "words", "save as", "vie", "teksti", "litteraatti"],
   "export.transcript_md": ["text file", "words", "save as", "vie", "teksti", "litteraatti"],
+  "export.cut_list": [
+    "cuts",
+    "edit list",
+    "jump cuts",
+    "video",
+    "final cut",
+    "save as",
+    "vie",
+    "leikkaukset",
+  ],
   "export.chapters_text": ["chapter marks", "save as", "vie", "kappaleet", "luvut"],
   "export.chapters_json": [
     "chapter marks",

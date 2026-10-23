@@ -1584,6 +1584,8 @@
   "cmd.export.chapters_text.hint": "Tallentaa luvut tekstitiedostona, yksi rivi hh:mm:ss otsikko kohti.",
   "cmd.export.chapters_json": "Vie luvut (JSON)",
   "cmd.export.chapters_json.hint": "Tallentaa luvut Podcasting 2.0 -lukutiedostona (JSON).",
+  "cmd.export.cut_list": "Vie leikkauslista (JSON)",
+  "cmd.export.cut_list.hint": "Tallentaa JSON-tiedostoon, missä äänileikkaus hyppää, puhujittain ja äänityksen kellossa, jotta videon raakaleikkaus voi peittää hyppyleikkaukset",
   "cmd.export.regions": "Vie alueet tiedostoina…",
   "cmd.export.regions.hint": "Renderöi jokaisen alueen omaksi äänitiedostokseen yhtenä taustatyönä.",
   "ui.tabs.markers": "Merkit",

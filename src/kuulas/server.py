@@ -1260,6 +1260,14 @@ def create_app(session, engine, *, language: str | None = None,
                         headers={"Content-Disposition": export_names.disposition(
                             session.download_name("chapters.txt"))})
 
+    @app.get("/api/cut-list")
+    def get_cut_list():
+        # Where the audio edit jumps (cut_list.py): the signal a video rough cut needs.
+        return Response(content=json.dumps(session.cut_list(), indent=1),
+                        media_type="application/json",
+                        headers={"Content-Disposition": export_names.disposition(
+                            session.download_name("cut-list.json"))})
+
     @app.get("/api/loudness-curve")
     def get_loudness_curve():
         # Measured outside the session lock (Session.loudness_curve); cached by content.

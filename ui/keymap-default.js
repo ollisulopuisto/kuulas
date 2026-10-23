@@ -1433,6 +1433,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.export.transcript_md",
   },
   {
+    id: "export.cut_list",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.export.cut_list",
+  },
+  {
     id: "export.chapters_text",
     keys: { mac: null, other: null },
     context: "global",
