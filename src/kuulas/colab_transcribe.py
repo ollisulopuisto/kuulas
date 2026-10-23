@@ -50,7 +50,7 @@ from .automix import _signal
 from .automix import run_process as _run_process
 from .clock import FLICKS
 from .jobs import JobCancelledError
-from .messages import KuulasError
+from .messages import KuulasError, t
 
 log = logging.getLogger("kuulas.colab_transcribe")
 
@@ -68,6 +68,11 @@ RESULT_SUFFIX = ".words.json"
 #: starts corrected by the forced aligner, alignment version N; the number changes when
 #: its rule or model does, so a later version must not be refused).
 _TIMING = re.compile(r"whisper|ctc-v[0-9]+")
+#: The Colab CLI's own update notice: noise in a progress line or an error text.
+_NOISE = re.compile(
+    r"^\[colab\] (A new version of Colab CLI|Run 'colab update'|To silence this check)")
+#: A Colab session the tool kept by name ('whisper') that has died on Google's side.
+_SESSION_LOST = re.compile(r"Session '[^']*' appears to be lost")
 #: Seconds to wait after SIGINT (the tool stops its Colab session on it) before SIGTERM.
 SESSION_STOP_SECONDS = 30
 _PROGRESS = re.compile(r"PROGRESS\s+(\d{1,3})(?:\s+(.*))?$")
@@ -315,6 +320,8 @@ def run(items: list[dict], params: dict, settings: dict, report: Report,
             if not line.strip():
                 return
             lines.append(line)
+            if _NOISE.match(line):
+                return
             found = _PROGRESS.match(line)
             if found:
                 share = min(100, int(found.group(1))) / 100
@@ -324,15 +331,25 @@ def run(items: list[dict], params: dict, settings: dict, report: Report,
                 report(reached[0], shown(line), indeterminate=reached[0] == 0.0)
 
         log.info("Running %s", cmd)
-        try:
-            code = run_process(cmd, settings["cwd"], on_line, cancel)
-        except FileNotFoundError as e:
-            raise ColabError("error.colab.not_found",
-                             command=" ".join(settings["command"]),
-                             cwd=settings["cwd"] or "") from e
-        if cancel.is_set():
-            raise JobCancelledError
-        tail = "\n".join(list(lines)[-TAIL_LINES:])
+        while True:
+            try:
+                code = run_process(cmd, settings["cwd"], on_line, cancel)
+            except FileNotFoundError as e:
+                raise ColabError("error.colab.not_found",
+                                 command=" ".join(settings["command"]),
+                                 cwd=settings["cwd"] or "") from e
+            if cancel.is_set():
+                raise JobCancelledError
+            # The tool reuses one Colab session by name; one that died fails the run.
+            # Once, ask it for a fresh session (owner, 2026-10-23, the packaged app).
+            if (code != 0 and "--reset-session" not in cmd
+                    and any(_SESSION_LOST.search(line) for line in lines)):
+                cmd = [*cmd, "--reset-session"]
+                lines.append(t("ui.colab.retry_fresh"))
+                report(reached[0], t("ui.colab.retry_fresh"), indeterminate=True)
+                continue
+            break
+        tail = "\n".join([line for line in lines if not _NOISE.match(line)][-TAIL_LINES:])
         if code != 0:
             raise ColabError("error.colab.failed", code=code, tail=tail)
         results = {}

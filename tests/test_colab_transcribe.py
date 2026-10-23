@@ -27,6 +27,24 @@ FAKE = textwrap.dedent('''
     with open(os.environ["FAKE_LOG"], "w") as f:
         json.dump({"argv": argv, "cwd": os.getcwd(), "audio": audio,
                    "folder_exists": os.path.isdir(folder)}, f)
+    with open(os.environ["FAKE_LOG"] + ".calls", "a") as f:
+        f.write(" ".join(argv) + "\\n")
+    noise = [
+        "[colab] A new version of Colab CLI is available: 0.7.5 (current: 0.7.5.dev3)",
+        "[colab] Run 'colab update' to update.",
+        '[colab] To silence this check, set "enable_update_check": false there',
+    ]
+    if mode == "noise":
+        for line in noise:
+            print(line, flush=True)
+    if mode in ("lost", "lost_always") and (
+            mode == "lost_always" or "--reset-session" not in argv):
+        print("PROGRESS 0 [1/10] Preparing", flush=True)
+        for line in noise:
+            print(line, flush=True)
+        print("[colab] Session 'whisper' appears to be lost (404/401). Cleaning up.",
+              flush=True)
+        sys.exit(1)
     if mode == "fail":
         print("Colab quota exceeded", flush=True)
         sys.exit(4)
@@ -313,6 +331,57 @@ def test_a_failed_run_gives_the_last_lines(tmp_path, fake, temp_root):
     assert e.value.params["code"] == 4
     assert "Colab quota exceeded" in str(messages.t(e.value.key, **e.value.params))
     assert list(temp_root.iterdir()) == []
+
+
+def test_a_lost_colab_session_is_retried_once_with_a_fresh_one(tmp_path, fake, temp_root):
+    # The tool reuses a Colab session called 'whisper'; one that died (404/401) fails the
+    # run (owner, 2026-10-23, packaged app). A second try asks the tool for a new session.
+    fake["extra_args"] = ["--mode", "lost"]
+    result, _reports = run(files(tmp_path, "Olli.wav"), fake)
+    assert result["results"]["olli"]["words"]
+    calls = (tmp_path / "call.json.calls").read_text().splitlines()
+    assert len(calls) == 2
+    assert "--reset-session" not in calls[0]
+    assert "--reset-session" in calls[1]
+
+
+def test_a_session_that_stays_lost_fails_after_the_one_retry(tmp_path, fake, temp_root):
+    fake["extra_args"] = ["--mode", "lost_always"]
+    with pytest.raises(ct.ColabError) as e:
+        run(files(tmp_path, "Olli.wav"), fake)
+    assert e.value.key == "error.colab.failed"
+    assert len((tmp_path / "call.json.calls").read_text().splitlines()) == 2
+    assert list(temp_root.iterdir()) == []
+
+
+def test_other_failures_are_not_retried(tmp_path, fake, temp_root):
+    fake["extra_args"] = ["--mode", "fail"]
+    with pytest.raises(ct.ColabError):
+        run(files(tmp_path, "Olli.wav"), fake)
+    assert len((tmp_path / "call.json.calls").read_text().splitlines()) == 1
+
+
+def test_a_retry_is_not_added_when_the_user_already_resets_sessions(
+        tmp_path, fake, temp_root):
+    fake["extra_args"] = ["--mode", "lost_always", "--reset-session"]
+    with pytest.raises(ct.ColabError):
+        run(files(tmp_path, "Olli.wav"), fake)
+    assert len((tmp_path / "call.json.calls").read_text().splitlines()) == 1
+
+
+def test_the_colab_clis_update_notices_are_not_progress_or_error_text(
+        tmp_path, fake, temp_root):
+    fake["extra_args"] = ["--mode", "noise"]
+    _result, reports = run(files(tmp_path, "Olli.wav"), fake)
+    shown = " ".join(m for _f, m, _i in reports.items)
+    assert "new version of Colab CLI" not in shown
+    assert "enable_update_check" not in shown
+    fake["extra_args"] = ["--mode", "lost_always", "--reset-session"]
+    with pytest.raises(ct.ColabError) as e:
+        run(files(tmp_path, "Olli.wav"), fake)
+    text = str(messages.t(e.value.key, **e.value.params))
+    assert "enable_update_check" not in text
+    assert "appears to be lost" in text
 
 
 def test_missing_tool_is_one_clear_error(tmp_path, fake, temp_root):
