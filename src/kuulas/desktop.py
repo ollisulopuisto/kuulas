@@ -523,6 +523,10 @@ class Bridge:
         if not isinstance(folder, str) or not folder.strip() or "\0" in folder:
             return False
 
+        # A project another window already shows comes forward instead (two writers on one
+        # history would fork it).
+        if self._app is not None and self._app.bring_forward_if_open(folder):
+            return True
         try:
             # Not resolve(): a symlinked folder (a Dropbox link) keeps the chosen path.
             folder_path = Path(folder).expanduser()
@@ -734,6 +738,14 @@ def install_open_files_hook(callback, platform: str | None = None, objc: Any = .
     return True
 
 
+def _same_folder(a: str, b: str) -> bool:
+    """Whether two paths name one folder (symlinks and aliases followed)."""
+    try:
+        return Path(a).resolve() == Path(b).resolve()
+    except (OSError, RuntimeError, ValueError):
+        return a == b
+
+
 class WindowApp:
     """The windows of one running app: the first is the launcher (or the project
     given on the command line); a project opened later, from Finder or the Dock,
@@ -801,13 +813,23 @@ class WindowApp:
         for folder in projects:
             self._open_one(folder)
 
-    def _open_one(self, folder: str) -> None:
-        log.info(t("log.desktop.opening", path=folder))
+    def bring_forward_if_open(self, folder: str) -> bool:
+        """Bring the window that shows ``folder`` forward; False when none does. The
+        same folder reached by a symlink, an alias or a trailing slash is the same
+        project, so the paths are compared resolved."""
         with self._lock:
             for bridge in self._bridges:
-                if bridge.project_folder == folder:
+                if bridge.project_folder is not None and _same_folder(
+                        bridge.project_folder, folder):
                     self._bring_forward(bridge)
-                    return
+                    return True
+        return False
+
+    def _open_one(self, folder: str) -> None:
+        log.info(t("log.desktop.opening", path=folder))
+        if self.bring_forward_if_open(folder):
+            return
+        with self._lock:
             bridge = next((b for b in self._bridges if b.project_folder is None), None)
         if bridge is None:
             bridge = self.new_window()
