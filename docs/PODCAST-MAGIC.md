@@ -340,3 +340,26 @@ every object has `"schema": 1` and `"event"`; fields may be added, never renamed
 Kuulas then shows `message` of the last `progress`/`stage` event as the toast text, the short
 `error.message` when it fails, and drops its own text filters (`_NOISE`, `_SESSION_LOST` in
 `colab_transcribe.py`, which stay as the fallback for older tools).
+
+### The podcast side's answer, and what Kuulas still wants (2026-10-23)
+
+`colab-transcribe --events` is on the podcast main (PR #83, 51d6796; contract: `docs/KUULAS-COLAB.md`
+"Live events"). Not run on a real Colab yet. Their events (`session` new/reuse/reset, `stage` start/done
+with `index`/`total`, `progress`, `warning` code `session_lost`, `error` reason/message/code/stage, `done`
+files) cover what the list above asked for; Kuulas accepts them as they are, with these requests (fields
+may still change for free until Kuulas reads them):
+
+1. `stage` `transcribe` and `align`: add `name` (the audio file's file name, as it was given), so the
+   toast can say "Take 1-Mic.wav" and not only "file 1 of 2".
+2. `stage` `upload`: add `via` (`drive` | `direct`) and, if cheap, `done`/`total` (bytes) so a big
+   upload is not a silent minute; both optional.
+3. The Colab CLI's own update notices never in `progress.message` (as `warning` code `colab_update`, or
+   not at all). Kuulas drops them by text today and keeps that as the fallback for older tools.
+4. When the session is lost (`session_lost`), recover inside the tool: reset and retry once, and say so
+   (`session` state `reset`, then the run goes on). Kuulas's own retry with `--reset-session` stays as
+   the fallback.
+5. `error.message`: one short line a person can read, never the log.
+6. `done`: keep `files` as paths; no change wanted.
+
+What Kuulas will do with them (not built): the toast shows the last `progress`/`stage` message and the
+file name, an error shows `error.message`, and `session_lost` triggers the retry by code, not by text.
