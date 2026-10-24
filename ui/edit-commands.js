@@ -24,6 +24,7 @@ import {
   mutePlan,
   newBusPlan,
   nudgePlan,
+  openedRegionClip,
   pasteEntry,
   pastePlan,
   quickMutePlan,
@@ -95,6 +96,10 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
       provisional: plan.provisional,
       done: (response) => {
         toastFor(plan, before, response);
+        if (plan.op === "open_gated_region") {
+          const id = openedRegionClip(response.project, plan.args.track_id, plan.args.at);
+          if (id) app.patch({ selection: new Set([id]) });
+        }
         // The range is spent: its marks and the selection would only be left drawn on the
         // timeline (owner, 2026-10-18). Soft delete keeps them: the gap is still the range.
         // A ripple cut leaves a splice at the range's start: the cursor goes there, so P (play from

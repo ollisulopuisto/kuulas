@@ -80,7 +80,7 @@ the Playback submenu list (269-286). Migration is data only in `menu-model.js` (
 about 8 new submenu label keys (en + fi), about 120 test lines rewritten, and a sweep of help topics
 that name menu paths. No command id or default key changes, so the Finnish-layout rule is untouched.
 
-## Questions for the owner (open)
+## Questions for the owner (answered yes to all, 2026-10-24; built except 6, Settings in a native app menu, still to check)
 
 1. May File's pinned order change (Versions ›, More exports ›)?
 2. Cart in Playback rather than Edit > Clipboard? (done as the fix; say if you want it elsewhere)

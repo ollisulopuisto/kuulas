@@ -433,6 +433,16 @@ export function mutePlan(state) {
   );
 }
 
+/**
+ * The clip M just opened: the one on `trackId` holding `at` in `project` (the response after
+ * open_gated_region). It is selected afterwards, so the next M mutes just that stretch, not
+ * the left-over piece of the parent clip that kept the old selection (owner, 2026-10-24).
+ */
+export function openedRegionClip(project, trackId, at) {
+  const track = project?.tracks?.find((x) => x.id === trackId);
+  return track?.clips?.find((c) => c.start <= at && at < clipEnd(c))?.id ?? null;
+}
+
 function gatedRegionPlan(state, { clip, trackId }) {
   const at = state.playhead;
   if (!Number.isFinite(at) || clip.muted || clip.ungated) return null;

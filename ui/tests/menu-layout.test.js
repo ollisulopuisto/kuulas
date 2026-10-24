@@ -26,19 +26,11 @@ describe("File", () => {
       "separator",
       "app.save",
       "app.save_named",
-      "app.open_earlier_version",
-      "app.backup_now",
-      "app.send_copy",
+      "submenu",
       "separator",
       "app.export",
       "export.mix_options",
-      "export.range",
       "export.automix",
-      "export.automix_log",
-      "export.tracks_quick",
-      "export.tracks",
-      "export.music_report",
-      "export.cut_list",
       "submenu",
       "separator",
       "submenu",
@@ -59,8 +51,21 @@ describe("File", () => {
       "series.music_clipboard",
     ]);
   });
-  test("Export transcripts holds the text exports", () => {
-    assert.deepEqual(subIds("file", "menu.export_transcripts"), [
+  // Owner, 2026-10-24 (docs/design/MENUS.md): the three exports of the first hour stay in File;
+  // the rest sit in one submenu, and the earlier versions, backup and copy in another.
+  test("Versions holds the saved-version commands, rarely needed", () => {
+    assert.deepEqual(subIds("file", "menu.versions"), [
+      "app.open_earlier_version",
+      "app.backup_now",
+      "app.send_copy",
+    ]);
+  });
+  test("More exports holds the other exports, the text exports and the reports", () => {
+    assert.deepEqual(subIds("file", "menu.more_exports"), [
+      "export.range",
+      "export.tracks_quick",
+      "export.tracks",
+      "export.automix_log",
       "export.subtitles_srt",
       "export.subtitles_vtt",
       "export.transcript_txt",
@@ -70,6 +75,8 @@ describe("File", () => {
       "export.regions",
       "export.narration_script_txt",
       "export.narration_script_md",
+      "export.music_report",
+      "export.cut_list",
     ]);
   });
   test("the per-format export commands are not in the menu", () => {
@@ -124,7 +131,8 @@ describe("Edit", () => {
       "sync.drift_next",
       "sync.drift_previous",
     ]);
-    assert.ok(direct("view").includes("sync.confirm"));
+    // The dialog switch is one of the View > Options switches (owner, 2026-10-24).
+    assert.ok(subIds("view", "menu.options").includes("sync.confirm"));
   });
 });
 
@@ -174,14 +182,20 @@ describe("Text", () => {
       "transcript.remove_words",
       "transcript.cut_words",
       "transcript.correct",
+      "-",
       "transcript.find_removed",
       "transcript.mark_candidate",
+      "-",
+      ">menu.placeholders",
+      ">menu.candidates",
+    ]);
+  });
+  test("Placeholders holds the four narration commands", () => {
+    assert.deepEqual(subIds("text", "menu.placeholders"), [
       "placeholder.add",
       "placeholder.edit",
       "placeholder.take",
       "placeholder.delete",
-      "-",
-      ">menu.candidates",
     ]);
   });
   test("Transcribe (Litteroi) holds the transcribing commands and the Colab sign-in", () => {
@@ -224,9 +238,51 @@ describe("Track, Playback, View", () => {
       "gate.open_all",
     ]);
   });
-  test("Fast playback is a submenu of four", () => {
-    assert.equal(subIds("playback", "menu.fast_playback").length, 4);
+  test("Speed is one submenu: fast, slow and shuttle listening", () => {
+    const ids = subIds("playback", "menu.speed");
+    assert.equal(ids.length, 13);
+    assert.ok(ids.includes("transport.speed") && ids.includes("transport.slow_info"));
+    assert.ok(ids.includes("transport.shuttle_back"));
     assert.ok(!direct("playback").some((id) => id.startsWith("transport.speed")));
+    for (const old of ["menu.fast_playback", "menu.slow_listening", "menu.shuttle"]) {
+      assert.ok(!sub("playback", old), old);
+    }
+  });
+  test("Track keeps role and bus in submenus and Auto at the bottom", () => {
+    const names = top("track")
+      .items.filter((e) => e.kind === "submenu")
+      .map((e) => e.labelKey);
+    assert.deepEqual(names, ["menu.role", "menu.bus", "menu.auto"]);
+    assert.deepEqual(subIds("track", "menu.role"), [
+      "track.cycle_kind",
+      "track.match_role",
+      "track.role_speech",
+      "track.role_music",
+    ]);
+    assert.ok(subIds("track", "menu.bus").includes("track.new_bus"));
+    assert.ok(subIds("track", "menu.bus").includes("bus.reapply_role"));
+  });
+  test("History is in View, not in Go", () => {
+    assert.ok(!subIds("playback", "menu.go").some((id) => id.startsWith("history.")));
+    assert.deepEqual(subIds("view", "menu.history"), [
+      "history.open",
+      "history.restore",
+      "history.goto_restore_point",
+      "history.expand_all",
+      "history.saved_only",
+      "history.open_saved",
+      "history.rename_version",
+    ]);
+  });
+  test("Help starts with Getting started: the first-hour commands, each the real one", () => {
+    assert.deepEqual(subIds("help", "menu.getting_started"), [
+      "app.import",
+      "transport.play",
+      "edit.split",
+      "app.transcribe",
+      "app.export",
+      "palette.open",
+    ]);
   });
   test("View is grouped and has no loop toggle", () => {
     assert.equal(subIds("view", "menu.zoom_fit").length, 9);
@@ -234,11 +290,20 @@ describe("Track, Playback, View", () => {
       "view.collapse_all_buses",
       "view.expand_all_buses",
     ]);
-    assert.deepEqual(subIds("view", "menu.mouse"), ["view.drag_mode", "view.wheel_mode"]);
-    assert.deepEqual(subIds("view", "menu.inactive"), [
+    // The switches are one submenu (owner, 2026-10-24); each group keeps its order.
+    assert.deepEqual(subIds("view", "menu.options"), [
+      "view.drag_mode",
+      "view.wheel_mode",
       "view.inactive_both",
       "view.inactive_desaturate",
       "view.inactive_dim",
+      "view.pause_1_5",
+      "view.pause_3",
+      "view.pause_6",
+      "view.pause_never",
+      "view.clipboard_limit",
+      "sync.confirm",
+      "view.reset_remembered",
     ]);
     assert.deepEqual(subIds("view", "menu.language"), [
       "view.language_auto",
@@ -272,9 +337,7 @@ describe("top-level bar (owner, 2026-10-19)", () => {
       .map((e) => e.labelKey);
     assert.deepEqual(names, [
       "menu.record_settings",
-      "menu.fast_playback",
-      "menu.slow_listening",
-      "menu.shuttle",
+      "menu.speed",
       "menu.go",
       "menu.markers",
       "menu.cart",

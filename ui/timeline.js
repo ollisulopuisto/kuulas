@@ -1417,7 +1417,10 @@ export function createTimeline({
     overlay.restore();
     // A clip that keeps the mic open: the open padlock after its name (the pair of the gate's
     // closed one), clear of the right edge zone and the badges there.
-    if (clip.ungated) {
+    // A muted clip carries a crossed-out speaker in the same place, so it is told apart from a
+    // stretch Auto-Silence closed (owner, 2026-10-24: they looked alike).
+    const stateIcon = clip.muted ? "mute" : clip.ungated ? "unlock" : null;
+    if (stateIcon) {
       const badges = clip.group || syncRowsOf(state).has(clip.id) ? 40 : 0;
       const spot = openLockSpot({
         after: x + textWidth + 3,
@@ -1425,7 +1428,8 @@ export function createTimeline({
         iconPx: ICON_PX,
         gap: 4,
       });
-      if (spot !== null) drawPadlock("unlock", spot, y + 3, theme.gateOpen);
+      if (spot !== null)
+        drawPadlock(stateIcon, spot, y + 3, stateIcon === "mute" ? colours.label : theme.gateOpen);
     }
   }
 

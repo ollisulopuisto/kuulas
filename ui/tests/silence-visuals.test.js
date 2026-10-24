@@ -215,7 +215,7 @@ describe("the legend (Auto-Silence panel)", () => {
     const [en, fi] = [read("en"), read("fi")];
     assert.deepEqual(
       SILENCE_LEGEND.map((line) => line.state),
-      ["filled", "outline", "lock", "edges", "open", "preview", "inactive", "group"],
+      ["filled", "outline", "muted", "lock", "edges", "open", "preview", "inactive", "group"],
     );
     for (const key of [SILENCE_LEGEND_TITLE, ...SILENCE_LEGEND.map((line) => line.key)]) {
       assert.ok(en[key], `en ${key}`);

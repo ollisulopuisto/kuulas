@@ -175,6 +175,7 @@ export const SILENCE_LEGEND_TITLE = "ui.silence.legend_title";
 export const SILENCE_LEGEND = [
   { state: "filled", key: "ui.silence.legend.filled" },
   { state: "outline", key: "ui.silence.legend.outline" },
+  { state: "muted", key: "ui.silence.legend.muted", icon: "mute" },
   { state: "lock", key: "ui.silence.legend.lock", icon: "lock" },
   { state: "edges", key: "ui.silence.legend.edges" },
   { state: "open", key: "ui.silence.legend.open", icon: "unlock" },

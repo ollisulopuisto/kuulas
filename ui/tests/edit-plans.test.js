@@ -14,6 +14,7 @@ import {
   moveTrackPlan,
   mutePlan,
   nudgePlan,
+  openedRegionClip,
   removeClipsPlan,
   removePlan,
   resetGainsPlan,
@@ -216,6 +217,20 @@ describe("mute on a closed stretch (BUGS #109)", () => {
     assert.equal(plan.op, "open_gated_region");
     assert.deepEqual(plan.args, { track_id: "A", at: 4 * S });
     assert.equal(plan.label.key, "ui.edit.label.unmute_region");
+  });
+
+  test("openedRegionClip finds the clip M opened, so it can be selected for the next M", () => {
+    const after = {
+      ...project,
+      tracks: [
+        {
+          id: "A",
+          clips: [clip("a1", 0, 3), clip("a2", 3, 5, { ungated: true }), clip("a3", 5, 10)],
+        },
+      ],
+    };
+    assert.equal(openedRegionClip(after, "A", 4 * S), "a2");
+    assert.equal(openedRegionClip(after, "B", 4 * S), null);
   });
 
   test("the cursor outside the stretch: the whole clip, as before", () => {
