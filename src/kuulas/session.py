@@ -86,6 +86,7 @@ from . import loudness_curve as loudness_curve_module
 from . import markers as markers_module
 from . import music_report as music_report_module
 from . import send_copy as send_copy_module
+from .cart_level import cart_gain_db, trimmed_length
 from .clipboard import (
     ClipRef,
     Entry,
@@ -296,7 +297,7 @@ CAUSE_STEPS = 300
 #: The edits that stay possible while a take records: the take landing itself, and markers
 #: (they sit on the timeline's frames, so no clip or take moves).
 RECORDING_OK_EDITS = frozenset({
-    "import_take", "record_tracks", "cart_log", "add_marker", "rename_marker",
+    "import_take", "record_tracks", "cart_log", "cart_end", "add_marker", "rename_marker",
     "move_marker", "set_region_end",
     "delete_marker", "set_marker_kind"})
 
@@ -955,7 +956,9 @@ class Session:
         self.clipboard.update(lambda h: h.add(mine))
         return self._entry_view(mine, self.state)
 
-    def clipboard_preview(self, entry_id: str, limit: bool = True):
+    def clipboard_preview(self, entry_id: str, limit: bool = True, *,
+                          cart_voice: float | None = None, cart_trim: float = 0,
+                          cart_track: str | None = None):
         """``(temporary project or None, missing media count, gain dB)`` for
         playing an entry without changing this project (``clipboard_preview``).
 
@@ -967,16 +970,25 @@ class Session:
         """
         snapshot = self.state
         entry = self._entry(entry_id)
-        project, missing = preview_project(snapshot, entry)
-        if project is None or not limit:
+        preview_source = (snapshot if cart_track is None else
+                          replace(snapshot, tracks=(snapshot.track(cart_track),)))
+        project, missing = preview_project(preview_source, entry)
+        if project is None or (not limit and cart_track is None):
             return project, len(missing), 0.0
         cache_root = getattr(self.store, "cache_root", None)
-        reference, project_peak = self._preview_reference(snapshot, cache_root)
-        key = (entry.id, project.rate,
+        reference, project_peak = (
+            (cart_voice, None) if cart_track is not None and cart_voice is not None
+            else self._preview_reference(snapshot, cache_root))
+        key = (entry.id, project.rate, project.master_gain_db,
                tuple((t.gain_db, t.pan, t.mono) for t in project.tracks))
         if key not in self._entry_levels:
             self._entry_levels[key] = clipboard_level.entry_level(project, self.store)
         lufs, entry_peak = self._entry_levels[key]
+        if cart_track is not None:
+            gain = cart_gain_db(cart_voice, lufs, entry_peak, cart_trim,
+                                reference=reference)
+            matched = replace(project, master_gain_db=project.master_gain_db + gain)
+            return matched, len(missing), gain
         gain = round(preview_level.preview_gain_db(
             reference, lufs, entry_peak_db=entry_peak, project_peak_db=project_peak), 2)
         return replace(project, master_gain_db=gain), len(missing), gain
@@ -1118,7 +1130,8 @@ class Session:
         return self._paste(entry_id, at=at, mode=mode, target_tracks=target_tracks,
                            out=out, label=label, op_name="clipboard_paste")
 
-    def cart_log(self, entry_id: str, *, at: int, track_id: str) -> dict:
+    def cart_log(self, entry_id: str, *, at: int, track_id: str,
+                 gain_db: float = 0) -> dict:
         """A clip played from the cart while a take records, put on ``track_id`` at ``at``
         (overwrite, one undo step). The one paste that stays possible during a take: it
         only writes its own track after the take's start, so the take's landing is not
@@ -1127,10 +1140,28 @@ class Session:
         slots = {ref.track_slot for ref in entry.refs}
         return self._paste(entry_id, at=at, mode="overwrite",
                            target_tracks=dict.fromkeys(slots, track_id),
-                           out=None, label=t("history.cart_log"), op_name="cart_log")
+                           out=None, label=t("history.cart_log"), op_name="cart_log",
+                           gain_db=gain_db)
+
+    def cart_end(self, clip_ids: list[str], stop: int) -> None:
+        """Trim only the IDs owned by RecordSession; never a ripple or file edit."""
+        with self.lock:
+            _check_writable(self)
+            self._check_not_recording("cart_end")
+            project = self.history.state
+            new = project
+            for track in project.tracks:
+                for clip in track.clips:
+                    if clip.id in clip_ids:
+                        end = clip.start + trimmed_length(clip.start, clip.length, stop)
+                        if end < clip.end:
+                            new = ops.trim_clips(new, [clip.id], end=end)
+            if new != project:
+                self._commit(t("history.cart_end"), new, "cart_end",
+                             {"clip_ids": clip_ids, "stop": stop})
 
     def _paste(self, entry_id: str, *, at: int, mode: str, target_tracks, out: int | None,
-               label: str | None, op_name: str) -> dict:
+               label: str | None, op_name: str, gain_db: float = 0) -> dict:
         """Paste an entry at frame ``at`` as one undo step; ``mode`` is
         ``insert`` (ripple) or ``overwrite`` (the default of the UI). ``out``: the
         marked Out point, ``at`` then being the In point: the paste is cut to end there.
@@ -1154,12 +1185,17 @@ class Session:
             if not plan.placements:
                 return report
             landed = set(_targets(project, entry, mapping).values())
-            new = apply_paste(project, entry, plan, at, landed, mode, out=out)
+            clip_ids = tuple(ops.new_id("c") for _ in plan.placements)
+            new = apply_paste(project, entry, plan, at, landed, mode, out=out,
+                              clip_ids=clip_ids, gain_db=gain_db)
+            if op_name == "cart_log":
+                report["clip_ids"] = list(clip_ids)
             self.history.commit(
                 label or t("history.clipboard_paste"), new,
                 op={"name": op_name,
                     "args": {"entry_id": entry.id, "at": at, "mode": mode,
-                             "target_tracks": target_tracks, "out": out}})
+                             "target_tracks": target_tracks, "out": out,
+                             **({"gain_db": gain_db} if op_name == "cart_log" else {})}})
             self._changed()
         return report
 

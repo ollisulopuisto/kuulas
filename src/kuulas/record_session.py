@@ -30,6 +30,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+import math
 import os
 import shutil
 import threading
@@ -50,6 +51,7 @@ from kuulas_recorder.client import (
 from . import disk_budget, ops
 from . import record_take as rt
 from .messages import KuulasError, t
+from .preview_level import PEAK_TO_LUFS_DB
 
 log = logging.getLogger("kuulas.record")
 
@@ -139,6 +141,12 @@ class RecordSession:
         self._status: dict = {"state": "idle"}
         #: The track clips played from the cart are put on during the take (set at Start).
         self._cart_track: str | None = None
+        self._cart_ids: list[str] = []
+        self._cart_issued: set[tuple[str, ...]] = set()
+        self._cart_base = 0
+        self._cart_preroll = 0
+        self._voice_levels: deque = deque()
+        self._cart_lock = threading.RLock()
         self._available = False
         self._position = 0
         self._notices: deque = deque(maxlen=NOTICES_KEPT)
@@ -474,6 +482,7 @@ class RecordSession:
         live and lands on them. Never stops the take: when it fails the lanes stay "new"
         and the tracks are made when the take lands, as before."""
         new = [lane for lane in plan.all_lanes if lane.track_id is None]
+        self._voice_levels.clear()
         self._cart_track = None if cart_track == "new" else cart_track
         if not new and cart_track != "new":
             return
@@ -496,7 +505,7 @@ class RecordSession:
         first = lanes[0]
         rt.write_plan(self.folder, replace(plan, track_id=first.track_id, lanes=lanes))
 
-    def cart_log(self, entry_id: str) -> dict:
+    def cart_log(self, entry_id: str, *, gain_db: float = 0) -> dict:
         """A clip played from the cart during this take: put it on the cart track where
         the take is now (take start + what was recorded, the pre-roll not counted), so
         the question sits where it was asked. ``RecordError`` when no take of this project
@@ -513,8 +522,56 @@ class RecordSession:
         base = 0 if plan is None else plan.at
         preroll = max(0, int(status.get("preroll_frames") or 0))
         at = base + max(0, position - preroll)
-        self.session.cart_log(entry_id, at=at, track_id=track_id)
-        return {"at": at, "track_id": track_id}
+        with self._cart_lock:
+            self._end_cart()
+            result = self.session.cart_log(entry_id, at=at, track_id=track_id,
+                                           gain_db=gain_db)
+            self._cart_ids = result.get("clip_ids", [])
+            self._cart_issued.add(tuple(self._cart_ids))
+            self._cart_base, self._cart_preroll = base, preroll
+            return {"at": at, "track_id": track_id, "clip_ids": self._cart_ids}
+
+    def _end_cart(self) -> None:
+        if self._cart_ids:
+            stop = self._cart_base + max(0, self._position - self._cart_preroll)
+            self.session.cart_end(self._cart_ids, stop)
+            self._cart_ids = []
+
+    def _take_cart_end(self, take: str) -> None:
+        # A stopped event has sample counts, not position_frames. Segment offsets
+        # retain the take clock across gaps; a total of samples would erase gaps.
+        with self._cart_lock:
+            sidecar = self._sidecar(take) or {}
+            ends = [int(seg["start_frame"]) + int(file.get("frames", 0))
+                    for seg in sidecar.get("segments", [])
+                    if seg.get("start_frame") is not None
+                    for file in (seg.get("files") or {}).values()]
+            if ends:
+                self._position = max(self._position, *ends)
+            self._end_cart()
+
+    def cart_end(self, clip_ids: list[str] | None = None) -> None:
+        """Only the current play's exact IDs can end it; stale ends are harmless."""
+        with self._cart_lock:
+            if clip_ids is not None and clip_ids != self._cart_ids:
+                if tuple(clip_ids) in self._cart_issued:
+                    return
+                raise RecordError("error.record.bad_request", detail="clip_ids")
+            self._end_cart()
+
+    def cart_preview(self, entry_id: str, trim: float = 0):
+        """Recent voices: power mean of non-silent channel peaks over three seconds,
+        minus the preview's 14 dB peak-to-LUFS estimate. No voices: project reference.
+        """
+        now = time.monotonic()
+        with self._lock:
+            levels = [v for when, v in self._voice_levels if now - when <= 3]
+        voice = (10 * math.log10(sum(10 ** (v / 10) for v in levels) / len(levels))
+                 - PEAK_TO_LUFS_DB) if levels else None
+        if self._cart_track is None:
+            raise RecordError("error.record.no_cart_track", status=409)
+        return self.session.clipboard_preview(entry_id, cart_voice=voice,
+                                              cart_trim=trim, cart_track=self._cart_track)
 
     def stop(self, mode: str | None, held_ms: int = 0) -> dict:
         """Stop the take, then import it. ``mode`` is the user's stop gesture
@@ -532,6 +589,7 @@ class RecordSession:
             raise RecordError("error.record.another_project", status=409)
         answer = self._command("stop", timeout=STOP_TIMEOUT_S)
         take = (answer.get("take") or {}).get("take") or status["take"]
+        self._take_cart_end(take)
         imported = self.import_take(take)
         self._cart_track = None
         self.publish({"type": "record", "kind": "status", "status": self.status()})
@@ -704,6 +762,13 @@ class RecordSession:
             if ours or armed:  # the meter also runs while armed
                 with self._lock:
                     self._position = int(event.get("position_frames", self._position))
+                    now = time.monotonic()
+                    while self._voice_levels and now - self._voice_levels[0][0] > 3:
+                        self._voice_levels.popleft()
+                    self._voice_levels.extend((now, float(v)) for v in
+                                              event.get("peak_dbfs", [])
+                                              if v is not None
+                                              and math.isfinite(v) and v > -60)
                 self.publish({"type": "record", "kind": "level",
                               "peak_dbfs": event.get("peak_dbfs", []),
                               "clipped": event.get("clipped", []),
@@ -711,6 +776,7 @@ class RecordSession:
             return
         if kind == "stopped":
             if self._ours(event) and event.get("take"):
+                self._take_cart_end(event["take"])
                 self._import_later(event["take"])
             self.publish({"type": "record", "kind": "status", "status": self.status()})
             return

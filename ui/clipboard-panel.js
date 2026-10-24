@@ -663,6 +663,7 @@ export function createClipboardPanel({ root, actions }) {
       actions.hasPicker(),
       state.clipboardFilter ?? "",
       state.clipboardKeep,
+      state.cartTrim,
       state.clipboardLevel,
       state.clipboardPlaying?.id ?? null,
       // "5 minutes ago" moves on by the minute, not with the cursor.
@@ -683,8 +684,29 @@ export function createClipboardPanel({ root, actions }) {
     meter = null; // drawn again below if a chip plays
     // The one action bar, at the top: only the project view with entries has actions here.
     const bar = view === "project" && (state.clipboard ?? []).length > 0 ? [clearRow(state)] : [];
+    const trimInput = el("input", {
+      id: "cart-trim",
+      type: "number",
+      min: -12,
+      max: 12,
+      step: 0.5,
+      value: String(state.cartTrim ?? 0),
+      "aria-describedby": "cart-trim-help",
+    });
+    trimInput.addEventListener("change", () => actions.cartTrim(trimInput.value));
     root.replaceChildren(
       el("h2", { textContent: t("ui.clipboard.title") }),
+      el(
+        "div",
+        { class: "clip-choice form-grid" },
+        el(
+          "label",
+          { class: "form-row" },
+          el("span", { class: "form-label", textContent: t("ui.clipboard.cart_trim") }),
+          trimInput,
+        ),
+      ),
+      el("p", { id: "cart-trim-help", textContent: t("ui.clipboard.cart_trim_help") }),
       ...bar,
       viewSwitch(view),
       // The two paste choices: form rows on the panel's label column (FORMS.md).

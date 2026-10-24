@@ -14,7 +14,7 @@ import { trackRoleChoice } from "./bus-role.js";
 import { listedRows, scrollToShow, stepTarget } from "./candidates-model.js";
 import { createCandidatesPanel } from "./candidates-panel.js";
 import { previewRequest } from "./candidates-preview.js";
-import { cartSlots } from "./cart-model.js";
+import { cartSlots, cartTrim, createCartQueue } from "./cart-model.js";
 import { clipDragChange } from "./clip-drag.js";
 import { expandGroups, toggleGroupSelection } from "./clip-groups.js";
 import { implicitPortionTarget } from "./clip-silence.js";
@@ -541,6 +541,7 @@ function startPlayheadTicker() {
 // The clipboard preview (WP46) has a clock of its own: its anchors ("preview" on the live
 // channel) fill the playing chip's progress meter and never move the timeline's playhead.
 // With animation off the meter steps four times a second instead of every frame.
+const cartQueue = createCartQueue();
 let previewClock = createPlayheadClock();
 let previewEnd = null;
 let previewEndedSeq = null; // the newest "no preview plays" heard
@@ -856,6 +857,8 @@ function focusChanged(state, touched) {
 
 // The clipboard preview is turned down to the project's level (WP82): on by default, remembered
 // per user. The server does the measuring; this is only the switch.
+const CART_TRIM_KEY = "cartTrim";
+setState({ cartTrim: cartTrim(prefs.get(CART_TRIM_KEY) ?? 0) });
 const CLIPBOARD_LIMIT_KEY = "clipboardLimit";
 setState({ clipboardLimit: prefs.get(CLIPBOARD_LIMIT_KEY) !== "off" });
 function toggleClipboardLimit() {
@@ -1463,20 +1466,37 @@ const keyboard = setupKeyboard({
       rangeMemory = rememberRange(head, { inPoint, outPoint, rangeTracks });
     },
     previewClipboard: (id) =>
-      api
-        .previewClipboardEntry(id, getState().clipboardLimit !== false)
-        .then((answer) => {
-          // Played during a take: it is put on the timeline where it was played (cart track).
-          if (answer?.started && recordView.isRecording()) logCartPlay(id);
-          // How far the preview was turned down, for the hint beside the entry.
-          setState({ clipboardLevel: { id, db: answer?.attenuation_db ?? 0 } });
-          if (answer?.started) startClipboardPreview(id, answer.seq ?? null);
-          return answer;
-        })
-        .catch((error) => {
-          showError(error);
-          return null;
-        }),
+      cartQueue(() => {
+        if (getState().clipboardPlaying?.id === id) {
+          return api
+            .stopClipboardPreview()
+            .then(() => {
+              setState({ clipboardPlaying: null });
+              return null;
+            })
+            .catch(showError);
+        }
+        return api
+          .previewClipboardEntry(id, getState().clipboardLimit !== false, getState().cartTrim ?? 0)
+          .then((answer) => {
+            // Played during a take: it is put on the timeline where it was played (cart track).
+            if (answer?.cart) {
+              activeCartIds = answer.cart.clip_ids;
+              apply(answer);
+            }
+            // How far the preview was turned down, for the hint beside the entry.
+            setState({ clipboardLevel: { id, db: answer?.attenuation_db ?? 0 } });
+            if (answer?.started) {
+              startClipboardPreview(id, answer.seq ?? null);
+              if (!getState().clipboardPlaying) finishCartPlay();
+            }
+            return answer;
+          })
+          .catch((error) => {
+            showError(error);
+            return null;
+          });
+      }),
     now: () => performance.now(),
     chooseMedia: () => chooseMedia(),
     // The transcript's X: cut the words' stretch on every track.
@@ -2799,8 +2819,11 @@ function followLiveHead() {
   liveHeadSeen = headInView({ head, scroll: next ?? scroll, zoom, width: width() });
 }
 // A clip played while a take records goes on the cart track at the take's place now.
-function logCartPlay(entryId) {
-  api.recordCartLog(entryId).then(apply).catch(showError);
+let activeCartIds = null;
+function finishCartPlay() {
+  const ids = activeCartIds;
+  activeCartIds = null;
+  if (ids?.length) void api.recordCartEnd(ids).then(apply).catch(showError);
 }
 function cycleStopMode() {
   const mode = nextStopMode(recordView.stopMode);
@@ -3707,6 +3730,11 @@ const clipboardPanel = createClipboardPanel({
         keyboard.registry.run(pasteCommand(getState()), null, getState());
       }
     },
+    cartTrim: (value) => {
+      const db = cartTrim(value);
+      prefs.set(CART_TRIM_KEY, String(db));
+      setState({ cartTrim: db });
+    },
     keep: (value) => setState({ clipboardKeep: Number(value) }),
     clearOld: () => keyboard.registry.run("edit.clear_old_clipboard", null, getState()),
     preview(id) {
@@ -4230,6 +4258,7 @@ function render(state, patch) {
     silencePanel?.projectChanged();
     blockLevelPanel?.projectChanged();
   }
+  if (touched("clipboardPlaying") && !state.clipboardPlaying) finishCartPlay();
   if (touched("playing", "clipboardPlaying")) {
     // A clipboard preview playing: the Play button stops it (transport.toggle).
     const sounding = state.playing || Boolean(state.clipboardPlaying);
@@ -4353,6 +4382,9 @@ function render(state, patch) {
       "clipboardSelected",
       "clipboardFilter",
       "clipboardKeep",
+      "cartTrim",
+      "clipboardPlaying",
+      "clipboardLevel",
       "clipboardView",
       "clipboardShared",
       "clipboardSeries",
@@ -4656,6 +4688,10 @@ connectLive({
   onMessage(message) {
     if (message.type === "record") {
       recordView.live(message);
+      if (activeCartIds && message.kind === "status" && !message.status?.recording) {
+        finishCartPlay();
+        void api.stopClipboardPreview().catch(showError);
+      }
       return;
     }
     if (message.type === "pong") {

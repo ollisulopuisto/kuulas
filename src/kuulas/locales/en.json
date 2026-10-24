@@ -3129,5 +3129,8 @@
   "ui.edit.idle.no_track": "No track in focus: click a track name first.",
   "ui.edit.idle.paste_empty": "Nothing to paste: the clipboard is empty.",
   "ui.edit.idle.paste_no_track": "Nothing to paste: click a track name first.",
-  "ui.edit.idle.select_all": "No clips to select."
+  "ui.edit.idle.select_all": "No clips to select.",
+  "history.cart_end": "Trim played cart clip",
+  "ui.clipboard.cart_trim": "Cart level trim (dB)",
+  "ui.clipboard.cart_trim_help": "During recording, match cart audio to voices from the last 3 seconds, or the project reference level. This remembered trim adjusts that match; peaks stay below −1 dBTP."
 }
