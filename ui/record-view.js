@@ -101,6 +101,10 @@ export function createRecordView({
   let position = 0;
   // Where clips played from the cart go while the take records ("" none, "new", a track id).
   const CART_KEY = "kuulas.record.cart";
+  const OTHERS_KEY = "kuulas.record.playOthers";
+  const DELAY_KEY = "kuulas.record.delayMs";
+  let playOthers = prefs.get(OTHERS_KEY) === "1";
+  let delayMs = Number(prefs.get(DELAY_KEY)) || 0;
   let cartTrack = String(prefs.get(CART_KEY) ?? "");
   // The take drawn on the timeline lanes while it records (owner, 2026-10-23).
   const liveTake = createLiveTake();
@@ -222,6 +226,32 @@ export function createRecordView({
     setup.cartWarn = el("p", "record-message record-cart-warning");
     setup.cartWarn.setAttribute("role", "status");
     box.append(setup.cartWarn);
+    // Play the other tracks while recording (off by default; headphones), and the delay to
+    // cut from the take's head so it lines up with what was heard.
+    const othersBox = el("input");
+    othersBox.type = "checkbox";
+    setup.others = row(t("ui.record.play_others"), othersBox);
+    setup.othersBox = othersBox;
+    const delayBox = el("input");
+    delayBox.type = "number";
+    delayBox.min = "0";
+    delayBox.max = "2000";
+    delayBox.step = "1";
+    setup.delay = row(t("ui.record.delay_ms"), delayBox);
+    setup.delayBox = delayBox;
+    setup.othersHelp = el("p", "record-message", t("ui.record.play_others_help"));
+    box.append(setup.othersHelp);
+    othersBox.checked = playOthers;
+    delayBox.value = String(delayMs);
+    othersBox.addEventListener("change", () => {
+      playOthers = othersBox.checked;
+      prefs.set(OTHERS_KEY, playOthers ? "1" : "0");
+    });
+    delayBox.addEventListener("change", () => {
+      delayMs = Math.min(2000, Math.max(0, Number(delayBox.value) || 0));
+      delayBox.value = String(delayMs);
+      prefs.set(DELAY_KEY, String(delayMs));
+    });
     setup.armed = el("p", "record-armed");
     setup.armed.setAttribute("role", "status");
     setup.at = el("p", "record-at");
@@ -466,6 +496,8 @@ export function createRecordView({
           lanes: selectedLanes(rows),
           at: getState().playhead ?? 0,
           cartTrack,
+          playOthers,
+          latencyMs: delayMs,
         }),
       );
       notices.length = 0;
@@ -557,6 +589,7 @@ export function createRecordView({
     rec.ring.style.strokeDasharray = `${RING}`;
     rec.ring.style.strokeDashoffset = `${RING * (1 - fill)}`;
     rec.stop.disabled = stopping;
+    renderSlim?.();
   }
 
   function renderNotices() {
@@ -718,11 +751,46 @@ export function createRecordView({
     renderChip();
   }
 
+  // The slim recording bar (owner, 2026-10-25): next to the chip, always in reach while the
+  // big view is hidden: Stop (the same gesture as the big button) and Add marker.
+  const slim = chip ? el("span", "record-slim") : null;
+  const slimStop = slim ? el("button", "button record-slim-stop") : null;
+  const slimMarker = slim
+    ? el("button", "button record-slim-marker", t("ui.record.add_marker"))
+    : null;
+  if (slim) {
+    slimStop.type = "button";
+    slimMarker.type = "button";
+    slimMarker.title = t("ui.record.add_marker_title");
+    slimMarker.addEventListener("click", () => addMarker());
+    slimStop.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      slimStop.setPointerCapture?.(event.pointerId);
+      press();
+    });
+    for (const type of ["pointerup", "pointercancel", "lostpointercapture"])
+      slimStop.addEventListener(type, () => release());
+    slim.append(slimStop, slimMarker);
+    slim.hidden = true;
+    chip.after(slim);
+  }
+
+  function renderSlim() {
+    if (!slim) return;
+    slim.hidden = !recording();
+    const label = stopping ? t("ui.record.stopping") : stopLabel(gestureView, stopMode, t);
+    slimStop.textContent = label;
+    slimStop.dataset.state = stopping ? "stopped" : gestureView.state;
+    slimStop.setAttribute("aria-label", label);
+    slimStop.disabled = stopping;
+  }
+
   function renderChip() {
     if (!chip) return;
     chip.hidden = !recording();
     chip.textContent = t("ui.record.indicator", { time: formatElapsed(shownPosition(), rate()) });
     chip.title = t("ui.record.indicator_title");
+    renderSlim();
   }
   chip?.addEventListener("click", () => show());
 

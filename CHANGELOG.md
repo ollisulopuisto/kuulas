@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+- **A slim recording bar with Stop and Add marker.** While a take records and the big record view is hidden, the toolbar shows a Stop button (the same stop gesture you chose in the record view) and an Add marker button beside the "Recording" chip. Not seen on screen, not tried with a microphone.
+- **Play the other tracks while recording (off by default).** The record setup has "Play the other tracks while recording" and "Recording delay (ms)". With it on, every track the take does not record onto plays from the take's start (use headphones: the microphone hears them otherwise), and the take's head is cut by the delay when it lands, so it lines up with what you heard (the recorded file is never changed). The delay is a number you set by ear for now; measuring it is not built. Known limit: a clip on a recorded-onto track that keeps the mic open still sounds. Not tried with a microphone or real headphones.
+
 - **M acts on the Auto-Silence portion under the cursor, also for a grouped clip and with nothing selected.** Selecting a clip selects its whole group, so M used to mute the entire parent clips; now the portion under the play cursor on the current track (closed or audible) becomes its own clip and is toggled, and the rest of the group is left alone. With no clip selected, M uses the current track's clip under the cursor.
 
 - **Clip borders no longer look like the waveform.** The border is a neutral grey that is at least 1.6 times apart in contrast from every track colour's waveform, in both themes, so a clip's edge and its sound are easy to tell apart.

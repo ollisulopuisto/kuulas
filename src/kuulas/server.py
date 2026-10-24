@@ -313,6 +313,10 @@ class RecordStartBody(BaseModel):
     # The track clips played from the cart go on while the take records: None, "new" (a
     # track called Questions) or a track that is not one of the take's.
     cart_track: str | None = None
+    # Play every track the take does not record onto, from the take's start (headphones!).
+    play_others: bool = False
+    # The delay between what was heard and what was captured, cut from the take's head.
+    latency_ms: float = 0.0
 
 
 class CartPlayBody(BaseModel):
@@ -1678,14 +1682,32 @@ def create_app(session, engine, *, language: str | None = None,
     def record_devices():
         return {"devices": need_recorder().devices()}
 
+    monitoring = {"on": False}
+
+    def stop_monitoring():
+        """End "play the other tracks" when the take is over: stop, lift the silencing."""
+        if monitoring["on"]:
+            monitoring["on"] = False
+            engine.stop()
+            engine.set_silence_overlay(None)
+
     @app.post("/api/record/start")
     def record_start(body: RecordStartBody):
         rec = need_recorder()
-        # No listening while recording (owner, 2026-10-19): monitoring is the interface's.
-        engine.stop()
-        return rec.start(device=body.device, channels=body.channels, channel=body.channel,
+        # No listening while recording unless asked (owner, 2026-10-19): monitoring is the
+        # interface's. With "play the other tracks" they play from the take's start.
+        if not body.play_others:
+            engine.stop()
+        view = rec.start(device=body.device, channels=body.channels, channel=body.channel,
                          track_id=body.track_id, name=body.name, at=body.at,
-                         cart_track=body.cart_track)
+                         cart_track=body.cart_track, latency_ms=body.latency_ms)
+        if body.play_others:
+            ids = rec.take_track_ids(view.get("take", ""))
+            silent = {tid: [(0, 2**62)] for tid in ids}
+            engine.set_silence_overlay(silent)
+            engine.play(body.at)
+            monitoring["on"] = True
+        return view
 
     @app.post("/api/record/cart")
     def record_cart(body: CartPlayBody):
@@ -1707,6 +1729,7 @@ def create_app(session, engine, *, language: str | None = None,
     @app.post("/api/record/stop")
     def record_stop(body: RecordStopBody):
         result = need_recorder().stop(body.mode, body.held_ms)
+        stop_monitoring()
         return state_response({"record": result})
 
     @app.post("/api/record/import")

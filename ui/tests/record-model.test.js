@@ -80,6 +80,8 @@ describe("the start request", () => {
         name: "Guest",
         at: 4800,
         cart_track: null,
+        play_others: false,
+        latency_ms: 0,
       },
     );
   });
@@ -303,5 +305,21 @@ describe("the cart's track while recording (owner, 2026-10-23)", () => {
     assert.equal(body.cart_track, "t3");
     assert.equal(startRequest({ device: null, lanes: [], at: 10 }).cart_track, null);
     assert.equal(startRequest({ device: null, lanes: [], at: 10, cartTrack: "" }).cart_track, null);
+  });
+});
+
+describe("startRequest: playing the other tracks while recording", () => {
+  test("off by default, no delay", () => {
+    const body = startRequest({ device: null, channel: 1, target: "new", name: "", at: 0 });
+    assert.equal(body.play_others, false);
+    assert.equal(body.latency_ms, 0);
+  });
+  test("on with a delay, clamped to 0..2000 ms", () => {
+    const on = { device: null, channel: 1, target: "new", name: "", at: 0, playOthers: true };
+    assert.equal(startRequest({ ...on, latencyMs: 35 }).play_others, true);
+    assert.equal(startRequest({ ...on, latencyMs: 35 }).latency_ms, 35);
+    assert.equal(startRequest({ ...on, latencyMs: -4 }).latency_ms, 0);
+    assert.equal(startRequest({ ...on, latencyMs: 99999 }).latency_ms, 2000);
+    assert.equal(startRequest({ ...on, latencyMs: "x" }).latency_ms, 0);
   });
 });

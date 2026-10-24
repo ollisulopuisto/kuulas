@@ -70,12 +70,26 @@ export function channelChoices(device) {
  * The body of POST /api/record/start. Several channels (WP12b): `lanes`, from selectedLanes;
  * the one-channel form (`channel`, `target` a track id or "new", `name`) still works.
  */
-export function startRequest({ device, lanes, channel, target, name, at, cartTrack }) {
+export function startRequest({
+  device,
+  lanes,
+  channel,
+  target,
+  name,
+  at,
+  cartTrack,
+  playOthers = false,
+  latencyMs = 0,
+}) {
   const body = {
     device: device ? { index: device.index, name: device.name } : null,
     at: Math.max(0, Math.round(Number(at) || 0)),
     // Where clips played from the cart go while the take records: a track, "new", or none.
     cart_track: cartTrack || null,
+    // Play the tracks the take does not record onto, from its start (headphones), and the
+    // delay between what is heard and what is captured, cut from the take's head (ms).
+    play_others: Boolean(playOthers),
+    latency_ms: Math.min(2000, Math.max(0, Number(latencyMs) || 0)),
   };
   if (lanes) return { ...body, channels: lanes };
   return {

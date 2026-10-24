@@ -919,3 +919,80 @@ def test_a_clip_played_when_nothing_records_is_refused(session):
     with pytest.raises(RecordError) as e:
         rs.cart_log("anything")
     assert e.value.key == "error.record.not_recording"
+
+
+def test_the_recording_delay_trims_the_head_of_the_take_so_it_lines_up(session):
+    # Playing the other tracks while recording: what the performer reacted to was heard
+    # `latency_frames` late, so the take's head is cut by that much (file untouched).
+    folder = recordings(session)
+    plan = rt.TakePlan("Take 1", RATE, None, "Olli", 1, latency_frames=480)
+    write_take(folder, plan=plan)
+    offline(session).import_take("Take 1")
+    clip = session.state.tracks[0].clips[0]
+    assert clip.start == RATE
+    assert clip.offset == 480
+    assert clip.length == RATE - 480
+
+
+def test_the_plan_keeps_the_recording_delay_on_disk(session):
+    folder = recordings(session)
+    plan = rt.TakePlan("Take 1", 0, None, "Olli", 1, latency_frames=960)
+    write_take(folder, plan=plan)
+    assert rt.read_plan(folder, "Take 1").latency_frames == 960
+    # a plan written before this field reads as no delay
+    write_take(folder, "Old", plan=rt.TakePlan("Old", 0, None, "Olli", 1))
+    assert rt.read_plan(folder, "Old").latency_frames == 0
+
+
+class MonitorEngine(NoEngine):
+    """Records what the server asks of the engine while a take runs."""
+
+    def __init__(self):
+        super().__init__()
+        self.played = []
+        self.overlays = []
+
+    def play(self, at=None, until=None, **kw):
+        self.played.append(at)
+
+    def set_silence_overlay(self, ranges):
+        self.overlays.append(ranges)
+
+
+def test_play_the_other_tracks_while_recording_is_opt_in_and_silences_the_recorded_ones(
+        session, tmp_path, recorder):
+    engine = MonitorEngine()
+    rs = live(session, recorder)
+    try:
+        with api(session, tmp_path, rs, engine) as c:
+            r = c.post("/api/record/start", json={
+                "device": {"index": 0, "name": "Fake Mic"}, "channel": 2,
+                "track_id": "new", "name": "Guest", "at": 4800, "play_others": True,
+                "latency_ms": 20})
+            assert r.status_code == 200, r.text
+            assert engine.stops == 0  # not stopped: the other tracks play
+            assert engine.played == [4800]
+            recorded = {t.id for t in session.state.tracks if t.name == "Guest"}
+            assert set(engine.overlays[-1]) == recorded  # the recorded track is silent
+            time.sleep(0.5)
+            c.post("/api/record/stop", json={"mode": "two_step"})
+            assert engine.stops == 1
+            assert engine.overlays[-1] is None
+    finally:
+        rs.close()
+
+
+def test_without_the_option_a_take_still_stops_playback(session, tmp_path, recorder):
+    engine = MonitorEngine()
+    rs = live(session, recorder)
+    try:
+        with api(session, tmp_path, rs, engine) as c:
+            r = c.post("/api/record/start", json={
+                "device": {"index": 0, "name": "Fake Mic"}, "channel": 2,
+                "track_id": "new", "name": "Guest", "at": 0})
+            assert r.status_code == 200, r.text
+            assert engine.stops == 1
+            assert engine.played == []
+            assert engine.overlays == []
+    finally:
+        rs.close()

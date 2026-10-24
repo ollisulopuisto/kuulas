@@ -4858,3 +4858,18 @@ legend.form-heading {
 .job-progress[hidden] {
   display: none;
 }
+
+/* The slim recording bar next to the toolbar chip: Stop and Add marker while the big view is hidden. */
+.record-slim {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.record-slim[hidden] {
+  display: none;
+}
+.record-slim-stop[data-state="confirming"],
+.record-slim-stop[data-state="holding"] {
+  color: var(--danger-text);
+  border-color: var(--danger);
+}

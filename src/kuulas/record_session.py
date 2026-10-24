@@ -415,7 +415,8 @@ class RecordSession:
 
     def start(self, *, device: dict | None, at: int, channels: list[dict] | None = None,
               channel: int | None = None, track_id: str | None = None,
-              name: str = "", cart_track: str | None = None) -> dict:
+              name: str = "", cart_track: str | None = None,
+              latency_ms: float = 0.0) -> dict:
         """Record a take into this project's ``recordings/``. ``channels``: one
         ``{channel, track_id, name}`` per device channel to record (WP12b), each onto
         its own track (``track_id`` None or ``"new"``: a new speech track named
@@ -425,6 +426,10 @@ class RecordSession:
             raise ops.EditError("error.history.read_only", host=holder.get("host", "?"))
         lanes = self._lanes(channels, channel, track_id, name)
         cart_track = cart_track or None
+        # The delay between what the performer heard and what was captured (a manual
+        # figure for now): cut from the take's head when it lands. 0 to 2 s.
+        delay_s = min(max(float(latency_ms or 0), 0.0), 2000.0) / 1000
+        latency_frames = round(delay_s * self.rate)
         if cart_track is not None and cart_track != "new":
             ops._find_track(self.session.state, cart_track)  # unknown: an EditError
             if cart_track in {lane.track_id for lane in lanes}:
@@ -440,7 +445,8 @@ class RecordSession:
             first = plan_lanes[0]
             plan = rt.TakePlan(take=take, at=int(at), track_id=first.track_id,
                                track_name=first.track_name, channel=first.channel,
-                               device=dict(device or {}), lanes=plan_lanes)
+                               device=dict(device or {}), lanes=plan_lanes,
+                               latency_frames=latency_frames)
             # Before the recorder starts: a crash a moment later still knows the place.
             rt.write_plan(self.folder, plan)
             args = {"folder": str(self.folder), "take": take,
@@ -495,6 +501,14 @@ class RecordSession:
                       for lane in plan.all_lanes)
         first = lanes[0]
         rt.write_plan(self.folder, replace(plan, track_id=first.track_id, lanes=lanes))
+
+    def take_track_ids(self, take: str) -> list[str]:
+        """The tracks the take records onto (the ids the plan holds once the new ones are
+        made); empty when the plan cannot be read."""
+        plan = rt.read_plan(self.folder, take)
+        if plan is None:
+            return []
+        return [lane.track_id for lane in plan.all_lanes if lane.track_id]
 
     def cart_log(self, entry_id: str) -> dict:
         """A clip played from the cart during this take: put it on the cart track where
@@ -620,7 +634,8 @@ class RecordSession:
                 return None
             clip_name = t("record.take_interrupted", name=take) if interrupted else take
             _, clip_ids = self.session.import_take_lanes(
-                [([(self.folder / c.file, c.start, c.offset) for c in clips],
+                [([(self.folder / c.file, c.start, c.offset + plan.latency_frames)
+                   for c in clips],
                   lane.track_id, lane.track_name) for clips, lane in lanes],
                 clip_name=clip_name, take=take)
             result = {**summary, "take": take, "clips": len(clip_ids),
