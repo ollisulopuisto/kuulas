@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- **M acts on the Auto-Silence portion under the cursor, also for a grouped clip and with nothing selected.** Selecting a clip selects its whole group, so M used to mute the entire parent clips; now the portion under the play cursor on the current track (closed or audible) becomes its own clip and is toggled, and the rest of the group is left alone. With no clip selected, M uses the current track's clip under the cursor.
+
 - **Clip borders no longer look like the waveform.** The border is a neutral grey that is at least 1.6 times apart in contrast from every track colour's waveform, in both themes, so a clip's edge and its sound are easy to tell apart.
 
 ## [v26.10.24.3] - 2026-10-24

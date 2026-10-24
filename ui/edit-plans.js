@@ -418,13 +418,15 @@ export function dropPastePlan(entry, target, mode) {
 /** N: mute the selected clips, or unmute them when they all are muted already. */
 export function mutePlan(state) {
   const chosen = selectedClips(state);
-  if (chosen.length === 0) return null;
+  // Nothing selected: the current track's portion under the cursor is the target.
+  if (chosen.length === 0) return cursorPortionPlan(state, []);
   // A click on an implicit region is an explicit edit target even when selecting the clip
   // expands its group. Materialize only that source clip/range, never the expanded group.
   const region = targetedGatedRegionPlan(state, chosen);
   if (region) return region;
-  // One selected clip, the play cursor inside a closed stretch: M opens only that stretch.
-  const cursorRegion = chosen.length === 1 ? gatedRegionPlan(state, chosen[0]) : null;
+  // The play cursor inside an implicit portion (closed or audible) of a selected clip: M acts
+  // on that portion alone, also when the selection is a whole group (owner, 2026-10-24).
+  const cursorRegion = cursorPortionPlan(state, chosen);
   if (cursorRegion) return cursorRegion;
   const muted = !chosen.every((entry) => entry.clip.muted);
   return plan(
@@ -435,6 +437,31 @@ export function mutePlan(state) {
       count: chosen.length,
     },
   );
+}
+
+/**
+ * The selected clip whose implicit portion holds the play cursor (the focused track's first,
+ * and only when one is unambiguous); with no selection the focused track's clip there.
+ */
+function cursorPortionPlan(state, chosen) {
+  if (!state?.project || !Number.isFinite(state.playhead)) return null;
+  const at = state.playhead;
+  const trackOf = (id) => state.project.tracks.find((x) => x.id === id);
+  let entries = chosen;
+  if (entries.length === 0) {
+    const track = trackOf(currentTrack(state));
+    const clip = (track?.clips ?? [])
+      .filter((c) => c.start <= at && at < clipEnd(c))
+      .sort((x, y) => x.length - y.length)[0];
+    entries = clip ? [{ clip, trackId: track.id }] : [];
+  }
+  const hits = entries.filter(
+    ({ clip, trackId }) => implicitPortionAt(clip, at, trackOf(trackId)?.gate) !== null,
+  );
+  if (hits.length === 0) return null;
+  const focus = hits.filter((entry) => entry.trackId === currentTrack(state));
+  const pick = focus.length === 1 ? focus[0] : hits.length === 1 ? hits[0] : null;
+  return pick ? gatedRegionPlan(state, pick) : null;
 }
 
 function targetedGatedRegionPlan(state, chosen) {

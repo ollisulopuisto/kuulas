@@ -203,6 +203,53 @@ describe("mute clips (N)", () => {
   });
 });
 
+describe("M at the cursor on an implicit portion (owner, 2026-10-24)", () => {
+  const silenced = (extra = {}) =>
+    clip("a1", 0, 10, {
+      auto_silence: [
+        [0, 3 * S],
+        [5 * S, 8 * S],
+      ],
+      ...extra,
+    });
+  const two = (a) => ({
+    ...project,
+    tracks: [
+      { id: "A", clips: [a] },
+      { id: "B", clips: [clip("b1", 0, 10)] },
+    ],
+  });
+
+  test("a clip in a group (both selected): M acts on the cursor's portion, not the group", () => {
+    const plan = mutePlan(
+      state({ project: two(silenced()), selection: new Set(["a1", "b1"]), playhead: 4 * S }),
+    );
+    assert.equal(plan.op, "open_gated_region");
+    assert.deepEqual(plan.args, { track_id: "A", clip_id: "a1", at: 4 * S, muted: true });
+  });
+
+  test("a closed stretch of a grouped clip is opened alone", () => {
+    const plan = mutePlan(
+      state({ project: two(silenced()), selection: new Set(["a1", "b1"]), playhead: 6 * S }),
+    );
+    assert.equal(plan.op, "open_gated_region");
+    assert.deepEqual(plan.args, { track_id: "A", clip_id: "a1", at: 6 * S });
+  });
+
+  test("nothing selected: M acts on the current track's portion under the cursor", () => {
+    const plan = mutePlan(state({ project: two(silenced()), playhead: 4 * S }));
+    assert.equal(plan.op, "open_gated_region");
+    assert.deepEqual(plan.args, { track_id: "A", clip_id: "a1", at: 4 * S, muted: true });
+  });
+
+  test("a cursor outside every portion still mutes the selection as before", () => {
+    const plan = mutePlan(
+      state({ project: two(clip("a1", 0, 10)), selection: new Set(["a1", "b1"]), playhead: 4 * S }),
+    );
+    assert.equal(plan.op, "set_clips");
+  });
+});
+
 describe("mute on a closed stretch (BUGS #109)", () => {
   const gated = (gate, clipExtra = {}) => ({
     ...project,
@@ -324,7 +371,7 @@ describe("mute on a closed stretch (BUGS #109)", () => {
     }
   });
 
-  test("more than one clip selected: the whole clips, as before", () => {
+  test("more than one clip selected, the cursor in the focused track's closed stretch: just that stretch (owner, 2026-10-24)", () => {
     const two = {
       ...project,
       tracks: [
@@ -335,7 +382,8 @@ describe("mute on a closed stretch (BUGS #109)", () => {
     const plan = mutePlan(
       state({ project: two, selection: new Set(["a1", "b1"]), playhead: 4 * S }),
     );
-    assert.equal(plan.op, "set_clips");
+    assert.equal(plan.op, "open_gated_region");
+    assert.equal(plan.args.track_id, "A");
   });
 });
 
