@@ -119,6 +119,7 @@ beforeEach(() => {
       view: record("view"),
       choose: record("choose"),
       keep: record("keep"),
+      cartTrim: record("cartTrim"),
       clearOld: record("clearOld"),
       toggleProject: record("toggleProject"),
       openProject: record("openProject"),
@@ -564,4 +565,16 @@ describe("dragging an entry onto the timeline", () => {
       ],
     );
   });
+});
+
+test("the cart trim has translated help and reports its value", () => {
+  panel.update(state({ cartTrim: 2 }));
+  const input = root.all().find((node) => node.id === "cart-trim");
+  assert.ok(input);
+  assert.equal(input.value, "2");
+  input.value = "-1.5";
+  for (const fn of input.listeners.change) fn({});
+  assert.deepEqual(calls.at(-1), ["cartTrim", "-1.5"]);
+  assert.equal(input.attrs["aria-describedby"], "cart-trim-help");
+  assert.ok(root.all().some((node) => node.textContent === "ui.clipboard.cart_trim_help"));
 });

@@ -3237,5 +3237,8 @@
   "ui.edit.idle.no_track": "Ei raitaa kohdistettuna: napsauta ensin raidan nimeä.",
   "ui.edit.idle.paste_empty": "Ei mitään liitettävää: leikepöytä on tyhjä.",
   "ui.edit.idle.paste_no_track": "Ei mitään liitettävää: napsauta ensin raidan nimeä.",
-  "ui.edit.idle.select_all": "Ei valittavia leikkeitä."
+  "ui.edit.idle.select_all": "Ei valittavia leikkeitä.",
+  "history.cart_end": "Leikkaa soitettu äänipala",
+  "ui.clipboard.cart_trim": "Äänipalojen tason hienosäätö (dB)",
+  "ui.clipboard.cart_trim_help": "Tallennuksen aikana äänipalat sovitetaan viimeisten 3 sekunnin puhetasoon tai projektin vertailutasoon. Tämä muistettava hienosäätö muuttaa sovitusta. Huiput jäävät alle −1 dBTP:n."
 }

@@ -21,6 +21,7 @@ from recorder_helpers import (
     wait_until,
 )
 
+from kuulas import clipboard_level
 from kuulas import record_take as rt
 from kuulas.ops import EditError
 from kuulas.record_session import RecordError, RecordSession
@@ -996,3 +997,126 @@ def test_without_the_option_a_take_still_stops_playback(session, tmp_path, recor
             assert engine.overlays == []
     finally:
         rs.close()
+
+
+def test_cart_end_and_replacement_only_trim_logged_clips(session):
+    rs = started(offline(session))
+    session.edit("add_track", {"track_id": "tq", "name": "Questions"})
+    rs.start(device=None, at=RATE, cart_track="tq",
+             channels=[{"channel": 1, "track_id": None, "name": "Olli"}])
+    path = recordings(session).parent / "cart.wav"
+    sf.write(path, np.full(RATE * 2, 0.1, dtype=np.float32), RATE)
+    media = session.store.import_batch([str(path)], copy=False)[0].media
+    entry = session.material_copy(media.id)["entry"]["id"]
+    rs._position = RATE
+    first = rs.cart_log(entry, gain_db=3)
+    take_track = next(tr for tr in session.state.tracks if tr.id != "tq")
+    rs._position = RATE + RATE // 2
+    second = rs.cart_log(entry, gain_db=-2)
+    clips = next(tr for tr in session.state.tracks if tr.id == "tq").clips
+    assert clips[0].length == RATE // 2
+    assert clips[0].gain_db == 3
+    assert clips[1].gain_db == -2
+    assert first["clip_ids"] != second["clip_ids"]
+    rs._position += RATE // 4
+    rs.cart_end(second["clip_ids"])
+    clips = next(tr for tr in session.state.tracks if tr.id == "tq").clips
+    assert clips[1].length == RATE // 4
+    assert session.state.track(take_track.id) == take_track
+    with pytest.raises(EditError):
+        session.edit("trim_clips", {"clip_ids": [clips[0].id], "end": 1})
+
+
+def test_cart_end_rejects_unowned_clip_ids(session):
+    rs = offline(session)
+    with pytest.raises(RecordError):
+        rs.cart_end(["unrelated"])
+
+
+def test_cart_take_end_uses_final_segment_clock_not_last_meter(session, monkeypatch):
+    rs = started(offline(session))
+    session.edit("add_track", {"track_id": "tq", "name": "Questions"})
+    rs.start(device=None, at=0, cart_track="tq",
+             channels=[{"channel": 1, "track_id": None, "name": "Olli"}])
+    path = recordings(session).parent / "cart-final.wav"
+    sf.write(path, np.full(RATE * 2, 0.1, dtype=np.float32), RATE)
+    media = session.store.import_batch([str(path)], copy=False)[0].media
+    entry = session.material_copy(media.id)["entry"]["id"]
+    play = rs.cart_log(entry)
+    rs._position = 100
+    monkeypatch.setattr(rs, "_sidecar", lambda _: {
+        "segments": [{"start_frame": 200, "files": {"Olli": {"frames": 300}}}]})
+    monkeypatch.setattr(rs, "_import_later", lambda _: None)
+    rs._on_event({"event": "stopped", "folder": str(rs.folder),
+                  "take": rs._status["take"], "frames": 300})
+    assert session.state.track("tq").clips[0].length == 500
+    rs.cart_end(play["clip_ids"])  # a late page notification is harmless
+
+
+def test_cart_voice_estimate_expires_and_falls_back_to_reference(session, monkeypatch):
+    rs = started(offline(session))
+    rs._cart_track = "tq"
+    rs._status = {"state": "recording", "folder": str(rs.folder)}
+    calls = []
+    monkeypatch.setattr(session, "clipboard_preview",
+                        lambda entry, **kwargs: calls.append(kwargs))
+    rs.cart_preview("e", 2)
+    assert calls[-1] == {"cart_voice": None, "cart_trim": 2, "cart_track": "tq"}
+    rs._on_event({"event": "level", "peak_dbfs": [-20, -100], "position_frames": 10})
+    rs.cart_preview("e")
+    assert calls[-1]["cart_voice"] == pytest.approx(-34)
+    rs._voice_levels = [(time.monotonic() - 4, -20)]
+    rs.cart_preview("e")
+    assert calls[-1]["cart_voice"] is None
+
+
+def test_cart_preview_api_stores_the_played_gain_and_end_is_scoped(session, tmp_path,
+                                                                  monkeypatch):
+    rs = started(offline(session))
+    session.edit("add_track", {"track_id": "tq", "name": "Questions"})
+    rs.start(device=None, at=0, cart_track="tq",
+             channels=[{"channel": 1, "track_id": None, "name": "Olli"}])
+    path = recordings(session).parent / "cart-api.wav"
+    sf.write(path, np.full(RATE * 2, 0.01, dtype=np.float32), RATE)
+    media = session.store.import_batch([str(path)], copy=False)[0].media
+    entry = session.material_copy(media.id)["entry"]["id"]
+    monkeypatch.setattr(session, "_preview_reference", lambda *_: (-23, None))
+    monkeypatch.setattr(clipboard_level, "entry_level", lambda *_: (-33, -20))
+    engine = NoEngine()
+    previews = []
+    engine.play_preview = lambda p, **kwargs: previews.append((p, kwargs))
+    engine.stop_preview = lambda: None
+    with api(session, tmp_path, rs, engine) as client:
+        result = client.post(f"/api/clipboard/{entry}/preview",
+                             json={"cart_trim": 2, "limit": False})
+        assert result.status_code == 200
+        body = result.json()
+        assert body["attenuation_db"] == 12
+        assert previews[0][0].master_gain_db == 12
+        clip = session.state.track("tq").clips[0]
+        assert clip.gain_db == 12
+        assert body["cart"]["clip_ids"] == [clip.id]
+        rs._position = 1234
+        result = client.post("/api/clipboard/preview/stop")
+        assert result.status_code == 200
+        assert session.state.track("tq").clips[0].length == 1234
+        assert client.post("/api/record/cart/end",
+                           json={"clip_ids": [clip.id]}).status_code == 200
+        assert client.post("/api/record/cart/end",
+                           json={"clip_ids": ["other"]}).status_code == 400
+
+
+def test_cart_level_cache_tracks_master_gain(session, tmp_path, monkeypatch):
+    session.edit("add_track", {"track_id": "tq", "name": "Questions"})
+    path = tmp_path / "cart-cache.wav"
+    sf.write(path, np.full(RATE, 0.01, dtype=np.float32), RATE)
+    media = session.store.import_batch([str(path)], copy=False)[0].media
+    entry = session.material_copy(media.id)["entry"]["id"]
+    monkeypatch.setattr(session, "_preview_reference", lambda *_: (-23, None))
+    monkeypatch.setattr(clipboard_level, "entry_level",
+                        lambda p, _: (-33 + p.master_gain_db, -20 + p.master_gain_db))
+    _, _, gain = session.clipboard_preview(entry, cart_track="tq")
+    assert gain == 10
+    session.edit("set_master", {"gain_db": -6})
+    _, _, gain = session.clipboard_preview(entry, cart_track="tq")
+    assert gain == 16  # changing the project master changes the measured entry

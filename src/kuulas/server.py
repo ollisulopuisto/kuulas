@@ -211,6 +211,7 @@ class RenameBody(BaseModel):
 class ClipboardPreviewBody(BaseModel):
     #: Limit the preview to the project's level (WP82); the user's preference.
     limit: bool = True
+    cart_trim: float = Field(default=0, ge=-12, le=12)
 
 
 class AdoptBody(BaseModel):
@@ -321,6 +322,10 @@ class RecordStartBody(BaseModel):
 
 class CartPlayBody(BaseModel):
     entry_id: str
+
+
+class CartEndBody(BaseModel):
+    clip_ids: list[str]
 
 
 class RecordArmBody(BaseModel):
@@ -905,21 +910,38 @@ def create_app(session, engine, *, language: str | None = None,
         # switched off it is turned down to the project's level and limited
         # (WP82); `attenuation_db` says by how much (0 or less).
         limit = True if body is None else body.limit
-        project, missing, gain = session.clipboard_preview(entry_id, limit)
+        rec = recorder
+        recording = rec is not None and rec.editing_paused()
+        if recording:
+            project, missing, gain = rec.cart_preview(
+                entry_id, 0 if body is None else body.cart_trim)
+        else:
+            project, missing, gain = session.clipboard_preview(entry_id, limit)
+        cart = None
         seq = None
         if project is not None:
-            engine.play_preview(project, limit=limit)
+            engine.play_preview(project, limit=False if recording else limit)
+            if recording:
+                try:
+                    cart = rec.cart_log(entry_id, gain_db=gain)
+                except Exception:
+                    engine.stop_preview()
+                    raise
             # The transport version it started at: the page drops an older "ended".
             status = engine.status()
             seq = newest_seq(status.get("seq"), status.get("preview_seq"))
-        return JSONResponse({"started": project is not None, "missing": missing,
-                             "attenuation_db": gain, "seq": seq})
+        answer = {"started": project is not None, "missing": missing,
+                  "attenuation_db": gain, "seq": seq, "cart": cart}
+        return state_response(answer) if cart is not None else JSONResponse(answer)
 
     @app.post("/api/clipboard/preview/stop")
     def post_clipboard_preview_stop():
         # The chip's Stop: ends the preview only. Mixed into the timeline it is a
         # voice that goes away and the timeline plays on.
         engine.stop_preview()
+        if recorder is not None and recorder.editing_paused():
+            recorder.cart_end()
+            return state_response({"stopped": True})
         return JSONResponse({"stopped": True})
 
     @app.post("/api/render-listen")
@@ -1714,6 +1736,11 @@ def create_app(session, engine, *, language: str | None = None,
         # A clip played from the cart during a take goes where it was played.
         answer = need_recorder().cart_log(body.entry_id)
         return state_response({"cart": answer})
+
+    @app.post("/api/record/cart/end")
+    def record_cart_end(body: CartEndBody):
+        need_recorder().cart_end(body.clip_ids)
+        return state_response()
 
     @app.post("/api/record/arm")
     def record_arm(body: RecordArmBody):

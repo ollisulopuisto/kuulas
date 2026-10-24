@@ -67,7 +67,8 @@ def _clear(p: Project, track_id: str, start: int, end: int) -> Project:
 
 
 def apply_paste(project: Project, entry: Entry, plan: PastePlan, at: int,
-                rippled: set[str], mode: str, out: int | None = None) -> Project:
+                rippled: set[str], mode: str, out: int | None = None, *,
+                clip_ids: tuple[str, ...] | None = None, gain_db: float = 0) -> Project:
     """``project`` with ``plan`` done at frame ``at``. ``rippled``: the tracks an insert
     ripples (the targets only: a sync group is not a scope, WP83). Refs
     whose media the project lacks are not placed. ``out``: the Out point the plan
@@ -88,11 +89,11 @@ def apply_paste(project: Project, entry: Entry, plan: PastePlan, at: int,
     for item in project.media:
         media.setdefault(item.sha256, item.id)
     present = [ref for ref, _ in placed_refs(entry, set(media), at, out)]
-    for ref, placed in zip(present, plan.placements, strict=True):
+    for index, (ref, placed) in enumerate(zip(present, plan.placements, strict=True)):
         track_id, sha, start, offset, length, gain, pan, fade_in, fade_out, muted = placed
-        clip_id = ops.new_id("c")
+        clip_id = ops.new_id("c") if clip_ids is None else clip_ids[index]
         p = ops.add_clip(p, track_id, media[sha], start, offset, length, clip_id)
-        p = ops.set_clip(p, clip_id, gain_db=gain, pan=pan, fade_in=fade_in,
+        p = ops.set_clip(p, clip_id, gain_db=gain + gain_db, pan=pan, fade_in=fade_in,
                          fade_out=fade_out, muted=muted)
         if ref.envelope:
             p = ops.set_clip_envelope(p, clip_id, ref.envelope)

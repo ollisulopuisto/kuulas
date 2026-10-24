@@ -23,3 +23,19 @@ export function cartSlots(state) {
 export function assignTarget(state) {
   return pasteEntry(state);
 }
+
+/** Remembered manual cart trim, bounded to +/-12 dB; invalid input means unity. */
+export function cartTrim(value) {
+  const db = Number(value);
+  return Number.isFinite(db) ? Math.max(-12, Math.min(12, db)) : 0;
+}
+
+/** Serialize live cart actions so a quick second key waits for the first log ID. */
+export function createCartQueue() {
+  let queue = Promise.resolve();
+  return (action) => {
+    const result = queue.then(action);
+    queue = result.catch(() => {});
+    return result;
+  };
+}
