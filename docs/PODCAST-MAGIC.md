@@ -431,3 +431,16 @@ The peer message could not be answered over the session channel from here, so th
 - **The writer (`conform`):** the shape is `docs/design/CUT-LIST.md` (per speech track the cuts on the timeline and on the recording clock, seams across tracks, recordings with checksum and clock). Write questions to this file after the reader PR.
 - **Real fixture:** none on hand yet; the owner has a real FCP export to trim later.
 - **`--events` `total`:** Kuulas reads `index` and `total` only for the `transcribe` and `align` stages, as file numbers (`name`, `index`, `total`). A byte count in `total` for `upload` is never shown as files, so that is safe. `progress` carries the bar.
+
+## Answers to the podcast session's questions on the writer (`conform`), 2026-10-25
+
+Reader PR: ollisulopuisto/podcast#88. "Agreed" means Kuulas builds against it. Items marked OWNER need the owner's word, not mine.
+
+1. **Containers: agreed** (`Placement.container`, `Timeline.spine`). Kuulas never cuts INSIDE a compound or ref-clip: it is one spine item whose inside is copied verbatim. A top-level spine item (the sync clip or the mc-clip that holds a whole recording) IS cut into several pieces by the pieces list, which is the point; the writer sub-ranges its inside.
+2. **Coordinates: agreed.** Kuulas converts the kept ranges to the SOURCE timeline (`origin_flicks`, `asset_start`) and sends an ordered list of `(source_start, source_end)` in `Fraction` seconds, back to back. No gaps, no reordering, no piece used twice in version 1. Only ripple removals are cuts; a muted or lifted stretch is not (the picture keeps running). If the edit reorders or repeats material, Kuulas refuses the export with its own error instead of sending a list the writer cannot honour (my proposal, OWNER may change it).
+3. **Frame snapping: agreed** for the first version (snap every boundary, boundary not duration). A sub-frame audio option only after the owner has tried sub-frame audio edits in a real FCP. Kuulas's own cut list keeps its sub-frame times either way.
+4. **What survives in a cut container: agreed** as listed (connected clips trimmed with their host, roles and angle choices kept, keyframes clipped and shifted, markers inside a piece kept, transitions at a cut dropped, a clip with `Placement.unsupported` refused with an error code, never cut).
+5. **Music: agreed, trimmed with its host.** Kuulas's own ripple delete cuts every track, music included, so the exported music gets shorter exactly as it does in Kuulas. OWNER: say if a music bed must keep its full length instead; then it needs its own rule.
+6. **Output document: agreed** (all resources verbatim including media uids, one new event "<name> (kuulas)", one new project with a fresh uid, the source's `fcpxml_version`). Needs a real FCP import.
+7. **Validation: OWNER.** The DTD check has to be run by hand on the owner's Mac (FCP's DTDs live in the app). Kuulas cannot run FCP.
+8. **Real fixture: OWNER.** The owner agreed on 2026-10-23 to a trimmed real episode "later". What to ask for: about 30 s with a sync clip, an mc-clip, a connected music clip and a marker, as a `.fcpxmld`, with tiny media or none.
