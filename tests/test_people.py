@@ -436,7 +436,7 @@ def test_the_format_version_rises_and_min_reader_does_not(tmp_path):
     pkg = package.create(tmp_path / "A.kuulas")
     m = package.read_manifest(pkg.path)
     pkg.close()
-    assert (m["version"], m["min_reader"]) == (3, 1)
+    assert (m["version"], m["min_reader"]) == (4, 1)
 
 
 def test_migration_adds_empty_people_and_interviews_and_keeps_history(tmp_path):
@@ -451,7 +451,7 @@ def test_migration_adds_empty_people_and_interviews_and_keeps_history(tmp_path):
 
     pkg = package.open_package(folder)
     m = package.read_manifest(folder)
-    assert (m["version"], m["min_reader"], m["manifest_extra"]) == (3, 1, 7)
+    assert (m["version"], m["min_reader"], m["manifest_extra"]) == (4, 1, 7)
     assert len(list((folder / "backups").glob("pre-migration-v1-*.sqlite"))) == 1
     h = pkg.history
     assert h.material["people"] == {}
@@ -464,7 +464,7 @@ def test_migration_adds_empty_people_and_interviews_and_keeps_history(tmp_path):
     assert h.material["people"] == {}
     pkg.close()
     db = sqlite3.connect(folder / "project.sqlite")
-    assert dict(db.execute("select key, value from meta"))["schema_version"] == "3"
+    assert dict(db.execute("select key, value from meta"))["schema_version"] == "4"
     db.close()
 
 

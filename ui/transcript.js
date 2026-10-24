@@ -20,6 +20,7 @@ import {
   nextMatch,
   prevMatch,
 } from "./transcript-find.js";
+import { transcriptFollowStep } from "./transcript-follow.js";
 import {
   alsoRemovedIndices,
   buildParagraphs,
@@ -569,19 +570,10 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     }
   }
 
-  function inView(i) {
-    const rect = wordRect(i);
-    return Boolean(rect && rect.top >= list.offsetTop && rect.bottom <= root.clientHeight);
-  }
-
   function followPlayback() {
     const state = getState();
     if (!state.playing || words.length === 0) return;
-    if (paused) {
-      // Back in view by hand: follow again.
-      if (now >= 0 && inView(now)) setPaused(false);
-      return;
-    }
+    if (paused) return;
     if (now >= 0) reveal(now);
   }
 
@@ -592,7 +584,12 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   }
 
   root.addEventListener("scroll", () => {
-    if (Math.abs(root.scrollTop - lastSetTop) > 2 && getState().playing && !paused) setPaused(true);
+    if (Math.abs(root.scrollTop - lastSetTop) > 2) {
+      setPaused(
+        transcriptFollowStep({ paused, playing: getState().playing }, { type: "manual-scroll" })
+          .paused,
+      );
+    }
     lastSetTop = root.scrollTop;
     scheduleWindow();
   });
@@ -606,7 +603,9 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     });
   }
   follow.addEventListener("click", () => {
-    setPaused(false);
+    setPaused(
+      transcriptFollowStep({ paused, playing: getState().playing }, { type: "follow" }).paused,
+    );
     followPlayback();
   });
 

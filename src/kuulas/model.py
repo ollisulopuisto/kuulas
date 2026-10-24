@@ -123,6 +123,9 @@ class Clip:
     # clip is opened again by every commit (``ops.normalize_ungated``), also after a trim
     # or a move, so a clip is never half silenced. Not written when False, like ``free``.
     ungated: bool = False
+    # Auto-Silence measurements in absolute source frames. Unlike Track.gate, these ranges
+    # travel with this clip when it moves, so nearby clips cannot inherit its silence.
+    auto_silence: tuple[tuple[int, int], ...] = ()
     # The track this clip was dragged away from (``ops.move_clip``), so "Put back
     # on its original track" can undo it; None when it never left. Pieces split
     # from it inherit it. Not written when None.
@@ -141,6 +144,8 @@ class Clip:
             del d["free"]
         if not self.ungated:
             del d["ungated"]
+        if not self.auto_silence:
+            del d["auto_silence"]
         if self.home is None:
             del d["home"]
         return d
@@ -149,6 +154,8 @@ class Clip:
     def from_dict(cls, d: dict) -> Clip:
         known, extra = _split(cls, d)
         known["envelope"] = _points(known.get("envelope", ()))
+        known["auto_silence"] = tuple(
+            (int(a), int(b)) for a, b in known.get("auto_silence", ()))
         return cls(**known, extra=extra)
 
     @property

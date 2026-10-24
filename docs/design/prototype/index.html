@@ -461,6 +461,9 @@
   --ruler-text: var(--p-gray-30-b);
   --ruler-tick: var(--p-gray-54-b);
   --signal-selected: var(--p-gray-17-b); /* 2 px outline: neutral, works on every hue */
+  --signal-clip-edge: var(
+    --p-gray-48
+  ); /* clip boundary is independent of the speaker waveform hue */
   --signal-partner: var(--p-gray-30-b); /* dashed: what a move takes along */
   --signal-muted-hatch: var(--p-gray-18-a38);
   --signal-placeholder: var(--p-gray-30-b); /* dashed outline of narration placeholders */
@@ -610,6 +613,7 @@
     --ruler-text: var(--p-gray-76);
     --ruler-tick: var(--p-gray-44-b);
     --signal-selected: var(--p-gray-100);
+    --signal-clip-edge: var(--p-gray-76);
     --signal-partner: var(--p-gray-76);
     --signal-muted-hatch: var(--p-gray-94-a22);
     --signal-placeholder: var(--p-gray-76);
@@ -757,6 +761,7 @@
   --ruler-text: var(--p-gray-76);
   --ruler-tick: var(--p-gray-44-b);
   --signal-selected: var(--p-gray-100);
+  --signal-clip-edge: var(--p-gray-76);
   --signal-partner: var(--p-gray-76);
   --signal-muted-hatch: var(--p-gray-94-a22);
   --signal-placeholder: var(--p-gray-76);
@@ -2087,6 +2092,7 @@ const SEMANTIC_TOKENS = [
   "--ruler-text",
   "--ruler-tick",
   "--signal-selected",
+  "--signal-clip-edge",
   "--signal-partner",
   "--signal-muted-hatch",
   "--signal-muted-opacity",

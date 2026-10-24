@@ -85,7 +85,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R53 | People and interviews in the data from the start: who speaks in every transcript, one interview linking all its recordings from different people, everything a person said across the series | data model done in v26.10.16.13 (WP41); person view and cards later (WP42) |
 | R54 | Index cards like Scrivener: bits of interviews dragged into episodes, assembled into a timeline; person view | planned: WP42 |
 | R55 | Narration placeholders: script text in the timeline with estimated length, optional speech preview, script export, recorded or imported later in place | length estimate done v26.10.17.5; rest planned: WP43 |
-| R56 | Auto-Silence stores one merged gate per track, not thousands of split clip pieces: measure finely, merge the muted regions (owner, 2026-10-17) | planned: WP44 |
+| R56 | Auto-Silence stays implicit until edited, belongs to the measured clip, and materializes only the portion the user changes (owner, 2026-10-24) | done in core: source-frame clip ranges; M and edge dragging create ordinary clips |
 | R57 | Compare: non-destructive previews and A/B by listening (cuts, values, tracks, takes, edits, voice presets), level matched, blind mode, keep one or discard all | planned: WP45 (builds on WP24.2) |
 | R58 | Extensive clipboard with history: cut copies and ripples, delete leaves the gap, entries kept as references, a Clipboard panel, four paste forms, across projects | planned: WP46 |
 | R59 | Contextual help from v1 (help key for the focused thing, hints and keys in menus, searchable help index, translated help as data) | planned: WP48 |

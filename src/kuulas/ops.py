@@ -189,6 +189,25 @@ def set_gate(p: Project, track_id: str, ranges) -> Project:
         (int(a), int(b)) for a, b in ranges)))
 
 
+def set_track_auto_silence(p: Project, track_id: str, ranges) -> Project:
+    """Replace Auto-Silence ranges on each clip, mapping timeline spans to source.
+
+    The implicit mute belongs to the clip that was measured and therefore moves with it.
+    """
+    track = _find_track(p, track_id)
+    measured = gatem.normalise((int(a), int(b)) for a, b in ranges)
+    clips = []
+    for clip in track.clips:
+        source_ranges = []
+        for start, end in measured:
+            lo, hi = max(start, clip.start), min(end, clip.end)
+            if hi > lo:
+                source_ranges.append((clip.offset + lo - clip.start,
+                                      clip.offset + hi - clip.start))
+        clips.append(replace(clip, auto_silence=gatem.normalise(source_ranges)))
+    return _replace_track(p, replace(track, clips=tuple(clips), gate=()))
+
+
 def add_gate_range(p: Project, track_id: str, start: int, end: int) -> Project:
     track = _find_track(p, track_id)
     return _replace_track(p, replace(
@@ -234,8 +253,9 @@ def set_clips_ungated(p: Project, clip_ids, value: bool = True) -> Project:
     wanted = set(clip_ids)
     tracks = []
     for track in p.tracks:
-        clips = tuple(replace(c, ungated=bool(value)) if c.id in wanted else c
-                      for c in track.clips)
+        clips = tuple(replace(c, ungated=bool(value),
+                              auto_silence=() if value else c.auto_silence)
+                      if c.id in wanted else c for c in track.clips)
         tracks.append(replace(track, clips=clips) if clips != track.clips else track)
     q = replace(p, tracks=tuple(tracks))
     return normalize_ungated(q) if value else q
@@ -249,6 +269,17 @@ def open_gated_region(p: Project, track_id: str, at: int) -> Project:
     the stretch is untouched. Pressing M on the new clip then mutes just it."""
     track = _find_track(p, track_id)
     at = int(at)
+    # Current-format Auto-Silence belongs to the source clip. Legacy track gates
+    # remain readable, but opening a measured region materializes only that portion.
+    for clip in track.clips:
+        if clip.start <= at < clip.end:
+            source_at = clip.offset + at - clip.start
+            source_region = next(
+                ((a, b) for a, b in clip.auto_silence if a <= source_at < b), None)
+            if source_region is not None:
+                start = clip.start + source_region[0] - clip.offset
+                end = clip.start + source_region[1] - clip.offset
+                return replace_clip_range(p, clip.id, start, end, muted=False)
     region = next(((a, b) for a, b in track.gate if a <= at < b), None)
     if region is None:
         raise EditError("error.edit.no_gate_here")
@@ -265,6 +296,60 @@ def open_gated_region(p: Project, track_id: str, at: int) -> Project:
     clips = tuple(replace(c, ungated=True, muted=False) if c.id in inside else c
                   for c in track.clips)
     return normalize_ungated(_replace_track(p, replace(track, clips=_sorted(clips))))
+
+
+def replace_clip_range(
+        p: Project, clip_id: str, start: int, end: int, *, muted: bool,
+        clear_range: tuple[int, int] | None = None) -> Project:
+    """Materialize one implicit Auto-Silence portion as a normal clip."""
+    clip, _track = _find_clip(p, clip_id)
+    start, end = max(clip.start, int(start)), min(clip.end, int(end))
+    if start >= end:
+        raise EditError("error.edit.no_gate_here")
+    target_offset = clip.offset + start - clip.start
+    if clear_range is not None:
+        source_from = clip.offset + clear_range[0] - clip.start
+        source_to = clip.offset + clear_range[1] - clip.start
+        p = _replace_clip(p, replace(
+            clip, auto_silence=gatem.remove_range(
+                clip.auto_silence, source_from, source_to)))
+    for edge in (start, end):
+        current = next((c for track in p.tracks for c in track.clips
+                        if c.media == clip.media and c.start < edge < c.end
+                        and c.offset + edge - c.start == clip.offset + edge - clip.start),
+                       None)
+        if current is not None:
+            p = split_clip(p, current.id, edge)
+    target = next((c for track in p.tracks for c in track.clips
+                   if c.start == start and c.end == end and c.media == clip.media
+                   and c.offset == target_offset), None)
+    if target is None:
+        raise EditError("error.edit.no_gate_here")
+    source_start = target.offset
+    source_end = source_start + target.length
+    silence = target.auto_silence if clear_range is not None else gatem.remove_range(
+        target.auto_silence, source_start, source_end)
+    return _replace_clip(p, replace(target, muted=bool(muted), auto_silence=silence))
+
+
+def trim_auto_silence_edge(p: Project, clip_id: str, start: int, end: int,
+                           edge: str, frame: int) -> Project:
+    """Turn an implicit range into a real muted clip while moving one of its borders."""
+    clip, _track = _find_clip(p, clip_id)
+    start, end, frame = int(start), int(end), int(frame)
+    old_range = (start, end)
+    source_range = (clip.offset + start - clip.start, clip.offset + end - clip.start)
+    if not any(a <= source_range[0] and source_range[1] <= b
+               for a, b in clip.auto_silence):
+        raise EditError("error.edit.no_gate_here")
+    if edge == "start":
+        start = max(clip.start, min(frame, end - 1))
+    elif edge == "end":
+        end = min(clip.end, max(frame, start + 1))
+    else:
+        raise EditError("error.edit.no_gate_here")
+    return replace_clip_range(p, clip_id, start, end, muted=True,
+                              clear_range=old_range)
 
 
 def normalize_ungated(p: Project) -> Project:
@@ -1431,7 +1516,8 @@ OPS = {
         add_bus, set_bus, delete_bus, set_master, reset_gains,
         add_clip, delete_clip, move_clip, trim_clip, split_clip, set_clip,
         set_fade_at, set_clip_envelope, ripple_delete, mute_ranges,
-        set_gate, add_gate_range, remove_gate_range, set_clips_ungated, open_gated_region,
+        set_gate, set_track_auto_silence, add_gate_range, remove_gate_range,
+        set_clips_ungated, open_gated_region, trim_auto_silence_edge,
         replace_clip_media,
         add_marker, rename_marker, move_marker, set_region_end, delete_marker,
         set_marker_kind,

@@ -70,6 +70,7 @@ export function readTheme(
     rulerText: p.marks.rulerText,
     rulerTick: p.marks.rulerTick,
     selection: p.signals.selected,
+    clipEdge: p.signals.clipEdge,
     silentBody: p.signals.silentBody,
     gateLock: p.signals.gateLock,
     gateOpen: p.signals.gateOpen,

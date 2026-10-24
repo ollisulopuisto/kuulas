@@ -219,6 +219,18 @@ describe("mute on a closed stretch (BUGS #109)", () => {
     assert.equal(plan.label.key, "ui.edit.label.unmute_region");
   });
 
+  test("M opens only the selected clip's implicit source range after it moved", () => {
+    const clipWithSilence = clip("a1", 10, 10, {
+      offset: 0,
+      auto_silence: [[3 * S, 5 * S]],
+    });
+    const moved = { ...project, tracks: [{ id: "A", clips: [clipWithSilence] }] };
+    const plan = mutePlan(state({ project: moved, selection: new Set(["a1"]), playhead: 14 * S }));
+    assert.equal(plan.op, "open_gated_region");
+    assert.deepEqual(plan.args, { track_id: "A", at: 14 * S });
+    assert.equal(plan.label.key, "ui.edit.label.unmute_region");
+  });
+
   test("openedRegionClip finds the clip M opened, so it can be selected for the next M", () => {
     const after = {
       ...project,

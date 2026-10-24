@@ -5,7 +5,7 @@ The decision is speechmix's (``grid.lane``, ``masks.duck_masks``,
 project's own timeline. Two consumers:
 
 * ``auto_silence``: Pro Cut style. Each speech mic is closed wherever its
-  owner is not talking, as one merged gate per track (``Track.gate``).
+  owner is not talking, as implicit mute ranges attached to each clip.
 * ``automix``: the automixer's ducking, written as track automation points
   you can drag, not baked into samples.
 
@@ -276,10 +276,12 @@ def _dilate(mask: np.ndarray, before: int, after: int) -> np.ndarray:
 
 
 def _ungated(p: Project) -> Project:
-    """``p`` with every gate emptied: what the measurement must see."""
-    if not any(t.gate for t in p.tracks):
+    """``p`` with every Auto-Silence range emptied: what the measurement must see."""
+    if not any(t.gate or any(c.auto_silence for c in t.clips) for t in p.tracks):
         return p
-    return replace(p, tracks=tuple(replace(t, gate=()) for t in p.tracks))
+    return replace(p, tracks=tuple(replace(
+        t, gate=(), clips=tuple(replace(c, auto_silence=()) for c in t.clips))
+        for t in p.tracks))
 
 
 def raw_silence_ranges(p: Project, store: Store,
@@ -584,12 +586,14 @@ def silence_ranges(p: Project, store: Store,
 
 
 def silence_rows(m: SilenceMeasure, ranges: dict[str, gate.Gate],
-                 gates: dict[str, gate.Gate] | None = None) -> list[dict]:
+                 gates: dict[str, gate.Gate] | None = None,
+                 current: dict[str, gate.Gate] | None = None) -> list[dict]:
     """The live preview's answer per speech track that has ranges, in track
     order: ``{track_id, name, ranges: [[start, end], ...], close_s, stretches,
-    total_s, now_s}`` (``total_s``: the project's length; ``now_s``: what the
-    track's gate closes today)."""
+    total_s, now_s}`` (``total_s``: the project's length; ``now_s``: what is
+    currently muted by legacy gates or clip Auto-Silence)."""
     gates = gates or {}
+    current = current or gates
     rows = []
     for tr in m.tracks:
         if tr.id not in ranges:
@@ -599,8 +603,22 @@ def silence_rows(m: SilenceMeasure, ranges: dict[str, gate.Gate],
             "track_id": tr.id, "name": tr.name, "ranges": [list(r) for r in closed],
             "close_s": sum(b - a for a, b in closed) / m.rate,
             "stretches": len(closed), "total_s": m.length / m.rate,
-            "now_s": sum(b - a for a, b in gates.get(tr.id, ())) / m.rate})
+            "now_s": sum(b - a for a, b in current.get(tr.id, ())) / m.rate})
     return rows
+
+
+def current_silence_ranges(p: Project) -> dict[str, gate.Gate]:
+    """Current mute spans in timeline frames, including clip source ranges."""
+    result = {}
+    for track in p.tracks:
+        ranges = list(track.gate)
+        for clip in track.clips:
+            ranges.extend((clip.start + start - clip.offset,
+                           clip.start + end - clip.offset)
+                          for start, end in clip.auto_silence)
+        if ranges:
+            result[track.id] = gate.normalise(ranges)
+    return result
 
 
 def without_ungated(p: Project, ranges: dict) -> dict:
@@ -625,6 +643,7 @@ def preview_silence(p: Project, store: Store, options: SilenceOptions | None = N
     caller can run it without any lock."""
     only = None if track_ids is None else set(track_ids)
     ranges = silence_ranges(p, store, options)
+    current = current_silence_ranges(p)
     rows = []
     for track in speech_tracks(p):
         if track.id not in ranges or (only is not None and track.id not in only):
@@ -634,7 +653,7 @@ def preview_silence(p: Project, store: Store, options: SilenceOptions | None = N
             "track_id": track.id, "name": track.name,
             "close_s": sum(b - a for a, b in closed) / p.rate,
             "stretches": len(closed),
-            "now_s": sum(b - a for a, b in track.gate) / p.rate})
+            "now_s": sum(b - a for a, b in current.get(track.id, ())) / p.rate})
     return rows
 
 
@@ -650,14 +669,17 @@ def auto_silence(p: Project, store: Store,
 
 def apply_silence(p: Project, ranges_by_track: dict[str, gate.Gate],
                   track_ids: Iterable[str] | None = None) -> Project:
-    """``auto_silence`` with the ranges already measured (``silence_ranges``,
-    perhaps by the analysis worker): set them as the tracks' gates."""
+    """Attach each measured stretch to the source audio of the clip it covers.
+
+    The ranges arrive in timeline frames; storing their source-frame intersections
+    makes the result travel with that clip. Track gates remain readable for older
+    projects but are cleared on tracks where Auto-Silence is run.
+    """
     only = None if track_ids is None else set(track_ids)
+    ranges_by_track = without_ungated(p, ranges_by_track)
     for track_id, ranges in ranges_by_track.items():
         if only is None or track_id in only:
-            # Replaces the track's gate: a second run does not pile up, and a
-            # track that now needs no closing is opened again.
-            p = ops.set_gate(p, track_id, ranges)
+            p = ops.set_track_auto_silence(p, track_id, ranges)
     return p
 
 

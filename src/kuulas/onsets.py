@@ -182,7 +182,10 @@ def timeline_onsets(
                 if lo <= frame_in_media < hi:
                     at = frame_in_media + shift
                     # An onset in a gated stretch is not heard.
-                    if not (track.gate and gate.closed_at(track.gate, at)):
+                    if not (track.gate and gate.closed_at(track.gate, at)) and not (
+                        clip.auto_silence and gate.closed_at(
+                            clip.auto_silence, frame_in_media)
+                    ):
                         out.append(at)
     return sorted(set(out))
 

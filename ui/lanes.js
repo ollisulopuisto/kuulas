@@ -1,6 +1,8 @@
 // Lane layout and hit testing: where rows are and what is under a pointer.
 // Pure (no DOM), so the same numbers serve the canvas, the track headers
 // beside it and the tests.
+
+import { implicitSilenceAt, implicitSilenceRanges } from "./clip-silence.js";
 import { frameToX, xToFrame } from "./format.js";
 import { stretchAt } from "./gate.js";
 import { placeholderAt } from "./placeholders-model.js";
@@ -274,7 +276,44 @@ export function hitTest({ layout, project, view, x, y }) {
   }
   if (!best) return hit;
   const point = envelopePointAt(best.clip, view, x, rowY, row.height);
-  return { ...hit, clip: best.clip, edge: best.edge, point };
+  let implicitRange = null;
+  let edge = best.edge;
+  const left = frameToX(best.clip.start, view.scroll, view.zoom);
+  const right = frameToX(clipEnd(best.clip), view.scroll, view.zoom);
+  let edgeDistance = Number.POSITIVE_INFINITY;
+  for (const range of implicitSilenceRanges(best.clip)) {
+    for (const [side, frame] of [
+      ["start", range[0]],
+      ["end", range[1]],
+    ]) {
+      const px = frameToX(frame, view.scroll, view.zoom);
+      if (
+        (side === "start" && frame <= best.clip.start) ||
+        (side === "end" && frame >= clipEnd(best.clip))
+      )
+        continue;
+      const distance = Math.abs(x - px);
+      if (
+        distance <= EDGE_PX &&
+        distance < edgeDistance &&
+        Math.abs(px - left) > EDGE_PX &&
+        Math.abs(px - right) > EDGE_PX
+      ) {
+        edgeDistance = distance;
+        edge = side;
+        implicitRange = range;
+      }
+    }
+  }
+  const implicit = implicitSilenceAt(project, row.id, frame, view.zoom);
+  return {
+    ...hit,
+    clip: best.clip,
+    edge,
+    point,
+    ...(implicitRange ? { implicitRange } : {}),
+    gate: gate ?? implicit,
+  };
 }
 
 /**

@@ -1608,7 +1608,8 @@ class Session:
         stretches, total_s, now_s}], "key", "options"}``. No history step.
         ``SilenceNotMeasuredError`` when there is no valid measure."""
         _state, key, options, measure, ranges, gates = self._silence_decide(args)
-        return {"tracks": analysis.silence_rows(measure, ranges, gates), "key": key,
+        return {"tracks": analysis.silence_rows(
+            measure, ranges, gates, analysis.current_silence_ranges(_state)), "key": key,
                 "options": options.as_dict()}
 
     def silence_accept(self, args: dict | None = None) -> Project:
@@ -3393,14 +3394,16 @@ def _auto_silence(s: Session, args: dict) -> Project:
 
 
 def _open_gates(s: Session, args: dict) -> Project:
-    """Clear the gate of the given tracks (every track with a gate when none
-    are named) as ONE undo step."""
+    """Clear Auto-Silence from the given tracks as ONE undo step."""
     state = s.history.state
     ids = args.get("track_ids")
-    ids = [tr.id for tr in state.tracks if tr.gate] if ids is None else list(ids)
+    ids = ([tr.id for tr in state.tracks
+            if tr.gate or any(c.auto_silence for c in tr.clips)]
+           if ids is None else list(ids))
     new = state
     for track_id in ids:
         new = ops.set_gate(new, track_id, ())
+        new = ops.set_track_auto_silence(new, track_id, ())
     return s._commit(t("history.open_gates"), new, "open_gates", args)
 
 

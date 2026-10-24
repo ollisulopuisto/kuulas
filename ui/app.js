@@ -1174,9 +1174,16 @@ function openGateStretch(gate) {
   const state = getState();
   const target = gate ?? stretchAt(state.project, state.focusTrack, state.playhead, state.zoom);
   if (!target) return;
+  const at = target.implicit ? Math.floor((target.range[0] + target.range[1]) / 2) : null;
   editor.change({
-    ...openStretchEdit(target.trackId, target.range),
+    ...openStretchEdit(target, target.range),
     label: t("ui.gate.open_stretch"),
+    done: (response) => {
+      if (at === null) return;
+      const track = response.project?.tracks?.find((item) => item.id === target.trackId);
+      const clip = track?.clips.find((item) => item.start <= at && at < item.start + item.length);
+      if (clip) setState({ selection: new Set([clip.id]) });
+    },
   });
 }
 // "Keep the mic open under the selected clips": a clip property (Clip.ungated), one edit. It
@@ -3959,7 +3966,29 @@ const timeline = createTimeline({
         provisional: (p) => patchClip(p, clipId, { [`fade_${side}`]: frames }),
       });
     },
-    edgeDrag({ clipId, edge, frame, ripple, overwrite, alone }) {
+    edgeDrag({ clipId, edge, frame, ripple, overwrite, alone, implicitRange }) {
+      if (implicitRange) {
+        editor.change({
+          op: "trim_auto_silence_edge",
+          args: {
+            clip_id: clipId,
+            start: implicitRange[0],
+            end: implicitRange[1],
+            edge,
+            frame,
+          },
+          label: t("history.auto_silence"),
+          done: (response) => {
+            const at = edge === "start" ? frame : implicitRange[0];
+            const project = response.project;
+            const clip = project?.tracks
+              .flatMap((track) => track.clips)
+              .find((item) => item.start <= at && at < item.start + item.length && item.muted);
+            if (clip) setState({ selection: new Set([clip.id]) });
+          },
+        });
+        return;
+      }
       const { op, args, labelKey } = edgeChange(
         clipId,
         edge,

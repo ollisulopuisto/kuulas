@@ -445,8 +445,13 @@ export function openedRegionClip(project, trackId, at) {
 
 function gatedRegionPlan(state, { clip, trackId }) {
   const at = state.playhead;
-  if (!Number.isFinite(at) || clip.muted || clip.ungated) return null;
+  if (!Number.isFinite(at) || clip.muted) return null;
   if (!(clip.start <= at && at < clipEnd(clip))) return null;
+  const sourceAt = clip.offset + at - clip.start;
+  if (clip.auto_silence?.some(([start, end]) => start <= sourceAt && sourceAt < end)) {
+    return plan("open_gated_region", { track_id: trackId, at }, "unmute_region");
+  }
+  if (clip.ungated) return null;
   const gate = state.project?.tracks?.find((x) => x.id === trackId)?.gate ?? [];
   if (!gate.some(([start, end]) => start <= at && at < end)) return null;
   return plan("open_gated_region", { track_id: trackId, at }, "unmute_region");

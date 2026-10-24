@@ -114,7 +114,7 @@ def _mute_ramps(track: Track, rate: int) -> dict[str, tuple[int, int]]:
     return out
 
 
-def _clip_signal(clip: Clip, store: Store, first: int, count: int,
+def _clip_signal(clip: Clip, store: Store, first: int, count: int, rate: int,
                  ramps: tuple[int, int] = (0, 0)) -> tuple[int, int, np.ndarray] | None:
     """The clip's own sound over ``[first, first+count)``: ``(lo, hi, audio)``
     with ``audio`` ``(channels, hi-lo)`` float64 after clip gain, envelope and
@@ -129,6 +129,10 @@ def _clip_signal(clip: Clip, store: Store, first: int, count: int,
     t = np.arange(lo, hi, dtype=np.float64)  # timeline frames
 
     g = np.full(n, curves.gain(clip.gain_db), dtype=np.float64)
+    # Auto-Silence is measured in this clip's source clock, so it travels when moved.
+    silence = _gate_gain(clip.auto_silence, src, n, rate)
+    if silence is not None:
+        g *= silence
     env = curves.db_curve(clip.envelope, src, n)
     if env is not None:
         g *= curves.gain(env)
@@ -154,8 +158,8 @@ def downmix(audio: np.ndarray) -> np.ndarray:
 
 
 def _clip_into(out: np.ndarray, clip: Clip, store: Store, first: int, count: int,
-               ramps: tuple[int, int] = (0, 0), mono: bool = False) -> None:
-    signal = _clip_signal(clip, store, first, count, ramps)
+               rate: int, ramps: tuple[int, int] = (0, 0), mono: bool = False) -> None:
+    signal = _clip_signal(clip, store, first, count, rate, ramps)
     if signal is None:
         return
     lo, hi, audio = signal
@@ -193,7 +197,8 @@ def _track(track: Track, store: Store, first: int, count: int,
     buf = np.zeros((2, count), dtype=np.float64)
     ramps = _mute_ramps(track, rate)
     for clip in clips:
-        _clip_into(buf, clip, store, first, count, ramps.get(clip.id, (0, 0)), track.mono)
+        _clip_into(buf, clip, store, first, count, rate,
+                   ramps.get(clip.id, (0, 0)), track.mono)
     gate = _gate_gain(track.gate, first, count, rate)
     if gate is not None:
         buf *= gate
@@ -250,7 +255,7 @@ def track_stem(track: Track, store: Store, first: int, count: int, channels: int
     for clip in track.clips:
         if clip.muted:
             continue
-        signal = _clip_signal(clip, store, first, count, ramps.get(clip.id, (0, 0)))
+        signal = _clip_signal(clip, store, first, count, rate, ramps.get(clip.id, (0, 0)))
         if signal is None:
             continue
         lo, hi, audio = signal

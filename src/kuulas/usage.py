@@ -59,12 +59,22 @@ def _audibility_ranges(track: Track, clip: Clip) -> list[tuple[int, int, bool]]:
     if clip.muted or track.mute:
         return [(start, end, False)]
     ranges = _automation_ranges(track, clip)
-    if not track.gate:
+    clip_gate = gatem.normalise(
+        (clip.start + max(a, clip.offset) - clip.offset,
+         clip.start + min(b, clip.offset + clip.length) - clip.offset)
+        for a, b in clip.auto_silence
+        if min(b, clip.offset + clip.length) > max(a, clip.offset))
+    if not track.gate and not clip_gate:
         return ranges
     out: list[tuple[int, int, bool]] = []
     for left, right, audible in ranges:
-        for a, b, is_open in gatem.split_by_gate(track.gate, left, right):
-            out.append((a, b, audible and is_open))
+        track_pieces = (gatem.split_by_gate(track.gate, left, right) if track.gate
+                        else [(left, right, True)])
+        for track_left, track_right, track_open in track_pieces:
+            clip_pieces = (gatem.split_by_gate(clip_gate, track_left, track_right)
+                           if clip_gate else [(track_left, track_right, True)])
+            out.extend((a, b, audible and track_open and clip_open)
+                       for a, b, clip_open in clip_pieces)
     return out
 
 

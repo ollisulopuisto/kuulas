@@ -84,6 +84,13 @@ describe("open this stretch", () => {
       args: { track_id: "t1", start: 1000, end: 2000 },
     });
   });
+
+  test("opening an implicit clip portion materializes only that clip range", () => {
+    assert.deepEqual(
+      openStretchEdit({ trackId: "t1", clipId: "c1", range: [100, 200], implicit: true }),
+      { op: "open_gated_region", args: { track_id: "t1", at: 150 } },
+    );
+  });
 });
 
 describe("stretchAt", () => {

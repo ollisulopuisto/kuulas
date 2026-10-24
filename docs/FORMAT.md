@@ -465,16 +465,20 @@ migration adds the empty keys to every material revision in place, so
 iCloud, OneDrive copies), an unreadable file, or one whose id differs from
 its name is reported by `SeriesStore.conflicts()` and never read as an item.
 
-**As built (WP44, format version 3).** A track gains `gate`: a list of
-`[start, end)` project-frame pairs, sorted, non-overlapping and not touching
-(`gate.normalise`). Where it is closed the track is silent whatever its clips
-say; the 30 ms edge ramps are derived by the mixer and never stored. Auto-Silence
-writes it instead of splitting clips, and running it again replaces the track's
-gate. It is part of the edit state, so history keeps it as it keeps clips (a
-ripple delete shifts and trims it in the same step). An empty gate is not
-written, so a track that never had one keeps its bytes and its state hash, and
-old projects load with an empty gate. Old projects that contain Auto-Silence
-clip pieces (muted clips with baked fades) keep working unchanged.
+**Auto-Silence (format version 4).** New projects store `Clip.auto_silence` as
+source-frame `[start, end)` pairs, sorted, non-overlapping and not touching.
+These are implicit muted portions: the mixer and timeline derive their audible
+mask and visible edges from the clip; moving the clip moves its measured silence.
+A user edit of one portion splits only that range into ordinary clips in one
+history step. Ranges are part of the edit state and are restored by undo. Empty
+ranges are omitted. Version 4 adds no database columns; version-3 projects
+migrate by updating the schema marker only.
+
+Version-3 `Track.gate` remains readable as a legacy timeline-frame mute and is
+still honored by the mixer. New Auto-Silence runs write clip ranges and clear
+legacy gates on the affected tracks. The 30 ms edge ramps are derived by the
+mixer and never stored. Old projects with split Auto-Silence clips (muted clips
+with baked fades) keep working unchanged.
 
 **As built (derived mute ramps).** The 30 ms ramp on an open clip edge that
 touches a muted piece (same track, same media, contiguous source) is derived
@@ -483,11 +487,11 @@ unmuting restores the clips and their render exactly. Where an older project
 stored that fade, the longer of stored and derived applies, so it renders as
 before.
 
-*Version and `min_reader`.* The version rises to 3 (additive field, the 2 to 3
-migration rewrites nothing). An older reader would keep `gate` in `extra` and
+*Version and `min_reader`.* The version rises to 4 (additive clip field, the 3 to 4
+migration updates only the schema marker). An older reader would keep `gate` in `extra` and
 play the track ungated, which is audible, so a project that holds a gate must
-not open there: `min_reader` rises to 3 **for that project, when its first gate
-is committed**, and the manifest is written before the state that carries the
+not open there: `min_reader` rises to 3 for legacy gates, and to 4 **for a project when
+its first clip Auto-Silence range is committed**, and the manifest is written before the state that carries the
 gate (a crash between the two leaves a stricter manifest, never a gate an old
 reader plays wrongly). Projects that never get a gate stay at `min_reader` 1.
 It is never lowered again, even if the gate is cleared, because older history
@@ -627,7 +631,7 @@ and a reader that does not know it keeps it (roots are updated key by key)
 and plays the project exactly as this version does, because a candidate
 changes no audio until it is applied, and applying writes ordinary muted
 clips or a ripple into the edit state. Such a reader only does not show the
-candidates. By the "additive change" rule below, `version` should rise to 4
+candidates. By the "additive change" rule below, `version` should rise to 5
 with a migration that rewrites nothing; that is left to the integrator,
 since it touches `package.VERSION`, `db.SCHEMA_VERSION` and the migration
 table that other work packages also bump.
