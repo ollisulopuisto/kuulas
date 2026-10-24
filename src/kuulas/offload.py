@@ -63,7 +63,7 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
-from . import priority, rss, toolpath
+from . import analysis_progress, priority, rss, toolpath
 from .messages import KuulasError, t
 
 log = logging.getLogger("kuulas.offload")
@@ -93,6 +93,8 @@ SUPERSEDE = frozenset({"project_curves"})
 
 #: How often the waiting editor thread looks at cancel and the gate.
 POLL_S = 0.05
+#: How often a running worker's progress file is read.
+PROGRESS_POLL_S = 0.2
 #: Calls that may wait for the one worker; more is an error, not a pile.
 MAX_QUEUED = 16
 #: Running time (stopped time not counted) after which a worker is killed.
@@ -167,16 +169,24 @@ def worker_argv(task_file: Path, result_file: Path) -> list[str]:
 
 
 def call(task: str, project, store, *args: Any, cancel: threading.Event | None = None,
-         pause: bool | None = None, **kwargs: Any) -> Any:
+         pause: bool | None = None,
+         on_progress: Callable[[float, str, dict], None] | None = None,
+         **kwargs: Any) -> Any:
     """``TASKS[task](project, store, *args, **kwargs)``, in the worker process.
 
     ``cancel`` (default: the calling job's) kills the worker and raises
     ``CancelledError``. ``pause`` (default: whether the caller is background
-    work) stops the worker while audio plays."""
+    work) stops the worker while audio plays. ``on_progress(fraction, stage,
+    detail)`` hears what the task reports (``analysis_progress.report``), while it
+    runs."""
     fn = resolve(task)
     spec = store_spec(store) if MODE == "process" else None
     if spec is None:
-        return fn(project, store, *args, **kwargs)
+        analysis_progress.set_callback(on_progress)
+        try:
+            return fn(project, store, *args, **kwargs)
+        finally:
+            analysis_progress.set_callback(None)
     payload = {"task": task, "project": project, "store": spec, "args": args,
                "kwargs": kwargs}
     key = (task, spec["folder"]) if task in SUPERSEDE else None
@@ -192,10 +202,11 @@ def call(task: str, project, store, *args: Any, cancel: threading.Event | None =
     if left > 0:
         raise KuulasError("error.offload.backoff", seconds=round(left))
     try:
-        reply = _run(payload, cancel, pause, key=key, owner=spec["folder"])
+        reply = _run(payload, cancel, pause, key=key, owner=spec["folder"],
+                     on_progress=on_progress)
     except WorkerStartError as e:
         log.warning(t("log.offload.fallback", error=str(e)))
-        return _run_inline(fn, task, cancel, project, store, args, kwargs)
+        return _run_inline(fn, task, cancel, project, store, args, kwargs, on_progress)
     except WorkerCrashedError as e:
         MANAGER.note_failure(crash_key)
         raise KuulasError("error.offload.crashed", exit=describe_exit(e.code),
@@ -235,7 +246,7 @@ INLINE: dict[str, Any] = {"runs": 0, "running": False}
 
 
 def _run_inline(fn: Callable, task: str, cancel: threading.Event | None, project,
-                store, args: tuple, kwargs: dict) -> Any:
+                store, args: tuple, kwargs: dict, on_progress=None) -> Any:
     """The fallback for a worker that could not be started: one at a time, under
     the playback gate, and not when the editor is already big (docs/MEMORY.md)."""
     from .memory import RSS_WARN_BYTES  # noqa: PLC0415 - memory imports caches
@@ -251,8 +262,10 @@ def _run_inline(fn: Callable, task: str, cancel: threading.Event | None, project
         INLINE["running"] = True
         log.warning(t("log.offload.inline", task=task))
         priority.checkpoint(cancel)
+        analysis_progress.set_callback(on_progress)
         return fn(project, store, *args, **kwargs)
     finally:
+        analysis_progress.set_callback(None)
         INLINE["running"] = False
         _INLINE_LOCK.release()
 
@@ -271,10 +284,11 @@ def note_worker_peak(task: str, peak: object) -> None:
 
 
 def probe(what: dict, cancel: threading.Event | None = None,
-          pause: bool | None = None) -> dict:
+          pause: bool | None = None, on_progress=None) -> dict:
     """Ask the worker about itself (``{"what": "priority"}``) or have it spin
     (``{"what": "spin", "seconds": s}``): the selftest and the tests."""
-    reply = _run({"task": "_probe", "probe": what}, cancel, pause)
+    reply = _run({"task": "_probe", "probe": what}, cancel, pause,
+                 on_progress=on_progress)
     error = reply.get("error")
     if error is not None:
         raise _rebuild(error)
@@ -647,8 +661,36 @@ def _shutdown() -> None:
 _CENSUS_AT_EXIT = False
 
 
+def _watch_progress(path: Path, on_progress) -> Callable[[], None]:
+    """Read the worker's progress file while it runs and pass each new report on; returns
+    the function that stops watching (after one last look)."""
+    stop = threading.Event()
+    last: list = [None]
+
+    def look() -> None:
+        found = analysis_progress.read(path)
+        if found is not None and found != last[0]:
+            last[0] = found
+            with contextlib.suppress(Exception):
+                on_progress(*found)
+
+    def loop() -> None:
+        while not stop.wait(PROGRESS_POLL_S):
+            look()
+
+    thread = threading.Thread(target=loop, name="kuulas-progress", daemon=True)
+    thread.start()
+
+    def finish() -> None:
+        stop.set()
+        thread.join(timeout=2)
+        look()
+
+    return finish
+
+
 def _run(payload: dict, cancel: threading.Event | None, pause: bool | None, *,
-         key: object = None, owner: str | None = None) -> dict:
+         key: object = None, owner: str | None = None, on_progress=None) -> dict:
     cancel = cancel if cancel is not None else priority._cancel()
     pause = priority.is_background() if pause is None else pause
     on_pause, on_resume = priority._listener() or (None, None)
@@ -656,10 +698,20 @@ def _run(payload: dict, cancel: threading.Event | None, pause: bool | None, *,
         task, result, errors = (Path(tmp) / n for n in ("task.pickle", "result.pickle",
                                                          "stderr.txt"))
         task.write_bytes(pickle.dumps(payload, protocol=pickle.HIGHEST_PROTOCOL))
-        with errors.open("wb") as err:
-            code = MANAGER.run(worker_argv(task, result), key=key, owner=owner,
-                               cancel=cancel, pause=pause, on_pause=on_pause,
-                               on_resume=on_resume, stderr=err, env=toolpath.tool_env())
+        env = toolpath.tool_env()
+        listener = None
+        if on_progress is not None:
+            progress_file = Path(tmp) / "progress.json"
+            env[analysis_progress.PROGRESS_ENV] = str(progress_file)
+            listener = _watch_progress(progress_file, on_progress)
+        try:
+            with errors.open("wb") as err:
+                code = MANAGER.run(worker_argv(task, result), key=key, owner=owner,
+                                   cancel=cancel, pause=pause, on_pause=on_pause,
+                                   on_resume=on_resume, stderr=err, env=env)
+        finally:
+            if listener is not None:
+                listener()
         if code != 0 or not result.exists():
             tail = errors.read_bytes()[-400:].decode("utf-8", "replace").strip()
             detail = f"exit {code}: {tail}" if tail else f"exit {code}"

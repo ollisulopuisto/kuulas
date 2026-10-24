@@ -85,6 +85,23 @@ def test_the_blocks_and_their_gains_are_the_automixers(session, tmp_path):
     assert (m["max_cut_db"], m["max_boost_db"]) == (18.0, 6.0)
 
 
+def test_the_measurement_reports_how_far_it_is(session, tmp_path):
+    build(session, tmp_path)
+    seen = []
+    block_level_task = offload.call(
+        "block_level", session.state, session.store,
+        on_progress=lambda f, stage, detail: seen.append((f, stage, detail)))
+    assert block_level_task["speakers"]
+    fractions = [f for f, _s, _d in seen]
+    assert fractions == sorted(fractions)
+    assert 0.0 < fractions[0] < 1.0
+    assert fractions[-1] == 1.0
+    stages = [s for _f, s, _d in seen]
+    assert stages[0] == "tracks"
+    assert stages[-1] == "blocks"
+    assert seen[0][2] == {"done": 1, "total": 1}
+
+
 def test_no_speech_is_a_reason_not_a_crash(session, tmp_path):
     build(session, tmp_path)
     [track] = session.state.tracks

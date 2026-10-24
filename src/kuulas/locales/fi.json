@@ -2972,6 +2972,8 @@
   "error.block_level.no_speech": "Tasattavaa puhetta ei ole: yhdelläkään mykistämättömällä puheraidalla ei ole leikkeitä.",
   "error.block_level.stale": "Muokkaus muuttui mittauksen jälkeen. Mittaa uudelleen ja ota sitten käyttöön.",
   "job.block_level": "Mitataan puhelohkoja",
+  "job.block_level.tracks": "Luetaan raitaa {done}/{total}…",
+  "job.block_level.blocks": "Etsitään kovia ja hiljaisia lohkoja…",
   "block_level.loud_marker": "Kova kohta {excess} dB ({speaker})",
   "cmd.app.block_level": "Tasaa lohkot…",
   "cmd.app.block_level.hint": "Etsii kunkin puhujan puheen lohkot (taukojen välit), joiden taso on pielessä, ja listaa ne vahvistuksella, joka palauttaisi ne. Käyttöönotto jakaa leikkeet tauoissa ja lisää vahvistuksen leikkeisiin, joten voit säätää sitä vielä. Hyvin kovat lyhyet kohdat listataan, niitä ei muuteta. Yksi kumoamisaskel; uusi ajo ei muuta mitään.",

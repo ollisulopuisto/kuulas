@@ -4828,3 +4828,25 @@ legend.form-heading {
   flex-wrap: wrap;
   gap: var(--space-2);
 }
+
+/* A running background job's bar in a dialog (job-progress.js): full width, the accent, thin. */
+.job-progress {
+  width: 100%;
+  height: 8px;
+  appearance: none;
+  border: 0;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--border-subtle);
+  accent-color: var(--accent);
+}
+.job-progress::-webkit-progress-bar {
+  background: var(--border-subtle);
+}
+.job-progress::-webkit-progress-value {
+  background: var(--accent);
+  border-radius: 4px;
+}
+.job-progress[hidden] {
+  display: none;
+}

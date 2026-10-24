@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import threading
 from bisect import bisect_right
 from dataclasses import dataclass, field, replace
 from itertools import pairwise
@@ -47,7 +48,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from speechmix import blocks, grid, masks
 
-from . import analysis, caches, ops
+from . import analysis, analysis_progress, caches, ops
 from .messages import t
 from .ops import CLIP_GAIN_RANGE, EditError
 
@@ -95,7 +96,19 @@ def _lanes(p: Project, store):
     """One lane per speaker: ``on`` from the raw levels (``grid.lane``, the
     decision), ``level`` from what plays. ``(lane, [track ids])`` in track order."""
     tracks = speech_tracks(p)
-    measured = analysis.map_tracks(lambda tr: _levels(p, store, tr), tracks)
+    finished = [0]
+    lock = threading.Lock()
+
+    def measure_track(track):
+        levels = _levels(p, store, track)
+        with lock:
+            finished[0] += 1
+            # Reading the tracks is nearly all the work: 85 % of the bar.
+            analysis_progress.report(0.85 * finished[0] / len(tracks), "tracks",
+                                     done=finished[0], total=len(tracks))
+        return levels
+
+    measured = analysis.map_tracks(measure_track, tracks)
     order: list[str] = []
     parts: dict[str, list] = {}
     heard: dict[str, list[np.ndarray]] = {}
@@ -148,7 +161,9 @@ def measure(p: Project, store) -> dict:
         return {**out, "reason": "no_speech"}
     found = _lanes(p, store)
     own = _own_voice([lane for lane, _ in found])
-    for (lane, ids), mine in zip(found, own, strict=True):
+    for number, ((lane, ids), mine) in enumerate(zip(found, own, strict=True), 1):
+        analysis_progress.report(0.85 + 0.15 * number / len(found), "blocks",
+                                 done=number, total=len(found))
         found_blocks = blocks.block_gains(lane.level, mine)
         loud = blocks.loud_spans(lane.level, mine, found_blocks)
         out["speakers"].append({

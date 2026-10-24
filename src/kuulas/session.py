@@ -1723,8 +1723,12 @@ class Session:
 
         def run(progress):
             progress(0.0, "", True)
+
+            def heard(fraction: float, stage: str, detail: dict) -> None:
+                progress(fraction, t(f"job.block_level.{stage}", **detail))
+
             measured = offload.call("block_level", snapshot, self.store,
-                                    cancel=progress.cancelled_event)
+                                    cancel=progress.cancelled_event, on_progress=heard)
             if progress.cancelled:
                 raise JobCancelledError
             return measured

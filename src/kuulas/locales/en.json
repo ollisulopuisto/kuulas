@@ -2867,6 +2867,8 @@
   "error.block_level.no_speech": "There is no speech to level: no unmuted speech track has clips.",
   "error.block_level.stale": "The edit changed after the measurement. Measure again, then apply.",
   "job.block_level": "Measuring the speech blocks",
+  "job.block_level.tracks": "Reading track {done} of {total}…",
+  "job.block_level.blocks": "Finding the loud and the quiet blocks…",
   "block_level.loud_marker": "Loud spot {excess} dB ({speaker})",
   "cmd.app.block_level": "Level blocks…",
   "cmd.app.block_level.hint": "Finds the blocks of each speaker's speech (between pauses) whose level is off, and lists them with the gain that would bring them back. Apply splits the clips in the pauses and adds the gain to the clips, so you can still adjust it. Very loud short spots are listed, not changed. One undo step; running it again changes nothing.",

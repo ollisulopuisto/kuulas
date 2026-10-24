@@ -18,6 +18,7 @@ import {
   skipIds,
 } from "./block-level-model.js";
 import { enhanceDialog } from "./dialog-keys.js";
+import { progressView } from "./job-progress.js";
 
 const POLL_MS = 400;
 
@@ -44,6 +45,12 @@ export function createBlockLevelDialog({ api, t, fmt, clock, onApply }) {
   const status = el("div", "form-note block-level-status");
   status.setAttribute("role", "status");
   status.setAttribute("aria-live", "polite");
+  // How far the measuring is (job-progress.js): a bar that moves when the job says how far it
+  // is, and the job's own message beside it ("Reading track 2 of 5…").
+  const bar = el("progress", "job-progress");
+  bar.max = 1;
+  bar.hidden = true;
+  bar.setAttribute("aria-label", t("ui.block_level.measuring"));
   const error = el("p", "form-msg");
   error.setAttribute("role", "alert");
   error.hidden = true;
@@ -72,7 +79,7 @@ export function createBlockLevelDialog({ api, t, fmt, clock, onApply }) {
   const form = el("form", "form-grid");
   form.method = "dialog";
   form.noValidate = true;
-  form.append(rule, status, error, lists, markersRow, buttons);
+  form.append(rule, status, bar, error, lists, markersRow, buttons);
   dialog.append(heading, form);
   document.body.append(dialog);
   enhanceDialog(dialog, { t });
@@ -145,7 +152,16 @@ export function createBlockLevelDialog({ api, t, fmt, clock, onApply }) {
     apply.disabled = false;
   }
 
+  function paintProgress(job) {
+    const view = progressView(job, t("ui.block_level.measuring"));
+    status.textContent = view.text;
+    if (view.value === null) bar.removeAttribute("value");
+    else bar.value = view.value;
+    bar.hidden = false;
+  }
+
   const showError = (text) => {
+    bar.hidden = true;
     status.textContent = "";
     error.textContent = text;
     error.hidden = false;
@@ -153,6 +169,7 @@ export function createBlockLevelDialog({ api, t, fmt, clock, onApply }) {
 
   function stop() {
     watching += 1;
+    bar.hidden = true;
     if (jobId) void api.cancelJob(jobId).catch(() => {});
     jobId = null;
   }
@@ -169,7 +186,7 @@ export function createBlockLevelDialog({ api, t, fmt, clock, onApply }) {
     markersRow.hidden = true;
     markersBox.checked = false;
     apply.disabled = true;
-    status.textContent = t("ui.block_level.measuring");
+    paintProgress(null);
     try {
       const { jobs } = await api.blockLevelMeasure({});
       jobId = jobs[0];
@@ -178,6 +195,7 @@ export function createBlockLevelDialog({ api, t, fmt, clock, onApply }) {
         if (!job) break;
         if (job.state === "completed") {
           jobId = null;
+          bar.hidden = true;
           const key = measureError(job.result);
           if (key) {
             showError(t(key));
@@ -193,6 +211,7 @@ export function createBlockLevelDialog({ api, t, fmt, clock, onApply }) {
           showError(job.error?.text || t("ui.block_level.failed"));
           return;
         }
+        paintProgress(job);
         await new Promise((resolve) => setTimeout(resolve, POLL_MS));
       }
     } catch (e) {
