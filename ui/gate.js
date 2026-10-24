@@ -72,7 +72,19 @@ export function gateAt(ranges, frame, zoom) {
 }
 
 /** The one edit "Open this stretch" makes: the whole range, one undo step. */
-export function openStretchEdit(trackId, [start, end]) {
+export function openStretchEdit(target, range = null) {
+  if (target?.implicit && target.clipId) {
+    return {
+      op: "open_gated_region",
+      args: {
+        track_id: target.trackId,
+        clip_id: target.clipId,
+        at: Math.floor((target.range[0] + target.range[1]) / 2),
+      },
+    };
+  }
+  const [start, end] = range ?? target.range;
+  const trackId = target.trackId ?? target;
   return { op: "remove_gate_range", args: { track_id: trackId, start, end } };
 }
 

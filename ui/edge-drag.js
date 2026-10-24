@@ -14,6 +14,11 @@ export function isDrag(dx, dy, threshold = DRAG_PX) {
 
 const endOf = (clip) => clip.start + clip.length;
 
+/** Clamp an implicit edge to a serialized clip range (start + length). */
+export function clampImplicitEdge(clip, frame) {
+  return Math.max(clip.start, Math.min(endOf(clip), frame));
+}
+
 /** The clip on the same track that meets `clip` exactly at `edge`, or null. */
 export function touchingNeighbour(track, clip, edge) {
   for (const other of track.clips) {

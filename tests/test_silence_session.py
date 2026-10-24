@@ -50,8 +50,8 @@ def wait_job(session, job_id, seconds=20):
     raise AssertionError("job did not finish")
 
 
-def test_explicit_default_options_give_the_same_gates_as_none(tmp_path):
-    gates = []
+def test_explicit_default_options_give_the_same_clip_ranges_as_none(tmp_path):
+    silences = []
     for name, args in (("Plain", {}), ("Explicit", {
             "margin_db": 12, "min_open_s": 0.4, "min_closed_s": 0.3,
             "open_before_s": 0.15, "open_after_s": 0.4, "dominance_db": 6,
@@ -60,19 +60,19 @@ def test_explicit_default_options_give_the_same_gates_as_none(tmp_path):
         try:
             talkers(s, tmp_path)
             s.command("auto_silence", args)
-            gates.append([t.gate for t in s.state.tracks])
+            silences.append([[c.auto_silence for c in t.clips] for t in s.state.tracks])
         finally:
             s.close()
-    assert gates[0] == gates[1]
-    assert any(gates[0])
+    assert silences[0] == silences[1]
+    assert any(ranges for track in silences[0] for ranges in track)
 
 
 def test_the_options_change_what_is_closed(session, tmp_path):
     talkers(session, tmp_path)
     session.command("auto_silence", {})
-    default = [t.gate for t in session.state.tracks]
+    default = [[c.auto_silence for c in t.clips] for t in session.state.tracks]
     session.command("auto_silence", {"min_closed_s": 3.0})
-    assert [t.gate for t in session.state.tracks] != default
+    assert [[c.auto_silence for c in t.clips] for t in session.state.tracks] != default
 
 
 def test_a_bad_option_is_refused_and_changes_nothing(session, tmp_path):
@@ -123,11 +123,13 @@ def test_open_gates_clears_the_named_tracks_in_one_undo_step(session, tmp_path):
     talkers(session, tmp_path)
     session.command("auto_silence", {})
     gated = session.state
+    assert any(c.auto_silence for t in gated.tracks for c in t.clips)
     a, b = (t.id for t in gated.tracks)
     steps = len(session.history.nodes())
     session.command("open_gates", {"track_ids": [a]})
-    assert session.state.track(a).gate == ()
-    assert session.state.track(b).gate == gated.track(b).gate
+    assert not any(c.auto_silence for c in session.state.track(a).clips)
+    assert [c.auto_silence for c in session.state.track(b).clips] == [
+        c.auto_silence for c in gated.track(b).clips]
     assert len(session.history.nodes()) == steps + 1
     session.undo()
     assert session.state == gated
@@ -155,7 +157,7 @@ def test_open_gates_without_names_opens_every_gated_track(session, tmp_path):
     talkers(session, tmp_path)
     session.command("auto_silence", {})
     session.command("open_gates", {})
-    assert not any(t.gate for t in session.state.tracks)
+    assert not any(c.auto_silence for t in session.state.tracks for c in t.clips)
 
 
 def test_a_flagged_clip_stays_open_through_auto_silence_and_a_trim(session, tmp_path):
@@ -166,8 +168,8 @@ def test_a_flagged_clip_stays_open_through_auto_silence_and_a_trim(session, tmp_
     clip = a.clips[0]
     session.command("auto_silence", {})
     session.edit("set_clips_ungated", {"clip_ids": [clip.id], "value": True})
-    gate = session.state.track(a.id).gate
-    assert not any(x < clip.end and clip.start < y for x, y in gate)
+    silence = session.state.track(a.id).clips[0].auto_silence
+    assert not silence
     session.command("auto_silence", {})  # re-run: replaces the gate, the flag still wins
-    gate = session.state.track(a.id).gate
-    assert not any(x < clip.end and clip.start < y for x, y in gate)
+    silence = session.state.track(a.id).clips[0].auto_silence
+    assert not silence

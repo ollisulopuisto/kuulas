@@ -468,7 +468,7 @@ def test_auto_silence_is_one_undo_step(session, tmp_path):
     talkers(session, tmp_path)
     before = session.state
     session.command("auto_silence", {})
-    assert any(t.gate for t in session.state.tracks)
+    assert any(c.auto_silence for t in session.state.tracks for c in t.clips)
     assert len(session.history.nodes()) == 3
     session.undo()
     assert session.state == before
@@ -478,7 +478,7 @@ def test_auto_silence_can_be_limited_to_some_tracks(session, tmp_path):
     talkers(session, tmp_path)
     first = session.state.tracks[0].id
     session.command("auto_silence", {"track_ids": [first]})
-    muted = {t.id: bool(t.gate) for t in session.state.tracks}
+    muted = {t.id: any(c.auto_silence for c in t.clips) for t in session.state.tracks}
     assert muted[first]
     assert not muted[session.state.tracks[1].id]
 

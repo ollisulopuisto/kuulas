@@ -586,6 +586,7 @@ export const SEMANTIC_TOKENS = [
   "--ruler-text",
   "--ruler-tick",
   "--signal-selected",
+  "--signal-clip-edge",
   "--signal-partner",
   "--signal-muted-hatch",
   "--signal-muted-opacity",

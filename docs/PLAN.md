@@ -2924,17 +2924,24 @@ the export guard counts unrecorded placeholders.
 
 ### WP44 — Auto-Silence as merged gate ranges
 
-Status: backend done in v26.10.18.5 (`gate.py`, `Track.gate`, ops, the mixer ramp, audibility everywhere, format version 3 with `min_reader` raised per project); gate bands and "Open this stretch" in the editor done in v26.10.18.7 (a per-lane toggle and a context menu are open) (owner decision 2026-10-17: "measure the need to mute very often,
-but the muted region should be merged"). Needs WP1. Sonnet 5.5. Do it before the
-soft-cut work (cut-keeping-the-gap, see the architect's note in the session log
-and the open questions in `docs/handoffs/`), and before any long-session use.
+Status: the original merged-gate implementation shipped in v26.10.18.5–.7.
+Its per-track storage policy was superseded by the owner update below on
+2026-10-24; `Track.gate` remains only for older projects and legacy edits.
+
+**Owner update 2026-10-24:** Auto-Silence ranges now belong to the clips they
+were measured on, in source frames, so moving a different clip into the same
+timeline area does not mute it. Ranges remain implicit until the user changes
+one; M and edge dragging materialize only that portion as an ordinary clip.
+Legacy `Track.gate` remains readable. Transcript follow unlocks on manual
+scroll during playback and stays unlocked until Follow is pressed. Clip borders
+use a neutral token independent of waveform color.
 
 **Problem.** `analysis.auto_silence` calls `ops.mute_ranges` for every closed
 stretch, and each call splits the clip. A 1-hour 4-mic conversation gives
 thousands of pieces (an estimate: 5,000 to 10,000; measured 69 ms to pack a state
 at 8,000 pieces, over the 50 ms edit budget, and about 119 KB per history step).
 
-**Rule.** The measurement stays fine (hop by hop, every mic against the others,
+**Original rule (historical).** The measurement stayed fine (hop by hop, every mic against the others,
 bleed included). The result is **merged**:
 1. In `silence_ranges`, after combining "no talk" with the ducked (bleed) mask,
    close every open stretch shorter than `MIN_OPEN_S` (start with 0.4 s) and drop

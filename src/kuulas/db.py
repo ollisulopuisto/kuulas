@@ -27,7 +27,7 @@ from typing import Any
 
 from .messages import KuulasError
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 SCHEMA = """
 create table if not exists meta(key text primary key, value text not null);

@@ -20,6 +20,7 @@ import {
   nextMatch,
   prevMatch,
 } from "./transcript-find.js";
+import { transcriptFollowStep, transcriptPlaybackStep } from "./transcript-follow.js";
 import {
   alsoRemovedIndices,
   buildParagraphs,
@@ -139,6 +140,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   const wordNodes = new Map(); // word index -> element
   let now = -1;
   let paused = false;
+  let wasPlaying = false;
   let lastSetTop = 0;
   let editing = null;
   let drag = null;
@@ -569,19 +571,10 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     }
   }
 
-  function inView(i) {
-    const rect = wordRect(i);
-    return Boolean(rect && rect.top >= list.offsetTop && rect.bottom <= root.clientHeight);
-  }
-
   function followPlayback() {
     const state = getState();
     if (!state.playing || words.length === 0) return;
-    if (paused) {
-      // Back in view by hand: follow again.
-      if (now >= 0 && inView(now)) setPaused(false);
-      return;
-    }
+    if (paused) return;
     if (now >= 0) reveal(now);
   }
 
@@ -592,7 +585,12 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   }
 
   root.addEventListener("scroll", () => {
-    if (Math.abs(root.scrollTop - lastSetTop) > 2 && getState().playing && !paused) setPaused(true);
+    if (Math.abs(root.scrollTop - lastSetTop) > 2) {
+      setPaused(
+        transcriptFollowStep({ paused, playing: getState().playing }, { type: "manual-scroll" })
+          .paused,
+      );
+    }
     lastSetTop = root.scrollTop;
     scheduleWindow();
   });
@@ -606,7 +604,9 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     });
   }
   follow.addEventListener("click", () => {
-    setPaused(false);
+    setPaused(
+      transcriptFollowStep({ paused, playing: getState().playing }, { type: "follow" }).paused,
+    );
     followPlayback();
   });
 
@@ -680,10 +680,10 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     reveal(to);
   });
   root.addEventListener("wheel", () => {
-    if (getState().playing && !paused) setPaused(true);
+    if (!paused) setPaused(true);
   });
   root.addEventListener("touchmove", () => {
-    if (getState().playing && !paused) setPaused(true);
+    if (!paused) setPaused(true);
   });
   empty.addEventListener("click", (event) => {
     const button = event.target.closest?.("button[data-act]");
@@ -1179,6 +1179,9 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     update(state, patch) {
       const changed = patch ? new Set(Object.keys(patch)) : null;
       const touched = (...names) => changed === null || names.some((name) => changed.has(name));
+      const playback = transcriptPlaybackStep({ paused, wasPlaying }, state.playing);
+      wasPlaying = playback.wasPlaying;
+      if (playback.paused !== paused) setPaused(playback.paused);
       if (touched("head", "serverMutedKey")) void loadWords();
       if (touched("focusMode", "focusHideOthers")) refocus(state);
       const key = `${state.wordsHead}|${state.words?.length}|${state.project?.rate}|${state.project?.tracks?.map((x) => x.id + x.speaker + x.name).join()}|${JSON.stringify(state.people ?? {})}|${state.pauseBreak}`;
@@ -1193,7 +1196,6 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       )
         void refreshJobs();
       if (touched("playhead", "playing")) {
-        if (touched("playing") && state.playing) setPaused(false);
         if (touched("playing") && !state.playing) follow.hidden = true;
         markNow();
         followPlayback();

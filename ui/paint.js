@@ -3,6 +3,7 @@
 // worker (OffscreenCanvas), on the main thread when workers are unavailable,
 // and in tests with a recording context.
 import { CLIP_LIMIT_DB, columnOvers } from "./clip-overs.js";
+import { implicitSilenceRanges } from "./clip-silence.js";
 import { frameToX } from "./format.js";
 import { columnGainsDb, waveformScale } from "./gain-scale.js";
 import { gatePixelRuns } from "./gate.js";
@@ -100,6 +101,8 @@ export function makeWaveformJob(state, { width, height, ratio, id }, palette, co
       };
       // Only when set, so a job is unchanged for the common clip.
       if (clip.ungated) entry.ungated = true;
+      if (clip.auto_silence?.length)
+        entry.autoSilence = gatePixelRuns(implicitSilenceRanges(clip), scroll, zoom, width);
       if (missingMedia?.has(clip.media)) entry.missing = true;
       // WP57: the size follows clip + track gain and the clip's envelope. Pan and mute do
       // not; bus gain is not included yet. Absent at 0 dB, so a job is unchanged there.
@@ -262,6 +265,7 @@ function paintClipWave(ctx, job, row, clip, view) {
     muted: clip.muted,
     ungated: clip.ungated,
     gate: row.gate,
+    implicit: clip.autoSilence,
   });
   const preview = row.preview?.length
     ? silentColumns(count, from, { ungated: clip.ungated, gate: row.preview })

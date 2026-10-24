@@ -32,6 +32,9 @@ ALLOWED = {
         "heartbeat: a WAL checkpoint and a backup every few minutes; IO only",
     ("media.py", "_ffmpeg_pcm.__init__"):
         "decoder subprocess stderr drain and watchdog: IO waits, no compute",
+    ("offload.py", "_watch_progress"):
+        ("polls the analysis worker's progress file and relays status updates; "
+         "IO only"),
     ("session.py", "Session.__init__"):
         "polls background-transcription status files every few seconds; no compute",
     ("automix.py", "run_process"):

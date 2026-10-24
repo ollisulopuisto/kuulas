@@ -17,14 +17,21 @@
  * outline only, 0 = filled. `gate` is gatePixelRuns' merged pixel runs [x0, x1, ...]. A
  * muted clip is silent everywhere; a clip that keeps the mic open ignores the gate.
  */
-export function silentColumns(count, from, { muted = false, ungated = false, gate = null } = {}) {
+export function silentColumns(
+  count,
+  from,
+  { muted = false, ungated = false, gate = null, implicit = null } = {},
+) {
   const mask = new Uint8Array(Math.max(0, count));
   if (muted) return mask.fill(1);
-  if (ungated || !gate?.length) return mask;
-  for (let i = 0; i < gate.length; i += 2) {
-    const first = Math.max(gate[i], from) - from;
-    const last = Math.min(gate[i + 1], from + count) - from;
-    for (let column = first; column < last; column += 1) mask[column] = 1;
+  if (ungated) return mask;
+  for (const runs of [gate, implicit]) {
+    if (!runs?.length) continue;
+    for (let i = 0; i < runs.length; i += 2) {
+      const first = Math.max(runs[i], from) - from;
+      const last = Math.min(runs[i + 1], from + count) - from;
+      for (let column = first; column < last; column += 1) mask[column] = 1;
+    }
   }
   return mask;
 }

@@ -20,10 +20,11 @@ import {
   targetTrackRow,
 } from "./clip-drag.js";
 import { overLabel } from "./clip-overs.js";
+import { implicitSilenceRanges } from "./clip-silence.js";
 import { averageWordFrames, layoutClipWords, wordsWideEnough } from "./clip-words.js";
 import { dropTarget as clipboardDropTarget, dropOutlines } from "./clipboard-drag.js";
 import { DEFAULT_DRAG_MODE, dragIntent } from "./drag-mode.js";
-import { edgeGhost, ghostGeometry, resolveEdge } from "./edge-drag.js";
+import { clampImplicitEdge, edgeGhost, ghostGeometry, resolveEdge } from "./edge-drag.js";
 import { inactiveTracks } from "./focus-layout.js";
 import { frameToTime, frameToX, xToFrame } from "./format.js";
 import {
@@ -324,6 +325,22 @@ export function createTimeline({
     const track = state.project.tracks.find((item) => item.id === edgeSession.trackId);
     const clip = track?.clips.find((item) => item.id === edgeSession.clipId);
     if (!(row && clip)) return;
+    if (edgeSession.implicitRange) {
+      const x = frameToX(edgeSession.frame, state.scroll, state.zoom);
+      overlay.save();
+      overlay.beginPath();
+      overlay.rect(0, RULER_HEIGHT, size.width, size.height - RULER_HEIGHT);
+      overlay.clip();
+      overlay.strokeStyle = theme.accent;
+      overlay.lineWidth = 2;
+      overlay.setLineDash([4, 3]);
+      overlay.beginPath();
+      overlay.moveTo(x + 0.5, RULER_HEIGHT);
+      overlay.lineTo(x + 0.5, size.height);
+      overlay.stroke();
+      overlay.restore();
+      return;
+    }
     const ghost = edgeGhost(state.project, track, clip, edgeSession.edge, edgeSession.frame, {
       ripple: edgeSession.ripple,
       overwrite: edgeSession.overwrite,
@@ -849,7 +866,7 @@ export function createTimeline({
       const w = Math.max(1, right - left);
       const selected = state.selection.has(clip.id) || !!rangeBand?.touched?.has(clip.id);
       const missing = state.missingMedia?.has(clip.media);
-      overlay.strokeStyle = colours.ink;
+      overlay.strokeStyle = theme.clipEdge;
       overlay.lineWidth = 1;
       overlay.strokeRect(left + 0.5, y + 0.5, w - 1, h - 1);
       if (missing) drawMissingMedia(left, y, w, h);
@@ -1035,8 +1052,11 @@ export function createTimeline({
   // left out where a real clip border is (drawn above, unchanged). silence-visuals.js
   // stretchEdges has the rules.
   function drawStretchEdges(state, track, top, rowHeight) {
-    if (!track.gate?.length) return;
-    const runs = gatePixelRuns(track.gate, state.scroll, state.zoom, size.width, gateRuns);
+    const ranges = [...(track.gate ?? []), ...track.clips.flatMap(implicitSilenceRanges)].sort(
+      (a, b) => a[0] - b[0],
+    );
+    if (ranges.length === 0) return;
+    const runs = gatePixelRuns(ranges, state.scroll, state.zoom, size.width, gateRuns);
     const clipEdges = track.clips.flatMap((clip) => [
       frameToX(clip.start, state.scroll, state.zoom),
       frameToX(clipEnd(clip), state.scroll, state.zoom),
@@ -1927,6 +1947,7 @@ export function createTimeline({
       clipId: hit.clip.id,
       trackId: hit.row.id,
       edge: hit.edge,
+      implicitRange: hit.implicitRange ?? null,
       origin: locate(event),
       pointerId: event.pointerId,
       dragging: false,
@@ -1936,7 +1957,11 @@ export function createTimeline({
       mod: edgeMod(event), // Cmd/Ctrl held: trim only this clip (unless Alt); read live
       alone: edgeMod(event) && !event.altKey,
       raw: null,
-      frame: hit.edge === "start" ? hit.clip.start : hit.clip.start + hit.clip.length,
+      frame: hit.implicitRange
+        ? hit.implicitRange[hit.edge === "start" ? 0 : 1]
+        : hit.edge === "start"
+          ? hit.clip.start
+          : hit.clip.start + hit.clip.length,
     };
     overlayCanvas.setPointerCapture?.(event.pointerId);
     window.addEventListener("keydown", edgeKey, true);
@@ -1947,6 +1972,10 @@ export function createTimeline({
   function clampEdge() {
     const { state, track, clip } = edgeTarget(edgeSession);
     if (!clip || edgeSession.raw === null) return;
+    if (edgeSession.implicitRange) {
+      edgeSession.frame = clampImplicitEdge(clip, edgeSession.raw);
+      return;
+    }
     edgeSession.frame = resolveEdge(state.project, track, clip, edgeSession.edge, edgeSession.raw, {
       ripple: edgeSession.ripple,
       overwrite: edgeSession.overwrite,
@@ -1980,15 +2009,26 @@ export function createTimeline({
     window.removeEventListener("keyup", edgeKey, true);
     overlayCanvas.releasePointerCapture?.(session.pointerId);
     requestOverlay();
-    if (commit && !session.dragging) actions.seek?.(session.seekFrame);
+    if (commit && !session.dragging) {
+      if (session.implicitRange)
+        actions.openGate?.({
+          trackId: session.trackId,
+          clipId: session.clipId,
+          range: session.implicitRange,
+          implicit: true,
+        });
+      else actions.seek?.(session.seekFrame);
+    }
     if (commit && session.dragging) {
       actions.edgeDrag({
         clipId: session.clipId,
+        trackId: session.trackId,
         edge: session.edge,
         frame: session.frame,
         ripple: session.ripple,
         overwrite: session.overwrite,
         alone: session.alone,
+        implicitRange: session.implicitRange,
       });
     }
   }

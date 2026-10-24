@@ -1,10 +1,12 @@
-"""The gate in the project format (WP44, docs/FORMAT.md): version 3, and an
+"""The gate in the project format (WP44, docs/FORMAT.md): version 4, and an
 old reader refuses a project that contains a gate."""
 
 import json
 import time
 
+import numpy as np
 import pytest
+import soundfile as sf
 
 from kuulas import ops, package
 from kuulas.history import edit_blob
@@ -23,12 +25,12 @@ def with_track(pkg):
     h.commit("track", ops.add_track(h.state, track_id="t", name="A"))
 
 
-def test_format_version_is_three_and_min_reader_stays_one_without_a_gate(tmp_path):
+def test_format_version_is_four_and_min_reader_stays_one_without_a_gate(tmp_path):
     pkg = package.create(tmp_path / "A.kuulas")
     with_track(pkg)
     pkg.close()
     m = manifest(tmp_path / "A.kuulas")
-    assert (m["version"], m["min_reader"]) == (3, 1)
+    assert (m["version"], m["min_reader"]) == (4, 1)
 
 
 def test_the_first_gate_raises_min_reader_before_the_state_is_written(tmp_path):
@@ -84,7 +86,7 @@ def test_upgrading_a_version_two_project_keeps_its_min_reader(tmp_path):
     folder = tmp_path / "A.kuulas"
     package.write_manifest(folder, {**manifest(folder), "version": 2, "min_reader": 1})
     package.open_package(folder).close()
-    assert (manifest(folder)["version"], manifest(folder)["min_reader"]) == (3, 1)
+    assert (manifest(folder)["version"], manifest(folder)["min_reader"]) == (4, 1)
     package.write_manifest(folder, {**manifest(folder), "version": 2, "min_reader": 3})
     package.open_package(folder).close()
     assert manifest(folder)["min_reader"] == 3
@@ -98,6 +100,30 @@ def test_the_gate_survives_save_and_load(tmp_path):
     again = Session(tmp_path / "A.kuulas")
     assert again.state.track("t").gate == ((10, 20), (40, 50))
     again.close()
+
+
+def test_clip_auto_silence_raises_min_reader_before_the_state_is_written(tmp_path):
+    pkg = package.create(tmp_path / "A.kuulas")
+    state = pkg.history.state
+    path = tmp_path / "voice.wav"
+    sf.write(path, np.ones(1000, dtype=np.float32) * 0.1, 48000)
+    media = pkg.store.import_file(path)
+    state = ops.add_media(state, media)
+    state = ops.add_track(state, track_id="t", name="A")
+    state = ops.add_clip(state, track_id="t", media_id=media.id, clip_id="c")
+    state = ops.set_track_auto_silence(state, "t", [(10, 20)])
+    seen = []
+    real = pkg.history._insert
+
+    def spy(*args, **kwargs):
+        seen.append(manifest(pkg.path)["min_reader"])
+        return real(*args, **kwargs)
+
+    pkg.history._insert = spy
+    pkg.history.commit("silence", state)
+    assert seen == [4]
+    assert manifest(pkg.path)["min_reader"] == 4
+    pkg.close()
 
 
 def test_a_second_edit_of_the_project_also_raises_min_reader(tmp_path):

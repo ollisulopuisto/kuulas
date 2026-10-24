@@ -219,6 +219,58 @@ describe("mute on a closed stretch (BUGS #109)", () => {
     assert.equal(plan.label.key, "ui.edit.label.unmute_region");
   });
 
+  test("M opens only the selected clip's implicit source range after it moved", () => {
+    const clipWithSilence = clip("a1", 10, 10, {
+      offset: 0,
+      auto_silence: [[3 * S, 5 * S]],
+    });
+    const moved = { ...project, tracks: [{ id: "A", clips: [clipWithSilence] }] };
+    const plan = mutePlan(state({ project: moved, selection: new Set(["a1"]), playhead: 14 * S }));
+    assert.equal(plan.op, "open_gated_region");
+    assert.deepEqual(plan.args, { track_id: "A", clip_id: "a1", at: 14 * S });
+    assert.equal(plan.label.key, "ui.edit.label.unmute_region");
+  });
+
+  test("M uses the clicked implicit range even if the play cursor is stale", () => {
+    const clipWithSilence = clip("a1", 0, 10, { auto_silence: [[3 * S, 5 * S]] });
+    const target = { trackId: "A", clipId: "a1", range: [3 * S, 5 * S], implicit: true };
+    const plan = mutePlan(
+      state({
+        project: { ...project, tracks: [{ id: "A", clips: [clipWithSilence] }] },
+        selection: new Set(["a1"]),
+        playhead: 7 * S,
+        implicitRangeTarget: target,
+      }),
+    );
+    assert.equal(plan.op, "open_gated_region");
+    assert.deepEqual(plan.args, { track_id: "A", clip_id: "a1", at: 4 * S });
+  });
+
+  test("M on a clicked implicit range wins over expanded group selection", () => {
+    const clipWithSilence = clip("a1", 0, 10, {
+      group: "g1",
+      auto_silence: [[3 * S, 5 * S]],
+    });
+    const plan = mutePlan(
+      state({
+        project: {
+          ...project,
+          tracks: [{ id: "A", clips: [clipWithSilence, clip("a2", 12, 8, { group: "g1" })] }],
+        },
+        selection: new Set(["a1", "a2"]),
+        playhead: 7 * S,
+        implicitRangeTarget: {
+          trackId: "A",
+          clipId: "a1",
+          range: [3 * S, 5 * S],
+          implicit: true,
+        },
+      }),
+    );
+    assert.equal(plan.op, "open_gated_region");
+    assert.deepEqual(plan.args, { track_id: "A", clip_id: "a1", at: 4 * S });
+  });
+
   test("openedRegionClip finds the clip M opened, so it can be selected for the next M", () => {
     const after = {
       ...project,
@@ -231,6 +283,28 @@ describe("mute on a closed stretch (BUGS #109)", () => {
     };
     assert.equal(openedRegionClip(after, "A", 4 * S), "a2");
     assert.equal(openedRegionClip(after, "B", 4 * S), null);
+  });
+
+  test("openedRegionClip picks the materialized region from the clicked overlapping clip", () => {
+    const sourceClip = clip("a1", 0, 10, {
+      media: "m1",
+      auto_silence: [[3 * S, 5 * S]],
+    });
+    const after = {
+      ...project,
+      tracks: [
+        {
+          id: "A",
+          clips: [
+            clip("a1", 0, 3, { media: "m1" }),
+            clip("a2", 3, 2, { media: "m1", offset: 3 * S }),
+            clip("a3", 5, 5, { media: "m1", offset: 5 * S }),
+            clip("b1", 0, 10, { media: "m2" }),
+          ],
+        },
+      ],
+    };
+    assert.equal(openedRegionClip(after, "A", 4 * S, sourceClip), "a2");
   });
 
   test("the cursor outside the stretch: the whole clip, as before", () => {

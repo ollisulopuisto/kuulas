@@ -77,14 +77,17 @@ def timeline_words(p: Project, transcripts: dict[str, list[dict]]) -> list[dict]
                 s, e, mid = starts[i], ends[i], mids[i]
                 # A word is gated when its midpoint is: the same
                 # rule that decides which clip owns it.
-                gated = closed_at(track.gate, mid + shift) if track.gate else False
+                gated = (closed_at(track.gate, mid + shift) if track.gate else False)
+                auto_silenced = (closed_at(clip.auto_silence, mid)
+                                 if clip.auto_silence else False)
                 out.append({
                     "w": words[i]["w"], "spk": words[i].get("spk", ""),
                     "person": words[i].get("person", ""),
                     "s": max(clip.start, s + shift),
                     "e": min(clip.end, e + shift),
                     "track": track.id, "clip": clip.id, "media": clip.media,
-                    "index": i, "muted": clip.muted or track.id in silent or gated,
+                    "index": i,
+                    "muted": clip.muted or track.id in silent or gated or auto_silenced,
                 })
     out.sort(key=lambda w: (w["s"], w["track"]))
     return out

@@ -1,4 +1,4 @@
-"""Auto-Silence writes a merged gate, never clip pieces (WP44)."""
+"""Auto-Silence writes merged implicit ranges on the clips it measured."""
 
 from gate_fixtures import RATE, conversation
 
@@ -7,13 +7,15 @@ from kuulas.history import edit_blob
 from kuulas.model import Project
 
 
-def test_clips_stay_whole_and_the_gate_holds_the_closed_stretches():
+def test_clips_stay_whole_and_each_clip_holds_its_closed_stretches():
     p, store = conversation()
     q = analysis.auto_silence(p, store)
     for i in range(4):
-        assert q.track(f"T{i}").clips == p.track(f"T{i}").clips
-        assert q.track(f"T{i}").gate
-        assert gate.normalise(q.track(f"T{i}").gate) == q.track(f"T{i}").gate
+        assert len(q.track(f"T{i}").clips) == len(p.track(f"T{i}").clips)
+        assert q.track(f"T{i}").clips[0].auto_silence
+        assert not q.track(f"T{i}").gate
+        silence = q.track(f"T{i}").clips[0].auto_silence
+        assert gate.normalise(silence) == silence
 
 
 def test_the_gate_is_a_fraction_of_the_clip_pieces_it_replaces():
@@ -31,15 +33,16 @@ def test_the_gate_is_a_fraction_of_the_clip_pieces_it_replaces():
     # pieces. A 1-hour session scales both by 12.
     assert gated <= raw
     assert pieces > 1.9 * gated  # two splits per range, fewer at the ends
-    gate_bytes = len(edit_blob(analysis.auto_silence(p, store))[1])
-    assert gate_bytes * 3 < len(edit_blob(pieced)[1])
+    implicit_bytes = len(edit_blob(analysis.auto_silence(p, store))[1])
+    assert implicit_bytes * 3 < len(edit_blob(pieced)[1])
 
 
-def test_running_it_again_replaces_the_gate():
+def test_running_it_again_replaces_the_implicit_ranges():
     p, store = conversation(seconds=120)
     once = analysis.auto_silence(p, store)
     twice = analysis.auto_silence(once, store)
-    assert [t.gate for t in twice.tracks] == [t.gate for t in once.tracks]
+    assert [[c.auto_silence for c in t.clips] for t in twice.tracks] == [
+        [c.auto_silence for c in t.clips] for t in once.tracks]
     assert [t.clips for t in twice.tracks] == [t.clips for t in once.tracks]
 
 
@@ -47,14 +50,16 @@ def test_a_second_run_replaces_a_stale_gate_even_where_it_was_wrong():
     p, store = conversation(seconds=120)
     wrong = ops.set_gate(p, "T0", [(0, 100 * RATE)])
     again = analysis.auto_silence(wrong, store)
-    assert again.track("T0").gate == analysis.auto_silence(p, store).track("T0").gate
+    assert not again.track("T0").gate
+    expected = analysis.auto_silence(p, store).track("T0").clips[0].auto_silence
+    assert again.track("T0").clips[0].auto_silence == expected
 
 
-def test_track_ids_limit_which_gates_are_written():
+def test_track_ids_limit_which_clips_receive_implicit_silence():
     p, store = conversation(seconds=120)
     q = analysis.auto_silence(p, store, ["T1"])
-    assert q.track("T1").gate
-    assert q.track("T0").gate == ()
+    assert q.track("T1").clips[0].auto_silence
+    assert q.track("T0").clips[0].auto_silence == ()
 
 
 def test_short_open_and_closed_stretches_are_merged(monkeypatch):

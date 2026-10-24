@@ -1,5 +1,12 @@
 ## [Unreleased]
 
+## [v26.10.24.2] - 2026-10-24
+
+- **Follow and Auto-Silence edits stay on the intended target.** Scrolling the transcript unlocks follow through playback updates. M on a clicked implicit region materializes only that region, including inside a clip group or overlap; dragging either border materializes and trims only that region, including borders at the parent clip edges.
+
+## [v26.10.24.1] - 2026-10-24
+
+- **Auto-Silence belongs to the clips it measured.** Moving another clip into the same timeline area no longer silences it. Auto-silenced ranges stay implicit until changed; pressing M or dragging a range edge makes only that portion a real clip. Clip borders use a neutral color distinct from the waveform. During playback, manually scrolling the transcript unlocks follow until Follow is pressed.
 - **You can copy the text of a toast.** Select it with the mouse and press Cmd+C (Ctrl+C); that copies the text, not the clips. A toast stays open while the pointer is on it or text in it is selected.
 - **Level blocks is a side panel, so you can keep editing while it measures.** It docks over the sidebar like Auto-Silence's panel (opening one closes the other). If you edit the project while it measures, or after it has shown its result, the panel says the result no longer fits, Apply goes off, and Measure again starts over. Close or Esc stops a running measurement.
 - **The menus are tidier for a first-time user.** The same eight menus, but the rare commands sit in submenus at the bottom: File > Versions and More exports (the three first-hour exports stay in File), Track > Role and Bus, Text > Placeholders, Playback > Speed (fast, slow and shuttle in one), View > Options (mouse, inactive lanes, pauses, switches) and View > History. Help > Getting started lists the six things to do in the first hour. Nothing was removed, and every key still works.

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
+  clampImplicitEdge,
   DRAG_PX,
   edgeChange,
   edgeGhost,
@@ -11,6 +12,12 @@ import {
   resolveEdge,
   touchingNeighbour,
 } from "../edge-drag.js";
+
+test("implicit edge drag clamps against serialized clip start and length", () => {
+  assert.equal(clampImplicitEdge({ id: "c", start: 100, length: 200 }, 500), 300);
+  assert.equal(clampImplicitEdge({ id: "c", start: 100, length: 200 }, -50), 100);
+});
+
 import { RULER_HEIGHT } from "../lanes.js";
 
 const S = 48_000;

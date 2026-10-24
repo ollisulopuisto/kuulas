@@ -198,6 +198,7 @@ class History:
         #: Called with no arguments before a state with a gate is written
         #: (``package`` raises the manifest's ``min_reader`` here, WP44).
         self.on_gate: Callable[[], None] | None = None
+        self.on_clip_silence: Callable[[], None] | None = None
         #: Bumped on every write; ``package`` backs up when it has moved.
         self.generation = 0
         if not read_only and dbm.meta(self.db, "material_head") is None:
@@ -398,6 +399,7 @@ class History:
         from . import ops  # noqa: PLC0415 - ops does not import the history; kept lazy
         state = ops.normalize_ungated(state)
         self._note_gate(state)
+        self._note_clip_silence(state)
         if state.rate != self.rate:
             raise HistoryError("error.history.rate_change", rate=state.rate,
                                project_rate=self.rate)
@@ -441,6 +443,11 @@ class History:
     def _note_gate(self, state: Project) -> None:
         if self.on_gate is not None and any(t.gate for t in state.tracks):
             self.on_gate()
+
+    def _note_clip_silence(self, state: Project) -> None:
+        if (self.on_clip_silence is not None and
+                any(c.auto_silence for t in state.tracks for c in t.clips)):
+            self.on_clip_silence()
 
     def _path(self, target: str) -> tuple[list[dict], list[dict]]:
         """Steps to undo (head first) and redo (top first) to reach ``target``."""

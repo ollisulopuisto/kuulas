@@ -257,10 +257,15 @@ def cleanup_v0(folder: Path) -> None:
                  media_dir / "seen.json"]:
         path.unlink(missing_ok=True)
 
+def migrate_3_to_4(db: sqlite3.Connection, _folder: Path) -> None:
+    """Clip Auto-Silence is additive edit-state data; only the schema marker changes."""
+    with dbm.tx(db):
+        dbm.set_meta(db, "schema_version", "4")
+
 
 #: ``version -> migration to version + 1``.
 MIGRATIONS: dict[int, Callable[[sqlite3.Connection, Path], None]] = {
-    0: migrate_0_to_1, 1: migrate_1_to_2, 2: migrate_2_to_3}
+    0: migrate_0_to_1, 1: migrate_1_to_2, 2: migrate_2_to_3, 3: migrate_3_to_4}
 
 
 def upgrade(db: sqlite3.Connection, folder: Path, version: int, target: int) -> None:

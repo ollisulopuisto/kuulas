@@ -1,8 +1,10 @@
 // Lane layout and hit testing: where rows are and what is under a pointer.
 // Pure (no DOM), so the same numbers serve the canvas, the track headers
 // beside it and the tests.
+
+import { implicitSilenceRanges } from "./clip-silence.js";
 import { frameToX, xToFrame } from "./format.js";
-import { stretchAt } from "./gate.js";
+import { gateAt, stretchAt } from "./gate.js";
 import { placeholderAt } from "./placeholders-model.js";
 
 export const RULER_HEIGHT = 24;
@@ -274,7 +276,47 @@ export function hitTest({ layout, project, view, x, y }) {
   }
   if (!best) return hit;
   const point = envelopePointAt(best.clip, view, x, rowY, row.height);
-  return { ...hit, clip: best.clip, edge: best.edge, point };
+  let implicitRange = null;
+  let edge = best.edge;
+  let edgeDistance = Number.POSITIVE_INFINITY;
+  for (const range of implicitSilenceRanges(best.clip)) {
+    for (const [side, frame] of [
+      ["start", range[0]],
+      ["end", range[1]],
+    ]) {
+      const px = frameToX(frame, view.scroll, view.zoom);
+      const distance = Math.abs(x - px);
+      if (distance <= EDGE_PX && distance < edgeDistance) {
+        edgeDistance = distance;
+        edge = side;
+        implicitRange = range;
+      }
+    }
+  }
+  // Resolve the implicit silence from the same topmost clip the pointer hit. Looking it up
+  // independently across the track can point a click at a different overlapping clip.
+  const ranges = implicitSilenceRanges(best.clip);
+  const implicitIndex = implicitRange
+    ? ranges.findIndex(([start, end]) => start === implicitRange[0] && end === implicitRange[1])
+    : gateAt(ranges, frame, view.zoom);
+  const implicit =
+    implicitIndex >= 0
+      ? {
+          trackId: row.id,
+          clipId: best.clip.id,
+          index: implicitIndex,
+          range: ranges[implicitIndex],
+          implicit: true,
+        }
+      : null;
+  return {
+    ...hit,
+    clip: best.clip,
+    edge,
+    point,
+    ...(implicitRange ? { implicitRange } : {}),
+    gate: implicit ?? gate,
+  };
 }
 
 /**

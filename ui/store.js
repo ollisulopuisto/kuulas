@@ -146,6 +146,8 @@ export const initialState = () => ({
   clipboardLimit: true,
   // How far the latest clipboard preview was turned down: { id, db }, db 0 or less.
   clipboardLevel: null,
+  // The implicit Auto-Silence region under the latest timeline click, for M's edit target.
+  implicitRangeTarget: null,
   followMode: "page",
   followPaused: false,
   // Where the last edit happened, for the zoom anchor; null until an edit sets it.

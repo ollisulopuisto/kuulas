@@ -40,7 +40,7 @@ import {
   normaliseSettings as normaliseDuckMusic,
 } from "./duck-sidechain-model.js";
 import { edgeChange, edgePressKeepsSelection } from "./edge-drag.js";
-import { dropPastePlan } from "./edit-plans.js";
+import { dropPastePlan, openedRegionClip } from "./edit-plans.js";
 import { createEditor } from "./edits.js";
 import { createNewEpisodeDialog } from "./episode-dialog.js";
 import { runEscape } from "./escape.js";
@@ -1174,9 +1174,23 @@ function openGateStretch(gate) {
   const state = getState();
   const target = gate ?? stretchAt(state.project, state.focusTrack, state.playhead, state.zoom);
   if (!target) return;
+  const at = target.implicit ? Math.floor((target.range[0] + target.range[1]) / 2) : null;
+  const sourceClip = target.implicit
+    ? state.project?.tracks
+        ?.find((item) => item.id === target.trackId)
+        ?.clips.find((item) => item.id === target.clipId)
+    : null;
   editor.change({
-    ...openStretchEdit(target.trackId, target.range),
+    ...openStretchEdit(target, target.range),
     label: t("ui.gate.open_stretch"),
+    done: (response) => {
+      if (at === null) {
+        if (target.implicit) setState({ implicitRangeTarget: null });
+        return;
+      }
+      const id = openedRegionClip(response.project, target.trackId, at, sourceClip);
+      setState({ ...(id ? { selection: new Set([id]) } : {}), implicitRangeTarget: null });
+    },
   });
 }
 // "Keep the mic open under the selected clips": a clip property (Clip.ungated), one edit. It
@@ -1214,7 +1228,18 @@ function onPointerDown(hit, event, { noSeek = false } = {}) {
     setState({ panel: "timeline" });
     return;
   }
-  const patch = { panel: "timeline", rangeTracks: new Set() };
+  const patch = {
+    panel: "timeline",
+    rangeTracks: new Set(),
+    implicitRangeTarget: hit.gate?.implicit
+      ? {
+          trackId: hit.gate.trackId,
+          clipId: hit.gate.clipId,
+          range: hit.gate.range,
+          implicit: true,
+        }
+      : null,
+  };
   if (hit.row?.kind === "track" && !additive) {
     // A lane or clip click makes the track current but leaves the range scope on all tracks
     // (range-scope.js laneClickFocus); only a header click narrows it.
@@ -3959,7 +3984,34 @@ const timeline = createTimeline({
         provisional: (p) => patchClip(p, clipId, { [`fade_${side}`]: frames }),
       });
     },
-    edgeDrag({ clipId, edge, frame, ripple, overwrite, alone }) {
+    edgeDrag({ clipId, trackId, edge, frame, ripple, overwrite, alone, implicitRange }) {
+      if (implicitRange) {
+        const regionStart = edge === "start" ? frame : implicitRange[0];
+        const regionEnd = edge === "end" ? frame : implicitRange[1];
+        editor.change({
+          op: "trim_auto_silence_edge",
+          args: {
+            clip_id: clipId,
+            start: implicitRange[0],
+            end: implicitRange[1],
+            edge,
+            frame,
+          },
+          label: t("history.auto_silence"),
+          done: (response) => {
+            const track = response.project?.tracks?.find((item) => item.id === trackId);
+            const clip = track?.clips?.find(
+              (item) =>
+                item.start === regionStart && item.start + item.length === regionEnd && item.muted,
+            );
+            setState({
+              ...(clip ? { selection: new Set([clip.id]) } : {}),
+              implicitRangeTarget: null,
+            });
+          },
+        });
+        return;
+      }
       const { op, args, labelKey } = edgeChange(
         clipId,
         edge,
