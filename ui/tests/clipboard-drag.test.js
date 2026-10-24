@@ -210,3 +210,55 @@ describe("the controller", () => {
     assert.equal(calls.filter((call) => call[0] === "paste").length, 0);
   });
 });
+
+describe("clipboard automation snapping", () => {
+  const automated = {
+    ...project,
+    tracks: project.tracks.map((track) => ({
+      ...track,
+      automation: [
+        [300_000, 0],
+        [320_000, -9],
+      ],
+    })),
+  };
+  const target = (mod, alt = false, x = 304, extraMarks = marks) =>
+    dropTarget(
+      { x, y: RULER_HEIGHT + 10, mod, alt },
+      { layout, project: automated, view, entry, marks: extraMarks },
+    );
+
+  test("only the held modifier adds automation targets and preview marks", () => {
+    assert.equal(target(false).at, 304_000);
+    assert.deepEqual(target(false).autoMarks, []);
+    assert.equal(target(true).at, 300_000);
+    assert.deepEqual(target(true).autoMarks, [300_000, 320_000]);
+    assert.equal(target(false).at, 304_000);
+  });
+  test("primary targets win and Alt disables automation snap and marks", () => {
+    assert.equal(target(true, false, 301, { playhead: 307_000 }).at, 307_000);
+    assert.equal(target(true, true).at, 304_000);
+    assert.deepEqual(target(true, true).autoMarks, []);
+  });
+  for (const ending of ["drop", "end"]) {
+    test(`${ending} clears preview automation marks`, async () => {
+      let preview = null;
+      const drag = createClipboardDrag({
+        getState: () => ({}),
+        timeline: {
+          clipboardDropTarget: () => target(true),
+          setClipboardDropPreview: (next) => {
+            preview = next;
+          },
+        },
+        paste: () => {},
+      });
+      drag.start(entry);
+      const event = { dataTransfer: { types: [CLIP_DRAG_TYPE] }, preventDefault() {} };
+      drag.over(event);
+      assert.deepEqual(preview.target.autoMarks, [300_000, 320_000]);
+      await drag[ending](event);
+      assert.equal(preview, null);
+    });
+  }
+});
