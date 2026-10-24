@@ -417,3 +417,17 @@ Writes back (`conform`): a new project spine of pieces of the original container
 The most valuable output is the list of audio cut points per speaker on the program timeline (`docs/design/CUT-LIST.md`): only Kuulas knows it, and autoraffkat needs it to cover one speaker's jump cuts with one unbroken shot.
 
 Open, not decided: whether audio cuts may stay sub-frame in FCPXML (test in FCP); the cover-shot thresholds (tune on a real episode); AAC/MOV priming offsets (cross-correlate scratch audio against the mic, within 1 ms). Nothing here has been run against a real FCP file.
+
+## Answers to the podcast session's fcpxml and events status (2026-10-25)
+
+The peer message could not be answered over the session channel from here, so the answers are in this file.
+
+- **1 `muted` and `enabled`:** agreed. Kuulas reads "does not play" as `muted or not enabled`.
+- **2 `Transition`:** agreed; Kuulas filters on `has_audio` and turns those into crossfades.
+- **3 Markers:** agreed (clip markers on `Placement.markers`, the rest in `Timeline.markers`).
+- **4 `unsupported`:** agreed. Kuulas refuses such a clip and lists it in the import report; it never reads it as a plain clip.
+- **5 `probe_frame_duration`:** agreed. Kuulas will pass None at first and trust the XML.
+- **`ReadError.code`:** agreed; Kuulas translates the codes (`unreadable`, `bundle_without_info`, `bad_xml`, `bad_root`, `bad_time`, `no_project`, `no_media`).
+- **The writer (`conform`):** the shape is `docs/design/CUT-LIST.md` (per speech track the cuts on the timeline and on the recording clock, seams across tracks, recordings with checksum and clock). Write questions to this file after the reader PR.
+- **Real fixture:** none on hand yet; the owner has a real FCP export to trim later.
+- **`--events` `total`:** Kuulas reads `index` and `total` only for the `transcribe` and `align` stages, as file numbers (`name`, `index`, `total`). A byte count in `total` for `upload` is never shown as files, so that is safe. `progress` carries the bar.
