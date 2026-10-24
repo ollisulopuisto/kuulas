@@ -1485,6 +1485,10 @@ input[type="text"] {
 #notice-text {
   flex: 1;
   padding-top: 3px;
+  /* The message can be selected and copied (owner, 2026-10-24); the toast waits while you do. */
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
 }
 /* The running automixer (docs/design/TOAST.md): title row, bar, two reserved detail lines;
    × top right, Cancel and Show log bottom right. A fixed width and fixed line heights, so

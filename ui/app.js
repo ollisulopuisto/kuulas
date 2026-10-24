@@ -138,7 +138,7 @@ import { MUSIC_UNDER_KEY, normaliseMusicUnder } from "./music-level-model.js";
 import { createMusicReportDialog } from "./music-report-dialog.js";
 import { reportQuery } from "./music-report-model.js";
 import { createNameDialog } from "./name-dialog.js";
-import { chipText, createNoticeHold } from "./notice-hold.js";
+import { chipText, createNoticeHold, toastStaysOpen } from "./notice-hold.js";
 import { createOverview } from "./overview.js";
 import { createPerfDialog } from "./perf-dialog.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
@@ -337,10 +337,20 @@ function showNotice(text, kind = "error", options = {}) {
   notice.hidden = false;
   clearTimeout(noticeTimer);
   if (sticky) return;
-  noticeTimer = setTimeout(() => {
+  const expire = () => {
+    const selection = window.getSelection?.();
+    const selected = Boolean(
+      selection && !selection.isCollapsed && notice.contains(selection.anchorNode),
+    );
+    if (toastStaysOpen({ hovered: notice.matches(":hover"), selected })) {
+      noticeTimer = setTimeout(expire, NOTICE_RECHECK_MS);
+      return;
+    }
     notice.hidden = true;
-  }, NOTICE_MS[kind]);
+  };
+  noticeTimer = setTimeout(expire, NOTICE_MS[kind]);
 }
+const NOTICE_RECHECK_MS = 1500;
 $("notice-action").addEventListener("click", () => noticeAction?.run());
 $("notice-action2").addEventListener("click", () => noticeAction2?.run());
 const showError = (error) => showNotice(error?.message || t("ui.error.title"));

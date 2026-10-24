@@ -45,3 +45,19 @@ export function createNoticeHold() {
     },
   };
 }
+
+/**
+ * Whether a toast whose time is up stays: the pointer is on it or text in it is selected, so
+ * its message can be copied (owner, 2026-10-24). The page asks again after a moment.
+ */
+export const toastStaysOpen = ({ hovered, selected }) => Boolean(hovered || selected);
+
+/**
+ * Mod+C with text selected inside the toast copies that text, not the clips (owner,
+ * 2026-10-24). `selection` is the window's Selection, `notice` the toast element.
+ */
+export function copiesToastText({ key, mod, selection, notice }) {
+  if (!mod || String(key).toLowerCase() !== "c") return false;
+  if (!selection || selection.isCollapsed) return false;
+  return Boolean(notice?.contains(selection.anchorNode));
+}

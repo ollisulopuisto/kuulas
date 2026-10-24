@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { chipText, createNoticeHold } from "../notice-hold.js";
+import { chipText, copiesToastText, createNoticeHold, toastStaysOpen } from "../notice-hold.js";
 
 const note = (text, kind = "ok") => ({ text, kind, options: {} });
 
@@ -66,5 +66,36 @@ describe("chipText: the latest message on the status button, short", () => {
 
   test("line breaks and runs of spaces collapse", () => {
     assert.equal(chipText("a\n\n  b"), "a b");
+  });
+});
+
+describe("toastStaysOpen: a toast you are reading or copying does not vanish", () => {
+  test("the pointer on it, or text selected in it, keeps it open", () => {
+    assert.equal(toastStaysOpen({ hovered: true, selected: false }), true);
+    assert.equal(toastStaysOpen({ hovered: false, selected: true }), true);
+  });
+  test("otherwise its time is up", () => {
+    assert.equal(toastStaysOpen({ hovered: false, selected: false }), false);
+  });
+});
+
+describe("copiesToastText: Cmd+C with the toast's text selected copies the text", () => {
+  const inside = { contains: (node) => node === "in" };
+  const picked = { isCollapsed: false, anchorNode: "in" };
+  test("selected inside the toast", () => {
+    assert.equal(copiesToastText({ key: "c", mod: true, selection: picked, notice: inside }), true);
+  });
+  test("not without Cmd, not another key, not outside, not a collapsed caret", () => {
+    const base = { key: "c", mod: true, selection: picked, notice: inside };
+    assert.equal(copiesToastText({ ...base, mod: false }), false);
+    assert.equal(copiesToastText({ ...base, key: "v" }), false);
+    assert.equal(
+      copiesToastText({ ...base, selection: { isCollapsed: false, anchorNode: "out" } }),
+      false,
+    );
+    assert.equal(
+      copiesToastText({ ...base, selection: { isCollapsed: true, anchorNode: "in" } }),
+      false,
+    );
   });
 });
