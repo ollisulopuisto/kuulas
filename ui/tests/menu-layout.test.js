@@ -266,7 +266,7 @@ describe("top-level bar (owner, 2026-10-19)", () => {
       ["file", "edit", "clip", "track", "text", "playback", "view", "help"],
     );
   });
-  test("Playback holds transport, record, Go to and Markers as submenus", () => {
+  test("Playback holds transport, record, Go to, Markers and the Cart as submenus", () => {
     const names = top("playback")
       .items.filter((e) => e.kind === "submenu")
       .map((e) => e.labelKey);
@@ -277,6 +277,7 @@ describe("top-level bar (owner, 2026-10-19)", () => {
       "menu.shuttle",
       "menu.go",
       "menu.markers",
+      "menu.cart",
     ]);
     for (const id of ["transport.play", "transport.record", "transport.loop"]) {
       assert.ok(direct("playback").includes(id), id);
@@ -302,5 +303,23 @@ describe("keys", () => {
     assert.equal(entry("export.mix_options").keys.mac, "Alt+Mod+E");
     assert.equal(entry("export.tracks_quick").keys.mac, null);
     assert.equal(entry("export.tracks").keys.mac, null);
+  });
+});
+
+describe("the bar draws one level of submenus", () => {
+  // A submenu inside a submenu cannot be opened from the menu bar (menubar.js keeps one level),
+  // and Help search could not show where it is (the Cart sat two levels deep until 2026-10-24).
+  const nested = (entries, path = []) =>
+    entries.flatMap((entry) =>
+      entry.items
+        ? entry.items.flatMap((inner) =>
+            inner.items ? [[...path, entry.labelKey ?? entry.id, inner.labelKey ?? inner.id]] : [],
+          )
+        : [],
+    );
+
+  test("no submenu holds a submenu", () => {
+    const found = MENU.flatMap((menu) => nested(menu.items, [menu.id]));
+    assert.deepEqual(found, []);
   });
 });

@@ -299,12 +299,6 @@ export const MENU = [
         item("clipboard.open_project"),
         SEP,
         item("clipboard.send_to_window"),
-        SEP,
-        submenu("menu.cart", [
-          ...[1, 2, 3, 4, 5, 6, 7].map((n) => item(`clipboard.cart_play_${n}`)),
-          SEP,
-          ...[1, 2, 3, 4, 5, 6, 7].map((n) => item(`clipboard.cart_assign_${n}`)),
-        ]),
       ]),
       item("time.copy"),
       SEP,
@@ -466,6 +460,13 @@ export const MENU = [
       // Markers are mostly navigation (owner, 2026-10-19), so they sit here. To move them to Edit
       // later, move this one line.
       MARKERS,
+      // The cart plays clips (also while recording), so it sits with playback, not inside
+      // Edit > Clipboard: the bar draws one level of submenus and the cart is a submenu.
+      submenu("menu.cart", [
+        ...[1, 2, 3, 4, 5, 6, 7].map((n) => item(`clipboard.cart_play_${n}`)),
+        SEP,
+        ...[1, 2, 3, 4, 5, 6, 7].map((n) => item(`clipboard.cart_assign_${n}`)),
+      ]),
     ],
   },
   {
