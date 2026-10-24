@@ -418,10 +418,13 @@ export function dropPastePlan(entry, target, mode) {
 export function mutePlan(state) {
   const chosen = selectedClips(state);
   if (chosen.length === 0) return null;
-  // One clip, the play cursor inside a stretch Auto-Silence closed: M opens only that stretch,
-  // as a clip of its own (owner, 2026-10-23); M on the new clip then mutes just it.
-  const region = chosen.length === 1 ? gatedRegionPlan(state, chosen[0]) : null;
+  // A click on an implicit region is an explicit edit target even when selecting the clip
+  // expands its group. Materialize only that source clip/range, never the expanded group.
+  const region = targetedGatedRegionPlan(state, chosen);
   if (region) return region;
+  // One selected clip, the play cursor inside a closed stretch: M opens only that stretch.
+  const cursorRegion = chosen.length === 1 ? gatedRegionPlan(state, chosen[0]) : null;
+  if (cursorRegion) return cursorRegion;
   const muted = !chosen.every((entry) => entry.clip.muted);
   return plan(
     "set_clips",
@@ -433,13 +436,55 @@ export function mutePlan(state) {
   );
 }
 
+function targetedGatedRegionPlan(state, chosen) {
+  const target = state.implicitRangeTarget;
+  if (!target?.implicit || !Array.isArray(target.range)) return null;
+  const entry = chosen.find(
+    ({ clip, trackId }) => clip.id === target.clipId && trackId === target.trackId,
+  );
+  if (!entry || entry.clip.muted) return null;
+  const [start, end] = target.range;
+  const sourceStart = (entry.clip.offset ?? 0) + start - entry.clip.start;
+  const sourceEnd = (entry.clip.offset ?? 0) + end - entry.clip.start;
+  if (!entry.clip.auto_silence?.some(([a, b]) => a <= sourceStart && sourceEnd <= b)) return null;
+  return plan(
+    "open_gated_region",
+    { track_id: target.trackId, clip_id: target.clipId, at: Math.floor((start + end) / 2) },
+    "unmute_region",
+  );
+}
+
 /**
  * The clip M just opened: the one on `trackId` holding `at` in `project` (the response after
  * open_gated_region). It is selected afterwards, so the next M mutes just that stretch, not
  * the left-over piece of the parent clip that kept the old selection (owner, 2026-10-24).
  */
-export function openedRegionClip(project, trackId, at) {
+export function openedRegionClip(project, trackId, at, sourceClip = null) {
   const track = project?.tracks?.find((x) => x.id === trackId);
+  if (sourceClip) {
+    const sourceAt = (sourceClip.offset ?? 0) + at - sourceClip.start;
+    const region = sourceClip.auto_silence?.find(
+      ([start, end]) => start <= sourceAt && sourceAt < end,
+    );
+    if (!region) return null;
+    const start = Math.max(
+      sourceClip.start,
+      sourceClip.start + region[0] - (sourceClip.offset ?? 0),
+    );
+    const end = Math.min(
+      clipEnd(sourceClip),
+      sourceClip.start + region[1] - (sourceClip.offset ?? 0),
+    );
+    return (
+      track?.clips?.find(
+        (clip) =>
+          clip.start === start &&
+          clipEnd(clip) === end &&
+          clip.media === sourceClip.media &&
+          (clip.offset ?? 0) === (sourceClip.offset ?? 0) + start - sourceClip.start,
+      )?.id ?? null
+    );
+  }
   return track?.clips?.find((c) => c.start <= at && at < clipEnd(c))?.id ?? null;
 }
 
@@ -447,9 +492,9 @@ function gatedRegionPlan(state, { clip, trackId }) {
   const at = state.playhead;
   if (!Number.isFinite(at) || clip.muted) return null;
   if (!(clip.start <= at && at < clipEnd(clip))) return null;
-  const sourceAt = clip.offset + at - clip.start;
+  const sourceAt = (clip.offset ?? 0) + at - clip.start;
   if (clip.auto_silence?.some(([start, end]) => start <= sourceAt && sourceAt < end)) {
-    return plan("open_gated_region", { track_id: trackId, at }, "unmute_region");
+    return plan("open_gated_region", { track_id: trackId, clip_id: clip.id, at }, "unmute_region");
   }
   if (clip.ungated) return null;
   const gate = state.project?.tracks?.find((x) => x.id === trackId)?.gate ?? [];

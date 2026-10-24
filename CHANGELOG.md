@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+## [v26.10.24.2] - 2026-10-24
+
+- **Follow and Auto-Silence edits stay on the intended target.** Scrolling the transcript unlocks follow through playback updates. M on a clicked implicit region materializes only that region, including inside a clip group or overlap; dragging either border materializes and trims only that region, including borders at the parent clip edges.
+
 ## [v26.10.24.1] - 2026-10-24
 
 - **Auto-Silence belongs to the clips it measured.** Moving another clip into the same timeline area no longer silences it. Auto-silenced ranges stay implicit until changed; pressing M or dragging a range edge makes only that portion a real clip. Clip borders use a neutral color distinct from the waveform. During playback, manually scrolling the transcript unlocks follow until Follow is pressed.

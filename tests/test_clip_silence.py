@@ -1,5 +1,7 @@
 """Auto-Silence belongs to the clip it measured, so it travels with that clip."""
 
+from dataclasses import replace
+
 import numpy as np
 
 from kuulas import analysis, mixer, ops
@@ -71,6 +73,28 @@ def test_opening_one_implicit_region_makes_only_that_portion_a_real_clip():
     ]
     muted = ops.set_clip(opened, clips[1].id, muted=True)
     assert [clip.muted for clip in muted.track("t").clips] == [False, True, False]
+
+
+def test_opening_an_implicit_region_targets_the_clicked_clip_when_clips_overlap():
+    project = analysis.apply_silence(project_with_clip(), {"t": ((100, 200),)})
+    first = project.track("t").clips[0]
+    second = replace(first, id="overlap")
+    track = replace(project.track("t"), clips=(first, second))
+    project = replace(project, tracks=(track,))
+
+    opened = ops.open_gated_region(project, "t", 150, clip_id="overlap")
+
+    clips = opened.track("t").clips
+    targeted = [clip for clip in clips if clip.start == 100 and clip.end == 200]
+    assert len(targeted) == 1
+    assert targeted[0].muted is False
+    assert targeted[0].auto_silence == ()
+    untouched = next(clip for clip in clips if clip.id == first.id)
+    assert untouched.auto_silence == ((100, 200),)
+    muted = ops.set_clip(opened, targeted[0].id, muted=True)
+    muted_clips = muted.track("t").clips
+    assert next(clip for clip in muted_clips if clip.id == targeted[0].id).muted
+    assert not next(clip for clip in muted_clips if clip.id == first.id).muted
 
 
 def test_dragging_an_implicit_edge_materializes_and_trims_just_that_region():

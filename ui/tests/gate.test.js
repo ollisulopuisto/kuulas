@@ -88,7 +88,7 @@ describe("open this stretch", () => {
   test("opening an implicit clip portion materializes only that clip range", () => {
     assert.deepEqual(
       openStretchEdit({ trackId: "t1", clipId: "c1", range: [100, 200], implicit: true }),
-      { op: "open_gated_region", args: { track_id: "t1", at: 150 } },
+      { op: "open_gated_region", args: { track_id: "t1", clip_id: "c1", at: 150 } },
     );
   });
 });

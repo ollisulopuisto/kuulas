@@ -76,7 +76,11 @@ export function openStretchEdit(target, range = null) {
   if (target?.implicit && target.clipId) {
     return {
       op: "open_gated_region",
-      args: { track_id: target.trackId, at: Math.floor((target.range[0] + target.range[1]) / 2) },
+      args: {
+        track_id: target.trackId,
+        clip_id: target.clipId,
+        at: Math.floor((target.range[0] + target.range[1]) / 2),
+      },
     };
   }
   const [start, end] = range ?? target.range;

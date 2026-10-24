@@ -97,8 +97,21 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
       done: (response) => {
         toastFor(plan, before, response);
         if (plan.op === "open_gated_region") {
-          const id = openedRegionClip(response.project, plan.args.track_id, plan.args.at);
-          if (id) app.patch({ selection: new Set([id]) });
+          const sourceClip = plan.args.clip_id
+            ? before?.tracks
+                ?.flatMap((track) => track.clips)
+                .find((clip) => clip.id === plan.args.clip_id)
+            : null;
+          const id = openedRegionClip(
+            response.project,
+            plan.args.track_id,
+            plan.args.at,
+            sourceClip,
+          );
+          app.patch({
+            ...(id ? { selection: new Set([id]) } : {}),
+            implicitRangeTarget: null,
+          });
         }
         // The range is spent: its marks and the selection would only be left drawn on the
         // timeline (owner, 2026-10-18). Soft delete keeps them: the gap is still the range.

@@ -261,7 +261,8 @@ def set_clips_ungated(p: Project, clip_ids, value: bool = True) -> Project:
     return normalize_ungated(q) if value else q
 
 
-def open_gated_region(p: Project, track_id: str, at: int) -> Project:
+def open_gated_region(p: Project, track_id: str, at: int,
+                      clip_id: str | None = None) -> Project:
     """Open the stretch Auto-Silence closed at ``at`` as a clip of its own (owner,
     2026-10-23: M on a closed stretch must not touch the whole parent clip). The clips of
     the track are split at the stretch's two ends, and the pieces inside are unmuted and
@@ -271,7 +272,14 @@ def open_gated_region(p: Project, track_id: str, at: int) -> Project:
     at = int(at)
     # Current-format Auto-Silence belongs to the source clip. Legacy track gates
     # remain readable, but opening a measured region materializes only that portion.
-    for clip in track.clips:
+    if clip_id is None:
+        candidates = track.clips
+    else:
+        target = next((clip for clip in track.clips if clip.id == clip_id), None)
+        if target is None:
+            raise EditError("error.edit.no_gate_here")
+        candidates = (target,)
+    for clip in candidates:
         if clip.start <= at < clip.end:
             source_at = clip.offset + at - clip.start
             source_region = next(
@@ -280,6 +288,8 @@ def open_gated_region(p: Project, track_id: str, at: int) -> Project:
                 start = clip.start + source_region[0] - clip.offset
                 end = clip.start + source_region[1] - clip.offset
                 return replace_clip_range(p, clip.id, start, end, muted=False)
+    if clip_id is not None:
+        raise EditError("error.edit.no_gate_here")
     region = next(((a, b) for a, b in track.gate if a <= at < b), None)
     if region is None:
         raise EditError("error.edit.no_gate_here")
@@ -313,17 +323,23 @@ def replace_clip_range(
         p = _replace_clip(p, replace(
             clip, auto_silence=gatem.remove_range(
                 clip.auto_silence, source_from, source_to)))
-    for edge in (start, end):
-        current = next((c for track in p.tracks for c in track.clips
-                        if c.media == clip.media and c.start < edge < c.end
-                        and c.offset + edge - c.start == clip.offset + edge - clip.start),
-                       None)
-        if current is not None:
-            p = split_clip(p, current.id, edge)
-    target = next((c for track in p.tracks for c in track.clips
-                   if c.start == start and c.end == end and c.media == clip.media
-                   and c.offset == target_offset), None)
-    if target is None:
+    target_id = clip.id
+    # Split only the selected source clip. Splitting the end first keeps its original id
+    # on the portion that may become the target; overlapping clips remain untouched.
+    for edge in sorted((start, end), reverse=True):
+        current, _track = _find_clip(p, target_id)
+        if current.start < edge < current.end:
+            p = split_clip(p, target_id, edge)
+            if edge == start:
+                track = _find_track(p, _track.id)
+                target_id = next(
+                    (part.id for part in track.clips
+                     if part.start == start and part.end == end
+                     and part.media == clip.media and part.offset == target_offset),
+                    target_id,
+                )
+    target, _track = _find_clip(p, target_id)
+    if target.start != start or target.end != end or target.media != clip.media:
         raise EditError("error.edit.no_gate_here")
     source_start = target.offset
     source_end = source_start + target.length

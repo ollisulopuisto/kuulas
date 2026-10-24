@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { transcriptFollowStep } from "../transcript-follow.js";
+import { transcriptFollowStep, transcriptPlaybackStep } from "../transcript-follow.js";
 
 describe("transcript follow unlock", () => {
   test("manual scrolling while playing unlocks transcript follow", () => {
@@ -17,13 +17,19 @@ describe("transcript follow unlock", () => {
     }
   });
 
-  test("the Follow control explicitly relocks; stopped scrolling has no effect", () => {
+  test("repeated playing anchors do not relock a manually unlocked transcript", () => {
+    const first = transcriptPlaybackStep({ paused: true, wasPlaying: true }, true);
+    assert.deepEqual(first, { paused: true, wasPlaying: true });
+    assert.deepEqual(transcriptPlaybackStep(first, true), first);
+  });
+
+  test("the Follow control explicitly relocks; scrolling always unlocks", () => {
     assert.deepEqual(transcriptFollowStep({ paused: true, playing: true }, { type: "follow" }), {
       paused: false,
     });
     assert.deepEqual(
       transcriptFollowStep({ paused: false, playing: false }, { type: "manual-scroll" }),
-      { paused: false },
+      { paused: true },
     );
   });
 });

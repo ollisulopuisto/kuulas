@@ -2,9 +2,9 @@
 // Pure (no DOM), so the same numbers serve the canvas, the track headers
 // beside it and the tests.
 
-import { implicitSilenceAt, implicitSilenceRanges } from "./clip-silence.js";
+import { implicitSilenceRanges } from "./clip-silence.js";
 import { frameToX, xToFrame } from "./format.js";
-import { stretchAt } from "./gate.js";
+import { gateAt, stretchAt } from "./gate.js";
 import { placeholderAt } from "./placeholders-model.js";
 
 export const RULER_HEIGHT = 24;
@@ -278,8 +278,6 @@ export function hitTest({ layout, project, view, x, y }) {
   const point = envelopePointAt(best.clip, view, x, rowY, row.height);
   let implicitRange = null;
   let edge = best.edge;
-  const left = frameToX(best.clip.start, view.scroll, view.zoom);
-  const right = frameToX(clipEnd(best.clip), view.scroll, view.zoom);
   let edgeDistance = Number.POSITIVE_INFINITY;
   for (const range of implicitSilenceRanges(best.clip)) {
     for (const [side, frame] of [
@@ -287,32 +285,37 @@ export function hitTest({ layout, project, view, x, y }) {
       ["end", range[1]],
     ]) {
       const px = frameToX(frame, view.scroll, view.zoom);
-      if (
-        (side === "start" && frame <= best.clip.start) ||
-        (side === "end" && frame >= clipEnd(best.clip))
-      )
-        continue;
       const distance = Math.abs(x - px);
-      if (
-        distance <= EDGE_PX &&
-        distance < edgeDistance &&
-        Math.abs(px - left) > EDGE_PX &&
-        Math.abs(px - right) > EDGE_PX
-      ) {
+      if (distance <= EDGE_PX && distance < edgeDistance) {
         edgeDistance = distance;
         edge = side;
         implicitRange = range;
       }
     }
   }
-  const implicit = implicitSilenceAt(project, row.id, frame, view.zoom);
+  // Resolve the implicit silence from the same topmost clip the pointer hit. Looking it up
+  // independently across the track can point a click at a different overlapping clip.
+  const ranges = implicitSilenceRanges(best.clip);
+  const implicitIndex = implicitRange
+    ? ranges.findIndex(([start, end]) => start === implicitRange[0] && end === implicitRange[1])
+    : gateAt(ranges, frame, view.zoom);
+  const implicit =
+    implicitIndex >= 0
+      ? {
+          trackId: row.id,
+          clipId: best.clip.id,
+          index: implicitIndex,
+          range: ranges[implicitIndex],
+          implicit: true,
+        }
+      : null;
   return {
     ...hit,
     clip: best.clip,
     edge,
     point,
     ...(implicitRange ? { implicitRange } : {}),
-    gate: gate ?? implicit,
+    gate: implicit ?? gate,
   };
 }
 

@@ -24,7 +24,7 @@ import { implicitSilenceRanges } from "./clip-silence.js";
 import { averageWordFrames, layoutClipWords, wordsWideEnough } from "./clip-words.js";
 import { dropTarget as clipboardDropTarget, dropOutlines } from "./clipboard-drag.js";
 import { DEFAULT_DRAG_MODE, dragIntent } from "./drag-mode.js";
-import { edgeGhost, ghostGeometry, resolveEdge } from "./edge-drag.js";
+import { clampImplicitEdge, edgeGhost, ghostGeometry, resolveEdge } from "./edge-drag.js";
 import { inactiveTracks } from "./focus-layout.js";
 import { frameToTime, frameToX, xToFrame } from "./format.js";
 import {
@@ -1973,7 +1973,7 @@ export function createTimeline({
     const { state, track, clip } = edgeTarget(edgeSession);
     if (!clip || edgeSession.raw === null) return;
     if (edgeSession.implicitRange) {
-      edgeSession.frame = Math.max(clip.start, Math.min(clip.end, edgeSession.raw));
+      edgeSession.frame = clampImplicitEdge(clip, edgeSession.raw);
       return;
     }
     edgeSession.frame = resolveEdge(state.project, track, clip, edgeSession.edge, edgeSession.raw, {
@@ -2022,6 +2022,7 @@ export function createTimeline({
     if (commit && session.dragging) {
       actions.edgeDrag({
         clipId: session.clipId,
+        trackId: session.trackId,
         edge: session.edge,
         frame: session.frame,
         ripple: session.ripple,
