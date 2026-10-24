@@ -1804,7 +1804,7 @@ export function createTimeline({
     return hitTest({ layout, project: state.project, view: { ...state, width: size.width }, x, y });
   }
 
-  // Over a closed stretch the tooltip says what it is and what a double-click does; over a
+  // Over an implicit portion the tooltip explains M; over a
   // narration placeholder (WP43) it says it is to be recorded and that Enter edits it.
   // What the sync badge, the anchor tag and a moved clip say on hover: relative to which anchor,
   // and which track the clip came from.
@@ -1833,7 +1833,8 @@ export function createTimeline({
     const lost = hit.clip && getState().missingMedia?.has(hit.clip.media);
     if (hit.placeholder && !hit.clip) text = t("ui.placeholders.hover");
     else if (lost) text = t("ui.media.missing_hover");
-    else if (hit.gate) text = t("ui.gate.hover");
+    else if (hit.gate)
+      text = t(hit.gate.closed === false ? "ui.gate.open_portion_hover" : "ui.gate.hover");
     else if (hit.clip?.ungated) text = t("ui.gate.open_hover");
     else if (hit.clip && Object.hasOwn(clipOvers, hit.clip.id))
       text = overLabel(clipOvers[hit.clip.id], t, (value) => formatNumber(value, { digits: 1 }));
@@ -1897,7 +1898,7 @@ export function createTimeline({
     if (!getState().project || event.button !== 0) return;
     if (event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return;
     const hit = hitAt(event);
-    const { gate, placeholder, clip } = hit;
+    const { placeholder, clip } = hit;
     // A clip whose file is missing: straight to File > Locate media… (owner, 2026-10-21).
     if (clip && hit.row?.kind === "track" && getState().missingMedia?.has(clip.media)) {
       actions.locateMedia?.();
@@ -1919,7 +1920,6 @@ export function createTimeline({
       }
     }
     if (placeholder && !clip) actions.editPlaceholder(placeholder);
-    else if (gate) actions.openGate(gate);
   });
   // Right-click: the browser's menu never opens; the app shows the timeline menu for what is
   // under the pointer. The press itself (button 2) is ignored by the pointerdown handler
@@ -1973,7 +1973,12 @@ export function createTimeline({
     const { state, track, clip } = edgeTarget(edgeSession);
     if (!clip || edgeSession.raw === null) return;
     if (edgeSession.implicitRange) {
-      edgeSession.frame = clampImplicitEdge(clip, edgeSession.raw);
+      edgeSession.frame = clampImplicitEdge(
+        clip,
+        edgeSession.raw,
+        edgeSession.implicitRange,
+        edgeSession.edge,
+      );
       return;
     }
     edgeSession.frame = resolveEdge(state.project, track, clip, edgeSession.edge, edgeSession.raw, {
@@ -2009,16 +2014,9 @@ export function createTimeline({
     window.removeEventListener("keyup", edgeKey, true);
     overlayCanvas.releasePointerCapture?.(session.pointerId);
     requestOverlay();
-    if (commit && !session.dragging) {
-      if (session.implicitRange)
-        actions.openGate?.({
-          trackId: session.trackId,
-          clipId: session.clipId,
-          range: session.implicitRange,
-          implicit: true,
-        });
-      else actions.seek?.(session.seekFrame);
-    }
+    // A press without travel only positions the cursor. Materialization requires a drag
+    // or the user's mute command; clicking near a dotted boundary must not change audio.
+    if (commit && !session.dragging) actions.seek?.(session.seekFrame);
     if (commit && session.dragging) {
       actions.edgeDrag({
         clipId: session.clipId,

@@ -198,6 +198,9 @@ def set_track_auto_silence(p: Project, track_id: str, ranges) -> Project:
     measured = gatem.normalise((int(a), int(b)) for a, b in ranges)
     clips = []
     for clip in track.clips:
+        if clip.ungated:
+            clips.append(replace(clip, auto_silence=()))
+            continue
         source_ranges = []
         for start, end in measured:
             lo, hi = max(start, clip.start), min(end, clip.end)
@@ -261,33 +264,45 @@ def set_clips_ungated(p: Project, clip_ids, value: bool = True) -> Project:
     return normalize_ungated(q) if value else q
 
 
+def _auto_silence_portion(clip: Clip, track: Track, at: int):
+    """Both the closed runs and the openings between them are implicit clips."""
+    if clip.ungated or clip.muted or not clip.start <= at < clip.end:
+        return None
+    closed = gatem.normalise(
+        (max(clip.start, a), min(clip.end, b))
+        for a, b in (*track.gate, *(
+            (clip.start + a - clip.offset, clip.start + b - clip.offset)
+            for a, b in clip.auto_silence)))
+    if not closed:
+        return None
+    start = clip.start
+    for lo, hi in closed:
+        if at < lo:
+            return start, lo, False
+        if at < hi:
+            return lo, hi, True
+        start = hi
+    return start, clip.end, False
+
+
 def open_gated_region(p: Project, track_id: str, at: int,
-                      clip_id: str | None = None) -> Project:
-    """Open the stretch Auto-Silence closed at ``at`` as a clip of its own (owner,
-    2026-10-23: M on a closed stretch must not touch the whole parent clip). The clips of
-    the track are split at the stretch's two ends, and the pieces inside are unmuted and
-    flagged ``ungated`` (so the gate under them is opened and stays open); what is outside
-    the stretch is untouched. Pressing M on the new clip then mutes just it."""
+                      clip_id: str | None = None, muted: bool = False) -> Project:
+    """Materialize the portion at ``at`` and apply the user's mute choice.
+
+    Openings between closed stretches are portions too. The explicit result stays
+    exempt from later Auto-Silence runs. The no-clip-id legacy path is kept for
+    older clients that open a track gate across several clips.
+    """
     track = _find_track(p, track_id)
     at = int(at)
-    # Current-format Auto-Silence belongs to the source clip. Legacy track gates
-    # remain readable, but opening a measured region materializes only that portion.
-    if clip_id is None:
-        candidates = track.clips
-    else:
-        target = next((clip for clip in track.clips if clip.id == clip_id), None)
-        if target is None:
-            raise EditError("error.edit.no_gate_here")
-        candidates = (target,)
+    candidates = track.clips if clip_id is None else tuple(
+        clip for clip in track.clips if clip.id == clip_id)
     for clip in candidates:
-        if clip.start <= at < clip.end:
-            source_at = clip.offset + at - clip.start
-            source_region = next(
-                ((a, b) for a, b in clip.auto_silence if a <= source_at < b), None)
-            if source_region is not None:
-                start = clip.start + source_region[0] - clip.offset
-                end = clip.start + source_region[1] - clip.offset
-                return replace_clip_range(p, clip.id, start, end, muted=False)
+        portion = _auto_silence_portion(clip, track, at)
+        if portion is not None and (clip_id is not None or clip.auto_silence):
+            start, end, _closed = portion
+            return normalize_ungated(replace_clip_range(
+                p, clip.id, start, end, muted=muted))
     if clip_id is not None:
         raise EditError("error.edit.no_gate_here")
     region = next(((a, b) for a, b in track.gate if a <= at < b), None)
@@ -341,22 +356,18 @@ def replace_clip_range(
     target, _track = _find_clip(p, target_id)
     if target.start != start or target.end != end or target.media != clip.media:
         raise EditError("error.edit.no_gate_here")
-    source_start = target.offset
-    source_end = source_start + target.length
-    silence = target.auto_silence if clear_range is not None else gatem.remove_range(
-        target.auto_silence, source_start, source_end)
-    return _replace_clip(p, replace(target, muted=bool(muted), auto_silence=silence))
+    return _replace_clip(p, replace(
+        target, muted=bool(muted), ungated=True, auto_silence=(), group=None))
 
 
 def trim_auto_silence_edge(p: Project, clip_id: str, start: int, end: int,
                            edge: str, frame: int) -> Project:
-    """Turn an implicit range into a real muted clip while moving one of its borders."""
-    clip, _track = _find_clip(p, clip_id)
+    """Materialize an open or closed portion while moving its dotted border."""
+    clip, track = _find_clip(p, clip_id)
     start, end, frame = int(start), int(end), int(frame)
     old_range = (start, end)
-    source_range = (clip.offset + start - clip.start, clip.offset + end - clip.start)
-    if not any(a <= source_range[0] and source_range[1] <= b
-               for a, b in clip.auto_silence):
+    portion = _auto_silence_portion(clip, track, (start + end) // 2)
+    if portion is None or portion[:2] != old_range:
         raise EditError("error.edit.no_gate_here")
     if edge == "start":
         start = max(clip.start, min(frame, end - 1))
@@ -364,8 +375,11 @@ def trim_auto_silence_edge(p: Project, clip_id: str, start: int, end: int,
         end = min(clip.end, max(frame, start + 1))
     else:
         raise EditError("error.edit.no_gate_here")
-    return replace_clip_range(p, clip_id, start, end, muted=True,
-                              clear_range=old_range)
+    # The old closed portion is opened outside the new explicit clip too, so an
+    # inward trim really reveals the audio instead of leaving a hidden gate there.
+    p = remove_gate_range(p, track.id, *old_range)
+    return normalize_ungated(replace_clip_range(
+        p, clip_id, start, end, muted=portion[2], clear_range=old_range))
 
 
 def normalize_ungated(p: Project) -> Project:

@@ -17,6 +17,7 @@ import { previewRequest } from "./candidates-preview.js";
 import { cartSlots } from "./cart-model.js";
 import { clipDragChange } from "./clip-drag.js";
 import { expandGroups, toggleGroupSelection } from "./clip-groups.js";
+import { implicitPortionTarget } from "./clip-silence.js";
 import { entryTitle } from "./clipboard.js";
 import { createClipboardDrag } from "./clipboard-drag.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
@@ -1172,8 +1173,11 @@ function onWheel(intent, x) {
 // cursor on the current track. The keymap binds GATE_OPEN_COMMAND to this.
 function openGateStretch(gate) {
   const state = getState();
-  const target = gate ?? stretchAt(state.project, state.focusTrack, state.playhead, state.zoom);
-  if (!target) return;
+  const target =
+    gate ??
+    implicitPortionTarget(state.project, state.focusTrack, state.playhead) ??
+    stretchAt(state.project, state.focusTrack, state.playhead, state.zoom);
+  if (!target || target.closed === false) return;
   const at = target.implicit ? Math.floor((target.range[0] + target.range[1]) / 2) : null;
   const sourceClip = target.implicit
     ? state.project?.tracks
@@ -1188,7 +1192,13 @@ function openGateStretch(gate) {
         if (target.implicit) setState({ implicitRangeTarget: null });
         return;
       }
-      const id = openedRegionClip(response.project, target.trackId, at, sourceClip);
+      const id = openedRegionClip(
+        response.project,
+        target.trackId,
+        at,
+        sourceClip,
+        state.project?.tracks?.find((item) => item.id === target.trackId)?.gate,
+      );
       setState({ ...(id ? { selection: new Set([id]) } : {}), implicitRangeTarget: null });
     },
   });
@@ -3986,6 +3996,9 @@ const timeline = createTimeline({
     },
     edgeDrag({ clipId, trackId, edge, frame, ripple, overwrite, alone, implicitRange }) {
       if (implicitRange) {
+        const source = getState()
+          .project?.tracks?.find((item) => item.id === trackId)
+          ?.clips.find((item) => item.id === clipId);
         const regionStart = edge === "start" ? frame : implicitRange[0];
         const regionEnd = edge === "end" ? frame : implicitRange[1];
         editor.change({
@@ -4002,7 +4015,11 @@ const timeline = createTimeline({
             const track = response.project?.tracks?.find((item) => item.id === trackId);
             const clip = track?.clips?.find(
               (item) =>
-                item.start === regionStart && item.start + item.length === regionEnd && item.muted,
+                item.start === regionStart &&
+                item.start + item.length === regionEnd &&
+                item.ungated &&
+                item.media === source?.media &&
+                (item.offset ?? 0) === (source.offset ?? 0) + regionStart - source.start,
             );
             setState({
               ...(clip ? { selection: new Set([clip.id]) } : {}),

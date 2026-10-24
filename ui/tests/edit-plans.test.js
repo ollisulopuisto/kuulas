@@ -215,7 +215,7 @@ describe("mute on a closed stretch (BUGS #109)", () => {
       state({ project: gated(closed), selection: new Set(["a1"]), playhead: 4 * S }),
     );
     assert.equal(plan.op, "open_gated_region");
-    assert.deepEqual(plan.args, { track_id: "A", at: 4 * S });
+    assert.deepEqual(plan.args, { track_id: "A", clip_id: "a1", at: 4 * S });
     assert.equal(plan.label.key, "ui.edit.label.unmute_region");
   });
 
@@ -307,11 +307,12 @@ describe("mute on a closed stretch (BUGS #109)", () => {
     assert.equal(openedRegionClip(after, "A", 4 * S, sourceClip), "a2");
   });
 
-  test("the cursor outside the stretch: the whole clip, as before", () => {
+  test("the cursor in an implicit opening mutes only that opening", () => {
     const plan = mutePlan(
       state({ project: gated(closed), selection: new Set(["a1"]), playhead: 7 * S }),
     );
-    assert.equal(plan.op, "set_clips");
+    assert.equal(plan.op, "open_gated_region");
+    assert.deepEqual(plan.args, { track_id: "A", clip_id: "a1", at: 7 * S, muted: true });
   });
 
   test("a clip that keeps the mic open or is muted already is toggled whole", () => {
@@ -591,4 +592,44 @@ describe("reset gains to 0 dB", () => {
     assert.equal(resetGainsPlan(state()), null);
     assert.equal(resetGainsPlan(null), null);
   });
+});
+
+test("M on an audible implicit opening mutes that portion, including legacy gates", () => {
+  for (const legacy of [false, true]) {
+    const ranges = [
+      [0, 3 * S],
+      [5 * S, 10 * S],
+    ];
+    const c = clip("a1", 0, 10, {
+      offset: 0,
+      media: "m",
+      ...(legacy ? {} : { auto_silence: ranges }),
+    });
+    const project = { tracks: [{ id: "A", gate: legacy ? ranges : [], clips: [c] }] };
+    const change = mutePlan(state({ project, selection: new Set(["a1"]), playhead: 4 * S }));
+    assert.equal(change.op, "open_gated_region");
+    assert.deepEqual(change.args, { track_id: "A", clip_id: "a1", at: 4 * S, muted: true });
+    const after = {
+      tracks: [
+        {
+          id: "A",
+          clips: [
+            { ...c, length: 3 * S },
+            {
+              ...c,
+              id: "portion",
+              start: 3 * S,
+              offset: 3 * S,
+              length: 2 * S,
+              muted: true,
+              ungated: true,
+              auto_silence: [],
+            },
+            { ...c, start: 5 * S, offset: 5 * S, length: 5 * S },
+          ],
+        },
+      ],
+    };
+    assert.equal(openedRegionClip(after, "A", 4 * S, c, legacy ? ranges : []), "portion");
+  }
 });

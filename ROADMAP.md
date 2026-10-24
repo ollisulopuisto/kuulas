@@ -32,7 +32,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R8 | Mac, Linux, Windows | by design (Python engine + browser UI); tested on Mac only |
 | R9 | Never lose work; smart undo | done: every edit fsynced to SQLite, undo tree keeps branches, drags coalesce |
 | R10 | **High priority.** Hindenburg-level keyboard editing; every UI feature ships with its keys | keymap taken from the Hindenburg PRO shortcut list; UI next |
-| R11 | Pro Cut Auto-Silence: mute what does not cross the threshold | done in core (speechmix grid + duck masks → muted clip pieces) |
+| R11 | Pro Cut Auto-Silence: mute what does not cross the threshold | done in core (speechmix grid + duck masks → implicit source-frame clip ranges; only edited portions become ordinary clips) |
 | R12 | Auto crossfade only where non-adjacent audio is joined | done |
 | R13 | Media identified by content hash; survives rename/move | done (SHA-256 ids, every seen path remembered) |
 | R14 | Per-source mono/stereo; measurements aware of it | done: mono voices constant-power, stereo music balanced, stereo master; speech analysis reads speech tracks only |
@@ -108,9 +108,9 @@ sizes: `docs/PLAN.md`, section "Triage".
 - Analysis: Auto-Silence and automix ducking through speechmix.
 - Transcript mapping and word-cut ranges.
 
-## In flight (24.10.2026 00.51 Helsinki, after v26.10.20.39)
+## In flight (24.10.2026; release v26.10.24.3)
 
-Nothing running except the full test run and the dmg build. **Built since v26.10.20.39, none of it seen on screen yet** (everything below is committed on main; details and limits in each Next item and in docs/BUGS.md #106-#115):
+Release v26.10.24.3 fixes M on the audible openings between Auto-Silence stretches, adds dotted-boundary editing for those openings, and keeps double-click reserved for its specialized actions. The tag workflow builds and uploads the Apple-silicon test dmg. **Built since v26.10.20.39, none of it seen on screen yet** (everything below is committed on main; details and limits in each Next item and in docs/BUGS.md #106-#115):
 
 - **Transcript:** shows only what is heard; Find lists removed material ("Not in this edit"); Put back (ripple insert on all tracks at the seam).
 - **Recording:** the take is drawn on its lanes while it records (new tracks are made at Start; the view follows the head); editing is paused during a take (markers allowed); markers while recording (Cmd+Enter, Add marker button); the stop notice says how much audio the take replaced; **the cart** (seven numbered Clipboard slots, Alt+1..7 play, Shift+Alt+1..7 assign) and clips played during a take are logged on a chosen track; a lost Colab session retries once; Colab progress comes from the tool's `--events`.

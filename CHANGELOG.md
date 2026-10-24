@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [v26.10.24.3] - 2026-10-24
+
+- **M toggles both kinds of Auto-Silence portion.** An audible opening between two closed stretches now becomes its own muted clip, instead of muting the parent. A closed stretch becomes audible. The edited portion is selected, independent of its parent's group, and stays outside later Auto-Silence runs, including after moving it. Undo restores the implicit portion.
+- **Drag a dotted boundary to make that portion explicit.** Both audible and closed portions can be trimmed this way. Clicking a boundary without dragging only positions the cursor.
+- **Double-click keeps its specialized actions.** It edits envelope points near the gain line, locates missing media, and edits placeholders. It no longer opens Auto-Silence stretches; use M to toggle a portion.
+
 ## [v26.10.24.2] - 2026-10-24
 
 - **Follow and Auto-Silence edits stay on the intended target.** Scrolling the transcript unlocks follow through playback updates. M on a clicked implicit region materializes only that region, including inside a clip group or overlap; dragging either border materializes and trims only that region, including borders at the parent clip edges.
