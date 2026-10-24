@@ -58,6 +58,14 @@ the lock at the left of the visible part of the closed stretch.
   drawn after every silent-state overlay (`TRACK_LAYERS`, tested). The outline and the body
   tone are on the waveform canvas under the whole overlay. The preview's dashed edges stand
   2 px inside the body, so a border never hides them.
+- **Clip border** (owner, 2026-10-24): solid 1 px neutral `--signal-clip-edge`, independent
+  of the speaker hue: `--p-gray-25` in light, `--p-gray-48` in dark. It is darker than every
+  filled waveform; in dark mode it sits between the bright wave and dark body. Tests require
+  border/wave >= 1.6:1 and border/body >= 1.5:1 for all seven hues and both file zebra tones.
+  These adjacent-graphic separation floors supplement the existing >= 3:1 waveform/body
+  checks; they are not a claim of 3:1 border/wave accessibility. Selection keeps its 2 px
+  outline, gate ends their dashed amber strokes, and groups their outer rounded outline.
+  Muted waveform outlines and padlocks are unchanged.
 - **The lock** sits 3 px in from the left of the *visible* part of each closed stretch, just
   under the name strip (and the words row when shown, `lockTop`; owner 2026-10-23: a long clip
   name had covered it), on a small chip of `--surface-panel`. It slides right past clip edge
@@ -110,10 +118,13 @@ outline.
 
 Never colour alone: outline vs fill, lock vs open lock vs none, dashed vs solid and the
 "preview" word are shapes. Reduced motion: nothing here moves. Contrast (WCAG 1.4.11, 3:1
-for graphics; `ui/tests/silence-tokens.test.js` checks every pair in both themes):
+for graphics; `ui/tests/silence-tokens.test.js` checks the silent-state pairs and
+`ui/tests/tokens.test.js` checks border separation in both themes):
 
 | Pair | Light | Dark |
 |---|---|---|
+| clip border / filled waveform (worst hue) | >= 1.75 | >= 2.00 |
+| clip border / body, including alternate file tone (worst hue) | >= 12.13 | >= 1.97 |
 | silent outline (label colour) on toned body (worst hue) | 4.46 | 12.09 |
 | body vs toned body (the step) | >= 1.58 | >= 1.21 |
 | lock / stretch ends on its chip (`--surface-panel`) | 6.26 | 10.42 |
