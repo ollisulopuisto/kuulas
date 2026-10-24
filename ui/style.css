@@ -4673,23 +4673,22 @@ legend.form-heading {
   overflow-wrap: anywhere;
 }
 
-/* Level blocks: the same form; one fieldset of ticks per speaker */
-.block-level-dialog {
-  width: min(640px, 94vw);
+/* Level blocks: a side panel like Auto-Silence's; one fieldset of ticks per speaker */
+.block-level-panel > .form-grid {
+  padding: 0 var(--pad-panel);
 }
 .block-level-status {
   min-height: var(--control-h);
 }
 .block-level-lists {
-  max-height: 50vh;
-  overflow-y: auto;
+  min-width: 0;
 }
 .block-level-line {
   margin: 0;
   overflow-wrap: anywhere;
   font-variant-numeric: tabular-nums;
 }
-.block-level-dialog .form-choice > span {
+.block-level-panel .form-choice > span {
   font-variant-numeric: tabular-nums;
 }
 

@@ -8,7 +8,7 @@ import { createAutomixDialog } from "./automix-dialog.js";
 import { createAutomixLiveDialog } from "./automix-live-dialog.js";
 import { createAutomixToast } from "./automix-toast.js";
 import { automixToast } from "./automix-toast-model.js";
-import { createBlockLevelDialog } from "./block-level-dialog.js";
+import { createBlockLevelPanel } from "./block-level-panel.js";
 import { memberClipsAt, toggleChange } from "./bus-collapse.js";
 import { trackRoleChoice } from "./bus-role.js";
 import { listedRows, scrollToShow, stepTarget } from "./candidates-model.js";
@@ -2492,6 +2492,7 @@ function duckMusic() {
  * undo step, Close discards it.
  */
 function openSilenceOptions(learnFrom = null) {
+  blockLevelPanel?.close(); // the two panels share the sidebar
   silencePanel ??= createSilencePanel({
     root: $("panel-silence"),
     api,
@@ -2546,16 +2547,18 @@ async function setMusicLevel(args) {
  * Track > Auto > Level blocks…: the dialog measures (a job) and lists the blocks that are off;
  * Apply splits the clips in the pauses and adds the gains, as one undo step.
  */
-let blockLevelDialog = null;
+let blockLevelPanel = null;
 function openBlockLevel() {
-  blockLevelDialog ??= createBlockLevelDialog({
+  silencePanel?.close(); // the two panels share the sidebar
+  blockLevelPanel ??= createBlockLevelPanel({
+    root: $("panel-block-level"),
     api,
     t,
     fmt: (value) => formatNumber(value, { digits: 1 }),
     clock: (seconds) => formatClock(seconds),
     onApply: (args) => void levelBlocks(args),
   });
-  blockLevelDialog.open();
+  blockLevelPanel.open();
 }
 
 async function levelBlocks(args) {
@@ -4144,7 +4147,10 @@ function render(state, patch) {
     levelMeter.playing(state.playing);
     silencePanel?.playingChanged();
   }
-  if (touched("project")) silencePanel?.projectChanged();
+  if (touched("project")) {
+    silencePanel?.projectChanged();
+    blockLevelPanel?.projectChanged();
+  }
   if (touched("playing", "clipboardPlaying")) {
     // A clipboard preview playing: the Play button stops it (transport.toggle).
     const sounding = state.playing || Boolean(state.clipboardPlaying);

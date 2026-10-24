@@ -1,6 +1,6 @@
 // What a running background job shows in a dialog: a bar and the job's own message (the jobs
 // list gives `progress` 0..1, `indeterminate` and `message`; docs: jobs.py). Pure; the dialog
-// draws it (block-level-dialog.js). Owner, 2026-10-24: a progress bar on Level blocks, like the
+// draws it (block-level-panel.js). Owner, 2026-10-24: a progress bar on Level blocks, like the
 // structured progress of the podcast tools.
 
 /**

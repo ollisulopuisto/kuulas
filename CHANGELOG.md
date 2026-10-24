@@ -1,5 +1,6 @@
 ## [Unreleased]
 
+- **Level blocks is a side panel, so you can keep editing while it measures.** It docks over the sidebar like Auto-Silence's panel (opening one closes the other). If you edit the project while it measures, or after it has shown its result, the panel says the result no longer fits, Apply goes off, and Measure again starts over. Close or Esc stops a running measurement.
 - **The menus are tidier for a first-time user.** The same eight menus, but the rare commands sit in submenus at the bottom: File > Versions and More exports (the three first-hour exports stay in File), Track > Role and Bus, Text > Placeholders, Playback > Speed (fast, slow and shuttle in one), View > Options (mouse, inactive lanes, pauses, switches) and View > History. Help > Getting started lists the six things to do in the first hour. Nothing was removed, and every key still works.
 - **A muted clip now shows a crossed-out speaker after its name.** It looked the same as a stretch Auto-Silence closed (outline only); now the padlock means Auto-Silence and the speaker means you muted it. The legend in the Auto-Silence panel says so.
 - **M on a silenced stretch selects the clip it opens.** The stretch became its own clip but the old selection stayed on the left-over piece of the parent, so the next M muted the wrong thing. The new clip is selected, and M again mutes just it.

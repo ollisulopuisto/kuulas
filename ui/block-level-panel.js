@@ -1,23 +1,26 @@
-// Track > Auto > "Level blocks…": a modal dialog. Opening it starts a measuring job on the
-// server (it changes nothing); the result lists, per speaker, the blocks that are off with
-// their span, how far off and the gain Apply would add to the clips, each with a tick; the
-// very loud spots are listed apart (never changed) with a checkbox for markers. Apply hands
-// { measured, skip, markers } to `onApply` (one undo step, made by the caller). Cancel, Esc or
-// closing stops a measurement still running. The rows and numbers are pure
-// (block-level-model.js); this file is the DOM.
+// Track > Auto > "Level blocks…": a side panel docked over the sidebar like Auto-Silence's, so
+// you can keep editing while it measures. Opening it starts a measuring job on the server (it
+// changes nothing); the result lists, per speaker, the blocks that are off with their span, how
+// far off and the gain Apply would add to the clips, each with a tick; the very loud spots are
+// listed apart (never changed) with a checkbox for markers. An edit while it measures, or after,
+// makes the result stale: it says so and Apply stays off until "Measure again" (the server
+// refuses a stale Apply too). Apply hands { measured, skip, markers } to `onApply` (one undo
+// step, made by the caller). Closing stops a measurement still running. The rows and numbers
+// are pure (block-level-model.js); this file is the DOM.
 
 import {
   allChangedIds,
   blockText,
+  canApply,
   changedBySpeaker,
   leftAloneCount,
   loudBySpeaker,
   loudText,
   measureError,
+  phaseAfterEdit,
   ruleText,
   skipIds,
 } from "./block-level-model.js";
-import { enhanceDialog } from "./dialog-keys.js";
 import { progressView } from "./job-progress.js";
 
 const POLL_MS = 400;
@@ -30,15 +33,23 @@ const el = (tag, className, text) => {
 };
 
 /**
- * `api`: { blockLevelMeasure, getJobs, cancelJob }; `t` translates; `fmt(value)` formats one
- * decimal; `clock(seconds)` a position; `onApply({ measured, skip, markers })`.
- * Returns { element, open() }.
+ * `root`: the sidebar section to fill. `api`: { blockLevelMeasure, getJobs, cancelJob }; `t`
+ * translates; `fmt(value)` formats one decimal; `clock(seconds)` a position;
+ * `onApply({ measured, skip, markers })`. Returns { element, open, close, isOpen,
+ * projectChanged }.
  */
-export function createBlockLevelDialog({ api, t, fmt, clock, onApply }) {
-  const dialog = el("dialog", "cheatsheet block-level-dialog");
-  dialog.setAttribute("aria-labelledby", "block-level-title");
+export function createBlockLevelPanel({ root, api, t, fmt, clock, onApply }) {
+  root.setAttribute("aria-labelledby", "block-level-title");
+  root.tabIndex = -1;
+  const head = el("div", "silence-head");
   const heading = el("h2", "", t("ui.block_level.title"));
   heading.id = "block-level-title";
+  const hidePanel = el("button", "button ghost icon silence-close");
+  hidePanel.type = "button";
+  hidePanel.dataset.icon = "close";
+  hidePanel.setAttribute("aria-label", t("ui.block_level.close"));
+  hidePanel.title = t("ui.block_level.close");
+  head.append(heading, hidePanel);
 
   const rule = el("p", "form-note");
   rule.hidden = true;
@@ -64,27 +75,29 @@ export function createBlockLevelDialog({ api, t, fmt, clock, onApply }) {
   markersRow.append(markersBox, el("span", "", t("ui.block_level.markers")));
   markersRow.hidden = true;
 
-  const buttons = el("div", "cheatsheet-footer");
-  const cancel = el("button", "button block", t("ui.block_level.cancel"));
-  cancel.type = "button";
-  cancel.dataset.icon = "close";
-  cancel.dataset.dialogCancel = "";
-  const apply = el("button", "button block primary", t("ui.block_level.apply"));
-  apply.type = "submit";
-  apply.dataset.icon = "check";
-  apply.dataset.dialogPrimary = "";
-  apply.disabled = true;
-  buttons.append(cancel, apply);
+  const body = el("div", "form-grid");
+  body.append(rule, status, bar, error, lists, markersRow);
 
-  const form = el("form", "form-grid");
-  form.method = "dialog";
-  form.noValidate = true;
-  form.append(rule, status, bar, error, lists, markersRow, buttons);
-  dialog.append(heading, form);
-  document.body.append(dialog);
-  enhanceDialog(dialog, { t });
+  const again = el("button", "button", t("ui.block_level.measure_again"));
+  again.type = "button";
+  again.dataset.icon = "reset";
+  const close = el("button", "button", t("ui.block_level.close"));
+  close.type = "button";
+  close.dataset.icon = "close";
+  const apply = el("button", "button primary", t("ui.block_level.apply"));
+  apply.type = "button";
+  apply.dataset.icon = "check";
+  apply.disabled = true;
+  const buttons = el("div", "actionbar");
+  buttons.setAttribute("role", "group");
+  buttons.setAttribute("aria-label", t("ui.block_level.title"));
+  buttons.append(again, close, apply); // the primary last (BUTTONS.md)
+  root.append(head, body, buttons);
 
   // -- state ------------------------------------------------------------------------------
+  let isOpen = false;
+  let phase = "idle";
+  let returnFocus = null;
   let watching = 0; // which measurement is being waited for; a newer one or a close ends it
   let jobId = null;
   let measured = null;
@@ -149,7 +162,7 @@ export function createBlockLevelDialog({ api, t, fmt, clock, onApply }) {
       lists.append(set);
     }
     markersRow.hidden = loud.length === 0;
-    apply.disabled = false;
+    setPhase("ready");
   }
 
   function paintProgress(job) {
@@ -167,14 +180,42 @@ export function createBlockLevelDialog({ api, t, fmt, clock, onApply }) {
     error.hidden = false;
   };
 
+  function setPhase(next) {
+    phase = next;
+    apply.disabled = !canApply(phase);
+    again.disabled = phase === "measuring";
+    if (phase === "stale") {
+      bar.hidden = true;
+      status.textContent = t("ui.block_level.stale");
+    }
+  }
+
   function stop() {
     watching += 1;
     bar.hidden = true;
     if (jobId) void api.cancelJob(jobId).catch(() => {});
     jobId = null;
   }
-  cancel.addEventListener("click", () => dialog.close());
-  dialog.addEventListener("close", stop);
+
+  function hide() {
+    if (!isOpen) return;
+    isOpen = false;
+    stop();
+    phase = "idle";
+    root.hidden = true;
+    root.closest(".sidebar")?.toggleAttribute("data-silence-open", false);
+    if (returnFocus?.isConnected) returnFocus.focus();
+    returnFocus = null;
+  }
+  close.addEventListener("click", hide);
+  hidePanel.addEventListener("click", hide);
+  again.addEventListener("click", () => void measure());
+  root.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !event.defaultPrevented) {
+      event.preventDefault();
+      hide();
+    }
+  });
 
   async function measure() {
     stop();
@@ -185,12 +226,16 @@ export function createBlockLevelDialog({ api, t, fmt, clock, onApply }) {
     lists.replaceChildren();
     markersRow.hidden = true;
     markersBox.checked = false;
-    apply.disabled = true;
+    setPhase("measuring");
     paintProgress(null);
     try {
       const { jobs } = await api.blockLevelMeasure({});
       jobId = jobs[0];
       while (watching === mine) {
+        if (phase === "stale") {
+          stop(); // edited while it measured: stop measuring a result nobody can apply
+          return;
+        }
         const job = (await api.getJobs()).jobs.find((item) => item.id === jobId);
         if (!job) break;
         if (job.state === "completed") {
@@ -201,6 +246,7 @@ export function createBlockLevelDialog({ api, t, fmt, clock, onApply }) {
             showError(t(key));
             return;
           }
+          if (phase === "stale") return; // edited while it measured: this result no longer fits
           measured = job.result;
           ticked = allChangedIds(measured);
           show();
@@ -208,6 +254,7 @@ export function createBlockLevelDialog({ api, t, fmt, clock, onApply }) {
         }
         if (job.state === "failed" || job.state === "cancelled") {
           jobId = null;
+          setPhase("failed");
           showError(job.error?.text || t("ui.block_level.failed"));
           return;
         }
@@ -215,25 +262,43 @@ export function createBlockLevelDialog({ api, t, fmt, clock, onApply }) {
         await new Promise((resolve) => setTimeout(resolve, POLL_MS));
       }
     } catch (e) {
-      if (watching === mine) showError(e.message);
+      if (watching === mine) {
+        setPhase("failed");
+        showError(e.message);
+      }
     }
   }
 
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    if (apply.disabled || !measured) return;
+  apply.addEventListener("click", () => {
+    if (!canApply(phase) || !measured) return;
     const chosen = measured;
     const skip = skipIds(chosen, ticked);
     const markers = markersBox.checked;
-    dialog.close();
+    hide();
     onApply({ measured: chosen, skip, markers });
   });
 
   return {
-    element: dialog,
+    element: root,
+    isOpen: () => isOpen,
+    close: hide,
+    /** The project changed (an edit, undo): the measured result no longer fits. */
+    projectChanged() {
+      if (!isOpen) return;
+      const next = phaseAfterEdit(phase);
+      if (next !== phase) setPhase(next);
+    },
     open() {
-      if (!dialog.open) dialog.showModal();
+      if (isOpen) {
+        again.focus();
+        return;
+      }
+      returnFocus = document.activeElement;
+      isOpen = true;
+      root.hidden = false;
+      root.closest(".sidebar")?.toggleAttribute("data-silence-open", true);
       void measure();
+      close.focus();
     },
   };
 }

@@ -1,5 +1,5 @@
-// Track > Auto > Level blocks…: the rows, the ticks and what Apply sends, pure (the dialog is
-// block-level-dialog.js; the rule is src/kuulas/block_level.py).
+// Track > Auto > Level blocks…: the rows, the ticks and what Apply sends, pure (the panel is
+// block-level-panel.js; the rule is src/kuulas/block_level.py).
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, test } from "node:test";
@@ -7,11 +7,13 @@ import { fileURLToPath } from "node:url";
 import {
   allChangedIds,
   blockText,
+  canApply,
   changedBySpeaker,
   leftAloneCount,
   loudBySpeaker,
   loudText,
   measureError,
+  phaseAfterEdit,
   ruleText,
   skipIds,
 } from "../block-level-model.js";
@@ -134,7 +136,9 @@ test("every text the model and the dialog use exists in both catalogs", () => {
     "ui.block_level.loud_row",
     "ui.block_level.markers",
     "ui.block_level.failed",
-    "ui.block_level.cancel",
+    "ui.block_level.close",
+    "ui.block_level.measure_again",
+    "ui.block_level.stale",
     "ui.block_level.apply",
     "ui.block_level.done",
     "ui.block_level.clamped",
@@ -150,4 +154,23 @@ test("every text the model and the dialog use exists in both catalogs", () => {
     const catalog = JSON.parse(readFileSync(path, "utf8"));
     for (const key of keys) assert.ok(catalog[key], `${lang} lacks ${key}`);
   }
+});
+
+describe("the panel's phases while you edit", () => {
+  test("an edit makes a measuring or ready panel stale, the others stay", () => {
+    assert.equal(phaseAfterEdit("measuring"), "stale");
+    assert.equal(phaseAfterEdit("ready"), "stale");
+    assert.equal(phaseAfterEdit("idle"), "idle");
+    assert.equal(phaseAfterEdit("failed"), "failed");
+    assert.equal(phaseAfterEdit("stale"), "stale");
+  });
+  test("only a ready result can be applied", () => {
+    assert.deepEqual(["idle", "measuring", "ready", "stale", "failed"].map(canApply), [
+      false,
+      false,
+      true,
+      false,
+      false,
+    ]);
+  });
 });
