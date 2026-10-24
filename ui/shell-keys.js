@@ -126,6 +126,8 @@ export function setupKeyboard({
     },
     // Behind a modal dialog the editing keys stay off the project.
     isModal: modalOpen,
+    // The menu that holds the command flashes, as macOS does for a key equivalent.
+    onRun: (id, event) => menubar?.flash(id, event),
   });
 
   function useOverrides(next, { persist = true } = {}) {

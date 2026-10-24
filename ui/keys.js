@@ -231,6 +231,7 @@ export function createKeymap({
   getState = null,
   onIdle = null,
   onEdited = null,
+  onRun = null,
   isModal = () => false,
 } = {}) {
   const bindings = [];
@@ -287,6 +288,7 @@ export function createKeymap({
         event.preventDefault();
         if (event.repeat && !entry.repeat) return true;
         registry.run(entry.id, event);
+        onRun?.(entry.id, event);
         if (edit && context !== "timeline" && context !== "transcript") {
           onEdited?.(entry.id, context);
         }

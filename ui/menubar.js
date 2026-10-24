@@ -9,8 +9,12 @@
 // the menu and returns to the bar. Disabled items are focusable (they teach) but
 // do nothing. No mnemonics.
 
+import { flashTop } from "./menu-flash.js";
 import { isHoverPointer, movingToward, rowHover, topHover } from "./menu-hover.js";
 import { findItem, fitMenus, moveItem, moveMenu, overflowMenu } from "./menu-model.js";
+
+/** How long a menu title stays lit when a key ran one of its commands. */
+const FLASH_MS = 260;
 
 export function createMenubar({ root, getMenus, run, onHint, t, search = null }) {
   // open: whether a menu is dropped down; top: which; item/sub: positions inside it.
@@ -439,6 +443,21 @@ export function createMenubar({ root, getMenus, run, onHint, t, search = null })
   render();
   return {
     isOpen: () => at.open,
+    /**
+     * A command was run by a key chord: flash the title of the menu that holds it for a moment
+     * (menu-flash.js), so the key teaches where the command is. A menu that sits in the "…"
+     * flashes that. Nothing when the menu is open (you are looking at it) or motion is off.
+     */
+    flash(id, event) {
+      if (at.open || document.documentElement.dataset.motion === "off") return;
+      const top = flashTop(getMenus(), id, event);
+      if (top === null) return;
+      const titles = root.querySelectorAll(".menu-title");
+      const title = top < shown ? titles[top] : root.querySelector(".menu-more");
+      if (!title) return;
+      title.classList.add("flash");
+      setTimeout(() => title.classList.remove("flash"), FLASH_MS);
+    },
     openSearch,
     reveal,
     /**

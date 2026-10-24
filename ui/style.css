@@ -2193,6 +2193,11 @@ input[type="text"] {
 .menu-title {
   width: auto;
 }
+/* A key ran one of its commands (menu-flash.js): lit for a moment, as macOS does. */
+.menu-title.flash {
+  background: var(--accent-subtle);
+  color: var(--accent-text);
+}
 .menu-title:hover,
 .menu-title[aria-expanded="true"],
 .menu-item:hover,
