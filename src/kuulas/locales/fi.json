@@ -253,7 +253,7 @@
   "history.op.set_gate": "Portti: {track}",
   "history.op.add_gate_range": "Porttialue lisätty: {track} kohdassa {at}",
   "history.op.remove_gate_range": "Porttialue poistettu: {track} kohdassa {at}",
-  "history.op.open_gated_region": "Suljettu jakso avattu: {track} kohdassa {at}",
+  "history.op.open_gated_region": "Automaattisen mykistyksen jaksoa muokattu: {track} kohdassa {at}",
   "history.op.set_clips_ungated": {
     "one": "Mikki pidetään auki, {state}: {count} leike, {where}",
     "other": "Mikki pidetään auki, {state}: {count} leikettä, {where}"
@@ -939,7 +939,8 @@
   "ui.help.hidden": "Se on nyt piilossa: {how}.",
   "ui.hint.help": "ohje",
   "format.speed": "{value}×",
-  "ui.gate.hover": "Auto-Silence sulki mikin. Kaksoisnapsauta avataksesi tämän kohdan.",
+  "ui.gate.hover": "Auto-Silence sulki mikrofonin. M avaa vain tämän jakson. Katkoviivarajaa voi vetää.",
+  "ui.gate.open_portion_hover": "Auto-Silence jätti tämän jakson kuuluviin. M mykistää vain tämän jakson. Katkoviivarajaa voi vetää.",
   "ui.clip.over": "Säröää: +{db} dB yli täyden asteikon",
   "ui.clip.at_limit": "Säröää: rajalla, hieman alle täyden asteikon",
   "ui.edge.roll": "Siirrä leikkeen reunaa",

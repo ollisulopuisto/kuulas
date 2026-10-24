@@ -385,3 +385,9 @@ describe("a press on an edge with Cmd/Ctrl", () => {
     assert.equal(edgePressKeepsSelection({ mod: false, alt: true }), false);
   });
 });
+
+test("an implicit border cannot be dragged past the opposite border", () => {
+  const clip = { start: 0, length: 1000 };
+  assert.equal(clampImplicitEdge(clip, 900, [200, 500], "start"), 499);
+  assert.equal(clampImplicitEdge(clip, 0, [200, 500], "end"), 201);
+});

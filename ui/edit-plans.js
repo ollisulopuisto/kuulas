@@ -6,6 +6,7 @@
 // track_ids. Sync never widens it, and an explicit clip group is expanded by the server.
 
 import { busOfFocus } from "./bus-collapse.js";
+import { implicitPortionAt } from "./clip-silence.js";
 import {
   autoName,
   clipsInRange,
@@ -444,14 +445,11 @@ function targetedGatedRegionPlan(state, chosen) {
   );
   if (!entry || entry.clip.muted) return null;
   const [start, end] = target.range;
-  const sourceStart = (entry.clip.offset ?? 0) + start - entry.clip.start;
-  const sourceEnd = (entry.clip.offset ?? 0) + end - entry.clip.start;
-  if (!entry.clip.auto_silence?.some(([a, b]) => a <= sourceStart && sourceEnd <= b)) return null;
-  return plan(
-    "open_gated_region",
-    { track_id: target.trackId, clip_id: target.clipId, at: Math.floor((start + end) / 2) },
-    "unmute_region",
-  );
+  const at = Math.floor((start + end) / 2);
+  const gate = state.project.tracks.find((track) => track.id === target.trackId)?.gate;
+  const portion = implicitPortionAt(entry.clip, at, gate);
+  if (!portion || portion.range[0] !== start || portion.range[1] !== end) return null;
+  return portionMutePlan(target.trackId, entry.clip, at, portion);
 }
 
 /**
@@ -459,22 +457,12 @@ function targetedGatedRegionPlan(state, chosen) {
  * open_gated_region). It is selected afterwards, so the next M mutes just that stretch, not
  * the left-over piece of the parent clip that kept the old selection (owner, 2026-10-24).
  */
-export function openedRegionClip(project, trackId, at, sourceClip = null) {
+export function openedRegionClip(project, trackId, at, sourceClip = null, legacyGate = []) {
   const track = project?.tracks?.find((x) => x.id === trackId);
   if (sourceClip) {
-    const sourceAt = (sourceClip.offset ?? 0) + at - sourceClip.start;
-    const region = sourceClip.auto_silence?.find(
-      ([start, end]) => start <= sourceAt && sourceAt < end,
-    );
-    if (!region) return null;
-    const start = Math.max(
-      sourceClip.start,
-      sourceClip.start + region[0] - (sourceClip.offset ?? 0),
-    );
-    const end = Math.min(
-      clipEnd(sourceClip),
-      sourceClip.start + region[1] - (sourceClip.offset ?? 0),
-    );
+    const portion = implicitPortionAt(sourceClip, at, legacyGate);
+    if (!portion) return null;
+    const [start, end] = portion.range;
     return (
       track?.clips?.find(
         (clip) =>
@@ -488,18 +476,21 @@ export function openedRegionClip(project, trackId, at, sourceClip = null) {
   return track?.clips?.find((c) => c.start <= at && at < clipEnd(c))?.id ?? null;
 }
 
+function portionMutePlan(trackId, clip, at, portion) {
+  return plan(
+    "open_gated_region",
+    { track_id: trackId, clip_id: clip.id, at, ...(!portion.closed ? { muted: true } : {}) },
+    portion.closed ? "unmute_region" : "mute",
+    portion.closed ? {} : { count: 1 },
+  );
+}
+
 function gatedRegionPlan(state, { clip, trackId }) {
   const at = state.playhead;
-  if (!Number.isFinite(at) || clip.muted) return null;
-  if (!(clip.start <= at && at < clipEnd(clip))) return null;
-  const sourceAt = (clip.offset ?? 0) + at - clip.start;
-  if (clip.auto_silence?.some(([start, end]) => start <= sourceAt && sourceAt < end)) {
-    return plan("open_gated_region", { track_id: trackId, clip_id: clip.id, at }, "unmute_region");
-  }
-  if (clip.ungated) return null;
-  const gate = state.project?.tracks?.find((x) => x.id === trackId)?.gate ?? [];
-  if (!gate.some(([start, end]) => start <= at && at < end)) return null;
-  return plan("open_gated_region", { track_id: trackId, at }, "unmute_region");
+  if (!Number.isFinite(at)) return null;
+  const gate = state.project?.tracks?.find((x) => x.id === trackId)?.gate;
+  const portion = implicitPortionAt(clip, at, gate);
+  return portion ? portionMutePlan(trackId, clip, at, portion) : null;
 }
 
 /**

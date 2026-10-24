@@ -107,6 +107,7 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
             plan.args.track_id,
             plan.args.at,
             sourceClip,
+            before?.tracks?.find((track) => track.id === plan.args.track_id)?.gate,
           );
           app.patch({
             ...(id ? { selection: new Set([id]) } : {}),

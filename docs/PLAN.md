@@ -2932,6 +2932,10 @@ Its per-track storage policy was superseded by the owner update below on
 were measured on, in source frames, so moving a different clip into the same
 timeline area does not mute it. Ranges remain implicit until the user changes
 one; M and edge dragging materialize only that portion as an ordinary clip.
+In v26.10.24.3 both audible openings and closed stretches are portion targets;
+materialized clips leave their parent group and stay exempt from later
+Auto-Silence runs. Double-click remains reserved for envelope and other
+specialized actions, with no clip-body mute binding.
 Legacy `Track.gate` remains readable. Transcript follow unlocks on manual
 scroll during playback and stays unlocked until Follow is pressed. Clip borders
 use a neutral token independent of waveform color.

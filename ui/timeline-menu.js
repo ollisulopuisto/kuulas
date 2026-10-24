@@ -102,9 +102,10 @@ export function timelineTarget(hit, state) {
  */
 export function timelineMenuItems(state, target, can) {
   // A closed stretch under the pointer can be opened right there (owner, 21.10.2026).
-  const sections = target.gate
-    ? [["gate", ["gate.open_stretch", "gate.open_under_clips"]], ...(SECTIONS[target.kind] ?? [])]
-    : (SECTIONS[target.kind] ?? []);
+  const sections =
+    target.gate && target.gate.closed !== false
+      ? [["gate", ["gate.open_stretch", "gate.open_under_clips"]], ...(SECTIONS[target.kind] ?? [])]
+      : (SECTIONS[target.kind] ?? []);
   return sections
     .map(([name, ids]) => ({
       titleKey: `ui.ctx.${name}`,

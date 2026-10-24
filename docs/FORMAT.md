@@ -469,8 +469,10 @@ its name is reported by `SeriesStore.conflicts()` and never read as an item.
 source-frame `[start, end)` pairs, sorted, non-overlapping and not touching.
 These are implicit muted portions: the mixer and timeline derive their audible
 mask and visible edges from the clip; moving the clip moves its measured silence.
-A user edit of one portion splits only that range into ordinary clips in one
-history step. Ranges are part of the edit state and are restored by undo. Empty
+A user edit of an open or closed portion splits only that range into an ordinary
+clip in one history step. The new clip has `ungated: true`, no `auto_silence`
+ranges and no parent clip group: it stays outside later Auto-Silence runs and
+can be muted independently. Ranges and exemption are edit state, restored by undo. Empty
 ranges are omitted. Version 4 adds no database columns; version-3 projects
 migrate by updating the schema marker only.
 

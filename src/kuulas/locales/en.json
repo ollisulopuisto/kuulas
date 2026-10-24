@@ -257,7 +257,7 @@
   "history.op.set_gate": "Gate: {track}",
   "history.op.add_gate_range": "Gate range added: {track} at {at}",
   "history.op.remove_gate_range": "Gate range removed: {track} at {at}",
-  "history.op.open_gated_region": "Closed stretch opened: {track} at {at}",
+  "history.op.open_gated_region": "Auto-Silence portion edited: {track} at {at}",
   "history.op.set_clips_ungated": {
     "one": "Keep mic open {state}: {count} clip, {where}",
     "other": "Keep mic open {state}: {count} clips, {where}"
@@ -937,7 +937,8 @@
   "ui.help.hidden": "It is hidden right now: {how}.",
   "ui.hint.help": "help",
   "format.speed": "{value}×",
-  "ui.gate.hover": "Mic closed by Auto-Silence. Double-click to open this stretch.",
+  "ui.gate.hover": "Mic closed by Auto-Silence. M opens only this portion. Drag a dotted boundary to edit it.",
+  "ui.gate.open_portion_hover": "Auto-Silence left this portion audible. M mutes only this portion. Drag a dotted boundary to edit it.",
   "ui.clip.over": "Clipping: +{db} dB over full scale",
   "ui.clip.at_limit": "Clipping: at the limit, just under full scale",
   "ui.edge.roll": "Roll clip edge",

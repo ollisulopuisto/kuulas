@@ -37,3 +37,40 @@
 ### Task 5: Validate and commit
 
 Run focused tests individually, then the required full Python/UI tests and linters. Update the relevant plan/changelog/roadmap status only if the corresponding work package is within this branch's scope, and commit locally.
+
+
+### Follow-up: open portions are implicit too (owner, 2026-10-24)
+
+The 4:08.967 screenshot is an audible opening between closed stretches. The old
+hit target and mute planner recognize only closed ranges and therefore mute the
+whole parent. Both open and closed portions must use the same boundaries.
+
+1. Add failing Python tests in `tests/test_clip_silence.py` for muting an open
+   portion, legacy gates, dragging either type of portion, and exemption after
+   moving and running Auto-Silence again. Add Node tests in
+   `ui/tests/clip-silence-model.test.js`, `ui/tests/edit-plans.test.js`, and
+   `ui/tests/edge-drag.test.js` for matching hit targets, M, drag limits, and
+   selecting the resulting explicit clip.
+2. Add pure portion arithmetic; use it in `ops.py` and `ui/clip-silence.js`.
+   Update hit testing, mute planning, and edge drag to target the same portion.
+   Mark materialized clips `ungated=True`, clear their implicit ranges, and
+   preserve that choice on subsequent analysis. No recordings are modified.
+3. Owner clarified: do not overload double-click with muting. Preserve envelope
+   editing, missing-media location, and placeholder editing; remove the old
+   Auto-Silence double-click action. No new preference or body action.
+4. Keep BUGS #120 fixed-but-awaiting-owner-check, document the behavior, run
+   focused tests red/green and required full checks, then build/tag/publish .3.
+
+
+**Follow-up validation:** the new open-portion tests first failed because M planned
+`set_clips`, the backend rejected an open portion, and materialization did not set
+`ungated`. The group regression separately failed because the explicit result
+still expanded to its parent's siblings. The old whole-parent expectation outside
+a closed stretch was changed to the owner's audible-portion toggle contract;
+legacy gate plans now name the clicked clip explicitly.
+
+Final checks: 5,046 pytest, 3,394 Node tests; Ruff and Biome 2.2.4 pass. A headless
+Chrome check against an isolated synthetic two-track project confirms the actual
+4:08.967 click + M, second M, dotted-edge drag, exemption on re-analysis, body
+double-click making no edit, and envelope-point add/remove by double-click. The
+owner's real project was not opened or changed; BUGS #120 still awaits confirmation.

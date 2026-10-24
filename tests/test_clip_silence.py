@@ -4,8 +4,9 @@ from dataclasses import replace
 
 import numpy as np
 
-from kuulas import analysis, mixer, ops
+from kuulas import analysis, edit_scope, mixer, ops
 from kuulas.clock import frames_to_flicks
+from kuulas.history import History
 from kuulas.model import Clip, Media, Project
 from kuulas.transcript import timeline_words
 
@@ -116,3 +117,94 @@ def test_transcript_marks_words_inside_the_clip_silence_as_muted():
               "e": frames_to_flicks(160, 1000)}]
 
     assert timeline_words(project, {"m": words})[0]["muted"] is True
+
+
+def test_muting_an_open_implicit_portion_does_not_mute_the_parent():
+    project = analysis.apply_silence(project_with_clip(), {"t": ((100, 200), (300, 400))})
+    changed = ops.open_gated_region(project, "t", 250, clip_id="c", muted=True)
+    clips = changed.track("t").clips
+    assert [(c.start, c.end, c.muted) for c in clips] == [
+        (0, 200, False), (200, 300, True), (300, 2000, False)]
+    assert clips[1].ungated
+    assert clips[1].offset == 200
+    assert not clips[1].auto_silence
+
+
+def test_legacy_gate_opening_has_the_same_portion_target():
+    project = ops.set_gate(project_with_clip(), "t", ((100, 200), (300, 400)))
+    changed = ops.open_gated_region(project, "t", 250, clip_id="c", muted=True)
+    target = next(c for c in changed.track("t").clips if c.start == 200)
+    assert (target.end, target.muted, target.ungated) == (300, True, True)
+    assert not changed.track("t").clips[0].muted
+
+
+def test_materialized_portion_stays_explicit_after_move_and_new_auto_silence():
+    project = analysis.apply_silence(project_with_clip(), {"t": ((100, 200),)})
+    project = ops.open_gated_region(project, "t", 150, clip_id="c")
+    target = next(c for c in project.track("t").clips if c.start == 100)
+    assert target.ungated
+    project = ops.move_clip(project, target.id, 500)
+    project = analysis.apply_silence(project, {"t": ((0, 2000),)})
+    target = next(c for c in project.track("t").clips if c.id == target.id)
+    assert target.ungated
+    assert not target.auto_silence
+    assert not target.muted
+    assert Clip.from_dict(target.to_dict()).ungated
+
+
+def test_dragging_the_open_side_of_a_dotted_edge_keeps_it_audible_and_explicit():
+    project = analysis.apply_silence(project_with_clip(), {"t": ((100, 200), (300, 400))})
+    changed = ops.trim_auto_silence_edge(project, "c", 200, 300, "end", 340)
+    target = next(c for c in changed.track("t").clips if c.start == 200)
+    assert (target.end, target.muted, target.ungated, target.auto_silence) == (
+        340, False, True, ())
+    changed = analysis.apply_silence(changed, {"t": ((0, 2000),)})
+    target = next(c for c in changed.track("t").clips if c.id == target.id)
+    assert not target.auto_silence
+    assert not target.muted
+
+
+def test_materialized_portion_can_toggle_independently_of_the_parent_group():
+    project = analysis.apply_silence(project_with_clip(), {"t": ((100, 200),)})
+    track = project.track("t")
+    project = replace(project, tracks=(replace(
+        track, clips=(replace(track.clips[0], group="g"),)),))
+    opened = ops.open_gated_region(project, "t", 150, clip_id="c")
+    target = next(c for c in opened.track("t").clips if c.start == 100)
+    assert edit_scope.expand_clips(opened, [target.id]) == [target.id]
+    assert not target.group
+
+
+def test_materializing_a_portion_is_one_undoable_persistent_step(tmp_path):
+    project = analysis.apply_silence(project_with_clip(), {"t": ((100, 200), (300, 400))})
+    path = tmp_path / "project.sqlite"
+    history = History(path, initial=project)
+    history.db.execute(
+        "insert into media(id, sha256, name, storage, channels, source_rate,"
+        " source_frames, lossless, added_utc) values"
+        " ('m', ?, 'm.wav', 'working', 1, 1000, 2000, 1, '2026-10-24T00:00:00Z')",
+        ("a" * 64,))
+    project = history.state
+    changed = ops.open_gated_region(project, "t", 250, clip_id="c", muted=True)
+    history.commit("mute portion", changed)
+    history.undo()
+    assert history.state == project
+    history.redo()
+    assert history.state == changed
+    history.close()
+    history = History(path)
+    try:
+        target = next(c for c in history.state.track("t").clips if c.start == 200)
+        assert target.muted
+        assert target.ungated
+        assert not target.auto_silence
+    finally:
+        history.close()
+
+
+def test_legacy_dotted_border_drag_materializes_only_the_grabbed_clip():
+    project = ops.set_gate(project_with_clip(), "t", ((100, 200), (300, 400)))
+    changed = ops.trim_auto_silence_edge(project, "c", 200, 300, "start", 180)
+    target = next(c for c in changed.track("t").clips if c.start == 180)
+    assert (target.end, target.muted, target.ungated) == (300, False, True)
+    assert changed.track("t").gate == ((100, 180), (300, 400))
