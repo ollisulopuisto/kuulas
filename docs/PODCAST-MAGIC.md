@@ -399,3 +399,21 @@ What Kuulas needs from the package (neutral types, `Fraction` seconds, no UI str
 - Tests the package should carry: the 1001/30000, 100/2500 and /5644800 rational times
   (`vertical2.fcpxmld`), a two-hour synthetic timeline, `%20`/`ä`/Windows `file:` URLs, a bundle
   without `Info.fcpxml`, garbage XML, and the fixtures of autoraffkat's `tests/make_fixture.py`.
+
+### Summary for the package author (2026-10-24)
+
+Reads (all kept as exact `Fraction` times):
+
+- timeline: name, `frame_duration`, `tc_start`, format, `fcpxml_version`; only a *project* timeline (owner 2026-10-23), not multicam or event sync clips;
+- media: key, name, decoded path, original `file://` URL, `asset_start`, `asset_duration`, video/audio flags, channels, rate;
+- placements: offset, start, duration, lane, role, muted;
+- markers and chapter markers; audio cross dissolves with their duration;
+- `timeMap` / `conform-rate` clips flagged `unsupported`, never misread.
+
+Kuulas maps, not the package: an audio-only asset is a mic, an asset with video is a camera's scratch audio (its own muted track in the group); roles are only a suggestion (role -> bus kind, sub-role -> speaker, editable in the import report); media are linked by path + SHA-256, never copied.
+
+Writes back (`conform`): a new project spine of pieces of the original containers, resources copied verbatim, cuts snapped to frames, the source's own FCPXML version kept (Resolve: 1.8-1.9 preferred, unchecked). One way only: import once, export once, no merging of hand fixes made in FCP. Music stays in the export.
+
+The most valuable output is the list of audio cut points per speaker on the program timeline (`docs/design/CUT-LIST.md`): only Kuulas knows it, and autoraffkat needs it to cover one speaker's jump cuts with one unbroken shot.
+
+Open, not decided: whether audio cuts may stay sub-frame in FCPXML (test in FCP); the cover-shot thresholds (tune on a real episode); AAC/MOV priming offsets (cross-correlate scratch audio against the mic, within 1 ms). Nothing here has been run against a real FCP file.
