@@ -108,7 +108,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 - Analysis: Auto-Silence and automix ducking through speechmix.
 - Transcript mapping and word-cut ranges.
 
-## In flight (24.10.2026; release v26.10.24.3)
+## In flight (25.10.2026; v26.10.24.3 tagged, `main` at f9a91af)
 
 Release v26.10.24.3 fixes M on the audible openings between Auto-Silence stretches, adds dotted-boundary editing for those openings, and keeps double-click reserved for its specialized actions. The tag workflow builds and uploads the Apple-silicon test dmg. **Built since v26.10.20.39, none of it seen on screen yet** (everything below is committed on main; details and limits in each Next item and in docs/BUGS.md #106-#115):
 
@@ -116,6 +116,8 @@ Release v26.10.24.3 fixes M on the audible openings between Auto-Silence stretch
 - **Recording:** the take is drawn on its lanes while it records (new tracks are made at Start; the view follows the head); editing is paused during a take (markers allowed); markers while recording (Cmd+Enter, Add marker button); the stop notice says how much audio the take replaced; **the cart** (seven numbered Clipboard slots, Alt+1..7 play, Shift+Alt+1..7 assign) and clips played during a take are logged on a chosen track; a lost Colab session retries once; Colab progress comes from the tool's `--events`.
 - **Editing and views:** M on an auto-silenced stretch opens just that stretch as a clip; hold Cmd/Ctrl while moving a clip to snap to ducking ramps and silenced-stretch edges; the Clipboard can be reordered by dragging; a stronger in/out band; focus mode keeps the other lanes readable; closing a toast keeps later ones in the status bar.
 - **Windows and files:** Copy to other window; a project open elsewhere is read-only with a banner naming who holds it, and opening it again brings its window forward; File > Export cut list (JSON); the Material tab (Cmd+6); side tabs on Cmd+1..6; Mac key glyphs in menus; Ctrl+click on a Mac is the context menu.
+
+**Built 24.10.2026 after v26.10.24.3 (on main, pushed; dmg run 40131975902; none of it seen on screen):** the menus regrouped (File Versions and More exports, Track Role and Bus, Text Placeholders, Playback Speed, View Options and History, Help > Getting started; question 6, Settings in a native app menu, still open); **Level blocks is a side panel** (stale after an edit, Apply off until Measure again) with a progress bar; the menu bar flashes the menu of a command run with a key; a muted clip shows a crossed-out speaker; **toast text can be selected and copied**; **clip borders are a neutral grey apart from the waveform** (Codex task C6); **M acts on the Auto-Silence portion under the cursor** also for a grouped clip and with nothing selected. The FCPXML summary for the package author is in docs/PODCAST-MAGIC.md.
 
 Waiting on the podcast side: the shared `fcpxml` package (what Kuulas needs is at the end of docs/PODCAST-MAGIC.md), the six `--events` field requests, and the older wishes below.
 
@@ -143,7 +145,8 @@ M1 is 23 of 28 done, 5 partly (WP4, WP5, WP19a, WP46, WP6). All are built; the "
 ## Newer things to try (since v26.10.20.39; the dmg of 24.10.2026)
 
 1. **Recording (needs a real microphone):** two channels onto existing tracks, then onto new ones; watch the live drawing and the view following; Cmd+Enter drops a marker; try an edit during the take (it should say editing is paused); stop and read the notice; record over audio and check "It replaced ..."; choose a cart track in the setup, play a clipboard clip with Alt+1 and see it land where it was played.
-2. **M on a silenced stretch:** click inside an Auto-Silence stretch and press M, then M again.
+2. **M on a silenced stretch:** put the cursor in an Auto-Silence stretch (also on an audible opening between two) and press M, with one clip and with a group selected, and with nothing selected; M again toggles just that portion. Drag a dotted boundary: it becomes a real clip that Auto-Silence leaves alone.
+2b. **New since 24.10.:** the regrouped menus (look for anything you cannot find), Level blocks as a panel (edit while it measures), the speaker icon on a muted clip, copy text from a toast (Cmd+C), clip borders in light and dark.
 3. **Cmd (Ctrl) while moving a clip** near a ducked music track: marks along the top, snapping to ramp ends.
 4. **Clipboard:** drag entries into a new order (Paste reads the first); the number chip and Alt+1..7; Shift+Alt+n assigns.
 5. **Material tab (Cmd+6)** and its Place on timeline.
