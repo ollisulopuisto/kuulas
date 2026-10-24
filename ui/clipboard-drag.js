@@ -5,9 +5,9 @@
 // of another shelf into this project first, then pastes it as one edit, as Mod+V would at that
 // frame and track. The paste links missing recordings in place, hash-checked (rule 17).
 import { pasteChoice, pasteTargets } from "./clipboard.js";
+import { createDragSnap } from "./drag-snap.js";
 import { frameToX, xToFrame } from "./format.js";
 import { RULER_HEIGHT, rowAt } from "./lanes.js";
-import { moveTargets, snapMove } from "./move-snap.js";
 
 /** The drag data type of a clipboard entry; its value is the entry id. */
 export const CLIP_DRAG_TYPE = "application/x-kuulas-clipboard";
@@ -26,9 +26,13 @@ const lengthOf = (entry) => Math.max(0, Number(entry?.length) || 0);
  * clips' edges, the playhead and the marks within 8 px; Alt turns snapping off and, when the
  * start would fall inside a clip of the track, stops it at that clip's end (the neighbour), so
  * an Alt drop never begins on top of material. The slots go on the track and the ones below it,
- * as "paste on the current track" does. `view` is { scroll, zoom, scrollY }.
+ * as "paste on the current track" does. Held `mod` adds automation targets below the usual
+ * targets' priority and returns their temporary `autoMarks`. `view` is { scroll, zoom, scrollY }.
  */
-export function dropTarget({ x, y, alt = false }, { layout, project, view, entry, marks = {} }) {
+export function dropTarget(
+  { x, y, alt = false, mod = false },
+  { layout, project, view, entry, marks = {} },
+) {
   if (!project || !entry || y < RULER_HEIGHT) return null;
   const row = rowAt(layout, y - RULER_HEIGHT + view.scrollY);
   if (row?.kind !== "track") return null;
@@ -36,16 +40,17 @@ export function dropTarget({ x, y, alt = false }, { layout, project, view, entry
   if (!track) return null;
   let at = Math.max(0, xToFrame(x, view.scroll, view.zoom));
   let snapAt = null;
+  const snap = createDragSnap(project, [], marks);
+  snap.update({ mod, alt });
   if (alt) {
     const under = (track.clips ?? []).find(
       (clip) => clip.start < at && at < clip.start + clip.length,
     );
     if (under) at = under.start + under.length;
   } else {
-    const snapped = snapMove({
+    const snapped = snap.snap({
       moved: [{ start: 0, end: lengthOf(entry) }],
       delta: at,
-      targets: moveTargets(project, [], marks),
       zoom: view.zoom,
     });
     at = snapped.delta;
@@ -57,6 +62,7 @@ export function dropTarget({ x, y, alt = false }, { layout, project, view, entry
     trackId: track.id,
     at: Math.max(0, Math.round(at)),
     snapAt,
+    autoMarks: snap.marks,
     targetTracks: pasteTargets(slots, ids, track.id),
   };
 }

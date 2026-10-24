@@ -24,6 +24,7 @@ import { implicitSilenceRanges } from "./clip-silence.js";
 import { averageWordFrames, layoutClipWords, wordsWideEnough } from "./clip-words.js";
 import { dropTarget as clipboardDropTarget, dropOutlines } from "./clipboard-drag.js";
 import { DEFAULT_DRAG_MODE, dragIntent } from "./drag-mode.js";
+import { createDragSnap } from "./drag-snap.js";
 import { clampImplicitEdge, edgeGhost, ghostGeometry, resolveEdge } from "./edge-drag.js";
 import { inactiveTracks } from "./focus-layout.js";
 import { frameToTime, frameToX, xToFrame } from "./format.js";
@@ -313,7 +314,10 @@ export function createTimeline({
     drawRangeBand(state, layout);
     if (dropPreview) drawDropPreview(state, layout);
     if (clipDrop) drawClipboardDrop(state, layout);
-    if (edgeSession?.dragging) drawEdgeGhost(state, layout);
+    if (edgeSession?.dragging) {
+      drawAutomationSnapMarks(state, edgeSession.snap.marks);
+      drawEdgeGhost(state, layout);
+    }
     if (clipSession?.dragging) drawMoveGhost(state, layout);
     drawPlayhead(state, height);
   }
@@ -506,23 +510,24 @@ export function createTimeline({
     overlay.restore();
   }
 
+  // Shared ticks along the lane tops show the temporary automation snap targets.
+  function drawAutomationSnapMarks(state, frames) {
+    overlay.save();
+    overlay.fillStyle = theme.accent;
+    overlay.globalAlpha = 0.7;
+    for (const frame of frames) {
+      const x = frameToX(frame, state.scroll, state.zoom);
+      if (x < 0 || x > size.width) continue;
+      overlay.fillRect(Math.round(x), RULER_HEIGHT, 1, 10);
+    }
+    overlay.restore();
+  }
+
   // Clips being moved (WP6): dashed accent outlines at the new place, on the new track, with
   // each clip's own waveform inside (WP63) so waveforms can be lined up by eye.
   function drawMoveGhost(state, layout) {
     const ghosts = moveGhosts(state.project, clipSession.ids, clipSession.move);
-    if (clipSession.autoOn) {
-      // The automation snap's marks: a short tick where each level change or closed stretch
-      // starts or ends, along the top of the lanes, so you see what you can land on.
-      overlay.save();
-      overlay.fillStyle = theme.accent;
-      overlay.globalAlpha = 0.7;
-      for (const frame of clipSession.auto) {
-        const x = frameToX(frame, state.scroll, state.zoom);
-        if (x < 0 || x > size.width) continue;
-        overlay.fillRect(Math.round(x), RULER_HEIGHT, 1, 10);
-      }
-      overlay.restore();
-    }
+    if (clipSession.autoOn) drawAutomationSnapMarks(state, clipSession.auto);
     if (clipSession.snapAt !== null) {
       // The snap line: a thin accent line where the moved edge landed.
       const x = frameToX(clipSession.snapAt, state.scroll, state.zoom);
@@ -572,6 +577,7 @@ export function createTimeline({
   // tinted, an outline per clip where the drop puts it (dashed), and the drop line in the accent
   // colour (solid when it snapped).
   function drawClipboardDrop(state, layout) {
+    drawAutomationSnapMarks(state, clipDrop.target.autoMarks);
     const { outlines, rows } = dropOutlines(clipDrop.entry, clipDrop.target, {
       layout,
       view: state,
@@ -1947,6 +1953,10 @@ export function createTimeline({
       clipId: hit.clip.id,
       trackId: hit.row.id,
       edge: hit.edge,
+      // Plain edge trims have no snap today; only the held modifier enables it.
+      snap: createDragSnap(getState().project, [hit.clip.id], getState(), {
+        primaryWithoutModifier: false,
+      }),
       implicitRange: hit.implicitRange ?? null,
       origin: locate(event),
       pointerId: event.pointerId,
@@ -1972,16 +1982,22 @@ export function createTimeline({
   function clampEdge() {
     const { state, track, clip } = edgeTarget(edgeSession);
     if (!clip || edgeSession.raw === null) return;
+    edgeSession.snap.update({ mod: edgeSession.mod, alt: !edgeSession.overwrite });
+    const snapped = edgeSession.snap.snap({
+      moved: [{ start: 0, end: 0 }],
+      delta: edgeSession.raw,
+      zoom: state.zoom,
+    });
     if (edgeSession.implicitRange) {
       edgeSession.frame = clampImplicitEdge(
         clip,
-        edgeSession.raw,
+        snapped.delta,
         edgeSession.implicitRange,
         edgeSession.edge,
       );
       return;
     }
-    edgeSession.frame = resolveEdge(state.project, track, clip, edgeSession.edge, edgeSession.raw, {
+    edgeSession.frame = resolveEdge(state.project, track, clip, edgeSession.edge, snapped.delta, {
       ripple: edgeSession.ripple,
       overwrite: edgeSession.overwrite,
       alone: edgeSession.alone,
@@ -2008,6 +2024,7 @@ export function createTimeline({
 
   function endEdge(commit) {
     const session = edgeSession;
+    session.snap.end();
     edgeSession = null;
     overlayCanvas.style.cursor = "";
     window.removeEventListener("keydown", edgeKey, true);
@@ -2448,7 +2465,7 @@ export function createTimeline({
       if (!state.project || x < 0 || y < 0 || x > rect.width || y > rect.height) return null;
       const { playhead, inPoint, outPoint } = state;
       return clipboardDropTarget(
-        { x, y, alt: event.altKey },
+        { x, y, alt: event.altKey, mod: edgeMod(event) },
         {
           layout: layoutFor(state),
           project: state.project,
