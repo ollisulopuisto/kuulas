@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- **Clip borders no longer look like the waveform.** The border is a neutral grey that is at least 1.6 times apart in contrast from every track colour's waveform, in both themes, so a clip's edge and its sound are easy to tell apart.
+
 ## [v26.10.24.3] - 2026-10-24
 
 - **M toggles both kinds of Auto-Silence portion.** An audible opening between two closed stretches now becomes its own muted clip, instead of muting the parent. A closed stretch becomes audible. The edited portion is selected, independent of its parent's group, and stays outside later Auto-Silence runs, including after moving it. Undo restores the implicit portion.
