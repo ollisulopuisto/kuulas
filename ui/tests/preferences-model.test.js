@@ -83,7 +83,13 @@ describe("the fields", () => {
 describe("currentValues", () => {
   test("reads the state the existing preferences keep", () => {
     const values = currentValues(
-      { languageChoice: "fi", confirmSync: false, showSyncDrift: true, clipboardLimit: true, fast: { fast: 1.35 } },
+      {
+        languageChoice: "fi",
+        confirmSync: false,
+        showSyncDrift: true,
+        clipboardLimit: true,
+        fast: { fast: 1.35 },
+      },
       { stopMode: "hold", preroll: 30 },
     );
     assert.deepEqual(values, {

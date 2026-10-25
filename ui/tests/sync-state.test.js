@@ -99,7 +99,15 @@ describe("the sync commands", () => {
       ...initial,
     };
     const registry = createRegistry();
-    const calls = { edits: [], toasts: [], jumps: [], server: [], patches: [], asked: [], driftToggles: 0 };
+    const calls = {
+      edits: [],
+      toasts: [],
+      jumps: [],
+      server: [],
+      patches: [],
+      asked: [],
+      driftToggles: 0,
+    };
     registerSyncCommands(registry, {
       t: (key, values = {}) => `${key}${values.count === undefined ? "" : `:${values.count}`}`,
       app: {

@@ -96,10 +96,10 @@ import {
 import {
   anchorIds,
   anchorNameFor,
-  syncMark,
   formatOffset,
   homeNameFor,
   syncIndex,
+  syncMark,
 } from "./sync-state.js";
 import { readTheme } from "./theme.js";
 import { createTileStore } from "./tiles.js";
@@ -1335,7 +1335,7 @@ export function createTimeline({
   }
 
   // Sync drift is quiet by default; when enabled it is a tint and a compact shape, not a number.
-  function drawSyncBadge(state, clip, left, y, w, colours) {
+  function drawSyncBadge(state, clip, left, y, w) {
     const mark = syncMark(syncRowsOf(state).get(clip.id), state.showSyncDrift === true);
     if (!mark || w < 24) return;
     const free = mark.kind === "free";
@@ -1344,7 +1344,12 @@ export function createTimeline({
     overlay.save();
     overlay.fillStyle = colour;
     overlay.globalAlpha = 0.12;
-    overlay.fillRect(Math.max(0, left), y + 2, Math.min(left + w, size.width) - Math.max(0, left), LABEL_H);
+    overlay.fillRect(
+      Math.max(0, left),
+      y + 2,
+      Math.min(left + w, size.width) - Math.max(0, left),
+      LABEL_H,
+    );
     overlay.globalAlpha = 1;
     const x = right - (free ? 14 : 6);
     overlay.strokeStyle = colour;
@@ -1414,7 +1419,7 @@ export function createTimeline({
   // nothing, the person, "Olli 3", "Olli 3 · 1:20–3:20", then the first words.
   function drawName(state, clip, left, y, w, colours, marked) {
     if (clip.group) drawGroupBadge(left, y, w, colours);
-    drawSyncBadge(state, clip, left, y, w, colours);
+    drawSyncBadge(state, clip, left, y, w);
     drawAnchorTag(state, clip, left, y, w, colours);
     const media = state.project.media.find((item) => item.id === clip.media);
     if (!media || w < 30) return;
