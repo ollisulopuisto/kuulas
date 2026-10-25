@@ -1,5 +1,6 @@
 ## [Unreleased]
 
+- **Timeline clip labels show transcript words on recorded takes.** Recorded takes with automatic names (e.g. "Take 1", "Otto 1") no longer treat the take name as a static manual name override. Informative label tiers now show speaker name (from track header when unassigned), take number, and transcript words when wide enough.
 - **Fast playback toggle (.) works in every panel.** Pressing period toggles fast listening also when the transcript window or side panels are focused.
 
 ## [v26.10.25.1] - 2026-10-25
