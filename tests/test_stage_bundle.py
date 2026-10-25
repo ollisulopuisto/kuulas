@@ -59,6 +59,8 @@ def test_the_config_is_valid_toml_with_the_bundle_identity(tmp_path):
     app = briefcase["app"]["kuulas"]
     assert briefcase["bundle"] == "fi.sulopuisto"
     assert briefcase["version"] == "26.10.19.6"
+    assert briefcase["license"] == "GPL-3.0+"
+    assert briefcase["license-files"] == ["LICENSE"]
     assert app["formal_name"] == "Kuulas"
     # the recorder (WP12a) is its own package: the app starts it as its own process
     assert app["sources"] == ["src/kuulas", "src/kuulas_recorder", "src/ui"]
