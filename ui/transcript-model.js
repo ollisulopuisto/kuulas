@@ -297,6 +297,15 @@ export function moveCursor(cursor, key, { count, paragraphs }) {
  */
 export const dragSelection = (from, to) => ({ cursor: to, anchor: from });
 
+/**
+ * Whether the pop-up over the selection shows. It hides while a word is being corrected, when
+ * nothing is picked, and while the pointer drags the selection: the pop-up sits on the words the
+ * drag is still passing over, so it comes back on release.
+ */
+export function popShown({ picked, editing, dragging }) {
+  return picked.length > 0 && !editing && !dragging;
+}
+
 // -- delete and cut ------------------------------------------------------------------------------
 
 /** The tracks that spoke the selected words, in order of first appearance. */

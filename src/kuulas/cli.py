@@ -175,6 +175,9 @@ def uvicorn_config(app, sock: socket.socket) -> uvicorn.Config:
 
 def open_project(folder: str, port: int = 0, browser: bool = True) -> int:
     """Open (or create) the project and serve it until interrupted."""
+    # "." (a window started from a browser runs in its project folder) becomes the
+    # real path before the session keys on it.
+    folder = str(Path(folder).resolve())
     # Imported here: the engine pulls in the audio libraries, which `info` does not need.
     from .engine import Engine  # noqa: PLC0415
     from .record_session import RecordSession  # noqa: PLC0415

@@ -37,6 +37,7 @@ import {
   pauseMarkers,
   pauseSecondsOf,
   placeCursor,
+  popShown,
   rightClickPick,
   selectedIndices,
   selectionFrames,
@@ -641,11 +642,20 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     const { from, moved } = drag;
     drag = null;
     if (list.hasPointerCapture(event.pointerId)) list.releasePointerCapture(event.pointerId);
-    if (moved) return;
+    if (moved) {
+      renderPop();
+      return;
+    }
     // A click: the cursor and the play cursor go to the word.
     setState({ transcriptSelection: placeCursor(from) });
     setPaused(false);
     actions.jump(words[from].s);
+  });
+  // A touch that the browser takes over (a pan) ends the drag with no pointerup.
+  list.addEventListener("pointercancel", () => {
+    if (!drag) return;
+    drag = null;
+    renderPop();
   });
   list.addEventListener("click", (event) => {
     const marker = event.target.closest?.(".tx-pause");
@@ -717,7 +727,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
 
   function renderPop() {
     const picked = chosen();
-    if (picked.length === 0 || editing) {
+    if (!popShown({ picked, editing, dragging: drag?.moved === true })) {
       pop.hidden = true;
       return;
     }

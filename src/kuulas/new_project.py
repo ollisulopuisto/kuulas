@@ -80,8 +80,12 @@ def checked_project_folder(folder: object) -> str:
 
 
 def start_window(folder: str) -> None:
-    """Start a second kuulas on ``folder`` beside this one, not waiting for it."""
+    """Start a second kuulas on ``folder`` beside this one, not waiting for it.
+
+    The folder becomes the child's working directory and the command opens ``.``, so
+    the request's text never reaches the command line (CodeQL py/command-line-injection,
+    66). ``open_project`` makes ``.`` absolute before anything keys on it."""
     safe = checked_project_folder(folder)
-    subprocess.Popen(  # noqa: S603 - our own interpreter; the folder was checked just above
-        window_command(safe), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL, start_new_session=True)
+    subprocess.Popen(  # noqa: S603 - our own interpreter and a constant argument; the folder is cwd
+        window_command("."), cwd=safe, stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
