@@ -17,6 +17,7 @@ const SECTIONS = {
         "edit.split",
         "edit.delete",
         "edit.remove_clips",
+        "rename",
         "clip.mute",
         "clip.fade",
         "edit.group",

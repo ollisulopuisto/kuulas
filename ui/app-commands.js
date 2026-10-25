@@ -324,7 +324,7 @@ export function registerAppCommands(registry, { actions, app }) {
   def(
     "rename",
     () => app.focusName(),
-    (state) => Boolean(state?.focusTrack || state?.focusBus),
+    (state) => Boolean(state?.focusTrack || state?.focusBus || state?.selection?.size === 1),
   );
   // Spot (Cmd+J) types a time into the clock; "+100" / "-30" are relative to the play cursor (WP76).
   def("spot", () => app.editTime(), hasProject);

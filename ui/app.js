@@ -1617,7 +1617,10 @@ const keyboard = setupKeyboard({
     openRecent: (path) => void openRecent(path),
     clearRecent: () => void clearRecent(),
     removeMissingRecents: () => void removeMissingRecents(),
-    focusName: () => inspector.focusName(),
+    focusName: () => {
+      focusPanel("inspector");
+      inspector.focusName();
+    },
     editTime: () => clock.open(),
     copyTime: () => void clock.copy(),
     openGateStretch: () => openGateStretch(),

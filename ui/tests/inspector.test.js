@@ -1,7 +1,89 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { clipLengthText, openSections, selectedClip, syncGroupOf } from "../inspector.js";
+import {
+  clipLengthText,
+  createInspector,
+  openSections,
+  selectedClip,
+  syncGroupOf,
+} from "../inspector.js";
 import { addBusForTrack, hasDuckControl } from "../inspector-track.js";
+
+class FakeNode {
+  constructor(tag) {
+    this.tagName = tag;
+    this.children = [];
+    this.dataset = {};
+    this.attrs = {};
+    this.classList = {
+      toggle() {},
+      add() {},
+      remove() {},
+      contains() {
+        return false;
+      },
+    };
+    this.listeners = {};
+    this.className = "";
+    this.textContent = "";
+    this.value = "";
+    this.title = "";
+    this.disabled = false;
+    this.type = "";
+    this.placeholder = "";
+    this.style = { setProperty() {} };
+    this.checked = false;
+    this.hidden = false;
+    this.focused = false;
+    this.selected = false;
+  }
+  get options() {
+    return this.children.filter((c) => c.tagName === "option");
+  }
+  append(...nodes) {
+    this.children.push(...nodes);
+  }
+  replaceChildren(...nodes) {
+    this.children = nodes;
+  }
+  setAttribute(name, value) {
+    this.attrs[name] = value;
+  }
+  getAttribute(name) {
+    return this.attrs[name];
+  }
+  addEventListener(type, fn) {
+    this.listeners[type] = [...(this.listeners[type] ?? []), fn];
+  }
+  focus() {
+    this.focused = true;
+    globalThis.document.activeElement = this;
+  }
+  select() {
+    this.selected = true;
+  }
+  closest() {
+    return null;
+  }
+  querySelector(sel) {
+    if (sel === "summary") return this.children.find((c) => c.tagName === "summary") ?? null;
+    return null;
+  }
+  querySelectorAll() {
+    return [];
+  }
+  all() {
+    return this.children.flatMap((child) =>
+      child instanceof FakeNode ? [child, ...child.all()] : [],
+    );
+  }
+}
+
+globalThis.document = {
+  createElement: (tag) => new FakeNode(tag),
+  documentElement: { lang: "en" },
+  activeElement: null,
+};
 
 // The server sends sync-group members as { mediaId: origin } (SyncGroup.to_dict).
 const project = {
@@ -91,5 +173,59 @@ describe("New bus from a track (header pop-up and inspector)", () => {
       edit.done(undefined);
     });
     assert.deepEqual(created, []);
+  });
+});
+
+describe("clip name in inspector", () => {
+  const testProject = {
+    rate: 48000,
+    media: [{ id: "m1", name: "olli.wav", sha256: "abc" }],
+    tracks: [
+      {
+        id: "t1",
+        name: "Olli",
+        clips: [
+          {
+            id: "c1",
+            media: "m1",
+            name: "Take 1",
+            length: 48000,
+            gain_db: 0,
+            pan: 0,
+            fade_in: 0,
+            fade_out: 0,
+          },
+        ],
+      },
+    ],
+    buses: [],
+    sync_groups: [],
+  };
+
+  test("shows clip name input and focuses/selects it with focusName (F2)", () => {
+    const root = new FakeNode("section");
+    const sent = [];
+    const editor = {
+      change: (edit) => sent.push(edit),
+    };
+    const inspector = createInspector({ root, editor });
+    const state = { project: testProject, selection: new Set(["c1"]), head: "1" };
+    inspector.update(state);
+
+    const nameInput = root.all().find((n) => n.className.includes("inspector-clip-name"));
+    assert.ok(nameInput, "Clip name input exists in inspector");
+    assert.equal(nameInput.value, "Take 1");
+
+    inspector.focusName();
+    assert.equal(nameInput.focused, true);
+    assert.equal(nameInput.selected, true);
+
+    // Editing to empty resets name to auto (sends name: "")
+    nameInput.value = "   ";
+    nameInput.listeners.blur[0]();
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].op, "set_clip");
+    assert.equal(sent[0].args.clip_id, "c1");
+    assert.equal(sent[0].args.name, "");
   });
 });
