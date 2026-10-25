@@ -1,3 +1,7 @@
+## [Unreleased]
+
+- **Security: a window is only opened for a real project folder.** When a browser asks to open a new project or a series episode in a new window, the folder must now be an absolute path to an existing `*.kuulas` folder; anything else (option-like text, a NUL byte, a relative or missing path) is refused with the usual bad-folder message and nothing is started. Found by CodeQL (py/command-line-injection, alert 58).
+
 ## [v26.10.25.4] - 2026-10-25
 
 - **Sync drift marks are hidden by default.** In a half remote session every clip you moved on purpose (the call delay) wore a red "+9 ms" badge or the grey "free" icon, which said nothing you did not know. They are now off. View > Options > "Show sync drift" turns them on, and then a drifting clip shows a small dot and a tint on its label strip (a free one the unlinked rings), with no numbers; the exact offset and the anchor are in the tooltip. Next / Previous drifting clip turn the display on before they jump, and the Markers tab list of drifting clips is as before.
