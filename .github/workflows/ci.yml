@@ -26,15 +26,15 @@ jobs:
       run:
         working-directory: kuulas
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           path: kuulas
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: ollisulopuisto/podcast
           path: podcast
-      - uses: astral-sh/setup-uv@v6
-      - uses: actions/setup-node@v4
+      - uses: astral-sh/setup-uv@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       # Audio decoding and the export tests need ffmpeg and libsndfile/PortAudio.
@@ -66,14 +66,14 @@ jobs:
       run:
         working-directory: kuulas
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           path: kuulas
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: ollisulopuisto/podcast
           path: podcast
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
       # Linux: pywebview's GTK backend. Chosen over Qt because it is a few small
       # distro packages (python3-gi, WebKit2GTK 4.1), where Qt is ~200 MB of
       # PyQt wheels; WebKit2GTK is also the engine most Linux desktops ship.
