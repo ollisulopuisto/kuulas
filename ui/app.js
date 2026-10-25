@@ -4029,6 +4029,14 @@ const timeline = createTimeline({
     seek: (frame) => void transport.seek(frame),
     contextMenu: (hit, event) => showTimelineMenu(hit, event),
     rangeDragged: onRangeDragged,
+    hint(text) {
+      const hint = $("menu-hint");
+      if (!hint) return;
+      hint.textContent = text ?? "";
+      hint.hidden = !text;
+      const keyhints = $("keyhints");
+      if (keyhints) keyhints.hidden = Boolean(text);
+    },
     toggleClipMute(clipId, hit) {
       const plan = clipToggleMutePlan(getState().project, clipId, hit?.gate);
       if (!plan) return;

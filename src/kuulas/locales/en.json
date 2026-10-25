@@ -512,6 +512,8 @@
   "ui.app.name": "kuulas",
   "ui.view.fit_short": "Fit",
   "ui.hint.play": "play",
+  "ui.hint.alt_mute": "Click to mute clip",
+  "ui.hint.alt_unmute": "Click to unmute clip",
   "ui.hint.view": "close / wide",
   "ui.hint.zoom": "zoom",
   "ui.hint.panels": "next panel",

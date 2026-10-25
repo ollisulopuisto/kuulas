@@ -181,6 +181,9 @@ export function createTimeline({
   let edgeSession = null; // an edge being dragged: see the pointer section
   let tweakSession = null; // a gain line or fade handle being dragged
   let hoverClipId = null; // the clip under the pointer: its fade handles show
+  let altTargetClip = null; // clip targeted for direct mute with Alt held
+  let lastPointerHit = null;
+  let altKeyHeld = false;
   let clipSession = null; // clips being moved by their label strip: see the pointer section
   let ghostTiles = null; // main-thread peak tiles for the move ghosts' waveforms, made on first use
   let dropPreview = null; // files being dragged over: { kind, startFrame, mode, count } or null
@@ -887,7 +890,17 @@ export function createTimeline({
       if (row.height >= 40 && (selected || clip.id === hoverClipId))
         drawFadeHandles(clip, { left, right, zoom: state.zoom }, { top, y, h });
       if (siblings.has(clip.id)) drawSiblingMarks(left, y, w, h);
-      if (selected) {
+      if (altTargetClip?.id === clip.id) {
+        overlay.save();
+        overlay.fillStyle = theme.accent;
+        overlay.globalAlpha = 0.15;
+        overlay.fillRect(left, y, w, h);
+        overlay.strokeStyle = theme.accent;
+        overlay.lineWidth = 2;
+        overlay.setLineDash([4, 3]);
+        overlay.strokeRect(left + 1, y + 1, w - 2, h - 2);
+        overlay.restore();
+      } else if (selected) {
         overlay.strokeStyle = theme.selection;
         overlay.lineWidth = 2;
         overlay.strokeRect(left + 1, y + 1, w - 2, h - 2);
@@ -1891,25 +1904,74 @@ export function createTimeline({
         }) === "move";
       cursor = moves ? "grab" : "crosshair";
     }
-    if (
-      !cursor &&
+    lastPointerHit = hit;
+    altKeyHeld = event.altKey;
+    const isAltMute =
       event.altKey &&
       !event.shiftKey &&
       !modClick(event, detectPlatform()) &&
       hit.clip &&
-      hit.row?.kind === "track"
-    ) {
-      cursor = "pointer";
+      hit.row?.kind === "track" &&
+      !hit.edge &&
+      !zone;
+    const nextAltTarget = isAltMute ? hit.clip : null;
+    if (nextAltTarget?.id !== altTargetClip?.id) {
+      altTargetClip = nextAltTarget;
+      actions.hint?.(
+        nextAltTarget
+          ? nextAltTarget.muted
+            ? t("ui.hint.alt_unmute")
+            : t("ui.hint.alt_mute")
+          : "",
+      );
+      requestOverlay();
     }
+    if (isAltMute) cursor = "pointer";
     if (overlayCanvas.style.cursor !== cursor) overlayCanvas.style.cursor = cursor;
   });
   overlayCanvas.addEventListener("pointerleave", () => {
     pointerFrame = null;
+    lastPointerHit = null;
+    if (altTargetClip !== null) {
+      altTargetClip = null;
+      actions.hint?.("");
+      requestOverlay();
+    }
     if (hoverClipId !== null && !tweakSession) {
       hoverClipId = null;
       requestOverlay();
     }
   });
+  const onWindowAlt = (e) => {
+    if (e.key !== "Alt") return;
+    const down = e.type === "keydown";
+    if (down === altKeyHeld) return;
+    altKeyHeld = down;
+    if (tweakSession || clipSession || edgeSession) return;
+    const hit = lastPointerHit;
+    const isAltMute =
+      down &&
+      !e.shiftKey &&
+      !modClick(e, detectPlatform()) &&
+      hit?.clip &&
+      hit.row?.kind === "track" &&
+      !hit.edge;
+    const nextAltTarget = isAltMute ? hit.clip : null;
+    if (nextAltTarget?.id !== altTargetClip?.id) {
+      altTargetClip = nextAltTarget;
+      actions.hint?.(
+        nextAltTarget
+          ? nextAltTarget.muted
+            ? t("ui.hint.alt_unmute")
+            : t("ui.hint.alt_mute")
+          : "",
+      );
+      overlayCanvas.style.cursor = isAltMute ? "pointer" : "";
+      requestOverlay();
+    }
+  };
+  window.addEventListener?.("keydown", onWindowAlt, true);
+  window.addEventListener?.("keyup", onWindowAlt, true);
   overlayCanvas.addEventListener("dblclick", (event) => {
     if (!getState().project || event.button !== 0) return;
     if (event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return;

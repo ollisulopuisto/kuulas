@@ -508,6 +508,8 @@
   "ui.app.name": "kuulas",
   "ui.view.fit_short": "Sovita",
   "ui.hint.play": "toista",
+  "ui.hint.alt_mute": "Mykistä leike napsauttamalla",
+  "ui.hint.alt_unmute": "Palauta leikkeen ääni napsauttamalla",
   "ui.hint.view": "lähi / yleiskuva",
   "ui.hint.zoom": "zoomaa",
   "ui.hint.panels": "seuraava paneeli",
