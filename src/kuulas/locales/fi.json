@@ -2859,6 +2859,7 @@
   "ui.prefs.language.fi": "Suomi",
   "ui.prefs.language.en": "English",
   "ui.prefs.fast_speed": "Nopean kuuntelun nopeus",
+  "ui.prefs.play_before": "Hyppää taakse ja toista ({key:transport.play_before})",
   "ui.prefs.more": "Lisää asetuksia",
   "ui.project.close_recording": "Äänitys on käynnissä. Pysäytä se ennen projektin sulkemista.",
   "ui.project.close_armed": "Mikrofoni odottaa esitallennusta. Sulje ensin äänitysnäkymä ja sitten projekti.",

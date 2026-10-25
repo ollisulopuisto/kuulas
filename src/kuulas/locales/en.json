@@ -2754,6 +2754,7 @@
   "ui.prefs.language.fi": "Suomi",
   "ui.prefs.language.en": "English",
   "ui.prefs.fast_speed": "Fast listening speed",
+  "ui.prefs.play_before": "Jump back and play ({key:transport.play_before})",
   "ui.prefs.more": "More settings",
   "ui.project.close_recording": "A recording is running. Stop it before closing the project.",
   "ui.project.close_armed": "The microphone is listening for pre-roll. Close the record view first, then close the project.",

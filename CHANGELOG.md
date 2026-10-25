@@ -1,3 +1,7 @@
+## [Unreleased]
+
+- **Adjust jump back and play (P) length in Preferences.** Added a slider in Preferences to customize how far backwards P jumps before playing (0.5–10 seconds, 0.5 s steps, default 3.0 s).
+
 ## [v26.10.25.2] - 2026-10-25
 
 - **Rename clip with F2 or in Inspector.** Selecting a clip and pressing F2 focuses its name in the Inspector with the text selected. Clearing the name (empty) resets the clip label to automatic.

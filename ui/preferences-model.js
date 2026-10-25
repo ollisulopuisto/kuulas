@@ -10,6 +10,12 @@ import {
   MIN_MUSIC_UNDER_DB,
   MUSIC_UNDER_STEP_DB,
 } from "./music-level-model.js";
+import {
+  DEFAULT_PLAY_BEFORE_S,
+  MAX_PLAY_BEFORE_S,
+  MIN_PLAY_BEFORE_S,
+  PLAY_BEFORE_STEP_S,
+} from "./play-before.js";
 import { PREROLL_CHOICES } from "./preroll.js";
 import {
   DEFAULT_QUICK_MUTE_S,
@@ -54,6 +60,15 @@ export const PREFERENCE_FIELDS = [
     min: MIN_FAST,
     max: MAX_FAST,
     step: STEP,
+  },
+  {
+    id: "playBefore",
+    kind: "range",
+    labelKey: "ui.prefs.play_before",
+    min: MIN_PLAY_BEFORE_S,
+    max: MAX_PLAY_BEFORE_S,
+    step: PLAY_BEFORE_STEP_S,
+    unit: "s",
   },
   {
     id: "quickMute",
@@ -102,6 +117,7 @@ export function currentValues(state, record) {
     confirmSync: state?.confirmSync !== false,
     clipboardLimit: state?.clipboardLimit !== false,
     fast: state?.fast?.fast ?? DEFAULT_FAST,
+    playBefore: state?.playBeforeS ?? DEFAULT_PLAY_BEFORE_S,
     quickMute: state?.quickMuteS ?? DEFAULT_QUICK_MUTE_S,
     musicUnder: state?.musicUnderDb ?? DEFAULT_MUSIC_UNDER_DB,
   };
@@ -121,7 +137,7 @@ export function applyField(id, value, current, setters) {
   if (id === "language" || id === "stopMode" || id === "preroll") {
     if (!optionValues(id).includes(String(value))) return false;
     typed = id === "preroll" ? Number(value) : String(value);
-  } else if (id === "fast" || id === "quickMute" || id === "musicUnder") {
+  } else if (id === "fast" || id === "quickMute" || id === "musicUnder" || id === "playBefore") {
     const { min, max } = PREFERENCE_FIELDS.find((field) => field.id === id);
     typed = Number(value);
     if (!Number.isFinite(typed) || typed < min || typed > max) return false;

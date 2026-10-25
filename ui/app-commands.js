@@ -108,7 +108,14 @@ export function registerAppCommands(registry, { actions, app }) {
   def("view.clipboard_limit", () => actions.toggleClipboardLimit());
   def(
     "transport.play_before",
-    () => actions.playFrom(prerollStart(app.getState().playhead ?? 0, rate())),
+    () =>
+      actions.playFrom(
+        prerollStart(
+          app.getState().playhead ?? 0,
+          rate(),
+          app.getState()?.playBeforeS ?? PREROLL_SECONDS,
+        ),
+      ),
     hasProject,
   );
   // The marked range: played once (Shift+Space), or rehearsed as if cut (Mod+Shift+Space).

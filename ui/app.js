@@ -143,6 +143,7 @@ import { chipText, createNoticeHold, toastStaysOpen } from "./notice-hold.js";
 import { createOverview } from "./overview.js";
 import { createPerfDialog } from "./perf-dialog.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
+import { normalisePlayBefore, PLAY_BEFORE_KEY } from "./play-before.js";
 import { createPlayheadClock } from "./playhead-clock.js";
 import { createPreferencesDialog } from "./preferences-dialog.js";
 import { loadPrefs } from "./prefs.js";
@@ -872,6 +873,14 @@ function setQuickMuteLength(seconds) {
   const value = normaliseQuickMute(seconds);
   setState({ quickMuteS: value });
   prefs.set(QUICK_MUTE_KEY, value);
+}
+
+// Jump back and play (P) length (seconds, Preferences).
+setState({ playBeforeS: normalisePlayBefore(prefs.get(PLAY_BEFORE_KEY)) });
+function setPlayBeforeLength(seconds) {
+  const value = normalisePlayBefore(seconds);
+  setState({ playBeforeS: value });
+  prefs.set(PLAY_BEFORE_KEY, value);
 }
 
 // Set music level: how far under the speech the music's loudest moment goes (dB, Preferences).
@@ -3357,6 +3366,7 @@ function openPreferences() {
         if (on !== (getState().clipboardLimit !== false)) toggleClipboardLimit();
       },
       fast: (speed) => changeFast((fast) => setFast(fast, speed)),
+      playBefore: (seconds) => setPlayBeforeLength(seconds),
       quickMute: (seconds) => setQuickMuteLength(seconds),
       musicUnder: (db) => setMusicUnder(db),
     },
