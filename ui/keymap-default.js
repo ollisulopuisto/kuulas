@@ -1180,6 +1180,18 @@ export const DEFAULT_KEYMAP = [
   // lives in the Markers tab, where ] and [ step through it (the Candidates' ] and [ work
   // everywhere else). Resync all and Free all are that list's buttons: menu and palette too.
   {
+    id: "sync.accept_range",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.sync.accept_range",
+  },
+  {
+    id: "sync.resync_range",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.sync.resync_range",
+  },
+  {
     id: "sync.free",
     keys: { mac: "U", other: "U" },
     context: "timeline",

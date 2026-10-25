@@ -8,7 +8,7 @@
 // shows it in a confirm dialog, and only then applies it as one undo step. Nothing to move: a
 // notice, no dialog. Freeing moves nothing and stays instant. "Confirm before re-syncing" (View)
 // switches the dialog off.
-import { driftRows, stepDrift } from "./sync-state.js";
+import { driftInRange, driftRows, stepDrift } from "./sync-state.js";
 
 const hasProject = (state) => Boolean(state?.project);
 
@@ -195,6 +195,27 @@ export function registerSyncCommands(registry, { app, t }) {
       }
     },
     (state) => hasProject(state) && drifting(state).length > 0,
+  );
+
+  // The marked range, else the play cursor to the end: the drifting clips there are undecided.
+  // In a half remote session the offsets that were set on purpose (the call delay) are fine
+  // from one point on; "Accept" says so for the whole range at once, "Resync" puts them back.
+  const inRange = (state) => driftInRange(state?.syncClips, state ?? {}).map((row) => row.clip_id);
+  def(
+    "sync.accept_range",
+    () => {
+      const ids = inRange(app.getState());
+      if (ids.length > 0) setFree(ids, true, "ui.sync.history.free_all", "ui.sync.toast.freed");
+    },
+    (state) => hasProject(state) && inRange(state).length > 0,
+  );
+  def(
+    "sync.resync_range",
+    () => {
+      const ids = inRange(app.getState());
+      if (ids.length > 0) void resyncThen("resync", { clip_ids: ids });
+    },
+    (state) => hasProject(state) && inRange(state).length > 0,
   );
 
   const step = (direction) => () => {

@@ -1,4 +1,8 @@
 {
+  "cmd.sync.accept_range": "Hyväksy siirrot alueella",
+  "cmd.sync.accept_range.hint": "Kertoo, että in- ja out-merkin välissä (muuten toistokohdasta loppuun) olevien ajautuneiden leikkeiden siirrot ovat tarkoituksellisia, esimerkiksi korjattu nettipuhelun viive: ne vapautetaan synkronoinnista, ne eivät enää ole ajautuneita eikä mikään liiku. Yksi kumoamisaskel.",
+  "cmd.sync.resync_range": "Synkronoi alue uudelleen",
+  "cmd.sync.resync_range.hint": "Palauttaa in- ja out-merkin välissä (muuten toistokohdasta loppuun) olevat ajautuneet leikkeet ankkuriin. Kysyy ensin, mitä siirretään, ellei sitä ole kytketty pois valikosta Näytä > Valinnat.",
   "ui.ctx.automation": "Vaimennuskäyrä",
   "cmd.track.automation_delete_point": "Poista vaimennuspiste",
   "cmd.track.automation_delete_point.hint": "Poistaa raidan vaimennuskäyrän (automixerin äänenvoimakkuusviiva raidan alareunassa) pisteen, jota napsautit oikealla. Yksi kumoamisaskel.",

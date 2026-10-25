@@ -36,6 +36,17 @@ export function driftRows(clips) {
 }
 
 /**
+ * The drifting rows a range command works on: those that start between the in and out marks
+ * when both are set, else from the play cursor to the end (like "Resync to the end").
+ */
+export function driftInRange(clips, { inPoint, outPoint, playhead }) {
+  const marked = typeof inPoint === "number" && typeof outPoint === "number";
+  const from = marked ? Math.min(inPoint, outPoint) : playhead;
+  const to = marked ? Math.max(inPoint, outPoint) : Number.POSITIVE_INFINITY;
+  return driftRows(clips).filter((row) => row.start >= from && row.start < to);
+}
+
+/**
  * The row after (direction 1) or before (-1) the play cursor, wrapping round; null when the list is
  * empty. Stepping lands on a clip that starts after (before) the cursor, so pressing ] again goes on.
  */

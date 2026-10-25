@@ -116,8 +116,10 @@ describe("Edit", () => {
     assert.deepEqual(subIds("edit", "menu.sync_back"), [
       "sync.resync",
       "sync.resync_all",
+      "sync.resync_range",
       "sync.free",
       "sync.free_all",
+      "sync.accept_range",
       "sync.send_home",
     ]);
   });

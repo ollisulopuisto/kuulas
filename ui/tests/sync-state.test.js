@@ -6,6 +6,7 @@ import { DEFAULT_KEYMAP } from "../keymap-default.js";
 import { createKeymap } from "../keys.js";
 import {
   badgeFor,
+  driftInRange,
   driftingAmong,
   driftRows,
   formatOffset,
@@ -205,5 +206,37 @@ describe("F7 and Shift+F7 in the keymap", () => {
     timeline.press("[");
     timeline.press("]");
     assert.deepEqual(timeline.calls, []);
+  });
+});
+
+describe("drifting clips in a range", () => {
+  const rows = [
+    { clip_id: "a", start: 100, state: "drift", offset: 5 },
+    { clip_id: "b", start: 500, state: "drift", offset: -9 },
+    { clip_id: "c", start: 900, state: "free", offset: 3 },
+    { clip_id: "d", start: 1500, state: "drift", offset: 2 },
+  ];
+  const ids = (found) => found.map((row) => row.clip_id);
+  test("between the in and out marks when both are set", () => {
+    assert.deepEqual(ids(driftInRange(rows, { inPoint: 200, outPoint: 1600, playhead: 0 })), [
+      "b",
+      "d",
+    ]);
+    assert.deepEqual(ids(driftInRange(rows, { inPoint: 1600, outPoint: 200, playhead: 0 })), [
+      "b",
+      "d",
+    ]);
+  });
+  test("from the play cursor to the end when there is no range", () => {
+    assert.deepEqual(ids(driftInRange(rows, { inPoint: null, outPoint: null, playhead: 400 })), [
+      "b",
+      "d",
+    ]);
+    assert.deepEqual(ids(driftInRange(rows, { inPoint: 300, outPoint: null, playhead: 1000 })), [
+      "d",
+    ]);
+  });
+  test("free and in-sync clips are never in the list (only the undecided ones)", () => {
+    assert.ok(!ids(driftInRange(rows, { inPoint: 0, outPoint: 5000, playhead: 0 })).includes("c"));
   });
 });

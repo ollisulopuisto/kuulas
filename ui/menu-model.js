@@ -186,8 +186,10 @@ const SYNC = submenu("menu.sync", [
 const SYNC_BACK = submenu("menu.sync_back", [
   item("sync.resync"),
   item("sync.resync_all"),
+  item("sync.resync_range"),
   item("sync.free"),
   item("sync.free_all"),
+  item("sync.accept_range"),
   item("sync.send_home"),
 ]);
 
