@@ -124,8 +124,8 @@ BAD_FOLDERS = [
 
 def record_spawns(monkeypatch):
     spawned = []
-    def popen(*args, **_kwargs):
-        spawned.append(args)
+    def popen(*args, **kwargs):
+        spawned.append((args, kwargs))
 
     monkeypatch.setattr(new_project.subprocess, "Popen", popen)
     return spawned
@@ -134,7 +134,7 @@ def record_spawns(monkeypatch):
 @pytest.mark.parametrize("folder", BAD_FOLDERS)
 def test_a_window_is_only_started_for_a_real_project_folder(monkeypatch, folder):
     """The folder comes from the browser request: CodeQL py/command-line-injection (58).
-    Only an absolute, existing folder named *.kuulas may reach the command line."""
+    Only an absolute, existing folder named *.kuulas may start a window."""
     spawned = record_spawns(monkeypatch)
     with pytest.raises(EditError) as raised:
         new_project.start_window(folder)
@@ -143,9 +143,13 @@ def test_a_window_is_only_started_for_a_real_project_folder(monkeypatch, folder)
 
 
 def test_a_real_project_folder_opens_in_a_new_window(monkeypatch, tmp_path):
+    """CodeQL py/command-line-injection (66): the folder is the child's working
+    directory, never an argument, so no request text reaches the command line."""
     project = tmp_path / "Show.kuulas"
     project.mkdir()
     spawned = record_spawns(monkeypatch)
     new_project.start_window(str(project))
     assert len(spawned) == 1
-    assert spawned[0][0][-2:] == ["open", str(project.resolve())]
+    args, kwargs = spawned[0]
+    assert args[0][-2:] == ["open", "."]
+    assert kwargs["cwd"] == str(project.resolve())
