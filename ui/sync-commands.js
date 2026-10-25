@@ -47,7 +47,7 @@ export function freeing(state, ids) {
  * syncCommand(name, args) (a server command that answers with the resync report; resolves when the
  * state is applied), syncPreview(name, args) (what it would move, or null when the server refused),
  * confirmSync(preview) (the dialog; resolves true on Confirm), confirmEnabled() (the preference),
- * notice(text), toggleConfirmSync(). `t` translates.
+ * notice(text), toggleConfirmSync(), showDriftEnabled(), toggleShowSyncDrift(). `t` translates.
  */
 export function registerSyncCommands(registry, { app, t }) {
   const def = (id, run, can) => registry.register(id, run, { can, hintKey: `cmd.${id}.hint` });
@@ -71,6 +71,7 @@ export function registerSyncCommands(registry, { app, t }) {
 
   // A preference, not an edit: whether the commands above show their dialog first.
   def("sync.confirm", () => app.toggleConfirmSync());
+  def("sync.show_drift", () => app.toggleShowSyncDrift());
 
   function setFree(ids, free, label, message) {
     app.edit({
@@ -222,6 +223,7 @@ export function registerSyncCommands(registry, { app, t }) {
     const state = app.getState();
     const row = stepDrift(drifting(state), state.playhead, direction);
     if (!row) return;
+    if (!app.showDriftEnabled()) app.toggleShowSyncDrift();
     app.jump(row.start);
     app.patch({ selection: new Set([row.clip_id]) });
   };

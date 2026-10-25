@@ -28,6 +28,14 @@ export function badgeFor(row) {
   return null;
 }
 
+/** The compact timeline mark for a drift/free row, or null when hidden or in sync. */
+export function syncMark(row, show) {
+  if (!show || !row) return null;
+  if (row.state === "drift") return { kind: "drift", tint: "collateral" };
+  if (row.state === "free") return { kind: "free", tint: "muted" };
+  return null;
+}
+
 /** The rows that are drifting (undecided), in timeline order: the list N and Shift+N step through. */
 export function driftRows(clips) {
   return (clips ?? [])

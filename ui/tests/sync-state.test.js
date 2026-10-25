@@ -12,6 +12,7 @@ import {
   formatOffset,
   stepDrift,
   syncIndex,
+  syncMark,
 } from "../sync-state.js";
 
 const RATE = 48000;
@@ -21,6 +22,16 @@ const row = (clip_id, start, offset, state = "drift") => ({
   start,
   offset,
   state,
+});
+
+describe("syncMark", () => {
+  test("is hidden by default and shows a tinted mark for drift and free rows", () => {
+    assert.equal(syncMark(row("d", 0, 48), false), null);
+    assert.deepEqual(syncMark(row("d", 0, 48), true), { kind: "drift", tint: "collateral" });
+    assert.deepEqual(syncMark(row("f", 0, 0, "free"), true), { kind: "free", tint: "muted" });
+    assert.equal(syncMark(row("s", 0, 0, "in_sync"), true), null);
+    assert.equal(syncMark(null, true), null);
+  });
 });
 
 describe("formatOffset", () => {
@@ -88,7 +99,7 @@ describe("the sync commands", () => {
       ...initial,
     };
     const registry = createRegistry();
-    const calls = { edits: [], toasts: [], jumps: [], server: [], patches: [], asked: [] };
+    const calls = { edits: [], toasts: [], jumps: [], server: [], patches: [], asked: [], driftToggles: 0 };
     registerSyncCommands(registry, {
       t: (key, values = {}) => `${key}${values.count === undefined ? "" : `:${values.count}`}`,
       app: {
@@ -113,6 +124,11 @@ describe("the sync commands", () => {
           return true;
         },
         confirmEnabled: () => true,
+        showDriftEnabled: () => state.showSyncDrift === true,
+        toggleShowSyncDrift: () => {
+          calls.driftToggles += 1;
+          state = { ...state, showSyncDrift: true };
+        },
         notice: () => {},
       },
     });
@@ -168,9 +184,11 @@ describe("the sync commands", () => {
     });
     registry.run("sync.drift_next", null, get());
     assert.deepEqual(calls.jumps, [20]);
+    assert.equal(calls.driftToggles, 1);
     assert.deepEqual([...get().selection], ["c"]);
     registry.run("sync.drift_previous", null, get());
     assert.deepEqual(calls.jumps, [20, 0]);
+    assert.equal(calls.driftToggles, 1);
     assert.deepEqual([...get().selection], ["a"]);
   });
 });

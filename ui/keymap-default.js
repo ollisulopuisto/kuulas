@@ -1147,6 +1147,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.sync.confirm",
   },
   {
+    id: "sync.show_drift",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.sync.show_drift",
+  },
+  {
     id: "sync.mark",
     keys: { mac: ["Y", "Alt+Mod+S"], other: ["Y", "Alt+Mod+S"] },
     context: "timeline",

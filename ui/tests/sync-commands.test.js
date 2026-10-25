@@ -26,8 +26,9 @@ function setup(selection) {
     previews: [],
     asked: [],
     notices: [],
+    driftToggles: 0,
   };
-  const config = { preview: { kind: "move", count: 1, moves: [{}] }, answer: true, confirm: true };
+  const config = { preview: { kind: "move", count: 1, moves: [{}] }, answer: true, confirm: true, showDrift: false };
   const state = { project, selection: new Set(selection), syncClips: [], playhead: 0 };
   registerSyncCommands(registry, {
     t: (key, values = {}) => `${key}${JSON.stringify(values)}`,
@@ -51,6 +52,8 @@ function setup(selection) {
         return config.answer;
       },
       confirmEnabled: () => config.confirm,
+      showDriftEnabled: () => config.showDrift,
+      toggleShowSyncDrift: () => { calls.driftToggles += 1; config.showDrift = !config.showDrift; },
       notice: (text) => calls.notices.push(text),
     },
   });
@@ -253,5 +256,6 @@ describe("stepping through the drifting clips", () => {
     registry.run("sync.drift_next", null, state);
     assert.deepEqual(calls.jumps, [900]);
     assert.deepEqual(calls.seeks, []);
+    assert.equal(calls.driftToggles, 1);
   });
 });

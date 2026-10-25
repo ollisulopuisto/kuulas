@@ -43,6 +43,7 @@ describe("the fields", () => {
         "stopMode",
         "preroll",
         "confirmSync",
+        "showSyncDrift",
         "clipboardLimit",
         "fast",
         "playBefore",
@@ -82,7 +83,7 @@ describe("the fields", () => {
 describe("currentValues", () => {
   test("reads the state the existing preferences keep", () => {
     const values = currentValues(
-      { languageChoice: "fi", confirmSync: false, clipboardLimit: true, fast: { fast: 1.35 } },
+      { languageChoice: "fi", confirmSync: false, showSyncDrift: true, clipboardLimit: true, fast: { fast: 1.35 } },
       { stopMode: "hold", preroll: 30 },
     );
     assert.deepEqual(values, {
@@ -90,6 +91,7 @@ describe("currentValues", () => {
       stopMode: "hold",
       preroll: "30",
       confirmSync: false,
+      showSyncDrift: true,
       clipboardLimit: true,
       fast: 1.35,
       playBefore: 3,
@@ -164,6 +166,7 @@ describe("currentValues", () => {
     const values = currentValues({}, {});
     assert.equal(values.language, "auto");
     assert.equal(values.confirmSync, true);
+    assert.equal(values.showSyncDrift, false);
     assert.equal(values.clipboardLimit, true);
     assert.equal(values.stopMode, "two_step");
   });
@@ -177,6 +180,7 @@ describe("applyField", () => {
     assert.equal(applyField("stopMode", "hold", current, setters), true);
     assert.equal(applyField("preroll", "30", current, setters), true);
     assert.equal(applyField("confirmSync", false, current, setters), true);
+    assert.equal(applyField("showSyncDrift", true, current, setters), true);
     assert.equal(applyField("clipboardLimit", false, current, setters), true);
     assert.equal(applyField("fast", "1.35", current, setters), true);
     assert.deepEqual(calls, [
@@ -184,6 +188,7 @@ describe("applyField", () => {
       ["stopMode", "hold"],
       ["preroll", 30],
       ["confirmSync", false],
+      ["showSyncDrift", true],
       ["clipboardLimit", false],
       ["fast", 1.35],
     ]);
