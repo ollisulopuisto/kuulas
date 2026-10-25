@@ -148,6 +148,11 @@ M1 is 23 of 28 done, 5 partly (WP4, WP5, WP19a, WP46, WP6). All are built; the "
 - Also done: right-click on a marker flag / region bar (ruler hit-test `markerIdAtX`) and on a clip volume-line point (`clip.envelope_delete_point`, `clip.envelope_reset`). Also done: ducking-point menu (`automationPointAt` hit-test in `ui/lanes.js`, `track.automation_delete_point` / `track.automation_clear`) and the transcript right-click on an unpicked word. Not done: dragging ducking points (the curve is still only written by Track > Auto). A selection strip (Opus: only if buttons are still wanted after trying these) is not built; floating tool palette: decided no.
 - Check on screen: drag handle feel (drop position while dragging shows only an outline), loudness text on the level row at rest (hidden until hover / current track in the comfortable density), compact headers (dot in the corner).
 
+## Released in v26.10.25.4 and .5
+
+- v26.10.25.4 (tagged 2026-10-25): sync drift marks hidden by default; range commands (below).
+- v26.10.25.5 (tagged 2026-10-25): security fix, CodeQL 58: a window only opens for a real *.kuulas folder.
+
 ## Sync drift display and range commands (built 2026-10-25, not seen on screen)
 
 - Done: sync drift badges hidden by default; View > Options > Show sync drift shows a dot / rings plus a tint instead of ms numbers (Codex C10, merged); Clip > Sync back > Resync the range / Accept the offsets in the range (range = in/out marks, else cursor to end; only drifting clips).

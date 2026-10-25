@@ -1,4 +1,4 @@
-## [Unreleased]
+## [v26.10.25.5] - 2026-10-25
 
 - **Security: a window is only opened for a real project folder.** When a browser asks to open a new project or a series episode in a new window, the folder must now be an absolute path to an existing `*.kuulas` folder; anything else (option-like text, a NUL byte, a relative or missing path) is refused with the usual bad-folder message and nothing is started. Found by CodeQL (py/command-line-injection, alert 58).
 
