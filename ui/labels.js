@@ -37,6 +37,8 @@ function clock(seconds) {
   return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${ss}` : `${m}:${ss}`;
 }
 
+export const AUTO_TAKE_RE = /^(?:take|otto)\s+(\d+)(?:\s*\([^)]+\))?$/i;
+
 /**
  * What we know about a clip, as label tokens. `words` are timeline words
  * ({start, end, text} in project frames). `in`/`out` are on the recording's
@@ -47,11 +49,14 @@ export function labelFacts(project, clip, words = []) {
   const rate = project?.rate || 48_000;
   const media = project?.media?.find((m) => m.id === clip.media) ?? {};
   const file = stem(media.name);
+  const track = project?.tracks?.find((t) => t.clips?.some((c) => c.id === clip.id));
   const person =
     project?.people?.find((p) => p.id === media.person)?.name ||
     project?.interviews?.find((i) => i.id === media.interview)?.title ||
+    track?.name ||
     file;
   const numbers = file.match(/(\d+)(?!.*\d)/);
+  const autoTake = clip.name ? clip.name.match(AUTO_TAKE_RE) : null;
   const end = clip.start + clip.length;
   const under = words
     .filter((word) => word.start >= clip.start && word.start < end)
@@ -59,11 +64,11 @@ export function labelFacts(project, clip, words = []) {
     .map((word) => word.text)
     .join(" ");
   return {
-    name: clip.name ?? "",
+    name: autoTake ? "" : (clip.name ?? ""),
     person,
     interview: project?.interviews?.find((i) => i.id === media.interview)?.title ?? "",
     file,
-    take: numbers ? numbers[1] : "",
+    take: autoTake ? autoTake[1] : numbers ? numbers[1] : "",
     in: clock(clip.offset / rate),
     out: clock((clip.offset + clip.length) / rate),
     words: under,

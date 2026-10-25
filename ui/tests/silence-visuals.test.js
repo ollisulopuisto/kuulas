@@ -14,11 +14,13 @@ import {
   inactiveLook,
   inactiveStyleChoice,
   lockSpots,
+  lockTop,
   openLockSpot,
   SILENCE_LEGEND,
   SILENCE_LEGEND_TITLE,
   SILENT_OVERLAY_LAYERS,
   silentColumns,
+  silentOutlineAlpha,
   stretchEdges,
   TRACK_LAYERS,
 } from "../silence-visuals.js";
@@ -213,7 +215,7 @@ describe("the legend (Auto-Silence panel)", () => {
     const [en, fi] = [read("en"), read("fi")];
     assert.deepEqual(
       SILENCE_LEGEND.map((line) => line.state),
-      ["filled", "outline", "lock", "edges", "open", "preview", "inactive", "group"],
+      ["filled", "outline", "muted", "lock", "edges", "open", "preview", "inactive", "group"],
     );
     for (const key of [SILENCE_LEGEND_TITLE, ...SILENCE_LEGEND.map((line) => line.key)]) {
       assert.ok(en[key], `en ${key}`);
@@ -238,5 +240,36 @@ describe("stretchEdges: the pseudo-borders of each closed stretch (owner, 2026-1
 
   test("a run too narrow for two lines gets none", () => {
     assert.deepEqual(stretchEdges([100, 103], { width: 800 }), []);
+  });
+});
+
+describe("lockTop: the padlock sits below the clip's name, never under it", () => {
+  const sizes = { label: 14, words: 12, icon: 12 };
+
+  test("a lane too short for a name keeps the lock at the top", () => {
+    assert.equal(lockTop(30, { ...sizes, wordsShown: false }), 5);
+  });
+
+  test("a lane with a name strip puts it under the strip", () => {
+    assert.equal(lockTop(60, { ...sizes, wordsShown: false }), 23);
+  });
+
+  test("with the words row shown it goes under that too", () => {
+    assert.equal(lockTop(80, { ...sizes, wordsShown: true }), 37);
+  });
+
+  test("no room under the strip: no lock, the outline alone says silent", () => {
+    assert.equal(lockTop(36, { ...sizes, wordsShown: false }), null);
+  });
+});
+
+describe("silentOutlineAlpha: a closed stretch is quieter than a muted clip", () => {
+  test("a muted clip keeps the full outline", () => {
+    assert.equal(silentOutlineAlpha({ muted: true }), 1);
+  });
+
+  test("an Auto-Silence stretch is dimmed", () => {
+    const alpha = silentOutlineAlpha({ muted: false });
+    assert.ok(alpha > 0.3 && alpha < 1);
   });
 });

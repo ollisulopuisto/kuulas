@@ -52,6 +52,8 @@ from . import (
     edit_scope,
     export_names,
     import_plan,
+    material,
+    material_search,
     music_duck,
     music_level,
     narration,
@@ -63,6 +65,7 @@ from . import (
     preview_level,
     priority,
     project_stats,
+    put_back,
     render_listen,
     silence_learn,
     silence_options,
@@ -76,12 +79,14 @@ from . import (
 from . import automix as automix_module
 from . import chapters as chapters_module
 from . import colab_transcribe as colab_module
+from . import cut_list as cut_list_module
 from . import db as dbm
 from . import export as export_module
 from . import loudness_curve as loudness_curve_module
 from . import markers as markers_module
 from . import music_report as music_report_module
 from . import send_copy as send_copy_module
+from .cart_level import cart_gain_db, trimmed_length
 from .clipboard import (
     ClipRef,
     Entry,
@@ -289,6 +294,31 @@ GROUPED_OPS = frozenset({"nudge_clips", "move_clips_to_track", "shift_clips"})
 CAUSE_STEPS = 300
 
 
+#: The edits that stay possible while a take records: the take landing itself, and markers
+#: (they sit on the timeline's frames, so no clip or take moves).
+RECORDING_OK_EDITS = frozenset({
+    "import_take", "record_tracks", "cart_log", "cart_end", "add_marker", "rename_marker",
+    "move_marker", "set_region_end",
+    "delete_marker", "set_marker_kind"})
+
+
+def _replaced_by(before: Project, after: Project, track_ids: list[str],
+                 new_ids: set[str]) -> list[dict]:
+    """The audio a take replaced: per track it went on, the frames of clips there before
+    that are gone now (trimmed back or removed). ``new_ids``: the take's clips."""
+    out = []
+    for tid in dict.fromkeys(track_ids):
+        old = next((t for t in before.tracks if t.id == tid), None)
+        now = next((t for t in after.tracks if t.id == tid), None)
+        if old is None or now is None:
+            continue
+        gone = (sum(c.length for c in old.clips)
+                - sum(c.length for c in now.clips if c.id not in new_ids))
+        if gone > 0:
+            out.append({"track": now.name, "frames": gone})
+    return out
+
+
 class Session:
     """``folder`` is the ``Name.kuulas`` package; it is created if it does not
     exist. ``rate`` applies to a new project only: an existing one keeps its own."""
@@ -347,11 +377,17 @@ class Session:
         self.last_music_level: dict | None = None
         self.last_block_level: dict | None = None
         self.history: History = self.package.history
+        self.history.edit_guard = self._check_not_recording
         self.store: MediaStore = self.package.store
         self._subscribers: list[Callable[[Project], None]] = []
         #: What became of each file in the latest import (WP34), for the UI
         #: to show: the failures and why, and the warnings of those that came in.
         self.last_import_report: list[ImportResult] = []
+        #: Set by the recorder: True while a take of this project records, which pauses
+        #: edits (``_check_not_recording``). None when nothing records here.
+        self.editing_paused: Callable[[], bool] | None = None
+        #: The audio the latest recorded take replaced, per track: [{track, frames}].
+        self.last_take_replaced: list[dict] = []
         #: How many Hindenburg clipboard clips the last ``import_nhsx`` turned
         #: into clipboard entries.
         self.last_import_clipboard = 0
@@ -737,6 +773,17 @@ class Session:
                 t("history.match_loudness"), new_state, "match_loudness", args
             )
 
+    def _check_not_recording(self, name: str = "") -> None:
+        """Editing is paused while a take of this project records (owner, 2026-10-23):
+        the take lands at a fixed frame when it stops, so a cut or move before that frame
+        would put it in the wrong place. Markers are safe, and the take's own landing is
+        the one edit that must go through."""
+        if name in RECORDING_OK_EDITS:
+            return
+        paused = getattr(self, "editing_paused", None)
+        if paused is not None and paused():
+            raise ops.EditError("error.edit.recording_paused")
+
     def _commit(self, label: str, new: Project, name: str, args: dict,
                 material: dict | None = None) -> Project:
         self.history.commit(label, new, op={"name": name, "args": args},
@@ -757,7 +804,8 @@ class Session:
     def _entry_view(self, entry: Entry, project: Project) -> dict:
         have = {m.sha256 for m in project.media}
         wanted = {ref.media_sha256 for ref in entry.refs}
-        return {**entry_dict(entry), "length": entry.span[1] - entry.span[0],
+        return {**entry_dict(entry), "cart": entry.cart,
+                "length": entry.span[1] - entry.span[0],
                 "clips": len(entry.refs),
                 "slots": len({ref.track_slot for ref in entry.refs}),
                 "missing_here": len(wanted - have),
@@ -908,7 +956,9 @@ class Session:
         self.clipboard.update(lambda h: h.add(mine))
         return self._entry_view(mine, self.state)
 
-    def clipboard_preview(self, entry_id: str, limit: bool = True):
+    def clipboard_preview(self, entry_id: str, limit: bool = True, *,
+                          cart_voice: float | None = None, cart_trim: float = 0,
+                          cart_track: str | None = None):
         """``(temporary project or None, missing media count, gain dB)`` for
         playing an entry without changing this project (``clipboard_preview``).
 
@@ -920,16 +970,25 @@ class Session:
         """
         snapshot = self.state
         entry = self._entry(entry_id)
-        project, missing = preview_project(snapshot, entry)
-        if project is None or not limit:
+        preview_source = (snapshot if cart_track is None else
+                          replace(snapshot, tracks=(snapshot.track(cart_track),)))
+        project, missing = preview_project(preview_source, entry)
+        if project is None or (not limit and cart_track is None):
             return project, len(missing), 0.0
         cache_root = getattr(self.store, "cache_root", None)
-        reference, project_peak = self._preview_reference(snapshot, cache_root)
-        key = (entry.id, project.rate,
+        reference, project_peak = (
+            (cart_voice, None) if cart_track is not None and cart_voice is not None
+            else self._preview_reference(snapshot, cache_root))
+        key = (entry.id, project.rate, project.master_gain_db,
                tuple((t.gain_db, t.pan, t.mono) for t in project.tracks))
         if key not in self._entry_levels:
             self._entry_levels[key] = clipboard_level.entry_level(project, self.store)
         lufs, entry_peak = self._entry_levels[key]
+        if cart_track is not None:
+            gain = cart_gain_db(cart_voice, lufs, entry_peak, cart_trim,
+                                reference=reference)
+            matched = replace(project, master_gain_db=project.master_gain_db + gain)
+            return matched, len(missing), gain
         gain = round(preview_level.preview_gain_db(
             reference, lufs, entry_peak_db=entry_peak, project_peak_db=project_peak), 2)
         return replace(project, master_gain_db=gain), len(missing), gain
@@ -1068,6 +1127,41 @@ class Session:
     def clipboard_paste(self, entry_id: str, *, at: int, mode: str = "insert",
                         target_tracks=None, out: int | None = None,
                         label: str | None = None) -> dict:
+        return self._paste(entry_id, at=at, mode=mode, target_tracks=target_tracks,
+                           out=out, label=label, op_name="clipboard_paste")
+
+    def cart_log(self, entry_id: str, *, at: int, track_id: str,
+                 gain_db: float = 0) -> dict:
+        """A clip played from the cart while a take records, put on ``track_id`` at ``at``
+        (overwrite, one undo step). The one paste that stays possible during a take: it
+        only writes its own track after the take's start, so the take's landing is not
+        moved."""
+        entry = self._entry(entry_id)
+        slots = {ref.track_slot for ref in entry.refs}
+        return self._paste(entry_id, at=at, mode="overwrite",
+                           target_tracks=dict.fromkeys(slots, track_id),
+                           out=None, label=t("history.cart_log"), op_name="cart_log",
+                           gain_db=gain_db)
+
+    def cart_end(self, clip_ids: list[str], stop: int) -> None:
+        """Trim only the IDs owned by RecordSession; never a ripple or file edit."""
+        with self.lock:
+            _check_writable(self)
+            self._check_not_recording("cart_end")
+            project = self.history.state
+            new = project
+            for track in project.tracks:
+                for clip in track.clips:
+                    if clip.id in clip_ids:
+                        end = clip.start + trimmed_length(clip.start, clip.length, stop)
+                        if end < clip.end:
+                            new = ops.trim_clips(new, [clip.id], end=end)
+            if new != project:
+                self._commit(t("history.cart_end"), new, "cart_end",
+                             {"clip_ids": clip_ids, "stop": stop})
+
+    def _paste(self, entry_id: str, *, at: int, mode: str, target_tracks, out: int | None,
+               label: str | None, op_name: str, gain_db: float = 0) -> dict:
         """Paste an entry at frame ``at`` as one undo step; ``mode`` is
         ``insert`` (ripple) or ``overwrite`` (the default of the UI). ``out``: the
         marked Out point, ``at`` then being the In point: the paste is cut to end there.
@@ -1091,12 +1185,17 @@ class Session:
             if not plan.placements:
                 return report
             landed = set(_targets(project, entry, mapping).values())
-            new = apply_paste(project, entry, plan, at, landed, mode, out=out)
+            clip_ids = tuple(ops.new_id("c") for _ in plan.placements)
+            new = apply_paste(project, entry, plan, at, landed, mode, out=out,
+                              clip_ids=clip_ids, gain_db=gain_db)
+            if op_name == "cart_log":
+                report["clip_ids"] = list(clip_ids)
             self.history.commit(
                 label or t("history.clipboard_paste"), new,
-                op={"name": "clipboard_paste",
+                op={"name": op_name,
                     "args": {"entry_id": entry.id, "at": at, "mode": mode,
-                             "target_tracks": target_tracks, "out": out}})
+                             "target_tracks": target_tracks, "out": out,
+                             **({"gain_db": gain_db} if op_name == "cart_log" else {})}})
             self._changed()
         return report
 
@@ -1149,6 +1248,54 @@ class Session:
         clean = str(name).strip()[:200]
         self._change_history(entry_id, lambda h: h.rename(entry_id, clean))
         self._follow_shared(entry_id, lambda h: h.rename(entry_id, clean))
+
+    def material_list(self) -> list[dict]:
+        """Every recording of the project, and how much the edit plays (material.py)."""
+        with self.lock:
+            project = self.history.state
+        missing = set(self.store.missing())
+        recorded = set()
+        for media in project.media:
+            try:
+                rel = self.store.meta(media.id).get("linked_package_rel") or ""
+            except KeyError:
+                continue
+            if rel.startswith("recordings/"):
+                recorded.add(media.id)
+        return material.rows(project, missing=missing, recorded=recorded)
+
+    def material_copy(self, media_id: str) -> dict:
+        """The whole recording as a clipboard entry, so it can be played, placed or pasted
+        like anything copied. The project and the recording are not changed."""
+        project = self.state
+        try:
+            media = project.media_item(media_id)
+        except KeyError:
+            raise ops.EditError("error.edit.no_media", media_id=media_id) from None
+        ref = ClipRef(media_sha256=media.sha256, offset=0, length=media.frames,
+                      media_name=media.name)
+        entry = entry_from_refs([ref], name=media.name, span=(0, media.frames),
+                                source_project=str(self.package.path))
+        entry = self._describe(entry)
+        self.clipboard.update(lambda h: h.add(entry))
+        return {"entry": self._entry_view(entry, project)}
+
+    def clipboard_cart(self, entry_id: str, slot: int | None) -> None:
+        """Give an entry the cart slot 1-9 (None: none) in this project's clipboard. A
+        number is held by one entry only, so it moves from the entry that had it."""
+        def change(h):
+            try:
+                h.set_cart(entry_id, slot)
+            except ValueError:
+                raise ops.EditError("error.clipboard.bad_slot") from None
+
+        self._change_history(entry_id, change)
+
+    def clipboard_move(self, entry_id: str, before: str | None = None) -> None:
+        """Put an entry before another one in this project's clipboard (None: last)."""
+        if before is not None and self.clipboard.load().get(before) is None:
+            raise NoSuchEntryError("error.clipboard.no_entry", entry_id=before)
+        self._change_history(entry_id, lambda h: h.move(entry_id, before))
 
     def clipboard_delete(self, entry_id: str) -> None:
         self._change_history(entry_id, lambda h: h.delete(entry_id))
@@ -1497,7 +1644,8 @@ class Session:
         stretches, total_s, now_s}], "key", "options"}``. No history step.
         ``SilenceNotMeasuredError`` when there is no valid measure."""
         _state, key, options, measure, ranges, gates = self._silence_decide(args)
-        return {"tracks": analysis.silence_rows(measure, ranges, gates), "key": key,
+        return {"tracks": analysis.silence_rows(
+            measure, ranges, gates, analysis.current_silence_ranges(_state)), "key": key,
                 "options": options.as_dict()}
 
     def silence_accept(self, args: dict | None = None) -> Project:
@@ -1612,8 +1760,12 @@ class Session:
 
         def run(progress):
             progress(0.0, "", True)
+
+            def heard(fraction: float, stage: str, detail: dict) -> None:
+                progress(fraction, t(f"job.block_level.{stage}", **detail))
+
             measured = offload.call("block_level", snapshot, self.store,
-                                    cancel=progress.cancelled_event)
+                                    cancel=progress.cancelled_event, on_progress=heard)
             if progress.cancelled:
                 raise JobCancelledError
             return measured
@@ -1692,6 +1844,11 @@ class Session:
             h = self.history
             edit = next((e["name"] for e in h.edits() if e["id"] == h.edit), h.edit)
             return export_names.title(self.package.path.stem, h.edit, edit)
+
+    def cut_list(self) -> dict:
+        """Where the audio edit jumps, per speech track and as seams on the timeline
+        (``cut_list.cut_list``): for a video rough cut that must not show jump cuts."""
+        return cut_list_module.cut_list(self.state)
 
     def download_name(self, what: str) -> str:
         """The file name of a download ("chapters.txt"): ``<title> chapters.txt``."""
@@ -2292,6 +2449,21 @@ class Session:
         return self.import_take_lanes([(files, track_id, track_name)],
                                       clip_name=clip_name, take=take)
 
+    def add_take_tracks(self, specs: list[tuple]) -> None:
+        """The new speech tracks of a take that has just started, as ONE undo step (so the
+        take can be drawn on them live and lands on them): ``specs`` is [(track_id, name)]
+        or [(track_id, name, mono)]; mono by default, like a track made when the take
+        lands (the cart's track is not). The name keeps the edit possible while the take
+        records (``RECORDING_OK_EDITS``)."""
+        with self.lock:
+            _check_writable(self)
+            p = self.history.state
+            for track_id, name, *rest in specs:
+                p = ops.add_track(p, track_id, name, "speech")
+                p = ops.set_track(p, track_id, mono=rest[0] if rest else True)
+            self._commit(t("history.record_tracks"), p, "record_tracks",
+                         {"tracks": [spec[0] for spec in specs]})
+
     def import_take_lanes(
             self, lanes: list[tuple[list[tuple[Path, int] | tuple[Path, int, int]],
                                     str | None, str]], *, clip_name: str,
@@ -2341,6 +2513,7 @@ class Session:
                     p = ops.set_clip(p, clip_id, name=clip_name)
                     clip_ids.append(clip_id)
             p = ops._overwrite_under(before, p)
+            self.last_take_replaced = _replaced_by(before, p, lane_tracks, set(clip_ids))
             if len(clip_ids) > 1:
                 p = ops.mark_in_sync(p, clip_ids, main=clip_ids[0], basis="timeline")
             project = self._commit(t("history.record_take", name=clip_name), p,
@@ -3134,6 +3307,72 @@ class Session:
 
             return list(self._memo("timeline_words", key, compute, 300))
 
+    def heard_words(self) -> list[dict]:
+        """The words someone hears: ``timeline_words`` without the muted, soft-cut and
+        gated ones (owner, 2026-10-21: the transcript shows only what is heard). The
+        position in this list is a word's reference for ``cut_words``, and it is what
+        ``GET /api/words`` returns, so the panel and the command count the same words."""
+        return [w for w in self.timeline_words() if not w["muted"]]
+
+    def search_material(self, query: str) -> list[dict]:
+        """The hits of ``query`` in every transcript that the edit does not play
+        (``material_search``): cut, muted, gated or never placed, each with its reason.
+        The snapshot is taken under the lock; the search runs outside it."""
+        with self.lock:
+            state = self.history.state
+            words_by_media = self.transcripts()
+        hits = material_search.search(state, words_by_media, query)
+        # Muted and gated words are still on the timeline: say where, so the list can
+        # take the playhead there. Cut and unused ones are not.
+        if any(h["status"] in ("muted", "gated") for h in hits):
+            on_timeline = {(w["media"], w["index"]): w for w in self.timeline_words()}
+            for hit in hits:
+                placed = on_timeline.get((hit["media"], hit["first"]))
+                if hit["status"] in ("muted", "gated") and placed:
+                    hit["at"], hit["track"] = placed["s"], placed["track"]
+        return hits
+
+    def put_back_plan(self, media: str, *, first: int | None = None,
+                      last: int | None = None, start: int | None = None,
+                      end: int | None = None, track_ids=None,
+                      at: int | None = None) -> dict:
+        """What putting a removed stretch of ``media`` back would do (``put_back.plan``),
+        for the preview, without changing anything. The stretch is given as ``start`` and
+        ``end`` (flicks from the recording's start), or as the words ``first``..``last``
+        of the recording's transcript: then it is their sentence, kept inside what was
+        removed (``put_back.choose_range``). ``at``: a frame to put it at instead (the
+        playhead). ``track_ids``: the tracks that open a gap (default: every track)."""
+        with self.lock:
+            state = self.history.state
+            words = self.transcripts().get(media)
+        if media not in {m.id for m in state.media}:
+            raise ops.EditError("error.edit.no_media", media_id=media)
+        if start is None or end is None:
+            if not words or first is None:
+                raise ops.EditError("error.server.bad_request", detail="first")
+            last = first if last is None else last
+            if not 0 <= first <= last < len(words):
+                raise ops.EditError("error.edit.no_word", media_id=media, index=last,
+                                    count=len(words))
+            start, end = put_back.choose_range(state, media, words, first, last)
+        scope = self._range_scope(state, track_ids)
+        plan = put_back.plan(state, media, start, end, scope=scope, at=at)
+        site = plan.site
+        return {
+            "site": {"kind": site.kind, "frame": site.frame, "track": site.track,
+                     "candidates": list(site.candidates), "why": site.why},
+            "at": plan.at, "mode": plan.mode, "length": plan.length, "shift": plan.shift,
+            "scope": list(plan.scope), "blocked": plan.blocked,
+            "outcomes": [{"track": t_id, "outcome": o} for t_id, o in plan.outcomes],
+            "start": start, "end": end, "text": _span_text(words or [], start, end),
+        }
+
+    def transcribed_media(self) -> list[str]:
+        """The recordings that have words anywhere on the timeline, heard or not: a
+        recording whose every word is muted is still transcribed, not to be offered
+        again for transcription."""
+        return sorted({w["media"] for w in self.timeline_words()})
+
     def edit_points(self, mode: str, track_id: str | None = None) -> list[int]:
         """The Tab stops of ``mode`` (WP19i), memoized on the edit state, so
         the same head asked twice costs nothing. Onset detection reads media
@@ -3191,14 +3430,16 @@ def _auto_silence(s: Session, args: dict) -> Project:
 
 
 def _open_gates(s: Session, args: dict) -> Project:
-    """Clear the gate of the given tracks (every track with a gate when none
-    are named) as ONE undo step."""
+    """Clear Auto-Silence from the given tracks as ONE undo step."""
     state = s.history.state
     ids = args.get("track_ids")
-    ids = [tr.id for tr in state.tracks if tr.gate] if ids is None else list(ids)
+    ids = ([tr.id for tr in state.tracks
+            if tr.gate or any(c.auto_silence for c in tr.clips)]
+           if ids is None else list(ids))
     new = state
     for track_id in ids:
         new = ops.set_gate(new, track_id, ())
+        new = ops.set_track_auto_silence(new, track_id, ())
     return s._commit(t("history.open_gates"), new, "open_gates", args)
 
 
@@ -3256,7 +3497,7 @@ def _duck_music(s: Session, args: dict) -> Project:
 def _cut_words(s: Session, args: dict) -> Project:
     """Delete words from the audio: the stretch they cover is ripple-deleted
     on every track, so the speakers stay together."""
-    words = s.timeline_words()
+    words = s.heard_words()
     chosen = sorted({int(i) for i in args.get("indices", ())})
     if not chosen:
         raise ops.EditError("error.edit.no_selection")
@@ -3275,6 +3516,37 @@ def _cut_words(s: Session, args: dict) -> Project:
     rest = {k: v for k, v in args.items() if k != "group_editing"}
     return s._commit(t("history.cut_words", text=quoted), new, "cut_words",
                      {**rest, "track_ids": scope, "start": start, "end": end})
+
+
+def _span_text(words: list[dict], start: int, end: int, limit: int = 12) -> str:
+    """The words whose middle lies in ``[start, end)`` (flicks), at most ``limit``."""
+    inside = [w["w"] for w in words if start <= (w["s"] + w["e"]) // 2 < end]
+    return " ".join(inside[:limit]) + ("…" if len(inside) > limit else "")
+
+
+def _put_back(s: Session, args: dict) -> Project:
+    """Put a removed stretch back (Enter in the find bar's "Not in this edit" list): a
+    ripple insert at the seam on the tracks in scope, one undo step. Only clips are added;
+    no recording is touched. Blocked (unclear place, nothing to restore) raises, and the
+    caller then gives ``at`` (the playhead)."""
+    media = str(args.get("media") or "")
+    try:
+        start, end = int(args["start"]), int(args["end"])
+    except (KeyError, TypeError, ValueError):
+        raise ops.EditError("error.server.bad_request", detail="start") from None
+    state = s.history.state
+    if media not in {m.id for m in state.media}:
+        raise ops.EditError("error.edit.no_media", media_id=media)
+    scope = s._range_scope(state, args.get("track_ids"))
+    at = args.get("at")
+    plan = put_back.plan(state, media, start, end, scope=scope,
+                         at=None if at is None else int(at))
+    new = put_back.apply(state, plan)
+    text = _span_text(s.transcripts().get(media, []), start, end, LABEL_WORDS)
+    seconds = f"{plan.length / state.rate:.1f}"
+    return s._commit(t("history.put_back", text=text, seconds=seconds), new, "put_back",
+                     {"media": media, "start": start, "end": end, "track_ids": scope,
+                      "at": plan.at})
 
 
 def _sync_outcome(before: Project, ids: list[str], new: Project) -> dict:
@@ -3593,6 +3865,7 @@ COMMANDS: dict[str, Callable[[Session, dict], Project]] = {
     "automix": _automix,
     "duck_music": _duck_music,
     "cut_words": _cut_words,
+    "put_back": _put_back,
     "resync": _resync,
     "resync_from": _resync_from,
     "relink": _relink,

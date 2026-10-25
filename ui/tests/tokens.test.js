@@ -67,7 +67,7 @@ function resolve(theme, name, seen = new Set()) {
   const value =
     COMPONENT.get(name) ?? theme.get(name) ?? CONSTANTS.get(name) ?? PRIMITIVES.get(name);
   assert.ok(value !== undefined, `${name} is not defined`);
-  const only = value.match(/^var\((--[\w-]+)\)$/);
+  const only = value.match(/^var\(\s*(--[\w-]+)\s*\)$/);
   return only ? resolve(theme, only[1], seen) : value;
 }
 
@@ -156,6 +156,29 @@ function pairs() {
 }
 
 // -- layers --------------------------------------------------------------------
+
+// Separation between adjacent graphics, in addition to the existing >= 3:1
+// waveform/body checks. Cover both file zebra tones, not just the default body.
+for (const [name, theme] of THEMES) {
+  test(`${name}: clip border stays distinct from every waveform and body`, () => {
+    const edge = resolve(theme, "--signal-clip-edge");
+    const failures = [];
+    for (const n of TRACKS) {
+      for (const [part, floor] of [
+        ["wave", 1.6],
+        ["body", 1.5],
+        ["body-alt", 1.5],
+      ]) {
+        const r = contrast(edge, resolve(theme, `--track-${n}-${part}`));
+        if (r < floor) failures.push(`${n} ${part}: ${r.toFixed(3)} < ${floor}`);
+      }
+    }
+    assert.deepEqual(failures, []);
+    for (const state of ["selected", "gate-lock", "group"]) {
+      assert.notEqual(edge, resolve(theme, `--signal-${state}`), state);
+    }
+  });
+}
 
 test("the two dark blocks are identical", () => {
   assert.deepEqual([...DARK_OS.entries()], [...DARK.entries()]);

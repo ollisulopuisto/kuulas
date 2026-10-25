@@ -10,7 +10,7 @@ set up and say so.
 
 | # | Try | Pass when | WP | Owner result |
 |---|---|---|---|---|
-| 1 | Make five edits (split, move, trim, gain), open the History tab (Alt+5); click an older step; make a new edit; Cmd+Shift+S to save a named version | steps are listed, clicking one shows that state, the state you leave stays reachable (Enter on a picked step restores it as a new step), the named version appears as "Saved HH.MM" | 8 |  |
+| 1 | Make five edits (split, move, trim, gain), open the History tab (Cmd+5); click an older step; make a new edit; Cmd+Shift+S to save a named version | steps are listed, clicking one shows that state, the state you leave stays reachable (Enter on a picked step restores it as a new step), the named version appears as "Saved HH.MM" | 8 |  |
 | 2 | Hold Shift+L and Shift+J; press `.` for fast playback and `,` / Alt+`.` to change the speed; Alt+0 to reset; also set 1.5x and 2x and press Space to stop mid-word | slow listening plays only while held; fast listening keeps the pitch; stop is instant and the cursor does not jump back; the speed is remembered after a restart | 26 |  |
 | 3 | Mark in and out (I, O) and press Cmd+U; select two clips and press Cmd+U | the range or the selection loops cleanly, no click at the loop point; Cmd+U again stops | 50 |  |
 | 4 | Look at a clip whose clip gain you changed, and at a loud peak | the waveform grows or shrinks with the gain; clipping shows in a warning colour | 57 |  |

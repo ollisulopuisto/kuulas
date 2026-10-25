@@ -41,6 +41,8 @@ export const ICONS = {
   // open. Also drawn on the timeline canvas (timeline.js drawIcon) from these same paths.
   lock: s("M6 11h12v9H6ZM8.5 11V8a3.5 3.5 0 0 1 7 0v3"),
   unlock: s("M6 11h12v9H6ZM8.5 11V8a3.5 3.5 0 0 1 6.8-1.2"),
+  // A muted clip: a speaker crossed out (the user's mute, apart from the padlock of Auto-Silence).
+  mute: s("M4 9.5h3.5L12 6v12l-4.5-3.5H4ZM16 9.5l5 5M21 9.5l-5 5"),
   // The sidebar tabs (Clipboard uses paste, Markers bookmark, History restore): sliders for the
   // Inspector's fields, two ticked rows for the Candidates to accept.
   inspector: s("M4 7h9M17 7h3M4 17h3M11 17h9M15 4v6M9 14v6"),

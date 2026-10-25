@@ -234,3 +234,29 @@ def test_the_hook_is_skipped_off_macos_and_never_raises():
     assert not desktop.install_open_files_hook(lambda _paths: None, platform="linux")
     assert not desktop.install_open_files_hook(
         lambda _paths: None, platform="darwin", objc=None, delegate_class=None)
+
+
+def test_a_project_opened_through_a_symlink_is_the_same_project_as_its_real_path(
+        tmp_path, monkeypatch):
+    app, webview, first = make_app(tmp_path, monkeypatch)
+    app.ready()
+    real = project(tmp_path, "Real.kuulas")
+    link = tmp_path / "Link.kuulas"
+    link.symlink_to(real, target_is_directory=True)
+    assert first.open_project(str(link)) is True  # keeps the chosen path (a Dropbox link)
+    app.open_paths([real])
+    assert len(webview.windows) == 1
+    assert webview.windows[0].shown >= 1  # brought forward, not opened again
+
+
+def test_the_start_page_of_another_window_does_not_open_a_project_twice(
+        tmp_path, monkeypatch):
+    app, webview, first = make_app(tmp_path, monkeypatch)
+    app.ready()
+    folder = project(tmp_path, "A.kuulas")
+    first.open_project(folder)
+    second = app.new_window()
+    assert second.open_project(folder) is True
+    assert second.project_folder is None  # still the start page
+    assert len(FakeRunning.stopped) == 0
+    assert webview.windows[0].shown >= 1  # the window that has it came forward

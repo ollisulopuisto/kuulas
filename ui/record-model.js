@@ -19,6 +19,39 @@ export function formatElapsed(frames, rate) {
   return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${s}` : `${m}:${s}`;
 }
 
+/**
+ * What a take replaced on the tracks it went on ("Olli 12.0 s"), or null when nothing: the
+ * stop notice says it, so a punch-in is never a surprise. Slivers under 0.1 s are left out.
+ */
+export function replacedMessage(result, rate, t) {
+  const parts = (result?.replaced ?? [])
+    .filter((entry) => rate > 0 && entry.frames / rate >= 0.1)
+    .map((entry) => `${entry.track} ${(entry.frames / rate).toFixed(1)} s`);
+  return parts.length === 0 ? null : t("ui.record.replaced", { what: parts.join(", ") });
+}
+
+/**
+ * The tracks clips played from the cart may go on: none, a new track, and every track that no
+ * switched-on channel records onto (a track the take records onto cannot be it).
+ */
+export function cartTrackChoices(project, rows) {
+  const recorded = new Set(rows.filter((r) => r.on && r.target !== "new").map((r) => r.target));
+  return [
+    { value: "", name: null },
+    { value: "new", name: null },
+    ...(project?.tracks ?? [])
+      .filter((track) => !recorded.has(track.id))
+      .map((track) => ({ value: track.id, name: track.name })),
+  ];
+}
+
+/** Does the chosen cart track already hold audio from `at` on (the clips played would overwrite it)? */
+export function cartTrackWarning(project, trackId, at) {
+  if (!trackId || trackId === "new") return false;
+  const track = project?.tracks?.find((item) => item.id === trackId);
+  return (track?.clips ?? []).some((clip) => clip.start + clip.length > at);
+}
+
 /** The device to offer first: the remembered one by name (indexes change after a replug), else
  * the system default, else the first; null when there is none. */
 export function pickDevice(devices, remembered) {
@@ -37,10 +70,26 @@ export function channelChoices(device) {
  * The body of POST /api/record/start. Several channels (WP12b): `lanes`, from selectedLanes;
  * the one-channel form (`channel`, `target` a track id or "new", `name`) still works.
  */
-export function startRequest({ device, lanes, channel, target, name, at }) {
+export function startRequest({
+  device,
+  lanes,
+  channel,
+  target,
+  name,
+  at,
+  cartTrack,
+  playOthers = false,
+  latencyMs = 0,
+}) {
   const body = {
     device: device ? { index: device.index, name: device.name } : null,
     at: Math.max(0, Math.round(Number(at) || 0)),
+    // Where clips played from the cart go while the take records: a track, "new", or none.
+    cart_track: cartTrack || null,
+    // Play the tracks the take does not record onto, from its start (headphones), and the
+    // delay between what is heard and what is captured, cut from the take's head (ms).
+    play_others: Boolean(playOthers),
+    latency_ms: Math.min(2000, Math.max(0, Number(latencyMs) || 0)),
   };
   if (lanes) return { ...body, channels: lanes };
   return {

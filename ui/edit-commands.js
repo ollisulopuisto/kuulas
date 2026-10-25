@@ -3,10 +3,13 @@
 // plan whether there is anything to do. Keys live in keymap-default.js, never here.
 
 import { busRolePlan, matchRolePlan, reapplyRolePlan, trackRolePlan } from "./bus-role.js";
+import { assignTarget, CART_SLOTS, cartEntry } from "./cart-model.js";
 import { expandGroups, groupClipsPlan, mergeClipsPlan, ungroupClipsPlan } from "./clip-groups.js";
 import { CLIPBOARD_VIEWS, keepCount, pasteChoice } from "./clipboard.js";
 import {
   addTrackPlan,
+  automationClearPlan,
+  automationDeletePointPlan,
   busMutePlan,
   changedTracks,
   closeGapPlan,
@@ -15,6 +18,8 @@ import {
   cutPlan,
   deleteEmptyTracksPlan,
   deletePlan,
+  envelopeDeletePointPlan,
+  envelopeResetPlan,
   fadePlan,
   gainPlan,
   groupBusPlan,
@@ -23,6 +28,7 @@ import {
   mutePlan,
   newBusPlan,
   nudgePlan,
+  openedRegionClip,
   pasteEntry,
   pastePlan,
   quickMutePlan,
@@ -32,6 +38,7 @@ import {
   resetGainsPlan,
   soloPlan,
   splitPlan,
+  trackMovePlan,
   trackMutePlan,
   trimPlan,
   ungroupPlan,
@@ -94,6 +101,24 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
       provisional: plan.provisional,
       done: (response) => {
         toastFor(plan, before, response);
+        if (plan.op === "open_gated_region") {
+          const sourceClip = plan.args.clip_id
+            ? before?.tracks
+                ?.flatMap((track) => track.clips)
+                .find((clip) => clip.id === plan.args.clip_id)
+            : null;
+          const id = openedRegionClip(
+            response.project,
+            plan.args.track_id,
+            plan.args.at,
+            sourceClip,
+            before?.tracks?.find((track) => track.id === plan.args.track_id)?.gate,
+          );
+          app.patch({
+            ...(id ? { selection: new Set([id]) } : {}),
+            implicitRangeTarget: null,
+          });
+        }
         // The range is spent: its marks and the selection would only be left drawn on the
         // timeline (owner, 2026-10-18). Soft delete keeps them: the gap is still the range.
         // A ripple cut leaves a splice at the range's start: the cursor goes there, so P (play from
@@ -221,6 +246,56 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
     },
     (s) => hasProject(s) && Boolean(s.project?.series?.id) && pasteEntry(s) !== null,
   );
+  // Put the picked (else first) entry one place up or down the list: the keyboard and menu
+  // twin of dragging it (BUGS #115). The first entry is what Paste reads when none is picked.
+  for (const [id, step] of [
+    ["clipboard.move_up", -1],
+    ["clipboard.move_down", 1],
+  ]) {
+    def(
+      id,
+      () => {
+        const state = app.getState();
+        const list = state.clipboard ?? [];
+        const entry = pasteEntry(state);
+        if (!entry) return;
+        const at = list.findIndex((item) => item.id === entry.id);
+        const to = at + step;
+        if (to < 0 || to >= list.length) return;
+        // Moving down puts it before the entry after the next one, or last.
+        const before = step < 0 ? list[to].id : (list[to + 1]?.id ?? null);
+        void app.moveClipboard(entry.id, before);
+      },
+      (s) => {
+        const list = s.clipboard ?? [];
+        const entry = hasProject(s) ? pasteEntry(s) : null;
+        const at = entry ? list.findIndex((item) => item.id === entry.id) : -1;
+        return at >= 0 && at + step >= 0 && at + step < list.length;
+      },
+    );
+  }
+  // The cart (owner, 2026-10-23): Alt+n plays the entry that holds slot n, in every situation
+  // (while recording it will also be put on the timeline), and Shift+Alt+n gives the picked
+  // entry number n. Neither is an edit.
+  for (let n = 1; n <= CART_SLOTS; n += 1) {
+    def(
+      `clipboard.cart_play_${n}`,
+      () => {
+        const entry = cartEntry(app.getState(), n);
+        if (!entry) app.toast(t("ui.cart.empty", { slot: n }), { undo: false });
+        else void app.previewClipboard(entry.id);
+      },
+      (s) => hasProject(s),
+    );
+    def(
+      `clipboard.cart_assign_${n}`,
+      () => {
+        const entry = assignTarget(app.getState());
+        if (entry) void app.setCartSlot(entry.id, n);
+      },
+      (s) => hasProject(s) && assignTarget(s) !== null,
+    );
+  }
   // The tab's views and the picker for any project's clipboard.
   for (const view of CLIPBOARD_VIEWS) {
     def(
@@ -233,6 +308,23 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
     "clipboard.open_project",
     () => app.openClipboardProject(),
     (s) => hasProject(s),
+  );
+  // Copy to other window (owner, 2026-10-23): what is selected is copied first, as Mod+C
+  // does; with nothing to copy, the picked (else newest) entry goes. Either way the entry
+  // lands on the clipboard of a project open in another window. The paste is made there.
+  def(
+    "clipboard.send_to_window",
+    async () => {
+      const plan = copyPlan(app.getState(), t);
+      if (plan?.refuse) return refuse(plan);
+      if (plan && !(await app.copy(plan.body))) return;
+      const entry = pasteEntry(app.getState());
+      if (entry) await app.sendToWindow(entry);
+    },
+    // Greyed out (but in the menu) until another project window is open (app.js keeps
+    // `otherWindows` current: null in a browser, else how many).
+    (s) =>
+      hasProject(s) && s.otherWindows > 0 && (copyPlan(s, t) !== null || pasteEntry(s) !== null),
   );
   // Paste overwrites by default (owner, 2026-10-20): what is under the pasted clips is
   // trimmed, split or removed and nothing later moves. The insert forms move later material.
@@ -248,6 +340,10 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
   planned("clip.mute", mutePlan);
   planned("clip.quick_mute", quickMutePlan);
   planned("clip.fade", fadePlan);
+  planned("clip.envelope_delete_point", envelopeDeletePointPlan);
+  planned("clip.envelope_reset", envelopeResetPlan);
+  planned("track.automation_delete_point", automationDeletePointPlan);
+  planned("track.automation_clear", automationClearPlan);
   planned("edit.trim_start", (s) => trimPlan(s, "start"));
   planned("edit.trim_end", (s) => trimPlan(s, "end"));
   planned("edit.nudge_left", (s) => nudgePlan(s, -1));
@@ -255,6 +351,8 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
   planned("edit.move_up", (s) => moveTrackPlan(s, -1));
   planned("edit.move_down", (s) => moveTrackPlan(s, 1));
   planned("track.mute", trackMutePlan);
+  planned("track.move_up", (s) => trackMovePlan(s, -1));
+  planned("track.move_down", (s) => trackMovePlan(s, 1));
   planned("track.solo", (s) => soloPlan(s, true));
   planned("track.solo_add", (s) => soloPlan(s, false));
   planned("track.cycle_kind", cycleKindPlan);

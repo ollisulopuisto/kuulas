@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
+  cartTrackChoices,
+  cartTrackWarning,
   channelChoices,
   channelPeaks,
   formatElapsed,
@@ -10,6 +12,7 @@ import {
   pickDevice,
   recordKeyAction,
   recordPhase,
+  replacedMessage,
   selectedLanes,
   startProblem,
   startRequest,
@@ -76,6 +79,9 @@ describe("the start request", () => {
         track_id: null,
         name: "Guest",
         at: 4800,
+        cart_track: null,
+        play_others: false,
+        latency_ms: 0,
       },
     );
   });
@@ -227,5 +233,93 @@ describe("several channels (WP12b)", () => {
       ),
       'ui.record.imported_failed{"take":"Take 2","names":"Guest"}',
     );
+  });
+});
+
+describe("replacedMessage: what a take replaced (owner, 2026-10-23)", () => {
+  const t = (key, values = {}) => `${key}${JSON.stringify(values)}`;
+
+  test("nothing replaced: nothing to say", () => {
+    assert.equal(replacedMessage({ replaced: [] }, 48000, t), null);
+    assert.equal(replacedMessage({}, 48000, t), null);
+  });
+
+  test("names the track and the seconds, one decimal", () => {
+    assert.equal(
+      replacedMessage({ replaced: [{ track: "Olli", frames: 12 * 48000 }] }, 48000, t),
+      'ui.record.replaced{"what":"Olli 12.0 s"}',
+    );
+  });
+
+  test("several tracks are joined, a sliver under a tenth of a second is left out", () => {
+    const text = replacedMessage(
+      {
+        replaced: [
+          { track: "Olli", frames: 48000 },
+          { track: "Anna", frames: 3 * 48000 },
+          { track: "Tiny", frames: 100 },
+        ],
+      },
+      48000,
+      t,
+    );
+    assert.equal(text, 'ui.record.replaced{"what":"Olli 1.0 s, Anna 3.0 s"}');
+  });
+});
+
+describe("the cart's track while recording (owner, 2026-10-23)", () => {
+  const project = {
+    tracks: [
+      { id: "t1", name: "Host", kind: "speech", clips: [{ start: 0, length: 1000 }] },
+      { id: "t2", name: "Guest", kind: "speech", clips: [] },
+      { id: "t3", name: "Music", kind: "music", clips: [{ start: 5000, length: 2000 }] },
+    ],
+  };
+  const rows = [
+    { channel: 1, on: true, target: "t1" },
+    { channel: 2, on: false, target: "t2" },
+  ];
+
+  test("the choices: none, a new track, and every track that is not recorded onto", () => {
+    assert.deepEqual(
+      cartTrackChoices(project, rows).map((c) => c.value),
+      ["", "new", "t2", "t3"],
+    );
+  });
+
+  test("a track a channel that is switched off points at is still a choice", () => {
+    assert.ok(cartTrackChoices(project, rows).some((c) => c.value === "t2"));
+  });
+
+  test("the warning: audio on the track from where the take starts on", () => {
+    assert.equal(cartTrackWarning(project, "t3", 0), true);
+    assert.equal(cartTrackWarning(project, "t3", 6000), true); // inside the clip
+    assert.equal(cartTrackWarning(project, "t3", 7000), false); // after its end
+    assert.equal(cartTrackWarning(project, "t2", 0), false); // empty track
+    assert.equal(cartTrackWarning(project, "new", 0), false);
+    assert.equal(cartTrackWarning(project, "", 0), false);
+  });
+
+  test("the start request carries the choice, empty meaning none", () => {
+    const body = startRequest({ device: null, lanes: [], at: 10, cartTrack: "t3" });
+    assert.equal(body.cart_track, "t3");
+    assert.equal(startRequest({ device: null, lanes: [], at: 10 }).cart_track, null);
+    assert.equal(startRequest({ device: null, lanes: [], at: 10, cartTrack: "" }).cart_track, null);
+  });
+});
+
+describe("startRequest: playing the other tracks while recording", () => {
+  test("off by default, no delay", () => {
+    const body = startRequest({ device: null, channel: 1, target: "new", name: "", at: 0 });
+    assert.equal(body.play_others, false);
+    assert.equal(body.latency_ms, 0);
+  });
+  test("on with a delay, clamped to 0..2000 ms", () => {
+    const on = { device: null, channel: 1, target: "new", name: "", at: 0, playOthers: true };
+    assert.equal(startRequest({ ...on, latencyMs: 35 }).play_others, true);
+    assert.equal(startRequest({ ...on, latencyMs: 35 }).latency_ms, 35);
+    assert.equal(startRequest({ ...on, latencyMs: -4 }).latency_ms, 0);
+    assert.equal(startRequest({ ...on, latencyMs: 99999 }).latency_ms, 2000);
+    assert.equal(startRequest({ ...on, latencyMs: "x" }).latency_ms, 0);
   });
 });

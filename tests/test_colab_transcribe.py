@@ -21,12 +21,59 @@ from kuulas.jobs import JobCancelledError
 FAKE = textwrap.dedent('''
     import json, os, sys, time
     argv = sys.argv[1:]
+    if "--events" in argv and os.environ.get("FAKE_OLD"):
+        print("usage: colab-transcribe [--audio F]", flush=True)
+        print("colab-transcribe: error: unrecognized arguments: --events", flush=True)
+        with open(os.environ["FAKE_LOG"] + ".calls", "a") as f:
+            f.write(" ".join(argv) + "\\n")
+        sys.exit(2)
     mode = argv[argv.index("--mode") + 1] if "--mode" in argv else "ok"
     audio = [argv[i + 1] for i, a in enumerate(argv) if a == "--audio"]
     folder = argv[argv.index("--json") + 1]
     with open(os.environ["FAKE_LOG"], "w") as f:
         json.dump({"argv": argv, "cwd": os.getcwd(), "audio": audio,
                    "folder_exists": os.path.isdir(folder)}, f)
+    with open(os.environ["FAKE_LOG"] + ".calls", "a") as f:
+        f.write(" ".join(argv) + "\\n")
+    def ev(**kw):
+        print("@@kuulas " + json.dumps({"schema": 1, **kw}), flush=True)
+    if mode == "events_lost" and "--reset-session" not in argv:
+        ev(event="session", state="reuse")
+        ev(event="warning", code="session_lost", message="The Colab session was lost")
+        print("something unrelated, no words the old text rule knows", flush=True)
+        sys.exit(1)
+    if mode == "events_fail":
+        ev(event="stage", stage="upload", state="start")
+        ev(event="error", reason="failed", message="Quota exceeded for this account",
+           code=4, stage="upload")
+        print("long noisy log line one", flush=True)
+        print("long noisy log line two", flush=True)
+        sys.exit(4)
+    if mode in ("events", "events_lost"):
+        ev(event="session", state="new")
+        ev(event="stage", stage="upload", state="start")
+        ev(event="progress", percent=40, message="Uploading the audio")
+        for n, path in enumerate(audio, 1):
+            stem0 = os.path.splitext(os.path.basename(path))[0]
+            ev(event="stage", stage="transcribe", state="start", index=n,
+               total=len(audio), name=os.path.basename(path))
+        ev(event="progress", percent=80, message="Aligning")
+    noise = [
+        "[colab] A new version of Colab CLI is available: 0.7.5 (current: 0.7.5.dev3)",
+        "[colab] Run 'colab update' to update.",
+        '[colab] To silence this check, set "enable_update_check": false there',
+    ]
+    if mode == "noise":
+        for line in noise:
+            print(line, flush=True)
+    if mode in ("lost", "lost_always") and (
+            mode == "lost_always" or "--reset-session" not in argv):
+        print("PROGRESS 0 [1/10] Preparing", flush=True)
+        for line in noise:
+            print(line, flush=True)
+        print("[colab] Session 'whisper' appears to be lost (404/401). Cleaning up.",
+              flush=True)
+        sys.exit(1)
     if mode == "fail":
         print("Colab quota exceeded", flush=True)
         sys.exit(4)
@@ -315,6 +362,57 @@ def test_a_failed_run_gives_the_last_lines(tmp_path, fake, temp_root):
     assert list(temp_root.iterdir()) == []
 
 
+def test_a_lost_colab_session_is_retried_once_with_a_fresh_one(tmp_path, fake, temp_root):
+    # The tool reuses a Colab session called 'whisper'; one that died (404/401) fails the
+    # run (owner, 2026-10-23, packaged app). A second try asks the tool for a new session.
+    fake["extra_args"] = ["--mode", "lost"]
+    result, _reports = run(files(tmp_path, "Olli.wav"), fake)
+    assert result["results"]["olli"]["words"]
+    calls = (tmp_path / "call.json.calls").read_text().splitlines()
+    assert len(calls) == 2
+    assert "--reset-session" not in calls[0]
+    assert "--reset-session" in calls[1]
+
+
+def test_a_session_that_stays_lost_fails_after_the_one_retry(tmp_path, fake, temp_root):
+    fake["extra_args"] = ["--mode", "lost_always"]
+    with pytest.raises(ct.ColabError) as e:
+        run(files(tmp_path, "Olli.wav"), fake)
+    assert e.value.key == "error.colab.failed"
+    assert len((tmp_path / "call.json.calls").read_text().splitlines()) == 2
+    assert list(temp_root.iterdir()) == []
+
+
+def test_other_failures_are_not_retried(tmp_path, fake, temp_root):
+    fake["extra_args"] = ["--mode", "fail"]
+    with pytest.raises(ct.ColabError):
+        run(files(tmp_path, "Olli.wav"), fake)
+    assert len((tmp_path / "call.json.calls").read_text().splitlines()) == 1
+
+
+def test_a_retry_is_not_added_when_the_user_already_resets_sessions(
+        tmp_path, fake, temp_root):
+    fake["extra_args"] = ["--mode", "lost_always", "--reset-session"]
+    with pytest.raises(ct.ColabError):
+        run(files(tmp_path, "Olli.wav"), fake)
+    assert len((tmp_path / "call.json.calls").read_text().splitlines()) == 1
+
+
+def test_the_colab_clis_update_notices_are_not_progress_or_error_text(
+        tmp_path, fake, temp_root):
+    fake["extra_args"] = ["--mode", "noise"]
+    _result, reports = run(files(tmp_path, "Olli.wav"), fake)
+    shown = " ".join(m for _f, m, _i in reports.items)
+    assert "new version of Colab CLI" not in shown
+    assert "enable_update_check" not in shown
+    fake["extra_args"] = ["--mode", "lost_always", "--reset-session"]
+    with pytest.raises(ct.ColabError) as e:
+        run(files(tmp_path, "Olli.wav"), fake)
+    text = str(messages.t(e.value.key, **e.value.params))
+    assert "enable_update_check" not in text
+    assert "appears to be lost" in text
+
+
 def test_missing_tool_is_one_clear_error(tmp_path, fake, temp_root):
     fake["command"] = ["definitely-not-colab-transcribe-xyz"]
     with pytest.raises(ct.ColabError) as e:
@@ -479,3 +577,62 @@ def test_align_is_a_stored_setting(tmp_path, monkeypatch):
     assert ct.save_settings({"align": False}) == {"align": False}
     with pytest.raises(ct.ColabError):
         ct.save_settings({"align": "yes"})
+
+
+# -- the tool's --events (podcast PR #83; BUGS #107) ------------------------------------
+
+
+def test_the_events_flag_is_asked_for(tmp_path, fake, temp_root):
+    ct.forget_event_support()
+    run(files(tmp_path, "Olli.wav"), fake)
+    assert "--events" in call(tmp_path)["argv"]
+
+
+def test_a_tool_that_refuses_the_flag_is_run_again_without_it_and_remembered(
+        tmp_path, fake, temp_root, monkeypatch):
+    ct.forget_event_support()
+    monkeypatch.setenv("FAKE_OLD", "1")
+    result, _reports = run(files(tmp_path, "Olli.wav"), fake)
+    assert result["results"]["olli"]["words"]
+    calls = (tmp_path / "call.json.calls").read_text().splitlines()
+    assert len(calls) == 2
+    assert "--events" in calls[0]
+    assert "--events" not in calls[1]
+    run(files(tmp_path, "Olli.wav"), fake)  # remembered: no second refusal
+    assert len((tmp_path / "call.json.calls").read_text().splitlines()) == 3
+
+
+def test_progress_and_stage_events_drive_the_bar_and_the_text(tmp_path, fake, temp_root):
+    fake["extra_args"] = ["--mode", "events"]
+    _result, reports = run(files(tmp_path, "Olli.wav", "Maija.flac"), fake)
+    shown = [m for _f, m, _i in reports.items]
+    fractions = [f for f, _m, _i in reports.items]
+    assert any("Uploading the audio" in m for m in shown)
+    assert any("Olli.wav" in m and "1/2" in m for m in shown)
+    assert any("Maija.flac" in m and "2/2" in m for m in shown)
+    assert max(fractions) >= 0.79 * 0.99
+    assert fractions == sorted(fractions)
+
+
+def test_event_lines_are_not_part_of_the_log(tmp_path, fake, temp_root):
+    fake["extra_args"] = ["--mode", "events"]
+    result, _reports = run(files(tmp_path, "Olli.wav"), fake)
+    assert not any(line.startswith("@@kuulas") for line in result["log"])
+
+
+def test_an_error_event_gives_the_short_reason_not_the_log(tmp_path, fake, temp_root):
+    fake["extra_args"] = ["--mode", "events_fail"]
+    with pytest.raises(ct.ColabError) as e:
+        run(files(tmp_path, "Olli.wav"), fake)
+    assert e.value.key == "error.colab.failed"
+    assert e.value.params["code"] == 4
+    assert e.value.params["tail"] == "Quota exceeded for this account"
+
+
+def test_a_session_lost_warning_triggers_the_retry_by_its_code(tmp_path, fake, temp_root):
+    fake["extra_args"] = ["--mode", "events_lost"]
+    result, _reports = run(files(tmp_path, "Olli.wav"), fake)
+    assert result["results"]["olli"]["words"]
+    calls = (tmp_path / "call.json.calls").read_text().splitlines()
+    assert len(calls) == 2
+    assert "--reset-session" in calls[1]

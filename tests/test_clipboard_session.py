@@ -667,3 +667,85 @@ def test_the_list_shows_the_source_track_names_and_project(session):
     (view,) = session.clipboard_list()
     assert view["tracks"] == [a.name, b.name]
     assert view["source_name"] == "One"
+
+
+def test_the_clipboard_can_be_put_in_another_order(session):
+    a, _ = ids(session.state)
+    e1 = session.clipboard_copy(clip_ids=[a.clips[0].id])["entry"]["id"]
+    e2 = session.clipboard_copy(clip_ids=[a.clips[0].id])["entry"]["id"]
+    e3 = session.clipboard_copy(clip_ids=[a.clips[0].id])["entry"]["id"]
+    assert [e["id"] for e in session.clipboard_list()] == [e3, e2, e1]
+    session.clipboard_move(e1, before=e3)
+    assert [e["id"] for e in session.clipboard_list()] == [e1, e3, e2]
+    session.clipboard_move(e1, before=None)
+    assert [e["id"] for e in session.clipboard_list()] == [e3, e2, e1]
+    with pytest.raises(Exception, match=r"no|entry"):
+        session.clipboard_move("nope", before=e3)
+
+
+def test_api_moves_a_clipboard_entry(client, session):
+    a, _ = ids(session.state)
+    body = {"clip_ids": [a.clips[0].id]}
+    first = client.post("/api/clipboard/copy", json=body).json()["entry"]["id"]
+    second = client.post("/api/clipboard/copy", json=body).json()["entry"]["id"]
+    r = client.post(f"/api/clipboard/{first}/move", json={"before": second})
+    assert r.status_code == 200
+    assert [e["id"] for e in r.json()["entries"]] == [first, second]
+    r = client.post(f"/api/clipboard/{first}/move", json={"before": None})
+    assert [e["id"] for e in r.json()["entries"]] == [second, first]
+
+
+def test_the_cart_slots_are_given_and_the_view_shows_them(session):
+    a, _ = ids(session.state)
+    e1 = session.clipboard_copy(clip_ids=[a.clips[0].id])["entry"]["id"]
+    e2 = session.clipboard_copy(clip_ids=[a.clips[0].id])["entry"]["id"]
+    session.clipboard_cart(e1, 2)
+    session.clipboard_cart(e2, 2)  # moves the number
+    carts = {e["id"]: e["cart"] for e in session.clipboard_list()}
+    assert carts == {e1: None, e2: 2}
+    session.clipboard_cart(e2, None)
+    assert all(e["cart"] is None for e in session.clipboard_list())
+
+
+def test_a_bad_cart_slot_is_a_translated_error(session):
+    a, _ = ids(session.state)
+    e1 = session.clipboard_copy(clip_ids=[a.clips[0].id])["entry"]["id"]
+    with pytest.raises(EditError) as e:
+        session.clipboard_cart(e1, 8)
+    assert e.value.key == "error.clipboard.bad_slot"
+    with pytest.raises(EditError):
+        session.clipboard_cart("nope", 1)
+
+
+def test_api_sets_a_cart_slot(client, session):
+    a, _ = ids(session.state)
+    body = {"clip_ids": [a.clips[0].id]}
+    entry = client.post("/api/clipboard/copy", json=body).json()["entry"]
+    r = client.post(f"/api/clipboard/{entry['id']}/cart", json={"slot": 5})
+    assert r.status_code == 200
+    assert [e["cart"] for e in r.json()["entries"]] == [5]
+    r = client.post(f"/api/clipboard/{entry['id']}/cart", json={"slot": 11})
+    assert r.status_code == 400
+
+
+def test_a_whole_recording_can_be_copied_to_the_clipboard(session):
+    a, _ = ids(session.state)
+    media_id = a.clips[0].media
+    result = session.material_copy(media_id)
+    entry = result["entry"]
+    assert entry["clips"] == 1
+    assert entry["length"] == session.state.media_item(media_id).frames
+    assert [e["id"] for e in session.clipboard_list()] == [entry["id"]]
+    with pytest.raises(EditError):
+        session.material_copy("no-such-media")
+
+
+def test_api_material_lists_the_recordings_and_copies_one(client, session):
+    a, _ = ids(session.state)
+    media_id = a.clips[0].media
+    rows = client.get("/api/material").json()["rows"]
+    assert media_id in {r["id"] for r in rows}
+    r = client.post(f"/api/material/{media_id}/copy")
+    assert r.status_code == 200
+    assert len(r.json()["entries"]) == 1
+    assert client.post("/api/material/nope/copy").status_code == 400

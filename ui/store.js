@@ -10,11 +10,21 @@ export const initialState = () => ({
   project: null,
   head: null,
   canUndo: false,
+  readOnly: null,
+  // The Material tab: the server's rows ({ rows } or null until asked), the filter and text.
+  material: null,
+  materialFilter: "all",
+  materialText: "",
+  // Other project windows of this desktop app (null: not known, or a plain browser).
+  otherWindows: null,
   canRedo: false,
   // The rendered mix the project remembers and whether it plays in place of the edit
   // ({ available, current, missing, reason, listening, name, range, set_at }; null: none).
   render: null,
   words: [],
+  // The recordings that have words on the timeline, heard or not (GET /api/words): the
+  // transcript shows only heard words, so `words` alone cannot say what is transcribed.
+  transcribed: [],
   // The names of the people the words refer to (GET /api/words), and the head the words
   // were fetched at: a command on the words waits until it equals `head`.
   people: {},
@@ -136,6 +146,8 @@ export const initialState = () => ({
   clipboardLimit: true,
   // How far the latest clipboard preview was turned down: { id, db }, db 0 or less.
   clipboardLevel: null,
+  // The implicit Auto-Silence region under the latest timeline click, for M's edit target.
+  implicitRangeTarget: null,
   followMode: "page",
   followPaused: false,
   // Where the last edit happened, for the zoom anchor; null until an edit sets it.
@@ -179,6 +191,8 @@ export function serverPatch(response, state = null) {
   if ("can_undo" in response) patch.canUndo = response.can_undo;
   if ("can_redo" in response) patch.canRedo = response.can_redo;
   if ("render" in response) patch.render = response.render;
+  // Who holds the project when it is open read-only; the key is absent when you can edit.
+  if ("project" in response) patch.readOnly = response.read_only ?? null;
   // Media ids whose file is gone: those clips draw an error sign, no waveform.
   if (Array.isArray(response.missing)) patch.missingMedia = new Set(response.missing);
   if (state && response.project) {

@@ -6,6 +6,8 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { setCatalogs, t } from "../ui/i18n.js";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const keymapModule = await import(new URL("../ui/keymap-default.js", import.meta.url));
@@ -14,6 +16,9 @@ const { DEFAULT_KEYMAP, CONTEXTS } = keymapModule;
 const en = JSON.parse(
   readFileSync(resolve(__dirname, "../src/kuulas/locales/en.json"), "utf8"),
 );
+
+// Command references use their labels here: one reference serves both platform columns.
+setCatalogs({ en });
 
 const outPath = process.argv[2] || resolve(__dirname, "../docs/KEYS.md");
 
@@ -75,8 +80,8 @@ for (const context of CONTEXTS) {
   for (const entry of entries) {
     const mac = formatEntryKeys(entry.keys.mac, MAC_MODS);
     const other = formatEntryKeys(entry.keys.other, OTHER_MODS);
-    const label = escapeCell(en[entry.labelKey] || "");
-    const hint = escapeCell(en[`${entry.labelKey}.hint`] || "");
+    const label = escapeCell(en[entry.labelKey] ? t(entry.labelKey) : "");
+    const hint = escapeCell(en[`${entry.labelKey}.hint`] ? t(`${entry.labelKey}.hint`) : "");
     lines.push(`| ${mac} | ${other} | ${label} | ${hint} |`);
     boundCount += 1;
   }

@@ -2,23 +2,29 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
   addTrackPlan,
+  automationClearPlan,
+  automationDeletePointPlan,
   changedTracks,
   closeGapPlan,
   createBurst,
   cutPlan,
   deleteEmptyTracksPlan,
   deletePlan,
+  envelopeDeletePointPlan,
+  envelopeResetPlan,
   fadePlan,
   gainPlan,
   liftCutPlan,
   moveTrackPlan,
   mutePlan,
   nudgePlan,
+  openedRegionClip,
   removeClipsPlan,
   removePlan,
   resetGainsPlan,
   soloPlan,
   splitPlan,
+  trackMovePlan,
   trackMutePlan,
   trimPlan,
 } from "../edit-plans.js";
@@ -202,6 +208,190 @@ describe("mute clips (N)", () => {
   });
 });
 
+describe("M at the cursor on an implicit portion (owner, 2026-10-24)", () => {
+  const silenced = (extra = {}) =>
+    clip("a1", 0, 10, {
+      auto_silence: [
+        [0, 3 * S],
+        [5 * S, 8 * S],
+      ],
+      ...extra,
+    });
+  const two = (a) => ({
+    ...project,
+    tracks: [
+      { id: "A", clips: [a] },
+      { id: "B", clips: [clip("b1", 0, 10)] },
+    ],
+  });
+
+  test("a clip in a group (both selected): M acts on the cursor's portion, not the group", () => {
+    const plan = mutePlan(
+      state({ project: two(silenced()), selection: new Set(["a1", "b1"]), playhead: 4 * S }),
+    );
+    assert.equal(plan.op, "open_gated_region");
+    assert.deepEqual(plan.args, { track_id: "A", clip_id: "a1", at: 4 * S, muted: true });
+  });
+
+  test("a closed stretch of a grouped clip is opened alone", () => {
+    const plan = mutePlan(
+      state({ project: two(silenced()), selection: new Set(["a1", "b1"]), playhead: 6 * S }),
+    );
+    assert.equal(plan.op, "open_gated_region");
+    assert.deepEqual(plan.args, { track_id: "A", clip_id: "a1", at: 6 * S });
+  });
+
+  test("nothing selected: M acts on the current track's portion under the cursor", () => {
+    const plan = mutePlan(state({ project: two(silenced()), playhead: 4 * S }));
+    assert.equal(plan.op, "open_gated_region");
+    assert.deepEqual(plan.args, { track_id: "A", clip_id: "a1", at: 4 * S, muted: true });
+  });
+
+  test("a cursor outside every portion still mutes the selection as before", () => {
+    const plan = mutePlan(
+      state({ project: two(clip("a1", 0, 10)), selection: new Set(["a1", "b1"]), playhead: 4 * S }),
+    );
+    assert.equal(plan.op, "set_clips");
+  });
+});
+
+describe("mute on a closed stretch (BUGS #109)", () => {
+  const gated = (gate, clipExtra = {}) => ({
+    ...project,
+    tracks: [{ id: "A", gate, clips: [clip("a1", 0, 10, clipExtra)] }],
+  });
+  const closed = [[3 * S, 5 * S]];
+
+  test("M on a clip with the play cursor in a closed stretch opens just that stretch", () => {
+    const plan = mutePlan(
+      state({ project: gated(closed), selection: new Set(["a1"]), playhead: 4 * S }),
+    );
+    assert.equal(plan.op, "open_gated_region");
+    assert.deepEqual(plan.args, { track_id: "A", clip_id: "a1", at: 4 * S });
+    assert.equal(plan.label.key, "ui.edit.label.unmute_region");
+  });
+
+  test("M opens only the selected clip's implicit source range after it moved", () => {
+    const clipWithSilence = clip("a1", 10, 10, {
+      offset: 0,
+      auto_silence: [[3 * S, 5 * S]],
+    });
+    const moved = { ...project, tracks: [{ id: "A", clips: [clipWithSilence] }] };
+    const plan = mutePlan(state({ project: moved, selection: new Set(["a1"]), playhead: 14 * S }));
+    assert.equal(plan.op, "open_gated_region");
+    assert.deepEqual(plan.args, { track_id: "A", clip_id: "a1", at: 14 * S });
+    assert.equal(plan.label.key, "ui.edit.label.unmute_region");
+  });
+
+  test("M uses the clicked implicit range even if the play cursor is stale", () => {
+    const clipWithSilence = clip("a1", 0, 10, { auto_silence: [[3 * S, 5 * S]] });
+    const target = { trackId: "A", clipId: "a1", range: [3 * S, 5 * S], implicit: true };
+    const plan = mutePlan(
+      state({
+        project: { ...project, tracks: [{ id: "A", clips: [clipWithSilence] }] },
+        selection: new Set(["a1"]),
+        playhead: 7 * S,
+        implicitRangeTarget: target,
+      }),
+    );
+    assert.equal(plan.op, "open_gated_region");
+    assert.deepEqual(plan.args, { track_id: "A", clip_id: "a1", at: 4 * S });
+  });
+
+  test("M on a clicked implicit range wins over expanded group selection", () => {
+    const clipWithSilence = clip("a1", 0, 10, {
+      group: "g1",
+      auto_silence: [[3 * S, 5 * S]],
+    });
+    const plan = mutePlan(
+      state({
+        project: {
+          ...project,
+          tracks: [{ id: "A", clips: [clipWithSilence, clip("a2", 12, 8, { group: "g1" })] }],
+        },
+        selection: new Set(["a1", "a2"]),
+        playhead: 7 * S,
+        implicitRangeTarget: {
+          trackId: "A",
+          clipId: "a1",
+          range: [3 * S, 5 * S],
+          implicit: true,
+        },
+      }),
+    );
+    assert.equal(plan.op, "open_gated_region");
+    assert.deepEqual(plan.args, { track_id: "A", clip_id: "a1", at: 4 * S });
+  });
+
+  test("openedRegionClip finds the clip M opened, so it can be selected for the next M", () => {
+    const after = {
+      ...project,
+      tracks: [
+        {
+          id: "A",
+          clips: [clip("a1", 0, 3), clip("a2", 3, 5, { ungated: true }), clip("a3", 5, 10)],
+        },
+      ],
+    };
+    assert.equal(openedRegionClip(after, "A", 4 * S), "a2");
+    assert.equal(openedRegionClip(after, "B", 4 * S), null);
+  });
+
+  test("openedRegionClip picks the materialized region from the clicked overlapping clip", () => {
+    const sourceClip = clip("a1", 0, 10, {
+      media: "m1",
+      auto_silence: [[3 * S, 5 * S]],
+    });
+    const after = {
+      ...project,
+      tracks: [
+        {
+          id: "A",
+          clips: [
+            clip("a1", 0, 3, { media: "m1" }),
+            clip("a2", 3, 2, { media: "m1", offset: 3 * S }),
+            clip("a3", 5, 5, { media: "m1", offset: 5 * S }),
+            clip("b1", 0, 10, { media: "m2" }),
+          ],
+        },
+      ],
+    };
+    assert.equal(openedRegionClip(after, "A", 4 * S, sourceClip), "a2");
+  });
+
+  test("the cursor in an implicit opening mutes only that opening", () => {
+    const plan = mutePlan(
+      state({ project: gated(closed), selection: new Set(["a1"]), playhead: 7 * S }),
+    );
+    assert.equal(plan.op, "open_gated_region");
+    assert.deepEqual(plan.args, { track_id: "A", clip_id: "a1", at: 7 * S, muted: true });
+  });
+
+  test("a clip that keeps the mic open or is muted already is toggled whole", () => {
+    for (const extra of [{ ungated: true }, { muted: true }]) {
+      const plan = mutePlan(
+        state({ project: gated(closed, extra), selection: new Set(["a1"]), playhead: 4 * S }),
+      );
+      assert.equal(plan.op, "set_clips");
+    }
+  });
+
+  test("more than one clip selected, the cursor in the focused track's closed stretch: just that stretch (owner, 2026-10-24)", () => {
+    const two = {
+      ...project,
+      tracks: [
+        { id: "A", gate: closed, clips: [clip("a1", 0, 10)] },
+        { id: "B", gate: closed, clips: [clip("b1", 0, 10)] },
+      ],
+    };
+    const plan = mutePlan(
+      state({ project: two, selection: new Set(["a1", "b1"]), playhead: 4 * S }),
+    );
+    assert.equal(plan.op, "open_gated_region");
+    assert.equal(plan.args.track_id, "A");
+  });
+});
+
 describe("trim (Q, W)", () => {
   test("Q trims the start of the clip under the playhead on the current track", () => {
     const plan = trimPlan(state(), "start");
@@ -288,6 +478,125 @@ describe("track mute and solo", () => {
   test("Shift+S solos exclusively; Shift+Alt+S adds to the set", () => {
     assert.deepEqual(soloPlan(state(), true).args, { track_id: "A", exclusive: true });
     assert.deepEqual(soloPlan(state(), false).args, { track_id: "A", exclusive: false });
+  });
+});
+
+describe("moving the current track", () => {
+  test("up and down send move_track with the new place", () => {
+    assert.deepEqual(trackMovePlan(state({ focusTrack: "V" }), -1).args, {
+      track_id: "V",
+      index: 0,
+    });
+    assert.deepEqual(trackMovePlan(state({ focusTrack: "V" }), 1).args, {
+      track_id: "V",
+      index: 2,
+    });
+  });
+  test("greyed at the ends and with no current track", () => {
+    assert.equal(trackMovePlan(state({ focusTrack: "A" }), -1), null);
+    assert.equal(trackMovePlan(state({ focusTrack: "M" }), 1), null);
+    assert.equal(trackMovePlan(state({ focusTrack: null }), 1), null);
+  });
+});
+
+describe("a clip's volume line (envelope)", () => {
+  const withEnvelope = {
+    ...project,
+    tracks: [
+      {
+        ...project.tracks[0],
+        clips: [
+          clip("a1", 0, 10, {
+            envelope: [
+              [0, 0],
+              [100, -6],
+              [200, 0],
+            ],
+          }),
+          clip("a2", 12, 8),
+        ],
+      },
+      ...project.tracks.slice(1),
+    ],
+  };
+  const at = (extra = {}) => state({ project: withEnvelope, ...extra });
+  test("delete the right-clicked point", () => {
+    const made = envelopeDeletePointPlan(at({ envelopePoint: { clipId: "a1", index: 1 } }));
+    assert.equal(made.op, "set_clip_envelope");
+    assert.deepEqual(made.args, {
+      clip_id: "a1",
+      points: [
+        [0, 0],
+        [200, 0],
+      ],
+    });
+  });
+  test("no point, a stale index or an unknown clip: nothing to do", () => {
+    assert.equal(envelopeDeletePointPlan(at()), null);
+    assert.equal(envelopeDeletePointPlan(at({ envelopePoint: { clipId: "a1", index: 9 } })), null);
+    assert.equal(envelopeDeletePointPlan(at({ envelopePoint: { clipId: "zz", index: 0 } })), null);
+  });
+  test("reset clears the line of the clip with a point, else of a selected clip that has one", () => {
+    assert.deepEqual(envelopeResetPlan(at({ envelopePoint: { clipId: "a1", index: 0 } })).args, {
+      clip_id: "a1",
+      points: [],
+    });
+    assert.deepEqual(envelopeResetPlan(at({ selection: new Set(["a1", "a2"]) })).args, {
+      clip_id: "a1",
+      points: [],
+    });
+    assert.equal(envelopeResetPlan(at({ selection: new Set(["a2"]) })), null);
+  });
+});
+
+describe("a track's ducking curve (automation)", () => {
+  const ducked = {
+    ...project,
+    tracks: [
+      {
+        ...project.tracks[0],
+        automation: [
+          [0, 0],
+          [100, -12],
+          [200, 0],
+        ],
+      },
+      ...project.tracks.slice(1),
+    ],
+  };
+  const at = (extra = {}) => state({ project: ducked, ...extra });
+  test("delete the right-clicked point", () => {
+    const made = automationDeletePointPlan(at({ automationPoint: { trackId: "A", index: 1 } }));
+    assert.equal(made.op, "set_track_automation");
+    assert.deepEqual(made.args, {
+      track_id: "A",
+      points: [
+        [0, 0],
+        [200, 0],
+      ],
+    });
+  });
+  test("no point, a stale index or an unknown track: nothing to do", () => {
+    assert.equal(automationDeletePointPlan(at()), null);
+    assert.equal(
+      automationDeletePointPlan(at({ automationPoint: { trackId: "A", index: 7 } })),
+      null,
+    );
+    assert.equal(
+      automationDeletePointPlan(at({ automationPoint: { trackId: "zz", index: 0 } })),
+      null,
+    );
+  });
+  test("clear empties the curve of the right-clicked track, else of the current one", () => {
+    assert.deepEqual(
+      automationClearPlan(at({ automationPoint: { trackId: "A", index: 0 } })).args,
+      {
+        track_id: "A",
+        points: [],
+      },
+    );
+    assert.deepEqual(automationClearPlan(at()).args, { track_id: "A", points: [] });
+    assert.equal(automationClearPlan(at({ focusTrack: "V" })), null);
   });
 });
 
@@ -455,4 +764,44 @@ describe("reset gains to 0 dB", () => {
     assert.equal(resetGainsPlan(state()), null);
     assert.equal(resetGainsPlan(null), null);
   });
+});
+
+test("M on an audible implicit opening mutes that portion, including legacy gates", () => {
+  for (const legacy of [false, true]) {
+    const ranges = [
+      [0, 3 * S],
+      [5 * S, 10 * S],
+    ];
+    const c = clip("a1", 0, 10, {
+      offset: 0,
+      media: "m",
+      ...(legacy ? {} : { auto_silence: ranges }),
+    });
+    const project = { tracks: [{ id: "A", gate: legacy ? ranges : [], clips: [c] }] };
+    const change = mutePlan(state({ project, selection: new Set(["a1"]), playhead: 4 * S }));
+    assert.equal(change.op, "open_gated_region");
+    assert.deepEqual(change.args, { track_id: "A", clip_id: "a1", at: 4 * S, muted: true });
+    const after = {
+      tracks: [
+        {
+          id: "A",
+          clips: [
+            { ...c, length: 3 * S },
+            {
+              ...c,
+              id: "portion",
+              start: 3 * S,
+              offset: 3 * S,
+              length: 2 * S,
+              muted: true,
+              ungated: true,
+              auto_silence: [],
+            },
+            { ...c, start: 5 * S, offset: 5 * S, length: 5 * S },
+          ],
+        },
+      ],
+    };
+    assert.equal(openedRegionClip(after, "A", 4 * S, c, legacy ? ranges : []), "portion");
+  }
 });

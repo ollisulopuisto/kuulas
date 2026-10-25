@@ -171,6 +171,7 @@
   --p-teal-32: #133a35;
   --p-teal-76: #3dc9b3;
   --p-teal-76-a16: rgb(61 201 179 / 0.16);
+  --p-teal-76-a30: rgb(61 201 179 / 0.3);
   --p-teal-80: #5ad6c2;
 
   --p-violet-26: #271f2e;
@@ -232,6 +233,7 @@
   --p-green-51-b: #167a40;
   --p-red-55-b: #c92f1b;
   --p-teal-49-a22: rgb(7 112 95 / 0.22);
+  --p-teal-49-a28: rgb(7 112 95 / 0.28);
   --p-gray-54-b: #66717a;
   --p-gray-17-b: #0b1114;
   --p-gray-18-a38: rgb(14 19 22 / 0.38);
@@ -425,12 +427,13 @@
   --ok-text: var(--p-green-40-b);
   --playhead: var(--p-red-55-b);
   --play-start: var(--p-gray-37); /* where the last play started (hollow mark) */
-  --selection-range: var(--p-teal-49-a22); /* in/out band on the scoped lanes */
+  --selection-range: var(--p-teal-49-a28); /* in/out band on the scoped lanes */
   --gain-line: var(--p-gray-18-c);
   --automation-line: var(--p-gray-30-b);
   --ruler-text: var(--p-gray-30-b);
   --ruler-tick: var(--p-gray-54-b);
   --signal-selected: var(--p-gray-17-b); /* 2 px outline: neutral, works on every hue */
+  --signal-clip-edge: var(--p-gray-25); /* neutral; >= 1.6:1 apart from every waveform */
   --signal-partner: var(--p-gray-30-b); /* dashed: what a move takes along */
   --signal-muted-hatch: var(--p-gray-18-a38);
   --signal-placeholder: var(--p-gray-30-b); /* dashed outline of narration placeholders */
@@ -574,12 +577,13 @@
     --ok-text: var(--p-green-82);
     --playhead: var(--p-red-71);
     --play-start: var(--p-gray-68);
-    --selection-range: var(--p-teal-76-a16);
+    --selection-range: var(--p-teal-76-a30);
     --gain-line: var(--p-gray-94-b);
     --automation-line: var(--p-gray-76);
     --ruler-text: var(--p-gray-76);
     --ruler-tick: var(--p-gray-44-b);
     --signal-selected: var(--p-gray-100);
+    --signal-clip-edge: var(--p-gray-48); /* between the dark body and bright waveform */
     --signal-partner: var(--p-gray-76);
     --signal-muted-hatch: var(--p-gray-94-a22);
     --signal-placeholder: var(--p-gray-76);
@@ -721,12 +725,13 @@
   --ok-text: var(--p-green-82);
   --playhead: var(--p-red-71);
   --play-start: var(--p-gray-68);
-  --selection-range: var(--p-teal-76-a16);
+  --selection-range: var(--p-teal-76-a30);
   --gain-line: var(--p-gray-94-b);
   --automation-line: var(--p-gray-76);
   --ruler-text: var(--p-gray-76);
   --ruler-tick: var(--p-gray-44-b);
   --signal-selected: var(--p-gray-100);
+  --signal-clip-edge: var(--p-gray-48); /* between the dark body and bright waveform */
   --signal-partner: var(--p-gray-76);
   --signal-muted-hatch: var(--p-gray-94-a22);
   --signal-placeholder: var(--p-gray-76);

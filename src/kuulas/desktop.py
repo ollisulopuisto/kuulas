@@ -241,6 +241,11 @@ class RunningProject:
         while not self._server.started and self._thread.is_alive():
             threading.Event().wait(0.02)
 
+    @property
+    def session(self):
+        """The project's Session: what another window of this app talks to."""
+        return self._session
+
     def summary(self) -> dict:
         """Track count and length (seconds) of the project as it is now. Never raises."""
         try:
@@ -356,6 +361,9 @@ class Bridge:
         #: Opens a folder in a window of its own (``WindowApp._open_one``); None when the
         #: bridge has no app around it, then the folder opens in this window.
         self._opener = None
+        #: The ``WindowApp`` this window belongs to (the other windows are reached through
+        #: it); None when the bridge stands alone.
+        self._app = None
 
     @property
     def project_folder(self) -> str | None:
@@ -515,6 +523,10 @@ class Bridge:
         if not isinstance(folder, str) or not folder.strip() or "\0" in folder:
             return False
 
+        # A project another window already shows comes forward instead (two writers on one
+        # history would fork it).
+        if self._app is not None and self._app.bring_forward_if_open(folder):
+            return True
         try:
             # Not resolve(): a symlinked folder (a Dropbox link) keeps the chosen path.
             folder_path = Path(folder).expanduser()
@@ -608,6 +620,36 @@ class Bridge:
         self.show_launcher()
         return True
 
+    def other_windows(self) -> list[dict]:
+        """The other windows of this app that show a project, as ``{folder, name}``:
+        where Edit > Clipboard > Copy to other window can send an entry."""
+        if self._app is None:
+            return []
+        return [{"folder": b.project_folder, "name": Path(b.project_folder).stem}
+                for b in self._app.project_windows() if b is not self]
+
+    def send_to_window(self, folder: str, entry: dict) -> dict:
+        """Put ``entry`` (a clipboard view of this project) on the clipboard of the
+        project open in another window of this app, and tell that window so it can say
+        what came and how to paste it. The adopted copy is the other project's own (the
+        normal paste, with its recording check, then works); this project's entry stays.
+        ``{ok: False, reason: "gone"}`` when no such other window is open any more."""
+        target = None
+        if self._app is not None:
+            target = next((b for b in self._app.project_windows()
+                           if b is not self and b.project_folder == folder), None)
+        if target is None or self._project is None:
+            return {"ok": False, "reason": "gone"}
+        view = target._project.session.clipboard_adopt(entry, self._project.folder)
+        note = {"from": Path(self._project.folder).stem, "entry": view}
+        try:
+            target._window.evaluate_js(
+                "window.kuulasClipboardArrived&&window.kuulasClipboardArrived("
+                f"{json.dumps(note)})")
+        except Exception as e:  # noqa: BLE001 - the entry is there; the page may be mid-load
+            log.debug("tell the other window: %s", e)
+        return {"ok": True, "name": Path(target.project_folder).stem}
+
     def minimise(self) -> None:
         """View > Minimise (Cmd+M): the window goes to the Dock."""
         if self._window is not None:
@@ -696,6 +738,14 @@ def install_open_files_hook(callback, platform: str | None = None, objc: Any = .
     return True
 
 
+def _same_folder(a: str, b: str) -> bool:
+    """Whether two paths name one folder (symlinks and aliases followed)."""
+    try:
+        return Path(a).resolve() == Path(b).resolve()
+    except (OSError, RuntimeError, ValueError):
+        return a == b
+
+
 class WindowApp:
     """The windows of one running app: the first is the launcher (or the project
     given on the command line); a project opened later, from Finder or the Dock,
@@ -721,6 +771,7 @@ class WindowApp:
             width=1400, height=900, min_size=(900, 600))
         bridge._window = window
         bridge._opener = self._open_one
+        bridge._app = self
 
         def drop_handlers() -> None:
             # Registered on every page load: a navigation replaces the document.
@@ -740,6 +791,11 @@ class WindowApp:
             self._bridges.append(bridge)
         return bridge
 
+    def project_windows(self) -> list[Bridge]:
+        """The windows that show a project now (not the launcher page)."""
+        with self._lock:
+            return [b for b in self._bridges if b.project_folder is not None]
+
     def ready(self) -> None:
         """The first window exists: open what arrived while it did not."""
         with self._lock:
@@ -757,13 +813,23 @@ class WindowApp:
         for folder in projects:
             self._open_one(folder)
 
-    def _open_one(self, folder: str) -> None:
-        log.info(t("log.desktop.opening", path=folder))
+    def bring_forward_if_open(self, folder: str) -> bool:
+        """Bring the window that shows ``folder`` forward; False when none does. The
+        same folder reached by a symlink, an alias or a trailing slash is the same
+        project, so the paths are compared resolved."""
         with self._lock:
             for bridge in self._bridges:
-                if bridge.project_folder == folder:
+                if bridge.project_folder is not None and _same_folder(
+                        bridge.project_folder, folder):
                     self._bring_forward(bridge)
-                    return
+                    return True
+        return False
+
+    def _open_one(self, folder: str) -> None:
+        log.info(t("log.desktop.opening", path=folder))
+        if self.bring_forward_if_open(folder):
+            return
+        with self._lock:
             bridge = next((b for b in self._bridges if b.project_folder is None), None)
         if bridge is None:
             bridge = self.new_window()

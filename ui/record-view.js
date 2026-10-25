@@ -9,6 +9,7 @@
 //
 // Decisions live in record-model.js and stop-mode.js (pure, tested); this file draws and wires.
 import { enhanceDialog } from "./dialog-keys.js";
+import { createLiveTake } from "./live-take.js";
 import { createPeakHold } from "./peak-hold.js";
 import {
   ARM_KEEPALIVE_MS,
@@ -19,6 +20,8 @@ import {
   prerollLabel,
 } from "./preroll.js";
 import {
+  cartTrackChoices,
+  cartTrackWarning,
   channelPeaks,
   formatElapsed,
   importedMessage,
@@ -27,6 +30,7 @@ import {
   pickDevice,
   recordKeyAction,
   recordPhase,
+  replacedMessage,
   selectedLanes,
   startProblem,
   startRequest,
@@ -69,9 +73,21 @@ function stopIcon() {
 /**
  * `api`: getRecordStatus, getRecordDevices, startRecording, stopRecording, importTakes.
  * `getState()` -> the app state (project, playhead); `apply(response)` takes a server state
- * answer; `notify(text, kind, options)` is the app's notice; `chip` the toolbar's indicator.
+ * answer; `notify(text, kind, options)` is the app's notice; `chip` the toolbar's indicator;
+ * `addMarker()` adds a marker at the take's place now (the Marker button; BUGS #106);
+ * `onLive()` is called when the take drawn on the timeline (live-take.js) has changed.
  */
-export function createRecordView({ api, t, prefs, getState, apply, notify, chip }) {
+export function createRecordView({
+  api,
+  t,
+  prefs,
+  getState,
+  apply,
+  notify,
+  chip,
+  addMarker = () => {},
+  onLive = () => {},
+}) {
   let status = null;
   let devices = null;
   let deviceError = "";
@@ -83,6 +99,15 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
   let stopping = false;
   let frame = null;
   let position = 0;
+  // Where clips played from the cart go while the take records ("" none, "new", a track id).
+  const CART_KEY = "kuulas.record.cart";
+  const OTHERS_KEY = "kuulas.record.playOthers";
+  const DELAY_KEY = "kuulas.record.delayMs";
+  let playOthers = prefs.get(OTHERS_KEY) === "1";
+  let delayMs = Number(prefs.get(DELAY_KEY)) || 0;
+  let cartTrack = String(prefs.get(CART_KEY) ?? "");
+  // The take drawn on the timeline lanes while it records (owner, 2026-10-23).
+  const liveTake = createLiveTake();
   const notices = [];
   // One level meter per channel (WP12b): the setup's while armed (by channel number) and the
   // take's while recording (in the recorder's order, which is channel order).
@@ -164,6 +189,11 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
   const phase = () => (stopping ? "recording" : recordPhase(status));
   const recording = () => phase() === "recording";
   const rate = () => status?.rate ?? getState().project?.rate ?? 48000;
+  /** The stop notice, with what the take replaced when it went over existing audio. */
+  const withReplaced = (text, result) => {
+    const extra = replacedMessage(result, rate(), t);
+    return extra ? `${text} ${extra}` : text;
+  };
   // The take's clock starts at the pre-roll; "Recorded" counts from where Record was pressed.
   const shownPosition = () => Math.max(0, position - (status?.preroll_frames ?? 0));
 
@@ -191,6 +221,37 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
     setup.channels.append(el("legend", "form-heading", t("ui.record.channels")));
     box.append(setup.channels);
     setup.preroll = row(t("ui.record.preroll"), el("select"));
+    // The track clips played from the cart go on while the take records (cart-model.js).
+    setup.cart = row(t("ui.record.cart_track"), el("select"));
+    setup.cartWarn = el("p", "record-message record-cart-warning");
+    setup.cartWarn.setAttribute("role", "status");
+    box.append(setup.cartWarn);
+    // Play the other tracks while recording (off by default; headphones), and the delay to
+    // cut from the take's head so it lines up with what was heard.
+    const othersBox = el("input");
+    othersBox.type = "checkbox";
+    setup.others = row(t("ui.record.play_others"), othersBox);
+    setup.othersBox = othersBox;
+    const delayBox = el("input");
+    delayBox.type = "number";
+    delayBox.min = "0";
+    delayBox.max = "2000";
+    delayBox.step = "1";
+    setup.delay = row(t("ui.record.delay_ms"), delayBox);
+    setup.delayBox = delayBox;
+    setup.othersHelp = el("p", "record-message", t("ui.record.play_others_help"));
+    box.append(setup.othersHelp);
+    othersBox.checked = playOthers;
+    delayBox.value = String(delayMs);
+    othersBox.addEventListener("change", () => {
+      playOthers = othersBox.checked;
+      prefs.set(OTHERS_KEY, playOthers ? "1" : "0");
+    });
+    delayBox.addEventListener("change", () => {
+      delayMs = Math.min(2000, Math.max(0, Number(delayBox.value) || 0));
+      delayBox.value = String(delayMs);
+      prefs.set(DELAY_KEY, String(delayMs));
+    });
     setup.armed = el("p", "record-armed");
     setup.armed.setAttribute("role", "status");
     setup.at = el("p", "record-at");
@@ -207,6 +268,11 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
       void syncArm();
     });
     setup.preroll.addEventListener("change", () => setPreroll(setup.preroll.value));
+    setup.cart.addEventListener("change", () => {
+      cartTrack = setup.cart.value;
+      prefs.set(CART_KEY, cartTrack);
+      fillSetup();
+    });
     setup.record.addEventListener("click", () => void start());
     return box;
   }
@@ -293,6 +359,29 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
     syncRows();
   }
 
+  /** The cart's track choice: the remembered one while it is still a choice, and the warning. */
+  function fillCart(state) {
+    const choices = cartTrackChoices(state.project, rows);
+    setup.cart.replaceChildren(
+      ...choices.map(
+        (c) =>
+          new Option(
+            c.value === ""
+              ? t("ui.record.cart_none")
+              : c.value === "new"
+                ? t("ui.record.cart_new")
+                : c.name,
+            c.value,
+          ),
+      ),
+    );
+    if (!choices.some((c) => c.value === cartTrack)) cartTrack = "";
+    setup.cart.value = cartTrack;
+    const warn = cartTrackWarning(state.project, cartTrack, state.playhead ?? 0);
+    setup.cartWarn.textContent = warn ? t("ui.record.cart_warning") : "";
+    setup.cartWarn.hidden = !warn;
+  }
+
   function fillSetup() {
     const state = getState();
     const list = devices ?? [];
@@ -308,6 +397,7 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
     );
     if (chosen) setup.device.value = String(list.indexOf(chosen));
     fillRows();
+    fillCart(state);
     setup.preroll.replaceChildren(
       ...PREROLL_CHOICES.map((s) => new Option(prerollLabel(s, t), String(s))),
     );
@@ -401,13 +491,29 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
       // Armed for these very settings, or the take would have no pre-roll.
       if (preroll > 0) await syncArm();
       const answer = await api.startRecording(
-        startRequest({ device, lanes: selectedLanes(rows), at: getState().playhead ?? 0 }),
+        startRequest({
+          device,
+          lanes: selectedLanes(rows),
+          at: getState().playhead ?? 0,
+          cartTrack,
+          playOthers,
+          latencyMs: delayMs,
+        }),
       );
       notices.length = 0;
       position = 0;
       liveMeters = [];
       liveKey = "";
       setStatus(answer);
+      // The new tracks of the take exist now (record_session.py _make_tracks): show them, and
+      // step aside so the timeline, where the take is drawn, is in front. The toolbar chip
+      // brings the dialog (and Stop) back.
+      try {
+        apply(await api.getState());
+      } catch (error) {
+        notify(error.message);
+      }
+      hide();
     } catch (error) {
       setup.message.textContent = error.message;
       setup.record.disabled = false;
@@ -426,6 +532,10 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
     rec.preroll = el("p", "record-preroll-note");
     rec.notices = el("ul", "record-notices");
     rec.notices.setAttribute("aria-live", "assertive");
+    rec.marker = el("button", "button record-marker", t("ui.record.add_marker"));
+    rec.marker.type = "button";
+    rec.marker.title = t("ui.record.add_marker_title");
+    rec.marker.addEventListener("click", () => addMarker());
     rec.stop = el("button", "record-stop");
     rec.stop.type = "button";
     rec.stop.append(stopIcon());
@@ -448,6 +558,7 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
       rec.meters,
       rec.disk,
       rec.notices,
+      rec.marker,
       rec.stop,
       rec.stopHelp,
     );
@@ -478,6 +589,7 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
     rec.ring.style.strokeDasharray = `${RING}`;
     rec.ring.style.strokeDashoffset = `${RING * (1 - fill)}`;
     rec.stop.disabled = stopping;
+    renderSlim?.();
   }
 
   function renderNotices() {
@@ -551,7 +663,8 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
       apply(response);
       stopping = false;
       const imported = response.record?.imported;
-      if (imported) notify(importedMessage(imported, t), "ok", { undo: true });
+      if (imported)
+        notify(withReplaced(importedMessage(imported, t), imported), "ok", { undo: true });
       newGesture();
       setStatus(await api.getRecordStatus());
       if (dialog.open) dialog.close();
@@ -638,11 +751,46 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
     renderChip();
   }
 
+  // The slim recording bar (owner, 2026-10-25): next to the chip, always in reach while the
+  // big view is hidden: Stop (the same gesture as the big button) and Add marker.
+  const slim = chip ? el("span", "record-slim") : null;
+  const slimStop = slim ? el("button", "button record-slim-stop") : null;
+  const slimMarker = slim
+    ? el("button", "button record-slim-marker", t("ui.record.add_marker"))
+    : null;
+  if (slim) {
+    slimStop.type = "button";
+    slimMarker.type = "button";
+    slimMarker.title = t("ui.record.add_marker_title");
+    slimMarker.addEventListener("click", () => addMarker());
+    slimStop.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      slimStop.setPointerCapture?.(event.pointerId);
+      press();
+    });
+    for (const type of ["pointerup", "pointercancel", "lostpointercapture"])
+      slimStop.addEventListener(type, () => release());
+    slim.append(slimStop, slimMarker);
+    slim.hidden = true;
+    chip.after(slim);
+  }
+
+  function renderSlim() {
+    if (!slim) return;
+    slim.hidden = !recording();
+    const label = stopping ? t("ui.record.stopping") : stopLabel(gestureView, stopMode, t);
+    slimStop.textContent = label;
+    slimStop.dataset.state = stopping ? "stopped" : gestureView.state;
+    slimStop.setAttribute("aria-label", label);
+    slimStop.disabled = stopping;
+  }
+
   function renderChip() {
     if (!chip) return;
     chip.hidden = !recording();
     chip.textContent = t("ui.record.indicator", { time: formatElapsed(shownPosition(), rate()) });
     chip.title = t("ui.record.indicator_title");
+    renderSlim();
   }
   chip?.addEventListener("click", () => show());
 
@@ -651,12 +799,23 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
     status = next;
     if (next?.recording && next.ours) {
       position = Math.max(position, next.position_frames ?? 0);
+      if (!liveTake.active) {
+        liveTake.begin({
+          at: next.plan?.at ?? 0,
+          preroll: next.preroll_frames ?? 0,
+          lanes: (next.plan?.lanes ?? []).map((lane) => ({ trackId: lane.track_id })),
+        });
+      }
       if (!wasRecording) {
         notices.splice(0, notices.length, ...(next.notices ?? []));
         newGesture();
       }
     } else if (!stopping) {
       position = 0;
+      if (liveTake.active) {
+        liveTake.reset();
+        onLive();
+      }
       if (wasRecording) {
         // Over without us (another window, a full disk): the view has nothing left to show.
         newGesture();
@@ -713,7 +872,7 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
             const response = await api.importTakes(pending.map((p) => p.take));
             apply(response);
             for (const result of response.imported ?? [])
-              notify(importedMessage(result, t), "ok", { undo: true });
+              notify(withReplaced(importedMessage(result, t), result), "ok", { undo: true });
           } catch (error) {
             notify(error.message);
           }
@@ -731,6 +890,11 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
       return preroll;
     },
     isRecording: recording,
+    /** The take so far, as peaks per lane (live-take.js), for the timeline to draw. */
+    liveTake,
+    /** Where the take is on the timeline now (its start plus what was recorded, pre-roll
+     *  not counted: where the take's clips will put this moment), or null when not recording. */
+    liveFrame: () => (recording() ? (status?.plan?.at ?? 0) + shownPosition() : null),
     setStopMode,
     setPreroll,
     /** Ask the server again (after the live channel was down). */
@@ -774,6 +938,11 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
           return;
         }
         position = message.position_frames ?? position;
+        liveTake.push(
+          message.position_frames,
+          Array.from({ length: message.peak_dbfs?.length ?? 0 }, (_, i) => message.peak_dbfs[i]),
+        );
+        onLive();
         const readings = channelPeaks(message, liveMeters.length);
         liveMeters.forEach((meter, i) => {
           feedMeter(meter, readings[i]);
@@ -789,7 +958,7 @@ export function createRecordView({ api, t, prefs, getState, apply, notify, chip 
       } else if (message.kind === "imported") {
         // A take that ended by itself (disk full) or was stopped from another window.
         if (!stopping) {
-          notify(importedMessage(message, t), "ok", { undo: true });
+          notify(withReplaced(importedMessage(message, t), message), "ok", { undo: true });
           if (dialog.open && !recording()) dialog.close();
         }
       } else if (message.kind === "pending") {

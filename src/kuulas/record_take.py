@@ -189,6 +189,10 @@ class TakePlan:
     #: Every channel of the take; empty for a plan written before WP12b, which is one
     #: lane made of the fields above (``all_lanes``). Those fields stay the first lane's.
     lanes: tuple[Lane, ...] = ()
+    #: Frames cut from the head of every file when it lands: the delay between what the
+    #: performer heard (the other tracks, played while recording) and what the take
+    #: captured. The files are never changed. 0 for a plan written before this field.
+    latency_frames: int = 0
 
     @property
     def all_lanes(self) -> tuple[Lane, ...]:
@@ -245,7 +249,8 @@ def read_plan(folder: Path, take: str) -> TakePlan | None:
 
         return TakePlan(take=take_val, at=int(raw["at"]), track_id=track_id,
                         track_name=track_name, channel=channel,
-                        device=device, lanes=tuple(lanes))
+                        device=device, lanes=tuple(lanes),
+                        latency_frames=max(0, int(raw.get("latency_frames") or 0)))
     except (OSError, ValueError, KeyError, TypeError):
         return None
 

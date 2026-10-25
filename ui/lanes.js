@@ -1,8 +1,11 @@
 // Lane layout and hit testing: where rows are and what is under a pointer.
 // Pure (no DOM), so the same numbers serve the canvas, the track headers
 // beside it and the tests.
+
+import { implicitPortions } from "./clip-silence.js";
 import { frameToX, xToFrame } from "./format.js";
 import { stretchAt } from "./gate.js";
+import { markerIdAtX } from "./markers-model.js";
 import { placeholderAt } from "./placeholders-model.js";
 
 export const RULER_HEIGHT = 24;
@@ -236,8 +239,14 @@ export function hitTest({ layout, project, view, x, y }) {
     point: null,
     gate: null,
     placeholder: null,
+    autoPoint: null,
   };
-  if (y < RULER_HEIGHT) return { ...miss, area: y >= 0 ? "ruler" : "none" };
+  if (y < RULER_HEIGHT)
+    return {
+      ...miss,
+      area: y >= 0 ? "ruler" : "none",
+      marker: y >= 0 ? markerIdAtX(project.markers, view, x) : null,
+    };
   const inContent = y - RULER_HEIGHT + view.scrollY;
   const row = rowAt(layout, inContent);
   // Below the last row is still lane area: a click there sets the cursor.
@@ -253,6 +262,7 @@ export function hitTest({ layout, project, view, x, y }) {
   const hit = { ...miss, area: "lane", row, gate, placeholder };
   if (row.kind !== "track") return hit;
   const rowY = inContent - row.top;
+  hit.autoPoint = automationPointAt(track, view, x, rowY, row.height);
   let best = null;
   for (const clip of track?.clips ?? []) {
     const left = frameToX(clip.start, view.scroll, view.zoom);
@@ -274,7 +284,37 @@ export function hitTest({ layout, project, view, x, y }) {
   }
   if (!best) return hit;
   const point = envelopePointAt(best.clip, view, x, rowY, row.height);
-  return { ...hit, clip: best.clip, edge: best.edge, point };
+  const portions = view.showGates === false ? [] : implicitPortions(best.clip, track.gate);
+  const portionFrame = Math.max(best.clip.start, Math.min(frame, clipEnd(best.clip) - 1));
+  const portion = portions.find(({ range: [a, b] }) => a <= portionFrame && portionFrame < b);
+  let implicitRange = null;
+  let edge = best.edge;
+  if (portion) {
+    const [start, end] = portion.range;
+    const toStart = Math.abs(x - frameToX(start, view.scroll, view.zoom));
+    const toEnd = Math.abs(x - frameToX(end, view.scroll, view.zoom));
+    if (Math.min(toStart, toEnd) <= EDGE_PX) {
+      edge = toStart <= toEnd ? "start" : "end";
+      implicitRange = portion.range;
+    }
+  }
+  const implicit = portion
+    ? {
+        trackId: row.id,
+        clipId: best.clip.id,
+        index: portions.indexOf(portion),
+        ...portion,
+        implicit: true,
+      }
+    : null;
+  return {
+    ...hit,
+    clip: best.clip,
+    edge,
+    point,
+    ...(implicitRange ? { implicitRange } : {}),
+    gate: implicit ?? gate,
+  };
 }
 
 /**
@@ -283,6 +323,26 @@ export function hitTest({ layout, project, view, x, y }) {
  */
 export function paintOrder(clips) {
   return [...(clips ?? [])].sort((a, b) => b.length - a.length);
+}
+
+/**
+ * The index of the track's ducking (automation) point within POINT_PX of the pointer, or null.
+ * The geometry is timeline.js drawAutomation's: a line in the lower third of a lane that is
+ * at least 40 px high, 0 dB at the top of the band, -24 dB at its foot.
+ */
+export function automationPointAt(track, view, x, rowY, rowHeight) {
+  if (!track?.automation?.length || rowHeight < 40) return null;
+  const bottom = rowHeight - 3;
+  const band = rowHeight / 3 - 4;
+  let nearest = null;
+  for (const [index, [frame, db]] of track.automation.entries()) {
+    const px = frameToX(frame, view.scroll, view.zoom);
+    const py = bottom - band * (1 - Math.max(-24, Math.min(0, db)) / -24);
+    const distance = Math.hypot(px - x, py - rowY);
+    if (distance <= POINT_PX && (!nearest || distance < nearest.distance))
+      nearest = { index, distance };
+  }
+  return nearest ? nearest.index : null;
 }
 
 function envelopePointAt(clip, view, x, rowY, rowHeight) {

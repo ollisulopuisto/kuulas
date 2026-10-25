@@ -131,9 +131,13 @@ def test_accept_commits_the_previewed_ranges_as_one_undo_step(session, tmp_path)
     preview = session.silence_preview_ranges({"margin_db": 8})
     session.silence_accept({"margin_db": 8, "key": preview["key"]})
     assert len(session.history.nodes()) == steps + 1
+    expected = analysis.apply_silence(before, {
+        row["track_id"]: tuple(tuple(r) for r in row["ranges"])
+        for row in preview["tracks"]
+    })
     for row in preview["tracks"]:
-        gate = session.state.track(row["track_id"]).gate
-        assert [list(r) for r in gate] == row["ranges"]
+        track_id = row["track_id"]
+        assert session.state.track(track_id) == expected.track(track_id)
     session.undo()
     assert session.state == before
 
@@ -194,7 +198,7 @@ def test_the_routes_measure_preview_listen_and_accept(session, tmp_path, client)
     r = client.post("/api/silence/accept", json={"margin_db": 9, "key": r.json()["key"]})
     assert r.status_code == 200
     assert client.engine.overlays[-1] is None
-    assert all(t.gate for t in session.state.tracks)
+    assert all(any(c.auto_silence for c in t.clips) for t in session.state.tracks)
 
 
 def test_an_older_answer_does_not_replace_a_newer_overlay(session, tmp_path, client):

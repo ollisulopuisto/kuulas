@@ -69,3 +69,5 @@ An editing key (cut, delete, split, mute, copy and the rest) that has nothing to
 {key:help.open} opens help for what you are looking at; {key:help.keys} lists every key.
 
 See also [[clip]] and [[track]].
+
+While you move a clip, hold the command key (the control key on Windows and Linux) to make its edges snap to the volume automation too: the ends of a ducking ramp (a level change of 3 dB or more), the level changes of other clips' envelopes and the edges of the stretches Auto-Silence closed. Small marks along the top of the lanes show where; let go of the key and they go away.

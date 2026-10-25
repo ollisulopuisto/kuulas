@@ -1350,7 +1350,7 @@ Hardware test `tests/hardware/test_record.py` for Mac, then Windows.
 **Sub-packages named 2026-10-19 (owner requests):**
 - **WP12d** voiceover take notes (marks and notes while recording, per-take notes, notes anchored to words).
 - **WP12e** Recordings list: every take of the project is listed (File menu), used or not, and can be put back at any time; Restore: to a new track at its original position (default, never replaces anything), to the playhead, to the original position, or to the clipboard. Needs the take's timeline position and track in its `.take.json` (`take_position.py`, built), the list model (`take_list.py`, built) and the placement plan (`take_restore.py`, built). Ground rule 17.
-- **WP12f** Self-describing take file names (`take_filename.py` built: `YYYY-MM-DD HH-MM-SS <project> - <track> - <take>`, only for new takes, never renaming existing files) and live waveforms while recording (`ui/live-wave.js` built; the drawing is open).
+- **WP12f** Self-describing take file names (`take_filename.py` built: `YYYY-MM-DD HH-MM-SS <project> - <track> - <take>`, only for new takes, never renaming existing files) and live waveforms while recording (`ui/live-wave.js` built; the drawing on the timeline lanes built 2026-10-23, `ui/live-take.js` + `drawLiveTake` in `ui/timeline.js`: peaks from the recorder's level events, not seen on screen).
 
 ### WP13 — Hindenburg session import
 
@@ -2924,17 +2924,28 @@ the export guard counts unrecorded placeholders.
 
 ### WP44 — Auto-Silence as merged gate ranges
 
-Status: backend done in v26.10.18.5 (`gate.py`, `Track.gate`, ops, the mixer ramp, audibility everywhere, format version 3 with `min_reader` raised per project); gate bands and "Open this stretch" in the editor done in v26.10.18.7 (a per-lane toggle and a context menu are open) (owner decision 2026-10-17: "measure the need to mute very often,
-but the muted region should be merged"). Needs WP1. Sonnet 5.5. Do it before the
-soft-cut work (cut-keeping-the-gap, see the architect's note in the session log
-and the open questions in `docs/handoffs/`), and before any long-session use.
+Status: the original merged-gate implementation shipped in v26.10.18.5–.7.
+Its per-track storage policy was superseded by the owner update below on
+2026-10-24; `Track.gate` remains only for older projects and legacy edits.
+
+**Owner update 2026-10-24:** Auto-Silence ranges now belong to the clips they
+were measured on, in source frames, so moving a different clip into the same
+timeline area does not mute it. Ranges remain implicit until the user changes
+one; M and edge dragging materialize only that portion as an ordinary clip.
+In v26.10.24.3 both audible openings and closed stretches are portion targets;
+materialized clips leave their parent group and stay exempt from later
+Auto-Silence runs. Double-click remains reserved for envelope and other
+specialized actions, with no clip-body mute binding.
+Legacy `Track.gate` remains readable. Transcript follow unlocks on manual
+scroll during playback and stays unlocked until Follow is pressed. Clip borders
+use a neutral token independent of waveform color.
 
 **Problem.** `analysis.auto_silence` calls `ops.mute_ranges` for every closed
 stretch, and each call splits the clip. A 1-hour 4-mic conversation gives
 thousands of pieces (an estimate: 5,000 to 10,000; measured 69 ms to pack a state
 at 8,000 pieces, over the 50 ms edit budget, and about 119 KB per history step).
 
-**Rule.** The measurement stays fine (hop by hop, every mic against the others,
+**Original rule (historical).** The measurement stayed fine (hop by hop, every mic against the others,
 bleed included). The result is **merged**:
 1. In `silence_ranges`, after combining "no talk" with the ducked (bleed) mask,
    close every open stretch shorter than `MIN_OPEN_S` (start with 0.4 s) and drop

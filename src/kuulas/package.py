@@ -54,17 +54,20 @@ log = logging.getLogger("kuulas.package")
 
 FORMAT_NAME = "kuulas-project"
 #: The format this code writes. Rises with every format change.
-VERSION = 3
+VERSION = 4
 #: The newest ``min_reader`` this code can read: a manifest asking for more
 #: is refused. Equal to ``VERSION``, since every format change this reader
 #: knows is one it can read.
-READER = 3
+READER = 4
 #: What a project asks of a reader until something in it needs more.
 BASE_READER = 1
 #: A project holding a gate (WP44, format version 3) asks for this. An old
 #: reader would keep the field in ``extra`` and play the track ungated, which
 #: is audible, so it must refuse instead of guessing.
 GATE_READER = 3
+#: A clip carrying Auto-Silence ranges needs this reader; older readers ignore the
+#: additive clip field and would play that portion audibly.
+CLIP_SILENCE_READER = 4
 
 #: The lock is rewritten this often while the project is open. A minute, not
 #: 30 s: every write is sync traffic.
@@ -267,7 +270,7 @@ def _lock_holder(folder: Path, now: datetime, instance: str = "") -> dict | None
     """
     holder, holder_age = None, 0.0
     for path, lock in _all_locks(folder):
-        if lock.get("instance") == instance or _is_mine(lock):
+        if lock.get("instance") == instance:
             continue
         age = (now - _parse_iso(lock["heartbeat_utc"])).total_seconds()
         here = lock.get("host") == _hostname()
@@ -609,6 +612,7 @@ class Package:
         self._backed_up = self._changes()
         self._checkpointed = self._seen = self._backed_up
         self.history.on_gate = self._need_gate_reader
+        self.history.on_clip_silence = self._need_clip_silence_reader
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         # One background compressor at a time; a backup made while it runs
@@ -631,6 +635,13 @@ class Package:
         if int(self.manifest.get("min_reader", BASE_READER)) >= GATE_READER:
             return
         self.manifest = {**self.manifest, "min_reader": GATE_READER}
+        write_manifest(self.path, self.manifest)
+
+    def _need_clip_silence_reader(self) -> None:
+        """Require a reader that applies clip-attached Auto-Silence before writing it."""
+        if int(self.manifest.get("min_reader", BASE_READER)) >= CLIP_SILENCE_READER:
+            return
+        self.manifest = {**self.manifest, "min_reader": CLIP_SILENCE_READER}
         write_manifest(self.path, self.manifest)
 
     def _changes(self) -> int:
@@ -886,9 +897,8 @@ def _upgrade(folder: Path, manifest: dict | None) -> dict:
         for key in ("id", "copy", "lineage", "created_utc"):
             if key in manifest:
                 new[key] = manifest[key]
-        # What the project already asks of a reader stays (a gate was written).
-        new["min_reader"] = max(int(manifest.get("min_reader", BASE_READER)),
-                                BASE_READER)
+        # What the project already asks of a reader stays; edits can only raise it.
+        new["min_reader"] = max(int(manifest.get("min_reader", BASE_READER)), BASE_READER)
     write_manifest(folder, new)
     migrations.cleanup_v0(folder)
     return new

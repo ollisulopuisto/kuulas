@@ -1,5 +1,5 @@
 // Track > Auto > Level blocks…: the measured blocks as rows the dialog lists, what is ticked
-// and what Apply sends, pure (the dialog is block-level-dialog.js; the rule is
+// and what Apply sends, pure (the dialog is block-level-panel.js; the rule is
 // src/kuulas/block_level.py, which takes speechmix.blocks and sets clip gains).
 
 /** The message key for a measurement that has nothing to show or apply, else null. */
@@ -89,3 +89,16 @@ export function ruleText(result, t, fmt) {
     boost: fmt(result.max_boost_db),
   });
 }
+
+/**
+ * The panel stays open while you edit (it is not a modal). Phases: idle, measuring, ready (a
+ * result you can Apply), stale (the project changed after the measuring started, so the
+ * result no longer fits: Apply stays off until you measure again), failed.
+ * An edit makes a measuring or ready panel stale; the rest are unchanged.
+ */
+export function phaseAfterEdit(phase) {
+  return phase === "measuring" || phase === "ready" ? "stale" : phase;
+}
+
+/** Apply is on only for a result that still fits the project. */
+export const canApply = (phase) => phase === "ready";

@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { resolveKeymap } from "../keymap-config.js";
-import { createModifierTracker, heldFromEvent, modifierLayers, pickLayer } from "../modifiers.js";
+import {
+  createModifierTracker,
+  heldFromEvent,
+  modClick,
+  modifierLayers,
+  pickLayer,
+} from "../modifiers.js";
 
 // Parked keys (lift-cut on Alt+X) are used here only as fixture data; they are not shipped.
 const FIXTURE = [
@@ -150,5 +156,17 @@ describe("the modifier tracker", () => {
     const tracker = createModifierTracker({ platform: "other" });
     tracker.update(ev({ ctrlKey: true, altKey: true, getModifierState: (k) => k === "AltGraph" }));
     assert.deepEqual(tracker.held(), { alt: false, shift: false, mod: false });
+  });
+});
+
+describe("modClick: the platform's add-to-selection modifier on a pointer event", () => {
+  test("Cmd on a Mac; Ctrl+click is the context menu there, never add", () => {
+    assert.equal(modClick(ev({ metaKey: true }), "mac"), true);
+    assert.equal(modClick(ev({ ctrlKey: true }), "mac"), false);
+  });
+
+  test("Ctrl elsewhere; the Windows key does not count", () => {
+    assert.equal(modClick(ev({ ctrlKey: true }), "other"), true);
+    assert.equal(modClick(ev({ metaKey: true }), "other"), false);
   });
 });

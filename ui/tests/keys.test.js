@@ -152,6 +152,14 @@ describe("the core keys", () => {
     }
   });
 
+  test(". toggles fast listening in every focus context, the transcript included", () => {
+    for (const context of ["timeline", "transcript", "side"]) {
+      const { keymap, calls } = setup({ context });
+      keymap.handle(press({ key: ".", code: "Period" }));
+      assert.deepEqual(calls, [["transport.speed"]], context);
+    }
+  });
+
   test("a held Space does not flip playback back and forth", () => {
     const { keymap, calls } = setup();
     const event = press({ code: "Space", repeat: true });

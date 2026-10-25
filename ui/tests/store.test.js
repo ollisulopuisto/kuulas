@@ -48,7 +48,15 @@ describe("client state", () => {
       canUndo: true,
       canRedo: false,
       missingMedia: new Set(),
+      readOnly: null,
     });
+  });
+
+  test("a project held elsewhere carries who holds it; one you can edit clears it", () => {
+    const note = { host: "Studio-Mac", user: "olli", opened_utc: "2026-10-23T11:05:00Z" };
+    assert.deepEqual(serverPatch({ project: { tracks: [] }, read_only: note }).readOnly, note);
+    assert.equal(serverPatch({ project: { tracks: [] } }).readOnly, null);
+    assert.equal("readOnly" in serverPatch({ head: "h" }), false, "no project: unchanged");
   });
 
   test("the media whose file is missing become a Set the timeline draws them from", () => {

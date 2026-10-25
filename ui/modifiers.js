@@ -23,6 +23,10 @@ export function heldFromEvent(event, platform = "other") {
   };
 }
 
+/** The add-to-selection / trim-one modifier on a pointer event: Cmd on a Mac (Ctrl+click is the
+ * context menu there), Ctrl elsewhere. */
+export const modClick = (event, platform) => heldFromEvent(event, platform).mod;
+
 const same = (a, b) => a.alt === b.alt && a.shift === b.shift && a.mod === b.mod;
 
 /**

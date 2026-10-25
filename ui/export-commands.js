@@ -19,6 +19,13 @@ export const CHAPTER_EXPORTS = [
   { id: "export.chapters_json", path: "/api/chapters?style=json", file: "chapters.json" },
 ];
 
+// The cut list (src/kuulas/cut_list.py): where the audio edit jumps, for a video rough cut.
+export const CUT_LIST_EXPORT = {
+  id: "export.cut_list",
+  path: "/api/cut-list",
+  file: "cut-list.json",
+};
+
 /** The file name in a Content-Disposition header, else the fallback. */
 export function filenameFromDisposition(header, fallback) {
   // filename* (RFC 5987) holds the real UTF-8 name; filename="" is its ASCII fallback.
@@ -145,6 +152,14 @@ export function registerExportCommands(registry, { app, t }) {
       { can: hasChapters, hintKey: `cmd.${id}.hint` },
     );
   }
+  registry.register(
+    CUT_LIST_EXPORT.id,
+    async () => {
+      const name = await app.download(CUT_LIST_EXPORT.path, CUT_LIST_EXPORT.file);
+      if (name) app.toast(t("ui.export.done", { name }), { undo: false });
+    },
+    { can: hasTracks, hintKey: `cmd.${CUT_LIST_EXPORT.id}.hint` },
+  );
   // File menu (WP74): the plain commands export at once, into the remembered folder or
   // `<project> exports` beside the project, without asking; the "(options)…" ones open the dialog
   // (format, and whether to choose the folder first, in the desktop window).

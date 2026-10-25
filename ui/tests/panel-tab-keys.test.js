@@ -1,5 +1,6 @@
-// Alt+1 to Alt+5 switch the side-panel tabs (owner, 2026-10-20). Alt+digit is safe on a Finnish
-// keyboard (no AltGr, no Shift+digit) and matches by key position (Digit1..Digit5).
+// Cmd+1 to Cmd+5 (Ctrl elsewhere) switch the side-panel tabs (owner, 2026-10-23: the tab
+// convention of browsers, terminals and editors; it was Alt+1..5). Mod+digit is safe on a
+// Finnish keyboard: no AltGr, no Shift+digit, and Option+digit types symbols in text fields.
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, test } from "node:test";
@@ -23,14 +24,14 @@ describe("side-panel tab keys", () => {
     assert.equal(sideTabFor("panel.next"), null);
   });
 
-  test("they are global, on Alt + digit, and in the View menu", () => {
+  test("they are global, on Mod + digit, and in the View menu", () => {
     const view = menuTargets(MENU.filter((m) => m.id === "view"));
     ORDER.forEach((tab, i) => {
       const entry = DEFAULT_KEYMAP.find((e) => e.id === `panel.show_${tab}`);
       assert.ok(entry, tab);
       assert.equal(entry.context, "global");
-      assert.equal(entry.keys.mac, `Alt+${i + 1}`);
-      assert.equal(entry.keys.other, `Alt+${i + 1}`);
+      assert.equal(entry.keys.mac, `Mod+${i + 1}`);
+      assert.equal(entry.keys.other, `Mod+${i + 1}`);
       assert.ok(view.includes(entry.id), `${entry.id} in View`);
     });
   });
@@ -52,9 +53,23 @@ describe("side-panel tab keys", () => {
     assert.deepEqual(calls, [["showSideTab", "markers"]]);
   });
 
-  test("Alt+digit matches by key position, not the character Option types", () => {
-    const parsed = parseCombo("Alt+4");
-    assert.equal(parsed.code, "Digit4");
+  test("Cmd+digit on a Mac and Ctrl+digit elsewhere match the digit key", () => {
+    const parsed = parseCombo("Mod+4");
+    const mac = {
+      code: "Digit4",
+      key: "4",
+      altKey: false,
+      shiftKey: false,
+      ctrlKey: false,
+      metaKey: true,
+    };
+    assert.equal(matchesCombo(mac, parsed, "mac"), true);
+    const other = { ...mac, ctrlKey: true, metaKey: false };
+    assert.equal(matchesCombo(other, parsed, "other"), true);
+  });
+
+  test("Alt+digit no longer switches a tab", () => {
+    const parsed = parseCombo("Mod+4");
     const event = {
       code: "Digit4",
       key: "¢",
@@ -63,7 +78,7 @@ describe("side-panel tab keys", () => {
       ctrlKey: false,
       metaKey: false,
     };
-    assert.equal(matchesCombo(event, parsed, "mac"), true);
+    assert.equal(matchesCombo(event, parsed, "mac"), false);
   });
 
   test("labels and hints are in both catalogs", () => {

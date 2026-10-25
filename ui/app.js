@@ -8,14 +8,16 @@ import { createAutomixDialog } from "./automix-dialog.js";
 import { createAutomixLiveDialog } from "./automix-live-dialog.js";
 import { createAutomixToast } from "./automix-toast.js";
 import { automixToast } from "./automix-toast-model.js";
-import { createBlockLevelDialog } from "./block-level-dialog.js";
+import { createBlockLevelPanel } from "./block-level-panel.js";
 import { memberClipsAt, toggleChange } from "./bus-collapse.js";
 import { trackRoleChoice } from "./bus-role.js";
 import { listedRows, scrollToShow, stepTarget } from "./candidates-model.js";
 import { createCandidatesPanel } from "./candidates-panel.js";
 import { previewRequest } from "./candidates-preview.js";
+import { cartSlots, cartTrim, createCartQueue } from "./cart-model.js";
 import { clipDragChange } from "./clip-drag.js";
 import { expandGroups, toggleGroupSelection } from "./clip-groups.js";
+import { implicitPortionTarget } from "./clip-silence.js";
 import { entryTitle } from "./clipboard.js";
 import { createClipboardDrag } from "./clipboard-drag.js";
 import { createClipboardPanel } from "./clipboard-panel.js";
@@ -29,6 +31,7 @@ import {
   rememberedConsent,
   resumableJob,
 } from "./colab-model.js";
+import { applyCommandShortcuts } from "./command-shortcuts.js";
 import { openContextMenu } from "./context-menu.js";
 import { contextMenuItems } from "./context-menu-model.js";
 import { installDialogKeys } from "./dialog-keys.js";
@@ -39,7 +42,7 @@ import {
   normaliseSettings as normaliseDuckMusic,
 } from "./duck-sidechain-model.js";
 import { edgeChange, edgePressKeepsSelection } from "./edge-drag.js";
-import { dropPastePlan } from "./edit-plans.js";
+import { dropPastePlan, openedRegionClip } from "./edit-plans.js";
 import { createEditor } from "./edits.js";
 import { createNewEpisodeDialog } from "./episode-dialog.js";
 import { runEscape } from "./escape.js";
@@ -89,7 +92,6 @@ import {
   formatAbsoluteTime,
   formatClock,
   formatNumber,
-  formatShortcut,
   getLanguage,
   initI18n,
   onLanguageChange,
@@ -120,12 +122,14 @@ import { clampLaneHeight, layoutFor, pointerIntent, projectEnd, RULER_HEIGHT } f
 import { leftOffHere, leftOffOf, leftOffText } from "./left-off.js";
 import { createLevelMeter } from "./level-meter.js";
 import { connectLive } from "./live.js";
+import { headInView, liveFollowScroll } from "./live-follow.js";
 import { createLocateDialog } from "./locate-dialog.js";
 import { activeLoop, rangeAvailable } from "./loop-range.js";
 import { createLoudnessLoader } from "./loudness-readout.js";
 import { regionCount } from "./markers-model.js";
 import { createMarkersPanel } from "./markers-panel.js";
 import { createMarksCorner } from "./marks-corner.js";
+import { createMaterialPanel } from "./material-panel.js";
 import { missingNotice } from "./media-copy-model.js";
 import { heldFromEvent } from "./modifiers.js";
 import { monoDecision, monoEdits } from "./mono-ask.js";
@@ -135,6 +139,7 @@ import { MUSIC_UNDER_KEY, normaliseMusicUnder } from "./music-level-model.js";
 import { createMusicReportDialog } from "./music-report-dialog.js";
 import { reportQuery } from "./music-report-model.js";
 import { createNameDialog } from "./name-dialog.js";
+import { chipText, createNoticeHold, toastStaysOpen } from "./notice-hold.js";
 import { createOverview } from "./overview.js";
 import { createPerfDialog } from "./perf-dialog.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
@@ -155,6 +160,7 @@ import {
   scopeChip,
   toggleScopeMode,
 } from "./range-scope.js";
+import { readOnlyBanner } from "./read-only-model.js";
 import { recentMenuItems } from "./recent-menu-model.js";
 import { createRecordView } from "./record-view.js";
 import { createRelinkConfirm, relinkPlan } from "./relink-media.js";
@@ -162,6 +168,7 @@ import { renderWhen, selectionChoice } from "./render-listen-model.js";
 import { createRenderListenView } from "./render-listen-view.js";
 import { forwardFromClip } from "./selection-ops.js";
 import { createSendCopyDialog } from "./send-copy-dialog.js";
+import { arrivedValues, windowChoice } from "./send-window-model.js";
 import { createSeriesDialog } from "./series-dialog.js";
 import { seriesChip } from "./series-model.js";
 import { adoptRequest, createSeriesShelf } from "./series-shelf.js";
@@ -237,7 +244,7 @@ const GAIN_DIGITS = (value) => (Number.isInteger(value) ? 0 : 1);
 
 // -- text -------------------------------------------------------------------
 
-// Each side tab: tooltip "Name (Alt+n)", aria-keyshortcuts, the whole key ("⌥n") as its hint, and
+// Each side tab: tooltip "Name (Mod+n)", aria-keyshortcuts, the whole key ("⌘n") as its hint, and
 // the step (full / tight / compact / minimal) that keeps the strip on one row.
 let tabKeyEntries = null;
 function applyTabs() {
@@ -283,8 +290,6 @@ function translate() {
   for (const node of document.querySelectorAll("[data-i18n-aria-label]")) {
     node.setAttribute("aria-label", t(node.dataset.i18nAriaLabel));
   }
-  for (const node of document.querySelectorAll("[data-shortcut]"))
-    node.textContent = formatShortcut(node.dataset.shortcut);
   document.title = t("ui.app.title");
   applyTabs();
 }
@@ -295,14 +300,27 @@ let noticeTimer = null;
 // shows one more button (Cancel, Show in Finder); `action2` a second one (Show log).
 let noticeAction = null;
 let noticeAction2 = null;
+const noticeHold = createNoticeHold();
+// The status bar's button for held messages: a dot and the latest text; hidden when none.
+function paintNoticeChip() {
+  const chip = $("notice-chip");
+  const latest = noticeHold.pending() ? noticeHold.latest() : null;
+  chip.hidden = latest === null;
+  if (latest === null) return;
+  chip.dataset.kind = latest.kind;
+  chip.textContent = `● ${chipText(latest.text)}`;
+}
 // `rich`: the running automixer's structured view (automix-toast-model.js); `text` stays
 // the plain line under it.
 const richToast = createAutomixToast();
-function showNotice(
-  text,
-  kind = "error",
-  { undo = false, sticky = false, action = null, action2 = null, rich = null } = {},
-) {
+function showNotice(text, kind = "error", options = {}) {
+  // After the user closed a toast with its X, new messages wait on the status bar's button.
+  if (!noticeHold.offer({ text, kind, options })) {
+    paintNoticeChip();
+    return;
+  }
+  paintNoticeChip();
+  const { undo = false, sticky = false, action = null, action2 = null, rich = null } = options;
   const notice = $("notice");
   $("notice-text").textContent = text;
   if (rich) richToast.show(rich);
@@ -318,15 +336,31 @@ function showNotice(
   notice.hidden = false;
   clearTimeout(noticeTimer);
   if (sticky) return;
-  noticeTimer = setTimeout(() => {
+  const expire = () => {
+    const selection = window.getSelection?.();
+    const selected = Boolean(
+      selection && !selection.isCollapsed && notice.contains(selection.anchorNode),
+    );
+    if (toastStaysOpen({ hovered: notice.matches(":hover"), selected })) {
+      noticeTimer = setTimeout(expire, NOTICE_RECHECK_MS);
+      return;
+    }
     notice.hidden = true;
-  }, NOTICE_MS[kind]);
+  };
+  noticeTimer = setTimeout(expire, NOTICE_MS[kind]);
 }
+const NOTICE_RECHECK_MS = 1500;
 $("notice-action").addEventListener("click", () => noticeAction?.run());
 $("notice-action2").addEventListener("click", () => noticeAction2?.run());
 const showError = (error) => showNotice(error?.message || t("ui.error.title"));
 $("notice-close").addEventListener("click", () => {
   $("notice").hidden = true;
+  noticeHold.hold();
+});
+$("notice-chip").addEventListener("click", () => {
+  const latest = noticeHold.release();
+  paintNoticeChip();
+  if (latest) showNotice(latest.text, latest.kind, latest.options);
 });
 $("notice-undo").addEventListener("click", () => {
   $("notice").hidden = true;
@@ -505,6 +539,7 @@ function startPlayheadTicker() {
 // The clipboard preview (WP46) has a clock of its own: its anchors ("preview" on the live
 // channel) fill the playing chip's progress meter and never move the timeline's playhead.
 // With animation off the meter steps four times a second instead of every frame.
+const cartQueue = createCartQueue();
 let previewClock = createPlayheadClock();
 let previewEnd = null;
 let previewEndedSeq = null; // the newest "no preview plays" heard
@@ -820,6 +855,8 @@ function focusChanged(state, touched) {
 
 // The clipboard preview is turned down to the project's level (WP82): on by default, remembered
 // per user. The server does the measuring; this is only the switch.
+const CART_TRIM_KEY = "cartTrim";
+setState({ cartTrim: cartTrim(prefs.get(CART_TRIM_KEY) ?? 0) });
 const CLIPBOARD_LIMIT_KEY = "clipboardLimit";
 setState({ clipboardLimit: prefs.get(CLIPBOARD_LIMIT_KEY) !== "off" });
 function toggleClipboardLimit() {
@@ -1137,11 +1174,34 @@ function onWheel(intent, x) {
 // cursor on the current track. The keymap binds GATE_OPEN_COMMAND to this.
 function openGateStretch(gate) {
   const state = getState();
-  const target = gate ?? stretchAt(state.project, state.focusTrack, state.playhead, state.zoom);
-  if (!target) return;
+  const target =
+    gate ??
+    implicitPortionTarget(state.project, state.focusTrack, state.playhead) ??
+    stretchAt(state.project, state.focusTrack, state.playhead, state.zoom);
+  if (!target || target.closed === false) return;
+  const at = target.implicit ? Math.floor((target.range[0] + target.range[1]) / 2) : null;
+  const sourceClip = target.implicit
+    ? state.project?.tracks
+        ?.find((item) => item.id === target.trackId)
+        ?.clips.find((item) => item.id === target.clipId)
+    : null;
   editor.change({
-    ...openStretchEdit(target.trackId, target.range),
+    ...openStretchEdit(target, target.range),
     label: t("ui.gate.open_stretch"),
+    done: (response) => {
+      if (at === null) {
+        if (target.implicit) setState({ implicitRangeTarget: null });
+        return;
+      }
+      const id = openedRegionClip(
+        response.project,
+        target.trackId,
+        at,
+        sourceClip,
+        state.project?.tracks?.find((item) => item.id === target.trackId)?.gate,
+      );
+      setState({ ...(id ? { selection: new Set([id]) } : {}), implicitRangeTarget: null });
+    },
   });
 }
 // "Keep the mic open under the selected clips": a clip property (Clip.ungated), one edit. It
@@ -1179,7 +1239,18 @@ function onPointerDown(hit, event, { noSeek = false } = {}) {
     setState({ panel: "timeline" });
     return;
   }
-  const patch = { panel: "timeline", rangeTracks: new Set() };
+  const patch = {
+    panel: "timeline",
+    rangeTracks: new Set(),
+    implicitRangeTarget: hit.gate?.implicit
+      ? {
+          trackId: hit.gate.trackId,
+          clipId: hit.gate.clipId,
+          range: hit.gate.range,
+          implicit: true,
+        }
+      : null,
+  };
   if (hit.row?.kind === "track" && !additive) {
     // A lane or clip click makes the track current but leaves the range scope on all tracks
     // (range-scope.js laneClickFocus); only a header click narrows it.
@@ -1240,8 +1311,9 @@ const panelElements = {
   clipboard: $("panel-clipboard"),
   markers: $("panel-markers"),
   history: $("panel-history"),
+  material: $("panel-material"),
 };
-const SIDEBAR_TABS = ["inspector", "candidates", "clipboard", "markers", "history"];
+const SIDEBAR_TABS = ["inspector", "candidates", "clipboard", "markers", "history", "material"];
 
 function focusPanel(name) {
   // A sidebar tab that is not showing must show before it can take the focus.
@@ -1303,7 +1375,18 @@ const transcript = createTranscript({
     showError,
     applyResponse: apply,
     run: (id) => keyboard.registry.run(id, null, getState()),
+    contextMenu: (event) => showPanelMenu("transcript", event),
     transcribeColab: (ids) => void transcribeOnColab(ids),
+    // The tracks a range edit acts on (all, the painted lanes, or the selected ones); null
+    // with a notice when "selected tracks" is on and none is selected, as for X.
+    scopeTracks: () => {
+      const scope = resolveScope(getState());
+      if (scope.none) {
+        showNotice(t("ui.scope.none_selected"), "warn");
+        return null;
+      }
+      return scope.tracks;
+    },
   },
 });
 
@@ -1326,6 +1409,7 @@ const keyboard = setupKeyboard({
   },
   // The Help button shows the key help has now, F1 or the user's own.
   onRefresh(entries) {
+    applyCommandShortcuts(document, entries, detectPlatform());
     const button = $("help-button");
     const platform = detectPlatform();
     const keys = shortcutsFor(HELP_COMMAND, entries);
@@ -1333,7 +1417,7 @@ const keyboard = setupKeyboard({
     button.setAttribute("aria-keyshortcuts", keys.map(aria).join(" "));
     button.title = keys.map((combo) => formatCombo(combo, platform)).join(" ");
     tabKeyEntries = entries;
-    applyTabs();
+    translate();
   },
   app: {
     getState,
@@ -1368,9 +1452,12 @@ const keyboard = setupKeyboard({
     toast: (text, options) => showNotice(text, "ok", options),
     focusTimeline: () => focusPanel("timeline"),
     copy: (body) => copyToClipboard(body),
+    sendToWindow: (entry) => sendToOtherWindow(entry),
     refreshClipboard: () => void refreshClipboard(),
     clearOldClipboard: (keep) => clearOldClipboard(keep),
     shareClipboard: (id, on) => shareClipboardEntry(id, on),
+    setCartSlot: (id, slot) => clipboardAction(() => api.setClipboardCart(id, slot))(),
+    moveClipboard: (id, before) => clipboardAction(() => api.moveClipboardEntry(id, before))(),
     seriesShelf: (id, on) => seriesShelfEntry(id, on),
     showClipboard: (view) => showClipboard(view),
     openClipboardProject: () => void openClipboardProject(),
@@ -1379,18 +1466,37 @@ const keyboard = setupKeyboard({
       rangeMemory = rememberRange(head, { inPoint, outPoint, rangeTracks });
     },
     previewClipboard: (id) =>
-      api
-        .previewClipboardEntry(id, getState().clipboardLimit !== false)
-        .then((answer) => {
-          // How far the preview was turned down, for the hint beside the entry.
-          setState({ clipboardLevel: { id, db: answer?.attenuation_db ?? 0 } });
-          if (answer?.started) startClipboardPreview(id, answer.seq ?? null);
-          return answer;
-        })
-        .catch((error) => {
-          showError(error);
-          return null;
-        }),
+      cartQueue(() => {
+        if (getState().clipboardPlaying?.id === id) {
+          return api
+            .stopClipboardPreview()
+            .then(() => {
+              setState({ clipboardPlaying: null });
+              return null;
+            })
+            .catch(showError);
+        }
+        return api
+          .previewClipboardEntry(id, getState().clipboardLimit !== false, getState().cartTrim ?? 0)
+          .then((answer) => {
+            // Played during a take: it is put on the timeline where it was played (cart track).
+            if (answer?.cart) {
+              activeCartIds = answer.cart.clip_ids;
+              apply(answer);
+            }
+            // How far the preview was turned down, for the hint beside the entry.
+            setState({ clipboardLevel: { id, db: answer?.attenuation_db ?? 0 } });
+            if (answer?.started) {
+              startClipboardPreview(id, answer.seq ?? null);
+              if (!getState().clipboardPlaying) finishCartPlay();
+            }
+            return answer;
+          })
+          .catch((error) => {
+            showError(error);
+            return null;
+          });
+      }),
     now: () => performance.now(),
     chooseMedia: () => chooseMedia(),
     // The transcript's X: cut the words' stretch on every track.
@@ -1412,9 +1518,9 @@ const keyboard = setupKeyboard({
         });
     },
     correct: () => transcript.startCorrect(),
-    openFind: () => {
+    openFind: (options) => {
       focusPanel("transcript");
-      transcript.openFind();
+      transcript.openFind(options);
     },
     // Match loudness measures for seconds; the answer carries the report.
     matchLoudness: (clipIds, target) =>
@@ -1481,6 +1587,7 @@ const keyboard = setupKeyboard({
     seriesMusicPlace: () => void seriesMusicPlace(),
     seriesMusicClipboard: () => void seriesMusicClipboard(),
     openRecord: () => void recordView.open(),
+    recordingFrame: () => recordView.liveFrame(),
     cycleStopMode: () => cycleStopMode(),
     cyclePreroll: () => cyclePreroll(),
     autoSilence: () => void autoSilence(),
@@ -1510,7 +1617,10 @@ const keyboard = setupKeyboard({
     openRecent: (path) => void openRecent(path),
     clearRecent: () => void clearRecent(),
     removeMissingRecents: () => void removeMissingRecents(),
-    focusName: () => inspector.focusName(),
+    focusName: () => {
+      focusPanel("inspector");
+      inspector.focusName();
+    },
     editTime: () => clock.open(),
     copyTime: () => void clock.copy(),
     openGateStretch: () => openGateStretch(),
@@ -1701,7 +1811,12 @@ async function ensureWords() {
     const body = await wordsAsked.promise;
     // Only if the edit did not move on while it was in flight, else ask again.
     if (getState().head === head) {
-      setState({ words: body.words ?? [], people: body.people ?? {}, wordsHead: head });
+      setState({
+        words: body.words ?? [],
+        transcribed: body.transcribed ?? [],
+        people: body.people ?? {},
+        wordsHead: head,
+      });
     }
   }
 }
@@ -2095,8 +2210,11 @@ function showHeaderMenu(kind, id, event) {
           kind,
           choice: trackRoleChoice(state.project, track),
           busRole: state.project.buses.find((bus) => bus.id === track?.bus)?.kind ?? null,
+          inBus: Boolean(track?.bus),
         };
-  const items = contextMenuItems(target, (command) => keyboard.registry.can(command, state));
+  const items = withKeys(
+    contextMenuItems(target, (command) => keyboard.registry.can(command, state)),
+  );
   // From the keyboard (the menu key) the event has no pointer position: use the header.
   const box = event.currentTarget.getBoundingClientRect();
   const keyboardOpened = event.clientX === 0 && event.clientY === 0;
@@ -2114,6 +2232,32 @@ function showHeaderMenu(kind, id, event) {
     },
   });
 }
+// Menu items that name a command get the keys the menu bar shows, so a right-click teaches
+// the shortcut. Items with their own label or none (separators) stay as they are.
+function withKeys(items) {
+  const ids = items.filter((item) => item.id && !item.separator).map((item) => item.id);
+  const resolved = keyboard.describe(ids);
+  return items.map((item) => {
+    const keys = item.id ? (resolved.get(item.id)?.keys ?? "") : "";
+    return keys ? { ...item, keys } : item;
+  });
+}
+// A right-click menu for a panel (transcript words, a Clipboard row): the sections of
+// timeline-menu.js for `kind`, what is possible now, with the keys. Nothing moves first.
+function showPanelMenu(kind, event) {
+  const sections = timelineMenuItems(getState(), { kind }, (id, state) =>
+    keyboard.registry.can(id, state),
+  );
+  if (sections.length === 0) return;
+  event.preventDefault();
+  const ids = sections.flatMap((section) => section.items.map((item) => item.id));
+  openContextMenu({
+    x: event.clientX,
+    y: event.clientY,
+    items: menuFromSections(sections, keyboard.describe(ids), t),
+    onPick: (command) => keyboard.registry.run(command, null, getState()),
+  });
+}
 // Right-click on the timeline: a clip outside the selection is selected first, empty lane
 // and the ruler put the playhead there, then the menu offers what the target allows.
 function showTimelineMenu(hit, event) {
@@ -2124,6 +2268,9 @@ function showTimelineMenu(hit, event) {
     Object.assign(patch, focusTrackPatch(getState(), hit.row.id));
   }
   if (plan.focusTrack) Object.assign(patch, focusTrackPatch(getState(), plan.focusTrack));
+  if (plan.marker) patch.markerSelected = plan.marker;
+  patch.envelopePoint = plan.envelopePoint ?? null;
+  patch.automationPoint = plan.automationPoint ?? null;
   setState(patch);
   if (plan.seek !== null) void transport.seek(plan.seek);
   const sections = timelineMenuItems(
@@ -2445,6 +2592,7 @@ function duckMusic() {
  * undo step, Close discards it.
  */
 function openSilenceOptions(learnFrom = null) {
+  blockLevelPanel?.close(); // the two panels share the sidebar
   silencePanel ??= createSilencePanel({
     root: $("panel-silence"),
     api,
@@ -2499,16 +2647,18 @@ async function setMusicLevel(args) {
  * Track > Auto > Level blocks…: the dialog measures (a job) and lists the blocks that are off;
  * Apply splits the clips in the pauses and adds the gains, as one undo step.
  */
-let blockLevelDialog = null;
+let blockLevelPanel = null;
 function openBlockLevel() {
-  blockLevelDialog ??= createBlockLevelDialog({
+  silencePanel?.close(); // the two panels share the sidebar
+  blockLevelPanel ??= createBlockLevelPanel({
+    root: $("panel-block-level"),
     api,
     t,
     fmt: (value) => formatNumber(value, { digits: 1 }),
     clock: (seconds) => formatClock(seconds),
     onApply: (args) => void levelBlocks(args),
   });
-  blockLevelDialog.open();
+  blockLevelPanel.open();
 }
 
 async function levelBlocks(args) {
@@ -2681,7 +2831,35 @@ const recordView = createRecordView({
   apply,
   notify: showNotice,
   chip: $("rec-chip"),
+  addMarker: () => keyboard.registry.run("marker.add", null, getState()),
+  onLive: () => {
+    followLiveHead();
+    timeline?.redraw();
+  },
 });
+// The view follows the take's head while it records, until you steer away (live-follow.js).
+let liveHeadSeen = true;
+function followLiveHead() {
+  const head = recordView.liveFrame();
+  if (head === null) {
+    liveHeadSeen = true;
+    return;
+  }
+  const { scroll, zoom } = getState();
+  const next = liveFollowScroll({ head, scroll, zoom, width: width(), wasInView: liveHeadSeen });
+  if (next !== null) {
+    fitWhole = false;
+    setState({ scroll: next });
+  }
+  liveHeadSeen = headInView({ head, scroll: next ?? scroll, zoom, width: width() });
+}
+// A clip played while a take records goes on the cart track at the take's place now.
+let activeCartIds = null;
+function finishCartPlay() {
+  const ids = activeCartIds;
+  activeCartIds = null;
+  if (ids?.length) void api.recordCartEnd(ids).then(apply).catch(showError);
+}
 function cycleStopMode() {
   const mode = nextStopMode(recordView.stopMode);
   recordView.setStopMode(mode);
@@ -3390,6 +3568,109 @@ async function copyToClipboard(body) {
   }
 }
 
+// How many other project windows this desktop app has: the menu item is greyed out at zero.
+// Asked when this window gains focus (a window opened or closed elsewhere is noticed when
+// you come back here), when the desktop bridge is ready, and after a send.
+async function refreshOtherWindows() {
+  const bridge = globalThis.pywebview?.api;
+  if (typeof bridge?.other_windows !== "function") return;
+  try {
+    setState({ otherWindows: (await bridge.other_windows()).length });
+  } catch (error) {
+    console.debug("other windows:", error);
+  }
+}
+window.addEventListener("pywebviewready", () => void refreshOtherWindows());
+window.addEventListener("focus", () => void refreshOtherWindows());
+
+// The number chip of a Clipboard row: a small menu of the cart slots (cart-model.js), the
+// entry's own checked, and "None". Picking a number another entry holds moves it here.
+function pickCartSlot(entryId, event) {
+  const entry = (getState().clipboard ?? []).find((item) => item.id === entryId);
+  const box = event.currentTarget?.getBoundingClientRect?.();
+  const items = [
+    ...cartSlots(getState()).map(({ slot, entry: holder }) => ({
+      id: String(slot),
+      label:
+        holder && holder.id !== entryId ? `${slot} · ${holder.name || holder.id}` : String(slot),
+      enabled: true,
+      checked: entry?.cart === slot,
+    })),
+    { id: "none", label: t("ui.clipboard.cart_none"), enabled: entry?.cart != null },
+  ];
+  openContextMenu({
+    x: box?.left ?? event.clientX,
+    y: (box?.bottom ?? event.clientY) + 2,
+    items,
+    onPick: (id) =>
+      void clipboardAction(() =>
+        api.setClipboardCart(entryId, id === "none" ? null : Number(id)),
+      )(),
+  });
+}
+
+// Copy to other window (desktop only): the entry goes onto the clipboard of the project open
+// in another window of this app; with several, a small menu asks which. The window that gets
+// it says so (kuulasClipboardArrived below) and the paste is made there, as ever.
+async function sendToOtherWindow(entry) {
+  const bridge = globalThis.pywebview?.api;
+  if (typeof bridge?.other_windows !== "function") {
+    showNotice(t("ui.sendwindow.desktop_only"), "ok", { undo: false });
+    return;
+  }
+  try {
+    const choice = windowChoice(await bridge.other_windows());
+    setState({ otherWindows: choice.kind === "none" ? 0 : (choice.items?.length ?? 1) });
+    if (choice.kind === "none") {
+      showNotice(t("ui.sendwindow.none"), "ok", { undo: false });
+      return;
+    }
+    const folder = choice.kind === "one" ? choice.target.folder : await pickWindow(choice.items);
+    if (!folder) return;
+    const answer = await bridge.send_to_window(folder, entry);
+    showNotice(
+      answer.ok ? t("ui.sendwindow.sent", { name: answer.name }) : t("ui.sendwindow.gone"),
+      "ok",
+      { undo: false },
+    );
+  } catch (error) {
+    showError(error);
+  }
+}
+
+// A small menu in the middle of the window: which window? Resolves to the folder, or null.
+function pickWindow(items) {
+  return new Promise((resolve) => {
+    let picked = null;
+    openContextMenu({
+      x: Math.round(window.innerWidth / 2) - 80,
+      y: Math.round(window.innerHeight / 3),
+      items: [{ separator: true, caption: t("ui.sendwindow.pick") }, ...items],
+      onPick: (id) => {
+        picked = id;
+      },
+      // The menu closes before it reports the pick: answer one tick later.
+      onClose: () => setTimeout(() => resolve(picked), 0),
+    });
+  });
+}
+
+// Called by the desktop bridge (Bridge.send_to_window) in the window that received an entry.
+globalThis.kuulasClipboardArrived = (note) => {
+  void refreshClipboard();
+  setState({ clipboardSelected: null });
+  const values = arrivedValues(note);
+  const keys =
+    keyboard.format(shortcutsFor("edit.paste", keyboard.entries())[0] ?? "") || t("cmd.edit.paste");
+  showNotice(
+    values.name
+      ? t("ui.sendwindow.arrived", { ...values, keys })
+      : t("ui.sendwindow.arrived_unnamed", { from: values.from, keys }),
+    "ok",
+    { undo: false },
+  );
+};
+
 // "Clear old entries": keep the newest `keep` of this project's, say how many went.
 async function clearOldClipboard(keep) {
   try {
@@ -3421,11 +3702,55 @@ const clipboardAction = (call) => async () => {
 // "Paste again" follows the tab's mode choice; the tab's target choice is read by the command.
 const pasteCommand = (state) => (state.pasteMode === "insert" ? "edit.paste_insert" : "edit.paste");
 
+// The Material tab (docs/design/MATERIAL.md): every recording and how much of it is played.
+let materialTimer = null;
+function loadMaterial() {
+  clearTimeout(materialTimer);
+  materialTimer = setTimeout(async () => {
+    try {
+      setState({ material: await api.getMaterial() });
+    } catch (error) {
+      showError(error);
+    }
+  }, 150);
+}
+async function copyMaterialRecording(id) {
+  try {
+    const answer = await api.copyMaterial(id);
+    setState({ clipboard: answer.entries, clipboardSelected: null });
+    const name = answer.entries[0]?.name ?? "";
+    showNotice(t("ui.material.copied", { name }), "ok", { undo: false });
+    return true;
+  } catch (error) {
+    showError(error);
+    return false;
+  }
+}
+const materialPanel = createMaterialPanel({
+  root: $("panel-material"),
+  actions: {
+    filter: (name) => setState({ materialFilter: name }),
+    text: (value) => setState({ materialText: value }),
+    copy: (id) => void copyMaterialRecording(id),
+    async place(id) {
+      if (await copyMaterialRecording(id)) {
+        keyboard.registry.run("edit.paste", null, getState());
+      }
+    },
+  },
+});
+
 const clipboardPanel = createClipboardPanel({
   root: $("panel-clipboard"),
   actions: {
     select: (id) => setState({ clipboardSelected: id }),
     rename: (id, name) => void clipboardAction(() => api.renameClipboardEntry(id, name))(),
+    move: (id, before) => void clipboardAction(() => api.moveClipboardEntry(id, before))(),
+    pickCart: (id, event) => pickCartSlot(id, event),
+    contextMenu: (id, event) => {
+      setState({ clipboardSelected: id });
+      showPanelMenu("clipboard", event);
+    },
     remove: (id) => {
       if (getState().clipboardSelected === id) setState({ clipboardSelected: null });
       void clipboardAction(() => api.deleteClipboardEntry(id))();
@@ -3444,6 +3769,11 @@ const clipboardPanel = createClipboardPanel({
       if (await adoptClipboardEntry(entry, from, { quiet: true, shelf })) {
         keyboard.registry.run(pasteCommand(getState()), null, getState());
       }
+    },
+    cartTrim: (value) => {
+      const db = cartTrim(value);
+      prefs.set(CART_TRIM_KEY, String(db));
+      setState({ cartTrim: db });
     },
     keep: (value) => setState({ clipboardKeep: Number(value) }),
     clearOld: () => keyboard.registry.run("edit.clear_old_clipboard", null, getState()),
@@ -3678,6 +4008,7 @@ const help = createHelpPanel({
 $("help-button").addEventListener("click", () => void help.open());
 
 const timeline = createTimeline({
+  liveTake: recordView.liveTake,
   stack: $("timeline-stack"),
   waveCanvas: $("wave"),
   overlayCanvas: $("timeline"),
@@ -3731,7 +4062,41 @@ const timeline = createTimeline({
         provisional: (p) => patchClip(p, clipId, { [`fade_${side}`]: frames }),
       });
     },
-    edgeDrag({ clipId, edge, frame, ripple, overwrite, alone }) {
+    edgeDrag({ clipId, trackId, edge, frame, ripple, overwrite, alone, implicitRange }) {
+      if (implicitRange) {
+        const source = getState()
+          .project?.tracks?.find((item) => item.id === trackId)
+          ?.clips.find((item) => item.id === clipId);
+        const regionStart = edge === "start" ? frame : implicitRange[0];
+        const regionEnd = edge === "end" ? frame : implicitRange[1];
+        editor.change({
+          op: "trim_auto_silence_edge",
+          args: {
+            clip_id: clipId,
+            start: implicitRange[0],
+            end: implicitRange[1],
+            edge,
+            frame,
+          },
+          label: t("history.auto_silence"),
+          done: (response) => {
+            const track = response.project?.tracks?.find((item) => item.id === trackId);
+            const clip = track?.clips?.find(
+              (item) =>
+                item.start === regionStart &&
+                item.start + item.length === regionEnd &&
+                item.ungated &&
+                item.media === source?.media &&
+                (item.offset ?? 0) === (source.offset ?? 0) + regionStart - source.start,
+            );
+            setState({
+              ...(clip ? { selection: new Set([clip.id]) } : {}),
+              implicitRangeTarget: null,
+            });
+          },
+        });
+        return;
+      }
       const { op, args, labelKey } = edgeChange(
         clipId,
         edge,
@@ -3929,7 +4294,11 @@ function render(state, patch) {
     levelMeter.playing(state.playing);
     silencePanel?.playingChanged();
   }
-  if (touched("project")) silencePanel?.projectChanged();
+  if (touched("project")) {
+    silencePanel?.projectChanged();
+    blockLevelPanel?.projectChanged();
+  }
+  if (touched("clipboardPlaying") && !state.clipboardPlaying) finishCartPlay();
   if (touched("playing", "clipboardPlaying")) {
     // A clipboard preview playing: the Play button stops it (transport.toggle).
     const sounding = state.playing || Boolean(state.clipboardPlaying);
@@ -4053,6 +4422,9 @@ function render(state, patch) {
       "clipboardSelected",
       "clipboardFilter",
       "clipboardKeep",
+      "cartTrim",
+      "clipboardPlaying",
+      "clipboardLevel",
       "clipboardView",
       "clipboardShared",
       "clipboardSeries",
@@ -4069,6 +4441,9 @@ function render(state, patch) {
     clipboardPanel.update(state);
   if (touched("project", "markerSelected", "playhead", "inPoint", "outPoint", "syncClips"))
     markersPanel.update(state);
+  if (state.sidebarTab === "material" && touched("project", "sidebarTab")) loadMaterial();
+  if (touched("material", "materialFilter", "materialText", "sidebarTab"))
+    materialPanel.update(state);
   if (state.head && touched("head")) void refreshCandidates();
   if (state.head && touched("head")) void refreshSync();
   if (touched("head") && rangeMemory) {
@@ -4113,6 +4488,11 @@ function render(state, patch) {
     const hasClips = state.project?.tracks.some((track) => track.clips.length > 0);
     empty.hidden = !state.project || hasClips;
     empty.textContent = t("ui.project.empty");
+  }
+  if (touched("readOnly")) {
+    const banner = readOnlyBanner(state.readOnly, { locale: getLanguage() });
+    $("readonly-banner").hidden = banner === null;
+    $("readonly-banner-text").textContent = banner ? t(banner.key, banner.values) : "";
   }
   if (touched("panel")) {
     for (const node of document.querySelectorAll("[data-panel]")) {
@@ -4301,7 +4681,11 @@ try {
   const [state, words] = await Promise.all([booting.state, booting.words]);
   apply(state);
   offerToLocate(state.missing);
-  setState({ words: words.words ?? [], wordsHead: getState().head });
+  setState({
+    words: words.words ?? [],
+    transcribed: words.transcribed ?? [],
+    wordsHead: getState().head,
+  });
   await restoreView(booting.view);
   await refreshClipboard(booting.clipboard);
   void refreshSeries();
@@ -4344,6 +4728,10 @@ connectLive({
   onMessage(message) {
     if (message.type === "record") {
       recordView.live(message);
+      if (activeCartIds && message.kind === "status" && !message.status?.recording) {
+        finishCartPlay();
+        void api.stopClipboardPreview().catch(showError);
+      }
       return;
     }
     if (message.type === "pong") {

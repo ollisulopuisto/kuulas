@@ -6,6 +6,7 @@
 // track_ids. Sync never widens it, and an explicit clip group is expanded by the server.
 
 import { busOfFocus } from "./bus-collapse.js";
+import { implicitPortionAt } from "./clip-silence.js";
 import {
   autoName,
   clipsInRange,
@@ -14,6 +15,7 @@ import {
   pasteTargets,
   sourceTargets,
 } from "./clipboard.js";
+import { removePoint } from "./envelope-edit.js";
 import { editRange } from "./intent.js";
 import { clipEnd } from "./lanes.js";
 import { splitClipsProvisional } from "./provisional.js";
@@ -417,7 +419,16 @@ export function dropPastePlan(entry, target, mode) {
 /** N: mute the selected clips, or unmute them when they all are muted already. */
 export function mutePlan(state) {
   const chosen = selectedClips(state);
-  if (chosen.length === 0) return null;
+  // Nothing selected: the current track's portion under the cursor is the target.
+  if (chosen.length === 0) return cursorPortionPlan(state, []);
+  // A click on an implicit region is an explicit edit target even when selecting the clip
+  // expands its group. Materialize only that source clip/range, never the expanded group.
+  const region = targetedGatedRegionPlan(state, chosen);
+  if (region) return region;
+  // The play cursor inside an implicit portion (closed or audible) of a selected clip: M acts
+  // on that portion alone, also when the selection is a whole group (owner, 2026-10-24).
+  const cursorRegion = cursorPortionPlan(state, chosen);
+  if (cursorRegion) return cursorRegion;
   const muted = !chosen.every((entry) => entry.clip.muted);
   return plan(
     "set_clips",
@@ -427,6 +438,87 @@ export function mutePlan(state) {
       count: chosen.length,
     },
   );
+}
+
+/**
+ * The selected clip whose implicit portion holds the play cursor (the focused track's first,
+ * and only when one is unambiguous); with no selection the focused track's clip there.
+ */
+function cursorPortionPlan(state, chosen) {
+  if (!state?.project || !Number.isFinite(state.playhead)) return null;
+  const at = state.playhead;
+  const trackOf = (id) => state.project.tracks.find((x) => x.id === id);
+  let entries = chosen;
+  if (entries.length === 0) {
+    const track = trackOf(currentTrack(state));
+    const clip = (track?.clips ?? [])
+      .filter((c) => c.start <= at && at < clipEnd(c))
+      .sort((x, y) => x.length - y.length)[0];
+    entries = clip ? [{ clip, trackId: track.id }] : [];
+  }
+  const hits = entries.filter(
+    ({ clip, trackId }) => implicitPortionAt(clip, at, trackOf(trackId)?.gate) !== null,
+  );
+  if (hits.length === 0) return null;
+  const focus = hits.filter((entry) => entry.trackId === currentTrack(state));
+  const pick = focus.length === 1 ? focus[0] : hits.length === 1 ? hits[0] : null;
+  return pick ? gatedRegionPlan(state, pick) : null;
+}
+
+function targetedGatedRegionPlan(state, chosen) {
+  const target = state.implicitRangeTarget;
+  if (!target?.implicit || !Array.isArray(target.range)) return null;
+  const entry = chosen.find(
+    ({ clip, trackId }) => clip.id === target.clipId && trackId === target.trackId,
+  );
+  if (!entry || entry.clip.muted) return null;
+  const [start, end] = target.range;
+  const at = Math.floor((start + end) / 2);
+  const gate = state.project.tracks.find((track) => track.id === target.trackId)?.gate;
+  const portion = implicitPortionAt(entry.clip, at, gate);
+  if (!portion || portion.range[0] !== start || portion.range[1] !== end) return null;
+  return portionMutePlan(target.trackId, entry.clip, at, portion);
+}
+
+/**
+ * The clip M just opened: the one on `trackId` holding `at` in `project` (the response after
+ * open_gated_region). It is selected afterwards, so the next M mutes just that stretch, not
+ * the left-over piece of the parent clip that kept the old selection (owner, 2026-10-24).
+ */
+export function openedRegionClip(project, trackId, at, sourceClip = null, legacyGate = []) {
+  const track = project?.tracks?.find((x) => x.id === trackId);
+  if (sourceClip) {
+    const portion = implicitPortionAt(sourceClip, at, legacyGate);
+    if (!portion) return null;
+    const [start, end] = portion.range;
+    return (
+      track?.clips?.find(
+        (clip) =>
+          clip.start === start &&
+          clipEnd(clip) === end &&
+          clip.media === sourceClip.media &&
+          (clip.offset ?? 0) === (sourceClip.offset ?? 0) + start - sourceClip.start,
+      )?.id ?? null
+    );
+  }
+  return track?.clips?.find((c) => c.start <= at && at < clipEnd(c))?.id ?? null;
+}
+
+function portionMutePlan(trackId, clip, at, portion) {
+  return plan(
+    "open_gated_region",
+    { track_id: trackId, clip_id: clip.id, at, ...(!portion.closed ? { muted: true } : {}) },
+    portion.closed ? "unmute_region" : "mute",
+    portion.closed ? {} : { count: 1 },
+  );
+}
+
+function gatedRegionPlan(state, { clip, trackId }) {
+  const at = state.playhead;
+  if (!Number.isFinite(at)) return null;
+  const gate = state.project?.tracks?.find((x) => x.id === trackId)?.gate;
+  const portion = implicitPortionAt(clip, at, gate);
+  return portion ? portionMutePlan(trackId, clip, at, portion) : null;
 }
 
 /**
@@ -443,6 +535,79 @@ export function fadePlan(state) {
     id = state.project.tracks.find((x) => x.id === track)?.clips.find(holds)?.id ?? null;
   }
   return id === null ? null : plan("set_fade_at", { clip_id: id, frame: at }, "fade");
+}
+
+/** The clip with this id on any track, or null. */
+function findClip(state, id) {
+  for (const track of state.project.tracks) {
+    const found = track.clips.find((item) => item.id === id);
+    if (found) return found;
+  }
+  return null;
+}
+
+/** Right-click menu: drop the volume-line point that was right-clicked (state.envelopePoint). */
+export function envelopeDeletePointPlan(state) {
+  const picked = state?.envelopePoint;
+  if (!state?.project || !picked) return null;
+  const found = findClip(state, picked.clipId);
+  if (!found?.envelope || picked.index < 0 || picked.index >= found.envelope.length) return null;
+  return plan(
+    "set_clip_envelope",
+    { clip_id: found.id, points: removePoint(found.envelope, picked.index) },
+    "envelope_delete_point",
+    {},
+    { silent: true },
+  );
+}
+
+/** Right-click menu: clear a clip's volume line (the right-clicked clip, else a selected one). */
+export function envelopeResetPlan(state) {
+  if (!state?.project) return null;
+  const withLine = (c) => Boolean(c?.envelope?.length);
+  const picked = state.envelopePoint ? findClip(state, state.envelopePoint.clipId) : null;
+  const target = withLine(picked)
+    ? picked
+    : selectedClips(state).find((entry) => withLine(entry.clip))?.clip;
+  if (!target) return null;
+  return plan(
+    "set_clip_envelope",
+    { clip_id: target.id, points: [] },
+    "envelope_reset",
+    {},
+    { silent: true },
+  );
+}
+
+/** Right-click menu: drop the ducking point that was right-clicked (state.automationPoint). */
+export function automationDeletePointPlan(state) {
+  const picked = state?.automationPoint;
+  if (!state?.project || !picked) return null;
+  const track = state.project.tracks.find((item) => item.id === picked.trackId);
+  const points = track?.automation;
+  if (!points || picked.index < 0 || picked.index >= points.length) return null;
+  return plan(
+    "set_track_automation",
+    { track_id: track.id, points: points.filter((_, i) => i !== picked.index) },
+    "automation_delete_point",
+    {},
+    { silent: true },
+  );
+}
+
+/** Right-click menu: clear a track's ducking curve (the right-clicked track, else the current one). */
+export function automationClearPlan(state) {
+  if (!state?.project) return null;
+  const id = state.automationPoint?.trackId ?? currentTrack(state);
+  const track = state.project.tracks.find((item) => item.id === id);
+  if (!track?.automation?.length) return null;
+  return plan(
+    "set_track_automation",
+    { track_id: track.id, points: [] },
+    "automation_clear",
+    {},
+    { silent: true },
+  );
 }
 
 /** Q (edge "start") and W (edge "end"): trim to the playhead. */
@@ -554,6 +719,16 @@ export function trackMutePlan(state) {
     {},
     { silent: true },
   );
+}
+
+/** Alt+Mod+Up / Down: the current track one place up (-1) or down (1); null at the ends. */
+export function trackMovePlan(state, direction) {
+  const track = trackOf(state);
+  if (!track) return null;
+  const from = state.project.tracks.findIndex((item) => item.id === track.id);
+  const to = from + direction;
+  if (to < 0 || to >= state.project.tracks.length) return null;
+  return plan("move_track", { track_id: track.id, index: to }, "track_move", {}, { silent: true });
 }
 
 /** Shift+S (exclusive) and Shift+Alt+S (added to the solo set). */

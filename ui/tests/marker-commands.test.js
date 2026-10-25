@@ -5,7 +5,7 @@ import { deleteTarget, newMarkerId, registerMarkerCommands } from "../marker-com
 
 const m = (id, start, extra = {}) => ({ id, name: id, start, kind: "marker", ...extra });
 
-function setup(initial) {
+function setup(initial, recordingFrame = () => null) {
   let state = { playhead: 0, inPoint: null, outPoint: null, ...initial };
   const registry = createRegistry();
   const calls = { edits: [], toasts: [], seeks: [], patches: [] };
@@ -23,6 +23,7 @@ function setup(initial) {
         change.done?.({});
       },
       toast: (text, options) => calls.toasts.push([text, options]),
+      recordingFrame,
       seek: (frame) => calls.seeks.push(frame),
       jump: (frame) => calls.seeks.push(frame),
     },
@@ -50,6 +51,33 @@ describe("marker.add", () => {
     assert.equal(s.registry.can("marker.add", s.get()), false);
     assert.equal(s.registry.can("marker.add", {}), false);
     assert.equal(s.registry.can("marker.add", { ...s.get(), playhead: 101 }), true);
+  });
+});
+
+describe("marker.add while recording (owner, 2026-10-23, BUGS #106)", () => {
+  test("the marker goes where the take is now, not at the playhead", () => {
+    const { registry, calls, get } = setup(
+      { project: { markers: [] }, playhead: 4800 },
+      () => 96000,
+    );
+    assert.equal(registry.run("marker.add", null, get()), true);
+    assert.equal(calls.edits[0].args.start, 96000);
+  });
+
+  test("it is allowed where a marker already sits at the playhead", () => {
+    const s = setup({ project: { markers: [m("a", 100)] }, playhead: 100 }, () => 96000);
+    assert.equal(s.registry.can("marker.add", s.get()), true);
+  });
+
+  test("a second marker at the same take time is refused, like on the playhead", () => {
+    const s = setup({ project: { markers: [m("a", 96000)] }, playhead: 0 }, () => 96000);
+    assert.equal(s.registry.can("marker.add", s.get()), false);
+  });
+
+  test("not recording: the playhead, as before", () => {
+    const { registry, calls, get } = setup({ project: { markers: [] }, playhead: 4800 });
+    registry.run("marker.add", null, get());
+    assert.equal(calls.edits[0].args.start, 4800);
   });
 });
 

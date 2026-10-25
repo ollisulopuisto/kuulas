@@ -255,6 +255,16 @@ export function extendTo(sel, to) {
 export const selectWord = (i) => ({ cursor: i, anchor: i });
 
 /**
+ * The selection a right-click on word `i` (-1: none) works on: the picked words if `i` is one
+ * of them, else just that word. With no word and nothing picked, null (no menu).
+ */
+export function rightClickPick(selection, i) {
+  const picked = selectedIndices(selection);
+  if (i < 0) return picked.length > 0 ? selection : null;
+  return picked.includes(i) ? selection : selectWord(i);
+}
+
+/**
  * Where a key takes the cursor: one word, a paragraph start/end (Home/End), or a
  * paragraph (ArrowUp/ArrowDown = the previous/next paragraph's first word). Clamped.
  */
@@ -454,4 +464,14 @@ export function mutedInputsKey(project) {
 export function shouldLoadWords({ head, key, fetchedHead, fetchedKey, fetching, force = false }) {
   if (fetching || head === null) return false;
   return force || head !== fetchedHead || key !== fetchedKey;
+}
+
+/**
+ * The recordings that have a transcript: the server's list (words anywhere on the
+ * timeline, heard or not) plus the recordings of the words shown. The panel draws only
+ * heard words, so a recording whose every word is muted would otherwise look untranscribed
+ * and be offered for transcription again.
+ */
+export function transcribedMedia(state, words) {
+  return [...new Set([...(state?.transcribed ?? []), ...words.map((word) => word.media)])];
 }

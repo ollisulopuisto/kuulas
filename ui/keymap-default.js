@@ -17,7 +17,8 @@
 //
 // Zoom keys (owner, 2026-10-18): Z toggles close and wide, 0 shows the whole edit, F fits the
 // selection or in-out; no view command lives on a modified Z (Cmd+Z and Cmd+Shift+Z are undo and redo).
-// Alt+1 to Alt+5 show the side-panel tabs in their row order (owner, 2026-10-20); by key position.
+// Mod+1 to Mod+5 show the side-panel tabs in their row order (owner, 2026-10-23; the tab
+// convention, it was Alt+1..5). Mod+1/Mod+2 no longer also set the marks: I and O do that.
 // Owner decisions (18.10.2026) kept here: Backspace is Delete (soft cut, gap kept),
 // X is Cut (ripple, to the clipboard), Mod+C copies; Spot is Mod+J, find is Mod+F,
 // fade is G, import is Mod+I (Mod+T in the desktop wrapper), K keeps a candidate (in the Candidates tab),
@@ -133,7 +134,7 @@ export const DEFAULT_KEYMAP = [
   {
     id: "transport.speed",
     keys: { mac: ".", other: "." },
-    context: "timeline",
+    context: "global",
     labelKey: "cmd.transport.speed",
   },
   {
@@ -415,43 +416,49 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "panel.show_inspector",
-    keys: { mac: "Alt+1", other: "Alt+1" },
+    keys: { mac: "Mod+1", other: "Mod+1" },
     context: "global",
     labelKey: "cmd.panel.show_inspector",
   },
   {
     id: "panel.show_candidates",
-    keys: { mac: "Alt+2", other: "Alt+2" },
+    keys: { mac: "Mod+2", other: "Mod+2" },
     context: "global",
     labelKey: "cmd.panel.show_candidates",
   },
   {
     id: "panel.show_clipboard",
-    keys: { mac: "Alt+3", other: "Alt+3" },
+    keys: { mac: "Mod+3", other: "Mod+3" },
     context: "global",
     labelKey: "cmd.panel.show_clipboard",
   },
   {
     id: "panel.show_markers",
-    keys: { mac: "Alt+4", other: "Alt+4" },
+    keys: { mac: "Mod+4", other: "Mod+4" },
     context: "global",
     labelKey: "cmd.panel.show_markers",
   },
   {
     id: "panel.show_history",
-    keys: { mac: "Alt+5", other: "Alt+5" },
+    keys: { mac: "Mod+5", other: "Mod+5" },
     context: "global",
     labelKey: "cmd.panel.show_history",
   },
   {
+    id: "panel.show_material",
+    keys: { mac: "Mod+6", other: "Mod+6" },
+    context: "global",
+    labelKey: "cmd.panel.show_material",
+  },
+  {
     id: "mark.in",
-    keys: { mac: ["I", "Mod+1"], other: ["I", "Mod+1"] },
+    keys: { mac: "I", other: "I" },
     context: "timeline",
     labelKey: "cmd.mark.in",
   },
   {
     id: "mark.out",
-    keys: { mac: ["O", "Mod+2"], other: ["O", "Mod+2"] },
+    keys: { mac: "O", other: "O" },
     context: "timeline",
     labelKey: "cmd.mark.out",
   },
@@ -657,6 +664,41 @@ export const DEFAULT_KEYMAP = [
     keys: { mac: null, other: null },
     context: "global",
     labelKey: "cmd.clipboard.view_others",
+  },
+  {
+    id: "clipboard.send_to_window",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.clipboard.send_to_window",
+  },
+  // The cart: Alt+1..7 play slot n, Shift+Alt+1..7 give the picked entry number n. Matched by
+  // key position (Digit1..7), so the Finnish layout needs no Shift or AltGr character; 8 and 9
+  // are the bracket keys there (Option+8 is "["), so there are seven slots.
+  ...[1, 2, 3, 4, 5, 6, 7].flatMap((n) => [
+    {
+      id: `clipboard.cart_play_${n}`,
+      keys: { mac: `Alt+${n}`, other: `Alt+${n}` },
+      context: "global",
+      labelKey: `cmd.clipboard.cart_play_${n}`,
+    },
+    {
+      id: `clipboard.cart_assign_${n}`,
+      keys: { mac: `Shift+Alt+${n}`, other: `Shift+Alt+${n}` },
+      context: "global",
+      labelKey: `cmd.clipboard.cart_assign_${n}`,
+    },
+  ]),
+  {
+    id: "clipboard.move_up",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.clipboard.move_up",
+  },
+  {
+    id: "clipboard.move_down",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.clipboard.move_down",
   },
   {
     id: "clipboard.open_project",
@@ -918,6 +960,30 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.clip.fade",
   },
   {
+    id: "clip.envelope_delete_point",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.clip.envelope_delete_point",
+  },
+  {
+    id: "clip.envelope_reset",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.clip.envelope_reset",
+  },
+  {
+    id: "track.automation_delete_point",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.track.automation_delete_point",
+  },
+  {
+    id: "track.automation_clear",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.track.automation_clear",
+  },
+  {
     id: "clip.match_loudness",
     keys: { mac: null, other: null },
     context: "timeline",
@@ -928,6 +994,18 @@ export const DEFAULT_KEYMAP = [
     keys: { mac: "Shift+M", other: "Shift+M" },
     context: "global",
     labelKey: "cmd.track.mute",
+  },
+  {
+    id: "track.move_up",
+    keys: { mac: "Alt+Mod+ArrowUp", other: "Alt+Mod+ArrowUp" },
+    context: "global",
+    labelKey: "cmd.track.move_up",
+  },
+  {
+    id: "track.move_down",
+    keys: { mac: "Alt+Mod+ArrowDown", other: "Alt+Mod+ArrowDown" },
+    context: "global",
+    labelKey: "cmd.track.move_down",
   },
   {
     id: "track.solo",
@@ -1242,6 +1320,14 @@ export const DEFAULT_KEYMAP = [
     context: "global",
     labelKey: "cmd.transcript.find",
   },
+  // Find words the edit does not play (cut, muted, gated, unused): the find bar with its
+  // "Not in this edit" list open.
+  {
+    id: "transcript.find_removed",
+    keys: { mac: "Shift+Mod+F", other: "Shift+Mod+F" },
+    context: "global",
+    labelKey: "cmd.transcript.find_removed",
+  },
   { id: "spot", keys: { mac: "Mod+J", other: "Mod+J" }, context: "global", labelKey: "cmd.spot" },
   // Copy the time shown in the corner (WP76); clicking the clock does the same. No key by default.
   {
@@ -1416,6 +1502,12 @@ export const DEFAULT_KEYMAP = [
     keys: { mac: null, other: null },
     context: "global",
     labelKey: "cmd.export.transcript_md",
+  },
+  {
+    id: "export.cut_list",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.export.cut_list",
   },
   {
     id: "export.chapters_text",

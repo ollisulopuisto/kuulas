@@ -23,6 +23,7 @@ import {
   pauseMarkers,
   pauseSecondsOf,
   placeCursor,
+  rightClickPick,
   selectedIndices,
   selectionBounds,
   selectionFrames,
@@ -30,6 +31,7 @@ import {
   shouldLoadWords,
   speakerName,
   summaryParts,
+  transcribedMedia,
   visibleRange,
   wordAtTime,
   wordBefore,
@@ -481,5 +483,34 @@ describe("the selection as in and out marks", () => {
     assert.equal(selectionFrames(words, null), null);
     assert.equal(selectionFrames(words, { anchor: 2, cursor: 9 }), null);
     assert.equal(selectionFrames([], { anchor: 0, cursor: 0 }), null);
+  });
+});
+
+describe("transcribedMedia", () => {
+  test("the server's list counts even when every word of a recording is muted", () => {
+    assert.deepEqual(transcribedMedia({ transcribed: ["m1", "m2"] }, []), ["m1", "m2"]);
+  });
+  test("words add their recordings, once each", () => {
+    const words = [{ media: "m2" }, { media: "m3" }, { media: "m3" }];
+    assert.deepEqual(transcribedMedia({ transcribed: ["m1", "m2"] }, words), ["m1", "m2", "m3"]);
+  });
+  test("nothing known is an empty list", () => {
+    assert.deepEqual(transcribedMedia({}, []), []);
+  });
+});
+
+describe("right-clicking a word", () => {
+  test("a word outside the picked ones becomes the pick", () => {
+    assert.deepEqual(rightClickPick(noSelection(), 4), selectWord(4));
+    assert.deepEqual(rightClickPick(dragSelection(1, 3), 7), selectWord(7));
+  });
+  test("a picked word keeps the whole pick", () => {
+    const picked = dragSelection(1, 3);
+    assert.equal(rightClickPick(picked, 2), picked);
+  });
+  test("no word under the pointer changes nothing", () => {
+    const picked = dragSelection(1, 3);
+    assert.equal(rightClickPick(picked, -1), picked);
+    assert.equal(rightClickPick(noSelection(), -1), null);
   });
 });

@@ -437,10 +437,22 @@ describe("the commands the app registers", () => {
     ]);
   });
 
-  test("rename needs a focused track or bus", () => {
+  test("rename needs a focused track or bus, or a single selected clip", () => {
     const { registry } = setup();
     assert.equal(registry.can("rename", { focusTrack: null, focusBus: null }), false);
     assert.equal(registry.can("rename", { focusTrack: "a" }), true);
+    assert.equal(
+      registry.can("rename", { focusTrack: null, focusBus: null, selection: new Set(["c1"]) }),
+      true,
+    );
+    assert.equal(
+      registry.can("rename", {
+        focusTrack: null,
+        focusBus: null,
+        selection: new Set(["c1", "c2"]),
+      }),
+      false,
+    );
   });
 
   test("help.open is always available and opens help", () => {

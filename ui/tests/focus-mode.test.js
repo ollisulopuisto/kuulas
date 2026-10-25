@@ -5,6 +5,7 @@ import { describe, test } from "node:test";
 import { registerAppCommands } from "../app-commands.js";
 import { createRegistry } from "../commands.js";
 import {
+  FOCUS_SIDE_MAX,
   FOCUS_STRIP,
   focusHeights,
   focusResizeMs,
@@ -35,11 +36,30 @@ const flat = {
 const sum = (heights) => Object.values(heights).reduce((a, b) => a + b, 0);
 
 describe("focusHeights: the view-layer lane heights", () => {
-  test("the focused lane takes the room, the others become 16 px strips, the sum is the area", () => {
+  test("the focused lane takes most of the room, the others stay readable, the sum is the area", () => {
     const heights = focusHeights({ project: flat, focusIds: ["ville"], available: 400 });
-    assert.equal(FOCUS_STRIP, 16);
-    assert.deepEqual(heights, { anna: 16, ville: 352, pekka: 16, theme: 16 });
+    // The others share 40 % of the room: 53 px each, a waveform you can still read
+    // (owner, 2026-10-23: "a BIT too extreme"; it was 16 px strips).
+    assert.deepEqual(heights, { anna: 53, ville: 241, pekka: 53, theme: 53 });
     assert.equal(sum(heights), 400);
+  });
+
+  test("the others are never thinner than a strip, nor thicker than 64 px", () => {
+    assert.equal(FOCUS_STRIP, 16);
+    const one = { ...flat, tracks: flat.tracks.slice(0, 2) };
+    const roomy = focusHeights({ project: one, focusIds: ["anna"], available: 1000 });
+    assert.equal(roomy.ville, FOCUS_SIDE_MAX);
+    const many = {
+      rate: 48_000,
+      tracks: Array.from({ length: 30 }, (_, i) => track(`t${i}`)),
+    };
+    const crowded = focusHeights({ project: many, focusIds: ["t0"], available: 600 });
+    assert.equal(crowded.t1, FOCUS_STRIP);
+  });
+
+  test("an explicit strip height still wins", () => {
+    const heights = focusHeights({ project: flat, focusIds: ["ville"], available: 400, strip: 16 });
+    assert.deepEqual(heights, { anna: 16, ville: 352, pekka: 16, theme: 16 });
   });
 
   test("bus rows and group gaps keep their height and come off first", () => {
@@ -49,9 +69,10 @@ describe("focusHeights: the view-layer lane heights", () => {
       tracks: [track("a", { bus: "b1" }), track("b", { bus: "b1" }), track("m")],
     };
     const heights = focusHeights({ project, focusIds: ["a"], available: 300 });
-    // A bus row (60) and one gap (14) are fixed; the strips are b and m.
-    assert.equal(heights.a, 300 - BUS_HEIGHT - GROUP_GAP - 2 * FOCUS_STRIP);
-    assert.equal(heights.b, FOCUS_STRIP);
+    // A bus row (60) and one gap (14) are fixed; b and m share 40 % of what is left.
+    const side = Math.floor((0.4 * (300 - BUS_HEIGHT - GROUP_GAP)) / 2);
+    assert.equal(heights.a, 300 - BUS_HEIGHT - GROUP_GAP - 2 * side);
+    assert.equal(heights.b, side);
     const layout = layoutRows(project, 80, { viewHeights: heights });
     assert.equal(layout.height, 300);
   });
@@ -59,7 +80,8 @@ describe("focusHeights: the view-layer lane heights", () => {
   test("a speaker's split tracks share the room", () => {
     const project = { ...flat, tracks: [...flat.tracks, track("ville2", { speaker: "Ville" })] };
     const heights = focusHeights({ project, focusIds: ["ville", "ville2"], available: 301 });
-    assert.equal(heights.ville + heights.ville2, 301 - 3 * FOCUS_STRIP);
+    const side = Math.floor((0.4 * 301) / 3);
+    assert.equal(heights.ville + heights.ville2, 301 - 3 * side);
     assert.ok(Math.abs(heights.ville - heights.ville2) <= 1);
   });
 

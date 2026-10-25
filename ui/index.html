@@ -31,16 +31,16 @@
              fast listening sit above the track headers, level with the overview and the ruler.
              Mockup: docs/design/transport-corner/index.html. -->
         <div class="corner" role="toolbar" data-i18n-aria-label="ui.transport.label">
-          <button id="play" type="button" class="play" aria-keyshortcuts="Space">
+          <button id="play" data-cmd="transport.play" type="button" class="play">
             <span id="play-icon" class="play-icon" aria-hidden="true">▶</span><span id="play-label" class="lbl"></span>
-            <kbd data-shortcut="Space" aria-hidden="true"></kbd>
+            <kbd data-shortcut-cmd="transport.play" aria-hidden="true"></kbd>
           </button>
           <!-- Record: the same size as Play; opens the record view (Transport > Record…). -->
           <button id="record" type="button" class="play rec-button" data-i18n-title="cmd.transport.record.hint">
             <span class="play-icon rec-dot" aria-hidden="true">●</span><span class="lbl" data-i18n="ui.transport.record"></span>
           </button>
           <div class="t-row">
-            <button id="loop" type="button" class="button ghost icon" aria-pressed="false" aria-keyshortcuts="Meta+U Control+U">
+            <button id="loop" data-cmd="transport.loop_selection" type="button" class="button ghost icon" aria-pressed="false">
               <svg class="i" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 7.5v-1a2.5 2.5 0 0 1 2.5-2.5h7.5M10.5 1.8 12.7 4l-2.2 2.2M13.5 8.5v1A2.5 2.5 0 0 1 11 12H3.5M5.5 14.2 3.3 12l2.2-2.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
               <span class="loop-name visually-hidden" data-i18n="ui.transport.loop"></span>
             </button>
@@ -66,6 +66,10 @@
           <!-- Follow: the state chip, and the arrow to a playhead that left the view (follow-model.js). -->
           <button id="follow-chip" type="button" class="button small follow-chip" data-on="true" aria-pressed="true" hidden data-i18n="ui.view.follow_chip" data-i18n-title="ui.view.follow_chip_title"></button>
           <button id="follow-arrow" type="button" class="button small follow-arrow" hidden></button>
+          <!-- A project another window or machine holds: read-only, and who has it (read-only-model.js). -->
+          <div id="readonly-banner" class="render-banner readonly-banner" role="status" hidden>
+            <span id="readonly-banner-text" class="render-banner-text"></span>
+          </div>
           <!-- While the rendered mix plays instead of the edit (render-listen-view.js). -->
           <div id="render-banner" class="render-banner" role="status" hidden>
             <span id="render-banner-text" class="render-banner-text"></span>
@@ -93,12 +97,14 @@
         <!-- Auto-Silence options (Track > Auto): docked over the sidebar's panels the same way while
              open, so the lanes stay visible and clickable; silence-panel.js fills it. -->
         <section id="panel-silence" class="panel silence-panel" data-panel="silence" hidden></section>
+        <section id="panel-block-level" class="panel silence-panel block-level-panel" data-panel="block-level" hidden></section>
         <div class="side-tabs" role="tablist" data-i18n-aria-label="ui.tabs.label">
           <button id="tab-inspector" type="button" role="tab" class="side-tab" data-tab="inspector" aria-controls="panel-inspector"><span class="tab-icon" data-icon="inspector" aria-hidden="true"></span><span class="tab-label" data-i18n="ui.tabs.inspector"></span><span class="tab-key"></span></button>
           <button id="tab-candidates" type="button" role="tab" class="side-tab" data-tab="candidates" aria-controls="panel-candidates"><span class="tab-icon" data-icon="candidates" aria-hidden="true"></span><span class="tab-label" data-i18n="ui.tabs.candidates"></span><span id="cand-count" class="count" hidden></span><span class="tab-key"></span></button>
           <button id="tab-clipboard" type="button" role="tab" class="side-tab" data-tab="clipboard" aria-controls="panel-clipboard"><span class="tab-icon" data-icon="paste" aria-hidden="true"></span><span class="tab-label" data-i18n="ui.tabs.clipboard"></span><span class="tab-key"></span></button>
           <button id="tab-markers" type="button" role="tab" class="side-tab" data-tab="markers" aria-controls="panel-markers"><span class="tab-icon" data-icon="bookmark" aria-hidden="true"></span><span class="tab-label" data-i18n="ui.tabs.markers"></span><span class="tab-key"></span></button>
           <button id="tab-history" type="button" role="tab" class="side-tab" data-tab="history" aria-controls="panel-history"><span class="tab-icon" data-icon="restore" aria-hidden="true"></span><span class="tab-label" data-i18n="ui.tabs.history"></span><span class="tab-key"></span></button>
+          <button id="tab-material" type="button" role="tab" class="side-tab" data-tab="material" aria-controls="panel-material"><span class="tab-icon" data-icon="folder" aria-hidden="true"></span><span class="tab-label" data-i18n="ui.tabs.material"></span><span class="tab-key"></span></button>
           <!-- Hides the whole side panel (View > Show side panel brings it back). -->
           <button id="side-close" type="button" class="button ghost icon side-close" data-icon="close" data-i18n-aria-label="ui.sidebar.close" data-i18n-title="ui.sidebar.close"></button>
         </div>
@@ -107,19 +113,22 @@
         <section id="panel-clipboard" class="panel" data-panel="clipboard" role="tabpanel" aria-labelledby="tab-clipboard" tabindex="0" hidden></section>
         <section id="panel-markers" class="panel" data-panel="markers" role="tabpanel" aria-labelledby="tab-markers" tabindex="0" hidden></section>
         <section id="panel-history" class="panel" data-panel="history" role="tabpanel" aria-labelledby="tab-history" tabindex="0" hidden></section>
+        <section id="panel-material" class="panel" data-panel="material" role="tabpanel" aria-labelledby="tab-material" tabindex="0" hidden></section>
       </aside>
       <footer class="statusbar" data-i18n-aria-label="ui.view.title">
         <span id="zoom-chip" class="zoom"></span>
-        <button id="view-toggle" data-help-id="view-toggle" type="button" class="button ghost" data-i18n-title="ui.view.toggle" aria-keyshortcuts="Z"></button>
+        <button id="view-toggle" data-cmd="view.toggle" data-help-id="view-toggle" data-cmd="view.toggle" type="button" class="button ghost" data-i18n-title="ui.view.toggle"></button>
         <span class="divider" aria-hidden="true"></span>
         <!-- At most three hints, for the focused panel (GUI-DESIGN.md "Density"). -->
         <span id="keyhints" class="keyhints" aria-hidden="true"></span>
         <span id="menu-hint" class="keyhints menu-hint" role="status" hidden></span>
         <span id="range-info" class="range-info" role="status" hidden></span>
-        <button id="scope-chip" type="button" class="chip scope-chip" data-help-id="scope-chip" aria-keyshortcuts="E" hidden></button>
+        <button id="scope-chip" data-cmd="range.scope_toggle" type="button" class="chip scope-chip" data-help-id="scope-chip" data-cmd="range.scope_toggle" hidden></button>
         <span id="tab-scope" class="range-info tab-scope" data-i18n-title="cmd.nav.tab_target_cycle.hint"></span>
         <!-- The series this episode belongs to (docs/design/SERIES.md); opens File > Series > Series…. -->
         <button id="series-chip" type="button" class="chip series-chip" hidden></button>
+        <!-- Messages held back after a toast was closed with its X (notice-hold.js): a dot and the latest text; a click shows it again. -->
+        <button id="notice-chip" type="button" class="chip notice-chip" data-i18n-title="ui.notice.chip_title" hidden></button>
         <span class="spacer"></span>
         <!-- The live level meter (level-meter.js): what plays now, dBFS, two thin bars with a
              peak-hold tick; hidden while stopped, except the clip light, which stays until clicked. -->
@@ -132,18 +141,18 @@
           <button id="level-clip" type="button" class="lm-clip" hidden data-i18n-aria-label="ui.meter.clip" data-i18n-title="ui.meter.clip"></button>
         </span>
         <span id="build-label" class="range-info build-label" data-i18n-title="ui.build.title"></span>
-        <button id="help-button" data-help-id="help-button" type="button" class="button ghost" data-icon="help" data-i18n="ui.help.title" aria-keyshortcuts="F1"></button>
+        <button id="help-button" data-cmd="help.open" data-help-id="help-button" data-cmd="help.open" type="button" class="button ghost" data-icon="help" data-i18n="ui.help.title"></button>
         <button id="view-menu-button" data-help-id="view-menu" type="button" class="button ghost" data-icon="menu" popovertarget="view-menu" data-i18n="ui.view.menu"></button>
       </footer>
       <!-- Everything else about the view: one click away, not on screen at rest. -->
       <div id="view-menu" class="view-menu" popover data-i18n-aria-label="ui.view.menu">
         <div class="menu-row"><span data-i18n="ui.view.zoom"></span>
           <span class="menu-pair">
-            <button id="zoom-out" type="button" class="button icon" data-i18n-aria-label="ui.view.zoom_out" data-i18n-title="ui.view.zoom_out" aria-keyshortcuts="-">−</button>
-            <button id="zoom-in" type="button" class="button icon" data-i18n-aria-label="ui.view.zoom_in" data-i18n-title="ui.view.zoom_in" aria-keyshortcuts="=">+</button>
+            <button id="zoom-out" data-cmd="view.zoom_out" type="button" class="button icon" data-i18n-aria-label="ui.view.zoom_out" data-i18n-title="ui.view.zoom_out">−</button>
+            <button id="zoom-in" data-cmd="view.zoom_in" type="button" class="button icon" data-i18n-aria-label="ui.view.zoom_in" data-i18n-title="ui.view.zoom_in">+</button>
           </span>
         </div>
-        <button id="fit" type="button" class="button" data-icon="fit" data-i18n="ui.view.fit" aria-keyshortcuts="Shift+Z"></button>
+        <button id="fit" data-cmd="view.fit" type="button" class="button" data-icon="fit" data-i18n="ui.view.fit"></button>
         <label class="menu-row"><span data-i18n="ui.view.waveform"></span>
           <select id="waveform-mode" class="button">
             <option value="half" data-i18n="ui.view.half"></option>

@@ -3,12 +3,18 @@
 // worker (OffscreenCanvas), on the main thread when workers are unavailable,
 // and in tests with a recording context.
 import { CLIP_LIMIT_DB, columnOvers } from "./clip-overs.js";
+import { implicitSilenceRanges } from "./clip-silence.js";
 import { frameToX } from "./format.js";
 import { columnGainsDb, waveformScale } from "./gain-scale.js";
 import { gatePixelRuns } from "./gate.js";
 import { busHues, SPEAKER_HUE_COUNT, zebraSteps } from "./grammar.js";
 import { layoutFor, RULER_HEIGHT, visibleRows } from "./lanes.js";
-import { columnRuns, envelopeOutline, silentColumns } from "./silence-visuals.js";
+import {
+  columnRuns,
+  envelopeOutline,
+  silentColumns,
+  silentOutlineAlpha,
+} from "./silence-visuals.js";
 import { columnsFromTiles, pickLevel, waveformColumns } from "./waveform.js";
 
 /** Below this a gain is silence: JSON cannot carry -Infinity, so the job clamps to it. */
@@ -95,6 +101,8 @@ export function makeWaveformJob(state, { width, height, ratio, id }, palette, co
       };
       // Only when set, so a job is unchanged for the common clip.
       if (clip.ungated) entry.ungated = true;
+      if (clip.auto_silence?.length)
+        entry.autoSilence = gatePixelRuns(implicitSilenceRanges(clip), scroll, zoom, width);
       if (missingMedia?.has(clip.media)) entry.missing = true;
       // WP57: the size follows clip + track gain and the clip's envelope. Pan and mute do
       // not; bus gain is not included yet. Absent at 0 dB, so a job is unchanged there.
@@ -257,6 +265,7 @@ function paintClipWave(ctx, job, row, clip, view) {
     muted: clip.muted,
     ungated: clip.ungated,
     gate: row.gate,
+    implicit: clip.autoSilence,
   });
   const preview = row.preview?.length
     ? silentColumns(count, from, { ungated: clip.ungated, gate: row.preview })
@@ -293,7 +302,9 @@ function paintClipWave(ctx, job, row, clip, view) {
   }
   ctx.fill();
   // In the label colour: the wave colour is too close to the toned-down body to read on it.
+  ctx.globalAlpha = WAVE_ALPHA * silentOutlineAlpha({ muted: Boolean(clip.muted) });
   strokeOutlines(ctx, bars, silentRuns, { from, y, h, colour: colours.label || colours.wave });
+  ctx.globalAlpha = WAVE_ALPHA;
   if (preview) {
     strokeOutlines(ctx, bars, columnRuns(preview), {
       from,

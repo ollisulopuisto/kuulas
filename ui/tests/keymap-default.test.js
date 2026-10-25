@@ -224,11 +224,11 @@ describe("the owner's decisions", () => {
     assert.deepEqual(keysOf("edit.cut_track"), ["Shift+Mod+X"]);
   });
 
-  test("1 and 2 go to the in and out marks; Mod+1 and Mod+2 set them, like Hindenburg", () => {
+  test("1 and 2 go to the in and out marks; I and O set them; Mod+1..5 are the side tabs", () => {
     assert.deepEqual(keysOf("nav.to_in", "mac"), ["1"]);
     assert.deepEqual(keysOf("nav.to_out", "mac"), ["2"]);
-    assert.ok(keysOf("mark.in", "mac").includes("Mod+1"));
-    assert.ok(keysOf("mark.out", "mac").includes("Mod+2"));
+    assert.deepEqual(keysOf("mark.in", "mac"), ["I"]);
+    assert.deepEqual(keysOf("mark.out", "mac"), ["O"]);
   });
 
   test("Cmd+Enter adds a marker (Hindenburg); M mutes the clips and N is unwired", () => {

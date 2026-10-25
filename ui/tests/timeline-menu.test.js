@@ -64,7 +64,7 @@ describe("the sections per target", () => {
     const sections = timelineMenuItems(base, { kind: "clip" }, all);
     assert.ok(sections.some((s) => s.titleKey === "ui.ctx.media"));
   });
-  test("clip: clipboard, paste forms, edit, select, adjust", () => {
+  test("clip: edit first, then clipboard, paste forms, select; no key-repeat adjust steps", () => {
     has("clip", [
       "edit.cut",
       "edit.copy",
@@ -83,11 +83,104 @@ describe("the sections per target", () => {
       "select.forward_all_tracks_from_clips",
       "select.none",
       "select.invert",
-      "edit.trim_start",
-      "edit.nudge_left",
-      "clip.gain_up",
-      "clip.pan_left",
+      "clip.match_loudness",
     ]);
+    const ids = flat(timelineMenuItems(base, { kind: "clip" }, all));
+    for (const id of ["edit.trim_start", "edit.nudge_left", "clip.gain_up", "clip.pan_left"])
+      assert.ok(!ids.includes(id), `${id} is a key-repeat step, not a menu item`);
+  });
+  test("clip: volume line commands (delete point, reset)", () => {
+    has("clip", ["clip.envelope_delete_point", "clip.envelope_reset"]);
+  });
+  test("a press on a volume-line point carries it into the plan", () => {
+    const hit = { area: "lane", frame: 5, clip: { id: "c1" }, point: 2, row: trackRow("t1") };
+    assert.deepEqual(contextPress(hit, base).envelopePoint, { clipId: "c1", index: 2 });
+    const none = { ...hit, point: null };
+    assert.equal(contextPress(none, base).envelopePoint, null);
+  });
+  test("ducking point: delete it, clear the curve", () => {
+    has("automation", ["track.automation_delete_point", "track.automation_clear"]);
+  });
+  test("a press on a ducking point is that target and remembers the point", () => {
+    const hit = {
+      area: "lane",
+      frame: 5,
+      clip: { id: "c1" },
+      autoPoint: 3,
+      row: trackRow("t1"),
+    };
+    assert.equal(timelineTarget(hit, base).kind, "automation");
+    assert.deepEqual(contextPress(hit, base).automationPoint, { trackId: "t1", index: 3 });
+    assert.equal(contextPress({ ...hit, autoPoint: null }, base).automationPoint ?? null, null);
+  });
+  test("clip: the Edit section comes before Clipboard and Paste", () => {
+    const names = timelineMenuItems(base, { kind: "clip" }, all).map((s) => s.titleKey);
+    assert.ok(names.indexOf("ui.ctx.edit") < names.indexOf("ui.ctx.clipboard"));
+    assert.ok(names.indexOf("ui.ctx.clipboard") < names.indexOf("ui.ctx.paste"));
+  });
+  test("range: mark as a candidate", () => {
+    has("range", ["candidate.mark_range"]);
+  });
+  test("placeholder: take, edit, delete", () => {
+    has("placeholder", ["placeholder.take", "placeholder.edit", "placeholder.delete"]);
+  });
+  test("transcript words: delete, cut, remove, correct, mark as a candidate", () => {
+    has("transcript", [
+      "transcript.delete_words",
+      "transcript.cut_words",
+      "transcript.remove_words",
+      "transcript.correct",
+      "transcript.mark_candidate",
+    ]);
+  });
+  test("a Clipboard row: paste, preview, send to another window, move", () => {
+    has("clipboard", [
+      "edit.paste",
+      "edit.paste_insert",
+      "edit.preview_clipboard",
+      "clipboard.send_to_window",
+      "clipboard.move_up",
+      "clipboard.move_down",
+    ]);
+  });
+  test("a ruler hit on a marker is the marker target, and selects it", () => {
+    const hit = { area: "ruler", frame: 5, marker: "m1" };
+    assert.equal(timelineTarget(hit, base).kind, "marker");
+    const plan = contextPress(hit, base);
+    assert.equal(plan.kind, "marker");
+    assert.equal(plan.marker, "m1");
+    assert.equal(plan.seek, 5);
+  });
+  test("marker: delete and step", () => {
+    has("marker", ["marker.delete", "marker.prev", "marker.next"]);
+  });
+  test("a ruler hit on a marker is the marker target, and selects it", () => {
+    const hit = { area: "ruler", frame: 5, marker: "m1" };
+    assert.equal(timelineTarget(hit, base).kind, "marker");
+    const plan = contextPress(hit, base);
+    assert.equal(plan.kind, "marker");
+    assert.equal(plan.marker, "m1");
+    assert.equal(plan.seek, 5);
+  });
+  test("marker: delete and step", () => {
+    has("marker", ["marker.delete", "marker.prev", "marker.next"]);
+  });
+  test("ruler: marker delete and the marker steps", () => {
+    has("ruler", ["marker.delete", "marker.prev", "marker.next"]);
+  });
+  test("a placeholder under the pointer, with no clip, is the placeholder target", () => {
+    const hit = {
+      area: "lane",
+      frame: 5,
+      clip: null,
+      placeholder: { id: "p1" },
+      row: trackRow("t2"),
+    };
+    assert.equal(timelineTarget(hit, base).kind, "placeholder");
+    const plan = contextPress(hit, base);
+    assert.equal(plan.kind, "placeholder");
+    assert.equal(plan.seek, 5);
+    assert.equal(plan.focusTrack, "t2");
   });
   test("range: cut, copy, delete, close gap, loop, play, select clips, clear, export", () => {
     has("range", [
@@ -119,7 +212,17 @@ describe("the sections per target", () => {
     has("ruler", ["marker.add", "mark.in", "mark.out", "view.zoom_in", "view.zoom_out"]);
   });
   test("an id appears once per menu", () => {
-    for (const kind of ["clip", "range", "lane", "ruler"]) {
+    for (const kind of [
+      "clip",
+      "range",
+      "lane",
+      "ruler",
+      "placeholder",
+      "transcript",
+      "clipboard",
+      "marker",
+      "automation",
+    ]) {
       const ids = flat(timelineMenuItems(base, { kind }, all));
       assert.equal(new Set(ids).size, ids.length, kind);
     }

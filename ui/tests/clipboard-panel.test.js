@@ -38,6 +38,10 @@ class FakeNode {
     this.listeners[type] = [...(this.listeners[type] ?? []), fn];
   }
 
+  getBoundingClientRect() {
+    return { top: 0, height: 40 };
+  }
+
   click() {
     if (this.disabled) return;
     for (const fn of this.listeners.click ?? []) fn({});
@@ -115,6 +119,7 @@ beforeEach(() => {
       view: record("view"),
       choose: record("choose"),
       keep: record("keep"),
+      cartTrim: record("cartTrim"),
       clearOld: record("clearOld"),
       toggleProject: record("toggleProject"),
       openProject: record("openProject"),
@@ -128,6 +133,8 @@ beforeEach(() => {
       openSeries: record("openSeries"),
       dragStart: record("dragStart"),
       dragEnd: record("dragEnd"),
+      pickCart: record("pickCart"),
+      move: record("move"),
       now: () => 1000 + 300,
       canPasteAgain: () => true,
     },
@@ -451,11 +458,82 @@ describe("dragging an entry onto the timeline", () => {
     assert.equal(first.attrs.draggable, "true");
     const { data, event } = drag(first);
     assert.deepEqual(data, { "application/x-kuulas-clipboard": "a" });
-    assert.equal(event.dataTransfer.effectAllowed, "copy");
+    assert.equal(event.dataTransfer.effectAllowed, "copyMove");
     assert.deepEqual(calls, [
       ["dragStart", state().clipboard[0], { shelf: "project", from: "" }],
       ["dragEnd"],
     ]);
+  });
+
+  describe("the cart number on a row", () => {
+    test("a row shows its cart number, or a dash, and a click asks for the picker", () => {
+      panel.update(
+        state({
+          clipboard: [
+            { ...entry("a"), cart: 3 },
+            { ...entry("b"), cart: null },
+          ],
+        }),
+      );
+      const [first, second] = byAction("cart");
+      assert.equal(first.textContent, "3");
+      assert.equal(second.textContent, "–");
+      assert.equal(first.attrs["aria-label"], "ui.clipboard.cart");
+      calls.length = 0;
+      first.click();
+      assert.deepEqual(calls.at(-1).slice(0, 2), ["pickCart", "a"]);
+    });
+  });
+
+  describe("reordering by dropping on another row", () => {
+    const TYPE = "application/x-kuulas-clipboard";
+    const types = [TYPE];
+    const startDrag = (row) => {
+      for (const fn of row.listeners.dragstart ?? [])
+        fn({ dataTransfer: { setData() {}, effectAllowed: "", types } });
+    };
+    const dropOn = (row, clientY, id) => {
+      const event = {
+        clientY,
+        dataTransfer: { types, getData: () => id, dropEffect: "" },
+        preventDefault() {
+          event.prevented = true;
+        },
+      };
+      for (const fn of row.listeners.dragover ?? []) fn(event);
+      for (const fn of row.listeners.drop ?? []) fn(event);
+      return event;
+    };
+
+    test("dropping the first entry on the lower half of the second moves it after it", () => {
+      panel.update(state());
+      const [first, second] = rows();
+      calls.length = 0;
+      startDrag(first);
+      const event = dropOn(second, 35, "a");
+      assert.equal(event.prevented, true);
+      const moves = calls.filter((call) => call[0] === "move");
+      assert.equal(moves.length, 1);
+      assert.equal(moves[0][1], "a");
+    });
+
+    test("dropping it where it already is does nothing", () => {
+      panel.update(state());
+      const [first] = rows();
+      calls.length = 0;
+      startDrag(first);
+      dropOn(first, 5, "a");
+      assert.deepEqual(
+        calls.filter((call) => call[0] === "move"),
+        [],
+      );
+    });
+
+    test("a filtered list cannot be reordered", () => {
+      panel.update(state({ clipboardFilter: "name" }));
+      const [first] = rows();
+      assert.equal((first.listeners.drop ?? []).length, 0);
+    });
   });
 
   test("series, shared and other projects' rows drag with their shelf", () => {
@@ -487,4 +565,16 @@ describe("dragging an entry onto the timeline", () => {
       ],
     );
   });
+});
+
+test("the cart trim has translated help and reports its value", () => {
+  panel.update(state({ cartTrim: 2 }));
+  const input = root.all().find((node) => node.id === "cart-trim");
+  assert.ok(input);
+  assert.equal(input.value, "2");
+  input.value = "-1.5";
+  for (const fn of input.listeners.change) fn({});
+  assert.deepEqual(calls.at(-1), ["cartTrim", "-1.5"]);
+  assert.equal(input.attrs["aria-describedby"], "cart-trim-help");
+  assert.ok(root.all().some((node) => node.textContent === "ui.clipboard.cart_trim_help"));
 });

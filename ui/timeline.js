@@ -7,6 +7,7 @@
 // waveform layer only when something it shows changed.
 
 import { peakTile } from "./api.js";
+import { automationTargets } from "./automation-snap.js";
 import { candidateBands, flagFits, flagText } from "./candidates-model.js";
 import { backingSize } from "./canvas-size.js";
 import {
@@ -19,10 +20,12 @@ import {
   targetTrackRow,
 } from "./clip-drag.js";
 import { overLabel } from "./clip-overs.js";
+import { implicitSilenceRanges } from "./clip-silence.js";
 import { averageWordFrames, layoutClipWords, wordsWideEnough } from "./clip-words.js";
 import { dropTarget as clipboardDropTarget, dropOutlines } from "./clipboard-drag.js";
 import { DEFAULT_DRAG_MODE, dragIntent } from "./drag-mode.js";
-import { edgeGhost, ghostGeometry, resolveEdge } from "./edge-drag.js";
+import { createDragSnap } from "./drag-snap.js";
+import { clampImplicitEdge, edgeGhost, ghostGeometry, resolveEdge } from "./edge-drag.js";
 import { inactiveTracks } from "./focus-layout.js";
 import { frameToTime, frameToX, xToFrame } from "./format.js";
 import {
@@ -67,7 +70,7 @@ import { leftOffFlag } from "./left-off.js";
 import { activeLoop } from "./loop-range.js";
 import { flagLayout, NOTCH_PX as MARKER_NOTCH_PX } from "./markers-model.js";
 import { lengthPill, markDrawing } from "./marks.js";
-import { heldFromEvent } from "./modifiers.js";
+import { heldFromEvent, modClick } from "./modifiers.js";
 import { advanceDelta, movedSpans, moveTargets, snapMove } from "./move-snap.js";
 import {
   baseGainDb,
@@ -84,6 +87,7 @@ import { rulerTicks } from "./ruler.js";
 import {
   inactiveLook,
   lockSpots,
+  lockTop,
   openLockSpot,
   STRETCH_EDGE_DASH,
   stretchEdges,
@@ -159,6 +163,7 @@ export function createTimeline({
   getState,
   actions,
   playheadAt = (state) => state.playhead,
+  liveTake = null,
 }) {
   const overlay = overlayCanvas.getContext("2d");
   // Clips whose waveform clips after gain (WP57): clip id -> dB above full scale, as the
@@ -309,7 +314,10 @@ export function createTimeline({
     drawRangeBand(state, layout);
     if (dropPreview) drawDropPreview(state, layout);
     if (clipDrop) drawClipboardDrop(state, layout);
-    if (edgeSession?.dragging) drawEdgeGhost(state, layout);
+    if (edgeSession?.dragging) {
+      drawAutomationSnapMarks(state, edgeSession.snap.marks);
+      drawEdgeGhost(state, layout);
+    }
     if (clipSession?.dragging) drawMoveGhost(state, layout);
     drawPlayhead(state, height);
   }
@@ -321,6 +329,22 @@ export function createTimeline({
     const track = state.project.tracks.find((item) => item.id === edgeSession.trackId);
     const clip = track?.clips.find((item) => item.id === edgeSession.clipId);
     if (!(row && clip)) return;
+    if (edgeSession.implicitRange) {
+      const x = frameToX(edgeSession.frame, state.scroll, state.zoom);
+      overlay.save();
+      overlay.beginPath();
+      overlay.rect(0, RULER_HEIGHT, size.width, size.height - RULER_HEIGHT);
+      overlay.clip();
+      overlay.strokeStyle = theme.accent;
+      overlay.lineWidth = 2;
+      overlay.setLineDash([4, 3]);
+      overlay.beginPath();
+      overlay.moveTo(x + 0.5, RULER_HEIGHT);
+      overlay.lineTo(x + 0.5, size.height);
+      overlay.stroke();
+      overlay.restore();
+      return;
+    }
     const ghost = edgeGhost(state.project, track, clip, edgeSession.edge, edgeSession.frame, {
       ripple: edgeSession.ripple,
       overwrite: edgeSession.overwrite,
@@ -486,10 +510,24 @@ export function createTimeline({
     overlay.restore();
   }
 
+  // Shared ticks along the lane tops show the temporary automation snap targets.
+  function drawAutomationSnapMarks(state, frames) {
+    overlay.save();
+    overlay.fillStyle = theme.accent;
+    overlay.globalAlpha = 0.7;
+    for (const frame of frames) {
+      const x = frameToX(frame, state.scroll, state.zoom);
+      if (x < 0 || x > size.width) continue;
+      overlay.fillRect(Math.round(x), RULER_HEIGHT, 1, 10);
+    }
+    overlay.restore();
+  }
+
   // Clips being moved (WP6): dashed accent outlines at the new place, on the new track, with
   // each clip's own waveform inside (WP63) so waveforms can be lined up by eye.
   function drawMoveGhost(state, layout) {
     const ghosts = moveGhosts(state.project, clipSession.ids, clipSession.move);
+    if (clipSession.autoOn) drawAutomationSnapMarks(state, clipSession.auto);
     if (clipSession.snapAt !== null) {
       // The snap line: a thin accent line where the moved edge landed.
       const x = frameToX(clipSession.snapAt, state.scroll, state.zoom);
@@ -539,6 +577,7 @@ export function createTimeline({
   // tinted, an outline per clip where the drop puts it (dashed), and the drop line in the accent
   // colour (solid when it snapped).
   function drawClipboardDrop(state, layout) {
+    drawAutomationSnapMarks(state, clipDrop.target.autoMarks);
     const { outlines, rows } = dropOutlines(clipDrop.entry, clipDrop.target, {
       layout,
       view: state,
@@ -606,8 +645,15 @@ export function createTimeline({
     const x1 = frameToX(range.start, state.scroll, state.zoom);
     const x2 = frameToX(range.end, state.scroll, state.zoom);
     overlay.fillStyle = theme.range;
-    if (spans === null) overlay.fillRect(x1, RULER_HEIGHT, x2 - x1, height - RULER_HEIGHT);
-    else for (const span of spans) overlay.fillRect(x1, span.top, x2 - x1, span.height);
+    const bands = spans ?? [{ top: RULER_HEIGHT, height: height - RULER_HEIGHT }];
+    for (const span of bands) overlay.fillRect(x1, span.top, x2 - x1, span.height);
+    // A solid edge at each end, so what is inside the range and what is outside read at
+    // a glance, also over a loud waveform (owner, 2026-10-23: more contrast).
+    overlay.fillStyle = theme.accent;
+    for (const span of bands) {
+      overlay.fillRect(Math.round(x1) - 1, span.top, 2, span.height);
+      overlay.fillRect(Math.round(x2) - 1, span.top, 2, span.height);
+    }
   }
 
   // The band in the ruler too (drawn after the ruler, under the flags), and the length as a
@@ -755,7 +801,10 @@ export function createTimeline({
       locks: () => {
         if (state.showGates !== false) drawGateLocks(state, track, row, top);
       },
-      clips: () => drawClips(state, track, row, top, colours),
+      clips: () => {
+        drawClips(state, track, row, top, colours);
+        drawLiveTake(state, track, row, top, colours);
+      },
       placeholders: () => drawPlaceholders(state, track, row, top),
       collateral: () => {
         if (state.collateral?.tracks.includes(track.id)) drawCollateral(state, track, row, top);
@@ -766,6 +815,43 @@ export function createTimeline({
       previewLabel: () => drawPreviewLabel(state, track, top, row.height),
     };
     for (const layer of TRACK_LAYERS) painters[layer]();
+    overlay.restore();
+  }
+
+  // The take that records now, drawn on the lane it goes to as it comes in (live-take.js): a
+  // mirrored bar per pixel in the track's wave colour, and a red head where it is now. The
+  // take's clips land here when it stops; this is only the picture until then.
+  function drawLiveTake(state, track, row, top, colours) {
+    if (!liveTake?.active) return;
+    const lane = liveTake.lanes().find((entry) => entry.trackId === track.id);
+    if (!lane) return;
+    const cols = liveTake.columns(lane.index, {
+      scroll: state.scroll,
+      zoom: state.zoom,
+      width: size.width,
+    });
+    const y = top + 2;
+    const h = row.height - 4;
+    const mid = y + h / 2;
+    overlay.save();
+    overlay.beginPath();
+    overlay.rect(0, y, size.width, h);
+    overlay.clip();
+    overlay.fillStyle = colours.wave;
+    overlay.globalAlpha = 0.9;
+    let head = -1;
+    for (let x = 0; x < cols.length; x += 1) {
+      if (cols[x] <= 0) continue;
+      head = x;
+      // A gentle curve so a quiet voice is still seen; full scale is the lane's height.
+      const bar = Math.max(1, cols[x] ** 0.6 * h);
+      overlay.fillRect(x, mid - bar / 2, 1, bar);
+    }
+    if (head >= 0) {
+      overlay.globalAlpha = 1;
+      overlay.fillStyle = theme.clipping;
+      overlay.fillRect(head, y, 2, h);
+    }
     overlay.restore();
   }
 
@@ -786,7 +872,7 @@ export function createTimeline({
       const w = Math.max(1, right - left);
       const selected = state.selection.has(clip.id) || !!rangeBand?.touched?.has(clip.id);
       const missing = state.missingMedia?.has(clip.media);
-      overlay.strokeStyle = colours.ink;
+      overlay.strokeStyle = theme.clipEdge;
       overlay.lineWidth = 1;
       overlay.strokeRect(left + 0.5, y + 0.5, w - 1, h - 1);
       if (missing) drawMissingMedia(left, y, w, h);
@@ -963,7 +1049,7 @@ export function createTimeline({
   }
 
   // The gate (WP44): each closed stretch's waveform is outline only (the waveform layer) and
-  // carries a padlock at the left of its visible part, in the label strip, never over a clip
+  // carries a padlock at the left of its visible part, under the name strip, never over a clip
   // border, a fade handle or a clip name (silence-visuals.js lockSpots). A stretch too narrow
   // for the icon gets none: the outline alone says silent. Runs are merged pixels (gate.js), so
   // thousands of ranges cost a few icons at most.
@@ -972,8 +1058,11 @@ export function createTimeline({
   // left out where a real clip border is (drawn above, unchanged). silence-visuals.js
   // stretchEdges has the rules.
   function drawStretchEdges(state, track, top, rowHeight) {
-    if (!track.gate?.length) return;
-    const runs = gatePixelRuns(track.gate, state.scroll, state.zoom, size.width, gateRuns);
+    const ranges = [...(track.gate ?? []), ...track.clips.flatMap(implicitSilenceRanges)].sort(
+      (a, b) => a[0] - b[0],
+    );
+    if (ranges.length === 0) return;
+    const runs = gatePixelRuns(ranges, state.scroll, state.zoom, size.width, gateRuns);
     const clipEdges = track.clips.flatMap((clip) => [
       frameToX(clip.start, state.scroll, state.zoom),
       frameToX(clipEnd(clip), state.scroll, state.zoom),
@@ -1022,7 +1111,6 @@ export function createTimeline({
     const runs = gatePixelRuns(track.gate, state.scroll, state.zoom, size.width, gateRuns);
     if (runs.length === 0) return;
     const blocked = [];
-    overlay.font = `600 ${NAME_FONT_PX}px ${theme.font}`;
     for (const clip of track.clips) {
       const left = frameToX(clip.start, state.scroll, state.zoom);
       const right = frameToX(clipEnd(clip), state.scroll, state.zoom);
@@ -1031,10 +1119,16 @@ export function createTimeline({
       const handles = fadeHandles(clip, { left, right, zoom: state.zoom });
       for (const side of ["in", "out"])
         blocked.push([handles[side].x - POINT_RADIUS - 2, handles[side].x + POINT_RADIUS + 2]);
-      // The clip's name strip starts at its visible left; keep the lock clear of the name.
-      if (row.height >= 36) blocked.push([Math.max(left, 0), Math.max(left, 0) + 5 + 120]);
     }
-    const y = top + 2 + 3;
+    // Under the name strip (and the words row), where no label can paint over it.
+    const offset = lockTop(row.height, {
+      label: LABEL_H,
+      words: WORDS_ROW_H,
+      icon: ICON_PX,
+      wordsShown: Boolean(clipWordsView(state)) && row.height >= WORDS_MIN_LANE,
+    });
+    if (offset === null) return;
+    const y = top + offset;
     for (const x of lockSpots(runs, { iconPx: ICON_PX, pad: ICON_PAD, blocked }))
       drawPadlock("lock", x, y, theme.gateLock);
   }
@@ -1349,7 +1443,10 @@ export function createTimeline({
     overlay.restore();
     // A clip that keeps the mic open: the open padlock after its name (the pair of the gate's
     // closed one), clear of the right edge zone and the badges there.
-    if (clip.ungated) {
+    // A muted clip carries a crossed-out speaker in the same place, so it is told apart from a
+    // stretch Auto-Silence closed (owner, 2026-10-24: they looked alike).
+    const stateIcon = clip.muted ? "mute" : clip.ungated ? "unlock" : null;
+    if (stateIcon) {
       const badges = clip.group || syncRowsOf(state).has(clip.id) ? 40 : 0;
       const spot = openLockSpot({
         after: x + textWidth + 3,
@@ -1357,7 +1454,8 @@ export function createTimeline({
         iconPx: ICON_PX,
         gap: 4,
       });
-      if (spot !== null) drawPadlock("unlock", spot, y + 3, theme.gateOpen);
+      if (spot !== null)
+        drawPadlock(stateIcon, spot, y + 3, stateIcon === "mute" ? colours.label : theme.gateOpen);
     }
   }
 
@@ -1712,7 +1810,7 @@ export function createTimeline({
     return hitTest({ layout, project: state.project, view: { ...state, width: size.width }, x, y });
   }
 
-  // Over a closed stretch the tooltip says what it is and what a double-click does; over a
+  // Over an implicit portion the tooltip explains M; over a
   // narration placeholder (WP43) it says it is to be recorded and that Enter edits it.
   // What the sync badge, the anchor tag and a moved clip say on hover: relative to which anchor,
   // and which track the clip came from.
@@ -1741,7 +1839,8 @@ export function createTimeline({
     const lost = hit.clip && getState().missingMedia?.has(hit.clip.media);
     if (hit.placeholder && !hit.clip) text = t("ui.placeholders.hover");
     else if (lost) text = t("ui.media.missing_hover");
-    else if (hit.gate) text = t("ui.gate.hover");
+    else if (hit.gate)
+      text = t(hit.gate.closed === false ? "ui.gate.open_portion_hover" : "ui.gate.hover");
     else if (hit.clip?.ungated) text = t("ui.gate.open_hover");
     else if (hit.clip && Object.hasOwn(clipOvers, hit.clip.id))
       text = overLabel(clipOvers[hit.clip.id], t, (value) => formatNumber(value, { digits: 1 }));
@@ -1786,7 +1885,7 @@ export function createTimeline({
           rowY: rowYOf(event, hit),
           shift: event.shiftKey,
           alt: event.altKey,
-          mod: event.metaKey || event.ctrlKey,
+          mod: modClick(event, detectPlatform()),
           inSelection: Boolean(hit.clip && state.selection.has(hit.clip.id)),
           selectionSize: state.selection.size,
         }) === "move";
@@ -1805,7 +1904,7 @@ export function createTimeline({
     if (!getState().project || event.button !== 0) return;
     if (event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return;
     const hit = hitAt(event);
-    const { gate, placeholder, clip } = hit;
+    const { placeholder, clip } = hit;
     // A clip whose file is missing: straight to File > Locate media… (owner, 2026-10-21).
     if (clip && hit.row?.kind === "track" && getState().missingMedia?.has(clip.media)) {
       actions.locateMedia?.();
@@ -1827,7 +1926,6 @@ export function createTimeline({
       }
     }
     if (placeholder && !clip) actions.editPlaceholder(placeholder);
-    else if (gate) actions.openGate(gate);
   });
   // Right-click: the browser's menu never opens; the app shows the timeline menu for what is
   // under the pointer. The press itself (button 2) is ignored by the pointerdown handler
@@ -1855,6 +1953,11 @@ export function createTimeline({
       clipId: hit.clip.id,
       trackId: hit.row.id,
       edge: hit.edge,
+      // Plain edge trims have no snap today; only the held modifier enables it.
+      snap: createDragSnap(getState().project, [hit.clip.id], getState(), {
+        primaryWithoutModifier: false,
+      }),
+      implicitRange: hit.implicitRange ?? null,
       origin: locate(event),
       pointerId: event.pointerId,
       dragging: false,
@@ -1864,7 +1967,11 @@ export function createTimeline({
       mod: edgeMod(event), // Cmd/Ctrl held: trim only this clip (unless Alt); read live
       alone: edgeMod(event) && !event.altKey,
       raw: null,
-      frame: hit.edge === "start" ? hit.clip.start : hit.clip.start + hit.clip.length,
+      frame: hit.implicitRange
+        ? hit.implicitRange[hit.edge === "start" ? 0 : 1]
+        : hit.edge === "start"
+          ? hit.clip.start
+          : hit.clip.start + hit.clip.length,
     };
     overlayCanvas.setPointerCapture?.(event.pointerId);
     window.addEventListener("keydown", edgeKey, true);
@@ -1875,7 +1982,22 @@ export function createTimeline({
   function clampEdge() {
     const { state, track, clip } = edgeTarget(edgeSession);
     if (!clip || edgeSession.raw === null) return;
-    edgeSession.frame = resolveEdge(state.project, track, clip, edgeSession.edge, edgeSession.raw, {
+    edgeSession.snap.update({ mod: edgeSession.mod, alt: !edgeSession.overwrite });
+    const snapped = edgeSession.snap.snap({
+      moved: [{ start: 0, end: 0 }],
+      delta: edgeSession.raw,
+      zoom: state.zoom,
+    });
+    if (edgeSession.implicitRange) {
+      edgeSession.frame = clampImplicitEdge(
+        clip,
+        snapped.delta,
+        edgeSession.implicitRange,
+        edgeSession.edge,
+      );
+      return;
+    }
+    edgeSession.frame = resolveEdge(state.project, track, clip, edgeSession.edge, snapped.delta, {
       ripple: edgeSession.ripple,
       overwrite: edgeSession.overwrite,
       alone: edgeSession.alone,
@@ -1902,21 +2024,26 @@ export function createTimeline({
 
   function endEdge(commit) {
     const session = edgeSession;
+    session.snap.end();
     edgeSession = null;
     overlayCanvas.style.cursor = "";
     window.removeEventListener("keydown", edgeKey, true);
     window.removeEventListener("keyup", edgeKey, true);
     overlayCanvas.releasePointerCapture?.(session.pointerId);
     requestOverlay();
+    // A press without travel only positions the cursor. Materialization requires a drag
+    // or the user's mute command; clicking near a dotted boundary must not change audio.
     if (commit && !session.dragging) actions.seek?.(session.seekFrame);
     if (commit && session.dragging) {
       actions.edgeDrag({
         clipId: session.clipId,
+        trackId: session.trackId,
         edge: session.edge,
         frame: session.frame,
         ripple: session.ripple,
         overwrite: session.overwrite,
         alone: session.alone,
+        implicitRange: session.implicitRange,
       });
     }
   }
@@ -1977,7 +2104,7 @@ export function createTimeline({
       rowY: hit.row ? rowYOf(event, hit) : -1,
       shift: event.shiftKey,
       alt: event.altKey,
-      mod: event.metaKey || event.ctrlKey,
+      mod: modClick(event, detectPlatform()),
       inSelection: Boolean(hit.clip && before.has(hit.clip.id)),
       selectionSize: before.size,
     });
@@ -2115,9 +2242,18 @@ export function createTimeline({
         getState(),
       ),
       snapAt: null,
+      // Cmd (Ctrl off the Mac) held during the drag adds the volume automation (automation-snap.js):
+      // the level changes and the closed stretches' edges. Read live; the frames are fixed here.
+      auto: automationTargets(
+        getState().project,
+        clipDragIds(hit.clip.id, before, getState().project),
+      ),
+      withAuto: null,
+      autoOn: false,
     };
     overlayCanvas.setPointerCapture?.(event.pointerId);
     window.addEventListener("keydown", clipKey, true);
+    window.addEventListener("keyup", clipKey, true);
   }
 
   function updateClip(event) {
@@ -2136,11 +2272,15 @@ export function createTimeline({
     session.pos = advanceDelta(session.pos, point.x, { fine: event.shiftKey, zoom: state.zoom });
     let deltaFrames = session.pos.delta;
     session.snapAt = null;
+    session.autoOn = modClick(event, detectPlatform());
+    if (session.autoOn && session.withAuto === null) {
+      session.withAuto = [...new Set([...session.targets, ...session.auto])].sort((a, b) => a - b);
+    }
     if (!event.altKey) {
       const snapped = snapMove({
         moved: session.spans,
         delta: deltaFrames,
-        targets: session.targets,
+        targets: session.autoOn ? session.withAuto : session.targets,
         zoom: state.zoom,
       });
       deltaFrames = snapped.delta;
@@ -2159,6 +2299,7 @@ export function createTimeline({
     clipSession = null;
     overlayCanvas.style.cursor = "";
     window.removeEventListener("keydown", clipKey, true);
+    window.removeEventListener("keyup", clipKey, true);
     overlayCanvas.releasePointerCapture?.(session.pointerId);
     requestOverlay();
     if (commit && !session.dragging) actions.seek?.(session.seekFrame);
@@ -2173,7 +2314,15 @@ export function createTimeline({
   }
 
   function clipKey(event) {
-    if (event.key !== "Escape") return;
+    // The modifier of the automation snap going down or up shows or hides its marks at once.
+    if (event.key === (detectPlatform() === "mac" ? "Meta" : "Control")) {
+      if (clipSession?.dragging) {
+        clipSession.autoOn = event.type === "keydown";
+        requestOverlay();
+      }
+      return;
+    }
+    if (event.type !== "keydown" || event.key !== "Escape") return;
     event.preventDefault();
     event.stopPropagation();
     endClip(false);
@@ -2316,7 +2465,7 @@ export function createTimeline({
       if (!state.project || x < 0 || y < 0 || x > rect.width || y > rect.height) return null;
       const { playhead, inPoint, outPoint } = state;
       return clipboardDropTarget(
-        { x, y, alt: event.altKey },
+        { x, y, alt: event.altKey, mod: edgeMod(event) },
         {
           layout: layoutFor(state),
           project: state.project,

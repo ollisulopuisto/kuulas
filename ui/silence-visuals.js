@@ -17,14 +17,21 @@
  * outline only, 0 = filled. `gate` is gatePixelRuns' merged pixel runs [x0, x1, ...]. A
  * muted clip is silent everywhere; a clip that keeps the mic open ignores the gate.
  */
-export function silentColumns(count, from, { muted = false, ungated = false, gate = null } = {}) {
+export function silentColumns(
+  count,
+  from,
+  { muted = false, ungated = false, gate = null, implicit = null } = {},
+) {
   const mask = new Uint8Array(Math.max(0, count));
   if (muted) return mask.fill(1);
-  if (ungated || !gate?.length) return mask;
-  for (let i = 0; i < gate.length; i += 2) {
-    const first = Math.max(gate[i], from) - from;
-    const last = Math.min(gate[i + 1], from + count) - from;
-    for (let column = first; column < last; column += 1) mask[column] = 1;
+  if (ungated) return mask;
+  for (const runs of [gate, implicit]) {
+    if (!runs?.length) continue;
+    for (let i = 0; i < runs.length; i += 2) {
+      const first = Math.max(runs[i], from) - from;
+      const last = Math.min(runs[i + 1], from + count) - from;
+      for (let column = first; column < last; column += 1) mask[column] = 1;
+    }
   }
   return mask;
 }
@@ -94,6 +101,29 @@ export function lockSpots(runs, { iconPx, pad, blocked = [] }) {
 }
 
 /**
+ * The strength of the outline-only waveform of a silent stretch: full for a muted clip (your
+ * decision), dimmed for a stretch Auto-Silence closed (the machine's, owner 2026-10-23), so
+ * the two read apart and a closed stretch does not shout. Contrast at this strength is not
+ * measured (silence-tokens.test.js checks the full outline).
+ */
+export function silentOutlineAlpha({ muted }) {
+  return muted ? 1 : GATED_OUTLINE_ALPHA;
+}
+const GATED_OUTLINE_ALPHA = 0.6;
+
+/**
+ * How far below the lane's top the closed-stretch padlock sits. A lane with a name strip
+ * (36 px and up) puts it under the strip, and under the words row when that is shown: the
+ * name is as wide as the clip allows, so a lock in the strip was painted over (owner,
+ * 2026-10-23). Null when it would not fit under them: the outline alone says silent.
+ */
+export function lockTop(rowHeight, { label, words, icon, wordsShown }) {
+  if (rowHeight < 36) return 5;
+  const top = 2 + label + 4 + (wordsShown ? words + 2 : 0) + 3;
+  return top + icon + 3 <= rowHeight - 2 ? top : null;
+}
+
+/**
  * The x of the open padlock of a clip that keeps the mic open: `gap` px after the clip name
  * (`after`, its right end), or null when it would reach `limit` (the clip's right edge zone,
  * or the badges there).
@@ -152,6 +182,7 @@ export const SILENCE_LEGEND_TITLE = "ui.silence.legend_title";
 export const SILENCE_LEGEND = [
   { state: "filled", key: "ui.silence.legend.filled" },
   { state: "outline", key: "ui.silence.legend.outline" },
+  { state: "muted", key: "ui.silence.legend.muted", icon: "mute" },
   { state: "lock", key: "ui.silence.legend.lock", icon: "lock" },
   { state: "edges", key: "ui.silence.legend.edges" },
   { state: "open", key: "ui.silence.legend.open", icon: "unlock" },

@@ -47,6 +47,15 @@ def _probe(what: dict, lowered: dict | None) -> dict:
                 last = time.monotonic()
                 beat.write_text(str(count), encoding="utf-8")
         return {"spun": time.process_time() - cpu, "wall": time.monotonic() - wall}
+    if kind == "report":
+        # Reports ``steps`` times, ``pause`` seconds apart: the progress test.
+        from . import analysis_progress  # noqa: PLC0415
+
+        steps = int(what.get("steps", 3))
+        for i in range(1, steps + 1):
+            analysis_progress.report(i / steps, "step", i=i)
+            time.sleep(float(what.get("pause", 0.0)))
+        return {"reported": steps}
     raise ValueError(kind)
 
 

@@ -11,21 +11,25 @@ const PASTE = ["edit.paste", "edit.paste_insert", "edit.paste_track", "edit.past
 const SECTIONS = {
   clip: [
     ["gate", ["gate.open_under_clips"]],
-    ["clipboard", ["edit.remove", "edit.cut", "edit.copy"]],
-    ["paste", PASTE],
     [
       "edit",
       [
-        "edit.remove_clips",
-        "edit.delete",
         "edit.split",
+        "edit.delete",
+        "edit.remove_clips",
+        "rename",
+        "clip.mute",
+        "clip.fade",
         "edit.group",
         "edit.ungroup",
         "edit.merge",
-        "clip.mute",
-        "clip.fade",
+        "clip.match_loudness",
+        "clip.envelope_delete_point",
+        "clip.envelope_reset",
       ],
     ],
+    ["clipboard", ["edit.remove", "edit.cut", "edit.copy"]],
+    ["paste", PASTE],
     // Always offered, missing or not (owner, 2026-10-21): relink to an edited copy of the file.
     ["media", ["clip.relink_media"]],
     [
@@ -37,34 +41,54 @@ const SECTIONS = {
         "select.invert",
       ],
     ],
-    [
-      "adjust",
-      [
-        "edit.trim_start",
-        "edit.trim_end",
-        "edit.nudge_left",
-        "edit.nudge_right",
-        "clip.gain_up",
-        "clip.gain_down",
-        "clip.pan_left",
-        "clip.pan_right",
-      ],
-    ],
   ],
   range: [
     ["gate", ["gate.open_under_clips"]],
     ["clipboard", ["edit.remove", "edit.cut", "edit.copy", "edit.delete", "edit.close_gap_all"]],
     ["play", ["transport.play_selection", "transport.rehearse", "transport.loop"]],
     ["select", ["select.clips_in_range", "select.range_all_tracks"]],
-    ["marks", ["mark.clear", "region.from_selection", "export.regions"]],
+    ["marks", ["candidate.mark_range", "mark.clear", "region.from_selection", "export.regions"]],
+  ],
+  // A narration placeholder (WP43) under the pointer.
+  placeholder: [
+    ["placeholder", ["placeholder.take", "placeholder.edit", "placeholder.delete"]],
+    ["paste", PASTE],
   ],
   lane: [
     ["paste", PASTE],
     ["insert", ["marker.add", "placeholder.add", "mark.in", "mark.out"]],
     ["select", ["select.forward"]],
   ],
+  // Selected transcript words and a Clipboard row: menus of the panels, same sections.
+  transcript: [
+    [
+      "transcript",
+      [
+        "transcript.delete_words",
+        "transcript.cut_words",
+        "transcript.remove_words",
+        "transcript.correct",
+        "transcript.mark_candidate",
+      ],
+    ],
+  ],
+  clipboard: [
+    ["clipboard", ["edit.paste", "edit.paste_insert", "edit.preview_clipboard"]],
+    ["order", ["clipboard.send_to_window", "clipboard.move_up", "clipboard.move_down"]],
+  ],
+  // A point of a track's ducking curve (the automixer's), drawn over the clips.
+  automation: [
+    ["automation", ["track.automation_delete_point", "track.automation_clear"]],
+    ["insert", ["marker.add", "mark.in", "mark.out"]],
+  ],
+  // A marker flag or region bar on the ruler.
+  marker: [
+    ["marker", ["marker.delete", "marker.prev", "marker.next"]],
+    ["insert", ["marker.add", "mark.in", "mark.out"]],
+  ],
   ruler: [
-    ["insert", ["marker.add", "mark.in", "mark.out", "mark.clear"]],
+    ["insert", ["marker.add", "marker.delete", "mark.in", "mark.out", "mark.clear"]],
+    ["go", ["marker.prev", "marker.next"]],
     ["zoom", ["view.zoom_in", "view.zoom_out", "view.fit", "view.fit_selection"]],
   ],
 };
@@ -84,13 +108,16 @@ function markedRange(state) {
  */
 export function timelineTarget(hit, state) {
   const frame = hit.frame;
+  if (hit.area === "ruler" && hit.marker) return { kind: "marker", frame, trackId: null };
   if (hit.area === "ruler") return { kind: "ruler", frame, trackId: null };
   const trackId = hit.row?.kind === "track" ? hit.row.id : null;
   const range = markedRange(state);
   const gate = Boolean(hit.gate); // the pointer is on a closed (Auto-Silence) stretch
   if (range && frame >= range.start && frame < range.end)
     return { kind: "range", frame, trackId, gate };
+  if (hit.autoPoint != null) return { kind: "automation", frame, trackId, gate };
   if (hit.clip) return { kind: "clip", frame, trackId, gate };
+  if (hit.placeholder) return { kind: "placeholder", frame, trackId, gate };
   return { kind: "lane", frame, trackId, gate };
 }
 
@@ -102,9 +129,10 @@ export function timelineTarget(hit, state) {
  */
 export function timelineMenuItems(state, target, can) {
   // A closed stretch under the pointer can be opened right there (owner, 21.10.2026).
-  const sections = target.gate
-    ? [["gate", ["gate.open_stretch", "gate.open_under_clips"]], ...(SECTIONS[target.kind] ?? [])]
-    : (SECTIONS[target.kind] ?? []);
+  const sections =
+    target.gate && target.gate.closed !== false
+      ? [["gate", ["gate.open_stretch", "gate.open_under_clips"]], ...(SECTIONS[target.kind] ?? [])]
+      : (SECTIONS[target.kind] ?? []);
   return sections
     .map(([name, ids]) => ({
       titleKey: `ui.ctx.${name}`,
@@ -154,11 +182,21 @@ export function contextPress(hit, state) {
   if (target.kind === "range") return { kind: "range", seek: null, ...gate };
   if (target.kind === "clip") {
     const plan = { kind: "clip", seek: null, ...gate };
+    // A right-click on a volume-line point remembers it for "Delete this point".
+    plan.envelopePoint = hit.point == null ? null : { clipId: hit.clip.id, index: hit.point };
     if (!state.selection?.has(hit.clip.id))
       plan.selection = expandGroups(state.project, [hit.clip.id]);
     return plan;
   }
+  if (target.kind === "automation")
+    return {
+      kind: "automation",
+      seek: null,
+      automationPoint: { trackId: target.trackId, index: hit.autoPoint },
+    };
   const plan = { kind: target.kind, seek: hit.frame, ...gate };
-  if (target.kind === "lane" && target.trackId) plan.focusTrack = target.trackId;
+  if (target.kind === "marker") plan.marker = hit.marker;
+  if ((target.kind === "lane" || target.kind === "placeholder") && target.trackId)
+    plan.focusTrack = target.trackId;
   return plan;
 }

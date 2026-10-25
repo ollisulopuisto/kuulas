@@ -2,7 +2,7 @@
 id: series
 title: Series: settings shared by episodes
 applies-to: []
-commands: [series.dialog, series.save, series.apply, series.new_episode, series.music_add, series.music_place, series.music_clipboard, clipboard.view_series, edit.series_shelf_clipboard]
+commands: [series.dialog, series.save, series.apply, series.new_episode, series.music_add, series.music_place, series.music_clipboard, clipboard.view_series, edit.series_shelf_clipboard, clipboard.send_to_window]
 related: [track, automix]
 ---
 A series is the episodes of one show, recorded in the same place. What you found for one episode is the right start for the next: the tracks (their names, roles, buses, gain, pan and mono), the Auto-Silence options and the automixer's de-bleed values. All series commands are in File, Series.
@@ -17,3 +17,5 @@ Nothing is applied by itself: settings change only when you run one of these com
 Series music: select the intro, outro or bed clips and run Add selected clips to series music. In a new episode, Place series music on the timeline puts them where they were, on the tracks of the same name, or Put series music on the clipboard lets you paste them yourself. The series keeps references to the recordings, never copies; your recorded files are never changed. See also [[track]] and [[automix]].
 
 The series music is also the Clipboard's series shelf. The Clipboard tab has four views: This project (every copy and cut), Series (the series shelf), Shared (for every project) and Other projects. Press Series on an entry of this project to put a copy on the series shelf, and again to take it off; the project's own entry stays. On the Series view, Paste here and Copy to this project work as on Shared, with the paste choices above, and Place on timeline places them all. Drag an entry from any view onto a track to paste it there, in the paste mode chosen above; it snaps as when moving clips. An entry already on a shelf is not added twice. Taking an entry off a shelf never touches a recording.
+
+With two episodes open in two windows, Edit > Clipboard > Copy to other window… copies what is selected (or sends the picked clipboard entry) onto the other project's clipboard. That window says what arrived; Paste it there as usual. With more than two windows a small menu asks which. Desktop app only; nothing is written to the other project except its clipboard.

@@ -102,6 +102,9 @@ class Entry:
     text: str = ""
     shared: bool = False
     adopted_from: str = ""
+    #: The cart slot, 1-9 (owner, 2026-10-23): the number Alt+n plays it by, held by one
+    #: entry only; None when it has none. Not written when None (a file keeps its bytes).
+    cart: int | None = None
     # Unknown keys a newer kuulas wrote (docs/FORMAT.md, "Unknown keys").
     extra: dict = field(default_factory=dict, hash=False)
 
@@ -251,7 +254,7 @@ _REF_KEYS = ("media_sha256", "offset", "length", "gain_db", "pan", "fade_in",
              "fade_out", "muted", "envelope", "rel_start", "track_slot", "media_name")
 _ENTRY_KEYS = ("id", "name", "created_utc", "refs", "span", "source_project",
                "pinned", "source_name", "source_id", "tracks", "track_kinds", "text",
-               "shared", "adopted_from")
+               "shared", "adopted_from", "cart")
 
 
 def _ref_out(ref: ClipRef) -> dict:
@@ -284,6 +287,8 @@ def _entry_out(entry: Entry) -> dict:
          "tracks": list(entry.tracks), "track_kinds": list(entry.track_kinds),
          "text": entry.text, "shared": entry.shared,
          "adopted_from": entry.adopted_from}
+    if entry.cart is not None:
+        d["cart"] = entry.cart
     # A known key always wins over an extra of the same name.
     return {**entry.extra, **d}
 
@@ -350,7 +355,8 @@ def adopted_copy(entry: Entry, *, from_project: str = "",
     return replace(entry, id=_new_id(moment), created_utc=moment, shared=False,
                    adopted_from=from_project or entry.source_project,
                    source_project=entry.source_project or from_project,
-                   pinned=False, extra={"adopted_created_utc": entry.created_utc})
+                   pinned=False, cart=None,
+                   extra={"adopted_created_utc": entry.created_utc})
 
 
 def same_content(a: Entry, b: Entry) -> bool:
@@ -388,6 +394,11 @@ def prune_entries(entries: Iterable[Entry], max_unpinned: int) -> list[Entry]:
             budget -= 1
             kept.append(item)
     return kept
+
+
+#: The cart has seven slots, the keys Alt+1 to Alt+7 (Alt+8 and Alt+9 are brackets on a
+#: Finnish Mac keyboard).
+CART_SLOTS = 7
 
 
 class ClipboardHistory:
@@ -478,6 +489,36 @@ class ClipboardHistory:
         """Take an entry out of the history."""
         entry = self._find(entry_id)
         self._entries = [item for item in self._entries if item.id != entry.id]
+
+    def set_cart(self, entry_id: str, slot: int | None) -> None:
+        """Give an entry the cart slot 1-9 (None: none). A number is held by one entry
+        only, so it moves from the entry that had it. ``ValueError`` for any other value,
+        ``KeyError`` for an unknown entry."""
+        if slot is not None and (isinstance(slot, bool) or not isinstance(slot, int)
+                                 or not 1 <= slot <= CART_SLOTS):
+            msg = f"a cart slot is 1 to {CART_SLOTS} or None, got {slot!r}"
+            raise ValueError(msg)
+        self._find(entry_id)
+        self._entries = [
+            replace(item, cart=slot if item.id == entry_id
+                    else (None if slot is not None and item.cart == slot else item.cart))
+            for item in self._entries]
+
+    def move(self, entry_id: str, before: str | None) -> None:
+        """Put an entry just before ``before`` (None: at the end), the owner's drag
+        in the Clipboard tab. The list is the order shown, and so the order Paste reads
+        (the first is pasted); a new copy still goes to the front. ``KeyError`` for an
+        unknown id."""
+        entry = self._find(entry_id)
+        if before == entry_id:
+            return
+        if before is not None:
+            self._find(before)
+        rest = [item for item in self._entries if item.id != entry_id]
+        at = len(rest) if before is None else next(
+            i for i, item in enumerate(rest) if item.id == before)
+        rest.insert(at, entry)
+        self._entries = rest
 
     def get(self, entry_id: str) -> Entry | None:
         """The entry with ``entry_id``, or None if the history has none."""

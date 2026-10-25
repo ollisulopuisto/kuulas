@@ -318,3 +318,129 @@ Checked on a clean clone of main `8127aa7` (`automixer 2026.10.21.2`):
    line Kuulas reads (`ModuleNotFoundError: ...`, `ImportError: ...`); keep those
    exceptions unwrapped, or print the same last line, so Kuulas can name the cause.
    Kuulas checks plug-in paths itself before a local run (`error.automix.plugin_missing`).
+
+## colab-transcribe: `--events` like the automixer (owner request 2026-10-23, BUGS #107)
+
+Same protocol as "Live events" above, for `colab-transcribe` (the owner says the podcast side
+is building it now; this is what Kuulas will read). With `--events` the tool prints, in
+addition to its text lines, one `@@kuulas {json}` line per event on stdout, flushed at once;
+every object has `"schema": 1` and `"event"`; fields may be added, never renamed.
+
+- `progress`: `percent` (0-100), `message`.
+- `file`: `index`, `total`, `name` (the audio file it is on now); `file_done`: `name`, `words`.
+- `stage`: `stage` (`session` | `upload` | `install` | `model` | `transcribe` | `align` |
+  `download`), `state` (`start` | `done` | `skipped`); `upload` says `via` (`drive` | `direct`).
+- `session`: `state` (`reused` | `created` | `lost` | `reset` | `stopped`), `name`. `lost` is the
+  "Session 'whisper' appears to be lost (404/401)" case; the tool should recover itself
+  (reset and retry once) and say so, instead of exiting 1.
+- `warning`: `message` (the Colab CLI's update notice belongs here, or nowhere, never in
+  `progress`). `error`: `code`, `message` (a short reason a person can read, not the log).
+  `done`: `files` (how many).
+
+Kuulas then shows `message` of the last `progress`/`stage` event as the toast text, the short
+`error.message` when it fails, and drops its own text filters (`_NOISE`, `_SESSION_LOST` in
+`colab_transcribe.py`, which stay as the fallback for older tools).
+
+### The podcast side's answer, and what Kuulas still wants (2026-10-23)
+
+`colab-transcribe --events` is on the podcast main (PR #83, 51d6796; contract: `docs/KUULAS-COLAB.md`
+"Live events"). Not run on a real Colab yet. Their events (`session` new/reuse/reset, `stage` start/done
+with `index`/`total`, `progress`, `warning` code `session_lost`, `error` reason/message/code/stage, `done`
+files) cover what the list above asked for; Kuulas accepts them as they are, with these requests (fields
+may still change for free until Kuulas reads them):
+
+1. `stage` `transcribe` and `align`: add `name` (the audio file's file name, as it was given), so the
+   toast can say "Take 1-Mic.wav" and not only "file 1 of 2".
+2. `stage` `upload`: add `via` (`drive` | `direct`) and, if cheap, `done`/`total` (bytes) so a big
+   upload is not a silent minute; both optional.
+3. The Colab CLI's own update notices never in `progress.message` (as `warning` code `colab_update`, or
+   not at all). Kuulas drops them by text today and keeps that as the fallback for older tools.
+4. When the session is lost (`session_lost`), recover inside the tool: reset and retry once, and say so
+   (`session` state `reset`, then the run goes on). Kuulas's own retry with `--reset-session` stays as
+   the fallback.
+5. `error.message`: one short line a person can read, never the log.
+6. `done`: keep `files` as paths; no change wanted.
+
+What Kuulas will do with them (not built): the toast shows the last `progress`/`stage` message and the
+file name, an error shows `error.message`, and `session_lost` triggers the retry by code, not by text.
+
+Kuulas reads these events since 2026-10-24 (`src/kuulas/colab_transcribe.py`: `progress`, `stage` with `index`/`total`/`name` when present, `session`, `warning` code `session_lost`, `error.message`); an older tool that refuses `--events` is run again without it. Not run against a real Colab.
+
+## A shared `fcpxml` package (owner plan 2026-10-23, for the podcast session)
+
+Kuulas will import a Final Cut Pro timeline and export an edited one (ROADMAP "Final Cut XML in
+and out"). The planning agent's finding: autoraffkat's `fcpxml/read.py` (984 lines, MIT) is the
+reader to reuse, but it is tied to autoraffkat (`i18n.t`, `model.MediaItem`, `probe`, `relink`).
+Wished: extract the reader core as `packages/fcpxml` (stdlib only, MIT), the way `speechmix`,
+`nhsx` and `silencelearn` are shared, so autoraffkat and Kuulas read one way. Kuulas does not
+copy the reader (the owner's "no duplicated code" rule); until the package exists, nothing of
+the import is built in Kuulas except the cut list (`docs/design/CUT-LIST.md`).
+
+What Kuulas needs from the package (neutral types, `Fraction` seconds, no UI strings):
+
+- `read_fcpxml(path) -> Timeline`: `path` may be a `.fcpxml` or a `.fcpxmld` bundle; errors are
+  `ReadError` with a stable `code` (not text), so Kuulas can translate them.
+- `Timeline`: `frame_duration`, `kind` ("project" | "sync-clip" | "multicam"), `name`,
+  `tc_start`, `media` (a list of `MediaItem`), `tracks`, `multicams`, `format` (width, height,
+  rate) and `fcpxml_version` (so an export can write the source's own version).
+- `MediaItem`: `key`, `name`, `path` (decoded file path, "" if missing), `src` (the original
+  `file://` URL), `asset_start`, `asset_duration`, `has_video`, `has_audio`, `audio_channels`,
+  `audio_rate`, and its `placements`: `Placement(offset, start, duration, lane, role, muted)`
+  (`role` the audio role as FCP names it, `muted` true for an inactive clip).
+- Per clip: markers (`marker`, `chapter-marker`) with their time and name; audio transitions
+  (cross dissolves of audio) with their duration; `timeMap` and `conform-rate` clips flagged
+  `unsupported` rather than silently misread.
+- Not needed: titles, generators, captions, video effects (counted in the report, nothing more).
+- Exact rational times are kept as `Fraction`; Kuulas converts to flicks and rounds once.
+- A `conform(source_timeline_or_path, pieces) -> bytes` writer (the second package task): a new
+  project spine made of pieces `(program_start, program_end, container_id, source_time)` of the
+  original containers, resources copied verbatim, cuts snapped to frames by the writer, the
+  source's FCPXML version kept. Kuulas gives it the cut list (`docs/design/CUT-LIST.md`).
+- Tests the package should carry: the 1001/30000, 100/2500 and /5644800 rational times
+  (`vertical2.fcpxmld`), a two-hour synthetic timeline, `%20`/`ä`/Windows `file:` URLs, a bundle
+  without `Info.fcpxml`, garbage XML, and the fixtures of autoraffkat's `tests/make_fixture.py`.
+
+### Summary for the package author (2026-10-24)
+
+Reads (all kept as exact `Fraction` times):
+
+- timeline: name, `frame_duration`, `tc_start`, format, `fcpxml_version`; only a *project* timeline (owner 2026-10-23), not multicam or event sync clips;
+- media: key, name, decoded path, original `file://` URL, `asset_start`, `asset_duration`, video/audio flags, channels, rate;
+- placements: offset, start, duration, lane, role, muted;
+- markers and chapter markers; audio cross dissolves with their duration;
+- `timeMap` / `conform-rate` clips flagged `unsupported`, never misread.
+
+Kuulas maps, not the package: an audio-only asset is a mic, an asset with video is a camera's scratch audio (its own muted track in the group); roles are only a suggestion (role -> bus kind, sub-role -> speaker, editable in the import report); media are linked by path + SHA-256, never copied.
+
+Writes back (`conform`): a new project spine of pieces of the original containers, resources copied verbatim, cuts snapped to frames, the source's own FCPXML version kept (Resolve: 1.8-1.9 preferred, unchecked). One way only: import once, export once, no merging of hand fixes made in FCP. Music stays in the export.
+
+The most valuable output is the list of audio cut points per speaker on the program timeline (`docs/design/CUT-LIST.md`): only Kuulas knows it, and autoraffkat needs it to cover one speaker's jump cuts with one unbroken shot.
+
+Open, not decided: whether audio cuts may stay sub-frame in FCPXML (test in FCP); the cover-shot thresholds (tune on a real episode); AAC/MOV priming offsets (cross-correlate scratch audio against the mic, within 1 ms). Nothing here has been run against a real FCP file.
+
+## Answers to the podcast session's fcpxml and events status (2026-10-25)
+
+The peer message could not be answered over the session channel from here, so the answers are in this file.
+
+- **1 `muted` and `enabled`:** agreed. Kuulas reads "does not play" as `muted or not enabled`.
+- **2 `Transition`:** agreed; Kuulas filters on `has_audio` and turns those into crossfades.
+- **3 Markers:** agreed (clip markers on `Placement.markers`, the rest in `Timeline.markers`).
+- **4 `unsupported`:** agreed. Kuulas refuses such a clip and lists it in the import report; it never reads it as a plain clip.
+- **5 `probe_frame_duration`:** agreed. Kuulas will pass None at first and trust the XML.
+- **`ReadError.code`:** agreed; Kuulas translates the codes (`unreadable`, `bundle_without_info`, `bad_xml`, `bad_root`, `bad_time`, `no_project`, `no_media`).
+- **The writer (`conform`):** the shape is `docs/design/CUT-LIST.md` (per speech track the cuts on the timeline and on the recording clock, seams across tracks, recordings with checksum and clock). Write questions to this file after the reader PR.
+- **Real fixture:** none on hand yet; the owner has a real FCP export to trim later.
+- **`--events` `total`:** Kuulas reads `index` and `total` only for the `transcribe` and `align` stages, as file numbers (`name`, `index`, `total`). A byte count in `total` for `upload` is never shown as files, so that is safe. `progress` carries the bar.
+
+## Answers to the podcast session's questions on the writer (`conform`), 2026-10-25
+
+Reader PR: ollisulopuisto/podcast#88. "Agreed" means Kuulas builds against it. Items marked OWNER need the owner's word, not mine.
+
+1. **Containers: agreed** (`Placement.container`, `Timeline.spine`). Kuulas never cuts INSIDE a compound or ref-clip: it is one spine item whose inside is copied verbatim. A top-level spine item (the sync clip or the mc-clip that holds a whole recording) IS cut into several pieces by the pieces list, which is the point; the writer sub-ranges its inside.
+2. **Coordinates: agreed.** Kuulas converts the kept ranges to the SOURCE timeline (`origin_flicks`, `asset_start`) and sends an ordered list of `(source_start, source_end)` in `Fraction` seconds, back to back. No gaps, no reordering, no piece used twice in version 1. Only ripple removals are cuts; a muted or lifted stretch is not (the picture keeps running). If the edit reorders or repeats material, Kuulas refuses the export with its own error instead of sending a list the writer cannot honour (my proposal, OWNER may change it).
+3. **Frame snapping: agreed** for the first version (snap every boundary, boundary not duration). A sub-frame audio option only after the owner has tried sub-frame audio edits in a real FCP. Kuulas's own cut list keeps its sub-frame times either way.
+4. **What survives in a cut container: agreed** as listed (connected clips trimmed with their host, roles and angle choices kept, keyframes clipped and shifted, markers inside a piece kept, transitions at a cut dropped, a clip with `Placement.unsupported` refused with an error code, never cut).
+5. **Music: agreed, trimmed with its host.** Kuulas's own ripple delete cuts every track, music included, so the exported music gets shorter exactly as it does in Kuulas. OWNER: say if a music bed must keep its full length instead; then it needs its own rule.
+6. **Output document: agreed** (all resources verbatim including media uids, one new event "<name> (kuulas)", one new project with a fresh uid, the source's `fcpxml_version`). Needs a real FCP import.
+7. **Validation: OWNER.** The DTD check has to be run by hand on the owner's Mac (FCP's DTDs live in the app). Kuulas cannot run FCP.
+8. **Real fixture: OWNER.** The owner agreed on 2026-10-23 to a trimmed real episode "later". What to ask for: about 30 s with a sync clip, an mc-clip, a connected music clip and a marker, as a `.fcpxmld`, with tiny media or none.

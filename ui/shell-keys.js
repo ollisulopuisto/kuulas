@@ -13,8 +13,16 @@ import { createRegistry } from "./commands.js";
 import { openDialogs } from "./dialog-keys.js";
 import { registerEditCommands } from "./edit-commands.js";
 import { registerExportCommands } from "./export-commands.js";
+import { shortcutsFor } from "./help.js";
 import { resolveHints } from "./hints.js";
-import { ensureCatalog, formatNumber, getLanguage, LANGUAGES, tIn } from "./i18n.js";
+import {
+  ensureCatalog,
+  formatNumber,
+  getLanguage,
+  LANGUAGES,
+  setShortcutResolver,
+  tIn,
+} from "./i18n.js";
 import {
   formatCombo,
   loadOverrides,
@@ -32,6 +40,7 @@ import { registerMarkerCommands } from "./marker-commands.js";
 import { MENU, MENU_ALIASES, resolveMenu } from "./menu-model.js";
 import { createMenubar } from "./menubar.js";
 import { createModifierTracker } from "./modifiers.js";
+import { copiesToastText } from "./notice-hold.js";
 import { createPalette, paletteRows } from "./palette.js";
 import { registerPlaceholderCommands } from "./placeholder-commands.js";
 import { loadRecent, recordRecent, saveRecent } from "./recent-commands.js";
@@ -102,6 +111,7 @@ export function setupKeyboard({
   // -- the user's keys -------------------------------------------------------------
   let overrides = {};
   let entries = [];
+  setShortcutResolver((id) => shortcutsFor(id, entries)[0] ?? null);
   const problemText = (problem) =>
     problem.code === "not-object"
       ? t("ui.keymap.problem.not-object")
@@ -126,6 +136,8 @@ export function setupKeyboard({
     },
     // Behind a modal dialog the editing keys stay off the project.
     isModal: modalOpen,
+    // The menu that holds the command flashes, as macOS does for a key equivalent.
+    onRun: (id, event) => menubar?.flash(id, event),
   });
 
   function useOverrides(next, { persist = true } = {}) {
@@ -386,6 +398,16 @@ export function setupKeyboard({
   });
   document.addEventListener("keydown", (event) => {
     tracker.update(event);
+    // Text selected in the toast: Cmd+C is the browser's copy, not the clips' (notice-hold.js).
+    if (
+      copiesToastText({
+        key: event.key,
+        mod: event.metaKey || event.ctrlKey,
+        selection: window.getSelection?.(),
+        notice: document.getElementById("notice"),
+      })
+    )
+      return;
     if (!event.isComposing) keymap.handle(event);
   });
   document.addEventListener("keyup", (event) => {

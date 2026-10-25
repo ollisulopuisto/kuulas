@@ -43,10 +43,63 @@ describe("facts for a label", () => {
     assert.equal(facts.file, "olli3");
   });
 
-  test("no person: the file name stands in, the take is its last number", () => {
+  test("no person: track name stands in when set, otherwise file name", () => {
     const facts = labelFacts(project, project.tracks[0].clips[2], []);
     assert.equal(facts.person, "haastattelu_ville_12");
     assert.equal(facts.take, "12");
+
+    const trackProject = {
+      ...project,
+      tracks: [
+        {
+          id: "t-named",
+          name: "Ville",
+          clips: [{ id: "c-named", media: "m2", start: 0, offset: 0, length: 5 * rate }],
+        },
+      ],
+    };
+    const namedFacts = labelFacts(trackProject, trackProject.tracks[0].clips[0], []);
+    assert.equal(namedFacts.person, "Ville");
+    assert.equal(namedFacts.take, "12");
+  });
+
+  test("auto take names (Take 1, Otto 2) do not override manual name, populate take", () => {
+    const takeClip = {
+      id: "c-take",
+      media: "m1",
+      start: 0,
+      offset: 0,
+      length: 5 * rate,
+      name: "Take 1",
+    };
+    const p = {
+      ...project,
+      tracks: [{ id: "t1", name: "Olli", clips: [takeClip] }],
+    };
+    const words = [{ start: 1 * rate, end: 2 * rate, text: "Terve" }];
+    const facts = labelFacts(p, takeClip, words);
+    assert.equal(facts.name, "");
+    assert.equal(facts.take, "1");
+    assert.equal(facts.person, "Olli");
+    assert.equal(clipLabel(facts, 600, { measure }), "Olli 1 · 0:00–0:05 · “Terve”");
+  });
+
+  test("interrupted take name is also recognized as auto take name", () => {
+    const takeClip = {
+      id: "c-take-int",
+      media: "m1",
+      start: 0,
+      offset: 0,
+      length: 5 * rate,
+      name: "Take 2 (interrupted)",
+    };
+    const p = {
+      ...project,
+      tracks: [{ id: "t1", name: "Olli", clips: [takeClip] }],
+    };
+    const facts = labelFacts(p, takeClip, []);
+    assert.equal(facts.name, "");
+    assert.equal(facts.take, "2");
   });
 
   test("the first words under the clip, from the timeline words", () => {

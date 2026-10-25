@@ -198,6 +198,7 @@ class History:
         #: Called with no arguments before a state with a gate is written
         #: (``package`` raises the manifest's ``min_reader`` here, WP44).
         self.on_gate: Callable[[], None] | None = None
+        self.on_clip_silence: Callable[[], None] | None = None
         #: Bumped on every write; ``package`` backs up when it has moved.
         self.generation = 0
         if not read_only and dbm.meta(self.db, "material_head") is None:
@@ -212,10 +213,12 @@ class History:
         self._seen_version: int | None = None
         #: The head's ancestors, once ``sides`` has asked (``_ancestors``).
         self._past: set[str] | None = None
-        #: Whether any ``restore`` step has been committed in this edit. Once one
-        #: exists, ``sides(ids)`` must fall back to ``lineage()`` because the
-        #: incremental ancestor map cannot express ``rolled_back`` steps.
-        self._restored: bool = False
+        #: Whether this edit holds any restore step, once asked (``_has_restores``).
+        self._restores: bool | None = None
+        #: Asked before a step is added or the head moves, with the op's name (empty for
+        #: undo, redo and restore); it raises to refuse. The session sets it, to pause
+        #: edits while a take records (owner, 2026-10-23). Material-only steps pass.
+        self.edit_guard: Callable[[str], None] | None = None
 
     def _create(self, initial: Project) -> None:
         now = dbm.utc_now()
@@ -390,10 +393,13 @@ class History:
         are stored with the step.
         """
         self._check_writable()
+        if self.edit_guard is not None:
+            self.edit_guard((op or {}).get("name", ""))
         # Clips that keep the mic open stay open after any edit (trim, move, a new gate).
         from . import ops  # noqa: PLC0415 - ops does not import the history; kept lazy
         state = ops.normalize_ungated(state)
         self._note_gate(state)
+        self._note_clip_silence(state)
         if state.rate != self.rate:
             raise HistoryError("error.history.rate_change", rate=state.rate,
                                project_rate=self.rate)
@@ -437,6 +443,11 @@ class History:
     def _note_gate(self, state: Project) -> None:
         if self.on_gate is not None and any(t.gate for t in state.tracks):
             self.on_gate()
+
+    def _note_clip_silence(self, state: Project) -> None:
+        if (self.on_clip_silence is not None and
+                any(c.auto_silence for t in state.tracks for c in t.clips)):
+            self.on_clip_silence()
 
     def _path(self, target: str) -> tuple[list[dict], list[dict]]:
         """Steps to undo (head first) and redo (top first) to reach ``target``."""
@@ -553,6 +564,8 @@ class History:
     def undo(self) -> UndoInfo | None:
         if not self.can_undo:
             return None
+        if self.edit_guard is not None:
+            self.edit_guard("")
         curr = self.head
         crossed_marker = None
         target = None
@@ -582,6 +595,8 @@ class History:
     def redo(self) -> UndoInfo | None:
         if not self.can_redo:
             return None
+        if self.edit_guard is not None:
+            self.edit_guard("")
         curr = self.head
         crossed_marker = None
         target = None
@@ -616,6 +631,8 @@ class History:
         """Make the project equal to ``node``'s state by adding a step, not by
         moving the head (WP8): the state left behind stays one Undo away. The
         material (media, sync groups) is not rewound: it is what it is now."""
+        if self.edit_guard is not None:
+            self.edit_guard("")
         self._check_writable()
         try:
             target = self._node(str(node))
@@ -626,9 +643,9 @@ class History:
         now = self.state
         state = replace(self._load(target["id"]), media=now.media,
                         sync_groups=now.sync_groups)
-        self._restored = True
         self.commit(t("history.restored", label=target["label"]), state,
                     op={"name": "restore", "args": {"node": target["id"]}})
+        self._restores = True
         ctx = _parse_context(target.get("context"))
         return UndoInfo(ctx, step=target)
 
@@ -851,14 +868,27 @@ class History:
         grow with the history: the ancestors are kept (``_ancestors``) and the
         redo chain is as long as what was undone. Without ``ids``: every step, from
         the lineage computation."""
-        if ids is not None:
-            if self._restored:
-                full = self.lineage()
-                return {n: full[n]["side"] for n in ids if n in full}
-            past, redo = self._ancestors(), self._redo_chain()
-            return {n: "head" if n == self.head else "past" if n in past
-                    else "redo" if n in redo else "branch" for n in ids}
-        return {node: v["side"] for node, v in self.lineage().items()}
+        if ids is None:
+            return {node: v["side"] for node, v in self.lineage().items()}
+        if self._has_restores():
+            # Only a restore can make a step ``rolled_back``, and that needs the
+            # effective-parent walk of the whole lineage. Correct, but O(n) per page
+            # for an edit that has ever been restored (see ROADMAP, History).
+            full = self.lineage()
+            return {n: full[n]["side"] if n in full else "branch" for n in ids}
+        past, redo = self._ancestors(), self._redo_chain()
+        return {n: "head" if n == self.head else "past" if n in past
+                else "redo" if n in redo else "branch" for n in ids}
+
+    def _has_restores(self) -> bool:
+        """Whether this edit holds a restore step. Asked once and kept: restore
+        steps are never removed, and this instance writes them itself (``restore``)."""
+        if self._restores is None:
+            self._restores = self.db.execute(
+                "select exists(select 1 from nodes where edit=?"
+                " and json_extract(op, '$.name') = 'restore')", (self.edit,)
+            ).fetchone()[0] == 1
+        return self._restores
 
     # -- several edits (WP21 builds on this) -------------------------------
 

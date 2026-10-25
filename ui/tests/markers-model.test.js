@@ -5,6 +5,7 @@ import {
   chapterCount,
   flagLayout,
   markerAt,
+  markerIdAtX,
   markerRows,
   nextMarkerName,
   regionCount,
@@ -159,5 +160,22 @@ describe("flagLayout", () => {
       flags.map((f) => f.kind),
       ["chapter", "marker"],
     );
+  });
+});
+
+describe("which marker a ruler pointer is on", () => {
+  const view = { scroll: 0, zoom: 10, width: 1000 };
+  const markers = [
+    { id: "a", kind: "marker", name: "A", start: 1000 },
+    { id: "r", kind: "region", name: "R", start: 3000, end: 5000 },
+  ];
+  test("a flag: from its pole across its notch", () => {
+    assert.equal(markerIdAtX(markers, view, 100), "a");
+    assert.equal(markerIdAtX(markers, view, 106), "a");
+    assert.equal(markerIdAtX(markers, view, 140), null);
+  });
+  test("a region: anywhere along its bar", () => {
+    assert.equal(markerIdAtX(markers, view, 400), "r");
+    assert.equal(markerIdAtX(markers, view, 600), null);
   });
 });

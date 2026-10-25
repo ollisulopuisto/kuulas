@@ -12,13 +12,14 @@ import { playSelectionRequest, rehearseRequest } from "./rehearse.js";
 import { opensSidebar } from "./sidebar-model.js";
 import { PAUSE_CHOICES } from "./transcript-model.js";
 
-/** Alt+1 to Alt+5: command id -> side-panel tab, in the tab row's order. */
+/** Mod+1 to Mod+5: command id -> side-panel tab, in the tab row's order. */
 export const SIDE_TAB_COMMANDS = {
   "panel.show_inspector": "inspector",
   "panel.show_candidates": "candidates",
   "panel.show_clipboard": "clipboard",
   "panel.show_markers": "markers",
   "panel.show_history": "history",
+  "panel.show_material": "material",
 };
 
 /** The tab a panel.show_* command shows; null for any other id. */
@@ -323,7 +324,7 @@ export function registerAppCommands(registry, { actions, app }) {
   def(
     "rename",
     () => app.focusName(),
-    (state) => Boolean(state?.focusTrack || state?.focusBus),
+    (state) => Boolean(state?.focusTrack || state?.focusBus || state?.selection?.size === 1),
   );
   // Spot (Cmd+J) types a time into the clock; "+100" / "-30" are relative to the play cursor (WP76).
   def("spot", () => app.editTime(), hasProject);

@@ -6,6 +6,7 @@ from kuulas.clipboard import (
     ClipboardHistory,
     ClipRef,
     Entry,
+    adopted_copy,
     from_json,
     make_entry,
     make_entry_range,
@@ -306,3 +307,93 @@ def test_an_entry_remembers_its_source_track_names_by_slot():
     assert from_json(to_json(got)).tracks == ("ta", "tb")
     ranged = make_entry_range(p, 0, 50, ["tc"], now=1000.0)
     assert ranged.tracks == ("tc",)
+
+
+def history_of(*ids):
+    h = ClipboardHistory()
+    for n, entry_id in enumerate(reversed(ids)):  # the last added is the first listed
+        h.add(entry(id=entry_id, created_utc=1000.0 + n))
+    return h
+
+
+def listed(h):
+    return [e.id for e in h.entries()]
+
+
+def test_move_puts_an_entry_before_another():
+    h = history_of("a", "b", "c", "d")
+    h.move("d", before="b")
+    assert listed(h) == ["a", "d", "b", "c"]
+
+
+def test_move_to_the_front_and_to_the_end():
+    h = history_of("a", "b", "c")
+    h.move("c", before="a")
+    assert listed(h) == ["c", "a", "b"]
+    h.move("c", before=None)
+    assert listed(h) == ["a", "b", "c"]
+
+
+def test_moving_before_itself_or_to_where_it_is_changes_nothing():
+    h = history_of("a", "b", "c")
+    h.move("b", before="b")
+    h.move("b", before="c")
+    assert listed(h) == ["a", "b", "c"]
+
+
+def test_move_names_an_unknown_entry():
+    h = history_of("a", "b")
+    with pytest.raises(KeyError):
+        h.move("zzz", before="a")
+    with pytest.raises(KeyError):
+        h.move("a", before="zzz")
+
+
+def test_the_order_survives_a_save_and_a_load_and_a_new_copy_still_goes_first():
+    h = history_of("a", "b", "c")
+    h.move("c", before="a")
+    again = ClipboardHistory.from_json(h.to_json())
+    assert listed(again) == ["c", "a", "b"]
+    again.add(entry(id="new", created_utc=5000.0))
+    assert listed(again) == ["new", "c", "a", "b"]
+
+
+# -- cart slots (owner, 2026-10-23): numbers 1-9 on up to nine entries -----------------
+
+
+def test_an_entry_has_no_cart_slot_until_given_one():
+    assert entry().cart is None
+
+
+def test_a_slot_is_given_and_a_number_is_held_by_one_entry_only():
+    h = history_of("a", "b", "c")
+    h.set_cart("b", 3)
+    assert {e.id: e.cart for e in h.entries()} == {"a": None, "b": 3, "c": None}
+    h.set_cart("c", 3)  # the number moves: b loses it
+    assert {e.id: e.cart for e in h.entries()} == {"a": None, "b": None, "c": 3}
+
+
+def test_a_slot_can_be_cleared_and_only_one_to_nine_exist():
+    h = history_of("a")
+    h.set_cart("a", 7)
+    h.set_cart("a", None)
+    assert h.get("a").cart is None
+    for bad in (0, 8, 10, -1, 2.5, "3"):
+        with pytest.raises(ValueError, match="slot"):
+            h.set_cart("a", bad)
+    with pytest.raises(KeyError):
+        h.set_cart("zzz", 1)
+
+
+def test_a_slot_survives_a_save_and_a_load_and_an_old_file_has_none():
+    h = history_of("a", "b")
+    h.set_cart("a", 2)
+    again = ClipboardHistory.from_json(h.to_json())
+    assert {e.id: e.cart for e in again.entries()} == {"a": 2, "b": None}
+    old = ClipboardHistory.from_json(
+        '{"entries":[{"id":"x","name":"","created_utc":1.0,"refs":[],"span":[0,0]}]}')
+    assert old.get("x").cart is None
+
+
+def test_an_adopted_copy_does_not_take_the_slot_of_the_original():
+    assert adopted_copy(entry(cart=4)).cart is None

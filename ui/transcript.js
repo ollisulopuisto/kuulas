@@ -9,6 +9,8 @@ import { wordState } from "./focus-words.js";
 import { frameToTime } from "./format.js";
 import { formatNumber, getLanguage, t } from "./i18n.js";
 import { setIcon } from "./icons.js";
+import { canShow, removedSummary, statusKey } from "./material-hits.js";
+import { canPutBack, commandArgs, describePlan } from "./put-back-model.js";
 import { musicNote } from "./transcribable.js";
 import {
   currentPosition,
@@ -18,6 +20,7 @@ import {
   nextMatch,
   prevMatch,
 } from "./transcript-find.js";
+import { transcriptFollowStep, transcriptPlaybackStep } from "./transcript-follow.js";
 import {
   alsoRemovedIndices,
   buildParagraphs,
@@ -34,11 +37,13 @@ import {
   pauseMarkers,
   pauseSecondsOf,
   placeCursor,
+  rightClickPick,
   selectedIndices,
   selectionFrames,
   selectWord,
   shouldLoadWords,
   summaryParts,
+  transcribedMedia,
   transcriptEscape,
   visibleRange,
   wordAtTime,
@@ -48,6 +53,7 @@ import { anyActive, offerRows } from "./transcript-offer.js";
 
 const MARGIN_PX = 600;
 const PREVIEW_DELAY_MS = 120;
+const REMOVED_DELAY_MS = 200;
 const JOB_POLL_MS = 1000;
 const LINE_HEIGHT_EM = 1.85;
 const CHAR_EM = 0.52;
@@ -100,7 +106,16 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   const findNext = findButton("next", "↓");
   const findClose = findButton("close", "×", "button ghost icon");
   findBar.append(findInput, findCount, findPrev, findNext, findClose);
-  root.append(findBar, follow, empty, list, pop);
+  // "Not in this edit": the words of the find query the edit does not play (cut, muted,
+  // gated, in a recording placed nowhere), from /api/material-search. A closed line until
+  // opened; the Transcript itself shows only what is heard.
+  const removed = el("div", "tx-removed");
+  removed.hidden = true;
+  const removedToggle = el("button", "button ghost tx-removed-toggle");
+  removedToggle.type = "button";
+  const removedList = el("ul", "tx-removed-list");
+  removed.append(removedToggle, removedList);
+  root.append(findBar, removed, follow, empty, list, pop);
   list.setAttribute("role", "document");
 
   // -- derived from the words (rebuilt only when they change) -----------------------------
@@ -126,6 +141,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   const wordNodes = new Map(); // word index -> element
   let now = -1;
   let paused = false;
+  let wasPlaying = false;
   let lastSetTop = 0;
   let editing = null;
   let drag = null;
@@ -214,7 +230,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     const targets = transcribeTargets();
     const { rows, all } = offerRows({
       media: targets,
-      transcribed: words.map((word) => word.media),
+      transcribed: transcribedMedia(getState(), words),
       jobs: allJobs,
     });
     lastRows = rows;
@@ -222,7 +238,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     const note = musicNote({
       project: getState().project,
       selection: getState().selection,
-      transcribed: words.map((word) => word.media),
+      transcribed: transcribedMedia(getState(), words),
     });
     empty.hidden = !getState().project || (has && rows.length === 0 && !note);
     empty.replaceChildren();
@@ -355,7 +371,6 @@ export function createTranscript({ root, getState, setState, api, actions }) {
         ? null
         : [Math.min(sel.anchor, sel.cursor), Math.max(sel.anchor, sel.cursor)];
     let name = "w";
-    if (word.muted) name += " cut";
     if (word.conf !== undefined && word.conf < LOW_CONFIDENCE) name += " low";
     if (i === now) name += " now";
     if (bounds && i >= bounds[0] && i <= bounds[1]) name += " sel";
@@ -557,19 +572,10 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     }
   }
 
-  function inView(i) {
-    const rect = wordRect(i);
-    return Boolean(rect && rect.top >= list.offsetTop && rect.bottom <= root.clientHeight);
-  }
-
   function followPlayback() {
     const state = getState();
     if (!state.playing || words.length === 0) return;
-    if (paused) {
-      // Back in view by hand: follow again.
-      if (now >= 0 && inView(now)) setPaused(false);
-      return;
-    }
+    if (paused) return;
     if (now >= 0) reveal(now);
   }
 
@@ -580,7 +586,12 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   }
 
   root.addEventListener("scroll", () => {
-    if (Math.abs(root.scrollTop - lastSetTop) > 2 && getState().playing && !paused) setPaused(true);
+    if (Math.abs(root.scrollTop - lastSetTop) > 2) {
+      setPaused(
+        transcriptFollowStep({ paused, playing: getState().playing }, { type: "manual-scroll" })
+          .paused,
+      );
+    }
     lastSetTop = root.scrollTop;
     scheduleWindow();
   });
@@ -594,7 +605,9 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     });
   }
   follow.addEventListener("click", () => {
-    setPaused(false);
+    setPaused(
+      transcriptFollowStep({ paused, playing: getState().playing }, { type: "follow" }).paused,
+    );
     followPlayback();
   });
 
@@ -667,11 +680,21 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     setPaused(false);
     reveal(to);
   });
+  // Right-click on a word: the picked words if it is one of them, else that word becomes the
+  // pick; the menu then offers what can be done with them. Over no word with nothing picked
+  // the browser's own menu is left alone.
+  root.addEventListener("contextmenu", (event) => {
+    if (editing) return;
+    const next = rightClickPick(selection(), wordAt(event));
+    if (next === null) return;
+    if (next !== selection()) setState({ transcriptSelection: next });
+    actions.contextMenu?.(event);
+  });
   root.addEventListener("wheel", () => {
-    if (getState().playing && !paused) setPaused(true);
+    if (!paused) setPaused(true);
   });
   root.addEventListener("touchmove", () => {
-    if (getState().playing && !paused) setPaused(true);
+    if (!paused) setPaused(true);
   });
   empty.addEventListener("click", (event) => {
     const button = event.target.closest?.("button[data-act]");
@@ -869,6 +892,183 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     findPrev.disabled = findNext.disabled = m === 0;
   }
 
+  // -- not in this edit ------------------------------------------------------------------------------
+  let removedHits = [];
+  let removedOpen = false;
+  let removedAsk = 0; // the newest request: an older answer is dropped
+  let removedTimer = 0;
+
+  // The open "put back" preview: { index (into removedHits), plan, scope }.
+  let putBack = null;
+
+  /** The preview under a hit: what comes back, where, what moves, what each track gets. */
+  function putBackBlock() {
+    const view = describePlan(putBack.plan, { rate: rate(), nameOf: nameOfTrack });
+    const seconds = (value) => formatNumber(value, { digits: 1 });
+    const time = (frame) => frameToTime(frame, rate());
+    const box = el("div", "tx-putback");
+    box.append(
+      el("strong", "", t("ui.putback.what", { text: view.text, seconds: seconds(view.seconds) })),
+    );
+    const lines = el("ul", "tx-putback-lines");
+    const line = (text) => lines.append(el("li", "", text));
+    if (view.canConfirm) line(t(view.place.key, { time: time(view.place.frame) }));
+    else line(`${t(view.place.key)} ${view.candidates.map(time).join(" · ")}`.trim());
+    if (view.push) {
+      line(
+        t("ui.putback.pushes", {
+          time: time(view.push.frame),
+          seconds: seconds(view.push.seconds),
+          count: view.push.count,
+        }),
+      );
+    }
+    for (const track of view.tracks) line(`${track.name}: ${t(track.key)}`);
+    const buttons = el("div", "tx-putback-buttons");
+    const button = (act, text, kind = "button") => {
+      const node = el("button", kind, text);
+      node.type = "button";
+      node.dataset.act = act;
+      return node;
+    };
+    const confirm = button("putback-confirm", t("ui.putback.confirm"), "button primary");
+    confirm.disabled = !view.canConfirm;
+    buttons.append(
+      button("putback-cancel", t("ui.putback.cancel")),
+      button("putback-playhead", t("ui.putback.at_playhead")),
+      confirm,
+    );
+    box.append(lines, buttons);
+    return box;
+  }
+
+  async function openPutBack(index) {
+    const hit = removedHits[index];
+    const scope = actions.scopeTracks?.();
+    if (!hit || scope === null) return;
+    try {
+      const plan = await api.putBackPlan({
+        media: hit.media,
+        first: hit.first,
+        last: hit.last,
+        track_ids: scope,
+      });
+      putBack = { index, plan, scope };
+      paintRemoved();
+      removedList
+        .querySelector('[data-act="putback-confirm"]:not(:disabled), [data-act="putback-playhead"]')
+        ?.focus();
+    } catch (error) {
+      actions.showError(error);
+    }
+  }
+
+  /** Do it: at the seam the plan found, or at the playhead when that was chosen. */
+  async function confirmPutBack(atPlayhead) {
+    if (!putBack) return;
+    const { index, plan, scope } = putBack;
+    const hit = removedHits[index];
+    const at = atPlayhead ? Math.round(getState().playhead ?? 0) : null;
+    try {
+      const response = await api.command("put_back", commandArgs(hit.media, plan, scope, at));
+      putBack = null;
+      actions.applyResponse(response);
+      actions.jump(at ?? plan.at);
+    } catch (error) {
+      actions.showError(error);
+    }
+  }
+
+  function paintRemoved() {
+    const summary = removedSummary(removedHits.length);
+    removed.hidden = findBar.hidden || summary === null;
+    if (removed.hidden) return;
+    removedToggle.textContent = `${removedOpen ? "▾" : "▸"} ${t(summary.key, summary.values)}`;
+    removedToggle.setAttribute("aria-expanded", String(removedOpen));
+    removedList.hidden = !removedOpen;
+    removedList.setAttribute("aria-label", t("ui.find.removed.label"));
+    removedList.replaceChildren();
+    if (!removedOpen) return;
+    removedHits.forEach((hit, i) => {
+      const row = el("li", "tx-removed-row");
+      const tag = el("span", `tx-tag ${hit.status}`, t(statusKey(hit.status)));
+      const who = el("span", "tx-removed-who", hit.spk || "");
+      const quote = el("span", "tx-removed-quote");
+      quote.append(`${hit.before} `.trimStart(), el("strong", "", hit.match), ` ${hit.after}`);
+      row.append(tag, who, quote);
+      if (canShow(hit)) {
+        const show = el("button", "button ghost", t("ui.find.removed.show"));
+        show.type = "button";
+        show.title = t("ui.find.removed.show_title");
+        show.dataset.hit = String(i);
+        row.append(show);
+      }
+      if (canPutBack(hit)) {
+        const back = el("button", "button ghost", t("ui.find.removed.put_back"));
+        back.type = "button";
+        back.title = t("ui.find.removed.put_back_title");
+        back.dataset.act = "putback-open";
+        back.dataset.hit = String(i);
+        row.append(back);
+      }
+      if (putBack?.index === i) row.append(putBackBlock());
+      removedList.append(row);
+    });
+  }
+
+  /** Ask the server for the hits outside the edit, a moment after the last keystroke. */
+  function loadRemoved() {
+    clearTimeout(removedTimer);
+    const query = findQuery.trim();
+    const ask = ++removedAsk;
+    if (query === "" || findBar.hidden) {
+      removedHits = [];
+      paintRemoved();
+      return;
+    }
+    removedTimer = setTimeout(async () => {
+      let hits = [];
+      try {
+        hits = (await api.searchMaterial(query)).hits ?? [];
+      } catch (error) {
+        actions.showError(error);
+      }
+      if (ask !== removedAsk) return;
+      removedHits = hits;
+      putBack = null; // the hits changed under it
+      paintRemoved();
+    }, REMOVED_DELAY_MS);
+  }
+
+  removed.addEventListener("click", (event) => {
+    if (event.target.closest(".tx-removed-toggle")) {
+      removedOpen = !removedOpen;
+      paintRemoved();
+      return;
+    }
+    const act = event.target.closest("[data-act]")?.dataset.act;
+    if (act === "putback-open")
+      void openPutBack(Number(event.target.closest("[data-hit]").dataset.hit));
+    else if (act === "putback-confirm") void confirmPutBack(false);
+    else if (act === "putback-playhead") void confirmPutBack(true);
+    else if (act === "putback-cancel") {
+      putBack = null;
+      paintRemoved();
+    }
+    if (act) return;
+    const at = event.target.closest("[data-hit]")?.dataset.hit;
+    const hit = at === undefined ? null : removedHits[Number(at)];
+    if (hit && canShow(hit)) actions.jump(hit.at);
+  });
+  // Esc closes the preview first (a layer at a time), and does nothing else.
+  removed.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || !putBack) return;
+    event.preventDefault();
+    event.stopPropagation();
+    putBack = null;
+    paintRemoved();
+  });
+
   function goToMatch(match) {
     const before = foundWords;
     found = match;
@@ -888,6 +1088,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     found = firstFrom(matches, from);
     if (jump) goToMatch(found);
     else paintFind(before);
+    loadRemoved();
   }
 
   function stepFind(direction) {
@@ -896,7 +1097,8 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     goToMatch(direction > 0 ? nextMatch(matches, from) : prevMatch(matches, from));
   }
 
-  function openFind() {
+  function openFind(options = {}) {
+    if (options.removed) removedOpen = true;
     findBar.hidden = false;
     findInput.focus();
     findInput.select();
@@ -911,6 +1113,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     matches = [];
     found = null;
     paintFind(before);
+    loadRemoved();
     root.focus({ preventScroll: true });
   }
 
@@ -950,6 +1153,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       const sel = selection();
       setState({
         words: body.words ?? [],
+        transcribed: body.transcribed ?? [],
         people: body.people ?? {},
         wordsHead: head,
         // The old indices mean other words now: keep the place, drop the selection.
@@ -986,6 +1190,9 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     update(state, patch) {
       const changed = patch ? new Set(Object.keys(patch)) : null;
       const touched = (...names) => changed === null || names.some((name) => changed.has(name));
+      const playback = transcriptPlaybackStep({ paused, wasPlaying }, state.playing);
+      wasPlaying = playback.wasPlaying;
+      if (playback.paused !== paused) setPaused(playback.paused);
       if (touched("head", "serverMutedKey")) void loadWords();
       if (touched("focusMode", "focusHideOthers")) refocus(state);
       const key = `${state.wordsHead}|${state.words?.length}|${state.project?.rate}|${state.project?.tracks?.map((x) => x.id + x.speaker + x.name).join()}|${JSON.stringify(state.people ?? {})}|${state.pauseBreak}`;
@@ -1000,7 +1207,6 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       )
         void refreshJobs();
       if (touched("playhead", "playing")) {
-        if (touched("playing") && state.playing) setPaused(false);
         if (touched("playing") && !state.playing) follow.hidden = true;
         markNow();
         followPlayback();

@@ -21,7 +21,9 @@ from recorder_helpers import (
     wait_until,
 )
 
+from kuulas import clipboard_level
 from kuulas import record_take as rt
+from kuulas.ops import EditError
 from kuulas.record_session import RecordError, RecordSession
 from kuulas.session import Session
 from kuulas_recorder.client import RecorderClient, RecorderError
@@ -130,6 +132,29 @@ def test_onto_an_existing_track_trims_what_lies_under(session):
     offline(session).import_take("Take 1")
     assert [t.id for t in session.state.tracks] == ["t1"]
     assert len(session.state.tracks[0].clips) == 1
+
+
+def test_a_take_says_how_much_existing_audio_it_replaced(session):
+    folder = recordings(session)
+    session.edit("add_track", {"track_id": "t1", "name": "Host"})
+    write_take(folder, "Old", plan=rt.TakePlan("Old", 0, "t1", "Host", 1))
+    rs = offline(session)
+    assert rs.import_take("Old")["replaced"] == []  # nothing was under it
+    # A second take, half a second later, covers the last half of the first.
+    write_take(folder, "New", plan=rt.TakePlan("New", RATE // 2, "t1", "Host", 1))
+    result = rs.import_take("New")
+    assert result["replaced"] == [{"track": "Host", "frames": RATE // 2}]
+
+
+def test_a_take_over_a_whole_older_clip_replaces_all_of_it(session):
+    folder = recordings(session)
+    session.edit("add_track", {"track_id": "t1", "name": "Host"})
+    write_take(folder, "Old", plan=rt.TakePlan("Old", RATE, "t1", "Host", 1))
+    rs = offline(session)
+    rs.import_take("Old")
+    write_take(folder, "New", plan=rt.TakePlan("New", 0, "t1", "Host", 1),
+               segments=((0, 3 * RATE),))
+    assert rs.import_take("New")["replaced"] == [{"track": "Host", "frames": RATE}]
 
 
 def test_a_take_is_imported_once(session):
@@ -709,3 +734,389 @@ def test_api_records_several_channels_onto_several_tracks(session, tmp_path, rec
             assert r.status_code == 400
     finally:
         rs.close()
+
+
+# -- editing is paused while a take of this project records (owner, 2026-10-23) ---------
+
+
+def recording_status(rs, folder=None):
+    rs._status = {"state": "recording", "take": "Take 1",
+                  "folder": str(rs.folder if folder is None else folder)}
+
+
+def test_edits_are_paused_while_a_take_of_this_project_records(session):
+    session.edit("add_track", {"track_id": "t1", "name": "Host"})
+    rs = offline(session)
+    recording_status(rs)
+    with pytest.raises(EditError) as e:
+        session.edit("set_track", {"track_id": "t1", "gain_db": -3.0})
+    assert e.value.key == "error.edit.recording_paused"
+    with pytest.raises(EditError):
+        session.undo()
+    assert session.state.tracks[0].gain_db == 0.0
+
+
+def test_markers_may_still_be_added_and_moved_while_recording(session):
+    rs = offline(session)
+    recording_status(rs)
+    session.edit("add_marker", {"marker_id": "k1", "name": "Good answer", "start": 4800})
+    session.edit("move_marker", {"marker_id": "k1", "start": 9600})
+    assert [m.start for m in session.state.markers] == [9600]
+
+
+def test_a_take_still_lands_while_the_recorder_says_recording(session):
+    # The stop answer and the stopped event both import; the status may lag behind.
+    folder = recordings(session)
+    write_take(folder, plan=rt.TakePlan("Take 1", 0, None, "Olli", 1))
+    rs = offline(session)
+    recording_status(rs)
+    assert rs.import_take("Take 1")["clips"] == 1
+
+
+def test_edits_work_again_when_the_take_is_over(session):
+    session.edit("add_track", {"track_id": "t1", "name": "Host"})
+    rs = offline(session)
+    recording_status(rs)
+    rs._status = {"state": "idle"}
+    session.edit("set_track", {"track_id": "t1", "gain_db": -3.0})
+    assert session.state.tracks[0].gain_db == -3.0
+
+
+def test_a_take_of_another_project_does_not_pause_this_one(session, tmp_path):
+    session.edit("add_track", {"track_id": "t1", "name": "Host"})
+    rs = offline(session)
+    recording_status(rs, folder=tmp_path / "Other.kuulas" / "recordings")
+    session.edit("set_track", {"track_id": "t1", "gain_db": -3.0})
+    assert session.state.tracks[0].gain_db == -3.0
+
+
+def test_listening_for_pre_roll_does_not_pause_edits(session):
+    session.edit("add_track", {"track_id": "t1", "name": "Host"})
+    rs = offline(session)
+    rs._status = {"state": "armed", "folder": str(rs.folder)}
+    session.edit("set_track", {"track_id": "t1", "gain_db": -3.0})
+    assert session.state.tracks[0].gain_db == -3.0
+
+
+# -- a new track exists from the moment the take starts (so it can be drawn live) ------
+
+
+def started(rs, take_key="take"):
+    """A RecordSession whose recorder answers `start` as recording (no process)."""
+    def command(cmd, **kw):
+        return {"state": "recording", "take": kw.get("take", "Take 1"),
+                "folder": str(rs.folder), "position_frames": 0}
+    rs._command = command
+    return rs
+
+
+def test_a_new_track_is_made_when_the_take_starts_and_the_plan_names_it(session):
+    rs = started(offline(session))
+    rs.start(device=None, at=0, channels=[
+        {"channel": 1, "track_id": None, "name": "Olli"},
+        {"channel": 2, "track_id": None, "name": "Anna"}])
+    names = [tr.name for tr in session.state.tracks]
+    assert names == ["Olli", "Anna"]
+    assert all(tr.mono and tr.kind == "speech" for tr in session.state.tracks)
+    plans = [p for p in rs.folder.iterdir() if p.name.endswith(rt.PLAN_SUFFIX)]
+    plan = rt.read_plan(rs.folder, plans[0].name[:-len(rt.PLAN_SUFFIX)])
+    made = [tr.id for tr in session.state.tracks]
+    assert [lane.track_id for lane in plan.all_lanes] == made
+
+
+def test_the_tracks_of_a_take_are_one_undo_step(session):
+    rs = started(offline(session))
+    head = session.history.head
+    rs.start(device=None, at=0, channels=[
+        {"channel": 1, "track_id": None, "name": "Olli"}])
+    assert len(session.state.tracks) == 1
+    rs._status = {"state": "idle"}
+    session.undo()
+    assert session.history.head == head
+    assert not session.state.tracks
+
+
+def test_a_take_on_an_existing_track_makes_no_track(session):
+    session.edit("add_track", {"track_id": "t1", "name": "Host"})
+    rs = started(offline(session))
+    rs.start(device=None, at=0, channels=[{"channel": 1, "track_id": "t1", "name": ""}])
+    assert [tr.id for tr in session.state.tracks] == ["t1"]
+
+
+def test_the_take_lands_on_the_track_made_at_the_start(session):
+    rs = started(offline(session))
+    rs.start(device=None, at=96000, channels=[
+        {"channel": 1, "track_id": None, "name": "Olli"}])
+    made = session.state.tracks[0].id
+    plans = [p for p in rs.folder.iterdir() if p.name.endswith(rt.PLAN_SUFFIX)]
+    take = plans[0].name[:-len(rt.PLAN_SUFFIX)]
+    write_take(rs.folder, take, plan=rt.read_plan(rs.folder, take))
+    rs._status = {"state": "idle"}
+    rs.import_take(take)
+    assert [tr.id for tr in session.state.tracks] == [made]  # no second track
+    assert len(session.state.tracks[0].clips) == 1
+
+
+# -- the cart while recording: a played clip is put on the timeline where it was played --
+
+
+def test_a_clip_played_during_a_take_lands_on_the_cart_track_at_that_moment(session):
+    rs = started(offline(session))
+    session.edit("add_track", {"track_id": "tq", "name": "Questions"})
+    rs.start(device=None, at=48000, cart_track="tq",
+             channels=[{"channel": 1, "track_id": None, "name": "Olli"}])
+    path = recordings(session).parent / "q.wav"
+    sf.write(path, np.full(RATE * 2, 0.1, dtype=np.float32), RATE, subtype="PCM_16")
+    report = session.store.import_batch([str(path)], copy=False)
+    entry_id = session.material_copy(report[0].media.id)["entry"]["id"]
+    rs._position = 2 * RATE  # two seconds into the take
+    result = rs.cart_log(entry_id)
+    assert result["at"] == 48000 + 2 * RATE
+    track = next(tr for tr in session.state.tracks if tr.id == "tq")
+    assert [(c.start, c.length) for c in track.clips] == [(48000 + 2 * RATE, 2 * RATE)]
+
+
+def test_the_pre_roll_is_not_counted_in_where_the_clip_lands(session):
+    rs = started(offline(session))
+    session.edit("add_track", {"track_id": "tq", "name": "Questions"})
+    rs.start(device=None, at=0, cart_track="tq",
+             channels=[{"channel": 1, "track_id": None, "name": "Olli"}])
+    rs._status["preroll_frames"] = RATE  # the take's clock started one second early
+    path = recordings(session).parent / "q.wav"
+    sf.write(path, np.full(RATE, 0.1, dtype=np.float32), RATE, subtype="PCM_16")
+    entry_id = session.material_copy(session.store.import_batch(
+        [str(path)], copy=False)[0].media.id)["entry"]["id"]
+    rs._position = 3 * RATE
+    assert rs.cart_log(entry_id)["at"] == 2 * RATE
+
+
+def test_playing_without_a_cart_track_logs_nothing(session):
+    rs = started(offline(session))
+    rs.start(device=None, at=0,
+             channels=[{"channel": 1, "track_id": None, "name": "Olli"}])
+    with pytest.raises(RecordError) as e:
+        rs.cart_log("anything")
+    assert e.value.key == "error.record.no_cart_track"
+
+
+def test_the_cart_track_cannot_be_a_track_that_records(session):
+    rs = started(offline(session))
+    session.edit("add_track", {"track_id": "t1", "name": "Host"})
+    with pytest.raises(RecordError) as e:
+        rs.start(device=None, at=0, cart_track="t1",
+                 channels=[{"channel": 1, "track_id": "t1", "name": ""}])
+    assert e.value.key == "error.record.cart_track_records"
+
+
+def test_a_new_cart_track_is_made_with_the_take_tracks(session):
+    rs = started(offline(session))
+    rs.start(device=None, at=0, cart_track="new",
+             channels=[{"channel": 1, "track_id": None, "name": "Olli"}])
+    assert [tr.name for tr in session.state.tracks] == ["Olli", "Questions"]
+
+
+def test_a_clip_played_when_nothing_records_is_refused(session):
+    rs = offline(session)
+    with pytest.raises(RecordError) as e:
+        rs.cart_log("anything")
+    assert e.value.key == "error.record.not_recording"
+
+
+def test_the_recording_delay_trims_the_head_of_the_take_so_it_lines_up(session):
+    # Playing the other tracks while recording: what the performer reacted to was heard
+    # `latency_frames` late, so the take's head is cut by that much (file untouched).
+    folder = recordings(session)
+    plan = rt.TakePlan("Take 1", RATE, None, "Olli", 1, latency_frames=480)
+    write_take(folder, plan=plan)
+    offline(session).import_take("Take 1")
+    clip = session.state.tracks[0].clips[0]
+    assert clip.start == RATE
+    assert clip.offset == 480
+    assert clip.length == RATE - 480
+
+
+def test_the_plan_keeps_the_recording_delay_on_disk(session):
+    folder = recordings(session)
+    plan = rt.TakePlan("Take 1", 0, None, "Olli", 1, latency_frames=960)
+    write_take(folder, plan=plan)
+    assert rt.read_plan(folder, "Take 1").latency_frames == 960
+    # a plan written before this field reads as no delay
+    write_take(folder, "Old", plan=rt.TakePlan("Old", 0, None, "Olli", 1))
+    assert rt.read_plan(folder, "Old").latency_frames == 0
+
+
+class MonitorEngine(NoEngine):
+    """Records what the server asks of the engine while a take runs."""
+
+    def __init__(self):
+        super().__init__()
+        self.played = []
+        self.overlays = []
+
+    def play(self, at=None, until=None, **kw):
+        self.played.append(at)
+
+    def set_silence_overlay(self, ranges):
+        self.overlays.append(ranges)
+
+
+def test_play_the_other_tracks_while_recording_is_opt_in_and_silences_the_recorded_ones(
+        session, tmp_path, recorder):
+    engine = MonitorEngine()
+    rs = live(session, recorder)
+    try:
+        with api(session, tmp_path, rs, engine) as c:
+            r = c.post("/api/record/start", json={
+                "device": {"index": 0, "name": "Fake Mic"}, "channel": 2,
+                "track_id": "new", "name": "Guest", "at": 4800, "play_others": True,
+                "latency_ms": 20})
+            assert r.status_code == 200, r.text
+            assert engine.stops == 0  # not stopped: the other tracks play
+            assert engine.played == [4800]
+            recorded = {t.id for t in session.state.tracks if t.name == "Guest"}
+            assert set(engine.overlays[-1]) == recorded  # the recorded track is silent
+            time.sleep(0.5)
+            c.post("/api/record/stop", json={"mode": "two_step"})
+            assert engine.stops == 1
+            assert engine.overlays[-1] is None
+    finally:
+        rs.close()
+
+
+def test_without_the_option_a_take_still_stops_playback(session, tmp_path, recorder):
+    engine = MonitorEngine()
+    rs = live(session, recorder)
+    try:
+        with api(session, tmp_path, rs, engine) as c:
+            r = c.post("/api/record/start", json={
+                "device": {"index": 0, "name": "Fake Mic"}, "channel": 2,
+                "track_id": "new", "name": "Guest", "at": 0})
+            assert r.status_code == 200, r.text
+            assert engine.stops == 1
+            assert engine.played == []
+            assert engine.overlays == []
+    finally:
+        rs.close()
+
+
+def test_cart_end_and_replacement_only_trim_logged_clips(session):
+    rs = started(offline(session))
+    session.edit("add_track", {"track_id": "tq", "name": "Questions"})
+    rs.start(device=None, at=RATE, cart_track="tq",
+             channels=[{"channel": 1, "track_id": None, "name": "Olli"}])
+    path = recordings(session).parent / "cart.wav"
+    sf.write(path, np.full(RATE * 2, 0.1, dtype=np.float32), RATE)
+    media = session.store.import_batch([str(path)], copy=False)[0].media
+    entry = session.material_copy(media.id)["entry"]["id"]
+    rs._position = RATE
+    first = rs.cart_log(entry, gain_db=3)
+    take_track = next(tr for tr in session.state.tracks if tr.id != "tq")
+    rs._position = RATE + RATE // 2
+    second = rs.cart_log(entry, gain_db=-2)
+    clips = next(tr for tr in session.state.tracks if tr.id == "tq").clips
+    assert clips[0].length == RATE // 2
+    assert clips[0].gain_db == 3
+    assert clips[1].gain_db == -2
+    assert first["clip_ids"] != second["clip_ids"]
+    rs._position += RATE // 4
+    rs.cart_end(second["clip_ids"])
+    clips = next(tr for tr in session.state.tracks if tr.id == "tq").clips
+    assert clips[1].length == RATE // 4
+    assert session.state.track(take_track.id) == take_track
+    with pytest.raises(EditError):
+        session.edit("trim_clips", {"clip_ids": [clips[0].id], "end": 1})
+
+
+def test_cart_end_rejects_unowned_clip_ids(session):
+    rs = offline(session)
+    with pytest.raises(RecordError):
+        rs.cart_end(["unrelated"])
+
+
+def test_cart_take_end_uses_final_segment_clock_not_last_meter(session, monkeypatch):
+    rs = started(offline(session))
+    session.edit("add_track", {"track_id": "tq", "name": "Questions"})
+    rs.start(device=None, at=0, cart_track="tq",
+             channels=[{"channel": 1, "track_id": None, "name": "Olli"}])
+    path = recordings(session).parent / "cart-final.wav"
+    sf.write(path, np.full(RATE * 2, 0.1, dtype=np.float32), RATE)
+    media = session.store.import_batch([str(path)], copy=False)[0].media
+    entry = session.material_copy(media.id)["entry"]["id"]
+    play = rs.cart_log(entry)
+    rs._position = 100
+    monkeypatch.setattr(rs, "_sidecar", lambda _: {
+        "segments": [{"start_frame": 200, "files": {"Olli": {"frames": 300}}}]})
+    monkeypatch.setattr(rs, "_import_later", lambda _: None)
+    rs._on_event({"event": "stopped", "folder": str(rs.folder),
+                  "take": rs._status["take"], "frames": 300})
+    assert session.state.track("tq").clips[0].length == 500
+    rs.cart_end(play["clip_ids"])  # a late page notification is harmless
+
+
+def test_cart_voice_estimate_expires_and_falls_back_to_reference(session, monkeypatch):
+    rs = started(offline(session))
+    rs._cart_track = "tq"
+    rs._status = {"state": "recording", "folder": str(rs.folder)}
+    calls = []
+    monkeypatch.setattr(session, "clipboard_preview",
+                        lambda entry, **kwargs: calls.append(kwargs))
+    rs.cart_preview("e", 2)
+    assert calls[-1] == {"cart_voice": None, "cart_trim": 2, "cart_track": "tq"}
+    rs._on_event({"event": "level", "peak_dbfs": [-20, -100], "position_frames": 10})
+    rs.cart_preview("e")
+    assert calls[-1]["cart_voice"] == pytest.approx(-34)
+    rs._voice_levels = [(time.monotonic() - 4, -20)]
+    rs.cart_preview("e")
+    assert calls[-1]["cart_voice"] is None
+
+
+def test_cart_preview_api_stores_the_played_gain_and_end_is_scoped(session, tmp_path,
+                                                                  monkeypatch):
+    rs = started(offline(session))
+    session.edit("add_track", {"track_id": "tq", "name": "Questions"})
+    rs.start(device=None, at=0, cart_track="tq",
+             channels=[{"channel": 1, "track_id": None, "name": "Olli"}])
+    path = recordings(session).parent / "cart-api.wav"
+    sf.write(path, np.full(RATE * 2, 0.01, dtype=np.float32), RATE)
+    media = session.store.import_batch([str(path)], copy=False)[0].media
+    entry = session.material_copy(media.id)["entry"]["id"]
+    monkeypatch.setattr(session, "_preview_reference", lambda *_: (-23, None))
+    monkeypatch.setattr(clipboard_level, "entry_level", lambda *_: (-33, -20))
+    engine = NoEngine()
+    previews = []
+    engine.play_preview = lambda p, **kwargs: previews.append((p, kwargs))
+    engine.stop_preview = lambda: None
+    with api(session, tmp_path, rs, engine) as client:
+        result = client.post(f"/api/clipboard/{entry}/preview",
+                             json={"cart_trim": 2, "limit": False})
+        assert result.status_code == 200
+        body = result.json()
+        assert body["attenuation_db"] == 12
+        assert previews[0][0].master_gain_db == 12
+        clip = session.state.track("tq").clips[0]
+        assert clip.gain_db == 12
+        assert body["cart"]["clip_ids"] == [clip.id]
+        rs._position = 1234
+        result = client.post("/api/clipboard/preview/stop")
+        assert result.status_code == 200
+        assert session.state.track("tq").clips[0].length == 1234
+        assert client.post("/api/record/cart/end",
+                           json={"clip_ids": [clip.id]}).status_code == 200
+        assert client.post("/api/record/cart/end",
+                           json={"clip_ids": ["other"]}).status_code == 400
+
+
+def test_cart_level_cache_tracks_master_gain(session, tmp_path, monkeypatch):
+    session.edit("add_track", {"track_id": "tq", "name": "Questions"})
+    path = tmp_path / "cart-cache.wav"
+    sf.write(path, np.full(RATE, 0.01, dtype=np.float32), RATE)
+    media = session.store.import_batch([str(path)], copy=False)[0].media
+    entry = session.material_copy(media.id)["entry"]["id"]
+    monkeypatch.setattr(session, "_preview_reference", lambda *_: (-23, None))
+    monkeypatch.setattr(clipboard_level, "entry_level",
+                        lambda p, _: (-33 + p.master_gain_db, -20 + p.master_gain_db))
+    _, _, gain = session.clipboard_preview(entry, cart_track="tq")
+    assert gain == 10
+    session.edit("set_master", {"gain_db": -6})
+    _, _, gain = session.clipboard_preview(entry, cart_track="tq")
+    assert gain == 16  # changing the project master changes the measured entry

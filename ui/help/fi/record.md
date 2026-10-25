@@ -2,7 +2,7 @@
 id: record
 title: Oton äänittäminen
 applies-to: [index]
-commands: [transport.record, record.stop_mode, record.preroll]
+commands: [transport.record, record.stop_mode, record.preroll, marker.add]
 related: [track, timeline]
 ---
 Äänitä yksi tulon kanava raidalle: {key:transport.record} avaa äänitysnäkymän. Valitse tulo, kanava ja raita (tai uusi raita) ja paina Äänitä. Otto alkaa toistokohdasta ja ilmestyy siihen leikkeenä, kun pysäytät.
@@ -18,3 +18,13 @@ related: [track, timeline]
 Macissa ensimmäinen äänitys kysyy lupaa käyttää mikrofonia. Kun kuulas ajetaan päätteestä, lupa tarvitaan päätteelle (Järjestelmäasetukset, Tietosuoja ja suojaus, Mikrofoni). Ilman lupaa tulo on hiljainen: seuraa tasomittaria.
 
 Katso myös [[track]].
+
+Kun äänite on käynnissä, Lisää merkki (tai {key:marker.add}) laittaa merkin kohtaan, jossa äänite on nyt, ei toistokursorin kohtaan, joten voit merkitä hyvän vastauksen tai virheen heti. Merkit pysyvät paikoillaan, kun äänitteen leikkeet tulevat aikajanalle.
+
+Jos haluat äänittää usealta laitteelta yhtä aikaa, yhdistä ne ensin macOS:ssä: Audio MIDI Setup > Create Aggregate Device, valitse laitteet (ja Drift Correction kaikille paitsi kellolaitteelle). Kuulas näkee silloin yhden laitteen, jolla on kaikki kanavat, ja jokaisen kanavan voi ohjata omalle raidalleen.
+
+Kun äänite on käynnissä, sen raidat piirtyvät aikajanalle sitä mukaa kuin ääni tulee: palkki jokaiselle pikselille kovimman näytteen mukaan ja punainen kärki siihen, missä äänite on nyt. Uusi raita (jota ei vielä ole) piirtyy vasta kun äänite pysähtyy. Leikkeet ottavat piirroksen paikan, kun pysäytät.
+
+Kun painat Äänitä, äänitysnäkymä väistyy ja aikajana on edessä, äänite piirtyy sen raidoille (uusi raita luodaan juuri silloin). Näkymä seuraa äänitettä niin kauan kuin katsot sitä ja jättää sen rauhaan, kun vierität pois. Työkalupalkin merkki tuo äänitysnäkymän ja Pysäytä-painikkeen takaisin. Äänitteen aikana muokkaus on tauolla (leikkaus tai siirto ennen äänitettä veisi sen väärään paikkaan); voit vierittää, zoomata, valita, lukea ja lisätä merkkejä.
+
+Asetuksissa "Soitetut leikkeet menevät raidalle" valitsee raidan leikkeille, joita soitat leikepöydältä (cart-näppäimillä tai merkinnän soittopainikkeella) äänityksen aikana: uusi raita nimeltä Kysymykset tai mikä tahansa raita, jolle ei äänitetä. Jokainen soittamasi leike asetetaan myös tälle raidalle kohtaan, jossa äänite on sillä hetkellä, joten kysymys on vastauksen vieressä. Jos raidalla on jo ääntä toistokursorista eteenpäin, varoitus kertoo että leikkeet kirjoittavat sen päälle.

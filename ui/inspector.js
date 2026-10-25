@@ -167,6 +167,36 @@ export function createInspector({
     const heading = document.createElement("p");
     heading.className = "inspector-media";
     root.append(heading);
+    const name = document.createElement("input");
+    name.type = "text";
+    name.className = "inspector-name inspector-clip-name";
+    name.setAttribute("aria-label", t("ui.clip.name"));
+    name.placeholder = t("ui.clip.name_auto");
+    name.autocomplete = "off";
+    name.title = t("ui.clip.name_hint");
+    name.value = clip.name ?? "";
+    const finishName = () => {
+      const currentClip = latestState?.project?.tracks
+        ?.flatMap((tr) => tr.clips)
+        ?.find((c) => c.id === id);
+      const prev = currentClip?.name ?? "";
+      const val = name.value.trim();
+      if (val !== prev) send("name", val);
+      else name.value = prev;
+    };
+    name.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        finishName();
+      } else if (event.key === "Escape") {
+        const currentClip = latestState?.project?.tracks
+          ?.flatMap((tr) => tr.clips)
+          ?.find((c) => c.id === id);
+        name.value = currentClip?.name ?? "";
+      }
+    });
+    name.addEventListener("blur", finishName);
+    root.append(field(t("ui.clip.name"), name));
     // The clip's duration, labelled, in the timeline's own clock (h:mm:ss.mmm).
     const length = document.createElement("output");
     length.className = "inspector-readonly";
@@ -275,7 +305,20 @@ export function createInspector({
     const readout = document.createElement("p");
     readout.className = "hint";
     section("details").append(readout);
-    parts = { heading, length, gain, pan, fadeIn, fadeOut, muted, micOpen, sync, readout, rate };
+    parts = {
+      heading,
+      name,
+      length,
+      gain,
+      pan,
+      fadeIn,
+      fadeOut,
+      muted,
+      micOpen,
+      sync,
+      readout,
+      rate,
+    };
   }
 
   function setNumber(input, value) {
@@ -315,6 +358,7 @@ export function createInspector({
       "--track-colour",
       `var(--track-${hue === MUSIC_HUE ? "music" : hue}-edge)`,
     );
+    if (parts.name && document.activeElement !== parts.name) parts.name.value = clip.name ?? "";
     setNumber(parts.gain, Math.round(clip.gain_db * 10) / 10);
     setNumber(parts.pan, Math.round(clip.pan * 100));
     setNumber(parts.fadeIn, Math.round((clip.fade_in * 1000) / parts.rate));
@@ -331,7 +375,14 @@ export function createInspector({
 
   return {
     update,
-    /** Focus the track (or bus) name field, opening its section (F2). */
-    focusName: () => trackParts?.focusName(),
+    /** Focus the clip, track (or bus) name field (F2). */
+    focusName() {
+      if (current && parts?.name) {
+        parts.name.focus();
+        parts.name.select?.();
+        return;
+      }
+      trackParts?.focusName();
+    },
   };
 }

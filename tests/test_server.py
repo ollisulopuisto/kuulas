@@ -419,6 +419,123 @@ def test_words_name_the_people_they_refer_to(client, loaded, session):
     assert body["people"] == {pid: "Anna Virtanen"}
 
 
+def test_words_show_only_what_is_heard(client, loaded, session):
+    """A soft-cut or muted stretch is not in the transcript at all (owner, 2026-10-21):
+    no strikethrough, no marker. The recording still counts as transcribed."""
+    media = media_id(loaded)
+    client.post(f"/api/transcript/{media}", json=WORDS)
+    track = session.state.tracks[0]
+    mute = {"track_id": track.id, "ranges": [[0, round(0.45 * RATE)]]}
+    session.edit("mute_ranges", mute)
+    body = client.get("/api/words").json()
+    assert [w["w"] for w in body["words"]] == ["there"]
+    assert body["transcribed"] == [media]
+
+
+def test_a_muted_track_leaves_no_words_but_stays_transcribed(client, loaded, session):
+    media = media_id(loaded)
+    client.post(f"/api/transcript/{media}", json=WORDS)
+    session.edit("set_track", {"track_id": session.state.tracks[0].id, "mute": True})
+    body = client.get("/api/words").json()
+    assert body["words"] == []
+    assert body["transcribed"] == [media]
+
+
+def test_cut_words_counts_positions_in_the_heard_words(client, loaded, session):
+    """The panel only shows heard words, so the index it sends is a position in them."""
+    media = media_id(loaded)
+    client.post(f"/api/transcript/{media}", json=WORDS)
+    track = session.state.tracks[0]
+    mute = {"track_id": track.id, "ranges": [[0, round(0.45 * RATE)]]}
+    session.edit("mute_ranges", mute)
+    session.command("cut_words", {"indices": [0]})  # "there", the only heard word
+    assert [w["w"] for w in session.timeline_words()] == ["hello"]
+    r = client.post("/api/command", json={"name": "cut_words", "args": {"indices": [1]}})
+    assert r.status_code == 400
+
+
+def test_material_search_finds_a_cut_word_with_its_reason(client, loaded, session):
+    media = media_id(loaded)
+    client.post(f"/api/transcript/{media}", json=WORDS)
+    def search(q):
+        return client.get("/api/material-search", params={"q": q}).json()
+
+    assert search("there") == {"hits": []}
+    session.command("cut_words", {"indices": [1]})  # "there"
+    body = search("there")
+    [hit] = body["hits"]
+    assert (hit["media"], hit["status"], hit["match"]) == (media, "cut", "there")
+    assert hit["before"] == "hello"
+    assert search("hello") == {"hits": []}
+
+
+def test_a_muted_hit_says_where_it_is_on_the_timeline(client, loaded, session):
+    """Muted and gated words are still on the timeline, so the list can take you there."""
+    media = media_id(loaded)
+    client.post(f"/api/transcript/{media}", json=WORDS)
+    track = session.state.tracks[0]
+    mute = {"track_id": track.id, "ranges": [[round(0.45 * RATE), RATE]]}
+    session.edit("mute_ranges", mute)
+    [hit] = client.get("/api/material-search", params={"q": "there"}).json()["hits"]
+    assert hit["status"] == "muted"
+    assert hit["track"] == track.id
+    assert hit["at"] == round(0.5 * RATE)
+
+
+def cut_there(client, loaded, session):
+    """Import "hello there" and cut "there" with the transcript's X."""
+    media = media_id(loaded)
+    client.post(f"/api/transcript/{media}", json=WORDS)
+    session.command("cut_words", {"indices": [1]})
+    return media
+
+
+def test_put_back_plan_names_the_seam_and_how_far_things_move(client, loaded, session):
+    media = cut_there(client, loaded, session)
+    r = client.post("/api/put-back/plan", json={"media": media, "first": 1, "last": 1})
+    assert r.status_code == 200
+    plan = r.json()
+    assert plan["blocked"] == ""
+    assert (plan["site"]["kind"], plan["mode"]) == ("seam", "insert")
+    assert plan["at"] == round(0.45 * RATE)
+    assert plan["shift"] == round(0.45 * RATE)
+    assert plan["text"] == "there"
+    assert [o["outcome"] for o in plan["outcomes"]] == ["restored"]
+
+
+def test_put_back_command_restores_the_words_in_one_step(client, loaded, session):
+    media = cut_there(client, loaded, session)
+    assert [w["w"] for w in session.heard_words()] == ["hello"]
+    before = session.history.head
+    plan = client.post("/api/put-back/plan", json={"media": media, "first": 1,
+                                                   "last": 1}).json()
+    r = client.post("/api/command", json={"name": "put_back", "args": {
+        "media": media, "start": plan["start"], "end": plan["end"]}})
+    assert r.status_code == 200, r.text
+    assert [w["w"] for w in session.heard_words()] == ["hello", "there"]
+    assert session.history.nodes_page(2)[1]["id"] == before  # exactly one new step
+    client.post("/api/undo")
+    assert [w["w"] for w in session.heard_words()] == ["hello"]
+
+
+def test_put_back_that_cannot_be_placed_says_so(client, loaded, session):
+    media = media_id(loaded)
+    client.post(f"/api/transcript/{media}", json=WORDS)
+    clips = [c.id for c in session.state.tracks[0].clips]
+    session.edit("delete_clips", {"clip_ids": clips})
+    plan = client.post("/api/put-back/plan", json={"media": media, "first": 1,
+                                                   "last": 1}).json()
+    assert plan["blocked"] == "none"
+    r = client.post("/api/command", json={"name": "put_back", "args": {
+        "media": media, "start": plan["start"], "end": plan["end"]}})
+    assert r.status_code == 400
+    assert r.json()["error"]["key"] == "error.put_back.blocked"
+
+
+def test_material_search_needs_a_query(client, loaded):
+    assert client.get("/api/material-search").json() == {"hits": []}
+
+
 def test_transcript_import_accepts_the_whisper_shape(client, loaded):
     media = media_id(loaded)
     segments = {"segments": [{"words": WORDS}]}
@@ -1188,3 +1305,42 @@ def test_get_music_report_range(client):
     bad = client.get("/api/music-report?start=10&end=10")
     assert bad.status_code == 400
     assert bad.json()["error"]["key"] == "error.music_report.bad_range"
+
+
+def test_state_has_no_read_only_note_for_a_project_you_can_edit(client):
+    assert "read_only" not in client.get("/api/state").json()
+
+
+def test_state_names_who_holds_a_read_only_project(session, engine, tmp_path):
+    # A second open of one folder (a second window) is read-only and says who holds it.
+    second = Session(tmp_path / "Talk.kuulas")
+    try:
+        ui = tmp_path / "ui"
+        ui.mkdir()
+        with TestClient(create_app(second, engine, language="en", ui_dir=ui)) as other:
+            note = other.get("/api/state").json()["read_only"]
+        assert note["host"]
+        assert note["user"] is not None
+        assert note["opened_utc"]
+    finally:
+        second.close()
+
+
+def test_cut_list_download_is_json_with_a_file_name(client, loaded):
+    r = client.get("/api/cut-list")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("application/json")
+    assert "cut-list.json" in r.headers["content-disposition"]
+    body = r.json()
+    assert body["format"] == "kuulas-cut-list"
+    assert [t["cuts"] for t in body["tracks"]] == [[]]
+
+
+def test_cut_list_lists_a_ripple_cut_of_the_edit(client, loaded):
+    r = client.post("/api/edit", json={"op": "ripple_delete",
+                                       "args": {"start": 12_000, "end": 24_000}})
+    assert r.status_code == 200, r.text
+    body = client.get("/api/cut-list").json()
+    [cut] = body["tracks"][0]["cuts"]
+    assert (cut["at"], cut["removed"]) == (12_000, 12_000)
+    assert [(s["at"], s["removed"]) for s in body["seams"]] == [(12_000, 12_000)]

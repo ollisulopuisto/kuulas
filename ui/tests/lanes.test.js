@@ -196,6 +196,43 @@ describe("hit testing", () => {
     assert.equal(hit.frame, 1000);
   });
 
+  test("a track's ducking point under the pointer is autoPoint, whatever clip lies under it", () => {
+    const ducked = {
+      ...project,
+      tracks: [
+        {
+          ...project.tracks[0],
+          automation: [
+            [1000, 0],
+            [2000, -24],
+          ],
+        },
+        ...project.tracks.slice(1),
+      ],
+    };
+    const tall = layoutRows(ducked, 96);
+    // 96 px lane: the band is 28 px high and ends 3 px above the bottom, so 0 dB sits at 65.
+    const top = hitTest({ layout: tall, project: ducked, view, x: 100, y: RULER_HEIGHT + 65 });
+    assert.equal(top.autoPoint, 0);
+    const bottom = hitTest({ layout: tall, project: ducked, view, x: 200, y: RULER_HEIGHT + 93 });
+    assert.equal(bottom.autoPoint, 1);
+    const away = hitTest({ layout: tall, project: ducked, view, x: 150, y: RULER_HEIGHT + 10 });
+    assert.equal(away.autoPoint, null);
+    // A lane too short to draw the curve (under 40 px) has no points to hit.
+    const short = layoutRows(ducked, 30);
+    const none = hitTest({ layout: short, project: ducked, view, x: 100, y: RULER_HEIGHT + 20 });
+    assert.equal(none.autoPoint, null);
+  });
+
+  test("a ruler hit names the marker under the pointer, if any", () => {
+    const withMarker = {
+      ...project,
+      markers: [{ id: "m1", kind: "marker", name: "", start: 1000 }],
+    };
+    assert.equal(hitTest({ layout, project: withMarker, view, x: 100, y: 10 }).marker, "m1");
+    assert.equal(hitTest({ layout, project: withMarker, view, x: 300, y: 10 }).marker, null);
+  });
+
   test("a click inside a clip names the clip and track", () => {
     const hit = hitTest({ layout, project, view, x: 150, y: laneY(30) });
     assert.equal(hit.area, "lane");

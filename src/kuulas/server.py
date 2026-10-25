@@ -196,6 +196,14 @@ class PinBody(BaseModel):
     pinned: bool = True
 
 
+class CartBody(BaseModel):
+    slot: int | None = None
+
+
+class MoveBody(BaseModel):
+    before: str | None = None
+
+
 class RenameBody(BaseModel):
     name: str
 
@@ -203,6 +211,7 @@ class RenameBody(BaseModel):
 class ClipboardPreviewBody(BaseModel):
     #: Limit the preview to the project's level (WP82); the user's preference.
     limit: bool = True
+    cart_trim: float = Field(default=0, ge=-12, le=12)
 
 
 class AdoptBody(BaseModel):
@@ -224,6 +233,16 @@ class ViewMemoryBody(BaseModel):
 
 class CutPreviewBody(BaseModel):
     words: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class PutBackPlanBody(BaseModel):
+    media: str
+    first: int | None = None
+    last: int | None = None
+    start: int | None = None
+    end: int | None = None
+    track_ids: list[str] | None = None
+    at: int | None = None
 
 
 class RestoreBody(BaseModel):
@@ -292,6 +311,21 @@ class RecordStartBody(BaseModel):
     track_id: str | None = None  # None or "new": a new speech track named ``name``
     name: str = ""
     at: int = 0
+    # The track clips played from the cart go on while the take records: None, "new" (a
+    # track called Questions) or a track that is not one of the take's.
+    cart_track: str | None = None
+    # Play every track the take does not record onto, from the take's start (headphones!).
+    play_others: bool = False
+    # The delay between what was heard and what was captured, cut from the take's head.
+    latency_ms: float = 0.0
+
+
+class CartPlayBody(BaseModel):
+    entry_id: str
+
+
+class CartEndBody(BaseModel):
+    clip_ids: list[str]
 
 
 class RecordArmBody(BaseModel):
@@ -585,12 +619,19 @@ def create_app(session, engine, *, language: str | None = None,
         with session.lock:
             h = session.history
             project = session.state
-            return {"project": project.to_dict(), "head": h.head,
-                    "can_undo": h.can_undo, "can_redo": h.can_redo,
-                    "missing": session.store.missing(),
-                    # The rendered mix the edit can be compared with (render_listen).
-                    "render": {**render_listen.status(project),
-                               "listening": engine_listening()}}
+            out = {"project": project.to_dict(), "head": h.head,
+                   "can_undo": h.can_undo, "can_redo": h.can_redo,
+                   "missing": session.store.missing(),
+                   # The rendered mix the edit can be compared with (render_listen).
+                   "render": {**render_listen.status(project),
+                              "listening": engine_listening()}}
+            if session.read_only:
+                # Who holds the project, for the page's banner (read-only only).
+                holder = session.package.locked_by or {}
+                out["read_only"] = {"host": holder.get("host", ""),
+                                    "user": holder.get("user", ""),
+                                    "opened_utc": holder.get("opened_utc", "")}
+            return out
 
     def engine_listening() -> bool:
         # Only an engine that has the switch says so (test engines may have none, and
@@ -838,6 +879,25 @@ def create_app(session, engine, *, language: str | None = None,
         session.clipboard_pin(entry_id, body.pinned)
         return JSONResponse({"entries": session.clipboard_list()})
 
+    @app.get("/api/material")
+    def get_material():
+        return JSONResponse({"rows": session.material_list()})
+
+    @app.post("/api/material/{media_id}/copy")
+    def post_material_copy(media_id: str):
+        session.material_copy(media_id)
+        return JSONResponse({"entries": session.clipboard_list()})
+
+    @app.post("/api/clipboard/{entry_id}/cart")
+    def post_clipboard_cart(entry_id: str, body: CartBody):
+        session.clipboard_cart(entry_id, body.slot)
+        return JSONResponse({"entries": session.clipboard_list()})
+
+    @app.post("/api/clipboard/{entry_id}/move")
+    def post_clipboard_move(entry_id: str, body: MoveBody):
+        session.clipboard_move(entry_id, body.before)
+        return JSONResponse({"entries": session.clipboard_list()})
+
     @app.post("/api/clipboard/{entry_id}/rename")
     def post_clipboard_rename(entry_id: str, body: RenameBody):
         session.clipboard_rename(entry_id, body.name)
@@ -850,21 +910,38 @@ def create_app(session, engine, *, language: str | None = None,
         # switched off it is turned down to the project's level and limited
         # (WP82); `attenuation_db` says by how much (0 or less).
         limit = True if body is None else body.limit
-        project, missing, gain = session.clipboard_preview(entry_id, limit)
+        rec = recorder
+        recording = rec is not None and rec.editing_paused()
+        if recording:
+            project, missing, gain = rec.cart_preview(
+                entry_id, 0 if body is None else body.cart_trim)
+        else:
+            project, missing, gain = session.clipboard_preview(entry_id, limit)
+        cart = None
         seq = None
         if project is not None:
-            engine.play_preview(project, limit=limit)
+            engine.play_preview(project, limit=False if recording else limit)
+            if recording:
+                try:
+                    cart = rec.cart_log(entry_id, gain_db=gain)
+                except Exception:
+                    engine.stop_preview()
+                    raise
             # The transport version it started at: the page drops an older "ended".
             status = engine.status()
             seq = newest_seq(status.get("seq"), status.get("preview_seq"))
-        return JSONResponse({"started": project is not None, "missing": missing,
-                             "attenuation_db": gain, "seq": seq})
+        answer = {"started": project is not None, "missing": missing,
+                  "attenuation_db": gain, "seq": seq, "cart": cart}
+        return state_response(answer) if cart is not None else JSONResponse(answer)
 
     @app.post("/api/clipboard/preview/stop")
     def post_clipboard_preview_stop():
         # The chip's Stop: ends the preview only. Mixed into the timeline it is a
         # voice that goes away and the timeline plays on.
         engine.stop_preview()
+        if recorder is not None and recorder.editing_paused():
+            recorder.cart_end()
+            return state_response({"stopped": True})
         return JSONResponse({"stopped": True})
 
     @app.post("/api/render-listen")
@@ -1243,6 +1320,14 @@ def create_app(session, engine, *, language: str | None = None,
                         headers={"Content-Disposition": export_names.disposition(
                             session.download_name("chapters.txt"))})
 
+    @app.get("/api/cut-list")
+    def get_cut_list():
+        # Where the audio edit jumps (cut_list.py): the signal a video rough cut needs.
+        return Response(content=json.dumps(session.cut_list(), indent=1),
+                        media_type="application/json",
+                        headers={"Content-Disposition": export_names.disposition(
+                            session.download_name("cut-list.json"))})
+
     @app.get("/api/loudness-curve")
     def get_loudness_curve():
         # Measured outside the session lock (Session.loudness_curve); cached by content.
@@ -1546,8 +1631,12 @@ def create_app(session, engine, *, language: str | None = None,
 
     @app.get("/api/words")
     def get_words():
-        words = session.timeline_words()
+        # Only what is heard: muted, soft-cut and gated words are not in the transcript.
+        words = session.heard_words()
         body: dict[str, Any] = {"words": words}
+        transcribed = session.transcribed_media()
+        if transcribed:
+            body["transcribed"] = transcribed
         # The names of the people the words refer to, so the transcript can head a
         # paragraph with "Anna" and not an id; absent when nobody is mapped.
         used = {w["person"] for w in words if w.get("person")}
@@ -1555,6 +1644,20 @@ def create_app(session, engine, *, language: str | None = None,
         if names:
             body["people"] = names
         return JSONResponse(body)
+
+    @app.post("/api/put-back/plan")
+    def post_put_back_plan(body: PutBackPlanBody):
+        """What putting a removed stretch back would do, for the preview under the find
+        bar: the place, how far later everything moves, what each track gets."""
+        return session.put_back_plan(
+            body.media, first=body.first, last=body.last, start=body.start,
+            end=body.end, track_ids=body.track_ids, at=body.at)
+
+    @app.get("/api/material-search")
+    def get_material_search(q: str = ""):
+        """Words matching ``q`` that the edit does not play, with the reason
+        (cut, muted, gated, unused): the find bar's "Not in this edit" list."""
+        return JSONResponse({"hits": session.search_material(q)})
 
     @app.get("/api/edit-points")
     def get_edit_points(mode: str, track: str | None = None):
@@ -1601,13 +1704,43 @@ def create_app(session, engine, *, language: str | None = None,
     def record_devices():
         return {"devices": need_recorder().devices()}
 
+    monitoring = {"on": False}
+
+    def stop_monitoring():
+        """End "play the other tracks" when the take is over: stop, lift the silencing."""
+        if monitoring["on"]:
+            monitoring["on"] = False
+            engine.stop()
+            engine.set_silence_overlay(None)
+
     @app.post("/api/record/start")
     def record_start(body: RecordStartBody):
         rec = need_recorder()
-        # No listening while recording (owner, 2026-10-19): monitoring is the interface's.
-        engine.stop()
-        return rec.start(device=body.device, channels=body.channels, channel=body.channel,
-                         track_id=body.track_id, name=body.name, at=body.at)
+        # No listening while recording unless asked (owner, 2026-10-19): monitoring is the
+        # interface's. With "play the other tracks" they play from the take's start.
+        if not body.play_others:
+            engine.stop()
+        view = rec.start(device=body.device, channels=body.channels, channel=body.channel,
+                         track_id=body.track_id, name=body.name, at=body.at,
+                         cart_track=body.cart_track, latency_ms=body.latency_ms)
+        if body.play_others:
+            ids = rec.take_track_ids(view.get("take", ""))
+            silent = {tid: [(0, 2**62)] for tid in ids}
+            engine.set_silence_overlay(silent)
+            engine.play(body.at)
+            monitoring["on"] = True
+        return view
+
+    @app.post("/api/record/cart")
+    def record_cart(body: CartPlayBody):
+        # A clip played from the cart during a take goes where it was played.
+        answer = need_recorder().cart_log(body.entry_id)
+        return state_response({"cart": answer})
+
+    @app.post("/api/record/cart/end")
+    def record_cart_end(body: CartEndBody):
+        need_recorder().cart_end(body.clip_ids)
+        return state_response()
 
     @app.post("/api/record/arm")
     def record_arm(body: RecordArmBody):
@@ -1623,6 +1756,7 @@ def create_app(session, engine, *, language: str | None = None,
     @app.post("/api/record/stop")
     def record_stop(body: RecordStopBody):
         result = need_recorder().stop(body.mode, body.held_ms)
+        stop_monitoring()
         return state_response({"record": result})
 
     @app.post("/api/record/import")

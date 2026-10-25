@@ -141,6 +141,19 @@ describe("export all tracks", () => {
   });
 });
 
+describe("the cut list export", () => {
+  test("it needs a track, and downloads the cut list", async () => {
+    const withTrack = { project: { tracks: [{ id: "t", clips: [] }] } };
+    const { registry, calls } = setup(withTrack);
+    assert.equal(registry.can("export.cut_list", { project: null }), false);
+    assert.equal(registry.can("export.cut_list", { project: { tracks: [] } }), false);
+    registry.run("export.cut_list", null, withTrack);
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(calls.downloads, [["/api/cut-list", "cut-list.json"]]);
+    assert.equal(registry.hintKey("export.cut_list"), "cmd.export.cut_list.hint");
+  });
+});
+
 describe("chapter and region exports (WP19h)", () => {
   const withChapters = { project: { markers: [{ id: "a", kind: "chapter", start: 0 }] } };
 

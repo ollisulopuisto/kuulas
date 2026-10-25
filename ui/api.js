@@ -49,6 +49,10 @@ export const putViewMemory = (view, { now = false } = {}) =>
     keepalive: true,
   });
 export const getWords = () => json("/api/words");
+/** Words matching `q` that the edit does not play: { hits: [{ media, first, last, start, end, status, partly, before, match, after, spk, at?, track? }] }. */
+/** What putting a removed stretch back would do: { media, first, last | start, end, track_ids?, at? } -> the plan (src/kuulas/put_back.py). */
+export const putBackPlan = (body) => post("/api/put-back/plan", body);
+export const searchMaterial = (q) => json(`/api/material-search?q=${encodeURIComponent(q)}`);
 // Recording (WP12a): the recorder is its own program; the server is its viewer and remote.
 /** { available, recording, ours, take, position_frames, disk, notices, pending, ... } */
 export const getRecordStatus = (channels = 1) =>
@@ -192,9 +196,17 @@ export const getCandidatePreview = (id, mode = "soft") =>
 // The clipboard (WP46). Cut and paste are edits (edit() with clipboard_cut / clipboard_paste);
 // copying changes no project, so it has its own route. Each answer carries `entries`.
 export const getClipboard = () => json("/api/clipboard");
+export const recordCartEnd = (clipIds) => post("/api/record/cart/end", { clip_ids: clipIds });
+export const recordCartLog = (entryId) => post("/api/record/cart", { entry_id: entryId });
+export const getMaterial = () => json("/api/material");
+export const copyMaterial = (id) => post(`/api/material/${encodeURIComponent(id)}/copy`, {});
+export const setClipboardCart = (id, slot) =>
+  post(`/api/clipboard/${encodeURIComponent(id)}/cart`, { slot });
+export const moveClipboardEntry = (id, before) =>
+  post(`/api/clipboard/${encodeURIComponent(id)}/move`, { before });
 export const copyToClipboard = (body) => post("/api/clipboard/copy", body);
-export const previewClipboardEntry = (id, limit = true) =>
-  post(`/api/clipboard/${encodeURIComponent(id)}/preview`, { limit });
+export const previewClipboardEntry = (id, limit = true, cartTrim = 0) =>
+  post(`/api/clipboard/${encodeURIComponent(id)}/preview`, { limit, cart_trim: cartTrim });
 // The chip's Stop while the timeline plays: only the mixed-in preview ends.
 export const stopClipboardPreview = () => post("/api/clipboard/preview/stop", {});
 export const pinClipboardEntry = (id, pinned) =>

@@ -50,7 +50,7 @@ from .automix import _signal
 from .automix import run_process as _run_process
 from .clock import FLICKS
 from .jobs import JobCancelledError
-from .messages import KuulasError
+from .messages import KuulasError, t
 
 log = logging.getLogger("kuulas.colab_transcribe")
 
@@ -68,6 +68,14 @@ RESULT_SUFFIX = ".words.json"
 #: starts corrected by the forced aligner, alignment version N; the number changes when
 #: its rule or model does, so a later version must not be refused).
 _TIMING = re.compile(r"whisper|ctc-v[0-9]+")
+#: The Colab CLI's own update notice: noise in a progress line or an error text.
+_NOISE = re.compile(
+    r"^\[colab\] (A new version of Colab CLI|Run 'colab update'|To silence this check)")
+#: A Colab session the tool kept by name ('whisper') that has died on Google's side.
+_SESSION_LOST = re.compile(r"Session '[^']*' appears to be lost")
+#: One structured event per line, after this prefix, as JSON (the tool's --events, the
+#: same protocol as the automixer's, docs/PODCAST-MAGIC.md "Live events").
+EVENT_PREFIX = "@@kuulas "
 #: Seconds to wait after SIGINT (the tool stops its Colab session on it) before SIGTERM.
 SESSION_STOP_SECONDS = 30
 _PROGRESS = re.compile(r"PROGRESS\s+(\d{1,3})(?:\s+(.*))?$")
@@ -186,8 +194,22 @@ def save_settings(settings: dict) -> dict:
 # -- the command and the result ----------------------------------------------------------
 
 
+#: Commands that refused ``--events`` (an older tool): not asked again in this process.
+_NO_EVENTS: set[tuple] = set()
+
+
+def forget_event_support() -> None:
+    """Forget which tools refused ``--events`` (tests; a tool that was updated)."""
+    _NO_EVENTS.clear()
+
+
+def _refused_events(tail: str) -> bool:
+    """Did the tool answer that it does not know ``--events`` (argparse's wording)?"""
+    return "unrecognized arguments" in tail and "--events" in tail
+
+
 def build_command(settings: dict, audio: list[Path], folder: Path, *,
-                  model: str, language: str | None) -> list[str]:
+                  model: str, language: str | None, events: bool = False) -> list[str]:
     """The argument list (never a shell string): the command, ``--audio`` per file,
     ``--json`` folder, ``--progress``, the model and language, ``--align`` (the word-start
     correction, on by default), ``--no-drive`` when set,
@@ -196,6 +218,8 @@ def build_command(settings: dict, audio: list[Path], folder: Path, *,
     for path in audio:
         cmd += ["--audio", str(path)]
     cmd += ["--json", str(folder), "--progress", "--model", model]
+    if events:
+        cmd.append("--events")
     if language:
         cmd += ["--language", language]
     if settings.get("align", True):
@@ -270,6 +294,19 @@ def read_words_json(path: Path | str) -> dict:
 # -- running -----------------------------------------------------------------------------
 
 
+def _stage_text(event: dict) -> str:
+    """What a stage that has started is told as: the file it is on for `transcribe` and
+    `align`, which the tool does one file at a time."""
+    stage = str(event.get("stage") or "")
+    name, index, total = event.get("name"), event.get("index"), event.get("total")
+    if stage in ("transcribe", "align") and name:
+        return t(f"ui.colab.stage.{stage}_named", name=name, index=index, total=total)
+    if stage in ("transcribe", "align") and index and total:
+        return t(f"ui.colab.stage.{stage}", index=index, total=total)
+    key = f"ui.colab.stage.{stage}"
+    return t(key) if stage else ""
+
+
 def run(items: list[dict], params: dict, settings: dict, report: Report,
         cancel: threading.Event, run_process: RunProcess = run_process) -> dict:
     """Run the tool on ``items`` (``{"id", "name", "path"}``: the audio file as it is)
@@ -297,8 +334,12 @@ def run(items: list[dict], params: dict, settings: dict, report: Report,
     except OSError as e:
         raise ColabError("error.colab.temp", error=str(e)) from e
     try:
+        # Ask for the tool's structured events; a tool that does not know the flag says so
+        # at once and is run again without it (and not asked again).
+        key = (tuple(settings["command"]), settings["cwd"])
+        use_events = key not in _NO_EVENTS
         cmd = build_command(settings, [Path(i["path"]) for i in items], scratch,
-                            model=model, language=language)
+                            model=model, language=language, events=use_events)
         report(0.0, "", indeterminate=True)
         reached = [0.0]
         count = len(items)
@@ -311,10 +352,39 @@ def run(items: list[dict], params: dict, settings: dict, report: Report,
             done = sum((scratch / f"{s}{RESULT_SUFFIX}").is_file() for s in stems)
             return f"[{min(count, done + 1)}/{count}] {message}"
 
+        # What the tool's events said (docs/PODCAST-MAGIC.md): its own short reason for a
+        # failure, and whether it saw the session lost (retried by that code, not text).
+        said = {"error": None, "lost": False, "events": False}
+
+        def on_event(event: dict) -> None:
+            kind = event.get("event")
+            if kind == "progress":
+                share = min(100, max(0, int(event.get("percent") or 0))) / 100
+                reached[0] = max(reached[0], 0.99 * share)
+                report(reached[0], str(event.get("message") or ""))
+            elif kind == "stage" and event.get("state") == "start":
+                report(reached[0], _stage_text(event), indeterminate=reached[0] == 0.0)
+            elif kind == "session" and event.get("state") in ("new", "reuse", "reset"):
+                report(reached[0], t(f"ui.colab.session.{event['state']}"),
+                       indeterminate=reached[0] == 0.0)
+            elif kind == "warning" and event.get("code") == "session_lost":
+                said["lost"] = True
+            elif kind == "error":
+                said["error"] = str(event.get("message") or "") or None
+
         def on_line(line: str) -> None:
             if not line.strip():
                 return
+            if line.startswith(EVENT_PREFIX):
+                with contextlib.suppress(ValueError, TypeError, KeyError):
+                    on_event(json.loads(line[len(EVENT_PREFIX):]))
+                    said["events"] = True
+                return
             lines.append(line)
+            if _NOISE.match(line):
+                return
+            if said["events"] and _PROGRESS.match(line):
+                return  # the same progress is in the events
             found = _PROGRESS.match(line)
             if found:
                 share = min(100, int(found.group(1))) / 100
@@ -324,15 +394,34 @@ def run(items: list[dict], params: dict, settings: dict, report: Report,
                 report(reached[0], shown(line), indeterminate=reached[0] == 0.0)
 
         log.info("Running %s", cmd)
-        try:
-            code = run_process(cmd, settings["cwd"], on_line, cancel)
-        except FileNotFoundError as e:
-            raise ColabError("error.colab.not_found",
-                             command=" ".join(settings["command"]),
-                             cwd=settings["cwd"] or "") from e
-        if cancel.is_set():
-            raise JobCancelledError
-        tail = "\n".join(list(lines)[-TAIL_LINES:])
+        while True:
+            try:
+                code = run_process(cmd, settings["cwd"], on_line, cancel)
+            except FileNotFoundError as e:
+                raise ColabError("error.colab.not_found",
+                                 command=" ".join(settings["command"]),
+                                 cwd=settings["cwd"] or "") from e
+            if cancel.is_set():
+                raise JobCancelledError
+            if code != 0 and use_events and _refused_events("\n".join(lines)):
+                _NO_EVENTS.add(key)
+                use_events = False
+                cmd = [part for part in cmd if part != "--events"]
+                lines.clear()
+                continue
+            # The tool reuses one Colab session by name; one that died fails the run.
+            # Once, ask it for a fresh session (owner, 2026-10-23, the packaged app).
+            lost = said["lost"] or any(_SESSION_LOST.search(line) for line in lines)
+            if code != 0 and "--reset-session" not in cmd and lost:
+                cmd = [*cmd, "--reset-session"]
+                said["lost"], said["error"] = False, None
+                lines.append(t("ui.colab.retry_fresh"))
+                report(reached[0], t("ui.colab.retry_fresh"), indeterminate=True)
+                continue
+            break
+        tail = "\n".join([line for line in lines if not _NOISE.match(line)][-TAIL_LINES:])
+        if said["error"]:
+            tail = said["error"]  # the tool's own short reason, not its log
         if code != 0:
             raise ColabError("error.colab.failed", code=code, tail=tail)
         results = {}

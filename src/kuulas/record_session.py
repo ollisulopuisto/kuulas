@@ -30,6 +30,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+import math
 import os
 import shutil
 import threading
@@ -50,6 +51,7 @@ from kuulas_recorder.client import (
 from . import disk_budget, ops
 from . import record_take as rt
 from .messages import KuulasError, t
+from .preview_level import PEAK_TO_LUFS_DB
 
 log = logging.getLogger("kuulas.record")
 
@@ -123,6 +125,10 @@ class RecordSession:
                  spawn: Callable[[], None] = default_spawn, retry_s: float = RETRY_S,
                  hold_ms: int = HOLD_MS, watch: bool = True) -> None:
         self.session = session
+        # While a take of this project records, the session refuses edits (Session.
+        # _check_not_recording); the answer is read live from the last status heard.
+        if hasattr(session, "editing_paused"):
+            session.editing_paused = self.editing_paused
         # Absolute: the recorder refuses a relative folder (`kuulas open Show.kuulas`).
         self.folder = (Path(session.package.path) / rt.RECORDINGS).resolve()
         self.publish = publish if publish is not None else (lambda _m: None)
@@ -133,6 +139,14 @@ class RecordSession:
         self._lock = threading.Lock()  # the recorder's status as last heard
         self._import_lock = threading.Lock()  # one import at a time
         self._status: dict = {"state": "idle"}
+        #: The track clips played from the cart are put on during the take (set at Start).
+        self._cart_track: str | None = None
+        self._cart_ids: list[str] = []
+        self._cart_issued: set[tuple[str, ...]] = set()
+        self._cart_base = 0
+        self._cart_preroll = 0
+        self._voice_levels: deque = deque()
+        self._cart_lock = threading.RLock()
         self._available = False
         self._position = 0
         self._notices: deque = deque(maxlen=NOTICES_KEPT)
@@ -223,6 +237,12 @@ class RecordSession:
     def _recording(self, status: dict) -> bool:
         # Listening for pre-roll (armed) is not recording: nothing is written.
         return status.get("state", "idle") not in ("idle", None, *ARMED_STATES)
+
+    def editing_paused(self) -> bool:
+        """Does a take of THIS project record (as last heard)? Listening for pre-roll and
+        another project's take do not count."""
+        with self._lock:
+            return self._recording(self._status) and self._ours(self._status)
 
     def recording_now(self) -> bool:
         """Is a take recording, as last heard (no question to the recorder: playback asks
@@ -403,7 +423,8 @@ class RecordSession:
 
     def start(self, *, device: dict | None, at: int, channels: list[dict] | None = None,
               channel: int | None = None, track_id: str | None = None,
-              name: str = "") -> dict:
+              name: str = "", cart_track: str | None = None,
+              latency_ms: float = 0.0) -> dict:
         """Record a take into this project's ``recordings/``. ``channels``: one
         ``{channel, track_id, name}`` per device channel to record (WP12b), each onto
         its own track (``track_id`` None or ``"new"``: a new speech track named
@@ -412,6 +433,15 @@ class RecordSession:
             holder = self.session.package.locked_by or {}
             raise ops.EditError("error.history.read_only", host=holder.get("host", "?"))
         lanes = self._lanes(channels, channel, track_id, name)
+        cart_track = cart_track or None
+        # The delay between what the performer heard and what was captured (a manual
+        # figure for now): cut from the take's head when it lands. 0 to 2 s.
+        delay_s = min(max(float(latency_ms or 0), 0.0), 2000.0) / 1000
+        latency_frames = round(delay_s * self.rate)
+        if cart_track is not None and cart_track != "new":
+            ops._find_track(self.session.state, cart_track)  # unknown: an EditError
+            if cart_track in {lane.track_id for lane in lanes}:
+                raise RecordError("error.record.cart_track_records")
         if at < 0:
             raise RecordError("error.record.bad_request", detail="at")
         self.folder.mkdir(parents=True, exist_ok=True)
@@ -423,7 +453,8 @@ class RecordSession:
             first = plan_lanes[0]
             plan = rt.TakePlan(take=take, at=int(at), track_id=first.track_id,
                                track_name=first.track_name, channel=first.channel,
-                               device=dict(device or {}), lanes=plan_lanes)
+                               device=dict(device or {}), lanes=plan_lanes,
+                               latency_frames=latency_frames)
             # Before the recorder starts: a crash a moment later still knows the place.
             rt.write_plan(self.folder, plan)
             args = {"folder": str(self.folder), "take": take,
@@ -443,12 +474,118 @@ class RecordSession:
                 self._status, self._available = answer, True
                 self._position = int(answer.get("position_frames", 0))
                 self._notices.clear()
+            self._make_tracks(plan, cart_track)
             view = self._view(answer, True)
             self.publish({"type": "record", "kind": "status", "status": view})
             if answer.get("warning"):
                 self._notice(answer["warning"] | {"event": "warning"})
             return view
         raise RecordError("error.record.take_exists", status=409, detail="")
+
+    def _make_tracks(self, plan: rt.TakePlan, cart_track: str | None = None) -> None:
+        """Make the new tracks of a take that has started (a lane with no track yet), in
+        one undo step, and write their ids into the plan: the take is then drawn on them
+        live and lands on them. Never stops the take: when it fails the lanes stay "new"
+        and the tracks are made when the take lands, as before."""
+        new = [lane for lane in plan.all_lanes if lane.track_id is None]
+        self._voice_levels.clear()
+        self._cart_track = None if cart_track == "new" else cart_track
+        if not new and cart_track != "new":
+            return
+        ids = {lane.channel: ops.new_id("t") for lane in new}
+        specs = [(ids[lane.channel], lane.track_name) for lane in new]
+        if cart_track == "new":
+            self._cart_track = ops.new_id("t")
+            specs.append((self._cart_track, t("record.cart_track"), False))
+        try:
+            self.session.add_take_tracks(specs)
+        except Exception as e:  # noqa: BLE001 - the take must go on whatever this says
+            log.warning("tracks for take %s were not made: %s", plan.take, e)
+            if cart_track == "new":
+                self._cart_track = None
+            return
+        if not new:
+            return
+        lanes = tuple(replace(lane, track_id=ids.get(lane.channel, lane.track_id))
+                      for lane in plan.all_lanes)
+        first = lanes[0]
+        rt.write_plan(self.folder, replace(plan, track_id=first.track_id, lanes=lanes))
+
+    def take_track_ids(self, take: str) -> list[str]:
+        """The tracks the take records onto (the ids the plan holds once the new ones are
+        made); empty when the plan cannot be read."""
+        plan = rt.read_plan(self.folder, take)
+        if plan is None:
+            return []
+        return [lane.track_id for lane in plan.all_lanes if lane.track_id]
+
+    def cart_log(self, entry_id: str, *, gain_db: float = 0) -> dict:
+        """A clip played from the cart during this take: put it on the cart track where
+        the take is now (take start + what was recorded, the pre-roll not counted), so
+        the question sits where it was asked. ``RecordError`` when no take of this project
+        records or no cart track was chosen at Start."""
+        with self._lock:
+            status, position = self._status, self._position
+            recording = self._recording(status) and self._ours(status)
+            track_id = self._cart_track
+        if not recording:
+            raise RecordError("error.record.not_recording", status=409)
+        if track_id is None:
+            raise RecordError("error.record.no_cart_track", status=409)
+        plan = rt.read_plan(self.folder, status.get("take") or "")
+        base = 0 if plan is None else plan.at
+        preroll = max(0, int(status.get("preroll_frames") or 0))
+        at = base + max(0, position - preroll)
+        with self._cart_lock:
+            self._end_cart()
+            result = self.session.cart_log(entry_id, at=at, track_id=track_id,
+                                           gain_db=gain_db)
+            self._cart_ids = result.get("clip_ids", [])
+            self._cart_issued.add(tuple(self._cart_ids))
+            self._cart_base, self._cart_preroll = base, preroll
+            return {"at": at, "track_id": track_id, "clip_ids": self._cart_ids}
+
+    def _end_cart(self) -> None:
+        if self._cart_ids:
+            stop = self._cart_base + max(0, self._position - self._cart_preroll)
+            self.session.cart_end(self._cart_ids, stop)
+            self._cart_ids = []
+
+    def _take_cart_end(self, take: str) -> None:
+        # A stopped event has sample counts, not position_frames. Segment offsets
+        # retain the take clock across gaps; a total of samples would erase gaps.
+        with self._cart_lock:
+            sidecar = self._sidecar(take) or {}
+            ends = [int(seg["start_frame"]) + int(file.get("frames", 0))
+                    for seg in sidecar.get("segments", [])
+                    if seg.get("start_frame") is not None
+                    for file in (seg.get("files") or {}).values()]
+            if ends:
+                self._position = max(self._position, *ends)
+            self._end_cart()
+
+    def cart_end(self, clip_ids: list[str] | None = None) -> None:
+        """Only the current play's exact IDs can end it; stale ends are harmless."""
+        with self._cart_lock:
+            if clip_ids is not None and clip_ids != self._cart_ids:
+                if tuple(clip_ids) in self._cart_issued:
+                    return
+                raise RecordError("error.record.bad_request", detail="clip_ids")
+            self._end_cart()
+
+    def cart_preview(self, entry_id: str, trim: float = 0):
+        """Recent voices: power mean of non-silent channel peaks over three seconds,
+        minus the preview's 14 dB peak-to-LUFS estimate. No voices: project reference.
+        """
+        now = time.monotonic()
+        with self._lock:
+            levels = [v for when, v in self._voice_levels if now - when <= 3]
+        voice = (10 * math.log10(sum(10 ** (v / 10) for v in levels) / len(levels))
+                 - PEAK_TO_LUFS_DB) if levels else None
+        if self._cart_track is None:
+            raise RecordError("error.record.no_cart_track", status=409)
+        return self.session.clipboard_preview(entry_id, cart_voice=voice,
+                                              cart_trim=trim, cart_track=self._cart_track)
 
     def stop(self, mode: str | None, held_ms: int = 0) -> dict:
         """Stop the take, then import it. ``mode`` is the user's stop gesture
@@ -466,7 +603,9 @@ class RecordSession:
             raise RecordError("error.record.another_project", status=409)
         answer = self._command("stop", timeout=STOP_TIMEOUT_S)
         take = (answer.get("take") or {}).get("take") or status["take"]
+        self._take_cart_end(take)
         imported = self.import_take(take)
+        self._cart_track = None
         self.publish({"type": "record", "kind": "status", "status": self.status()})
         return {"take": take, "imported": imported}
 
@@ -553,10 +692,12 @@ class RecordSession:
                 return None
             clip_name = t("record.take_interrupted", name=take) if interrupted else take
             _, clip_ids = self.session.import_take_lanes(
-                [([(self.folder / c.file, c.start, c.offset) for c in clips],
+                [([(self.folder / c.file, c.start, c.offset + plan.latency_frames)
+                   for c in clips],
                   lane.track_id, lane.track_name) for clips, lane in lanes],
                 clip_name=clip_name, take=take)
             result = {**summary, "take": take, "clips": len(clip_ids),
+                      "replaced": list(self.session.last_take_replaced),
                       "clip_ids": clip_ids,
                       "start": min(c.start for cl, _ in lanes for c in cl),
                       "tracks": len(lanes), "interrupted": interrupted}
@@ -636,6 +777,13 @@ class RecordSession:
             if ours or armed:  # the meter also runs while armed
                 with self._lock:
                     self._position = int(event.get("position_frames", self._position))
+                    now = time.monotonic()
+                    while self._voice_levels and now - self._voice_levels[0][0] > 3:
+                        self._voice_levels.popleft()
+                    self._voice_levels.extend((now, float(v)) for v in
+                                              event.get("peak_dbfs", [])
+                                              if v is not None
+                                              and math.isfinite(v) and v > -60)
                 self.publish({"type": "record", "kind": "level",
                               "peak_dbfs": event.get("peak_dbfs", []),
                               "clipped": event.get("clipped", []),
@@ -643,6 +791,7 @@ class RecordSession:
             return
         if kind == "stopped":
             if self._ours(event) and event.get("take"):
+                self._take_cart_end(event["take"])
                 self._import_later(event["take"])
             self.publish({"type": "record", "kind": "status", "status": self.status()})
             return
