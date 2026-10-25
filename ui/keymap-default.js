@@ -134,7 +134,7 @@ export const DEFAULT_KEYMAP = [
   {
     id: "transport.speed",
     keys: { mac: ".", other: "." },
-    context: "timeline",
+    context: "global",
     labelKey: "cmd.transport.speed",
   },
   {

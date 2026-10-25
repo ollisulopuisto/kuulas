@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- **Fast playback toggle (.) works in every panel.** Pressing period toggles fast listening also when the transcript window or side panels are focused.
+
 ## [v26.10.25.1] - 2026-10-25
 
 - **No hand-typed key names in user text.** User-visible text looks up shortcut keys from the active keymap at render time, ensuring user remappings and platform modifiers are reflected accurately and stale key instructions are eliminated.
