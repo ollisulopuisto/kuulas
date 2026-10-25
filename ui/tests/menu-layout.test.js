@@ -307,6 +307,7 @@ describe("Track, Playback, View", () => {
       "view.pause_never",
       "view.clipboard_limit",
       "sync.confirm",
+      "sync.show_drift",
       "view.reset_remembered",
     ]);
     assert.deepEqual(subIds("view", "menu.language"), [

@@ -157,3 +157,11 @@ not an edit handle). Both are gone.
 The look in the real window at several zoom levels and lane heights; the outline's cost on a
 45-minute zoomed-out view (two points per pixel column, one path per run; not measured);
 whether the lock should also mark stretches shorter than the icon.
+
+## Sync drift marks
+
+Sync drift and free-from-sync marks are hidden by default because deliberate offsets can be normal
+in a session. View > Options > Show sync drift opts in to a low-alpha label tint and a compact dot
+(drifting) or unlinked-rings icon (free). The mark carries no number; hovering keeps the exact
+offset and anchor in the tooltip. The Markers list and Next/Previous drifting clip navigation do
+not depend on this display preference.

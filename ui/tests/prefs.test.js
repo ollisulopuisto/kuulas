@@ -24,6 +24,15 @@ const broken = {
 };
 
 describe("prefs", () => {
+  test("showSyncDrift defaults off and round-trips as an on/off preference", () => {
+    const prefs = createPrefs(memoryStorage());
+    assert.equal(prefs.get("showSyncDrift"), null);
+    assert.notEqual(prefs.get("showSyncDrift"), "on");
+    prefs.set("showSyncDrift", "on");
+    assert.equal(prefs.get("showSyncDrift"), "on");
+    prefs.set("showSyncDrift", "off");
+    assert.equal(prefs.get("showSyncDrift"), "off");
+  });
   test("round-trips under the kuulas. prefix", () => {
     const storage = memoryStorage();
     const prefs = createPrefs(storage);

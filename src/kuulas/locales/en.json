@@ -2493,7 +2493,7 @@
   "ui.sync.anchor_tag": "anchor",
   "ui.sync.anchor_title": "Sync anchor: the clips of this sync group are kept in sync relative to this one.",
   "ui.sync.badge.drift_title_anchor": "Out of sync by {offset} relative to {anchor}. {key:sync.resync} puts it back, {key:sync.free} says it is deliberate.",
-  "ui.sync.badge.free_title_anchor": "Free from sync on purpose (anchor: {anchor}). {key:sync.free} links it again.",
+  "ui.sync.badge.free_title_anchor": "Free from sync on purpose by {offset} (anchor: {anchor}). {key:sync.free} links it again.",
   "ui.sync.moved_from": "moved from {track}",
   "menu.transcribe": "Transcribe",
   "cmd.app.transcribe_colab": "Transcribe the track on Colab (audio is uploaded to Google)…",
@@ -3167,5 +3167,9 @@
   "ui.edit.idle.select_all": "No clips to select.",
   "history.cart_end": "Trim played cart clip",
   "ui.clipboard.cart_trim": "Cart level trim (dB)",
-  "ui.clipboard.cart_trim_help": "During recording, match cart audio to voices from the last 3 seconds, or the project reference level. This remembered trim adjusts that match; peaks stay below −1 dBTP."
+  "ui.clipboard.cart_trim_help": "During recording, match cart audio to voices from the last 3 seconds, or the project reference level. This remembered trim adjusts that match; peaks stay below −1 dBTP.",
+  "cmd.sync.show_drift": "Show sync drift",
+  "cmd.sync.show_drift.hint": "Show a small mark on clips that are free from sync or have drifted. Hover for the exact offset.",
+  "ui.sync.show_drift.on": "Sync drift marks are on.",
+  "ui.sync.show_drift.off": "Sync drift marks are off."
 }

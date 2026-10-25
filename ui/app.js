@@ -442,6 +442,14 @@ function toggleConfirmSync() {
   prefs.set(CONFIRM_SYNC_KEY, on ? "on" : "off");
   showNotice(t(on ? "ui.sync.confirm.on" : "ui.sync.confirm.off"), "ok");
 }
+const SHOW_SYNC_DRIFT_KEY = "showSyncDrift";
+setState({ showSyncDrift: prefs.get(SHOW_SYNC_DRIFT_KEY) === "on" });
+function toggleShowSyncDrift() {
+  const on = getState().showSyncDrift !== true;
+  setState({ showSyncDrift: on });
+  prefs.set(SHOW_SYNC_DRIFT_KEY, on ? "on" : "off");
+  showNotice(t(on ? "ui.sync.show_drift.on" : "ui.sync.show_drift.off"), "ok");
+}
 let syncConfirm = null;
 const confirmSync = (preview) => {
   syncConfirm ??= createSyncConfirm({ t, format: (value) => formatNumber(value, { digits: 2 }) });
@@ -1555,6 +1563,8 @@ const keyboard = setupKeyboard({
     confirmSync: (preview) => confirmSync(preview),
     confirmEnabled: () => getState().confirmSync !== false,
     toggleConfirmSync: () => toggleConfirmSync(),
+    showDriftEnabled: () => getState().showSyncDrift === true,
+    toggleShowSyncDrift: () => toggleShowSyncDrift(),
     notice: (text) => showNotice(text, "ok"),
     clock: () => new Date(),
     // Shift+Mod+S: the dialog for a saved version's name; null when cancelled.
@@ -3361,6 +3371,9 @@ function openPreferences() {
       preroll: (seconds) => recordView.setPreroll(seconds),
       confirmSync: (on) => {
         if (on !== (getState().confirmSync !== false)) toggleConfirmSync();
+      },
+      showSyncDrift: (on) => {
+        if (on !== (getState().showSyncDrift === true)) toggleShowSyncDrift();
       },
       clipboardLimit: (on) => {
         if (on !== (getState().clipboardLimit !== false)) toggleClipboardLimit();

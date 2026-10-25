@@ -52,6 +52,7 @@ export const PREFERENCE_FIELDS = [
     })),
   },
   { id: "confirmSync", kind: "switch", labelKey: "cmd.sync.confirm" },
+  { id: "showSyncDrift", kind: "switch", labelKey: "cmd.sync.show_drift" },
   { id: "clipboardLimit", kind: "switch", labelKey: "cmd.view.clipboard_limit" },
   {
     id: "fast",
@@ -115,6 +116,7 @@ export function currentValues(state, record) {
     stopMode: record?.stopMode ?? STOP_MODES[0],
     preroll: String(record?.preroll ?? 60),
     confirmSync: state?.confirmSync !== false,
+    showSyncDrift: state?.showSyncDrift === true,
     clipboardLimit: state?.clipboardLimit !== false,
     fast: state?.fast?.fast ?? DEFAULT_FAST,
     playBefore: state?.playBeforeS ?? DEFAULT_PLAY_BEFORE_S,
