@@ -503,8 +503,47 @@ def delete_clip(p: Project, clip_id: str) -> Project:
                                                         if c.id != clip_id)))
 
 
+def _materialize_legacy_gates(p: Project, track_ids: set[str]) -> Project:
+    """Attach old track-time gates to the clips they currently silence.
+
+    Auto-Silence became clip-local in v26.10.24. Older projects still have
+    Track.gate, which would otherwise stay behind when one of their clips moves.
+    """
+    if not any(track.gate for track in p.tracks if track.id in track_ids):
+        return p
+    tracks = []
+    for track in p.tracks:
+        if track.id not in track_ids or not track.gate:
+            tracks.append(track)
+            continue
+        clips = []
+        for clip in track.clips:
+            if clip.ungated:
+                clips.append(clip)
+                continue
+            source_ranges = []
+            for start, end in track.gate:
+                lo, hi = max(start, clip.start), min(end, clip.end)
+                if hi > lo:
+                    source_ranges.append((clip.offset + lo - clip.start,
+                                          clip.offset + hi - clip.start))
+            if source_ranges:
+                clips.append(replace(
+                    clip, auto_silence=gatem.normalise(
+                        (*clip.auto_silence, *source_ranges))))
+            else:
+                clips.append(clip)
+        tracks.append(replace(track, clips=tuple(clips), gate=()))
+    return replace(p, tracks=tuple(tracks))
+
+
 def move_clip(p: Project, clip_id: str, start: int,
               track_id: str | None = None) -> Project:
+    clip, track = _find_clip(p, clip_id)
+    affected_tracks = {track.id}
+    if track_id is not None:
+        affected_tracks.add(track_id)
+    p = _materialize_legacy_gates(p, affected_tracks)
     clip, track = _find_clip(p, clip_id)
     moved = replace(clip, start=max(0, int(start)))
     if track_id is None or track_id == track.id:
@@ -890,7 +929,10 @@ def cut_range(p: Project, start: int, end: int, track_ids=None) -> Project:
 def nudge_clips(p: Project, clip_ids, delta: int, overwrite: bool = True) -> Project:
     """``shift_clips`` that takes the members of the clips' explicit groups along
     (never their sync partners: WP83). Clips they land on are overwritten (no layers)."""
-    nudged = shift_clips(p, edit_scope.expand_clips(p, list(clip_ids)), delta)
+    expanded = edit_scope.expand_clips(p, list(clip_ids))
+    source_tracks = {t.id for t in p.tracks if any(c.id in expanded for c in t.clips)}
+    p = _materialize_legacy_gates(p, source_tracks)
+    nudged = shift_clips(p, expanded, delta)
     return _overwrite_under(p, nudged) if overwrite else nudged
 
 
