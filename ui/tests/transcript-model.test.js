@@ -23,6 +23,7 @@ import {
   pauseMarkers,
   pauseSecondsOf,
   placeCursor,
+  rightClickPick,
   selectedIndices,
   selectionBounds,
   selectionFrames,
@@ -495,5 +496,21 @@ describe("transcribedMedia", () => {
   });
   test("nothing known is an empty list", () => {
     assert.deepEqual(transcribedMedia({}, []), []);
+  });
+});
+
+describe("right-clicking a word", () => {
+  test("a word outside the picked ones becomes the pick", () => {
+    assert.deepEqual(rightClickPick(noSelection(), 4), selectWord(4));
+    assert.deepEqual(rightClickPick(dragSelection(1, 3), 7), selectWord(7));
+  });
+  test("a picked word keeps the whole pick", () => {
+    const picked = dragSelection(1, 3);
+    assert.equal(rightClickPick(picked, 2), picked);
+  });
+  test("no word under the pointer changes nothing", () => {
+    const picked = dragSelection(1, 3);
+    assert.equal(rightClickPick(picked, -1), picked);
+    assert.equal(rightClickPick(noSelection(), -1), null);
   });
 });

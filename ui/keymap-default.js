@@ -960,6 +960,30 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.clip.fade",
   },
   {
+    id: "clip.envelope_delete_point",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.clip.envelope_delete_point",
+  },
+  {
+    id: "clip.envelope_reset",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.clip.envelope_reset",
+  },
+  {
+    id: "track.automation_delete_point",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.track.automation_delete_point",
+  },
+  {
+    id: "track.automation_clear",
+    keys: { mac: null, other: null },
+    context: "timeline",
+    labelKey: "cmd.track.automation_clear",
+  },
+  {
     id: "clip.match_loudness",
     keys: { mac: null, other: null },
     context: "timeline",
@@ -970,6 +994,18 @@ export const DEFAULT_KEYMAP = [
     keys: { mac: "Shift+M", other: "Shift+M" },
     context: "global",
     labelKey: "cmd.track.mute",
+  },
+  {
+    id: "track.move_up",
+    keys: { mac: "Alt+Mod+ArrowUp", other: "Alt+Mod+ArrowUp" },
+    context: "global",
+    labelKey: "cmd.track.move_up",
+  },
+  {
+    id: "track.move_down",
+    keys: { mac: "Alt+Mod+ArrowDown", other: "Alt+Mod+ArrowDown" },
+    context: "global",
+    labelKey: "cmd.track.move_down",
   },
   {
     id: "track.solo",

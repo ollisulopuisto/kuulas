@@ -40,6 +40,23 @@ export function adjacentMarker(markers, frame, direction) {
   return list.findLast((marker) => marker.start < frame) ?? null;
 }
 
+/**
+ * The id of the marker under a pointer on the ruler (x in px), or null: a flag from its pole
+ * across its notch (a little slack either side), a region along its bar. Nearest start wins.
+ */
+export function markerIdAtX(markers, { scroll, zoom, width = Number.POSITIVE_INFINITY }, x) {
+  const { flags, bars } = flagLayout(markers, { scroll, zoom, width, measure: () => 0 });
+  const slack = 3;
+  const hits = [
+    ...flags
+      .filter((flag) => x >= flag.x - slack && x <= flag.x + NOTCH_PX + slack)
+      .map((flag) => ({ id: flag.id, at: flag.x })),
+    ...bars.filter((bar) => x >= bar.x0 && x <= bar.x1).map((bar) => ({ id: bar.id, at: bar.x0 })),
+  ];
+  hits.sort((a, b) => Math.abs(a.at - x) - Math.abs(b.at - x));
+  return hits[0]?.id ?? null;
+}
+
 /** The marker that starts exactly at `frame` (where Next/Previous leaves the playhead). */
 export function markerAt(markers, frame) {
   return (markers ?? []).find((marker) => marker.start === frame) ?? null;

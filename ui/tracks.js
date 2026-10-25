@@ -18,6 +18,7 @@ import { modClick } from "./modifiers.js";
 import { monoTag } from "./mono-ask.js";
 import { MUSIC_HUE, trackHues } from "./paint.js";
 import { coalesceKey, patchBus, patchSolo, patchTrack } from "./provisional.js";
+import { dropIndex } from "./track-drop.js";
 import { parseDbText, parsePanText } from "./value-edit.js";
 
 const GAIN = { min: -60, max: 12, step: 0.1 };
@@ -294,8 +295,12 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     newBus.value = NEW_BUS;
     newBus.textContent = t("ui.bus.option_new");
     bus.append(newBus);
-    top.append(name, tag, roleBadge, channelTag, loudness, bus, buttons);
+    // A small handle at the left: drag the header up or down to move the track.
+    const handle = el("span", "track-handle", { title: t("ui.track.drag"), "aria-hidden": "true" });
+    top.append(handle, name, tag, roleBadge, channelTag, bus, buttons);
+    // The loudness sits on the level row, so it never takes the name's room.
     const controls = el("div", "th-controls");
+    controls.append(loudness);
     const gain = slider(t("ui.track.gain"), GAIN);
     const pan = slider(t("ui.track.pan"), PAN);
     pan.wrap.classList.add("pan");
@@ -328,6 +333,39 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       grip.addEventListener("pointercancel", done);
     });
     grip.addEventListener("dblclick", () => actions.setLaneHeight(id, null));
+    handle.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      handle.setPointerCapture(event.pointerId);
+      node.classList.add("dragging");
+      const move = (e) => {
+        const index = dropIndex(otherMidpoints(), e.clientY);
+        node.style.setProperty("--drop-index", String(index));
+        node.dataset.dropIndex = String(index);
+      };
+      const otherMidpoints = () =>
+        [...node.parentElement.querySelectorAll(".track-header[data-track]")]
+          .filter((other) => other !== node)
+          .map((other) => {
+            const box = other.getBoundingClientRect();
+            return box.top + box.height / 2;
+          });
+      const done = (e) => {
+        handle.removeEventListener("pointermove", move);
+        handle.removeEventListener("pointerup", done);
+        handle.removeEventListener("pointercancel", done);
+        node.classList.remove("dragging");
+        delete node.dataset.dropIndex;
+        if (e.type !== "pointerup") return;
+        const index = dropIndex(otherMidpoints(), e.clientY);
+        const from = lookupIndex(id);
+        if (index !== from) editor.change({ op: "move_track", args: { track_id: id, index } });
+      };
+      handle.addEventListener("pointermove", move);
+      handle.addEventListener("pointerup", done);
+      handle.addEventListener("pointercancel", done);
+    });
     const send = (field, value, patch, key) =>
       editor.change({
         op: "set_track",
@@ -519,6 +557,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
   let latest = null;
   const latestProject = () => latest.project;
   const lookup = (id) => latest.project.tracks.find((track) => track.id === id);
+  const lookupIndex = (id) => latest.project.tracks.findIndex((track) => track.id === id);
   const currentBus = (id) => latest.project.buses.find((bus) => bus.id === id);
 
   function rename(button, id) {

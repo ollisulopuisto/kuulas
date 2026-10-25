@@ -37,6 +37,7 @@ import {
   pauseMarkers,
   pauseSecondsOf,
   placeCursor,
+  rightClickPick,
   selectedIndices,
   selectionFrames,
   selectWord,
@@ -678,6 +679,16 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     }
     setPaused(false);
     reveal(to);
+  });
+  // Right-click on a word: the picked words if it is one of them, else that word becomes the
+  // pick; the menu then offers what can be done with them. Over no word with nothing picked
+  // the browser's own menu is left alone.
+  root.addEventListener("contextmenu", (event) => {
+    if (editing) return;
+    const next = rightClickPick(selection(), wordAt(event));
+    if (next === null) return;
+    if (next !== selection()) setState({ transcriptSelection: next });
+    actions.contextMenu?.(event);
   });
   root.addEventListener("wheel", () => {
     if (!paused) setPaused(true);

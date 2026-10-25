@@ -8,6 +8,8 @@ import { expandGroups, groupClipsPlan, mergeClipsPlan, ungroupClipsPlan } from "
 import { CLIPBOARD_VIEWS, keepCount, pasteChoice } from "./clipboard.js";
 import {
   addTrackPlan,
+  automationClearPlan,
+  automationDeletePointPlan,
   busMutePlan,
   changedTracks,
   closeGapPlan,
@@ -16,6 +18,8 @@ import {
   cutPlan,
   deleteEmptyTracksPlan,
   deletePlan,
+  envelopeDeletePointPlan,
+  envelopeResetPlan,
   fadePlan,
   gainPlan,
   groupBusPlan,
@@ -34,6 +38,7 @@ import {
   resetGainsPlan,
   soloPlan,
   splitPlan,
+  trackMovePlan,
   trackMutePlan,
   trimPlan,
   ungroupPlan,
@@ -335,6 +340,10 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
   planned("clip.mute", mutePlan);
   planned("clip.quick_mute", quickMutePlan);
   planned("clip.fade", fadePlan);
+  planned("clip.envelope_delete_point", envelopeDeletePointPlan);
+  planned("clip.envelope_reset", envelopeResetPlan);
+  planned("track.automation_delete_point", automationDeletePointPlan);
+  planned("track.automation_clear", automationClearPlan);
   planned("edit.trim_start", (s) => trimPlan(s, "start"));
   planned("edit.trim_end", (s) => trimPlan(s, "end"));
   planned("edit.nudge_left", (s) => nudgePlan(s, -1));
@@ -342,6 +351,8 @@ export function registerEditCommands(registry, { app, t, formatSeconds }) {
   planned("edit.move_up", (s) => moveTrackPlan(s, -1));
   planned("edit.move_down", (s) => moveTrackPlan(s, 1));
   planned("track.mute", trackMutePlan);
+  planned("track.move_up", (s) => trackMovePlan(s, -1));
+  planned("track.move_down", (s) => trackMovePlan(s, 1));
   planned("track.solo", (s) => soloPlan(s, true));
   planned("track.solo_add", (s) => soloPlan(s, false));
   planned("track.cycle_kind", cycleKindPlan);

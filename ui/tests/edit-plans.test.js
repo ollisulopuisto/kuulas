@@ -2,12 +2,16 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
   addTrackPlan,
+  automationClearPlan,
+  automationDeletePointPlan,
   changedTracks,
   closeGapPlan,
   createBurst,
   cutPlan,
   deleteEmptyTracksPlan,
   deletePlan,
+  envelopeDeletePointPlan,
+  envelopeResetPlan,
   fadePlan,
   gainPlan,
   liftCutPlan,
@@ -20,6 +24,7 @@ import {
   resetGainsPlan,
   soloPlan,
   splitPlan,
+  trackMovePlan,
   trackMutePlan,
   trimPlan,
 } from "../edit-plans.js";
@@ -473,6 +478,125 @@ describe("track mute and solo", () => {
   test("Shift+S solos exclusively; Shift+Alt+S adds to the set", () => {
     assert.deepEqual(soloPlan(state(), true).args, { track_id: "A", exclusive: true });
     assert.deepEqual(soloPlan(state(), false).args, { track_id: "A", exclusive: false });
+  });
+});
+
+describe("moving the current track", () => {
+  test("up and down send move_track with the new place", () => {
+    assert.deepEqual(trackMovePlan(state({ focusTrack: "V" }), -1).args, {
+      track_id: "V",
+      index: 0,
+    });
+    assert.deepEqual(trackMovePlan(state({ focusTrack: "V" }), 1).args, {
+      track_id: "V",
+      index: 2,
+    });
+  });
+  test("greyed at the ends and with no current track", () => {
+    assert.equal(trackMovePlan(state({ focusTrack: "A" }), -1), null);
+    assert.equal(trackMovePlan(state({ focusTrack: "M" }), 1), null);
+    assert.equal(trackMovePlan(state({ focusTrack: null }), 1), null);
+  });
+});
+
+describe("a clip's volume line (envelope)", () => {
+  const withEnvelope = {
+    ...project,
+    tracks: [
+      {
+        ...project.tracks[0],
+        clips: [
+          clip("a1", 0, 10, {
+            envelope: [
+              [0, 0],
+              [100, -6],
+              [200, 0],
+            ],
+          }),
+          clip("a2", 12, 8),
+        ],
+      },
+      ...project.tracks.slice(1),
+    ],
+  };
+  const at = (extra = {}) => state({ project: withEnvelope, ...extra });
+  test("delete the right-clicked point", () => {
+    const made = envelopeDeletePointPlan(at({ envelopePoint: { clipId: "a1", index: 1 } }));
+    assert.equal(made.op, "set_clip_envelope");
+    assert.deepEqual(made.args, {
+      clip_id: "a1",
+      points: [
+        [0, 0],
+        [200, 0],
+      ],
+    });
+  });
+  test("no point, a stale index or an unknown clip: nothing to do", () => {
+    assert.equal(envelopeDeletePointPlan(at()), null);
+    assert.equal(envelopeDeletePointPlan(at({ envelopePoint: { clipId: "a1", index: 9 } })), null);
+    assert.equal(envelopeDeletePointPlan(at({ envelopePoint: { clipId: "zz", index: 0 } })), null);
+  });
+  test("reset clears the line of the clip with a point, else of a selected clip that has one", () => {
+    assert.deepEqual(envelopeResetPlan(at({ envelopePoint: { clipId: "a1", index: 0 } })).args, {
+      clip_id: "a1",
+      points: [],
+    });
+    assert.deepEqual(envelopeResetPlan(at({ selection: new Set(["a1", "a2"]) })).args, {
+      clip_id: "a1",
+      points: [],
+    });
+    assert.equal(envelopeResetPlan(at({ selection: new Set(["a2"]) })), null);
+  });
+});
+
+describe("a track's ducking curve (automation)", () => {
+  const ducked = {
+    ...project,
+    tracks: [
+      {
+        ...project.tracks[0],
+        automation: [
+          [0, 0],
+          [100, -12],
+          [200, 0],
+        ],
+      },
+      ...project.tracks.slice(1),
+    ],
+  };
+  const at = (extra = {}) => state({ project: ducked, ...extra });
+  test("delete the right-clicked point", () => {
+    const made = automationDeletePointPlan(at({ automationPoint: { trackId: "A", index: 1 } }));
+    assert.equal(made.op, "set_track_automation");
+    assert.deepEqual(made.args, {
+      track_id: "A",
+      points: [
+        [0, 0],
+        [200, 0],
+      ],
+    });
+  });
+  test("no point, a stale index or an unknown track: nothing to do", () => {
+    assert.equal(automationDeletePointPlan(at()), null);
+    assert.equal(
+      automationDeletePointPlan(at({ automationPoint: { trackId: "A", index: 7 } })),
+      null,
+    );
+    assert.equal(
+      automationDeletePointPlan(at({ automationPoint: { trackId: "zz", index: 0 } })),
+      null,
+    );
+  });
+  test("clear empties the curve of the right-clicked track, else of the current one", () => {
+    assert.deepEqual(
+      automationClearPlan(at({ automationPoint: { trackId: "A", index: 0 } })).args,
+      {
+        track_id: "A",
+        points: [],
+      },
+    );
+    assert.deepEqual(automationClearPlan(at()).args, { track_id: "A", points: [] });
+    assert.equal(automationClearPlan(at({ focusTrack: "V" })), null);
   });
 });
 

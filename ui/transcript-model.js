@@ -255,6 +255,16 @@ export function extendTo(sel, to) {
 export const selectWord = (i) => ({ cursor: i, anchor: i });
 
 /**
+ * The selection a right-click on word `i` (-1: none) works on: the picked words if `i` is one
+ * of them, else just that word. With no word and nothing picked, null (no menu).
+ */
+export function rightClickPick(selection, i) {
+  const picked = selectedIndices(selection);
+  if (i < 0) return picked.length > 0 ? selection : null;
+  return picked.includes(i) ? selection : selectWord(i);
+}
+
+/**
  * Where a key takes the cursor: one word, a paragraph start/end (Home/End), or a
  * paragraph (ArrowUp/ArrowDown = the previous/next paragraph's first word). Clamped.
  */

@@ -73,6 +73,8 @@ export const SYNONYMS = {
   "clip.fade": ["fade in", "fade out", "crossfade", "häivytys", "vaimene"],
   "clip.pan_left": ["balance", "stereo", "panorama", "vasen"],
   "clip.pan_right": ["balance", "stereo", "panorama", "oikea"],
+  "track.move_up": ["reorder", "raise", "siirrä ylös", "järjestä"],
+  "track.move_down": ["reorder", "lower", "siirrä alas", "järjestä"],
   "track.mute": ["silence", "quiet", "hiljennä", "mykistä", "vaienna"],
   "track.solo": ["only this", "isolate", "listen alone", "soolo", "vain tämä"],
   "track.solo_add": ["solo", "also listen", "soolo"],

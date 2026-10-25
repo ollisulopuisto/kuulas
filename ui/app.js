@@ -1377,6 +1377,7 @@ const transcript = createTranscript({
     showError,
     applyResponse: apply,
     run: (id) => keyboard.registry.run(id, null, getState()),
+    contextMenu: (event) => showPanelMenu("transcript", event),
     transcribeColab: (ids) => void transcribeOnColab(ids),
     // The tracks a range edit acts on (all, the painted lanes, or the selected ones); null
     // with a notice when "selected tracks" is on and none is selected, as for X.
@@ -2207,8 +2208,11 @@ function showHeaderMenu(kind, id, event) {
           kind,
           choice: trackRoleChoice(state.project, track),
           busRole: state.project.buses.find((bus) => bus.id === track?.bus)?.kind ?? null,
+          inBus: Boolean(track?.bus),
         };
-  const items = contextMenuItems(target, (command) => keyboard.registry.can(command, state));
+  const items = withKeys(
+    contextMenuItems(target, (command) => keyboard.registry.can(command, state)),
+  );
   // From the keyboard (the menu key) the event has no pointer position: use the header.
   const box = event.currentTarget.getBoundingClientRect();
   const keyboardOpened = event.clientX === 0 && event.clientY === 0;
@@ -2226,6 +2230,32 @@ function showHeaderMenu(kind, id, event) {
     },
   });
 }
+// Menu items that name a command get the keys the menu bar shows, so a right-click teaches
+// the shortcut. Items with their own label or none (separators) stay as they are.
+function withKeys(items) {
+  const ids = items.filter((item) => item.id && !item.separator).map((item) => item.id);
+  const resolved = keyboard.describe(ids);
+  return items.map((item) => {
+    const keys = item.id ? (resolved.get(item.id)?.keys ?? "") : "";
+    return keys ? { ...item, keys } : item;
+  });
+}
+// A right-click menu for a panel (transcript words, a Clipboard row): the sections of
+// timeline-menu.js for `kind`, what is possible now, with the keys. Nothing moves first.
+function showPanelMenu(kind, event) {
+  const sections = timelineMenuItems(getState(), { kind }, (id, state) =>
+    keyboard.registry.can(id, state),
+  );
+  if (sections.length === 0) return;
+  event.preventDefault();
+  const ids = sections.flatMap((section) => section.items.map((item) => item.id));
+  openContextMenu({
+    x: event.clientX,
+    y: event.clientY,
+    items: menuFromSections(sections, keyboard.describe(ids), t),
+    onPick: (command) => keyboard.registry.run(command, null, getState()),
+  });
+}
 // Right-click on the timeline: a clip outside the selection is selected first, empty lane
 // and the ruler put the playhead there, then the menu offers what the target allows.
 function showTimelineMenu(hit, event) {
@@ -2236,6 +2266,9 @@ function showTimelineMenu(hit, event) {
     Object.assign(patch, focusTrackPatch(getState(), hit.row.id));
   }
   if (plan.focusTrack) Object.assign(patch, focusTrackPatch(getState(), plan.focusTrack));
+  if (plan.marker) patch.markerSelected = plan.marker;
+  patch.envelopePoint = plan.envelopePoint ?? null;
+  patch.automationPoint = plan.automationPoint ?? null;
   setState(patch);
   if (plan.seek !== null) void transport.seek(plan.seek);
   const sections = timelineMenuItems(
@@ -3711,6 +3744,10 @@ const clipboardPanel = createClipboardPanel({
     rename: (id, name) => void clipboardAction(() => api.renameClipboardEntry(id, name))(),
     move: (id, before) => void clipboardAction(() => api.moveClipboardEntry(id, before))(),
     pickCart: (id, event) => pickCartSlot(id, event),
+    contextMenu: (id, event) => {
+      setState({ clipboardSelected: id });
+      showPanelMenu("clipboard", event);
+    },
     remove: (id) => {
       if (getState().clipboardSelected === id) setState({ clipboardSelected: null });
       void clipboardAction(() => api.deleteClipboardEntry(id))();

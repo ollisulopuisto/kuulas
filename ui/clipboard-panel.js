@@ -228,6 +228,7 @@ export function createClipboardPanel({ root, actions }) {
       ...progressBar,
     );
     reorderable(row, entry, state);
+    row.addEventListener("contextmenu", (event) => actions.contextMenu?.(entry.id, event));
     return draggable(row, entry, { shelf: "project", from: "" }, "copyMove");
   }
 

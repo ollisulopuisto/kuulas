@@ -28,6 +28,12 @@ export function contextMenuItems(target, can) {
     item("track.mute"),
     item("track.solo"),
     SEPARATOR,
+    item("track.move_up"),
+    item("track.move_down"),
+    SEPARATOR,
+    item("edit.select_all_track"),
+    item("view.focus"),
+    SEPARATOR,
     // Radio-style Role: the first follows the bus, shown with the bus's current role.
     {
       ...item("track.match_role"),
@@ -38,8 +44,8 @@ export function contextMenuItems(target, can) {
     { ...item("track.role_speech"), checked: target.choice === "speech" },
     { ...item("track.role_music"), checked: target.choice === "music" },
     SEPARATOR,
-    item("track.group_into_bus"),
-    item("track.remove_from_bus"),
+    // Only the one that can apply: a track on a bus leaves it, any other joins a new one.
+    item(target.inBus ? "track.remove_from_bus" : "track.group_into_bus"),
   ];
 }
 

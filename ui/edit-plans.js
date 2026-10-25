@@ -15,6 +15,7 @@ import {
   pasteTargets,
   sourceTargets,
 } from "./clipboard.js";
+import { removePoint } from "./envelope-edit.js";
 import { editRange } from "./intent.js";
 import { clipEnd } from "./lanes.js";
 import { splitClipsProvisional } from "./provisional.js";
@@ -536,6 +537,79 @@ export function fadePlan(state) {
   return id === null ? null : plan("set_fade_at", { clip_id: id, frame: at }, "fade");
 }
 
+/** The clip with this id on any track, or null. */
+function findClip(state, id) {
+  for (const track of state.project.tracks) {
+    const found = track.clips.find((item) => item.id === id);
+    if (found) return found;
+  }
+  return null;
+}
+
+/** Right-click menu: drop the volume-line point that was right-clicked (state.envelopePoint). */
+export function envelopeDeletePointPlan(state) {
+  const picked = state?.envelopePoint;
+  if (!state?.project || !picked) return null;
+  const found = findClip(state, picked.clipId);
+  if (!found?.envelope || picked.index < 0 || picked.index >= found.envelope.length) return null;
+  return plan(
+    "set_clip_envelope",
+    { clip_id: found.id, points: removePoint(found.envelope, picked.index) },
+    "envelope_delete_point",
+    {},
+    { silent: true },
+  );
+}
+
+/** Right-click menu: clear a clip's volume line (the right-clicked clip, else a selected one). */
+export function envelopeResetPlan(state) {
+  if (!state?.project) return null;
+  const withLine = (c) => Boolean(c?.envelope?.length);
+  const picked = state.envelopePoint ? findClip(state, state.envelopePoint.clipId) : null;
+  const target = withLine(picked)
+    ? picked
+    : selectedClips(state).find((entry) => withLine(entry.clip))?.clip;
+  if (!target) return null;
+  return plan(
+    "set_clip_envelope",
+    { clip_id: target.id, points: [] },
+    "envelope_reset",
+    {},
+    { silent: true },
+  );
+}
+
+/** Right-click menu: drop the ducking point that was right-clicked (state.automationPoint). */
+export function automationDeletePointPlan(state) {
+  const picked = state?.automationPoint;
+  if (!state?.project || !picked) return null;
+  const track = state.project.tracks.find((item) => item.id === picked.trackId);
+  const points = track?.automation;
+  if (!points || picked.index < 0 || picked.index >= points.length) return null;
+  return plan(
+    "set_track_automation",
+    { track_id: track.id, points: points.filter((_, i) => i !== picked.index) },
+    "automation_delete_point",
+    {},
+    { silent: true },
+  );
+}
+
+/** Right-click menu: clear a track's ducking curve (the right-clicked track, else the current one). */
+export function automationClearPlan(state) {
+  if (!state?.project) return null;
+  const id = state.automationPoint?.trackId ?? currentTrack(state);
+  const track = state.project.tracks.find((item) => item.id === id);
+  if (!track?.automation?.length) return null;
+  return plan(
+    "set_track_automation",
+    { track_id: track.id, points: [] },
+    "automation_clear",
+    {},
+    { silent: true },
+  );
+}
+
 /** Q (edge "start") and W (edge "end"): trim to the playhead. */
 export function trimPlan(state, edge) {
   if (!state?.project || !Number.isFinite(state.playhead)) return null;
@@ -645,6 +719,16 @@ export function trackMutePlan(state) {
     {},
     { silent: true },
   );
+}
+
+/** Alt+Mod+Up / Down: the current track one place up (-1) or down (1); null at the ends. */
+export function trackMovePlan(state, direction) {
+  const track = trackOf(state);
+  if (!track) return null;
+  const from = state.project.tracks.findIndex((item) => item.id === track.id);
+  const to = from + direction;
+  if (to < 0 || to >= state.project.tracks.length) return null;
+  return plan("move_track", { track_id: track.id, index: to }, "track_move", {}, { silent: true });
 }
 
 /** Shift+S (exclusive) and Shift+Alt+S (added to the solo set). */

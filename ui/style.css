@@ -808,6 +808,30 @@ button.chip {
   font-size: var(--text-xs);
   line-height: 1;
 }
+/* The drag handle at the left of a track header: two columns of dots, shown on hover and on
+   the current track so the resting header stays quiet. */
+.track-handle {
+  flex: none;
+  width: 10px;
+  height: 16px;
+  cursor: grab;
+  touch-action: none;
+  background: radial-gradient(circle, var(--text-tertiary) 1.2px, transparent 1.6px) 0 0 / 5px 5px;
+  opacity: 0;
+}
+.track-header:hover .track-handle,
+.track-header.current .track-handle,
+.track-header.dragging .track-handle {
+  opacity: 0.8;
+}
+.track-header.dragging {
+  outline: 2px solid var(--accent, var(--border-strong));
+  outline-offset: -2px;
+  z-index: 2;
+}
+.track-header.compact .track-handle {
+  display: none;
+}
 .track-rename {
   flex: 1;
   min-width: 0;
@@ -3433,7 +3457,17 @@ input[type="text"] {
 .loudness-readout.stale {
   opacity: 0.55;
 }
+/* A compact header has no level row: its dot sits in the corner. */
+.track-header.compact .th-controls {
+  display: contents;
+}
+.track-header.compact .th-controls > :not(.loudness-readout) {
+  display: none;
+}
 .track-header.compact .loudness-readout {
+  position: absolute;
+  top: 4px;
+  right: 4px;
   width: 8px;
   height: 8px;
   overflow: hidden;

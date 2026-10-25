@@ -47,22 +47,35 @@ describe("bus header menu", () => {
 });
 
 describe("track header menu", () => {
-  test("rename, mute, solo, group into a new bus, remove from bus", () => {
+  test("rename, mute, solo, order, select, focus, role, then group into a bus", () => {
     const items = contextMenuItems({ kind: "track" }, can(["rename", "track.mute"]));
     assert.deepEqual(ids(items), [
       "rename",
       "track.mute",
       "track.solo",
       "-",
+      "track.move_up",
+      "track.move_down",
+      "-",
+      "edit.select_all_track",
+      "view.focus",
+      "-",
       "track.match_role",
       "track.role_speech",
       "track.role_music",
       "-",
       "track.group_into_bus",
-      "track.remove_from_bus",
     ]);
     assert.equal(items[1].enabled, true);
     assert.equal(items[2].enabled, false);
+  });
+});
+
+describe("a track already on a bus", () => {
+  test("offers Remove from bus, not Group into a bus", () => {
+    const last = (target) => ids(contextMenuItems(target, can([]))).at(-1);
+    assert.equal(last({ kind: "track", inBus: true }), "track.remove_from_bus");
+    assert.equal(last({ kind: "track", inBus: false }), "track.group_into_bus");
   });
 });
 

@@ -66,9 +66,7 @@ for (const [kind, excluded] of [
       snap.update({ mod: true, alt: false });
       assert.deepEqual(
         snap.marks,
-        excluded.length
-          ? [300, 320, 500, 600, 810, 830]
-          : [100, 120, 300, 320, 500, 600, 810, 830],
+        excluded.length ? [300, 320, 500, 600, 810, 830] : [100, 120, 300, 320, 500, 600, 810, 830],
       );
       assert.equal(snap.snap({ moved: [{ start: 0, end: 0 }], delta: 319, zoom: 1 }).at, 320);
       snap.update({ mod: false, alt: false });

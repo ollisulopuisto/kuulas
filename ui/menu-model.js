@@ -347,6 +347,8 @@ export const MENU = [
       item("clip.quick_mute"),
       item("clip.fade"),
       item("clip.match_loudness"),
+      item("clip.envelope_delete_point"),
+      item("clip.envelope_reset"),
       LEVEL_PAN,
       SEP,
       SYNC,
@@ -367,6 +369,9 @@ export const MENU = [
       item("track.mute"),
       item("track.solo"),
       item("track.solo_add"),
+      SEP,
+      item("track.move_up"),
+      item("track.move_down"),
       SEP,
       // What a track is (speech or music) and which bus it is on: needed once, then rarely.
       submenu("menu.role", [
@@ -399,6 +404,8 @@ export const MENU = [
         item("app.music_level"),
         item("app.block_level"),
         item("app.duck_music"),
+        item("track.automation_delete_point"),
+        item("track.automation_clear"),
         item("gate.open_stretch"),
         item("gate.open_under_clips"),
         item("gate.open_all"),

@@ -142,6 +142,12 @@ M1 is 23 of 28 done, 5 partly (WP4, WP5, WP19a, WP46, WP6). All are built; the "
 - Outside the list but blocking "confirmed": BUGS 83 (clips could not be moved: needs your exact symptom), BUGS 81 (dmg "damaged" until quarantine is cleared: needs Apple signing), BUGS 3 (Dropbox lock never tried on a real Dropbox), BUGS 80 (Cmd+M gone).
 - Housekeeping: update the PLAN status lines of WP4, WP5, WP6, WP19a, WP46 ("Status: open. Needs WP4" is stale for WP6) when you confirm them, so the milestone count can reach 28 of 28.
 
+## Right-click menus and track order (built 2026-10-25, not seen on screen)
+
+- Done: track drag handle + Track > Move track up/down (Alt+Cmd+Up/Down); loudness readout on the header's level row; header menus show keys; clip menu reordered (key-repeat steps dropped, Match loudness added); track menu offers one of Group/Remove-from-bus plus Select all, Focus, Move; new menus for placeholders, picked transcript words, Clipboard rows, ruler markers.
+- Also done: right-click on a marker flag / region bar (ruler hit-test `markerIdAtX`) and on a clip volume-line point (`clip.envelope_delete_point`, `clip.envelope_reset`). Also done: ducking-point menu (`automationPointAt` hit-test in `ui/lanes.js`, `track.automation_delete_point` / `track.automation_clear`) and the transcript right-click on an unpicked word. Not done: dragging ducking points (the curve is still only written by Track > Auto). A selection strip (Opus: only if buttons are still wanted after trying these) is not built; floating tool palette: decided no.
+- Check on screen: drag handle feel (drop position while dragging shows only an outline), loudness text on the level row at rest (hidden until hover / current track in the comfortable density), compact headers (dot in the corner).
+
 ## Newer things to try (since v26.10.20.39; the dmg of 24.10.2026)
 
 1. **Recording (needs a real microphone):** two channels onto existing tracks, then onto new ones; watch the live drawing and the view following; Cmd+Enter drops a marker; try an edit during the take (it should say editing is paused); stop and read the notice; record over audio and check "It replaced ..."; choose a cart track in the setup, play a clipboard clip with Alt+1 and see it land where it was played.
