@@ -21,21 +21,21 @@ jobs:
     runs-on: macos-14
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           path: kuulas
       # speechmix, nhsx, silencelearn and the automixer come from the podcast repo (public): wheels built from a
       # clean checkout of main (build_wheels.sh reads PODCAST_SRC, never edits it).
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: ollisulopuisto/podcast
           path: podcast
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
       # ffmpeg comes from a third-party host that was down for hours on 2026-10-21 (521) and
       # failed the build. fetch_ffmpeg.sh keeps a copy of the last good download in this
       # cache folder and uses it when the download fails; a fresh download is saved below.
       - name: Restore the cached ffmpeg
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: ${{ runner.temp }}/ffmpeg-cache
           key: ffmpeg-macos-arm64-${{ github.run_id }}
@@ -55,7 +55,7 @@ jobs:
           if [ -f "$RUNNER_TEMP/ffmpeg-cache/.fresh" ]; then echo "fresh=true" >> "$GITHUB_OUTPUT"; fi
       - name: Save the fresh ffmpeg for the next build
         if: always() && steps.ffmpeg.outputs.fresh == 'true'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: ${{ runner.temp }}/ffmpeg-cache
           key: ffmpeg-macos-arm64-${{ github.run_id }}
@@ -63,7 +63,7 @@ jobs:
         run: |
           ls -la "$RUNNER_TEMP/dist"
           shasum -a 256 "$RUNNER_TEMP/dist"/*.dmg | tee "$RUNNER_TEMP/dist/SHA256.txt"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: Kuulas-dmg
           path: ${{ runner.temp }}/dist/*
