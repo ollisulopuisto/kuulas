@@ -282,6 +282,18 @@ describe("the commands the app registers", () => {
     assert.equal(registry.can("transport.play_before", {}), false);
     assert.equal(registry.run("transport.play_before", null, { project, playhead: 480000 }), true);
     assert.deepEqual(calls, [["playFrom", 336000]]);
+
+    // Custom playBeforeS preference (e.g. 5 s = 240,000 frames at 48k)
+    const custom = setup({ project, playhead: 480000, playBeforeS: 5 });
+    assert.equal(
+      custom.registry.run("transport.play_before", null, {
+        project,
+        playhead: 480000,
+        playBeforeS: 5,
+      }),
+      true,
+    );
+    assert.deepEqual(custom.calls, [["playFrom", 240000]]);
   });
 
   test("the loop toggle needs a range to loop, or the loop already on", () => {

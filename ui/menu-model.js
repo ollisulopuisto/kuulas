@@ -64,6 +64,7 @@ export const CHECKED = {
   "view.clipboard_limit": (state) => state?.clipboardLimit !== false,
   "view.toggle_sidebar": (state) => state?.sidebarShown !== false,
   "sync.confirm": (state) => state?.confirmSync !== false,
+  "sync.show_drift": (state) => state?.showSyncDrift === true,
   "transport.slow_speed_025": (state) => (state?.slowSpeed ?? 0.5) === 0.25,
   "transport.slow_speed_050": (state) => (state?.slowSpeed ?? 0.5) === 0.5,
   "transport.slow_speed_075": (state) => (state?.slowSpeed ?? 0.5) === 0.75,
@@ -186,8 +187,10 @@ const SYNC = submenu("menu.sync", [
 const SYNC_BACK = submenu("menu.sync_back", [
   item("sync.resync"),
   item("sync.resync_all"),
+  item("sync.resync_range"),
   item("sync.free"),
   item("sync.free_all"),
+  item("sync.accept_range"),
   item("sync.send_home"),
 ]);
 
@@ -537,6 +540,7 @@ export const MENU = [
         SEP,
         item("view.clipboard_limit"),
         item("sync.confirm"),
+        item("sync.show_drift"),
         SEP,
         item("view.reset_remembered"),
       ]),
@@ -613,7 +617,11 @@ export function resolveMenu({ menu, entries, registry, state, label, platform, h
     const id = entry?.id ?? baseId;
     const name = entry ? label(entry.labelKey) : baseId;
     const planned = registry.status(id) !== "ready";
-    const keys = entry?.raw.length ? formatCombo(entry.raw[0], platform) : "";
+    let keys = entry?.raw.length ? formatCombo(entry.raw[0], platform) : "";
+    if (baseId === "clip.mute") {
+      const clickGesture = platform === "mac" ? "⌥-click" : "Alt-click";
+      keys = keys ? `${keys}, ${clickGesture}` : clickGesture;
+    }
     const hintKey = registry.hintKey(id);
     const hint = hintKey ? label(hintKey) : name;
     return {

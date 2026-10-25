@@ -96,10 +96,10 @@ import {
 import {
   anchorIds,
   anchorNameFor,
-  badgeFor,
   formatOffset,
   homeNameFor,
   syncIndex,
+  syncMark,
 } from "./sync-state.js";
 import { readTheme } from "./theme.js";
 import { createTileStore } from "./tiles.js";
@@ -181,6 +181,9 @@ export function createTimeline({
   let edgeSession = null; // an edge being dragged: see the pointer section
   let tweakSession = null; // a gain line or fade handle being dragged
   let hoverClipId = null; // the clip under the pointer: its fade handles show
+  let altTargetClip = null; // clip targeted for direct mute with Alt held
+  let lastPointerHit = null;
+  let altKeyHeld = false;
   let clipSession = null; // clips being moved by their label strip: see the pointer section
   let ghostTiles = null; // main-thread peak tiles for the move ghosts' waveforms, made on first use
   let dropPreview = null; // files being dragged over: { kind, startFrame, mode, count } or null
@@ -887,7 +890,17 @@ export function createTimeline({
       if (row.height >= 40 && (selected || clip.id === hoverClipId))
         drawFadeHandles(clip, { left, right, zoom: state.zoom }, { top, y, h });
       if (siblings.has(clip.id)) drawSiblingMarks(left, y, w, h);
-      if (selected) {
+      if (altTargetClip?.id === clip.id) {
+        overlay.save();
+        overlay.fillStyle = theme.accent;
+        overlay.globalAlpha = 0.15;
+        overlay.fillRect(left, y, w, h);
+        overlay.strokeStyle = theme.accent;
+        overlay.lineWidth = 2;
+        overlay.setLineDash([4, 3]);
+        overlay.strokeRect(left + 1, y + 1, w - 2, h - 2);
+        overlay.restore();
+      } else if (selected) {
         overlay.strokeStyle = theme.selection;
         overlay.lineWidth = 2;
         overlay.strokeRect(left + 1, y + 1, w - 2, h - 2);
@@ -1321,37 +1334,24 @@ export function createTimeline({
     return anchorSet;
   }
 
-  // A clip that is free from sync wears a grey unlinked icon and its offset ("+300 ms · free"); one
-  // that has drifted wears a red badge with the offset. Both are text as well as colour. Right end of
-  // the label strip, left of the group mark.
-  function drawSyncBadge(state, clip, left, y, w, colours) {
-    const badge = badgeFor(syncRowsOf(state).get(clip.id));
-    if (!badge || w < 24) return;
-    const free = badge.kind === "free";
-    const offset = formatOffset(badge.offset, state.project.rate, (v) =>
-      formatNumber(v, { digits: 1 }),
-    );
+  // Sync drift is quiet by default; when enabled it is a tint and a compact shape, not a number.
+  function drawSyncBadge(state, clip, left, y, w) {
+    const mark = syncMark(syncRowsOf(state).get(clip.id), state.showSyncDrift === true);
+    if (!mark || w < 24) return;
+    const free = mark.kind === "free";
     const right = Math.min(left + w, size.width) - 6 - (clip.group ? 16 : 0);
-    const colour = free ? theme.muted : theme.collateral;
+    const colour = theme[mark.tint];
     overlay.save();
-    overlay.font = `600 ${NAME_FONT_PX}px ${theme.font}`;
-    overlay.textBaseline = "top";
-    let text = "";
-    if (free) {
-      text =
-        badge.offset === 0 ? t("ui.sync.badge.free_zero") : t("ui.sync.badge.free", { offset });
-    } else {
-      text = offset;
-    }
-    const wide = w >= 40 + overlay.measureText(text).width + 16;
-    const textWidth = wide ? overlay.measureText(text).width : 0;
-    const x = right - textWidth - (free ? 14 : 0);
-    if (wide || !free) {
-      overlay.fillStyle = colours.fill;
-      overlay.globalAlpha = LABEL_BACKING_ALPHA;
-      overlay.fillRect(x - 3, y + 2, textWidth + (free ? 14 : 0) + 6, LABEL_H);
-      overlay.globalAlpha = 1;
-    }
+    overlay.fillStyle = colour;
+    overlay.globalAlpha = 0.12;
+    overlay.fillRect(
+      Math.max(0, left),
+      y + 2,
+      Math.min(left + w, size.width) - Math.max(0, left),
+      LABEL_H,
+    );
+    overlay.globalAlpha = 1;
+    const x = right - (free ? 14 : 6);
     overlay.strokeStyle = colour;
     overlay.fillStyle = colour;
     overlay.lineWidth = 1.5;
@@ -1361,8 +1361,11 @@ export function createTimeline({
       overlay.roundRect(x, y + 5, 6, 5, 2.5);
       overlay.roundRect(x + 8, y + 5, 6, 5, 2.5);
       overlay.stroke();
+    } else {
+      overlay.beginPath();
+      overlay.arc(x + 3, y + 7.5, 2.5, 0, Math.PI * 2);
+      overlay.fill();
     }
-    if (wide) overlay.fillText(text, free ? x + 16 : x, y + 3);
     overlay.restore();
   }
 
@@ -1416,7 +1419,7 @@ export function createTimeline({
   // nothing, the person, "Olli 3", "Olli 3 · 1:20–3:20", then the first words.
   function drawName(state, clip, left, y, w, colours, marked) {
     if (clip.group) drawGroupBadge(left, y, w, colours);
-    drawSyncBadge(state, clip, left, y, w, colours);
+    drawSyncBadge(state, clip, left, y, w);
     drawAnchorTag(state, clip, left, y, w, colours);
     const media = state.project.media.find((item) => item.id === clip.media);
     if (!media || w < 30) return;
@@ -1819,13 +1822,13 @@ export function createTimeline({
     const row = syncRowsOf(state).get(clip.id);
     const anchor = anchorNameFor(state.project, state.syncAnchors, clip);
     if (anchorsOf(state).has(clip.id)) lines.push(t("ui.sync.anchor_title"));
-    else if (row?.state === "drift" || row?.state === "free") {
+    else if (state.showSyncDrift === true && (row?.state === "drift" || row?.state === "free")) {
       const offset = formatOffset(row.offset, state.project.rate, (v) =>
         formatNumber(v, { digits: 1 }),
       );
       if (row.state === "drift")
         lines.push(t("ui.sync.badge.drift_title_anchor", { offset, anchor }));
-      else lines.push(t("ui.sync.badge.free_title_anchor", { anchor }));
+      else lines.push(t("ui.sync.badge.free_title_anchor", { anchor, offset }));
     }
     const track = state.project.tracks.find((tr) => tr.clips.some((c) => c.id === clip.id));
     const home = homeNameFor(state.project, clip, track?.id);
@@ -1891,15 +1894,74 @@ export function createTimeline({
         }) === "move";
       cursor = moves ? "grab" : "crosshair";
     }
+    lastPointerHit = hit;
+    altKeyHeld = event.altKey;
+    const isAltMute =
+      event.altKey &&
+      !event.shiftKey &&
+      !modClick(event, detectPlatform()) &&
+      hit.clip &&
+      hit.row?.kind === "track" &&
+      !hit.edge &&
+      !zone;
+    const nextAltTarget = isAltMute ? hit.clip : null;
+    if (nextAltTarget?.id !== altTargetClip?.id) {
+      altTargetClip = nextAltTarget;
+      actions.hint?.(
+        nextAltTarget
+          ? nextAltTarget.muted
+            ? t("ui.hint.alt_unmute")
+            : t("ui.hint.alt_mute")
+          : "",
+      );
+      requestOverlay();
+    }
+    if (isAltMute) cursor = "pointer";
     if (overlayCanvas.style.cursor !== cursor) overlayCanvas.style.cursor = cursor;
   });
   overlayCanvas.addEventListener("pointerleave", () => {
     pointerFrame = null;
+    lastPointerHit = null;
+    if (altTargetClip !== null) {
+      altTargetClip = null;
+      actions.hint?.("");
+      requestOverlay();
+    }
     if (hoverClipId !== null && !tweakSession) {
       hoverClipId = null;
       requestOverlay();
     }
   });
+  const onWindowAlt = (e) => {
+    if (e.key !== "Alt") return;
+    const down = e.type === "keydown";
+    if (down === altKeyHeld) return;
+    altKeyHeld = down;
+    if (tweakSession || clipSession || edgeSession) return;
+    const hit = lastPointerHit;
+    const isAltMute =
+      down &&
+      !e.shiftKey &&
+      !modClick(e, detectPlatform()) &&
+      hit?.clip &&
+      hit.row?.kind === "track" &&
+      !hit.edge;
+    const nextAltTarget = isAltMute ? hit.clip : null;
+    if (nextAltTarget?.id !== altTargetClip?.id) {
+      altTargetClip = nextAltTarget;
+      actions.hint?.(
+        nextAltTarget
+          ? nextAltTarget.muted
+            ? t("ui.hint.alt_unmute")
+            : t("ui.hint.alt_mute")
+          : "",
+      );
+      overlayCanvas.style.cursor = isAltMute ? "pointer" : "";
+      requestOverlay();
+    }
+  };
+  window.addEventListener?.("keydown", onWindowAlt, true);
+  window.addEventListener?.("keyup", onWindowAlt, true);
   overlayCanvas.addEventListener("dblclick", (event) => {
     if (!getState().project || event.button !== 0) return;
     if (event.shiftKey || event.altKey || event.ctrlKey || event.metaKey) return;
@@ -2386,7 +2448,18 @@ export function createTimeline({
       // alt-drag preview showed the clips and the selection vanished on release), so the
       // state tracked from the moves and the Alt key events decides.
       end();
-      if (!dragging) return;
+      if (!dragging) {
+        if (
+          alt &&
+          !e.shiftKey &&
+          !modClick(e, detectPlatform()) &&
+          hit.clip &&
+          hit.row?.kind === "track"
+        ) {
+          actions.toggleClipMute?.(hit.clip.id, hit);
+        }
+        return;
+      }
       const { range, touched } = outcome(now);
       if (!range) return;
       const base = { tracks: now.tracks, trackId: hit.row.id };

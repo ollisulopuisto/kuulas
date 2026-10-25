@@ -116,8 +116,10 @@ describe("Edit", () => {
     assert.deepEqual(subIds("edit", "menu.sync_back"), [
       "sync.resync",
       "sync.resync_all",
+      "sync.resync_range",
       "sync.free",
       "sync.free_all",
+      "sync.accept_range",
       "sync.send_home",
     ]);
   });
@@ -307,6 +309,7 @@ describe("Track, Playback, View", () => {
       "view.pause_never",
       "view.clipboard_limit",
       "sync.confirm",
+      "sync.show_drift",
       "view.reset_remembered",
     ]);
     assert.deepEqual(subIds("view", "menu.language"), [

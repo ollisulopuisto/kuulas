@@ -1,3 +1,17 @@
+## [v26.10.25.5] - 2026-10-25
+
+- **Security: a window is only opened for a real project folder.** When a browser asks to open a new project or a series episode in a new window, the folder must now be an absolute path to an existing `*.kuulas` folder; anything else (option-like text, a NUL byte, a relative or missing path) is refused with the usual bad-folder message and nothing is started. Found by CodeQL (py/command-line-injection, alert 58).
+
+## [v26.10.25.4] - 2026-10-25
+
+- **Sync drift marks are hidden by default.** In a half remote session every clip you moved on purpose (the call delay) wore a red "+9 ms" badge or the grey "free" icon, which said nothing you did not know. They are now off. View > Options > "Show sync drift" turns them on, and then a drifting clip shows a small dot and a tint on its label strip (a free one the unlinked rings), with no numbers; the exact offset and the anchor are in the tooltip. Next / Previous drifting clip turn the display on before they jump, and the Markers tab list of drifting clips is as before.
+- **Sync: accept or resync the drifting clips in a range.** Clip > Sync back has "Resync the range" and "Accept the offsets in the range". The range is the in and out marks, or the play cursor to the end when there are none. Accept frees every drifting clip in the range from sync at once (nothing moves, one undo step); Resync puts them back to the anchor, after the usual question. Clips already freed are left alone.
+
+## [v26.10.25.3] - 2026-10-25
+
+- **Alt-click directly toggles clip mute without seeking.** Holding Alt (Option on macOS) and clicking a clip toggles its mute status immediately without moving the playhead, stopping playback, or changing the current selection. Hovering over a clip with Alt held highlights it with an accent glow and status bar hint ("Click to mute/unmute clip"), and menus display both M and ⌥-click (or Alt-click).
+- **Adjust jump back and play (P) length in Preferences.** Added a slider in Preferences to customize how far backwards P jumps before playing (0.5–10 seconds, 0.5 s steps, default 3.0 s).
+
 ## [v26.10.25.2] - 2026-10-25
 
 - **Rename clip with F2 or in Inspector.** Selecting a clip and pressing F2 focuses its name in the Inspector with the text selected. Clearing the name (empty) resets the clip label to automatic.

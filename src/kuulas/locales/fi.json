@@ -1,4 +1,8 @@
 {
+  "cmd.sync.accept_range": "Hyväksy siirrot alueella",
+  "cmd.sync.accept_range.hint": "Kertoo, että in- ja out-merkin välissä (muuten toistokohdasta loppuun) olevien ajautuneiden leikkeiden siirrot ovat tarkoituksellisia, esimerkiksi korjattu nettipuhelun viive: ne vapautetaan synkronoinnista, ne eivät enää ole ajautuneita eikä mikään liiku. Yksi kumoamisaskel.",
+  "cmd.sync.resync_range": "Synkronoi alue uudelleen",
+  "cmd.sync.resync_range.hint": "Palauttaa in- ja out-merkin välissä (muuten toistokohdasta loppuun) olevat ajautuneet leikkeet ankkuriin. Kysyy ensin, mitä siirretään, ellei sitä ole kytketty pois valikosta Näytä > Valinnat.",
   "ui.ctx.automation": "Vaimennuskäyrä",
   "cmd.track.automation_delete_point": "Poista vaimennuspiste",
   "cmd.track.automation_delete_point.hint": "Poistaa raidan vaimennuskäyrän (automixerin äänenvoimakkuusviiva raidan alareunassa) pisteen, jota napsautit oikealla. Yksi kumoamisaskel.",
@@ -508,6 +512,8 @@
   "ui.app.name": "kuulas",
   "ui.view.fit_short": "Sovita",
   "ui.hint.play": "toista",
+  "ui.hint.alt_mute": "Mykistä leike napsauttamalla",
+  "ui.hint.alt_unmute": "Palauta leikkeen ääni napsauttamalla",
   "ui.hint.view": "lähi / yleiskuva",
   "ui.hint.zoom": "zoomaa",
   "ui.hint.panels": "seuraava paneeli",
@@ -2596,7 +2602,7 @@
   "ui.sync.anchor_tag": "ankkuri",
   "ui.sync.anchor_title": "Synkan ankkuri: tämän tahdistusryhmän leikkeet pidetään synkassa tähän nähden.",
   "ui.sync.badge.drift_title_anchor": "Poissa synkasta {offset} ankkuriin {anchor} nähden. {key:sync.resync} palauttaa, {key:sync.free} kertoo että se on tarkoituksellista.",
-  "ui.sync.badge.free_title_anchor": "Tarkoituksella vapaa synkasta (ankkuri: {anchor}). {key:sync.free} liittää takaisin.",
+  "ui.sync.badge.free_title_anchor": "Tarkoituksella vapaa synkasta {offset} (ankkuri: {anchor}). {key:sync.free} liittää takaisin.",
   "ui.sync.moved_from": "siirretty raidalta {track}",
   "menu.transcribe": "Litteroi",
   "cmd.app.transcribe_colab": "Litteroi raita Colabissa (ääni lähetetään Googlelle)…",
@@ -2859,6 +2865,7 @@
   "ui.prefs.language.fi": "Suomi",
   "ui.prefs.language.en": "English",
   "ui.prefs.fast_speed": "Nopean kuuntelun nopeus",
+  "ui.prefs.play_before": "Hyppää taakse ja toista ({key:transport.play_before})",
   "ui.prefs.more": "Lisää asetuksia",
   "ui.project.close_recording": "Äänitys on käynnissä. Pysäytä se ennen projektin sulkemista.",
   "ui.project.close_armed": "Mikrofoni odottaa esitallennusta. Sulje ensin äänitysnäkymä ja sitten projekti.",
@@ -3269,5 +3276,9 @@
   "ui.edit.idle.select_all": "Ei valittavia leikkeitä.",
   "history.cart_end": "Leikkaa soitettu äänipala",
   "ui.clipboard.cart_trim": "Äänipalojen tason hienosäätö (dB)",
-  "ui.clipboard.cart_trim_help": "Tallennuksen aikana äänipalat sovitetaan viimeisten 3 sekunnin puhetasoon tai projektin vertailutasoon. Tämä muistettava hienosäätö muuttaa sovitusta. Huiput jäävät alle −1 dBTP:n."
+  "ui.clipboard.cart_trim_help": "Tallennuksen aikana äänipalat sovitetaan viimeisten 3 sekunnin puhetasoon tai projektin vertailutasoon. Tämä muistettava hienosäätö muuttaa sovitusta. Huiput jäävät alle −1 dBTP:n.",
+  "cmd.sync.show_drift": "Näytä synkkapoikkeamat",
+  "cmd.sync.show_drift.hint": "Näytä pieni merkki synkasta vapaille ja synkasta ajautuneille leikkeille. Tarkka poikkeama näkyy viemällä osoitin leikkeen päälle.",
+  "ui.sync.show_drift.on": "Synkkapoikkeamien merkit ovat nyt näkyvissä.",
+  "ui.sync.show_drift.off": "Synkkapoikkeamien merkit eivät näy."
 }

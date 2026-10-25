@@ -8,7 +8,7 @@
 // shows it in a confirm dialog, and only then applies it as one undo step. Nothing to move: a
 // notice, no dialog. Freeing moves nothing and stays instant. "Confirm before re-syncing" (View)
 // switches the dialog off.
-import { driftRows, stepDrift } from "./sync-state.js";
+import { driftInRange, driftRows, stepDrift } from "./sync-state.js";
 
 const hasProject = (state) => Boolean(state?.project);
 
@@ -47,7 +47,7 @@ export function freeing(state, ids) {
  * syncCommand(name, args) (a server command that answers with the resync report; resolves when the
  * state is applied), syncPreview(name, args) (what it would move, or null when the server refused),
  * confirmSync(preview) (the dialog; resolves true on Confirm), confirmEnabled() (the preference),
- * notice(text), toggleConfirmSync(). `t` translates.
+ * notice(text), toggleConfirmSync(), showDriftEnabled(), toggleShowSyncDrift(). `t` translates.
  */
 export function registerSyncCommands(registry, { app, t }) {
   const def = (id, run, can) => registry.register(id, run, { can, hintKey: `cmd.${id}.hint` });
@@ -71,6 +71,7 @@ export function registerSyncCommands(registry, { app, t }) {
 
   // A preference, not an edit: whether the commands above show their dialog first.
   def("sync.confirm", () => app.toggleConfirmSync());
+  def("sync.show_drift", () => app.toggleShowSyncDrift());
 
   function setFree(ids, free, label, message) {
     app.edit({
@@ -197,10 +198,32 @@ export function registerSyncCommands(registry, { app, t }) {
     (state) => hasProject(state) && drifting(state).length > 0,
   );
 
+  // The marked range, else the play cursor to the end: the drifting clips there are undecided.
+  // In a half remote session the offsets that were set on purpose (the call delay) are fine
+  // from one point on; "Accept" says so for the whole range at once, "Resync" puts them back.
+  const inRange = (state) => driftInRange(state?.syncClips, state ?? {}).map((row) => row.clip_id);
+  def(
+    "sync.accept_range",
+    () => {
+      const ids = inRange(app.getState());
+      if (ids.length > 0) setFree(ids, true, "ui.sync.history.free_all", "ui.sync.toast.freed");
+    },
+    (state) => hasProject(state) && inRange(state).length > 0,
+  );
+  def(
+    "sync.resync_range",
+    () => {
+      const ids = inRange(app.getState());
+      if (ids.length > 0) void resyncThen("resync", { clip_ids: ids });
+    },
+    (state) => hasProject(state) && inRange(state).length > 0,
+  );
+
   const step = (direction) => () => {
     const state = app.getState();
     const row = stepDrift(drifting(state), state.playhead, direction);
     if (!row) return;
+    if (!app.showDriftEnabled()) app.toggleShowSyncDrift();
     app.jump(row.start);
     app.patch({ selection: new Set([row.clip_id]) });
   };

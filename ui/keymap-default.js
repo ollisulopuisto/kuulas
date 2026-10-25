@@ -1147,6 +1147,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.sync.confirm",
   },
   {
+    id: "sync.show_drift",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.sync.show_drift",
+  },
+  {
     id: "sync.mark",
     keys: { mac: ["Y", "Alt+Mod+S"], other: ["Y", "Alt+Mod+S"] },
     context: "timeline",
@@ -1179,6 +1185,18 @@ export const DEFAULT_KEYMAP = [
   // Free or drifting (R51, WP19a). U frees the selected clips from sync on purpose; the drift list
   // lives in the Markers tab, where ] and [ step through it (the Candidates' ] and [ work
   // everywhere else). Resync all and Free all are that list's buttons: menu and palette too.
+  {
+    id: "sync.accept_range",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.sync.accept_range",
+  },
+  {
+    id: "sync.resync_range",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.sync.resync_range",
+  },
   {
     id: "sync.free",
     keys: { mac: "U", other: "U" },

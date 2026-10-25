@@ -26,8 +26,14 @@ function setup(selection) {
     previews: [],
     asked: [],
     notices: [],
+    driftToggles: 0,
   };
-  const config = { preview: { kind: "move", count: 1, moves: [{}] }, answer: true, confirm: true };
+  const config = {
+    preview: { kind: "move", count: 1, moves: [{}] },
+    answer: true,
+    confirm: true,
+    showDrift: false,
+  };
   const state = { project, selection: new Set(selection), syncClips: [], playhead: 0 };
   registerSyncCommands(registry, {
     t: (key, values = {}) => `${key}${JSON.stringify(values)}`,
@@ -51,6 +57,11 @@ function setup(selection) {
         return config.answer;
       },
       confirmEnabled: () => config.confirm,
+      showDriftEnabled: () => config.showDrift,
+      toggleShowSyncDrift: () => {
+        calls.driftToggles += 1;
+        config.showDrift = !config.showDrift;
+      },
       notice: (text) => calls.notices.push(text),
     },
   });
@@ -58,6 +69,46 @@ function setup(selection) {
 }
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
+
+describe("range commands: accept and resync only the drifting clips in the range", () => {
+  const drift = [
+    { clip_id: "ca", start: 100, state: "drift", offset: 4 },
+    { clip_id: "cv", start: 900, state: "drift", offset: -8 },
+    { clip_id: "cz", start: 1200, state: "free", offset: 0 },
+  ];
+  test("accept frees those from the play cursor on (no marks)", () => {
+    const { registry, calls, state } = setup([]);
+    state.syncClips = drift;
+    state.playhead = 500;
+    assert.equal(registry.can("sync.accept_range", state), true);
+    registry.run("sync.accept_range", null, state);
+    assert.equal(calls.edits[0].op, "set_free");
+    assert.deepEqual(calls.edits[0].args, { clip_ids: ["cv"], free: true });
+  });
+  test("accept uses the in and out marks when both are set", () => {
+    const { registry, calls, state } = setup([]);
+    state.syncClips = drift;
+    Object.assign(state, { inPoint: 0, outPoint: 500, playhead: 900 });
+    registry.run("sync.accept_range", null, state);
+    assert.deepEqual(calls.edits[0].args.clip_ids, ["ca"]);
+  });
+  test("resync asks first, then moves just those clips", async () => {
+    const { registry, calls, state } = setup([]);
+    state.syncClips = drift;
+    state.playhead = 500;
+    registry.run("sync.resync_range", null, state);
+    await flush();
+    assert.deepEqual(calls.previews[0], ["resync", { clip_ids: ["cv"] }]);
+    assert.deepEqual(calls.syncs[0], ["resync", { clip_ids: ["cv"] }]);
+  });
+  test("both are unavailable when no drifting clip is in range", () => {
+    const { registry, state } = setup([]);
+    state.syncClips = drift;
+    state.playhead = 1000;
+    assert.equal(registry.can("sync.accept_range", state), false);
+    assert.equal(registry.can("sync.resync_range", state), false);
+  });
+});
 
 describe("anchor commands", () => {
   test("make this the anchor works on a clip that is not the anchor", () => {
@@ -213,5 +264,6 @@ describe("stepping through the drifting clips", () => {
     registry.run("sync.drift_next", null, state);
     assert.deepEqual(calls.jumps, [900]);
     assert.deepEqual(calls.seeks, []);
+    assert.equal(calls.driftToggles, 1);
   });
 });

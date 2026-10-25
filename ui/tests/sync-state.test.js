@@ -6,11 +6,13 @@ import { DEFAULT_KEYMAP } from "../keymap-default.js";
 import { createKeymap } from "../keys.js";
 import {
   badgeFor,
+  driftInRange,
   driftingAmong,
   driftRows,
   formatOffset,
   stepDrift,
   syncIndex,
+  syncMark,
 } from "../sync-state.js";
 
 const RATE = 48000;
@@ -20,6 +22,16 @@ const row = (clip_id, start, offset, state = "drift") => ({
   start,
   offset,
   state,
+});
+
+describe("syncMark", () => {
+  test("is hidden by default and shows a tinted mark for drift and free rows", () => {
+    assert.equal(syncMark(row("d", 0, 48), false), null);
+    assert.deepEqual(syncMark(row("d", 0, 48), true), { kind: "drift", tint: "collateral" });
+    assert.deepEqual(syncMark(row("f", 0, 0, "free"), true), { kind: "free", tint: "muted" });
+    assert.equal(syncMark(row("s", 0, 0, "in_sync"), true), null);
+    assert.equal(syncMark(null, true), null);
+  });
 });
 
 describe("formatOffset", () => {
@@ -87,7 +99,15 @@ describe("the sync commands", () => {
       ...initial,
     };
     const registry = createRegistry();
-    const calls = { edits: [], toasts: [], jumps: [], server: [], patches: [], asked: [] };
+    const calls = {
+      edits: [],
+      toasts: [],
+      jumps: [],
+      server: [],
+      patches: [],
+      asked: [],
+      driftToggles: 0,
+    };
     registerSyncCommands(registry, {
       t: (key, values = {}) => `${key}${values.count === undefined ? "" : `:${values.count}`}`,
       app: {
@@ -112,6 +132,11 @@ describe("the sync commands", () => {
           return true;
         },
         confirmEnabled: () => true,
+        showDriftEnabled: () => state.showSyncDrift === true,
+        toggleShowSyncDrift: () => {
+          calls.driftToggles += 1;
+          state = { ...state, showSyncDrift: true };
+        },
         notice: () => {},
       },
     });
@@ -167,9 +192,11 @@ describe("the sync commands", () => {
     });
     registry.run("sync.drift_next", null, get());
     assert.deepEqual(calls.jumps, [20]);
+    assert.equal(calls.driftToggles, 1);
     assert.deepEqual([...get().selection], ["c"]);
     registry.run("sync.drift_previous", null, get());
     assert.deepEqual(calls.jumps, [20, 0]);
+    assert.equal(calls.driftToggles, 1);
     assert.deepEqual([...get().selection], ["a"]);
   });
 });
@@ -205,5 +232,37 @@ describe("F7 and Shift+F7 in the keymap", () => {
     timeline.press("[");
     timeline.press("]");
     assert.deepEqual(timeline.calls, []);
+  });
+});
+
+describe("drifting clips in a range", () => {
+  const rows = [
+    { clip_id: "a", start: 100, state: "drift", offset: 5 },
+    { clip_id: "b", start: 500, state: "drift", offset: -9 },
+    { clip_id: "c", start: 900, state: "free", offset: 3 },
+    { clip_id: "d", start: 1500, state: "drift", offset: 2 },
+  ];
+  const ids = (found) => found.map((row) => row.clip_id);
+  test("between the in and out marks when both are set", () => {
+    assert.deepEqual(ids(driftInRange(rows, { inPoint: 200, outPoint: 1600, playhead: 0 })), [
+      "b",
+      "d",
+    ]);
+    assert.deepEqual(ids(driftInRange(rows, { inPoint: 1600, outPoint: 200, playhead: 0 })), [
+      "b",
+      "d",
+    ]);
+  });
+  test("from the play cursor to the end when there is no range", () => {
+    assert.deepEqual(ids(driftInRange(rows, { inPoint: null, outPoint: null, playhead: 400 })), [
+      "b",
+      "d",
+    ]);
+    assert.deepEqual(ids(driftInRange(rows, { inPoint: 300, outPoint: null, playhead: 1000 })), [
+      "d",
+    ]);
+  });
+  test("free and in-sync clips are never in the list (only the undecided ones)", () => {
+    assert.ok(!ids(driftInRange(rows, { inPoint: 0, outPoint: 5000, playhead: 0 })).includes("c"));
   });
 });

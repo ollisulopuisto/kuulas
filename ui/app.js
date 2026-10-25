@@ -42,7 +42,7 @@ import {
   normaliseSettings as normaliseDuckMusic,
 } from "./duck-sidechain-model.js";
 import { edgeChange, edgePressKeepsSelection } from "./edge-drag.js";
-import { dropPastePlan, openedRegionClip } from "./edit-plans.js";
+import { clipToggleMutePlan, dropPastePlan, openedRegionClip } from "./edit-plans.js";
 import { createEditor } from "./edits.js";
 import { createNewEpisodeDialog } from "./episode-dialog.js";
 import { runEscape } from "./escape.js";
@@ -143,6 +143,7 @@ import { chipText, createNoticeHold, toastStaysOpen } from "./notice-hold.js";
 import { createOverview } from "./overview.js";
 import { createPerfDialog } from "./perf-dialog.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
+import { normalisePlayBefore, PLAY_BEFORE_KEY } from "./play-before.js";
 import { createPlayheadClock } from "./playhead-clock.js";
 import { createPreferencesDialog } from "./preferences-dialog.js";
 import { loadPrefs } from "./prefs.js";
@@ -440,6 +441,14 @@ function toggleConfirmSync() {
   setState({ confirmSync: on });
   prefs.set(CONFIRM_SYNC_KEY, on ? "on" : "off");
   showNotice(t(on ? "ui.sync.confirm.on" : "ui.sync.confirm.off"), "ok");
+}
+const SHOW_SYNC_DRIFT_KEY = "showSyncDrift";
+setState({ showSyncDrift: prefs.get(SHOW_SYNC_DRIFT_KEY) === "on" });
+function toggleShowSyncDrift() {
+  const on = getState().showSyncDrift !== true;
+  setState({ showSyncDrift: on });
+  prefs.set(SHOW_SYNC_DRIFT_KEY, on ? "on" : "off");
+  showNotice(t(on ? "ui.sync.show_drift.on" : "ui.sync.show_drift.off"), "ok");
 }
 let syncConfirm = null;
 const confirmSync = (preview) => {
@@ -874,6 +883,14 @@ function setQuickMuteLength(seconds) {
   prefs.set(QUICK_MUTE_KEY, value);
 }
 
+// Jump back and play (P) length (seconds, Preferences).
+setState({ playBeforeS: normalisePlayBefore(prefs.get(PLAY_BEFORE_KEY)) });
+function setPlayBeforeLength(seconds) {
+  const value = normalisePlayBefore(seconds);
+  setState({ playBeforeS: value });
+  prefs.set(PLAY_BEFORE_KEY, value);
+}
+
 // Set music level: how far under the speech the music's loudest moment goes (dB, Preferences).
 setState({ musicUnderDb: normaliseMusicUnder(prefs.get(MUSIC_UNDER_KEY)) });
 function setMusicUnder(db) {
@@ -1224,7 +1241,7 @@ function onPointerDown(hit, event, { noSeek = false } = {}) {
   // lane area sets the play cursor, a clip is also selected, Shift only toggles.
   const mod = heldFromEvent(event, detectPlatform()).mod;
   const additive = event.shiftKey || mod;
-  const intent = pointerIntent(hit, { shift: event.shiftKey, mod });
+  const intent = pointerIntent(hit, { shift: event.shiftKey, mod, alt: event.altKey });
   if (!intent) return;
   const state = getState();
   // Cmd/Ctrl on a clip edge starts "trim only this clip", not an additive pick: the press
@@ -1546,6 +1563,8 @@ const keyboard = setupKeyboard({
     confirmSync: (preview) => confirmSync(preview),
     confirmEnabled: () => getState().confirmSync !== false,
     toggleConfirmSync: () => toggleConfirmSync(),
+    showDriftEnabled: () => getState().showSyncDrift === true,
+    toggleShowSyncDrift: () => toggleShowSyncDrift(),
     notice: (text) => showNotice(text, "ok"),
     clock: () => new Date(),
     // Shift+Mod+S: the dialog for a saved version's name; null when cancelled.
@@ -3353,10 +3372,14 @@ function openPreferences() {
       confirmSync: (on) => {
         if (on !== (getState().confirmSync !== false)) toggleConfirmSync();
       },
+      showSyncDrift: (on) => {
+        if (on !== (getState().showSyncDrift === true)) toggleShowSyncDrift();
+      },
       clipboardLimit: (on) => {
         if (on !== (getState().clipboardLimit !== false)) toggleClipboardLimit();
       },
       fast: (speed) => changeFast((fast) => setFast(fast, speed)),
+      playBefore: (seconds) => setPlayBeforeLength(seconds),
       quickMute: (seconds) => setQuickMuteLength(seconds),
       musicUnder: (db) => setMusicUnder(db),
     },
@@ -4019,6 +4042,24 @@ const timeline = createTimeline({
     seek: (frame) => void transport.seek(frame),
     contextMenu: (hit, event) => showTimelineMenu(hit, event),
     rangeDragged: onRangeDragged,
+    hint(text) {
+      const hint = $("menu-hint");
+      if (!hint) return;
+      hint.textContent = text ?? "";
+      hint.hidden = !text;
+      const keyhints = $("keyhints");
+      if (keyhints) keyhints.hidden = Boolean(text);
+    },
+    toggleClipMute(clipId, hit) {
+      const plan = clipToggleMutePlan(getState().project, clipId, hit?.gate);
+      if (!plan) return;
+      editor.change({
+        op: plan.op,
+        args: plan.args,
+        label: t(plan.label.key),
+        provisional: (p) => patchClip(p, clipId, { muted: plan.args.muted }),
+      });
+    },
     clipDrag({ ids, move, alone = false }) {
       // Alt held: it then asks whether the clip should stay free from sync (owner, 2026-10-16).
       // Nothing but an explicit group moves along with it (WP83).

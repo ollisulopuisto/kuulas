@@ -43,8 +43,10 @@ describe("the fields", () => {
         "stopMode",
         "preroll",
         "confirmSync",
+        "showSyncDrift",
         "clipboardLimit",
         "fast",
+        "playBefore",
         "quickMute",
         "musicUnder",
       ],
@@ -81,7 +83,13 @@ describe("the fields", () => {
 describe("currentValues", () => {
   test("reads the state the existing preferences keep", () => {
     const values = currentValues(
-      { languageChoice: "fi", confirmSync: false, clipboardLimit: true, fast: { fast: 1.35 } },
+      {
+        languageChoice: "fi",
+        confirmSync: false,
+        showSyncDrift: true,
+        clipboardLimit: true,
+        fast: { fast: 1.35 },
+      },
       { stopMode: "hold", preroll: 30 },
     );
     assert.deepEqual(values, {
@@ -89,11 +97,34 @@ describe("currentValues", () => {
       stopMode: "hold",
       preroll: "30",
       confirmSync: false,
+      showSyncDrift: true,
       clipboardLimit: true,
       fast: 1.35,
+      playBefore: 3,
       quickMute: 0.5,
       musicUnder: -10,
     });
+  });
+
+  test("play before (P) length: 3 s by default, else the state's", () => {
+    assert.equal(currentValues({}, {}).playBefore, 3);
+    assert.equal(currentValues({ playBeforeS: 5 }, {}).playBefore, 5);
+  });
+
+  test("play before is a 0.5-10 s field with a unit", () => {
+    const field = PREFERENCE_FIELDS.find((f) => f.id === "playBefore");
+    assert.equal(field.kind, "range");
+    assert.deepEqual([field.min, field.max], [0.5, 10]);
+    assert.equal(field.unit, "s");
+  });
+
+  test("applyField sends play before within bounds only", () => {
+    const { calls, setters } = recorder();
+    const current = currentValues({}, {});
+    assert.equal(applyField("playBefore", "4.5", current, setters), true);
+    assert.equal(applyField("playBefore", "15", current, setters), false);
+    assert.equal(applyField("playBefore", "0.1", current, setters), false);
+    assert.deepEqual(calls, [["playBefore", 4.5]]);
   });
 
   test("quick mute length: 0.5 s by default, else the state's", () => {
@@ -141,6 +172,7 @@ describe("currentValues", () => {
     const values = currentValues({}, {});
     assert.equal(values.language, "auto");
     assert.equal(values.confirmSync, true);
+    assert.equal(values.showSyncDrift, false);
     assert.equal(values.clipboardLimit, true);
     assert.equal(values.stopMode, "two_step");
   });
@@ -154,6 +186,7 @@ describe("applyField", () => {
     assert.equal(applyField("stopMode", "hold", current, setters), true);
     assert.equal(applyField("preroll", "30", current, setters), true);
     assert.equal(applyField("confirmSync", false, current, setters), true);
+    assert.equal(applyField("showSyncDrift", true, current, setters), true);
     assert.equal(applyField("clipboardLimit", false, current, setters), true);
     assert.equal(applyField("fast", "1.35", current, setters), true);
     assert.deepEqual(calls, [
@@ -161,6 +194,7 @@ describe("applyField", () => {
       ["stopMode", "hold"],
       ["preroll", 30],
       ["confirmSync", false],
+      ["showSyncDrift", true],
       ["clipboardLimit", false],
       ["fast", 1.35],
     ]);

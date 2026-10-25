@@ -65,8 +65,23 @@ def window_command(folder: str, executable: str | None = None) -> list[str]:
     return [executable or sys.executable, "-m", "kuulas", "open", folder]
 
 
+def checked_project_folder(folder: object) -> str:
+    """The absolute path of an existing ``*.kuulas`` folder, or ``EditError``
+    (``error.project.bad_parent``). The folder comes from the browser's request, so it is
+    checked before it goes on a command line: no option-like text, no NUL, absolute,
+    real."""
+    if (not isinstance(folder, str) or not folder or "\0" in folder
+            or folder.startswith("-")):
+        raise EditError("error.project.bad_parent", path=str(folder)[:200])
+    path = Path(folder)
+    if not path.is_absolute() or path.suffix != SUFFIX or not path.is_dir():
+        raise EditError("error.project.bad_parent", path=folder[:200])
+    return str(path.resolve())
+
+
 def start_window(folder: str) -> None:
     """Start a second kuulas on ``folder`` beside this one, not waiting for it."""
-    subprocess.Popen(  # noqa: S603 - our own interpreter, a path the page cannot shape further
-        window_command(folder), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+    safe = checked_project_folder(folder)
+    subprocess.Popen(  # noqa: S603 - our own interpreter; the folder was checked just above
+        window_command(safe), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL, start_new_session=True)
