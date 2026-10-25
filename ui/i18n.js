@@ -152,6 +152,13 @@ function entryFor(lang, key, count) {
   return entry;
 }
 
+let shortcutResolver = null;
+
+/** The keyboard layer supplies the current binding, including user overrides. */
+export function setShortcutResolver(resolve) {
+  shortcutResolver = resolve;
+}
+
 function bare(key, values) {
   const extra = Object.entries(values)
     .map(([name, value]) => `${name}=${value}`)
@@ -164,9 +171,14 @@ export function t(key, values = {}) {
   let template = entryFor(current, key, values.count);
   if (template === undefined && current !== SOURCE) template = entryFor(SOURCE, key, values.count);
   if (typeof template !== "string") return bare(key, values);
-  return template.replace(/\{(\w+)\}/g, (whole, name) =>
+  const filled = template.replace(/\{(\w+)\}/g, (whole, name) =>
     Object.hasOwn(values, name) ? String(values[name]) : whole,
   );
+  return filled.replace(/\{key:([\w.-]+)\}/g, (_whole, id) => {
+    const shortcut = shortcutResolver?.(id);
+    // "Use <command>" remains an instruction when the command has no key.
+    return shortcut ? formatShortcut(shortcut) : t(`cmd.${id}`);
+  });
 }
 
 // -- numbers and times ---------------------------------------------------------

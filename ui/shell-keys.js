@@ -13,8 +13,16 @@ import { createRegistry } from "./commands.js";
 import { openDialogs } from "./dialog-keys.js";
 import { registerEditCommands } from "./edit-commands.js";
 import { registerExportCommands } from "./export-commands.js";
+import { shortcutsFor } from "./help.js";
 import { resolveHints } from "./hints.js";
-import { ensureCatalog, formatNumber, getLanguage, LANGUAGES, tIn } from "./i18n.js";
+import {
+  ensureCatalog,
+  formatNumber,
+  getLanguage,
+  LANGUAGES,
+  setShortcutResolver,
+  tIn,
+} from "./i18n.js";
 import {
   formatCombo,
   loadOverrides,
@@ -103,6 +111,7 @@ export function setupKeyboard({
   // -- the user's keys -------------------------------------------------------------
   let overrides = {};
   let entries = [];
+  setShortcutResolver((id) => shortcutsFor(id, entries)[0] ?? null);
   const problemText = (problem) =>
     problem.code === "not-object"
       ? t("ui.keymap.problem.not-object")

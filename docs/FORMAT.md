@@ -489,16 +489,13 @@ unmuting restores the clips and their render exactly. Where an older project
 stored that fade, the longer of stored and derived applies, so it renders as
 before.
 
-*Version and `min_reader`.* The version rises to 4 (additive clip field, the 3 to 4
-migration updates only the schema marker). An older reader would keep `gate` in `extra` and
-play the track ungated, which is audible, so a project that holds a gate must
-not open there: `min_reader` rises to 3 for legacy gates, and to 4 **for a project when
-its first clip Auto-Silence range is committed**, and the manifest is written before the state that carries the
-gate (a crash between the two leaves a stricter manifest, never a gate an old
-reader plays wrongly). Projects that never get a gate stay at `min_reader` 1.
-It is never lowered again, even if the gate is cleared, because older history
-steps may still hold one. An upgrade of a version-2 project keeps whatever
-`min_reader` it already asks for.
+*Version and `min_reader`.* The version is 4. A project with a legacy track
+`gate` asks for reader 3; a project with a clip Auto-Silence range asks for
+reader 4. The manifest is written before the state that adds the range, so a
+crash leaves a stricter manifest rather than silence an older reader would
+play. Projects that never use either form stay at `min_reader` 1. It is never
+lowered, because older history steps may still hold the field. An upgrade keeps
+whatever `min_reader` the project already asks for.
 
 *Measured.* A state with 4,800 gate ranges (4 mics, a range every 3 s for an
 hour, twice a busy hour) packs in about 7 ms (9 KB); 19,200 ranges (a range
@@ -633,7 +630,7 @@ and a reader that does not know it keeps it (roots are updated key by key)
 and plays the project exactly as this version does, because a candidate
 changes no audio until it is applied, and applying writes ordinary muted
 clips or a ripple into the edit state. Such a reader only does not show the
-candidates. By the "additive change" rule below, `version` should rise to 5
+candidates. By the "additive change" rule below, `version` should rise to 4
 with a migration that rewrites nothing; that is left to the integrator,
 since it touches `package.VERSION`, `db.SCHEMA_VERSION` and the migration
 table that other work packages also bump.

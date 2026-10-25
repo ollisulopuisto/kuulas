@@ -31,6 +31,7 @@ import {
   rememberedConsent,
   resumableJob,
 } from "./colab-model.js";
+import { applyCommandShortcuts } from "./command-shortcuts.js";
 import { openContextMenu } from "./context-menu.js";
 import { contextMenuItems } from "./context-menu-model.js";
 import { installDialogKeys } from "./dialog-keys.js";
@@ -91,7 +92,6 @@ import {
   formatAbsoluteTime,
   formatClock,
   formatNumber,
-  formatShortcut,
   getLanguage,
   initI18n,
   onLanguageChange,
@@ -290,8 +290,6 @@ function translate() {
   for (const node of document.querySelectorAll("[data-i18n-aria-label]")) {
     node.setAttribute("aria-label", t(node.dataset.i18nAriaLabel));
   }
-  for (const node of document.querySelectorAll("[data-shortcut]"))
-    node.textContent = formatShortcut(node.dataset.shortcut);
   document.title = t("ui.app.title");
   applyTabs();
 }
@@ -1411,6 +1409,7 @@ const keyboard = setupKeyboard({
   },
   // The Help button shows the key help has now, F1 or the user's own.
   onRefresh(entries) {
+    applyCommandShortcuts(document, entries, detectPlatform());
     const button = $("help-button");
     const platform = detectPlatform();
     const keys = shortcutsFor(HELP_COMMAND, entries);
@@ -1418,7 +1417,7 @@ const keyboard = setupKeyboard({
     button.setAttribute("aria-keyshortcuts", keys.map(aria).join(" "));
     button.title = keys.map((combo) => formatCombo(combo, platform)).join(" ");
     tabKeyEntries = entries;
-    applyTabs();
+    translate();
   },
   app: {
     getState,
@@ -3658,7 +3657,8 @@ globalThis.kuulasClipboardArrived = (note) => {
   void refreshClipboard();
   setState({ clipboardSelected: null });
   const values = arrivedValues(note);
-  const keys = formatShortcut("Mod+V");
+  const keys =
+    keyboard.format(shortcutsFor("edit.paste", keyboard.entries())[0] ?? "") || t("cmd.edit.paste");
   showNotice(
     values.name
       ? t("ui.sendwindow.arrived", { ...values, keys })
