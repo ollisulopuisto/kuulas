@@ -111,3 +111,15 @@ def test_export_keys_and_lift_cut_are_present() -> None:
     # edit.lift_cut is Alt+X in the keymap.
     assert "Alt+X" in doc
     assert "⌥+X" in doc
+
+
+def test_generated_hints_render_command_tokens(tmp_path: Path) -> None:
+    out = tmp_path / "KEYS.md"
+    subprocess.run(  # noqa: S603 - fixed node argv, no shell
+        ["node", str(SCRIPT), str(out)],  # noqa: S607 - node is on PATH
+        cwd=ROOT,
+        check=True,
+    )
+    doc = out.read_text()
+    assert "{key:" not in doc
+    assert "Options: Export mix (options)…" in doc
