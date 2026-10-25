@@ -1,5 +1,6 @@
 ## [Unreleased]
 
+- **Alt-click directly toggles clip mute without seeking.** Holding Alt (Option on macOS) and clicking a clip toggles its mute status immediately without moving the playhead, stopping playback, or changing the current selection. Menus display both M and ⌥-click (or Alt-click).
 - **Adjust jump back and play (P) length in Preferences.** Added a slider in Preferences to customize how far backwards P jumps before playing (0.5–10 seconds, 0.5 s steps, default 3.0 s).
 
 ## [v26.10.25.2] - 2026-10-25

@@ -42,7 +42,7 @@ import {
   normaliseSettings as normaliseDuckMusic,
 } from "./duck-sidechain-model.js";
 import { edgeChange, edgePressKeepsSelection } from "./edge-drag.js";
-import { dropPastePlan, openedRegionClip } from "./edit-plans.js";
+import { clipToggleMutePlan, dropPastePlan, openedRegionClip } from "./edit-plans.js";
 import { createEditor } from "./edits.js";
 import { createNewEpisodeDialog } from "./episode-dialog.js";
 import { runEscape } from "./escape.js";
@@ -1233,7 +1233,7 @@ function onPointerDown(hit, event, { noSeek = false } = {}) {
   // lane area sets the play cursor, a clip is also selected, Shift only toggles.
   const mod = heldFromEvent(event, detectPlatform()).mod;
   const additive = event.shiftKey || mod;
-  const intent = pointerIntent(hit, { shift: event.shiftKey, mod });
+  const intent = pointerIntent(hit, { shift: event.shiftKey, mod, alt: event.altKey });
   if (!intent) return;
   const state = getState();
   // Cmd/Ctrl on a clip edge starts "trim only this clip", not an additive pick: the press
@@ -4029,6 +4029,16 @@ const timeline = createTimeline({
     seek: (frame) => void transport.seek(frame),
     contextMenu: (hit, event) => showTimelineMenu(hit, event),
     rangeDragged: onRangeDragged,
+    toggleClipMute(clipId, hit) {
+      const plan = clipToggleMutePlan(getState().project, clipId, hit?.gate);
+      if (!plan) return;
+      editor.change({
+        op: plan.op,
+        args: plan.args,
+        label: t(plan.label.key),
+        provisional: (p) => patchClip(p, clipId, { muted: plan.args.muted }),
+      });
+    },
     clipDrag({ ids, move, alone = false }) {
       // Alt held: it then asks whether the clip should stay free from sync (owner, 2026-10-16).
       // Nothing but an explicit group moves along with it (WP83).

@@ -441,6 +441,30 @@ export function mutePlan(state) {
 }
 
 /**
+ * Alt+click on a clip: toggles the mute state of that clip (or its implicit portion).
+ */
+export function clipToggleMutePlan(project, clipId, gate = null) {
+  if (!project?.tracks || !clipId) return null;
+  for (const track of project.tracks) {
+    const clip = (track.clips ?? []).find((c) => c.id === clipId);
+    if (!clip) continue;
+    if (gate?.implicit && Array.isArray(gate.range)) {
+      const [start, end] = gate.range;
+      const at = Math.floor((start + end) / 2);
+      const portion = implicitPortionAt(clip, at, track.gate);
+      if (portion && portion.range[0] === start && portion.range[1] === end) {
+        return portionMutePlan(track.id, clip, at, portion);
+      }
+    }
+    const muted = !clip.muted;
+    return plan("set_clips", { clip_ids: [clip.id], muted }, muted ? "mute" : "unmute", {
+      count: 1,
+    });
+  }
+  return null;
+}
+
+/**
  * The selected clip whose implicit portion holds the play cursor (the focused track's first,
  * and only when one is unambiguous); with no selection the focused track's clip there.
  */

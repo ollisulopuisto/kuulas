@@ -1891,6 +1891,16 @@ export function createTimeline({
         }) === "move";
       cursor = moves ? "grab" : "crosshair";
     }
+    if (
+      !cursor &&
+      event.altKey &&
+      !event.shiftKey &&
+      !modClick(event, detectPlatform()) &&
+      hit.clip &&
+      hit.row?.kind === "track"
+    ) {
+      cursor = "pointer";
+    }
     if (overlayCanvas.style.cursor !== cursor) overlayCanvas.style.cursor = cursor;
   });
   overlayCanvas.addEventListener("pointerleave", () => {
@@ -2386,7 +2396,18 @@ export function createTimeline({
       // alt-drag preview showed the clips and the selection vanished on release), so the
       // state tracked from the moves and the Alt key events decides.
       end();
-      if (!dragging) return;
+      if (!dragging) {
+        if (
+          alt &&
+          !e.shiftKey &&
+          !modClick(e, detectPlatform()) &&
+          hit.clip &&
+          hit.row?.kind === "track"
+        ) {
+          actions.toggleClipMute?.(hit.clip.id, hit);
+        }
+        return;
+      }
       const { range, touched } = outcome(now);
       if (!range) return;
       const base = { tracks: now.tracks, trackId: hit.row.id };

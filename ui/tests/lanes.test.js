@@ -353,6 +353,20 @@ describe("what a click does (owner, 2026-10-18)", () => {
     });
   });
 
+  test("Alt+click on a clip leaves cursor and selection alone (direct mute)", () => {
+    assert.deepEqual(pointerIntent(lane({ clip }), { alt: true }), {
+      seek: null,
+      selection: "keep",
+      clip,
+      mute: true,
+    });
+    assert.deepEqual(pointerIntent(lane({}), { alt: true }), {
+      seek: 500,
+      selection: "clear",
+      clip: null,
+    });
+  });
+
   test("the ruler seeks and keeps the selection; outside does nothing", () => {
     assert.deepEqual(pointerIntent({ area: "ruler", frame: 7 }, {}), {
       seek: 7,

@@ -5,6 +5,7 @@ import {
   automationClearPlan,
   automationDeletePointPlan,
   changedTracks,
+  clipToggleMutePlan,
   closeGapPlan,
   createBurst,
   cutPlan,
@@ -205,6 +206,28 @@ describe("mute clips (N)", () => {
   });
   test("no selection: nothing", () => {
     assert.equal(mutePlan(state()), null);
+  });
+});
+
+describe("clipToggleMutePlan (Alt+click on clip)", () => {
+  test("toggles an unmuted clip to muted, and a muted clip to unmuted", () => {
+    const unmuted = project;
+    const plan1 = clipToggleMutePlan(unmuted, "a1");
+    assert.deepEqual(plan1.args, { clip_ids: ["a1"], muted: true });
+    assert.equal(plan1.op, "set_clips");
+
+    const mutedProj = {
+      ...project,
+      tracks: [{ id: "A", clips: [clip("a1", 0, 10, { muted: true })] }],
+    };
+    const plan2 = clipToggleMutePlan(mutedProj, "a1");
+    assert.deepEqual(plan2.args, { clip_ids: ["a1"], muted: false });
+    assert.equal(plan2.op, "set_clips");
+  });
+
+  test("missing clip returns null", () => {
+    assert.equal(clipToggleMutePlan(project, "nonexistent"), null);
+    assert.equal(clipToggleMutePlan(null, "a1"), null);
   });
 });
 

@@ -143,6 +143,13 @@ describe("resolving a menu", () => {
     assert.equal(find(menus, "edit.redo").keys, "⇧⌘Z");
   });
 
+  test("clip.mute shows both M and the click gesture", () => {
+    const mac = make({ platform: "mac" });
+    assert.equal(find(mac, "clip.mute").keys, "M, ⌥-click");
+    const other = make({ platform: "other" });
+    assert.equal(find(other, "clip.mute").keys, "M, Alt-click");
+  });
+
   test("a remapped item shows the new key at once", () => {
     const menus = make({ overrides: { "edit.undo": "Alt+U" }, state: { canUndo: true } });
     assert.equal(find(menus, "edit.undo").keys, "Alt+U");

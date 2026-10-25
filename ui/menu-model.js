@@ -613,7 +613,11 @@ export function resolveMenu({ menu, entries, registry, state, label, platform, h
     const id = entry?.id ?? baseId;
     const name = entry ? label(entry.labelKey) : baseId;
     const planned = registry.status(id) !== "ready";
-    const keys = entry?.raw.length ? formatCombo(entry.raw[0], platform) : "";
+    let keys = entry?.raw.length ? formatCombo(entry.raw[0], platform) : "";
+    if (baseId === "clip.mute") {
+      const clickGesture = platform === "mac" ? "⌥-click" : "Alt-click";
+      keys = keys ? `${keys}, ${clickGesture}` : clickGesture;
+    }
     const hintKey = registry.hintKey(id);
     const hint = hintKey ? label(hintKey) : name;
     return {

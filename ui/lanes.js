@@ -181,12 +181,14 @@ export function layoutFor(state) {
  * selection. Returns { seek: frame | null, selection: "replace" | "toggle" |
  * "clear" | "keep", clip } or null when the click is outside.
  */
-export function pointerIntent(hit, { shift = false, mod = false } = {}) {
+export function pointerIntent(hit, { shift = false, mod = false, alt = false } = {}) {
   if (!hit || hit.area === "none") return null;
   if (hit.area === "ruler") return { seek: hit.frame, selection: "keep", clip: null };
   const clip = hit.clip ?? null;
   // Shift+click and Mod+click both toggle the clicked clip and leave the cursor alone.
   if (shift || mod) return { seek: null, selection: clip ? "toggle" : "keep", clip };
+  // Plain Alt+click on a clip leaves cursor and selection alone (direct mute).
+  if (alt && clip) return { seek: null, selection: "keep", clip, mute: true };
   return { seek: hit.frame, selection: clip ? "replace" : "clear", clip };
 }
 
