@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- **A script can edit a project without a window, and there is an example.** `docs/SCRIPTING.md` explains headless use (`Session(folder)`), the HTTP routes and the command catalogue, and `scripts/examples/remove_fillers.py` removes the filler words (um, uh, öö) from a project with the same command the transcript's X key runs, one undo step per cut. `--dry-run` only lists them.
+
 - **A program can list every command kuulas has.** `GET /api/commands` returns the catalogue: each edit and session command with how to call it, its arguments (name, type, whether required, default), a one-line summary, and whether it makes one undo step. An agent can read it, change a session, and the person can then open the session and adjust it. A test fails when a command is missing from it.
 
 ## [v26.10.26.3] - 2026-10-26

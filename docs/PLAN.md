@@ -3236,7 +3236,7 @@ Status: open (owner requests 2026-10-18, from using the app on a real session). 
 
 ### WP53 — Scriptability and machine access (late; owner, 2026-10-18)
 
-Status: step 1 built 2026-10-26: `GET /api/commands` (`src/kuulas/command_catalog.py`), the catalogue of every edit and session command, with a test that fails when one is missing. The rest is open, late in the roadmap. The owner does not need it to control the GUI: an agent changes the session, and the person opens it and adjusts. Owner: kuulas must be fully legible to programs (an MCP server
+Status: steps 1 and 2 built 2026-10-26: `GET /api/commands` (`src/kuulas/command_catalog.py`), the catalogue of every edit and session command, with a test that fails when one is missing; `docs/SCRIPTING.md` and the tested example `scripts/examples/remove_fillers.py` (`tests/test_example_remove_fillers.py`). The rest (`kuulas ctl`, `kuulas run`, an MCP server) is open, late in the roadmap. The owner does not need it to control the GUI: an agent changes the session, and the person opens it and adjusts. Owner: kuulas must be fully legible to programs (an MCP server
 or some later tool), and scriptable like Reaper: for example a script that removes all "um"s from
 the transcript, with **no LLM involved**, just a set of commands run in order. No scripting
 language yet; the requirement is that the app makes it possible to build one later.
