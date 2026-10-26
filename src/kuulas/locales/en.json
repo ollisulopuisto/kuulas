@@ -532,6 +532,7 @@
   "ui.app.name": "kuulas",
   "ui.view.fit_short": "Fit",
   "ui.hint.play": "play",
+  "ui.hint.use.auto_silence": "You have muted by hand a lot. Auto-Silence (Track menu) finds the silent stretches for you.",
   "ui.hint.alt_mute": "Click to mute clip",
   "ui.hint.alt_unmute": "Click to unmute clip",
   "ui.hint.view": "close / wide",

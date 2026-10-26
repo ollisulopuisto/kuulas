@@ -2,7 +2,7 @@
 
 Owner, 2026-10-26: new users cannot find what kuulas can do (Auto-Silence is the example), and the
 menus hide it. A toolbar is a discovery device: every button says "this exists" and its tooltip
-says which key runs it. Not built; this page is the design, WP86 in `PLAN.md` is the build.
+says which key runs it. Built (WP86 in `PLAN.md`); this page is the design.
 
 ## Decisions (owner)
 
@@ -55,8 +55,8 @@ Commands are named here, not numbered: the ids come from `ui/menu-model.js` when
 
 ## Beside the toolbar
 
-- **Command search field** at the top of the rail, "Search command...". It uses the command search
-  of WP75, so not everything has to be a button.
+- **Command search** at the top of the rail: a fixed "Search" button that opens the command search
+  of WP75, so not everything has to be a button (built; not part of the layout, so it never moves).
 - **A visible search field in the transcript's header.** `ui/transcript.js` already has a find bar
   (`findBar`, `openFind`); whether it is only a key away is to be checked. Search in deleted
   material (WP82) is an option of that field, not a button.
@@ -65,7 +65,7 @@ Commands are named here, not numbered: the ids come from `ui/menu-model.js` when
 
 ## Open questions
 
-- The final ten buttons, and the icons (the icon set is not chosen).
+- The final ten buttons (the icons are chosen: each default button has its own).
 - The rail's width with text, and what happens in a narrow window (collapse to icons only).
 - Where the rail sits against the track headers: left of them, or inside the header column.
 - Whether a first-run tour is wanted; it is not part of WP86.
