@@ -1,12 +1,22 @@
 """Protected files: never delete recordings or linked media by mistake."""
 
+import os
+
 import pytest
 
 from kuulas.protected_files import check_delete, is_protected
 
-ROOT = "/Users/dst/project"
-RECORDINGS = "/Users/dst/project/recordings"
-MEDIA = ("/Users/dst/media/song.wav", "/Users/dst/media/jingle.wav")
+
+def mk(p: str) -> str:
+    """Make an absolute path that is valid on both POSIX and Windows."""
+    if os.name == "nt" and p.startswith("/"):
+        return "C:" + p
+    return p
+
+
+ROOT = mk("/Users/dst/project")
+RECORDINGS = mk("/Users/dst/project/recordings")
+MEDIA = (mk("/Users/dst/media/song.wav"), mk("/Users/dst/media/jingle.wav"))
 
 
 def test_is_protected_inside_recordings_at_any_depth():
@@ -19,26 +29,26 @@ def test_is_protected_recordings_dir_itself():
 
 
 def test_is_protected_outside_recordings():
-    assert is_protected("/Users/dst/project/other/take.wav", ROOT) is False
-    assert is_protected("/Users/dst/project/recordingsx/take.wav", ROOT) is False
-    assert is_protected("/Users/dst/other/recordings/take.wav", ROOT) is False
+    assert is_protected(mk("/Users/dst/project/other/take.wav"), ROOT) is False
+    assert is_protected(mk("/Users/dst/project/recordingsx/take.wav"), ROOT) is False
+    assert is_protected(mk("/Users/dst/other/recordings/take.wav"), ROOT) is False
 
 
 def test_is_protected_dotdot_tricks():
     assert is_protected(f"{RECORDINGS}/../x/take.wav", ROOT) is False
-    assert is_protected("/Users/dst/project/x/../recordings/take.wav", ROOT) is True
+    assert is_protected(mk("/Users/dst/project/x/../recordings/take.wav"), ROOT) is True
     assert is_protected(f"{RECORDINGS}/a/../../recordings/b.wav", ROOT) is True
 
 
 def test_is_protected_media_paths():
-    assert is_protected("/Users/dst/media/song.wav", ROOT, media_paths=MEDIA) is True
-    assert is_protected("/Users/dst/media/jingle.wav", ROOT, media_paths=MEDIA) is True
-    assert is_protected("/Users/dst/media/other.wav", ROOT, media_paths=MEDIA) is False
+    assert is_protected(mk("/Users/dst/media/song.wav"), ROOT, media_paths=MEDIA) is True
+    assert is_protected(mk("/Users/dst/media/jingle.wav"), ROOT, media_paths=MEDIA) is True
+    assert is_protected(mk("/Users/dst/media/other.wav"), ROOT, media_paths=MEDIA) is False
     assert is_protected(f"{RECORDINGS}/take.wav", ROOT, media_paths=MEDIA) is True
 
 
 def test_is_protected_case_sensitive():
-    assert is_protected("/Users/dst/Project/recordings/take.wav", ROOT) is False
+    assert is_protected(mk("/Users/dst/Project/recordings/take.wav"), ROOT) is False
     assert is_protected(RECORDINGS.upper(), ROOT) is False
 
 
@@ -52,7 +62,7 @@ def test_is_protected_relative_paths_raise():
 
 
 def test_check_delete_not_protected_is_ok():
-    assert check_delete("/Users/dst/project/other/take.wav", ROOT) == "ok"
+    assert check_delete(mk("/Users/dst/project/other/take.wav"), ROOT) == "ok"
 
 
 def test_check_delete_protected_refused_unless_confirmed():
@@ -62,8 +72,8 @@ def test_check_delete_protected_refused_unless_confirmed():
 
 
 def test_check_delete_media_path():
-    assert check_delete("/Users/dst/media/song.wav", ROOT, media_paths=MEDIA) == "refused"
+    assert check_delete(mk("/Users/dst/media/song.wav"), ROOT, media_paths=MEDIA) == "refused"
     assert (
-        check_delete("/Users/dst/media/song.wav", ROOT, media_paths=MEDIA, confirmed=True)
+        check_delete(mk("/Users/dst/media/song.wav"), ROOT, media_paths=MEDIA, confirmed=True)
         == "ok"
     )
