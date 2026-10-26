@@ -9,6 +9,7 @@ import {
   MOVE_STRIP_PX,
   moveBoxes,
   moveGhosts,
+  portionDragEdit,
   resolveMove,
   targetTrackRow,
 } from "../clip-drag.js";
@@ -189,5 +190,65 @@ describe("group drag ghosts", () => {
       ]),
       { x: 0, y: 5, w: 30, h: 35 },
     );
+  });
+});
+
+describe("dragging an implicit portion", () => {
+  // One clip, 0..10 s, Auto-Silence closed over 4..6 s (source frames: offset 0).
+  const silenced = {
+    rate: S,
+    tracks: [
+      {
+        id: "A",
+        gate: [],
+        clips: [
+          {
+            id: "p",
+            media: "m",
+            start: 0,
+            length: 10 * S,
+            offset: 0,
+            auto_silence: [[4 * S, 6 * S]],
+          },
+          { id: "q", media: "m", start: 12 * S, length: S, offset: 0 },
+        ],
+      },
+    ],
+  };
+  const parent = silenced.tracks[0].clips[0];
+  const hitOn = (range, closed) => ({
+    clip: parent,
+    row: { kind: "track", id: "A", index: 0 },
+    gate: { trackId: "A", clipId: "p", range, closed, implicit: true },
+  });
+
+  test("a closed portion is opened as a muted clip first, so it stays silent", () => {
+    assert.deepEqual(portionDragEdit(silenced, hitOn([4 * S, 6 * S], true), new Set(["p"])), {
+      op: "open_gated_region",
+      args: { track_id: "A", clip_id: "p", at: 5 * S, muted: true },
+      coalesce: `portion-drag:p:${5 * S}`,
+    });
+  });
+  test("an open portion is opened as a sounding clip", () => {
+    const edit = portionDragEdit(silenced, hitOn([6 * S, 10 * S], false), new Set());
+    assert.deepEqual(edit.args, { track_id: "A", clip_id: "p", at: 8 * S, muted: false });
+  });
+  test("a press off any portion, or a stale range, drags the clip as before", () => {
+    const plain = { clip: parent, row: { kind: "track", id: "A", index: 0 }, gate: null };
+    assert.equal(portionDragEdit(silenced, plain, new Set()), null);
+    assert.equal(portionDragEdit(silenced, hitOn([3 * S, 6 * S], true), new Set()), null);
+  });
+  test("a selection of several clips, or a group, moves as it is", () => {
+    assert.equal(portionDragEdit(silenced, hitOn([4 * S, 6 * S], true), new Set(["p", "q"])), null);
+    const grouped = {
+      ...silenced,
+      tracks: [
+        {
+          ...silenced.tracks[0],
+          clips: silenced.tracks[0].clips.map((clip) => ({ ...clip, group: "g" })),
+        },
+      ],
+    };
+    assert.equal(portionDragEdit(grouped, hitOn([4 * S, 6 * S], true), new Set()), null);
   });
 });

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { audibleSegments, overviewRuns } from "../overview-segments.js";
+import { audibleSegments, overviewMarks, overviewRuns } from "../overview-segments.js";
 
 const clip = (start, length, extra = {}) => ({ id: `c${start}`, start, length, ...extra });
 
@@ -27,6 +27,21 @@ describe("audibleSegments", () => {
     const open = { gate: [[40, 60]], clips: [clip(0, 100, { ungated: true })] };
     assert.deepEqual(audibleSegments(open), [[0, 100]]);
   });
+  test("clip Auto-Silence is mapped from source frames into the overview", () => {
+    const track = {
+      clips: [clip(100, 100, { offset: 500, auto_silence: [[520, 540]] })],
+    };
+    assert.deepEqual(audibleSegments(track), [
+      [100, 120],
+      [140, 200],
+    ]);
+  });
+  test("one clip's Auto-Silence does not hide overlapping audio on the same track", () => {
+    const track = {
+      clips: [clip(100, 100, { auto_silence: [[120, 140]] }), clip(100, 100, { id: "overlap" })],
+    };
+    assert.deepEqual(audibleSegments(track), [[100, 200]]);
+  });
   test("preview ranges are cut out too", () => {
     const track = { gate: [[0, 10]], clips: [clip(0, 100)] };
     assert.deepEqual(audibleSegments(track, [[50, 100]]), [[10, 50]]);
@@ -49,5 +64,26 @@ describe("overviewRuns", () => {
   });
   test("short speech still shows", () => {
     assert.deepEqual(overviewRuns([[500, 501]], 1000, 100), [50, 51]);
+  });
+});
+
+describe("overviewMarks", () => {
+  // Owner, 2026-10-25: the strip gets its own times, sparse, at a quarter, half and three quarters
+  // of the edit (no times at the two ends).
+  test("marks a quarter, half and three quarters of the edit, not the ends", () => {
+    const marks = overviewMarks(4000, 400, 1, (seconds) => `t${seconds}`);
+    assert.deepEqual(marks, [
+      { x: 100, label: "t1000" },
+      { x: 200, label: "t2000" },
+      { x: 300, label: "t3000" },
+    ]);
+  });
+
+  test("the times come from the project rate, not from frames", () => {
+    const marks = overviewMarks(96000, 100, 48000, (seconds) => String(seconds));
+    assert.deepEqual(
+      marks.map((mark) => mark.label),
+      ["0.5", "1", "1.5"],
+    );
   });
 });

@@ -40,14 +40,27 @@ function subtract(keep, cut) {
  */
 export function audibleSegments(track, preview = null) {
   if (track.mute) return [];
-  const gated = [];
-  const open = [];
+  const audible = [];
+  const trackClosed = merge([...(track.gate ?? []), ...(preview ?? [])]);
   for (const clip of track.clips ?? []) {
     if (clip.muted) continue;
-    (clip.ungated ? open : gated).push([clip.start, clip.start + clip.length]);
+    const span = [[clip.start, clip.start + clip.length]];
+    if (clip.ungated) {
+      audible.push(...span);
+      continue;
+    }
+    const sourceStart = clip.offset ?? 0;
+    const sourceEnd = sourceStart + clip.length;
+    const clipClosed = merge(
+      (clip.auto_silence ?? []).map(([start, end]) => {
+        const from = Math.max(start, sourceStart);
+        const to = Math.min(end, sourceEnd);
+        return [clip.start + from - sourceStart, clip.start + to - sourceStart];
+      }),
+    );
+    audible.push(...subtract(subtract(span, trackClosed), clipClosed));
   }
-  const closed = merge([...(track.gate ?? []), ...(preview ?? [])]);
-  return merge([...subtract(merge(gated), closed), ...open]);
+  return merge(audible);
 }
 
 /**
@@ -67,4 +80,18 @@ export function overviewRuns(segments, total, width) {
     else out.push(x0, x1);
   }
   return out;
+}
+
+/** The strip's own times: a quarter, a half and three quarters of the edit (no ends). */
+export const OVERVIEW_SHARES = [0.25, 0.5, 0.75];
+
+/**
+ * { x, label } for each share of the edit in the strip's `width`; `formatTime(seconds)` gives the
+ * label, so the strip reads like the ruler above it.
+ */
+export function overviewMarks(total, width, rate, formatTime) {
+  return OVERVIEW_SHARES.map((share) => ({
+    x: Math.round(share * width),
+    label: formatTime((share * total) / rate),
+  }));
 }

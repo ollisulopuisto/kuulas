@@ -183,7 +183,20 @@ describe("painting waveforms (what the worker runs)", () => {
   });
 
   // The silent-state language (docs/design/SILENCE-VISUALS.md): filled = sounds, outline only
-  // (no fill) = silent. The body under a silent stretch is toned down a little; no hatch.
+  // (no fill) = silent. The body under a silent stretch is toned down a little, and it is hatched
+  // when a hatch colour is set (the next test).
+  test("a silent run is hatched, clipped to its own box, when a hatch colour is set", () => {
+    const { ctx, calls, sets } = fakeContext();
+    const gated = job({ silentBody: "rgb(0 0 0 / 0.08)", silentHatch: "rgb(9 9 9 / 0.3)" });
+    gated.rows[0].gate = [20, 60];
+    paintWaveforms(ctx, gated, () => loud());
+    assert.ok(sets.some((s) => s[0] === "strokeStyle" && s[1] === "rgb(9 9 9 / 0.3)"));
+    const clips = calls.filter((c) => c[0] === "rect" && c[1] === 20);
+    assert.ok(clips.length >= 1, "the hatch is clipped to the silent run's box");
+    assert.ok(calls.some((c) => c[0] === "clip"));
+    assert.ok(count(calls, "stroke") >= 2, "the stripes are stroked");
+  });
+
   test("columns under a gate lose their fill: an outline of the wave instead", () => {
     const { ctx, calls, sets } = fakeContext();
     const gated = job({ silentBody: "rgb(0 0 0 / 0.08)" });

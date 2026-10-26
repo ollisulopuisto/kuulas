@@ -2,9 +2,10 @@
 // box for the visible part. Click or drag to move the box.
 
 import { backingSize } from "./canvas-size.js";
+import { formatClock } from "./i18n.js";
 import { siblingsOf } from "./labels.js";
 import { projectEnd } from "./lanes.js";
-import { audibleSegments, overviewRuns } from "./overview-segments.js";
+import { audibleSegments, overviewMarks, overviewRuns } from "./overview-segments.js";
 import { trackHues } from "./paint.js";
 import { readTheme } from "./theme.js";
 import { overviewScroll, overviewWindow } from "./view.js";
@@ -13,6 +14,7 @@ import { overviewScroll, overviewWindow } from "./view.js";
 // visible-part box (accent) is the strongest thing in it. A track's bar is drawn only
 // where that track sounds; every silent stretch is a gap, whatever the reason.
 const OVERVIEW_ALPHA = 0.6;
+const OVERVIEW_LABEL_PX = 10;
 
 export function createOverview({ canvas, getState, getTimelineWidth, actions }) {
   const context = canvas.getContext("2d");
@@ -80,6 +82,14 @@ export function createOverview({ canvas, getState, getTimelineWidth, actions }) 
           if (siblings.has(clip.id)) context.fillRect((clip.start / total) * width, 0, 2, 4);
         }
       }
+    }
+    // Sparse times along the strip (a quarter, half, three quarters), in the ruler's own format.
+    context.fillStyle = theme.rulerText;
+    context.font = `${OVERVIEW_LABEL_PX}px system-ui, sans-serif`;
+    context.textBaseline = "bottom";
+    for (const mark of overviewMarks(total, width, state.project.rate, formatClock)) {
+      context.fillRect(mark.x, height - 6, 1, 6);
+      context.fillText(mark.label, mark.x + 3, height - 1);
     }
     const box = overviewWindow({
       total,

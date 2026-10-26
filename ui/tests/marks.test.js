@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { lengthPill, markDrawing, setInPoint, setOutPoint } from "../marks.js";
+import { implicitMarkPlan, lengthPill, markDrawing, setInPoint, setOutPoint } from "../marks.js";
 
 describe("setting the in and out marks", () => {
   test("a lone mark is set as it is", () => {
@@ -95,5 +95,33 @@ describe("lengthPill (the length on the ruler band)", () => {
     const edge = lengthPill({ range: { start: 7000, end: 12000 }, ...view });
     assert.equal(edge.center, 750); // 100 visible px at x 700..800
     assert.equal(lengthPill({ range: { start: 7300, end: 12000 }, ...view }), null); // 50 px left
+  });
+});
+
+describe("a click completes the lone mark", () => {
+  // Owner, 2026-10-25: with only I set, a click after it is the O; with only O set, a click
+  // before it is the I. A click on the wrong side changes nothing.
+  const lone = (inPoint, outPoint) => ({ inPoint, outPoint, ghost: null, guessedMarks: {} });
+
+  test("after I, a click later on sets O", () => {
+    const patch = implicitMarkPlan(lone(100, null), 300);
+    assert.equal(patch.inPoint, 100);
+    assert.equal(patch.outPoint, 300);
+  });
+
+  test("after O, a click earlier sets I", () => {
+    const patch = implicitMarkPlan(lone(null, 500), 200);
+    assert.equal(patch.inPoint, 200);
+    assert.equal(patch.outPoint, 500);
+  });
+
+  test("a click on the wrong side of the lone mark does nothing", () => {
+    assert.equal(implicitMarkPlan(lone(100, null), 50), null);
+    assert.equal(implicitMarkPlan(lone(null, 500), 600), null);
+  });
+
+  test("with both marks set, or none, a click does nothing", () => {
+    assert.equal(implicitMarkPlan(lone(100, 500), 300), null);
+    assert.equal(implicitMarkPlan(lone(null, null), 300), null);
   });
 });

@@ -9,6 +9,7 @@
 // the menu and returns to the bar. Disabled items are focusable (they teach) but
 // do nothing. No mnemonics.
 
+import { placeMenu } from "./menu-fit.js";
 import { flashTop } from "./menu-flash.js";
 import { isHoverPointer, movingToward, rowHover, topHover } from "./menu-hover.js";
 import { findItem, fitMenus, moveItem, moveMenu, overflowMenu } from "./menu-model.js";
@@ -57,6 +58,7 @@ export function createMenubar({ root, getMenus, run, onHint, t, search = null })
     draw();
     fit();
     if (shown < getMenus().length) draw();
+    placeLists();
     if (focusAfter) focusCurrent();
   }
 
@@ -84,6 +86,23 @@ export function createMenubar({ root, getMenus, run, onHint, t, search = null })
       cell.append(button);
       if (at.open && at.top === index) cell.append(list(menu.items, false));
       root.append(cell);
+    });
+  }
+
+  // An open list (and a submenu) that would leave the window is moved back into it.
+  function placeLists() {
+    const view = { width: window.innerWidth, height: window.innerHeight };
+    root.querySelectorAll(".menu-list").forEach((ul) => {
+      ul.classList.remove("flip-left");
+      ul.style.transform = "";
+      const parent = ul.parentElement?.closest(".menu-list");
+      const { flipX, shiftY } = placeMenu({
+        box: ul.getBoundingClientRect(),
+        parent: parent ? parent.getBoundingClientRect() : null,
+        view,
+      });
+      ul.classList.toggle("flip-left", flipX);
+      if (shiftY !== 0) ul.style.transform = `translateY(${shiftY}px)`;
     });
   }
 

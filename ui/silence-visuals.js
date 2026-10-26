@@ -258,3 +258,17 @@ export function desaturatePalette(palette) {
     Object.fromEntries(Object.entries(entry).map(([key, value]) => [key, desaturateColour(value)])),
   );
 }
+
+/**
+ * The stripes of a 45-degree hatch over a silent run of `width` x `height` at (x, y): each is a
+ * [x1, y1, x2, y2] segment, bottom-left to top-right, one every `gap` px. The first starts one
+ * height left of the run, so the corner is covered; the caller clips them to the run.
+ */
+export function hatchSegments(x, y, width, height, gap) {
+  const lines = [];
+  if (width <= 0 || height <= 0) return lines;
+  for (let d = -height; d < width; d += gap) {
+    lines.push([x + d, y + height, x + d + height, y]);
+  }
+  return lines;
+}

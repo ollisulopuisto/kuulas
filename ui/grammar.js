@@ -601,6 +601,7 @@ export const SEMANTIC_TOKENS = [
   "--signal-gate",
   "--signal-gate-opacity",
   "--signal-silent-body",
+  "--signal-silent-hatch",
   "--signal-gate-lock",
   "--signal-gate-open",
   "--signal-group",
