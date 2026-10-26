@@ -100,6 +100,11 @@ _PRIORITY = ("marked", "retake", "filler", "silence", "breath")
 
 _NOT_WORD = re.compile(r"[^\w]+")
 
+_COMPILED_HESITATIONS = {
+    lang: re.compile(f"^(?:{'|'.join(f'(?:{pat})' for pat in table['hesitation'])})$")
+    for lang, table in FILLERS.items() if table["hesitation"]
+}
+
 
 class CandidateError(ops.EditError):
     """A candidate request that cannot be done; nothing changed."""
@@ -241,10 +246,14 @@ def is_filler(word: str, lang: str | None = None) -> str | None:
     w = _norm(word)
     if not w:
         return None
-    tables = [FILLERS[lang]] if lang in FILLERS else list(FILLERS.values())
-    for table in tables:
-        if any(re.fullmatch(pat, w) for pat in table["hesitation"]):
+
+    langs = [lang] if lang in FILLERS else list(FILLERS.keys())
+    for cur_lang in langs:
+        pat = _COMPILED_HESITATIONS.get(cur_lang)
+        if pat and pat.match(w):
             return "hesitation"
+
+    tables = [FILLERS[lang]] if lang in FILLERS else list(FILLERS.values())
     for table in tables:
         if w in table["discourse"]:
             return "discourse"

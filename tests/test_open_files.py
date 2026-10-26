@@ -225,7 +225,7 @@ def test_installing_the_hook_adds_application_openfiles_to_the_delegate_class():
 
     delegate = type("Delegate", (), {})
     assert desktop.install_open_files_hook(lambda _paths: None, objc=FakeObjc,
-                                           delegate_class=delegate)
+                                           delegate_class=delegate, platform="darwin")
     assert added == [(delegate, b"application:openFiles:",
                       ("selector", b"application:openFiles:", b"v@:@@"))]
 

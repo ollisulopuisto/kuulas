@@ -61,6 +61,24 @@ def test_auto_silence_is_attached_in_source_frames_and_moves_with_clip():
         "new clips do not inherit another clip's silence")
 
 
+def test_dragging_a_clip_converts_its_legacy_track_gate_to_clip_silence():
+    project = ops.add_track(project_with_clip(), track_id="u", name="U")
+    project = ops.set_gate(project, "t", ((100, 200),))
+    project = ops.set_gate(project, "u", ((500, 600),))
+
+    moved = ops.move_clips_to_track(project, ["c"], 1, delta=500)
+
+    clip = moved.track("u").clips[0]
+    assert clip.auto_silence == ((100, 200),)
+    assert moved.track("t").gate == ()
+    assert moved.track("u").gate == ()
+    assert analysis.current_silence_ranges(moved) == {"u": ((600, 700),)}
+    store = MemoryStore({"m": np.ones((1, 2000), dtype=np.float32)})
+    assert not mixer.mix(moved, store, 600, 100).any()
+    assert mixer.mix(moved, store, 500, 100).any(), (
+        "a clip moved to a legacy-gated track must not inherit its gate")
+
+
 def test_opening_one_implicit_region_makes_only_that_portion_a_real_clip():
     project = analysis.apply_silence(project_with_clip(), {"t": ((100, 200),)})
 

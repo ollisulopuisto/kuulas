@@ -128,9 +128,11 @@ import { activeLoop, rangeAvailable } from "./loop-range.js";
 import { createLoudnessLoader } from "./loudness-readout.js";
 import { regionCount } from "./markers-model.js";
 import { createMarkersPanel } from "./markers-panel.js";
+import { implicitMarkPlan } from "./marks.js";
 import { createMarksCorner } from "./marks-corner.js";
 import { createMaterialPanel } from "./material-panel.js";
 import { missingNotice } from "./media-copy-model.js";
+import { MENU, menuTargets } from "./menu-model.js";
 import { heldFromEvent } from "./modifiers.js";
 import { monoDecision, monoEdits } from "./mono-ask.js";
 import { motionMode } from "./motion.js";
@@ -200,11 +202,24 @@ import {
 import { densityAttribute, nextTheme, themeAttribute } from "./theme.js";
 import { createTimeline } from "./timeline.js";
 import { contextPress, menuFromSections, timelineMenuItems } from "./timeline-menu.js";
+import { applyToolbarMenu, moveButton, resetLayout, toolbarMenuItems } from "./toolbar-model.js";
+import {
+  otherMode,
+  readLayout,
+  readMode,
+  readVisible,
+  writeLayout,
+  writeMode,
+  writeVisible,
+} from "./toolbar-prefs.js";
+import { createToolbarRail } from "./toolbar-rail.js";
+import { installTooltips } from "./tooltip.js";
 import { createTrackHeaders } from "./tracks.js";
 import { withoutMusic } from "./transcribable.js";
 import { createTranscript } from "./transcript.js";
 import { mutedInputsKey, pauseChoiceId } from "./transcript-model.js";
 import { createTransport } from "./transport.js";
+import { noteUse, readUse, writeUse } from "./use-hints.js";
 import * as View from "./view.js";
 import { changeKey, createSaver, recordOf, restoreFrom } from "./view-memory.js";
 import { nextWheelMode, wheelModeChoice } from "./wheel.js";
@@ -237,6 +252,7 @@ const booting = {
 void ensureCatalog("en");
 void ensureCatalog(detectLanguage());
 const prefs = await loadPrefs(); // server-side store, read once before the first prefs.get
+let toolbarRail; // the toolbar rail (WP86); declared here because the keymap refresh can run first
 const WAVEFORM_GAIN = { min: 1 / 8, max: 32, snap: 0.04 };
 const LANE_STEP = 8;
 const SETTLE_MS = 160;
@@ -984,6 +1000,24 @@ const actions = {
     setSidebar(shown);
     showNotice(t(shown ? "ui.sidebar.on" : "ui.sidebar.off"), "ok");
   },
+  // The toolbar rail (WP86): the user's own choices, remembered; none of them moves a button.
+  toggleToolbar() {
+    const visible = getState().toolbarVisible === false;
+    writeVisible(prefs, visible);
+    toolbarRail.setVisible(visible);
+    setState({ toolbarVisible: visible });
+  },
+  toggleToolbarLabels() {
+    const mode = otherMode(getState().toolbarMode);
+    writeMode(prefs, mode);
+    toolbarRail.setMode(mode);
+    setState({ toolbarMode: mode });
+  },
+  resetToolbar() {
+    writeLayout(prefs, resetLayout());
+    toolbarRail.setLayout(resetLayout());
+    showNotice(t("ui.toolbar.reset_done"), "ok");
+  },
   setInactiveStyle: (style) => setInactiveStyle(style),
   toggleClipboardLimit: () => toggleClipboardLimit(),
   fastListening: () => changeFast(toggleFast),
@@ -1162,8 +1196,9 @@ function onWheel(intent, x) {
         width(),
         totalFrames(),
       );
-      setState({ scroll });
+      // Detach Follow first: the scroll below would otherwise be pulled back to the playhead.
       markPaused();
+      setState({ scroll });
     }
     if (intent.dy) $("track-headers").scrollTop += intent.dy;
   } else if (intent.kind === "zoom") {
@@ -1427,6 +1462,7 @@ const keyboard = setupKeyboard({
   // The Help button shows the key help has now, F1 or the user's own.
   onRefresh(entries) {
     applyCommandShortcuts(document, entries, detectPlatform());
+    toolbarRail?.update();
     const button = $("help-button");
     const platform = detectPlatform();
     const keys = shortcutsFor(HELP_COMMAND, entries);
@@ -4040,6 +4076,12 @@ const timeline = createTimeline({
   actions: {
     pointerDown: onPointerDown,
     seek: (frame) => void transport.seek(frame),
+    // A click on a clip (no travel) also completes a lone in or out mark (marks.js).
+    clickSeek: (frame) => {
+      const mark = implicitMarkPlan(getState(), frame);
+      if (mark) setState(mark);
+      void transport.seek(frame);
+    },
     contextMenu: (hit, event) => showTimelineMenu(hit, event),
     rangeDragged: onRangeDragged,
     hint(text) {
@@ -4060,7 +4102,7 @@ const timeline = createTimeline({
         provisional: (p) => patchClip(p, clipId, { muted: plan.args.muted }),
       });
     },
-    clipDrag({ ids, move, alone = false }) {
+    clipDrag({ ids, move, alone = false, coalesce = null }) {
       // Alt held: it then asks whether the clip should stay free from sync (owner, 2026-10-16).
       // Nothing but an explicit group moves along with it (WP83).
       const change = clipDragChange(ids, move);
@@ -4070,7 +4112,34 @@ const timeline = createTimeline({
         op: change.op,
         args: change.args,
         label: t(change.labelKey),
+        // A portion's drag shares its open's key, so the open and the move undo as one step.
+        coalesce,
         done: alone ? () => void askToFree(ids) : undefined,
+      });
+    },
+    // A drag on an implicit portion (clip-drag.js portionDragEdit): open it as a clip, then
+    // `done(id)` with the new clip's id (null when it cannot be found), so the drag moves it.
+    // The new clip is selected at once, as after M, so a cancelled drag leaves it picked.
+    openPortion(edit, done) {
+      const before = getState().project;
+      const track = before?.tracks?.find((item) => item.id === edit.args.track_id);
+      const source = track?.clips.find((item) => item.id === edit.args.clip_id) ?? null;
+      editor.change({
+        op: edit.op,
+        args: edit.args,
+        label: t("history.auto_silence"),
+        coalesce: edit.coalesce,
+        done: (response) => {
+          const id = openedRegionClip(
+            response.project,
+            edit.args.track_id,
+            edit.args.at,
+            source,
+            track?.gate,
+          );
+          setState({ ...(id ? { selection: new Set([id]) } : {}), implicitRangeTarget: null });
+          done(id);
+        },
       });
     },
     clipGain({ clipId, gain }) {
@@ -4192,8 +4261,9 @@ overview = createOverview({
   actions: {
     scrollTo(scroll) {
       fitWhole = false;
-      setState({ scroll: View.clampScroll(scroll, getState().zoom, width(), totalFrames()) });
+      // Detach Follow first, as the wheel and the zoom do (see markPaused).
       markPaused();
+      setState({ scroll: View.clampScroll(scroll, getState().zoom, width(), totalFrames()) });
     },
   },
 });
@@ -4283,7 +4353,7 @@ function updateRangeInfo() {
 }
 let lastLoopKey = "null";
 
-function render(state, patch) {
+function render(state, patch, previous = null) {
   const changed = patch ? new Set(Object.keys(patch)) : null;
   const touched = (...names) => changed === null || names.some((name) => changed.has(name));
   timeline.redraw();
@@ -4541,12 +4611,13 @@ function render(state, patch) {
     }
   }
   // Starting or stopping playback puts Follow back on (follow-model.js).
-  if (changed !== null && touched("playing") && state.followPaused)
+  if (previous && previous.playing !== state.playing && state.followPaused)
     followEvent({ type: state.playing ? "play-start" : "play-stop" });
   if (touched("playhead", "playing", "zoom", "scroll", "followMode", "followPaused"))
     follow(state, touched("playhead"));
   if (touched("playhead", "playing", "zoom", "scroll", "followPaused", "project"))
     updateFollowChip(state);
+  toolbarRail?.update();
   transcript.update(state, patch);
 }
 
@@ -4572,6 +4643,68 @@ function updateFollowChip(state) {
   arrow.textContent = side === "left" ? `◀ ${time}` : `${time} ▶`;
   arrow.title = t("ui.view.follow_arrow", { time });
 }
+// Right-click on a menu row or on a toolbar button: Add to or Remove from the toolbar (WP86).
+// This is how the user builds the toolbar; nothing else changes its buttons or their places.
+function openToolbarMenu(id, event) {
+  const target = event.target.closest?.("button") ?? event.currentTarget;
+  const box = target.getBoundingClientRect();
+  // From the keyboard (the menu key) the event has no pointer position: use the button.
+  const keyboardOpened = event.clientX === 0 && event.clientY === 0;
+  openContextMenu({
+    x: keyboardOpened ? box.left + 24 : event.clientX,
+    y: keyboardOpened ? box.top + 12 : event.clientY,
+    items: toolbarMenuItems(id, toolbarRail.layout()),
+    onPick: (pick) => {
+      const layout = toolbarRail.layout();
+      const next = applyToolbarMenu(layout, id, pick);
+      if (next === layout) return;
+      writeLayout(prefs, next);
+      toolbarRail.setLayout(next);
+      const name = t(`cmd.${id}`);
+      showNotice(t(pick === "pin" ? "ui.toolbar.added" : "ui.toolbar.removed", { name }), "ok");
+    },
+  });
+}
+$("menubar").addEventListener("contextmenu", (event) => {
+  const row = event.target.closest?.(".menu-item[data-command-id]");
+  if (!row) return;
+  event.preventDefault();
+  openToolbarMenu(row.dataset.commandId, event);
+});
+
+// Hints from use (WP86): a text notice once, after many hand mutes. The counter stays in this browser.
+let useHints = readUse(prefs);
+keyboard.registry.onRun((id) => {
+  const step = noteUse(useHints, id);
+  if (step.state === useHints) return;
+  useHints = step.state;
+  writeUse(prefs, useHints);
+  if (step.hint) showNotice(t(step.hint), "info");
+});
+
+// The toolbar rail (WP86): the user's own layout, drawn left of the track headers.
+toolbarRail = createToolbarRail({
+  root: $("toolbar-rail"),
+  editor: document.querySelector(".editor"),
+  registry: keyboard.registry,
+  getState,
+  t,
+  keyOf: (id) => keyboard.format(shortcutsFor(id, keyboard.entries())[0] ?? ""),
+  run: (id) => keyboard.registry.run(id, null, getState()),
+  onContext: openToolbarMenu,
+  onMove: (id, to) => {
+    const layout = toolbarRail.layout();
+    const next = moveButton(layout, id, to);
+    if (next.join("\n") === layout.join("\n")) return;
+    writeLayout(prefs, next);
+    toolbarRail.setLayout(next);
+  },
+  layout: readLayout(prefs, new Set(menuTargets(MENU))),
+  mode: readMode(prefs),
+  visible: readVisible(prefs),
+});
+setState({ toolbarVisible: readVisible(prefs), toolbarMode: readMode(prefs) });
+toolbarRail.update();
 $("follow-chip").addEventListener("click", () => followEvent({ type: "toggle" }));
 $("follow-arrow").addEventListener("click", () => followEvent({ type: "show" }));
 
@@ -4797,6 +4930,8 @@ connectLive({
     }
   },
 });
+
+installTooltips();
 
 // The long-task monitor of the performance rule (no main-thread task over 16 ms):
 // open the page with ?dev to log every task that breaks it.

@@ -1,6 +1,6 @@
 [project]
 name = "kuulas"
-version = "26.10.25.5"
+version = "26.10.26.4"
 description = "Multitrack spoken-word DAW: transcript editing, buses, the speechmix pipeline"
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -23,6 +23,8 @@ dependencies = [
     "python-multipart>=0.0.20",
     "sounddevice>=0.5.2",
     "soundfile>=0.14.0",
+    # Windows has no system IANA database for zoneinfo; provide one in the app environment.
+    "tzdata>=2025.1; sys_platform == 'win32'",
     # Streaming resampler, for an output device that cannot run the project
     # rate (WP2). Playback only; export stays at the project rate.
     "soxr>=1.1.0",

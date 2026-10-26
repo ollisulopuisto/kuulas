@@ -9,6 +9,7 @@ import { wordState } from "./focus-words.js";
 import { frameToTime } from "./format.js";
 import { formatNumber, getLanguage, t } from "./i18n.js";
 import { setIcon } from "./icons.js";
+import { implicitMarkPlan } from "./marks.js";
 import { canShow, removedSummary, statusKey } from "./material-hits.js";
 import { canPutBack, commandArgs, describePlan } from "./put-back-model.js";
 import { musicNote } from "./transcribable.js";
@@ -37,6 +38,7 @@ import {
   pauseMarkers,
   pauseSecondsOf,
   placeCursor,
+  popShown,
   rightClickPick,
   selectedIndices,
   selectionFrames,
@@ -85,10 +87,10 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   const pop = el("div", "tx-pop");
   pop.setAttribute("role", "toolbar");
   pop.hidden = true;
-  // The find bar (Mod+F): sticky at the top of the dock, hidden until asked for.
+  // The find bar: sticky at the top of the dock and always there, so searching is not a hidden
+  // key (WP86). Mod+F focuses it; the cross clears it.
   const findBar = el("div", "tx-find");
   findBar.setAttribute("role", "search");
-  findBar.hidden = true;
   const findInput = el("input", "tx-find-input");
   findInput.type = "search";
   findInput.autocomplete = "off";
@@ -208,7 +210,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     renderEmptyState();
     renderWindow();
     markNow();
-    if (!findBar.hidden) runFind(false);
+    runFind(false);
   }
 
   // -- the empty state ----------------------------------------------------------------------------
@@ -641,11 +643,23 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     const { from, moved } = drag;
     drag = null;
     if (list.hasPointerCapture(event.pointerId)) list.releasePointerCapture(event.pointerId);
-    if (moved) return;
-    // A click: the cursor and the play cursor go to the word.
+    if (moved) {
+      renderPop();
+      return;
+    }
+    // A click: the cursor and the play cursor go to the word. With only I or only O set, the
+    // click is the other mark too (marks.js implicitMarkPlan).
     setState({ transcriptSelection: placeCursor(from) });
+    const mark = implicitMarkPlan(getState(), words[from].s);
+    if (mark) setState(mark);
     setPaused(false);
     actions.jump(words[from].s);
+  });
+  // A touch that the browser takes over (a pan) ends the drag with no pointerup.
+  list.addEventListener("pointercancel", () => {
+    if (!drag) return;
+    drag = null;
+    renderPop();
   });
   list.addEventListener("click", (event) => {
     const marker = event.target.closest?.(".tx-pause");
@@ -717,7 +731,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
 
   function renderPop() {
     const picked = chosen();
-    if (picked.length === 0 || editing) {
+    if (!popShown({ picked, editing, dragging: drag?.moved === true })) {
       pop.hidden = true;
       return;
     }
@@ -981,7 +995,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
 
   function paintRemoved() {
     const summary = removedSummary(removedHits.length);
-    removed.hidden = findBar.hidden || summary === null;
+    removed.hidden = summary === null;
     if (removed.hidden) return;
     removedToggle.textContent = `${removedOpen ? "▾" : "▸"} ${t(summary.key, summary.values)}`;
     removedToggle.setAttribute("aria-expanded", String(removedOpen));
@@ -1021,7 +1035,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     clearTimeout(removedTimer);
     const query = findQuery.trim();
     const ask = ++removedAsk;
-    if (query === "" || findBar.hidden) {
+    if (query === "") {
       removedHits = [];
       paintRemoved();
       return;
@@ -1099,14 +1113,13 @@ export function createTranscript({ root, getState, setState, api, actions }) {
 
   function openFind(options = {}) {
     if (options.removed) removedOpen = true;
-    findBar.hidden = false;
     findInput.focus();
     findInput.select();
     runFind(false);
   }
 
+  /** Clear the search and give the keyboard back to the transcript; the field stays. */
   function closeFind() {
-    findBar.hidden = true;
     const before = foundWords;
     findQuery = "";
     findInput.value = "";

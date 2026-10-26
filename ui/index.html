@@ -54,7 +54,12 @@
             <button id="render-mix" type="button" class="button render-seg" aria-pressed="false" data-i18n="ui.render.mix"></button>
           </div>
         </div>
-        <div id="track-headers" data-help-id="track-headers" class="heads-scroll" data-i18n-aria-label="ui.focus.tracks"></div>
+        <!-- The toolbar rail (WP86, docs/design/TOOLBAR.md) sits left of the track headers, level with
+             them, so the headers stay level with the lanes. toolbar-rail.js fills it. -->
+        <div class="heads-row">
+          <nav id="toolbar-rail" class="tool-rail" data-i18n-aria-label="ui.rail.label" hidden></nav>
+          <div id="track-headers" data-help-id="track-headers" class="heads-scroll" data-i18n-aria-label="ui.focus.tracks"></div>
+        </div>
       </aside>
       <section class="tl-column" data-panel="timeline">
         <canvas id="overview" class="overview" data-i18n-aria-label="ui.overview.label" role="img"></canvas>

@@ -36,6 +36,7 @@ import secrets
 import shutil
 import socket
 import sqlite3
+import tempfile
 import threading
 from datetime import UTC, datetime, timedelta, tzinfo
 from importlib import metadata
@@ -43,7 +44,7 @@ from pathlib import Path
 from typing import Any
 
 from . import db as dbm
-from . import migrations, priority, syncmark
+from . import migrations, priority, processes, syncmark
 from .clock import RateError, check_rate
 from .history import History
 from .media import MediaStore
@@ -137,17 +138,18 @@ def _parse_iso(text: str) -> datetime:
 
 def write_json_atomic(path: Path, data: dict) -> None:
     """Temp file, fsync, rename: the old file or the new one, never half."""
-    # The token keeps two threads writing one file from sharing a temp file.
-    tmp = path.with_name(f"{path.name}.{os.getpid()}.{secrets.token_hex(4)}.tmp")
-    with tmp.open("w", encoding="utf-8") as f:
-        json.dump(data, f, indent=1, ensure_ascii=False)
-        f.flush()
-        os.fsync(f.fileno())
+    # Exclusive creation prevents a pre-existing temp symlink from truncating a
+    # recording. The temp is in the same directory, so replacement stays atomic.
+    fd, name = tempfile.mkstemp(prefix=f"{path.name}.", suffix=".tmp", dir=path.parent)
+    tmp = Path(name)
     try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=1, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
         os.replace(tmp, path)
-    except OSError:
+    finally:
         tmp.unlink(missing_ok=True)
-        raise
     if hasattr(os, "O_DIRECTORY"):  # POSIX: make the rename itself durable
         fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
         try:
@@ -235,17 +237,7 @@ def _is_mine(lock: dict) -> bool:
 def _pid_alive(pid: object) -> bool:
     """Is process `pid` running on this machine? Unknown or odd pids count as alive,
     so a lock is only taken over early when we are sure its owner is gone."""
-    if not isinstance(pid, int) or pid <= 0:
-        return True
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    except OSError:
-        return True
-    return True
+    return processes.pid_alive(pid) is not False
 
 
 def _write_lock(folder: Path, instance: str, now: datetime,
@@ -579,7 +571,9 @@ def backup_to(db_path: Path, target: Path) -> Path:
     finally:
         copy.close()
         source.close()
-    with partial.open("rb") as f:
+    # Windows requires a writable handle for os.fsync; keep the completed SQLite copy
+    # open for read/write while flushing it before the atomic rename.
+    with partial.open("r+b") as f:
         os.fsync(f.fileno())
     partial.replace(target)
     _fsync_dir(target.parent)

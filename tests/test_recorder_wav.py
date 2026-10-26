@@ -30,6 +30,40 @@ def as_ints(path) -> np.ndarray:
     return data >> 8  # soundfile scales 24-bit up to 32-bit
 
 
+def test_header_generation():
+    """The wav header function should return exactly 44 bytes and have correct RIFF chunk values."""
+    rate = 48000
+    data_bytes = 0
+    head = wavfile.header(rate, data_bytes)
+    assert len(head) == 44
+
+    unpacked = struct.unpack("<4sI4s4sIHHIIHH4sI", head)
+    # Fields: RIFF, 36+data_bytes, WAVE, fmt , 16, 1, 1, rate, rate * 3, 3, 24, data, data_bytes
+    assert unpacked[0] == b"RIFF"
+    assert unpacked[1] == 36 + data_bytes
+    assert unpacked[2] == b"WAVE"
+    assert unpacked[3] == b"fmt "
+    assert unpacked[4] == 16
+    assert unpacked[5] == 1  # format PCM
+    assert unpacked[6] == 1  # channels (mono)
+    assert unpacked[7] == rate
+    assert unpacked[8] == rate * 3  # byte rate
+    assert unpacked[9] == 3  # block align
+    assert unpacked[10] == 24  # bits per sample
+    assert unpacked[11] == b"data"
+    assert unpacked[12] == data_bytes
+
+    rate2 = 44100
+    data_bytes2 = 12000
+    head2 = wavfile.header(rate2, data_bytes2)
+    assert len(head2) == 44
+    unpacked2 = struct.unpack("<4sI4s4sIHHIIHH4sI", head2)
+    assert unpacked2[1] == 36 + data_bytes2
+    assert unpacked2[7] == rate2
+    assert unpacked2[8] == rate2 * 3
+    assert unpacked2[12] == data_bytes2
+
+
 def test_pcm24_round_trips_and_clips():
     x = np.array([0.0, 0.5, -0.5, 1.0, -1.0, 2.0, -2.0, 1 / (1 << 23)], np.float32)
     raw = wavfile.float_to_pcm24(x)
@@ -38,6 +72,20 @@ def test_pcm24_round_trips_and_clips():
             for i in range(0, len(raw), 3)]
     assert vals == [0, 1 << 22, -(1 << 22), (1 << 23) - 1, -(1 << 23), (1 << 23) - 1,
                     -(1 << 23), 1]
+
+
+def test_float_to_pcm24_empty():
+    assert wavfile.float_to_pcm24([]) == b""
+
+
+def test_float_to_pcm24_list_input():
+    assert wavfile.float_to_pcm24([0.0, 0.5]) == b'\x00\x00\x00\x00\x00@'
+
+
+def test_float_to_pcm24_nan_inf():
+    with pytest.warns(RuntimeWarning, match="invalid value encountered in cast"):
+        raw = wavfile.float_to_pcm24(np.array([np.nan, np.inf, -np.inf]))
+    assert raw == b'\x00\x00\x00\xff\xff\x7f\x00\x00\x80'
 
 
 def test_new_file_is_a_valid_empty_wav(tmp_path):

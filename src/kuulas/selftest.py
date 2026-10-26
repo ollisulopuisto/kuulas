@@ -14,6 +14,7 @@ from __future__ import annotations
 import importlib
 import json
 import subprocess
+import sys
 import tempfile
 import urllib.request
 from pathlib import Path
@@ -108,6 +109,8 @@ def check_recorder() -> str:
     """The recorder (WP12a) starts from this installation as its own process and records
     one second from its fake source (no microphone, no permission prompt): proof that the
     bundle can start ``python -m kuulas_recorder`` and its worker."""
+    if sys.platform == "win32":
+        return "not supported on Windows (recorder uses Unix sockets)"
     import os  # noqa: PLC0415
     import time  # noqa: PLC0415
 
@@ -183,7 +186,7 @@ def check_tools() -> str:
 
     from . import colab_signin, colab_transcribe, toolpath  # noqa: PLC0415
 
-    program = colab_transcribe.DEFAULT_COMMAND[0]
+    program = colab_transcribe.default_command()[0]
     found = toolpath.resolve(program)
     parts = [f"{program}: {found or 'not found'}",
              f"colab: {toolpath.resolve('colab') or 'not found'}",
@@ -235,6 +238,8 @@ def check_analysis_worker() -> str:
     installation as the editor starts it, and runs at its lowered priority
     (``offload.WORKER_NICE``). Without it Auto-Silence and the loudness curves fall
     back to the editor process, where they compete with playback."""
+    if sys.platform == "win32":
+        return "priority controls are not available on Windows"
     from . import offload  # noqa: PLC0415
 
     info = offload.probe({"what": "priority"}, pause=False)

@@ -19,7 +19,7 @@ from .ops import EditError
 
 SUFFIX = ".kuulas"
 MAX_NAME = 100
-_FORBIDDEN = "/\\\0"
+_FORBIDDEN = "/\\\0<>:\"|?*"
 
 
 def folder_name(typed: object) -> str:
@@ -29,7 +29,8 @@ def folder_name(typed: object) -> str:
     if text.lower().endswith(SUFFIX):
         text = text[: -len(SUFFIX)].rstrip()
     if (not text or len(text) > MAX_NAME or text.startswith(".")
-            or any(char in text for char in _FORBIDDEN)):
+            or any(char in text for char in _FORBIDDEN)
+            or any(ord(char) < 32 or ord(char) == 127 for char in text)):
         raise EditError("error.project.bad_name")
     return text + SUFFIX
 
@@ -44,8 +45,9 @@ def project_path(parent: object, name: object) -> Path:
     root = Path(parent)
     if not root.is_absolute() or ".." in root.parts or not root.is_dir():
         raise EditError("error.project.bad_parent", path=parent[:200])
+    root = root.resolve(strict=True)
     target = root / folder
-    if target.exists():
+    if target.exists() or target.is_symlink():
         raise EditError("error.project.exists", path=str(target))
     return target
 
@@ -80,8 +82,12 @@ def checked_project_folder(folder: object) -> str:
 
 
 def start_window(folder: str) -> None:
-    """Start a second kuulas on ``folder`` beside this one, not waiting for it."""
+    """Start a second kuulas on ``folder`` beside this one, not waiting for it.
+
+    The folder becomes the child's working directory and the command opens ``.``, so
+    the request's text never reaches the command line (CodeQL py/command-line-injection,
+    66). ``open_project`` makes ``.`` absolute before anything keys on it."""
     safe = checked_project_folder(folder)
-    subprocess.Popen(  # noqa: S603 - our own interpreter; the folder was checked just above
-        window_command(safe), stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL, start_new_session=True)
+    subprocess.Popen(  # noqa: S603 - our own interpreter and a constant argument; the folder is cwd
+        window_command("."), cwd=safe, stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)

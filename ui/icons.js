@@ -36,6 +36,10 @@ export const ICONS = {
   save: s("M5 4h11l3 3v13H5ZM8 4v5h7V4M8 20v-6h8v6"),
   folder: s("M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"),
   plus: s("M12 5v14M5 12h14"),
+  transcribe: s("M4 6h16M4 11h9M4 16h16M4 21h7M17 11v6"),
+  silence: s("M3 12h2M8 8v8M12 4v16M16 8v8M19 12h2M4 4l16 16"),
+  resync: s("M4 8h13l-3-3M20 16H7l3 3"),
+  automix: s("M6 4v16M12 4v16M18 4v16M4 8h4M10 15h4M16 10h4"),
   layers: s("m12 3 9 5-9 5-9-5ZM3 13l9 5 9-5"),
   // The silent-state pair (docs/design/SILENCE-VISUALS.md): closed by Auto-Silence / mic kept
   // open. Also drawn on the timeline canvas (timeline.js drawIcon) from these same paths.

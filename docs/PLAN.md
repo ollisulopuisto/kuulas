@@ -13,6 +13,19 @@ Read first, in this order:
 
 ---
 
+**Playback/navigation integration, v26.10.26.4:** startup slew and persistent manual
+Follow detachment have regressions; the overview has an adaptive scale above its
+clips. The Linux recorder self-test race is fixed by acknowledging quit before
+shutdown. See [the UI plan](plans/2026-10-26-playback-overview.md) and
+[recorder plan](plans/2026-10-26-recorder-quit-ack.md). No project format change.
+
+**Maintenance integration, v26.10.26.3:** request-derived path validation and
+exclusive atomic JSON writes are covered by new regressions. See
+[the audit](security/2026-10-26-path-audit.md) and
+[implementation plan](plans/2026-10-26-path-security.md). No project schema change;
+recorded media is never modified. The release also includes Windows UI test
+line-ending fixes.
+
 ## Ground rules (every WP)
 
 These are not suggestions. A WP is done only when all of them hold.
@@ -3229,7 +3242,7 @@ Status: open (owner requests 2026-10-18, from using the app on a real session). 
 
 ### WP53 — Scriptability and machine access (late; owner, 2026-10-18)
 
-Status: open, late in the roadmap. Owner: kuulas must be fully legible to programs (an MCP server
+Status: steps 1 and 2 built 2026-10-26: `GET /api/commands` (`src/kuulas/command_catalog.py`), the catalogue of every edit and session command, with a test that fails when one is missing; `docs/SCRIPTING.md` and the tested example `scripts/examples/remove_fillers.py` (`tests/test_example_remove_fillers.py`). The rest (`kuulas ctl`, `kuulas run`, an MCP server) is open, late in the roadmap. The owner does not need it to control the GUI: an agent changes the session, and the person opens it and adjusts. Owner: kuulas must be fully legible to programs (an MCP server
 or some later tool), and scriptable like Reaper: for example a script that removes all "um"s from
 the transcript, with **no LLM involved**, just a set of commands run in order. No scripting
 language yet; the requirement is that the app makes it possible to build one later.
@@ -3965,3 +3978,21 @@ Status: step 1 (manifest fields `muted_frames`, `gate_frames` in tracks.json) bu
 3. **silencelearn (podcast repo):** a words-free mode; kuulas can supply per-media words (seconds on the media clock) when it calls it in process.
 4. **kuulas:** command 'Learn silence from the muted parts' (Track > Auto): learn per-track thresholds from the muted stretches in the first minutes (the window ends at the last hand-made mute) and store them per track for Auto-Silence and the automixer call. Needs measuring on a real episode first.
 5. **automixer (podcast repo):** reads `muted_frames` and the learned thresholds.
+
+
+### WP86 — A docked toolbar for discovery (owner, 2026-10-26; design in `docs/design/TOOLBAR.md`)
+
+Status: **built 2026-10-26**, not yet tried in a real build. Steps 1 to 6 (layout model, per-user prefs, buttons as data, the vertical rail, the View > Toolbar switches, and Add to / Remove from toolbar by right-click on a menu row or a rail button). Drag to reorder is built too (pointer drag with a drop line, Alt+Up/Down). The Auto-Silence count badge, an icon of its own for each default button, the always-visible transcript find field, a fixed search button at the top of the rail (opens the command search) and the use hint (ten hand mutes, once, text only, counter local) are built too. WP86 is done; left over: a real try on screen, and a hint for more habits if the owner wants them. The owner approved the lists in the design note, and added the rule that matters most: **buttons never move unless the user moves them.**
+
+A rail on the left edge of the window, left of the tracks, with ten buttons to start (undo, redo, import, transcribe, Auto-Silence, split, quick mute, resync the range, automix, export), an optional command search field, per-user icon or icon-and-text, and user pinning. Buttons run commands from the registry the menus use.
+
+Tests first (pure, in `ui/tests/`):
+1. The toolbar layout model: the default order, pin (to the end or at a drop position), unpin, reorder, reset. A layout never changes by itself: no function takes use counts, state or hints as input to the order.
+2. A disabled command gives a greyed button in the same place; a state badge changes its content only.
+3. Every default button names a command that exists in the registry, and is in a menu (the menu-coverage rule).
+4. Per-user remembering of the layout and of icon or text mode (round trip, bad data falls back to the default).
+
+Build: the rail and its CSS (tokens, no literal text, English source and Finnish translation in the same commit, R39); the View menu switch and "Reset toolbar"; "Add to toolbar" on menu rows and Remove on the button's right-click menu; the Auto-Silence count badge; tooltips with the key, through `data-tip`. The transcript's search field and the local use hints are separate commits in this WP.
+
+Budget: the rail renders with no layout thrash on a state change; an edit's round trip is unchanged (rule 14).
+

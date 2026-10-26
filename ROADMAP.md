@@ -8,6 +8,18 @@ Out of scope: loopback, publishing integrations, anything but basic recording, s
 
 **How it gets built:** `docs/PLAN.md`, in work packages for implementers.
 
+**Playback/navigation, v26.10.26.4:** live anchors preserve manual Follow
+detachment; startup corrections do not move against playback while audio is queued.
+The overview has at most four round timestamps in a top band. The recorder
+acknowledges quit before closing sockets. Browser checks cover three zoom levels;
+owner audio-device confirmation remains open.
+
+**Maintenance, v26.10.26.3:** recording/import and job paths, temporary JSON writes,
+project names and series-file reads have security regressions and stricter checks.
+See [the path-access audit](docs/security/2026-10-26-path-audit.md) for confirmed
+fixes and intentional folder-selection warnings; the CodeQL alert list is not
+claimed clear. Windows UI source comparisons accept native line endings.
+
 ## Requirements and state (2026-10-16)
 
 **Build first** (owner, 2026-10-16): R35 the project format above all, then
@@ -26,10 +38,10 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R2 | Buses (track groups) | core done: routing, gain, pan, mute; UI next |
 | R3 | Signal processing from the podcast pipeline, not reimplemented | done: `speechmix` + `nhsx` imported as path deps (pan laws, speech grid, duck masks, duck envelopes) |
 | R4 | Automixer support | ducking → editable track automation done; speechmix chain per track next |
-| R5 | Transcription, local and Colab | local (faster-whisper) and JSON import written; Colab next |
+| R5 | Transcription, local and Colab | local (faster-whisper) and Colab runner built; source checkouts use adjacent podcast tool, accepting Orukeet and CTC timing; real Colab run still unverified |
 | R6 | Edit audio by editing the transcript, and vice versa | done in core: words follow clip edits; deleting words cuts all tracks at pause midpoints |
 | R7 | Clip ops Hindenburg lacks: clip volume, pan, gain automation | done in core |
-| R8 | Mac, Linux, Windows | by design (Python engine + browser UI); tested on Mac only |
+| R8 | Mac, Linux, Windows | GitHub Actions matrix: full tests on macOS and Linux; Windows editor tests and desktop smoke, with Unix recorder/analysis/transcription workers and macOS automixer and DMG build-script tests excluded; macOS DMG build |
 | R9 | Never lose work; smart undo | done: every edit fsynced to SQLite, undo tree keeps branches, drags coalesce |
 | R10 | **High priority.** Hindenburg-level keyboard editing; every UI feature ships with its keys | keymap taken from the Hindenburg PRO shortcut list; UI next |
 | R11 | Pro Cut Auto-Silence: mute what does not cross the threshold | done in core (speechmix grid + duck masks → implicit source-frame clip ranges; only edited portions become ordinary clips) |
@@ -468,6 +480,7 @@ WP27, WP38, WP42, WP47, WP53, WP58, WP61, WP66, WP56.
 - **Self-describing take file names (owner, 2026-10-19):** a take's file name should be findable in Finder a year later: `2026-10-15 14-32-07 vst s13e04 - Olli - Take 1.wav` (starts with local yyyy-mm-dd hh-mm-ss, then the text: project, track, take; sortable, no characters Finder or Windows dislike; `.take.json` sidecar keeps UTC and the rest). Only new takes get it; existing files are never renamed (rule 17). Builds on `take_names.file_stem`. Not built yet.
 - **Search for cut passages (owner idea, 2026-10-19):** search the transcript for words, and for each hit say whether it is in the current edit; a hit no clip covers is "cut", with one click to bring it back (to a new track at its original position, as for takes, or to the playhead or clipboard) and, from History, the step that removed it. The transcript is per media and the clips are windows on media, so "is this word in the edit" needs no history walk. A text filter on the History list (step labels) comes with it. The Clipboard panel gets the same search (owner, 2026-10-19): filter the saved pieces by the words they contain, using the transcript of the media they come from. Not built yet.
 - **Clipboard preview level (owner, 2026-10-19):** previewing a clipboard entry plays at about the project's own level or quieter, never louder (attenuation only, plus a safety limiter), because pasted material (e.g. -14 LUFS from YouTube) is much louder than a quietly recorded session. WP82 in `docs/PLAN.md`. Not built yet.
+- **A docked toolbar for discovery (owner, 2026-10-26; WP86, `docs/design/TOOLBAR.md`):** a rail left of the tracks, ten buttons to start, icon or icon and text per user. Buttons never move unless the user moves them; the user can pin any menu command. Built 2026-10-26 (drag to reorder, count badge, search, use hint); not yet tried in a real build.
 - **What an edit touches (owner, 2026-10-19; WP83):** sync is knowledge only and never moves anything; groups (Cmd+G) are what moves clips together; range operations act on a rectangle of time and tracks (keyboard default all tracks, mouse drag one lane, track headers override, a visible mode switch, unaffected tracks dimmed, the old E toggle retired). Edge drags overwrite neighbours by default (Alt stops at the neighbour). Not built yet.
 - **Slow hold-to-play scrubbing (owner, 2026-10-19):** Shift+J / Shift+L play slowly (default 0.5x, backward / forward) and ONLY while the key is held; release stops at once. This is a different mechanism from the J K L shuttle (which keeps playing). Shift+J / Shift+L stop being the fast-listening speed nudges; those move to `,` (slower) and `-` (faster), `.` stays the fast-listening switch. Not built yet.
 - **Standard Mac keys still missing (owner question, 2026-10-19):** Cmd+N (New project) and Cmd+O (Open project) are bound since this commit. Still missing: Cmd+W (Close project, back to the start page), Cmd+, (Settings/Preferences), an Open Recent submenu in File, Cmd+M (minimise; lost with the native Window menu; the yellow button works), Revert. Cmd+G is currently the old group-editing toggle (WP83 retires it; after that Cmd+G should become Group clips and Shift+Cmd+G Ungroup). Cmd+Q, Cmd+H and Ctrl+Cmd+F come from the native app menu.
@@ -515,12 +528,10 @@ WP27, WP38, WP42, WP47, WP53, WP58, WP61, WP66, WP56.
   as many ranges as raw toggles but the state is about a fifth of the size). Owner:
   try Auto-Silence on a real interview and tell me whether it feels too fragmented.
 
-- **CI and distribution need two things from the owner:** a repository secret
-  `PODCAST_READ_TOKEN` (read access to `ollisulopuisto/podcast`) before
-  `.github/workflows/ci.yml` can pass, and, for any installable app, speechmix and
-  nhsx published as real packages instead of path dependencies on `../podcast`
-  (see "speechmix as a package"). The wrapper cannot be shipped to other people
-  until then.
+- **CI and distribution:** the public podcast repository is checked out directly by
+  `.github/workflows/ci.yml`; no read token is needed. For any installable app,
+  speechmix and nhsx still need to be published as real packages instead of path
+  dependencies on `../podcast` (see "speechmix as a package").
 
 - **Decided by the owner, 2026-10-18 (about 10.10 Helsinki):** (A) Auto-Silence stays out of the
   Cuts list and the transcript, one summary line instead; (B) "Clean up cuts" is a palette

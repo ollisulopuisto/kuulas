@@ -39,8 +39,8 @@ def test_every_operation_has_a_readable_name():
 
 
 def test_every_name_has_its_text_in_english_and_finnish():
-    en = json.loads((LOCALES / "en.json").read_text())
-    fi = json.loads((LOCALES / "fi.json").read_text())
+    en = json.loads((LOCALES / "en.json").read_text(encoding="utf-8"))
+    fi = json.loads((LOCALES / "fi.json").read_text(encoding="utf-8"))
     keys = {k for k in en if k.startswith("history.op.")}
     assert {f"history.op.{op}" for op in step_names.DESCRIBERS} <= keys
     assert keys <= set(fi)

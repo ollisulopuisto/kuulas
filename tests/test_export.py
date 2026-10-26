@@ -327,7 +327,7 @@ def test_how_much_mastering_fits():
 
 
 @pytest.mark.parametrize("args", [
-    {"format": "ogg"}, {"bit_depth": 20}, {"format": "mp3", "mp3_kbps": 500},
+    {"format": "not-a-format"}, {"bit_depth": 20}, {"format": "mp3", "mp3_kbps": 500},
     {"kind": "reel"}, {"kind": "selection"}, {"kind": "selection", "range": [5, 5]},
     {"master_lufs": "loud"},
 ])
@@ -666,7 +666,7 @@ def test_post_export_renders_and_answers_with_the_result(client, session, out):
 
 def test_post_export_refuses_a_bad_request_with_a_translated_error(client, out):
     r = client.post("/api/export", json={"kind": "mix", "folder": str(out),
-                                         "format": "ogg"},
+                                         "format": "not-a-format"},
                     headers={"Accept-Language": "fi"})
     assert r.status_code == 400
     assert r.json()["error"]["key"] == "error.export.bad_format"

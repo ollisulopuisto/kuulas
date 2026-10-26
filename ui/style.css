@@ -368,6 +368,98 @@ button.chip {
   display: flex;
   flex-direction: column;
 }
+/* The toolbar rail (WP86): a vertical strip left of the track headers, level with them. The header
+   column grows by the rail's width (the corner above it and the timeline and transcript beside it
+   move together), so nothing else in the window changes. 340 and 280 repeat tokens.css's
+   --heads-w and --heads-w-min. */
+.heads-row {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.editor[data-rail="labels"] {
+  --rail-w: 124px;
+  --heads-w: calc(340px + var(--rail-w));
+  --heads-w-min: calc(280px + var(--rail-w));
+}
+.editor[data-rail="icons"] {
+  --rail-w: 44px;
+  --heads-w: calc(340px + var(--rail-w));
+  --heads-w-min: calc(280px + var(--rail-w));
+}
+.tool-rail {
+  flex: none;
+  width: var(--rail-w, 124px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-2);
+  overflow: hidden auto;
+  scrollbar-width: thin;
+  border-right: 1px solid var(--border-subtle);
+  position: relative;
+}
+.tool-rail .rail-btn.dragging {
+  opacity: 0.5;
+}
+.rail-drop {
+  position: absolute;
+  left: var(--space-2);
+  right: var(--space-2);
+  height: 2px;
+  background: var(--accent, currentColor);
+  pointer-events: none;
+}
+.tool-rail .rail-btn,
+.tool-rail .rail-search {
+  width: 100%;
+  height: auto;
+  min-height: var(--control-h);
+  padding: var(--space-2) var(--space-3);
+  justify-content: flex-start;
+  text-align: left;
+  white-space: normal;
+}
+.editor[data-rail="icons"] .tool-rail .rail-btn,
+.editor[data-rail="icons"] .tool-rail .rail-search {
+  justify-content: center;
+}
+.tool-rail .rail-btn {
+  position: relative;
+}
+.rail-badge {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  min-width: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: 10px;
+  line-height: 14px;
+  text-align: center;
+  pointer-events: none;
+}
+.rail-badge[hidden] {
+  display: none;
+}
+.rail-label {
+  overflow-wrap: anywhere;
+}
+/* A command with no icon shows its text even in icon-only mode: one clipped line, never a
+   column of letters. */
+.editor[data-rail="icons"] .tool-rail .rail-btn:not([data-icon]) .rail-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  font-size: var(--text-xs);
+}
+.rail-btn[aria-disabled="true"] {
+  color: var(--text-disabled);
+  cursor: default;
+}
 /* The transport corner: level with the overview and the ruler, as wide as the header
    column, so the headers start level with the first lane. Spec and states:
    docs/design/transport-corner/index.html (C-right). Columns: Play | timecode over the
@@ -660,6 +752,7 @@ button.chip {
 }
 .heads-scroll {
   flex: 1;
+  min-width: 0; /* beside the toolbar rail it must be able to shrink */
   min-height: 0;
   overflow: hidden auto;
   scrollbar-width: thin;
@@ -2250,6 +2343,11 @@ input[type="text"] {
   left: 100%;
   margin: 0;
 }
+/* A submenu that would leave the window opens on the parent's left (menu-fit.js). */
+.menu-list .submenu.flip-left {
+  left: auto;
+  right: 100%;
+}
 .menu-list li {
   position: relative;
 }
@@ -2264,6 +2362,21 @@ input[type="text"] {
 /* A switch in the menu (Words in clips): a check mark before its name while it is on. */
 .menu-item[aria-checked="true"] > span:first-child::before {
   content: "✓ ";
+}
+/* The app's own hover tip (tooltip.js): raised, bordered, so it reads on any surface. */
+.hover-tip {
+  position: fixed;
+  z-index: 60;
+  max-width: 320px;
+  padding: var(--space-1) var(--space-2);
+  color: var(--text);
+  font-size: var(--text-sm);
+  line-height: 1.35;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-raised);
+  pointer-events: none;
 }
 /* The header context menu reuses the menu bar's look, placed at the pointer. */
 .context-menu {

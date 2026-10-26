@@ -1,7 +1,7 @@
 #!/bin/bash
 # Build the unsigned tester .dmg of Kuulas for macOS (WP73), from the committed code.
 #
-#   scripts/build_dmg.sh [--out <folder>]      (default: ./dist)
+#   scripts/build_dmg.sh [--app-only] [--out <folder>]  (default: ./dist)
 #
 # What it does, in order:
 #   1. exports HEAD with `git archive` into a work folder (an uncommitted change is not
@@ -15,7 +15,8 @@
 #      as the editor starts it, which must run a no-op job to "completed", and the bundled
 #      automixer answering `--help`) and stops if
 #      it fails,
-#   5. packages "Kuulas <version>.dmg" (ad-hoc signed, NOT notarised: the first open
+#   5. unless --app-only was given, packages "Kuulas <version>.dmg" (ad-hoc signed,
+#      NOT notarised: the first open
 #      needs right-click > Open, see docs/TESTERS.md), mounts it and runs --selftest
 #      again on the app inside, and prints the file, its size and its checksum.
 #
@@ -29,10 +30,17 @@ set -euo pipefail
 BRIEFCASE="briefcase==0.4.6"
 here="$(cd "$(dirname "$0")/.." && pwd)"
 out="$here/dist"
+app_only=false
+usage() {
+  echo "usage: build_dmg.sh [--app-only] [--out <folder>]"
+  echo "  --app-only  build and self-test Kuulas.app without packaging a DMG"
+}
 while [ $# -gt 0 ]; do
   case "$1" in
     --out) out="$(mkdir -p "$2" && cd "$2" && pwd)"; shift 2 ;;
-    *) echo "usage: build_dmg.sh [--out <folder>]" >&2; exit 2 ;;
+    --app-only) app_only=true; shift ;;
+    --help|-h) usage; exit 0 ;;
+    *) usage >&2; exit 2 ;;
   esac
 done
 
@@ -86,6 +94,19 @@ selftest() {  # <Kuulas.app>
 }
 echo "== selftest (built app)"
 selftest "$app"
+
+if [ "$app_only" = true ]; then
+  app_out="$out/Kuulas.app"
+  if [ -e "$app_out" ]; then
+    echo "refusing to replace existing app: $app_out" >&2
+    exit 1
+  fi
+  ditto "$app" "$app_out"
+  echo "== done"
+  echo "app: $app_out"
+  echo "label: $label"
+  exit 0
+fi
 
 echo "== briefcase package"
 briefcase package macOS app --adhoc-sign -p dmg

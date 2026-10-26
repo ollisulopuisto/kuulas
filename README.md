@@ -17,10 +17,22 @@ Taglines (use either, not together): *"A podcast editor where nothing is ever lo
 - **Batch import with flexible placement**: Import multiple files side by side (aligned by BWF recording clocks into sync groups) or sequentially on one track, with natural name sorting and track naming by file or person.
 - **Sync groups and edit expansion**: Tracks recorded together stay locked; edits time-shift the entire sync group; subclips can be resynced to the main clip.
 - **Music reporting**: Session royalty reports (CSV with formula injection protection, HTML) via CLI and `/api/music-report`.
+- **Transcription**: Local faster-whisper and Colab transcription. In a source checkout beside the current podcast repository, Colab uses that checkout's tool; Orukeet filler words and repetitions stay in the transcript and can become cut candidates.
 - **Project format (v3)**: Crash-safe `Name.kuulas` package directory, WAL SQLite history tree with constant-time branching undo/redo, and recording clock in flicks.
 - **Desktop app wrapper**: Native window via pywebview (`--extra desktop`), recent projects window, native file dialogs, and local file drag-and-drop linking.
 
-*Verification note:* The automated tests run on the developer's Mac. A GitHub Actions workflow for macOS, Windows and Linux exists (`.github/workflows/ci.yml`) but has not run yet (it needs a `PODCAST_READ_TOKEN` secret and a push). Nobody has yet listened to playback on a real audio device with this version, or looked at the desktop window by eye.
+*Verification note:* GitHub Actions currently runs the test and desktop-smoke jobs on macOS and Linux; Windows jobs are disabled for now. The playback/navigation fixes were checked in Chrome with synthetic media and a simulated clock at three zoom levels. Real-device playback and microphone confirmation remain the owner's checks.
+
+**Playback/navigation maintenance (v26.10.26.4):** manual scrolling stays detached
+from Follow across live updates; startup clock corrections wait for queued audio.
+The overview uses at most four round labels above its clip map. Recorder shutdown
+sends its acknowledgement before closing the connection.
+
+**Path-access maintenance (v26.10.26.3):** recorded files are protected from
+pre-existing temporary-file symlinks, and request-derived take/job names stay
+inside their own folders. The [security audit](docs/security/2026-10-26-path-audit.md)
+records the fixes and the intentional user-selected folder paths that may still
+produce CodeQL warnings.
 
 ## Running kuulas
 

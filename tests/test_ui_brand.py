@@ -6,7 +6,7 @@ UI = Path(__file__).parents[1] / "ui"
 
 
 def test_index_links_the_favicon_and_shows_the_mark():
-    page = (UI / "index.html").read_text()
+    page = (UI / "index.html").read_text(encoding="utf-8")
     assert 'rel="icon"' in page
     assert 'href="/favicon.svg"' in page
     assert 'class="brand-mark"' in page
@@ -15,7 +15,7 @@ def test_index_links_the_favicon_and_shows_the_mark():
 
 def test_the_mark_files_are_valid_svg_with_a_view_box():
     for name in ("logo.svg", "favicon.svg"):
-        text = (UI / name).read_text()
+        text = (UI / name).read_text(encoding="utf-8")
         assert text.startswith("<svg "), name
         assert text.rstrip().endswith("</svg>"), name
         assert 'viewBox="0 0 100 100"' in text, name

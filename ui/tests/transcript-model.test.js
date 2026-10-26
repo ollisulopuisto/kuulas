@@ -23,6 +23,7 @@ import {
   pauseMarkers,
   pauseSecondsOf,
   placeCursor,
+  popShown,
   rightClickPick,
   selectedIndices,
   selectionBounds,
@@ -512,5 +513,18 @@ describe("right-clicking a word", () => {
     const picked = dragSelection(1, 3);
     assert.equal(rightClickPick(picked, -1), picked);
     assert.equal(rightClickPick(noSelection(), -1), null);
+  });
+});
+
+describe("the pop-up over the selection", () => {
+  test("shows over a picked word, and not while nothing is picked or a word is edited", () => {
+    assert.equal(popShown({ picked: [4], editing: false, dragging: false }), true);
+    assert.equal(popShown({ picked: [], editing: false, dragging: false }), false);
+    assert.equal(popShown({ picked: [4], editing: true, dragging: false }), false);
+  });
+
+  test("is out of the way while the pointer is dragging the selection", () => {
+    // It covers the words ahead of the drag, so it waits for the release (CodeQL aside, a UI fix).
+    assert.equal(popShown({ picked: [4, 5, 6], editing: false, dragging: true }), false);
   });
 });

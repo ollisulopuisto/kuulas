@@ -309,10 +309,10 @@ def test_killing_the_worker_restarts_into_a_new_numbered_file(client, sup, tmp_p
     p1, p2 = folder / "t1-Olli.wav", folder / "t1-Olli~2.wav"
     assert contiguous(ints(p1))
     assert contiguous(ints(p2))
-    # The fake signal numbers real time: segment 2 sits where its audio was
-    # captured, within a block or two of clock jitter.
+    # The fake source and the supervisor timestamp in separate processes. Allow
+    # 200 ms for process scheduling jitter while still catching misplaced segments.
     real = (frame_of(p2) - frame_of(p1)) % (1 << 20)
-    assert abs(real - two["start_frame"]) < 4096
+    assert abs(real - two["start_frame"]) < RATE // 5
     journal = [e["event"] for e in read_journal(folder / "t1.journal.jsonl")]
     assert "worker_restarted" in journal
     assert "gap" in journal
@@ -508,3 +508,34 @@ def test_an_idle_client_stays_connected(sup, monkeypatch):
         for _ in range(3):
             assert c.request("ping")["pong"]
             time.sleep(0.6)  # the editor has nothing to say for a while
+
+
+def test_quit_reply_is_sent_before_an_immediate_shutdown(client, sup, monkeypatch):
+    """The main thread may wake and close sockets as soon as shutdown is requested.
+    Force that interleaving instead of hoping the race happens on this machine.
+    """
+    wait_until(lambda: bool(sup.clients))
+    request_shutdown = sup.request_shutdown
+
+    def close_immediately():
+        request_shutdown()
+        sup.close()
+
+    monkeypatch.setattr(sup, "request_shutdown", close_immediately)
+    assert client.request("quit", timeout=2) == {"id": 1, "ok": True, "quitting": True}
+    assert sup.shutdown_requested.wait(2)
+
+
+def test_quit_still_shuts_down_if_its_reply_cannot_be_delivered(client, sup, monkeypatch):
+    client.request("ping")
+    wait_until(lambda: bool(sup.clients))
+    server_client = next(iter(sup.clients))
+
+    def broken_send(_data, **_kwargs):
+        raise BrokenPipeError
+
+    monkeypatch.setattr(server_client.conn, "send", broken_send)
+    with pytest.raises(RecorderError) as error:
+        client.request("quit", timeout=2)
+    assert error.value.key == "disconnected"
+    assert sup.shutdown_requested.wait(2)

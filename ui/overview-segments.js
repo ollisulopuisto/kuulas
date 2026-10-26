@@ -40,14 +40,27 @@ function subtract(keep, cut) {
  */
 export function audibleSegments(track, preview = null) {
   if (track.mute) return [];
-  const gated = [];
-  const open = [];
+  const audible = [];
+  const trackClosed = merge([...(track.gate ?? []), ...(preview ?? [])]);
   for (const clip of track.clips ?? []) {
     if (clip.muted) continue;
-    (clip.ungated ? open : gated).push([clip.start, clip.start + clip.length]);
+    const span = [[clip.start, clip.start + clip.length]];
+    if (clip.ungated) {
+      audible.push(...span);
+      continue;
+    }
+    const sourceStart = clip.offset ?? 0;
+    const sourceEnd = sourceStart + clip.length;
+    const clipClosed = merge(
+      (clip.auto_silence ?? []).map(([start, end]) => {
+        const from = Math.max(start, sourceStart);
+        const to = Math.min(end, sourceEnd);
+        return [clip.start + from - sourceStart, clip.start + to - sourceStart];
+      }),
+    );
+    audible.push(...subtract(subtract(span, trackClosed), clipClosed));
   }
-  const closed = merge([...(track.gate ?? []), ...(preview ?? [])]);
-  return merge([...subtract(merge(gated), closed), ...open]);
+  return merge(audible);
 }
 
 /**
@@ -67,4 +80,23 @@ export function overviewRuns(segments, total, width) {
     else out.push(x0, x1);
   }
   return out;
+}
+
+// Round seconds for short edits, then the owner's minute scales: 1, 5, 10,
+// 15, 20, 30 and 60. Longer projects extend the scale by whole hours.
+const OVERVIEW_STEPS = [1, 5, 10, 15, 20, 30, 60, 300, 600, 900, 1200, 1800, 3600];
+
+/** Interior round ruler marks: at most four, with room for text in narrow strips. */
+export function overviewMarks(total, width, rate, formatTime) {
+  if (!(total > 0 && width > 0 && rate > 0) || !Number.isFinite(total / rate)) return [];
+  const duration = total / rate;
+  const limit = Math.min(4, Math.max(1, Math.floor(width / 80)));
+  const count = (step) => Math.ceil(duration / step) - 1;
+  const step =
+    OVERVIEW_STEPS.find((value) => count(value) <= limit) ??
+    3600 * Math.ceil(duration / (3600 * (limit + 1)));
+  return Array.from({ length: Math.max(0, count(step)) }, (_, index) => {
+    const seconds = (index + 1) * step;
+    return { x: Math.round((seconds / duration) * width), label: formatTime(seconds) };
+  });
 }

@@ -8,6 +8,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from kuulas.ctl_discovery import (
     check_token,
     discovery_path,
@@ -48,6 +50,7 @@ class TestWriteAndRead:
         assert isinstance(info["started_utc"], str)
         assert info["started_utc"].endswith("Z")
 
+    @pytest.mark.skipif(os.name == "nt", reason="Windows uses inherited file ACLs")
     def test_file_mode_is_0600(self, tmp_path: Path):
         write(tmp_path, 9000, "abc", 1234)
         path = discovery_path(tmp_path)

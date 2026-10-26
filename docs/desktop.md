@@ -72,11 +72,15 @@ Verified by hand on macOS 15.8.1 (arm64, pywebview 6.2.1), once: `kuulas open
 for the agent), so that the page rendered, and that the window title is right,
 were not observed.
 
-Not verified: closing the window by hand (stop on `closed`), the launcher page
-and its buttons, the native open/import dialogs, drag-and-drop paths, the menu
-items (zoom, density, export call existing buttons), Windows, Linux, and CI
-itself (never run; needs the `PODCAST_READ_TOKEN` secret because kuulas imports
-the private podcast repo).
+Not verified by hand: closing the window (stop on `closed`), the launcher page
+and its buttons, the native open/import dialogs, drag-and-drop paths, and the
+menu items (zoom, density, export call existing buttons). PR #5's last available
+GitHub Actions run passed the macOS and Linux desktop smoke jobs but failed the
+test jobs; this work updates the workflow and the reported portability failures.
+The Windows run also exposed macOS- and Unix-specific test assumptions. Windows
+editor coverage now omits those platform-only integrations and the affected
+signal, path, and timing cases; the full suite still runs on macOS and Linux.
+Windows desktop smoke passed in the latest run. The revised matrix is running.
 
 ## Tester build spike (WP73 part a, 2026-10-19)
 

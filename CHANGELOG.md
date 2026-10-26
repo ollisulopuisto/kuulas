@@ -1,3 +1,37 @@
+## [Unreleased]
+
+- **A toolbar you build yourself.** A vertical toolbar sits left of the track headers with ten buttons (undo, redo, import, transcribe, Auto-Silence, split, mute, resync, automix, export). Right-click any menu row and choose "Add to toolbar"; right-click a toolbar button to remove it. Buttons never move unless you move them, and a greyed button stays where it is. View > Toolbar shows or hides it, shows icons only or icons with text, and puts it back to the ten. Drag a button to a new place (a line shows where it lands, Esc cancels), or press Alt+Up or Alt+Down on a focused button to move it one place.
+
+- **A script can edit a project without a window, and there is an example.** `docs/SCRIPTING.md` explains headless use (`Session(folder)`), the HTTP routes and the command catalogue, and `scripts/examples/remove_fillers.py` removes the filler words (um, uh, öö) from a project with the same command the transcript's X key runs, one undo step per cut. `--dry-run` only lists them.
+
+- **A program can list every command kuulas has.** `GET /api/commands` returns the catalogue: each edit and session command with how to call it, its arguments (name, type, whether required, default), a one-line summary, and whether it makes one undo step. An agent can read it, change a session, and the person can then open the session and adjust it. A test fails when a command is missing from it.
+
+- **The toolbar shows how many silent stretches there are.** The Auto-Silence button carries a small count (up to 99+) of the stretches found, and the buttons for transcribe, Auto-Silence, resync and automix have icons of their own. A fixed Search button at the top of the toolbar opens the command search, so not every command needs a button.
+
+- **The transcript's find field is always there.** It no longer waits for Ctrl+F; the cross clears the search.
+
+- **A hint after many hand mutes.** After ten mutes by hand kuulas says once that Auto-Silence finds the silent stretches for you. The count stays in your browser, and the hint never adds or moves a toolbar button.
+
+## [v26.10.26.4] - 2026-10-26
+
+- **Scrolling during playback stays where you put it.** Live playback updates no longer turn Follow back on after a manual scroll, overview move or zoom. Actual playback starts/stops and explicit Follow controls still re-engage it.
+- **The play cursor no longer retreats while startup audio is queued.** Timing corrections wait until a future-dated audio anchor starts advancing, rather than pulling the cursor backwards during that wait. Covered at normal, fast and reverse speeds.
+- **Overview times use a ruler scale at the top.** Up to four round timestamps replace the quarter-position labels. The spacing grows through 1, 5, 10, 15, 20, 30 and 60 minutes; short edits use seconds and long ones whole hours. The labels have their own band above the miniature clips, clear of the timeline ruler below.
+- **The headless recorder check shuts down reliably.** The recorder sends its quit acknowledgement before shutdown can close the connection. This fixes the intermittent Linux self-test disconnection without skipping or retrying the check; quitting during a take remains refused.
+
+## [v26.10.26.3] - 2026-10-26
+
+- **Recorded files stay protected during JSON writes.** Project metadata and editor plans now create their temporary files exclusively, so a pre-existing temporary-file symlink cannot redirect a write into another file. Failed serialization leaves the previous file intact and cleans up the writer's own temporary file.
+- **Request-derived file paths are checked more strictly.** Recording take names and background-job IDs cannot contain traversal, drive or wildcard syntax. Symlinked take sidecars, editor plans and series records are refused, and project names reject Windows drive/stream punctuation and control characters. A dangling project symlink cannot become a new-project destination. The path-alert audit documents intended project-folder and plug-in selection separately from these confirmed bugs.
+- **Windows test checks accept native line endings.** CSS and embedded-help comparisons normalize CRLF on input while retaining every assertion, and the protected-file assertions meet the existing lint limit.
+
+## [v26.10.26.2] - 2026-10-26
+
+- **CI now checks macOS, Windows and Linux.** Windows receives its timezone database in the app environment; codec validation tests no longer depend on whichever ffmpeg encoders the runner happens to have. Backup copies flush through a Windows-compatible writable handle, and the app self-test reports Unix-only recorder and priority checks as unsupported there. The Windows test job omits those platform-specific integrations, detached-transcription worker integration, macOS automixer tests, and the macOS-only DMG build-script test.
+- **Windows project locks and Colab cancellation use safe process controls.** Lock checks query process liveness without `os.kill(pid, 0)`, which terminates a process on Windows; Colab subprocesses use Windows process groups for cancellation. Windows permission checks follow the platform's inherited ACL behavior.
+- **Colab transcription follows the adjacent podcast checkout in development.** Kuulas accepts Orukeet timing and preserves filler words and repetitions so transcript-based cut candidates can find them. Packaged installs continue to use the public tool.
+- **Security: opening a project in a new window no longer puts the request's text on the command line.** The new window now runs inside the project folder and is started with a fixed argument, so a crafted folder name cannot change what runs. The folder is still checked first as before, and the window opens the same project. Found by CodeQL (py/command-line-injection, alert 66).
+
 ## [v26.10.25.5] - 2026-10-25
 
 - **Security: a window is only opened for a real project folder.** When a browser asks to open a new project or a series episode in a new window, the folder must now be an absolute path to an existing `*.kuulas` folder; anything else (option-like text, a NUL byte, a relative or missing path) is refused with the usual bad-folder message and nothing is started. Found by CodeQL (py/command-line-injection, alert 58).

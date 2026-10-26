@@ -12,7 +12,7 @@ import pytest
 import soundfile as sf
 from fastapi.testclient import TestClient
 
-from kuulas import messages
+from kuulas import colab_transcribe, messages
 from kuulas.model import Media
 from kuulas.server import create_app
 from kuulas.session import Session
@@ -38,8 +38,9 @@ FAKE = textwrap.dedent('''
     for path in audio:
         stem = os.path.splitext(os.path.basename(path))[0]
         timing = os.environ.get("FAKE_TIMING", "whisper")
-        doc = {"version": 1, "timing": timing, "language": "fi",
-               "words": [{"w": stem, "s": 0.25, "e": 0.5}]}
+        words = json.loads(os.environ.get(
+            "FAKE_WORDS", json.dumps([{"w": stem, "s": 0.25, "e": 0.5}])))
+        doc = {"version": 1, "timing": timing, "language": "fi", "words": words}
         with open(os.path.join(folder, stem + ".words.json"), "w") as f:
             json.dump(doc, f)
     print("PROGRESS 100 done", flush=True)
@@ -146,6 +147,27 @@ def test_colab_is_one_job_that_stores_words_and_timing(session, client, tool, tm
         assert media.timing == "whisper"
     seen = json.loads((tmp_path / "call.json").read_text())
     assert len(seen["audio"]) == 2
+
+
+def test_orukeet_fillers_reach_candidate_detection(session, client, tool, tmp_path,
+                                                    monkeypatch):
+    monkeypatch.setenv("FAKE_TIMING", "orukeet")
+    monkeypatch.setenv("FAKE_WORDS", json.dumps([
+        {"w": "öö", "s": 0.1, "e": 0.3},
+        {"w": "niinku", "s": 0.4, "e": 0.6},
+        {"w": "niinku", "s": 0.7, "e": 0.9},
+    ]))
+    job = wait_job(client, start(client, session)[0])
+    assert job["state"] == "completed", job
+    assert {media.timing for media in session.state.media} == {"orukeet"}
+    assert all([word["w"] for word in session.transcripts()[media_id]]
+               == ["öö", "niinku", "niinku"] for media_id in ids(session))
+
+    session.candidates_detect(lang="fi")
+    filler_rows = [row for row in session.candidates()["candidates"]
+                   if row["kind"] == "filler"]
+    assert filler_rows
+    assert all(row["text"] == "öö niinku niinku" for row in filler_rows)
 
 
 def test_the_source_is_the_one_the_local_backend_uses(session, client, tool, tmp_path):
@@ -281,7 +303,7 @@ def test_settings_endpoints(client, tmp_path, monkeypatch):
     monkeypatch.setenv("KUULAS_COLAB_FILE", str(tmp_path / "colab.json"))
     got = client.get("/api/settings/colab").json()
     assert got["settings"] == {}
-    assert got["resolved"]["command"][0] == "uvx"
+    assert got["resolved"]["command"] == colab_transcribe.default_command()
     assert got["resolved"]["no_drive"] is False
     put = client.put("/api/settings/colab", json={
         "command": ["colab-transcribe"], "cwd": "/x", "extra_args": ["--a"],

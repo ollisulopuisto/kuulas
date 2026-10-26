@@ -83,6 +83,7 @@ TRACK_KINDS = {"speech", "music"}
 def add_track(p: Project, track_id: str | None = None, name: str = "Track",
               kind: str = "speech", speaker: str = "",
               bus: str | None = None) -> Project:
+    """Add a track with a name, a kind (speech, music, ...), a speaker and a bus."""
     if kind not in TRACK_KINDS:
         raise EditError("error.edit.bad_track_kind", kind=kind)
     track_id = track_id or new_id("t")
@@ -107,6 +108,7 @@ def delete_empty_tracks(p: Project) -> Project:
 
 
 def delete_track(p: Project, track_id: str) -> Project:
+    """Delete a track."""
     _find_track(p, track_id)
     return replace(p, tracks=tuple(t for t in p.tracks if t.id != track_id),
                    placeholders=tuple(h for h in p.placeholders if h.track != track_id))
@@ -117,6 +119,7 @@ TRACK_FIELDS = {"name", "kind", "speaker", "bus", "gain_db", "pan", "mute", "sol
 
 
 def set_track(p: Project, track_id: str, **fields) -> Project:
+    """Change a track's fields (given as keyword arguments)."""
     unknown = set(fields) - TRACK_FIELDS
     if unknown:
         raise EditError("error.edit.track_no_fields", fields=", ".join(sorted(unknown)))
@@ -171,6 +174,7 @@ def _target_lufs(value) -> float:
 
 
 def move_track(p: Project, track_id: str, index: int) -> Project:
+    """Move a track to position ``index`` in the track list."""
     track = _find_track(p, track_id)
     rest = [t for t in p.tracks if t.id != track_id]
     index = max(0, min(len(rest), int(index)))
@@ -178,6 +182,7 @@ def move_track(p: Project, track_id: str, index: int) -> Project:
 
 
 def set_track_automation(p: Project, track_id: str, points) -> Project:
+    """Replace a track's level automation with the given breakpoints."""
     track = _find_track(p, track_id)
     return _replace_track(p, replace(track, automation=_points(points)))
 
@@ -212,6 +217,7 @@ def set_track_auto_silence(p: Project, track_id: str, ranges) -> Project:
 
 
 def add_gate_range(p: Project, track_id: str, start: int, end: int) -> Project:
+    """Close a track's gate from frame ``start`` to ``end``."""
     track = _find_track(p, track_id)
     return _replace_track(p, replace(
         track, gate=gatem.add_range(track.gate, int(start), int(end))))
@@ -400,7 +406,7 @@ def add_bus(p: Project, bus_id: str | None = None, name: str = "Bus",
             track_ids=()) -> Project:
     """Add a bus, and route ``track_ids`` to it in the same edit (one undo step)."""
     bus_id = bus_id or new_id("b")
-    if any(b.id == bus_id for b in p.buses):
+    if bus_id in {b.id for b in p.buses}:
         raise EditError("error.edit.bus_exists", bus_id=bus_id)
     p = replace(p, buses=(*p.buses, Bus(id=bus_id, name=name)))
     for track_id in track_ids:
@@ -412,6 +418,7 @@ BUS_FIELDS = {"name", "gain_db", "pan", "mute", "kind"}
 
 
 def set_bus(p: Project, bus_id: str, **fields) -> Project:
+    """Change a bus's fields (given as keyword arguments)."""
     unknown = set(fields) - BUS_FIELDS
     if unknown:
         raise EditError("error.edit.bus_no_fields", fields=", ".join(sorted(unknown)))
@@ -437,6 +444,7 @@ def set_bus(p: Project, bus_id: str, **fields) -> Project:
 
 
 def delete_bus(p: Project, bus_id: str) -> Project:
+    """Delete a bus."""
     p = set_bus(p, bus_id)  # existence check
     tracks = tuple(replace(t, bus=None, follow_bus_role=False) if t.bus == bus_id else t
                    for t in p.tracks)
@@ -474,6 +482,7 @@ def reset_gains(p: Project) -> Project:
 
 
 def set_master(p: Project, gain_db: float) -> Project:
+    """Set the master gain in dB."""
     return replace(p, master_gain_db=float(gain_db))
 
 
@@ -483,6 +492,7 @@ def set_master(p: Project, gain_db: float) -> Project:
 def add_clip(p: Project, track_id: str, media_id: str, start: int = 0,
              offset: int = 0, length: int | None = None,
              clip_id: str | None = None) -> Project:
+    """Add a clip of a media file to a track, at ``start`` from ``offset``."""
     track = _find_track(p, track_id)
     try:
         media = p.media_item(media_id)
@@ -498,13 +508,54 @@ def add_clip(p: Project, track_id: str, media_id: str, start: int = 0,
 
 
 def delete_clip(p: Project, clip_id: str) -> Project:
+    """Delete a clip."""
     _, track = _find_clip(p, clip_id)
     return _replace_track(p, replace(track, clips=tuple(c for c in track.clips
                                                         if c.id != clip_id)))
 
 
+def _materialize_legacy_gates(p: Project, track_ids: set[str]) -> Project:
+    """Attach old track-time gates to the clips they currently silence.
+
+    Auto-Silence became clip-local in v26.10.24. Older projects still have
+    Track.gate, which would otherwise stay behind when one of their clips moves.
+    """
+    if not any(track.gate for track in p.tracks if track.id in track_ids):
+        return p
+    tracks = []
+    for track in p.tracks:
+        if track.id not in track_ids or not track.gate:
+            tracks.append(track)
+            continue
+        clips = []
+        for clip in track.clips:
+            if clip.ungated:
+                clips.append(clip)
+                continue
+            source_ranges = []
+            for start, end in track.gate:
+                lo, hi = max(start, clip.start), min(end, clip.end)
+                if hi > lo:
+                    source_ranges.append((clip.offset + lo - clip.start,
+                                          clip.offset + hi - clip.start))
+            if source_ranges:
+                clips.append(replace(
+                    clip, auto_silence=gatem.normalise(
+                        (*clip.auto_silence, *source_ranges))))
+            else:
+                clips.append(clip)
+        tracks.append(replace(track, clips=tuple(clips), gate=()))
+    return replace(p, tracks=tuple(tracks))
+
+
 def move_clip(p: Project, clip_id: str, start: int,
               track_id: str | None = None) -> Project:
+    """Move a clip to frame ``start``, optionally onto another track."""
+    clip, track = _find_clip(p, clip_id)
+    affected_tracks = {track.id}
+    if track_id is not None:
+        affected_tracks.add(track_id)
+    p = _materialize_legacy_gates(p, affected_tracks)
     clip, track = _find_clip(p, clip_id)
     moved = replace(clip, start=max(0, int(start)))
     if track_id is None or track_id == track.id:
@@ -540,6 +591,7 @@ def trim_clip(p: Project, clip_id: str, start: int | None = None,
 
 
 def split_clip(p: Project, clip_id: str, at: int, new_id: str | None = None) -> Project:
+    """Split a clip in two at frame ``at``."""
     clip, track = _find_clip(p, clip_id)
     at = int(at)
     if not clip.start < at < clip.end:
@@ -621,6 +673,7 @@ CLIP_FIELDS = {"gain_db", "pan", "fade_in", "fade_out", "muted", "name"}
 
 
 def set_clip(p: Project, clip_id: str, **fields) -> Project:
+    """Change a clip's fields (given as keyword arguments)."""
     unknown = set(fields) - CLIP_FIELDS
     if unknown:
         raise EditError("error.edit.clip_no_fields", fields=", ".join(sorted(unknown)))
@@ -637,6 +690,7 @@ def set_clip(p: Project, clip_id: str, **fields) -> Project:
 
 def set_fade_at(p: Project, clip_id: str, frame: int,
                 side: str | None = None) -> Project:
+    """Set a fade on a clip at ``frame`` (on ``side``, or its nearer end)."""
     clip, _ = _find_clip(p, clip_id)
     frame = int(frame)
     if not (clip.start <= frame < clip.end):
@@ -669,6 +723,7 @@ def set_fade_at(p: Project, clip_id: str, frame: int,
 
 
 def set_clip_envelope(p: Project, clip_id: str, points) -> Project:
+    """Replace a clip's level envelope with the given breakpoints."""
     clip, _ = _find_clip(p, clip_id)
     return _replace_clip(p, replace(clip, envelope=_points(points)))
 
@@ -805,12 +860,14 @@ def shift_clips(p: Project, clip_ids, delta: int) -> Project:
 
 
 def set_clips(p: Project, clip_ids, **fields) -> Project:
+    """Change fields of several clips at once (given as keyword arguments)."""
     for clip_id in clip_ids:
         p = set_clip(p, clip_id, **fields)
     return p
 
 
 def delete_clips(p: Project, clip_ids) -> Project:
+    """Delete several clips."""
     for clip_id in clip_ids:
         p = delete_clip(p, clip_id)
     return p
@@ -890,7 +947,10 @@ def cut_range(p: Project, start: int, end: int, track_ids=None) -> Project:
 def nudge_clips(p: Project, clip_ids, delta: int, overwrite: bool = True) -> Project:
     """``shift_clips`` that takes the members of the clips' explicit groups along
     (never their sync partners: WP83). Clips they land on are overwritten (no layers)."""
-    nudged = shift_clips(p, edit_scope.expand_clips(p, list(clip_ids)), delta)
+    expanded = edit_scope.expand_clips(p, list(clip_ids))
+    source_tracks = {t.id for t in p.tracks if any(c.id in expanded for c in t.clips)}
+    p = _materialize_legacy_gates(p, source_tracks)
+    nudged = shift_clips(p, expanded, delta)
     return _overwrite_under(p, nudged) if overwrite else nudged
 
 
@@ -1384,6 +1444,7 @@ def add_marker(p: Project, marker_id: str | None, name: str, start: int,
 
 
 def rename_marker(p: Project, marker_id: str, name: str) -> Project:
+    """Rename a marker."""
     return _put_marker(p, replace(_find_marker(p, marker_id), name=str(name).strip()))
 
 
@@ -1396,6 +1457,7 @@ def move_marker(p: Project, marker_id: str, start: int) -> Project:
 
 
 def set_region_end(p: Project, marker_id: str, end: int) -> Project:
+    """Set where a region marker ends."""
     m = _find_marker(p, marker_id)
     if m.kind != "region":
         raise EditError("error.marker.not_region", marker_id=marker_id)
@@ -1412,6 +1474,7 @@ def set_marker_kind(p: Project, marker_id: str, kind: str,
 
 
 def delete_marker(p: Project, marker_id: str) -> Project:
+    """Delete a marker."""
     _find_marker(p, marker_id)
     return replace(p, markers=tuple(m for m in p.markers if m.id != marker_id))
 
@@ -1483,6 +1546,7 @@ def set_placeholder_length(p: Project, placeholder_id: str, length: int) -> Proj
 
 def move_placeholder(p: Project, placeholder_id: str, start: int,
                      track_id: str | None = None) -> Project:
+    """Move a narration placeholder to frame ``start``, optionally onto another track."""
     h = _find_placeholder(p, placeholder_id)
     if int(start) < 0:
         raise EditError("error.placeholder.bad_start")
@@ -1492,6 +1556,7 @@ def move_placeholder(p: Project, placeholder_id: str, start: int,
 
 
 def delete_placeholder(p: Project, placeholder_id: str) -> Project:
+    """Delete a narration placeholder."""
     _find_placeholder(p, placeholder_id)
     return replace(p, placeholders=tuple(h for h in p.placeholders
                                          if h.id != placeholder_id))

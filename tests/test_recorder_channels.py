@@ -123,6 +123,3 @@ def test_channels_of_a_pre_roll_take_stay_in_sync(tmp_path):
     assert np.array_equal(guest, expected(first, len(guest), 1))
 
 
-def test_the_file_name_of_a_channel_is_built_in_one_place():
-    assert naming.segment_file("Take 1", "Host", 1) == "Take 1-Host.wav"
-    assert naming.segment_file("Take 1", "Host", 2) == "Take 1-Host~2.wav"

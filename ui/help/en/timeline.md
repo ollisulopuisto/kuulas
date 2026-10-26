@@ -11,6 +11,8 @@ Every track is a lane, and time runs left to right. A click anywhere in the lane
 - Play or stop: {key:transport.play}. Space always belongs to the timeline, whichever panel you are in.
 
 ## Zoom and move
+
+The overview above the timeline maps the whole edit. Its top edge shows up to four round time marks; the spacing grows with the edit, from seconds on short edits to 1, 5, 10, 15, 20, 30 or 60 minutes. Click or drag the strip to move the visible window without moving the play cursor.
 - Close or wide view: {key:view.toggle} {show:view-toggle}
 - Zoom in or out: {key:view.zoom_in} or {key:view.zoom_out}
 - Show the whole edit: {key:view.fit}
