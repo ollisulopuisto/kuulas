@@ -177,6 +177,14 @@ M1 is 23 of 28 done, 5 partly (WP4, WP5, WP19a, WP46, WP6). All are built; the "
 - Not done: treat a clip moved by hand after the sync was set as accepted automatically (risk: hides a real drift); the range commands ignore the "selected tracks" scope (they act on all tracks).
 - Check on screen: that the tint and dot read in both themes and on narrow clips; Accept on a real half-remote session (the one in the owner's screenshot, 2026-10-25) leaves nothing flagged after it.
 
+## To try in the dmg of 2026-10-26 (all built today, none seen on screen)
+
+1. **Toolbar rail (WP86):** ten buttons, the Search button on top, View > Toolbar (show, icons or text, reset); drag a button to a new place (a line shows where, Esc cancels), Alt+Up/Down on a focused button; right-click a menu row, Add to toolbar; right-click a button, Remove. Check that no button ever moves by itself and that it survives a restart. Auto-Silence badge: run Auto-Silence and read the count. Hint: mute by hand ten times and look for the one notice (once only).
+2. **Transcript:** the find field is always there; select words and drag: the pop-up must not cover them; I then click elsewhere (an implicit O), and the other way round.
+3. **Auto-Silence in the timeline and overview:** the hatching (is dark mode too faint?), dragging an implicit portion moves only that portion and makes it a clip, timestamps on the overview (up to four round ones), menus and tooltips stay inside the window, tooltips stand out.
+4. **Scrolling while playing:** scroll the timeline past the playhead; Follow stays off and the window does not jump. The transcript scrolls freely and playback does not capture it.
+5. **Scripting (WP53):** `GET /api/commands`; `python scripts/examples/remove_fillers.py <project> --dry-run`, then for real: one undo step per cut, and the session opens in the window for adjusting.
+
 ## Newer things to try (since v26.10.20.39; the dmg of 24.10.2026)
 
 1. **Recording (needs a real microphone):** two channels onto existing tracks, then onto new ones; watch the live drawing and the view following; Cmd+Enter drops a marker; try an edit during the take (it should say editing is paused); stop and read the notice; record over audio and check "It replaced ..."; choose a cart track in the setup, play a clipboard clip with Alt+1 and see it land where it was played.
