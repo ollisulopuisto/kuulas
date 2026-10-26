@@ -11,6 +11,7 @@ leading dot); the ``.kuulas`` suffix is added once (typed in any case, kept lowe
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -42,11 +43,17 @@ def project_path(parent: object, name: object) -> Path:
     folder = folder_name(name)
     if not isinstance(parent, str) or not parent.strip() or "\0" in parent:
         raise EditError("error.project.bad_parent", path=str(parent)[:200])
-    root = Path(parent)
-    if not root.is_absolute() or ".." in root.parts or not root.is_dir():
+    raw_parent = Path(parent)
+    if not raw_parent.is_absolute() or ".." in raw_parent.parts:
         raise EditError("error.project.bad_parent", path=parent[:200])
-    root = root.resolve(strict=True)
-    target = root / folder
+    norm_parent = os.path.normpath(parent)
+    if not os.path.isabs(norm_parent) or not os.path.isdir(norm_parent):
+        raise EditError("error.project.bad_parent", path=parent[:200])
+    real_parent = os.path.realpath(norm_parent)
+    target_str = os.path.normpath(os.path.join(real_parent, folder))
+    if not target_str.startswith(real_parent + os.sep):
+        raise EditError("error.project.bad_name")
+    target = Path(target_str)
     if target.exists() or target.is_symlink():
         raise EditError("error.project.exists", path=str(target))
     return target
@@ -75,10 +82,14 @@ def checked_project_folder(folder: object) -> str:
     if (not isinstance(folder, str) or not folder or "\0" in folder
             or folder.startswith("-")):
         raise EditError("error.project.bad_parent", path=str(folder)[:200])
-    path = Path(folder)
-    if not path.is_absolute() or path.suffix != SUFFIX or not path.is_dir():
+    raw_path = Path(folder)
+    if not raw_path.is_absolute() or raw_path.suffix != SUFFIX or ".." in raw_path.parts:
         raise EditError("error.project.bad_parent", path=folder[:200])
-    return str(path.resolve())
+    norm = os.path.normpath(folder)
+    real = os.path.realpath(norm)
+    if not os.path.isdir(real):
+        raise EditError("error.project.bad_parent", path=folder[:200])
+    return real
 
 
 def start_window(folder: str) -> None:

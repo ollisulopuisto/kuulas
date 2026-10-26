@@ -490,10 +490,10 @@ def _plugin_path(item: str) -> str:
     exist; a name is matched to an installed plug-in (``plugins.match``). With nothing
     installed (or no scan on this platform) a name is passed on as typed, as before."""
     if plugins.looks_like_path(item):
-        path = Path(item).expanduser()
-        if not path.exists():
+        norm = os.path.normpath(os.path.expanduser(item))
+        if not os.path.exists(norm):
             plugin_missing(item)
-        return str(path.absolute())
+        return os.path.realpath(norm)
     installed = plugins.list_plugins()
     if not installed:
         return item

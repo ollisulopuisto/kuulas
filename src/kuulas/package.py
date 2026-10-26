@@ -140,18 +140,25 @@ def write_json_atomic(path: Path, data: dict) -> None:
     """Temp file, fsync, rename: the old file or the new one, never half."""
     # Exclusive creation prevents a pre-existing temp symlink from truncating a
     # recording. The temp is in the same directory, so replacement stays atomic.
-    fd, name = tempfile.mkstemp(prefix=f"{path.name}.", suffix=".tmp", dir=path.parent)
+    if ".." in path.parts:
+        raise PackageError("error.server.bad_request")
+    parent_dir = os.path.realpath(path.parent)
+    dest_path = os.path.normpath(os.path.join(parent_dir, path.name))
+    if not dest_path.startswith(parent_dir + os.sep):
+        raise PackageError("error.server.bad_request")
+    target = Path(dest_path)
+    fd, name = tempfile.mkstemp(prefix=f"{target.name}.", suffix=".tmp", dir=parent_dir)
     tmp = Path(name)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=1, ensure_ascii=False)
             f.flush()
             os.fsync(f.fileno())
-        os.replace(tmp, path)
+        os.replace(tmp, target)
     finally:
         tmp.unlink(missing_ok=True)
     if hasattr(os, "O_DIRECTORY"):  # POSIX: make the rename itself durable
-        fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
+        fd = os.open(parent_dir, os.O_RDONLY | os.O_DIRECTORY)
         try:
             os.fsync(fd)
         finally:

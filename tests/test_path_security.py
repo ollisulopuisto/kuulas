@@ -159,3 +159,88 @@ def test_background_job_files_do_not_follow_external_links(tmp_path):
         bgjobs.job_file(tmp_path, "j1")
     assert bgjobs.job_ids(tmp_path) == []
     assert outside.read_text() == '{"id":"j1"}'
+
+
+def test_save_upload_never_follows_preexisting_partial_symlink(tmp_path):
+    from io import BytesIO  # noqa: PLC0415
+
+    from starlette.datastructures import UploadFile  # noqa: PLC0415
+
+    from kuulas.server import save_upload  # noqa: PLC0415
+
+    uploads = tmp_path / "uploads"
+    uploads.mkdir()
+    outside = tmp_path / "vital_data.txt"
+    outside.write_bytes(b"do not overwrite")
+    planted = uploads / "song.wav.partial"
+    planted.symlink_to(outside)
+
+    file_obj = UploadFile(file=BytesIO(b"new music"), filename="song.wav")
+    saved = save_upload(uploads, file_obj)
+    assert outside.read_bytes() == b"do not overwrite"
+    assert saved.read_bytes() == b"new music"
+    assert not saved.is_symlink()
+    assert saved.parent == uploads
+
+
+def test_save_upload_rejects_path_traversal_filenames(tmp_path):
+    from io import BytesIO  # noqa: PLC0415
+
+    from starlette.datastructures import UploadFile  # noqa: PLC0415
+
+    from kuulas.server import save_upload  # noqa: PLC0415
+
+    uploads = tmp_path / "uploads"
+    uploads.mkdir()
+
+    for bad in ["../../etc/passwd", "..\\..\\win.ini", "/outside.wav", "C:\\bad.wav"]:
+        file_obj = UploadFile(file=BytesIO(b"content"), filename=bad)
+        saved = save_upload(uploads, file_obj)
+        assert saved.parent == uploads
+        assert saved.read_bytes() == b"content"
+
+
+def test_save_upload_skips_dangling_symlink_target(tmp_path):
+    from io import BytesIO  # noqa: PLC0415
+
+    from starlette.datastructures import UploadFile  # noqa: PLC0415
+
+    from kuulas.server import save_upload  # noqa: PLC0415
+
+    uploads = tmp_path / "uploads"
+    uploads.mkdir()
+    outside = tmp_path / "nonexistent.wav"
+    (uploads / "take.wav").symlink_to(outside)
+
+    file_obj = UploadFile(file=BytesIO(b"audio"), filename="take.wav")
+    saved = save_upload(uploads, file_obj)
+    assert saved == uploads / "take (2).wav"
+    assert saved.read_bytes() == b"audio"
+    assert (uploads / "take.wav").is_symlink()
+    assert not outside.exists()
+
+
+def test_series_library_path_enforces_directory_containment(tmp_path):
+    lib = SeriesLibrary(tmp_path / "series")
+    # A valid UUID creates a canonical path inside folder
+    sid = "01900000-0000-7000-8000-000000000000"
+    path = lib._path(sid)
+    assert path.parent == (tmp_path / "series").resolve()
+    assert path.name == f"{sid}.json"
+
+
+def test_atomic_json_rejects_escaping_path(tmp_path):
+    target = tmp_path / ".." / "outside.json"
+    with pytest.raises(package.PackageError):
+        package.write_json_atomic(target, {"test": True})
+
+
+def test_clipboard_browse_rejects_relative_and_traversal(tmp_path):
+    from kuulas import clipboard_browse  # noqa: PLC0415
+
+    with pytest.raises(EditError):
+        clipboard_browse.project_folder("relative/Show.kuulas")
+    with pytest.raises(EditError):
+        clipboard_browse.project_folder(str(tmp_path / ".." / "Show.kuulas"))
+
+

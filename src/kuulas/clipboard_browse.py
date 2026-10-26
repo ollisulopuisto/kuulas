@@ -25,6 +25,7 @@ unreadable or damaged ``clipboard.json`` is not an error: it is an empty list.
 from __future__ import annotations
 
 import logging
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -57,10 +58,15 @@ def project_folder(path: object) -> Path:
     raw = Path(path)
     if not raw.is_absolute() or ".." in raw.parts:
         raise _bad(path)
+    norm = os.path.normpath(path)
     try:
-        folder = raw.resolve(strict=True)
+        real = os.path.realpath(norm)
+        folder = Path(real)
+        manifest_str = os.path.normpath(os.path.join(real, "manifest.json"))
+        if not manifest_str.startswith(real + os.sep):
+            raise _bad(path)
         isproject = (folder.is_dir() and folder.name.endswith(PROJECT_SUFFIX)
-                     and (folder / "manifest.json").is_file())
+                     and Path(manifest_str).is_file())
     except (OSError, RuntimeError):
         raise _bad(path) from None
     if not isproject:
