@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 import { SEMANTIC_TOKENS, SIGNALS } from "../grammar.js";
 
 const at = (path) => fileURLToPath(new URL(path, import.meta.url));
-const read = (path) => readFileSync(at(path), "utf8");
+const read = (path) => readFileSync(at(path), "utf8").replace(/\r\n/g, "\n");
 const CSS = read("../tokens.css");
 const PROTOTYPE = "../../docs/design/prototype/index.html";
 

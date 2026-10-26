@@ -42,8 +42,10 @@ def test_is_protected_dotdot_tricks():
 
 def test_is_protected_media_paths():
     assert is_protected(mk("/Users/dst/media/song.wav"), ROOT, media_paths=MEDIA) is True
-    assert is_protected(mk("/Users/dst/media/jingle.wav"), ROOT, media_paths=MEDIA) is True
-    assert is_protected(mk("/Users/dst/media/other.wav"), ROOT, media_paths=MEDIA) is False
+    assert is_protected(mk("/Users/dst/media/jingle.wav"), ROOT,
+                        media_paths=MEDIA) is True
+    assert is_protected(mk("/Users/dst/media/other.wav"), ROOT,
+                        media_paths=MEDIA) is False
     assert is_protected(f"{RECORDINGS}/take.wav", ROOT, media_paths=MEDIA) is True
 
 
@@ -72,8 +74,9 @@ def test_check_delete_protected_refused_unless_confirmed():
 
 
 def test_check_delete_media_path():
-    assert check_delete(mk("/Users/dst/media/song.wav"), ROOT, media_paths=MEDIA) == "refused"
+    target = mk("/Users/dst/media/song.wav")
+    assert check_delete(target, ROOT, media_paths=MEDIA) == "refused"
     assert (
-        check_delete(mk("/Users/dst/media/song.wav"), ROOT, media_paths=MEDIA, confirmed=True)
+        check_delete(target, ROOT, media_paths=MEDIA, confirmed=True)
         == "ok"
     )
