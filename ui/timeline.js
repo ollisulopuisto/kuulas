@@ -1848,7 +1848,8 @@ export function createTimeline({
     else if (hit.clip && Object.hasOwn(clipOvers, hit.clip.id))
       text = overLabel(clipOvers[hit.clip.id], t, (value) => formatNumber(value, { digits: 1 }));
     else if (hit.clip) text = syncTooltip(getState(), hit.clip);
-    if (overlayCanvas.title !== text) overlayCanvas.title = text;
+    if (text) overlayCanvas.dataset.tip = text;
+    else delete overlayCanvas.dataset.tip;
   }
   overlayCanvas.addEventListener("pointermove", (event) => {
     const state = getState();

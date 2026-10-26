@@ -200,6 +200,7 @@ import {
 import { densityAttribute, nextTheme, themeAttribute } from "./theme.js";
 import { createTimeline } from "./timeline.js";
 import { contextPress, menuFromSections, timelineMenuItems } from "./timeline-menu.js";
+import { installTooltips } from "./tooltip.js";
 import { createTrackHeaders } from "./tracks.js";
 import { withoutMusic } from "./transcribable.js";
 import { createTranscript } from "./transcript.js";
@@ -4797,6 +4798,8 @@ connectLive({
     }
   },
 });
+
+installTooltips();
 
 // The long-task monitor of the performance rule (no main-thread task over 16 ms):
 // open the page with ?dev to log every task that breaks it.
