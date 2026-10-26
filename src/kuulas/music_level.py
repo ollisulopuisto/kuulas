@@ -10,7 +10,7 @@ The rule is the automixer's (``automixer.stems_mix``, ``BED_UNDER_SPEECH_DB``):
 * ``bed_lufs``: the loudest 3 s short-term moment of the music tracks summed;
 * ``change = speech_lufs + offset_db - bed_lufs``.
 
-The automixer's own offset is -1 dB (its beds are levelled against processed,
+The automixer's own offset is +1 dB (its beds are levelled against processed,
 compressed speech). Here the default is -10 dB: the edit is unprocessed and the
 owner asked for the beds clearly under the voice (2026-10-20).
 
@@ -55,7 +55,7 @@ ALGORITHM = "music-level@1"
 
 #: How far under the speech the beds' loudest moment sits, dB (owner, 2026-10-20).
 DEFAULT_OFFSET_DB = -10.0
-OFFSET_RANGE = (-30.0, 0.0)
+OFFSET_RANGE = (-30.0, 1.0)
 #: The automixer's fixed rule, for reference (``stems_mix.BED_UNDER_SPEECH_DB``).
 AUTOMIXER_OFFSET_DB = 1.0
 

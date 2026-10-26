@@ -3628,6 +3628,11 @@ input[type="text"] {
   height: var(--control-h);
   accent-color: var(--accent);
 }
+.music-level-slider {
+  width: 100%;
+  height: 28px;
+  margin: 0;
+}
 .form-readout {
   min-width: 5ch;
   text-align: right;

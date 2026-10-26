@@ -1,5 +1,7 @@
-## [Unreleased]
+## [v26.10.26.1] - 2026-10-26
 
+- **Set music level above speech when needed.** The target now ranges from 30 dB below to 1 dB above speech, including the automixer's +1 dB rule. The dialog pairs a range slider with decimal entry, and the control and Preferences now describe the level relative to speech.
+- **Auto-Silence follows moved clips.** Legacy track silence gates are attached to clips during moves, so their silent regions travel with the clips.
 - **Security: opening a project in a new window no longer puts the request's text on the command line.** The new window now runs inside the project folder and is started with a fixed argument, so a crafted folder name cannot change what runs. The folder is still checked first as before, and the window opens the same project. Found by CodeQL (py/command-line-injection, alert 66).
 
 ## [v26.10.25.5] - 2026-10-25

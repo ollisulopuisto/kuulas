@@ -55,7 +55,7 @@ def test_a_gain_past_the_range_is_clamped_and_said():
     assert plan.clamped == ("m1",)
 
 
-@pytest.mark.parametrize("value", ["loud", -31, 0.5, float("nan"), "-40"])
+@pytest.mark.parametrize("value", ["loud", -31, 1.01, float("nan"), "-40"])
 def test_a_bad_offset_is_refused(value):
     with pytest.raises(EditError) as e:
         music_level.parse_offset(value)
@@ -65,6 +65,10 @@ def test_a_bad_offset_is_refused(value):
 def test_the_offset_default_and_a_comma_decimal():
     assert music_level.parse_offset(None) == -10.0
     assert music_level.parse_offset("-7,5") == -7.5
+
+
+def test_user_offset_includes_the_automixer_target():
+    assert music_level.parse_offset(music_level.AUTOMIXER_OFFSET_DB) == 1.0
 
 
 def test_no_music_and_no_speech_are_refused_with_their_reason():

@@ -148,8 +148,9 @@ M1 is 23 of 28 done, 5 partly (WP4, WP5, WP19a, WP46, WP6). All are built; the "
 - Also done: right-click on a marker flag / region bar (ruler hit-test `markerIdAtX`) and on a clip volume-line point (`clip.envelope_delete_point`, `clip.envelope_reset`). Also done: ducking-point menu (`automationPointAt` hit-test in `ui/lanes.js`, `track.automation_delete_point` / `track.automation_clear`) and the transcript right-click on an unpicked word. Not done: dragging ducking points (the curve is still only written by Track > Auto). A selection strip (Opus: only if buttons are still wanted after trying these) is not built; floating tool palette: decided no.
 - Check on screen: drag handle feel (drop position while dragging shows only an outline), loudness text on the level row at rest (hidden until hover / current track in the comfortable density), compact headers (dot in the corner).
 
-## Released in v26.10.25.4 and .5
+## Released in v26.10.26.1, v26.10.25.4 and .5
 
+- v26.10.26.1 (tagged 2026-10-26): Set music level accepts offsets through +1 dB above speech; the dialog now has a linked slider and numeric field. Legacy Auto-Silence regions follow clips when moved; opening a project in a new window no longer puts request text on the command line.
 - v26.10.25.4 (tagged 2026-10-25): sync drift marks hidden by default; range commands (below).
 - v26.10.25.5 (tagged 2026-10-25): security fix, CodeQL 58: a window only opens for a real *.kuulas folder.
 
@@ -181,7 +182,7 @@ Silence visuals (outline, padlocks, dashed ends, group outline); missing media a
 Released in v26.10.20.5 to v26.10.20.14, in order of importance:
 00. **v26.10.20.8-.14 (new, nothing tried yet):** (a) the Aame mix: export again, Aame's track gain now reaches the automixer (v.14), check the balance against Kuulas; (b) Track > Auto > Level blocks (listen for clicks at the new cuts, real speech untested); (c) bus roles: bus header right-click > Role, '!' badge on a track, asterisk and Reapply on a bus, Inspector dropdown 'Match bus role'; (d) Cmd (Ctrl) + drag on a clip edge trims only that clip; (e) automix progress shows '3/4 track 2/3 Kari: debleed (2/9)' and 'skipped' for switched-off stages; (f) Music level field default +1.
 0. **v26.10.20.7 (new, nothing tried yet):** Track > Auto > Set music level (numbers shown, one undo); backups compressed and Statistics > Size; automix Music field + 'Done in Kuulas' badge/Reset/offer (layout and the 'Set music level again' link only unit-tested, never seen in a window); `Done in Kuulas` line in log.txt. The local dmg build into ~/Desktop/kuulas-dmg came out empty; cause not found (needs the script's last output); the GitHub dmg is fine.
-1. **Automix log (v26.10.20.6):** after an automix export a `log.txt` sits beside the wav; the notice has 'Show log' and the 'beds: ... mastered: ...' lines. Send the beds line: it tells how much the music was raised (music came out far too loud; the automixer forces the beds to 1 dB under the speech).
+1. **Automix log (v26.10.20.6):** after an automix export a `log.txt` sits beside the wav; the notice has 'Show log' and the 'beds: ... mastered: ...' lines. Send the beds line: it tells how much the music was raised (music came out far too loud; the automixer's rule places the beds 1 dB above the speech).
 2. **Memory on the 47-minute project:** Kuulas under about 2 GB in Activity Monitor; at most one small `analysis_worker` process (`ps -axo pid,ppid,stat,etime,rss,command | grep analysis_worker | grep -v grep`); a killed worker is now an error, not an in-app run.
 3. **Paste:** Cmd+V overwrites on the selected track; Alt+Cmd+V inserts; with In/Out marked it fits the range.
 4. **Clipboard:** play a clip, button turns to Stop, progress bar, square buttons.
@@ -265,10 +266,11 @@ Released in v26.10.20.5 to v26.10.20.14, in order of importance:
   (region + count/length), engine reads wrap around the region; export/stems render it identically; undo as one step.
   Open question: how it interacts with sync/groups, ripple trims and the fade-out (suggest: fades at the clip ends only).
 - **Auto-mix inside Kuulas** (owner request 2026-10-20; the mixing becomes editable clips/levels/automation in the GUI,
-  and the export tells the automixer what is already done). Phase 1 (building): **Set music level**, a Track > Auto
+  and the export tells the automixer what is already done). Phase 1 (built in v26.10.20.7; range extended in v26.10.26.1): **Set music level**, a Track > Auto
   command that measures the speech and the music beds (same rule as the automixer: the loudest 3 s moment of the music
-  vs the speech level while someone speaks) and sets the music track/clip gain to a chosen distance under the speech
-  (default -10 dB, editable; the automixer's own fixed rule is -1 dB), one undo step. Phase 2: **Level blocks**
+  vs the speech level while someone speaks) and sets the music track/clip gain to a chosen offset relative to speech
+  (from -30 to +1 dB; negative is under, zero is equal, positive is above; default -10 dB; +1 dB matches the
+  automixer's own fixed rule), one undo step. Phase 2: **Level blocks**
   (speechmix block gains written as clip gains, splitting clips where needed). Phase 3: **'Done in Kuulas' manifest** in
   tracks.json (applied: block_level, bed_level_db, music_duck, mic_gates) so the export adds `--no-block-level`,
   `--no-music-duck` and tells the automixer to keep the stem level for beds; the automix dialog shows a 'Done in Kuulas'
