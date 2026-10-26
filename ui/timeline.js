@@ -2097,7 +2097,7 @@ export function createTimeline({
     requestOverlay();
     // A press without travel only positions the cursor. Materialization requires a drag
     // or the user's mute command; clicking near a dotted boundary must not change audio.
-    if (commit && !session.dragging) actions.seek?.(session.seekFrame);
+    if (commit && !session.dragging) actions.clickSeek?.(session.seekFrame);
     if (commit && session.dragging) {
       actions.edgeDrag({
         clipId: session.clipId,
@@ -2424,7 +2424,7 @@ export function createTimeline({
       session.ended = commit ? "commit" : "cancel";
       return;
     }
-    if (commit && !session.dragging) actions.seek?.(session.seekFrame);
+    if (commit && !session.dragging) actions.clickSeek?.(session.seekFrame);
     if (commit && session.dragging) sendMove(session);
   }
 

@@ -128,6 +128,7 @@ import { activeLoop, rangeAvailable } from "./loop-range.js";
 import { createLoudnessLoader } from "./loudness-readout.js";
 import { regionCount } from "./markers-model.js";
 import { createMarkersPanel } from "./markers-panel.js";
+import { implicitMarkPlan } from "./marks.js";
 import { createMarksCorner } from "./marks-corner.js";
 import { createMaterialPanel } from "./material-panel.js";
 import { missingNotice } from "./media-copy-model.js";
@@ -4041,6 +4042,12 @@ const timeline = createTimeline({
   actions: {
     pointerDown: onPointerDown,
     seek: (frame) => void transport.seek(frame),
+    // A click on a clip (no travel) also completes a lone in or out mark (marks.js).
+    clickSeek: (frame) => {
+      const mark = implicitMarkPlan(getState(), frame);
+      if (mark) setState(mark);
+      void transport.seek(frame);
+    },
     contextMenu: (hit, event) => showTimelineMenu(hit, event),
     rangeDragged: onRangeDragged,
     hint(text) {
