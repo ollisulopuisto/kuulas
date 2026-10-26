@@ -108,3 +108,71 @@ describe("the icons", () => {
     }
   });
 });
+
+describe("the Auto-Silence badge", () => {
+  const project = {
+    tracks: [
+      {
+        id: "a",
+        clips: [
+          {
+            id: 1,
+            auto_silence: [
+              [0, 10],
+              [20, 30],
+            ],
+          },
+          { id: 2 },
+        ],
+      },
+      { id: "b", clips: [{ id: 3, auto_silence: [[5, 9]] }] },
+    ],
+  };
+  const items = (state) =>
+    toolbarItems({
+      layout: ["app.auto_silence", "edit.undo"],
+      registry: registry(["app.auto_silence", "edit.undo"]),
+      state,
+      t,
+      keyOf,
+    });
+
+  test("counts the silent stretches of every clip", () => {
+    assert.equal(items({ project })[0].badge, "3");
+  });
+
+  test("no stretches, or no project, no badge", () => {
+    assert.equal(items({ project: null })[0].badge, null);
+    assert.equal(items({ project: { tracks: [{ clips: [{ id: 1 }] }] } })[0].badge, null);
+  });
+
+  test("a big count is capped so it fits the button", () => {
+    const many = {
+      tracks: [{ clips: [{ auto_silence: Array.from({ length: 250 }, (_, i) => [i, i]) }] }],
+    };
+    assert.equal(items({ project: many })[0].badge, "99+");
+  });
+
+  test("only that button has a badge, and the badge never changes the order", () => {
+    assert.equal(items({ project })[1].badge, null);
+    assert.deepEqual(
+      items({ project }).map((i) => i.id),
+      ["app.auto_silence", "edit.undo"],
+    );
+  });
+});
+
+describe("the icons of the former stand-ins", () => {
+  test("every default button has an icon of its own", () => {
+    const used = DEFAULT_LAYOUT.map((id) => TOOLBAR_ICONS[id]);
+    assert.equal(new Set(used).size, used.length);
+    for (const id of [
+      "app.transcribe",
+      "app.auto_silence",
+      "sync.resync_range",
+      "export.automix",
+    ]) {
+      assert.ok(!["rename", "lock", "reset", "layers"].includes(TOOLBAR_ICONS[id]), id);
+    }
+  });
+});

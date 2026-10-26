@@ -410,7 +410,8 @@ button.chip {
   background: var(--accent, currentColor);
   pointer-events: none;
 }
-.tool-rail .rail-btn {
+.tool-rail .rail-btn,
+.tool-rail .rail-search {
   width: 100%;
   height: auto;
   min-height: var(--control-h);
@@ -419,8 +420,29 @@ button.chip {
   text-align: left;
   white-space: normal;
 }
-.editor[data-rail="icons"] .tool-rail .rail-btn {
+.editor[data-rail="icons"] .tool-rail .rail-btn,
+.editor[data-rail="icons"] .tool-rail .rail-search {
   justify-content: center;
+}
+.tool-rail .rail-btn {
+  position: relative;
+}
+.rail-badge {
+  position: absolute;
+  top: 1px;
+  right: 2px;
+  min-width: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: 10px;
+  line-height: 14px;
+  text-align: center;
+  pointer-events: none;
+}
+.rail-badge[hidden] {
+  display: none;
 }
 .rail-label {
   overflow-wrap: anywhere;

@@ -87,10 +87,10 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   const pop = el("div", "tx-pop");
   pop.setAttribute("role", "toolbar");
   pop.hidden = true;
-  // The find bar (Mod+F): sticky at the top of the dock, hidden until asked for.
+  // The find bar: sticky at the top of the dock and always there, so searching is not a hidden
+  // key (WP86). Mod+F focuses it; the cross clears it.
   const findBar = el("div", "tx-find");
   findBar.setAttribute("role", "search");
-  findBar.hidden = true;
   const findInput = el("input", "tx-find-input");
   findInput.type = "search";
   findInput.autocomplete = "off";
@@ -210,7 +210,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     renderEmptyState();
     renderWindow();
     markNow();
-    if (!findBar.hidden) runFind(false);
+    runFind(false);
   }
 
   // -- the empty state ----------------------------------------------------------------------------
@@ -995,7 +995,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
 
   function paintRemoved() {
     const summary = removedSummary(removedHits.length);
-    removed.hidden = findBar.hidden || summary === null;
+    removed.hidden = summary === null;
     if (removed.hidden) return;
     removedToggle.textContent = `${removedOpen ? "▾" : "▸"} ${t(summary.key, summary.values)}`;
     removedToggle.setAttribute("aria-expanded", String(removedOpen));
@@ -1035,7 +1035,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     clearTimeout(removedTimer);
     const query = findQuery.trim();
     const ask = ++removedAsk;
-    if (query === "" || findBar.hidden) {
+    if (query === "") {
       removedHits = [];
       paintRemoved();
       return;
@@ -1113,14 +1113,13 @@ export function createTranscript({ root, getState, setState, api, actions }) {
 
   function openFind(options = {}) {
     if (options.removed) removedOpen = true;
-    findBar.hidden = false;
     findInput.focus();
     findInput.select();
     runFind(false);
   }
 
+  /** Clear the search and give the keyboard back to the transcript; the field stays. */
   function closeFind() {
-    findBar.hidden = true;
     const before = foundWords;
     findQuery = "";
     findInput.value = "";
