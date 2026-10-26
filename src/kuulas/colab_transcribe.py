@@ -50,6 +50,7 @@ from .automix import run_process as _run_process
 from .clock import FLICKS
 from .jobs import JobCancelledError
 from .messages import KuulasError, t
+from .processes import kill_process_group
 
 log = logging.getLogger("kuulas.colab_transcribe")
 
@@ -89,7 +90,7 @@ def _stop_session(proc: subprocess.Popen) -> int:
             return proc.wait(timeout=wait)
         except subprocess.TimeoutExpired:
             continue
-    _signal(proc, signal.SIGKILL)
+    kill_process_group(proc)
     return proc.wait()
 
 

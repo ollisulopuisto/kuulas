@@ -5,6 +5,7 @@ The fake is a small Python script with the contract's command line: it writes
 No network, no Colab."""
 
 import json
+import os
 import sys
 import textwrap
 import threading
@@ -216,13 +217,15 @@ def test_command_line_is_an_argument_list():
                 "no_drive": True}
     cmd = ct.build_command(settings, [Path("/a/One.wav"), Path("/b/Two.flac")],
                            Path("/t/out"), model="turbo", language="fi")
-    assert cmd == ["uvx", "colab-transcribe", "--audio", "/a/One.wav", "--audio",
-                   "/b/Two.flac", "--json", "/t/out", "--progress", "--model", "turbo",
-                   "--language", "fi", "--align", "--no-drive", "--gpu", "L4"]
+    assert cmd == ["uvx", "colab-transcribe", "--audio", str(Path("/a/One.wav")),
+                   "--audio", str(Path("/b/Two.flac")), "--json", str(Path("/t/out")),
+                   "--progress", "--model", "turbo", "--language", "fi", "--align",
+                   "--no-drive", "--gpu", "L4"]
     cmd = ct.build_command(
         {"command": ["c"], "extra_args": [], "no_drive": False, "align": False},
         [Path("/a/One.wav")], Path("/t"), model="small", language=None)
-    assert cmd == ["c", "--audio", "/a/One.wav", "--json", "/t", "--progress",
+    assert cmd == ["c", "--audio", str(Path("/a/One.wav")), "--json", str(Path("/t")),
+                   "--progress",
                    "--model", "small"]
 
 
@@ -509,6 +512,7 @@ def test_cancel_stops_the_process_and_removes_the_folder(tmp_path, fake, temp_ro
     assert list(temp_root.iterdir()) == []
 
 
+@pytest.mark.skipif(os.name == "nt", reason="Windows uses inherited directory ACLs")
 def test_the_temp_folder_is_private(tmp_path, fake, temp_root):
     seen = {}
 
