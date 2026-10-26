@@ -24,13 +24,14 @@ import json
 import logging
 import os
 import re
+import signal
 import subprocess
 import threading
 import webbrowser
 from collections import deque
 from pathlib import Path
 
-from . import toolpath
+from . import processes, toolpath
 from .colab_transcribe import ColabError
 from .messages import t
 
@@ -113,8 +114,8 @@ class SigninFlow:
             proc = subprocess.Popen(  # noqa: S603 - an argument list from settings
                 [program, *cmd[1:]], cwd=cwd, stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-                errors="replace", bufsize=1, start_new_session=True,
-                env=toolpath.tool_env())
+                errors="replace", bufsize=1, env=toolpath.tool_env(),
+                **processes.process_group_options())
         except OSError:
             self._fail(_error("error.colab.not_found", command=" ".join(command),
                               cwd=cwd or ""))
@@ -187,7 +188,7 @@ class SigninFlow:
 
     def _stop(self, proc: subprocess.Popen) -> None:
         with contextlib.suppress(ProcessLookupError, PermissionError):
-            os.killpg(proc.pid, 15)
+            processes.signal_process_group(proc, signal.SIGTERM)
 
     def cancel(self) -> None:
         with self._lock:

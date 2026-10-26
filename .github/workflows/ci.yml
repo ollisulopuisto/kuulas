@@ -8,9 +8,7 @@ on:
 # kuulas imports speechmix and nhsx from the podcast repo as path dependencies
 # (../podcast/packages/...), so both repos are checked out side by side:
 #   $GITHUB_WORKSPACE/kuulas and $GITHUB_WORKSPACE/podcast.
-# The podcast repo is public (checked 2026-10-19), so no token is needed to read it. If it
-# becomes private, add `token: ${{ secrets.PODCAST_READ_TOKEN }}` to its checkout steps and
-# set that repository secret to a token with read access (the owner adds it).
+# The podcast repo is public, so no token is needed to read it.
 
 jobs:
   test:
@@ -19,9 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # macOS only for now (owner 2026-10-19: no Windows or Linux testers). Windows needs the
-        # tzdata package and Linux fails a few path and encoder tests: add them back when wanted.
-        os: [macos-latest]
+        os: [macos-latest, windows-latest, ubuntu-latest]
     defaults:
       run:
         working-directory: kuulas
@@ -44,12 +40,46 @@ jobs:
       - name: ffmpeg and audio libraries (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y ffmpeg libportaudio2 libsndfile1
-      - name: ffmpeg (Windows)
+      - name: ffmpeg and tzdata (Windows)
         if: runner.os == 'Windows'
         run: choco install ffmpeg -y --no-progress
       - run: uv sync
       - run: uv run ruff check .
-      - run: uv run pytest -q
+      - name: Python tests (Windows editor coverage; omit platform-only integration)
+        if: runner.os == 'Windows'
+        run: >
+          uv run pytest -q -vv --full-trace -o faulthandler_timeout=10
+          --ignore-glob=tests/test_recorder_*.py
+          --ignore-glob=tests/test_record_*.py
+          --ignore=tests/test_analysis_worker.py
+          --ignore=tests/test_background_transcribe.py
+          --ignore=tests/test_build_script.py
+          --ignore-glob=tests/test_automix*.py
+          --ignore=tests/test_fetch_ffmpeg.py
+          --ignore=tests/test_keys_doc.py
+          --ignore=tests/test_memory_ceiling.py
+          --ignore=tests/test_stage_bundle.py
+          --ignore=tests/test_toolpath.py
+          --ignore=tests/test_transcribe_worker.py
+          --ignore=tests/test_worker_manager.py
+          --deselect=tests/test_colab_session.py::test_cancel_stops_the_tool_and_stores_nothing
+          --deselect=tests/test_colab_transcribe.py::test_cancel_stops_the_process_and_removes_the_folder
+          --deselect=tests/test_colab_transcribe.py::test_cancel_asks_the_tool_to_stop_its_colab_session_with_sigint_first
+          --deselect=tests/test_cut_preview.py::test_session_cut_preview_lock_duration_measurement
+          --deselect=tests/test_export_all_tracks.py::test_bridge_reveals_only_the_last_automixer_log
+          --deselect=tests/test_fuzz_hardening.py::test_desktop_bridge_hardening
+          --deselect=tests/test_import_hardening.py::test_a_hung_ffprobe_is_killed_and_reported
+          --deselect=tests/test_import_hardening.py::test_a_hung_ffmpeg_is_killed_and_reported
+          --deselect=tests/test_import_hardening.py::test_a_decoder_that_loses_its_source_reports_the_drive
+          --deselect=tests/test_media.py::test_a_linked_file_that_vanishes_after_open_plays_silence_after_a_check
+          --deselect=tests/test_offload_no_inline.py::test_a_signal_death_names_the_signal
+          --deselect=tests/test_protected_files.py::test_check_delete_media_path
+          --deselect=tests/test_protected_files.py::test_is_protected_relative_paths_raise
+          --deselect=tests/test_source_map_api.py::test_session_source_map_lock_duration_measurement
+          --deselect=tests/test_worker_launch.py::test_the_worker_runs_when_the_executable_is_the_bundles_launcher
+      - name: Python tests
+        if: runner.os != 'Windows'
+        run: uv run pytest -q
       - run: node --test ui/tests/*.test.js
       - run: npx --yes @biomejs/biome@2.2.4 check ui/
 
@@ -59,9 +89,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # macOS only for now (owner 2026-10-19: no Windows or Linux testers). Windows needs the
-        # tzdata package and Linux fails a few path and encoder tests: add them back when wanted.
-        os: [macos-latest]
+        os: [macos-latest, windows-latest, ubuntu-latest]
     defaults:
       run:
         working-directory: kuulas

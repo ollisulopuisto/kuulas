@@ -109,7 +109,7 @@ def test_main_clean(tmp_path, capsys):
     pyproj = tmp_path / "pyproject.toml"
     pyproj.write_text('version = "26.10.18.1"\n')
     plan = tmp_path / "PLAN.md"
-    plan.write_text("### WP1 — Test\n")
+    plan.write_text("### WP1 — Test\n", encoding="utf-8")
     roadmap = tmp_path / "ROADMAP.md"
     roadmap.write_text("WP1 is documented\n")
 
@@ -130,7 +130,7 @@ def test_main_version_mismatch(tmp_path, capsys):
     pyproj = tmp_path / "pyproject.toml"
     pyproj.write_text('version = "26.10.18.1"\n')
     plan = tmp_path / "PLAN.md"
-    plan.write_text("### WP1 — Test\n")
+    plan.write_text("### WP1 — Test\n", encoding="utf-8")
     roadmap = tmp_path / "ROADMAP.md"
     roadmap.write_text("WP1 is documented\n")
 
@@ -151,7 +151,7 @@ def test_main_duplicate_heading(tmp_path, capsys):
     pyproj = tmp_path / "pyproject.toml"
     pyproj.write_text('version = "26.10.18.1"\n')
     plan = tmp_path / "PLAN.md"
-    plan.write_text("### WP1 — Test\n### WP1 — Test\n")
+    plan.write_text("### WP1 — Test\n### WP1 — Test\n", encoding="utf-8")
     roadmap = tmp_path / "ROADMAP.md"
     roadmap.write_text("WP1 is documented\n")
 
@@ -172,7 +172,7 @@ def test_main_missing_rows_warns_only(tmp_path, capsys):
     pyproj = tmp_path / "pyproject.toml"
     pyproj.write_text('version = "26.10.18.1"\n')
     plan = tmp_path / "PLAN.md"
-    plan.write_text("### WP1 — Test\n### WP99 — Missing\n")
+    plan.write_text("### WP1 — Test\n### WP99 — Missing\n", encoding="utf-8")
     roadmap = tmp_path / "ROADMAP.md"
     roadmap.write_text("WP1 is documented\n")
 

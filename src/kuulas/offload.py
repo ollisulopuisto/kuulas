@@ -65,6 +65,7 @@ from typing import Any
 
 from . import analysis_progress, priority, rss, toolpath
 from .messages import KuulasError, t
+from .processes import pid_alive
 
 log = logging.getLogger("kuulas.offload")
 
@@ -733,13 +734,7 @@ _WORKER_COMMAND = re.compile(r"(?:^|\s)-m\s+kuulas\.analysis_worker(?:\s|$)")
 
 
 def _pid_alive(pid: int) -> bool:
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except OSError:
-        return True  # someone else's: it exists
-    return True
+    return pid_alive(pid) is not False
 
 
 def sweep_orphans(*, listing: str | None = None,

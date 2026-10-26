@@ -17,10 +17,11 @@ Taglines (use either, not together): *"A podcast editor where nothing is ever lo
 - **Batch import with flexible placement**: Import multiple files side by side (aligned by BWF recording clocks into sync groups) or sequentially on one track, with natural name sorting and track naming by file or person.
 - **Sync groups and edit expansion**: Tracks recorded together stay locked; edits time-shift the entire sync group; subclips can be resynced to the main clip.
 - **Music reporting**: Session royalty reports (CSV with formula injection protection, HTML) via CLI and `/api/music-report`.
+- **Transcription**: Local faster-whisper and Colab transcription. In a source checkout beside the current podcast repository, Colab uses that checkout's tool; Orukeet filler words and repetitions stay in the transcript and can become cut candidates.
 - **Project format (v3)**: Crash-safe `Name.kuulas` package directory, WAL SQLite history tree with constant-time branching undo/redo, and recording clock in flicks.
 - **Desktop app wrapper**: Native window via pywebview (`--extra desktop`), recent projects window, native file dialogs, and local file drag-and-drop linking.
 
-*Verification note:* The automated tests run on the developer's Mac. A GitHub Actions workflow for macOS, Windows and Linux exists (`.github/workflows/ci.yml`) but has not run yet (it needs a `PODCAST_READ_TOKEN` secret and a push). Nobody has yet listened to playback on a real audio device with this version, or looked at the desktop window by eye.
+*Verification note:* GitHub Actions runs the test and desktop smoke jobs on macOS, Windows and Linux. Windows runs editor coverage and desktop smoke; platform-only exclusions cover Unix recorder/worker and process-signal integration, macOS bundle and automixer integration, Finder-specific tool lookup, shell-based ffmpeg tests, and a few tests whose timing or path expectations are OS-specific. The full suite remains covered on macOS and Linux. Nobody has yet listened to playback on a real audio device with this version, or looked at the desktop window by eye.
 
 ## Running kuulas
 

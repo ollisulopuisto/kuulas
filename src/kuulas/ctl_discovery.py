@@ -14,6 +14,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from .processes import pid_alive
+
 _REQUIRED_FIELDS = ("port", "token", "pid", "started_utc")
 
 
@@ -100,15 +102,7 @@ def is_alive(info: dict[str, Any]) -> bool:
     pid = info.get("pid")
     if not isinstance(pid, int) or isinstance(pid, bool) or pid <= 0:
         return False
-    try:
-        os.kill(pid, 0)
-    except PermissionError:
-        return True
-    except ProcessLookupError:
-        return False
-    except OSError:
-        return False
-    return True
+    return pid_alive(pid) is not False
 
 
 def remove(project_folder: str | os.PathLike[str]) -> None:

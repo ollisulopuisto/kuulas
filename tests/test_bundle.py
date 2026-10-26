@@ -28,7 +28,8 @@ def test_resources_dir_is_found_only_inside_a_bundle(tmp_path):
 
 def test_the_bundled_bin_comes_first_on_path(tmp_path):
     resources = fake_bundle(tmp_path)
-    got = bundle.environment(resources, {"PATH": "/usr/bin:/bin"}, tmp_path / "home")
+    original = os.pathsep.join(("/usr/bin", "/bin"))
+    got = bundle.environment(resources, {"PATH": original}, tmp_path / "home")
     assert got["PATH"].split(os.pathsep)[:3] == [
         str(resources / "bin"), "/usr/bin", "/bin"]
 
@@ -80,6 +81,7 @@ def test_bundle_main_runs_the_recorder_without_opening_the_log(monkeypatch, tmp_
     assert ran == [["worker"]]  # the worker's stdout is its event pipe: never the log
 
 
+@pytest.mark.skipif(os.name == "nt", reason="the recorder needs Unix sockets")
 def test_selftest_records_a_second_with_the_fake_source():
     detail = selftest.check_recorder()
     assert "Take" in detail

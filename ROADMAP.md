@@ -26,10 +26,10 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R2 | Buses (track groups) | core done: routing, gain, pan, mute; UI next |
 | R3 | Signal processing from the podcast pipeline, not reimplemented | done: `speechmix` + `nhsx` imported as path deps (pan laws, speech grid, duck masks, duck envelopes) |
 | R4 | Automixer support | ducking → editable track automation done; speechmix chain per track next |
-| R5 | Transcription, local and Colab | local (faster-whisper) and JSON import written; Colab next |
+| R5 | Transcription, local and Colab | local (faster-whisper) and Colab runner built; source checkouts use adjacent podcast tool, accepting Orukeet and CTC timing; real Colab run still unverified |
 | R6 | Edit audio by editing the transcript, and vice versa | done in core: words follow clip edits; deleting words cuts all tracks at pause midpoints |
 | R7 | Clip ops Hindenburg lacks: clip volume, pan, gain automation | done in core |
-| R8 | Mac, Linux, Windows | by design (Python engine + browser UI); tested on Mac only |
+| R8 | Mac, Linux, Windows | GitHub Actions matrix: full tests on macOS and Linux; Windows editor tests and desktop smoke, with Unix recorder/analysis/transcription workers and macOS automixer and DMG build-script tests excluded; macOS DMG build |
 | R9 | Never lose work; smart undo | done: every edit fsynced to SQLite, undo tree keeps branches, drags coalesce |
 | R10 | **High priority.** Hindenburg-level keyboard editing; every UI feature ships with its keys | keymap taken from the Hindenburg PRO shortcut list; UI next |
 | R11 | Pro Cut Auto-Silence: mute what does not cross the threshold | done in core (speechmix grid + duck masks → implicit source-frame clip ranges; only edited portions become ordinary clips) |
@@ -515,12 +515,10 @@ WP27, WP38, WP42, WP47, WP53, WP58, WP61, WP66, WP56.
   as many ranges as raw toggles but the state is about a fifth of the size). Owner:
   try Auto-Silence on a real interview and tell me whether it feels too fragmented.
 
-- **CI and distribution need two things from the owner:** a repository secret
-  `PODCAST_READ_TOKEN` (read access to `ollisulopuisto/podcast`) before
-  `.github/workflows/ci.yml` can pass, and, for any installable app, speechmix and
-  nhsx published as real packages instead of path dependencies on `../podcast`
-  (see "speechmix as a package"). The wrapper cannot be shipped to other people
-  until then.
+- **CI and distribution:** the public podcast repository is checked out directly by
+  `.github/workflows/ci.yml`; no read token is needed. For any installable app,
+  speechmix and nhsx still need to be published as real packages instead of path
+  dependencies on `../podcast` (see "speechmix as a package").
 
 - **Decided by the owner, 2026-10-18 (about 10.10 Helsinki):** (A) Auto-Silence stays out of the
   Cuts list and the transcript, one summary line instead; (B) "Clean up cuts" is a palette

@@ -54,6 +54,7 @@ from . import (
     music_duck,
     music_level,
     plugins,
+    processes,
     toolpath,
 )
 from . import (
@@ -966,7 +967,7 @@ def run_process(cmd: list[str], cwd: str | None, on_line: Callable[[str], None],
     proc = subprocess.Popen(  # noqa: S603 - an argument list from settings, no shell
         cmd, cwd=cwd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT, text=True, errors="replace", bufsize=1,
-        start_new_session=True, env=_tool_env())
+        env=_tool_env(), **processes.process_group_options())
 
     def read() -> None:
         if proc.stdout is None:
@@ -1007,8 +1008,8 @@ def startup_error(lines: list[str]) -> AutomixError | None:
 
 
 def _signal(proc: subprocess.Popen, sig: int) -> None:
-    with contextlib.suppress(ProcessLookupError, PermissionError):
-        os.killpg(proc.pid, sig)
+    with contextlib.suppress(OSError, ProcessLookupError, PermissionError):
+        processes.signal_process_group(proc, sig)
 
 
 def _stop(proc: subprocess.Popen) -> int:
@@ -1016,7 +1017,7 @@ def _stop(proc: subprocess.Popen) -> int:
     try:
         return proc.wait(timeout=GRACE_SECONDS)
     except subprocess.TimeoutExpired:
-        _signal(proc, signal.SIGKILL)
+        processes.kill_process_group(proc)
         return proc.wait()
 
 

@@ -43,7 +43,7 @@ from pathlib import Path
 from typing import Any
 
 from . import db as dbm
-from . import migrations, priority, syncmark
+from . import migrations, priority, processes, syncmark
 from .clock import RateError, check_rate
 from .history import History
 from .media import MediaStore
@@ -235,17 +235,7 @@ def _is_mine(lock: dict) -> bool:
 def _pid_alive(pid: object) -> bool:
     """Is process `pid` running on this machine? Unknown or odd pids count as alive,
     so a lock is only taken over early when we are sure its owner is gone."""
-    if not isinstance(pid, int) or pid <= 0:
-        return True
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    except OSError:
-        return True
-    return True
+    return processes.pid_alive(pid) is not False
 
 
 def _write_lock(folder: Path, instance: str, now: datetime,
@@ -579,7 +569,9 @@ def backup_to(db_path: Path, target: Path) -> Path:
     finally:
         copy.close()
         source.close()
-    with partial.open("rb") as f:
+    # Windows requires a writable handle for os.fsync; keep the completed SQLite copy
+    # open for read/write while flushing it before the atomic rename.
+    with partial.open("r+b") as f:
         os.fsync(f.fileno())
     partial.replace(target)
     _fsync_dir(target.parent)

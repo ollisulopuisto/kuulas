@@ -230,7 +230,7 @@ def test_a_missing_plugin_is_named_with_where_it_was_looked_for(
     assert list(temp_root.iterdir()) == []
     for text in in_both(e.value.key, e.value.params):
         assert "dxRevive" in text
-        assert "/Library/Audio/Plug-Ins/VST3" in text
+        assert str(plugins.roots()[0]) in text
 
 
 def test_a_plugin_path_that_is_gone_is_named_too(session, fake, temp_root, tmp_path):
