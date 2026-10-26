@@ -80,3 +80,20 @@ describe("otherMode", () => {
     assert.equal(otherMode(undefined), "icons");
   });
 });
+
+describe("the search button at the top of the rail", () => {
+  test("runs the command search, a command that exists, and has a label in both languages", async () => {
+    const { RAIL_SEARCH } = await import("../toolbar-items.js");
+    assert.ok(
+      DEFAULT_KEYMAP.find((e) => e.id === RAIL_SEARCH.command),
+      RAIL_SEARCH.command,
+    );
+    for (const lang of ["en", "fi"]) assert.ok(catalog(lang)[RAIL_SEARCH.label], `${lang} label`);
+  });
+
+  test("is not one of the layout's commands, so it cannot be moved or removed as a button", async () => {
+    const { RAIL_SEARCH } = await import("../toolbar-items.js");
+    const { DEFAULT_LAYOUT } = await import("../toolbar-model.js");
+    assert.ok(!DEFAULT_LAYOUT.includes(RAIL_SEARCH.command));
+  });
+});

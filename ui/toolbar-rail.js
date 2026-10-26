@@ -4,7 +4,7 @@
 // in place: a button never moves because something else changed. Updates are coalesced into one
 // frame and skipped when nothing the user can see has changed.
 import { setIcon } from "./icons.js";
-import { toolbarItems } from "./toolbar-items.js";
+import { RAIL_SEARCH, toolbarItems } from "./toolbar-items.js";
 import { dropIndex, stepButton } from "./toolbar-model.js";
 
 export function createToolbarRail({
@@ -29,6 +29,14 @@ export function createToolbarRail({
   let refocus = null; // the id whose button gets the focus back after a rebuild
   const DRAG_PX = 5;
 
+  // The fixed search button: above the layout's buttons, not one of them (no drag, no menu).
+  const search = document.createElement("button");
+  search.type = "button";
+  search.className = "button ghost rail-search";
+  const searchLabel = document.createElement("span");
+  searchLabel.className = "rail-label";
+  search.append(searchLabel);
+
   function build() {
     buttons.clear();
     const nodes = current.layout.map((id) => {
@@ -44,7 +52,7 @@ export function createToolbarRail({
       buttons.set(id, button);
       return button;
     });
-    root.replaceChildren(...nodes);
+    root.replaceChildren(search, ...nodes);
     builtFor = current.layout.join("\n");
   }
 
@@ -58,6 +66,15 @@ export function createToolbarRail({
       items.map((item) => [item.id, item.label, item.tip, item.enabled, item.icon, item.badge]),
     ]);
     if (signature === drawn) return;
+    {
+      const name = t(RAIL_SEARCH.label);
+      const key = keyOf(RAIL_SEARCH.command);
+      searchLabel.textContent = name;
+      search.dataset.tip = key ? `${t("ui.search.label")} (${key})` : t("ui.search.label");
+      search.setAttribute("aria-label", name);
+      setIcon(search, RAIL_SEARCH.icon);
+      searchLabel.classList.toggle("visually-hidden", current.mode !== "labels");
+    }
     drawn = signature;
     if (current.layout.join("\n") !== builtFor) {
       build();
@@ -89,6 +106,8 @@ export function createToolbarRail({
       refresh();
     });
   }
+
+  search.addEventListener("click", () => run(RAIL_SEARCH.command));
 
   let swallowClick = false;
   root.addEventListener("click", (event) => {

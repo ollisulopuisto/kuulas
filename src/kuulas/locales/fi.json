@@ -440,6 +440,7 @@
   "ui.project.empty": "Aloita muokkaus tuomalla ääntä.",
   "ui.toolbar.label": "Valikko ja projekti",
   "ui.rail.label": "Pikakomennot",
+  "ui.rail.search": "Haku",
   "ui.rail.menu.add": "Lisää työkalupalkkiin",
   "ui.rail.menu.remove": "Poista työkalupalkista",
   "ui.toolbar.added": "{name} lisätty työkalupalkkiin",

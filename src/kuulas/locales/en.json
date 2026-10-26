@@ -444,6 +444,7 @@
   "ui.project.empty": "Import audio to begin editing.",
   "ui.toolbar.label": "Menus and project",
   "ui.rail.label": "Quick commands",
+  "ui.rail.search": "Search",
   "ui.rail.menu.add": "Add to toolbar",
   "ui.rail.menu.remove": "Remove from toolbar",
   "ui.toolbar.added": "{name} added to the toolbar",

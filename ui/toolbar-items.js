@@ -28,6 +28,16 @@ export const SHORT_LABELS = Object.freeze(
   Object.fromEntries(Object.keys(TOOLBAR_ICONS).map((id) => [id, `ui.rail.short.${id}`])),
 );
 
+/**
+ * The search button at the top of the rail: it opens the command search (WP75), so not every
+ * command has to be a button. It is fixed: not part of the layout, never moved, never removed.
+ */
+export const RAIL_SEARCH = Object.freeze({
+  command: "help.search",
+  label: "ui.rail.search",
+  icon: "search",
+});
+
 const BADGE_MAX = 99;
 
 /** How many silent stretches Auto-Silence has found, over every clip, as button text; null for none. */
