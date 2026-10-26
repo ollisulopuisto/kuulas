@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- **The recorder can be closed twice at once without an error.** When a quit reply closed the recorder from a client thread while another thread closed it too, the second close hit "Bad file descriptor" on the lock file. A second close now waits for the first and does nothing. Three flaky macOS test results are explained and fixed with it: the lock-time test also counted the lock that closing the session takes, and the finished-jobs bound test assumed jobs end in the order they were submitted.
+
 - **Import a Hindenburg session from the window.** File > Import Hindenburg session… brings a `.nhsx` session into the open project: its tracks, clips (with their gain, pan and fades), words and clipboard, in one step you can undo, with the recordings linked where they are. The desktop window opens its own file dialog; in a browser the dialog asks for the full path of the `.nhsx` file. A notice says how many recordings came in and how many were not found next to the session. No key by default. (The command line `kuulas import-nhsx` and the server command already existed; only the window was missing. Not tried with a real session yet.)
 
 ## [v26.10.26.5] - 2026-10-26
