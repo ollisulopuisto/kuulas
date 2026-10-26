@@ -4061,7 +4061,7 @@ const timeline = createTimeline({
         provisional: (p) => patchClip(p, clipId, { muted: plan.args.muted }),
       });
     },
-    clipDrag({ ids, move, alone = false }) {
+    clipDrag({ ids, move, alone = false, coalesce = null }) {
       // Alt held: it then asks whether the clip should stay free from sync (owner, 2026-10-16).
       // Nothing but an explicit group moves along with it (WP83).
       const change = clipDragChange(ids, move);
@@ -4071,7 +4071,34 @@ const timeline = createTimeline({
         op: change.op,
         args: change.args,
         label: t(change.labelKey),
+        // A portion's drag shares its open's key, so the open and the move undo as one step.
+        coalesce,
         done: alone ? () => void askToFree(ids) : undefined,
+      });
+    },
+    // A drag on an implicit portion (clip-drag.js portionDragEdit): open it as a clip, then
+    // `done(id)` with the new clip's id (null when it cannot be found), so the drag moves it.
+    // The new clip is selected at once, as after M, so a cancelled drag leaves it picked.
+    openPortion(edit, done) {
+      const before = getState().project;
+      const track = before?.tracks?.find((item) => item.id === edit.args.track_id);
+      const source = track?.clips.find((item) => item.id === edit.args.clip_id) ?? null;
+      editor.change({
+        op: edit.op,
+        args: edit.args,
+        label: t("history.auto_silence"),
+        coalesce: edit.coalesce,
+        done: (response) => {
+          const id = openedRegionClip(
+            response.project,
+            edit.args.track_id,
+            edit.args.at,
+            source,
+            track?.gate,
+          );
+          setState({ ...(id ? { selection: new Set([id]) } : {}), implicitRangeTarget: null });
+          done(id);
+        },
       });
     },
     clipGain({ clipId, gain }) {
