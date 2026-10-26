@@ -25,6 +25,7 @@ for a finished one.
 
 from __future__ import annotations
 
+import ctypes
 import getpass
 import hashlib
 import json
@@ -37,6 +38,7 @@ import shutil
 import socket
 import sqlite3
 import threading
+from ctypes import wintypes
 from datetime import UTC, datetime, timedelta, tzinfo
 from importlib import metadata
 from pathlib import Path
@@ -237,6 +239,8 @@ def _pid_alive(pid: object) -> bool:
     so a lock is only taken over early when we are sure its owner is gone."""
     if not isinstance(pid, int) or pid <= 0:
         return True
+    if os.name == "nt":
+        return _windows_pid_alive(pid)
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
@@ -246,6 +250,32 @@ def _pid_alive(pid: object) -> bool:
     except OSError:
         return True
     return True
+
+
+def _windows_pid_alive(pid: int) -> bool:
+    """Query a Windows process without sending it a termination signal.
+
+    Unlike Unix, Windows treats ``os.kill(pid, 0)`` as a real process
+    termination request. ``OpenProcess`` with query-only access is safe.
+    """
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    open_process = kernel32.OpenProcess
+    open_process.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+    open_process.restype = wintypes.HANDLE
+    handle = open_process(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not handle:
+        return ctypes.get_last_error() != 87  # ERROR_INVALID_PARAMETER means no pid.
+
+    try:
+        get_exit_code = kernel32.GetExitCodeProcess
+        get_exit_code.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
+        get_exit_code.restype = wintypes.BOOL
+        exit_code = wintypes.DWORD()
+        if not get_exit_code(handle, ctypes.byref(exit_code)):
+            return True
+        return exit_code.value == 259  # STILL_ACTIVE
+    finally:
+        kernel32.CloseHandle(handle)
 
 
 def _write_lock(folder: Path, instance: str, now: datetime,

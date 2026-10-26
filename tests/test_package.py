@@ -43,6 +43,17 @@ def lock_files(folder: Path) -> list[Path]:
     return sorted((folder / "locks").glob("*.json"))
 
 
+def test_windows_pid_liveness_does_not_call_os_kill(monkeypatch):
+    seen = []
+    monkeypatch.setattr(package.os, "name", "nt")
+    monkeypatch.setattr(package, "_windows_pid_alive",
+                        lambda pid: seen.append(pid) or True, raising=False)
+    monkeypatch.setattr(package.os, "kill",
+                        lambda *_: pytest.fail("os.kill must not be used on Windows"))
+    assert package._pid_alive(123)
+    assert seen == [123]
+
+
 def manifest(folder: Path) -> dict:
     return json.loads((folder / "manifest.json").read_text())
 
