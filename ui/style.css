@@ -2250,6 +2250,11 @@ input[type="text"] {
   left: 100%;
   margin: 0;
 }
+/* A submenu that would leave the window opens on the parent's left (menu-fit.js). */
+.menu-list .submenu.flip-left {
+  left: auto;
+  right: 100%;
+}
 .menu-list li {
   position: relative;
 }
