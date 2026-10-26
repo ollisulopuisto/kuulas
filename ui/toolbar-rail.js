@@ -38,7 +38,9 @@ export function createToolbarRail({
       button.dataset.id = id;
       const label = document.createElement("span");
       label.className = "rail-label";
-      button.append(label);
+      const badge = document.createElement("span");
+      badge.className = "rail-badge";
+      button.append(label, badge);
       buttons.set(id, button);
       return button;
     });
@@ -53,7 +55,7 @@ export function createToolbarRail({
     const items = toolbarItems({ layout: current.layout, registry, state: getState(), t, keyOf });
     const signature = JSON.stringify([
       current.mode,
-      items.map((item) => [item.id, item.label, item.tip, item.enabled, item.icon]),
+      items.map((item) => [item.id, item.label, item.tip, item.enabled, item.icon, item.badge]),
     ]);
     if (signature === drawn) return;
     drawn = signature;
@@ -66,7 +68,10 @@ export function createToolbarRail({
       const button = buttons.get(item.id);
       button.querySelector(".rail-label").textContent = item.label;
       button.dataset.tip = item.tip;
-      button.setAttribute("aria-label", item.label);
+      const badge = button.querySelector(".rail-badge");
+      badge.textContent = item.badge ?? "";
+      badge.hidden = item.badge === null;
+      button.setAttribute("aria-label", item.badge ? `${item.label} (${item.badge})` : item.label);
       button.setAttribute("aria-disabled", String(!item.enabled));
       if (item.icon) setIcon(button, item.icon);
       else delete button.dataset.icon;
