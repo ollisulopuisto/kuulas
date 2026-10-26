@@ -20,15 +20,24 @@ export const TOOLBAR_ICONS = Object.freeze({
   "app.export": "export",
 });
 
+/**
+ * The short label of each default button (message keys): the rail is narrow, and the full command
+ * names ("Transcribe the track on this computer") do not fit it. The tip keeps the full name.
+ * A command the user pins that is not listed shows its full name.
+ */
+export const SHORT_LABELS = Object.freeze(
+  Object.fromEntries(Object.keys(TOOLBAR_ICONS).map((id) => [id, `ui.rail.short.${id}`])),
+);
+
 /** `layout`: command ids; `registry`: { has, can }; `t`: translate; `keyOf(id)`: the key text or "". */
 export function toolbarItems({ layout, registry, state, t, keyOf }) {
   return layout.map((id) => {
-    const label = t(`cmd.${id}`);
+    const full = t(`cmd.${id}`);
     const key = keyOf(id);
     return {
       id,
-      label,
-      tip: key ? `${label} (${key})` : label,
+      label: id in SHORT_LABELS ? t(SHORT_LABELS[id]) : full,
+      tip: key ? `${full} (${key})` : full,
       enabled: registry.has(id) && registry.can(id, state),
       icon: TOOLBAR_ICONS[id] ?? null,
     };

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { TOOLBAR_ICONS, toolbarItems } from "../toolbar-items.js";
+import { SHORT_LABELS, TOOLBAR_ICONS, toolbarItems } from "../toolbar-items.js";
 import { DEFAULT_LAYOUT } from "../toolbar-model.js";
 
 const registry = (ready, canNot = []) => ({
@@ -20,7 +20,7 @@ describe("toolbarItems", () => {
     );
   });
 
-  test("the label is the command's name, and the tip adds its key", () => {
+  test("a default button has a short label, and the tip has the full name and the key", () => {
     const [undo, redo] = toolbarItems({
       layout: ["edit.undo", "edit.redo"],
       registry: registry(["edit.undo", "edit.redo"]),
@@ -28,9 +28,20 @@ describe("toolbarItems", () => {
       t,
       keyOf,
     });
-    assert.equal(undo.label, "<cmd.edit.undo>");
+    assert.equal(undo.label, "<ui.rail.short.edit.undo>");
     assert.equal(undo.tip, "<cmd.edit.undo> (Cmd+Z)");
     assert.equal(redo.tip, "<cmd.edit.redo>", "no key, no brackets");
+  });
+
+  test("a pinned command with no short label shows its full name", () => {
+    const [item] = toolbarItems({
+      layout: ["edit.delete"],
+      registry: registry(["edit.delete"]),
+      state: {},
+      t,
+      keyOf,
+    });
+    assert.equal(item.label, "<cmd.edit.delete>");
   });
 
   test("a command that cannot run is disabled and stays in its place", () => {
@@ -78,6 +89,12 @@ describe("toolbarItems", () => {
       busy.map((item) => item.id),
       calm.map((item) => item.id),
     );
+  });
+});
+
+describe("the short labels", () => {
+  test("every default button has one", () => {
+    for (const id of DEFAULT_LAYOUT) assert.ok(id in SHORT_LABELS, id);
   });
 });
 

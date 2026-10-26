@@ -132,6 +132,7 @@ import { implicitMarkPlan } from "./marks.js";
 import { createMarksCorner } from "./marks-corner.js";
 import { createMaterialPanel } from "./material-panel.js";
 import { missingNotice } from "./media-copy-model.js";
+import { MENU, menuTargets } from "./menu-model.js";
 import { heldFromEvent } from "./modifiers.js";
 import { monoDecision, monoEdits } from "./mono-ask.js";
 import { motionMode } from "./motion.js";
@@ -201,6 +202,8 @@ import {
 import { densityAttribute, nextTheme, themeAttribute } from "./theme.js";
 import { createTimeline } from "./timeline.js";
 import { contextPress, menuFromSections, timelineMenuItems } from "./timeline-menu.js";
+import { readLayout, readMode, readVisible } from "./toolbar-prefs.js";
+import { createToolbarRail } from "./toolbar-rail.js";
 import { installTooltips } from "./tooltip.js";
 import { createTrackHeaders } from "./tracks.js";
 import { withoutMusic } from "./transcribable.js";
@@ -239,6 +242,7 @@ const booting = {
 void ensureCatalog("en");
 void ensureCatalog(detectLanguage());
 const prefs = await loadPrefs(); // server-side store, read once before the first prefs.get
+let toolbarRail; // the toolbar rail (WP86); declared here because the keymap refresh can run first
 const WAVEFORM_GAIN = { min: 1 / 8, max: 32, snap: 0.04 };
 const LANE_STEP = 8;
 const SETTLE_MS = 160;
@@ -1430,6 +1434,7 @@ const keyboard = setupKeyboard({
   // The Help button shows the key help has now, F1 or the user's own.
   onRefresh(entries) {
     applyCommandShortcuts(document, entries, detectPlatform());
+    toolbarRail?.update();
     const button = $("help-button");
     const platform = detectPlatform();
     const keys = shortcutsFor(HELP_COMMAND, entries);
@@ -4584,6 +4589,7 @@ function render(state, patch) {
     follow(state, touched("playhead"));
   if (touched("playhead", "playing", "zoom", "scroll", "followPaused", "project"))
     updateFollowChip(state);
+  toolbarRail?.update();
   transcript.update(state, patch);
 }
 
@@ -4609,6 +4615,20 @@ function updateFollowChip(state) {
   arrow.textContent = side === "left" ? `◀ ${time}` : `${time} ▶`;
   arrow.title = t("ui.view.follow_arrow", { time });
 }
+// The toolbar rail (WP86): the user's own layout, drawn left of the track headers.
+toolbarRail = createToolbarRail({
+  root: $("toolbar-rail"),
+  editor: document.querySelector(".editor"),
+  registry: keyboard.registry,
+  getState,
+  t,
+  keyOf: (id) => keyboard.format(shortcutsFor(id, keyboard.entries())[0] ?? ""),
+  run: (id) => keyboard.registry.run(id, null, getState()),
+  layout: readLayout(prefs, new Set(menuTargets(MENU))),
+  mode: readMode(prefs),
+  visible: readVisible(prefs),
+});
+toolbarRail.update();
 $("follow-chip").addEventListener("click", () => followEvent({ type: "toggle" }));
 $("follow-arrow").addEventListener("click", () => followEvent({ type: "show" }));
 
