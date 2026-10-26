@@ -238,6 +238,7 @@ export function createTimeline({
         busBands: theme.busBands,
         clipping: theme.clipping,
         silentBody: theme.silentBody,
+        silentHatch: theme.silentHatch,
         preview: theme.preview,
         missingFill: theme.damagedFill,
         paletteInactive: theme.paletteInactive,

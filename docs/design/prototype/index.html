@@ -479,6 +479,7 @@
   /* Silent states (docs/design/SILENCE-VISUALS.md): the body under an outline-only wave is
      toned down a little; the padlocks say "closed by Auto-Silence" / "mic kept open". */
   --signal-silent-body: var(--p-gray-22-a22); /* clearly darker: owner, 2026-10-21 */
+  --signal-silent-hatch: var(--p-gray-18-a38); /* stripes over a silent body (paint.js): colour-independent */
   --signal-gate-lock: var(--p-amber-40);
   --signal-gate-open: var(--p-green-34);
   --signal-group: var(--p-gray-30-b); /* the outline round a clip group */
@@ -627,6 +628,7 @@
     --signal-preview-fill: var(--p-teal-76-a16);
     --signal-gate: var(--p-gray-20);
     --signal-silent-body: var(--p-black-a60);
+    --signal-silent-hatch: var(--p-gray-94-a22);
     --signal-gate-lock: var(--p-amber-84);
     --signal-gate-open: var(--p-green-76);
     --signal-group: var(--p-gray-76);
@@ -775,6 +777,7 @@
   --signal-preview-fill: var(--p-teal-76-a16);
   --signal-gate: var(--p-gray-20);
   --signal-silent-body: var(--p-black-a60);
+  --signal-silent-hatch: var(--p-gray-94-a22);
   --signal-gate-lock: var(--p-amber-84);
   --signal-gate-open: var(--p-green-76);
   --signal-group: var(--p-gray-76);
@@ -2105,6 +2108,7 @@ const SEMANTIC_TOKENS = [
   "--signal-gate",
   "--signal-gate-opacity",
   "--signal-silent-body",
+  "--signal-silent-hatch",
   "--signal-gate-lock",
   "--signal-gate-open",
   "--signal-group",
@@ -3072,6 +3076,10 @@ const HELP_FILES = {
  "fi/focus": "---\nid: focus\ntitle: Keskittymistila\napplies-to: [focus]\ncommands: [view.focus, view.focus_solo, view.focus_shrink, view.focus_hide_others, track.prev, track.next, nav.home]\nrelated: [track, timeline, transcript]\n---\nKeskittymistila antaa tilaa yhdelle puhujalle. Valittu raita ja saman puhujan muut raidat kasvavat; muut raidat kutistuvat, mutta vain luettavaan kokoon (ne jakavat noin 40 % tilasta, enintään 64 px kukin, ja hyvin monen raidan kohdalla vähintään ohuen kaistaleen), joten niiden nimi, aaltomuoto ja leikkeiden reunat sekä tahdistus näkyvät yhä yhdellä silmäyksellä. Keskittyminen muuttaa sitä, mitä näet; soolo muuttaa sitä, mitä kuulet.\n\n- Keskity valittuun raitaan: {key:view.focus}. Paina uudelleen tai {key:nav.home} lopettaaksesi. {key:nav.home} tyhjentää ensin valinnan tai alku- ja loppumerkit ja lopettaa sitten keskittymisen.\n- Keskity ja soolota: {key:view.focus_solo}. Kun lopetat, aiemmat soolot palaavat ennalleen.\n- {key:track.prev} ja {key:track.next} siirtävät keskittymisen edelliseen tai seuraavaan puhujaan. Napsautus kaistaleeseen keskittyy siihen raitaan.\n- Muut raidat näkyvät harmaina kuten toiminnon ulkopuoliset raidat (Näytä > Toiminnon ulkopuoliset raidat).\n- Kaistat muuttavat kokoaan nopeasti, toiston aikana ja animaation ollessa pois ilman animaatiota.\n\nLitteraatissa muiden puhujien sanat himmennetään, jotta keskustelu on yhä luettavissa. Piilota ne sen sijaan: {run:view.focus_hide_others}\n\nPidä kaistojen koko ja vain harmaannuta muut raidat: {run:view.focus_shrink}\n\nKaikki nämä ovat valikossa Näytä > Keskittymistila. Keskittyminen kuuluu vain näkymään: sitä ei tallenneta projektiin eikä kumoushistoriaan.\n",
  "fi/start": "---\nid: start\ntitle: Aloitussivu\napplies-to: []\ncommands: [app.open, app.new, app.remove_missing_recents, app.clear_recent]\nrelated: [history]\n---\nAloitussivulla on viimeksi avatut projektit, uusin ylimpänä.\n\n- Avaa projekti: napsauta sitä tai pidä rivillä näkyvää muokkausnäppäintä alhaalla ja paina rivin numeroa, 1–9, ensimmäisille yhdeksälle. Valittu rivi korostuu hetken ennen avautumista, joten näet, mikä projekti avautuu. Vähennetyllä liikkeellä rivi ei liiku, vain reunus näkyy.\n- Poista listalta: osoita riviä (tai valitse se ja paina Delete) ja käytä \"Poista listalta\". Ilmoitus tarjoaa Kumoa-toiminnon.\n- Projekti, jonka kansio on siirretty tai poistettu, on merkitty \"Ei löydy\", himmennetty ja katkoviivalla. Sitä ei voi avata; \"Paikanna…\" osoittaa sen uuden paikan, tai voit poistaa sen listalta.\n- Tiedosto, Avaa viimeisin, \"Poista puuttuvat projektit listalta\" poistaa kaikki tällaiset merkinnät kerralla yhden vahvistuksen jälkeen. \"Tyhjennä valikko\" tyhjentää koko listan.\n\nPoistaminen muuttaa vain tätä listaa. Projektikansiota, äänityksiä tai tiedostoja ei koskaan poisteta, siirretä tai muuteta. Listalta poistetun projektin voi avata uudelleen kohdasta Avaa projekti…\n",
  "catalog/en": {
+  "cmd.sync.accept_range": "Accept the offsets in the range",
+  "cmd.sync.accept_range.hint": "Says the offsets of the drifting clips between the in and out marks (else from the play cursor to the end) are on purpose, such as the delay of a remote call you have corrected: they are freed from sync, stop counting as drifting and nothing moves. One undo step.",
+  "cmd.sync.resync_range": "Resync the range",
+  "cmd.sync.resync_range.hint": "Puts the drifting clips between the in and out marks (else from the play cursor to the end) back to the anchor. Asks first what it will move, unless that is switched off in View > Options.",
   "cmd.track.automation_delete_point": "Delete ducking point",
   "cmd.track.automation_delete_point.hint": "Deletes the point of the track's ducking curve (the automixer's volume line along the bottom of the lane) that you right-clicked. One undo step.",
   "cmd.track.automation_clear": "Clear ducking curve",
@@ -3723,9 +3731,15 @@ const HELP_FILES = {
   "cmd.series.music_clipboard": "Put series music on the clipboard",
   "cmd.series.music_clipboard.hint": "Adds the series music to this project's clipboard, to paste where you want.",
   "cmd.export.music_report": "Music report…",
-  "cmd.export.music_report.hint": "Lists every piece of music this edit plays, with its tags, programme time and duration in whole seconds, rounded up, and whether it plays under speech. Save it as CSV or HTML for Teosto or Gramex, or copy it as a table."
+  "cmd.export.music_report.hint": "Lists every piece of music this edit plays, with its tags, programme time and duration in whole seconds, rounded up, and whether it plays under speech. Save it as CSV or HTML for Teosto or Gramex, or copy it as a table.",
+  "cmd.sync.show_drift": "Show sync drift",
+  "cmd.sync.show_drift.hint": "Show a small mark on clips that are free from sync or have drifted. Hover for the exact offset."
  },
  "catalog/fi": {
+  "cmd.sync.accept_range": "Hyväksy siirrot alueella",
+  "cmd.sync.accept_range.hint": "Kertoo, että in- ja out-merkin välissä (muuten toistokohdasta loppuun) olevien ajautuneiden leikkeiden siirrot ovat tarkoituksellisia, esimerkiksi korjattu nettipuhelun viive: ne vapautetaan synkronoinnista, ne eivät enää ole ajautuneita eikä mikään liiku. Yksi kumoamisaskel.",
+  "cmd.sync.resync_range": "Synkronoi alue uudelleen",
+  "cmd.sync.resync_range.hint": "Palauttaa in- ja out-merkin välissä (muuten toistokohdasta loppuun) olevat ajautuneet leikkeet ankkuriin. Kysyy ensin, mitä siirretään, ellei sitä ole kytketty pois valikosta Näytä > Valinnat.",
   "cmd.track.automation_delete_point": "Poista vaimennuspiste",
   "cmd.track.automation_delete_point.hint": "Poistaa raidan vaimennuskäyrän (automixerin äänenvoimakkuusviiva raidan alareunassa) pisteen, jota napsautit oikealla. Yksi kumoamisaskel.",
   "cmd.track.automation_clear": "Tyhjennä vaimennuskäyrä",
@@ -4377,7 +4391,9 @@ const HELP_FILES = {
   "cmd.series.music_clipboard": "Vie sarjan musiikki leikepöydälle",
   "cmd.series.music_clipboard.hint": "Lisää sarjan musiikin tämän projektin leikepöydälle, josta sen voi liittää haluamaansa kohtaan.",
   "cmd.export.music_report": "Musiikkiraportti…",
-  "cmd.export.music_report.hint": "Listaa kaiken musiikin, jonka tämä leikkaus soittaa: tiedot, ohjelma-ajan ja keston täysinä sekunteina ylöspäin pyöristettynä sekä sen, soiko musiikki puheen alla. Tallenna CSV- tai HTML-tiedostona Teostoa tai Gramexia varten tai kopioi taulukkona."
+  "cmd.export.music_report.hint": "Listaa kaiken musiikin, jonka tämä leikkaus soittaa: tiedot, ohjelma-ajan ja keston täysinä sekunteina ylöspäin pyöristettynä sekä sen, soiko musiikki puheen alla. Tallenna CSV- tai HTML-tiedostona Teostoa tai Gramexia varten tai kopioi taulukkona.",
+  "cmd.sync.show_drift": "Näytä synkkapoikkeamat",
+  "cmd.sync.show_drift.hint": "Näytä pieni merkki synkasta vapaille ja synkasta ajautuneille leikkeille. Tarkka poikkeama näkyy viemällä osoitin leikkeen päälle."
  }
 };
 // -- end of help topics --

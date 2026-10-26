@@ -72,6 +72,7 @@ export function readTheme(
     selection: p.signals.selected,
     clipEdge: p.signals.clipEdge,
     silentBody: p.signals.silentBody,
+    silentHatch: p.signals.silentHatch,
     gateLock: p.signals.gateLock,
     gateOpen: p.signals.gateOpen,
     group: p.signals.group,

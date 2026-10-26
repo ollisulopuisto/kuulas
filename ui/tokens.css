@@ -451,6 +451,7 @@
   /* Silent states (docs/design/SILENCE-VISUALS.md): the body under an outline-only wave is
      toned down a little; the padlocks say "closed by Auto-Silence" / "mic kept open". */
   --signal-silent-body: var(--p-gray-22-a22); /* clearly darker: owner, 2026-10-21 */
+  --signal-silent-hatch: var(--p-gray-18-a38); /* stripes over a silent body (paint.js): colour-independent */
   --signal-gate-lock: var(--p-amber-40);
   --signal-gate-open: var(--p-green-34);
   --signal-group: var(--p-gray-30-b); /* the outline round a clip group */
@@ -599,6 +600,7 @@
     --signal-preview-fill: var(--p-teal-76-a16);
     --signal-gate: var(--p-gray-20);
     --signal-silent-body: var(--p-black-a60);
+    --signal-silent-hatch: var(--p-gray-94-a22);
     --signal-gate-lock: var(--p-amber-84);
     --signal-gate-open: var(--p-green-76);
     --signal-group: var(--p-gray-76);
@@ -747,6 +749,7 @@
   --signal-preview-fill: var(--p-teal-76-a16);
   --signal-gate: var(--p-gray-20);
   --signal-silent-body: var(--p-black-a60);
+  --signal-silent-hatch: var(--p-gray-94-a22);
   --signal-gate-lock: var(--p-amber-84);
   --signal-gate-open: var(--p-green-76);
   --signal-group: var(--p-gray-76);

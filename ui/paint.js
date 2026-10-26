@@ -12,6 +12,7 @@ import { layoutFor, RULER_HEIGHT, visibleRows } from "./lanes.js";
 import {
   columnRuns,
   envelopeOutline,
+  hatchSegments,
   silentColumns,
   silentOutlineAlpha,
 } from "./silence-visuals.js";
@@ -20,6 +21,7 @@ import { columnsFromTiles, pickLevel, waveformColumns } from "./waveform.js";
 /** Below this a gain is silence: JSON cannot carry -Infinity, so the job clamps to it. */
 const SILENCE_DB = -200;
 const CAP_PX = 3;
+const HATCH_GAP = 6; // px between the silent stripes (silence-visuals.js hatchSegments)
 /** Bars are opaque: --track-N-wave on --track-N-body is checked at >= 3:1 (tokens.test.js). */
 const WAVE_ALPHA = 1;
 /** Pixels between the lines of a diagonal hatch (cut candidates, collateral, edge drags). */
@@ -148,6 +150,7 @@ export function makeWaveformJob(state, { width, height, ratio, id }, palette, co
     palette,
     clipping: colours.clipping ?? "",
     silentBody: colours.silentBody ?? "",
+    silentHatch: colours.silentHatch ?? "",
     previewColour: colours.preview ?? "",
     missingFill: colours.missingFill ?? "",
     paletteInactive: colours.inactive?.size ? (colours.paletteInactive ?? []) : [],
@@ -278,6 +281,27 @@ function paintClipWave(ctx, job, row, clip, view) {
     ctx.fillStyle = job.silentBody;
     for (let i = 0; i < silentRuns.length; i += 2)
       ctx.fillRect(from + silentRuns[i], y, silentRuns[i + 1] - silentRuns[i], h);
+  }
+  // Stripes over the same stretch, so a silent clip reads as silent whatever its body colour
+  // (owner, 2026-10-26). Each run is clipped to its own box, so no stripe leaks past an edge.
+  if (silentRuns.length && job.silentHatch) {
+    ctx.strokeStyle = job.silentHatch;
+    ctx.lineWidth = 1;
+    for (let i = 0; i < silentRuns.length; i += 2) {
+      const x = from + silentRuns[i];
+      const width = silentRuns[i + 1] - silentRuns[i];
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x, y, width, h);
+      ctx.clip();
+      ctx.beginPath();
+      for (const [x1, y1, x2, y2] of hatchSegments(x, y, width, h, HATCH_GAP)) {
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
   }
   // Clipping is judged per drawn column (a peak bucket at this zoom), on the true gain, not
   // the capped display scale, and only where the clip sounds.
