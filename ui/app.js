@@ -1164,8 +1164,9 @@ function onWheel(intent, x) {
         width(),
         totalFrames(),
       );
-      setState({ scroll });
+      // Detach Follow first: the scroll below would otherwise be pulled back to the playhead.
       markPaused();
+      setState({ scroll });
     }
     if (intent.dy) $("track-headers").scrollTop += intent.dy;
   } else if (intent.kind === "zoom") {
@@ -4227,8 +4228,9 @@ overview = createOverview({
   actions: {
     scrollTo(scroll) {
       fitWhole = false;
-      setState({ scroll: View.clampScroll(scroll, getState().zoom, width(), totalFrames()) });
+      // Detach Follow first, as the wheel and the zoom do (see markPaused).
       markPaused();
+      setState({ scroll: View.clampScroll(scroll, getState().zoom, width(), totalFrames()) });
     },
   },
 });
