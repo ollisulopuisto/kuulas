@@ -53,6 +53,7 @@ jobs:
           --ignore-glob=tests/test_record_*.py
           --ignore=tests/test_analysis_worker.py
           --ignore=tests/test_background_transcribe.py
+          --ignore=tests/test_build_script.py
           --ignore-glob=tests/test_automix*.py
       - name: Python tests
         if: runner.os != 'Windows'

@@ -579,7 +579,9 @@ def backup_to(db_path: Path, target: Path) -> Path:
     finally:
         copy.close()
         source.close()
-    with partial.open("rb") as f:
+    # Windows requires a writable handle for os.fsync; keep the completed SQLite copy
+    # open for read/write while flushing it before the atomic rename.
+    with partial.open("r+b") as f:
         os.fsync(f.fileno())
     partial.replace(target)
     _fsync_dir(target.parent)

@@ -2,7 +2,7 @@
 
 ## [v26.10.26.2] - 2026-10-26
 
-- **CI now checks macOS, Windows and Linux.** Windows receives its timezone database in the app environment; codec validation tests no longer depend on whichever ffmpeg encoders the runner happens to have. The Windows test job omits recorder, analysis-worker, and detached-transcription worker integration, plus automixer integration for macOS-only process and path behavior.
+- **CI now checks macOS, Windows and Linux.** Windows receives its timezone database in the app environment; codec validation tests no longer depend on whichever ffmpeg encoders the runner happens to have. Backup copies flush through a Windows-compatible writable handle, and the app self-test reports Unix-only recorder and priority checks as unsupported there. The Windows test job omits those platform-specific integrations, detached-transcription worker integration, macOS automixer tests, and the macOS-only DMG build-script test.
 - **Colab transcription follows the adjacent podcast checkout in development.** Kuulas accepts Orukeet timing and preserves filler words and repetitions so transcript-based cut candidates can find them. Packaged installs continue to use the public tool.
 - **Security: opening a project in a new window no longer puts the request's text on the command line.** The new window now runs inside the project folder and is started with a fixed argument, so a crafted folder name cannot change what runs. The folder is still checked first as before, and the window opens the same project. Found by CodeQL (py/command-line-injection, alert 66).
 

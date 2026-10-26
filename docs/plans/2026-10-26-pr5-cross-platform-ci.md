@@ -20,7 +20,7 @@ Add focused tests or correct platform-bound test setup first. Run each changed t
 
 ### Task 3: Fix platform dependencies and workflow matrix
 
-Add Windows tzdata as a platform-marked dependency, enable the three-platform CI matrix, and exclude recorder, analysis-worker, and detached-transcription worker tests that rely on Unix process behavior and automixer tests that rely on macOS process and path behavior from Windows. Keep Linux and macOS running the full test suite.
+Add Windows tzdata as a platform-marked dependency, enable the three-platform CI matrix, and exclude recorder, analysis-worker, and detached-transcription worker tests that rely on Unix process behavior, plus automixer and DMG build-script tests that rely on macOS process and path behavior, from Windows. Keep Linux and macOS running the full test suite.
 
 ### Task 4: Make tests deterministic across hosts
 
