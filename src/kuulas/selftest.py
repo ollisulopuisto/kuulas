@@ -183,7 +183,7 @@ def check_tools() -> str:
 
     from . import colab_signin, colab_transcribe, toolpath  # noqa: PLC0415
 
-    program = colab_transcribe.DEFAULT_COMMAND[0]
+    program = colab_transcribe.default_command()[0]
     found = toolpath.resolve(program)
     parts = [f"{program}: {found or 'not found'}",
              f"colab: {toolpath.resolve('colab') or 'not found'}",

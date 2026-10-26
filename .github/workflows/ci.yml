@@ -19,9 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # macOS only for now (owner 2026-10-19: no Windows or Linux testers). Windows needs the
-        # tzdata package and Linux fails a few path and encoder tests: add them back when wanted.
-        os: [macos-latest]
+        os: [macos-latest, windows-latest, ubuntu-latest]
     defaults:
       run:
         working-directory: kuulas
@@ -49,7 +47,15 @@ jobs:
         run: choco install ffmpeg -y --no-progress
       - run: uv sync
       - run: uv run ruff check .
-      - run: uv run pytest -q
+      - name: Python tests (Windows, without Unix recorder integration)
+        if: runner.os == 'Windows'
+        run: >
+          uv run pytest -q
+          --ignore-glob=tests/test_recorder_*.py
+          --ignore-glob=tests/test_record_*.py
+      - name: Python tests
+        if: runner.os != 'Windows'
+        run: uv run pytest -q
       - run: node --test ui/tests/*.test.js
       - run: npx --yes @biomejs/biome@2.2.4 check ui/
 
@@ -59,9 +65,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # macOS only for now (owner 2026-10-19: no Windows or Linux testers). Windows needs the
-        # tzdata package and Linux fails a few path and encoder tests: add them back when wanted.
-        os: [macos-latest]
+        os: [macos-latest, windows-latest, ubuntu-latest]
     defaults:
       run:
         working-directory: kuulas

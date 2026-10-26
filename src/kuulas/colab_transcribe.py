@@ -6,14 +6,13 @@ lists it writes. The audio leaves the computer (Colab, and Drive unless
 ``--no-drive``): the UI says so before the first use, and nothing here starts
 without a job the user asked for.
 
-The contract kuulas asks of the tool (proposed to the podcast session, not yet
-measured against the real tool)::
+The contract kuulas asks of the tool::
 
     colab-transcribe --audio F [--audio F ...] --json FOLDER --progress
                      [--model M] [--language L] [--no-drive]
 
 * one ``FOLDER/<audio stem>.words.json`` per audio file:
-  ``{"version": 1, "timing": "whisper" | "ctc-v1", "language": "fi",
+  ``{"version": 1, "timing": "whisper" | "orukeet" | "ctc-v1", "language": "fi",
   "words": [{"w": text, "s": seconds, "e": seconds}]}``, seconds from the audio
   file's start, words in start order;
 * ``--progress`` prints ``PROGRESS <0-100> <message>`` lines; exit 0 on success,
@@ -54,7 +53,7 @@ from .messages import KuulasError, t
 
 log = logging.getLogger("kuulas.colab_transcribe")
 
-DEFAULT_COMMAND = [
+_REMOTE_COMMAND = [
     "uvx", "--from",
     "git+https://github.com/ollisulopuisto/podcast#subdirectory=colab-transcribe",
     "colab-transcribe"]
@@ -67,7 +66,7 @@ RESULT_SUFFIX = ".words.json"
 #: How the word times were made: ``whisper`` (as Whisper gave them) or ``ctc-v<N>`` (the
 #: starts corrected by the forced aligner, alignment version N; the number changes when
 #: its rule or model does, so a later version must not be refused).
-_TIMING = re.compile(r"whisper|ctc-v[0-9]+")
+_TIMING = re.compile(r"whisper|orukeet|ctc-v[0-9]+")
 #: The Colab CLI's own update notice: noise in a progress line or an error text.
 _NOISE = re.compile(
     r"^\[colab\] (A new version of Colab CLI|Run 'colab update'|To silence this check)")
@@ -105,6 +104,15 @@ RunProcess = Callable[
 Report = Callable[..., None]
 
 
+def default_command(repo_root: Path | None = None) -> list[str]:
+    """Use the adjacent podcast checkout in development, the public tool otherwise."""
+    root = repo_root or Path(__file__).resolve().parents[2]
+    local_project = root.parent / "podcast" / "colab-transcribe"
+    if (local_project / "pyproject.toml").is_file():
+        return ["uv", "run", "--project", str(local_project), "colab-transcribe"]
+    return list(_REMOTE_COMMAND)
+
+
 class ColabError(KuulasError, RuntimeError):
     """A failed Colab transcription (a message key, so the job shows it translated)."""
 
@@ -131,7 +139,7 @@ def resolve_settings(stored: dict | None) -> dict[str, Any]:
     no_drive = stored.get("no_drive")
     align = stored.get("align")
     return {
-        "command": list(command) if _words(command) else list(DEFAULT_COMMAND),
+        "command": list(command) if _words(command) else default_command(),
         "cwd": cwd.strip() if isinstance(cwd, str) and cwd.strip() else None,
         "extra_args": list(extra) if isinstance(extra, list)
         and all(isinstance(x, str) for x in extra) else [],

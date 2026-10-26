@@ -58,6 +58,13 @@ Auto-Silence and the automixer call can use. kuulas would call a command line an
 - (c) Transcript exports (txt, md, srt, vtt, speaker script) exist in kuulas already. A downmix transcript: not wanted.
 - (d) Open for Olli.
 
+### Orukeet update (2026-10-26)
+
+The podcast checkout now uses Orukeet for Colab transcription. It preserves fillers and repetitions in the word list;
+with `--align` (Kuulas's default) the result timing is `ctc-v1`, and without it the timing is `orukeet`. Kuulas accepts
+both labels and, when run from a source checkout with the sibling podcast repository, runs that local
+`colab-transcribe` project so local changes are used. Packaged installs still use the public GitHub tool.
+
 ## 5. What should not be carried over (assumed)
 
 Anything that rewrites the project (kuulas owns the project file; external tools only produce files), Hindenburg `.nhsx`

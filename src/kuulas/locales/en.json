@@ -2530,7 +2530,7 @@
   "error.colab.temp": "The temporary folder for the Colab result could not be made: {error}",
   "error.colab.result_unreadable": "The Colab result for {name} cannot be read: {error}",
   "error.colab.result_version": "The Colab result for {name} has version {version}, and kuulas reads version 1. Update the Colab tool or kuulas.",
-  "error.colab.result_timing": "The Colab result for {name} says its word timing is \"{timing}\", but it must be \"whisper\" or \"ctc-v<number>\" (for example \"ctc-v1\").",
+  "error.colab.result_timing": "The Colab result for {name} says its word timing is \"{timing}\", but it must be \"whisper\", \"orukeet\" or \"ctc-v<number>\" (for example \"ctc-v1\").",
   "error.colab.result_words": "The Colab result for {name} has no list of words.",
   "error.colab.result_word": "The Colab result for {name} is wrong at word {index}: \"{field}\" is missing or has the wrong type.",
   "error.colab.result_negative": "The Colab result for {name} has a negative time at word {index}.",

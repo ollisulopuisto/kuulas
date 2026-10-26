@@ -104,9 +104,17 @@ def test_transcribe_writes_a_job_file_in_the_project(session, monkeypatch):
 
 def test_a_finished_transcript_is_added_automatically_with_a_notice(session):
     (job_id,) = session.transcribe(ids(session))
-    wait(lambda: len(session.transcripts()) == 2)
+
+    notices = []
+
+    def finished():
+        if len(session.transcripts()) != 2:
+            return False
+        notices.extend(session.drain_notices())
+        return bool(notices)
+
+    wait(finished)
     assert [w["w"] for w in session.transcripts()[ids(session)[0]]] == ["Olli"]
-    notices = session.drain_notices()
     assert [n["job"] for n in notices] == [job_id]
     assert notices[0]["kind"] == "ok"
     assert "Olli" in notices[0]["text"]

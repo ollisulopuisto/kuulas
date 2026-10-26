@@ -2635,7 +2635,7 @@
   "error.colab.temp": "Colab-tuloksen väliaikaista kansiota ei voitu luoda: {error}",
   "error.colab.result_unreadable": "Colab-tulosta tiedostolle {name} ei voi lukea: {error}",
   "error.colab.result_version": "Colab-tuloksen tiedostolle {name} versio on {version}, ja kuulas lukee version 1. Päivitä Colab-työkalu tai kuulas.",
-  "error.colab.result_timing": "Colab-tulos tiedostolle {name} kertoo sanojen ajoituksen olevan \"{timing}\", mutta sen pitää olla \"whisper\" tai \"ctc-v<numero>\" (esimerkiksi \"ctc-v1\").",
+  "error.colab.result_timing": "Colab-tulos tiedostolle {name} kertoo sanojen ajoituksen olevan \"{timing}\", mutta sen pitää olla \"whisper\", \"orukeet\" tai \"ctc-v<numero>\" (esimerkiksi \"ctc-v1\").",
   "error.colab.result_words": "Colab-tuloksessa tiedostolle {name} ei ole sanalistaa.",
   "error.colab.result_word": "Colab-tulos tiedostolle {name} on väärä sanassa {index}: kenttä \"{field}\" puuttuu tai on väärää tyyppiä.",
   "error.colab.result_negative": "Colab-tuloksessa tiedostolle {name} on negatiivinen aika sanassa {index}.",

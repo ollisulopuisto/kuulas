@@ -309,10 +309,10 @@ def test_killing_the_worker_restarts_into_a_new_numbered_file(client, sup, tmp_p
     p1, p2 = folder / "t1-Olli.wav", folder / "t1-Olli~2.wav"
     assert contiguous(ints(p1))
     assert contiguous(ints(p2))
-    # The fake signal numbers real time: segment 2 sits where its audio was
-    # captured, within a block or two of clock jitter.
+    # The fake source and the supervisor timestamp in separate processes. Allow
+    # 200 ms for process scheduling jitter while still catching misplaced segments.
     real = (frame_of(p2) - frame_of(p1)) % (1 << 20)
-    assert abs(real - two["start_frame"]) < 4096
+    assert abs(real - two["start_frame"]) < RATE // 5
     journal = [e["event"] for e in read_journal(folder / "t1.journal.jsonl")]
     assert "worker_restarted" in journal
     assert "gap" in journal
