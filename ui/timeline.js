@@ -16,6 +16,7 @@ import {
   groupBounds,
   moveBoxes,
   moveGhosts,
+  portionDragEdit,
   resolveMove,
   targetTrackRow,
 } from "./clip-drag.js";
@@ -1848,7 +1849,8 @@ export function createTimeline({
     else if (hit.clip && Object.hasOwn(clipOvers, hit.clip.id))
       text = overLabel(clipOvers[hit.clip.id], t, (value) => formatNumber(value, { digits: 1 }));
     else if (hit.clip) text = syncTooltip(getState(), hit.clip);
-    if (overlayCanvas.title !== text) overlayCanvas.title = text;
+    if (text) overlayCanvas.dataset.tip = text;
+    else delete overlayCanvas.dataset.tip;
   }
   overlayCanvas.addEventListener("pointermove", (event) => {
     const state = getState();
@@ -2095,7 +2097,7 @@ export function createTimeline({
     requestOverlay();
     // A press without travel only positions the cursor. Materialization requires a drag
     // or the user's mute command; clicking near a dotted boundary must not change audio.
-    if (commit && !session.dragging) actions.seek?.(session.seekFrame);
+    if (commit && !session.dragging) actions.clickSeek?.(session.seekFrame);
     if (commit && session.dragging) {
       actions.edgeDrag({
         clipId: session.clipId,
@@ -2140,7 +2142,7 @@ export function createTimeline({
       return;
     }
     if (clipSession && event.pointerId === clipSession.pointerId) {
-      if (clipSession.dragging) updateClip(event);
+      if (clipSession.dragging || clipSession.opening) updateClip(event);
       endClip(true);
       return;
     }
@@ -2180,7 +2182,8 @@ export function createTimeline({
     if (!zone && !moving && intent === "range") beginRangeDrag(event, hit);
     if (hit.clip && hit.edge && hit.row?.kind === "track") startEdge(hit, event);
     else if (zone) startTweak(hit, event, zone);
-    else if (moving) startClip(hit, event, before);
+    else if (moving)
+      startClip(hit, event, before, portionDragEdit(getState().project, hit, before));
   });
 
   // Dragging a clip's gain line or a fade handle (WP6): live edits (coalesced by the app, so
@@ -2283,46 +2286,98 @@ export function createTimeline({
     return locate(event).y - RULER_HEIGHT + getState().scrollY - hit.row.top;
   }
 
-  function startClip(hit, event, before) {
-    clipSession = {
-      pressedId: hit.clip.id,
-      ids: clipDragIds(hit.clip.id, before, getState().project),
+  // `portion` (clip-drag.js portionDragEdit): the press was on an implicit portion. Past DRAG_PX
+  // it is opened as a clip, and the drag goes on with that clip alone; a click changes nothing.
+  function startClip(hit, event, before, portion = null) {
+    clipSession = clipSessionFor(hit.clip.id, before, {
       fromIndex: hit.row.index,
       origin: locate(event),
       pointerId: event.pointerId,
-      dragging: false,
       alone: event.altKey,
       seekFrame: hit.frame,
-      move: { delta: 0, direction: 0 },
-      // Snapping and fine movement (move-snap.js): where the pointer's travel stands, the clips'
-      // spans before the move, and the frames worth snapping to (fixed for the whole drag).
-      pos: { delta: 0, lastX: locate(event).x },
-      spans: movedSpans(getState().project, clipDragIds(hit.clip.id, before, getState().project)),
-      targets: moveTargets(
-        getState().project,
-        clipDragIds(hit.clip.id, before, getState().project),
-        getState(),
-      ),
-      snapAt: null,
-      // Cmd (Ctrl off the Mac) held during the drag adds the volume automation (automation-snap.js):
-      // the level changes and the closed stretches' edges. Read live; the frames are fixed here.
-      auto: automationTargets(
-        getState().project,
-        clipDragIds(hit.clip.id, before, getState().project),
-      ),
-      withAuto: null,
-      autoOn: false,
-    };
+    });
+    clipSession.portion = portion;
     overlayCanvas.setPointerCapture?.(event.pointerId);
     window.addEventListener("keydown", clipKey, true);
     window.addEventListener("keyup", clipKey, true);
   }
 
+  function clipSessionFor(
+    pressedId,
+    selection,
+    { fromIndex, origin, pointerId, alone, seekFrame },
+  ) {
+    const project = getState().project;
+    const ids = clipDragIds(pressedId, selection, project);
+    return {
+      pressedId,
+      ids,
+      fromIndex,
+      origin,
+      pointerId,
+      dragging: false,
+      alone,
+      seekFrame,
+      move: { delta: 0, direction: 0 },
+      // Snapping and fine movement (move-snap.js): where the pointer's travel stands, the clips'
+      // spans before the move, and the frames worth snapping to (fixed for the whole drag).
+      pos: { delta: 0, lastX: origin.x },
+      spans: movedSpans(project, ids),
+      targets: moveTargets(project, ids, getState()),
+      snapAt: null,
+      // Cmd (Ctrl off the Mac) held during the drag adds the volume automation (automation-snap.js):
+      // the level changes and the closed stretches' edges. Read live; the frames are fixed here.
+      auto: automationTargets(project, ids),
+      withAuto: null,
+      autoOn: false,
+    };
+  }
+
+  // The portion's drag waits for the server's answer (one round trip, under 50 ms by the
+  // budget). The pointer's latest event is kept meanwhile; with the answer the session is
+  // rebuilt round the new clip and caught up to it, or, if the button went up first, the
+  // move is sent from where it let go. Esc or a cancel in the wait leaves the clip unmoved.
+  function openPortion(session, event) {
+    session.opening = true;
+    session.latest = event;
+    actions.openPortion?.(session.portion, (id) => {
+      const live = clipSession === session;
+      if (!live && session.ended !== "commit") return;
+      const held = getState().project?.tracks?.some((track) =>
+        track.clips.some((clip) => clip.id === id),
+      );
+      if (!id || !held) {
+        if (live) endClip(false);
+        return;
+      }
+      const next = clipSessionFor(id, new Set([id]), session);
+      next.dragging = true;
+      next.coalesce = session.portion.coalesce;
+      const other = clipSession; // a newer press, when the button went up before the answer
+      clipSession = next;
+      updateClip(session.latest);
+      if (live) {
+        overlayCanvas.style.cursor = "grabbing";
+        return;
+      }
+      clipSession = other;
+      sendMove(next);
+    });
+  }
+
   function updateClip(event) {
     const session = clipSession;
     const point = locate(event);
+    if (session.opening) {
+      session.latest = event;
+      return;
+    }
     if (!session.dragging) {
       if (!isDrag(session.origin, point)) return;
+      if (session.portion) {
+        openPortion(session, event);
+        return;
+      }
       session.dragging = true;
       overlayCanvas.style.cursor = "grabbing";
     }
@@ -2364,15 +2419,23 @@ export function createTimeline({
     window.removeEventListener("keyup", clipKey, true);
     overlayCanvas.releasePointerCapture?.(session.pointerId);
     requestOverlay();
-    if (commit && !session.dragging) actions.seek?.(session.seekFrame);
-    if (commit && session.dragging) {
-      actions.clipDrag({
-        ids: session.ids,
-        move: session.move,
-        alone: session.alone,
-        pressedId: session.pressedId,
-      });
+    // Still waiting for the portion to open: its answer finishes the drag (openPortion).
+    if (session.opening) {
+      session.ended = commit ? "commit" : "cancel";
+      return;
     }
+    if (commit && !session.dragging) actions.clickSeek?.(session.seekFrame);
+    if (commit && session.dragging) sendMove(session);
+  }
+
+  function sendMove(session) {
+    actions.clipDrag({
+      ids: session.ids,
+      move: session.move,
+      alone: session.alone,
+      pressedId: session.pressedId,
+      coalesce: session.coalesce ?? null,
+    });
   }
 
   function clipKey(event) {

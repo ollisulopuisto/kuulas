@@ -3,6 +3,7 @@
 // is `move_clips_to_track` (ops.py), a nudge plus a track change; sync partners and the group
 // setting follow the server's nudge rule, so nothing about groups is decided here.
 import { expandGroups } from "./clip-groups.js";
+import { implicitPortionAt } from "./clip-silence.js";
 import { frameToX } from "./format.js";
 import { RULER_HEIGHT } from "./lanes.js";
 
@@ -34,6 +35,32 @@ export function canStartClipDrag(hit) {
 export function clipDragIds(pressedId, selection, project = null) {
   const base = selection?.has(pressedId) ? [...selection] : [pressedId];
   return project ? [...expandGroups(project, base)] : base;
+}
+
+/**
+ * A drag that starts on an implicit Auto-Silence portion moves that portion only (owner,
+ * 2026-10-26): first `open_gated_region` makes it an explicit clip, as M and the portion's edge
+ * drag do, then the new clip is moved. The mute keeps what is heard, as the edge drag does: a
+ * closed portion becomes a muted clip. `coalesce` makes the open and the move one undo step.
+ * Null when the drag moves something else: no portion pressed, or a selection or group of
+ * several clips, which is dragged as it is.
+ */
+export function portionDragEdit(project, hit, selection) {
+  const target = hit?.gate;
+  if (!target?.implicit || !hit.clip || !Array.isArray(target.range)) return null;
+  if (clipDragIds(hit.clip.id, selection, project).length > 1) return null;
+  const track = project?.tracks?.find((item) => item.id === target.trackId);
+  const clip = track?.clips?.find((item) => item.id === target.clipId);
+  if (!clip) return null;
+  const [start, end] = target.range;
+  const at = Math.floor((start + end) / 2);
+  const portion = implicitPortionAt(clip, at, track.gate);
+  if (!portion || portion.range[0] !== start || portion.range[1] !== end) return null;
+  return {
+    op: "open_gated_region",
+    args: { track_id: track.id, clip_id: clip.id, at, muted: portion.closed },
+    coalesce: `portion-drag:${clip.id}:${at}`,
+  };
 }
 
 /** The outline round all ghost boxes (canvas pixels), or null for fewer than two boxes. */

@@ -81,3 +81,17 @@ export function overviewRuns(segments, total, width) {
   }
   return out;
 }
+
+/** The strip's own times: a quarter, a half and three quarters of the edit (no ends). */
+export const OVERVIEW_SHARES = [0.25, 0.5, 0.75];
+
+/**
+ * { x, label } for each share of the edit in the strip's `width`; `formatTime(seconds)` gives the
+ * label, so the strip reads like the ruler above it.
+ */
+export function overviewMarks(total, width, rate, formatTime) {
+  return OVERVIEW_SHARES.map((share) => ({
+    x: Math.round(share * width),
+    label: formatTime((share * total) / rate),
+  }));
+}

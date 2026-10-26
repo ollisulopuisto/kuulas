@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { audibleSegments, overviewRuns } from "../overview-segments.js";
+import { audibleSegments, overviewMarks, overviewRuns } from "../overview-segments.js";
 
 const clip = (start, length, extra = {}) => ({ id: `c${start}`, start, length, ...extra });
 
@@ -64,5 +64,26 @@ describe("overviewRuns", () => {
   });
   test("short speech still shows", () => {
     assert.deepEqual(overviewRuns([[500, 501]], 1000, 100), [50, 51]);
+  });
+});
+
+describe("overviewMarks", () => {
+  // Owner, 2026-10-25: the strip gets its own times, sparse, at a quarter, half and three quarters
+  // of the edit (no times at the two ends).
+  test("marks a quarter, half and three quarters of the edit, not the ends", () => {
+    const marks = overviewMarks(4000, 400, 1, (seconds) => `t${seconds}`);
+    assert.deepEqual(marks, [
+      { x: 100, label: "t1000" },
+      { x: 200, label: "t2000" },
+      { x: 300, label: "t3000" },
+    ]);
+  });
+
+  test("the times come from the project rate, not from frames", () => {
+    const marks = overviewMarks(96000, 100, 48000, (seconds) => String(seconds));
+    assert.deepEqual(
+      marks.map((mark) => mark.label),
+      ["0.5", "1", "1.5"],
+    );
   });
 });

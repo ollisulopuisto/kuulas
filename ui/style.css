@@ -2270,6 +2270,21 @@ input[type="text"] {
 .menu-item[aria-checked="true"] > span:first-child::before {
   content: "✓ ";
 }
+/* The app's own hover tip (tooltip.js): raised, bordered, so it reads on any surface. */
+.hover-tip {
+  position: fixed;
+  z-index: 60;
+  max-width: 320px;
+  padding: var(--space-1) var(--space-2);
+  color: var(--text);
+  font-size: var(--text-sm);
+  line-height: 1.35;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-raised);
+  pointer-events: none;
+}
 /* The header context menu reuses the menu bar's look, placed at the pointer. */
 .context-menu {
   position: fixed;

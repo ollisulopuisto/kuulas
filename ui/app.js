@@ -128,6 +128,7 @@ import { activeLoop, rangeAvailable } from "./loop-range.js";
 import { createLoudnessLoader } from "./loudness-readout.js";
 import { regionCount } from "./markers-model.js";
 import { createMarkersPanel } from "./markers-panel.js";
+import { implicitMarkPlan } from "./marks.js";
 import { createMarksCorner } from "./marks-corner.js";
 import { createMaterialPanel } from "./material-panel.js";
 import { missingNotice } from "./media-copy-model.js";
@@ -200,6 +201,7 @@ import {
 import { densityAttribute, nextTheme, themeAttribute } from "./theme.js";
 import { createTimeline } from "./timeline.js";
 import { contextPress, menuFromSections, timelineMenuItems } from "./timeline-menu.js";
+import { installTooltips } from "./tooltip.js";
 import { createTrackHeaders } from "./tracks.js";
 import { withoutMusic } from "./transcribable.js";
 import { createTranscript } from "./transcript.js";
@@ -4040,6 +4042,12 @@ const timeline = createTimeline({
   actions: {
     pointerDown: onPointerDown,
     seek: (frame) => void transport.seek(frame),
+    // A click on a clip (no travel) also completes a lone in or out mark (marks.js).
+    clickSeek: (frame) => {
+      const mark = implicitMarkPlan(getState(), frame);
+      if (mark) setState(mark);
+      void transport.seek(frame);
+    },
     contextMenu: (hit, event) => showTimelineMenu(hit, event),
     rangeDragged: onRangeDragged,
     hint(text) {
@@ -4060,7 +4068,7 @@ const timeline = createTimeline({
         provisional: (p) => patchClip(p, clipId, { muted: plan.args.muted }),
       });
     },
-    clipDrag({ ids, move, alone = false }) {
+    clipDrag({ ids, move, alone = false, coalesce = null }) {
       // Alt held: it then asks whether the clip should stay free from sync (owner, 2026-10-16).
       // Nothing but an explicit group moves along with it (WP83).
       const change = clipDragChange(ids, move);
@@ -4070,7 +4078,34 @@ const timeline = createTimeline({
         op: change.op,
         args: change.args,
         label: t(change.labelKey),
+        // A portion's drag shares its open's key, so the open and the move undo as one step.
+        coalesce,
         done: alone ? () => void askToFree(ids) : undefined,
+      });
+    },
+    // A drag on an implicit portion (clip-drag.js portionDragEdit): open it as a clip, then
+    // `done(id)` with the new clip's id (null when it cannot be found), so the drag moves it.
+    // The new clip is selected at once, as after M, so a cancelled drag leaves it picked.
+    openPortion(edit, done) {
+      const before = getState().project;
+      const track = before?.tracks?.find((item) => item.id === edit.args.track_id);
+      const source = track?.clips.find((item) => item.id === edit.args.clip_id) ?? null;
+      editor.change({
+        op: edit.op,
+        args: edit.args,
+        label: t("history.auto_silence"),
+        coalesce: edit.coalesce,
+        done: (response) => {
+          const id = openedRegionClip(
+            response.project,
+            edit.args.track_id,
+            edit.args.at,
+            source,
+            track?.gate,
+          );
+          setState({ ...(id ? { selection: new Set([id]) } : {}), implicitRangeTarget: null });
+          done(id);
+        },
       });
     },
     clipGain({ clipId, gain }) {
@@ -4797,6 +4832,8 @@ connectLive({
     }
   },
 });
+
+installTooltips();
 
 // The long-task monitor of the performance rule (no main-thread task over 16 ms):
 // open the page with ?dev to log every task that breaks it.
