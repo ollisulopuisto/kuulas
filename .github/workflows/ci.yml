@@ -8,9 +8,7 @@ on:
 # kuulas imports speechmix and nhsx from the podcast repo as path dependencies
 # (../podcast/packages/...), so both repos are checked out side by side:
 #   $GITHUB_WORKSPACE/kuulas and $GITHUB_WORKSPACE/podcast.
-# The podcast repo is public (checked 2026-10-19), so no token is needed to read it. If it
-# becomes private, add `token: ${{ secrets.PODCAST_READ_TOKEN }}` to its checkout steps and
-# set that repository secret to a token with read access (the owner adds it).
+# The podcast repo is public, so no token is needed to read it.
 
 jobs:
   test:
@@ -44,9 +42,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ffmpeg libportaudio2 libsndfile1
       - name: ffmpeg and tzdata (Windows)
         if: runner.os == 'Windows'
-        run: |
-          choco install ffmpeg -y --no-progress
-          python -m pip install tzdata
+        run: choco install ffmpeg -y --no-progress
       - run: uv sync
       - run: uv run ruff check .
       - name: Python tests (Windows, without Unix recorder integration)
