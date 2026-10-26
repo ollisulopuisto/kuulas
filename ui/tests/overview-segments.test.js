@@ -27,6 +27,21 @@ describe("audibleSegments", () => {
     const open = { gate: [[40, 60]], clips: [clip(0, 100, { ungated: true })] };
     assert.deepEqual(audibleSegments(open), [[0, 100]]);
   });
+  test("clip Auto-Silence is mapped from source frames into the overview", () => {
+    const track = {
+      clips: [clip(100, 100, { offset: 500, auto_silence: [[520, 540]] })],
+    };
+    assert.deepEqual(audibleSegments(track), [
+      [100, 120],
+      [140, 200],
+    ]);
+  });
+  test("one clip's Auto-Silence does not hide overlapping audio on the same track", () => {
+    const track = {
+      clips: [clip(100, 100, { auto_silence: [[120, 140]] }), clip(100, 100, { id: "overlap" })],
+    };
+    assert.deepEqual(audibleSegments(track), [[100, 200]]);
+  });
   test("preview ranges are cut out too", () => {
     const track = { gate: [[0, 10]], clips: [clip(0, 100)] };
     assert.deepEqual(audibleSegments(track, [[50, 100]]), [[10, 50]]);
