@@ -21,7 +21,7 @@ Taglines (use either, not together): *"A podcast editor where nothing is ever lo
 - **Project format (v3)**: Crash-safe `Name.kuulas` package directory, WAL SQLite history tree with constant-time branching undo/redo, and recording clock in flicks.
 - **Desktop app wrapper**: Native window via pywebview (`--extra desktop`), recent projects window, native file dialogs, and local file drag-and-drop linking.
 
-*Verification note:* GitHub Actions is configured to run the test and desktop smoke jobs on macOS, Windows and Linux. The Windows test job excludes the recorder integration tests because the recorder currently uses Unix-only file locks and sockets; the recorder remains covered on macOS and Linux. The full cross-platform run for this release is pending. Nobody has yet listened to playback on a real audio device with this version, or looked at the desktop window by eye.
+*Verification note:* GitHub Actions is configured to run the test and desktop smoke jobs on macOS, Windows and Linux. The Windows test job excludes recorder and analysis-worker integration that relies on Unix process APIs, plus automixer integration for macOS-only process and path behavior. Those tests remain covered on macOS; the recorder and analysis worker are also covered on Linux. The updated Windows test selection is still being verified. Nobody has yet listened to playback on a real audio device with this version, or looked at the desktop window by eye.
 
 ## Running kuulas
 
