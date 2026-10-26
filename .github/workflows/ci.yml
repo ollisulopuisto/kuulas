@@ -83,10 +83,12 @@ jobs:
         run: choco install ffmpeg -y --no-progress
       - run: uv sync
       - run: uv run ruff check .
+      - name: Prepare pytest report directory
+        run: uv run python -c "from pathlib import Path; Path('test-results').mkdir(exist_ok=True)"
       - name: Python tests (Windows editor coverage; omit platform-only integration)
         if: runner.os == 'Windows'
         run: >
-          uv run pytest -q -vv --full-trace -o faulthandler_timeout=10
+          uv run pytest -q -vv --full-trace -o faulthandler_timeout=10 --durations=30 --durations-min=0.1 --junitxml=test-results/pytest.xml
           --ignore-glob=tests/test_recorder_*.py
           --ignore-glob=tests/test_record_*.py
           --ignore=tests/test_analysis_worker.py
@@ -115,6 +117,12 @@ jobs:
           --deselect=tests/test_worker_launch.py::test_the_worker_runs_when_the_executable_is_the_bundles_launcher
       - name: Python tests
         if: runner.os != 'Windows'
-        run: uv run pytest -q
+        run: uv run pytest -q --durations=30 --durations-min=0.1 --junitxml=test-results/pytest.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pytest-report-${{ matrix.os }}
+          path: kuulas/test-results/pytest.xml
+          if-no-files-found: warn
       - run: node --test ui/tests/*.test.js
       - run: npx --yes @biomejs/biome@2.2.4 check ui/

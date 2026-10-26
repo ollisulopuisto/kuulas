@@ -75,45 +75,65 @@ def _playback_gate(monkeypatch):
     priority.GATE.reset()
 
 
+@pytest.fixture(scope="session")
+def _private_user_state_root(tmp_path_factory):
+    """Allocate one shared root for isolated per-test user state."""
+    return tmp_path_factory.mktemp("private-user-state")
+
+
+@pytest.fixture
+def _private_user_state_dir(_private_user_state_root):
+    """Give a test a fresh folder without another numbered pytest temp dir."""
+    return Path(tempfile.mkdtemp(dir=_private_user_state_root))
+
+
 @pytest.fixture(autouse=True)
-def _private_clipboard(tmp_path_factory, monkeypatch):
+def _private_clipboard(_private_user_state_dir, monkeypatch):
     """The clipboard history is a per-user file: no test may touch the real one."""
-    folder = tmp_path_factory.mktemp("clipboard")
+    folder = _private_user_state_dir / "clipboard"
+    folder.mkdir()
     monkeypatch.setenv("KUULAS_CLIPBOARD_FILE", str(folder / "clipboard.json"))
 
 
 @pytest.fixture(autouse=True)
-def _private_recents(tmp_path_factory, monkeypatch):
+def _private_recents(_private_user_state_dir, monkeypatch):
     """The recent projects are a per-user file: no test may read the real one."""
-    folder = tmp_path_factory.mktemp("recents")
+    folder = _private_user_state_dir / "recents"
+    folder.mkdir()
     monkeypatch.setenv("KUULAS_RECENTS_FILE", str(folder / "recent.json"))
 
 
 @pytest.fixture(autouse=True)
-def _private_app_settings(tmp_path_factory, monkeypatch):
+def _private_app_settings(_private_user_state_dir, monkeypatch):
     """The app settings (language) are a per-user file: no test may read the real one."""
-    folder = tmp_path_factory.mktemp("settings")
+    folder = _private_user_state_dir / "settings"
+    folder.mkdir()
     monkeypatch.setenv("KUULAS_SETTINGS_FILE", str(folder / "settings.json"))
 
 
 @pytest.fixture(autouse=True)
-def _private_series(tmp_path_factory, monkeypatch):
+def _private_series(_private_user_state_dir, monkeypatch):
     """The series library is a per-user folder: no test may touch the real one."""
-    monkeypatch.setenv("KUULAS_SERIES_DIR", str(tmp_path_factory.mktemp("series")))
+    folder = _private_user_state_dir / "series"
+    folder.mkdir()
+    monkeypatch.setenv("KUULAS_SERIES_DIR", str(folder))
 
 
 @pytest.fixture(autouse=True)
-def _private_view_memory(tmp_path_factory, monkeypatch):
+def _private_view_memory(_private_user_state_dir, monkeypatch):
     """The remembered views are a per-user file: no test may touch the real one."""
-    folder = tmp_path_factory.mktemp("view-memory")
+    folder = _private_user_state_dir / "view-memory"
+    folder.mkdir()
     monkeypatch.setenv("KUULAS_VIEW_MEMORY_FILE", str(folder / "view-memory.json"))
 
 
 @pytest.fixture(autouse=True)
-def _signed_in_to_colab(tmp_path_factory, monkeypatch):
+def _signed_in_to_colab(_private_user_state_dir, monkeypatch):
     """Colab sign-in is a file in the user's config; a test never reads the real one.
     Signed in by default (tests of the sign-in point ``KUULAS_COLAB_TOKEN`` elsewhere)."""
-    token = tmp_path_factory.mktemp("colab-token") / "token.json"
+    folder = _private_user_state_dir / "colab-token"
+    folder.mkdir()
+    token = folder / "token.json"
     token.write_text('{"refresh_token": "test"}', encoding="utf-8")
     monkeypatch.setenv("KUULAS_COLAB_TOKEN", str(token))
 
