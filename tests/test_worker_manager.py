@@ -157,7 +157,7 @@ def test_a_newer_request_kills_the_running_one(gate, manager, marker):
 
 def test_the_queue_has_a_cap(gate, manager, marker):
     manager.max_queued = 2
-    threads, _results = in_threads(3, lambda _i: manager.run(sleeper(marker, 1.0)))
+    threads, _results = in_threads(3, lambda _i: manager.run(sleeper(marker, 10.0)))
     assert wait_for(lambda: len(manager._waiting) == 2)
     with pytest.raises(KuulasError) as err:
         manager.run(sleeper(marker))

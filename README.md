@@ -23,6 +23,12 @@ Taglines (use either, not together): *"A podcast editor where nothing is ever lo
 
 *Verification note:* GitHub Actions currently runs the test and desktop-smoke jobs on macOS and Linux; Windows jobs are disabled for now. The playback/navigation fixes were checked in Chrome with synthetic media and a simulated clock at three zoom levels. Real-device playback and microphone confirmation remain the owner's checks.
 
+**Toolbar, scripting and hardening (v26.10.26.5):** customizable docked toolbar
+(WP86) with pinning, reordering, and Auto-Silence badge count; headless project
+scripting guide and HTTP command catalog (WP53); performance optimizations for
+filler word regexes and bus membership; expanded test coverage for recorder file
+naming, WAV header accuracy, float-to-PCM24 conversion, and audio source validation.
+
 **Playback/navigation maintenance (v26.10.26.4):** manual scrolling stays detached
 from Follow across live updates; startup clock corrections wait for queued audio.
 The overview uses at most four round labels above its clip map. Recorder shutdown

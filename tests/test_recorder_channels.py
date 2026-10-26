@@ -7,7 +7,6 @@ import time
 import numpy as np
 import soundfile as sf
 
-from kuulas_recorder import names as naming
 from kuulas_recorder import wavfile
 from kuulas_recorder.capture import Capture
 from kuulas_recorder.sources import FakeSource

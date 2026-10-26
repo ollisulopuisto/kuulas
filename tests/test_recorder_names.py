@@ -1,7 +1,5 @@
 """Tests for naming rules of files and takes in the recorder."""
 
-import pytest
-
 from kuulas_recorder import names
 
 

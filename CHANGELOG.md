@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [v26.10.26.5] - 2026-10-26
+
 - **A toolbar you build yourself.** A vertical toolbar sits left of the track headers with ten buttons (undo, redo, import, transcribe, Auto-Silence, split, mute, resync, automix, export). Right-click any menu row and choose "Add to toolbar"; right-click a toolbar button to remove it. Buttons never move unless you move them, and a greyed button stays where it is. View > Toolbar shows or hides it, shows icons only or icons with text, and puts it back to the ten. Drag a button to a new place (a line shows where it lands, Esc cancels), or press Alt+Up or Alt+Down on a focused button to move it one place.
 
 - **A script can edit a project without a window, and there is an example.** `docs/SCRIPTING.md` explains headless use (`Session(folder)`), the HTTP routes and the command catalogue, and `scripts/examples/remove_fillers.py` removes the filler words (um, uh, öö) from a project with the same command the transcript's X key runs, one undo step per cut. `--dry-run` only lists them.
@@ -11,6 +13,10 @@
 - **The transcript's find field is always there.** It no longer waits for Ctrl+F; the cross clears the search.
 
 - **A hint after many hand mutes.** After ten mutes by hand kuulas says once that Auto-Silence finds the silent stretches for you. The count stays in your browser, and the hint never adds or moves a toolbar button.
+
+- **Performance optimizations.** Pre-compiled hesitation regular expressions in filler word candidate detection (`is_filler`) and optimized bus membership lookups when adding buses.
+
+- **Recorder and audio test suite additions.** Added tests for recorder file naming validation, WAV header byte-accuracy, float-to-PCM24 conversion, check_rate audio sample rate validation, and device resolution.
 
 ## [v26.10.26.4] - 2026-10-26
 

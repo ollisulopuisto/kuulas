@@ -8,6 +8,12 @@ Out of scope: loopback, publishing integrations, anything but basic recording, s
 
 **How it gets built:** `docs/PLAN.md`, in work packages for implementers.
 
+**Toolbar, scripting and hardening, v26.10.26.5:** customizable docked toolbar
+left of the track headers with drag-and-drop reordering (WP86); headless scripting guide,
+HTTP command catalog, and filler-word removal example (WP53); performance
+optimizations in filler regexes and bus lookups; extended test coverage for recorder
+naming, WAV header generation, PCM24 conversion, and sample-rate validation.
+
 **Playback/navigation, v26.10.26.4:** live anchors preserve manual Follow
 detachment; startup corrections do not move against playback while audio is queued.
 The overview has at most four round timestamps in a top band. The recorder

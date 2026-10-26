@@ -13,6 +13,11 @@ Read first, in this order:
 
 ---
 
+**Toolbar, scripting and hardening integration, v26.10.26.5:** customizable docked
+toolbar (WP86) with reordering, pinning, and Auto-Silence count; headless scripting and
+command catalog (WP53); optimizations in filler regex matching and bus membership;
+extended unit tests for audio conversions, recorder sources, and file naming.
+
 **Playback/navigation integration, v26.10.26.4:** startup slew and persistent manual
 Follow detachment have regressions; the overview has an adaptive scale above its
 clips. The Linux recorder self-test race is fixed by acknowledging quit before

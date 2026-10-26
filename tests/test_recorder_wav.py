@@ -31,14 +31,16 @@ def as_ints(path) -> np.ndarray:
 
 
 def test_header_generation():
-    """The wav header function should return exactly 44 bytes and have correct RIFF chunk values."""
+    """The wav header function should return exactly 44 bytes and have
+    correct RIFF chunk values."""
     rate = 48000
     data_bytes = 0
     head = wavfile.header(rate, data_bytes)
     assert len(head) == 44
 
     unpacked = struct.unpack("<4sI4s4sIHHIIHH4sI", head)
-    # Fields: RIFF, 36+data_bytes, WAVE, fmt , 16, 1, 1, rate, rate * 3, 3, 24, data, data_bytes
+    # Fields: RIFF, 36+data_bytes, WAVE, fmt , 16, 1, 1, rate, rate * 3,
+    # 3, 24, data, data_bytes
     assert unpacked[0] == b"RIFF"
     assert unpacked[1] == 36 + data_bytes
     assert unpacked[2] == b"WAVE"
