@@ -26,6 +26,7 @@ import logging
 import math
 import os
 import shutil
+import tempfile
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -1997,25 +1998,40 @@ def save_upload(folder: Path, upload: UploadFile) -> Path:
     """Write one uploaded file into ``folder`` under a name of its own.
 
     Only the file name is kept (a client cannot choose a path), an existing
-    file is never overwritten, and the bytes land in a ``.partial`` that is
-    renamed when complete (ground rule 8).
+    file or link is never overwritten, and the bytes land in a safe temporary file
+    created exclusively with mkstemp that is renamed when complete (ground rule 8).
     """
-    name = Path((upload.filename or "").replace("\\", "/")).name
-    if name in ("", ".", ".."):
-        name = "upload"
-    target = folder / name
+    raw_name = Path((upload.filename or "").replace("\\", "/")).name
+    if raw_name in ("", ".", "..") or "\0" in raw_name:
+        raw_name = "upload"
+    base_dir = os.path.realpath(folder)
+    safe_name = os.path.basename(os.path.normpath(raw_name))
+    if not safe_name or safe_name in (".", ".."):
+        safe_name = "upload"
+
+    target_str = os.path.normpath(os.path.join(base_dir, safe_name))
+    if not target_str.startswith(base_dir + os.sep):
+        target_str = os.path.join(base_dir, "upload")
+
+    target = Path(target_str)
+    stem = target.stem
+    suffix = target.suffix
     n = 1
-    while target.exists():
+    while target.exists() or target.is_symlink():
         n += 1
-        target = folder / f"{Path(name).stem} ({n}){Path(name).suffix}"
-    partial = target.with_name(target.name + ".partial")
+        target = Path(os.path.join(base_dir, f"{stem} ({n}){suffix}"))
+
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=f"{target.name}.", suffix=".partial", dir=base_dir
+    )
+    tmp_path = Path(tmp_name)
     try:
-        with partial.open("wb") as out:
+        with os.fdopen(fd, "wb") as out:
             shutil.copyfileobj(upload.file, out)
             out.flush()
             os.fsync(out.fileno())
-        partial.replace(target)
+        os.replace(tmp_path, target)
     except BaseException:
-        partial.unlink(missing_ok=True)
+        tmp_path.unlink(missing_ok=True)
         raise
     return target

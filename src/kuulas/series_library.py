@@ -75,7 +75,12 @@ class SeriesLibrary:
         if not isinstance(series_id, str) or not _ID.fullmatch(series_id):
             raise SeriesLibraryError("error.series.bad_series_id",
                                      series_id=str(series_id)[:80])
-        return self.folder / f"{series_id}.json"
+        base_dir = os.path.realpath(self.folder)
+        fullpath = os.path.normpath(os.path.join(base_dir, f"{series_id}.json"))
+        if not fullpath.startswith(base_dir + os.sep):
+            raise SeriesLibraryError("error.series.bad_series_id",
+                                     series_id=str(series_id)[:80])
+        return Path(fullpath)
 
     @staticmethod
     def _read(path: Path) -> dict | None:

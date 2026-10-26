@@ -23,6 +23,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
+import os
 import re
 import secrets
 import subprocess
@@ -73,8 +74,12 @@ def _job_path(folder: Path | str, job_id: str, suffix: str) -> Path:
             or job_id in {".", ".."}):
         raise BackgroundJobError("error.server.bad_request", detail="job id")
     root = jobs_dir(folder)
-    path = root / f"{job_id}{suffix}"
-    if path.is_symlink() or path.resolve().parent != root.resolve():
+    base_dir = os.path.realpath(root)
+    fullpath = os.path.normpath(os.path.join(base_dir, f"{job_id}{suffix}"))
+    if not fullpath.startswith(base_dir + os.sep):
+        raise BackgroundJobError("error.server.bad_request", detail="job path")
+    path = Path(fullpath)
+    if path.is_symlink() or path.resolve().parent != Path(base_dir):
         raise BackgroundJobError("error.server.bad_request", detail="job path")
     return path
 
@@ -222,9 +227,12 @@ def request_cancel(folder: Path | str, job_id: str) -> None:
 def remove_files(folder: Path | str, job_id: str) -> None:
     """Delete every file of the job (dismissing it, or after its results are in)."""
     _job_path(folder, job_id, ".json")  # validate before interpolating the glob
-    for path in jobs_dir(folder).glob(f"{job_id}.*"):
-        with contextlib.suppress(OSError):
-            path.unlink()
+    root = jobs_dir(folder)
+    base_dir = os.path.realpath(root)
+    for path in root.glob(f"{job_id}.*"):
+        if os.path.realpath(path.parent) == base_dir:
+            with contextlib.suppress(OSError):
+                path.unlink()
 
 
 def worker_argv(path: Path | str) -> list[str]:

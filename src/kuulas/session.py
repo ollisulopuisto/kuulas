@@ -1930,9 +1930,10 @@ class Session:
         ):
             raise MediaError("error.locate.no_folder", folder=str(folder or "")[:200])
         try:
-            target = Path(folder).expanduser()
-            if not target.is_dir():
+            norm = os.path.normpath(os.path.expanduser(folder))
+            if not os.path.isabs(norm) or not os.path.isdir(norm):
                 raise MediaError("error.locate.no_folder", folder=str(folder)[:200])
+            real = os.path.realpath(norm)
         except (OSError, RuntimeError):
             raise MediaError("error.locate.no_folder", folder=str(folder)[:200]) from None
         before = self.media_status()
@@ -1941,7 +1942,7 @@ class Session:
             return {"found": [], "still_missing": [], "partial": before["partial"]}
         if self.read_only:
             raise MediaError("error.locate.read_only")
-        found = self.store.relink(Path(folder).expanduser())
+        found = self.store.relink(Path(real))
         log.info(t("log.session.relinked", count=len(found)))
         after = self.media_status()
         return {"found": [{"id": m, "name": self.store.meta(m)["name"], "path": path}

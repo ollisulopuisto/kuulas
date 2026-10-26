@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import os
 import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
@@ -205,8 +206,12 @@ def take_path(folder: Path, take: str, suffix: str) -> Path:
     bad_name = t("error.record.bad_name")
     if not valid_name(take):
         raise ValueError(bad_name)
-    path = folder / f"{take}{suffix}"
-    if path.is_symlink() or path.resolve().parent != folder.resolve():
+    base_dir = os.path.realpath(folder)
+    fullpath = os.path.normpath(os.path.join(base_dir, f"{take}{suffix}"))
+    if not fullpath.startswith(base_dir + os.sep):
+        raise ValueError(bad_name)
+    path = Path(fullpath)
+    if path.is_symlink() or path.resolve().parent != Path(base_dir):
         raise ValueError(bad_name)
     return path
 
