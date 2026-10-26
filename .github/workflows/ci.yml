@@ -73,8 +73,6 @@ jobs:
           --deselect=tests/test_import_hardening.py::test_a_decoder_that_loses_its_source_reports_the_drive
           --deselect=tests/test_media.py::test_a_linked_file_that_vanishes_after_open_plays_silence_after_a_check
           --deselect=tests/test_offload_no_inline.py::test_a_signal_death_names_the_signal
-          --deselect=tests/test_protected_files.py::test_check_delete_media_path
-          --deselect=tests/test_protected_files.py::test_is_protected_relative_paths_raise
           --deselect=tests/test_source_map_api.py::test_session_source_map_lock_duration_measurement
           --deselect=tests/test_worker_launch.py::test_the_worker_runs_when_the_executable_is_the_bundles_launcher
       - name: Python tests
