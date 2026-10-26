@@ -74,6 +74,20 @@ def test_pcm24_round_trips_and_clips():
                     -(1 << 23), 1]
 
 
+def test_float_to_pcm24_empty():
+    assert wavfile.float_to_pcm24([]) == b""
+
+
+def test_float_to_pcm24_list_input():
+    assert wavfile.float_to_pcm24([0.0, 0.5]) == b'\x00\x00\x00\x00\x00@'
+
+
+def test_float_to_pcm24_nan_inf():
+    with pytest.warns(RuntimeWarning, match="invalid value encountered in cast"):
+        raw = wavfile.float_to_pcm24(np.array([np.nan, np.inf, -np.inf]))
+    assert raw == b'\x00\x00\x00\xff\xff\x7f\x00\x00\x80'
+
+
 def test_new_file_is_a_valid_empty_wav(tmp_path):
     path = tmp_path / "a.wav"
     w = ProgressiveWav(path, RATE)
