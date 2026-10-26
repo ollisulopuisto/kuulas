@@ -10,6 +10,7 @@ import {
   desaturateColour,
   desaturatePalette,
   envelopeOutline,
+  hatchSegments,
   INACTIVE_STYLES,
   inactiveLook,
   inactiveStyleChoice,
@@ -271,5 +272,23 @@ describe("silentOutlineAlpha: a closed stretch is quieter than a muted clip", ()
   test("an Auto-Silence stretch is dimmed", () => {
     const alpha = silentOutlineAlpha({ muted: false });
     assert.ok(alpha > 0.3 && alpha < 1);
+  });
+});
+
+describe("hatchSegments", () => {
+  // Owner, 2026-10-26: the silent stretch gets 45-degree stripes, one every 6 px, so it reads as
+  // silent whatever the body colour. Each stripe runs from the bottom-left to the top-right.
+  test("stripes run at 45 degrees, one every gap, starting before the left edge", () => {
+    const lines = hatchSegments(100, 10, 12, 8, 6);
+    assert.deepEqual(lines, [
+      [92, 18, 100, 10],
+      [98, 18, 106, 10],
+      [104, 18, 112, 10],
+      [110, 18, 118, 10],
+    ]);
+  });
+
+  test("no stripes for an empty run", () => {
+    assert.deepEqual(hatchSegments(100, 10, 0, 8, 6), []);
   });
 });
