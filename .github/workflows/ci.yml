@@ -17,7 +17,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
+        # Windows is off for now (owner, 2026-10-26): its Biome check fails on every file
+        # (CRLF checkout) and it is red on main too. Add windows-latest back to turn it on;
+        # the Windows-only steps below are kept and skip themselves.
+        os: [macos-latest, ubuntu-latest]
     defaults:
       run:
         working-directory: kuulas
@@ -87,7 +90,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest, ubuntu-latest]
+        # Windows is off for now (owner, 2026-10-26): its Biome check fails on every file
+        # (CRLF checkout) and it is red on main too. Add windows-latest back to turn it on;
+        # the Windows-only steps below are kept and skip themselves.
+        os: [macos-latest, ubuntu-latest]
     defaults:
       run:
         working-directory: kuulas
