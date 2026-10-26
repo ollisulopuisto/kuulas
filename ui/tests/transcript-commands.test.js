@@ -4,7 +4,7 @@ import { createRegistry } from "../commands.js";
 import { chosenWords, registerTranscriptCommands } from "../transcript-commands.js";
 import { extendTo, placeCursor, selectWord } from "../transcript-model.js";
 
-const word = (w, s, e, track = "a") => ({ w, s, e, track, clip: "c", index: 0 });
+const word = (w, s, e, track = "a", index = 0) => ({ w, s, e, track, clip: "c", media: track, index });
 const words = [word("a", 0, 50), word("b", 60, 120), word("c", 300, 350, "b")];
 const project = {
   rate: 100,
@@ -134,13 +134,16 @@ describe("transcript commands", () => {
     assert.match(calls.toasts[0], /cut_uncopied/);
   });
 
-  test("Enter corrects one selected word, or the word under the cursor", () => {
-    const { registry, calls } = setup(stateWith(selectWord(1)));
+  test("Enter corrects a contiguous selection or the word under the cursor", () => {
+    const multi = [word("Tän", 0, 20, "a", 0), word("on", 20, 40, "a", 1), word("noin", 40, 70, "a", 2)];
+    const multiState = stateWith(extendTo(placeCursor(0), 2), { words: multi });
+    const { registry, calls } = setup(multiState);
     assert.equal(registry.can("transcript.correct", stateWith(selectWord(1))), true);
     assert.equal(registry.can("transcript.correct", stateWith(placeCursor(2))), true);
+    assert.equal(registry.can("transcript.correct", multiState), true);
     assert.equal(registry.can("transcript.correct", stateWith(extendTo(placeCursor(0), 2))), false);
     assert.equal(registry.can("transcript.correct", stateWith(placeCursor(-1))), false);
-    registry.run("transcript.correct", null, stateWith(selectWord(1)));
+    registry.run("transcript.correct", null, multiState);
     assert.equal(calls.corrects, 1);
   });
 });

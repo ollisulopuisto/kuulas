@@ -1615,7 +1615,7 @@
   "ui.transcript.pop.cut": "Leikkaa kaikilta raidoilta",
   "ui.transcript.pop.cut_title": "Poistaa välin kaikilta raidoilta ja sulkee aukon. Muu mikä poistuu on merkitty.",
   "ui.transcript.pop.correct": "Korjaa",
-  "ui.transcript.pop.correct_title": "Muokkaa valitun sanan tekstiä. Valitse yksi sana.",
+  "ui.transcript.pop.correct_title": "Muokkaa valittua sanaa tai saman äänitteen yhtenäistä sanajaksoa.",
   "ui.transcript.label.delete": "Poista sanat",
   "ui.transcript.toast.delete": {
     "one": "Poistettu {count} sana: {name} · aukko jäi",
@@ -1633,7 +1633,7 @@
   "cmd.transcript.cut_words": "Leikkaa valitut sanat leikepöydälle, kaikki raidat",
   "cmd.transcript.cut_words.hint": "Poistaa valittujen sanojen välin kaikilta raidoilta ja sulkee aukon; myös muiden sen päälle puhumat sanat poistuvat.",
   "cmd.transcript.delete_words.hint": "Mykistää valitut sanat vain oman puhujansa raidalta; aukko jää, mikään muu ei siirry.",
-  "cmd.transcript.correct.hint": "Muokkaa kohdistimen kohdalla olevan tai ainoan valitun sanan tekstiä.",
+  "cmd.transcript.correct.hint": "Muokkaa kohdistimen sanaa tai korvaa saman äänitteen yhtenäinen sanavalinta.",
   "ui.tabs.history": "Historia",
   "ui.tabs.material": "Materiaali",
   "cmd.panel.show_material": "Materiaali",

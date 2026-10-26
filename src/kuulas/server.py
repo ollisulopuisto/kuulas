@@ -269,6 +269,13 @@ class WordBody(BaseModel):
     w: str
 
 
+class WordsBody(BaseModel):
+    media: str
+    start: int
+    end: int
+    w: str
+
+
 class ProfileBody(BaseModel):
     action: str
     seconds: float = 30.0
@@ -1754,6 +1761,12 @@ def create_app(session, engine, *, language: str | None = None,
     def put_word(body: WordBody):
         require_media(body.media)
         session.correct_word(body.media, body.index, body.w)
+        return state_response()
+
+    @app.put("/api/words")
+    def put_words(body: WordsBody):
+        require_media(body.media)
+        session.correct_words(body.media, body.start, body.end, body.w)
         return state_response()
 
     # -- transport -----------------------------------------------------------

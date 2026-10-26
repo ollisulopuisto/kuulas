@@ -94,9 +94,9 @@ export const getEditPoints = (mode, track = null) =>
   json(`/api/edit-points?mode=${mode}${track ? `&track=${encodeURIComponent(track)}` : ""}`);
 /** What cutting these words (refs: { track, clip, index }) would also remove from other tracks. */
 export const cutPreview = (words) => post("/api/cut-preview", { words });
-/** Correct one word's text (a new transcript revision, one undo step). */
-export const correctWord = (media, index, w) =>
-  json("/api/word", { method: "PUT", body: JSON.stringify({ media, index, w }) });
+/** Replace one contiguous transcript range (a new transcript revision, one undo step). */
+export const correctWords = (media, start, end, w) =>
+  json("/api/words", { method: "PUT", body: JSON.stringify({ media, start, end, w }) });
 /**
  * Queue transcription of these media; answers { jobs: [job id] }. `backend` "local" (one job per
  * recording; `force`: also music-only recordings, which the server refuses) or "colab" (ONE job, the audio is uploaded to Google: ask first, see app.js).

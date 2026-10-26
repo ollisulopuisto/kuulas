@@ -3336,15 +3336,42 @@ class Session:
     def correct_word(self, media_id: str, index: int, text: str) -> Project:
         """Correct the text of one word of one media's transcript: a new
         transcript revision, one undo step. Its timing and speaker stay."""
+        return self.correct_words(media_id, index, index, text)
+
+    def correct_words(self, media_id: str, start: int, end: int, text: str) -> Project:
+        """Replace a contiguous source word range as one transcript revision.
+
+        Replacement tokens share the selected time span in proportion to their
+        character counts, so merging or splitting words keeps the surrounding
+        transcript anchored to the same audio.
+        """
         with self.lock:
             words = list(self.transcripts().get(media_id, ()))
-            if not 0 <= index < len(words):
+            if not 0 <= start <= end < len(words):
                 raise ops.EditError("error.edit.no_word", media_id=media_id,
-                                    index=index, count=len(words))
-            old = words[index]["w"]
-            words[index] = {**words[index], "w": text.strip()}
+                                    index=start, count=len(words))
+            replacements = text.split()
+            if not replacements:
+                raise ops.EditError("error.transcript.empty")
+            selected = words[start:end + 1]
+            span_start = selected[0]["s"]
+            span_end = selected[-1]["e"]
+            total_weight = sum(map(len, replacements))
+            replacement_words = []
+            elapsed_weight = 0
+            for token in replacements:
+                token_start = span_start + round(
+                    (span_end - span_start) * elapsed_weight / total_weight)
+                elapsed_weight += len(token)
+                token_end = span_start + round(
+                    (span_end - span_start) * elapsed_weight / total_weight)
+                replacement_words.append({**selected[0], "w": token,
+                                          "s": token_start, "e": token_end})
+            old = " ".join(word["w"] for word in selected)
+            words[start:end + 1] = replacement_words
             return self.set_transcript(
-                media_id, words, t("history.correct_word", old=old, new=text.strip()))
+                media_id, words,
+                t("history.correct_word", old=old, new=" ".join(replacements)))
 
     def _view_key(self, *parts: object) -> str:
         """Key of a memoized view: this project, and what the view is of."""

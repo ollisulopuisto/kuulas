@@ -6,6 +6,7 @@ import {
   collateralBand,
   cutRange,
   cutWordsPlan,
+  correctableWordRange,
   DEFAULT_PAUSE_CHOICE,
   deleteSpan,
   deleteWordsPlan,
@@ -61,6 +62,27 @@ describe("speaker names", () => {
     assert.equal(speakerName("a", byId, {}, ""), "Anna");
     assert.equal(speakerName("b", byId, {}, "p9"), "Ville.wav");
     assert.equal(speakerName("zz", byId, {}, ""), "zz");
+  });
+});
+
+describe("transcript correction ranges", () => {
+  test("accepts consecutive source words from one recording only", () => {
+    const words = [
+      { media: "m", index: 4 },
+      { media: "m", index: 5 },
+      { media: "m", index: 7 },
+      { media: "other", index: 6 },
+    ];
+    assert.deepEqual(correctableWordRange(words, [0, 1]), { media: "m", start: 4, end: 5 });
+    assert.equal(correctableWordRange(words, [0, 2]), null);
+    assert.equal(correctableWordRange(words, [1, 3]), null);
+    assert.equal(
+      correctableWordRange(
+        [{ media: "m", index: 0, spk: "a" }, { media: "m", index: 1, spk: "b" }],
+        [0, 1],
+      ),
+      null,
+    );
   });
 });
 

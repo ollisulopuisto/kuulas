@@ -26,6 +26,7 @@ import {
   alsoRemovedIndices,
   buildParagraphs,
   collateralBand,
+  correctableWordRange,
   dragSelection,
   estimateHeight,
   extendTo,
@@ -69,7 +70,7 @@ const el = (tag, className, text) => {
 };
 
 /**
- * `root`: the dock's <section>. `api`: { getWords, cutPreview, correctWord, transcribe,
+ * `root`: the dock's <section>. `api`: { getWords, cutPreview, correctWords, transcribe,
  * getJobs }. `actions`: { seek(frame), jump(frame) (a click or a search hit: Follow comes back), showError(error), applyResponse(response) }.
  */
 export function createTranscript({ root, getState, setState, api, actions }) {
@@ -817,7 +818,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       "correct",
       t("ui.transcript.pop.correct_title"),
     );
-    correct.disabled = picked.length !== 1;
+    correct.disabled = correctableWordRange(words, picked) === null;
     acts.append(correct);
     pop.replaceChildren(summary, acts);
     pop.setAttribute("aria-label", t("ui.transcript.pop.label"));
@@ -886,34 +887,41 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     }, PREVIEW_DELAY_MS);
   }
 
-  // -- correcting a word ----------------------------------------------------------------------------------
+  // -- correcting transcript text -------------------------------------------------------------------------
   function startCorrect() {
     const sel = selection();
     const picked = chosen();
-    const i = picked.length === 1 ? picked[0] : picked.length === 0 ? sel.cursor : -1;
-    const node = wordNodes.get(i);
-    if (i < 0 || !node) return false;
-    const word = words[i];
+    const indices = picked.length ? picked : sel.cursor >= 0 ? [sel.cursor] : [];
+    const range = correctableWordRange(words, indices);
+    if (!range) return false;
+    const selected = [...indices].sort((a, b) => a - b);
+    const nodesForWords = selected.map((index) => wordNodes.get(index));
+    const node = nodesForWords[0];
+    if (!node || nodesForWords.some((item) => !item)) return false;
+    const original = selected.map((index) => words[index].w);
     const input = el("input", "tx-edit");
     input.type = "text";
-    input.value = word.w;
-    input.size = Math.max(3, word.w.length + 1);
+    input.value = original.join(" ");
+    input.size = Math.max(3, input.value.length + 1);
     input.setAttribute("aria-label", t("ui.transcript.pop.correct"));
-    editing = { i, node };
+    editing = { selected, nodesForWords };
     renderPop();
     node.replaceChildren(input);
+    for (const other of nodesForWords.slice(1)) other.textContent = "";
     input.focus();
     input.select();
     const finish = (save) => {
       if (!editing) return;
       editing = null;
       const text = input.value.trim();
-      node.textContent = `${word.w} `;
+      nodesForWords.forEach((item, n) => {
+        item.textContent = `${original[n]} `;
+      });
       root.focus({ preventScroll: true });
       renderPop();
-      if (save && text && text !== word.w) {
+      if (save && text && text !== original.join(" ")) {
         api
-          .correctWord(word.media, word.index, text)
+          .correctWords(range.media, range.start, range.end, text)
           .then((response) => actions.applyResponse(response))
           .catch(actions.showError);
       }

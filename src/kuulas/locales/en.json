@@ -1619,7 +1619,7 @@
   "ui.transcript.pop.cut": "Cut on all tracks",
   "ui.transcript.pop.cut_title": "Removes the stretch from every track and closes the gap. What else goes is marked.",
   "ui.transcript.pop.correct": "Correct",
-  "ui.transcript.pop.correct_title": "Edit the text of the selected word. Select a single word to use it.",
+  "ui.transcript.pop.correct_title": "Edit the selected word or contiguous phrase from one recording.",
   "ui.transcript.label.delete": "Delete words",
   "ui.transcript.toast.delete": {
     "one": "Deleted {count} word on {name} · gap kept",
@@ -1637,7 +1637,7 @@
   "cmd.transcript.cut_words": "Cut the selected words to the clipboard, all tracks",
   "cmd.transcript.cut_words.hint": "Removes the stretch of the selected words from every track and closes the gap; the words other speakers say over it go too.",
   "cmd.transcript.delete_words.hint": "Silences the selected words on their own speaker's track only; the gap stays and nothing else moves.",
-  "cmd.transcript.correct.hint": "Edit the text of the word under the cursor or the single selected word.",
+  "cmd.transcript.correct.hint": "Edit the word under the cursor or replace a contiguous selection from one recording.",
   "ui.tabs.history": "History",
   "ui.tabs.material": "Materials",
   "cmd.panel.show_material": "Materials",

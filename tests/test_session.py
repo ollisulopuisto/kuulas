@@ -373,6 +373,39 @@ def test_set_transcript_is_undoable(session, tmp_path):
     assert session.transcripts() == {}
 
 
+def test_correcting_a_word_range_merges_and_undoes_as_one_revision(session, tmp_path):
+    session.import_media([str(wav(tmp_path / "a.wav", 3.0))])
+    media_id = session.state.media[0].id
+    original = words(("Tän", 0.1, 0.2), ("on", 0.3, 0.4), ("noin", 0.5, 0.7),
+                     ("seuraavaksi", 0.8, 1.0))
+    session.set_transcript(media_id, original, "transcribed")
+    before = len(session.history.nodes())
+
+    session.correct_words(media_id, 0, 2, "Taannoin")
+
+    corrected = session.transcripts()[media_id]
+    assert [word["w"] for word in corrected] == ["Taannoin", "seuraavaksi"]
+    assert (corrected[0]["s"], corrected[0]["e"]) == (original[0]["s"], original[2]["e"])
+    assert len(session.history.nodes()) == before + 1
+    session.undo()
+    assert session.transcripts()[media_id] == original
+
+
+def test_correcting_a_word_range_splits_replacement_over_selected_time(session, tmp_path):
+    session.import_media([str(wav(tmp_path / "a.wav", 3.0))])
+    media_id = session.state.media[0].id
+    original = words(("Tän", 0.1, 0.2), ("on", 0.3, 0.4), ("noin", 0.5, 0.7))
+    session.set_transcript(media_id, original, "transcribed")
+
+    session.correct_words(media_id, 0, 2, "Taannoin tänään")
+
+    corrected = session.transcripts()[media_id]
+    assert [word["w"] for word in corrected] == ["Taannoin", "tänään"]
+    assert corrected[0]["s"] == original[0]["s"]
+    assert corrected[0]["e"] == corrected[1]["s"]
+    assert corrected[1]["e"] == original[2]["e"]
+
+
 def test_set_transcript_for_unknown_media_is_an_edit_error(session):
     with pytest.raises(EditError):
         session.set_transcript("m-nothing", words(("one", 0.0, 0.4)), "x")

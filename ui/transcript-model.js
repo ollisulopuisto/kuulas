@@ -254,6 +254,26 @@ export function extendTo(sel, to) {
 /** Select exactly one word (double-click). */
 export const selectWord = (i) => ({ cursor: i, anchor: i });
 
+/** The source range a transcript correction can replace, or null for a mixed/gapped pick. */
+export function correctableWordRange(words, indices) {
+  if (indices.length === 0) return null;
+  const picked = [...indices].sort((a, b) => a - b);
+  const first = words[picked[0]];
+  if (!first?.media || !Number.isInteger(first.index)) return null;
+  for (let n = 0; n < picked.length; n++) {
+    const word = words[picked[n]];
+    if (
+      !word ||
+      word.media !== first.media ||
+      word.index !== first.index + n ||
+      word.spk !== first.spk ||
+      word.person !== first.person
+    )
+      return null;
+  }
+  return { media: first.media, start: first.index, end: first.index + picked.length - 1 };
+}
+
 /**
  * The selection a right-click on word `i` (-1: none) works on: the picked words if `i` is one
  * of them, else just that word. With no word and nothing picked, null (no menu).
