@@ -22,9 +22,10 @@ from recorder_helpers import (
 )
 
 from kuulas import clipboard_level
+from kuulas import record_session as record_session_module
 from kuulas import record_take as rt
 from kuulas.ops import EditError
-from kuulas.record_session import RecordError, RecordSession
+from kuulas.record_session import RecordError, RecordSession, default_connect
 from kuulas.session import Session
 from kuulas_recorder.client import RecorderClient, RecorderError
 from kuulas_recorder.sources import FAKE_ENV
@@ -63,6 +64,18 @@ def offline(session, **kw):
     """A RecordSession whose recorder never answers and cannot be started."""
     return RecordSession(session, Published(), connect=nobody, spawn=no_spawn,
                          watch=False, **kw)
+
+
+def test_watcher_is_not_started_when_unix_sockets_are_unavailable(session, monkeypatch):
+    monkeypatch.setattr(record_session_module, "socket", object(), raising=False)
+    with pytest.raises(OSError, match=r"^$"):
+        default_connect()
+    rs = RecordSession(session)
+    try:
+        assert rs._thread is None
+        assert not rs._available
+    finally:
+        rs.close()
 
 
 def write_take(folder, take="Take 1", state="stopped", segments=((0, RATE),), plan=None,

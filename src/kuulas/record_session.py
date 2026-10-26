@@ -33,6 +33,7 @@ import logging
 import math
 import os
 import shutil
+import socket
 import threading
 import time
 from collections import deque
@@ -110,6 +111,8 @@ def _status_code(key: str) -> int:
 
 
 def default_connect() -> RecorderClient:
+    if not hasattr(socket, "AF_UNIX"):
+        raise OSError
     return RecorderClient.connect(timeout=20.0)
 
 
@@ -157,7 +160,7 @@ class RecordSession:
         self._closed = threading.Event()
         self._wake = threading.Event()
         self._thread = None
-        if watch:
+        if watch and hasattr(socket, "AF_UNIX"):
             self._thread = threading.Thread(target=self._watch,
                                             name="kuulas-record-watch", daemon=True)
             self._thread.start()
