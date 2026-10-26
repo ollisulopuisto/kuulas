@@ -11,6 +11,8 @@ Jokainen raita on oma kaistansa, ja aika kulkee vasemmalta oikealle. Napsautus m
 - Toista tai pysäytä: {key:transport.play}. Välilyönti kuuluu aina aikajanalle, missä paneelissa oletkin.
 
 ## Zoomaa ja liiku
+
+Aikajanan yläpuolinen yleiskuva näyttää koko jakson. Sen yläreunassa on enintään neljä tasavälistä aikamerkintää. Asteikko kasvaa jakson pituuden mukana: lyhyissä jaksoissa sekunneista 1, 5, 10, 15, 20, 30 tai 60 minuuttiin. Siirrä näkyvää aluetta napsauttamalla tai vetämällä yleiskuvaa. Toistokohta ei siirry.
 - Lähi- tai laajanäkymä: {key:view.toggle} {show:view-toggle}
 - Lähennä tai loitonna: {key:view.zoom_in} tai {key:view.zoom_out}
 - Näytä koko versio: {key:view.fit}

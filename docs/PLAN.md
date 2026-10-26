@@ -13,6 +13,12 @@ Read first, in this order:
 
 ---
 
+**Playback/navigation integration, v26.10.26.4:** startup slew and persistent manual
+Follow detachment have regressions; the overview has an adaptive scale above its
+clips. The Linux recorder self-test race is fixed by acknowledging quit before
+shutdown. See [the UI plan](plans/2026-10-26-playback-overview.md) and
+[recorder plan](plans/2026-10-26-recorder-quit-ack.md). No project format change.
+
 **Maintenance integration, v26.10.26.3:** request-derived path validation and
 exclusive atomic JSON writes are covered by new regressions. See
 [the audit](security/2026-10-26-path-audit.md) and

@@ -6,6 +6,13 @@
 
 - **A program can list every command kuulas has.** `GET /api/commands` returns the catalogue: each edit and session command with how to call it, its arguments (name, type, whether required, default), a one-line summary, and whether it makes one undo step. An agent can read it, change a session, and the person can then open the session and adjust it. A test fails when a command is missing from it.
 
+## [v26.10.26.4] - 2026-10-26
+
+- **Scrolling during playback stays where you put it.** Live playback updates no longer turn Follow back on after a manual scroll, overview move or zoom. Actual playback starts/stops and explicit Follow controls still re-engage it.
+- **The play cursor no longer retreats while startup audio is queued.** Timing corrections wait until a future-dated audio anchor starts advancing, rather than pulling the cursor backwards during that wait. Covered at normal, fast and reverse speeds.
+- **Overview times use a ruler scale at the top.** Up to four round timestamps replace the quarter-position labels. The spacing grows through 1, 5, 10, 15, 20, 30 and 60 minutes; short edits use seconds and long ones whole hours. The labels have their own band above the miniature clips, clear of the timeline ruler below.
+- **The headless recorder check shuts down reliably.** The recorder sends its quit acknowledgement before shutdown can close the connection. This fixes the intermittent Linux self-test disconnection without skipping or retrying the check; quitting during a take remains refused.
+
 ## [v26.10.26.3] - 2026-10-26
 
 - **Recorded files stay protected during JSON writes.** Project metadata and editor plans now create their temporary files exclusively, so a pre-existing temporary-file symlink cannot redirect a write into another file. Failed serialization leaves the previous file intact and cleans up the writer's own temporary file.

@@ -164,3 +164,23 @@ describe("a correction behind the cursor is slewed, not jumped", () => {
     }
   });
 });
+
+describe("startup corrections whose audio is still queued", () => {
+  for (const speed of [1, -1, 1.5]) {
+    it(`does not move against ${speed}x playback while a future anchor waits`, () => {
+      const c = createPlayheadClock();
+      c.setOffset(0);
+      c.accept(msg(100_000, 1000, { speed }), 1000);
+      let last = c.frameAt(1010);
+      // The device revises when the first sample reaches the ear. The target is
+      // stationary until 1040; fading a correction during that wait moves backwards.
+      c.accept(msg(100_000, 1040, { speed, now: 1.01 }), 1010);
+      for (let now = 1011; now <= 1300; now += 1) {
+        const frame = c.frameAt(now);
+        assert.ok((frame - last) * speed >= 0, `backwards at ${now}: ${last} -> ${frame}`);
+        last = frame;
+      }
+      assert.equal(last, Math.round(100_000 + (1300 - 1040) * MS * speed));
+    });
+  }
+});

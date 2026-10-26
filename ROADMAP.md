@@ -8,6 +8,12 @@ Out of scope: loopback, publishing integrations, anything but basic recording, s
 
 **How it gets built:** `docs/PLAN.md`, in work packages for implementers.
 
+**Playback/navigation, v26.10.26.4:** live anchors preserve manual Follow
+detachment; startup corrections do not move against playback while audio is queued.
+The overview has at most four round timestamps in a top band. The recorder
+acknowledges quit before closing sockets. Browser checks cover three zoom levels;
+owner audio-device confirmation remains open.
+
 **Maintenance, v26.10.26.3:** recording/import and job paths, temporary JSON writes,
 project names and series-file reads have security regressions and stricter checks.
 See [the path-access audit](docs/security/2026-10-26-path-audit.md) for confirmed

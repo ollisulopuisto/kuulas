@@ -4352,7 +4352,7 @@ function updateRangeInfo() {
 }
 let lastLoopKey = "null";
 
-function render(state, patch) {
+function render(state, patch, previous = null) {
   const changed = patch ? new Set(Object.keys(patch)) : null;
   const touched = (...names) => changed === null || names.some((name) => changed.has(name));
   timeline.redraw();
@@ -4610,7 +4610,7 @@ function render(state, patch) {
     }
   }
   // Starting or stopping playback puts Follow back on (follow-model.js).
-  if (changed !== null && touched("playing") && state.followPaused)
+  if (previous && previous.playing !== state.playing && state.followPaused)
     followEvent({ type: state.playing ? "play-start" : "play-stop" });
   if (touched("playhead", "playing", "zoom", "scroll", "followMode", "followPaused"))
     follow(state, touched("playhead"));

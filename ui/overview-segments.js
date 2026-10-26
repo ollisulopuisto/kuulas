@@ -82,16 +82,21 @@ export function overviewRuns(segments, total, width) {
   return out;
 }
 
-/** The strip's own times: a quarter, a half and three quarters of the edit (no ends). */
-export const OVERVIEW_SHARES = [0.25, 0.5, 0.75];
+// Round seconds for short edits, then the owner's minute scales: 1, 5, 10,
+// 15, 20, 30 and 60. Longer projects extend the scale by whole hours.
+const OVERVIEW_STEPS = [1, 5, 10, 15, 20, 30, 60, 300, 600, 900, 1200, 1800, 3600];
 
-/**
- * { x, label } for each share of the edit in the strip's `width`; `formatTime(seconds)` gives the
- * label, so the strip reads like the ruler above it.
- */
+/** Interior round ruler marks: at most four, with room for text in narrow strips. */
 export function overviewMarks(total, width, rate, formatTime) {
-  return OVERVIEW_SHARES.map((share) => ({
-    x: Math.round(share * width),
-    label: formatTime((share * total) / rate),
-  }));
+  if (!(total > 0 && width > 0 && rate > 0) || !Number.isFinite(total / rate)) return [];
+  const duration = total / rate;
+  const limit = Math.min(4, Math.max(1, Math.floor(width / 80)));
+  const count = (step) => Math.ceil(duration / step) - 1;
+  const step =
+    OVERVIEW_STEPS.find((value) => count(value) <= limit) ??
+    3600 * Math.ceil(duration / (3600 * (limit + 1)));
+  return Array.from({ length: Math.max(0, count(step)) }, (_, index) => {
+    const seconds = (index + 1) * step;
+    return { x: Math.round((seconds / duration) * width), label: formatTime(seconds) };
+  });
 }

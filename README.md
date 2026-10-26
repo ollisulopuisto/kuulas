@@ -21,7 +21,12 @@ Taglines (use either, not together): *"A podcast editor where nothing is ever lo
 - **Project format (v3)**: Crash-safe `Name.kuulas` package directory, WAL SQLite history tree with constant-time branching undo/redo, and recording clock in flicks.
 - **Desktop app wrapper**: Native window via pywebview (`--extra desktop`), recent projects window, native file dialogs, and local file drag-and-drop linking.
 
-*Verification note:* GitHub Actions runs the test and desktop smoke jobs on macOS, Windows and Linux. Windows runs editor coverage and desktop smoke; platform-only exclusions cover Unix recorder/worker and process-signal integration, macOS bundle and automixer integration, Finder-specific tool lookup, shell-based ffmpeg tests, and a few tests whose timing or path expectations are OS-specific. The full suite remains covered on macOS and Linux. Nobody has yet listened to playback on a real audio device with this version, or looked at the desktop window by eye.
+*Verification note:* GitHub Actions currently runs the test and desktop-smoke jobs on macOS and Linux; Windows jobs are disabled for now. The playback/navigation fixes were checked in Chrome with synthetic media and a simulated clock at three zoom levels. Real-device playback and microphone confirmation remain the owner's checks.
+
+**Playback/navigation maintenance (v26.10.26.4):** manual scrolling stays detached
+from Follow across live updates; startup clock corrections wait for queued audio.
+The overview uses at most four round labels above its clip map. Recorder shutdown
+sends its acknowledgement before closing the connection.
 
 **Path-access maintenance (v26.10.26.3):** recorded files are protected from
 pre-existing temporary-file symlinks, and request-derived take/job names stay
