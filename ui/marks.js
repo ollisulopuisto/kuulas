@@ -87,3 +87,19 @@ export function lengthPill({ range, scroll, zoom, width, textWidth }) {
   const center = (left + right) / 2;
   return { x: center - pillWidth / 2, width: pillWidth, center };
 }
+
+/**
+ * The patch for a plain click at `frame` while exactly one mark is set: the click is the other
+ * mark, on its own side of the lone one (after I is O, before O is I). Null otherwise, so a click
+ * on the wrong side, or with both or no marks, is only a click.
+ */
+export function implicitMarkPlan(state, frame) {
+  const { inPoint, outPoint } = state;
+  if (typeof inPoint === "number" && outPoint == null && frame > inPoint) {
+    return { ...placeMark(state, "out", frame), rangeTracks: new Set() };
+  }
+  if (typeof outPoint === "number" && inPoint == null && frame < outPoint) {
+    return { ...placeMark(state, "in", frame), rangeTracks: new Set() };
+  }
+  return null;
+}

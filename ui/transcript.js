@@ -9,6 +9,7 @@ import { wordState } from "./focus-words.js";
 import { frameToTime } from "./format.js";
 import { formatNumber, getLanguage, t } from "./i18n.js";
 import { setIcon } from "./icons.js";
+import { implicitMarkPlan } from "./marks.js";
 import { canShow, removedSummary, statusKey } from "./material-hits.js";
 import { canPutBack, commandArgs, describePlan } from "./put-back-model.js";
 import { musicNote } from "./transcribable.js";
@@ -646,8 +647,11 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       renderPop();
       return;
     }
-    // A click: the cursor and the play cursor go to the word.
+    // A click: the cursor and the play cursor go to the word. With only I or only O set, the
+    // click is the other mark too (marks.js implicitMarkPlan).
     setState({ transcriptSelection: placeCursor(from) });
+    const mark = implicitMarkPlan(getState(), words[from].s);
+    if (mark) setState(mark);
     setPaused(false);
     actions.jump(words[from].s);
   });
