@@ -2358,7 +2358,7 @@
   "ui.project.bad_name": "The name cannot be empty, start with a dot, or contain / or \\.",
   "ui.project.need_folder": "Give the full path of an existing folder, such as /Users/you/Podcasts.",
   "ui.project.opened": "Opened {path} in a new tab.",
-  "error.project.bad_name": "A project name cannot be empty, longer than 100 characters, start with a dot, or contain / or \\.",
+  "error.project.bad_name": "A project name cannot be empty, longer than 100 characters, start with a dot, or contain control characters or any of / \\ < > : \" | ? *.",
   "error.project.bad_parent": "{path} is not a folder that exists (give its full path).",
   "error.project.exists": "{path} already exists.",
   "ui.exportdialog.mix_title": "Export mix",

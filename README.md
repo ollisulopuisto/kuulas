@@ -23,6 +23,12 @@ Taglines (use either, not together): *"A podcast editor where nothing is ever lo
 
 *Verification note:* GitHub Actions runs the test and desktop smoke jobs on macOS, Windows and Linux. Windows runs editor coverage and desktop smoke; platform-only exclusions cover Unix recorder/worker and process-signal integration, macOS bundle and automixer integration, Finder-specific tool lookup, shell-based ffmpeg tests, and a few tests whose timing or path expectations are OS-specific. The full suite remains covered on macOS and Linux. Nobody has yet listened to playback on a real audio device with this version, or looked at the desktop window by eye.
 
+**Path-access maintenance (v26.10.26.3):** recorded files are protected from
+pre-existing temporary-file symlinks, and request-derived take/job names stay
+inside their own folders. The [security audit](docs/security/2026-10-26-path-audit.md)
+records the fixes and the intentional user-selected folder paths that may still
+produce CodeQL warnings.
+
 ## Running kuulas
 
 kuulas requires Python 3.13 and `uv`. Audio decoding uses ffmpeg (`brew install ffmpeg` on macOS). kuulas needs the podcast repo checked out next to it at `../podcast` because `speechmix` and `nhsx` are path dependencies.

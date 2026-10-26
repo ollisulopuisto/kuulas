@@ -8,6 +8,12 @@ Out of scope: loopback, publishing integrations, anything but basic recording, s
 
 **How it gets built:** `docs/PLAN.md`, in work packages for implementers.
 
+**Maintenance, v26.10.26.3:** recording/import and job paths, temporary JSON writes,
+project names and series-file reads have security regressions and stricter checks.
+See [the path-access audit](docs/security/2026-10-26-path-audit.md) for confirmed
+fixes and intentional folder-selection warnings; the CodeQL alert list is not
+claimed clear. Windows UI source comparisons accept native line endings.
+
 ## Requirements and state (2026-10-16)
 
 **Build first** (owner, 2026-10-16): R35 the project format above all, then

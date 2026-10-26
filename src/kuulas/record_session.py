@@ -616,8 +616,8 @@ class RecordSession:
 
     def _sidecar(self, take: str) -> dict | None:
         try:
-            return json.loads((self.folder / f"{take}{rt.SIDECAR_SUFFIX}").read_text(
-                encoding="utf-8"))
+            path = rt.take_path(self.folder, take, rt.SIDECAR_SUFFIX)
+            return json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             return None
 
@@ -657,6 +657,8 @@ class RecordSession:
         there or has no audio. A take that still says ``recording`` while no recorder
         writes it is repaired first (by the recorder; when it cannot be reached the
         files are used as they are: each is a valid WAV up to its last flush)."""
+        if not rt.valid_name(take):
+            raise RecordError("error.record.bad_request", detail="take")
         with self._import_lock:
             sidecar = self._sidecar(take)
             if sidecar is None:

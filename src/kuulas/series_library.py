@@ -72,7 +72,7 @@ class SeriesLibrary:
         self.folder = Path(folder) if folder is not None else default_folder()
 
     def _path(self, series_id: object) -> Path:
-        if not isinstance(series_id, str) or not _ID.match(series_id):
+        if not isinstance(series_id, str) or not _ID.fullmatch(series_id):
             raise SeriesLibraryError("error.series.bad_series_id",
                                      series_id=str(series_id)[:80])
         return self.folder / f"{series_id}.json"
@@ -80,7 +80,7 @@ class SeriesLibrary:
     @staticmethod
     def _read(path: Path) -> dict | None:
         try:
-            if path.stat().st_size > MAX_BYTES:
+            if path.is_symlink() or path.stat().st_size > MAX_BYTES:
                 return None
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
@@ -105,7 +105,7 @@ class SeriesLibrary:
             paths = sorted(self.folder.glob("*.json"))
         except OSError:
             return []
-        records = [r for r in (self._read(p) for p in paths if _ID.match(p.stem))
+        records = [r for r in (self._read(p) for p in paths if _ID.fullmatch(p.stem))
                    if r is not None]
         return sorted(records, key=lambda r: (r["name"].casefold(), r["id"]))
 

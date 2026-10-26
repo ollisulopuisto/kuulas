@@ -19,7 +19,7 @@ from .ops import EditError
 
 SUFFIX = ".kuulas"
 MAX_NAME = 100
-_FORBIDDEN = "/\\\0"
+_FORBIDDEN = "/\\\0<>:\"|?*"
 
 
 def folder_name(typed: object) -> str:
@@ -29,7 +29,8 @@ def folder_name(typed: object) -> str:
     if text.lower().endswith(SUFFIX):
         text = text[: -len(SUFFIX)].rstrip()
     if (not text or len(text) > MAX_NAME or text.startswith(".")
-            or any(char in text for char in _FORBIDDEN)):
+            or any(char in text for char in _FORBIDDEN)
+            or any(ord(char) < 32 or ord(char) == 127 for char in text)):
         raise EditError("error.project.bad_name")
     return text + SUFFIX
 
@@ -44,8 +45,9 @@ def project_path(parent: object, name: object) -> Path:
     root = Path(parent)
     if not root.is_absolute() or ".." in root.parts or not root.is_dir():
         raise EditError("error.project.bad_parent", path=parent[:200])
+    root = root.resolve(strict=True)
     target = root / folder
-    if target.exists():
+    if target.exists() or target.is_symlink():
         raise EditError("error.project.exists", path=str(target))
     return target
 

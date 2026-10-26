@@ -2459,7 +2459,7 @@
   "ui.project.bad_name": "Nimi ei voi olla tyhjä, alkaa pisteellä tai sisältää merkkiä / tai \\.",
   "ui.project.need_folder": "Anna olemassa olevan kansion koko polku, esimerkiksi /Users/sinä/Podcastit.",
   "ui.project.opened": "Avattu {path} uudelle välilehdelle.",
-  "error.project.bad_name": "Projektin nimi ei voi olla tyhjä, yli 100 merkkiä pitkä, alkaa pisteellä tai sisältää merkkiä / tai \\.",
+  "error.project.bad_name": "Projektin nimi ei voi olla tyhjä, yli 100 merkkiä pitkä, alkaa pisteellä eikä sisältää ohjausmerkkejä tai mitään merkeistä / \\ < > : \" | ? *.",
   "error.project.bad_parent": "{path} ei ole olemassa oleva kansio (anna sen koko polku).",
   "error.project.exists": "{path} on jo olemassa.",
   "ui.exportdialog.mix_title": "Vie miksaus",

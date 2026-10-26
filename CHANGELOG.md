@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [v26.10.26.3] - 2026-10-26
+
+- **Recorded files stay protected during JSON writes.** Project metadata and editor plans now create their temporary files exclusively, so a pre-existing temporary-file symlink cannot redirect a write into another file. Failed serialization leaves the previous file intact and cleans up the writer's own temporary file.
+- **Request-derived file paths are checked more strictly.** Recording take names and background-job IDs cannot contain traversal, drive or wildcard syntax. Symlinked take sidecars, editor plans and series records are refused, and project names reject Windows drive/stream punctuation and control characters. A dangling project symlink cannot become a new-project destination. The path-alert audit documents intended project-folder and plug-in selection separately from these confirmed bugs.
+- **Windows test checks accept native line endings.** CSS and embedded-help comparisons normalize CRLF on input while retaining every assertion, and the protected-file assertions meet the existing lint limit.
+
 ## [v26.10.26.2] - 2026-10-26
 
 - **CI now checks macOS, Windows and Linux.** Windows receives its timezone database in the app environment; codec validation tests no longer depend on whichever ffmpeg encoders the runner happens to have. Backup copies flush through a Windows-compatible writable handle, and the app self-test reports Unix-only recorder and priority checks as unsupported there. The Windows test job omits those platform-specific integrations, detached-transcription worker integration, macOS automixer tests, and the macOS-only DMG build-script test.

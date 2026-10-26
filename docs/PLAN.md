@@ -13,6 +13,13 @@ Read first, in this order:
 
 ---
 
+**Maintenance integration, v26.10.26.3:** request-derived path validation and
+exclusive atomic JSON writes are covered by new regressions. See
+[the audit](security/2026-10-26-path-audit.md) and
+[implementation plan](plans/2026-10-26-path-security.md). No project schema change;
+recorded media is never modified. The release also includes Windows UI test
+line-ending fixes.
+
 ## Ground rules (every WP)
 
 These are not suggestions. A WP is done only when all of them hold.
