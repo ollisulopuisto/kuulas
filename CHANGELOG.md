@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+- **Set music level supports +1 dB above speech.** The dialog now offers a linked slider and numeric field, and explains negative, equal and positive offsets relative to speech.
+
 ## [v26.10.30.2] - 2026-10-30
 
 - **Choose the Colab transcription model in Kuulas.** Settings offer Whisper large-v3-turbo and Parakeet Ultra, plus a custom backend model ID. Existing `turbo` settings migrate to `whisper`; local Orukeet is unchanged. The packaged Colab command is pinned to the shared podcast revision that supports both models. A live Colab transcription was not available during implementation.

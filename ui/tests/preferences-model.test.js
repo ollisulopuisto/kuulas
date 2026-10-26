@@ -148,17 +148,22 @@ describe("currentValues", () => {
     assert.deepEqual(calls, [["quickMute", 0.8]]);
   });
 
-  test("music under speech: a -30..0 dB field, -10 by default, sent within bounds only", () => {
+  test("music level relative to speech: a -30..1 dB slider, -10 by default", () => {
     const field = PREFERENCE_FIELDS.find((f) => f.id === "musicUnder");
     assert.equal(field.kind, "range");
-    assert.deepEqual([field.min, field.max, field.unit], [-30, 0, "dB"]);
+    assert.deepEqual([field.min, field.max, field.unit], [-30, 1, "dB"]);
     assert.equal(currentValues({ musicUnderDb: -14 }, {}).musicUnder, -14);
     const { calls, setters } = recorder();
     const current = currentValues({}, {});
     assert.equal(applyField("musicUnder", "-12", current, setters), true);
+    assert.equal(applyField("musicUnder", "1", current, setters), true);
+    assert.equal(applyField("musicUnder", "1.1", current, setters), false);
     assert.equal(applyField("musicUnder", "3", current, setters), false);
     assert.equal(applyField("musicUnder", "-10", current, setters), false);
-    assert.deepEqual(calls, [["musicUnder", -12]]);
+    assert.deepEqual(calls, [
+      ["musicUnder", -12],
+      ["musicUnder", 1],
+    ]);
   });
 
   test("a slider's value reads with its unit", () => {

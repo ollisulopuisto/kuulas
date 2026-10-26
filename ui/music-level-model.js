@@ -1,4 +1,4 @@
-// Track > Auto > Set music level…: the offset ("Music under speech (dB)"), the measured
+// Track > Auto > Set music level…: the offset (music level relative to speech), the measured
 // numbers and what Apply would set, pure (the dialog is music-level-dialog.js). The rule and
 // the limits mirror src/kuulas/music_level.py; the server checks again.
 
@@ -6,11 +6,11 @@ import { parseNumber } from "./silence-model.js";
 
 /** Remembered in Preferences (prefs.js) under this key. */
 export const MUSIC_UNDER_KEY = "musicUnderSpeechDb";
-/** Owner, 2026-10-20: clearly under the voice. The automixer's own fixed rule is -1. */
+/** Owner, 2026-10-20: clearly under the voice by default. */
 export const DEFAULT_MUSIC_UNDER_DB = -10;
 export const MIN_MUSIC_UNDER_DB = -30;
-export const MAX_MUSIC_UNDER_DB = 0;
-/** The Preferences slider's step; the dialog's field takes any number in range. */
+export const MAX_MUSIC_UNDER_DB = 1;
+/** The Preferences slider's step; the dialog slider is finer and its field takes decimals. */
 export const MUSIC_UNDER_STEP_DB = 1;
 
 const clamp = (value) => Math.min(MAX_MUSIC_UNDER_DB, Math.max(MIN_MUSIC_UNDER_DB, value));
@@ -48,9 +48,10 @@ export function proposedGain(result, offset) {
   return Math.round((result.speech_lufs + offset - result.bed_lufs) * 100) / 100;
 }
 
-/** "10.0 dB under the speech" / "2.3 dB above the speech". `fmt` formats one decimal. */
+/** Say whether the music is under, equal to, or above speech. `fmt` formats one decimal. */
 export function against(db, t, fmt) {
-  return db <= 0
+  if (db === 0) return t("music_level.equal");
+  return db < 0
     ? t("music_level.under", { db: fmt(-db) })
     : t("music_level.above", { db: fmt(db) });
 }

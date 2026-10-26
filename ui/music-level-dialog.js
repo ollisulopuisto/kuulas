@@ -41,15 +41,22 @@ export function createMusicLevelDialog({ api, t, fmt, getOffset, onApply, onReme
   input.spellcheck = false;
   input.id = "music-level-offset";
   input.name = "offset_db";
+  const slider = el("input", "music-level-slider");
+  slider.type = "range";
+  slider.min = String(MIN_MUSIC_UNDER_DB);
+  slider.max = String(MAX_MUSIC_UNDER_DB);
+  slider.step = "0.1";
+  slider.setAttribute("aria-labelledby", "music-level-offset-label");
   const row = el("div", "form-row");
   const label = el("label", "form-label", t("ui.music_level.offset"));
+  label.id = "music-level-offset-label";
   label.htmlFor = input.id;
   const cell = el("div", "form-field");
   const message = el("p", "form-msg");
   message.id = "music-level-offset-msg";
   message.hidden = true;
   input.setAttribute("aria-describedby", message.id);
-  cell.append(input, message, el("p", "form-help", t("ui.music_level.offset_hint")));
+  cell.append(input, message, slider, el("p", "form-help", t("ui.music_level.offset_hint")));
   row.append(label, cell);
 
   const result = el("div", "form-note music-level-result");
@@ -88,6 +95,7 @@ export function createMusicLevelDialog({ api, t, fmt, getOffset, onApply, onReme
     message.textContent = key ? t(key, { low: MIN_MUSIC_UNDER_DB, high: MAX_MUSIC_UNDER_DB }) : "";
     message.hidden = !key;
     input.setAttribute("aria-invalid", key ? "true" : "false");
+    if (ok) slider.value = String(value);
     if (measured) {
       const lines = ok ? summaryLines(measured, value, t, fmt) : [];
       result.replaceChildren(...lines.map((line) => el("p", "music-level-line", line)));
@@ -96,6 +104,10 @@ export function createMusicLevelDialog({ api, t, fmt, getOffset, onApply, onReme
     return ok;
   }
   input.addEventListener("input", refresh);
+  slider.addEventListener("input", () => {
+    input.value = slider.value;
+    refresh();
+  });
 
   const showError = (text) => {
     result.textContent = "";
