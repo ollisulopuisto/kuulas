@@ -48,7 +48,7 @@ jobs:
       - name: Python tests (Windows editor coverage; omit Unix worker and macOS automixer integration)
         if: runner.os == 'Windows'
         run: >
-          uv run pytest -q -vv -o faulthandler_timeout=10
+          uv run pytest -q -vv --full-trace -o faulthandler_timeout=10
           --ignore-glob=tests/test_recorder_*.py
           --ignore-glob=tests/test_record_*.py
           --ignore=tests/test_analysis_worker.py
