@@ -4,20 +4,18 @@
 
 /**
  * The icon of each default command (icons.js), or null: a null is drawn as text so a button is
- * never empty. Transcribe, Auto-Silence, resync and automix borrow the nearest icon that exists
- * (a pencil, the padlock of a closed stretch, a reset arrow, stacked layers); the real icons are
- * still to be chosen (docs/design/TOOLBAR.md, open questions).
+ * never empty. Every default button has an icon of its own (a test checks it).
  */
 export const TOOLBAR_ICONS = Object.freeze({
   "edit.undo": "undo",
   "edit.redo": "redo",
   "app.import": "import",
-  "app.transcribe": "rename",
-  "app.auto_silence": "lock",
+  "app.transcribe": "transcribe",
+  "app.auto_silence": "silence",
   "edit.split": "cut",
   "clip.mute": "mute",
-  "sync.resync_range": "reset",
-  "export.automix": "layers",
+  "sync.resync_range": "resync",
+  "export.automix": "automix",
   "app.export": "export",
 });
 
@@ -30,6 +28,29 @@ export const SHORT_LABELS = Object.freeze(
   Object.fromEntries(Object.keys(TOOLBAR_ICONS).map((id) => [id, `ui.rail.short.${id}`])),
 );
 
+/**
+ * The search button at the top of the rail: it opens the command search (WP75), so not every
+ * command has to be a button. It is fixed: not part of the layout, never moved, never removed.
+ */
+export const RAIL_SEARCH = Object.freeze({
+  command: "help.search",
+  label: "ui.rail.search",
+  icon: "search",
+});
+
+const BADGE_MAX = 99;
+
+/** How many silent stretches Auto-Silence has found, over every clip, as button text; null for none. */
+function silenceBadge(state) {
+  let count = 0;
+  for (const track of state?.project?.tracks ?? [])
+    for (const clip of track.clips ?? []) count += clip.auto_silence?.length ?? 0;
+  if (count === 0) return null;
+  return count > BADGE_MAX ? `${BADGE_MAX}+` : String(count);
+}
+
+const BADGES = Object.freeze({ "app.auto_silence": silenceBadge });
+
 /** `layout`: command ids; `registry`: { has, can }; `t`: translate; `keyOf(id)`: the key text or "". */
 export function toolbarItems({ layout, registry, state, t, keyOf }) {
   return layout.map((id) => {
@@ -41,6 +62,7 @@ export function toolbarItems({ layout, registry, state, t, keyOf }) {
       tip: key ? `${full} (${key})` : full,
       enabled: registry.has(id) && registry.can(id, state),
       icon: TOOLBAR_ICONS[id] ?? null,
+      badge: BADGES[id]?.(state) ?? null,
     };
   });
 }

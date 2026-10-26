@@ -219,6 +219,7 @@ import { withoutMusic } from "./transcribable.js";
 import { createTranscript } from "./transcript.js";
 import { mutedInputsKey, pauseChoiceId } from "./transcript-model.js";
 import { createTransport } from "./transport.js";
+import { noteUse, readUse, writeUse } from "./use-hints.js";
 import * as View from "./view.js";
 import { changeKey, createSaver, recordOf, restoreFrom } from "./view-memory.js";
 import { nextWheelMode, wheelModeChoice } from "./wheel.js";
@@ -4669,6 +4670,16 @@ $("menubar").addEventListener("contextmenu", (event) => {
   if (!row) return;
   event.preventDefault();
   openToolbarMenu(row.dataset.commandId, event);
+});
+
+// Hints from use (WP86): a text notice once, after many hand mutes. The counter stays in this browser.
+let useHints = readUse(prefs);
+keyboard.registry.onRun((id) => {
+  const step = noteUse(useHints, id);
+  if (step.state === useHints) return;
+  useHints = step.state;
+  writeUse(prefs, useHints);
+  if (step.hint) showNotice(t(step.hint), "info");
 });
 
 // The toolbar rail (WP86): the user's own layout, drawn left of the track headers.

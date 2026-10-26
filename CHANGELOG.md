@@ -6,6 +6,12 @@
 
 - **A program can list every command kuulas has.** `GET /api/commands` returns the catalogue: each edit and session command with how to call it, its arguments (name, type, whether required, default), a one-line summary, and whether it makes one undo step. An agent can read it, change a session, and the person can then open the session and adjust it. A test fails when a command is missing from it.
 
+- **The toolbar shows how many silent stretches there are.** The Auto-Silence button carries a small count (up to 99+) of the stretches found, and the buttons for transcribe, Auto-Silence, resync and automix have icons of their own. A fixed Search button at the top of the toolbar opens the command search, so not every command needs a button.
+
+- **The transcript's find field is always there.** It no longer waits for Ctrl+F; the cross clears the search.
+
+- **A hint after many hand mutes.** After ten mutes by hand kuulas says once that Auto-Silence finds the silent stretches for you. The count stays in your browser, and the hint never adds or moves a toolbar button.
+
 ## [v26.10.26.4] - 2026-10-26
 
 - **Scrolling during playback stays where you put it.** Live playback updates no longer turn Follow back on after a manual scroll, overview move or zoom. Actual playback starts/stops and explicit Follow controls still re-engage it.
