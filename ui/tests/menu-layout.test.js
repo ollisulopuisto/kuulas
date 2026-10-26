@@ -22,6 +22,7 @@ describe("File", () => {
       "submenu",
       "app.close_project",
       "app.import",
+      "app.import_nhsx",
       "app.locate_media",
       "separator",
       "app.save",

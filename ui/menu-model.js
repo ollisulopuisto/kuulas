@@ -215,6 +215,7 @@ export const MENU = [
       OPEN_RECENT,
       item("app.close_project"),
       item("app.import"),
+      item("app.import_nhsx"),
       item("app.locate_media"),
       SEP,
       item("app.save"),

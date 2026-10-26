@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- **Import a Hindenburg session from the window.** File > Import Hindenburg session… brings a `.nhsx` session into the open project: its tracks, clips (with their gain, pan and fades), words and clipboard, in one step you can undo, with the recordings linked where they are. The desktop window opens its own file dialog; in a browser the dialog asks for the full path of the `.nhsx` file. A notice says how many recordings came in and how many were not found next to the session. No key by default. (The command line `kuulas import-nhsx` and the server command already existed; only the window was missing. Not tried with a real session yet.)
+
 ## [v26.10.26.5] - 2026-10-26
 
 - **A toolbar you build yourself.** A vertical toolbar sits left of the track headers with ten buttons (undo, redo, import, transcribe, Auto-Silence, split, mute, resync, automix, export). Right-click any menu row and choose "Add to toolbar"; right-click a toolbar button to remove it. Buttons never move unless you move them, and a greyed button stays where it is. View > Toolbar shows or hides it, shows icons only or icons with text, and puts it back to the ten. Drag a button to a new place (a line shows where it lands, Esc cancels), or press Alt+Up or Alt+Down on a focused button to move it one place.

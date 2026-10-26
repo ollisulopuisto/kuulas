@@ -303,6 +303,9 @@ _MEDIA_TYPES = ("Audio and video (*.wav;*.flac;*.mp3;*.m4a;*.aac;*.ogg;*.opus;*.
                 "*.aiff;*.mp4;*.mov;*.mkv;*.webm)", "All files (*.*)")
 
 
+_NHSX_TYPES = ("Hindenburg session (*.nhsx)", "All files (*.*)")
+
+
 def load_webview():
     """The ``webview`` module, or None when the ``desktop`` extra is not installed."""
     try:
@@ -385,6 +388,13 @@ class Bridge:
         """Native import dialog: absolute paths, to be linked in place."""
         return self._dialog(self._webview.FileDialog.OPEN, allow_multiple=True,
                             file_types=_MEDIA_TYPES)
+
+    def pick_nhsx(self) -> str | None:
+        """Native chooser for File > Import Hindenburg session: the one .nhsx file, or
+        None when cancelled. It only names a file; the server reads it and finds the
+        recordings."""
+        got = self._dialog(self._webview.FileDialog.OPEN, file_types=_NHSX_TYPES)
+        return got[0] if got else None
 
     def pick_save(self, name: str = "") -> str | None:
         got = self._dialog(self._webview.FileDialog.SAVE, save_filename=name)
