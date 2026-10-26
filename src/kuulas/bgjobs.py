@@ -66,26 +66,39 @@ def jobs_dir(folder: Path | str) -> Path:
     return Path(folder) / JOBS_DIR
 
 
+def _job_path(folder: Path | str, job_id: str, suffix: str) -> Path:
+    # IDs reach both path joins and a cleanup glob. Separators and glob syntax
+    # are never valid IDs, including Windows separators on a Unix server.
+    if (not isinstance(job_id, str) or not _SAFE.fullmatch(job_id)
+            or job_id in {".", ".."}):
+        raise BackgroundJobError("error.server.bad_request", detail="job id")
+    root = jobs_dir(folder)
+    path = root / f"{job_id}{suffix}"
+    if path.is_symlink() or path.resolve().parent != root.resolve():
+        raise BackgroundJobError("error.server.bad_request", detail="job path")
+    return path
+
+
 def job_file(folder: Path | str, job_id: str) -> Path:
-    return jobs_dir(folder) / f"{job_id}.json"
+    return _job_path(folder, job_id, ".json")
 
 
 def status_file(folder: Path | str, job_id: str) -> Path:
-    return jobs_dir(folder) / f"{job_id}.status.json"
+    return _job_path(folder, job_id, ".status.json")
 
 
 def cancel_file(folder: Path | str, job_id: str) -> Path:
-    return jobs_dir(folder) / f"{job_id}.cancel"
+    return _job_path(folder, job_id, ".cancel")
 
 
 def marker_file(folder: Path | str, job_id: str) -> Path:
-    return jobs_dir(folder) / f"{job_id}.ingested.json"
+    return _job_path(folder, job_id, ".ingested.json")
 
 
 def result_file(folder: Path | str, job_id: str, media_id: str) -> Path:
     if not _SAFE.fullmatch(media_id):
         raise BackgroundJobError("error.server.bad_request", detail="media id")
-    return jobs_dir(folder) / f"{job_id}.{media_id}.words.json"
+    return _job_path(folder, job_id, f".{media_id}.words.json")
 
 
 def read_json(path: Path) -> dict | None:
@@ -127,6 +140,8 @@ def job_ids(folder: Path | str) -> list[str]:
     found = []
     for path in files:
         name = path.name
+        if path.is_symlink() or not _SAFE.fullmatch(name[:-5]):
+            continue
         if name.endswith((".status.json", ".ingested.json", ".words.json")):
             continue
         data = read_json(path)
@@ -206,6 +221,7 @@ def request_cancel(folder: Path | str, job_id: str) -> None:
 
 def remove_files(folder: Path | str, job_id: str) -> None:
     """Delete every file of the job (dismissing it, or after its results are in)."""
+    _job_path(folder, job_id, ".json")  # validate before interpolating the glob
     for path in jobs_dir(folder).glob(f"{job_id}.*"):
         with contextlib.suppress(OSError):
             path.unlink()

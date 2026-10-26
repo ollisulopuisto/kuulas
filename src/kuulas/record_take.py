@@ -16,14 +16,14 @@ from __future__ import annotations
 
 import contextlib
 import json
-import os
 import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-from kuulas_recorder.client import segment_file  # the one place file names are built
+from kuulas_recorder.client import segment_file, valid_name
 
+from .messages import t
 from .take_names import take_name, unique_file_names
 
 #: The folder inside the project package that holds the takes (owner, 2026-10-19).
@@ -200,19 +200,27 @@ class TakePlan:
                                    self.track_id, self.track_name),)
 
 
+def take_path(folder: Path, take: str, suffix: str) -> Path:
+    """A recorder-owned name, directly inside recordings; never follow a link."""
+    bad_name = t("error.record.bad_name")
+    if not valid_name(take):
+        raise ValueError(bad_name)
+    path = folder / f"{take}{suffix}"
+    if path.is_symlink() or path.resolve().parent != folder.resolve():
+        raise ValueError(bad_name)
+    return path
+
+
 def plan_path(folder: Path, take: str) -> Path:
-    return folder / f"{take}{PLAN_SUFFIX}"
+    return take_path(folder, take, PLAN_SUFFIX)
 
 
 def write_plan(folder: Path, plan: TakePlan) -> None:
     """Written whole (temporary file, fsync, rename): read back after a crash."""
-    path = plan_path(folder, plan.take)
-    tmp = path.with_name(path.name + ".tmp")
-    with tmp.open("w", encoding="utf-8") as f:
-        json.dump(asdict(plan), f)
-        f.flush()
-        os.fsync(f.fileno())
-    tmp.replace(path)
+    # Lazy to avoid package -> Session -> recording import cycles.
+    from .package import write_json_atomic  # noqa: PLC0415
+
+    write_json_atomic(plan_path(folder, plan.take), asdict(plan))
 
 
 def read_plan(folder: Path, take: str) -> TakePlan | None:
@@ -256,7 +264,7 @@ def read_plan(folder: Path, take: str) -> TakePlan | None:
 
 
 def remove_plan(folder: Path, take: str) -> None:
-    with contextlib.suppress(OSError):
+    with contextlib.suppress(OSError, ValueError):
         plan_path(folder, take).unlink()
 
 

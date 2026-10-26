@@ -30,6 +30,8 @@ from kuulas_recorder.transport import Connection, UnixTransport, default_socket_
 #: The one function that builds a take's file names (``names.segment_file``), here for
 #: the editor, which may import nothing of the recorder but this module.
 segment_file = names.segment_file
+#: Shared name validation for editor requests; keep the recorder behind this client.
+valid_name = names.valid_name
 #: The protocol version this client library speaks; ``hello`` of a running recorder
 #: reports the one it speaks, and an editor compares the two.
 PROTOCOL = kuulas_recorder.PROTOCOL

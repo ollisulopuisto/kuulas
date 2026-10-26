@@ -36,6 +36,7 @@ import secrets
 import shutil
 import socket
 import sqlite3
+import tempfile
 import threading
 from datetime import UTC, datetime, timedelta, tzinfo
 from importlib import metadata
@@ -137,17 +138,18 @@ def _parse_iso(text: str) -> datetime:
 
 def write_json_atomic(path: Path, data: dict) -> None:
     """Temp file, fsync, rename: the old file or the new one, never half."""
-    # The token keeps two threads writing one file from sharing a temp file.
-    tmp = path.with_name(f"{path.name}.{os.getpid()}.{secrets.token_hex(4)}.tmp")
-    with tmp.open("w", encoding="utf-8") as f:
-        json.dump(data, f, indent=1, ensure_ascii=False)
-        f.flush()
-        os.fsync(f.fileno())
+    # Exclusive creation prevents a pre-existing temp symlink from truncating a
+    # recording. The temp is in the same directory, so replacement stays atomic.
+    fd, name = tempfile.mkstemp(prefix=f"{path.name}.", suffix=".tmp", dir=path.parent)
+    tmp = Path(name)
     try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=1, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
         os.replace(tmp, path)
-    except OSError:
+    finally:
         tmp.unlink(missing_ok=True)
-        raise
     if hasattr(os, "O_DIRECTORY"):  # POSIX: make the rename itself durable
         fd = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY)
         try:
