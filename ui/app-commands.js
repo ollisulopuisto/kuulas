@@ -249,6 +249,7 @@ export function registerAppCommands(registry, { actions, app }) {
   def("history.expand_all", () => app.expandHistoryGroups(), hasProject);
   def("history.open_saved", () => app.openHistorySaved(), hasProject);
   def("app.import", () => app.chooseMedia());
+  def("app.import_nhsx", () => app.importNhsx(), hasProject);
   // File > New project… / Open project… (WP74): a window of its own; no project needed.
   def("app.new", () => app.newProject());
   def("app.open", (path) =>

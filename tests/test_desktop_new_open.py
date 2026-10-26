@@ -114,3 +114,28 @@ def test_open_path_refuses_what_is_not_a_project(tmp_path):
     for bad in ("", "relative.kuulas", missing, 5, str(tmp_path)):
         assert bridge.open_path_in_window(bad) is False
     assert opened == []
+
+
+def test_pick_nhsx_asks_for_one_nhsx_file_and_answers_its_path(tmp_path):
+    class Webview:
+        class FileDialog:
+            OPEN = "open"
+
+    bridge = desktop.Bridge(Webview, tmp_path / "recents")
+    bridge._window = _Window([str(tmp_path / "Show.nhsx")])
+    assert bridge.pick_nhsx() == str(tmp_path / "Show.nhsx")
+    [(kind, options)] = bridge._window.calls
+    assert kind == "open"
+    assert not options.get("allow_multiple")
+    assert any("*.nhsx" in kind for kind in options["file_types"])
+
+
+def test_cancelling_the_nhsx_dialog_answers_none(tmp_path):
+    class Webview:
+        class FileDialog:
+            OPEN = "open"
+
+    for answer in (None, []):
+        bridge = desktop.Bridge(Webview, tmp_path / "recents")
+        bridge._window = _Window(answer)
+        assert bridge.pick_nhsx() is None

@@ -141,6 +141,8 @@ import { MUSIC_UNDER_KEY, normaliseMusicUnder } from "./music-level-model.js";
 import { createMusicReportDialog } from "./music-report-dialog.js";
 import { reportQuery } from "./music-report-model.js";
 import { createNameDialog } from "./name-dialog.js";
+import { createNhsxDialog } from "./nhsx-dialog.js";
+import { nhsxResult } from "./nhsx-import.js";
 import { chipText, createNoticeHold, toastStaysOpen } from "./notice-hold.js";
 import { createOverview } from "./overview.js";
 import { createPerfDialog } from "./perf-dialog.js";
@@ -1552,6 +1554,7 @@ const keyboard = setupKeyboard({
       }),
     now: () => performance.now(),
     chooseMedia: () => chooseMedia(),
+    importNhsx: () => void importNhsx(),
     // The transcript's X: cut the words' stretch on every track.
     cutWords: (indices) => {
       const scope = resolveScope(getState());
@@ -3244,6 +3247,34 @@ function openExportDialog(what) {
       startExport(kind, body.format, { ask, extra: body, selection: selection ?? null }),
   });
   void exportDialog.open(what).catch(showError);
+}
+
+// File > Import Hindenburg session…: the desktop window's native dialog names the file; a plain
+// browser asks for its path. The server imports it (command import_nhsx) in one undo step.
+let nhsxDialog = null;
+async function importNhsx() {
+  const bridge = globalThis.pywebview?.api;
+  if (typeof bridge?.pick_nhsx !== "function") {
+    nhsxDialog ??= createNhsxDialog({ t, onPath: (path) => void runNhsxImport(path) });
+    nhsxDialog.open();
+    return;
+  }
+  try {
+    const path = await bridge.pick_nhsx();
+    if (path) await runNhsxImport(path);
+  } catch (error) {
+    showError(error);
+  }
+}
+async function runNhsxImport(path) {
+  try {
+    const response = await api.command("import_nhsx", { path });
+    apply(response);
+    const result = nhsxResult(summariseImport(response.report));
+    showNotice(t(result.key, result.values), result.kind, { undo: result.kind !== "error" });
+  } catch (error) {
+    showError(error);
+  }
 }
 
 // File > New project… / Open project… (WP74). The desktop window uses its native dialogs and

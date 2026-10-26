@@ -1379,6 +1379,12 @@ export const DEFAULT_KEYMAP = [
     context: "global",
     labelKey: "cmd.app.import",
   },
+  {
+    id: "app.import_nhsx",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.app.import_nhsx",
+  },
   // File: New / Open project (no keys: Cmd+N and Cmd+O belong to the browser).
   {
     id: "app.new",
