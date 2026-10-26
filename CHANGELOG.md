@@ -1,6 +1,6 @@
 ## [Unreleased]
 
-- **A toolbar you build yourself.** A vertical toolbar sits left of the track headers with ten buttons (undo, redo, import, transcribe, Auto-Silence, split, mute, resync, automix, export). Right-click any menu row and choose "Add to toolbar"; right-click a toolbar button to remove it. Buttons never move unless you move them, and a greyed button stays where it is. View > Toolbar shows or hides it, shows icons only or icons with text, and puts it back to the ten. Dragging to reorder is still to come.
+- **A toolbar you build yourself.** A vertical toolbar sits left of the track headers with ten buttons (undo, redo, import, transcribe, Auto-Silence, split, mute, resync, automix, export). Right-click any menu row and choose "Add to toolbar"; right-click a toolbar button to remove it. Buttons never move unless you move them, and a greyed button stays where it is. View > Toolbar shows or hides it, shows icons only or icons with text, and puts it back to the ten. Drag a button to a new place (a line shows where it lands, Esc cancels), or press Alt+Up or Alt+Down on a focused button to move it one place.
 
 - **A script can edit a project without a window, and there is an example.** `docs/SCRIPTING.md` explains headless use (`Session(folder)`), the HTTP routes and the command catalogue, and `scripts/examples/remove_fillers.py` removes the filler words (um, uh, öö) from a project with the same command the transcript's X key runs, one undo step per cut. `--dry-run` only lists them.
 

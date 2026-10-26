@@ -25,7 +25,7 @@ Other editors let the user arrange the bar: Reaper (every toolbar), Logic Pro (t
 Photoshop (Edit > Toolbar), Office (the Quick Access Toolbar). The warning is Office's adaptive
 menus, which moved rows by use and were disliked and then removed. So:
 
-- Only the user moves a button: drag to reorder (not built yet), "Add to toolbar" on the
+- Only the user moves a button: drag to reorder (a drop line shows where the button lands; Esc cancels; Alt+Up/Down moves the focused button one place), "Add to toolbar" on the
   right-click menu of any menu row, "Remove from toolbar" on the button's right-click menu
   (built). A new pin goes to the end, or where it is dropped.
 - A disabled button is greyed, never hidden or moved.

@@ -202,7 +202,7 @@ import {
 import { densityAttribute, nextTheme, themeAttribute } from "./theme.js";
 import { createTimeline } from "./timeline.js";
 import { contextPress, menuFromSections, timelineMenuItems } from "./timeline-menu.js";
-import { applyToolbarMenu, resetLayout, toolbarMenuItems } from "./toolbar-model.js";
+import { applyToolbarMenu, moveButton, resetLayout, toolbarMenuItems } from "./toolbar-model.js";
 import {
   otherMode,
   readLayout,
@@ -4681,6 +4681,13 @@ toolbarRail = createToolbarRail({
   keyOf: (id) => keyboard.format(shortcutsFor(id, keyboard.entries())[0] ?? ""),
   run: (id) => keyboard.registry.run(id, null, getState()),
   onContext: openToolbarMenu,
+  onMove: (id, to) => {
+    const layout = toolbarRail.layout();
+    const next = moveButton(layout, id, to);
+    if (next.join("\n") === layout.join("\n")) return;
+    writeLayout(prefs, next);
+    toolbarRail.setLayout(next);
+  },
   layout: readLayout(prefs, new Set(menuTargets(MENU))),
   mode: readMode(prefs),
   visible: readVisible(prefs),

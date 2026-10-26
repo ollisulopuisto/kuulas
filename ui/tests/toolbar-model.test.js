@@ -4,10 +4,12 @@ import { MENU, menuTargets } from "../menu-model.js";
 import {
   applyToolbarMenu,
   DEFAULT_LAYOUT,
+  dropIndex,
   moveButton,
   normalizeLayout,
   pinButton,
   resetLayout,
+  stepButton,
   toolbarMenuItems,
   unpinButton,
 } from "../toolbar-model.js";
@@ -123,5 +125,42 @@ describe("the right-click menu (WP86: pin from any menu row, remove from the rai
 
   test("anything else changes nothing, not even the object", () => {
     assert.equal(applyToolbarMenu(layout, "a", "other"), layout);
+  });
+});
+
+describe("dragging a button (WP86: the user is the only one who moves a button)", () => {
+  // Three buttons, their vertical centres at 10, 30 and 50.
+  const mids = [10, 30, 50];
+
+  test("dropped above the others it goes first", () => {
+    assert.equal(dropIndex(mids, 2, 0), 0);
+  });
+
+  test("dropped between two others it goes between them", () => {
+    assert.equal(dropIndex(mids, 0, 40), 1);
+    assert.equal(dropIndex(mids, 2, 20), 1);
+  });
+
+  test("dropped below the others it goes last", () => {
+    assert.equal(dropIndex(mids, 0, 90), 2);
+  });
+
+  test("dropped where it was it stays where it was", () => {
+    assert.equal(dropIndex(mids, 1, 30), 1);
+    assert.equal(dropIndex(mids, 0, 10), 0);
+  });
+
+  test("the index is for the list without the dragged button, as moveButton takes it", () => {
+    const layout = ["a", "b", "c"];
+    assert.deepEqual(moveButton(layout, "a", dropIndex(mids, 0, 40)), ["b", "a", "c"]);
+  });
+
+  test("a step moves one place and stops at the ends", () => {
+    const layout = ["a", "b", "c"];
+    assert.deepEqual(stepButton(layout, "b", -1), ["b", "a", "c"]);
+    assert.deepEqual(stepButton(layout, "b", 1), ["a", "c", "b"]);
+    assert.equal(stepButton(layout, "a", -1), layout);
+    assert.equal(stepButton(layout, "c", 1), layout);
+    assert.equal(stepButton(layout, "x", 1), layout);
   });
 });

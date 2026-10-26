@@ -45,6 +45,26 @@ export function moveButton(layout, id, to) {
 }
 
 /**
+ * Where a dragged button lands: `mids` are the vertical centres of the buttons in the layout and
+ * `y` the pointer. The result is the index in the list without the dragged button (`from`), the
+ * form `moveButton` takes.
+ */
+export function dropIndex(mids, from, y) {
+  const others = mids.filter((_, i) => i !== from);
+  let to = 0;
+  while (to < others.length && y > others[to]) to += 1;
+  return to;
+}
+
+/** One place up (-1) or down (+1), the keyboard way. The same list at an end or for an unknown id. */
+export function stepButton(layout, id, delta) {
+  const at = layout.indexOf(id);
+  const to = at + delta;
+  if (at < 0 || to < 0 || to >= layout.length) return layout;
+  return moveButton(layout, id, to);
+}
+
+/**
  * What was stored, made safe: the known commands in the stored order, each once. A command that
  * no longer exists is dropped and the others stay where they were. Not a list: the default.
  * An empty list is kept, because the user may have removed every button.
