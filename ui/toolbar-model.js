@@ -60,3 +60,20 @@ export function normalizeLayout(stored, known) {
   }
   return out;
 }
+
+/**
+ * The rows of the right-click menu on a command (a menu row) or a toolbar button: Add to the
+ * toolbar when it is not there, Remove when it is. Shaped for context-menu.js.
+ */
+export function toolbarMenuItems(id, layout) {
+  return layout.includes(id)
+    ? [{ id: "unpin", labelKey: "ui.rail.menu.remove", enabled: true }]
+    : [{ id: "pin", labelKey: "ui.rail.menu.add", enabled: true }];
+}
+
+/** What picking `pick` from that menu does to `layout`: a pin goes to the end, a remove leaves the order. */
+export function applyToolbarMenu(layout, id, pick) {
+  if (pick === "pin") return pinButton(layout, id);
+  if (pick === "unpin") return unpinButton(layout, id);
+  return layout;
+}

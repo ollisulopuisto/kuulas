@@ -14,6 +14,7 @@ export function createToolbarRail({
   t,
   keyOf,
   run,
+  onContext = null,
   layout,
   mode,
   visible,
@@ -80,6 +81,14 @@ export function createToolbarRail({
     const button = event.target.closest?.(".rail-btn");
     if (!button || button.getAttribute("aria-disabled") === "true") return;
     run(button.dataset.id);
+  });
+
+  // Right-click on a button: the owner of the menu (Remove from toolbar) is app.js.
+  root.addEventListener("contextmenu", (event) => {
+    const button = event.target.closest?.(".rail-btn");
+    if (!button || !onContext) return;
+    event.preventDefault();
+    onContext(button.dataset.id, event);
   });
 
   return {

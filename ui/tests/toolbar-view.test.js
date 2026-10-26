@@ -40,6 +40,13 @@ describe("the commands", () => {
       }
       assert.ok(messages["menu.toolbar"], `${lang} menu.toolbar`);
       assert.ok(messages["ui.toolbar.reset_done"], `${lang} ui.toolbar.reset_done`);
+      for (const key of [
+        "ui.rail.menu.add",
+        "ui.rail.menu.remove",
+        "ui.toolbar.added",
+        "ui.toolbar.removed",
+      ])
+        assert.ok(messages[key], `${lang} ${key}`);
     }
   });
 });

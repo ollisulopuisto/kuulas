@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import { MENU, menuTargets } from "../menu-model.js";
 import {
+  applyToolbarMenu,
   DEFAULT_LAYOUT,
   moveButton,
   normalizeLayout,
   pinButton,
   resetLayout,
+  toolbarMenuItems,
   unpinButton,
 } from "../toolbar-model.js";
 
@@ -93,5 +95,33 @@ describe("normalizeLayout (what was stored)", () => {
 
   test("an empty stored list is a choice, not a failure: the user removed everything", () => {
     assert.deepEqual(normalizeLayout([], known), []);
+  });
+});
+
+describe("the right-click menu (WP86: pin from any menu row, remove from the rail)", () => {
+  const layout = ["a", "b"];
+
+  test("a command that is not on the toolbar offers Add to toolbar", () => {
+    assert.deepEqual(toolbarMenuItems("c", layout), [
+      { id: "pin", labelKey: "ui.rail.menu.add", enabled: true },
+    ]);
+  });
+
+  test("a command that is on the toolbar offers Remove from toolbar", () => {
+    assert.deepEqual(toolbarMenuItems("a", layout), [
+      { id: "unpin", labelKey: "ui.rail.menu.remove", enabled: true },
+    ]);
+  });
+
+  test("picking Add puts the command at the end, as the user's own act", () => {
+    assert.deepEqual(applyToolbarMenu(layout, "c", "pin"), ["a", "b", "c"]);
+  });
+
+  test("picking Remove takes it away and the others keep their order", () => {
+    assert.deepEqual(applyToolbarMenu(["a", "b", "c"], "b", "unpin"), ["a", "c"]);
+  });
+
+  test("anything else changes nothing, not even the object", () => {
+    assert.equal(applyToolbarMenu(layout, "a", "other"), layout);
   });
 });
