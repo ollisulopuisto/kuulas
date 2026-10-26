@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8");
+const read = (p) => readFileSync(new URL(p, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const css = read("../style.css");
 const html = read("../index.html");
 const historyPanel = read("../history-panel.js");
