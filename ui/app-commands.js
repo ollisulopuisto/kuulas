@@ -96,6 +96,10 @@ export function registerAppCommands(registry, { actions, app }) {
   // The transcript words along the top of each clip when zoomed in (WP69, clip-words.js).
   // Hide or show the side panel so the timeline gets the width.
   def("view.toggle_sidebar", () => actions.toggleSidebar());
+  // The toolbar rail (WP86): shown or hidden, with or without text, back to its default buttons.
+  def("view.toolbar", () => actions.toggleToolbar());
+  def("view.toolbar_labels", () => actions.toggleToolbarLabels());
+  def("view.toolbar_reset", () => actions.resetToolbar());
   def("view.clip_words", () => actions.toggleClipWords());
   def("view.follow", () => actions.toggleFollow(), hasProject);
   def("view.show_playhead", () => actions.showPlayhead(), hasProject);

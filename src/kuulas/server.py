@@ -51,6 +51,7 @@ from . import (
     clipboard_browse,
     colab_signin,
     colab_transcribe,
+    command_catalog,
     export,
     export_formats,
     export_names,
@@ -652,6 +653,13 @@ def create_app(session, engine, *, language: str | None = None,
     @app.get("/api/state")
     def get_state():
         return state_response()
+
+    @app.get("/api/commands")
+    def get_commands():
+        """The catalogue of every edit and session command (command_catalog.py): name,
+        route, arguments, a one-line summary, and whether it makes an undo step."""
+        return JSONResponse({"calls": command_catalog.CALLS,
+                             "commands": command_catalog.catalog()})
 
     @app.post("/api/edit")
     def post_edit(body: EditBody):

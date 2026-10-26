@@ -63,6 +63,8 @@ export const CHECKED = {
   "view.focus_hide_others": (state) => state?.focusHideOthers === true,
   "view.clipboard_limit": (state) => state?.clipboardLimit !== false,
   "view.toggle_sidebar": (state) => state?.sidebarShown !== false,
+  "view.toolbar": (state) => state?.toolbarVisible !== false,
+  "view.toolbar_labels": (state) => (state?.toolbarMode ?? "labels") === "labels",
   "sync.confirm": (state) => state?.confirmSync !== false,
   "sync.show_drift": (state) => state?.showSyncDrift === true,
   "transport.slow_speed_025": (state) => (state?.slowSpeed ?? 0.5) === 0.25,
@@ -509,6 +511,12 @@ export const MENU = [
         item("panel.show_material"),
       ]),
       item("view.toggle_sidebar"),
+      // The toolbar rail (WP86, docs/design/TOOLBAR.md).
+      submenu("menu.toolbar", [
+        item("view.toolbar"),
+        item("view.toolbar_labels"),
+        item("view.toolbar_reset"),
+      ]),
       // Focus mode (WP28, docs/design/FOCUS-MODE.md).
       submenu("menu.focus", [
         item("view.focus"),

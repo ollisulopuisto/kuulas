@@ -142,6 +142,8 @@ export const initialState = () => ({
   showClipWords: true,
   // The side panel (sidebar-model.js) is shown; a per-user view option.
   sidebarShown: true,
+  toolbarVisible: true, // the toolbar rail (WP86), remembered per user
+  toolbarMode: "labels", // "labels" = icon and text, "icons" = icon only
   // The clipboard preview is limited to the project's level (WP82); a per-user preference.
   clipboardLimit: true,
   // How far the latest clipboard preview was turned down: { id, db }, db 0 or less.
