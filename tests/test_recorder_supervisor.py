@@ -11,6 +11,7 @@ import signal
 import socket
 import sys
 import textwrap
+import threading
 import time
 
 import pytest
@@ -539,3 +540,47 @@ def test_quit_still_shuts_down_if_its_reply_cannot_be_delivered(client, sup, mon
         client.request("quit", timeout=2)
     assert error.value.key == "disconnected"
     assert sup.shutdown_requested.wait(2)
+
+
+def test_two_closes_at_once_release_the_lock_file_only_once(sup, monkeypatch):
+    """The socket's thread closes the supervisor right after a quit while the main
+    thread (or a test's teardown) closes it too: the second call must wait for the first
+    and find nothing left to do, not close the lock file's descriptor again (EBADF)."""
+    entered = threading.Event()
+    release = threading.Event()
+    stop_awake = sup.keep_awake.stop
+
+    def slow_stop():
+        entered.set()
+        release.wait(5)
+        stop_awake()
+
+    monkeypatch.setattr(sup.keep_awake, "stop", slow_stop)
+    lock_fd = sup._lock_fd
+    closed_fds = []
+    real_close = os.close
+
+    def counting_close(fd):
+        closed_fds.append(fd)
+        real_close(fd)
+
+    monkeypatch.setattr(supervisor.os, "close", counting_close)
+    errors = []
+
+    def close():
+        try:
+            sup.close()
+        except OSError as e:  # the bug: EBADF from a second os.close
+            errors.append(e)
+
+    first = threading.Thread(target=close)
+    first.start()
+    assert entered.wait(2)
+    second = threading.Thread(target=close)
+    second.start()
+    time.sleep(0.2)  # the second one is either waiting for the first or past it
+    release.set()
+    first.join(5)
+    second.join(5)
+    assert not errors
+    assert closed_fds.count(lock_fd) == 1

@@ -184,14 +184,17 @@ def test_session_source_map_lock_duration_measurement(tmp_path):
     s.lock = LockProxy(s.lock)
 
     data = s.source_map(m.sha256)
+    # Only what source_map held: close() takes the lock too, to flush the database, and
+    # that hold (several ms on a slow disk) is not what this test is about.
+    measured = list(held_durations)
 
     s.close()
     assert "parts" in data
-    assert held_durations, "Lock should have been acquired"
-    max_lock_ms = max(held_durations)
+    assert measured, "Lock should have been acquired"
+    max_lock_ms = max(measured)
     print(
         f"\nLock held during source_map: {max_lock_ms:.3f} ms "
-        f"(durations: {held_durations})"
+        f"(durations: {measured})"
     )
     assert max_lock_ms < 5.0  # Lock is held for well under a few milliseconds
 

@@ -293,6 +293,9 @@ class Supervisor:
         self.closed = threading.Event()
         self._lock_fd: int | None = None
         self._stderr = None
+        # close() runs from whoever gets there first (the main thread after a signal, a
+        # client's thread right after a quit reply); a second caller waits for the first.
+        self._close_lock = threading.RLock()
 
     # --- life cycle -------------------------------------------------------------
 
@@ -334,6 +337,12 @@ class Supervisor:
         self.shutdown_requested.set()
 
     def close(self) -> None:
+        with self._close_lock:
+            if self.closed.is_set():
+                return
+            self._close()
+
+    def _close(self) -> None:
         with self.lock:
             state = self.state
         if state in ARMED_STATES:

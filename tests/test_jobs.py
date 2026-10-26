@@ -118,7 +118,9 @@ def wait_all_finished(jobs, ids):
 def test_finished_jobs_are_kept_only_up_to_a_bound():
     from kuulas import jobs as jobsm  # noqa: PLC0415 - the bound under test
 
-    jobs = Jobs(max_workers=2)
+    # One worker: the jobs end in the order they were submitted. The bound drops the
+    # oldest to have *ended*, so with two workers the first job can end late and be kept.
+    jobs = Jobs(max_workers=1)
     try:
         ids = [jobs.submit("measure", "Measure", lambda _p, i=i: [i] * 1000,
                            keep_result=True) for i in range(jobsm.FINISHED_KEPT * 4)]
