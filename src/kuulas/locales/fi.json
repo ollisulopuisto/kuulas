@@ -1129,7 +1129,7 @@
   "ui.find.none": "Ei osumia",
   "ui.find.previous": "Edellinen osuma",
   "ui.find.next": "Seuraava osuma",
-  "ui.find.close": "Sulje haku",
+  "ui.find.close": "Tyhjennä haku",
   "ui.find.removed.label": "Ei editissä",
   "ui.find.removed.summary": "Ei editissä: {count}",
   "ui.find.removed.cut": "LEIKATTU",

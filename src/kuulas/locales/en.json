@@ -1103,7 +1103,7 @@
   "ui.find.none": "No matches",
   "ui.find.previous": "Previous match",
   "ui.find.next": "Next match",
-  "ui.find.close": "Close find",
+  "ui.find.close": "Clear find",
   "ui.find.removed.label": "Not in this edit",
   "ui.find.removed.summary": "Not in this edit: {count}",
   "ui.find.removed.cut": "CUT",
