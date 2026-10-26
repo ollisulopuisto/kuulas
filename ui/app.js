@@ -202,7 +202,7 @@ import {
 import { densityAttribute, nextTheme, themeAttribute } from "./theme.js";
 import { createTimeline } from "./timeline.js";
 import { contextPress, menuFromSections, timelineMenuItems } from "./timeline-menu.js";
-import { resetLayout } from "./toolbar-model.js";
+import { applyToolbarMenu, moveButton, resetLayout, toolbarMenuItems } from "./toolbar-model.js";
 import {
   otherMode,
   readLayout,
@@ -4642,6 +4642,35 @@ function updateFollowChip(state) {
   arrow.textContent = side === "left" ? `◀ ${time}` : `${time} ▶`;
   arrow.title = t("ui.view.follow_arrow", { time });
 }
+// Right-click on a menu row or on a toolbar button: Add to or Remove from the toolbar (WP86).
+// This is how the user builds the toolbar; nothing else changes its buttons or their places.
+function openToolbarMenu(id, event) {
+  const target = event.target.closest?.("button") ?? event.currentTarget;
+  const box = target.getBoundingClientRect();
+  // From the keyboard (the menu key) the event has no pointer position: use the button.
+  const keyboardOpened = event.clientX === 0 && event.clientY === 0;
+  openContextMenu({
+    x: keyboardOpened ? box.left + 24 : event.clientX,
+    y: keyboardOpened ? box.top + 12 : event.clientY,
+    items: toolbarMenuItems(id, toolbarRail.layout()),
+    onPick: (pick) => {
+      const layout = toolbarRail.layout();
+      const next = applyToolbarMenu(layout, id, pick);
+      if (next === layout) return;
+      writeLayout(prefs, next);
+      toolbarRail.setLayout(next);
+      const name = t(`cmd.${id}`);
+      showNotice(t(pick === "pin" ? "ui.toolbar.added" : "ui.toolbar.removed", { name }), "ok");
+    },
+  });
+}
+$("menubar").addEventListener("contextmenu", (event) => {
+  const row = event.target.closest?.(".menu-item[data-command-id]");
+  if (!row) return;
+  event.preventDefault();
+  openToolbarMenu(row.dataset.commandId, event);
+});
+
 // The toolbar rail (WP86): the user's own layout, drawn left of the track headers.
 toolbarRail = createToolbarRail({
   root: $("toolbar-rail"),
@@ -4651,6 +4680,14 @@ toolbarRail = createToolbarRail({
   t,
   keyOf: (id) => keyboard.format(shortcutsFor(id, keyboard.entries())[0] ?? ""),
   run: (id) => keyboard.registry.run(id, null, getState()),
+  onContext: openToolbarMenu,
+  onMove: (id, to) => {
+    const layout = toolbarRail.layout();
+    const next = moveButton(layout, id, to);
+    if (next.join("\n") === layout.join("\n")) return;
+    writeLayout(prefs, next);
+    toolbarRail.setLayout(next);
+  },
   layout: readLayout(prefs, new Set(menuTargets(MENU))),
   mode: readMode(prefs),
   visible: readVisible(prefs),

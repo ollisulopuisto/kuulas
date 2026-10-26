@@ -397,6 +397,18 @@ button.chip {
   overflow: hidden auto;
   scrollbar-width: thin;
   border-right: 1px solid var(--border-subtle);
+  position: relative;
+}
+.tool-rail .rail-btn.dragging {
+  opacity: 0.5;
+}
+.rail-drop {
+  position: absolute;
+  left: var(--space-2);
+  right: var(--space-2);
+  height: 2px;
+  background: var(--accent, currentColor);
+  pointer-events: none;
 }
 .tool-rail .rail-btn {
   width: 100%;

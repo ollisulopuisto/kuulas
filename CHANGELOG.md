@@ -1,15 +1,17 @@
 ## [Unreleased]
 
+- **A toolbar you build yourself.** A vertical toolbar sits left of the track headers with ten buttons (undo, redo, import, transcribe, Auto-Silence, split, mute, resync, automix, export). Right-click any menu row and choose "Add to toolbar"; right-click a toolbar button to remove it. Buttons never move unless you move them, and a greyed button stays where it is. View > Toolbar shows or hides it, shows icons only or icons with text, and puts it back to the ten. Drag a button to a new place (a line shows where it lands, Esc cancels), or press Alt+Up or Alt+Down on a focused button to move it one place.
+
+- **A script can edit a project without a window, and there is an example.** `docs/SCRIPTING.md` explains headless use (`Session(folder)`), the HTTP routes and the command catalogue, and `scripts/examples/remove_fillers.py` removes the filler words (um, uh, öö) from a project with the same command the transcript's X key runs, one undo step per cut. `--dry-run` only lists them.
+
+- **A program can list every command kuulas has.** `GET /api/commands` returns the catalogue: each edit and session command with how to call it, its arguments (name, type, whether required, default), a one-line summary, and whether it makes one undo step. An agent can read it, change a session, and the person can then open the session and adjust it. A test fails when a command is missing from it.
+
 ## [v26.10.26.4] - 2026-10-26
 
 - **Scrolling during playback stays where you put it.** Live playback updates no longer turn Follow back on after a manual scroll, overview move or zoom. Actual playback starts/stops and explicit Follow controls still re-engage it.
 - **The play cursor no longer retreats while startup audio is queued.** Timing corrections wait until a future-dated audio anchor starts advancing, rather than pulling the cursor backwards during that wait. Covered at normal, fast and reverse speeds.
 - **Overview times use a ruler scale at the top.** Up to four round timestamps replace the quarter-position labels. The spacing grows through 1, 5, 10, 15, 20, 30 and 60 minutes; short edits use seconds and long ones whole hours. The labels have their own band above the miniature clips, clear of the timeline ruler below.
 - **The headless recorder check shuts down reliably.** The recorder sends its quit acknowledgement before shutdown can close the connection. This fixes the intermittent Linux self-test disconnection without skipping or retrying the check; quitting during a take remains refused.
-
-- **A script can edit a project without a window, and there is an example.** `docs/SCRIPTING.md` explains headless use (`Session(folder)`), the HTTP routes and the command catalogue, and `scripts/examples/remove_fillers.py` removes the filler words (um, uh, öö) from a project with the same command the transcript's X key runs, one undo step per cut. `--dry-run` only lists them.
-
-- **A program can list every command kuulas has.** `GET /api/commands` returns the catalogue: each edit and session command with how to call it, its arguments (name, type, whether required, default), a one-line summary, and whether it makes one undo step. An agent can read it, change a session, and the person can then open the session and adjust it. A test fails when a command is missing from it.
 
 ## [v26.10.26.3] - 2026-10-26
 

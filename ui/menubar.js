@@ -138,6 +138,9 @@ export function createMenubar({ root, getMenus, run, onHint, t, search = null })
       button.setAttribute("role", "menuitem");
       button.tabIndex = -1;
       button.dataset.pos = `${isSub ? "s" : "i"}${index}`;
+      // The command this row runs, for every row (data-command below is only for rows with a
+      // hint): the right-click menu "Add to toolbar" (WP86) reads it.
+      if (item.id) button.dataset.commandId = item.id;
       const name = document.createElement("span");
       name.textContent = item.label;
       button.append(name);

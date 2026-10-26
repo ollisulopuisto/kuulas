@@ -3982,7 +3982,7 @@ Status: step 1 (manifest fields `muted_frames`, `gate_frames` in tracks.json) bu
 
 ### WP86 — A docked toolbar for discovery (owner, 2026-10-26; design in `docs/design/TOOLBAR.md`)
 
-Status: designed, not built. The owner approved the lists in the design note, and added the rule that matters most: **buttons never move unless the user moves them.**
+Status: steps 1 to 6 built 2026-10-26 (layout model, per-user prefs, buttons as data, the vertical rail, the View > Toolbar switches, and Add to / Remove from toolbar by right-click on a menu row or a rail button). Drag to reorder is built too (pointer drag with a drop line, Alt+Up/Down). Still open: the Auto-Silence count badge, icons chosen for the four borrowed ones, the transcript search field, the use hints. The owner approved the lists in the design note, and added the rule that matters most: **buttons never move unless the user moves them.**
 
 A rail on the left edge of the window, left of the tracks, with ten buttons to start (undo, redo, import, transcribe, Auto-Silence, split, quick mute, resync the range, automix, export), an optional command search field, per-user icon or icon-and-text, and user pinning. Buttons run commands from the registry the menus use.
 
