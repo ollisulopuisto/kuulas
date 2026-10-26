@@ -42,9 +42,11 @@ jobs:
       - name: ffmpeg and audio libraries (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y ffmpeg libportaudio2 libsndfile1
-      - name: ffmpeg (Windows)
+      - name: ffmpeg and tzdata (Windows)
         if: runner.os == 'Windows'
-        run: choco install ffmpeg -y --no-progress
+        run: |
+          choco install ffmpeg -y --no-progress
+          python -m pip install tzdata
       - run: uv sync
       - run: uv run ruff check .
       - name: Python tests (Windows, without Unix recorder integration)
