@@ -77,8 +77,9 @@ and its buttons, the native open/import dialogs, drag-and-drop paths, and the
 menu items (zoom, density, export call existing buttons). PR #5's last available
 GitHub Actions run passed the macOS and Linux desktop smoke jobs but failed the
 test jobs; this work updates the workflow and the reported portability failures.
-The new Windows run exposed further Unix-only analysis and macOS automixer tests,
-which the Windows test selection now excludes. The updated matrix is running again.
+The new Windows run exposed further Unix-only analysis and detached-worker tests,
+and macOS automixer tests, which the Windows test selection now excludes. The
+updated matrix is running again.
 
 ## Tester build spike (WP73 part a, 2026-10-19)
 

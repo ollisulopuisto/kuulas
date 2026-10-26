@@ -4,7 +4,7 @@
 
 **Goal:** Make the Windows and Linux jobs proposed by PR #5 pass on the current main branch, while recording any platform feature limits clearly.
 
-**Architecture:** Keep the CI matrix explicit. Put platform runtime requirements in the project environment, make platform-specific tests say which platform behavior they exercise, and keep Unix-only recorder/analysis and macOS-only automixer integration coverage on supported systems until Windows implementations exist.
+**Architecture:** Keep the CI matrix explicit. Put platform runtime requirements in the project environment, make platform-specific tests say which platform behavior they exercise, and keep Unix-only recorder, analysis, and detached-transcription worker coverage plus macOS-only automixer integration on supported systems until Windows implementations exist.
 
 **Tech Stack:** GitHub Actions, Python 3.13, uv, pytest, Ruff.
 
@@ -20,7 +20,7 @@ Add focused tests or correct platform-bound test setup first. Run each changed t
 
 ### Task 3: Fix platform dependencies and workflow matrix
 
-Add Windows tzdata as a platform-marked dependency, enable the three-platform CI matrix, and exclude the recorder and analysis worker tests that rely on Unix process APIs and the automixer tests that rely on macOS process and path behavior from Windows. Keep Linux and macOS running the full test suite.
+Add Windows tzdata as a platform-marked dependency, enable the three-platform CI matrix, and exclude recorder, analysis-worker, and detached-transcription worker tests that rely on Unix process behavior and automixer tests that rely on macOS process and path behavior from Windows. Keep Linux and macOS running the full test suite.
 
 ### Task 4: Make tests deterministic across hosts
 

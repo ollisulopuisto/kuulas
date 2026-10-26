@@ -29,7 +29,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R5 | Transcription, local and Colab | local (faster-whisper) and Colab runner built; source checkouts use adjacent podcast tool, accepting Orukeet and CTC timing; real Colab run still unverified |
 | R6 | Edit audio by editing the transcript, and vice versa | done in core: words follow clip edits; deleting words cuts all tracks at pause midpoints |
 | R7 | Clip ops Hindenburg lacks: clip volume, pan, gain automation | done in core |
-| R8 | Mac, Linux, Windows | GitHub Actions matrix: full tests on macOS and Linux; Windows editor tests and desktop smoke, with Unix recorder/analysis and macOS automixer integration excluded; macOS DMG build |
+| R8 | Mac, Linux, Windows | GitHub Actions matrix: full tests on macOS and Linux; Windows editor tests and desktop smoke, with Unix recorder/analysis/transcription workers and macOS automixer integration excluded; macOS DMG build |
 | R9 | Never lose work; smart undo | done: every edit fsynced to SQLite, undo tree keeps branches, drags coalesce |
 | R10 | **High priority.** Hindenburg-level keyboard editing; every UI feature ships with its keys | keymap taken from the Hindenburg PRO shortcut list; UI next |
 | R11 | Pro Cut Auto-Silence: mute what does not cross the threshold | done in core (speechmix grid + duck masks → implicit source-frame clip ranges; only edited portions become ordinary clips) |

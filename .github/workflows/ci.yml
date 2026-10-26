@@ -45,13 +45,14 @@ jobs:
         run: choco install ffmpeg -y --no-progress
       - run: uv sync
       - run: uv run ruff check .
-      - name: Python tests (Windows, without Unix recorder/analysis and macOS automixer integration)
+      - name: Python tests (Windows editor coverage; omit Unix worker and macOS automixer integration)
         if: runner.os == 'Windows'
         run: >
           uv run pytest -q -vv -o faulthandler_timeout=10
           --ignore-glob=tests/test_recorder_*.py
           --ignore-glob=tests/test_record_*.py
           --ignore=tests/test_analysis_worker.py
+          --ignore=tests/test_background_transcribe.py
           --ignore-glob=tests/test_automix*.py
       - name: Python tests
         if: runner.os != 'Windows'
