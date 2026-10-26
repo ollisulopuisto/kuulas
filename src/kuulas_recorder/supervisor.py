@@ -116,30 +116,41 @@ class Client:
         self.levels = False
         self.peaks: list[float] = []
         self.closed = False
+        self.after_reply: Callable[[], None] | None = None
         self._q: queue.Queue = queue.Queue(CLIENT_QUEUE)
         threading.Thread(target=self._read, name=f"client-{n}-in", daemon=True).start()
         threading.Thread(target=self._send, name=f"client-{n}-out", daemon=True).start()
 
-    def push(self, msg: dict) -> None:
+    def push(self, msg: dict, *, after_send: Callable[[], None] | None = None) -> None:
         if self.closed:
+            if after_send is not None:
+                after_send()
             return
         try:
-            self._q.put_nowait(msg)
+            self._q.put_nowait((msg, after_send))
         except queue.Full:
             log.warning("client %d is not reading; disconnecting it", self.n)
             self.close()
+            if after_send is not None:
+                after_send()
 
     def _send(self) -> None:
         while not self.closed:
-            msg = self._q.get()
-            if msg is None:
+            item = self._q.get()
+            if item is None:
                 break
+            msg, after_send = item
             try:
                 self.conn.send(json.dumps(msg).encode() + b"\n",
                                timeout=CLIENT_SEND_TIMEOUT)
             except OSError:
                 log.info("client %d gone (send failed)", self.n)
                 break
+            finally:
+                # Quit must be acknowledged before the main thread closes sockets.
+                # If delivery fails, the requested idle shutdown still goes ahead.
+                if after_send is not None:
+                    after_send()
         self.close()
 
     def _read(self) -> None:
@@ -149,7 +160,9 @@ class Client:
                 break
             if not line.strip():
                 continue
-            self.push(self.sup.handle_line(self, line))
+            reply = self.sup.handle_line(self, line)
+            after_send, self.after_reply = self.after_reply, None
+            self.push(reply, after_send=after_send)
         self.close()
 
     def close(self) -> None:
@@ -463,11 +476,11 @@ class Supervisor:
                 raise ProtocolError("busy", "That take is recording now.")
         return recover_take(Path(folder), take)
 
-    def cmd_quit(self, _client: Client, _msg: dict) -> dict:
+    def cmd_quit(self, client: Client, _msg: dict) -> dict:
         with self.lock:
             if self.state not in ("idle", *ARMED_STATES):
                 raise ProtocolError("busy", "A take is recording; stop it first.")
-        self.request_shutdown()  # close() ends a listening (armed) worker too
+        client.after_reply = self.request_shutdown
         return {"quitting": True}
 
     def _devices(self) -> list[dict]:

@@ -68,22 +68,41 @@ describe("overviewRuns", () => {
 });
 
 describe("overviewMarks", () => {
-  // Owner, 2026-10-25: the strip gets its own times, sparse, at a quarter, half and three quarters
-  // of the edit (no times at the two ends).
-  test("marks a quarter, half and three quarters of the edit, not the ends", () => {
-    const marks = overviewMarks(4000, 400, 1, (seconds) => `t${seconds}`);
+  test("uses round five-minute marks for the owner's 25-minute overview", () => {
+    const marks = overviewMarks(25 * 60 * 48000, 1000, 48000, String);
     assert.deepEqual(marks, [
-      { x: 100, label: "t1000" },
-      { x: 200, label: "t2000" },
-      { x: 300, label: "t3000" },
+      { x: 200, label: "300" },
+      { x: 400, label: "600" },
+      { x: 600, label: "900" },
+      { x: 800, label: "1200" },
     ]);
   });
 
-  test("the times come from the project rate, not from frames", () => {
-    const marks = overviewMarks(96000, 100, 48000, (seconds) => String(seconds));
-    assert.deepEqual(
-      marks.map((mark) => mark.label),
-      ["0.5", "1", "1.5"],
-    );
+  test("chooses the smallest round scale that keeps at most four interior marks", () => {
+    for (const [minutes, step] of [
+      [4.5, 1],
+      [25, 5],
+      [45, 10],
+      [65, 15],
+      [85, 20],
+      [125, 30],
+      [245, 60],
+    ]) {
+      const marks = overviewMarks(minutes * 60, 1000, 1, String);
+      assert.ok(marks.length <= 4);
+      assert.equal(Number(marks[0].label), step * 60);
+      assert.ok(marks.every((mark) => Number(mark.label) % (step * 60) === 0));
+    }
+  });
+
+  test("short edits use seconds and long edits still have at most four marks", () => {
+    assert.deepEqual(overviewMarks(96000, 400, 48000, String), [{ x: 200, label: "1" }]);
+    assert.ok(overviewMarks(12 * 3600, 1000, 1, String).length <= 4);
+  });
+
+  test("empty strips have no marks and narrow strips avoid crowding", () => {
+    assert.deepEqual(overviewMarks(0, 400, 48000, String), []);
+    assert.deepEqual(overviewMarks(100, 0, 1, String), []);
+    assert.ok(overviewMarks(1500, 100, 1, String).length <= 1);
   });
 });

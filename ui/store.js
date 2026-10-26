@@ -166,9 +166,10 @@ let state = initialState();
 export const getState = () => state;
 
 export function setState(given) {
-  const patch = { ...given, ...intentPatch(state, given) };
-  state = { ...state, ...patch };
-  for (const listener of listeners) listener(state, patch);
+  const previous = state;
+  const patch = { ...given, ...intentPatch(previous, given) };
+  state = { ...previous, ...patch };
+  for (const listener of listeners) listener(state, patch, previous);
   return state;
 }
 

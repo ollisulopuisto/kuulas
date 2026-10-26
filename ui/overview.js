@@ -52,7 +52,8 @@ export function createOverview({ canvas, getState, getTimelineWidth, actions }) 
     const total = projectEnd(state.project);
     if (total === 0) return;
     const tracks = state.project.tracks;
-    const rowHeight = Math.max(1, (height - 4) / Math.max(1, tracks.length));
+    const plotTop = OVERVIEW_LABEL_PX + 6;
+    const rowHeight = Math.max(1, (height - plotTop - 2) / Math.max(1, tracks.length));
     const hues = trackHues(state.project);
     tracks.forEach((track, index) => {
       const colours = theme.palette[(hues.get(track.id) ?? 0) % theme.palette.length];
@@ -66,7 +67,7 @@ export function createOverview({ canvas, getState, getTimelineWidth, actions }) 
       for (let i = 0; i < runs.length; i += 2) {
         context.fillRect(
           runs[i],
-          2 + index * rowHeight,
+          plotTop + index * rowHeight,
           runs[i + 1] - runs[i],
           Math.max(1, rowHeight - 1),
         );
@@ -79,17 +80,9 @@ export function createOverview({ canvas, getState, getTimelineWidth, actions }) 
       context.fillStyle = theme.sibling;
       for (const track of tracks) {
         for (const clip of track.clips) {
-          if (siblings.has(clip.id)) context.fillRect((clip.start / total) * width, 0, 2, 4);
+          if (siblings.has(clip.id)) context.fillRect((clip.start / total) * width, plotTop, 2, 4);
         }
       }
-    }
-    // Sparse times along the strip (a quarter, half, three quarters), in the ruler's own format.
-    context.fillStyle = theme.rulerText;
-    context.font = `${OVERVIEW_LABEL_PX}px system-ui, sans-serif`;
-    context.textBaseline = "bottom";
-    for (const mark of overviewMarks(total, width, state.project.rate, formatClock)) {
-      context.fillRect(mark.x, height - 6, 1, 6);
-      context.fillText(mark.label, mark.x + 3, height - 1);
     }
     const box = overviewWindow({
       total,
@@ -103,6 +96,15 @@ export function createOverview({ canvas, getState, getTimelineWidth, actions }) 
     context.strokeStyle = theme.accent;
     context.lineWidth = 1.5;
     context.strokeRect(box.x + 0.75, 0.75, Math.max(1, box.w - 1.5), height - 1.5);
+    // Keep overview times above the map, clear of the timeline ruler below.
+    context.fillStyle = theme.rulerText;
+    context.font = `${OVERVIEW_LABEL_PX}px system-ui, sans-serif`;
+    context.textBaseline = "top";
+    for (const mark of overviewMarks(total, width, state.project.rate, formatClock)) {
+      context.fillRect(mark.x, 2, 1, 4);
+      const labelX = Math.min(mark.x + 3, width - context.measureText(mark.label).width - 3);
+      context.fillText(mark.label, Math.max(3, labelX), 2);
+    }
     context.fillStyle = theme.playhead;
     context.fillRect(Math.round((state.playhead / total) * width), 0, 1, height);
   }

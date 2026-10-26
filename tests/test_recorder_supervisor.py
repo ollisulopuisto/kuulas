@@ -508,3 +508,34 @@ def test_an_idle_client_stays_connected(sup, monkeypatch):
         for _ in range(3):
             assert c.request("ping")["pong"]
             time.sleep(0.6)  # the editor has nothing to say for a while
+
+
+def test_quit_reply_is_sent_before_an_immediate_shutdown(client, sup, monkeypatch):
+    """The main thread may wake and close sockets as soon as shutdown is requested.
+    Force that interleaving instead of hoping the race happens on this machine.
+    """
+    wait_until(lambda: bool(sup.clients))
+    request_shutdown = sup.request_shutdown
+
+    def close_immediately():
+        request_shutdown()
+        sup.close()
+
+    monkeypatch.setattr(sup, "request_shutdown", close_immediately)
+    assert client.request("quit", timeout=2) == {"id": 1, "ok": True, "quitting": True}
+    assert sup.shutdown_requested.wait(2)
+
+
+def test_quit_still_shuts_down_if_its_reply_cannot_be_delivered(client, sup, monkeypatch):
+    client.request("ping")
+    wait_until(lambda: bool(sup.clients))
+    server_client = next(iter(sup.clients))
+
+    def broken_send(_data, **_kwargs):
+        raise BrokenPipeError
+
+    monkeypatch.setattr(server_client.conn, "send", broken_send)
+    with pytest.raises(RecorderError) as error:
+        client.request("quit", timeout=2)
+    assert error.value.key == "disconnected"
+    assert sup.shutdown_requested.wait(2)

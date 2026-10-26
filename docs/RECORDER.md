@@ -611,3 +611,15 @@ On the owner's Mac Studio (M1 Max), 2026-10-19:
   be rewritten in Rust or C without changing the protocol or the files.
 - The take's start time ignores the host's input latency (a few ms); the
   editor aligns recordings by sound anyway (WP16).
+
+
+### Quit acknowledgement ordering
+
+An accepted idle/armed `quit` queues its reply with a post-send shutdown action.
+The supervisor requests shutdown after the sender delivers that reply, so the main
+shutdown thread cannot close the client's socket before the acknowledgement. A
+failed or unavailable send still honors the accepted quit. Ordinary events and
+replies use the same bounded sender queue without a shutdown action. Quitting
+during an active take is still refused. This fixes the intermittent headless
+self-test `RecorderError: disconnected` on Linux; the regression forces an
+immediate close when shutdown is requested. No real microphone is used.

@@ -162,3 +162,26 @@ describe("editing defaults", () => {
     assert.equal(initialState().nudgeMs, 10);
   });
 });
+
+test("subscribers receive the previous state so heartbeats are not playback starts", async () => {
+  const { resetState, setState, subscribe } = await import("../store.js");
+  resetState();
+  const transitions = [];
+  const unsubscribe = subscribe((state, patch, previous) => {
+    if ("playing" in patch) transitions.push([previous?.playing, state.playing]);
+  });
+  try {
+    setState({ playing: true });
+    setState({ followPaused: true });
+    setState({ playing: true });
+    setState({ playing: false });
+    assert.deepEqual(transitions, [
+      [false, true],
+      [true, true],
+      [true, false],
+    ]);
+  } finally {
+    unsubscribe();
+    resetState();
+  }
+});

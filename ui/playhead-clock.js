@@ -122,7 +122,7 @@ export function createPlayheadClock() {
   /** The correction (frames) still to fade out at page time `now`. */
   const correction = (now) => {
     if (!slew) return 0;
-    const left = 1 - (now - slew.at) / SLEW_MS;
+    const left = 1 - Math.max(0, now - slew.at) / SLEW_MS;
     return left > 0 ? slew.frames * left : 0;
   };
   /** The drawn frame at `now` (not rounded). */
@@ -167,7 +167,9 @@ export function createPlayheadClock() {
         anchor = next;
         const diff = shown - project(next, receivedAt);
         const jump = JUMP_S * next.rate * Math.abs(next.speed);
-        slew = Math.abs(diff) >= jump ? null : { frames: diff, at: receivedAt };
+        // Before a future-dated first sample, project() is stationary. Decaying
+        // the correction then would pull the cursor backwards during startup.
+        slew = Math.abs(diff) >= jump ? null : { frames: diff, at: Math.max(receivedAt, next.at) };
       } else {
         anchor = next;
         slew = null;

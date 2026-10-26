@@ -122,8 +122,9 @@ def test_no_baked_label_in_a_checkout(tmp_path):
 
 
 def test_selftest_passes_headless_and_reports_each_check(capsys):
-    assert cli.main(["--selftest"]) == 0
+    result = cli.main(["--selftest"])
     out = capsys.readouterr().out
+    assert result == 0, out
     for name in ("build", "libraries", "ffmpeg", "ui", "server", "meter", "recorder",
                  "worker", "tools"):
         assert f"ok   {name}" in out, out
