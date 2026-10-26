@@ -202,7 +202,16 @@ import {
 import { densityAttribute, nextTheme, themeAttribute } from "./theme.js";
 import { createTimeline } from "./timeline.js";
 import { contextPress, menuFromSections, timelineMenuItems } from "./timeline-menu.js";
-import { readLayout, readMode, readVisible } from "./toolbar-prefs.js";
+import { resetLayout } from "./toolbar-model.js";
+import {
+  otherMode,
+  readLayout,
+  readMode,
+  readVisible,
+  writeLayout,
+  writeMode,
+  writeVisible,
+} from "./toolbar-prefs.js";
 import { createToolbarRail } from "./toolbar-rail.js";
 import { installTooltips } from "./tooltip.js";
 import { createTrackHeaders } from "./tracks.js";
@@ -989,6 +998,24 @@ const actions = {
     const shown = toggleSidebar(getState().sidebarShown !== false);
     setSidebar(shown);
     showNotice(t(shown ? "ui.sidebar.on" : "ui.sidebar.off"), "ok");
+  },
+  // The toolbar rail (WP86): the user's own choices, remembered; none of them moves a button.
+  toggleToolbar() {
+    const visible = getState().toolbarVisible === false;
+    writeVisible(prefs, visible);
+    toolbarRail.setVisible(visible);
+    setState({ toolbarVisible: visible });
+  },
+  toggleToolbarLabels() {
+    const mode = otherMode(getState().toolbarMode);
+    writeMode(prefs, mode);
+    toolbarRail.setMode(mode);
+    setState({ toolbarMode: mode });
+  },
+  resetToolbar() {
+    writeLayout(prefs, resetLayout());
+    toolbarRail.setLayout(resetLayout());
+    showNotice(t("ui.toolbar.reset_done"), "ok");
   },
   setInactiveStyle: (style) => setInactiveStyle(style),
   toggleClipboardLimit: () => toggleClipboardLimit(),
@@ -4628,6 +4655,7 @@ toolbarRail = createToolbarRail({
   mode: readMode(prefs),
   visible: readVisible(prefs),
 });
+setState({ toolbarVisible: readVisible(prefs), toolbarMode: readMode(prefs) });
 toolbarRail.update();
 $("follow-chip").addEventListener("click", () => followEvent({ type: "toggle" }));
 $("follow-arrow").addEventListener("click", () => followEvent({ type: "show" }));

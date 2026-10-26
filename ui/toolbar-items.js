@@ -3,20 +3,21 @@
 // the layout's and nothing else's; a command that cannot run is only `enabled: false`.
 
 /**
- * The icon of each default command (icons.js), or null where there is none yet: a null is drawn
- * as text so the button is never empty. Icons for transcribe, Auto-Silence, resync and automix
- * are still to be chosen (docs/design/TOOLBAR.md, open questions).
+ * The icon of each default command (icons.js), or null: a null is drawn as text so a button is
+ * never empty. Transcribe, Auto-Silence, resync and automix borrow the nearest icon that exists
+ * (a pencil, the padlock of a closed stretch, a reset arrow, stacked layers); the real icons are
+ * still to be chosen (docs/design/TOOLBAR.md, open questions).
  */
 export const TOOLBAR_ICONS = Object.freeze({
   "edit.undo": "undo",
   "edit.redo": "redo",
   "app.import": "import",
-  "app.transcribe": null,
-  "app.auto_silence": null,
+  "app.transcribe": "rename",
+  "app.auto_silence": "lock",
   "edit.split": "cut",
   "clip.mute": "mute",
-  "sync.resync_range": null,
-  "export.automix": null,
+  "sync.resync_range": "reset",
+  "export.automix": "layers",
   "app.export": "export",
 });
 

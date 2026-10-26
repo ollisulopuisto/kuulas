@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
+import { ICONS } from "../icons.js";
 import { SHORT_LABELS, TOOLBAR_ICONS, toolbarItems } from "../toolbar-items.js";
 import { DEFAULT_LAYOUT } from "../toolbar-model.js";
 
@@ -99,11 +100,11 @@ describe("the short labels", () => {
 });
 
 describe("the icons", () => {
-  test("a command has an icon or null; a null is shown as text, never as an empty button", () => {
+  test("every default button has an icon that exists, so icon-only mode is never empty", () => {
     for (const id of DEFAULT_LAYOUT) {
-      assert.ok(id in TOOLBAR_ICONS, `${id} is listed`);
       const icon = TOOLBAR_ICONS[id];
-      assert.ok(icon === null || typeof icon === "string", id);
+      assert.ok(typeof icon === "string", `${id} has an icon`);
+      assert.ok(icon in ICONS, `${id}: icon ${icon} is in icons.js`);
     }
   });
 });

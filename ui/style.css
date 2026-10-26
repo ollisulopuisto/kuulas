@@ -377,9 +377,6 @@ button.chip {
   min-height: 0;
   display: flex;
 }
-.heads-row > .heads-scroll {
-  min-width: 0;
-}
 .editor[data-rail="labels"] {
   --rail-w: 124px;
   --heads-w: calc(340px + var(--rail-w));
@@ -415,6 +412,15 @@ button.chip {
 }
 .rail-label {
   overflow-wrap: anywhere;
+}
+/* A command with no icon shows its text even in icon-only mode: one clipped line, never a
+   column of letters. */
+.editor[data-rail="icons"] .tool-rail .rail-btn:not([data-icon]) .rail-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  font-size: var(--text-xs);
 }
 .rail-btn[aria-disabled="true"] {
   color: var(--text-disabled);
@@ -712,6 +718,7 @@ button.chip {
 }
 .heads-scroll {
   flex: 1;
+  min-width: 0; /* beside the toolbar rail it must be able to shrink */
   min-height: 0;
   overflow: hidden auto;
   scrollbar-width: thin;

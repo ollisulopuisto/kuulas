@@ -11,6 +11,9 @@ const VISIBLE_KEY = "toolbar.visible";
 export const MODES = ["labels", "icons"];
 export const DEFAULT_MODE = "labels";
 
+/** The mode View > "Show text on toolbar buttons" switches to; anything unknown counts as the default. */
+export const otherMode = (mode) => (mode === "icons" ? "labels" : "icons");
+
 export const readLayout = (prefs, known) => normalizeLayout(prefs.getJson(LAYOUT_KEY, null), known);
 
 export const writeLayout = (prefs, layout) => prefs.setJson(LAYOUT_KEY, layout);

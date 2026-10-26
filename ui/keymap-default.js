@@ -113,6 +113,24 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.view.toggle_sidebar",
   },
   {
+    id: "view.toolbar",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.view.toolbar",
+  },
+  {
+    id: "view.toolbar_labels",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.view.toolbar_labels",
+  },
+  {
+    id: "view.toolbar_reset",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.view.toolbar_reset",
+  },
+  {
     id: "view.wheel_mode",
     keys: { mac: null, other: null },
     context: "global",
