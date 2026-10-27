@@ -123,3 +123,22 @@ def test_generated_hints_render_command_tokens(tmp_path: Path) -> None:
     doc = out.read_text()
     assert "{key:" not in doc
     assert "Options: Export mix (options)…" in doc
+
+
+def test_escape_cell_sanitizes_markdown_table_breakers() -> None:
+    """escapeCell must escape characters that break markdown table structure:
+    ``|`` (column separator) and newlines/carriage returns (row breaks)."""
+    code = (
+        "import('./scripts/make_keys_doc.mjs').then(m => {"
+        "const cases = ['a|b', 'a\\nb', 'a\\rb', 'plain', 'x|y\\nz', 'a\\r\\nb'];"
+        "console.log(JSON.stringify(cases.map(c => m.escapeCell(c))));"
+        "});"
+    )
+    out = _run_node(code)
+    results = json.loads(out)
+    assert results[0] == "a\\|b", results
+    assert results[1] == "a b", results  # LF becomes space
+    assert results[2] == "a b", results  # CR becomes space
+    assert results[3] == "plain", results
+    assert results[4] == "x\\|y z", results  # both | and LF escaped
+    assert results[5] == "a b", results  # CRLF becomes single space
