@@ -37,3 +37,5 @@ Starlette deprecation warning), 3,599 UI tests passed, Ruff and Biome clean.
 The shared model/CDN probe also passed with all default CA paths missing.
 The owner's new recording-view reports are tracked as BUGS #136–138 for a
 separate follow-up; no recording engine/UI changes ship in this hotfix.
+
+The owner cancelled the standalone v26.10.27.3 build. These changes are included in the combined v26.10.27.4 release.

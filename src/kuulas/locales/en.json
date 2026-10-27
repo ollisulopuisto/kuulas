@@ -1,4 +1,8 @@
 {
+  "ui.record.peak_value": "{value} dBFS",
+  "ui.record.more_options": "More options",
+  "ui.record.monitoring_short": "Monitor your microphone through the audio interface.",
+  "ui.record.hide_short": "Hide",
   "cmd.view.toolbar_add": "Add a command to the toolbar…",
   "cmd.view.toolbar_add.hint": "Choose a frequently used command for the toolbar.",
   "ui.rail.add": "Add…",
@@ -2715,7 +2719,7 @@
   "ui.record.recording": "Recording {take}",
   "ui.record.stop": "Stop",
   "ui.record.add_marker": "Add marker",
-  "ui.record.add_marker_title": "Adds a marker where the take is now. Add marker: {key:marker.add}.",
+  "ui.record.add_marker_title": "Add a marker at the current recording position.",
   "ui.record.cart_track": "Clips you play go on",
   "ui.record.cart_none": "No track (not logged)",
   "ui.record.cart_new": "A new track, Questions",

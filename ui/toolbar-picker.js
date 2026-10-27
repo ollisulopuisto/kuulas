@@ -50,6 +50,7 @@ export function createToolbarPicker({ t, choices, add }) {
     input.placeholder = t("ui.rail.pick_search");
     input.setAttribute("aria-label", t("ui.rail.pick_search"));
     close.textContent = t("ui.rail.close");
+    close.dataset.keyHint = t("key.escape");
     const rows = choices(input.value);
     list.replaceChildren(
       ...rows.map((row) => {

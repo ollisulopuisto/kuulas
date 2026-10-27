@@ -98,3 +98,28 @@ describe("createLiveTake: the take drawn on the lanes while it records", () => {
     assert.ok(cols.every((v) => v === 0));
   });
 });
+
+test("late new-track binding retains audio received before the id exists", () => {
+  const live = createLiveTake();
+  live.begin({ at: 0, lanes: [{ trackId: null }] });
+  live.push(S, [-6]);
+  live.bindPlan({ at: 0, lanes: [{ trackId: "new-track" }] });
+  assert.deepEqual(live.lanes(), [{ index: 0, trackId: "new-track" }]);
+  assert.ok(live.columns(0, { scroll: 0, zoom: 480, width: 200 })[50] > 0);
+});
+
+test("audio arriving before the recording plan is retained and placed at the later start", () => {
+  const live = createLiveTake();
+  live.begin({ at: 0, lanes: [] });
+  live.push(S, [-12]);
+  live.bindPlan({ at: 5 * S, preroll: 0, lanes: [{ trackId: "new-track" }] });
+  assert.ok(live.columns(0, { scroll: 5 * S, zoom: 480, width: 200 })[50] > 0);
+  assert.equal(live.headFrame, 6 * S);
+});
+
+test("the recording head advances even when every sample is silent", () => {
+  const live = createLiveTake();
+  live.begin({ at: 2 * S, lanes: [{ trackId: "t1" }] });
+  live.push(3 * S, [-120]);
+  assert.equal(live.headFrame, 5 * S);
+});

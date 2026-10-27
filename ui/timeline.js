@@ -68,6 +68,7 @@ import {
   visibleRows,
 } from "./lanes.js";
 import { leftOffFlag } from "./left-off.js";
+import { liveWaveformColumns } from "./live-take.js";
 import { activeLoop } from "./loop-range.js";
 import { flagLayout, NOTCH_PX as MARKER_NOTCH_PX } from "./markers-model.js";
 import { lengthPill, markDrawing } from "./marks.js";
@@ -837,22 +838,25 @@ export function createTimeline({
     });
     const y = top + 2;
     const h = row.height - 4;
-    const mid = y + h / 2;
     overlay.save();
     overlay.beginPath();
     overlay.rect(0, y, size.width, h);
     overlay.clip();
     overlay.fillStyle = colours.wave;
     overlay.globalAlpha = 0.9;
-    let head = -1;
+    const bars = liveWaveformColumns(cols, {
+      mode: state.waveformMode,
+      scale: scaleFor(track.kind, state.waveformScale),
+      height: h,
+      gain: state.waveformGain ?? 1,
+    });
     for (let x = 0; x < cols.length; x += 1) {
-      if (cols[x] <= 0) continue;
-      head = x;
-      // A gentle curve so a quiet voice is still seen; full scale is the lane's height.
-      const bar = Math.max(1, cols[x] ** 0.6 * h);
-      overlay.fillRect(x, mid - bar / 2, 1, bar);
+      const top = bars[2 * x];
+      const bottom = bars[2 * x + 1];
+      if (bottom > top) overlay.fillRect(x, y + top, 1, bottom - top);
     }
-    if (head >= 0) {
+    const head = frameToX(liveTake.headFrame, state.scroll, state.zoom);
+    if (head >= 0 && head < size.width) {
       overlay.globalAlpha = 1;
       overlay.fillStyle = theme.clipping;
       overlay.fillRect(head, y, 2, h);

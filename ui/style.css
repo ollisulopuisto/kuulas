@@ -5232,3 +5232,109 @@ legend.form-heading {
   height: auto;
   min-height: var(--control-h);
 }
+
+/* Recording essentials stay visible; routing and monitoring details are disclosed on request. */
+.record-view {
+  width: min(680px, 94vw);
+  max-height: 92vh;
+}
+.record-view .record-body {
+  margin: var(--space-4) 0;
+}
+.record-view .record-live {
+  gap: var(--space-4);
+}
+.record-view .record-elapsed {
+  font-size: 40px;
+}
+.record-view .record-options {
+  border-top: 1px solid var(--border);
+  padding-top: var(--space-3);
+}
+.record-options > summary {
+  cursor: pointer;
+  color: var(--accent-text);
+  padding: var(--space-2) 0;
+}
+.record-setup-options {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-3) 0;
+}
+.record-setup-options[hidden] {
+  display: none;
+}
+.record-view .record-monitoring {
+  background: transparent;
+  padding: var(--space-3) 0;
+  font-size: var(--text-sm);
+}
+.record-view .record-armed {
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--accent);
+  border-radius: 0;
+  background: transparent;
+  font-size: var(--text-sm);
+}
+.record-view .record-disk,
+.record-view .record-at,
+.record-view .record-preroll-note,
+.record-view .record-stop-help {
+  font-size: var(--text-sm);
+}
+.record-view .record-footer {
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+.record-view .record-marker {
+  margin-right: auto;
+}
+.record-view .record-start,
+.record-view .record-stop {
+  width: 144px;
+  min-height: 76px;
+}
+.record-view .record-stop {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  gap: var(--space-1);
+}
+.record-view .record-stop svg {
+  width: 28px;
+  height: 28px;
+}
+.record-view .record-stop-square {
+  fill: currentColor;
+}
+.record-view .record-stop-text {
+  font-size: var(--text-sm);
+}
+.record-view .record-stop[data-state="confirming"] {
+  background: var(--danger-subtle);
+  color: var(--danger-text);
+}
+.record-meter-scale {
+  position: relative;
+  flex: 1;
+  min-width: 70px;
+  padding-bottom: 14px;
+}
+.record-meter-value {
+  min-width: 7em;
+  text-align: right;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+.record-lufs-tick {
+  position: absolute;
+  top: 15px;
+  transform: translateX(-50%);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  line-height: 1;
+  border-top: 1px solid var(--border-strong);
+}
+.record-view .record-mode {
+  flex-wrap: wrap;
+  margin-top: var(--space-3);
+}

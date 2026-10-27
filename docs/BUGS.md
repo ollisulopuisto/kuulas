@@ -9,11 +9,11 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 
 | # | Raised | Issue | Notes |
 |---|---|---|---|
-| 138 | 27.10 | Recording view should show short-term LUFS per input instead of only peak bars | open — use real three-second K-weighted analysis, −23/−16 references and separate clipping indication; never relabel peaks as LUFS |
-| 137 | 27.10 | Recording setup dialog is overwhelming and poorly organized | open — redesign around input, channels, meters and Record; move pre-roll, cart routing, playback/delay and stop behavior into More options |
-| 136 | 27.10 | Live recording waveform is absent for New track until Stop; existing tracks update with a different waveform shape | open — owner reproduced in v26.10.27.2; inspect late binding of new track ids and align live/final waveform style |
-| 135 | 27.10 | Adding toolbar commands is undiscoverable; menu right-click is nonstandard; support Dock-like drag-away removal | fixed, please check in v26.10.27.3: persistent + picker, normal menus, removal preview, Escape and Undo; Chrome interaction checks passed |
-| 134 | 27.10 | GUI Orukeet model download fails with CERTIFICATE_VERIFY_FAILED in the DMG | fixed, please check in v26.10.27.3: explicit bundled CA store, verified HTTPS and model/CDN probes in both packaged selftests |
+| 138 | 27.10 | Recording view should show short-term LUFS per input instead of only peak bars | fixed, please check in v26.10.27.4: real per-input three-second LUFS, −23/−16 marks and independent clipping; synthetic recorder integration and Chrome checks passed |
+| 137 | 27.10 | Recording setup dialog is overwhelming and poorly organized | fixed, please check in v26.10.27.4: compact essentials, More options and clear action footer; Chrome layout and stop-safety checks passed |
+| 136 | 27.10 | Live recording waveform is absent for New track until Stop; existing tracks update with a different waveform shape | fixed, please check in v26.10.27.4: late track binding preserves buffered peaks; live/final waveform preferences agree; browser event-order regression passed |
+| 135 | 27.10 | Adding toolbar commands is undiscoverable; menu right-click is nonstandard; support Dock-like drag-away removal | fixed, please check in v26.10.27.4: persistent + picker, normal menus, removal preview, Escape and Undo; Chrome interaction checks passed |
+| 134 | 27.10 | GUI Orukeet model download fails with CERTIFICATE_VERIFY_FAILED in the DMG | fixed, please check in v26.10.27.4: explicit bundled CA store, verified HTTPS and model/CDN probes in both packaged selftests |
 | 133 | 27.10 | Fast listening (period) needs a visible button beside playback | fixed, please check in v26.10.27.2: persistent speed toggle, selected-speed label and pressed state; browser confirms button/period parity |
 | 132 | 27.10 | Transcribe buttons are misaligned and their long labels overflow | fixed, please check in v26.10.27.2: shared columns and short Orukeet/Colab labels; cloud explanation moved outside buttons |
 | 131 | 27.10 | Orukeet installation must be possible through the GUI | fixed, please check in v26.10.27.2: verified pinned download, progress/cancel/retry, existing-folder choice and automatic continuation of requested transcription; real download and synthetic speech inference passed |

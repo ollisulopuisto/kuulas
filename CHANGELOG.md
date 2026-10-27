@@ -1,6 +1,13 @@
 ## [Unreleased]
 
-## [v26.10.27.3] - 2026-10-27
+## [v26.10.27.4] - 2026-10-28
+
+- **New recording tracks show progress before Stop.** Late track assignment keeps buffered waveform peaks, and silent input still advances the recording head. Live waveforms follow the same half/full display and scale as saved clips.
+- **A simpler recording window.** Input and channel routing stay visible; pre-roll, playback, cart routing, delay and stop behavior are under More options. Compact Record/Cancel and Marker/Stop controls replace the oversized layout, retaining the existing stop safeguards.
+- **Recording inputs show real three-second LUFS.** Each input has a graphical loudness meter, a numeric value and −23/−16 reference marks, plus an independent clipping warning. A low-priority editor worker reads flushed audio through the shared loudness implementation. Setup retains an explicitly labelled peak check before recording starts.
+- Includes the merged CodeQL security fixes for model paths, locale HTML, prototype renderers and escaping, and keyboard reference generation.
+
+The standalone v26.10.27.3 build was cancelled; its changes ship here.
 
 - **Orukeet downloads trust certificates inside the app.** The installer now explicitly loads a bundled CA certificate store while retaining certificate and hostname verification. It no longer depends on developer-machine OpenSSL paths. Both DMG build selftests make a small verified HTTPS request to the pinned model weight file and its CDN redirect; ordinary offline selftests check the local trust store.
 - **A visible + slot adds toolbar buttons.** Click it to search ready commands and add one without executing it. The same picker is in View > Toolbar > Add a command to the toolbar. Its tooltip explains customization, and choices remain per-user.

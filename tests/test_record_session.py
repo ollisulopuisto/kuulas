@@ -1133,3 +1133,47 @@ def test_cart_level_cache_tracks_master_gain(session, tmp_path, monkeypatch):
     session.edit("set_master", {"gain_db": -6})
     _, _, gain = session.clipboard_preview(entry, cart_track="tq")
     assert gain == 16  # changing the project master changes the measured entry
+
+
+def test_record_levels_carry_lufs_separately_from_peak_clipping(session):
+    from types import SimpleNamespace  # noqa: PLC0415
+
+    rs = offline(session)
+    seen = []
+    rs._input_loudness = SimpleNamespace(
+        observe=lambda *args: seen.append(args), read=lambda: [-23.0, -16.0],
+        reset=lambda: None, close=lambda: None)
+    status = {'state': 'recording', 'take': 'Take 1', 'folder': str(rs.folder),
+              'channels': [{'channel': 1, 'name': 'Host'},
+                           {'channel': 2, 'name': 'Guest'}]}
+    try:
+        rs._status = status
+        view = rs._view(status, True)
+        assert seen
+        assert view['short_term_lufs'] == [-23.0, -16.0]
+        rs._on_event({'event': 'level', 'peak_dbfs': [-1.0, 0.0],
+                      'clipped': [False, True], 'position_frames': RATE})
+        event = rs.publish.kinds('level')[-1]
+        assert event['short_term_lufs'] == [-23.0, -16.0]
+        assert event['peak_dbfs'] == [-1.0, 0.0]
+        assert event['clipped'] == [False, True]
+    finally:
+        rs.close()
+
+
+def test_recording_lufs_reaches_live_subscribers_from_flushed_audio(session, recorder):
+    published = Published()
+    rs = live(session, recorder, published)
+    try:
+        rs.start(device=None, channel=1, track_id=None, name="Host", at=0)
+        def has_loudness():
+            return any(m.get("short_term_lufs")
+                       and m["short_term_lufs"][0] is not None
+                       for m in published.kinds("level"))
+        wait_until(has_loudness, timeout=15)
+        assert rs.status()["recording"]
+        assert all("peak_dbfs" in message and "clipped" in message
+                   for message in published.kinds("level"))
+        rs.stop("one_click", 0)
+    finally:
+        rs.close()

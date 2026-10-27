@@ -1,3 +1,5 @@
+import { waveformColumns } from "./waveform.js";
+
 // The take drawn on the timeline while it records (owner, 2026-10-23: "I want to see them
 // drawn"). The recorder sends a level event several times a second: the loudest sample of each
 // channel since the last one, and the position on the take's clock. Kept per lane as peaks,
@@ -18,12 +20,16 @@ export function createLiveTake() {
   let positions = [];
   let peaks = [];
   let active = false;
+  let position = 0;
 
   const frameOf = (position) => at + position - preroll;
 
   return {
     get active() {
       return active;
+    },
+    get headFrame() {
+      return active ? Math.max(0, frameOf(position)) : null;
     },
     /** `at`: where the take starts on the timeline; `preroll`: frames before Record; `lanes`:
      *  [{ trackId }] in the recorder's channel order (null id: a new track, not yet there). */
@@ -33,11 +39,29 @@ export function createLiveTake() {
       lanes = list.map((lane) => ({ trackId: lane.trackId ?? null }));
       positions = lanes.map(() => []);
       peaks = lanes.map(() => []);
+      position = 0;
       active = true;
     },
     /** A level event: the position on the take's clock, and each lane's reading in dBFS. */
-    push(position, readings) {
-      if (!active || !Number.isFinite(position)) return;
+    /** A new track id can arrive after the first level events; keep their samples. */
+    bindPlan({ at: start, preroll: before = 0, lanes: list }) {
+      if (!active) return;
+      at = Math.max(0, Math.round(Number(start) || 0));
+      preroll = Math.max(0, Math.round(Number(before) || 0));
+      list.forEach((lane, index) => {
+        lanes[index] = { trackId: lane.trackId ?? lanes[index]?.trackId ?? null };
+        positions[index] ??= [];
+        peaks[index] ??= [];
+      });
+    },
+    push(nextPosition, readings) {
+      if (!active || !Number.isFinite(nextPosition)) return;
+      position = Math.max(position, nextPosition);
+      while (lanes.length < (readings?.length ?? 0)) {
+        lanes.push({ trackId: null });
+        positions.push([]);
+        peaks.push([]);
+      }
       lanes.forEach((_lane, i) => {
         positions[i].push(position);
         peaks[i].push(dbToPeak(readings?.[i]));
@@ -80,4 +104,17 @@ export function createLiveTake() {
       peaks = [];
     },
   };
+}
+
+/** Adapt live peak columns to the same geometry/preferences used by saved clips. */
+export function liveWaveformColumns(
+  peaks,
+  { mode = "half", scale = "linear", height = 48, gain = 1 } = {},
+) {
+  const ranges = new Float32Array(peaks.length * 2);
+  peaks.forEach((peak, index) => {
+    ranges[index * 2] = -peak;
+    ranges[index * 2 + 1] = peak;
+  });
+  return waveformColumns(ranges, mode, scale, height, gain);
 }

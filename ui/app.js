@@ -2919,6 +2919,11 @@ const recordView = createRecordView({
   chip: $("rec-chip"),
   addMarker: () => keyboard.registry.run("marker.add", null, getState()),
   onLive: () => {
+    const project = getState().project;
+    $("empty").hidden =
+      !project ||
+      recordView.isRecording() ||
+      project.tracks.some((track) => track.clips.length > 0);
     followLiveHead();
     timeline?.redraw();
   },
@@ -4663,7 +4668,7 @@ function render(state, patch, previous = null) {
   if (touched("project")) {
     const empty = $("empty");
     const hasClips = state.project?.tracks.some((track) => track.clips.length > 0);
-    empty.hidden = !state.project || hasClips;
+    empty.hidden = !state.project || hasClips || recordView.isRecording();
     empty.textContent = t("ui.project.empty");
   }
   if (touched("readOnly")) {

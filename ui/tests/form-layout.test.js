@@ -266,7 +266,11 @@ export function footerOrder(source) {
     source.match(/const (\w+) = \w+\(\s*"div",\s*(?:\{ className: )?"cheatsheet-footer/)?.[1] ??
     source.match(/(\w+)\.className = "cheatsheet-footer/)?.[1];
   if (!name) return null;
-  const call = [...source.matchAll(new RegExp(String.raw`\b${name}\.append\(([^;]*)\);`, "g"))];
+  const call = [
+    ...source.matchAll(
+      new RegExp(String.raw`\b${name}\.(?:append|replaceChildren)\(([^;]*)\);`, "g"),
+    ),
+  ];
   if (call.length === 0) return null;
   return call
     .at(-1)[1]
@@ -276,13 +280,22 @@ export function footerOrder(source) {
     .filter(Boolean);
 }
 
+test("footerOrder reads phase-specific footer replacement and property buttons", () => {
+  assert.deepEqual(
+    footerOrder(`const footer = el("div", "cheatsheet-footer");
+      footer.append(cancel);
+      footer.replaceChildren(rec.marker, cancel, rec.stop);`),
+    ["rec.marker", "cancel", "rec.stop"],
+  );
+});
+
 test("in every dialog footer the primary comes last", () => {
   const checked = [];
   for (const path of modules()) {
     const source = read(path);
     if (!source.includes('"cheatsheet-footer')) continue;
     const order = footerOrder(source);
-    const primary = source.match(/(\w+)\.dataset\.dialogPrimary = ""/)?.[1];
+    const primary = source.match(/([\w.]+)\.dataset\.dialogPrimary = ""/)?.[1];
     if (!order || !primary) continue;
     checked.push(path);
     assert.equal(order.at(-1), primary, `${path}: ${order.join(", ")}`);

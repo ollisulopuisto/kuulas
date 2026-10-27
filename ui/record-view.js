@@ -8,7 +8,10 @@
 // gesture. No listening while recording: the view says monitoring is the interface's job.
 //
 // Decisions live in record-model.js and stop-mode.js (pure, tested); this file draws and wires.
+
 import { enhanceDialog } from "./dialog-keys.js";
+import { formatNumber } from "./i18n.js";
+import { LUFS_TICKS, lufsToX } from "./level-meter.js";
 import { createLiveTake } from "./live-take.js";
 import { createPeakHold } from "./peak-hold.js";
 import {
@@ -120,7 +123,7 @@ export function createRecordView({
   let liveKey = "";
 
   /** A meter with its label and its own clip flag; `labelText` also names it for a screen reader. */
-  function createMeter(labelText) {
+  function createMeter(labelText, lufsMode = false) {
     const row = el("div", "record-meter-row");
     const label = el("span", "record-meter-label", labelText);
     const box = el("div", "record-meter");
@@ -133,7 +136,22 @@ export function createRecordView({
     clip.type = "button";
     clip.title = t("ui.record.clip_title");
     clip.hidden = true;
-    row.append(label, box, clip);
+    const scale = el("div", "record-meter-scale");
+    scale.append(box);
+    if (lufsMode) {
+      for (const value of LUFS_TICKS) {
+        const tick = el(
+          "span",
+          "record-lufs-tick",
+          t(value === -23 ? "ui.meter.ref23" : "ui.meter.ref16"),
+        );
+        tick.style.left = `${lufsToX(value, 100)}%`;
+        scale.append(tick);
+      }
+    }
+    const value = el("output", "record-meter-value");
+    value.setAttribute("aria-live", "off");
+    row.append(label, scale, value, clip);
     const tracker = createPeakHold({ floorDb: FLOOR_DB });
     const meter = {
       row,
@@ -143,24 +161,42 @@ export function createRecordView({
       clip,
       tracker,
       view: { bar: FLOOR_DB, peak: FLOOR_DB, clipped: false },
+      value,
+      lufsMode,
+      loudness: null,
     };
     clip.addEventListener("click", () => {
       tracker.clearClip();
       meter.view = { ...meter.view, clipped: false };
       paintMeter(meter);
     });
+    paintMeter(meter);
     return meter;
   }
 
   function paintMeter(m) {
     const pct = (db) => `${Math.max(0, Math.min(100, ((db - FLOOR_DB) / -FLOOR_DB) * 100))}%`;
-    m.fill.style.width = pct(m.view.bar);
-    m.hold.style.left = pct(m.view.peak);
-    m.fill.dataset.zone = m.view.bar > -6 ? "hot" : m.view.bar > -18 ? "warn" : "ok";
+    if (m.lufsMode) {
+      m.fill.style.width = `${lufsToX(m.loudness, 100)}%`;
+      m.fill.dataset.zone = m.loudness !== null && m.loudness > -16 ? "warn" : "ok";
+      m.hold.hidden = true;
+      m.value.textContent =
+        Number.isFinite(m.loudness) && m.loudness > FLOOR_DB
+          ? t("ui.meter.value", { value: formatNumber(m.loudness, { digits: 1 }) })
+          : t("ui.meter.pending");
+    } else {
+      m.fill.style.width = pct(m.view.bar);
+      m.hold.style.left = pct(m.view.peak);
+      m.fill.dataset.zone = m.view.bar > -6 ? "hot" : m.view.bar > -18 ? "warn" : "ok";
+      m.value.textContent = t("ui.record.peak_value", {
+        value: formatNumber(m.view.bar, { digits: 1 }),
+      });
+    }
     m.clip.hidden = !m.view.clipped;
   }
 
-  function feedMeter(m, reading) {
+  function feedMeter(m, reading, loudness = null) {
+    m.loudness = Number.isFinite(loudness) ? loudness : null;
     m.view = m.tracker.update(reading.db, performance.now());
     if (reading.clipped) m.view = { ...m.view, clipped: true };
     paintMeter(m);
@@ -181,8 +217,12 @@ export function createRecordView({
   const hideButton = el("button", "button block");
   hideButton.type = "button";
   hideButton.dataset.dialogCancel = "";
-  footer.append(modeLabel, hideButton);
-  dialog.append(heading, body, monitoring, footer);
+  const options = el("details", "record-options");
+  const optionsTitle = el("summary");
+  const setupOptions = el("div", "record-setup-options");
+  options.append(optionsTitle, setupOptions, modeLabel, monitoring);
+  footer.append(hideButton);
+  dialog.append(heading, body, options, footer);
   document.body.append(dialog);
   enhanceDialog(dialog, { t });
 
@@ -209,10 +249,10 @@ export function createRecordView({
   const setup = {};
   function buildSetup() {
     const box = el("div", "record-setup");
-    const row = (labelText, control) => {
+    const row = (labelText, control, advanced = false) => {
       const label = el("label", "record-field form-row");
       label.append(el("span", "record-label form-label", labelText), control);
-      box.append(label);
+      (advanced ? setupOptions : box).append(label);
       return control;
     };
     setup.device = row(t("ui.record.device"), el("select"));
@@ -220,32 +260,38 @@ export function createRecordView({
     setup.channels = el("fieldset", "record-channels");
     setup.channels.append(el("legend", "form-heading", t("ui.record.channels")));
     box.append(setup.channels);
-    setup.preroll = row(t("ui.record.preroll"), el("select"));
+    setup.preroll = row(t("ui.record.preroll"), el("select"), true);
     // The track clips played from the cart go on while the take records (cart-model.js).
-    setup.cart = row(t("ui.record.cart_track"), el("select"));
+    setup.cart = row(t("ui.record.cart_track"), el("select"), true);
     setup.cartWarn = el("p", "record-message record-cart-warning");
     setup.cartWarn.setAttribute("role", "status");
-    box.append(setup.cartWarn);
+    setupOptions.append(setup.cartWarn);
     // Play the other tracks while recording (off by default; headphones), and the delay to
     // cut from the take's head so it lines up with what was heard.
     const othersBox = el("input");
     othersBox.type = "checkbox";
-    setup.others = row(t("ui.record.play_others"), othersBox);
+    setup.others = row(t("ui.record.play_others"), othersBox, true);
     setup.othersBox = othersBox;
     const delayBox = el("input");
     delayBox.type = "number";
     delayBox.min = "0";
     delayBox.max = "2000";
     delayBox.step = "1";
-    setup.delay = row(t("ui.record.delay_ms"), delayBox);
+    setup.delay = row(t("ui.record.delay_ms"), delayBox, true);
     setup.delayBox = delayBox;
     setup.othersHelp = el("p", "record-message", t("ui.record.play_others_help"));
-    box.append(setup.othersHelp);
+    setupOptions.append(setup.othersHelp);
+    const syncPlaybackOptions = () => {
+      setup.othersHelp.hidden = !playOthers;
+      setup.delay.closest(".record-field").hidden = !playOthers;
+    };
+    syncPlaybackOptions();
     othersBox.checked = playOthers;
     delayBox.value = String(delayMs);
     othersBox.addEventListener("change", () => {
       playOthers = othersBox.checked;
       prefs.set(OTHERS_KEY, playOthers ? "1" : "0");
+      syncPlaybackOptions();
     });
     delayBox.addEventListener("change", () => {
       delayMs = Math.min(2000, Math.max(0, Number(delayBox.value) || 0));
@@ -258,9 +304,11 @@ export function createRecordView({
     setup.disk = el("p", "record-disk");
     setup.message = el("p", "record-message");
     setup.message.setAttribute("role", "status");
-    setup.record = el("button", "button record-button", t("ui.record.record"));
+    setup.record = el("button", "button block primary record-start", t("ui.record.record"));
     setup.record.type = "button";
-    box.append(setup.armed, setup.at, setup.disk, setup.message, setup.record);
+    setup.record.dataset.dialogPrimary = "";
+    setup.record.dataset.keyHint = "↵";
+    box.append(setup.armed, setup.at, setup.disk, setup.message);
     setup.device.addEventListener("change", () => {
       const device = devices?.[Number(setup.device.value)];
       if (device) prefs.setJson(DEVICE_KEY, { index: device.index, name: device.name });
@@ -532,16 +580,23 @@ export function createRecordView({
     rec.preroll = el("p", "record-preroll-note");
     rec.notices = el("ul", "record-notices");
     rec.notices.setAttribute("aria-live", "assertive");
-    rec.marker = el("button", "button record-marker", t("ui.record.add_marker"));
+    rec.marker = el("button", "button block record-marker", t("ui.record.add_marker"));
     rec.marker.type = "button";
     rec.marker.title = t("ui.record.add_marker_title");
     rec.marker.addEventListener("click", () => addMarker());
-    rec.stop = el("button", "record-stop");
+    rec.stop = el("button", "button block primary record-stop");
     rec.stop.type = "button";
+    rec.stop.dataset.dialogPrimary = "";
+    rec.stop.dataset.keyHint = "↵";
     rec.stop.append(stopIcon());
     rec.ring = rec.stop.querySelector(".record-ring");
     rec.stopText = el("span", "record-stop-text");
     rec.stop.append(rec.stopText);
+    rec.stop.addEventListener("click", (event) => {
+      if (event.detail !== 0) return; // pointer gestures are handled below
+      press();
+      release();
+    });
     rec.stopHelp = el("p", "record-stop-help", t("ui.record.stop_keys"));
     rec.stop.addEventListener("pointerdown", (event) => {
       if (event.button !== 0) return;
@@ -551,17 +606,7 @@ export function createRecordView({
     for (const type of ["pointerup", "pointercancel"])
       rec.stop.addEventListener(type, () => release());
     rec.stop.addEventListener("lostpointercapture", () => release());
-    box.append(
-      rec.take,
-      rec.elapsed,
-      rec.preroll,
-      rec.meters,
-      rec.disk,
-      rec.notices,
-      rec.marker,
-      rec.stop,
-      rec.stopHelp,
-    );
+    box.append(rec.take, rec.elapsed, rec.preroll, rec.meters, rec.disk, rec.notices, rec.stopHelp);
     return box;
   }
 
@@ -573,7 +618,7 @@ export function createRecordView({
     const key = lanes.map((l) => `${l.channel}:${l.track_name}`).join("|");
     if (key === liveKey) return;
     liveKey = key;
-    liveMeters = meterLabels(lanes, t).map((m) => createMeter(m.text));
+    liveMeters = meterLabels(lanes, t).map((m) => createMeter(m.text, true));
     rec.meters.replaceChildren(...liveMeters.map((m) => m.row));
   }
 
@@ -722,6 +767,7 @@ export function createRecordView({
 
   // -- drawing the whole view ----------------------------------------------------------
   // Built on the first render, not at load: the catalogs are not loaded when app.js makes this.
+  let shownPhase = null;
   let setupBox = null;
   let liveBox = null;
   const elsewhere = el("p", "record-elsewhere");
@@ -730,21 +776,33 @@ export function createRecordView({
     setupBox ??= buildSetup();
     liveBox ??= buildRecording();
     heading.textContent = t("ui.record.title");
-    monitoring.textContent = t("ui.record.monitoring");
+    monitoring.textContent = t("ui.record.monitoring_short");
+    optionsTitle.textContent = t("ui.record.more_options");
     modeText.textContent = t("ui.record.stop_mode");
+    hideButton.dataset.keyHint = t("key.escape");
     modeSelect.replaceChildren(
       ...STOP_MODES.map((m) => new Option(t(`ui.record.stop_mode.${m}`), m)),
     );
     modeSelect.value = stopMode;
     const p = phase();
-    hideButton.textContent = p === "recording" ? t("ui.record.hide") : t("ui.record.close");
+    if (p !== shownPhase) {
+      options.open = false;
+      shownPhase = p;
+    }
+    setupOptions.hidden = p !== "setup";
+    hideButton.textContent = p === "recording" ? t("ui.record.hide_short") : t("ui.record.close");
     if (p === "recording") {
+      hideButton.title = t("ui.record.hide");
+      if (!footer.contains(rec.stop)) footer.replaceChildren(rec.marker, hideButton, rec.stop);
       if (body.firstChild !== liveBox) body.replaceChildren(liveBox);
       renderRecording();
     } else if (p === "elsewhere") {
       elsewhere.textContent = t("ui.record.elsewhere", { take: status.take });
       body.replaceChildren(elsewhere);
+      footer.replaceChildren(hideButton);
     } else {
+      hideButton.title = "";
+      if (!footer.contains(setup.record)) footer.replaceChildren(hideButton, setup.record);
       if (body.firstChild !== setupBox) body.replaceChildren(setupBox);
       fillSetup();
     }
@@ -778,6 +836,8 @@ export function createRecordView({
   function renderSlim() {
     if (!slim) return;
     slim.hidden = !recording();
+    slimMarker.textContent = t("ui.record.add_marker");
+    slimMarker.title = t("ui.record.add_marker_title");
     const label = stopping ? t("ui.record.stopping") : stopLabel(gestureView, stopMode, t);
     slimStop.textContent = label;
     slimStop.dataset.state = stopping ? "stopped" : gestureView.state;
@@ -805,6 +865,14 @@ export function createRecordView({
           preroll: next.preroll_frames ?? 0,
           lanes: (next.plan?.lanes ?? []).map((lane) => ({ trackId: lane.track_id })),
         });
+      }
+      if (next.plan) {
+        liveTake.bindPlan({
+          at: next.plan.at ?? 0,
+          preroll: next.preroll_frames ?? 0,
+          lanes: (next.plan.lanes ?? []).map((lane) => ({ trackId: lane.track_id })),
+        });
+        onLive();
       }
       if (!wasRecording) {
         notices.splice(0, notices.length, ...(next.notices ?? []));
@@ -932,7 +1000,7 @@ export function createRecordView({
             const readings = channelPeaks(message, armed.length);
             armed.forEach((channel, i) => {
               const meter = setupMeters.get(channel);
-              if (meter) feedMeter(meter, readings[i]);
+              if (meter) feedMeter(meter, readings[i], message.short_term_lufs?.[i]);
             });
           }
           return;
@@ -945,7 +1013,7 @@ export function createRecordView({
         onLive();
         const readings = channelPeaks(message, liveMeters.length);
         liveMeters.forEach((meter, i) => {
-          feedMeter(meter, readings[i]);
+          feedMeter(meter, readings[i], message.short_term_lufs?.[i]);
         });
         if (rec.elapsed) rec.elapsed.textContent = formatElapsed(shownPosition(), rate());
         renderChip();

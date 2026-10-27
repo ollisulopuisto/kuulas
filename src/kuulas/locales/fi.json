@@ -1,4 +1,8 @@
 {
+  "ui.record.peak_value": "{value} dBFS",
+  "ui.record.more_options": "Lisäasetukset",
+  "ui.record.monitoring_short": "Kuuntele mikrofonia äänikortin suoramonitoroinnista.",
+  "ui.record.hide_short": "Piilota",
   "cmd.view.toolbar_add": "Lisää komento työkalupalkkiin…",
   "cmd.view.toolbar_add.hint": "Valitse usein käyttämäsi komento työkalupalkkiin.",
   "ui.rail.add": "Lisää…",
@@ -2820,7 +2824,7 @@
   "ui.record.recording": "Äänitetään: {take}",
   "ui.record.stop": "Pysäytä",
   "ui.record.add_marker": "Lisää merkki",
-  "ui.record.add_marker_title": "Lisää merkin kohtaan, jossa äänite on nyt. Lisää merkki: {key:marker.add}.",
+  "ui.record.add_marker_title": "Lisää merkki äänityksen nykykohtaan.",
   "ui.record.cart_track": "Soitetut leikkeet menevät raidalle",
   "ui.record.cart_none": "Ei raitaa (ei kirjata)",
   "ui.record.cart_new": "Uusi raita, Kysymykset",

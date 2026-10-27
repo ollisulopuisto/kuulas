@@ -53,6 +53,7 @@ from . import disk_budget, ops
 from . import record_take as rt
 from .messages import KuulasError, t
 from .preview_level import PEAK_TO_LUFS_DB
+from .record_loudness import RecordingLoudness
 
 log = logging.getLogger("kuulas.record")
 
@@ -156,6 +157,8 @@ class RecordSession:
         #: Takes this editor imported (or found empty) -> what the import reported.
         self._imported: dict[str, dict | None] = {}
         self._we_armed = False  # this editor armed the recorder (pre-roll)
+        self._input_loudness = RecordingLoudness(
+            enabled=watch and hasattr(socket, "AF_UNIX"))
         self._channels_hint = 1  # channels the next take would record (disk estimate)
         self._closed = threading.Event()
         self._wake = threading.Event()
@@ -176,6 +179,7 @@ class RecordSession:
         self._wake.set()
         if self._thread is not None:
             self._thread.join(timeout=5)
+        self._input_loudness.close()
         if self._we_armed:
             self._we_armed = False
             with contextlib.suppress(RecordError):
@@ -294,7 +298,16 @@ class RecordSession:
         take = status.get("take") if recording else None
         plan = rt.read_plan(self.folder, take) if (take and ours) else None
         armed = status.get("state") == "armed"
+        if recording and ours and take:
+            names = [str(channel.get("name", ""))
+                     for channel in status.get("channels", [])]
+            if not names and plan:
+                names = [lane.name for lane in plan.all_lanes]
+            self._input_loudness.observe(self.folder, take, self.rate, names)
+        else:
+            self._input_loudness.reset()
         return {
+            "short_term_lufs": self._input_loudness.read(),
             "available": available,
             "state": status.get("state", "idle"),
             "recording": recording,
@@ -791,6 +804,7 @@ class RecordSession:
                                               and math.isfinite(v) and v > -60)
                 self.publish({"type": "record", "kind": "level",
                               "peak_dbfs": event.get("peak_dbfs", []),
+                              "short_term_lufs": self._input_loudness.read(),
                               "clipped": event.get("clipped", []),
                               "position_frames": self._position})
             return
