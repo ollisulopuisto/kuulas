@@ -120,6 +120,7 @@ def test_escape_cell_escapes_table_breakers() -> None:
         "import('./scripts/make_keys_doc.mjs').then(m => {"
         "console.log(JSON.stringify({"
         "pipe: m.escapeCell('a|b'),"
+        "backslash: m.escapeCell('a\\\\b'),"
         "newline: m.escapeCell('a\\nb'),"
         "cr: m.escapeCell('a\\rb'),"
         "crlf: m.escapeCell('a\\r\\nb')"
@@ -130,6 +131,13 @@ def test_escape_cell_escapes_table_breakers() -> None:
     assert "\\|" in result["pipe"], f"pipe not escaped: {result['pipe']!r}"
     pipe_without_escapes = result["pipe"].replace("\\|", "")
     assert "|" not in pipe_without_escapes, f"raw pipe remains: {result['pipe']!r}"
+    # A backslash in the input must be escaped so it cannot turn the next
+    # character into an escape sequence (e.g. ``\\|`` would otherwise render
+    # as a literal pipe). The result must not contain a lone backslash before
+    # the pipe.
+    assert result["backslash"] == "a\\\\b", (
+        f"backslash not escaped: {result['backslash']!r}"
+    )
     for key in ("newline", "cr", "crlf"):
         assert "\n" not in result[key], f"newline not escaped: {result[key]!r}"
         assert "\r" not in result[key], f"carriage return not escaped: {result[key]!r}"
