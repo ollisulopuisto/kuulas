@@ -2007,7 +2007,7 @@ def placeholder(session) -> str:
     """The page shown until the UI (WP4) exists, in the request's language."""
     name = html.escape(session.package.path.name)
     return (
-        f'<!doctype html><html lang="{messages.language()}"><head>'
+        f'<!doctype html><html lang="{html.escape(messages.language())}"><head>'
         '<meta charset="utf-8"><meta name="viewport" content="width=device-width">'
         f"<title>{html.escape(t('ui.placeholder.title'))}</title></head>"
         '<body style="font-family:system-ui;max-width:32rem;margin:4rem auto;'

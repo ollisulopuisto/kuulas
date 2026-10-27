@@ -113,6 +113,28 @@ def test_export_keys_and_lift_cut_are_present() -> None:
     assert "⌥+X" in doc
 
 
+def test_escape_cell_escapes_table_breakers() -> None:
+    """escapeCell must keep markdown table cells intact: ``|`` splits columns
+    and line breaks split rows, so both must be neutralised."""
+    code = (
+        "import('./scripts/make_keys_doc.mjs').then(m => {"
+        "console.log(JSON.stringify({"
+        "pipe: m.escapeCell('a|b'),"
+        "newline: m.escapeCell('a\\nb'),"
+        "cr: m.escapeCell('a\\rb'),"
+        "crlf: m.escapeCell('a\\r\\nb')"
+        "}));"
+        "})"
+    )
+    result = json.loads(_run_node(code))
+    assert "\\|" in result["pipe"], f"pipe not escaped: {result['pipe']!r}"
+    pipe_without_escapes = result["pipe"].replace("\\|", "")
+    assert "|" not in pipe_without_escapes, f"raw pipe remains: {result['pipe']!r}"
+    for key in ("newline", "cr", "crlf"):
+        assert "\n" not in result[key], f"newline not escaped: {result[key]!r}"
+        assert "\r" not in result[key], f"carriage return not escaped: {result[key]!r}"
+
+
 def test_generated_hints_render_command_tokens(tmp_path: Path) -> None:
     out = tmp_path / "KEYS.md"
     subprocess.run(  # noqa: S603 - fixed node argv, no shell

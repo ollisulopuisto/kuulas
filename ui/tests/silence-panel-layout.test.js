@@ -31,10 +31,18 @@ test("the slider spans the whole row and is at least 24 px tall", () => {
 
 test("the number fields are small", () => {
   for (const selector of [".silence-slider-row .form-num", ".silence-more .form-num"]) {
-    const escaped = selector.replace(/[.]/g, "\\.");
+    const escaped = selector.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
     const rule = CSS.match(new RegExp(`${escaped}[^{]*\\{([^}]*)\\}`))?.[1] ?? "";
     assert.match(rule, /width:\s*calc\(7ch/, selector);
   }
+});
+
+test("selector escaping neutralises all regex metacharacters", () => {
+  const escapeSelector = (s) => s.replace(/[\\^$.*+?()[\]{}|]/g, "\\$&");
+  assert.equal(
+    escapeSelector("a(b)[c]+d^e$f.g|h*i+j?k"),
+    "a\\(b\\)\\[c\\]\\+d\\^e\\$f\\.g\\|h\\*i\\+j\\?k",
+  );
 });
 
 test("the actions are normal-height buttons, the primary last", () => {
