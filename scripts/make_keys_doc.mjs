@@ -43,10 +43,13 @@ function formatEntryKeys(keys, mods) {
 }
 
 export function escapeCell(text) {
-  // Escape characters that break markdown table structure: ``|`` is the
-  // column separator, LF/CR are row breaks. Nothing else is interpolated into
-  // table cells, so escaping just these keeps the table well formed.
+  // Escape characters that break markdown table structure: a backslash starts
+  // an escape sequence, ``|`` is the column separator and LF/CR are row
+  // breaks. Nothing else is interpolated into table cells, so escaping just
+  // these keeps the table well formed. The backslash is escaped first so the
+  // ``\|`` written for the pipe is not re-read as an escape.
   return String(text)
+    .replace(/\\/g, "\\\\")
     .replace(/\|/g, "\\|")
     .replace(/\r?\n|\r/g, " ");
 }
