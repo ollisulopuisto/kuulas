@@ -4762,7 +4762,9 @@ function render() {
   const PAGES = { gallery: renderGallery, cuts: renderCuts, nested: renderNested, "nested-collapsed": renderNested, welcome: renderWelcome };
   const page = PAGES[S.screen];
   document.body.classList.toggle("gallery-mode", Boolean(page));
-  if (page) { page(); $("p-count").textContent = "—"; return; }
+  // S.screen comes from the URL: only call a known renderer, never an
+  // attacker-controlled key (CodeQL js/unvalidated-dynamic-method-call).
+  if (typeof page === "function") { page(); $("p-count").textContent = "—"; return; }
   if (!$("topbar")) { $("app").innerHTML = APP_HTML(); bindTimeline(); }
   const empty = S.screen === "empty";
   renderTop(empty); renderHeads(empty); renderCompare(); renderDock(empty); renderSide(empty); renderStatus(empty); renderOverlays();
@@ -5029,8 +5031,8 @@ function renderOverlays() {
       <div class="row">${tr("lanes")}<span><button class="button icon-button" type="button">−</button> <button class="button icon-button" type="button">+</button></span></div>
       <div class="row">${tr("followShort")}<select class="select"><option>${tr("follow")}</option></select></div>
       <div class="row">${tr("density")}<select class="select" id="m-density"><option value="comfortable">${tr("comfortable")}</option><option value="compact" ${S.density === "compact" ? "selected" : ""}>${tr("compact")}</option></select></div>
-      <div class="row">${tr("animation")}<select class="select"><option>${tr(S.motion)}</option></select></div>
-      <div class="row">${tr("theme")}<select class="select"><option>${S.theme}</option></select></div></div>`;
+      <div class="row">${tr("animation")}<select class="select"><option>${escapeHtml(tr(S.motion))}</option></select></div>
+      <div class="row">${tr("theme")}<select class="select"><option>${escapeHtml(S.theme)}</option></select></div></div>`;
   }
   if (S.palette) html += paletteHtml();
   if (s === "help-timeline") html += helpTooltip();
@@ -5616,7 +5618,7 @@ function renderGallery() {
   const meta = (s) => (s ? `<dl><dt>Channel</dt><dd>${s.channel} · ${s.meaning}</dd><dt>Priority</dt><dd>${s.priority}${s.always ? " · always shown" : ""}</dd><dt>At rest</dt><dd>${s.atRest ? "shown" : s.whenNotAtRest}</dd><dt>Without colour</dt><dd>${s.twin}</dd><dt>When</dt><dd>${s.when}</dd>${s.key ? `<dt>Keys</dt><dd>${s.key}</dd>` : ""}<dt>Status</dt><dd>${s.status}</dd></dl>` : `<dl><dt>Rule</dt><dd>pickSignals(): always-on signals, then the three highest-priority others; the rest become “+N”.</dd></dl>`);
   const cards = GALLERY.map(([id, d]) => `<figure class="g-card"><canvas data-g="${id}" style="height:${px("--lane-h")}px"></canvas><figcaption><b>${signal(id)?.id ?? "Too many signals"}</b>${meta(signal(id))}</figcaption></figure>`).join("");
   const widths = [36, 80, 140, 260, 520];
-  $("app").innerHTML = `<div class="gallery"><header><h1>Clip grammar</h1><p>Each signal uses one channel; each channel means one thing; every colour has a shape, pattern or text twin; "At rest" says whether it shows when nothing is selected. Source: <code>ui/grammar.js</code> (read by this page). Density: ${S.density}. Theme: ${S.theme}.</p></header>
+  $("app").innerHTML = `<div class="gallery"><header><h1>Clip grammar</h1><p>Each signal uses one channel; each channel means one thing; every colour has a shape, pattern or text twin; "At rest" says whether it shows when nothing is selected. Source: <code>ui/grammar.js</code> (read by this page). Density: ${S.density}. Theme: ${escapeHtml(S.theme)}.</p></header>
     <h2>Clip labels by width</h2><div class="g-wide"><figure class="g-card"><canvas id="g-labels" style="height:${widths.length * 34 + 8}px"></canvas><figcaption><b>Auto labels (labels.js)</b><dl><dt>Tiers</dt><dd>&lt; 48 px nothing (file mark only) · person · person + take · + source range · + first words</dd><dt>Template</dt><dd>${Object.entries(DEFAULT_TEMPLATES).map(([k, v]) => `${k}: <code>${v || "—"}</code>`).join(" · ")}</dd><dt>Manual</dt><dd>Clip.name overrides at every width that fits it; "Reset to auto" in the inspector.</dd><dt>Long names</dt><dd>truncated in the middle, numbers kept whole: ${truncateMiddle("haastattelu_ville_12", 12)}</dd></dl></figcaption></figure></div>
     <h2>Clips</h2><div class="g-grid">${cards}</div>
     <h2>Buses</h2><div class="g-wide">
