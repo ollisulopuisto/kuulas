@@ -517,6 +517,7 @@ export const MENU = [
       submenu("menu.toolbar", [
         item("view.toolbar"),
         item("view.toolbar_labels"),
+        item("view.toolbar_add"),
         item("view.toolbar_reset"),
       ]),
       // Focus mode (WP28, docs/design/FOCUS-MODE.md).

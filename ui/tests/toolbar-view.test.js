@@ -7,7 +7,7 @@ import { DEFAULT_KEYMAP } from "../keymap-default.js";
 import { CHECKED, MENU, menuTargets } from "../menu-model.js";
 import { otherMode } from "../toolbar-prefs.js";
 
-const IDS = ["view.toolbar", "view.toolbar_labels", "view.toolbar_reset"];
+const IDS = ["view.toolbar", "view.toolbar_labels", "view.toolbar_reset", "view.toolbar_add"];
 const catalog = (lang) =>
   JSON.parse(
     readFileSync(

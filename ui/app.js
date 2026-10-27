@@ -205,7 +205,14 @@ import {
 import { densityAttribute, nextTheme, themeAttribute } from "./theme.js";
 import { createTimeline } from "./timeline.js";
 import { contextPress, menuFromSections, timelineMenuItems } from "./timeline-menu.js";
-import { applyToolbarMenu, moveButton, resetLayout, toolbarMenuItems } from "./toolbar-model.js";
+import {
+  applyToolbarMenu,
+  moveButton,
+  pinButton,
+  resetLayout,
+  toolbarMenuItems,
+} from "./toolbar-model.js";
+import { createToolbarPicker, toolbarChoices } from "./toolbar-picker.js";
 import {
   otherMode,
   readLayout,
@@ -1015,6 +1022,9 @@ const actions = {
     writeMode(prefs, mode);
     toolbarRail.setMode(mode);
     setState({ toolbarMode: mode });
+  },
+  addToolbarButton() {
+    toolbarPicker.open();
   },
   resetToolbar() {
     writeLayout(prefs, resetLayout());
@@ -4699,8 +4709,8 @@ function updateFollowChip(state) {
   arrow.textContent = side === "left" ? `◀ ${time}` : `${time} ▶`;
   arrow.title = t("ui.view.follow_arrow", { time });
 }
-// Right-click on a menu row or on a toolbar button: Add to or Remove from the toolbar (WP86).
-// This is how the user builds the toolbar; nothing else changes its buttons or their places.
+// Right-click on a toolbar button removes it; adding uses the visible plus picker.
+// Layout changes are explicit user actions and are remembered per user.
 function openToolbarMenu(id, event) {
   const target = event.target.closest?.("button") ?? event.currentTarget;
   const box = target.getBoundingClientRect();
@@ -4711,6 +4721,10 @@ function openToolbarMenu(id, event) {
     y: keyboardOpened ? box.top + 12 : event.clientY,
     items: toolbarMenuItems(id, toolbarRail.layout()),
     onPick: (pick) => {
+      if (pick === "unpin") {
+        removeToolbarButton(id);
+        return;
+      }
       const layout = toolbarRail.layout();
       const next = applyToolbarMenu(layout, id, pick);
       if (next === layout) return;
@@ -4721,12 +4735,6 @@ function openToolbarMenu(id, event) {
     },
   });
 }
-$("menubar").addEventListener("contextmenu", (event) => {
-  const row = event.target.closest?.(".menu-item[data-command-id]");
-  if (!row) return;
-  event.preventDefault();
-  openToolbarMenu(row.dataset.commandId, event);
-});
 
 // Hints from use (WP86): a text notice once, after many hand mutes. The counter stays in this browser.
 let useHints = readUse(prefs);
@@ -4736,6 +4744,40 @@ keyboard.registry.onRun((id) => {
   useHints = step.state;
   writeUse(prefs, useHints);
   if (step.hint) showNotice(t(step.hint), "info");
+});
+
+function removeToolbarButton(id) {
+  const before = toolbarRail.layout();
+  const next = applyToolbarMenu(before, id, "unpin");
+  writeLayout(prefs, next);
+  toolbarRail.setLayout(next);
+  showNotice(t("ui.toolbar.removed", { name: t(`cmd.${id}`) }), "ok", {
+    action: {
+      label: t("cmd.edit.undo"),
+      run: () => {
+        const restored = pinButton(toolbarRail.layout(), id, before.indexOf(id));
+        writeLayout(prefs, restored);
+        toolbarRail.setLayout(restored);
+      },
+    },
+  });
+}
+const toolbarPicker = createToolbarPicker({
+  t,
+  choices: (query) =>
+    toolbarChoices({
+      entries: keyboard.entries(),
+      layout: toolbarRail.layout(),
+      registry: keyboard.registry,
+      label: t,
+      query,
+    }),
+  add: (id) => {
+    const next = pinButton(toolbarRail.layout(), id);
+    writeLayout(prefs, next);
+    toolbarRail.setLayout(next);
+    showNotice(t("ui.toolbar.added", { name: t(`cmd.${id}`) }), "ok");
+  },
 });
 
 // The toolbar rail (WP86): the user's own layout, drawn left of the track headers.
@@ -4748,6 +4790,7 @@ toolbarRail = createToolbarRail({
   keyOf: (id) => keyboard.format(shortcutsFor(id, keyboard.entries())[0] ?? ""),
   run: (id) => keyboard.registry.run(id, null, getState()),
   onContext: openToolbarMenu,
+  onRemove: removeToolbarButton,
   onMove: (id, to) => {
     const layout = toolbarRail.layout();
     const next = moveButton(layout, id, to);

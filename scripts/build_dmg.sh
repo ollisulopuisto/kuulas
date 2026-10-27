@@ -102,7 +102,8 @@ selftest() {  # <Kuulas.app>
   local home="$work/selftest-home"
   rm -rf "$home" && mkdir -p "$home"
   # No locale variables, as when the app is started from Finder (v26.10.19.28 crashed on start then).
-  env -u LC_ALL -u LC_MESSAGES HOME="$home" "$1/Contents/MacOS/Kuulas" --selftest
+  env -u LC_ALL -u LC_MESSAGES HOME="$home" KUULAS_SELFTEST_HTTPS=1 \
+    "$1/Contents/MacOS/Kuulas" --selftest
 }
 echo "== selftest (built app)"
 selftest "$app"

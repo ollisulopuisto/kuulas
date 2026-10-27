@@ -100,6 +100,7 @@ export function registerAppCommands(registry, { actions, app }) {
   def("view.toolbar", () => actions.toggleToolbar());
   def("view.toolbar_labels", () => actions.toggleToolbarLabels());
   def("view.toolbar_reset", () => actions.resetToolbar());
+  def("view.toolbar_add", () => actions.addToolbarButton());
   def("view.clip_words", () => actions.toggleClipWords());
   def("view.follow", () => actions.toggleFollow(), hasProject);
   def("view.show_playhead", () => actions.showPlayhead(), hasProject);

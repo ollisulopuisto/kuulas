@@ -213,6 +213,33 @@ def check_tools() -> str:
     return "; ".join(parts)
 
 
+def check_model_tls() -> str:
+    """Check packaged roots offline; DMG builds also probe the real weight CDN."""
+    import os  # noqa: PLC0415
+    import ssl  # noqa: PLC0415
+
+    from . import local_models  # noqa: PLC0415
+    from .messages import t  # noqa: PLC0415
+
+    context = local_models.download_context()
+    count = len(context.get_ca_certs())
+    if (not context.check_hostname or context.verify_mode != ssl.CERT_REQUIRED
+            or not count):
+        problem = t("error.selftest.tls_invalid")
+        raise SelftestError(problem)
+    detail = f"{count} trusted roots"
+    if os.environ.get("KUULAS_SELFTEST_HTTPS") == "1":
+        url = (f"{local_models.MODEL_URL}/resolve/{local_models.REVISION}/"
+               "model.safetensors")
+        # Fixed pinned HTTPS model origin; no request-supplied URL.
+        request = urllib.request.Request(  # noqa: S310
+            url, headers={"Range": "bytes=0-7"})
+        with local_models.urlopen(request, timeout=TIMEOUT, context=context) as response:
+            response.read(8)
+        detail += "; model HTTPS verified"
+    return detail
+
+
 def _in_bundle() -> bool:
     from . import bundle  # noqa: PLC0415
 
@@ -247,7 +274,7 @@ def check_automixer() -> str:
 #: In the order they run; each is the function ``check_<name>`` in this module, looked
 #: up when it runs (so a test can replace one).
 CHECKS = ("build", "libraries", "ffmpeg", "ui", "server", "meter", "recorder", "worker",
-          "analysis_worker", "automixer", "tools")
+          "analysis_worker", "automixer", "tools", "model_tls")
 
 
 def check_analysis_worker() -> str:

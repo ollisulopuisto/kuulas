@@ -7,12 +7,15 @@ import json
 import os
 import platform
 import shutil
+import ssl
 import tempfile
 import threading
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.request import urlopen
+
+import certifi
 
 from .messages import KuulasError, config_dir
 from .package import write_json_atomic
@@ -106,6 +109,13 @@ def select_model(folder: object) -> dict:
     return status()
 
 
+def download_context() -> ssl.SSLContext:
+    """Keep system/custom trust and add CA roots shipped with the packaged app."""
+    context = ssl.create_default_context()
+    context.load_verify_locations(cafile=certifi.where())
+    return context
+
+
 def install(progress) -> dict:
     """Download fixed artifacts; a partial download never becomes the selected model.
 
@@ -122,6 +132,7 @@ def install(progress) -> dict:
         total = sum(file.size for file in FILES)
         if shutil.disk_usage(root).free < total + SPACE_MARGIN:
             raise ModelError("error.orukeet.space")
+        context = download_context()
         done = 0
         with tempfile.TemporaryDirectory(prefix=".orukeet-", dir=root) as temp:
             staging = Path(temp)
@@ -130,7 +141,7 @@ def install(progress) -> dict:
                 url = f"{MODEL_URL}/resolve/{REVISION}/{item.name}"
                 progress(0.99 * done / total)
                 # Fixed HTTPS origin/revision/filenames; nothing supplied by a request.
-                with urlopen(url, timeout=20) as response, (  # noqa: S310
+                with urlopen(url, timeout=20, context=context) as response, (  # noqa: S310
                     staging / item.name).open("xb") as target:
                     while chunk := response.read(CHUNK):
                         received += len(chunk)

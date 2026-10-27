@@ -5177,3 +5177,58 @@ legend.form-heading {
   height: 80px;
   font-size: var(--text-sm);
 }
+
+/* A permanent empty slot makes toolbar customization visible. */
+.tool-rail .rail-add {
+  width: 100%;
+  min-height: var(--control-h);
+  justify-content: flex-start;
+  padding: var(--space-2) var(--space-3);
+  border: 1px dashed var(--border-strong);
+  background: var(--surface-sunken);
+  color: var(--text-secondary);
+  white-space: normal;
+  text-align: left;
+}
+.tool-rail .rail-add:hover {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.editor[data-rail="icons"] .tool-rail .rail-add {
+  justify-content: center;
+}
+.tool-rail .rail-btn.removing {
+  opacity: 0.25;
+}
+.rail-remove-preview {
+  position: fixed;
+  z-index: 3000;
+  padding: var(--space-3);
+  max-width: 220px;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--danger-text);
+  pointer-events: none;
+}
+.rail-remove-preview[hidden] {
+  display: none;
+}
+.toolbar-picker-search {
+  width: 100%;
+}
+.toolbar-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 45vh;
+  overflow: auto;
+  margin-top: var(--space-3);
+}
+.toolbar-picker-list .toolbar-picker-choice {
+  justify-content: flex-start;
+  text-align: left;
+  white-space: normal;
+  height: auto;
+  min-height: var(--control-h);
+}

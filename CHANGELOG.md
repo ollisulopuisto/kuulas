@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [v26.10.27.3] - 2026-10-27
+
+- **Orukeet downloads trust certificates inside the app.** The installer now explicitly loads a bundled CA certificate store while retaining certificate and hostname verification. It no longer depends on developer-machine OpenSSL paths. Both DMG build selftests make a small verified HTTPS request to the pinned model weight file and its CDN redirect; ordinary offline selftests check the local trust store.
+- **A visible + slot adds toolbar buttons.** Click it to search ready commands and add one without executing it. The same picker is in View > Toolbar > Add a command to the toolbar. Its tooltip explains customization, and choices remain per-user.
+- **Drag toolbar buttons away to remove them.** A clear removal preview appears outside the toolbar; release removes, Escape cancels, and Undo restores the button. Dragging inside still reorders. Right-click removal on toolbar buttons remains available; menu-item right-click customization has been removed.
+
 ## [v26.10.27.2] - 2026-10-27
 
 - Keep the graphical level meter visible at rest and during playback, with a clearer short-term LUFS bar and −23/−16 reference marks.

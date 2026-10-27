@@ -228,9 +228,10 @@ wheels = [
 
 [[package]]
 name = "kuulas"
-version = "26.10.27.2"
+version = "26.10.27.3"
 source = { editable = "." }
 dependencies = [
+    { name = "certifi" },
     { name = "fastapi" },
     { name = "nhsx" },
     { name = "numpy" },
@@ -259,6 +260,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "certifi", specifier = ">=2026.10.23" },
     { name = "fastapi", specifier = ">=0.118.0" },
     { name = "nhsx", editable = "../podcast/packages/nhsx" },
     { name = "numpy", specifier = ">=2.4.2" },

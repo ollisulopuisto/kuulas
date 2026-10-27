@@ -1,6 +1,6 @@
 [project]
 name = "kuulas"
-version = "26.10.27.2"
+version = "26.10.27.3"
 description = "Multitrack spoken-word DAW: transcript editing, buses, the speechmix pipeline"
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -21,6 +21,8 @@ dependencies = [
     # /api/live (the editor window's position and change feed) is a WebSocket.
     "websockets>=13.0",
     "python-multipart>=0.0.20",
+    # Packaged Python must not depend on development-machine OpenSSL CA paths.
+    "certifi>=2026.10.23",
     "sounddevice>=0.5.2",
     "soundfile>=0.14.0",
     # Windows has no system IANA database for zoneinfo; provide one in the app environment.

@@ -125,6 +125,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.view.toolbar_labels",
   },
   {
+    id: "view.toolbar_add",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.view.toolbar_add",
+  },
+  {
     id: "view.toolbar_reset",
     keys: { mac: null, other: null },
     context: "global",

@@ -2,7 +2,7 @@
 id: search
 title: Komennon etsiminen
 applies-to: [index]
-commands: [help.search, palette.open]
+commands: [help.search, palette.open, nav.home, view.toolbar_add]
 related: [timeline]
 ---
 Kirjoita, mitä haluat tehdä, niin kuulas näyttää komennon, sen paikan valikoissa ja sen näppäimen. Avaa **Ohje**, niin kursori on jo kentässä "Hae komentoja ja ohjetta…" (tai paina {key:help.search}).
@@ -13,3 +13,5 @@ Kirjoita, mitä haluat tehdä, niin kuulas näyttää komennon, sen paikan valik
 - Komennot, jotka ovat vain komentopaletissa (yhden tiedostomuodon vienti), kertovat "Vain komentopaletissa". Paletti ({key:palette.open}) hakee samalla tavalla.
 - Osuvat ohjeaiheet näkyvät komentojen alla; avaa aihe napsauttamalla.
 - Työpöytäsovelluksessa ikkunan valikkorivin Ohje-valikossa on "Hae komentoja…", joka avaa saman haun paneelina ikkunan päälle.
+
+Lisää painike työkalupalkin lopun **+ Lisää…** -kohdasta hakemalla komentoa. Sama valitsin löytyy kohdasta Näytä > Työkalupalkki > Lisää komento työkalupalkkiin. Järjestä painikkeet vetämällä palkin sisällä. Poista vetämällä selvästi palkin ulkopuolelle ja vapauttamalla tai painikkeen hiiren oikealla painikkeella. {key:nav.home} peruu vedon ja Kumoa palauttaa poistetun painikkeen.

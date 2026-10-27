@@ -5,7 +5,7 @@
 // frame and skipped when nothing the user can see has changed.
 import { setIcon } from "./icons.js";
 import { RAIL_SEARCH, toolbarItems } from "./toolbar-items.js";
-import { dropIndex, stepButton } from "./toolbar-model.js";
+import { dropIndex, outsideRail, stepButton } from "./toolbar-model.js";
 
 export function createToolbarRail({
   root,
@@ -17,6 +17,7 @@ export function createToolbarRail({
   run,
   onContext = null,
   onMove = null,
+  onRemove = null,
   layout,
   mode,
   visible,
@@ -37,6 +38,15 @@ export function createToolbarRail({
   searchLabel.className = "rail-label";
   search.append(searchLabel);
 
+  const add = document.createElement("button");
+  add.type = "button";
+  add.className = "button rail-add";
+  setIcon(add, "plus");
+  const addLabel = document.createElement("span");
+  addLabel.className = "rail-label";
+  add.append(addLabel);
+  add.addEventListener("click", () => run("view.toolbar_add"));
+
   function build() {
     buttons.clear();
     const nodes = current.layout.map((id) => {
@@ -52,7 +62,7 @@ export function createToolbarRail({
       buttons.set(id, button);
       return button;
     });
-    root.replaceChildren(search, ...nodes);
+    root.replaceChildren(search, ...nodes, add);
     builtFor = current.layout.join("\n");
   }
 
@@ -75,6 +85,10 @@ export function createToolbarRail({
       setIcon(search, RAIL_SEARCH.icon);
       searchLabel.classList.toggle("visually-hidden", current.mode !== "labels");
     }
+    addLabel.textContent = t("ui.rail.add");
+    add.dataset.tip = t("ui.rail.add_tip");
+    add.setAttribute("aria-label", t("cmd.view.toolbar_add"));
+    addLabel.classList.toggle("visually-hidden", current.mode !== "labels");
     drawn = signature;
     if (current.layout.join("\n") !== builtFor) {
       build();
@@ -127,8 +141,14 @@ export function createToolbarRail({
     if (!button || !onMove || event.button !== 0) return;
     const id = button.dataset.id;
     const startY = event.clientY;
+    const startX = event.clientX;
     let dragging = false;
     let to = 0;
+    const ghost = document.createElement("div");
+    ghost.className = "rail-remove-preview";
+    ghost.textContent = t("ui.rail.drop_remove");
+    ghost.hidden = true;
+    document.body.append(ghost);
     const marker = document.createElement("div");
     marker.className = "rail-drop";
     const from = current.layout.indexOf(id);
@@ -154,27 +174,41 @@ export function createToolbarRail({
       root.removeEventListener("pointercancel", cancel);
       document.removeEventListener("keydown", key, true);
       marker.remove();
+      ghost.remove();
+      button.classList.remove("removing");
       button.classList.remove("dragging");
       if (button.hasPointerCapture?.(event.pointerId))
         button.releasePointerCapture(event.pointerId);
     }
     function move(e) {
       if (!dragging) {
-        if (Math.abs(e.clientY - startY) < DRAG_PX) return;
+        if (Math.hypot(e.clientX - startX, e.clientY - startY) < DRAG_PX) return;
         dragging = true;
         button.classList.add("dragging");
         root.append(marker);
       }
-      place(e.clientY);
+      const away =
+        Boolean(onRemove) && outsideRail(root.getBoundingClientRect(), e.clientX, e.clientY);
+      marker.hidden = away;
+      ghost.hidden = !away;
+      ghost.style.left = `${e.clientX + 12}px`;
+      ghost.style.top = `${e.clientY + 12}px`;
+      button.classList.toggle("removing", away);
+      if (!away) place(e.clientY);
     }
-    function up() {
+    function up(e) {
+      const remove =
+        dragging && onRemove && outsideRail(root.getBoundingClientRect(), e.clientX, e.clientY);
       finish();
       if (!dragging) return;
       swallowClick = true;
       setTimeout(() => {
         swallowClick = false;
       }, 0);
-      if (to !== from) {
+      if (remove) {
+        onRemove(id);
+        requestAnimationFrame(() => add.focus());
+      } else if (to !== from) {
         refocus = id;
         onMove(id, to);
       }

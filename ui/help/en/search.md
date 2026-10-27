@@ -2,7 +2,7 @@
 id: search
 title: Finding a command
 applies-to: [index]
-commands: [help.search, palette.open]
+commands: [help.search, palette.open, nav.home, view.toolbar_add]
 related: [timeline]
 ---
 Type what you want to do and kuulas shows the command, where it is in the menus and its key. Open **Help** and the cursor is already in the field "Search commands and help…" (or press {key:help.search}).
@@ -13,3 +13,5 @@ Type what you want to do and kuulas shows the command, where it is in the menus 
 - Commands that are only in the command palette (the export for one format) say so. The palette ({key:palette.open}) searches the same way.
 - Help topics that match are listed below the commands; click one to read it.
 - In the desktop app the Help menu of the window's menu bar has "Search commands…", which opens the same search as a panel over the window.
+
+Click the **+ Add…** slot at the end of the toolbar to search commands and add a button. You can also use View > Toolbar > Add a command to the toolbar. Drag inside the toolbar to reorder; drag clearly outside and release to remove, or right-click the toolbar button. {key:nav.home} cancels a drag and Undo restores a removed button.

@@ -129,3 +129,41 @@ def test_insufficient_space_does_not_change_model_selection(home, monkeypatch):
         local_models.install(lambda *_args: None)
     assert error.value.key == "error.orukeet.space"
     assert local_models.model_path() == chosen
+
+
+def test_install_supplies_trusted_roots_without_machine_certificate_paths(
+        home, monkeypatch):
+    import ssl  # noqa: PLC0415
+
+    monkeypatch.setenv("SSL_CERT_FILE", str(home / "absent.pem"))
+    monkeypatch.setenv("SSL_CERT_DIR", str(home / "absent-certs"))
+    data = download_fixture(monkeypatch)
+    contexts = []
+    def open_url(url, **kwargs):
+        context = kwargs["context"]
+        contexts.append(context)
+        assert context.verify_mode == ssl.CERT_REQUIRED
+        assert context.check_hostname
+        assert context.get_ca_certs(), "bundled Python must carry trusted CA roots"
+        return io.BytesIO(data[url.rsplit("/", 1)[1]])
+    monkeypatch.setattr(local_models, "urlopen", open_url)
+    assert local_models.install(lambda *_args: None)["ready"]
+    assert len(contexts) == len(data)
+
+
+def test_invalid_certificate_never_retries_without_verification(home, monkeypatch):
+    import ssl  # noqa: PLC0415
+
+    chosen = model(home / "custom")
+    local_models.select_model(str(chosen))
+    download_fixture(monkeypatch)
+    calls = []
+    def open_url(url, **kwargs):
+        calls.append((url, kwargs))
+        raise ssl.SSLCertVerificationError("untrusted certificate")
+    monkeypatch.setattr(local_models, "urlopen", open_url)
+    with pytest.raises(local_models.ModelError) as error:
+        local_models.install(lambda *_args: None)
+    assert error.value.key == "error.orukeet.download"
+    assert len(calls) == 1
+    assert local_models.model_path() == chosen

@@ -97,3 +97,13 @@ export function applyToolbarMenu(layout, id, pick) {
   if (pick === "unpin") return unpinButton(layout, id);
   return layout;
 }
+
+/** A deliberate drag-away needs 40 px beyond the rail; nearby drops remain reorders. */
+export function outsideRail(rect, x, y, margin = 40) {
+  return (
+    x < rect.left - margin ||
+    x > rect.right + margin ||
+    y < rect.top - margin ||
+    y > rect.bottom + margin
+  );
+}
