@@ -493,7 +493,12 @@ def _plugin_path(item: str) -> str:
         norm = os.path.normpath(os.path.expanduser(item))
         if not os.path.exists(norm):
             plugin_missing(item)
-        return os.path.realpath(norm)
+        resolved = os.path.realpath(norm)
+        # realpath follows symlinks: confirm the resolved plug-in path still
+        # exists (CodeQL py/path-injection).
+        if not os.path.exists(resolved):
+            plugin_missing(item)
+        return resolved
     installed = plugins.list_plugins()
     if not installed:
         return item

@@ -63,6 +63,16 @@ def test_project_path_refuses_a_bad_parent_and_an_existing_project(tmp_path):
     assert raised.value.key == "error.project.exists"
 
 
+def test_project_path_refuses_symlink_to_non_directory(tmp_path):
+    link = tmp_path / "link_to_file"
+    target = tmp_path / "some_file.txt"
+    target.write_text("x")
+    link.symlink_to(target)
+    with pytest.raises(EditError) as raised:
+        new_project.project_path(str(link), "Show")
+    assert raised.value.key == "error.project.bad_parent"
+
+
 def test_spawn_command_opens_the_project_in_a_new_window():
     command = new_project.window_command("/x/Show.kuulas", executable="/py")
     assert command == ["/py", "-m", "kuulas", "open", "/x/Show.kuulas"]

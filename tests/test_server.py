@@ -1,5 +1,6 @@
 """The HTTP API (WP3): FastAPI TestClient, the engine replaced by a fake."""
 
+import inspect
 import json
 import socket
 import time
@@ -19,7 +20,7 @@ from kuulas.clipboard_store import ClipboardStore
 from kuulas.engine import EngineError
 from kuulas.playplan import PlaybackRequestError
 from kuulas.resume import read_resume
-from kuulas.server import create_app, pick_language
+from kuulas.server import create_app, pick_language, placeholder
 from kuulas.session import Session
 from kuulas.view_memory import ViewMemory
 
@@ -856,6 +857,11 @@ def test_root_serves_a_translated_placeholder_without_a_ui(client):
     fi = client.get("/", headers={"Accept-Language": "fi"})
     assert 'lang="fi"' in fi.text
     assert "coming" not in fi.text.lower()
+
+
+def test_placeholder_escapes_the_language():
+    source = inspect.getsource(placeholder)
+    assert "html.escape(messages.language())" in source
 
 
 @pytest.mark.parametrize("lang", ["en", "fi"])

@@ -47,6 +47,16 @@ def test_select_existing_model_is_remembered_without_touching_it(home):
     assert (chosen / "model.safetensors").read_bytes() == before
 
 
+def test_select_model_refuses_symlink_to_non_directory(home):
+    link = home / "link_to_file"
+    target = home / "some_file.txt"
+    target.write_text("x")
+    link.symlink_to(target)
+    with pytest.raises(local_models.ModelError) as raised:
+        local_models.select_model(str(link))
+    assert raised.value.key == "error.orukeet.invalid_model"
+
+
 def test_invalid_selection_leaves_previous_model_selected(home):
     chosen = model(home / "custom")
     local_models.select_model(str(chosen))

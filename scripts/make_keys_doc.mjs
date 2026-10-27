@@ -42,8 +42,13 @@ function formatEntryKeys(keys, mods) {
   return formatCombo(keys, mods);
 }
 
-function escapeCell(text) {
-  return text.replace(/\|/g, "\\|");
+export function escapeCell(text) {
+  // Escape characters that break markdown table structure: ``|`` is the
+  // column separator, LF/CR are row breaks. Nothing else is interpolated into
+  // table cells, so escaping just these keeps the table well formed.
+  return String(text)
+    .replace(/\|/g, "\\|")
+    .replace(/\r?\n|\r/g, " ");
 }
 
 function hasKeys(entry) {

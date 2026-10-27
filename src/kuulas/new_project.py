@@ -50,6 +50,11 @@ def project_path(parent: object, name: object) -> Path:
     if not os.path.isabs(norm_parent) or not os.path.isdir(norm_parent):
         raise EditError("error.project.bad_parent", path=parent[:200])
     real_parent = os.path.realpath(norm_parent)
+    # realpath follows symlinks: re-validate that the resolved parent is still a
+    # directory we already approved (CodeQL py/path-injection: realpath can
+    # resolve a symlink to a location outside the originally checked one).
+    if not os.path.isdir(real_parent):
+        raise EditError("error.project.bad_parent", path=parent[:200])
     target_str = os.path.normpath(os.path.join(real_parent, folder))
     if not target_str.startswith(real_parent + os.sep):
         raise EditError("error.project.bad_name")
@@ -87,7 +92,9 @@ def checked_project_folder(folder: object) -> str:
         raise EditError("error.project.bad_parent", path=folder[:200])
     norm = os.path.normpath(folder)
     real = os.path.realpath(norm)
-    if not os.path.isdir(real):
+    # realpath follows symlinks: confirm the resolved path is still a directory
+    # with no traversal (CodeQL py/path-injection).
+    if not os.path.isdir(real) or ".." in Path(real).parts:
         raise EditError("error.project.bad_parent", path=folder[:200])
     return real
 

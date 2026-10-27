@@ -102,7 +102,12 @@ def select_model(folder: object) -> dict:
     path = Path(folder).expanduser()
     if not path.is_absolute() or not valid_model(path):
         raise ModelError("error.orukeet.invalid_model")
-    write_json_atomic(settings_file(), {"model": str(path.resolve())})
+    resolved = path.resolve()
+    # resolve follows symlinks: confirm the resolved path is still a directory
+    # (CodeQL py/path-injection).
+    if not resolved.is_dir():
+        raise ModelError("error.orukeet.invalid_model")
+    write_json_atomic(settings_file(), {"model": str(resolved)})
     return status()
 
 

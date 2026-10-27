@@ -61,6 +61,10 @@ def project_folder(path: object) -> Path:
     norm = os.path.normpath(path)
     try:
         real = os.path.realpath(norm)
+        # realpath follows symlinks: confirm the resolved path is still a
+        # directory with no traversal (CodeQL py/path-injection).
+        if not os.path.isdir(real) or ".." in Path(real).parts:
+            raise _bad(path)
         folder = Path(real)
         manifest_str = os.path.normpath(os.path.join(real, "manifest.json"))
         if not manifest_str.startswith(real + os.sep):
