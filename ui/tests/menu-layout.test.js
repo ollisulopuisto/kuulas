@@ -210,6 +210,7 @@ describe("Text", () => {
       "app.transcribe_restart",
       "app.colab_signin",
       "app.colab_settings",
+      "app.orukeet_setup",
     ]);
     assert.ok(!sub("track", "menu.transcribe") && !sub("edit", "menu.transcribe"));
   });

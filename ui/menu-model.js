@@ -141,6 +141,7 @@ const TRANSCRIBE = submenu("menu.transcribe", [
   SEP,
   item("app.colab_signin"),
   item("app.colab_settings"),
+  item("app.orukeet_setup"),
 ]);
 const CANDIDATES = submenu("menu.candidates", [
   item("candidate.find"),

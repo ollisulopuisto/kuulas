@@ -1,10 +1,9 @@
 import { t } from "./i18n.js";
 
-// The live level meter in the status bar (owner, 2026-10-19: VU meters, to get tracks and
-// buses to unity gain before export). It shows what plays now: peak per channel in dBFS from
-// the live channel (`{ type: "meter", meter: { l, r, hold_l, hold_r } }`, about 15 a second
-// while playing). That is not the loudness readout in a track header, which is the analysed
-// integrated LUFS. The arithmetic here is pure; createLevelMeter() only moves DOM styles.
+// The status-bar meter retains its graphical bar and reference scale at rest.
+// The bar and numeric readout use the shared three-second K-weighted LUFS value;
+// peak samples are used only for the independent clipping warning. Legacy peak
+// arithmetic below is also used by tests and remains separate from the LUFS scale.
 
 /** The scale: -60 dBFS (empty) to 0 dBFS (full), linear in dB. */
 export const METER_MIN_DB = -60;
@@ -107,15 +106,12 @@ export function createLevelMeter({ root, bars, clipButton, onClipClear = () => {
   const readout = root.querySelector(".lm-readout");
   let state = initialMeter();
   let loudness = null;
-  let playing = false;
 
   function paint() {
-    const shown = meterVisible({ playing }, state);
-    bars.hidden = !shown.bars;
-    readout.hidden = !shown.bars;
-    clipButton.hidden = !shown.clip;
-    root.hidden = !shown.bars && !shown.clip;
-    if (!shown.bars) return;
+    bars.hidden = false;
+    readout.hidden = false;
+    clipButton.hidden = !state.clip;
+    root.hidden = false;
     fill.style.width = `${lufsToX(loudness, bars.clientWidth || 140)}px`;
     fill.dataset.zone = loudness !== null && loudness > -16 ? "warn" : "ok";
     readout.textContent =
@@ -133,15 +129,15 @@ export function createLevelMeter({ root, bars, clipButton, onClipClear = () => {
     onClipClear();
   });
 
+  paint();
+
   return {
     frame(message) {
       state = advance(state, message, 0);
       loudness = shortTermLevel(message);
-      playing = true;
       paint();
     },
     playing(on) {
-      playing = on;
       if (!on) {
         state = advance(state, { l: -90, r: -90, hold_l: -90, hold_r: -90 }, 0);
         loudness = null;

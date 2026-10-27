@@ -1744,6 +1744,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.app.transcribe_restart",
   },
   {
+    id: "app.orukeet_setup",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.app.orukeet_setup",
+  },
+  {
     id: "app.colab_settings",
     keys: { mac: null, other: null },
     context: "global",

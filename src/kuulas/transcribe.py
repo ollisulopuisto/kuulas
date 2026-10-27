@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from . import colab_transcribe
+from . import colab_transcribe, local_models
 from .automix import run_process as _run_local_process
 from .clock import FLICKS
 from .messages import KuulasError
@@ -81,14 +81,14 @@ def local(path: str | Path, model: str = "small",
     _ = cpu_threads  # MLX owns scheduling; retained for persisted jobs and callers.
     legacy = {"", "tiny", "base", "small", "medium", "large", "large-v2", "large-v3",
               "turbo", "orukeet"}
-    model_path = (Path.home() / ".models" / "orukeet-mlx"
+    model_path = (local_models.model_path()
                   if model in legacy else Path(model).expanduser())
     if not model_path.is_dir():
         raise TranscribeError("error.transcribe.orukeet_model", path=str(model_path))
     command = colab_transcribe.default_command()
     # Resolve optional MLX dependencies outside the editor/bundle environment.
     if command[0] == "uvx":
-        command[1:1] = ["--with", "parakeet-mlx>=0.3.0"]
+        command[1:1] = ["--with", "parakeet-mlx>=0.3.0", "--with", "lxml"]
     elif command[:2] == ["uv", "run"]:
         command[2:2] = ["--frozen", "--extra", "parakeet"]
 

@@ -259,7 +259,11 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     const table = el("ul", "tx-missing");
     for (const row of rows) table.append(offerRow(row));
     if (all) table.append(offerRow({ all }));
-    empty.append(table, el("span", "tx-hint", t("ui.transcript.background")));
+    empty.append(
+      table,
+      el("span", "tx-hint", t("ui.transcript.remote_note")),
+      el("span", "tx-hint", t("ui.transcript.background")),
+    );
     scheduleWindow();
   }
 
@@ -281,6 +285,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
 
   function offerButton(act, ids, text, icon, primary) {
     const button = el("button", primary ? "button block primary" : "button block", text);
+    button.classList.add("tx-transcribe-button");
     button.type = "button";
     button.dataset.act = act;
     button.dataset.ids = ids.join(",");
@@ -293,7 +298,9 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     const ids = row.all ?? [row.id];
     item.dataset.ids = ids.join(",");
     const name = row.all ? t("ui.transcript.all_files", { count: row.all.length }) : row.name;
-    item.append(el("span", "tx-miss-name", name));
+    const nameLabel = el("span", "tx-miss-name", name);
+    nameLabel.title = name;
+    item.append(nameLabel);
     const status = row.all ? "none" : row.status;
     if (status === "queued" || status === "running") {
       const bar = el("progress");
@@ -328,6 +335,7 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     const ids = onlyIds ?? transcribeTargets().map((item) => item.id);
     if (ids.length === 0) return;
     try {
+      if (actions.ensureLocalModel && !(await actions.ensureLocalModel())) return;
       await api.transcribe(ids, { force });
       await refreshJobs();
     } catch (error) {

@@ -5,7 +5,7 @@ calls :func:`main`. What differs from ``uv run kuulas``:
 
 - there is no terminal, so output goes to ``~/Library/Logs/Kuulas/kuulas.log``;
 - the minimal ``PATH`` of a double-clicked app has no Homebrew, so the bundled
-  ``ffmpeg`` and ``ffprobe`` (``Contents/Resources/bin``) are put first;
+  ``ffmpeg``, ``ffprobe``, ``uv`` and ``uvx`` (``Contents/Resources/bin``) are put first;
 - numba's compiled-code cache must not be written inside the signed bundle, which would
   change it after signing, so it goes to ``~/Library/Caches/Kuulas/numba``;
 - Finder may add ``-psn_...`` to the arguments.

@@ -14,3 +14,5 @@ Aloitussivulla on viimeksi avatut projektit, uusin ylimpänä.
 - Tiedosto, Avaa viimeisin, "Poista puuttuvat projektit listalta" poistaa kaikki tällaiset merkinnät kerralla yhden vahvistuksen jälkeen. "Tyhjennä valikko" tyhjentää koko listan.
 
 Poistaminen muuttaa vain tätä listaa. Projektikansiota, äänityksiä tai tiedostoja ei koskaan poisteta, siirretä tai muuteta. Listalta poistetun projektin voi avata uudelleen kohdasta Avaa projekti…
+
+Paikallisen litteroinnin ensimmäinen käyttö avaa Orukeetin asennuksen, jos malli puuttuu. Voit ladata mallin tai valita asennetun mallikansion ilman komentoriviä. Sama ikkuna löytyy kohdasta Teksti > Litteroi > Orukeetin asennus.

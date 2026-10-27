@@ -9,6 +9,9 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 
 | # | Raised | Issue | Notes |
 |---|---|---|---|
+| 133 | 27.10 | Fast listening (period) needs a visible button beside playback | fixed, please check in v26.10.27.2: persistent speed toggle, selected-speed label and pressed state; browser confirms button/period parity |
+| 132 | 27.10 | Transcribe buttons are misaligned and their long labels overflow | fixed, please check in v26.10.27.2: shared columns and short Orukeet/Colab labels; cloud explanation moved outside buttons |
+| 131 | 27.10 | Orukeet installation must be possible through the GUI | fixed, please check in v26.10.27.2: verified pinned download, progress/cancel/retry, existing-folder choice and automatic continuation of requested transcription; real download and synthetic speech inference passed |
 | 130 | 27.10 | Dragging an Auto-Silence dotted boundary creates a clip but the silence boundary stays put | fixed, please check in v26.10.27.1: shortening an audible opening silences the removed slice; source-scoped and legacy-gate mixer regressions pass |
 | 129 | 27.10 | Transcript search is too large and too far left; toolbar actions look like background text | fixed, please check in v26.10.27.1: compact search in the transcript heading, visible button surfaces/borders; browser acceptance at 1280 and 1600 px |
 | 128 | 27.10 | Track-header column takes too much space from waveforms | fixed, please check in v26.10.27.1: 260 px normally, 240 px in narrower windows; controls retained, mono/stereo detail in Inspector |

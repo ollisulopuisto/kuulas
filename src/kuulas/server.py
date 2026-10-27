@@ -56,6 +56,7 @@ from . import (
     export,
     export_formats,
     export_names,
+    local_models,
     logsetup,
     messages,
     music_report,
@@ -1492,6 +1493,32 @@ def create_app(session, engine, *, language: str | None = None,
                      for r in rows[:limit]]
             return JSONResponse({"nodes": nodes, "head": h.head, "more": more,
                                  "can_undo": h.can_undo, "can_redo": h.can_redo})
+
+    @app.exception_handler(local_models.ModelError)
+    async def _local_model_error(_request: Request, error: local_models.ModelError):
+        return answer(error, 400)
+
+    def active_model_install():
+        return next((job for job in session.jobs.list()
+                     if job["kind"] == "orukeet-install"
+                     and job["state"] in {"queued", "running"}), None)
+
+    @app.get("/api/transcribe/local-model")
+    def get_local_model():
+        active = active_model_install()
+        return {**local_models.status(), "job": active["id"] if active else None}
+
+    @app.post("/api/transcribe/local-model/select")
+    def select_local_model(body: Annotated[dict, Body()]):
+        return local_models.select_model(body.get("path"))
+
+    @app.post("/api/transcribe/local-model/install", status_code=202)
+    def install_local_model():
+        active = active_model_install()
+        job_id = active["id"] if active else session.jobs.submit(
+            "orukeet-install", t("ui.orukeet.install"), local_models.install,
+            keep_result=True)
+        return JSONResponse({"job": job_id}, status_code=202)
 
     @app.get("/api/jobs")
     def get_jobs():

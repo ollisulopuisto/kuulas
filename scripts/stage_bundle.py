@@ -62,6 +62,10 @@ its source is at the address above. The source of Kuulas and of the podcast pack
 (speechmix, nhsx, silencelearn, automixer) is public:
 https://github.com/ollisulopuisto/kuulas and https://github.com/ollisulopuisto/podcast.
 
+uv and uvx (Contents/Resources/bin) run isolated tool environments. Their MIT and
+Apache-2.0 license texts and exact version are in Contents/Resources/licenses/uv.
+Source: https://github.com/astral-sh/uv.
+
 ffmpeg and ffprobe (Contents/Resources/bin) are static builds from
 https://ffmpeg.martin-riedl.de, licensed GPL version 3 (built with --enable-gpl
 --enable-version3). They run as separate programs; their source is available from

@@ -1,5 +1,7 @@
 # kuulas implementation plan
 
+**Release v26.10.27.2:** GUI Orukeet install/select/reinstall with verified downloads, progress and cancellation; aligned transcription actions; persistent fast-listening button.
+
 **Release v26.10.27.1:** local Orukeet, NHSX import from the start page, a three-second LUFS meter, compact track headers and transcript search, clearer toolbar buttons, and corrected Auto-Silence boundary trims.
 
 This is the build plan for kuulas. It is written for an implementer who has

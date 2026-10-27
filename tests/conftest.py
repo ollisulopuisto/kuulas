@@ -134,3 +134,10 @@ def _inline_transcription_worker(monkeypatch):
                          daemon=True).start()
 
     monkeypatch.setattr(bgjobs, "launch_worker", launch)
+
+
+@pytest.fixture(autouse=True)
+def _isolated_orukeet_setting(tmp_path_factory, monkeypatch):
+    """Tests never read or change the user's selected transcription model."""
+    folder = tmp_path_factory.mktemp("orukeet-setting")
+    monkeypatch.setenv("KUULAS_ORUKEET_FILE", str(folder / "model.json"))

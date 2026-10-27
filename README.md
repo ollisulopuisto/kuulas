@@ -1,5 +1,7 @@
 # kuulas
 
+**Release v26.10.27.2:** GUI Orukeet install/select/reinstall with verified downloads, progress and cancellation; aligned transcription actions; persistent fast-listening button.
+
 **Release v26.10.27.1:** local Orukeet, NHSX import from the start page, a three-second LUFS meter, compact track headers and transcript search, clearer toolbar buttons, and corrected Auto-Silence boundary trims.
 
 kuulas is a local multitrack audio editor for spoken word (podcasts, interviews, radio). It is modelled on Hindenburg PRO: keyboard-first, speech-aware, with the transcript and the audio treated as one thing. The engine runs locally on Python 3.13 and serves a browser UI over local HTTP/WebSocket; audio analysis and signal processing come from the podcast repo's `speechmix` and `nhsx` packages.
@@ -19,7 +21,7 @@ Taglines (use either, not together): *"A podcast editor where nothing is ever lo
 - **Batch import with flexible placement**: Import multiple files side by side (aligned by BWF recording clocks into sync groups) or sequentially on one track, with natural name sorting and track naming by file or person.
 - **Sync groups and edit expansion**: Tracks recorded together stay locked; edits time-shift the entire sync group; subclips can be resynced to the main clip.
 - **Music reporting**: Session royalty reports (CSV with formula injection protection, HTML) via CLI and `/api/music-report`.
-- **Transcription**: Local Orukeet (Apple silicon) and Colab transcription. The local Orukeet MLX model is read from `~/.models/orukeet-mlx`; inference runs through the shared podcast tool in an isolated MLX environment. In a source checkout beside the current podcast repository, Colab uses that checkout's tool; Orukeet filler words and repetitions stay in the transcript and can become cut candidates.
+- **Transcription**: Local Orukeet (Apple silicon) and Colab transcription. Install Orukeet from Text > Transcribe > Orukeet setup, or choose an existing model folder there. Downloads use a [pinned MLX conversion](https://huggingface.co/itsreidar/orukeet-mlx); `~/.models/orukeet-mlx` remains supported for existing installations. Inference runs through the shared podcast tool in an isolated MLX environment. In a source checkout beside the current podcast repository, Colab uses that checkout's tool; Orukeet filler words and repetitions stay in the transcript and can become cut candidates.
 - **Project format (v3)**: Crash-safe `Name.kuulas` package directory, WAL SQLite history tree with constant-time branching undo/redo, and recording clock in flicks.
 - **Desktop app wrapper**: Native window via pywebview (`--extra desktop`), recent projects window, native file dialogs, and local file drag-and-drop linking.
 

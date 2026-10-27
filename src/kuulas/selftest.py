@@ -184,7 +184,8 @@ def check_tools() -> str:
     needs it, with the command and the folder (``error.colab.not_found``)."""
     import os  # noqa: PLC0415
 
-    from . import colab_signin, colab_transcribe, toolpath  # noqa: PLC0415
+    from . import bundle, colab_signin, colab_transcribe, toolpath  # noqa: PLC0415
+    from .messages import t  # noqa: PLC0415
 
     program = colab_transcribe.default_command()[0]
     found = toolpath.resolve(program)
@@ -193,6 +194,22 @@ def check_tools() -> str:
              f"google sign-in: {'yes' if colab_signin.signed_in() else 'no'}",
              f"PATH has {len(toolpath.search_path(os.environ).split(os.pathsep))}"
              " folders"]
+    resources = bundle.resources_dir(__file__)
+    if resources is not None:
+        for name in ("uv", "uvx"):
+            tool = resources / "bin" / name
+            if not tool.is_file():
+                problem = t("error.selftest.tool_missing", name=name)
+                raise SelftestError(problem)
+            done = subprocess.run(  # noqa: S603 - exact path inside this bundle
+                [str(tool), "--version"], capture_output=True, text=True,
+                timeout=TIMEOUT, check=False, stdin=subprocess.DEVNULL,
+                env={**os.environ, "PATH": "/usr/bin:/bin:/usr/sbin:/sbin"})
+            if done.returncode != 0 or not done.stdout.startswith(f"{name} "):
+                problem = t("error.selftest.tool_failed", name=name,
+                            error=done.stderr.strip())
+                raise SelftestError(problem)
+            parts.append(done.stdout.strip())
     return "; ".join(parts)
 
 

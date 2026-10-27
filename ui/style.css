@@ -539,6 +539,13 @@ button.chip {
   flex: none;
 }
 /* Fast listening on: the chip takes the slider's place (the keys , and / still nudge). */
+.corner #fast-speed,
+.corner #speed-chip {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
 .t-row:has(#speed-chip:not([hidden])) #fast-speed {
   display: none;
 }
@@ -1402,8 +1409,8 @@ input[type="text"] {
   font-weight: var(--weight-medium);
   font-variant-numeric: tabular-nums;
 }
-/* The live level meter (level-meter.js): two thin bars, left over right, 0 to -60 dBFS across
-   140 px. Marks at -18 and -6 dBFS (70% and 90% of the scale; the same numbers as TICKS_DB). */
+/* Graphical short-term LUFS meter, retained at rest; labelled -23/-16 references.
+   Peak clipping remains a separate latch, rather than a LUFS scale value. */
 .level-meter {
   flex: none;
   display: inline-flex;
@@ -1421,14 +1428,14 @@ input[type="text"] {
   flex-direction: column;
   gap: 2px;
   width: 140px;
-  height: 24px;
+  height: 26px;
   overflow: visible;
   border-radius: 2px;
   background: var(--surface-sunken);
 }
 .lm-row {
   position: relative;
-  height: 6px;
+  height: 10px;
   flex: none;
 }
 .lm-fill,
@@ -1460,7 +1467,7 @@ input[type="text"] {
 }
 .lm-tick {
   position: absolute;
-  top: 7px;
+  top: 11px;
   transform: translateX(-50%);
   padding-top: 2px;
   border-top: 2px solid var(--border-strong);
@@ -5083,4 +5090,90 @@ legend.form-heading {
   flex: none;
   width: var(--control-h-sm);
   height: var(--control-h-sm);
+}
+
+/* Shared action columns keep every recording and the aggregate row aligned. */
+.tx-empty {
+  justify-items: stretch;
+  container-type: inline-size;
+}
+.tx-missing {
+  width: 100%;
+}
+.tx-miss-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto;
+}
+.tx-miss-name,
+.tx-miss-status {
+  min-width: 0;
+}
+.tx-miss-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tx-miss-status {
+  overflow-wrap: anywhere;
+}
+.tx-miss-buttons {
+  flex-wrap: nowrap;
+}
+.tx-transcribe-button {
+  min-width: 76px;
+  min-height: 76px;
+  white-space: nowrap;
+}
+.tx-miss-row progress {
+  width: 100%;
+}
+@container (max-width: 540px) {
+  .tx-miss-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .tx-miss-name {
+    grid-column: 1 / -1;
+  }
+}
+.corner .t-row:not(.render-ab) {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: var(--space-1);
+}
+#fast-listen {
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  padding: 0 var(--space-2);
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+#fast-listen.on {
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.corner:has(#render-ab:not([hidden])) :is(#fast-speed, #speed-chip) {
+  display: none;
+}
+.orukeet-dialog progress {
+  width: 100%;
+}
+.orukeet-path {
+  overflow-wrap: anywhere;
+}
+.orukeet-dialog .cheatsheet-footer {
+  flex-wrap: wrap;
+}
+
+.orukeet-existing-actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+.orukeet-dialog .button.block {
+  width: 140px;
+  height: 80px;
+  font-size: var(--text-sm);
 }

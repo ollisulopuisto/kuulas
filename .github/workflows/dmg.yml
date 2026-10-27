@@ -29,8 +29,11 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: ollisulopuisto/podcast
+          ref: 7793c0c1b276e90e466cea6d0b09e20fca08c968
           path: podcast
       - uses: astral-sh/setup-uv@v7
+        with:
+          version: "0.13.6"
       # ffmpeg comes from a third-party host that was down for hours on 2026-10-21 (521) and
       # failed the build. fetch_ffmpeg.sh keeps a copy of the last good download in this
       # cache folder and uses it when the download fails; a fresh download is saved below.

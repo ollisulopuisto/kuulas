@@ -101,6 +101,9 @@ export const correctWord = (media, index, w) =>
  * Queue transcription of these media; answers { jobs: [job id] }. `backend` "local" (one job per
  * recording; `force`: also music-only recordings, which the server refuses) or "colab" (ONE job, the audio is uploaded to Google: ask first, see app.js).
  */
+export const localModel = () => json("/api/transcribe/local-model");
+export const installLocalModel = () => post("/api/transcribe/local-model/install", {});
+export const selectLocalModel = (path) => post("/api/transcribe/local-model/select", { path });
 export const transcribe = (mediaIds, { backend = "local", model, language, force = false } = {}) =>
   post("/api/transcribe", { media_ids: mediaIds, backend, model, language, force });
 /** The Colab transcription command: { settings (as stored), resolved (defaults filled in) }. */

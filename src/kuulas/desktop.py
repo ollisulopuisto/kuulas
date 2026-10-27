@@ -413,6 +413,11 @@ class Bridge:
         got = self._dialog(self._webview.FileDialog.FOLDER, directory=str(folder))
         return got[0] if got else None
 
+    def pick_orukeet_model(self) -> str | None:
+        """Choose an existing local model; the setup API validates it before use."""
+        got = self._dialog(self._webview.FileDialog.FOLDER)
+        return got[0] if got else None
+
     def pick_project_folder(self) -> str | None:
         """Native folder chooser for "Open a project..." in the Clipboard tab:
         the chosen folder, or None when cancelled. It only names a folder; the

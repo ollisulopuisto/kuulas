@@ -144,6 +144,7 @@ import { createNameDialog } from "./name-dialog.js";
 import { createNhsxDialog } from "./nhsx-dialog.js";
 import { nhsxResult } from "./nhsx-import.js";
 import { chipText, createNoticeHold, toastStaysOpen } from "./notice-hold.js";
+import { createOrukeetDialog } from "./orukeet-dialog.js";
 import { createOverview } from "./overview.js";
 import { createPerfDialog } from "./perf-dialog.js";
 import { createPlaceholderEditor } from "./placeholder-editor.js";
@@ -1431,6 +1432,7 @@ const transcript = createTranscript({
     run: (id) => keyboard.registry.run(id, null, getState()),
     contextMenu: (event) => showPanelMenu("transcript", event),
     transcribeColab: (ids) => void transcribeOnColab(ids),
+    ensureLocalModel: () => orukeetDialogFor().ensure(),
     // The tracks a range edit acts on (all, the painted lanes, or the selected ones); null
     // with a notice when "selected tracks" is on and none is selected, as for X.
     scopeTracks: () => {
@@ -1661,6 +1663,7 @@ const keyboard = setupKeyboard({
     transcribeTrack: (backend) => void transcribeTrack(backend),
     restartTranscriptions: () => void restartTranscriptions(),
     openColabSettings: () => void colabDialogsFor().openSettings(),
+    openOrukeetSetup: () => void orukeetDialogFor().open().catch(showError),
     openColabSignin: () => void colabDialogsFor().signIn(),
     exportTracks: (format, options) => exportTracks(format, options),
     exportMix: (format, options) => exportMix(format, options),
@@ -1760,6 +1763,9 @@ speedChip.addEventListener("click", () => {
   if (getState().fast.active) actions.fastListening();
   else void transport.play(getState().playhead);
 });
+$("fast-listen").addEventListener("click", () =>
+  keyboard.registry.run("transport.speed", null, getState()),
+);
 const fastSlider = $("fast-speed");
 fastSlider.min = String(MIN_FAST);
 fastSlider.max = String(MAX_FAST);
@@ -2825,6 +2831,18 @@ async function restartTranscriptions() {
 // (unless the user chose "Do not ask again", a stored preference). One job for all the
 // recordings; the notice follows it like the automixer, with Cancel. The words arrive through
 // the head change, like any transcript.
+let orukeetDialog = null;
+function orukeetDialogFor() {
+  orukeetDialog ??= createOrukeetDialog({
+    api,
+    t,
+    pickFolder: window.pywebview?.api?.pick_orukeet_model
+      ? () => window.pywebview.api.pick_orukeet_model()
+      : null,
+  });
+  return orukeetDialog;
+}
+
 let colabDialogs = null;
 let colabSessionOk = false;
 let colabNames = "";
@@ -4459,7 +4477,14 @@ function render(state, patch, previous = null) {
       if (state.playing) void transport.resendLoop();
     }
   }
-  if (touched("speed", "playing", "fast")) {
+  if (touched("speed", "playing", "fast", "project", "languageChoice")) {
+    const fastButton = $("fast-listen");
+    fastButton.setAttribute("aria-pressed", String(state.fast.active));
+    fastButton.textContent = t("ui.transport.fast_button", {
+      speed: formatNumber(state.fast.fast, { digits: 2 }),
+    });
+    fastButton.classList.toggle("on", state.fast.active);
+    fastButton.disabled = !keyboard.registry.can("transport.speed", state);
     const chip = $("speed-chip");
     // Fast listening on shows its exact speed even while stopped (nobody should edit at
     // 1.35x by mistake); otherwise a shuttle speed while it plays.

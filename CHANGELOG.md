@@ -1,5 +1,16 @@
 ## [Unreleased]
 
+## [v26.10.27.2] - 2026-10-27
+
+- Keep the graphical level meter visible at rest and during playback, with a clearer short-term LUFS bar and −23/−16 reference marks.
+
+- **Install Orukeet from the editor.** Local transcription opens setup when the model is missing. Install downloads about 1.25 GB with progress, cancellation and retry, or choose an existing model folder. A successful setup continues the requested transcription. Text > Transcribe > Orukeet setup also opens it later, including reinstall. Audio stays local; old models are never overwritten or deleted.
+- **The DMG includes its own uv and uvx runtime.** The packaged-app checks run both executables with Finder's minimal PATH, so model setup does not depend on a developer's terminal installation. Licenses are included in the bundle.
+- **Downloads are checked before use.** The MLX conversion is pinned to an immutable revision and every file's size and SHA-256; original licenses and attribution come with it. A cancelled, truncated or failed download never replaces the selected model. The downloaded public model was tested with synthetic Finnish speech on this Mac.
+- **Transcription actions line up.** Every recording and the aggregate row use shared filename/status/action columns. Compact Orukeet and Colab labels fit their block buttons; the cloud-transfer explanation sits outside them. Narrow layouts stack in consistent rows.
+- **Fast listening has a permanent transport button.** The double-arrow speed button next to playback toggles the same command as period, shows the selected speed and its active state, and keeps the existing speed slider/chip controls.
+- **Old transcription failures point to the new setup.** A saved faster-whisper dependency error now directs the user to GUI Orukeet setup instead of repeating terminal installation instructions.
+
 ## [v26.10.27.1] - 2026-10-27
 
 - **Local transcription uses Orukeet.** The shared podcast tool runs the converted MLX model at `~/.models/orukeet-mlx` in its own environment. The editor no longer asks for faster-whisper. A missing Orukeet model is reported explicitly, without switching to generic Parakeet. Orukeet word timing survives import; a synthetic Finnish speech test succeeded on this Mac.

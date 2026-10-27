@@ -14,3 +14,5 @@ The start page lists the projects you opened lately, newest first.
 - File, Open Recent, "Remove missing projects from the list" removes all such entries at once, after one confirmation. "Clear menu" empties the whole list.
 
 Removing only changes this list. The project folder and its recordings and files are never deleted, moved or changed. A project you removed can be opened again with Open project…
+
+The first local transcription opens Orukeet setup if the model is missing. Download it or choose an installed model folder without terminal commands. The same dialog is under Text > Transcribe > Orukeet setup.

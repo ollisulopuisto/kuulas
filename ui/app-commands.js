@@ -331,6 +331,7 @@ export function registerAppCommands(registry, { actions, app }) {
   // Transcribe on Colab (WP78): after a notice that the audio is uploaded to Google.
   def("app.transcribe_colab", () => app.transcribeTrack("colab"), hasProject);
   def("app.transcribe_restart", () => app.restartTranscriptions(), hasProject);
+  def("app.orukeet_setup", () => app.openOrukeetSetup());
   def("app.colab_settings", () => app.openColabSettings());
   def("app.colab_signin", () => app.openColabSignin());
   def(

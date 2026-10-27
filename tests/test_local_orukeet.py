@@ -80,6 +80,8 @@ def test_packaged_command_installs_mlx_in_isolated_environment(model, monkeypatc
         "uvx", "--from", "git+https://example.invalid/tool", "colab-transcribe"])
     def process(cmd, _cwd, _line, _cancel):
         assert cmd[:3] == ["uvx", "--with", "parakeet-mlx>=0.3.0"]
+        assert "lxml" in [cmd[i + 1] for i, word in enumerate(cmd[:-1])
+                          if word == "--with"]
         raise FileNotFoundError("uvx")
     monkeypatch.setattr(transcribe, "_run_local_process", process, raising=False)
     with pytest.raises(transcribe.TranscribeError) as error:

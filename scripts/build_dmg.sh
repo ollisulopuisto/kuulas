@@ -83,6 +83,18 @@ app="$work/stage/build/kuulas/macos/app/Kuulas.app"
 # Before `build`, which signs the app: anything added later would break the signature.
 mkdir -p "$app/Contents/Resources/bin"
 cp "$work/ffmpeg/ffmpeg" "$work/ffmpeg/ffprobe" "$app/Contents/Resources/bin/"
+# The GUI model installer must not require a separate Terminal install of uv.
+# The release workflow pins the tool version; copy both self-contained executables
+# before signing, then exercise these exact files in the packaged selftest.
+for tool in uv uvx; do
+  tool_binary="$(command -v "$tool")"
+  cp "$tool_binary" "$app/Contents/Resources/bin/$tool"
+done
+mkdir -p "$app/Contents/Resources/licenses/uv"
+cp "$here/scripts/uv-licenses/LICENSE-MIT" "$here/scripts/uv-licenses/LICENSE-APACHE" \
+  "$app/Contents/Resources/licenses/uv/"
+uv --version > "$app/Contents/Resources/licenses/uv/version.txt"
+
 echo "== briefcase build"
 briefcase build macOS app
 

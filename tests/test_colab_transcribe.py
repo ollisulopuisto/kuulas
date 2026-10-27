@@ -242,7 +242,7 @@ def test_default_command_uses_the_sibling_podcast_checkout(tmp_path):
 def test_default_command_uses_the_public_tool_without_a_sibling_checkout(tmp_path):
     assert ct.default_command(tmp_path) == [
         "uvx", "--from",
-        "git+https://github.com/ollisulopuisto/podcast#subdirectory=colab-transcribe",
+        "git+https://github.com/ollisulopuisto/podcast@7793c0c1b276e90e466cea6d0b09e20fca08c968#subdirectory=colab-transcribe",
         "colab-transcribe"]
 
 
