@@ -75,3 +75,93 @@ class PeakHold:
                 self.held = max(db, self.held - self.fall * (now - begin))
         self._last = now
         return self.held
+
+
+class ShortTermAccumulator:
+    """Bounded live adapter around the podcast pipeline's K-weighted BS.1770 meter.
+
+    Only the last thirty 100 ms powers are needed. Keep the shared filter/tail
+    state intact while pruning its integrated-program history, never copy DSP.
+    """
+
+    def __init__(self, rate: int):
+        from speechmix.meter import IntegratedMeter  # noqa: PLC0415
+
+        self.shared = IntegratedMeter(rate)
+
+    def add(self, block: np.ndarray) -> float | None:
+        self.shared.add(block.T)
+        self.shared._powers = self.shared._powers[-30:]
+        self.shared._speech = self.shared._speech[-30:]
+        values = self.shared.short_term()
+        if not len(values):
+            return None
+        value = float(values[-1])
+        return max(FLOOR_DB, value) if math.isfinite(value) else FLOOR_DB
+
+
+class LiveShortTerm:
+    """Audio callback only copies into a bounded queue; DSP runs on a worker.
+
+    Sequence gaps (queue overflow), transport changes and rate changes reset
+    the three-second window, so a stale reading is never presented as current.
+    """
+
+    def __init__(self):
+        import threading  # noqa: PLC0415
+        from collections import deque  # noqa: PLC0415
+
+        self._pending = deque(maxlen=64)
+        self._stop = threading.Event()
+        self._worker = None
+        self._serial = 0
+        self._generation = 0
+        self.value = None
+
+    def offer(self, block: np.ndarray, rate: int, run: int) -> None:
+        self._serial += 1
+        self._pending.append((self._generation, run, rate, self._serial, block.copy()))
+
+    def read(self) -> float | None:
+        if self._worker is None and not self._stop.is_set():
+            import threading  # noqa: PLC0415
+
+            self._worker = threading.Thread(target=self._run, daemon=True,
+                                            name="kuulas-lufs")
+            self._worker.start()
+        return self.value
+
+    def reset(self) -> None:
+        self._generation += 1
+        self._pending.clear()
+        self.value = None
+
+    def close(self) -> None:
+        self.reset()
+        self._stop.set()
+        if self._worker is not None:
+            self._worker.join(timeout=1)
+
+    def _run(self) -> None:
+        from .priority import lower_this_thread  # noqa: PLC0415
+
+        lower_this_thread()
+        key, serial, accumulator = None, None, None
+        while not self._stop.wait(0.02):
+            while self._pending and not self._stop.is_set():
+                try:
+                    generation, run, rate, number, block = self._pending.popleft()
+                except IndexError:
+                    break  # a concurrent stop cleared the queue
+                current = (generation, run, rate)
+                try:
+                    if current != key or serial is None or number != serial + 1:
+                        accumulator = ShortTermAccumulator(rate)
+                    value = accumulator.add(block)
+                except Exception:  # noqa: BLE001 - a meter failure never stops playback
+                    key, serial, accumulator = None, None, None
+                    self.value = None
+                    continue
+                key, serial = current, number
+                if generation == self._generation:
+                    self.value = value

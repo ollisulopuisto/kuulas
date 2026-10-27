@@ -314,8 +314,8 @@
   --corner-h: 72px; /* the transport corner above the track headers = overview + ruler */
   --overview-h: calc(var(--corner-h) - var(--ruler-h));
   --ruler-h: 24px; /* lanes.js RULER_HEIGHT (both densities) */
-  --heads-w: 340px; /* as wide as the corner: Play, timecode and the in/out readout */
-  --heads-w-min: 280px;
+  --heads-w: 260px; /* compact track controls leave room for the waveform */
+  --heads-w-min: 240px;
   --heads-w-max: 380px;
   --sidebar-w: 360px;
   --sidebar-w-min: 280px;
@@ -365,8 +365,8 @@
   --leading-read: 1.65;
   --topbar-h: 38px;
   --statusbar-h: 22px;
-  --heads-w: 340px; /* the corner needs the same room in both densities */
-  --heads-w-min: 280px;
+  --heads-w: 260px; /* compact track controls in both densities */
+  --heads-w-min: 240px;
   --heads-w-max: 360px;
   --sidebar-w: 280px;
   --sidebar-w-min: 260px;

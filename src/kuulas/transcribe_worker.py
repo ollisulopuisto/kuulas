@@ -2,7 +2,7 @@
 
 Started by the editor in its own session (``bgjobs.launch_worker``), so it keeps
 going when the window, the app or the project is closed. It reads the job file,
-runs the engine (faster-whisper here, or ``colab-transcribe`` through the WP78
+runs the engine (Orukeet here, or ``colab-transcribe`` through the WP78
 runner), keeps ``<id>.status.json`` current and writes one
 ``<id>.<media>.words.json`` per media. It never opens the project database or
 takes its lock: the editor ingests the results (``Session``).
@@ -195,9 +195,8 @@ def _run_engines(job: dict, folder: Path, status: _Status, cancel: threading.Eve
                        language=job.get("language"), progress=_Progress(cancel, share),
                        cpu_threads=job.get("cpu_threads"))
         _stop_if_cancelled(cancel)
-        # A local engine makes Whisper's own word times: the file says so; the editor
-        # does not store a timing marker for it (as before WP79).
-        _write_result(folder, job_id, item["id"], {"words": words, "timing": "whisper"},
+        # The local engine is Orukeet; preserve its timing identity on import.
+        _write_result(folder, job_id, item["id"], {"words": words, "timing": "orukeet"},
                       language)
 
 

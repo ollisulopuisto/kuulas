@@ -7,6 +7,7 @@ related: [history]
 ---
 Aloitussivulla on viimeksi avatut projektit, uusin ylimpänä.
 
+- Tuo Hindenburg-istunto…: valitse `.nhsx`-tiedosto ja uuden Kuulas-projektin tallennuspaikka. Tyhjää projektia ei tarvitse luoda etukäteen. Olemassa olevaa projektia tämä toiminto ei muuta.
 - Avaa projekti: napsauta sitä tai pidä rivillä näkyvää muokkausnäppäintä alhaalla ja paina rivin numeroa, 1–9, ensimmäisille yhdeksälle. Valittu rivi korostuu hetken ennen avautumista, joten näet, mikä projekti avautuu. Vähennetyllä liikkeellä rivi ei liiku, vain reunus näkyy.
 - Poista listalta: osoita riviä (tai valitse se ja paina Delete) ja käytä "Poista listalta". Ilmoitus tarjoaa Kumoa-toiminnon.
 - Projekti, jonka kansio on siirretty tai poistettu, on merkitty "Ei löydy", himmennetty ja katkoviivalla. Sitä ei voi avata; "Paikanna…" osoittaa sen uuden paikan, tai voit poistaa sen listalta.

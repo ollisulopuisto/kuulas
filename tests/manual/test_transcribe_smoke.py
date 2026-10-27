@@ -1,4 +1,4 @@
-"""Manual transcription smoke test using faster-whisper.
+"""Manual transcription smoke test using local Orukeet.
 
 Excluded from the default test run (``norecursedirs`` in pyproject.toml).
 Requires the transcribe extra:
@@ -99,8 +99,8 @@ def test_transcribe_smoke_returns_words_in_flicks(tmp_path):
     wav_path = make_speech_like_wav(tmp_path / "speech_like.wav")
     assert wav_path.is_file()
 
-    # Transcribe with tiny model for fast execution
-    words = transcribe.local(wav_path, model="tiny", language="en")
+    # Use the installed local Orukeet MLX model
+    words = transcribe.local(wav_path, language="en")
     assert isinstance(words, list)
     assert len(words) > 0, "Expected at least one word from speech audio"
 
@@ -125,7 +125,7 @@ if __name__ == "__main__":
         tmp_dir = Path(td)
         test_transcribe_smoke_returns_words_in_flicks(tmp_dir)
         wav = tmp_dir / "speech_like.wav"
-        words = transcribe.local(wav, model="tiny", language="en")
+        words = transcribe.local(wav, language="en")
         print(f"Transcribed {len(words)} words:")
         for w in words:
             print(f"  [{w['s'] / FLICKS:.2f}s - {w['e'] / FLICKS:.2f}s]: {w['w']}")

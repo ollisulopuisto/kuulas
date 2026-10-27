@@ -81,6 +81,7 @@ def test_local_success_writes_one_result_per_media_in_the_contract_shape(folder)
         # The strict reader of the Colab contract accepts what the worker wrote.
         read = colab_transcribe.read_words_json(
             bgjobs.result_file(folder, job_id, media_id))
+        assert read["timing"] == "orukeet"
         assert read["words"][0]["w"] == "hello"
         assert read["words"][0]["s"] == FLICKS // 4
 

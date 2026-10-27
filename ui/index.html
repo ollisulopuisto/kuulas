@@ -135,13 +135,13 @@
         <!-- Messages held back after a toast was closed with its X (notice-hold.js): a dot and the latest text; a click shows it again. -->
         <button id="notice-chip" type="button" class="chip notice-chip" data-i18n-title="ui.notice.chip_title" hidden></button>
         <span class="spacer"></span>
-        <!-- The live level meter (level-meter.js): what plays now, dBFS, two thin bars with a
-             peak-hold tick; hidden while stopped, except the clip light, which stays until clicked. -->
+        <!-- Three-second LUFS from the shared meter; the peak clip latch stays separate. -->
         <span id="level-meter" class="level-meter" hidden>
+          <span class="lm-readout"></span>
           <span id="level-bars" class="lm-bars" role="img" data-i18n-aria-label="ui.meter.title" data-i18n-title="ui.meter.title">
-            <span class="lm-row"><i class="lm-fill" data-zone="ok"></i><i class="lm-fill" data-zone="warn"></i><i class="lm-fill" data-zone="hot"></i><i class="lm-hold"></i></span>
-            <span class="lm-row"><i class="lm-fill" data-zone="ok"></i><i class="lm-fill" data-zone="warn"></i><i class="lm-fill" data-zone="hot"></i><i class="lm-hold"></i></span>
-            <i class="lm-tick" data-db="-18"></i><i class="lm-tick" data-db="-6"></i>
+            <span class="lm-row"><i class="lm-fill" data-zone="ok"></i></span>
+            <span class="lm-tick" data-lufs="-23" data-i18n="ui.meter.ref23"></span>
+            <span class="lm-tick" data-lufs="-16" data-i18n="ui.meter.ref16"></span>
           </span>
           <button id="level-clip" type="button" class="lm-clip" hidden data-i18n-aria-label="ui.meter.clip" data-i18n-title="ui.meter.clip"></button>
         </span>

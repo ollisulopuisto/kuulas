@@ -273,7 +273,7 @@ def test_unknown_backend_and_media_are_refused(session, client, tool):
     assert r.status_code == 404
 
 
-def test_local_transcription_still_works_and_clears_timing(session, client, tool,
+def test_local_transcription_stores_orukeet_timing(session, client, tool,
                                                            monkeypatch):
     wait_job(client, start(client, session)[0])
     first = ids(session)[0]
@@ -285,7 +285,7 @@ def test_local_transcription_still_works_and_clears_timing(session, client, tool
     r = client.post("/api/transcribe", json={"media_ids": [first]})
     wait_job(client, r.json()["jobs"][0])
     by_id = {m.id: m for m in session.state.media}
-    assert by_id[first].timing == ""  # a different engine: the marker no longer applies
+    assert by_id[first].timing == "orukeet"
     assert by_id[ids(session)[1]].timing == "whisper"
 
 

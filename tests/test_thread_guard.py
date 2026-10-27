@@ -20,6 +20,9 @@ EXEMPT_FILES = {"engine.py", "priority.py"}
 #: (file, enclosing function as ``Class.method`` or ``function``) -> why this
 #: thread may run while audio plays.
 ALLOWED = {
+    ("meter.py", "LiveShortTerm.read"):
+        "the live audio-meter path: bounded device-output blocks measured at low QoS; "
+        "it must run during playback to display current loudness, never project analysis",
     ("profiler.py", "Profiler.start"):
         "the performance report's sampler: it exists to watch a slow moment, sleeps "
         "between samples and is not paused by the gate it measures",

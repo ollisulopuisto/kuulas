@@ -384,8 +384,21 @@ def trim_auto_silence_edge(p: Project, clip_id: str, start: int, end: int,
     # The old closed portion is opened outside the new explicit clip too, so an
     # inward trim really reveals the audio instead of leaving a hidden gate there.
     p = remove_gate_range(p, track.id, *old_range)
+    source_from = clip.offset + old_range[0] - clip.start
+    source_to = clip.offset + old_range[1] - clip.start
+    ranges = gatem.remove_range(clip.auto_silence, source_from, source_to)
+    if not portion[2]:
+        # Shortening an audible opening extends the adjacent silence into the
+        # removed slice. Merely splitting left that slice audible and the dotted
+        # boundary unmoved. Keep this mask on this source clip, never its overlaps.
+        outside = ((old_range[0], min(start, old_range[1])),
+                   (max(end, old_range[0]), old_range[1]))
+        ranges = gatem.normalise((*ranges, *((clip.offset + a - clip.start,
+                                             clip.offset + b - clip.start)
+                                            for a, b in outside if b > a)))
+    p = _replace_clip(p, replace(clip, auto_silence=ranges))
     return normalize_ungated(replace_clip_range(
-        p, clip_id, start, end, muted=portion[2], clear_range=old_range))
+        p, clip_id, start, end, muted=portion[2]))
 
 
 def normalize_ungated(p: Project) -> Project:

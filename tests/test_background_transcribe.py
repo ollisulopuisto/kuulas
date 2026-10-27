@@ -122,10 +122,10 @@ def test_a_finished_transcript_is_added_automatically_with_a_notice(session):
     assert not bgjobs.job_file(session.package.path, job_id).exists()  # cleaned up
 
 
-def test_each_media_is_one_undo_step_and_local_clears_the_timing(session):
+def test_each_media_is_one_undo_step_and_local_keeps_orukeet_timing(session):
     session.transcribe(ids(session))
     wait(lambda: len(session.transcripts()) == 2)
-    assert {m.timing for m in session.state.media} == {""}
+    assert {m.timing for m in session.state.media} == {"orukeet"}
     session.undo()
     assert len(session.transcripts()) == 1
     session.undo()

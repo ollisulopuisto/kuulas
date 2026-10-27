@@ -1,3 +1,5 @@
+import { t } from "./i18n.js";
+
 // The live level meter in the status bar (owner, 2026-10-19: VU meters, to get tracks and
 // buses to unity gain before export). It shows what plays now: peak per channel in dBFS from
 // the live channel (`{ type: "meter", meter: { l, r, hold_l, hold_r } }`, about 15 a second
@@ -93,64 +95,58 @@ export function meterVisible(state, meter) {
   return { bars: Boolean(state.playing), clip: Boolean(meter.clip) };
 }
 
-/**
- * Wire the meter's DOM (index.html `#level-meter`). `bars` hold two `.lm-row`s, each with a
- * `.lm-fill` per zone and a `.lm-hold`; `clipButton` is the red light. Redrawn on each frame
- * only (about 15 a second), by setting a handful of styles: no layout is read.
- */
-export function createLevelMeter({ root, bars, clipButton, onClipClear = () => {} }) {
-  const rows = [...bars.querySelectorAll(".lm-row")];
-  const width = () => bars.clientWidth || 140;
-  let state = initialMeter();
-  let lastAt = null;
+/** Three-second K-weighted loudness, with peak clipping kept separately. */
+export const LUFS_TICKS = [-23, -16];
+export const lufsToX = (value, width) =>
+  Number.isFinite(value) ? ((clamp(value, -50, -8) + 50) / 42) * width : 0;
+export const shortTermLevel = (message) =>
+  Number.isFinite(message.short_term) ? message.short_term : null;
 
-  function paint(playing) {
-    const w = width();
+export function createLevelMeter({ root, bars, clipButton, onClipClear = () => {} }) {
+  const fill = bars.querySelector(".lm-fill");
+  const readout = root.querySelector(".lm-readout");
+  let state = initialMeter();
+  let loudness = null;
+  let playing = false;
+
+  function paint() {
     const shown = meterVisible({ playing }, state);
     bars.hidden = !shown.bars;
+    readout.hidden = !shown.bars;
     clipButton.hidden = !shown.clip;
     root.hidden = !shown.bars && !shown.clip;
     if (!shown.bars) return;
-    [
-      [state.l, state.holdL],
-      [state.r, state.holdR],
-    ].forEach(([level, hold], i) => {
-      const row = rows[i];
-      const fills = row.querySelectorAll(".lm-fill");
-      const segments = zoneSegments(level, w);
-      fills.forEach((fill) => {
-        const seg = segments.find((s) => s.zone === fill.dataset.zone);
-        fill.style.left = `${seg ? seg.from : 0}px`;
-        fill.style.width = `${seg ? seg.to - seg.from : 0}px`;
-      });
-      const tick = row.querySelector(".lm-hold");
-      tick.hidden = dbToX(hold, w) <= 0;
-      tick.style.left = `${Math.max(0, dbToX(hold, w) - 1)}px`;
-      tick.dataset.zone = zoneOf(hold);
-    });
+    fill.style.width = `${lufsToX(loudness, bars.clientWidth || 140)}px`;
+    fill.dataset.zone = loudness !== null && loudness > -16 ? "warn" : "ok";
+    readout.textContent =
+      loudness === null || loudness <= -89
+        ? t("ui.meter.pending")
+        : t("ui.meter.value", { value: loudness.toFixed(1) });
+    for (const tick of bars.querySelectorAll(".lm-tick")) {
+      tick.style.left = `${lufsToX(Number(tick.dataset.lufs), 100)}%`;
+    }
   }
 
   clipButton.addEventListener("click", () => {
     state = clearClip(state);
-    paint(false);
+    paint();
     onClipClear();
   });
 
   return {
-    /** A frame from the live channel. */
-    frame(message, now = performance.now()) {
-      const seconds = lastAt === null ? 0 : (now - lastAt) / 1000;
-      lastAt = now;
-      state = advance(state, message, seconds);
-      paint(true);
+    frame(message) {
+      state = advance(state, message, 0);
+      loudness = shortTermLevel(message);
+      playing = true;
+      paint();
     },
-    /** Playback stopped (or started): the bars leave (or wait for the first frame). */
     playing(on) {
+      playing = on;
       if (!on) {
         state = advance(state, { l: -90, r: -90, hold_l: -90, hold_r: -90 }, 0);
-        lastAt = null;
+        loudness = null;
       }
-      paint(on);
+      paint();
     },
   };
 }

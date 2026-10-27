@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## [v26.10.27.1] - 2026-10-27
+
+- **Local transcription uses Orukeet.** The shared podcast tool runs the converted MLX model at `~/.models/orukeet-mlx` in its own environment. The editor no longer asks for faster-whisper. A missing Orukeet model is reported explicitly, without switching to generic Parakeet. Orukeet word timing survives import; a synthetic Finnish speech test succeeded on this Mac.
+- **Import NHSX directly from the start screen.** Choose the Hindenburg session and the destination of a new Kuulas project. There is no need to create an empty project first; existing projects are refused by this new-project action. Recordings remain linked in place.
+- **The live meter shows short-term LUFS.** It measures the last three seconds with the shared K-weighted BS.1770 pipeline, with labelled −23 and −16 references. The peak-clipping latch remains separate. Loudness calculation runs outside the audio callback with bounded queues and history.
+- **More room for waveforms.** Track headers shrink to 260 pixels (240 on narrower windows). Transcript search sits compactly beside its heading, and toolbar buttons have visible surfaces and borders.
+- **Dragging an audible Auto-Silence opening also moves its silence boundary.** Shortening the opening previously created a clip while leaving an audible fragment and the old dotted boundary behind. The removed slice now joins the adjacent silence; other clips are left alone.
+
 - **The recorder can be closed twice at once without an error.** When a quit reply closed the recorder from a client thread while another thread closed it too, the second close hit "Bad file descriptor" on the lock file. A second close now waits for the first and does nothing. Three flaky macOS test results are explained and fixed with it: the lock-time test also counted the lock that closing the session takes, and the finished-jobs bound test assumed jobs end in the order they were submitted.
 
 - **Import a Hindenburg session from the window.** File > Import Hindenburg session… brings a `.nhsx` session into the open project: its tracks, clips (with their gain, pan and fades), words and clipboard, in one step you can undo, with the recordings linked where they are. The desktop window opens its own file dialog; in a browser the dialog asks for the full path of the `.nhsx` file. A notice says how many recordings came in and how many were not found next to the session. No key by default. (The command line `kuulas import-nhsx` and the server command already existed; only the window was missing. Not tried with a real session yet.)

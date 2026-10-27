@@ -9,6 +9,12 @@ Times are Helsinki. Add every new report here in the same session it is raised.
 
 | # | Raised | Issue | Notes |
 |---|---|---|---|
+| 130 | 27.10 | Dragging an Auto-Silence dotted boundary creates a clip but the silence boundary stays put | fixed, please check in v26.10.27.1: shortening an audible opening silences the removed slice; source-scoped and legacy-gate mixer regressions pass |
+| 129 | 27.10 | Transcript search is too large and too far left; toolbar actions look like background text | fixed, please check in v26.10.27.1: compact search in the transcript heading, visible button surfaces/borders; browser acceptance at 1280 and 1600 px |
+| 128 | 27.10 | Track-header column takes too much space from waveforms | fixed, please check in v26.10.27.1: 260 px normally, 240 px in narrower windows; controls retained, mono/stereo detail in Inspector |
+| 127 | 27.10 | Live meter should show short-term LUFS with −23 and −16 marks | fixed, please check in v26.10.27.1: shared BS.1770 three-second meter outside callback; peak clip latch retained |
+| 126 | 27.10 | NHSX import should be available on the start screen without first creating an empty project | fixed, please check in v26.10.27.1: source and destination dialogs create and open a new project; existing-project refusal and cancellation covered |
+| 125 | 27.10 | Installed app still asks for faster-whisper for local transcription; use Orukeet | fixed, please check in v26.10.27.1: shared local Orukeet CLI, no Whisper dependency or generic fallback; real synthetic Finnish speech transcribed successfully |
 | 124 | 26.10 | Linux CI: the headless self-test fails with `FAIL recorder: RecorderError: disconnected` | fixed, please check in v26.10.26.4: quit acknowledgement is sent before shutdown; a deterministic immediate-close regression reproduces the original failure and now passes, including failed-send handling |
 | 123 | 26.10 | During playback, sideways scrolling is pulled back to the cursor instead of disengaging Follow | fixed, please check in v26.10.26.4: repeated live playing messages no longer count as playback starts; old behavior reproduced in Chrome, then detachment verified at three zoom levels |
 | 122 | 26.10 | Move overview timestamps to the top; use round ruler intervals and at most four labels instead of quarter positions | fixed, please check in v26.10.26.4: separate top band and adaptive scale; 25-minute browser fixture shows 5:00, 10:00, 15:00 and 20:00 |

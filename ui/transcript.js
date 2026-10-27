@@ -117,7 +117,11 @@ export function createTranscript({ root, getState, setState, api, actions }) {
   removedToggle.type = "button";
   const removedList = el("ul", "tx-removed-list");
   removed.append(removedToggle, removedList);
-  root.append(findBar, removed, follow, empty, list, pop);
+  const headingRow = el("div", "tx-heading");
+  const heading = root.querySelector("h2");
+  if (heading) headingRow.append(heading);
+  headingRow.append(findBar);
+  root.append(headingRow, removed, follow, empty, list, pop);
   list.setAttribute("role", "document");
 
   // -- derived from the words (rebuilt only when they change) -----------------------------

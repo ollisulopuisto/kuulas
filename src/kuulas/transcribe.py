@@ -4,18 +4,20 @@ Backends produce ``[{"w", "s", "e", "spk"}]`` with times in flicks from the
 media's start: the recording clock (``clock``), so the words never change
 when the project rate does (see ``transcript``):
 
-* ``local``: faster-whisper on this machine. Runs on Mac, Linux and Windows
-  (CPU int8; CUDA when present). Install with ``uv sync --extra transcribe``.
+* ``local``: Orukeet on this Apple-silicon Mac, through the podcast repo's
+  shared CLI. MLX dependencies run in the tool's isolated environment.
 * ``parse``: any word-timed JSON, e.g. from colab-transcribe, Whisper,
   WhisperX or an export from another editor.
 
-Colab is not wired yet: see ROADMAP.md.
+Colab transcription uses the same tool through ``colab_transcribe``.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
+from . import colab_transcribe
+from .automix import run_process as _run_local_process
 from .clock import FLICKS
 from .messages import KuulasError
 
@@ -58,25 +60,52 @@ class TranscribeError(KuulasError, RuntimeError):
     """Transcription cannot run here: a required extra is not installed."""
 
 
+class _LocalCancel:
+    """Adapt the worker's progress cancellation without a second watcher thread."""
+
+    def __init__(self, progress):
+        self.progress = progress
+
+    def is_set(self) -> bool:
+        return bool(getattr(self.progress, "cancelled", False))
+
+
 def local(path: str | Path, model: str = "small",
           language: str | None = None, progress=None,
           cpu_threads: int | None = None) -> list[dict]:
-    """Transcribe ``path`` with faster-whisper, word timestamps on."""
+    """Run shared local Orukeet; legacy Whisper model sizes select the Orukeet default.
+
+    Explicit model paths are supported. Never accept the shared CLI's generic
+    Parakeet fallback when the user's converted Orukeet model is missing.
+    """
+    _ = cpu_threads  # MLX owns scheduling; retained for persisted jobs and callers.
+    legacy = {"", "tiny", "base", "small", "medium", "large", "large-v2", "large-v3",
+              "turbo", "orukeet"}
+    model_path = (Path.home() / ".models" / "orukeet-mlx"
+                  if model in legacy else Path(model).expanduser())
+    if not model_path.is_dir():
+        raise TranscribeError("error.transcribe.orukeet_model", path=str(model_path))
+    command = colab_transcribe.default_command()
+    # Resolve optional MLX dependencies outside the editor/bundle environment.
+    if command[0] == "uvx":
+        command[1:1] = ["--with", "parakeet-mlx>=0.3.0"]
+    elif command[:2] == ["uv", "run"]:
+        command[2:2] = ["--frozen", "--extra", "parakeet"]
+
+    def report(fraction, *_args, **_kwargs):
+        if callable(progress):
+            progress(fraction)
+
+    source = Path(path).resolve()
+    settings = {"command": command, "align": False,
+                "extra_args": ["--backend", "orukeet",
+                               "--orukeet-model", str(model_path)]}
     try:
-        from faster_whisper import WhisperModel
-    except ImportError as e:
-        raise TranscribeError("error.transcribe.missing_extra") from e
-    options = {"device": "auto", "compute_type": "int8"}
-    if cpu_threads is not None:
-        options["cpu_threads"] = max(1, int(cpu_threads))
-    whisper = WhisperModel(model, **options)
-    segments, info = whisper.transcribe(str(path), language=language,
-                                        word_timestamps=True, vad_filter=True)
-    collected = []
-    for seg in segments:
-        if progress is not None and getattr(progress, "cancelled", False):
-            break
-        collected.append(seg)
-        if progress is not None and info.duration:
-            progress(min(1.0, seg.end / info.duration))
-    return from_segments(collected)
+        result = colab_transcribe.run(
+            [{"id": "local", "name": source.name, "path": str(source)}],
+            {"model": "orukeet", "language": language}, settings, report,
+            _LocalCancel(progress), run_process=_run_local_process)
+    except colab_transcribe.ColabError as error:
+        raise TranscribeError("error.transcribe.orukeet_failed",
+                              error=str(error)) from error
+    return result["results"]["local"]["words"]

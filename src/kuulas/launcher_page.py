@@ -137,10 +137,18 @@ const el = (tag, cls, text) => {
 const wire = (id, icon, method) => {
   const button = document.getElementById(id);
   button.dataset.icon = icon;
-  button.addEventListener("click", () => api()?.[method]());
+  button.addEventListener("click", async () => {
+    button.disabled = true;
+    try {
+      await api()?.[method]();
+    } finally {
+      button.disabled = false;
+    }
+  });
 };
 wire("open", "import", "choose_project");
 wire("new", "follow", "new_project");
+wire("import-nhsx", "import", "import_nhsx_project");
 
 const list = document.getElementById("recent-list");
 const hostOs = navigator.userAgentData?.platform ?? navigator.platform ?? "";
@@ -382,6 +390,7 @@ def launcher_html(recent: list) -> str:
     tidy_tip = html.escape(t("cmd.app.remove_missing_recents.hint"))
     new = html.escape(t("desktop.launcher.new"))
     open_ = html.escape(t("desktop.launcher.open"))
+    import_nhsx = html.escape(t("desktop.launcher.import_nhsx"))
     recent_heading = html.escape(t("desktop.launcher.recent"))
     mark = base64.b64encode((ICON_DIR / "kuulas-icon.svg").read_bytes()).decode()
     return f"""<!doctype html><html lang="{html.escape(lang)}">
@@ -395,6 +404,7 @@ src="data:image/svg+xml;base64,{mark}"> kuulas</h1>
 <div class="actions">
 <button type="button" class="button primary" id="open">{open_}</button>
 <button type="button" class="button" id="new">{new}</button>
+<button type="button" class="button" id="import-nhsx">{import_nhsx}</button>
 </div>
 <h2 id="recent-heading">{recent_heading}</h2>{empty}
 <ul id="recent-list" aria-labelledby="recent-heading"></ul>

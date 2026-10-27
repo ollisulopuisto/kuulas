@@ -1,5 +1,7 @@
 # kuulas roadmap
 
+**Release v26.10.27.1:** local Orukeet, NHSX import from the start page, a three-second LUFS meter, compact track headers and transcript search, clearer toolbar buttons, and corrected Auto-Silence boundary trims.
+
 A multitrack **editor** for spoken word: podcasts, interviews, radio. It is
 for editing, not recording. The model is Hindenburg PRO: keyboard-first,
 speech-aware, with the transcript and the audio as one thing.

@@ -226,3 +226,20 @@ def test_legacy_dotted_border_drag_materializes_only_the_grabbed_clip():
     target = next(c for c in changed.track("t").clips if c.start == 180)
     assert (target.end, target.muted, target.ungated) == (300, False, True)
     assert changed.track("t").gate == ((100, 180), (300, 400))
+
+
+def test_shortening_audible_portion_moves_silence_boundary_to_its_new_end():
+    project = analysis.apply_silence(project_with_clip(), {"t": ((100, 200), (300, 400))})
+    changed = ops.trim_auto_silence_edge(project, "c", 200, 300, "end", 270)
+    store = MemoryStore({"m": np.ones((1, 2000), dtype=np.float32)})
+    assert mixer.mix(changed, store, 220, 40).any()
+    assert not mixer.mix(changed, store, 270, 130).any()
+    assert analysis.current_silence_ranges(changed) == {"t": ((100, 200), (270, 400))}
+
+
+def test_shortening_audible_portion_moves_legacy_silence_boundary_to_its_new_start():
+    project = ops.set_gate(project_with_clip(), "t", ((100, 200), (300, 400)))
+    changed = ops.trim_auto_silence_edge(project, "c", 200, 300, "start", 230)
+    store = MemoryStore({"m": np.ones((1, 2000), dtype=np.float32)})
+    assert not mixer.mix(changed, store, 100, 130).any()
+    assert mixer.mix(changed, store, 240, 40).any()

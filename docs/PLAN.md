@@ -1,5 +1,7 @@
 # kuulas implementation plan
 
+**Release v26.10.27.1:** local Orukeet, NHSX import from the start page, a three-second LUFS meter, compact track headers and transcript search, clearer toolbar buttons, and corrected Auto-Silence boundary trims.
+
 This is the build plan for kuulas. It is written for an implementer who has
 not seen the conversation that produced it. Everything you need is either here
 or in the files this plan points to. `ROADMAP.md` says *what* and *why*; this

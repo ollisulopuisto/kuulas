@@ -462,6 +462,7 @@ class Engine:
         self._m_ms = (0.0, 0.0)
         self._hold_l = meter.PeakHold()
         self._hold_r = meter.PeakHold()
+        self._short_term = meter.LiveShortTerm()
 
         # Counters and timestamps the audio thread writes.
         self._failed = 0
@@ -986,6 +987,7 @@ class Engine:
         return {"position": int(position), "peak": peak}
 
     def close(self) -> None:
+        self._short_term.close()
         with self._ctl:
             self._closed = True
             self._voice = None
@@ -1222,6 +1224,7 @@ class Engine:
             held_l, held_r = self._m_peak
             self._m_peak = (max(held_l, peak_l), max(held_r, peak_r))
             self._m_ms = (ms_l, ms_r)
+            self._short_term.offer(block, self._dev_rate, self._seq)
         except Exception as exc:  # noqa: BLE001 - the audio callback never raises
             self._events.append(("failed", f"meter: {exc!r}"))
 
@@ -1235,16 +1238,18 @@ class Engine:
         if not self._playing:
             self._hold_l.reset()
             self._hold_r.reset()
+            self._short_term.reset()
             return {"l": meter.FLOOR_DB, "r": meter.FLOOR_DB, "rms_l": meter.FLOOR_DB,
                     "rms_r": meter.FLOOR_DB, "hold_l": meter.FLOOR_DB,
-                    "hold_r": meter.FLOOR_DB}
+                    "hold_r": meter.FLOOR_DB, "short_term": meter.FLOOR_DB}
         now = self._clock()
         left, right = meter.to_db(peaks[0]), meter.to_db(peaks[1])
         return {"l": left, "r": right,
                 "rms_l": meter.to_db(math.sqrt(self._m_ms[0])),
                 "rms_r": meter.to_db(math.sqrt(self._m_ms[1])),
                 "hold_l": self._hold_l.update(left, now),
-                "hold_r": self._hold_r.update(right, now)}
+                "hold_r": self._hold_r.update(right, now),
+                "short_term": self._short_term.read()}
 
     def _render(self, frames: int, now: float | None = None) -> np.ndarray:
         """``(frames, 2)`` float32 at the device rate: the next block to play.

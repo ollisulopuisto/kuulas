@@ -1,6 +1,6 @@
 [project]
 name = "kuulas"
-version = "26.10.26.5"
+version = "26.10.27.1"
 description = "Multitrack spoken-word DAW: transcript editing, buses, the speechmix pipeline"
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -31,10 +31,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Local transcription. Cross-platform (CPU int8 everywhere, CUDA where present).
-# faster-whisper 1.2.1 calls av.open(..., metadata_errors="ignore"), which av 19
-# removed; stay below 19 until faster-whisper supports it.
-transcribe = ["faster-whisper>=1.2.0", "av<19"]
+# Compatibility extra: Orukeet runs through the shared CLI in its own MLX environment.
+transcribe = []
 # The native window (WP15): system web view, native file dialogs and menu.
 # Not in the base dependencies: Linux needs system WebKit packages for it.
 desktop = ["pywebview>=5"]
@@ -92,6 +90,3 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "PLR2004", "ARG"]
-# faster-whisper is an optional extra (`uv sync --extra transcribe`); importing
-# it inside local() keeps the base install from pulling it in.
-"src/kuulas/transcribe.py" = ["PLC0415"]

@@ -379,13 +379,13 @@ button.chip {
 }
 .editor[data-rail="labels"] {
   --rail-w: 124px;
-  --heads-w: calc(340px + var(--rail-w));
-  --heads-w-min: calc(280px + var(--rail-w));
+  --heads-w: calc(260px + var(--rail-w));
+  --heads-w-min: calc(240px + var(--rail-w));
 }
 .editor[data-rail="icons"] {
   --rail-w: 44px;
-  --heads-w: calc(340px + var(--rail-w));
-  --heads-w-min: calc(280px + var(--rail-w));
+  --heads-w: calc(260px + var(--rail-w));
+  --heads-w-min: calc(240px + var(--rail-w));
 }
 .tool-rail {
   flex: none;
@@ -1421,14 +1421,15 @@ input[type="text"] {
   flex-direction: column;
   gap: 2px;
   width: 140px;
-  height: 8px;
-  overflow: hidden;
+  height: 24px;
+  overflow: visible;
   border-radius: 2px;
   background: var(--surface-sunken);
 }
 .lm-row {
   position: relative;
-  flex: 1;
+  height: 6px;
+  flex: none;
 }
 .lm-fill,
 .lm-hold {
@@ -1459,17 +1460,22 @@ input[type="text"] {
 }
 .lm-tick {
   position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: var(--border-strong);
-  opacity: 0.8;
+  top: 7px;
+  transform: translateX(-50%);
+  padding-top: 2px;
+  border-top: 2px solid var(--border-strong);
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  line-height: 1;
 }
-.lm-tick[data-db="-18"] {
-  left: 70%;
+.lm-readout {
+  min-width: 6.5em;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
-.lm-tick[data-db="-6"] {
-  left: 90%;
+.lm-readout[hidden] {
+  display: none;
 }
 /* The clip light: red until clicked, so a peak that happened while you looked away is seen. */
 .lm-clip {
@@ -5019,4 +5025,62 @@ legend.form-heading {
 .record-slim-stop[data-state="holding"] {
   color: var(--danger-text);
   border-color: var(--danger);
+}
+
+/* Compact track controls: the mono/stereo detail is available in the inspector. */
+.track-header .channel-tag {
+  display: none;
+}
+.tool-rail .rail-btn,
+.tool-rail .rail-search {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+.tool-rail .rail-btn:hover:not([aria-disabled="true"]),
+.tool-rail .rail-search:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent);
+}
+.tool-rail .rail-btn:active:not([aria-disabled="true"]),
+.tool-rail .rail-search:active {
+  background: var(--accent-subtle);
+}
+.tx-heading {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-left: calc(var(--heads-col) + 1px - var(--pad-panel));
+  background: var(--surface-panel);
+  border-bottom: 1px solid var(--border);
+}
+#panel-transcript .tx-heading h2 {
+  flex: none;
+  padding-left: 0;
+  margin: 0;
+  border: 0;
+}
+.tx-heading .tx-find {
+  position: static;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  gap: var(--space-2);
+}
+.tx-heading .tx-find-input {
+  flex: 0 1 240px;
+  min-width: 6em;
+  max-width: 240px;
+  width: 100%;
+  height: var(--control-h-sm);
+  font-size: var(--text-sm);
+}
+.tx-heading .tx-find .button {
+  flex: none;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
 }

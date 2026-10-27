@@ -80,7 +80,7 @@ def test_reset_forgets_the_hold():
 def test_stopped_the_meter_is_at_the_floor(rig, clock):
     engine, _, _ = make(rig, clock)
     m = engine.meter()
-    assert set(m) == {"l", "r", "rms_l", "rms_r", "hold_l", "hold_r"}
+    assert set(m) == {"l", "r", "rms_l", "rms_r", "hold_l", "hold_r", "short_term"}
     assert set(m.values()) == {meter.FLOOR_DB}
 
 

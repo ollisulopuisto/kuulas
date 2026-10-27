@@ -1,5 +1,7 @@
 # kuulas
 
+**Release v26.10.27.1:** local Orukeet, NHSX import from the start page, a three-second LUFS meter, compact track headers and transcript search, clearer toolbar buttons, and corrected Auto-Silence boundary trims.
+
 kuulas is a local multitrack audio editor for spoken word (podcasts, interviews, radio). It is modelled on Hindenburg PRO: keyboard-first, speech-aware, with the transcript and the audio treated as one thing. The engine runs locally on Python 3.13 and serves a browser UI over local HTTP/WebSocket; audio analysis and signal processing come from the podcast repo's `speechmix` and `nhsx` packages.
 
 **Kuulas is a free, open-source podcast editor. It can mix your episode for you, and it keeps every edit you ever made, so you can go back to any moment and never lose a thing.**
@@ -17,7 +19,7 @@ Taglines (use either, not together): *"A podcast editor where nothing is ever lo
 - **Batch import with flexible placement**: Import multiple files side by side (aligned by BWF recording clocks into sync groups) or sequentially on one track, with natural name sorting and track naming by file or person.
 - **Sync groups and edit expansion**: Tracks recorded together stay locked; edits time-shift the entire sync group; subclips can be resynced to the main clip.
 - **Music reporting**: Session royalty reports (CSV with formula injection protection, HTML) via CLI and `/api/music-report`.
-- **Transcription**: Local faster-whisper and Colab transcription. In a source checkout beside the current podcast repository, Colab uses that checkout's tool; Orukeet filler words and repetitions stay in the transcript and can become cut candidates.
+- **Transcription**: Local Orukeet (Apple silicon) and Colab transcription. The local Orukeet MLX model is read from `~/.models/orukeet-mlx`; inference runs through the shared podcast tool in an isolated MLX environment. In a source checkout beside the current podcast repository, Colab uses that checkout's tool; Orukeet filler words and repetitions stay in the transcript and can become cut candidates.
 - **Project format (v3)**: Crash-safe `Name.kuulas` package directory, WAL SQLite history tree with constant-time branching undo/redo, and recording clock in flicks.
 - **Desktop app wrapper**: Native window via pywebview (`--extra desktop`), recent projects window, native file dialogs, and local file drag-and-drop linking.
 
@@ -106,7 +108,7 @@ Optional and manual tests:
 # Real audio output test (volume down; plays a short quiet tone)
 uv run pytest -q tests/hardware -s
 
-# Local transcription smoke test (requires faster-whisper)
+# Local transcription smoke test (requires the Orukeet MLX model)
 uv sync --extra transcribe
 uv run pytest -q tests/manual/test_transcribe_smoke.py -s
 ```

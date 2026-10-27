@@ -3034,7 +3034,7 @@ class Session:
                    language: str | None = None, backend: str = "local",
                    force: bool = False) -> list[str]:
         """Start ONE background job for the chosen recordings (``local``:
-        faster-whisper here; ``colab``: the WP78 tool). The job is a file in the
+        Orukeet here; ``colab``: the WP78 tool). The job is a file in the
         project and a separate worker process (``kuulas.transcribe_worker``) that
         goes on when the window or the app is closed; the finished words are
         added by ``poll_background`` (here, or at the next open) as one undo step
@@ -3199,7 +3199,7 @@ class Session:
                     media_id, found["words"],
                     t("history.transcript", media_id=media_id),
                     # A local engine made these words: no "ctc-v1" claim survives.
-                    timing=found["timing"] if job.get("backend") == "colab" else "")
+                    timing=found["timing"])
             except ops.EditError:
                 return "missing"
         with contextlib.suppress(OSError):

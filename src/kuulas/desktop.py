@@ -29,7 +29,7 @@ import uvicorn
 from . import memory, offload
 from .cli import HOST, bind_local, uvicorn_config
 from .messages import KuulasError, t
-from .new_project import SUFFIX, folder_name
+from .new_project import SUFFIX, folder_name, project_path
 from .openfiles import project_paths
 from .recent_projects import (
     drop_missing,
@@ -486,6 +486,32 @@ class Bridge:
             return False
         folder = got[0] if got[0].endswith(".kuulas") else got[0] + ".kuulas"
         return self.open_project(folder)
+
+    def import_nhsx_project(self) -> bool:
+        """Start screen: import a session into a new project, then open it."""
+        from .cli import import_nhsx  # noqa: PLC0415 - reuse the headless import path
+
+        got = self._dialog(self._webview.FileDialog.OPEN,
+                           file_types=(t("desktop.nhsx.file_type"),))
+        if not got:
+            return False
+        source = Path(got[0])
+        chosen = self._dialog(self._webview.FileDialog.SAVE,
+                              save_filename=source.stem + SUFFIX)
+        if not chosen:
+            return False
+        try:
+            typed = Path(chosen[0]).expanduser()
+            target = project_path(str(typed.parent), typed.name)
+            # Exclusive creation: the native Save dialog must never append to an
+            # existing project, even if another process created it meanwhile.
+            target.mkdir()
+            import_nhsx(str(source), str(target))
+        except (KuulasError, OSError, ValueError) as error:
+            if self._window is not None:
+                self._window.evaluate_js(f"alert({json.dumps(str(error))})")
+            return False
+        return self._open_in_window(str(target))
 
     def _open_in_window(self, folder: str) -> bool:
         if self._opener is None:
