@@ -7,6 +7,7 @@ import {
   selectedClip,
   syncGroupOf,
 } from "../inspector.js";
+import { createTrackClips, trackClipRows } from "../inspector-clips.js";
 import { addBusForTrack, hasDuckControl } from "../inspector-track.js";
 
 class FakeNode {
@@ -125,6 +126,7 @@ describe("inspector sections (density rework, 2026-10-18)", () => {
   test("Track, Bus, Level and Sync start open, the rest closed", () => {
     assert.deepEqual(openSections(null), {
       track: true,
+      clips: true,
       bus: true,
       level: true,
       fades: false,
@@ -137,6 +139,7 @@ describe("inspector sections (density rework, 2026-10-18)", () => {
   test("what the user opened or closed is remembered; junk is ignored", () => {
     assert.deepEqual(openSections('{"fades":true,"level":false,"track":false}'), {
       track: false,
+      clips: true,
       bus: true,
       level: false,
       fades: true,
@@ -227,5 +230,48 @@ describe("clip name in inspector", () => {
     assert.equal(sent[0].op, "set_clip");
     assert.equal(sent[0].args.clip_id, "c1");
     assert.equal(sent[0].args.name, "");
+  });
+});
+
+describe("track clip properties list", () => {
+  const project = {
+    rate: 48000,
+    media: [{ id: "m", name: "Audio.wav" }],
+    tracks: [
+      {
+        id: "t",
+        clips: [
+          { id: "b", media: "m", start: 48000, length: 24000, muted: true },
+          { id: "a", media: "m", start: 0, length: 48000, name: "Intro" },
+        ],
+      },
+      { id: "other", clips: [{ id: "x", start: 0, length: 2 }] },
+    ],
+  };
+  test("timeline order includes repeated source uses and muted clips, excludes other tracks", () => {
+    assert.deepEqual(
+      trackClipRows(project, "t").map((x) => [x.id, x.name, x.muted]),
+      [
+        ["a", "Intro", false],
+        ["b", "Audio.wav", true],
+      ],
+    );
+    assert.deepEqual(trackClipRows(project, "gone"), []);
+  });
+  test("click selects/jumps through existing action and edits/deletions refresh the list", () => {
+    const details = new FakeNode("details");
+    const calls = [];
+    const view = createTrackClips({ details, trackId: "t", jump: (...args) => calls.push(args) });
+    view.update({ project, selection: new Set(["a"]) });
+    const buttons = details.all().filter((n) => n.tagName === "button");
+    assert.equal(buttons.length, 2);
+    assert.equal(buttons[0].attrs["aria-pressed"], "true");
+    buttons[1].listeners.click[0]();
+    assert.deepEqual(calls, [["b", "t", 48000]]);
+    view.update({
+      project: { ...project, tracks: [{ id: "t", clips: [] }] },
+      selection: new Set(),
+    });
+    assert.equal(details.all().filter((n) => n.tagName === "button").length, 0);
   });
 });
