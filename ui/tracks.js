@@ -84,6 +84,14 @@ function slider(label, range) {
   const caption = el("span", "slider-caption", { "aria-hidden": "true" });
   caption.textContent = t(range === PAN ? "ui.control.pan" : "ui.control.level");
   wrap.append(caption, input, output);
+  if (range === PAN) {
+    for (const side of ["L", "R"]) {
+      const mark = el("span", `pan-${side.toLowerCase()}`, { "aria-hidden": "true" });
+      mark.textContent = side;
+      wrap.append(mark);
+    }
+    caption.textContent = t("ui.pan.center");
+  }
   const paintDial = bindDialRange(input, () => wrap.classList.contains("dial"));
   return { wrap, input, output, paintDial };
 }
@@ -466,6 +474,15 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       write: (value) => send("pan", value, undefined, coalesceKey("track", "pan", id)),
       scale: 100,
     });
+    pan.input.addEventListener(
+      "dblclick",
+      (event) => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        send("pan", 0, undefined, coalesceKey("track", "pan", id));
+      },
+      { capture: true },
+    );
     toggleable(pan, {
       key: coalesceKey("track", "pan", id),
       fallback: 0,
@@ -695,9 +712,13 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         parts.solo.setAttribute("aria-pressed", String(track.solo));
         if (document.activeElement !== parts.bus) parts.bus.value = track.bus ?? "";
         parts.gain.wrap.classList.toggle("dial", controlLines(row.height) === 1);
-        parts.pan.wrap.classList.add("dial");
+        parts.pan.wrap.classList.remove("dial");
         setSlider(parts.gain, track.gain_db, formatDb(track.gain_db));
-        setSlider(parts.pan, Math.round(track.pan * 100), panText(track.pan));
+        setSlider(
+          parts.pan,
+          Math.round(track.pan * 100),
+          track.pan === 0 ? formatNumber(0) : panText(track.pan),
+        );
         parts.gain.paintDial();
         parts.pan.paintDial();
         if (parts.busFader) {
