@@ -332,7 +332,21 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       const height = loudness.offsetHeight || 28;
       const sideRoom = lane.right + width + 16 <= window.innerWidth;
       loudness.style.left = `${sideRoom ? lane.right + 8 : Math.max(8, window.innerWidth - width - 8)}px`;
-      loudness.style.top = `${sideRoom ? Math.max(8, Math.min(gain.wrap.getBoundingClientRect().top, window.innerHeight - height - 8)) : 8}px`;
+      const compactGain = gain.wrap.classList.contains("dial");
+      const feedbackTop = sideRoom
+        ? Math.max(
+            8,
+            Math.min(
+              gain.wrap.getBoundingClientRect().top,
+              window.innerHeight - height - (compactGain ? 40 : 8),
+            ),
+          )
+        : 8;
+      loudness.style.top = `${feedbackTop + (compactGain ? 30 : 0)}px`;
+      if (compactGain) {
+        gain.output.style.left = loudness.style.left;
+        gain.output.style.top = `${feedbackTop}px`;
+      }
     };
     gain.wrap.addEventListener("pointerenter", positionLoudness);
     gain.wrap.addEventListener("focusin", positionLoudness);
@@ -479,6 +493,8 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       (event) => {
         event.preventDefault();
         event.stopImmediatePropagation();
+        pan.input.value = "0";
+        pan.output.textContent = "0";
         send("pan", 0, undefined, coalesceKey("track", "pan", id));
       },
       { capture: true },

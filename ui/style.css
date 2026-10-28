@@ -5980,3 +5980,45 @@ legend.form-heading {
   min-width: 22px;
   padding: 0 3px;
 }
+
+/* Numeric gain feedback uses the same outside-lane gutter as LUFS. */
+.track-header[data-track] .th-controls .control-gain.dial output {
+  position: fixed;
+  right: auto;
+  bottom: auto;
+  z-index: 9;
+}
+/* Keep identity and M/S together; routing tools occupy the second line. */
+.track-header[data-control-lines="3"][data-track] .th-top > .tag {
+  position: static;
+  flex: none;
+}
+.track-header[data-control-lines="3"][data-track] .track-name {
+  position: static;
+  flex: 1;
+  width: auto;
+  min-width: 0;
+}
+.track-header[data-control-lines="3"][data-track] .track-handle {
+  position: absolute;
+  left: 12px;
+  top: 32px;
+}
+.track-header[data-control-lines="3"][data-track] .bus-select {
+  position: absolute;
+  left: 28px;
+  top: 30px;
+}
+.track-header[data-control-lines="3"][data-track] .th-top {
+  flex-direction: row;
+}
+.track-header[data-control-lines="3"][data-track] .th-top > .tag {
+  order: -1;
+}
+.track-header[data-track] .th-controls .control-gain.dial output {
+  width: 76px;
+  min-width: 76px;
+  max-width: 76px;
+  height: 28px;
+  box-sizing: border-box;
+}
