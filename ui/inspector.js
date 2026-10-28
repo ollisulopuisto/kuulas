@@ -5,6 +5,7 @@ import { bindToggle } from "./ab-value.js";
 import { frameToTime } from "./format.js";
 import { underClipsEdit } from "./gate.js";
 import { formatDb, t } from "./i18n.js";
+import { createTrackClips } from "./inspector-clips.js";
 import { createSourceSection } from "./inspector-source.js";
 import { buildTrackSections, field } from "./inspector-track.js";
 import { MUSIC_HUE, trackHues } from "./paint.js";
@@ -41,6 +42,7 @@ export function selectedClip(state) {
 /** Which sections start open: Track/Bus, Level and Sync; Source (one-line summary) and the rest wait to be asked for. */
 const SECTION_DEFAULTS = {
   track: true,
+  clips: true,
   bus: true,
   level: true,
   fades: false,
@@ -109,6 +111,7 @@ export function createInspector({
   let builtFor = "";
   let parts = null;
   let trackParts = null;
+  let trackClips = null;
   let latestState = null;
 
   function build(state, found, target) {
@@ -118,6 +121,7 @@ export function createInspector({
     root.append(title);
     parts = null;
     trackParts = null;
+    trackClips = null;
     sourceParts = null;
     const hasTarget = Boolean(target.track || target.bus);
     if (!found && !hasTarget) {
@@ -152,6 +156,9 @@ export function createInspector({
         latest: () => latestState,
         onBusCreated,
       });
+    }
+    if (target.track) {
+      trackClips = createTrackClips({ details: section("clips"), trackId: target.track.id, jump });
     }
     if (!found) return;
     const { clip } = found;
@@ -347,6 +354,7 @@ export function createInspector({
       build(state, found, target);
     }
     trackParts?.update(state);
+    trackClips?.update(state);
     maps.want(found?.media?.sha256 ?? "", state.head);
     redrawSource();
     if (!found || !parts) return;
