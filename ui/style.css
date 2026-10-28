@@ -5756,7 +5756,7 @@ legend.form-heading {
 }
 
 /* Gain and pan use stable control roles, never a track's identity colour.
-   Gain has a solid ring and needle; pan has a dashed ring and dot. */
+   Both use the same solid ring and needle, with distinct gain/pan colours. */
 .slider-control.control-gain {
   --control-colour: var(--control-gain);
 }
@@ -5784,22 +5784,124 @@ legend.form-heading {
 .track-header[data-track] .dial::after {
   background: var(--control-colour);
 }
-/* A solid ring and needle mean gain; a dashed ring and dot mean pan. */
-.track-header[data-track] .th-controls .dial.control-pan input[type="range"] {
-  background: var(--surface-panel);
-  border: 2px dashed var(--control-colour);
+
+/* Identity and essential actions remain visible even at one line. */
+.track-header[data-control-lines="1"][data-track] {
+  grid-template-columns: 12px minmax(28px, 1fr) 38px 22px 22px;
+  gap: 4px;
+  grid-template-rows: 22px;
+}
+.track-header[data-control-lines="1"][data-track] .th-top > .tag {
+  display: block;
+  grid-area: 1 / 1;
+  width: 12px;
+  padding: 0;
+}
+.track-header[data-control-lines="1"][data-track] .track-name {
+  grid-area: 1 / 2;
+}
+.track-header[data-control-lines="1"][data-track] .th-top > .ms {
+  display: flex;
+  grid-area: 1 / 3;
+  gap: 2px;
+}
+.track-header[data-control-lines="1"][data-track] .ms-button {
+  height: 22px;
+  min-width: 18px;
+  padding: 0 2px;
+}
+.track-header[data-control-lines="1"][data-track] .slider-control:not(.pan) {
+  grid-column: 4;
+}
+.track-header[data-control-lines="1"][data-track] .slider-control.pan {
+  grid-column: 5;
+}
+.track-header[data-control-lines="2"][data-track] .th-top > .tag {
+  display: block;
+  flex: none;
+  width: 12px;
+  padding: 0;
+}
+.track-header[data-control-lines="2"][data-track] .th-top > .ms {
+  display: flex;
+  margin-left: auto;
+  gap: 2px;
+}
+.track-header[data-control-lines="2"][data-track] .ms-button {
+  height: 22px;
+  min-width: 22px;
+  padding: 0 3px;
+}
+/* Numeric gain feedback uses the same outside-lane gutter as LUFS. */
+.track-header[data-track] .th-controls .dial output {
+  position: fixed;
+  right: auto;
+  bottom: auto;
+  z-index: 9;
+}
+/* Keep identity and M/S together; routing tools occupy the second line. */
+.track-header[data-control-lines="3"][data-track] .th-top > .tag {
+  position: static;
+  flex: none;
+}
+.track-header[data-control-lines="3"][data-track] .track-name {
+  position: static;
+  flex: 1;
+  width: auto;
+  min-width: 0;
+}
+.track-header[data-control-lines="3"][data-track] .track-handle {
+  position: absolute;
+  left: 12px;
+  top: 32px;
+}
+.track-header[data-control-lines="3"][data-track] .bus-select {
+  position: absolute;
+  left: 28px;
+  top: 30px;
+}
+.track-header[data-control-lines="3"][data-track] .th-top {
+  flex-direction: row;
+}
+.track-header[data-control-lines="3"][data-track] .th-top > .tag {
+  order: -1;
+}
+.track-header[data-track] .th-controls .dial output {
+  width: 76px;
+  min-width: 76px;
+  max-width: 76px;
+  height: 28px;
   box-sizing: border-box;
 }
-.track-header[data-track] .dial.control-pan::after {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  left: 11px;
-  top: 3px;
-  transform-origin: 3px 11px;
+.track-header[data-control-lines="1"][data-track] {
+  grid-template-columns: 12px minmax(28px, 1fr) 38px 28px 28px;
 }
-.track-header.micro-controls[data-track] .dial.control-pan::after {
-  left: 8px;
-  top: 2px;
-  transform-origin: 3px 9px;
+.track-header.micro-controls[data-control-lines="1"][data-track] {
+  grid-template-columns: 12px minmax(28px, 1fr) 38px 22px 22px;
+}
+/* Pan sweeps SW -> N -> SE, leaving the bottom quarter open. */
+.track-header[data-track] .th-controls .dial.control-pan input[type="range"] {
+  background: transparent;
+}
+.track-header[data-track] .dial.control-pan::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: conic-gradient(
+    from 225deg,
+    var(--control-colour) 0deg 270deg,
+    transparent 270deg 360deg
+  );
+  mask-image: radial-gradient(circle, transparent 53%, black 56%, black 63%, transparent 66%);
+}
+/* Match the painted pan arc to the gain pot, not its shorter layout row. */
+.track-header[data-track] .dial.control-pan::before {
+  inset: 0 auto auto 0;
+  width: 28px;
+  height: 28px;
+}
+.track-header.micro-controls[data-track] .dial.control-pan::before {
+  width: 22px;
+  height: 22px;
 }

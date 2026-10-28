@@ -324,7 +324,21 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       const height = loudness.offsetHeight || 28;
       const sideRoom = lane.right + width + 16 <= window.innerWidth;
       loudness.style.left = `${sideRoom ? lane.right + 8 : Math.max(8, window.innerWidth - width - 8)}px`;
-      loudness.style.top = `${sideRoom ? Math.max(8, Math.min(gain.wrap.getBoundingClientRect().top, window.innerHeight - height - 8)) : 8}px`;
+      const compactGain = gain.wrap.classList.contains("dial");
+      const feedbackTop = sideRoom
+        ? Math.max(
+            8,
+            Math.min(
+              gain.wrap.getBoundingClientRect().top,
+              window.innerHeight - height - (compactGain ? 40 : 8),
+            ),
+          )
+        : 8;
+      loudness.style.top = `${feedbackTop + (compactGain ? 30 : 0)}px`;
+      if (compactGain) {
+        gain.output.style.left = loudness.style.left;
+        gain.output.style.top = `${feedbackTop}px`;
+      }
     };
     gain.wrap.addEventListener("pointerenter", positionLoudness);
     gain.wrap.addEventListener("focusin", positionLoudness);
@@ -332,6 +346,14 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
 
     const pan = slider(t("ui.track.pan"), PAN);
     pan.wrap.classList.add("pan");
+    const positionPanValue = () => {
+      const lane = node.getBoundingClientRect();
+      pan.output.style.left = `${Math.min(lane.right + 8, window.innerWidth - 92)}px`;
+      pan.output.style.top = `${Math.max(8, Math.min(pan.wrap.getBoundingClientRect().top, window.innerHeight - 36))}px`;
+    };
+    pan.wrap.addEventListener("pointerenter", positionPanValue);
+    pan.wrap.addEventListener("focusin", positionPanValue);
+    pan.wrap.addEventListener("pointermove", positionPanValue);
     controls.append(gain.wrap, pan.wrap);
     // A thin grab zone on the bottom edge: drag to size this lane, double-click to reset it.
     const grip = el("div", "lane-grip", { title: t("ui.track.resize"), "aria-hidden": "true" });
@@ -509,6 +531,14 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     const gain = slider(t("ui.bus.gain"), GAIN);
     const pan = slider(t("ui.bus.pan"), PAN);
     pan.wrap.classList.add("pan");
+    const positionPanValue = () => {
+      const lane = node.getBoundingClientRect();
+      pan.output.style.left = `${Math.min(lane.right + 8, window.innerWidth - 92)}px`;
+      pan.output.style.top = `${Math.max(8, Math.min(pan.wrap.getBoundingClientRect().top, window.innerHeight - 36))}px`;
+    };
+    pan.wrap.addEventListener("pointerenter", positionPanValue);
+    pan.wrap.addEventListener("focusin", positionPanValue);
+    pan.wrap.addEventListener("pointermove", positionPanValue);
     const faderLabel = el("span", "fader-label", { "aria-hidden": "true" });
     faderLabel.textContent = t("ui.bus.fader");
     controls.append(faderLabel, gain.wrap, pan.wrap);
