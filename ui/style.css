@@ -1971,6 +1971,15 @@ input[type="text"] {
 .side-tabs[data-tabs="minimal"] .side-tab[aria-selected="true"] .tab-key {
   display: none;
 }
+/* Five destinations: keep the complete key and selected name in a narrow sidebar. */
+.side-tabs[data-tabs="minimal"] .side-tab {
+  padding-inline: var(--space-1);
+  gap: var(--space-1);
+}
+.materials-scopes {
+  margin-bottom: var(--space-3);
+}
+
 .side-tabs .side-close {
   flex: none;
 }
