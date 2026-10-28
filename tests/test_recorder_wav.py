@@ -90,6 +90,49 @@ def test_float_to_pcm24_nan_inf():
     assert raw == b'\x00\x00\x00\xff\xff\x7f\x00\x00\x80'
 
 
+def test_float_to_pcm24_exact_bytes():
+    samples = np.array([0.0, 1.0, -1.0, 0.5, -0.5], dtype=np.float64)
+    raw = wavfile.float_to_pcm24(samples)
+    expected = (
+        b"\x00\x00\x00"  # 0
+        b"\xff\xff\x7f"  #  8388607 (0x7FFFFF)
+        b"\x00\x00\x80"  # -8388608 (0x800000)
+        b"\x00\x00\x40"  #  4194304 (0x400000)
+        b"\x00\x00\xc0"  # -4194304 (0xC00000)
+    )
+    assert raw == expected
+
+
+def test_float_to_pcm24_clipping_bounds():
+    samples = np.array([1.5, 100.0, -1.5, -100.0], dtype=np.float64)
+    raw = wavfile.float_to_pcm24(samples)
+    expected = (
+        b"\xff\xff\x7f"  # clipped to  8388607
+        b"\xff\xff\x7f"  # clipped to  8388607
+        b"\x00\x00\x80"  # clipped to -8388608
+        b"\x00\x00\x80"  # clipped to -8388608
+    )
+    assert raw == expected
+
+
+def test_float_to_pcm24_2d_array():
+    samples = np.array([[0.0, 0.5], [-0.5, 1.0]], dtype=np.float32)
+    raw = wavfile.float_to_pcm24(samples)
+    expected = (
+        b"\x00\x00\x00"
+        b"\x00\x00\x40"
+        b"\x00\x00\xc0"
+        b"\xff\xff\x7f"
+    )
+    assert raw == expected
+
+
+def test_float_to_pcm24_dtypes():
+    f32_raw = wavfile.float_to_pcm24(np.array([0.0, 0.5], dtype=np.float32))
+    f64_raw = wavfile.float_to_pcm24(np.array([0.0, 0.5], dtype=np.float64))
+    assert f32_raw == f64_raw == b"\x00\x00\x00\x00\x00\x40"
+
+
 def test_new_file_is_a_valid_empty_wav(tmp_path):
     path = tmp_path / "a.wav"
     w = ProgressiveWav(path, RATE)
