@@ -8,12 +8,19 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 import soundfile as sf
+from speechmix import programme
 
 from kuulas import export, priority
 from kuulas.session import Session
 
 RATE = 48000
 RESULT = SimpleNamespace(boost_db=1.25, lufs=-16.0, cost_lu=0.1, reached=True)
+
+
+@pytest.fixture(autouse=True)
+def candidate_streaming(monkeypatch):
+    """Candidate path is tested explicitly, not enabled in production yet."""
+    monkeypatch.setattr(export, "STREAM_MASTERING_ENABLED", True)
 
 
 @pytest.fixture
@@ -28,6 +35,9 @@ def source():
 def streaming_api(monkeypatch):
     # Until speechmix's new API lands these tests exercise the agreed contract.
     def install(implementation):
+        if not hasattr(export.programme, "master_scratch_bytes"):
+            monkeypatch.setattr(export.programme, "master_scratch_bytes",
+                                lambda frames: 40 * frames, raising=False)
         monkeypatch.setattr(export.programme, "master_stream", implementation,
                             raising=False)
 
@@ -145,6 +155,8 @@ def test_cancel_after_render_does_not_start_master(tmp_path, source, streaming_a
     assert list(tmp_path.iterdir()) == []
 
 
+@pytest.mark.skipif(not hasattr(programme, "master_stream"),
+                    reason="requires new optional speechmix streaming API")
 @pytest.mark.parametrize("channels", [1, 2])
 def test_real_stream_adapter_matches_whole_programme(tmp_path, channels, monkeypatch):
     """Output conversion and block boundaries must preserve the old master's audio."""
@@ -175,6 +187,8 @@ def test_real_stream_adapter_matches_whole_programme(tmp_path, channels, monkeyp
     assert list(tmp_path.iterdir()) == []
 
 
+@pytest.mark.skipif(not hasattr(programme, "master_stream"),
+                    reason="requires new optional speechmix streaming API")
 @pytest.mark.parametrize("phase", ["analysis", "output"])
 def test_real_stream_cancellation_cleans_private_scratch(
         tmp_path, source, monkeypatch, phase):
@@ -233,6 +247,8 @@ def test_real_stream_full_disk_in_output_rolls_back(tmp_path, source, monkeypatc
         session.close()
 
 
+@pytest.mark.skipif(not hasattr(programme, "master_stream"),
+                    reason="requires new optional speechmix streaming API")
 def test_render_failure_closes_and_removes_master_source(tmp_path, source):
     def failed(_first, _count):
         raise ValueError("renderer failed")
@@ -247,6 +263,8 @@ def test_render_failure_closes_and_removes_master_source(tmp_path, source):
     assert list(tmp_path.iterdir()) == []
 
 
+@pytest.mark.skipif(not hasattr(programme, "master_scratch_bytes"),
+                    reason="requires new optional speechmix scratch API")
 def test_disk_preflight_covers_api_source_output_and_margin():
     frames, channels = 90 * 60 * RATE, 2
     expected = (export.programme.master_scratch_bytes(frames)
@@ -256,6 +274,7 @@ def test_disk_preflight_covers_api_source_output_and_margin():
 
 def test_insufficient_disk_fails_before_render_or_master(
         tmp_path, source, streaming_api, monkeypatch):
+    streaming_api(lambda *_args, **_kwargs: pytest.fail("master started"))
     needed = export._master_disk_bytes(source.shape[1], 2)
     monkeypatch.setattr(export.shutil, "disk_usage",
                         lambda _: SimpleNamespace(free=needed - 1))
@@ -272,6 +291,8 @@ def test_insufficient_disk_fails_before_render_or_master(
     assert list(tmp_path.iterdir()) == []
 
 
+@pytest.mark.skipif(not hasattr(programme, "master_stream"),
+                    reason="requires new optional speechmix streaming API")
 def test_disk_shortage_is_reported_as_export_error(tmp_path, source, monkeypatch):
     path = tmp_path / "input.wav"
     sf.write(path, source.T, RATE, subtype="FLOAT")
@@ -288,3 +309,32 @@ def test_disk_shortage_is_reported_as_export_error(tmp_path, source, monkeypatch
         assert session.history.checkpoints() == []
     finally:
         session.close()
+
+
+@pytest.mark.parametrize("missing", ["master_stream", "master_scratch_bytes", "both"])
+def test_older_speechmix_keeps_existing_mastering(tmp_path, source, monkeypatch, missing):
+    """Either missing capability falls back to the original global master."""
+    source = np.tile(source, (1, 4))
+    expected, reference = export.programme.master(source, RATE, -16.0)
+    for name in ("master_stream", "master_scratch_bytes"):
+        if missing in (name, "both"):
+            monkeypatch.delattr(export.programme, name, raising=False)
+    result, blocks, scratch = adapter(tmp_path, source)
+    np.testing.assert_array_equal(np.concatenate(blocks, axis=1),
+                                  expected.astype(np.float32))
+    assert result["boost_db"] == reference.boost_db
+    assert result["lufs"] == reference.lufs
+    assert result["cost_lu"] == reference.cost_lu
+    assert result["reached"] == reference.reached
+    assert scratch == []
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_streaming_remains_disabled_until_acceptance(tmp_path, source, monkeypatch):
+    monkeypatch.setattr(export, "STREAM_MASTERING_ENABLED", False)
+    monkeypatch.setattr(export.programme, "master_stream",
+                        lambda *_args, **_kwargs: pytest.fail("unaccepted streaming"),
+                        raising=False)
+    result, _blocks, scratch = adapter(tmp_path, source)
+    assert result["boost_db"] == 0.0  # sub-second reference skips target search
+    assert scratch == []
