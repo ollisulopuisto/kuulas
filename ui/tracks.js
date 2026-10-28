@@ -23,7 +23,9 @@ import { parseDbText, parsePanText } from "./value-edit.js";
 
 const GAIN = { min: -60, max: 12, step: 0.1 };
 const PAN = { min: -100, max: 100, step: 1 };
-const COMPACT_BELOW_PX = 40;
+// Below this height show the name + loudness dot; exact controls stay in Inspector.
+// Never expose half-clipped level rows when users shrink lanes.
+const COMPACT_BELOW_PX = 76;
 /** Below the smallest lane a user can size (lanes.js MIN_LANE) a header is a focus-mode strip
  *  (WP28): the name only, small. */
 const STRIP_BELOW_PX = 24;
