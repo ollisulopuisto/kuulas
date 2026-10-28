@@ -1,4 +1,5 @@
 {
+  "error.orukeet.memory": "Paikallinen Orukeet vaatii nykyisen käyttörajan mukaan vähintään 16 GiB fyysistä muistia. Muistia on liian vähän tai sen määrää ei voitu tunnistaa. Käytä Colabia. Raja ei takaa vapaan muistin riittävyyttä.",
   "ui.record.peak_value": "{value} dBFS",
   "ui.record.more_options": "Lisäasetukset",
   "ui.record.monitoring_short": "Kuuntele mikrofonia äänikortin suoramonitoroinnista.",

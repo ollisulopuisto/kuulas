@@ -178,7 +178,11 @@ def _run_engines(job: dict, folder: Path, status: _Status, cancel: threading.Eve
                           message=message, indeterminate=bool(indeterminate))
 
         params = {"model": job.get("model"), "language": job.get("language")}
-        found = engine(items, params, job.get("settings") or {}, report, cancel)
+        settings = dict(job.get("settings") or {})
+        # A selected cloud job must not inherit a local backend from the environment
+        # or old settings. Append last so argparse selects this authoritative route.
+        settings["extra_args"] = [*settings.get("extra_args", []), "--backend", "colab"]
+        found = engine(items, params, settings, report, cancel)
         _stop_if_cancelled(cancel)
         for item in items:
             _write_result(folder, job_id, item["id"], found["results"][item["id"]],

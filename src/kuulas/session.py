@@ -52,6 +52,7 @@ from . import (
     edit_scope,
     export_names,
     import_plan,
+    local_memory,
     material,
     material_search,
     music_duck,
@@ -3042,6 +3043,8 @@ class Session:
         Recordings used only on music tracks are refused (``error.transcribe.music_only``)
         unless ``force``: music is not transcribed nor uploaded to Colab by default.
         Returns the job id in a list."""
+        if backend != "colab" and not local_memory.eligible():
+            raise ops.EditError("error.orukeet.memory")
         ids = list(dict.fromkeys(media_ids))
         items, previous, names = [], {}, []
         with self.lock:

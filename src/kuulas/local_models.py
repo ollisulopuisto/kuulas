@@ -17,6 +17,7 @@ from urllib.request import urlopen
 
 import certifi
 
+from . import local_memory
 from .messages import KuulasError, config_dir
 from .package import write_json_atomic
 
@@ -95,6 +96,8 @@ def status() -> dict:
     path = model_path()
     return {"ready": valid_model(path), "path": str(path),
             "supported": platform.system() == "Darwin" and platform.machine() == "arm64",
+            "eligible": local_memory.eligible(),
+            "memory_minimum_bytes": local_memory.MINIMUM_BYTES,
             "bytes": sum(file.size for file in FILES), "source": MODEL_URL,
             "revision": REVISION}
 

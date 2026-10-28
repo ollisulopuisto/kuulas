@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from . import colab_transcribe, local_models
+from . import colab_transcribe, local_memory, local_models
 from .automix import run_process as _run_local_process
 from .clock import FLICKS
 from .messages import KuulasError
@@ -78,6 +78,8 @@ def local(path: str | Path, model: str = "small",
     Explicit model paths are supported. Never accept the shared CLI's generic
     Parakeet fallback when the user's converted Orukeet model is missing.
     """
+    if not local_memory.eligible():
+        raise TranscribeError("error.orukeet.memory")
     _ = cpu_threads  # MLX owns scheduling; retained for persisted jobs and callers.
     legacy = {"", "tiny", "base", "small", "medium", "large", "large-v2", "large-v3",
               "turbo", "orukeet"}
