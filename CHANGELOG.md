@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [v26.10.28.1] - 2026-10-28
+
+- **Transcription follows moved projects.** The transcription worker receives the verified current path of linked audio, including recordings in a renamed project.
+- **Recording controls sit beside Play and Record.** The recording indicator, Stop and Add marker are together in the transport corner, with a compact narrow layout.
+- Includes merged recorder and source test coverage, security fixes and editing improvements from main.
+
 ## [v26.10.27.4] - 2026-10-28
 
 - **New recording tracks show progress before Stop.** Late track assignment keeps buffered waveform peaks, and silent input still advances the recording head. Live waveforms follow the same half/full display and scale as saved clips.
