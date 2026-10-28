@@ -141,3 +141,10 @@ def _isolated_orukeet_setting(tmp_path_factory, monkeypatch):
     """Tests never read or change the user's selected transcription model."""
     folder = tmp_path_factory.mktemp("orukeet-setting")
     monkeypatch.setenv("KUULAS_ORUKEET_FILE", str(folder / "model.json"))
+
+
+@pytest.fixture(autouse=True)
+def physical_memory_fixture(monkeypatch):
+    """Keep non-hardware tests independent of the host memory/platform."""
+    from kuulas import local_memory  # noqa: PLC0415
+    monkeypatch.setattr(local_memory, "physical_memory", lambda: 16 * 1024**3)

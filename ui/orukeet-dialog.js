@@ -94,7 +94,8 @@ export function createOrukeetDialog({ api, t, pickFolder = null }) {
         : view.cancelled
           ? t("ui.orukeet.cancelled")
           : t(info.ready ? "ui.orukeet.ready" : "ui.orukeet.missing"));
-    if (!info.supported && !info.ready) message.textContent = t("error.orukeet.platform");
+    if (info.eligible === false) message.textContent = t("error.orukeet.memory");
+    else if (!info.supported && !info.ready) message.textContent = t("error.orukeet.platform");
   }
 
   const showError = (error) => {
@@ -111,7 +112,7 @@ export function createOrukeetDialog({ api, t, pickFolder = null }) {
         info = await api.localModel();
         jobId = null;
         draw();
-        if (info.ready && continueWhenReady) dialog.close();
+        if (info.ready && info.eligible !== false && continueWhenReady) dialog.close();
         return;
       }
       draw();
@@ -174,7 +175,7 @@ export function createOrukeetDialog({ api, t, pickFolder = null }) {
   close.addEventListener("click", () => dialog.close());
   dialog.addEventListener("close", () => {
     clearTimeout(timer);
-    resolve?.(Boolean(info.ready));
+    resolve?.(Boolean(info.ready && info.eligible !== false));
     resolve = null;
     pending = null;
   });
@@ -182,7 +183,7 @@ export function createOrukeetDialog({ api, t, pickFolder = null }) {
   async function open(ensure) {
     if (pending) return pending;
     info = await api.localModel();
-    if (ensure && info.ready) return true;
+    if (ensure && info.ready && info.eligible !== false) return true;
     continueWhenReady = ensure;
     jobId = info.job;
     job = jobId ? { state: "running", progress: 0 } : null;

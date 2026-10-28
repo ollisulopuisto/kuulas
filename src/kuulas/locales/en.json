@@ -1,4 +1,5 @@
 {
+  "error.orukeet.memory": "Local Orukeet requires at least 16 GiB of physical memory under the current eligibility policy. Memory could be insufficient or could not be detected. Use Colab instead. Meeting this minimum does not guarantee enough free memory.",
   "ui.record.peak_value": "{value} dBFS",
   "ui.record.more_options": "More options",
   "ui.record.monitoring_short": "Monitor your microphone through the audio interface.",
