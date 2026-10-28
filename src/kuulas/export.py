@@ -60,6 +60,8 @@ BLOCK_SECONDS = 10
 #: Mastering holds the whole programme in memory (float64 inside speechmix),
 #: so longer than this is refused with a message (and see master_fits).
 MAX_MASTER_SECONDS = 3 * 3600
+#: Keep the established mastering recipe until streaming acceptance is complete.
+STREAM_MASTERING_ENABLED = False
 #: What speechmix's ``programme.master`` holds per sample of the programme
 #: (per channel): the float64 copy, the lifted signal, the peak stage's and
 #: the limiter's per-sample curves and the round before. Measured 2026-10-20
@@ -661,6 +663,40 @@ def _pump(total: int, rate: int, render: Callable[[int, int], np.ndarray],
             raise
 
 
+def _mastered_legacy(job: _Job, sink, channels: int, render, target_lufs: float,
+                     workers: int,
+              cancel: threading.Event | None, tick: Callable[[float], None],
+              target: Path, scratch: list[Path]) -> dict:
+    """Render to a float32 memmap first, master the whole programme
+    (speechmix), then write it. The first 60 % of the work is the render."""
+    total, rate = job.frames, job.rate
+    keep = target.with_name(target.name + ".master.partial")
+    scratch.append(keep)
+    audio = np.memmap(keep, dtype=np.float32, mode="w+", shape=(channels, total))
+    at = 0
+
+    def store_block(block: np.ndarray) -> None:
+        nonlocal at, audio
+        audio[:, at:at + block.shape[1]] = block
+        at += block.shape[1]
+
+    _pump(total, rate, render, store_block, workers, cancel, lambda f: tick(0.6 * f))
+    mastered, result = programme.master(np.asarray(audio), rate, target_lufs)
+    del audio
+    step = max(1, round(BLOCK_SECONDS * rate))
+    for start in range(0, total, step):
+        try:
+            priority.checkpoint(cancel)
+        except priority.CancelledError:
+            raise _Cancel from None
+        sink.write(mastered[:, start:start + step].astype(np.float32))
+        tick(0.6 + 0.4 * min(1.0, (start + step) / total))
+    keep.unlink(missing_ok=True)
+    scratch.remove(keep)
+    return {"boost_db": result.boost_db, "lufs": result.lufs, "cost_lu": result.cost_lu,
+            "reached": bool(result.reached)}
+
+
 def _master_disk_bytes(frames: int, channels: int) -> int:
     """Preflight estimate for scratch, source and in-progress output files.
 
@@ -684,6 +720,13 @@ def _mastered(job: _Job, sink, channels: int, render, target_lufs: float, worker
     analysis scratch; this function owns and closes the rendered source on every
     outcome, before the outer export removes its partial output.
     """
+    if not STREAM_MASTERING_ENABLED or not (
+            callable(getattr(programme, "master_stream", None))
+            and callable(getattr(programme, "master_scratch_bytes", None))):
+        # podcast and Kuulas can be updated independently. Never make the
+        # existing -16 LUFS feature depend on an unmerged/newer shared API.
+        return _mastered_legacy(job, sink, channels, render, target_lufs, workers,
+                                cancel, tick, target, scratch)
     total, rate = job.frames, job.rate
     keep = target.with_name(target.name + ".master.partial")
     def check() -> None:
