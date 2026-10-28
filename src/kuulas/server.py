@@ -298,6 +298,7 @@ class TransportBody(BaseModel):
 
 
 class TranscribeBody(BaseModel):
+    allow_low_memory: bool = False
     media_ids: list[str]
     model: str | None = None
     language: str | None = None
@@ -1570,7 +1571,8 @@ def create_app(session, engine, *, language: str | None = None,
             require_media(media_id)
         try:
             job_ids = session.transcribe(body.media_ids, body.model, body.language,
-                                         body.backend, force=body.force)
+                                         body.backend, force=body.force,
+                                         allow_low_memory=body.allow_low_memory)
         except MediaError as exc:
             return answer(exc, 400)
         return JSONResponse({"jobs": job_ids}, status_code=202)

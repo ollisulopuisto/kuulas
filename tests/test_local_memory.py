@@ -1,5 +1,6 @@
 """Eligibility policy boundaries and refusal before model/tool access."""
 from types import SimpleNamespace
+
 import pytest
 
 from kuulas import local_memory, local_models, transcribe

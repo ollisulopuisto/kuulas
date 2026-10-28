@@ -335,8 +335,12 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     const ids = onlyIds ?? transcribeTargets().map((item) => item.id);
     if (ids.length === 0) return;
     try {
-      if (actions.ensureLocalModel && !(await actions.ensureLocalModel())) return;
-      await api.transcribe(ids, { force });
+      const consent = actions.ensureLocalModel ? await actions.ensureLocalModel() : true;
+      if (!consent) return;
+      await api.transcribe(ids, {
+        force,
+        ...(consent.allow_low_memory === true ? { allow_low_memory: true } : {}),
+      });
       await refreshJobs();
     } catch (error) {
       actions.showError(error);

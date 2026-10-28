@@ -87,3 +87,15 @@ def test_packaged_command_installs_mlx_in_isolated_environment(model, monkeypatc
     with pytest.raises(transcribe.TranscribeError) as error:
         transcribe.local("speech.wav")
     assert error.value.key == "error.transcribe.orukeet_failed"
+
+
+def test_explicit_override_reaches_shared_cli(model, monkeypatch):
+    from kuulas import local_memory  # noqa: PLC0415
+    monkeypatch.setattr(local_memory, "physical_memory", lambda: 8 * 1024**3)
+    def process(cmd, *_):
+        assert "--allow-low-memory" in cmd
+        raise FileNotFoundError("fixture")
+    monkeypatch.setattr(transcribe, "_run_local_process", process)
+    with pytest.raises(transcribe.TranscribeError) as error:
+        transcribe.local("speech.wav", allow_low_memory=True)
+    assert error.value.key == "error.transcribe.orukeet_failed"

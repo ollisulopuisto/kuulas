@@ -14,7 +14,7 @@ import pytest
 import soundfile as sf
 from fastapi.testclient import TestClient
 
-from kuulas import bgjobs
+from kuulas import bgjobs, ops
 from kuulas.clock import FLICKS
 from kuulas.server import create_app
 from kuulas.session import Session
@@ -324,3 +324,30 @@ def test_restart_all_interrupted(session, client, monkeypatch):
     r = client.post("/api/jobs/restart-interrupted")
     assert len(r.json()["restarted"]) == 1
     wait(lambda: len(session.transcripts()) == 2)
+
+
+@pytest.mark.parametrize("memory", [None, 8 * 1024**3])
+def test_memory_policy_refuses_before_worker_creation(session, monkeypatch, memory):
+    from kuulas import local_memory  # noqa: PLC0415
+    monkeypatch.setattr(local_memory, "physical_memory", lambda: memory)
+    monkeypatch.setattr(session, "_launch_background",
+                        lambda *_: pytest.fail("worker launched"))
+    with pytest.raises(ops.EditError) as error:
+        session.transcribe(ids(session))
+    assert error.value.key == "error.orukeet.memory"
+    assert bgjobs.job_ids(session.package.path) == []
+
+
+def test_memory_override_is_one_job_not_restart_permission(session, monkeypatch):
+    from kuulas import local_memory  # noqa: PLC0415
+    monkeypatch.setattr(local_memory, "physical_memory", lambda: 8 * 1024**3)
+    monkeypatch.setattr(session, "_launch_background", lambda *_: None)
+    job_id = session.transcribe(ids(session), allow_low_memory=True)[0]
+    job = bgjobs.read_json(bgjobs.job_file(session.package.path, job_id))
+    assert job["allow_low_memory"] is True
+    status = bgjobs.read_json(bgjobs.status_file(session.package.path, job_id))
+    bgjobs.write_json_atomic(bgjobs.status_file(session.package.path, job_id),
+                            {**status, "state": "failed"})
+    with pytest.raises(ops.EditError) as error:
+        session.restart_background(job_id)
+    assert error.value.key == "error.orukeet.memory"

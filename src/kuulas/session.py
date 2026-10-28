@@ -3033,7 +3033,7 @@ class Session:
 
     def transcribe(self, media_ids: list[str], model: str | None = None,
                    language: str | None = None, backend: str = "local",
-                   force: bool = False) -> list[str]:
+                   force: bool = False, allow_low_memory: bool = False) -> list[str]:
         """Start ONE background job for the chosen recordings (``local``:
         Orukeet here; ``colab``: the WP78 tool). The job is a file in the
         project and a separate worker process (``kuulas.transcribe_worker``) that
@@ -3043,7 +3043,7 @@ class Session:
         Recordings used only on music tracks are refused (``error.transcribe.music_only``)
         unless ``force``: music is not transcribed nor uploaded to Colab by default.
         Returns the job id in a list."""
-        if backend != "colab" and not local_memory.eligible():
+        if backend != "colab" and not allow_low_memory and not local_memory.eligible():
             raise ops.EditError("error.orukeet.memory")
         ids = list(dict.fromkeys(media_ids))
         items, previous, names = [], {}, []
@@ -3073,7 +3073,7 @@ class Session:
             previous=previous, names=names, model=model if colab else (model or "small"),
             language=language, cpu_threads=max(1, os.cpu_count() or 1),
             settings=colab_module.resolve_settings(colab_module.load_settings())
-            if colab else None, forced=force)
+            if colab else None, forced=force, allow_low_memory=allow_low_memory)
         self._launch_background(job_id)
         return [job_id]
 
@@ -3231,6 +3231,8 @@ class Session:
         job = bgjobs.read_json(bgjobs.job_file(folder, job_id))
         if info is None or job is None:
             raise bgjobs.BackgroundJobError("error.jobs.unknown", job_id=job_id)
+        if job.get("backend") != "colab" and not local_memory.eligible():
+            raise ops.EditError("error.orukeet.memory")
         if info["foreign"]:
             raise bgjobs.BackgroundJobError("error.transcribe.foreign_host",
                                             host=info["host"])
@@ -3255,7 +3257,8 @@ class Session:
             if path != bgjobs.job_file(folder, job_id):
                 path.unlink(missing_ok=True)
         package.write_json_atomic(bgjobs.job_file(folder, job_id),
-                                  {**job, "previous": previous})
+                                  {**job, "previous": previous,
+                                   "allow_low_memory": False})
         package.write_json_atomic(bgjobs.status_file(folder, job_id), {
             "state": "queued", "progress": 0.0, "message": "", "indeterminate": True,
             "log": [], "pid": None, "host": job.get("host"), "finished": None})
