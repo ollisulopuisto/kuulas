@@ -31,7 +31,6 @@ test("a previously usable model remains usable after an install failure", () => 
   assert.equal(view.canSelect, true);
 });
 
-
 test("low-memory policy refuses even a previously installed model", () => {
   const view = setupView({ ready: true, supported: true, eligible: false });
   assert.equal(view.ready, false);

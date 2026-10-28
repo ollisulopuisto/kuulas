@@ -58,7 +58,7 @@ _REMOTE_COMMAND = [
     "uvx", "--python", "3.13",
     "--overrides", str(Path(__file__).with_name("transcription-overrides.txt")),
     "--from",
-    "git+https://github.com/ollisulopuisto/podcast@90d3b30f69a2d1d91a715c537596d254936a9ebe#subdirectory=colab-transcribe",
+    "git+https://github.com/ollisulopuisto/podcast@ef83cb9dc31b41acabcc106c6c9b54317b57a121#subdirectory=colab-transcribe",
     "colab-transcribe"]
 DEFAULT_MODEL = "turbo"
 #: The log kept for the UI, and the part of it an error carries.

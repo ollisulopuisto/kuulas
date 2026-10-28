@@ -324,3 +324,14 @@ def test_restart_all_interrupted(session, client, monkeypatch):
     r = client.post("/api/jobs/restart-interrupted")
     assert len(r.json()["restarted"]) == 1
     wait(lambda: len(session.transcripts()) == 2)
+
+
+@pytest.mark.parametrize("memory", [None, 8 * 1024**3])
+def test_memory_policy_refuses_before_worker_creation(session, monkeypatch, memory):
+    from kuulas import local_memory  # noqa: PLC0415
+    monkeypatch.setattr(local_memory, "physical_memory", lambda: memory)
+    monkeypatch.setattr(session, "_launch_background", lambda *_: pytest.fail("worker launched"))
+    with pytest.raises(Exception) as error:
+        session.transcribe(ids(session))
+    assert error.value.key == "error.orukeet.memory"
+    assert bgjobs.job_ids(session.package.path) == []
