@@ -5690,3 +5690,40 @@ legend.form-heading {
   height: 7px;
   transform-origin: 1px 8px;
 }
+/* Loudness is contextual feedback for gain, not a permanent track row.
+   Absolute placement never consumes rail space and never catches the pointer. */
+.track-header[data-track] {
+  overflow: visible;
+}
+.track-header[data-track] .slider-control {
+  position: relative;
+}
+.track-header[data-track] .th-controls .slider-control .loudness-readout {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: auto;
+  bottom: calc(100% + 3px);
+  width: max-content;
+  max-width: 240px;
+  height: auto;
+  font-size: var(--text-xs);
+  line-height: 1.3;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: var(--surface-panel);
+  pointer-events: none;
+  z-index: 8;
+}
+.track-header[data-track] .th-controls .slider-control:hover .loudness-readout:not([hidden]),
+.track-header[data-track]
+  .th-controls
+  .slider-control:focus-within
+  .loudness-readout:not([hidden]) {
+  display: block;
+}
+.track-header[data-control-lines="1"][data-track] .slider-control .loudness-readout {
+  left: auto;
+  right: 0;
+}

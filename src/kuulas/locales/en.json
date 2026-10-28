@@ -1,4 +1,9 @@
 {
+  "ui.loudness.pending": "Measuring loudness…",
+  "ui.loudness.unavailable": "Loudness not measured",
+  "ui.loudness.updating": "updating measurement",
+  "ui.loudness.label": "Track loudness",
+  "ui.loudness.integrated_hint": "Integrated track loudness and its analysis target. Not a live meter or final programme loudness.",
   "ui.control.level": "Level",
   "ui.control.pan": "Pan",
   "ui.orukeet.run_anyway": "Run anyway (this run)",

@@ -10,7 +10,7 @@ test("track controls reserve equal rails and move values above them", () => {
   assert.match(css, /slider-caption/);
   assert.match(source, /"aria-label": label/);
 });
-test("loudness numbers have a separate visible line rather than consuming a rail", () => {
+test("loudness numbers are anchored without consuming a rail", () => {
   const rule = css.match(
     /\.track-header:not\(\.compact\) \.th-controls \.loudness-readout \{([^}]+)\}/,
   )[1];

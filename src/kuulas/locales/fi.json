@@ -1,4 +1,9 @@
 {
+  "ui.loudness.pending": "Mitataan äänekkyyttä…",
+  "ui.loudness.unavailable": "Äänekkyyttä ei ole mitattu",
+  "ui.loudness.updating": "mittaus päivittyy",
+  "ui.loudness.label": "Raidan äänekkyys",
+  "ui.loudness.integrated_hint": "Raidan integroitu äänekkyys ja analyysin tavoite. Ei reaaliaikainen mittari eikä ohjelman lopullinen äänekkyys.",
   "ui.control.level": "Taso",
   "ui.control.pan": "Pan",
   "ui.orukeet.run_anyway": "Suorita silti (tämä ajo)",

@@ -14,7 +14,7 @@ import { addBusForTrack, NEW_BUS } from "./inspector-track.js";
 import { truncateMiddle } from "./labels.js";
 import { dragLaneHeight, dragStarted } from "./lane-sizing.js";
 import { layoutFor } from "./lanes.js";
-import { readoutText, trackReadout } from "./loudness-readout.js";
+import { contextualReadout, readoutText, trackReadout } from "./loudness-readout.js";
 import { modClick } from "./modifiers.js";
 import { monoTag } from "./mono-ask.js";
 import { MUSIC_HUE, trackHues } from "./paint.js";
@@ -313,8 +313,9 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     top.append(handle, name, tag, roleBadge, channelTag, bus, buttons);
     // The loudness sits on the level row, so it never takes the name's room.
     const controls = el("div", "th-controls");
-    controls.append(loudness);
+    // Measurement belongs to gain context, never pan hover.
     const gain = slider(t("ui.track.gain"), GAIN);
+    gain.wrap.append(loudness);
     const pan = slider(t("ui.track.pan"), PAN);
     pan.wrap.classList.add("pan");
     controls.append(gain.wrap, pan.wrap);
@@ -673,6 +674,9 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         parts.channelTag.hidden = channels === null;
         parts.channelTag.textContent = channels ? t(`ui.track.tag.${channels}`) : "";
         paintLoudness(parts.loudness, trackReadout(state.loudness, track.id));
+        parts.loudness.hidden = false;
+        parts.loudness.textContent = contextualReadout(state.loudness, track.id, formatNumber, t);
+        parts.loudness.title = "";
         parts.mute.setAttribute("aria-pressed", String(track.mute));
         parts.solo.setAttribute("aria-pressed", String(track.solo));
         if (document.activeElement !== parts.bus) parts.bus.value = track.bus ?? "";
