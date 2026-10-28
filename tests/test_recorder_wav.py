@@ -14,7 +14,7 @@ import pytest
 import soundfile as sf
 
 from kuulas_recorder import wavfile
-from kuulas_recorder.wavfile import ProgressiveWav, WavRepairError, repair_wav
+from kuulas_recorder.wavfile import ProgressiveWav, WavRepairError, repair_wav, wav_frames
 
 RATE = 48000
 
@@ -263,3 +263,37 @@ def test_repair_refuses_a_file_that_is_not_a_wav(tmp_path):
         repair_wav(path)
     assert e.value.key == "not_a_wav"
     assert path.read_bytes() == b"ID3" + b"\0" * 100
+
+
+# --- wav_frames -------------------------------------------------------------
+
+
+def test_wav_frames_valid_and_empty(tmp_path):
+    path = tmp_path / "test.wav"
+    w = ProgressiveWav(path, RATE)
+    assert wav_frames(path) == 0
+
+    n_frames = 1200
+    w.write(wavfile.float_to_pcm24(counter(0, n_frames)))
+    w.flush()
+    assert wav_frames(path) == n_frames
+
+    # Unflushed audio is not reflected in the header, so wav_frames returns flushed count.
+    w.write(wavfile.float_to_pcm24(counter(n_frames, 500)))
+    assert wav_frames(path) == n_frames
+    w.close()
+
+
+def test_wav_frames_non_wav_and_missing_data(tmp_path):
+    not_wav = tmp_path / "invalid.wav"
+    not_wav.write_bytes(b"not a wav file header content")
+    assert wav_frames(not_wav) == 0
+
+    no_data_chunk = tmp_path / "no_data.wav"
+    # Header with fmt chunk but no data chunk
+    head = struct.pack(
+        "<4sI4s4sIHHIIHH",
+        b"RIFF", 28, b"WAVE", b"fmt ", 16, 1, 1, RATE, RATE * 3, 3, 24,
+    )
+    no_data_chunk.write_bytes(head)
+    assert wav_frames(no_data_chunk) == 0
