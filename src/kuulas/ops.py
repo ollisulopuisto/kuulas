@@ -128,12 +128,18 @@ def set_track(p: Project, track_id: str, **fields) -> Project:
     if ("duck" in fields and fields["duck"] is not None
             and not isinstance(fields["duck"], bool)):
         raise EditError("error.edit.bad_arguments", name="set_track", detail="duck")
-    if fields.get("bus") is not None and not any(b.id == fields["bus"] for b in p.buses):
-        raise EditError("error.edit.no_bus", bus_id=fields["bus"])
     # Bus roles. Invariant: follow_bus_role implies kind == the bus's role.
     track = _find_track(p, track_id)
     bus_after = fields.get("bus", track.bus)
-    role = next((b.kind for b in p.buses if b.id == bus_after), None)
+    target_bus = None
+    if bus_after is not None:
+        try:
+            target_bus = p.bus(bus_after)
+        except KeyError:
+            if fields.get("bus") is not None:
+                raise EditError("error.edit.no_bus", bus_id=fields["bus"]) from None
+
+    role = target_bus.kind if target_bus is not None else None
     if "follow_bus_role" in fields:
         fields["follow_bus_role"] = bool(fields["follow_bus_role"])
         if fields["follow_bus_role"]:
