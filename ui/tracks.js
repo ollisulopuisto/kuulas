@@ -6,6 +6,7 @@
 
 import { bindToggle } from "./ab-value.js";
 import { busRoleStatus, roleDiffers } from "./bus-role.js";
+import { bindDialRange, controlLines } from "./dial-range.js";
 import { inactiveTracks } from "./focus-layout.js";
 import { busHues, busLetter } from "./grammar.js";
 import { detectPlatform, formatDb, formatNumber, t } from "./i18n.js";
@@ -25,7 +26,7 @@ const GAIN = { min: -60, max: 12, step: 0.1 };
 const PAN = { min: -100, max: 100, step: 1 };
 // Below this height show the name + loudness dot; exact controls stay in Inspector.
 // Never expose half-clipped level rows when users shrink lanes.
-const COMPACT_BELOW_PX = 76;
+const COMPACT_BELOW_PX = 40;
 /** Below the smallest lane a user can size (lanes.js MIN_LANE) a header is a focus-mode strip
  *  (WP28): the name only, small. */
 const STRIP_BELOW_PX = 24;
@@ -83,7 +84,8 @@ function slider(label, range) {
   const caption = el("span", "slider-caption", { "aria-hidden": "true" });
   caption.textContent = t(range === PAN ? "ui.control.pan" : "ui.control.level");
   wrap.append(caption, input, output);
-  return { wrap, input, output };
+  const paintDial = bindDialRange(input, () => wrap.classList.contains("dial"));
+  return { wrap, input, output, paintDial };
 }
 
 /**
@@ -97,6 +99,12 @@ function slider(label, range) {
 function editableReadout(control, { parse, current, text, format, write, scale = 1 }) {
   const { input, output } = control;
   output.title = t("ui.readout.type_hint");
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && !event.shiftKey && !event.altKey) {
+      event.preventDefault();
+      output.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    }
+  });
   output.addEventListener("dblclick", (event) => {
     event.preventDefault();
     event.stopPropagation();
@@ -599,7 +607,8 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     if (document.activeElement !== control.input && control.input.value !== String(value)) {
       control.input.value = value;
     }
-    control.output.textContent = text;
+    if (!control.output.querySelector(".readout-edit")) control.output.textContent = text;
+    control.input.setAttribute("aria-valuetext", text);
   }
 
   function update(state) {
@@ -627,6 +636,8 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       const parts = rows.get(row.id);
       if (!parts) continue;
       parts.node.style.height = `${row.height}px`;
+      parts.node.dataset.controlLines = String(controlLines(row.height));
+      parts.node.classList.toggle("micro-controls", row.height < 32);
       if (parts.kind === "gap") continue;
       parts.node.classList.toggle("group-end", Boolean(row.last));
       // The bus spine runs from the bus header down through its members.
@@ -665,8 +676,12 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         parts.mute.setAttribute("aria-pressed", String(track.mute));
         parts.solo.setAttribute("aria-pressed", String(track.solo));
         if (document.activeElement !== parts.bus) parts.bus.value = track.bus ?? "";
+        parts.gain.wrap.classList.toggle("dial", controlLines(row.height) === 1);
+        parts.pan.wrap.classList.add("dial");
         setSlider(parts.gain, track.gain_db, formatDb(track.gain_db));
         setSlider(parts.pan, Math.round(track.pan * 100), panText(track.pan));
+        parts.gain.paintDial();
+        parts.pan.paintDial();
         if (parts.busFader) {
           const bus = state.project.buses.find((item) => item.id === parts.busFader.id);
           if (bus) setSlider(parts.busFader.control, bus.gain_db, formatDb(bus.gain_db));
