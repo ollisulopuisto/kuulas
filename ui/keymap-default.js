@@ -452,7 +452,7 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "panel.show_clipboard",
-    keys: { mac: "Mod+4", other: "Mod+4" },
+    keys: { mac: null, other: null },
     context: "global",
     labelKey: "cmd.panel.show_clipboard",
   },
@@ -470,7 +470,7 @@ export const DEFAULT_KEYMAP = [
   },
   {
     id: "panel.show_material",
-    keys: { mac: "Mod+6", other: "Mod+6" },
+    keys: { mac: "Mod+4", other: "Mod+4" },
     context: "global",
     labelKey: "cmd.panel.show_material",
   },

@@ -107,18 +107,16 @@
           <button id="tab-inspector" type="button" role="tab" class="side-tab" data-tab="inspector" aria-controls="panel-inspector"><span class="tab-icon" data-icon="inspector" aria-hidden="true"></span><span class="tab-label" data-i18n="ui.tabs.inspector"></span><span class="tab-key"></span></button>
           <button id="tab-history" type="button" role="tab" class="side-tab" data-tab="history" aria-controls="panel-history"><span class="tab-icon" data-icon="restore" aria-hidden="true"></span><span class="tab-label" data-i18n="ui.tabs.history"></span><span class="tab-key"></span></button>
           <button id="tab-markers" type="button" role="tab" class="side-tab" data-tab="markers" aria-controls="panel-markers"><span class="tab-icon" data-icon="bookmark" aria-hidden="true"></span><span class="tab-label" data-i18n="ui.tabs.markers"></span><span class="tab-key"></span></button>
-          <button id="tab-clipboard" type="button" role="tab" class="side-tab" data-tab="clipboard" aria-controls="panel-clipboard"><span class="tab-icon" data-icon="paste" aria-hidden="true"></span><span class="tab-label" data-i18n="ui.tabs.clipboard"></span><span class="tab-key"></span></button>
-          <button id="tab-candidates" type="button" role="tab" class="side-tab" data-tab="candidates" aria-controls="panel-candidates"><span class="tab-icon" data-icon="candidates" aria-hidden="true"></span><span class="tab-label" data-i18n="ui.tabs.candidates"></span><span id="cand-count" class="count" hidden></span><span class="tab-key"></span></button>
           <button id="tab-material" type="button" role="tab" class="side-tab" data-tab="material" aria-controls="panel-material"><span class="tab-icon" data-icon="folder" aria-hidden="true"></span><span class="tab-label" data-i18n="ui.tabs.material"></span><span class="tab-key"></span></button>
+          <button id="tab-candidates" type="button" role="tab" class="side-tab" data-tab="candidates" aria-controls="panel-candidates"><span class="tab-icon" data-icon="candidates" aria-hidden="true"></span><span class="tab-label" data-i18n="ui.tabs.candidates"></span><span id="cand-count" class="count" hidden></span><span class="tab-key"></span></button>
           <!-- Hides the whole side panel (View > Show side panel brings it back). -->
           <button id="side-close" type="button" class="button ghost icon side-close" data-icon="close" data-i18n-aria-label="ui.sidebar.close" data-i18n-title="ui.sidebar.close"></button>
         </div>
         <section id="panel-inspector" data-help-id="inspector" class="panel" data-panel="inspector" role="tabpanel" aria-labelledby="tab-inspector" tabindex="0"></section>
         <section id="panel-candidates" class="panel" data-panel="candidates" role="tabpanel" aria-labelledby="tab-candidates" tabindex="0" hidden></section>
-        <section id="panel-clipboard" class="panel" data-panel="clipboard" role="tabpanel" aria-labelledby="tab-clipboard" tabindex="0" hidden></section>
         <section id="panel-markers" class="panel" data-panel="markers" role="tabpanel" aria-labelledby="tab-markers" tabindex="0" hidden></section>
         <section id="panel-history" class="panel" data-panel="history" role="tabpanel" aria-labelledby="tab-history" tabindex="0" hidden></section>
-        <section id="panel-material" class="panel" data-panel="material" role="tabpanel" aria-labelledby="tab-material" tabindex="0" hidden></section>
+        <section id="panel-material" class="panel" data-panel="material" role="tabpanel" aria-labelledby="tab-material" tabindex="0" hidden><div id="materials-recordings"></div><div id="panel-clipboard" data-panel="clipboard" tabindex="0" hidden></div></section>
       </aside>
       <footer class="statusbar" data-i18n-aria-label="ui.view.title">
         <span id="zoom-chip" class="zoom"></span>
