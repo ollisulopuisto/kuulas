@@ -77,8 +77,10 @@ function slider(label, range) {
     step: range.step,
     "aria-label": label,
   });
-  const output = el("output");
-  wrap.append(input, output);
+  const output = el("output", "", { "aria-label": label });
+  const caption = el("span", "slider-caption", { "aria-hidden": "true" });
+  caption.textContent = t(range === PAN ? "ui.control.pan" : "ui.control.level");
+  wrap.append(caption, input, output);
   return { wrap, input, output };
 }
 
@@ -247,6 +249,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         provisional: (p) => patchBus(p, id, { gain_db: value }),
       });
     });
+    fader.wrap.querySelector(".slider-caption").textContent = t("ui.bus.fader");
     parts.node.querySelector(".th-controls").append(label, fader.wrap);
     parts.busFader = { control: fader, id };
   }

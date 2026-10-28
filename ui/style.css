@@ -1016,6 +1016,9 @@ button.chip {
   font-size: var(--text-xs);
   color: var(--text-secondary);
 }
+.slider-caption {
+  display: none;
+}
 .slider-control output {
   min-width: 40px;
   text-align: right;
@@ -3615,6 +3618,91 @@ input[type="text"] {
   color: inherit;
   border: 1px solid var(--accent);
   border-radius: var(--radius-sm);
+}
+
+/* Keep level readouts out of the slider rails. A fixed-width loudness sentence
+   used to squeeze gain to 16 px and push pan/readouts over each other.
+   Loudness has its own small line below both rails, not hidden in a tooltip. */
+.track-header:not(.compact) {
+  grid-template-rows: var(--control-h-sm) 36px;
+  padding-top: 4px;
+  row-gap: 2px;
+}
+.track-header:not(.compact) .th-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-3);
+  position: relative;
+  padding-left: 0;
+}
+.track-header:not(.compact) .th-controls .loudness-readout {
+  position: absolute;
+  left: 0;
+  top: 32px;
+  width: 100%;
+  height: 10px;
+  overflow: hidden;
+  font-size: 9px;
+  line-height: 10px;
+  text-overflow: ellipsis;
+  background: none;
+}
+.track-header:not(.compact) .th-controls .slider-control {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: 12px 24px;
+  gap: 0;
+  width: auto;
+  min-width: 0;
+}
+.track-header:not(.compact) .th-controls .slider-control output {
+  grid-row: 1;
+  grid-column: 2;
+  min-width: 0;
+  width: 100%;
+  white-space: nowrap;
+  line-height: 12px;
+  text-align: right;
+}
+.track-header:not(.compact) .th-controls .slider-caption {
+  display: block;
+  grid-row: 1;
+  grid-column: 1;
+  font-size: 10px;
+  line-height: 12px;
+  font-weight: var(--weight-strong);
+}
+.track-header:not(.compact) .th-controls .slider-control input[type="range"] {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  width: 100%;
+  min-width: 0;
+  height: 24px;
+}
+.track-header:not(.compact) .th-controls .readout-edit {
+  width: 100%;
+  height: 20px;
+  position: relative;
+  z-index: 2;
+}
+.merged .th-controls .slider-control.pan {
+  display: none;
+}
+
+.track-header:not(.compact) .th-controls > .fader-label {
+  display: none;
+}
+:root:not([data-density="compact"])
+  .track-header.bus-header:not(.current, :hover, :focus-within)
+  .th-controls {
+  visibility: visible;
+}
+.bus-header:not(.compact) {
+  display: grid;
+  grid-template-rows: 28px 36px;
+  gap: 0;
+  align-content: start;
+  padding-top: 0;
 }
 
 /* The speed display is a drag handle while fast listening is on. */

@@ -1,4 +1,6 @@
 {
+  "ui.control.level": "Taso",
+  "ui.control.pan": "Pan",
   "ui.orukeet.run_anyway": "Suorita silti (tämä ajo)",
   "ui.orukeet.memory_warning": "Paikallinen litterointi on estetty nykyisen 16 GiB muistirajan vuoksi tai muistin määrää ei voitu tunnistaa. Suorittaminen voi jumittaa tai käynnistää Macin uudelleen ja hävittää tallentamattomat työt. Käytä Colabia tai hyväksy riski vain tälle ajolle.",
   "error.orukeet.memory": "Paikallinen Orukeet vaatii nykyisen käyttörajan mukaan vähintään 16 GiB fyysistä muistia. Muistia on liian vähän tai sen määrää ei voitu tunnistaa. Käytä Colabia. Raja ei takaa vapaan muistin riittävyyttä.",
