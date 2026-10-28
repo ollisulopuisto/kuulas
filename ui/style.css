@@ -5879,3 +5879,19 @@ legend.form-heading {
 .track-header.micro-controls[data-control-lines="1"][data-track] {
   grid-template-columns: 12px minmax(28px, 1fr) 38px 22px 22px;
 }
+/* Pan sweeps SW -> N -> SE, leaving the bottom quarter open. */
+.track-header[data-track] .th-controls .dial.control-pan input[type="range"] {
+  background: transparent;
+}
+.track-header[data-track] .dial.control-pan::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: conic-gradient(
+    from 225deg,
+    var(--control-colour) 0deg 270deg,
+    transparent 270deg 360deg
+  );
+  mask-image: radial-gradient(circle, transparent 53%, black 56%, black 63%, transparent 66%);
+}
