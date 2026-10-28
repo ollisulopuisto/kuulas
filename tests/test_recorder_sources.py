@@ -1,8 +1,14 @@
-import json
+import sys
+from unittest.mock import MagicMock
 
 import pytest
 
-from kuulas_recorder.sources import SourceError, check_rate, fake_spec
+from kuulas_recorder.sources import (
+    SoundDeviceSource,
+    SourceError,
+    ThreadedFakeSource,
+    check_rate,
+)
 
 
 def test_check_rate_matching():
@@ -16,6 +22,23 @@ def test_check_rate_matching():
     check_rate("Device D", 47999.9, 48000)
     check_rate("Device Upper Bound", 48000.4, 48000)
     check_rate("Device Half Round", 47999.5, 48000)
+
+
+def test_check_rate_rounding_boundaries():
+    # Values that round to target (48000)
+    check_rate("Device B1", 47999.5, 48000)
+    check_rate("Device B2", 48000.49, 48000)
+
+    # Values that round outside target (48000)
+    with pytest.raises(SourceError) as exc_info:
+        check_rate("Device B3", 47999.49, 48000)
+    assert exc_info.value.key == "device_rate_mismatch"
+    assert "Device B3 runs at 47999 Hz, not 48000 Hz." in str(exc_info.value)
+
+    with pytest.raises(SourceError) as exc_info:
+        check_rate("Device B4", 48000.51, 48000)
+    assert exc_info.value.key == "device_rate_mismatch"
+    assert "Device B4 runs at 48001 Hz, not 48000 Hz." in str(exc_info.value)
 
 
 def test_check_rate_mismatch():
@@ -46,47 +69,42 @@ def test_check_rate_boundary_mismatch():
     assert "never resamples while recording." in exc_info.value.text
 
 
-def test_fake_spec_none(monkeypatch):
-    monkeypatch.delenv("KUULAS_RECORDER_FAKE", raising=False)
-    assert fake_spec() is None
+def test_sound_device_source_rate_mismatch(monkeypatch):
+    monkeypatch.setitem(sys.modules, "sounddevice", MagicMock())
+    devices = [{
+        "index": 0,
+        "name": "Mismatched Mic",
+        "channels": 2,
+        "default_rate": 44100.0,
+        "hostapi": "Core Audio",
+        "default": True,
+    }]
+    monkeypatch.setattr("kuulas_recorder.sources.input_devices", lambda: devices)
+
+    source = SoundDeviceSource(device=0, channels=1, rate=48000, blocksize=1024)
+    with pytest.raises(SourceError) as exc_info:
+        source.start(on_block=lambda _b, _f, _o: None, on_lost=lambda _reason: None)
+
+    assert exc_info.value.key == "device_rate_mismatch"
+    assert "Mismatched Mic runs at 44100 Hz, not 48000 Hz." in str(exc_info.value)
 
 
-def test_fake_spec_valid(tmp_path, monkeypatch):
-    spec_file = tmp_path / "spec.json"
-    data = {
-        "devices": [
-            {
-                "index": 0,
-                "name": "Test Mic",
-                "channels": 1,
-                "default_rate": 48000.0,
-                "hostapi": "fake",
-                "default": True,
-            }
-        ]
-    }
-    spec_file.write_text(json.dumps(data), encoding="utf-8")
-    monkeypatch.setenv("KUULAS_RECORDER_FAKE", str(spec_file))
+def test_threaded_fake_source_rate_mismatch(monkeypatch):
+    devices = [{
+        "index": 0,
+        "name": "Fake Mismatched Mic",
+        "channels": 2,
+        "default_rate": 44100.0,
+        "hostapi": "fake",
+        "default": True,
+    }]
+    monkeypatch.setattr("kuulas_recorder.sources.input_devices", lambda: devices)
 
-    assert fake_spec() == data
+    source = ThreadedFakeSource(
+        want=0, channels=1, rate=48000, blocksize=1024, spec_path=""
+    )
+    with pytest.raises(SourceError) as exc_info:
+        source.start(on_block=lambda _b, _f, _o: None, on_lost=lambda _reason: None)
 
-
-def test_fake_spec_missing_file(tmp_path, monkeypatch):
-    missing_file = tmp_path / "non_existent_spec.json"
-    monkeypatch.setenv("KUULAS_RECORDER_FAKE", str(missing_file))
-
-    spec = fake_spec()
-    assert spec is not None
-    assert "devices" in spec
-    assert spec["devices"][0]["name"] == "Fake Mic"
-
-
-def test_fake_spec_invalid_json(tmp_path, monkeypatch):
-    invalid_file = tmp_path / "invalid.json"
-    invalid_file.write_text("not json content", encoding="utf-8")
-    monkeypatch.setenv("KUULAS_RECORDER_FAKE", str(invalid_file))
-
-    spec = fake_spec()
-    assert spec is not None
-    assert "devices" in spec
-    assert spec["devices"][0]["name"] == "Fake Mic"
+    assert exc_info.value.key == "device_rate_mismatch"
+    assert "Fake Mismatched Mic runs at 44100 Hz, not 48000 Hz." in str(exc_info.value)
