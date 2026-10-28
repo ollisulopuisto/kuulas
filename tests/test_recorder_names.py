@@ -44,6 +44,19 @@ def test_segment_file():
     assert names.segment_file("Take 1", "Host", 10) == "Take 1-Host~10.wav"
     assert names.segment_file("Take 3", "Music", 42) == "Take 3-Music~42.wav"
 
+    # Names with special characters and Unicode
+    assert names.segment_file("Take 1", "Ääni", 1) == "Take 1-Ääni.wav"
+    assert names.segment_file("Take 1", "Ääni", 2) == "Take 1-Ääni~2.wav"
+    assert names.segment_file("Session-1", "Olli's Mic", 1) == "Session-1-Olli's Mic.wav"
+    assert (
+        names.segment_file("Session-1", "Guitar (L)", 3)
+        == "Session-1-Guitar (L)~3.wav"
+    )
+    assert names.segment_file("Take+1", "Vocal+Reverb", 1) == "Take+1-Vocal+Reverb.wav"
+
+    # Large segment numbers
+    assert names.segment_file("Take 1", "Host", 100) == "Take 1-Host~100.wav"
+
 
 def test_sidecar_file():
     assert names.sidecar_file("Take 1") == "Take 1.take.json"
