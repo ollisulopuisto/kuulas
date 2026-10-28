@@ -72,13 +72,13 @@ class _LocalCancel:
 
 def local(path: str | Path, model: str = "small",
           language: str | None = None, progress=None,
-          cpu_threads: int | None = None) -> list[dict]:
+          cpu_threads: int | None = None, allow_low_memory: bool = False) -> list[dict]:
     """Run shared local Orukeet; legacy Whisper model sizes select the Orukeet default.
 
     Explicit model paths are supported. Never accept the shared CLI's generic
     Parakeet fallback when the user's converted Orukeet model is missing.
     """
-    if not local_memory.eligible():
+    if not allow_low_memory and not local_memory.eligible():
         raise TranscribeError("error.orukeet.memory")
     _ = cpu_threads  # MLX owns scheduling; retained for persisted jobs and callers.
     legacy = {"", "tiny", "base", "small", "medium", "large", "large-v2", "large-v3",
@@ -102,6 +102,8 @@ def local(path: str | Path, model: str = "small",
     settings = {"command": command, "align": False,
                 "extra_args": ["--backend", "orukeet",
                                "--orukeet-model", str(model_path)]}
+    if allow_low_memory:
+        settings["extra_args"].append("--allow-low-memory")
     try:
         result = colab_transcribe.run(
             [{"id": "local", "name": source.name, "path": str(source)}],

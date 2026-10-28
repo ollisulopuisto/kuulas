@@ -44,10 +44,11 @@ export function createOrukeetDialog({ api, t, pickFolder = null }) {
   install.dataset.dialogPrimary = "";
   const cancel = button("ui.orukeet.cancel");
   const close = button("ui.orukeet.close");
+  const runAnyway = button("ui.orukeet.run_anyway");
   close.dataset.dialogCancel = "";
   const existingActions = make("div", "orukeet-existing-actions");
   existingActions.append(choose, use);
-  footer.append(cancel, close, install);
+  footer.append(cancel, close, runAnyway, install);
   dialog.append(
     heading,
     note,
@@ -68,9 +69,11 @@ export function createOrukeetDialog({ api, t, pickFolder = null }) {
   let resolve = null;
   let pending = null;
   let continueWhenReady = false;
+  let memoryOverride = false;
 
   function draw() {
-    const view = setupView(info, job);
+    const view = setupView(memoryOverride ? { ...info, eligible: true } : info, job);
+    runAnyway.hidden = info.eligible !== false || memoryOverride || !continueWhenReady;
     note.textContent = t("ui.orukeet.note", {
       size: formatNumber((info.bytes || 0) / 1e9, { digits: 2 }),
     });
@@ -94,7 +97,7 @@ export function createOrukeetDialog({ api, t, pickFolder = null }) {
         : view.cancelled
           ? t("ui.orukeet.cancelled")
           : t(info.ready ? "ui.orukeet.ready" : "ui.orukeet.missing"));
-    if (info.eligible === false) message.textContent = t("error.orukeet.memory");
+    if (info.eligible === false) message.textContent = t("ui.orukeet.memory_warning");
     else if (!info.supported && !info.ready) message.textContent = t("error.orukeet.platform");
   }
 
@@ -112,7 +115,8 @@ export function createOrukeetDialog({ api, t, pickFolder = null }) {
         info = await api.localModel();
         jobId = null;
         draw();
-        if (info.ready && info.eligible !== false && continueWhenReady) dialog.close();
+        if (info.ready && (info.eligible !== false || memoryOverride) && continueWhenReady)
+          dialog.close();
         return;
       }
       draw();
@@ -172,16 +176,26 @@ export function createOrukeetDialog({ api, t, pickFolder = null }) {
       showError(error);
     }
   });
+  runAnyway.addEventListener("click", () => {
+    memoryOverride = true;
+    if (info.ready) dialog.close();
+    else draw();
+  });
   close.addEventListener("click", () => dialog.close());
   dialog.addEventListener("close", () => {
     clearTimeout(timer);
-    resolve?.(Boolean(info.ready && info.eligible !== false));
+    resolve?.(
+      info.ready && (info.eligible !== false || memoryOverride)
+        ? { allow_low_memory: memoryOverride }
+        : false,
+    );
     resolve = null;
     pending = null;
   });
 
   async function open(ensure) {
     if (pending) return pending;
+    memoryOverride = false;
     info = await api.localModel();
     if (ensure && info.ready && info.eligible !== false) return true;
     continueWhenReady = ensure;

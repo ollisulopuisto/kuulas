@@ -195,9 +195,11 @@ def _run_engines(job: dict, folder: Path, status: _Status, cancel: threading.Eve
                 1.0, (index + min(1.0, max(0.0, fraction))) / len(items))),
                 indeterminate=False, message=f"[{index + 1}/{len(items)}] {name}")
 
+        memory_options = ({"allow_low_memory": True}
+                          if job.get("allow_low_memory") is True else {})
         words = engine(item["path"], model=job.get("model") or "small",
                        language=job.get("language"), progress=_Progress(cancel, share),
-                       cpu_threads=job.get("cpu_threads"))
+                       cpu_threads=job.get("cpu_threads"), **memory_options)
         _stop_if_cancelled(cancel)
         # The local engine is Orukeet; preserve its timing identity on import.
         _write_result(folder, job_id, item["id"], {"words": words, "timing": "orukeet"},
