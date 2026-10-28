@@ -19,6 +19,7 @@ serial one: every output frame depends only on its own timeline frame.
 from __future__ import annotations
 
 import contextlib
+import errno
 import hashlib
 import json
 import logging
@@ -59,6 +60,8 @@ BLOCK_SECONDS = 10
 #: Mastering holds the whole programme in memory (float64 inside speechmix),
 #: so longer than this is refused with a message (and see master_fits).
 MAX_MASTER_SECONDS = 3 * 3600
+#: Keep the established mastering recipe until streaming acceptance is complete.
+STREAM_MASTERING_ENABLED = False
 #: What speechmix's ``programme.master`` holds per sample of the programme
 #: (per channel): the float64 copy, the lifted signal, the peak stage's and
 #: the limiter's per-sample curves and the round before. Measured 2026-10-20
@@ -660,7 +663,8 @@ def _pump(total: int, rate: int, render: Callable[[int, int], np.ndarray],
             raise
 
 
-def _mastered(job: _Job, sink, channels: int, render, target_lufs: float, workers: int,
+def _mastered_legacy(job: _Job, sink, channels: int, render, target_lufs: float,
+                     workers: int,
               cancel: threading.Event | None, tick: Callable[[float], None],
               target: Path, scratch: list[Path]) -> dict:
     """Render to a float32 memmap first, master the whole programme
@@ -689,6 +693,89 @@ def _mastered(job: _Job, sink, channels: int, render, target_lufs: float, worker
         tick(0.6 + 0.4 * min(1.0, (start + step) / total))
     keep.unlink(missing_ok=True)
     scratch.remove(keep)
+    return {"boost_db": result.boost_db, "lufs": result.lufs, "cost_lu": result.cost_lu,
+            "reached": bool(result.reached)}
+
+
+def _master_disk_bytes(frames: int, channels: int) -> int:
+    """Preflight estimate for scratch, source and in-progress output files.
+
+    Two float32-sized output files cover the encoder source and destination
+    (also a conservative allowance for internal WAV/FLAC). Reserve 64 MiB for
+    headers, compression/allocation overhead and small concurrent writes. This
+    is not a reservation: a later ENOSPC still rolls the export back.
+    """
+    return (programme.master_scratch_bytes(frames)
+            + frames * channels * 4 * 3 + 64 * 1024**2)
+
+
+def _mastered(job: _Job, sink, channels: int, render, target_lufs: float, workers: int,
+              cancel: threading.Event | None, tick: Callable[[float], None],
+              target: Path, scratch: list[Path]) -> dict:
+    """Spool the rendered mix to disk, then master it with one global decision.
+
+    The raw spool is interleaved float32. Reads allocate only the requested
+    block: a full-duration memory mapping can keep touched pages in RSS even
+    when the processing itself uses bounded windows. speechmix owns its private
+    analysis scratch; this function owns and closes the rendered source on every
+    outcome, before the outer export removes its partial output.
+    """
+    if not STREAM_MASTERING_ENABLED or not (
+            callable(getattr(programme, "master_stream", None))
+            and callable(getattr(programme, "master_scratch_bytes", None))):
+        # podcast and Kuulas can be updated independently. Never make the
+        # existing -16 LUFS feature depend on an unmerged/newer shared API.
+        return _mastered_legacy(job, sink, channels, render, target_lufs, workers,
+                                cancel, tick, target, scratch)
+    total, rate = job.frames, job.rate
+    keep = target.with_name(target.name + ".master.partial")
+    def check() -> None:
+        try:
+            priority.checkpoint(cancel)
+        except priority.CancelledError:
+            raise _Cancel from None
+        if cancel is not None and cancel.is_set():
+            raise _Cancel
+
+    check()
+    needed = _master_disk_bytes(total, channels)
+    if shutil.disk_usage(target.parent).free < needed:
+        raise OSError(errno.ENOSPC,
+                      f"mastering needs about {needed:,} bytes of free disk space")
+    scratch.append(keep)
+    try:
+        with keep.open("w+b") as audio:
+            def store_block(block: np.ndarray) -> None:
+                check()
+                np.ascontiguousarray(block.T, dtype=np.float32).tofile(audio)
+
+            _pump(total, rate, render, store_block, workers, cancel,
+                  lambda f: tick(0.6 * f))
+            audio.flush()
+            check()
+
+            def read(start: int, stop: int) -> np.ndarray:
+                check()
+                audio.seek(start * channels * np.dtype(np.float32).itemsize)
+                block = np.fromfile(audio, dtype=np.float32,
+                                    count=(stop - start) * channels)
+                if block.size != (stop - start) * channels:
+                    raise OSError("incomplete mastering source")
+                return block.reshape(-1, channels).T
+
+            def write(block: np.ndarray) -> None:
+                check()
+                sink.write(block.astype(np.float32))
+
+            result = programme.master_stream(
+                read, write, total, channels, rate, target_lufs,
+                check=check, scratch_dir=target.parent,
+                progress=lambda f: tick(0.6 + 0.4 * f))
+            check()
+            tick(1.0)
+    finally:
+        keep.unlink(missing_ok=True)
+        scratch.remove(keep)
     return {"boost_db": result.boost_db, "lufs": result.lufs, "cost_lu": result.cost_lu,
             "reached": bool(result.reached)}
 
