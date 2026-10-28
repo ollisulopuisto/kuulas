@@ -22,11 +22,11 @@ test("merged headers keep the bus caption and existing hidden-pan policy", () =>
   assert.match(source, /querySelector\("\.slider-caption"\)\.textContent = t\("ui.bus.fader"\)/);
   assert.match(css, /\.merged \.th-controls \.slider-control.pan \{\s*display: none/);
 });
-test("directional pan uses a horizontal range with landmarks and permanent value", () => {
-  assert.match(source, /parts\.pan\.wrap\.classList\.remove\("dial"\)/);
-  assert.match(source, /for \(const side of \["L", "R"\]\)/);
-  assert.match(css, /\.pan::before/);
-  assert.match(css, /\.th-controls \.pan output \{\s*display: block;\s*position: static/);
+test("pan keeps the original rotary control without dotted styling", () => {
+  assert.match(source, /parts\.pan\.wrap\.classList\.add\("dial"\)/);
+  assert.doesNotMatch(css, /border: 2px dashed var\(--control-colour\)/);
+  assert.match(css, /--control-colour: var\(--control-pan\)/);
+  assert.doesNotMatch(source, /pan-l|pan-r/);
 });
 test("collapsed tracks keep mute/solo and role icon beside the name", () => {
   assert.match(css, /\[data-control-lines="1"\]\[data-track\] \.th-top > \.ms \{\s*display: flex/);

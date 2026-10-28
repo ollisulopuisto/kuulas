@@ -84,14 +84,6 @@ function slider(label, range) {
   const caption = el("span", "slider-caption", { "aria-hidden": "true" });
   caption.textContent = t(range === PAN ? "ui.control.pan" : "ui.control.level");
   wrap.append(caption, input, output);
-  if (range === PAN) {
-    for (const side of ["L", "R"]) {
-      const mark = el("span", `pan-${side.toLowerCase()}`, { "aria-hidden": "true" });
-      mark.textContent = side;
-      wrap.append(mark);
-    }
-    caption.textContent = t("ui.pan.center");
-  }
   const paintDial = bindDialRange(input, () => wrap.classList.contains("dial"));
   return { wrap, input, output, paintDial };
 }
@@ -354,6 +346,14 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
 
     const pan = slider(t("ui.track.pan"), PAN);
     pan.wrap.classList.add("pan");
+    const positionPanValue = () => {
+      const lane = node.getBoundingClientRect();
+      pan.output.style.left = `${Math.min(lane.right + 8, window.innerWidth - 92)}px`;
+      pan.output.style.top = `${Math.max(8, Math.min(pan.wrap.getBoundingClientRect().top, window.innerHeight - 36))}px`;
+    };
+    pan.wrap.addEventListener("pointerenter", positionPanValue);
+    pan.wrap.addEventListener("focusin", positionPanValue);
+    pan.wrap.addEventListener("pointermove", positionPanValue);
     controls.append(gain.wrap, pan.wrap);
     // A thin grab zone on the bottom edge: drag to size this lane, double-click to reset it.
     const grip = el("div", "lane-grip", { title: t("ui.track.resize"), "aria-hidden": "true" });
@@ -488,17 +488,6 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
       write: (value) => send("pan", value, undefined, coalesceKey("track", "pan", id)),
       scale: 100,
     });
-    pan.input.addEventListener(
-      "dblclick",
-      (event) => {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        pan.input.value = "0";
-        pan.output.textContent = "0";
-        send("pan", 0, undefined, coalesceKey("track", "pan", id));
-      },
-      { capture: true },
-    );
     toggleable(pan, {
       key: coalesceKey("track", "pan", id),
       fallback: 0,
@@ -542,6 +531,14 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     const gain = slider(t("ui.bus.gain"), GAIN);
     const pan = slider(t("ui.bus.pan"), PAN);
     pan.wrap.classList.add("pan");
+    const positionPanValue = () => {
+      const lane = node.getBoundingClientRect();
+      pan.output.style.left = `${Math.min(lane.right + 8, window.innerWidth - 92)}px`;
+      pan.output.style.top = `${Math.max(8, Math.min(pan.wrap.getBoundingClientRect().top, window.innerHeight - 36))}px`;
+    };
+    pan.wrap.addEventListener("pointerenter", positionPanValue);
+    pan.wrap.addEventListener("focusin", positionPanValue);
+    pan.wrap.addEventListener("pointermove", positionPanValue);
     const faderLabel = el("span", "fader-label", { "aria-hidden": "true" });
     faderLabel.textContent = t("ui.bus.fader");
     controls.append(faderLabel, gain.wrap, pan.wrap);
@@ -728,13 +725,9 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         parts.solo.setAttribute("aria-pressed", String(track.solo));
         if (document.activeElement !== parts.bus) parts.bus.value = track.bus ?? "";
         parts.gain.wrap.classList.toggle("dial", controlLines(row.height) === 1);
-        parts.pan.wrap.classList.remove("dial");
+        parts.pan.wrap.classList.add("dial");
         setSlider(parts.gain, track.gain_db, formatDb(track.gain_db));
-        setSlider(
-          parts.pan,
-          Math.round(track.pan * 100),
-          track.pan === 0 ? formatNumber(0) : panText(track.pan),
-        );
+        setSlider(parts.pan, Math.round(track.pan * 100), panText(track.pan));
         parts.gain.paintDial();
         parts.pan.paintDial();
         if (parts.busFader) {

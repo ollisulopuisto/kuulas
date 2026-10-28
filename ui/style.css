@@ -5756,7 +5756,7 @@ legend.form-heading {
 }
 
 /* Gain and pan use stable control roles, never a track's identity colour.
-   Gain has a solid ring and needle; pan has a labelled horizontal rail. */
+   Both use the same solid ring and needle, with distinct gain/pan colours. */
 .slider-control.control-gain {
   --control-colour: var(--control-gain);
 }
@@ -5784,153 +5784,31 @@ legend.form-heading {
 .track-header[data-track] .dial::after {
   background: var(--control-colour);
 }
-/* Pan is directional: L / centre / R plus an always-visible exact value.
-   The centre tick is separate from the moving thumb. Native horizontal keys remain. */
-.pan-l,
-.pan-r {
-  display: none;
-}
-.track-header[data-track] .th-controls .slider-control.pan {
-  display: grid;
-  grid-template-columns: 8px minmax(32px, 1fr) 8px 30px;
-  grid-template-rows: 10px 18px;
-  gap: 0 3px;
-  width: 112px;
-  min-width: 112px;
-  height: 28px;
-  flex: 0 0 112px;
-  align-items: center;
-}
-.track-header[data-track] .pan .pan-l,
-.track-header[data-track] .pan .pan-r {
-  display: block;
-  grid-row: 2;
-  color: var(--control-pan);
-  font-size: 10px;
-}
-.track-header[data-track] .pan .pan-l {
-  grid-column: 1;
-}
-.track-header[data-track] .pan .pan-r {
-  grid-column: 3;
-}
-.track-header[data-track] .pan .slider-caption {
-  display: block;
-  grid-column: 2;
-  grid-row: 1;
-  font-size: 9px;
-  line-height: 10px;
-  text-align: center;
-}
-.track-header[data-track] .pan::before {
-  content: "";
-  position: absolute;
-  left: calc((100% - 33px) / 2);
-  top: 12px;
-  width: 1px;
-  height: 13px;
-  background: var(--control-pan);
-  pointer-events: none;
-}
-.track-header[data-track] .th-controls .pan input[type="range"] {
-  grid-column: 2;
-  grid-row: 2;
-  width: 100%;
-  min-width: 32px;
-  height: 18px;
-}
-.track-header[data-track] .th-controls .pan output {
-  display: block;
-  position: static;
-  grid-column: 4;
-  grid-row: 1 / 3;
-  width: 30px;
-  min-width: 0;
-  padding: 0;
-  font-size: 10px;
-  line-height: 14px;
-  text-align: right;
-  background: transparent;
-  border: 0;
-}
-.track-header[data-control-lines="1"][data-track] {
-  grid-template-columns: minmax(0, 1fr) 28px 112px;
-}
-.track-header.micro-controls[data-track] {
-  grid-template-columns: minmax(0, 1fr) 22px 112px;
-}
-.track-header.micro-controls[data-track] .th-controls .pan {
-  grid-template-rows: 8px 14px;
-  height: 22px;
-}
-.track-header.micro-controls[data-track] .pan::before {
-  top: 9px;
-  height: 11px;
-}
 
-.track-header[data-track] .th-controls > .control-gain:not(.dial) {
-  flex: 1 1 0;
-  min-width: 40px;
-  width: auto;
-}
-.track-header[data-track] .th-controls > .control-gain:not(.dial) input[type="range"] {
-  width: 100%;
-  min-width: 24px;
-}
+/* Identity and essential actions remain visible even at one line. */
 .track-header[data-control-lines="1"][data-track] {
-  grid-template-columns: minmax(28px, 1fr) 38px 22px 84px;
-  gap: 3px;
-}
-.track-header[data-control-lines="1"][data-track] .th-top > .ms {
-  display: flex;
-  grid-column: 2;
-  grid-row: 1;
-  gap: 2px;
-}
-.track-header[data-control-lines="1"][data-track] .ms-button {
-  width: 18px;
-  min-width: 18px;
-  height: 22px;
-  padding: 0;
-  font-size: 10px;
-}
-.track-header[data-control-lines="1"][data-track] .slider-control:not(.pan) {
-  grid-column: 3;
-}
-.track-header[data-control-lines="1"][data-track] .slider-control.pan {
-  grid-column: 4;
-  grid-template-columns: 7px minmax(28px, 1fr) 7px 24px;
-  width: 84px;
-  min-width: 84px;
-  flex-basis: 84px;
-}
-.track-header[data-control-lines="1"][data-track] .pan output {
-  width: 24px;
-}
-.track-header[data-control-lines="1"][data-track] .pan::before {
-  left: calc((100% - 30px) / 2);
-}
-
-.track-header[data-control-lines="2"][data-track] .th-controls {
-  grid-template-columns: minmax(40px, 1fr) 112px;
-  gap: 8px;
-}
-/* Keep the role icon beside the name, even in a collapsed header. */
-.track-header[data-control-lines="1"][data-track] {
-  grid-template-columns: 12px minmax(28px, 1fr) 38px 22px 84px;
+  grid-template-columns: 12px minmax(28px, 1fr) 38px 22px 22px;
+  gap: 4px;
+  grid-template-rows: 22px;
 }
 .track-header[data-control-lines="1"][data-track] .th-top > .tag {
   display: block;
-  grid-column: 1;
-  grid-row: 1;
+  grid-area: 1 / 1;
   width: 12px;
   padding: 0;
 }
 .track-header[data-control-lines="1"][data-track] .track-name {
-  grid-column: 2;
+  grid-area: 1 / 2;
 }
 .track-header[data-control-lines="1"][data-track] .th-top > .ms {
-  grid-column: 3;
+  display: flex;
+  grid-area: 1 / 3;
+  gap: 2px;
+}
+.track-header[data-control-lines="1"][data-track] .ms-button {
+  height: 22px;
+  min-width: 18px;
+  padding: 0 2px;
 }
 .track-header[data-control-lines="1"][data-track] .slider-control:not(.pan) {
   grid-column: 4;
@@ -5938,38 +5816,12 @@ legend.form-heading {
 .track-header[data-control-lines="1"][data-track] .slider-control.pan {
   grid-column: 5;
 }
-
-.track-header[data-control-lines="3"][data-track] .th-controls {
-  display: grid;
-  grid-template-columns: minmax(40px, 1fr) 112px;
-  gap: 8px;
-}
-.track-header[data-track] .th-controls > .control-gain:not(.dial) {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-}
-.track-header[data-track] .th-controls > .control-gain:not(.dial) input[type="range"] {
-  grid-column: 1 / -1;
-}
-
 .track-header[data-control-lines="2"][data-track] .th-top > .tag {
   display: block;
   flex: none;
   width: 12px;
   padding: 0;
 }
-.track-header[data-control-lines="3"][data-track] .th-top > .tag {
-  position: absolute;
-  left: 12px;
-  top: 30px;
-  width: 12px;
-  padding: 0;
-}
-.track-header[data-control-lines="3"][data-track] .track-name {
-  left: 30px;
-  width: calc(100% - 38px);
-}
-
 .track-header[data-control-lines="2"][data-track] .th-top > .ms {
   display: flex;
   margin-left: auto;
@@ -5980,9 +5832,8 @@ legend.form-heading {
   min-width: 22px;
   padding: 0 3px;
 }
-
 /* Numeric gain feedback uses the same outside-lane gutter as LUFS. */
-.track-header[data-track] .th-controls .control-gain.dial output {
+.track-header[data-track] .th-controls .dial output {
   position: fixed;
   right: auto;
   bottom: auto;
@@ -6015,10 +5866,16 @@ legend.form-heading {
 .track-header[data-control-lines="3"][data-track] .th-top > .tag {
   order: -1;
 }
-.track-header[data-track] .th-controls .control-gain.dial output {
+.track-header[data-track] .th-controls .dial output {
   width: 76px;
   min-width: 76px;
   max-width: 76px;
   height: 28px;
   box-sizing: border-box;
+}
+.track-header[data-control-lines="1"][data-track] {
+  grid-template-columns: 12px minmax(28px, 1fr) 38px 28px 28px;
+}
+.track-header.micro-controls[data-control-lines="1"][data-track] {
+  grid-template-columns: 12px minmax(28px, 1fr) 38px 22px 22px;
 }
