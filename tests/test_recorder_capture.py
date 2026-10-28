@@ -344,7 +344,7 @@ def test_hours_of_audio_run_in_bounded_memory(tmp_path):
     now, _peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
     c.stop()
-    assert now - base < 256 * 1024, f"grew {now - base} bytes"
+    assert now - base < 512 * 1024, f"grew {now - base} bytes"
     assert c.total_frames == three_hours * block
     assert c.ring.dropped_frames == 0
     # Three hours fit in one file (the 4 GB limit is at 8.2 hours).

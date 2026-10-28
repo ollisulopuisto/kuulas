@@ -104,21 +104,6 @@ _COMPILED_HESITATIONS = {
     lang: re.compile(f"^(?:{'|'.join(f'(?:{pat})' for pat in table['hesitation'])})$")
     for lang, table in FILLERS.items() if table["hesitation"]
 }
-_COMPILED_HESITATION_ALL = re.compile(
-    "^(?:"
-    + "|".join(
-        f"(?:{pat})"
-        for table in FILLERS.values()
-        for pat in table["hesitation"]
-        if pat
-    )
-    + ")$"
-)
-_DISCOURSE_SETS = {
-    lang: set(table["discourse"])
-    for lang, table in FILLERS.items()
-}
-_DISCOURSE_ALL = set().union(*_DISCOURSE_SETS.values())
 
 
 class CandidateError(ops.EditError):
@@ -262,16 +247,15 @@ def is_filler(word: str, lang: str | None = None) -> str | None:
     if not w:
         return None
 
-    if lang in FILLERS:
-        pat = _COMPILED_HESITATIONS.get(lang)
+    langs = [lang] if lang in FILLERS else list(FILLERS.keys())
+    for cur_lang in langs:
+        pat = _COMPILED_HESITATIONS.get(cur_lang)
         if pat and pat.match(w):
             return "hesitation"
-        if w in _DISCOURSE_SETS[lang]:
-            return "discourse"
-    else:
-        if _COMPILED_HESITATION_ALL.match(w):
-            return "hesitation"
-        if w in _DISCOURSE_ALL:
+
+    tables = [FILLERS[lang]] if lang in FILLERS else list(FILLERS.values())
+    for table in tables:
+        if w in table["discourse"]:
             return "discourse"
     return None
 
