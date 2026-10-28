@@ -72,7 +72,7 @@ def _points(raw) -> tuple[Point, ...]:
 
 
 def add_media(p: Project, media: Media) -> Project:
-    if any(m.id == media.id for m in p.media):
+    if media.id in {m.id for m in p.media}:
         raise EditError("error.edit.media_exists", media_id=media.id)
     return replace(p, media=(*p.media, media))
 
@@ -87,7 +87,7 @@ def add_track(p: Project, track_id: str | None = None, name: str = "Track",
     if kind not in TRACK_KINDS:
         raise EditError("error.edit.bad_track_kind", kind=kind)
     track_id = track_id or new_id("t")
-    if any(t.id == track_id for t in p.tracks):
+    if track_id in {t.id for t in p.tracks}:
         raise EditError("error.edit.track_exists", track_id=track_id)
     p = replace(p, tracks=(*p.tracks, Track(
         id=track_id, name=name, kind=kind, speaker=speaker,
@@ -1449,7 +1449,7 @@ def add_marker(p: Project, marker_id: str | None, name: str, start: int,
                end: int | None = None, kind: str = "marker") -> Project:
     """A marker, chapter (``end`` None) or region (``end`` after ``start``)."""
     marker_id = marker_id or new_id("k")
-    if any(m.id == marker_id for m in p.markers):
+    if marker_id in {m.id for m in p.markers}:
         raise EditError("error.marker.exists", marker_id=marker_id)
     return _put_marker(p, _checked(Marker(
         id=marker_id, name=str(name).strip(), start=int(start),
@@ -1530,7 +1530,7 @@ def add_placeholder(p: Project, track_id: str, start: int, text: str,
     _find_track(p, track_id)
     text = _clean_text(text)
     placeholder_id = placeholder_id or new_id("h")
-    if any(h.id == placeholder_id for h in p.placeholders):
+    if placeholder_id in {h.id for h in p.placeholders}:
         raise EditError("error.placeholder.exists", placeholder_id=placeholder_id)
     if int(start) < 0:
         raise EditError("error.placeholder.bad_start")
