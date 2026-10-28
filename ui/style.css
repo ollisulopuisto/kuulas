@@ -5895,3 +5895,13 @@ legend.form-heading {
   );
   mask-image: radial-gradient(circle, transparent 53%, black 56%, black 63%, transparent 66%);
 }
+/* Match the painted pan arc to the gain pot, not its shorter layout row. */
+.track-header[data-track] .dial.control-pan::before {
+  inset: 0 auto auto 0;
+  width: 28px;
+  height: 28px;
+}
+.track-header.micro-controls[data-track] .dial.control-pan::before {
+  width: 22px;
+  height: 22px;
+}
