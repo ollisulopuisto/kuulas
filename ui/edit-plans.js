@@ -346,10 +346,7 @@ export function pasteAnchor(state) {
  * keep their layout from the anchor downwards; extra slots fold onto the last track.
  */
 export function pastePlan(state, { mode, target } = {}) {
-  const choice = pasteChoice({
-    pasteMode: mode ?? state?.pasteMode,
-    pasteTarget: target ?? state?.pasteTarget,
-  });
+  const choice = pasteChoice({ pasteMode: mode, pasteTarget: target });
   const entry = pasteEntry(state);
   if (!state?.project || !entry || !Number.isFinite(state.playhead)) return null;
   const tracks = state.project.tracks;

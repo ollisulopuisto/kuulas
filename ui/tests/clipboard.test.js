@@ -207,17 +207,6 @@ describe("paste", () => {
     const plan = pastePlan(state({ focusTrack: "V", clipboard: [entry({ slots: 1 })] }));
     assert.deepEqual(plan.args.target_tracks, { 0: "V" });
   });
-  test("pastePlan falls back to state pasteTarget and pasteMode when options are omitted", () => {
-    const s = state({
-      focusTrack: "M",
-      pasteTarget: "current",
-      pasteMode: "insert",
-      clipboard: [entry({ slots: 1 })],
-    });
-    const plan = pastePlan(s);
-    assert.equal(plan.args.mode, "insert");
-    assert.deepEqual(plan.args.target_tracks, { 0: "M" });
-  });
   test("a header selection wins over the focus; several: the topmost is the anchor", () => {
     const s = state({
       focusTrack: "A",

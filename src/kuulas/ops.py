@@ -72,7 +72,7 @@ def _points(raw) -> tuple[Point, ...]:
 
 
 def add_media(p: Project, media: Media) -> Project:
-    if media.id in {m.id for m in p.media}:
+    if any(m.id == media.id for m in p.media):
         raise EditError("error.edit.media_exists", media_id=media.id)
     return replace(p, media=(*p.media, media))
 
@@ -87,7 +87,7 @@ def add_track(p: Project, track_id: str | None = None, name: str = "Track",
     if kind not in TRACK_KINDS:
         raise EditError("error.edit.bad_track_kind", kind=kind)
     track_id = track_id or new_id("t")
-    if track_id in {t.id for t in p.tracks}:
+    if any(t.id == track_id for t in p.tracks):
         raise EditError("error.edit.track_exists", track_id=track_id)
     p = replace(p, tracks=(*p.tracks, Track(
         id=track_id, name=name, kind=kind, speaker=speaker,
@@ -128,18 +128,12 @@ def set_track(p: Project, track_id: str, **fields) -> Project:
     if ("duck" in fields and fields["duck"] is not None
             and not isinstance(fields["duck"], bool)):
         raise EditError("error.edit.bad_arguments", name="set_track", detail="duck")
+    if fields.get("bus") is not None and not any(b.id == fields["bus"] for b in p.buses):
+        raise EditError("error.edit.no_bus", bus_id=fields["bus"])
     # Bus roles. Invariant: follow_bus_role implies kind == the bus's role.
     track = _find_track(p, track_id)
     bus_after = fields.get("bus", track.bus)
-    target_bus = None
-    if bus_after is not None:
-        try:
-            target_bus = p.bus(bus_after)
-        except KeyError:
-            if fields.get("bus") is not None:
-                raise EditError("error.edit.no_bus", bus_id=fields["bus"]) from None
-
-    role = target_bus.kind if target_bus is not None else None
+    role = next((b.kind for b in p.buses if b.id == bus_after), None)
     if "follow_bus_role" in fields:
         fields["follow_bus_role"] = bool(fields["follow_bus_role"])
         if fields["follow_bus_role"]:
@@ -425,7 +419,7 @@ def add_bus(p: Project, bus_id: str | None = None, name: str = "Bus",
             track_ids=()) -> Project:
     """Add a bus, and route ``track_ids`` to it in the same edit (one undo step)."""
     bus_id = bus_id or new_id("b")
-    if any(b.id == bus_id for b in p.buses):
+    if bus_id in {b.id for b in p.buses}:
         raise EditError("error.edit.bus_exists", bus_id=bus_id)
     p = replace(p, buses=(*p.buses, Bus(id=bus_id, name=name)))
     for track_id in track_ids:
@@ -1455,7 +1449,7 @@ def add_marker(p: Project, marker_id: str | None, name: str, start: int,
                end: int | None = None, kind: str = "marker") -> Project:
     """A marker, chapter (``end`` None) or region (``end`` after ``start``)."""
     marker_id = marker_id or new_id("k")
-    if marker_id in {m.id for m in p.markers}:
+    if any(m.id == marker_id for m in p.markers):
         raise EditError("error.marker.exists", marker_id=marker_id)
     return _put_marker(p, _checked(Marker(
         id=marker_id, name=str(name).strip(), start=int(start),
@@ -1536,7 +1530,7 @@ def add_placeholder(p: Project, track_id: str, start: int, text: str,
     _find_track(p, track_id)
     text = _clean_text(text)
     placeholder_id = placeholder_id or new_id("h")
-    if placeholder_id in {h.id for h in p.placeholders}:
+    if any(h.id == placeholder_id for h in p.placeholders):
         raise EditError("error.placeholder.exists", placeholder_id=placeholder_id)
     if int(start) < 0:
         raise EditError("error.placeholder.bad_start")
