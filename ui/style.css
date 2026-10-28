@@ -3561,7 +3561,6 @@ input[type="text"] {
   font-variant-numeric: tabular-nums;
 }
 
-
 .inspector-track-clips .source-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
