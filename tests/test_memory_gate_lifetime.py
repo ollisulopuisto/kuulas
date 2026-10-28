@@ -12,7 +12,6 @@ import pytest
 from kuulas.memory import MemoryBudget
 
 
-
 def test_distinct_failed_computations_release_their_gates():
     budget = MemoryBudget(1024)
 
@@ -37,9 +36,11 @@ def test_success_after_failure_is_cached_and_releases_the_gate():
 
 def test_spill_failure_releases_the_gate():
     budget = MemoryBudget(1024)
-    with patch.object(budget, '_spill', side_effect=RuntimeError('spill failed')):
-        with pytest.raises(RuntimeError, match='spill failed'):
-            budget.fetch('x', 'key', lambda: np.ones(4), spill=Path('unused'))
+    with (
+        patch.object(budget, '_spill', side_effect=RuntimeError('spill failed')),
+        pytest.raises(RuntimeError, match='spill failed'),
+    ):
+        budget.fetch('x', 'key', lambda: np.ones(4), spill=Path('unused'))
     assert budget._computing == {}
 
 
@@ -139,6 +140,11 @@ def _check_waiters(mode):
         if mode == 'evicted':
             patcher.stop()
     assert maximum_active == 1
-    expected_calls = 1 if mode == 'cached' else 3 if mode in {'oversized', 'evicted'} else 2
+    if mode == 'cached':
+        expected_calls = 1
+    elif mode in {'oversized', 'evicted'}:
+        expected_calls = 3
+    else:
+        expected_calls = 2
     assert calls == expected_calls
     assert budget._computing == {}
