@@ -55,7 +55,9 @@ from .processes import kill_process_group
 log = logging.getLogger("kuulas.colab_transcribe")
 
 _REMOTE_COMMAND = [
-    "uvx", "--from",
+    "uvx", "--python", "3.13",
+    "--overrides", str(Path(__file__).with_name("transcription-overrides.txt")),
+    "--from",
     "git+https://github.com/ollisulopuisto/podcast@26ece5ce51d2403b9ba9a8c0a361db8dec0076bc#subdirectory=colab-transcribe",
     "colab-transcribe"]
 DEFAULT_MODEL = "turbo"
