@@ -297,6 +297,7 @@ export const MENU = [
       ]),
       item("range.scope_toggle"),
       submenu("menu.clipboard", [
+        item("panel.show_clipboard"),
         item("edit.preview_clipboard"),
         item("edit.clear_old_clipboard"),
         SEP,
@@ -508,9 +509,8 @@ export const MENU = [
         item("panel.show_inspector"),
         item("panel.show_history"),
         item("panel.show_markers"),
-        item("panel.show_clipboard"),
-        item("panel.show_candidates"),
         item("panel.show_material"),
+        item("panel.show_candidates"),
       ]),
       item("view.toggle_sidebar"),
       // The toolbar rail (WP86, docs/design/TOOLBAR.md).

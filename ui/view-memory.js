@@ -9,14 +9,7 @@ import { clampLaneHeight } from "./lanes.js";
 import { normaliseSilence } from "./silence-model.js";
 import { SAMPLE_ZOOM } from "./view.js";
 
-export const SIDEBAR_TABS = [
-  "inspector",
-  "history",
-  "markers",
-  "clipboard",
-  "candidates",
-  "material",
-];
+export const SIDEBAR_TABS = ["inspector", "history", "markers", "material", "candidates"];
 const WAVEFORM_MODES = ["half", "full"];
 const FOLLOW_MODES = ["page", "continuous"];
 const EMPTY_EDIT_SECONDS = 30;
@@ -37,6 +30,7 @@ export function recordOf(state, { whole = false } = {}) {
     followMode: state.followMode,
     focusTrack: state.focusTrack,
     sidebarTab: state.sidebarTab,
+    ...(state.materialsScope ? { materialsScope: state.materialsScope } : {}),
     playhead: state.playhead,
     inPoint: state.inPoint,
     outPoint: state.outPoint,
@@ -91,6 +85,12 @@ export function restoreFrom(record, { project, width, totalFrames }) {
   if (WAVEFORM_MODES.includes(record.waveformMode)) patch.waveformMode = record.waveformMode;
   if (FOLLOW_MODES.includes(record.followMode)) patch.followMode = record.followMode;
   if (SIDEBAR_TABS.includes(record.sidebarTab)) patch.sidebarTab = record.sidebarTab;
+  if (record.sidebarTab === "clipboard") {
+    patch.sidebarTab = "material";
+    patch.materialsScope = "clipboard";
+  } else if (["recordings", "clipboard"].includes(record.materialsScope)) {
+    patch.materialsScope = record.materialsScope;
+  }
   if (
     typeof record.focusTrack === "string" &&
     (project?.tracks ?? []).some((track) => track.id === record.focusTrack)

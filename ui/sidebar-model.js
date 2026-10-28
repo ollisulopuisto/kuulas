@@ -23,6 +23,7 @@ const NEEDS_SIDEBAR = new Set([
   "panel.show_inspector",
   "panel.show_candidates",
   "panel.show_clipboard",
+  "panel.show_material",
   "panel.show_markers",
   "panel.show_history",
 ]);

@@ -23,7 +23,7 @@ test("tab labels are not ellipsis-truncated and the row never wraps", () => {
 });
 
 test("tabs keep their roles and the selected underline", () => {
-  assert.equal((html.match(/role="tab"/g) ?? []).length, 6);
+  assert.equal((html.match(/role="tab"/g) ?? []).length, 5);
   assert.match(rule('.side-tab[aria-selected="true"]'), /border-bottom-color:\s*var\(--accent\)/);
 });
 

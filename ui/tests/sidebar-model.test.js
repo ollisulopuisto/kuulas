@@ -111,7 +111,7 @@ describe("wiring", () => {
 // Owner's order and matching Cmd/Ctrl-1..6; F6 cycling uses the same tab order.
 test("sidebar order agrees across tabs, cycle order, menu and number shortcuts", async () => {
   const { SIDEBAR_TABS } = await import("../view-memory.js");
-  const expected = ["inspector", "history", "markers", "clipboard", "candidates", "material"];
+  const expected = ["inspector", "history", "markers", "material", "candidates"];
   assert.deepEqual(SIDEBAR_TABS, expected);
   const htmlOrder = [...read("../index.html").matchAll(/<button id="tab-([^"]+)"/g)].map(
     (match) => match[1],
