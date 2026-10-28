@@ -740,8 +740,7 @@ def _mastered(job: _Job, sink, channels: int, render, target_lufs: float, worker
     check()
     needed = _master_disk_bytes(total, channels)
     if shutil.disk_usage(target.parent).free < needed:
-        raise OSError(errno.ENOSPC,
-                      f"mastering needs about {needed:,} bytes of free disk space")
+        raise OSError(errno.ENOSPC, os.strerror(errno.ENOSPC))
     scratch.append(keep)
     try:
         with keep.open("w+b") as audio:
@@ -760,7 +759,7 @@ def _mastered(job: _Job, sink, channels: int, render, target_lufs: float, worker
                 block = np.fromfile(audio, dtype=np.float32,
                                     count=(stop - start) * channels)
                 if block.size != (stop - start) * channels:
-                    raise OSError("incomplete mastering source")
+                    raise OSError(errno.EIO, os.strerror(errno.EIO))
                 return block.reshape(-1, channels).T
 
             def write(block: np.ndarray) -> None:

@@ -280,7 +280,7 @@ def test_insufficient_disk_fails_before_render_or_master(
                         lambda _: SimpleNamespace(free=needed - 1))
     streaming_api(lambda *_args, **_kwargs: pytest.fail("master started"))
     scratch = []
-    with pytest.raises(OSError, match="mastering needs") as error:
+    with pytest.raises(OSError, match="No space left") as error:
         export._mastered(
             SimpleNamespace(frames=source.shape[1], rate=RATE),
             SimpleNamespace(write=lambda _block: pytest.fail("sink written")), 2,
