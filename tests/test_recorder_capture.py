@@ -181,7 +181,7 @@ def test_size_limit_continues_in_the_next_numbered_file_without_a_lost_frame(tmp
 
 def test_full_disk_stops_with_everything_written_flushed(tmp_path, monkeypatch):
     src = FakeSource(channels=1, blocksize=BLOCK)
-    c, events = capture(tmp_path, src)
+    c, events = capture(tmp_path, src, flush_seconds=0.1)
     c.start()
     src.emit(5)
     assert c.wait_drained()
