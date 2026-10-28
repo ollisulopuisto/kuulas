@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## [v26.10.28.3] - 2026-10-28
+
+- Combine recordings and clipboard in the Materials tab; show selected-track clips in Inspector.
+- Add adaptive compact track controls and a pan arc shape cue.
+- Refresh keyboard shortcut references after sidebar changes.
+- Fix the recorder memory test observation race.
+- Prepare a fresh unsigned Apple Silicon DMG containing these merged changes. Native build and download verification remain release steps; this entry is not packaging acceptance.
+
 ## [v26.10.28.1] - 2026-10-28
 
 - **Transcription follows moved projects.** The transcription worker receives the verified current path of linked audio, including recordings in a renamed project.
