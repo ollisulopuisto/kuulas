@@ -11,10 +11,10 @@ import { SAMPLE_ZOOM } from "./view.js";
 
 export const SIDEBAR_TABS = [
   "inspector",
-  "candidates",
-  "clipboard",
-  "markers",
   "history",
+  "markers",
+  "clipboard",
+  "candidates",
   "material",
 ];
 const WAVEFORM_MODES = ["half", "full"];

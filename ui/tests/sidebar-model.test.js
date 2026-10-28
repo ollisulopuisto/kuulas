@@ -107,3 +107,25 @@ describe("wiring", () => {
     }
   });
 });
+
+// Owner's order and matching Cmd/Ctrl-1..6; F6 cycling uses the same tab order.
+test("sidebar order agrees across tabs, cycle order, menu and number shortcuts", async () => {
+  const { SIDEBAR_TABS } = await import("../view-memory.js");
+  const expected = ["inspector", "history", "markers", "clipboard", "candidates", "material"];
+  assert.deepEqual(SIDEBAR_TABS, expected);
+  const htmlOrder = [...read("../index.html").matchAll(/<button id="tab-([^"]+)"/g)].map(
+    (match) => match[1],
+  );
+  assert.deepEqual(htmlOrder, expected);
+  const view = MENU.find((menu) => menu.id === "view");
+  const panels = view.items.find((entry) => entry.labelKey === "menu.side_panels");
+  assert.ok(panels);
+  assert.deepEqual(
+    panels.items.map((entry) => entry.id),
+    expected.map((name) => `panel.show_${name}`),
+  );
+  expected.forEach((name, index) => {
+    const command = DEFAULT_KEYMAP.find((entry) => entry.id === `panel.show_${name}`);
+    assert.deepEqual(command.keys, { mac: `Mod+${index + 1}`, other: `Mod+${index + 1}` });
+  });
+});
