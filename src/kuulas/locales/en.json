@@ -1,7 +1,4 @@
 {
-  "ui.inspector.clips": "Clips on this track",
-  "ui.inspector.clips.empty": "No clips on this track.",
-  "ui.inspector.clips.jump": "Select this clip and move the play cursor to it",
   "ui.orukeet.run_anyway": "Run anyway (this run)",
   "ui.orukeet.memory_warning": "Local transcription is blocked by the current 16 GiB memory policy, or RAM could not be detected. Running anyway may freeze or restart your Mac and lose unsaved work. Use Colab instead, or explicitly accept the risk for this run.",
   "error.orukeet.memory": "Local Orukeet requires at least 16 GiB of physical memory under the current eligibility policy. Memory could be insufficient or could not be detected. Use Colab instead. Meeting this minimum does not guarantee enough free memory.",
@@ -468,6 +465,9 @@
   "ui.track.gain": "Track gain",
   "ui.track.pan": "Track pan",
   "ui.bus.name": "Bus: {name}",
+  "ui.inspector.clips": "Clips on this track",
+  "ui.inspector.clips.empty": "No clips on this track.",
+  "ui.inspector.clips.jump": "Select this clip and move the play cursor to it",
   "ui.inspector.title": "Inspector",
   "ui.inspector.empty": "Select one clip to inspect it.",
   "ui.clip.name": "Clip name",

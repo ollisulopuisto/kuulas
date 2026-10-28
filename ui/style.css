@@ -3549,6 +3549,29 @@ input[type="text"] {
   font-variant-numeric: tabular-nums;
 }
 
+
+.inspector-track-clips .source-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-1);
+  min-width: 0;
+  width: 100%;
+  text-align: left;
+}
+.inspector-track-clips .source-track {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inspector-track-clips .source-where {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+}
+.inspector-track-clips .source-row[aria-pressed="true"] {
+  background: var(--surface-sunken);
+}
+
 /* "mono" or "stereo" beside the role icon of a speech track. */
 .channel-tag {
   flex: none;
@@ -5369,26 +5392,4 @@ legend.form-heading {
     padding-inline: 4px;
     font-size: var(--text-xs);
   }
-}
-
-.inspector-track-clips .source-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-1);
-  min-width: 0;
-  width: 100%;
-  text-align: left;
-}
-.inspector-track-clips .source-track {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.inspector-track-clips .source-where {
-  white-space: normal;
-  overflow-wrap: anywhere;
-  color: var(--text-secondary);
-}
-.inspector-track-clips .source-row[aria-pressed="true"] {
-  background: var(--surface-sunken);
 }
