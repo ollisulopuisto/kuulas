@@ -444,6 +444,8 @@
   --accent-hover: var(--p-teal-44);
   --accent-text: var(--p-teal-38); /* accent-coloured text on panels */
   --accent-subtle: var(--p-teal-81); /* selected rows, selected words */
+  --control-gain: var(--p-blue-46); /* gain only, independent of track identity */
+  --control-pan: var(--p-violet-40); /* pan only; also marked with a dashed ring and dot */
   --focus-ring: var(--p-teal-43);
   --warn: var(--p-amber-55); /* fills and strokes: solo, speed chip */
   --warn-text: var(--p-amber-39);
@@ -597,6 +599,8 @@
     --accent-hover: var(--p-teal-80);
     --accent-text: var(--p-teal-80);
     --accent-subtle: var(--p-teal-32);
+    --control-gain: var(--p-blue-88);
+    --control-pan: var(--p-label-purple-74);
     --focus-ring: var(--p-teal-80);
     --warn: var(--p-amber-81);
     --warn-text: var(--p-amber-84);
@@ -746,6 +750,8 @@
   --accent-hover: var(--p-teal-80);
   --accent-text: var(--p-teal-80);
   --accent-subtle: var(--p-teal-32);
+  --control-gain: var(--p-blue-88);
+  --control-pan: var(--p-label-purple-74);
   --focus-ring: var(--p-teal-80);
   --warn: var(--p-amber-81);
   --warn-text: var(--p-amber-84);
@@ -2055,6 +2061,8 @@ const SIGNALS = [
 /** Every semantic token the UI and the canvases may use. tokens.test.js checks
  *  that each is defined in every shipped theme, and that nothing else is. */
 const SEMANTIC_TOKENS = [
+  "--control-gain",
+  "--control-pan",
   "--surface-app",
   "--surface-lane",
   "--surface-lane-current",

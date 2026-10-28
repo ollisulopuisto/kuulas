@@ -5723,3 +5723,52 @@ legend.form-heading {
   .loudness-readout:not([hidden]) {
   display: block;
 }
+
+/* Gain and pan use stable control roles, never a track's identity colour.
+   Gain has a solid ring and needle; pan has a dashed ring and dot. */
+.slider-control.control-gain {
+  --control-colour: var(--control-gain);
+}
+.slider-control.control-pan {
+  --control-colour: var(--control-pan);
+}
+.slider-control .slider-caption {
+  color: var(--control-colour, var(--text-secondary));
+}
+.slider-control:not(.dial) input[type="range"]::-webkit-slider-runnable-track {
+  background: var(--control-colour, var(--border-strong));
+}
+.slider-control:not(.dial) input[type="range"]::-moz-range-track {
+  background: var(--control-colour, var(--border-strong));
+}
+.track-header[data-track] .th-controls .slider-control.dial input[type="range"] {
+  background: radial-gradient(
+    circle,
+    var(--surface-panel) 53%,
+    var(--control-colour) 56%,
+    var(--control-colour) 63%,
+    transparent 66%
+  );
+}
+.track-header[data-track] .dial::after {
+  background: var(--control-colour);
+}
+/* A solid ring and needle mean gain; a dashed ring and dot mean pan. */
+.track-header[data-track] .th-controls .dial.control-pan input[type="range"] {
+  background: var(--surface-panel);
+  border: 2px dashed var(--control-colour);
+  box-sizing: border-box;
+}
+.track-header[data-track] .dial.control-pan::after {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  left: 11px;
+  top: 3px;
+  transform-origin: 3px 11px;
+}
+.track-header.micro-controls[data-track] .dial.control-pan::after {
+  left: 8px;
+  top: 2px;
+  transform-origin: 3px 9px;
+}

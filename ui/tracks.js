@@ -72,7 +72,7 @@ function toggle(label, shortLabel, kind) {
 }
 
 function slider(label, range) {
-  const wrap = el("label", "slider-control");
+  const wrap = el("label", `slider-control ${range === PAN ? "control-pan" : "control-gain"}`);
   const input = el("input", "", {
     type: "range",
     min: range.min,
