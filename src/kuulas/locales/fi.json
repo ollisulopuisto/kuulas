@@ -3,7 +3,7 @@
   "ui.loudness.unavailable": "Äänekkyyttä ei ole mitattu",
   "ui.loudness.updating": "mittaus päivittyy",
   "ui.loudness.label": "Raidan äänekkyys",
-  "ui.loudness.integrated_hint": "Raidan integroitu äänekkyys ja analyysin tavoite. Ei reaaliaikainen mittari eikä ohjelman lopullinen äänekkyys.",
+  "ui.loudness.integrated_hint": "Raidan integroitu äänekkyys raitavahvistuksen ja vaimennuksen jälkeen, ennen panorointia, väyliä ja masteria. Analyysin tavoite, ei reaaliaikainen mittari. Vahvistuksen muutos käynnistää uuden mittauksen.",
   "ui.control.level": "Taso",
   "ui.control.pan": "Pan",
   "ui.orukeet.run_anyway": "Suorita silti (tämä ajo)",

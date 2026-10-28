@@ -5700,10 +5700,10 @@ legend.form-heading {
 }
 .track-header[data-track] .th-controls .slider-control .loudness-readout {
   display: none;
-  position: absolute;
-  left: 0;
-  top: auto;
-  bottom: calc(100% + 3px);
+  position: fixed;
+  left: 8px;
+  top: 8px;
+  bottom: auto;
   width: max-content;
   max-width: 240px;
   height: auto;
@@ -5722,8 +5722,4 @@ legend.form-heading {
   .slider-control:focus-within
   .loudness-readout:not([hidden]) {
   display: block;
-}
-.track-header[data-control-lines="1"][data-track] .slider-control .loudness-readout {
-  left: auto;
-  right: 0;
 }

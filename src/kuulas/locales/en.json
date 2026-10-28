@@ -3,7 +3,7 @@
   "ui.loudness.unavailable": "Loudness not measured",
   "ui.loudness.updating": "updating measurement",
   "ui.loudness.label": "Track loudness",
-  "ui.loudness.integrated_hint": "Integrated track loudness and its analysis target. Not a live meter or final programme loudness.",
+  "ui.loudness.integrated_hint": "Integrated track-stem loudness after track gain and ducking, before pan, buses and master; analysis target, not a live meter. A gain change triggers a new measurement.",
   "ui.control.level": "Level",
   "ui.control.pan": "Pan",
   "ui.orukeet.run_anyway": "Run anyway (this run)",

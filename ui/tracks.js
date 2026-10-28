@@ -316,6 +316,20 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     // Measurement belongs to gain context, never pan hover.
     const gain = slider(t("ui.track.gain"), GAIN);
     gain.wrap.append(loudness);
+    // Put feedback beside the lane, never on its name or controls. If there is
+    // no side room, use the viewport's top edge rather than covering another row.
+    const positionLoudness = () => {
+      const lane = node.getBoundingClientRect();
+      const width = loudness.offsetWidth || 240;
+      const height = loudness.offsetHeight || 28;
+      const sideRoom = lane.right + width + 16 <= window.innerWidth;
+      loudness.style.left = `${sideRoom ? lane.right + 8 : Math.max(8, window.innerWidth - width - 8)}px`;
+      loudness.style.top = `${sideRoom ? Math.max(8, Math.min(gain.wrap.getBoundingClientRect().top, window.innerHeight - height - 8)) : 8}px`;
+    };
+    gain.wrap.addEventListener("pointerenter", positionLoudness);
+    gain.wrap.addEventListener("focusin", positionLoudness);
+    gain.wrap.addEventListener("pointermove", positionLoudness);
+
     const pan = slider(t("ui.track.pan"), PAN);
     pan.wrap.classList.add("pan");
     controls.append(gain.wrap, pan.wrap);
@@ -676,7 +690,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
         paintLoudness(parts.loudness, trackReadout(state.loudness, track.id));
         parts.loudness.hidden = false;
         parts.loudness.textContent = contextualReadout(state.loudness, track.id, formatNumber, t);
-        parts.loudness.title = "";
+        parts.loudness.title = t("ui.loudness.integrated_hint");
         parts.mute.setAttribute("aria-pressed", String(track.mute));
         parts.solo.setAttribute("aria-pressed", String(track.solo));
         if (document.activeElement !== parts.bus) parts.bus.value = track.bus ?? "";
