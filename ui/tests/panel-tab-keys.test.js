@@ -11,7 +11,7 @@ import { DEFAULT_KEYMAP } from "../keymap-default.js";
 import { matchesCombo, parseCombo } from "../keys.js";
 import { MENU, menuTargets } from "../menu-model.js";
 
-const ORDER = ["inspector", "candidates", "clipboard", "markers", "history"];
+const ORDER = ["inspector", "history", "markers", "clipboard", "candidates", "material"];
 const locales = fileURLToPath(new URL("../../src/kuulas/locales/", import.meta.url));
 const catalog = (lang) => JSON.parse(readFileSync(`${locales}${lang}.json`, "utf8"));
 

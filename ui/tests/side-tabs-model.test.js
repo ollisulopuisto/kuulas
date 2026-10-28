@@ -47,8 +47,8 @@ test("tabHint is the whole shown key, modifier included, never a bare digit", ()
   assert.equal(tabHint(["⌘3"]), "⌘3");
   assert.equal(tabHint(["Ctrl+3", "F6"]), "Ctrl+3");
   assert.equal(tabHint([]), "");
-  const keys = DEFAULT_KEYMAP.filter((e) => e.id.startsWith("panel.show_")).map(
-    (e) => e.keys.other,
+  const keys = ["inspector", "history", "markers", "clipboard", "candidates", "material"].map(
+    (name) => DEFAULT_KEYMAP.find((e) => e.id === `panel.show_${name}`).keys.other,
   );
   for (const key of keys) {
     assert.match(tabHint([formatCombo(key, "mac")]), /^⌘\d$/);
@@ -70,8 +70,8 @@ test("each tab has an icon in the set, and the app no longer shortens the hint",
 });
 
 test("Mod+1..Mod+6 are the tab keys, none needing AltGr or Shift+digit", () => {
-  const keys = DEFAULT_KEYMAP.filter((e) => e.id.startsWith("panel.show_")).map(
-    (e) => e.keys.other,
+  const keys = ["inspector", "history", "markers", "clipboard", "candidates", "material"].map(
+    (name) => DEFAULT_KEYMAP.find((e) => e.id === `panel.show_${name}`).keys.other,
   );
   assert.deepEqual(keys, ["Mod+1", "Mod+2", "Mod+3", "Mod+4", "Mod+5", "Mod+6"]);
 });
