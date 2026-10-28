@@ -546,6 +546,8 @@ export const SIGNALS = [
 /** Every semantic token the UI and the canvases may use. tokens.test.js checks
  *  that each is defined in every shipped theme, and that nothing else is. */
 export const SEMANTIC_TOKENS = [
+  "--control-gain",
+  "--control-pan",
   "--surface-app",
   "--surface-lane",
   "--surface-lane-current",

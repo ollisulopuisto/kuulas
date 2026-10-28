@@ -6,7 +6,8 @@
 
 import { bindToggle } from "./ab-value.js";
 import { trackRoleChoice } from "./bus-role.js";
-import { t } from "./i18n.js";
+import { formatNumber, t } from "./i18n.js";
+import { contextualReadout } from "./loudness-readout.js";
 import { coalesceKey, patchBus, patchSolo, patchTrack } from "./provisional.js";
 import { laneMates, speakerArgs } from "./track-kind.js";
 import { busMembers, busOptions, roleOptionKey, TRACK_KINDS } from "./track-target.js";
@@ -250,6 +251,10 @@ export function buildTrackSections({ target, editor, place, latest, onBusCreated
       lookup,
       send,
     });
+    const loudness = readonly("");
+    loudness.classList.add("inspector-loudness");
+    loudness.title = t("ui.loudness.integrated_hint");
+    into.append(field(t("ui.loudness.label"), loudness));
     const bus = document.createElement("select");
     bus.className = "inspector-select";
     bus.setAttribute("aria-label", t("ui.track.bus"));
@@ -303,6 +308,7 @@ export function buildTrackSections({ target, editor, place, latest, onBusCreated
         names: sharing.map((item) => item.name).join(", "),
       });
       mono.checked = Boolean(current.mono);
+      loudness.textContent = contextualReadout(state.loudness, id, formatNumber, t);
       setIfIdle(gain, round1(current.gain_db));
       setIfIdle(pan, Math.round(current.pan * 100));
       state.project.buses.forEach((item, i) => {
