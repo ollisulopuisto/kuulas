@@ -56,7 +56,7 @@ log = logging.getLogger("kuulas.colab_transcribe")
 
 _REMOTE_COMMAND = [
     "uvx", "--from",
-    "git+https://github.com/ollisulopuisto/podcast@7793c0c1b276e90e466cea6d0b09e20fca08c968#subdirectory=colab-transcribe",
+    "git+https://github.com/ollisulopuisto/podcast@26ece5ce51d2403b9ba9a8c0a361db8dec0076bc#subdirectory=colab-transcribe",
     "colab-transcribe"]
 DEFAULT_MODEL = "turbo"
 #: The log kept for the UI, and the part of it an error carries.
