@@ -11,7 +11,7 @@ Record one or more input channels onto tracks: {key:transport.record} opens the 
 
 - Listen to your microphone through your audio interface's direct monitoring. More options can enable playback of the other tracks; use headphones so the microphone does not record them.
 - Stopping takes two presses of Stop (or Space) by default: the first asks "Stop recording?", the second, within four seconds, stops. If you do not press again, the take simply goes on. You can choose one click or a 2-second hold instead: {key:record.stop_mode}, or the setting under More options.
-- Hiding the record view, closing the window or even a crash of the editor does not stop a take. A red "Recording" chip in the toolbar brings the view back; reopening the project shows it again.
+- Hiding the record view, closing the window or even a crash of the editor does not stop a take. A red "Recording" chip beside the transport controls brings the view back; reopening the project shows it again.
 - The files are plain WAV files in the project's recordings folder, written so that everything up to the last second survives a crash or a pulled cable. A take that a crash interrupted is offered for import the next time you open the project; it is never imported without asking.
 - If the input is unplugged, the take waits for it and continues; the gap stays a gap on the timeline. Low disk space is announced at 30, 10 and 2 minutes left.
 
@@ -25,7 +25,7 @@ To record from several devices at once, combine them in macOS first: Audio MIDI 
 
 While a take records, its tracks are drawn on the timeline as they come in: a bar per pixel with the loudest sample, and a red head where the take is now. New tracks also show the growing waveform before you stop. Live and saved waveforms use the same display preferences. The clips take over from the drawing when you stop.
 
-When you press Record the record view steps aside and the timeline is in front, with the take drawn on its tracks (a new track is made at that moment). The view follows the take while you are watching it and leaves it alone once you scroll away. The chip in the toolbar brings the record view, and Stop, back. While a take records, editing is paused (a cut or move before the take would put it in the wrong place); you can scroll, zoom, select, read and add markers.
+When you press Record the record view steps aside and the timeline is in front, with the take drawn on its tracks (a new track is made at that moment). The view follows the take while you are watching it and leaves it alone once you scroll away. The recording chip beside Play and Record brings the recording view back; Stop and Add marker are next to it. While a take records, editing is paused (a cut or move before the take would put it in the wrong place); you can scroll, zoom, select, read and add markers.
 
 In the setup, "Clips you play go on" chooses the track for the clips you play from the Clipboard (the cart keys, or a chip's play button) while the take records: a new track called Questions, or any track that is not recorded onto. Each clip you play is also put on that track where the take is at that moment, so the question sits next to the answer. If the track already has audio from the play cursor on, a warning says the clips will overwrite it.
 

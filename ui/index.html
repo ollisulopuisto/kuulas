@@ -19,8 +19,6 @@
         <nav id="menubar" class="menubar"></nav>
         <div class="modes">
           <span id="live-chip" class="chip danger" role="status" hidden></span>
-          <!-- While a take records (record-view.js): opens the record view; the take never stops here. -->
-          <button id="rec-chip" type="button" class="chip danger rec-chip" hidden></button>
           <button id="waveform-gain" type="button" class="chip warn" hidden></button>
         </div>
         <span class="spacer"></span>
@@ -39,6 +37,7 @@
           <button id="record" type="button" class="play rec-button" data-i18n-title="cmd.transport.record.hint">
             <span class="play-icon rec-dot" aria-hidden="true">●</span><span class="lbl" data-i18n="ui.transport.record"></span>
           </button>
+          <div class="recording-controls"><button id="rec-chip" type="button" class="chip danger rec-chip" hidden></button></div>
           <div class="t-row">
             <button id="loop" data-cmd="transport.loop_selection" type="button" class="button ghost icon" aria-pressed="false">
               <svg class="i" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 7.5v-1a2.5 2.5 0 0 1 2.5-2.5h7.5M10.5 1.8 12.7 4l-2.2 2.2M13.5 8.5v1A2.5 2.5 0 0 1 11 12H3.5M5.5 14.2 3.3 12l2.2-2.2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>

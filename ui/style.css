@@ -5338,3 +5338,35 @@ legend.form-heading {
   flex-wrap: wrap;
   margin-top: var(--space-3);
 }
+
+/* Recording controls share the transport corner with Play and Record. */
+.recording-controls {
+  grid-column: 3;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.recording-controls:has(.rec-chip[hidden]) {
+  display: none;
+}
+.corner:has(.rec-chip:not([hidden])) > .t-row {
+  display: none;
+}
+.recording-controls .record-slim {
+  flex-wrap: wrap;
+}
+@container (max-width: 330px) {
+  .recording-controls .record-slim {
+    min-width: 0;
+    flex: 1 1 100%;
+    gap: 2px;
+  }
+  .recording-controls .record-slim button {
+    min-height: 23px;
+    height: 23px;
+    padding-inline: 4px;
+    font-size: var(--text-xs);
+  }
+}

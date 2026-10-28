@@ -11,7 +11,7 @@ related: [track, timeline]
 
 - Kuuntele mikrofonia äänikortin omasta suoramonitoroinnista. Lisäasetuksissa voit ottaa muiden raitojen toiston käyttöön; käytä kuulokkeita, jotta mikrofoni ei tallenna niitä.
 - Pysäyttäminen vaatii oletuksena kaksi painallusta Pysäytä-painikkeesta (tai välilyönnistä): ensimmäinen kysyy "Pysäytetäänkö äänitys?", toinen neljän sekunnin sisällä pysäyttää. Jos et paina uudelleen, äänitys vain jatkuu. Voit valita sen sijaan yhden painalluksen tai 2 sekunnin painalluksen: {key:record.stop_mode} tai asetus Lisäasetuksissa.
-- Äänitysnäkymän piilottaminen, ikkunan sulkeminen tai edes editorin kaatuminen ei pysäytä ottoa. Työkalupalkin punainen "Äänitetään"-merkki tuo näkymän takaisin, ja projektin avaaminen uudelleen näyttää sen.
+- Äänitysnäkymän piilottaminen, ikkunan sulkeminen tai edes editorin kaatuminen ei pysäytä ottoa. Toistosäätimien vieressä oleva punainen "Äänitetään"-merkki tuo näkymän takaisin, ja projektin avaaminen uudelleen näyttää sen.
 - Tiedostot ovat tavallisia WAV-tiedostoja projektin äänityskansiossa, ja ne kirjoitetaan niin, että kaikki viimeiseen sekuntiin asti säilyy kaatumisen tai irronneen johdon jälkeen. Kaatumisen keskeyttämä otto tarjotaan tuotavaksi, kun avaat projektin seuraavan kerran; sitä ei koskaan tuoda kysymättä.
 - Jos tulo irrotetaan, otto odottaa sitä ja jatkuu; aukko jää aikajanalle aukoksi. Vähäisestä levytilasta kerrotaan, kun jäljellä on 30, 10 ja 2 minuuttia.
 
@@ -25,7 +25,7 @@ Jos haluat äänittää usealta laitteelta yhtä aikaa, yhdistä ne ensin macOS:
 
 Kun äänite on käynnissä, sen raidat piirtyvät aikajanalle sitä mukaa kuin ääni tulee: palkki jokaiselle pikselille kovimman näytteen mukaan ja punainen kärki siihen, missä äänite on nyt. Myös uusi raita näyttää kasvavan aaltomuodon ennen pysäyttämistä. Käynnissä olevan ja tallennetun äänitteen aaltomuoto noudattaa samoja näyttöasetuksia. Leikkeet ottavat piirroksen paikan, kun pysäytät.
 
-Kun painat Äänitä, äänitysnäkymä väistyy ja aikajana on edessä, äänite piirtyy sen raidoille (uusi raita luodaan juuri silloin). Näkymä seuraa äänitettä niin kauan kuin katsot sitä ja jättää sen rauhaan, kun vierität pois. Työkalupalkin merkki tuo äänitysnäkymän ja Pysäytä-painikkeen takaisin. Äänitteen aikana muokkaus on tauolla (leikkaus tai siirto ennen äänitettä veisi sen väärään paikkaan); voit vierittää, zoomata, valita, lukea ja lisätä merkkejä.
+Kun painat Äänitä, äänitysnäkymä väistyy ja aikajana on edessä, äänite piirtyy sen raidoille (uusi raita luodaan juuri silloin). Näkymä seuraa äänitettä niin kauan kuin katsot sitä ja jättää sen rauhaan, kun vierität pois. Äänitä-painikkeen vieressä oleva merkki tuo äänitysnäkymän takaisin; Pysäytä ja Lisää merkki ovat sen vieressä. Äänitteen aikana muokkaus on tauolla (leikkaus tai siirto ennen äänitettä veisi sen väärään paikkaan); voit vierittää, zoomata, valita, lukea ja lisätä merkkejä.
 
 Asetuksissa "Soitetut leikkeet menevät raidalle" valitsee raidan leikkeille, joita soitat leikepöydältä (cart-näppäimillä tai merkinnän soittopainikkeella) äänityksen aikana: uusi raita nimeltä Kysymykset tai mikä tahansa raita, jolle ei äänitetä. Jokainen soittamasi leike asetetaan myös tälle raidalle kohtaan, jossa äänite on sillä hetkellä, joten kysymys on vastauksen vieressä. Jos raidalla on jo ääntä toistokursorista eteenpäin, varoitus kertoo että leikkeet kirjoittavat sen päälle.
 
