@@ -37,7 +37,7 @@ test("collapsed tracks keep mute/solo and role icon beside the name", () => {
 });
 
 test("pan arc leaves the bottom quarter open without changing rotary mapping", () => {
-  assert.match(css, /conic-gradient\(from 225deg/);
-  assert.match(css, /0deg 270deg, transparent 270deg 360deg/);
+  assert.match(css, /conic-gradient\(\s*from 225deg/);
+  assert.match(css, /0deg 270deg,\s*transparent 270deg 360deg/);
   assert.match(source, /parts\.pan\.wrap\.classList\.add\("dial"\)/);
 });
