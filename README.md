@@ -27,7 +27,7 @@ Taglines (use either, not together): *"A podcast editor where nothing is ever lo
 - **Project format (v3)**: Crash-safe `Name.kuulas` package directory, WAL SQLite history tree with constant-time branching undo/redo, and recording clock in flicks.
 - **Desktop app wrapper**: Native window via pywebview (`--extra desktop`), recent projects window, native file dialogs, and local file drag-and-drop linking.
 
-*Verification note:* Pull requests run the full suite on macOS and Linux. The Linux desktop smoke check runs when desktop-wrapper files change; Windows jobs are disabled for now. See [docs/CI.md](docs/CI.md) for the manual full-suite and urgent DMG build paths. The playback/navigation fixes were checked in Chrome with synthetic media and a simulated clock at three zoom levels. Real-device playback and microphone confirmation remain the owner's checks.
+*Verification note:* Code pull requests run the full suite on macOS and Linux; docs-only changes skip the heavy matrix. The Linux desktop smoke check runs when desktop-wrapper files change; Windows jobs are disabled for now. See [docs/CI.md](docs/CI.md) for the manual full-suite and urgent DMG build paths. The playback/navigation fixes were checked in Chrome with synthetic media and a simulated clock at three zoom levels. Real-device playback and microphone confirmation remain the owner's checks.
 
 **Toolbar, scripting and hardening (v26.10.26.5):** customizable docked toolbar
 (WP86) with pinning, reordering, and Auto-Silence badge count; headless project

@@ -2,8 +2,9 @@
 
 ## Normal pull requests
 
-Every pull request runs the full lint and test suite on macOS and Linux. Merging
-does not run that same two-platform suite again on `main`; this avoids paying
+Pull requests that change code run the full lint and test suite on macOS and
+Linux. A docs-only change skips that 2,850-minute Python test workload. Merging
+does not run the same two-platform suite again on `main`; this avoids paying
 for an identical second run after the required pull request checks passed.
 
 The Linux desktop smoke check runs only when the desktop wrapper, its tests,

@@ -8,13 +8,45 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+  pull-requests: read
+
 # kuulas imports speechmix and nhsx from the podcast repo as path dependencies
 # (../podcast/packages/...), so both repos are checked out side by side:
 #   $GITHUB_WORKSPACE/kuulas and $GITHUB_WORKSPACE/podcast.
 # The podcast repo is public, so no token is needed to read it.
 
 jobs:
+  changes:
+    name: Check changed paths
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code || steps.manual.outputs.code }}
+    steps:
+      - name: Filter documentation-only pull requests
+        id: filter
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            code:
+              - '**'
+              - '!docs/**'
+              - '!AGENTS.md'
+              - '!CHANGELOG.md'
+              - '!CLAUDE.md'
+              - '!GEMINI.md'
+              - '!README.md'
+              - '!ROADMAP.md'
+      - name: Always run for a manual full-suite request
+        id: manual
+        if: github.event_name == 'workflow_dispatch'
+        run: echo 'code=true' >> "$GITHUB_OUTPUT"
+
   test:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     name: test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
