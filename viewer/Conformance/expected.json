@@ -1,0 +1,259 @@
+{
+  "edits": [
+    {
+      "id": "main",
+      "name": "Main",
+      "created_utc": "2026-10-29T09:29:02Z",
+      "archived": 0,
+      "head": "01a186fd-cee4-74ec-a8af-cd8453d96300",
+      "project": {
+        "rate": 48000,
+        "media": [
+          {
+            "music_info": {},
+            "id": "m954fc965092f",
+            "name": "tone.wav",
+            "channels": 1,
+            "frames": 4800,
+            "sha256": "954fc965092f7a9312c7e104302a9117e25684fb2fbb452e60ae5467c30d3851",
+            "time_ref_flicks": null,
+            "excerpt_of": null,
+            "excerpt_start_flicks": 0,
+            "person": ""
+          }
+        ],
+        "tracks": [
+          {
+            "id": "track-one",
+            "name": "Host",
+            "kind": "speech",
+            "speaker": "",
+            "bus": "bus-one",
+            "gain_db": -2,
+            "pan": 0.1,
+            "mute": true,
+            "solo": true,
+            "clips": [
+              {
+                "id": "clip-one",
+                "media": "m954fc965092f",
+                "start": 2400,
+                "offset": 120,
+                "length": 2400,
+                "gain_db": -3,
+                "pan": -0.4,
+                "fade_in": 240,
+                "fade_out": 120,
+                "muted": false,
+                "envelope": [
+                  [
+                    120,
+                    -2.0
+                  ],
+                  [
+                    2520,
+                    0.0
+                  ]
+                ],
+                "xfade_in": 0,
+                "xfade_out": 0,
+                "auto_silence": [
+                  [
+                    1000,
+                    1100
+                  ]
+                ]
+              }
+            ],
+            "automation": [
+              [
+                0,
+                0.0
+              ],
+              [
+                4800,
+                -3.0
+              ]
+            ],
+            "gate": [
+              [
+                3000,
+                3200
+              ]
+            ]
+          }
+        ],
+        "buses": [
+          {
+            "id": "bus-one",
+            "name": "Voices",
+            "gain_db": -1,
+            "pan": -0.2,
+            "mute": false,
+            "kind": null
+          }
+        ],
+        "master_gain_db": -4,
+        "sync_groups": [],
+        "markers": [
+          {
+            "id": "marker-one",
+            "name": "Start",
+            "start": 2400,
+            "kind": "marker"
+          }
+        ]
+      }
+    },
+    {
+      "id": "01a186fd-cee5-77d6-87ac-53f2a4b100c4",
+      "name": "Short alternative",
+      "created_utc": "2026-10-29T09:29:02Z",
+      "archived": 0,
+      "head": "01a186fd-cee5-77d7-996a-03dca8379c69",
+      "project": {
+        "rate": 48000,
+        "media": [
+          {
+            "music_info": {},
+            "id": "m954fc965092f",
+            "name": "tone.wav",
+            "channels": 1,
+            "frames": 4800,
+            "sha256": "954fc965092f7a9312c7e104302a9117e25684fb2fbb452e60ae5467c30d3851",
+            "time_ref_flicks": null,
+            "excerpt_of": null,
+            "excerpt_start_flicks": 0,
+            "person": ""
+          }
+        ],
+        "tracks": [],
+        "buses": [
+          {
+            "id": "bus-one",
+            "name": "Voices",
+            "gain_db": -1,
+            "pan": -0.2,
+            "mute": false,
+            "kind": null
+          }
+        ],
+        "master_gain_db": -4,
+        "sync_groups": [],
+        "markers": [
+          {
+            "id": "marker-one",
+            "name": "Start",
+            "start": 2400,
+            "kind": "marker"
+          }
+        ]
+      }
+    },
+    {
+      "id": "01a186fd-cee6-7707-8644-49cf717aa896",
+      "name": "Archived draft",
+      "created_utc": "2026-10-29T09:29:02Z",
+      "archived": 1,
+      "head": "01a186fd-cee6-7708-81bc-98b89f6573af",
+      "project": {
+        "rate": 48000,
+        "media": [
+          {
+            "music_info": {},
+            "id": "m954fc965092f",
+            "name": "tone.wav",
+            "channels": 1,
+            "frames": 4800,
+            "sha256": "954fc965092f7a9312c7e104302a9117e25684fb2fbb452e60ae5467c30d3851",
+            "time_ref_flicks": null,
+            "excerpt_of": null,
+            "excerpt_start_flicks": 0,
+            "person": ""
+          }
+        ],
+        "tracks": [
+          {
+            "id": "track-one",
+            "name": "Host",
+            "kind": "speech",
+            "speaker": "",
+            "bus": "bus-one",
+            "gain_db": -2,
+            "pan": 0.1,
+            "mute": true,
+            "solo": true,
+            "clips": [
+              {
+                "id": "clip-one",
+                "media": "m954fc965092f",
+                "start": 2400,
+                "offset": 120,
+                "length": 2400,
+                "gain_db": -3,
+                "pan": -0.4,
+                "fade_in": 240,
+                "fade_out": 120,
+                "muted": false,
+                "envelope": [
+                  [
+                    120,
+                    -2.0
+                  ],
+                  [
+                    2520,
+                    0.0
+                  ]
+                ],
+                "xfade_in": 0,
+                "xfade_out": 0,
+                "auto_silence": [
+                  [
+                    1000,
+                    1100
+                  ]
+                ]
+              }
+            ],
+            "automation": [
+              [
+                0,
+                0.0
+              ],
+              [
+                4800,
+                -3.0
+              ]
+            ],
+            "gate": [
+              [
+                3000,
+                3200
+              ]
+            ]
+          }
+        ],
+        "buses": [
+          {
+            "id": "bus-one",
+            "name": "Voices",
+            "gain_db": -1,
+            "pan": -0.2,
+            "mute": false,
+            "kind": null
+          }
+        ],
+        "master_gain_db": -4,
+        "sync_groups": [],
+        "markers": [
+          {
+            "id": "marker-one",
+            "name": "Start",
+            "start": 2400,
+            "kind": "marker"
+          }
+        ]
+      }
+    }
+  ]
+}
