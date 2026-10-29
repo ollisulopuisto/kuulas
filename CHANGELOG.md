@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## [v26.10.29.1] - 2026-10-29
+
+- **Inspector shows current track values without becoming a second edit surface.** Gain, pan, mute and solo are read-only there; the track controls remain the place to change them.
+- **Local Orukeet jobs queue instead of colliding.** Concurrent requests wait for the current model run, remain cancellable, and proceed one at a time across projects.
+
 ## [v26.10.28.3] - 2026-10-28
 
 - Combine recordings and clipboard in the Materials tab; show selected-track clips in Inspector.
