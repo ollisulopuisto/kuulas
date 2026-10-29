@@ -152,8 +152,8 @@ def _chosen_tracks(project: Project,
     return tuple(out)
 
 
-def _entry(project: Project, parts: list[_Part], name: str,
-           moment: float) -> Entry:
+def _entry(project: Project, parts: list[_Part], name: str, moment: float, *,
+           preserve_mute: bool = False) -> Entry:
     """The entry for the trimmed ``parts``: slots, relative layout, span."""
     # Slots follow the project's track order: the same selection gives the
     # same slots however it is listed, and the topmost source track maps to
@@ -168,7 +168,10 @@ def _entry(project: Project, parts: list[_Part], name: str,
         (ClipRef(_sha256_of(project, part.clip), part.offset, part.length,
                  gain_db=part.clip.gain_db, pan=part.clip.pan,
                  fade_in=part.fade_in, fade_out=part.fade_out,
-                 muted=part.clip.muted, envelope=part.clip.envelope,
+                 # A plain copy is a reusable audition of the audio; don't carry a
+                 # timeline-only mute. Cut operations opt in to preserving it.
+                 muted=part.clip.muted if preserve_mute else False,
+                 envelope=part.clip.envelope,
                  rel_start=part.start - base, track_slot=slots[part.track_id],
                  media_name=_media_name(project, part.clip))
          for part in parts),
@@ -217,6 +220,7 @@ def entry_from_refs(refs: Iterable[ClipRef], *, name: str, span: tuple[int, int]
 def make_entry_range(project: Project, start: int, end: int,
                      track_ids: Iterable[str] | None = None, *,
                      name: str = "",
+                     preserve_mute: bool = False,
                      now: float | None = None) -> Entry:
     """An entry holding the stretch ``[start, end)`` of the chosen tracks.
 
@@ -245,7 +249,7 @@ def make_entry_range(project: Project, start: int, end: int,
                                fade_in, fade_out))
     if not parts:
         raise EditError("error.edit.no_selection")
-    return _entry(project, parts, name, moment)
+    return _entry(project, parts, name, moment, preserve_mute=preserve_mute)
 
 
 # -- JSON --------------------------------------------------------------------

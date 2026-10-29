@@ -1137,7 +1137,8 @@ class Session:
             entry, problem = None, None
             try:
                 entry = self._describe(
-                    make_entry_range(project, start, end, scope, name=name))
+                    make_entry_range(project, start, end, scope, name=name,
+                                     preserve_mute=True))
             except KuulasError as e:
                 problem = t(e.key, **e.params)
             new = remove(project, start, end, scope)

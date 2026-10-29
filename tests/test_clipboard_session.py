@@ -82,6 +82,31 @@ def test_copy_then_paste_on_the_same_tracks_reproduces_the_clips(session):
         ("a", before[0][1], 0, 96_000), ("b", before[1][1], 0, 96_000)]
 
 
+def test_copying_a_muted_clip_pastes_an_unmuted_copy(session):
+    a, _ = ids(session.state)
+    original = a.clips[0]
+    session.edit("set_clips", {"clip_ids": [original.id], "muted": True})
+
+    copied = session.clipboard_copy(clip_ids=[original.id])["entry"]["id"]
+    session.clipboard_paste(copied, at=200_000, mode="overwrite")
+
+    clips = session.state.tracks[0].clips
+    assert next(c for c in clips if c.id == original.id).muted is True
+    assert next(c for c in clips if c.start == 200_000).muted is False
+
+
+def test_cutting_a_muted_clip_preserves_its_mute_when_pasted(session):
+    a, _ = ids(session.state)
+    original = a.clips[0]
+    session.edit("set_clips", {"clip_ids": [original.id], "muted": True})
+
+    cut = session.clipboard_cut(start=0, end=96_000, track_ids=[a.id])
+    session.clipboard_paste(cut["clipboard"]["entry"], at=200_000, mode="overwrite")
+
+    pasted = next(c for c in session.state.tracks[0].clips if c.start == 200_000)
+    assert pasted.muted is True
+
+
 def test_a_range_copy_keeps_the_window_and_the_layout(session):
     a, b = ids(session.state)
     out = session.clipboard_copy(start=10_000, end=30_000, track_ids=[a.id, b.id])
