@@ -8,7 +8,7 @@ public struct ProjectView: View {
     @State private var snapshot: ProjectSnapshot?
     @State private var error: String?
     @State private var editID = "main"
-    @State private var frame = 0.0
+    @StateObject private var playback = PlaybackController()
 
     public init(root: URL) { self.root = root }
 
@@ -16,10 +16,7 @@ public struct ProjectView: View {
         snapshot?.edits.first { $0.id == editID } ?? snapshot?.edits.first
     }
     private var length: Int {
-        let tracks = selected?.state["tracks"] as? [[String: Any]] ?? []
-        return tracks.flatMap { $0["clips"] as? [[String: Any]] ?? [] }.map {
-            ($0["start"] as? Int ?? 0) + ($0["length"] as? Int ?? 0)
-        }.max() ?? 0
+        selected.map { PlaybackPosition.length($0.state) } ?? 0
     }
 
     public var body: some View {
@@ -35,7 +32,7 @@ public struct ProjectView: View {
                         Text(edit.name + (edit.archived ? " (archived)" : "")).tag(edit.id)
                     }
                 }
-                .onChange(of: editID) { _ in frame = 0 }
+                .onChange(of: editID) { _ in playback.reset() }
                 ScrollView {
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(Array((selected.state["tracks"] as? [[String: Any]] ?? []).enumerated()),
@@ -60,19 +57,26 @@ public struct ProjectView: View {
                         }
                     }
                 }.frame(minHeight: 160)
-                Slider(value: $frame, in: 0...Double(max(1, length))) {
+                Slider(value: Binding(get: { playback.frame }, set: { playback.seek($0) }), in: 0...Double(max(1, length))) {
                     Text("Position")
                 }
-                Text(String(format: "%.2f / %.2f s", frame / Double(snapshot.rate),
+                Text(String(format: "%.2f / %.2f s", playback.frame / Double(snapshot.rate),
                             Double(length) / Double(snapshot.rate)))
                     .monospacedDigit()
                 let eligibility = PlaybackEligibility.assess(selected)
-                Button("Play") {}.disabled(!eligibility.allowed)
+                Button(playback.playing ? "Pause" : "Play") {
+                    playback.toggle(root: root, snapshot: snapshot, edit: selected)
+                }.disabled(!eligibility.allowed || length == 0)
+                .keyboardShortcut(.space, modifiers: [])
+                if let message = playback.error {
+                    Text(message).foregroundColor(.red).textSelection(.enabled)
+                }
                 Text(eligibility.reasons.joined(separator: "\n"))
                     .font(.callout).foregroundColor(.secondary).textSelection(.enabled)
             } else if error == nil { ProgressView("Reading project…") }
         }
         .padding(20).frame(minWidth: 480, minHeight: 360)
+        .onDisappear { playback.reset() }
         .task {
             do {
                 let loaded = try await Task.detached(priority: .userInitiated) {
