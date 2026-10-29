@@ -65,3 +65,14 @@ uncompiled and untested natively. The UI intentionally refuses playback until
 native sample conformance passes; static bundle checks are not a registration
 or sandbox test. Linked audio outside the package is explicitly refused rather
 than granted broad filesystem access.
+
+## Native checkpoint, 2026-10-29
+
+The earlier “uncompiled” notes above describe the initial draft. Run
+40852111963 on030724c7 passed seven Swift tests (including mixer sample
+windows), Xcode app/extension build, bundle identity/signature/sandbox checks,
+and uploaded a zipped ad-hoc preview. This is not a notarized release or native
+launch/Finder/audio/visual acceptance. The delivered first preview has audio
+disabled. The next branch wires transport with queue-confined audio work and
+main-thread controls but keeps the denial gate until its broader stereo,
+crossfade, buffer-boundary and lifecycle checks pass natively.
