@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## [v26.10.29.2] - 2026-10-29
+
+- **Copied clips are ready to reuse.** Copying a muted clip now creates an audible clipboard entry, while Cut preserves the mute state when the clip is moved.
+- Add whole-session mastering export acceptance coverage and constrain the separate native Viewer preview to playback states covered by conformance cases. The Viewer is not included in the Kuulas editor DMG.
+
 ## [v26.10.29.1] - 2026-10-29
 
 - **Inspector shows current track values without becoming a second edit surface.** Gain, pan, mute and solo are read-only there; the track controls remain the place to change them.

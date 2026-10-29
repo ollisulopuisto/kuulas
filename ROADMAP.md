@@ -4,6 +4,14 @@
 
 **Release v26.10.27.1:** local Orukeet, NHSX import from the start page, a three-second LUFS meter, compact track headers and transcript search, clearer toolbar buttons, and corrected Auto-Silence boundary trims.
 
+## Released in v26.10.29.2 (2026-10-29)
+
+Built from current `main`, including PRs #89–90 and the clipboard mute fix.
+Copied clips are unmuted for reuse; Cut preserves the mute state. The whole-
+session mastering acceptance case guards export behavior. The separate native
+Viewer restricts playback to conformance-covered states and is not part of the
+editor DMG.
+
 ## Released in v26.10.29.1 (2026-10-29)
 
 Built from `a4cfeae`, current `main` at release time. This release includes the
@@ -92,7 +100,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R16 | Sync groups: mark clips in sync, move freely, resync any subclip to the main clip | done in core, timestamps only; fixes accidental one-track cuts; membership per media, shared by every edit (v26.10.16.6) |
 | R17 | Late sync: mark from clips still in sync, or from file timestamps (BWF) | done in core |
 | R18 | Store media as FLAC to save space | in progress: lossless FLAC verified bit-exact for 16/24-bit PCM |
-| R19 | Link media in place or copy into the project (like FCPX) | in progress: link PCM in place, relink by hash, consolidate |
+| R19 | Link media in place or copy into the project (like FCPX); optionally move originals into the project package | in progress: link PCM in place, relink by hash, consolidate; moving removes external originals only after the in-project copy is verified |
 | R20 | Ingest every audio format and the audio of video files | in progress: ffmpeg decoder |
 | R21 | Heavy parallel processing | imports parallel; analysis, transcription, export next |
 | R22 | Basic multitrack recording, standard APIs only (CoreAudio/WASAPI via PortAudio), Mac first; foolproof modal record mode: only a 2 s hold stops it, backend keeps recording if the UI closes, no sleep | planned: WP12 |
