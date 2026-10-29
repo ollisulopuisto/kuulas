@@ -36,3 +36,13 @@ Still open:90whole-app resource run with enough disk; native whole-app parity
 and real-episode audition; candidate RAM admission contract measured across
 render concurrency; exact immutable package pair and bundled smoke, then an
 explicit default/paired-release decision. Legacy remains safe and working.
+
+Immutable wheel check: built clean detached Podcast
+44a688c30ddbbc00b3ab1b5c8bfd07ca5ca699f4 speechmix2026.10.9.1wheel,
+SHA256c3a69be3aa7a41ca1c8f9766bd6001192b09a2076451437b2e174fdbabe38bb9.
+Verified streaming.py and programme.master_stream in wheel; imported this
+unpacked wheel ahead of editable source and all24Session/adaptertests pass.
+This clears the Linux wheel/API boundary, not native app bundling. Compared to
+oldpin, nhsx/silencelearn source unchanged; automixer changes are version/docs
+only in that path. Other bundled tool changes still need full pair review.
+No workflowpin change made. Candidatepin is a proposal, not authorizedactivation.
