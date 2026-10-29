@@ -151,6 +151,15 @@
   "error.package.backup_damaged": "The backup {name} is damaged and was not used: {error}",
   "error.package.restore_open": "The project is open on {host}; close it there before restoring a backup.",
   "error.package.backup_low_disk": "No backup was made: the disk is nearly full.",
+  "error.backup.repository_symlink": "The incremental backup repository must not be a symbolic link.",
+  "error.backup.reference_symlink": "The incremental backup reference must not be a symbolic link.",
+  "error.backup.manifest_large": "The incremental backup manifest is too large.",
+  "error.backup.unknown_format": "This incremental backup format is not supported.",
+  "error.backup.invalid_manifest": "The incremental backup manifest is invalid.",
+  "error.backup.chunk_invalid": "The incremental backup contains an invalid chunk.",
+  "error.backup.chunk_damaged": "The incremental backup contains a damaged chunk.",
+  "error.backup.chunk_missing": "The incremental backup is missing a required chunk.",
+  "error.backup.identity_mismatch": "The reconstructed incremental backup does not match its recorded identity.",
   "error.session.bad_word_index": "There is no word {index} on the timeline; it has {count} words.",
   "error.session.concurrent_edit": "The project changed while measuring loudness. Try again.",
   "history.opened": "Opened {time}",
@@ -2263,7 +2272,7 @@
   "cli.stats.help": "Show the statistics of a session: runtime, counts, who talked, the work done and sizes.",
   "cli.stats.json": "Print the numbers as JSON instead of text.",
   "cli.restore_backup.help": "Make an automatic backup the project's history again (the project must be closed).",
-  "cli.restore_backup.backup": "The backup's file name in backups/ (auto-….sqlite or auto-….sqlite.xz).",
+  "cli.restore_backup.backup": "The backup's file name in backups/ (auto-….sqlite, auto-….sqlite.xz or auto-….kbackup).",
   "cli.restore_backup.done": "Restored {backup}. The history as it was is in backups/{safety}.",
   "stats.title": "Statistics of {name}",
   "stats.group.runtime": "Runtime",
@@ -3275,5 +3284,6 @@
   "cmd.sync.show_drift": "Show sync drift",
   "cmd.sync.show_drift.hint": "Show a small mark on clips that are free from sync or have drifted. Hover for the exact offset.",
   "ui.sync.show_drift.on": "Sync drift marks are on.",
-  "ui.sync.show_drift.off": "Sync drift marks are off."
+  "ui.sync.show_drift.off": "Sync drift marks are off.",
+  "log.package.backup_gc_skipped": "Shared backup data was kept because an incremental backup reference could not be read."
 }

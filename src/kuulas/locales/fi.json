@@ -151,6 +151,15 @@
   "error.package.backup_damaged": "Varmuuskopio {name} on vioittunut, eikä sitä käytetty: {error}",
   "error.package.restore_open": "Projekti on auki koneella {host}; sulje se siellä ennen varmuuskopion palauttamista.",
   "error.package.backup_low_disk": "Varmuuskopiota ei tehty: levy on melkein täynnä.",
+  "error.backup.repository_symlink": "Jaettujen lisävarmuuskopioiden kansio ei saa olla symbolinen linkki.",
+  "error.backup.reference_symlink": "Lisävarmuuskopion viitetiedosto ei saa olla symbolinen linkki.",
+  "error.backup.manifest_large": "Lisävarmuuskopion luettelo on liian suuri.",
+  "error.backup.unknown_format": "Tätä lisävarmuuskopion muotoa ei tueta.",
+  "error.backup.invalid_manifest": "Lisävarmuuskopion luettelo ei kelpaa.",
+  "error.backup.chunk_invalid": "Lisävarmuuskopio sisältää virheellisen lohkon.",
+  "error.backup.chunk_damaged": "Lisävarmuuskopio sisältää vioittuneen lohkon.",
+  "error.backup.chunk_missing": "Lisävarmuuskopiosta puuttuu tarvittava lohko.",
+  "error.backup.identity_mismatch": "Koottu lisävarmuuskopio ei vastaa tallennettua tunnistetta.",
   "error.session.bad_word_index": "Aikajanalla ei ole sanaa {index}; sanoja on {count}.",
   "error.session.concurrent_edit": "Projekti muuttui äänenvoimakkuutta mitattaessa. Yritä uudelleen.",
   "history.opened": "Avattu {time}",
@@ -2358,7 +2367,7 @@
   "cli.stats.help": "Näytä istunnon tilastot: kesto, määrät, kuka puhui, tehty työ ja koot.",
   "cli.stats.json": "Tulosta luvut tekstin sijaan JSON-muodossa.",
   "cli.restore_backup.help": "Palauta automaattinen varmuuskopio projektin historiaksi (projektin on oltava suljettu).",
-  "cli.restore_backup.backup": "Varmuuskopion tiedostonimi kansiossa backups/ (auto-….sqlite tai auto-….sqlite.xz).",
+  "cli.restore_backup.backup": "Varmuuskopion tiedostonimi kansiossa backups/ (auto-….sqlite, auto-….sqlite.xz tai auto-….kbackup).",
   "cli.restore_backup.done": "{backup} palautettiin. Historia sellaisena kuin se oli on tiedostossa backups/{safety}.",
   "stats.title": "Tilastot: {name}",
   "stats.group.runtime": "Kesto",
@@ -3380,5 +3389,6 @@
   "cmd.sync.show_drift": "Näytä synkkapoikkeamat",
   "cmd.sync.show_drift.hint": "Näytä pieni merkki synkasta vapaille ja synkasta ajautuneille leikkeille. Tarkka poikkeama näkyy viemällä osoitin leikkeen päälle.",
   "ui.sync.show_drift.on": "Synkkapoikkeamien merkit ovat nyt näkyvissä.",
-  "ui.sync.show_drift.off": "Synkkapoikkeamien merkit eivät näy."
+  "ui.sync.show_drift.off": "Synkkapoikkeamien merkit eivät näy.",
+  "log.package.backup_gc_skipped": "Jaetut varmuuskopiotiedot säilytettiin, koska yhden lisävarmuuskopion viitetiedostoa ei voitu lukea."
 }
