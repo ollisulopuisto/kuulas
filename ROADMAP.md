@@ -13,16 +13,26 @@ transcription status kept visible in compact windows (PR #87). The release DMG
 passed both the built-app and mounted-image self-tests. PR #88's native Viewer
 playback remains preview code and is not part of the editor DMG.
 
+## Merged after v26.10.29.1 (main through 7bb0072)
+
+- PR #89 adds a whole-session mastering acceptance case to catch regressions in
+  full-export behavior.
+- PR #90 limits native Viewer playback to states covered by its conformance
+  cases. The Viewer remains a separate preview app, outside the Kuulas editor
+  DMG.
+
 ## Next hard work (2026-10-29)
 
-**WP26 is the active package.** The speed ladder, JKL key state, speed chip,
-basic tape-rate playback and scrub gestures already exist. Finish the hard
-audio path: pitch-preserved fast playback in queued chunks, programme-time
-positioning, reverse/variable-rate scrub, grain switching above 2×, and
-boundary quality tests. Then take WP23a (real-time FX and latency handling);
-WP18 cut candidates follows in M3 because its recording-clock anchors are
-reused by later editing work. WP21's schema migration and WP16's alignment
-remain later high-risk packages.
+**WP26 is the active package.** Pitch-preserved fast listening is already
+implemented with streaming WSOLA and has engine tests. The JKL speed ladder,
+key state and speed chip also exist. The remaining engine/UI gaps are that
+shuttle speeds above 2× still use tape-rate resampling instead of intelligible
+60 ms grains, and dragging on the ruler does not scrub at pointer velocity;
+the current `scrub` endpoint only seeks or plays a short burst. Owner listening
+verification remains in `docs/M2-VERIFY.md`. After WP26, take WP23a (real-time
+FX and latency handling); WP18 cut candidates follows in M3 because its
+recording-clock anchors are reused by later editing work. WP21's schema
+migration and WP16's alignment remain later high-risk packages.
 
 A multitrack **editor** for spoken word: podcasts, interviews, radio. It is
 for editing, not recording. The model is Hindenburg PRO: keyboard-first,
