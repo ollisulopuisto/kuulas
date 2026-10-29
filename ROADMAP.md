@@ -4,6 +4,36 @@
 
 **Release v26.10.27.1:** local Orukeet, NHSX import from the start page, a three-second LUFS meter, compact track headers and transcript search, clearer toolbar buttons, and corrected Auto-Silence boundary trims.
 
+## Released in v26.10.29.1 (2026-10-29)
+
+Built from `a4cfeae`, current `main` at release time. This release includes the
+read-only track inspector values and queued/cancellable local Orukeet jobs
+(PRs #83–86), playback LUFS wiring and independent live output RMS, with
+transcription status kept visible in compact windows (PR #87). The release DMG
+passed both the built-app and mounted-image self-tests. PR #88's native Viewer
+playback remains preview code and is not part of the editor DMG.
+
+## Merged after v26.10.29.1 (main through 7bb0072)
+
+- PR #89 adds a whole-session mastering acceptance case to catch regressions in
+  full-export behavior.
+- PR #90 limits native Viewer playback to states covered by its conformance
+  cases. The Viewer remains a separate preview app, outside the Kuulas editor
+  DMG.
+
+## Next hard work (2026-10-29)
+
+**WP26 is the active package.** Pitch-preserved fast listening is already
+implemented with streaming WSOLA and has engine tests. The JKL speed ladder,
+key state and speed chip also exist. The remaining engine/UI gaps are that
+shuttle speeds above 2× still use tape-rate resampling instead of intelligible
+60 ms grains, and dragging on the ruler does not scrub at pointer velocity;
+the current `scrub` endpoint only seeks or plays a short burst. Owner listening
+verification remains in `docs/M2-VERIFY.md`. After WP26, take WP23a (real-time
+FX and latency handling); WP18 cut candidates follows in M3 because its
+recording-clock anchors are reused by later editing work. WP21's schema
+migration and WP16's alignment remain later high-risk packages.
+
 A multitrack **editor** for spoken word: podcasts, interviews, radio. It is
 for editing, not recording. The model is Hindenburg PRO: keyboard-first,
 speech-aware, with the transcript and the audio as one thing.
@@ -130,7 +160,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 - Analysis: Auto-Silence and automix ducking through speechmix.
 - Transcript mapping and word-cut ranges.
 
-## In flight (25.10.2026; v26.10.24.3 tagged, `main` at f9a91af)
+## Earlier build snapshot (25.10.2026; superseded by v26.10.29.1)
 
 Release v26.10.24.3 fixes M on the audible openings between Auto-Silence stretches, adds dotted-boundary editing for those openings, and keeps double-click reserved for its specialized actions. The tag workflow builds and uploads the Apple-silicon test dmg. **Built since v26.10.20.39, none of it seen on screen yet** (everything below is committed on main; details and limits in each Next item and in docs/BUGS.md #106-#115):
 
@@ -377,7 +407,7 @@ Released in v26.10.20.5 to v26.10.20.14, in order of importance:
 
 ## Milestones
 
-Grouped from the build order in `docs/PLAN.md` (Triage) and updated by the owner's decisions. ✓ done (built and merged; owner testing is tracked in `docs/BUGS.md`), ◐ partly done, ▶ being built now, ↻ built and in review (not merged yet), otherwise open. Mirrors the roadmap page.
+Grouped from the build order in `docs/PLAN.md` (Triage) and updated by the owner's decisions. Status snapshot reviewed 2026-10-29 against `main` at `a4cfeae`; M1/M2 counts still include owner confirmation items. ✓ done (built and merged; owner testing is tracked in `docs/BUGS.md`), ◐ partly done, ▶ being built now, ↻ built and in review (not merged yet), otherwise open. Mirrors the roadmap page.
 
 **M1 · First playable build** (23 of 28 done, 5 partly): Run kuulas, import, listen, edit by keyboard, undo, export WAV or MP3.
 
@@ -385,7 +415,7 @@ Grouped from the build order in `docs/PLAN.md` (Triage) and updated by the owner
 
 **M2 · A usable editor** (7 of 21 done, 12 partly): Transcript, mouse editing, history panel, fast listening, FX layers. What to try: `docs/M2-VERIFY.md` (M1: `docs/M1-VERIFY.md`).
 
-✓ WP41, ◐ WP8, ◐ WP22, ◐ WP26, ✓ WP9, ◐ WP7, WP23a, ◐ WP44, ◐ WP48, ◐ WP49, ✓ WP50, ◐ WP52, ◐ WP55, ✓ WP57, ◐ WP63, WP62, ✓ WP69, ✓ WP70, ◐ WP77, ◐ WP78, ✓ WP79.
+✓ WP41, ◐ WP8, ◐ WP22, ▶ WP26, ✓ WP9, ◐ WP7, WP23a, ◐ WP44, ◐ WP48, ◐ WP49, ✓ WP50, ◐ WP52, ◐ WP55, ✓ WP57, ◐ WP63, WP62, ✓ WP69, ✓ WP70, ◐ WP77, ◐ WP78, ✓ WP79.
 
 **M3 · The editing loop** (3 of 25 done, 11 partly): What makes it better than Hindenburg: cut candidates, versions, review, paste, roles, takes.
 

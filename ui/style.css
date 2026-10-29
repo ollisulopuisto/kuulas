@@ -5905,3 +5905,92 @@ legend.form-heading {
   width: 22px;
   height: 22px;
 }
+
+/* Waiting/running details use the normal status column; long engine messages wrap below. */
+.tx-miss-message {
+  grid-column: 1 / -1;
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+}
+.tx-miss-status progress {
+  display: block;
+  margin-top: var(--space-2);
+}
+
+/* Independent post-mix RMS levels. dBFS average, not calibrated VU or LUFS. */
+.lm-rms {
+  width: 100px;
+  flex: none;
+  display: grid;
+  gap: 3px;
+}
+.lm-rms-row {
+  display: grid;
+  grid-template-columns: 1em 1fr;
+  gap: 4px;
+  align-items: center;
+  font-size: var(--text-xs);
+  line-height: 1;
+}
+.lm-rms-track {
+  height: 7px;
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+.lm-rms-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--ok);
+}
+.lm-rms-fill[data-zone="warn"] {
+  background: var(--warn);
+}
+.lm-rms-fill[data-zone="hot"] {
+  background: var(--danger);
+}
+/* Keep meters, version and both menu buttons reachable in a narrow window.
+   Only passive scope text is omitted; long range text is ellipsized. */
+@media (max-width: 900px) {
+  .statusbar #tab-scope {
+    display: none;
+  }
+  .statusbar #range-info {
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .level-meter {
+    gap: 4px;
+  }
+  .lm-rms {
+    width: 70px;
+  }
+  .lm-bars {
+    width: 100px;
+  }
+  .lm-readout {
+    min-width: 6em;
+  }
+}
+/* Active background work keeps its full message/percentage. Passive hints and
+   coordinate summaries yield before the notice, menus or live output meters. */
+.statusbar #notice-chip {
+  flex: none;
+  max-width: 180px;
+}
+@media (max-width: 1250px) {
+  .statusbar #keyhints {
+    display: none;
+  }
+}
+@media (max-width: 1099px) {
+  .statusbar #range-info {
+    display: none;
+  }
+}
+@media (max-width: 900px) {
+  .statusbar #zoom-chip {
+    display: none;
+  }
+}
