@@ -676,6 +676,13 @@ class History:
             r["context"] = _parse_context(r.get("context"))
         return rows
 
+    def project_at(self, node: str) -> Project:
+        """Read an edit snapshot without moving the head, including other branches."""
+        if self.db.execute("select 1 from nodes where id=? and edit=?",
+                           (node, self.edit)).fetchone() is None:
+            raise HistoryError("error.history.no_step", node=node)
+        return self._load(node)
+
     def restored_step(self, node: str) -> dict | None:
         """The step whose state ``node`` holds: ``node`` itself, or, while it is a
         restore, its target. ``{"id", "op", "label"}``; None for an unknown id."""

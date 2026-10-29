@@ -97,6 +97,7 @@ describe("Edit", () => {
     assert.deepEqual(shape(), [
       "edit.undo",
       "edit.redo",
+      "history.part_versions",
       ">menu.sync_back",
       "-",
       "edit.cut",

@@ -1,3 +1,5 @@
+import { createPartVersionsDialog } from "./part-versions-dialog.js";
+import { partRange } from "./part-versions-model.js";
 // The editor's entry point: wires the store, the API, the live channel, the
 // canvases and the keyboard together. The decisions live in small pure modules
 // (view.js, lanes.js, keys.js, ...); this file only applies their answers.
@@ -1520,6 +1522,10 @@ const keyboard = setupKeyboard({
       focusPanel("history");
       historyPanel.expandAll();
     },
+    openPartVersions: () => {
+      const range = partRange(getState());
+      if (range) void partVersionsDialog.open(range, getState().project.rate);
+    },
     openHistory: () => focusPanel("history"),
     edit: (change) => editor.change(change),
     toast: (text, options) => showNotice(text, "ok", options),
@@ -2389,6 +2395,13 @@ const inspector = createInspector({
     });
     jumpTo(frame);
   },
+});
+
+const partVersionsDialog = createPartVersionsDialog({
+  t,
+  api,
+  apply,
+  notice: (text) => showNotice(text, "ok", { undo: true }),
 });
 
 // -- history (WP8) ------------------------------------------------------------------------------------

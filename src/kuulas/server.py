@@ -284,6 +284,14 @@ class RenderListenBody(BaseModel):
     on: StrictBool
 
 
+class PartVersionBody(BaseModel):
+    node: str
+    track_id: str
+    start: int = Field(ge=0)
+    end: int = Field(gt=0)
+    expected_head: str
+
+
 class TransportBody(BaseModel):
     action: str
     at: int | None = None
@@ -1452,6 +1460,24 @@ def create_app(session, engine, *, language: str | None = None,
         session.restore(str(body.node))
         # The UI context of the restored step belongs to WP8; none is stored yet.
         return state_response({"context": None})
+
+    @app.get("/api/part-versions")
+    def get_part_versions(track_id: str, start: int, end: int):
+        # Sync routes run in FastAPI's worker pool: traversing history never
+        # blocks the live transport's event loop or holds the session lock.
+        return JSONResponse({"versions": session.part_versions(track_id, start, end)})
+
+    @app.post("/api/part-versions/restore")
+    def post_part_restore(body: PartVersionBody):
+        session.restore_part(body.node, body.track_id, body.start, body.end,
+                             expected_head=body.expected_head)
+        return state_response()
+
+    @app.post("/api/part-versions/preview")
+    def post_part_preview(body: PartVersionBody):
+        project = session.part_preview(body.node, body.track_id, body.start, body.end)
+        engine.play_preview(project, until=body.end - body.start, limit=True)
+        return JSONResponse({"started": True})
 
     @app.get("/api/history")
     def get_history(limit: int | None = None, before: str | None = None,
