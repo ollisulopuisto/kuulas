@@ -9,6 +9,7 @@ import {
   METER_MAX_DB,
   METER_MIN_DB,
   meterVisible,
+  rmsFrame,
   TICKS_DB,
   zoneOf,
   zoneSegments,
@@ -128,4 +129,14 @@ describe("meterVisible", () => {
       clip: true,
     });
   });
+});
+
+test("RMS uses independent channel averages, never peaks or LUFS", () => {
+  assert.deepEqual(rmsFrame({ l: 0, r: 0, short_term: -16, rms_l: -30, rms_r: -40 }), {
+    l: -30,
+    r: -40,
+    hold_l: -30,
+    hold_r: -40,
+  });
+  assert.equal(rmsFrame({ l: 0, r: 0 }).l, -90);
 });

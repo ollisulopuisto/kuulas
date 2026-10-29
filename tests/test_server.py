@@ -762,7 +762,7 @@ def test_live_pushes_the_heard_position_while_playing(session, engine, tmp_path)
 
 
 METER_FLOOR = {"l": -90.0, "r": -90.0, "hold_l": -90.0, "hold_r": -90.0,
-               "short_term": -90.0}
+               "rms_l": -90.0, "rms_r": -90.0, "short_term": -90.0}
 
 
 def test_live_pushes_the_level_meter_while_playing(session, engine, tmp_path):
@@ -778,6 +778,7 @@ def test_live_pushes_the_level_meter_while_playing(session, engine, tmp_path):
         # Peak dBFS and shared output LUFS both reach the display; RMS stays internal.
         assert msg == {"type": "meter", "meter": {"l": -12.0, "r": -14.0,
                                                   "hold_l": -6.0, "hold_r": -9.0,
+                                                  "rms_l": -30.0, "rms_r": -30.0,
                                                   "short_term": -22.3}}
 
 
@@ -1358,6 +1359,6 @@ def test_cut_list_lists_a_ripple_cut_of_the_edit(client, loaded):
 def test_meter_message_preserves_lufs_warmup_and_silence():
     from kuulas.server import meter_message  # noqa: PLC0415
 
-    peaks = dict.fromkeys(("l", "r", "hold_l", "hold_r"), -90.0)
+    peaks = dict.fromkeys(("l", "r", "hold_l", "hold_r", "rms_l", "rms_r"), -90.0)
     assert meter_message({**peaks, "short_term": None})["meter"]["short_term"] is None
     assert meter_message({**peaks, "short_term": -90})["meter"]["short_term"] == -90

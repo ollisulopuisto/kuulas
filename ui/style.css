@@ -5916,3 +5916,36 @@ legend.form-heading {
   display: block;
   margin-top: var(--space-2);
 }
+
+/* Independent post-mix RMS levels. dBFS average, not calibrated VU or LUFS. */
+.lm-rms {
+  width: 100px;
+  flex: none;
+  display: grid;
+  gap: 3px;
+}
+.lm-rms-row {
+  display: grid;
+  grid-template-columns: 1em 1fr;
+  gap: 4px;
+  align-items: center;
+  font-size: var(--text-xs);
+  line-height: 1;
+}
+.lm-rms-track {
+  height: 7px;
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+.lm-rms-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--ok);
+}
+.lm-rms-fill[data-zone="warn"] {
+  background: var(--warn);
+}
+.lm-rms-fill[data-zone="hot"] {
+  background: var(--danger);
+}
