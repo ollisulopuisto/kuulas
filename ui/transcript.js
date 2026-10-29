@@ -307,16 +307,33 @@ export function createTranscript({ root, getState, setState, api, actions }) {
       bar.max = 1;
       bar.value = row.progress;
       bar.setAttribute("aria-label", t("ui.transcript.progress"));
-      item.append(el("span", "tx-miss-status", t(`ui.transcript.status.${status}`)));
-      if (status === "running") item.append(bar);
+      const detail = el("span", "tx-miss-status", t(`ui.transcript.status.${status}`));
+      if (status === "running") detail.append(bar);
+      item.append(detail);
+
+      if (row.jobId) {
+        const cancel = offerButton(
+          "transcribe-cancel",
+          ids,
+          t("ui.transcript.cancel"),
+          "close",
+          false,
+        );
+        cancel.classList.remove("block", "tx-transcribe-button");
+        cancel.dataset.jobId = row.jobId;
+        item.append(cancel);
+      }
+      if (row.message) item.append(el("span", "tx-miss-message", row.message));
       return item;
     }
     item.append(
       el(
         "span",
-        status === "failed" ? "tx-miss-status tx-error" : "tx-miss-status",
+        status === "failed" && !row.cancelled ? "tx-miss-status tx-error" : "tx-miss-status",
         status === "failed"
-          ? row.error || t("ui.transcript.retry")
+          ? row.cancelled
+            ? t("ui.transcript.cancelled")
+            : row.error || t("ui.transcript.retry")
           : row.all
             ? ""
             : t("ui.transcript.status.none"),
@@ -733,6 +750,16 @@ export function createTranscript({ root, getState, setState, api, actions }) {
     if (button.dataset.act === "transcribe") void transcribe(ids);
     else if (button.dataset.act === "transcribe-anyway") void transcribe(ids, { force: true });
     else if (button.dataset.act === "transcribe-colab") actions.transcribeColab?.(ids);
+    else if (button.dataset.act === "transcribe-cancel") {
+      button.disabled = true;
+      void api
+        .cancelJob(button.dataset.jobId)
+        .then(() => refreshJobs())
+        .catch((error) => {
+          button.disabled = false;
+          actions.showError(error);
+        });
+    }
   });
 
   // -- the pop-up over the selection ----------------------------------------------------------------

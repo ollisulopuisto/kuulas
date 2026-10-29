@@ -5905,3 +5905,14 @@ legend.form-heading {
   width: 22px;
   height: 22px;
 }
+
+/* Waiting/running details use the normal status column; long engine messages wrap below. */
+.tx-miss-message {
+  grid-column: 1 / -1;
+  overflow-wrap: anywhere;
+  color: var(--text-secondary);
+}
+.tx-miss-status progress {
+  display: block;
+  margin-top: var(--space-2);
+}

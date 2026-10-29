@@ -1589,6 +1589,8 @@
     "one": "All {count} file",
     "other": "All {count} files"
   },
+  "ui.transcript.cancelled": "Transcription cancelled",
+  "ui.transcript.cancel": "Cancel transcription",
   "ui.transcript.status.none": "Not transcribed",
   "ui.transcript.status.queued": "Waiting to start",
   "ui.transcript.status.running": "Transcribing…",
