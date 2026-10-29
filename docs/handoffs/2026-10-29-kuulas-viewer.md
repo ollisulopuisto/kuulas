@@ -44,3 +44,15 @@ because a parser returns data.
   solo/mute, clip automation/fades, gates/auto-silence and a moved linked file.
   Python History verifies its expected states. This is groundwork, not native
   playback parity or a built app.
+
+Native reader code and SwiftPM tests are drafted but NOT compiled. Portable
+verification expanded to 61 passing tests (viewer, History and package), with
+Ruff clean for new Python code. The native playback eligibility gate refuses
+all audio until sample-level conformance exists; complex fixture reasons are
+explicit. No host app or Quick Look extension exists yet.
+
+Native integration requires a separately approved workflow patch. The smallest
+first step is one macOS SwiftPM test job, scoped to changes under viewer/ and its
+Python fixture tests, with timeout/concurrency cancellation; no artifact upload,
+release, editor bundle build or dispatch. Source PR approval is not approval to
+push workflow changes or spend runner time.
