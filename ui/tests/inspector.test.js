@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
+import { formatDb } from "../i18n.js";
 import {
   clipLengthText,
   createInspector,
@@ -8,7 +9,7 @@ import {
   syncGroupOf,
 } from "../inspector.js";
 import { createTrackClips, trackClipRows } from "../inspector-clips.js";
-import { addBusForTrack, hasDuckControl } from "../inspector-track.js";
+import { addBusForTrack, buildTrackSections, hasDuckControl } from "../inspector-track.js";
 
 class FakeNode {
   constructor(tag) {
@@ -273,5 +274,49 @@ describe("track clip properties list", () => {
       selection: new Set(),
     });
     assert.equal(details.all().filter((n) => n.tagName === "button").length, 0);
+  });
+});
+
+describe("track inspector level readouts", () => {
+  test("gain and pan are read-only and follow current shared state", () => {
+    const track = {
+      id: "t",
+      name: "Host",
+      kind: "speech",
+      speaker: "",
+      clips: [],
+      gain_db: -3,
+      pan: -0.25,
+      mute: false,
+      solo: false,
+      bus: null,
+    };
+    const state = { project: { tracks: [track], buses: [] }, loudness: {} };
+    const root = new FakeNode("details");
+    const changes = [];
+    const view = buildTrackSections({
+      target: { track },
+      editor: { change: (edit) => changes.push(edit) },
+      place: () => root,
+      latest: () => state,
+    });
+    view.update(state);
+    const gain = root.all().find((node) => node.attrs["data-level"] === "gain");
+    const pan = root.all().find((node) => node.attrs["data-level"] === "pan");
+    assert.ok(gain && pan, "gain and pan must be display-only outputs");
+    assert.equal(gain.tagName, "output");
+    assert.equal(pan.tagName, "output");
+    assert.equal(gain.textContent, formatDb(-3));
+    assert.match(pan.textContent, /25/);
+    assert.deepEqual(Object.keys(gain.listeners), []);
+    assert.deepEqual(Object.keys(pan.listeners), []);
+    assert.equal(root.all().filter((node) => node.type === "number").length, 0);
+    view.update({
+      ...state,
+      project: { ...state.project, tracks: [{ ...track, gain_db: 6, pan: 0.5 }] },
+    });
+    assert.equal(gain.textContent, formatDb(6));
+    assert.match(pan.textContent, /50/);
+    assert.deepEqual(changes, []);
   });
 });

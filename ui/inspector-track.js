@@ -1,12 +1,11 @@
-// The inspector's Track and Bus sections. Same fields and edits as the track
-// headers (set_track / set_bus / solo, the same coalesce keys, so a drag in the
-// header and a type in the inspector are one undo step each), plus the things
-// the resting header hides: pan, the bus picker, the role. Pure decisions are
-// in track-target.js.
+// The inspector's Track and Bus sections. Track gain/pan only show current
+// state; their graphical and exact numeric editors stay in the track header.
+// Other properties keep their existing set_track / set_bus / solo commands.
+// Pure decisions are in track-target.js.
 
 import { bindToggle } from "./ab-value.js";
 import { trackRoleChoice } from "./bus-role.js";
-import { formatNumber, t } from "./i18n.js";
+import { formatDb, formatNumber, t } from "./i18n.js";
 import { contextualReadout } from "./loudness-readout.js";
 import { coalesceKey, patchBus, patchSolo, patchTrack } from "./provisional.js";
 import { laneMates, speakerArgs } from "./track-kind.js";
@@ -243,14 +242,13 @@ export function buildTrackSections({ target, editor, place, latest, onBusCreated
     into.append(mates);
     const mono = checkbox(t("ui.track.mono"), (checked) => send("mono", checked));
     into.append(field(t("ui.track.mono"), mono));
-    const { gain, pan } = levels(into, {
-      gainLabel: t("ui.track.gain"),
-      panLabel: t("ui.track.pan"),
-      kind: "track",
-      id,
-      lookup,
-      send,
-    });
+    // Track gain/pan have one editing surface: the graphical header controls
+    // (their readouts also accept exact numbers). Inspector only reflects state.
+    const gain = readonly("");
+    const pan = readonly("");
+    gain.setAttribute("data-level", "gain");
+    pan.setAttribute("data-level", "pan");
+    into.append(field(t("ui.track.gain"), gain), field(t("ui.track.pan"), pan));
     const loudness = readonly("");
     loudness.classList.add("inspector-loudness");
     loudness.title = t("ui.loudness.integrated_hint");
@@ -309,8 +307,14 @@ export function buildTrackSections({ target, editor, place, latest, onBusCreated
       });
       mono.checked = Boolean(current.mono);
       loudness.textContent = contextualReadout(state.loudness, id, formatNumber, t);
-      setIfIdle(gain, round1(current.gain_db));
-      setIfIdle(pan, Math.round(current.pan * 100));
+      gain.textContent = formatDb(current.gain_db);
+      const percent = Math.round(current.pan * 100);
+      pan.textContent =
+        percent === 0
+          ? t("ui.pan.center")
+          : t(percent < 0 ? "ui.pan.left" : "ui.pan.right", {
+              value: formatNumber(Math.abs(percent)),
+            });
       state.project.buses.forEach((item, i) => {
         const text = busOptions(state.project)[i + 1];
         const option = bus.options[i + 1];
