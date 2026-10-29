@@ -68,9 +68,10 @@ class FakeEngine:
     def meter(self):
         # dBFS, as Engine.meter(): the floor while stopped, else what the callback saw
         if not self.playing:
-            return dict.fromkeys(("l", "r", "rms_l", "rms_r", "hold_l", "hold_r"), -90.0)
+            return dict.fromkeys(
+                ("l", "r", "rms_l", "rms_r", "hold_l", "hold_r", "short_term"), -90.0)
         return {"l": -12.0, "r": -14.0, "hold_l": -6.0, "hold_r": -9.0,
-                "rms_l": -30.0, "rms_r": -30.0}
+                "rms_l": -30.0, "rms_r": -30.0, "short_term": -22.345}
 
     def set_rate(self, rate):
         self.calls.append(("set_rate", rate))
@@ -760,7 +761,8 @@ def test_live_pushes_the_heard_position_while_playing(session, engine, tmp_path)
         assert msg["position"] == 5000
 
 
-METER_FLOOR = {"l": -90.0, "r": -90.0, "hold_l": -90.0, "hold_r": -90.0}
+METER_FLOOR = {"l": -90.0, "r": -90.0, "hold_l": -90.0, "hold_r": -90.0,
+               "short_term": -90.0}
 
 
 def test_live_pushes_the_level_meter_while_playing(session, engine, tmp_path):
@@ -773,9 +775,10 @@ def test_live_pushes_the_level_meter_while_playing(session, engine, tmp_path):
         msg = ws.receive_json()
         while msg["type"] != "meter":
             msg = ws.receive_json()
-        # four numbers, dBFS: the rms is the engine's, not sent
+        # Peak dBFS and shared output LUFS both reach the display; RMS stays internal.
         assert msg == {"type": "meter", "meter": {"l": -12.0, "r": -14.0,
-                                                  "hold_l": -6.0, "hold_r": -9.0}}
+                                                  "hold_l": -6.0, "hold_r": -9.0,
+                                                  "short_term": -22.3}}
 
 
 def test_live_sends_one_zero_meter_frame_when_playback_stops_then_none(
@@ -1350,3 +1353,11 @@ def test_cut_list_lists_a_ripple_cut_of_the_edit(client, loaded):
     [cut] = body["tracks"][0]["cuts"]
     assert (cut["at"], cut["removed"]) == (12_000, 12_000)
     assert [(s["at"], s["removed"]) for s in body["seams"]] == [(12_000, 12_000)]
+
+
+def test_meter_message_preserves_lufs_warmup_and_silence():
+    from kuulas.server import meter_message  # noqa: PLC0415
+
+    peaks = dict.fromkeys(("l", "r", "hold_l", "hold_r"), -90.0)
+    assert meter_message({**peaks, "short_term": None})["meter"]["short_term"] is None
+    assert meter_message({**peaks, "short_term": -90})["meter"]["short_term"] == -90
