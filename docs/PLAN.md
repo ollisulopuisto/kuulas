@@ -143,9 +143,12 @@ The project owner's standing rules, which apply to every WP on top of the above:
   WP's commit message.
 - **No secrets on command lines or in chat.** A secret goes into a file the
   owner edits (e.g. a `.env` that is gitignored); code reads it from there.
-- **CI, once a remote exists:** pull requests run the fast subset (lint +
-  unit tests), and `main` runs everything, including the slow and hardware-free
-  integration tests. Never cut the main-branch run down to save time.
+- **CI:** pull requests run the full lint and test suite on macOS and Linux.
+  The identical `main` push run is omitted to avoid paying twice for the same
+  merge; use the manual full-suite workflow when a main-branch recheck is
+  needed. The desktop smoke check is change-scoped and Linux-only. An urgent
+  DMG can be built from a selected branch through the manual `dmg` workflow;
+  see `docs/CI.md` for the artifact and release paths.
 - **GPU work** (bulk transcription, WP9/Colab) may use Google Colab, but never
   send private audio through Google Drive; send it to the VM directly.
 
