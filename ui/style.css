@@ -5973,3 +5973,24 @@ legend.form-heading {
     min-width: 6em;
   }
 }
+/* Active background work keeps its full message/percentage. Passive hints and
+   coordinate summaries yield before the notice, menus or live output meters. */
+.statusbar #notice-chip {
+  flex: none;
+  max-width: 180px;
+}
+@media (max-width: 1250px) {
+  .statusbar #keyhints {
+    display: none;
+  }
+}
+@media (max-width: 1099px) {
+  .statusbar #range-info {
+    display: none;
+  }
+}
+@media (max-width: 900px) {
+  .statusbar #zoom-chip {
+    display: none;
+  }
+}

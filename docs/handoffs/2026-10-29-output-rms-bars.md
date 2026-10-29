@@ -21,3 +21,9 @@ scope suppression with ellipsized range under900px; checked updated pixels
 and geometry, all controls inside viewport at800px.1512px unchanged. This
 uses actual footer markup/CSS and fixture text, not the whole running editor.
 3631 Node tests and full UI Biome pass after layout fix.
+
+Second visual review caught active transcription notice shrinking away. Fixed
+shrink priority: notice is nonshrinking; passive keyboard hints yield under1250,
+range under1100 and zoom under900. Rechecked800/1000 actual pixels with full
+“Litteroidaan 32 %” retained, menus/version/dual meter readable. Meter font
+size unchanged.1512/1200 also fit. Passive data remain elsewhere in UI.
