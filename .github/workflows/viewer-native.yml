@@ -1,4 +1,4 @@
-name: Kuulas Viewer native reader
+name: Kuulas Viewer native preview
 on:
   pull_request:
     paths:
@@ -19,3 +19,24 @@ jobs:
       - name: Swift reader conformance
         working-directory: viewer
         run: swift test
+      - name: Build app and embedded Quick Look extension
+        working-directory: viewer
+        run: |
+          set -euo pipefail
+          command -v xcodegen >/dev/null || brew install xcodegen
+          shasum App/Info.plist Extension/Info.plist > /tmp/viewer-plists.sha
+          xcodegen generate
+          shasum -c /tmp/viewer-plists.sha
+          xcodebuild -project KuulasViewer.xcodeproj -scheme KuulasViewerApp -configuration Release -derivedDataPath build build CODE_SIGN_IDENTITY=- CODE_SIGN_INJECT_BASE_ENTITLEMENTS=NO
+          python3 Tools/check_bundle.py 'build/Build/Products/Release/Kuulas Viewer.app'
+          ditto -c -k --sequesterRsrc --keepParent 'build/Build/Products/Release/Kuulas Viewer.app' 'Kuulas-Viewer-preview.zip'
+          shasum -a 256 Kuulas-Viewer-preview.zip > Kuulas-Viewer-preview.sha256
+      - name: Upload installable preview (not a release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kuulas-Viewer-preview-${{ github.event.pull_request.head.sha }}
+          path: |
+            viewer/Kuulas-Viewer-preview.zip
+            viewer/Kuulas-Viewer-preview.sha256
+          if-no-files-found: error
+          retention-days: 7
