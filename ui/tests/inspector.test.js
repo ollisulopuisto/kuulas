@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
-import { formatDb } from "../i18n.js";
+import { formatDb, t } from "../i18n.js";
 import {
   clipLengthText,
   createInspector,
@@ -317,6 +317,19 @@ describe("track inspector level readouts", () => {
     });
     assert.equal(gain.textContent, formatDb(6));
     assert.match(pan.textContent, /50/);
+    const mute = root.all().find((node) => node.attrs["data-state"] === "mute");
+    const solo = root.all().find((node) => node.attrs["data-state"] === "solo");
+    for (const output of [mute, solo]) {
+      assert.equal(output.tagName, "output");
+      assert.deepEqual(Object.keys(output.listeners), []);
+      assert.equal(output.textContent, t("ui.inspector.state.off"));
+    }
+    view.update({
+      ...state,
+      project: { ...state.project, tracks: [{ ...track, mute: true, solo: true }] },
+    });
+    assert.equal(mute.textContent, t("ui.inspector.state.on"));
+    assert.equal(solo.textContent, t("ui.inspector.state.on"));
     assert.deepEqual(changes, []);
   });
 });

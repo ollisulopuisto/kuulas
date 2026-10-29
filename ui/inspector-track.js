@@ -7,7 +7,7 @@ import { bindToggle } from "./ab-value.js";
 import { trackRoleChoice } from "./bus-role.js";
 import { formatDb, formatNumber, t } from "./i18n.js";
 import { contextualReadout } from "./loudness-readout.js";
-import { coalesceKey, patchBus, patchSolo, patchTrack } from "./provisional.js";
+import { coalesceKey, patchBus, patchTrack } from "./provisional.js";
 import { laneMates, speakerArgs } from "./track-kind.js";
 import { busMembers, busOptions, roleOptionKey, TRACK_KINDS } from "./track-target.js";
 
@@ -272,17 +272,11 @@ export function buildTrackSections({ target, editor, place, latest, onBusCreated
     });
     into.append(field(t("ui.track.bus"), bus));
     into.append(field(t("ui.track.voice"), readonly(t("ui.track.voice.none"))));
-    const mute = checkbox(t("ui.track.mute"), (checked) => send("mute", checked));
+    const mute = readonly("");
+    const solo = readonly("");
+    mute.setAttribute("data-state", "mute");
+    solo.setAttribute("data-state", "solo");
     into.append(field(t("ui.track.mute"), mute));
-    const solo = checkbox(t("ui.track.solo"), (_checked, event) => {
-      // Like the header: exclusive, Shift adds to the set.
-      const exclusive = !event.shiftKey;
-      editor.change({
-        op: "solo",
-        args: { track_id: id, exclusive },
-        provisional: (p) => patchSolo(p, id, exclusive),
-      });
-    });
     into.append(field(t("ui.track.solo"), solo));
     parts.push((state) => {
       const current = state.project.tracks.find((item) => item.id === id);
@@ -324,8 +318,8 @@ export function buildTrackSections({ target, editor, place, latest, onBusCreated
       bus.options[0].textContent = t("ui.bus.option_none");
       newBus.textContent = t("ui.bus.option_new");
       if (document.activeElement !== bus) bus.value = current.bus ?? "";
-      mute.checked = Boolean(current.mute);
-      solo.checked = Boolean(current.solo);
+      mute.textContent = t(current.mute ? "ui.inspector.state.on" : "ui.inspector.state.off");
+      solo.textContent = t(current.solo ? "ui.inspector.state.on" : "ui.inspector.state.off");
     });
   }
 

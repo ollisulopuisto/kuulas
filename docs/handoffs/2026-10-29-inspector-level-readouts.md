@@ -20,3 +20,11 @@ Tests: new red/green regression proves outputs have no numeric input or editing
 handlers, reflect changed shared state and emit no edit. All 3629 Node tests pass.
 Native Mac acceptance remains separate. No changes overlap Viewer, performance,
 Codex backups/range-history or recording meter work.
+
+Follow-up: Track mute/solo now also use plain live On/Off outputs, not interactive
+checkboxes. Header M/S editing remains unchanged. Finnish ui.track.solo now uses
+owner's wording "Soita vain tämä raita" wherever that shared key is used. Added
+English/Finnish state labels and regression assertions. 3629 Node +29 messages
+tests pass; Biome clean. Inspected dark Finnish component render before and after
+shared-state update, including gain/pan and both flags. Full-editor/native Mac
+acceptance still separate.
