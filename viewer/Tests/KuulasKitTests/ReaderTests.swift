@@ -84,3 +84,26 @@ extension ReaderTests {
         XCTAssertTrue(first.reasons.contains { $0.contains("auto-silence") })
     }
 }
+
+extension ReaderTests {
+    func testAllDeclaredFixtureEditsArePresent() throws {
+        // A missing head needs a generated mutation fixture before this case
+        // can assert a native result; the source reader compares joined count
+        // against declared count rather than dropping a damaged edit silently.
+        let root = fixtures.appendingPathComponent("Session.kuulas")
+        let snapshot = try ProjectReader.read(at: root)
+        XCTAssertEqual(snapshot.edits.count, 3)
+        XCTAssertEqual(Set(snapshot.edits.map(\.id)).count, 3)
+    }
+
+    func testContainedMovedLinkedMediaResolvesWithoutOldAbsolutePath() throws {
+        let root = fixtures.appendingPathComponent("Session.kuulas")
+        let snapshot = try ProjectReader.read(at: root)
+        let audio = try AudioFiles(root: root, snapshot: snapshot)
+        let media = try XCTUnwrap(snapshot.media.first?["id"] as? String)
+        let sample = try audio.read(media: media, first: 100, count: 10)
+        XCTAssertEqual(sample.count, 1)
+        XCTAssertEqual(sample[0].count, 10)
+        XCTAssertTrue(sample[0].contains { abs($0) > 0.001 })
+    }
+}
