@@ -1,4 +1,5 @@
 """The native reader's checked fixture must match real Kuulas, not NHSX."""
+import importlib.util
 import json
 import shutil
 from pathlib import Path
@@ -23,3 +24,12 @@ def test_native_reader_fixture_matches_current_python_history(tmp_path):
             assert json.loads(history.state.to_json()) == edit['project']
         finally:
             history.close()
+
+
+def test_native_audio_golden_matches_current_python_mixer():
+    path = FIXTURE.parent / 'Tools' / 'make_audio_conformance.py'
+    spec = importlib.util.spec_from_file_location('audio_conformance', path)
+    tool = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(tool)
+    expected = json.loads((FIXTURE / 'audio.json').read_text())
+    assert tool.expected_audio() == expected

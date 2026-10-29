@@ -56,3 +56,8 @@ first step is one macOS SwiftPM test job, scoped to changes under viewer/ and it
 Python fixture tests, with timeout/concurrency cancellation; no artifact upload,
 release, editor bundle build or dispatch. Source PR approval is not approval to
 push workflow changes or spend runner time.
+
+Audio groundwork now has Python mixer-generated stereo sample windows around
+clip boundaries, automation, gate and auto-silence transitions, including all
+three edits. A fifth regression re-evaluates those windows against the current
+mixer. This does not yet prove any native player.

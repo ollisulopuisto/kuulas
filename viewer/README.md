@@ -50,3 +50,9 @@ Open verification: macOS compile, actual pixels, native audio, live-WAL reader
 cases in Swift, contained versus linked media in the Quick Look sandbox,
 registration/type ownership and signed bundle checks. No release workflow or
 editor packaging is changed in this groundwork.
+
+`Conformance/audio.json` binds short stereo windows before/inside/after clip
+fades, automation, gates and auto-silence to the real Python mixer. Run
+`PYTHONPATH=src python viewer/Tools/make_audio_conformance.py` deliberately to
+regenerate it. Golden comparison is exact on the Python side; the native player
+must match within the recorded 1e-6 sample tolerance before playback is enabled.
