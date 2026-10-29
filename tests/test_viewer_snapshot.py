@@ -64,3 +64,32 @@ def test_changed_source_during_copy_is_rejected(tmp_path, monkeypatch):
             pytest.fail('A torn snapshot was accepted')
     finally:
         p.close()
+
+
+def test_uncommitted_live_writer_is_not_visible(tmp_path):
+    source = tmp_path / 'Uncommitted.kuulas'
+    p = package.create(source)
+    try:
+        head = p.history.head
+        name = p.history.edits()[0]['name']
+        p.history.db.execute('begin immediate')
+        p.history.db.execute("update edits set name='not committed'")
+        before = tree(source)
+        with reader.snapshot(source) as db:
+            row = db.execute("select name,head from edits where id='main'").fetchone()
+            assert row == (name, head)
+        assert tree(source) == before
+    finally:
+        if p.history.db.in_transaction:
+            p.history.db.execute('rollback')
+        p.close()
+
+
+def test_corrupt_copy_is_rejected_and_source_unchanged(tmp_path):
+    source = tmp_path / 'Corrupt.kuulas'
+    source.mkdir()
+    (source / 'project.sqlite').write_bytes(b'not a sqlite database')
+    before = tree(source)
+    with pytest.raises(sqlite3.DatabaseError), reader.snapshot(source):
+        pytest.fail('Corrupt database was accepted')
+    assert tree(source) == before
