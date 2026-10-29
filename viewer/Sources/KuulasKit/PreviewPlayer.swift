@@ -20,6 +20,10 @@ public final class PreviewPlayer {
     public var onError: ((String) -> Void)?
 
     public init(root: URL, snapshot: ProjectSnapshot, edit: EditSnapshot) throws {
+        let eligibility = PlaybackEligibility.assess(edit)
+        guard eligibility.allowed else {
+            throw ProjectReadError.invalid(eligibility.reasons.joined(separator: "\n"))
+        }
         rate = snapshot.rate
         state = edit.state
         source = try AudioFiles(root: root, snapshot: snapshot)

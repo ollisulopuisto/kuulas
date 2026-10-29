@@ -14,6 +14,11 @@ final class PlaybackController: ObservableObject {
     private var opening = false
 
     func toggle(root: URL, snapshot: ProjectSnapshot, edit: EditSnapshot) {
+        let eligibility = PlaybackEligibility.assess(edit)
+        guard eligibility.allowed else {
+            error = eligibility.reasons.joined(separator: "\n")
+            return
+        }
         if playing { pause(); return }
         guard !opening else { return }
         error = nil
