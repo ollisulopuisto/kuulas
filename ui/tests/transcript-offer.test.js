@@ -84,3 +84,13 @@ describe("offerRows", () => {
     assert.equal(offerRows({ media, transcribed: ["b", "c"], jobs }).rows[0].status, "running");
   });
 });
+
+test("active rows retain job identity and waiting message for cancel", () => {
+  const { rows } = offerRows({
+    media,
+    transcribed: [],
+    jobs: [job({ id: "local-2", state: "queued", media: ["b"], message: "waiting" })],
+  });
+  assert.equal(rows[1].jobId, "local-2");
+  assert.equal(rows[1].message, "waiting");
+});

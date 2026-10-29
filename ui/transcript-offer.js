@@ -33,7 +33,10 @@ export function offerRows({ media, transcribed, jobs }) {
         status: found?.status ?? "none",
         progress: found?.job.progress ?? 0,
         backend: found?.job.backend ?? null,
+        jobId: found?.job.id ?? null,
+        message: found?.job.message ?? "",
         error: found?.status === "failed" ? (found.job.error?.text ?? "") : "",
+        cancelled: found?.job.state === "cancelled",
       };
     });
   const startable = rows.filter((row) => row.status === "none" || row.status === "failed");

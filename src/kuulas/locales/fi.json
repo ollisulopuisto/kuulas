@@ -1583,6 +1583,8 @@
     "one": "Kaikki {count} tiedosto",
     "other": "Kaikki {count} tiedostoa"
   },
+  "ui.transcript.cancelled": "Litterointi peruutettiin",
+  "ui.transcript.cancel": "Peruuta litterointi",
   "ui.transcript.status.none": "Ei litteroitu",
   "ui.transcript.status.queued": "Odottaa alkamista",
   "ui.transcript.status.running": "Litteroidaan…",
