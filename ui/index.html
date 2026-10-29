@@ -135,6 +135,10 @@
         <span class="spacer"></span>
         <!-- Three-second LUFS from the shared meter; the peak clip latch stays separate. -->
         <span id="level-meter" class="level-meter" hidden>
+          <span class="lm-rms" role="img" data-i18n-aria-label="ui.meter.rms" data-i18n-title="ui.meter.rms">
+            <span class="lm-rms-row"><span data-i18n="ui.meter.left"></span><span class="lm-rms-track"><i class="lm-rms-fill" data-channel="l"></i></span></span>
+            <span class="lm-rms-row"><span data-i18n="ui.meter.right"></span><span class="lm-rms-track"><i class="lm-rms-fill" data-channel="r"></i></span></span>
+          </span>
           <span class="lm-readout"></span>
           <span id="level-bars" class="lm-bars" role="img" data-i18n-aria-label="ui.meter.title" data-i18n-title="ui.meter.title">
             <span class="lm-row"><i class="lm-fill" data-zone="ok"></i></span>
