@@ -61,3 +61,18 @@ Audio groundwork now has Python mixer-generated stereo sample windows around
 clip boundaries, automation, gate and auto-silence transitions, including all
 three edits. A fifth regression re-evaluates those windows against the current
 mixer. This does not yet prove any native player.
+
+## Native implementation draft, 11:36 Helsinki
+
+Further local drafts add the independent frame-based sample mixer and native
+sample golden tests, contained-package AVFoundation source reader, a shared
+SwiftUI view with explicit edit picker/timeline/seek position, application and
+Quick Look wrappers, and separate sandboxed bundle definitions. Source plists
+retain the existing package UTI, Viewer/Alternate ownership and read-only file
+entitlement; no broad filesystem exception is copied. Playback remains disabled
+pending native conformance, and no native pixels have been inspected.
+
+User approved the path-scoped ten-minute native test job. Its separate workflow
+patch was handed off for a user-owned commit on PR81; source pushes are paused
+while that human commit is in flight. Local work can continue. Do not overwrite
+or force-push the human workflow commit.

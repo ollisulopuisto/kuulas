@@ -28,7 +28,7 @@ final class MixerTests: XCTestCase {
             with: Data(contentsOf: root.appendingPathComponent("audio.json"))) as? [String: Any])
         let edits = try XCTUnwrap(expected["edits"] as? [[String: Any]])
         for row in edits {
-            let edit = try XCTUnwrap(snapshot.edits.first { $0.id == row["id"] as? String })
+            let edit = try XCTUnwrap(snapshot.edits.first { $0.id == (row["id"] as? String) })
             let windows = try XCTUnwrap(row["windows"] as? [[String: Any]])
             for window in windows {
                 let first = try XCTUnwrap(window["first"] as? Int)

@@ -98,7 +98,7 @@ public enum SampleMixer {
                 }
                 var fadeIn = integer(clip, "fade_in"), fadeOut = integer(clip, "fade_out")
                 let muteWidth = Int((Double(rate) * 0.030).rounded(.toNearestOrEven))
-                for neighbor in clips where flag(neighbor, "muted") && neighbor["media"] as? String == media {
+                for neighbor in clips where flag(neighbor, "muted") && (neighbor["media"] as? String) == media {
                     let neighborStart = integer(neighbor, "start")
                     let neighborOffset = integer(neighbor, "offset")
                     let neighborLength = integer(neighbor, "length")
