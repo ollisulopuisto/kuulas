@@ -31,8 +31,6 @@ ALLOWED = {
         "never waits for playback priority",
     ("cli.py", "open_project"):
         "waits for the server to accept connections, then opens the browser; no work",
-    ("package.py", "Package.start"):
-        "heartbeat: a WAL checkpoint and a backup every few minutes; IO only",
     ("media.py", "_ffmpeg_pcm.__init__"):
         "decoder subprocess stderr drain and watchdog: IO waits, no compute",
     ("offload.py", "_watch_progress"):

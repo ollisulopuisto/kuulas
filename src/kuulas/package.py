@@ -38,13 +38,14 @@ import socket
 import sqlite3
 import tempfile
 import threading
+import zlib
 from datetime import UTC, datetime, timedelta, tzinfo
 from importlib import metadata
 from pathlib import Path
 from typing import Any
 
 from . import db as dbm
-from . import migrations, priority, processes, syncmark
+from . import incremental_backup, migrations, priority, processes, syncmark
 from .clock import RateError, check_rate
 from .history import History
 from .media import MediaStore
@@ -114,7 +115,7 @@ DIRS = ("media", "media/excerpts", "media/originals", "caches/peaks", "caches/on
         "caches/analysis", "caches/render", "backups", "recordings", LOCKS_DIR)
 
 _STAMP = "%Y%m%dT%H%M%SZ"
-_AUTO = re.compile(r"^auto-(\d{8}T\d{6}Z)\.sqlite(\.xz)?$")
+_AUTO = re.compile(r"^auto-(\d{8}T\d{6}Z)(?:\.sqlite(?:\.xz)?|\.kbackup)$")
 
 
 class PackageError(KuulasError, RuntimeError):
@@ -371,18 +372,23 @@ def prune_backups(folder: str | Path, now: datetime | None = None,
     stamps = [when for when, _ in found]
     keep = _kept(stamps, KEEP_RECENT, KEEP_DAYS, now, tz)
     if budget:
-        sizes = {when: sum(_file_size(p) for p in paths) for when, paths in found}
         protected = _kept(stamps, BUDGET_KEEP_RECENT, BUDGET_KEEP_DAYS, now, tz)
-        total = sum(sizes[w] for w in keep)
-        for when in reversed(stamps):  # oldest first
-            if total <= budget:
-                break
-            if when in keep and when not in protected:
-                keep.discard(when)
-                total -= sizes[when]
-        if total > budget:
-            log.info(t("log.package.backup_over_budget", total_mb=_mb(total),
-                       budget_mb=_mb(budget)))
+        try:
+            total = _backup_bytes(found, keep)
+            for when in reversed(stamps):
+                if total <= budget:
+                    break
+                if when in keep and when not in protected:
+                    keep.discard(when)
+                    total = _backup_bytes(found, keep)
+            if total > budget:
+                log.info(t("log.package.backup_over_budget", total_mb=_mb(total),
+                           budget_mb=_mb(budget)))
+        except (OSError, ValueError, sqlite3.Error) as error:
+            # A damaged reference cannot prove which content is shared. Keep
+            # everything from the count rule; never guess at disk savings.
+            keep = _kept(stamps, KEEP_RECENT, KEEP_DAYS, now, tz)
+            log.warning(t("log.package.tick_failed", error=str(error)))
     removed = []
     for when, paths in found:
         if when in keep:
@@ -392,7 +398,23 @@ def prune_backups(folder: str | Path, now: datetime | None = None,
             path.unlink(missing_ok=True)
             removed.append(path)
             log.info(t("log.package.backup_pruned", name=path.name, size_mb=_mb(size)))
+    if not incremental_backup.collect(Path(folder)):
+        log.warning(t("log.package.backup_gc_skipped"))
     return removed
+
+
+def _backup_bytes(found: list[tuple[datetime, list[Path]]],
+                  keep: set[datetime]) -> int:
+    refs = []
+    total = 0
+    for when, paths in found:
+        if when in keep:
+            for path in paths:
+                if path.suffix == incremental_backup.SUFFIX:
+                    refs.append(path)
+                else:
+                    total += _file_size(path)
+    return total + incremental_backup.storage_bytes(refs)
 
 
 def _fsync_dir(folder: Path) -> None:
@@ -469,7 +491,7 @@ def compress_pending(folder: str | Path,
     done = []
     for _when, paths in auto_backups(folder):
         for src in paths:
-            if src.name.endswith(XZ):
+            if src.name.endswith((XZ, incremental_backup.SUFFIX)):
                 continue
             try:
                 made = compress_backup(src, cancel)
@@ -486,6 +508,9 @@ def compress_pending(folder: str | Path,
 
 def _unpack(src: Path, out_path: Path) -> None:
     """``src`` as a plain file at ``out_path`` (decompressed when it is xz), fsynced."""
+    if src.name.endswith(incremental_backup.SUFFIX):
+        incremental_backup.unpack(src, out_path)
+        return
     with src.open("rb") as f, out_path.open("wb") as out:
         unpack = lzma.LZMADecompressor() if src.name.endswith(XZ) else None
         while chunk := f.read(CHUNK):
@@ -505,7 +530,8 @@ def read_backup(src: Path, dest: Path) -> Path:
         _unpack(src, tmp)
         _check_database(tmp)
         os.replace(tmp, dest)
-    except (OSError, lzma.LZMAError, EOFError, sqlite3.Error) as e:
+    except (OSError, ValueError, zlib.error, lzma.LZMAError,
+            EOFError, sqlite3.Error) as e:
         tmp.unlink(missing_ok=True)
         raise PackageError("error.package.backup_damaged", name=src.name,
                            error=str(e) or type(e).__name__) from None
@@ -570,21 +596,7 @@ def restore_backup(folder: str | Path, backup: str | Path,
 def backup_to(db_path: Path, target: Path) -> Path:
     """A consistent copy of the database by the online backup API, read
     through its own read-only connection: the live file is never written."""
-    partial = target.with_name(target.name + ".partial")
-    source = dbm.connect(db_path, read_only=True)
-    copy = sqlite3.connect(partial)
-    try:
-        source.backup(copy)
-    finally:
-        copy.close()
-        source.close()
-    # Windows requires a writable handle for os.fsync; keep the completed SQLite copy
-    # open for read/write while flushing it before the atomic rename.
-    with partial.open("r+b") as f:
-        os.fsync(f.fileno())
-    partial.replace(target)
-    _fsync_dir(target.parent)
-    return target
+    return incremental_backup.snapshot(db_path, target, cooperative=False)
 
 
 # -- the package -----------------------------------------------------------------
@@ -611,6 +623,9 @@ class Package:
         self._opened = _iso(now)
         self._last_beat = self._last_backup = now
         self._backed_up = self._changes()
+        self._opened_changes = self._backed_up
+        self._backup_lock = threading.RLock()
+        self._closed = False
         self._checkpointed = self._seen = self._backed_up
         self.history.on_gate = self._need_gate_reader
         self.history.on_clip_silence = self._need_clip_silence_reader
@@ -672,17 +687,27 @@ class Package:
                 return
         self._checkpointed = self._changes()
 
-    def backup(self, now: datetime | None = None) -> Path | None:
+    def backup(self, now: datetime | None = None, *,
+               incremental: bool = False) -> Path | None:
+        """Serialize snapshot publication, retention and compressor pruning."""
+        with self._backup_lock:
+            return self._backup(now, incremental=incremental)
+
+    def _backup(self, now: datetime | None = None, *,
+                incremental: bool = False) -> Path | None:
         """An automatic backup now: the online backup API to
         ``backups/auto-<UTC>.sqlite``, the count rules, then the background
         compressor (xz, then the size budget). Returns this session's last
         backup instead when nothing was written since it, and None (logged,
         not an error) when the disk has too little room for a copy."""
+        if self.read_only:
+            return None
         now = now or datetime.now(UTC)
         changes = self._changes()
         folder = self.path / "backups"
         folder.mkdir(exist_ok=True)
-        if changes == self._backed_up and (same := self._made_copy()) is not None:
+        if (changes == self._backed_up and (same := self._made_copy()) is not None
+                and (incremental or same.suffix != incremental_backup.SUFFIX)):
             # Keyed on this session's own copy and its change counter: a backup
             # left by an earlier session may predate edits of a crash.
             self._last_backup = now
@@ -696,9 +721,21 @@ class Package:
                           size_mb=_mb(size)))
             self._last_backup = now  # try again at the next interval, not every tick
             return None
-        stamp = now.astimezone(UTC).strftime(_STAMP)
-        target = folder / f"auto-{stamp}.sqlite"
-        backup_to(self.db_path, target)
+        stamp_time = now.astimezone(UTC)
+        # Never overwrite a backup from a different edit in the same second, or
+        # the standalone baseline of a close snapshot after a future timer tick.
+        occupied = {when for when, _paths in auto_backups(folder)}
+        if occupied:
+            stamp_time = max(stamp_time, max(occupied) + timedelta(seconds=1))
+        stamp = stamp_time.strftime(_STAMP)
+        suffix = incremental_backup.SUFFIX if incremental else ".sqlite"
+        target = folder / f"auto-{stamp}{suffix}"
+        if incremental:
+            incremental_backup.write(self.db_path, target, self._stop, quiet=True)
+        elif priority.is_background() and not self._stop.is_set():
+            incremental_backup.snapshot(self.db_path, target, self._stop, quiet=True)
+        else:
+            backup_to(self.db_path, target)
         self._last_backup, self._backed_up, self._made = now, changes, target
         # The budget waits for the compressor: counted uncompressed, backups
         # that fit once compressed would be dropped.
@@ -732,11 +769,12 @@ class Package:
         folder = self.path / "backups"
         while True:
             try:
-                compress_pending(folder, self._stop)
-                prune_backups(folder, budget=backup_budget_bytes())
+                with self._backup_lock:
+                    compress_pending(folder, self._stop)
+                    prune_backups(folder, budget=backup_budget_bytes())
             except priority.CancelledError:
                 pass  # closing: an unfinished one stays uncompressed, for next time
-            except (OSError, sqlite3.Error) as e:
+            except (OSError, ValueError, sqlite3.Error) as e:
                 log.warning(t("log.package.tick_failed", error=str(e)))
             with self._compress_lock:
                 if not self._compress_again or self._stop.is_set():
@@ -765,6 +803,8 @@ class Package:
         now = now or datetime.now(UTC)
         if (now - self._last_beat).total_seconds() >= HEARTBEAT_S:
             self.heartbeat(now)
+        if priority.GATE.interactive():
+            return None
         # After a write burst: nothing written since the previous tick.
         changes = self._changes()
         if changes == self._seen and changes != self._checkpointed:
@@ -772,7 +812,10 @@ class Package:
         self._seen = changes
         due = (now - self._last_backup).total_seconds() >= BACKUP_EVERY_S
         if due and self._changes() != self._backed_up:
-            return self.backup(now)
+            try:
+                return self.backup(now, incremental=self._made_copy() is not None)
+            except priority.CancelledError:
+                return None  # closing: final standalone snapshot follows
         return None
 
     def start(self) -> None:
@@ -781,24 +824,34 @@ class Package:
             while not self._stop.wait(HEARTBEAT_S):
                 try:
                     self.tick()
-                except (OSError, sqlite3.Error) as e:
+                except (OSError, ValueError, sqlite3.Error) as e:
                     # A full disk or a busy database must not kill the timer:
                     # the next tick tries again.
                     log.warning(t("log.package.tick_failed", error=str(e)))
-        self._thread = threading.Thread(target=loop, name="kuulas-package", daemon=True)
+        self._thread = priority.thread(loop, "kuulas-package")
         self._thread.start()
         # Backups an older kuulas left uncompressed are compressed now, in the
         # background, one at a time.
         self._kick_compressor()
 
     def close(self) -> None:
+        if self._closed:
+            return
         self._stop.set()
         if self._thread is not None:
             self._thread.join()
         self.wait_compressed()
+        # No background writer or compressor remains. A standalone final copy
+        # needs no chunk repository and includes changes since the last timer.
+        if not self.read_only and self._changes() != self._opened_changes:
+            try:
+                self.backup()
+            except (OSError, ValueError, sqlite3.Error) as error:
+                log.warning(t("log.package.tick_failed", error=str(error)))
         self.checkpoint()
         self.history.close()
         self.store.close()
+        self._closed = True
         if not self.read_only:
             _remove_lock(self.path, self.instance)
 

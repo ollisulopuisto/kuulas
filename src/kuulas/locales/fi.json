@@ -1126,8 +1126,14 @@
   "ui.edit.label.gain": "Leikkeen taso",
   "ui.edit.label.track_mute": "Raidan mykistys",
   "ui.edit.label.solo": "Raidan soolo",
-  "ui.edit.toast.split": {"one": "Jaettu {count} leike", "other": "Jaettu {count} leikettä"},
-  "ui.edit.toast.delete_clips": {"one": "Poistettu {count} leike · aukko jäi", "other": "Poistettu {count} leikettä · aukko jäi"},
+  "ui.edit.toast.split": {
+    "one": "Jaettu {count} leike",
+    "other": "Jaettu {count} leikettä"
+  },
+  "ui.edit.toast.delete_clips": {
+    "one": "Poistettu {count} leike · aukko jäi",
+    "other": "Poistettu {count} leikettä · aukko jäi"
+  },
   "ui.edit.toast.delete_range": {
     "one": "Poistettu {seconds} s {count} raidalta · aukko jäi",
     "other": "Poistettu {seconds} s {count} raidalta · aukko jäi"
@@ -1136,21 +1142,39 @@
     "one": "Leikattu {seconds} s {count} raidalta · leikepöydällä",
     "other": "Leikattu {seconds} s {count} raidalta · leikepöydällä"
   },
-  "ui.edit.toast.mute": {"one": "Mykistetty {count} leike", "other": "Mykistetty {count} leikettä"},
-  "ui.edit.toast.unmute": {"one": "Mykistys purettu {count} leikkeeltä", "other": "Mykistys purettu {count} leikkeeltä"},
+  "ui.edit.toast.mute": {
+    "one": "Mykistetty {count} leike",
+    "other": "Mykistetty {count} leikettä"
+  },
+  "ui.edit.toast.unmute": {
+    "one": "Mykistys purettu {count} leikkeeltä",
+    "other": "Mykistys purettu {count} leikkeeltä"
+  },
   "ui.edit.toast.unmute_region": "Tämä suljettu jakso avattu omaksi leikkeekseen. Mykistä vain se uudelleen: {key:clip.mute}.",
-  "ui.edit.toast.trim_start": {"one": "Lyhennetty {count} leikkeen alkua", "other": "Lyhennetty {count} leikkeen alkua"},
-  "ui.edit.toast.trim_end": {"one": "Lyhennetty {count} leikkeen loppua", "other": "Lyhennetty {count} leikkeen loppua"},
+  "ui.edit.toast.trim_start": {
+    "one": "Lyhennetty {count} leikkeen alkua",
+    "other": "Lyhennetty {count} leikkeen alkua"
+  },
+  "ui.edit.toast.trim_end": {
+    "one": "Lyhennetty {count} leikkeen loppua",
+    "other": "Lyhennetty {count} leikkeen loppua"
+  },
   "ui.edit.toast.nothing": "Mikään ei muuttunut.",
   "cmd.range.scope_toggle": "Alueen muokkaukset: kaikki raidat / vain valitut raidat",
   "cmd.range.scope_toggle.hint": "Valitsee, koskevatko alueen leikkaus, kopiointi, poisto ja mykistys kaikkia raitoja vai vain valittuja. Raidan otsikon valinta vaihtaa valittuihin raitoihin; {key:nav.home} palauttaa.",
   "ui.scope.none_selected": "Ei valittuja raitoja, joten mitään ei muutettu. Valitse raita tai ota kaikki raidat mukaan toiminnolla {key:range.scope_toggle}.",
   "ui.scope.chip_range": "alue {from}-{to} {where}",
   "ui.scope.chip_mode": "alueen muokkaukset {where}",
-  "ui.scope.where_all": {"one": "raidalla", "other": "kaikilla {count} raidalla"},
+  "ui.scope.where_all": {
+    "one": "raidalla",
+    "other": "kaikilla {count} raidalla"
+  },
   "ui.scope.where_some": "raidoilla {names}",
   "ui.scope.chip_none": "ei valittuja raitoja: mitään ei muuteta",
-  "ui.scope.chip_clips": {"one": "{key:edit.delete} / {key:edit.remove} koskevat valittua leikettä (merkit himmennetty)", "other": "{key:edit.delete} / {key:edit.remove} koskevat {count} valittua leikettä (merkit himmennetty)"},
+  "ui.scope.chip_clips": {
+    "one": "{key:edit.delete} / {key:edit.remove} koskevat valittua leikettä (merkit himmennetty)",
+    "other": "{key:edit.delete} / {key:edit.remove} koskevat {count} valittua leikettä (merkit himmennetty)"
+  },
   "ui.scope.chip_title": "Mihin raitoihin seuraava alueen muokkaus (leikkaus, kopiointi, poisto, mykistys) kohdistuu. Vaihda napsauttamalla kaikkien ja valittujen raitojen välillä. Pikanäppäin: {key:range.scope_toggle}.",
   "cmd.clip.match_loudness": "Sovita äänenvoimakkuus",
   "cmd.clip.match_loudness.hint": "Asettaa valittujen leikkeiden (tai nykyisen raidan) vahvistuksen niin, että ne ovat yhtä kovaäänisiä, raidan tavoitetasolle (puhe -19, musiikki -23 LUFS ellei toisin ole asetettu).",
@@ -1468,7 +1492,10 @@
   "ui.clipboard.project_loading": "Luetaan…",
   "ui.clipboard.project_unreadable": "Tämän projektin leikepöytää ei voitu lukea.",
   "ui.clipboard.project_empty": "Tämän projektin leikepöytä on tyhjä.",
-  "ui.clipboard.clip_count": {"one": "{count} leike", "other": "{count} leikettä"},
+  "ui.clipboard.clip_count": {
+    "one": "{count} leike",
+    "other": "{count} leikettä"
+  },
   "ui.clipboard.ago_now": "juuri nyt",
   "ui.clipboard.ago_minutes": {
     "one": "{count} minuutti sitten",
@@ -1485,7 +1512,7 @@
   "ui.clipboard.preview": "Soita",
   "ui.clipboard.preview_stop": "Pysäytä",
   "ui.clipboard.preview_progress": "Leikepöydän esikuuntelun eteneminen",
-  "ui.clipboard.preview_nothing":"Ei soitettavaa: tämän kohteen äänitteet eivät ole tässä projektissa",
+  "ui.clipboard.preview_nothing": "Ei soitettavaa: tämän kohteen äänitteet eivät ole tässä projektissa",
   "ui.focus.clipboard": "Leikepöytä",
   "ui.tabs.label": "Sivupaneelit",
   "ui.tabs.inspector": "Tarkastin",
@@ -1493,15 +1520,24 @@
   "ui.clipboard.title": "Leikepöytä",
   "ui.clipboard.empty": "Täällä ei ole vielä mitään. Kopioi tai leikkaa jotain, niin se odottaa tässä valmiina liitettäväksi uudelleen. Merkitse kohde tähdellä, niin se on käytettävissä muissa projekteissasi.",
   "ui.clipboard.list_label": "Leikepöydän kohteet",
-  "ui.clipboard.untitled": {"one": "{count} leike · {duration}", "other": "{count} leikettä · {duration}"},
+  "ui.clipboard.untitled": {
+    "one": "{count} leike · {duration}",
+    "other": "{count} leikettä · {duration}"
+  },
   "ui.clipboard.untitled_track": "Leike",
-  "ui.clipboard.auto_name": {"one": "{count} leike: {name}, {at}", "other": "{count} leikettä: {name}, {at}"},
+  "ui.clipboard.auto_name": {
+    "one": "{count} leike: {name}, {at}",
+    "other": "{count} leikettä: {name}, {at}"
+  },
   "ui.clipboard.filter_label": "Suodata",
   "ui.clipboard.filter_placeholder": "Suodata kohteita: nimi, raita, projekti tai sanottu teksti",
   "ui.clipboard.no_matches": "Mikään kohde ei vastaa suodatinta.",
   "ui.clipboard.details": "Lähde {source}: {tracks} · {duration}",
   "ui.clipboard.details_short": "{duration}",
-  "ui.clipboard.meta": {"one": "{count} leike · {duration}", "other": "{count} leikettä · {duration}"},
+  "ui.clipboard.meta": {
+    "one": "{count} leike · {duration}",
+    "other": "{count} leikettä · {duration}"
+  },
   "ui.clipboard.missing_here": {
     "one": "{count} äänite puuttuu tästä projektista",
     "other": "{count} äänitettä puuttuu tästä projektista"
@@ -1519,9 +1555,18 @@
   "ui.clipboard.target.current": "Nykyinen raita",
   "ui.edit.label.paste": "Liitä",
   "ui.edit.label.paste_insert": "Liitä ja lisää",
-  "ui.edit.toast.copy": {"one": "Leikepöydälle kopioitu {count} leike", "other": "Leikepöydälle kopioitu {count} leikettä"},
-  "ui.edit.toast.paste": {"one": "Liitetty {count} leike vanhan päälle", "other": "Liitetty {count} leikettä vanhan päälle"},
-  "ui.edit.toast.paste_insert": {"one": "Liitetty {count} leike, myöhempi materiaali siirtyi", "other": "Liitetty {count} leikettä, myöhempi materiaali siirtyi"},
+  "ui.edit.toast.copy": {
+    "one": "Leikepöydälle kopioitu {count} leike",
+    "other": "Leikepöydälle kopioitu {count} leikettä"
+  },
+  "ui.edit.toast.paste": {
+    "one": "Liitetty {count} leike vanhan päälle",
+    "other": "Liitetty {count} leikettä vanhan päälle"
+  },
+  "ui.edit.toast.paste_insert": {
+    "one": "Liitetty {count} leike, myöhempi materiaali siirtyi",
+    "other": "Liitetty {count} leikettä, myöhempi materiaali siirtyi"
+  },
   "ui.edit.toast.paste_missing": {
     "one": "Liitetty, mutta {count} äänite puuttuu tästä projektista",
     "other": "Liitetty, mutta {count} äänitettä puuttuu tästä projektista"
@@ -1533,7 +1578,10 @@
   },
   "ui.transcript.empty": "Ei vielä litteraattia.",
   "ui.transcript.missing": "Litterointi puuttuu",
-  "ui.transcript.all_files": {"one": "Kaikki {count} tiedosto", "other": "Kaikki {count} tiedostoa"},
+  "ui.transcript.all_files": {
+    "one": "Kaikki {count} tiedosto",
+    "other": "Kaikki {count} tiedostoa"
+  },
   "ui.transcript.status.none": "Ei litteroitu",
   "ui.transcript.status.queued": "Odottaa alkamista",
   "ui.transcript.status.running": "Litteroidaan…",
@@ -2358,7 +2406,7 @@
   "cli.stats.help": "Näytä istunnon tilastot: kesto, määrät, kuka puhui, tehty työ ja koot.",
   "cli.stats.json": "Tulosta luvut tekstin sijaan JSON-muodossa.",
   "cli.restore_backup.help": "Palauta automaattinen varmuuskopio projektin historiaksi (projektin on oltava suljettu).",
-  "cli.restore_backup.backup": "Varmuuskopion tiedostonimi kansiossa backups/ (auto-….sqlite tai auto-….sqlite.xz).",
+  "cli.restore_backup.backup": "Varmuuskopion tiedostonimi kansiossa backups/ (auto-….sqlite, auto-….sqlite.xz tai auto-….kbackup).",
   "cli.restore_backup.done": "{backup} palautettiin. Historia sellaisena kuin se oli on tiedostossa backups/{safety}.",
   "stats.title": "Tilastot: {name}",
   "stats.group.runtime": "Kesto",
@@ -2858,11 +2906,20 @@
   "ui.record.elsewhere": "Toinen projekti äänittää ({take}). Pysäytä se ensin siellä.",
   "ui.record.no_devices": "Tuloja ei löytynyt. Kytke äänikortti tai mikrofoni.",
   "ui.record.loading": "Kysytään äänittimeltä tuloja…",
-  "ui.record.imported": {"one": "{take} on aikajanalla ({count} leike).", "other": "{take} on aikajanalla ({count} leikettä)."},
+  "ui.record.imported": {
+    "one": "{take} on aikajanalla ({count} leike).",
+    "other": "{take} on aikajanalla ({count} leikettä)."
+  },
   "ui.record.replaced": "Se korvasi {what}. Aiempi ääni säilyy projektin tiedostoissa; Kumoa palauttaa sen mutta poistaa myös tämän äänitteen.",
   "ui.record.imported_interrupted": "{take} keskeytyi; kaikki äänitetty on aikajanalla.",
-  "ui.record.imported_gaps": {"one": "{take} on aikajanalla; siinä on {count} aukko, jolloin mitään ei voitu äänittää.", "other": "{take} on aikajanalla; siinä on {count} aukkoa, jolloin mitään ei voitu äänittää."},
-  "ui.record.pending": {"one": "{count} äänitetty otto jäi viemättä aikajanalle (editori tai äänitin pysähtyi kesken).", "other": "{count} äänitettyä ottoa ei viety aikajanalle (editori tai äänitin pysähtyi kesken)."},
+  "ui.record.imported_gaps": {
+    "one": "{take} on aikajanalla; siinä on {count} aukko, jolloin mitään ei voitu äänittää.",
+    "other": "{take} on aikajanalla; siinä on {count} aukkoa, jolloin mitään ei voitu äänittää."
+  },
+  "ui.record.pending": {
+    "one": "{count} äänitetty otto jäi viemättä aikajanalle (editori tai äänitin pysähtyi kesken).",
+    "other": "{count} äänitettyä ottoa ei viety aikajanalle (editori tai äänitin pysähtyi kesken)."
+  },
   "ui.record.import_pending": "Tuo",
   "ui.record.stop_mode": "Äänityksen pysäyttäminen",
   "ui.record.stop_mode.two_step": "Kaksi painallusta",
@@ -3051,7 +3108,7 @@
   "error.offload.crashed": "Analyysiprosessi pysähtyi vastaamatta ({exit}). Jos tietokoneen muisti oli vähissä, sulje muita ohjelmia. Analyysia ei yritetä heti uudelleen.",
   "error.offload.failed": "Analyysi epäonnistui: {error}",
   "error.offload.backoff": "Analyysi epäonnistui hetki sitten; sitä yritetään uudelleen {seconds} s kuluttua.",
-  "error.offload.busy":"Analyysejä odottaa liian monta; yritä hetken päästä uudelleen.",
+  "error.offload.busy": "Analyysejä odottaa liian monta; yritä hetken päästä uudelleen.",
   "error.offload.timeout": "Analyysi kesti yli {seconds} s ja keskeytettiin.",
   "log.offload.watchdog": "Analyysiprosessi {pid}: {why}; se lopetetaan.",
   "log.offload.swept": "Lopetettiin {count} edellisen käynnistyksen jälkeen jäänyttä analyysiprosessia.",
@@ -3397,5 +3454,15 @@
   "ui.part_versions.note": "Esikuuntele versio ja palauta se tähän. Muut muokkaukset säilyvät.",
   "ui.part_versions.empty": "Tästä kohdasta ei löytynyt versioita.",
   "cmd.history.part_versions.hint": "Etsi ja palauta tämän kohdan aiempi ääni säilyttäen muut muokkaukset.",
-  "ui.part_versions.row": "{names} · {first_created}–{created} · {seconds} s · {current}"
+  "ui.part_versions.row": "{names} · {first_created}–{created} · {seconds} s · {current}",
+  "error.backup.repository_symlink": "Jaettujen lisävarmuuskopioiden kansio ei saa olla symbolinen linkki.",
+  "error.backup.reference_symlink": "Lisävarmuuskopion viitetiedosto ei saa olla symbolinen linkki.",
+  "error.backup.manifest_large": "Lisävarmuuskopion luettelo on liian suuri.",
+  "error.backup.unknown_format": "Tätä lisävarmuuskopion muotoa ei tueta.",
+  "error.backup.invalid_manifest": "Lisävarmuuskopion luettelo ei kelpaa.",
+  "error.backup.chunk_invalid": "Lisävarmuuskopio sisältää virheellisen lohkon.",
+  "error.backup.chunk_damaged": "Lisävarmuuskopio sisältää vioittuneen lohkon.",
+  "error.backup.chunk_missing": "Lisävarmuuskopiosta puuttuu tarvittava lohko.",
+  "error.backup.identity_mismatch": "Koottu lisävarmuuskopio ei vastaa tallennettua tunnistetta.",
+  "log.package.backup_gc_skipped": "Jaetut varmuuskopiotiedot säilytettiin, koska yhden lisävarmuuskopion viitetiedostoa ei voitu lukea."
 }
