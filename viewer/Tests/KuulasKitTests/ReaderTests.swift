@@ -72,16 +72,27 @@ final class ReaderTests: XCTestCase {
 }
 
 extension ReaderTests {
-    func testReaderSuccessDoesNotEnableUnverifiedAudio() throws {
+    func testOnlyConformanceCoveredSchemaCanPlay() throws {
         let snapshot = try ProjectReader.read(at: fixtures.appendingPathComponent("Session.kuulas"))
         for edit in snapshot.edits {
-            let eligibility = PlaybackEligibility.assess(edit)
-            XCTAssertFalse(eligibility.allowed)
-            XCTAssertFalse(eligibility.reasons.isEmpty)
+            XCTAssertTrue(PlaybackEligibility.assess(edit).allowed)
         }
-        let first = PlaybackEligibility.assess(snapshot.edits[0])
-        XCTAssertTrue(first.reasons.contains { $0.contains("gates") })
-        XCTAssertTrue(first.reasons.contains { $0.contains("auto-silence") })
+        let original = snapshot.edits[0]
+        var state = original.state
+        state["future_audio_effect"] = true
+        let unknown = EditSnapshot(id: original.id, name: original.name,
+            head: original.head, archived: false, state: state)
+        XCTAssertFalse(PlaybackEligibility.assess(unknown).allowed)
+        var tracks = try XCTUnwrap(state["tracks"] as? [[String: Any]])
+        state.removeValue(forKey: "future_audio_effect")
+        tracks[0]["future_track_effect"] = 1
+        state["tracks"] = tracks
+        let nested = EditSnapshot(id: original.id, name: original.name,
+            head: original.head, archived: false, state: state)
+        XCTAssertFalse(PlaybackEligibility.assess(nested).allowed)
+        let malformed = EditSnapshot(id: "bad", name: "Bad", head: "bad",
+            archived: false, state: ["tracks": "not an array", "buses": []])
+        XCTAssertFalse(PlaybackEligibility.assess(malformed).allowed)
     }
 }
 
