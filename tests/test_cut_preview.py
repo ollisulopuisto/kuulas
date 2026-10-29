@@ -164,7 +164,8 @@ def test_session_cut_preview_does_not_hold_lock_during_computation(
     assert "span" in res
 
 
-def test_session_cut_preview_lock_duration_measurement(tmp_path):
+@pytest.mark.parametrize("slow_close", [False, True])
+def test_session_cut_preview_lock_duration_measurement(tmp_path, monkeypatch, slow_close):
     # Benchmark with several transcripts to verify lock is held for only fractions of a ms
     s = Session(tmp_path / "Bench.kuulas")
     files = [
@@ -213,16 +214,32 @@ def test_session_cut_preview_lock_duration_measurement(tmp_path):
             self.release()
 
     s.lock = LockProxy(s.lock)
+    if slow_close:
+        close = s.close
+
+        def delayed_close():
+            # Deterministic stand-in for a slow database flush during shutdown.
+            # It must not count against cut_preview's unchanged 5 ms budget.
+            with s.lock:
+                time.sleep(0.02)
+            close()
+
+        monkeypatch.setattr(s, "close", delayed_close)
 
     res = s.cut_preview(selection)
+    # Shutdown flushes the database under the same lock. Measure only the
+    # operation named by this benchmark, as the source-map benchmark does.
+    measured = list(held_durations)
 
     s.close()
+    if slow_close:
+        assert max(held_durations) >= 20.0, "slow close must exercise the regression"
     assert "span" in res
-    assert held_durations, "Lock should have been acquired"
-    max_lock_ms = max(held_durations)
+    assert measured, "Lock should have been acquired"
+    max_lock_ms = max(measured)
     print(
         f"\nLock held during cut_preview: {max_lock_ms:.3f} ms "
-        f"(durations: {held_durations})"
+        f"(durations: {measured})"
     )
     assert max_lock_ms < 5.0  # Lock is held for well under a few milliseconds
 
