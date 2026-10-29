@@ -23,10 +23,7 @@ public final class PreviewPlayer {
         rate = snapshot.rate
         state = edit.state
         source = try AudioFiles(root: root, snapshot: snapshot)
-        length = (state["tracks"] as? [[String: Any]] ?? [])
-            .flatMap { $0["clips"] as? [[String: Any]] ?? [] }
-            .filter { ($0["muted"] as? Bool ?? false) == false }
-            .map { ($0["start"] as? Int ?? 0) + ($0["length"] as? Int ?? 0) }.max() ?? 0
+        length = PlaybackPosition.length(state)
         guard let format = AVAudioFormat(standardFormatWithSampleRate: Double(rate), channels: 2) else {
             throw ProjectReadError.invalid("Invalid playback sample rate.")
         }
@@ -42,14 +39,15 @@ public final class PreviewPlayer {
             guard let self else { return }
             self.generation += 1
             self.node.stop()
-            self.origin = max(0, min(frame, self.length))
+            self.origin = PlaybackPosition.start(frame, length: self.length)
             self.nextFrame = self.origin
             let token = self.generation
             do {
                 if !self.engine.isRunning { try self.engine.start() }
                 self.playing = true
                 for _ in 0..<3 { try self.schedule(token) }
-                self.node.play()
+                if self.length > 0 { self.node.play() }
+                else { self.playing = false }
             } catch { self.fail(error) }
         }
     }
@@ -71,6 +69,7 @@ public final class PreviewPlayer {
                 .map { Int(Double($0.sampleTime) * Double(self.rate) / $0.sampleRate) } ?? 0
             let frame = min(self.length, self.origin + elapsed)
             let active = self.playing && frame < self.length
+            if !active { self.playing = false }
             DispatchQueue.main.async { completion(frame, active) }
         }
     }

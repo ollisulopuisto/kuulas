@@ -437,11 +437,16 @@ def newer_seq(seq, last) -> bool:
 
 
 def meter_message(levels: dict) -> dict:
-    """The live channel's meter frame: peak and peak-hold per channel, dBFS. (The engine
-    also measures RMS; the display has no use for it yet, so it is not sent.)"""
+    """Output peak dBFS plus shared three-second LUFS, preserving warm-up null.
+
+    Do not whitelist just peaks: the UI uses short_term for its live bar/readout.
+    RMS is per channel in dBFS; None means LUFS is still gathering three seconds.
+    """
+    value = levels.get("short_term")
     return {"type": "meter",
-            "meter": {key: round(float(levels[key]), 1)
-                      for key in ("l", "r", "hold_l", "hold_r")}}
+            "meter": {**{key: round(float(levels[key]), 1)
+                         for key in ("l", "r", "hold_l", "hold_r", "rms_l", "rms_r")},
+                      "short_term": None if value is None else round(float(value), 1)}}
 
 
 # -- the app -------------------------------------------------------------------

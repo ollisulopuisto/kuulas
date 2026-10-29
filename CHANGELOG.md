@@ -4,6 +4,7 @@
 
 - **Inspector shows current track values without becoming a second edit surface.** Gain, pan, mute and solo are read-only there; the track controls remain the place to change them.
 - **Local Orukeet jobs queue instead of colliding.** Concurrent requests wait for the current model run, remain cancellable, and proceed one at a time across projects.
+- **Playback level is wired to the LUFS meter.** Live output RMS is shown independently, and active transcription status remains visible beside the meter and menu controls in narrow windows.
 
 ## [v26.10.28.3] - 2026-10-28
 
