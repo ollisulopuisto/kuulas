@@ -29,7 +29,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: ollisulopuisto/podcast
-          ref: 7793c0c1b276e90e466cea6d0b09e20fca08c968
+          ref: 5a179e6f16024a0e1aa6fa9d01a0edcb09cdf2fc
           path: podcast
       - uses: astral-sh/setup-uv@v7
         with:
