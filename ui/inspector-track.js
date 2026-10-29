@@ -1,14 +1,13 @@
-// The inspector's Track and Bus sections. Same fields and edits as the track
-// headers (set_track / set_bus / solo, the same coalesce keys, so a drag in the
-// header and a type in the inspector are one undo step each), plus the things
-// the resting header hides: pan, the bus picker, the role. Pure decisions are
-// in track-target.js.
+// The inspector's Track and Bus sections. Track gain/pan only show current
+// state; their graphical and exact numeric editors stay in the track header.
+// Other properties keep their existing set_track / set_bus / solo commands.
+// Pure decisions are in track-target.js.
 
 import { bindToggle } from "./ab-value.js";
 import { trackRoleChoice } from "./bus-role.js";
-import { formatNumber, t } from "./i18n.js";
+import { formatDb, formatNumber, t } from "./i18n.js";
 import { contextualReadout } from "./loudness-readout.js";
-import { coalesceKey, patchBus, patchSolo, patchTrack } from "./provisional.js";
+import { coalesceKey, patchBus, patchTrack } from "./provisional.js";
 import { laneMates, speakerArgs } from "./track-kind.js";
 import { busMembers, busOptions, roleOptionKey, TRACK_KINDS } from "./track-target.js";
 
@@ -243,14 +242,13 @@ export function buildTrackSections({ target, editor, place, latest, onBusCreated
     into.append(mates);
     const mono = checkbox(t("ui.track.mono"), (checked) => send("mono", checked));
     into.append(field(t("ui.track.mono"), mono));
-    const { gain, pan } = levels(into, {
-      gainLabel: t("ui.track.gain"),
-      panLabel: t("ui.track.pan"),
-      kind: "track",
-      id,
-      lookup,
-      send,
-    });
+    // Track gain/pan have one editing surface: the graphical header controls
+    // (their readouts also accept exact numbers). Inspector only reflects state.
+    const gain = readonly("");
+    const pan = readonly("");
+    gain.setAttribute("data-level", "gain");
+    pan.setAttribute("data-level", "pan");
+    into.append(field(t("ui.track.gain"), gain), field(t("ui.track.pan"), pan));
     const loudness = readonly("");
     loudness.classList.add("inspector-loudness");
     loudness.title = t("ui.loudness.integrated_hint");
@@ -274,17 +272,11 @@ export function buildTrackSections({ target, editor, place, latest, onBusCreated
     });
     into.append(field(t("ui.track.bus"), bus));
     into.append(field(t("ui.track.voice"), readonly(t("ui.track.voice.none"))));
-    const mute = checkbox(t("ui.track.mute"), (checked) => send("mute", checked));
+    const mute = readonly("");
+    const solo = readonly("");
+    mute.setAttribute("data-state", "mute");
+    solo.setAttribute("data-state", "solo");
     into.append(field(t("ui.track.mute"), mute));
-    const solo = checkbox(t("ui.track.solo"), (_checked, event) => {
-      // Like the header: exclusive, Shift adds to the set.
-      const exclusive = !event.shiftKey;
-      editor.change({
-        op: "solo",
-        args: { track_id: id, exclusive },
-        provisional: (p) => patchSolo(p, id, exclusive),
-      });
-    });
     into.append(field(t("ui.track.solo"), solo));
     parts.push((state) => {
       const current = state.project.tracks.find((item) => item.id === id);
@@ -309,8 +301,14 @@ export function buildTrackSections({ target, editor, place, latest, onBusCreated
       });
       mono.checked = Boolean(current.mono);
       loudness.textContent = contextualReadout(state.loudness, id, formatNumber, t);
-      setIfIdle(gain, round1(current.gain_db));
-      setIfIdle(pan, Math.round(current.pan * 100));
+      gain.textContent = formatDb(current.gain_db);
+      const percent = Math.round(current.pan * 100);
+      pan.textContent =
+        percent === 0
+          ? t("ui.pan.center")
+          : t(percent < 0 ? "ui.pan.left" : "ui.pan.right", {
+              value: formatNumber(Math.abs(percent)),
+            });
       state.project.buses.forEach((item, i) => {
         const text = busOptions(state.project)[i + 1];
         const option = bus.options[i + 1];
@@ -320,8 +318,8 @@ export function buildTrackSections({ target, editor, place, latest, onBusCreated
       bus.options[0].textContent = t("ui.bus.option_none");
       newBus.textContent = t("ui.bus.option_new");
       if (document.activeElement !== bus) bus.value = current.bus ?? "";
-      mute.checked = Boolean(current.mute);
-      solo.checked = Boolean(current.solo);
+      mute.textContent = t(current.mute ? "ui.inspector.state.on" : "ui.inspector.state.off");
+      solo.textContent = t(current.solo ? "ui.inspector.state.on" : "ui.inspector.state.off");
     });
   }
 
