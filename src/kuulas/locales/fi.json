@@ -113,6 +113,7 @@
   "error.jobs.closed": "Taustatyöajuri on suljettu.",
   "error.job.failed": "Taustatyö epäonnistui: {error}",
   "error.media.offline": "Lähdetiedosto {name} ei ole käytettävissä. Linkitä se uudelleen ennen litterointia.",
+  "job.transcribe.waiting_local": "Odotetaan käynnissä olevan paikallisen litteroinnin valmistumista",
   "job.transcribe": "Litteroidaan: {name}",
   "error.import.nhsx_failed": "Hindenburg-istuntoa {path} ei voitu tuoda. Tarkista, että se on kelvollinen .nhsx-tiedosto.",
   "error.import.nhsx_missing_media": "Istunnon äänitiedostoa {name} ei löytynyt.",
