@@ -56,3 +56,12 @@ fades, automation, gates and auto-silence to the real Python mixer. Run
 `PYTHONPATH=src python viewer/Tools/make_audio_conformance.py` deliberately to
 regenerate it. Golden comparison is exact on the Python side; the native player
 must match within the recorded 1e-6 sample tolerance before playback is enabled.
+
+Native drafts now include a shared SwiftUI view, read-only app/Quick Look bundle
+shells, a per-frame mixer and a bounded queued-buffer player. The player mixes
+and decodes off the audio callback, keeps three half-second buffers queued, and
+uses generation tokens to discard stale seek completions. This code is still
+uncompiled and untested natively. The UI intentionally refuses playback until
+native sample conformance passes; static bundle checks are not a registration
+or sandbox test. Linked audio outside the package is explicitly refused rather
+than granted broad filesystem access.
