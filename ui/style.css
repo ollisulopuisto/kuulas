@@ -5949,3 +5949,27 @@ legend.form-heading {
 .lm-rms-fill[data-zone="hot"] {
   background: var(--danger);
 }
+/* Keep meters, version and both menu buttons reachable in a narrow window.
+   Only passive scope text is omitted; long range text is ellipsized. */
+@media (max-width: 900px) {
+  .statusbar #tab-scope {
+    display: none;
+  }
+  .statusbar #range-info {
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .level-meter {
+    gap: 4px;
+  }
+  .lm-rms {
+    width: 70px;
+  }
+  .lm-bars {
+    width: 100px;
+  }
+  .lm-readout {
+    min-width: 6em;
+  }
+}

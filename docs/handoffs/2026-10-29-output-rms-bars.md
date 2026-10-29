@@ -12,3 +12,12 @@ channel.143 focused server/engine-meter/shared-LUFS tests pass. Fixture pixels
 in real Chromium Finnish/dark show independent L/R and LUFS levels changing,
 then reset on floor. Native playback/listening/full editor acceptance remains
 open. No recording-meter ownership changes. Whole repo Ruff and UI Biome clean.
+
+Full statusbar markup fixture checked at1512px (3024px Retina screenshot
+candidate),1200,1000,800 with range, scope, series, transcription notice,
+version, help and View controls populated. At800px the first check exposed
+clipped version/menu controls. Added compact meter widths/gaps and passive
+scope suppression with ellipsized range under900px; checked updated pixels
+and geometry, all controls inside viewport at800px.1512px unchanged. This
+uses actual footer markup/CSS and fixture text, not the whole running editor.
+3631 Node tests and full UI Biome pass after layout fix.
