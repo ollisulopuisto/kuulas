@@ -3275,5 +3275,22 @@
   "cmd.sync.show_drift": "Show sync drift",
   "cmd.sync.show_drift.hint": "Show a small mark on clips that are free from sync or have drifted. Hover for the exact offset.",
   "ui.sync.show_drift.on": "Sync drift marks are on.",
-  "ui.sync.show_drift.off": "Sync drift marks are off."
+  "ui.sync.show_drift.off": "Sync drift marks are off.",
+  "error.part_versions.stale": "The edit changed. Open Versions of this part again.",
+  "history.restore_part": "Put an earlier version here",
+  "cmd.history.part_versions": "Versions of this part…",
+  "ui.part_versions.more": "More…",
+  "ui.part_versions.close": "Close",
+  "ui.part_versions.stop": "Stop preview",
+  "ui.part_versions.play": "Play",
+  "ui.part_versions.restore": "Put this version here",
+  "ui.part_versions.silence": "Silence",
+  "ui.part_versions.current": "Current",
+  "ui.part_versions.waveform": "Audio waveform",
+  "ui.part_versions.no_waveform": "Waveform unavailable",
+  "ui.part_versions.loading": "Looking through this edit’s history…",
+  "ui.part_versions.note": "Preview a version, then put it here. Other edits stay as they are.",
+  "ui.part_versions.empty": "No versions found for this part.",
+  "cmd.history.part_versions.hint": "Find and restore earlier audio in this range without undoing other edits.",
+  "ui.part_versions.row": "{names} · {first_created}–{created} · {seconds} s · {current}"
 }

@@ -108,6 +108,7 @@ from .loudness import gain_to_target, measure_clip, track_target_lufs
 from .media import ImportResult, MediaError, MediaStore, file_sha256
 from .messages import KuulasError, t
 from .model import Project, SyncGroup
+from .part_versions import distinct_versions, gate_snapshot, snapshot
 from .paste_apply import apply_paste
 from .paste_plan import _targets, plan_paste
 from .people import Interview, Passage, Person
@@ -442,6 +443,57 @@ class Session:
             except KeyError as e:
                 raise ops.EditError("error.edit.no_track", track_id=e.args[0]) from None
         return rest, rest
+
+    def part_versions(self, track_id: str, start: int, end: int) -> list[dict]:
+        """Scan all branches on a read connection, without holding the edit lock."""
+        with self.lock:
+            path, edit = self.history.path, self.history.edit
+            current = self.history.state
+        names = {media.id: media.name for media in current.media}
+        # A transaction makes head, occurrence metadata and content one snapshot.
+        reader = History(path, edit=edit, read_only=True)
+        try:
+            reader.db.execute("begin")
+            head = reader.db.execute(
+                "select head from edits where id=?", (edit,)).fetchone()[0]
+            nodes = reader.nodes()
+            metadata = {row["id"]: row for row in nodes}
+            versions = distinct_versions(
+                ((row["id"], reader.project_at(row["id"])) for row in nodes),
+                track_id, start, end, current=head)
+            return [{"node": v.last_node, "first_node": v.first_node,
+                     "created": metadata[v.last_node]["created"],
+                     "first_created": metadata[v.first_node]["created"],
+                     "current": v.current, "head": head,
+                     "clips": [clip.to_dict() for clip in v.clips],
+                     "names": list(dict.fromkeys(names.get(c.media, c.media)
+                                                  for c in v.clips))}
+                    for v in versions]
+        finally:
+            reader.close()
+
+    def part_preview(self, node: str, track_id: str, start: int, end: int) -> Project:
+        """A temporary excerpt; preview does not commit or move the timeline."""
+        with self.lock:
+            current = self.history.state
+            source = self.history.project_at(node)
+            clips = snapshot(source, track_id, start, end)
+            track = current.track(track_id)
+            track = replace(track, clips=clips,
+                            gate=gate_snapshot(source, track_id, start, end),
+                            mute=False, solo=False, automation=())
+            return replace(current, tracks=(track,), markers=(), placeholders=())
+
+    def restore_part(self, node: str, track_id: str, start: int, end: int,
+                     *, expected_head: str) -> Project:
+        with self.lock:
+            if self.history.head != expected_head:
+                raise ops.EditError("error.part_versions.stale")
+            source = self.history.project_at(node)
+            result = ops.restore_part(self.history.state, source, track_id, start, end)
+            return self._commit(t("history.restore_part"), result, "restore_part",
+                                {"node": node, "track_id": track_id,
+                                 "start": start, "end": end})
 
     def sync_state(self, clip_id: str) -> sync_state.SyncState:
         with self.lock:

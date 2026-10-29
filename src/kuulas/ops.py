@@ -955,6 +955,53 @@ def clear_range(p: Project, start: int, end: int, track_ids=None) -> Project:
     return replace(p, tracks=tuple(tracks))
 
 
+def range_clips(project: Project, track_id: str, start: int,
+                end: int) -> tuple[Clip, ...]:
+    """Clip windows relative to the range start, keeping source-clock envelopes."""
+    if start < 0 or end <= start:
+        raise EditError("error.edit.empty_range")
+    try:
+        track = project.track(track_id)
+    except KeyError:
+        raise EditError("error.edit.no_track", track_id=track_id) from None
+    clips = []
+    for original in track.clips:
+        clip = original
+        if clip.end <= start or clip.start >= end:
+            continue
+        if clip.end > end:
+            clip = _cut(clip, end, clip.id)[0]
+        if clip.start < start:
+            clip = _cut(clip, start, clip.id)[1]
+        clips.append(replace(clip, start=clip.start - start))
+    return tuple(sorted(clips, key=lambda c: (c.start, c.offset, c.media)))
+
+
+
+def restore_part(p: Project, source: Project, track_id: str,
+                 start: int, end: int) -> Project:
+    """Overwrite one range from a historical state; later edits stay in place."""
+    clips = range_clips(source, track_id, start, end)
+    _find_track(p, track_id)
+    for clip in clips:
+        try:
+            media = p.media_item(clip.media)
+        except KeyError:
+            raise EditError("error.edit.no_media", media_id=clip.media) from None
+        if clip.offset < 0 or clip.offset + clip.length > media.frames:
+            raise EditError("error.edit.empty_range")
+    result = clear_range(p, start, end, [track_id])
+    track = result.track(track_id)
+    restored = tuple(replace(c, id=new_id("c"), start=c.start + start,
+                             group=None) for c in clips)
+    gate = gatem.remove_range(track.gate, start, end)
+    for a, b in source.track(track_id).gate:
+        if a < end and b > start:
+            gate = gatem.add_range(gate, max(a, start), min(b, end))
+    return _replace_track(result, replace(track, clips=_sorted((*track.clips, *restored)),
+                                          gate=gate))
+
+
 def cut_range(p: Project, start: int, end: int, track_ids=None) -> Project:
     """Ripple-delete ``[start, end)`` on the tracks (``None``: all tracks)."""
     start, end = int(start), int(end)

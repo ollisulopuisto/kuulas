@@ -50,6 +50,12 @@ export const CONTEXTS = [
 
 export const DEFAULT_KEYMAP = [
   {
+    id: "history.part_versions",
+    keys: { mac: "Alt+Mod+H", other: "Alt+Mod+H" },
+    context: "global",
+    labelKey: "cmd.history.part_versions",
+  },
+  {
     id: "transport.play",
     keys: { mac: "Space", other: "Space" },
     context: "global",

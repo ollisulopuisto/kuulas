@@ -336,3 +336,7 @@ export const seriesShelfRemove = (entryId) =>
   post("/api/series/shelf/remove", { entry_id: entryId });
 /** Copy a series entry into this project's clipboard: { entry, entries }. */
 export const seriesShelfAdopt = (entryId) => post("/api/series/shelf/adopt", { entry_id: entryId });
+
+export const partVersions = (range) => json(`/api/part-versions?${new URLSearchParams(range)}`);
+export const previewPartVersion = (body) => post("/api/part-versions/preview", body);
+export const restorePartVersion = (body) => post("/api/part-versions/restore", body);

@@ -3380,5 +3380,22 @@
   "cmd.sync.show_drift": "Näytä synkkapoikkeamat",
   "cmd.sync.show_drift.hint": "Näytä pieni merkki synkasta vapaille ja synkasta ajautuneille leikkeille. Tarkka poikkeama näkyy viemällä osoitin leikkeen päälle.",
   "ui.sync.show_drift.on": "Synkkapoikkeamien merkit ovat nyt näkyvissä.",
-  "ui.sync.show_drift.off": "Synkkapoikkeamien merkit eivät näy."
+  "ui.sync.show_drift.off": "Synkkapoikkeamien merkit eivät näy.",
+  "error.part_versions.stale": "Leikkaus muuttui. Avaa Tämän kohdan versiot uudelleen.",
+  "history.restore_part": "Palauta kohdan aiempi versio",
+  "cmd.history.part_versions": "Tämän kohdan versiot…",
+  "ui.part_versions.more": "Lisää…",
+  "ui.part_versions.close": "Sulje",
+  "ui.part_versions.stop": "Lopeta esikuuntelu",
+  "ui.part_versions.play": "Kuuntele",
+  "ui.part_versions.restore": "Palauta tämä versio tähän",
+  "ui.part_versions.silence": "Hiljaisuus",
+  "ui.part_versions.current": "Nykyinen",
+  "ui.part_versions.waveform": "Äänen aaltomuoto",
+  "ui.part_versions.no_waveform": "Aaltomuoto ei ole saatavilla",
+  "ui.part_versions.loading": "Etsitään versioita leikkauksen historiasta…",
+  "ui.part_versions.note": "Esikuuntele versio ja palauta se tähän. Muut muokkaukset säilyvät.",
+  "ui.part_versions.empty": "Tästä kohdasta ei löytynyt versioita.",
+  "cmd.history.part_versions.hint": "Etsi ja palauta tämän kohdan aiempi ääni säilyttäen muut muokkaukset.",
+  "ui.part_versions.row": "{names} · {first_created}–{created} · {seconds} s · {current}"
 }

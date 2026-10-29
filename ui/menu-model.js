@@ -273,6 +273,7 @@ export const MENU = [
     items: [
       item("edit.undo"),
       item("edit.redo"),
+      item("history.part_versions"),
       SYNC_BACK,
       SEP,
       item("edit.cut"),

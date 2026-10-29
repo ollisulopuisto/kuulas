@@ -7,6 +7,7 @@ import { clearGhost } from "./ghost-marker.js";
 import { canGoToRestorePoint, canRestore } from "./history-model.js";
 import { rangeAvailable } from "./loop-range.js";
 import { placeMark } from "./marks.js";
+import { partRange } from "./part-versions-model.js";
 import { focusTrack } from "./range-scope.js";
 import { playSelectionRequest, rehearseRequest } from "./rehearse.js";
 import { opensSidebar } from "./sidebar-model.js";
@@ -248,6 +249,11 @@ export function registerAppCommands(registry, { actions, app }) {
     (state) => canGoToRestorePoint(state),
   );
   def("history.expand_all", () => app.expandHistoryGroups(), hasProject);
+  def(
+    "history.part_versions",
+    () => app.openPartVersions(),
+    (state) => Boolean(partRange(state)),
+  );
   def("history.open_saved", () => app.openHistorySaved(), hasProject);
   def("app.import", () => app.chooseMedia());
   def("app.import_nhsx", () => app.importNhsx(), hasProject);
