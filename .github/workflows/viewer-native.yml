@@ -1,0 +1,21 @@
+name: Kuulas Viewer native reader
+on:
+  pull_request:
+    paths:
+      - 'viewer/**'
+      - 'tests/test_viewer*.py'
+      - '.github/workflows/viewer-native.yml'
+permissions:
+  contents: read
+concurrency:
+  group: viewer-native-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  reader:
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Swift reader conformance
+        working-directory: viewer
+        run: swift test

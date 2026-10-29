@@ -1,0 +1,41 @@
+# Info.plist files are sources. Do not use XcodeGen's overwriting info: key.
+name: KuulasViewer
+options:
+  deploymentTarget:
+    macOS: "12.0"
+packages:
+  KuulasViewerPackage:
+    path: .
+settings:
+  SWIFT_VERSION: "5.9"
+  CODE_SIGN_IDENTITY: "-"
+  CODE_SIGN_INJECT_BASE_ENTITLEMENTS: NO
+  ENABLE_HARDENED_RUNTIME: YES
+targets:
+  KuulasViewerApp:
+    type: application
+    platform: macOS
+    sources: [App]
+    settings:
+      INFOPLIST_FILE: App/Info.plist
+      PRODUCT_NAME: Kuulas Viewer
+      PRODUCT_BUNDLE_IDENTIFIER: fi.sulopuisto.kuulas-viewer
+      CODE_SIGN_ENTITLEMENTS: App/App.entitlements
+    dependencies:
+      - package: KuulasViewerPackage
+        product: KuulasViewer
+      - target: KuulasPreview
+        embed: true
+        codeSign: true
+  KuulasPreview:
+    type: app-extension
+    platform: macOS
+    sources: [Extension]
+    settings:
+      INFOPLIST_FILE: Extension/Info.plist
+      PRODUCT_NAME: KuulasPreview
+      PRODUCT_BUNDLE_IDENTIFIER: fi.sulopuisto.kuulas-viewer.preview
+      CODE_SIGN_ENTITLEMENTS: Extension/Preview.entitlements
+    dependencies:
+      - package: KuulasViewerPackage
+        product: KuulasViewer
