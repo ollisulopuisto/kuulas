@@ -113,6 +113,7 @@
   "error.jobs.closed": "The background job runner is closed.",
   "error.job.failed": "The background job failed: {error}",
   "error.media.offline": "The source file {name} is offline. Relink it before transcription.",
+  "job.transcribe.waiting_local": "Waiting for the current local transcription to finish",
   "job.transcribe": "Transcribing {name}",
   "error.import.nhsx_failed": "Could not import Hindenburg session {path}. Check that it is a valid .nhsx file.",
   "error.import.nhsx_missing_media": "The session refers to audio file {name}, which could not be found.",
