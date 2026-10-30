@@ -1,5 +1,12 @@
 # kuulas roadmap
 
+## Released in v26.10.30.1 (2026-10-30)
+
+Colab transcription settings now select Whisper large-v3-turbo, Parakeet Ultra,
+or a custom model ID supported by the shared `colab-transcribe` tool (WP87). Packaged
+Kuulas pins the podcast revision that implements both built-in model IDs. Local
+Orukeet is unchanged. A live Colab run remains an owner verification item.
+
 **Release v26.10.27.2:** GUI Orukeet install/select/reinstall with verified downloads, progress and cancellation; aligned transcription actions; persistent fast-listening button.
 
 **Release v26.10.27.1:** local Orukeet, NHSX import from the start page, a three-second LUFS meter, compact track headers and transcript search, clearer toolbar buttons, and corrected Auto-Silence boundary trims.
@@ -86,7 +93,7 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R2 | Buses (track groups) | core done: routing, gain, pan, mute; UI next |
 | R3 | Signal processing from the podcast pipeline, not reimplemented | done: `speechmix` + `nhsx` imported as path deps (pan laws, speech grid, duck masks, duck envelopes) |
 | R4 | Automixer support | ducking → editable track automation done; speechmix chain per track next |
-| R5 | Transcription, local and Colab | local Orukeet through the shared podcast CLI (Apple-silicon MLX) and Colab runner built; faster-whisper removed from local execution and dependencies; GUI model setup built, packaged TLS fix in v26.10.27.4; real Colab run still unverified |
+| R5 | Transcription, local and Colab | local Orukeet through the shared podcast CLI (Apple-silicon MLX) and Colab runner built; Colab model selector offers Whisper large-v3-turbo and Parakeet Ultra (v26.10.30.1); faster-whisper removed from local execution and dependencies; GUI model setup built, packaged TLS fix in v26.10.27.4; real Colab run still unverified |
 | R6 | Edit audio by editing the transcript, and vice versa | done in core: words follow clip edits; deleting words cuts all tracks at pause midpoints |
 | R7 | Clip ops Hindenburg lacks: clip volume, pan, gain automation | done in core |
 | R8 | Mac, Linux, Windows | GitHub Actions matrix: full tests on macOS and Linux; Windows editor tests and desktop smoke, with Unix recorder/analysis/transcription workers and macOS automixer and DMG build-script tests excluded; macOS DMG build |

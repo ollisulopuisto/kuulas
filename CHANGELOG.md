@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## [v26.10.30.1] - 2026-10-30
+
+- **Choose the Colab transcription model in Kuulas.** Settings offer Whisper large-v3-turbo and Parakeet Ultra, plus a custom backend model ID. Existing `turbo` settings migrate to Whisper. Local Orukeet is unchanged; the packaged Colab command is pinned to the shared podcast revision that supports both models.
+- The model choice is described in the Finnish and English help. A live Colab run was not available during implementation.
+
 ## [v26.10.29.2] - 2026-10-29
 
 - **Copied clips are ready to reuse.** Copying a muted clip now creates an audible clipboard entry, while Cut preserves the mute state when the clip is moved.

@@ -11,10 +11,10 @@ The contract kuulas asks of the tool::
     colab-transcribe --audio F [--audio F ...] --json FOLDER --progress
                      [--model M] [--language L] [--no-drive]
 
-* one ``FOLDER/<audio stem>.words.json`` per audio file:
-  ``{"version": 1, "timing": "whisper" | "orukeet" | "ctc-v1", "language": "fi",
-  "words": [{"w": text, "s": seconds, "e": seconds}]}``, seconds from the audio
-  file's start, words in start order;
+* one ``FOLDER/<audio stem>.words.json`` per audio file. Its timing is
+  ``whisper``, ``parakeet-ultra``, ``orukeet`` or ``ctc-v<N>``:
+  ``{"version": 1, "language": "fi", "words": [{"w": text, "s": seconds,
+  "e": seconds}]}``, seconds from the audio file's start, words in start order;
 * ``--progress`` prints ``PROGRESS <0-100> <message>`` lines; exit 0 on success,
   non-zero with the reason in the last lines of output;
 * SIGTERM cancels (the process group gets it, then SIGKILL after a grace time).
@@ -58,18 +58,17 @@ _REMOTE_COMMAND = [
     "uvx", "--python", "3.13",
     "--overrides", str(Path(__file__).with_name("transcription-overrides.txt")),
     "--from",
-    "git+https://github.com/ollisulopuisto/podcast@c5ea1985bdc6e31aff860aa5f69600c44e94f65e#subdirectory=colab-transcribe",
+    "git+https://github.com/ollisulopuisto/podcast@5a179e6f16024a0e1aa6fa9d01a0edcb09cdf2fc#subdirectory=colab-transcribe",
     "colab-transcribe"]
-DEFAULT_MODEL = "turbo"
+DEFAULT_MODEL = "whisper"
 #: The log kept for the UI, and the part of it an error carries.
 LOG_LINES = 200
 TAIL_LINES = 15
 #: Results files the tool writes, by audio stem.
 RESULT_SUFFIX = ".words.json"
-#: How the word times were made: ``whisper`` (as Whisper gave them) or ``ctc-v<N>`` (the
-#: starts corrected by the forced aligner, alignment version N; the number changes when
-#: its rule or model does, so a later version must not be refused).
-_TIMING = re.compile(r"whisper|orukeet|ctc-v[0-9]+")
+#: Backend-native word times, plus ``ctc-v<N>`` (forced alignment). The alignment number
+#: changes when its rule or model does, so a later version must not be refused.
+_TIMING = re.compile(r"whisper|parakeet-ultra|orukeet|ctc-v[0-9]+")
 #: The Colab CLI's own update notice: noise in a progress line or an error text.
 _NOISE = re.compile(
     r"^\[colab\] (A new version of Colab CLI|Run 'colab update'|To silence this check)")
@@ -141,6 +140,9 @@ def resolve_settings(stored: dict | None) -> dict[str, Any]:
     language = stored.get("language")
     no_drive = stored.get("no_drive")
     align = stored.get("align")
+    model = model.strip() if isinstance(model, str) else None
+    if model == "turbo":
+        model = "whisper"
     return {
         "command": list(command) if _words(command) else default_command(),
         "cwd": cwd.strip() if isinstance(cwd, str) and cwd.strip() else None,
@@ -150,8 +152,9 @@ def resolve_settings(stored: dict | None) -> dict[str, Any]:
         # The podcast tool corrects the word starts after Whisper with --align: on by
         # default; the result says which it is (`timing`).
         "align": align if isinstance(align, bool) else True,
-        "model": model.strip() if isinstance(model, str) and model.strip()
-        else DEFAULT_MODEL,
+        # ``turbo`` was the old CLI compatibility ID; current colab-transcribe
+        # calls Whisper large-v3-turbo ``whisper``.
+        "model": model or DEFAULT_MODEL,
         "language": language.strip() if isinstance(language, str) and language.strip()
         else None,
     }

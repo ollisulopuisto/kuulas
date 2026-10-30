@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import {
   CONSENT_KEY,
   colabForm,
+  colabModelSelection,
   colabNotice,
   colabSettingsBody,
   consentNeeded,
@@ -51,6 +52,94 @@ describe("consent to upload", () => {
 });
 
 describe("settings form", () => {
+  test("Colab model choices use backend IDs and migrate the former turbo default", () => {
+    assert.deepEqual(colabModelSelection(), { model: "whisper", customModel: "" });
+    assert.deepEqual(colabModelSelection("turbo"), { model: "whisper", customModel: "" });
+    assert.deepEqual(colabModelSelection("whisper"), { model: "whisper", customModel: "" });
+    assert.deepEqual(colabModelSelection("parakeet-ultra"), {
+      model: "parakeet-ultra",
+      customModel: "",
+    });
+    assert.deepEqual(colabModelSelection("custom-model"), {
+      model: "custom",
+      customModel: "custom-model",
+    });
+    assert.deepEqual(colabModelSelection("custom"), {
+      model: "custom",
+      customModel: "custom",
+    });
+    assert.deepEqual(colabForm({ model: "turbo" }), {
+      command: "",
+      cwd: "",
+      extra: "",
+      model: "whisper",
+      customModel: "",
+      language: "",
+      noDrive: false,
+      align: true,
+    });
+  });
+
+  test("both model choices have translated labels", () => {
+    for (const language of ["en", "fi"]) {
+      const catalog = JSON.parse(
+        readFileSync(new URL(`../../src/kuulas/locales/${language}.json`, import.meta.url), "utf8"),
+      );
+      assert.ok(catalog["ui.colab.model.whisper"]);
+      assert.ok(catalog["ui.colab.model.parakeet_ultra"]);
+      assert.ok(catalog["ui.colab.model_hint"]);
+      assert.ok(catalog["ui.colab.model.custom"]);
+      assert.ok(catalog["ui.colab.model_custom_label"]);
+      assert.ok(catalog["ui.colab.model_custom_placeholder"]);
+    }
+  });
+
+  test("the selected backend model ID is persisted unchanged", () => {
+    assert.equal(
+      colabSettingsBody({
+        command: "",
+        cwd: "",
+        extra: "",
+        model: "parakeet-ultra",
+        language: "",
+      }).model,
+      "parakeet-ultra",
+    );
+    assert.equal(
+      colabSettingsBody({
+        command: "",
+        cwd: "",
+        extra: "",
+        model: "whisper",
+        language: "",
+      }).model,
+      "whisper",
+    );
+  });
+
+  test("a custom backend model ID is preserved", () => {
+    const body = colabSettingsBody({
+      command: "",
+      cwd: "",
+      extra: "",
+      model: "custom",
+      customModel: "  faster-whisper-large-v3-turbo  ",
+      language: "",
+    });
+    assert.equal(body.model, "faster-whisper-large-v3-turbo");
+    assert.equal(
+      colabSettingsBody({
+        command: "",
+        cwd: "",
+        extra: "",
+        model: "custom",
+        customModel: "custom",
+        language: "",
+      }).model,
+      "custom",
+    );
+  });
+
   test("texts become the settings body; empty fields are left out", () => {
     const form = {
       command: 'uv run "my tool"',
@@ -97,7 +186,8 @@ describe("settings form", () => {
       command: 'uvx "a b"',
       cwd: "",
       extra: "--x",
-      model: "turbo",
+      model: "whisper",
+      customModel: "",
       language: "",
       noDrive: true,
       align: true,
@@ -288,5 +378,19 @@ describe("commands and menus", () => {
     const en = JSON.parse(read("../../src/kuulas/locales/en.json"));
     assert.match(en["ui.colab.consent_text"], /leaves this computer/);
     assert.match(en["cmd.app.transcribe_colab"], /uploaded to Google/);
+  });
+
+  test("the model picker is a labeled select with an accessible custom-ID input", () => {
+    const source = read("../colab-dialog.js");
+    assert.match(source, /select\.name = "model"/);
+    assert.match(source, /label\.htmlFor = select\.id/);
+    assert.match(
+      source,
+      /customModel\.setAttribute\("aria-label", t\("ui\.colab\.model_custom_label"\)\)/,
+    );
+    assert.match(
+      source,
+      /fields\.model\.addEventListener\("change", updateCustomModelVisibility\)/,
+    );
   });
 });
