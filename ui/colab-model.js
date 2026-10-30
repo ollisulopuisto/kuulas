@@ -3,6 +3,23 @@
 
 import { formatWords, parseWords } from "./automix-model.js";
 
+export const COLAB_MODEL_CHOICES = [
+  { value: "whisper", labelKey: "ui.colab.model.whisper" },
+  { value: "parakeet-ultra", labelKey: "ui.colab.model.parakeet_ultra" },
+  { value: "custom", labelKey: "ui.colab.model.custom" },
+];
+
+/** Preserve saved IDs that are not presets, and map the former turbo default forward. */
+export function colabModelSelection(value) {
+  const choice = String(value ?? "").trim();
+  if (!choice || choice === "turbo") return { model: "whisper", customModel: "" };
+  if (choice === "custom") return { model: "custom", customModel: "custom" };
+  if (COLAB_MODEL_CHOICES.some((item) => item.value === choice)) {
+    return { model: choice, customModel: "" };
+  }
+  return { model: "custom", customModel: choice };
+}
+
 /** The user preference (prefs.js, "kuulas.colab.consent") that skips the upload question. */
 export const CONSENT_KEY = "colab.consent";
 
@@ -24,7 +41,7 @@ export function colabForm(resolved) {
     command: formatWords(resolved.command),
     cwd: resolved.cwd ?? "",
     extra: formatWords(resolved.extra_args),
-    model: resolved.model ?? "",
+    ...colabModelSelection(resolved.model),
     language: resolved.language ?? "",
     noDrive: resolved.no_drive === true,
     align: resolved.align !== false,
@@ -40,7 +57,8 @@ export function colabSettingsBody(form) {
   body.extra_args = parseWords(form.extra);
   body.no_drive = Boolean(form.noDrive);
   body.align = form.align !== false;
-  if (form.model.trim()) body.model = form.model.trim();
+  const model = form.model === "custom" ? form.customModel.trim() : form.model.trim();
+  if (model) body.model = model === "turbo" ? "whisper" : model;
   if (form.language.trim()) body.language = form.language.trim();
   return body;
 }

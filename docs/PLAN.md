@@ -1,5 +1,7 @@
 # kuulas implementation plan
 
+**Release v26.10.30.1:** Colab model selection for Whisper large-v3-turbo and Parakeet Ultra, with custom model IDs and migration from the former `turbo` setting (WP87).
+
 **Release v26.10.27.4:** live recording progress on new tracks, consistent waveform display, compact recording setup and per-input three-second LUFS; packaged Orukeet certificate trust fix; visible toolbar add picker, drag-away removal and Undo; ordinary menu right-click behavior.
 
 **Release v26.10.27.2:** GUI Orukeet install/select/reinstall with verified downloads, progress and cancellation; aligned transcription actions; persistent fast-listening button.
@@ -4009,4 +4011,15 @@ Tests first (pure, in `ui/tests/`):
 Build: the rail and its CSS (tokens, no literal text, English source and Finnish translation in the same commit, R39); the View menu switch and "Reset toolbar"; "Add to toolbar" on menu rows and Remove on the button's right-click menu; the Auto-Silence count badge; tooltips with the key, through `data-tip`. The transcript's search field and the local use hints are separate commits in this WP.
 
 Budget: the rail renders with no layout thrash on a state change; an edit's round trip is unchanged (rule 14).
+
+### WP87 — Choose the Colab transcription model
+
+Status: **built 2026-10-30** (v26.10.30.1). Colab settings offer Whisper
+large-v3-turbo (`whisper`), Parakeet Ultra (`parakeet-ultra`), and a custom
+backend model ID. Existing `turbo` settings migrate to `whisper`; local
+Orukeet is unchanged. The packaged Colab command pins the shared podcast
+revision `5a179e6f16024a0e1aa6fa9d01a0edcb09cdf2fc`, which implements both
+built-in IDs. Kuulas accepts the timing labels returned by either engine.
+English/Finnish labels and help are included. Unit, UI, and static checks pass;
+a live Colab run and packaged installation remain owner/release checks.
 

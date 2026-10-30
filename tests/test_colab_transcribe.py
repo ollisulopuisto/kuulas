@@ -171,7 +171,7 @@ def test_defaults():
     assert s["extra_args"] == []
     assert s["no_drive"] is False  # the plain-audio mode never uses Drive
     assert s["align"] is True  # the word starts are corrected after Whisper (--align)
-    assert s["model"] == "turbo"
+    assert s["model"] == "whisper"
     assert s["language"] is None
 
 
@@ -187,8 +187,12 @@ def test_stored_values_win_and_junk_falls_back():
     assert s["command"] == ct.default_command()
     assert s["extra_args"] == []
     assert s["no_drive"] is False
-    assert s["model"] == "turbo"
+    assert s["model"] == "whisper"
     assert s["cwd"] is None
+
+
+def test_legacy_turbo_setting_selects_whisper_large_v3_turbo():
+    assert ct.resolve_settings({"model": "turbo"})["model"] == "whisper"
 
 
 def test_settings_file_round_trip(tmp_path, monkeypatch):
@@ -216,10 +220,10 @@ def test_command_line_is_an_argument_list():
     settings = {"command": ["uvx", "colab-transcribe"], "extra_args": ["--gpu", "L4"],
                 "no_drive": True}
     cmd = ct.build_command(settings, [Path("/a/One.wav"), Path("/b/Two.flac")],
-                           Path("/t/out"), model="turbo", language="fi")
+                           Path("/t/out"), model="whisper", language="fi")
     assert cmd == ["uvx", "colab-transcribe", "--audio", str(Path("/a/One.wav")),
                    "--audio", str(Path("/b/Two.flac")), "--json", str(Path("/t/out")),
-                   "--progress", "--model", "turbo", "--language", "fi", "--align",
+                   "--progress", "--model", "whisper", "--language", "fi", "--align",
                    "--no-drive", "--gpu", "L4"]
     cmd = ct.build_command(
         {"command": ["c"], "extra_args": [], "no_drive": False, "align": False},
@@ -227,6 +231,15 @@ def test_command_line_is_an_argument_list():
     assert cmd == ["c", "--audio", str(Path("/a/One.wav")), "--json", str(Path("/t")),
                    "--progress",
                    "--model", "small"]
+
+
+@pytest.mark.parametrize("model", ["whisper", "parakeet-ultra"])
+def test_saved_model_choice_is_forwarded_to_the_shared_cli(model):
+    settings = ct.resolve_settings({"model": model})
+    command = ct.build_command(
+        settings, [Path("audio.wav")], Path("words"),
+        model=settings["model"], language=None)
+    assert command[command.index("--model") + 1] == model
 
 
 def test_default_command_uses_the_sibling_podcast_checkout(tmp_path):
@@ -244,7 +257,7 @@ def test_default_command_uses_the_public_tool_without_a_sibling_checkout(tmp_pat
         "uvx", "--python", "3.13",
         "--overrides", str(Path(ct.__file__).with_name("transcription-overrides.txt")),
         "--from",
-        "git+https://github.com/ollisulopuisto/podcast@c5ea1985bdc6e31aff860aa5f69600c44e94f65e#subdirectory=colab-transcribe",
+        "git+https://github.com/ollisulopuisto/podcast@5a179e6f16024a0e1aa6fa9d01a0edcb09cdf2fc#subdirectory=colab-transcribe",
         "colab-transcribe"]
 
 
@@ -562,7 +575,9 @@ def test_cancel_asks_the_tool_to_stop_its_colab_session_with_sigint_first(
     assert list(temp_root.iterdir()) == []
 
 
-@pytest.mark.parametrize("timing", ["whisper", "ctc-v1", "ctc-v2", "ctc-v10"])
+@pytest.mark.parametrize(
+    "timing", ["whisper", "parakeet-ultra", "ctc-v1", "ctc-v2", "ctc-v10"]
+)
 def test_known_timing_values_including_future_aligner_versions(
         tmp_path, fake, temp_root, monkeypatch, timing):
     monkeypatch.setenv("FAKE_BODY", json.dumps(doc(timing=timing)))
@@ -590,7 +605,7 @@ def test_the_rejected_count_of_a_corrected_transcript_is_passed_on(
 
 def test_the_command_asks_for_the_word_start_correction_by_default():
     cmd = ct.build_command(ct.resolve_settings({"command": ["c"]}), [Path("a.wav")],
-                           Path("/o"), model="turbo", language=None)
+                           Path("/o"), model="whisper", language=None)
     assert "--align" in cmd
     assert cmd.index("--align") > cmd.index("--progress")
 
