@@ -1,6 +1,6 @@
 # kuulas
 
-**Release v26.10.30.1:** choose Whisper large-v3-turbo or Parakeet Ultra for Colab transcription; local Orukeet is unchanged.
+**Release v26.10.30.2:** faster shuttle grains above 2x and ruler-drag scrubbing (not yet heard on a Mac); the track high-pass is plumbing only. Includes v26.10.30.1: choose Whisper large-v3-turbo or Parakeet Ultra for Colab transcription; local Orukeet is unchanged.
 
 **Release v26.10.27.4:** live recording progress on new tracks, consistent waveform display, compact recording setup and per-input three-second LUFS; packaged Orukeet certificate trust fix; visible toolbar add picker, drag-away removal and Undo; ordinary menu right-click behavior.
 
