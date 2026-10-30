@@ -1,3 +1,9 @@
+## [v26.10.30.6] - 2026-10-30
+
+- **Recording health stays visible after a take.** Import notices report input overflows and recorder-inserted silence, and remain until dismissed.
+- **Long recordings stay easier to follow.** The overview grows with the live take, and the dimmed timeline is not repainted behind the recording dialog.
+- **Live waveform drawing scales with the visible window.** A long take no longer requires rescanning all recorded meter samples for every redraw.
+
 ## [v26.10.30.5] - 2026-10-30
 
 - **Transcription choices are grouped by provider.** Text > Transcribe offers track/all-recording actions on this computer or in Colab. Colab all-recordings uses the existing upload consent.
