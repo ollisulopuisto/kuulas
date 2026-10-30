@@ -26,3 +26,23 @@ tagging a release.
 The manual DMG build does not run the full Python/UI suites, and an artifact
 from a branch is not a GitHub Release. Keep those checks and release steps
 explicit when urgency requires bypassing the usual PR gate.
+
+## Rebuild a committed release locally
+
+On an Apple-silicon Mac with full Xcode selected, `uv`, `git`, and network
+access, use the release wrapper from a Kuulas checkout:
+
+```sh
+scripts/build_release_dmg.sh --ref v26.10.30.2 --out ~/Desktop/kuulas-dmg
+```
+
+The wrapper builds the exact Kuulas tag and the Podcast commit pinned by the DMG
+workflow (`5a179e6f16024a0e1aa6fa9d01a0edcb09cdf2fc`). It fetches `origin/main`
+if that Podcast commit is missing from the local object database, then creates
+temporary detached worktrees and removes them when the build finishes. The
+source checkouts are left untouched. Use `--podcast-repo PATH` if the sibling
+`../podcast` checkout is elsewhere, or `--podcast-commit SHA` to reproduce a
+different workflow pin. `scripts/build_release_dmg.sh --help` lists all options.
+
+The lower-level `scripts/build_dmg.sh` remains available for CI and for callers
+that already manage a clean Kuulas checkout and `PODCAST_SRC` themselves.
