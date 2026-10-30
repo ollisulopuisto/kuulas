@@ -1,6 +1,6 @@
 # WP23a first slice: one stateful track effect (high-pass) with bypass
 
-Branch `wp23a-track-highpass`, from main 49aaf177. Separate from the WP26 work.
+Merged into `main` with PR #91 on 2026-10-30; included in release candidate v26.10.30.1. This remains a partial WP23a implementation; callback profiling and listening are open.
 
 - `src/kuulas/fx.py`: causal RBJ high-pass biquad (20-400 Hz), `FxState` with
   running state per track layer, `process_whole` reference.

@@ -1,6 +1,6 @@
 # WP26 shuttle grains (overnight 2026-10-30)
 
-Branch `wp26-shuttle-grains`, from main 49aaf177. Not merged, not released.
+Integrated into `main` with PR #91's WP26 stack (main merge `9fc6eab`), included in release candidate v26.10.30.1. Owner listening check remains open.
 
 ## What changed
 - `src/kuulas/scrub_grains.py`: grain renderer (60 ms grains, 10 ms cosine

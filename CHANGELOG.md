@@ -3,6 +3,8 @@
 ## [v26.10.30.1] - 2026-10-30
 
 - **Choose the Colab transcription model in Kuulas.** Settings offer Whisper large-v3-turbo and Parakeet Ultra, plus a custom backend model ID. Existing `turbo` settings migrate to Whisper. Local Orukeet is unchanged; the packaged Colab command is pinned to the shared podcast revision that supports both models.
+- **Fast shuttle stays clearer at high speeds.** Speeds above 2× use forward-playing grains to preserve speech pitch, and dragging on the ruler scrubs at pointer velocity. The engine and UI paths are tested; listening on a Mac remains open.
+- **First track-effect plumbing.** A saved high-pass layer can run during plain 1× playback through the engine API. It has no editor UI, is not allocation-free or verified for real-time safety, and does not affect export.
 - The model choice is described in the Finnish and English help. A live Colab run was not available during implementation.
 
 ## [v26.10.29.2] - 2026-10-29

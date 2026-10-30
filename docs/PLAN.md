@@ -1,6 +1,6 @@
 # kuulas implementation plan
 
-**Release v26.10.30.1:** Colab model selection for Whisper large-v3-turbo and Parakeet Ultra, with custom model IDs and migration from the former `turbo` setting (WP87).
+**Release v26.10.30.1:** Colab model selection for Whisper large-v3-turbo and Parakeet Ultra (WP87); WP26 high-speed grains and ruler-velocity scrub; partial WP23a high-pass playback plumbing.
 
 **Release v26.10.27.4:** live recording progress on new tracks, consistent waveform display, compact recording setup and per-input three-second LUFS; packaged Orukeet certificate trust fix; visible toolbar add picker, drag-away removal and Undo; ordinary menu right-click behavior.
 
@@ -2076,7 +2076,7 @@ Tests first: `test_saved_speech_mix_kind_loads_as_speech`,
 
 ### WP23 — FX layers: real-time where possible, rendered where not
 
-Status: open. **Split in two** (owner wants R30 built first):
+Status: **partial in v26.10.30.1.** The first stateful high-pass layer is saved with the track and applied only during plain forward 1× playback through the engine API. It has no editor UI, does not affect export, and is not allocation-free or verified for real-time safety; callback profiling and listening remain acceptance gates. **Split in two** (owner wants R30 built first):
 **WP23a** (MVP, ★): the layer model, tier 1 (real-time) and tier 2 (analyse
 once, apply live), bypass, latency compensation, the CPU meter.
 **WP23b** (phase 3): tier 3 (render), export waits for renders, and the
@@ -2294,7 +2294,7 @@ Tests first: `test_report_lists_each_music_use_with_programme_times`,
 
 ### WP26 — Fast listening and scrubbing
 
-Status: the JKL key logic (`shuttle.py`: speed ladder, tape or grains) done in v26.10.18.1; engine skip list and tape-rate playback done in v26.10.18.21 (not yet heard); JKL keys and the speed chip done in v26.10.18.23; hold-K scrub and K-tap steps, scrub grains above 2x, pitch-kept fast listening (pedalboard chunk rendering, plan in the engine job report) and the UI open. Needs WP2, WP5.
+Status: **implementation merged in v26.10.30.1; owner listening check remains.** The JKL ladder and key state, hold-K scrub, pitch-kept fast listening, grains above 2× and ruler-velocity scrubbing are built. Engine tests and headless UI checks pass. Speech intelligibility, clicks and drag feel have not been verified by ear on a Mac. Needs WP2, WP5.
 
 **Sped-up listening (pitch preserved).** `.` toggles between normal speed
 and *fast*. Fast defaults to 1.5× and can be set from 1.1× to 3× (Shift+. and

@@ -5,7 +5,10 @@
 Colab transcription settings now select Whisper large-v3-turbo, Parakeet Ultra,
 or a custom model ID supported by the shared `colab-transcribe` tool (WP87). Packaged
 Kuulas pins the podcast revision that implements both built-in model IDs. Local
-Orukeet is unchanged. A live Colab run remains an owner verification item.
+Orukeet is unchanged. WP26 adds pitch-preserving grains above 2× and ruler-drag
+scrubbing at pointer velocity. WP23a includes only backend high-pass plumbing
+for plain 1× playback; it has no UI and is not yet verified for real-time use.
+Owner listening for shuttle and a live Colab run remain verification items.
 
 **Release v26.10.27.2:** GUI Orukeet install/select/reinstall with verified downloads, progress and cancellation; aligned transcription actions; persistent fast-listening button.
 
@@ -36,18 +39,17 @@ playback remains preview code and is not part of the editor DMG.
   cases. The Viewer remains a separate preview app, outside the Kuulas editor
   DMG.
 
-## Next hard work (2026-10-29)
+## Next hard work (2026-10-30)
 
-**WP26 is the active package.** Pitch-preserved fast listening is already
-implemented with streaming WSOLA and has engine tests. The JKL speed ladder,
-key state and speed chip also exist. The remaining engine/UI gaps are that
-shuttle speeds above 2× still use tape-rate resampling instead of intelligible
-60 ms grains, and dragging on the ruler does not scrub at pointer velocity;
-the current `scrub` endpoint only seeks or plays a short burst. Owner listening
-verification remains in `docs/M2-VERIFY.md`. After WP26, take WP23a (real-time
-FX and latency handling); WP18 cut candidates follows in M3 because its
-recording-clock anchors are reused by later editing work. WP21's schema
-migration and WP16's alignment remain later high-risk packages.
+**WP26 implementation is merged.** High-speed shuttle now uses 60 ms forward
+grains above 2×, and ruler dragging scrubs at pointer velocity. Engine tests
+and headless UI checks pass; the sound and feel still need the owner's listening
+check in `docs/M2-VERIFY.md`. **WP23a (WP23) is partial:** the stateful
+high-pass plumbing is merged for plain 1× playback, but it is not real-time-ready, has no
+UI, and still needs native callback profiling and listening. WP18 cut candidates
+follows in M3 because its recording-clock anchors are reused by later editing
+work. WP21's schema migration and WP16's alignment remain later high-risk
+packages.
 
 A multitrack **editor** for spoken word: podcasts, interviews, radio. It is
 for editing, not recording. The model is Hindenburg PRO: keyboard-first,
@@ -126,10 +128,10 @@ sizes: `docs/PLAN.md`, section "Triage".
 | R27 | Copying clips between projects never copies whole source files: reuse by hash, link in place, or copy only the used range plus 2 s handles; importing from another project lets you pick which clips, bits or regions come in | planned: WP20 (must-fix) |
 | R28 | Several edits (versions) of the same material in one project, e.g. 1 × 60 min and 4 × 20 min: shared media, transcripts and sync; separate cuts and undo; cut decisions offered across edits | planned: WP21 |
 | R29 | **MUST.** Undo you can trust: Mod+Z stays on the current branch, history restores add a step instead of rewinding, undo brings back selection and view and shows what changed | planned: WP8 |
-| R30 | **Needed.** Track tags (speech / music; speech-mix was removed 2026-10-19, separating a downmixed multi-person file is out of scope) are all speechmix needs; ducking of mics and music beds from speechmix + nhsx.musicbed; FX layers: real-time, analyse-then-live, or rendered | track kinds, speakers and music ducking done v26.10.17.4 (backend); FX layers planned: WP23 |
+| R30 | **Needed.** Track tags (speech / music; speech-mix was removed 2026-10-19, separating a downmixed multi-person file is out of scope) are all speechmix needs; ducking of mics and music beds from speechmix + nhsx.musicbed; FX layers: real-time, analyse-then-live, or rendered | track kinds, speakers and music ducking done v26.10.17.4 (backend); WP23a high-pass persistence and plain 1× playback are partial in v26.10.30.1; UI, callback timing and real-time safety remain open |
 | R31 | **Needed.** Solo overrides mute and is exclusive by default (mute all, solo one at a time); A/B tracks, edits, takes and layer settings with one key, level-matched by default | planned: WP24 |
 | R32 | Music report per edit: every piece of music actually heard, with metadata, programme times, duration and background/featured, as CSV and printable table | report, CSV and HTML done, times round up to whole seconds (v26.10.17.1); tag editing, all-edits report and export alongside the audio open |
-| R33 | **MUST.** Sped-up listening (toggle normal/fast, pitch kept) and JKL shuttle with slow and fast scrubbing | planned: WP26 |
+| R33 | **MUST.** Sped-up listening (toggle normal/fast, pitch kept) and JKL shuttle with slow and fast scrubbing | WP26 engine/UI implementation merged in v26.10.30.1; owner listening check remains |
 | R34 | Project settings changeable later, undoably: sample rate (e.g. 44.1 → 48 kHz, every position converted), mono or stereo master, loudness target, export defaults | planned: WP27 |
 | R35 | Own project format `Name.kuulas` (package folder): shared material (media, sync, transcripts) apart from per-edit state; recording facts in flicks so they survive rate changes; versioned with forward compatibility; crash-safe, locked against two writers, automatic backups; lossless Hindenburg round trip | done: WP29 in v26.10.16.5 (package, manifest, lock, v1 schema, material apart from edits, UUIDv7 steps, checkpoints, backups, v0 migration, `kuulas info`), WP30 in v26.10.16.6 (recording facts in flicks, sync groups per media in material); Hindenburg import done (WP13, v26.10.16.14); export back to Hindenburg still open |
 | R36 | Focus mode: F focuses a speaker's tracks, the others shrink to strips that keep sync visible; Shift+F also solos; transcript dims other speakers | planned: WP28 |
@@ -422,15 +424,15 @@ Released in v26.10.20.5 to v26.10.20.14, in order of importance:
 
 ## Milestones
 
-Grouped from the build order in `docs/PLAN.md` (Triage) and updated by the owner's decisions. Status snapshot reviewed 2026-10-29 against `main` at `a4cfeae`; M1/M2 counts still include owner confirmation items. ✓ done (built and merged; owner testing is tracked in `docs/BUGS.md`), ◐ partly done, ▶ being built now, ↻ built and in review (not merged yet), otherwise open. Mirrors the roadmap page.
+Grouped from the build order in `docs/PLAN.md` (Triage) and updated by the owner's decisions. Status snapshot reviewed 2026-10-30 against `main` at `b784259`; M1/M2 counts still include owner confirmation items. ✓ done (built and merged; owner testing is tracked in `docs/BUGS.md`), ◐ partly done, ▶ being built now, ↻ built and in review (not merged yet), otherwise open. Mirrors the roadmap page.
 
 **M1 · First playable build** (23 of 28 done, 5 partly): Run kuulas, import, listen, edit by keyboard, undo, export WAV or MP3.
 
 ✓ WP0, ✓ WP24.1, ✓ WP33a, ✓ WP29, ✓ WP30, ✓ WP1, ✓ WP34, ✓ WP36, ✓ WP2, ✓ WP3, ✓ WP33b, ◐ WP4, ◐ WP5, ◐ WP19a, ✓ WP35, ✓ WP11, ✓ WP15, ◐ WP46, ✓ WP19i, ◐ WP6, ✓ WP54, ✓ WP72, ✓ WP73, ✓ WP74, ✓ WP75, ✓ WP76, ✓ WP81, ✓ WP71.
 
-**M2 · A usable editor** (7 of 21 done, 12 partly): Transcript, mouse editing, history panel, fast listening, FX layers. What to try: `docs/M2-VERIFY.md` (M1: `docs/M1-VERIFY.md`).
+**M2 · A usable editor** (7 of 21 done, 13 partly): Transcript, mouse editing, history panel, fast listening, FX layers. What to try: `docs/M2-VERIFY.md` (M1: `docs/M1-VERIFY.md`).
 
-✓ WP41, ◐ WP8, ◐ WP22, ▶ WP26, ✓ WP9, ◐ WP7, WP23a, ◐ WP44, ◐ WP48, ◐ WP49, ✓ WP50, ◐ WP52, ◐ WP55, ✓ WP57, ◐ WP63, WP62, ✓ WP69, ✓ WP70, ◐ WP77, ◐ WP78, ✓ WP79.
+✓ WP41, ◐ WP8, ◐ WP22, ◐ WP26, ✓ WP9, ◐ WP7, ◐ WP23a, ◐ WP44, ◐ WP48, ◐ WP49, ✓ WP50, ◐ WP52, ◐ WP55, ✓ WP57, ◐ WP63, WP62, ✓ WP69, ✓ WP70, ◐ WP77, ◐ WP78, ✓ WP79.
 
 **M3 · The editing loop** (3 of 25 done, 11 partly): What makes it better than Hindenburg: cut candidates, versions, review, paste, roles, takes.
 
