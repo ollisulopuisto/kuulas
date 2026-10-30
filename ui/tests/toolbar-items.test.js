@@ -167,7 +167,7 @@ describe("the icons of the former stand-ins", () => {
     const used = DEFAULT_LAYOUT.map((id) => TOOLBAR_ICONS[id]);
     assert.equal(new Set(used).size, used.length);
     for (const id of [
-      "app.transcribe",
+      "app.transcribe_all",
       "app.auto_silence",
       "sync.resync_range",
       "export.automix",

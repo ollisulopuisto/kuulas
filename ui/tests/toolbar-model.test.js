@@ -20,7 +20,7 @@ describe("the default layout", () => {
       "edit.undo",
       "edit.redo",
       "app.import",
-      "app.transcribe",
+      "app.transcribe_all",
       "app.auto_silence",
       "edit.split",
       "clip.mute",

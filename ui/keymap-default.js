@@ -1739,6 +1739,14 @@ export const DEFAULT_KEYMAP = [
     context: "global",
     labelKey: "cmd.app.transcribe",
   },
+  // Transcribe every recording on this computer: no key, it is the toolbar button and a menu
+  // choice; Colab uploads the audio, so it stays separate and noticed.
+  {
+    id: "app.transcribe_all",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.app.transcribe_all",
+  },
   // Transcribe on Colab (WP78): the audio is uploaded to Google, so no key: a menu or palette
   // choice, after the upload notice.
   {

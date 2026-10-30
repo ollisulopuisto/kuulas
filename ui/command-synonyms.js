@@ -334,6 +334,14 @@ export const SYNONYMS = {
     "puheesta tekstiksi",
     "sanat",
   ],
+  "app.transcribe_all": [
+    "transcribe all",
+    "all recordings",
+    "every recording",
+    "kaikki",
+    "kaikki äänitteet",
+    "litteroi kaikki",
+  ],
   "app.transcribe_restart": ["resume", "interrupted", "continue", "retry", "background"],
   "app.transcribe_colab": [
     "colab",

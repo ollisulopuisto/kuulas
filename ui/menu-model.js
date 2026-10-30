@@ -136,6 +136,7 @@ const MARKERS = submenu("menu.markers", [
 ]);
 const TRANSCRIBE = submenu("menu.transcribe", [
   item("app.transcribe"),
+  item("app.transcribe_all"),
   item("app.transcribe_colab"),
   item("app.transcribe_restart"),
   SEP,

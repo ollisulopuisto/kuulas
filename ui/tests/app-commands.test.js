@@ -92,6 +92,7 @@ describe("the commands the app registers", () => {
       duckMicrophones: () => calls.push(["duckMicrophones"]),
       duckMusic: () => calls.push(["duckMusic"]),
       transcribeTrack: () => calls.push(["transcribeTrack"]),
+      transcribeAll: () => calls.push(["transcribeAll"]),
     };
     registerAppCommands(registry, { actions, app });
     return { registry, calls };
@@ -106,7 +107,13 @@ describe("the commands the app registers", () => {
   test("Track > Auto-Silence, Duck the microphones and Transcribe work with a project (they were inert)", () => {
     const { registry, calls } = setup();
     const withProject = { project: { tracks: [{ id: "a" }] } };
-    const ids = ["app.auto_silence", "app.automix", "app.duck_music", "app.transcribe"];
+    const ids = [
+      "app.auto_silence",
+      "app.automix",
+      "app.duck_music",
+      "app.transcribe",
+      "app.transcribe_all",
+    ];
     for (const id of ids) {
       assert.equal(registry.status(id), "ready", id);
       assert.equal(registry.can(id, withProject), true, id);
@@ -115,7 +122,7 @@ describe("the commands the app registers", () => {
     for (const id of ids) registry.run(id, null, withProject);
     assert.deepEqual(
       calls.map((call) => call[0]),
-      ["autoSilence", "duckMicrophones", "duckMusic", "transcribeTrack"],
+      ["autoSilence", "duckMicrophones", "duckMusic", "transcribeTrack", "transcribeAll"],
     );
   });
 

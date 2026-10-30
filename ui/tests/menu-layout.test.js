@@ -207,6 +207,7 @@ describe("Text", () => {
   test("Transcribe (Litteroi) holds the transcribing commands and the Colab sign-in", () => {
     assert.deepEqual(subIds("text", "menu.transcribe"), [
       "app.transcribe",
+      "app.transcribe_all",
       "app.transcribe_colab",
       "app.transcribe_restart",
       "app.colab_signin",
