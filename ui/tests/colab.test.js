@@ -319,6 +319,7 @@ describe("commands and menus", () => {
     for (const id of [
       "app.transcribe",
       "app.transcribe_colab",
+      "app.transcribe_all_colab",
       "app.colab_settings",
       "app.colab_signin",
       "app.transcribe_restart",
@@ -334,6 +335,7 @@ describe("commands and menus", () => {
   test("the handlers are wired in app-commands.js", () => {
     const source = read("../app-commands.js");
     assert.match(source, /"app\.transcribe_colab"/);
+    assert.match(source, /"app\.transcribe_all_colab"/);
     assert.match(source, /"app\.colab_settings"/);
     assert.match(source, /"app\.colab_signin"/);
     assert.match(source, /"app\.transcribe_restart"/);
@@ -345,13 +347,16 @@ describe("commands and menus", () => {
     for (const key of [
       "cmd.app.transcribe_colab",
       "cmd.app.transcribe_colab.hint",
+      "cmd.app.transcribe_all_colab",
+      "cmd.app.transcribe_all_colab.hint",
       "cmd.app.colab_settings",
       "cmd.app.colab_settings.hint",
       "cmd.app.colab_signin",
       "cmd.app.colab_signin.hint",
       "ui.colab.signin_title",
       "ui.colab.signin_text",
-      "menu.transcribe",
+      "menu.transcribe.local",
+      "menu.transcribe.colab",
       "cmd.app.transcribe_restart",
       "cmd.app.transcribe_restart.hint",
       "ui.colab.interrupted",

@@ -92,7 +92,7 @@ describe("the commands the app registers", () => {
       duckMicrophones: () => calls.push(["duckMicrophones"]),
       duckMusic: () => calls.push(["duckMusic"]),
       transcribeTrack: () => calls.push(["transcribeTrack"]),
-      transcribeAll: () => calls.push(["transcribeAll"]),
+      transcribeAll: (backend = "local") => calls.push(["transcribeAll", backend]),
     };
     registerAppCommands(registry, { actions, app });
     return { registry, calls };
@@ -113,6 +113,7 @@ describe("the commands the app registers", () => {
       "app.duck_music",
       "app.transcribe",
       "app.transcribe_all",
+      "app.transcribe_all_colab",
     ];
     for (const id of ids) {
       assert.equal(registry.status(id), "ready", id);
@@ -122,8 +123,16 @@ describe("the commands the app registers", () => {
     for (const id of ids) registry.run(id, null, withProject);
     assert.deepEqual(
       calls.map((call) => call[0]),
-      ["autoSilence", "duckMicrophones", "duckMusic", "transcribeTrack", "transcribeAll"],
+      [
+        "autoSilence",
+        "duckMicrophones",
+        "duckMusic",
+        "transcribeTrack",
+        "transcribeAll",
+        "transcribeAll",
+      ],
     );
+    assert.deepEqual(calls.slice(-2), [["transcribeAll", "local"], ["transcribeAll", "colab"]]);
   });
 
   test("music ducking has no default keyboard shortcut", () => {

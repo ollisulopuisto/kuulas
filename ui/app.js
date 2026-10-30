@@ -1683,9 +1683,8 @@ const keyboard = setupKeyboard({
     openGateUnderClips: () => openGateUnderClips(),
     duckMicrophones: () => void duckMicrophones(),
     transcribeTrack: (backend) => void transcribeTrack(backend),
-    // Transcribe every recording on any track (music-only ones stay untouched); from the
-    // toolbar's "Transcribe all" button. Colab uploads the audio, so it stays separate.
-    transcribeAll: () => void transcribeAll(),
+    // Transcribe every recording on any track (music-only ones stay untouched).
+    transcribeAll: (backend = "local") => void transcribeAll(backend),
     restartTranscriptions: () => void restartTranscriptions(),
     openColabSettings: () => void colabDialogsFor().openSettings(),
     openOrukeetSetup: () => void orukeetDialogFor().open().catch(showError),
@@ -2817,7 +2816,7 @@ async function transcribeTrack(backend = "local") {
 
 /** Text > Transcribe > All on this computer: every recording used on any track, except
  * recordings whose only clips are on music tracks (they are not transcribed). */
-async function transcribeAll() {
+async function transcribeAll(backend = "local") {
   const state = getState();
   const project = state.project;
   if (!project) return;
@@ -2828,7 +2827,8 @@ async function transcribeAll() {
     showNotice(t("ui.transcript.nothing_to_transcribe"), "error");
     return;
   }
-  await transcript.transcribe(ids);
+  if (backend === "colab") await transcribeOnColab(ids);
+  else await transcript.transcribe(ids);
 }
 
 // Transcription is a background job in a separate process (WP79): it goes on when this window

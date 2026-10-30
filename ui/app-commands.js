@@ -335,11 +335,11 @@ export function registerAppCommands(registry, { actions, app }) {
   def("app.block_level", () => app.openBlockLevel(), hasProject);
   def("app.duck_music", () => app.duckMusic(), hasProject);
   def("app.transcribe", () => app.transcribeTrack("local"), hasProject);
-  // Transcribe every recording on any track (music-only ones stay untouched): the toolbar's
-  // "Transcribe all" button; local only, Colab stays a separate noticed choice.
+  // Transcribe every recording on any track (music-only ones stay untouched).
   def("app.transcribe_all", () => app.transcribeAll(), hasProject);
   // Transcribe on Colab (WP78): after a notice that the audio is uploaded to Google.
   def("app.transcribe_colab", () => app.transcribeTrack("colab"), hasProject);
+  def("app.transcribe_all_colab", () => app.transcribeAll("colab"), hasProject);
   def("app.transcribe_restart", () => app.restartTranscriptions(), hasProject);
   def("app.orukeet_setup", () => app.openOrukeetSetup());
   def("app.colab_settings", () => app.openColabSettings());

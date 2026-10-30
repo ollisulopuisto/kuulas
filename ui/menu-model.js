@@ -134,15 +134,19 @@ const MARKERS = submenu("menu.markers", [
   item("marker.prev"),
   item("marker.delete"),
 ]);
-const TRANSCRIBE = submenu("menu.transcribe", [
+const TRANSCRIBE_LOCAL = submenu("menu.transcribe.local", [
   item("app.transcribe"),
   item("app.transcribe_all"),
-  item("app.transcribe_colab"),
+  SEP,
+  item("app.orukeet_setup"),
   item("app.transcribe_restart"),
+]);
+const TRANSCRIBE_COLAB = submenu("menu.transcribe.colab", [
+  item("app.transcribe_colab"),
+  item("app.transcribe_all_colab"),
   SEP,
   item("app.colab_signin"),
   item("app.colab_settings"),
-  item("app.orukeet_setup"),
 ]);
 const CANDIDATES = submenu("menu.candidates", [
   item("candidate.find"),
@@ -426,7 +430,8 @@ export const MENU = [
     id: "text",
     labelKey: "menu.text",
     items: [
-      TRANSCRIBE,
+      TRANSCRIBE_LOCAL,
+      TRANSCRIBE_COLAB,
       item("transcript.delete_words"),
       item("transcript.remove_words"),
       item("transcript.cut_words"),

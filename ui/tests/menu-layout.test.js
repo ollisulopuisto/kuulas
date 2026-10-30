@@ -183,7 +183,8 @@ describe("Text", () => {
       e.kind === "separator" ? "-" : e.kind === "submenu" ? `>${e.labelKey}` : e.id,
     );
     assert.deepEqual(shape, [
-      ">menu.transcribe",
+      ">menu.transcribe.local",
+      ">menu.transcribe.colab",
       "transcript.delete_words",
       "transcript.remove_words",
       "transcript.cut_words",
@@ -204,17 +205,20 @@ describe("Text", () => {
       "placeholder.delete",
     ]);
   });
-  test("Transcribe (Litteroi) holds the transcribing commands and the Colab sign-in", () => {
-    assert.deepEqual(subIds("text", "menu.transcribe"), [
+  test("transcription is grouped by provider, then by scope", () => {
+    assert.deepEqual(subIds("text", "menu.transcribe.local"), [
       "app.transcribe",
       "app.transcribe_all",
-      "app.transcribe_colab",
+      "app.orukeet_setup",
       "app.transcribe_restart",
+    ]);
+    assert.deepEqual(subIds("text", "menu.transcribe.colab"), [
+      "app.transcribe_colab",
+      "app.transcribe_all_colab",
       "app.colab_signin",
       "app.colab_settings",
-      "app.orukeet_setup",
     ]);
-    assert.ok(!sub("track", "menu.transcribe") && !sub("edit", "menu.transcribe"));
+    assert.ok(!sub("track", "menu.transcribe.local") && !sub("edit", "menu.transcribe.colab"));
   });
   test("Cut candidates holds ten commands", () => {
     assert.ok(subIds("text", "menu.candidates").includes("candidate.find"));
