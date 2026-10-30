@@ -88,6 +88,29 @@ def test_grains_are_continuous_across_blocks(rig, clock):
     np.testing.assert_allclose(one[:n], again[:n], atol=1e-6)  # block size irrelevant
 
 
+def test_grain_shuttle_advances_across_skipped_programme_time(rig, clock):
+    engine, _, _ = make(rig, clock, {"m": tone(440, 8.0)})
+    engine.play(0, rate=3.0, preserve_pitch=False, skip=[(RATE, 2 * RATE)])
+    for _ in range(18):
+        engine._render(1024)
+
+    # 18 blocks advance 1.152 s of played audio at 3x, plus the skipped second.
+    assert engine.status()["position"] == pytest.approx(2.152 * RATE, abs=4)
+
+
+def test_short_project_grain_shuttle_stops_at_its_last_frame(rig, clock):
+    engine, session, _ = make(rig, clock, {"m": tone(330, 0.11)})
+    engine.play(0, rate=5.0, preserve_pitch=False)
+    rendered = 0
+    while engine.status()["playing"] and rendered < 10_000:
+        engine._render(256)
+        rendered += 256
+
+    assert rendered == pytest.approx(session.state.length / 5, abs=256)
+    assert not engine.status()["playing"]
+    assert engine.status()["position"] == session.state.length
+
+
 def test_2x_and_below_still_resample(rig, clock):
     engine, _, _ = make(rig, clock, {"m": tone(600, 4.0)})
     engine.play(0, preserve_pitch=False, rate=2.0)

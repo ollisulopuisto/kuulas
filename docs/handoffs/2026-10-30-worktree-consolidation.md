@@ -18,7 +18,9 @@ Audited the registered worktrees and local branches against the locally known
 
 Other branch outcomes were already represented by newer main code: muted-copy
 behavior and the CodeQL fixes; both parents of the old PR #25 merge; and the
-older Orukeet and WP26 grain drafts. Stale roadmap text was not reapplied.
+older Orukeet and WP26 grain implementations. The useful WP26 integration cases
+for crossing a skipped region and ending a short project were carried into the
+current grain-engine tests. Stale roadmap text was not reapplied.
 Uncommitted `uv.lock` edits only bumped old Kuulas versions, or repeated the
 already-locked `silencelearn` dependency. The duplicate recording-meter draft
 matches the diagnostics change above.
