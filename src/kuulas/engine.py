@@ -76,6 +76,7 @@ import sounddevice as sd
 import soxr
 
 from . import diag, gate, latency, meter, preview_level
+from .fx import FxState
 from .media import CHUNK_SEC, streaming
 from .messages import KuulasError, t
 from .model import Project
@@ -465,6 +466,8 @@ class Engine:
         self._stretcher_gen = -1
         self._grain_stream: GrainStream | None = None
         self._grain_gen = -1
+        #: Track effect layers' running state (WP23a); audio thread only.
+        self._fx = FxState(self.rate)
         self._hop_frames = 0
 
         # Audio-thread state: the queue between mixer and device. Only the
@@ -1310,6 +1313,7 @@ class Engine:
             if resampler is not None:
                 resampler.clear()
             self._fifo_gen = gen
+            self._fx.reset()  # a new run or a seek: the filters start from silence
         plan = run.plan
         end = plan.length(project.length)  # the played timeline's length
         ratio = speed * self.rate / self._dev_rate
@@ -1364,7 +1368,10 @@ class Engine:
             elif n > 0:
                 mix_began = time.perf_counter()
                 if run.speed > 0:
-                    block = plan.read(project, self._store, fed, n)
+                    # Effect layers only at 1x forward: resampled, stretched and
+                    # backward runs read the mix at other paces and play it dry.
+                    live_fx = self._fx if run.speed == 1.0 else None
+                    block = plan.read(project, self._store, fed, n, live_fx)
                 else:  # backward: the played timeline from its end
                     block = plan.read(project, self._store, end - fed - n, n)[:, ::-1]
                 _note("engine.mix_ms", (time.perf_counter() - mix_began) * 1000.0)
