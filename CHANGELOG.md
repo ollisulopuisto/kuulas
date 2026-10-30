@@ -1,10 +1,15 @@
+## [v26.10.30.5] - 2026-10-30
+
+- **Transcription choices are grouped by provider.** Text > Transcribe offers track/all-recording actions on this computer or in Colab. Colab all-recordings uses the existing upload consent.
+- **Set music level supports +1 dB above speech.** The dialog has a linked slider and numeric field, with clearer descriptions of negative, equal and positive offsets.
+- **Correct adjacent transcript words together.** A correction can cover a contiguous run of words.
+- **Recording loudness failures are diagnosable.** The editor log records one traceback per failing input until the meter recovers; recording continues.
+
 ## [v26.10.30.4] - 2026-10-30
 
 - **Toolbar: "Transcribe all" instead of "Transcribe this track".** The default toolbar button now transcribes every recording used on any track (music-only recordings stay untouched) on this computer. The per-track command stays in Text > Transcribe; Colab remains a separate noticed choice.
 
 ## [Unreleased]
-
-- **Set music level supports +1 dB above speech.** The dialog now offers a linked slider and numeric field, and explains negative, equal and positive offsets relative to speech.
 
 ## [v26.10.30.2] - 2026-10-30
 
