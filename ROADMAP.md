@@ -1,14 +1,16 @@
 # kuulas roadmap
 
-## Released in v26.10.30.1 (2026-10-30)
+## Released in v26.10.30.2 (2026-10-30)
 
-Colab transcription settings now select Whisper large-v3-turbo, Parakeet Ultra,
-or a custom model ID supported by the shared `colab-transcribe` tool (WP87). Packaged
-Kuulas pins the podcast revision that implements both built-in model IDs. Local
-Orukeet is unchanged. WP26 adds pitch-preserving grains above 2× and ruler-drag
-scrubbing at pointer velocity. WP23a includes only backend high-pass plumbing
-for plain 1× playback; it has no UI and is not yet verified for real-time use.
-Owner listening for shuttle and a live Colab run remain verification items.
+Built from `main` after PRs #91-92 and the Colab model selector (WP87). Adds grain-based fast
+shuttle above 2x, ruler-drag velocity scrubbing and a plumbing-only track high-pass layer
+(WP26, WP23a). v26.10.30.1 was tagged without the Colab selector. Not natively verified:
+audio quality, callback timing, and the missing high-pass UI.
+
+## Tag v26.10.30.1 (2026-10-30; build cancelled)
+
+This tag predates the Colab model selector. The selector and the merged WP26/WP23a
+work are included in v26.10.30.2.
 
 **Release v26.10.27.2:** GUI Orukeet install/select/reinstall with verified downloads, progress and cancellation; aligned transcription actions; persistent fast-listening button.
 
@@ -424,7 +426,7 @@ Released in v26.10.20.5 to v26.10.20.14, in order of importance:
 
 ## Milestones
 
-Grouped from the build order in `docs/PLAN.md` (Triage) and updated by the owner's decisions. Status snapshot reviewed 2026-10-30 against `main` at `b784259`; M1/M2 counts still include owner confirmation items. ✓ done (built and merged; owner testing is tracked in `docs/BUGS.md`), ◐ partly done, ▶ being built now, ↻ built and in review (not merged yet), otherwise open. Mirrors the roadmap page.
+Grouped from the build order in `docs/PLAN.md` (Triage) and updated by the owner's decisions. Status snapshot reviewed 2026-10-30 against `main` at `d97762f`; M1/M2 counts still include owner confirmation items. ✓ done (built and merged; owner testing is tracked in `docs/BUGS.md`), ◐ partly done, ▶ being built now, ↻ built and in review (not merged yet), otherwise open. Mirrors the roadmap page.
 
 **M1 · First playable build** (23 of 28 done, 5 partly): Run kuulas, import, listen, edit by keyboard, undo, export WAV or MP3.
 

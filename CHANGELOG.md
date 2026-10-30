@@ -1,11 +1,15 @@
 ## [Unreleased]
 
+## [v26.10.30.2] - 2026-10-30
+
+- **Choose the Colab transcription model in Kuulas.** Settings offer Whisper large-v3-turbo and Parakeet Ultra, plus a custom backend model ID. Existing `turbo` settings migrate to `whisper`; local Orukeet is unchanged. The packaged Colab command is pinned to the shared podcast revision that supports both models. A live Colab transcription was not available during implementation.
+- **Fast shuttle and ruler scrubbing may sound smoother.** Forward playback above 2x uses short crossfaded audio grains instead of resampling, and dragging on the timeline ruler sets the scrub speed from drag velocity. Source and tests only: not heard on a Mac, and drags slower than 0.25x still play the old burst.
+- **Track high-pass layer (plumbing only).** A track can hold one high-pass layer with bypass, saved with the project and applied in plain 1x playback. There is no UI to add or edit it (only `ops.set_track(fx=...)`), and its callback timing is unprofiled, so it is not user-ready.
+- Streaming mastering stays off by default. Unsigned Apple Silicon test build; native playback and timing are unverified.
+
 ## [v26.10.30.1] - 2026-10-30
 
-- **Choose the Colab transcription model in Kuulas.** Settings offer Whisper large-v3-turbo and Parakeet Ultra, plus a custom backend model ID. Existing `turbo` settings migrate to Whisper. Local Orukeet is unchanged; the packaged Colab command is pinned to the shared podcast revision that supports both models.
-- **Fast shuttle stays clearer at high speeds.** Speeds above 2× use forward-playing grains to preserve speech pitch, and dragging on the ruler scrubs at pointer velocity. The engine and UI paths are tested; listening on a Mac remains open.
-- **First track-effect plumbing.** A saved high-pass layer can run during plain 1× playback through the engine API. It has no editor UI, is not allocation-free or verified for real-time safety, and does not affect export.
-- The model choice is described in the Finnish and English help. A live Colab run was not available during implementation.
+- This tag predates the Colab model selector. Use v26.10.30.2 for the model selection UI and current release build.
 
 ## [v26.10.29.2] - 2026-10-29
 

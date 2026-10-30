@@ -1,6 +1,6 @@
 # kuulas implementation plan
 
-**Release v26.10.30.1:** Colab model selection for Whisper large-v3-turbo and Parakeet Ultra (WP87); WP26 high-speed grains and ruler-velocity scrub; partial WP23a high-pass playback plumbing.
+**Release v26.10.30.2:** Colab model selection for Whisper large-v3-turbo and Parakeet Ultra (WP87); WP26 high-speed grains and ruler-velocity scrub; partial WP23a high-pass playback plumbing. The earlier v26.10.30.1 tag predates the selector.
 
 **Release v26.10.27.4:** live recording progress on new tracks, consistent waveform display, compact recording setup and per-input three-second LUFS; packaged Orukeet certificate trust fix; visible toolbar add picker, drag-away removal and Undo; ordinary menu right-click behavior.
 
