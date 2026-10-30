@@ -26,7 +26,7 @@ An audit review found the earlier wording "callback free of new blocking work" w
 inaccurate. Corrected here:
 - The first version created NumPy arrays for every sample and built filters on the
   first callback block. Now `FxState.prepare(project)` builds the filters on the
-  control side (`Engine.set_project`), and the per-block loop uses plain floats. An
+  control side (`Engine.set_project`), and the per-block loop uses plain floats (it still allocates per-block Python lists via `.tolist()`, so it is NOT allocation-free). An
   unprepared track still builds its filter on its first block (fallback).
 - It is still a Python loop over every sample, so it is NOT real-time ready. Callback
   timing is unprofiled; native profiling on the Mac is an acceptance gate, along with

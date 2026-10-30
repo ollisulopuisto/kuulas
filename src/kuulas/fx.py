@@ -5,7 +5,7 @@ bypass, saved with the project. ``FxState`` holds the running filter state per
 track and per layer for live playback. NOT real-time ready: callback timing is
 unprofiled. Filters are built off the callback by ``FxState.prepare`` (called
 from ``Engine.set_project``), and the per-block loop uses plain Python floats,
-not per-sample NumPy arrays, but it is still a Python loop over every sample
+not per-sample NumPy arrays, but it is NOT allocation-free (each block builds Python lists via .tolist() and a result list per channel) and it is still a Python loop over every sample
 and every layer, and an unprepared track falls back to building its filter on
 the first block. Acceptance needs a native callback timing profile.
 
@@ -63,7 +63,7 @@ class _Biquad:
 
     def run(self, x: np.ndarray) -> np.ndarray:
         """``x`` is ``(channels, n)``; returns a new array. Scalar float math
-        per channel: no per-sample array is created."""
+        per channel: no per-sample array, but it allocates per-block lists."""
         b0, b1, b2, a1, a2 = self.coef
         y = np.empty_like(x)
         for c in range(x.shape[0]):
