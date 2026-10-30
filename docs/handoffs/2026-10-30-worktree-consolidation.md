@@ -27,3 +27,8 @@ matches the diagnostics change above.
 
 No local tests were run, per the owner's instruction. GitHub CI is the
 verification path for the consolidated commits.
+
+Cleanup complete: all non-main local worktrees and local branches were removed;
+the checkout is on `main`. Remote branch refs were left intact because GitHub's
+PR API was unreachable during cleanup, so their open/merged status could not be
+confirmed safely.
