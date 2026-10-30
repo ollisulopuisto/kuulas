@@ -1,3 +1,7 @@
+## [v26.10.30.4] - 2026-10-30
+
+- **Toolbar: "Transcribe all" instead of "Transcribe this track".** The default toolbar button now transcribes every recording used on any track (music-only recordings stay untouched) on this computer. The per-track command stays in Text > Transcribe; Colab remains a separate noticed choice.
+
 ## [Unreleased]
 
 ## [v26.10.30.2] - 2026-10-30
