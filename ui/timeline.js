@@ -86,6 +86,7 @@ import { aboutSeconds, placeholderLabel } from "./placeholders-model.js";
 import { dragRange, isDrag, touchedResult, trackRowsTouched } from "./range-drag.js";
 import { scopeSpans } from "./range-scope.js";
 import { rulerTicks } from "./ruler.js";
+import { createRulerScrub } from "./scrub-velocity.js";
 import {
   inactiveLook,
   lockSpots,
@@ -1857,9 +1858,26 @@ export function createTimeline({
     if (text) overlayCanvas.dataset.tip = text;
     else delete overlayCanvas.dataset.tip;
   }
+  // The ruler scrub (WP26): a drag on the ruler plays the audio under the pointer at the
+  // pointer's speed, tape-style (up to 2x) and as grains above. Release plays on as before.
+  let rulerScrub = null;
+  let rulerScrubPointer = null;
+  function endRulerScrub() {
+    rulerScrub?.up();
+    rulerScrub = null;
+    if (rulerScrubPointer !== null) overlayCanvas.releasePointerCapture?.(rulerScrubPointer);
+    rulerScrubPointer = null;
+  }
+  window.addEventListener("pointerup", (event) => {
+    if (rulerScrub && event.pointerId === rulerScrubPointer) endRulerScrub();
+  });
   overlayCanvas.addEventListener("pointermove", (event) => {
     const state = getState();
     pointerFrame = Math.max(0, xToFrame(locate(event).x, state.scroll, state.zoom));
+    if (rulerScrub && event.pointerId === rulerScrubPointer) {
+      rulerScrub.move(Math.max(0, pointerFrame), event.timeStamp);
+      return;
+    }
     if (edgeSession) {
       if (event.pointerId === edgeSession.pointerId) updateEdge(event);
       return;
@@ -2156,6 +2174,7 @@ export function createTimeline({
     endEdge(true);
   });
   overlayCanvas.addEventListener("pointercancel", () => {
+    if (rulerScrub) endRulerScrub();
     if (clipSession) endClip(false);
     if (tweakSession) endTweak(true);
     if (edgeSession) endEdge(false);
@@ -2184,6 +2203,16 @@ export function createTimeline({
       zone || moving || (hit.clip && hit.edge && hit.row?.kind === "track"),
     );
     actions.pointerDown(hit, event, { noSeek: adjusting });
+    // A press on the ruler (not on a marker flag) goes on as a scrub while the button is down.
+    if (hit.area === "ruler" && !hit.marker && actions.scrub) {
+      rulerScrub = createRulerScrub({
+        send: (frame, velocity) => actions.scrub(frame, velocity),
+        rate: getState().project.rate,
+      });
+      rulerScrubPointer = event.pointerId;
+      rulerScrub.down(hit.frame, event.timeStamp);
+      overlayCanvas.setPointerCapture?.(event.pointerId);
+    }
     if (!zone && !moving && intent === "range") beginRangeDrag(event, hit);
     if (hit.clip && hit.edge && hit.row?.kind === "track") startEdge(hit, event);
     else if (zone) startTweak(hit, event, zone);

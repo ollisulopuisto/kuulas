@@ -139,6 +139,17 @@ export function createTransport({ post, getState, setState, onError, freeze, set
         });
       return queue;
     },
+    /**
+     * A ruler drag (WP26): the playhead moves at once and the engine plays a short burst
+     * at the drag's speed (`velocity`, programme seconds per second). While playing it is a seek.
+     */
+    scrub(frame, velocity) {
+      const at = Math.max(0, Math.round(frame));
+      if (getState().playing) return this.seek(at);
+      seekSeq += 1;
+      setState({ playhead: at });
+      return run("scrub", at, null, null, { velocity }, seekSeq);
+    },
     /** The playhead moves on screen at once; the engine follows. */
     seek(frame) {
       const at = Math.max(0, Math.round(frame));

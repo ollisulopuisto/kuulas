@@ -303,6 +303,9 @@ class TransportBody(BaseModel):
     preserve_pitch: bool = True
     # play only: [start, end] in frames, played over and over (WP50).
     loop: list[int] | None = None
+    # scrub only: the pointer's speed in programme seconds per second
+    # (negative backward); the burst plays at that tape speed (WP26).
+    velocity: float | None = None
 
 
 class TranscribeBody(BaseModel):
@@ -1864,7 +1867,10 @@ def create_app(session, engine, *, language: str | None = None,
             engine.seek(body.at)
         elif action == "scrub":
             priority.GATE.note_input(scrub=True)
-            engine.scrub(body.at)
+            if body.velocity is None:
+                engine.scrub(body.at)
+            else:
+                engine.scrub(body.at, velocity=body.velocity)
         else:
             raise BadRequestError("error.server.bad_transport", action=action)
         status = engine.status()

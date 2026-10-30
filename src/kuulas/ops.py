@@ -9,14 +9,25 @@ from __future__ import annotations
 import uuid
 from dataclasses import replace
 
-from . import curves, edit_scope, narration
+from . import curves, edit_scope, fx, narration
 from . import gate as gatem
 from . import markers as markersm
 from . import placeholders as placeholdersm
 from .clock import flicks_to_frames, frames_to_flicks
 from .join import join_adjacent
 from .messages import KuulasError
-from .model import Bus, Clip, Marker, Media, Placeholder, Point, Project, SyncGroup, Track
+from .model import (
+    Bus,
+    Clip,
+    FxLayer,
+    Marker,
+    Media,
+    Placeholder,
+    Point,
+    Project,
+    SyncGroup,
+    Track,
+)
 
 #: Crossfade where a cut joins audio that was not adjacent in the source.
 #: A butt splice of two unrelated samples clicks and the room tone jumps;
@@ -115,7 +126,7 @@ def delete_track(p: Project, track_id: str) -> Project:
 
 
 TRACK_FIELDS = {"name", "kind", "speaker", "bus", "gain_db", "pan", "mute", "solo",
-                "target_lufs", "mono", "follow_bus_role", "duck"}
+                "target_lufs", "mono", "follow_bus_role", "duck", "fx"}
 
 
 def set_track(p: Project, track_id: str, **fields) -> Project:
@@ -161,7 +172,24 @@ def set_track(p: Project, track_id: str, **fields) -> Project:
         fields["mono"] = bool(fields["mono"])
     if fields.get("target_lufs") is not None:
         fields["target_lufs"] = _target_lufs(fields["target_lufs"])
+    if "fx" in fields:
+        fields["fx"] = _fx_layers(fields["fx"])
     return _replace_track(p, replace(_find_track(p, track_id), **fields))
+
+
+def _fx_layers(raw) -> tuple:
+    """Effect layers from dicts or ``FxLayer``s; a bad kind or cutoff is an error."""
+    layers = []
+    for item in raw or ():
+        layer = item if isinstance(item, FxLayer) else FxLayer.from_dict(dict(item))
+        if layer.kind not in fx.KINDS:
+            raise EditError("error.edit.bad_arguments", name="set_track",
+                            detail=f"fx kind {layer.kind!r}")
+        if not (fx.MIN_HZ <= layer.hz <= fx.MAX_HZ):  # also false for nan
+            raise EditError("error.edit.bad_arguments", name="set_track",
+                            detail=f"fx hz {layer.hz!r}")
+        layers.append(layer)
+    return tuple(layers)
 
 
 #: A loudness target outside this is a typo (-70 is the BS.1770 gate floor).

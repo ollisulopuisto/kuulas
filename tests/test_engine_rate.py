@@ -8,6 +8,7 @@ blocks from the engine and compare them with a one-shot soxr resampling of
 the whole mix, check that a tone comes out at ``r`` times its frequency
 (independent of soxr), and that the playhead moves ``r`` frames per frame.
 Pitch-kept playback is in test_engine_stretch.py.
+Above 2x the shuttle plays grains instead (test_engine_grains.py).
 Nothing here opens a real device or plays a sound.
 """
 
@@ -74,7 +75,7 @@ def tape(engine, at=0, **kwargs):
     engine.play(at, preserve_pitch=False, **kwargs)
 
 
-@pytest.mark.parametrize("speed", LADDER)
+@pytest.mark.parametrize("speed", [v for v in LADDER if v <= 2.0])
 def test_tape_rate_matches_a_reference_resampling(rig, clock, speed):
     engine, session, store = make(rig, clock)  # 2 s of noise
     length = session.state.length
@@ -90,7 +91,7 @@ def test_tape_rate_matches_a_reference_resampling(rig, clock, speed):
     assert not out[n + 2:].any()
 
 
-@pytest.mark.parametrize("speed", [*LADDER, -1.0, -1.5, -3.0])
+@pytest.mark.parametrize("speed", [0.25, 1.5, 2.0, -1.0, -1.5])
 def test_pitch_follows_the_speed(rig, clock, speed):
     engine, _, _ = make(rig, clock, {"m": tone(600, 4.0)})
     start = 0 if speed > 0 else 4 * RATE
