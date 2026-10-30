@@ -5,7 +5,9 @@ bypass, saved with the project. ``FxState`` holds the running filter state per
 track and per layer for live playback. NOT real-time ready: callback timing is
 unprofiled. Filters are built off the callback by ``FxState.prepare`` (called
 from ``Engine.set_project``), and the per-block loop uses plain Python floats,
-not per-sample NumPy arrays, but it is NOT allocation-free (each block builds Python lists via .tolist() and a result list per channel) and it is still a Python loop over every sample
+not per-sample NumPy arrays, but it is NOT allocation-free (each block builds Python
+lists via .tolist() and a result list per channel) and it is still a Python loop over
+every sample
 and every layer, and an unprepared track falls back to building its filter on
 the first block. Acceptance needs a native callback timing profile.
 
