@@ -551,6 +551,7 @@ class Engine:
         listened to (``set_listen_source``) the project is only remembered too, and
         the listening ends by itself when its ``keep`` check says no. A listening
         overlay (``set_silence_overlay``) is put on top of every new project."""
+        self._fx.prepare(project)  # filters built here, not on the audio callback
         with self._olock:
             self._real = project
             listen = self._listen

@@ -20,3 +20,17 @@ Branch `wp23a-track-highpass`, from main 49aaf177. Separate from the WP26 work.
 - Not verified: callback timing and listening on the Mac (acceptance gates).
   Tests ran on Linux with sounddevice stubbed; 5 sandbox "missing tool" tests fail
   the same on plain main.
+
+## Review follow-up (callback caveats, supported route)
+An audit review found the earlier wording "callback free of new blocking work" was
+inaccurate. Corrected here:
+- The first version created NumPy arrays for every sample and built filters on the
+  first callback block. Now `FxState.prepare(project)` builds the filters on the
+  control side (`Engine.set_project`), and the per-block loop uses plain floats. An
+  unprepared track still builds its filter on its first block (fallback).
+- It is still a Python loop over every sample, so it is NOT real-time ready. Callback
+  timing is unprofiled; native profiling on the Mac is an acceptance gate, along with
+  listening. A vectorised or compiled filter may be needed.
+- Supported configuration route: `ops.set_track(fx=[...])` only. There is no UI to add
+  or edit a layer, so this is persisted-parameter plumbing, not a user-ready
+  interactive effect.

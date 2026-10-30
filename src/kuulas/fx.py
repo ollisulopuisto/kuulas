@@ -2,8 +2,15 @@
 
 A layer is a frozen record on a ``Track`` (``model.FxLayer``): kind, cutoff and
 bypass, saved with the project. ``FxState`` holds the running filter state per
-track and per layer for live playback; the callback only does arithmetic on
-the block it is given (no allocation beyond the block, no I/O, no locks).
+track and per layer for live playback. NOT real-time ready: callback timing is
+unprofiled. Filters are built off the callback by ``FxState.prepare`` (called
+from ``Engine.set_project``), and the per-block loop uses plain Python floats,
+not per-sample NumPy arrays, but it is still a Python loop over every sample
+and every layer, and an unprepared track falls back to building its filter on
+the first block. Acceptance needs a native callback timing profile.
+
+Configuration: ``ops.set_track(fx=[...])`` is the only route today. There is no
+UI to add or edit a layer, so this is not a user-ready interactive effect.
 
 State rules:
 - Blocks must arrive in order. If a block does not start where the last one
@@ -55,17 +62,23 @@ class _Biquad:
         self.z2[:] = 0.0
 
     def run(self, x: np.ndarray) -> np.ndarray:
-        """``x`` is ``(channels, n)``; returns a new array."""
+        """``x`` is ``(channels, n)``; returns a new array. Scalar float math
+        per channel: no per-sample array is created."""
         b0, b1, b2, a1, a2 = self.coef
         y = np.empty_like(x)
-        z1, z2 = self.z1, self.z2
-        for i in range(x.shape[1]):
-            xi = x[:, i]
-            yi = b0 * xi + z1
-            z1 = b1 * xi - a1 * yi + z2
-            z2 = b2 * xi - a2 * yi
-            y[:, i] = yi
-        self.z1, self.z2 = z1, z2
+        for c in range(x.shape[0]):
+            z1 = float(self.z1[c])
+            z2 = float(self.z2[c])
+            xs = x[c].tolist()
+            ys = [0.0] * len(xs)
+            for i, xi in enumerate(xs):
+                yi = b0 * xi + z1
+                z1 = b1 * xi - a1 * yi + z2
+                z2 = b2 * xi - a2 * yi
+                ys[i] = yi
+            y[c] = ys
+            self.z1[c] = z1
+            self.z2[c] = z2
         return y
 
 
@@ -85,9 +98,28 @@ class FxState:
         self._next: dict[str, int] = {}
         self._filters: dict[tuple[str, int], tuple[tuple, _Biquad]] = {}
 
+    def prepare(self, project) -> None:
+        """Build the filters of ``project`` off the audio callback (control
+        thread). The new table replaces the old one in one assignment; state of
+        an unchanged layer is kept, so an edit elsewhere does not click."""
+        old = self._filters
+        new: dict[tuple[str, int], tuple[tuple, _Biquad]] = {}
+        for track in project.tracks:
+            for index, layer in enumerate(track.fx):
+                if layer.bypass or layer.kind != HIGHPASS:
+                    continue
+                key = (track.id, index)
+                sig = (layer.kind, layer.hz)
+                held = old.get(key)
+                if held is None or held[0] != sig:
+                    held = (sig, _Biquad(highpass_coefficients(layer.hz, self.rate)))
+                new[key] = held
+        self._filters = new
+
     def reset(self) -> None:
         self._next.clear()
-        self._filters.clear()
+        for _sig, filt in list(self._filters.values()):
+            filt.reset()
 
     def process(self, track, buf: np.ndarray, first: int) -> np.ndarray:
         """``buf`` ``(2, n)`` float64 of ``track`` at timeline frame ``first``."""
@@ -95,13 +127,16 @@ class FxState:
         if not layers:
             return buf
         if self._next.get(track.id) != first:  # not the block that follows: a seek
-            for key in [k for k in self._filters if k[0] == track.id]:
-                del self._filters[key]
+            for key, (_sig, filt) in list(self._filters.items()):
+                if key[0] == track.id:
+                    filt.reset()
         self._next[track.id] = first + buf.shape[1]
         for index, layer in enumerate(layers):
             key = (track.id, index)
             if layer.bypass or layer.kind != HIGHPASS:
-                self._filters.pop(key, None)  # at rest: a later switch-on starts clean
+                held = self._filters.get(key)
+                if held is not None:  # at rest: a later switch-on starts clean
+                    held[1].reset()
                 continue
             sig = (layer.kind, layer.hz)
             held = self._filters.get(key)

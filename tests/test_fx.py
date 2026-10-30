@@ -5,7 +5,7 @@ import pytest
 from test_engine import RATE, Clock, MemoryStore, install_rig, make, noise, project_with
 
 from kuulas import fx, mixer, ops
-from kuulas.model import FxLayer, Project
+from kuulas.model import FxLayer, Project, Track
 from kuulas.ops import EditError
 
 
@@ -130,3 +130,15 @@ def test_the_engine_plays_the_layer_at_1x_and_bypass_is_dry(rig, clock):
     engine.play(0)
     dry = np.concatenate([engine._render(1024) for _ in range(20)])[4096:]
     assert rms(dry) > 5 * rms(wet)
+
+
+def test_prepare_builds_filters_before_the_first_block():
+    layer = FxLayer(kind=fx.HIGHPASS, hz=120.0)
+    track = Track(id="t1", name="t", fx=(layer,))
+    state = fx.FxState(RATE)
+    state.prepare(Project(tracks=(track,)))
+    assert ("t1", 0) in state._filters
+    held = state._filters[("t1", 0)]
+    x = np.random.default_rng(3).standard_normal((2, 800))
+    state.process(track, x.copy(), 0)
+    assert state._filters[("t1", 0)] is held
