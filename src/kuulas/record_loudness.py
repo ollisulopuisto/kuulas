@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import threading
 import time
 from dataclasses import dataclass
@@ -16,6 +17,7 @@ from .meter import ShortTermAccumulator
 
 STALE_SECONDS = 2.5
 MAX_SIDECAR_BYTES = 4 * 1024 * 1024
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -24,6 +26,7 @@ class _Channel:
     end: int | None = None
     value: float | None = None
     last_data: float | None = None
+    failed: bool = False
 
 
 class RecordingLoudnessReader:
@@ -64,8 +67,14 @@ class RecordingLoudnessReader:
                 state = self.channels[name] = _Channel(ShortTermAccumulator(rate))
             try:
                 self._read_channel(state, folder, take, name, segments, rate, now)
-            except (OSError, ValueError, RuntimeError, TypeError, OverflowError):
+                state.failed = False
+            except (OSError, ValueError, RuntimeError, TypeError, OverflowError) as error:
                 # A partial header or missing file never affects capture.
+                # Polling runs four times a second: keep one traceback until recovery.
+                if not state.failed:
+                    log.warning("Recording input loudness unavailable for take %s, "
+                                "channel %s: %s", take, name, error, exc_info=True)
+                state.failed = True
                 state.value = None
             fresh = state.last_data is not None and now - state.last_data <= STALE_SECONDS
             result.append(state.value if fresh else None)
