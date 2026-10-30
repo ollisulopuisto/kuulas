@@ -4,6 +4,12 @@
 
 **Release v26.10.27.1:** local Orukeet, NHSX import from the start page, a three-second LUFS meter, compact track headers and transcript search, clearer toolbar buttons, and corrected Auto-Silence boundary trims.
 
+## Released in v26.10.30.1 (2026-10-30)
+
+Built from `main` after PRs #91-92. Adds grain-based fast shuttle above 2x, ruler-drag
+velocity scrubbing, and a plumbing-only track high-pass layer. Not natively verified:
+audio quality, callback timing and the missing high-pass UI remain open (WP26, WP23a).
+
 ## Released in v26.10.29.2 (2026-10-29)
 
 Built from current `main`, including PRs #89–90 and the clipboard mute fix.

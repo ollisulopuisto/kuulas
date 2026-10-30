@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+## [v26.10.30.1] - 2026-10-30
+
+- **Fast shuttle and ruler scrubbing sound smoother.** Forward playback above 2x uses short crossfaded audio grains instead of resampling, and dragging on the timeline ruler sets the scrub speed from drag velocity. Source and tests only: not yet heard on a Mac, and drags slower than 0.25x still play the old burst.
+- **Track high-pass layer (plumbing only).** A track can hold one high-pass layer with bypass, saved with the project and applied in plain 1x playback. There is no UI to add or edit it yet (only `ops.set_track(fx=...)`), and its real-time callback timing is unprofiled, so treat it as not user-ready.
+- Streaming mastering stays off by default. This is an unsigned Apple Silicon test build; native playback and timing are unverified.
+
 ## [v26.10.29.2] - 2026-10-29
 
 - **Copied clips are ready to reuse.** Copying a muted clip now creates an audible clipboard entry, while Cut preserves the mute state when the clip is moved.
