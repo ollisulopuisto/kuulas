@@ -2938,6 +2938,15 @@
     "one": "{take} is on the timeline with {count} gap where nothing could be recorded.",
     "other": "{take} is on the timeline with {count} gaps where nothing could be recorded."
   },
+  "ui.record.imported_health": "{message} Recording health: {details}",
+  "ui.record.health_overflows": {
+    "one": "The input overflowed once.",
+    "other": "The input overflowed {count} times."
+  },
+  "ui.record.health_dropouts": {
+    "one": "The recorder inserted silence once ({seconds} s total).",
+    "other": "The recorder inserted silence {count} times ({seconds} s total)."
+  },
   "ui.record.pending": {
     "one": "{count} recorded take was never put on the timeline (the editor or the recorder stopped mid-take).",
     "other": "{count} recorded takes were never put on the timeline (the editor or the recorder stopped mid-take)."

@@ -2938,6 +2938,15 @@
     "one": "{take} on aikajanalla; siinä on {count} aukko, jolloin mitään ei voitu äänittää.",
     "other": "{take} on aikajanalla; siinä on {count} aukkoa, jolloin mitään ei voitu äänittää."
   },
+  "ui.record.imported_health": "{message} Äänityksen poikkeamat: {details}",
+  "ui.record.health_overflows": {
+    "one": "Tietokone menetti osan tulosta kerran.",
+    "other": "Tietokone menetti osan tulosta {count} kertaa."
+  },
+  "ui.record.health_dropouts": {
+    "one": "Äänitin lisäsi hiljaisuutta kerran (yhteensä {seconds} s).",
+    "other": "Äänitin lisäsi hiljaisuutta {count} kertaa (yhteensä {seconds} s)."
+  },
   "ui.record.pending": {
     "one": "{count} äänitetty otto jäi viemättä aikajanalle (editori tai äänitin pysähtyi kesken).",
     "other": "{count} äänitettyä ottoa ei viety aikajanalle (editori tai äänitin pysähtyi kesken)."

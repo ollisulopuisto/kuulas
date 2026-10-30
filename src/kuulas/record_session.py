@@ -714,7 +714,11 @@ class RecordSession:
                    for c in clips],
                   lane.track_id, lane.track_name) for clips, lane in lanes],
                 clip_name=clip_name, take=take)
+            dropout_frames = sum(
+                int(dropout.get("frames", 0)) for dropout in sidecar.get("dropouts") or []
+            )
             result = {**summary, "take": take, "clips": len(clip_ids),
+                      "dropout_seconds": round(dropout_frames / self.rate, 1),
                       "replaced": list(self.session.last_take_replaced),
                       "clip_ids": clip_ids,
                       "start": min(c.start for cl, _ in lanes for c in cl),

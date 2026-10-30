@@ -30,3 +30,5 @@ Kun painat Äänitä, äänitysnäkymä väistyy ja aikajana on edessä, äänit
 Asetuksissa "Soitetut leikkeet menevät raidalle" valitsee raidan leikkeille, joita soitat leikepöydältä (cart-näppäimillä tai merkinnän soittopainikkeella) äänityksen aikana: uusi raita nimeltä Kysymykset tai mikä tahansa raita, jolle ei äänitetä. Jokainen soittamasi leike asetetaan myös tälle raidalle kohtaan, jossa äänite on sillä hetkellä, joten kysymys on vastauksen vieressä. Jos raidalla on jo ääntä toistokursorista eteenpäin, varoitus kertoo että leikkeet kirjoittavat sen päälle.
 
 Ennen äänitystä tulomittarit näyttävät huipputason dBFS-asteikolla. Äänityksen aikana ne näyttävät kolmen sekunnin äänekkyyskeskiarvon LUFS-asteikolla sekä −23- ja −16-merkit. Äänekkyys tulee näkyviin, kun tallennettua ääntä on riittävästi. Säröytymisvaroitus reagoi erikseen huippuihin.
+
+Jos äänitulo ylivuotuu tai äänitin joutuu lisäämään hiljaisuutta ajoituksen säilyttämiseksi, Kuulas varoittaa siitä äänityksen aikana ja kertoo määrän sekä lisätyn hiljaisuuden keston, kun äänite on aikajanalla. Ilmoitus pysyy näkyvissä, kunnes suljet sen.

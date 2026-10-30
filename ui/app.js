@@ -2957,6 +2957,7 @@ const recordView = createRecordView({
   chip: $("rec-chip"),
   addMarker: () => keyboard.registry.run("marker.add", null, getState()),
   onLive: () => {
+    if (recordView.isVisible()) return;
     const project = getState().project;
     $("empty").hidden =
       !project ||
@@ -2964,6 +2965,7 @@ const recordView = createRecordView({
       project.tracks.some((track) => track.clips.length > 0);
     followLiveHead();
     timeline?.redraw();
+    overview?.redraw();
   },
 });
 // The view follows the take's head while it records, until you steer away (live-follow.js).
@@ -4365,6 +4367,7 @@ overview = createOverview({
   canvas: $("overview"),
   getState,
   getTimelineWidth: width,
+  getLiveEnd: () => recordView.liveFrame(),
   actions: {
     scrollTo(scroll) {
       fitWhole = false;

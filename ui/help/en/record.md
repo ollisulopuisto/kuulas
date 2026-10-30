@@ -30,3 +30,5 @@ When you press Record the record view steps aside and the timeline is in front, 
 In the setup, "Clips you play go on" chooses the track for the clips you play from the Clipboard (the cart keys, or a chip's play button) while the take records: a new track called Questions, or any track that is not recorded onto. Each clip you play is also put on that track where the take is at that moment, so the question sits next to the answer. If the track already has audio from the play cursor on, a warning says the clips will overwrite it.
 
 Before recording, input meters check peak level in dBFS. During recording they show a three-second loudness average in LUFS, with −23 and −16 reference marks. Loudness appears once enough recorded audio is available. The clipping warning responds separately to peaks.
+
+If the audio input overflows or the recorder has to insert silence to keep the take in time, Kuulas warns during recording and includes the counts and inserted-silence duration in a notice after the take is placed on the timeline. The notice stays until you dismiss it.
