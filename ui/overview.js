@@ -16,7 +16,13 @@ import { overviewScroll, overviewWindow } from "./view.js";
 const OVERVIEW_ALPHA = 0.6;
 const OVERVIEW_LABEL_PX = 10;
 
-export function createOverview({ canvas, getState, getTimelineWidth, actions }) {
+export function createOverview({
+  canvas,
+  getState,
+  getTimelineWidth,
+  getLiveEnd = () => 0,
+  actions,
+}) {
   const context = canvas.getContext("2d");
   let queued = false;
   let theme = readTheme();
@@ -49,7 +55,11 @@ export function createOverview({ canvas, getState, getTimelineWidth, actions }) 
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     context.clearRect(0, 0, width, height);
     if (!state.project) return;
-    const total = projectEnd(state.project);
+    const liveEnd = getLiveEnd();
+    const total = Math.max(
+      projectEnd(state.project),
+      Number.isFinite(liveEnd) ? Math.max(0, liveEnd) : 0,
+    );
     if (total === 0) return;
     const tracks = state.project.tracks;
     const plotTop = OVERVIEW_LABEL_PX + 6;
@@ -113,8 +123,12 @@ export function createOverview({ canvas, getState, getTimelineWidth, actions }) 
     const state = getState();
     if (!state.project) return;
     const rect = canvas.getBoundingClientRect();
+    const liveEnd = getLiveEnd();
     const scroll = overviewScroll({
-      total: projectEnd(state.project),
+      total: Math.max(
+        projectEnd(state.project),
+        Number.isFinite(liveEnd) ? Math.max(0, liveEnd) : 0,
+      ),
       zoom: state.zoom,
       width: getTimelineWidth(),
       strip: rect.width,

@@ -183,14 +183,31 @@ export function recordKeyAction(event, { visible }) {
 }
 
 /** The notice after a take is on the timeline. */
-export function importedMessage(result, t) {
+export function importedMessage(result, t, formatNumber = (value) => String(value)) {
+  let message;
   if (result.failed_channels?.length > 0)
-    return t("ui.record.imported_failed", {
+    message = t("ui.record.imported_failed", {
       take: result.take,
       names: result.failed_channels.join(", "),
     });
-  if (result.interrupted) return t("ui.record.imported_interrupted", { take: result.take });
-  if (result.gaps > 0)
-    return t("ui.record.imported_gaps", { take: result.take, count: result.gaps });
-  return t("ui.record.imported", { take: result.take, count: result.clips });
+  else if (result.interrupted)
+    message = t("ui.record.imported_interrupted", { take: result.take });
+  else if (result.gaps > 0)
+    message = t("ui.record.imported_gaps", { take: result.take, count: result.gaps });
+  else message = t("ui.record.imported", { take: result.take, count: result.clips });
+
+  const health = [];
+  const overflows = Math.max(0, Number(result.overflows) || 0);
+  const dropouts = Math.max(0, Number(result.dropouts) || 0);
+  if (overflows > 0) health.push(t("ui.record.health_overflows", { count: overflows }));
+  if (dropouts > 0)
+    health.push(
+      t("ui.record.health_dropouts", {
+        count: dropouts,
+        seconds: formatNumber(Math.max(0, Number(result.dropout_seconds) || 0), { digits: 1 }),
+      }),
+    );
+  return health.length > 0
+    ? t("ui.record.imported_health", { message, details: health.join(" ") })
+    : message;
 }

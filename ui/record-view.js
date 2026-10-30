@@ -55,6 +55,15 @@ const el = (tag, className = "", text = "") => {
   return node;
 };
 
+function importedNoticeOptions(result) {
+  return {
+    undo: true,
+    // Keep the health summary visible until it is dismissed; it contains information the
+    // user needs to decide whether to redo the take.
+    sticky: Number(result?.overflows) > 0 || Number(result?.dropouts) > 0,
+  };
+}
+
 const SVG = "http://www.w3.org/2000/svg";
 function svgNode(tag, attributes) {
   const node = document.createElementNS(SVG, tag);
@@ -205,6 +214,9 @@ export function createRecordView({
   // -- the frame -----------------------------------------------------------------------
   const dialog = el("dialog", "cheatsheet record-view");
   dialog.setAttribute("aria-labelledby", "record-title");
+  // The timeline is dimmed and hidden behind this modal. Avoid spending each live level
+  // update repainting canvases the user cannot see; repaint once when the modal closes.
+  dialog.addEventListener("close", () => onLive());
   const heading = el("h2", "record-title");
   heading.id = "record-title";
   const body = el("div", "record-body");
@@ -709,7 +721,11 @@ export function createRecordView({
       stopping = false;
       const imported = response.record?.imported;
       if (imported)
-        notify(withReplaced(importedMessage(imported, t), imported), "ok", { undo: true });
+        notify(
+          withReplaced(importedMessage(imported, t, formatNumber), imported),
+          "ok",
+          importedNoticeOptions(imported),
+        );
       newGesture();
       setStatus(await api.getRecordStatus());
       if (dialog.open) dialog.close();
@@ -940,7 +956,11 @@ export function createRecordView({
             const response = await api.importTakes(pending.map((p) => p.take));
             apply(response);
             for (const result of response.imported ?? [])
-              notify(withReplaced(importedMessage(result, t), result), "ok", { undo: true });
+              notify(
+                withReplaced(importedMessage(result, t, formatNumber), result),
+                "ok",
+                importedNoticeOptions(result),
+              );
           } catch (error) {
             notify(error.message);
           }
@@ -958,6 +978,7 @@ export function createRecordView({
       return preroll;
     },
     isRecording: recording,
+    isVisible: () => dialog.open,
     /** The take so far, as peaks per lane (live-take.js), for the timeline to draw. */
     liveTake,
     /** Where the take is on the timeline now (its start plus what was recorded, pre-roll
@@ -1026,7 +1047,11 @@ export function createRecordView({
       } else if (message.kind === "imported") {
         // A take that ended by itself (disk full) or was stopped from another window.
         if (!stopping) {
-          notify(withReplaced(importedMessage(message, t), message), "ok", { undo: true });
+          notify(
+            withReplaced(importedMessage(message, t, formatNumber), message),
+            "ok",
+            importedNoticeOptions(message),
+          );
           if (dialog.open && !recording()) dialog.close();
         }
       } else if (message.kind === "pending") {
