@@ -1,5 +1,12 @@
 # kuulas roadmap
 
+## Released in v26.10.30.2 (2026-10-30)
+
+Built from `main` after PRs #91-92 and the Colab model selector. Adds grain-based fast
+shuttle above 2x, ruler-drag velocity scrubbing and a plumbing-only track high-pass layer
+(WP26, WP23a). v26.10.30.1 was tagged without the Colab selector. Not natively verified:
+audio quality, callback timing, and the missing high-pass UI.
+
 ## Released in v26.10.30.1 (2026-10-30)
 
 Colab transcription settings now select Whisper large-v3-turbo, Parakeet Ultra,
