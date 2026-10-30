@@ -4163,6 +4163,7 @@ const timeline = createTimeline({
   actions: {
     pointerDown: onPointerDown,
     seek: (frame) => void transport.seek(frame),
+    scrub: (frame, velocity) => void transport.scrub(frame, velocity),
     // A click on a clip (no travel) also completes a lone in or out mark (marks.js).
     clickSeek: (frame) => {
       const mark = implicitMarkPlan(getState(), frame);

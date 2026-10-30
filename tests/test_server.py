@@ -85,8 +85,9 @@ class FakeEngine:
         self.calls.append(("seek", frame))
         self.position = frame
 
-    def scrub(self, frame):
-        self.calls.append(("scrub", frame))
+    def scrub(self, frame, velocity=None):
+        self.calls.append(("scrub", frame) if velocity is None
+                          else ("scrub", frame, velocity))
         self.position = frame
 
     def close(self):
@@ -625,6 +626,11 @@ def test_edit_points_unknown_mode_is_a_400(client, loaded):
 def test_transport_get_is_the_engine_status(client, engine):
     engine.position = 1234
     assert client.get("/api/transport").json()["position"] == 1234
+
+
+def test_transport_scrub_carries_the_drag_velocity(client, engine):
+    client.post("/api/transport", json={"action": "scrub", "at": 700, "velocity": -2.5})
+    assert engine.calls == [("scrub", 700, -2.5)]
 
 
 def test_transport_post_drives_the_engine(client, engine):

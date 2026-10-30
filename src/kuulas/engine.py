@@ -88,6 +88,7 @@ from .playplan import (
     normalise_skip,
 )
 from .preview_voice import PreviewVoice
+from .scrub_grains import GrainStream
 from .stretch import HOP_S as STRETCH_HOP_S
 from .stretch import MAX_RATE as MAX_STRETCH
 from .stretch import MIN_RATE as MIN_STRETCH
@@ -148,6 +149,18 @@ IDLE_CLOSE_S = 30.0
 #: How much a scrub plays from the frame: a short burst, about 60 ms.
 #: WP26 (scrubbing) refines this.
 SCRUB_S = 0.06
+#: Output length of one velocity-scrub burst (long enough for a grain).
+SCRUB_BURST_S = 0.09
+
+
+def scrub_speed(velocity: float | None) -> float | None:
+    """The shuttle speed a ruler drag's velocity stands for, or None when the
+    pointer is too slow (or the number unusable) to play as tape."""
+    if velocity is None or not math.isfinite(velocity):
+        return None
+    if abs(velocity) < MIN_SPEED:
+        return None
+    return math.copysign(min(abs(velocity), MAX_SPEED), velocity)
 #: Notices kept for the UI.
 MAX_NOTICES = 20
 #: Tape-rate speeds: the JKL ladder's slowest (held K + L, 0.25x) to its
@@ -172,13 +185,25 @@ class _Run:
     """One play's fixed parameters. Replaced as a whole under ``_tlock``, so
     the audio thread reads one consistent reference per block."""
 
-    __slots__ = ("loop", "plan", "skip", "speed", "stretch")
+    __slots__ = ("grain", "loop", "plan", "skip", "speed", "stretch")
 
     def __init__(self, plan: PlayPlan, speed: float, skip: tuple[tuple[int, int], ...],
                  loop: tuple[int, int] | None = None, stretch: bool = False):
         self.plan, self.speed, self.skip, self.loop = plan, speed, skip, loop
         #: Played with the pitch kept (WSOLA), at the engine's live rate.
         self.stretch = stretch
+        #: Tape-rate shuttle above GRAIN_ABOVE: ~60 ms grains read at the
+        #: speed's pace, played forward, instead of resampling (WP26).
+        self.grain = not stretch and abs(speed) > GRAIN_ABOVE
+
+    @property
+    def unit_speed(self) -> float:
+        """The soxr key: 1:1 when the run produces its own project-rate audio."""
+        return 1.0 if self.stretch or self.grain else abs(self.speed)
+
+
+#: Above this tape-rate speed the shuttle plays grains, not a resampled mix.
+GRAIN_ABOVE = 2.0
 
 
 def _check_speed(rate: object, preserve_pitch: bool) -> float:
@@ -438,6 +463,8 @@ class Engine:
         self._stretch_rate = 1.0
         self._stretcher: Stretcher | None = None
         self._stretcher_gen = -1
+        self._grain_stream: GrainStream | None = None
+        self._grain_gen = -1
         self._hop_frames = 0
 
         # Audio-thread state: the queue between mixer and device. Only the
@@ -764,7 +791,8 @@ class Engine:
                 self._close_stream()  # died since the last tick: open afresh
             if self._stream is None:
                 self._open(refresh=True)
-            self._resampler_for(1.0 if stretch else abs(speed))
+            self._resampler_for(1.0 if stretch or abs(speed) > GRAIN_ABOVE
+                                else abs(speed))
             with self._tlock:
                 gen, run = self._gen, self._run
                 continuing = at is None and self._playing
@@ -884,16 +912,28 @@ class Engine:
                 if self._stream is None:
                     self._open_or_pause()
 
-    def scrub(self, frame: int) -> None:
+    def scrub(self, frame: int, velocity: float | None = None) -> None:
         """Let the user hear where ``frame`` is: while playing, a seek; when
-        stopped, a short burst from the frame. WP26 builds real scrubbing."""
+        stopped, a short burst from the frame. ``velocity`` is the pointer's
+        speed in programme-seconds per second (negative: moving backward), as a
+        ruler drag measures it: the burst then plays in that direction at that
+        speed, tape-style up to 2x and as grains above, so a drag sounds like
+        the tape moving under the head (WP26). Too slow to hear (under the
+        slowest shuttle) or no velocity: the fixed-length burst, as before;
+        faster than the fastest shuttle: that speed."""
         with self._tlock:
             playing = self._playing
         if playing:
             self.seek(frame)
-        else:
-            frame = max(0, int(frame))
+            return
+        frame = max(0, int(frame))
+        speed = scrub_speed(velocity)
+        if speed is None:
             self.play(frame, frame + round(SCRUB_S * self.rate))
+            return
+        span = round(SCRUB_BURST_S * abs(speed) * self.rate)
+        until = frame + span if speed > 0 else max(0, frame - span)
+        self.play(frame, until, rate=speed, preserve_pitch=False)
 
     def status(self) -> dict[str, Any]:
         """The transport, device and counters, and the notices. With
@@ -1260,7 +1300,7 @@ class Engine:
         if not playing or run is None:
             return out
         project = self._project
-        speed = 1.0 if run.stretch else abs(run.speed)  # stretched: resample 1:1
+        speed = run.unit_speed  # stretched or grained: resample 1:1
         resampler = self._resamplers.get(speed, _MISSING)
         if resampler is _MISSING:  # play() makes it first; a bug, not a device
             raise KeyError(speed)
@@ -1276,6 +1316,7 @@ class Engine:
         chunks = [self._fifo]
         have = len(self._fifo)
         stretcher = self._stretcher_for(gen, end) if run.stretch else None
+        grains = self._grains_for(gen, run, end, fed) if run.grain else None
         while have < frames and not self._flushed:
             if stretcher is not None:
                 stretcher.set_speed(self._stretch_rate)
@@ -1302,7 +1343,25 @@ class Engine:
             # mixes, 30 ms, in one block when scrubbing back at 5x). The
             # surplus waits in the queue for the next block.
             n = min(max(1, math.ceil(frames * ratio)), max(0, end - fed))
-            if n > 0:
+            if grains is not None:
+                mix_began = time.perf_counter()
+                before = grains.position
+                unit = grains.unit()
+                _note("engine.mix_ms", (time.perf_counter() - mix_began) * 1000.0)
+                moved = int(abs(grains.position - before))
+                fed = (int(grains.position) if run.speed > 0
+                       else end - int(grains.position))
+                fed = max(fed, 0)
+                if fed > end - 1:
+                    fed = end  # ran off the end: this is the last unit
+                self._recent.append((run, fed - moved, moved,
+                                     float(np.abs(unit[:, 0]).max()),
+                                     float(np.abs(unit[:, 1]).max())))
+                y = (unit if resampler is None
+                     else resampler.resample_chunk(np.ascontiguousarray(unit)))
+                chunks.append(y)
+                have += len(y)
+            elif n > 0:
                 mix_began = time.perf_counter()
                 if run.speed > 0:
                     block = plan.read(project, self._store, fed, n)
@@ -1377,6 +1436,24 @@ class Engine:
             self._hop_frames = self._stretcher.hop
         self._stretcher.length = end  # an edit while playing moves the end
         return self._stretcher
+
+    def _grains_for(self, gen: int, run: _Run, end: int, fed: int) -> GrainStream:
+        """The grain renderer of this run (audio thread), made at its first
+        block. Grains read the played timeline forward; a backward run only
+        steps the read position down from the end."""
+        if self._grain_stream is None or self._grain_gen != gen:
+            def read(first: int, count: int) -> np.ndarray:
+                out = np.zeros((count, 2), dtype=np.float32)
+                lo, hi = max(first, 0), min(first + count, end)
+                if hi > lo:
+                    out[lo - first:hi - first] = run.plan.read(
+                        self._project, self._store, lo, hi - lo).T
+                return out
+            start = fed if run.speed > 0 else end - fed
+            self._grain_stream = GrainStream(read, start=start, speed=run.speed,
+                                             rate=self.rate)
+            self._grain_gen = gen
+        return self._grain_stream
 
     def _stretch_fetch(self, first: int, count: int) -> np.ndarray:
         run = self._run
@@ -1484,8 +1561,8 @@ class Engine:
         # Every speed's resampler ends at the device rate: make them afresh.
         self._resamplers = {}
         self._resampler_for(1.0)
-        if self._run is not None and not self._run.stretch:
-            self._resampler_for(abs(self._run.speed))
+        if self._run is not None:
+            self._resampler_for(self._run.unit_speed)
         if dev_rate != self.rate:
             self._notify("notice.engine.resampling", device=name, rate=self.rate,
                          device_rate=dev_rate)
