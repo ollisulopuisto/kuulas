@@ -11,6 +11,7 @@ export const TOOLBAR_ICONS = Object.freeze({
   "edit.redo": "redo",
   "app.import": "import",
   "app.transcribe": "transcribe",
+  "app.transcribe_all": "transcribe",
   "app.auto_silence": "silence",
   "edit.split": "cut",
   "clip.mute": "mute",
