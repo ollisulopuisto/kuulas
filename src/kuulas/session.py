@@ -57,6 +57,7 @@ from . import (
     material_search,
     music_duck,
     music_level,
+    nap,
     narration,
     narration_script,
     offload,
@@ -1393,7 +1394,10 @@ class Session:
     def export(self, args: dict, *, progress=None, cancel=None,
                workers: int | None = None) -> dict:
         """Render a mix, selection or track stems without changing the edit."""
-        return export_module.run(self, args, progress, cancel, workers)
+        # The synchronous export shares the editor process with the queued
+        # ones (``jobs.py``): hold App Nap off for it just the same.
+        with nap.hold("kuulas export"):
+            return export_module.run(self, args, progress, cancel, workers)
 
     def chapters(self, style: str = "text") -> str:
         """The chapter markers as a chapter list: ``"text"`` (``hh:mm:ss
