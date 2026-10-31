@@ -1364,6 +1364,13 @@ class Engine:
                                      float(np.abs(unit[:, 1]).max())))
                 y = (unit if resampler is None
                      else resampler.resample_chunk(np.ascontiguousarray(unit)))
+                # Stop at the last programme frame, not at the grain's end:
+                # a run past the end would otherwise play the whole final
+                # grain (grain >> remaining at fast speeds on short files).
+                remaining = (end - before) if run.speed > 0 else before
+                need = int(np.ceil(max(remaining, 0) / abs(run.speed)))
+                if need < len(y):
+                    y = y[:max(need, 0)]
                 chunks.append(y)
                 have += len(y)
             elif n > 0:
