@@ -7,6 +7,7 @@ import {
   channelPeaks,
   formatElapsed,
   importedMessage,
+  importedNoticeOptions,
   initialRows,
   meterLabels,
   pickDevice,
@@ -143,6 +144,26 @@ describe("after the take", () => {
       importedMessage({ take: "Take 2", clips: 1, gaps: 0, interrupted: true }, t),
       'ui.record.imported_interrupted{"take":"Take 2"}',
     );
+  });
+
+  test("the health summary covers healthy, overflow, dropout and combined takes", () => {
+    const healthy = { take: "Take 2", clips: 1, gaps: 0, interrupted: false };
+    assert.equal(importedMessage(healthy, t), 'ui.record.imported{"take":"Take 2","count":1}');
+    assert.equal(
+      importedMessage({ ...healthy, overflows: 2 }, t),
+      'ui.record.imported_health{"message":"ui.record.imported{\\"take\\":\\"Take 2\\",\\"count\\":1}","details":"ui.record.health_overflows{\\"count\\":2}"}',
+    );
+    assert.equal(
+      importedMessage({ ...healthy, dropouts: 1, dropout_seconds: 0.25 }, t),
+      'ui.record.imported_health{"message":"ui.record.imported{\\"take\\":\\"Take 2\\",\\"count\\":1}","details":"ui.record.health_dropouts{\\"count\\":1,\\"seconds\\":\\"0.25\\"}"}',
+    );
+    assert.match(
+      importedMessage({ ...healthy, overflows: 2, dropouts: 1, dropout_seconds: 0.25 }, t),
+      /ui\.record\.health_overflows.*ui\.record\.health_dropouts/,
+    );
+    assert.deepEqual(importedNoticeOptions(healthy), { undo: true, sticky: false });
+    for (const result of [{ overflows: 1 }, { dropouts: 1 }])
+      assert.deepEqual(importedNoticeOptions(result), { undo: true, sticky: true });
   });
 });
 

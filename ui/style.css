@@ -4966,10 +4966,24 @@ legend.form-heading {
   padding: 0 var(--pad-panel);
 }
 .block-level-status {
+  display: grid;
+  gap: var(--space-1);
   min-height: var(--control-h);
+}
+.block-level-impact {
+  color: var(--text);
+  font-weight: var(--weight-strong);
+  font-variant-numeric: tabular-nums;
+}
+.block-level-unchanged {
+  color: var(--text-secondary);
 }
 .block-level-lists {
   min-width: 0;
+}
+.block-level-choice {
+  padding-block: var(--space-2);
+  border-bottom: 1px solid var(--panel-divider);
 }
 .block-level-line {
   margin: 0;

@@ -28,6 +28,7 @@ import {
   channelPeaks,
   formatElapsed,
   importedMessage,
+  importedNoticeOptions,
   initialRows,
   meterLabels,
   pickDevice,
@@ -54,15 +55,6 @@ const el = (tag, className = "", text = "") => {
   if (text) node.textContent = text;
   return node;
 };
-
-function importedNoticeOptions(result) {
-  return {
-    undo: true,
-    // Keep the health summary visible until it is dismissed; it contains information the
-    // user needs to decide whether to redo the take.
-    sticky: Number(result?.overflows) > 0 || Number(result?.dropouts) > 0,
-  };
-}
 
 const SVG = "http://www.w3.org/2000/svg";
 function svgNode(tag, attributes) {

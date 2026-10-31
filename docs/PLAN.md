@@ -2,6 +2,8 @@
 
 **Release v26.10.30.6:** post-recording health notices for input overflows and inserted silence; live overview follows a recording's growing end; skip obscured timeline repaints during recording; live waveform draw cost is bounded to the visible window.
 
+**Build v26.10.31.2:** block-levelling review shows measured level, deviation, proposed gain and a live count of checked blocks, tracks and speakers before Apply. Open cut candidates now have overview ticks; transcript Undo/Redo revision switching is covered at session level and explained in English and Finnish help. Recording health notices cover healthy, overflow, dropout and combined takes, and remain visible after a problematic take. CI uses Node 24, changed-path filters and parallel Python, lint and UI jobs. The short-project grain test accounts for one minimum-length final grain. Regenerated the keys reference and embedded design-prototype help from their canonical sources. Real recording-device checks remain for the owner.
+
 **Release v26.10.30.2:** Colab model selection for Whisper large-v3-turbo and Parakeet Ultra (WP87); WP26 high-speed grains and ruler-velocity scrub; partial WP23a high-pass playback plumbing. The earlier v26.10.30.1 tag predates the selector.
 
 **Release v26.10.27.4:** live recording progress on new tracks, consistent waveform display, compact recording setup and per-input three-second LUFS; packaged Orukeet certificate trust fix; visible toolbar add picker, drag-away removal and Undo; ordinary menu right-click behavior.
@@ -1605,7 +1607,8 @@ Keys (add to WP5):
 
 UI: candidates are drawn as translucent bands across the lanes of their
 group, with a list panel (time, duration, transcript text under it, state).
-The transcript highlights candidate words. The engine needs a `skip=(a, b)`
+The overview also shows a tick for each open candidate span. The transcript
+highlights candidate words. The engine needs a `skip=(a, b)`
 option on `play` for the preview (test it in WP2's style).
 
 Tests first (`tests/test_markers.py`):

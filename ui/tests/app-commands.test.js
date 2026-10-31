@@ -132,7 +132,10 @@ describe("the commands the app registers", () => {
         "transcribeAll",
       ],
     );
-    assert.deepEqual(calls.slice(-2), [["transcribeAll", "local"], ["transcribeAll", "colab"]]);
+    assert.deepEqual(calls.slice(-2), [
+      ["transcribeAll", "local"],
+      ["transcribeAll", "colab"],
+    ]);
   });
 
   test("music ducking has no default keyboard shortcut", () => {

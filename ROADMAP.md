@@ -48,10 +48,15 @@ grains above 2×, and ruler dragging scrubs at pointer velocity. Engine tests
 and headless UI checks pass; the sound and feel still need the owner's listening
 check in `docs/M2-VERIFY.md`. **WP23a (WP23) is partial:** the stateful
 high-pass plumbing is merged for plain 1× playback, but it is not real-time-ready, has no
-UI, and still needs native callback profiling and listening. WP18 cut candidates
-follows in M3 because its recording-clock anchors are reused by later editing
-work. WP21's schema migration and WP16's alignment remain later high-risk
-packages.
+UI, and still needs native callback profiling and listening. The WP18 candidate workflow
+(mark, review, apply and skip-preview playback) is already implemented; overview ticks and
+real-recording tuning remain. Block levelling's review now makes the measured level,
+proposed gain and exact checked scope visible before Apply (build v26.10.31.1).
+WP21's schema migration and WP16's alignment remain later high-risk packages.
+
+**CI runtime update (build v26.10.31.2):** the PR changed-path filter is on
+`dorny/paths-filter@v4`, and the UI suite runs on Node 24 to match GitHub's
+current Actions runtime.
 
 A multitrack **editor** for spoken word: podcasts, interviews, radio. It is
 for editing, not recording. The model is Hindenburg PRO: keyboard-first,

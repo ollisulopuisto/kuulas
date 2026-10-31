@@ -228,7 +228,7 @@ wheels = [
 
 [[package]]
 name = "kuulas"
-version = "26.10.30.6"
+version = "26.10.31.3"
 source = { editable = "." }
 dependencies = [
     { name = "certifi" },

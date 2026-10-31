@@ -13,6 +13,7 @@ from test_engine_rate import peak_hz, pull, tone
 
 from kuulas import messages
 from kuulas.engine import scrub_speed
+from kuulas.scrub_grains import GRAIN_S, XFADE_S
 
 
 @pytest.fixture(autouse=True)
@@ -106,7 +107,10 @@ def test_short_project_grain_shuttle_stops_at_its_last_frame(rig, clock):
         engine._render(256)
         rendered += 256
 
-    assert rendered == pytest.approx(session.state.length / 5, abs=256)
+    # A project shorter than one grain still plays one grain at normal pitch.
+    # Include that minimum grain and the final device-block rounding.
+    grain_step = round(GRAIN_S * RATE) - round(XFADE_S * RATE)
+    assert rendered == pytest.approx(max(session.state.length / 5, grain_step), abs=256)
     assert not engine.status()["playing"]
     assert engine.status()["position"] == session.state.length
 

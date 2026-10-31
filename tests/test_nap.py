@@ -28,9 +28,24 @@ def test_hold_brackets_the_work_on_macos():
         (kind, payload), = pi.calls
         assert kind == "begin"
         options, reason = payload
-        assert options == nap.NS_ACTIVITY_BACKGROUND
+        assert options == nap.NS_ACTIVITY_USER_INITIATED_ALLOWING_IDLE_SYSTEM_SLEEP
         assert reason == "export mix"
     assert pi.calls[1] == ("end", ("token", 1))
+
+
+def test_hold_signals_user_work_without_preventing_idle_sleep():
+    pi = FakeProcessInfo()
+    with nap.hold("export mix", platform="darwin", process_info=pi):
+        [(kind, payload)] = pi.calls
+        assert kind == "begin"
+        options, reason = payload
+        # NSActivityUserInitiatedAllowingIdleSystemSleep from NSProcessInfo.h.
+        # Unlike NSActivityBackground, this keeps user work out of App Nap; unlike
+        # NSActivityUserInitiated, it leaves the idle-system-sleep bit clear.
+        assert options == 0x00EFFFFF
+        assert options & (1 << 20) == 0  # NSActivityIdleSystemSleepDisabled
+        assert options & (1 << 40) == 0  # NSActivityIdleDisplaySleepDisabled
+        assert reason == "export mix"
 
 
 def test_hold_releases_when_the_work_raises():

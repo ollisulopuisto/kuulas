@@ -8,11 +8,10 @@ processes (``kuulas_recorder``, ``bgjobs.py``) and are never napped, and
 their machine-wide ``caffeinate`` assertions stay as they are; this module
 covers only what runs in the editor process itself.
 
-``hold(reason)`` brackets the work with an ``NSProcessInfo`` activity. The
-option is ``NSActivityBackground`` on purpose: it only makes the app
-ineligible for App Nap. The user-initiated option would also keep the
-*display* awake for the whole render, which is the opposite of saving
-power; the machine must still sleep on its normal schedule.
+``hold(reason)`` brackets the work with an ``NSProcessInfo`` activity.
+``NSActivityUserInitiatedAllowingIdleSystemSleep`` keeps this user-requested
+work out of App Nap while leaving the system and display sleep flags clear.
+The machine can still sleep on its normal schedule.
 
 Off macOS, without PyObjC, or if the assertion itself fails, ``hold`` is a
 no-op: the job still runs, the OS simply keeps its default heuristics.
@@ -29,9 +28,10 @@ from typing import Any
 
 log = logging.getLogger("kuulas.nap")
 
-#: NSActivityBackground from NSProcessInfo.h: background work of indefinite
-#: length; holds off App Nap and nothing else (no display/idle-sleep effect).
-NS_ACTIVITY_BACKGROUND = 0x000000FF
+#: NSActivityUserInitiatedAllowingIdleSystemSleep from NSProcessInfo.h.
+#: User-initiated work is not throttled by App Nap, while the idle-system-sleep
+#: and idle-display-sleep disabled flags remain clear.
+NS_ACTIVITY_USER_INITIATED_ALLOWING_IDLE_SYSTEM_SLEEP = 0x00EFFFFF
 
 
 @contextlib.contextmanager
@@ -59,7 +59,7 @@ def hold(reason: str, *, platform: str | None = None,
     token = None
     try:
         token = process_info.beginActivityWithOptions_reason_(
-            NS_ACTIVITY_BACKGROUND, reason)
+            NS_ACTIVITY_USER_INITIATED_ALLOWING_IDLE_SYSTEM_SLEEP, reason)
     except Exception as e:  # noqa: BLE001 - see the docstring
         log.debug("could not hold off App Nap for %r: %s", reason, e)
     try:

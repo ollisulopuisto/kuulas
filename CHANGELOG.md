@@ -1,3 +1,17 @@
+## [v26.10.31.3] - 2026-10-31
+
+- **Long-running editor jobs avoid App Nap.** In-process jobs now use the user-initiated activity that allows normal system and display sleep.
+- **Help > What's new is wired consistently.** Its command is in the keymap data, and version/date headings use English and Finnish strings.
+- Includes the latest editor follow-through: reviewable block levelling, overview cut candidates, transcript history, and recording feedback improvements.
+
+## [v26.10.31.2] - 2026-10-31
+
+- **Review block levelling before applying it.** The result shows its measured level, deviation and proposed gain, plus how many blocks, tracks and speakers the checked rows will affect. Unchecking rows updates the impact summary.
+- **CI uses Node 24.** Update the changed-path filter action and test runtime to versions compatible with GitHub's removal of the Node 20 runner.
+- **Short-project shuttle tests account for the final partial grain.** A pitch-preserving shuttle may output one minimum-length grain before stopping at the exact project end.
+
+## [Unreleased]
+
 ## [v26.10.30.6] - 2026-10-30
 
 - **Recording health stays visible after a take.** Import notices report input overflows and recorder-inserted silence, and remain until dismissed.
@@ -14,8 +28,6 @@
 ## [v26.10.30.4] - 2026-10-30
 
 - **Toolbar: "Transcribe all" instead of "Transcribe this track".** The default toolbar button now transcribes every recording used on any track (music-only recordings stay untouched) on this computer. The per-track command stays in Text > Transcribe; Colab remains a separate noticed choice.
-
-## [Unreleased]
 
 ## [v26.10.30.2] - 2026-10-30
 

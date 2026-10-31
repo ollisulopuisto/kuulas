@@ -3219,7 +3219,8 @@
   "ui.block_level.measuring": "Measuring the speech blocks…",
   "ui.block_level.rule": "Blocks more than {threshold} dB off the speaker's own level are levelled: cuts up to {cut} dB, boosts up to {boost} dB.",
   "ui.block_level.blocks": "Blocks to level",
-  "ui.block_level.row": "{start}–{end}: {deviation} dB off its level, gain {gain} dB",
+  "ui.block_level.row": "{start}–{end} · measured {level} dB · {deviation} dB from the speaker's level · apply {gain} dB",
+  "ui.block_level.summary": "Selected to level — {blocks} blocks · {tracks} tracks · {speakers} speakers.",
   "ui.block_level.speaker": "{name}",
   "ui.block_level.none": "No block needs levelling.",
   "ui.block_level.left": "{count} other blocks are within {threshold} dB and are left alone.",
@@ -3498,7 +3499,9 @@
   "error.backup.identity_mismatch": "The reconstructed incremental backup does not match its recorded identity.",
   "log.package.backup_gc_skipped": "Shared backup data was kept because an incremental backup reference could not be read.",
   "cmd.help.whats_new": "What's new",
+  "cmd.help.whats_new.hint": "Show changes since you last opened Kuulas",
   "ui.whatsnew.title": "What's new",
   "ui.whatsnew.title_in": "What's new in Kuulas {version}",
+  "ui.whatsnew.version_date": "v{version} — {date}",
   "ui.whatsnew.close": "Close"
 }

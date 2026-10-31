@@ -22,32 +22,52 @@ jobs:
     name: Check changed paths
     runs-on: ubuntu-latest
     outputs:
-      code: ${{ steps.filter.outputs.code || steps.manual.outputs.code }}
+      python: ${{ steps.filter.outputs.python || steps.manual.outputs.python }}
+      ui: ${{ steps.filter.outputs.ui || steps.manual.outputs.ui }}
+      lint: ${{ steps.filter.outputs.lint || steps.manual.outputs.lint }}
     steps:
       - name: Filter documentation-only pull requests
         id: filter
         if: github.event_name == 'pull_request'
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         with:
           filters: |
-            code:
-              - '**'
-              - '!docs/**'
-              - '!AGENTS.md'
-              - '!CHANGELOG.md'
-              - '!CLAUDE.md'
-              - '!GEMINI.md'
-              - '!README.md'
-              - '!ROADMAP.md'
+            python:
+              - '**/*.py'
+              - 'src/**'
+              - 'tests/**'
+              - 'src/kuulas/locales/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'scripts/**'
+              - 'docs/KEYS.md'
+              - 'docs/design/**'
+              - '.github/workflows/**'
+            lint:
+              - '**/*.py'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'scripts/**/*.py'
+              - '.github/workflows/**'
+            ui:
+              - 'ui/**'
+              - 'src/kuulas/locales/**'
+              - 'docs/KEYS.md'
+              - 'docs/design/**'
+              - 'scripts/**/*.mjs'
+              - '.github/workflows/**'
       - name: Always run for a manual full-suite request
         id: manual
         if: github.event_name == 'workflow_dispatch'
-        run: echo 'code=true' >> "$GITHUB_OUTPUT"
+        run: |
+          echo 'python=true' >> "$GITHUB_OUTPUT"
+          echo 'ui=true' >> "$GITHUB_OUTPUT"
+          echo 'lint=true' >> "$GITHUB_OUTPUT"
 
-  test:
+  python-tests:
     needs: changes
-    if: needs.changes.outputs.code == 'true'
-    name: test (${{ matrix.os }})
+    if: needs.changes.outputs.python == 'true'
+    name: Python tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -70,7 +90,7 @@ jobs:
       - uses: astral-sh/setup-uv@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: "24"
       # Audio decoding and the export tests need ffmpeg and libsndfile/PortAudio.
       - name: ffmpeg and audio libraries (macOS)
         if: runner.os == 'macOS'
@@ -82,7 +102,6 @@ jobs:
         if: runner.os == 'Windows'
         run: choco install ffmpeg -y --no-progress
       - run: uv sync
-      - run: uv run ruff check .
       - name: Prepare pytest report directory
         run: uv run python -c "from pathlib import Path; Path('test-results').mkdir(exist_ok=True)"
       - name: Python tests (Windows editor coverage; omit platform-only integration)
@@ -124,5 +143,41 @@ jobs:
           name: pytest-report-${{ matrix.os }}
           path: kuulas/test-results/pytest.xml
           if-no-files-found: warn
+
+  python-lint:
+    needs: changes
+    if: needs.changes.outputs.lint == 'true'
+    name: Python lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kuulas
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: kuulas
+      - uses: actions/checkout@v7
+        with:
+          repository: ollisulopuisto/podcast
+          path: podcast
+      - uses: astral-sh/setup-uv@v7
+      - run: uv sync
+      - run: uv run ruff check .
+
+  ui-tests:
+    needs: changes
+    if: needs.changes.outputs.ui == 'true'
+    name: UI tests and lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kuulas
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: kuulas
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
       - run: node --test ui/tests/*.test.js
       - run: npx --yes @biomejs/biome@2.2.4 check ui/

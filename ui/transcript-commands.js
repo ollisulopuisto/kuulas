@@ -4,9 +4,9 @@
 // in keymap-default.js, under the "transcript" context.
 import { autoName, clipsInRange, describeClips } from "./clipboard.js";
 import {
+  correctableWordRange,
   cutRange,
   cutWordsPlan,
-  correctableWordRange,
   deleteWordsPlan,
   noSelection,
   ownerTracks,

@@ -5,7 +5,12 @@ import { backingSize } from "./canvas-size.js";
 import { formatClock } from "./i18n.js";
 import { siblingsOf } from "./labels.js";
 import { projectEnd } from "./lanes.js";
-import { audibleSegments, overviewMarks, overviewRuns } from "./overview-segments.js";
+import {
+  audibleSegments,
+  overviewCandidateTicks,
+  overviewMarks,
+  overviewRuns,
+} from "./overview-segments.js";
 import { trackHues } from "./paint.js";
 import { readTheme } from "./theme.js";
 import { overviewScroll, overviewWindow } from "./view.js";
@@ -83,6 +88,11 @@ export function createOverview({
         );
       }
     });
+    context.globalAlpha = 0.9;
+    context.fillStyle = theme.candidate;
+    for (const tick of overviewCandidateTicks(state.candidates, total, width)) {
+      context.fillRect(tick.x, plotTop, 1.5, Math.max(1, height - plotTop - 2));
+    }
     context.globalAlpha = 1;
     // Clips of the selected clip's recording, wherever they are in the edit.
     const siblings = siblingsOf(state.project, state.selection);

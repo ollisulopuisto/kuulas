@@ -1,4 +1,5 @@
 import { enhanceDialog } from "./dialog-keys.js";
+
 // Help > What's New… and the after-upgrade showing: the server's /api/whats-new
 // reads the shipped CHANGELOG.md, so the dialog only lays the entries out. The
 // changelog's own markdown is plain: "- **Lead.** text" bullets; render exactly
@@ -70,7 +71,10 @@ export function createWhatsNewDialog({ api, t, onShown }) {
       const section = document.createElement("section");
       const sub = document.createElement("h3");
       sub.className = "whatsnew-version";
-      sub.textContent = `v${entry.version} - ${entry.date}`;
+      sub.textContent = t("ui.whatsnew.version_date", {
+        version: entry.version,
+        date: entry.date,
+      });
       section.append(sub);
       renderBody(section, entry.body);
       body.append(section);
