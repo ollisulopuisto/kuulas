@@ -190,7 +190,6 @@ import { createSilencePanel } from "./silence-panel.js";
 import { inactiveStyleChoice } from "./silence-visuals.js";
 import { createSlowHold, normaliseSlow, slowSpeed } from "./slow-hold.js";
 import { createStatsDialog } from "./stats-dialog.js";
-import { createWhatsNewDialog } from "./whatsnew-dialog.js";
 import { nextStopMode } from "./stop-mode.js";
 import { anchorPatch, getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
 import { createSyncConfirm } from "./sync-confirm.js";
@@ -236,6 +235,7 @@ import { createTransport } from "./transport.js";
 import { noteUse, readUse, writeUse } from "./use-hints.js";
 import * as View from "./view.js";
 import { changeKey, createSaver, recordOf, restoreFrom } from "./view-memory.js";
+import { createWhatsNewDialog } from "./whatsnew-dialog.js";
 import { nextWheelMode, wheelModeChoice } from "./wheel.js";
 
 const $ = (id) => document.getElementById(id);

@@ -190,8 +190,7 @@ export function importedMessage(result, t, formatNumber = (value) => String(valu
       take: result.take,
       names: result.failed_channels.join(", "),
     });
-  else if (result.interrupted)
-    message = t("ui.record.imported_interrupted", { take: result.take });
+  else if (result.interrupted) message = t("ui.record.imported_interrupted", { take: result.take });
   else if (result.gaps > 0)
     message = t("ui.record.imported_gaps", { take: result.take, count: result.gaps });
   else message = t("ui.record.imported", { take: result.take, count: result.clips });
