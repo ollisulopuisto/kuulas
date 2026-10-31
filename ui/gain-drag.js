@@ -1,7 +1,7 @@
 // Dragging a clip's gain line and fade handles (WP6). Pure: what the pointer hits, the value
 // it gives and the edit to send. Both edits are `set_clip` with a coalesce key, so a whole
 // drag is one undo step; the keyboard (+/-, Mod+F) and the inspector set the same fields.
-import { lineValueAt, togglePoint } from "./envelope-edit.js";
+import { lineValueAt, movePoint, togglePoint } from "./envelope-edit.js";
 import { dbToY, yToDb } from "./lanes.js";
 
 /** How close (px) the pointer must be to the gain line. */
@@ -57,6 +57,46 @@ export function envelopeChange(clipId, points) {
     args: { clip_id: clipId, points },
     labelKey: "ui.clipdrag.envelope",
   };
+}
+
+/** The coalescing key used by every update in one point drag. */
+export function envelopeDragChange(clipId, points) {
+  return {
+    ...envelopeChange(clipId, points),
+    coalesce: `clip-envelope-${clipId}`,
+  };
+}
+
+/** A hit point on a clip, with trim edges retaining priority. */
+export function envelopePointZone(hit) {
+  if (
+    !hit?.clip ||
+    hit.row?.kind !== "track" ||
+    hit.edge ||
+    !Number.isInteger(hit.point) ||
+    !hit.clip.envelope?.[hit.point]
+  ) {
+    return null;
+  }
+  return { kind: "envelope", point: hit.point };
+}
+
+/** Move an envelope point from pointer coordinates, preserving where it was grabbed. */
+export function envelopeMove(
+  clip,
+  index,
+  { timelineFrame, rowHeight, rowY, grabFrames = 0, grabY = 0 },
+) {
+  const points = clip.envelope ?? [];
+  if (rowHeight < MIN_LANE_FOR_HANDLES || !points[index]) return points;
+
+  const timeline = Math.max(
+    clip.start,
+    Math.min(clip.start + clip.length, timelineFrame - grabFrames),
+  );
+  const sourceFrame = Math.round(clip.offset + (timeline - clip.start));
+  const db = Math.round((yToDb(rowY - grabY, rowHeight) - (clip.gain_db ?? 0)) * 10) / 10;
+  return movePoint(points, index, sourceFrame, db);
 }
 
 /** How far (px) below the line the press landed, so the line does not jump to the pointer. */

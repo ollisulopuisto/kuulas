@@ -30,6 +30,9 @@ import { clampImplicitEdge, edgeGhost, ghostGeometry, resolveEdge } from "./edge
 import { inactiveTracks } from "./focus-layout.js";
 import { frameToTime, frameToX, xToFrame } from "./format.js";
 import {
+  envelopeDragChange,
+  envelopeMove,
+  envelopePointZone,
   envelopeToggle,
   fadeFromX,
   fadeHandleAt,
@@ -1902,7 +1905,11 @@ export function createTimeline({
     // Cmd/Ctrl over an edge: it trims only this clip, shown by a different cursor.
     if (cursor && edgeMod(event) && !event.altKey) cursor = "col-resize";
     const zone = tweakZone(hit, event, state.selection);
-    if (!cursor && zone) cursor = zone.kind === "gain" ? "ns-resize" : "ew-resize";
+    if (!cursor && zone) {
+      if (zone.kind === "gain") cursor = "ns-resize";
+      else if (zone.kind === "envelope") cursor = "move";
+      else cursor = "ew-resize";
+    }
     if (!cursor && canStartClipDrag(hit)) {
       // The hand shows where a plain drag moves the clip: everywhere in move mode, only on the
       // label strip in range mode (where the rest of the clip paints a range).
@@ -2220,10 +2227,12 @@ export function createTimeline({
       startClip(hit, event, before, portionDragEdit(getState().project, hit, before));
   });
 
-  // Dragging a clip's gain line or a fade handle (WP6): live edits (coalesced by the app, so
-  // one undo step); Esc puts the value back. A press that does not travel DRAG_PX is a click.
+  // Dragging a clip's gain line, envelope point or fade handle (WP6): live edits (coalesced by
+  // the app, so one undo step); Esc puts the value back. A short press is a click.
   function tweakZone(hit, event, selection) {
     if (!hit.clip || hit.row?.kind !== "track" || hit.edge) return null;
+    const pointZone = envelopePointZone(hit);
+    if (pointZone) return pointZone;
     const state = getState();
     const x = locate(event).x;
     const rowY = rowYOf(event, hit);
@@ -2242,18 +2251,40 @@ export function createTimeline({
 
   function startTweak(hit, event, zone) {
     const clip = hit.clip;
+    const origin = locate(event);
+    const rowY = rowYOf(event, hit);
+    const envelopePoint = zone.kind === "envelope" ? clip.envelope[zone.point] : null;
+    const pointY = envelopePoint
+      ? dbToY((clip.gain_db ?? 0) + envelopePoint[1], hit.row.height)
+      : null;
+    let start;
+    let grab;
+    if (zone.kind === "gain") {
+      start = clip.gain_db ?? 0;
+      grab = gainGrab(clip, hit.row.height, rowY);
+    } else if (zone.kind === "envelope") {
+      start = clip.envelope.map(([frame, db]) => [frame, db]);
+      grab = {
+        frames: hit.frame - envelopeFrame(clip, envelopePoint[0]),
+        y: rowY - pointY,
+      };
+    } else {
+      start = clip[`fade_${zone.side}`];
+      grab = 0;
+    }
     tweakSession = {
       kind: zone.kind,
       side: zone.side ?? null,
+      point: zone.point ?? null,
       clipId: clip.id,
       trackId: hit.row.id,
       rowHeight: hit.row.height,
-      origin: locate(event),
+      origin,
       pointerId: event.pointerId,
       dragging: false,
       seekFrame: hit.frame,
-      start: zone.kind === "gain" ? (clip.gain_db ?? 0) : clip[`fade_${zone.side}`],
-      grab: zone.kind === "gain" ? gainGrab(clip, hit.row.height, rowYOf(event, hit)) : 0,
+      start,
+      grab,
       value: null,
     };
     overlayCanvas.setPointerCapture?.(event.pointerId);
@@ -2262,7 +2293,10 @@ export function createTimeline({
 
   function sendTweak(session, value) {
     if (session.kind === "gain") actions.clipGain({ clipId: session.clipId, gain: value });
-    else actions.clipFade({ clipId: session.clipId, side: session.side, frames: value });
+    else if (session.kind === "envelope") {
+      const { coalesce } = envelopeDragChange(session.clipId, value);
+      actions.clipEnvelope({ clipId: session.clipId, points: value, coalesce });
+    } else actions.clipFade({ clipId: session.clipId, side: session.side, frames: value });
   }
 
   function updateTweak(event) {
@@ -2282,7 +2316,15 @@ export function createTimeline({
     const value =
       session.kind === "gain"
         ? gainFromY(session.rowHeight, rowY, session.grab)
-        : fadeFromX(clip, session.side, {
+        : session.kind === "envelope"
+          ? envelopeMove(clip, session.point, {
+              timelineFrame: xToFrame(point.x, state.scroll, state.zoom),
+              rowHeight: session.rowHeight,
+              rowY,
+              grabFrames: session.grab.frames,
+              grabY: session.grab.y,
+            })
+          : fadeFromX(clip, session.side, {
             startFade: session.start,
             startX: session.origin.x,
             x: point.x,
