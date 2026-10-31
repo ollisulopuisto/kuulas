@@ -310,7 +310,7 @@ plugin on a voice, undo anything, export a mastered file.
 
 | Order | WP | Size | Hard part | Model |
 |---|---|---|---|---|
-| 26 | WP28 focus mode | M | lane layout, speaker focus, solo restore | Sonnet 5.5 |
+| 26 | ✓ WP28 focus mode | M | shipped; focused editable automation-band treatment parked | Sonnet 5.5 |
 | 27 | WP43 narration placeholders | M | estimated length, replace with a take | Sonnet 5.5 |
 | 28 | WP18 cut candidates | M | recording-clock anchoring (later WPs reuse it) | **Opus 5.5** |
 | 29 | WP19f spot | S | parsing | Haiku 5.5 |
@@ -2409,32 +2409,32 @@ one frame), `test_words_line_up_after_rate_change` (within 1 ms),
 
 ### WP28 — Focus mode: one track at a time
 
-Status: open. Needs WP4, WP5, WP22. Sonnet 5.5. Decided by Opus from
-`docs/OPUS-BRIEF.md`.
+Status: core WP28 is done and wired (v26.10.20.37). Current behavior and keys
+are documented in [Focus Mode](design/FOCUS-MODE.md), section 8. The focused
+editable automation-band treatment below remains a parked follow-up; focus
+history and following the active speaker are parked v2 ideas. Sonnet 5.5.
+Decided by Opus from `docs/OPUS-BRIEF.md`.
 
 Focus changes what you **see**; solo changes what you **hear**. They are
-separate, with one key that does both.
+separate, with Alt+Shift+F combining them.
 
 First version:
 
-- **F** toggles focus on the focused track (the track the ↑/↓ cursor is
-  on, WP5). **Esc** leaves focus. While focused, ↑/↓ moves focus to the next
-  track, so you can walk through the tracks one at a time.
+- **Shift+F** focuses the current speaker; **Alt+Shift+F** also solos that
+  speaker. Plain F remains Fit selection. **Esc** leaves focus after clearing
+  the current selection and marks. Up/Down moves focus by speaker.
 - **Speaker focus is the default unit.** Focusing a track focuses every track
   with the same speaker (WP22), so one person's split tracks expand together.
-- **Auto-shrink:** the focused lanes take all the remaining height; every
-  other lane shrinks to a 16 px strip showing its name, its half waveform and
-  its clip edges. Sync stays visible at a glance. The shrink animates over
-  120 ms, or instantly under `prefers-reduced-motion`. A setting turns
-  auto-shrink off (then focus only highlights the lane).
-- **Shift+F** focuses and solos (exclusive, WP24.1). Leaving focus restores
-  the solo set as it was before; focus remembers it.
-- **The transcript follows focus:** other speakers' words are dimmed, not
-  hidden, so the conversation still reads. A toggle (Alt+F) hides them
-  instead.
-- **The focused track's automation** (ducking, gain) is drawn as an editable
-  band under its waveform at a readable height, so ducking can be corrected in
-  place.
+- **Auto-shrink:** the focused speaker's lanes grow; the others share about
+  40% of available height, between 16 and 64 px each, keeping waveforms and
+  clip edges readable. The 120 ms resize respects reduced motion and does not
+  move lanes during playback or a drag. A setting turns resizing off.
+- **Solo is optional.** Alt+Shift+F also solos the focused speaker; leaving
+  focus restores the previous solo set.
+- **The transcript follows focus:** other speakers' words are dimmed, or
+  hidden with Alt+F.
+- **Parked follow-up:** draw the focused track's automation (ducking, gain) as
+  an editable band under its waveform at a readable height.
 - "Focus on a clip" is not a new feature: Mod+H (zoom to selection) with focus
   on already gives it.
 
@@ -2444,10 +2444,10 @@ focus), and focus that follows whoever is talking during playback.
 Focus, the remembered solo set and the lane heights are UI state: never in
 history and never in the project file.
 
-Tests (pure functions, `node --test`): lane layout given focus (heights sum
-to the viewport; strips 16 px; focused lanes share the rest), speaker focus
-expands every track of the speaker, Shift+F then Esc restores the previous
-solo set, ↑/↓ in focus moves focus.
+Tests (`ui/tests/focus-mode.test.js` and related UI tests): lane layout given
+focus (heights sum to the viewport; reduced lane heights stay readable, focused
+lanes share the rest), speaker focus expands every track of the speaker,
+Alt+Shift+F then Esc restores the previous solo set, ↑/↓ in focus moves focus.
 
 ---
 
