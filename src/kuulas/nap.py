@@ -3,10 +3,15 @@
 Exports, masters, automixes and analyses run on the editor's own job pool
 (``jobs.py``). When every Kuulas window is hidden, App Nap may throttle the
 process — timers coalesce and CPU priority drops — and a forty-minute
-master render crawls. Recording and transcription are separate worker
-processes (``kuulas_recorder``, ``bgjobs.py``) and are never napped, and
-their machine-wide ``caffeinate`` assertions stay as they are; this module
-covers only what runs in the editor process itself.
+master render crawls.
+
+Recording and transcription run in separate worker processes
+(``kuulas_recorder``, ``bgjobs.py``). App Nap's candidacy rules are
+app-centric (foreground, windows, audible), so a plain worker process is
+not itself a candidate — but a worker spawned while its editor parent is
+napped can inherit the lowered scheduling priority, and the editor is what
+dispatches and reports on that work. Their machine-wide ``caffeinate``
+assertions stay as they are; this module covers the editor process itself.
 
 ``hold(reason)`` brackets the work with an ``NSProcessInfo`` activity.
 ``NSActivityUserInitiatedAllowingIdleSystemSleep`` keeps this user-requested
