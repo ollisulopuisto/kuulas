@@ -33,6 +33,27 @@ describe("normalise", () => {
   });
 });
 
+describe("findMatches caching and performance", () => {
+  test("successive queries with the same words array yield consistent results", () => {
+    const words = [
+      { w: "First", track: "t1" },
+      { w: "second", track: "t1" },
+      { w: "third", track: "t1" },
+    ];
+    assert.deepEqual(findMatches(words, "fir"), [[0]]);
+    assert.deepEqual(findMatches(words, "sec"), [[1]]);
+    assert.deepEqual(findMatches(words, "first second"), [[0, 1]]);
+  });
+
+  test("different words arrays do not cross-contaminate cached text", () => {
+    const wordsA = [{ w: "Apples", track: "t1" }];
+    const wordsB = [{ w: "Bananas", track: "t1" }];
+    assert.deepEqual(findMatches(wordsA, "app"), [[0]]);
+    assert.deepEqual(findMatches(wordsB, "app"), []);
+    assert.deepEqual(findMatches(wordsB, "ban"), [[0]]);
+  });
+});
+
 const matches = [[2], [5, 6], [9]];
 
 describe("stepping", () => {
