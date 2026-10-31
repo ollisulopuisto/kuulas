@@ -460,6 +460,7 @@ export const SYNONYMS = {
     "pikanäppäimet",
   ],
   "help.open": ["manual", "documentation", "docs", "guide", "ohje", "käyttöohje"],
+  "help.whats_new": ["changelog", "release notes", "new features", "uutiset", "muutosloki"],
   "history.open": ["undo list", "past steps", "versions", "historia", "vaiheet"],
   "history.restore": ["go back to", "revert to", "palauta"],
   "history.rename_version": ["rename version", "rename save", "nimeä versio"],

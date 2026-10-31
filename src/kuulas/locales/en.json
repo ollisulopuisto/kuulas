@@ -3496,5 +3496,9 @@
   "error.backup.chunk_damaged": "The incremental backup contains a damaged chunk.",
   "error.backup.chunk_missing": "The incremental backup is missing a required chunk.",
   "error.backup.identity_mismatch": "The reconstructed incremental backup does not match its recorded identity.",
-  "log.package.backup_gc_skipped": "Shared backup data was kept because an incremental backup reference could not be read."
+  "log.package.backup_gc_skipped": "Shared backup data was kept because an incremental backup reference could not be read.",
+  "cmd.help.whats_new": "What's new",
+  "ui.whatsnew.title": "What's new",
+  "ui.whatsnew.title_in": "What's new in Kuulas {version}",
+  "ui.whatsnew.close": "Close"
 }

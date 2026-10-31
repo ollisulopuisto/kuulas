@@ -3496,5 +3496,9 @@
   "error.backup.chunk_damaged": "Lisävarmuuskopio sisältää vioittuneen lohkon.",
   "error.backup.chunk_missing": "Lisävarmuuskopiosta puuttuu tarvittava lohko.",
   "error.backup.identity_mismatch": "Koottu lisävarmuuskopio ei vastaa tallennettua tunnistetta.",
-  "log.package.backup_gc_skipped": "Jaetut varmuuskopiotiedot säilytettiin, koska yhden lisävarmuuskopion viitetiedostoa ei voitu lukea."
+  "log.package.backup_gc_skipped": "Jaetut varmuuskopiotiedot säilytettiin, koska yhden lisävarmuuskopion viitetiedostoa ei voitu lukea.",
+  "cmd.help.whats_new": "Mitä uutta",
+  "ui.whatsnew.title": "Mitä uutta",
+  "ui.whatsnew.title_in": "Mitä uutta Kuulasessa {version}",
+  "ui.whatsnew.close": "Sulje"
 }
