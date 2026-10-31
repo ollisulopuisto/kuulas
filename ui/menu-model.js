@@ -590,6 +590,7 @@ export const MENU = [
       ]),
       item("help.open"),
       item("help.keys"),
+      item("help.whats_new"),
       {
         kind: "submenu",
         labelKey: "menu.keymap",

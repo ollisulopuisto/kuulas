@@ -190,6 +190,7 @@ import { createSilencePanel } from "./silence-panel.js";
 import { inactiveStyleChoice } from "./silence-visuals.js";
 import { createSlowHold, normaliseSlow, slowSpeed } from "./slow-hold.js";
 import { createStatsDialog } from "./stats-dialog.js";
+import { createWhatsNewDialog } from "./whatsnew-dialog.js";
 import { nextStopMode } from "./stop-mode.js";
 import { anchorPatch, getState, reduceLive, serverPatch, setState, subscribe } from "./store.js";
 import { createSyncConfirm } from "./sync-confirm.js";
@@ -1498,6 +1499,7 @@ const keyboard = setupKeyboard({
     getState,
     patch: setState,
     openHelp: () => void help.open(),
+    openWhatsNew: (after) => openWhatsNew(after),
     revealSidebar: () => setSidebar(true),
     undo: () => undo(),
     redo: () => redo(),
@@ -3042,6 +3044,19 @@ async function openMusicReport() {
   // Like every export: the In/Out range or the selected clips' span is the default (tracks are
   // ignored, the report is about time); the dialog's box turns it off.
   await musicReportDialog.open({ selection: exportSelection(), rate: rate() });
+}
+
+// Help > What's New… (manual: the current version) and the after-upgrade
+// showing (startup: everything since the version last seen). The server reads
+// the shipped CHANGELOG.md, so only released entries ever show.
+let whatsNewDialog = null;
+async function openWhatsNew(after = null) {
+  whatsNewDialog ??= createWhatsNewDialog({
+    api,
+    t,
+    onShown: (version) => prefs.set("whats-new-seen", version),
+  });
+  return whatsNewDialog.open(after);
 }
 
 async function openStatistics() {
@@ -5084,6 +5099,19 @@ connectLive({
 });
 
 installTooltips();
+
+// After an upgrade, once: What's New with everything since the version last
+// seen. No stored version means this feature's first run - show the current
+// version's notes, not the whole history. Never in the way of work: it waits
+// for the first idle moment, and a fetch failure is silence, not an error.
+void (async () => {
+  try {
+    const seen = prefs.get("whats-new-seen");
+    await openWhatsNew(seen);
+  } catch {
+    /* no changelog shipped, no server: nothing to tell */
+  }
+})();
 
 // The long-task monitor of the performance rule (no main-thread task over 16 ms):
 // open the page with ?dev to log every task that breaks it.

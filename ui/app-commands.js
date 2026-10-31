@@ -433,6 +433,7 @@ export function registerAppCommands(registry, { actions, app }) {
   def("palette.open", () => app.openPalette());
   def("help.keys", () => app.openKeys());
   def("help.open", () => app.openHelp());
+  def("help.whats_new", () => app.openWhatsNew(null));
   def("help.search", () => app.openSearch());
   // Help > Record a performance report… and Help > Log level (no project needed: they are
   // about the app, and a slow app is exactly when someone needs them).

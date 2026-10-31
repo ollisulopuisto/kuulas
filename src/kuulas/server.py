@@ -70,11 +70,13 @@ from . import (
     step_names,
     transcribe,
     ui_prefs,
+    whatsnew,
 )
 from . import (
     profiler as profiler_module,
 )
 from .build_info import build_label
+from .build_info import version as build_version
 from .candidates import UnknownCandidateError
 from .hand_adjusted import balance_cap, hand_adjusted
 from .history import HistoryError
@@ -854,6 +856,12 @@ def create_app(session, engine, *, language: str | None = None,
     @app.get("/api/prefs")
     def get_prefs():
         return {"prefs": ui_prefs.load()}
+
+    # -- What's New: shipped changelog entries (Help menu + after an upgrade)
+
+    @app.get("/api/whats-new")
+    def get_whats_new(after: str | None = None):
+        return whatsnew.whats_new(after, build_version() or "")
 
     @app.put("/api/prefs")
     def put_prefs(body: Annotated[dict[str, Any], Body()]):
