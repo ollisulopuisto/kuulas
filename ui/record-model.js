@@ -211,3 +211,11 @@ export function importedMessage(result, t, formatNumber = (value) => String(valu
     ? t("ui.record.imported_health", { message, details: health.join(" ") })
     : message;
 }
+
+/** Imported notices with capture problems stay visible until the user dismisses them. */
+export function importedNoticeOptions(result) {
+  return {
+    undo: true,
+    sticky: Number(result?.overflows) > 0 || Number(result?.dropouts) > 0,
+  };
+}

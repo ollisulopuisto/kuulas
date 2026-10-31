@@ -11,5 +11,6 @@ The transcript is the words of every speech track, in time order, with the speak
 - Delete the selected words: {key:edit.delete}. They leave the transcript and the gap stays in the audio. The transcript shows only what is heard, so muted and Auto-Silence-closed words are not drawn either.
 - Cut them: {key:edit.cut}. Before the cut, the transcript shows what else would go: words other speakers say in the same stretch.
 - {key:transport.play} still plays and stops; {key:nav.home} returns to the timeline.
+- Replacing or correcting a transcript is undoable: Undo and Redo switch between saved transcript revisions and never run transcription again. Ordinary timeline edits do not remove transcript material.
 
 Words removed by a cut leave a small marker; the Cuts list can put them back. See also [[clip]].

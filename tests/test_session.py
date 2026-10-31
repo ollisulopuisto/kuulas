@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-from kuulas import messages, transcript
+from kuulas import bgjobs, messages, transcript
 from kuulas import session as session_module
 from kuulas.clock import FLICKS, flicks_to_frames
 from kuulas.history import HistoryError
@@ -371,6 +371,43 @@ def test_set_transcript_is_undoable(session, tmp_path):
     assert session.transcripts()[media_id][0]["w"] == "one"
     session.undo()
     assert session.transcripts() == {}
+
+
+def test_replacing_a_transcript_undoes_and_redoes_saved_revisions_without_work(
+        session, tmp_path, monkeypatch):
+    session.import_media([str(wav(tmp_path / "a.wav", 3.0))])
+    media_id = session.state.media[0].id
+    first = words(("one", 0.0, 0.4))
+    second = words(("won", 0.0, 0.4))
+    session.set_transcript(media_id, first, "transcribed")
+    session.set_transcript(media_id, second, "replacement")
+
+    workers = []
+    def launch_worker(path):
+        workers.append(path)
+
+    monkeypatch.setattr(bgjobs, "launch_worker", launch_worker)
+    submitted = []
+    real_submit = session.jobs.submit
+
+    def submit(*args, **kwargs):
+        submitted.append((args, kwargs))
+        return real_submit(*args, **kwargs)
+
+    monkeypatch.setattr(
+        session.jobs,
+        "submit",
+        submit,
+    )
+
+    session.undo()
+    assert session.transcripts()[media_id] == first
+    assert workers == []
+    assert submitted == []
+    session.redo()
+    assert session.transcripts()[media_id] == second
+    assert workers == []
+    assert submitted == []
 
 
 def test_correcting_a_word_range_merges_and_undoes_as_one_revision(session, tmp_path):

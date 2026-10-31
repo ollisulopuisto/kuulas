@@ -21,7 +21,7 @@
 
 1. Add failing pure-model tests for an impact summary (changed blocks, affected speakers/tracks, unchanged blocks) and a result level computed from measured level plus proposed gain.
 2. Run the focused Node test and confirm it fails.
-3. Implement the model and render a single-column, readable review list. Each changed row shows time span, measured LUFS, deviation from its speaker reference, gain to apply, and expected resulting level. Keep each row's checkbox and keep loud emphasis spots clearly separate as unchanged.
+3. Implement the model and render a single-column, readable review list. Each changed row shows time span, measured level, deviation from its speaker reference, and gain to apply. Keep each row's checkbox and keep loud emphasis spots clearly separate as unchanged.
 4. Show the aggregate impact before Apply; make the singular case explicit (for example, “1 block across 1 track will change”) so a one-block result is not mistaken for a session-wide operation.
 5. Run focused Node tests and Biome on touched UI files. Update English/Finnish text and document the scope and limits in the help/verification material.
 6. Commit this package independently.

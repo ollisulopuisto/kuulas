@@ -13,7 +13,7 @@ import {
   blockText,
   canApply,
   changedBySpeaker,
-  leftAloneCount,
+  impactSummary,
   loudBySpeaker,
   loudText,
   measureError,
@@ -115,15 +115,28 @@ export function createBlockLevelPanel({ root, api, t, fmt, clock, onApply }) {
     const changed = changedBySpeaker(measured);
     rule.textContent = ruleText(measured, t, fmt);
     rule.hidden = false;
-    if (changed.length === 0) {
-      status.textContent = t("ui.block_level.none");
-    } else {
-      const left = leftAloneCount(measured);
-      status.textContent =
-        left > 0
-          ? t("ui.block_level.left", { count: left, threshold: fmt(measured.threshold_db) })
-          : "";
-    }
+    const updateImpact = () => {
+      if (changed.length === 0) {
+        status.textContent = t("ui.block_level.none");
+        return;
+      }
+      const impact = impactSummary(measured, ticked);
+      apply.disabled = impact.blocks === 0;
+      const left = impact.unchanged;
+      status.replaceChildren(
+        el("span", "block-level-impact", t("ui.block_level.summary", impact)),
+      );
+      if (left > 0) {
+        status.append(
+          el(
+            "span",
+            "block-level-unchanged",
+            t("ui.block_level.left", { count: left, threshold: fmt(measured.threshold_db) }),
+          ),
+        );
+      }
+    };
+    updateImpact();
     for (const speaker of changed) {
       const set = group(speaker.name);
       const choices = el("div", "form-choices");
@@ -135,9 +148,10 @@ export function createBlockLevelPanel({ root, api, t, fmt, clock, onApply }) {
         box.addEventListener("change", () => {
           if (box.checked) ticked.add(row.id);
           else ticked.delete(row.id);
+          updateImpact();
         });
-        const choice = el("label", "form-choice");
-        choice.append(box, el("span", "", blockText(row, rate, t, fmt, clock)));
+        const choice = el("label", "form-choice block-level-choice");
+        choice.append(box, el("span", "block-level-line", blockText(row, rate, t, fmt, clock)));
         choices.append(choice);
       }
       set.append(choices);
@@ -182,7 +196,8 @@ export function createBlockLevelPanel({ root, api, t, fmt, clock, onApply }) {
 
   function setPhase(next) {
     phase = next;
-    apply.disabled = !canApply(phase);
+    apply.disabled = !canApply(phase) ||
+      (phase === "ready" && impactSummary(measured, ticked).blocks === 0);
     again.disabled = phase === "measuring";
     if (phase === "stale") {
       bar.hidden = true;

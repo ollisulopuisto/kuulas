@@ -2,10 +2,15 @@
 
 ## Normal pull requests
 
-Pull requests that change code run the full lint and test suite on macOS and
-Linux. A docs-only change skips that 2,850-minute Python test workload. Merging
-does not run the same two-platform suite again on `main`; this avoids paying
-for an identical second run after the required pull request checks passed.
+Pull requests run independent jobs in parallel, selected by the files they
+touch. Python changes run the full pytest suite on macOS and Linux plus Ruff on
+Linux. UI, locale, generated-key and prototype changes run the full Node suite
+and Biome on Linux. Workflow changes run both groups. The workflow uses Node 24
+for UI tests and Node 24-compatible GitHub Actions; the changed-path filter runs
+on `dorny/paths-filter@v4`. Documentation-only changes skip these code checks.
+A manual `workflow_dispatch` runs every group. Merging does not run the same
+two-platform Python suite again on `main`; this avoids paying for an identical
+second run after the required pull request checks passed.
 
 The Linux desktop smoke check runs only when the desktop wrapper, its tests,
 or Python dependency configuration changes. Run it manually from Actions when

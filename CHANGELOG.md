@@ -15,6 +15,12 @@
 
 - **Toolbar: "Transcribe all" instead of "Transcribe this track".** The default toolbar button now transcribes every recording used on any track (music-only recordings stay untouched) on this computer. The per-track command stays in Text > Transcribe; Colab remains a separate noticed choice.
 
+## [v26.10.31.2] - 2026-10-31
+
+- **Review block levelling before applying it.** The result shows its measured level, deviation and proposed gain, plus how many blocks, tracks and speakers the checked rows will affect. Unchecking rows updates the impact summary.
+- **CI uses Node 24.** Update the changed-path filter action and test runtime to versions compatible with GitHub's removal of the Node 20 runner.
+- **Short-project shuttle tests account for the final partial grain.** A pitch-preserving shuttle may output one minimum-length grain before stopping at the exact project end.
+
 ## [Unreleased]
 
 ## [v26.10.30.2] - 2026-10-30
