@@ -4277,11 +4277,12 @@ const timeline = createTimeline({
       });
     },
     // Double-click on the gain line: the envelope's new points, one undo step.
-    clipEnvelope({ clipId, points }) {
+    clipEnvelope({ clipId, points, coalesce }) {
       const { op, args, labelKey } = envelopeChange(clipId, points);
       editor.change({
         op,
         args,
+        coalesce,
         label: t(labelKey),
         provisional: (p) => patchClip(p, clipId, { envelope: points }),
       });
