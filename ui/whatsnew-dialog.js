@@ -72,7 +72,7 @@ export function createWhatsNewDialog({ api, t, onShown }) {
       const section = document.createElement("section");
       const sub = document.createElement("h3");
       sub.className = "whatsnew-version";
-      sub.textContent = `v${entry.version} - ${entry.date}`;
+      sub.textContent = t("ui.whatsnew.version_line", { version: entry.version, date: entry.date });
       section.append(sub);
       renderBody(section, entry.body);
       body.append(section);
