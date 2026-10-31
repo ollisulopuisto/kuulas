@@ -3500,8 +3500,8 @@
   "log.package.backup_gc_skipped": "Jaetut varmuuskopiotiedot säilytettiin, koska yhden lisävarmuuskopion viitetiedostoa ei voitu lukea.",
   "cmd.help.whats_new": "Mitä uutta",
   "cmd.help.whats_new.hint": "Näytä muutokset, kun Kuulasta on viimeksi käytetty",
-  "ui.whatsnew.title": "Mitä uutta",
-  "ui.whatsnew.title_in": "Mitä uutta Kuulasessa {version}",
+  "ui.whatsnew.title": "Kuulas: mitä uutta?",
+  "ui.whatsnew.title_in": "Kuulas: mitä uutta? — {version}",
   "ui.whatsnew.version_date": "v{version} — {date}",
   "ui.whatsnew.close": "Sulje"
 }

@@ -3500,8 +3500,8 @@
   "log.package.backup_gc_skipped": "Shared backup data was kept because an incremental backup reference could not be read.",
   "cmd.help.whats_new": "What's new",
   "cmd.help.whats_new.hint": "Show changes since you last opened Kuulas",
-  "ui.whatsnew.title": "What's new",
-  "ui.whatsnew.title_in": "What's new in Kuulas {version}",
+  "ui.whatsnew.title": "Kuulas: What's new?",
+  "ui.whatsnew.title_in": "Kuulas: What's new? — {version}",
   "ui.whatsnew.version_date": "v{version} — {date}",
   "ui.whatsnew.close": "Close"
 }
