@@ -1872,7 +1872,12 @@ export const DEFAULT_KEYMAP = [
     labelKey: "cmd.help.search",
   },
   { id: "help.keys", keys: { mac: "?", other: "?" }, context: "global", labelKey: "cmd.help.keys" },
-  { id: "help.whats_new", keys: { mac: null, other: null }, context: "global", labelKey: "cmd.help.whats_new" },
+  {
+    id: "help.whats_new",
+    keys: { mac: null, other: null },
+    context: "global",
+    labelKey: "cmd.help.whats_new",
+  },
   {
     id: "keymap.import",
     keys: { mac: null, other: null },

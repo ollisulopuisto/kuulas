@@ -4,7 +4,15 @@ import { createRegistry } from "../commands.js";
 import { chosenWords, registerTranscriptCommands } from "../transcript-commands.js";
 import { extendTo, placeCursor, selectWord } from "../transcript-model.js";
 
-const word = (w, s, e, track = "a", index = 0) => ({ w, s, e, track, clip: "c", media: track, index });
+const word = (w, s, e, track = "a", index = 0) => ({
+  w,
+  s,
+  e,
+  track,
+  clip: "c",
+  media: track,
+  index,
+});
 const words = [word("a", 0, 50), word("b", 60, 120), word("c", 300, 350, "b")];
 const project = {
   rate: 100,
@@ -135,7 +143,11 @@ describe("transcript commands", () => {
   });
 
   test("Enter corrects a contiguous selection or the word under the cursor", () => {
-    const multi = [word("Tän", 0, 20, "a", 0), word("on", 20, 40, "a", 1), word("noin", 40, 70, "a", 2)];
+    const multi = [
+      word("Tän", 0, 20, "a", 0),
+      word("on", 20, 40, "a", 1),
+      word("noin", 40, 70, "a", 2),
+    ];
     const multiState = stateWith(extendTo(placeCursor(0), 2), { words: multi });
     const { registry, calls } = setup(multiState);
     assert.equal(registry.can("transcript.correct", stateWith(selectWord(1))), true);

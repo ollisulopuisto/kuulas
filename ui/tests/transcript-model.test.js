@@ -4,9 +4,9 @@ import {
   alsoRemovedIndices,
   buildParagraphs,
   collateralBand,
+  correctableWordRange,
   cutRange,
   cutWordsPlan,
-  correctableWordRange,
   DEFAULT_PAUSE_CHOICE,
   deleteSpan,
   deleteWordsPlan,
@@ -78,7 +78,10 @@ describe("transcript correction ranges", () => {
     assert.equal(correctableWordRange(words, [1, 3]), null);
     assert.equal(
       correctableWordRange(
-        [{ media: "m", index: 0, spk: "a" }, { media: "m", index: 1, spk: "b" }],
+        [
+          { media: "m", index: 0, spk: "a" },
+          { media: "m", index: 1, spk: "b" },
+        ],
         [0, 1],
       ),
       null,
