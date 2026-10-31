@@ -37,7 +37,9 @@ export function createWhatsNewDialog({ api, t, onShown }) {
   const heading = document.createElement("h2");
   heading.id = "whatsnew-title";
   const body = document.createElement("div");
-  body.className = "whatsnew-body";
+  // cheatsheet-body gives the fixed-title / scrolling-body / fixed-footer
+  // split the dialog design intends (max-height + overflow on the body).
+  body.className = "cheatsheet-body whatsnew-body";
   body.setAttribute("aria-live", "polite");
 
   const buttons = document.createElement("div");
@@ -76,6 +78,12 @@ export function createWhatsNewDialog({ api, t, onShown }) {
       body.append(section);
     }
     if (!dialog.open) dialog.showModal();
+    // The changelog always opens at its top, whatever an earlier opening
+    // scrolled to (the rAF pass catches engines that settle scroll late).
+    body.scrollTop = 0;
+    requestAnimationFrame(() => {
+      body.scrollTop = 0;
+    });
     onShown?.(result.version);
     return true;
   }
