@@ -6,7 +6,13 @@ const t = (key, args) => (args ? `${key}:${JSON.stringify(args)}` : key);
 
 test("cornerStopFace: nothing recording -> null (the button stays Record)", () => {
   assert.equal(
-    cornerStopFace({ recording: false, stopping: false, view: { state: "idle" }, mode: "click", t }),
+    cornerStopFace({
+      recording: false,
+      stopping: false,
+      view: { state: "idle" },
+      mode: "click",
+      t,
+    }),
     null,
   );
 });

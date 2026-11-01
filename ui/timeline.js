@@ -1751,7 +1751,11 @@ export function createTimeline({
       const length = session.endFrame === null ? null : session.endFrame - session.startFrame;
       markers = markers.map((marker) =>
         marker.id === session.id
-          ? { ...marker, start: session.frame, end: length === null ? null : session.frame + length }
+          ? {
+              ...marker,
+              start: session.frame,
+              end: length === null ? null : session.frame + length,
+            }
           : marker,
       );
     }
