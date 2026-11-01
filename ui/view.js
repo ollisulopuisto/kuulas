@@ -217,6 +217,13 @@ export function overviewWindow({ total, scroll, zoom, width, strip }) {
   return { x, w };
 }
 
+/** The visible-window box, kept below the overview's time-label row. */
+export function overviewSelectionRect({ total, scroll, zoom, width, strip, top, height }) {
+  const { x, w } = overviewWindow({ total, scroll, zoom, width, strip });
+  const y = Math.max(0, Math.min(height, Number.isFinite(top) ? top : 0));
+  return { x, y, w, h: Math.max(1, height - y - 2) };
+}
+
 /** The scroll that centres the visible part on strip pixel `x`. */
 export function overviewScroll({ total, zoom, width, strip, x }) {
   const centre = (x / strip) * total;

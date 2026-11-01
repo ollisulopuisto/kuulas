@@ -9,6 +9,7 @@ import {
   fitTarget,
   forwardView,
   initialViews,
+  overviewSelectionRect,
   overviewScroll,
   overviewWindow,
   pickAnchor,
@@ -298,6 +299,19 @@ describe("overview strip", () => {
   test("the box shows the visible part of the whole edit", () => {
     const box = overviewWindow({ total: 1000, scroll: 250, zoom: 1, width: 500, strip: 200 });
     assert.deepEqual(box, { x: 50, w: 100 });
+  });
+
+  test("the visible-window highlight starts below the timestamp labels", () => {
+    const rect = overviewSelectionRect({
+      total: 1000,
+      scroll: 250,
+      zoom: 1,
+      width: 500,
+      strip: 200,
+      top: 16,
+      height: 40,
+    });
+    assert.deepEqual(rect, { x: 50, y: 16, w: 100, h: 22 });
   });
 
   test("a click centres the visible part, clamped to the edit", () => {
