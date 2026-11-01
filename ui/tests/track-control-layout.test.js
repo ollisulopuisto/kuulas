@@ -4,6 +4,16 @@ import { test } from "node:test";
 
 const css = readFileSync(new URL("../style.css", import.meta.url), "utf8");
 const source = readFileSync(new URL("../tracks.js", import.meta.url), "utf8");
+const tokens = readFileSync(new URL("../tokens.css", import.meta.url), "utf8");
+
+test("channel header width is compact in both densities and toolbar layouts", () => {
+  assert.equal((tokens.match(/--heads-w:\s*200px/g) || []).length, 2);
+  assert.equal((tokens.match(/--heads-w-min:\s*188px/g) || []).length, 2);
+  assert.equal((tokens.match(/--heads-w-max:\s*300px/g) || []).length, 2);
+  assert.equal((css.match(/--heads-w:\s*calc\(200px \+ var\(--rail-w\)\)/g) || []).length, 2);
+  assert.equal((css.match(/--heads-w-min:\s*calc\(188px \+ var\(--rail-w\)\)/g) || []).length, 2);
+});
+
 test("track controls reserve equal rails and move values above them", () => {
   assert.match(css, /grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1fr\)/);
   assert.match(css, /grid-template-rows: 12px 24px/);

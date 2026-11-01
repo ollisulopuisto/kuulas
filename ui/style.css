@@ -370,8 +370,8 @@ button.chip {
 }
 /* The toolbar rail (WP86): a vertical strip left of the track headers, level with them. The header
    column grows by the rail's width (the corner above it and the timeline and transcript beside it
-   move together), so nothing else in the window changes. 340 and 280 repeat tokens.css's
-   --heads-w and --heads-w-min. */
+   move together), so nothing else in the window changes. The header widths match tokens.css;
+   the toolbar rail is added alongside each one. */
 .heads-row {
   flex: 1;
   min-height: 0;
@@ -379,13 +379,13 @@ button.chip {
 }
 .editor[data-rail="labels"] {
   --rail-w: 124px;
-  --heads-w: calc(260px + var(--rail-w));
-  --heads-w-min: calc(240px + var(--rail-w));
+  --heads-w: calc(200px + var(--rail-w));
+  --heads-w-min: calc(188px + var(--rail-w));
 }
 .editor[data-rail="icons"] {
   --rail-w: 44px;
-  --heads-w: calc(260px + var(--rail-w));
-  --heads-w-min: calc(240px + var(--rail-w));
+  --heads-w: calc(200px + var(--rail-w));
+  --heads-w-min: calc(188px + var(--rail-w));
 }
 .tool-rail {
   flex: none;
