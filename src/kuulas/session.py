@@ -3221,14 +3221,6 @@ class Session:
         done.update(new)
         bgjobs.write_json_atomic(bgjobs.marker_file(folder, job_id),
                                  {"media": done, "reported": True})
-        for what, key in (("added", "notice.transcribe.added"),
-                          ("conflict", "notice.transcribe.conflict"),
-                          ("invalid", "notice.transcribe.invalid"),
-                          ("missing", "notice.transcribe.missing")):
-            listed = [names[m] for m, o in new.items() if o == what]
-            if listed:
-                self._notify("ok" if what == "added" else "error", job_id, key,
-                             names=", ".join(listed))
         if len(done) >= len(names) and all(o == "added" for o in done.values()):
             shown = bgjobs.describe(folder, job_id)
             bgjobs.remove_files(folder, job_id)
@@ -3237,6 +3229,17 @@ class Session:
                                                "progress": 1.0, "error": None}
                 while len(self._finished_jobs) > 20:
                     del self._finished_jobs[next(iter(self._finished_jobs))]
+        # A success notice is the observable completion signal. Publish it only
+        # after finalizing the job so clients cannot see "done" while its files
+        # are still present.
+        for what, key in (("added", "notice.transcribe.added"),
+                          ("conflict", "notice.transcribe.conflict"),
+                          ("invalid", "notice.transcribe.invalid"),
+                          ("missing", "notice.transcribe.missing")):
+            listed = [names[m] for m, o in new.items() if o == what]
+            if listed:
+                self._notify("ok" if what == "added" else "error", job_id, key,
+                             names=", ".join(listed))
 
     def _ingest_one(self, job: dict, job_id: str, media_id: str, mine: bool) -> str:
         """Store one media's result. Returns ``added``, ``conflict`` (the transcript

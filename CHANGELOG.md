@@ -1,3 +1,10 @@
+## [v26.11.1.2] - 2026-11-01
+
+- **Shuttle playback stops at the programme end.** The final grain is shortened so fast playback does not run beyond the last frame.
+- **Live WebSocket requests validate their origin.** Host and Origin checks protect the editor's live API endpoint.
+- **Large waveforms render with less overhead.** Tile lookup and column allocation are more efficient.
+- **What's New opens at the latest notes.** The dialog starts at the top and keeps its close button visible.
+
 ## [v26.11.1.1] - 2026-11-01
 
 - **Move volume-envelope points by dragging.** The grabbed point follows the pointer in time and level, and a whole drag is one undo step. Double-click still adds or removes a point.

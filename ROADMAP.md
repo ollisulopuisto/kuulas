@@ -1,8 +1,8 @@
 # kuulas roadmap
 
-Current release: **v26.11.1.1**, tagged locally on 2026-11-01. It includes
-volume-envelope point dragging and the localized “What's New” title. The
-release notes are in [CHANGELOG.md](CHANGELOG.md). The tag has not been pushed.
+Current release: **v26.11.1.2**, prepared on 2026-11-01. It includes the latest
+shuttle boundary, WebSocket validation, waveform performance and What's New
+dialog fixes. The release notes are in [CHANGELOG.md](CHANGELOG.md).
 
 Kuulas is a keyboard-first, speech-aware multitrack editor for spoken-word
 audio, with transcript and audio edits linked. It is for editing, not recording. Loopback, publishing integrations, advanced recording,

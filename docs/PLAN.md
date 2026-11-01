@@ -1,6 +1,6 @@
 # kuulas implementation plan
 
-**Release v26.11.1.1:** drag volume-envelope control points in time and level, with grab-offset preservation and one undo step per drag. The What's New heading now identifies Kuulas in English and Finnish. Focus mode's completed status is reflected in the roadmap.
+**Release v26.11.1.2:** shuttle playback stops at the programme's last frame; live WebSocket Host/Origin validation; faster waveform tile lookup; the What's New dialog opens at the latest notes and keeps its close button visible. Includes v26.11.1.1's volume-envelope point dragging and localized What's New title.
 
 **Release v26.10.30.6:** post-recording health notices for input overflows and inserted silence; live overview follows a recording's growing end; skip obscured timeline repaints during recording; live waveform draw cost is bounded to the visible window.
 
