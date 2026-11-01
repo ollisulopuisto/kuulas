@@ -475,6 +475,7 @@
   "ui.track.gain": "Track gain",
   "ui.track.pan": "Track pan",
   "ui.bus.name": "Bus: {name}",
+  "ui.bus.rename": "Double-click to rename bus",
   "ui.inspector.clips": "Clips on this track",
   "ui.inspector.clips.empty": "No clips on this track.",
   "ui.inspector.clips.jump": "Select this clip and move the play cursor to it",
