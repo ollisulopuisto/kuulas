@@ -31,6 +31,9 @@ import {
   importedMessage,
   importedNoticeOptions,
   initialRows,
+  liveHits,
+  liveTail,
+  liveTranscriptVisible,
   meterLabels,
   pickDevice,
   recordKeyAction,
@@ -41,6 +44,7 @@ import {
   startRequest,
   stopLabel,
 } from "./record-model.js";
+import { FLICKS_PER_SECOND } from "./source-map.js";
 import { CONFIRM_MS, createStopGesture, STOP_MODES, stopModeChoice } from "./stop-mode.js";
 
 const STOP_MODE_KEY = "recordStopMode";
@@ -70,7 +74,14 @@ function stopIcon() {
   svg.append(
     svgNode("circle", { class: "record-ring-track", cx: 60, cy: 60, r: 52 }),
     svgNode("circle", { class: "record-ring", cx: 60, cy: 60, r: 52 }),
-    svgNode("rect", { class: "record-stop-square", x: 44, y: 44, width: 32, height: 32, rx: 4 }),
+    svgNode("rect", {
+      class: "record-stop-square",
+      x: 44,
+      y: 44,
+      width: 32,
+      height: 32,
+      rx: 4,
+    }),
   );
   return svg;
 }
@@ -124,6 +135,14 @@ export function createRecordView({
   const setupMeters = new Map();
   let liveMeters = [];
   let liveKey = "";
+  // The take-so-far's words (owner, 2026-11-01): fetched from the server, never polled
+  // faster than once a second; a failed fetch never touches the take.
+  let liveWords = [];
+  let liveFlushing = false;
+  let liveFetchBusy = false;
+  let liveFetchAgain = false;
+  let searchHits = [];
+  let searchTimer = null;
 
   /** A meter with its label and its own clip flag; `labelText` also names it for a screen reader. */
   function createMeter(labelText, lufsMode = false) {
@@ -185,7 +204,9 @@ export function createRecordView({
       m.hold.hidden = true;
       m.value.textContent =
         Number.isFinite(m.loudness) && m.loudness > FLOOR_DB
-          ? t("ui.meter.value", { value: formatNumber(m.loudness, { digits: 1 }) })
+          ? t("ui.meter.value", {
+              value: formatNumber(m.loudness, { digits: 1 }),
+            })
           : t("ui.meter.pending");
     } else {
       m.fill.style.width = pct(m.view.bar);
@@ -567,7 +588,10 @@ export function createRecordView({
       } catch (error) {
         notify(error.message);
       }
-      hide();
+      // With a live transcript the view stays open: its words and search are the
+      // point (Esc hides, Space brings it back); without one, the take goes on
+      // behind the editor as before.
+      if (!status?.live_transcript) hide();
     } catch (error) {
       setup.message.textContent = error.message;
       setup.record.disabled = false;
@@ -612,15 +636,124 @@ export function createRecordView({
     for (const type of ["pointerup", "pointercancel"])
       rec.stop.addEventListener(type, () => release());
     rec.stop.addEventListener("lostpointercapture", () => release());
-    box.append(rec.take, rec.elapsed, rec.preroll, rec.meters, rec.disk, rec.notices, rec.stopHelp);
+    rec.liveBox = el("section", "record-transcript");
+    rec.liveBox.hidden = true;
+    const liveHead = el("p", "record-transcript-label", t("ui.record.live_transcript"));
+    rec.liveFlushing = el("span", "record-transcript-flushing", t("ui.record.live_flushing"));
+    rec.liveFlushing.hidden = true;
+    liveHead.append(" ", rec.liveFlushing);
+    rec.liveSearch = el("input", "record-transcript-search");
+    rec.liveSearch.dataset.dialogEnterLocal = ""; // Enter types here, never arms the stop
+    rec.liveSearch.type = "search";
+    rec.liveSearch.placeholder = t("ui.record.live_search");
+    rec.liveSearch.setAttribute("aria-label", t("ui.record.live_search"));
+    rec.liveTail = el("p", "record-transcript-tail");
+    rec.liveTail.setAttribute("aria-live", "polite");
+    rec.liveHits = el("ul", "record-transcript-hits");
+    rec.liveBox.append(liveHead, rec.liveSearch, rec.liveTail, rec.liveHits);
+    rec.liveSearch.addEventListener("input", () => {
+      clearTimeout(searchTimer);
+      const q = rec.liveSearch.value.trim();
+      if (!q) {
+        searchHits = [];
+        renderTranscript();
+        return;
+      }
+      searchTimer = setTimeout(() => void searchLive(q), 300);
+    });
+    box.append(
+      rec.take,
+      rec.elapsed,
+      rec.preroll,
+      rec.meters,
+      rec.disk,
+      rec.notices,
+      rec.liveBox,
+      rec.stopHelp,
+    );
     return box;
+  }
+
+  /** The lane key (track id, or ch<N> before the track exists) -> the track's name. */
+  function liveTrackNames() {
+    // The store keys a lane by its track id, or by ch<N> when the take started
+    // before the track existed: name BOTH keys (the take's status refreshes).
+    const names = {};
+    for (const lane of status?.plan?.lanes ?? []) {
+      names[`ch${lane.channel}`] = lane.track_name;
+      if (lane.track_id) names[lane.track_id] = lane.track_name;
+    }
+    return names;
+  }
+
+  function renderTranscript() {
+    if (!rec.liveBox) return;
+    const visible = liveTranscriptVisible(phase(), liveFlushing);
+    rec.liveBox.hidden = !visible;
+    if (!visible) return;
+    rec.liveFlushing.hidden = !liveFlushing;
+    rec.liveTail.textContent = liveWords.length ? liveTail(liveWords) : t("ui.record.live_none");
+    const query = rec.liveSearch.value.trim();
+    rec.liveHits.hidden = !query;
+    rec.liveHits.replaceChildren(
+      ...liveHits(searchHits, liveTrackNames(), FLICKS_PER_SECOND).map((hit) =>
+        el(
+          "li",
+          "record-transcript-hit",
+          t("ui.record.live_hit", {
+            at: formatElapsed(Math.round(hit.seconds * rate()), rate()),
+            track: hit.track,
+            word: hit.word,
+          }),
+        ),
+      ),
+    );
+  }
+
+  /** The newest words, throttled: a live_transcript frame pokes, this fetches. */
+  async function refreshLive() {
+    if (liveFetchBusy) {
+      liveFetchAgain = true;
+      return;
+    }
+    liveFetchBusy = true;
+    try {
+      const answer = await api.getLiveTranscript();
+      liveWords = answer.words ?? [];
+      liveFlushing = Boolean(answer.flushing);
+      renderTranscript();
+    } catch {
+      // The panel shows what it has; the take is never its business.
+    } finally {
+      liveFetchBusy = false;
+      if (liveFetchAgain) {
+        liveFetchAgain = false;
+        void refreshLive();
+      }
+    }
+  }
+
+  /** The search field's hits (debounced by the input listener). */
+  async function searchLive(q) {
+    try {
+      const answer = await api.getLiveTranscript(q);
+      if (rec.liveSearch.value.trim() !== q) return; // a newer search owns the list
+      searchHits = answer.words ?? [];
+      liveFlushing = Boolean(answer.flushing);
+      renderTranscript();
+    } catch {
+      // As above: the field keeps its last hits.
+    }
   }
 
   /** The take's meters: one per recorded channel, labelled with its track (rebuilt when the lanes change). */
   function renderMeters() {
     const lanes =
       status?.plan?.lanes ??
-      (status?.channels ?? []).map((c) => ({ channel: c.channel, track_name: c.name }));
+      (status?.channels ?? []).map((c) => ({
+        channel: c.channel,
+        track_name: c.name,
+      }));
     const key = lanes.map((l) => `${l.channel}:${l.track_name}`).join("|");
     if (key === liveKey) return;
     liveKey = key;
@@ -655,7 +788,9 @@ export function createRecordView({
   }
 
   function renderRecording() {
-    rec.take.textContent = t("ui.record.recording", { take: status?.take ?? "" });
+    rec.take.textContent = t("ui.record.recording", {
+      take: status?.take ?? "",
+    });
     rec.elapsed.textContent = formatElapsed(shownPosition(), rate());
     const included = Math.round((status?.preroll_frames ?? 0) / rate());
     rec.preroll.textContent =
@@ -665,6 +800,7 @@ export function createRecordView({
     renderMeters();
     renderStop();
     renderNotices();
+    renderTranscript();
   }
 
   // -- the stop gesture ---------------------------------------------------------------
@@ -684,7 +820,10 @@ export function createRecordView({
   let confirmStart = 0;
   function withRemaining(v) {
     if (v.state !== "confirming") return v;
-    return { ...v, remaining: Math.max(0, 1 - (now() - confirmStart) / CONFIRM_MS) };
+    return {
+      ...v,
+      remaining: Math.max(0, 1 - (now() - confirmStart) / CONFIRM_MS),
+    };
   }
   function press() {
     if (!recording() || stopping) return;
@@ -710,7 +849,10 @@ export function createRecordView({
     stopping = true;
     renderStop();
     try {
-      const response = await api.stopRecording({ mode: stopMode, held_ms: heldMs ?? 0 });
+      const response = await api.stopRecording({
+        mode: stopMode,
+        held_ms: heldMs ?? 0,
+      });
       apply(response);
       stopping = false;
       const imported = response.record?.imported;
@@ -900,7 +1042,9 @@ export function createRecordView({
   function renderChip() {
     if (!chip) return;
     chip.hidden = !recording();
-    chip.textContent = t("ui.record.indicator", { time: formatElapsed(shownPosition(), rate()) });
+    chip.textContent = t("ui.record.indicator", {
+      time: formatElapsed(shownPosition(), rate()),
+    });
     chip.title = t("ui.record.indicator_title");
     renderSlim();
   }
@@ -908,6 +1052,13 @@ export function createRecordView({
 
   function setStatus(next) {
     const wasRecording = recording();
+    if (next?.take && next.take !== status?.take) {
+      // A new take: the previous take's words never bleed into it.
+      liveWords = [];
+      searchHits = [];
+      liveFlushing = false;
+      if (rec.liveSearch) rec.liveSearch.value = "";
+    }
     status = next;
     if (next?.recording && next.ours) {
       position = Math.max(position, next.position_frames ?? 0);
@@ -915,14 +1066,18 @@ export function createRecordView({
         liveTake.begin({
           at: next.plan?.at ?? 0,
           preroll: next.preroll_frames ?? 0,
-          lanes: (next.plan?.lanes ?? []).map((lane) => ({ trackId: lane.track_id })),
+          lanes: (next.plan?.lanes ?? []).map((lane) => ({
+            trackId: lane.track_id,
+          })),
         });
       }
       if (next.plan) {
         liveTake.bindPlan({
           at: next.plan.at ?? 0,
           preroll: next.preroll_frames ?? 0,
-          lanes: (next.plan.lanes ?? []).map((lane) => ({ trackId: lane.track_id })),
+          lanes: (next.plan.lanes ?? []).map((lane) => ({
+            trackId: lane.track_id,
+          })),
         });
         onLive();
       }
@@ -1077,7 +1232,11 @@ export function createRecordView({
       } else if (message.kind === "status") {
         if (!stopping) setStatus(message.status);
       } else if (message.kind === "notice") {
-        notices.push({ key: message.key, level: message.level, params: message.params });
+        notices.push({
+          key: message.key,
+          level: message.level,
+          params: message.params,
+        });
         renderNotices();
         if (!dialog.open && message.level !== "info") notify(t(message.key, message.params));
       } else if (message.kind === "imported") {
@@ -1090,6 +1249,8 @@ export function createRecordView({
           );
           if (dialog.open && !recording()) dialog.close();
         }
+      } else if (message.kind === "live_transcript") {
+        if (liveTranscriptVisible(phase(), liveFlushing)) void refreshLive();
       } else if (message.kind === "pending") {
         offerPending(message.pending);
       }
