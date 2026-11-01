@@ -2325,11 +2325,11 @@ export function createTimeline({
               grabY: session.grab.y,
             })
           : fadeFromX(clip, session.side, {
-            startFade: session.start,
-            startX: session.origin.x,
-            x: point.x,
-            zoom: state.zoom,
-          });
+              startFade: session.start,
+              startX: session.origin.x,
+              x: point.x,
+              zoom: state.zoom,
+            });
     if (value === session.value) return;
     session.value = value;
     sendTweak(session, value);
