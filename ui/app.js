@@ -1734,9 +1734,12 @@ document.addEventListener("keyup", (event) => {
 
 $("play").addEventListener("click", () => actions.togglePlay());
 // Record sits beside Play: the same command as Transport > Record… (no key of its own yet).
-$("record").addEventListener("click", () =>
-  keyboard.registry.run("transport.record", null, getState()),
-);
+// While a take records the button is the red Stop (record-view.js): the click does not open
+// the view, the pointer gesture on the button stops the take.
+$("record").addEventListener("click", () => {
+  if (recordView.isRecording()) return;
+  keyboard.registry.run("transport.record", null, getState());
+});
 $("loop").addEventListener("click", () =>
   keyboard.registry.run("transport.loop", null, getState()),
 );
@@ -2957,6 +2960,7 @@ const recordView = createRecordView({
   apply,
   notify: showNotice,
   chip: $("rec-chip"),
+  recordButton: $("record"),
   addMarker: () => keyboard.registry.run("marker.add", null, getState()),
   onLive: () => {
     if (recordView.isVisible()) return;
