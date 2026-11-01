@@ -155,6 +155,29 @@ export function channelPeaks(frame, count) {
   }));
 }
 
+/**
+ * The corner Record button while a take records (owner, 2026-11-01): it turns into the red
+ * Stop, with the same gesture and label as the view's stop control. Returns null when nothing
+ * records, so the caller puts the plain Record face back.
+ */
+export function cornerStopFace({ recording, stopping, view, mode, t }) {
+  if (!recording) return null;
+  return {
+    label: stopping ? t("ui.record.stopping") : cornerStopLabel(view, mode, t),
+    state: stopping ? "stopped" : view.state,
+    disabled: stopping,
+  };
+}
+
+/** The corner Record button is a small toolbar button: the confirmation must fit it. */
+export function cornerStopLabel(view, mode, t) {
+  if (view.state === "stopped") return t("ui.record.stopping");
+  if (view.state === "confirming")
+    return t("ui.record.stop_confirm_short", { seconds: view.secondsLeft });
+  if (mode === "hold") return t("ui.record.stop_hold_short");
+  return t("ui.record.stop");
+}
+
 /** What the stop button says for the gesture's state (stop-mode.js). */
 export function stopLabel(view, mode, t) {
   if (view.state === "stopped") return t("ui.record.stopping");
@@ -192,8 +215,15 @@ export function importedMessage(result, t, formatNumber = (value) => String(valu
     });
   else if (result.interrupted) message = t("ui.record.imported_interrupted", { take: result.take });
   else if (result.gaps > 0)
-    message = t("ui.record.imported_gaps", { take: result.take, count: result.gaps });
-  else message = t("ui.record.imported", { take: result.take, count: result.clips });
+    message = t("ui.record.imported_gaps", {
+      take: result.take,
+      count: result.gaps,
+    });
+  else
+    message = t("ui.record.imported", {
+      take: result.take,
+      count: result.clips,
+    });
 
   const health = [];
   const overflows = Math.max(0, Number(result.overflows) || 0);
@@ -217,4 +247,30 @@ export function importedNoticeOptions(result) {
     undo: true,
     sticky: Number(result?.overflows) > 0 || Number(result?.dropouts) > 0,
   };
+}
+
+// -- the take's live transcript (owner, 2026-11-01) ----------------------------------------
+// While a take records, its newest seconds are transcribed on the server and the words are
+// searchable here during the take; the last words land briefly after the stop ("flushing").
+
+/** The take-so-far as one flowing line: the newest `maxWords` words joined, "" when none. */
+export function liveTail(words, maxWords = 30) {
+  const list = (words ?? []).map((w) => String(w.w ?? "").trim()).filter(Boolean);
+  return list.slice(-Math.max(1, maxWords)).join(" ");
+}
+
+/** One search hit for the list: the word, its track's name, its time in seconds (flicks in). */
+export function liveHits(words, trackNames, flicksPerSecond) {
+  const names = trackNames ?? {};
+  const fps = flicksPerSecond > 0 ? flicksPerSecond : 1;
+  return (words ?? []).map((w) => ({
+    word: String(w.w ?? ""),
+    track: names[w.track] ?? "",
+    seconds: Math.max(0, Number(w.s) || 0) / fps,
+  }));
+}
+
+/** The panel shows while a take records or while its last words still land after the stop. */
+export function liveTranscriptVisible(phase, flushing) {
+  return phase === "recording" || Boolean(flushing);
 }

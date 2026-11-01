@@ -58,7 +58,7 @@ _REMOTE_COMMAND = [
     "uvx", "--python", "3.13",
     "--overrides", str(Path(__file__).with_name("transcription-overrides.txt")),
     "--from",
-    "git+https://github.com/ollisulopuisto/podcast@5a179e6f16024a0e1aa6fa9d01a0edcb09cdf2fc#subdirectory=colab-transcribe",
+    "git+https://github.com/ollisulopuisto/podcast@8fc54ff6dfde7d2cce71eff6b1dc93196eba56de#subdirectory=colab-transcribe",
     "colab-transcribe"]
 DEFAULT_MODEL = "whisper"
 #: The log kept for the UI, and the part of it an error carries.
@@ -73,7 +73,7 @@ _TIMING = re.compile(r"whisper|parakeet-ultra|orukeet|ctc-v[0-9]+")
 _NOISE = re.compile(
     r"^\[colab\] (A new version of Colab CLI|Run 'colab update'|To silence this check)")
 #: A Colab session the tool kept by name ('whisper') that has died on Google's side.
-_SESSION_LOST = re.compile(r"Session '[^']*' appears to be lost")
+_SESSION_LOST = re.compile(r"Session '[^']*' (?:appears to be lost|not found)")
 #: One structured event per line, after this prefix, as JSON (the tool's --events, the
 #: same protocol as the automixer's, docs/PODCAST-MAGIC.md "Live events").
 EVENT_PREFIX = "@@kuulas "

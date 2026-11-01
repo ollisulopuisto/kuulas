@@ -1,6 +1,7 @@
 # kuulas roadmap
 
-Current release: **v26.11.1.2**, prepared on 2026-11-01. It includes the latest
+Current release: **v26.11.1.4**, prepared on 2026-11-01. It includes the
+faster-whisper Colab runtime pin and Inspector improvements, along with the
 shuttle boundary, WebSocket validation, waveform performance and What's New
 dialog fixes. The release notes are in [CHANGELOG.md](CHANGELOG.md).
 

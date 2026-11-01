@@ -26,7 +26,7 @@ from typing import Any
 
 import uvicorn
 
-from . import memory, offload
+from . import live_engine, memory, offload
 from .cli import HOST, bind_local, uvicorn_config
 from .messages import KuulasError, t
 from .new_project import SUFFIX, folder_name, project_path
@@ -229,7 +229,8 @@ class RunningProject:
         self._session = Session(folder)
         self._engine = Engine(self._session)
         # Only a viewer of the recorder (WP12a): closing the window never stops a take.
-        self._recorder = RecordSession(self._session)
+        self._recorder = RecordSession(
+            self._session, live_engine_factory=live_engine.factory_or_none())
         self._sock = bind_local(0)
         self.url = f"http://{HOST}:{self._sock.getsockname()[1]}/"
         self._server = uvicorn.Server(uvicorn_config(

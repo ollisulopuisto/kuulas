@@ -112,3 +112,29 @@ describe("entryPatch", () => {
     assert.equal(entryPatch("in", "0,0006", none, RATE).patch.inPoint, 1);
   });
 });
+describe("live length while recording", () => {
+  test("in set, no out, live end later: the length runs to the take's place", () => {
+    assert.deepEqual(readoutRows({ inPoint: 2000, outPoint: null }, RATE, fmt, 5500).length, {
+      set: true,
+      text: "T3.5",
+      live: true,
+    });
+  });
+  test("a set out mark beats the live end", () => {
+    assert.deepEqual(readoutRows({ inPoint: 2000, outPoint: 9000 }, RATE, fmt, 5500).length, {
+      set: true,
+      text: "T7",
+    });
+  });
+  test("no live length without an in mark, or when the take has not reached it", () => {
+    assert.equal(readoutRows({ inPoint: null, outPoint: null }, RATE, fmt, 5500).length.set, false);
+    assert.equal(readoutRows({ inPoint: 6000, outPoint: null }, RATE, fmt, 5500).length.set, false);
+  });
+  test("no live end given: the rows are exactly as before", () => {
+    assert.deepEqual(readoutRows({ inPoint: 2000, outPoint: null }, RATE, fmt), {
+      in: { set: true, text: "T2" },
+      out: { set: false, text: null },
+      length: { set: false, text: null },
+    });
+  });
+});

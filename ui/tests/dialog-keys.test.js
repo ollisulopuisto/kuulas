@@ -161,6 +161,29 @@ const press = (k, extra = {}) => {
   return { e, action: handleDialogKey(e, e.target) };
 };
 
+describe("data-dialog-enter-local", () => {
+  test("Enter in a marked field does nothing (the record view's transcript search)", () => {
+    const d = fakeDialog("rec");
+    d.showModal();
+    const local = {
+      tagName: "INPUT",
+      closest: (sel) => (sel === "[data-dialog-enter-local]" ? {} : null),
+    };
+    const { e, action } = press("Enter", { target: local });
+    assert.equal(action, "none");
+    assert.equal(e.prevented, false);
+    assert.equal(d.open, true);
+    d.close();
+  });
+  test("Enter elsewhere still presses the primary", () => {
+    const d = fakeDialog("rec2");
+    d.showModal();
+    const { action } = press("Enter");
+    assert.equal(action, "accept");
+    d.close();
+  });
+});
+
 describe("the stack", () => {
   test("Esc closes only the topmost dialog, the next Esc the one below", () => {
     const a = fakeDialog("a");

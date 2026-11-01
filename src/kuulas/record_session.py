@@ -49,7 +49,7 @@ from kuulas_recorder.client import (
     spawn_supervisor,
 )
 
-from . import disk_budget, ops
+from . import disk_budget, live_transcribe, ops
 from . import record_take as rt
 from .messages import KuulasError, t
 from .preview_level import PEAK_TO_LUFS_DB
@@ -127,7 +127,16 @@ class RecordSession:
     def __init__(self, session, publish: Callable[[dict], None] | None = None, *,
                  connect: Callable[[], RecorderClient] = default_connect,
                  spawn: Callable[[], None] = default_spawn, retry_s: float = RETRY_S,
-                 hold_ms: int = HOLD_MS, watch: bool = True) -> None:
+                 hold_ms: int = HOLD_MS, watch: bool = True,
+                 live_engine_factory=None) -> None:
+        #: Builds the warm speech engine for live take transcription (owner,
+        #: 2026-11-01); None = no live transcript (the engine is not on this Mac).
+        self._live_engine_factory = live_engine_factory
+        self._live_runner: live_transcribe.LiveTranscribeRunner | None = None
+        self._live_done: live_transcribe.LiveTranscribeSidecar | None = None
+        # The finished take's flush + import coordination (see _live_stop):
+        # {"runner", "take", "imported", "flushed", "waiting"} under _lock.
+        self._live_pending: dict | None = None
         self.session = session
         # While a take of this project records, the session refuses edits (Session.
         # _check_not_recording); the answer is read live from the last status heard.
@@ -172,6 +181,7 @@ class RecordSession:
         self.publish = publish
 
     def close(self) -> None:
+        self._live_stop()
         """Stop listening. A take that is recording goes on (that is the point); a
         microphone this editor armed for pre-roll is let go (the recorder would also do
         it itself once nobody keeps it armed)."""
@@ -337,6 +347,9 @@ class RecordSession:
             "notices": list(self._notices) if (recording and ours) else [],
             "pending": self.pending(running_take=take if ours else None),
             "hold_ms": self.hold_ms,
+            # The take-so-far's words exist only when an engine is wired (owner,
+            # 2026-11-01): the view keeps itself open for them after a start.
+            "live_transcript": self._live_engine_factory is not None,
         }
 
     def arm(self, *, device: dict | None, preroll_s: float, channel: int | None = None,
@@ -724,6 +737,7 @@ class RecordSession:
                       "start": min(c.start for cl, _ in lanes for c in cl),
                       "tracks": len(lanes), "interrupted": interrupted}
             self._imported[take] = result
+            self._live_imported(take)
             self.publish({"type": "record", "kind": "imported", **result})
             return result
 
@@ -790,6 +804,172 @@ class RecordSession:
                 continue
             self._on_event(event)
 
+    #: How long the background flush may run after the take stops before it is
+    #: cancelled and whatever words exist are handed off. Never blocks the take:
+    #: only the waiter thread waits on this.
+    LIVE_FLUSH_TIMEOUT_S = 60.0
+
+    # -- live take transcription (owner, 2026-11-01) -------------------------------
+    # While a take records, its lanes' newest seconds are transcribed on the
+    # runner's thread and the words are searchable during the take. Never a
+    # risk to the take: the watcher only pokes; engine trouble loses a lane.
+
+    def _live_start(self, status: dict) -> None:
+        if self._live_engine_factory is None or self._live_runner is not None:
+            return
+        # Segment 1 of each lane (a take past the 4 GB segment boundary keeps
+        # transcribing only on its first segment for now).
+        plan = status.get("plan") or {}
+        take = status.get("take")
+        lane_files = {}
+        for lane in plan.get("lanes") or []:
+            key = lane.get("track_id") or f"ch{lane.get('channel')}"
+            if take and lane.get("name"):
+                lane_files[key] = rt.segment_file(take, lane["name"], 1)
+        if not lane_files:
+            return
+        self._live_done = None
+        with self._lock:
+            self._live_pending = None
+        sidecar = live_transcribe.LiveTranscribeSidecar(
+            rate=self.rate, folder=self.folder, lane_files=lane_files,
+            engine_factory=self._live_engine_factory)
+        self._live_runner = live_transcribe.LiveTranscribeRunner(
+            sidecar, log=log,
+            publish=lambda statuses: self.publish(
+                {"type": "record", "kind": "live_transcript", "statuses": statuses}))
+        self._live_runner.start()
+
+    def _live_stop(self, take: str | None = None) -> None:
+        # The take's stop and import NEVER wait on ASR (owner, 2026-11-01): the
+        # runner is only signalled; its thread flushes the backlog and the
+        # trailing chunk in the background, the store stays searchable
+        # meanwhile, and a waiter hands the words to the media once BOTH the
+        # flush and the import are done (either order). A flush that outlives
+        # LIVE_FLUSH_TIMEOUT_S is cancelled and whatever words exist are
+        # handed off - the take is never at risk, the status stays honest.
+        runner, self._live_runner = self._live_runner, None
+        if runner is None:
+            return
+        runner.stop(flush=True, block=False)
+        self._live_done = runner.sidecar
+        if take is None:  # closing: nothing to hand off
+            return
+        start_waiter = False
+        with self._lock:
+            pending = self._live_pending
+            if pending is not None and pending["take"] == take \
+                    and pending["runner"] in (None, runner):
+                pending["runner"] = runner
+            else:
+                pending = {"runner": runner, "take": take,
+                           "imported": take in self._imported,
+                           "flushed": False, "waiting": False}
+                self._live_pending = pending
+            if not pending["waiting"]:
+                pending["waiting"] = True
+                start_waiter = True
+        if start_waiter:
+            threading.Thread(target=self._live_flush_waiter, args=(runner,),
+                             name="kuulas-live-flush", daemon=True).start()
+        self._maybe_live_handoff()
+
+    def _live_flush_waiter(self, runner) -> None:
+        done = runner.wait(self.LIVE_FLUSH_TIMEOUT_S)
+        if not done:
+            # Too slow or hung: drain no more (a hung engine call runs out;
+            # the daemon thread dies with the process, never blocking a take).
+            runner.cancel()
+            log.warning("live transcript flush timed out; handing off what exists")
+        with self._lock:
+            pending = self._live_pending
+            if pending is None or pending["runner"] is not runner:
+                return
+            pending["flushed"] = True
+        self._maybe_live_handoff()
+
+    def _live_imported(self, take: str) -> None:
+        """The take is in the project: hand off once the flush is done too."""
+        with self._lock:
+            pending = self._live_pending
+            if pending is not None and pending["take"] == take:
+                pending["imported"] = True
+            elif self._live_runner is not None:
+                # The import beat the recorder's stopped event: _live_stop
+                # registers the runner and starts the waiter when it lands.
+                self._live_pending = {"runner": self._live_runner, "take": take,
+                                      "imported": True, "flushed": False,
+                                      "waiting": False}
+            else:
+                # Nothing pending (an older take, or no live transcription):
+                # hand off whatever the store holds right away.
+                self._live_pending = {"runner": None, "take": take,
+                                      "imported": True, "flushed": True,
+                                      "waiting": False}
+        self._maybe_live_handoff()
+
+    def _maybe_live_handoff(self) -> None:
+        with self._lock:
+            pending = self._live_pending
+            if pending is None or not pending["imported"] or not pending["flushed"]:
+                return
+            self._live_pending = None
+        self._live_handoff(pending["take"])
+
+    def live_transcript_flushing(self) -> bool:
+        """The take is over but its last words are still being transcribed."""
+        with self._lock:
+            pending = self._live_pending
+        return pending is not None and not pending["flushed"]
+
+    def _live_store(self) -> live_transcribe.LiveTranscript | None:
+        if self._live_runner is not None:
+            return self._live_runner.sidecar.store
+        return self._live_done.store if self._live_done is not None else None
+
+    def live_transcript_search(self, query: str) -> list[dict]:
+        # The take-so-far's (or the just-finished take's) words matching query.
+        store = self._live_store()
+        return store.search(query) if store is not None else []
+
+    def live_transcript_words(self, track_id: str | None = None) -> list[dict]:
+        store = self._live_store()
+        return store.words(track_id) if store is not None else []
+
+    def _live_handoff(self, _take: str) -> None:
+        """The finished take's live words become the media's transcript (undoable).
+
+        One durable step per media, so the take's text is searchable after the
+        take with no post-hoc job; a later background transcription replaces it
+        the usual way. Failure leaves the live store in place, never the take.
+        """
+        sidecar, self._live_done = self._live_done, None
+        if sidecar is None:
+            return
+        # file name -> media id, for the lanes' take files that were imported
+        by_name = {}
+        for media in self.session.state.media:
+            try:
+                where = self.session.store.meta(media.id).get("linked_path")
+            except (KeyError, OSError):
+                continue
+            if where:
+                by_name[str(where).rsplit("/", 1)[-1]] = media.id
+        for key, lane in sidecar._lanes.items():
+            words = sidecar.store.words(key)
+            if not words:
+                continue
+            media_id = by_name.get(lane["file"])
+            if media_id is None:
+                continue
+            try:
+                self.session.set_transcript(
+                    media_id, words, t("history.transcript", media_id=media_id),
+                    timing="")
+            except Exception as error:  # noqa: BLE001 - a handoff failure never loses the take
+                log.warning("live transcript handoff failed for %s: %s",
+                            lane["file"], error)
+
     def _on_event(self, event: dict) -> None:
         kind = event.get("event")
         with self._lock:
@@ -811,8 +991,12 @@ class RecordSession:
                               "short_term_lufs": self._input_loudness.read(),
                               "clipped": event.get("clipped", []),
                               "position_frames": self._position})
+                if ours and self._live_runner is not None:
+                    self._live_runner.poke()
             return
         if kind == "stopped":
+            if self._ours(event):
+                self._live_stop(event.get("take"))
             if self._ours(event) and event.get("take"):
                 self._take_cart_end(event["take"])
                 self._import_later(event["take"])
@@ -823,8 +1007,12 @@ class RecordSession:
             if kind == "disarmed":
                 self._notice(event)
             return
-        if kind == "started" or (ours and kind in ("device_lost", "device_back", "gap",
-                                                   "worker_restarted")):
+        if kind == "started":
+            view = self.status()  # refreshes the stale pre-start status first
+            self.publish({"type": "record", "kind": "status", "status": view})
+            if view["ours"]:
+                self._live_start(view)
+        elif ours and kind in ("device_lost", "device_back", "gap", "worker_restarted"):
             self.publish({"type": "record", "kind": "status", "status": self.status()})
         if ours and kind != "started":
             self._notice(event)

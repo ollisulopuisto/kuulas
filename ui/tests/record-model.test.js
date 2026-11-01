@@ -5,10 +5,14 @@ import {
   cartTrackWarning,
   channelChoices,
   channelPeaks,
+  cornerStopFace,
   formatElapsed,
   importedMessage,
   importedNoticeOptions,
   initialRows,
+  liveHits,
+  liveTail,
+  liveTranscriptVisible,
   meterLabels,
   pickDevice,
   recordKeyAction,
@@ -87,7 +91,13 @@ describe("the start request", () => {
     );
   });
   test("an existing track by id; a negative playhead starts at 0", () => {
-    const body = startRequest({ device: null, channel: 1, target: "t1", name: "", at: -3 });
+    const body = startRequest({
+      device: null,
+      channel: 1,
+      target: "t1",
+      name: "",
+      at: -3,
+    });
     assert.equal(body.track_id, "t1");
     assert.equal(body.device, null);
     assert.equal(body.at, 0);
@@ -105,6 +115,48 @@ describe("the stop button's words", () => {
     assert.equal(stopLabel({ state: "holding" }, "hold", t), "ui.record.stop_hold{}");
     assert.equal(stopLabel({ state: "recording" }, "one_click", t), "ui.record.stop{}");
     assert.equal(stopLabel({ state: "stopped" }, "two_step", t), "ui.record.stopping{}");
+  });
+  test("the corner button keeps it short (it is a small toolbar button)", () => {
+    assert.equal(
+      cornerStopFace({
+        recording: true,
+        stopping: false,
+        view: { state: "confirming", secondsLeft: 3 },
+        mode: "two_step",
+        t,
+      }).label,
+      'ui.record.stop_confirm_short{"seconds":3}',
+    );
+    assert.equal(
+      cornerStopFace({
+        recording: true,
+        stopping: false,
+        view: { state: "recording" },
+        mode: "hold",
+        t,
+      }).label,
+      "ui.record.stop_hold_short{}",
+    );
+    assert.equal(
+      cornerStopFace({
+        recording: true,
+        stopping: false,
+        view: { state: "recording" },
+        mode: "two_step",
+        t,
+      }).label,
+      "ui.record.stop{}",
+    );
+    assert.equal(
+      cornerStopFace({
+        recording: true,
+        stopping: true,
+        view: { state: "stopped" },
+        mode: "two_step",
+        t,
+      }).label,
+      "ui.record.stopping{}",
+    );
   });
 });
 
@@ -161,9 +213,15 @@ describe("after the take", () => {
       importedMessage({ ...healthy, overflows: 2, dropouts: 1, dropout_seconds: 0.25 }, t),
       /ui\.record\.health_overflows.*ui\.record\.health_dropouts/,
     );
-    assert.deepEqual(importedNoticeOptions(healthy), { undo: true, sticky: false });
+    assert.deepEqual(importedNoticeOptions(healthy), {
+      undo: true,
+      sticky: false,
+    });
     for (const result of [{ overflows: 1 }, { dropouts: 1 }])
-      assert.deepEqual(importedNoticeOptions(result), { undo: true, sticky: true });
+      assert.deepEqual(importedNoticeOptions(result), {
+        undo: true,
+        sticky: true,
+      });
   });
 });
 
@@ -205,7 +263,11 @@ describe("several channels (WP12b)", () => {
   });
   test("the request carries every lane, and the one-channel form still works", () => {
     const rows = initialRows(scarlett, [1, 2]);
-    const body = startRequest({ device: scarlett, lanes: selectedLanes(rows), at: 9.6 });
+    const body = startRequest({
+      device: scarlett,
+      lanes: selectedLanes(rows),
+      at: 9.6,
+    });
     assert.deepEqual(body.channels, [
       { channel: 1, track_id: null, name: "" },
       { channel: 2, track_id: null, name: "" },
@@ -249,7 +311,13 @@ describe("several channels (WP12b)", () => {
   test("a take that lost a channel says so", () => {
     assert.equal(
       importedMessage(
-        { take: "Take 2", clips: 1, gaps: 0, interrupted: false, failed_channels: ["Guest"] },
+        {
+          take: "Take 2",
+          clips: 1,
+          gaps: 0,
+          interrupted: false,
+          failed_channels: ["Guest"],
+        },
         t,
       ),
       'ui.record.imported_failed{"take":"Take 2","names":"Guest"}',
@@ -291,9 +359,19 @@ describe("replacedMessage: what a take replaced (owner, 2026-10-23)", () => {
 describe("the cart's track while recording (owner, 2026-10-23)", () => {
   const project = {
     tracks: [
-      { id: "t1", name: "Host", kind: "speech", clips: [{ start: 0, length: 1000 }] },
+      {
+        id: "t1",
+        name: "Host",
+        kind: "speech",
+        clips: [{ start: 0, length: 1000 }],
+      },
       { id: "t2", name: "Guest", kind: "speech", clips: [] },
-      { id: "t3", name: "Music", kind: "music", clips: [{ start: 5000, length: 2000 }] },
+      {
+        id: "t3",
+        name: "Music",
+        kind: "music",
+        clips: [{ start: 5000, length: 2000 }],
+      },
     ],
   };
   const rows = [
@@ -322,7 +400,12 @@ describe("the cart's track while recording (owner, 2026-10-23)", () => {
   });
 
   test("the start request carries the choice, empty meaning none", () => {
-    const body = startRequest({ device: null, lanes: [], at: 10, cartTrack: "t3" });
+    const body = startRequest({
+      device: null,
+      lanes: [],
+      at: 10,
+      cartTrack: "t3",
+    });
     assert.equal(body.cart_track, "t3");
     assert.equal(startRequest({ device: null, lanes: [], at: 10 }).cart_track, null);
     assert.equal(startRequest({ device: null, lanes: [], at: 10, cartTrack: "" }).cart_track, null);
@@ -331,16 +414,61 @@ describe("the cart's track while recording (owner, 2026-10-23)", () => {
 
 describe("startRequest: playing the other tracks while recording", () => {
   test("off by default, no delay", () => {
-    const body = startRequest({ device: null, channel: 1, target: "new", name: "", at: 0 });
+    const body = startRequest({
+      device: null,
+      channel: 1,
+      target: "new",
+      name: "",
+      at: 0,
+    });
     assert.equal(body.play_others, false);
     assert.equal(body.latency_ms, 0);
   });
   test("on with a delay, clamped to 0..2000 ms", () => {
-    const on = { device: null, channel: 1, target: "new", name: "", at: 0, playOthers: true };
+    const on = {
+      device: null,
+      channel: 1,
+      target: "new",
+      name: "",
+      at: 0,
+      playOthers: true,
+    };
     assert.equal(startRequest({ ...on, latencyMs: 35 }).play_others, true);
     assert.equal(startRequest({ ...on, latencyMs: 35 }).latency_ms, 35);
     assert.equal(startRequest({ ...on, latencyMs: -4 }).latency_ms, 0);
     assert.equal(startRequest({ ...on, latencyMs: 99999 }).latency_ms, 2000);
     assert.equal(startRequest({ ...on, latencyMs: "x" }).latency_ms, 0);
   });
+});
+
+// -- the take's live transcript (owner, 2026-11-01) -------------------------------------------
+
+test("liveTail joins the newest words, capped", () => {
+  const words = Array.from({ length: 40 }, (_, i) => ({ w: `s${i}` }));
+  assert.equal(liveTail(words, 30).split(" ").length, 30);
+  assert.equal(liveTail([{ w: "terveiset" }, { w: "kokouksesta" }]), "terveiset kokouksesta");
+  assert.equal(liveTail([]), "");
+  assert.equal(liveTail(null), "");
+});
+
+test("liveHits names the track and converts flicks to seconds", () => {
+  const FPS = 705_600_000;
+  const hits = liveHits(
+    [
+      { track: "t1", w: "kokouksesta", s: 62.5 * FPS, e: 63 * FPS },
+      { track: "ch2", w: "hei", s: 0, e: FPS / 2 },
+    ],
+    { t1: "Olli", ch2: "Vieras" },
+    FPS,
+  );
+  assert.deepEqual(hits, [
+    { word: "kokouksesta", track: "Olli", seconds: 62.5 },
+    { word: "hei", track: "Vieras", seconds: 0 },
+  ]);
+});
+
+test("liveTranscriptVisible: while recording, or while the last words land", () => {
+  assert.equal(liveTranscriptVisible("recording", false), true);
+  assert.equal(liveTranscriptVisible("setup", true), true);
+  assert.equal(liveTranscriptVisible("setup", false), false);
 });

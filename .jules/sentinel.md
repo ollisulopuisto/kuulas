@@ -1,3 +1,8 @@
+## 2026-11-01 - Missing peer UID verification on recorder Unix domain socket
+**Vulnerability:** The audio recorder supervisor listens on a Unix domain socket to manage recording sessions and control background audio capture. Although directory permissions restrict access, processes on multi-user systems or shared temporary directories could attempt connecting to the socket without peer identity verification.
+**Learning:** Unix domain socket file permissions protect filesystem access at open time, but defense-in-depth requires checking the connected peer's socket credentials directly (e.g. `SO_PEERCRED` on Linux, `LOCAL_PEERCRED` on macOS) to guarantee caller authenticity.
+**Prevention:** Always inspect peer credentials upon `accept()` and immediately disconnect any caller whose UID does not match `os.getuid()`.
+
 ## 2026-10-31 - Cross-Site WebSocket Hijacking bypass of HTTP middleware
 **Vulnerability:** While HTTP endpoints were protected against cross-origin driving and DNS rebinding via FastAPI/Starlette `@app.middleware("http")`, Starlette HTTP middleware does not intercept WebSocket connections. As a result, `@app.websocket("/api/live")` accepted connections without validating `Host` or `Origin` headers, allowing malicious websites visited by the user to connect to `ws://127.0.0.1:<port>/api/live` and snoop on project state changes, background jobs, and playhead anchors.
 **Learning:** In ASGI frameworks like FastAPI/Starlette, HTTP middleware registered via `@app.middleware("http")` only wraps HTTP request/response cycles and is completely bypassed by WebSocket routes (`@app.websocket`).

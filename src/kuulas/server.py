@@ -1797,6 +1797,21 @@ def create_app(session, engine, *, language: str | None = None,
     def record_devices():
         return {"devices": need_recorder().devices()}
 
+    @app.get("/api/record/live-transcript")
+    def record_live_transcript(q: str | None = None, track: str | None = None):
+        # The take-so-far's words, searched DURING the take (owner, 2026-11-01):
+        # follow-up questions like "did I say this already" mid-recording.
+        if recorder is None:
+            return {"live": False, "flushing": False, "words": []}
+        # flushing: the take is over but its last words are still landing -
+        # the caller must not read an incomplete list as final.
+        flushing = recorder.live_transcript_flushing()
+        if q is not None:
+            return {"live": True, "flushing": flushing,
+                    "words": recorder.live_transcript_search(q)}
+        return {"live": True, "flushing": flushing,
+                "words": recorder.live_transcript_words(track)}
+
     monitoring = {"on": False}
 
     def stop_monitoring():
