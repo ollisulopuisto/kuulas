@@ -223,7 +223,8 @@ def _refused_events(tail: str) -> bool:
 
 
 def build_command(settings: dict, audio: list[Path], folder: Path, *,
-                  model: str, language: str | None, events: bool = False) -> list[str]:
+                  model: str | None, language: str | None,
+                  events: bool = False) -> list[str]:
     """The argument list (never a shell string): the command, ``--audio`` per file,
     ``--json`` folder, ``--progress``, the model and language, ``--align`` (the word-start
     correction, on by default), ``--no-drive`` when set,
@@ -231,7 +232,9 @@ def build_command(settings: dict, audio: list[Path], folder: Path, *,
     cmd = [*settings["command"]]
     for path in audio:
         cmd += ["--audio", str(path)]
-    cmd += ["--json", str(folder), "--progress", "--model", model]
+    cmd += ["--json", str(folder), "--progress"]
+    if model:
+        cmd += ["--model", model]
     if events:
         cmd.append("--events")
     if language:
@@ -324,15 +327,19 @@ def _stage_text(event: dict) -> str:
 def run(items: list[dict], params: dict, settings: dict, report: Report,
         cancel: threading.Event, run_process: RunProcess = run_process) -> dict:
     """Run the tool on ``items`` (``{"id", "name", "path"}``: the audio file as it is)
-    in ONE call and read every result. ``params``: ``model`` and ``language``
-    (replace the settings for this run), ``extra_args``. Returns ``{"results":
+    in ONE call and read every result. ``params``: ``backend``, ``model`` and
+    ``language`` (replace the settings for this run), ``extra_args``. Local
+    backends do not receive the cloud-only ``--model`` option. Returns ``{"results":
     {id: {"words", "timing", "language"}}, "log", "command"}``. Raises ``ColabError``
     or ``JobCancelledError`` after cancel; the temporary folder is removed in every
     case. ``report(fraction, message="", indeterminate=False)``."""
     settings = resolve_settings(settings)
     if isinstance(params.get("extra_args"), list):
         settings["extra_args"] = [str(x) for x in params["extra_args"]]
+    backend = params.get("backend", "colab")
     model = params.get("model") or settings["model"]
+    if backend != "colab":
+        model = None
     language = params.get("language") or settings["language"]
     if settings["cwd"] and not Path(settings["cwd"]).is_dir():
         raise ColabError("error.colab.bad_cwd", cwd=settings["cwd"])
