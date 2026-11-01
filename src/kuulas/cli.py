@@ -16,8 +16,16 @@ from pathlib import Path
 
 import uvicorn
 
-from . import diag, export_formats, logsetup, memory, offload, package, profiler
-from . import live_engine
+from . import (
+    diag,
+    export_formats,
+    live_engine,
+    logsetup,
+    memory,
+    offload,
+    package,
+    profiler,
+)
 from .build_info import build_label
 from .messages import KuulasError, t
 

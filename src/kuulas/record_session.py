@@ -936,7 +936,7 @@ class RecordSession:
         store = self._live_store()
         return store.words(track_id) if store is not None else []
 
-    def _live_handoff(self, take: str) -> None:
+    def _live_handoff(self, _take: str) -> None:
         """The finished take's live words become the media's transcript (undoable).
 
         One durable step per media, so the take's text is searchable after the
@@ -966,7 +966,7 @@ class RecordSession:
                 self.session.set_transcript(
                     media_id, words, t("history.transcript", media_id=media_id),
                     timing="")
-            except Exception as error:
+            except Exception as error:  # noqa: BLE001 - a handoff failure never loses the take
                 log.warning("live transcript handoff failed for %s: %s",
                             lane["file"], error)
 

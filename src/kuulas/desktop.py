@@ -26,8 +26,7 @@ from typing import Any
 
 import uvicorn
 
-from . import memory, offload
-from . import live_engine
+from . import live_engine, memory, offload
 from .cli import HOST, bind_local, uvicorn_config
 from .messages import KuulasError, t
 from .new_project import SUFFIX, folder_name, project_path

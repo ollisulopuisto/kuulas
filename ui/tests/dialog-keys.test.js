@@ -165,7 +165,10 @@ describe("data-dialog-enter-local", () => {
   test("Enter in a marked field does nothing (the record view's transcript search)", () => {
     const d = fakeDialog("rec");
     d.showModal();
-    const local = { tagName: "INPUT", closest: (sel) => (sel === "[data-dialog-enter-local]" ? {} : null) };
+    const local = {
+      tagName: "INPUT",
+      closest: (sel) => (sel === "[data-dialog-enter-local]" ? {} : null),
+    };
     const { e, action } = press("Enter", { target: local });
     assert.equal(action, "none");
     assert.equal(e.prevented, false);

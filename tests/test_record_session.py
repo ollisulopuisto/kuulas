@@ -1196,21 +1196,34 @@ def test_live_transcript_words_arrive_while_the_take_runs(session, recorder):
         # The first full 5 s chunk lands while the take still records.
         wait_until(lambda: published.kinds("live_transcript"), timeout=30)
         assert view["recording"] or rs.status()["recording"]
+        # A faster machine may already have transcribed the next chunk too:
+        # the first chunk's words are always the prefix.
         hits = rs.live_transcript_search("kokouksesta")
-        assert [h["w"] for h in hits] == ["kokouksesta"]
-        assert [w["w"] for w in rs.live_transcript_words()] == ["terveiset", "kokouksesta"]
+        assert "kokouksesta" in [h["w"] for h in hits]
+        assert ([w["w"] for w in rs.live_transcript_words()][:2]
+                == ["terveiset", "kokouksesta"])
+        live_before_stop = [w["w"] for w in rs.live_transcript_words()]
         rs.stop("two_step")
         wait_until(lambda: not rs.status()["recording"], timeout=20)
         # Owner, 2026-11-01: stop keeps the take's words searchable (the tail
         # flushed) and the import hands them to the media - no cold re-run.
         # The flush and the handoff are asynchronous: they land shortly after.
         media = session.state.media[0]
-        wait_until(lambda: session.history.material["transcripts"].get(media.id)
-                   is not None, timeout=20)
-        rev = session.history.material["transcripts"].get(media.id)
+
+        def handed_rev():
+            # the handoff writes under the session lock; read under it too
+            with session.lock:
+                return session.history.material["transcripts"].get(media.id)
+
+        wait_until(lambda: handed_rev() is not None, timeout=20)
+        rev = handed_rev()
         assert rev is not None
-        assert [w["w"] for w in session.history.transcript(rev)] == [
-            "terveiset", "kokouksesta"]
+        with session.lock:
+            handed = [w["w"] for w in session.history.transcript(rev)]
+        # the handoff is a move, not a filter: every word the take had
+        # transcribed before stop is in the media's transcript, in order
+        assert handed[:len(live_before_stop)] == live_before_stop
+        assert "kokouksesta" in handed
         assert rs.live_transcript_words() == []  # handed off, not kept twice
     finally:
         rs.close()
@@ -1231,15 +1244,26 @@ def test_slow_engine_never_blocks_stop_and_the_words_land(session, recorder):
         rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
                  track_id=None, name="Olli", at=0)
         wait_until(lambda: published.kinds("live_transcript"), timeout=30)
+        live_before_stop = [w["w"] for w in rs.live_transcript_words()]
+        assert live_before_stop  # the first chunk landed before the stop
         started = time.monotonic()
         rs.stop("two_step")
         wait_until(lambda: not rs.status()["recording"], timeout=20)
         assert time.monotonic() - started < 20  # the stop itself did not wait on ASR
         media = session.state.media[0]
-        wait_until(lambda: session.history.material["transcripts"].get(media.id)
-                   is not None, timeout=30)
-        rev = session.history.material["transcripts"][media.id]
-        assert "hitaastikin" in [w["w"] for w in session.history.transcript(rev)]
+
+        def handed_rev():
+            # the handoff writes under the session lock; read under it too
+            with session.lock:
+                return session.history.material["transcripts"].get(media.id)
+
+        wait_until(lambda: handed_rev() is not None, timeout=30)
+        rev = handed_rev()
+        with session.lock:
+            handed = [w["w"] for w in session.history.transcript(rev)]
+        # no word the take had before stop is lost in the handoff
+        assert handed[:len(live_before_stop)] == live_before_stop
+        assert "hitaastikin" in handed
         assert not rs.live_transcript_flushing()
     finally:
         rs.close()
