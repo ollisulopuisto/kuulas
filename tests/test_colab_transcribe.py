@@ -260,7 +260,7 @@ def test_default_command_uses_the_public_tool_without_a_sibling_checkout(tmp_pat
         "uvx", "--python", "3.13",
         "--overrides", str(Path(ct.__file__).with_name("transcription-overrides.txt")),
         "--from",
-        "git+https://github.com/ollisulopuisto/podcast@8fc54ff6dfde7d2cce71eff6b1dc93196eba56de#subdirectory=colab-transcribe",
+        "git+https://github.com/ollisulopuisto/podcast@d3a0ea6341b96caece5e68d8a4ac746d9f9d61bb#subdirectory=colab-transcribe",
         "colab-transcribe"]
 
 
