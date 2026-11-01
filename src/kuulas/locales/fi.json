@@ -923,6 +923,8 @@
   "ui.nhsx.partial": "Hindenburg-sessio tuotu: {count} tallennetta, {missing} ei löytynyt session vierestä.",
   "ui.nhsx.nothing": "Hindenburg-sessiosta ei tullut mitään ({missing} tallennetta ei löytynyt).",
   "cmd.help.keys.hint": "Näyttää kaikki komennot näppäimineen",
+  "cmd.help.whats_new": "Mitä uutta",
+  "cmd.help.whats_new.hint": "Katso, mitä tässä versiossa muuttui.",
   "cmd.palette.open.hint": "Hae ja suorita mikä tahansa komento",
   "cmd.help.search": "Hae komentoja ja ohjetta…",
   "cmd.help.search.hint": "Kirjoita, mitä haluat tehdä: näyttää komennon, sen paikan valikoissa ja näppäimen",

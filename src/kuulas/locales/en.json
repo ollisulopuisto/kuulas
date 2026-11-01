@@ -927,6 +927,8 @@
   "ui.nhsx.partial": "Hindenburg session imported: {count} recordings, {missing} not found next to the session.",
   "ui.nhsx.nothing": "Nothing came in from the Hindenburg session ({missing} recordings not found).",
   "cmd.help.keys.hint": "Show every command with its keys",
+  "cmd.help.whats_new": "What's New",
+  "cmd.help.whats_new.hint": "See what changed in this version.",
   "cmd.palette.open.hint": "Search and run any command",
   "cmd.help.search": "Search commands and help…",
   "cmd.help.search.hint": "Type what you want to do: shows the command, where it is in the menus and its key",

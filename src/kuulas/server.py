@@ -1903,6 +1903,17 @@ def create_app(session, engine, *, language: str | None = None,
 
     @app.websocket("/api/live")
     async def live(ws: WebSocket):
+        # A page on another site (or a sandboxed one) must not listen to the live channel
+        # or drive the local server (cross-site WebSocket hijacking).
+        host = (ws.url.hostname or "").lower()
+        if host and host not in _LOCAL_HOSTS:
+            await ws.close(code=1008)
+            return
+        origin = ws.headers.get("origin")
+        if origin is not None and not _local_origin(origin):
+            await ws.close(code=1008)
+            return
+
         await ws.accept()
         messages.set_language(request_language(ws.headers.get("accept-language"),
                                                default_language))
