@@ -471,6 +471,7 @@
   "ui.track.gain": "Raidan taso",
   "ui.track.pan": "Raidan panorointi",
   "ui.bus.name": "Väylä: {name}",
+  "ui.bus.rename": "Nimeä väylä kaksoisnapsauttamalla",
   "ui.inspector.clips": "Raidan leikkeet",
   "ui.inspector.clips.empty": "Raidalla ei ole leikkeitä.",
   "ui.inspector.clips.jump": "Valitse leike ja siirrä toistokohta sen alkuun",
