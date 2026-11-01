@@ -9,6 +9,8 @@ import { markerIdAtX } from "./markers-model.js";
 import { placeholderAt } from "./placeholders-model.js";
 
 export const RULER_HEIGHT = 24;
+/** Height (px, from the lane's top) of the clip-label strip used to start a move. */
+export const MOVE_STRIP_PX = 20;
 /** tokens.css --bus-h: a bus is ONE short line (disclosure, badge, name, M, S);
  *  its levels show on hover and in the inspector (owner, 2026-10-18). Compact: 24. */
 export const BUS_HEIGHT = 68;
@@ -264,6 +266,7 @@ export function hitTest({ layout, project, view, x, y }) {
   const hit = { ...miss, area: "lane", row, gate, placeholder };
   if (row.kind !== "track") return hit;
   const rowY = inContent - row.top;
+  const onLabelStrip = rowY >= 0 && rowY < MOVE_STRIP_PX;
   hit.autoPoint = automationPointAt(track, view, x, rowY, row.height);
   let best = null;
   for (const clip of track?.clips ?? []) {
@@ -285,13 +288,16 @@ export function hitTest({ layout, project, view, x, y }) {
     if (wins) best = { clip, edge, distance };
   }
   if (!best) return hit;
+  // A grouped clip's label is a move handle for the whole group. Its text can begin at the clip
+  // boundary, so its trim handle must not steal that gesture. Envelope points keep priority.
   const point = envelopePointAt(best.clip, view, x, rowY, row.height);
   const portions = view.showGates === false ? [] : implicitPortions(best.clip, track.gate);
   const portionFrame = Math.max(best.clip.start, Math.min(frame, clipEnd(best.clip) - 1));
   const portion = portions.find(({ range: [a, b] }) => a <= portionFrame && portionFrame < b);
   let implicitRange = null;
-  let edge = best.edge;
-  if (portion) {
+  const groupLabel = onLabelStrip && Boolean(best.clip.group);
+  let edge = groupLabel ? null : best.edge;
+  if (portion && !groupLabel) {
     const [start, end] = portion.range;
     const toStart = Math.abs(x - frameToX(start, view.scroll, view.zoom));
     const toEnd = Math.abs(x - frameToX(end, view.scroll, view.zoom));

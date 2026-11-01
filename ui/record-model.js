@@ -155,6 +155,20 @@ export function channelPeaks(frame, count) {
   }));
 }
 
+/**
+ * The corner Record button while a take records (owner, 2026-11-01): it turns into the red
+ * Stop, with the same gesture and label as the view's stop control. Returns null when nothing
+ * records, so the caller puts the plain Record face back.
+ */
+export function cornerStopFace({ recording, stopping, view, mode, t }) {
+  if (!recording) return null;
+  return {
+    label: stopping ? t("ui.record.stopping") : stopLabel(view, mode, t),
+    state: stopping ? "stopped" : view.state,
+    disabled: stopping,
+  };
+}
+
 /** What the stop button says for the gesture's state (stop-mode.js). */
 export function stopLabel(view, mode, t) {
   if (view.state === "stopped") return t("ui.record.stopping");

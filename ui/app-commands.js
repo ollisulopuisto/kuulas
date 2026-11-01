@@ -399,11 +399,15 @@ export function registerAppCommands(registry, { actions, app }) {
     () => app.jump(app.getState().outPoint),
     (state) => hasProject(state) && (state.outPoint ?? null) !== null,
   );
+  // While a take records, "now" is where the take is on the timeline (app.recordingFrame,
+  // from the record view; null when nothing records), not the parked playhead. The same
+  // rule as marker.add (marker-commands.js), so I and O work during a take.
+  const nowFrame = (state) => app.recordingFrame?.() ?? state.playhead;
   def(
     "mark.in",
     () => {
       const state = app.getState();
-      app.patch({ ...placeMark(state, "in", state.playhead), rangeTracks: new Set() });
+      app.patch({ ...placeMark(state, "in", nowFrame(state)), rangeTracks: new Set() });
     },
     hasProject,
   );
@@ -411,7 +415,7 @@ export function registerAppCommands(registry, { actions, app }) {
     "mark.out",
     () => {
       const state = app.getState();
-      app.patch({ ...placeMark(state, "out", state.playhead), rangeTracks: new Set() });
+      app.patch({ ...placeMark(state, "out", nowFrame(state)), rangeTracks: new Set() });
     },
     hasProject,
   );

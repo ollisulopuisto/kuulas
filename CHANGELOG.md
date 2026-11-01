@@ -1,3 +1,16 @@
+## [v26.11.1.6] - 2026-11-01
+
+- **Recording controls stay available during a take.** Record becomes Stop, marker flags drag along the ruler, and the Markers tab can set the in point while recording.
+- **Grouped clips move together from their labels.** Dragging a grouped clip at its leading edge moves the whole group; the current track header is easier to identify.
+- **A stale Colab session retries cleanly.** If Colab says a saved session is not found, Kuulas asks for a fresh session and retries once.
+- **Fit a live recording with 0.** The timeline zooms to the recording's growing length.
+
+## [v26.11.1.5] - 2026-11-01
+
+- **A stale Colab session retries cleanly.** When Colab says a saved session is not found, Kuulas asks for a fresh session and retries once.
+- **Grouped clips move together from their labels.** Dragging a grouped clip at its leading edge moves the whole group; the current track header is also easier to identify.
+- **Fit a live recording with 0.** The timeline zooms to the recording's growing length.
+
 ## [v26.11.1.4] - 2026-11-01
 
 - **Colab Whisper uses faster-whisper.** The packaged tool pin installs faster-whisper 1.2.1 with CUDA float16 instead of the optimized Photon/Kestrel runtime that rejected T4 hardware. The T4 path has unit coverage; a real-device run remains unverified.

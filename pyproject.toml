@@ -1,6 +1,6 @@
 [project]
 name = "kuulas"
-version = "26.11.1.4"
+version = "26.11.1.6"
 description = "Multitrack spoken-word DAW: transcript editing, buses, the speechmix pipeline"
 readme = "README.md"
 license = "GPL-3.0-or-later"

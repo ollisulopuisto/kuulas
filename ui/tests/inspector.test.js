@@ -329,10 +329,16 @@ describe("track source file list", () => {
     assert.deepEqual(summaries, ["same.wav · 2 clips", "same.wav · 1 clip", "Free · 1 clip"]);
     const buttons = details.all().filter((n) => n.tagName === "button");
     assert.equal(buttons.length, 4);
-    assert.deepEqual(buttons.map((b) => b.attrs["aria-pressed"]), ["false", "true", "false", "false"]);
+    assert.deepEqual(
+      buttons.map((b) => b.attrs["aria-pressed"]),
+      ["false", "true", "false", "false"],
+    );
     buttons[0].listeners.click[0]();
     assert.deepEqual(calls, [["c1", "t", 0]]);
-    view.update({ project: { ...project, tracks: [{ id: "t", clips: [] }] }, selection: new Set() });
+    view.update({
+      project: { ...project, tracks: [{ id: "t", clips: [] }] },
+      selection: new Set(),
+    });
     assert.equal(details.all().filter((n) => n.tagName === "button").length, 0);
     assert.equal(details.all().filter((n) => n.tagName === "details").length, 0);
   });

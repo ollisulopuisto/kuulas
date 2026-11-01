@@ -504,6 +504,19 @@ button.chip {
 .rec-dot {
   color: var(--danger-text);
 }
+/* While a take records the corner Record button is the red Stop (owner, 2026-11-01). */
+.corner .rec-button.record-stop {
+  background: var(--danger-subtle);
+  border-color: var(--danger);
+  color: var(--danger-text);
+}
+.corner .rec-button.record-stop:hover {
+  background: var(--danger-subtle);
+  border-color: var(--danger);
+}
+.corner .rec-button.record-stop .rec-dot {
+  color: var(--danger-text);
+}
 /* The clock now lives in the dock's left column (.tx-numbers, below). */
 .tx-numbers .timecode {
   --tc: 26px;
@@ -841,10 +854,14 @@ button.chip {
   gap: var(--space-3);
   min-width: 0;
 }
-/* The tracks the next range operation will not touch are dimmed, the affected ones keep full
-   brightness (WP83). There is no highlight on the current track any more. */
+/* Operation scope dims the tracks and headers that the next range edit will leave untouched. */
 .track-header.scope-dim {
   opacity: 0.35;
+}
+/* The focused track keeps a quiet wash of its lane color in the header; the color spine still
+   identifies it when another track is current. */
+.track-header[data-track].current {
+  background: color-mix(in srgb, var(--panel-bg) 86%, var(--track-colour));
 }
 /* The inactive style (View > Lanes outside the operation; SILENCE-VISUALS.md): the headers follow
    the lanes. A static filter on a few DOM nodes, never a per-frame canvas filter. */
@@ -6061,4 +6078,7 @@ legend.form-heading {
   padding: 0;
   max-height: 8em;
   overflow-y: auto;
+/* A live length counts from the in point to the take's place while recording. */
+.mrow.live .v {
+  color: var(--accent-text);
 }

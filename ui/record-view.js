@@ -26,6 +26,7 @@ import {
   cartTrackChoices,
   cartTrackWarning,
   channelPeaks,
+  cornerStopFace,
   formatElapsed,
   importedMessage,
   importedNoticeOptions,
@@ -100,6 +101,7 @@ export function createRecordView({
   apply,
   notify,
   chip,
+  recordButton = null,
   addMarker = () => {},
   onLive = () => {},
 }) {
@@ -958,40 +960,82 @@ export function createRecordView({
     renderChip();
   }
 
-  // The slim recording bar (owner, 2026-10-25): next to the chip, always in reach while the
-  // big view is hidden: Stop (the same gesture as the big button) and Add marker.
+  // The slim recording bar (owner, 2026-10-25, slimmed 2026-11-01): next to the chip, only
+  // Add marker. Stop lives on the corner Record button, which turns red while a take records
+  // (owner, 2026-11-01) and runs the same stop gesture as the view's big button.
   const slim = chip ? el("span", "record-slim") : null;
-  const slimStop = slim ? el("button", "button record-slim-stop") : null;
   const slimMarker = slim
     ? el("button", "button record-slim-marker", t("ui.record.add_marker"))
     : null;
   if (slim) {
-    slimStop.type = "button";
     slimMarker.type = "button";
     slimMarker.title = t("ui.record.add_marker_title");
     slimMarker.addEventListener("click", () => addMarker());
-    slimStop.addEventListener("pointerdown", (event) => {
-      if (event.button !== 0) return;
-      slimStop.setPointerCapture?.(event.pointerId);
-      press();
-    });
-    for (const type of ["pointerup", "pointercancel", "lostpointercapture"])
-      slimStop.addEventListener(type, () => release());
-    slim.append(slimStop, slimMarker);
+    slim.append(slimMarker);
     slim.hidden = true;
     chip.after(slim);
   }
 
+  // The corner Record button as Stop: press/release run the stop gesture only while a take
+  // records; a plain click still opens the record view (app.js gates it on isRecording()).
+  let cornerPointer = null;
+  if (recordButton) {
+    recordButton.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0 || !recording() || stopping) return;
+      cornerPointer = event.pointerId;
+      recordButton.setPointerCapture?.(event.pointerId);
+      press();
+    });
+    for (const type of ["pointerup", "pointercancel", "lostpointercapture"])
+      recordButton.addEventListener(type, (event) => {
+        if (cornerPointer === null || event.pointerId !== cornerPointer) return;
+        cornerPointer = null;
+        release();
+      });
+  }
+
+  function renderCornerStop() {
+    if (!recordButton) return;
+    const face = cornerStopFace({
+      recording: recording(),
+      stopping,
+      view: gestureView,
+      mode: stopMode,
+      t,
+    });
+    const icon = recordButton.querySelector(".rec-dot");
+    const label = recordButton.querySelector(".lbl");
+    recordButton.classList.toggle("record-stop", Boolean(face));
+    if (face) {
+      if (icon) icon.textContent = "■";
+      if (label) {
+        label.removeAttribute("data-i18n");
+        label.textContent = face.label;
+      }
+      recordButton.dataset.state = face.state;
+      recordButton.title = face.label;
+      recordButton.setAttribute("aria-label", face.label);
+      recordButton.disabled = false; // disabled swallows pointerup; the gesture guards instead
+    } else {
+      cornerPointer = null;
+      if (icon) icon.textContent = "●";
+      if (label) {
+        label.setAttribute("data-i18n", "ui.transport.record");
+        label.textContent = t("ui.transport.record");
+      }
+      delete recordButton.dataset.state;
+      recordButton.title = t("cmd.transport.record.hint");
+      recordButton.removeAttribute("aria-label");
+    }
+  }
+
   function renderSlim() {
-    if (!slim) return;
-    slim.hidden = !recording();
-    slimMarker.textContent = t("ui.record.add_marker");
-    slimMarker.title = t("ui.record.add_marker_title");
-    const label = stopping ? t("ui.record.stopping") : stopLabel(gestureView, stopMode, t);
-    slimStop.textContent = label;
-    slimStop.dataset.state = stopping ? "stopped" : gestureView.state;
-    slimStop.setAttribute("aria-label", label);
-    slimStop.disabled = stopping;
+    if (slim) {
+      slim.hidden = !recording();
+      slimMarker.textContent = t("ui.record.add_marker");
+      slimMarker.title = t("ui.record.add_marker_title");
+    }
+    renderCornerStop();
   }
 
   function renderChip() {

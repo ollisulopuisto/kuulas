@@ -10,6 +10,7 @@ import {
   hitTest,
   layoutFor,
   layoutRows,
+  MOVE_STRIP_PX,
   paintOrder,
   pointerIntent,
   projectEnd,
@@ -18,6 +19,8 @@ import {
   visibleRows,
   yToDb,
 } from "../lanes.js";
+import { clipDragIds } from "../clip-drag.js";
+import { dragIntent } from "../drag-mode.js";
 
 const project = {
   rate: 48_000,
@@ -249,6 +252,43 @@ describe("hit testing", () => {
     const end = hitTest({ layout, project, view, x: 199, y: laneY(30) });
     assert.equal(end.edge, "end");
     assert.equal(end.clip.id, "c1");
+  });
+
+  test("a grouped clip's label at its start moves the whole group", () => {
+    const labelProject = {
+      rate: 48_000,
+      buses: [],
+      tracks: [
+        { id: "t1", clips: [{ id: "label", start: 1000, length: 1000, group: "g" }] },
+        { id: "t2", clips: [{ id: "partner", start: 2000, length: 500, group: "g" }] },
+      ],
+    };
+    const x = 100;
+    const label = hitTest({
+      layout,
+      project: labelProject,
+      view,
+      x,
+      y: laneY(MOVE_STRIP_PX - 1),
+    });
+    const body = hitTest({
+      layout,
+      project: labelProject,
+      view,
+      x,
+      y: laneY(MOVE_STRIP_PX + 1),
+    });
+    assert.equal(label.clip.id, "label");
+    assert.equal(label.edge, null, "dragging the label at the clip start must move it");
+    assert.equal(
+      dragIntent({ mode: "range", hit: label, rowY: MOVE_STRIP_PX - 1 }),
+      "move",
+    );
+    assert.deepEqual(
+      [...clipDragIds(label.clip.id, new Set(), labelProject)].sort(),
+      ["label", "partner"],
+    );
+    assert.equal(body.edge, "start", "the waveform keeps its trim handle");
   });
 
   test("a gap and an empty lane hit no clip", () => {
