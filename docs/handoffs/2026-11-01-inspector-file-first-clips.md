@@ -7,6 +7,7 @@ file underneath.
 
 ## Behaviour
 
+- Section renamed file-first: "Files on this track" / "Raidan tiedostot".
 - `trackFileRows(project, trackId)` groups the track's clips by media id, in
   the timeline order of each file's first clip. Files that share a name stay
   separate rows (identity is the media id, not the name); a clip without media
