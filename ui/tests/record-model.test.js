@@ -21,6 +21,7 @@ import {
   startProblem,
   startRequest,
   stopLabel,
+  cornerStopFace,
 } from "../record-model.js";
 
 const t = (key, params = {}) => `${key}${JSON.stringify(params)}`;
@@ -114,6 +115,24 @@ describe("the stop button's words", () => {
     assert.equal(stopLabel({ state: "holding" }, "hold", t), "ui.record.stop_hold{}");
     assert.equal(stopLabel({ state: "recording" }, "one_click", t), "ui.record.stop{}");
     assert.equal(stopLabel({ state: "stopped" }, "two_step", t), "ui.record.stopping{}");
+  });
+  test("the corner button keeps it short (it is a small toolbar button)", () => {
+    assert.equal(
+      cornerStopFace({ recording: true, stopping: false, view: { state: "confirming", secondsLeft: 3 }, mode: "two_step", t }).label,
+      'ui.record.stop_confirm_short{"seconds":3}',
+    );
+    assert.equal(
+      cornerStopFace({ recording: true, stopping: false, view: { state: "recording" }, mode: "hold", t }).label,
+      "ui.record.stop_hold_short{}",
+    );
+    assert.equal(
+      cornerStopFace({ recording: true, stopping: false, view: { state: "recording" }, mode: "two_step", t }).label,
+      "ui.record.stop{}",
+    );
+    assert.equal(
+      cornerStopFace({ recording: true, stopping: true, view: { state: "stopped" }, mode: "two_step", t }).label,
+      "ui.record.stopping{}",
+    );
   });
 });
 

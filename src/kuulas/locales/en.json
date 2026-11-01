@@ -2938,6 +2938,8 @@
   "ui.record.cart_new": "A new track, Questions",
   "ui.record.cart_warning": "There is already audio on this track from the play cursor on. The clips you play during the take will overwrite it.",
   "ui.record.stop_confirm": "Stop recording? Press again to stop ({seconds} s)",
+  "ui.record.stop_confirm_short": "Again ({seconds} s)",
+  "ui.record.stop_hold_short": "Hold 2 s",
   "ui.record.stop_hold": "Hold 2 s to stop",
   "ui.record.stop_keys": "Space or the button. Esc only hides this view; the take goes on.",
   "ui.record.stopping": "Stopping and putting the take on the timeline…",
