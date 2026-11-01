@@ -1,5 +1,7 @@
 # kuulas implementation plan
 
+**Release v26.11.1.6:** Record becomes Stop during a take; marker flags drag along the ruler and the Markers tab can set the in point while recording. Also: grouped clip labels move every group member at the leading edge; current track headers have a track-color tint; stale Colab sessions retry once with a fresh session; pressing 0 fits a growing recording. Includes v26.11.1.4's faster-whisper Colab path, grouped Inspector files and inline bus renaming.
+
 **Release v26.11.1.5:** stale Colab sessions reported as “not found” retry once with a fresh session; grouped clip labels move every group member at the leading edge; the current track header has a track-color tint; pressing 0 fits a growing recording. Includes v26.11.1.4's faster-whisper Colab path, grouped Inspector files and inline bus renaming.
 
 **Release v26.11.1.4:** packaged Colab Whisper uses faster-whisper 1.2.1 with CUDA float16 instead of the optimized Photon/Kestrel runtime that rejected T4 GPUs; real T4 verification remains an owner check. The Inspector groups clips by source file and supports inline bus renaming. Also includes v26.11.1.2's shuttle boundary, WebSocket Host/Origin validation, waveform tile performance and What's New dialog fixes.
