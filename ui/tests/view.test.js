@@ -19,6 +19,7 @@ import {
   spanParts,
   stepZoom,
   toggleView,
+  viewEnd,
   visitView,
   zoomAt,
   zoomLevels,
@@ -231,6 +232,24 @@ describe("view history (never undo history)", () => {
 });
 
 describe("fitting", () => {
+  test("the visible timeline extent includes an active take beyond committed clips", () => {
+    const project = {
+      tracks: [{ clips: [{ start: 0, length: 5 * 60 * RATE }] }],
+    };
+    const liveEnd = 13 * 60 * RATE + 11 * RATE;
+
+    assert.equal(viewEnd(project, liveEnd), liveEnd);
+    assert.equal(viewEnd(project, null), 5 * 60 * RATE);
+    assert.equal(viewEnd(null, liveEnd), liveEnd);
+    const whole = zoomLevels({
+      width: WIDTH,
+      rate: RATE,
+      totalFrames: viewEnd(project, liveEnd),
+    })[0];
+    assert.equal(whole.kind, "whole");
+    assert.equal(whole.zoom * WIDTH, liveEnd);
+  });
+
   test("fitRange puts the range in view with a margin", () => {
     const { zoom, scroll } = fitRange({ start: 10_000, end: 110_000, width: 1000, padding: 0.05 });
     assert.ok(scroll < 10_000);
