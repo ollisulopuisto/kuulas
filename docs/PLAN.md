@@ -1,6 +1,6 @@
 # kuulas implementation plan
 
-**Release v26.11.1.2:** shuttle playback stops at the programme's last frame; live WebSocket Host/Origin validation; faster waveform tile lookup; the What's New dialog opens at the latest notes and keeps its close button visible. Includes v26.11.1.1's volume-envelope point dragging and localized What's New title.
+**Release v26.11.1.3:** packaged Colab Whisper uses faster-whisper 1.2.1 with CUDA float16 instead of the optimized Photon/Kestrel runtime that rejected T4 GPUs; real T4 verification remains an owner check. Also includes v26.11.1.2's shuttle boundary, WebSocket Host/Origin validation, waveform tile performance and What's New dialog fixes.
 
 **Release v26.10.30.6:** post-recording health notices for input overflows and inserted silence; live overview follows a recording's growing end; skip obscured timeline repaints during recording; live waveform draw cost is bounded to the visible window.
 
@@ -4022,12 +4022,13 @@ Budget: the rail renders with no layout thrash on a state change; an edit's roun
 
 ### WP87 — Choose the Colab transcription model
 
-Status: **built 2026-10-30** (v26.10.30.1). Colab settings offer Whisper
+Status: **built 2026-10-30** (v26.10.30.1; Colab Whisper engine updated in v26.11.1.3). Colab settings offer Whisper
 large-v3-turbo (`whisper`), Parakeet Ultra (`parakeet-ultra`), and a custom
 backend model ID. Existing `turbo` settings migrate to `whisper`; local
-Orukeet is unchanged. The packaged Colab command pins the shared podcast
-revision `5a179e6f16024a0e1aa6fa9d01a0edcb09cdf2fc`, which implements both
-built-in IDs. Kuulas accepts the timing labels returned by either engine.
+Orukeet is unchanged. The packaged Colab command pins shared podcast
+revision `8fc54ff6dfde7d2cce71eff6b1dc93196eba56de`, which implements both
+built-in IDs and runs Whisper with faster-whisper 1.2.1. Kuulas accepts the
+timing labels returned by either engine.
 English/Finnish labels and help are included. Unit, UI, and static checks pass;
 a live Colab run and packaged installation remain owner/release checks.
 
