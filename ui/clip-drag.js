@@ -5,13 +5,8 @@
 import { expandGroups } from "./clip-groups.js";
 import { implicitPortionAt } from "./clip-silence.js";
 import { frameToX } from "./format.js";
-import { RULER_HEIGHT } from "./lanes.js";
-
-/**
- * Height (px, from the lane's top) of the grab strip: the clip's label row. A drag on the
- * waveform below it stays the range drag (range-drag.js), as the plan recommends.
- */
-export const MOVE_STRIP_PX = 20;
+import { MOVE_STRIP_PX, RULER_HEIGHT } from "./lanes.js";
+export { MOVE_STRIP_PX };
 
 /** True when `rowY` (px from the lane's top) is inside the clip's label strip. */
 export function inMoveZone(rowY) {

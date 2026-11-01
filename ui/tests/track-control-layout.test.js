@@ -36,6 +36,13 @@ test("collapsed tracks keep mute/solo and role icon beside the name", () => {
   );
 });
 
+test("the current track header gets a subtle tint in its track color", () => {
+  assert.match(
+    css,
+    /\.track-header\[data-track\]\.current\s*\{[^}]*background:\s*color-mix\(in srgb, var\(--panel-bg\) 86%, var\(--track-colour\)\)/,
+  );
+});
+
 test("pan arc leaves the bottom quarter open without changing rotary mapping", () => {
   assert.match(css, /conic-gradient\(\s*from 225deg/);
   assert.match(css, /0deg 270deg,\s*transparent 270deg 360deg/);

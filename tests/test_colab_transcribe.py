@@ -75,6 +75,9 @@ FAKE = textwrap.dedent('''
         print("[colab] Session 'whisper' appears to be lost (404/401). Cleaning up.",
               flush=True)
         sys.exit(1)
+    if mode == "not_found" and "--reset-session" not in argv:
+        print("[colab] Session 'whisper' not found.", flush=True)
+        sys.exit(1)
     if mode == "fail":
         print("Colab quota exceeded", flush=True)
         sys.exit(4)
@@ -410,6 +413,17 @@ def test_a_lost_colab_session_is_retried_once_with_a_fresh_one(tmp_path, fake, t
     # The tool reuses a Colab session called 'whisper'; one that died (404/401) fails the
     # run (owner, 2026-10-23, packaged app). A second try asks the tool for a new session.
     fake["extra_args"] = ["--mode", "lost"]
+    result, _reports = run(files(tmp_path, "Olli.wav"), fake)
+    assert result["results"]["olli"]["words"]
+    calls = (tmp_path / "call.json.calls").read_text().splitlines()
+    assert len(calls) == 2
+    assert "--reset-session" not in calls[0]
+    assert "--reset-session" in calls[1]
+
+
+def test_a_missing_colab_session_is_retried_once_with_a_fresh_one(
+        tmp_path, fake, temp_root):
+    fake["extra_args"] = ["--mode", "not_found"]
     result, _reports = run(files(tmp_path, "Olli.wav"), fake)
     assert result["results"]["olli"]["words"]
     calls = (tmp_path / "call.json.calls").read_text().splitlines()

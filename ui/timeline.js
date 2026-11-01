@@ -14,6 +14,7 @@ import {
   canStartClipDrag,
   clipDragIds,
   groupBounds,
+  inMoveZone,
   moveBoxes,
   moveGhosts,
   portionDragEdit,
@@ -1904,7 +1905,7 @@ export function createTimeline({
     let cursor = hit.clip && hit.edge && hit.row?.kind === "track" ? "ew-resize" : "";
     // Cmd/Ctrl over an edge: it trims only this clip, shown by a different cursor.
     if (cursor && edgeMod(event) && !event.altKey) cursor = "col-resize";
-    const zone = tweakZone(hit, event, state.selection);
+    const zone = groupedLabelHit(hit, event) ? null : tweakZone(hit, event, state.selection);
     if (!cursor && zone) {
       if (zone.kind === "gain") cursor = "ns-resize";
       else if (zone.kind === "envelope") cursor = "move";
@@ -2191,7 +2192,8 @@ export function createTimeline({
     overlayCanvas.focus();
     const hit = hitAt(event);
     const before = getState().selection; // the press may replace it; a move takes the old one
-    const zone = event.shiftKey ? null : tweakZone(hit, event, before);
+    const groupLabel = groupedLabelHit(hit, event);
+    const zone = event.shiftKey || groupLabel ? null : tweakZone(hit, event, before);
     // What a drag does is a preference (drag-mode.js): paint a range, or move the clip.
     const intent = dragIntent({
       mode: getState().dragMode ?? DEFAULT_DRAG_MODE,
@@ -2360,6 +2362,15 @@ export function createTimeline({
   function rowYOf(event, hit) {
     if (!hit.row) return -1;
     return locate(event).y - RULER_HEIGHT + getState().scrollY - hit.row.top;
+  }
+
+  function groupedLabelHit(hit, event) {
+    return Boolean(
+      hit?.clip?.group &&
+        hit.row?.kind === "track" &&
+        hit.point == null &&
+        inMoveZone(rowYOf(event, hit)),
+    );
   }
 
   // `portion` (clip-drag.js portionDragEdit): the press was on an implicit portion. Past DRAG_PX
