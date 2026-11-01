@@ -285,20 +285,38 @@ class LiveTranscribeSidecar:
                     "done_frames": lane["live"].done_frames}
         return {"track": track_id, **status, "done_frames": lane["live"].done_frames}
 
-    def finish(self) -> list[dict]:
-        """The take is over: transcribe each lane's trailing partial chunk."""
+    def finish(self, cancel: "threading.Event | None" = None) -> list[dict]:
+        """The take is over: drain each lane's backlog, then its trailing chunk.
+
+        A slow engine can fall behind during the take; the backlog is on disk,
+        not in memory (one chunk in flight at a time), so draining it here
+        loses no words. ``cancel`` stops the drain BETWEEN chunks and reports
+        the lane's coverage (done vs flushed frames); a hung single engine
+        call runs out - nothing interrupts it, but the take never waits on it.
+        """
         out = []
         for track_id, lane in self._lanes.items():
             path = self.folder / lane["file"]
             try:
                 self._ensure_lane(track_id, lane)
-                status = lane["live"].finish(self._flushed(path))
+                live = lane["live"]
+                while chunk_window(self._flushed(path), live.done_frames,
+                                   self.rate, self._chunk_s) is not None:
+                    if cancel is not None and cancel.is_set():
+                        out.append({"track": track_id, "cancelled": True,
+                                    "done_frames": live.done_frames,
+                                    "flushed_frames": self._flushed(path)})
+                        break
+                    status = live.step(self._flushed(path))
+                    if status is not None:
+                        out.append({"track": track_id, **status})
+                else:
+                    status = live.finish(self._flushed(path))
+                    if status is not None:
+                        out.append({"track": track_id, **status})
             except Exception as error:
                 lane["error"] = str(error)
                 out.append({"track": track_id, "error": str(error)})
-                continue
-            if status is not None:
-                out.append({"track": track_id, **status})
         return out
 
     def tick(self) -> list[dict]:
@@ -330,6 +348,7 @@ class LiveTranscribeRunner:
         self._log = log
         self._wake = threading.Event()
         self._stop = threading.Event()
+        self._cancel = threading.Event()
         self._thread: threading.Thread | None = None
         self.errors = 0
         self.ticks = 0
@@ -345,15 +364,41 @@ class LiveTranscribeRunner:
         """New audio may be ready: tick soon (the watcher thread calls this)."""
         self._wake.set()
 
-    def stop(self, timeout: float = 30.0, flush: bool = True) -> None:
-        """Stop the thread; ``flush`` first transcribes the trailing partial chunks
-        (the take's last seconds) on the runner thread, so stop loses no words."""
+    def stop(self, timeout: float = 30.0, flush: bool = True,
+             block: bool = True) -> None:
+        """Stop the thread; ``flush`` first transcribes what is left (the backlog
+        and the trailing partial chunk) on the runner thread, so stop loses no
+        words. With ``block=False`` the caller returns at once - the take's
+        stop and import never wait on ASR - and the flush finishes in the
+        background; ``wait`` observes completion, ``cancel`` cuts it short."""
         self._flush = flush
         self._stop.set()
         self._wake.set()
-        if self._thread is not None:
+        if block and self._thread is not None:
             self._thread.join(timeout)
             self._thread = None
+
+    def wait(self, timeout: float) -> bool:
+        """True once the runner thread has finished (the flush included)."""
+        thread = self._thread
+        if thread is None:
+            return True
+        thread.join(timeout)
+        if thread.is_alive():
+            return False
+        self._thread = None
+        return True
+
+    def cancel(self) -> None:
+        """Cut a running flush short between chunks (a hung engine call runs out)."""
+        self._cancel.set()
+
+    @property
+    def flushing(self) -> bool:
+        """A flush was asked for and the runner thread is still doing it."""
+        thread = self._thread
+        return (self._stop.is_set() and self._flush and thread is not None
+                and thread.is_alive())
 
     _flush = True
 
@@ -363,14 +408,12 @@ class LiveTranscribeRunner:
             self._wake.wait(self.min_interval_s)
             self._wake.clear()
             if self._stop.is_set():
-                if self._flush:
-                    self._run_finish()
-                return
+                break
             now = time.monotonic()
             wait = self.min_interval_s - (now - last)
             if wait > 0:
                 if self._stop.wait(wait):
-                    return
+                    break
                 self._wake.clear()
             try:
                 statuses = self.sidecar.tick()
@@ -384,10 +427,12 @@ class LiveTranscribeRunner:
             interesting = [s for s in statuses if not s.get("waiting")]
             if interesting:
                 self.publish(interesting)
+        if self._flush:
+            self._run_finish()
 
     def _run_finish(self) -> None:
         try:
-            statuses = self.sidecar.finish()
+            statuses = self.sidecar.finish(cancel=self._cancel)
         except Exception as error:
             self.errors += 1
             if self._log:

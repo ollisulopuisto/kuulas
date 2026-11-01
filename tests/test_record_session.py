@@ -1203,13 +1203,73 @@ def test_live_transcript_words_arrive_while_the_take_runs(session, recorder):
         wait_until(lambda: not rs.status()["recording"], timeout=20)
         # Owner, 2026-11-01: stop keeps the take's words searchable (the tail
         # flushed) and the import hands them to the media - no cold re-run.
-        # The import consumed the live store into the media's transcript.
+        # The flush and the handoff are asynchronous: they land shortly after.
         media = session.state.media[0]
+        wait_until(lambda: session.history.material["transcripts"].get(media.id)
+                   is not None, timeout=20)
         rev = session.history.material["transcripts"].get(media.id)
         assert rev is not None
         assert [w["w"] for w in session.history.transcript(rev)] == [
             "terveiset", "kokouksesta"]
         assert rs.live_transcript_words() == []  # handed off, not kept twice
+    finally:
+        rs.close()
+
+
+def test_slow_engine_never_blocks_stop_and_the_words_land(session, recorder):
+    """Owner, 2026-11-01: stop finalizes the take while ASR still works."""
+    def slow_engine(audio, rate):
+        time.sleep(0.4)  # slower than the stop path may ever wait on
+        return [{"word": "hitaastikin", "start": 1.0, "end": 1.5}]
+    published = Published()
+    rs = RecordSession(
+        session, published,
+        connect=lambda: RecorderClient.connect(recorder.socket_path, timeout=20),
+        spawn=no_spawn, retry_s=0.1,
+        live_engine_factory=lambda: slow_engine)
+    try:
+        rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
+                 track_id=None, name="Olli", at=0)
+        wait_until(lambda: published.kinds("live_transcript"), timeout=30)
+        started = time.monotonic()
+        rs.stop("two_step")
+        wait_until(lambda: not rs.status()["recording"], timeout=20)
+        assert time.monotonic() - started < 20  # the stop itself did not wait on ASR
+        media = session.state.media[0]
+        wait_until(lambda: session.history.material["transcripts"].get(media.id)
+                   is not None, timeout=30)
+        rev = session.history.material["transcripts"][media.id]
+        assert "hitaastikin" in [w["w"] for w in session.history.transcript(rev)]
+        assert not rs.live_transcript_flushing()
+    finally:
+        rs.close()
+
+
+def test_hung_engine_times_out_and_hands_off_what_exists(session, recorder,
+                                                         monkeypatch):
+    """Owner, 2026-11-01: a hung recognizer cannot wedge the take or the handoff."""
+    monkeypatch.setattr(RecordSession, "LIVE_FLUSH_TIMEOUT_S", 0.5)
+    gate = threading.Event()  # never set: the engine call never returns
+    def hung_engine(audio, rate):
+        gate.wait()
+        return []
+    published = Published()
+    rs = RecordSession(
+        session, published,
+        connect=lambda: RecorderClient.connect(recorder.socket_path, timeout=20),
+        spawn=no_spawn, retry_s=0.1,
+        live_engine_factory=lambda: hung_engine)
+    try:
+        rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
+                 track_id=None, name="Olli", at=0)
+        time.sleep(2.0)  # the runner is stuck inside the first engine call
+        rs.stop("two_step")  # returns: the take finalizes despite the hang
+        wait_until(lambda: not rs.status()["recording"], timeout=20)
+        media = session.state.media[0]  # imported while the engine still hangs
+        wait_until(lambda: rs._live_pending is None, timeout=20)
+        assert not rs.live_transcript_flushing()
+        # nothing was ever transcribed: no transcript, no crash, take intact
+        assert session.history.material["transcripts"].get(media.id) is None
     finally:
         rs.close()
 

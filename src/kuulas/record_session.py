@@ -133,6 +133,10 @@ class RecordSession:
         #: 2026-11-01); None = no live transcript (the engine is not on this Mac).
         self._live_engine_factory = live_engine_factory
         self._live_runner: live_transcribe.LiveTranscribeRunner | None = None
+        self._live_done: live_transcribe.LiveTranscribeSidecar | None = None
+        # The finished take's flush + import coordination (see _live_stop):
+        # {"runner", "take", "imported", "flushed", "waiting"} under _lock.
+        self._live_pending: dict | None = None
         self.session = session
         # While a take of this project records, the session refuses edits (Session.
         # _check_not_recording); the answer is read live from the last status heard.
@@ -730,7 +734,7 @@ class RecordSession:
                       "start": min(c.start for cl, _ in lanes for c in cl),
                       "tracks": len(lanes), "interrupted": interrupted}
             self._imported[take] = result
-            self._live_handoff(take)
+            self._live_imported(take)
             self.publish({"type": "record", "kind": "imported", **result})
             return result
 
@@ -797,6 +801,11 @@ class RecordSession:
                 continue
             self._on_event(event)
 
+    #: How long the background flush may run after the take stops before it is
+    #: cancelled and whatever words exist are handed off. Never blocks the take:
+    #: only the waiter thread waits on this.
+    LIVE_FLUSH_TIMEOUT_S = 60.0
+
     # -- live take transcription (owner, 2026-11-01) -------------------------------
     # While a take records, its lanes' newest seconds are transcribed on the
     # runner's thread and the words are searchable during the take. Never a
@@ -817,6 +826,8 @@ class RecordSession:
         if not lane_files:
             return
         self._live_done = None
+        with self._lock:
+            self._live_pending = None
         sidecar = live_transcribe.LiveTranscribeSidecar(
             rate=self.rate, folder=self.folder, lane_files=lane_files,
             engine_factory=self._live_engine_factory)
@@ -826,17 +837,87 @@ class RecordSession:
                 {"type": "record", "kind": "live_transcript", "statuses": statuses}))
         self._live_runner.start()
 
-    def _live_stop(self) -> None:
-        # The take's words stay searchable after the stop (owner, 2026-11-01):
-        # the runner flushes the trailing chunk and the store is kept as the
-        # take's transcript until import hands it to the media (set_transcript)
-        # or the next take replaces it. No cold re-transcription by default.
+    def _live_stop(self, take: str | None = None) -> None:
+        # The take's stop and import NEVER wait on ASR (owner, 2026-11-01): the
+        # runner is only signalled; its thread flushes the backlog and the
+        # trailing chunk in the background, the store stays searchable
+        # meanwhile, and a waiter hands the words to the media once BOTH the
+        # flush and the import are done (either order). A flush that outlives
+        # LIVE_FLUSH_TIMEOUT_S is cancelled and whatever words exist are
+        # handed off - the take is never at risk, the status stays honest.
         runner, self._live_runner = self._live_runner, None
-        if runner is not None:
-            runner.stop(flush=True)
-            self._live_done = runner.sidecar
+        if runner is None:
+            return
+        runner.stop(flush=True, block=False)
+        self._live_done = runner.sidecar
+        if take is None:  # closing: nothing to hand off
+            return
+        start_waiter = False
+        with self._lock:
+            pending = self._live_pending
+            if pending is not None and pending["take"] == take \
+                    and pending["runner"] in (None, runner):
+                pending["runner"] = runner
+            else:
+                pending = {"runner": runner, "take": take,
+                           "imported": take in self._imported,
+                           "flushed": False, "waiting": False}
+                self._live_pending = pending
+            if not pending["waiting"]:
+                pending["waiting"] = True
+                start_waiter = True
+        if start_waiter:
+            threading.Thread(target=self._live_flush_waiter, args=(runner,),
+                             name="kuulas-live-flush", daemon=True).start()
+        self._maybe_live_handoff()
 
-    _live_done: live_transcribe.LiveTranscribeSidecar | None = None
+    def _live_flush_waiter(self, runner) -> None:
+        done = runner.wait(self.LIVE_FLUSH_TIMEOUT_S)
+        if not done:
+            # Too slow or hung: drain no more (a hung engine call runs out;
+            # the daemon thread dies with the process, never blocking a take).
+            runner.cancel()
+            log.warning("live transcript flush timed out; handing off what exists")
+        with self._lock:
+            pending = self._live_pending
+            if pending is None or pending["runner"] is not runner:
+                return
+            pending["flushed"] = True
+        self._maybe_live_handoff()
+
+    def _live_imported(self, take: str) -> None:
+        """The take is in the project: hand off once the flush is done too."""
+        with self._lock:
+            pending = self._live_pending
+            if pending is not None and pending["take"] == take:
+                pending["imported"] = True
+            elif self._live_runner is not None:
+                # The import beat the recorder's stopped event: _live_stop
+                # registers the runner and starts the waiter when it lands.
+                self._live_pending = {"runner": self._live_runner, "take": take,
+                                      "imported": True, "flushed": False,
+                                      "waiting": False}
+            else:
+                # Nothing pending (an older take, or no live transcription):
+                # hand off whatever the store holds right away.
+                self._live_pending = {"runner": None, "take": take,
+                                      "imported": True, "flushed": True,
+                                      "waiting": False}
+        self._maybe_live_handoff()
+
+    def _maybe_live_handoff(self) -> None:
+        with self._lock:
+            pending = self._live_pending
+            if pending is None or not pending["imported"] or not pending["flushed"]:
+                return
+            self._live_pending = None
+        self._live_handoff(pending["take"])
+
+    def live_transcript_flushing(self) -> bool:
+        """The take is over but its last words are still being transcribed."""
+        with self._lock:
+            pending = self._live_pending
+        return pending is not None and not pending["flushed"]
 
     def _live_store(self) -> live_transcribe.LiveTranscript | None:
         if self._live_runner is not None:
@@ -912,7 +993,7 @@ class RecordSession:
             return
         if kind == "stopped":
             if self._ours(event):
-                self._live_stop()
+                self._live_stop(event.get("take"))
             if self._ours(event) and event.get("take"):
                 self._take_cart_end(event["take"])
                 self._import_later(event["take"])

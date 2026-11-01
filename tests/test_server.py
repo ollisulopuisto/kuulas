@@ -1376,12 +1376,14 @@ class TestLiveTranscriptEndpoint:
     def test_no_recorder_reports_not_live(self, client):
         r = client.get("/api/record/live-transcript")
         assert r.status_code == 200
-        assert r.json() == {"live": False, "words": []}
+        assert r.json() == {"live": False, "flushing": False, "words": []}
 
     def test_words_and_search_come_from_the_recorder(self, session, engine, tmp_path):
         class FakeRecorder:
             def set_publish(self, publish):
                 pass
+            def live_transcript_flushing(self):
+                return False
             def live_transcript_words(self, track):
                 assert track == "t1"
                 return [{"track": "t1", "w": "hei", "s": 0, "e": 10}]

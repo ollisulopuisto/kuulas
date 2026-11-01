@@ -7,6 +7,7 @@ how chunk words merge without duplicates, and the searchable store.
 
 from __future__ import annotations
 
+import threading
 import time
 
 import pytest
@@ -375,3 +376,76 @@ class TestFinish:
         assert lane["live"].done_frames == 6 * RATE
         assert store.words()
         assert published
+
+
+class TestFlushBounds:
+    """Owner, 2026-11-01: the flush after stop is bounded and never blocks the take."""
+
+    def sidecar(self, engine, flushed, store=None):
+        from kuulas.live_transcribe import LiveTranscribeSidecar, LiveTranscript
+        return LiveTranscribeSidecar(
+            rate=RATE, folder="/tmp/fake", lane_files={"t1": "x.wav"},
+            engine_factory=lambda: engine,
+            store=store or LiveTranscript(),
+            read_frames=lambda s, e: [0.0] * (e - s), flushed=flushed)
+
+    def test_finish_drains_the_backlog_then_the_tail(self):
+        # The engine fell behind during the take: 12 s flushed, nothing done.
+        calls = []
+        def engine(audio, rate):
+            calls.append(len(audio))
+            return [{"word": f"sana{len(calls)}", "start": 1.0, "end": 1.5}]
+        sidecar = self.sidecar(engine, lambda p: 12 * RATE)
+        statuses = sidecar.finish()
+        assert not any(s.get("cancelled") for s in statuses)
+        assert any(s.get("tail") for s in statuses)
+        live = sidecar._lanes["t1"]["live"]
+        assert live.done_frames == 12 * RATE  # nothing left behind
+        words = [w["w"] for w in sidecar.store.words()]
+        assert words == ["sana1", "sana2", "sana3"]
+
+    def test_cancel_stops_the_drain_between_chunks_with_honest_coverage(self):
+        from kuulas.live_transcribe import LiveTranscribeSidecar, LiveTranscript
+        cancel = threading.Event()
+        calls = []
+        def engine(audio, rate):
+            calls.append(len(audio))
+            if len(calls) == 1:
+                cancel.set()  # the caller ran out of patience mid-drain
+            return [{"word": "sana", "start": 1.0, "end": 1.5}]
+        sidecar = self.sidecar(engine, lambda p: 17 * RATE)
+        statuses = sidecar.finish(cancel=cancel)
+        cancelled = [s for s in statuses if s.get("cancelled")]
+        assert cancelled
+        assert cancelled[0]["done_frames"] < cancelled[0]["flushed_frames"]
+        assert sidecar._lanes["t1"]["live"].done_frames == 5 * RATE
+
+    def test_stop_without_block_returns_while_the_engine_still_works(self):
+        from kuulas.live_transcribe import LiveTranscribeRunner
+        def slow(audio, rate):
+            time.sleep(0.5)
+            return [{"word": "myohaainen", "start": 1.0, "end": 1.5}]
+        sidecar = self.sidecar(slow, lambda p: 6 * RATE)
+        runner = LiveTranscribeRunner(sidecar, min_interval_s=0.02)
+        runner.start()
+        started = time.monotonic()
+        runner.stop(flush=True, block=False)
+        assert time.monotonic() - started < 0.4
+        assert runner.flushing
+        assert runner.wait(10)
+        assert not runner.flushing
+        assert sidecar._lanes["t1"]["live"].done_frames == 6 * RATE
+        # the chunk the loop already took, plus the flushed tail
+        assert [w["w"] for w in sidecar.store.words()] == ["myohaainen", "myohaainen"]
+
+    def test_wait_times_out_on_a_hung_engine_and_cancel_is_safe(self):
+        from kuulas.live_transcribe import LiveTranscribeRunner
+        gate = threading.Event()  # never set
+        sidecar = self.sidecar(lambda audio, rate: gate.wait() or [],
+                               lambda p: 6 * RATE)
+        runner = LiveTranscribeRunner(sidecar, min_interval_s=0.02)
+        runner.start()
+        runner.stop(flush=True, block=False)
+        assert runner.wait(0.3) is False  # the hung call runs out, unwedgeable
+        runner.cancel()  # no raise, no effect on the running call
+        assert runner.flushing  # honestly still busy
