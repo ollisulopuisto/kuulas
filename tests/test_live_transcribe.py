@@ -449,3 +449,42 @@ class TestFlushBounds:
         assert runner.wait(0.3) is False  # the hung call runs out, unwedgeable
         runner.cancel()  # no raise, no effect on the running call
         assert runner.flushing  # honestly still busy
+
+
+class TestEngineLifecycle:
+    """Owner, 2026-11-01: workers never accumulate across takes."""
+
+    def test_runner_exit_closes_the_engine(self):
+        from kuulas.live_transcribe import LiveTranscribeRunner, LiveTranscribeSidecar
+        closed = []
+        class Engine:
+            def __call__(self, audio, rate):
+                return [{"word": "x", "start": 0.0, "end": 0.5}]
+            def close(self):
+                closed.append(True)
+        sidecar = LiveTranscribeSidecar(
+            rate=RATE, folder="/tmp/fake", lane_files={"t1": "x.wav"},
+            engine_factory=lambda: Engine(),
+            read_frames=lambda s, e: [0.0] * (e - s), flushed=lambda p: 6 * RATE)
+        runner = LiveTranscribeRunner(sidecar, min_interval_s=0.02)
+        runner.start()
+        runner.poke()
+        runner.stop(flush=True)
+        assert closed == [True]
+        assert sidecar._engine is None
+
+    def test_failing_factory_counts_toward_the_lane_budget(self):
+        from kuulas.live_transcribe import LiveTranscribeSidecar
+        calls = []
+        def factory():
+            calls.append(1)
+            raise RuntimeError("model missing")
+        sidecar = LiveTranscribeSidecar(
+            rate=RATE, folder="/tmp/fake", lane_files={"t1": "x.wav"},
+            engine_factory=factory,
+            read_frames=lambda s, e: [0.0] * (e - s), flushed=lambda p: 6 * RATE)
+        for _ in range(3):
+            statuses = sidecar.tick()
+        lane = sidecar._lanes["t1"]
+        assert lane["failures"] == 3 and len(calls) == 3
+        assert sidecar.tick() == []  # disabled lane: no more factory attempts

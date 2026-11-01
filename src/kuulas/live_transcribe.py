@@ -270,8 +270,8 @@ class LiveTranscribeSidecar:
         done = lane["live"].done_frames if lane["live"] is not None else 0
         if chunk_window(flushed, done, self.rate, self._chunk_s) is None:
             return {"track": track_id, "waiting": True, "done_frames": done}
-        self._ensure_lane(track_id, lane)
         try:
+            self._ensure_lane(track_id, lane)  # a failing engine factory too
             status = lane["live"].step(flushed)
         except Exception as error:  # the take never stops for transcription
             lane["failures"] += 1
@@ -284,6 +284,16 @@ class LiveTranscribeSidecar:
             return {"track": track_id, "waiting": True,
                     "done_frames": lane["live"].done_frames}
         return {"track": track_id, **status, "done_frames": lane["live"].done_frames}
+
+    def close(self) -> None:
+        """Release the engine (the warm worker process); the take never waits."""
+        engine, self._engine = self._engine, None
+        close = getattr(engine, "close", None)
+        if callable(close):
+            try:
+                close()
+            except Exception:  # closing a broken worker must never raise
+                pass
 
     def finish(self, cancel: "threading.Event | None" = None) -> list[dict]:
         """The take is over: drain each lane's backlog, then its trailing chunk.
@@ -427,8 +437,13 @@ class LiveTranscribeRunner:
             interesting = [s for s in statuses if not s.get("waiting")]
             if interesting:
                 self.publish(interesting)
-        if self._flush:
-            self._run_finish()
+        try:
+            if self._flush:
+                self._run_finish()
+        finally:
+            # The worker process (model memory, native runtime) never outlives
+            # the runner thread: successive takes each load exactly one engine.
+            self.sidecar.close()
 
     def _run_finish(self) -> None:
         try:
