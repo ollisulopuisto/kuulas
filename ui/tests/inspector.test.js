@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { describe, test } from "node:test";
+import { readFileSync } from "node:fs";
+import { beforeEach, describe, test } from "node:test";
+import { fileURLToPath } from "node:url";
+import * as i18n from "../i18n.js";
 import { formatDb, t } from "../i18n.js";
 import {
   clipLengthText,
@@ -8,7 +11,7 @@ import {
   selectedClip,
   syncGroupOf,
 } from "../inspector.js";
-import { createTrackClips, trackClipRows } from "../inspector-clips.js";
+import { createTrackClips, trackClipRows, trackFileRows } from "../inspector-clips.js";
 import { addBusForTrack, buildTrackSections, hasDuckControl } from "../inspector-track.js";
 
 class FakeNode {
@@ -86,6 +89,13 @@ globalThis.document = {
   documentElement: { lang: "en" },
   activeElement: null,
 };
+
+const locales = fileURLToPath(new URL("../../src/kuulas/locales/", import.meta.url));
+const catalog = (lang) => JSON.parse(readFileSync(`${locales}${lang}.json`, "utf8"));
+beforeEach(() => {
+  i18n.setCatalogs({ en: catalog("en"), fi: catalog("fi") });
+  i18n.setLanguageNow("en");
+});
 
 // The server sends sync-group members as { mediaId: origin } (SyncGroup.to_dict).
 const project = {
@@ -274,6 +284,57 @@ describe("track clip properties list", () => {
       selection: new Set(),
     });
     assert.equal(details.all().filter((n) => n.tagName === "button").length, 0);
+  });
+});
+
+describe("track source file list", () => {
+  const project = {
+    rate: 48000,
+    media: [
+      { id: "m1", name: "same.wav" },
+      { id: "m2", name: "same.wav" },
+    ],
+    tracks: [
+      {
+        id: "t",
+        clips: [
+          { id: "c1", media: "m1", start: 0, length: 48000 },
+          { id: "c2", media: "m2", start: 96000, length: 24000, muted: true },
+          { id: "c3", media: "m1", start: 48000, length: 24000 },
+          { id: "c4", start: 144000, length: 24000, name: "Free" },
+        ],
+      },
+      { id: "other", clips: [{ id: "x", media: "m1", start: 0, length: 2 }] },
+    ],
+  };
+  test("one row per source file, names stay separate, timeline order by first clip", () => {
+    assert.deepEqual(
+      trackFileRows(project, "t").map((row) => [row.key, row.name, row.clips.map((c) => c.id)]),
+      [
+        ["m1", "same.wav", ["c1", "c3"]],
+        ["m2", "same.wav", ["c2"]],
+        ["c4", "Free", ["c4"]],
+      ],
+    );
+    assert.deepEqual(trackFileRows(project, "gone"), []);
+  });
+  test("file rows expand to clips that keep jump and selection, empty state unchanged", () => {
+    const details = new FakeNode("details");
+    const calls = [];
+    const view = createTrackClips({ details, trackId: "t", jump: (...args) => calls.push(args) });
+    view.update({ project, selection: new Set(["c3"]) });
+    const files = details.all().filter((n) => n.tagName === "details");
+    assert.equal(files.length, 3);
+    const summaries = files.map((f) => f.querySelector("summary").textContent);
+    assert.deepEqual(summaries, ["same.wav · 2 clips", "same.wav · 1 clip", "Free · 1 clip"]);
+    const buttons = details.all().filter((n) => n.tagName === "button");
+    assert.equal(buttons.length, 4);
+    assert.deepEqual(buttons.map((b) => b.attrs["aria-pressed"]), ["false", "true", "false", "false"]);
+    buttons[0].listeners.click[0]();
+    assert.deepEqual(calls, [["c1", "t", 0]]);
+    view.update({ project: { ...project, tracks: [{ id: "t", clips: [] }] }, selection: new Set() });
+    assert.equal(details.all().filter((n) => n.tagName === "button").length, 0);
+    assert.equal(details.all().filter((n) => n.tagName === "details").length, 0);
   });
 });
 

@@ -471,8 +471,13 @@
   "ui.track.gain": "Raidan taso",
   "ui.track.pan": "Raidan panorointi",
   "ui.bus.name": "Väylä: {name}",
-  "ui.inspector.clips": "Raidan leikkeet",
-  "ui.inspector.clips.empty": "Raidalla ei ole leikkeitä.",
+  "ui.bus.rename": "Nimeä väylä kaksoisnapsauttamalla",
+  "ui.inspector.clips": "Raidan tiedostot",
+  "ui.inspector.clips.empty": "Raidalla ei ole tiedostoja.",
+  "ui.inspector.clips.count": {
+    "one": "{count} leike",
+    "other": "{count} leikettä"
+  },
   "ui.inspector.clips.jump": "Valitse leike ja siirrä toistokohta sen alkuun",
   "ui.inspector.title": "Tarkastin",
   "ui.inspector.empty": "Valitse yksi leike tarkasteltavaksi.",

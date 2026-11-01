@@ -32,6 +32,13 @@ const COMPACT_BELOW_PX = 40;
 const STRIP_BELOW_PX = 24;
 
 /** "L 30", "R 30" or "C" for a pan in -1..1. */
+// A committed rename needs a non-empty, actually-changed name; a blanked or
+// untouched field just closes (shared by track and bus header rename).
+export function renamedName(value, current) {
+  const name = value.trim();
+  return name && name !== current ? name : null;
+}
+
 export function panText(pan) {
   const percent = Math.round(pan * 100);
   if (percent === 0) return t("ui.pan.center");
@@ -435,7 +442,7 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     });
     node.addEventListener("focusin", () => actions.currentTrack(id, { mode: "follow" }));
     node.addEventListener("contextmenu", (event) => actions.contextMenu("track", id, event));
-    name.addEventListener("dblclick", () => rename(name, id));
+    name.addEventListener("dblclick", () => rename(name, id, "track"));
     tag.addEventListener("click", () => actions.cycleKind(id));
     roleBadge.addEventListener("click", () => actions.matchRole(id));
     mute.addEventListener("click", () => {
@@ -521,7 +528,9 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     const chevron = el("button", "bus-chevron", { type: "button" });
     const badge = el("span", "bus-badge", { "aria-hidden": "true" });
     badge.textContent = busLetter(index);
-    const name = el("span", "bus-name");
+    // The name is a label, not a tab stop; like a track name it renames on
+    // double-click (the header's own double-click folds the bus instead).
+    const name = el("span", "bus-name", { title: t("ui.bus.rename") });
     // Two lines (owner, 2026-10-18: the levels were too small to use on one line):
     // badge, name and M on top, the bus level and pan below, always shown.
     const mute = toggle(t("ui.bus.mute"), t("ui.track.mute.short"), "mute");
@@ -556,6 +565,10 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
     chevron.addEventListener("click", () => actions.toggleBus(id));
     reapply.addEventListener("click", () => actions.reapplyRole(id));
     // Double-click the header itself, not its buttons, sliders or the name being edited.
+    name.addEventListener("dblclick", (event) => {
+      event.stopPropagation();
+      rename(name, id, "bus");
+    });
     node.addEventListener("dblclick", (event) => {
       if (!event.target.closest("button, input, select, label, output")) actions.toggleBus(id);
     });
@@ -618,23 +631,29 @@ export function createTrackHeaders({ root, editor, actions, onBusCreated = () =>
   const lookupIndex = (id) => latest.project.tracks.findIndex((track) => track.id === id);
   const currentBus = (id) => latest.project.buses.find((bus) => bus.id === id);
 
-  function rename(button, id) {
-    const input = el("input", "track-rename", { type: "text", "aria-label": t("ui.track.name") });
-    input.value = lookup(id).name;
-    button.replaceWith(input);
+  function rename(anchor, id, kind) {
+    const forBus = kind === "bus";
+    const current = () => (forBus ? currentBus(id).name : lookup(id).name);
+    const input = el("input", "track-rename", {
+      type: "text",
+      "aria-label": t(forBus ? "ui.bus.name_field" : "ui.track.name"),
+    });
+    input.value = current();
+    anchor.replaceWith(input);
     input.focus();
     input.select();
     let done = false;
     const finish = (commit) => {
       if (done) return;
       done = true;
-      const value = input.value.trim();
-      input.replaceWith(button);
-      if (commit && value && value !== lookup(id).name) {
+      const value = renamedName(input.value, current());
+      input.replaceWith(anchor);
+      if (commit && value) {
         editor.change({
-          op: "set_track",
-          args: { track_id: id, name: value },
-          provisional: (p) => patchTrack(p, id, { name: value }),
+          op: forBus ? "set_bus" : "set_track",
+          args: forBus ? { bus_id: id, name: value } : { track_id: id, name: value },
+          provisional: (p) =>
+            forBus ? patchBus(p, id, { name: value }) : patchTrack(p, id, { name: value }),
         });
       }
     };
