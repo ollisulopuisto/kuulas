@@ -1177,3 +1177,45 @@ def test_recording_lufs_reaches_live_subscribers_from_flushed_audio(session, rec
         rs.stop("one_click", 0)
     finally:
         rs.close()
+
+
+def test_live_transcript_words_arrive_while_the_take_runs(session, recorder):
+    """Owner, 2026-11-01: the take's newest seconds are searchable during the take."""
+    published = Published()
+    rs = RecordSession(
+        session, published,
+        connect=lambda: RecorderClient.connect(recorder.socket_path, timeout=20),
+        spawn=no_spawn, retry_s=0.1,
+        live_engine_factory=lambda: (lambda audio, rate: [
+            {"word": "terveiset", "start": 1.0, "end": 1.5},
+            {"word": "kokouksesta", "start": 1.6, "end": 2.2}]))
+    try:
+        view = rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
+                        track_id=None, name="Olli", at=0)
+        assert view["recording"]
+        # The first full 5 s chunk lands while the take still records.
+        wait_until(lambda: published.kinds("live_transcript"), timeout=30)
+        assert view["recording"] or rs.status()["recording"]
+        hits = rs.live_transcript_search("kokouksesta")
+        assert [h["w"] for h in hits] == ["kokouksesta"]
+        assert [w["w"] for w in rs.live_transcript_words()] == ["terveiset", "kokouksesta"]
+        rs.stop("two_step")
+        # Over: the live store is gone; the post-hoc worker owns the take's text.
+        wait_until(lambda: not rs.status()["recording"], timeout=20)
+        assert rs.live_transcript_words() == []
+    finally:
+        rs.close()
+
+
+def test_no_engine_factory_no_live_transcript(session, recorder):
+    published = Published()
+    rs = live(session, recorder, published)
+    try:
+        rs.start(device={"index": 0, "name": "Fake Mic"}, channel=1,
+                 track_id=None, name="Olli", at=0)
+        time.sleep(1.0)
+        assert published.kinds("live_transcript") == []
+        assert rs.live_transcript_words() == []
+        rs.stop("two_step")
+    finally:
+        rs.close()

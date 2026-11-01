@@ -49,7 +49,7 @@ from kuulas_recorder.client import (
     spawn_supervisor,
 )
 
-from . import disk_budget, ops
+from . import disk_budget, live_transcribe, ops
 from . import record_take as rt
 from .messages import KuulasError, t
 from .preview_level import PEAK_TO_LUFS_DB
@@ -127,7 +127,12 @@ class RecordSession:
     def __init__(self, session, publish: Callable[[dict], None] | None = None, *,
                  connect: Callable[[], RecorderClient] = default_connect,
                  spawn: Callable[[], None] = default_spawn, retry_s: float = RETRY_S,
-                 hold_ms: int = HOLD_MS, watch: bool = True) -> None:
+                 hold_ms: int = HOLD_MS, watch: bool = True,
+                 live_engine_factory=None) -> None:
+        #: Builds the warm speech engine for live take transcription (owner,
+        #: 2026-11-01); None = no live transcript (the engine is not on this Mac).
+        self._live_engine_factory = live_engine_factory
+        self._live_runner: live_transcribe.LiveTranscribeRunner | None = None
         self.session = session
         # While a take of this project records, the session refuses edits (Session.
         # _check_not_recording); the answer is read live from the last status heard.
@@ -172,6 +177,7 @@ class RecordSession:
         self.publish = publish
 
     def close(self) -> None:
+        self._live_stop()
         """Stop listening. A take that is recording goes on (that is the point); a
         microphone this editor armed for pre-roll is let go (the recorder would also do
         it itself once nobody keeps it armed)."""
@@ -790,6 +796,52 @@ class RecordSession:
                 continue
             self._on_event(event)
 
+    # -- live take transcription (owner, 2026-11-01) -------------------------------
+    # While a take records, its lanes' newest seconds are transcribed on the
+    # runner's thread and the words are searchable during the take. Never a
+    # risk to the take: the watcher only pokes; engine trouble loses a lane.
+
+    def _live_start(self, status: dict) -> None:
+        if self._live_engine_factory is None or self._live_runner is not None:
+            return
+        # Segment 1 of each lane (a take past the 4 GB segment boundary keeps
+        # transcribing only on its first segment for now).
+        plan = status.get("plan") or {}
+        take = status.get("take")
+        lane_files = {}
+        for lane in plan.get("lanes") or []:
+            key = lane.get("track_id") or f"ch{lane.get('channel')}"
+            if take and lane.get("name"):
+                lane_files[key] = rt.segment_file(take, lane["name"], 1)
+        if not lane_files:
+            return
+        sidecar = live_transcribe.LiveTranscribeSidecar(
+            rate=self.rate, folder=self.folder, lane_files=lane_files,
+            engine_factory=self._live_engine_factory)
+        self._live_runner = live_transcribe.LiveTranscribeRunner(
+            sidecar, log=log,
+            publish=lambda statuses: self.publish(
+                {"type": "record", "kind": "live_transcript", "statuses": statuses}))
+        self._live_runner.start()
+
+    def _live_stop(self) -> None:
+        runner, self._live_runner = self._live_runner, None
+        if runner is not None:
+            runner.stop()
+
+    def live_transcript_search(self, query: str) -> list[dict]:
+        # The take-so-far's words matching query, searched DURING the take.
+        runner = self._live_runner
+        if runner is None:
+            return []
+        return runner.sidecar.store.search(query)
+
+    def live_transcript_words(self, track_id: str | None = None) -> list[dict]:
+        runner = self._live_runner
+        if runner is None:
+            return []
+        return runner.sidecar.store.words(track_id)
+
     def _on_event(self, event: dict) -> None:
         kind = event.get("event")
         with self._lock:
@@ -811,8 +863,12 @@ class RecordSession:
                               "short_term_lufs": self._input_loudness.read(),
                               "clipped": event.get("clipped", []),
                               "position_frames": self._position})
+                if ours and self._live_runner is not None:
+                    self._live_runner.poke()
             return
         if kind == "stopped":
+            if self._ours(event):
+                self._live_stop()
             if self._ours(event) and event.get("take"):
                 self._take_cart_end(event["take"])
                 self._import_later(event["take"])
@@ -823,8 +879,12 @@ class RecordSession:
             if kind == "disarmed":
                 self._notice(event)
             return
-        if kind == "started" or (ours and kind in ("device_lost", "device_back", "gap",
-                                                   "worker_restarted")):
+        if kind == "started":
+            view = self.status()  # refreshes the stale pre-start status first
+            self.publish({"type": "record", "kind": "status", "status": view})
+            if view["ours"]:
+                self._live_start(view)
+        elif ours and kind in ("device_lost", "device_back", "gap", "worker_restarted"):
             self.publish({"type": "record", "kind": "status", "status": self.status()})
         if ours and kind != "started":
             self._notice(event)
