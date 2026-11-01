@@ -50,6 +50,7 @@
   "error.orukeet.space": "There is not enough free space to install Orukeet. Free at least 1.4 GB and retry.",
   "error.orukeet.busy": "Orukeet is already being installed in another window.",
   "error.orukeet.platform": "Local Orukeet currently requires an Apple-silicon Mac.",
+  "error.orukeet.no_installation": "Orukeet is not installed on this machine. Install it from the transcription settings to hear words while recording.",
   "error.orukeet.invalid_model": "Choose a folder containing an Orukeet MLX config.json and model.safetensors.",
   "cmd.sync.accept_range": "Accept the offsets in the range",
   "cmd.sync.accept_range.hint": "Says the offsets of the drifting clips between the in and out marks (else from the play cursor to the end) are on purpose, such as the delay of a remote call you have corrected: they are freed from sync, stop counting as drifting and nothing moves. One undo step.",
