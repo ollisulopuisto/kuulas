@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
+import { clipDragIds } from "../clip-drag.js";
+import { dragIntent } from "../drag-mode.js";
 import {
   BUS_HEIGHT,
   clampLaneHeight,
@@ -19,8 +21,6 @@ import {
   visibleRows,
   yToDb,
 } from "../lanes.js";
-import { clipDragIds } from "../clip-drag.js";
-import { dragIntent } from "../drag-mode.js";
 
 const project = {
   rate: 48_000,
@@ -280,14 +280,11 @@ describe("hit testing", () => {
     });
     assert.equal(label.clip.id, "label");
     assert.equal(label.edge, null, "dragging the label at the clip start must move it");
-    assert.equal(
-      dragIntent({ mode: "range", hit: label, rowY: MOVE_STRIP_PX - 1 }),
-      "move",
-    );
-    assert.deepEqual(
-      [...clipDragIds(label.clip.id, new Set(), labelProject)].sort(),
-      ["label", "partner"],
-    );
+    assert.equal(dragIntent({ mode: "range", hit: label, rowY: MOVE_STRIP_PX - 1 }), "move");
+    assert.deepEqual([...clipDragIds(label.clip.id, new Set(), labelProject)].sort(), [
+      "label",
+      "partner",
+    ]);
     assert.equal(body.edge, "start", "the waveform keeps its trim handle");
   });
 

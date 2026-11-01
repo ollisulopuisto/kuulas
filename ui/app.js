@@ -4224,6 +4224,11 @@ const timeline = createTimeline({
         },
       });
     },
+    renameMarker({ markerId, name }) {
+      const marker = getState().project?.markers.find((item) => item.id === markerId);
+      if (!marker || marker.name === name) return;
+      sendMarkerEdit("rename_marker", { marker_id: markerId, name }, "ui.markers.history.rename");
+    },
     // A click on a clip (no travel) also completes a lone in or out mark (marks.js).
     clickSeek: (frame) => {
       const mark = implicitMarkPlan(getState(), frame);
