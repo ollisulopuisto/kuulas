@@ -2925,6 +2925,8 @@
   "ui.record.cart_new": "Uusi raita, Kysymykset",
   "ui.record.cart_warning": "Tällä raidalla on jo ääntä toistokursorista eteenpäin. Äänityksen aikana soittamasi leikkeet kirjoittavat sen päälle.",
   "ui.record.stop_confirm": "Pysäytetäänkö äänitys? Paina uudelleen ({seconds} s)",
+  "ui.record.stop_confirm_short": "Uudelleen ({seconds} s)",
+  "ui.record.stop_hold_short": "Pidä 2 s",
   "ui.record.stop_hold": "Pysäytä pitämällä 2 s",
   "ui.record.stop_keys": "Välilyönti tai painike. Esc vain piilottaa näkymän; äänitys jatkuu.",
   "ui.record.stopping": "Pysäytetään ja viedään otto aikajanalle…",
