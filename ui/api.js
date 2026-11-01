@@ -12,7 +12,10 @@ export class ApiError extends Error {
 
 async function request(path, options = {}) {
   const headers = typeof options.body === "string" ? { "Content-Type": "application/json" } : {};
-  const response = await fetch(path, { ...options, headers: { ...headers, ...options.headers } });
+  const response = await fetch(path, {
+    ...options,
+    headers: { ...headers, ...options.headers },
+  });
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     throw new ApiError(body.error?.text ?? response.statusText, response.status, body);
@@ -70,6 +73,13 @@ export const disarmRecording = () => post("/api/record/disarm", {});
 export const stopRecording = (body) => post("/api/record/stop", body);
 /** Put takes left by a crash on the timeline: the state, plus { imported, pending }. */
 export const importTakes = (takes) => post("/api/record/import", { takes });
+/** The take-so-far's words (owner, 2026-11-01): all of them, or matching `q` - searchable
+ * DURING the take ("did I say this already"). { live, flushing, words: [{ track, w, s, e }] },
+ * s/e in flicks; `flushing`: the take is over but its last words are still landing. */
+export const getLiveTranscript = (q = null) =>
+  json(
+    q ? `/api/record/live-transcript?q=${encodeURIComponent(q)}` : "/api/record/live-transcript",
+  );
 /** The session's statistics (WP70): { stats, groups: [{ title, rows: [[label, value]] }], text }. */
 export const getStats = () => json("/api/stats");
 export const getWhatsNew = (after) =>
@@ -98,7 +108,10 @@ export const getEditPoints = (mode, track = null) =>
 export const cutPreview = (words) => post("/api/cut-preview", { words });
 /** Replace one contiguous transcript range (a new transcript revision, one undo step). */
 export const correctWords = (media, start, end, w) =>
-  json("/api/words", { method: "PUT", body: JSON.stringify({ media, start, end, w }) });
+  json("/api/words", {
+    method: "PUT",
+    body: JSON.stringify({ media, start, end, w }),
+  });
 /**
  * Queue transcription of these media; answers { jobs: [job id] }. `backend` "local" (one job per
  * recording; `force`: also music-only recordings, which the server refuses) or "colab" (ONE job, the audio is uploaded to Google: ask first, see app.js).
@@ -107,11 +120,20 @@ export const localModel = () => json("/api/transcribe/local-model");
 export const installLocalModel = () => post("/api/transcribe/local-model/install", {});
 export const selectLocalModel = (path) => post("/api/transcribe/local-model/select", { path });
 export const transcribe = (mediaIds, { backend = "local", model, language, force = false } = {}) =>
-  post("/api/transcribe", { media_ids: mediaIds, backend, model, language, force });
+  post("/api/transcribe", {
+    media_ids: mediaIds,
+    backend,
+    model,
+    language,
+    force,
+  });
 /** The Colab transcription command: { settings (as stored), resolved (defaults filled in) }. */
 export const colabSettings = () => json("/api/settings/colab");
 export const saveColabSettings = (settings) =>
-  json("/api/settings/colab", { method: "PUT", body: JSON.stringify(settings) });
+  json("/api/settings/colab", {
+    method: "PUT",
+    body: JSON.stringify(settings),
+  });
 /** Is Colab signed in to Google, and how is a sign-in going: { signed_in, state, url, lines, error }. */
 export const colabSignin = () => json("/api/colab/signin");
 /** Start the Google sign-in (opens the browser; answers the same status). */
@@ -131,7 +153,10 @@ export const edit = ({ op, args, label = null, coalesce = null }) =>
 /** A file the server offers for download: { blob, disposition } (Content-Disposition). */
 export async function download(path) {
   const response = await request(path);
-  return { blob: await response.blob(), disposition: response.headers.get("Content-Disposition") };
+  return {
+    blob: await response.blob(),
+    disposition: response.headers.get("Content-Disposition"),
+  };
 }
 /** Queue the one job that renders every region to its own file; answers { jobs: [job id] }. */
 export const exportRegions = (options = {}) => post("/api/export-regions", options);
@@ -177,7 +202,10 @@ export const plugins = (refresh = false) => json(`/api/plugins${refresh ? "?refr
 export const testAutomixerRemote = (remote) =>
   post("/api/settings/automixer/remote-test", { remote });
 export const saveAutomixerSettings = (settings) =>
-  json("/api/settings/automixer", { method: "PUT", body: JSON.stringify(settings) });
+  json("/api/settings/automixer", {
+    method: "PUT",
+    body: JSON.stringify(settings),
+  });
 /** What the export dialog starts from: { mix, tracks (the last settings or null), folder,
  * remembered, edit, project (the project's path) }. */
 export const exportSettings = () => json("/api/export-settings");
@@ -211,7 +239,10 @@ export const moveClipboardEntry = (id, before) =>
   post(`/api/clipboard/${encodeURIComponent(id)}/move`, { before });
 export const copyToClipboard = (body) => post("/api/clipboard/copy", body);
 export const previewClipboardEntry = (id, limit = true, cartTrim = 0) =>
-  post(`/api/clipboard/${encodeURIComponent(id)}/preview`, { limit, cart_trim: cartTrim });
+  post(`/api/clipboard/${encodeURIComponent(id)}/preview`, {
+    limit,
+    cart_trim: cartTrim,
+  });
 // The chip's Stop while the timeline plays: only the mixed-in preview ends.
 export const stopClipboardPreview = () => post("/api/clipboard/preview/stop", {});
 export const pinClipboardEntry = (id, pinned) =>
