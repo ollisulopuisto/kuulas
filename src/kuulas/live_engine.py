@@ -109,7 +109,7 @@ class LiveEngineProcess:
         with self._lock:
             with self._state_lock:
                 if self._closed:
-                    raise RuntimeError("Live speech engine is closed")
+                    raise RuntimeError("error.live_engine.closed")
                 self._serial += 1
                 serial = self._serial
                 try:
@@ -117,31 +117,28 @@ class LiveEngineProcess:
                         json.dumps(dict(id=serial, op=op, **payload)) + "\n")
                     self.process.stdin.flush()
                 except (BrokenPipeError, OSError, ValueError) as exc:
-                    raise RuntimeError(
-                        "Live speech worker stopped; the lane reloads next take"
-                    ) from exc
+                    raise RuntimeError("error.live_engine.worker_stopped") from exc
             deadline = time.monotonic() + timeout
             while True:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     self.close()
-                    raise RuntimeError("Live speech engine timed out and was stopped")
+                    raise RuntimeError("error.live_engine.timeout")
                 try:
                     response = self._replies.get(timeout=min(.2, remaining))
                 except queue.Empty:
                     if self._closed:
-                        raise RuntimeError("Live speech engine is closed")
+                        raise RuntimeError("error.live_engine.closed")
                     continue
                 if self._closed:
-                    raise RuntimeError("Live speech engine is closed")
+                    raise RuntimeError("error.live_engine.closed")
                 if response is None:
-                    raise RuntimeError(
-                        "Live speech worker stopped: "
-                        + " ".join(self._errors)[-1600:])
+                    raise RuntimeError("error.live_engine.worker_stopped")
                 if response.get("id") != serial:
                     continue
-                if response.get("error"):
-                    raise RuntimeError(response["error"])
+                worker_error = response.get("error")
+                if worker_error:
+                    raise RuntimeError(worker_error)
                 return response["result"]
 
     def close(self):

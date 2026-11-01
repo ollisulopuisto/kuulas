@@ -100,7 +100,7 @@ class TestLiveEngineProcess:
     def test_timeout_closes_the_worker(self, fake_command):
         process = LiveEngineProcess(fake_command)
         process.request("load", model_path="m", runtime="r", device="cpu")
-        with pytest.raises(RuntimeError, match="timed out"):
+        with pytest.raises(RuntimeError, match="error.live_engine.timeout"):
             process.request("sleep", timeout=0.3)
         assert process.process.poll() is not None
         with pytest.raises(RuntimeError, match="closed"):

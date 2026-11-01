@@ -30,9 +30,9 @@ def chunk_window(flushed: int, done: int, rate: int, chunk_s: float = 5.0) -> tu
     """
     chunk = int(chunk_s * rate)
     if chunk <= 0:
-        raise ValueError("chunk_s must be positive")
+        raise ValueError("error.live_transcribe.chunk_s_positive")
     if done < 0 or flushed < done:
-        raise ValueError("bad offsets")
+        raise ValueError("error.live_transcribe.bad_offsets")
     if flushed - done < chunk:
         return None
     return (done, done + chunk)

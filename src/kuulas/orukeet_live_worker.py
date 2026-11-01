@@ -72,14 +72,14 @@ def main():
                     result = {"device": request["device"]}
                 elif request["op"] == "transcribe":
                     if engine is None:
-                        raise RuntimeError("No model loaded")
+                        raise RuntimeError("error.live_engine.no_model")
                     samples = array.array("f")
                     with open(request["audio_path"], "rb") as stream:
                         samples.frombytes(stream.read())
                     result = {"words": _transcribe_words(
                         engine, _resample(samples, int(request["rate"])))}
                 else:
-                    raise ValueError("Unknown worker operation")
+                    raise ValueError("error.live_engine.unknown_operation")
                 response = {"id": request["id"], "result": result}
             except Exception as exc:
                 response = {"id": request.get("id"), "error": str(exc)}
