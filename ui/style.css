@@ -3583,6 +3583,19 @@ input[type="text"] {
   background: var(--surface-sunken);
 }
 
+.inspector-track-clips .inspector-clip-file > summary {
+  cursor: pointer;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-strong);
+  padding: var(--space-1) 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inspector-track-clips .inspector-clip-file-clips {
+  margin-left: var(--space-3);
+}
+
 /* "mono" or "stereo" beside the role icon of a speech track. */
 .channel-tag {
   flex: none;

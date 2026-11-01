@@ -476,8 +476,12 @@
   "ui.track.pan": "Track pan",
   "ui.bus.name": "Bus: {name}",
   "ui.bus.rename": "Double-click to rename bus",
-  "ui.inspector.clips": "Clips on this track",
-  "ui.inspector.clips.empty": "No clips on this track.",
+  "ui.inspector.clips": "Files on this track",
+  "ui.inspector.clips.empty": "No files on this track.",
+  "ui.inspector.clips.count": {
+    "one": "{count} clip",
+    "other": "{count} clips"
+  },
   "ui.inspector.clips.jump": "Select this clip and move the play cursor to it",
   "ui.inspector.title": "Inspector",
   "ui.inspector.empty": "Select one clip to inspect it.",
