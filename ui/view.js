@@ -178,6 +178,11 @@ export function fitRange({ start, end, width, padding = 0.05 }) {
   return { zoom, scroll: Math.max(0, Math.round(start - padding * width * zoom)) };
 }
 
+/** The timeline's visible extent includes an active take before it is committed as a clip. */
+export function viewEnd(project, liveEnd = 0) {
+  return Math.max(projectEnd(project), Number.isFinite(liveEnd) ? Math.max(0, liveEnd) : 0);
+}
+
 /** First start to last end of the selected clips, or null when none is selected. */
 export function selectionSpan(project, selection) {
   let start = Number.POSITIVE_INFINITY;

@@ -402,6 +402,7 @@ $("notice-undo").addEventListener("click", () => {
 // -- server state -----------------------------------------------------------
 
 let fitWhole = true; // the view shows the whole edit and keeps doing so on resize/import
+let fitLive = false; // only an explicit fit during a take keeps the growing take in view
 let views = View.initialViews();
 let history = View.createViewHistory();
 let settleTimer = null;
@@ -411,13 +412,13 @@ let exportFormatList = null; // the same as [{ id, label, ... }], for the export
 
 const rate = () => getState().project?.rate ?? RATE;
 const totalFrames = () => projectEnd(getState().project);
+const viewEnd = () => View.viewEnd(getState().project, recordView.liveFrame());
 // What every export honours (owner, 2026-10-21): the In/Out range or the selected clips'
 // tracks and span; null is the whole mix (export-selection-model.js).
 const exportSelection = () => resolveExportSelection(getState(), { length: totalFrames() });
 const width = () => Math.max(1, timeline?.size().width ?? 1);
-const viewLevels = () =>
-  View.zoomLevels({ width: width(), rate: rate(), totalFrames: totalFrames() });
-const bounds = () => ({ width: width(), totalFrames: totalFrames() });
+const viewLevels = () => View.zoomLevels({ width: width(), rate: rate(), totalFrames: viewEnd() });
+const bounds = () => ({ width: width(), totalFrames: viewEnd() });
 
 function apply(response) {
   const patch = serverPatch(response, getState());
@@ -634,8 +635,9 @@ function startPreviewTicker() {
 
 function setView({ zoom, scroll }, { record = true, whole = false } = {}) {
   const next = Math.max(View.SAMPLE_ZOOM, zoom);
-  const at = View.clampScroll(scroll, next, width(), totalFrames());
+  const at = View.clampScroll(scroll, next, width(), viewEnd());
   fitWhole = whole;
+  fitLive = whole && recordView.liveFrame() !== null;
   setState({ zoom: next, scroll: at });
   views = View.rememberView(views, { zoom: next, scroll: at });
   if (record) history = View.visitView(history, { zoom: next, scroll: at });
@@ -671,7 +673,7 @@ function followEvent(event) {
       scrollFor(at, state.zoom, width()),
       state.zoom,
       width(),
-      totalFrames(),
+      viewEnd(),
     );
   }
   if (Object.keys(patch).length > 0) setState(patch);
@@ -683,6 +685,7 @@ function jumpTo(frame) {
 }
 // A manual view operation (scroll, overview drag or click, zoom, fit) detaches Follow.
 function markPaused() {
+  fitLive = false;
   followEvent({ type: "view-op" });
 }
 
@@ -1091,7 +1094,7 @@ const actions = {
         anchorFrame: anchorFrame(),
         width: width(),
         levels,
-        totalFrames: totalFrames(),
+        totalFrames: viewEnd(),
       },
     );
     views = result.views;
@@ -1212,7 +1215,7 @@ function onWheel(intent, x) {
         state.scroll + intent.dx * state.zoom,
         state.zoom,
         width(),
-        totalFrames(),
+        viewEnd(),
       );
       // Detach Follow first: the scroll below would otherwise be pulled back to the playhead.
       markPaused();
@@ -2965,7 +2968,8 @@ const recordView = createRecordView({
       !project ||
       recordView.isRecording() ||
       project.tracks.some((track) => track.clips.length > 0);
-    followLiveHead();
+    if (fitLive) fitWholeEdit();
+    else followLiveHead();
     timeline?.redraw();
     overview?.redraw();
   },
@@ -4389,7 +4393,7 @@ overview = createOverview({
       fitWhole = false;
       // Detach Follow first, as the wheel and the zoom do (see markPaused).
       markPaused();
-      setState({ scroll: View.clampScroll(scroll, getState().zoom, width(), totalFrames()) });
+      setState({ scroll: View.clampScroll(scroll, getState().zoom, width(), viewEnd()) });
     },
   },
 });
@@ -4949,7 +4953,7 @@ async function restoreView(pending = api.getViewMemory()) {
     const { patch, whole } = restoreFrom(view, {
       project: getState().project,
       width: width(),
-      totalFrames: totalFrames(),
+      totalFrames: viewEnd(),
     });
     if (patch.zoom !== undefined) {
       setView({ zoom: patch.zoom, scroll: patch.scroll ?? 0 }, { record: false, whole });
