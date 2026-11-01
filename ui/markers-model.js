@@ -57,6 +57,14 @@ export function markerIdAtX(markers, { scroll, zoom, width = Number.POSITIVE_INF
   return hits[0]?.id ?? null;
 }
 
+/**
+ * Where a dragged flag lands (owner, 2026-11-01): the pointer's frame minus the grab offset,
+ * never before zero. A region's end moves with it (ops.move_marker keeps the length).
+ */
+export function draggedMarkerStart(grabFrames, pointerFrame) {
+  return Math.max(0, Math.round(pointerFrame - grabFrames));
+}
+
 /** The marker that starts exactly at `frame` (where Next/Previous leaves the playhead). */
 export function markerAt(markers, frame) {
   return (markers ?? []).find((marker) => marker.start === frame) ?? null;

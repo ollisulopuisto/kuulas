@@ -1876,6 +1876,8 @@
   "ui.markers.history.add": "Add marker",
   "ui.markers.history.add_region": "Add region",
   "ui.markers.history.delete": "Delete marker",
+  "ui.markers.history.move": "Move marker",
+  "ui.markers.moved": "Moved {name}",
   "ui.markers.history.rename": "Rename marker",
   "ui.markers.history.kind": "Change marker kind",
   "ui.markers.kind.marker": "Marker",

@@ -1872,6 +1872,8 @@
   "ui.markers.history.add": "Lisää merkki",
   "ui.markers.history.add_region": "Lisää alue",
   "ui.markers.history.delete": "Poista merkki",
+  "ui.markers.history.move": "Siirrä merkki",
+  "ui.markers.moved": "Siirrettiin {name}",
   "ui.markers.history.rename": "Nimeä merkki uudelleen",
   "ui.markers.history.kind": "Vaihda merkin lajia",
   "ui.markers.kind.marker": "Merkki",

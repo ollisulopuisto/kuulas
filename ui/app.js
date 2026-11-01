@@ -4204,6 +4204,20 @@ const timeline = createTimeline({
     pointerDown: onPointerDown,
     seek: (frame) => void transport.seek(frame),
     scrub: (frame, velocity) => void transport.scrub(frame, velocity),
+    // A marker flag dragged along the ruler (owner, 2026-11-01): one undoable move on release.
+    moveMarker({ markerId, frame }) {
+      const marker = getState().project?.markers.find((item) => item.id === markerId);
+      if (!marker || marker.start === frame) return;
+      editor.change({
+        op: "move_marker",
+        args: { marker_id: markerId, start: frame },
+        label: t("ui.markers.history.move"),
+        done: () => {
+          setState({ markerSelected: markerId });
+          showNotice(t("ui.markers.moved", { name: marker.name }), "ok", { undo: true });
+        },
+      });
+    },
     // A click on a clip (no travel) also completes a lone in or out mark (marks.js).
     clickSeek: (frame) => {
       const mark = implicitMarkPlan(getState(), frame);
