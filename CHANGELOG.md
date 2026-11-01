@@ -1,3 +1,8 @@
+## [v26.11.1.4] - 2026-11-01
+
+- **Colab Whisper uses faster-whisper.** The packaged tool pin installs faster-whisper 1.2.1 with CUDA float16 instead of the optimized Photon/Kestrel runtime that rejected T4 hardware. The T4 path has unit coverage; a real-device run remains unverified.
+- **The Inspector groups clips by source file.** File groups are labeled clearly, and bus names can be edited by double-clicking them.
+
 ## [v26.11.1.3] - 2026-11-01
 
 - **Colab Whisper uses faster-whisper.** The packaged tool pin now uses the shared podcast revision that installs faster-whisper 1.2.1 with CUDA float16 for Whisper, avoiding the optimized Photon/Kestrel runtime that rejected Colab T4 hardware. The T4 path has unit coverage; a real-device run remains unverified.

@@ -1,6 +1,6 @@
 # kuulas implementation plan
 
-**Release v26.11.1.3:** packaged Colab Whisper uses faster-whisper 1.2.1 with CUDA float16 instead of the optimized Photon/Kestrel runtime that rejected T4 GPUs; real T4 verification remains an owner check. Also includes v26.11.1.2's shuttle boundary, WebSocket Host/Origin validation, waveform tile performance and What's New dialog fixes.
+**Release v26.11.1.4:** packaged Colab Whisper uses faster-whisper 1.2.1 with CUDA float16 instead of the optimized Photon/Kestrel runtime that rejected T4 GPUs; real T4 verification remains an owner check. The Inspector groups clips by source file and supports inline bus renaming. Also includes v26.11.1.2's shuttle boundary, WebSocket Host/Origin validation, waveform tile performance and What's New dialog fixes.
 
 **Release v26.10.30.6:** post-recording health notices for input overflows and inserted silence; live overview follows a recording's growing end; skip obscured timeline repaints during recording; live waveform draw cost is bounded to the visible window.
 
