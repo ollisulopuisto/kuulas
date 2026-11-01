@@ -2113,6 +2113,7 @@
   "ui.range.tip_in": "{name} {time} · napsauta: siirry (1) · kaksoisnapsauta: kirjoita aika",
   "ui.range.tip_out": "{name} {time} · napsauta: siirry (2) · kaksoisnapsauta: kirjoita aika",
   "ui.range.tip_length": "{name} {time} · napsauta: zoomaa välille ({key:view.fit_selection}) · kaksoisnapsauta: kirjoita pituus",
+  "ui.range.tip_length_live": "{name} {time} alkupisteestä, juoksee äänityksen ajan · kaksoisnapsauta: kirjoita pituus",
   "ui.range.tip_unset": "{name}: ei asetettu · Aseta alku: {key:mark.in}; aseta loppu: {key:mark.out} · kaksoisnapsauta: kirjoita aika",
   "ui.range.tip_length_unset": "{name}: aseta ensin alkupiste · kaksoisnapsauta: kirjoita pituus",
   "ui.range.field": "{name}, kirjoita aika",

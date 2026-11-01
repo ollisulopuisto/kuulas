@@ -6026,3 +6026,7 @@ legend.form-heading {
     display: none;
   }
 }
+/* A live length counts from the in point to the take's place while recording. */
+.mrow.live .v {
+  color: var(--accent-text);
+}
