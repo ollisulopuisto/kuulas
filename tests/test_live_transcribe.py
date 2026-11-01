@@ -303,3 +303,75 @@ class TestLiveTranscribeRunner:
             assert runner._thread.is_alive()
         finally:
             runner.stop()
+
+
+class TestFinish:
+    """The take is over: the trailing partial chunk is transcribed, not lost."""
+
+    def make(self, words_by_call):
+        from kuulas.live_transcribe import LiveTranscriber
+        store = LiveTranscript()
+        calls = []
+        def engine(audio, rate):
+            calls.append(len(audio))
+            return words_by_call[len(calls) - 1] if len(calls) <= len(words_by_call) else []
+        live = LiveTranscriber(rate=RATE, track_id="t1", store=store,
+                               engine=engine,
+                               read_frames=lambda s, e: [0.0] * (e - s))
+        return live, store
+
+    def test_tail_after_full_chunks_is_transcribed(self):
+        live, store = self.make(
+            [[{"word": "eka", "start": 1.0, "end": 1.5}],
+             [{"word": "loppu", "start": 1.0, "end": 1.5}]])
+        live.step(6 * RATE)          # [0, 5 s)
+        status = live.finish(int(6.5 * RATE))  # tail [5 s, 6.5 s)
+        assert status["tail"] is True and status["end"] == int(6.5 * RATE)
+        from kuulas.clock import FLICKS
+        assert [w["w"] for w in store.words()] == ["eka", "loppu"]
+        # the tail word: 1.0 s into a window that began at 4.5 s -> 5.5 s on the clock
+        assert store.words()[1]["s"] == round(5.5 * FLICKS)
+        assert live.done_frames == int(6.5 * RATE)
+
+    def test_tiny_tail_is_skipped(self):
+        live, store = self.make([[{"word": "eka", "start": 1.0, "end": 1.5}]])
+        live.step(6 * RATE)
+        assert live.finish(int(5.1 * RATE)) is None
+        assert [w["w"] for w in store.words()] == ["eka"]
+
+    def test_sidecar_finish_transcribes_the_tail(self):
+        from kuulas.live_transcribe import LiveTranscribeSidecar
+        store = LiveTranscript()
+        sidecar = LiveTranscribeSidecar(
+            rate=RATE, folder="/tmp/fake", lane_files={"t1": "x.wav"},
+            engine_factory=lambda: (lambda audio, rate: [
+                {"word": "sana", "start": 1.0, "end": 1.5}]),
+            store=store, read_frames=lambda s, e: [0.0] * (e - s),
+            flushed=lambda p: 6 * RATE)
+        sidecar.tick()            # consumes the full [0, 5 s) chunk
+        statuses = sidecar.finish()  # flushes the trailing [5 s, 6 s)
+        assert any(s.get("tail") for s in statuses)
+        from kuulas.clock import FLICKS
+        assert [w["w"] for w in store.words()] == ["sana", "sana"]
+        assert store.words()[1]["s"] == round(5.5 * FLICKS)
+
+    def test_runner_stop_flushes_everything_and_publishes(self):
+        from kuulas.live_transcribe import LiveTranscribeRunner, LiveTranscribeSidecar
+        store = LiveTranscript()
+        sidecar = LiveTranscribeSidecar(
+            rate=RATE, folder="/tmp/fake", lane_files={"t1": "x.wav"},
+            engine_factory=lambda: (lambda audio, rate: [
+                {"word": "loppu", "start": 0.5, "end": 1.0}]),
+            store=store, read_frames=lambda s, e: [0.0] * (e - s),
+            flushed=lambda p: 6 * RATE)
+        published = []
+        runner = LiveTranscribeRunner(sidecar, publish=published.append,
+                                      min_interval_s=0.02)
+        runner.start()
+        runner.poke()
+        runner.stop(flush=True)
+        # however the words arrived (chunks or the tail flush), nothing is left
+        lane = sidecar._lanes["t1"]
+        assert lane["live"].done_frames == 6 * RATE
+        assert store.words()
+        assert published

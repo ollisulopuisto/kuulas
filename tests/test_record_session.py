@@ -1200,9 +1200,16 @@ def test_live_transcript_words_arrive_while_the_take_runs(session, recorder):
         assert [h["w"] for h in hits] == ["kokouksesta"]
         assert [w["w"] for w in rs.live_transcript_words()] == ["terveiset", "kokouksesta"]
         rs.stop("two_step")
-        # Over: the live store is gone; the post-hoc worker owns the take's text.
         wait_until(lambda: not rs.status()["recording"], timeout=20)
-        assert rs.live_transcript_words() == []
+        # Owner, 2026-11-01: stop keeps the take's words searchable (the tail
+        # flushed) and the import hands them to the media - no cold re-run.
+        # The import consumed the live store into the media's transcript.
+        media = session.state.media[0]
+        rev = session.history.material["transcripts"].get(media.id)
+        assert rev is not None
+        assert [w["w"] for w in session.history.transcript(rev)] == [
+            "terveiset", "kokouksesta"]
+        assert rs.live_transcript_words() == []  # handed off, not kept twice
     finally:
         rs.close()
 

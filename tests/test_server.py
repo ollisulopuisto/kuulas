@@ -1368,3 +1368,32 @@ def test_meter_message_preserves_lufs_warmup_and_silence():
     peaks = dict.fromkeys(("l", "r", "hold_l", "hold_r", "rms_l", "rms_r"), -90.0)
     assert meter_message({**peaks, "short_term": None})["meter"]["short_term"] is None
     assert meter_message({**peaks, "short_term": -90})["meter"]["short_term"] == -90
+
+
+class TestLiveTranscriptEndpoint:
+    """The take-so-far's words over HTTP: search works DURING the take."""
+
+    def test_no_recorder_reports_not_live(self, client):
+        r = client.get("/api/record/live-transcript")
+        assert r.status_code == 200
+        assert r.json() == {"live": False, "words": []}
+
+    def test_words_and_search_come_from_the_recorder(self, session, engine, tmp_path):
+        class FakeRecorder:
+            def set_publish(self, publish):
+                pass
+            def live_transcript_words(self, track):
+                assert track == "t1"
+                return [{"track": "t1", "w": "hei", "s": 0, "e": 10}]
+            def live_transcript_search(self, q):
+                assert q == "hei"
+                return [{"track": "t1", "w": "hei", "s": 0, "e": 10}]
+        ui = tmp_path / "ui"
+        ui.mkdir()
+        app = create_app(session, engine, language="en", ui_dir=ui,
+                         recorder=FakeRecorder())
+        with TestClient(app) as c:
+            r = c.get("/api/record/live-transcript", params={"track": "t1"})
+            assert r.json()["words"] == [{"track": "t1", "w": "hei", "s": 0, "e": 10}]
+            r = c.get("/api/record/live-transcript", params={"q": "hei"})
+            assert r.json()["words"] == [{"track": "t1", "w": "hei", "s": 0, "e": 10}]

@@ -730,6 +730,7 @@ class RecordSession:
                       "start": min(c.start for cl, _ in lanes for c in cl),
                       "tracks": len(lanes), "interrupted": interrupted}
             self._imported[take] = result
+            self._live_handoff(take)
             self.publish({"type": "record", "kind": "imported", **result})
             return result
 
@@ -815,6 +816,7 @@ class RecordSession:
                 lane_files[key] = rt.segment_file(take, lane["name"], 1)
         if not lane_files:
             return
+        self._live_done = None
         sidecar = live_transcribe.LiveTranscribeSidecar(
             rate=self.rate, folder=self.folder, lane_files=lane_files,
             engine_factory=self._live_engine_factory)
@@ -825,22 +827,64 @@ class RecordSession:
         self._live_runner.start()
 
     def _live_stop(self) -> None:
+        # The take's words stay searchable after the stop (owner, 2026-11-01):
+        # the runner flushes the trailing chunk and the store is kept as the
+        # take's transcript until import hands it to the media (set_transcript)
+        # or the next take replaces it. No cold re-transcription by default.
         runner, self._live_runner = self._live_runner, None
         if runner is not None:
-            runner.stop()
+            runner.stop(flush=True)
+            self._live_done = runner.sidecar
+
+    _live_done: live_transcribe.LiveTranscribeSidecar | None = None
+
+    def _live_store(self) -> live_transcribe.LiveTranscript | None:
+        if self._live_runner is not None:
+            return self._live_runner.sidecar.store
+        return self._live_done.store if self._live_done is not None else None
 
     def live_transcript_search(self, query: str) -> list[dict]:
-        # The take-so-far's words matching query, searched DURING the take.
-        runner = self._live_runner
-        if runner is None:
-            return []
-        return runner.sidecar.store.search(query)
+        # The take-so-far's (or the just-finished take's) words matching query.
+        store = self._live_store()
+        return store.search(query) if store is not None else []
 
     def live_transcript_words(self, track_id: str | None = None) -> list[dict]:
-        runner = self._live_runner
-        if runner is None:
-            return []
-        return runner.sidecar.store.words(track_id)
+        store = self._live_store()
+        return store.words(track_id) if store is not None else []
+
+    def _live_handoff(self, take: str) -> None:
+        """The finished take's live words become the media's transcript (undoable).
+
+        One durable step per media, so the take's text is searchable after the
+        take with no post-hoc job; a later background transcription replaces it
+        the usual way. Failure leaves the live store in place, never the take.
+        """
+        sidecar, self._live_done = self._live_done, None
+        if sidecar is None:
+            return
+        # file name -> media id, for the lanes' take files that were imported
+        by_name = {}
+        for media in self.session.state.media:
+            try:
+                where = self.session.store.meta(media.id).get("linked_path")
+            except (KeyError, OSError):
+                continue
+            if where:
+                by_name[str(where).rsplit("/", 1)[-1]] = media.id
+        for key, lane in sidecar._lanes.items():
+            words = sidecar.store.words(key)
+            if not words:
+                continue
+            media_id = by_name.get(lane["file"])
+            if media_id is None:
+                continue
+            try:
+                self.session.set_transcript(
+                    media_id, words, t("history.transcript", media_id=media_id),
+                    timing="")
+            except Exception as error:
+                log.warning("live transcript handoff failed for %s: %s",
+                            lane["file"], error)
 
     def _on_event(self, event: dict) -> None:
         kind = event.get("event")

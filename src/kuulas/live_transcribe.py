@@ -155,6 +155,38 @@ class LiveTranscriber:
         self.done_frames = end
         return {"start": start, "end": end, "words": len(kept)}
 
+    #: A tail shorter than this is not transcribed (too little to say).
+    MIN_TAIL_S = 0.25
+
+    def finish(self, flushed: int) -> dict | None:
+        """The trailing partial chunk when the take is over, else None.
+
+        The live loop transcribes only full chunks; the tail between the last
+        one and the take's end is read here, once, so stop loses no words.
+        """
+        if flushed - self.done_frames < int(self.MIN_TAIL_S * self.rate):
+            return None
+        start, end = self.done_frames, flushed
+        start_flicks = round(start / self.rate * FLICKS)
+        ctx = int(self.ctx_s * self.rate)
+        read_start = max(0, start - ctx)
+        audio = self.read_frames(read_start, end)
+        kept = []
+        for item in self.engine(audio, self.rate):
+            text = str(item.get("word", item.get("text", item.get("w", "")))).strip()
+            if not text:
+                continue
+            s_sec = float(item.get("start", item.get("s", 0.0))) + read_start / self.rate
+            e_sec = float(item.get("end", item.get("e", 0.0))) + read_start / self.rate
+            w_s = round(s_sec * FLICKS)
+            w_e = max(round(e_sec * FLICKS), w_s + 1)
+            if w_s < start_flicks:
+                continue
+            kept.append({"w": text, "s": w_s, "e": w_e, "spk": ""})
+        self.store.add(self.track_id, kept, since=start_flicks)
+        self.done_frames = end
+        return {"start": start, "end": end, "words": len(kept), "tail": True}
+
 
 #: Give up on a lane after this many engine errors in a row (the take goes on
 #: regardless; a lane out of live text is a gap, never a stopped take).
@@ -202,8 +234,9 @@ class LiveTranscribeSidecar:
                  engine_factory, store: LiveTranscript | None = None,
                  chunk_s: float = 5.0, ctx_s: float = 0.5,
                  read_frames=None, flushed=flushed_frames):
+        from pathlib import Path
         self.rate = rate
-        self.folder = folder
+        self.folder = Path(folder)
         self.store = store or LiveTranscript()
         self._engine_factory = engine_factory
         self._engine = None
@@ -216,22 +249,28 @@ class LiveTranscribeSidecar:
         self._chunk_s = chunk_s
         self._ctx_s = ctx_s
 
+    def _ensure_lane(self, track_id: str, lane: dict):
+        """Spin up the lane's transcriber (and the shared engine) on demand."""
+        if lane["live"] is not None:
+            return
+        if self._engine is None:
+            self._engine = self._engine_factory()
+        path = self.folder / lane["file"]
+        read = self._read
+        if read is None:
+            read = lambda start, end, p=path: _read_frames_soundfile(p, start, end)
+        lane["live"] = LiveTranscriber(
+            rate=self.rate, track_id=track_id, store=self.store,
+            engine=self._engine, read_frames=read,
+            chunk_s=self._chunk_s, ctx_s=self._ctx_s)
+
     def _lane_step(self, track_id: str, lane: dict) -> dict:
-        path = self.folder / lane["file"] if hasattr(self.folder, "__truediv__") else None
+        path = self.folder / lane["file"]
         flushed = self._flushed(path)
         done = lane["live"].done_frames if lane["live"] is not None else 0
         if chunk_window(flushed, done, self.rate, self._chunk_s) is None:
             return {"track": track_id, "waiting": True, "done_frames": done}
-        if lane["live"] is None:
-            if self._engine is None:
-                self._engine = self._engine_factory()
-            read = self._read
-            if read is None:
-                read = lambda start, end, p=path: _read_frames_soundfile(p, start, end)
-            lane["live"] = LiveTranscriber(
-                rate=self.rate, track_id=track_id, store=self.store,
-                engine=self._engine, read_frames=read,
-                chunk_s=self._chunk_s, ctx_s=self._ctx_s)
+        self._ensure_lane(track_id, lane)
         try:
             status = lane["live"].step(flushed)
         except Exception as error:  # the take never stops for transcription
@@ -245,6 +284,22 @@ class LiveTranscribeSidecar:
             return {"track": track_id, "waiting": True,
                     "done_frames": lane["live"].done_frames}
         return {"track": track_id, **status, "done_frames": lane["live"].done_frames}
+
+    def finish(self) -> list[dict]:
+        """The take is over: transcribe each lane's trailing partial chunk."""
+        out = []
+        for track_id, lane in self._lanes.items():
+            path = self.folder / lane["file"]
+            try:
+                self._ensure_lane(track_id, lane)
+                status = lane["live"].finish(self._flushed(path))
+            except Exception as error:
+                lane["error"] = str(error)
+                out.append({"track": track_id, "error": str(error)})
+                continue
+            if status is not None:
+                out.append({"track": track_id, **status})
+        return out
 
     def tick(self) -> list[dict]:
         """One chunk per lane that has a full one ready; per-lane statuses."""
@@ -290,12 +345,17 @@ class LiveTranscribeRunner:
         """New audio may be ready: tick soon (the watcher thread calls this)."""
         self._wake.set()
 
-    def stop(self, timeout: float = 5.0) -> None:
+    def stop(self, timeout: float = 30.0, flush: bool = True) -> None:
+        """Stop the thread; ``flush`` first transcribes the trailing partial chunks
+        (the take's last seconds) on the runner thread, so stop loses no words."""
+        self._flush = flush
         self._stop.set()
         self._wake.set()
         if self._thread is not None:
             self._thread.join(timeout)
             self._thread = None
+
+    _flush = True
 
     def _run(self) -> None:
         last = 0.0
@@ -303,6 +363,8 @@ class LiveTranscribeRunner:
             self._wake.wait(self.min_interval_s)
             self._wake.clear()
             if self._stop.is_set():
+                if self._flush:
+                    self._run_finish()
                 return
             now = time.monotonic()
             wait = self.min_interval_s - (now - last)
@@ -322,3 +384,14 @@ class LiveTranscribeRunner:
             interesting = [s for s in statuses if not s.get("waiting")]
             if interesting:
                 self.publish(interesting)
+
+    def _run_finish(self) -> None:
+        try:
+            statuses = self.sidecar.finish()
+        except Exception as error:
+            self.errors += 1
+            if self._log:
+                self._log.warning("live transcription finish failed: %s", error)
+            return
+        if statuses:
+            self.publish(statuses)
