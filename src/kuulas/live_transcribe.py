@@ -17,6 +17,7 @@ in-memory store (``LiveTranscript``). The sidecar that drives them lives in
 from __future__ import annotations
 
 import threading
+import time
 
 
 def chunk_window(flushed: int, done: int, rate: int, chunk_s: float = 5.0) -> tuple[int, int] | None:
@@ -253,3 +254,71 @@ class LiveTranscribeSidecar:
                 continue
             out.append(self._lane_step(track_id, lane))
         return out
+
+
+class LiveTranscribeRunner:
+    """The sidecar's thread: throttled ticks, never a risk to the take.
+
+    The record watcher only pokes (``poke``); transcription runs here so a slow
+    engine never blocks the take's level frames or its stop. Ticks are at most
+    ``min_interval_s`` apart; a poke while a tick runs folds into the next one.
+    An engine that keeps failing only loses its lane (the sidecar's rule), and
+    an unexpected error is logged, counted and survived: the thread dies only
+    on ``stop``.
+    """
+
+    def __init__(self, sidecar: LiveTranscribeSidecar, publish=None,
+                 min_interval_s: float = 1.0, log=None):
+        self.sidecar = sidecar
+        self.publish = publish or (lambda statuses: None)
+        self.min_interval_s = min_interval_s
+        self._log = log
+        self._wake = threading.Event()
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+        self.errors = 0
+        self.ticks = 0
+
+    def start(self) -> None:
+        if self._thread is not None:
+            return
+        self._thread = threading.Thread(target=self._run, daemon=True,
+                                        name="kuulas-live-transcribe")
+        self._thread.start()
+
+    def poke(self) -> None:
+        """New audio may be ready: tick soon (the watcher thread calls this)."""
+        self._wake.set()
+
+    def stop(self, timeout: float = 5.0) -> None:
+        self._stop.set()
+        self._wake.set()
+        if self._thread is not None:
+            self._thread.join(timeout)
+            self._thread = None
+
+    def _run(self) -> None:
+        last = 0.0
+        while not self._stop.is_set():
+            self._wake.wait(self.min_interval_s)
+            self._wake.clear()
+            if self._stop.is_set():
+                return
+            now = time.monotonic()
+            wait = self.min_interval_s - (now - last)
+            if wait > 0:
+                if self._stop.wait(wait):
+                    return
+                self._wake.clear()
+            try:
+                statuses = self.sidecar.tick()
+                self.ticks += 1
+            except Exception as error:  # transcription never stops the take
+                self.errors += 1
+                if self._log:
+                    self._log.warning("live transcription tick failed: %s", error)
+                continue
+            last = time.monotonic()
+            interesting = [s for s in statuses if not s.get("waiting")]
+            if interesting:
+                self.publish(interesting)

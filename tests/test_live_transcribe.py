@@ -7,6 +7,8 @@ how chunk words merge without duplicates, and the searchable store.
 
 from __future__ import annotations
 
+import time
+
 import pytest
 
 from kuulas.live_transcribe import LiveTranscript, chunk_window, merge_words
@@ -241,3 +243,63 @@ class TestLiveTranscribeSidecar:
         statuses = sidecar.tick()
         assert {s["track"] for s in statuses} == {"t1", "t2"}
         assert all(s.get("end") == 5 * RATE for s in statuses)
+
+
+class TestLiveTranscribeRunner:
+    def make(self, **sidecar_kw):
+        from kuulas.live_transcribe import LiveTranscribeRunner, LiveTranscribeSidecar
+        store = LiveTranscript()
+        sidecar = LiveTranscribeSidecar(
+            rate=RATE, folder="/tmp/fake", lane_files={"t1": "x.wav"},
+            engine_factory=lambda: (lambda audio, rate: []),
+            store=store, read_frames=lambda s, e: [0.0] * (e - s),
+            **sidecar_kw)
+        published = []
+        runner = LiveTranscribeRunner(sidecar, publish=published.append,
+                                      min_interval_s=0.05)
+        return runner, sidecar, published
+
+    def test_poke_ticks_and_publishes(self):
+        flushed = [6 * RATE]
+        runner, sidecar, published = self.make(flushed=lambda p: flushed[0])
+        runner.start()
+        try:
+            runner.poke()
+            for _ in range(100):
+                if published:
+                    break
+                time.sleep(0.01)
+            assert runner.ticks >= 1
+            assert published and published[0][0]["end"] == 5 * RATE
+        finally:
+            runner.stop()
+        assert runner._thread is None
+
+    def test_waiting_ticks_are_not_published(self):
+        runner, sidecar, published = self.make(flushed=lambda p: 3 * RATE)
+        runner.start()
+        try:
+            runner.poke()
+            time.sleep(0.3)
+            assert runner.ticks >= 1
+            assert published == []
+        finally:
+            runner.stop()
+
+    def test_engine_errors_are_survived_and_counted(self):
+        import logging
+        def boom(p):
+            raise RuntimeError("levyvika")
+        runner, sidecar, published = self.make()
+        sidecar._flushed = boom
+        runner.start()
+        try:
+            runner.poke()
+            for _ in range(100):
+                if runner.errors:
+                    break
+                time.sleep(0.01)
+            assert runner.errors >= 1
+            assert runner._thread.is_alive()
+        finally:
+            runner.stop()
