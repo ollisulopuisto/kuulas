@@ -1737,9 +1737,12 @@ document.addEventListener("keyup", (event) => {
 
 $("play").addEventListener("click", () => actions.togglePlay());
 // Record sits beside Play: the same command as Transport > Record… (no key of its own yet).
-$("record").addEventListener("click", () =>
-  keyboard.registry.run("transport.record", null, getState()),
-);
+// While a take records the button is the red Stop (record-view.js): the click does not open
+// the view, the pointer gesture on the button stops the take.
+$("record").addEventListener("click", () => {
+  if (recordView.isRecording()) return;
+  keyboard.registry.run("transport.record", null, getState());
+});
 $("loop").addEventListener("click", () =>
   keyboard.registry.run("transport.loop", null, getState()),
 );
@@ -2960,8 +2963,11 @@ const recordView = createRecordView({
   apply,
   notify: showNotice,
   chip: $("rec-chip"),
+  recordButton: $("record"),
   addMarker: () => keyboard.registry.run("marker.add", null, getState()),
   onLive: () => {
+    // An in mark with no out mark counts up to the take's place in the corner (Pituus).
+    if (getState().inPoint !== null) marksCorner.render(getState());
     if (recordView.isVisible()) return;
     const project = getState().project;
     $("empty").hidden =
@@ -4204,6 +4210,20 @@ const timeline = createTimeline({
     pointerDown: onPointerDown,
     seek: (frame) => void transport.seek(frame),
     scrub: (frame, velocity) => void transport.scrub(frame, velocity),
+    // A marker flag dragged along the ruler (owner, 2026-11-01): one undoable move on release.
+    moveMarker({ markerId, frame }) {
+      const marker = getState().project?.markers.find((item) => item.id === markerId);
+      if (!marker || marker.start === frame) return;
+      editor.change({
+        op: "move_marker",
+        args: { marker_id: markerId, start: frame },
+        label: t("ui.markers.history.move"),
+        done: () => {
+          setState({ markerSelected: markerId });
+          showNotice(t("ui.markers.moved", { name: marker.name }), "ok", { undo: true });
+        },
+      });
+    },
     // A click on a clip (no travel) also completes a lone in or out mark (marks.js).
     clickSeek: (frame) => {
       const mark = implicitMarkPlan(getState(), frame);
@@ -4417,6 +4437,7 @@ const marksCorner = createMarksCorner({
   run: (id) => keyboard.registry.run(id, null, getState()),
   patch: setState,
   copy: (text) => void clock.copy(text),
+  liveFrame: () => recordView.liveFrame(),
   t,
 });
 

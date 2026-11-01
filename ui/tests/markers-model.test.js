@@ -3,6 +3,7 @@ import { describe, test } from "node:test";
 import {
   adjacentMarker,
   chapterCount,
+  draggedMarkerStart,
   flagLayout,
   markerAt,
   markerIdAtX,
@@ -178,4 +179,13 @@ describe("which marker a ruler pointer is on", () => {
     assert.equal(markerIdAtX(markers, view, 400), "r");
     assert.equal(markerIdAtX(markers, view, 600), null);
   });
+});
+
+test("draggedMarkerStart: pointer frame minus the grab offset, clamped at zero", () => {
+  assert.equal(draggedMarkerStart(100, 500), 400);
+  assert.equal(draggedMarkerStart(0, 48000), 48000);
+  // A grab near the flag's left edge dragged to the ruler's start never goes negative.
+  assert.equal(draggedMarkerStart(240, 100), 0);
+  // Sub-frame pointers round to the nearest frame.
+  assert.equal(draggedMarkerStart(0, 100.6), 101);
 });
