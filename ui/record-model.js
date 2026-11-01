@@ -163,10 +163,19 @@ export function channelPeaks(frame, count) {
 export function cornerStopFace({ recording, stopping, view, mode, t }) {
   if (!recording) return null;
   return {
-    label: stopping ? t("ui.record.stopping") : stopLabel(view, mode, t),
+    label: stopping ? t("ui.record.stopping") : cornerStopLabel(view, mode, t),
     state: stopping ? "stopped" : view.state,
     disabled: stopping,
   };
+}
+
+/** The corner Record button is a small toolbar button: the confirmation must fit it. */
+export function cornerStopLabel(view, mode, t) {
+  if (view.state === "stopped") return t("ui.record.stopping");
+  if (view.state === "confirming")
+    return t("ui.record.stop_confirm_short", { seconds: view.secondsLeft });
+  if (mode === "hold") return t("ui.record.stop_hold_short");
+  return t("ui.record.stop");
 }
 
 /** What the stop button says for the gesture's state (stop-mode.js). */

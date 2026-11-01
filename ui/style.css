@@ -517,6 +517,13 @@ button.chip {
 .corner .rec-button.record-stop .rec-dot {
   color: var(--danger-text);
 }
+/* The stop words are longer than the 56 px corner button: let them wrap (owner, 2026-11-01,
+   the confirmation used to paint over the neighboring controls). */
+.corner .rec-button.record-stop .lbl {
+  white-space: normal;
+  text-align: center;
+  line-height: 1.1;
+}
 /* The clock now lives in the dock's left column (.tx-numbers, below). */
 .tx-numbers .timecode {
   --tc: 26px;

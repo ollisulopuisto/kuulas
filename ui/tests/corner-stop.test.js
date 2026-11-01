@@ -30,7 +30,7 @@ test("cornerStopFace: recording, one-click mode -> the plain stop label", () => 
   assert.equal(face.disabled, false);
 });
 
-test("cornerStopFace: hold mode -> the hold label", () => {
+test("cornerStopFace: hold mode -> the short hold label (a small toolbar button)", () => {
   const face = cornerStopFace({
     recording: true,
     stopping: false,
@@ -38,10 +38,10 @@ test("cornerStopFace: hold mode -> the hold label", () => {
     mode: "hold",
     t,
   });
-  assert.equal(face.label, "ui.record.stop_hold");
+  assert.equal(face.label, "ui.record.stop_hold_short");
 });
 
-test("cornerStopFace: confirming state carries the countdown label and state", () => {
+test("cornerStopFace: confirming state carries the short countdown label and state", () => {
   const face = cornerStopFace({
     recording: true,
     stopping: false,
@@ -49,7 +49,7 @@ test("cornerStopFace: confirming state carries the countdown label and state", (
     mode: "confirm",
     t,
   });
-  assert.equal(face.label, 'ui.record.stop_confirm:{"seconds":2}');
+  assert.equal(face.label, 'ui.record.stop_confirm_short:{"seconds":2}');
   assert.equal(face.state, "confirming");
 });
 
