@@ -504,6 +504,19 @@ button.chip {
 .rec-dot {
   color: var(--danger-text);
 }
+/* While a take records the corner Record button is the red Stop (owner, 2026-11-01). */
+.corner .rec-button.record-stop {
+  background: var(--danger-subtle);
+  border-color: var(--danger);
+  color: var(--danger-text);
+}
+.corner .rec-button.record-stop:hover {
+  background: var(--danger-subtle);
+  border-color: var(--danger);
+}
+.corner .rec-button.record-stop .rec-dot {
+  color: var(--danger-text);
+}
 /* The clock now lives in the dock's left column (.tx-numbers, below). */
 .tx-numbers .timecode {
   --tc: 26px;
