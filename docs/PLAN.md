@@ -1,5 +1,7 @@
 # kuulas implementation plan
 
+**Release v26.11.1.1:** drag volume-envelope control points in time and level, with grab-offset preservation and one undo step per drag. The What's New heading now identifies Kuulas in English and Finnish. Focus mode's completed status is reflected in the roadmap.
+
 **Release v26.10.30.6:** post-recording health notices for input overflows and inserted silence; live overview follows a recording's growing end; skip obscured timeline repaints during recording; live waveform draw cost is bounded to the visible window.
 
 **Build v26.10.31.2:** block-levelling review shows measured level, deviation, proposed gain and a live count of checked blocks, tracks and speakers before Apply. Open cut candidates now have overview ticks; transcript Undo/Redo revision switching is covered at session level and explained in English and Finnish help. Recording health notices cover healthy, overflow, dropout and combined takes, and remain visible after a problematic take. CI uses Node 24, changed-path filters and parallel Python, lint and UI jobs. The short-project grain test accounts for one minimum-length final grain. Regenerated the keys reference and embedded design-prototype help from their canonical sources. Real recording-device checks remain for the owner.
@@ -889,7 +891,7 @@ undo without touching the mouse.
 
 ### WP6 — Mouse editing
 
-Status: open. Needs WP4.
+Status: partly done. Core mouse editing and volume-envelope point dragging are built; owner acceptance checks remain in `docs/M1-VERIFY.md`.
 
 All on the canvas, hit-testing in `timeline.js` (pure function, tested):
 
@@ -924,9 +926,10 @@ All on the canvas, hit-testing in `timeline.js` (pure function, tested):
   over it; Alt+Cmd keeps its own meanings. The press does not change the selection.
 - Drag the clip gain line vertically: `set_clip gain_db` with coalesce key
   `clip-gain-<id>`, live while dragging.
-- Alt+click on the gain line: add envelope point at that source frame
-  (`set_clip_envelope` with the new list); drag a point to move it; Alt+click
-  a point to delete it.
+- Double-click near the gain line or envelope: add a point at that source frame;
+  double-click an existing point to remove it. Drag a point to move it in time
+  and level while preserving the pointer's grab offset; updates coalesce into
+  one undo step (`set_clip_envelope`).
 - Drag top corners of a clip: fade in/out.
 - Snap to clip edges and playhead within 8 px (hold Mod to disable).
 

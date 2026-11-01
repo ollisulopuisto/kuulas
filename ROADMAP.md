@@ -332,10 +332,10 @@ Released in v26.10.20.5 to v26.10.20.14, in order of importance:
   If the user jumps before the splice and sets only an IN marker, the OUT marker is placed at the splice (extend
   backwards). A marker is a guess only while its partner is unset; setting both explicitly overrides the guess; clear
   marks (Shift+Alt+I) forgets the ghost; a new cut moves it. Undo/redo restore it. Pure logic first (state + tests).
-- **Volume envelope points by double-click** (owner request 2026-10-20, QoL, not started): double-click on a clip's gain
-  line (or the envelope) adds a control point at that frame; double-click on an existing point removes it; drag moves it
-  (as now). Replaces the Alt+click spec in docs/PLAN.md (Alt+click can stay as an alias). Only near the line, so other
-  double-clicks (rename, open) are unaffected. One undo step each, `set_clip_envelope` with coalescing for drags.
+- **Volume-envelope control points** (owner request 2026-10-20, QoL; built in v26.11.1.1, not yet seen on screen):
+  double-click near a clip's gain line or envelope to add a point, double-click an existing point to remove it, or drag
+  a point in time and level. Dragging preserves the grab offset and coalesces into one undo step; other double-click
+  actions remain unaffected.
 - **Drag clips from the Clipboard panel onto the timeline** (owner request 2026-10-20, not started): drag a clipboard
   entry (or a single clip of it) from the Clipboard tab into the timeline; while dragging show the clip outline(s) as a
   ghost at the drop position and track (snap as for moving clips, Alt stops at neighbours, overwrite rules as paste),
@@ -433,7 +433,7 @@ Released in v26.10.20.5 to v26.10.20.14, in order of importance:
 
 ## Milestones
 
-Grouped from the build order in `docs/PLAN.md` (Triage) and updated by the owner's decisions. Status snapshot reviewed 2026-10-31 against release commit `d6ff32e8`; M1/M2 counts still include owner confirmation items. ✓ done (built and merged; owner testing is tracked in `docs/BUGS.md`), ◐ partly done, ▶ being built now, ↻ built and in review (not merged yet), otherwise open. Mirrors the roadmap page.
+Grouped from the build order in `docs/PLAN.md` (Triage) and updated by the owner's decisions. Status snapshot reviewed 2026-11-01 against consolidated commit `ff05d674`; M1/M2 counts still include owner confirmation items. ✓ done (built and merged; owner testing is tracked in `docs/BUGS.md`), ◐ partly done, ▶ being built now, ↻ built and in review (not merged yet), otherwise open. Mirrors the roadmap page.
 
 **M1 · First playable build** (23 of 28 done, 5 partly): Run kuulas, import, listen, edit by keyboard, undo, export WAV or MP3.
 

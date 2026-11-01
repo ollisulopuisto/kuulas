@@ -1,3 +1,8 @@
+## [v26.11.1.1] - 2026-11-01
+
+- **Move volume-envelope points by dragging.** The grabbed point follows the pointer in time and level, and a whole drag is one undo step. Double-click still adds or removes a point.
+- **What's New headings identify Kuulas.** English and Finnish use the same concise, localized title and show the version separately.
+
 ## [v26.10.31.3] - 2026-10-31
 
 - **Long-running editor jobs avoid App Nap.** In-process jobs now use the user-initiated activity that allows normal system and display sleep.
